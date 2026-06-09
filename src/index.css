@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* shadcn/ui CSS variables — retro palette */
+@layer base {
+  :root {
+    --background: 240 20% 4%;
+    --foreground: 240 20% 90%;
+    --card: 240 18% 8%;
+    --card-foreground: 240 20% 90%;
+    --popover: 240 18% 8%;
+    --popover-foreground: 240 20% 90%;
+    --primary: 54 100% 50%;
+    --primary-foreground: 240 20% 4%;
+    --secondary: 240 15% 15%;
+    --secondary-foreground: 240 20% 90%;
+    --muted: 240 15% 12%;
+    --muted-foreground: 240 10% 45%;
+    --accent: 186 100% 50%;
+    --accent-foreground: 240 20% 4%;
+    --destructive: 339 100% 60%;
+    --destructive-foreground: 240 20% 90%;
+    --border: 240 15% 16%;
+    --input: 240 15% 10%;
+    --ring: 186 100% 50%;
+    --radius: 0.25rem;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background: #080810;
+  color: #e0e0ff;
+}
+
+/* CRT scanlines */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.07) 2px,
+    rgba(0, 0, 0, 0.07) 4px
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* CRT vignette */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.65) 100%);
+  pointer-events: none;
+  z-index: 9997;
+}
+
+#root { width: 100%; }
+
+@keyframes pixel-burst {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+}
+
+@keyframes win-flash {
+  0%   { opacity: 0; }
+  12%  { opacity: 0.14; }
+  100% { opacity: 0; }
+}

@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "games": {
+      ".indexOn": ["createdAt"],
+      "$gameId": {
+        ".read": true,
+        ".write": true,
+        "players": {
+          "X": { ".write": "!data.exists()" },
+          "O": { ".write": "!data.exists()" }
+        }
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
