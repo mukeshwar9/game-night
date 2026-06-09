@@ -8,6 +8,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 
 - Tic Tac Toe
 - Connect Four
+- Hangwoman — hidden-word game; a commit–reveal scheme keeps the word secret with no server and catches a cheating word-keeper (design in [`HANGMAN.md`](HANGMAN.md))
 
 ## How it works
 
@@ -15,6 +16,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 2. Share the link with a friend
 3. They open it, enter their name, and the game starts
 4. Moves sync in real time via Firebase; each player sees the board update instantly
+5. When a game ends, hit **PLAY AGAIN** — or **PLAY ANOTHER GAME** to switch the whole room to a different game; both players (and spectators) move together, no new code needed
 
 Players are identified by session only — no sign-up, no passwords. The creator is always X; the first person to join is O. A third person who opens the link becomes a spectator.
 
@@ -22,6 +24,9 @@ Players are identified by session only — no sign-up, no passwords. The creator
 
 - **Real-time multiplayer** — Firebase Realtime Database keeps both boards in sync
 - **Score tracking** — scores persist across rounds; first to 3 wins triggers a match-over screen
+- **In-room game switching** — every end-of-game screen offers the other games; switching resets the board and scores but keeps players, presence, and the room code
+- **Cheat-proof hidden words** — Hangwoman stores the word only in the setter's browser, committed to Firebase as a salted SHA-256 hash (`src/lib/commit.js`); on reveal the guesser's client verifies the hash and every recorded answer, and a CHEAT DETECTED screen presents the evidence if anything doesn't match
+- **Execution drama** — Hangwoman's pixel figure gets a trapdoor drop with thud and funeral bell on the final miss, a blinking DEAD WOMAN GUESSING warning at last life, and a RIP QUEEN memorial with falling roses for the loss screen
 - **Presence detection** — green dot on each player card; "OPPONENT DISCONNECTED" warning when the other tab goes offline
 - **8-bit sound effects** — move bleeps, win jingle, lose tune, draw buzz, join ping; all generated via Web Audio API (no audio files)
 - **Mute toggle** — speaker icon in the game header and home page corner; preference saved in `localStorage`
@@ -38,6 +43,7 @@ Players are identified by session only — no sign-up, no passwords. The creator
 | Styling | Tailwind CSS v3 + shadcn utilities |
 | Routing | React Router v7 |
 | Real-time | Firebase Realtime Database |
+| Tests | Vitest (pure game logic + commit–reveal) |
 | Toasts | Sonner |
 | Fonts | Press Start 2P (Google Fonts) |
 | PWA | vite-plugin-pwa (Workbox) |
@@ -72,6 +78,7 @@ npm run dev       # dev server with HMR
 npm run build     # production build → dist/
 npm run preview   # serve dist/ locally
 npm run lint      # ESLint
+npm test          # Vitest (hangman logic + commit–reveal suites)
 ```
 
 ## Deploy
@@ -96,10 +103,11 @@ The room/invite/Firebase/presence layer is game-agnostic. Each game needs:
 
 1. A logic file in `src/lib/` exporting `getWinner(board)` and any move helpers
 2. A board component in `src/components/`
-3. A game type string (e.g. `'tictactoe'`, `'connectfour'`) stored on the Firebase game node
-4. A card added to the `GAMES` array in `src/pages/Home.jsx`
+3. An entry in `GAME_TYPES` and a branch in `freshGameState()` in `src/lib/games.js` (drives the in-room switcher and per-game initial state)
+4. A card with an icon added to the `GAMES` array in `src/pages/Home.jsx`
+5. A branch on the new `gameType` string in `src/pages/Game.jsx` (board size, move handler, board component, win function)
 
-`Game.jsx` branches on `game.gameType` to render the right board and call the right win function. Sounds, presence, score tracking, and the win effect work automatically for any game type.
+Sounds, presence, score tracking, game switching, and the win effect work automatically for any game type.
 
 ## Project structure
 
@@ -108,6 +116,13 @@ src/
   components/
     Board.jsx / Cell.jsx          # Tic Tac Toe board
     ConnectFourBoard.jsx          # Connect Four board
+    HangmanGallows.jsx            # Pixel gallows + figure, trapdoor drop
+    WordDisplay.jsx               # Hangwoman letter slots
+    LetterKeyboard.jsx            # Hangwoman A–Z guess keyboard
+    WordSetter.jsx                # Hangwoman word entry (setter)
+    Gravestone.jsx                # RIP QUEEN memorial pixel art
+    RoseFall.jsx                  # Falling-roses mourning overlay
+    GameSwitcher.jsx              # "Play another game" picker
     PlayerCard.jsx                # Player name, score, presence dot
     GameStatus.jsx                # Turn / win / match-over display
     WaitingRoom.jsx               # Invite link + copy button
@@ -116,11 +131,15 @@ src/
   pages/
     Home.jsx                      # Name entry + game selection
     Game.jsx                      # Game room (all game types)
+    HangmanGame.jsx               # Hangwoman rounds, commit–reveal, cheat check
     Demo.jsx                      # Local-only playable demo (no Firebase)
   lib/
     firebase.js                   # Firebase init (reads VITE_FIREBASE_* env vars)
+    games.js                      # GAME_TYPES registry + freshGameState()
     gameLogic.js                  # TTT win detection + normalizeBoard
     connectFourLogic.js           # Connect Four win detection + drop helper
+    hangmanLogic.js (+ .test.js)  # Hangwoman guess/win logic + consistency check
+    commit.js (+ .test.js)        # Salted SHA-256 commit–reveal primitive
     sounds.js                     # Web Audio API sound engine
     utils.js                      # cn() helper (clsx + tailwind-merge)
   hooks/
@@ -143,18 +162,16 @@ Highest-impact fixes — these are the only items where someone other than the t
 
 - **Make moves transactional.** `handleMove` in `src/pages/Game.jsx` does a plain `update()` computed from possibly-stale local state. Two near-simultaneous writes (laggy opponent, double-tap, two tabs) can clobber each other — including the read-modify-write score increment (`scores/${winner}`), which can drop a point. Wrap the move in a `runTransaction` on the game node that re-checks `currentTurn` and cell emptiness against actual server state before committing.
 
-- **Fix the TTL mismatch.** The client treats games as expired after **48h** (`GAME_TTL_MS` in `Game.jsx`) but the scheduled Cloud Function in `functions/index.js` deletes games after **24h** — the client check can never fire. Pick one value and define it in a single shared place.
-
 - **Guard against game ID collisions.** `createGame` in `Home.jsx` does a blind `set()` on a random 6-character ID (~2.2 billion combinations, but cleanup only runs daily). A collision would silently overwrite someone's live game. Use a transaction that only writes if the node doesn't exist, or `get()` first and regenerate on collision.
 
 - **Let players reclaim their seat.** Identity lives only in `sessionStorage`, so if a player closes their tab, their slot is orphaned forever and the game is dead. Store a random `playerId` in `localStorage`, save it in the player slot on join, and let a returning browser with a matching ID reclaim its symbol. Pairs naturally with the anonymous-auth fix above (the `uid` *is* the player ID).
 
 ### Architecture & maintainability
 
-- **Extract a game registry.** Connect Four was added by branching on `game.gameType === 'connectfour'` in at least five places in `Game.jsx` (board size, drop logic, winner function, board component, layout width). A registry collapses all of it and makes game #3 a one-file addition:
+- **Finish the game registry.** `src/lib/games.js` now exists with `GAME_TYPES` (drives the in-room switcher) and `freshGameState()` (single source of per-game initial state, used by both game creation and game switching). What remains: move the per-type branches still in `Game.jsx` (board size, drop logic, winner function, board component, layout width) into the registry so adding a board game is a one-file change:
 
   ```js
-  // src/lib/games.js
+  // src/lib/games.js — target shape
   export const GAME_TYPES = {
     tictactoe:   { boardSize: 9,  getWinner, getMoveIndex: (b, i) => i, Board },
     connectfour: { boardSize: 42, getWinner: getConnectFourWinner,
@@ -162,15 +179,9 @@ Highest-impact fixes — these are the only items where someone other than the t
   }
   ```
 
-- **Add unit tests for the pure logic.** `getWinner`, `getConnectFourWinner`, `getConnectFourDrop`, and `normalizeBoard` are pure functions with zero dependencies — ideal Vitest targets (`npm i -D vitest`, near-zero config in a Vite project). Connect Four win detection (diagonals, board edges) is exactly the kind of thing that breaks silently during the registry refactor, so land the tests first.
-
-- **Surface write errors instead of swallowing them.** Several `catch { /* ignore */ }` blocks in `Game.jsx` mean a failed move or "Play Again" silently does nothing. Sonner is already installed and `<Toaster />` is mounted — `toast.error('MOVE FAILED — CHECK CONNECTION')` is one line.
-
-- **Keep `CLAUDE.md` in sync.** Its data model omits `gameType`, `scores`, and `presence`, and still describes the registry extraction as future design. Stale agent docs actively mislead.
+- **Extend unit tests to the board games.** Vitest is in (`npm test`) with suites for `hangmanLogic` and `commit`. Still untested: `getWinner`, `getConnectFourWinner`, `getConnectFourDrop`, and `normalizeBoard` — all pure, zero-dependency functions. Connect Four win detection (diagonals, board edges) is exactly the kind of thing that breaks silently during the registry refactor, so land those tests first.
 
 ### Polish
-
-- **PWA icons for iOS.** The manifest only ships an SVG; iOS ignores SVG icons. Add a PNG `apple-touch-icon` (180×180) plus 192×512px maskable PNGs for a proper install experience. Also `theme_color: '#4f46e5'` (indigo) in `vite.config.js` doesn't match the retro dark theme actually used (`#030712`).
 
 - **Deduplicate the mute button.** The speaker toggle with its two inline SVGs is copy-pasted between `Home.jsx` and `Game.jsx` — extract a `MuteButton` component.
 
@@ -207,10 +218,10 @@ Two-player games that fit the platform, tiered by how far they stretch the curre
 - **Pig** — roll a d6 repeatedly; bank your points or keep rolling, but a 1 wipes the turn. First to 100. Two buttons, one die, maximum table-banging — the smallest possible game that introduces the dice mechanic.
 - **Shut the Box (duel)** — same vibe, slightly more board to render.
 
-**Tier 5 — hidden state.** Requires either the commit–reveal scheme (see [`docs/HANGMAN.md`](docs/HANGMAN.md)) or per-player read rules via anonymous auth.
+**Tier 5 — hidden state.** Requires either the commit–reveal scheme (see [`HANGMAN.md`](HANGMAN.md)) or per-player read rules via anonymous auth.
 
-- **Hangman** — spec'd and ready to build; see the medium-effort list below.
-- **Battleship** — the headline setup-phase game; needs hidden ship placement *and* guess verification, both built on the commit–reveal module Hangman produces.
+- **Hangwoman** — ✅ shipped. Its commit–reveal module (`src/lib/commit.js`) is the reusable primitive for everything else in this tier.
+- **Battleship** — the headline setup-phase game; needs hidden ship placement *and* guess verification, both built on the commit–reveal module Hangwoman produced — now unblocked.
 - **Dots and Boxes** — no hidden state actually needed (it's all public edges), listed here as the other planned setup-heavy game; chain captures at the end are the exciting part.
 
 **Avoid for now:** real-time-reflex games (Pong, air hockey, tap races) — RTDB latency makes them feel mushy; they need the WebRTC architecture described below.
@@ -218,11 +229,10 @@ Two-player games that fit the platform, tiered by how far they stretch the curre
 **Suggested next three:** Pentago (excitement per line of code), SOS (scoring variety, reuses everything), Breakthrough (first moving-pieces game). Add Pig when introducing dice, RPS as a quick filler-game win.
 
 ### New features — medium effort
-- **Hangman** — the platform's first hidden-state game. Full build specification (commit–reveal design so the word stays secret without Firebase Auth, data model, pixel-sprite gallows that draws the figure piece-by-piece on wrong guesses, build order, edge cases) lives in [`docs/HANGMAN.md`](docs/HANGMAN.md). The commit–reveal module it produces is the prerequisite primitive for Battleship.
 - **In-game reactions** — quick reaction buttons (👏 😬 🔥 💀) that flash on the opponent's screen, stored as a single ephemeral Firebase key.
 - **Chat** — simple text input per room, messages stored under `games/$id/messages`.
-- **Rematch request flow** — replace the free-for-all "Play Again" with a propose/accept handshake.
-- **More games** — see the full tiered list in [Game candidates](#game-candidates); Dots and Boxes and Battleship (pre-game setup phase, high engagement) remain the headline picks.
+- **Rematch request flow** — replace the free-for-all "Play Again" (and the equally free-for-all game switcher) with a propose/accept handshake.
+- **More games** — see the full tiered list in [Game candidates](#game-candidates); Battleship is now unblocked by Hangwoman's commit–reveal module, and Dots and Boxes remains the other headline pick.
 
 ### Real-time games (Pong, air hockey, etc.) — architecture notes
 

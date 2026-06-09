@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
-import { CF_BOARD_SIZE } from '../lib/connectFourLogic'
+import { freshGameState } from '../lib/games'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -37,6 +37,25 @@ const GAMES = [
       </svg>
     ),
   },
+  {
+    type: 'hangwoman',
+    label: 'HANGWOMAN',
+    desc: 'word game',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        {/* gallows */}
+        <line x1="4" y1="22" x2="20" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+        <line x1="7" y1="22" x2="7" y2="3"  stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+        <line x1="7" y1="3"  x2="15" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+        <line x1="15" y1="3" x2="15" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+        {/* pixel figure */}
+        <rect x="13" y="6"  width="4" height="4" fill="currentColor" />
+        <rect x="14" y="10" width="2" height="3" fill="currentColor" opacity="0.7" />
+        <rect x="12" y="11" width="2" height="2" fill="currentColor" opacity="0.7" />
+        <rect x="16" y="11" width="2" height="2" fill="currentColor" opacity="0.7" />
+      </svg>
+    ),
+  },
 ]
 
 export default function Home() {
@@ -64,16 +83,15 @@ export default function Home() {
     setError('')
     try {
       const gameId = generateGameId()
-      const boardSize = gameType === 'connectfour' ? CF_BOARD_SIZE : 9
-      await set(ref(db, `games/${gameId}`), {
+      const gameData = {
         gameType,
         status: 'waiting',
-        board: Array(boardSize).fill(''),
-        currentTurn: 'X',
         scores: { X: 0, O: 0 },
         createdAt: Date.now(),
         players: { X: { name: playerName, joinedAt: Date.now() } },
-      })
+        ...freshGameState(gameType),
+      }
+      await set(ref(db, `games/${gameId}`), gameData)
       sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
       navigate(`/game/${gameId}`)
     } catch {

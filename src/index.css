@@ -75,3 +75,54 @@ body::before {
   12%  { opacity: 0.14; }
   100% { opacity: 0; }
 }
+
+@keyframes miss-flash {
+  0%   { opacity: 0.18; }
+  100% { opacity: 0; }
+}
+
+@keyframes hangman-sway {
+  0%   { transform: rotate(-2deg); }
+  50%  { transform: rotate(2deg); }
+  100% { transform: rotate(-2deg); }
+}
+
+@keyframes hangman-sway-dead {
+  0%   { transform: rotate(-3deg) translateY(1px); }
+  50%  { transform: rotate(3deg) translateY(1px); }
+  100% { transform: rotate(-3deg) translateY(1px); }
+}
+
+@keyframes part-appear {
+  0%   { opacity: 0; transform: scale(0.5); }
+  33%  { opacity: 0.5; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes blink-text {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes hangman-drop {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(6px); }
+}
+
+@keyframes gallows-shake {
+  0%   { transform: translate(0,    0); }
+  12%  { transform: translate(-3px, 1px); }
+  25%  { transform: translate(3px,  -1px); }
+  37%  { transform: translate(-2px, 2px); }
+  50%  { transform: translate(2px,  -2px); }
+  62%  { transform: translate(-3px, 1px); }
+  75%  { transform: translate(1px,  -1px); }
+  87%  { transform: translate(-1px, 2px); }
+  100% { transform: translate(0,    0); }
+}
+
+@keyframes rose-fall {
+  0%   { transform: translate(0,        -8vh); opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translate(var(--rx), 105vh); opacity: 0; }
+}

@@ -1,8 +1,9 @@
 import { cn } from '@/lib/utils'
+import GameSwitcher from './GameSwitcher'
 
 const MATCH_WINS = 3
 
-export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, onPlayAgain, onNewMatch }) {
+export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, onPlayAgain, onNewMatch, onSwitchGame }) {
   const scoreX = scores?.X || 0
   const scoreO = scores?.O || 0
   const matchWinner = scoreX >= MATCH_WINS ? 'X' : scoreO >= MATCH_WINS ? 'O' : null
@@ -33,6 +34,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
         </div>
         {onNewMatch && <RetroButton onClick={onNewMatch}>NEW MATCH</RetroButton>}
+        {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
       </div>
     )
   }
@@ -53,6 +55,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : mySymbol ? 'GAME OVER' : `${winner} WINS!`}
         </p>
         {onPlayAgain && <RetroButton onClick={onPlayAgain}>PLAY AGAIN</RetroButton>}
+        {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
       </div>
     )
   }

@@ -4,6 +4,7 @@ import { ref, onValue, update, get, runTransaction, onDisconnect, set as dbSet }
 import { db, configError } from '../lib/firebase'
 import { getWinner, normalizeBoard } from '../lib/gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from '../lib/connectFourLogic'
+import { freshGameState } from '../lib/games'
 import Board from '../components/Board'
 import ConnectFourBoard from '../components/ConnectFourBoard'
 import GameStatus from '../components/GameStatus'
@@ -262,6 +263,21 @@ export default function Game() {
     } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
   }
 
+  const handleSwitchGame = async (newType) => {
+    sessionStorage.removeItem(`hangwoman-word-${gameId}`)
+    try {
+      await update(ref(db, `games/${gameId}`), {
+        gameType: newType,
+        ...freshGameState(newType),
+        status: 'playing',
+        winner: null,
+        winningLine: null,
+        'scores/X': 0,
+        'scores/O': 0,
+      })
+    } catch { toast.error('SWITCH FAILED — CHECK CONNECTION') }
+  }
+
   const toggleMute = () => setMuted(sounds.toggle())
 
   if (loading) return <LoadingScreen />
@@ -376,6 +392,7 @@ export default function Game() {
             game={game}
             mySymbol={mySymbol.current}
             opponentOnline={opponentOnline}
+            onSwitchGame={handleSwitchGame}
           />
         ) : (
           <>
@@ -397,8 +414,10 @@ export default function Game() {
               mySymbol={mySymbol.current}
               scores={game.scores}
               players={game.players}
+              gameType={game.gameType}
               onPlayAgain={game.status === 'finished' && !isSpectator && !matchWinner ? handlePlayAgain : null}
               onNewMatch={matchWinner && !isSpectator ? handleNewMatch : null}
+              onSwitchGame={!isSpectator ? handleSwitchGame : null}
             />
           </>
         )}
