@@ -105,7 +105,7 @@ export default function Game() {
             mySymbol.current = 'O'
             sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
             const joinUpdates = { status: 'playing' }
-            if (data.gameType === 'hangman') {
+            if (data.gameType === 'hangwoman') {
               joinUpdates['round/setter'] = 'X'
               joinUpdates['round/phase'] = 'setting'
               joinUpdates['round/wrongCount'] = 0
@@ -280,7 +280,7 @@ export default function Game() {
   if (!game) return null
 
   const isConnectFour = game.gameType === 'connectfour'
-  const isHangman = game.gameType === 'hangman'
+  const isHangman = game.gameType === 'hangwoman'
   const boardSize = isConnectFour ? CF_BOARD_SIZE : 9
   const board = isHangman ? [] : normalizeBoard(game.board, boardSize)
   const winningLine = toArray(game.winningLine)
@@ -334,7 +334,7 @@ export default function Game() {
               <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">C4</span>
             )}
             {isHangman && (
-              <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">HM</span>
+              <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">HW</span>
             )}
             <span className="font-pixel text-[9px] text-retro-cyan text-glow-cyan tracking-widest">{gameId}</span>
           </div>
