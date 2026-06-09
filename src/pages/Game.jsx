@@ -10,10 +10,12 @@ import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
 import WinEffect from '../components/WinEffect'
+import HangmanGame from './HangmanGame'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
-const GAME_TTL_MS = 48 * 60 * 60 * 1000
+const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
 function toArray(val) {
   if (!val) return []
@@ -102,7 +104,13 @@ export default function Game() {
           if (committed) {
             mySymbol.current = 'O'
             sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
-            await update(gameRef, { status: 'playing' })
+            const joinUpdates = { status: 'playing' }
+            if (data.gameType === 'hangman') {
+              joinUpdates['round/setter'] = 'X'
+              joinUpdates['round/phase'] = 'setting'
+              joinUpdates['round/wrongCount'] = 0
+            }
+            await update(gameRef, joinUpdates)
           } else {
             mySymbol.current = null
             sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: null }))
@@ -223,7 +231,7 @@ export default function Game() {
       }
     }
 
-    try { await update(ref(db, `games/${gameId}`), updates) } catch { /* stale */ }
+    try { await update(ref(db, `games/${gameId}`), updates) } catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
   }
 
   const handlePlayAgain = async () => {
@@ -236,7 +244,7 @@ export default function Game() {
         winner: null,
         winningLine: null,
       })
-    } catch { /* ignore */ }
+    } catch { toast.error('PLAY AGAIN FAILED — CHECK CONNECTION') }
   }
 
   const handleNewMatch = async () => {
@@ -251,7 +259,7 @@ export default function Game() {
         'scores/X': 0,
         'scores/O': 0,
       })
-    } catch { /* ignore */ }
+    } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
   }
 
   const toggleMute = () => setMuted(sounds.toggle())
@@ -272,8 +280,9 @@ export default function Game() {
   if (!game) return null
 
   const isConnectFour = game.gameType === 'connectfour'
+  const isHangman = game.gameType === 'hangman'
   const boardSize = isConnectFour ? CF_BOARD_SIZE : 9
-  const board = normalizeBoard(game.board, boardSize)
+  const board = isHangman ? [] : normalizeBoard(game.board, boardSize)
   const winningLine = toArray(game.winningLine)
   const isSpectator = !mySymbol.current
   const canMove = !isSpectator && game.status === 'playing' && game.currentTurn === mySymbol.current
@@ -295,7 +304,7 @@ export default function Game() {
         <WinEffect winner={winEffectWinner} onDone={() => setShowWinEffect(false)} />
       )}
 
-      <div className={cn('w-full space-y-4', isConnectFour ? 'max-w-md' : 'max-w-sm')}>
+      <div className={cn('w-full space-y-4', isConnectFour ? 'max-w-md' : 'max-w-sm')} key={game.gameType}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <Link to="/" className="font-pixel text-[9px] text-retro-dim hover:text-retro-cyan transition-colors">
@@ -324,6 +333,9 @@ export default function Game() {
             {isConnectFour && (
               <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">C4</span>
             )}
+            {isHangman && (
+              <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">HM</span>
+            )}
             <span className="font-pixel text-[9px] text-retro-cyan text-glow-cyan tracking-widest">{gameId}</span>
           </div>
         </div>
@@ -348,8 +360,8 @@ export default function Game() {
           />
         </div>
 
-        {/* Disconnect warning */}
-        {!isSpectator && !opponentOnline && game.status === 'playing' && (
+        {/* Disconnect warning (non-hangman — hangman handles this inline) */}
+        {!isHangman && !isSpectator && !opponentOnline && game.status === 'playing' && (
           <p className="font-pixel text-[9px] text-retro-pink text-center leading-relaxed animate-pulse">
             OPPONENT DISCONNECTED
           </p>
@@ -358,6 +370,13 @@ export default function Game() {
         {/* Game area */}
         {game.status === 'waiting' ? (
           <WaitingRoom gameId={gameId} />
+        ) : isHangman ? (
+          <HangmanGame
+            gameId={gameId}
+            game={game}
+            mySymbol={mySymbol.current}
+            opponentOnline={opponentOnline}
+          />
         ) : (
           <>
             {isConnectFour ? (
@@ -384,7 +403,7 @@ export default function Game() {
           </>
         )}
 
-        {isSpectator && game.status === 'playing' && (
+        {!isHangman && isSpectator && game.status === 'playing' && (
           <p className="text-center font-pixel text-[9px] text-retro-border">SPECTATING</p>
         )}
       </div>

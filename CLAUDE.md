@@ -26,8 +26,9 @@ This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime D
 Each game is a node at `games/{gameId}` in Firebase:
 
 ```
+gameType:    "tictactoe" | "connectfour" | "hangman"
 status:      "waiting" | "playing" | "finished"
-board:       string[9]  — '' for empty, 'X' or 'O' for occupied
+board:       string[9] (TTT) | string[42] (Connect Four) — '' for empty, 'X' or 'O' for occupied
 currentTurn: "X" | "O"
 winner:      "X" | "O" | "draw"  (absent until game ends)
 winningLine: number[3]            (absent until game ends)
@@ -35,7 +36,15 @@ createdAt:   timestamp
 players:
   X: { name, joinedAt }
   O: { name, joinedAt }   (absent until second player joins)
+scores:
+  X: number
+  O: number
+presence:
+  X: { online: boolean }
+  O: { online: boolean }
 ```
+
+Hangman also stores a `round` sub-node (`setter`, `phase`, `wrongCount`, and commit/reveal fields — see `src/pages/HangmanGame.jsx`).
 
 **Firebase and null values:** Firebase deletes keys set to `null`. Empty board cells are stored as `''` (not `null`) so the array length stays stable. `winner` and `winningLine` are absent when not applicable — always read them as `game.winner ?? null`. `normalizeBoard()` in `src/lib/gameLogic.js` converts whatever Firebase returns (array or numeric-keyed object) to a guaranteed 9-element string array.
 
@@ -49,9 +58,10 @@ The creator is always X; the first person to join an open O slot becomes O; ever
 
 ### Adding a new game
 
-The room/invite/Firebase layer is game-agnostic. To add a second game:
-1. Add a route and game component in `src/pages/`
-2. Implement the game's win detection in `src/lib/gameLogic.js` (or a new file)
-3. Reuse `WaitingRoom`, `PlayerCard`, and the Firebase session pattern from `Game.jsx`
+The room/invite/Firebase/presence layer is game-agnostic. `Game.jsx` branches on `game.gameType` to render the right board and call the right win function. To add a new game:
+1. Add a logic file in `src/lib/` exporting `getWinner(board)` and any move helpers
+2. Add a board component in `src/components/`
+3. Branch on the new `gameType` string in `Game.jsx` (board size, move handler, board component, win function)
+4. Add a card to the `GAMES` array in `src/pages/Home.jsx`
 
-The planned shape for extracting game logic is `{ initialState, getWinner }` per game type, consumed by a shared room wrapper.
+Sounds, presence, score tracking, and the win effect work automatically for any game type. A future game-registry refactor would collapse the per-type branches in `Game.jsx` into a single lookup table.
