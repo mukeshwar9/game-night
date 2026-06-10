@@ -25,9 +25,7 @@ import {
   getSosWinner,
 } from '../lib/sosLogic';
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
-import {
-  applyChimpMove, normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL,
-} from '../lib/chimpLogic';
+import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import {
   applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL,
 } from '../lib/visualMemoryLogic';
@@ -288,45 +286,88 @@ function SosDemo() {
 }
 
 function ChimpDemo() {
+  // Hot-seat concurrent demo: both players attempt the same layout,
+  // switching between them with a PASS prompt
   const [layout, setLayout] = useState(() => generateChimpLayout(CHIMP_START_LEVEL))
-  const [progress, setProgress] = useState(0)
   const [level, setLevel] = useState(CHIMP_START_LEVEL)
-  const [currentTurn, setCurrentTurn] = useState('X')
+  const [progX, setProgX] = useState(0)
+  const [progO, setProgO] = useState(0)
+  const [doneX, setDoneX] = useState(false)
+  const [doneO, setDoneO] = useState(false)
+  const [seat, setSeat] = useState('X')   // whose turn it is on this screen
   const [status, setStatus] = useState('playing')
   const [winner, setWinner] = useState(null)
 
-  const handleMove = (cellIndex) => {
-    if (status !== 'playing') return
-    const game = { chimpLayout: layout, chimpProgress: progress, chimpLevel: level }
-    const r = applyChimpMove(game, cellIndex, currentTurn)
-    if (!r) return
-    if (r.result) { setWinner(r.result.winner); setStatus('finished'); return }
-    const { chimpLevel, chimpLayout, chimpProgress, currentTurn: next } = r.updates
-    if (chimpLevel !== undefined) setLevel(chimpLevel)
-    if (chimpLayout !== undefined) setLayout(normalizeChimpLayout(chimpLayout))
-    if (chimpProgress !== undefined) setProgress(chimpProgress)
-    if (next !== undefined) setCurrentTurn(next)
+  const advance = (newDoneX, newDoneO, newProgX, newProgO) => {
+    if (newDoneX && newDoneO) {
+      const nl = level + 1
+      setLevel(nl); setLayout(generateChimpLayout(nl))
+      setProgX(0); setProgO(0); setDoneX(false); setDoneO(false); setSeat('X')
+    }
   }
 
-  const reset = () => {
-    const l = generateChimpLayout(CHIMP_START_LEVEL)
-    setLayout(l); setProgress(0); setLevel(CHIMP_START_LEVEL)
-    setCurrentTurn('X'); setStatus('playing'); setWinner(null)
+  const handleMove = (cellIndex) => {
+    if (status !== 'playing') return
+    const prog  = seat === 'X' ? progX : progO
+    const done  = seat === 'X' ? doneX : doneO
+    if (done) return
+    const expected = normalizeChimpLayout(layout)[prog]
+    if (expected !== cellIndex) {
+      setWinner(seat === 'X' ? 'O' : 'X'); setStatus('finished'); return
+    }
+    const np = prog + 1
+    if (np === level) {
+      const nx = seat === 'X' ? true : doneX
+      const no = seat === 'O' ? true : doneO
+      const npx = seat === 'X' ? np : progX
+      const npo = seat === 'O' ? np : progO
+      if (seat === 'X') { setProgX(np); setDoneX(true) } else { setProgO(np); setDoneO(true) }
+      advance(nx, no, npx, npo)
+    } else {
+      if (seat === 'X') setProgX(np); else setProgO(np)
+    }
   }
+
+  const passSeat = () => setSeat(s => s === 'X' ? 'O' : 'X')
+
+  const reset = () => {
+    setLayout(generateChimpLayout(CHIMP_START_LEVEL)); setLevel(CHIMP_START_LEVEL)
+    setProgX(0); setProgO(0); setDoneX(false); setDoneO(false)
+    setSeat('X'); setStatus('playing'); setWinner(null)
+  }
+
+  const myProg = seat === 'X' ? progX : progO
+  const opProg = seat === 'X' ? progO : progX
+  const myDone = seat === 'X' ? doneX : doneO
+  const opDoneVal = seat === 'X' ? doneO : doneX
 
   return (
     <div className="space-y-4">
       <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">CHIMP TEST DEMO</p>
       <div className="grid grid-cols-2 gap-2">
-        <PlayerCard name="Alice" symbol="X" isActive={status === 'playing' && currentTurn === 'X'} isMe />
-        <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
+        <PlayerCard name="Alice" symbol="X" isActive={seat === 'X' && !doneX && status === 'playing'} isMe={seat === 'X'} />
+        <PlayerCard name="Bob" symbol="O" isActive={seat === 'O' && !doneO && status === 'playing'} isMe={seat === 'O'} />
       </div>
-      <ChimpBoard onMove={handleMove} disabled={status !== 'playing'} chimpLayout={layout} chimpProgress={progress} chimpLevel={level} />
+      <ChimpBoard
+        onMove={handleMove}
+        disabled={status !== 'playing' || myDone}
+        chimpLayout={layout}
+        myProgress={myProg}
+        opProgress={opProg}
+        myDone={myDone}
+        opDone={opDoneVal}
+        chimpLevel={level}
+      />
       <div className="text-center space-y-2">
         {status === 'finished' && (
           <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
             {winner} WINS!
           </p>
+        )}
+        {status === 'playing' && !myDone && (
+          <button onClick={passSeat} className="px-4 py-2 font-pixel text-[8px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95">
+            PASS TO {seat === 'X' ? 'BOB' : 'ALICE'}
+          </button>
         )}
         <button onClick={reset} className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
           RESET

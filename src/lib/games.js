@@ -3,7 +3,7 @@ import ConnectFourBoard from '../components/ConnectFourBoard'
 import DotsAndBoxesBoard from '../components/DotsAndBoxesBoard'
 import SosBoard from '../components/SosBoard'
 import SimonBoard from '../components/SimonBoard'
-import ChimpBoard from '../components/ChimpBoard'
+// ChimpBoard is used only from ChimpGame (custom component), not directly via registry
 import VisualMemoryBoard from '../components/VisualMemoryBoard'
 import {
   TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
@@ -26,9 +26,7 @@ import {
 import { normalizeSimonSequence, applySimonMove } from './simonLogic'
 import {
   CHIMP_START_LEVEL,
-  normalizeChimpLayout,
   generateChimpLayout,
-  applyChimpMove,
 } from './chimpLogic'
 import {
   VM_START_LEVEL,
@@ -123,15 +121,7 @@ export const GAME_TYPES = [
     type: 'chimp', label: 'CHIMP TEST',
     desc: '5 × 5 grid', Icon: ChimpIcon,
     badge: 'CT', maxWidth: 'max-w-xs',
-    boardSize: 0,
-    getMoveIndex: (_, cellIndex) => cellIndex,
-    BoardComponent: ChimpBoard,
-    applyMove: ({ game, move, symbol }) => applyChimpMove(game, move, symbol),
-    boardProps: (game) => ({
-      chimpLayout: normalizeChimpLayout(game.chimpLayout),
-      chimpProgress: game.chimpProgress ?? 0,
-      chimpLevel: game.chimpLevel ?? CHIMP_START_LEVEL,
-    }),
+    custom: true,
   },
   {
     type: 'numbermemory', label: 'NUMBER MEMORY',
@@ -162,7 +152,9 @@ export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? 
 const FIELD_NULLS = {
   sosLines: null,
   simonSequence: null, simonProgress: null,
-  chimpLevel: null, chimpLayout: null, chimpProgress: null,
+  chimpLevel: null, chimpLayout: null,
+  chimpProgressX: null, chimpProgressO: null,
+  chimpDoneX: null, chimpDoneO: null,
   vmLevel: null, vmPattern: null, vmClicked: null,
   numRound: null,
 }
@@ -188,10 +180,11 @@ export function freshGameState(gameType) {
   }
   if (gameType === 'chimp') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null,
-      currentTurn: 'X',
+      currentTurn: null,
       chimpLevel: CHIMP_START_LEVEL,
       chimpLayout: generateChimpLayout(CHIMP_START_LEVEL),
-      chimpProgress: 0 }
+      chimpProgressX: 0, chimpProgressO: 0,
+      chimpDoneX: false, chimpDoneO: false }
   }
   if (gameType === 'numbermemory') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
