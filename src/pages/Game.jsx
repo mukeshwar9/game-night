@@ -10,6 +10,7 @@ import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
 import WinEffect from '../components/WinEffect'
 import HangmanGame from './HangmanGame'
+import NumberMemoryGame from './NumberMemoryGame'
 import ProposalBanner from '../components/ProposalBanner'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -549,15 +550,27 @@ export default function Game() {
         {game.status === 'waiting' ? (
           <WaitingRoom gameId={gameId} />
         ) : isCustom ? (
-          <HangmanGame
-            gameId={gameId}
-            game={game}
-            mySymbol={mySymbol.current}
-            opponentOnline={opponentOnline}
-            onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-            onNewMatch={activeProposal ? null : () => propose('newMatch')}
-            proposal={activeProposal}
-          />
+          game.gameType === 'numbermemory' ? (
+            <NumberMemoryGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : (
+            <HangmanGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          )
         ) : (
           <>
             <cfg.BoardComponent

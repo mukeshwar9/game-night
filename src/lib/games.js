@@ -3,7 +3,12 @@ import ConnectFourBoard from '../components/ConnectFourBoard'
 import DotsAndBoxesBoard from '../components/DotsAndBoxesBoard'
 import SosBoard from '../components/SosBoard'
 import SimonBoard from '../components/SimonBoard'
-import { TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon, SimonIcon } from '../components/GameIcons'
+import ChimpBoard from '../components/ChimpBoard'
+import VisualMemoryBoard from '../components/VisualMemoryBoard'
+import {
+  TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon,
+} from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
 import {
@@ -18,10 +23,19 @@ import {
   applySosMove,
   getSosWinner,
 } from './sosLogic'
+import { normalizeSimonSequence, applySimonMove } from './simonLogic'
 import {
-  normalizeSimonSequence,
-  applySimonMove,
-} from './simonLogic'
+  CHIMP_START_LEVEL,
+  normalizeChimpLayout,
+  generateChimpLayout,
+  applyChimpMove,
+} from './chimpLogic'
+import {
+  VM_START_LEVEL,
+  normalizeVmArray,
+  generateVmPattern,
+  applyVmMove,
+} from './visualMemoryLogic'
 
 export const GAME_TYPES = [
   {
@@ -105,23 +119,90 @@ export const GAME_TYPES = [
       simonProgress: game.simonProgress ?? 0,
     }),
   },
+  {
+    type: 'chimp', label: 'CHIMP TEST',
+    desc: '5 × 5 grid', Icon: ChimpIcon,
+    badge: 'CT', maxWidth: 'max-w-xs',
+    boardSize: 0,
+    getMoveIndex: (_, cellIndex) => cellIndex,
+    BoardComponent: ChimpBoard,
+    applyMove: ({ game, move, symbol }) => applyChimpMove(game, move, symbol),
+    boardProps: (game) => ({
+      chimpLayout: normalizeChimpLayout(game.chimpLayout),
+      chimpProgress: game.chimpProgress ?? 0,
+      chimpLevel: game.chimpLevel ?? CHIMP_START_LEVEL,
+    }),
+  },
+  {
+    type: 'numbermemory', label: 'NUMBER MEMORY',
+    desc: 'digit recall', Icon: NumberMemoryIcon,
+    badge: 'NM', maxWidth: 'max-w-xs',
+    custom: true,
+  },
+  {
+    type: 'visualmemory', label: 'VISUAL MEMORY',
+    desc: '4 × 4 grid', Icon: VisualMemoryIcon,
+    badge: 'VM', maxWidth: 'max-w-xs',
+    boardSize: 0,
+    getMoveIndex: (_, cellIndex) => cellIndex,
+    BoardComponent: VisualMemoryBoard,
+    applyMove: ({ game, move, symbol }) => applyVmMove(game, move, symbol),
+    boardProps: (game) => ({
+      vmPattern: normalizeVmArray(game.vmPattern),
+      vmClicked: normalizeVmArray(game.vmClicked),
+      vmLevel: game.vmLevel ?? VM_START_LEVEL,
+    }),
+  },
 ]
 
 export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
 
+// Nulls for every game-specific field — spread into freshGameState so switching
+// games clears the previous game's keys from Firebase.
+const FIELD_NULLS = {
+  sosLines: null,
+  simonSequence: null, simonProgress: null,
+  chimpLevel: null, chimpLayout: null, chimpProgress: null,
+  vmLevel: null, vmPattern: null, vmClicked: null,
+  numRound: null,
+}
+
 export function freshGameState(gameType) {
   const cfg = getGameConfig(gameType)
-  if (cfg.custom) {
-    return { board: null, currentTurn: null, round: { setter: 'X', phase: 'setting', wrongCount: 0 }, boxes: null, sosLines: null }
+  if (gameType === 'hangwoman') {
+    return { ...FIELD_NULLS, board: null, currentTurn: null, boxes: null,
+      round: { setter: 'X', phase: 'setting', wrongCount: 0 } }
   }
   if (gameType === 'dotsandboxes') {
-    return { board: Array(DB_EDGE_COUNT).fill(''), boxes: Array(DB_BOX_COUNT).fill(''), currentTurn: 'X', round: null, sosLines: null }
+    return { ...FIELD_NULLS, round: null,
+      board: Array(DB_EDGE_COUNT).fill(''), boxes: Array(DB_BOX_COUNT).fill(''), currentTurn: 'X' }
   }
   if (gameType === 'sos') {
-    return { board: Array(SOS_CELL_COUNT).fill(''), boxes: null, sosLines: null, currentTurn: 'X', round: null }
+    return { ...FIELD_NULLS, round: null, boxes: null,
+      board: Array(SOS_CELL_COUNT).fill(''), currentTurn: 'X',
+      sosLines: null }
   }
   if (gameType === 'simon') {
-    return { board: null, boxes: null, currentTurn: 'X', round: null, sosLines: null, simonSequence: null, simonProgress: 0 }
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null,
+      currentTurn: 'X', simonSequence: null, simonProgress: 0 }
   }
-  return { board: Array(cfg.boardSize).fill(''), boxes: null, currentTurn: 'X', round: null, sosLines: null }
+  if (gameType === 'chimp') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null,
+      currentTurn: 'X',
+      chimpLevel: CHIMP_START_LEVEL,
+      chimpLayout: generateChimpLayout(CHIMP_START_LEVEL),
+      chimpProgress: 0 }
+  }
+  if (gameType === 'numbermemory') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      numRound: { phase: 'setting', setter: 'X', level: 1 } }
+  }
+  if (gameType === 'visualmemory') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null,
+      currentTurn: 'X',
+      vmLevel: VM_START_LEVEL,
+      vmPattern: generateVmPattern(VM_START_LEVEL),
+      vmClicked: null }
+  }
+  return { ...FIELD_NULLS, board: Array(cfg.boardSize).fill(''), boxes: null, round: null, currentTurn: 'X' }
 }

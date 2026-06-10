@@ -25,6 +25,14 @@ import {
   getSosWinner,
 } from '../lib/sosLogic';
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
+import {
+  applyChimpMove, normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL,
+} from '../lib/chimpLogic';
+import {
+  applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL,
+} from '../lib/visualMemoryLogic';
+import ChimpBoard from '../components/ChimpBoard';
+import VisualMemoryBoard from '../components/VisualMemoryBoard';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import ThemeSwitcher from '../components/ThemeSwitcher';
@@ -279,6 +287,104 @@ function SosDemo() {
   )
 }
 
+function ChimpDemo() {
+  const [layout, setLayout] = useState(() => generateChimpLayout(CHIMP_START_LEVEL))
+  const [progress, setProgress] = useState(0)
+  const [level, setLevel] = useState(CHIMP_START_LEVEL)
+  const [currentTurn, setCurrentTurn] = useState('X')
+  const [status, setStatus] = useState('playing')
+  const [winner, setWinner] = useState(null)
+
+  const handleMove = (cellIndex) => {
+    if (status !== 'playing') return
+    const game = { chimpLayout: layout, chimpProgress: progress, chimpLevel: level }
+    const r = applyChimpMove(game, cellIndex, currentTurn)
+    if (!r) return
+    if (r.result) { setWinner(r.result.winner); setStatus('finished'); return }
+    const { chimpLevel, chimpLayout, chimpProgress, currentTurn: next } = r.updates
+    if (chimpLevel !== undefined) setLevel(chimpLevel)
+    if (chimpLayout !== undefined) setLayout(normalizeChimpLayout(chimpLayout))
+    if (chimpProgress !== undefined) setProgress(chimpProgress)
+    if (next !== undefined) setCurrentTurn(next)
+  }
+
+  const reset = () => {
+    const l = generateChimpLayout(CHIMP_START_LEVEL)
+    setLayout(l); setProgress(0); setLevel(CHIMP_START_LEVEL)
+    setCurrentTurn('X'); setStatus('playing'); setWinner(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">CHIMP TEST DEMO</p>
+      <div className="grid grid-cols-2 gap-2">
+        <PlayerCard name="Alice" symbol="X" isActive={status === 'playing' && currentTurn === 'X'} isMe />
+        <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
+      </div>
+      <ChimpBoard onMove={handleMove} disabled={status !== 'playing'} chimpLayout={layout} chimpProgress={progress} chimpLevel={level} />
+      <div className="text-center space-y-2">
+        {status === 'finished' && (
+          <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
+            {winner} WINS!
+          </p>
+        )}
+        <button onClick={reset} className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          RESET
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function VisualMemoryDemo() {
+  const [pattern, setPattern] = useState(() => generateVmPattern(VM_START_LEVEL))
+  const [clicked, setClicked] = useState([])
+  const [level, setLevel] = useState(VM_START_LEVEL)
+  const [currentTurn, setCurrentTurn] = useState('X')
+  const [status, setStatus] = useState('playing')
+  const [winner, setWinner] = useState(null)
+
+  const handleMove = (cellIndex) => {
+    if (status !== 'playing') return
+    const game = { vmPattern: pattern, vmClicked: clicked, vmLevel: level }
+    const r = applyVmMove(game, cellIndex, currentTurn)
+    if (!r) return
+    if (r.result) { setWinner(r.result.winner); setStatus('finished'); return }
+    const { vmLevel, vmPattern, vmClicked, currentTurn: next } = r.updates
+    if (vmLevel !== undefined) setLevel(vmLevel)
+    if (vmPattern !== undefined) setPattern(normalizeVmArray(vmPattern))
+    if (vmClicked !== undefined) setClicked(normalizeVmArray(vmClicked))
+    else if (r.updates.hasOwnProperty('vmClicked')) setClicked([])
+    if (next !== undefined) setCurrentTurn(next)
+  }
+
+  const reset = () => {
+    setPattern(generateVmPattern(VM_START_LEVEL)); setClicked([])
+    setLevel(VM_START_LEVEL); setCurrentTurn('X'); setStatus('playing'); setWinner(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">VISUAL MEMORY DEMO</p>
+      <div className="grid grid-cols-2 gap-2">
+        <PlayerCard name="Alice" symbol="X" isActive={status === 'playing' && currentTurn === 'X'} isMe />
+        <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
+      </div>
+      <VisualMemoryBoard onMove={handleMove} disabled={status !== 'playing'} vmPattern={pattern} vmClicked={clicked} vmLevel={level} />
+      <div className="text-center space-y-2">
+        {status === 'finished' && (
+          <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
+            {winner} WINS!
+          </p>
+        )}
+        <button onClick={reset} className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          RESET
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function SimonDemo() {
   const [seq, setSeq] = useState([])
   const [progress, setProgress] = useState(0)
@@ -429,6 +535,20 @@ export default function Demo() {
         <div className="border-t border-retro-border pt-4">
           <div className="border border-retro-border rounded p-4 bg-retro-card">
             <SimonDemo />
+          </div>
+        </div>
+
+        {/* Chimp Test demo */}
+        <div className="border-t border-retro-border pt-4">
+          <div className="border border-retro-border rounded p-4 bg-retro-card">
+            <ChimpDemo />
+          </div>
+        </div>
+
+        {/* Visual Memory demo */}
+        <div className="border-t border-retro-border pt-4">
+          <div className="border border-retro-border rounded p-4 bg-retro-card">
+            <VisualMemoryDemo />
           </div>
         </div>
 

@@ -63,6 +63,44 @@ export function SosIcon() {
   )
 }
 
+export function ChimpIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* 3×3 grid — top row fully lit (numbered), rest dim */}
+      {[0,1,2,3,4,5,6,7,8].map(i => {
+        const x = (i % 3) * 8 + 1, y = Math.floor(i / 3) * 8 + 1
+        return <rect key={i} x={x} y={y} width="6" height="6" rx="1"
+          fill="currentColor" opacity={i < 3 ? '1' : '0.2'} />
+      })}
+    </svg>
+  )
+}
+
+export function NumberMemoryIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* Big "?" */}
+      <text x="3" y="18" fontFamily="monospace" fontSize="18" fill="currentColor" opacity="0.9">?</text>
+      {/* Small digit underline */}
+      <rect x="2" y="20" width="14" height="2" rx="1" fill="currentColor" opacity="0.4" />
+    </svg>
+  )
+}
+
+export function VisualMemoryIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* 3×3 grid; some cells lit */}
+      {[0,1,2,3,4,5,6,7,8].map(i => {
+        const lit = [0,2,4,6,8].includes(i)
+        const x = (i % 3) * 8 + 1, y = Math.floor(i / 3) * 8 + 1
+        return <rect key={i} x={x} y={y} width="6" height="6" rx="1"
+          fill="currentColor" opacity={lit ? '1' : '0.2'} />
+      })}
+    </svg>
+  )
+}
+
 export function SimonIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
