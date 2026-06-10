@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Game from './pages/Game';
 import Demo from './pages/Demo';
 import { Toaster } from './components/ui/sonner';
+import UpdatePrompt from './components/UpdatePrompt';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/demo" element={<Demo />} />
       </Routes>
       <Toaster />
+      <UpdatePrompt />
     </BrowserRouter>
   );
 }

@@ -42,7 +42,7 @@ Players are identified by a stable browser ID stored in `localStorage` — no si
 - **Retro CRT look** — Press Start 2P pixel font, neon glows, scanline overlay, vignette
 - **Six switchable themes** — Midnight Arcade (default), Phosphor, Amber CRT, Synthwave, The Grid, and 1-Bit Mono; the palette picker sits next to the mute button on every screen, applies instantly with no reload, and the choice persists per device. Every color flows through CSS variables, so adding a theme is one CSS block + one registry entry
 - **Pixel-art cursors** — hand-drawn arrow, pointing glove, I-beam, and ⊘ cursors (SVG data URIs), plus a theme-colored blinking caret in text inputs
-- **PWA** — installable on mobile, offline home screen via Workbox service worker
+- **PWA** — installable on mobile, offline home screen via Workbox service worker; new deploys surface an UPDATE READY banner at the top of the screen with a RELOAD action instead of auto-reloading mid-game
 - **Security rules** — writes blocked outside `games/` (see [Security & correctness](#security--correctness) for known gaps in the per-game rules)
 
 ## Tech stack
