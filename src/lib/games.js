@@ -35,6 +35,12 @@ import {
   applyVmMove,
 } from './visualMemoryLogic'
 
+function generateNumber(level) {
+  let n = String(Math.floor(Math.random() * 9) + 1)
+  for (let i = 1; i < level; i++) n += String(Math.floor(Math.random() * 10))
+  return n
+}
+
 export const GAME_TYPES = [
   {
     type: 'tictactoe', label: 'TIC TAC TOE',
@@ -188,7 +194,7 @@ export function freshGameState(gameType) {
   }
   if (gameType === 'numbermemory') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      numRound: { phase: 'setting', setter: 'X', level: 1 } }
+      numRound: { phase: 'showing', level: 1, number: generateNumber(1) } }
   }
   if (gameType === 'visualmemory') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null,

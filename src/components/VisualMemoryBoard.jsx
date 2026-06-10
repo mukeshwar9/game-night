@@ -29,7 +29,7 @@ export default function VisualMemoryBoard({ onMove, disabled, vmPattern, vmClick
             const inPattern = patternSet.has(i)
             const isClicked = clickedSet.has(i)
             const lit = showPattern && inPattern
-            const isClickable = !disabled && !showPattern && !isClicked
+            const isClickable = !disabled && !isClicked && (showPattern ? inPattern : true)
 
             return (
               <button
