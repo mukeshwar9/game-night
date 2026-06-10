@@ -67,6 +67,20 @@ Identity is tracked in `sessionStorage` (per-tab) and `localStorage` (stable acr
 
 The creator is always X; the first person to join an open O slot becomes O; everyone else is a spectator (`symbol: null`). Slot claiming uses a Firebase `runTransaction` to prevent races. Closing a tab no longer kills the game — reopening the invite link in the same browser reclaims your seat via `playerId`.
 
+### Theming
+
+All colors flow through CSS custom properties (`--c-*`, space-separated RGB channel triplets) defined in `src/index.css`. `:root` holds the default "midnight" theme; `[data-theme="…"]` blocks override per theme (phosphor, amber, synthwave, grid, mono).
+
+Tailwind tokens are semantic roles, not hues: `retro-p1` (X accent), `retro-p2` (O accent), `retro-cta` (primary action), `retro-win` (success), plus `retro-tint-p1`/`tint-p2`/`tint-cta` (dark accent-tinted backgrounds), `retro-structure`, `retro-deep`, and the existing `bg`/`surface`/`card`/`border`/`text`/`dim`. Shadows: `shadow-neon-p1/p2/cta/win`, `shadow-glow-dot`. Text glows: `text-glow-p1/p2/cta/win`.
+
+Theme registry + switching live in `src/lib/theme.js` (`THEMES`, `applyTheme`, `getStoredTheme`; localStorage key `retro-theme`). The `ThemeSwitcher` component sits next to every mute button (Home, Game header, Demo). An inline boot script in `index.html` sets `data-theme` before paint to avoid a theme flash; `applyTheme` also updates `<meta name="theme-color">` to the active cta color.
+
+To add a theme: one `[data-theme="id"]` block in `src/index.css` + one `THEMES` entry. Never hardcode hex colors in `src/` — SVG presentation attributes can't hold `var()`, so use `style` props (`style={{ fill: 'rgb(var(--c-…))' }}`) or Tailwind `fill-*`/`stroke-*` classes instead.
+
+Mouse cursors are static white pixel-art SVG data URIs (cursors can't read CSS vars, so they don't theme); the four cursor vars (`--cursor-arrow/hand/text/no`) live in `:root` in `src/index.css`, which also re-routes the Tailwind `cursor-*` utilities through them.
+
+**Note:** `npm run dev` must be restarted after `tailwind.config.js` changes — the ESM config is cached for the process lifetime.
+
 ### Adding a new game
 
 The room/invite/Firebase/presence layer is game-agnostic. `src/lib/games.js` is the single registry — `Game.jsx` reads config from it and needs no per-game changes. To add a new board game:

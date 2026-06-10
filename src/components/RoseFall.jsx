@@ -34,8 +34,8 @@ export default function RoseFall() {
             <div style={{
               width: r.size,
               height: r.size,
-              background: '#ff4081',
-              boxShadow: '0 0 4px #ff4081',
+              background: 'rgb(var(--c-p2))',
+              boxShadow: '0 0 4px rgb(var(--c-p2))',
             }} />
             <div style={{
               position: 'absolute',
@@ -43,7 +43,7 @@ export default function RoseFall() {
               right: 0,
               width: 2,
               height: 2,
-              background: '#ffe600',
+              background: 'rgb(var(--c-cta))',
             }} />
           </div>
         </div>

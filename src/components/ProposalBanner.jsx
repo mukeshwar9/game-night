@@ -19,10 +19,10 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
   const isSpectator = !mySymbol
 
   return (
-    <div className="border-2 border-retro-yellow/50 bg-retro-card rounded p-3 text-center space-y-2">
+    <div className="border-2 border-retro-cta/50 bg-retro-card rounded p-3 text-center space-y-2">
       {isProposer && (
         <>
-          <p className="font-pixel text-[10px] text-retro-yellow animate-pulse">
+          <p className="font-pixel text-[10px] text-retro-cta animate-pulse">
             WAITING FOR {((players?.[opponentSym]?.name) || opponentSym).toUpperCase()}…
           </p>
           <button
@@ -41,13 +41,13 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
           <div className="flex justify-center gap-2">
             <button
               onClick={onAccept}
-              className="px-6 py-2.5 bg-retro-yellow text-retro-bg font-pixel text-xs rounded hover:shadow-neon-yellow transition-all active:scale-95"
+              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
             >
               ACCEPT
             </button>
             <button
               onClick={onDecline}
-              className="border border-retro-pink text-retro-pink font-pixel text-[10px] px-4 py-2 rounded hover:shadow-neon-pink"
+              className="border border-retro-p2 text-retro-p2 font-pixel text-[10px] px-4 py-2 rounded hover:shadow-neon-p2"
             >
               DECLINE
             </button>

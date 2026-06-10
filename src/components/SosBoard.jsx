@@ -38,14 +38,14 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
           'border border-retro-border/60 rounded-sm',
           'transition-all duration-100',
           scorer === 'X'
-            ? 'bg-retro-cyan/15 shadow-[inset_0_0_4px_rgba(0,255,255,0.25)]'
+            ? 'bg-retro-p1/15 shadow-[inset_0_0_4px_rgba(0,255,255,0.25)]'
             : scorer === 'O'
-              ? 'bg-retro-pink/15 shadow-[inset_0_0_4px_rgba(255,0,128,0.25)]'
+              ? 'bg-retro-p2/15 shadow-[inset_0_0_4px_rgba(255,0,128,0.25)]'
               : '',
           isClickable && !isOccupied
             ? currentTurn === 'X'
-              ? 'hover:bg-retro-cyan/10 hover:border-retro-cyan/40 cursor-pointer'
-              : 'hover:bg-retro-pink/10 hover:border-retro-pink/40 cursor-pointer'
+              ? 'hover:bg-retro-p1/10 hover:border-retro-p1/40 cursor-pointer'
+              : 'hover:bg-retro-p2/10 hover:border-retro-p2/40 cursor-pointer'
             : 'cursor-default',
         )}
       >
@@ -86,8 +86,8 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
               'font-pixel text-[11px] rounded border-2',
               'transition-all duration-100 active:scale-95',
               selectedLetter === letter
-                ? 'border-retro-yellow text-retro-yellow shadow-neon-yellow'
-                : 'border-retro-border text-retro-dim hover:border-retro-yellow/50',
+                ? 'border-retro-cta text-retro-cta shadow-neon-cta'
+                : 'border-retro-border text-retro-dim hover:border-retro-cta/50',
               disabled && 'opacity-50 cursor-default',
             )}
           >
@@ -98,9 +98,9 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
 
       {/* Score bar */}
       <div className="mt-2 flex items-center justify-center gap-3 font-pixel text-[10px]">
-        <span className="text-retro-cyan text-glow-cyan">X {xCount}</span>
+        <span className="text-retro-p1 text-glow-p1">X {xCount}</span>
         <span className="text-retro-dim">—</span>
-        <span className="text-retro-pink text-glow-pink">{oCount} O</span>
+        <span className="text-retro-p2 text-glow-p2">{oCount} O</span>
       </div>
     </div>
   )

@@ -21,8 +21,8 @@ export default function WordDisplay({ wordLength, guesses = {}, revealedWord = n
               'font-pixel text-sm w-8 h-8 flex items-center justify-center',
               letter
                 ? revealedWord
-                  ? 'text-retro-yellow text-glow-yellow'
-                  : 'text-retro-cyan text-glow-cyan'
+                  ? 'text-retro-cta text-glow-cta'
+                  : 'text-retro-p1 text-glow-p1'
                 : 'text-transparent',
             )}
           >
@@ -30,7 +30,7 @@ export default function WordDisplay({ wordLength, guesses = {}, revealedWord = n
           </span>
           <div className={cn(
             'h-0.5 w-8',
-            letter ? 'bg-retro-cyan' : 'bg-retro-border',
+            letter ? 'bg-retro-p1' : 'bg-retro-border',
           )} />
         </div>
       ))}

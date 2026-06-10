@@ -32,7 +32,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       const edgeIdx = hEdgeIndex(row, col)
       const owner = board[edgeIdx]
       const isHovered = hoveredEdge === edgeIdx && !disabled && !owner
-      const hoverColor = currentTurn === 'X' ? 'bg-retro-cyan/40' : 'bg-retro-pink/40'
+      const hoverColor = currentTurn === 'X' ? 'bg-retro-p1/40' : 'bg-retro-p2/40'
 
       cells.push(
         <div key={i} className="relative flex items-center justify-center">
@@ -46,9 +46,9 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
               'absolute z-10 -top-[9px] -bottom-[9px] left-0 right-0',
               'rounded-sm transition-all duration-100',
               owner === 'X'
-                ? 'bg-retro-cyan shadow-neon-cyan'
+                ? 'bg-retro-p1 shadow-neon-p1'
                 : owner === 'O'
-                  ? 'bg-retro-pink shadow-neon-pink'
+                  ? 'bg-retro-p2 shadow-neon-p2'
                   : isHovered
                     ? hoverColor
                     : 'bg-retro-border/50',
@@ -64,7 +64,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       const edgeIdx = vEdgeIndex(row, col)
       const owner = board[edgeIdx]
       const isHovered = hoveredEdge === edgeIdx && !disabled && !owner
-      const hoverColor = currentTurn === 'X' ? 'bg-retro-cyan/40' : 'bg-retro-pink/40'
+      const hoverColor = currentTurn === 'X' ? 'bg-retro-p1/40' : 'bg-retro-p2/40'
 
       cells.push(
         <div key={i} className="relative flex items-center justify-center">
@@ -78,9 +78,9 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
               'absolute z-10 top-0 bottom-0 -left-[9px] -right-[9px]',
               'rounded-sm transition-all duration-100',
               owner === 'X'
-                ? 'bg-retro-cyan shadow-neon-cyan'
+                ? 'bg-retro-p1 shadow-neon-p1'
                 : owner === 'O'
-                  ? 'bg-retro-pink shadow-neon-pink'
+                  ? 'bg-retro-p2 shadow-neon-p2'
                   : isHovered
                     ? hoverColor
                     : 'bg-retro-border/50',
@@ -99,14 +99,14 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
           key={i}
           className={cn(
             'flex items-center justify-center rounded-sm',
-            owner === 'X' ? 'bg-retro-cyan/15' : owner === 'O' ? 'bg-retro-pink/15' : '',
+            owner === 'X' ? 'bg-retro-p1/15' : owner === 'O' ? 'bg-retro-p2/15' : '',
           )}
         >
           {owner && (
             <span
               className={cn(
                 'font-pixel text-[10px]',
-                owner === 'X' ? 'text-retro-cyan text-glow-cyan' : 'text-retro-pink text-glow-pink',
+                owner === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2',
               )}
               style={{ animation: 'box-claim 0.25s ease-out both' }}
             >
@@ -135,9 +135,9 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
 
       {/* Box count bar */}
       <div className="mt-2 flex items-center justify-center gap-3 font-pixel text-[10px]">
-        <span className="text-retro-cyan text-glow-cyan">X {xCount}</span>
+        <span className="text-retro-p1 text-glow-p1">X {xCount}</span>
         <span className="text-retro-dim">—</span>
-        <span className="text-retro-pink text-glow-pink">{oCount} O</span>
+        <span className="text-retro-p2 text-glow-p2">{oCount} O</span>
       </div>
     </div>
   )

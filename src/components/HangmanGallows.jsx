@@ -34,22 +34,20 @@ const HAIR_PIXELS = [
   [-2, 3],[ 2, 3],  // shoulder level
   [-2, 4],[ 2, 4],  // arm level
 ]
-const HAIR_COLOR = '#ffe600'
 
-function Pixel({ col, row, slump = 0, fill = '#ff4081', opacity = 1 }) {
+function Pixel({ col, row, slump = 0, fill = 'rgb(var(--c-p2))', opacity = 1 }) {
   return (
     <rect
       x={rx(col) - PX / 2}
       y={ry(row) + slump - PX / 2}
       width={PX}
       height={PX}
-      fill={fill}
-      opacity={opacity}
+      style={{ fill, opacity }}
     />
   )
 }
 
-function PixelGroup({ pixels, slump = 0, fill = '#ff4081', opacity = 1 }) {
+function PixelGroup({ pixels, slump = 0, fill = 'rgb(var(--c-p2))', opacity = 1 }) {
   return (
     <>
       {pixels.map(([col, row]) => (
@@ -72,7 +70,7 @@ export default function HangmanGallows({ wrongCount = 0, flash = false }) {
       {flash && (
         <div
           className="absolute inset-0 rounded pointer-events-none z-10"
-          style={{ background: '#ff4081', animation: 'miss-flash 0.12s step-end forwards' }}
+          style={{ background: 'rgb(var(--c-p2))', animation: 'miss-flash 0.12s step-end forwards' }}
         />
       )}
 
@@ -85,49 +83,49 @@ export default function HangmanGallows({ wrongCount = 0, flash = false }) {
         {isDead ? (
           <>
             {/* Left platform segment */}
-            <rect x="4"  y="135" width="64" height="8" fill="#0c0c20" />
+            <rect x="4"  y="135" width="64" height="8" style={{ fill: 'rgb(var(--c-deep))' }} />
             {/* Right platform segment (gap x=68→92 under figure at x=80) */}
-            <rect x="92" y="135" width="24" height="8" fill="#0c0c20" />
+            <rect x="92" y="135" width="24" height="8" style={{ fill: 'rgb(var(--c-deep))' }} />
             {/* Platform top edge lines */}
-            <line x1="4"  y1="135" x2="68"  y2="135" stroke="#2a2a50" strokeWidth="2" strokeLinecap="square" />
-            <line x1="92" y1="135" x2="116" y2="135" stroke="#2a2a50" strokeWidth="2" strokeLinecap="square" />
+            <line x1="4"  y1="135" x2="68"  y2="135" style={{ stroke: 'rgb(var(--c-structure))', strokeWidth: 2, strokeLinecap: 'square' }} />
+            <line x1="92" y1="135" x2="116" y2="135" style={{ stroke: 'rgb(var(--c-structure))', strokeWidth: 2, strokeLinecap: 'square' }} />
             {/* Left trapdoor flap hanging down from left gap edge */}
-            <rect x="64" y="143" width="6" height="10" fill="#0c0c20" stroke="#2a2a50" strokeWidth="1" />
+            <rect x="64" y="143" width="6" height="10" style={{ fill: 'rgb(var(--c-deep))', stroke: 'rgb(var(--c-structure))', strokeWidth: 1 }} />
             {/* Right trapdoor flap hanging down from right gap edge */}
-            <rect x="90" y="143" width="6" height="10" fill="#0c0c20" stroke="#2a2a50" strokeWidth="1" />
+            <rect x="90" y="143" width="6" height="10" style={{ fill: 'rgb(var(--c-deep))', stroke: 'rgb(var(--c-structure))', strokeWidth: 1 }} />
           </>
         ) : (
           <>
-            <rect x="4"  y="135" width="112" height="8" fill="#0c0c20" />
-            <line x1="4" y1="135" x2="116" y2="135" stroke="#2a2a50" strokeWidth="2" strokeLinecap="square" />
+            <rect x="4"  y="135" width="112" height="8" style={{ fill: 'rgb(var(--c-deep))' }} />
+            <line x1="4" y1="135" x2="116" y2="135" style={{ stroke: 'rgb(var(--c-structure))', strokeWidth: 2, strokeLinecap: 'square' }} />
           </>
         )}
 
         {/* ── Gallows frame (no strut) ── */}
         {/* Vertical pole */}
         <line x1="24" y1="135" x2="24" y2="11"
-          stroke="#00e5ff" strokeWidth="3" strokeLinecap="square" strokeOpacity="0.65" />
+          style={{ stroke: 'rgb(var(--c-p1))', strokeWidth: 3, strokeLinecap: 'square', strokeOpacity: 0.65 }} />
         {/* Horizontal beam */}
         <line x1="24" y1="11" x2="80" y2="11"
-          stroke="#00e5ff" strokeWidth="3" strokeLinecap="square" strokeOpacity="0.65" />
+          style={{ stroke: 'rgb(var(--c-p1))', strokeWidth: 3, strokeLinecap: 'square', strokeOpacity: 0.65 }} />
 
         {/* Rope — always visible */}
         <line x1="80" y1="11" x2="80" y2="24"
-          stroke="#5a5a8a" strokeWidth="2" strokeLinecap="square" />
+          style={{ stroke: 'rgb(var(--c-dim))', strokeWidth: 2, strokeLinecap: 'square' }} />
 
         {/* Drop group: noose + figure animate downward when dead */}
         <g style={isDead ? { animation: 'hangman-drop 0.25s steps(3, end) forwards' } : undefined}>
           {/* Rope extension: overlaps static rope when undropped; fills gap after 6px drop */}
           <line x1="80" y1="18" x2="80" y2="24"
-            stroke="#5a5a8a" strokeWidth="2" strokeLinecap="square" />
+            style={{ stroke: 'rgb(var(--c-dim))', strokeWidth: 2, strokeLinecap: 'square' }} />
 
           {/* Noose loop — appears with head */}
           {wrongCount >= 1 && (
             <>
-              <rect x="77" y="21" width="6" height="4" rx="0" fill="none"
-                stroke="#5a5a8a" strokeWidth="1.5" strokeLinecap="square" />
+              <rect x="77" y="21" width="6" height="4" rx="0"
+                style={{ fill: 'none', stroke: 'rgb(var(--c-dim))', strokeWidth: 1.5, strokeLinecap: 'square' }} />
               <line x1="80" y1="25" x2="80" y2="26"
-                stroke="#5a5a8a" strokeWidth="2" strokeLinecap="square" />
+                style={{ stroke: 'rgb(var(--c-dim))', strokeWidth: 2, strokeLinecap: 'square' }} />
             </>
           )}
 
@@ -144,7 +142,7 @@ export default function HangmanGallows({ wrongCount = 0, flash = false }) {
               <PixelGroup
                 pixels={HAIR_PIXELS}
                 slump={slump}
-                fill={HAIR_COLOR}
+                fill="rgb(var(--c-cta))"
                 opacity={isDead ? 0.55 : 0.9}
               />
             )}
@@ -153,58 +151,58 @@ export default function HangmanGallows({ wrongCount = 0, flash = false }) {
             {wrongCount >= 1 && !isDead && (
               <>
                 {/* Outline pixels */}
-                <PixelGroup pixels={HEAD_PIXELS} slump={slump} fill="#ff4081" />
+                <PixelGroup pixels={HEAD_PIXELS} slump={slump} fill="rgb(var(--c-p2))" />
                 {/* Hollow centre with a face — tiny dot eyes */}
-                <Pixel col={-1} row={1} slump={slump} fill="#ff4081" opacity={0.25} />
-                <Pixel col={ 1} row={1} slump={slump} fill="#ff4081" opacity={0.25} />
+                <Pixel col={-1} row={1} slump={slump} fill="rgb(var(--c-p2))" opacity={0.25} />
+                <Pixel col={ 1} row={1} slump={slump} fill="rgb(var(--c-p2))" opacity={0.25} />
                 {/* Eye dots (2×2 inside) */}
-                <rect x={rx(-1) - 1} y={ry(1) + slump - 1} width={2} height={2} fill="#ff4081" opacity={0.9} />
-                <rect x={rx( 1) - 1} y={ry(1) + slump - 1} width={2} height={2} fill="#ff4081" opacity={0.9} />
+                <rect x={rx(-1) - 1} y={ry(1) + slump - 1} width={2} height={2} style={{ fill: 'rgb(var(--c-p2))', opacity: 0.9 }} />
+                <rect x={rx( 1) - 1} y={ry(1) + slump - 1} width={2} height={2} style={{ fill: 'rgb(var(--c-p2))', opacity: 0.9 }} />
               </>
             )}
 
             {/* Dead head — X eyes */}
             {isDead && (
               <>
-                <PixelGroup pixels={HEAD_PIXELS} slump={slump} fill="#ff4081" opacity={0.65} />
-                <Pixel col={-1} row={1} slump={slump} fill="#080810" opacity={1} />
-                <Pixel col={ 1} row={1} slump={slump} fill="#080810" opacity={1} />
+                <PixelGroup pixels={HEAD_PIXELS} slump={slump} fill="rgb(var(--c-p2))" opacity={0.65} />
+                <Pixel col={-1} row={1} slump={slump} fill="rgb(var(--c-bg))" opacity={1} />
+                <Pixel col={ 1} row={1} slump={slump} fill="rgb(var(--c-bg))" opacity={1} />
                 {/* Left X */}
                 <line x1={rx(-1)-2} y1={ry(1)+slump-2} x2={rx(-1)+2} y2={ry(1)+slump+2}
-                  stroke="#ff4081" strokeWidth="1.5" strokeLinecap="square" />
+                  style={{ stroke: 'rgb(var(--c-p2))', strokeWidth: 1.5, strokeLinecap: 'square' }} />
                 <line x1={rx(-1)+2} y1={ry(1)+slump-2} x2={rx(-1)-2} y2={ry(1)+slump+2}
-                  stroke="#ff4081" strokeWidth="1.5" strokeLinecap="square" />
+                  style={{ stroke: 'rgb(var(--c-p2))', strokeWidth: 1.5, strokeLinecap: 'square' }} />
                 {/* Right X */}
                 <line x1={rx(1)-2} y1={ry(1)+slump-2} x2={rx(1)+2} y2={ry(1)+slump+2}
-                  stroke="#ff4081" strokeWidth="1.5" strokeLinecap="square" />
+                  style={{ stroke: 'rgb(var(--c-p2))', strokeWidth: 1.5, strokeLinecap: 'square' }} />
                 <line x1={rx(1)+2} y1={ry(1)+slump-2} x2={rx(1)-2} y2={ry(1)+slump+2}
-                  stroke="#ff4081" strokeWidth="1.5" strokeLinecap="square" />
+                  style={{ stroke: 'rgb(var(--c-p2))', strokeWidth: 1.5, strokeLinecap: 'square' }} />
               </>
             )}
 
             {/* 2 — Body */}
             {wrongCount >= 2 && (
-              <PixelGroup pixels={BODY_PIXELS} slump={slump} fill="#ff4081" />
+              <PixelGroup pixels={BODY_PIXELS} slump={slump} fill="rgb(var(--c-p2))" />
             )}
 
             {/* 3 — Left arm */}
             {wrongCount >= 3 && (
-              <PixelGroup pixels={LEFT_ARM_PIXELS} slump={slump} fill="#ff4081" />
+              <PixelGroup pixels={LEFT_ARM_PIXELS} slump={slump} fill="rgb(var(--c-p2))" />
             )}
 
             {/* 4 — Right arm */}
             {wrongCount >= 4 && (
-              <PixelGroup pixels={RIGHT_ARM_PIXELS} slump={slump} fill="#ff4081" />
+              <PixelGroup pixels={RIGHT_ARM_PIXELS} slump={slump} fill="rgb(var(--c-p2))" />
             )}
 
             {/* 5 — Left leg */}
             {wrongCount >= 5 && (
-              <PixelGroup pixels={LEFT_LEG_PIXELS} slump={slump} fill="#ff4081" />
+              <PixelGroup pixels={LEFT_LEG_PIXELS} slump={slump} fill="rgb(var(--c-p2))" />
             )}
 
             {/* 6 — Right leg */}
             {wrongCount >= MAX_WRONG && (
-              <PixelGroup pixels={RIGHT_LEG_PIXELS} slump={slump} fill="#ff4081" />
+              <PixelGroup pixels={RIGHT_LEG_PIXELS} slump={slump} fill="rgb(var(--c-p2))" />
             )}
           </g>
         </g>

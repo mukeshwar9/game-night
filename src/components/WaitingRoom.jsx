@@ -23,7 +23,7 @@ export default function WaitingRoom({ gameId }) {
         {[0, 1, 2].map(i => (
           <div
             key={i}
-            className="w-2.5 h-2.5 rounded-full bg-retro-yellow animate-bounce shadow-neon-yellow"
+            className="w-2.5 h-2.5 rounded-full bg-retro-cta animate-bounce shadow-neon-cta"
             style={{ animationDelay: `${i * 200}ms` }}
           />
         ))}
@@ -36,14 +36,14 @@ export default function WaitingRoom({ gameId }) {
         <p className="text-retro-dim text-xs font-mono truncate flex-1">{shareUrl}</p>
         <button
           onClick={copyLink}
-          className="flex-shrink-0 px-3 py-1.5 bg-retro-yellow text-retro-bg
-            font-pixel text-[10px] rounded hover:shadow-neon-yellow transition-all active:scale-95"
+          className="flex-shrink-0 px-3 py-1.5 bg-retro-cta text-retro-bg
+            font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95"
         >
           COPY
         </button>
       </div>
       <p className="font-pixel text-[10px] text-retro-dim">
-        CODE: <span className="text-retro-cyan text-glow-cyan tracking-widest">{gameId}</span>
+        CODE: <span className="text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
       </p>
     </div>
   )

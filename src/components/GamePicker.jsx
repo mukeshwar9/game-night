@@ -14,14 +14,14 @@ export default function GamePicker({ onSelect, excludeType, loadingType }) {
             'flex flex-col items-center gap-2.5 py-4 px-2 border-2 rounded',
             'transition-all active:scale-95',
             loadingType === type
-              ? 'border-retro-yellow bg-[#1a1500] shadow-neon-yellow'
-              : 'border-retro-border bg-retro-card hover:border-retro-yellow/50',
+              ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
+              : 'border-retro-border bg-retro-card hover:border-retro-cta/50',
             loadingType && loadingType !== type && 'opacity-40',
           )}
         >
           <div className={cn(
             'w-10 h-10 rounded flex items-center justify-center',
-            loadingType === type ? 'text-retro-yellow' : 'text-retro-dim',
+            loadingType === type ? 'text-retro-cta' : 'text-retro-dim',
           )}>
             {Icon && <Icon />}
           </div>
@@ -32,7 +32,7 @@ export default function GamePicker({ onSelect, excludeType, loadingType }) {
           {loadingType === type && (
             <div className="flex gap-1">
               {[0, 1, 2].map(i => (
-                <div key={i} className="w-1 h-1 bg-retro-yellow rounded-full animate-bounce"
+                <div key={i} className="w-1 h-1 bg-retro-cta rounded-full animate-bounce"
                   style={{ animationDelay: `${i * 150}ms` }} />
               ))}
             </div>

@@ -25,6 +25,7 @@ import {
 } from '../lib/sosLogic';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 
 // Local hangman with no Firebase — both roles in one tab
 function HangmanDemo() {
@@ -80,14 +81,14 @@ function HangmanDemo() {
         <div className="flex justify-center gap-2">
           <button
             onClick={() => setStepperCount(c => Math.max(0, c - 1))}
-            className="px-3 py-1 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-cyan/50 active:scale-95"
+            className="px-3 py-1 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
           >
             –
           </button>
           <span className="font-pixel text-[10px] text-retro-dim self-center">{stepperCount}/{MAX_WRONG}</span>
           <button
             onClick={() => setStepperCount(c => Math.min(MAX_WRONG, c + 1))}
-            className="px-3 py-1 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-cyan/50 active:scale-95"
+            className="px-3 py-1 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
           >
             +
           </button>
@@ -114,22 +115,22 @@ function HangmanDemo() {
                 <>
                   <p className={cn(
                     'font-pixel text-xs',
-                    result === 'guessed' ? 'text-retro-cyan' : 'text-retro-pink',
+                    result === 'guessed' ? 'text-retro-p1' : 'text-retro-p2',
                   )}>
                     {result === 'guessed' ? 'WORD GUESSED!' : 'HANGED!'}
                   </p>
                   <p className="font-mono text-[10px] text-retro-dim">
-                    Word: <span className="text-retro-yellow">{word}</span>
+                    Word: <span className="text-retro-cta">{word}</span>
                   </p>
                   <button
                     onClick={reset}
-                    className="mt-2 px-5 py-2 font-pixel text-[10px] border border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan active:scale-95"
+                    className="mt-2 px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
                   >
                     PLAY AGAIN
                   </button>
                 </>
               ) : (
-                <p className="font-pixel text-[10px] text-retro-yellow animate-pulse">
+                <p className="font-pixel text-[10px] text-retro-cta animate-pulse">
                   GUESS A LETTER
                 </p>
               )}
@@ -188,20 +189,20 @@ function DotsAndBoxesDemo() {
       />
       <div className="text-center space-y-2">
         {status === 'playing' ? (
-          <p className="font-pixel text-[10px] text-retro-yellow animate-pulse">
+          <p className="font-pixel text-[10px] text-retro-cta animate-pulse">
             {currentTurn === 'X' ? 'X' : 'O'}&apos;S TURN
           </p>
         ) : (
           <p className={cn(
             'font-pixel text-[10px]',
-            winner === 'X' ? 'text-retro-cyan' : winner === 'O' ? 'text-retro-pink' : 'text-retro-dim',
+            winner === 'X' ? 'text-retro-p1' : winner === 'O' ? 'text-retro-p2' : 'text-retro-dim',
           )}>
             {winner === 'draw' ? 'DRAW!' : `${winner} WINS!`}
           </p>
         )}
         <button
           onClick={reset}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan active:scale-95"
+          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
         >
           RESET
         </button>
@@ -254,20 +255,20 @@ function SosDemo() {
       />
       <div className="text-center space-y-2">
         {status === 'playing' ? (
-          <p className="font-pixel text-[10px] text-retro-yellow animate-pulse">
+          <p className="font-pixel text-[10px] text-retro-cta animate-pulse">
             {currentTurn}&apos;S TURN
           </p>
         ) : (
           <p className={cn(
             'font-pixel text-[10px]',
-            winner === 'X' ? 'text-retro-cyan' : winner === 'O' ? 'text-retro-pink' : 'text-retro-dim',
+            winner === 'X' ? 'text-retro-p1' : winner === 'O' ? 'text-retro-p2' : 'text-retro-dim',
           )}>
             {winner === 'draw' ? 'DRAW!' : `${winner} WINS!`}
           </p>
         )}
         <button
           onClick={reset}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan active:scale-95"
+          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
         >
           RESET
         </button>
@@ -311,12 +312,15 @@ export default function Demo() {
     <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-5">
       <div className="w-full max-w-sm space-y-5">
         <div className="flex items-center justify-between">
-          <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-cyan transition-colors">
+          <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors">
             ← HOME
           </Link>
-          <span className="text-xs text-amber-400 bg-amber-950/60 border border-amber-700 rounded px-2 py-1 font-mono">
-            Demo — local only
-          </span>
+          <div className="flex items-center gap-2">
+            <ThemeSwitcher />
+            <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">
+              Demo — local only
+            </span>
+          </div>
         </div>
 
         {/* Hangman demo */}

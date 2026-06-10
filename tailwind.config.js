@@ -8,23 +8,29 @@ export default {
       },
       colors: {
         retro: {
-          bg:      '#080810',
-          surface: '#0f0f1a',
-          card:    '#131328',
-          border:  '#1e1e3a',
-          text:    '#e0e0ff',
-          dim:     '#5a5a8a',
-          cyan:    '#00e5ff',
-          pink:    '#ff4081',
-          yellow:  '#ffe600',
-          green:   '#39ff14',
+          bg:         'rgb(var(--c-bg) / <alpha-value>)',
+          surface:    'rgb(var(--c-surface) / <alpha-value>)',
+          card:       'rgb(var(--c-card) / <alpha-value>)',
+          border:     'rgb(var(--c-border) / <alpha-value>)',
+          text:       'rgb(var(--c-text) / <alpha-value>)',
+          dim:        'rgb(var(--c-dim) / <alpha-value>)',
+          p1:         'rgb(var(--c-p1) / <alpha-value>)',
+          p2:         'rgb(var(--c-p2) / <alpha-value>)',
+          cta:        'rgb(var(--c-cta) / <alpha-value>)',
+          win:        'rgb(var(--c-win) / <alpha-value>)',
+          'tint-p1':  'rgb(var(--c-tint-p1) / <alpha-value>)',
+          'tint-p2':  'rgb(var(--c-tint-p2) / <alpha-value>)',
+          'tint-cta': 'rgb(var(--c-tint-cta) / <alpha-value>)',
+          structure:  'rgb(var(--c-structure) / <alpha-value>)',
+          deep:       'rgb(var(--c-deep) / <alpha-value>)',
         },
       },
       boxShadow: {
-        'neon-cyan':   '0 0 8px #00e5ff, 0 0 24px rgba(0,229,255,0.35)',
-        'neon-pink':   '0 0 8px #ff4081, 0 0 24px rgba(255,64,129,0.35)',
-        'neon-yellow': '0 0 8px #ffe600, 0 0 24px rgba(255,230,0,0.35)',
-        'neon-green':  '0 0 8px #39ff14, 0 0 24px rgba(57,255,20,0.35)',
+        'neon-p1':  '0 0 8px rgb(var(--c-p1)), 0 0 24px rgb(var(--c-p1) / 0.35)',
+        'neon-p2':  '0 0 8px rgb(var(--c-p2)), 0 0 24px rgb(var(--c-p2) / 0.35)',
+        'neon-cta': '0 0 8px rgb(var(--c-cta)), 0 0 24px rgb(var(--c-cta) / 0.35)',
+        'neon-win': '0 0 8px rgb(var(--c-win)), 0 0 24px rgb(var(--c-win) / 0.35)',
+        'glow-dot': '0 0 4px rgb(var(--c-win))',
       },
       keyframes: {
         blink: {
@@ -40,10 +46,10 @@ export default {
   plugins: [
     function ({ addUtilities }) {
       addUtilities({
-        '.text-glow-cyan':   { textShadow: '0 0 8px #00e5ff, 0 0 20px rgba(0,229,255,0.5)' },
-        '.text-glow-pink':   { textShadow: '0 0 8px #ff4081, 0 0 20px rgba(255,64,129,0.5)' },
-        '.text-glow-yellow': { textShadow: '0 0 10px #ffe600, 0 0 28px rgba(255,230,0,0.5)' },
-        '.text-glow-green':  { textShadow: '0 0 8px #39ff14, 0 0 20px rgba(57,255,20,0.5)' },
+        '.text-glow-p1':  { textShadow: '0 0 8px rgb(var(--c-p1)), 0 0 20px rgb(var(--c-p1) / 0.5)' },
+        '.text-glow-p2':  { textShadow: '0 0 8px rgb(var(--c-p2)), 0 0 20px rgb(var(--c-p2) / 0.5)' },
+        '.text-glow-cta': { textShadow: '0 0 10px rgb(var(--c-cta)), 0 0 28px rgb(var(--c-cta) / 0.5)' },
+        '.text-glow-win': { textShadow: '0 0 8px rgb(var(--c-win)), 0 0 20px rgb(var(--c-win) / 0.5)' },
         '.scanline': {
           position: 'relative',
           '&::after': {
@@ -58,3 +64,5 @@ export default {
     },
   ],
 }
+
+// theme tokens live in src/index.css (--c-*); see CLAUDE.md

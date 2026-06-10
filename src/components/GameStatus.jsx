@@ -11,8 +11,8 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
   const RetroButton = ({ onClick, children }) => (
     <button
       onClick={onClick}
-      className="px-6 py-2.5 bg-retro-yellow text-retro-bg font-pixel text-xs
-        rounded hover:shadow-neon-yellow transition-all active:scale-95"
+      className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs
+        rounded hover:shadow-neon-cta transition-all active:scale-95"
     >
       {children}
     </button>
@@ -27,7 +27,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
           <p className={cn(
             'font-pixel text-base',
-            iWon ? 'text-retro-yellow text-glow-yellow' : 'text-retro-dim',
+            iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim',
           )}>
             {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
           </p>
@@ -49,7 +49,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           isDraw
             ? 'text-retro-text'
             : iWon
-              ? 'text-retro-yellow text-glow-yellow'
+              ? 'text-retro-cta text-glow-cta'
               : 'text-retro-dim',
         )}>
           {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : mySymbol ? 'GAME OVER' : `${winner} WINS!`}
@@ -64,7 +64,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     return (
       <p className="text-center font-pixel text-[10px] tracking-wider">
         {currentTurn === mySymbol
-          ? <span className="text-retro-yellow text-glow-yellow animate-pulse">YOUR TURN</span>
+          ? <span className="text-retro-cta text-glow-cta animate-pulse">YOUR TURN</span>
           : <span className="text-retro-dim">OPPONENT&apos;S TURN</span>}
       </p>
     )

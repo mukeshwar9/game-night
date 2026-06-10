@@ -13,7 +13,7 @@ export default function GameSwitcher({ currentType, onSwitch }) {
     <div className="flex flex-col items-center mt-2">
       <button
         onClick={() => setOpen(true)}
-        className="px-3 py-2 font-pixel text-[10px] border border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan transition-all active:scale-95"
+        className="px-3 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 transition-all active:scale-95"
       >
         SWITCH GAME
       </button>

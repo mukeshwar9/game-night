@@ -25,13 +25,13 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                   'aspect-square rounded-full border-2 transition-all duration-150',
                   'flex items-center justify-center',
                   cell === 'X'
-                    ? cn('bg-retro-cyan border-retro-cyan/70', winningLine.includes(i) && 'scale-110 shadow-neon-cyan')
+                    ? cn('bg-retro-p1 border-retro-p1/70', winningLine.includes(i) && 'scale-110 shadow-neon-p1')
                     : cell === 'O'
-                      ? cn('bg-retro-pink border-retro-pink/70', winningLine.includes(i) && 'scale-110 shadow-neon-pink')
+                      ? cn('bg-retro-p2 border-retro-p2/70', winningLine.includes(i) && 'scale-110 shadow-neon-p2')
                       : isHovered
                         ? currentTurn === 'X'
-                          ? 'bg-retro-cyan/20 border-retro-cyan/40'
-                          : 'bg-retro-pink/20 border-retro-pink/40'
+                          ? 'bg-retro-p1/20 border-retro-p1/40'
+                          : 'bg-retro-p2/20 border-retro-p2/40'
                         : 'bg-retro-bg border-retro-border',
                   !cell && !disabled && !colFull ? 'cursor-pointer' : 'cursor-default',
                 )}

@@ -39,22 +39,22 @@ function CheatScreen({ evidence }) {
     <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-6 gap-6">
       <div className="text-center space-y-3">
         <p
-          className="font-pixel text-base text-retro-pink text-glow-pink"
+          className="font-pixel text-base text-retro-p2 text-glow-p2"
           style={{ animation: 'blink-text 0.6s step-end infinite' }}
         >
           ⚠ CHEAT DETECTED ⚠
         </p>
         <p className="font-mono text-xs text-retro-dim">The word-keeper cheated.</p>
       </div>
-      <div className="w-full max-w-sm bg-retro-card border border-retro-pink/40 rounded p-4 space-y-2 font-mono text-[10px] text-retro-dim break-all">
-        <p><span className="text-retro-pink">COMMITMENT:</span> {evidence?.commitment?.slice(0, 16)}…</p>
-        <p><span className="text-retro-pink">REVEALED:</span> {evidence?.revealed}</p>
-        <p><span className="text-retro-pink">HASH OK:</span> {String(evidence?.commitOk)}</p>
-        <p><span className="text-retro-pink">ANSWERS OK:</span> {String(evidence?.consistencyOk)}</p>
+      <div className="w-full max-w-sm bg-retro-card border border-retro-p2/40 rounded p-4 space-y-2 font-mono text-[10px] text-retro-dim break-all">
+        <p><span className="text-retro-p2">COMMITMENT:</span> {evidence?.commitment?.slice(0, 16)}…</p>
+        <p><span className="text-retro-p2">REVEALED:</span> {evidence?.revealed}</p>
+        <p><span className="text-retro-p2">HASH OK:</span> {String(evidence?.commitOk)}</p>
+        <p><span className="text-retro-p2">ANSWERS OK:</span> {String(evidence?.consistencyOk)}</p>
       </div>
       <Link
         to="/"
-        className="font-pixel text-[10px] text-retro-cyan text-glow-cyan hover:opacity-80 transition-opacity"
+        className="font-pixel text-[10px] text-retro-p1 text-glow-p1 hover:opacity-80 transition-opacity"
       >
         ← BACK TO HOME
       </Link>
@@ -312,7 +312,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
         <p className={cn(
           'font-pixel text-base',
-          iWon ? 'text-retro-yellow text-glow-yellow' : 'text-retro-dim',
+          iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim',
         )}>
           {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
         </p>
@@ -320,7 +320,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         {!isSpectator && !proposal && onNewMatch && (
           <button
             onClick={onNewMatch}
-            className="px-6 py-2.5 bg-retro-yellow text-retro-bg font-pixel text-xs rounded hover:shadow-neon-yellow transition-all active:scale-95"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
           >
             NEW MATCH
           </button>
@@ -345,11 +345,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
           <div className="text-center space-y-3 py-6">
             <div className="flex gap-2 justify-center">
               {[0, 1, 2].map(i => (
-                <div key={i} className="w-2 h-2 rounded-full bg-retro-pink animate-bounce shadow-neon-pink"
+                <div key={i} className="w-2 h-2 rounded-full bg-retro-p2 animate-bounce shadow-neon-p2"
                   style={{ animationDelay: `${i * 200}ms` }} />
               ))}
             </div>
-            <p className="font-pixel text-[10px] text-retro-pink text-glow-pink leading-relaxed">
+            <p className="font-pixel text-[10px] text-retro-p2 text-glow-p2 leading-relaxed">
               WAITING FOR<br />WORD-KEEPER…
             </p>
             {!opponentOnline && (
@@ -399,9 +399,9 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
           <p className={cn(
             'font-pixel text-[10px]',
             canGuess && wrongCount === MAX_WRONG - 1
-              ? 'text-retro-pink text-glow-pink'
+              ? 'text-retro-p2 text-glow-p2'
               : canGuess
-                ? 'text-retro-yellow text-glow-yellow animate-pulse'
+                ? 'text-retro-cta text-glow-cta animate-pulse'
                 : 'text-retro-dim',
           )}
           style={canGuess && wrongCount === MAX_WRONG - 1
@@ -421,11 +421,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         )}
         {isReveal && roundResult === 'hanged' && (
           <div className="space-y-2">
-            <p className="font-pixel text-xs text-retro-pink text-glow-pink">
+            <p className="font-pixel text-xs text-retro-p2 text-glow-p2">
               RIP QUEEN
             </p>
             {isSetter && (
-              <p className="font-pixel text-[10px] text-retro-pink/70">
+              <p className="font-pixel text-[10px] text-retro-p2/70">
                 YOU HANGED HER
               </p>
             )}
@@ -433,13 +433,13 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
               <Gravestone />
             </div>
             <p className="font-mono text-[10px] text-retro-dim">
-              THE WORD THAT KILLED HER: <span className="text-retro-yellow">{revealedWord}</span>
+              THE WORD THAT KILLED HER: <span className="text-retro-cta">{revealedWord}</span>
             </p>
             {!isSpectator && (
               <div className="space-y-2">
                 <button
                   onClick={handleNextRound}
-                  className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan hover:bg-[#001a2e] transition-all active:scale-95"
+                  className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
                 >
                   NEXT ROUND
                 </button>
@@ -452,17 +452,17 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         )}
         {isReveal && roundResult === 'guessed' && (
           <div className="space-y-2">
-            <p className="font-pixel text-xs text-retro-cyan text-glow-cyan">
+            <p className="font-pixel text-xs text-retro-p1 text-glow-p1">
               WORD GUESSED!
             </p>
             <p className="font-mono text-[10px] text-retro-dim">
-              The word was <span className="text-retro-yellow">{revealedWord}</span>
+              The word was <span className="text-retro-cta">{revealedWord}</span>
             </p>
             {!isSpectator && (
               <div className="space-y-2">
                 <button
                   onClick={handleNextRound}
-                  className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan hover:bg-[#001a2e] transition-all active:scale-95"
+                  className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
                 >
                   NEXT ROUND
                 </button>
@@ -475,7 +475,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         )}
         <p className={cn(
           'font-mono text-[10px]',
-          wrongCount >= MAX_WRONG - 1 ? 'text-retro-pink text-glow-pink' : 'text-retro-dim',
+          wrongCount >= MAX_WRONG - 1 ? 'text-retro-p2 text-glow-p2' : 'text-retro-dim',
         )}
         style={wrongCount >= MAX_WRONG - 1
           ? { animation: 'blink-text 0.6s step-end infinite' }
@@ -487,14 +487,14 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
       {/* Setter missing word — forfeit option */}
       {setterMissingWord && (
-        <div className="text-center space-y-2 border border-retro-pink/30 rounded p-3">
+        <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3">
           <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
             Your word was stored in this browser tab only.<br />
             Concede the round to continue.
           </p>
           <button
             onClick={handleForfeit}
-            className="px-5 py-2 font-pixel text-[10px] border border-retro-pink text-retro-pink rounded hover:shadow-neon-pink transition-all active:scale-95"
+            className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
           >
             CONCEDE ROUND
           </button>

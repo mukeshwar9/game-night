@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 
-const COLORS = { X: '#00e5ff', O: '#ff4081', draw: '#ffe600' }
-const GLOWS  = { X: '0 0 6px #00e5ff', O: '0 0 6px #ff4081', draw: '0 0 6px #ffe600' }
+const COLORS = { X: 'rgb(var(--c-p1))', O: 'rgb(var(--c-p2))', draw: 'rgb(var(--c-cta))' }
+const GLOWS  = { X: '0 0 6px rgb(var(--c-p1))', O: '0 0 6px rgb(var(--c-p2))', draw: '0 0 6px rgb(var(--c-cta))' }
 
 export default function WinEffect({ winner, onDone }) {
   useEffect(() => {

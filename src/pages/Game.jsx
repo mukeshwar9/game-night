@@ -14,6 +14,7 @@ import ProposalBanner from '../components/ProposalBanner'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import ThemeSwitcher from '../components/ThemeSwitcher'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -28,7 +29,7 @@ function LoadingScreen() {
     <div className="min-h-screen bg-retro-bg flex items-center justify-center">
       <div className="flex gap-2">
         {[0, 1, 2].map(i => (
-          <div key={i} className="w-3 h-3 bg-retro-yellow rounded-full animate-bounce shadow-neon-yellow"
+          <div key={i} className="w-3 h-3 bg-retro-cta rounded-full animate-bounce shadow-neon-cta"
             style={{ animationDelay: `${i * 200}ms` }} />
         ))}
       </div>
@@ -400,9 +401,9 @@ export default function Game() {
     return (
       <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-6 text-center">
-          <h2 className="font-pixel text-sm text-retro-yellow text-glow-yellow">YOU&apos;RE INVITED!</h2>
+          <h2 className="font-pixel text-sm text-retro-cta text-glow-cta">YOU&apos;RE INVITED!</h2>
           <p className="font-mono text-xs text-retro-dim">
-            ROOM <span className="text-retro-cyan text-glow-cyan tracking-widest">{gameId}</span>
+            ROOM <span className="text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
           </p>
           <input
             type="text"
@@ -413,14 +414,14 @@ export default function Game() {
             maxLength={20}
             autoFocus
             aria-label="Your name"
-            className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-mono text-sm placeholder-retro-border rounded px-4 py-3 focus:outline-none focus:border-retro-cyan transition-colors"
+            className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest placeholder-retro-border rounded px-4 py-3 focus:outline-none focus:border-retro-p1 transition-colors"
           />
           {nameError && (
-            <p className="font-pixel text-[10px] text-retro-pink animate-pulse">{nameError}</p>
+            <p className="font-pixel text-[10px] text-retro-p2 animate-pulse">{nameError}</p>
           )}
           <button
             onClick={handleNameSubmit}
-            className="px-6 py-2.5 bg-retro-yellow text-retro-bg font-pixel text-xs rounded hover:shadow-neon-yellow transition-all active:scale-95"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
           >
             JOIN GAME
           </button>
@@ -434,8 +435,8 @@ export default function Game() {
   if (error) {
     return (
       <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-5 p-4">
-        <p className="font-pixel text-[10px] text-retro-pink text-center max-w-xs leading-relaxed">{error}</p>
-        <Link to="/" className="font-pixel text-[10px] text-retro-cyan text-glow-cyan hover:opacity-80 transition-opacity">
+        <p className="font-pixel text-[10px] text-retro-p2 text-center max-w-xs leading-relaxed">{error}</p>
+        <Link to="/" className="font-pixel text-[10px] text-retro-p1 text-glow-p1 hover:opacity-80 transition-opacity">
           ← BACK TO HOME
         </Link>
       </div>
@@ -474,10 +475,11 @@ export default function Game() {
       <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-cyan transition-colors">
+          <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors">
             ← HOME
           </Link>
           <div className="flex items-center gap-3">
+            <ThemeSwitcher />
             <button
               onClick={toggleMute}
               title={muted ? 'Unmute sounds' : 'Mute sounds'}
@@ -500,7 +502,7 @@ export default function Game() {
             {cfg.badge && (
               <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
             )}
-            <span className="font-pixel text-[10px] text-retro-cyan text-glow-cyan tracking-widest">{gameId}</span>
+            <span className="font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
           </div>
         </div>
 
@@ -526,7 +528,7 @@ export default function Game() {
 
         {/* Disconnect warning (non-custom — hangwoman handles this inline) */}
         {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && (
-          <p className="font-pixel text-[10px] text-retro-pink text-center leading-relaxed animate-pulse">
+          <p className="font-pixel text-[10px] text-retro-p2 text-center leading-relaxed animate-pulse">
             OPPONENT DISCONNECTED
           </p>
         )}

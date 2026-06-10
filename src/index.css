@@ -25,16 +25,143 @@
     --input: 240 15% 10%;
     --ring: 186 100% 50%;
     --radius: 0.25rem;
+
+    /* ── Retro theme tokens (MIDNIGHT ARCADE — default) ── */
+    --c-bg:       8 8 16;       /* #080810 */
+    --c-surface:  15 15 26;     /* #0f0f1a */
+    --c-card:     19 19 40;     /* #131328 */
+    --c-border:   30 30 58;     /* #1e1e3a */
+    --c-text:     224 224 255;  /* #e0e0ff */
+    --c-dim:      90 90 138;    /* #5a5a8a */
+    --c-p1:       0 229 255;    /* #00e5ff */
+    --c-p2:       255 64 129;   /* #ff4081 */
+    --c-cta:      255 230 0;    /* #ffe600 */
+    --c-win:      57 255 20;    /* #39ff14 */
+    --c-tint-p1:  0 26 46;      /* #001a2e */
+    --c-tint-p2:  46 0 24;      /* #2e0018 */
+    --c-tint-cta: 26 21 0;      /* #1a1500 */
+    --c-structure:42 42 80;     /* #2a2a50 */
+    --c-deep:     12 12 32;     /* #0c0c20 */
   }
 }
+
+/* ── Theme overrides ── */
+
+[data-theme="phosphor"] {
+  --c-bg:       3 15 3;
+  --c-surface:  6 24 6;
+  --c-card:     8 32 8;
+  --c-border:   16 58 16;
+  --c-text:     184 255 184;
+  --c-dim:      77 138 77;
+  --c-p1:       57 255 20;
+  --c-p2:       216 255 216;
+  --c-cta:      204 255 51;
+  --c-win:      118 255 118;
+  --c-tint-p1:  6 46 6;
+  --c-tint-p2:  26 46 26;
+  --c-tint-cta: 24 38 0;
+  --c-structure:20 82 20;
+  --c-deep:     4 22 4;
+}
+
+[data-theme="amber"] {
+  --c-bg:       13 7 0;
+  --c-surface:  22 13 2;
+  --c-card:     29 18 4;
+  --c-border:   58 42 16;
+  --c-text:     255 217 160;
+  --c-dim:      138 106 58;
+  --c-p1:       255 176 0;
+  --c-p2:       255 94 0;
+  --c-cta:      255 208 0;
+  --c-win:      255 242 176;
+  --c-tint-p1:  46 30 0;
+  --c-tint-p2:  46 16 0;
+  --c-tint-cta: 38 30 0;
+  --c-structure:74 52 21;
+  --c-deep:     18 10 2;
+}
+
+[data-theme="synthwave"] {
+  --c-bg:       13 2 33;
+  --c-surface:  21 5 49;
+  --c-card:     26 6 64;
+  --c-border:   45 27 94;
+  --c-text:     240 230 255;
+  --c-dim:      122 106 168;
+  --c-p1:       0 240 255;
+  --c-p2:       255 41 117;
+  --c-cta:      255 159 28;
+  --c-win:      182 255 0;
+  --c-tint-p1:  0 42 56;
+  --c-tint-p2:  56 6 28;
+  --c-tint-cta: 56 32 0;
+  --c-structure:61 43 110;
+  --c-deep:     16 4 44;
+}
+
+[data-theme="grid"] {
+  --c-bg:       2 8 15;
+  --c-surface:  4 17 29;
+  --c-card:     6 24 39;
+  --c-border:   15 58 82;
+  --c-text:     207 238 255;
+  --c-dim:      74 122 150;
+  --c-p1:       0 216 255;
+  --c-p2:       255 127 17;
+  --c-cta:      244 244 244;
+  --c-win:      159 255 224;
+  --c-tint-p1:  0 38 56;
+  --c-tint-p2:  50 24 0;
+  --c-tint-cta: 34 38 40;
+  --c-structure:21 74 102;
+  --c-deep:     3 14 24;
+}
+
+[data-theme="mono"] {
+  --c-bg:       18 18 15;
+  --c-surface:  28 28 24;
+  --c-card:     38 38 33;
+  --c-border:   64 64 56;
+  --c-text:     240 238 226;
+  --c-dim:      140 140 128;
+  --c-p1:       250 249 240;
+  --c-p2:       176 175 164;
+  --c-cta:      250 249 240;
+  --c-win:      255 255 248;
+  --c-tint-p1:  50 50 44;
+  --c-tint-p2:  40 40 35;
+  --c-tint-cta: 50 50 44;
+  --c-structure:78 78 68;
+  --c-deep:     24 24 20;
+}
+
+/* ── Pixel cursors — static white pixel-art (cursors can't read CSS vars) ── */
+:root {
+  --cursor-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' width='22' height='22' shape-rendering='crispEdges'%3E%3Cg fill='black' transform='translate(1,1)'%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='1' y='2' width='2' height='1'/%3E%3Crect x='1' y='3' width='3' height='1'/%3E%3Crect x='1' y='4' width='4' height='1'/%3E%3Crect x='1' y='5' width='5' height='1'/%3E%3Crect x='1' y='6' width='6' height='1'/%3E%3Crect x='1' y='7' width='7' height='1'/%3E%3Crect x='1' y='8' width='8' height='1'/%3E%3Crect x='1' y='9' width='3' height='1'/%3E%3Crect x='5' y='9' width='2' height='1'/%3E%3Crect x='5' y='10' width='2' height='1'/%3E%3Crect x='6' y='11' width='2' height='1'/%3E%3Crect x='6' y='12' width='2' height='1'/%3E%3C/g%3E%3Cg fill='white'%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='1' y='2' width='2' height='1'/%3E%3Crect x='1' y='3' width='3' height='1'/%3E%3Crect x='1' y='4' width='4' height='1'/%3E%3Crect x='1' y='5' width='5' height='1'/%3E%3Crect x='1' y='6' width='6' height='1'/%3E%3Crect x='1' y='7' width='7' height='1'/%3E%3Crect x='1' y='8' width='8' height='1'/%3E%3Crect x='1' y='9' width='3' height='1'/%3E%3Crect x='5' y='9' width='2' height='1'/%3E%3Crect x='5' y='10' width='2' height='1'/%3E%3Crect x='6' y='11' width='2' height='1'/%3E%3Crect x='6' y='12' width='2' height='1'/%3E%3C/g%3E%3C/svg%3E") 2 2, default;
+  --cursor-hand:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' width='22' height='22' shape-rendering='crispEdges'%3E%3Cg fill='black' transform='translate(1,1)'%3E%3Crect x='6' y='0' width='2' height='1'/%3E%3Crect x='6' y='1' width='2' height='1'/%3E%3Crect x='6' y='2' width='2' height='1'/%3E%3Crect x='6' y='3' width='2' height='1'/%3E%3Crect x='6' y='4' width='2' height='1'/%3E%3Crect x='6' y='5' width='2' height='1'/%3E%3Crect x='5' y='6' width='7' height='1'/%3E%3Crect x='4' y='7' width='8' height='1'/%3E%3Crect x='4' y='8' width='8' height='1'/%3E%3Crect x='4' y='9' width='8' height='1'/%3E%3Crect x='4' y='10' width='8' height='1'/%3E%3Crect x='5' y='11' width='7' height='1'/%3E%3Crect x='5' y='12' width='6' height='1'/%3E%3Crect x='6' y='13' width='4' height='1'/%3E%3Crect x='3' y='8' width='1' height='1'/%3E%3Crect x='3' y='9' width='1' height='1'/%3E%3C/g%3E%3Cg fill='white'%3E%3Crect x='6' y='0' width='2' height='1'/%3E%3Crect x='6' y='1' width='2' height='1'/%3E%3Crect x='6' y='2' width='2' height='1'/%3E%3Crect x='6' y='3' width='2' height='1'/%3E%3Crect x='6' y='4' width='2' height='1'/%3E%3Crect x='6' y='5' width='2' height='1'/%3E%3Crect x='5' y='6' width='7' height='1'/%3E%3Crect x='4' y='7' width='8' height='1'/%3E%3Crect x='4' y='8' width='8' height='1'/%3E%3Crect x='4' y='9' width='8' height='1'/%3E%3Crect x='4' y='10' width='8' height='1'/%3E%3Crect x='5' y='11' width='7' height='1'/%3E%3Crect x='5' y='12' width='6' height='1'/%3E%3Crect x='6' y='13' width='4' height='1'/%3E%3Crect x='3' y='8' width='1' height='1'/%3E%3Crect x='3' y='9' width='1' height='1'/%3E%3C/g%3E%3Cg fill='black'%3E%3Crect x='9' y='7' width='1' height='1'/%3E%3Crect x='11' y='7' width='1' height='1'/%3E%3C/g%3E%3C/svg%3E") 9 1, pointer;
+  --cursor-text:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' width='22' height='22' shape-rendering='crispEdges'%3E%3Cg fill='black' transform='translate(1,1)'%3E%3Crect x='5' y='1' width='6' height='1'/%3E%3Crect x='7' y='2' width='2' height='12'/%3E%3Crect x='5' y='14' width='6' height='1'/%3E%3C/g%3E%3Cg fill='white'%3E%3Crect x='5' y='1' width='6' height='1'/%3E%3Crect x='7' y='2' width='2' height='12'/%3E%3Crect x='5' y='14' width='6' height='1'/%3E%3C/g%3E%3C/svg%3E") 11 11, text;
+  --cursor-no:    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' width='22' height='22' shape-rendering='crispEdges'%3E%3Cg fill='black' transform='translate(1,1)'%3E%3Crect x='3' y='3' width='2' height='2'/%3E%3Crect x='4' y='4' width='2' height='2'/%3E%3Crect x='5' y='5' width='2' height='2'/%3E%3Crect x='6' y='6' width='2' height='2'/%3E%3Crect x='7' y='7' width='2' height='2'/%3E%3Crect x='8' y='8' width='2' height='2'/%3E%3Crect x='9' y='9' width='2' height='2'/%3E%3Crect x='10' y='10' width='2' height='2'/%3E%3Crect x='11' y='11' width='2' height='2'/%3E%3Crect x='11' y='3' width='2' height='2'/%3E%3Crect x='10' y='4' width='2' height='2'/%3E%3Crect x='9' y='5' width='2' height='2'/%3E%3Crect x='8' y='6' width='2' height='2'/%3E%3Crect x='6' y='8' width='2' height='2'/%3E%3Crect x='5' y='9' width='2' height='2'/%3E%3Crect x='4' y='10' width='2' height='2'/%3E%3Crect x='3' y='11' width='2' height='2'/%3E%3C/g%3E%3Cg fill='white'%3E%3Crect x='3' y='3' width='2' height='2'/%3E%3Crect x='4' y='4' width='2' height='2'/%3E%3Crect x='5' y='5' width='2' height='2'/%3E%3Crect x='6' y='6' width='2' height='2'/%3E%3Crect x='7' y='7' width='2' height='2'/%3E%3Crect x='8' y='8' width='2' height='2'/%3E%3Crect x='9' y='9' width='2' height='2'/%3E%3Crect x='10' y='10' width='2' height='2'/%3E%3Crect x='11' y='11' width='2' height='2'/%3E%3Crect x='11' y='3' width='2' height='2'/%3E%3Crect x='10' y='4' width='2' height='2'/%3E%3Crect x='9' y='5' width='2' height='2'/%3E%3Crect x='8' y='6' width='2' height='2'/%3E%3Crect x='6' y='8' width='2' height='2'/%3E%3Crect x='5' y='9' width='2' height='2'/%3E%3Crect x='4' y='10' width='2' height='2'/%3E%3Crect x='3' y='11' width='2' height='2'/%3E%3C/g%3E%3C/svg%3E") 11 11, not-allowed;
+}
+
+html, body { cursor: var(--cursor-arrow); }
+a, button:where(:not(:disabled)), [role="button"], select, summary { cursor: var(--cursor-hand); }
+input:not([type="checkbox"]):not([type="radio"]), textarea { cursor: var(--cursor-text); caret-color: rgb(var(--c-cta)); }
+button:where(:disabled) { cursor: var(--cursor-no); }
+
+/* Route Tailwind cursor utilities through the pixel set so board legal/illegal states inherit */
+.cursor-pointer { cursor: var(--cursor-hand); }
+.cursor-default { cursor: var(--cursor-arrow); }
+.cursor-not-allowed { cursor: var(--cursor-no); }
 
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
   margin: 0;
   min-height: 100svh;
-  background: #080810;
-  color: #e0e0ff;
+  background: rgb(var(--c-bg));
+  color: rgb(var(--c-text));
 }
 
 /* CRT scanlines */
