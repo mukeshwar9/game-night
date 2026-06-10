@@ -9,10 +9,10 @@ npm run dev       # start dev server at http://localhost:5173
 npm run build     # production build (outputs to dist/)
 npm run preview   # serve the production build locally
 npm run lint      # ESLint
-npm test          # Vitest — suites for src/lib/hangmanLogic.js and src/lib/commit.js
+npm test          # Vitest — suites for src/lib/hangmanLogic.js, src/lib/commit.js, src/lib/gameLogic.js, src/lib/connectFourLogic.js, src/lib/dotsAndBoxesLogic.js, src/lib/sosLogic.js
 ```
 
-Unit tests cover only the pure hangwoman/commit logic. Multiplayer flows are verified manually by opening two browser tabs, creating a game in one, and joining via the link in the other (sessionStorage is per-tab, so two tabs act as two players).
+Unit tests cover only the pure game/commit logic. Multiplayer flows are verified manually. **Note:** same-browser tabs now share `playerId` (stored in localStorage), so manual two-player testing requires the second player in a private/incognito window (or another browser). Opening two regular tabs simulates one player in two windows, not two distinct players.
 
 ## Environment
 
@@ -27,46 +27,56 @@ This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime D
 Each game is a node at `games/{gameId}` in Firebase:
 
 ```
-gameType:    "tictactoe" | "connectfour" | "hangwoman"
+gameType:    "tictactoe" | "connectfour" | "hangwoman" | "dotsandboxes" | "sos"
 status:      "waiting" | "playing" | "finished"
-board:       string[9] (TTT) | string[42] (Connect Four) — '' for empty, 'X' or 'O' for occupied; absent for hangwoman
+board:       string[9] (TTT) | string[42] (Connect Four) | string[40] (Dots & Boxes edges) — '' for empty, 'X'/'O' for occupied; absent for hangwoman
+boxes:       string[16] (Dots & Boxes only) — box ownership, '' / 'X' / 'O'; null/absent for other game types
 currentTurn: "X" | "O"                                     (absent for hangwoman)
 winner:      "X" | "O" | "draw"  (absent until game ends)
-winningLine: number[3]            (absent until game ends)
+winningLine: number[3]            (absent until game ends; absent for dotsandboxes — no line concept)
 createdAt:   timestamp
 players:
-  X: { name, joinedAt }
-  O: { name, joinedAt }   (absent until second player joins)
+  X: { name, joinedAt, playerId }
+  O: { name, joinedAt, playerId }   (absent until second player joins)
 scores:
   X: number
   O: number
 presence:
   X: { online: boolean }
   O: { online: boolean }
+proposal: { action: 'playAgain'|'newMatch'|'switch', gameType, by, declined } — rematch/switch consent handshake; absent when none pending; cleared (null) by every apply/reset write
 ```
 
 Hangwoman has no `board`/`currentTurn`; it stores a `round` sub-node instead (`setter`, `phase`, `wrongCount`, `wordLength`, `commitment`, `guesses`, `reveal`, `result` — see `src/pages/HangmanGame.jsx`). The word never touches Firebase until reveal: the setter keeps it in sessionStorage and publishes a salted SHA-256 commitment (`src/lib/commit.js`); the guesser's client verifies the reveal against the commitment and all recorded answers.
 
-**`gameType` is mutable.** Any player can switch the room to a different game from an end-of-game screen (`handleSwitchGame` in `Game.jsx`). `freshGameState()` in `src/lib/games.js` is the single source of per-game initial state — used by game creation (`Home.jsx`) and switching; it relies on `null`s to delete the other game's keys. Clients follow automatically: `Game.jsx` remounts the whole game tree via `key={game.gameType}`.
+**Dots and Boxes** uses `board: string[40]` for edges (horizontal edges 0–19: `row*4+col`; vertical edges 20–39: `20+row*5+col`) and `boxes: string[16]` for box ownership. `currentTurn` does **not** flip when a move completes ≥1 box (extra turn). The round ends when one player owns 9 boxes (early clinch) or all 16 are claimed (8–8 = draw). There is no `winningLine`.
+
+**SOS** uses `board: string[49]` — each cell holds `''` | `'S'` | `'O'` (board letters, not player symbols), row-major in a 7×7 grid. `sosLines: [{ cells: [a,b,c], by: 'X'|'O' }]` is an append-only record of completed S-O-S sequences (absent/null when none yet — Firebase deletes empty arrays; always normalize on read with `normalizeSosLines()`). Round scores are derived: X's count = lines where `by === 'X'`. When a move completes ≥1 SOS, `currentTurn` stays on the mover (extra turn); otherwise it flips. The round ends when all 49 cells are filled: most SOS sequences wins; equal → draw. There is no `winningLine`.
+
+**`gameType` is mutable.** Any player can switch the room to a different game from an end-of-game screen (`handleSwitchGame` in `Game.jsx`). `freshGameState()` in `src/lib/games.js` is the single source of per-game initial state — used by game creation (`Home.jsx`) and switching; it relies on `null`s to delete the other game's keys. Clients follow automatically: `Game.jsx` remounts the whole game tree via `key={game.gameType}`. Per-game config (board size, move logic, win function, board component, layout width) lives in the `GAME_TYPES` registry in `src/lib/games.js` and is looked up via `getGameConfig(type)` — `Game.jsx` contains no per-game branches.
 
 **Firebase and null values:** Firebase deletes keys set to `null`. Empty board cells are stored as `''` (not `null`) so the array length stays stable. `winner` and `winningLine` are absent when not applicable — always read them as `game.winner ?? null`. `normalizeBoard()` in `src/lib/gameLogic.js` converts whatever Firebase returns (array or numeric-keyed object) to a guaranteed 9-element string array.
 
 ### Player identity
 
-Identity is tracked in `sessionStorage` only — no auth:
-- `playerName` — the display name entered on the home page
-- `game-{gameId}` — `{ symbol: "X"|"O"|null }` for the current game slot
+Identity is tracked in `sessionStorage` (per-tab) and `localStorage` (stable across tabs/sessions) — no auth:
+- `playerName` — the display name entered on the home page (sessionStorage)
+- `playerId` — a UUID generated once per browser profile (localStorage); stored in each player slot in Firebase; when a browser reopens a game URL, it reclaims its seat if `playerId` matches the X or O slot
+- `game-{gameId}` — `{ symbol: "X"|"O"|null }` for the current game slot (sessionStorage)
 - `hangwoman-word-{gameId}` — `{ word, salt }`, the setter's secret; tab-local, so a setter who reloads in a new tab loses the word and must concede the round
 
-The creator is always X; the first person to join an open O slot becomes O; everyone else is a spectator (`symbol: null`). Slot claiming uses a Firebase `runTransaction` to prevent races.
+The creator is always X; the first person to join an open O slot becomes O; everyone else is a spectator (`symbol: null`). Slot claiming uses a Firebase `runTransaction` to prevent races. Closing a tab no longer kills the game — reopening the invite link in the same browser reclaims your seat via `playerId`.
 
 ### Adding a new game
 
-The room/invite/Firebase/presence layer is game-agnostic. `Game.jsx` branches on `game.gameType` to render the right board and call the right win function. To add a new game:
-1. Add a logic file in `src/lib/` exporting `getWinner(board)` and any move helpers
+The room/invite/Firebase/presence layer is game-agnostic. `src/lib/games.js` is the single registry — `Game.jsx` reads config from it and needs no per-game changes. To add a new board game:
+1. Add a logic file in `src/lib/` exporting `getWinner(board)` and any move helpers (e.g. `getMoveIndex`)
 2. Add a board component in `src/components/`
-3. Add an entry to `GAME_TYPES` and a branch to `freshGameState()` in `src/lib/games.js` (in-room switcher + initial state)
-4. Branch on the new `gameType` string in `Game.jsx` (board size, move handler, board component, win function)
-5. Add a card to the `GAMES` array in `src/pages/Home.jsx`
+3. Add an icon component to `src/components/GameIcons.jsx`
+4. Add a single entry to `GAME_TYPES` in `src/lib/games.js` with `boardSize`, `getMoveIndex`, `getWinner`, `BoardComponent`, `badge`, `maxWidth`, `desc`, and `Icon`; `freshGameState()` derives the initial state automatically from the registry entry. The home-screen grid and the end-of-game "SWITCH GAME" picker both render from the registry via `GamePicker` — no per-game UI changes needed.
 
-Sounds, presence, score tracking, game switching, and the win effect work automatically for any game type. A future game-registry refactor would collapse the remaining per-type branches in `Game.jsx` into `src/lib/games.js`.
+**For games that don't fit the standard place-symbol → flip-turn → check-winner shape** (e.g. extra turn on box completion, multiple state arrays), supply two optional registry hooks instead of `getWinner`:
+- `applyMove({ board, game, index, move, symbol })` → returns `{ updates, result }` where `updates` is the full Firebase patch (board, boxes, currentTurn etc.) and `result` is `null | { winner }`. When this hook is present, `Game.jsx` delegates the entire move to it rather than the standard path. `move` is the raw payload passed by the board component's `onMove` (e.g. SOS passes `{ index, letter }`); `index` is the cell index derived by `getMoveIndex`.
+- `boardProps(game)` → extra props spread onto `<BoardComponent>` (e.g. `{ boxes }` for dots and boxes, `{ sosLines }` for SOS). Omit for games that only need `board`.
+
+Sounds, presence, score tracking, game switching, and the win effect work automatically for any game type.

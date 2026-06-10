@@ -37,7 +37,7 @@ export default function WaitingRoom({ gameId }) {
         <button
           onClick={copyLink}
           className="flex-shrink-0 px-3 py-1.5 bg-retro-yellow text-retro-bg
-            font-pixel text-[9px] rounded hover:shadow-neon-yellow transition-all active:scale-95"
+            font-pixel text-[10px] rounded hover:shadow-neon-yellow transition-all active:scale-95"
         >
           COPY
         </button>

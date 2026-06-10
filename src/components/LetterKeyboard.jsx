@@ -31,7 +31,7 @@ export default function LetterKeyboard({ guesses = {}, onGuess, disabled = false
             onClick={() => !tried && !disabled && onGuess(letter)}
             disabled={tried || disabled}
             className={cn(
-              'h-10 flex items-center justify-center font-pixel text-[9px] rounded border transition-all',
+              'h-10 flex items-center justify-center font-pixel text-[10px] rounded border transition-all',
               'select-none active:scale-90',
               isHit && 'border-retro-cyan text-retro-cyan shadow-neon-cyan bg-[#001a2e]',
               isMiss && 'border-retro-border text-retro-border bg-retro-card line-through opacity-40',

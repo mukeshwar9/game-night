@@ -126,3 +126,8 @@ body::before {
   85%  { opacity: 1; }
   100% { transform: translate(var(--rx), 105vh); opacity: 0; }
 }
+
+@keyframes box-claim {
+  0%   { transform: scale(0.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}

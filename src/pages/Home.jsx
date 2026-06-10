@@ -1,62 +1,13 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
 import { freshGameState } from '../lib/games'
+import { getPlayerId } from '../lib/playerId'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { sounds } from '../lib/sounds'
-import { cn } from '@/lib/utils'
-
-const GAMES = [
-  {
-    type: 'tictactoe',
-    label: 'TIC TAC TOE',
-    desc: '3 × 3',
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <line x1="8" y1="2" x2="8" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
-        <line x1="16" y1="2" x2="16" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
-        <line x1="2" y1="8" x2="22" y2="8" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
-        <line x1="2" y1="16" x2="22" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
-      </svg>
-    ),
-  },
-  {
-    type: 'connectfour',
-    label: 'CONNECT FOUR',
-    desc: '6 × 7',
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        {[3, 9, 15, 21].map(cx =>
-          [4, 12, 20].map(cy => (
-            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="2.5"
-              fill="currentColor" opacity={cy === 4 ? '1' : '0.4'} />
-          ))
-        )}
-      </svg>
-    ),
-  },
-  {
-    type: 'hangwoman',
-    label: 'HANGWOMAN',
-    desc: 'word game',
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        {/* gallows */}
-        <line x1="4" y1="22" x2="20" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-        <line x1="7" y1="22" x2="7" y2="3"  stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-        <line x1="7" y1="3"  x2="15" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-        <line x1="15" y1="3" x2="15" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-        {/* pixel figure */}
-        <rect x="13" y="6"  width="4" height="4" fill="currentColor" />
-        <rect x="14" y="10" width="2" height="3" fill="currentColor" opacity="0.7" />
-        <rect x="12" y="11" width="2" height="2" fill="currentColor" opacity="0.7" />
-        <rect x="16" y="11" width="2" height="2" fill="currentColor" opacity="0.7" />
-      </svg>
-    ),
-  },
-]
+import GamePicker from '../components/GamePicker'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -88,7 +39,7 @@ export default function Home() {
         status: 'waiting',
         scores: { X: 0, O: 0 },
         createdAt: Date.now(),
-        players: { X: { name: playerName, joinedAt: Date.now() } },
+        players: { X: { name: playerName, joinedAt: Date.now(), playerId: getPlayerId() } },
         ...freshGameState(gameType),
       }
       await set(ref(db, `games/${gameId}`), gameData)
@@ -132,7 +83,7 @@ export default function Home() {
       </button>
       {configError && (
         <div className="w-full max-w-sm mb-6 border border-retro-pink/50 bg-retro-card rounded px-4 py-3">
-          <p className="font-pixel text-[9px] text-retro-pink">FIREBASE NOT CONFIGURED</p>
+          <p className="font-pixel text-[10px] text-retro-pink">FIREBASE NOT CONFIGURED</p>
           <p className="font-mono text-xs text-retro-dim mt-1">{configError}</p>
         </div>
       )}
@@ -161,7 +112,7 @@ export default function Home() {
 
         {/* Name input */}
         <div className="space-y-1.5">
-          <label className="font-pixel text-[9px] text-retro-dim tracking-wider">YOUR NAME</label>
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR NAME</label>
           <input
             type="text"
             placeholder="PLAYER ONE"
@@ -175,78 +126,46 @@ export default function Home() {
           />
         </div>
 
-        {/* Game selection */}
+        {/* Join game */}
         <div className="space-y-1.5">
-          <label className="font-pixel text-[9px] text-retro-dim tracking-wider">SELECT GAME</label>
-          <div className="grid grid-cols-2 gap-3">
-            {GAMES.map(({ type, label, desc, icon }) => (
-              <button
-                key={type}
-                onClick={() => createGame(type)}
-                disabled={!!loading}
-                className={cn(
-                  'flex flex-col items-center gap-2.5 py-4 px-2 border-2 rounded',
-                  'transition-all active:scale-95',
-                  loading === type
-                    ? 'border-retro-yellow bg-[#1a1500] shadow-neon-yellow'
-                    : 'border-retro-border bg-retro-card hover:border-retro-yellow/50',
-                  loading && loading !== type && 'opacity-40',
-                )}
-              >
-                <div className={cn(
-                  'w-10 h-10 rounded flex items-center justify-center',
-                  loading === type ? 'text-retro-yellow' : 'text-retro-dim',
-                )}>
-                  {icon}
-                </div>
-                <div className="text-center">
-                  <p className="font-pixel text-[9px] text-retro-text leading-relaxed">{label}</p>
-                  <p className="font-mono text-[10px] text-retro-dim mt-0.5">{desc}</p>
-                </div>
-                {loading === type && (
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map(i => (
-                      <div key={i} className="w-1 h-1 bg-retro-yellow rounded-full animate-bounce"
-                        style={{ animationDelay: `${i * 150}ms` }} />
-                    ))}
-                  </div>
-                )}
-              </button>
-            ))}
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">JOIN A FRIEND</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="GAME CODE"
+              value={joinCode}
+              onChange={e => { setJoinCode(e.target.value.toUpperCase()); setError('') }}
+              onKeyDown={e => e.key === 'Enter' && joinGame()}
+              maxLength={6}
+              className="flex-1 bg-retro-card border-2 border-retro-border text-retro-cyan
+                font-pixel text-xs placeholder-retro-border rounded px-4 py-3
+                focus:outline-none focus:border-retro-cyan tracking-widest transition-colors"
+            />
+            <button
+              onClick={joinGame}
+              className="px-5 py-3 bg-retro-card border-2 border-retro-border text-retro-text
+                font-pixel text-[10px] rounded hover:border-retro-cyan/50 transition-colors active:scale-95"
+            >
+              JOIN
+            </button>
           </div>
         </div>
 
         {/* Divider */}
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-retro-border" />
-          <span className="font-pixel text-[9px] text-retro-border">OR JOIN</span>
+          <span className="font-pixel text-[9px] text-retro-border">OR START NEW</span>
           <div className="flex-1 h-px bg-retro-border" />
         </div>
 
-        {/* Join game */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="GAME CODE"
-            value={joinCode}
-            onChange={e => { setJoinCode(e.target.value.toUpperCase()); setError('') }}
-            onKeyDown={e => e.key === 'Enter' && joinGame()}
-            maxLength={6}
-            className="flex-1 bg-retro-card border-2 border-retro-border text-retro-cyan
-              font-pixel text-xs placeholder-retro-border rounded px-4 py-3
-              focus:outline-none focus:border-retro-cyan tracking-widest transition-colors"
-          />
-          <button
-            onClick={joinGame}
-            className="px-5 py-3 bg-retro-card border-2 border-retro-border text-retro-text
-              font-pixel text-[9px] rounded hover:border-retro-cyan/50 transition-colors active:scale-95"
-          >
-            JOIN
-          </button>
+        {/* Game selection */}
+        <div className="space-y-1.5">
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">SELECT GAME</label>
+          <GamePicker onSelect={createGame} loadingType={loading} />
         </div>
 
         {error && (
-          <p className="font-pixel text-[9px] text-retro-pink text-center animate-pulse">{error}</p>
+          <p className="font-pixel text-[10px] text-retro-pink text-center animate-pulse">{error}</p>
         )}
 
         {/* PWA install */}
@@ -254,12 +173,16 @@ export default function Home() {
           <button
             onClick={install}
             className="w-full py-2.5 flex items-center justify-center gap-2 border border-retro-cyan/30
-              bg-retro-card text-retro-cyan font-pixel text-[9px] rounded
+              bg-retro-card text-retro-cyan font-pixel text-[10px] rounded
               hover:border-retro-cyan/60 hover:shadow-neon-cyan transition-all active:scale-95"
           >
             + ADD TO HOME SCREEN
           </button>
         )}
+
+        <Link to="/demo" className="block text-center font-mono text-xs text-retro-dim hover:text-retro-cyan transition-colors">
+          PRACTICE OFFLINE →
+        </Link>
       </div>
     </div>
   )

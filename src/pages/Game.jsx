@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { ref, onValue, update, get, runTransaction, onDisconnect, set as dbSet } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
-import { getWinner, normalizeBoard } from '../lib/gameLogic'
-import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from '../lib/connectFourLogic'
-import { freshGameState } from '../lib/games'
-import Board from '../components/Board'
-import ConnectFourBoard from '../components/ConnectFourBoard'
+import { normalizeBoard } from '../lib/gameLogic'
+import { freshGameState, getGameConfig } from '../lib/games'
+import { getPlayerId } from '../lib/playerId'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
 import WinEffect from '../components/WinEffect'
 import HangmanGame from './HangmanGame'
+import ProposalBanner from '../components/ProposalBanner'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -39,7 +38,6 @@ function LoadingScreen() {
 
 export default function Game() {
   const { gameId } = useParams()
-  const navigate = useNavigate()
   const [game, setGame] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -47,9 +45,15 @@ export default function Game() {
   const [showWinEffect, setShowWinEffect] = useState(false)
   const [winEffectWinner, setWinEffectWinner] = useState(null)
   const [muted, setMuted] = useState(() => sounds.isMuted())
+  const [needName, setNeedName] = useState(false)
+  const [nameVersion, setNameVersion] = useState(0)
+  const [nameInput, setNameInput] = useState('')
+  const [nameError, setNameError] = useState('')
   const mySymbol = useRef(null)
   const prevStatus = useRef(null)
   const prevTurn = useRef(null)
+  const prevFilledCount = useRef(0)
+  const prevProposal = useRef(null)
 
   // Firebase init: join room, set up listeners, set up presence
   useEffect(() => {
@@ -60,7 +64,11 @@ export default function Game() {
     }
 
     const playerName = sessionStorage.getItem('playerName')
-    if (!playerName) { navigate('/'); return }
+    if (!playerName) {
+      setNeedName(true)
+      setLoading(false)
+      return
+    }
 
     const gameRef = ref(db, `games/${gameId}`)
     let cancelled = false
@@ -94,31 +102,49 @@ export default function Game() {
 
       const stored = sessionStorage.getItem(`game-${gameId}`)
 
-      if (stored) {
+      if (stored && JSON.parse(stored).symbol) {
+        // 1. Valid sessionStorage record
         mySymbol.current = JSON.parse(stored).symbol
-      } else if (!data.players?.O) {
-        try {
-          const { committed } = await runTransaction(
-            ref(db, `games/${gameId}/players/O`),
-            current => { if (current !== null) return; return { name: playerName, joinedAt: Date.now() } }
-          )
-          if (committed) {
-            mySymbol.current = 'O'
-            sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
-            const joinUpdates = { status: 'playing' }
-            if (data.gameType === 'hangwoman') {
-              joinUpdates['round/setter'] = 'X'
-              joinUpdates['round/phase'] = 'setting'
-              joinUpdates['round/wrongCount'] = 0
-            }
-            await update(gameRef, joinUpdates)
-          } else {
-            mySymbol.current = null
-            sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: null }))
-          }
-        } catch { mySymbol.current = null }
       } else {
-        mySymbol.current = null
+        // 2. Try playerId reclaim
+        const myId = getPlayerId()
+        if (data.players?.X?.playerId === myId) {
+          mySymbol.current = 'X'
+          sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+          try { await update(ref(db, `games/${gameId}/players/X`), { name: playerName }) } catch { /* ignore */ }
+        } else if (data.players?.O?.playerId === myId) {
+          mySymbol.current = 'O'
+          sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
+          try { await update(ref(db, `games/${gameId}/players/O`), { name: playerName }) } catch { /* ignore */ }
+        } else if (!data.players?.O) {
+          // 3. Claim O slot via transaction
+          try {
+            const { committed } = await runTransaction(
+              ref(db, `games/${gameId}/players/O`),
+              current => {
+                if (current !== null) return
+                return { name: playerName, joinedAt: Date.now(), playerId: getPlayerId() }
+              }
+            )
+            if (committed) {
+              mySymbol.current = 'O'
+              sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
+              const joinUpdates = { status: 'playing' }
+              if (data.gameType === 'hangwoman') {
+                joinUpdates['round/setter'] = 'X'
+                joinUpdates['round/phase'] = 'setting'
+                joinUpdates['round/wrongCount'] = 0
+              }
+              await update(gameRef, joinUpdates)
+            } else {
+              mySymbol.current = null
+              sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: null }))
+            }
+          } catch { mySymbol.current = null }
+        } else {
+          // 4. Spectator
+          mySymbol.current = null
+        }
       }
 
       if (cancelled) return
@@ -161,7 +187,7 @@ export default function Game() {
         dbSet(presRef, { online: false }).catch(() => {})
       }
     }
-  }, [gameId, navigate])
+  }, [gameId, nameVersion])
 
   // Sounds + win effect — react to game state changes
   useEffect(() => {
@@ -180,48 +206,93 @@ export default function Game() {
       setShowWinEffect(true)
     }
 
-    // Opponent's move: turn flipped to mine = opponent just moved
-    if (
-      game.status === 'playing' &&
-      prevTurn.current &&
-      game.currentTurn !== prevTurn.current &&
-      game.currentTurn === mySymbol.current
-    ) {
-      sounds.move(prevTurn.current)
+    const cfg = getGameConfig(game.gameType)
+    const filledCount = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize).filter(Boolean).length : 0
+
+    if (cfg.applyMove) {
+      // Games with applyMove (e.g. dots and boxes): detect opponent moves by filled count increase
+      if (
+        game.status === 'playing' &&
+        filledCount > prevFilledCount.current &&
+        prevTurn.current &&
+        prevTurn.current !== mySymbol.current
+      ) {
+        sounds.move(prevTurn.current)
+      }
+    } else {
+      // Standard games: opponent's move = turn flipped to mine
+      if (
+        game.status === 'playing' &&
+        prevTurn.current &&
+        game.currentTurn !== prevTurn.current &&
+        game.currentTurn === mySymbol.current
+      ) {
+        sounds.move(prevTurn.current)
+      }
     }
 
     prevStatus.current = game.status
     prevTurn.current = game.currentTurn
+    prevFilledCount.current = filledCount
   }, [game])
+
+  // Proposal effect — sound + declined toast
+  useEffect(() => {
+    if (!game) return
+    const proposal = game.proposal ?? null
+
+    // Opponent newly proposed — play join sound
+    if (
+      proposal &&
+      !proposal.declined &&
+      proposal.by !== mySymbol.current &&
+      mySymbol.current &&
+      !prevProposal.current
+    ) {
+      sounds.join()
+    }
+
+    // Opponent declined my proposal (guard: only on the transition to declined)
+    if (
+      proposal &&
+      proposal.declined &&
+      proposal.by === mySymbol.current &&
+      !prevProposal.current?.declined
+    ) {
+      const opSym = mySymbol.current === 'X' ? 'O' : 'X'
+      const opName = (game.players?.[opSym]?.name || opSym).toUpperCase()
+      toast.error(`${opName} DECLINED`)
+      update(ref(db, `games/${gameId}`), { proposal: null }).catch(() => {})
+    }
+
+    prevProposal.current = proposal
+  }, [game, gameId])
 
   const handleMove = async (colOrIndex) => {
     if (!game || !mySymbol.current) return
     if (game.status !== 'playing') return
     if (game.currentTurn !== mySymbol.current) return
 
-    const isConnectFour = game.gameType === 'connectfour'
-    const boardSize = isConnectFour ? CF_BOARD_SIZE : 9
-    const board = normalizeBoard(game.board, boardSize)
+    const cfg = getGameConfig(game.gameType)
+    if (cfg.custom) return
+    const board = normalizeBoard(game.board, cfg.boardSize)
+    const index = cfg.getMoveIndex(board, colOrIndex)
+    if (index === -1) return
 
-    let index
-    if (isConnectFour) {
-      index = getConnectFourDrop(board, colOrIndex)
-      if (index === -1) return
+    let updates, result
+    if (cfg.applyMove) {
+      const applied = cfg.applyMove({ board, game, index, move: colOrIndex, symbol: mySymbol.current })
+      if (!applied) return
+      updates = applied.updates
+      result = applied.result
     } else {
-      index = colOrIndex
-      if (board[index]) return
+      const newBoard = [...board]
+      newBoard[index] = mySymbol.current
+      result = cfg.getWinner(newBoard)
+      updates = { board: newBoard, currentTurn: mySymbol.current === 'X' ? 'O' : 'X' }
     }
 
     sounds.move(mySymbol.current)
-
-    const newBoard = [...board]
-    newBoard[index] = mySymbol.current
-
-    const result = isConnectFour ? getConnectFourWinner(newBoard) : getWinner(newBoard)
-    const updates = {
-      board: newBoard,
-      currentTurn: mySymbol.current === 'X' ? 'O' : 'X',
-    }
 
     if (result) {
       updates.winner = result.winner
@@ -235,35 +306,34 @@ export default function Game() {
     try { await update(ref(db, `games/${gameId}`), updates) } catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
   }
 
-  const handlePlayAgain = async () => {
-    const boardSize = game.gameType === 'connectfour' ? CF_BOARD_SIZE : 9
+  // Apply functions (called directly when no second player / opponent offline)
+  const applyPlayAgain = async () => {
     try {
       await update(ref(db, `games/${gameId}`), {
-        board: Array(boardSize).fill(''),
-        currentTurn: 'X',
+        ...freshGameState(game.gameType),
         status: 'playing',
         winner: null,
         winningLine: null,
+        proposal: null,
       })
     } catch { toast.error('PLAY AGAIN FAILED — CHECK CONNECTION') }
   }
 
-  const handleNewMatch = async () => {
-    const boardSize = game.gameType === 'connectfour' ? CF_BOARD_SIZE : 9
+  const applyNewMatch = async () => {
     try {
       await update(ref(db, `games/${gameId}`), {
-        board: Array(boardSize).fill(''),
-        currentTurn: 'X',
+        ...freshGameState(game.gameType),
         status: 'playing',
         winner: null,
         winningLine: null,
         'scores/X': 0,
         'scores/O': 0,
+        proposal: null,
       })
     } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
   }
 
-  const handleSwitchGame = async (newType) => {
+  const applySwitchGame = async (newType) => {
     sessionStorage.removeItem(`hangwoman-word-${gameId}`)
     try {
       await update(ref(db, `games/${gameId}`), {
@@ -274,11 +344,90 @@ export default function Game() {
         winningLine: null,
         'scores/X': 0,
         'scores/O': 0,
+        proposal: null,
       })
     } catch { toast.error('SWITCH FAILED — CHECK CONNECTION') }
   }
 
+  // Propose or apply directly (if solo / opponent offline)
+  const propose = async (action, gameType = null) => {
+    if (!game || !mySymbol.current) return
+    if (!game.players?.O || opponentOnline === false) {
+      if (action === 'playAgain') { applyPlayAgain(); return }
+      if (action === 'newMatch') { applyNewMatch(); return }
+      if (action === 'switch') { applySwitchGame(gameType); return }
+    }
+    try {
+      await update(ref(db, `games/${gameId}`), {
+        proposal: { action, gameType, by: mySymbol.current, declined: false },
+      })
+    } catch { toast.error('PROPOSAL FAILED — CHECK CONNECTION') }
+  }
+
+  const acceptProposal = async () => {
+    if (!game?.proposal) return
+    const { action, gameType: gt } = game.proposal
+    if (action === 'playAgain') { applyPlayAgain(); return }
+    if (action === 'newMatch') { applyNewMatch(); return }
+    if (action === 'switch') { applySwitchGame(gt); return }
+  }
+
+  const declineProposal = async () => {
+    try {
+      await update(ref(db, `games/${gameId}`), { 'proposal/declined': true })
+    } catch { toast.error('DECLINE FAILED — CHECK CONNECTION') }
+  }
+
+  const cancelProposal = async () => {
+    try {
+      await update(ref(db, `games/${gameId}`), { proposal: null })
+    } catch { toast.error('CANCEL FAILED — CHECK CONNECTION') }
+  }
+
   const toggleMute = () => setMuted(sounds.toggle())
+
+  // Feature A — name prompt for invited players
+  if (needName) {
+    const handleNameSubmit = () => {
+      const trimmed = nameInput.trim()
+      if (!trimmed) { setNameError('ENTER YOUR NAME FIRST'); return }
+      sessionStorage.setItem('playerName', trimmed)
+      setNeedName(false)
+      setLoading(true)
+      setNameVersion(v => v + 1)
+    }
+
+    return (
+      <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-sm space-y-6 text-center">
+          <h2 className="font-pixel text-sm text-retro-yellow text-glow-yellow">YOU&apos;RE INVITED!</h2>
+          <p className="font-mono text-xs text-retro-dim">
+            ROOM <span className="text-retro-cyan text-glow-cyan tracking-widest">{gameId}</span>
+          </p>
+          <input
+            type="text"
+            placeholder="PLAYER ONE"
+            value={nameInput}
+            onChange={e => { setNameInput(e.target.value); setNameError('') }}
+            onKeyDown={e => e.key === 'Enter' && handleNameSubmit()}
+            maxLength={20}
+            autoFocus
+            aria-label="Your name"
+            className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-mono text-sm placeholder-retro-border rounded px-4 py-3 focus:outline-none focus:border-retro-cyan transition-colors"
+          />
+          {nameError && (
+            <p className="font-pixel text-[10px] text-retro-pink animate-pulse">{nameError}</p>
+          )}
+          <button
+            onClick={handleNameSubmit}
+            className="px-6 py-2.5 bg-retro-yellow text-retro-bg font-pixel text-xs rounded hover:shadow-neon-yellow transition-all active:scale-95"
+          >
+            JOIN GAME
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) return <LoadingScreen />
 
@@ -286,7 +435,7 @@ export default function Game() {
     return (
       <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-5 p-4">
         <p className="font-pixel text-[10px] text-retro-pink text-center max-w-xs leading-relaxed">{error}</p>
-        <Link to="/" className="font-pixel text-[9px] text-retro-cyan text-glow-cyan hover:opacity-80 transition-opacity">
+        <Link to="/" className="font-pixel text-[10px] text-retro-cyan text-glow-cyan hover:opacity-80 transition-opacity">
           ← BACK TO HOME
         </Link>
       </div>
@@ -295,10 +444,9 @@ export default function Game() {
 
   if (!game) return null
 
-  const isConnectFour = game.gameType === 'connectfour'
-  const isHangman = game.gameType === 'hangwoman'
-  const boardSize = isConnectFour ? CF_BOARD_SIZE : 9
-  const board = isHangman ? [] : normalizeBoard(game.board, boardSize)
+  const cfg = getGameConfig(game.gameType)
+  const isCustom = !!cfg.custom
+  const board = isCustom ? [] : normalizeBoard(game.board, cfg.boardSize)
   const winningLine = toArray(game.winningLine)
   const isSpectator = !mySymbol.current
   const canMove = !isSpectator && game.status === 'playing' && game.currentTurn === mySymbol.current
@@ -314,16 +462,19 @@ export default function Game() {
     return opponentOnline
   }
 
+  // Proposal: hide action buttons while a proposal is pending (not declined by me)
+  const activeProposal = game.proposal && !game.proposal.declined ? game.proposal : null
+
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-5">
       {showWinEffect && (
         <WinEffect winner={winEffectWinner} onDone={() => setShowWinEffect(false)} />
       )}
 
-      <div className={cn('w-full space-y-4', isConnectFour ? 'max-w-md' : 'max-w-sm')} key={game.gameType}>
+      <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Link to="/" className="font-pixel text-[9px] text-retro-dim hover:text-retro-cyan transition-colors">
+          <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-cyan transition-colors">
             ← HOME
           </Link>
           <div className="flex items-center gap-3">
@@ -346,13 +497,10 @@ export default function Game() {
                 </svg>
               )}
             </button>
-            {isConnectFour && (
-              <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">C4</span>
+            {cfg.badge && (
+              <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
             )}
-            {isHangman && (
-              <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">HW</span>
-            )}
-            <span className="font-pixel text-[9px] text-retro-cyan text-glow-cyan tracking-widest">{gameId}</span>
+            <span className="font-pixel text-[10px] text-retro-cyan text-glow-cyan tracking-widest">{gameId}</span>
           </div>
         </div>
 
@@ -376,37 +524,48 @@ export default function Game() {
           />
         </div>
 
-        {/* Disconnect warning (non-hangman — hangman handles this inline) */}
-        {!isHangman && !isSpectator && !opponentOnline && game.status === 'playing' && (
-          <p className="font-pixel text-[9px] text-retro-pink text-center leading-relaxed animate-pulse">
+        {/* Disconnect warning (non-custom — hangwoman handles this inline) */}
+        {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && (
+          <p className="font-pixel text-[10px] text-retro-pink text-center leading-relaxed animate-pulse">
             OPPONENT DISCONNECTED
           </p>
+        )}
+
+        {/* Proposal banner — shown for both standard and custom branches */}
+        {activeProposal && game.status !== 'waiting' && (
+          <ProposalBanner
+            proposal={activeProposal}
+            mySymbol={mySymbol.current}
+            players={game.players}
+            onAccept={acceptProposal}
+            onDecline={declineProposal}
+            onCancel={cancelProposal}
+          />
         )}
 
         {/* Game area */}
         {game.status === 'waiting' ? (
           <WaitingRoom gameId={gameId} />
-        ) : isHangman ? (
+        ) : isCustom ? (
           <HangmanGame
             gameId={gameId}
             game={game}
             mySymbol={mySymbol.current}
             opponentOnline={opponentOnline}
-            onSwitchGame={handleSwitchGame}
+            onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+            onNewMatch={activeProposal ? null : () => propose('newMatch')}
+            proposal={activeProposal}
           />
         ) : (
           <>
-            {isConnectFour ? (
-              <ConnectFourBoard
-                board={board}
-                onMove={handleMove}
-                disabled={!canMove}
-                winningLine={winningLine}
-                currentTurn={game.currentTurn}
-              />
-            ) : (
-              <Board board={board} onMove={handleMove} disabled={!canMove} winningLine={winningLine} />
-            )}
+            <cfg.BoardComponent
+              board={board}
+              onMove={handleMove}
+              disabled={!canMove}
+              winningLine={winningLine}
+              currentTurn={game.currentTurn}
+              {...(cfg.boardProps ? cfg.boardProps(game) : {})}
+            />
             <GameStatus
               status={game.status}
               winner={game.winner}
@@ -415,15 +574,15 @@ export default function Game() {
               scores={game.scores}
               players={game.players}
               gameType={game.gameType}
-              onPlayAgain={game.status === 'finished' && !isSpectator && !matchWinner ? handlePlayAgain : null}
-              onNewMatch={matchWinner && !isSpectator ? handleNewMatch : null}
-              onSwitchGame={!isSpectator ? handleSwitchGame : null}
+              onPlayAgain={game.status === 'finished' && !isSpectator && !matchWinner && !activeProposal ? () => propose('playAgain') : null}
+              onNewMatch={matchWinner && !isSpectator && !activeProposal ? () => propose('newMatch') : null}
+              onSwitchGame={!isSpectator && !activeProposal ? (t) => propose('switch', t) : null}
             />
           </>
         )}
 
-        {!isHangman && isSpectator && game.status === 'playing' && (
-          <p className="text-center font-pixel text-[9px] text-retro-border">SPECTATING</p>
+        {!isCustom && isSpectator && game.status === 'playing' && (
+          <p className="text-center font-pixel text-[10px] text-retro-border">SPECTATING</p>
         )}
       </div>
     </div>

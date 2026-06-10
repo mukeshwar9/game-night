@@ -54,7 +54,7 @@ function CheatScreen({ evidence }) {
       </div>
       <Link
         to="/"
-        className="font-pixel text-[9px] text-retro-cyan text-glow-cyan hover:opacity-80 transition-opacity"
+        className="font-pixel text-[10px] text-retro-cyan text-glow-cyan hover:opacity-80 transition-opacity"
       >
         ← BACK TO HOME
       </Link>
@@ -64,7 +64,7 @@ function CheatScreen({ evidence }) {
 
 const MATCH_WINS = 3
 
-export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, onSwitchGame }) {
+export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, onSwitchGame, onNewMatch, proposal }) {
   const round = game.round || {}
   const guesses = normalizeGuesses(round.guesses)
   const wrongCount = round.wrongCount || 0
@@ -257,6 +257,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       'round/guesses': null,
       'round/reveal': null,
       'round/result': null,
+      proposal: null,
     }
 
     if (newMatchWinner) {
@@ -286,6 +287,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       'round/guesses': null,
       'round/reveal': null,
       'round/result': null,
+      proposal: null,
     }
 
     if (newMatchWinner) {
@@ -295,26 +297,6 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
     try { await update(ref(db, `games/${gameId}`), updates) } catch { /* ignore */ }
   }, [setter, guesser, scoreX, scoreO, gameId])
-
-  const handleNewMatch = useCallback(async () => {
-    sessionStorage.removeItem(`hangwoman-word-${gameId}`)
-    try {
-      await update(ref(db, `games/${gameId}`), {
-        status: 'playing',
-        winner: null,
-        'scores/X': 0,
-        'scores/O': 0,
-        'round/setter': 'X',
-        'round/phase': 'setting',
-        'round/wrongCount': 0,
-        'round/wordLength': null,
-        'round/commitment': null,
-        'round/guesses': null,
-        'round/reveal': null,
-        'round/result': null,
-      })
-    } catch { /* ignore */ }
-  }, [gameId])
 
   if (cheatDetected) return <CheatScreen evidence={cheatEvidence} />
 
@@ -335,15 +317,15 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
           {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
         </p>
         <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
-        {!isSpectator && (
+        {!isSpectator && !proposal && onNewMatch && (
           <button
-            onClick={handleNewMatch}
+            onClick={onNewMatch}
             className="px-6 py-2.5 bg-retro-yellow text-retro-bg font-pixel text-xs rounded hover:shadow-neon-yellow transition-all active:scale-95"
           >
             NEW MATCH
           </button>
         )}
-        {!isSpectator && onSwitchGame && (
+        {!isSpectator && onSwitchGame && !proposal && (
           <GameSwitcher currentType="hangwoman" onSwitch={onSwitchGame} />
         )}
       </div>
@@ -367,11 +349,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
                   style={{ animationDelay: `${i * 200}ms` }} />
               ))}
             </div>
-            <p className="font-pixel text-[9px] text-retro-pink text-glow-pink leading-relaxed">
+            <p className="font-pixel text-[10px] text-retro-pink text-glow-pink leading-relaxed">
               WAITING FOR<br />WORD-KEEPER…
             </p>
             {!opponentOnline && (
-              <p className="font-pixel text-[9px] text-retro-dim animate-pulse">
+              <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
                 (WORD-KEEPER IS OFFLINE)
               </p>
             )}
@@ -415,7 +397,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       <div className="text-center space-y-1">
         {!isReveal && (
           <p className={cn(
-            'font-pixel text-[9px]',
+            'font-pixel text-[10px]',
             canGuess && wrongCount === MAX_WRONG - 1
               ? 'text-retro-pink text-glow-pink'
               : canGuess
@@ -443,7 +425,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
               RIP QUEEN
             </p>
             {isSetter && (
-              <p className="font-pixel text-[9px] text-retro-pink/70">
+              <p className="font-pixel text-[10px] text-retro-pink/70">
                 YOU HANGED HER
               </p>
             )}
@@ -461,7 +443,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
                 >
                   NEXT ROUND
                 </button>
-                {onSwitchGame && (
+                {onSwitchGame && !proposal && (
                   <GameSwitcher currentType="hangwoman" onSwitch={onSwitchGame} />
                 )}
               </div>
@@ -484,7 +466,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
                 >
                   NEXT ROUND
                 </button>
-                {onSwitchGame && (
+                {onSwitchGame && !proposal && (
                   <GameSwitcher currentType="hangwoman" onSwitch={onSwitchGame} />
                 )}
               </div>
@@ -506,13 +488,13 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       {/* Setter missing word — forfeit option */}
       {setterMissingWord && (
         <div className="text-center space-y-2 border border-retro-pink/30 rounded p-3">
-          <p className="font-pixel text-[9px] text-retro-dim leading-relaxed">
+          <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
             Your word was stored in this browser tab only.<br />
             Concede the round to continue.
           </p>
           <button
             onClick={handleForfeit}
-            className="px-5 py-2 font-pixel text-[9px] border border-retro-pink text-retro-pink rounded hover:shadow-neon-pink transition-all active:scale-95"
+            className="px-5 py-2 font-pixel text-[10px] border border-retro-pink text-retro-pink rounded hover:shadow-neon-pink transition-all active:scale-95"
           >
             CONCEDE ROUND
           </button>
@@ -521,7 +503,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
       {/* Setter offline warning */}
       {!isSetter && !isReveal && !opponentOnline && (
-        <p className="font-pixel text-[9px] text-retro-dim text-center animate-pulse">
+        <p className="font-pixel text-[10px] text-retro-dim text-center animate-pulse">
           WORD-KEEPER IS OFFLINE — GUESSES WILL STALL
         </p>
       )}
@@ -536,7 +518,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       )}
 
       {isSpectator && (
-        <p className="text-center font-pixel text-[9px] text-retro-border">SPECTATING</p>
+        <p className="text-center font-pixel text-[10px] text-retro-border">SPECTATING</p>
       )}
     </div>
   )

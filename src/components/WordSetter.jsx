@@ -22,7 +22,7 @@ export default function WordSetter({ onWordSet, loading = false }) {
 
   return (
     <div className="space-y-4 text-center">
-      <p className="font-pixel text-[9px] text-retro-dim tracking-wider">
+      <p className="font-pixel text-[10px] text-retro-dim tracking-wider">
         YOU ARE THE WORD-KEEPER
       </p>
       <p className="font-mono text-xs text-retro-dim">
@@ -45,7 +45,7 @@ export default function WordSetter({ onWordSet, loading = false }) {
           )}
         />
         {error && (
-          <p className="font-pixel text-[9px] text-retro-pink animate-pulse">{error}</p>
+          <p className="font-pixel text-[10px] text-retro-pink animate-pulse">{error}</p>
         )}
         {raw && !error && (
           <p className="font-mono text-[10px] text-retro-dim">{raw.length} letters</p>

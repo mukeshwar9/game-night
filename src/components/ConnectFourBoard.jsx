@@ -20,8 +20,10 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                 onMouseEnter={() => setHoveredCol(col)}
                 onMouseLeave={() => setHoveredCol(null)}
                 disabled={disabled || colFull}
+                aria-label={`Column ${col + 1}, ${cell || 'empty'}`}
                 className={cn(
                   'aspect-square rounded-full border-2 transition-all duration-150',
+                  'flex items-center justify-center',
                   cell === 'X'
                     ? cn('bg-retro-cyan border-retro-cyan/70', winningLine.includes(i) && 'scale-110 shadow-neon-cyan')
                     : cell === 'O'
@@ -33,7 +35,9 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                         : 'bg-retro-bg border-retro-border',
                   !cell && !disabled && !colFull ? 'cursor-pointer' : 'cursor-default',
                 )}
-              />
+              >
+                {cell && <span className="font-pixel text-[10px] sm:text-xs text-retro-bg/80 select-none">{cell}</span>}
+              </button>
             )
           })}
         </div>

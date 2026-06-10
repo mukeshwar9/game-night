@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import Board from '../components/Board';
+import DotsAndBoxesBoard from '../components/DotsAndBoxesBoard';
+import SosBoard from '../components/SosBoard';
 import GameStatus from '../components/GameStatus';
 import PlayerCard from '../components/PlayerCard';
 import WaitingRoom from '../components/WaitingRoom';
@@ -9,6 +11,18 @@ import LetterKeyboard from '../components/LetterKeyboard';
 import WordSetter from '../components/WordSetter';
 import { getWinner } from '../lib/gameLogic';
 import { applyGuess, isWordGuessed, countWrong, MAX_WRONG } from '../lib/hangmanLogic';
+import {
+  DB_EDGE_COUNT,
+  DB_BOX_COUNT,
+  applyEdgeMove,
+  getDotsAndBoxesWinner,
+} from '../lib/dotsAndBoxesLogic';
+import {
+  SOS_CELL_COUNT,
+  normalizeSosLines,
+  applySosMove,
+  getSosWinner,
+} from '../lib/sosLogic';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -57,23 +71,23 @@ function HangmanDemo() {
 
   return (
     <div className="space-y-4">
-      <p className="font-pixel text-[9px] text-retro-dim text-center tracking-wider">HANGWOMAN DEMO</p>
+      <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">HANGWOMAN DEMO</p>
 
       {/* Gallows stepper (always visible) */}
       <div className="space-y-2">
-        <p className="font-pixel text-[8px] text-retro-border text-center">GALLOWS PREVIEW</p>
+        <p className="font-pixel text-[10px] text-retro-border text-center">GALLOWS PREVIEW</p>
         <HangmanGallows wrongCount={stepperCount} />
         <div className="flex justify-center gap-2">
           <button
             onClick={() => setStepperCount(c => Math.max(0, c - 1))}
-            className="px-3 py-1 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-cyan/50 active:scale-95"
+            className="px-3 py-1 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-cyan/50 active:scale-95"
           >
             –
           </button>
-          <span className="font-pixel text-[9px] text-retro-dim self-center">{stepperCount}/{MAX_WRONG}</span>
+          <span className="font-pixel text-[10px] text-retro-dim self-center">{stepperCount}/{MAX_WRONG}</span>
           <button
             onClick={() => setStepperCount(c => Math.min(MAX_WRONG, c + 1))}
-            className="px-3 py-1 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-cyan/50 active:scale-95"
+            className="px-3 py-1 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-cyan/50 active:scale-95"
           >
             +
           </button>
@@ -81,7 +95,7 @@ function HangmanDemo() {
       </div>
 
       <div className="border-t border-retro-border pt-4 space-y-4">
-        <p className="font-pixel text-[8px] text-retro-border text-center">LIVE DEMO — ENTER WORD, THEN GUESS</p>
+        <p className="font-pixel text-[10px] text-retro-border text-center">LIVE DEMO — ENTER WORD, THEN GUESS</p>
 
         {phase === 'setting' && (
           <WordSetter onWordSet={handleWordSet} />
@@ -109,13 +123,13 @@ function HangmanDemo() {
                   </p>
                   <button
                     onClick={reset}
-                    className="mt-2 px-5 py-2 font-pixel text-[9px] border border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan active:scale-95"
+                    className="mt-2 px-5 py-2 font-pixel text-[10px] border border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan active:scale-95"
                   >
                     PLAY AGAIN
                   </button>
                 </>
               ) : (
-                <p className="font-pixel text-[9px] text-retro-yellow animate-pulse">
+                <p className="font-pixel text-[10px] text-retro-yellow animate-pulse">
                   GUESS A LETTER
                 </p>
               )}
@@ -129,6 +143,137 @@ function HangmanDemo() {
       </div>
     </div>
   );
+}
+
+function DotsAndBoxesDemo() {
+  const [edges, setEdges] = useState(Array(DB_EDGE_COUNT).fill(''))
+  const [boxes, setBoxes] = useState(Array(DB_BOX_COUNT).fill(''))
+  const [currentTurn, setCurrentTurn] = useState('X')
+  const [status, setStatus] = useState('playing')
+  const [winner, setWinner] = useState(null)
+
+  const handleMove = (index) => {
+    if (status !== 'playing') return
+    const result = applyEdgeMove(edges, boxes, index, currentTurn)
+    if (!result) return
+    const gameResult = getDotsAndBoxesWinner(result.boxes)
+    setEdges(result.edges)
+    setBoxes(result.boxes)
+    if (gameResult) {
+      setWinner(gameResult.winner)
+      setStatus('finished')
+    } else if (result.completedBoxes.length === 0) {
+      setCurrentTurn(currentTurn === 'X' ? 'O' : 'X')
+    }
+    // extra turn: currentTurn stays if boxes were completed
+  }
+
+  const reset = () => {
+    setEdges(Array(DB_EDGE_COUNT).fill(''))
+    setBoxes(Array(DB_BOX_COUNT).fill(''))
+    setCurrentTurn('X')
+    setStatus('playing')
+    setWinner(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">DOTS &amp; BOXES DEMO</p>
+      <DotsAndBoxesBoard
+        board={edges}
+        boxes={boxes}
+        onMove={handleMove}
+        disabled={status !== 'playing'}
+        currentTurn={currentTurn}
+      />
+      <div className="text-center space-y-2">
+        {status === 'playing' ? (
+          <p className="font-pixel text-[10px] text-retro-yellow animate-pulse">
+            {currentTurn === 'X' ? 'X' : 'O'}&apos;S TURN
+          </p>
+        ) : (
+          <p className={cn(
+            'font-pixel text-[10px]',
+            winner === 'X' ? 'text-retro-cyan' : winner === 'O' ? 'text-retro-pink' : 'text-retro-dim',
+          )}>
+            {winner === 'draw' ? 'DRAW!' : `${winner} WINS!`}
+          </p>
+        )}
+        <button
+          onClick={reset}
+          className="px-5 py-2 font-pixel text-[10px] border border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan active:scale-95"
+        >
+          RESET
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SosDemo() {
+  const [board, setBoard] = useState(Array(SOS_CELL_COUNT).fill(''))
+  const [sosLines, setSosLines] = useState([])
+  const [currentTurn, setCurrentTurn] = useState('X')
+  const [status, setStatus] = useState('playing')
+  const [winner, setWinner] = useState(null)
+
+  const handleMove = ({ index, letter }) => {
+    if (status !== 'playing') return
+    const lines = normalizeSosLines(sosLines)
+    const result = applySosMove(board, lines, index, letter, currentTurn)
+    if (!result) return
+    const gameResult = getSosWinner(result.board, result.sosLines)
+    setBoard(result.board)
+    setSosLines(result.sosLines)
+    if (gameResult) {
+      setWinner(gameResult.winner)
+      setStatus('finished')
+    } else if (result.completedCount === 0) {
+      setCurrentTurn(currentTurn === 'X' ? 'O' : 'X')
+    }
+    // extra turn: currentTurn stays if completedCount > 0
+  }
+
+  const reset = () => {
+    setBoard(Array(SOS_CELL_COUNT).fill(''))
+    setSosLines([])
+    setCurrentTurn('X')
+    setStatus('playing')
+    setWinner(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">SOS DEMO</p>
+      <SosBoard
+        board={board}
+        sosLines={sosLines}
+        onMove={handleMove}
+        disabled={status !== 'playing'}
+        currentTurn={currentTurn}
+      />
+      <div className="text-center space-y-2">
+        {status === 'playing' ? (
+          <p className="font-pixel text-[10px] text-retro-yellow animate-pulse">
+            {currentTurn}&apos;S TURN
+          </p>
+        ) : (
+          <p className={cn(
+            'font-pixel text-[10px]',
+            winner === 'X' ? 'text-retro-cyan' : winner === 'O' ? 'text-retro-pink' : 'text-retro-dim',
+          )}>
+            {winner === 'draw' ? 'DRAW!' : `${winner} WINS!`}
+          </p>
+        )}
+        <button
+          onClick={reset}
+          className="px-5 py-2 font-pixel text-[10px] border border-retro-cyan text-retro-cyan rounded hover:shadow-neon-cyan active:scale-95"
+        >
+          RESET
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default function Demo() {
@@ -166,7 +311,7 @@ export default function Demo() {
     <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-5">
       <div className="w-full max-w-sm space-y-5">
         <div className="flex items-center justify-between">
-          <Link to="/" className="font-pixel text-[9px] text-retro-dim hover:text-retro-cyan transition-colors">
+          <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-cyan transition-colors">
             ← HOME
           </Link>
           <span className="text-xs text-amber-400 bg-amber-950/60 border border-amber-700 rounded px-2 py-1 font-mono">
@@ -181,7 +326,7 @@ export default function Demo() {
 
         {/* TicTacToe demo */}
         <div className="border-t border-retro-border pt-4 space-y-4">
-          <p className="font-pixel text-[8px] text-retro-border text-center tracking-wider">TIC TAC TOE DEMO</p>
+          <p className="font-pixel text-[10px] text-retro-border text-center tracking-wider">TIC TAC TOE DEMO</p>
           <div className="grid grid-cols-2 gap-2">
             <PlayerCard name="Alice" symbol="X" isActive={status === 'playing' && currentTurn === 'X'} isMe />
             <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
@@ -196,8 +341,22 @@ export default function Demo() {
           />
         </div>
 
+        {/* Dots and Boxes demo */}
         <div className="border-t border-retro-border pt-4">
-          <p className="text-retro-border text-xs text-center font-pixel text-[8px] mb-3">WAITING ROOM PREVIEW</p>
+          <div className="border border-retro-border rounded p-4 bg-retro-card">
+            <DotsAndBoxesDemo />
+          </div>
+        </div>
+
+        {/* SOS demo */}
+        <div className="border-t border-retro-border pt-4">
+          <div className="border border-retro-border rounded p-4 bg-retro-card">
+            <SosDemo />
+          </div>
+        </div>
+
+        <div className="border-t border-retro-border pt-4">
+          <p className="text-retro-border text-xs text-center font-pixel text-[10px] mb-3">WAITING ROOM PREVIEW</p>
           <WaitingRoom gameId="DEMO01" />
         </div>
       </div>

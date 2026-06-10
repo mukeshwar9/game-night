@@ -8,23 +8,31 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 
 - Tic Tac Toe
 - Connect Four
-- Hangwoman — hidden-word game; a commit–reveal scheme keeps the word secret with no server and catches a cheating word-keeper (design in [`HANGMAN.md`](HANGMAN.md))
+- Hangwoman — hidden-word game; a commit–reveal scheme keeps the word secret with no server and catches a cheating word-keeper (design in [`docs/HANGMAN.md`](docs/HANGMAN.md))
+- Dots and Boxes — 4×4 grid; completing a box claims it and grants an extra turn; first to 9 of 16 boxes wins the round (design in [`README-dots-and-boxes.md`](README-dots-and-boxes.md))
+- SOS — 7×7 grid; each turn place either an S or an O anywhere; completing an S-O-S in a line scores a point and grants another move; most sequences when the board is full wins
 
 ## How it works
 
-1. Enter your name, choose a game, and click the card — you get a 6-character room code
-2. Share the link with a friend
+1. Enter your name and pick a game from the grid — you get a 6-character room code
+2. Share the link with a friend (or they type the code into **JOIN A FRIEND** at the top of the home page)
 3. They open it, enter their name, and the game starts
 4. Moves sync in real time via Firebase; each player sees the board update instantly
-5. When a game ends, hit **PLAY AGAIN** — or **PLAY ANOTHER GAME** to switch the whole room to a different game; both players (and spectators) move together, no new code needed
+5. When a game ends, hit **PLAY AGAIN** or **NEW MATCH** — the opponent gets an ACCEPT/DECLINE prompt; both must agree before the game resets. **SWITCH GAME** works the same way. If the opponent is offline or hasn't joined, the action applies immediately.
 
-Players are identified by session only — no sign-up, no passwords. The creator is always X; the first person to join is O. A third person who opens the link becomes a spectator.
+Players are identified by a stable browser ID stored in `localStorage` — no sign-up, no passwords. The creator is always X; the first person to join is O. A third person who opens the link becomes a spectator. Closing a tab no longer kills the game — reopening the invite link in the same browser reclaims your seat automatically.
 
 ## Features
 
 - **Real-time multiplayer** — Firebase Realtime Database keeps both boards in sync
 - **Score tracking** — scores persist across rounds; first to 3 wins triggers a match-over screen
-- **In-room game switching** — every end-of-game screen offers the other games; switching resets the board and scores but keeps players, presence, and the room code
+- **In-room game switching** — every end-of-game screen has a **SWITCH GAME** button that opens the shared game picker; switching resets the board and scores but keeps players, presence, and the room code
+- **Rematch consent** — PLAY AGAIN / NEW MATCH / SWITCH GAME are propose-and-accept: the opponent gets an ACCEPT/DECLINE banner instead of having the room yanked out from under them (applies instantly when they're offline or haven't joined)
+- **Seat reclaim** — a stable `playerId` in `localStorage` is stamped into each player slot; closing a tab or re-clicking the invite link reclaims your seat instead of demoting you to spectator
+- **Invite landing page** — an invited friend without a name gets a "YOU'RE INVITED" prompt right on the game page, never bounced back to home
+- **Colorblind-safe boards** — Connect Four discs carry an X/O letter glyph on top of the cyan/pink colors, and every cell has an aria-label
+- **Practice offline** — the home page links to `/demo`, fully playable local versions of every board game with no Firebase and no second player
+- **Extra-turn chains** — Dots and Boxes grants another turn on every completed box, with double-box edges, live box counts, and an early clinch at 9 boxes
 - **Cheat-proof hidden words** — Hangwoman stores the word only in the setter's browser, committed to Firebase as a salted SHA-256 hash (`src/lib/commit.js`); on reveal the guesser's client verifies the hash and every recorded answer, and a CHEAT DETECTED screen presents the evidence if anything doesn't match
 - **Execution drama** — Hangwoman's pixel figure gets a trapdoor drop with thud and funeral bell on the final miss, a blinking DEAD WOMAN GUESSING warning at last life, and a RIP QUEEN memorial with falling roses for the loss screen
 - **Presence detection** — green dot on each player card; "OPPONENT DISCONNECTED" warning when the other tab goes offline
@@ -78,7 +86,7 @@ npm run dev       # dev server with HMR
 npm run build     # production build → dist/
 npm run preview   # serve dist/ locally
 npm run lint      # ESLint
-npm test          # Vitest (hangman logic + commit–reveal suites)
+npm test          # Vitest (TTT, Connect Four, Dots and Boxes, SOS, hangwoman logic, commit–reveal)
 ```
 
 ## Deploy
@@ -103,9 +111,10 @@ The room/invite/Firebase/presence layer is game-agnostic. Each game needs:
 
 1. A logic file in `src/lib/` exporting `getWinner(board)` and any move helpers
 2. A board component in `src/components/`
-3. An entry in `GAME_TYPES` and a branch in `freshGameState()` in `src/lib/games.js` (drives the in-room switcher and per-game initial state)
-4. A card with an icon added to the `GAMES` array in `src/pages/Home.jsx`
-5. A branch on the new `gameType` string in `src/pages/Game.jsx` (board size, move handler, board component, win function)
+3. An icon component in `src/components/GameIcons.jsx`
+4. A single entry in `GAME_TYPES` in `src/lib/games.js` — `boardSize`, `getMoveIndex`, `getWinner`, `BoardComponent`, `badge`, `maxWidth`, `desc`, `Icon`. The entry drives the home-screen grid and the end-of-game **SWITCH GAME** picker (both render from the registry via `GamePicker`), `freshGameState()` initial state, and everything `Game.jsx` renders (`Game.jsx` has no per-game branches)
+
+Games that don't fit the standard place-symbol → flip-turn → check-winner shape supply two optional registry hooks instead of `getWinner`: `applyMove()` (full control of the Firebase write — Dots and Boxes uses it for extra turns and box ownership) and `boardProps()` (extra props for the board component, e.g. `boxes`).
 
 Sounds, presence, score tracking, game switching, and the win effect work automatically for any game type.
 
@@ -116,30 +125,38 @@ src/
   components/
     Board.jsx / Cell.jsx          # Tic Tac Toe board
     ConnectFourBoard.jsx          # Connect Four board
+    DotsAndBoxesBoard.jsx         # Dots and Boxes edge/box grid with box counts
+    SosBoard.jsx                  # SOS 7×7 letter grid with letter picker and SOS-line highlights
     HangmanGallows.jsx            # Pixel gallows + figure, trapdoor drop
     WordDisplay.jsx               # Hangwoman letter slots
     LetterKeyboard.jsx            # Hangwoman A–Z guess keyboard
     WordSetter.jsx                # Hangwoman word entry (setter)
     Gravestone.jsx                # RIP QUEEN memorial pixel art
     RoseFall.jsx                  # Falling-roses mourning overlay
-    GameSwitcher.jsx              # "Play another game" picker
+    GameIcons.jsx                 # Per-game SVG icon components
+    GamePicker.jsx                # Game card grid (home screen + switch modal)
+    GameSwitcher.jsx              # SWITCH GAME button + modal picker
+    ProposalBanner.jsx            # Rematch/switch consent banner (accept / decline / cancel)
     PlayerCard.jsx                # Player name, score, presence dot
     GameStatus.jsx                # Turn / win / match-over display
     WaitingRoom.jsx               # Invite link + copy button
     WinEffect.jsx                 # Pixel particle burst on game end
     ui/sonner.jsx                 # Sonner Toaster (retro styled)
   pages/
-    Home.jsx                      # Name entry + game selection
+    Home.jsx                      # Name entry, join-by-code, game selection
     Game.jsx                      # Game room (all game types)
     HangmanGame.jsx               # Hangwoman rounds, commit–reveal, cheat check
     Demo.jsx                      # Local-only playable demo (no Firebase)
   lib/
     firebase.js                   # Firebase init (reads VITE_FIREBASE_* env vars)
-    games.js                      # GAME_TYPES registry + freshGameState()
-    gameLogic.js                  # TTT win detection + normalizeBoard
-    connectFourLogic.js           # Connect Four win detection + drop helper
+    games.js                      # per-game config registry (GAME_TYPES, getGameConfig) + freshGameState()
+    gameLogic.js (+ .test.js)     # TTT win detection + normalizeBoard
+    connectFourLogic.js (+ .test.js)  # Connect Four win detection + drop helper
+    dotsAndBoxesLogic.js (+ .test.js) # edge/box indexing, applyEdgeMove, clinch detection
+    sosLogic.js (+ .test.js)      # SOS line detection, applySosMove, getSosWinner
     hangmanLogic.js (+ .test.js)  # Hangwoman guess/win logic + consistency check
     commit.js (+ .test.js)        # Salted SHA-256 commit–reveal primitive
+    playerId.js                   # Stable per-browser ID (localStorage) for seat reclaim
     sounds.js                     # Web Audio API sound engine
     utils.js                      # cn() helper (clsx + tailwind-merge)
   hooks/
@@ -149,7 +166,7 @@ functions/
 database.rules.json               # Firebase Realtime Database security rules
 ```
 
-The `/demo` route renders a fully playable local game (no Firebase) — useful for UI testing without credentials.
+The `/demo` route (linked from the home page as **PRACTICE OFFLINE**) renders fully playable local versions of the board games — no Firebase, no second player; also useful for UI testing without credentials.
 
 ## Planned improvements
 
@@ -164,22 +181,13 @@ Highest-impact fixes — these are the only items where someone other than the t
 
 - **Guard against game ID collisions.** `createGame` in `Home.jsx` does a blind `set()` on a random 6-character ID (~2.2 billion combinations, but cleanup only runs daily). A collision would silently overwrite someone's live game. Use a transaction that only writes if the node doesn't exist, or `get()` first and regenerate on collision.
 
-- **Let players reclaim their seat.** Identity lives only in `sessionStorage`, so if a player closes their tab, their slot is orphaned forever and the game is dead. Store a random `playerId` in `localStorage`, save it in the player slot on join, and let a returning browser with a matching ID reclaim its symbol. Pairs naturally with the anonymous-auth fix above (the `uid` *is* the player ID).
+- **Let players reclaim their seat — ✅ done (client side).** A random `playerId` in `localStorage` is saved into the player slot on create/join, and a returning browser with a matching ID reclaims its symbol (`src/lib/playerId.js`, slot resolution in `Game.jsx`). The remaining security half: nothing stops a malicious client from writing someone else's `playerId` — fixing that requires the anonymous-auth work above (the `uid` *is* the player ID).
 
 ### Architecture & maintainability
 
-- **Finish the game registry.** `src/lib/games.js` now exists with `GAME_TYPES` (drives the in-room switcher) and `freshGameState()` (single source of per-game initial state, used by both game creation and game switching). What remains: move the per-type branches still in `Game.jsx` (board size, drop logic, winner function, board component, layout width) into the registry so adding a board game is a one-file change:
+- **Game registry — ✅ done.** `GAME_TYPES` in `src/lib/games.js` now carries `boardSize`, `getMoveIndex`, `getWinner`, `BoardComponent`, `badge`, `maxWidth`, `desc`, and `Icon` per game, plus optional `applyMove`/`boardProps` hooks for non-standard turn shapes (Dots and Boxes is the first consumer); `Game.jsx` contains no per-game branches. Adding a board game is a single registry entry plus an icon — the home grid and the SWITCH GAME picker both render from the registry via `GamePicker`.
 
-  ```js
-  // src/lib/games.js — target shape
-  export const GAME_TYPES = {
-    tictactoe:   { boardSize: 9,  getWinner, getMoveIndex: (b, i) => i, Board },
-    connectfour: { boardSize: 42, getWinner: getConnectFourWinner,
-                   getMoveIndex: getConnectFourDrop, Board: ConnectFourBoard },
-  }
-  ```
-
-- **Extend unit tests to the board games.** Vitest is in (`npm test`) with suites for `hangmanLogic` and `commit`. Still untested: `getWinner`, `getConnectFourWinner`, `getConnectFourDrop`, and `normalizeBoard` — all pure, zero-dependency functions. Connect Four win detection (diagonals, board edges) is exactly the kind of thing that breaks silently during the registry refactor, so land those tests first.
+- **Board-game unit tests — ✅ done.** `npm test` now covers `getWinner`, `normalizeBoard`, `getConnectFourWinner`, `getConnectFourDrop`, and the full Dots and Boxes suite (`applyEdgeMove`, edge/box indexing, `getDotsAndBoxesWinner`) alongside the existing `hangmanLogic` and `commit` suites.
 
 ### Polish
 
@@ -194,7 +202,7 @@ Two-player games that fit the platform, tiered by how far they stretch the curre
 - **Gomoku (5 in a row)** — 15×15 board, same X/O cells, same win-line highlight. Plays like tic-tac-toe but actually deep; threats build up over the game. Probably the cheapest addition with the biggest payoff.
 - **Ultimate Tic-Tac-Toe** — nine 3×3 boards in a 3×3 grid; your move dictates which board the opponent must play in next. Far more exciting than regular TTT and thematically perfect next to it. State is still just an array (81 cells + 9 macro cells).
 - **Pentago** — 6×6 board in four 3×3 quadrants; place a marble, then rotate a quadrant 90°. Wins appear out of nowhere — the most exciting per line of code in this tier. The two-action turn still commits as a single board write.
-- **SOS** — ~7×7 grid; each turn place *either* an S or an O anywhere; completing "S-O-S" in a line scores a point and grants another move. Every placement risks setting up the opponent. Scoring maps directly onto the existing `scores` node.
+- **SOS** — ✅ shipped. 7×7 grid; each turn place *either* an S or an O anywhere; completing "S-O-S" in a line scores a point and grants another move. Every placement risks setting up the opponent. Scoring maps directly onto the existing `scores` node.
 - **Order and Chaos** — 6×6; *both* players place X's or O's. "Order" wins by making 5-in-a-row of either symbol; "Chaos" by preventing it. Asymmetric roles make swap-sides rematches naturally compelling.
 - **Notakto (misère tic-tac-toe)** — both players place X's on three 3×3 boards; completing three-in-a-row *loses* that board. Sounds trivial, plays mind-bending. Reuses the existing TTT board component almost verbatim.
 - **Hex** — 11×11 rhombus of hexagons; connect your two opposite edges. One-sentence rules, no draws possible, tense endgames. Win detection is a flood-fill instead of line-scanning; the hexagonal CSS is the only real work.
@@ -218,21 +226,23 @@ Two-player games that fit the platform, tiered by how far they stretch the curre
 - **Pig** — roll a d6 repeatedly; bank your points or keep rolling, but a 1 wipes the turn. First to 100. Two buttons, one die, maximum table-banging — the smallest possible game that introduces the dice mechanic.
 - **Shut the Box (duel)** — same vibe, slightly more board to render.
 
-**Tier 5 — hidden state.** Requires either the commit–reveal scheme (see [`HANGMAN.md`](HANGMAN.md)) or per-player read rules via anonymous auth.
+**Tier 5 — hidden state.** Requires either the commit–reveal scheme (see [`docs/HANGMAN.md`](docs/HANGMAN.md)) or per-player read rules via anonymous auth.
 
 - **Hangwoman** — ✅ shipped. Its commit–reveal module (`src/lib/commit.js`) is the reusable primitive for everything else in this tier.
 - **Battleship** — the headline setup-phase game; needs hidden ship placement *and* guess verification, both built on the commit–reveal module Hangwoman produced — now unblocked.
-- **Dots and Boxes** — no hidden state actually needed (it's all public edges), listed here as the other planned setup-heavy game; chain captures at the end are the exciting part.
+- **Dots and Boxes** — ✅ shipped. No hidden state was needed in the end (it's all public edges); the extra-turn/chain mechanics landed via the registry's `applyMove` hook (design in [`README-dots-and-boxes.md`](README-dots-and-boxes.md)).
 
 **Avoid for now:** real-time-reflex games (Pong, air hockey, tap races) — RTDB latency makes them feel mushy; they need the WebRTC architecture described below.
 
-**Suggested next three:** Pentago (excitement per line of code), SOS (scoring variety, reuses everything), Breakthrough (first moving-pieces game). Add Pig when introducing dice, RPS as a quick filler-game win.
+**Suggested next three:** Pentago (excitement per line of code), Gomoku (cheapest big payoff), Breakthrough (first moving-pieces game). Add Pig when introducing dice, RPS as a quick filler-game win.
 
 ### New features — medium effort
+- **Hot-seat mode (2 players, one device)** — a "PASS & PLAY" entry on the home screen that runs a game entirely against local state: both names entered up front, a "PASS TO \<name\>" prompt between turns, scores and match-over tracked locally. The `/demo` route already proves the pattern (the same board components and pure logic functions running with no Firebase) — this productizes it. No room code, presence, or spectators; works offline, which also makes the PWA install genuinely useful.
+- **How-to-play screens** — a "HOW TO PLAY" button on each home-screen card and in the game header that opens a rules overlay for that game (Tic Tac Toe, Connect Four, Hangwoman's setter/guesser roles and 6-miss limit, Dots and Boxes' extra-turn rule). Store the rules text per game in the `GAME_TYPES` registry (`src/lib/games.js`) so the overlay and the `GamePicker` cards all pull from one place.
 - **In-game reactions** — quick reaction buttons (👏 😬 🔥 💀) that flash on the opponent's screen, stored as a single ephemeral Firebase key.
 - **Chat** — simple text input per room, messages stored under `games/$id/messages`.
-- **Rematch request flow** — replace the free-for-all "Play Again" (and the equally free-for-all game switcher) with a propose/accept handshake.
-- **More games** — see the full tiered list in [Game candidates](#game-candidates); Battleship is now unblocked by Hangwoman's commit–reveal module, and Dots and Boxes remains the other headline pick.
+- **Rematch request flow — ✅ done.** PLAY AGAIN / NEW MATCH / SWITCH GAME now write a `proposal` node; the opponent accepts or declines (`src/components/ProposalBanner.jsx`). The handshake is skipped when the opponent is offline or absent.
+- **More games** — see the full tiered list in [Game candidates](#game-candidates); with Dots and Boxes and SOS shipped, Battleship (unblocked by Hangwoman's commit–reveal module) is the remaining headline pick, with Pentago / Gomoku / Breakthrough as the cheap wins.
 
 ### Real-time games (Pong, air hockey, etc.) — architecture notes
 
