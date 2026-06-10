@@ -234,6 +234,17 @@ Two-player games that fit the platform, tiered by how far they stretch the curre
 - **Battleship** — the headline setup-phase game; needs hidden ship placement *and* guess verification, both built on the commit–reveal module Hangwoman produced — now unblocked.
 - **Dots and Boxes** — ✅ shipped. No hidden state was needed in the end (it's all public edges); the extra-turn/chain mechanics landed via the registry's `applyMove` hook (design in [`README-dots-and-boxes.md`](README-dots-and-boxes.md)).
 
+**Human Benchmark duels** — head-to-head versions of the solo skill tests on [humanbenchmark.com](https://humanbenchmark.com/). The originals are single-player; these adaptations turn them into two-player games. The first four fit the existing turn-based registry; the last two need a simultaneous-rounds mode (each player writes a result to their own key per round — the same pattern as Rock Paper Scissors in Tier 3, *not* the WebRTC architecture below).
+
+- **Sequence duel (Simon)** — players alternate: repeat the growing pad sequence, then append one pad of your choice; first misrepeat loses. Architecturally the cleanest fit on this whole page: the sequence is an append-only array (like `sosLines`), turns alternate normally, and there's no RNG and no hidden state — one registry entry with an `applyMove` hook.
+- **Chimp Test duel** — numbered squares flash, then hide; click them in order. Players alternate attempts, the count grows each survival, first fail loses the round. The layout per level is generated and stored on the game node (public in the DB — same trust level as the rest of the board state).
+- **Number Memory duel** — memorize a number shown briefly, type it back, one digit longer each level. A twist that beats the original: the *opponent* sets your number (Hangwoman's setter model), or commit a generated number with the existing commit–reveal module (`src/lib/commit.js`) so neither side can claim foul.
+- **Visual Memory duel** — a tile pattern flashes; reproduce it; levels escalate. Same alternating-attempts shape as the Chimp duel — ship one of the two, not both (the Chimp Test is the more iconic).
+- **Reaction duel (best of 5)** — both players watch the same wait-for-green screen; each client measures its own reaction time locally and writes the milliseconds; lower wins the round. No latency-sensitive sync is needed — each player measures their own delta — so plain RTDB carries it, unlike the Pong-class games below.
+- **Typing race** — both players type the same passage with live progress bars (TypeRacer-style). Throttled progress writes are fine over RTDB; the real lift is passage content, WPM calculation, and the live-progress UI.
+
+Skipped from the Human Benchmark catalog: **Aim Trainer** (pure mouse skill, weak on mobile, and a duel is just two solo runs compared), **Verbal Memory** (long solo grind with no natural duel structure), **Hearing / Interval Trainer** (audio-dependent and niche — the site itself retired its hearing test).
+
 **Avoid for now:** real-time-reflex games (Pong, air hockey, tap races) — RTDB latency makes them feel mushy; they need the WebRTC architecture described below.
 
 **Suggested next three:** Pentago (excitement per line of code), Gomoku (cheapest big payoff), Breakthrough (first moving-pieces game). Add Pig when introducing dice, RPS as a quick filler-game win.

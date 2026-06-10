@@ -2,7 +2,8 @@ import Board from '../components/Board'
 import ConnectFourBoard from '../components/ConnectFourBoard'
 import DotsAndBoxesBoard from '../components/DotsAndBoxesBoard'
 import SosBoard from '../components/SosBoard'
-import { TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon } from '../components/GameIcons'
+import SimonBoard from '../components/SimonBoard'
+import { TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon, SimonIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
 import {
@@ -17,6 +18,10 @@ import {
   applySosMove,
   getSosWinner,
 } from './sosLogic'
+import {
+  normalizeSimonSequence,
+  applySimonMove,
+} from './simonLogic'
 
 export const GAME_TYPES = [
   {
@@ -87,6 +92,19 @@ export const GAME_TYPES = [
     },
     boardProps: (game) => ({ sosLines: normalizeSosLines(game.sosLines) }),
   },
+  {
+    type: 'simon', label: 'SIMON',
+    desc: 'memory duel', Icon: SimonIcon,
+    badge: 'SQ', maxWidth: 'max-w-xs',
+    boardSize: 0,
+    getMoveIndex: (_, padIndex) => padIndex,
+    BoardComponent: SimonBoard,
+    applyMove: ({ game, move, symbol }) => applySimonMove(game, move, symbol),
+    boardProps: (game) => ({
+      simonSequence: normalizeSimonSequence(game.simonSequence),
+      simonProgress: game.simonProgress ?? 0,
+    }),
+  },
 ]
 
 export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
@@ -101,6 +119,9 @@ export function freshGameState(gameType) {
   }
   if (gameType === 'sos') {
     return { board: Array(SOS_CELL_COUNT).fill(''), boxes: null, sosLines: null, currentTurn: 'X', round: null }
+  }
+  if (gameType === 'simon') {
+    return { board: null, boxes: null, currentTurn: 'X', round: null, sosLines: null, simonSequence: null, simonProgress: 0 }
   }
   return { board: Array(cfg.boardSize).fill(''), boxes: null, currentTurn: 'X', round: null, sosLines: null }
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Board from '../components/Board';
 import DotsAndBoxesBoard from '../components/DotsAndBoxesBoard';
 import SosBoard from '../components/SosBoard';
+import SimonBoard from '../components/SimonBoard';
 import GameStatus from '../components/GameStatus';
 import PlayerCard from '../components/PlayerCard';
 import WaitingRoom from '../components/WaitingRoom';
@@ -23,6 +24,7 @@ import {
   applySosMove,
   getSosWinner,
 } from '../lib/sosLogic';
+import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import ThemeSwitcher from '../components/ThemeSwitcher';
@@ -277,6 +279,70 @@ function SosDemo() {
   )
 }
 
+function SimonDemo() {
+  const [seq, setSeq] = useState([])
+  const [progress, setProgress] = useState(0)
+  const [currentTurn, setCurrentTurn] = useState('X')
+  const [status, setStatus] = useState('playing')
+  const [winner, setWinner] = useState(null)
+
+  const handleMove = (padIndex) => {
+    if (status !== 'playing') return
+    const game = { simonSequence: seq, simonProgress: progress }
+    const r = applySimonMove(game, padIndex, currentTurn)
+    if (!r) return
+    if (r.result) {
+      setWinner(r.result.winner)
+      setStatus('finished')
+      return
+    }
+    const { simonSequence, simonProgress, currentTurn: nextTurn } = r.updates
+    if (simonSequence !== undefined) setSeq(normalizeSimonSequence(simonSequence))
+    if (simonProgress !== undefined) setProgress(simonProgress)
+    if (nextTurn !== undefined) setCurrentTurn(nextTurn)
+  }
+
+  const reset = () => {
+    setSeq([])
+    setProgress(0)
+    setCurrentTurn('X')
+    setStatus('playing')
+    setWinner(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">SIMON DEMO</p>
+      <div className="grid grid-cols-2 gap-2">
+        <PlayerCard name="Alice" symbol="X" isActive={status === 'playing' && currentTurn === 'X'} isMe />
+        <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
+      </div>
+      <SimonBoard
+        onMove={handleMove}
+        disabled={status !== 'playing'}
+        simonSequence={seq}
+        simonProgress={progress}
+      />
+      <div className="text-center space-y-2">
+        {status === 'finished' && (
+          <p className={cn(
+            'font-pixel text-[10px]',
+            winner === 'X' ? 'text-retro-p1' : 'text-retro-p2',
+          )}>
+            {winner} WINS!
+          </p>
+        )}
+        <button
+          onClick={reset}
+          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
+        >
+          RESET
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Demo() {
   const [board, setBoard] = useState(Array(9).fill(''));
   const [currentTurn, setCurrentTurn] = useState('X');
@@ -356,6 +422,13 @@ export default function Demo() {
         <div className="border-t border-retro-border pt-4">
           <div className="border border-retro-border rounded p-4 bg-retro-card">
             <SosDemo />
+          </div>
+        </div>
+
+        {/* Simon demo */}
+        <div className="border-t border-retro-border pt-4">
+          <div className="border border-retro-border rounded p-4 bg-retro-card">
+            <SimonDemo />
           </div>
         </div>
 
