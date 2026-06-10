@@ -132,3 +132,12 @@ export function DotsAndBoxesIcon() {
     </svg>
   )
 }
+
+export function ReactionIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* lightning bolt */}
+      <polygon points="14,2 6,13 13,13 10,22 18,11 11,11" fill="currentColor" />
+    </svg>
+  )
+}

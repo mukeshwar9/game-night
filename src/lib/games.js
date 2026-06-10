@@ -7,7 +7,7 @@ import SimonBoard from '../components/SimonBoard'
 import VisualMemoryBoard from '../components/VisualMemoryBoard'
 import {
   TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
@@ -136,6 +136,12 @@ export const GAME_TYPES = [
     custom: true,
   },
   {
+    type: 'reaction', label: 'REACTION TIME',
+    desc: '4 rounds', Icon: ReactionIcon,
+    badge: 'RT', maxWidth: 'max-w-xs',
+    custom: true,
+  },
+  {
     type: 'visualmemory', label: 'VISUAL MEMORY',
     desc: '4 × 4 grid', Icon: VisualMemoryIcon,
     badge: 'VM', maxWidth: 'max-w-xs',
@@ -163,6 +169,7 @@ const FIELD_NULLS = {
   chimpDoneX: null, chimpDoneO: null,
   vmLevel: null, vmPattern: null, vmClicked: null,
   numRound: null,
+  reactionTimesX: null, reactionTimesO: null,
 }
 
 export function freshGameState(gameType) {
@@ -191,6 +198,9 @@ export function freshGameState(gameType) {
       chimpLayout: generateChimpLayout(CHIMP_START_LEVEL),
       chimpProgressX: 0, chimpProgressO: 0,
       chimpDoneX: false, chimpDoneO: false }
+  }
+  if (gameType === 'reaction') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
   }
   if (gameType === 'numbermemory') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,

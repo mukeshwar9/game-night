@@ -41,6 +41,7 @@ const SIMON_FREQS = [440, 330, 524, 392]
 
 export const sounds = {
   simPad: (i) => seq([[SIMON_FREQS[i] ?? 440, 0, 0.25, 'sine', 0.18]]),
+  go:    ()    => seq([[880, 0, 0.06, 'sine', 0.15]]),
   miss:  ()    => seq([[180, 0, 0.08, 'sawtooth', 0.12], [130, 0.09, 0.18, 'sawtooth', 0.09], [90, 0.25, 0.22, 'sawtooth', 0.07]]),
   move:  (sym) => seq([[sym === 'X' ? 440 : 330, 0, 0.07]]),
   join:  ()    => seq([[440, 0, 0.06], [880, 0.08, 0.12]]),

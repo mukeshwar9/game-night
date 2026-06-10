@@ -12,6 +12,7 @@ import WinEffect from '../components/WinEffect'
 import HangmanGame from './HangmanGame'
 import NumberMemoryGame from './NumberMemoryGame'
 import ChimpGame from './ChimpGame'
+import ReactionGame from './ReactionGame'
 import ProposalBanner from '../components/ProposalBanner'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -551,7 +552,17 @@ export default function Game() {
         {game.status === 'waiting' ? (
           <WaitingRoom gameId={gameId} />
         ) : isCustom ? (
-          game.gameType === 'numbermemory' ? (
+          game.gameType === 'reaction' ? (
+            <ReactionGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'numbermemory' ? (
             <NumberMemoryGame
               gameId={gameId}
               game={game}
