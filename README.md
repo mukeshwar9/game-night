@@ -30,7 +30,7 @@ Players are identified by a stable browser ID stored in `localStorage` — no si
 - **Rematch consent** — PLAY AGAIN / NEW MATCH / SWITCH GAME are propose-and-accept: the opponent gets an ACCEPT/DECLINE banner instead of having the room yanked out from under them (applies instantly when they're offline or haven't joined)
 - **Seat reclaim** — a stable `playerId` in `localStorage` is stamped into each player slot; closing a tab or re-clicking the invite link reclaims your seat instead of demoting you to spectator
 - **Invite landing page** — an invited friend without a name gets a "YOU'RE INVITED" prompt right on the game page, never bounced back to home
-- **Colorblind-safe boards** — Connect Four discs carry an X/O letter glyph on top of the cyan/pink colors, and every cell has an aria-label
+- **Colorblind-safe boards** — Connect Four discs carry an X/O letter glyph on top of the player accent colors (cyan/pink in the default theme), and every cell has an aria-label
 - **Practice offline** — the home page links to `/demo`, fully playable local versions of every board game with no Firebase and no second player
 - **Extra-turn chains** — Dots and Boxes grants another turn on every completed box, with double-box edges, live box counts, and an early clinch at 9 boxes
 - **Cheat-proof hidden words** — Hangwoman stores the word only in the setter's browser, committed to Firebase as a salted SHA-256 hash (`src/lib/commit.js`); on reveal the guesser's client verifies the hash and every recorded answer, and a CHEAT DETECTED screen presents the evidence if anything doesn't match

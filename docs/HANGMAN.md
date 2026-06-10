@@ -97,11 +97,11 @@ export function verifyRoundConsistency(word, guesses)
 
 ## Visual spec — retro theme is mandatory
 
-Match the existing aesthetic exactly: Press Start 2P (`font-pixel`) for labels, `font-mono` for body, neon palette (`retro-cyan`, `retro-pink`, `retro-yellow`, `retro-dim`, `retro-border`, `retro-card`, `retro-bg` — see `tailwind.config.js`), square line caps, existing scanline/vignette overlays.
+Match the existing aesthetic exactly: Press Start 2P (`font-pixel`) for labels, `font-mono` for body, neon palette (`retro-p1`, `retro-p2`, `retro-cta`, `retro-dim`, `retro-border`, `retro-card`, `retro-bg` — see the Theming section in `CLAUDE.md`; these semantic tokens replaced the original `retro-cyan/pink/yellow` names when the runtime theme system landed), square line caps, existing scanline/vignette overlays.
 
 **The hanged figure is a pixel sprite, NOT a smooth stick figure.**
 - Gallows frame: dim cyan strokes, `strokeLinecap="square"`, always visible — same stroke style as `Board.jsx` grid lines.
-- The figure: built from filled squares (`<rect>` cells on a ~16×16 SVG grid), `retro-pink`, like an 8-bit arcade character.
+- The figure: built from filled squares (`<rect>` cells on a ~16×16 SVG grid), `retro-p2` (pink in the default theme), like an 8-bit arcade character.
 - Six body-part groups toggled by `wrongCount`: 1 head → 2 body → 3 left arm → 4 right arm → 5 left leg → 6 right leg.
 - New parts snap in over 2–3 discrete steps (step-end animation), NOT smooth easing — 8-bit animation is frame-snapped.
 - Once the body exists (wrongCount ≥ 2): subtle sway, CSS rotate ±2° loop, `transform-origin` at the rope point.
@@ -109,10 +109,10 @@ Match the existing aesthetic exactly: Press Start 2P (`font-pixel`) for labels, 
 - On each miss: a 1-frame screen flicker.
 
 **Other components:**
-- `WordDisplay`: pixel-font letters over underscores, `retro-cyan` for revealed, `retro-border` for blanks.
+- `WordDisplay`: pixel-font letters over underscores, `retro-p1` for revealed, `retro-border` for blanks.
 - `LetterKeyboard`: A–Z grid of small square buttons (mobile-first, min 40px touch targets). Three states: untried (`retro-border` border), hit (cyan + glow), miss (dim + strikethrough), all disabled when not your turn / already tried. Also accept physical keydown A–Z.
 - `WordSetter`: single input (auto-uppercase, maxLength 12) + "LOCK IT IN" button, styled like the Home page name input. Show "WAITING FOR WORD-KEEPER…" to the guesser during `setting` phase.
-- CHEAT DETECTED screen: blinking pixel text in `retro-pink`, arcade error-screen style, with the expected vs revealed evidence and a "BACK TO HOME" link.
+- CHEAT DETECTED screen: blinking pixel text in `retro-p2`, arcade error-screen style, with the expected vs revealed evidence and a "BACK TO HOME" link.
 - Home card icon: tiny pixel gallows, added to the `GAMES` array following the existing inline-SVG pattern.
 
 **Sounds** (extend `src/lib/sounds.js`, Web Audio only, no files): hit → existing move bleep; miss → low descending thud + the body-part draw; round end → existing win/lose jingles; "guessed with 0 misses" → win jingle is fine, no special case.
