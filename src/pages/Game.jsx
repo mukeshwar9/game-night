@@ -13,6 +13,9 @@ import HangmanGame from './HangmanGame'
 import NumberMemoryGame from './NumberMemoryGame'
 import ChimpGame from './ChimpGame'
 import ReactionGame from './ReactionGame'
+import AimTrainerGame from './AimTrainerGame'
+import TypingGame from './TypingGame'
+import MathGame from './MathGame'
 import ProposalBanner from '../components/ProposalBanner'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -554,6 +557,36 @@ export default function Game() {
         ) : isCustom ? (
           game.gameType === 'reaction' ? (
             <ReactionGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'aim' ? (
+            <AimTrainerGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'typing' ? (
+            <TypingGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'math' ? (
+            <MathGame
               gameId={gameId}
               game={game}
               mySymbol={mySymbol.current}

@@ -11,6 +11,8 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - Hangwoman — hidden-word game; a commit–reveal scheme keeps the word secret with no server and catches a cheating word-keeper (design in [`docs/HANGMAN.md`](docs/HANGMAN.md))
 - Dots and Boxes — 4×4 grid; completing a box claims it and grants an extra turn; first to 9 of 16 boxes wins the round (design in [`README-dots-and-boxes.md`](README-dots-and-boxes.md))
 - SOS — 7×7 grid; each turn place either an S or an O anywhere; completing an S-O-S in a line scores a point and grants another move; most sequences when the board is full wins
+- Typing Race — both players type the same passage simultaneously; a ghost cursor shows the opponent's live position; errors stay highlighted but don't block progress; winner is determined by effective WPM (speed × accuracy) at the finish line; supports a QWERTY on-screen keyboard or the device keyboard
+- Mental Math Duel — 2-minute blitz where both players race on the same math question simultaneously; first correct answer wins the round and earns speed-bonus points (1–5 depending on how quickly you answered); ⚡ power questions every 8 rounds double the points and penalty; 🔥 a 3-question correct streak applies a ×2 multiplier to the next correct answer; wrong answers lose points; highest score at the buzzer wins
 
 ## How it works
 
@@ -132,6 +134,8 @@ src/
     HangmanGallows.jsx            # Pixel gallows + figure, trapdoor drop
     WordDisplay.jsx               # Hangwoman letter slots
     LetterKeyboard.jsx            # Hangwoman A–Z guess keyboard
+    TypingKeyboard.jsx            # QWERTY on-screen keyboard for Typing Race (+ physical keydown listener)
+    NumberPad.jsx                 # 3×4 numpad for Mental Math (7-8-9 / 4-5-6 / 1-2-3 / ⌫-0-✓)
     WordSetter.jsx                # Hangwoman word entry (setter)
     Gravestone.jsx                # RIP QUEEN memorial pixel art
     RoseFall.jsx                  # Falling-roses mourning overlay
@@ -148,6 +152,8 @@ src/
     Home.jsx                      # Name entry, join-by-code, game selection
     Game.jsx                      # Game room (all game types)
     HangmanGame.jsx               # Hangwoman rounds, commit–reveal, cheat check
+    TypingGame.jsx                # Typing Race — passage display, ghost cursor, QWERTY keyboard
+    MathGame.jsx                  # Mental Math Duel — question card, speed scoring, NumberPad, transactions
     Demo.jsx                      # Local-only playable demo (no Firebase)
   lib/
     firebase.js                   # Firebase init (reads VITE_FIREBASE_* env vars)
@@ -157,6 +163,7 @@ src/
     dotsAndBoxesLogic.js (+ .test.js) # edge/box indexing, applyEdgeMove, clinch detection
     sosLogic.js (+ .test.js)      # SOS line detection, applySosMove, getSosWinner
     hangmanLogic.js (+ .test.js)  # Hangwoman guess/win logic + consistency check
+    mathLogic.js                  # Deterministic question generator for Mental Math (seeded LCG, GAME_MS, QUESTION_MS)
     commit.js (+ .test.js)        # Salted SHA-256 commit–reveal primitive
     playerId.js                   # Stable per-browser ID (localStorage) for seat reclaim
     sounds.js                     # Web Audio API sound engine
@@ -241,7 +248,8 @@ Two-player games that fit the platform, tiered by how far they stretch the curre
 - **Number Memory duel** — memorize a number shown briefly, type it back, one digit longer each level. A twist that beats the original: the *opponent* sets your number (Hangwoman's setter model), or commit a generated number with the existing commit–reveal module (`src/lib/commit.js`) so neither side can claim foul.
 - **Visual Memory duel** — a tile pattern flashes; reproduce it; levels escalate. Same alternating-attempts shape as the Chimp duel — ship one of the two, not both (the Chimp Test is the more iconic).
 - **Reaction duel (best of 5)** — both players watch the same wait-for-green screen; each client measures its own reaction time locally and writes the milliseconds; lower wins the round. No latency-sensitive sync is needed — each player measures their own delta — so plain RTDB carries it, unlike the Pong-class games below.
-- **Typing race** — both players type the same passage with live progress bars (TypeRacer-style). Throttled progress writes are fine over RTDB; the real lift is passage content, WPM calculation, and the live-progress UI.
+- **Typing race** — ✅ shipped. Both players type the same passage with a ghost cursor showing the opponent's live progress. Errors stay highlighted but don't block advancement; final score is effective WPM (speed × accuracy). Supports both the device keyboard and a QWERTY on-screen keyboard (`src/components/TypingKeyboard.jsx`).
+- **Mental Math Duel** — ✅ shipped. 2-minute blitz; both players race on the same deterministic question (derived from a `mathSeed` + index, never stored as a pool in Firebase); first correct answer advances the question and earns speed-bonus points. Three twists: speed scoring (1–5 pts based on response time within 8s), ⚡ power questions (every 8th question, 2× points and 2× penalty), and 🔥 streak multiplier (3 consecutive correct = ×2 on next). Wrong answers deduct points. Highest score at the buzzer wins.
 
 Skipped from the Human Benchmark catalog: **Aim Trainer** (pure mouse skill, weak on mobile, and a duel is just two solo runs compared), **Verbal Memory** (long solo grind with no natural duel structure), **Hearing / Interval Trainer** (audio-dependent and niche — the site itself retired its hearing test).
 

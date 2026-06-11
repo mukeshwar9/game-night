@@ -8,13 +8,16 @@ import PlayerCard from '../components/PlayerCard';
 import HangmanGallows from '../components/HangmanGallows';
 import WordDisplay from '../components/WordDisplay';
 import LetterKeyboard from '../components/LetterKeyboard';
+import TypingKeyboard from '../components/TypingKeyboard';
 import WordSetter from '../components/WordSetter';
 import ChimpBoard from '../components/ChimpBoard';
 import VisualMemoryBoard from '../components/VisualMemoryBoard';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
 } from '../components/GameIcons';
+import NumberPad from '../components/NumberPad';
+import { generateQuestion, QUESTION_MS } from '../lib/mathLogic';
 import { getWinner } from '../lib/gameLogic';
 import { applyGuess, isWordGuessed, countWrong, MAX_WRONG } from '../lib/hangmanLogic';
 import {
@@ -703,10 +706,731 @@ function ReactionDemo() {
   )
 }
 
+const DEMO_PASSAGE = "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How quickly daft jumping zebras vex."
+const BOT_WPM = 55
+
+function TypingDemo() {
+  const [phase, setPhase]             = useState('idle')
+  const [countdownSec, setCDown]      = useState(3)
+  const [typed, setTyped]             = useState('')
+  const [botProgress, setBotProgress] = useState(0)
+  const [playerWpm, setPlayerWpm]     = useState(null)
+  const [playerAcc, setPlayerAcc]     = useState(null)
+  const startTimeRef   = useRef(null)
+  const finishedRef    = useRef(false)
+  const botIntervalRef = useRef(null)
+
+  // Countdown
+  useEffect(() => {
+    if (phase !== 'countdown') return
+    let c = 3; setCDown(3)
+    const id = setInterval(() => {
+      c--
+      if (c <= 0) { clearInterval(id); startTimeRef.current = Date.now(); setPhase('racing') }
+      else setCDown(c)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [phase])
+
+  // Bot at BOT_WPM chars/min (types correctly)
+  useEffect(() => {
+    if (phase !== 'racing') return
+    const msPerChar = Math.round(60_000 / (BOT_WPM * 5))
+    botIntervalRef.current = setInterval(() => {
+      setBotProgress(p => Math.min(p + 1, DEMO_PASSAGE.length))
+    }, msPerChar)
+    return () => clearInterval(botIntervalRef.current)
+  }, [phase])
+
+  // Bot finishes
+  useEffect(() => {
+    if (phase === 'racing' && botProgress >= DEMO_PASSAGE.length) {
+      clearInterval(botIntervalRef.current)
+      setPhase('done')
+    }
+  }, [botProgress, phase])
+
+  const handleKey = (char) => {
+    if (phase !== 'racing' || finishedRef.current) return
+    let newTyped
+    if (char === 'BACKSPACE') {
+      newTyped = typed.slice(0, -1)
+    } else if (char === 'WORD_BACKSPACE') {
+      const trimmed = typed.trimEnd()
+      const lastSpace = trimmed.lastIndexOf(' ')
+      newTyped = lastSpace === -1 ? '' : typed.slice(0, lastSpace + 1)
+      if (newTyped.length === typed.length) newTyped = typed.slice(0, -1)
+    } else {
+      if (typed.length >= DEMO_PASSAGE.length) return
+      newTyped = typed + char
+    }
+    setTyped(newTyped)
+    if (newTyped.length === DEMO_PASSAGE.length) {
+      finishedRef.current = true
+      clearInterval(botIntervalRef.current)
+      const elapsed = Date.now() - startTimeRef.current
+      const wpm = Math.max(1, Math.round((DEMO_PASSAGE.length / 5) / (elapsed / 60_000)))
+      let matches = 0
+      for (let i = 0; i < newTyped.length; i++) {
+        if (newTyped[i] === DEMO_PASSAGE[i]) matches++
+      }
+      const acc = Math.round((matches / DEMO_PASSAGE.length) * 100)
+      setPlayerWpm(wpm)
+      setPlayerAcc(acc)
+      setPhase('done')
+    }
+  }
+
+  const reset = () => {
+    clearInterval(botIntervalRef.current)
+    setPhase('idle'); setCDown(3)
+    setTyped(''); setBotProgress(0)
+    setPlayerWpm(null); setPlayerAcc(null)
+    finishedRef.current = false
+  }
+
+  if (phase === 'done') {
+    const youFinished = playerWpm != null
+    const botAcc = 100
+    const botEffWpm = Math.round(BOT_WPM * botAcc / 100)
+    const playerEffWpm = youFinished ? Math.round(playerWpm * (playerAcc ?? 100) / 100) : 0
+    const youWon = youFinished && playerEffWpm > botEffWpm
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: 'YOU', wpm: playerWpm, acc: playerAcc, eff: youFinished ? playerEffWpm : null, col: 'retro-p1', won: youWon },
+            { label: 'BOT', wpm: BOT_WPM,  acc: botAcc,    eff: botEffWpm,                          col: 'retro-p2', won: !youWon },
+          ].map(({ label, wpm, acc, eff, col, won }) => (
+            <div key={label} className={`bg-retro-card border border-${col}/50 rounded p-3 text-center space-y-1`}>
+              <p className={`font-pixel text-[8px] text-${col}`}>{label}</p>
+              {wpm != null ? (
+                <>
+                  <p className={cn('font-pixel text-xl tabular-nums', won ? 'text-retro-win text-glow-win' : 'text-retro-text')}>{wpm}</p>
+                  <p className="font-pixel text-[8px] text-retro-dim">WPM</p>
+                  {acc != null && <p className="font-pixel text-[8px] text-retro-cta">{acc}% ACC</p>}
+                  {eff != null && <p className="font-pixel text-[8px] text-retro-dim">{eff} EFF</p>}
+                </>
+              ) : (
+                <p className="font-pixel text-lg text-retro-dim">DNF</p>
+              )}
+            </div>
+          ))}
+        </div>
+        <p className="font-pixel text-[8px] text-retro-dim text-center">
+          {youWon ? <span className="text-retro-win">YOU WIN!</span> : youFinished ? <span className="text-retro-p2">BOT WINS!</span> : <span className="text-retro-p2">BOT FINISHED FIRST!</span>}
+        </p>
+        <button onClick={reset}
+          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          PLAY AGAIN
+        </button>
+      </div>
+    )
+  }
+
+  const isRacing = phase === 'racing'
+  return (
+    <div className="space-y-3">
+      {phase !== 'idle' && (
+        <div className="space-y-1">
+          {[
+            { label: 'YOU', val: typed.length,  color: 'text-retro-p1' },
+            { label: 'BOT', val: botProgress, color: 'text-retro-p2' },
+          ].map(({ label, val, color }) => {
+            const pct = Math.round((val / DEMO_PASSAGE.length) * 100)
+            return (
+              <div key={label} className="flex items-center gap-2">
+                <span className={cn('font-pixel text-[8px] w-8', color)}>{label}</span>
+                <div className="flex-1 h-2 bg-retro-surface rounded-full overflow-hidden">
+                  <div className={cn('h-full rounded-full transition-all duration-200', color === 'text-retro-p1' ? 'bg-retro-p1' : 'bg-retro-p2')}
+                    style={{ width: `${pct}%` }} />
+                </div>
+                <span className="font-pixel text-[8px] text-retro-dim w-8 text-right tabular-nums">{pct}%</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="bg-retro-surface border border-retro-border rounded p-3 font-mono text-[13px] leading-6 break-words min-h-[80px]">
+        {phase === 'idle' && (
+          <div className="flex flex-col items-center gap-3 py-2">
+            <p className="font-pixel text-[9px] text-retro-dim text-center">BEAT THE BOT · ERRORS HIGHLIGHTED · ⌫ CORRECTS</p>
+            <button onClick={() => setPhase('countdown')}
+              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+              START
+            </button>
+          </div>
+        )}
+        {phase === 'countdown' && (
+          <div className="flex flex-col items-center gap-2 py-2">
+            <p className="font-pixel text-5xl text-retro-win text-glow-win">{countdownSec}</p>
+            <p className="font-pixel text-[9px] text-retro-dim animate-pulse">GET READY!</p>
+          </div>
+        )}
+        {(isRacing || phase === 'done') && (
+          <p>
+            {DEMO_PASSAGE.split('').map((char, i) => {
+              const isTyped   = i < typed.length
+              const isCorrect = isTyped && typed[i] === DEMO_PASSAGE[i]
+              const isWrong   = isTyped && !isCorrect
+              const isCursor  = isRacing && i === typed.length
+              const isGhost   = isRacing && botProgress > 0 && i === botProgress && i !== typed.length
+              return (
+                <span key={i} className={cn(
+                  isCorrect ? 'text-retro-text' :
+                  isWrong   ? 'text-retro-p2 bg-retro-p2/20' : 'text-retro-dim',
+                  isCursor ? 'border-l-2 border-retro-cta' : '',
+                  isGhost  ? 'border-b-2 border-retro-p2/60' : '',
+                )}>
+                  {char}
+                </span>
+              )
+            })}
+          </p>
+        )}
+      </div>
+
+      {(isRacing || phase === 'countdown') && (
+        <TypingKeyboard onKey={handleKey} disabled={!isRacing} />
+      )}
+    </div>
+  )
+}
+
+const DEMO_R       = 20
+const DEMO_GAME_MS = 30_000
+
+function AimTrainerDemo() {
+  const [phase, setPhase]         = useState('idle')
+  const [countdownSec, setCDown]  = useState(3)
+  const [timeLeft, setTimeLeft]   = useState(30)
+  const [targetYou, setTargetYou] = useState(null)
+  const [targetBot, setTargetBot] = useState(null)
+  const [scoreYou, setScoreYou]   = useState(0)
+  const [hitsYou,  setHitsYou]    = useState(0)
+  const [ffYou,    setFfYou]      = useState(0)
+  const [scoreBot, setScoreBot]   = useState(0)
+  const containerRef = useRef(null)
+  const endTimeRef   = useRef(null)
+  const botTimerRef  = useRef(null)
+
+  const spawnLocal = () => {
+    const el = containerRef.current
+    if (!el) return null
+    const { width, height } = el.getBoundingClientRect()
+    return {
+      x: DEMO_R + Math.random() * (width  - 2 * DEMO_R),
+      y: DEMO_R + Math.random() * (height - 2 * DEMO_R),
+    }
+  }
+
+  // 3-2-1 countdown
+  useEffect(() => {
+    if (phase !== 'countdown') return
+    let c = 3
+    setCDown(3)
+    const id = setInterval(() => {
+      c--
+      if (c <= 0) {
+        clearInterval(id)
+        endTimeRef.current = Date.now() + DEMO_GAME_MS
+        setTargetYou(spawnLocal())
+        setTargetBot(spawnLocal())
+        setPhase('active')
+      } else {
+        setCDown(c)
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [phase])
+
+  // 30s game timer
+  useEffect(() => {
+    if (phase !== 'active') return
+    setTimeLeft(30)
+    const id = setInterval(() => {
+      const rem = Math.ceil((endTimeRef.current - Date.now()) / 1000)
+      if (rem <= 0) { clearInterval(id); setPhase('done') }
+      else setTimeLeft(rem)
+    }, 100)
+    return () => clearInterval(id)
+  }, [phase])
+
+  // Bot auto-clicks its own target
+  useEffect(() => {
+    if (phase !== 'active') return
+    const scheduleBot = () => {
+      botTimerRef.current = setTimeout(() => {
+        if (phase !== 'active') return
+        setScoreBot(s => s + 1)
+        setTargetBot(spawnLocal())
+        scheduleBot()
+      }, 400 + Math.floor(Math.random() * 350))
+    }
+    scheduleBot()
+    return () => clearTimeout(botTimerRef.current)
+  }, [phase])
+
+  const handleYouTargetClick = (e) => {
+    e.stopPropagation()
+    if (phase !== 'active') return
+    setScoreYou(s => s + 1)
+    setHitsYou(h => h + 1)
+    setTargetYou(spawnLocal())
+  }
+
+  const handleBotTargetClick = (e) => {
+    e.stopPropagation()
+    if (phase !== 'active') return
+    setScoreYou(s => s - 1)
+    setFfYou(f => f + 1)
+    // bot target stays
+  }
+
+  const reset = () => {
+    clearTimeout(botTimerRef.current)
+    setPhase('idle'); setCDown(3); setTimeLeft(30)
+    setTargetYou(null); setTargetBot(null)
+    setScoreYou(0); setHitsYou(0); setFfYou(0); setScoreBot(0)
+  }
+
+  if (phase === 'done') {
+    const winner = scoreYou > scoreBot ? 'YOU' : scoreYou < scoreBot ? 'BOT' : null
+    const diff   = Math.abs(scoreYou - scoreBot)
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: 'YOU', score: scoreYou, hits: hitsYou, ff: ffYou, w: winner === 'YOU', col: 'retro-p1' },
+            { label: 'BOT', score: scoreBot, hits: scoreBot, ff: 0,    w: winner === 'BOT', col: 'retro-p2' },
+          ].map(({ label, score, hits, ff, w, col }) => (
+            <div key={label} className={`bg-retro-card border border-${col}/50 rounded p-3 text-center space-y-1`}>
+              <p className={`font-pixel text-[8px] text-${col}`}>{label}</p>
+              <p className={cn('font-pixel text-xl', w ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
+                {score}
+              </p>
+              <p className="font-pixel text-[8px] text-retro-dim">net pts</p>
+              <p className="font-pixel text-[8px] text-retro-cta">{hits} hits</p>
+              {ff > 0 && <p className="font-pixel text-[8px] text-retro-p2">{ff} FF</p>}
+            </div>
+          ))}
+        </div>
+        {winner ? (
+          <p className="font-pixel text-[8px] text-retro-dim text-center">
+            <span className={winner === 'YOU' ? 'text-retro-p1' : 'text-retro-p2'}>{winner}</span>
+            {' SCORED '}
+            <span className="text-retro-win">{diff} MORE POINT{diff !== 1 ? 'S' : ''}</span>
+          </p>
+        ) : (
+          <p className="font-pixel text-[8px] text-retro-dim text-center">DRAW!</p>
+        )}
+        <button onClick={reset}
+          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          PLAY AGAIN
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {phase !== 'idle' && (
+        <div className="flex items-center justify-between px-1">
+          <span className="font-pixel text-[9px] text-retro-p1">YOU {scoreYou}</span>
+          <span className={cn('font-pixel text-2xl tabular-nums',
+            phase === 'countdown' ? 'text-retro-dim' : 'text-retro-win text-glow-win'
+          )}>
+            {phase === 'countdown' ? countdownSec : timeLeft}
+          </span>
+          <span className="font-pixel text-[9px] text-retro-p2">{scoreBot} BOT</span>
+        </div>
+      )}
+
+      <div
+        ref={containerRef}
+        className={cn(
+          'relative w-full h-56 rounded-xl border-2 overflow-hidden select-none',
+          phase === 'active'    ? 'bg-retro-surface border-retro-border cursor-crosshair' :
+          phase === 'countdown' ? 'bg-retro-surface/60 border-retro-border/50 cursor-default' :
+                                  'bg-retro-surface border-retro-border cursor-default',
+        )}
+      >
+        {phase === 'idle' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            <p className="font-pixel text-sm text-retro-dim">AIM TRAINER</p>
+            <p className="font-pixel text-[8px] text-retro-dim text-center leading-loose">
+              SHOOT YOUR COLOR · MISS = −1 PT · 30s
+            </p>
+            <button
+              onClick={e => { e.stopPropagation(); setPhase('countdown') }}
+              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+            >
+              START
+            </button>
+          </div>
+        )}
+        {phase === 'countdown' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <p className="font-pixel text-6xl text-retro-win text-glow-win">{countdownSec}</p>
+            <p className="font-pixel text-[9px] text-retro-dim animate-pulse">GET READY!</p>
+          </div>
+        )}
+        {phase === 'active' && targetYou && (
+          <button
+            onClick={handleYouTargetClick}
+            style={{
+              position: 'absolute',
+              left: targetYou.x - DEMO_R, top: targetYou.y - DEMO_R,
+              width: DEMO_R * 2, height: DEMO_R * 2,
+            }}
+            className="rounded-full bg-retro-p1 shadow-neon-p1 hover:brightness-110 active:scale-90 transition-transform duration-75"
+            aria-label="your target"
+          />
+        )}
+        {phase === 'active' && targetBot && (
+          <button
+            onClick={handleBotTargetClick}
+            style={{
+              position: 'absolute',
+              left: targetBot.x - DEMO_R, top: targetBot.y - DEMO_R,
+              width: DEMO_R * 2, height: DEMO_R * 2,
+            }}
+            className="rounded-full bg-retro-p2 shadow-neon-p2 hover:brightness-110 active:scale-90 transition-transform duration-75"
+            aria-label="bot's target"
+          />
+        )}
+      </div>
+
+      {phase === 'active' && (
+        <div className="flex justify-center gap-6 font-pixel text-[8px] text-retro-dim">
+          <span>HITS <span className="text-retro-p1">{hitsYou}</span></span>
+          <span>FF <span className="text-retro-p2">{ffYou}</span></span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Math demo ────────────────────────────────────────────────────────────────
+
+function demoSpeedPts(elapsed) {
+  return Math.max(1, Math.ceil(5 * Math.max(0, (QUESTION_MS - elapsed) / QUESTION_MS)))
+}
+
+const DEMO_MATH_S = 60
+
+function MathDemo() {
+  const seedRef = useRef(null)
+  if (!seedRef.current) seedRef.current = Math.floor(Math.random() * 1e9)
+
+  const [phase, setPhase]           = useState('idle')
+  const [cdSec, setCdSec]           = useState(3)
+  const [qIndex, setQIndex]         = useState(0)
+  const [answer, setAnswer]         = useState('')
+  const [lastResult, setLastResult] = useState(null)
+  const [youScore, setYouScore]     = useState(0)
+  const [botScore, setBotScore]     = useState(0)
+  const [youStreak, setYouStreak]   = useState(0)
+  const [botStreak, setBotStreak]   = useState(0)
+  const [timeLeft, setTimeLeft]     = useState(DEMO_MATH_S)
+
+  const playerLockedRef = useRef(false)
+  const botLockedRef    = useRef(false)
+  const botTimerRef     = useRef(null)
+  const advTimerRef     = useRef(null)
+  const qTimeoutRef     = useRef(null)
+  const gameEndRef      = useRef(null)
+  const qStartRef       = useRef(null)
+  const streakRef       = useRef({ you: 0, bot: 0 })
+  const qRef            = useRef(null)
+
+  const q = generateQuestion(seedRef.current, qIndex)
+  qRef.current = q
+
+  const scheduleNextQuestion = () => {
+    advTimerRef.current = setTimeout(() => {
+      playerLockedRef.current = false
+      botLockedRef.current    = false
+      qStartRef.current       = Date.now()
+      setQIndex(i => i + 1)
+      setAnswer('')
+      setLastResult(null)
+    }, 1000)
+  }
+
+  const resolveQuestion = (by, submitted) => {
+    clearTimeout(botTimerRef.current)
+    clearTimeout(qTimeoutRef.current)
+    if (phase === 'done') return
+    const cq      = qRef.current
+    const correct = submitted === cq.answer
+    const elapsed = Date.now() - (qStartRef.current ?? Date.now())
+    const speed   = demoSpeedPts(elapsed)
+    const power   = cq.isPower ? 2 : 1
+    const strk    = streakRef.current[by] >= 3 ? 2 : 1
+    const pts     = correct ? speed * power * strk : 0
+    const penalty = correct ? 0 : (cq.isPower ? 2 : 1)
+
+    if (by === 'you') {
+      setYouScore(s => Math.max(0, s + pts - penalty))
+      if (correct) {
+        setYouStreak(s => s + 1); setBotStreak(0)
+        streakRef.current = { you: streakRef.current.you + 1, bot: 0 }
+      } else {
+        setYouStreak(0)
+        streakRef.current = { ...streakRef.current, you: 0 }
+      }
+    } else {
+      setBotScore(s => Math.max(0, s + pts - penalty))
+      if (correct) {
+        setBotStreak(s => s + 1); setYouStreak(0)
+        streakRef.current = { you: 0, bot: streakRef.current.bot + 1 }
+      } else {
+        setBotStreak(0)
+        streakRef.current = { ...streakRef.current, bot: 0 }
+      }
+    }
+
+    setLastResult({ by, correct, pts })
+    scheduleNextQuestion()
+  }
+
+  const handleKey = (key) => {
+    if (phase !== 'playing' || playerLockedRef.current) return
+    if (key === 'BACKSPACE') { setAnswer(a => a.slice(0, -1)); return }
+    if (key === 'ENTER') { handleSubmit(); return }
+    if (/^\d$/.test(key) && answer.length < 5) setAnswer(a => a + key)
+  }
+
+  const handleSubmit = () => {
+    if (!answer || playerLockedRef.current || phase !== 'playing') return
+    playerLockedRef.current = true
+    botLockedRef.current    = true
+    resolveQuestion('you', parseInt(answer, 10))
+  }
+
+  // Countdown
+  useEffect(() => {
+    if (phase !== 'countdown') return
+    let c = 3; setCdSec(3)
+    const id = setInterval(() => {
+      c--
+      if (c <= 0) {
+        clearInterval(id)
+        gameEndRef.current = Date.now() + DEMO_MATH_S * 1000
+        qStartRef.current  = Date.now()
+        setPhase('playing')
+      } else setCdSec(c)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [phase])
+
+  // Game timer + bot scheduling per question
+  useEffect(() => {
+    if (phase !== 'playing') return
+    playerLockedRef.current = false
+    botLockedRef.current    = false
+
+    // Game clock
+    const clockId = setInterval(() => {
+      const rem = Math.ceil((gameEndRef.current - Date.now()) / 1000)
+      setTimeLeft(Math.max(0, rem))
+      if (rem <= 0) { clearInterval(clockId); setPhase('done') }
+    }, 100)
+
+    // Bot answer
+    const botDelay = 1000 + Math.random() * 2000
+    botTimerRef.current = setTimeout(() => {
+      if (botLockedRef.current || phase === 'done') return
+      botLockedRef.current = true
+      playerLockedRef.current = true
+      const cq      = qRef.current
+      const correct = Math.random() < 0.70
+      const bad     = cq.answer + 1 + Math.floor(Math.random() * 4)
+      resolveQuestion('bot', correct ? cq.answer : bad)
+    }, botDelay)
+
+    // 8s question timeout (skip — no points)
+    qTimeoutRef.current = setTimeout(() => {
+      if (botLockedRef.current) return
+      botLockedRef.current    = true
+      playerLockedRef.current = true
+      setLastResult({ by: 'timeout', correct: false, pts: 0 })
+      scheduleNextQuestion()
+    }, QUESTION_MS)
+
+    return () => {
+      clearInterval(clockId)
+      clearTimeout(botTimerRef.current)
+      clearTimeout(qTimeoutRef.current)
+    }
+  }, [phase, qIndex])
+
+  const reset = () => {
+    clearTimeout(botTimerRef.current)
+    clearTimeout(advTimerRef.current)
+    clearTimeout(qTimeoutRef.current)
+    seedRef.current             = Math.floor(Math.random() * 1e9)
+    streakRef.current           = { you: 0, bot: 0 }
+    playerLockedRef.current     = false
+    botLockedRef.current        = false
+    setPhase('idle'); setCdSec(3)
+    setQIndex(0); setAnswer(''); setLastResult(null)
+    setYouScore(0); setBotScore(0); setYouStreak(0); setBotStreak(0)
+    setTimeLeft(DEMO_MATH_S)
+  }
+
+  if (phase === 'done') {
+    const winner = youScore > botScore ? 'YOU' : youScore < botScore ? 'BOT' : null
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: 'YOU', score: youScore, won: winner === 'YOU', col: 'retro-p1' },
+            { label: 'BOT', score: botScore, won: winner === 'BOT', col: 'retro-p2' },
+          ].map(({ label, score, won, col }) => (
+            <div key={label} className={`bg-retro-card border border-${col}/50 rounded p-3 text-center space-y-1`}>
+              <p className={`font-pixel text-[8px] text-${col}`}>{label}</p>
+              <p className={cn('font-pixel text-3xl tabular-nums', won ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
+                {score}
+              </p>
+              <p className="font-pixel text-[8px] text-retro-dim">POINTS</p>
+            </div>
+          ))}
+        </div>
+        <p className="font-pixel text-[8px] text-retro-dim text-center">
+          {winner === 'YOU' ? <span className="text-retro-win">YOU WIN!</span>
+          : winner === 'BOT' ? <span className="text-retro-p2">BOT WINS!</span>
+          : <span className="text-retro-dim">DRAW!</span>}
+          {' '}Q{qIndex} ANSWERED
+        </p>
+        <button onClick={reset}
+          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          PLAY AGAIN
+        </button>
+      </div>
+    )
+  }
+
+  if (phase === 'idle') {
+    return (
+      <div className="space-y-4 text-center">
+        <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left">
+          <p>● FIRST CORRECT ANSWER WINS THE ROUND</p>
+          <p>⚡ POWER QUESTIONS · 2× POINTS</p>
+          <p>🔥 3 IN A ROW = DOUBLE MULTIPLIER</p>
+          <p>⏱ 60-SECOND DEMO TIMER</p>
+        </div>
+        <button onClick={() => setPhase('countdown')}
+          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+          START
+        </button>
+      </div>
+    )
+  }
+
+  if (phase === 'countdown') {
+    return (
+      <div className="space-y-4 text-center py-4">
+        <p className="font-pixel text-[9px] text-retro-dim animate-pulse">GET READY!</p>
+        <p className="font-pixel text-7xl text-retro-win text-glow-win">{cdSec}</p>
+      </div>
+    )
+  }
+
+  const qPct    = qStartRef.current ? Math.max(0, 1 - (Date.now() - qStartRef.current) / QUESTION_MS) : 1
+  const speedPts = demoSpeedPts(qStartRef.current ? Date.now() - qStartRef.current : 0)
+  const barColor = qPct > 0.6 ? 'bg-retro-win' : qPct > 0.3 ? 'bg-retro-cta' : 'bg-retro-p2'
+  const answered = playerLockedRef.current
+
+  return (
+    <div className="space-y-3">
+      {/* Scores + timer */}
+      <div className="flex items-center gap-2">
+        <div className="bg-retro-card border border-retro-border rounded px-2 py-1 text-center min-w-[3rem]">
+          <p className={cn('font-pixel text-base tabular-nums leading-none',
+            timeLeft <= 10 ? 'text-retro-p2' : 'text-retro-win')}>{timeLeft}s</p>
+        </div>
+        <div className="flex-1 bg-retro-card border border-retro-border rounded p-1.5 space-y-1">
+          <div className="flex justify-between font-pixel text-[9px]">
+            <span className="text-retro-p1">YOU · {youScore}</span>
+            <span className="text-retro-p2">{botScore} · BOT</span>
+          </div>
+          <div className="h-1.5 bg-retro-deep rounded-full overflow-hidden flex">
+            <div className="bg-retro-p1 h-full transition-all duration-300"
+              style={{ width: `${youScore + botScore > 0 ? (youScore / (youScore + botScore)) * 100 : 50}%` }} />
+            <div className="bg-retro-p2 h-full flex-1" />
+          </div>
+        </div>
+      </div>
+
+      {/* Question card */}
+      <div className={cn('bg-retro-surface border rounded p-4 text-center space-y-2',
+        q.isPower ? 'border-retro-cta/60' : 'border-retro-border')}>
+        {q.isPower && <p className="font-pixel text-[9px] text-retro-cta">⚡ POWER · 2×</p>}
+        <div className="h-1 bg-retro-deep rounded-full overflow-hidden">
+          <div className={cn('h-full rounded-full transition-all duration-100', barColor)}
+            style={{ width: `${qPct * 100}%` }} />
+        </div>
+        <p className="font-pixel text-[9px] text-retro-dim">Q{qIndex + 1}</p>
+        <p className="font-pixel text-3xl text-retro-text">{q.text}</p>
+        <p className="font-pixel text-[9px] text-retro-dim">= ?</p>
+
+        <div className="flex gap-1 justify-center">
+          {[1,2,3,4,5].map(i => (
+            <span key={i} className={cn('font-pixel text-[10px]',
+              i <= speedPts ? 'text-retro-win' : 'text-retro-dim opacity-30')}>●</span>
+          ))}
+        </div>
+
+        {!answered && (
+          <div className="bg-retro-deep border border-retro-border rounded px-4 py-2 min-h-[2.5rem] flex items-center justify-center">
+            <p className="font-pixel text-2xl text-retro-text tabular-nums">
+              {answer || <span className="opacity-30">_</span>}
+            </p>
+          </div>
+        )}
+        {answered && lastResult?.correct === true && (
+          <div className="bg-retro-tint-cta border border-retro-cta/60 rounded px-3 py-1.5">
+            <p className="font-pixel text-[10px] text-retro-win">
+              {lastResult.by === 'you' ? '✓ YOU' : '✓ BOT'} +{lastResult.pts}
+            </p>
+          </div>
+        )}
+        {answered && lastResult?.correct === false && lastResult?.by !== 'timeout' && (
+          <div className="bg-retro-tint-p2 border border-retro-p2/60 rounded px-3 py-1.5">
+            <p className="font-pixel text-[10px] text-retro-p2">
+              {lastResult.by === 'you' ? '✗ WRONG' : '✗ BOT WRONG'} · ANS: {q.answer}
+            </p>
+          </div>
+        )}
+        {answered && lastResult?.by === 'timeout' && (
+          <p className="font-pixel text-[9px] text-retro-dim">TIME'S UP · NEXT QUESTION...</p>
+        )}
+        {!answered && (
+          <p className="font-pixel text-[8px] text-retro-dim animate-pulse">BOT IS THINKING ●●●</p>
+        )}
+      </div>
+
+      {(youStreak >= 3 || botStreak >= 3) && (
+        <p className="font-pixel text-[9px] text-retro-cta text-center">
+          {youStreak >= 3 ? `🔥 YOU ×2 STREAK (${youStreak})` : `🔥 BOT ×2 STREAK (${botStreak})`}
+        </p>
+      )}
+
+      <NumberPad onKey={handleKey} disabled={answered || phase !== 'playing'} />
+    </div>
+  )
+}
+
 // ─── Demo registry ────────────────────────────────────────────────────────────
 
 const DEMOS = [
   { type: 'reaction',    short: 'REACTION\nTIME', Icon: ReactionIcon,    Component: ReactionDemo     },
+  { type: 'aim',         short: 'AIM\nTRAINER',   Icon: AimIcon,         Component: AimTrainerDemo   },
+  { type: 'typing',      short: 'TYPING\nRACE',   Icon: TypingIcon,      Component: TypingDemo       },
+  { type: 'math',        short: 'MENTAL\nMATH',   Icon: MathIcon,        Component: MathDemo         },
   { type: 'tictactoe',   short: 'TTT',        Icon: TicTacToeIcon,     Component: TicTacToeDemo    },
   { type: 'hangwoman',   short: 'HANGWOMAN',   Icon: HangwomanIcon,     Component: HangmanDemo      },
   { type: 'dotsandboxes',short: 'DOTS &\nBOXES',Icon: DotsAndBoxesIcon, Component: DotsAndBoxesDemo },

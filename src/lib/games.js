@@ -7,7 +7,8 @@ import SimonBoard from '../components/SimonBoard'
 import VisualMemoryBoard from '../components/VisualMemoryBoard'
 import {
   TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon,
+  TypingIcon, MathIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
@@ -28,12 +29,28 @@ import {
   CHIMP_START_LEVEL,
   generateChimpLayout,
 } from './chimpLogic'
+import { generateSeed } from './mathLogic'
 import {
   VM_START_LEVEL,
   normalizeVmArray,
   generateVmPattern,
   applyVmMove,
 } from './visualMemoryLogic'
+
+const PASSAGES = [
+  "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. A wizard's job is to vex chumps quickly in fog.",
+  "To be yourself in a world that is constantly trying to make you something else is the greatest accomplishment. Never stop being who you are.",
+  "Success is not final, failure is not fatal. It is the courage to continue that counts. Keep moving forward and never give up on your dreams.",
+  "The only way to do great work is to love what you do. If you have not found it yet, keep looking. Do not settle for less than what makes you happy.",
+  "In the middle of every difficulty lies opportunity. Those who dare to fail greatly can achieve greatly. Believe in yourself and your abilities.",
+  "Typing fast requires practice, focus, and the right technique. Keep your fingers on the home row, stay relaxed, and let your muscle memory do the work.",
+  "The best time to plant a tree was twenty years ago. The second best time is now. Start today and your future self will thank you for the effort.",
+  "We are what we repeatedly do. Excellence, then, is not an act but a habit. Small daily improvements over time lead to remarkable results.",
+  "All great things are simple, and many can be expressed in single words such as freedom, justice, honor, duty, mercy, and hope. These words guide us.",
+  "Life is what happens when you are busy making other plans. Enjoy the little things, for one day you may look back and realize they were the big things.",
+  "It does not matter how slowly you go as long as you do not stop. Perseverance and patience are the keys to mastering any skill worth having.",
+  "The secret of getting ahead is getting started. Break your tasks into small steps and tackle one at a time. Progress, not perfection, is the goal.",
+]
 
 function generateNumber(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
@@ -142,6 +159,24 @@ export const GAME_TYPES = [
     custom: true,
   },
   {
+    type: 'aim', label: 'AIM TRAINER',
+    desc: '30 targets', Icon: AimIcon,
+    badge: 'AT', maxWidth: 'max-w-xs',
+    custom: true,
+  },
+  {
+    type: 'typing', label: 'TYPING RACE',
+    desc: 'ghost duel', Icon: TypingIcon,
+    badge: 'TR', maxWidth: 'max-w-sm',
+    custom: true,
+  },
+  {
+    type: 'math', label: 'MENTAL MATH',
+    desc: '2-min blitz', Icon: MathIcon,
+    badge: 'MM', maxWidth: 'max-w-xs',
+    custom: true,
+  },
+  {
     type: 'visualmemory', label: 'VISUAL MEMORY',
     desc: '4 × 4 grid', Icon: VisualMemoryIcon,
     badge: 'VM', maxWidth: 'max-w-xs',
@@ -170,6 +205,21 @@ const FIELD_NULLS = {
   vmLevel: null, vmPattern: null, vmClicked: null,
   numRound: null,
   reactionTimesX: null, reactionTimesO: null,
+  aimTimesX: null, aimTimesO: null, aimMissesX: null, aimMissesO: null,
+  aimEndTime: null, aimTargetX: null, aimTargetO: null,
+  aimScoreX: null, aimScoreO: null,
+  aimHitsX: null, aimHitsO: null,
+  aimFriendlyX: null, aimFriendlyO: null,
+  typingPassage: null, typingStartedAt: null,
+  typingProgressX: null, typingProgressO: null,
+  typingWpmX: null, typingWpmO: null,
+  typingAccX: null, typingAccO: null,
+  mathSeed: null, mathQIndex: null, mathQStartAt: null,
+  mathScoreX: null, mathScoreO: null,
+  mathStreakX: null, mathStreakO: null,
+  mathCorrectX: null, mathCorrectO: null,
+  mathWrongX: null, mathWrongO: null,
+  mathStartedAt: null, mathEndTime: null,
 }
 
 export function freshGameState(gameType) {
@@ -201,6 +251,25 @@ export function freshGameState(gameType) {
   }
   if (gameType === 'reaction') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
+  }
+  if (gameType === 'aim') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      aimScoreX: 0, aimScoreO: 0, aimHitsX: 0, aimHitsO: 0, aimFriendlyX: 0, aimFriendlyO: 0 }
+  }
+  if (gameType === 'typing') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      typingPassage: PASSAGES[Math.floor(Math.random() * PASSAGES.length)],
+      typingProgressX: 0, typingProgressO: 0 }
+  }
+  if (gameType === 'math') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      mathSeed: generateSeed(),
+      mathQIndex: 0,
+      mathScoreX: 0, mathScoreO: 0,
+      mathStreakX: 0, mathStreakO: 0,
+      mathCorrectX: 0, mathCorrectO: 0,
+      mathWrongX: 0, mathWrongO: 0,
+    }
   }
   if (gameType === 'numbermemory') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,

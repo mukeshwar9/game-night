@@ -141,3 +141,49 @@ export function ReactionIcon() {
     </svg>
   )
 }
+
+export function TypingIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* keyboard body */}
+      <rect x="1" y="6" width="22" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      {/* top row keys */}
+      {[4, 8, 12, 16, 20].map(x => (
+        <rect key={x} x={x - 1.5} y="9" width="3" height="2.5" rx="0.5" fill="currentColor" opacity="0.8" />
+      ))}
+      {/* middle row keys */}
+      {[5, 9, 13, 17].map(x => (
+        <rect key={x} x={x - 1.5} y="13" width="3" height="2.5" rx="0.5" fill="currentColor" opacity="0.6" />
+      ))}
+      {/* spacebar */}
+      <rect x="6" y="16.5" width="12" height="2" rx="0.5" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function MathIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* equals sign — two solid bars */}
+      <rect x="3" y="8"  width="18" height="2.5" rx="1" fill="currentColor" />
+      <rect x="3" y="13" width="18" height="2.5" rx="1" fill="currentColor" />
+      {/* small + cross above — hints at arithmetic */}
+      <rect x="10" y="2" width="4"  height="1.5" rx="0.5" fill="currentColor" opacity="0.5" />
+      <rect x="11.25" y="0.75" width="1.5" height="4" rx="0.5" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function AimIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
