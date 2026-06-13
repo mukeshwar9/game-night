@@ -16,8 +16,8 @@ export default defineConfig({
         name: 'Game Night',
         short_name: 'Game Night',
         description: 'Play games with friends online — no account needed',
-        theme_color: '#030712',
-        background_color: '#030712',
+        theme_color: '#080810',
+        background_color: '#080810',
         display: 'standalone',
         start_url: '/',
         icons: [

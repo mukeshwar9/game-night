@@ -77,7 +77,7 @@ function ResultsPanel({ game, mySymbol, players }) {
 
 export default function TypingGame({
   gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onNewMatch, proposal,
+  onSwitchGame, onPlayAgain, onNewMatch, proposal,
 }) {
   const myKey = mySymbol === 'X' ? 'X' : 'O'
   const opKey = myKey === 'X' ? 'O' : 'X'
@@ -198,7 +198,7 @@ export default function TypingGame({
         <GameStatus
           status={game.status} winner={game.winner} mySymbol={mySymbol}
           scores={game.scores} players={game.players} gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onNewMatch : null}
+          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
           onNewMatch={matchWinner && !proposal ? onNewMatch : null}
           onSwitchGame={!proposal ? onSwitchGame : null}
         />

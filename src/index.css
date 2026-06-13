@@ -162,6 +162,9 @@ body {
   min-height: 100svh;
   background: rgb(var(--c-bg));
   color: rgb(var(--c-text));
+  /* Faster taps + no grey tap-flash on mobile */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* CRT scanlines */
@@ -262,4 +265,37 @@ body::before {
 @keyframes update-drop {
   0%   { transform: translateY(-150%); }
   100% { transform: translateY(0); }
+}
+
+/* A freshly-placed mark pops in (gated on mount so only the new piece animates) */
+@keyframes place-pop {
+  0%   { transform: scale(0.4); opacity: 0.3; }
+  60%  { transform: scale(1.14); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* Connect Four disc drops into its slot */
+@keyframes disc-drop {
+  0%   { transform: translateY(-220%); }
+  70%  { transform: translateY(6%); }
+  100% { transform: translateY(0); }
+}
+
+/* Emote reaction floats up over a player card, then fades */
+@keyframes emote-float {
+  0%   { transform: translateY(8px) scale(0.6); opacity: 0; }
+  20%  { transform: translateY(0) scale(1.1); opacity: 1; }
+  70%  { transform: translateY(-18px) scale(1); opacity: 1; }
+  100% { transform: translateY(-44px) scale(0.9); opacity: 0; }
+}
+
+/* Respect users who ask for less motion: kill animations + the scanline overlay */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  body::after { display: none; }
 }

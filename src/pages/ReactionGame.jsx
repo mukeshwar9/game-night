@@ -85,7 +85,7 @@ function ResultsPanel({ timesX, timesO, mySymbol, players }) {
 
 export default function ReactionGame({
   gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onNewMatch, proposal,
+  onSwitchGame, onPlayAgain, onNewMatch, proposal,
 }) {
   const myKey = mySymbol === 'X' ? 'X' : 'O'
   const opKey = myKey === 'X' ? 'O' : 'X'
@@ -144,6 +144,7 @@ export default function ReactionGame({
     timerRef.current = setTimeout(() => {
       setPhase('ready')
       roundStartRef.current = performance.now()
+      sounds.go()  // audio + haptic cue on green
     }, delay)
   }
 
@@ -165,10 +166,15 @@ export default function ReactionGame({
         const newTimes = [...times, rt]
         setTimes(newTimes)
         if (newTimes.length === ROUNDS) {
-          setPhase('submitted')
           try {
             await update(ref(db, `games/${gameId}`), { [`reactionTimes${myKey}`]: newTimes })
-          } catch { toast.error('SUBMIT FAILED — CHECK CONNECTION') }
+            setPhase('submitted')
+          } catch {
+            // Write failed — revert so the player can re-tap the final round instead of soft-locking
+            setTimes(times)
+            setPhase('result')
+            toast.error('SUBMIT FAILED — TAP TO RETRY')
+          }
         } else {
           setPhase('result')
         }
@@ -198,7 +204,7 @@ export default function ReactionGame({
           scores={game.scores}
           players={game.players}
           gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onNewMatch : null}
+          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
           onNewMatch={matchWinner && !proposal ? onNewMatch : null}
           onSwitchGame={!proposal ? onSwitchGame : null}
         />

@@ -1,26 +1,32 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
-import { freshGameState } from '../lib/games'
+import { freshGameState, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
+import { getStats, getRooms, recordRoom } from '../lib/profile'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { sounds } from '../lib/sounds'
 import GamePicker from '../components/GamePicker'
 import ThemeSwitcher from '../components/ThemeSwitcher'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
 export default function Home() {
   const navigate = useNavigate()
-  const [name, setName] = useState('')
+  const [name, setName] = useState(() => localStorage.getItem('playerName') || '')
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(null)
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const { canInstall, install } = useInstallPrompt()
   const nameRef = useRef(null)
+  const rooms = useMemo(() => getRooms(), [])
+  const stats = useMemo(() => getStats(), [])
 
   const toggleMute = () => setMuted(sounds.toggle())
+
+  const rejoin = (id) => { if (saveName()) navigate(`/game/${id}`) }
 
   const saveName = () => {
     const trimmed = name.trim()
@@ -29,7 +35,7 @@ export default function Home() {
       nameRef.current?.focus()
       return null
     }
-    sessionStorage.setItem('playerName', trimmed)
+    localStorage.setItem('playerName', trimmed)
     return trimmed
   }
 
@@ -44,11 +50,13 @@ export default function Home() {
         status: 'waiting',
         scores: { X: 0, O: 0 },
         createdAt: Date.now(),
+        lastActivityAt: Date.now(),
         players: { X: { name: playerName, joinedAt: Date.now(), playerId: getPlayerId() } },
         ...freshGameState(gameType),
       }
       await set(ref(db, `games/${gameId}`), gameData)
       sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+      recordRoom({ id: gameId, gameType })
       navigate(`/game/${gameId}`)
     } catch {
       toast.error('CONNECTION ERROR. TRY AGAIN.')
@@ -67,7 +75,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-4 relative">
       {/* Controls — fixed top-right */}
-      <div className="fixed top-4 right-4 z-10 flex gap-2">
+      <div className="fixed top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-10 flex gap-2">
         <ThemeSwitcher />
         <button
           onClick={toggleMute}
@@ -160,6 +168,25 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Your rooms — one tap to return */}
+        {rooms.length > 0 && (
+          <div className="space-y-1.5">
+            <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR ROOMS</label>
+            <div className="space-y-1.5">
+              {rooms.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => rejoin(r.id)}
+                  className="w-full flex items-center justify-between bg-retro-card border border-retro-border rounded px-3 py-2.5 hover:border-retro-p1/50 transition-colors active:scale-[0.99]"
+                >
+                  <span className="font-pixel text-[11px] text-retro-p1 text-glow-p1 tracking-widest">{r.id}</span>
+                  <span className="font-pixel text-[8px] text-retro-dim">{getGameConfig(r.gameType)?.label || 'GAME'} →</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Divider */}
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-retro-border" />
@@ -172,6 +199,25 @@ export default function Home() {
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">SELECT GAME</label>
           <GamePicker onSelect={createGame} loadingType={loading} />
         </div>
+
+        {/* Your stats — local, no login */}
+        {stats && stats.games > 0 && (
+          <div className="space-y-1.5">
+            <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR STATS</label>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[
+                { label: 'WINS', val: stats.wins, col: 'text-retro-win' },
+                { label: 'LOSSES', val: stats.losses, col: 'text-retro-p2' },
+                { label: 'BEST STREAK', val: stats.bestStreak, col: 'text-retro-cta' },
+              ].map(({ label, val, col }) => (
+                <div key={label} className="bg-retro-card border border-retro-border rounded py-2">
+                  <p className={cn('font-pixel text-base', col)}>{val}</p>
+                  <p className="font-pixel text-[7px] text-retro-dim mt-1 tracking-wider">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* PWA install */}
         {canInstall && (

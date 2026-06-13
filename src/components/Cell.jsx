@@ -20,7 +20,8 @@ export default function Cell({ value, index, onClick, isWinning, disabled }) {
         value === 'O' && 'text-retro-p2 text-glow-p2',
       )}
     >
-      {value}
+      {/* span mounts only when filled, so the pop plays once on placement */}
+      {value && <span style={{ animation: 'place-pop 0.2s ease-out', display: 'inline-block' }}>{value}</span>}
     </button>
   )
 }

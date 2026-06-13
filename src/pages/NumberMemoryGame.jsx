@@ -27,7 +27,7 @@ function normalizeRound(raw) {
 
 export default function NumberMemoryGame({
   gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onNewMatch, proposal,
+  onSwitchGame, onPlayAgain, onNewMatch, proposal,
 }) {
   const round = normalizeRound(game.numRound)
   const myKey = mySymbol === 'X' ? 'X' : 'O'
@@ -154,7 +154,7 @@ export default function NumberMemoryGame({
           scores={game.scores}
           players={game.players}
           gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onNewMatch : null}
+          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
           onNewMatch={matchWinner && !proposal ? onNewMatch : null}
           onSwitchGame={!proposal ? onSwitchGame : null}
         />

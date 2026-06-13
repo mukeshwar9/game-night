@@ -5,6 +5,7 @@ import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import NumberPad from '../components/NumberPad'
 import { generateQuestion, GAME_MS, QUESTION_MS } from '../lib/mathLogic'
+import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
 // ── small helpers ────────────────────────────────────────────────────
@@ -123,7 +124,7 @@ function ResultsPanel({ game, players }) {
 
 export default function MathGame({
   gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onNewMatch, proposal,
+  onSwitchGame, onPlayAgain, onNewMatch, proposal,
 }) {
   const myKey = mySymbol === 'X' ? 'X' : 'O'
   const opKey = myKey === 'X' ? 'O' : 'X'
@@ -141,7 +142,7 @@ export default function MathGame({
   const startedAt  = game.mathStartedAt ?? null
   const endTime    = game.mathEndTime   ?? null
   const qStartAt   = game.mathQStartAt  ?? null
-  const seed       = game.mathSeed      ?? 0
+  const seed       = game.mathSeed      ?? null
 
   const now          = Date.now()
   const isCountdown  = !!startedAt && now < startedAt + 3000
@@ -157,7 +158,7 @@ export default function MathGame({
   const myScore   = game[`mathScore${myKey}`]  ?? 0
   const opScore   = game[`mathScore${opKey}`]  ?? 0
 
-  const q = seed ? generateQuestion(seed, qIndex) : null
+  const q = seed != null ? generateQuestion(seed, qIndex) : null
 
   // Reset per-question state when question changes
   useEffect(() => {
@@ -269,6 +270,8 @@ export default function MathGame({
         const mult  = myStreak >= 3 ? 2 : 1
         const pts   = wasCorrect ? speed * power * mult : 0
         setLastResult({ correct: wasCorrect, pts })
+        if (wasCorrect) sounds.hit(after[`mathStreak${myKey}`] ?? 1)
+        else sounds.miss()
       }
     } catch { /* retry; result will show via firebase update */ }
   }
@@ -312,7 +315,7 @@ export default function MathGame({
         <GameStatus
           status={game.status} winner={game.winner} mySymbol={mySymbol}
           scores={game.scores} players={game.players} gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onNewMatch : null}
+          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
           onNewMatch={matchWinner && !proposal ? onNewMatch : null}
           onSwitchGame={!proposal ? onSwitchGame : null}
         />

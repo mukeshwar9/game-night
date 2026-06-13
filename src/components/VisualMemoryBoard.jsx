@@ -64,7 +64,7 @@ export default function VisualMemoryBoard({ onMove, disabled, vmPattern, vmClick
           <span className="text-retro-dim">
             {disabled
               ? `OPPONENT RECALLING — ${clicked.length}/${pattern.length}`
-              : `CLICK THE HIGHLIGHTED TILES — ${clicked.length}/${pattern.length}`}
+              : `CLICK THE TILES YOU MEMORIZED — ${clicked.length}/${pattern.length}`}
           </span>
         )}
       </p>

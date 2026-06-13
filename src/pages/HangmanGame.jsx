@@ -298,6 +298,26 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     try { await update(ref(db, `games/${gameId}`), updates) } catch { /* ignore */ }
   }, [setter, guesser, scoreX, scoreO, gameId])
 
+  // Guesser escape hatch: if the word-keeper abandons mid-round (closed the tab
+  // with the word, so pending guesses can never be resolved), let the guesser
+  // reset to a fresh round (no score change) and swap setter so play continues.
+  const handleResetStuckRound = useCallback(async () => {
+    const newSetter = setter === 'X' ? 'O' : 'X'
+    try {
+      await update(ref(db, `games/${gameId}`), {
+        'round/setter': newSetter,
+        'round/phase': 'setting',
+        'round/wrongCount': 0,
+        'round/wordLength': null,
+        'round/commitment': null,
+        'round/guesses': null,
+        'round/reveal': null,
+        'round/result': null,
+        proposal: null,
+      })
+    } catch { /* ignore */ }
+  }, [setter, gameId])
+
   if (cheatDetected) return <CheatScreen evidence={cheatEvidence} />
 
   // --- Match over ---
@@ -501,11 +521,21 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         </div>
       )}
 
-      {/* Setter offline warning */}
+      {/* Setter offline warning + guesser escape hatch */}
       {!isSetter && !isReveal && !opponentOnline && (
-        <p className="font-pixel text-[10px] text-retro-dim text-center animate-pulse">
-          WORD-KEEPER IS OFFLINE — GUESSES WILL STALL
-        </p>
+        <div className="text-center space-y-2">
+          <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
+            WORD-KEEPER IS OFFLINE — GUESSES WILL STALL
+          </p>
+          {isGuesser && (
+            <button
+              onClick={handleResetStuckRound}
+              className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+            >
+              END ROUND
+            </button>
+          )}
+        </div>
       )}
 
       {/* Keyboard */}

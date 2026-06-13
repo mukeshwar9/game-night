@@ -11,6 +11,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - Hangwoman — hidden-word game; a commit–reveal scheme keeps the word secret with no server and catches a cheating word-keeper (design in [`docs/HANGMAN.md`](docs/HANGMAN.md))
 - Dots and Boxes — 4×4 grid; completing a box claims it and grants an extra turn; first to 9 of 16 boxes wins the round (design in [`README-dots-and-boxes.md`](README-dots-and-boxes.md))
 - SOS — 7×7 grid; each turn place either an S or an O anywhere; completing an S-O-S in a line scores a point and grants another move; most sequences when the board is full wins
+- Simon — a memory duel; on your turn the growing pad sequence flashes once and then hides, you replay it from memory (pad colours are concealed except during the flash, so there's no reading the answer off the board), then add one new pad of your choice and pass the turn; the first misremembered pad loses the round
 - Typing Race — both players type the same passage simultaneously; a ghost cursor shows the opponent's live position; errors stay highlighted but don't block progress; winner is determined by effective WPM (speed × accuracy) at the finish line; supports a QWERTY on-screen keyboard or the device keyboard
 - Mental Math Duel — 2-minute blitz where both players race on the same math question simultaneously; first correct answer wins the round and earns speed-bonus points (1–5 depending on how quickly you answered); ⚡ power questions every 8 rounds double the points and penalty; 🔥 a 3-question correct streak applies a ×2 multiplier to the next correct answer; wrong answers lose points; highest score at the buzzer wins
 
@@ -28,6 +29,14 @@ Players are identified by a stable browser ID stored in `localStorage` — no si
 
 - **Real-time multiplayer** — Firebase Realtime Database keeps both boards in sync
 - **Score tracking** — scores persist across rounds; first to 3 wins triggers a match-over screen
+- **Shareable result cards** — every end screen has a **SHARE** button that renders a themed pixel-art result card to a canvas and opens the native share sheet (`navigator.share`), with a PNG-download fallback (`src/lib/shareCard.js`)
+- **Emote reactions** — a 🔥 😂 😭 😎 👏 💀 bar broadcasts a transient `emote` node that floats over the room for both players, with a soft cue
+- **No-login stats & rivalries** — lifetime wins/losses, best streak, and per-game + head-to-head (by opponent name) records kept in `localStorage` (no account required), surfaced as **YOUR STATS** on the home screen (`src/lib/profile.js`)
+- **Return to your rooms** — **YOUR ROOMS** lists recent rooms for one-tap rejoin; rooms now persist as long as they're played within 24h (activity-based cleanup, `lastActivityAt`) so a recurring "crew room" survives instead of being deleted nightly
+- **Game-feel juice** — mobile **haptics** (wired through the sound engine, shares the mute toggle), a bigger multi-colour confetti + fanfare climax for *match* wins vs. round wins, pop/drop placement animations (Tic Tac Toe marks pop, Connect Four discs drop), and rising-pitch combo sounds for streaks (Aim, Mental Math)
+- **Reduced-motion support** — respects `prefers-reduced-motion` (disables animations and the CRT scanlines)
+- **Mobile-tuned** — safe-area insets for notches/home indicators (`viewport-fit=cover`), fast taps (no 300ms delay or grey tap-flash), and responsive game areas
+- **Link previews** — Open Graph / Twitter card meta so a pasted invite renders a preview instead of a blank blob
 - **In-room game switching** — every end-of-game screen has a **SWITCH GAME** button that opens the shared game picker; switching resets the board and scores but keeps players, presence, and the room code
 - **Rematch consent** — PLAY AGAIN / NEW MATCH / SWITCH GAME are propose-and-accept: the opponent gets an ACCEPT/DECLINE banner instead of having the room yanked out from under them (applies instantly when they're offline or haven't joined)
 - **Seat reclaim** — a stable `playerId` in `localStorage` is stamped into each player slot; closing a tab or re-clicking the invite link reclaims your seat instead of demoting you to spectator
@@ -202,6 +211,43 @@ Highest-impact fixes — these are the only items where someone other than the t
 
 - **Deduplicate the mute button.** The speaker toggle with its two inline SVGs is copy-pasted between `Home.jsx` and `Game.jsx` — extract a `MuteButton` component.
 
+### Demo page (`/demo`) — gaps & known bugs
+
+Audit of the 12 single-player demos in `src/pages/Demo.jsx`. Intended model: each demo is **one human vs a bot**. Four already are; eight are "hot-seat" (the lone user has to play both sides), which is the main gap — plus several concrete runtime bugs. *(Documented for later; not yet fixed.)*
+
+**Opponent model**
+
+- ✅ **Bot-driven, work as solo demos:** Reaction, Aim Trainer, Typing, Mental Math.
+- ⚠️ **Hot-seat — need a bot opponent:** Tic Tac Toe, Hangman, Dots & Boxes, SOS, Simon, Chimp, Number Memory, Visual Memory. Each forces the user to make both X's and O's moves (Hangman: the user sets the word *and* then guesses it). To convert, drive the opponent side automatically — a random/greedy move for the board games; auto-recall of the flashed pattern for Simon / Visual Memory / Chimp; an auto-generated word (or a letter-frequency AI guesser) for Hangman; a timed bot answer for Number Memory.
+
+**Runtime bugs (independent of the bot conversion)**
+
+- **Chimp — demo is unplayable (critical).** `Demo.jsx:345` shows the "PASS TO BOB/ALICE" button only while the current player is *not* done (`!(seat === 'X' ? doneX : doneO)`). The instant Alice finishes a level her board is disabled *and* the pass button vanishes, so Bob can never take a turn — only RESET works. The condition is inverted; it should show the button once the current player *is* done.
+- **Number Memory — both-wrong crowns BOB (high).** `Demo.jsx:394` `setWinner(!xCorrect ? 'O' : 'X')` declares O the winner when *both* players answer wrong; should be a draw / both-lose. (The multiplayer page has the same both-wrong → O logic at `NumberMemoryGame.jsx:99`.)
+- **Mental Math — stale bot timer after reset (high).** The bot's `setTimeout` at `Demo.jsx:1243-1251` closes over `phase`; clicking PLAY AGAIN while a bot answer is pending lets the old timer fire and resolve a question against the freshly-reset game. Clear it in `reset()` or guard on a ref.
+- **Hangman — stepper preview not reset (medium).** `reset()` (`Demo.jsx:102-104`) doesn't clear `stepperCount`, so after PLAY AGAIN the gallows-preview stepper still shows the previous value.
+- **SOS — letter picker carries over (medium).** `SosBoard` keeps its `selectedLetter` across turns, so the S/O choice from the previous mover stays selected for the next player.
+- **Aim Trainer — bot "hits" duplicates score (low, cosmetic).** `Demo.jsx:1006` sets the bot's `hits` to `scoreBot`, so the results panel prints the bot's score twice (no separate hit counter). Also, clicking the bot's target never despawns it (`Demo.jsx:988` `// bot target stays`), so a user can farm friendly-fire on a stationary target.
+- **Hangman — keyboard listener churn (low).** `LetterKeyboard` re-binds its `keydown` listener on every guess (inline `handleGuess` + changing `guesses`); harmless but inefficient, with a thin stale-closure window during the win/lose transition.
+
+**UX polish** (mostly disappears once the demos go bot-driven): Tic Tac Toe shows "GAME OVER" instead of "BOT WINS!" on a loss; Dots & Boxes has no player cards; Visual Memory's "OPPONENT RECALLING" hint reads oddly when one user controls both sides.
+
+### Requested gameplay changes
+
+Active change requests, grouped for implementation. *(Documented here; not yet built.)*
+
+1. **Mental Math → multiple choice (no typing).** Replace the numeric-entry answer with tappable multiple-choice options (e.g. four buttons, one correct). `generateQuestion(seed, index)` in `src/lib/mathLogic.js` must also emit a **deterministic, seeded** set of plausible distractors so both players see identical options for the same question; `src/pages/MathGame.jsx` and `MathDemo` (`src/pages/Demo.jsx`) render answer buttons and lock on tap instead of using the input + `NumberPad` (`src/components/NumberPad.jsx`). Keep the speed / ⚡power / 🔥streak scoring intact. Removes the digits-only field and the on-screen numpad.
+
+2. **Typing keyboard → full-width, phone-style.** `src/components/TypingKeyboard.jsx` currently centers each row and caps key width (`flex-1 min-w-0 max-w-[2.5rem]`, rows `justify-center`), so it doesn't fill the container. Make it span the **full available width** and mimic a mobile OS keyboard: rows stretch edge-to-edge with proportional key sizing, a wide space bar, and a backspace key. Should look like a phone's built-in keyboard on both mobile and desktop.
+
+3. **Hangwoman → hint + multi-word answers.** (a) Add a free-text **hint** field to `src/components/WordSetter.jsx` that the setter fills in with the word; surface it to the guesser in `src/pages/HangmanGame.jsx` (and `HangmanDemo`). The hint is non-secret, so store it plaintext on the round node at round start (commit it alongside the word in `src/lib/commit.js` if tamper-proofing is desired). (b) Allow the answer to be **multiple words**: `validateWord` in `src/lib/hangmanLogic.js` and `WordSetter`'s `onChange` currently strip everything but A–Z (`replace(/[^A-Z]/g,'')`) — permit spaces; `WordDisplay.jsx` renders word breaks/gaps; and the guess logic (`applyGuess` / `isWordGuessed`) treats spaces as always-revealed non-letters so only A–Z must be guessed. The word still stays in the setter's browser until reveal via the commit–reveal scheme.
+
+4. **How-to-play for every game.** A "HOW TO PLAY" button (on each home-screen card and in the in-game header) that opens a rules overlay for **all 13 games** — Tic Tac Toe, Connect Four, Hangwoman, Dots & Boxes, SOS, Simon, Chimp Test, Number Memory, Visual Memory, Reaction, Aim Trainer, Typing Race, Mental Math. Store the rules text as a `rules` field per entry in the `GAME_TYPES` registry (`src/lib/games.js`) so the overlay and the `GamePicker` cards both read from one place. (Supersedes the older, partial "How-to-play screens" item below.)
+
+5. **Reaction → auto-advance rounds.** After a round result, don't wait for the user to tap to begin the next round — **auto-start it after ~2 s**. In `src/pages/ReactionGame.jsx` the `'result'` phase currently requires a click (`handleClick` case `'result'` → `startRound()`); replace it with a timed transition into the next round (store the timeout in a ref and clear on unmount / reset). Mirror the change in `ReactionDemo` (`src/pages/Demo.jsx`).
+
+6. **Aim Trainer → shared / visible opponent targets.** Today each player gets an independent target (`aimTargetX` for X, `aimTargetO` for O) that only the owner scores on, with crossover handled as friendly fire — so the two players are effectively aiming at different things. Change `src/pages/AimTrainerGame.jsx` so both players compete on the **same live target(s)**, with the opponent's position shown in real time (e.g. one shared target that both race to click — first click scores and respawns it). Reconcile with, or replace, the current friendly-fire scoring.
+
 ### Game candidates
 
 Two-player games that fit the platform, tiered by how far they stretch the current architecture (shared visible board-as-array, alternating turns, a `getWinner` function per game, score tracking, win-line highlight).
@@ -243,7 +289,7 @@ Two-player games that fit the platform, tiered by how far they stretch the curre
 
 **Human Benchmark duels** — head-to-head versions of the solo skill tests on [humanbenchmark.com](https://humanbenchmark.com/). The originals are single-player; these adaptations turn them into two-player games. The first four fit the existing turn-based registry; the last two need a simultaneous-rounds mode (each player writes a result to their own key per round — the same pattern as Rock Paper Scissors in Tier 3, *not* the WebRTC architecture below).
 
-- **Sequence duel (Simon)** — players alternate: repeat the growing pad sequence, then append one pad of your choice; first misrepeat loses. Architecturally the cleanest fit on this whole page: the sequence is an append-only array (like `sosLines`), turns alternate normally, and there's no RNG and no hidden state — one registry entry with an `applyMove` hook.
+- **Sequence duel (Simon)** — ✅ shipped. A real memory duel: on your turn the growing pad sequence flashes once then hides, you replay it from memory, then append one pad of your choice and pass the turn; first misremembered pad loses. `src/components/SimonBoard.jsx` drives the flash-then-recall phases locally and conceals pad colours except during the flash, so neither player can read the answer off the board. The sequence is an append-only array on the game node with an `applyMove` hook (`src/lib/simonLogic.js`); no RNG and no hidden state.
 - **Chimp Test duel** — numbered squares flash, then hide; click them in order. Players alternate attempts, the count grows each survival, first fail loses the round. The layout per level is generated and stored on the game node (public in the DB — same trust level as the rest of the board state).
 - **Number Memory duel** — memorize a number shown briefly, type it back, one digit longer each level. A twist that beats the original: the *opponent* sets your number (Hangwoman's setter model), or commit a generated number with the existing commit–reveal module (`src/lib/commit.js`) so neither side can claim foul.
 - **Visual Memory duel** — a tile pattern flashes; reproduce it; levels escalate. Same alternating-attempts shape as the Chimp duel — ship one of the two, not both (the Chimp Test is the more iconic).
@@ -259,8 +305,9 @@ Skipped from the Human Benchmark catalog: **Aim Trainer** (pure mouse skill, wea
 
 ### New features — medium effort
 - **Hot-seat mode (2 players, one device)** — a "PASS & PLAY" entry on the home screen that runs a game entirely against local state: both names entered up front, a "PASS TO \<name\>" prompt between turns, scores and match-over tracked locally. The `/demo` route already proves the pattern (the same board components and pure logic functions running with no Firebase) — this productizes it. No room code, presence, or spectators; works offline, which also makes the PWA install genuinely useful.
-- **How-to-play screens** — a "HOW TO PLAY" button on each home-screen card and in the game header that opens a rules overlay for that game (Tic Tac Toe, Connect Four, Hangwoman's setter/guesser roles and 6-miss limit, Dots and Boxes' extra-turn rule). Store the rules text per game in the `GAME_TYPES` registry (`src/lib/games.js`) so the overlay and the `GamePicker` cards all pull from one place.
-- **In-game reactions** — quick reaction buttons (👏 😬 🔥 💀) that flash on the opponent's screen, stored as a single ephemeral Firebase key.
+- **How-to-play screens** — ⤴ now tracked as request #4 in [Requested gameplay changes](#requested-gameplay-changes), expanded to cover all 13 games. A "HOW TO PLAY" button on each home-screen card and in the game header opens a rules overlay for that game; store the rules text per game as a `rules` field in the `GAME_TYPES` registry (`src/lib/games.js`) so the overlay and the `GamePicker` cards all pull from one place.
+- **In-game reactions — ✅ done.** An emote bar (🔥 😂 😭 😎 👏 💀) writes a transient `games/$id/emote` node; the received glyph floats over the room with a soft cue (`Game.jsx`).
+- **Tonight's Lineup / party mode — next strategic build (not yet done).** A queue of games to auto-advance through in one room with a cumulative cross-game "night score." Reuses `applySwitchGame`/`freshGameState`; needs a `lineup` + `lineupIndex` node and a cross-game scoreboard. Deferred because it changes the core switching flow and is best built with live two-player testing. (Persistent rooms, no-login stats, recent-rooms list, and shareable result cards already shipped — see below.)
 - **Chat** — simple text input per room, messages stored under `games/$id/messages`.
 - **Rematch request flow — ✅ done.** PLAY AGAIN / NEW MATCH / SWITCH GAME now write a `proposal` node; the opponent accepts or declines (`src/components/ProposalBanner.jsx`). The handshake is skipped when the opponent is offline or absent.
 - **More games** — see the full tiered list in [Game candidates](#game-candidates); with Dots and Boxes and SOS shipped, Battleship (unblocked by Hangwoman's commit–reveal module) is the remaining headline pick, with Pentago / Gomoku / Breakthrough as the cheap wins.
@@ -310,5 +357,5 @@ Two rules worth enforcing:
 **Suggested build order:** clock-sync + RTC module with the loopback demo first, then event-based ball sync, paddle prediction polish last. Note: turn-based registry games (Gomoku, Ultimate Tic-Tac-Toe) are ~10× less code per unit of fun — real-time is a "because it's cool" project, not the next roadmap item.
 
 ### New features — larger investments
-- **Google sign-in + persistent stats** — win/loss record, games played, win streak. Enables leaderboards and friend lists.
+- **Google sign-in + persistent stats** — a first cut of no-login stats already ships locally (lifetime W/L, best streak, per-game + head-to-head, in `localStorage` via `src/lib/profile.js`). The larger investment is syncing these across devices: add anonymous auth and a `stats/{playerId}` node (the `playerId` primitive already rides in every player slot) to enable cross-device history, leaderboards, and friend lists.
 - **Public matchmaking queue** — "Find a random opponent" button that pairs strangers via a Firebase queue.

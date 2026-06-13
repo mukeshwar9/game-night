@@ -5,6 +5,7 @@ import { db, configError } from '../lib/firebase'
 import { normalizeBoard } from '../lib/gameLogic'
 import { freshGameState, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
+import { recordRoom, recordMatch } from '../lib/profile'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
@@ -23,6 +24,8 @@ import { toast } from 'sonner'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
+
+const EMOTES = ['🔥', '😂', '😭', '😎', '👏', '💀']
 
 function toArray(val) {
   if (!val) return []
@@ -51,6 +54,10 @@ export default function Game() {
   const [opponentOnline, setOpponentOnline] = useState(true)
   const [showWinEffect, setShowWinEffect] = useState(false)
   const [winEffectWinner, setWinEffectWinner] = useState(null)
+  const [winEffectIntensity, setWinEffectIntensity] = useState('round')
+  const [floatEmote, setFloatEmote] = useState(null)
+  const prevEmoteTs = useRef(0)
+  const emoteInit = useRef(false)
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const [needName, setNeedName] = useState(false)
   const [nameVersion, setNameVersion] = useState(0)
@@ -70,7 +77,7 @@ export default function Game() {
       return
     }
 
-    const playerName = sessionStorage.getItem('playerName')
+    const playerName = localStorage.getItem('playerName')
     if (!playerName) {
       setNeedName(true)
       setLoading(false)
@@ -101,7 +108,8 @@ export default function Game() {
 
       const data = snap.val()
 
-      if (data.createdAt && Date.now() - data.createdAt > GAME_TTL_MS) {
+      const lastActive = data.lastActivityAt ?? data.createdAt
+      if (lastActive && Date.now() - lastActive > GAME_TTL_MS) {
         setError('THIS GAME HAS EXPIRED. CREATE A NEW ONE!')
         setLoading(false)
         return
@@ -156,6 +164,7 @@ export default function Game() {
 
       if (cancelled) return
       setLoading(false)
+      if (mySymbol.current) recordRoom({ id: gameId, gameType: data.gameType })
 
       unsubGame = onValue(gameRef, snap => {
         if (!cancelled && snap.exists()) setGame(snap.val())
@@ -206,11 +215,23 @@ export default function Game() {
 
     if (prevStatus.current === 'playing' && game.status === 'finished') {
       const w = game.winner
+      const sx = game.scores?.X || 0
+      const so = game.scores?.O || 0
+      const isMatch = sx >= 3 || so >= 3
       if (w === 'draw') sounds.draw()
-      else if (w === mySymbol.current) sounds.win()
+      else if (w === mySymbol.current) (isMatch ? sounds.matchWin() : sounds.win())
       else if (mySymbol.current) sounds.lose()
       setWinEffectWinner(w)
+      setWinEffectIntensity(isMatch ? 'match' : 'round')
       setShowWinEffect(true)
+      if (isMatch && mySymbol.current) {
+        const opSym = mySymbol.current === 'X' ? 'O' : 'X'
+        recordMatch({
+          gameType: game.gameType,
+          won: w === mySymbol.current,
+          opponentName: game.players?.[opSym]?.name,
+        })
+      }
     }
 
     const cfg = getGameConfig(game.gameType)
@@ -275,6 +296,22 @@ export default function Game() {
     prevProposal.current = proposal
   }, [game, gameId])
 
+  // Emote channel — float a newly-received reaction (skip the stale one present on join)
+  useEffect(() => {
+    const e = game?.emote
+    if (!emoteInit.current) {
+      emoteInit.current = true
+      prevEmoteTs.current = e?.ts || 0
+      return
+    }
+    if (!e || !e.ts || e.ts === prevEmoteTs.current) return
+    prevEmoteTs.current = e.ts
+    setFloatEmote(e)
+    sounds.join()
+    const t = setTimeout(() => setFloatEmote(null), 2000)
+    return () => clearTimeout(t)
+  }, [game?.emote?.ts])
+
   const handleMove = async (colOrIndex) => {
     if (!game || !mySymbol.current) return
     if (game.status !== 'playing') return
@@ -310,6 +347,7 @@ export default function Game() {
       }
     }
 
+    updates.lastActivityAt = Date.now()
     try { await update(ref(db, `games/${gameId}`), updates) } catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
   }
 
@@ -322,6 +360,7 @@ export default function Game() {
         winner: null,
         winningLine: null,
         proposal: null,
+        lastActivityAt: Date.now(),
       })
     } catch { toast.error('PLAY AGAIN FAILED — CHECK CONNECTION') }
   }
@@ -336,6 +375,7 @@ export default function Game() {
         'scores/X': 0,
         'scores/O': 0,
         proposal: null,
+        lastActivityAt: Date.now(),
       })
     } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
   }
@@ -352,6 +392,7 @@ export default function Game() {
         'scores/X': 0,
         'scores/O': 0,
         proposal: null,
+        lastActivityAt: Date.now(),
       })
     } catch { toast.error('SWITCH FAILED — CHECK CONNECTION') }
   }
@@ -393,12 +434,19 @@ export default function Game() {
 
   const toggleMute = () => setMuted(sounds.toggle())
 
+  const sendEmote = async (glyph) => {
+    if (!mySymbol.current) return
+    try {
+      await update(ref(db, `games/${gameId}`), { emote: { by: mySymbol.current, glyph, ts: Date.now() } })
+    } catch { /* ignore */ }
+  }
+
   // Feature A — name prompt for invited players
   if (needName) {
     const handleNameSubmit = () => {
       const trimmed = nameInput.trim()
       if (!trimmed) { setNameError('ENTER YOUR NAME FIRST'); return }
-      sessionStorage.setItem('playerName', trimmed)
+      localStorage.setItem('playerName', trimmed)
       setNeedName(false)
       setLoading(true)
       setNameVersion(v => v + 1)
@@ -473,9 +521,17 @@ export default function Game() {
   const activeProposal = game.proposal && !game.proposal.declined ? game.proposal : null
 
   return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-5">
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
       {showWinEffect && (
-        <WinEffect winner={winEffectWinner} onDone={() => setShowWinEffect(false)} />
+        <WinEffect winner={winEffectWinner} intensity={winEffectIntensity} onDone={() => setShowWinEffect(false)} />
+      )}
+
+      {floatEmote && (
+        <div className="fixed inset-x-0 top-1/3 z-50 pointer-events-none flex justify-center">
+          <div className="text-6xl" style={{ animation: 'emote-float 2s ease-out forwards' }}>
+            {floatEmote.glyph}
+          </div>
+        </div>
       )}
 
       <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
@@ -562,6 +618,7 @@ export default function Game() {
               mySymbol={mySymbol.current}
               opponentOnline={opponentOnline}
               onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
@@ -572,6 +629,7 @@ export default function Game() {
               mySymbol={mySymbol.current}
               opponentOnline={opponentOnline}
               onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
@@ -582,6 +640,7 @@ export default function Game() {
               mySymbol={mySymbol.current}
               opponentOnline={opponentOnline}
               onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
@@ -592,6 +651,7 @@ export default function Game() {
               mySymbol={mySymbol.current}
               opponentOnline={opponentOnline}
               onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
@@ -602,6 +662,7 @@ export default function Game() {
               mySymbol={mySymbol.current}
               opponentOnline={opponentOnline}
               onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
@@ -612,6 +673,7 @@ export default function Game() {
               mySymbol={mySymbol.current}
               opponentOnline={opponentOnline}
               onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
@@ -622,6 +684,7 @@ export default function Game() {
               mySymbol={mySymbol.current}
               opponentOnline={opponentOnline}
               onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
@@ -653,6 +716,22 @@ export default function Game() {
 
         {!isCustom && isSpectator && game.status === 'playing' && (
           <p className="text-center font-pixel text-[10px] text-retro-border">SPECTATING</p>
+        )}
+
+        {/* Emote / reaction bar — players only, once the room is live */}
+        {!isSpectator && game.status !== 'waiting' && (
+          <div className="flex justify-center gap-1.5 pt-1">
+            {EMOTES.map(g => (
+              <button
+                key={g}
+                onClick={() => sendEmote(g)}
+                aria-label={`Send ${g} reaction`}
+                className="w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all"
+              >
+                {g}
+              </button>
+            ))}
+          </div>
         )}
       </div>
     </div>

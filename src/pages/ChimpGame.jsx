@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 
 export default function ChimpGame({
   gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onNewMatch, proposal,
+  onSwitchGame, onPlayAgain, onNewMatch, proposal,
 }) {
   const layout = normalizeChimpLayout(game.chimpLayout)
   const level   = game.chimpLevel ?? CHIMP_START_LEVEL
@@ -108,7 +108,7 @@ export default function ChimpGame({
           scores={game.scores}
           players={game.players}
           gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onNewMatch : null}
+          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
           onNewMatch={matchWinner && !proposal ? onNewMatch : null}
           onSwitchGame={!proposal ? onSwitchGame : null}
         />

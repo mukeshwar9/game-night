@@ -22,21 +22,32 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                 disabled={disabled || colFull}
                 aria-label={`Column ${col + 1}, ${cell || 'empty'}`}
                 className={cn(
-                  'aspect-square rounded-full border-2 transition-all duration-150',
+                  'aspect-square rounded-full border-2 transition-all duration-150 overflow-hidden',
                   'flex items-center justify-center',
-                  cell === 'X'
-                    ? cn('bg-retro-p1 border-retro-p1/70', winningLine.includes(i) && 'scale-110 shadow-neon-p1')
-                    : cell === 'O'
-                      ? cn('bg-retro-p2 border-retro-p2/70', winningLine.includes(i) && 'scale-110 shadow-neon-p2')
-                      : isHovered
-                        ? currentTurn === 'X'
-                          ? 'bg-retro-p1/20 border-retro-p1/40'
-                          : 'bg-retro-p2/20 border-retro-p2/40'
-                        : 'bg-retro-bg border-retro-border',
+                  cell
+                    ? 'bg-retro-bg border-retro-border'
+                    : isHovered
+                      ? currentTurn === 'X'
+                        ? 'bg-retro-p1/20 border-retro-p1/40'
+                        : 'bg-retro-p2/20 border-retro-p2/40'
+                      : 'bg-retro-bg border-retro-border',
                   !cell && !disabled && !colFull ? 'cursor-pointer' : 'cursor-default',
                 )}
               >
-                {cell && <span className="font-pixel text-[10px] sm:text-xs text-retro-bg/80 select-none">{cell}</span>}
+                {/* inner disc mounts only when filled → drops in once on placement */}
+                {cell && (
+                  <span
+                    className={cn(
+                      'w-full h-full rounded-full flex items-center justify-center',
+                      cell === 'X' ? 'bg-retro-p1' : 'bg-retro-p2',
+                      winningLine.includes(i) && 'scale-110',
+                      winningLine.includes(i) && (cell === 'X' ? 'shadow-neon-p1' : 'shadow-neon-p2'),
+                    )}
+                    style={{ animation: 'disc-drop 0.3s cubic-bezier(0.34,1.15,0.64,1)' }}
+                  >
+                    <span className="font-pixel text-[10px] sm:text-xs text-retro-bg/80 select-none">{cell}</span>
+                  </span>
+                )}
               </button>
             )
           })}
