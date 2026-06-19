@@ -1,7 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import Board from '../components/Board';
-import DotsAndBoxesBoard from '../components/DotsAndBoxesBoard';
-import SosBoard from '../components/SosBoard';
 import SimonBoard from '../components/SimonBoard';
 import GameStatus from '../components/GameStatus';
 import PlayerCard from '../components/PlayerCard';
@@ -15,20 +12,18 @@ import VisualMemoryBoard from '../components/VisualMemoryBoard';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
+  ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
+  TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon,
 } from '../components/GameIcons';
 import NumberPad from '../components/NumberPad';
 import { generateQuestion, QUESTION_MS } from '../lib/mathLogic';
-import { getWinner } from '../lib/gameLogic';
+import { normalizeBoard } from '../lib/gameLogic';
 import { applyGuess, isWordGuessed, countWrong, MAX_WRONG } from '../lib/hangmanLogic';
-import {
-  DB_EDGE_COUNT, DB_BOX_COUNT, applyEdgeMove, getDotsAndBoxesWinner,
-} from '../lib/dotsAndBoxesLogic';
-import {
-  SOS_CELL_COUNT, normalizeSosLines, applySosMove, getSosWinner,
-} from '../lib/sosLogic';
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
+import { getGameConfig, freshGameState } from '../lib/games'
+import { pickBotMove } from '../lib/demoBots';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import ThemeSwitcher from '../components/ThemeSwitcher';
@@ -39,42 +34,126 @@ function generateNumberLocal(level) {
   return n
 }
 
-// ─── Game demos ──────────────────────────────────────────────────────────────
+// ─── Generic bot harness ──────────────────────────────────────────────────────
 
-function TicTacToeDemo() {
-  const [board, setBoard] = useState(Array(9).fill(''))
-  const [currentTurn, setCurrentTurn] = useState('X')
-  const [status, setStatus] = useState('playing')
-  const [winner, setWinner] = useState(null)
-  const [winningLine, setWinningLine] = useState([])
+function BotBoardDemo({ type }) {
+  const cfg = getGameConfig(type)
+  const makeInit = () => ({
+    ...freshGameState(type),
+    status: 'playing', winner: null, winningLine: [], currentTurn: 'X',
+  })
+  const [game, setGame] = useState(makeInit)
+  const timerRef = useRef(null)
 
-  const handleMove = (index) => {
-    if (status !== 'playing' || board[index]) return
-    const newBoard = [...board]
-    newBoard[index] = currentTurn
-    const result = getWinner(newBoard)
-    setBoard(newBoard)
-    if (result) { setWinner(result.winner); setWinningLine(result.line); setStatus('finished') }
-    else setCurrentTurn(currentTurn === 'X' ? 'O' : 'X')
+  // Apply a move the same way Game.jsx handleMove does; returns next game or null if illegal.
+  const applyOne = (g, payload, symbol) => {
+    const board = cfg.boardSize ? normalizeBoard(g.board, cfg.boardSize) : (g.board || [])
+    const index = cfg.getMoveIndex ? cfg.getMoveIndex(board, payload) : 0
+    if (cfg.boardSize && index === -1) return null
+    let updates, result
+    if (cfg.applyMove) {
+      const applied = cfg.applyMove({ board, game: g, index, move: payload, symbol })
+      if (!applied) return null
+      updates = applied.updates
+      result = applied.result
+    } else {
+      const nb = [...board]
+      nb[index] = symbol
+      result = cfg.getWinner(nb)
+      updates = { board: nb, currentTurn: symbol === 'X' ? 'O' : 'X' }
+    }
+    const next = { ...g, ...updates }
+    if (result) {
+      next.winner = result.winner
+      next.status = 'finished'
+      next.winningLine = result.line || []
+    }
+    return next
   }
 
-  const reset = () => {
-    setBoard(Array(9).fill('')); setCurrentTurn('X')
-    setStatus('playing'); setWinner(null); setWinningLine([])
+  const handleHumanMove = (payload) => {
+    setGame(g => {
+      if (g.status !== 'playing' || g.currentTurn !== 'X') return g
+      return applyOne(g, payload, 'X') || g
+    })
   }
+
+  // Bot turn driver — re-runs whenever game changes; handles extra-turns/passes/dice streaks
+  // because it simply fires again while it's still O's turn.
+  useEffect(() => {
+    if (game.status !== 'playing' || game.currentTurn !== 'O') return
+    timerRef.current = setTimeout(() => {
+      setGame(g => {
+        if (g.status !== 'playing' || g.currentTurn !== 'O') return g
+        const move = pickBotMove(type, g, 'O')
+        if (move === null || move === undefined) return g
+        return applyOne(g, move, 'O') || g
+      })
+    }, 600)
+    return () => clearTimeout(timerRef.current)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game, type])
+
+  const reset = () => { clearTimeout(timerRef.current); setGame(makeInit()) }
+
+  const board = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize) : []
+  const canMove = game.status === 'playing' && game.currentTurn === 'X'
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
-        <PlayerCard name="Alice" symbol="X" isActive={status === 'playing' && currentTurn === 'X'} isMe />
-        <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
+        <PlayerCard name="You" symbol="X" isActive={canMove} isMe />
+        <PlayerCard name="CPU" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
       </div>
-      <Board board={board} onMove={handleMove} disabled={status !== 'playing'} winningLine={winningLine} />
-      <GameStatus status={status} winner={winner} currentTurn={currentTurn} mySymbol="X"
-        onPlayAgain={status === 'finished' ? reset : null} />
+      <cfg.BoardComponent
+        board={board}
+        onMove={handleHumanMove}
+        disabled={!canMove}
+        winningLine={game.winningLine || []}
+        currentTurn={game.currentTurn}
+        {...(cfg.boardProps ? cfg.boardProps(game) : {})}
+      />
+      <GameStatus
+        status={game.status}
+        winner={game.winner}
+        currentTurn={game.currentTurn}
+        mySymbol="X"
+        onPlayAgain={game.status === 'finished' ? reset : null}
+      />
     </div>
   )
 }
+
+// ─── Party game card ──────────────────────────────────────────────────────────
+
+const PARTY_BLURB = {
+  twotruths: 'Spot the lie among three statements.',
+  bluff: "Liar's dice — out-bluff your opponent.",
+  wavelength: 'Read minds on a hidden spectrum.',
+  fibbage: 'Invent fake answers, fool your friends.',
+  spyfair: 'Find the spy before time runs out.',
+}
+
+function PartyGameCard({ type }) {
+  const cfg = getGameConfig(type)
+  return (
+    <div className="space-y-4 text-center py-6">
+      <p className="font-pixel text-sm text-retro-cta text-glow-cta">{cfg.label}</p>
+      <p className="font-mono text-xs text-retro-dim leading-relaxed">{PARTY_BLURB[type] || cfg.desc}</p>
+      <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
+        NEEDS 2+ PLAYERS —<br />NO SOLO BOT FOR THIS ONE.
+      </p>
+      <Link
+        to="/"
+        className="inline-block px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+      >
+        CREATE A ROOM →
+      </Link>
+    </div>
+  )
+}
+
+// ─── Game demos ──────────────────────────────────────────────────────────────
 
 function HangmanDemo() {
   const [phase, setPhase] = useState('setting')
@@ -146,95 +225,6 @@ function HangmanDemo() {
             {phase === 'guessing' && <LetterKeyboard guesses={guesses} onGuess={handleGuess} disabled={false} />}
           </>
         )}
-      </div>
-    </div>
-  )
-}
-
-function DotsAndBoxesDemo() {
-  const [edges, setEdges] = useState(Array(DB_EDGE_COUNT).fill(''))
-  const [boxes, setBoxes] = useState(Array(DB_BOX_COUNT).fill(''))
-  const [currentTurn, setCurrentTurn] = useState('X')
-  const [status, setStatus] = useState('playing')
-  const [winner, setWinner] = useState(null)
-
-  const handleMove = (index) => {
-    if (status !== 'playing') return
-    const result = applyEdgeMove(edges, boxes, index, currentTurn)
-    if (!result) return
-    const gameResult = getDotsAndBoxesWinner(result.boxes)
-    setEdges(result.edges); setBoxes(result.boxes)
-    if (gameResult) { setWinner(gameResult.winner); setStatus('finished') }
-    else if (result.completedBoxes.length === 0) setCurrentTurn(currentTurn === 'X' ? 'O' : 'X')
-  }
-
-  const reset = () => {
-    setEdges(Array(DB_EDGE_COUNT).fill('')); setBoxes(Array(DB_BOX_COUNT).fill(''))
-    setCurrentTurn('X'); setStatus('playing'); setWinner(null)
-  }
-
-  return (
-    <div className="space-y-4">
-      <DotsAndBoxesBoard board={edges} boxes={boxes} onMove={handleMove}
-        disabled={status !== 'playing'} currentTurn={currentTurn} />
-      <div className="text-center space-y-2">
-        {status === 'playing' ? (
-          <p className="font-pixel text-[10px] text-retro-cta animate-pulse">{currentTurn}&apos;S TURN</p>
-        ) : (
-          <p className={cn('font-pixel text-[10px]',
-            winner === 'X' ? 'text-retro-p1' : winner === 'O' ? 'text-retro-p2' : 'text-retro-dim')}>
-            {winner === 'draw' ? 'DRAW!' : `${winner} WINS!`}
-          </p>
-        )}
-        <button onClick={reset}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
-          RESET
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function SosDemo() {
-  const [board, setBoard] = useState(Array(SOS_CELL_COUNT).fill(''))
-  const [sosLines, setSosLines] = useState([])
-  const [currentTurn, setCurrentTurn] = useState('X')
-  const [status, setStatus] = useState('playing')
-  const [winner, setWinner] = useState(null)
-
-  const handleMove = ({ index, letter }) => {
-    if (status !== 'playing') return
-    const lines = normalizeSosLines(sosLines)
-    const result = applySosMove(board, lines, index, letter, currentTurn)
-    if (!result) return
-    const gameResult = getSosWinner(result.board, result.sosLines)
-    setBoard(result.board); setSosLines(result.sosLines)
-    if (gameResult) { setWinner(gameResult.winner); setStatus('finished') }
-    else if (result.completedCount === 0) setCurrentTurn(currentTurn === 'X' ? 'O' : 'X')
-  }
-
-  const reset = () => {
-    setBoard(Array(SOS_CELL_COUNT).fill('')); setSosLines([])
-    setCurrentTurn('X'); setStatus('playing'); setWinner(null)
-  }
-
-  return (
-    <div className="space-y-4">
-      <SosBoard board={board} sosLines={sosLines} onMove={handleMove}
-        disabled={status !== 'playing'} currentTurn={currentTurn} />
-      <div className="text-center space-y-2">
-        {status === 'playing' ? (
-          <p className="font-pixel text-[10px] text-retro-cta animate-pulse">{currentTurn}&apos;S TURN</p>
-        ) : (
-          <p className={cn('font-pixel text-[10px]',
-            winner === 'X' ? 'text-retro-p1' : winner === 'O' ? 'text-retro-p2' : 'text-retro-dim')}>
-            {winner === 'draw' ? 'DRAW!' : `${winner} WINS!`}
-          </p>
-        )}
-        <button onClick={reset}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
-          RESET
-        </button>
       </div>
     </div>
   )
@@ -1427,18 +1417,33 @@ function MathDemo() {
 // ─── Demo registry ────────────────────────────────────────────────────────────
 
 const DEMOS = [
-  { type: 'reaction',    short: 'REACTION\nTIME', Icon: ReactionIcon,    Component: ReactionDemo     },
-  { type: 'aim',         short: 'AIM\nTRAINER',   Icon: AimIcon,         Component: AimTrainerDemo   },
-  { type: 'typing',      short: 'TYPING\nRACE',   Icon: TypingIcon,      Component: TypingDemo       },
-  { type: 'math',        short: 'MENTAL\nMATH',   Icon: MathIcon,        Component: MathDemo         },
-  { type: 'tictactoe',   short: 'TTT',        Icon: TicTacToeIcon,     Component: TicTacToeDemo    },
-  { type: 'hangwoman',   short: 'HANGWOMAN',   Icon: HangwomanIcon,     Component: HangmanDemo      },
-  { type: 'dotsandboxes',short: 'DOTS &\nBOXES',Icon: DotsAndBoxesIcon, Component: DotsAndBoxesDemo },
-  { type: 'sos',         short: 'SOS',         Icon: SosIcon,           Component: SosDemo          },
-  { type: 'simon',       short: 'SIMON',       Icon: SimonIcon,         Component: SimonDemo        },
-  { type: 'chimp',       short: 'CHIMP\nTEST', Icon: ChimpIcon,         Component: ChimpDemo        },
-  { type: 'numbermemory',short: 'NUM\nMEMORY', Icon: NumberMemoryIcon,  Component: NumberMemoryDemo },
-  { type: 'visualmemory',short: 'VIS\nMEMORY', Icon: VisualMemoryIcon,  Component: VisualMemoryDemo },
+  // vs-AI board games
+  { type: 'tictactoe',    short: 'TTT',           Icon: TicTacToeIcon,    Component: () => <BotBoardDemo type="tictactoe" />    },
+  { type: 'connectfour',  short: 'CONNECT\nFOUR', Icon: ConnectFourIcon,  Component: () => <BotBoardDemo type="connectfour" />  },
+  { type: 'gomoku',       short: 'GOMOKU',        Icon: GomokuIcon,       Component: () => <BotBoardDemo type="gomoku" />       },
+  { type: 'reversi',      short: 'REVERSI',       Icon: ReversiIcon,      Component: () => <BotBoardDemo type="reversi" />      },
+  { type: 'orderchaos',   short: 'ORDER &\nCHAOS',Icon: OrderChaosIcon,   Component: () => <BotBoardDemo type="orderchaos" />   },
+  { type: 'sos',          short: 'SOS',           Icon: SosIcon,          Component: () => <BotBoardDemo type="sos" />          },
+  { type: 'dotsandboxes', short: 'DOTS &\nBOXES', Icon: DotsAndBoxesIcon, Component: () => <BotBoardDemo type="dotsandboxes" /> },
+  { type: 'dice',         short: 'PIG',           Icon: DiceIcon,         Component: () => <BotBoardDemo type="dice" />         },
+  // Skill bots
+  { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
+  { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
+  { type: 'typing',       short: 'TYPING\nRACE',  Icon: TypingIcon,       Component: TypingDemo       },
+  { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },
+  // Memory hot-seat
+  { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonDemo        },
+  { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemoryDemo },
+  { type: 'visualmemory', short: 'VIS\nMEMORY',   Icon: VisualMemoryIcon, Component: VisualMemoryDemo },
+  { type: 'chimp',        short: 'CHIMP\nTEST',   Icon: ChimpIcon,        Component: ChimpDemo        },
+  // Solo / hangwoman
+  { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
+  // Party cards (2+ players only)
+  { type: 'twotruths',    short: 'TWO\nTRUTHS',   Icon: TwoTruthsIcon,    Component: () => <PartyGameCard type="twotruths" />   },
+  { type: 'bluff',        short: 'BLUFF',         Icon: BluffIcon,        Component: () => <PartyGameCard type="bluff" />       },
+  { type: 'wavelength',   short: 'WAVE\nLENGTH',  Icon: WavelengthIcon,   Component: () => <PartyGameCard type="wavelength" />  },
+  { type: 'fibbage',      short: 'FIBBAGE',       Icon: FibbageIcon,      Component: () => <PartyGameCard type="fibbage" />     },
+  { type: 'spyfair',      short: 'SPYFAIR',       Icon: SpyfairIcon,      Component: () => <PartyGameCard type="spyfair" />     },
 ]
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
