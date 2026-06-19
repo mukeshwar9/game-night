@@ -248,6 +248,107 @@ Active change requests, grouped for implementation. *(Documented here; not yet b
 
 6. **Aim Trainer → shared / visible opponent targets.** Today each player gets an independent target (`aimTargetX` for X, `aimTargetO` for O) that only the owner scores on, with crossover handled as friendly fire — so the two players are effectively aiming at different things. Change `src/pages/AimTrainerGame.jsx` so both players compete on the **same live target(s)**, with the opponent's position shown in real time (e.g. one shared target that both race to click — first click scores and respawns it). Reconcile with, or replace, the current friendly-fire scoring.
 
+### Next games — implementation specs
+
+Concrete build specs for the recommended next games (refines the older [Game candidates](#game-candidates) brainstorm below). Sequenced by impact-per-effort and by which empty category each opens. Today every game is strictly 1v1; the party tier is the leap that needs new shared infrastructure.
+
+| # | Game | Effort | Fit | Category it opens | Prereq |
+|---|------|--------|-----|-------------------|--------|
+| 1 | Gomoku | S | registry drop-in | big-board / async abstract | — |
+| 2 | Reversi / Othello | M | registry `applyMove` | capture-and-flip strategy | — |
+| 3 | Order & Chaos | S | registry `applyMove` | asymmetric objectives | Gomoku (win-scan), SOS (letter UI) |
+| 4 | Push-your-luck dice | S–M | registry `applyMove` | luck / press-your-luck | — |
+| 5 | Two Truths & a Lie | S | custom page | social / about-the-people | — |
+| 6 | Bluff Battle (Liar's Dice) | M | custom page | bluffing + dice | — |
+| 7 | **N-player room model** | M | infra | (enables 8–11) | — |
+| 8 | Wavelength | L (incl. infra) | custom page (N-player) | party / 3+ / prompt deck | #7 |
+| 9 | Fibbage (lie & vote) | M | custom page (N-player) | bluffing trivia | #7 |
+| 10 | Spyfair (hidden role) | M | custom page (N-player) | social deduction | #7 + per-player-private data |
+| 11 | Rivalry Series | M | meta wrapper | retention (grudge match) | any new game |
+| 12 | Daily Puzzle | M | custom page | retention (daily/async) | reuses existing skill games |
+
+**How a game gets added** (recap): a logic file in `src/lib/`, a board component in `src/components/`, an icon in `GameIcons.jsx`, and a single `GAME_TYPES` entry in `src/lib/games.js` (+ a `freshGameState` branch if its initial state isn't an empty board). Standard place→flip→win games are pure registry; non-standard turns use the `applyMove`/`boardProps` hooks (Dots & Boxes, SOS); bespoke flows are full custom pages dispatched from `Game.jsx` (Hangwoman, the skill duels). Hidden information uses the salted SHA-256 commit-reveal primitive in `src/lib/commit.js`.
+
+#### Tier A — 2-player board games (registry)
+
+**1. Gomoku (5-in-a-row, 15×15)** · S · registry drop-in
+- *Data:* `board: string[225]` (`'' | 'X' | 'O'`), `currentTurn`, `winner`, `winningLine: number[5]`. No new state shape — default `freshGameState` works.
+- *Files:* `src/lib/gomokuLogic.js` (`getWinner` + `getMoveIndex`), `src/components/GomokuBoard.jsx` (15×15 grid, intersection stones, scrolls/scales on mobile), icon, one `GAME_TYPES` entry.
+- *Logic:* `getMoveIndex = (board, i) => (board[i] ? -1 : i)` (identical to TTT). `getWinner` generalizes `connectFourLogic`'s directional scan: for each filled cell scan the 4 directions (→, ↓, ↘, ↙) for a run of ≥5 same marks; return `{ winner, line }` with the 5 indices; draw when full. Add a `gomokuLogic.test.js` modelled on `connectFourLogic.test.js`.
+- *Registry:* `boardSize: 225, getMoveIndex, getWinner, BoardComponent: GomokuBoard, maxWidth: 'max-w-md', badge: 'G5'`.
+- *Notes:* ship vanilla; if first-move advantage is a problem later, add a swap2 opening as an `applyMove` variant. Decisive 5-line looks great on the share card.
+
+**2. Reversi / Othello** · M · registry `applyMove`
+- *Data:* `board: string[64]`, `currentTurn`. Needs a `freshGameState` branch seeding the 4 centre discs (indices 27/36 = one colour, 28/35 = the other).
+- *Files:* `src/lib/reversiLogic.js` (`legalMoves(board, symbol)`, `applyDisc(board, index, symbol)` → flipped board, `getReversiWinner`), `src/components/ReversiBoard.jsx` (8×8, disc flip animation reusing the Connect Four `disc-drop`/`place-pop` keyframes), icon, registry entry.
+- *Logic (in `applyMove` hook):* reject moves that don't flank ≥1 line; place the disc and flip all bracketed runs in the 8 directions; set `currentTurn` to the opponent **unless** they have no legal move (pass — keep turn); if **neither** side has a legal move, return `result` from `getReversiWinner` (higher disc count wins; equal = draw). `getMoveIndex = (board, i) => (legal ? i : -1)`.
+- *Registry:* `boardSize: 64, getMoveIndex, applyMove, BoardComponent: ReversiBoard, maxWidth: 'max-w-sm', badge: 'OTH'`.
+- *Notes:* this is the Dots & Boxes pattern (custom `applyMove`, no `getWinner`); the only hard parts are legality + the no-move pass. The 20-disc last-move swing is the strongest rematch driver of any abstract game.
+
+**3. Order & Chaos** · S · registry `applyMove` (build alongside Gomoku)
+- *Data:* `board: string[36]` holding **letters** (`'' | 'X' | 'O'`), `currentTurn`. Move payload `{ index, letter }` like SOS.
+- *Files:* `src/lib/orderChaosLogic.js` (reuses Gomoku's run-scan, tuned to runs of 5 on a 6×6), a board component that reuses the SOS letter-picker UI (drop the line-drawing), icon, registry entry with `applyMove` + `boardProps`.
+- *Logic:* roles fixed by seat — **X = Order** (wins by making 5-in-a-row of *either* letter), **O = Chaos** (wins if the board fills with no 5). `applyMove` writes the chosen letter and flips turn (simpler than SOS — no extra turns). `getOrderChaosWinner`: any 5-run → Order wins; full board, no run → Chaos wins.
+- *Notes:* nearly free once Gomoku (win-scan) and SOS (letter UI) exist. High novelty-per-line; lower social wattage, so bundle it as a combo, not a headliner.
+
+**4. Push-your-luck dice (Zombie Dice / Pig+)** · S–M · registry `applyMove` (or small custom page)
+- *Data:* `dice: number[]` (current roll), `turnScore`, `scores`, `phase: 'rolling' | 'busted'`, `currentTurn`. First to 100 (or best-of via the existing match shell).
+- *Files:* `src/lib/diceLogic.js`, board component showing dice + ROLL / BANK actions, icon, registry entry.
+- *Logic:* the roll is authoritative-by-mover — the player whose turn it is rolls in `applyMove` and writes the dice to RTDB so both clients render identical results (same trust model as the rest of the app; no client-rolls-then-claims). ROLL: new dice; on a bust, zero `turnScore` and pass turn. BANK: add `turnScore` to score, pass turn. Win when a banked score hits the target.
+- *Notes:* cheapest brand-new category (luck) and the gentlest first test of a multi-turn loop. Symbol dice (Zombie Dice) add decision texture over plain Pig at the same cost.
+
+#### Tier B — 2-player social / bluff (custom pages)
+
+**5. Two Truths & a Lie** · S · custom page
+- *Data:* `round: { setter, phase: 'writing' | 'guessing' | 'reveal', statements: string[3], commitment, guess }`. Roles alternate each round; reuse the existing `scores` + best-of-3 shell.
+- *Files:* `src/pages/TwoTruthsGame.jsx`, a `Game.jsx` dispatch branch, a registry `custom: true` entry, icon.
+- *Flow:* clones the Hangwoman setter/guesser structure. The setter writes 3 statements (public) and which one is the lie; commit the lie index with `commit.js` (keep the index in `sessionStorage` like `hangwoman-word-{gameId}`) so the guesser can't peek via the DB. Guesser picks; setter's client reveals + verifies; **guesser scores** for catching the lie, **setter scores** for fooling. (Plaintext lie-index is acceptable given the trust model, but commit-reveal is ~free here.)
+- *Notes:* highest fun-per-line and the cheapest *social* game; extends to 3+ trivially once the N-player model lands.
+
+**6. Bluff Battle (Liar's Dice / Perudo)** · M · custom page
+- *Data:* `round: { commitX, commitO, bids: [{ by, qty, face }], turn, revealX, revealO }`, plus a per-player dice count for elimination. Each player's roll is held in `sessionStorage` (`bluff-roll-{gameId}`).
+- *Files:* `src/pages/BluffBattleGame.jsx`, dispatch branch, registry entry, icon.
+- *Flow:* each player rolls 5 hidden dice locally and publishes a salted `commit.js` hash. Players alternate raising the bid ("there are ≥ N dice showing face F across both cups"); calling **LIAR** makes both clients publish `{ dice, salt }`, verify against the commitments, count the face (1s wild, optional Perudo rule) and award the loser a die-loss; out of dice = out. Provably cheat-proof with no server.
+- *Notes:* opens bluffing **and** dice at once and is the perfect showcase for commit-reveal + the new emote bar — the LIAR flip is a guaranteed emote storm.
+
+#### Tier C — party / 3+ players (needs the N-player room model)
+
+**7. N-player room model** · M · infra (prerequisite for 8–10)
+- *Today:* strictly `players: { X, O }`, `mySymbol ∈ X|O|null`, `scores: { X, O }`, `currentTurn ∈ X|O`.
+- *Add:* a `players` map keyed by `playerId` (seat order derived from `joinedAt`), `scores` keyed by `playerId`, a `maxPlayers` field on the registry entry, and a host-driven **START** (status stays `waiting` until the host starts, instead of auto-flipping to `playing` on the 2nd join). Generalize the `Game.jsx` join transaction to claim the **next free seat** up to `maxPlayers` (rather than only the `O` slot), and relax the spectator/`mySymbol` logic so party pages read the whole players map.
+- *Also:* a prompt-deck convention — bundle static content arrays like the existing `PASSAGES` in `games.js`, e.g. `src/lib/decks/{wavelength,fibbage,spyfair}.js`.
+- *Notes:* party games are custom pages that ignore X/O. Build this **with** Wavelength (below) so the cost is paid once and amortized across Fibbage, Spyfair, and any future team/co-op modes.
+
+**8. Wavelength** · L (includes #7) · custom page
+- *Data:* `round: { clueGiver, phase: 'clue' | 'guessing' | 'reveal', spectrum: { left, right }, commitment, clue, guesses: { [playerId]: 0–100 } }`; `scores` per `playerId`.
+- *Files:* `src/pages/WavelengthGame.jsx`, dispatch branch, registry (`custom: true, maxPlayers: 8`), icon, `src/lib/decks/wavelength.js` (spectrum pairs).
+- *Flow:* the clue-giver's client picks a hidden target (0–100), commits it (`commit.js`, target in `sessionStorage`), and types a one-word clue; everyone else drags a dial; on reveal the clue-giver publishes target + salt, the client verifies, and each guesser scores inversely to distance. Rotate the clue-giver each round.
+- *Notes:* near-zero rules, pure banter — the build that turns this into a real game-night app. Accept the L cost knowing #7 is reused by every party game after it.
+
+**9. Fibbage (lie & vote)** · M · custom page (after #7/#8)
+- *Data:* `round: { phase: 'lying' | 'voting' | 'reveal', prompt, realAnswer, lies: { [playerId]: text }, options: [...shuffled], votes: { [playerId]: optionId } }`.
+- *Files:* `src/pages/FibbageGame.jsx`, dispatch, registry, icon, `src/lib/decks/fibbage.js` (`[{ prompt, answer }]`).
+- *Flow:* everyone secretly submits a fake answer (commit it so nobody copies), reveal shuffles real + fakes, everyone votes; score **+** for picking the real answer and **+** for each player your lie fooled. Mostly Wavelength's phase machine + a vote UI.
+- *Notes:* highest party payoff after Wavelength; the real lift is writing a good fact deck.
+
+**10. Spyfair (one-secret-imposter deduction)** · M · custom page (after #7)
+- *Data:* `round: { phase: 'reveal' | 'questioning' | 'vote' | 'result', spy: playerId, timerEnds, votes: { [voter]: accused } }`, plus **per-player-private** `round/private/{playerId} = { role, location }`.
+- *Files:* `src/pages/SpyfairGame.jsx`, dispatch, registry, icon, `src/lib/decks/spyfair.js` (locations).
+- *Flow:* assign the location to everyone except one random spy; each client reads only its own private node (true per-player secrecy ideally needs anon-auth + read rules; until then write each secret to the player's own key on the trust model). Questioning happens out-of-band (friends talking); the app runs a timer, a vote, and a reveal. Spy wins by evading the vote or guessing the location.
+- *Notes:* lowest-content deduction game; it hardens the per-player-private-data part of the room model that the other party games don't exercise.
+
+#### Tier D — retention layers (not new boards)
+
+**11. Rivalry Series** · M · meta wrapper
+- *Data:* `series: { games: gameType[], legIndex, scores: { [playerId]: n }, target }` + a banner above the existing end-of-game proposal flow.
+- *Files:* mostly `Game.jsx` glue (+ optional `src/lib/series.js`); no new game logic.
+- *Flow:* reuse the propose/switch handshake to advance to the next leg, roll up a running series score across games, and fire `shareResult` on clinch with the all-time head-to-head line pulled from `profile.js`. Sequence after ≥1 new game ships so there's fresh content to wrap.
+
+**12. Daily Puzzle** · M · custom page
+- *Data:* a date-seeded puzzle (reuse `generateSeed`/`mathLogic`) so every client derives an identical board with no server; results stored under the persistent crew node for a fan-out leaderboard read.
+- *Files:* `src/pages/DailyGame.jsx` (or a daily mode), reusing existing skill-game logic (start with a daily Mental Math or Number Memory gauntlet), then a daily commit-reveal word round.
+- *Flow:* play solo on your own clock against the day's seed; compare on the crew leaderboard; each run calls `shareResult`. The only pick that creates a reason to open the app daily with no opponent online — build it once there's a library worth returning to.
+
 ### Game candidates
 
 Two-player games that fit the platform, tiered by how far they stretch the current architecture (shared visible board-as-array, alternating turns, a `getWinner` function per game, score tracking, win-line highlight).

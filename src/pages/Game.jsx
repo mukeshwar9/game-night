@@ -17,11 +17,17 @@ import ReactionGame from './ReactionGame'
 import AimTrainerGame from './AimTrainerGame'
 import TypingGame from './TypingGame'
 import MathGame from './MathGame'
+import TwoTruthsGame from './TwoTruthsGame'
+import BluffBattleGame from './BluffBattleGame'
+import WavelengthGame from './WavelengthGame'
+import FibbageGame from './FibbageGame'
+import SpyfairGame from './SpyfairGame'
 import ProposalBanner from '../components/ProposalBanner'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import ThemeSwitcher from '../components/ThemeSwitcher'
+import RulesModal, { RulesButton } from '../components/RulesModal'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -31,6 +37,37 @@ function toArray(val) {
   if (!val) return []
   if (Array.isArray(val)) return val
   return Object.values(val)
+}
+
+function playersToSeatList(players) {
+  return Object.values(players || {})
+    .filter(p => p && p.playerId)
+    .map(p => ({ name: p.name, playerId: p.playerId, joinedAt: p.joinedAt || 0 }))
+    .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0) || String(a.playerId).localeCompare(String(b.playerId)))
+}
+
+function buildSwitchUpdates(game, newType) {
+  const newCfg = getGameConfig(newType)
+  const seats = playersToSeatList(game.players)
+  const base = {
+    gameType: newType,
+    ...freshGameState(newType),
+    winner: null,
+    winningLine: null,
+    proposal: null,
+    lastActivityAt: Date.now(),
+  }
+  if (newCfg.nPlayer) {
+    const players = {}
+    for (const s of seats) {
+      players[s.playerId] = { name: s.name, playerId: s.playerId, joinedAt: s.joinedAt, online: true }
+    }
+    return { ...base, players, scores: {}, status: 'waiting' }
+  }
+  const players = {}
+  if (seats[0]) players.X = { name: seats[0].name, playerId: seats[0].playerId, joinedAt: seats[0].joinedAt }
+  if (seats[1]) players.O = { name: seats[1].name, playerId: seats[1].playerId, joinedAt: seats[1].joinedAt }
+  return { ...base, players, scores: { X: 0, O: 0 }, status: seats.length >= 2 ? 'playing' : 'waiting' }
 }
 
 function LoadingScreen() {
@@ -59,6 +96,7 @@ export default function Game() {
   const prevEmoteTs = useRef(0)
   const emoteInit = useRef(false)
   const [muted, setMuted] = useState(() => sounds.isMuted())
+  const [showRules, setShowRules] = useState(false)
   const [needName, setNeedName] = useState(false)
   const [nameVersion, setNameVersion] = useState(0)
   const [nameInput, setNameInput] = useState('')
@@ -68,6 +106,7 @@ export default function Game() {
   const prevTurn = useRef(null)
   const prevFilledCount = useRef(0)
   const prevProposal = useRef(null)
+  const nPlayerCleanup = useRef(null)
 
   // Firebase init: join room, set up listeners, set up presence
   useEffect(() => {
@@ -112,6 +151,37 @@ export default function Game() {
       if (lastActive && Date.now() - lastActive > GAME_TTL_MS) {
         setError('THIS GAME HAS EXPIRED. CREATE A NEW ONE!')
         setLoading(false)
+        return
+      }
+
+      const cfgData = getGameConfig(data.gameType)
+      if (cfgData.nPlayer) {
+        const myId = getPlayerId()
+        let amPlayer = !!data.players?.[myId]
+        if (amPlayer) {
+          try { await update(ref(db, `games/${gameId}/players/${myId}`), { name: playerName }) } catch { /* ignore */ }
+        } else if (data.status === 'waiting' && Object.keys(data.players || {}).length < (cfgData.maxPlayers || 8)) {
+          try {
+            const { committed } = await runTransaction(
+              ref(db, `games/${gameId}/players/${myId}`),
+              cur => { if (cur) return; return { name: playerName, joinedAt: Date.now(), playerId: myId, online: true } }
+            )
+            amPlayer = committed
+          } catch { amPlayer = false }
+        }
+        if (cancelled) return
+        setLoading(false)
+        if (amPlayer) recordRoom({ id: gameId, gameType: data.gameType })
+        unsubGame = onValue(gameRef, snap => { if (!cancelled && snap.exists()) setGame(snap.val()) })
+        if (amPlayer) {
+          const presRef = ref(db, `games/${gameId}/players/${myId}/online`)
+          unsubPresence = onValue(ref(db, '.info/connected'), snap => {
+            if (cancelled || !snap.val()) return
+            onDisconnect(presRef).set(false)
+            dbSet(presRef, true)
+          })
+          nPlayerCleanup.current = myId
+        }
         return
       }
 
@@ -197,7 +267,11 @@ export default function Game() {
       if (unsubPresence) unsubPresence()
       if (unsubOpPresence) unsubOpPresence()
       // Mark offline on clean unmount (tab navigation)
-      if (mySymbol.current && db) {
+      if (nPlayerCleanup.current && db) {
+        const presRef = ref(db, `games/${gameId}/players/${nPlayerCleanup.current}/online`)
+        onDisconnect(presRef).cancel().catch(() => {})
+        dbSet(presRef, false).catch(() => {})
+      } else if (mySymbol.current && db) {
         const presRef = ref(db, `games/${gameId}/presence/${mySymbol.current}`)
         onDisconnect(presRef).cancel().catch(() => {})
         dbSet(presRef, { online: false }).catch(() => {})
@@ -208,6 +282,11 @@ export default function Game() {
   // Sounds + win effect — react to game state changes
   useEffect(() => {
     if (!game) return
+
+    if (getGameConfig(game.gameType).nPlayer) {
+      prevStatus.current = game.status
+      return
+    }
 
     if (prevStatus.current === 'waiting' && game.status === 'playing') {
       sounds.join()
@@ -383,18 +462,29 @@ export default function Game() {
   const applySwitchGame = async (newType) => {
     sessionStorage.removeItem(`hangwoman-word-${gameId}`)
     try {
-      await update(ref(db, `games/${gameId}`), {
-        gameType: newType,
-        ...freshGameState(newType),
-        status: 'playing',
-        winner: null,
-        winningLine: null,
-        'scores/X': 0,
-        'scores/O': 0,
-        proposal: null,
-        lastActivityAt: Date.now(),
-      })
+      await update(ref(db, `games/${gameId}`), buildSwitchUpdates(game, newType))
     } catch { toast.error('SWITCH FAILED — CHECK CONNECTION') }
+  }
+
+  // --- N-player (party game) actions ---
+  const handleNStart = async () => {
+    const cfg = getGameConfig(game.gameType)
+    const sr = cfg.startRound ? cfg.startRound(game.players || {}) : null
+    if (!sr) return // spyfair drives its own start
+    try {
+      await update(ref(db, `games/${gameId}`), {
+        status: 'playing', winner: null, ...sr, proposal: null, lastActivityAt: Date.now(),
+      })
+    } catch { toast.error('START FAILED — CHECK CONNECTION') }
+  }
+
+  const applyNNewMatch = async () => {
+    try {
+      await update(ref(db, `games/${gameId}`), {
+        ...freshGameState(game.gameType),
+        status: 'waiting', winner: null, scores: {}, proposal: null, lastActivityAt: Date.now(),
+      })
+    } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
   }
 
   // Propose or apply directly (if solo / opponent offline)
@@ -501,6 +591,87 @@ export default function Game() {
 
   const cfg = getGameConfig(game.gameType)
   const isCustom = !!cfg.custom
+
+  if (cfg.nPlayer) {
+    const mySeat = getPlayerId()
+    const nplayers = game.players || {}
+    const seatList = playersToSeatList(nplayers)
+    const isHost = seatList[0]?.playerId === mySeat
+    const amSeated = !!nplayers[mySeat]
+    const nProps = {
+      gameId, game, mySeat, players: nplayers, isHost,
+      onStart: handleNStart,
+      onSwitchGame: (t) => applySwitchGame(t),
+      onNewMatch: applyNNewMatch,
+      proposal: null,
+    }
+    return (
+      <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        {showRules && (
+          <RulesModal gameType={game.gameType} onClose={() => setShowRules(false)} />
+        )}
+        {floatEmote && (
+          <div className="fixed inset-x-0 top-1/3 z-50 pointer-events-none flex justify-center">
+            <div className="text-6xl" style={{ animation: 'emote-float 2s ease-out forwards' }}>
+              {floatEmote.glyph}
+            </div>
+          </div>
+        )}
+        <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
+          <div className="flex items-center justify-between">
+            <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors">← HOME</Link>
+            <div className="flex items-center gap-3">
+              <ThemeSwitcher />
+              <RulesButton onClick={() => setShowRules(true)} />
+              <button
+                onClick={toggleMute}
+                title={muted ? 'Unmute sounds' : 'Mute sounds'}
+                className="text-retro-dim hover:text-retro-text transition-colors p-1 rounded"
+              >
+                {muted ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Unmute">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Mute">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                  </svg>
+                )}
+              </button>
+              {cfg.badge && (
+                <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
+              )}
+              <span className="font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
+            </div>
+          </div>
+
+          {game.gameType === 'wavelength' ? (
+            <WavelengthGame {...nProps} />
+          ) : game.gameType === 'fibbage' ? (
+            <FibbageGame {...nProps} />
+          ) : (
+            <SpyfairGame {...nProps} />
+          )}
+
+          {amSeated && game.status !== 'waiting' && (
+            <div className="flex justify-center gap-1.5 pt-1">
+              {EMOTES.map(g => (
+                <button
+                  key={g}
+                  onClick={() => sendEmote(g)}
+                  aria-label={`Send ${g} reaction`}
+                  className="w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all"
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const board = isCustom ? [] : normalizeBoard(game.board, cfg.boardSize)
   const winningLine = toArray(game.winningLine)
   const isSpectator = !mySymbol.current
@@ -526,6 +697,10 @@ export default function Game() {
         <WinEffect winner={winEffectWinner} intensity={winEffectIntensity} onDone={() => setShowWinEffect(false)} />
       )}
 
+      {showRules && (
+        <RulesModal gameType={game.gameType} onClose={() => setShowRules(false)} />
+      )}
+
       {floatEmote && (
         <div className="fixed inset-x-0 top-1/3 z-50 pointer-events-none flex justify-center">
           <div className="text-6xl" style={{ animation: 'emote-float 2s ease-out forwards' }}>
@@ -542,6 +717,7 @@ export default function Game() {
           </Link>
           <div className="flex items-center gap-3">
             <ThemeSwitcher />
+            <RulesButton onClick={() => setShowRules(true)} />
             <button
               onClick={toggleMute}
               title={muted ? 'Unmute sounds' : 'Mute sounds'}
@@ -674,6 +850,26 @@ export default function Game() {
               opponentOnline={opponentOnline}
               onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
               onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'twotruths' ? (
+            <TwoTruthsGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'bluff' ? (
+            <BluffBattleGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />

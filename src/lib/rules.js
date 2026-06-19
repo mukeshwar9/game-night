@@ -1,0 +1,224 @@
+// Static, client-side tutorial text for every game in the GAME_TYPES registry
+// (src/lib/games.js). Keyed by `gameType`. Each entry is { objective, howToPlay,
+// win } — rendered by src/components/RulesModal.jsx. Titles are NOT stored here;
+// the modal pulls the registry `label` so display names never drift.
+//
+// To add rules for a new game, add an entry keyed by its `type`.
+
+export const GAME_RULES = {
+  tictactoe: {
+    objective: 'Be the first to line up three of your marks in a row.',
+    howToPlay: [
+      'Players take turns — one is X, the other is O.',
+      'Tap any empty square to place your mark.',
+    ],
+    win: 'Get 3 in a row across, down, or diagonally to win. If the board fills with no line, it’s a draw.',
+  },
+
+  connectfour: {
+    objective: 'Connect four of your discs in a line before your opponent does.',
+    howToPlay: [
+      'Take turns dropping a disc into one of the 7 columns.',
+      'Discs fall to the lowest empty slot — you only choose the column.',
+    ],
+    win: 'Line up 4 of your discs horizontally, vertically, or diagonally to win. A full board with no four-in-a-row is a draw.',
+  },
+
+  hangwoman: {
+    objective: 'As the guesser, uncover the hidden word before you run out of guesses.',
+    howToPlay: [
+      'One player secretly sets a word; the word is never sent to the server until the reveal.',
+      'The other player guesses letters one at a time.',
+      'Each wrong letter adds to the miss count — too many and the round is lost.',
+    ],
+    win: 'Reveal every letter of the word to win. Run out of guesses and the setter wins the round.',
+  },
+
+  dotsandboxes: {
+    objective: 'Claim more of the 16 boxes than your opponent.',
+    howToPlay: [
+      'Take turns drawing one edge between two dots.',
+      'Complete the 4th side of a box to claim it and stamp it with your mark.',
+      'Completing a box earns you an extra turn — keep going while you keep closing boxes.',
+    ],
+    win: 'Own the most boxes when all 16 are claimed. First to 9 clinches it early; 8–8 is a draw.',
+  },
+
+  sos: {
+    objective: 'Spell more "S-O-S" sequences than your opponent on the 7×7 grid.',
+    howToPlay: [
+      'On your turn, place either an S or an O in any empty cell.',
+      'Form S-O-S in a row, column, or diagonal to score that sequence.',
+      'Complete at least one S-O-S and you take another turn.',
+    ],
+    win: 'When the board fills, the player who made the most S-O-S sequences wins. Equal counts draw.',
+  },
+
+  simon: {
+    objective: 'Out-memorize your opponent in a back-and-forth sequence duel.',
+    howToPlay: [
+      'Watch the pattern of lit pads, then tap them back in the exact order.',
+      'Repeat the sequence correctly, then add one new pad to pass it back.',
+    ],
+    win: 'Tap a wrong pad and you lose. The last player to recall the growing sequence wins.',
+  },
+
+  chimp: {
+    objective: 'Remember the positions of numbered tiles and tap them in order.',
+    howToPlay: [
+      'Numbers briefly appear on a 5×5 grid, then hide.',
+      'Tap the cells in ascending numeric order from memory.',
+      'Clear a level and the next one adds another number.',
+    ],
+    win: 'One wrong tap ends your run — outlast your opponent to win.',
+  },
+
+  numbermemory: {
+    objective: 'Recall a growing sequence of digits.',
+    howToPlay: [
+      'A number flashes on screen, then disappears.',
+      'Type the digits back exactly from memory.',
+      'Each correct answer adds another digit next round.',
+    ],
+    win: 'Miss the sequence and you’re out — the player who remembers the longest number wins.',
+  },
+
+  reaction: {
+    objective: 'React faster than your opponent across four rounds.',
+    howToPlay: [
+      'Wait for the screen to turn green — don’t jump early.',
+      'Tap the instant it changes; your reaction time is recorded.',
+      'Play four rounds.',
+    ],
+    win: 'The lower average reaction time across the rounds wins.',
+  },
+
+  aim: {
+    objective: 'Pop 30 targets as fast and accurately as you can.',
+    howToPlay: [
+      'Targets appear one at a time — click each as quickly as possible.',
+      'Both players race through the same set of 30 targets.',
+    ],
+    win: 'Best combination of speed and accuracy wins the duel.',
+  },
+
+  typing: {
+    objective: 'Type the passage faster than your opponent’s ghost.',
+    howToPlay: [
+      'Both players type the same passage as quickly and accurately as possible.',
+      'Your opponent’s progress shows as a live ghost you’re racing.',
+    ],
+    win: 'Highest words-per-minute (adjusted for accuracy) wins.',
+  },
+
+  math: {
+    objective: 'Solve as many problems as you can in a two-minute blitz.',
+    howToPlay: [
+      'Answer arithmetic questions one after another.',
+      'Correct answers build your score and streak; both players get the same questions.',
+    ],
+    win: 'Highest score when the two-minute clock runs out wins.',
+  },
+
+  visualmemory: {
+    objective: 'Memorize and reproduce a pattern of lit tiles.',
+    howToPlay: [
+      'Tiles flash on a 4×4 grid, then go dark.',
+      'Tap every tile that was lit, from memory.',
+      'Each cleared level adds more tiles to remember.',
+    ],
+    win: 'Reproduce patterns longer than your opponent to win.',
+  },
+
+  gomoku: {
+    objective: 'Be the first to get five of your stones in a row.',
+    howToPlay: [
+      'Take turns placing a stone on any empty point of the 15×15 board.',
+    ],
+    win: 'Line up exactly five in a row — horizontally, vertically, or diagonally — to win.',
+  },
+
+  reversi: {
+    objective: 'Finish with more discs of your color on the board.',
+    howToPlay: [
+      'Place a disc so it flanks a line of your opponent’s discs between it and one of yours.',
+      'All flanked discs flip to your color.',
+      'Every move must capture at least one disc; if you have no legal move, your turn is skipped.',
+    ],
+    win: 'When neither side can move, the color with more discs wins. Equal counts draw.',
+  },
+
+  orderchaos: {
+    objective: 'Asymmetric duel — Order wants a line of five, Chaos wants to stop it.',
+    howToPlay: [
+      'On your turn, place either an X or an O in any empty cell (either player may place either letter).',
+      'Order plays first and aims to build a run of five.',
+      'Chaos aims to fill the board without any five-in-a-row appearing.',
+    ],
+    win: 'Order wins by making five of the same letter in a row. Chaos wins if the 6×6 board fills with no such line.',
+  },
+
+  dice: {
+    objective: 'Be the first to bank 100 points by pushing your luck.',
+    howToPlay: [
+      'On your turn, roll the die as many times as you dare — each roll adds to your at-risk total.',
+      'Bank to add your at-risk points to your score and pass the dice.',
+      'Roll a 1 and you lose all at-risk points for the turn and the dice pass.',
+    ],
+    win: 'First player to reach 100 banked points wins.',
+  },
+
+  twotruths: {
+    objective: 'As the guesser, spot which of three statements is the lie.',
+    howToPlay: [
+      'One player writes two true statements and one lie about themselves.',
+      'The other player reads all three and picks the one they think is false.',
+    ],
+    win: 'Guess the lie correctly to win the round; get fooled and the writer wins.',
+  },
+
+  bluff: {
+    objective: 'Liar’s dice — bluff about the hidden dice and call your opponent’s bluffs.',
+    howToPlay: [
+      'Each player secretly rolls their own dice.',
+      'Take turns raising the bid — claim how many dice across BOTH cups show a given face (1s are wild).',
+      'Instead of bidding, call "Liar" to challenge the last bid.',
+    ],
+    win: 'On a challenge, the dice are revealed: if the bid is met the caller loses a die, otherwise the bidder does. Lose all your dice and you’re out.',
+  },
+
+  wavelength: {
+    objective: 'Team guessing — read your clue-giver’s mind to land near the hidden target on a spectrum.',
+    howToPlay: [
+      '3–8 players. Each round one player is the clue-giver and sees a hidden target on a 0–100 dial between two opposites.',
+      'The clue-giver gives one word or phrase that hints where the target sits.',
+      'Everyone else moves the dial to where they think the target is.',
+    ],
+    win: 'The closer your guess to the hidden target, the more points you score (bullseye = 50). The role rotates each round.',
+  },
+
+  fibbage: {
+    objective: 'Fool others with fake answers while finding the real one.',
+    howToPlay: [
+      '3–8 players. Everyone sees a trivia prompt with a missing answer.',
+      'Secretly write a believable fake answer (a lie).',
+      'All lies are shuffled in with the truth — then everyone votes for the answer they think is real.',
+    ],
+    win: 'Score for finding the truth, and for every player your lie fools. Most points wins.',
+  },
+
+  spyfair: {
+    objective: 'Find the spy in your midst — or, as the spy, survive without being caught.',
+    howToPlay: [
+      '3–8 players. Everyone shares a secret location and a role — except one random player, the spy, who knows neither.',
+      'Players ask each other questions to expose who doesn’t know the location, without giving it away to the spy.',
+      'When time runs out, everyone votes on who they think is the spy.',
+    ],
+    win: 'The group wins if a clear majority votes for the actual spy. Otherwise the spy wins. First to 3 round wins takes the match.',
+  },
+}
+
+// Returns the rules object for a game type, or null if none is defined.
+export function getRules(type) {
+  return GAME_RULES[type] ?? null
+}

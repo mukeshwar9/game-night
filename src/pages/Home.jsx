@@ -45,17 +45,35 @@ export default function Home() {
     setLoading(gameType)
     try {
       const gameId = generateGameId()
-      const gameData = {
-        gameType,
-        status: 'waiting',
-        scores: { X: 0, O: 0 },
-        createdAt: Date.now(),
-        lastActivityAt: Date.now(),
-        players: { X: { name: playerName, joinedAt: Date.now(), playerId: getPlayerId() } },
-        ...freshGameState(gameType),
+      const cfg = getGameConfig(gameType)
+      const myId = getPlayerId()
+      let gameData
+      if (cfg.nPlayer) {
+        const now = Date.now()
+        gameData = {
+          gameType,
+          status: 'waiting',
+          scores: {},
+          createdAt: now,
+          lastActivityAt: now,
+          players: { [myId]: { name: playerName, joinedAt: now, playerId: myId, online: true } },
+          ...freshGameState(gameType),
+        }
+      } else {
+        gameData = {
+          gameType,
+          status: 'waiting',
+          scores: { X: 0, O: 0 },
+          createdAt: Date.now(),
+          lastActivityAt: Date.now(),
+          players: { X: { name: playerName, joinedAt: Date.now(), playerId: myId } },
+          ...freshGameState(gameType),
+        }
       }
       await set(ref(db, `games/${gameId}`), gameData)
-      sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+      if (!cfg.nPlayer) {
+        sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+      }
       recordRoom({ id: gameId, gameType })
       navigate(`/game/${gameId}`)
     } catch {

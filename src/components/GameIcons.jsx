@@ -187,3 +187,120 @@ export function AimIcon() {
     </svg>
   )
 }
+
+export function GomokuIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {[5, 12, 19].map(p => (
+        <g key={p}>
+          <line x1={p} y1="3" x2={p} y2="21" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+          <line x1="3" y1={p} x2="21" y2={p} stroke="currentColor" strokeWidth="1" opacity="0.5" />
+        </g>
+      ))}
+      <circle cx="5" cy="5" r="2.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+      <circle cx="19" cy="19" r="2.5" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function ReversiIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2" y="2" width="20" height="20" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="8" cy="8" r="3" fill="currentColor" />
+      <circle cx="16" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="8" cy="16" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="16" cy="16" r="3" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function OrderChaosIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* X */}
+      <line x1="3" y1="3" x2="10" y2="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="10" y1="3" x2="3" y2="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      {/* O */}
+      <circle cx="17" cy="17" r="4.5" stroke="currentColor" strokeWidth="2.5" />
+    </svg>
+  )
+}
+
+export function DiceIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="8" cy="8" r="1.6" fill="currentColor" />
+      <circle cx="16" cy="8" r="1.6" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="8" cy="16" r="1.6" fill="currentColor" />
+      <circle cx="16" cy="16" r="1.6" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function TwoTruthsIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* two checks */}
+      <polyline points="2,8 5,11 10,5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="2,16 5,19 10,13" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {/* one cross (the lie) */}
+      <line x1="15" y1="9" x2="22" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+      <line x1="22" y1="9" x2="15" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+    </svg>
+  )
+}
+
+export function BluffIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* domino mask — bluff */}
+      <path d="M3 8 Q12 4 21 8 Q21 15 12 15 Q3 15 3 8 Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <circle cx="8.5" cy="9.5" r="1.6" fill="currentColor" />
+      <circle cx="15.5" cy="9.5" r="1.6" fill="currentColor" />
+      <line x1="6" y1="18" x2="18" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function WavelengthIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* gauge arc */}
+      <path d="M3 18 A9 9 0 0 1 21 18" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      {/* needle */}
+      <line x1="12" y1="18" x2="16" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="18" r="1.8" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function FibbageIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* speech bubble */}
+      <path d="M3 4 H21 V16 H9 L4 20 V16 H3 Z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round" />
+      {/* ... dots */}
+      <circle cx="8" cy="10" r="1.3" fill="currentColor" />
+      <circle cx="12" cy="10" r="1.3" fill="currentColor" />
+      <circle cx="16" cy="10" r="1.3" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function SpyfairIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* hat brim + crown */}
+      <ellipse cx="12" cy="13" rx="10" ry="2.5" fill="currentColor" />
+      <path d="M6 13 Q7 5 12 5 Q17 5 18 13 Z" fill="currentColor" opacity="0.85" />
+      {/* glasses hint */}
+      <circle cx="9" cy="18" r="2" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="15" cy="18" r="2" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="11" y1="18" x2="13" y2="18" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  )
+}
