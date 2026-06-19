@@ -22,7 +22,8 @@ import { applyGuess, isWordGuessed, countWrong, MAX_WRONG } from '../lib/hangman
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
-import { getGameConfig, freshGameState } from '../lib/games'
+import { getGameConfig, freshGameState, GAME_CATEGORIES, getPlayerTag } from '../lib/games'
+import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -1450,7 +1451,16 @@ const DEMOS = [
 
 export default function Demo() {
   const [selected, setSelected] = useState('tictactoe')
+  const [activeCat, setActiveCat] = useState('board')
   const active = DEMOS.find(d => d.type === selected)
+
+  const demoCounts = {}
+  for (const d of DEMOS) {
+    const cat = getGameConfig(d.type)?.category
+    if (cat) demoCounts[cat] = (demoCounts[cat] || 0) + 1
+  }
+  const demoCategories = GAME_CATEGORIES.map(c => ({ ...c, count: demoCounts[c.id] || 0 })).filter(c => c.count > 0)
+  const shown = DEMOS.filter(d => getGameConfig(d.type)?.category === activeCat)
 
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-5">
@@ -1469,22 +1479,26 @@ export default function Demo() {
         </div>
 
         {/* Game picker */}
-        <div className="grid grid-cols-4 gap-2">
-          {DEMOS.map(({ type, short, Icon }) => (
-            <button
-              key={type}
-              onClick={() => setSelected(type)}
-              className={cn(
-                'flex flex-col items-center gap-1 p-2 rounded border transition-all active:scale-95',
-                selected === type
-                  ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
-                  : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
-              )}
-            >
-              <Icon />
-              <span className="font-pixel text-[7px] text-center leading-tight whitespace-pre-line">{short}</span>
-            </button>
-          ))}
+        <div className="space-y-2">
+          <CategoryTabs categories={demoCategories} active={activeCat} onSelect={setActiveCat} />
+          <div className="grid grid-cols-4 gap-2">
+            {shown.map(({ type, short, Icon }) => (
+              <button
+                key={type}
+                onClick={() => setSelected(type)}
+                className={cn(
+                  'flex flex-col items-center gap-1 p-2 rounded border transition-all active:scale-95',
+                  selected === type
+                    ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
+                    : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
+                )}
+              >
+                <Icon />
+                <span className="font-pixel text-[7px] text-center leading-tight whitespace-pre-line">{short}</span>
+                <span className="font-pixel text-[6px] text-retro-dim/70">{getPlayerTag(getGameConfig(type))}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Active demo — key forces fresh mount on game switch */}

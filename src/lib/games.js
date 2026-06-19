@@ -73,7 +73,9 @@ export const GAME_TYPES = [
   {
     type: 'tictactoe', label: 'TIC TAC TOE',
     desc: '3 × 3', Icon: TicTacToeIcon,
-    badge: null, maxWidth: 'max-w-sm',    boardSize: 9,
+    badge: null, maxWidth: 'max-w-sm',
+    category: 'board',
+    boardSize: 9,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     getWinner,
     BoardComponent: Board,
@@ -81,7 +83,9 @@ export const GAME_TYPES = [
   {
     type: 'connectfour', label: 'CONNECT FOUR',
     desc: '6 × 7', Icon: ConnectFourIcon,
-    badge: 'C4', maxWidth: 'max-w-md',    boardSize: CF_BOARD_SIZE,
+    badge: 'C4', maxWidth: 'max-w-md',
+    category: 'board',
+    boardSize: CF_BOARD_SIZE,
     getMoveIndex: getConnectFourDrop,
     getWinner: getConnectFourWinner,
     BoardComponent: ConnectFourBoard,
@@ -89,12 +93,16 @@ export const GAME_TYPES = [
   {
     type: 'hangwoman', label: 'HANGWOMAN',
     desc: 'word game', Icon: HangwomanIcon,
-    badge: 'HW', maxWidth: 'max-w-sm',    custom: true,
+    badge: 'HW', maxWidth: 'max-w-sm',
+    category: 'word',
+    custom: true,
   },
   {
     type: 'dotsandboxes', label: 'DOTS & BOXES',
     desc: '4 × 4', Icon: DotsAndBoxesIcon,
-    badge: 'DB', maxWidth: 'max-w-sm',    boardSize: DB_EDGE_COUNT,
+    badge: 'DB', maxWidth: 'max-w-sm',
+    category: 'board',
+    boardSize: DB_EDGE_COUNT,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: DotsAndBoxesBoard,
     applyMove: ({ board, game, index, symbol }) => {
@@ -115,7 +123,9 @@ export const GAME_TYPES = [
   {
     type: 'sos', label: 'SOS',
     desc: '7 × 7', Icon: SosIcon,
-    badge: 'SOS', maxWidth: 'max-w-sm',    boardSize: SOS_CELL_COUNT,
+    badge: 'SOS', maxWidth: 'max-w-sm',
+    category: 'board',
+    boardSize: SOS_CELL_COUNT,
     getMoveIndex: (board, move) => (board[move.index] ? -1 : move.index),
     BoardComponent: SosBoard,
     applyMove: ({ board, game, move, symbol }) => {
@@ -136,7 +146,9 @@ export const GAME_TYPES = [
   {
     type: 'simon', label: 'SIMON',
     desc: 'memory duel', Icon: SimonIcon,
-    badge: 'SQ', maxWidth: 'max-w-xs',    boardSize: 0,
+    badge: 'SQ', maxWidth: 'max-w-xs',
+    category: 'memory',
+    boardSize: 0,
     getMoveIndex: (_, padIndex) => padIndex,
     BoardComponent: SimonBoard,
     applyMove: ({ game, move, symbol }) => applySimonMove(game, move, symbol),
@@ -148,37 +160,51 @@ export const GAME_TYPES = [
   {
     type: 'chimp', label: 'CHIMP TEST',
     desc: '5 × 5 grid', Icon: ChimpIcon,
-    badge: 'CT', maxWidth: 'max-w-xs',    custom: true,
+    badge: 'CT', maxWidth: 'max-w-xs',
+    category: 'memory',
+    custom: true,
   },
   {
     type: 'numbermemory', label: 'NUMBER MEMORY',
     desc: 'digit recall', Icon: NumberMemoryIcon,
-    badge: 'NM', maxWidth: 'max-w-xs',    custom: true,
+    badge: 'NM', maxWidth: 'max-w-xs',
+    category: 'memory',
+    custom: true,
   },
   {
     type: 'reaction', label: 'REACTION TIME',
     desc: '4 rounds', Icon: ReactionIcon,
-    badge: 'RT', maxWidth: 'max-w-xs',    custom: true,
+    badge: 'RT', maxWidth: 'max-w-xs',
+    category: 'reflex',
+    custom: true,
   },
   {
     type: 'aim', label: 'AIM TRAINER',
     desc: '30 targets', Icon: AimIcon,
-    badge: 'AT', maxWidth: 'max-w-xs',    custom: true,
+    badge: 'AT', maxWidth: 'max-w-xs',
+    category: 'reflex',
+    custom: true,
   },
   {
     type: 'typing', label: 'TYPING RACE',
     desc: 'ghost duel', Icon: TypingIcon,
-    badge: 'TR', maxWidth: 'max-w-sm',    custom: true,
+    badge: 'TR', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    custom: true,
   },
   {
     type: 'math', label: 'MENTAL MATH',
     desc: '2-min blitz', Icon: MathIcon,
-    badge: 'MM', maxWidth: 'max-w-xs',    custom: true,
+    badge: 'MM', maxWidth: 'max-w-xs',
+    category: 'reflex',
+    custom: true,
   },
   {
     type: 'visualmemory', label: 'VISUAL MEMORY',
     desc: '4 × 4 grid', Icon: VisualMemoryIcon,
-    badge: 'VM', maxWidth: 'max-w-xs',    boardSize: 0,
+    badge: 'VM', maxWidth: 'max-w-xs',
+    category: 'memory',
+    boardSize: 0,
     getMoveIndex: (_, cellIndex) => cellIndex,
     BoardComponent: VisualMemoryBoard,
     applyMove: ({ game, move, symbol }) => applyVmMove(game, move, symbol),
@@ -191,7 +217,9 @@ export const GAME_TYPES = [
   {
     type: 'gomoku', label: 'GOMOKU',
     desc: '15 × 15', Icon: GomokuIcon,
-    badge: 'GO', maxWidth: 'max-w-md',    boardSize: GOMOKU_CELL_COUNT,
+    badge: 'GO', maxWidth: 'max-w-md',
+    category: 'board',
+    boardSize: GOMOKU_CELL_COUNT,
     getMoveIndex: (board, i) => (board[i] ? -1 : i),
     getWinner: getGomokuWinner,
     BoardComponent: GomokuBoard,
@@ -199,7 +227,9 @@ export const GAME_TYPES = [
   {
     type: 'reversi', label: 'REVERSI',
     desc: '8 × 8', Icon: ReversiIcon,
-    badge: 'RV', maxWidth: 'max-w-sm',    boardSize: REVERSI_SIZE,
+    badge: 'RV', maxWidth: 'max-w-sm',
+    category: 'board',
+    boardSize: REVERSI_SIZE,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: ReversiBoard,
     applyMove: ({ board, index, symbol }) => {
@@ -216,7 +246,9 @@ export const GAME_TYPES = [
   {
     type: 'orderchaos', label: 'ORDER & CHAOS',
     desc: '6 × 6', Icon: OrderChaosIcon,
-    badge: 'OC', maxWidth: 'max-w-sm',    boardSize: OC_CELL_COUNT,
+    badge: 'OC', maxWidth: 'max-w-sm',
+    category: 'board',
+    boardSize: OC_CELL_COUNT,
     getMoveIndex: (board, move) => (board[move.index] ? -1 : move.index),
     BoardComponent: OrderChaosBoard,
     applyMove: ({ board, move, symbol }) => {
@@ -231,7 +263,9 @@ export const GAME_TYPES = [
   {
     type: 'dice', label: 'PIG',
     desc: 'first to 100', Icon: DiceIcon,
-    badge: 'PIG', maxWidth: 'max-w-xs',    boardSize: 0,
+    badge: 'PIG', maxWidth: 'max-w-xs',
+    category: 'board',
+    boardSize: 0,
     getMoveIndex: () => 0,
     BoardComponent: DiceBoard,
     applyMove: ({ game, move, symbol }) => applyDiceMove(game, move, symbol),
@@ -245,17 +279,23 @@ export const GAME_TYPES = [
   {
     type: 'twotruths', label: 'TWO TRUTHS',
     desc: '& a lie', Icon: TwoTruthsIcon,
-    badge: 'TT', maxWidth: 'max-w-sm',    custom: true,
+    badge: 'TT', maxWidth: 'max-w-sm',
+    category: 'word',
+    custom: true,
   },
   {
     type: 'bluff', label: 'BLUFF BATTLE',
     desc: "liar's dice", Icon: BluffIcon,
-    badge: 'BB', maxWidth: 'max-w-sm',    custom: true,
+    badge: 'BB', maxWidth: 'max-w-sm',
+    category: 'word',
+    custom: true,
   },
   {
     type: 'wavelength', label: 'WAVELENGTH',
     desc: '3-8 players', Icon: WavelengthIcon,
-    badge: 'WL', maxWidth: 'max-w-sm',    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    badge: 'WL', maxWidth: 'max-w-sm',
+    category: 'party',
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     startRound: (players) => ({
       round: {
         clueGiver: seatOrderWL(players)[0] ?? null,
@@ -268,18 +308,33 @@ export const GAME_TYPES = [
   {
     type: 'fibbage', label: 'FIBBAGE',
     desc: '3-8 players', Icon: FibbageIcon,
-    badge: 'FB', maxWidth: 'max-w-sm',    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    badge: 'FB', maxWidth: 'max-w-sm',
+    category: 'party',
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     startRound: () => ({ round: { phase: 'lying', promptIndex: 0 } }),
   },
   {
     type: 'spyfair', label: 'SPYFAIR',
     desc: '3-8 players', Icon: SpyfairIcon,
-    badge: 'SF', maxWidth: 'max-w-sm',    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    badge: 'SF', maxWidth: 'max-w-sm',
+    category: 'party',
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     // no startRound — SpyfairGame drives its own round start
   },
 ]
 
 export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
+
+export const GAME_CATEGORIES = [
+  { id: 'board',  label: 'BOARD',  full: 'BOARD GAMES' },
+  { id: 'reflex', label: 'REFLEX', full: 'REFLEX & SKILL' },
+  { id: 'memory', label: 'MEMORY', full: 'MEMORY' },
+  { id: 'word',   label: 'WORD',   full: 'WORD & BLUFF' },
+  { id: 'party',  label: 'PARTY',  full: 'PARTY · 3–8 PLAYERS' },
+]
+
+export const getPlayerTag = (cfg) =>
+  cfg?.nPlayer ? `${cfg.minPlayers}-${cfg.maxPlayers}P` : '2P'
 
 // Nulls for every game-specific field — spread into freshGameState so switching
 // games clears the previous game's keys from Firebase.
