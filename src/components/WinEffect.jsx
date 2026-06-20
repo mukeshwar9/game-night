@@ -16,9 +16,9 @@ export default function WinEffect({ winner, onDone, intensity = 'round' }) {
   const color = COLORS[winner] ?? COLORS.draw
   const glow  = GLOWS[winner]  ?? GLOWS.draw
 
+  const count = isMatch ? 64 : 30
   const particles = useRef(
-    Array.from({ length: isMatch ? 64 : 30 }, (_, i, arr) => {
-      const count = arr.length
+    Array.from({ length: count }, (_, i) => {
       const angle = (i / count) * Math.PI * 2
       const dist  = (isMatch ? 110 : 80) + Math.random() * (isMatch ? 220 : 140)
       return {
