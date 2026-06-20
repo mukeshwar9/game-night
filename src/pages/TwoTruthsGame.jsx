@@ -5,6 +5,7 @@ import { commit, verifyReveal } from '../lib/commit'
 import GameSwitcher from '../components/GameSwitcher'
 import WinEffect from '../components/WinEffect'
 import { sounds } from '../lib/sounds'
+import { shareResult } from '../lib/shareCard'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
@@ -307,13 +308,31 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
           {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
         </p>
         <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
-        {!isSpectator && !proposal && onNewMatch && (
-          <button
-            onClick={onNewMatch}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
-          >
-            NEW MATCH
-          </button>
+        {!isSpectator && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {!proposal && onNewMatch && (
+              <button
+                onClick={onNewMatch}
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+              >
+                NEW MATCH
+              </button>
+            )}
+            <button
+              onClick={() => shareResult({
+                gameLabel: 'TWO TRUTHS',
+                headline: matchWinner === mySymbol
+                  ? 'YOU WIN!'
+                  : `${game.players?.[matchWinner]?.name || matchWinner} WINS`,
+                sub: `${scoreX} – ${scoreO}`,
+                accentVar: '--c-cta',
+                url: window.location.href,
+              })}
+              className="px-6 py-2.5 font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
+            >
+              SHARE
+            </button>
+          </div>
         )}
         {!isSpectator && onSwitchGame && !proposal && (
           <GameSwitcher currentType="twotruths" onSwitch={onSwitchGame} />

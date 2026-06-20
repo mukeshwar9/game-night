@@ -15,6 +15,7 @@ import {
 import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
+import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
 
 const MIN_PLAYERS = 3
@@ -311,13 +312,31 @@ export default function FibbageGame({
           </p>
         )}
 
-        {matchOver && isPlayer && !proposal && onNewMatch && (
-          <button
-            onClick={onNewMatch}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
-          >
-            NEW MATCH
-          </button>
+        {matchOver && isPlayer && champ && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {!proposal && onNewMatch && (
+              <button
+                onClick={onNewMatch}
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+              >
+                NEW MATCH
+              </button>
+            )}
+            <button
+              onClick={() => shareResult({
+                gameLabel: 'FIBBAGE',
+                headline: champ?.id === mySeat
+                  ? 'YOU WIN!'
+                  : `${(champ?.name || '').toUpperCase()} WINS`,
+                sub: 'Fibbage · Game Night',
+                accentVar: '--c-cta',
+                url: window.location.href,
+              })}
+              className="px-6 py-2.5 font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
+            >
+              SHARE
+            </button>
+          </div>
         )}
 
         {isPlayer && onSwitchGame && !proposal && (

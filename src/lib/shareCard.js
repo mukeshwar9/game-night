@@ -2,6 +2,8 @@
 // shares it via the Web Share API (file share), falling back to a PNG download.
 // No backend — the card is drawn client-side from live CSS theme vars.
 
+import QRCode from 'qrcode'
+
 function themeColor(name, fallback) {
   try {
     const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
@@ -11,7 +13,14 @@ function themeColor(name, fallback) {
   }
 }
 
-function drawCard({ brand, gameLabel, headline, sub, accentVar }) {
+const loadImage = (src) => new Promise((res, rej) => {
+  const i = new Image()
+  i.onload = () => res(i)
+  i.onerror = rej
+  i.src = src
+})
+
+async function drawCard({ brand, gameLabel, headline, sub, accentVar, url }) {
   const S = 1080
   const canvas = document.createElement('canvas')
   canvas.width = S
@@ -61,15 +70,55 @@ function drawCard({ brand, gameLabel, headline, sub, accentVar }) {
   if (sub) {
     ctx.fillStyle = dim
     ctx.font = font(60)
-    ctx.fillText(sub, S / 2, 760)
+    ctx.fillText(sub, S / 2, 740)
   }
 
-  // footer
-  ctx.fillStyle = dim
-  ctx.font = font(26)
-  ctx.fillText('PLAY AT GAME NIGHT', S / 2, S - 90)
+  // scannable QR — turns a shared screenshot into a joinable invite.
+  if (url) {
+    try {
+      const qrUrl = await QRCode.toDataURL(url, {
+        margin: 1,
+        width: 240,
+        color: { dark: '#000000', light: '#ffffff' },
+      })
+      const qr = await loadImage(qrUrl)
+      const qs = 200
+      const qx = (S - qs) / 2
+      const qy = S - 36 - qs - 70
+      // white rounded backing for scan contrast against the dark card
+      ctx.fillStyle = '#ffffff'
+      roundRect(ctx, qx - 14, qy - 14, qs + 28, qs + 28, 12)
+      ctx.fill()
+      ctx.drawImage(qr, qx, qy, qs, qs)
+      // caption under the QR
+      ctx.fillStyle = dim
+      ctx.font = font(22)
+      ctx.fillText('SCAN TO PLAY', S / 2, qy + qs + 44)
+    } catch {
+      // QR optional — if generation fails, fall back to the text footer.
+      ctx.fillStyle = dim
+      ctx.font = font(26)
+      ctx.fillText('PLAY AT GAME NIGHT', S / 2, S - 90)
+    }
+  } else {
+    // footer
+    ctx.fillStyle = dim
+    ctx.font = font(26)
+    ctx.fillText('PLAY AT GAME NIGHT', S / 2, S - 90)
+  }
 
   return canvas
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  const rad = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + rad, y)
+  ctx.arcTo(x + w, y, x + w, y + h, rad)
+  ctx.arcTo(x + w, y + h, x, y + h, rad)
+  ctx.arcTo(x, y + h, x, y, rad)
+  ctx.arcTo(x, y, x + w, y, rad)
+  ctx.closePath()
 }
 
 function wrapText(ctx, str, x, y, maxWidth, lineHeight) {
@@ -93,8 +142,8 @@ function wrapText(ctx, str, x, y, maxWidth, lineHeight) {
 export async function shareResult({ gameLabel, headline, sub, accentVar, url }) {
   try { await document.fonts?.ready } catch { /* font fallback is fine */ }
 
-  const canvas = drawCard({ brand: 'Game Night', gameLabel, headline, sub, accentVar })
   const shareUrl = url || window.location.origin
+  const canvas = await drawCard({ brand: 'Game Night', gameLabel, headline, sub, accentVar, url: shareUrl })
   const text = `${headline} — ${gameLabel} on Game Night. ${shareUrl}`
 
   const blob = await new Promise(res => canvas.toBlob(res, 'image/png'))

@@ -3,6 +3,7 @@ import { ref, update, get } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
+import { shareResult } from '../lib/shareCard'
 import { SPYFAIR_LOCATIONS } from '../lib/decks/spyfair'
 import { cn } from '@/lib/utils'
 
@@ -332,13 +333,29 @@ export default function SpyfairGame({
           {iWon ? 'YOU WIN!' : `${matchWinner.name || 'PLAYER'} WINS`}
         </p>
         <ScoreBoard seats={seats} scores={scores} mySeat={mySeat} spyId={round.spy} />
-        {!amSpectator && !proposal && onNewMatch && (
-          <button
-            onClick={onNewMatch}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
-          >
-            NEW MATCH
-          </button>
+        {!amSpectator && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {!proposal && onNewMatch && (
+              <button
+                onClick={onNewMatch}
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+              >
+                NEW MATCH
+              </button>
+            )}
+            <button
+              onClick={() => shareResult({
+                gameLabel: 'SPYFAIR',
+                headline: iWon ? 'YOU WIN!' : `${matchWinner.name || 'PLAYER'} WINS`,
+                sub: 'Spyfair · Game Night',
+                accentVar: '--c-cta',
+                url: window.location.href,
+              })}
+              className="px-6 py-2.5 font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
+            >
+              SHARE
+            </button>
+          </div>
         )}
         {!proposal && onSwitchGame && <GameSwitcher currentType="spyfair" onSwitch={onSwitchGame} />}
       </div>

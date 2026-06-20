@@ -785,7 +785,7 @@ export default function Game() {
 
         {/* Game area */}
         {game.status === 'waiting' ? (
-          <WaitingRoom gameId={gameId} />
+          <WaitingRoom gameId={gameId} gameType={game.gameType} />
         ) : isCustom ? (
           game.gameType === 'reaction' ? (
             <ReactionGame

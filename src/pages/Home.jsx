@@ -23,6 +23,8 @@ export default function Home() {
   const nameRef = useRef(null)
   const rooms = useMemo(() => getRooms(), [])
   const stats = useMemo(() => getStats(), [])
+  const [isNewVisitor] = useState(() => !localStorage.getItem('playerName') && getRooms().length === 0)
+  const [howItWorksDismissed, setHowItWorksDismissed] = useState(false)
 
   const toggleMute = () => setMuted(sounds.toggle())
 
@@ -139,10 +141,48 @@ export default function Home() {
               GAME NIGHT
             </h1>
             <p className="font-mono text-xs text-retro-dim mt-2 tracking-widest">
-              PLAY WITH FRIENDS — NO ACCOUNT NEEDED
+              20+ GAMES · SHARE A LINK · NO ACCOUNT
             </p>
           </div>
         </div>
+
+        {/* First-run HOW IT WORKS strip */}
+        {isNewVisitor && !howItWorksDismissed && (
+          <div className="bg-retro-card border border-retro-border rounded p-3 relative">
+            <button
+              onClick={() => setHowItWorksDismissed(true)}
+              aria-label="Dismiss"
+              className="absolute top-2 right-2 text-retro-border hover:text-retro-dim transition-colors leading-none font-mono text-xs"
+            >
+              ✕
+            </button>
+            <p className="font-pixel text-[9px] text-retro-cta tracking-widest mb-2">HOW IT WORKS</p>
+            <div className="space-y-2">
+              {[
+                { n: '1', label: 'PICK A GAME', sub: 'Choose from 20+ mini-games below' },
+                { n: '2', label: 'SHARE THE LINK', sub: 'Send the room link to a friend' },
+                { n: '3', label: 'PLAY TOGETHER', sub: 'No accounts, no downloads' },
+              ].map(({ n, label, sub }) => (
+                <div key={n} className="flex items-start gap-2.5">
+                  <span className={cn(
+                    'shrink-0 w-5 h-5 rounded flex items-center justify-center font-pixel text-[9px]',
+                    'bg-retro-tint-cta border border-retro-cta/40 text-retro-cta'
+                  )}>{n}</span>
+                  <div>
+                    <p className="font-pixel text-[9px] text-retro-text tracking-wider">{label}</p>
+                    <p className="font-mono text-[11px] text-retro-dim leading-tight">{sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link
+              to="/demo"
+              className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 border border-retro-p1/40 bg-retro-tint-p1 text-retro-p1 font-pixel text-[9px] rounded hover:shadow-neon-p1 transition-all active:scale-95"
+            >
+              NO FRIENDS ONLINE? PLAY SOLO VS AI →
+            </Link>
+          </div>
+        )}
 
         {/* Name input */}
         <div className="space-y-1.5">
@@ -218,6 +258,20 @@ export default function Home() {
           <GamePicker onSelect={createGame} loadingType={loading} />
         </div>
 
+        {/* Solo play CTA — visible to everyone, especially useful before a friend joins */}
+        <Link
+          to="/demo"
+          className={cn(
+            'w-full flex items-center justify-center gap-2 py-3 rounded',
+            'border-2 border-retro-p1/40 bg-retro-card text-retro-p1',
+            'font-pixel text-[10px] tracking-widest',
+            'hover:border-retro-p1/70 hover:shadow-neon-p1 hover:bg-retro-tint-p1',
+            'transition-all active:scale-[0.98]'
+          )}
+        >
+          PLAY SOLO VS AI →
+        </Link>
+
         {/* Your stats — local, no login */}
         {stats && stats.games > 0 && (
           <div className="space-y-1.5">
@@ -249,9 +303,6 @@ export default function Home() {
           </button>
         )}
 
-        <Link to="/demo" className="block text-center font-mono text-xs text-retro-dim hover:text-retro-p1 transition-colors">
-          PRACTICE OFFLINE →
-        </Link>
       </div>
     </div>
   )
