@@ -23,6 +23,7 @@ import WavelengthGame from './WavelengthGame'
 import FibbageGame from './FibbageGame'
 import SpyfairGame from './SpyfairGame'
 import ProposalBanner from '../components/ProposalBanner'
+import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -623,6 +624,9 @@ export default function Game() {
             <div className="flex items-center gap-3">
               <ThemeSwitcher />
               <RulesButton onClick={() => setShowRules(true)} />
+              {amSeated && game.status !== 'waiting' && (
+                <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => applySwitchGame(t)} />
+              )}
               <button
                 onClick={toggleMute}
                 title={muted ? 'Unmute sounds' : 'Mute sounds'}
@@ -718,6 +722,9 @@ export default function Game() {
           <div className="flex items-center gap-3">
             <ThemeSwitcher />
             <RulesButton onClick={() => setShowRules(true)} />
+            {!isSpectator && game.status !== 'waiting' && !activeProposal && (
+              <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => propose('switch', t)} />
+            )}
             <button
               onClick={toggleMute}
               title={muted ? 'Unmute sounds' : 'Mute sounds'}
