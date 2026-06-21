@@ -22,7 +22,7 @@ const DIRS = {
 const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' }
 
 const eq = (a, b) => a.x === b.x && a.y === b.y
-const inBounds = (x, y) => x >= 0 && x < GRID && y >= 0 && y < GRID
+const wrap = (n) => ((n % GRID) + GRID) % GRID
 
 /**
  * Pick a random free cell for food (not on any snake body).
@@ -73,14 +73,13 @@ export function createState() {
  *
  * Both snakes move simultaneously. Movement order for collision checks:
  *   1. Validate direction changes (can't reverse 180°).
- *   2. Compute new heads.
- *   3. Wall collision → death.
- *   4. Eating: does the new head land on food?
- *   5. Body collisions: new head vs own body (excl. tail if not eating) and
+ *   2. Compute new heads (walls wrap — exit right, re-enter left, etc.).
+ *   3. Eating: does the new head land on food?
+ *   4. Body collisions: new head vs own body (excl. tail if not eating) and
  *      vs opponent's body (excl. opponent's tail if not eating).
- *   6. Head-on: both new heads land on the same cell → both die.
- *   7. Move surviving snakes (unshift head; pop tail unless eating).
- *   8. Respawn food if eaten.
+ *   5. Head-on: both new heads land on the same cell → both die.
+ *   6. Move surviving snakes (unshift head; pop tail unless eating).
+ *   7. Respawn food if eaten.
  *
  * @param {object} state
  * @param {{X?:string,O?:string}} inputs  intended direction per side ('up'|'down'|'left'|'right'); null/undefined = keep current
@@ -105,33 +104,23 @@ export function tick(state, inputs = {}) {
     }
   }
 
-  // 2. Compute new heads for alive snakes.
+  // 2. Compute new heads for alive snakes (wrap around walls).
   const newHeads = {}
   for (const side of ['X', 'O']) {
     const snake = s.snakes[side]
     if (!snake.alive) continue
     const d = DIRS[snake.dir]
-    newHeads[side] = { x: snake.body[0].x + d.x, y: snake.body[0].y + d.y }
+    newHeads[side] = { x: wrap(snake.body[0].x + d.x), y: wrap(snake.body[0].y + d.y) }
   }
 
-  // 3. Wall collisions.
-  for (const side of ['X', 'O']) {
-    if (!s.snakes[side].alive) continue
-    const h = newHeads[side]
-    if (!inBounds(h.x, h.y)) {
-      s.snakes[side].alive = false
-      events.push({ type: 'die', by: side, cause: 'wall' })
-    }
-  }
-
-  // 4. Eating?
+  // 3. Eating?
   const eating = {}
   for (const side of ['X', 'O']) {
     if (!s.snakes[side].alive) continue
     eating[side] = !!(s.food && eq(newHeads[side], s.food))
   }
 
-  // 5. Body collisions (self + other). Check against OLD body positions,
+  // 4. Body collisions (self + other). Check against OLD body positions,
   //    excluding the tail of a snake that will move (i.e. isn't eating).
   for (const side of ['X', 'O']) {
     const snake = s.snakes[side]
@@ -160,7 +149,7 @@ export function tick(state, inputs = {}) {
     }
   }
 
-  // 6. Head-on: both new heads land on the same cell.
+  // 5. Head-on: both new heads land on the same cell.
   if (s.snakes.X.alive && s.snakes.O.alive && eq(newHeads.X, newHeads.O)) {
     s.snakes.X.alive = false
     s.snakes.O.alive = false
@@ -168,7 +157,7 @@ export function tick(state, inputs = {}) {
     events.push({ type: 'die', by: 'O', cause: 'headon' })
   }
 
-  // 7. Move surviving snakes.
+  // 6. Move surviving snakes.
   for (const side of ['X', 'O']) {
     const snake = s.snakes[side]
     if (!snake.alive) continue
@@ -181,7 +170,7 @@ export function tick(state, inputs = {}) {
     }
   }
 
-  // 8. Respawn food if eaten (by any snake that ate this tick).
+  // 7. Respawn food if eaten (by any snake that ate this tick).
   if (eating.X || eating.O) {
     s.food = spawnFood(s.snakes)
   }
@@ -206,9 +195,9 @@ const OPP_DIRS = { up: 'down', down: 'up', left: 'right', right: 'left' }
 /**
  * Heuristic AI for the /demo route. Greedy + safety-seeking:
  *   1. Try each non-reversing direction.
- *   2. Simulate the head one step; discard moves that hit a wall, either
- *      body, or the opponent's head-on collision cell.
- *   3. Among safe moves, prefer the one minimizing distance to food.
+ *   2. Simulate the head one step (walls wrap); discard moves that hit
+ *      either body, or the opponent's head-on collision cell.
+ *   3. Among safe moves, prefer the one minimizing toroidal distance to food.
  *   4. If no safe move, fall back to current direction (death is inevitable).
  *
  * @param {object} state
@@ -236,8 +225,7 @@ export function computeAI(state, side) {
 
   for (const dir of candidates) {
     const d = DIRS[dir]
-    const next = { x: head.x + d.x, y: head.y + d.y }
-    if (!inBounds(next.x, next.y)) continue
+    const next = { x: wrap(head.x + d.x), y: wrap(head.y + d.y) }
     // A move is safe if the new head doesn't collide with either body.
     // Both snakes vacate their tails on a normal (non-eating) move.
     if (isOccupied(next, true, true)) continue
@@ -245,11 +233,16 @@ export function computeAI(state, side) {
     // (only when the opponent is alive — a dead snake's head stays put).
     if (other.alive) {
       const od = DIRS[other.dir]
-      const otherNext = { x: other.body[0].x + od.x, y: other.body[0].y + od.y }
+      const otherNext = { x: wrap(other.body[0].x + od.x), y: wrap(other.body[0].y + od.y) }
       if (eq(next, otherNext)) continue
     }
-    // Score: closer to food is better (Manhattan distance, negated).
-    const score = food ? -(Math.abs(next.x - food.x) + Math.abs(next.y - food.y)) : 0
+    // Score: closer to food is better (toroidal Manhattan distance, negated).
+    let score = 0
+    if (food) {
+      const dx = Math.min(Math.abs(next.x - food.x), GRID - Math.abs(next.x - food.x))
+      const dy = Math.min(Math.abs(next.y - food.y), GRID - Math.abs(next.y - food.y))
+      score = -(dx + dy)
+    }
     if (score > bestScore) { bestScore = score; best = dir }
   }
 

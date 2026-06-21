@@ -39,7 +39,8 @@ export const GAME_RULES = {
     howToPlay: [
       'Steer your snake with arrow keys, WASD, or swipe on touch screens.',
       'Eat food to grow longer — you can’t reverse 180°.',
-      'Avoid the walls, your own body, and your opponent’s body.',
+      'Walls wrap around — exit right, re-enter left (and all four sides).',
+      'Avoid your own body and your opponent’s body.',
       'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
     ],
     win: 'Be the last snake alive to win the round. If both die on the same tick it’s a draw. First to 3 round wins takes the match.',

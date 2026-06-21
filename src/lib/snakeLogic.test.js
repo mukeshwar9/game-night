@@ -106,23 +106,42 @@ describe('snakeLogic', () => {
     })
   })
 
-  describe('tick — wall collision', () => {
-    it('kills a snake that hits the top wall', () => {
+  describe('tick — wall wrap-around', () => {
+    it('wraps a snake that exits the top wall to the bottom', () => {
       const s = createState()
-      // Move X to the top row heading up.
       s.snakes.X.body = [{ x: 5, y: 0 }, { x: 4, y: 0 }, { x: 3, y: 0 }]
       s.snakes.X.dir = 'up'
       const { state, events } = tick(s, { X: 'up' })
-      expect(state.snakes.X.alive).toBe(false)
-      expect(events.some(e => e.type === 'die' && e.by === 'X' && e.cause === 'wall')).toBe(true)
+      expect(state.snakes.X.alive).toBe(true)
+      expect(state.snakes.X.body[0]).toEqual({ x: 5, y: GRID - 1 })
+      expect(events.some(e => e.type === 'die')).toBe(false)
     })
 
-    it('kills a snake that hits the right wall', () => {
+    it('wraps a snake that exits the right wall to the left', () => {
       const s = createState()
       s.snakes.X.body = [{ x: GRID - 1, y: 5 }, { x: GRID - 2, y: 5 }, { x: GRID - 3, y: 5 }]
       s.snakes.X.dir = 'right'
       const { state } = tick(s, { X: 'right' })
-      expect(state.snakes.X.alive).toBe(false)
+      expect(state.snakes.X.alive).toBe(true)
+      expect(state.snakes.X.body[0]).toEqual({ x: 0, y: 5 })
+    })
+
+    it('wraps a snake that exits the left wall to the right', () => {
+      const s = createState()
+      s.snakes.X.body = [{ x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 }]
+      s.snakes.X.dir = 'left'
+      const { state } = tick(s, { X: 'left' })
+      expect(state.snakes.X.alive).toBe(true)
+      expect(state.snakes.X.body[0]).toEqual({ x: GRID - 1, y: 5 })
+    })
+
+    it('wraps a snake that exits the bottom wall to the top', () => {
+      const s = createState()
+      s.snakes.X.body = [{ x: 5, y: GRID - 1 }, { x: 4, y: GRID - 1 }, { x: 3, y: GRID - 1 }]
+      s.snakes.X.dir = 'down'
+      const { state } = tick(s, { X: 'down' })
+      expect(state.snakes.X.alive).toBe(true)
+      expect(state.snakes.X.body[0]).toEqual({ x: 5, y: 0 })
     })
   })
 
@@ -281,14 +300,18 @@ describe('snakeLogic', () => {
       }
     })
 
-    it('avoids a wall when turning would hit it', () => {
+    it('will take a wrapping move toward food', () => {
       const s = createState()
-      // O at the top row heading left; turning up must be avoided.
-      s.snakes.O.body = [{ x: 5, y: 0 }, { x: 6, y: 0 }, { x: 7, y: 0 }]
-      s.snakes.O.dir = 'left'
-      s.food = { x: 0, y: 0 }
+      // O at the left edge heading up; food just to the left (wraps to right edge).
+      // Turning left would wrap to (GRID-1, 0) — that's safe and closer to food
+      // at (GRID-2, 0).
+      s.snakes.O.body = [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }]
+      s.snakes.O.dir = 'up'
+      s.snakes.X.body = [{ x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 }]
+      s.food = { x: GRID - 2, y: 0 }
       const dir = computeAI(s, 'O')
-      expect(dir).not.toBe('up')
+      // Left (wrapping) or up should both be safe; left is closer to food.
+      expect(['up', 'left']).toContain(dir)
     })
 
     it('picks a safe move when one exists', () => {
