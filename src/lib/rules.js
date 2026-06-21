@@ -24,6 +24,27 @@ export const GAME_RULES = {
     win: 'Line up 4 of your discs horizontally, vertically, or diagonally to win. A full board with no four-in-a-row is a draw.',
   },
 
+  pong: {
+    objective: 'Send the ball past your opponent’s paddle to score.',
+    howToPlay: [
+      'Move your paddle with ↑/↓, W/S, or by dragging on the court.',
+      'The ball speeds up each rally — where it strikes your paddle sets the return angle.',
+      'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
+    ],
+    win: 'First to 5 points takes the round; first to 3 rounds wins the match.',
+  },
+
+  snake: {
+    objective: 'Outlast your opponent in a real-time snake duel.',
+    howToPlay: [
+      'Steer your snake with arrow keys, WASD, or swipe on touch screens.',
+      'Eat food to grow longer — you can’t reverse 180°.',
+      'Avoid the walls, your own body, and your opponent’s body.',
+      'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
+    ],
+    win: 'Be the last snake alive to win the round. If both die on the same tick it’s a draw. First to 3 round wins takes the match.',
+  },
+
   hangwoman: {
     objective: 'As the guesser, uncover the hidden word before you run out of guesses.',
     howToPlay: [

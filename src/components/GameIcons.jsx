@@ -304,3 +304,34 @@ export function SpyfairIcon() {
     </svg>
   )
 }
+
+export function PongIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* paddles */}
+      <rect x="2" y="7" width="2.5" height="10" fill="currentColor" />
+      <rect x="19.5" y="9" width="2.5" height="10" fill="currentColor" />
+      {/* ball */}
+      <rect x="11" y="11" width="3" height="3" fill="currentColor" />
+      {/* centre net */}
+      <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function SnakeIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* snake body — an S-curve of pixel segments */}
+      <rect x="3"  y="4"  width="4" height="4" fill="currentColor" />
+      <rect x="7"  y="4"  width="4" height="4" fill="currentColor" opacity="0.85" />
+      <rect x="11" y="4"  width="4" height="4" fill="currentColor" opacity="0.7" />
+      <rect x="11" y="8"  width="4" height="4" fill="currentColor" opacity="0.7" />
+      <rect x="11" y="12" width="4" height="4" fill="currentColor" opacity="0.85" />
+      <rect x="7"  y="12" width="4" height="4" fill="currentColor" opacity="0.7" />
+      <rect x="7"  y="16" width="4" height="4" fill="currentColor" opacity="0.55" />
+      {/* head */}
+      <rect x="15" y="16" width="4" height="4" fill="currentColor" />
+    </svg>
+  )
+}

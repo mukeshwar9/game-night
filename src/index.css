@@ -200,6 +200,12 @@ body::before {
   100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
 }
 
+@keyframes pong-ball-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.6); opacity: 0.5; }
+}
+.pong-ball-pulse { animation: pong-ball-pulse 0.6s ease-in-out infinite; }
+
 @keyframes win-flash {
   0%   { opacity: 0; }
   12%  { opacity: 0.14; }

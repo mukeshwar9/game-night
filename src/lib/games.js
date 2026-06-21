@@ -10,7 +10,7 @@ import {
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon,
   TypingIcon, MathIcon,
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
-  WavelengthIcon, FibbageIcon, SpyfairIcon,
+  WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
@@ -200,6 +200,20 @@ export const GAME_TYPES = [
     custom: true,
   },
   {
+    type: 'pong', label: 'PONG',
+    desc: 'paddle duel', Icon: PongIcon,
+    badge: 'PG', maxWidth: 'max-w-md',
+    category: 'reflex',
+    custom: true, realtime: true,
+  },
+  {
+    type: 'snake', label: 'SNAKE BATTLE',
+    desc: 'duel', Icon: SnakeIcon,
+    badge: 'SN', maxWidth: 'max-w-md',
+    category: 'reflex',
+    custom: true, realtime: true,
+  },
+  {
     type: 'visualmemory', label: 'VISUAL MEMORY',
     desc: '4 × 4 grid', Icon: VisualMemoryIcon,
     badge: 'VM', maxWidth: 'max-w-xs',
@@ -364,6 +378,8 @@ const FIELD_NULLS = {
   mathStartedAt: null, mathEndTime: null,
   diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceLast: null,
   bluffRound: null,
+  pongScoreX: null, pongScoreO: null, signaling: null, matchLength: null,
+  snakeScoreX: null, snakeScoreO: null,
 }
 
 export function freshGameState(gameType) {
@@ -398,6 +414,18 @@ export function freshGameState(gameType) {
   }
   if (gameType === 'reaction') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
+  }
+  if (gameType === 'pong') {
+    // currentTurn omitted (null) — Pong has no turns, so Game.jsx's move-sound
+    // detection stays silent and the page drives its own audio.
+    // matchLength: rounds needed to win the match (default 3 = best-of-5).
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      pongScoreX: 0, pongScoreO: 0, matchLength: 3 }
+  }
+  if (gameType === 'snake') {
+    // currentTurn omitted (null) — Snake is real-time with no turns.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      snakeScoreX: 0, snakeScoreO: 0 }
   }
   if (gameType === 'aim') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,

@@ -4,21 +4,30 @@ import { cn } from '@/lib/utils'
 
 export default function WordSetter({ onWordSet, loading = false }) {
   const [raw, setRaw] = useState('')
+  const [hint, setHint] = useState('')
   const [error, setError] = useState('')
 
   const handleChange = (e) => {
-    setRaw(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))
+    const sanitized = e.target.value
+      .toUpperCase()
+      .replace(/[^A-Z ]/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/^ /, '')
+    setRaw(sanitized)
     setError('')
   }
 
   const handleSubmit = () => {
     const word = validateWord(raw)
     if (!word) {
-      setError('3–12 LETTERS, A–Z ONLY')
+      setError('3–30 LETTERS · A–Z & SPACES')
       return
     }
-    onWordSet(word)
+    onWordSet(word, hint.trim())
   }
+
+  const letterCount = raw.replace(/ /g, '').length
+  const wordCount = raw.trim() ? raw.trim().split(/\s+/).length : 0
 
   return (
     <div className="space-y-4 text-center">
@@ -26,7 +35,7 @@ export default function WordSetter({ onWordSet, loading = false }) {
         YOU ARE THE WORD-KEEPER
       </p>
       <p className="font-mono text-xs text-retro-dim">
-        Choose a word — your opponent must guess it
+        Choose a word or phrase — your opponent must guess it
       </p>
       <div className="space-y-2">
         <input
@@ -34,9 +43,9 @@ export default function WordSetter({ onWordSet, loading = false }) {
           value={raw}
           onChange={handleChange}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          maxLength={12}
+          maxLength={40}
           autoFocus
-          placeholder="TYPE A WORD"
+          placeholder="TYPE A WORD OR PHRASE"
           className={cn(
             'w-full bg-retro-card border-2 rounded px-4 py-3',
             'font-pixel text-sm text-retro-p1 tracking-widest text-center',
@@ -48,8 +57,25 @@ export default function WordSetter({ onWordSet, loading = false }) {
           <p className="font-pixel text-[10px] text-retro-p2 animate-pulse">{error}</p>
         )}
         {raw && !error && (
-          <p className="font-mono text-[10px] text-retro-dim">{raw.length} letters</p>
+          <p className="font-mono text-[10px] text-retro-dim">
+            {letterCount} letter{letterCount !== 1 ? 's' : ''}
+            {wordCount > 1 && ` · ${wordCount} words`}
+          </p>
         )}
+        <input
+          type="text"
+          value={hint}
+          onChange={e => setHint(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          maxLength={80}
+          placeholder="ADD A HINT (OPTIONAL)"
+          className={cn(
+            'w-full bg-retro-card border rounded px-4 py-2',
+            'font-mono text-xs text-retro-dim tracking-wide text-center',
+            'placeholder-retro-border/60 focus:outline-none transition-colors',
+            'border-retro-border/50 focus:border-retro-border',
+          )}
+        />
       </div>
       <button
         onClick={handleSubmit}

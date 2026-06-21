@@ -59,13 +59,41 @@ Hangwoman has no `board`/`currentTurn`; it stores a `round` sub-node instead (`s
 
 ### Player identity
 
-Identity is tracked in `sessionStorage` (per-tab) and `localStorage` (stable across tabs/sessions) — no auth:
-- `playerName` — the display name entered on the home page (sessionStorage)
-- `playerId` — a UUID generated once per browser profile (localStorage); stored in each player slot in Firebase; when a browser reopens a game URL, it reclaims its seat if `playerId` matches the X or O slot
+Identity is the **Firebase Auth uid**. Every visitor is signed in **anonymously** on boot (a real uid, no login UI); they can optionally **upgrade** to a permanent Google account via `linkWithPopup`, which keeps the same uid so profile/avatar/friends carry over and become cross-device. The auth layer lives in `src/lib/auth.js` (`authReady`, `getUid`, `upgradeWithGoogle`, `signOutToGuest`) and `src/lib/AuthContext.jsx` (`useAuth()` → `{ uid, user, profile, isAnonymous, upgrade, signOutToGuest }`). `App` is gated behind `authReady()` (a "CONNECTING…" splash) so a uid is always available before any page renders.
+
+- `getPlayerId()` (`src/lib/playerId.js`) returns the auth uid (falling back to a legacy localStorage UUID only if Auth is unavailable). All seat-claim/reclaim logic keys off it unchanged.
+- `playerName` / `playerAvatar` — display name + avatar key, mirrored to `localStorage` from the profile for synchronous reads in `Home`/`Game`; the source of truth is `users/{uid}`.
 - `game-{gameId}` — `{ symbol: "X"|"O"|null }` for the current game slot (sessionStorage)
 - `hangwoman-word-{gameId}` — `{ word, salt }`, the setter's secret; tab-local, so a setter who reloads in a new tab loses the word and must concede the round
 
-The creator is always X; the first person to join an open O slot becomes O; everyone else is a spectator (`symbol: null`). Slot claiming uses a Firebase `runTransaction` to prevent races. Closing a tab no longer kills the game — reopening the invite link in the same browser reclaims your seat via `playerId`.
+The creator is always X; the first person to join an open O slot becomes O; everyone else is a spectator (`symbol: null`). Slot claiming uses a Firebase `runTransaction` to prevent races. Player slots now also store `avatar`. Closing a tab no longer kills the game — reopening the invite link reclaims your seat via the uid.
+
+### Profiles, friends & invites (social layer)
+
+A persistent social layer keyed by uid lives in `src/lib/social.js` (data) with pages `src/pages/Profile.jsx` and `src/pages/Friends.jsx`, the `src/components/Avatar.jsx` (themed pixel-art sprites; keys in `src/lib/avatars.js`) and `src/components/InviteFriendModal.jsx`. New Firebase nodes (rules in `database.rules.json`):
+
+```
+users/{uid}:        { displayName, nameLower, avatar, code, isAnonymous, online, lastSeen, createdAt, updatedAt }
+codes/{CODE}:       uid                        // friend-code → uid index; claimed once via runTransaction
+friends/{uid}/{friendUid}:        { since }    // accepted friendship, written both directions on accept
+friendRequests/{uid}/{fromUid}:   { name, avatar, code, at }   // incoming pending requests
+invites/{uid}/{inviteId}:         { gameId, gameType, fromUid, fromName, fromAvatar, at }  // game invites
+```
+
+`ensureProfile()` (run from `AuthContext` on boot) creates `users/{uid}` if missing and allocates a unique 6-char friend code (unambiguous alphabet, no 0/O/1/I/L). Friends are added by code (`sendFriendRequestByCode` → `acceptRequest`); presence is published to `users/{uid}/online` via the same `onDisconnect` pattern as game presence. Pure helpers (friend-code gen/validation, avatar keys) are unit-tested in `src/lib/social.test.js` and `src/lib/avatars.test.js`.
+
+**Setup prerequisites:** enable **Anonymous** + **Google** sign-in providers in the Firebase console, and deploy rules (`firebase deploy --only database`). Until then the app degrades gracefully to local-guest mode. A global/per-game **leaderboard** is a planned follow-up that builds on `users/{uid}` stats.
+
+### Real-time games (Pong)
+
+**Pong** (`gameType: 'pong'`, `category: 'reflex'`, `custom: true`) is the first and only real-time game and breaks the turn-based assumption: physics changes ~60×/second, so the gameplay stream does **not** go through RTDB. Firebase keeps the room (lobby, invites, presence, score, game-over) and additionally acts as the **WebRTC signaling channel**; once the peer connection is up, gameplay frames travel peer-to-peer and never touch Firebase, preserving the "no backend server" property.
+
+- **Pure sim:** `src/lib/pongLogic.js` — `createState()`, `step(state, inputs, dt)` (fixed timestep, returns `{state, events}`), `computeAI()`, `getWinner()`. No DOM, no network; unit-tested in `src/lib/pongLogic.test.js`. The court is a normalized 1×1 box (x left→right, y top→down); X's paddle is left, O's right.
+- **Transport:** `src/lib/realtime/rtc.js` — native `RTCPeerConnection` + an unreliable/unordered `RTCDataChannel`, signaled through `games/$id/signaling` (`offer`/`answer`/`ice/{X|O}`). X is the **host** (offerer), O the **guest** (answerer); the host removes the signaling node on close. Public STUN only — no TURN, so ~5–10% of peers behind symmetric NATs fail to connect and surface as a "CONNECTION FAILED" state with a RETRY button.
+- **Sync model (host-authoritative):** the host (X) runs the one true sim in a `requestAnimationFrame` loop, applies its own input + the guest's input (received over the channel), and streams ~30 Hz snapshots `{ball, paddles, score}`. The guest (O) renders its own paddle with local prediction (zero input lag) and dead-reckons the ball/host-paddle from the latest snapshot's velocity. The host writes `pongScoreX`/`pongScoreO` to Firebase per point (human-speed) so spectators see the score, and calls `runTransaction` to set `winner` + increment `scores` when a side reaches `WIN_SCORE` — reusing the standard finish/win-effect/`recordMatch` machinery.
+- **Firebase keys:** `pongScoreX`, `pongScoreO` (per-round points; reset by `freshGameState('pong')`), `signaling` (transient). **No `currentTurn`** (omitted/null) so `Game.jsx`'s turn-flip move-sound detection stays silent — Pong drives its own audio. All keys are in `FIELD_NULLS` so switching games clears them.
+- **Rendering:** `src/components/PongCourt.jsx` is DOM/CSS (themed via the same `--c-*` vars as every board — **not** canvas), driven by `src/hooks/usePongControls.js` (↑/↓, W/S, pointer drag). The page is `src/pages/PongGame.jsx`, dispatched from `Game.jsx`'s custom ladder like the other reflex pages.
+- **Local play:** `/demo` runs `PongDemo` (human vs a reaction-handicapped AI) directly off `pongLogic` with no networking — the way to iterate on physics/feel. Live two-player P2P requires real two-device/two-network testing (a second browser profile on the same NAT may not exercise NAT traversal).
 
 ### Theming
 

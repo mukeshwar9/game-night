@@ -2,9 +2,15 @@ export const MAX_WRONG = 6
 
 export function validateWord(raw) {
   if (!raw) return null
-  const up = String(raw).toUpperCase().trim()
-  if (!/^[A-Z]{3,12}$/.test(up)) return null
+  const up = String(raw).toUpperCase().replace(/\s+/g, ' ').trim()
+  if (!/^[A-Z]+( [A-Z]+)*$/.test(up)) return null
+  const letters = up.replace(/ /g, '').length
+  if (letters < 3 || letters > 30) return null
   return up
+}
+
+export function wordStructure(word) {
+  return String(word).trim().split(' ').filter(Boolean).map(w => w.length)
 }
 
 export function applyGuess(word, letter) {
@@ -17,7 +23,7 @@ export function applyGuess(word, letter) {
 
 // guesses: { LETTER: number[]|false }  (false = miss, array = hit positions)
 export function isWordGuessed(word, guesses) {
-  const distinct = new Set(word.split(''))
+  const distinct = new Set(word.replace(/ /g, '').split(''))
   for (const letter of distinct) {
     const entry = guesses[letter]
     if (!entry || entry === false || entry === 'pending') return false

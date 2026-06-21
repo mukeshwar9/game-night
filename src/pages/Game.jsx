@@ -5,6 +5,7 @@ import { db, configError } from '../lib/firebase'
 import { normalizeBoard } from '../lib/gameLogic'
 import { freshGameState, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
+import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
@@ -19,6 +20,8 @@ import TypingGame from './TypingGame'
 import MathGame from './MathGame'
 import TwoTruthsGame from './TwoTruthsGame'
 import BluffBattleGame from './BluffBattleGame'
+import PongGame from './PongGame'
+import SnakeGame from './SnakeGame'
 import WavelengthGame from './WavelengthGame'
 import FibbageGame from './FibbageGame'
 import SpyfairGame from './SpyfairGame'
@@ -43,7 +46,7 @@ function toArray(val) {
 function playersToSeatList(players) {
   return Object.values(players || {})
     .filter(p => p && p.playerId)
-    .map(p => ({ name: p.name, playerId: p.playerId, joinedAt: p.joinedAt || 0 }))
+    .map(p => ({ name: p.name, playerId: p.playerId, joinedAt: p.joinedAt || 0, avatar: p.avatar ?? null }))
     .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0) || String(a.playerId).localeCompare(String(b.playerId)))
 }
 
@@ -61,13 +64,13 @@ function buildSwitchUpdates(game, newType) {
   if (newCfg.nPlayer) {
     const players = {}
     for (const s of seats) {
-      players[s.playerId] = { name: s.name, playerId: s.playerId, joinedAt: s.joinedAt, online: true }
+      players[s.playerId] = { name: s.name, playerId: s.playerId, joinedAt: s.joinedAt, online: true, avatar: s.avatar ?? null }
     }
     return { ...base, players, scores: {}, status: 'waiting' }
   }
   const players = {}
-  if (seats[0]) players.X = { name: seats[0].name, playerId: seats[0].playerId, joinedAt: seats[0].joinedAt }
-  if (seats[1]) players.O = { name: seats[1].name, playerId: seats[1].playerId, joinedAt: seats[1].joinedAt }
+  if (seats[0]) players.X = { name: seats[0].name, playerId: seats[0].playerId, joinedAt: seats[0].joinedAt, avatar: seats[0].avatar ?? null }
+  if (seats[1]) players.O = { name: seats[1].name, playerId: seats[1].playerId, joinedAt: seats[1].joinedAt, avatar: seats[1].avatar ?? null }
   return { ...base, players, scores: { X: 0, O: 0 }, status: seats.length >= 2 ? 'playing' : 'waiting' }
 }
 
@@ -123,6 +126,7 @@ export default function Game() {
       setLoading(false)
       return
     }
+    const playerAvatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
 
     const gameRef = ref(db, `games/${gameId}`)
     let cancelled = false
@@ -160,12 +164,12 @@ export default function Game() {
         const myId = getPlayerId()
         let amPlayer = !!data.players?.[myId]
         if (amPlayer) {
-          try { await update(ref(db, `games/${gameId}/players/${myId}`), { name: playerName }) } catch { /* ignore */ }
+          try { await update(ref(db, `games/${gameId}/players/${myId}`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
         } else if (data.status === 'waiting' && Object.keys(data.players || {}).length < (cfgData.maxPlayers || 8)) {
           try {
             const { committed } = await runTransaction(
               ref(db, `games/${gameId}/players/${myId}`),
-              cur => { if (cur) return; return { name: playerName, joinedAt: Date.now(), playerId: myId, online: true } }
+              cur => { if (cur) return; return { name: playerName, joinedAt: Date.now(), playerId: myId, online: true, avatar: playerAvatar } }
             )
             amPlayer = committed
           } catch { amPlayer = false }
@@ -197,11 +201,11 @@ export default function Game() {
         if (data.players?.X?.playerId === myId) {
           mySymbol.current = 'X'
           sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
-          try { await update(ref(db, `games/${gameId}/players/X`), { name: playerName }) } catch { /* ignore */ }
+          try { await update(ref(db, `games/${gameId}/players/X`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
         } else if (data.players?.O?.playerId === myId) {
           mySymbol.current = 'O'
           sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
-          try { await update(ref(db, `games/${gameId}/players/O`), { name: playerName }) } catch { /* ignore */ }
+          try { await update(ref(db, `games/${gameId}/players/O`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
         } else if (!data.players?.O) {
           // 3. Claim O slot via transaction
           try {
@@ -209,7 +213,7 @@ export default function Game() {
               ref(db, `games/${gameId}/players/O`),
               current => {
                 if (current !== null) return
-                return { name: playerName, joinedAt: Date.now(), playerId: getPlayerId() }
+                return { name: playerName, joinedAt: Date.now(), playerId: getPlayerId(), avatar: playerAvatar }
               }
             )
             if (committed) {
@@ -297,7 +301,8 @@ export default function Game() {
       const w = game.winner
       const sx = game.scores?.X || 0
       const so = game.scores?.O || 0
-      const isMatch = sx >= 3 || so >= 3
+      const matchTarget = game.gameType === 'pong' ? (game.matchLength ?? 3) : 3
+      const isMatch = sx >= matchTarget || so >= matchTarget
       if (w === 'draw') sounds.draw()
       else if (w === mySymbol.current) (isMatch ? sounds.matchWin() : sounds.win())
       else if (mySymbol.current) sounds.lose()
@@ -588,7 +593,7 @@ export default function Game() {
     )
   }
 
-  if (!game) return null
+  if (!game) return <LoadingScreen />
 
   const cfg = getGameConfig(game.gameType)
   const isCustom = !!cfg.custom
@@ -683,7 +688,8 @@ export default function Game() {
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  const matchWinner = scoreX >= 3 ? 'X' : scoreO >= 3 ? 'O' : null
+  const matchTarget = game.gameType === 'pong' ? (game.matchLength ?? 3) : 3
+  const matchWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
 
   // Presence: show dot for players — green for me, live status for opponent
   const getPresence = (sym) => {
@@ -756,6 +762,7 @@ export default function Game() {
           <PlayerCard
             name={game.players?.X?.name}
             symbol="X"
+            avatar={game.players?.X?.avatar}
             isActive={game.status === 'playing' && game.currentTurn === 'X'}
             isMe={mySymbol.current === 'X'}
             score={scoreX}
@@ -764,6 +771,7 @@ export default function Game() {
           <PlayerCard
             name={game.players?.O?.name}
             symbol="O"
+            avatar={game.players?.O?.avatar}
             isActive={game.status === 'playing' && game.currentTurn === 'O'}
             isMe={mySymbol.current === 'O'}
             score={scoreO}
@@ -792,7 +800,7 @@ export default function Game() {
 
         {/* Game area */}
         {game.status === 'waiting' ? (
-          <WaitingRoom gameId={gameId} gameType={game.gameType} />
+          <WaitingRoom gameId={gameId} gameType={game.gameType} game={game} mySymbol={mySymbol.current} />
         ) : isCustom ? (
           game.gameType === 'reaction' ? (
             <ReactionGame
@@ -877,6 +885,28 @@ export default function Game() {
               mySymbol={mySymbol.current}
               opponentOnline={opponentOnline}
               onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'pong' ? (
+            <PongGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'snake' ? (
+            <SnakeGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />

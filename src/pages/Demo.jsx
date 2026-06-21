@@ -13,12 +13,19 @@ import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
-  TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon,
+  TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
 } from '../components/GameIcons';
+import PongCourt from '../components/PongCourt';
+import SnakeArena from '../components/SnakeArena';
+import { usePongControls } from '../hooks/usePongControls';
+import { useSnakeControls } from '../hooks/useSnakeControls';
+import { createState as createPongState, step as pongStep, computeAI as pongAI, getWinner as pongWinner, WIN_SCORE as PONG_WIN } from '../lib/pongLogic';
+import { createState as createSnakeState, tick as snakeTick, computeAI as snakeAI, getWinner as snakeWinner, WIN_SCORE as SNAKE_WIN, TICK_MS as SNAKE_TICK } from '../lib/snakeLogic';
+import { sounds } from '../lib/sounds';
 import NumberPad from '../components/NumberPad';
 import { generateQuestion, QUESTION_MS } from '../lib/mathLogic';
 import { normalizeBoard } from '../lib/gameLogic';
-import { applyGuess, isWordGuessed, countWrong, MAX_WRONG } from '../lib/hangmanLogic';
+import { applyGuess, isWordGuessed, countWrong, MAX_WRONG, wordStructure } from '../lib/hangmanLogic';
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
@@ -159,13 +166,14 @@ function PartyGameCard({ type }) {
 function HangmanDemo() {
   const [phase, setPhase] = useState('setting')
   const [word, setWord] = useState('')
+  const [hint, setHint] = useState('')
   const [guesses, setGuesses] = useState({})
   const [result, setResult] = useState(null)
   const [wrongCount, setWrongCount] = useState(0)
   const [stepperCount, setStepperCount] = useState(0)
 
-  const handleWordSet = (w) => {
-    setWord(w); setGuesses({}); setWrongCount(0); setResult(null); setPhase('guessing')
+  const handleWordSet = (w, h) => {
+    setWord(w); setHint(h || ''); setGuesses({}); setWrongCount(0); setResult(null); setPhase('guessing')
   }
 
   const handleGuess = (letter) => {
@@ -180,7 +188,7 @@ function HangmanDemo() {
   }
 
   const reset = () => {
-    setPhase('setting'); setWord(''); setGuesses({}); setWrongCount(0); setResult(null)
+    setPhase('setting'); setWord(''); setHint(''); setGuesses({}); setWrongCount(0); setResult(null)
   }
 
   return (
@@ -202,8 +210,12 @@ function HangmanDemo() {
         {(phase === 'guessing' || phase === 'reveal') && (
           <>
             <HangmanGallows wrongCount={wrongCount} />
-            <WordDisplay wordLength={word.length} guesses={guesses}
-              revealedWord={phase === 'reveal' ? word : null} />
+            <WordDisplay
+              wordStructure={wordStructure(word)}
+              hint={hint}
+              guesses={guesses}
+              revealedWord={phase === 'reveal' ? word : null}
+            />
             <div className="text-center space-y-1">
               {phase === 'reveal' ? (
                 <>
@@ -1417,6 +1429,194 @@ function MathDemo() {
 
 // ─── Demo registry ────────────────────────────────────────────────────────────
 
+// ─── Pong demo (you vs a reaction-handicapped AI, fully local) ──────────────────
+
+const PONG_DT = 1 / 120
+
+function PongDemo() {
+  const courtRef = useRef(null)
+  const simRef = useRef(null)
+  if (!simRef.current) simRef.current = createPongState()
+  const [view, setView] = useState({ ball: { x: 0.5, y: 0.5 }, paddles: { X: 0.5, O: 0.5 }, scoreX: 0, scoreO: 0, serving: false, pickups: [], effects: null, ballMod: null })
+  const [winner, setWinner] = useState(null)
+  const { getDir } = usePongControls(courtRef, !winner)
+
+  useEffect(() => {
+    if (winner) return
+    let raf, last = performance.now(), acc = 0, aiDir = 0, aiAt = 0
+    const loop = (now) => {
+      raf = requestAnimationFrame(loop)
+      let dt = (now - last) / 1000; last = now
+      if (dt > 0.1) dt = 0.1
+      acc += dt
+      // ~110ms reaction lag + a wider deadzone keep the AI beatable.
+      if (now - aiAt > 110) { aiAt = now; aiDir = pongAI(simRef.current, 'O', { deadzone: 0.08 }) }
+      const inputs = { X: getDir(simRef.current.paddles.X), O: aiDir }
+      const events = []
+      while (acc >= PONG_DT) {
+        const r = pongStep(simRef.current, inputs, PONG_DT)
+        simRef.current = r.state
+        if (r.events.length) events.push(...r.events)
+        acc -= PONG_DT
+      }
+      for (const e of events) {
+        if (e.type === 'paddle') sounds.hit()
+        else if (e.type === 'wall') sounds.wall?.()
+        else if (e.type === 'score') sounds.go()
+        else if (e.type === 'pickup') sounds.join?.()
+      }
+      setView({
+        ball: simRef.current.ball, paddles: simRef.current.paddles,
+        scoreX: simRef.current.score.X, scoreO: simRef.current.score.O,
+        serving: simRef.current.serveIn > 0,
+        pickups: simRef.current.pickups || [],
+        effects: simRef.current.effects || null,
+        ballMod: simRef.current.ballMod || null,
+      })
+      const w = pongWinner(simRef.current.score)
+      if (w) { setWinner(w); cancelAnimationFrame(raf) }
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [winner]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const reset = () => {
+    simRef.current = createPongState()
+    setView({ ball: { x: 0.5, y: 0.5 }, paddles: { X: 0.5, O: 0.5 }, scoreX: 0, scoreO: 0, serving: false, pickups: [], effects: null, ballMod: null })
+    setWinner(null)
+  }
+
+  return (
+    <div className="space-y-3">
+      <PongCourt
+        ref={courtRef}
+        ball={view.ball} paddles={view.paddles}
+        scoreX={view.scoreX} scoreO={view.scoreO}
+        mySide="X" namesX="YOU" namesO="BOT"
+        serving={view.serving}
+        pickups={view.pickups}
+        effects={view.effects}
+        ballMod={view.ballMod}
+        overlay={winner ? (
+          <p className="font-pixel text-base text-retro-cta text-glow-cta">{winner === 'X' ? 'YOU WIN!' : 'BOT WINS'}</p>
+        ) : null}
+      />
+      <p className="text-center font-pixel text-[8px] text-retro-dim">FIRST TO {PONG_WIN} · ↑/↓ · W/S · DRAG</p>
+      {winner && (
+        <div className="flex justify-center">
+          <button onClick={reset} className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+            PLAY AGAIN
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Snake demo (you vs a greedy AI, fully local) ──────────────────────────────
+
+function SnakeDemo() {
+  const arenaRef = useRef(null)
+  const simRef = useRef(null)
+  if (!simRef.current) simRef.current = createSnakeState()
+  const [view, setView] = useState({ snakes: null, food: null, eatenX: 0, eatenO: 0 })
+  const [winner, setWinner] = useState(null)
+  const [round, setRound] = useState(0)
+  const [scoreX, setScoreX] = useState(0)
+  const [scoreO, setScoreO] = useState(0)
+  const { getDir } = useSnakeControls(arenaRef, !winner)
+
+  useEffect(() => {
+    if (winner) return
+    let timer, aiDir = 'left'
+    const loop = () => {
+      timer = setTimeout(loop, SNAKE_TICK)
+      const s = simRef.current
+      // AI re-evaluates every tick (cheap; the sim runs at ~8 Hz).
+      aiDir = snakeAI(s, 'O')
+      const inputs = { X: getDir(s.snakes.X.dir), O: aiDir }
+      const { state: next, events } = snakeTick(s, inputs)
+      simRef.current = next
+      for (const e of events) {
+        if (e.type === 'eat') sounds.hit()
+        else if (e.type === 'die') sounds.miss()
+      }
+      setView({
+        snakes: next.snakes,
+        food: next.food,
+        eatenX: next.snakes.X.eaten,
+        eatenO: next.snakes.O.eaten,
+      })
+      const w = snakeWinner(next)
+      if (w) {
+        setWinner(w)
+        if (w === 'X') setScoreX(n => n + 1)
+        else if (w === 'O') setScoreO(n => n + 1)
+        clearTimeout(timer)
+      }
+    }
+    timer = setTimeout(loop, SNAKE_TICK)
+    return () => clearTimeout(timer)
+  }, [winner, round]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const reset = () => {
+    simRef.current = createSnakeState()
+    setView({ snakes: null, food: null, eatenX: 0, eatenO: 0 })
+    setWinner(null)
+    setRound(n => n + 1)
+  }
+
+  const matchWinner = scoreX >= 3 ? 'X' : scoreO >= 3 ? 'O' : null
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-center gap-6 font-pixel text-[10px]">
+        <span className={cn('text-retro-p1', scoreX >= 3 && 'text-glow-p1')}>YOU {scoreX}</span>
+        <span className="text-retro-dim">{SNAKE_WIN} WINS</span>
+        <span className={cn('text-retro-p2', scoreO >= 3 && 'text-glow-p2')}>{scoreO} BOT</span>
+      </div>
+      <SnakeArena
+        ref={arenaRef}
+        snakes={view.snakes}
+        food={view.food}
+        eatenX={view.eatenX}
+        eatenO={view.eatenO}
+        mySide="X"
+        namesX="YOU"
+        namesO="BOT"
+        overlay={winner ? (
+          <p className="font-pixel text-base text-retro-cta text-glow-cta">
+            {winner === 'X' ? 'YOU WIN!' : winner === 'O' ? 'BOT WINS' : 'DRAW'}
+          </p>
+        ) : null}
+      />
+      <p className="text-center font-pixel text-[8px] text-retro-dim">FIRST TO {SNAKE_WIN} · ↑↓←→ · WASD · SWIPE</p>
+      {matchWinner && (
+        <p className="text-center font-pixel text-[10px] text-retro-win text-glow-win">
+          {matchWinner === 'X' ? '🏆 MATCH: YOU' : '🏆 MATCH: BOT'}
+        </p>
+      )}
+      {winner && (
+        <div className="flex justify-center gap-2">
+          {!matchWinner && (
+            <button onClick={reset} className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+              NEXT ROUND
+            </button>
+          )}
+          {matchWinner && (
+            <button
+              onClick={() => { setScoreX(0); setScoreO(0); reset() }}
+              className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+            >
+              PLAY AGAIN
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const DEMOS = [
   // vs-AI board games
   { type: 'tictactoe',    short: 'TTT',           Icon: TicTacToeIcon,    Component: () => <BotBoardDemo type="tictactoe" />    },
@@ -1432,6 +1632,8 @@ const DEMOS = [
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
   { type: 'typing',       short: 'TYPING\nRACE',  Icon: TypingIcon,       Component: TypingDemo       },
   { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },
+  { type: 'pong',         short: 'PONG',          Icon: PongIcon,         Component: PongDemo         },
+  { type: 'snake',        short: 'SNAKE\nBATTLE', Icon: SnakeIcon,        Component: SnakeDemo        },
   // Memory hot-seat
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonDemo        },
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemoryDemo },

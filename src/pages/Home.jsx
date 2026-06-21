@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
@@ -10,6 +10,10 @@ import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { sounds } from '../lib/sounds'
 import GamePicker from '../components/GamePicker'
 import ThemeSwitcher from '../components/ThemeSwitcher'
+import Avatar from '../components/Avatar'
+import { useAuth } from '../lib/AuthContext'
+import { setProfile, subscribeRequests, subscribeInvites, dismissInvite } from '../lib/social'
+import { defaultAvatarForId } from '../lib/avatars'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -25,6 +29,14 @@ export default function Home() {
   const stats = useMemo(() => getStats(), [])
   const [isNewVisitor] = useState(() => !localStorage.getItem('playerName') && getRooms().length === 0)
   const [howItWorksDismissed, setHowItWorksDismissed] = useState(false)
+  const { profile } = useAuth()
+  const [requestCount, setRequestCount] = useState(0)
+  const [invites, setInvites] = useState([])
+
+  useEffect(() => subscribeRequests(list => setRequestCount(list.length)), [])
+  useEffect(() => subscribeInvites(setInvites), [])
+
+  const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
 
   const toggleMute = () => setMuted(sounds.toggle())
 
@@ -38,6 +50,7 @@ export default function Home() {
       return null
     }
     localStorage.setItem('playerName', trimmed)
+    if (trimmed !== profile?.displayName) setProfile({ displayName: trimmed })
     return trimmed
   }
 
@@ -58,7 +71,7 @@ export default function Home() {
           scores: {},
           createdAt: now,
           lastActivityAt: now,
-          players: { [myId]: { name: playerName, joinedAt: now, playerId: myId, online: true } },
+          players: { [myId]: { name: playerName, joinedAt: now, playerId: myId, online: true, avatar: myAvatar } },
           ...freshGameState(gameType),
         }
       } else {
@@ -68,7 +81,7 @@ export default function Home() {
           scores: { X: 0, O: 0 },
           createdAt: Date.now(),
           lastActivityAt: Date.now(),
-          players: { X: { name: playerName, joinedAt: Date.now(), playerId: myId } },
+          players: { X: { name: playerName, joinedAt: Date.now(), playerId: myId, avatar: myAvatar } },
           ...freshGameState(gameType),
         }
       }
@@ -117,6 +130,37 @@ export default function Home() {
           )}
         </button>
       </div>
+
+      {/* Account + friends — fixed top-left */}
+      <div className="fixed top-[max(1rem,env(safe-area-inset-top))] left-[max(1rem,env(safe-area-inset-left))] z-10 flex gap-2 items-center">
+        <Link
+          to="/profile"
+          title="Your profile"
+          className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded border border-retro-border bg-retro-card hover:border-retro-p1 transition-colors"
+        >
+          <Avatar id={myAvatar} size={22} />
+          <span className="font-pixel text-[9px] text-retro-text max-w-[72px] truncate">{profile?.displayName || 'PROFILE'}</span>
+        </Link>
+        <Link
+          to="/friends"
+          title="Friends"
+          aria-label="Friends"
+          className="relative p-2 rounded border border-retro-border bg-retro-card text-retro-dim hover:text-retro-text transition-colors"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          {requestCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-retro-cta text-retro-bg font-pixel text-[7px] flex items-center justify-center">
+              {requestCount}
+            </span>
+          )}
+        </Link>
+      </div>
+
       {configError && (
         <div className="w-full max-w-sm mb-6 border border-retro-p2/50 bg-retro-card rounded px-4 py-3">
           <p className="font-pixel text-[10px] text-retro-p2">FIREBASE NOT CONFIGURED</p>
@@ -145,6 +189,36 @@ export default function Home() {
             </p>
           </div>
         </div>
+
+        {/* Pending game invites from friends */}
+        {invites.length > 0 && (
+          <div className="space-y-2">
+            {invites.map(inv => (
+              <div key={inv.id} className="flex items-center gap-2.5 bg-retro-tint-cta border border-retro-cta/40 rounded p-2.5">
+                <Avatar id={inv.fromAvatar} size={32} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-mono text-[11px] text-retro-text truncate">
+                    <span className="text-retro-cta">{inv.fromName}</span> invited you
+                  </p>
+                  <p className="font-pixel text-[8px] text-retro-dim mt-0.5">{getGameConfig(inv.gameType).label}</p>
+                </div>
+                <button
+                  onClick={() => { dismissInvite(inv.id); navigate(`/game/${inv.gameId}`) }}
+                  className="px-3 py-1.5 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-95"
+                >
+                  JOIN
+                </button>
+                <button
+                  onClick={() => dismissInvite(inv.id)}
+                  aria-label="Dismiss invite"
+                  className="px-1.5 text-retro-dim hover:text-retro-p2 font-pixel text-[9px] transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* First-run HOW IT WORKS strip */}
         {isNewVisitor && !howItWorksDismissed && (

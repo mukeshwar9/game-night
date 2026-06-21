@@ -4,7 +4,7 @@ import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
   applyGuess, isWordGuessed, countWrong,
-  MAX_WRONG, verifyRoundConsistency,
+  MAX_WRONG, verifyRoundConsistency, wordStructure,
 } from '../lib/hangmanLogic'
 import HangmanGallows from '../components/HangmanGallows'
 import WordDisplay from '../components/WordDisplay'
@@ -205,14 +205,15 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     prevWrongDrop.current = wrongCount
   }, [wrongCount])
 
-  const handleWordSet = useCallback(async (word) => {
+  const handleWordSet = useCallback(async (word, hint) => {
     setLockingWord(true)
     try {
       const { hash, salt } = await commit(word)
       sessionStorage.setItem(`hangwoman-word-${gameId}`, JSON.stringify({ word, salt }))
       await update(ref(db, `games/${gameId}`), {
         'round/phase': 'guessing',
-        'round/wordLength': word.length,
+        'round/wordStructure': wordStructure(word),
+        'round/hint': hint || null,
         'round/commitment': hash,
         'round/wrongCount': 0,
         'round/guesses': null,
@@ -252,7 +253,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       'round/setter': newSetter,
       'round/phase': 'setting',
       'round/wrongCount': 0,
-      'round/wordLength': null,
+      'round/wordStructure': null,
+      'round/hint': null,
       'round/commitment': null,
       'round/guesses': null,
       'round/reveal': null,
@@ -282,7 +284,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       'round/setter': newSetter,
       'round/phase': 'setting',
       'round/wrongCount': 0,
-      'round/wordLength': null,
+      'round/wordStructure': null,
+      'round/hint': null,
       'round/commitment': null,
       'round/guesses': null,
       'round/reveal': null,
@@ -308,7 +311,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         'round/setter': newSetter,
         'round/phase': 'setting',
         'round/wrongCount': 0,
-        'round/wordLength': null,
+        'round/wordStructure': null,
+        'round/hint': null,
         'round/commitment': null,
         'round/guesses': null,
         'round/reveal': null,
@@ -405,9 +409,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       <HangmanGallows wrongCount={wrongCount} flash={flash} />
 
       {/* Word display */}
-      {round.wordLength > 0 && (
+      {(round.wordStructure || round.wordLength > 0) && (
         <WordDisplay
+          wordStructure={round.wordStructure}
           wordLength={round.wordLength}
+          hint={round.hint}
           guesses={guesses}
           revealedWord={revealedWord}
         />

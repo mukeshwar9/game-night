@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
+import Avatar from './Avatar'
 
-export default function PlayerCard({ name, symbol, isActive, isMe, score, online }) {
+export default function PlayerCard({ name, symbol, isActive, isMe, score, online, avatar }) {
   const isX = symbol === 'X'
 
   return (
@@ -12,16 +13,28 @@ export default function PlayerCard({ name, symbol, isActive, isMe, score, online
           : 'border-retro-p2 bg-retro-tint-p2/60 shadow-neon-p2'
         : 'border-retro-border bg-retro-card',
     )}>
-      {/* Symbol badge with presence dot */}
+      {/* Avatar (or symbol fallback) with role chip + presence dot */}
       <div className="relative flex-shrink-0">
-        <span className={cn(
-          'font-pixel text-base w-9 h-9 flex items-center justify-center rounded',
-          isX
-            ? 'text-retro-p1 bg-retro-tint-p1 text-glow-p1'
-            : 'text-retro-p2 bg-retro-tint-p2 text-glow-p2',
-        )}>
-          {symbol}
-        </span>
+        {avatar ? (
+          <Avatar id={avatar} size={36} />
+        ) : (
+          <span className={cn(
+            'font-pixel text-base w-9 h-9 flex items-center justify-center rounded',
+            isX
+              ? 'text-retro-p1 bg-retro-tint-p1 text-glow-p1'
+              : 'text-retro-p2 bg-retro-tint-p2 text-glow-p2',
+          )}>
+            {symbol}
+          </span>
+        )}
+        {avatar && (
+          <span className={cn(
+            'absolute -bottom-1 -left-1 w-4 h-4 rounded-sm flex items-center justify-center font-pixel text-[8px] border border-retro-bg',
+            isX ? 'bg-retro-p1 text-retro-bg' : 'bg-retro-p2 text-retro-bg',
+          )}>
+            {symbol}
+          </span>
+        )}
         {online !== undefined && (
           <div className={cn(
             'absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-retro-bg',

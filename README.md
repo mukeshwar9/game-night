@@ -14,6 +14,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - Simon — a memory duel; on your turn the growing pad sequence flashes once and then hides, you replay it from memory (pad colours are concealed except during the flash, so there's no reading the answer off the board), then add one new pad of your choice and pass the turn; the first misremembered pad loses the round
 - Typing Race — both players type the same passage simultaneously; a ghost cursor shows the opponent's live position; errors stay highlighted but don't block progress; winner is determined by effective WPM (speed × accuracy) at the finish line; supports a QWERTY on-screen keyboard or the device keyboard
 - Mental Math Duel — 2-minute blitz where both players race on the same math question simultaneously; first correct answer wins the round and earns speed-bonus points (1–5 depending on how quickly you answered); ⚡ power questions every 8 rounds double the points and penalty; 🔥 a 3-question correct streak applies a ×2 multiplier to the next correct answer; wrong answers lose points; highest score at the buzzer wins
+- Pong — the platform's one real-time game: a live paddle duel played peer-to-peer over WebRTC (Firebase is used only to set up the connection, never for the gameplay frames). Move with ↑/↓, W/S, or by dragging; the ball speeds up each rally and your hit position sets the return angle. First to 5 points takes the round, first to 3 rounds the match. Practice solo vs an AI at `/demo` (architecture in [Real-time games](#real-time-games-pong--architecture))
 
 ## How it works
 
@@ -400,7 +401,7 @@ Two-player games that fit the platform, tiered by how far they stretch the curre
 
 Skipped from the Human Benchmark catalog: **Aim Trainer** (pure mouse skill, weak on mobile, and a duel is just two solo runs compared), **Verbal Memory** (long solo grind with no natural duel structure), **Hearing / Interval Trainer** (audio-dependent and niche — the site itself retired its hearing test).
 
-**Avoid for now:** real-time-reflex games (Pong, air hockey, tap races) — RTDB latency makes them feel mushy; they need the WebRTC architecture described below.
+**Real-time-reflex games:** Pong is now shipped over WebRTC (see [Real-time games](#real-time-games-pong--architecture)). Other reflex games (air hockey, tap races) would reuse the same `src/lib/realtime/` transport. Note these can never go over RTDB directly — its latency makes a streamed ball feel mushy.
 
 **Suggested next three:** Pentago (excitement per line of code), Gomoku (cheapest big payoff), Breakthrough (first moving-pieces game). Add Pig when introducing dice, RPS as a quick filler-game win.
 
@@ -413,7 +414,18 @@ Skipped from the Human Benchmark catalog: **Aim Trainer** (pure mouse skill, wea
 - **Rematch request flow — ✅ done.** PLAY AGAIN / NEW MATCH / SWITCH GAME now write a `proposal` node; the opponent accepts or declines (`src/components/ProposalBanner.jsx`). The handshake is skipped when the opponent is offline or absent.
 - **More games** — see the full tiered list in [Game candidates](#game-candidates); with Dots and Boxes and SOS shipped, Battleship (unblocked by Hangwoman's commit–reveal module) is the remaining headline pick, with Pentago / Gomoku / Breakthrough as the cheap wins.
 
-### Real-time games (Pong, air hockey, etc.) — architecture notes
+### Real-time games (Pong) — architecture
+
+**✅ Pong shipped.** It is the first game whose gameplay does not flow through RTDB. As built:
+
+- **Pure sim** — `src/lib/pongLogic.js` (`createState` / `step` / `computeAI` / `getWinner`), unit-tested in `src/lib/pongLogic.test.js`. Normalized 1×1 court, fixed timestep, returns `{state, events}`.
+- **Transport** — `src/lib/realtime/rtc.js`: native `RTCPeerConnection` + an unreliable/unordered data channel, signaled through `games/$id/signaling`. X hosts (offers), O guests (answers). Public STUN only; no TURN, so symmetric-NAT peers get a "CONNECTION FAILED — RETRY" state.
+- **Host-authoritative sync** — the host (X) runs the sim and streams ~30 Hz snapshots over the channel; the guest (O) predicts its own paddle locally and dead-reckons the ball from snapshot velocity. The host writes `pongScoreX`/`pongScoreO` to Firebase per point (so spectators see the score) and `runTransaction`s the round result into the standard `scores`/`winner`/finish flow.
+- **UI** — `src/pages/PongGame.jsx` (custom dispatch in `Game.jsx`), `src/components/PongCourt.jsx` (themed DOM, not canvas), `src/hooks/usePongControls.js`. `/demo` runs a local human-vs-AI `PongDemo` straight off `pongLogic`.
+
+This shipped a robust snapshot/dead-reckoning variant rather than the event-sync + clock-sync design sketched below; the notes below remain the reference for evolving it (e.g. event-based ball sync for tighter bandwidth). Live two-player play requires real two-device/two-network testing.
+
+#### Original design notes
 
 The current stack assumes turn-based play: state changes once per move and syncs through RTDB. Reflex games break that — state changes ~60×/second and continuous physics replaces discrete board cells. Pushing ball positions through RTDB at 30–60Hz would mean 100–300ms perceived latency, heavy bandwidth use, and a teleporting ball. If a Pong-like is ever built, this is the plan:
 

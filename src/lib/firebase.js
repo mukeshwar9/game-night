@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -12,13 +13,15 @@ const firebaseConfig = {
 };
 
 let db = null;
+let auth = null;
 export let configError = null;
 
 try {
   const app = initializeApp(firebaseConfig);
   db = getDatabase(app);
-} catch (e) {
+  auth = getAuth(app);
+} catch {
   configError = 'Firebase is not configured. Copy .env.local.example to .env.local and fill in your Firebase project credentials.';
 }
 
-export { db };
+export { db, auth };

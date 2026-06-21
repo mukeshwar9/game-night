@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   validateWord,
+  wordStructure,
   applyGuess,
   isWordGuessed,
   countWrong,
@@ -15,17 +16,44 @@ describe('validateWord', () => {
     expect(validateWord('cat')).toBe('CAT')
   })
 
-  it('rejects words outside 3–12 chars', () => {
+  it('rejects words with fewer than 3 letters (no spaces)', () => {
     expect(validateWord('AB')).toBeNull()
-    expect(validateWord('ABCDEFGHIJKLM')).toBeNull()
     expect(validateWord('')).toBeNull()
     expect(validateWord(null)).toBeNull()
   })
 
-  it('rejects non-alpha characters', () => {
-    expect(validateWord('HELLO WORLD')).toBeNull()
+  it('rejects non-alpha characters (digits, punctuation)', () => {
     expect(validateWord('H3LLO')).toBeNull()
     expect(validateWord('CAFÉ')).toBeNull()
+  })
+
+  it('accepts multi-word phrases', () => {
+    expect(validateWord('ice cream')).toBe('ICE CREAM')
+    expect(validateWord('ICE CREAM')).toBe('ICE CREAM')
+  })
+
+  it('collapses multiple and edge spaces in phrases', () => {
+    expect(validateWord('  ice   cream ')).toBe('ICE CREAM')
+  })
+
+  it('rejects phrases whose letter count exceeds 30', () => {
+    // 31 letters total
+    expect(validateWord('ABCDEFGHIJ ABCDEFGHIJ ABCDEFGHIJK')).toBeNull()
+  })
+
+  it('rejects strings with digits or punctuation even in phrases', () => {
+    expect(validateWord('ICE 2 CREAM')).toBeNull()
+    expect(validateWord('ICE-CREAM')).toBeNull()
+  })
+})
+
+describe('wordStructure', () => {
+  it('returns word lengths for a single word', () => {
+    expect(wordStructure('BANANA')).toEqual([6])
+  })
+
+  it('returns per-word lengths for a phrase', () => {
+    expect(wordStructure('ICE CREAM')).toEqual([3, 5])
   })
 })
 
@@ -39,6 +67,12 @@ describe('applyGuess', () => {
   it('returns empty array for a miss', () => {
     expect(applyGuess('BANANA', 'Z')).toEqual([])
     expect(applyGuess('HELLO', 'X')).toEqual([])
+  })
+
+  it('returns full-string indices (including the space) for a phrase', () => {
+    // 'ICE CREAM' indices: I=0,C=1,E=2, =3,C=4,R=5,E=6,A=7,M=8
+    expect(applyGuess('ICE CREAM', 'C')).toEqual([1, 4])
+    expect(applyGuess('ICE CREAM', 'E')).toEqual([2, 6])
   })
 })
 
@@ -66,6 +100,18 @@ describe('isWordGuessed', () => {
   it('works with repeated letters — one guess covers all occurrences', () => {
     const guesses = { H: [0], E: [1], L: [2, 3], O: [4] }
     expect(isWordGuessed('HELLO', guesses)).toBe(true)
+  })
+
+  it('ignores spaces when checking phrase completeness', () => {
+    // 'ICE CREAM' — distinct letters: I,C,E,R,A,M (space ignored)
+    const guesses = { I: [0], C: [1, 4], E: [2, 7], R: [5], A: [6], M: [8] }
+    expect(isWordGuessed('ICE CREAM', guesses)).toBe(true)
+  })
+
+  it('returns false for a phrase when any letter (across words) is missing', () => {
+    // Missing 'M'
+    const guesses = { I: [0], C: [1, 4], E: [2, 7], R: [5], A: [6] }
+    expect(isWordGuessed('ICE CREAM', guesses)).toBe(false)
   })
 })
 
@@ -117,5 +163,11 @@ describe('verifyRoundConsistency', () => {
     // Firebase returns { '0': 1, '1': 3, '2': 5 } instead of [1,3,5]
     const guesses = { A: { 0: 1, 1: 3, 2: 5 }, B: [0], N: [2, 4] }
     expect(verifyRoundConsistency('BANANA', guesses)).toBe(true)
+  })
+
+  it('stays consistent for a phrase using full-string indices', () => {
+    // 'ICE CREAM': C at indices 1,4; space is at index 3 (not a letter)
+    const guesses = { C: [1, 4], E: [2, 6], I: [0], R: [5], A: [7], M: [8] }
+    expect(verifyRoundConsistency('ICE CREAM', guesses)).toBe(true)
   })
 })
