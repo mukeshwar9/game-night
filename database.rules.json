@@ -3,23 +3,32 @@
     "games": {
       ".indexOn": ["createdAt"],
       "$gameId": {
-        ".read": true,
-        ".write": true,
+        ".read": "auth != null",
+        ".write": "auth != null",
         "players": {
-          "X": { ".write": "!data.exists()" },
-          "O": { ".write": "!data.exists()" }
+          "$seat": {
+            "playerId": {
+              ".validate": "(!data.exists() && newData.val() === auth.uid) || newData.val() === data.val()"
+            },
+            "name": {
+              ".validate": "newData.isString() && newData.val().length <= 40"
+            }
+          }
         }
       }
     },
     "users": {
-      ".read": true,
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid"
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
+        "displayName": {
+          ".validate": "newData.isString() && newData.val().length <= 40"
+        }
       }
     },
     "codes": {
-      ".read": true,
       "$code": {
+        ".read": "auth != null",
         ".write": "auth != null && !data.exists() && newData.val() === auth.uid"
       }
     },
@@ -27,7 +36,8 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$friendUid": {
-          ".write": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)"
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)",
+          ".validate": "newData.hasChild('since') || !newData.exists()"
         }
       }
     },
@@ -35,14 +45,18 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$fromUid": {
-          ".write": "auth != null && (auth.uid === $fromUid || auth.uid === $uid)"
+          ".write": "auth != null && (auth.uid === $fromUid || auth.uid === $uid)",
+          ".validate": "!newData.exists() || !newData.hasChild('name') || (newData.child('name').isString() && newData.child('name').val().length <= 40)"
         }
       }
     },
     "invites": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null"
+        "$inviteId": {
+          ".write": "auth != null && (auth.uid === $uid || (newData.child('fromUid').val() === auth.uid && root.child('friends').child($uid).child(auth.uid).exists()))",
+          ".validate": "!newData.exists() || (newData.child('fromUid').val() === auth.uid && newData.hasChild('gameId'))"
+        }
       }
     },
     "$other": {
