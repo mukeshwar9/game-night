@@ -1,8 +1,10 @@
 // Retro pixel-art avatars: 8x8 monochrome sprites drawn from a char map, tinted
 // with a theme role token so they recolor with the active theme (per the
 // no-hardcoded-hex rule in CLAUDE.md). '#' = body, 'o' = knocked-out (tile color,
-// for eyes/holes), '.' = empty. Keep the keys in sync with AVATARS in
+// for eyes/holes), '.' = empty. Keep the keys in sync with SHAPES in
 // src/lib/avatars.js.
+
+import { parseAvatar } from '../lib/avatars'
 
 const GLYPHS = {
   invader: [
@@ -125,27 +127,91 @@ const GLYPHS = {
     '...##...',
     '........',
   ],
-}
-
-// Theme role token per avatar — gives within-theme variety while staying themed.
-const TONE = {
-  invader: '--c-win',
-  robot: '--c-p1',
-  ghost: '--c-text',
-  alien: '--c-win',
-  skull: '--c-text',
-  cat: '--c-p2',
-  ufo: '--c-cta',
-  wizard: '--c-p1',
-  ninja: '--c-text',
-  crown: '--c-cta',
-  dino: '--c-win',
-  heart: '--c-p2',
+  frog: [
+    '.##..##.',
+    '########',
+    '#o####o#',
+    '########',
+    '########',
+    '.######.',
+    '..#..#..',
+    '.##..##.',
+  ],
+  star: [
+    '...##...',
+    '...##...',
+    '########',
+    '.######.',
+    '..####..',
+    '.##..##.',
+    '##....##',
+    '........',
+  ],
+  mushroom: [
+    '..####..',
+    '.######.',
+    '#o####o#',
+    '########',
+    '########',
+    '..####..',
+    '..####..',
+    '..####..',
+  ],
+  bolt: [
+    '....###.',
+    '...###..',
+    '..###...',
+    '..#####.',
+    '....###.',
+    '...###..',
+    '..###...',
+    '..##....',
+  ],
+  moon: [
+    '..####..',
+    '.####...',
+    '####....',
+    '####....',
+    '####....',
+    '####....',
+    '.####...',
+    '..####..',
+  ],
+  fish: [
+    '........',
+    '........',
+    '...###..',
+    '#.#####.',
+    '######o#',
+    '#.#####.',
+    '...###..',
+    '........',
+  ],
+  sword: [
+    '...##...',
+    '...##...',
+    '...##...',
+    '...##...',
+    '.######.',
+    '...##...',
+    '...##...',
+    '..####..',
+  ],
+  slime: [
+    '...##...',
+    '..####..',
+    '.######.',
+    '########',
+    '#o####o#',
+    '########',
+    '########',
+    '........',
+  ],
 }
 
 export default function Avatar({ id, size = 48, tile = true, className = '' }) {
-  const glyph = GLYPHS[id] || GLYPHS.invader
-  const tone = TONE[id] || '--c-p1'
+  const { shape, tone } = parseAvatar(id)
+  const glyph = GLYPHS[shape] || GLYPHS.invader
   const knockout = tile ? 'rgb(var(--c-surface))' : 'rgb(var(--c-bg))'
   return (
     <svg
@@ -155,13 +221,13 @@ export default function Avatar({ id, size = 48, tile = true, className = '' }) {
       shapeRendering="crispEdges"
       className={className}
       role="img"
-      aria-label={`${id} avatar`}
+      aria-label={`${shape} avatar`}
     >
       {tile && <rect x="0" y="0" width="8" height="8" rx="1.1" style={{ fill: knockout }} />}
       {glyph.flatMap((row, y) =>
         row.split('').map((ch, x) => {
           if (ch === '.') return null
-          const fill = ch === 'o' ? knockout : `rgb(var(${tone}))`
+          const fill = ch === 'o' ? knockout : `rgb(var(--c-${tone}))`
           return <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill }} />
         }),
       )}

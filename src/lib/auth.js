@@ -15,6 +15,16 @@ import {
 } from 'firebase/auth'
 import { auth } from './firebase'
 
+// Actionable messages for the common "it's a console-setup problem, not a bug" codes.
+// Imported by Onboarding.jsx and Profile.jsx so both show identical copy.
+export const UPGRADE_ERRORS = {
+  'auth/operation-not-allowed': 'Enable Google sign-in in your Firebase console (Authentication → Sign-in method).',
+  'auth/admin-restricted-operation': 'Enable Anonymous sign-in in your Firebase console.',
+  'auth/unauthorized-domain': 'Add this domain in Firebase Auth → Settings → Authorized domains.',
+  'auth/popup-blocked': 'Your browser blocked the popup — allow popups for this site and retry.',
+  'auth/configuration-not-found': 'Enable a sign-in provider in your Firebase console first.',
+}
+
 let readyPromise = null
 
 // Resolves once we have a signed-in user. If nobody is signed in yet (first

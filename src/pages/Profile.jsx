@@ -3,21 +3,14 @@ import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import Avatar from '../components/Avatar'
-import { AVATARS } from '../lib/avatars'
+import AvatarCustomizer from '../components/AvatarCustomizer'
+import { canonicalAvatar } from '../lib/avatars'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { getStats } from '../lib/profile'
 import { getGameConfig } from '../lib/games'
+import { UPGRADE_ERRORS } from '../lib/auth'
 import { cn } from '@/lib/utils'
-
-// Actionable messages for the common "it's a console-setup problem, not a bug" codes.
-const UPGRADE_ERRORS = {
-  'auth/operation-not-allowed': 'Enable Google sign-in in your Firebase console (Authentication → Sign-in method).',
-  'auth/admin-restricted-operation': 'Enable Anonymous sign-in in your Firebase console.',
-  'auth/unauthorized-domain': 'Add this domain in Firebase Auth → Settings → Authorized domains.',
-  'auth/popup-blocked': 'Your browser blocked the popup — allow popups for this site and retry.',
-  'auth/configuration-not-found': 'Enable a sign-in provider in your Firebase console first.',
-}
 
 export default function Profile() {
   const { profile, isAnonymous, upgrade, signOutToGuest, user } = useAuth()
@@ -36,9 +29,9 @@ export default function Profile() {
     toast.success('Name saved!')
   }
 
-  const pickAvatar = async (key) => {
-    if (key === profile?.avatar) return
-    await setProfile({ avatar: key })
+  const pickAvatar = async (next) => {
+    if (next === canonicalAvatar(profile?.avatar)) return
+    await setProfile({ avatar: next })
   }
 
   const handleUpgrade = async () => {
@@ -123,23 +116,7 @@ export default function Profile() {
         {/* Avatar picker */}
         <div className="space-y-2">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">AVATAR</label>
-          <div className="grid grid-cols-6 gap-2">
-            {AVATARS.map(key => (
-              <button
-                key={key}
-                onClick={() => pickAvatar(key)}
-                aria-label={`Pick ${key}`}
-                className={cn(
-                  'rounded border-2 p-0.5 transition-all active:scale-90',
-                  key === profile?.avatar
-                    ? 'border-retro-cta shadow-neon-cta'
-                    : 'border-retro-border hover:border-retro-p1',
-                )}
-              >
-                <Avatar id={key} size={36} />
-              </button>
-            ))}
-          </div>
+          <AvatarCustomizer value={profile?.avatar} onChange={pickAvatar} />
         </div>
 
         {/* Friend code */}

@@ -11,9 +11,11 @@ import { sounds } from '../lib/sounds'
 import GamePicker from '../components/GamePicker'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import Avatar from '../components/Avatar'
+import Onboarding from '../components/Onboarding'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile, subscribeRequests, subscribeInvites, dismissInvite } from '../lib/social'
 import { defaultAvatarForId } from '../lib/avatars'
+import { checkShouldOnboard } from '../lib/onboarding'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -28,6 +30,7 @@ export default function Home() {
   const rooms = useMemo(() => getRooms(), [])
   const stats = useMemo(() => getStats(), [])
   const [isNewVisitor] = useState(() => !localStorage.getItem('playerName') && getRooms().length === 0)
+  const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
   const [howItWorksDismissed, setHowItWorksDismissed] = useState(false)
   const { profile } = useAuth()
   const [requestCount, setRequestCount] = useState(0)
@@ -104,6 +107,14 @@ export default function Home() {
     if (!code) { toast.error('ENTER A GAME CODE'); return }
     navigate(`/game/${code}`)
   }
+
+  // Early return — after all hooks (hook-order safety).
+  if (showOnboarding) return (
+    <Onboarding onDone={() => {
+      setShowOnboarding(false)
+      setName(localStorage.getItem('playerName') || '')
+    }} />
+  )
 
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-4 relative">
