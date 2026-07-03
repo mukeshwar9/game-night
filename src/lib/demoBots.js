@@ -4,11 +4,12 @@
 // pickBotMove(type, game, botSymbol) → move payload (same shape the board's onMove emits)
 // Returns null when no move is possible (e.g. Reversi pass).
 
-import { getWinner } from './gameLogic'
+import { getWinner, normalizeBoard } from './gameLogic'
 import {
   getConnectFourWinner,
   getConnectFourDrop,
 } from './connectFourLogic'
+import { legalCells, miniBoardWinner, normalizeUWon } from './ultimateTttLogic'
 import { getGomokuWinner, GOMOKU_SIZE, GOMOKU_CELL_COUNT } from './gomokuLogic'
 import { legalMoves, flippedBy } from './reversiLogic'
 import {
@@ -367,6 +368,33 @@ function botDice(game, botSymbol) {
   return 'roll'
 }
 
+// Connect Four Pop Out — the bot only ever drops (never pops); good enough for
+// casual solo practice. Emits the { col, action } payload the pop board expects.
+function botConnectFourPop(game, botSymbol) {
+  const col = botConnectFour(game, botSymbol)
+  return col == null ? null : { col, action: 'drop' }
+}
+
+// Ultimate Tic-Tac-Toe — respects the active-board constraint, grabs a miniboard
+// win, blocks the opponent's miniboard win, then prefers board centers.
+function botUltimate(game, botSymbol) {
+  const board = normalizeBoard(game.board, 81)
+  const uWon = normalizeUWon(game.uWon)
+  const active = game.uActiveBoard ?? -1
+  const cells = legalCells(board, uWon, active)
+  if (!cells.length) return null
+  const opp = opponent(botSymbol)
+  const completes = (idx, sym) => {
+    const mini = Math.floor(idx / 9)
+    const test = [...board]; test[idx] = sym
+    return miniBoardWinner(test.slice(mini * 9, mini * 9 + 9)) === sym
+  }
+  for (const idx of shuffle(cells)) if (completes(idx, botSymbol)) return idx
+  for (const idx of shuffle(cells)) if (completes(idx, opp)) return idx
+  const centers = cells.filter(i => i % 9 === 4)
+  return pickRandom(centers.length ? centers : cells)
+}
+
 // ---------------------------------------------------------------------------
 // Dispatcher
 // ---------------------------------------------------------------------------
@@ -374,7 +402,9 @@ function botDice(game, botSymbol) {
 export function pickBotMove(type, game, botSymbol) {
   switch (type) {
     case 'tictactoe':    return botTicTacToe(game, botSymbol)
+    case 'ultimatettt':  return botUltimate(game, botSymbol)
     case 'connectfour':  return botConnectFour(game, botSymbol)
+    case 'connectfourpop': return botConnectFourPop(game, botSymbol)
     case 'gomoku':       return botGomoku(game, botSymbol)
     case 'reversi':      return botReversi(game, botSymbol)
     case 'orderchaos':   return botOrderChaos(game, botSymbol)

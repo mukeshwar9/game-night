@@ -1,9 +1,16 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { CF_COLS } from '../lib/connectFourLogic'
+import { CF_COLS, CF_ROWS } from '../lib/connectFourLogic'
 
-export default function ConnectFourBoard({ board, onMove, disabled, winningLine = [], currentTurn }) {
+export default function ConnectFourBoard({ board, onMove, disabled, winningLine = [], currentTurn, popMode = false }) {
   const [hoveredCol, setHoveredCol] = useState(null)
+
+  // In pop mode the board emits { col, action }; classic mode emits a bare col.
+  const emit = (col, action) => {
+    if (disabled) return
+    onMove(popMode ? { col, action } : col)
+  }
+  const bottomOf = (col) => board[(CF_ROWS - 1) * CF_COLS + col]
 
   return (
     <div className="w-full max-w-sm sm:max-w-md mx-auto">
@@ -16,7 +23,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
             return (
               <button
                 key={i}
-                onClick={() => !disabled && !colFull && onMove(col)}
+                onClick={() => !colFull && emit(col, 'drop')}
                 onMouseEnter={() => setHoveredCol(col)}
                 onMouseLeave={() => setHoveredCol(null)}
                 disabled={disabled || colFull}
@@ -52,6 +59,34 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
             )
           })}
         </div>
+
+        {popMode && (
+          <div
+            className="grid gap-1 sm:gap-1.5 mt-1.5 pt-1.5 border-t border-retro-border/60"
+            style={{ gridTemplateColumns: `repeat(${CF_COLS}, 1fr)` }}
+          >
+            {Array.from({ length: CF_COLS }, (_, col) => {
+              const canPop = !disabled && bottomOf(col) === currentTurn
+              return (
+                <button
+                  key={col}
+                  onClick={() => canPop && emit(col, 'pop')}
+                  disabled={!canPop}
+                  title="Pop your own disc out of the bottom"
+                  aria-label={`Pop column ${col + 1}`}
+                  className={cn(
+                    'h-5 rounded-sm border font-pixel text-[9px] leading-none flex items-center justify-center transition-all',
+                    canPop
+                      ? 'border-retro-cta/60 text-retro-cta hover:bg-retro-tint-cta active:scale-90 cursor-pointer'
+                      : 'border-retro-border/40 text-retro-border/50 cursor-default',
+                  )}
+                >
+                  ▼
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

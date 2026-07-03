@@ -11,9 +11,15 @@ import {
   TypingIcon, MathIcon,
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
+import {
+  UT_CELL_COUNT, UT_BOARD_COUNT, applyUltimateMove, getUltimateWinner, normalizeUWon,
+} from './ultimateTttLogic'
+import UltimateTttBoard from '../components/UltimateTttBoard'
+import { applyConnectFourPopMove, bottomIndex } from './connectFourPopLogic'
 import {
   DB_EDGE_COUNT,
   DB_BOX_COUNT,
@@ -81,6 +87,36 @@ export const GAME_TYPES = [
     BoardComponent: Board,
   },
   {
+    type: 'ultimatettt', label: 'ULTIMATE TTT',
+    desc: '9 boards', Icon: TicTacToeIcon,
+    badge: 'U3', maxWidth: 'max-w-md',
+    category: 'board',
+    variantOf: 'tictactoe', variantLabel: 'ULTIMATE',
+    variantBlurb: 'Nine tic-tac-toes in one. Your move sends your rival to the matching board. Win 3 boards in a row.',
+    boardSize: UT_CELL_COUNT,
+    getMoveIndex: (board, move) => (board[move] ? -1 : move),
+    BoardComponent: UltimateTttBoard,
+    applyMove: ({ board, game, index, symbol }) => {
+      const uWon = normalizeUWon(game.uWon)
+      const active = game.uActiveBoard ?? -1
+      const res = applyUltimateMove(board, uWon, active, index, symbol)
+      if (!res) return null
+      return {
+        updates: {
+          board: res.board,
+          uWon: res.uWon,
+          uActiveBoard: res.activeBoard,
+          currentTurn: symbol === 'X' ? 'O' : 'X',
+        },
+        result: getUltimateWinner(res.uWon),
+      }
+    },
+    boardProps: (game) => ({
+      uWon: normalizeUWon(game.uWon),
+      uActiveBoard: game.uActiveBoard ?? -1,
+    }),
+  },
+  {
     type: 'connectfour', label: 'CONNECT FOUR',
     desc: '6 × 7', Icon: ConnectFourIcon,
     badge: 'C4', maxWidth: 'max-w-md',
@@ -89,6 +125,29 @@ export const GAME_TYPES = [
     getMoveIndex: getConnectFourDrop,
     getWinner: getConnectFourWinner,
     BoardComponent: ConnectFourBoard,
+  },
+  {
+    type: 'connectfourpop', label: 'C4 POP OUT',
+    desc: '6 × 7 · pop', Icon: ConnectFourIcon,
+    badge: 'C4P', maxWidth: 'max-w-md',
+    category: 'board',
+    variantOf: 'connectfour', variantLabel: 'POP OUT',
+    variantBlurb: 'Classic Connect Four, but on your turn you can pop one of your own bottom discs out — the whole column slides down.',
+    boardSize: CF_BOARD_SIZE,
+    getMoveIndex: (board, move) => {
+      if (move?.action === 'pop') return board[bottomIndex(move.col)] ? bottomIndex(move.col) : -1
+      return getConnectFourDrop(board, move?.col)
+    },
+    BoardComponent: ConnectFourBoard,
+    applyMove: ({ board, move, symbol }) => {
+      const res = applyConnectFourPopMove(board, move, symbol)
+      if (!res) return null
+      return {
+        updates: { board: res.board, currentTurn: symbol === 'X' ? 'O' : 'X' },
+        result: res.result,
+      }
+    },
+    boardProps: () => ({ popMode: true }),
   },
   {
     type: 'hangwoman', label: 'HANGWOMAN',
@@ -210,6 +269,27 @@ export const GAME_TYPES = [
     type: 'snake', label: 'SNAKE BATTLE',
     desc: 'duel', Icon: SnakeIcon,
     badge: 'SN', maxWidth: 'max-w-md',
+    category: 'reflex',
+    custom: true, realtime: true,
+  },
+  {
+    type: 'tron', label: 'TRON',
+    desc: 'light cycles', Icon: TronIcon,
+    badge: 'TR', maxWidth: 'max-w-md',
+    category: 'reflex',
+    custom: true, realtime: true,
+  },
+  {
+    type: 'sumo', label: 'SUMO ARENA',
+    desc: 'shove off', Icon: SumoIcon,
+    badge: 'SM', maxWidth: 'max-w-md',
+    category: 'reflex',
+    custom: true, realtime: true,
+  },
+  {
+    type: 'spaceduel', label: 'SPACE DUEL',
+    desc: 'asteroids fight', Icon: SpaceDuelIcon,
+    badge: 'SD', maxWidth: 'max-w-md',
     category: 'reflex',
     custom: true, realtime: true,
   },
@@ -353,6 +433,7 @@ export const getPlayerTag = (cfg) =>
 // Nulls for every game-specific field — spread into freshGameState so switching
 // games clears the previous game's keys from Firebase.
 const FIELD_NULLS = {
+  uWon: null, uActiveBoard: null,
   sosLines: null,
   simonSequence: null, simonProgress: null,
   chimpLevel: null, chimpLayout: null,
@@ -370,7 +451,8 @@ const FIELD_NULLS = {
   typingProgressX: null, typingProgressO: null,
   typingWpmX: null, typingWpmO: null,
   typingAccX: null, typingAccO: null,
-  mathSeed: null, mathQIndex: null, mathQStartAt: null,
+  mathSeed: null, mathQIndex: null, mathQStartAt: null, // mathQIndex/mathQStartAt: legacy shared-index keys, kept so stale rooms still clear
+  mathQIndexX: null, mathQIndexO: null,
   mathScoreX: null, mathScoreO: null,
   mathStreakX: null, mathStreakO: null,
   mathCorrectX: null, mathCorrectO: null,
@@ -380,6 +462,10 @@ const FIELD_NULLS = {
   bluffRound: null,
   pongScoreX: null, pongScoreO: null, signaling: null, matchLength: null,
   snakeScoreX: null, snakeScoreO: null,
+  tronScoreX: null, tronScoreO: null,
+  sumoScoreX: null, sumoScoreO: null,
+  spaceduelScoreX: null, spaceduelScoreO: null,
+  spaceduelHitsX: null, spaceduelHitsO: null,
 }
 
 export function freshGameState(gameType) {
@@ -390,6 +476,13 @@ export function freshGameState(gameType) {
   if (gameType === 'hangwoman') {
     return { ...FIELD_NULLS, board: null, currentTurn: null, boxes: null,
       round: { setter: 'X', phase: 'setting', wrongCount: 0 } }
+  }
+  if (gameType === 'ultimatettt') {
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: Array(UT_CELL_COUNT).fill(''),
+      uWon: Array(UT_BOARD_COUNT).fill(''),
+      uActiveBoard: -1,
+      currentTurn: 'X' }
   }
   if (gameType === 'dotsandboxes') {
     return { ...FIELD_NULLS, round: null,
@@ -427,6 +520,21 @@ export function freshGameState(gameType) {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       snakeScoreX: 0, snakeScoreO: 0 }
   }
+  if (gameType === 'tron') {
+    // Single-round: no currentTurn, no mid-round score counter. tronScore keys
+    // are cosmetic (1 for the winner, 0 otherwise) for the finished card.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      tronScoreX: 0, tronScoreO: 0 }
+  }
+  if (gameType === 'sumo') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      sumoScoreX: 0, sumoScoreO: 0 }
+  }
+  if (gameType === 'spaceduel') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      spaceduelScoreX: 0, spaceduelScoreO: 0,
+      spaceduelHitsX: 0, spaceduelHitsO: 0 }
+  }
   if (gameType === 'aim') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       aimScoreX: 0, aimScoreO: 0, aimHitsX: 0, aimHitsO: 0, aimFriendlyX: 0, aimFriendlyO: 0 }
@@ -439,7 +547,7 @@ export function freshGameState(gameType) {
   if (gameType === 'math') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       mathSeed: generateSeed(),
-      mathQIndex: 0,
+      mathQIndexX: 0, mathQIndexO: 0, // per-player progression through the same seeded sequence
       mathScoreX: 0, mathScoreO: 0,
       mathStreakX: 0, mathStreakO: 0,
       mathCorrectX: 0, mathCorrectO: 0,

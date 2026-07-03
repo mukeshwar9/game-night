@@ -14,6 +14,7 @@ import {
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
 import SnakeArena from '../components/SnakeArena';
@@ -35,6 +36,9 @@ import { pickBotMove } from '../lib/demoBots';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import TronDemo from './TronDemo';
+import SumoDemo from './SumoDemo';
+import SpaceduelDemo from './SpaceduelDemo';
 
 function generateNumberLocal(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
@@ -1620,7 +1624,9 @@ function SnakeDemo() {
 const DEMOS = [
   // vs-AI board games
   { type: 'tictactoe',    short: 'TTT',           Icon: TicTacToeIcon,    Component: () => <BotBoardDemo type="tictactoe" />    },
+  { type: 'ultimatettt',  short: 'ULTIMATE\nTTT', Icon: TicTacToeIcon,    Component: () => <BotBoardDemo type="ultimatettt" />  },
   { type: 'connectfour',  short: 'CONNECT\nFOUR', Icon: ConnectFourIcon,  Component: () => <BotBoardDemo type="connectfour" />  },
+  { type: 'connectfourpop', short: 'C4 POP\nOUT', Icon: ConnectFourIcon,  Component: () => <BotBoardDemo type="connectfourpop" /> },
   { type: 'gomoku',       short: 'GOMOKU',        Icon: GomokuIcon,       Component: () => <BotBoardDemo type="gomoku" />       },
   { type: 'reversi',      short: 'REVERSI',       Icon: ReversiIcon,      Component: () => <BotBoardDemo type="reversi" />      },
   { type: 'orderchaos',   short: 'ORDER &\nCHAOS',Icon: OrderChaosIcon,   Component: () => <BotBoardDemo type="orderchaos" />   },
@@ -1634,6 +1640,9 @@ const DEMOS = [
   { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },
   { type: 'pong',         short: 'PONG',          Icon: PongIcon,         Component: PongDemo         },
   { type: 'snake',        short: 'SNAKE\nBATTLE', Icon: SnakeIcon,        Component: SnakeDemo        },
+  { type: 'tron',         short: 'TRON',          Icon: TronIcon,         Component: TronDemo         },
+  { type: 'sumo',         short: 'SUMO\nARENA',   Icon: SumoIcon,         Component: SumoDemo         },
+  { type: 'spaceduel',    short: 'SPACE\nDUEL',   Icon: SpaceDuelIcon,    Component: SpaceduelDemo    },
   // Memory hot-seat
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonDemo        },
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemoryDemo },

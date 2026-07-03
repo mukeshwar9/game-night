@@ -38,4 +38,5 @@ export function getConnectFourDrop(board, col) {
 }
 
 export const CF_COLS = COLS;
+export const CF_ROWS = ROWS;
 export const CF_BOARD_SIZE = ROWS * COLS;

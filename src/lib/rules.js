@@ -24,6 +24,28 @@ export const GAME_RULES = {
     win: 'Line up 4 of your discs horizontally, vertically, or diagonally to win. A full board with no four-in-a-row is a draw.',
   },
 
+  ultimatettt: {
+    objective: 'Win three miniboards in a row on the big 3×3 grid.',
+    howToPlay: [
+      'The board is nine tic-tac-toe games arranged in a 3×3 grid.',
+      'The cell you play in decides which miniboard your opponent must play in next.',
+      'If you’re sent to a board that’s already won or full, you may play in any open board.',
+      'Win a miniboard with three in a row — it’s then claimed by that player.',
+    ],
+    win: 'Claim three miniboards in a row (across, down, or diagonally) to win. If every board is decided with no line, the most boards won wins.',
+  },
+
+  connectfourpop: {
+    objective: 'Connect four of your discs in a line — or pop your way to one.',
+    howToPlay: [
+      'Take turns dropping a disc into a column, exactly like Connect Four.',
+      'Instead of dropping, you may POP one of your own bottom discs out (tap the ▼ under a column).',
+      'When you pop, every disc above slides down one row.',
+      'A pop can complete a line for either player — watch what falls into place.',
+    ],
+    win: 'First to line up four in a row (horizontally, vertically, or diagonally) wins. If one move makes four for both players, the mover wins.',
+  },
+
   pong: {
     objective: 'Send the ball past your opponent’s paddle to score.',
     howToPlay: [
