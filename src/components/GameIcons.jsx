@@ -335,3 +335,57 @@ export function SnakeIcon() {
     </svg>
   )
 }
+
+export function TronIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* X trail — horizontal then 90° down */}
+      <rect x="2"  y="5"  width="4" height="4" fill="currentColor" />
+      <rect x="6"  y="5"  width="4" height="4" fill="currentColor" opacity="0.85" />
+      <rect x="10" y="5"  width="4" height="4" fill="currentColor" opacity="0.7" />
+      <rect x="10" y="9"  width="4" height="4" fill="currentColor" opacity="0.55" />
+      <rect x="10" y="13" width="4" height="4" fill="currentColor" opacity="0.4" />
+      {/* O trail — vertical then 90° right (mirrored) */}
+      <rect x="22" y="19" width="0" height="0" fill="none" />
+      <rect x="14" y="15" width="4" height="4" fill="currentColor" opacity="0.4" />
+      <rect x="18" y="15" width="4" height="4" fill="currentColor" opacity="0.7" />
+      <rect x="18" y="11" width="4" height="4" fill="currentColor" opacity="0.55" />
+      <rect x="18" y="7"  width="4" height="4" fill="currentColor" opacity="0.7" />
+      {/* both heads */}
+      <rect x="14" y="17" width="4" height="2" fill="currentColor" />
+      <rect x="18" y="5"  width="4" height="2" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function SumoIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* arena ring */}
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1" opacity="0.45" />
+      {/* X blob */}
+      <circle cx="8" cy="12" r="3" fill="currentColor" />
+      {/* O blob */}
+      <circle cx="16" cy="12" r="3" fill="currentColor" opacity="0.6" />
+      {/* contact spark */}
+      <rect x="11.5" y="11" width="1" height="2" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function SpaceDuelIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* X ship — triangle pointing right */}
+      <polygon points="3,9 9,12 3,15" fill="currentColor" />
+      {/* O ship — triangle pointing left */}
+      <polygon points="15,9 21,12 15,15" fill="currentColor" opacity="0.6" />
+      {/* bullet between */}
+      <rect x="11.5" y="11.5" width="1.5" height="1.5" fill="currentColor" />
+      {/* starburst */}
+      <circle cx="12" cy="5" r="0.7" fill="currentColor" opacity="0.6" />
+      <circle cx="6"  cy="19" r="0.7" fill="currentColor" opacity="0.4" />
+      <circle cx="18" cy="19" r="0.7" fill="currentColor" opacity="0.4" />
+    </svg>
+  )
+}

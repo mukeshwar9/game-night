@@ -22,6 +22,9 @@ import TwoTruthsGame from './TwoTruthsGame'
 import BluffBattleGame from './BluffBattleGame'
 import PongGame from './PongGame'
 import SnakeGame from './SnakeGame'
+import TronGame from './TronGame'
+import SumoGame from './SumoGame'
+import SpaceduelGame from './SpaceduelGame'
 import WavelengthGame from './WavelengthGame'
 import FibbageGame from './FibbageGame'
 import SpyfairGame from './SpyfairGame'
@@ -34,6 +37,11 @@ import ThemeSwitcher from '../components/ThemeSwitcher'
 import RulesModal, { RulesButton } from '../components/RulesModal'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
+
+// Real-time games where one round decides the match (page-level `matchWinner`
+// already uses scores ≥ 1; the parent's matchTarget must agree so the
+// "New Match" button supersedes "Play Again" once the round resolves).
+const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
 
 const EMOTES = ['🔥', '😂', '😭', '😎', '👏', '💀']
 
@@ -111,6 +119,7 @@ export default function Game() {
   const prevFilledCount = useRef(0)
   const prevProposal = useRef(null)
   const nPlayerCleanup = useRef(null)
+  const moveInFlight = useRef(false)
 
   // Firebase init: join room, set up listeners, set up presence
   useEffect(() => {
@@ -301,7 +310,8 @@ export default function Game() {
       const w = game.winner
       const sx = game.scores?.X || 0
       const so = game.scores?.O || 0
-      const matchTarget = game.gameType === 'pong' ? (game.matchLength ?? 3) : 3
+      const matchTarget = game.gameType === 'pong' ? (game.matchLength ?? 3)
+        : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
       const isMatch = sx >= matchTarget || so >= matchTarget
       if (w === 'draw') sounds.draw()
       else if (w === mySymbol.current) (isMatch ? sounds.matchWin() : sounds.win())
@@ -397,8 +407,15 @@ export default function Game() {
     return () => clearTimeout(t)
   }, [game?.emote?.ts])
 
+  // A fresh snapshot means React state has caught up with the last write —
+  // safe to accept the next move (see moveInFlight in handleMove).
+  useEffect(() => {
+    moveInFlight.current = false
+  }, [game])
+
   const handleMove = async (colOrIndex) => {
     if (!game || !mySymbol.current) return
+    if (moveInFlight.current) return // a write is pending — ignore rapid re-taps
     if (game.status !== 'playing') return
     if (game.currentTurn !== mySymbol.current) return
 
@@ -421,6 +438,11 @@ export default function Game() {
       updates = { board: newBoard, currentTurn: mySymbol.current === 'X' ? 'O' : 'X' }
     }
 
+    // Block re-entry until the write settles or the next snapshot lands — the
+    // turn guard above reads React state, which lags the synchronous local
+    // Firebase echo, so a fast second tap could recompute from the pre-tap board.
+    moveInFlight.current = true
+
     sounds.move(mySymbol.current)
 
     if (result) {
@@ -433,7 +455,9 @@ export default function Game() {
     }
 
     updates.lastActivityAt = Date.now()
-    try { await update(ref(db, `games/${gameId}`), updates) } catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
+    try { await update(ref(db, `games/${gameId}`), updates) }
+    catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
+    finally { moveInFlight.current = false }
   }
 
   // Apply functions (called directly when no second player / opponent offline)
@@ -598,6 +622,28 @@ export default function Game() {
   const cfg = getGameConfig(game.gameType)
   const isCustom = !!cfg.custom
 
+  // Family-mismatch guard — a cross-family switch (party ⇄ 2P) reshapes the
+  // players node (uid keys vs 'X'/'O'), leaving every client seatless. The
+  // in-room picker filters those switches out, but stale clients or rooms
+  // switched before that fix can still land here — show a clear error instead
+  // of a silently dead board. (uids are long random strings, never 'X'/'O'.)
+  const seatKeys = Object.keys(game.players || {})
+  const familyMismatch = cfg.nPlayer
+    ? !!(game.players?.X || game.players?.O)
+    : seatKeys.length > 0 && !game.players.X && !game.players.O
+  if (familyMismatch) {
+    return (
+      <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-5 p-4">
+        <p className="font-pixel text-[10px] text-retro-p2 text-center max-w-xs leading-relaxed">
+          THIS ROOM&apos;S GAME MODE CHANGED AND NO LONGER MATCHES ITS PLAYERS. START A FRESH GAME FROM HOME.
+        </p>
+        <Link to="/" className="font-pixel text-[10px] text-retro-p1 text-glow-p1 hover:opacity-80 transition-opacity">
+          ← BACK TO HOME
+        </Link>
+      </div>
+    )
+  }
+
   if (cfg.nPlayer) {
     const mySeat = getPlayerId()
     const nplayers = game.players || {}
@@ -688,7 +734,8 @@ export default function Game() {
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  const matchTarget = game.gameType === 'pong' ? (game.matchLength ?? 3) : 3
+  const matchTarget = game.gameType === 'pong' ? (game.matchLength ?? 3)
+    : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
   const matchWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
 
   // Presence: show dot for players — green for me, live status for opponent
@@ -901,6 +948,39 @@ export default function Game() {
             />
           ) : game.gameType === 'snake' ? (
             <SnakeGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'tron' ? (
+            <TronGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'sumo' ? (
+            <SumoGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'spaceduel' ? (
+            <SpaceduelGame
               gameId={gameId}
               game={game}
               mySymbol={mySymbol.current}

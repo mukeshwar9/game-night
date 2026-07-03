@@ -21,6 +21,12 @@ const ICE_SERVERS = [
   { urls: 'stun:stun1.l.google.com:19302' },
 ]
 
+// ICE 'disconnected' is frequently transient (wifi blip, network switch) and
+// usually recovers to 'connected' on its own — the data channel is unreliable/
+// unordered, so a brief gap self-heals. Only surface 'failed' if the state
+// doesn't recover within this grace window; a real 'failed' is still immediate.
+const DISCONNECT_GRACE_MS = 5000
+
 const sigRef = (gameId, child) => ref(db, `games/${gameId}/signaling/${child}`)
 
 /**
@@ -67,19 +73,50 @@ export function createPeer({ gameId, mySymbol, onMessage, onStatus = () => {} })
     set(sigRef(gameId, `ice/${mySymbol}/${key}`), e.candidate.toJSON()).catch(() => {})
   }
 
+  // Grace timer for transient 'disconnected' states (see DISCONNECT_GRACE_MS).
+  let disconnectTimer = null
+  const clearDisconnectTimer = () => {
+    if (disconnectTimer) { clearTimeout(disconnectTimer); disconnectTimer = null }
+  }
+  cleanups.push(clearDisconnectTimer)
+
   pc.onconnectionstatechange = () => {
     if (closed) return
     const st = pc.connectionState
-    if (st === 'connected') emitStatus('connected')
-    else if (st === 'failed') emitStatus('failed')
-    else if (st === 'disconnected') emitStatus('failed')
+    if (st === 'connected') {
+      clearDisconnectTimer() // recovered before the grace timer fired
+      emitStatus('connected')
+    } else if (st === 'failed') {
+      clearDisconnectTimer()
+      emitStatus('failed')
+    } else if (st === 'disconnected' && !disconnectTimer) {
+      disconnectTimer = setTimeout(() => {
+        disconnectTimer = null
+        emitStatus('failed')
+      }, DISCONNECT_GRACE_MS)
+    }
+  }
+
+  // Remote candidates can arrive over signaling before this side has called
+  // setRemoteDescription (addIceCandidate would reject and the error is
+  // swallowed); buffer them until then, flush in order, then add directly.
+  let remoteDescSet = false
+  let pendingCandidates = []
+  const addCandidate = (cand) =>
+    pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {})
+  const flushCandidates = () => {
+    remoteDescSet = true
+    pendingCandidates.forEach(addCandidate)
+    pendingCandidates = []
   }
 
   // Consume the peer's ICE candidates as they arrive.
   const peerIce = sigRef(gameId, `ice/${opSymbol}`)
   const iceCb = onChildAdded(peerIce, (snap) => {
     const cand = snap.val()
-    if (cand) pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {})
+    if (!cand) return
+    if (remoteDescSet) addCandidate(cand)
+    else pendingCandidates.push(cand)
   })
   cleanups.push(() => off(peerIce, 'child_added', iceCb))
 
@@ -96,6 +133,7 @@ export function createPeer({ gameId, mySymbol, onMessage, onStatus = () => {} })
           const ans = snap.val()
           if (ans && !pc.currentRemoteDescription) {
             await pc.setRemoteDescription(new RTCSessionDescription(ans)).catch(() => {})
+            flushCandidates()
           }
         })
         cleanups.push(() => off(answerRef, 'value', cb))
@@ -106,6 +144,7 @@ export function createPeer({ gameId, mySymbol, onMessage, onStatus = () => {} })
           const offer = snap.val()
           if (offer && !pc.currentRemoteDescription) {
             await pc.setRemoteDescription(new RTCSessionDescription(offer))
+            flushCandidates()
             const answer = await pc.createAnswer()
             await pc.setLocalDescription(answer)
             await set(sigRef(gameId, 'answer'), { type: answer.type, sdp: answer.sdp })
