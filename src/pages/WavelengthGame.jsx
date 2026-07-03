@@ -10,6 +10,7 @@ import {
   scoreGuess,
   normalizeGuesses,
   seatOrder,
+  onlineGuessers,
   nextClueGiver,
 } from '../lib/wavelengthLogic'
 import GameSwitcher from '../components/GameSwitcher'
@@ -213,12 +214,17 @@ export default function WavelengthGame({
     }
   }
 
-  // Everyone except the clue-giver should have guessed before reveal.
+  // Everyone except the clue-giver should have guessed before reveal — but an
+  // offline guesser must not stall the round forever, so the required set is
+  // only the connected guessers (a reconnecting guesser rejoins it live and can
+  // still submit before reveal). Zero online guessers ⇒ allGuessed stays false:
+  // never auto-reveal into an empty room.
   const guesserIds = order.filter(id => id !== round?.clueGiver)
+  const requiredGuesserIds = onlineGuessers(players, round?.clueGiver)
   const allGuessed =
     round?.phase === 'guessing' &&
-    guesserIds.length > 0 &&
-    guesserIds.every(id => round.guesses[id] != null)
+    requiredGuesserIds.length > 0 &&
+    requiredGuesserIds.every(id => round.guesses[id] != null)
 
   // --- Clue-giver: once everyone has guessed, reveal target + salt ---
   useEffect(() => {
@@ -303,6 +309,24 @@ export default function WavelengthGame({
     } catch {
       toast.error('NEXT ROUND FAILED — CHECK CONNECTION')
     }
+  }
+
+  // --- Clue-giver: hidden target lost (new tab wiped sessionStorage), so the
+  // reveal can never fire — restart the round with no scoring, rotating the
+  // clue to the next seat (same write as the offline skip hatch). ---
+  const handleRestartLostRound = async () => {
+    if (!isClueGiver) return
+    try {
+      await update(ref(db, `games/${gameId}/round`), {
+        clueGiver: nextClueGiver(players, round.clueGiver),
+        phase: 'clue',
+        spectrumIndex: randomSpectrumIndex(round.spectrumIndex),
+        clue: '',
+        commitment: null,
+        guesses: null,
+        reveal: null,
+      })
+    } catch { toast.error('RESTART FAILED — CHECK CONNECTION') }
   }
 
   // -------------------------------------------------------------------------
@@ -416,6 +440,11 @@ export default function WavelengthGame({
   const clueGiverName = (players[round.clueGiver]?.name || '???').toUpperCase()
   const isReveal = round.phase === 'reveal'
   const target = isReveal && round.reveal ? round.reveal.target : null
+  // Clue-giver reloaded into a new tab: the hidden {target, salt} lives only in
+  // sessionStorage, so the reveal effect above can never fire and the round
+  // would stall with everyone online. Only the giver's own client can detect it.
+  const secretLost = isClueGiver && round.phase === 'guessing' &&
+    !sessionStorage.getItem(targetKey(gameId, round.spectrumIndex))
 
   return (
     <div className="space-y-4">
@@ -511,11 +540,15 @@ export default function WavelengthGame({
             </button>
           )}
           <div className="flex flex-wrap justify-center gap-x-3 gap-y-0.5 font-pixel text-[8px]">
-            {guesserIds.map(id => (
-              <span key={id} className={round.guesses[id] != null ? 'text-retro-win' : 'text-retro-dim'}>
-                {(players[id]?.name || '???').toUpperCase()} {round.guesses[id] != null ? '✓' : '…'}
-              </span>
-            ))}
+            {guesserIds.map(id => {
+              const locked = round.guesses[id] != null
+              const offline = players[id]?.online === false
+              return (
+                <span key={id} className={locked ? 'text-retro-win' : offline ? 'text-retro-p2' : 'text-retro-dim'}>
+                  {(players[id]?.name || '???').toUpperCase()} {locked ? '✓' : offline ? '·OFF' : '…'}
+                </span>
+              )
+            })}
           </div>
         </div>
       )}
@@ -554,6 +587,23 @@ export default function WavelengthGame({
             className="w-full py-2 mt-2 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
           >
             NEXT ROUND
+          </button>
+        </div>
+      )}
+
+      {/* Lost-secret escape hatch — shown only to the clue-giver themselves.
+          Without the sessionStorage target the reveal can never fire; restart
+          the round (no points scored, clue rotates to the next seat). */}
+      {secretLost && (
+        <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3">
+          <p className="font-pixel text-[9px] text-retro-p2 animate-pulse">
+            SECRET LOST — YOU OPENED A NEW TAB
+          </p>
+          <button
+            onClick={handleRestartLostRound}
+            className="px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+          >
+            RESTART ROUND
           </button>
         </div>
       )}

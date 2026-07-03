@@ -1,10 +1,34 @@
 // Pure helpers for FIBBAGE (lie & vote). No Firebase, no React — unit-tested.
+//
 // Round shape on Firebase (under games/{gameId}/round):
 //   { phase:'lying'|'voting'|'reveal',
 //     promptIndex: number,
-//     lies:    { [playerId]: text },          // submitted fake answers
-//     options: [{ id, text, by }],            // shuffled real + fakes (by=null for truth)
-//     votes:   { [playerId]: optionId } }
+//     lies:    { [playerId]: { hash } },        // salted SHA-256 commitment ONLY
+//     subs:    { [randomKey]: text },           // anonymised plaintext lies used
+//                                               // to build the ballot — deleted the
+//                                               // instant `options` is published
+//     options: [{ id, text }],                  // shuffled ballot: truth + lies mixed,
+//                                               // NO author + NO truth marker (see
+//                                               // buildOptions). Indistinguishable ids.
+//     votes:   { [playerId]: optionId },
+//     reveals: { [playerId]: { text, salt } },  // author->lie map — ONLY written at
+//                                               // the reveal phase (never during voting)
+//     cheats:  { [playerId]: true },            // reveal failed commitment verification
+//     scored:  true }                           // scores applied once, idempotently
+//
+// INFO-LEAK MODEL (why the shapes above are the way they are):
+//   * During `voting` the DB must expose the ballot texts (you vote on them) but must
+//     NOT expose (1) who wrote each lie or (2) which option is the truth. So `options`
+//     carries neither an author (`by`) nor a truth flag, and the author->lie map
+//     (`reveals`) is withheld until the `reveal` phase. `subs` is anonymous (random
+//     keys, no playerId) and is deleted the moment the ballot is built, so authorship
+//     and truth-by-elimination can't be recovered from public state during voting.
+//   * RESIDUAL, UNFIXABLE LEAK: the real answer ships in the client bundle
+//     (FIBBAGE_FACTS[promptIndex].answer) and promptIndex is public, so a determined
+//     player who inspects the JS bundle can always derive the truth. Closing this would
+//     require a trusted server to hold the answer — impossible in this serverless,
+//     world-readable-node architecture. We only defend against CASUAL/spectator leakage
+//     (reading a single Firebase field). See buildOptions / attributeOptions.
 //
 // Scoring:
 //   POINTS_FOR_TRUTH per player who picks the real answer
@@ -12,7 +36,8 @@
 
 export const POINTS_FOR_TRUTH = 1000
 export const POINTS_PER_FOOL = 500
-export const TRUTH_ID = 'truth'
+
+const norm = (s) => String(s ?? '').trim().toLowerCase()
 
 // Seat order is derived from joinedAt (earliest first), tie-broken by playerId
 // for a stable, deterministic order across all clients.
@@ -23,8 +48,8 @@ export function seatOrder(players) {
     .map(p => p.playerId)
 }
 
-// Deterministic 32-bit string hash → used to seed shuffles so every client
-// orders options identically without extra Firebase writes.
+// Deterministic 32-bit string hash → used to seed shuffles so the ballot order is
+// reproducible/testable.
 export function hashString(str) {
   let h = 2166136261 >>> 0
   for (let i = 0; i < str.length; i++) {
@@ -64,48 +89,67 @@ export function normalizeMap(raw) {
   return { ...raw }
 }
 
-// Build the voting options from the real answer + submitted lies.
-// Duplicate lies (case-insensitive match to the truth or to each other) are
-// merged so two players who happen to write the same text share one option and
-// both get fooler credit. The list is deterministically shuffled by `seed`.
-// Returns [{ id, text, by }] where `by` is the playerId who wrote a lie, or
-// null for the truth. Merged-lie options keep `by` as an array of playerIds.
-export function buildOptions(answer, lies, seed) {
-  const norm = (s) => String(s).trim().toLowerCase()
+// Build the ANONYMISED voting ballot from the real answer + the pool of plaintext
+// lies (`texts`, an array — the values of the anonymous `subs` node).
+//
+// The returned options are deliberately indistinguishable:
+//   - the truth is mixed in as just another `{ id, text }` (NO truth flag), and
+//   - NO `by`/author field is attached.
+// Ids are positional (`opt-N`) AFTER the shuffle, so the id encodes only a random
+// ballot position and never who wrote the option or whether it's the truth.
+//
+// Duplicate lies (case-insensitive) collapse to a single option; a lie equal to the
+// truth is dropped (its author earns no credit and it must not duplicate the truth).
+// Authorship + truth are recovered separately at reveal time via attributeOptions().
+export function buildOptions(answer, texts, seed) {
   const truthNorm = norm(answer)
-
-  // Group lies by normalized text; drop any lie identical to the truth
-  // (its author gets no credit and it must not duplicate the truth option).
-  const groups = new Map()
-  for (const [playerId, text] of Object.entries(lies || {})) {
-    const key = norm(text)
-    if (!key || key === truthNorm) continue
-    if (!groups.has(key)) groups.set(key, { text: String(text).trim(), by: [] })
-    groups.get(key).by.push(playerId)
+  const seen = new Set([truthNorm])
+  const items = [String(answer).trim()] // truth is one of the items; the shuffle hides it
+  for (const t of texts || []) {
+    const k = norm(t)
+    if (!k || seen.has(k)) continue
+    seen.add(k)
+    items.push(String(t).trim())
   }
+  return seededShuffle(items, seed).map((text, i) => ({ id: `opt-${i}`, text }))
+}
 
-  const options = [{ id: TRUTH_ID, text: String(answer), by: null }]
-  let i = 0
-  for (const { text, by } of groups.values()) {
-    options.push({ id: `lie-${i++}`, text, by })
+// Recover the answer key from the anonymised ballot at REVEAL time.
+// Given the public `options`, the true `answer`, and the verified author->lie map
+// `revealedLies` ({ [playerId]: text }), returns rich options
+//   [{ id, text, by }]
+// where the truth option has `by: null` and each lie option has `by: [playerId, …]`.
+// This is the shape scoreRound() consumes. Matching is by normalized text, so merged
+// duplicate lies credit every author and a lie that equals the truth earns nobody.
+export function attributeOptions(options, answer, revealedLies) {
+  const truthNorm = norm(answer)
+  const authorsByText = new Map()
+  for (const [pid, text] of Object.entries(revealedLies || {})) {
+    const k = norm(text)
+    if (!k || k === truthNorm) continue // a lie equal to the truth earns no credit
+    if (!authorsByText.has(k)) authorsByText.set(k, [])
+    authorsByText.get(k).push(pid)
   }
-
-  return seededShuffle(options, seed)
+  return (options || []).map(o => {
+    const k = norm(o.text)
+    if (k === truthNorm) return { ...o, by: null }
+    return { ...o, by: authorsByText.get(k) || [] }
+  })
 }
 
 // Compute per-player score deltas for a completed round.
-// votes: { [voterId]: optionId }, options from buildOptions.
-// Returns { [playerId]: deltaPoints } including 0 entries are omitted.
+// options: rich options from attributeOptions (truth has by === null).
+// votes: { [voterId]: optionId }. Entries that resolve to 0 are omitted.
 export function scoreRound(options, votes) {
   const deltas = {}
   const add = (id, pts) => { deltas[id] = (deltas[id] || 0) + pts }
 
-  const byOption = new Map(options.map(o => [o.id, o]))
+  const byOption = new Map((options || []).map(o => [o.id, o]))
 
   for (const [voterId, optionId] of Object.entries(votes || {})) {
     const opt = byOption.get(optionId)
     if (!opt) continue
-    if (opt.id === TRUTH_ID || opt.by === null) {
+    if (opt.by === null) {
       // Voter found the truth.
       add(voterId, POINTS_FOR_TRUTH)
     } else {
@@ -121,9 +165,8 @@ export function scoreRound(options, votes) {
   return deltas
 }
 
-// True once every non-author player who can vote has voted.
-// A player may not vote for their own lie, but everyone (including lie authors)
-// must cast a vote. eligibleIds = seat order of connected players.
+// True once every eligible player who can vote has voted.
+// eligibleIds = seat order of connected players.
 export function allVoted(eligibleIds, votes) {
   const v = votes || {}
   return eligibleIds.length > 0 && eligibleIds.every(id => v[id] != null)
@@ -133,4 +176,11 @@ export function allVoted(eligibleIds, votes) {
 export function allLied(eligibleIds, lies) {
   const l = lies || {}
   return eligibleIds.length > 0 && eligibleIds.every(id => l[id] != null)
+}
+
+// True once every eligible player has published their reveal (author->lie) at the
+// reveal phase — the gate the host waits on before verifying + scoring.
+export function allRevealed(eligibleIds, reveals) {
+  const r = reveals || {}
+  return eligibleIds.length > 0 && eligibleIds.every(id => r[id] != null)
 }

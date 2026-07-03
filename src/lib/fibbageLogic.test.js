@@ -2,15 +2,16 @@ import { describe, it, expect } from 'vitest'
 import {
   POINTS_FOR_TRUTH,
   POINTS_PER_FOOL,
-  TRUTH_ID,
   seatOrder,
   hashString,
   seededShuffle,
   normalizeMap,
   buildOptions,
+  attributeOptions,
   scoreRound,
   allVoted,
   allLied,
+  allRevealed,
 } from './fibbageLogic'
 import { FIBBAGE_FACTS } from './decks/fibbage'
 
@@ -110,92 +111,145 @@ describe('normalizeMap', () => {
 })
 
 // ---------------------------------------------------------------------------
-// buildOptions
+// buildOptions — the ANONYMISED ballot (info-leak fix)
 // ---------------------------------------------------------------------------
 describe('buildOptions', () => {
   it('includes the truth plus one option per distinct lie', () => {
-    const opts = buildOptions('REAL', { p1: 'lie-a', p2: 'lie-b' }, 1)
+    const opts = buildOptions('REAL', ['lie-a', 'lie-b'], 1)
     expect(opts).toHaveLength(3)
     const texts = opts.map(o => o.text).sort()
     expect(texts).toEqual(['REAL', 'lie-a', 'lie-b'])
   })
 
-  it('marks the truth option with id TRUTH_ID and by null', () => {
-    const opts = buildOptions('REAL', { p1: 'lie' }, 5)
-    const truth = opts.find(o => o.id === TRUTH_ID)
-    expect(truth).toBeTruthy()
-    expect(truth.by).toBeNull()
-    expect(truth.text).toBe('REAL')
+  it('does NOT expose an author (`by`) or a truth marker on any option', () => {
+    // The whole point of the fix: nothing on the published ballot reveals who wrote
+    // an option or which one is the real answer.
+    const opts = buildOptions('REAL', ['lie-a', 'lie-b'], 5)
+    for (const o of opts) {
+      expect(o).not.toHaveProperty('by')
+      expect(Object.keys(o).sort()).toEqual(['id', 'text'])
+    }
+    // The truth's id is indistinguishable from the lies' ids (same opt-N scheme).
+    expect(opts.every(o => /^opt-\d+$/.test(o.id))).toBe(true)
+  })
+
+  it('gives every option a unique positional id', () => {
+    const opts = buildOptions('REAL', ['a', 'b', 'c'], 3)
+    const ids = opts.map(o => o.id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 
   it('drops a lie that equals the truth (case-insensitive)', () => {
-    const opts = buildOptions('Paris', { p1: '  paris ', p2: 'London' }, 3)
+    const opts = buildOptions('Paris', ['  paris ', 'London'], 3)
     // truth + only the London lie
     expect(opts).toHaveLength(2)
-    const lie = opts.find(o => o.id !== TRUTH_ID)
-    expect(lie.text).toBe('London')
-    expect(lie.by).toEqual(['p2'])
+    const texts = opts.map(o => o.text).sort()
+    expect(texts).toEqual(['London', 'Paris'])
   })
 
-  it('merges duplicate lies into one option crediting both authors', () => {
-    const opts = buildOptions('REAL', { p1: 'banana', p2: 'BANANA', p3: 'apple' }, 8)
+  it('merges duplicate lies into a single option', () => {
+    const opts = buildOptions('REAL', ['banana', 'BANANA', 'apple'], 8)
     expect(opts).toHaveLength(3) // truth + banana + apple
-    const banana = opts.find(o => o.text.toLowerCase() === 'banana')
-    expect(banana.by.sort()).toEqual(['p1', 'p2'])
+    const texts = opts.map(o => o.text.toLowerCase()).sort()
+    expect(texts).toEqual(['apple', 'banana', 'real'])
   })
 
   it('is deterministic for the same seed', () => {
-    const lies = { p1: 'a', p2: 'b', p3: 'c' }
-    const a = buildOptions('REAL', lies, 123)
-    const b = buildOptions('REAL', lies, 123)
-    expect(a.map(o => o.id)).toEqual(b.map(o => o.id))
+    const texts = ['a', 'b', 'c']
+    const a = buildOptions('REAL', texts, 123)
+    const b = buildOptions('REAL', texts, 123)
+    expect(a).toEqual(b)
   })
 })
 
 // ---------------------------------------------------------------------------
-// scoreRound
+// attributeOptions — recover author + truth key at reveal time
+// ---------------------------------------------------------------------------
+describe('attributeOptions', () => {
+  const options = buildOptions('REAL', ['lieA', 'lieB'], 4)
+
+  it('marks the truth option with by === null', () => {
+    const rich = attributeOptions(options, 'REAL', { p1: 'lieA', p2: 'lieB' })
+    const truth = rich.find(o => o.text === 'REAL')
+    expect(truth.by).toBeNull()
+  })
+
+  it('attributes each lie option to its author(s)', () => {
+    const rich = attributeOptions(options, 'REAL', { p1: 'lieA', p2: 'lieB' })
+    const a = rich.find(o => o.text === 'lieA')
+    const b = rich.find(o => o.text === 'lieB')
+    expect(a.by).toEqual(['p1'])
+    expect(b.by).toEqual(['p2'])
+  })
+
+  it('credits every author of a merged (duplicate) lie', () => {
+    const opts = buildOptions('REAL', ['banana', 'BANANA'], 2)
+    const rich = attributeOptions(opts, 'REAL', { p1: 'banana', p2: 'BANANA' })
+    const banana = rich.find(o => o.text.toLowerCase() === 'banana')
+    expect(banana.by.sort()).toEqual(['p1', 'p2'])
+  })
+
+  it('never attributes a lie-equal-to-truth to its author (no credit)', () => {
+    const opts = buildOptions('Paris', ['London'], 3)
+    const rich = attributeOptions(opts, 'Paris', { p1: 'paris', p2: 'London' })
+    const truth = rich.find(o => o.text === 'Paris')
+    expect(truth.by).toBeNull()
+    expect(rich.find(o => o.text === 'London').by).toEqual(['p2'])
+  })
+
+  it('leaves a lie with no matching reveal unattributed ([])', () => {
+    const rich = attributeOptions(options, 'REAL', {})
+    for (const o of rich) {
+      if (o.text === 'REAL') expect(o.by).toBeNull()
+      else expect(o.by).toEqual([])
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// scoreRound — consumes rich options from attributeOptions
 // ---------------------------------------------------------------------------
 describe('scoreRound', () => {
   const options = [
-    { id: TRUTH_ID, text: 'REAL', by: null },
-    { id: 'lie-0', text: 'lieA', by: ['p1'] },
-    { id: 'lie-1', text: 'lieB', by: ['p2'] },
+    { id: 'opt-0', text: 'REAL', by: null },
+    { id: 'opt-1', text: 'lieA', by: ['p1'] },
+    { id: 'opt-2', text: 'lieB', by: ['p2'] },
   ]
 
   it('awards truth points to a voter who picks the real answer', () => {
-    const deltas = scoreRound(options, { p3: TRUTH_ID })
+    const deltas = scoreRound(options, { p3: 'opt-0' })
     expect(deltas.p3).toBe(POINTS_FOR_TRUTH)
   })
 
   it('awards fool points to the lie author when someone is fooled', () => {
-    const deltas = scoreRound(options, { p3: 'lie-0' })
+    const deltas = scoreRound(options, { p3: 'opt-1' })
     expect(deltas.p1).toBe(POINTS_PER_FOOL)
     expect(deltas.p3).toBeUndefined()
   })
 
   it('stacks fool points for multiple victims', () => {
-    const deltas = scoreRound(options, { p2: 'lie-0', p3: 'lie-0' })
+    const deltas = scoreRound(options, { p2: 'opt-1', p3: 'opt-1' })
     // p1 fooled both p2 and p3
     expect(deltas.p1).toBe(POINTS_PER_FOOL * 2)
   })
 
   it('credits every author of a merged lie', () => {
     const merged = [
-      { id: TRUTH_ID, text: 'REAL', by: null },
-      { id: 'lie-0', text: 'shared', by: ['p1', 'p2'] },
+      { id: 'opt-0', text: 'REAL', by: null },
+      { id: 'opt-1', text: 'shared', by: ['p1', 'p2'] },
     ]
-    const deltas = scoreRound(merged, { p3: 'lie-0' })
+    const deltas = scoreRound(merged, { p3: 'opt-1' })
     expect(deltas.p1).toBe(POINTS_PER_FOOL)
     expect(deltas.p2).toBe(POINTS_PER_FOOL)
   })
 
   it('never credits a player for being fooled by their own lie', () => {
     const merged = [
-      { id: TRUTH_ID, text: 'REAL', by: null },
-      { id: 'lie-0', text: 'shared', by: ['p1', 'p2'] },
+      { id: 'opt-0', text: 'REAL', by: null },
+      { id: 'opt-1', text: 'shared', by: ['p1', 'p2'] },
     ]
     // p1 (an author) somehow votes for the shared lie — p1 gets nothing, p2 still credited
-    const deltas = scoreRound(merged, { p1: 'lie-0' })
+    const deltas = scoreRound(merged, { p1: 'opt-1' })
     expect(deltas.p1).toBeUndefined()
     expect(deltas.p2).toBe(POINTS_PER_FOOL)
   })
@@ -209,10 +263,21 @@ describe('scoreRound', () => {
     expect(scoreRound(options, {})).toEqual({})
     expect(scoreRound(options, null)).toEqual({})
   })
+
+  it('end-to-end: build → attribute → score', () => {
+    const opts = buildOptions('REAL', ['lieA', 'lieB'], 11)
+    const rich = attributeOptions(opts, 'REAL', { p1: 'lieA', p2: 'lieB' })
+    const truthId = rich.find(o => o.text === 'REAL').id
+    const lieAId = rich.find(o => o.text === 'lieA').id
+    // p2 finds the truth; p3 is fooled by p1's lie
+    const deltas = scoreRound(rich, { p2: truthId, p3: lieAId })
+    expect(deltas.p2).toBe(POINTS_FOR_TRUTH)
+    expect(deltas.p1).toBe(POINTS_PER_FOOL)
+  })
 })
 
 // ---------------------------------------------------------------------------
-// allLied / allVoted
+// allLied / allVoted / allRevealed
 // ---------------------------------------------------------------------------
 describe('allLied', () => {
   it('false until every eligible player submitted', () => {
@@ -227,11 +292,22 @@ describe('allLied', () => {
 
 describe('allVoted', () => {
   it('true once every eligible player has voted', () => {
-    expect(allVoted(['a', 'b'], { a: 't', b: 'lie-0' })).toBe(true)
+    expect(allVoted(['a', 'b'], { a: 't', b: 'opt-0' })).toBe(true)
     expect(allVoted(['a', 'b'], { a: 't' })).toBe(false)
   })
 
   it('false for empty eligible list', () => {
     expect(allVoted([], {})).toBe(false)
+  })
+})
+
+describe('allRevealed', () => {
+  it('true once every eligible player has revealed', () => {
+    expect(allRevealed(['a', 'b'], { a: { text: 't', salt: 's' }, b: { text: 'u', salt: 'v' } })).toBe(true)
+    expect(allRevealed(['a', 'b'], { a: { text: 't', salt: 's' } })).toBe(false)
+  })
+
+  it('false for empty eligible list', () => {
+    expect(allRevealed([], {})).toBe(false)
   })
 })

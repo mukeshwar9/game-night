@@ -1,6 +1,15 @@
 // FIBBAGE deck — each entry has a `prompt` with a blank (___) and the real
 // `answer` that fills it. Players invent fake answers; everyone votes on which
 // of the shuffled options is the truth. Keep answers short and surprising.
+//
+// ⚠ RESIDUAL (UNFIXABLE) INFO LEAK: this deck — including every `answer` — ships
+// in the client JS bundle, and the active prompt (`round.promptIndex`) is public in
+// Firebase. A player who inspects the bundle can therefore always derive the truth,
+// no matter how the ballot is anonymised. FibbageGame's mitigations (anonymised
+// options + author→lie map withheld until reveal, see src/lib/fibbageLogic.js) only
+// defend against CASUAL/spectator leakage of a single Firebase field. Closing this
+// hole would require a trusted server to hold the answers and grade votes server-side
+// — impossible in this serverless, world-readable-`games/$id` architecture.
 
 export const FIBBAGE_FACTS = [
   { prompt: 'In Switzerland, it is illegal to own just one ___ because they are social animals.', answer: 'guinea pig' },

@@ -5,6 +5,14 @@
 // Each entry: { name, roles } — roles are flavor jobs handed to non-spies so
 // each player has a distinct angle to question from (purely cosmetic; the
 // shared secret is the location name).
+//
+// NOTE ON THE LOCATION COMMITMENT (see SpyfairGame.jsx): this whole list ships in the
+// client bundle, so there are only ~24 possible locations. The round's salted SHA-256
+// location commitment therefore only resists brute force while its salt stays secret
+// (the salt lives in the host's sessionStorage and is published only at the result
+// phase). It defends against casual reading of a Firebase field — NOT against a
+// determined player, who can already read the location out of the world-readable
+// `round.private` map. A trusted server would be required to truly hide it.
 
 export const SPYFAIR_LOCATIONS = [
   { name: 'AIRPLANE', roles: ['Pilot', 'Flight Attendant', 'First Class Passenger', 'Air Marshal', 'Mechanic', 'Co-Pilot', 'Stowaway'] },

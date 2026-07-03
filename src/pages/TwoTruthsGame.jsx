@@ -272,8 +272,11 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
     try { await update(ref(db, `games/${gameId}`), updates) } catch { /* ignore */ }
   }, [guess, lieRevealed, setter, guesser, scoreX, scoreO, isSpectator, gameId])
 
-  // Guesser escape hatch: storyteller abandoned mid-round (lost their lie index in
-  // sessionStorage), so the reveal can never land — reset to a fresh round, swap setter.
+  // Stuck-round escape hatch: the storyteller's lie index lives only in
+  // sessionStorage, so if it's gone (new tab) the reveal can never land — reset
+  // to a fresh round with no score change, swap setter. Used by the guesser
+  // when the storyteller is offline, and by the storyteller themselves when
+  // they detect their own secret is missing.
   const handleResetStuckRound = useCallback(async () => {
     const newSetter = setter === 'X' ? 'O' : 'X'
     try {
@@ -471,6 +474,22 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Setter lost their own secret (new tab) — the reveal can never land;
+          give them a way out with no score change */}
+      {setterMissingSecret && (
+        <div className="text-center space-y-2">
+          <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
+            THE REVEAL CAN&apos;T LAND WITHOUT YOUR SECRET
+          </p>
+          <button
+            onClick={handleResetStuckRound}
+            className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+          >
+            RESET ROUND
+          </button>
         </div>
       )}
 

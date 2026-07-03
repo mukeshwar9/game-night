@@ -58,6 +58,16 @@ export function seatOrder(players) {
     .map(p => p.playerId)
 }
 
+// Guessers the reveal must wait for: every seat except the clue-giver that
+// isn't explicitly offline (`online === false`). Missing presence counts as
+// online so a seat is never skipped before its presence write lands. Returns
+// ids in seat order. An empty result means nobody is connected to guess — the
+// round should keep waiting rather than reveal into an empty room.
+export function onlineGuessers(players, clueGiverId) {
+  const map = players || {}
+  return seatOrder(map).filter(id => id !== clueGiverId && map[id]?.online !== false)
+}
+
 // Next clue-giver after `currentId`, wrapping around the seat order.
 export function nextClueGiver(players, currentId) {
   const order = seatOrder(players)

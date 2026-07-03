@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ref, update, get } from 'firebase/database'
 import { db } from '../lib/firebase'
+import { commit, verifyReveal } from '../lib/commit'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
@@ -9,6 +10,78 @@ import { cn } from '@/lib/utils'
 
 const QUESTION_SECONDS = 240 // 4 minutes of out-of-band questioning
 const MATCH_WINS = 3
+
+// -----------------------------------------------------------------------------
+// INFO-LEAK MODEL — read before touching the round shape.
+//
+// A fully cheat-proof Spyfair is IMPOSSIBLE in this architecture: every field under
+// `games/$id` is world-readable (database.rules.json grants read:true), the host is
+// itself one of the players (so it inherently knows the whole assignment), and there
+// is no trusted dealer. Per-child Firebase read rules can't help either — they would
+// break the whole-node `onValue` listener every screen relies on.
+//
+// So we do the best PARTIAL mitigation to stop CASUAL / spectator leakage:
+//   * No top-level plaintext `round.spy` or `round.locationIndex` DURING the round.
+//     The spy's identity is published only at the `result` phase.
+//   * The location is COMMITTED at deal time (salted SHA-256 in `round.locationCommitment`,
+//     matching src/lib/commit.js) and only its index + salt are revealed at `result`,
+//     where the result screen verifies the reveal against the commitment. The salt is
+//     held in the host's sessionStorage and never hits the DB until result.
+//
+// WHAT STILL LEAKS (and why a server would be required to fix it):
+//   * `round.private` MUST carry each player's own role — and, for non-spies, the shared
+//     location — so they can actually play. That whole map is world-readable, so a
+//     determined player/spectator can read another player's entry to learn the location,
+//     and can spot the `role:'SPY'` entry to unmask the spy. Hiding this needs either a
+//     trusted server that authenticates each client and streams only their own role, or
+//     end-to-end per-player encryption with a key exchange — neither of which exists in a
+//     serverless, world-readable-node app. We only raise the bar past reading one obvious
+//     top-level field.
+// -----------------------------------------------------------------------------
+
+// Host-only sessionStorage: the committed location's { locationIndex, salt } for the
+// current round, so it can be revealed + verified at the result phase.
+const locKey = (gameId) => `spyfair-loc-${gameId}`
+
+// Recover the spy's playerId from the per-player private map (role === 'SPY').
+// Used at result time so we never need a top-level `spy` field during the round.
+function findSpy(privates) {
+  for (const [pid, v] of Object.entries(privates || {})) {
+    if (v && v.role === 'SPY') return pid
+  }
+  return null
+}
+
+// Deal a fresh round: pick the spy + location, hand out private roles, and COMMIT the
+// location. Stores the reveal secret in the host's sessionStorage. Returns the round
+// object to write to Firebase — note it contains NO plaintext spy/locationIndex.
+async function dealRound(gameId, order) {
+  const spy = order[Math.floor(Math.random() * order.length)]
+  const locationIndex = Math.floor(Math.random() * SPYFAIR_LOCATIONS.length)
+  const loc = SPYFAIR_LOCATIONS[locationIndex]
+  const roleBag = [...loc.roles].sort(() => Math.random() - 0.5)
+  const privates = {}
+  let r = 0
+  for (const p of order) {
+    if (p.playerId === spy.playerId) privates[p.playerId] = { role: 'SPY', location: '' }
+    else { privates[p.playerId] = { role: roleBag[r % roleBag.length] || 'Local', location: loc.name }; r++ }
+  }
+  const { hash, salt } = await commit(String(locationIndex))
+  try { sessionStorage.setItem(locKey(gameId), JSON.stringify({ locationIndex, salt })) } catch { /* ignore */ }
+  return {
+    phase: 'reveal',
+    // Hidden until the result phase — see the INFO-LEAK MODEL note above.
+    spy: null,
+    locationIndex: null,
+    locationSalt: null,
+    locationCommitment: hash,
+    timerEnds: null,
+    votes: null,
+    spyWon: null,
+    accused: null,
+    private: privates,
+  }
+}
 
 // Seat order is stable: sort players by joinedAt, then playerId as tiebreak.
 function seatOrder(players) {
@@ -57,12 +130,26 @@ export default function SpyfairGame({
 
   const myPlayer = players?.[mySeat] || null
   const amSpectator = !myPlayer
-  const amSpy = round.spy === mySeat
-  const location = round.locationIndex != null ? SPYFAIR_LOCATIONS[round.locationIndex] : null
+  // My role/location come from my OWN private entry — the only thing I'm meant to see
+  // during the round. Spy identity is not exposed via a top-level field until result.
+  const myPrivate = round.private?.[mySeat] || null
+  const amSpy = myPrivate?.role === 'SPY'
+  // The location is only revealed (top-level) at the result phase; during the round a
+  // non-spy reads it from their own private entry (`myPrivate.location`).
+  const revealedLocation = round.locationIndex != null ? SPYFAIR_LOCATIONS[round.locationIndex] : null
 
   const votes = normalizeVotes(round.votes)
   const myVote = votes[mySeat] || null
-  const allVoted = !amSpectator && seats.length > 0 && seats.every(p => votes[p.playerId])
+  const votesCast = Object.keys(votes).length
+  // Required voters = the ONLINE seats only: a player who disconnects mid-vote stays in
+  // `players` with online:false and can never vote, so waiting on every seat would stall
+  // the round forever. Degenerate-case guard: never auto-resolve on fewer than 2 total
+  // votes, so a lone survivor of a mass presence blip can't decide the round alone —
+  // the host's manual RESOLVE VOTE NOW button covers that case deliberately.
+  const onlineSeats = seats.filter(p => p.online !== false)
+  const allOnlineVoted = onlineSeats.length > 0 &&
+    onlineSeats.every(p => votes[p.playerId]) &&
+    votesCast >= 2
 
   const scores = game.scores || {}
   const matchWinner = seats.find(p => (scores[p.playerId] || 0) >= MATCH_WINS) || null
@@ -70,6 +157,7 @@ export default function SpyfairGame({
   const [secretRevealed, setSecretRevealed] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [busy, setBusy] = useState(false)
+  const [locVerify, setLocVerify] = useState(null) // result-phase: true/false/null(unknown)
 
   const prevPhase = useRef(phase)
   const resolvedRef = useRef(null)
@@ -97,6 +185,22 @@ export default function SpyfairGame({
     if (phase !== 'vote') resolvedRef.current = null
   }, [phase])
 
+  // --- Verify the revealed location against its commitment (result phase) ---
+  useEffect(() => {
+    let alive = true
+    const check = async () => {
+      const canVerify = phase === 'result' &&
+        round.locationCommitment != null && round.locationSalt != null && round.locationIndex != null
+      if (!canVerify) { if (alive) setLocVerify(null); return }
+      try {
+        const ok = await verifyReveal(round.locationCommitment, String(round.locationIndex), round.locationSalt)
+        if (alive) setLocVerify(ok)
+      } catch { if (alive) setLocVerify(null) }
+    }
+    check()
+    return () => { alive = false }
+  }, [phase, round.locationCommitment, round.locationSalt, round.locationIndex])
+
   // --- Sounds on result ---
   useEffect(() => {
     if (phase === 'result' && prevPhase.current !== 'result') {
@@ -114,37 +218,11 @@ export default function SpyfairGame({
     if (!isHost || !enoughPlayers || busy) return
     setBusy(true)
     try {
-      const order = seatOrder(players)
-      const spy = order[Math.floor(Math.random() * order.length)]
-      const locationIndex = Math.floor(Math.random() * SPYFAIR_LOCATIONS.length)
-      const loc = SPYFAIR_LOCATIONS[locationIndex]
-
-      // Hand out distinct flavor roles to the non-spies.
-      const roleBag = [...loc.roles].sort(() => Math.random() - 0.5)
-      const privates = {}
-      let r = 0
-      for (const p of order) {
-        if (p.playerId === spy.playerId) {
-          privates[p.playerId] = { role: 'SPY', location: '' }
-        } else {
-          privates[p.playerId] = { role: roleBag[r % roleBag.length] || 'Local', location: loc.name }
-          r++
-        }
-      }
-
+      const round = await dealRound(gameId, seatOrder(players))
       await update(ref(db, `games/${gameId}`), {
         status: 'playing',
         winner: null,
-        round: {
-          phase: 'reveal',
-          locationIndex,
-          spy: spy.playerId,
-          timerEnds: null,
-          votes: null,
-          spyWon: null,
-          accused: null,
-          private: privates,
-        },
+        round,
         proposal: null,
       })
       onStart?.()
@@ -173,14 +251,16 @@ export default function SpyfairGame({
       if (r.phase !== 'vote') return // already resolved by someone else
       const v = normalizeVotes(r.votes)
       const { top, tied } = tallyVotes(v)
-      const spyId = r.spy
+      // Spy identity is not a top-level field during the round — recover it from the
+      // private map (the role === 'SPY' entry) and only now publish it at result.
+      const spyId = findSpy(r.private)
       // Spy is caught only if the group lands a clear majority on the spy.
       const spyCaught = !tied && top === spyId
       const spyWon = !spyCaught
 
       const liveScores = { ...(game.scores || {}) }
       if (spyWon) {
-        liveScores[spyId] = (liveScores[spyId] || 0) + 1
+        if (spyId) liveScores[spyId] = (liveScores[spyId] || 0) + 1
       } else {
         // Every non-spy player earns a point for the catch.
         for (const p of seatOrder(players)) {
@@ -191,44 +271,51 @@ export default function SpyfairGame({
 
       const someoneWonMatch = Object.values(liveScores).some(s => s >= MATCH_WINS)
 
+      // Reveal the committed location now (result phase). Prefer the host's stored
+      // secret so it can be verified against the commitment; if the host lost it (e.g.
+      // reload), fall back to recovering the index from a non-spy private entry so the
+      // result screen still shows the correct location (verification is then skipped).
+      let secret = null
+      try { secret = JSON.parse(sessionStorage.getItem(locKey(gameId)) || 'null') } catch { /* ignore */ }
+      let locationIndex = secret?.locationIndex
+      const locationSalt = secret?.salt ?? null
+      if (locationIndex == null) {
+        const someLoc = Object.values(r.private || {}).map(x => x?.location).find(Boolean)
+        const idx = SPYFAIR_LOCATIONS.findIndex(l => l.name === someLoc)
+        locationIndex = idx >= 0 ? idx : null
+      }
+
       await update(ref(db, `games/${gameId}`), {
         'round/phase': 'result',
         'round/spyWon': spyWon,
         'round/accused': top || null,
+        'round/spy': spyId,
+        'round/locationIndex': locationIndex,
+        'round/locationSalt': locationSalt,
         scores: liveScores,
         ...(someoneWonMatch ? { status: 'finished' } : {}),
       })
     } catch { /* ignore */ }
   }
 
+  // Manual fallback for the host: tally whatever votes are in RIGHT NOW. Covers flapping
+  // presence (a gone player still reading online:true) where the auto-resolve never fires.
+  // Idempotent vs the auto path: the resolvedRef check-and-set is synchronous (no await
+  // before it), and resolveRound itself re-reads the round and bails unless phase is
+  // still 'vote' — same guards the auto-resolve effect relies on.
+  async function forceResolveVote() {
+    if (!isHost || phase !== 'vote' || votesCast === 0) return
+    if (resolvedRef.current === 'vote') return
+    resolvedRef.current = 'vote'
+    await resolveRound()
+  }
+
   async function nextRound() {
     if (!isHost || busy) return
     setBusy(true)
     try {
-      const order = seatOrder(players)
-      const spy = order[Math.floor(Math.random() * order.length)]
-      const locationIndex = Math.floor(Math.random() * SPYFAIR_LOCATIONS.length)
-      const loc = SPYFAIR_LOCATIONS[locationIndex]
-      const roleBag = [...loc.roles].sort(() => Math.random() - 0.5)
-      const privates = {}
-      let r = 0
-      for (const p of order) {
-        if (p.playerId === spy.playerId) privates[p.playerId] = { role: 'SPY', location: '' }
-        else { privates[p.playerId] = { role: roleBag[r % roleBag.length] || 'Local', location: loc.name }; r++ }
-      }
-      await update(ref(db, `games/${gameId}`), {
-        round: {
-          phase: 'reveal',
-          locationIndex,
-          spy: spy.playerId,
-          timerEnds: null,
-          votes: null,
-          spyWon: null,
-          accused: null,
-          private: privates,
-        },
-        proposal: null,
-      })
+      const round = await dealRound(gameId, seatOrder(players))
+      await update(ref(db, `games/${gameId}`), { round, proposal: null })
     } catch { /* ignore */ } finally {
       setBusy(false)
     }
@@ -243,14 +330,15 @@ export default function SpyfairGame({
     await update(ref(db, `games/${gameId}/round/votes`), { [mySeat]: accusedId }).catch(() => {})
   }
 
-  // --- Host: once everyone has voted, resolve the round. ---
+  // --- Host: once every ONLINE player has voted (min 2 votes), resolve the round. ---
+  // Also fires when the last non-voter drops offline mid-vote, un-sticking the round.
   useEffect(() => {
-    if (!isHost || phase !== 'vote' || !allVoted) return
+    if (!isHost || phase !== 'vote' || !allOnlineVoted) return
     if (resolvedRef.current === 'vote') return
     resolvedRef.current = 'vote'
     resolveRound()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHost, phase, allVoted])
+  }, [isHost, phase, allOnlineVoted])
 
   // -------------------------------------------------------------------------
   // Render: waiting lobby (status not playing, no live result to show)
@@ -404,9 +492,9 @@ export default function SpyfairGame({
               ) : (
                 <>
                   <p className="font-pixel text-[9px] text-retro-dim tracking-widest">LOCATION</p>
-                  <p className="font-pixel text-lg text-retro-cta text-glow-cta">{location?.name}</p>
+                  <p className="font-pixel text-lg text-retro-cta text-glow-cta">{myPrivate?.location}</p>
                   <p className="font-mono text-[11px] text-retro-p1 text-glow-p1">
-                    Your role: {round.private?.[mySeat]?.role || '—'}
+                    Your role: {myPrivate?.role || '—'}
                   </p>
                   <p className="font-mono text-[9px] text-retro-dim">Don&apos;t say the location out loud!</p>
                 </>
@@ -453,8 +541,8 @@ export default function SpyfairGame({
                 <p className="font-pixel text-[9px] text-retro-p2 text-glow-p2">YOU ARE THE SPY — STAY HIDDEN</p>
               ) : (
                 <p className="font-mono text-[10px] text-retro-dim">
-                  <span className="text-retro-cta">{location?.name}</span> ·{' '}
-                  <span className="text-retro-p1">{round.private?.[mySeat]?.role}</span>
+                  <span className="text-retro-cta">{myPrivate?.location}</span> ·{' '}
+                  <span className="text-retro-p1">{myPrivate?.role}</span>
                 </p>
               )}
             </div>
@@ -510,8 +598,21 @@ export default function SpyfairGame({
             </div>
           )}
           <p className="text-center font-pixel text-[9px] text-retro-dim">
-            {Object.keys(votes).length}/{playerCount} VOTED
+            {votesCast}/{playerCount} VOTED
           </p>
+          {/* Host escape hatch: presence can flap, leaving the auto-resolve waiting on a
+              seat that will never vote — let the host tally the votes cast so far. */}
+          {isHost && votesCast > 0 && (
+            <div className="text-center space-y-1.5">
+              <button
+                onClick={forceResolveVote}
+                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95"
+              >
+                RESOLVE VOTE NOW
+              </button>
+              <p className="font-mono text-[9px] text-retro-dim">Tallies the votes cast so far</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -535,7 +636,10 @@ export default function SpyfairGame({
                     The spy was <span className="text-retro-p2 text-glow-p2">{spyPlayer?.name || '???'}</span>
                   </p>
                   <p className="font-mono text-[11px] text-retro-dim">
-                    The location was <span className="text-retro-cta text-glow-cta">{location?.name}</span>
+                    The location was <span className="text-retro-cta text-glow-cta">{revealedLocation?.name || '???'}</span>
+                    {locVerify === false && (
+                      <span className="text-retro-p2 font-pixel text-[8px]"> ⚠ UNVERIFIED</span>
+                    )}
                   </p>
                   {accusedPlayer && (
                     <p className="font-mono text-[10px] text-retro-dim">

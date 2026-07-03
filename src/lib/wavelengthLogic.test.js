@@ -11,6 +11,7 @@ import {
   scoreGuess,
   normalizeGuesses,
   seatOrder,
+  onlineGuessers,
   nextClueGiver,
 } from './wavelengthLogic'
 
@@ -195,6 +196,56 @@ describe('seatOrder', () => {
   it('skips entries without a playerId', () => {
     const ragged = { p1: { playerId: 'p1', joinedAt: 1 }, ghost: null }
     expect(seatOrder(ragged)).toEqual(['p1'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// onlineGuessers
+// ---------------------------------------------------------------------------
+describe('onlineGuessers', () => {
+  const players = {
+    p1: { playerId: 'p1', joinedAt: 100, online: true },
+    p2: { playerId: 'p2', joinedAt: 200, online: false },
+    p3: { playerId: 'p3', joinedAt: 300, online: true },
+  }
+
+  it('excludes the clue-giver', () => {
+    expect(onlineGuessers(players, 'p1')).toEqual(['p3'])
+  })
+
+  it('drops explicitly offline players', () => {
+    expect(onlineGuessers(players, 'p3')).toEqual(['p1'])
+  })
+
+  it('treats missing presence as online', () => {
+    const fresh = {
+      p1: { playerId: 'p1', joinedAt: 100, online: true },
+      p2: { playerId: 'p2', joinedAt: 200 }, // presence write hasn't landed
+    }
+    expect(onlineGuessers(fresh, 'p1')).toEqual(['p2'])
+  })
+
+  it('keeps seat order', () => {
+    const all = {
+      p2: { playerId: 'p2', joinedAt: 200, online: true },
+      p1: { playerId: 'p1', joinedAt: 100, online: true },
+      p3: { playerId: 'p3', joinedAt: 300, online: true },
+    }
+    expect(onlineGuessers(all, 'p2')).toEqual(['p1', 'p3'])
+  })
+
+  it('returns [] when every guesser is offline', () => {
+    const dark = {
+      p1: { playerId: 'p1', joinedAt: 100, online: true },
+      p2: { playerId: 'p2', joinedAt: 200, online: false },
+      p3: { playerId: 'p3', joinedAt: 300, online: false },
+    }
+    expect(onlineGuessers(dark, 'p1')).toEqual([])
+  })
+
+  it('returns [] for empty/missing players', () => {
+    expect(onlineGuessers(null, 'p1')).toEqual([])
+    expect(onlineGuessers({}, 'p1')).toEqual([])
   })
 })
 

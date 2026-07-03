@@ -3,14 +3,15 @@ import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
-  TRUTH_ID,
   seatOrder,
   hashString,
   buildOptions,
+  attributeOptions,
   scoreRound,
   normalizeMap,
   allLied,
   allVoted,
+  allRevealed,
 } from '../lib/fibbageLogic'
 import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
 import GameSwitcher from '../components/GameSwitcher'
@@ -21,19 +22,27 @@ import { cn } from '@/lib/utils'
 const MIN_PLAYERS = 3
 const MATCH_WIN_SCORE = 5000
 
-// sessionStorage key for the player's secret lie (text + salt) per round.
+// sessionStorage key for the player's secret lie ({ text, salt, subKey }) per round.
+// The plaintext + salt never touch Firebase until the reveal phase — matching the
+// commit-reveal pattern in src/lib/commit.js (Bluff / TwoTruths / Wavelength).
 const lieKey = (gameId, promptIndex) => `fibbage-lie-${gameId}-${promptIndex}`
+
+function readSecret(gameId, promptIndex) {
+  try { return JSON.parse(sessionStorage.getItem(lieKey(gameId, promptIndex)) || 'null') } catch { return null }
+}
 
 function normalizeRound(raw) {
   if (!raw) return null
   return {
     phase: raw.phase ?? 'lying',
     promptIndex: raw.promptIndex ?? 0,
-    lies: normalizeMap(raw.lies),       // { [playerId]: { hash } }
-    reveals: normalizeMap(raw.reveals), // { [playerId]: { text, salt } }
+    lies: normalizeMap(raw.lies),         // { [playerId]: { hash } } — commitment only
+    subs: normalizeMap(raw.subs),         // { [randomKey]: text } — anonymised ballot pool
     options: Array.isArray(raw.options) ? raw.options : (raw.options ? Object.values(raw.options) : []),
-    votes: normalizeMap(raw.votes),     // { [playerId]: optionId }
-    cheats: normalizeMap(raw.cheats),   // { [playerId]: true } — failed verification
+    votes: normalizeMap(raw.votes),       // { [playerId]: optionId }
+    reveals: normalizeMap(raw.reveals),   // { [playerId]: { text, salt } } — reveal phase only
+    cheats: normalizeMap(raw.cheats),     // { [playerId]: true } — failed verification
+    scored: !!raw.scored,
   }
 }
 
@@ -57,17 +66,22 @@ export default function FibbageGame({
   const scores = game.scores || {}
   const isPlayer = !!mySeat && !!players?.[mySeat]
 
+  const fact = round ? FIBBAGE_FACTS[round.promptIndex % FIBBAGE_FACTS.length] : null
+
   const [lieInput, setLieInput] = useState('')
   const [inputError, setInputError] = useState('')
   const [localLie, setLocalLie] = useState(false)   // I committed this round
   const [localVote, setLocalVote] = useState(null)  // optionId I picked locally
   const [submitting, setSubmitting] = useState(false)
+  // My own secret — only ever known to me. Used to guard against voting for my own
+  // lie and to publish my reveal; the DB never sees it until the reveal phase.
+  const [mySecret, setMySecret] = useState(() => (round ? readSecret(gameId, round.promptIndex) : null))
 
   const prevPhase = useRef(round?.phase)
   const prevPromptIndex = useRef(round?.promptIndex)
-  const verifyStarted = useRef(false)
-
-  const fact = round ? FIBBAGE_FACTS[round.promptIndex % FIBBAGE_FACTS.length] : null
+  const subPublished = useRef(false)
+  const revealPublished = useRef(false)
+  const scoringStarted = useRef(false)
 
   // Reset per-round local state when the prompt advances.
   useEffect(() => {
@@ -77,82 +91,114 @@ export default function FibbageGame({
       setInputError('')
       setLocalLie(false)
       setLocalVote(null)
-      verifyStarted.current = false
+      setMySecret(readSecret(gameId, round.promptIndex))
+      subPublished.current = false
+      revealPublished.current = false
+      scoringStarted.current = false
       prevPromptIndex.current = round.promptIndex
     }
-  }, [round?.promptIndex])
+  }, [round?.promptIndex]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Phase-change sounds.
   useEffect(() => {
-    if (!round) return
+    if (!round || !fact) return
     if (round.phase !== prevPhase.current) {
       if (round.phase === 'voting') sounds.go()
       if (round.phase === 'reveal') {
-        // Did the truth get my vote, or did my lie fool anyone?
+        // Did I find the truth? (truth is identified by matching the deck answer —
+        // the ballot carries no truth marker.)
+        const answerNorm = fact.answer.trim().toLowerCase()
         const myVote = round.votes[mySeat]
-        const truthOpt = round.options.find(o => o.id === TRUTH_ID || o.by === null)
+        const truthOpt = round.options.find(o => o.text.trim().toLowerCase() === answerNorm)
         const iFoundTruth = myVote && truthOpt && myVote === truthOpt.id
         if (iFoundTruth) sounds.win()
         else if (isPlayer) sounds.miss()
       }
       prevPhase.current = round.phase
     }
-  }, [round?.phase])
+  }, [round?.phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Have I already committed my lie (locally or in Firebase)?
   const iCommitted = localLie || (round && round.lies[mySeat] != null)
   const iVoted = localVote != null || (round && round.votes[mySeat] != null)
 
-  // ---- HOST: lying → voting when everyone has committed + revealed ----
+  // ---- PLAYER: once everyone has committed, publish my plaintext lie into the
+  // anonymous ballot pool (random key → no authorship in the DB). The host builds
+  // the ballot from this pool and then deletes it. ------------------------------
+  useEffect(() => {
+    if (!isPlayer || !round || round.phase !== 'lying') return
+    if (!allLied(seats, round.lies)) return
+    if (subPublished.current) return
+    const secret = readSecret(gameId, round.promptIndex)
+    if (!secret || !secret.text || !secret.subKey) return
+    subPublished.current = true
+    update(ref(db, `games/${gameId}/round/subs`), { [secret.subKey]: secret.text })
+      .catch(() => { subPublished.current = false })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlayer, round?.phase, round?.lies, gameId])
+
+  // ---- HOST: lying → voting once everyone committed AND all anonymous lies are in.
+  // Builds the shuffled, author-less, truth-unmarked ballot and deletes the pool. --
   useEffect(() => {
     if (!isHost || !round || round.phase !== 'lying') return
     if (!allLied(seats, round.lies)) return
-    // Wait for reveals from everyone who committed.
     const committedIds = Object.keys(round.lies)
-    const allRevealed = committedIds.every(id => round.reveals[id] != null)
-    if (!allRevealed) return
-
-    // Verify each reveal against its commitment; build options from valid lies.
-    const verifyAll = async () => {
-      const lies = {}
-      const cheats = {}
-      for (const id of committedIds) {
-        const { hash } = round.lies[id] || {}
-        const { text, salt } = round.reveals[id] || {}
-        if (text == null || salt == null || hash == null) continue
-        const ok = await verifyReveal(hash, text, salt)
-        if (ok) lies[id] = text
-        else cheats[id] = true
-      }
-      const seed = hashString(`${gameId}:${round.promptIndex}`)
-      const options = buildOptions(fact.answer, lies, seed)
-      try {
-        await update(ref(db, `games/${gameId}/round`), {
-          phase: 'voting',
-          options,
-          cheats: Object.keys(cheats).length ? cheats : null,
-        })
-      } catch { /* another client may have advanced — ignore */ }
-    }
-    verifyAll()
+    const texts = Object.values(round.subs)
+    if (texts.length < committedIds.length) return // wait for every anonymous submission
+    const seed = hashString(`${gameId}:${round.promptIndex}`)
+    const options = buildOptions(fact.answer, texts, seed)
+    update(ref(db, `games/${gameId}/round`), { phase: 'voting', options, subs: null })
+      .catch(() => { /* another client may have advanced — ignore */ })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHost, round?.phase, round?.lies, round?.reveals, gameId])
+  }, [isHost, round?.phase, round?.lies, round?.subs, gameId])
 
-  // ---- HOST: voting → reveal + apply scores when everyone has voted ----
+  // ---- HOST: voting → reveal (phase flip only) once everyone has voted. Scoring
+  // waits for reveals, which only exist in the reveal phase (see below). ----------
   useEffect(() => {
     if (!isHost || !round || round.phase !== 'voting') return
     if (!allVoted(seats, round.votes)) return
+    update(ref(db, `games/${gameId}/round`), { phase: 'reveal' }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHost, round?.phase, round?.votes, gameId])
 
-    const finish = async () => {
+  // ---- PLAYER: publish my author→lie reveal — ONLY now, at the reveal phase. This
+  // is the first (and only) time the DB learns who wrote which lie. ---------------
+  useEffect(() => {
+    if (!isPlayer || !round || round.phase !== 'reveal') return
+    if (round.reveals[mySeat] != null || revealPublished.current) return
+    const secret = readSecret(gameId, round.promptIndex)
+    if (!secret || secret.text == null || secret.salt == null) return
+    revealPublished.current = true
+    update(ref(db, `games/${gameId}/round/reveals`), { [mySeat]: { text: secret.text, salt: secret.salt } })
+      .catch(() => { revealPublished.current = false })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlayer, round?.phase, round?.reveals, gameId, mySeat])
+
+  // ---- HOST: once all reveals are in, verify each against its commitment, recover
+  // the answer key, and apply scores once (idempotent via round.scored). ----------
+  useEffect(() => {
+    if (!isHost || !round || round.phase !== 'reveal' || round.scored) return
+    if (!allRevealed(seats, round.reveals)) return
+    if (scoringStarted.current) return
+    scoringStarted.current = true
+
+    const run = async () => {
+      const verifiedLies = {}
+      const cheats = {}
+      for (const [pid, val] of Object.entries(round.reveals)) {
+        const hash = round.lies[pid]?.hash
+        const { text, salt } = val || {}
+        if (hash == null || text == null || salt == null) continue
+        const ok = await verifyReveal(hash, text, salt)
+        if (ok) verifiedLies[pid] = text
+        else cheats[pid] = true
+      }
+      const rich = attributeOptions(round.options, fact.answer, verifiedLies)
+      const deltas = scoreRound(rich, round.votes)
       try {
         await runTransaction(ref(db, `games/${gameId}`), current => {
-          if (!current || !current.round) return
-          if (current.round.phase !== 'voting') return // already resolved
-          const opts = Array.isArray(current.round.options)
-            ? current.round.options
-            : Object.values(current.round.options || {})
-          const votes = current.round.votes || {}
-          const deltas = scoreRound(opts, votes)
+          if (!current || !current.round) return current
+          if (current.round.phase !== 'reveal' || current.round.scored) return // already resolved
           const newScores = { ...(current.scores || {}) }
           for (const [id, pts] of Object.entries(deltas)) {
             newScores[id] = (newScores[id] || 0) + pts
@@ -160,16 +206,22 @@ export default function FibbageGame({
           return {
             ...current,
             scores: newScores,
-            round: { ...current.round, phase: 'reveal' },
+            round: {
+              ...current.round,
+              scored: true,
+              cheats: Object.keys(cheats).length ? cheats : null,
+            },
           }
         })
-      } catch { /* ignore */ }
+      } catch {
+        scoringStarted.current = false // allow a retry on transient failure
+      }
     }
-    finish()
+    run()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHost, round?.phase, round?.votes, gameId])
+  }, [isHost, round?.phase, round?.reveals, round?.scored, gameId])
 
-  // ---- Submit my lie (commit) ----
+  // ---- Submit my lie (commit hash now; plaintext stays local until reveal) ------
   const handleSubmitLie = useCallback(async () => {
     if (!isPlayer || iCommitted || submitting) return
     const text = lieInput.trim()
@@ -182,10 +234,15 @@ export default function FibbageGame({
     setSubmitting(true)
     try {
       const { hash, salt } = await commit(text)
-      sessionStorage.setItem(lieKey(gameId, round.promptIndex), JSON.stringify({ text, salt }))
+      // Stable random key so the anonymous ballot submission survives a reload
+      // without leaking authorship (it is not derived from the playerId).
+      const subKey = `${(crypto.randomUUID?.() || Math.random().toString(36).slice(2))}${Date.now().toString(36)}`
+      const secret = { text, salt, subKey }
+      sessionStorage.setItem(lieKey(gameId, round.promptIndex), JSON.stringify(secret))
+      setMySecret(secret)
       setLocalLie(true)
       sounds.move('X')
-      await update(ref(db, `games/${gameId}/round/lies/${mySeat}`), { hash })
+      await update(ref(db, `games/${gameId}/round/lies`), { [mySeat]: { hash } })
     } catch {
       setLocalLie(false)
       setInputError('SUBMIT FAILED — RETRY')
@@ -194,37 +251,26 @@ export default function FibbageGame({
     }
   }, [isPlayer, iCommitted, submitting, lieInput, fact, gameId, round, mySeat])
 
-  // ---- Reveal my plaintext once everyone has committed ----
-  useEffect(() => {
-    if (!isPlayer || !round || round.phase !== 'lying') return
-    if (!allLied(seats, round.lies)) return
-    if (round.reveals[mySeat] != null) return
-    const stored = sessionStorage.getItem(lieKey(gameId, round.promptIndex))
-    if (!stored) return
-    const { text, salt } = JSON.parse(stored)
-    update(ref(db, `games/${gameId}/round/reveals/${mySeat}`), { text, salt }).catch(() => {})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlayer, round?.phase, round?.lies, gameId])
-
-  // ---- Cast my vote ----
+  // ---- Cast my vote (BUG 1 fix: write an object of children, not a bare string) -
   const handleVote = useCallback(async (optionId) => {
     if (!isPlayer || iVoted) return
-    // Cannot vote for your own lie.
+    // Cannot vote for your own lie. The ballot carries no authorship, so this is
+    // checked locally against my own secret text (which only I know).
     const opt = round.options.find(o => o.id === optionId)
-    if (opt && opt.by !== null) {
-      const authors = Array.isArray(opt.by) ? opt.by : [opt.by]
-      if (authors.includes(mySeat)) { setInputError("CAN'T VOTE FOR YOUR OWN LIE"); return }
+    const myLieNorm = mySecret?.text ? mySecret.text.trim().toLowerCase() : null
+    if (opt && myLieNorm && opt.text.trim().toLowerCase() === myLieNorm) {
+      setInputError("CAN'T VOTE FOR YOUR OWN LIE"); return
     }
     setInputError('')
     setLocalVote(optionId)
     sounds.move('O')
     try {
-      await update(ref(db, `games/${gameId}/round/votes/${mySeat}`), optionId)
+      await update(ref(db, `games/${gameId}/round/votes`), { [mySeat]: optionId })
     } catch {
       setLocalVote(null)
       setInputError('VOTE FAILED — RETRY')
     }
-  }, [isPlayer, iVoted, round, gameId, mySeat])
+  }, [isPlayer, iVoted, round, gameId, mySeat, mySecret])
 
   // ---- Next prompt (any player can advance after reveal) ----
   const handleNextPrompt = useCallback(async () => {
@@ -358,7 +404,20 @@ export default function FibbageGame({
 
   const committedCount = Object.keys(round.lies).length
   const votedCount = Object.keys(round.votes).length
-  const iCheated = round.cheats[mySeat]
+  const myLieNorm = mySecret?.text ? mySecret.text.trim().toLowerCase() : null
+  const answerNorm = fact.answer.trim().toLowerCase()
+
+  // Reveal-time answer key: recovered client-side from the (now public) reveals,
+  // excluding any that failed commitment verification.
+  const verifiedLies = {}
+  for (const [pid, val] of Object.entries(round.reveals)) {
+    if (round.cheats[pid]) continue
+    if (val && val.text != null) verifiedLies[pid] = val.text
+  }
+  const richOptions = round.phase === 'reveal'
+    ? attributeOptions(round.options, fact.answer, verifiedLies)
+    : round.options
+  const cheaterNames = Object.keys(round.cheats).map(pid => players[pid]?.name || pid)
 
   return (
     <div className="space-y-4">
@@ -410,14 +469,8 @@ export default function FibbageGame({
       {/* ---- VOTING PHASE ---- */}
       {round.phase === 'voting' && (
         <div className="space-y-2">
-          {iCheated && (
-            <p className="font-pixel text-[9px] text-retro-p2 text-center" style={{ animation: 'blink-text 0.6s step-end infinite' }}>
-              ⚠ YOUR LIE FAILED VERIFICATION
-            </p>
-          )}
           {round.options.map(opt => {
-            const authors = opt.by === null ? [] : (Array.isArray(opt.by) ? opt.by : [opt.by])
-            const isMine = authors.includes(mySeat)
+            const isMine = !!myLieNorm && opt.text.trim().toLowerCase() === myLieNorm
             const picked = (localVote ?? round.votes[mySeat]) === opt.id
             return (
               <button
@@ -447,73 +500,86 @@ export default function FibbageGame({
       {/* ---- REVEAL PHASE ---- */}
       {round.phase === 'reveal' && (
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            {round.options.map(opt => {
-              const isTruth = opt.id === TRUTH_ID || opt.by === null
-              const authors = isTruth ? [] : (Array.isArray(opt.by) ? opt.by : [opt.by])
-              const voters = Object.entries(round.votes)
-                .filter(([, oid]) => oid === opt.id)
-                .map(([vid]) => players[vid]?.name || vid)
-              const authorNames = authors.map(a => players[a]?.name || a)
-              return (
-                <div
-                  key={opt.id}
-                  className={cn(
-                    'px-3 py-2 rounded border-2',
-                    isTruth ? 'border-retro-win text-retro-win shadow-neon-win' : 'border-retro-border text-retro-text',
-                  )}
+          {!round.scored ? (
+            <p className="font-pixel text-[10px] text-retro-cta text-glow-cta text-center animate-pulse py-4">
+              TALLYING…
+            </p>
+          ) : (
+            <>
+              {cheaterNames.length > 0 && (
+                <p className="font-pixel text-[9px] text-retro-p2 text-center" style={{ animation: 'blink-text 0.6s step-end infinite' }}>
+                  ⚠ LIE FAILED VERIFICATION: {cheaterNames.join(', ').toUpperCase()}
+                </p>
+              )}
+              <div className="space-y-1.5">
+                {richOptions.map(opt => {
+                  const isTruth = opt.by === null || opt.text.trim().toLowerCase() === answerNorm
+                  const authors = isTruth ? [] : (Array.isArray(opt.by) ? opt.by : (opt.by == null ? [] : [opt.by]))
+                  const voters = Object.entries(round.votes)
+                    .filter(([, oid]) => oid === opt.id)
+                    .map(([vid]) => players[vid]?.name || vid)
+                  const authorNames = authors.map(a => players[a]?.name || a)
+                  return (
+                    <div
+                      key={opt.id}
+                      className={cn(
+                        'px-3 py-2 rounded border-2',
+                        isTruth ? 'border-retro-win text-retro-win shadow-neon-win' : 'border-retro-border text-retro-text',
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[12px]">
+                          {opt.text}{isTruth ? '  ✓ TRUTH' : ''}
+                        </span>
+                        <span className="font-pixel text-[8px] text-retro-dim shrink-0">
+                          {voters.length} VOTE{voters.length === 1 ? '' : 'S'}
+                        </span>
+                      </div>
+                      {!isTruth && authorNames.length > 0 && (
+                        <p className="font-pixel text-[8px] text-retro-p2 mt-1">
+                          LIE BY {authorNames.join(', ').toUpperCase()}
+                        </p>
+                      )}
+                      {voters.length > 0 && (
+                        <p className="font-pixel text-[8px] text-retro-dim mt-0.5">
+                          {voters.join(', ').toUpperCase()}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Scoreboard */}
+              <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1">
+                <p className="font-pixel text-[9px] text-retro-dim tracking-widest text-center">SCORES</p>
+                {seatOrder(players || {})
+                  .map(id => ({ id, name: players[id]?.name || id, score: scores[id] || 0 }))
+                  .sort((a, b) => b.score - a.score)
+                  .map(p => (
+                    <div key={p.id} className="flex items-center justify-between font-mono text-[11px]">
+                      <span className={p.id === mySeat ? 'text-retro-p1' : 'text-retro-text'}>
+                        {p.name}{p.id === mySeat ? ' (YOU)' : ''}
+                      </span>
+                      <span className="text-retro-cta">{p.score}</span>
+                    </div>
+                  ))}
+              </div>
+
+              {isPlayer && (
+                <button
+                  onClick={handleNextPrompt}
+                  className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[12px]">
-                      {opt.text}{isTruth ? '  ✓ TRUTH' : ''}
-                    </span>
-                    <span className="font-pixel text-[8px] text-retro-dim shrink-0">
-                      {voters.length} VOTE{voters.length === 1 ? '' : 'S'}
-                    </span>
-                  </div>
-                  {!isTruth && authorNames.length > 0 && (
-                    <p className="font-pixel text-[8px] text-retro-p2 mt-1">
-                      LIE BY {authorNames.join(', ').toUpperCase()}
-                    </p>
-                  )}
-                  {voters.length > 0 && (
-                    <p className="font-pixel text-[8px] text-retro-dim mt-0.5">
-                      {voters.join(', ').toUpperCase()}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Scoreboard */}
-          <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1">
-            <p className="font-pixel text-[9px] text-retro-dim tracking-widest text-center">SCORES</p>
-            {seatOrder(players || {})
-              .map(id => ({ id, name: players[id]?.name || id, score: scores[id] || 0 }))
-              .sort((a, b) => b.score - a.score)
-              .map(p => (
-                <div key={p.id} className="flex items-center justify-between font-mono text-[11px]">
-                  <span className={p.id === mySeat ? 'text-retro-p1' : 'text-retro-text'}>
-                    {p.name}{p.id === mySeat ? ' (YOU)' : ''}
-                  </span>
-                  <span className="text-retro-cta">{p.score}</span>
-                </div>
-              ))}
-          </div>
-
-          {isPlayer && (
-            <button
-              onClick={handleNextPrompt}
-              className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
-            >
-              NEXT PROMPT
-            </button>
+                  NEXT PROMPT
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {isPlayer && onSwitchGame && !proposal && round.phase === 'reveal' && (
+      {isPlayer && onSwitchGame && !proposal && round.phase === 'reveal' && round.scored && (
         <GameSwitcher currentType="fibbage" onSwitch={onSwitchGame} />
       )}
     </div>
