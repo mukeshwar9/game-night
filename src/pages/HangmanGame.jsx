@@ -4,7 +4,7 @@ import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
   applyGuess, isWordGuessed, countWrong,
-  MAX_WRONG, verifyRoundConsistency, wordStructure,
+  MAX_WRONG, verifyRoundConsistency, deriveRoundResult, wordStructure,
 } from '../lib/hangmanLogic'
 import HangmanGallows from '../components/HangmanGallows'
 import WordDisplay from '../components/WordDisplay'
@@ -34,7 +34,7 @@ function normalizeGuesses(raw) {
   return out
 }
 
-function CheatScreen({ evidence }) {
+function CheatScreen({ evidence, onNextRound }) {
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-6 gap-6">
       <div className="text-center space-y-3">
@@ -44,14 +44,63 @@ function CheatScreen({ evidence }) {
         >
           ⚠ CHEAT DETECTED ⚠
         </p>
-        <p className="font-mono text-xs text-retro-dim">The word-keeper cheated.</p>
+        <p className="font-mono text-xs text-retro-dim">The word-keeper cheated. Round forfeited — the point is yours.</p>
       </div>
-      <div className="w-full max-w-sm bg-retro-card border border-retro-p2/40 rounded p-4 space-y-2 font-mono text-[10px] text-retro-dim break-all">
-        <p><span className="text-retro-p2">COMMITMENT:</span> {evidence?.commitment?.slice(0, 16)}…</p>
-        <p><span className="text-retro-p2">REVEALED:</span> {evidence?.revealed}</p>
-        <p><span className="text-retro-p2">HASH OK:</span> {String(evidence?.commitOk)}</p>
-        <p><span className="text-retro-p2">ANSWERS OK:</span> {String(evidence?.consistencyOk)}</p>
+      {evidence && (
+        <div className="w-full max-w-sm bg-retro-card border border-retro-p2/40 rounded p-4 space-y-2 font-mono text-[10px] text-retro-dim break-all">
+          <p><span className="text-retro-p2">COMMITMENT:</span> {evidence?.commitment?.slice(0, 16)}…</p>
+          <p><span className="text-retro-p2">REVEALED:</span> {evidence?.revealed}</p>
+          <p><span className="text-retro-p2">HASH OK:</span> {String(evidence?.commitOk)}</p>
+          <p><span className="text-retro-p2">ANSWERS OK:</span> {String(evidence?.consistencyOk)}</p>
+          <p><span className="text-retro-p2">RESULT OK:</span> {String(evidence?.resultOk)}</p>
+        </div>
+      )}
+      {onNextRound && (
+        <button
+          onClick={onNextRound}
+          className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+        >
+          NEXT ROUND
+        </button>
+      )}
+      <Link
+        to="/"
+        className="font-pixel text-[10px] text-retro-p1 text-glow-p1 hover:opacity-80 transition-opacity"
+      >
+        ← BACK TO HOME
+      </Link>
+    </div>
+  )
+}
+
+// Shown to the setter (and spectators) when the guesser's client has written
+// the binding cheat verdict to Firebase. The guesser advances the round.
+// onReset is provided to the setter so they can manually reset a stuck round
+// (e.g. if the guesser disconnects after writing the cheat verdict but before
+// clicking NEXT ROUND, which would leave the setter frozen here indefinitely).
+function CheatForfeitScreen({ waiting, onReset }) {
+  return (
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-6 gap-6">
+      <div className="text-center space-y-3">
+        <p
+          className="font-pixel text-base text-retro-p2 text-glow-p2"
+          style={{ animation: 'blink-text 0.6s step-end infinite' }}
+        >
+          ⚠ CHEAT DETECTED ⚠
+        </p>
+        <p className="font-mono text-xs text-retro-dim">Round forfeited — the guesser takes the point.</p>
       </div>
+      {waiting && (
+        <p className="font-pixel text-[10px] text-retro-dim animate-pulse">WAITING FOR GUESSER…</p>
+      )}
+      {onReset && (
+        <button
+          onClick={onReset}
+          className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+        >
+          RESET ROUND
+        </button>
+      )}
       <Link
         to="/"
         className="font-pixel text-[10px] text-retro-p1 text-glow-p1 hover:opacity-80 transition-opacity"
@@ -71,6 +120,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   const phase = round.phase || 'setting'
   const setter = round.setter || 'X'
   const guesser = setter === 'X' ? 'O' : 'X'
+  const roundCheatDetected = round.cheatDetected ?? false
 
   const isSetter = mySymbol === setter
   const isGuesser = mySymbol !== null && mySymbol !== setter
@@ -90,6 +140,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   const verifiedCommitment = useRef(null)
   const prevWrongCount = useRef(wrongCount)
   const prevWrongDrop = useRef(wrongCount)
+  const advancingRound = useRef(false)
 
   // --- Setter: process pending guesses ---
   useEffect(() => {
@@ -150,7 +201,16 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       verifyReveal(round.commitment, word, salt),
       Promise.resolve(verifyRoundConsistency(word, guesses)),
     ]).then(([commitOk, consistencyOk]) => {
-      if (!commitOk || !consistencyOk) {
+      // BUG 2: re-derive the outcome from the revealed word + recorded guesses
+      // so a dishonest setter cannot win by writing result:'hanged' after the
+      // word was actually fully guessed (or vice-versa).
+      const derivedResult = deriveRoundResult(word, guesses)
+      const resultOk = derivedResult === round.result
+
+      if (!commitOk || !consistencyOk || !resultOk) {
+        // BUG 1: write a binding verdict to Firebase so the setter's client
+        // also shows the forfeit screen and cannot bank the point.
+        update(ref(db, `games/${gameId}/round`), { cheatDetected: true }).catch(() => {})
         setCheatDetected(true)
         setCheatEvidence({
           commitment: round.commitment,
@@ -158,6 +218,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
           salt,
           commitOk,
           consistencyOk,
+          resultOk,
         })
       } else if (round.result === 'guessed') {
         const roundWinner = guesser
@@ -169,7 +230,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       // hanged: drop+bell already fired; roses render via roundResult state
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, round.reveal, round.commitment, isGuesser])
+  }, [phase, round.reveal, round.commitment, isGuesser, gameId])
 
   // --- Flash on new wrong guess ---
   useEffect(() => {
@@ -236,9 +297,23 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   }, [phase, isGuesser, guesses, gameId])
 
   const handleNextRound = useCallback(async () => {
-    if (isSpectator) return
-    const roundResult = round.result
-    const roundWinner = roundResult === 'guessed' ? guesser : setter
+    // Clear local cheat state so a previously detected cheat doesn't leave the
+    // guesser permanently stuck on a dead CheatScreen after the Firebase flag
+    // is cleared (the local flag is never reset otherwise).
+    setCheatDetected(false)
+    setCheatEvidence(null)
+    // BUG 3: only the guesser (who becomes next setter) may advance the round.
+    // This prevents the setter from simultaneously clicking NEXT ROUND and
+    // double-applying the score write.
+    if (!isGuesser) return
+    if (advancingRound.current) return
+    advancingRound.current = true
+
+    // BUG 1/2: if a cheat was detected (DB flag from Firebase propagation, or
+    // local state from the brief race window before propagation), the guesser
+    // wins regardless of what round.result says.
+    const cheated = roundCheatDetected || cheatDetected
+    const roundWinner = cheated ? guesser : (round.result === 'guessed' ? guesser : setter)
     const newScores = { X: scoreX, O: scoreO }
     newScores[roundWinner] = (newScores[roundWinner] || 0) + 1
 
@@ -259,6 +334,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       'round/guesses': null,
       'round/reveal': null,
       'round/result': null,
+      // Clear the cheat flag so it does not bleed into the next round.
+      'round/cheatDetected': null,
       proposal: null,
     }
 
@@ -267,8 +344,10 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       updates.winner = newMatchWinner
     }
 
-    try { await update(ref(db, `games/${gameId}`), updates) } catch { /* ignore */ }
-  }, [round.result, setter, guesser, scoreX, scoreO, isSpectator, gameId])
+    try { await update(ref(db, `games/${gameId}`), updates) } catch { /* ignore */ } finally {
+      advancingRound.current = false
+    }
+  }, [isGuesser, roundCheatDetected, cheatDetected, round.result, setter, guesser, scoreX, scoreO, gameId])
 
   const handleForfeit = useCallback(async () => {
     const newScores = { X: scoreX, O: scoreO }
@@ -290,6 +369,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       'round/guesses': null,
       'round/reveal': null,
       'round/result': null,
+      'round/cheatDetected': null,
       proposal: null,
     }
 
@@ -317,11 +397,19 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         'round/guesses': null,
         'round/reveal': null,
         'round/result': null,
+        'round/cheatDetected': null,
         proposal: null,
       })
     } catch { /* ignore */ }
   }, [setter, gameId])
 
+  // Binding verdict written by the guesser's client: setter (and spectators)
+  // see the forfeit screen; guesser sees evidence + NEXT ROUND button.
+  if (roundCheatDetected) {
+    if (!isGuesser) return <CheatForfeitScreen waiting={isSetter} onReset={isSetter ? handleResetStuckRound : null} />
+    return <CheatScreen evidence={cheatEvidence} onNextRound={handleNextRound} />
+  }
+  // Local detection only (brief race window before the Firebase write propagates)
   if (cheatDetected) return <CheatScreen evidence={cheatEvidence} />
 
   // --- Match over ---
@@ -461,7 +549,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
             <p className="font-mono text-[10px] text-retro-dim">
               THE WORD THAT KILLED HER: <span className="text-retro-cta">{revealedWord}</span>
             </p>
-            {!isSpectator && (
+            {/* BUG 3: only the guesser may advance the round; setter waits. */}
+            {isGuesser && (
               <div className="space-y-2">
                 <button
                   onClick={handleNextRound}
@@ -474,6 +563,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
                 )}
               </div>
             )}
+            {isSetter && (
+              <p className="mt-2 font-pixel text-[10px] text-retro-dim animate-pulse">
+                WAITING FOR GUESSER…
+              </p>
+            )}
           </div>
         )}
         {isReveal && roundResult === 'guessed' && (
@@ -484,7 +578,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
             <p className="font-mono text-[10px] text-retro-dim">
               The word was <span className="text-retro-cta">{revealedWord}</span>
             </p>
-            {!isSpectator && (
+            {/* BUG 3: only the guesser may advance the round; setter waits. */}
+            {isGuesser && (
               <div className="space-y-2">
                 <button
                   onClick={handleNextRound}
@@ -496,6 +591,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
                   <GameSwitcher currentType="hangwoman" onSwitch={onSwitchGame} />
                 )}
               </div>
+            )}
+            {isSetter && (
+              <p className="mt-2 font-pixel text-[10px] text-retro-dim animate-pulse">
+                WAITING FOR GUESSER…
+              </p>
             )}
           </div>
         )}

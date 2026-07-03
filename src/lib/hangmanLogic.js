@@ -59,3 +59,17 @@ export function verifyRoundConsistency(word, guesses) {
   }
   return true
 }
+
+// Re-derive the round outcome from the revealed word and the recorded guesses,
+// independent of the setter-written `result`. Returns 'guessed' | 'hanged' |
+// null (guesses don't actually end the round). Mirrors the setter's priority:
+// a fully guessed word wins even if the wrong count also reached MAX_WRONG.
+export function deriveRoundResult(word, guesses) {
+  const normalized = {}
+  for (const [letter, val] of Object.entries(guesses || {})) {
+    normalized[letter] = normalizePositions(val)
+  }
+  if (isWordGuessed(word, normalized)) return 'guessed'
+  if (countWrong(normalized) >= MAX_WRONG) return 'hanged'
+  return null
+}

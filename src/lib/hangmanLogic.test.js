@@ -6,6 +6,7 @@ import {
   isWordGuessed,
   countWrong,
   verifyRoundConsistency,
+  deriveRoundResult,
   MAX_WRONG,
 } from './hangmanLogic'
 
@@ -169,5 +170,51 @@ describe('verifyRoundConsistency', () => {
     // 'ICE CREAM': C at indices 1,4; space is at index 3 (not a letter)
     const guesses = { C: [1, 4], E: [2, 6], I: [0], R: [5], A: [7], M: [8] }
     expect(verifyRoundConsistency('ICE CREAM', guesses)).toBe(true)
+  })
+})
+
+describe('deriveRoundResult', () => {
+  it("returns 'guessed' when every distinct letter was hit", () => {
+    const guesses = { B: [0], A: [1, 3, 5], N: [2, 4], Z: false }
+    expect(deriveRoundResult('BANANA', guesses)).toBe('guessed')
+  })
+
+  it("returns 'hanged' when wrong guesses reach MAX_WRONG", () => {
+    const guesses = { Q: false, W: false, Z: false, J: false, K: false, V: false, B: [0] }
+    expect(deriveRoundResult('BANANA', guesses)).toBe('hanged')
+  })
+
+  it('returns null when the round is not actually over', () => {
+    const guesses = { B: [0], A: [1, 3, 5], Z: false }
+    expect(deriveRoundResult('BANANA', guesses)).toBeNull()
+  })
+
+  it('returns null when a required letter is still pending', () => {
+    const guesses = { B: [0], A: [1, 3, 5], N: 'pending' }
+    expect(deriveRoundResult('BANANA', guesses)).toBeNull()
+  })
+
+  it("prioritizes 'guessed' when the word is complete even at MAX_WRONG misses", () => {
+    const guesses = {
+      C: [0], A: [1], T: [2],
+      Q: false, W: false, Z: false, J: false, K: false, V: false,
+    }
+    expect(deriveRoundResult('CAT', guesses)).toBe('guessed')
+  })
+
+  it('accepts firebase object form for positions', () => {
+    // Firebase returns { '0': 1, '1': 3, '2': 5 } instead of [1,3,5]
+    const guesses = { B: [0], A: { 0: 1, 1: 3, 2: 5 }, N: { 0: 2, 1: 4 } }
+    expect(deriveRoundResult('BANANA', guesses)).toBe('guessed')
+  })
+
+  it('ignores spaces when deriving a phrase result', () => {
+    const guesses = { I: [0], C: [1, 4], E: [2, 6], R: [5], A: [7], M: [8] }
+    expect(deriveRoundResult('ICE CREAM', guesses)).toBe('guessed')
+  })
+
+  it('returns null for empty guesses', () => {
+    expect(deriveRoundResult('BANANA', {})).toBeNull()
+    expect(deriveRoundResult('BANANA', null)).toBeNull()
   })
 })
