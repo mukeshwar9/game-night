@@ -8,6 +8,12 @@ import { toast } from 'sonner'
 
 const SHOW_MS = 3000
 
+// Opponent-idle claim: presence only catches real disconnects, so an opponent
+// who is online but walked away would leave me waiting forever. After I submit
+// my answer, if their state hasn't changed for this long I may claim the round.
+const CLAIM_IDLE_MS = 45000
+const CLAIM_HINT_MS = 30000  // show the countdown hint this far in
+
 function generateNumber(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
   for (let i = 1; i < level; i++) n += String(Math.floor(Math.random() * 10))
@@ -43,6 +49,7 @@ export default function NumberMemoryGame({
   const prevLevel = useRef(round.level)
   const prevAnswerX = useRef(round.answerX)
   const prevAnswerO = useRef(round.answerO)
+  const claimingRef = useRef(false)  // prevents double-click on claim button
 
   const hasSubmitted = localSubmitted || myAnswer != null
 
@@ -78,34 +85,65 @@ export default function NumberMemoryGame({
     return () => clearInterval(interval)
   }, [round.phase, gameId])
 
+  // Avoids spreading ...current through a root transaction (would re-write
+  // players.O.playerId under the wrong auth.uid and fail the security rule).
+  // Uses narrow CAS transactions + targeted update() calls instead, matching
+  // the handleCellClick pattern already established in the codebase.
+  // NOTE: reads game state from the component closure, so calls from handleSubmit
+  // may bail early (stale local state); the watcher effect (below) always has
+  // fresh state and handles the actual resolution in that case.
   const tryFinishRound = async () => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished') return  // abort
-        const r = current.numRound
-        if (!r || r.answerX == null || r.answerO == null) return  // abort — not both submitted
+    const r = game.numRound
+    if (!r || r.answerX == null || r.answerO == null) return  // bail — not both submitted yet
+    if (game.status === 'finished') return                    // bail — already resolved
 
-        const xCorrect = r.answerX === r.number
-        const oCorrect = r.answerO === r.number
+    const xCorrect = r.answerX === r.number
+    const oCorrect = r.answerO === r.number
 
-        if (xCorrect && oCorrect) {
-          const newLevel = r.level + 1
-          return {
-            ...current,
-            numRound: { phase: 'showing', level: newLevel, number: generateNumber(newLevel), answerX: null, answerO: null },
-          }
-        }
-
-        const loser = !xCorrect ? 'X' : 'O'
-        const winner = loser === 'X' ? 'O' : 'X'
-        return {
-          ...current,
-          winner,
+    if (xCorrect && oCorrect) {
+      // Both correct: advance to the next level.
+      // CAS on numRound/level deduplicates concurrent calls from both clients.
+      const currentLevel = r.level
+      let claimed = false
+      try {
+        await runTransaction(ref(db, `games/${gameId}/numRound/level`), lvl => {
+          if ((lvl ?? 1) !== currentLevel) return  // abort — already advanced
+          claimed = true
+          return currentLevel + 1
+        })
+      } catch { return }
+      if (!claimed) return
+      const newLevel = currentLevel + 1
+      try {
+        await update(ref(db, `games/${gameId}/numRound`), {
+          phase: 'showing',
+          level: newLevel,
+          number: generateNumber(newLevel),
+          answerX: null,  // Firebase deletes null-valued keys → normalizeRound treats absent as null ✓
+          answerO: null,
+        })
+      } catch { /* level was already advanced; ignore */ }
+    } else {
+      // One or both wrong: end the round.
+      // CAS on winner deduplicates concurrent resolution attempts.
+      const loser = !xCorrect ? 'X' : 'O'
+      const winner = loser === 'X' ? 'O' : 'X'
+      let claimed = false
+      try {
+        await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
+          if (currentWinner != null) return  // abort — already resolved
+          claimed = true
+          return winner
+        })
+      } catch { return }
+      if (!claimed) return
+      try {
+        await update(ref(db, `games/${gameId}`), {
           status: 'finished',
-          scores: { ...(current.scores || {}), [winner]: (current.scores?.[winner] || 0) + 1 },
-        }
-      })
-    } catch { /* other client already resolved — ignore */ }
+          [`scores/${winner}`]: (game.scores?.[winner] || 0) + 1,
+        })
+      } catch { /* winner was already set; ignore */ }
+    }
   }
 
   // Watcher: opponent just submitted — if I already submitted, trigger resolution
@@ -118,6 +156,65 @@ export default function NumberMemoryGame({
     prevAnswerX.current = ax
     prevAnswerO.current = ao
   }, [game.numRound?.answerX, game.numRound?.answerO])
+
+  // --- Opponent-idle claim ---
+  // opIdleSinceRef is set to Date.now() in the effect body (safe — not during
+  // render). Never initialized with Date.now() here to satisfy react-hooks/purity.
+  const opIdleSinceRef = useRef(null)
+  const [opIdleMs, setOpIdleMs] = useState(0)
+  // Only offered once MY answer is durably in Firebase (not just localSubmitted)
+  const claimEligible = game.status === 'playing' && !!mySymbol
+    && round.phase === 'recall' && myAnswer != null && opAnswer == null
+
+  // Single combined effect: restarts on any relevant state change, recording the
+  // new session start time via a ref and resetting the display state via a
+  // setTimeout callback (async — avoids react-hooks/set-state-in-effect).
+  useEffect(() => {
+    if (!claimEligible) return
+    opIdleSinceRef.current = Date.now()
+    // Reset display asynchronously so we don't call setState synchronously in the
+    // effect body — the timeout fires on the next event-loop tick before any paint.
+    const reset = setTimeout(() => setOpIdleMs(0), 0)
+    const interval = setInterval(() => {
+      if (opIdleSinceRef.current != null) {
+        setOpIdleMs(Date.now() - opIdleSinceRef.current)
+      }
+    }, 1000)
+    return () => { clearTimeout(reset); clearInterval(interval) }
+  }, [claimEligible, opAnswer, round.phase, round.level, myAnswer, game.status])
+
+  const claimReady     = claimEligible && opIdleMs >= CLAIM_IDLE_MS
+  const showClaimHint  = claimEligible && !claimReady && opIdleMs >= CLAIM_HINT_MS
+  const claimCountdown = Math.max(1, Math.ceil((CLAIM_IDLE_MS - opIdleMs) / 1000))
+
+  // Resolve the round in my favor.
+  // Two-step write to avoid spreading ...current through a root transaction (which
+  // would write players.O.playerId under X's auth.uid and fail the security rule):
+  //   1. Narrow CAS on `winner` only — `players` is never in scope of this ref.
+  //   2. Targeted update() for status + scores (same pattern as handleCellClick).
+  // claimingRef prevents a second in-flight call while the first is pending.
+  const claimIdleRound = async () => {
+    if (claimingRef.current) return
+    claimingRef.current = true
+    try {
+      // Local pre-condition re-check before any network call
+      const r = game.numRound ?? {}
+      if (game.status !== 'playing' || r[`answer${myKey}`] == null || r[`answer${opKey}`] != null) return
+      // Atomic CAS: only write winner if the slot is still empty
+      let claimed = false
+      await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
+        if (currentWinner != null) return  // abort — already resolved
+        claimed = true
+        return myKey
+      })
+      if (!claimed) return  // opponent answered at the same instant — no-op
+      await update(ref(db, `games/${gameId}`), {
+        status: 'finished',
+        [`scores/${myKey}`]: (game.scores?.[myKey] || 0) + 1,
+      })
+    } catch { toast.error('CLAIM FAILED — CHECK CONNECTION') }
+    finally { claimingRef.current = false }
+  }
 
   const handleSubmit = async () => {
     if (!mySymbol || hasSubmitted) return
@@ -230,6 +327,19 @@ export default function NumberMemoryGame({
         <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">
           OPPONENT DISCONNECTED
         </p>
+      )}
+      {showClaimHint && (
+        <p className="font-pixel text-[9px] text-retro-dim text-center animate-pulse">
+          OPPONENT IDLE — CLAIM UNLOCKS IN {claimCountdown}s
+        </p>
+      )}
+      {claimReady && (
+        <button
+          onClick={claimIdleRound}
+          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95"
+        >
+          CLAIM ROUND — OPPONENT IDLE
+        </button>
       )}
       {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
     </div>

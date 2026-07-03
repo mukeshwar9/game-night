@@ -21,6 +21,9 @@ function speedPtsFor(elapsed) {
   return Math.max(1, Math.ceil(5 * Math.max(0, (QUESTION_MS - elapsed) / QUESTION_MS)))
 }
 
+// How long the "✗ WRONG" feedback stays up before auto-advancing to my next question
+const WRONG_FEEDBACK_MS = 1000
+
 // ── sub-components ───────────────────────────────────────────────────
 
 function ScoreBar({ game, myKey, opKey, players }) {
@@ -137,11 +140,12 @@ export default function MathGame({
   const hasAutoAdvancedRef = useRef(null)
   const hasFinishedRef     = useRef(false)
   const submittingRef      = useRef(false)
+  const qShownAtRef        = useRef(null) // local clock: when MY current question appeared
 
-  const qIndex     = game.mathQIndex ?? 0
+  const myQIndex   = game[`mathQIndex${myKey}`] ?? 0
+  const opQIndex   = game[`mathQIndex${opKey}`] ?? 0
   const startedAt  = game.mathStartedAt ?? null
   const endTime    = game.mathEndTime   ?? null
-  const qStartAt   = game.mathQStartAt  ?? null
   const seed       = game.mathSeed      ?? null
 
   const now          = Date.now()
@@ -149,7 +153,7 @@ export default function MathGame({
   const isPlaying    = !!startedAt && now >= startedAt + 3000 && game.status !== 'finished'
   const countdownSec = isCountdown ? Math.ceil((startedAt + 3000 - now) / 1000) : 0
   const timeLeftMs   = endTime ? Math.max(0, endTime - now) : GAME_MS
-  const qElapsed     = qStartAt ? now - qStartAt : 0
+  const qElapsed     = qShownAtRef.current != null ? now - qShownAtRef.current : 0
   const qPct         = Math.max(0, 1 - qElapsed / QUESTION_MS)
   const speedPts     = speedPtsFor(qElapsed)
 
@@ -158,15 +162,22 @@ export default function MathGame({
   const myScore   = game[`mathScore${myKey}`]  ?? 0
   const opScore   = game[`mathScore${opKey}`]  ?? 0
 
-  const q = seed != null ? generateQuestion(seed, qIndex) : null
+  const q = seed != null ? generateQuestion(seed, myQIndex) : null
 
-  // Reset per-question state when question changes
+  // Reset per-question state when MY question changes
   useEffect(() => {
     setHasAnswered(false)
     setAnswer('')
     setLastResult(null)
     submittingRef.current = false
-  }, [qIndex])
+  }, [myQIndex])
+
+  // Stamp when my current question appears — on MY clock. Only my client
+  // scores my answers, so this never touches Firebase and clock skew between
+  // devices can't bias speed points.
+  useEffect(() => {
+    if (isPlaying) qShownAtRef.current = Date.now()
+  }, [isPlaying, myQIndex])
 
   // Ticker: drives countdown display and checks timeouts
   useEffect(() => {
@@ -175,12 +186,12 @@ export default function MathGame({
       setTick(n => n + 1)
       const n = Date.now()
 
-      // Check per-question timeout
-      if (isPlaying && qStartAt) {
-        const elapsed = n - qStartAt
-        if (elapsed >= QUESTION_MS && hasAutoAdvancedRef.current !== qIndex) {
-          hasAutoAdvancedRef.current = qIndex
-          advanceQuestion()
+      // Check per-question timeout — auto-advance MY index only (spectators skip)
+      if (isPlaying && mySymbol && qShownAtRef.current != null) {
+        const elapsed = n - qShownAtRef.current
+        if (elapsed >= QUESTION_MS && hasAutoAdvancedRef.current !== myQIndex) {
+          hasAutoAdvancedRef.current = myQIndex
+          advanceQuestion(myQIndex)
         }
       }
 
@@ -191,7 +202,7 @@ export default function MathGame({
       }
     }, 100)
     return () => clearInterval(id)
-  }, [startedAt, game.status, isPlaying, qStartAt, qIndex, endTime])
+  }, [startedAt, game.status, isPlaying, mySymbol, myQIndex, endTime])
 
   // ── Firebase transactions ─────────────────────────────────────────
 
@@ -205,7 +216,6 @@ export default function MathGame({
           ...current,
           mathStartedAt: t,
           mathEndTime:   t + 3000 + GAME_MS,
-          mathQStartAt:  t + 3000,
         }
       })
     } catch { /* ignore */ }
@@ -223,15 +233,17 @@ export default function MathGame({
     submittingRef.current = true
     setHasAnswered(true)
 
+    // Elapsed on MY clock, captured at submit time (transaction retries don't inflate it)
+    const submitAt = Date.now()
+    const elapsed  = submitAt - (qShownAtRef.current ?? submitAt)
+
     try {
       const result = await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || current.status === 'finished') return
-        if ((current.mathQIndex ?? 0) !== qIndex) return  // question already advanced
+        if ((current[`mathQIndex${myKey}`] ?? 0) !== myQIndex) return  // my question already advanced
 
-        const cq      = generateQuestion(current.mathSeed, current.mathQIndex ?? 0)
+        const cq      = generateQuestion(current.mathSeed, myQIndex)
         const correct = parseInt(answer, 10) === cq.answer
-        const n       = Date.now()
-        const elapsed = n - (current.mathQStartAt ?? n)
         const speed   = speedPtsFor(elapsed)
         const power   = cq.isPower ? 2 : 1
         const streak  = current[`mathStreak${myKey}`] ?? 0
@@ -241,11 +253,9 @@ export default function MathGame({
           const pts = speed * power * mult
           return {
             ...current,
-            mathQIndex:               (current.mathQIndex ?? 0) + 1,
-            mathQStartAt:             n,
+            [`mathQIndex${myKey}`]:   myQIndex + 1,
             [`mathScore${myKey}`]:    (current[`mathScore${myKey}`] ?? 0) + pts,
             [`mathStreak${myKey}`]:   streak + 1,
-            [`mathStreak${opKey}`]:   0,
             [`mathCorrect${myKey}`]:  (current[`mathCorrect${myKey}`] ?? 0) + 1,
           }
         } else {
@@ -262,29 +272,31 @@ export default function MathGame({
       // Derive what happened from the transaction result
       if (result.committed && result.snapshot.val()) {
         const after = result.snapshot.val()
-        const wasCorrect = (after.mathQIndex ?? 0) > qIndex
-        const n = Date.now()
-        const elapsed = n - (qStartAt ?? n)
+        const wasCorrect = (after[`mathQIndex${myKey}`] ?? 0) > myQIndex
         const speed = speedPtsFor(elapsed)
         const power = q.isPower ? 2 : 1
         const mult  = myStreak >= 3 ? 2 : 1
         const pts   = wasCorrect ? speed * power * mult : 0
         setLastResult({ correct: wasCorrect, pts })
         if (wasCorrect) sounds.hit(after[`mathStreak${myKey}`] ?? 1)
-        else sounds.miss()
+        else {
+          sounds.miss()
+          // brief feedback (shows the right answer), then move to my next question — no lockout
+          setTimeout(() => advanceQuestion(myQIndex), WRONG_FEEDBACK_MS)
+        }
       }
     } catch { /* retry; result will show via firebase update */ }
   }
 
-  const advanceQuestion = async () => {
+  // Advance MY index past `fromIndex` (wrong answer or per-question timeout)
+  const advanceQuestion = async (fromIndex) => {
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished') return
-        if ((current.mathQIndex ?? 0) !== qIndex) return
+        if (!current || current.status === 'finished' || current.gameType !== 'math') return
+        if ((current[`mathQIndex${myKey}`] ?? 0) !== fromIndex) return
         return {
           ...current,
-          mathQIndex:   (current.mathQIndex ?? 0) + 1,
-          mathQStartAt: Date.now(),
+          [`mathQIndex${myKey}`]: fromIndex + 1,
         }
       })
     } catch { /* ignore */ }
@@ -347,7 +359,7 @@ export default function MathGame({
         <div className="bg-retro-card border border-retro-border rounded p-6 text-center space-y-4">
           <p className="font-pixel text-[9px] text-retro-cta">MENTAL MATH DUEL</p>
           <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left mx-auto w-fit">
-            <p>● SAME QUESTION · FIRST CORRECT WINS THE ROUND</p>
+            <p>● SAME QUESTIONS FOR BOTH · SOLVE AT YOUR OWN PACE</p>
             <p>⚡ POWER QUESTIONS EVERY 8 ROUNDS · 2× POINTS</p>
             <p>🔥 3-STREAK = DOUBLE NEXT CORRECT</p>
             <p>⏱ 2-MINUTE BLITZ · HIGHEST SCORE WINS</p>
@@ -432,7 +444,7 @@ export default function MathGame({
         <QuestionBar qPct={qPct} />
 
         <div className="space-y-1">
-          <p className="font-pixel text-[9px] text-retro-dim">Q{qIndex + 1}</p>
+          <p className="font-pixel text-[9px] text-retro-dim">Q{myQIndex + 1}</p>
           <p className="font-pixel text-3xl text-retro-text tracking-wider">
             {q?.text ?? '…'}
           </p>
@@ -466,7 +478,7 @@ export default function MathGame({
 
         {answered && !lastResult && (
           <p className="font-pixel text-[9px] text-retro-dim animate-pulse">
-            WAITING FOR OPPONENT...
+            CHECKING...
           </p>
         )}
       </div>
@@ -474,7 +486,7 @@ export default function MathGame({
       {/* Opponent activity */}
       {!answered && opponentOnline && (
         <p className="font-pixel text-[9px] text-retro-dim text-center animate-pulse">
-          {game.players?.[opKey]?.name?.toUpperCase() ?? opKey} THINKING ●●●
+          {game.players?.[opKey]?.name?.toUpperCase() ?? opKey} ON Q{opQIndex + 1} ●●●
         </p>
       )}
 
