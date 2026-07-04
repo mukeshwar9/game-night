@@ -24,6 +24,14 @@ import {
   DB_EDGE_COUNT,
 } from './dotsAndBoxesLogic'
 import { PIG_TARGET } from './diceLogic'
+import {
+  applyPlacement,
+  decodeCell,
+  criticalMass,
+  CR_CELL_COUNT,
+  CR_COLS,
+  CR_ROWS,
+} from './chainReactionLogic'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -368,6 +376,98 @@ function botDice(game, botSymbol) {
   return 'roll'
 }
 
+// ---------------------------------------------------------------------------
+// 9. Chain Reaction
+// ---------------------------------------------------------------------------
+
+function crNeighbours(index) {
+  const row = Math.floor(index / CR_COLS)
+  const col = index % CR_COLS
+  const ns = []
+  if (row > 0)           ns.push(index - CR_COLS)
+  if (row < CR_ROWS - 1) ns.push(index + CR_COLS)
+  if (col > 0)           ns.push(index - 1)
+  if (col < CR_COLS - 1) ns.push(index + 1)
+  return ns
+}
+
+function botChainReaction(game, botSymbol) {
+  const board = game.board || []
+  const crMoves = game.crMoves ?? 0
+  const opp = opponent(botSymbol)
+
+  // Legal moves: empty or own cells
+  const moves = []
+  for (let i = 0; i < CR_CELL_COUNT; i++) {
+    const cell = board[i]
+    if (!cell || cell[0] === botSymbol) moves.push(i)
+  }
+  if (!moves.length) return null
+
+  const countOppOrbs = (b) =>
+    b.reduce((acc, c) => {
+      if (!c || c[0] !== opp) return acc
+      return acc + parseInt(c.slice(1), 10)
+    }, 0)
+
+  const oppBefore = countOppOrbs(board)
+
+  // (1) Win: any move that leaves opponent with 0 orbs (needs crMoves+1 >= 2)
+  if (crMoves >= 1) {
+    for (const i of moves) {
+      const { board: nb } = applyPlacement(board, i, botSymbol)
+      if (countOppOrbs(nb) === 0) return i
+    }
+  }
+
+  // (2) Capture: pick move that reduces opponent orb count the most
+  let bestCapture = -1
+  let bestMoves = []
+  for (const i of moves) {
+    const { board: nb } = applyPlacement(board, i, botSymbol)
+    const captured = oppBefore - countOppOrbs(nb)
+    if (captured > bestCapture) {
+      bestCapture = captured
+      bestMoves = [i]
+    } else if (captured === bestCapture) {
+      bestMoves.push(i)
+    }
+  }
+
+  if (bestMoves.length === 1) return bestMoves[0]
+
+  // (3) Tie-break: avoid cells adjacent to opponent near-critical cells;
+  //     prefer corners > edges > interior
+  const nearCritical = new Set()
+  for (let i = 0; i < CR_CELL_COUNT; i++) {
+    const cell = board[i]
+    if (cell && cell[0] === opp) {
+      const { count } = decodeCell(cell)
+      if (count === criticalMass(i) - 1) nearCritical.add(i)
+    }
+  }
+
+  const crCorners = new Set([0, CR_COLS - 1, CR_CELL_COUNT - CR_COLS, CR_CELL_COUNT - 1])
+  const isEdge = (i) => {
+    const row = Math.floor(i / CR_COLS)
+    const col = i % CR_COLS
+    return (row === 0 || row === CR_ROWS - 1 || col === 0 || col === CR_COLS - 1) && !crCorners.has(i)
+  }
+
+  const scored = bestMoves.map(i => {
+    const adjToNearCrit = crNeighbours(i).some(n => nearCritical.has(n))
+    const posScore = crCorners.has(i) ? 3 : isEdge(i) ? 2 : 1
+    // Danger avoidance dominates; within same danger tier, prefer better position
+    const safeBonus = adjToNearCrit ? 0 : 100
+    return { i, score: safeBonus + posScore }
+  })
+
+  scored.sort((a, b) => b.score - a.score)
+  const topScore = scored[0].score
+  const top = scored.filter(s => s.score === topScore)
+  return pickRandom(top).i
+}
+
 // Connect Four Pop Out — the bot only ever drops (never pops); good enough for
 // casual solo practice. Emits the { col, action } payload the pop board expects.
 function botConnectFourPop(game, botSymbol) {
@@ -409,8 +509,9 @@ export function pickBotMove(type, game, botSymbol) {
     case 'reversi':      return botReversi(game, botSymbol)
     case 'orderchaos':   return botOrderChaos(game, botSymbol)
     case 'sos':          return botSos(game, botSymbol)
-    case 'dotsandboxes': return botDotsAndBoxes(game, botSymbol)
-    case 'dice':         return botDice(game, botSymbol)
-    default:             return null
+    case 'dotsandboxes':   return botDotsAndBoxes(game, botSymbol)
+    case 'dice':           return botDice(game, botSymbol)
+    case 'chainreaction':  return botChainReaction(game, botSymbol)
+    default:               return null
   }
 }

@@ -14,7 +14,7 @@ import {
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
-  TronIcon, SumoIcon, SpaceDuelIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
 import SnakeArena from '../components/SnakeArena';
@@ -1631,8 +1631,9 @@ const DEMOS = [
   { type: 'reversi',      short: 'REVERSI',       Icon: ReversiIcon,      Component: () => <BotBoardDemo type="reversi" />      },
   { type: 'orderchaos',   short: 'ORDER &\nCHAOS',Icon: OrderChaosIcon,   Component: () => <BotBoardDemo type="orderchaos" />   },
   { type: 'sos',          short: 'SOS',           Icon: SosIcon,          Component: () => <BotBoardDemo type="sos" />          },
-  { type: 'dotsandboxes', short: 'DOTS &\nBOXES', Icon: DotsAndBoxesIcon, Component: () => <BotBoardDemo type="dotsandboxes" /> },
-  { type: 'dice',         short: 'PIG',           Icon: DiceIcon,         Component: () => <BotBoardDemo type="dice" />         },
+  { type: 'dotsandboxes',  short: 'DOTS &\nBOXES',  Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes" />  },
+  { type: 'dice',          short: 'PIG',            Icon: DiceIcon,           Component: () => <BotBoardDemo type="dice" />          },
+  { type: 'chainreaction', short: 'CHAIN\nREACTION',Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction" /> },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
