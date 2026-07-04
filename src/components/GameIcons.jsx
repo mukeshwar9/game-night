@@ -408,3 +408,33 @@ export function ChainReactionIcon() {
     </svg>
   )
 }
+
+export function WordDuelIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* left board */}
+      <rect x="1" y="3" width="10" height="10" rx="1" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+      <rect x="3" y="5" width="6" height="1.5" rx="0.5" fill="currentColor" opacity="0.8" />
+      <rect x="3" y="7.5" width="6" height="1.5" rx="0.5" fill="currentColor" opacity="0.4" />
+      <rect x="3" y="10" width="6" height="1.5" rx="0.5" fill="currentColor" opacity="0.2" />
+      {/* right board */}
+      <rect x="13" y="3" width="10" height="10" rx="1" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+      <rect x="15" y="5" width="6" height="1.5" rx="0.5" fill="currentColor" opacity="0.7" />
+      <rect x="15" y="7.5" width="6" height="1.5" rx="0.5" fill="currentColor" opacity="0.5" />
+      <rect x="15" y="10" width="6" height="1.5" rx="0.5" fill="currentColor" opacity="0.3" />
+      {/* VS bar */}
+      <rect x="10" y="4" width="4" height="8" rx="0.5" fill="currentColor" opacity="0.9" />
+      <line x1="11" y1="5" x2="13" y2="5" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+      <line x1="11" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+      {/* keyboard */}
+      <rect x="2" y="15" width="20" height="7" rx="1" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+      <rect x="3.5" y="16" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.3" />
+      <rect x="6.5" y="16" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.3" />
+      <rect x="9.5" y="16" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.3" />
+      <rect x="12.5" y="16" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.3" />
+      <rect x="3.5" y="18.4" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.5" />
+      <rect x="6.5" y="18.4" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.5" />
+      <rect x="9.5" y="18.4" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}

@@ -7,6 +7,7 @@ import { freshGameState, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
+import ArcadeLoader from '@/components/ArcadeLoader'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
@@ -25,6 +26,7 @@ import SnakeGame from './SnakeGame'
 import TronGame from './TronGame'
 import SumoGame from './SumoGame'
 import SpaceduelGame from './SpaceduelGame'
+import WordDuelGame from './WordDuelGame'
 import WavelengthGame from './WavelengthGame'
 import FibbageGame from './FibbageGame'
 import SpyfairGame from './SpyfairGame'
@@ -35,6 +37,9 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import RulesModal, { RulesButton } from '../components/RulesModal'
+import {
+  commitSeed, deriveSeed, generateSeedHex, rollFaceAsync,
+} from '../lib/diceLogic'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -85,12 +90,7 @@ function buildSwitchUpdates(game, newType) {
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-retro-bg flex items-center justify-center">
-      <div className="flex gap-2">
-        {[0, 1, 2].map(i => (
-          <div key={i} className="w-3 h-3 bg-retro-cta rounded-full animate-bounce shadow-neon-cta"
-            style={{ animationDelay: `${i * 200}ms` }} />
-        ))}
-      </div>
+      <ArcadeLoader variant="inline" />
     </div>
   )
 }
@@ -117,6 +117,10 @@ export default function Game() {
   const prevStatus = useRef(null)
   const prevTurn = useRef(null)
   const prevFilledCount = useRef(0)
+  const prevDiceLast = useRef(null)
+  const prevDiceTurnScore = useRef(0)
+  const prevDiceRollIndex = useRef(0)
+  const diceSeedARef = useRef(null) // X's local seedA (sessionStorage-backed)
   const prevProposal = useRef(null)
   const nPlayerCleanup = useRef(null)
   const moveInFlight = useRef(false)
@@ -333,14 +337,38 @@ export default function Game() {
     const filledCount = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize).filter(Boolean).length : 0
 
     if (cfg.applyMove) {
-      // Games with applyMove (e.g. dots and boxes): detect opponent moves by filled count increase
-      if (
-        game.status === 'playing' &&
-        filledCount > prevFilledCount.current &&
-        prevTurn.current &&
-        prevTurn.current !== mySymbol.current
-      ) {
-        sounds.move(prevTurn.current)
+      if (cfg.type === 'dice') {
+        // Pig is boardless (filledCount always 0): detect an opponent action
+        // by tracking the die roll index + turn score, and verify the roll
+        // face against the deterministic seed (anti-cheat, see diceLogic.js).
+        const opp = prevTurn.current && prevTurn.current !== mySymbol.current
+        const rolled = (game.diceRollIndex ?? 0) > prevDiceRollIndex.current
+        const bankedOrBust = (game.diceTurnScore ?? 0) === 0
+          && prevDiceTurnScore.current > 0
+          && game.diceLast !== prevDiceLast.current
+        if (game.status === 'playing' && opp && (rolled || bankedOrBust)) {
+          if (game.diceLast === 1) sounds.bust()
+          else sounds.move(prevTurn.current)
+        }
+        // Verify a deterministic roll (only meaningful once diceSeed is set).
+        if (rolled && game.diceSeed && game.diceLast != null) {
+          const idx = (game.diceRollIndex ?? 0) - 1
+          rollFaceAsync(game.diceSeed, idx).then(expected => {
+            if (expected !== game.diceLast) {
+              toast.error('ROLL MISMATCH — TAMPERING SUSPECTED')
+            }
+          }).catch(() => {})
+        }
+      } else {
+        // Other applyMove games: detect opponent moves by filled count increase
+        if (
+          game.status === 'playing' &&
+          filledCount > prevFilledCount.current &&
+          prevTurn.current &&
+          prevTurn.current !== mySymbol.current
+        ) {
+          sounds.move(prevTurn.current)
+        }
       }
     } else {
       // Standard games: opponent's move = turn flipped to mine
@@ -357,6 +385,9 @@ export default function Game() {
     prevStatus.current = game.status
     prevTurn.current = game.currentTurn
     prevFilledCount.current = filledCount
+    prevDiceLast.current = game.diceLast ?? null
+    prevDiceTurnScore.current = game.diceTurnScore ?? 0
+    prevDiceRollIndex.current = game.diceRollIndex ?? 0
   }, [game])
 
   // Proposal effect — sound + declined toast
@@ -413,6 +444,64 @@ export default function Game() {
     moveInFlight.current = false
   }, [game])
 
+  // Pig anti-cheat: coin-flipping protocol to establish a shared deterministic
+  // roll seed (see src/lib/diceLogic.js). X commits seedA, O contributes seedB,
+  // X reveals seedA, both derive diceSeed. Runs only for gameType 'dice'.
+  const coinFlipStarted = useRef(false)
+  useEffect(() => {
+    if (!game || game.gameType !== 'dice' || game.status !== 'playing') return
+    if (!mySymbol.current) return
+    const sym = mySymbol.current
+    const SK = `pig-seedA-${gameId}`
+
+    // Reset the one-shot gate when the protocol state has been fully cleared
+    // (e.g. a "play again" reset) so the coin flip can run again.
+    if (!game.diceSeedCommitX && !game.diceSeedB && !game.diceSeedRevealX && !game.diceSeed) {
+      coinFlipStarted.current = false
+    }
+
+    ;(async () => {
+      const gameRef = ref(db, `games/${gameId}`)
+      // Step 1 — X commits seedA (once both seats are present).
+      if (sym === 'X' && !game.diceSeedCommitX && game.players?.O && !coinFlipStarted.current) {
+        coinFlipStarted.current = true
+        const seedA = generateSeedHex()
+        try { sessionStorage.setItem(SK, seedA) } catch { /* private mode */ }
+        diceSeedARef.current = seedA
+        const hash = await commitSeed(seedA)
+        await update(gameRef, { diceSeedCommitX: hash }).catch(() => {})
+        return
+      }
+      // Step 2 — O contributes seedB once the commit is on the wire.
+      if (sym === 'O' && game.diceSeedCommitX && !game.diceSeedB && !coinFlipStarted.current) {
+        coinFlipStarted.current = true
+        const seedB = generateSeedHex()
+        await update(gameRef, { diceSeedB: seedB }).catch(() => {})
+        return
+      }
+      // Step 3 — X reveals seedA once O has contributed.
+      if (sym === 'X' && game.diceSeedCommitX && game.diceSeedB && !game.diceSeedRevealX) {
+        let seedA = ''
+        try { seedA = sessionStorage.getItem(SK) || '' } catch { /* */ }
+        if (!seedA) seedA = diceSeedARef.current || ''
+        if (seedA) {
+          // Verify our local seedA still matches the published commit; if a
+          // same-tab reload wiped sessionStorage we cannot soundly reveal.
+          const hash = await commitSeed(seedA)
+          if (hash !== game.diceSeedCommitX) return
+          await update(gameRef, { diceSeedRevealX: seedA }).catch(() => {})
+        }
+        return
+      }
+      // Step 4 — host (X) derives and publishes diceSeed once both halves exist.
+      if (sym === 'X' && game.diceSeedRevealX && game.diceSeedB && !game.diceSeed) {
+        const seed = await deriveSeed(game.diceSeedRevealX, game.diceSeedB)
+        await update(gameRef, { diceSeed: seed }).catch(() => {})
+        return
+      }
+    })()
+  }, [game, gameId])
+
   const handleMove = async (colOrIndex) => {
     if (!game || !mySymbol.current) return
     if (moveInFlight.current) return // a write is pending — ignore rapid re-taps
@@ -421,13 +510,28 @@ export default function Game() {
 
     const cfg = getGameConfig(game.gameType)
     if (cfg.custom) return
+    // Pig: the deterministic roll seed must be established before any roll so
+    // no client can fall back to insecure Math.random(). Banks are seedless.
+    if (cfg.type === 'dice' && colOrIndex === 'roll' && !game.diceSeed) return
     const board = normalizeBoard(game.board, cfg.boardSize)
     const index = cfg.getMoveIndex(board, colOrIndex)
     if (index === -1) return
 
+    // For Pig, precompute the deterministic die face (async) from the shared
+    // seed so applyDiceMove can stay synchronous (the demo/bot harness calls
+    // it without a face, falling back to Math.random which is fine vs a bot).
+    let movePayload = colOrIndex
+    if (cfg.type === 'dice') {
+      let face
+      if (colOrIndex === 'roll' && game.diceSeed) {
+        face = await rollFaceAsync(game.diceSeed, game.diceRollIndex ?? 0)
+      }
+      movePayload = { action: colOrIndex, face }
+    }
+
     let updates, result
     if (cfg.applyMove) {
-      const applied = cfg.applyMove({ board, game, index, move: colOrIndex, symbol: mySymbol.current })
+      const applied = cfg.applyMove({ board, game, index, move: movePayload, symbol: mySymbol.current })
       if (!applied) return
       updates = applied.updates
       result = applied.result
@@ -443,7 +547,11 @@ export default function Game() {
     // Firebase echo, so a fast second tap could recompute from the pre-tap board.
     moveInFlight.current = true
 
-    sounds.move(mySymbol.current)
+    if (cfg.type === 'dice' && updates.diceLast === 1) {
+      sounds.bust()
+    } else {
+      sounds.move(mySymbol.current)
+    }
 
     if (result) {
       updates.winner = result.winner
@@ -981,6 +1089,17 @@ export default function Game() {
             />
           ) : game.gameType === 'spaceduel' ? (
             <SpaceduelGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySymbol.current}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'wordduel' ? (
+            <WordDuelGame
               gameId={gameId}
               game={game}
               mySymbol={mySymbol.current}

@@ -12,6 +12,7 @@ import {
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
+  WordDuelIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
@@ -380,12 +381,20 @@ export const GAME_TYPES = [
     boardSize: 0,
     getMoveIndex: () => 0,
     BoardComponent: DiceBoard,
-    applyMove: ({ game, move, symbol }) => applyDiceMove(game, move, symbol),
+    applyMove: ({ game, move, symbol }) => {
+      // `move` is a string ('roll'/'bank') from the bot/demo harness, or
+      // { action, face } from Game.jsx (precomputed deterministic face).
+      const action = typeof move === 'string' ? move : move?.action
+      const face = typeof move === 'string' ? undefined : move?.face
+      return applyDiceMove(game, action, symbol, face)
+    },
     boardProps: (game) => ({
       diceScoreX: game.diceScoreX ?? 0,
       diceScoreO: game.diceScoreO ?? 0,
       diceTurnScore: game.diceTurnScore ?? 0,
       diceLast: game.diceLast ?? null,
+      diceRolls: Array.isArray(game.diceRolls) ? game.diceRolls : [],
+      diceSeed: game.diceSeed ?? null,
     }),
   },
   {
@@ -433,6 +442,13 @@ export const GAME_TYPES = [
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     // no startRound — SpyfairGame drives its own round start
   },
+  {
+    type: 'wordduel', label: 'WORD DUEL',
+    desc: 'Wordle-style race', Icon: WordDuelIcon,
+    badge: 'WD', maxWidth: 'max-w-sm',
+    category: 'word',
+    custom: true,
+  },
 ]
 
 export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
@@ -477,6 +493,8 @@ const FIELD_NULLS = {
   mathWrongX: null, mathWrongO: null,
   mathStartedAt: null, mathEndTime: null,
   diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceLast: null,
+  diceRolls: null, diceRollIndex: null,
+  diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
   bluffRound: null,
   pongScoreX: null, pongScoreO: null, signaling: null, matchLength: null,
   snakeScoreX: null, snakeScoreO: null,
@@ -595,7 +613,9 @@ export function freshGameState(gameType) {
   }
   if (gameType === 'dice') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: 'X',
-      diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null }
+      diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null,
+      diceRolls: [], diceRollIndex: 0,
+      diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null }
   }
   if (gameType === 'twotruths') {
     return { ...FIELD_NULLS, board: null, currentTurn: null, boxes: null,
@@ -604,6 +624,10 @@ export function freshGameState(gameType) {
   if (gameType === 'bluff') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       bluffRound: { phase: 'rolling', turn: 'X', diceCountX: 5, diceCountO: 5 } }
+  }
+  if (gameType === 'wordduel') {
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
+      round: { phase: 'setting' } }
   }
   return { ...FIELD_NULLS, board: Array(cfg.boardSize).fill(''), boxes: null, round: null, currentTurn: 'X' }
 }

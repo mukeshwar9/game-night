@@ -14,7 +14,7 @@ import {
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
-  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
 import SnakeArena from '../components/SnakeArena';
@@ -27,6 +27,7 @@ import NumberPad from '../components/NumberPad';
 import { generateQuestion, QUESTION_MS } from '../lib/mathLogic';
 import { normalizeBoard } from '../lib/gameLogic';
 import { applyGuess, isWordGuessed, countWrong, MAX_WRONG, wordStructure } from '../lib/hangmanLogic';
+import { markGuess, isValidGuess, getKeyboardState, MAX_GUESSES as WD_MAX_GUESSES, WORD_LENGTH as WD_WORD_LENGTH } from '../lib/wordduelLogic';
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
@@ -243,6 +244,221 @@ function HangmanDemo() {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+const WD_KB_ROWS = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['Z','X','C','V','B','N','M'],
+]
+
+function WordDuelDemo() {
+  const [answer, setAnswer] = useState(() => {
+    const common = ['ABOUT', 'ABOVE', 'ADULT', 'AFTER', 'AGAIN', 'AGREE', 'ALONE', 'AMONG', 'ANGEL', 'ANGRY',
+      'BEACH', 'BEGAN', 'BEING', 'BLACK', 'BLOOD', 'BOARD', 'BRAIN', 'BREAK', 'BRING', 'BROWN',
+      'CAUSE', 'CHAIR', 'CHECK', 'CHILD', 'CLEAN', 'CLEAR', 'CLOSE', 'COULD', 'COURT', 'COVER',
+      'DANCE', 'DEATH', 'DREAM', 'DRINK', 'DRIVE', 'EARTH', 'EIGHT', 'EVERY', 'FAITH', 'FALSE',
+      'FIELD', 'FIGHT', 'FIRST', 'FORCE', 'FORTH', 'FOUND', 'FRAME', 'FRESH', 'FRONT', 'GIVEN',
+      'GLASS', 'GRAND', 'GREEN', 'GROUP', 'GUARD', 'GUESS', 'GUEST', 'HAPPY', 'HEART', 'HEAVY',
+      'HORSE', 'HOTEL', 'HOUSE', 'HUMAN', 'IDEAL', 'IMAGE', 'INDEX', 'JUDGE', 'KNOWN', 'LABEL',
+      'LARGE', 'LAUGH', 'LEARN', 'LEAVE', 'LEVEL', 'LIGHT', 'LOCAL', 'LOOSE', 'LOWER', 'LUCKY',
+      'LUNCH', 'MAJOR', 'MARRY', 'MATCH', 'MAYBE', 'MEDIA', 'METAL', 'MIGHT', 'MINOR', 'MONEY',
+      'MONTH', 'MORAL', 'MOUTH', 'MOVIE', 'MUSIC', 'NEEDS', 'NEVER', 'NIGHT', 'NOISE', 'NORTH',
+      'NOVEL', 'NURSE', 'OFFER', 'OFTEN', 'ORDER', 'OTHER', 'OWNER', 'PAPER', 'PARTY', 'PEACE',
+      'PHASE', 'PHONE', 'PIANO', 'PIECE', 'PILOT', 'PITCH', 'PLACE', 'PLANE', 'PLANT', 'PLATE',
+      'POINT', 'POUND', 'POWER', 'PRESS', 'PRICE', 'PRIDE', 'PRIZE', 'PROOF', 'QUEEN', 'QUICK',
+      'QUIET', 'QUITE', 'RADIO', 'RAISE', 'RANGE', 'RAPID', 'RATIO', 'REACH', 'READY', 'RIGHT',
+      'RIVER', 'ROUND', 'ROUTE', 'RURAL', 'SCALE', 'SCENE', 'SCOPE', 'SCORE', 'SENSE', 'SERVE',
+      'SEVEN', 'SHALL', 'SHAPE', 'SHARE', 'SHARP', 'SHEET', 'SHELF', 'SHELL', 'SHIFT', 'SHIRT',
+      'SHOCK', 'SHORT', 'SHOWN', 'SIGHT', 'SINCE', 'SIXTY', 'SKILL', 'SLEEP', 'SLOPE', 'SMALL',
+      'SMART', 'SMILE', 'SMOKE', 'SOLID', 'SOLVE', 'SORRY', 'SOUND', 'SOUTH', 'SPACE', 'SPARE',
+      'SPEAK', 'SPEED', 'SPEND', 'SPENT', 'SPLIT', 'SPOKE', 'SPORT', 'STAFF', 'STAGE', 'STAKE',
+      'STAND', 'START', 'STATE', 'STEAM', 'STEEL', 'STICK', 'STILL', 'STOCK', 'STONE', 'STOOD',
+      'STORE', 'STORM', 'STORY', 'STRIP', 'STUCK', 'STUDY', 'STUFF', 'STYLE', 'SUGAR', 'SUITE',
+      'SWEET', 'TABLE', 'TASTE', 'TEACH', 'THANK', 'THEIR', 'THERE', 'THESE', 'THING', 'THINK',
+      'THIRD', 'THOSE', 'THREE', 'THROW', 'TIGHT', 'TITLE', 'TODAY', 'TOTAL', 'TOUCH', 'TOUGH',
+      'TRACK', 'TRADE', 'TRAIL', 'TRAIN', 'TREAT', 'TREND', 'TRIAL', 'TRIED', 'TRIES', 'TRULY',
+      'TRUST', 'TRUTH', 'TWICE', 'UNDER', 'UNION', 'UNITY', 'UNTIL', 'UPPER', 'USAGE', 'USUAL',
+      'VALID', 'VALUE', 'VIDEO', 'VIRUS', 'VISIT', 'VITAL', 'VOICE', 'WASTE', 'WATCH', 'WATER',
+      'WHEEL', 'WHERE', 'WHICH', 'WHILE', 'WHITE', 'WHOLE', 'WHOSE', 'WOMAN', 'WORLD', 'WORRY',
+      'WORSE', 'WORST', 'WORTH', 'WOULD', 'WOUND', 'WRONG', 'WROTE', 'YIELD', 'YOUNG', 'YOURS']
+    return common[Math.floor(Math.random() * common.length)]
+  })
+  const [guesses, setGuesses] = useState([])
+  const [current, setCurrent] = useState('')
+  const [botScore, setBotScore] = useState(0)
+  const [playerScore, setPlayerScore] = useState(0)
+  const [roundResult, setRoundResult] = useState(null)
+
+  const kbState = getKeyboardState(guesses)
+  const done = guesses.length >= WD_MAX_GUESSES || guesses.some(g => g.marks === 'GGGGG')
+  const solved = guesses.some(g => g.marks === 'GGGGG')
+
+  const [botGuesses] = useState(() => 3 + Math.floor(Math.random() * 3))
+
+  const handleKey = (key) => {
+    if (done) return
+    if (key === 'ENTER') {
+      const word = current.toUpperCase()
+      if (word.length !== WD_WORD_LENGTH) return
+      if (!isValidGuess(word)) return
+      const marks = markGuess(word, answer)
+      const newGuesses = [...guesses, { word: word.toUpperCase(), marks }]
+      setGuesses(newGuesses)
+      setCurrent('')
+    } else if (key === 'BACK') {
+      setCurrent(prev => prev.slice(0, -1))
+    } else if (current.length < WD_WORD_LENGTH) {
+      setCurrent(prev => prev + key.toUpperCase())
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-4">
+      <div className="flex gap-4 text-xs text-retro-dim mb-1">
+        <span>YOU: {playerScore}</span>
+        <span>BOT: {botScore}</span>
+      </div>
+
+      {roundResult && (
+        <div className={cn(
+          'text-sm font-bold mb-2',
+          roundResult === 'win' ? 'text-retro-win' : roundResult === 'draw' ? 'text-retro-text' : 'text-retro-dim',
+        )}>
+          {roundResult === 'win' ? 'YOU WIN!' : roundResult === 'draw' ? 'DRAW' : 'BOT WINS'}
+          <span className="text-xs text-retro-dim ml-2">
+            (you: {solved ? guesses.length + '/6' : 'failed'}, bot: {botGuesses}/6)
+          </span>
+        </div>
+      )}
+
+      {/* Board */}
+      <div className="flex flex-col gap-1.5">
+        {Array.from({ length: WD_MAX_GUESSES }).map((_, r) => {
+          const g = guesses[r]
+          const isCurrentRow = r === guesses.length && !done
+          const cells = []
+          for (let c = 0; c < WD_WORD_LENGTH; c++) {
+            const letter = isCurrentRow ? (current[c] || '') : (g && g.word ? g.word[c] : '')
+            const mark = isCurrentRow ? null : (g && g.marks ? g.marks[c] : null)
+            cells.push(
+              (() => {
+                const colorClass = !mark ? 'bg-retro-card border-retro-border' :
+                  mark === 'G' ? 'bg-retro-win border-retro-win' :
+                  mark === 'Y' ? 'bg-[rgb(var(--c-cta))] border-[rgb(var(--c-cta))]' :
+                  'bg-retro-dim border-retro-dim'
+                return (
+                  <div key={c} className={cn(
+                    'w-10 h-10 flex items-center justify-center rounded',
+                    'text-xl font-bold border-2 uppercase select-none',
+                    'transition-colors duration-300',
+                    colorClass,
+                    letter && mark === 'G' ? 'text-white' : letter && mark === 'Y' ? 'text-white' : letter ? 'text-retro-text' : '',
+                  )}>
+                    {letter || ''}
+                  </div>
+                )
+              })()
+            )
+          }
+          return <div key={r} className="flex gap-1.5">{cells}</div>
+        })}
+      </div>
+
+      {/* Keyboard */}
+      <div className="flex flex-col items-center gap-1.5 w-full max-w-md mt-2">
+        {WD_KB_ROWS.map((row, ri) => (
+          <div key={ri} className="flex gap-1">
+            {ri === 2 && (
+              <button
+                className="px-2 py-2 rounded text-xs font-bold uppercase bg-retro-structure text-retro-text hover:bg-retro-border disabled:opacity-30"
+                onClick={() => handleKey('ENTER')}
+                disabled={done}
+              >
+                ↵
+              </button>
+            )}
+            {row.map(l => {
+              const s = kbState[l]
+              const bg = s === 'G' ? 'bg-retro-win text-white' : s === 'Y' ? 'bg-[rgb(var(--c-cta))] text-white' : s === 'B' ? 'bg-retro-dim text-retro-dim' : 'bg-retro-structure text-retro-text'
+              return (
+                <button key={l} className={cn('px-1.5 py-2 rounded text-xs font-bold uppercase hover:opacity-80 disabled:opacity-30', bg)}
+                  onClick={() => handleKey(l)} disabled={done}
+                >
+                  {l}
+                </button>
+              )
+            })}
+            {ri === 2 && (
+              <button
+                className="px-2 py-2 rounded text-xs font-bold uppercase bg-retro-structure text-retro-text hover:bg-retro-border disabled:opacity-30"
+                onClick={() => handleKey('BACK')}
+                disabled={done}
+              >
+                ⌫
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Done? Show result + restart */}
+      {done && !roundResult && (
+        <button
+          className="mt-3 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-cta text-white hover:opacity-90"
+          onClick={() => {
+            setRoundResult(solved ? (guesses.length < botGuesses ? 'win' : guesses.length === botGuesses ? 'draw' : 'lose') : 'lose')
+            if (solved) {
+              if (guesses.length < botGuesses) setPlayerScore(s => s + 1)
+              else if (guesses.length === botGuesses) { setPlayerScore(s => s + 1); setBotScore(s => s + 1) }
+              else setBotScore(s => s + 1)
+            } else {
+              setBotScore(s => s + 1)
+            }
+          }}
+        >
+          SHOW RESULT
+        </button>
+      )}
+
+      {roundResult && (
+        <button
+          className="mt-2 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-cta text-white hover:opacity-90"
+          onClick={() => {
+            const common = ['ABOUT', 'ABOVE', 'ADULT', 'AFTER', 'AGAIN', 'AGREE', 'ALONE', 'AMONG', 'ANGEL', 'ANGRY',
+              'BEACH', 'BEGAN', 'BEING', 'BLACK', 'BLOOD', 'BOARD', 'BRAIN', 'BREAK', 'BRING', 'BROWN',
+              'CAUSE', 'CHAIR', 'CHECK', 'CHILD', 'CLEAN', 'CLEAR', 'CLOSE', 'COULD', 'COURT', 'COVER',
+              'DANCE', 'DEATH', 'DREAM', 'DRINK', 'DRIVE', 'EARTH', 'EIGHT', 'EVERY', 'FAITH', 'FALSE',
+              'FIELD', 'FIGHT', 'FIRST', 'FORCE', 'FORTH', 'FOUND', 'FRAME', 'FRESH', 'FRONT', 'GIVEN']
+            setAnswer(common[Math.floor(Math.random() * common.length)])
+            setGuesses([])
+            setCurrent('')
+            setRoundResult(null)
+          }}
+        >
+          NEXT ROUND
+        </button>
+      )}
+
+      {/* New game */}
+      {roundResult && playerScore + botScore >= 3 && (
+        <button
+          className="mt-1 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-deep text-retro-text border border-retro-border hover:border-retro-dim"
+          onClick={() => {
+            setPlayerScore(0)
+            setBotScore(0)
+            const common = ['ABOUT', 'ABOVE', 'ADULT', 'AFTER', 'AGAIN']
+            setAnswer(common[Math.floor(Math.random() * common.length)])
+            setGuesses([])
+            setCurrent('')
+            setRoundResult(null)
+          }}
+        >
+          NEW MATCH
+        </button>
+      )}
     </div>
   )
 }
@@ -1651,6 +1867,7 @@ const DEMOS = [
   { type: 'chimp',        short: 'CHIMP\nTEST',   Icon: ChimpIcon,        Component: ChimpDemo        },
   // Solo / hangwoman
   { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
+  { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: WordDuelDemo     },
   // Party cards (2+ players only)
   { type: 'twotruths',    short: 'TWO\nTRUTHS',   Icon: TwoTruthsIcon,    Component: () => <PartyGameCard type="twotruths" />   },
   { type: 'bluff',        short: 'BLUFF',         Icon: BluffIcon,        Component: () => <PartyGameCard type="bluff" />       },
