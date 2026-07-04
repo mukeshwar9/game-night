@@ -287,6 +287,66 @@ body::before {
   100% { transform: translateY(0); }
 }
 
+/* ── Arcade loader animations ── */
+
+/* Pixel coin spins around its vertical axis (faux 3D) */
+@keyframes arcade-coin-spin {
+  0%   { transform: scaleX(1); }
+  50%  { transform: scaleX(0.1); filter: brightness(0.55); }
+  100% { transform: scaleX(1); }
+}
+.arcade-coin-spin { animation: arcade-coin-spin 1s steps(8) infinite; }
+
+/* "INSERT COIN" classic arcade blink */
+@keyframes arcade-blink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0.15; }
+}
+.arcade-blink { animation: arcade-blink 0.8s steps(1) infinite; }
+
+/* Loading-bar segments light up in sequence, then all hold */
+@keyframes arcade-load-seg {
+  0%, 100% { opacity: 0.12; }
+}
+.arcade-load-seg {
+  opacity: 0.12;
+  animation: arcade-load-seg 1.08s steps(1) infinite;
+}
+.arcade-load-seg:nth-child(1)  { animation-delay: 0ms; }
+.arcade-load-seg:nth-child(2)  { animation-delay: 90ms; }
+.arcade-load-seg:nth-child(3)  { animation-delay: 180ms; }
+.arcade-load-seg:nth-child(4)  { animation-delay: 270ms; }
+.arcade-load-seg:nth-child(5)  { animation-delay: 360ms; }
+.arcade-load-seg:nth-child(6)  { animation-delay: 450ms; }
+.arcade-load-seg:nth-child(7)  { animation-delay: 540ms; }
+.arcade-load-seg:nth-child(8)  { animation-delay: 630ms; }
+.arcade-load-seg:nth-child(9)  { animation-delay: 720ms; }
+.arcade-load-seg:nth-child(10) { animation-delay: 810ms; }
+.arcade-load-seg:nth-child(11) { animation-delay: 900ms; }
+.arcade-load-seg:nth-child(12) { animation-delay: 990ms; }
+
+/* High-score marquee scrolls left forever */
+@keyframes arcade-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.arcade-marquee { animation: arcade-marquee 16s linear infinite; }
+
+/* RAM-check row reveal */
+@keyframes ram-typewriter {
+  0%   { opacity: 0; transform: translateY(-2px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading-dots cycle */
+@keyframes arcade-dot {
+  0%, 60%, 100% { opacity: 0.2; }
+  30%           { opacity: 1; }
+}
+.arcade-dots span { display: inline-block; animation: arcade-dot 1.2s infinite; }
+.arcade-dots span:nth-child(2) { animation-delay: 0.2s; }
+.arcade-dots span:nth-child(3) { animation-delay: 0.4s; }
+
 /* Emote reaction floats up over a player card, then fades */
 @keyframes emote-float {
   0%   { transform: translateY(8px) scale(0.6); opacity: 0; }

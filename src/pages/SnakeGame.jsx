@@ -3,6 +3,7 @@ import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import ArcadeLoader from '@/components/ArcadeLoader'
 import SnakeArena from '../components/SnakeArena'
 import { useSnakeControls } from '../hooks/useSnakeControls'
 import { useRealtimePeer } from '../lib/realtime/useRealtimePeer'
@@ -278,7 +279,7 @@ export default function SnakeGame({
       </div>
     )
   } else if (conn !== 'connected') {
-    overlay = <p className="font-pixel text-[10px] text-retro-dim animate-pulse">CONNECTING…</p>
+    overlay = <ArcadeLoader variant="realtime" />
   } else if (render.countdown > 0) {
     overlay = <p className="font-pixel text-5xl text-retro-win text-glow-win">{render.countdown}</p>
   }

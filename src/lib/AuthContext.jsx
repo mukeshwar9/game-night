@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import ArcadeLoader from '@/components/ArcadeLoader'
 import { authReady, onUser, upgradeWithGoogle, signOutToGuest as signOutToGuestFn } from './auth'
 import { ensureProfile, subscribeProfile, setupPresence } from './social'
 
@@ -10,20 +11,7 @@ export function useAuth() {
 }
 
 function ConnectingSplash() {
-  return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-4">
-      <div className="flex gap-2">
-        {[0, 1, 2].map(i => (
-          <div
-            key={i}
-            className="w-3 h-3 bg-retro-cta rounded-sm animate-bounce"
-            style={{ animationDelay: `${i * 0.15}s` }}
-          />
-        ))}
-      </div>
-      <p className="font-pixel text-[10px] text-retro-dim tracking-widest">CONNECTING…</p>
-    </div>
-  )
+  return <ArcadeLoader variant="boot" />
 }
 
 export function AuthProvider({ children }) {

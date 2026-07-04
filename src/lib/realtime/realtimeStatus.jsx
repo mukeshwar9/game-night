@@ -1,6 +1,7 @@
 // Shared connection-status overlay for real-time games. Renders connecting /
 // countdown / failed states identically across Pong, Snake, and the new
 // real-time games, so each page doesn't re-paste ~18 lines.
+import ArcadeLoader from '@/components/ArcadeLoader'
 
 export function RealtimeOverlay({ conn, countdown, retry }) {
   if (conn === 'failed') {
@@ -19,7 +20,7 @@ export function RealtimeOverlay({ conn, countdown, retry }) {
     )
   }
   if (conn !== 'connected') {
-    return <p className="font-pixel text-[10px] text-retro-dim animate-pulse">CONNECTING…</p>
+    return <ArcadeLoader variant="realtime" />
   }
   if (countdown > 0) {
     return <p className="font-pixel text-5xl text-retro-win text-glow-win">{countdown}</p>
