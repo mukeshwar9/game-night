@@ -11,7 +11,7 @@ import {
   TypingIcon, MathIcon,
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
-  TronIcon, SumoIcon, SpaceDuelIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
@@ -50,6 +50,8 @@ import { REVERSI_SIZE, reversiInitialBoard, applyReversiMove, hasAnyMove, getRev
 import ReversiBoard from '../components/ReversiBoard'
 import { OC_CELL_COUNT, applyOrderChaosMove, getOrderChaosWinner } from './orderChaosLogic'
 import OrderChaosBoard from '../components/OrderChaosBoard'
+import { CR_CELL_COUNT, applyChainReactionMove } from './chainReactionLogic'
+import ChainReactionBoard from '../components/ChainReactionBoard'
 import { applyDiceMove } from './diceLogic'
 import DiceBoard from '../components/DiceBoard'
 import { seatOrder as seatOrderWL, randomSpectrumIndex } from './wavelengthLogic'
@@ -338,6 +340,22 @@ export const GAME_TYPES = [
     },
   },
   {
+    type: 'chainreaction', label: 'CHAIN REACTION',
+    desc: '6 × 8', Icon: ChainReactionIcon,
+    badge: 'CR', maxWidth: 'max-w-xs',
+    category: 'board',
+    boardSize: CR_CELL_COUNT,
+    getMoveIndex: (_board, index) => {
+      if (index < 0 || index >= CR_CELL_COUNT) return -1
+      // Ownership check is done in applyMove; any in-range index passes here.
+      return index
+    },
+    BoardComponent: ChainReactionBoard,
+    applyMove: ({ board, game, index, symbol }) =>
+      applyChainReactionMove({ board, game, index, symbol }),
+    boardProps: (game) => ({ crLastMove: game.crLastMove ?? null }),
+  },
+  {
     type: 'orderchaos', label: 'ORDER & CHAOS',
     desc: '6 × 6', Icon: OrderChaosIcon,
     badge: 'OC', maxWidth: 'max-w-sm',
@@ -466,6 +484,8 @@ const FIELD_NULLS = {
   sumoScoreX: null, sumoScoreO: null,
   spaceduelScoreX: null, spaceduelScoreO: null,
   spaceduelHitsX: null, spaceduelHitsO: null,
+  crMoves: null,
+  crLastMove: null,
 }
 
 export function freshGameState(gameType) {
@@ -568,6 +588,10 @@ export function freshGameState(gameType) {
   if (gameType === 'reversi') {
     return { ...FIELD_NULLS, boxes: null, round: null,
       board: reversiInitialBoard(), currentTurn: 'X' }
+  }
+  if (gameType === 'chainreaction') {
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: Array(CR_CELL_COUNT).fill(''), currentTurn: 'X', crMoves: 0 }
   }
   if (gameType === 'dice') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: 'X',

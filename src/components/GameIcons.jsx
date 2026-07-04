@@ -389,3 +389,22 @@ export function SpaceDuelIcon() {
     </svg>
   )
 }
+
+export function ChainReactionIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* central orb — bright */}
+      <circle cx="12" cy="12" r="3" fill="currentColor" />
+      {/* 4 exploding satellite orbs */}
+      <circle cx="12" cy="4"  r="2" fill="currentColor" opacity="0.75" />
+      <circle cx="12" cy="20" r="2" fill="currentColor" opacity="0.75" />
+      <circle cx="4"  cy="12" r="2" fill="currentColor" opacity="0.75" />
+      <circle cx="20" cy="12" r="2" fill="currentColor" opacity="0.75" />
+      {/* radiating lines */}
+      <line x1="12" y1="9"  x2="12" y2="6"  stroke="currentColor" strokeWidth="1" opacity="0.5" />
+      <line x1="12" y1="15" x2="12" y2="18" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+      <line x1="9"  y1="12" x2="6"  y2="12" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+      <line x1="15" y1="12" x2="18" y2="12" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    </svg>
+  )
+}
