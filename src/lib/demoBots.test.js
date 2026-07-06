@@ -167,6 +167,18 @@ describe('pickBotMove — dice', () => {
     // 0 + 0 = 0 < 100, turn = 0 < 20 → roll
     expect(pickBotMove('dice', game, 'O')).toBe('roll')
   })
+
+  it('rolls past 20 when far behind (race-aware)', () => {
+    // Bot O trails 0..95; behind 95 → target capped at 40. turn=25 < 40 → roll
+    const game = { diceScoreX: 95, diceScoreO: 0, diceTurnScore: 25, currentTurn: 'O' }
+    expect(pickBotMove('dice', game, 'O')).toBe('roll')
+  })
+
+  it('still banks past 20 when behind target is reached', () => {
+    // behind 95 → target 40. turn=40 → bank
+    const game = { diceScoreX: 95, diceScoreO: 0, diceTurnScore: 40, currentTurn: 'O' }
+    expect(pickBotMove('dice', game, 'O')).toBe('bank')
+  })
 })
 
 // ---------------------------------------------------------------------------

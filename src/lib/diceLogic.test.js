@@ -1,5 +1,8 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { PIG_TARGET, rollDie, applyDiceMove } from './diceLogic'
+import {
+  PIG_TARGET, rollDie, applyDiceMove,
+  generateSeedHex, commitSeed, deriveSeed, rollFaceAsync,
+} from './diceLogic'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -37,58 +40,68 @@ describe('rollDie', () => {
 // applyDiceMove — validation
 // ---------------------------------------------------------------------------
 describe('applyDiceMove validation', () => {
-  it('returns null for an invalid symbol', () => {
-    expect(applyDiceMove({}, 'roll', 'Z')).toBeNull()
-    expect(applyDiceMove({}, 'roll', '')).toBeNull()
+  it('returns null for an invalid symbol', async () => {
+    expect(await applyDiceMove({}, 'roll', 'Z')).toBeNull()
+    expect(await applyDiceMove({}, 'roll', '')).toBeNull()
   })
 
-  it('returns null for an invalid action', () => {
-    expect(applyDiceMove({}, 'hold', 'X')).toBeNull()
-    expect(applyDiceMove({}, '', 'X')).toBeNull()
+  it('returns null for an invalid action', async () => {
+    expect(await applyDiceMove({}, 'hold', 'X')).toBeNull()
+    expect(await applyDiceMove({}, '', 'X')).toBeNull()
   })
 })
 
 // ---------------------------------------------------------------------------
-// applyDiceMove — roll
+// applyDiceMove — roll (legacy, no seed → Math.random)
 // ---------------------------------------------------------------------------
-describe('applyDiceMove roll', () => {
-  it('adds a safe roll to the at-risk turn score and keeps the turn', () => {
+describe('applyDiceMove roll (legacy)', () => {
+  it('adds a safe roll to the at-risk turn score and keeps the turn', async () => {
     forceDie(5)
     const game = { diceScoreX: 0, diceScoreO: 0, diceTurnScore: 10, currentTurn: 'X' }
-    const { updates, result } = applyDiceMove(game, 'roll', 'X')
+    const { updates, result } = await applyDiceMove(game, 'roll', 'X')
     expect(result).toBeNull()
     expect(updates.diceLast).toBe(5)
     expect(updates.diceTurnScore).toBe(15)
     expect(updates.currentTurn).toBe('X')
   })
 
-  it('treats a missing turn score as 0', () => {
+  it('appends the roll to diceRolls trail and bumps diceRollIndex', async () => {
     forceDie(4)
-    const { updates } = applyDiceMove({ currentTurn: 'O' }, 'roll', 'O')
+    const game = { diceTurnScore: 6, diceRolls: [2, 4], diceRollIndex: 2, currentTurn: 'X' }
+    const { updates } = await applyDiceMove(game, 'roll', 'X')
+    expect(updates.diceRolls).toEqual([2, 4, 4])
+    expect(updates.diceRollIndex).toBe(3)
+  })
+
+  it('treats a missing turn score as 0', async () => {
+    forceDie(4)
+    const { updates } = await applyDiceMove({ currentTurn: 'O' }, 'roll', 'O')
     expect(updates.diceTurnScore).toBe(4)
     expect(updates.currentTurn).toBe('O')
   })
 
-  it('on a 1 wipes the turn score and flips the turn (X→O)', () => {
+  it('on a 1 wipes the turn score and flips the turn (X→O)', async () => {
     forceDie(1)
-    const game = { diceScoreX: 30, diceScoreO: 20, diceTurnScore: 22, currentTurn: 'X' }
-    const { updates, result } = applyDiceMove(game, 'roll', 'X')
+    const game = { diceScoreX: 30, diceScoreO: 20, diceTurnScore: 22, diceRolls: [5, 6], diceRollIndex: 2, currentTurn: 'X' }
+    const { updates, result } = await applyDiceMove(game, 'roll', 'X')
     expect(result).toBeNull()
     expect(updates.diceLast).toBe(1)
     expect(updates.diceTurnScore).toBe(0)
+    expect(updates.diceRolls).toEqual([])
+    expect(updates.diceRollIndex).toBe(3)
     expect(updates.currentTurn).toBe('O')
   })
 
-  it('on a 1 flips the turn (O→X)', () => {
+  it('on a 1 flips the turn (O→X)', async () => {
     forceDie(1)
-    const { updates } = applyDiceMove({ diceTurnScore: 9, currentTurn: 'O' }, 'roll', 'O')
+    const { updates } = await applyDiceMove({ diceTurnScore: 9, currentTurn: 'O' }, 'roll', 'O')
     expect(updates.diceTurnScore).toBe(0)
     expect(updates.currentTurn).toBe('X')
   })
 
-  it('a roll never mutates banked scores', () => {
+  it('a roll never mutates banked scores', async () => {
     forceDie(6)
-    const { updates } = applyDiceMove({ diceScoreX: 40, diceScoreO: 55, diceTurnScore: 0, currentTurn: 'X' }, 'roll', 'X')
+    const { updates } = await applyDiceMove({ diceScoreX: 40, diceScoreO: 55, diceTurnScore: 0, currentTurn: 'X' }, 'roll', 'X')
     expect(updates).not.toHaveProperty('diceScoreX')
     expect(updates).not.toHaveProperty('diceScoreO')
   })
@@ -98,48 +111,108 @@ describe('applyDiceMove roll', () => {
 // applyDiceMove — bank
 // ---------------------------------------------------------------------------
 describe('applyDiceMove bank', () => {
-  it('adds turn score to the mover and flips the turn', () => {
+  it('adds turn score to the mover and flips the turn', async () => {
     const game = { diceScoreX: 30, diceScoreO: 12, diceTurnScore: 18, currentTurn: 'X' }
-    const { updates, result } = applyDiceMove(game, 'bank', 'X')
+    const { updates, result } = await applyDiceMove(game, 'bank', 'X')
     expect(result).toBeNull()
     expect(updates.diceScoreX).toBe(48)
     expect(updates.diceTurnScore).toBe(0)
+    expect(updates.diceRolls).toEqual([])
+    expect(updates.diceLast).toBeNull()
     expect(updates.currentTurn).toBe('O')
   })
 
-  it('banks to the O score key when O moves', () => {
+  it('banks to the O score key when O moves', async () => {
     const game = { diceScoreX: 0, diceScoreO: 25, diceTurnScore: 7, currentTurn: 'O' }
-    const { updates } = applyDiceMove(game, 'bank', 'O')
+    const { updates } = await applyDiceMove(game, 'bank', 'O')
     expect(updates.diceScoreO).toBe(32)
     expect(updates).not.toHaveProperty('diceScoreX')
     expect(updates.currentTurn).toBe('X')
   })
 
-  it('returns a winner when a banked score reaches the target', () => {
+  it('returns a winner when a banked score reaches the target', async () => {
     const game = { diceScoreX: 90, diceScoreO: 50, diceTurnScore: 10, currentTurn: 'X' }
-    const { updates, result } = applyDiceMove(game, 'bank', 'X')
+    const { updates, result } = await applyDiceMove(game, 'bank', 'X')
     expect(updates.diceScoreX).toBe(PIG_TARGET)
     expect(result).toEqual({ winner: 'X' })
   })
 
-  it('returns a winner when a banked score exceeds the target', () => {
+  it('returns a winner when a banked score exceeds the target', async () => {
     const game = { diceScoreX: 0, diceScoreO: 95, diceTurnScore: 12, currentTurn: 'O' }
-    const { result } = applyDiceMove(game, 'bank', 'O')
+    const { result } = await applyDiceMove(game, 'bank', 'O')
     expect(result).toEqual({ winner: 'O' })
   })
 
-  it('does not win just below the target', () => {
+  it('does not win just below the target', async () => {
     const game = { diceScoreX: 90, diceScoreO: 0, diceTurnScore: 9, currentTurn: 'X' }
-    const { updates, result } = applyDiceMove(game, 'bank', 'X')
+    const { updates, result } = await applyDiceMove(game, 'bank', 'X')
     expect(updates.diceScoreX).toBe(99)
     expect(result).toBeNull()
   })
 
-  it('banking a zero turn score keeps the score and still flips the turn', () => {
+  it('banking a zero turn score keeps the score and still flips the turn', async () => {
     const game = { diceScoreX: 40, diceScoreO: 40, diceTurnScore: 0, currentTurn: 'X' }
-    const { updates, result } = applyDiceMove(game, 'bank', 'X')
+    const { updates, result } = await applyDiceMove(game, 'bank', 'X')
     expect(updates.diceScoreX).toBe(40)
     expect(updates.currentTurn).toBe('O')
     expect(result).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Deterministic rolls (anti-cheat)
+// ---------------------------------------------------------------------------
+describe('deterministic seeded rolls', () => {
+  it('rollFaceAsync is stable for a given seed+index', async () => {
+    const seed = await deriveSeed(await generateSeedHex(), await generateSeedHex())
+    const a = await rollFaceAsync(seed, 0)
+    const b = await rollFaceAsync(seed, 0)
+    expect(a).toBe(b)
+    expect(a).toBeGreaterThanOrEqual(1)
+    expect(a).toBeLessThanOrEqual(6)
+  })
+
+  it('different seeds produce (very likely) different first faces', async () => {
+    const s1 = await deriveSeed('aaaa', 'bbbb')
+    const s2 = await deriveSeed('cccc', 'dddd')
+    // Not strictly guaranteed distinct, but with 32-bit hashes the chance
+    // of a collision on a single face is ~1/6 — pick a few indices to be safe.
+    let diffs = 0
+    for (let i = 0; i < 6; i++) {
+      if (await rollFaceAsync(s1, i) !== await rollFaceAsync(s2, i)) diffs++
+    }
+    expect(diffs).toBeGreaterThan(0)
+  })
+
+  it('applyDiceMove uses the deterministic face when a seed is set', async () => {
+    // Find an index whose deterministic face is safe (≠ 1) so the trail is
+    // populated; the bust branch (face === 1) is covered by the legacy bust tests.
+    const seed = await deriveSeed('a1b2c3d4e5f6a1b2', '0123456789abcdef')
+    let idx = 0
+    while (await rollFaceAsync(seed, idx) === 1) idx++
+    const expected = await rollFaceAsync(seed, idx)
+    const game = { diceSeed: seed, diceRollIndex: idx, diceTurnScore: 0, currentTurn: 'X' }
+    const { updates } = applyDiceMove(game, 'roll', 'X', expected)
+    expect(updates.diceLast).toBe(expected)
+    expect(updates.diceRollIndex).toBe(idx + 1)
+    expect(updates.diceRolls).toEqual([expected])
+    expect(updates.currentTurn).toBe('X')
+  })
+
+  it('applyDiceMove refuses a seeded roll without a precomputed face (no insecure fallback)', async () => {
+    const seed = await deriveSeed('a1b2c3d4e5f6a1b2', '0123456789abcdef')
+    const game = { diceSeed: seed, diceRollIndex: 0, diceTurnScore: 0, currentTurn: 'X' }
+    expect(applyDiceMove(game, 'roll', 'X')).toBeNull()
+  })
+
+  it('commitSeed is consistent and derives a stable combined seed', async () => {
+    const a = await generateSeedHex()
+    const b = await generateSeedHex()
+    const c1 = await commitSeed(a)
+    const c2 = await commitSeed(a)
+    expect(c1).toBe(c2)
+    const s1 = await deriveSeed(a, b)
+    const s2 = await deriveSeed(a, b)
+    expect(s1).toBe(s2)
   })
 })

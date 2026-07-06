@@ -369,10 +369,17 @@ function botDotsAndBoxes(game, botSymbol) {
 
 function botDice(game, botSymbol) {
   const myScore = (botSymbol === 'O' ? game.diceScoreO : game.diceScoreX) ?? 0
+  const oppScore = (botSymbol === 'O' ? game.diceScoreX : game.diceScoreO) ?? 0
   const turn = game.diceTurnScore ?? 0
 
   if (myScore + turn >= PIG_TARGET) return 'bank'
-  if (turn >= 20) return 'bank'
+  // Hold-at-20 baseline; when the bot is behind it takes more risk (holds up
+  // to ~40) to try to catch up in fewer turns. Capped so it never piles up
+  // indefinitely on a huge deficit.
+  const behind = oppScore - myScore
+  let target = 20
+  if (behind > 0) target = 20 + Math.min(behind, 20)
+  if (turn >= target) return 'bank'
   return 'roll'
 }
 

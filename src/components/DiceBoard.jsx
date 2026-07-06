@@ -11,9 +11,9 @@ const PIP_LAYOUT = {
   6: [0, 2, 3, 5, 6, 8],
 }
 
-function Die({ value }) {
+function Die({ value, bust }) {
   const pips = PIP_LAYOUT[value] || []
-  const isBust = value === 1
+  const isBust = bust || value === 1
   return (
     <div
       className={cn(
@@ -23,7 +23,7 @@ function Die({ value }) {
           ? 'border-retro-p2 shadow-neon-p2'
           : 'border-retro-cta shadow-neon-cta',
       )}
-      style={{ animation: 'box-claim 0.2s ease-out both' }}
+      style={{ animation: isBust ? 'dice-bust 0.4s ease-out both' : 'box-claim 0.2s ease-out both' }}
     >
       <div className="grid grid-cols-3 grid-rows-3 w-full h-full gap-1">
         {Array.from({ length: 9 }, (_, i) => (
@@ -43,6 +43,20 @@ function Die({ value }) {
   )
 }
 
+// Mini die face for the roll-history trail.
+function MiniDie({ value }) {
+  const pips = PIP_LAYOUT[value] || []
+  return (
+    <div className="w-5 h-5 rounded border border-retro-border bg-retro-surface grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 opacity-80">
+      {Array.from({ length: 9 }, (_, i) => (
+        <div key={i} className="flex items-center justify-center">
+          {pips.includes(i) && <span className="w-1 h-1 rounded-full bg-retro-cta shadow-glow-dot" />}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function DiceBoard({
   onMove,
   disabled,
@@ -51,12 +65,21 @@ export default function DiceBoard({
   diceScoreO = 0,
   diceTurnScore = 0,
   diceLast = null,
+  diceRolls = [],
+  diceSeed = null,
 }) {
   const turnColor = currentTurn === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
 
+  const trail = Array.isArray(diceRolls) ? diceRolls : []
+  const TRAIL_CAP = 12
+  const overflow = trail.length > TRAIL_CAP
+  const shown = overflow ? trail.slice(trail.length - TRAIL_CAP) : trail
+
+  const justBusted = diceLast === 1
+
   return (
     <div className="w-full max-w-xs mx-auto">
-      <div className="bg-retro-surface border-2 border-retro-border rounded p-4 flex flex-col items-center gap-4">
+      <div className="bg-retro-surface border-2 border-retro-border rounded p-4 flex flex-col items-center gap-3">
         {/* Banked scores */}
         <div className="flex items-stretch justify-center gap-3 w-full">
           <div
@@ -83,10 +106,18 @@ export default function DiceBoard({
           </div>
         </div>
 
+        {/* Roll-history trail (this turn's at-risk rolls) */}
+        <div className="min-h-[20px] flex items-center justify-center gap-1 flex-wrap">
+          {overflow && <span className="font-pixel text-[8px] text-retro-dim">…</span>}
+          {shown.map((v, i) => (
+            <MiniDie key={i} value={v} />
+          ))}
+        </div>
+
         {/* The last die */}
         <div className="h-24 flex items-center justify-center">
           {diceLast ? (
-            <Die value={diceLast} />
+            <Die value={diceLast} bust={justBusted} />
           ) : (
             <div className="w-24 h-24 rounded-lg border-2 border-dashed border-retro-border flex items-center justify-center">
               <span className="font-pixel text-[8px] text-retro-dim text-center leading-relaxed">
@@ -101,6 +132,11 @@ export default function DiceBoard({
           <div className="font-pixel text-[8px] text-retro-dim">AT RISK</div>
           <div className={cn('font-pixel text-base mt-1', turnColor)}>{diceTurnScore}</div>
         </div>
+
+        {/* Fair-play verified badge when a deterministic seed is in play */}
+        {diceSeed && (
+          <div className="font-pixel text-[8px] text-retro-win text-glow-win">✓ FAIR ROLL</div>
+        )}
 
         {/* ROLL / BANK */}
         <div className="flex items-center justify-center gap-3 w-full">

@@ -268,6 +268,17 @@ body::before {
   100% { transform: scale(1); opacity: 1; }
 }
 
+/* Pig: a bust (rolling a 1) shakes the die briefly */
+@keyframes dice-bust {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(-6px) rotate(-4deg); }
+  30%  { transform: translateX(6px) rotate(4deg); }
+  45%  { transform: translateX(-5px) rotate(-3deg); }
+  60%  { transform: translateX(5px) rotate(3deg); }
+  75%  { transform: translateX(-3px) rotate(-1deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+
 @keyframes update-drop {
   0%   { transform: translateY(-150%); }
   100% { transform: translateY(0); }
