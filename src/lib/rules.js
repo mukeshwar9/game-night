@@ -251,6 +251,60 @@ export const GAME_RULES = {
     win: 'Score for finding the truth, and for every player your lie fools. Most points wins.',
   },
 
+  tron: {
+    objective: 'Outlast your opponent’s light cycle in a single deadly round.',
+    howToPlay: [
+      'Steer with arrow keys, WASD, or a swipe on touch screens — you can’t reverse 180°.',
+      'Both cycles leave a permanent trail behind them that never disappears.',
+      'The arena wraps around on all four sides.',
+      'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
+    ],
+    win: 'Crash into any trail (yours or your opponent’s) or the opposing cycle and you’re out. Last cycle alive wins the round; a head-on collision in the same tick is a draw. One round decides the match.',
+  },
+
+  sumo: {
+    objective: 'Shove your opponent off a shrinking circular platform.',
+    howToPlay: [
+      'Tap any key (or the on-screen button) to push your blob toward your opponent — each tap is one impulse.',
+      'Ramming the other blob knocks both of you back.',
+      'The platform shrinks the longer the round runs.',
+      'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
+    ],
+    win: 'Push your opponent past the platform’s edge to win the round. If both blobs go out at once it’s a draw. One round decides the match.',
+  },
+
+  spaceduel: {
+    objective: 'Outduel your opponent’s ship with asteroids-style combat.',
+    howToPlay: [
+      'Turn with ←/→ or A/D, thrust with ↑ or W, and fire with Space (or the on-screen buttons on touch).',
+      'Bullets wrap around the arena edges; your ship bounces off the walls instead.',
+      'Each ship has 3 hit points — it takes multiple hits to destroy one.',
+      'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
+    ],
+    win: 'Destroy your opponent’s ship to win the round. If both survive the 60-second cap, whoever landed more hits wins (a 1-hit margin is required, otherwise it’s a draw). One round decides the match.',
+  },
+
+  chainreaction: {
+    objective: 'Trigger chain reactions to wipe every orb of your opponent’s color off the board.',
+    howToPlay: [
+      'On your turn, place an orb in any empty cell or a cell you already own.',
+      'Each cell has a capacity (2 in a corner, 3 on an edge, 4 in the interior) — reaching it makes the cell explode.',
+      'An exploding cell fires one orb into each orthogonal neighbor, converting those cells to your color and possibly pushing them past their own capacity — cascading into a chain reaction.',
+      'You can only place on empty cells or cells you already own; opponent-owned cells are off limits.',
+    ],
+    win: 'Once both players have made at least one move, if your opponent has no orbs left on the board, you win.',
+  },
+
+  wordduel: {
+    objective: 'Solve a hidden 5-letter word in fewer guesses than your opponent, Wordle-style.',
+    howToPlay: [
+      'Both players race to guess the same secret word at the same time.',
+      'Each guess is marked green (right letter, right spot), yellow (right letter, wrong spot), or gray (not in the word).',
+      'You get up to 6 guesses; the word itself is never sent until both players finish, verified against a commitment made at round start so no one can peek.',
+    ],
+    win: 'Solve it in fewer guesses than your opponent to win. Equal guess counts — faster solver wins. Both fail to solve it: draw. First to 3 round wins takes the match.',
+  },
+
   spyfair: {
     objective: 'Find the spy in your midst — or, as the spy, survive without being caught.',
     howToPlay: [
