@@ -10,6 +10,8 @@ import {
 import { sounds } from '../lib/sounds'
 import GameSwitcher from '../components/GameSwitcher'
 import { cn } from '@/lib/utils'
+import { getGameConfig } from '@/lib/games'
+import { shareResult } from '@/lib/shareCard'
 
 const STORAGE_PREFIX = 'wordduel-word-'
 
@@ -120,7 +122,8 @@ function Keyboard({ keyState, onKey, disabled }) {
           {ri === 2 && (
             <button
               className={cn(
-                'px-2 sm:px-3 py-2 sm:py-3 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
+                'relative before:content-[\'\'] before:absolute before:inset-y-0 before:-left-0.5 before:-right-0.5',
+                'px-2 sm:px-3 h-11 sm:h-auto sm:py-3 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
                 'bg-retro-structure text-retro-text hover:bg-retro-border transition-colors',
                 'disabled:opacity-30 disabled:cursor-default',
               )}
@@ -141,7 +144,8 @@ function Keyboard({ keyState, onKey, disabled }) {
               <button
                 key={letter}
                 className={cn(
-                  'px-1.5 sm:px-3 py-2 sm:py-3 rounded text-xs sm:text-sm font-bold uppercase',
+                  'relative before:content-[\'\'] before:absolute before:inset-y-0 before:-left-0.5 before:-right-0.5',
+                  'px-1.5 sm:px-3 h-11 sm:h-auto sm:py-3 rounded text-xs sm:text-sm font-bold uppercase',
                   'hover:opacity-80 transition-colors',
                   bg,
                   'disabled:opacity-30 disabled:cursor-default',
@@ -156,7 +160,8 @@ function Keyboard({ keyState, onKey, disabled }) {
           {ri === 2 && (
             <button
               className={cn(
-                'px-2 sm:px-3 py-2 sm:py-3 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
+                'relative before:content-[\'\'] before:absolute before:inset-y-0 before:-left-0.5 before:-right-0.5',
+                'px-2 sm:px-3 h-11 sm:h-auto sm:py-3 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
                 'bg-retro-structure text-retro-text hover:bg-retro-border transition-colors',
                 'disabled:opacity-30 disabled:cursor-default',
               )}
@@ -192,6 +197,19 @@ function WordInput({ value }) {
         ))}
       </div>
     </div>
+  )
+}
+
+// Outline share CTA — classes copied from GameStatus's ShareButton for visual parity
+function ShareButton({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs
+        rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95"
+    >
+      SHARE
+    </button>
   )
 }
 
@@ -597,6 +615,24 @@ export default function WordDuelGame({
   const reason = finalResult?.reason
   const myRevealWord = getStoredWord(gameId, mySymbol)
 
+  const shareHeadline = matchWinner
+    ? (matchWinner === mySymbol ? 'MATCH WON!' : `${game.players[matchWinner]?.name || matchWinner} WINS THE MATCH`)
+    : cheatDetected ? 'CHEAT DETECTED'
+    : finalWinner === mySymbol ? 'YOU WIN!'
+    : finalWinner === 'draw' ? "IT'S A DRAW"
+    : finalWinner ? `${game.players[finalWinner]?.name || finalWinner} WINS`
+    : 'ROUND OVER'
+  const shareAccent = matchWinner
+    ? (matchWinner === 'X' ? '--c-p1' : '--c-p2')
+    : (finalWinner === 'X' ? '--c-p1' : finalWinner === 'O' ? '--c-p2' : '--c-cta')
+  const shareScore = () => shareResult({
+    gameLabel: getGameConfig('wordduel')?.label || 'WORD DUEL',
+    headline: shareHeadline,
+    sub: `${allScores.X} – ${allScores.O}`,
+    accentVar: shareAccent,
+    url: window.location.href,
+  })
+
   return (
     <div className="flex flex-col items-center gap-6 py-6 max-w-md mx-auto">
       {/* Scores */}
@@ -700,7 +736,8 @@ export default function WordDuelGame({
       )}
 
       {/* Buttons */}
-      <div className="flex gap-3 mt-2">
+      <div className="flex flex-wrap gap-3 mt-2 justify-center">
+        <ShareButton onClick={shareScore} />
         {!matchWinner && !proposal && (
           <button
             className="px-5 py-2 rounded font-bold text-sm uppercase cursor-pointer bg-retro-cta text-white shadow-neon-cta hover:opacity-90 transition-opacity"
