@@ -5,7 +5,7 @@ import { RulesButton } from './RulesModal'
 // Renders one game tile. Variant entries (`game.variantOf` set — e.g.
 // ULTIMATE TTT surfaced directly via search) display their own label/blurb
 // but fall back to the base game's icon since variants don't carry one.
-export default function GameCard({ game, onTap, onRules, loadingType, disabled }) {
+export default function GameCard({ game, onTap, onRules, loadingType, disabled, isFav, onToggleFav }) {
   const { type, variantOf } = game
   const base = variantOf ? getGameConfig(variantOf) : null
   const label = variantOf ? (game.variantLabel || game.label) : game.label
@@ -51,13 +51,30 @@ export default function GameCard({ game, onTap, onRules, loadingType, disabled }
           <span className="absolute bottom-1 left-1 font-pixel text-[6px] text-retro-cta/80 tracking-wider">+MODES</span>
         )}
         {isNew && (
-          <span className="absolute top-1 left-1 font-pixel text-[6px] text-retro-win tracking-wider">NEW</span>
+          <span className="absolute bottom-1 right-1 font-pixel text-[6px] text-retro-win tracking-wider">NEW</span>
         )}
       </button>
       <RulesButton
         onClick={(e) => { e.stopPropagation(); onRules(type) }}
         className="absolute top-1 right-1 z-10 hover:text-retro-cta"
       />
+      {onToggleFav && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleFav(type) }}
+          title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+          aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+          aria-pressed={!!isFav}
+          className={cn(
+            'absolute top-1 left-1 z-10 p-3 -m-2 rounded transition-colors',
+            isFav ? 'text-retro-p2' : 'text-retro-dim hover:text-retro-text',
+          )}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill={isFav ? 'currentColor' : 'none'}
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }

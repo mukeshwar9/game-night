@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { GAME_TYPES, GAME_CATEGORIES, getGameConfig } from '../lib/games'
 import { searchGames } from '../lib/gameSearch'
+import { getFavorites, toggleFavorite } from '../lib/favorites'
 import RulesModal from './RulesModal'
 import CategoryTabs from './CategoryTabs'
 import VariantChooser from './VariantChooser'
@@ -17,7 +18,14 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
   const [rulesType, setRulesType] = useState(null)
   const [variantBase, setVariantBase] = useState(null)
   const [query, setQuery] = useState('')
+  const [favVersion, setFavVersion] = useState(0)
   const searchRef = useRef(null)
+
+  // favVersion forces a re-render on toggle; getFavorites() re-reads
+  // localStorage fresh each render, so this stays in sync across a session.
+  const favorites = isFull ? getFavorites() : []
+  const favSet = new Set(favorites)
+  const handleToggleFav = (type) => { toggleFavorite(type); setFavVersion(favVersion + 1) }
 
   // In-room switching (excludeType set) is restricted to the current seat
   // family: party rooms key players by uid, 2P rooms by 'X'/'O', and a
@@ -34,6 +42,7 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
   }
   const totalVisible = Object.values(counts).reduce((a, b) => a + b, 0)
   const categories = GAME_CATEGORIES.map(c => ({ ...c, count: counts[c.id] || 0 })).filter(c => c.count > 0)
+  const visibleFavorites = GAME_TYPES.filter(t => !isHidden(t) && favSet.has(t.type))
   const categoriesWithAll = isFull ? [{ id: 'all', label: 'ALL', count: totalVisible }, ...categories] : categories
   const games = GAME_TYPES.filter(t => !isHidden(t) && t.category === activeCat)
 
@@ -70,6 +79,8 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
           onTap={handleTap}
           onRules={setRulesType}
           loadingType={loadingType}
+          isFav={favSet.has(g.type)}
+          onToggleFav={isFull ? handleToggleFav : undefined}
         />
       ))}
     </div>
@@ -108,6 +119,12 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
         )
       ) : isFull && activeCat === 'all' ? (
         <div className="space-y-5">
+          {visibleFavorites.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-pixel text-[9px] text-retro-p2 tracking-widest">★ FAVORITES</p>
+              {renderGrid(visibleFavorites)}
+            </div>
+          )}
           {categories.map(c => (
             <div key={c.id} className="space-y-2">
               <p className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</p>
