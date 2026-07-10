@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig } from '../lib/games'
+import { freshGameState, getGameConfig, GAME_TYPES } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { getStats, getRooms, recordRoom } from '../lib/profile'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
@@ -29,12 +29,28 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(null)
   const [muted, setMuted] = useState(() => sounds.isMuted())
-  const { canInstall, install } = useInstallPrompt()
+  const { canInstall, install, isIos } = useInstallPrompt()
   const stats = useMemo(() => getStats(), [])
   const [isNewVisitor] = useState(() => !localStorage.getItem('playerName') && getRooms().length === 0)
   const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
   const [howItWorksDismissed, setHowItWorksDismissed] = useState(false)
-  const { profile, invites, requestCount } = useAuth()
+  const { profile, invites, requestCount, isAnonymous } = useAuth()
+  const gameCount = useMemo(() => GAME_TYPES.filter(t => !t.variantOf).length, [])
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+    const ts = Number(localStorage.getItem('gn-upgrade-nudge-dismissed'))
+    return ts > 0 && Date.now() - ts < 14 * 24 * 60 * 60 * 1000
+  })
+  const [iosHintDismissed, setIosHintDismissed] = useState(() => !!localStorage.getItem('gn-ios-install-dismissed'))
+  const showUpgradeNudge = isAnonymous && !nudgeDismissed && stats &&
+    (stats.bestStreak >= 3 || stats.games >= 5)
+  const dismissUpgradeNudge = () => {
+    localStorage.setItem('gn-upgrade-nudge-dismissed', String(Date.now()))
+    setNudgeDismissed(true)
+  }
+  const dismissIosHint = () => {
+    localStorage.setItem('gn-ios-install-dismissed', '1')
+    setIosHintDismissed(true)
+  }
 
   const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
 
@@ -178,7 +194,7 @@ export default function Home() {
               GAME NIGHT
             </h1>
             <p className="font-mono text-xs text-retro-dim mt-2 tracking-widest">
-              20+ GAMES · SHARE A LINK · NO ACCOUNT
+              {gameCount} GAMES · SHARE A LINK · NO ACCOUNT
             </p>
           </div>
         </div>
@@ -251,7 +267,7 @@ export default function Home() {
             <p className="font-pixel text-[9px] text-retro-cta tracking-widest mb-2">HOW IT WORKS</p>
             <div className="space-y-2">
               {[
-                { n: '1', label: 'PICK A GAME', sub: 'Choose from 20+ mini-games below' },
+                { n: '1', label: 'PICK A GAME', sub: `Choose from ${gameCount} mini-games below` },
                 { n: '2', label: 'SHARE THE LINK', sub: 'Send the room link to a friend' },
                 { n: '3', label: 'PLAY TOGETHER', sub: 'No accounts, no downloads' },
               ].map(({ n, label, sub }) => (
@@ -301,9 +317,9 @@ export default function Home() {
         </Link>
 
         {/* Your stats — local, no login */}
-        {stats && stats.games > 0 && (
-          <div className="max-w-md mx-auto w-full space-y-1.5">
-            <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR STATS</label>
+        <div className="max-w-md mx-auto w-full space-y-1.5">
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR STATS</label>
+          {stats && stats.games > 0 ? (
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
                 { label: 'WINS', val: stats.wins, col: 'text-retro-win' },
@@ -316,6 +332,28 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          ) : (
+            <p className="font-pixel text-[9px] text-retro-dim">PLAY A MATCH TO START YOUR RECORD</p>
+          )}
+        </div>
+
+        {/* Upgrade nudge — anonymous users at a milestone */}
+        {showUpgradeNudge && (
+          <div className="max-w-md mx-auto w-full flex items-center gap-2.5 bg-retro-card border border-retro-border rounded px-3 py-2.5">
+            <p className="flex-1 font-mono text-[11px] text-retro-dim leading-tight">
+              NICE STREAK — {' '}
+              <Link to="/profile" className="text-retro-cta hover:text-glow-cta transition-all font-pixel text-[9px] tracking-wider">
+                SIGN IN
+              </Link>
+              {' '} TO KEEP IT ACROSS DEVICES
+            </p>
+            <button
+              onClick={dismissUpgradeNudge}
+              aria-label="Dismiss"
+              className="text-retro-dim hover:text-retro-p2 font-pixel text-[9px] transition-colors"
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -329,6 +367,19 @@ export default function Home() {
           >
             + ADD TO HOME SCREEN
           </button>
+        )}
+        {!canInstall && isIos && !iosHintDismissed && (
+          <div className="max-w-md mx-auto w-full flex items-center gap-2.5 border border-retro-p1/30
+            bg-retro-card text-retro-p1 rounded px-3 py-2.5">
+            <p className="flex-1 font-pixel text-[9px] tracking-wide">INSTALL: TAP SHARE → ADD TO HOME SCREEN</p>
+            <button
+              onClick={dismissIosHint}
+              aria-label="Dismiss"
+              className="text-retro-dim hover:text-retro-p2 font-pixel text-[9px] transition-colors"
+            >
+              ✕
+            </button>
+          </div>
         )}
 
       </div>

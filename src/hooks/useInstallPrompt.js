@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 
+const isIosDevice = () =>
+  typeof navigator !== 'undefined' &&
+  /iPhone|iPad|iPod/.test(navigator.userAgent) &&
+  !navigator.standalone;
+
 export function useInstallPrompt() {
   const [prompt, setPrompt] = useState(null);
   const [installed, setInstalled] = useState(false);
+  const [isIos] = useState(isIosDevice);
 
   useEffect(() => {
     const onPrompt = e => { e.preventDefault(); setPrompt(e); };
@@ -23,5 +29,5 @@ export function useInstallPrompt() {
     setPrompt(null);
   };
 
-  return { canInstall: !!prompt && !installed, install };
+  return { canInstall: !!prompt && !installed, install, isIos };
 }

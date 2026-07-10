@@ -170,9 +170,12 @@ export default function Profile() {
         </div>
 
         {/* Stats */}
-        {stats && stats.games > 0 && (
-          <div className="space-y-2">
-            <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR STATS</label>
+        <div className="space-y-2">
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR STATS</label>
+          {!stats || stats.games === 0 ? (
+            <p className="font-pixel text-[9px] text-retro-dim">PLAY A MATCH TO START YOUR RECORD</p>
+          ) : (
+          <>
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
                 { label: 'WINS', val: stats.wins, col: 'text-retro-win' },
@@ -217,8 +220,9 @@ export default function Profile() {
                 ))}
               </div>
             )}
-          </div>
-        )}
+          </>
+          )}
+        </div>
       </div>
     </div>
   )
