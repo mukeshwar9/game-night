@@ -6,7 +6,7 @@ A comprehensive UX audit of the platform, performed July 2026 when the catalog s
 
 **Format per finding:** Severity (Critical/High/Medium/Low) · Priority (Quick Win / Medium Effort / Long-Term), where it occurs (with file pointers), why it hurts, the recommended fix, and expected impact.
 
-**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented; a second round landed the full quick-wins sweep — F-04, F-12, F-15, F-21, F-24, F-25, F-28, F-30, F-31, F-35, F-36, F-37; a third round landed F-10, F-22, and F-23; a fourth round landed F-09, F-27, F-32, and F-34 (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
+**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented; a second round landed the full quick-wins sweep — F-04, F-12, F-15, F-21, F-24, F-25, F-28, F-30, F-31, F-35, F-36, F-37; a third round landed F-10, F-22, and F-23; a fourth round landed F-09, F-27, F-32, and F-34; a fifth round closed the remainder — F-02, F-03, F-13, F-14, F-17, F-18, F-29, F-33 (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. **Every actionable finding in this audit is now implemented**; F-16 is accepted as-is and F-19 remains a watch item. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
 
 ---
 
@@ -21,8 +21,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | # | Finding | Severity | Priority | Status |
 |---|---------|----------|----------|--------|
 | F-01 | Home page is a form, not a catalog | Critical | Medium Effort | ✅ Done |
-| F-02 | Two parallel catalogs (Home vs /demo) | High | Medium Effort | Open |
-| F-03 | Category taxonomy unbalanced/misfiled | Medium | Quick Win | Open |
+| F-02 | Two parallel catalogs (Home vs /demo) | High | Medium Effort | ✅ Done |
+| F-03 | Category taxonomy unbalanced/misfiled | Medium | Quick Win | ✅ Done |
 | F-04 | Newest games invisible (no NEW badges, historical order) | Medium | Quick Win | ✅ Done |
 | F-05 | No search | High | Quick Win | ✅ Done |
 | F-06 | One category visible at a time, no ALL view | High | Quick Win | ✅ Done |
@@ -32,12 +32,12 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-10 | No popularity data or instrumentation | Medium | Long-Term | ✅ Done |
 | F-11 | Desktop gets a 384px phone strip | High | Medium Effort | ✅ Done |
 | F-12 | Game count copy stale in 3 places (13 / 20+ / 29) | Low | Quick Win | ✅ Done |
-| F-13 | Double first-run teaching | Low | Quick Win | Open |
-| F-14 | No persistent navigation | Medium-High | Medium Effort | Open |
+| F-13 | Double first-run teaching | Low | Quick Win | ✅ Done |
+| F-14 | No persistent navigation | Medium-High | Medium Effort | ✅ Done |
 | F-15 | No 404 route | Low | Quick Win | ✅ Done |
 | F-16 | Leaving mid-game is silent | Low | — | Accepted as-is |
-| F-17 | Cards don't help users choose | Medium | Quick Win | Open |
-| F-18 | No decision-support facets/filters | Medium | Medium Effort | Open |
+| F-17 | Cards don't help users choose | Medium | Quick Win | ✅ Done |
+| F-18 | No decision-support facets/filters | Medium | Medium Effort | ✅ Done |
 | F-19 | Variant burial (watch at scale) | Low | — | Watch |
 | F-20 | Word Duel SWITCH GAME button is dead | Critical (bug) | Quick Win | ✅ Done |
 | F-21 | 5 games ship without rules | Medium | Quick Win | ✅ Done |
@@ -48,11 +48,11 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-26 | Social features only work on the Home page | High | Medium Effort | ✅ Done |
 | F-27 | Round-advance CTAs diverge | Medium | Quick Win | ✅ Done |
 | F-28 | Disconnect copy: three phrasings | Low | Quick Win | ✅ Done |
-| F-29 | Spectator experience is three different products | Low-Medium | Medium Effort | Open |
+| F-29 | Spectator experience is three different products | Low-Medium | Medium Effort | ✅ Done |
 | F-30 | Word Duel end screen lacks SHARE | Low-Medium | Quick Win | ✅ Done |
 | F-31 | Empty states are inconsistent silence | Low | Quick Win | ✅ Done |
 | F-32 | Account pitch overpromises (stats don't sync) | Medium (trust) | Medium Effort | ✅ Done |
-| F-33 | The arcade has no real high scores | High | Long-Term | Open |
+| F-33 | The arcade has no real high scores | High | Long-Term | ✅ Done |
 | F-34 | Daily loop half-built | Medium | Medium Effort | ✅ Done |
 | F-35 | Upgrade nudges: two touchpoints, zero context | Medium | Quick Win | ✅ Done |
 | F-36 | iOS users get no install path | Medium | Quick Win | ✅ Done |
@@ -89,6 +89,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Impact:** Halves the navigational model users must learn; makes solo play discoverable from the main grid; removes an entire duplicate browsing surface that would otherwise have to scale in parallel.
 
+**Status: ✅ Implemented (July 2026).** One catalog: solo-capable cards on Home open a ModeChooser — PLAY A FRIEND (room creation, variant pick after) / VS AI (deep-links `/solo/:type`; variant pick only when a variant has a real demo, via the registry `solo` flag). /demo remains the browsable solo hub; the compact in-room switcher is untouched.
+
 ### F-03 · Medium · Quick Win — Category taxonomy is unbalanced and partly misfiled
 
 **Where:** `GAME_CATEGORIES` in `src/lib/games.js` — board 9, reflex 9, memory 4, word 4, party 3.
@@ -98,6 +100,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Fix:** Short-term: re-home the obvious misfits (PIG and Bluff Battle could form a "DICE & BLUFF" shelf, or move PIG out of "board"). Long-term (see Scaling section): move to tags (duration, skill/luck, pace, player count) with categories kept as curated shelves rather than exclusive bins.
 
 **Impact:** Moderate today; prevents the "BOARD ·23" mega-tab problem at 50 games.
+
+**Status: ✅ Implemented (July 2026)** (short-term fix): PIG and Bluff Battle moved to a new DICE & BLUFF category; WORD & BLUFF became WORD GAMES. The long-term tags-as-truth model now has its foundation via F-18's registry tags.
 
 ### F-04 · Medium · Quick Win — Catalog order is historical, so the newest games are hardest to find
 
@@ -224,6 +228,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Fix:** Fold the 3 steps (PICK A GAME / SHARE THE LINK / PLAY TOGETHER) into onboarding's welcome step, or suppress the strip once `onboarded` is set. Persist dismissal.
 
+**Status: ✅ Implemented (July 2026).** The HOW IT WORKS strip is suppressed once onboarding completes (shared `hasOnboarded()` flag) and manual dismissal persists (`gn-howitworks-dismissed`).
+
 ---
 
 ## 4. Navigation
@@ -237,6 +243,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Fix:** A minimal persistent top bar (logo → home · profile chip · friends icon w/ badge · theme · mute) on all non-game pages, folded into the existing in-game header on game pages. **Not a hamburger** — there aren't enough destinations to justify hiding them.
 
 **Impact:** Every cross-surface journey shortens; social features stop being Home-exclusive.
+
+**Status: ✅ Implemented (July 2026).** `NavBar` (logo-home, profile chip, friends icon + request badge, theme, mute) on Profile, Friends, Demo, Daily, and 404, replacing bespoke ← HOME links. Home's corner chips and Game.jsx's in-game header remain their own nav, per the audit's design.
 
 ### F-15 · Low · Quick Win — No 404 route
 
@@ -266,6 +274,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Impact:** Faster, more confident picks; fewer created-then-abandoned rooms from mispicks.
 
+**Status: ✅ Implemented (July 2026).** All 31 descs rewritten as 3–5 word pitches; board dimensions moved into the rules modal; cards show a ~N MIN duration chip from the new `durationMin` field.
+
 ### F-18 · Medium · Medium Effort — No decision-support facets
 
 **Where:** The only facet is the 5 category tabs. No filter for "playable solo," "3+ players," "quick (<5 min)," "phone-friendly."
@@ -273,6 +283,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Fix:** Add registry metadata per game — `tags`, `durationMin`, `pitch`, `addedAt` — then render 2–3 filter chips beside search (F-05). The registry pattern in `games.js` makes this a pure-data addition.
 
 **Impact:** Rises with catalog size; the metadata itself is the prerequisite for most Long-Term items.
+
+**Status: ✅ Implemented (July 2026).** Registry gained `tags` (quick/thinky/frantic/luck/skill), `durationMin`, and `solo`; the full-layout picker renders QUICK / THINKY / SOLO OK filter chips (AND-combined, applied across sections, category view, and search).
 
 ### F-19 · Low — Variant burial is fine today; watch at scale
 
@@ -428,6 +440,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Fix:** Define a floor for every game — score + status + who's-turn — and add live-board depth where feasible. Spectators are would-be players; give them a "START YOUR OWN" path (ties into F-24).
 
+**Status: ✅ Implemented (July 2026).** Shared `SpectatorCard` (players + match score + status, `statusOverride` for page-specific states) mounted across all 12 custom 2P pages — including two that previously showed spectators nothing. Fixed two real spectator bugs found in the sweep (ReactionGame's swapped counters, BluffBattle's "YOU" mislabel). WordDuel/Pong keep their richer views.
+
 ### F-30 · Low-Medium · Quick Win — Word Duel end screen lacks SHARE
 
 **Where:** WordDuel builds a fully custom result screen and never renders the share-card CTA that every `GameStatus`-driven game gets (`src/lib/shareCard.js`).
@@ -467,6 +481,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Why it hurts:** The retro-arcade identity *sets up* an expectation — high-score tables are the original engagement mechanic — and the product never pays it off.
 
 **Fix (sequenced):** sync stats per F-32 → per-user match history (simple append log) → **friends-scoped leaderboards** (friend graph + presence already exist; friends-scoped avoids global-leaderboard abuse/moderation costs and fits the play-with-friends identity) → a handful of achievement badges surfaced on Profile and PlayerCards.
+
+**Status: ✅ Implemented (July 2026)** — v1 of the sequenced fix: friends-scoped LEADERBOARD on the Friends page (wins → winrate → games, competition ranking; self highlighted; stat-less friends rank last at 0-0), reading the `users/{uid}/stats` mirror from F-32. No rules change was needed. Match history and achievement badges remain the follow-up phases.
 
 ### F-34 · Medium · Medium Effort — Daily loop half-built
 
