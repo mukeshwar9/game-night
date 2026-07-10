@@ -6,6 +6,7 @@ import { generateGameId } from '../lib/gameLogic'
 import { freshGameState, getGameConfig, GAME_TYPES } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { getStats, getRooms, recordRoom } from '../lib/profile'
+import { recordPlay } from '../lib/analytics'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { sounds } from '../lib/sounds'
 import GamePicker from '../components/GamePicker'
@@ -88,6 +89,7 @@ export default function Home() {
         }
       }
       await set(ref(db, `games/${gameId}`), gameData)
+      recordPlay(gameType, 'multi')
       if (!cfg.nPlayer) {
         sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
       }

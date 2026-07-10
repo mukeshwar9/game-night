@@ -50,6 +50,15 @@
         }
       }
     },
+    "plays": {
+      ".read": "auth != null",
+      "$gameType": {
+        "$mode": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber()"
+        }
+      }
+    },
     "invites": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

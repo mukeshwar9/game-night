@@ -32,6 +32,7 @@ import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
 import { getGameConfig, freshGameState, GAME_CATEGORIES, getPlayerTag } from '../lib/games'
+import { recordPlay } from '../lib/analytics'
 import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
 import { Link } from 'react-router-dom';
@@ -1882,6 +1883,16 @@ export default function Demo() {
   const [selected, setSelected] = useState('tictactoe')
   const [activeCat, setActiveCat] = useState('board')
   const active = DEMOS.find(d => d.type === selected)
+
+  // Party cards don't start an actual solo game (2+ players only) — every
+  // other selection mounts a fresh bot/skill demo, so that's the play. The
+  // initial mount is skipped: counting the default tictactoe on page load
+  // would inflate its numbers with mere /demo visits.
+  const playRecorded = useRef(false)
+  useEffect(() => {
+    if (!playRecorded.current) { playRecorded.current = true; return }
+    if (!(selected in PARTY_BLURB)) recordPlay(selected, 'solo')
+  }, [selected])
 
   const demoCounts = {}
   for (const d of DEMOS) {
