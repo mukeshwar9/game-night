@@ -4,7 +4,8 @@ import NumberPad from '../components/NumberPad'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import { generateQuestion } from '../lib/mathLogic'
 import { sounds } from '../lib/sounds'
-import { todayKey, seedFromDate, readBest, writeBest } from '../lib/daily'
+import { todayKey, seedFromDate, readBest, writeBest, getDailyNumber, bumpStreak } from '../lib/daily'
+import { shareResult } from '@/lib/shareCard'
 import { cn } from '@/lib/utils'
 
 const DAILY_MS = 60_000
@@ -30,6 +31,7 @@ export default function DailyGame() {
   const [endTime, setEndTime] = useState(null)
   const [timeLeft, setTimeLeft] = useState(DAILY_MS)
   const [best, setBest] = useState(() => readBest(todayKey()))
+  const [dayStreak, setDayStreak] = useState(0)
   const [muted, setMuted] = useState(() => sounds.isMuted())
 
   const fbTimer = useRef(null)
@@ -66,6 +68,7 @@ export default function DailyGame() {
       setBest({ best: prevBest })
       sounds.lose()
     }
+    setDayStreak(bumpStreak().count)
   }
 
   // Countdown ticker while playing
@@ -117,6 +120,14 @@ export default function DailyGame() {
     if (key === 'ENTER') { submit(); return }
     if (/^\d$/.test(key) && answer.length < 5) setAnswer(a => a + key)
   }
+
+  const shareDaily = () => shareResult({
+    gameLabel: 'DAILY CHALLENGE',
+    headline: `DAILY #${getDailyNumber(date)} — ${correct} SOLVED`,
+    sub: dayStreak >= 2 ? `🔥 ${dayStreak} DAY STREAK` : undefined,
+    accentVar: '--c-cta',
+    url: `${window.location.origin}/daily`,
+  })
 
   // ── render ─────────────────────────────────────────────────────────
 
@@ -261,7 +272,19 @@ export default function DailyGame() {
                   <p className="font-pixel text-xl text-retro-cta text-glow-cta tabular-nums">{best.best}</p>
                 </div>
               )}
+              {dayStreak >= 2 && (
+                <p className="font-pixel text-[9px] text-retro-cta text-glow-cta">
+                  🔥 {dayStreak} DAY STREAK
+                </p>
+              )}
             </div>
+
+            <button
+              onClick={shareDaily}
+              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95"
+            >
+              SHARE RESULT
+            </button>
 
             <div className="bg-retro-card border border-retro-border rounded p-3 text-center">
               <p className="font-pixel text-[9px] text-retro-cta text-glow-cta">COME BACK TOMORROW</p>
