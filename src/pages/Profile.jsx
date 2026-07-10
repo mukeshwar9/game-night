@@ -164,8 +164,8 @@ export default function Profile() {
           )}
           <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
             {isAnonymous
-              ? 'Sign in to keep your profile, avatar & friends across devices. You can keep playing as a guest.'
-              : 'Your profile syncs across every device you sign in on.'}
+              ? 'Sign in to keep your profile, avatar, friends & stats across devices. You can keep playing as a guest.'
+              : 'Your profile, avatar, friends & stats sync across every device you sign in on.'}
           </p>
         </div>
 
@@ -210,7 +210,7 @@ export default function Profile() {
                 <p className="font-pixel text-[8px] text-retro-dim tracking-wider mb-1">HEAD TO HEAD</p>
                 {vs.map(([opp, v]) => (
                   <div key={opp} className="flex justify-between items-center">
-                    <span className="font-mono text-[11px] text-retro-text truncate max-w-[60%]">{opp}</span>
+                    <span className="font-mono text-[11px] text-retro-text truncate max-w-[60%]">{v.name || opp}</span>
                     <span className="font-mono text-[11px]">
                       <span className="text-retro-win">{v.w || 0}W</span>
                       <span className="text-retro-dim"> · </span>

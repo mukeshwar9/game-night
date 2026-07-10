@@ -1,7 +1,13 @@
-// No-login local profile: lifetime stats, head-to-head (by opponent name), and a
-// recent-rooms list — all in localStorage so they work with zero backend/auth.
-// (A future enhancement can mirror these to a stats/{playerId} node once
-// anonymous auth + rules land; see README.)
+// No-login local profile: lifetime stats, head-to-head (keyed by opponent uid,
+// falling back to name for legacy/unauthenticated entries), and a recent-rooms
+// list — all in localStorage so they work with zero backend/auth. Signed-in
+// users additionally get their stats mirrored to users/{uid}/stats (see
+// mirrorStats below and statsSync.js) so they carry over across devices;
+// localStorage stays the synchronous read source.
+
+import { ref, set as dbSet } from 'firebase/database'
+import { db } from './firebase'
+import { getUid } from './auth'
 
 const STATS_KEY = 'gn-stats'
 const ROOMS_KEY = 'gn-rooms'
@@ -18,9 +24,24 @@ export function getStats() {
   } catch { return null }
 }
 
+export function setStats(s) {
+  try { localStorage.setItem(STATS_KEY, JSON.stringify(s)) } catch { /* quota */ }
+  return s
+}
+
+// Fire-and-forget mirror to Firebase — swallow errors, no-op when signed out
+// or db unavailable. Never awaited by callers; localStorage is already durable.
+function mirrorStats(stats) {
+  const uid = getUid()
+  if (!db || !uid) return
+  dbSet(ref(db, `users/${uid}/stats`), stats).catch(() => {})
+}
+
 // Record one finished MATCH from this browser's perspective. Idempotency is the
-// caller's responsibility (call once per match-end transition).
-export function recordMatch({ gameType, won, opponentName }) {
+// caller's responsibility (call once per match-end transition). `opponentUid`
+// keys head-to-head by identity (rename-proof); omit it to fall back to the
+// legacy name-keyed entry shape for callers that don't have it yet.
+export function recordMatch({ gameType, won, opponentName, opponentUid }) {
   const s = getStats() || blankStats()
   s.games += 1
   if (won) {
@@ -36,13 +57,16 @@ export function recordMatch({ gameType, won, opponentName }) {
     g[won ? 'w' : 'l'] += 1
     s.byGame[gameType] = g
   }
-  const opp = (opponentName || '').trim()
-  if (opp) {
-    const v = s.vs[opp] || { w: 0, l: 0 }
+  const name = (opponentName || '').trim()
+  const key = opponentUid || name
+  if (key) {
+    const v = s.vs[key] || { w: 0, l: 0 }
     v[won ? 'w' : 'l'] += 1
-    s.vs[opp] = v
+    if (opponentUid && name) v.name = name
+    s.vs[key] = v
   }
-  try { localStorage.setItem(STATS_KEY, JSON.stringify(s)) } catch { /* quota */ }
+  setStats(s)
+  mirrorStats(s)
   return s
 }
 

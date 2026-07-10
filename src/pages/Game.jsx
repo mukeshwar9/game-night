@@ -340,6 +340,7 @@ export default function Game() {
           gameType: game.gameType,
           won: w === mySymbol.current,
           opponentName: game.players?.[opSym]?.name,
+          opponentUid: game.players?.[opSym]?.playerId,
         })
       }
     }

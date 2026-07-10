@@ -4,6 +4,7 @@ import { authReady, onUser, upgradeWithGoogle, signOutToGuest as signOutToGuestF
 import {
   ensureProfile, subscribeProfile, setupPresence, subscribeInvites, subscribeRequests,
 } from './social'
+import { syncStatsOnBoot } from './statsSync'
 
 const AuthContext = createContext(null)
 
@@ -47,6 +48,7 @@ export function AuthProvider({ children }) {
       // works as a guest (getPlayerId falls back to a local id).
       try { await ensureProfile() } catch (e) { console.warn('Profile init skipped:', e?.message) }
       if (cancelled) return
+      syncStatsOnBoot()
       unsubProfile = subscribeProfile(uid, p => { if (!cancelled) setProfile(p) })
       unsubPresence = setupPresence(uid)
       unsubInvites = subscribeInvites(list => { if (!cancelled) setInvites(list) })
