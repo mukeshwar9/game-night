@@ -1,19 +1,23 @@
-import { useState } from 'react'
-import { GAME_TYPES, GAME_CATEGORIES, getPlayerTag, getGameConfig } from '../lib/games'
-import { cn } from '@/lib/utils'
-import RulesModal, { RulesButton } from './RulesModal'
+import { useState, useRef, useEffect } from 'react'
+import { GAME_TYPES, GAME_CATEGORIES, getGameConfig } from '../lib/games'
+import { searchGames } from '../lib/gameSearch'
+import RulesModal from './RulesModal'
 import CategoryTabs from './CategoryTabs'
 import VariantChooser from './VariantChooser'
+import GameCard from './GameCard'
 
 // Variant entries (those with `variantOf`) are hidden from the grid and surfaced
 // as a "choose mode" step when their base game is picked.
 const variantsFor = (baseType) => GAME_TYPES.filter(t => t.variantOf === baseType)
 
-export default function GamePicker({ onSelect, excludeType, loadingType }) {
-  const defaultCat = (excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id
+export default function GamePicker({ onSelect, excludeType, loadingType, layout = 'compact' }) {
+  const isFull = layout === 'full'
+  const defaultCat = isFull ? 'all' : ((excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id)
   const [activeCat, setActiveCat] = useState(defaultCat)
   const [rulesType, setRulesType] = useState(null)
   const [variantBase, setVariantBase] = useState(null)
+  const [query, setQuery] = useState('')
+  const searchRef = useRef(null)
 
   // In-room switching (excludeType set) is restricted to the current seat
   // family: party rooms key players by uid, 2P rooms by 'X'/'O', and a
@@ -28,66 +32,93 @@ export default function GamePicker({ onSelect, excludeType, loadingType }) {
     if (isHidden(t)) continue
     counts[t.category] = (counts[t.category] || 0) + 1
   }
+  const totalVisible = Object.values(counts).reduce((a, b) => a + b, 0)
   const categories = GAME_CATEGORIES.map(c => ({ ...c, count: counts[c.id] || 0 })).filter(c => c.count > 0)
+  const categoriesWithAll = isFull ? [{ id: 'all', label: 'ALL', count: totalVisible }, ...categories] : categories
   const games = GAME_TYPES.filter(t => !isHidden(t) && t.category === activeCat)
 
+  useEffect(() => {
+    if (!isFull) return
+    const onKey = (e) => {
+      if (e.key !== '/') return
+      const target = e.target
+      const isEditable = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
+      if (isEditable) return
+      e.preventDefault()
+      searchRef.current?.focus()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isFull])
+
   const handleTap = (g) => {
+    if (g.variantOf) { onSelect(g.type); return }
     if (variantsFor(g.type).length) setVariantBase(g)
     else onSelect(g.type)
   }
 
+  const gridClass = isFull
+    ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'
+    : 'grid grid-cols-2 gap-3'
+
+  const renderGrid = (list) => (
+    <div className={gridClass}>
+      {list.map((g) => (
+        <GameCard
+          key={g.type}
+          game={{ ...g, hasVariants: !g.variantOf && variantsFor(g.type).length > 0 }}
+          onTap={handleTap}
+          onRules={setRulesType}
+          loadingType={loadingType}
+        />
+      ))}
+    </div>
+  )
+
+  const searchResults = isFull && query.trim()
+    ? searchGames(query, { excludePredicate: (t) => t.type === excludeType || (excludeCfg && !!t.nPlayer !== !!excludeCfg.nPlayer) })
+    : []
+
   return (
     <div className="space-y-3">
-      <CategoryTabs categories={categories} active={activeCat} onSelect={setActiveCat} />
-      <div className="grid grid-cols-2 gap-3">
-        {games.map((g) => {
-          const { type, label, desc, Icon } = g
-          const hasVariants = variantsFor(type).length > 0
-          return (
-            <div key={type} className="relative">
-              <button
-                onClick={() => handleTap(g)}
-                disabled={!!loadingType}
-                className={cn(
-                  'w-full flex flex-col items-center gap-2.5 py-4 px-2 border-2 rounded',
-                  'transition-all active:scale-95',
-                  loadingType === type
-                    ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
-                    : 'border-retro-border bg-retro-card hover:border-retro-cta/50',
-                  loadingType && loadingType !== type && 'opacity-40',
-                )}
-              >
-                <div className={cn(
-                  'w-10 h-10 rounded flex items-center justify-center',
-                  loadingType === type ? 'text-retro-cta' : 'text-retro-dim',
-                )}>
-                  {Icon && <Icon />}
-                </div>
-                <div className="text-center">
-                  <p className="font-pixel text-[10px] text-retro-text leading-relaxed">{label}</p>
-                  <p className="font-mono text-[10px] text-retro-dim mt-0.5">{desc}</p>
-                  <p className={cn('font-pixel text-[7px] mt-1', g.nPlayer ? 'text-retro-p2' : 'text-retro-dim')}>{getPlayerTag(g)}</p>
-                </div>
-                {loadingType === type && (
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map(i => (
-                      <div key={i} className="w-1 h-1 bg-retro-cta rounded-full animate-bounce"
-                        style={{ animationDelay: `${i * 150}ms` }} />
-                    ))}
-                  </div>
-                )}
-                {hasVariants && (
-                  <span className="absolute bottom-1 left-1 font-pixel text-[6px] text-retro-cta/80 tracking-wider">+MODES</span>
-                )}
-              </button>
-              <RulesButton
-                onClick={(e) => { e.stopPropagation(); setRulesType(type) }}
-                className="absolute top-1 right-1 z-10 hover:text-retro-cta"
-              />
+      {isFull && (
+        <input
+          ref={searchRef}
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="SEARCH GAMES… ( / )"
+          className="w-full bg-retro-card border-2 border-retro-border text-retro-text
+            font-pixel text-xs tracking-widest placeholder-retro-border rounded px-4 py-3
+            focus:outline-none focus:border-retro-p1 transition-colors"
+        />
+      )}
+
+      {!(isFull && query.trim()) && (
+        <CategoryTabs categories={categoriesWithAll} active={activeCat} onSelect={setActiveCat} />
+      )}
+
+      {isFull && query.trim() ? (
+        searchResults.length > 0 ? (
+          renderGrid(searchResults)
+        ) : (
+          <p className="font-pixel text-[9px] text-retro-dim text-center py-6 tracking-wider">
+            NO GAMES MATCH "{query.trim().toUpperCase()}"
+          </p>
+        )
+      ) : isFull && activeCat === 'all' ? (
+        <div className="space-y-5">
+          {categories.map(c => (
+            <div key={c.id} className="space-y-2">
+              <p className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</p>
+              {renderGrid(GAME_TYPES.filter(t => !isHidden(t) && t.category === c.id))}
             </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      ) : (
+        renderGrid(games)
+      )}
+
       {rulesType && (
         <RulesModal gameType={rulesType} onClose={() => setRulesType(null)} />
       )}
