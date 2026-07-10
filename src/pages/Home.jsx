@@ -305,7 +305,12 @@ export default function Home() {
         {/* Game selection */}
         <div className="space-y-1.5">
           <label className="max-w-md mx-auto w-full block font-pixel text-[10px] text-retro-dim tracking-wider">SELECT GAME</label>
-          <GamePicker layout="full" onSelect={createGame} loadingType={loading} />
+          <GamePicker
+            layout="full"
+            onSelect={createGame}
+            onSolo={(type) => navigate('/solo/' + type)}
+            loadingType={loading}
+          />
         </div>
 
         <RecentlyPlayed onSelect={createGame} loadingType={loading} />
@@ -321,7 +326,7 @@ export default function Home() {
             'transition-all active:scale-[0.98]'
           )}
         >
-          PLAY SOLO VS AI →
+          BROWSE ALL SOLO GAMES →
         </Link>
 
         {/* Your stats — local, no login */}

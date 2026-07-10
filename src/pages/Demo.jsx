@@ -35,7 +35,7 @@ import { getGameConfig, freshGameState, GAME_CATEGORIES, getPlayerTag } from '..
 import { recordPlay } from '../lib/analytics'
 import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import NavBar from '../components/NavBar';
 import TronDemo from './TronDemo';
@@ -1880,15 +1880,20 @@ const DEMOS = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Demo() {
-  const [selected, setSelected] = useState('tictactoe')
-  const [activeCat, setActiveCat] = useState('board')
+  const { type: routeType } = useParams()
+  const hasRouteType = !!routeType && DEMOS.some(d => d.type === routeType)
+  const initialType = hasRouteType ? routeType : 'tictactoe'
+  const [selected, setSelected] = useState(initialType)
+  const [activeCat, setActiveCat] = useState(() => getGameConfig(initialType)?.category || 'board')
   const active = DEMOS.find(d => d.type === selected)
 
   // Party cards don't start an actual solo game (2+ players only) — every
-  // other selection mounts a fresh bot/skill demo, so that's the play. The
-  // initial mount is skipped: counting the default tictactoe on page load
-  // would inflate its numbers with mere /demo visits.
-  const playRecorded = useRef(false)
+  // other selection mounts a fresh bot/skill demo, so that's the play. Landing
+  // on the bare /demo hub defaults to tictactoe with no explicit intent, so
+  // that first mount is skipped — but arriving via a /solo/:type deep link
+  // (e.g. from the catalog's VS AI option) IS an intentional play and should
+  // be recorded immediately.
+  const playRecorded = useRef(hasRouteType)
   useEffect(() => {
     if (!playRecorded.current) { playRecorded.current = true; return }
     if (!(selected in PARTY_BLURB)) recordPlay(selected, 'solo')

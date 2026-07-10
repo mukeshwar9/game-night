@@ -5,6 +5,7 @@ import { getFavorites, toggleFavorite } from '../lib/favorites'
 import RulesModal from './RulesModal'
 import CategoryTabs from './CategoryTabs'
 import VariantChooser from './VariantChooser'
+import ModeChooser from './ModeChooser'
 import GameCard from './GameCard'
 import { cn } from '@/lib/utils'
 
@@ -19,12 +20,16 @@ const FILTER_DEFS = [
   { key: 'solo', label: 'SOLO OK', test: (t) => t.solo === true },
 ]
 
-export default function GamePicker({ onSelect, excludeType, loadingType, layout = 'compact' }) {
+export default function GamePicker({ onSelect, onSolo, excludeType, loadingType, layout = 'compact' }) {
   const isFull = layout === 'full'
   const defaultCat = isFull ? 'all' : ((excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id)
   const [activeCat, setActiveCat] = useState(defaultCat)
   const [rulesType, setRulesType] = useState(null)
+  const [modeGame, setModeGame] = useState(null)
   const [variantBase, setVariantBase] = useState(null)
+  // Which action VariantChooser's onPick performs — 'friend' (room creation,
+  // the pre-existing path) or 'solo' (opened from ModeChooser's VS AI option).
+  const [variantMode, setVariantMode] = useState('friend')
   const [query, setQuery] = useState('')
   const [favVersion, setFavVersion] = useState(0)
   const [filters, setFilters] = useState({})
@@ -76,10 +81,31 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
     return () => window.removeEventListener('keydown', onKey)
   }, [isFull])
 
+  // Search results surface variant entries (e.g. ULTIMATE TTT) directly —
+  // those keep going straight to room creation, unchanged, rather than
+  // re-opening a mode/variant choice for what's already a specific pick.
   const handleTap = (g) => {
     if (g.variantOf) { onSelect(g.type); return }
-    if (variantsFor(g.type).length) setVariantBase(g)
+    if (onSolo && g.solo) { setModeGame(g); return }
+    if (variantsFor(g.type).length) { setVariantMode('friend'); setVariantBase(g) }
     else onSelect(g.type)
+  }
+
+  const handleModeFriend = (g) => {
+    setModeGame(null)
+    const variants = variantsFor(g.type)
+    if (variants.length) { setVariantMode('friend'); setVariantBase(g) }
+    else onSelect(g.type)
+  }
+
+  const handleModeSolo = (g) => {
+    setModeGame(null)
+    // Only chain into a variant pick if a variant actually has a working
+    // solo demo (e.g. ultimatettt, connectfourpop) — otherwise the base
+    // game's demo is the only solo option, so skip straight to it.
+    const soloVariants = variantsFor(g.type).filter(v => v.solo)
+    if (soloVariants.length) { setVariantMode('solo'); setVariantBase(g) }
+    else onSolo(g.type)
   }
 
   const gridClass = isFull
@@ -181,11 +207,23 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
       {rulesType && (
         <RulesModal gameType={rulesType} onClose={() => setRulesType(null)} />
       )}
+      {modeGame && (
+        <ModeChooser
+          game={modeGame}
+          onFriend={() => handleModeFriend(modeGame)}
+          onSolo={() => handleModeSolo(modeGame)}
+          onClose={() => setModeGame(null)}
+        />
+      )}
       {variantBase && (
         <VariantChooser
           base={variantBase}
-          variants={variantsFor(variantBase.type)}
-          onPick={(type) => { setVariantBase(null); if (type !== excludeType) onSelect(type) }}
+          variants={variantMode === 'solo' ? variantsFor(variantBase.type).filter(v => v.solo) : variantsFor(variantBase.type)}
+          onPick={(type) => {
+            setVariantBase(null)
+            if (variantMode === 'solo') onSolo(type)
+            else if (type !== excludeType) onSelect(type)
+          }}
           onClose={() => setVariantBase(null)}
         />
       )}

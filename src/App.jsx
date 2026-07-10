@@ -21,6 +21,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/game/:gameId" element={<Game />} />
             <Route path="/demo" element={<Demo />} />
+            <Route path="/solo/:type" element={<Demo />} />
             <Route path="/daily" element={<DailyGame />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/friends" element={<Friends />} />
