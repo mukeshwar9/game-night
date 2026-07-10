@@ -1,14 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import {
-  SHAPES, TONES, CLASSIC_TONES,
+  SHAPES, TONES, CLASSIC_TONES, HUMANOIDS, PARTS, PICKER_SHAPES,
   makeAvatar, parseAvatar, canonicalAvatar,
   isValidAvatar, defaultAvatarForId,
+  isHumanoid, makeHumanoid, outfitFromTone,
 } from './avatars'
 
 describe('SHAPES', () => {
-  it('has exactly 20 unique string keys', () => {
-    expect(SHAPES.length).toBe(20)
-    expect(new Set(SHAPES).size).toBe(20)
+  it('has exactly 22 unique string keys', () => {
+    expect(SHAPES.length).toBe(22)
+    expect(new Set(SHAPES).size).toBe(22)
     for (const key of SHAPES) expect(typeof key).toBe('string')
   })
 
@@ -19,10 +20,14 @@ describe('SHAPES', () => {
     ])
   })
 
-  it('includes all 8 new shapes', () => {
+  it('includes all 8 second-wave shapes', () => {
     for (const key of ['frog', 'star', 'mushroom', 'bolt', 'moon', 'fish', 'sword', 'slime']) {
       expect(SHAPES).toContain(key)
     }
+  })
+
+  it('appends boy and girl last (wire format — must never reorder)', () => {
+    expect(SHAPES.slice(20)).toEqual(['boy', 'girl'])
   })
 })
 
@@ -54,12 +59,53 @@ describe('CLASSIC_TONES', () => {
     expect(CLASSIC_TONES.dino).toBe('win')
     expect(CLASSIC_TONES.heart).toBe('p2')
   })
+
+  it('pins boy/girl classic tones', () => {
+    expect(CLASSIC_TONES.boy).toBe('p1')
+    expect(CLASSIC_TONES.girl).toBe('p2')
+  })
+})
+
+describe('HUMANOIDS / PARTS / PICKER_SHAPES', () => {
+  it('HUMANOIDS is exactly boy, girl', () => {
+    expect(HUMANOIDS).toEqual(['boy', 'girl'])
+  })
+
+  it('PARTS is exactly cap, shirt, pants, shoes', () => {
+    expect(PARTS).toEqual(['cap', 'shirt', 'pants', 'shoes'])
+  })
+
+  it('PICKER_SHAPES is HUMANOIDS', () => {
+    expect(PICKER_SHAPES).toBe(HUMANOIDS)
+  })
+
+  it('isHumanoid true only for boy/girl', () => {
+    expect(isHumanoid('boy')).toBe(true)
+    expect(isHumanoid('girl')).toBe(true)
+    expect(isHumanoid('ghost')).toBe(false)
+    expect(isHumanoid('zzz')).toBe(false)
+  })
 })
 
 describe('makeAvatar', () => {
   it('joins shape and tone with a dot', () => {
     expect(makeAvatar('ghost', 'p2')).toBe('ghost.p2')
     expect(makeAvatar('invader', 'win')).toBe('invader.win')
+  })
+})
+
+describe('makeHumanoid / outfitFromTone', () => {
+  it('makeHumanoid joins shape and 4 dash-separated parts', () => {
+    expect(makeHumanoid('boy', { cap: 'p1', shirt: 'p2', pants: 'dim', shoes: 'text' }))
+      .toBe('boy.p1-p2-dim-text')
+  })
+
+  it('outfitFromTone derives a full part map from one tone', () => {
+    expect(outfitFromTone('cta')).toEqual({ cap: 'cta', shirt: 'cta', pants: 'dim', shoes: 'text' })
+    for (const tone of TONES) {
+      const outfit = outfitFromTone(tone)
+      for (const part of PARTS) expect(TONES).toContain(outfit[part])
+    }
   })
 })
 
@@ -93,6 +139,33 @@ describe('parseAvatar', () => {
   it('a.b.c → invader (first-dot split; shape=a invalid, tone=b.c invalid)', () => {
     expect(parseAvatar('a.b.c')).toEqual({ shape: 'invader', tone: 'win' })
   })
+
+  it('bare humanoid key → classic tone + derived outfit', () => {
+    expect(parseAvatar('boy')).toEqual({ shape: 'boy', tone: 'p1', parts: outfitFromTone('p1') })
+    expect(parseAvatar('girl')).toEqual({ shape: 'girl', tone: 'p2', parts: outfitFromTone('p2') })
+  })
+
+  it('valid 4-tuple humanoid → shape, tone = shirt, full parts map', () => {
+    expect(parseAvatar('boy.p1-p2-dim-text')).toEqual({
+      shape: 'boy',
+      tone: 'p2',
+      parts: { cap: 'p1', shirt: 'p2', pants: 'dim', shoes: 'text' },
+    })
+    expect(parseAvatar('girl.cta-p2-dim-text')).toEqual({
+      shape: 'girl',
+      tone: 'p2',
+      parts: { cap: 'cta', shirt: 'p2', pants: 'dim', shoes: 'text' },
+    })
+  })
+
+  it('single-tone humanoid expands to a derived outfit', () => {
+    expect(parseAvatar('boy.p1')).toEqual({ shape: 'boy', tone: 'p1', parts: outfitFromTone('p1') })
+  })
+
+  it('malformed humanoid tuples fall back safely (like an unknown tone)', () => {
+    expect(parseAvatar('boy.p1-p2')).toEqual({ shape: 'boy', tone: 'p1', parts: outfitFromTone('p1') })
+    expect(parseAvatar('boy.p1-p2-x-win')).toEqual({ shape: 'boy', tone: 'p1', parts: outfitFromTone('p1') })
+  })
 })
 
 describe('canonicalAvatar', () => {
@@ -105,6 +178,14 @@ describe('canonicalAvatar', () => {
     expect(canonicalAvatar('ghost.p2')).toBe('ghost.p2')
     expect(canonicalAvatar('frog.dim')).toBe('frog.dim')
   })
+
+  it('normalizes a single-tone humanoid to a 4-tuple', () => {
+    expect(canonicalAvatar('boy.p1')).toBe('boy.p1-p1-dim-text')
+  })
+
+  it('is idempotent on valid 4-tuple humanoids', () => {
+    expect(canonicalAvatar('girl.cta-p2-dim-text')).toBe('girl.cta-p2-dim-text')
+  })
 })
 
 describe('makeAvatar + round-trip', () => {
@@ -112,7 +193,26 @@ describe('makeAvatar + round-trip', () => {
     for (const shape of SHAPES) {
       for (const tone of TONES) {
         const composite = makeAvatar(shape, tone)
-        expect(parseAvatar(composite)).toEqual({ shape, tone })
+        if (isHumanoid(shape)) {
+          expect(parseAvatar(composite)).toEqual({ shape, tone, parts: outfitFromTone(tone) })
+        } else {
+          expect(parseAvatar(composite)).toEqual({ shape, tone })
+        }
+      }
+    }
+  })
+
+  it('makeHumanoid then parseAvatar round-trips for sampled part combos', () => {
+    const combos = [
+      { cap: 'p1', shirt: 'p2', pants: 'cta', shoes: 'win' },
+      { cap: 'dim', shirt: 'text', pants: 'p1', shoes: 'p2' },
+      { cap: 'win', shirt: 'win', pants: 'win', shoes: 'win' },
+      { cap: 'cta', shirt: 'dim', pants: 'text', shoes: 'cta' },
+    ]
+    for (const shape of HUMANOIDS) {
+      for (const parts of combos) {
+        const id = makeHumanoid(shape, parts)
+        expect(parseAvatar(id)).toEqual({ shape, tone: parts.shirt, parts })
       }
     }
   })
@@ -140,6 +240,21 @@ describe('isValidAvatar', () => {
     expect(isValidAvatar(null)).toBe(false)
     expect(isValidAvatar(undefined)).toBe(false)
   })
+
+  it('accepts bare humanoid keys', () => {
+    expect(isValidAvatar('boy')).toBe(true)
+    expect(isValidAvatar('girl')).toBe(true)
+  })
+
+  it('accepts valid 4-tuple humanoid ids', () => {
+    expect(isValidAvatar('boy.p1-p2-dim-text')).toBe(true)
+    expect(isValidAvatar('girl.cta-p2-dim-text')).toBe(true)
+  })
+
+  it('rejects malformed humanoid tuples', () => {
+    expect(isValidAvatar('boy.p1-p2')).toBe(false)
+    expect(isValidAvatar('boy.p1-p2-x-win')).toBe(false)
+  })
 })
 
 describe('defaultAvatarForId', () => {
@@ -147,10 +262,11 @@ describe('defaultAvatarForId', () => {
     expect(defaultAvatarForId('same-id')).toBe(defaultAvatarForId('same-id'))
   })
 
-  it('returns a valid composite avatar', () => {
+  it('returns a valid humanoid avatar', () => {
     for (const id of ['abc123', 'firebase-uid-xyz', 'A', 'zzzzzzzzzz']) {
       const av = defaultAvatarForId(id)
       expect(isValidAvatar(av)).toBe(true)
+      expect(HUMANOIDS).toContain(parseAvatar(av).shape)
     }
   })
 
@@ -163,5 +279,17 @@ describe('defaultAvatarForId', () => {
   it('spreads 200 ids across multiple avatars (not all identical)', () => {
     const picks = new Set(Array.from({ length: 200 }, (_, i) => defaultAvatarForId(`user-${i}`)))
     expect(picks.size).toBeGreaterThan(1)
+  })
+
+  it('spreads across both shapes and multiple outfits', () => {
+    const shapes = new Set()
+    const outfits = new Set()
+    for (let i = 0; i < 200; i++) {
+      const { shape, parts } = parseAvatar(defaultAvatarForId(`user-${i}`))
+      shapes.add(shape)
+      outfits.add(JSON.stringify(parts))
+    }
+    expect(shapes.size).toBe(2)
+    expect(outfits.size).toBeGreaterThan(1)
   })
 })

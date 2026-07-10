@@ -42,6 +42,7 @@
     --c-tint-cta: 26 21 0;      /* #1a1500 */
     --c-structure:42 42 80;     /* #2a2a50 */
     --c-deep:     12 12 32;     /* #0c0c20 */
+    --c-skin:     230 190 160;  /* muted warm neutral (humanoid avatar skin) */
   }
 }
 
@@ -63,6 +64,7 @@
   --c-tint-cta: 24 38 0;
   --c-structure:20 82 20;
   --c-deep:     4 22 4;
+  --c-skin:     220 185 150;
 }
 
 [data-theme="amber"] {
@@ -81,6 +83,7 @@
   --c-tint-cta: 38 30 0;
   --c-structure:74 52 21;
   --c-deep:     18 10 2;
+  --c-skin:     235 195 150;
 }
 
 [data-theme="synthwave"] {
@@ -99,6 +102,7 @@
   --c-tint-cta: 56 32 0;
   --c-structure:61 43 110;
   --c-deep:     16 4 44;
+  --c-skin:     235 190 170;
 }
 
 [data-theme="grid"] {
@@ -117,6 +121,7 @@
   --c-tint-cta: 34 38 40;
   --c-structure:21 74 102;
   --c-deep:     3 14 24;
+  --c-skin:     225 190 165;
 }
 
 [data-theme="mono"] {
@@ -135,6 +140,7 @@
   --c-tint-cta: 50 50 44;
   --c-structure:78 78 68;
   --c-deep:     24 24 20;
+  --c-skin:     170 168 160;
 }
 
 /* ── Pixel cursors — static white pixel-art (cursors can't read CSS vars) ── */

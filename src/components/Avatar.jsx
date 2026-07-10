@@ -1,8 +1,10 @@
-// Retro pixel-art avatars: 8x8 monochrome sprites drawn from a char map, tinted
-// with a theme role token so they recolor with the active theme (per the
-// no-hardcoded-hex rule in CLAUDE.md). '#' = body, 'o' = knocked-out (tile color,
-// for eyes/holes), '.' = empty. Keep the keys in sync with SHAPES in
-// src/lib/avatars.js.
+// Retro pixel-art avatars: 8x8 sprites drawn from a char map, tinted with theme role
+// token(s) so they recolor with the active theme (per the no-hardcoded-hex rule in
+// CLAUDE.md). '#' = body (single-tone shapes), 'o' = knocked-out (tile color, for
+// eyes/holes), '.' = empty. Humanoid shapes (boy/girl) use per-region chars instead
+// of '#': 'c' = cap, 's' = shirt, 'p' = pants, 'b' = shoes (each tinted from the
+// avatar's `parts` map), 'k' = skin (tinted from --c-skin). Keep the keys in sync
+// with SHAPES in src/lib/avatars.js.
 
 import { parseAvatar } from '../lib/avatars'
 
@@ -207,12 +209,41 @@ const GLYPHS = {
     '########',
     '........',
   ],
+  boy: [
+    '..cccc..',
+    '.cccccc.',
+    '..kkkk..',
+    '..koko..',
+    '.ssssss.',
+    '.kssssk.',
+    '..p..p..',
+    '.bb..bb.',
+  ],
+  girl: [
+    '..cccc..',
+    '.cccccc.',
+    '.ckkkkc.',
+    '.ckokoc.',
+    '.ssssss.',
+    '.kssssk.',
+    '.pppppp.',
+    '..b..b..',
+  ],
 }
 
+// Region char → part key for humanoid glyphs (recolored per-part via `parts`).
+const PART_CHAR = { c: 'cap', s: 'shirt', p: 'pants', b: 'shoes' }
+
 export default function Avatar({ id, size = 48, tile = true, className = '' }) {
-  const { shape, tone } = parseAvatar(id)
+  const { shape, tone, parts } = parseAvatar(id)
   const glyph = GLYPHS[shape] || GLYPHS.invader
   const knockout = tile ? 'rgb(var(--c-surface))' : 'rgb(var(--c-bg))'
+  const fillFor = (ch) => {
+    if (ch === 'o') return knockout
+    if (ch === 'k') return 'rgb(var(--c-skin))'
+    if (parts && PART_CHAR[ch]) return `rgb(var(--c-${parts[PART_CHAR[ch]]}))`
+    return `rgb(var(--c-${tone}))`
+  }
   return (
     <svg
       viewBox="0 0 8 8"
@@ -227,8 +258,7 @@ export default function Avatar({ id, size = 48, tile = true, className = '' }) {
       {glyph.flatMap((row, y) =>
         row.split('').map((ch, x) => {
           if (ch === '.') return null
-          const fill = ch === 'o' ? knockout : `rgb(var(--c-${tone}))`
-          return <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill }} />
+          return <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill: fillFor(ch) }} />
         }),
       )}
     </svg>
