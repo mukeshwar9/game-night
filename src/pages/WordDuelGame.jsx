@@ -740,7 +740,8 @@ export default function WordDuelGame({
         <ShareButton onClick={shareScore} />
         {!matchWinner && !proposal && (
           <button
-            className="px-5 py-2 rounded font-bold text-sm uppercase cursor-pointer bg-retro-cta text-white shadow-neon-cta hover:opacity-90 transition-opacity"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs
+              rounded hover:shadow-neon-cta transition-all active:scale-95"
             onClick={() => {
               resetRound()
               update(ref(db, `games/${gameId}/round`), {
@@ -761,7 +762,8 @@ export default function WordDuelGame({
         )}
         {onNewMatch && !proposal && !matchWinner && (
           <button
-            className="px-5 py-2 rounded font-bold text-sm uppercase cursor-pointer bg-retro-deep text-retro-text border border-retro-border hover:border-retro-dim transition-colors"
+            className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs
+              rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95"
             onClick={() => {
               resetRound()
               onNewMatch()
@@ -772,7 +774,8 @@ export default function WordDuelGame({
         )}
         {matchWinner && onNewMatch && !proposal && (
           <button
-            className="px-5 py-2 rounded font-bold text-sm uppercase cursor-pointer bg-retro-cta text-white shadow-neon-cta hover:opacity-90 transition-opacity"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs
+              rounded hover:shadow-neon-cta transition-all active:scale-95"
             onClick={() => {
               resetRound()
               onNewMatch()

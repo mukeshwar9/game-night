@@ -58,7 +58,7 @@ function CheatScreen({ evidence, onNextRound }) {
       {onNextRound && (
         <button
           onClick={onNextRound}
-          className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+          className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
         >
           NEXT ROUND
         </button>
@@ -96,7 +96,7 @@ function CheatForfeitScreen({ waiting, onReset }) {
       {onReset && (
         <button
           onClick={onReset}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+          className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95"
         >
           RESET ROUND
         </button>
@@ -554,7 +554,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
               <div className="space-y-2">
                 <button
                   onClick={handleNextRound}
-                  className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+                  className="mt-2 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
                 >
                   NEXT ROUND
                 </button>
@@ -583,7 +583,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
               <div className="space-y-2">
                 <button
                   onClick={handleNextRound}
-                  className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+                  className="mt-2 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
                 >
                   NEXT ROUND
                 </button>
@@ -620,7 +620,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
           </p>
           <button
             onClick={handleForfeit}
-            className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+            className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95"
           >
             CONCEDE ROUND
           </button>
@@ -636,7 +636,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
           {isGuesser && (
             <button
               onClick={handleResetStuckRound}
-              className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+              className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95"
             >
               END ROUND
             </button>
