@@ -6,7 +6,7 @@ A comprehensive UX audit of the platform, performed July 2026 when the catalog s
 
 **Format per finding:** Severity (Critical/High/Medium/Low) · Priority (Quick Win / Medium Effort / Long-Term), where it occurs (with file pointers), why it hurts, the recommended fix, and expected impact.
 
-**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
+**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented, and a second round landed the full quick-wins sweep — F-04, F-12, F-15, F-21, F-24, F-25, F-28, F-30, F-31, F-35, F-36, F-37 (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
 
 ---
 
@@ -23,7 +23,7 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-01 | Home page is a form, not a catalog | Critical | Medium Effort | ✅ Done |
 | F-02 | Two parallel catalogs (Home vs /demo) | High | Medium Effort | Open |
 | F-03 | Category taxonomy unbalanced/misfiled | Medium | Quick Win | Open |
-| F-04 | Newest games invisible (no NEW badges, historical order) | Medium | Quick Win | Open |
+| F-04 | Newest games invisible (no NEW badges, historical order) | Medium | Quick Win | ✅ Done |
 | F-05 | No search | High | Quick Win | ✅ Done |
 | F-06 | One category visible at a time, no ALL view | High | Quick Win | ✅ Done |
 | F-07 | No recently-played; YOUR ROOMS speaks in room codes | High | Medium Effort | ✅ Done |
@@ -31,32 +31,32 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-09 | No favorites/pinning | Medium | Medium Effort | Open |
 | F-10 | No popularity data or instrumentation | Medium | Long-Term | Open |
 | F-11 | Desktop gets a 384px phone strip | High | Medium Effort | ✅ Done |
-| F-12 | Game count copy stale in 3 places (13 / 20+ / 29) | Low | Quick Win | Open |
+| F-12 | Game count copy stale in 3 places (13 / 20+ / 29) | Low | Quick Win | ✅ Done |
 | F-13 | Double first-run teaching | Low | Quick Win | Open |
 | F-14 | No persistent navigation | Medium-High | Medium Effort | Open |
-| F-15 | No 404 route | Low | Quick Win | Open |
+| F-15 | No 404 route | Low | Quick Win | ✅ Done |
 | F-16 | Leaving mid-game is silent | Low | — | Accepted as-is |
 | F-17 | Cards don't help users choose | Medium | Quick Win | Open |
 | F-18 | No decision-support facets/filters | Medium | Medium Effort | Open |
 | F-19 | Variant burial (watch at scale) | Low | — | Watch |
 | F-20 | Word Duel SWITCH GAME button is dead | Critical (bug) | Quick Win | ✅ Done |
-| F-21 | 5 games ship without rules | Medium | Quick Win | Open |
+| F-21 | 5 games ship without rules | Medium | Quick Win | ✅ Done |
 | F-22 | End of game suggests nothing | Medium | Medium Effort | Open |
 | F-23 | Abandoned opponents strand the player | Medium-High | Medium Effort | Open |
-| F-24 | Full room → silent spectatorship | Medium | Quick Win | Open |
-| F-25 | Error pages are dead ends | Medium | Quick Win | Open |
+| F-24 | Full room → silent spectatorship | Medium | Quick Win | ✅ Done |
+| F-25 | Error pages are dead ends | Medium | Quick Win | ✅ Done |
 | F-26 | Social features only work on the Home page | High | Medium Effort | ✅ Done |
 | F-27 | Round-advance CTAs diverge | Medium | Quick Win | Open |
-| F-28 | Disconnect copy: three phrasings | Low | Quick Win | Open |
+| F-28 | Disconnect copy: three phrasings | Low | Quick Win | ✅ Done |
 | F-29 | Spectator experience is three different products | Low-Medium | Medium Effort | Open |
-| F-30 | Word Duel end screen lacks SHARE | Low-Medium | Quick Win | Open |
-| F-31 | Empty states are inconsistent silence | Low | Quick Win | Open |
+| F-30 | Word Duel end screen lacks SHARE | Low-Medium | Quick Win | ✅ Done |
+| F-31 | Empty states are inconsistent silence | Low | Quick Win | ✅ Done |
 | F-32 | Account pitch overpromises (stats don't sync) | Medium (trust) | Medium Effort | Open |
 | F-33 | The arcade has no real high scores | High | Long-Term | Open |
 | F-34 | Daily loop half-built | Medium | Medium Effort | Open |
-| F-35 | Upgrade nudges: two touchpoints, zero context | Medium | Quick Win | Open |
-| F-36 | iOS users get no install path | Medium | Quick Win | Open |
-| F-37 | Two undersized tap targets | Low | Quick Win | Open |
+| F-35 | Upgrade nudges: two touchpoints, zero context | Medium | Quick Win | ✅ Done |
+| F-36 | iOS users get no install path | Medium | Quick Win | ✅ Done |
+| F-37 | Two undersized tap targets | Low | Quick Win | ✅ Done |
 | F-38 | Keyboard-over-content on Home | Low | — | ✅ Done (via F-01) |
 
 ---
@@ -108,6 +108,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Fix:** Add `addedAt` to registry entries; render a NEW badge on cards for ~14 days after `addedAt`; add a "NEW" rail/section at the top of the catalog once the rails layout exists (F-06/F-07).
 
 **Impact:** Direct play-through on new content; visible momentum.
+
+**Status: ✅ Implemented (July 2026).** `addedAt` (real git dates) on the 7 entries added 2026-07-04; `isNewGame()` helper in games.js; GameCard renders a NEW badge for 14 days. Older games carry no `addedAt` and never show NEW. The NEW rail (rails layout) remains future work.
 
 ---
 
@@ -210,6 +212,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Fix:** Derive the in-app count from `GAME_TYPES` (excluding variants) so it never rots again; update the static meta copy.
 
+**Status: ✅ Implemented (July 2026).** Home tagline and how-it-works copy derive the count from `GAME_TYPES` (currently 29); index.html OG/Twitter meta updated to "29+".
+
 ### F-13 · Low · Quick Win — Double first-run teaching
 
 **Where:** A brand-new visitor gets the full-screen `Onboarding` flow AND Home's dismissible "HOW IT WORKS" strip — separate localStorage gates (`onboarded` via `checkShouldOnboard()` vs `isNewVisitor` = no name + no rooms), both fire for the same user. The strip's dismissal is only in-memory state, so it reappears on reload until a name/room exists.
@@ -235,6 +239,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Where:** `src/App.jsx` has no catch-all route; unknown paths render an empty shell.
 
 **Fix:** Catch-all route styled like the existing "GAME NOT FOUND" screen, linking home.
+
+**Status: ✅ Implemented (July 2026).** `src/pages/NotFound.jsx` + a `path="*"` catch-all route, styled like the existing error screens.
 
 ### F-16 · Low — Leaving mid-game is silent
 
@@ -292,6 +298,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Fix:** Write the 5 entries (OBJECTIVE / HOW TO PLAY / TO WIN, matching the existing format).
 
+**Status: ✅ Implemented (July 2026).** All 5 entries written against the actual logic files (capacities, cascade/elimination rules, win/draw conditions, real-time controls).
+
 ### F-22 · Medium · Medium Effort — End of game suggests nothing
 
 **Where:** `src/components/GameStatus.jsx` end screen: PLAY AGAIN / NEW MATCH / SHARE / SWITCH GAME (which opens the full 29-game picker modal).
@@ -320,6 +328,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Impact:** Rescues misdirected joiners (e.g. a link shared to a group chat where two people already claimed the seats).
 
+**Status: ✅ Implemented (July 2026).** One-time "ROOM'S FULL — YOU'RE SPECTATING" toast (fires only when both seats are occupied) + a START YOUR OWN {game} ROOM button beside the SPECTATING caption.
+
 ### F-25 · Medium · Quick Win — Error pages are dead ends
 
 **Where:** `Game.jsx` full-page errors — "GAME NOT FOUND", "THIS GAME HAS EXPIRED" (24h TTL), family-mismatch, connection error — all offer only "← BACK TO HOME".
@@ -329,6 +339,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Fix:** On NOT FOUND / EXPIRED, add "START A NEW {game label} ROOM" (game type is in the dead room doc for expired rooms; omit when unknown).
 
 **Impact:** Recovers broken/expired invite-link arrivals — likely a meaningful share of all arrivals.
+
+**Status: ✅ Implemented (July 2026).** EXPIRED screens show START A NEW {game label} ROOM (type captured from the dead room doc before erroring); NOT FOUND/connection errors omit the CTA since the type is unknowable. `createNewRoom` in Game.jsx mirrors Home's createGame including the party/2P shape branch.
 
 ---
 
@@ -398,6 +410,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Fix:** One pattern: `{ROLE} IS OFFLINE` — role-specific names (WORD-KEEPER) are good; the verb inconsistency isn't.
 
+**Status: ✅ Implemented (July 2026).** "OPPONENT DISCONNECTED" → "OPPONENT IS OFFLINE" across 13 files; WORD-KEEPER IS OFFLINE kept as the role-specific exemplar.
+
 ### F-29 · Low-Medium · Medium Effort — Spectator experience is three different products
 
 **Where:** One caption "SPECTATING" (standard games) vs a live score card with P2P caveat (Pong) vs full live guess boards (WordDuel).
@@ -412,11 +426,15 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Fix:** Wire `shareCard.js` into WordDuel's result screen.
 
+**Status: ✅ Implemented (July 2026).** shareCard wired into Word Duel's round-end and match-end screens (headline mirrors the on-screen result incl. cheat-detection; sub = match score).
+
 ### F-31 · Low · Quick Win — Empty states are inconsistent silence
 
 **Where:** Zero stats → the YOUR STATS block silently unmounts (Home + Profile); zero requests → REQUESTS section unmounts; zero rooms → nothing. Meanwhile the Friends page does it right: *"No friends yet. Share your code or add someone above."*
 
 **Fix:** Apply the Friends-page standard: brief encouragement + a CTA ("Play a match to start your record →" etc.). Empty states are onboarding surfaces, not absences.
+
+**Status: ✅ Implemented (July 2026).** Home and Profile stats slots now show "PLAY A MATCH TO START YOUR RECORD" instead of unmounting when empty.
 
 ### F-32 · Medium (trust) · Medium Effort — The account pitch overpromises
 
@@ -452,6 +470,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Working well — keep:** the emote bar, share result cards, the consent-based rematch/switch handshake, presence dots, the waiting-room invite trio (link/QR/friend), win effects with round-vs-match intensity, the room-code join fallback.
 
+**Status: ✅ Implemented (July 2026).** One dismissible Home banner for anonymous users at bestStreak ≥ 3 or games ≥ 5, linking /profile; dismissal persists 14 days (`gn-upgrade-nudge-dismissed`).
+
 ---
 
 ## 11. Cognitive Load
@@ -474,11 +494,15 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Fix:** iOS-detect (user agent + `!navigator.standalone`) and show a one-time instructional hint: Share sheet → "Add to Home Screen."
 
+**Status: ✅ Implemented (July 2026).** `useInstallPrompt` returns `isIos` (UA detect + `!navigator.standalone`); Home shows a dismissible "TAP SHARE → ADD TO HOME SCREEN" hint in the install slot (`gn-ios-install-dismissed`).
+
 ### F-37 · Low · Quick Win — Two undersized tap targets
 
 **Where:** (a) WordDuel on-screen keyboard keys are 40px (`w-10 h-10`) below the `sm:` breakpoint — under the 44px recommendation, on the surface users hammer fastest. (b) The "?" RulesButton overlaid on each catalog card is ~16–20px sitting beside a large card button — and a mis-tap *creates a room*, an expensive error.
 
 **Fix:** Enlarge hit areas via padding (visuals unchanged).
+
+**Status: ✅ Implemented (July 2026).** RulesButton hit box grown to 40px via p-3/-m-2 (no visual/layout shift). Word Duel keys: true 44px height below `sm:`; a w-11 width bump cannot fit 10 keys in a 375px viewport, so width gained an overlap-safe invisible 2px-per-side hit extension instead.
 
 ### F-38 · Low — Keyboard-over-content on Home
 
@@ -529,18 +553,18 @@ Resolved by F-01 (removing the autofocused input from the initial viewport). Kee
 |---|---|
 | ✅ Link `/daily` from Home (DAILY tile with today's state) | F-08 |
 | ✅ Fix `onSelect`/`onSwitchGame` → `onSwitch` dead buttons (7 files, not just Word Duel) | F-20 |
-| Write the 5 missing rules entries (chainreaction, spaceduel, sumo, tron, wordduel) | F-21 |
-| NEW badges driven by `addedAt` registry field | F-04 |
-| Fix game-count copy (derive in-app; update `index.html` meta) | F-12 |
-| "START A NEW {game} ROOM" CTA on NOT FOUND / EXPIRED screens | F-25 |
-| Room-full toast + start-your-own CTA for spectators | F-24 |
-| Empty-state copy pass (stats, requests, rooms) | F-31 |
-| Disconnect-copy normalization (`{ROLE} IS OFFLINE`) | F-28 |
-| Enlarge "?" RulesButton and WordDuel key hit areas | F-37 |
-| iOS add-to-home-screen hint | F-36 |
-| SHARE button on Word Duel end screen | F-30 |
-| Contextual account-upgrade nudge at streak/milestone | F-35 |
-| 404 catch-all route | F-15 |
+| ✅ Write the 5 missing rules entries (chainreaction, spaceduel, sumo, tron, wordduel) | F-21 |
+| ✅ NEW badges driven by `addedAt` registry field | F-04 |
+| ✅ Fix game-count copy (derive in-app; update `index.html` meta) | F-12 |
+| ✅ "START A NEW {game} ROOM" CTA on NOT FOUND / EXPIRED screens | F-25 |
+| ✅ Room-full toast + start-your-own CTA for spectators | F-24 |
+| ✅ Empty-state copy pass (stats, requests, rooms) | F-31 |
+| ✅ Disconnect-copy normalization (`{ROLE} IS OFFLINE`) | F-28 |
+| ✅ Enlarge "?" RulesButton and WordDuel key hit areas | F-37 |
+| ✅ iOS add-to-home-screen hint | F-36 |
+| ✅ SHARE button on Word Duel end screen | F-30 |
+| ✅ Contextual account-upgrade nudge at streak/milestone | F-35 |
+| ✅ 404 catch-all route | F-15 |
 
 ### Next iteration (~weeks)
 
