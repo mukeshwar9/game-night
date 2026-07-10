@@ -10,7 +10,7 @@ export function RulesButton({ onClick, className = '' }) {
       onClick={onClick}
       title="How to play"
       aria-label="How to play"
-      className={`text-retro-dim hover:text-retro-text transition-colors p-1 rounded ${className}`}
+      className={`text-retro-dim hover:text-retro-text transition-colors p-3 -m-2 rounded ${className}`}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

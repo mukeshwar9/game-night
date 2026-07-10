@@ -5,6 +5,7 @@ import Demo from './pages/Demo';
 import DailyGame from './pages/DailyGame';
 import Profile from './pages/Profile';
 import Friends from './pages/Friends';
+import NotFound from './pages/NotFound';
 import { Toaster } from './components/ui/sonner';
 import UpdatePrompt from './components/UpdatePrompt';
 import InviteToasts from './components/InviteToasts';
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/daily" element={<DailyGame />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/friends" element={<Friends />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
           <InviteToasts />
