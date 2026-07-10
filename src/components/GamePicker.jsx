@@ -6,10 +6,18 @@ import RulesModal from './RulesModal'
 import CategoryTabs from './CategoryTabs'
 import VariantChooser from './VariantChooser'
 import GameCard from './GameCard'
+import { cn } from '@/lib/utils'
 
 // Variant entries (those with `variantOf`) are hidden from the grid and surfaced
 // as a "choose mode" step when their base game is picked.
 const variantsFor = (baseType) => GAME_TYPES.filter(t => t.variantOf === baseType)
+
+// Decision-support facet chips (layout="full" only). Toggleable, AND-combined.
+const FILTER_DEFS = [
+  { key: 'quick', label: 'QUICK', test: (t) => (t.durationMin ?? Infinity) <= 3 },
+  { key: 'thinky', label: 'THINKY', test: (t) => (t.tags || []).includes('thinky') },
+  { key: 'solo', label: 'SOLO OK', test: (t) => t.solo === true },
+]
 
 export default function GamePicker({ onSelect, excludeType, loadingType, layout = 'compact' }) {
   const isFull = layout === 'full'
@@ -19,7 +27,12 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
   const [variantBase, setVariantBase] = useState(null)
   const [query, setQuery] = useState('')
   const [favVersion, setFavVersion] = useState(0)
+  const [filters, setFilters] = useState({})
   const searchRef = useRef(null)
+
+  const activeFilterKeys = Object.keys(filters).filter(k => filters[k])
+  const passesFilters = (t) => activeFilterKeys.every(k => FILTER_DEFS.find(f => f.key === k).test(t))
+  const toggleFilter = (key) => setFilters(f => ({ ...f, [key]: !f[key] }))
 
   // favVersion forces a re-render on toggle; getFavorites() re-reads
   // localStorage fresh each render, so this stays in sync across a session.
@@ -42,9 +55,12 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
   }
   const totalVisible = Object.values(counts).reduce((a, b) => a + b, 0)
   const categories = GAME_CATEGORIES.map(c => ({ ...c, count: counts[c.id] || 0 })).filter(c => c.count > 0)
-  const visibleFavorites = GAME_TYPES.filter(t => !isHidden(t) && favSet.has(t.type))
+  const visibleFavorites = GAME_TYPES.filter(t => !isHidden(t) && favSet.has(t.type) && passesFilters(t))
   const categoriesWithAll = isFull ? [{ id: 'all', label: 'ALL', count: totalVisible }, ...categories] : categories
-  const games = GAME_TYPES.filter(t => !isHidden(t) && t.category === activeCat)
+  const games = GAME_TYPES.filter(t => !isHidden(t) && t.category === activeCat && passesFilters(t))
+  const categorySections = categories
+    .map(c => ({ ...c, games: GAME_TYPES.filter(t => !isHidden(t) && t.category === c.id && passesFilters(t)) }))
+    .filter(c => c.games.length > 0)
 
   useEffect(() => {
     if (!isFull) return
@@ -87,8 +103,12 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
   )
 
   const searchResults = isFull && query.trim()
-    ? searchGames(query, { excludePredicate: (t) => t.type === excludeType || (excludeCfg && !!t.nPlayer !== !!excludeCfg.nPlayer) })
+    ? searchGames(query, { excludePredicate: (t) => t.type === excludeType || (excludeCfg && !!t.nPlayer !== !!excludeCfg.nPlayer) }).filter(passesFilters)
     : []
+
+  const emptyState = (message) => (
+    <p className="font-pixel text-[9px] text-retro-dim text-center py-6 tracking-wider">{message}</p>
+  )
 
   return (
     <div className="space-y-3">
@@ -105,6 +125,26 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
         />
       )}
 
+      {isFull && (
+        <div className="flex flex-wrap gap-2 justify-center">
+          {FILTER_DEFS.map(f => (
+            <button
+              key={f.key}
+              onClick={() => toggleFilter(f.key)}
+              aria-pressed={!!filters[f.key]}
+              className={cn(
+                'px-2.5 py-1.5 rounded border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
+                filters[f.key]
+                  ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
+                  : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {!(isFull && query.trim()) && (
         <CategoryTabs categories={categoriesWithAll} active={activeCat} onSelect={setActiveCat} />
       )}
@@ -113,27 +153,29 @@ export default function GamePicker({ onSelect, excludeType, loadingType, layout 
         searchResults.length > 0 ? (
           renderGrid(searchResults)
         ) : (
-          <p className="font-pixel text-[9px] text-retro-dim text-center py-6 tracking-wider">
-            NO GAMES MATCH "{query.trim().toUpperCase()}"
-          </p>
+          emptyState(`NO GAMES MATCH "${query.trim().toUpperCase()}"`)
         )
       ) : isFull && activeCat === 'all' ? (
-        <div className="space-y-5">
-          {visibleFavorites.length > 0 && (
-            <div className="space-y-2">
-              <p className="font-pixel text-[9px] text-retro-p2 tracking-widest">★ FAVORITES</p>
-              {renderGrid(visibleFavorites)}
-            </div>
-          )}
-          {categories.map(c => (
-            <div key={c.id} className="space-y-2">
-              <p className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</p>
-              {renderGrid(GAME_TYPES.filter(t => !isHidden(t) && t.category === c.id))}
-            </div>
-          ))}
-        </div>
+        visibleFavorites.length === 0 && categorySections.length === 0 ? (
+          emptyState('NO GAMES MATCH THESE FILTERS')
+        ) : (
+          <div className="space-y-5">
+            {visibleFavorites.length > 0 && (
+              <div className="space-y-2">
+                <p className="font-pixel text-[9px] text-retro-p2 tracking-widest">★ FAVORITES</p>
+                {renderGrid(visibleFavorites)}
+              </div>
+            )}
+            {categorySections.map(c => (
+              <div key={c.id} className="space-y-2">
+                <p className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</p>
+                {renderGrid(c.games)}
+              </div>
+            ))}
+          </div>
+        )
       ) : (
-        renderGrid(games)
+        games.length > 0 ? renderGrid(games) : emptyState('NO GAMES MATCH THESE FILTERS')
       )}
 
       {rulesType && (

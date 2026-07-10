@@ -32,7 +32,11 @@ describe('suggestGames', () => {
 
   it('falls back to same-category picks when the game has no variants', () => {
     const wordTypes = new Set(GAME_TYPES.filter(t => t.category === 'word').map(t => t.type))
-    const types = suggestGames('hangwoman').map(t => t.type)
+    // count: 2 — the 'word' category holds 3 games post-F-03 (hangwoman, twotruths,
+    // wordduel; bluff moved to 'dicebluff'), so excluding the current game leaves
+    // exactly 2 same-category siblings. A higher count would spill into the
+    // any-other-category fallback and break the "all same category" assertion below.
+    const types = suggestGames('hangwoman', { count: 2 }).map(t => t.type)
     expect(types.length).toBeGreaterThan(0)
     for (const type of types) expect(wordTypes.has(type)).toBe(true)
   })

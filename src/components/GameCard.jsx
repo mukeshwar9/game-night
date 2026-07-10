@@ -37,7 +37,12 @@ export default function GameCard({ game, onTap, onRules, loadingType, disabled, 
         <div className="text-center">
           <p className="font-pixel text-[10px] text-retro-text leading-relaxed">{label}</p>
           <p className="font-mono text-[10px] text-retro-dim mt-0.5">{desc}</p>
-          <p className={cn('font-pixel text-[7px] mt-1', game.nPlayer ? 'text-retro-p2' : 'text-retro-dim')}>{getPlayerTag(game)}</p>
+          <p className="font-pixel text-[7px] mt-1 flex items-center justify-center gap-1.5">
+            <span className={game.nPlayer ? 'text-retro-p2' : 'text-retro-dim'}>{getPlayerTag(game)}</span>
+            {game.durationMin != null && (
+              <span className="text-[6px] text-retro-dim">~{game.durationMin} MIN</span>
+            )}
+          </p>
         </div>
         {loadingType === type && (
           <div className="flex gap-1">

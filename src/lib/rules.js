@@ -7,7 +7,7 @@
 
 export const GAME_RULES = {
   tictactoe: {
-    objective: 'Be the first to line up three of your marks in a row.',
+    objective: 'Be the first to line up three of your marks in a row on the 3×3 board.',
     howToPlay: [
       'Players take turns — one is X, the other is O.',
       'Tap any empty square to place your mark.',
@@ -18,7 +18,7 @@ export const GAME_RULES = {
   connectfour: {
     objective: 'Connect four of your discs in a line before your opponent does.',
     howToPlay: [
-      'Take turns dropping a disc into one of the 7 columns.',
+      'Take turns dropping a disc into one of the 7 columns on the 7×6 grid.',
       'Discs fall to the lowest empty slot — you only choose the column.',
     ],
     win: 'Line up 4 of your discs horizontally, vertically, or diagonally to win. A full board with no four-in-a-row is a draw.',
@@ -38,7 +38,7 @@ export const GAME_RULES = {
   connectfourpop: {
     objective: 'Connect four of your discs in a line — or pop your way to one.',
     howToPlay: [
-      'Take turns dropping a disc into a column, exactly like Connect Four.',
+      'Take turns dropping a disc into one of the 7 columns on the 7×6 grid, exactly like Connect Four.',
       'Instead of dropping, you may POP one of your own bottom discs out (tap the ▼ under a column).',
       'When you pop, every disc above slides down one row.',
       'A pop can complete a line for either player — watch what falls into place.',
@@ -79,7 +79,7 @@ export const GAME_RULES = {
   },
 
   dotsandboxes: {
-    objective: 'Claim more of the 16 boxes than your opponent.',
+    objective: 'Claim more of the 16 boxes (a 4×4 grid) than your opponent.',
     howToPlay: [
       'Take turns drawing one edge between two dots.',
       'Complete the 4th side of a box to claim it and stamp it with your mark.',
@@ -183,7 +183,7 @@ export const GAME_RULES = {
   },
 
   reversi: {
-    objective: 'Finish with more discs of your color on the board.',
+    objective: 'Finish with more discs of your color on the 8×8 board.',
     howToPlay: [
       'Place a disc so it flanks a line of your opponent’s discs between it and one of yours.',
       'All flanked discs flip to your color.',
@@ -285,7 +285,7 @@ export const GAME_RULES = {
   },
 
   chainreaction: {
-    objective: 'Trigger chain reactions to wipe every orb of your opponent’s color off the board.',
+    objective: 'Trigger chain reactions on the 6×8 grid to wipe every orb of your opponent’s color off the board.',
     howToPlay: [
       'On your turn, place an orb in any empty cell or a cell you already own.',
       'Each cell has a capacity (2 in a corner, 3 on an edge, 4 in the interior) — reaching it makes the cell explode.',
