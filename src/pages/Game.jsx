@@ -97,6 +97,50 @@ function LoadingScreen() {
   )
 }
 
+// Floating emoji reactions — one per sender/glyph/burst, positioned on the
+// sender's side of the screen (X left, O right) so simultaneous reactions
+// from both players never collide.
+function EmoteFloats({ floats }) {
+  return (
+    <div className="fixed inset-x-0 top-1/3 z-50 pointer-events-none flex justify-center">
+      {floats.map(f => (
+        <div
+          // re-keyed on count so a combo bump restarts the float animation —
+          // otherwise the `forwards` fill leaves the element invisible while
+          // its re-armed removal timer keeps it alive
+          key={`${f.id}-${f.count}`}
+          className={cn('absolute flex flex-col items-center gap-1', f.by === 'X' ? 'left-[16%]' : 'right-[16%]')}
+          style={{ animation: 'emote-float 2s ease-out forwards' }}
+        >
+          <div
+            className="flex items-center gap-1"
+            style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
+          >
+            <span className="text-6xl">{f.glyph}</span>
+            {f.count > 1 && (
+              <span
+                key={f.count}
+                className="font-pixel text-sm text-retro-cta text-glow-cta"
+                style={{ animation: 'emote-pop 0.15s ease-out' }}
+              >
+                ×{f.count}
+              </span>
+            )}
+          </div>
+          {f.name && (
+            <span className={cn(
+              'font-pixel text-[8px]',
+              f.by === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
+            )}>
+              {f.name}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function Game() {
   const { gameId } = useParams()
   const navigate = useNavigate()
@@ -109,9 +153,13 @@ export default function Game() {
   const [showWinEffect, setShowWinEffect] = useState(false)
   const [winEffectWinner, setWinEffectWinner] = useState(null)
   const [winEffectIntensity, setWinEffectIntensity] = useState('round')
-  const [floatEmote, setFloatEmote] = useState(null)
+  const [floats, setFloats] = useState([])
   const prevEmoteTs = useRef(0)
   const emoteInit = useRef(false)
+  const emoteIdRef = useRef(0)
+  const emoteTimeouts = useRef(new Map())
+  const emoteReadyAt = useRef(0)
+  const [emoteCooldown, setEmoteCooldown] = useState(false)
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const [showRules, setShowRules] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
@@ -434,6 +482,47 @@ export default function Game() {
     prevProposal.current = proposal
   }, [game, gameId])
 
+  // Push a reaction onto the floats array — appends a new float, or (within
+  // 1.5s of the same glyph from the same sender) bumps the existing float's
+  // combo count and re-arms its removal timer.
+  const pushEmote = (e) => {
+    const name = game?.players?.[e.by]?.name ?? ''
+    sounds.emote()
+    setFloats(prev => {
+      const last = prev[prev.length - 1]
+      const now = Date.now()
+      if (last && last.glyph === e.glyph && last.by === e.by && now - last.at < 1500) {
+        const existing = emoteTimeouts.current.get(last.id)
+        if (existing) clearTimeout(existing)
+        const t = setTimeout(() => {
+          setFloats(f => f.filter(fl => fl.id !== last.id))
+          emoteTimeouts.current.delete(last.id)
+        }, 2000)
+        emoteTimeouts.current.set(last.id, t)
+        return prev.map(fl => (fl.id === last.id ? { ...fl, count: fl.count + 1, at: now } : fl))
+      }
+      const id = ++emoteIdRef.current
+      const dx = Math.round((Math.random() * 2 - 1) * 24)
+      const rot = Math.round((Math.random() * 2 - 1) * 10)
+      const float = { id, glyph: e.glyph, by: e.by, name, count: 1, dx, rot, at: now }
+      const t = setTimeout(() => {
+        setFloats(f => f.filter(fl => fl.id !== id))
+        emoteTimeouts.current.delete(id)
+      }, 2000)
+      emoteTimeouts.current.set(id, t)
+      return [...prev, float]
+    })
+  }
+
+  // Clear any pending float-removal timers on unmount
+  useEffect(() => {
+    const timeouts = emoteTimeouts.current
+    return () => {
+      timeouts.forEach(t => clearTimeout(t))
+      timeouts.clear()
+    }
+  }, [])
+
   // Emote channel — float a newly-received reaction (skip the stale one present on join)
   useEffect(() => {
     const e = game?.emote
@@ -444,10 +533,7 @@ export default function Game() {
     }
     if (!e || !e.ts || e.ts === prevEmoteTs.current) return
     prevEmoteTs.current = e.ts
-    setFloatEmote(e)
-    sounds.join()
-    const t = setTimeout(() => setFloatEmote(null), 2000)
-    return () => clearTimeout(t)
+    pushEmote(e)
   }, [game?.emote?.ts])
 
   // A fresh snapshot means React state has caught up with the last write —
@@ -784,8 +870,16 @@ export default function Game() {
 
   const sendEmote = async (glyph) => {
     if (!mySymbol.current) return
+    const now = Date.now()
+    if (now < emoteReadyAt.current) return
+    emoteReadyAt.current = now + 600
+    setEmoteCooldown(true)
+    setTimeout(() => setEmoteCooldown(false), 600)
+
+    prevEmoteTs.current = now
+    pushEmote({ by: mySymbol.current, glyph, ts: now })
     try {
-      await update(ref(db, `games/${gameId}`), { emote: { by: mySymbol.current, glyph, ts: Date.now() } })
+      await update(ref(db, `games/${gameId}`), { emote: { by: mySymbol.current, glyph, ts: now } })
     } catch { /* ignore */ }
   }
 
@@ -900,13 +994,7 @@ export default function Game() {
         {showRules && (
           <RulesModal gameType={game.gameType} onClose={() => setShowRules(false)} />
         )}
-        {floatEmote && (
-          <div className="fixed inset-x-0 top-1/3 z-50 pointer-events-none flex justify-center">
-            <div className="text-6xl" style={{ animation: 'emote-float 2s ease-out forwards' }}>
-              {floatEmote.glyph}
-            </div>
-          </div>
-        )}
+        {floats.length > 0 && <EmoteFloats floats={floats} />}
         <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
           <div className="flex items-center justify-between">
             <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors">← HOME</Link>
@@ -965,7 +1053,10 @@ export default function Game() {
                   key={g}
                   onClick={() => sendEmote(g)}
                   aria-label={`Send ${g} reaction`}
-                  className="w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all"
+                  className={cn(
+                    'w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all',
+                    emoteCooldown && 'opacity-50'
+                  )}
                 >
                   {g}
                 </button>
@@ -1012,13 +1103,7 @@ export default function Game() {
         <RulesModal gameType={game.gameType} onClose={() => setShowRules(false)} />
       )}
 
-      {floatEmote && (
-        <div className="fixed inset-x-0 top-1/3 z-50 pointer-events-none flex justify-center">
-          <div className="text-6xl" style={{ animation: 'emote-float 2s ease-out forwards' }}>
-            {floatEmote.glyph}
-          </div>
-        </div>
-      )}
+      {floats.length > 0 && <EmoteFloats floats={floats} />}
 
       <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
         {/* Header */}
@@ -1355,7 +1440,10 @@ export default function Game() {
                 key={g}
                 onClick={() => sendEmote(g)}
                 aria-label={`Send ${g} reaction`}
-                className="w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all"
+                className={cn(
+                  'w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all',
+                  emoteCooldown && 'opacity-50'
+                )}
               >
                 {g}
               </button>

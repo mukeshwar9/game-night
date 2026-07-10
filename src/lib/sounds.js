@@ -72,6 +72,8 @@ export const sounds = {
   draw:  ()    => { seq([[392, 0, 0.14], [392, 0.18, 0.14, 'triangle', 0.07]]); vibrate([0, 30, 40, 30]) },
   drop:  ()    => { seq([[70, 0, 0.06, 'square', 0.17], [45, 0.04, 0.32, 'sawtooth', 0.15]]); vibrate(35) },
   bell:  ()    => seq([[98, 0, 1.8, 'sine', 0.16], [196, 0, 1.4, 'sine', 0.08]]),
+  // Soft two-note pop for emoji reactions
+  emote: () => { seq([[660, 0, 0.05, 'sine', 0.1], [990, 0.05, 0.07, 'sine', 0.08]]); vibrate(8) },
   isMuted: ()  => _muted,
   toggle() {
     _muted = !_muted
