@@ -18,4 +18,18 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // Firebase Cloud Functions: plain Node CommonJS, not part of the Vite/browser app.
+    files: ['functions/**/*.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
+    // Vite config runs under Node during the build; Vite's config loader shims __dirname.
+    files: ['vite.config.js'],
+    languageOptions: {
+      globals: { __dirname: 'readonly' },
+    },
+  },
 ])

@@ -3,9 +3,9 @@ import {
   createState, step, computeAI, getWinner,
   WIN_SCORE, BALL_R, PADDLE_H, BALL_MAX_SPEED, X_FACE, O_FACE,
   SERVE_DELAY, SERVE_SPEED, SPIN_TRANSFER, OFFSET_SPIN, SPIN_DECAY_RATE,
-  PICKUP_SIZE, PICKUP_FIRST_AT, PICKUP_RESPAWN,
-  EFFECT_GROW, EFFECT_SHRINK, EFFECT_SLOW,
-  GROW_MULT, SHRINK_MULT, SLOW_MULT,
+  PICKUP_FIRST_AT,
+  EFFECT_GROW, EFFECT_SLOW,
+  SLOW_MULT,
 } from './pongLogic'
 
 const speed = ({ vx, vy }) => Math.hypot(vx, vy)
@@ -308,6 +308,7 @@ describe('step — power-ups', () => {
       s = step(s, { X: computeAI(s, 'X'), O: computeAI(s, 'O') }, 1 / 120).state
     }
     expect(s.pickups.length).toBeLessThanOrEqual(1)
+    expect(s.pickupSeq).toBe(seqBefore)
   })
 
   it('grow pickup grows the last hitter and expires', () => {

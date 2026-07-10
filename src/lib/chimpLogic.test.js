@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeChimpLayout, applyChimpMove, CHIMP_GRID, CHIMP_START_LEVEL } from './chimpLogic'
+import { normalizeChimpLayout, applyChimpMove, CHIMP_GRID } from './chimpLogic'
 
 describe('normalizeChimpLayout', () => {
   it('returns [] for null', () => expect(normalizeChimpLayout(null)).toEqual([]))

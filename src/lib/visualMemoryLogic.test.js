@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeVmArray, applyVmMove, VM_GRID, VM_START_LEVEL } from './visualMemoryLogic'
+import { normalizeVmArray, applyVmMove, VM_GRID } from './visualMemoryLogic'
 
 describe('normalizeVmArray', () => {
   it('returns [] for null', () => expect(normalizeVmArray(null)).toEqual([]))
