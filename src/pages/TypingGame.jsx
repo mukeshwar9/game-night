@@ -218,7 +218,7 @@ export default function TypingGame({
             </div>
           )}
         </div>
-        {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )
   }
@@ -310,7 +310,7 @@ export default function TypingGame({
           OPPONENT DISCONNECTED
         </p>
       )}
-      {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>
   )
 }

@@ -219,7 +219,7 @@ export default function ChimpGame({
           CLAIM ROUND — OPPONENT IDLE
         </button>
       )}
-      {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>
   )
 }

@@ -346,7 +346,7 @@ export default function MathGame({
             <ScoreBar game={game} myKey="X" opKey="O" players={game.players} />
           )}
         </div>
-        {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )
   }
@@ -371,7 +371,7 @@ export default function MathGame({
             START
           </button>
         </div>
-        {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )
   }
@@ -499,7 +499,7 @@ export default function MathGame({
       {/* Number pad */}
       <NumberPad onKey={handleKey} disabled={answered || !isPlaying} />
 
-      {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>
   )
 }

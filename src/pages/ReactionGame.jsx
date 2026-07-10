@@ -226,7 +226,7 @@ export default function ReactionGame({
             </p>
           </div>
         </div>
-        {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )
   }
@@ -329,7 +329,7 @@ export default function ReactionGame({
           OPPONENT DISCONNECTED
         </p>
       )}
-      {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>
   )
 }

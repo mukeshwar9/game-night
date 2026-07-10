@@ -238,7 +238,7 @@ export default function AimTrainerGame({
             <p className="font-pixel text-[8px] text-retro-dim">WAITING TO START</p>
           )}
         </div>
-        {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )
   }
@@ -316,7 +316,7 @@ export default function AimTrainerGame({
           OPPONENT DISCONNECTED
         </p>
       )}
-      {!proposal && <GameSwitcher onSwitchGame={onSwitchGame} />}
+      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>
   )
 }

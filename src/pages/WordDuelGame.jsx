@@ -748,7 +748,7 @@ export default function WordDuelGame({
 
       {!matchWinner && !proposal && onSwitchGame && (
         <div className="mt-2">
-          <GameSwitcher currentType="wordduel" onSelect={onSwitchGame} />
+          <GameSwitcher currentType="wordduel" onSwitch={onSwitchGame} />
         </div>
       )}
     </div>
