@@ -94,6 +94,7 @@ export const GAME_TYPES = [
     desc: '9 boards', Icon: TicTacToeIcon,
     badge: 'U3', maxWidth: 'max-w-md',
     category: 'board',
+    addedAt: '2026-07-04',
     variantOf: 'tictactoe', variantLabel: 'ULTIMATE',
     variantBlurb: 'Nine tic-tac-toes in one. Your move sends your rival to the matching board. Win 3 boards in a row.',
     boardSize: UT_CELL_COUNT,
@@ -134,6 +135,7 @@ export const GAME_TYPES = [
     desc: '6 × 7 · pop', Icon: ConnectFourIcon,
     badge: 'C4P', maxWidth: 'max-w-md',
     category: 'board',
+    addedAt: '2026-07-04',
     variantOf: 'connectfour', variantLabel: 'POP OUT',
     variantBlurb: 'Classic Connect Four, but on your turn you can pop one of your own bottom discs out — the whole column slides down.',
     boardSize: CF_BOARD_SIZE,
@@ -280,6 +282,7 @@ export const GAME_TYPES = [
     desc: 'light cycles', Icon: TronIcon,
     badge: 'TR', maxWidth: 'max-w-md',
     category: 'reflex',
+    addedAt: '2026-07-04',
     custom: true, realtime: true,
   },
   {
@@ -287,6 +290,7 @@ export const GAME_TYPES = [
     desc: 'shove off', Icon: SumoIcon,
     badge: 'SM', maxWidth: 'max-w-md',
     category: 'reflex',
+    addedAt: '2026-07-04',
     custom: true, realtime: true,
   },
   {
@@ -294,6 +298,7 @@ export const GAME_TYPES = [
     desc: 'asteroids fight', Icon: SpaceDuelIcon,
     badge: 'SD', maxWidth: 'max-w-md',
     category: 'reflex',
+    addedAt: '2026-07-04',
     custom: true, realtime: true,
   },
   {
@@ -345,6 +350,7 @@ export const GAME_TYPES = [
     desc: '6 × 8', Icon: ChainReactionIcon,
     badge: 'CR', maxWidth: 'max-w-xs',
     category: 'board',
+    addedAt: '2026-07-04',
     boardSize: CR_CELL_COUNT,
     getMoveIndex: (_board, index) => {
       if (index < 0 || index >= CR_CELL_COUNT) return -1
@@ -447,9 +453,18 @@ export const GAME_TYPES = [
     desc: 'Wordle-style race', Icon: WordDuelIcon,
     badge: 'WD', maxWidth: 'max-w-sm',
     category: 'word',
+    addedAt: '2026-07-04',
     custom: true,
   },
 ]
+
+const NEW_BADGE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000
+
+export const isNewGame = (entry, now = new Date()) => {
+  if (!entry?.addedAt) return false
+  const addedAt = new Date(entry.addedAt)
+  return now.getTime() - addedAt.getTime() <= NEW_BADGE_WINDOW_MS
+}
 
 export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
 

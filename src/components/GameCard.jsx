@@ -1,4 +1,4 @@
-import { getPlayerTag, getGameConfig } from '../lib/games'
+import { getPlayerTag, getGameConfig, isNewGame } from '../lib/games'
 import { cn } from '@/lib/utils'
 import { RulesButton } from './RulesModal'
 
@@ -12,6 +12,7 @@ export default function GameCard({ game, onTap, onRules, loadingType, disabled }
   const desc = variantOf ? (game.variantBlurb || game.desc) : game.desc
   const Icon = variantOf ? (base?.Icon || game.Icon) : game.Icon
   const hasVariants = !!game.hasVariants
+  const isNew = isNewGame(game)
 
   return (
     <div className="relative">
@@ -48,6 +49,9 @@ export default function GameCard({ game, onTap, onRules, loadingType, disabled }
         )}
         {hasVariants && (
           <span className="absolute bottom-1 left-1 font-pixel text-[6px] text-retro-cta/80 tracking-wider">+MODES</span>
+        )}
+        {isNew && (
+          <span className="absolute top-1 left-1 font-pixel text-[6px] text-retro-win tracking-wider">NEW</span>
         )}
       </button>
       <RulesButton
