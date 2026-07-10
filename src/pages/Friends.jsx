@@ -8,6 +8,7 @@ import {
   acceptRequest, declineRequest, removeFriend,
   subscribeFriends, subscribeRequests, subscribeProfile,
 } from '../lib/social'
+import { fetchFriendsLeaderboard, rankEntries } from '../lib/leaderboard'
 
 const REQUEST_ERRORS = {
   invalid: 'That code looks wrong — 6 characters.',
@@ -17,12 +18,13 @@ const REQUEST_ERRORS = {
 }
 
 export default function Friends() {
-  const { profile } = useAuth()
+  const { profile, uid } = useAuth()
   const [codeInput, setCodeInput] = useState('')
   const [sending, setSending] = useState(false)
   const [friendUids, setFriendUids] = useState([])
   const [requests, setRequests] = useState([])
   const [profiles, setProfiles] = useState({})
+  const [leaderboard, setLeaderboard] = useState(null)
 
   useEffect(() => subscribeFriends(list => setFriendUids(list.map(f => f.uid))), [])
   useEffect(() => subscribeRequests(setRequests), [])
@@ -34,6 +36,25 @@ export default function Friends() {
     const unsubs = uids.map(uid => subscribeProfile(uid, p => setProfiles(prev => ({ ...prev, [uid]: p }))))
     return () => unsubs.forEach(u => u())
   }, [friendKey])
+
+  // One-shot leaderboard fetch (no live subscription) on mount + whenever the
+  // friend list changes.
+  useEffect(() => {
+    if (!friendKey) return
+    let cancelled = false
+    fetchFriendsLeaderboard(friendKey.split(',')).then(entries => {
+      if (!cancelled) setLeaderboard(entries)
+    })
+    return () => { cancelled = true }
+  }, [friendKey])
+
+  const rankedLeaderboard = leaderboard
+    ? rankEntries(leaderboard).map(entry => {
+      const p = entry.uid === uid ? profile : profiles[entry.uid]
+      return { ...entry, isMe: entry.uid === uid, displayName: p?.displayName, avatar: p?.avatar }
+    })
+    : null
+  const leaderboardAllZero = rankedLeaderboard?.every(e => e.games === 0) ?? false
 
   const sendRequest = async () => {
     const code = normalizeFriendCode(codeInput)
@@ -171,6 +192,43 @@ export default function Friends() {
             </div>
           )}
         </div>
+
+        {/* Leaderboard */}
+        {friendUids.length > 0 && (
+          <div className="space-y-2">
+            <label className="font-pixel text-[10px] text-retro-dim tracking-wider">LEADERBOARD</label>
+            {!rankedLeaderboard ? (
+              <p className="font-mono text-xs text-retro-dim bg-retro-card border border-retro-border rounded p-3">
+                Loading…
+              </p>
+            ) : leaderboardAllZero ? (
+              <p className="font-mono text-xs text-retro-dim bg-retro-card border border-retro-border rounded p-3">
+                Stats appear as you and your friends finish matches.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {rankedLeaderboard.map(e => (
+                  <div
+                    key={e.uid}
+                    className={`flex items-center gap-3 bg-retro-card border rounded p-2.5 ${e.isMe ? 'border-retro-cta' : 'border-retro-border'}`}
+                  >
+                    <span className="font-pixel text-[11px] text-retro-dim w-4 text-center shrink-0">{e.rank}</span>
+                    <Avatar id={e.avatar} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-sm text-retro-text truncate">
+                        {e.displayName || '…'}{e.isMe ? ' (you)' : ''}
+                      </p>
+                      <p className="font-pixel text-[8px] text-retro-dim">{e.wins}W-{e.losses}L</p>
+                    </div>
+                    <span className="font-pixel text-[10px] text-retro-win text-glow-win">
+                      {e.games > 0 ? `${Math.round((e.wins / e.games) * 100)}%` : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       </div>
     </div>
