@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import ArcadeLoader from '@/components/ArcadeLoader'
 import { authReady, onUser, upgradeWithGoogle, signOutToGuest as signOutToGuestFn } from './auth'
-import { ensureProfile, subscribeProfile, setupPresence } from './social'
+import {
+  ensureProfile, subscribeProfile, setupPresence, subscribeInvites, subscribeRequests,
+} from './social'
 
 const AuthContext = createContext(null)
 
@@ -18,6 +20,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [booted, setBooted] = useState(false)
+  const [invites, setInvites] = useState([])
+  const [requestCount, setRequestCount] = useState(0)
   const uid = user?.uid ?? null
 
   // Boot: kick anonymous sign-in (if needed) and track auth state.
@@ -36,6 +40,8 @@ export function AuthProvider({ children }) {
     let cancelled = false
     let unsubProfile = () => {}
     let unsubPresence = () => {}
+    let unsubInvites = () => {}
+    let unsubRequests = () => {}
     ;(async () => {
       // Tolerate auth providers / DB rules not being set up yet — the app still
       // works as a guest (getPlayerId falls back to a local id).
@@ -43,8 +49,14 @@ export function AuthProvider({ children }) {
       if (cancelled) return
       unsubProfile = subscribeProfile(uid, p => { if (!cancelled) setProfile(p) })
       unsubPresence = setupPresence(uid)
+      unsubInvites = subscribeInvites(list => { if (!cancelled) setInvites(list) })
+      unsubRequests = subscribeRequests(list => { if (!cancelled) setRequestCount(list.length) })
     })()
-    return () => { cancelled = true; unsubProfile(); unsubPresence() }
+    return () => {
+      cancelled = true
+      unsubProfile(); unsubPresence(); unsubInvites(); unsubRequests()
+      setInvites([]); setRequestCount(0)
+    }
   }, [uid])
 
   const upgrade = async () => {
@@ -64,6 +76,8 @@ export function AuthProvider({ children }) {
     user,
     profile: uid ? profile : null,
     isAnonymous: user?.isAnonymous ?? true,
+    invites,
+    requestCount,
     upgrade,
     signOutToGuest,
   }

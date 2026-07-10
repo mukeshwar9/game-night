@@ -7,6 +7,7 @@ import Profile from './pages/Profile';
 import Friends from './pages/Friends';
 import { Toaster } from './components/ui/sonner';
 import UpdatePrompt from './components/UpdatePrompt';
+import InviteToasts from './components/InviteToasts';
 import { AuthProvider } from './lib/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/friends" element={<Friends />} />
           </Routes>
           <Toaster />
+          <InviteToasts />
           <UpdatePrompt />
         </BrowserRouter>
       </AuthProvider>

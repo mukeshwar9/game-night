@@ -11,6 +11,7 @@ import ArcadeLoader from '@/components/ArcadeLoader'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
+import InviteFriendModal from '../components/InviteFriendModal'
 import WinEffect from '../components/WinEffect'
 import HangmanGame from './HangmanGame'
 import NumberMemoryGame from './NumberMemoryGame'
@@ -109,6 +110,7 @@ export default function Game() {
   const emoteInit = useRef(false)
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const [showRules, setShowRules] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
   const [needName, setNeedName] = useState(false)
   const [nameVersion, setNameVersion] = useState(0)
   const [nameInput, setNameInput] = useState('')
@@ -786,6 +788,18 @@ export default function Game() {
               {amSeated && game.status !== 'waiting' && (
                 <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => applySwitchGame(t)} />
               )}
+              {amSeated && (
+                <button
+                  onClick={() => setShowInvite(true)}
+                  title="Invite a friend"
+                  aria-label="Invite a friend"
+                  className="text-retro-dim hover:text-retro-text transition-colors p-1 rounded"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
+                  </svg>
+                </button>
+              )}
               <button
                 onClick={toggleMute}
                 title={muted ? 'Unmute sounds' : 'Mute sounds'}
@@ -831,6 +845,9 @@ export default function Game() {
             </div>
           )}
         </div>
+        {showInvite && (
+          <InviteFriendModal gameId={gameId} gameType={game.gameType} onClose={() => setShowInvite(false)} />
+        )}
       </div>
     )
   }
@@ -885,6 +902,18 @@ export default function Game() {
             <RulesButton onClick={() => setShowRules(true)} />
             {!isSpectator && game.status !== 'waiting' && !activeProposal && (
               <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => propose('switch', t)} />
+            )}
+            {!isSpectator && (
+              <button
+                onClick={() => setShowInvite(true)}
+                title="Invite a friend"
+                aria-label="Invite a friend"
+                className="text-retro-dim hover:text-retro-text transition-colors p-1 rounded"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
+                </svg>
+              </button>
             )}
             <button
               onClick={toggleMute}
@@ -1166,6 +1195,9 @@ export default function Game() {
           </div>
         )}
       </div>
+      {showInvite && (
+        <InviteFriendModal gameId={gameId} gameType={game.gameType} onClose={() => setShowInvite(false)} />
+      )}
     </div>
   )
 }
