@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
@@ -12,54 +12,37 @@ import GamePicker from '../components/GamePicker'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import Avatar from '../components/Avatar'
 import Onboarding from '../components/Onboarding'
+import DailyTile from '../components/DailyTile'
+import ContinuePlaying from '../components/ContinuePlaying'
+import RecentlyPlayed from '../components/RecentlyPlayed'
 import { useAuth } from '../lib/AuthContext'
-import { setProfile, subscribeRequests, subscribeInvites, dismissInvite } from '../lib/social'
+import { dismissInvite } from '../lib/social'
 import { defaultAvatarForId } from '../lib/avatars'
 import { checkShouldOnboard } from '../lib/onboarding'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
+const getPlayerName = (profile) => profile?.displayName || localStorage.getItem('playerName') || ''
+
 export default function Home() {
   const navigate = useNavigate()
-  const [name, setName] = useState(() => localStorage.getItem('playerName') || '')
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(null)
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const { canInstall, install } = useInstallPrompt()
-  const nameRef = useRef(null)
-  const rooms = useMemo(() => getRooms(), [])
   const stats = useMemo(() => getStats(), [])
   const [isNewVisitor] = useState(() => !localStorage.getItem('playerName') && getRooms().length === 0)
   const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
   const [howItWorksDismissed, setHowItWorksDismissed] = useState(false)
-  const { profile } = useAuth()
-  const [requestCount, setRequestCount] = useState(0)
-  const [invites, setInvites] = useState([])
-
-  useEffect(() => subscribeRequests(list => setRequestCount(list.length)), [])
-  useEffect(() => subscribeInvites(setInvites), [])
+  const { profile, invites, requestCount } = useAuth()
 
   const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
 
   const toggleMute = () => setMuted(sounds.toggle())
 
-  const rejoin = (id) => { if (saveName()) navigate(`/game/${id}`) }
-
-  const saveName = () => {
-    const trimmed = name.trim()
-    if (!trimmed) {
-      toast.error('ENTER YOUR NAME FIRST')
-      nameRef.current?.focus()
-      return null
-    }
-    localStorage.setItem('playerName', trimmed)
-    if (trimmed !== profile?.displayName) setProfile({ displayName: trimmed })
-    return trimmed
-  }
-
   const createGame = async (gameType) => {
-    const playerName = saveName()
-    if (!playerName) return
+    const playerName = getPlayerName(profile)
+    if (!playerName) { setShowOnboarding(true); return }
     setLoading(gameType)
     try {
       const gameId = generateGameId()
@@ -101,8 +84,8 @@ export default function Home() {
   }
 
   const joinGame = () => {
-    const playerName = saveName()
-    if (!playerName) return
+    const playerName = getPlayerName(profile)
+    if (!playerName) { setShowOnboarding(true); return }
     const code = joinCode.trim().toUpperCase()
     if (!code) { toast.error('ENTER A GAME CODE'); return }
     navigate(`/game/${code}`)
@@ -112,7 +95,6 @@ export default function Home() {
   if (showOnboarding) return (
     <Onboarding onDone={() => {
       setShowOnboarding(false)
-      setName(localStorage.getItem('playerName') || '')
     }} />
   )
 
@@ -179,9 +161,9 @@ export default function Home() {
         </div>
       )}
 
-      <div className="w-full max-w-sm space-y-6">
+      <div className="w-full max-w-sm md:max-w-3xl lg:max-w-5xl space-y-6">
         {/* Logo */}
-        <div className="text-center space-y-3">
+        <div className="max-w-md mx-auto w-full text-center space-y-3">
           <div className="mx-auto w-14 h-14 border-2 border-retro-cta bg-retro-tint-cta rounded
             flex items-center justify-center shadow-neon-cta">
             <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
@@ -203,7 +185,7 @@ export default function Home() {
 
         {/* Pending game invites from friends */}
         {invites.length > 0 && (
-          <div className="space-y-2">
+          <div className="max-w-md mx-auto w-full space-y-2">
             {invites.map(inv => (
               <div key={inv.id} className="flex items-center gap-2.5 bg-retro-tint-cta border border-retro-cta/40 rounded p-2.5">
                 <Avatar id={inv.fromAvatar} size={32} />
@@ -231,9 +213,34 @@ export default function Home() {
           </div>
         )}
 
+        {/* Utility row — daily challenge + join by code */}
+        <div className="max-w-md mx-auto w-full flex gap-2">
+          <DailyTile />
+          <div className="flex-1 flex gap-2">
+            <input
+              type="text"
+              placeholder="JOIN CODE"
+              value={joinCode}
+              onChange={e => setJoinCode(e.target.value.toUpperCase())}
+              onKeyDown={e => e.key === 'Enter' && joinGame()}
+              maxLength={6}
+              className="flex-1 min-w-0 bg-retro-card border-2 border-retro-border text-retro-p1
+                font-pixel text-xs placeholder-retro-border rounded px-3 py-2
+                focus:outline-none focus:border-retro-p1 tracking-widest transition-colors"
+            />
+            <button
+              onClick={joinGame}
+              className="px-4 py-2 bg-retro-card border-2 border-retro-border text-retro-text
+                font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-colors active:scale-95"
+            >
+              JOIN
+            </button>
+          </div>
+        </div>
+
         {/* First-run HOW IT WORKS strip */}
         {isNewVisitor && !howItWorksDismissed && (
-          <div className="bg-retro-card border border-retro-border rounded p-3 relative">
+          <div className="max-w-md mx-auto w-full bg-retro-card border border-retro-border rounded p-3 relative">
             <button
               onClick={() => setHowItWorksDismissed(true)}
               aria-label="Dismiss"
@@ -269,85 +276,21 @@ export default function Home() {
           </div>
         )}
 
-        {/* Name input */}
-        <div className="space-y-1.5">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR NAME</label>
-          <input
-            ref={nameRef}
-            type="text"
-            placeholder="PLAYER ONE"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            maxLength={20}
-            autoFocus
-            className="w-full bg-retro-card border-2 border-retro-border text-retro-text
-              font-pixel text-xs tracking-widest placeholder-retro-border rounded px-4 py-3
-              focus:outline-none focus:border-retro-p1 transition-colors"
-          />
-        </div>
-
-        {/* Join game */}
-        <div className="space-y-1.5">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">JOIN A FRIEND</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="GAME CODE"
-              value={joinCode}
-              onChange={e => setJoinCode(e.target.value.toUpperCase())}
-              onKeyDown={e => e.key === 'Enter' && joinGame()}
-              maxLength={6}
-              className="flex-1 bg-retro-card border-2 border-retro-border text-retro-p1
-                font-pixel text-xs placeholder-retro-border rounded px-4 py-3
-                focus:outline-none focus:border-retro-p1 tracking-widest transition-colors"
-            />
-            <button
-              onClick={joinGame}
-              className="px-5 py-3 bg-retro-card border-2 border-retro-border text-retro-text
-                font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-colors active:scale-95"
-            >
-              JOIN
-            </button>
-          </div>
-        </div>
-
-        {/* Your rooms — one tap to return */}
-        {rooms.length > 0 && (
-          <div className="space-y-1.5">
-            <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR ROOMS</label>
-            <div className="space-y-1.5">
-              {rooms.map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => rejoin(r.id)}
-                  className="w-full flex items-center justify-between bg-retro-card border border-retro-border rounded px-3 py-2.5 hover:border-retro-p1/50 transition-colors active:scale-[0.99]"
-                >
-                  <span className="font-pixel text-[11px] text-retro-p1 text-glow-p1 tracking-widest">{r.id}</span>
-                  <span className="font-pixel text-[8px] text-retro-dim">{getGameConfig(r.gameType)?.label || 'GAME'} →</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-retro-border" />
-          <span className="font-pixel text-[9px] text-retro-border">OR START NEW</span>
-          <div className="flex-1 h-px bg-retro-border" />
-        </div>
+        <ContinuePlaying />
 
         {/* Game selection */}
         <div className="space-y-1.5">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">SELECT GAME</label>
-          <GamePicker onSelect={createGame} loadingType={loading} />
+          <label className="max-w-md mx-auto w-full block font-pixel text-[10px] text-retro-dim tracking-wider">SELECT GAME</label>
+          <GamePicker layout="full" onSelect={createGame} loadingType={loading} />
         </div>
+
+        <RecentlyPlayed onSelect={createGame} loadingType={loading} />
 
         {/* Solo play CTA — visible to everyone, especially useful before a friend joins */}
         <Link
           to="/demo"
           className={cn(
-            'w-full flex items-center justify-center gap-2 py-3 rounded',
+            'max-w-md mx-auto w-full flex items-center justify-center gap-2 py-3 rounded',
             'border-2 border-retro-p1/40 bg-retro-card text-retro-p1',
             'font-pixel text-[10px] tracking-widest',
             'hover:border-retro-p1/70 hover:shadow-neon-p1 hover:bg-retro-tint-p1',
@@ -359,7 +302,7 @@ export default function Home() {
 
         {/* Your stats — local, no login */}
         {stats && stats.games > 0 && (
-          <div className="space-y-1.5">
+          <div className="max-w-md mx-auto w-full space-y-1.5">
             <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR STATS</label>
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
@@ -380,7 +323,7 @@ export default function Home() {
         {canInstall && (
           <button
             onClick={install}
-            className="w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30
+            className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30
               bg-retro-card text-retro-p1 font-pixel text-[10px] rounded
               hover:border-retro-p1/60 hover:shadow-neon-p1 transition-all active:scale-95"
           >
