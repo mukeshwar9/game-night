@@ -7,6 +7,7 @@ import { freshGameState, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
+import { recordPlay } from '../lib/analytics'
 import ArcadeLoader from '@/components/ArcadeLoader'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
@@ -114,6 +115,8 @@ export default function Game() {
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const [showRules, setShowRules] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
+  const [showAbandonBanner, setShowAbandonBanner] = useState(false)
+  const [claimingWin, setClaimingWin] = useState(false)
   const [needName, setNeedName] = useState(false)
   const [nameVersion, setNameVersion] = useState(0)
   const [nameInput, setNameInput] = useState('')
@@ -130,6 +133,7 @@ export default function Game() {
   const nPlayerCleanup = useRef(null)
   const moveInFlight = useRef(false)
   const spectatorToastShown = useRef(false)
+  const abandonTimerRef = useRef(null)
 
   // Firebase init: join room, set up listeners, set up presence
   useEffect(() => {
@@ -461,6 +465,29 @@ export default function Game() {
     }
   }, [game])
 
+  // Abandoned-opponent recovery (F-23) — after 120s of CONTINUOUS opponent
+  // offline time in a standard 2P turn-based round, offer claim-win / invite
+  // / go-home instead of leaving the board interactive forever. Restarts the
+  // window (not cumulative) on any presence flap, and clears on every
+  // status/gameType change (round end, rematch, switch) so it never fires stale.
+  useEffect(() => {
+    if (abandonTimerRef.current) { clearTimeout(abandonTimerRef.current); abandonTimerRef.current = null }
+    setShowAbandonBanner(false)
+
+    if (!game || !mySymbol.current) return
+    const gcfg = getGameConfig(game.gameType)
+    if (gcfg.nPlayer || gcfg.custom) return
+    if (game.status !== 'playing') return
+    const opSym = mySymbol.current === 'X' ? 'O' : 'X'
+    if (!game.players?.[opSym]) return
+    if (opponentOnline) return
+
+    abandonTimerRef.current = setTimeout(() => setShowAbandonBanner(true), 120_000)
+    return () => {
+      if (abandonTimerRef.current) { clearTimeout(abandonTimerRef.current); abandonTimerRef.current = null }
+    }
+  }, [game?.gameType, game?.status, opponentOnline, !!game?.players?.X, !!game?.players?.O])
+
   // Pig anti-cheat: coin-flipping protocol to establish a shared deterministic
   // roll seed (see src/lib/diceLogic.js). X commits seedA, O contributes seedB,
   // X reveals seedA, both derive diceSeed. Runs only for gameType 'dice'.
@@ -618,6 +645,7 @@ export default function Game() {
     sessionStorage.removeItem(`hangwoman-word-${gameId}`)
     try {
       await update(ref(db, `games/${gameId}`), buildSwitchUpdates(game, newType))
+      recordPlay(newType, 'multi')
     } catch { toast.error('SWITCH FAILED — CHECK CONNECTION') }
   }
 
@@ -677,6 +705,35 @@ export default function Game() {
     } catch { toast.error('CANCEL FAILED — CHECK CONNECTION') }
   }
 
+  // F-23 claim-win — same finish shape as a normal round win (winner + score
+  // bump on the standard `games/{id}` node), so the existing win-effect/
+  // recordMatch machinery fires on both clients unmodified. Wrapped in a
+  // transaction that re-reads status/presence server-side so a last-second
+  // reconnect-and-move from the opponent can't be clobbered.
+  const claimAbandonedWin = async () => {
+    if (!game || !mySymbol.current || claimingWin) return
+    const mySym = mySymbol.current
+    const opSym = mySym === 'X' ? 'O' : 'X'
+    setClaimingWin(true)
+    try {
+      const { committed } = await runTransaction(ref(db, `games/${gameId}`), cur => {
+        if (!cur || cur.status !== 'playing') return
+        const presenceOp = cur.presence?.[opSym]
+        const stillOffline = presenceOp && presenceOp.online === false
+        if (!stillOffline) return
+        return {
+          ...cur,
+          winner: mySym,
+          status: 'finished',
+          scores: { ...(cur.scores || {}), [mySym]: (cur.scores?.[mySym] || 0) + 1 },
+          lastActivityAt: Date.now(),
+        }
+      })
+      if (!committed) toast.error("COULDN'T CLAIM — OPPONENT MAY BE BACK")
+    } catch { toast.error('CLAIM FAILED — CHECK CONNECTION') }
+    finally { setClaimingWin(false) }
+  }
+
   // Create a fresh room of the given type (used by dead-end error screens and
   // the spectator "start your own room" CTA) — a trimmed replica of Home.jsx's
   // createGame, since Home.jsx is off-limits to import from here.
@@ -710,6 +767,7 @@ export default function Game() {
           ...freshGameState(gameType),
         }
       await dbSet(ref(db, `games/${newId}`), gameData)
+      recordPlay(gameType, 'multi')
       if (!cfg.nPlayer) {
         sessionStorage.setItem(`game-${newId}`, JSON.stringify({ symbol: 'X', name: playerName }))
       }
@@ -924,6 +982,7 @@ export default function Game() {
   const board = isCustom ? [] : normalizeBoard(game.board, cfg.boardSize)
   const winningLine = toArray(game.winningLine)
   const isSpectator = !mySymbol.current
+  const opSym = mySymbol.current === 'X' ? 'O' : 'X'
   const canMove = !isSpectator && game.status === 'playing' && game.currentTurn === mySymbol.current
 
   const scoreX = game.scores?.X || 0
@@ -1033,10 +1092,40 @@ export default function Game() {
         </div>
 
         {/* Disconnect warning (non-custom — hangwoman handles this inline) */}
-        {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && (
+        {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && !showAbandonBanner && (
           <p className="font-pixel text-[10px] text-retro-p2 text-center leading-relaxed animate-pulse">
             OPPONENT IS OFFLINE
           </p>
+        )}
+
+        {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline */}
+        {!isCustom && !isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
+          <div className="border-2 border-retro-p2/50 bg-retro-card rounded p-3 text-center space-y-2">
+            <p className="font-pixel text-[10px] text-retro-p2 leading-relaxed">
+              OPPONENT&apos;S BEEN GONE A WHILE
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                onClick={claimAbandonedWin}
+                disabled={claimingWin}
+                className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+              >
+                {claimingWin ? 'CLAIMING…' : 'CLAIM WIN'}
+              </button>
+              <button
+                onClick={() => setShowInvite(true)}
+                className="border border-retro-border text-retro-text font-pixel text-[10px] px-4 py-2 rounded hover:border-retro-p1/50 transition-all active:scale-95"
+              >
+                INVITE A FRIEND
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="border border-retro-border text-retro-dim font-pixel text-[10px] px-4 py-2 rounded hover:text-retro-text transition-all active:scale-95"
+              >
+                SAVE & GO HOME
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Proposal banner — shown for both standard and custom branches */}
