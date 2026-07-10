@@ -203,7 +203,7 @@ export default function ChimpGame({
       />
       {!opponentOnline && mySymbol && (
         <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">
-          OPPONENT DISCONNECTED
+          OPPONENT IS OFFLINE
         </p>
       )}
       {showClaimHint && (

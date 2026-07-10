@@ -228,7 +228,7 @@ export default function SumoGame({
       />
       <p className="text-center font-pixel text-[8px] text-retro-dim">SHRINKING PLATFORM · LAST ONE ON WINS · TAP TO PUSH</p>
       {!opponentOnline && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">OPPONENT DISCONNECTED</p>
+        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">OPPONENT IS OFFLINE</p>
       )}
       <div className="flex justify-center pt-1">
         <button

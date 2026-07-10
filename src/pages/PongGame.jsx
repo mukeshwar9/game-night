@@ -315,7 +315,7 @@ export default function PongGame({
       />
       <p className="text-center font-pixel text-[8px] text-retro-dim">FIRST TO {WIN_SCORE} POINTS · FIRST TO {matchTarget} ROUNDS WINS</p>
       {!opponentOnline && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">OPPONENT DISCONNECTED</p>
+        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">OPPONENT IS OFFLINE</p>
       )}
       {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>

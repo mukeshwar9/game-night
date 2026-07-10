@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ref, onValue, update, get, runTransaction, onDisconnect, set as dbSet } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
-import { normalizeBoard } from '../lib/gameLogic'
+import { normalizeBoard, generateGameId } from '../lib/gameLogic'
 import { freshGameState, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
@@ -98,9 +98,12 @@ function LoadingScreen() {
 
 export default function Game() {
   const { gameId } = useParams()
+  const navigate = useNavigate()
   const [game, setGame] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [errorGameType, setErrorGameType] = useState(null)
+  const [creatingRoom, setCreatingRoom] = useState(false)
   const [opponentOnline, setOpponentOnline] = useState(true)
   const [showWinEffect, setShowWinEffect] = useState(false)
   const [winEffectWinner, setWinEffectWinner] = useState(null)
@@ -126,6 +129,7 @@ export default function Game() {
   const prevProposal = useRef(null)
   const nPlayerCleanup = useRef(null)
   const moveInFlight = useRef(false)
+  const spectatorToastShown = useRef(false)
 
   // Firebase init: join room, set up listeners, set up presence
   useEffect(() => {
@@ -169,6 +173,7 @@ export default function Game() {
 
       const lastActive = data.lastActivityAt ?? data.createdAt
       if (lastActive && Date.now() - lastActive > GAME_TTL_MS) {
+        setErrorGameType(data.gameType || null)
         setError('THIS GAME HAS EXPIRED. CREATE A NEW ONE!')
         setLoading(false)
         return
@@ -446,6 +451,16 @@ export default function Game() {
     moveInFlight.current = false
   }, [game])
 
+  // One-time spectator notice — fires only once, when a full 2-seat room
+  // resolves us to a spectator (never for the never-seated-but-empty-room case).
+  useEffect(() => {
+    if (!game || spectatorToastShown.current) return
+    if (!mySymbol.current && game.players?.X && game.players?.O) {
+      spectatorToastShown.current = true
+      toast("ROOM'S FULL — YOU'RE SPECTATING")
+    }
+  }, [game])
+
   // Pig anti-cheat: coin-flipping protocol to establish a shared deterministic
   // roll seed (see src/lib/diceLogic.js). X commits seedA, O contributes seedB,
   // X reveals seedA, both derive diceSeed. Runs only for gameType 'dice'.
@@ -662,6 +677,50 @@ export default function Game() {
     } catch { toast.error('CANCEL FAILED — CHECK CONNECTION') }
   }
 
+  // Create a fresh room of the given type (used by dead-end error screens and
+  // the spectator "start your own room" CTA) — a trimmed replica of Home.jsx's
+  // createGame, since Home.jsx is off-limits to import from here.
+  const createNewRoom = async (gameType) => {
+    const playerName = localStorage.getItem('playerName')
+    if (!playerName) { navigate('/'); return }
+    const playerAvatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
+    setCreatingRoom(true)
+    try {
+      const newId = generateGameId()
+      const myId = getPlayerId()
+      const cfg = getGameConfig(gameType)
+      const now = Date.now()
+      const gameData = cfg.nPlayer
+        ? {
+          gameType,
+          status: 'waiting',
+          scores: {},
+          createdAt: now,
+          lastActivityAt: now,
+          players: { [myId]: { name: playerName, joinedAt: now, playerId: myId, online: true, avatar: playerAvatar } },
+          ...freshGameState(gameType),
+        }
+        : {
+          gameType,
+          status: 'waiting',
+          scores: { X: 0, O: 0 },
+          createdAt: now,
+          lastActivityAt: now,
+          players: { X: { name: playerName, joinedAt: now, playerId: myId, avatar: playerAvatar } },
+          ...freshGameState(gameType),
+        }
+      await dbSet(ref(db, `games/${newId}`), gameData)
+      if (!cfg.nPlayer) {
+        sessionStorage.setItem(`game-${newId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+      }
+      recordRoom({ id: newId, gameType })
+      navigate(`/game/${newId}`)
+    } catch {
+      toast.error('CONNECTION ERROR. TRY AGAIN.')
+      setCreatingRoom(false)
+    }
+  }
+
   const toggleMute = () => setMuted(sounds.toggle())
 
   const sendEmote = async (glyph) => {
@@ -717,9 +776,19 @@ export default function Game() {
   if (loading) return <LoadingScreen />
 
   if (error) {
+    const errorCfg = errorGameType ? getGameConfig(errorGameType) : null
     return (
       <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-5 p-4">
         <p className="font-pixel text-[10px] text-retro-p2 text-center max-w-xs leading-relaxed">{error}</p>
+        {errorCfg && (
+          <button
+            onClick={() => createNewRoom(errorGameType)}
+            disabled={creatingRoom}
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+          >
+            {creatingRoom ? 'CREATING…' : `START A NEW ${errorCfg.label} ROOM`}
+          </button>
+        )}
         <Link to="/" className="font-pixel text-[10px] text-retro-p1 text-glow-p1 hover:opacity-80 transition-opacity">
           ← BACK TO HOME
         </Link>
@@ -966,7 +1035,7 @@ export default function Game() {
         {/* Disconnect warning (non-custom — hangwoman handles this inline) */}
         {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && (
           <p className="font-pixel text-[10px] text-retro-p2 text-center leading-relaxed animate-pulse">
-            OPPONENT DISCONNECTED
+            OPPONENT IS OFFLINE
           </p>
         )}
 
@@ -1176,7 +1245,16 @@ export default function Game() {
         )}
 
         {!isCustom && isSpectator && game.status === 'playing' && (
-          <p className="text-center font-pixel text-[10px] text-retro-border">SPECTATING</p>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-center font-pixel text-[10px] text-retro-border">SPECTATING</p>
+            <button
+              onClick={() => createNewRoom(game.gameType)}
+              disabled={creatingRoom}
+              className="px-4 py-2 border-2 border-retro-border text-retro-text font-pixel text-[9px] rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {creatingRoom ? 'CREATING…' : `START YOUR OWN ${cfg.label} ROOM`}
+            </button>
+          </div>
         )}
 
         {/* Emote / reaction bar — players only, once the room is live */}
