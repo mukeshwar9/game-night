@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import ThemeSwitcher from '../components/ThemeSwitcher'
+import NavBar from '../components/NavBar'
 import Avatar from '../components/Avatar'
 import AvatarCustomizer from '../components/AvatarCustomizer'
 import { canonicalAvatar } from '../lib/avatars'
@@ -67,16 +67,10 @@ export default function Profile() {
   const vs = stats?.vs ? Object.entries(stats.vs) : []
 
   return (
-    <div className="min-h-screen bg-retro-bg p-4">
-      <div className="fixed top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-10">
-        <ThemeSwitcher />
-      </div>
-
+    <div className="min-h-screen bg-retro-bg">
+      <NavBar />
+      <div className="p-4">
       <div className="w-full max-w-sm mx-auto space-y-6 pt-2">
-        <Link to="/" className="inline-block font-pixel text-[10px] text-retro-dim hover:text-retro-text transition-colors">
-          ← HOME
-        </Link>
-
         <h1 className="font-pixel text-base text-retro-cta text-glow-cta">PROFILE</h1>
 
         {/* Identity card */}
@@ -223,6 +217,7 @@ export default function Profile() {
           </>
           )}
         </div>
+      </div>
       </div>
     </div>
   )

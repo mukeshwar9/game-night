@@ -37,7 +37,7 @@ import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import ThemeSwitcher from '../components/ThemeSwitcher';
+import NavBar from '../components/NavBar';
 import TronDemo from './TronDemo';
 import SumoDemo from './SumoDemo';
 import SpaceduelDemo from './SpaceduelDemo';
@@ -1903,19 +1903,14 @@ export default function Demo() {
   const shown = DEMOS.filter(d => getGameConfig(d.type)?.category === activeCat)
 
   return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-5">
-      <div className="w-full max-w-sm space-y-5">
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <NavBar />
+      <div className="w-full max-w-sm space-y-5 p-4 pt-5">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors">
-            ← HOME
-          </Link>
-          <div className="flex items-center gap-2">
-            <ThemeSwitcher />
-            <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">
-              Demo
-            </span>
-          </div>
+        <div className="flex items-center justify-end">
+          <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">
+            Demo
+          </span>
         </div>
 
         {/* Game picker */}

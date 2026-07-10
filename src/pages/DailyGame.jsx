@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import NumberPad from '../components/NumberPad'
-import ThemeSwitcher from '../components/ThemeSwitcher'
+import NavBar from '../components/NavBar'
 import { generateQuestion } from '../lib/mathLogic'
 import { sounds } from '../lib/sounds'
 import { todayKey, seedFromDate, readBest, writeBest, getDailyNumber, bumpStreak } from '../lib/daily'
@@ -32,15 +31,12 @@ export default function DailyGame() {
   const [timeLeft, setTimeLeft] = useState(DAILY_MS)
   const [best, setBest] = useState(() => readBest(todayKey()))
   const [dayStreak, setDayStreak] = useState(0)
-  const [muted, setMuted] = useState(() => sounds.isMuted())
 
   const fbTimer = useRef(null)
   const correctRef = useRef(0)   // mirrors `correct` so the timer reads the final value
   const playedToday = best != null
 
   const q = generateQuestion(seed, qIndex)
-
-  const toggleMute = () => setMuted(sounds.toggle())
 
   const start = () => {
     correctRef.current = 0
@@ -132,32 +128,9 @@ export default function DailyGame() {
   // ── render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 relative">
-      {/* Controls — fixed top-right */}
-      <div className="fixed top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-10 flex gap-2">
-        <ThemeSwitcher />
-        <button
-          onClick={toggleMute}
-          title={muted ? 'Unmute sounds' : 'Mute sounds'}
-          className="text-retro-dim hover:text-retro-text transition-colors p-2 rounded border border-retro-border bg-retro-card"
-        >
-          {muted ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Unmute">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-              <line x1="23" y1="9" x2="17" y2="15"/>
-              <line x1="17" y1="9" x2="23" y2="15"/>
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Mute">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-            </svg>
-          )}
-        </button>
-      </div>
-
-      <div className="w-full max-w-sm space-y-6 mt-16">
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <NavBar />
+      <div className="w-full max-w-sm space-y-6 p-4">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="font-pixel text-lg text-retro-cta text-glow-cta leading-relaxed">
@@ -194,12 +167,6 @@ export default function DailyGame() {
                 </p>
               )}
             </div>
-            <Link
-              to="/"
-              className="block text-center font-mono text-xs text-retro-dim hover:text-retro-p1 transition-colors"
-            >
-              ← BACK TO HOME
-            </Link>
           </div>
         )}
 
@@ -299,13 +266,6 @@ export default function DailyGame() {
             >
               REPLAY (JUST FOR FUN)
             </button>
-
-            <Link
-              to="/"
-              className="block text-center font-mono text-xs text-retro-dim hover:text-retro-p1 transition-colors"
-            >
-              ← BACK TO HOME
-            </Link>
           </div>
         )}
       </div>
