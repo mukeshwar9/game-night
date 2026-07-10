@@ -12,13 +12,21 @@ export function shouldShowOnboarding({ onboarded, playerName, roomsCount }) {
   return true
 }
 
+// Impure: reads the persisted "has completed onboarding" flag.
+export function hasOnboarded() {
+  try {
+    return !!localStorage.getItem('onboarded')
+  } catch {
+    return false
+  }
+}
+
 // Impure: reads localStorage and the local rooms list.
 export function checkShouldOnboard() {
   try {
-    const onboarded = localStorage.getItem('onboarded')
     const playerName = localStorage.getItem('playerName')
     const roomsCount = getRooms().length
-    return shouldShowOnboarding({ onboarded, playerName, roomsCount })
+    return shouldShowOnboarding({ onboarded: hasOnboarded(), playerName, roomsCount })
   } catch {
     return false
   }

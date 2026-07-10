@@ -19,7 +19,7 @@ import RecentlyPlayed from '../components/RecentlyPlayed'
 import { useAuth } from '../lib/AuthContext'
 import { dismissInvite } from '../lib/social'
 import { defaultAvatarForId } from '../lib/avatars'
-import { checkShouldOnboard } from '../lib/onboarding'
+import { checkShouldOnboard, hasOnboarded } from '../lib/onboarding'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -34,7 +34,8 @@ export default function Home() {
   const stats = useMemo(() => getStats(), [])
   const [isNewVisitor] = useState(() => !localStorage.getItem('playerName') && getRooms().length === 0)
   const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
-  const [howItWorksDismissed, setHowItWorksDismissed] = useState(false)
+  const [onboarded, setOnboarded] = useState(() => hasOnboarded())
+  const [howItWorksDismissed, setHowItWorksDismissed] = useState(() => !!localStorage.getItem('gn-howitworks-dismissed'))
   const { profile, invites, requestCount, isAnonymous } = useAuth()
   const gameCount = useMemo(() => GAME_TYPES.filter(t => !t.variantOf).length, [])
   const [nudgeDismissed, setNudgeDismissed] = useState(() => {
@@ -51,6 +52,10 @@ export default function Home() {
   const dismissIosHint = () => {
     localStorage.setItem('gn-ios-install-dismissed', '1')
     setIosHintDismissed(true)
+  }
+  const dismissHowItWorks = () => {
+    localStorage.setItem('gn-howitworks-dismissed', '1')
+    setHowItWorksDismissed(true)
   }
 
   const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
@@ -112,6 +117,7 @@ export default function Home() {
   // Early return — after all hooks (hook-order safety).
   if (showOnboarding) return (
     <Onboarding onDone={() => {
+      setOnboarded(true)
       setShowOnboarding(false)
     }} />
   )
@@ -257,10 +263,10 @@ export default function Home() {
         </div>
 
         {/* First-run HOW IT WORKS strip */}
-        {isNewVisitor && !howItWorksDismissed && (
+        {isNewVisitor && !onboarded && !howItWorksDismissed && (
           <div className="max-w-md mx-auto w-full bg-retro-card border border-retro-border rounded p-3 relative">
             <button
-              onClick={() => setHowItWorksDismissed(true)}
+              onClick={dismissHowItWorks}
               aria-label="Dismiss"
               className="absolute top-2 right-2 text-retro-border hover:text-retro-dim transition-colors leading-none font-mono text-xs"
             >
