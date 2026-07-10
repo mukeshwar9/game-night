@@ -6,7 +6,7 @@ A comprehensive UX audit of the platform, performed July 2026 when the catalog s
 
 **Format per finding:** Severity (Critical/High/Medium/Low) · Priority (Quick Win / Medium Effort / Long-Term), where it occurs (with file pointers), why it hurts, the recommended fix, and expected impact.
 
-**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented; a second round landed the full quick-wins sweep — F-04, F-12, F-15, F-21, F-24, F-25, F-28, F-30, F-31, F-35, F-36, F-37; a third round landed F-10, F-22, and F-23 (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
+**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented; a second round landed the full quick-wins sweep — F-04, F-12, F-15, F-21, F-24, F-25, F-28, F-30, F-31, F-35, F-36, F-37; a third round landed F-10, F-22, and F-23; a fourth round landed F-09, F-27, F-32, and F-34 (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
 
 ---
 
@@ -28,7 +28,7 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-06 | One category visible at a time, no ALL view | High | Quick Win | ✅ Done |
 | F-07 | No recently-played; YOUR ROOMS speaks in room codes | High | Medium Effort | ✅ Done |
 | F-08 | Daily challenge orphaned (no link to /daily) | Critical | Quick Win | ✅ Done |
-| F-09 | No favorites/pinning | Medium | Medium Effort | Open |
+| F-09 | No favorites/pinning | Medium | Medium Effort | ✅ Done |
 | F-10 | No popularity data or instrumentation | Medium | Long-Term | ✅ Done |
 | F-11 | Desktop gets a 384px phone strip | High | Medium Effort | ✅ Done |
 | F-12 | Game count copy stale in 3 places (13 / 20+ / 29) | Low | Quick Win | ✅ Done |
@@ -46,14 +46,14 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-24 | Full room → silent spectatorship | Medium | Quick Win | ✅ Done |
 | F-25 | Error pages are dead ends | Medium | Quick Win | ✅ Done |
 | F-26 | Social features only work on the Home page | High | Medium Effort | ✅ Done |
-| F-27 | Round-advance CTAs diverge | Medium | Quick Win | Open |
+| F-27 | Round-advance CTAs diverge | Medium | Quick Win | ✅ Done |
 | F-28 | Disconnect copy: three phrasings | Low | Quick Win | ✅ Done |
 | F-29 | Spectator experience is three different products | Low-Medium | Medium Effort | Open |
 | F-30 | Word Duel end screen lacks SHARE | Low-Medium | Quick Win | ✅ Done |
 | F-31 | Empty states are inconsistent silence | Low | Quick Win | ✅ Done |
-| F-32 | Account pitch overpromises (stats don't sync) | Medium (trust) | Medium Effort | Open |
+| F-32 | Account pitch overpromises (stats don't sync) | Medium (trust) | Medium Effort | ✅ Done |
 | F-33 | The arcade has no real high scores | High | Long-Term | Open |
-| F-34 | Daily loop half-built | Medium | Medium Effort | Open |
+| F-34 | Daily loop half-built | Medium | Medium Effort | ✅ Done |
 | F-35 | Upgrade nudges: two touchpoints, zero context | Medium | Quick Win | ✅ Done |
 | F-36 | iOS users get no install path | Medium | Quick Win | ✅ Done |
 | F-37 | Two undersized tap targets | Low | Quick Win | ✅ Done |
@@ -175,6 +175,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Fix:** Heart/pin toggle on cards (localStorage or `users/{uid}` for cross-device); FAVORITES rail rendered first when non-empty.
 
 **Impact:** Repeat-play friction approaches zero for the games that matter to each user.
+
+**Status: ✅ Implemented (July 2026).** Heart toggle on catalog cards (localStorage `gn-favs`, 40px hit area, click never creates a room); the ALL view renders a ★ FAVORITES section ahead of the category sections. v1 is device-local; cross-device sync can adopt the users/{uid} pattern F-32 established.
 
 ### F-10 · Medium · Long-Term — No popularity/trending signal, and no instrumentation to ever build one
 
@@ -410,6 +412,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Fix:** Codify the rule — NEXT ROUND = continue keeping score; NEW MATCH = reset — and style the bespoke buttons identically to GameStatus's (shared classes or a shared button component).
 
+**Status: ✅ Implemented (July 2026).** WordDuel and Hangman end-screen buttons now use GameStatus's exact RetroButton/outline classes (primary = NEXT ROUND, secondary = NEW MATCH/CONCEDE/END/RESET ROUND). Behavior unchanged per the documented convention.
+
 ### F-28 · Low · Quick Win — Disconnect copy: three phrasings
 
 **Where:** "OPPONENT DISCONNECTED" (standard + Pong) / "OPPONENT IS OFFLINE" (WordDuel) / "WORD-KEEPER IS OFFLINE" (Hangman).
@@ -450,6 +454,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Impact:** Trust — the account upgrade's core promise currently breaks for the most visible progress artifact.
 
+**Status: ✅ Implemented (July 2026)** — the preferred fix: `recordMatch` mirrors stats to `users/{uid}/stats` (fire-and-forget, auth uid), head-to-head keyed by opponent uid with a name label (legacy name-keyed entries still render), one-time boot reconciliation in `src/lib/statsSync.js` (prefer more-games side, never decrease; unit-tested), Profile copy updated to match reality. Party games still build no stats (recordMatch remains 2P-only).
+
 ---
 
 ## 10. Engagement
@@ -467,6 +473,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Where:** `DailyGame.jsx` has per-day best + in-session combo streak, but no day-over-day streak (Wordle's core hook), no share card, and one fixed game (math only).
 
 **Fix (sequenced):** link it (F-08) → day-over-day streak counter (localStorage/`users/{uid}`) → share card via `shareCard.js` ("Daily #142 — 17 solved 🔥5") → rotate the featured game daily ("Today's challenge: Reversi vs AI"), which doubles as catalog exposure.
+
+**Status: ✅ Implemented (July 2026)** through the streak+share steps: day-over-day streak (`gn-daily-streak`, idempotent per local day, unit-tested across year boundaries) shown on the end screen and Home tile from 2 days up; SHARE RESULT posts "DAILY #N — X SOLVED 🔥streak" via shareCard. Rotating the featured game daily remains open.
 
 ### F-35 · Medium · Quick Win — Upgrade nudges: two touchpoints, zero context
 
