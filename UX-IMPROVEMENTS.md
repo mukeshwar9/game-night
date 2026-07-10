@@ -6,7 +6,7 @@ A comprehensive UX audit of the platform, performed July 2026 when the catalog s
 
 **Format per finding:** Severity (Critical/High/Medium/Low) · Priority (Quick Win / Medium Effort / Long-Term), where it occurs (with file pointers), why it hurts, the recommended fix, and expected impact.
 
-**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented, and a second round landed the full quick-wins sweep — F-04, F-12, F-15, F-21, F-24, F-25, F-28, F-30, F-31, F-35, F-36, F-37 (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
+**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented; a second round landed the full quick-wins sweep — F-04, F-12, F-15, F-21, F-24, F-25, F-28, F-30, F-31, F-35, F-36, F-37; a third round landed F-10, F-22, and F-23 (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
 
 ---
 
@@ -29,7 +29,7 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-07 | No recently-played; YOUR ROOMS speaks in room codes | High | Medium Effort | ✅ Done |
 | F-08 | Daily challenge orphaned (no link to /daily) | Critical | Quick Win | ✅ Done |
 | F-09 | No favorites/pinning | Medium | Medium Effort | Open |
-| F-10 | No popularity data or instrumentation | Medium | Long-Term | Open |
+| F-10 | No popularity data or instrumentation | Medium | Long-Term | ✅ Done |
 | F-11 | Desktop gets a 384px phone strip | High | Medium Effort | ✅ Done |
 | F-12 | Game count copy stale in 3 places (13 / 20+ / 29) | Low | Quick Win | ✅ Done |
 | F-13 | Double first-run teaching | Low | Quick Win | Open |
@@ -41,8 +41,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-19 | Variant burial (watch at scale) | Low | — | Watch |
 | F-20 | Word Duel SWITCH GAME button is dead | Critical (bug) | Quick Win | ✅ Done |
 | F-21 | 5 games ship without rules | Medium | Quick Win | ✅ Done |
-| F-22 | End of game suggests nothing | Medium | Medium Effort | Open |
-| F-23 | Abandoned opponents strand the player | Medium-High | Medium Effort | Open |
+| F-22 | End of game suggests nothing | Medium | Medium Effort | ✅ Done |
+| F-23 | Abandoned opponents strand the player | Medium-High | Medium Effort | ✅ Done |
 | F-24 | Full room → silent spectatorship | Medium | Quick Win | ✅ Done |
 | F-25 | Error pages are dead ends | Medium | Quick Win | ✅ Done |
 | F-26 | Social features only work on the Home page | High | Medium Effort | ✅ Done |
@@ -186,6 +186,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Impact:** Zero UX cost today; unlocks every future personalization feature.
 
+**Status: ✅ Implemented (July 2026).** `recordPlay(gameType, 'multi'|'solo')` in `src/lib/analytics.js` — atomic `increment(1)` to `plays/{gameType}/{mode}`, fire-and-forget. Wired into Home room creation, Demo solo selection (initial default excluded to avoid visit-inflation), Game.jsx switches and error-CTA rooms. Rules node added; requires `firebase deploy --only database`. POPULAR shelf remains future work.
+
 ---
 
 ## 3. Homepage Experience
@@ -310,6 +312,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 
 **Impact:** Session length — converts single-game visits into multi-game sessions. This is the loop Poki/CrazyGames engineer hardest.
 
+**Status: ✅ Implemented (July 2026).** `suggestGames()` (`src/lib/gameSuggestions.js`, unit-tested): variant relatives first, then same-category, registry-order deterministic; party games excluded. GameStatus renders a TRY NEXT chip row above SWITCH GAME on both end states, going through the same consent-handshake switch path.
+
 ### F-23 · Medium-High · Medium Effort — Abandoned opponents strand the player forever
 
 **Where:** Turn-based games: opponent leaves → board stays interactive with pulsing "OPPONENT DISCONNECTED" — no timeout, no claim-win, no re-invite. (Hangwoman uniquely got escape hatches: CONCEDE ROUND for a setter who lost the word, END ROUND for a guesser whose setter went offline. Nothing else did.)
@@ -319,6 +323,8 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 **Fix:** After N minutes of opponent-offline mid-game, offer the remaining player: **claim win** (increments score, records match) / **save room & return home** / **invite someone else** (requires the invite modal outside the waiting room — see F-26).
 
 **Impact:** Converts the product's worst dead-end into a recoverable moment.
+
+**Status: ✅ Implemented (July 2026)** for standard 2P turn-based games: after 120s of continuous opponent-offline time mid-round, a banner offers CLAIM WIN (server-side transaction re-checks status + presence so a returning opponent can't be clobbered; writes the normal finish shape so win effects/recordMatch fire) / INVITE A FRIEND (F-26 modal) / SAVE & GO HOME. Custom/realtime and party games out of scope for v1.
 
 ### F-24 · Medium · Quick Win — Full room → silent spectatorship
 
