@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils'
 import GameSwitcher from './GameSwitcher'
 import { getGameConfig } from '@/lib/games'
 import { shareResult } from '@/lib/shareCard'
+import { suggestGames } from '@/lib/gameSuggestions'
 
 const MATCH_WINS = 3
 
@@ -17,6 +18,35 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     accentVar,
     url: window.location.href,
   })
+
+  const renderTryNext = () => {
+    if (!onSwitchGame) return null
+    const suggestions = suggestGames(gameType)
+    if (suggestions.length === 0) return null
+    return (
+      <div className="space-y-1.5">
+        <p className="font-pixel text-[8px] text-retro-dim tracking-widest">TRY NEXT</p>
+        <div className="flex flex-wrap gap-2 justify-center">
+          {suggestions.map(g => {
+            const Icon = g.Icon
+            return (
+              <button
+                key={g.type}
+                onClick={() => onSwitchGame(g.type)}
+                className="flex items-center gap-1.5 px-3 py-2 border border-retro-border rounded
+                  text-retro-dim hover:border-retro-cta/50 hover:text-retro-text transition-all active:scale-95"
+              >
+                <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                  {Icon && <Icon />}
+                </div>
+                <span className="font-pixel text-[9px] whitespace-nowrap">{g.variantOf ? (g.variantLabel || g.label) : g.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   const RetroButton = ({ onClick, children }) => (
     <button
@@ -57,6 +87,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           {onNewMatch && <RetroButton onClick={onNewMatch}>NEW MATCH</RetroButton>}
           <ShareButton onClick={() => shareScore(iWon ? 'YOU WIN!' : `${winnerName} WINS`, matchWinner === 'X' ? '--c-p1' : '--c-p2')} />
         </div>
+        {renderTryNext()}
         {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
       </div>
     )
@@ -84,6 +115,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
             winner === 'X' ? '--c-p1' : winner === 'O' ? '--c-p2' : '--c-cta',
           )} />
         </div>
+        {renderTryNext()}
         {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
       </div>
     )
