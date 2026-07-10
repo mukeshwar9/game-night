@@ -3,6 +3,7 @@ import { ref, onValue, update } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import GameSwitcher from '../components/GameSwitcher'
+import SpectatorCard from '../components/SpectatorCard'
 import WinEffect from '../components/WinEffect'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
@@ -351,6 +352,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
         {showWinEffect && (
           <WinEffect winner={winEffectFor} onDone={() => setShowWinEffect(false)} />
         )}
+        {isSpectator && <SpectatorCard game={game} />}
         {isSetter ? (
           <StatementSetter onLock={handleLock} loading={locking} />
         ) : (
@@ -385,6 +387,8 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
       {showWinEffect && (
         <WinEffect winner={winEffectFor} onDone={() => setShowWinEffect(false)} />
       )}
+
+      {isSpectator && <SpectatorCard game={game} />}
 
       <div className="text-center space-y-1">
         <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-wider">
@@ -508,10 +512,6 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
             </button>
           )}
         </div>
-      )}
-
-      {isSpectator && (
-        <p className="text-center font-pixel text-[10px] text-retro-border">SPECTATING</p>
       )}
     </div>
   )

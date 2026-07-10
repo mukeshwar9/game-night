@@ -3,6 +3,7 @@ import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import SpectatorCard from '../components/SpectatorCard'
 import ArcadeLoader from '@/components/ArcadeLoader'
 import SnakeArena from '../components/SnakeArena'
 import { useSnakeControls } from '../hooks/useSnakeControls'
@@ -247,14 +248,14 @@ export default function SnakeGame({
   if (isSpectator) {
     return (
       <div className="space-y-4">
+        <SpectatorCard game={game} statusOverride="LIVE GRID IS PEER-TO-PEER" />
         <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-2">
-          <p className="font-pixel text-[9px] text-retro-dim">SPECTATING</p>
           <div className="flex justify-around font-pixel text-base">
             <span className="text-retro-p1">X {game.snakeScoreX ?? 0}</span>
             <span className="text-retro-p2">{game.snakeScoreO ?? 0} O</span>
           </div>
           <p className="font-pixel text-[7px] text-retro-dim/70 leading-relaxed">
-            LIVE GRID IS PEER-TO-PEER · SCORE ONLY FOR SPECTATORS
+            THIS ROUND&apos;S FOOD EATEN
           </p>
         </div>
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}

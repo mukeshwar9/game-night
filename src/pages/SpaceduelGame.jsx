@@ -3,6 +3,7 @@ import { ref as dbRef, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import SpectatorCard from '../components/SpectatorCard'
 import SpaceduelArena from '../components/SpaceduelArena'
 import { useSpaceduelControls } from '../hooks/useSpaceduelControls'
 import { useRealtimeHost } from '../lib/realtime/useRealtimeHost'
@@ -254,16 +255,13 @@ export default function SpaceduelGame({
   if (isSpectator) {
     return (
       <div className="space-y-4">
+        <SpectatorCard game={game} statusOverride="LIVE SHIPS ARE PEER-TO-PEER" />
         <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-2">
-          <p className="font-pixel text-[9px] text-retro-dim">SPECTATING</p>
           <div className="flex justify-around font-pixel text-base">
             <span className="text-retro-p1">X {game.spaceduelHitsX ?? 0}</span>
             <span className="text-retro-dim text-[8px] self-center">HITS</span>
             <span className="text-retro-p2">{game.spaceduelHitsO ?? 0} O</span>
           </div>
-          <p className="font-pixel text-[7px] text-retro-dim/70 leading-relaxed">
-            LIVE SHIPS ARE PEER-TO-PEER · HIT TALLY ONLY FOR SPECTATORS
-          </p>
         </div>
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>

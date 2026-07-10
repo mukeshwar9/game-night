@@ -7,6 +7,7 @@ import {
 import ChimpBoard from '../components/ChimpBoard'
 import GameStatus from '../components/GameStatus'
 import GameSwitcher from '../components/GameSwitcher'
+import SpectatorCard from '../components/SpectatorCard'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 
@@ -191,6 +192,7 @@ export default function ChimpGame({
 
   return (
     <div className="space-y-4">
+      {!mySymbol && <SpectatorCard game={game} />}
       <ChimpBoard
         onMove={handleCellClick}
         disabled={!mySymbol || myDone}

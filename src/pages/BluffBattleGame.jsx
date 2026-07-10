@@ -12,6 +12,7 @@ import {
 } from '../lib/bluffLogic'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import SpectatorCard from '../components/SpectatorCard'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -331,11 +332,24 @@ export default function BluffBattleGame({
 
   return (
     <div className="space-y-4">
+      {isSpectator && <SpectatorCard game={game} />}
+
       {/* Dice-count tracker */}
-      <div className="flex items-center justify-between font-pixel text-[9px]">
-        <span className="text-retro-p1 text-glow-p1">YOU: {myDiceCount} {'●'.repeat(Math.max(0, myDiceCount))}</span>
-        <span className="text-retro-p2 text-glow-p2">{opName}: {opDiceCount} {'●'.repeat(Math.max(0, opDiceCount))}</span>
-      </div>
+      {isSpectator ? (
+        <div className="flex items-center justify-between font-pixel text-[9px]">
+          <span className="text-retro-p1 text-glow-p1">
+            {(game.players?.X?.name || 'X').toUpperCase()}: {round.diceCountX} {'●'.repeat(Math.max(0, round.diceCountX))}
+          </span>
+          <span className="text-retro-p2 text-glow-p2">
+            {(game.players?.O?.name || 'O').toUpperCase()}: {round.diceCountO} {'●'.repeat(Math.max(0, round.diceCountO))}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between font-pixel text-[9px]">
+          <span className="text-retro-p1 text-glow-p1">YOU: {myDiceCount} {'●'.repeat(Math.max(0, myDiceCount))}</span>
+          <span className="text-retro-p2 text-glow-p2">{opName}: {opDiceCount} {'●'.repeat(Math.max(0, opDiceCount))}</span>
+        </div>
+      )}
 
       {/* My cup */}
       {!isSpectator && (
@@ -489,10 +503,6 @@ export default function BluffBattleGame({
         <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">
           OPPONENT IS OFFLINE
         </p>
-      )}
-
-      {isSpectator && (
-        <p className="text-center font-pixel text-[10px] text-retro-border">SPECTATING</p>
       )}
 
       {!proposal && phase !== 'reveal' && onSwitchGame && (

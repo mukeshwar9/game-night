@@ -3,6 +3,7 @@ import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import SpectatorCard from '../components/SpectatorCard'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 
@@ -261,6 +262,7 @@ export default function NumberMemoryGame({
 
   return (
     <div className="space-y-4">
+      {!mySymbol && <SpectatorCard game={game} />}
       <div className="flex items-center justify-between font-pixel text-[9px]">
         <span className="text-retro-cta text-glow-cta">
           {round.level} DIGIT{round.level > 1 ? 'S' : ''}

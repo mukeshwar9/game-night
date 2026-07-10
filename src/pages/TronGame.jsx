@@ -3,6 +3,7 @@ import { ref, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import SpectatorCard from '../components/SpectatorCard'
 import TronArena from '../components/TronArena'
 import { useTronControls } from '../hooks/useTronControls'
 import { useRealtimeHost } from '../lib/realtime/useRealtimeHost'
@@ -148,12 +149,7 @@ export default function TronGame({
   if (isSpectator) {
     return (
       <div className="space-y-4">
-        <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-2">
-          <p className="font-pixel text-[9px] text-retro-dim">SPECTATING</p>
-          <p className="font-pixel text-[7px] text-retro-dim/70 leading-relaxed">
-            LIVE GRID IS P2P · SPECTATORS SEE RESULT ONLY
-          </p>
-        </div>
+        <SpectatorCard game={game} statusOverride="LIVE GRID IS P2P — RESULT ONLY" />
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )

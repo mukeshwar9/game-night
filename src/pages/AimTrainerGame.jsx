@@ -3,6 +3,7 @@ import { ref, update, runTransaction, increment } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import SpectatorCard from '../components/SpectatorCard'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -227,17 +228,16 @@ export default function AimTrainerGame({
   if (!mySymbol) {
     return (
       <div className="space-y-4">
-        <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-2">
-          <p className="font-pixel text-[9px] text-retro-dim">SPECTATING</p>
-          {endTime ? (
+        <SpectatorCard game={game} statusOverride={!endTime ? 'WAITING TO START' : undefined} />
+        {endTime && (
+          <div className="bg-retro-card border border-retro-border rounded p-3 text-center">
             <div className="flex justify-around font-pixel text-[8px]">
               <span className="text-retro-p1">X: {game.aimScoreX ?? 0}</span>
               <span className="text-retro-p2">O: {game.aimScoreO ?? 0}</span>
             </div>
-          ) : (
-            <p className="font-pixel text-[8px] text-retro-dim">WAITING TO START</p>
-          )}
-        </div>
+            <p className="font-pixel text-[7px] text-retro-dim/70 mt-1">THIS ROUND</p>
+          </div>
+        )}
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )

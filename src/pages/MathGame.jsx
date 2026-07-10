@@ -3,6 +3,7 @@ import { ref, runTransaction, update } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import SpectatorCard from '../components/SpectatorCard'
 import NumberPad from '../components/NumberPad'
 import { generateQuestion, GAME_MS, QUESTION_MS } from '../lib/mathLogic'
 import { sounds } from '../lib/sounds'
@@ -340,12 +341,10 @@ export default function MathGame({
   if (!mySymbol) {
     return (
       <div className="space-y-4">
-        <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-2">
-          <p className="font-pixel text-[9px] text-retro-dim">SPECTATING</p>
-          {isPlaying && (
-            <ScoreBar game={game} myKey="X" opKey="O" players={game.players} />
-          )}
-        </div>
+        <SpectatorCard game={game} statusOverride={!startedAt ? 'WAITING TO START' : undefined} />
+        {isPlaying && (
+          <ScoreBar game={game} myKey="X" opKey="O" players={game.players} />
+        )}
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )

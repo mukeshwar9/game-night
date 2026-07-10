@@ -3,6 +3,7 @@ import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import SpectatorCard from '../components/SpectatorCard'
 import TypingKeyboard from '../components/TypingKeyboard'
 import { cn } from '@/lib/utils'
 
@@ -209,15 +210,13 @@ export default function TypingGame({
   if (!mySymbol) {
     return (
       <div className="space-y-4">
-        <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-3">
-          <p className="font-pixel text-[9px] text-retro-dim">SPECTATING</p>
-          {startedAt && (
-            <div className="space-y-1">
-              <ProgressBar label="X" val={game.typingProgressX ?? 0} max={passage.length} colorClass="text-retro-p1" />
-              <ProgressBar label="O" val={game.typingProgressO ?? 0} max={passage.length} colorClass="text-retro-p2" />
-            </div>
-          )}
-        </div>
+        <SpectatorCard game={game} statusOverride={!startedAt ? 'WAITING TO START' : undefined} />
+        {startedAt && (
+          <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1">
+            <ProgressBar label="X" val={game.typingProgressX ?? 0} max={passage.length} colorClass="text-retro-p1" />
+            <ProgressBar label="O" val={game.typingProgressO ?? 0} max={passage.length} colorClass="text-retro-p2" />
+          </div>
+        )}
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )

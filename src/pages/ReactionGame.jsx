@@ -3,6 +3,7 @@ import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
+import SpectatorCard from '../components/SpectatorCard'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -213,18 +214,18 @@ export default function ReactionGame({
   }
 
   if (!mySymbol) {
+    const roundsX = normalizeReactionTimes(game.reactionTimesX).length
+    const roundsO = normalizeReactionTimes(game.reactionTimesO).length
     return (
       <div className="space-y-4">
-        <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-3">
-          <p className="font-pixel text-[9px] text-retro-dim">SPECTATING</p>
-          <div className="space-y-1">
-            <p className="font-pixel text-[8px] text-retro-p1">
-              X: {myTimes.length}/{ROUNDS} rounds
-            </p>
-            <p className="font-pixel text-[8px] text-retro-p2">
-              O: {opTimes.length}/{ROUNDS} rounds
-            </p>
-          </div>
+        <SpectatorCard game={game} />
+        <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-1">
+          <p className="font-pixel text-[8px] text-retro-p1">
+            X: {roundsX}/{ROUNDS} rounds
+          </p>
+          <p className="font-pixel text-[8px] text-retro-p2">
+            O: {roundsO}/{ROUNDS} rounds
+          </p>
         </div>
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
