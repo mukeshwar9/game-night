@@ -1,11 +1,16 @@
 import { getPlayerTag, getGameConfig, isNewGame } from '../lib/games'
 import { cn } from '@/lib/utils'
 import { RulesButton } from './RulesModal'
+import PixelDots from './loading/PixelDots'
 
 // Renders one game tile. Variant entries (`game.variantOf` set — e.g.
 // ULTIMATE TTT surfaced directly via search) display their own label/blurb
 // but fall back to the base game's icon since variants don't carry one.
-export default function GameCard({ game, onTap, onRules, loadingType, disabled, isFav, onToggleFav }) {
+// Tapping the card creates a PLAY-A-FRIEND room directly with the
+// default/Classic variant (one-tap room creation) — VS AI and variant
+// picks are demoted to small secondary chips below the card so the common
+// path isn't gated behind a modal (`onVsAi`/`onModes`, both optional).
+export default function GameCard({ game, onTap, onRules, onVsAi, onModes, loadingType, disabled, isFav, onToggleFav }) {
   const { type, variantOf } = game
   const base = variantOf ? getGameConfig(variantOf) : null
   const label = variantOf ? (game.variantLabel || game.label) : game.label
@@ -13,12 +18,15 @@ export default function GameCard({ game, onTap, onRules, loadingType, disabled, 
   const Icon = variantOf ? (base?.Icon || game.Icon) : game.Icon
   const hasVariants = !!game.hasVariants
   const isNew = isNewGame(game)
+  const isBusy = disabled ?? !!loadingType
+  const showVsAi = !!(onVsAi && game.solo)
+  const showModes = !!(onModes && hasVariants)
 
   return (
     <div className="relative">
       <button
         onClick={() => onTap(game)}
-        disabled={disabled ?? !!loadingType}
+        disabled={isBusy}
         className={cn(
           'w-full flex flex-col items-center gap-2.5 py-4 px-2 border-2 rounded',
           'transition-all active:scale-95',
@@ -44,17 +52,7 @@ export default function GameCard({ game, onTap, onRules, loadingType, disabled, 
             )}
           </p>
         </div>
-        {loadingType === type && (
-          <div className="flex gap-1">
-            {[0, 1, 2].map(i => (
-              <div key={i} className="w-1 h-1 bg-retro-cta rounded-full animate-bounce"
-                style={{ animationDelay: `${i * 150}ms` }} />
-            ))}
-          </div>
-        )}
-        {hasVariants && (
-          <span className="absolute bottom-1 left-1 font-pixel text-[6px] text-retro-cta/80 tracking-wider">+MODES</span>
-        )}
+        {loadingType === type && <PixelDots size="sm" tone="cta" />}
         {isNew && (
           <span className="absolute bottom-1 right-1 font-pixel text-[6px] text-retro-win tracking-wider">NEW</span>
         )}
@@ -70,7 +68,7 @@ export default function GameCard({ game, onTap, onRules, loadingType, disabled, 
           aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
           aria-pressed={!!isFav}
           className={cn(
-            'absolute top-1 left-1 z-10 p-3 -m-2 rounded transition-colors',
+            'absolute top-1 left-1 z-10 p-4 -m-3 rounded transition-colors',
             isFav ? 'text-retro-p2' : 'text-retro-dim hover:text-retro-text',
           )}
         >
@@ -79,6 +77,32 @@ export default function GameCard({ game, onTap, onRules, loadingType, disabled, 
             <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
           </svg>
         </button>
+      )}
+      {(showVsAi || showModes) && (
+        <div className="flex items-center justify-center gap-1">
+          {showVsAi && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onVsAi(game) }}
+              disabled={isBusy}
+              aria-label={`Play ${label} vs AI`}
+              className="min-h-11 px-2.5 flex items-center justify-center font-pixel text-[7px]
+                text-retro-p1/90 hover:text-retro-p1 tracking-wider transition-colors disabled:opacity-40"
+            >
+              VS AI
+            </button>
+          )}
+          {showModes && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onModes(game) }}
+              disabled={isBusy}
+              aria-label={`More modes for ${label}`}
+              className="min-h-11 px-2.5 flex items-center justify-center font-pixel text-[7px]
+                text-retro-cta/80 hover:text-retro-cta tracking-wider transition-colors disabled:opacity-40"
+            >
+              +MODES
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

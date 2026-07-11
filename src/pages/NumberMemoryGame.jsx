@@ -4,10 +4,16 @@ import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
+import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 
-const SHOW_MS = 3000
+// Reveal window scales with digit count so harder (longer) numbers get more
+// time to memorize instead of the same flash as a 1-digit number. Level 1
+// (the starting difficulty) still works out to the original ~3s.
+const SHOW_MS_BASE      = 2000
+const SHOW_MS_PER_DIGIT = 1000
+function showMsForLevel(level) { return SHOW_MS_BASE + SHOW_MS_PER_DIGIT * level }
 
 // Opponent-idle claim: presence only catches real disconnects, so an opponent
 // who is online but walked away would leave me waiting forever. After I submit
@@ -68,11 +74,13 @@ export default function NumberMemoryGame({
   useEffect(() => {
     if (round.phase !== 'showing') {
       if (timerRef.current) clearInterval(timerRef.current)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds the countdown display for this phase transition; deferring would flash a stale value on this timing-critical memorize countdown
       setCountdown(null)
       return
     }
-    setCountdown(Math.ceil(SHOW_MS / 1000))
-    let remaining = SHOW_MS
+    const showMs = showMsForLevel(round.level)
+    setCountdown(Math.ceil(showMs / 1000))
+    let remaining = showMs
     const interval = setInterval(() => {
       remaining -= 100
       setCountdown(Math.ceil(remaining / 1000))
@@ -84,7 +92,7 @@ export default function NumberMemoryGame({
     }, 100)
     timerRef.current = interval
     return () => clearInterval(interval)
-  }, [round.phase, gameId])
+  }, [round.phase, round.level, gameId])
 
   // Avoids spreading ...current through a root transaction (would re-write
   // players.O.playerId under the wrong auth.uid and fail the security rule).
@@ -156,6 +164,7 @@ export default function NumberMemoryGame({
     }
     prevAnswerX.current = ax
     prevAnswerO.current = ao
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tryFinishRound is recreated every render and intentionally reads fresh state from the closure (see NOTE above); the prevAnswerX/prevAnswerO refs already dedupe repeat calls
   }, [game.numRound?.answerX, game.numRound?.answerO])
 
   // --- Opponent-idle claim ---
@@ -277,7 +286,7 @@ export default function NumberMemoryGame({
             {round.number}
           </p>
           {countdown != null && (
-            <p className="font-pixel text-[9px] text-retro-p2 animate-pulse">{countdown}s</p>
+            <p className="font-pixel text-[9px] text-retro-p2 arcade-blink">{countdown}s</p>
           )}
         </div>
       )}
@@ -286,7 +295,7 @@ export default function NumberMemoryGame({
         <div className="bg-retro-card border border-retro-border rounded p-4 space-y-3 relative">
           {hasSubmitted && (
             <div className="absolute inset-0 bg-retro-bg/70 flex items-center justify-center rounded z-10">
-              <p className="font-pixel text-[9px] text-retro-win text-glow-win text-center leading-relaxed animate-pulse">
+              <p className="font-pixel text-[9px] text-retro-win text-glow-win text-center leading-relaxed arcade-blink">
                 SUBMITTED ✓{'\n'}WAITING FOR{'\n'}OPPONENT...
               </p>
             </div>
@@ -310,7 +319,6 @@ export default function NumberMemoryGame({
             disabled={hasSubmitted || !mySymbol}
             onChange={e => { setGuessInput(e.target.value.replace(/\D/g, '')); setInputError('') }}
             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            autoFocus={!hasSubmitted}
             className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-sm tracking-[0.3em] text-center rounded px-3 py-2 focus:outline-none focus:border-retro-p1 disabled:opacity-40"
             placeholder={'?'.repeat(round.level)}
           />
@@ -318,20 +326,16 @@ export default function NumberMemoryGame({
           <button
             onClick={handleSubmit}
             disabled={hasSubmitted || !mySymbol}
-            className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40 disabled:cursor-default"
+            className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40 disabled:cursor-default"
           >
             SUBMIT
           </button>
         </div>
       )}
 
-      {!opponentOnline && mySymbol && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">
-          OPPONENT IS OFFLINE
-        </p>
-      )}
+      {!opponentOnline && mySymbol && <OfflineNotice label="OPPONENT" />}
       {showClaimHint && (
-        <p className="font-pixel text-[9px] text-retro-dim text-center animate-pulse">
+        <p className="font-pixel text-[9px] text-retro-dim text-center arcade-blink">
           OPPONENT IDLE — CLAIM UNLOCKS IN {claimCountdown}s
         </p>
       )}

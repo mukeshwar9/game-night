@@ -13,6 +13,7 @@ import {
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
+import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -87,13 +88,17 @@ export default function BluffBattleGame({
   const [showDice, setShowDice] = useState(true)
   const verifiedFor = useRef(null)
   const prevBidCount = useRef(bids.length)
+  const prevMyCommitRef = useRef(undefined)
 
   const roundKey = `bluff-roll-${gameId}`
 
   // --- Load my dice from sessionStorage (per round, keyed by commit) ---
   useEffect(() => {
     if (isSpectator) return
+    if (myCommit === prevMyCommitRef.current) return
+    prevMyCommitRef.current = myCommit
     const stored = sessionStorage.getItem(roundKey)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizes local dice state with sessionStorage (an external store) for this round's commit; guarded above so it only runs once per commit change
     if (!stored) { setMyDice(null); return }
     try {
       const parsed = JSON.parse(stored)
@@ -111,6 +116,7 @@ export default function BluffBattleGame({
     if (bids.length !== prevBidCount.current) {
       const lb = bids.length ? bids[bids.length - 1] : null
       if (lb) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds the bid-input controls for the new current bid; guarded above so it only runs once per bid count change
         setBidQty(lb.qty)
         setBidFace(Math.min(lb.face + 1, FACES))
       } else {
@@ -119,7 +125,7 @@ export default function BluffBattleGame({
       }
       prevBidCount.current = bids.length
     }
-  }, [bids])
+  }, [bids.length]) // eslint-disable-line react-hooks/exhaustive-deps -- reads the latest `bids` array from the closure; only the count should retrigger this reset
 
   // --- Roll: every non-spectator rolls hidden dice, stores them, publishes commit ---
   const handleRoll = useCallback(async () => {
@@ -388,7 +394,7 @@ export default function BluffBattleGame({
             </button>
           )}
           {!isSpectator && myDice && (
-            <p className="font-pixel text-[9px] text-retro-win text-glow-win animate-pulse">
+            <p className="font-pixel text-[9px] text-retro-win text-glow-win arcade-blink">
               ROLLED ✓ — WAITING FOR {opName}…
             </p>
           )}
@@ -423,7 +429,7 @@ export default function BluffBattleGame({
             {isSpectator ? (
               <span className="text-retro-dim">{turn === 'X' ? (game.players?.X?.name || 'X') : (game.players?.O?.name || 'O')}&apos;S TURN</span>
             ) : turn === mySymbol ? (
-              <span className="text-retro-cta text-glow-cta animate-pulse">YOUR TURN — RAISE OR CALL</span>
+              <span className="text-retro-cta text-glow-cta arcade-blink">YOUR TURN — RAISE OR CALL</span>
             ) : (
               <span className="text-retro-dim">WAITING FOR {opName}…</span>
             )}
@@ -432,32 +438,32 @@ export default function BluffBattleGame({
           {/* Bid controls — only on my turn */}
           {!isSpectator && turn === mySymbol && (
             <div className="space-y-3">
-              <div className="flex items-end justify-center gap-4">
+              <div className="flex items-end justify-center gap-3">
                 <div className="flex flex-col items-center gap-1">
                   <span className="font-pixel text-[8px] text-retro-dim">QTY</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setBidQty(q => Math.max(1, q - 1))}
-                      className="w-7 h-7 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
+                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
                     >−</button>
                     <span className="font-pixel text-base text-retro-cta text-glow-cta w-6 text-center">{bidQty}</span>
                     <button
                       onClick={() => setBidQty(q => Math.min(myDiceCount + opDiceCount, q + 1))}
-                      className="w-7 h-7 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
+                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
                     >+</button>
                   </div>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="font-pixel text-[8px] text-retro-dim">FACE</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setBidFace(f => Math.max(1, f - 1))}
-                      className="w-7 h-7 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
+                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
                     >−</button>
                     <span className="text-2xl leading-none text-retro-cta text-glow-cta w-7 text-center">{DIE_GLYPH[bidFace]}</span>
                     <button
                       onClick={() => setBidFace(f => Math.min(FACES, f + 1))}
-                      className="w-7 h-7 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
+                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
                     >+</button>
                   </div>
                 </div>
@@ -499,11 +505,7 @@ export default function BluffBattleGame({
         />
       )}
 
-      {!opponentOnline && !isSpectator && phase !== 'reveal' && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">
-          OPPONENT IS OFFLINE
-        </p>
-      )}
+      {!opponentOnline && !isSpectator && phase !== 'reveal' && <OfflineNotice label="OPPONENT" />}
 
       {!proposal && phase !== 'reveal' && onSwitchGame && (
         <GameSwitcher currentType="bluff" onSwitch={onSwitchGame} />
@@ -527,7 +529,7 @@ function RevealPanel({
   if (!outcome || !bothRevealed) {
     return (
       <div className="text-center space-y-2 py-4">
-        <p className="font-pixel text-xs text-retro-p2 text-glow-p2 animate-pulse">LIAR CALLED!</p>
+        <p className="font-pixel text-xs text-retro-p2 text-glow-p2 arcade-blink">LIAR CALLED!</p>
         <p className="font-pixel text-[9px] text-retro-dim">REVEALING CUPS…</p>
       </div>
     )

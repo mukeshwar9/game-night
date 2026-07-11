@@ -48,7 +48,7 @@ function decayAndClamp(b, dt) {
   }
 }
 
-function applyInput(b, input, opp, dt) {
+function applyInput(b, input, opp) {
   const press = input?.press ?? 0
   if (!press) return
   const dx = opp.x - b.x
@@ -120,8 +120,8 @@ export function step(state, inputs, dt) {
     if (!b.alive) continue
     decayAndClamp(b, dt)
   }
-  if (X.alive) applyInput(X, inputs?.X, O, dt)
-  if (O.alive) applyInput(O, inputs?.O, X, dt)
+  if (X.alive) applyInput(X, inputs?.X, O)
+  if (O.alive) applyInput(O, inputs?.O, X)
   for (const b of [X, O]) {
     if (!b.alive) continue
     moveAndBounceWalls(b, dt)

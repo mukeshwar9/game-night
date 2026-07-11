@@ -145,3 +145,47 @@ and advances the artist.
 
 Close-guess "you're warm!" hints (Levenshtein ≤ 2 vs salted-hash n-gram — hard without leaking);
 hint letters revealed over time; custom decks per room; stroke smoothing.
+
+## Addendum — 2P support + implementation decisions (2026-07-11)
+
+The user requires 2-player support, which this PRD didn't originally allow (`minPlayers: 3`).
+The full implementation-ready spec — including every override below — lives in the delta-spec
+handed to the build session; this addendum only summarizes what changed and why. Where the two
+disagree, the delta-spec wins.
+
+1. **`minPlayers: 2`**, not 3 (registry `GAME_TYPES` entry and `SketchGame.jsx`'s `MIN_PLAYERS`
+   constant). With exactly 2 players there's only ever 1 guesser, so scoring needs a distinct
+   variant (#2 below) and the match runs 1 extra cycle to compensate for the smaller player pool
+   (#3 below).
+2. **2-player scoring variant** in `sketchLogic.js`'s `roundDeltas()`, branching on guesser count
+   instead of always using the PRD's "100/90/80…floor 50" ordinal table:
+   - **3+ players (≥2 guessers):** the original table — 1st correct guesser 100, 2nd 90, 3rd 80,
+     …, floor 50; artist earns `25 × (number of correct guessers)`.
+   - **Exactly 1 guesser (2P):** `guesser = 50 + round(50 × clamp((endsAt − at) / DRAW_MS, 0, 1))`
+     (faster guesses score up to 100, last-second guesses floor at 50); `artist =
+     floor(guesserPts / 2)`. Nobody guesses → 0 for both.
+3. **`cyclesFor(playerCount)`: 3 cycles for a 2-player match, 2 cycles otherwise** — so a 2-player
+   match still runs 6 rounds (each player draws 3 times) rather than feeling short at just 4.
+4. **Dropped `revealWord` and the artist's localStorage word backup entirely.** Since the
+   commitment publishes both `hash` *and* `salt` up front (not withheld until reveal), and the 3
+   candidate `options` are already public, **any client can derive the chosen word themselves** by
+   hashing each candidate with the salt and checking it against the public hash
+   (`deriveWord(deckWords, options, commitment)` in `sketchLogic.js`). The artist recovers the word
+   on reload the exact same way a guesser does — no artist-only storage, no reveal-time write.
+   This accepts the same residual dictionary-attack leak the base PRD already signed off on for
+   Fibbage-style decks, just surfaced slightly earlier (at pick time instead of at reveal).
+5. **No repeated words within a match:** advancing to the next round carries forward
+   `used: [...(round.used||[]), ...round.options]` (all 3 offered candidates, not just the chosen
+   one); `pickOptions()` excludes every index in `used`.
+6. **PRD correction — mid-match join stays unsupported**, not a stretch goal: the platform's
+   existing join flow (`Game.jsx`) only allows claiming a seat while `status === 'waiting'`, which
+   this PRD's "Player joins mid-match" edge case didn't account for. A visitor mid-match is a
+   spectator until the next match starts.
+7. **`wordPattern` (a string of per-token word lengths, e.g. `"5"` or `"3 3"`) replaces the base
+   PRD's single `wordLen` number**, so multi-word deck entries (idioms/phrases in the tier-3
+   difficulty band) render the correct number of blank groups instead of one long blank.
+
+Also newly specified (the base PRD left these open): the full choosing(15s)/drawing(75s)/
+reveal(6s) phase machine with `.info/serverTimeOffset`-corrected deadlines, the host-authoritative
+expiry/early-end/skip-round transitions and their race mitigations, and the exact
+`SketchCanvas.jsx` component contract. See the delta-spec for all of it.

@@ -3,6 +3,7 @@
 // No backend — the card is drawn client-side from live CSS theme vars.
 
 import QRCode from 'qrcode'
+import { toast } from 'sonner'
 
 function themeColor(name, fallback) {
   try {
@@ -139,35 +140,53 @@ function wrapText(ctx, str, x, y, maxWidth, lineHeight) {
   lines.forEach((l, i) => ctx.fillText(l, x, startY + i * lineHeight))
 }
 
+// Builds the share card and hands it to the native share sheet (falling back to a
+// PNG download). Never rejects — callers can await it directly with no try/catch.
+// Returns `true` on success (share completed, or user cancelled the share sheet —
+// that's not a failure) or `false` on a real failure (card render/blob/share error),
+// which callers should surface with an error toast.
 export async function shareResult({ gameLabel, headline, sub, accentVar, url }) {
-  try { await document.fonts?.ready } catch { /* font fallback is fine */ }
+  try {
+    try { await document.fonts?.ready } catch { /* font fallback is fine */ }
 
-  const shareUrl = url || window.location.origin
-  const canvas = await drawCard({ brand: 'Game Night', gameLabel, headline, sub, accentVar, url: shareUrl })
-  const text = `${headline} — ${gameLabel} on Game Night. ${shareUrl}`
+    const shareUrl = url || window.location.origin
+    const canvas = await drawCard({ brand: 'Game Night', gameLabel, headline, sub, accentVar, url: shareUrl })
+    const text = `${headline} — ${gameLabel} on Game Night. ${shareUrl}`
 
-  const blob = await new Promise(res => canvas.toBlob(res, 'image/png'))
-  if (!blob) return
-
-  const file = new File([blob], 'game-night.png', { type: 'image/png' })
-
-  // Prefer native share with the image (mobile share sheet → iMessage/WhatsApp/…)
-  if (navigator.canShare?.({ files: [file] }) && navigator.share) {
-    try {
-      await navigator.share({ files: [file], title: 'Game Night', text })
-      return
-    } catch {
-      // user cancelled or share failed — fall through to download
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'))
+    if (!blob) {
+      console.error('shareResult: canvas.toBlob returned null')
+      return false
     }
-  }
 
-  // Fallback: download the PNG
-  const objUrl = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = objUrl
-  a.download = 'game-night.png'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(objUrl), 1000)
+    const file = new File([blob], 'game-night.png', { type: 'image/png' })
+
+    // Prefer native share with the image (mobile share sheet → iMessage/WhatsApp/…)
+    if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+      try {
+        await navigator.share({ files: [file], title: 'Game Night', text })
+        return true
+      } catch (err) {
+        // User-cancelled the native share sheet is not a failure — Safari sometimes
+        // reports this as NotAllowedError instead of AbortError when dismissed.
+        if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return true
+        // Any other share failure — fall through to download
+      }
+    }
+
+    // Fallback: download the PNG
+    const objUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objUrl
+    a.download = 'game-night.png'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(objUrl), 1000)
+    toast.success('SAVED IMAGE — CHECK YOUR DOWNLOADS')
+    return true
+  } catch (err) {
+    console.error('shareResult failed:', err)
+    return false
+  }
 }

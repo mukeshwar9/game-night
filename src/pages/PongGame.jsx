@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
-import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
-import ArcadeLoader from '@/components/ArcadeLoader'
+import OfflineNotice from '../components/loading/OfflineNotice'
+import { RealtimeOverlay } from '../lib/realtime/realtimeStatus'
 import PongCourt from '../components/PongCourt'
+import TouchCoachmark from '../components/TouchCoachmark'
 import { usePongControls } from '../hooks/usePongControls'
 import { useRealtimePeer } from '../lib/realtime/useRealtimePeer'
 import {
@@ -12,6 +13,8 @@ import {
 } from '../lib/pongLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import useBusy from '@/hooks/useBusy'
 
 const DT = 1 / 120            // fixed physics timestep
 const SNAPSHOT_MS = 33        // ~30 Hz host → guest state snapshots
@@ -80,8 +83,39 @@ export default function PongGame({
   const isSpectator = !mySymbol
   const courtRef = useRef(null)
   const { getDir } = usePongControls(courtRef, !isSpectator && game.status === 'playing')
+  // M-49: independent pre-round display window for the coachmark, driven off
+  // the game-status transition rather than render.countdown (which the guest
+  // tick always reports as 0 — see TouchCoachmark) — so the coachmark reaches
+  // both the host AND the joining/guest seat.
+  const [coachActive, setCoachActive] = useState(false)
+  useEffect(() => {
+    const active = !isSpectator && game.status === 'playing'
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot display window driven by the status transition, mirrors RealtimeOverlay's everConnected ratchet
+    setCoachActive(active)
+    if (!active) return
+    const t = setTimeout(() => setCoachActive(false), 3000)
+    return () => clearTimeout(t)
+  }, [isSpectator, game.status])
 
   const [render, setRender] = useState({ ball: { x: 0.5, y: 0.5 }, paddles: { X: 0.5, O: 0.5 }, scoreX: 0, scoreO: 0, countdown: 0, serving: false, pickups: [], effects: null, ballMod: null })
+
+  // M-76: lightweight, no-consent-needed forfeit for the current round only
+  // (hands the win to the opponent via the existing finishRound path) —
+  // distinct from SWITCH GAME, which reroutes the whole room's game type.
+  const [forfeitArmed, setForfeitArmed] = useState(false)
+  const forfeitTimerRef = useRef(null)
+  const [forfeitBusy, runForfeit] = useBusy()
+  const handleForfeit = () => {
+    if (!forfeitArmed) {
+      setForfeitArmed(true)
+      clearTimeout(forfeitTimerRef.current)
+      forfeitTimerRef.current = setTimeout(() => setForfeitArmed(false), 3000)
+      return
+    }
+    clearTimeout(forfeitTimerRef.current)
+    setForfeitArmed(false)
+    runForfeit(() => finishRound(mySymbol === 'X' ? 'O' : 'X'), () => toast.error('FORFEIT FAILED — CHECK CONNECTION'))
+  }
 
   const guestInputRef = useRef(0)      // host: latest paddle dir from the guest (O)
   const snapRef = useRef(null)         // guest: latest snapshot from the host
@@ -271,35 +305,16 @@ export default function PongGame({
             LIVE BALL IS PEER-TO-PEER · SCORE ONLY FOR SPECTATORS
           </p>
         </div>
-        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )
   }
 
-  // --- Playing ---
-  let overlay = null
-  if (conn === 'failed') {
-    overlay = (
-      <div className="text-center space-y-3 px-4">
-        <p className="font-pixel text-[9px] text-retro-p2 leading-relaxed">
-          CONNECTION FAILED<br />TRY A DIFFERENT NETWORK
-        </p>
-        <button
-          onClick={() => retry()}
-          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
-        >
-          RETRY
-        </button>
-      </div>
-    )
-  } else if (conn !== 'connected') {
-    overlay = <ArcadeLoader variant="realtime" />
-  } else if (render.countdown > 0) {
-    overlay = <p className="font-pixel text-5xl text-retro-win text-glow-win">{render.countdown}</p>
-  }
+  // --- Playing --- (SWITCH GAME is hidden while live — M-76 — replaced by a
+  // dedicated FORFEIT ROUND action below, which only concedes this round.)
+  const overlay = <RealtimeOverlay conn={conn} countdown={render.countdown} retry={retry} />
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 [@media(max-height:420px)]:space-y-1.5">
       <PongCourt
         ref={courtRef}
         ball={render.ball} paddles={render.paddles}
@@ -313,11 +328,28 @@ export default function PongGame({
         ballMod={render.ballMod}
         overlay={overlay}
       />
-      <p className="text-center font-pixel text-[8px] text-retro-dim">FIRST TO {WIN_SCORE} POINTS · FIRST TO {matchTarget} ROUNDS WINS</p>
-      {!opponentOnline && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">OPPONENT IS OFFLINE</p>
+      <TouchCoachmark
+        gameKey="pong"
+        gesture="drag"
+        text="DRAG THE COURT TO MOVE YOUR PADDLE"
+        active={coachActive}
+      />
+      <p className="text-center font-pixel text-[8px] text-retro-dim [@media(max-height:420px)]:hidden">FIRST TO {WIN_SCORE} POINTS · FIRST TO {matchTarget} ROUNDS WINS</p>
+      {!opponentOnline && <OfflineNotice label="OPPONENT" />}
+      {!proposal && (
+        <div className="text-center">
+          <button
+            onClick={handleForfeit}
+            disabled={forfeitBusy}
+            className={cn(
+              'min-h-11 px-4 font-pixel text-[9px] tracking-wide rounded transition-colors disabled:opacity-50',
+              forfeitArmed ? 'text-retro-danger' : 'text-retro-dim hover:text-retro-danger',
+            )}
+          >
+            {forfeitBusy ? 'FORFEITING…' : forfeitArmed ? 'TAP AGAIN TO FORFEIT' : 'FORFEIT ROUND'}
+          </button>
+        </div>
       )}
-      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>
   )
 }

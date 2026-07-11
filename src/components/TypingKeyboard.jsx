@@ -37,8 +37,10 @@ export default function TypingKeyboard({ onKey, disabled = false }) {
     if (/^[A-Z]$/.test(raw)) setShifted(false)
   }
 
+  // Compact row height on short viewports (M-52) so the keyboard stays above
+  // the fold at ~667px alongside the passage above it.
   const baseBtn = cn(
-    'h-10 flex items-center justify-center font-pixel text-[10px] rounded border transition-all',
+    'h-10 [@media(max-height:700px)]:h-9 flex items-center justify-center font-pixel text-[10px] rounded border transition-all',
     'select-none active:scale-90',
   )
   const normalStyle = disabled
@@ -63,7 +65,7 @@ export default function TypingKeyboard({ onKey, disabled = false }) {
   )
 
   return (
-    <div className="space-y-1 w-full select-none">
+    <div className="space-y-1 [@media(max-height:700px)]:space-y-0.5 w-full select-none">
       {ROWS.map((row, ri) => (
         <div key={ri} className="flex gap-1 justify-center">
           {row.map(k => {

@@ -32,6 +32,8 @@ import {
   CR_COLS,
   CR_ROWS,
 } from './chainReactionLogic'
+import { computeBotMove as botBlockade } from './blockadeLogic'
+import { computePairsBotMove } from './pairsLogic'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -519,6 +521,8 @@ export function pickBotMove(type, game, botSymbol) {
     case 'dotsandboxes':   return botDotsAndBoxes(game, botSymbol)
     case 'dice':           return botDice(game, botSymbol)
     case 'chainreaction':  return botChainReaction(game, botSymbol)
+    case 'blockade':      return botBlockade(game, botSymbol)
+    case 'pairs':        return computePairsBotMove(game, botSymbol)
     default:               return null
   }
 }

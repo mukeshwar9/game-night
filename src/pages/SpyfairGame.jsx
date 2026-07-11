@@ -7,6 +7,8 @@ import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
 import { SPYFAIR_LOCATIONS } from '../lib/decks/spyfair'
 import { cn } from '@/lib/utils'
+import useBusy from '@/hooks/useBusy'
+import { toast } from 'sonner'
 
 const QUESTION_SECONDS = 240 // 4 minutes of out-of-band questioning
 const MATCH_WINS = 3
@@ -158,6 +160,7 @@ export default function SpyfairGame({
   const [now, setNow] = useState(() => Date.now())
   const [busy, setBusy] = useState(false)
   const [locVerify, setLocVerify] = useState(null) // result-phase: true/false/null(unknown)
+  const [sharing, runShare] = useBusy()
 
   const prevPhase = useRef(phase)
   const resolvedRef = useRef(null)
@@ -393,13 +396,13 @@ export default function SpyfairGame({
                 START ROUND
               </button>
             ) : (
-              <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
+              <p className="font-pixel text-[10px] text-retro-dim arcade-blink">
                 NEED {3 - playerCount} MORE PLAYER{3 - playerCount === 1 ? '' : 'S'}
               </p>
             )}
           </div>
         ) : (
-          <p className="text-center font-pixel text-[10px] text-retro-dim animate-pulse">
+          <p className="text-center font-pixel text-[10px] text-retro-dim arcade-blink">
             {enoughPlayers ? 'WAITING FOR HOST TO START…' : `WAITING FOR PLAYERS (${playerCount}/3)`}
           </p>
         )}
@@ -432,16 +435,20 @@ export default function SpyfairGame({
               </button>
             )}
             <button
-              onClick={() => shareResult({
-                gameLabel: 'SPYFAIR',
-                headline: iWon ? 'YOU WIN!' : `${matchWinner.name || 'PLAYER'} WINS`,
-                sub: 'Spyfair · Game Night',
-                accentVar: '--c-cta',
-                url: window.location.href,
+              onClick={() => runShare(async () => {
+                const ok = await shareResult({
+                  gameLabel: 'SPYFAIR',
+                  headline: iWon ? 'YOU WIN!' : `${matchWinner.name || 'PLAYER'} WINS`,
+                  sub: 'Spyfair · Game Night',
+                  accentVar: '--c-cta',
+                  url: window.location.href,
+                })
+                if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
               })}
-              className="px-6 py-2.5 font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
+              disabled={sharing}
+              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
             >
-              SHARE
+              {sharing ? 'BUILDING…' : 'SHARE'}
             </button>
           </div>
         )}
@@ -512,7 +519,7 @@ export default function SpyfairGame({
               </button>
             </div>
           ) : (
-            <p className="text-center font-pixel text-[10px] text-retro-dim animate-pulse">
+            <p className="text-center font-pixel text-[10px] text-retro-dim arcade-blink">
               WAITING FOR HOST TO START QUESTIONING…
             </p>
           )}
@@ -526,7 +533,7 @@ export default function SpyfairGame({
             <p className="font-pixel text-[8px] text-retro-dim tracking-widest">QUESTIONING</p>
             <p className={cn(
               'font-pixel text-2xl tracking-widest',
-              secsLeft <= 30 ? 'text-retro-p2 text-glow-p2 animate-pulse' : 'text-retro-cta text-glow-cta',
+              secsLeft <= 30 ? 'text-retro-p2 text-glow-p2 arcade-blink' : 'text-retro-cta text-glow-cta',
             )}>
               {fmtClock(secsLeft)}
             </p>
@@ -581,7 +588,7 @@ export default function SpyfairGame({
                     onClick={() => castVote(p.playerId)}
                     disabled={!!myVote || isMe}
                     className={cn(
-                      'w-full flex items-center justify-between px-4 py-2.5 rounded border-2 font-mono text-[11px] transition-all active:scale-[0.98]',
+                      'w-full min-h-11 flex items-center justify-between px-4 py-2.5 rounded border-2 font-mono text-[11px] transition-all active:scale-[0.98]',
                       picked
                         ? 'border-retro-p2 text-retro-p2 shadow-neon-p2 bg-retro-tint-p2'
                         : 'border-retro-border text-retro-text hover:border-retro-p2/60',
@@ -665,7 +672,7 @@ export default function SpyfairGame({
                   </button>
                 )}
                 {!isHost && !proposal && (
-                  <p className="font-pixel text-[10px] text-retro-dim animate-pulse">WAITING FOR HOST…</p>
+                  <p className="font-pixel text-[10px] text-retro-dim arcade-blink">WAITING FOR HOST…</p>
                 )}
               </>
             )

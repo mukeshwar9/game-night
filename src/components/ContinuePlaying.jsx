@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { fetchContinueRooms } from '../lib/continueRooms'
 import { getGameConfig } from '../lib/games'
 import Avatar from './Avatar'
+import Skeleton from './loading/Skeleton'
 import { cn } from '@/lib/utils'
 
 const TONE_CLASSES = {
-  action: 'text-retro-cta text-glow-cta animate-pulse',
+  action: 'text-retro-cta text-glow-cta arcade-blink',
   win: 'text-retro-win text-glow-win',
   dim: 'text-retro-dim',
 }
@@ -21,7 +22,27 @@ export default function ContinuePlaying() {
     return () => { cancelled = true }
   }, [])
 
-  if (!rooms || rooms.length === 0) return null
+  if (rooms === null) {
+    return (
+      <div className="space-y-1.5">
+        <label className="font-pixel text-[10px] text-retro-dim tracking-wider">CONTINUE PLAYING</label>
+        <div className="space-y-1.5">
+          {[0, 1].map(i => (
+            <div key={i} className="w-full flex items-center gap-2.5 bg-retro-card border border-retro-border rounded px-3 py-2.5">
+              <Skeleton pulse className="w-8 h-8 shrink-0" />
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <Skeleton pulse className="h-2.5 w-24" />
+                <Skeleton pulse className="h-2 w-14" />
+              </div>
+              <Skeleton pulse className="h-2 w-8 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (rooms.length === 0) return null
 
   return (
     <div className="space-y-1.5">

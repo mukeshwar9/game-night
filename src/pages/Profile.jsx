@@ -1,47 +1,64 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import NavBar from '../components/NavBar'
 import Avatar from '../components/Avatar'
 import AvatarCustomizer from '../components/AvatarCustomizer'
+import EmptyState from '../components/EmptyState'
 import { canonicalAvatar } from '../lib/avatars'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { getStats } from '../lib/profile'
 import { getGameConfig } from '../lib/games'
-import { UPGRADE_ERRORS } from '../lib/auth'
+import { UPGRADE_ERRORS, consumePendingAuthToast } from '../lib/auth'
+import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 
 export default function Profile() {
   const { profile, isAnonymous, upgrade, signOutToGuest, user } = useAuth()
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
   const [busy, setBusy] = useState(false)
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
+  const [nameBusy, runNameSave] = useBusy()
+  const [avatarBusy, runAvatarSave] = useBusy()
   const stats = getStats()
+
+  // M-07: a redirect-based Google sign-in (mobile/standalone PWA fallback)
+  // completes on a full page reload, before <Toaster/> is mounted — auth.js
+  // stashes the outcome instead of toasting directly. Surface it here, once
+  // this page has actually mounted (Toaster is guaranteed up by then).
+  useEffect(() => {
+    const pending = consumePendingAuthToast()
+    if (!pending) return
+    if (pending.type === 'success') toast.success(pending.message)
+    else toast.error(pending.message)
+  }, [])
 
   const nameValue = nameEdit ?? profile?.displayName ?? ''
   const dirty = nameEdit !== null && nameEdit.trim() && nameEdit.trim() !== profile?.displayName
 
-  const saveName = async () => {
+  const saveName = () => runNameSave(async () => {
     const trimmed = nameValue.trim()
     if (!trimmed) return
     await setProfile({ displayName: trimmed })
     setNameEdit(null)
-    toast.success('Name saved!')
-  }
+    toast.success('NAME SAVED!')
+  }, () => toast.error("COULDN'T SAVE YOUR NAME — TRY AGAIN."))
 
-  const pickAvatar = async (next) => {
+  const pickAvatar = (next) => runAvatarSave(async () => {
     if (next === canonicalAvatar(profile?.avatar)) return
     await setProfile({ avatar: next })
-  }
+    toast.success('AVATAR SAVED!')
+  }, () => toast.error("COULDN'T SAVE YOUR AVATAR — TRY AGAIN."))
 
   const handleUpgrade = async () => {
     setBusy(true)
     try {
       const u = await upgrade()
-      if (u) toast.success('Signed in — your profile is now saved across devices!')
+      if (u) toast.success('SIGNED IN — YOUR PROFILE IS NOW SAVED ACROSS DEVICES!')
     } catch (e) {
       console.error('Google sign-in failed:', e)
-      toast.error(UPGRADE_ERRORS[e?.code] || `Sign-in failed${e?.code ? ` (${e.code})` : ''}. Please try again.`)
+      toast.error(UPGRADE_ERRORS[e?.code] || `SIGN-IN FAILED${e?.code ? ` (${e.code})` : ''}. PLEASE TRY AGAIN.`)
     } finally {
       setBusy(false)
     }
@@ -51,16 +68,54 @@ export default function Profile() {
     setBusy(true)
     try {
       await signOutToGuest()
-      toast('Signed out — playing as a guest.')
+      toast('SIGNED OUT — PLAYING AS A GUEST.')
     } finally {
       setBusy(false)
     }
   }
 
+  // Sign-out switches the session identity immediately with no way back —
+  // require a second tap within a few seconds before it actually fires.
+  const handleSignOutClick = () => {
+    if (busy) return
+    if (!confirmSignOut) {
+      setConfirmSignOut(true)
+      setTimeout(() => setConfirmSignOut(false), 3000)
+      return
+    }
+    setConfirmSignOut(false)
+    handleSignOut()
+  }
+
   const copyCode = async () => {
     if (!profile?.code) return
-    try { await navigator.clipboard.writeText(profile.code) } catch { /* ignore */ }
-    toast.success('Friend code copied!')
+    try {
+      await navigator.clipboard.writeText(profile.code)
+      toast.success('FRIEND CODE COPIED!')
+    } catch {
+      const el = document.createElement('textarea')
+      el.value = profile.code
+      document.body.appendChild(el)
+      el.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(el)
+      if (ok) toast.success('FRIEND CODE COPIED!')
+      else toast.error('COULD NOT COPY THE CODE — PLEASE COPY IT MANUALLY.')
+    }
+  }
+
+  const shareCode = async () => {
+    if (!profile?.code) return
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Game Night', text: `Add me on Game Night — my friend code is ${profile.code}!`, url: window.location.origin })
+        return
+      } catch (err) {
+        if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return
+        // fall through to clipboard copy
+      }
+    }
+    await copyCode()
   }
 
   const byGame = stats?.byGame ? Object.entries(stats.byGame) : []
@@ -69,7 +124,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-retro-bg">
       <NavBar />
-      <div className="p-4">
+      <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-sm mx-auto space-y-6 pt-2">
         <h1 className="font-pixel text-base text-retro-cta text-glow-cta">PROFILE</h1>
 
@@ -91,6 +146,7 @@ export default function Profile() {
             <input
               value={nameValue}
               onChange={e => setNameEdit(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && dirty && !nameBusy && saveName()}
               maxLength={20}
               placeholder="your name"
               className="flex-1 bg-retro-card border border-retro-border rounded px-3 py-2 font-mono text-sm
@@ -98,11 +154,11 @@ export default function Profile() {
             />
             <button
               onClick={saveName}
-              disabled={!dirty}
+              disabled={!dirty || nameBusy}
               className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
                 hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              SAVE
+              {nameBusy ? 'SAVING…' : 'SAVE'}
             </button>
           </div>
         </div>
@@ -110,7 +166,9 @@ export default function Profile() {
         {/* Avatar picker */}
         <div className="space-y-2">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">AVATAR</label>
-          <AvatarCustomizer value={profile?.avatar} onChange={pickAvatar} />
+          <div className={avatarBusy ? 'pointer-events-none opacity-60' : ''}>
+            <AvatarCustomizer value={profile?.avatar} onChange={pickAvatar} />
+          </div>
         </div>
 
         {/* Friend code */}
@@ -122,10 +180,17 @@ export default function Profile() {
             </div>
             <button
               onClick={copyCode}
-              className="px-4 py-2 bg-retro-card border border-retro-border text-retro-dim font-pixel text-[10px] rounded
+              className="min-h-11 px-4 bg-retro-card border border-retro-border text-retro-dim font-pixel text-[10px] rounded
                 hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
             >
               COPY
+            </button>
+            <button
+              onClick={shareCode}
+              className="min-h-11 px-4 bg-retro-card border border-retro-border text-retro-dim font-pixel text-[10px] rounded
+                hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
+            >
+              SHARE
             </button>
           </div>
           <Link to="/friends" className="inline-block font-pixel text-[10px] text-retro-cta hover:text-glow-cta transition-all">
@@ -144,16 +209,19 @@ export default function Profile() {
                 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded
                 hover:border-retro-p1 hover:shadow-neon-p1 transition-all active:scale-95 disabled:opacity-50"
             >
-              <GoogleMark /> SIGN IN WITH GOOGLE
+              <GoogleMark /> {busy ? 'SIGNING IN…' : 'SIGN IN WITH GOOGLE'}
             </button>
           ) : (
             <button
-              onClick={handleSignOut}
+              onClick={handleSignOutClick}
               disabled={busy}
-              className="w-full py-2.5 border border-retro-border bg-retro-card text-retro-dim
-                font-pixel text-[10px] rounded hover:text-retro-text hover:border-retro-p2 transition-all active:scale-95 disabled:opacity-50"
+              className={`w-full py-2.5 border font-pixel text-[10px] rounded transition-all active:scale-95 disabled:opacity-50 ${
+                confirmSignOut
+                  ? 'border-retro-p2 bg-retro-p2/10 text-retro-p2'
+                  : 'border-retro-border bg-retro-card text-retro-dim hover:text-retro-text hover:border-retro-p2'
+              }`}
             >
-              SIGN OUT
+              {busy ? 'SIGNING OUT…' : confirmSignOut ? 'TAP AGAIN TO CONFIRM' : 'SIGN OUT'}
             </button>
           )}
           <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
@@ -167,7 +235,7 @@ export default function Profile() {
         <div className="space-y-2">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR STATS</label>
           {!stats || stats.games === 0 ? (
-            <p className="font-pixel text-[9px] text-retro-dim">PLAY A MATCH TO START YOUR RECORD</p>
+            <EmptyState>PLAY A MATCH TO START YOUR RECORD</EmptyState>
           ) : (
           <>
             <div className="grid grid-cols-3 gap-2 text-center">

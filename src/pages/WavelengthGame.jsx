@@ -14,10 +14,12 @@ import {
   nextClueGiver,
 } from '../lib/wavelengthLogic'
 import GameSwitcher from '../components/GameSwitcher'
+import PixelDots from '../components/loading/PixelDots'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import useBusy from '@/hooks/useBusy'
 
 const MIN_PLAYERS = 3
 const WIN_SCORE = 200 // first to this many points clinches the match
@@ -84,7 +86,7 @@ function Dial({ value, onChange, disabled, pair, target = null }) {
           disabled={disabled}
           onChange={e => onChange(Number(e.target.value))}
           aria-label="Your guess on the spectrum"
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-default"
+          className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-11 opacity-0 cursor-pointer disabled:cursor-default"
         />
       </div>
       <p className="text-center font-pixel text-[10px] text-retro-cta text-glow-cta">{clampGuess(value)}</p>
@@ -144,6 +146,7 @@ export default function WavelengthGame({
   const [dialValue, setDialValue] = useState(50)
   const [submittingGuess, setSubmittingGuess] = useState(false)
   const [lastDelta, setLastDelta] = useState(null) // {playerId: pointsGained} after a reveal
+  const [sharing, runShare] = useBusy()
 
   const revealResolved = useRef(null)
   const prevPhase = useRef(round?.phase)
@@ -151,7 +154,7 @@ export default function WavelengthGame({
 
   // Reset local input when the round advances to a new spectrum.
   useEffect(() => {
-    if (round && round.spectrumIndex !== prevSpectrum.current) {
+    if (round?.spectrumIndex != null && round.spectrumIndex !== prevSpectrum.current) {
       setClueInput('')
       setClueError('')
       setDialValue(50)
@@ -360,7 +363,7 @@ export default function WavelengthGame({
         </div>
 
         {!enough && (
-          <p className="font-pixel text-[9px] text-retro-p2 animate-pulse leading-relaxed">
+          <p className="font-pixel text-[9px] text-retro-p2 arcade-blink leading-relaxed">
             NEED {MIN_PLAYERS - playerCount} MORE{'\n'}PLAYER{MIN_PLAYERS - playerCount === 1 ? '' : 'S'} TO START
           </p>
         )}
@@ -374,7 +377,7 @@ export default function WavelengthGame({
             START GAME
           </button>
         ) : (
-          <p className="font-pixel text-[9px] text-retro-dim animate-pulse">
+          <p className="font-pixel text-[9px] text-retro-dim arcade-blink">
             WAITING FOR HOST TO START…
           </p>
         )}
@@ -408,16 +411,20 @@ export default function WavelengthGame({
             </button>
           )}
           <button
-            onClick={() => shareResult({
-              gameLabel: 'WAVELENGTH',
-              headline: iWon ? 'YOU WIN!' : `${winnerName} WINS`,
-              sub: 'Wavelength · Game Night',
-              accentVar: '--c-cta',
-              url: window.location.href,
+            onClick={() => runShare(async () => {
+              const ok = await shareResult({
+                gameLabel: 'WAVELENGTH',
+                headline: iWon ? 'YOU WIN!' : `${winnerName} WINS`,
+                sub: 'Wavelength · Game Night',
+                accentVar: '--c-cta',
+                url: window.location.href,
+              })
+              if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
             })}
-            className="px-6 py-2.5 font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
+            disabled={sharing}
+            className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
           >
-            SHARE
+            {sharing ? 'BUILDING…' : 'SHARE'}
           </button>
         </div>
         {!proposal && onSwitchGame && <GameSwitcher currentType="wavelength" onSwitch={onSwitchGame} />}
@@ -430,7 +437,7 @@ export default function WavelengthGame({
   // -------------------------------------------------------------------------
   if (!round || !round.clueGiver) {
     return (
-      <div className="text-center py-8 font-pixel text-[10px] text-retro-dim animate-pulse">
+      <div className="text-center py-8 font-pixel text-[10px] text-retro-dim arcade-blink">
         STARTING ROUND…
       </div>
     )
@@ -485,7 +492,9 @@ export default function WavelengthGame({
               maxLength={24}
               onChange={e => { setClueInput(e.target.value); setClueError('') }}
               onKeyDown={e => e.key === 'Enter' && handleSubmitClue()}
-              autoFocus
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
               placeholder="ONE WORD…"
               className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest text-center rounded px-3 py-2 focus:outline-none focus:border-retro-p1 uppercase"
             />
@@ -500,11 +509,8 @@ export default function WavelengthGame({
           </div>
         ) : (
           <div className="text-center space-y-3 py-6">
-            <div className="flex gap-2 justify-center">
-              {[0, 1, 2].map(i => (
-                <div key={i} className="w-2 h-2 rounded-full bg-retro-p2 animate-bounce shadow-neon-p2"
-                  style={{ animationDelay: `${i * 200}ms` }} />
-              ))}
+            <div className="flex justify-center">
+              <PixelDots tone="p2" size="lg" glow />
             </div>
             <p className="font-pixel text-[10px] text-retro-p2 text-glow-p2 leading-relaxed">
               WAITING FOR {clueGiverName}{'\n'}TO GIVE A CLUE…
@@ -527,7 +533,7 @@ export default function WavelengthGame({
               WAITING FOR GUESSES…{'\n'}{guesserIds.filter(id => round.guesses[id] != null).length}/{guesserIds.length} IN
             </p>
           ) : hasGuessed ? (
-            <p className="font-pixel text-[9px] text-retro-win text-glow-win text-center animate-pulse">
+            <p className="font-pixel text-[9px] text-retro-win text-glow-win text-center arcade-blink">
               GUESS LOCKED ✓ — WAITING…
             </p>
           ) : (
@@ -596,7 +602,7 @@ export default function WavelengthGame({
           the round (no points scored, clue rotates to the next seat). */}
       {secretLost && (
         <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3">
-          <p className="font-pixel text-[9px] text-retro-p2 animate-pulse">
+          <p className="font-pixel text-[9px] text-retro-p2">
             SECRET LOST — YOU OPENED A NEW TAB
           </p>
           <button
@@ -612,7 +618,7 @@ export default function WavelengthGame({
           If the clue-giver dropped during clue or guessing, anyone can skip them. */}
       {!isReveal && round.clueGiver && players[round.clueGiver] && !players[round.clueGiver].online && (
         <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3">
-          <p className="font-pixel text-[9px] text-retro-p2 animate-pulse">
+          <p className="font-pixel text-[9px] text-retro-p2">
             CLUE-GIVER IS OFFLINE
           </p>
           <button

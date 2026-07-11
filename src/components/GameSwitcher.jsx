@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 import GamePicker from './GamePicker'
+import BottomSheet from './BottomSheet'
 
 // Grid-of-squares glyph for the header trigger — reads as "browse / pick another
 // game" and pairs with the grid layout of the picker it opens. Styled via
@@ -21,18 +23,25 @@ function GridIcon() {
 // at any point during play. Both open the same picker modal.
 export default function GameSwitcher({ currentType, onSwitch, variant = 'button' }) {
   const [open, setOpen] = useState(false)
+  const [switching, setSwitching] = useState(null) // gameType being switched to, or null
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
-
-  const pick = (type) => {
-    setOpen(false)
-    onSwitch(type)
+  const pick = async (type) => {
+    setSwitching(type)
+    try {
+      await onSwitch(type)
+      setOpen(false)
+    } catch {
+      toast.error('SWITCH FAILED — CHECK CONNECTION')
+    } finally {
+      setSwitching(null)
+    }
   }
+
+  const close = () => { if (!switching) setOpen(false) }
+  // Hardware/gesture back is not cancellable like a backdrop-tap — always
+  // close on it, even mid-switch, so a second back press never falls through
+  // to the underlying route while the async switch is still in flight (M-06).
+  const closeOnBack = () => setOpen(false)
 
   return (
     <>
@@ -41,7 +50,7 @@ export default function GameSwitcher({ currentType, onSwitch, variant = 'button'
           onClick={() => setOpen(true)}
           title="Switch game"
           aria-label="Switch game"
-          className="text-retro-dim hover:text-retro-text transition-colors p-1 rounded"
+          className="text-retro-dim hover:text-retro-text transition-colors p-3 -m-2 rounded"
         >
           <GridIcon />
         </button>
@@ -57,27 +66,20 @@ export default function GameSwitcher({ currentType, onSwitch, variant = 'button'
       )}
 
       {open && (
-        <div
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="w-full max-w-sm max-h-[80vh] overflow-y-auto bg-retro-bg border-2 border-retro-border rounded p-4 space-y-3"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <p className="font-pixel text-[10px] text-retro-dim tracking-widest">PLAY ANOTHER GAME</p>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="font-pixel text-[10px] text-retro-dim hover:text-retro-text transition-colors px-1"
-              >
-                ✕
-              </button>
-            </div>
-            <GamePicker onSelect={pick} excludeType={currentType} />
+        <BottomSheet onClose={close} onBack={closeOnBack} ariaLabel="Play another game" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="font-pixel text-[10px] text-retro-dim tracking-widest">PLAY ANOTHER GAME</p>
+            <button
+              onClick={close}
+              disabled={!!switching}
+              aria-label="Close"
+              className="font-pixel text-[10px] text-retro-dim hover:text-retro-text transition-colors p-3 -m-2 disabled:opacity-40"
+            >
+              ✕
+            </button>
           </div>
-        </div>
+          <GamePicker onSelect={pick} excludeType={currentType} loadingType={switching} />
+        </BottomSheet>
       )}
     </>
   )

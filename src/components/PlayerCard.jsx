@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import Avatar from './Avatar'
+import PixelDots from './loading/PixelDots'
 
 export default function PlayerCard({ name, symbol, isActive, isMe, score, online, avatar }) {
   const isX = symbol === 'X'
@@ -66,18 +67,7 @@ export default function PlayerCard({ name, symbol, isActive, isMe, score, online
       </div>
 
       {isActive && (
-        <div className="flex gap-1 flex-shrink-0">
-          {[0, 1, 2].map(i => (
-            <div
-              key={i}
-              className={cn(
-                'w-1.5 h-1.5 rounded-full animate-bounce',
-                isX ? 'bg-retro-p1' : 'bg-retro-p2',
-              )}
-              style={{ animationDelay: `${i * 150}ms` }}
-            />
-          ))}
-        </div>
+        <PixelDots size="md" tone={isX ? 'p1' : 'p2'} className="flex-shrink-0" />
       )}
     </div>
   )

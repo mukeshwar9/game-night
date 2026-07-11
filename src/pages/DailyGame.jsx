@@ -6,6 +6,8 @@ import { sounds } from '../lib/sounds'
 import { todayKey, seedFromDate, readBest, writeBest, getDailyNumber, bumpStreak } from '../lib/daily'
 import { shareResult } from '@/lib/shareCard'
 import { cn } from '@/lib/utils'
+import useBusy from '@/hooks/useBusy'
+import { toast } from 'sonner'
 
 const DAILY_MS = 60_000
 
@@ -35,6 +37,8 @@ export default function DailyGame() {
   const fbTimer = useRef(null)
   const correctRef = useRef(0)   // mirrors `correct` so the timer reads the final value
   const playedToday = best != null
+
+  const [sharing, runShare] = useBusy()
 
   const q = generateQuestion(seed, qIndex)
 
@@ -117,12 +121,15 @@ export default function DailyGame() {
     if (/^\d$/.test(key) && answer.length < 5) setAnswer(a => a + key)
   }
 
-  const shareDaily = () => shareResult({
-    gameLabel: 'DAILY CHALLENGE',
-    headline: `DAILY #${getDailyNumber(date)} — ${correct} SOLVED`,
-    sub: dayStreak >= 2 ? `🔥 ${dayStreak} DAY STREAK` : undefined,
-    accentVar: '--c-cta',
-    url: `${window.location.origin}/daily`,
+  const shareDaily = () => runShare(async () => {
+    const ok = await shareResult({
+      gameLabel: 'DAILY CHALLENGE',
+      headline: `DAILY #${getDailyNumber(date)} — ${correct} SOLVED`,
+      sub: dayStreak >= 2 ? `🔥 ${dayStreak} DAY STREAK` : undefined,
+      accentVar: '--c-cta',
+      url: `${window.location.origin}/daily`,
+    })
+    if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
   })
 
   // ── render ─────────────────────────────────────────────────────────
@@ -130,7 +137,7 @@ export default function DailyGame() {
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <NavBar />
-      <div className="w-full max-w-sm space-y-6 p-4">
+      <div className="w-full max-w-sm space-y-6 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="font-pixel text-lg text-retro-cta text-glow-cta leading-relaxed">
@@ -248,9 +255,10 @@ export default function DailyGame() {
 
             <button
               onClick={shareDaily}
-              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95"
+              disabled={sharing}
+              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
             >
-              SHARE RESULT
+              {sharing ? 'BUILDING…' : 'SHARE RESULT'}
             </button>
 
             <div className="bg-retro-card border border-retro-border rounded p-3 text-center">

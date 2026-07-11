@@ -153,15 +153,18 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
   }
 
   return (
-    <div className="w-full max-w-xs mx-auto">
+    <div className="w-full max-w-[280px] mx-auto">
       <div
-        className="border-2 border-retro-border rounded p-1.5 sm:p-2"
+        className={cn(
+          'border-2 border-retro-border rounded p-1 sm:p-1.5 transition-all duration-200',
+          disabled && 'opacity-60 saturate-50',
+        )}
         style={{
           background: 'radial-gradient(circle at 50% 40%, rgb(var(--c-structure) / 0.18), rgb(var(--c-surface)) 70%)',
         }}
       >
         <div
-          className="grid gap-[2px]"
+          className="grid gap-[1.5px]"
           style={{ gridTemplateColumns: `repeat(${CR_COLS}, minmax(0, 1fr))` }}
         >
           {displayBoard.map((cell, i) => {
@@ -192,6 +195,10 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
                       ? 'hover:border-retro-p1/60 hover:bg-retro-p1/10 cursor-pointer'
                       : 'hover:border-retro-p2/60 hover:bg-retro-p2/10 cursor-pointer'
                     : 'cursor-default',
+                  // M-47: persistent marker on the last-played cell, once the
+                  // chain-reaction replay has settled (avoids fighting the
+                  // explosion flash overlay mid-cascade).
+                  !isReplaying && i === crLastMove && 'ring-2 ring-inset ring-retro-cta/70',
                 )}
               >
                 {/* Explosion flash overlay */}
@@ -236,7 +243,7 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
       </div>
 
       {/* Legend */}
-      <div className="mt-2 flex items-center justify-center gap-3 font-pixel text-[10px]">
+      <div className="mt-1.5 flex items-center justify-center gap-3 font-pixel text-[10px]">
         <span className="text-retro-p1 text-glow-p1">
           X {board.filter(c => c && c[0] === 'X').length}
         </span>

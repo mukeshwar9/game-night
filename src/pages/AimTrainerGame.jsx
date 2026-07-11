@@ -4,11 +4,13 @@ import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
+import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-const RADIUS   = 20
+const RADIUS   = 24
+const MIN_DIST = RADIUS * 2 + 8 // px gap between target centers so they never overlap or touch edges
 const GAME_MS  = 30_000
 const LEAD_MS  = 3_000
 
@@ -66,12 +68,11 @@ export default function AimTrainerGame({
   const myKey = mySymbol === 'X' ? 'X' : 'O'
   const opKey = myKey === 'X' ? 'O' : 'X'
 
-  const [tick, setTick]  = useState(0)
+  const [now, setNow]    = useState(() => Date.now())
   const containerRef      = useRef(null)
   const hasSpawnedRef     = useRef(false)
 
   const endTime    = game.aimEndTime ?? null
-  const now        = Date.now()
   const isCountdown = !!endTime && now < endTime - GAME_MS
   const isActive    = !!endTime && now >= endTime - GAME_MS && now < endTime
   const countdownSec = isCountdown ? Math.ceil((endTime - GAME_MS - now) / 1000) : 0
@@ -81,22 +82,6 @@ export default function AimTrainerGame({
   const opTarget = game[`aimTarget${opKey}`] ?? null
   const myScore  = game[`aimScore${myKey}`]  ?? 0
   const opScore  = game[`aimScore${opKey}`]  ?? 0
-
-  // Ticker: drives countdown display, first-target spawn, and game-over detection
-  useEffect(() => {
-    if (!endTime) return
-    hasSpawnedRef.current = false
-    const id = setInterval(() => {
-      const t = Date.now()
-      if (!hasSpawnedRef.current && mySymbol && t >= endTime - GAME_MS) {
-        hasSpawnedRef.current = true
-        spawnTarget()
-      }
-      if (t >= endTime) { clearInterval(id); tryFinish() }
-      else setTick(n => n + 1)
-    }, 100)
-    return () => clearInterval(id)
-  }, [endTime]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const tryFinish = async () => {
     try {
@@ -112,28 +97,51 @@ export default function AimTrainerGame({
     } catch { /* other client resolved */ }
   }
 
-  const spawnTarget = async () => {
-    const el = containerRef.current
-    if (!el) return
-    const { width, height } = el.getBoundingClientRect()
-    if (!width || !height) return
-    const xPct = (RADIUS + Math.random() * (width  - 2 * RADIUS)) / width
-    const yPct = (RADIUS + Math.random() * (height - 2 * RADIUS)) / height
-    try {
-      await update(ref(db, `games/${gameId}`), { [`aimTarget${myKey}`]: { xPct, yPct } })
-    } catch { /* ignore */ }
-  }
-
-  const randomPos = () => {
+  // Rejection-samples a position, retrying a few times if it lands within
+  // MIN_DIST of `avoid` (the other player's current target) so the two
+  // targets can never overlap or sit edge-to-edge.
+  const randomPos = (avoid) => {
     const el = containerRef.current
     if (!el) return null
     const { width, height } = el.getBoundingClientRect()
     if (!width || !height) return null
-    return {
-      xPct: (RADIUS + Math.random() * (width  - 2 * RADIUS)) / width,
-      yPct: (RADIUS + Math.random() * (height - 2 * RADIUS)) / height,
+    const avoidPx = avoid ? { x: avoid.xPct * width, y: avoid.yPct * height } : null
+    let pos = null
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const xPct = (RADIUS + Math.random() * (width  - 2 * RADIUS)) / width
+      const yPct = (RADIUS + Math.random() * (height - 2 * RADIUS)) / height
+      pos = { xPct, yPct }
+      if (!avoidPx) break
+      const dx = xPct * width - avoidPx.x
+      const dy = yPct * height - avoidPx.y
+      if (Math.hypot(dx, dy) >= MIN_DIST) break
     }
+    return pos
   }
+
+  const spawnTarget = async () => {
+    const pos = randomPos(game[`aimTarget${opKey}`] ?? null)
+    if (!pos) return
+    try {
+      await update(ref(db, `games/${gameId}`), { [`aimTarget${myKey}`]: pos })
+    } catch { /* ignore */ }
+  }
+
+  // Ticker: drives countdown display, first-target spawn, and game-over detection
+  useEffect(() => {
+    if (!endTime) return
+    hasSpawnedRef.current = false
+    const id = setInterval(() => {
+      const t = Date.now()
+      if (!hasSpawnedRef.current && mySymbol && t >= endTime - GAME_MS) {
+        hasSpawnedRef.current = true
+        spawnTarget()
+      }
+      if (t >= endTime) { clearInterval(id); tryFinish() }
+      else setNow(t)
+    }, 100)
+    return () => clearInterval(id)
+  }, [endTime]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStartClick = async () => {
     if (endTime) return
@@ -149,7 +157,7 @@ export default function AimTrainerGame({
     e.stopPropagation()
     if (!isActive || !mySymbol) return
     sounds.hit(game[`aimHits${myKey}`] ?? 0)
-    const pos = randomPos()
+    const pos = randomPos(opTarget)
     if (!pos) return
     try {
       await update(ref(db, `games/${gameId}`), {
@@ -172,29 +180,26 @@ export default function AimTrainerGame({
     } catch { /* ignore */ }
   }
 
-  // Render a positioned target button
+  // Render a positioned target button. Position is expressed as a % of the
+  // container (not measured pixels) so this never needs to read containerRef
+  // during render — the click handlers still measure it, but only on click.
   const renderTarget = (target, sym) => {
     if (!target) return null
-    const el = containerRef.current
-    if (!el) return null
-    const { width, height } = el.getBoundingClientRect()
-    if (!width || !height) return null
-    const x    = target.xPct * width
-    const y    = target.yPct * height
     const isOwn = sym === myKey
     return (
       <button
         onClick={isOwn ? handleOwnTargetClick : handleOpponentTargetClick}
         style={{
-          position: 'absolute',
-          left:   x - RADIUS,
-          top:    y - RADIUS,
-          width:  RADIUS * 2,
-          height: RADIUS * 2,
+          position:  'absolute',
+          left:      `${target.xPct * 100}%`,
+          top:       `${target.yPct * 100}%`,
+          transform: 'translate(-50%, -50%)',
+          width:     RADIUS * 2,
+          height:    RADIUS * 2,
         }}
         className={cn(
           'rounded-full active:scale-90 transition-transform duration-75',
-          isOwn
+          sym === 'X'
             ? 'bg-retro-p1 shadow-neon-p1 hover:brightness-110'
             : 'bg-retro-p2 shadow-neon-p2 hover:brightness-110',
         )}
@@ -281,7 +286,7 @@ export default function AimTrainerGame({
             </p>
             <button
               onClick={handleStartClick}
-              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+              className="px-6 py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
             >
               START
             </button>
@@ -291,7 +296,7 @@ export default function AimTrainerGame({
         {isCountdown && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
             <p className="font-pixel text-6xl text-retro-win text-glow-win">{countdownSec}</p>
-            <p className="font-pixel text-[9px] text-retro-dim animate-pulse">GET READY!</p>
+            <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
           </div>
         )}
 
@@ -311,11 +316,7 @@ export default function AimTrainerGame({
         </div>
       )}
 
-      {!opponentOnline && mySymbol && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">
-          OPPONENT IS OFFLINE
-        </p>
-      )}
+      {!opponentOnline && mySymbol && <OfflineNotice label="OPPONENT" />}
       {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>
   )

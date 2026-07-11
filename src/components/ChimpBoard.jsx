@@ -38,7 +38,7 @@ export default function ChimpBoard({
         {/* Waiting overlay when I'm done but opponent isn't */}
         {myDone && !opDone && (
           <div className="absolute inset-0 bg-retro-bg/70 flex items-center justify-center rounded z-10">
-            <p className="font-pixel text-[9px] text-retro-win text-glow-win text-center leading-relaxed animate-pulse">
+            <p className="font-pixel text-[9px] text-retro-win text-glow-win text-center leading-relaxed arcade-blink">
               DONE!{'\n'}WAITING FOR{'\n'}OPPONENT
             </p>
           </div>
@@ -58,7 +58,7 @@ export default function ChimpBoard({
                 onClick={() => isClickable && onMove(i)}
                 className={cn(
                   'aspect-square flex items-center justify-center rounded',
-                  'border font-pixel text-[9px] transition-all duration-75',
+                  'border font-pixel text-[9px] transition-all duration-100',
                   isCorrect
                     ? 'bg-retro-win/25 border-retro-win/50 text-retro-win'
                     : isNumbered && showNumbers
@@ -88,7 +88,7 @@ export default function ChimpBoard({
             {opDone ? 'BOTH DONE — NEXT LEVEL!' : 'WAITING FOR OPPONENT...'}
           </span>
         ) : showNumbers ? (
-          <span className="text-retro-cta animate-pulse">
+          <span className="text-retro-cta arcade-blink">
             {disabled ? 'SPECTATING' : 'MEMORIZE — CLICK 1 FIRST'}
           </span>
         ) : (

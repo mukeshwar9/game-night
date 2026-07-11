@@ -69,13 +69,16 @@ const SumoArena = forwardRef(function SumoArena(
         </span>
       </div>
 
+      {/* Arena — width is capped by both the container AND the viewport
+          height (min() against a 100dvh-derived budget) so short/landscape
+          phones still see the whole square arena instead of it overflowing. */}
       <div
         ref={ref}
         className={cn(
-          'relative w-full rounded-lg border-2 border-retro-border bg-retro-deep overflow-hidden touch-none',
+          'relative mx-auto rounded-lg border-2 border-retro-border bg-retro-deep overflow-hidden touch-none',
           dim && 'opacity-60',
         )}
-        style={{ aspectRatio: '1 / 1' }}
+        style={{ aspectRatio: '1 / 1', width: 'min(100%, calc(100dvh - 320px))' }}
       >
         {/* Circular platform */}
         <div
@@ -107,6 +110,9 @@ const SumoArena = forwardRef(function SumoArena(
           </div>
         )}
       </div>
+      <p className="text-center font-pixel text-[10px] text-retro-dim leading-relaxed">
+        ANY KEY · TAP PUSH BELOW ON TOUCH
+      </p>
     </div>
   )
 })

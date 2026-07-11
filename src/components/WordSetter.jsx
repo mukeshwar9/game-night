@@ -44,7 +44,9 @@ export default function WordSetter({ onWordSet, loading = false }) {
           onChange={handleChange}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
           maxLength={40}
-          autoFocus
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           placeholder="TYPE A WORD OR PHRASE"
           className={cn(
             'w-full bg-retro-card border-2 rounded px-4 py-3',
@@ -54,7 +56,7 @@ export default function WordSetter({ onWordSet, loading = false }) {
           )}
         />
         {error && (
-          <p className="font-pixel text-[10px] text-retro-p2 animate-pulse">{error}</p>
+          <p className="font-pixel text-[10px] text-retro-p2">{error}</p>
         )}
         {raw && !error && (
           <p className="font-mono text-[10px] text-retro-dim">
@@ -68,6 +70,9 @@ export default function WordSetter({ onWordSet, loading = false }) {
           onChange={e => setHint(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
           maxLength={80}
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           placeholder="ADD A HINT (OPTIONAL)"
           className={cn(
             'w-full bg-retro-card border rounded px-4 py-2',

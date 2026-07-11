@@ -76,7 +76,7 @@ export default function HangmanGallows({ wrongCount = 0, flash = false }) {
 
       <svg
         viewBox="0 0 120 150"
-        className="w-full max-w-[240px]"
+        className="w-full max-w-[180px] max-h-[28vh]"
         aria-label={`Hangwoman gallows — ${wrongCount} of ${MAX_WRONG} wrong`}
       >
         {/* ── Base platform — split with trapdoor when dead ── */}

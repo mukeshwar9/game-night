@@ -9,12 +9,14 @@ import TypingKeyboard from '../components/TypingKeyboard';
 import WordSetter from '../components/WordSetter';
 import ChimpBoard from '../components/ChimpBoard';
 import VisualMemoryBoard from '../components/VisualMemoryBoard';
+import ArcadeLoader from '../components/ArcadeLoader';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
-  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, BlockadeIcon, PairsIcon,
+  WordHuntIcon, PaintIcon, SketchIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
 import SnakeArena from '../components/SnakeArena';
@@ -28,6 +30,13 @@ import { generateQuestion, QUESTION_MS } from '../lib/mathLogic';
 import { normalizeBoard } from '../lib/gameLogic';
 import { applyGuess, isWordGuessed, countWrong, MAX_WRONG, wordStructure } from '../lib/hangmanLogic';
 import { markGuess, isValidGuess, getKeyboardState, MAX_GUESSES as WD_MAX_GUESSES, WORD_LENGTH as WD_WORD_LENGTH } from '../lib/wordduelLogic';
+import {
+  generateGrid, findPath, scoreWord, scoreWords, canonicalize,
+  neighborsOf, COUNTDOWN_MS, ROUND_MS,
+} from '../lib/wordhuntLogic'
+import { loadDictionary } from '../lib/wordhuntDictionary'
+import { toast } from 'sonner'
+import useBusy from '../hooks/useBusy'
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
@@ -44,6 +53,7 @@ import WavelengthDemo from './WavelengthDemo';
 import FibbageDemo from './FibbageDemo';
 import SpyfairDemo from './SpyfairDemo';
 import SpaceduelDemo from './SpaceduelDemo';
+import PaintDemo from './PaintDemo';
 
 function generateNumberLocal(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
@@ -146,6 +156,7 @@ function BotBoardDemo({ type }) {
 const PARTY_BLURB = {
   twotruths: 'Spot the lie among three statements.',
   bluff: "Liar's dice — out-bluff your opponent.",
+  sketch: 'Draw the secret word, race to guess it.',
 }
 
 function PartyGameCard({ type }) {
@@ -237,7 +248,7 @@ function HangmanDemo() {
                   </button>
                 </>
               ) : (
-                <p className="font-pixel text-[10px] text-retro-cta animate-pulse">GUESS A LETTER</p>
+                <p className="font-pixel text-[10px] text-retro-cta arcade-blink">GUESS A LETTER</p>
               )}
               <p className="font-mono text-[10px] text-retro-dim">{wrongCount}/{MAX_WRONG} wrong</p>
             </div>
@@ -464,6 +475,351 @@ function WordDuelDemo() {
   )
 }
 
+function pad2WH(n) { return String(n).padStart(2, '0') }
+function fmtTimeWH(ms) {
+  const s = Math.ceil(ms / 1000)
+  return `${Math.floor(s / 60)}:${pad2WH(s % 60)}`
+}
+function displayLetterWH(letter) {
+  return letter === 'q' ? 'Qu' : String(letter ?? '').toUpperCase()
+}
+
+// Self-contained practice round — own grid/timer/drag-trace, no networking,
+// no shared UI code with WordHuntGame.jsx (per spec §0 finding 7 / §6.6).
+function WordHuntDemo() {
+  const [seed] = useState(() => Math.floor(Math.random() * 1_000_000_000))
+  const grid = generateGrid(seed)
+
+  const [dict, setDict] = useState(null)
+  const [dictError, setDictError] = useState(false)
+  const [retrying, runRetry] = useBusy()
+
+  useEffect(() => {
+    let cancelled = false
+    loadDictionary()
+      .then((d) => { if (!cancelled) setDict(d) })
+      .catch(() => { if (!cancelled) setDictError(true) })
+    return () => { cancelled = true }
+  }, [])
+
+  // RETRY button handler — mirrors WordHuntGame.jsx's retryDictionary: wrapped
+  // in useBusy so a double-tap can't fire two concurrent retries, and a
+  // failure toasts instead of leaving the button silently inert.
+  const retryDictionary = () => {
+    runRetry(async () => {
+      setDictError(false)
+      const d = await loadDictionary()
+      setDict(d)
+    }, () => {
+      setDictError(true)
+      toast.error("COULDN'T LOAD WORD LIST — TRY AGAIN")
+    })
+  }
+
+  const [startedAt, setStartedAt] = useState(null)
+  const [now, setNow] = useState(() => Date.now())
+  const [words, setWords] = useState([])
+  const [score, setScore] = useState(0)
+  const [lastResult, setLastResult] = useState(null)
+  const [botScore, setBotScore] = useState(null)
+  const [path, setPath] = useState([])
+  const [dragging, setDragging] = useState(false)
+  const [typedWord, setTypedWord] = useState('')
+  const [inputShake, setInputShake] = useState(null)
+
+  const foundWordsRef = useRef(new Set())
+  const draggingRef = useRef(false)
+  const pathRef = useRef([])
+  const doneRef = useRef(false)
+  const resultIdRef = useRef(0)
+  const shakeTimerRef = useRef(null)
+
+  const isCountdown = !!startedAt && now < startedAt + COUNTDOWN_MS
+  const isPlaying = !!startedAt && now >= startedAt + COUNTDOWN_MS
+    && now < startedAt + COUNTDOWN_MS + ROUND_MS
+  const countdownSec = isCountdown ? Math.ceil((startedAt + COUNTDOWN_MS - now) / 1000) : 0
+  const deadline = startedAt ? startedAt + COUNTDOWN_MS + ROUND_MS : null
+  const timeLeftMs = deadline ? Math.max(0, deadline - now) : ROUND_MS
+  const isDone = !!startedAt && now >= (startedAt + COUNTDOWN_MS + ROUND_MS)
+
+  useEffect(() => {
+    if (!startedAt) return
+    const id = setInterval(() => {
+      const n = Date.now()
+      setNow(n)
+      if (n >= startedAt + COUNTDOWN_MS + ROUND_MS && !doneRef.current) {
+        doneRef.current = true
+        setBotScore(Math.floor(Math.random() * 40) + 20)
+      }
+    }, 100)
+    return () => clearInterval(id)
+  }, [startedAt])
+
+  const rawWordFromPath = (p) => p.map((i) => (grid[i] === 'q' ? 'qu' : grid[i])).join('')
+
+  // Flashes/shakes are driven directly from this handler (a plain event-driven
+  // function, not an effect body) rather than reacting to `lastResult` via a
+  // separate useEffect — avoids a react-hooks/set-state-in-effect violation
+  // (see WordHuntGame.jsx's own note on this same lint rule).
+  const handleSubmit = (rawWord) => {
+    if (!dict || !isPlaying) return
+    const word = canonicalize(rawWord)
+    clearTimeout(shakeTimerRef.current)
+
+    const reject = (kind) => {
+      setInputShake(kind)
+      setLastResult({ kind, id: ++resultIdRef.current })
+      // Clear any stale path left over from a previous valid find — otherwise
+      // this rejection's amber flash paints tiles that already scored a point
+      // (see WordHuntGame.jsx's WordGrid effect for the same fix in the
+      // multiplayer version).
+      setPath([])
+      shakeTimerRef.current = setTimeout(() => setInputShake(null), 400)
+    }
+
+    if (word.length < 3) { sounds.miss(); reject('invalid'); return }
+    if (foundWordsRef.current.has(word)) { reject('duplicate'); return }
+    if (!dict.has(word)) { sounds.miss(); reject('invalid'); return }
+    const p = findPath(grid, word)
+    if (!p) { sounds.miss(); reject('invalid'); return }
+
+    foundWordsRef.current.add(word)
+    const newWords = [...words, word]
+    setWords(newWords)
+    setScore(scoreWords(newWords))
+    sounds.hit(newWords.length)
+    setLastResult({ kind: 'valid', id: ++resultIdRef.current })
+    setPath(p)
+    shakeTimerRef.current = setTimeout(() => { if (!draggingRef.current) setPath([]) }, 500)
+  }
+
+  // Cleanup only — no setState here, so this effect never risks the
+  // set-state-in-effect rule.
+  useEffect(() => () => clearTimeout(shakeTimerRef.current), [])
+
+  const startDrag = (index) => {
+    if (!isPlaying) return
+    draggingRef.current = true
+    pathRef.current = [index]
+    setDragging(true)
+    setPath([index])
+  }
+
+  const handlePointerMove = (e) => {
+    if (!draggingRef.current || !isPlaying) return
+    const el = document.elementFromPoint(e.clientX, e.clientY)
+    const cellEl = el?.closest?.('[data-wh-cell]')
+    if (!cellEl) return
+    const idx = Number(cellEl.dataset.whCell)
+    const last = pathRef.current[pathRef.current.length - 1]
+    if (idx === last || pathRef.current.includes(idx)) return
+    if (!neighborsOf(last).includes(idx)) return
+    pathRef.current = [...pathRef.current, idx]
+    setPath(pathRef.current)
+  }
+
+  const endDrag = () => {
+    if (!draggingRef.current) return
+    draggingRef.current = false
+    setDragging(false)
+    const finalPath = pathRef.current
+    if (finalPath.length > 0) handleSubmit(rawWordFromPath(finalPath))
+  }
+
+  useEffect(() => {
+    if (!isPlaying) return
+    const handler = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        setTypedWord((w) => {
+          if (w.length > 0) handleSubmit(w)
+          return ''
+        })
+      } else if (e.key === 'Backspace') {
+        setTypedWord((w) => w.slice(0, -1))
+      } else if (/^[a-zA-Z]$/.test(e.key)) {
+        setTypedWord((w) => (w.length < 20 ? w + e.key.toUpperCase() : w))
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSubmit closes over current words/dict each render; re-binding per render is fine here (demo only)
+  }, [isPlaying])
+
+  const cellState = (index) => {
+    const pos = path.indexOf(index)
+    if (pos === -1) return 'idle'
+    if (dragging) return 'path'
+    if (lastResult?.kind === 'valid') return 'valid'
+    if (lastResult?.kind === 'duplicate') return 'duplicate'
+    if (lastResult?.kind === 'invalid') return 'invalid'
+    return 'path'
+  }
+
+  const reset = () => {
+    setStartedAt(null)
+    setNow(Date.now())
+    setWords([])
+    setScore(0)
+    setLastResult(null)
+    setBotScore(null)
+    setPath([])
+    foundWordsRef.current = new Set()
+    doneRef.current = false
+  }
+
+  if (!dict) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8">
+        <ArcadeLoader variant="inline" />
+        {dictError && (
+          <>
+            <p className="font-pixel text-[9px] text-retro-p2 mt-3">COULDN&apos;T LOAD WORD LIST</p>
+            <button
+              onClick={retryDictionary}
+              disabled={retrying}
+              className="mt-2 px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
+            >
+              {retrying ? 'RETRYING…' : 'RETRY'}
+            </button>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  if (isDone) {
+    const bot = botScore ?? 0
+    const result = score > bot ? 'win' : score < bot ? 'lose' : 'draw'
+    return (
+      <div className="flex flex-col items-center gap-3 py-4">
+        <p className={cn(
+          'text-sm font-bold',
+          result === 'win' ? 'text-retro-win' : result === 'draw' ? 'text-retro-text' : 'text-retro-dim',
+        )}>
+          {result === 'win' ? 'YOU WIN!' : result === 'draw' ? 'DRAW' : 'BOT WINS'}
+        </p>
+        <div className="flex gap-6 text-xs text-retro-dim">
+          <span>YOU: {score} ({words.length} words)</span>
+          <span>BOT: {bot}</span>
+        </div>
+        <button
+          className="mt-2 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-cta text-white hover:opacity-90"
+          onClick={reset}
+        >
+          PLAY AGAIN
+        </button>
+      </div>
+    )
+  }
+
+  if (!startedAt) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-6">
+        <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left mx-auto w-fit">
+          <p>● TRACE ADJACENT TILES (DIAGONALS COUNT)</p>
+          <p>✎ ≥3 LETTERS · NO REUSING A TILE · Qu COUNTS AS 2</p>
+          <p>⏱ 80-SECOND HUNT · HIGHEST SCORE WINS</p>
+        </div>
+        <button
+          onClick={() => setStartedAt(Date.now())}
+          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+        >
+          READY
+        </button>
+      </div>
+    )
+  }
+
+  if (isCountdown) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-8">
+        <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
+        <p className="font-pixel text-7xl text-retro-win text-glow-win">{countdownSec}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-4">
+      <div className="flex items-center gap-3">
+        <div className="bg-retro-card border border-retro-border rounded px-3 py-1.5 text-center min-w-[4rem]">
+          <p className={cn(
+            'font-pixel text-[18px] tabular-nums leading-none',
+            timeLeftMs < 10_000 ? 'text-retro-p2 text-glow-p2 arcade-blink' : 'text-retro-win',
+          )}>
+            {fmtTimeWH(timeLeftMs)}
+          </p>
+          <p className="font-pixel text-[7px] text-retro-dim mt-0.5">TIME LEFT</p>
+        </div>
+        <p className="font-pixel text-[10px] text-retro-text">SCORE: {score}</p>
+      </div>
+
+      <div
+        className="relative grid grid-cols-4 gap-2 max-w-xs mx-auto touch-none select-none"
+        style={{ touchAction: 'none' }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+      >
+        {Array.from({ length: 16 }, (_, i) => {
+          const state = cellState(i)
+          return (
+            <div
+              key={i}
+              data-wh-cell={i}
+              className="aspect-square"
+              onPointerDown={() => startDrag(i)}
+            >
+              <div
+                className={cn(
+                  'w-full h-full flex items-center justify-center rounded border font-pixel select-none',
+                  'text-sm sm:text-base transition-colors duration-150',
+                  state === 'idle' && 'bg-retro-card border-retro-border text-retro-text',
+                  state === 'path' && 'bg-retro-tint-cta border-retro-cta text-retro-cta',
+                  state === 'valid' && 'bg-retro-win border-retro-win text-white',
+                  state === 'duplicate' && 'bg-retro-tint-cta border-retro-cta text-retro-cta',
+                  state === 'invalid' && 'bg-retro-tint-p2 border-retro-p2 text-retro-p2',
+                )}
+              >
+                {displayLetterWH(grid[i])}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div
+        className={cn(
+          'mx-auto max-w-xs rounded border px-3 py-2 text-center transition-colors w-full',
+          inputShake === 'duplicate' && 'border-retro-cta bg-retro-tint-cta',
+          inputShake === 'invalid' && 'border-retro-p2 bg-retro-tint-p2',
+          !inputShake && 'border-retro-border bg-retro-card',
+        )}
+      >
+        <span className="font-pixel text-xs tracking-widest text-retro-text">
+          {typedWord || <span className="opacity-30">TYPE A WORD…</span>}
+        </span>
+      </div>
+
+      <div className="bg-retro-card border border-retro-border rounded p-2 max-h-32 overflow-y-auto w-full max-w-xs">
+        {words.length === 0 ? (
+          <p className="font-pixel text-[9px] text-retro-dim text-center py-3">TRACE OR TYPE WORDS TO FIND THEM HERE</p>
+        ) : (
+          <ul className="space-y-1">
+            {[...words].reverse().map((w, i) => (
+              <li key={`${w}-${words.length - i}`} className="flex justify-between font-mono text-xs text-retro-text px-1">
+                <span className="uppercase tracking-wide">{w}</span>
+                <span className="text-retro-win font-pixel text-[9px]">{scoreWord(w)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SimonDemo() {
   const [seq, setSeq] = useState([])
   const [progress, setProgress] = useState(0)
@@ -592,10 +948,10 @@ function NumberMemoryDemo() {
   const [answerO, setAnswerO] = useState(null)
   const [status, setStatus] = useState('playing')
   const [winner, setWinner] = useState(null)
-  const timerRef = useRef(null)
 
   useEffect(() => {
-    if (phase !== 'showing') { clearInterval(timerRef.current); setCountdown(null); return }
+    if (phase !== 'showing') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- countdown was left at null by the previous round's finish; must show 3 immediately, not wait for the first 100ms tick
     setCountdown(3)
     let rem = 3000
     const iv = setInterval(() => {
@@ -603,7 +959,6 @@ function NumberMemoryDemo() {
       setCountdown(Math.ceil(rem / 1000))
       if (rem <= 0) { clearInterval(iv); setCountdown(null); setPhase('recall') }
     }, 100)
-    timerRef.current = iv
     return () => clearInterval(iv)
   }, [phase])
 
@@ -674,7 +1029,7 @@ function NumberMemoryDemo() {
           <p className="font-pixel text-[8px] text-retro-dim">MEMORIZE THIS NUMBER</p>
           <p className="font-pixel text-2xl text-retro-cta text-glow-cta tracking-widest">{number}</p>
           {countdown != null && (
-            <p className="font-pixel text-[9px] text-retro-p2 animate-pulse">{countdown}s</p>
+            <p className="font-pixel text-[9px] text-retro-p2 arcade-blink">{countdown}s</p>
           )}
         </div>
       )}
@@ -906,7 +1261,7 @@ function ReactionDemo() {
            phase === 'waiting'   ? 'WAIT...'       :
            'TAP TO START'}
         </p>
-        <p className={cn('font-pixel text-[9px]', phase === 'too_early' ? 'text-retro-p2' : 'text-retro-dim animate-pulse')}>
+        <p className={cn('font-pixel text-[9px]', phase === 'too_early' ? 'text-retro-p2' : 'text-retro-dim arcade-blink')}>
           {phase === 'waiting'   ? "DON'T CLICK YET"                       :
            phase === 'too_early' ? 'TAP TO TRY AGAIN'                      :
            phase === 'result'    ? `ROUND ${times.length}/${DEMO_ROUNDS} — TAP FOR NEXT` :
@@ -947,7 +1302,7 @@ function TypingDemo() {
   // Countdown
   useEffect(() => {
     if (phase !== 'countdown') return
-    let c = 3; setCDown(3)
+    let c = 3
     const id = setInterval(() => {
       c--
       if (c <= 0) { clearInterval(id); startTimeRef.current = Date.now(); setPhase('racing') }
@@ -956,23 +1311,21 @@ function TypingDemo() {
     return () => clearInterval(id)
   }, [phase])
 
-  // Bot at BOT_WPM chars/min (types correctly)
+  // Bot at BOT_WPM chars/min (types correctly); detects its own finish inline
   useEffect(() => {
     if (phase !== 'racing') return
     const msPerChar = Math.round(60_000 / (BOT_WPM * 5))
+    let progress = 0
     botIntervalRef.current = setInterval(() => {
-      setBotProgress(p => Math.min(p + 1, DEMO_PASSAGE.length))
+      progress = Math.min(progress + 1, DEMO_PASSAGE.length)
+      setBotProgress(progress)
+      if (progress >= DEMO_PASSAGE.length) {
+        clearInterval(botIntervalRef.current)
+        setPhase('done')
+      }
     }, msPerChar)
     return () => clearInterval(botIntervalRef.current)
   }, [phase])
-
-  // Bot finishes
-  useEffect(() => {
-    if (phase === 'racing' && botProgress >= DEMO_PASSAGE.length) {
-      clearInterval(botIntervalRef.current)
-      setPhase('done')
-    }
-  }, [botProgress, phase])
 
   const handleKey = (char) => {
     if (phase !== 'racing' || finishedRef.current) return
@@ -1089,7 +1442,7 @@ function TypingDemo() {
         {phase === 'countdown' && (
           <div className="flex flex-col items-center gap-2 py-2">
             <p className="font-pixel text-5xl text-retro-win text-glow-win">{countdownSec}</p>
-            <p className="font-pixel text-[9px] text-retro-dim animate-pulse">GET READY!</p>
+            <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
           </div>
         )}
         {(isRacing || phase === 'done') && (
@@ -1153,7 +1506,6 @@ function AimTrainerDemo() {
   useEffect(() => {
     if (phase !== 'countdown') return
     let c = 3
-    setCDown(3)
     const id = setInterval(() => {
       c--
       if (c <= 0) {
@@ -1172,7 +1524,6 @@ function AimTrainerDemo() {
   // 30s game timer
   useEffect(() => {
     if (phase !== 'active') return
-    setTimeLeft(30)
     const id = setInterval(() => {
       const rem = Math.ceil((endTimeRef.current - Date.now()) / 1000)
       if (rem <= 0) { clearInterval(id); setPhase('done') }
@@ -1297,7 +1648,7 @@ function AimTrainerDemo() {
         {phase === 'countdown' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
             <p className="font-pixel text-6xl text-retro-win text-glow-win">{countdownSec}</p>
-            <p className="font-pixel text-[9px] text-retro-dim animate-pulse">GET READY!</p>
+            <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
           </div>
         )}
         {phase === 'active' && targetYou && (
@@ -1345,8 +1696,7 @@ function demoSpeedPts(elapsed) {
 const DEMO_MATH_S = 60
 
 function MathDemo() {
-  const seedRef = useRef(null)
-  if (!seedRef.current) seedRef.current = Math.floor(Math.random() * 1e9)
+  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9))
 
   const [phase, setPhase]           = useState('idle')
   const [cdSec, setCdSec]           = useState(3)
@@ -1358,6 +1708,8 @@ function MathDemo() {
   const [youStreak, setYouStreak]   = useState(0)
   const [botStreak, setBotStreak]   = useState(0)
   const [timeLeft, setTimeLeft]     = useState(DEMO_MATH_S)
+  const [qStartAt, setQStartAt]     = useState(null)
+  const [now, setNow]               = useState(() => Date.now())
 
   const playerLockedRef = useRef(false)
   const botLockedRef    = useRef(false)
@@ -1365,18 +1717,17 @@ function MathDemo() {
   const advTimerRef     = useRef(null)
   const qTimeoutRef     = useRef(null)
   const gameEndRef      = useRef(null)
-  const qStartRef       = useRef(null)
   const streakRef       = useRef({ you: 0, bot: 0 })
   const qRef            = useRef(null)
 
-  const q = generateQuestion(seedRef.current, qIndex)
-  qRef.current = q
+  const q = generateQuestion(seed, qIndex)
+  useEffect(() => { qRef.current = q }, [q])
 
   const scheduleNextQuestion = () => {
     advTimerRef.current = setTimeout(() => {
       playerLockedRef.current = false
       botLockedRef.current    = false
-      qStartRef.current       = Date.now()
+      setQStartAt(Date.now())
       setQIndex(i => i + 1)
       setAnswer('')
       setLastResult(null)
@@ -1389,7 +1740,7 @@ function MathDemo() {
     if (phase === 'done') return
     const cq      = qRef.current
     const correct = submitted === cq.answer
-    const elapsed = Date.now() - (qStartRef.current ?? Date.now())
+    const elapsed = Date.now() - (qStartAt ?? Date.now())
     const speed   = demoSpeedPts(elapsed)
     const power   = cq.isPower ? 2 : 1
     const strk    = streakRef.current[by] >= 3 ? 2 : 1
@@ -1437,13 +1788,15 @@ function MathDemo() {
   // Countdown
   useEffect(() => {
     if (phase !== 'countdown') return
-    let c = 3; setCdSec(3)
+    let c = 3
     const id = setInterval(() => {
       c--
       if (c <= 0) {
         clearInterval(id)
-        gameEndRef.current = Date.now() + DEMO_MATH_S * 1000
-        qStartRef.current  = Date.now()
+        const t = Date.now()
+        gameEndRef.current = t + DEMO_MATH_S * 1000
+        setQStartAt(t)
+        setNow(t)
         setPhase('playing')
       } else setCdSec(c)
     }, 1000)
@@ -1458,7 +1811,9 @@ function MathDemo() {
 
     // Game clock
     const clockId = setInterval(() => {
-      const rem = Math.ceil((gameEndRef.current - Date.now()) / 1000)
+      const t = Date.now()
+      setNow(t)
+      const rem = Math.ceil((gameEndRef.current - t) / 1000)
       setTimeLeft(Math.max(0, rem))
       if (rem <= 0) { clearInterval(clockId); setPhase('done') }
     }, 100)
@@ -1489,13 +1844,14 @@ function MathDemo() {
       clearTimeout(botTimerRef.current)
       clearTimeout(qTimeoutRef.current)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveQuestion/scheduleNextQuestion are fresh closures each render (read latest state); adding them would re-arm the clock/bot timers every render
   }, [phase, qIndex])
 
   const reset = () => {
     clearTimeout(botTimerRef.current)
     clearTimeout(advTimerRef.current)
     clearTimeout(qTimeoutRef.current)
-    seedRef.current             = Math.floor(Math.random() * 1e9)
+    setSeed(Math.floor(Math.random() * 1e9))
     streakRef.current           = { you: 0, bot: 0 }
     playerLockedRef.current     = false
     botLockedRef.current        = false
@@ -1557,16 +1913,16 @@ function MathDemo() {
   if (phase === 'countdown') {
     return (
       <div className="space-y-4 text-center py-4">
-        <p className="font-pixel text-[9px] text-retro-dim animate-pulse">GET READY!</p>
+        <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
         <p className="font-pixel text-7xl text-retro-win text-glow-win">{cdSec}</p>
       </div>
     )
   }
 
-  const qPct    = qStartRef.current ? Math.max(0, 1 - (Date.now() - qStartRef.current) / QUESTION_MS) : 1
-  const speedPts = demoSpeedPts(qStartRef.current ? Date.now() - qStartRef.current : 0)
+  const qPct    = qStartAt ? Math.max(0, 1 - (now - qStartAt) / QUESTION_MS) : 1
+  const speedPts = demoSpeedPts(qStartAt ? now - qStartAt : 0)
   const barColor = qPct > 0.6 ? 'bg-retro-win' : qPct > 0.3 ? 'bg-retro-cta' : 'bg-retro-p2'
-  const answered = playerLockedRef.current
+  const answered = lastResult !== null
 
   return (
     <div className="space-y-3">
@@ -1633,7 +1989,7 @@ function MathDemo() {
           <p className="font-pixel text-[9px] text-retro-dim">TIME'S UP · NEXT QUESTION...</p>
         )}
         {!answered && (
-          <p className="font-pixel text-[8px] text-retro-dim animate-pulse">BOT IS THINKING ●●●</p>
+          <p className="font-pixel text-[8px] text-retro-dim arcade-blink">BOT IS THINKING ●●●</p>
         )}
       </div>
 
@@ -1657,7 +2013,7 @@ const PONG_DT = 1 / 120
 function PongDemo() {
   const courtRef = useRef(null)
   const simRef = useRef(null)
-  if (!simRef.current) simRef.current = createPongState()
+  if (simRef.current === null) simRef.current = createPongState()
   const [view, setView] = useState({ ball: { x: 0.5, y: 0.5 }, paddles: { X: 0.5, O: 0.5 }, scoreX: 0, scoreO: 0, serving: false, pickups: [], effects: null, ballMod: null })
   const [winner, setWinner] = useState(null)
   const { getDir } = usePongControls(courtRef, !winner)
@@ -1739,7 +2095,7 @@ function PongDemo() {
 function SnakeDemo() {
   const arenaRef = useRef(null)
   const simRef = useRef(null)
-  if (!simRef.current) simRef.current = createSnakeState()
+  if (simRef.current === null) simRef.current = createSnakeState()
   const [view, setView] = useState({ snakes: null, food: null, eatenX: 0, eatenO: 0 })
   const [winner, setWinner] = useState(null)
   const [round, setRound] = useState(0)
@@ -1851,6 +2207,8 @@ const DEMOS = [
   { type: 'dotsandboxes',  short: 'DOTS &\nBOXES',  Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes" />  },
   { type: 'dice',          short: 'PIG',            Icon: DiceIcon,           Component: () => <BotBoardDemo type="dice" />          },
   { type: 'chainreaction', short: 'CHAIN\nREACTION',Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction" /> },
+  { type: 'blockade',      short: 'BLOCKADE',       Icon: BlockadeIcon,       Component: () => <BotBoardDemo type="blockade" /> },
+  { type: 'pairs',         short: 'PAIRS',          Icon: PairsIcon,          Component: () => <BotBoardDemo type="pairs" /> },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
@@ -1861,6 +2219,7 @@ const DEMOS = [
   { type: 'tron',         short: 'TRON',          Icon: TronIcon,         Component: TronDemo         },
   { type: 'sumo',         short: 'SUMO\nARENA',   Icon: SumoIcon,         Component: SumoDemo         },
   { type: 'spaceduel',    short: 'SPACE\nDUEL',   Icon: SpaceDuelIcon,    Component: SpaceduelDemo    },
+  { type: 'paint',        short: 'PAINT\nTURF',   Icon: PaintIcon,        Component: PaintDemo        },
   // Memory hot-seat
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonDemo        },
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemoryDemo },
@@ -1869,12 +2228,14 @@ const DEMOS = [
   // Solo / hangwoman
   { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
   { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: WordDuelDemo     },
+  { type: 'wordhunt',     short: 'WORD\nHUNT',    Icon: WordHuntIcon,     Component: WordHuntDemo     },
   // Party cards (2+ players only)
   { type: 'twotruths',    short: 'TWO\nTRUTHS',   Icon: TwoTruthsIcon,    Component: () => <PartyGameCard type="twotruths" />   },
   { type: 'bluff',        short: 'BLUFF',         Icon: BluffIcon,        Component: () => <PartyGameCard type="bluff" />       },
   { type: 'wavelength',   short: 'WAVE\nLENGTH',  Icon: WavelengthIcon,   Component: WavelengthDemo   },
   { type: 'fibbage',      short: 'FIBBAGE',       Icon: FibbageIcon,      Component: FibbageDemo      },
   { type: 'spyfair',      short: 'SPYFAIR',       Icon: SpyfairIcon,      Component: SpyfairDemo      },
+  { type: 'sketch',       short: 'SKETCH',        Icon: SketchIcon,       Component: () => <PartyGameCard type="sketch" />      },
 ]
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -1910,7 +2271,7 @@ export default function Demo() {
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <NavBar />
-      <div className="w-full max-w-sm space-y-5 p-4 pt-5">
+      <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {/* Header */}
         <div className="flex items-center justify-end">
           <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">

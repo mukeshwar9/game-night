@@ -51,6 +51,8 @@ export const sounds = {
   simPad: (i) => { seq([[SIMON_FREQS[i] ?? 440, 0, 0.25, 'sine', 0.18]]); vibrate(6) },
   go:    ()    => { seq([[880, 0, 0.06, 'sine', 0.15]]); vibrate(22) },
   miss:  ()    => { seq([[180, 0, 0.08, 'sawtooth', 0.12], [130, 0.09, 0.18, 'sawtooth', 0.09], [90, 0.25, 0.22, 'sawtooth', 0.07]]); vibrate(120) },
+  // Flat held buzzer for a per-question timeout — distinct from miss()'s descending tone
+  buzz:  ()    => { seq([[140, 0, 0.28, 'sawtooth', 0.13]]); vibrate([0, 60, 40, 60]) },
   move:  (sym) => { seq([[sym === 'X' ? 440 : 330, 0, 0.07]]); vibrate(9) },
   bust:  ()    => { seq([[200, 0, 0.08, 'sawtooth', 0.13], [120, 0.09, 0.16, 'sawtooth', 0.11], [70, 0.22, 0.26, 'sawtooth', 0.09]]); vibrate([0, 40, 60, 50]) },
   // Short blip when the Pong ball bounces off a wall

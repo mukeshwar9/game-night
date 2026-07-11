@@ -111,14 +111,14 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96 }) 
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2 font-pixel text-[8px] tracking-wider">
+      <div className="flex items-center justify-center font-pixel text-[9px] tracking-wider">
         {PARTS.map((p, i) => (
-          <span key={p} className="flex items-center gap-2">
+          <span key={p} className="flex items-center">
             {i > 0 && <span className="text-retro-dim">·</span>}
             <button
               onClick={() => setSelectedPart(p)}
               className={cn(
-                'transition-all',
+                'min-h-11 px-2.5 flex items-center justify-center transition-all',
                 p === selectedPart ? 'text-retro-cta text-glow-cta' : 'text-retro-dim hover:text-retro-text',
               )}
             >
@@ -128,20 +128,24 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96 }) 
         ))}
       </div>
 
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center flex-wrap gap-x-1 gap-y-1">
         {TONES.map(t => (
           <button
             key={t}
             onClick={() => pickTone(t)}
             aria-label={`Pick color ${t}`}
-            className={cn(
-              'w-6 h-6 rounded-full border-2 transition-all active:scale-90',
-              TONE_BG[t],
-              t === activeTone
-                ? 'border-retro-text shadow-neon-cta scale-110'
-                : 'border-retro-border hover:border-retro-text',
-            )}
-          />
+            className="min-w-11 min-h-11 flex items-center justify-center"
+          >
+            <span
+              className={cn(
+                'w-9 h-9 rounded-full border-2 transition-all active:scale-90 block',
+                TONE_BG[t],
+                t === activeTone
+                  ? 'border-retro-text shadow-neon-cta scale-110'
+                  : 'border-retro-border hover:border-retro-text',
+              )}
+            />
+          </button>
         ))}
         <button
           onClick={pickRandom}

@@ -5,6 +5,7 @@ import SosBoard from '../components/SosBoard'
 import SimonBoard from '../components/SimonBoard'
 // ChimpBoard is used only from ChimpGame (custom component), not directly via registry
 import VisualMemoryBoard from '../components/VisualMemoryBoard'
+import BlockadeBoard from '../components/BlockadeBoard'
 import {
   TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon,
@@ -12,7 +13,7 @@ import {
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
-  WordDuelIcon,
+  WordDuelIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
@@ -39,6 +40,7 @@ import {
   generateChimpLayout,
 } from './chimpLogic'
 import { generateSeed } from './mathLogic'
+import { generateGrid } from './wordhuntLogic'
 import {
   VM_START_LEVEL,
   normalizeVmArray,
@@ -53,9 +55,28 @@ import { OC_CELL_COUNT, applyOrderChaosMove, getOrderChaosWinner } from './order
 import OrderChaosBoard from '../components/OrderChaosBoard'
 import { CR_CELL_COUNT, applyChainReactionMove } from './chainReactionLogic'
 import ChainReactionBoard from '../components/ChainReactionBoard'
+import {
+  BK_CELL_COUNT,
+  BK_WALL_SLOT_COUNT,
+  BK_WALLS_PER_PLAYER,
+  BK_START_X,
+  BK_START_O,
+  applyPawnMove,
+  applyWallMove,
+} from './blockadeLogic'
 import { applyDiceMove } from './diceLogic'
 import DiceBoard from '../components/DiceBoard'
 import { seatOrder as seatOrderWL, randomSpectrumIndex } from './wavelengthLogic'
+import PairsBoard from '../components/PairsBoard'
+import {
+  PAIRS_CELL_COUNT,
+  generatePairsDeck,
+  normalizePairsDeck,
+  normalizePairsFlipped,
+  applyPairsMove,
+  getPairsWinner,
+} from './pairsLogic'
+import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
 
 const PASSAGES = [
   "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. A wizard's job is to vex chumps quickly in fog.",
@@ -179,11 +200,16 @@ export const GAME_TYPES = [
       const boxes = normalizeBoard(game.boxes, DB_BOX_COUNT)
       const moved = applyEdgeMove(board, boxes, index, symbol)
       if (!moved) return null
+      // M-48: completing >=1 box grants an extra turn — flag it distinctly
+      // (cleared/renewed on every subsequent move write) so GameStatus can
+      // show a "GO AGAIN!" pulse instead of the normal turn text.
+      const extraTurn = moved.completedBoxes.length > 0
       return {
         updates: {
           board: moved.edges,
           boxes: moved.boxes,
-          currentTurn: moved.completedBoxes.length ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          currentTurn: extraTurn ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          extraTurn: extraTurn ? true : null,
         },
         result: getDotsAndBoxesWinner(moved.boxes),
       }
@@ -203,11 +229,16 @@ export const GAME_TYPES = [
       const lines = normalizeSosLines(game.sosLines)
       const applied = applySosMove(board, lines, move.index, move.letter, symbol)
       if (!applied) return null
+      // M-48: completing >=1 S-O-S grants an extra turn — flag it distinctly
+      // (cleared/renewed on every subsequent move write) so GameStatus can
+      // show a "GO AGAIN!" pulse instead of the normal turn text.
+      const extraTurn = !!applied.completedCount
       return {
         updates: {
           board: applied.board,
           sosLines: applied.sosLines,
-          currentTurn: applied.completedCount ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          currentTurn: extraTurn ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          extraTurn: extraTurn ? true : null,
         },
         result: getSosWinner(applied.board, applied.sosLines),
       }
@@ -268,6 +299,10 @@ export const GAME_TYPES = [
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
     custom: true,
+    // M-52: TypingGame renders its own progress bars (names + live WPM
+    // progress) right above the passage — Game.jsx's generic PlayerCard grid
+    // would just duplicate it and eat vertical space the keyboard needs.
+    hidePlayerCards: true,
   },
   {
     type: 'math', label: 'MENTAL MATH',
@@ -276,6 +311,10 @@ export const GAME_TYPES = [
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
     custom: true,
+    // M-26: MathGame renders its own ScoreBar (names + live score) right
+    // above the question — Game.jsx's generic PlayerCard grid would just
+    // duplicate it and eat vertical space the NumberPad needs.
+    hidePlayerCards: true,
   },
   {
     type: 'pong', label: 'PONG',
@@ -318,6 +357,15 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
+    custom: true, realtime: true,
+  },
+  {
+    type: 'paint', label: 'PAINT TURF',
+    desc: 'claim more turf than they do', Icon: PaintIcon,
+    badge: 'PT', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-07-11',
+    durationMin: 3, tags: ['quick', 'frantic', 'skill'], solo: true,
     custom: true, realtime: true,
   },
   {
@@ -384,6 +432,68 @@ export const GAME_TYPES = [
     applyMove: ({ board, game, index, symbol }) =>
       applyChainReactionMove({ board, game, index, symbol }),
     boardProps: (game) => ({ crLastMove: game.crLastMove ?? null }),
+  },
+  {
+    type: 'blockade', label: 'BLOCKADE',
+    desc: 'race across, wall them off', Icon: BlockadeIcon,
+    badge: 'BK', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-07-11',
+    durationMin: 10, tags: ['thinky'], solo: true,
+    boardSize: BK_WALL_SLOT_COUNT,
+    getMoveIndex: (board, move) => {
+      if (!move || typeof move !== 'object') return -1
+      if (move.type === 'pawn') {
+        return Number.isInteger(move.to) && move.to >= 0 && move.to < BK_CELL_COUNT ? move.to : -1
+      }
+      if (move.type === 'wall') {
+        if (!Number.isInteger(move.slot) || move.slot < 0 || move.slot >= BK_WALL_SLOT_COUNT) return -1
+        return board[move.slot] ? -1 : BK_CELL_COUNT + move.slot
+      }
+      return -1
+    },
+    BoardComponent: BlockadeBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const pawns = { X: game.blockadePawnX ?? BK_START_X, O: game.blockadePawnO ?? BK_START_O }
+      const wallsRemaining = {
+        X: game.blockadeWallsX ?? BK_WALLS_PER_PLAYER,
+        O: game.blockadeWallsO ?? BK_WALLS_PER_PLAYER,
+      }
+      const opp = symbol === 'X' ? 'O' : 'X'
+
+      if (move?.type === 'pawn') {
+        const applied = applyPawnMove({ walls: board, pawns, symbol, to: move.to })
+        if (!applied) return null
+        return {
+          updates: {
+            [`blockadePawn${symbol}`]: move.to,
+            currentTurn: opp,
+            blockadeMoves: (game.blockadeMoves ?? 0) + 1,
+          },
+          result: applied.winner ? { winner: applied.winner } : null,
+        }
+      }
+      if (move?.type === 'wall') {
+        const applied = applyWallMove({
+          walls: board, pawns, wallsRemaining: wallsRemaining[symbol], symbol, slot: move.slot,
+        })
+        if (!applied) return null
+        return {
+          updates: {
+            board: applied.walls,
+            [`blockadeWalls${symbol}`]: wallsRemaining[symbol] - 1,
+            currentTurn: opp,
+            blockadeMoves: (game.blockadeMoves ?? 0) + 1,
+          },
+          result: null,
+        }
+      }
+      return null
+    },
+    boardProps: (game) => ({
+      pawns: { X: game.blockadePawnX ?? BK_START_X, O: game.blockadePawnO ?? BK_START_O },
+      walls: { X: game.blockadeWallsX ?? BK_WALLS_PER_PLAYER, O: game.blockadeWallsO ?? BK_WALLS_PER_PLAYER },
+    }),
   },
   {
     type: 'orderchaos', label: 'ORDER & CHAOS',
@@ -487,6 +597,66 @@ export const GAME_TYPES = [
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
     custom: true,
   },
+  {
+    type: 'wordhunt', label: 'WORD HUNT',
+    desc: 'race to find the most words', Icon: WordHuntIcon,
+    badge: 'WH', maxWidth: 'max-w-md',
+    category: 'word',
+    addedAt: '2026-07-11',
+    durationMin: 2, tags: ['quick', 'thinky'], solo: true,
+    custom: true,
+  },
+  {
+    type: 'pairs', label: 'PAIRS',
+    desc: 'match the hidden pairs', Icon: PairsIcon,
+    badge: 'PR', maxWidth: 'max-w-md',
+    category: 'memory',
+    addedAt: '2026-07-11',
+    durationMin: 6, tags: ['thinky'], solo: true,
+    boardSize: PAIRS_CELL_COUNT,
+    getMoveIndex: (board, index) => (board[index] ? -1 : index),
+    BoardComponent: PairsBoard,
+    applyMove: ({ board, game, index, symbol }) => {
+      const deck = normalizePairsDeck(game.pairsDeck)
+      const flipped = normalizePairsFlipped(game.pairsFlipped)
+      const applied = applyPairsMove(board, deck, flipped, index, symbol)
+      if (!applied) return null
+      return {
+        updates: {
+          board: applied.board,
+          pairsFlipped: applied.flipped,
+          currentTurn: applied.turnStays ? symbol : (symbol === 'X' ? 'O' : 'X'),
+        },
+        result: getPairsWinner(applied.board),
+      }
+    },
+    boardProps: (game) => ({
+      deck: normalizePairsDeck(game.pairsDeck),
+      flipped: normalizePairsFlipped(game.pairsFlipped),
+    }),
+  },
+  {
+    type: 'sketch', label: 'SKETCH',
+    desc: 'draw & guess the word', Icon: SketchIcon,
+    badge: 'SK', maxWidth: 'max-w-sm',
+    category: 'party',
+    addedAt: '2026-07-11',
+    durationMin: 10, tags: ['thinky'],
+    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    startRound: (players) => {
+      const order = seatOrderSketch(players)
+      return {
+        round: {
+          phase: 'choosing',
+          cycle: 1,
+          artist: order[0] ?? null,
+          order,
+          used: [],
+          endsAt: Date.now() + SKETCH_CHOOSE_MS,
+        },
+      }
+    },
+  },
 ]
 
 const NEW_BADGE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000
@@ -539,6 +709,10 @@ const FIELD_NULLS = {
   mathCorrectX: null, mathCorrectO: null,
   mathWrongX: null, mathWrongO: null,
   mathStartedAt: null, mathEndTime: null,
+  wordhuntGrid: null, wordhuntStartedAt: null,
+  wordhuntWordsX: null, wordhuntWordsO: null,
+  wordhuntScoreX: null, wordhuntScoreO: null,
+  wordhuntDoneX: null, wordhuntDoneO: null,
   diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceLast: null,
   diceRolls: null, diceRollIndex: null,
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
@@ -549,8 +723,18 @@ const FIELD_NULLS = {
   sumoScoreX: null, sumoScoreO: null,
   spaceduelScoreX: null, spaceduelScoreO: null,
   spaceduelHitsX: null, spaceduelHitsO: null,
+  paintScoreX: null, paintScoreO: null,
   crMoves: null,
   crLastMove: null,
+  // M-47: last cell/edge played, written by every board move so boards can
+  // render a persistent marker after the placement animation ends.
+  lastMove: null,
+  // M-48: transient "extra turn" signal (D&B/SOS) — cleared on the next write.
+  extraTurn: null,
+  blockadePawnX: null, blockadePawnO: null,
+  blockadeWallsX: null, blockadeWallsO: null,
+  blockadeMoves: null,
+  pairsDeck: null, pairsFlipped: null,
 }
 
 export function freshGameState(gameType) {
@@ -620,6 +804,11 @@ export function freshGameState(gameType) {
       spaceduelScoreX: 0, spaceduelScoreO: 0,
       spaceduelHitsX: 0, spaceduelHitsO: 0 }
   }
+  if (gameType === 'paint') {
+    // currentTurn omitted (null) — Paint is real-time with no turns.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      paintScoreX: 0, paintScoreO: 0 }
+  }
   if (gameType === 'aim') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       aimScoreX: 0, aimScoreO: 0, aimHitsX: 0, aimHitsO: 0, aimFriendlyX: 0, aimFriendlyO: 0 }
@@ -658,6 +847,13 @@ export function freshGameState(gameType) {
     return { ...FIELD_NULLS, boxes: null, round: null,
       board: Array(CR_CELL_COUNT).fill(''), currentTurn: 'X', crMoves: 0 }
   }
+  if (gameType === 'blockade') {
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: Array(BK_WALL_SLOT_COUNT).fill(''), currentTurn: 'X',
+      blockadePawnX: BK_START_X, blockadePawnO: BK_START_O,
+      blockadeWallsX: BK_WALLS_PER_PLAYER, blockadeWallsO: BK_WALLS_PER_PLAYER,
+      blockadeMoves: 0 }
+  }
   if (gameType === 'dice') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: 'X',
       diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null,
@@ -675,6 +871,17 @@ export function freshGameState(gameType) {
   if (gameType === 'wordduel') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
       round: { phase: 'setting' } }
+  }
+  if (gameType === 'wordhunt') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      wordhuntGrid: generateGrid(generateSeed()),
+      wordhuntScoreX: 0, wordhuntScoreO: 0 }
+  }
+  if (gameType === 'pairs') {
+    return { ...FIELD_NULLS, boxes: null, round: null, currentTurn: 'X',
+      board: Array(PAIRS_CELL_COUNT).fill(''),
+      pairsDeck: generatePairsDeck(),
+      pairsFlipped: null }
   }
   return { ...FIELD_NULLS, board: Array(cfg.boardSize).fill(''), boxes: null, round: null, currentTurn: 'X' }
 }

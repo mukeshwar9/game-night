@@ -39,6 +39,17 @@ export default defineConfig({
               networkTimeoutSeconds: 5,
             },
           },
+          {
+            // Word Hunt's ~1MB dictionary lives in public/ (not the JS module
+            // graph — see src/lib/wordhuntDictionary.js) and isn't precached:
+            // only players who open Word Hunt fetch it, once.
+            urlPattern: ({ url }) => url.pathname.endsWith('/wordhunt-dict.txt'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'wordhunt-dict',
+              expiration: { maxEntries: 1 },
+            },
+          },
         ],
       },
     }),

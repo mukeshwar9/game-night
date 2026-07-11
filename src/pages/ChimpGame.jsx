@@ -8,6 +8,7 @@ import ChimpBoard from '../components/ChimpBoard'
 import GameStatus from '../components/GameStatus'
 import GameSwitcher from '../components/GameSwitcher'
 import SpectatorCard from '../components/SpectatorCard'
+import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 
@@ -133,6 +134,7 @@ export default function ChimpGame({
     }
     prevDoneX.current = doneX
     prevDoneO.current = doneO
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tryAdvanceLevel is recreated every render and intentionally reads fresh state from the closure; the prevDoneX/prevDoneO refs already dedupe repeat calls
   }, [game.chimpDoneX, game.chimpDoneO])
 
   const handleCellClick = async (cellIndex) => {
@@ -203,13 +205,9 @@ export default function ChimpGame({
         opDone={opDone}
         chimpLevel={level}
       />
-      {!opponentOnline && mySymbol && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">
-          OPPONENT IS OFFLINE
-        </p>
-      )}
+      {!opponentOnline && mySymbol && <OfflineNotice label="OPPONENT" />}
       {showClaimHint && (
-        <p className="font-pixel text-[9px] text-retro-dim text-center animate-pulse">
+        <p className="font-pixel text-[9px] text-retro-dim text-center arcade-blink">
           OPPONENT IDLE — CLAIM UNLOCKS IN {claimCountdown}s
         </p>
       )}

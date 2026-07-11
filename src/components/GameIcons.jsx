@@ -390,6 +390,25 @@ export function SpaceDuelIcon() {
   )
 }
 
+export function PaintIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* territory grid — mixed filled/empty cells suggesting a paint battle */}
+      <rect x="2"  y="2"  width="5" height="5" fill="currentColor" />
+      <rect x="8"  y="2"  width="5" height="5" fill="currentColor" opacity="0.35" />
+      <rect x="14" y="2"  width="4" height="5" fill="currentColor" opacity="0.7" />
+      <rect x="2"  y="8"  width="5" height="5" fill="currentColor" opacity="0.7" />
+      <rect x="8"  y="8"  width="5" height="5" fill="currentColor" opacity="0.5" />
+      <rect x="14" y="8"  width="4" height="5" fill="currentColor" opacity="0.35" />
+      <rect x="2"  y="14" width="5" height="4" fill="currentColor" opacity="0.35" />
+      <rect x="8"  y="14" width="5" height="4" fill="currentColor" opacity="0.7" />
+      <rect x="14" y="14" width="4" height="4" fill="currentColor" />
+      {/* paint splat drop */}
+      <circle cx="19" cy="19" r="2.4" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function ChainReactionIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -405,6 +424,24 @@ export function ChainReactionIcon() {
       <line x1="12" y1="15" x2="12" y2="18" stroke="currentColor" strokeWidth="1" opacity="0.5" />
       <line x1="9"  y1="12" x2="6"  y2="12" stroke="currentColor" strokeWidth="1" opacity="0.5" />
       <line x1="15" y1="12" x2="18" y2="12" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function BlockadeIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* 3x3 grid */}
+      <line x1="8" y1="2" x2="8" y2="22" stroke="currentColor" strokeWidth="1" opacity="0.4" />
+      <line x1="16" y1="2" x2="16" y2="22" stroke="currentColor" strokeWidth="1" opacity="0.4" />
+      <line x1="2" y1="8" x2="22" y2="8" stroke="currentColor" strokeWidth="1" opacity="0.4" />
+      <line x1="2" y1="16" x2="22" y2="16" stroke="currentColor" strokeWidth="1" opacity="0.4" />
+      {/* wall segment blocking the path between the two pawns */}
+      <rect x="7" y="7" width="10" height="2" fill="currentColor" />
+      {/* opponent pawn, top */}
+      <circle cx="12" cy="5" r="2.5" fill="currentColor" opacity="0.5" />
+      {/* my pawn, bottom */}
+      <circle cx="12" cy="19" r="2.5" fill="currentColor" />
     </svg>
   )
 }
@@ -435,6 +472,55 @@ export function WordDuelIcon() {
       <rect x="3.5" y="18.4" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.5" />
       <rect x="6.5" y="18.4" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.5" />
       <rect x="9.5" y="18.4" width="2.5" height="1.8" rx="0.5" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function PairsIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* 2×2 card grid — top-left & bottom-right "matched" (lit + face mark), the
+          other two still face-down (dim) */}
+      <rect x="2"  y="2"  width="9" height="9" rx="1.5" fill="currentColor" opacity="0.35" />
+      <rect x="13" y="2"  width="9" height="9" rx="1.5" fill="currentColor" opacity="0.2" />
+      <rect x="2"  y="13" width="9" height="9" rx="1.5" fill="currentColor" opacity="0.2" />
+      <rect x="13" y="13" width="9" height="9" rx="1.5" fill="currentColor" opacity="0.35" />
+      <rect x="5"  y="5"   width="3" height="3" fill="currentColor" opacity="1" />
+      <rect x="16" y="16"  width="3" height="3" fill="currentColor" opacity="1" />
+    </svg>
+  )
+}
+
+export function WordHuntIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* 4×4 letter-tile grid, faint */}
+      {[4, 10, 16, 22].map((y) =>
+        [4, 10, 16, 22].map((x) => (
+          <rect key={`${x}-${y}`} x={x - 2} y={y - 2} width="4" height="4" rx="0.6"
+            fill="currentColor" opacity="0.18" />
+        ))
+      )}
+      {/* traced word path across five tiles */}
+      <polyline points="4,4 10,4 16,10 22,10 22,16" fill="none" stroke="currentColor"
+        strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+      <circle cx="4" cy="4" r="1.5" fill="currentColor" />
+      <circle cx="10" cy="4" r="1.5" fill="currentColor" opacity="0.85" />
+      <circle cx="16" cy="10" r="1.5" fill="currentColor" opacity="0.85" />
+      <circle cx="22" cy="10" r="1.5" fill="currentColor" opacity="0.85" />
+      <circle cx="22" cy="16" r="1.5" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function SketchIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* pencil */}
+      <path d="M14.5 3.5 L20.5 9.5 L9 21 L3 21 L3 15 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
+      <path d="M12.5 5.5 L18.5 11.5" stroke="currentColor" strokeWidth="1.5" />
+      {/* squiggle stroke trailing off the tip, like a drawn line */}
+      <path d="M3 21 Q1 19 2.5 17" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.6" />
     </svg>
   )
 }

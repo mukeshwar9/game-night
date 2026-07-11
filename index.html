@@ -21,12 +21,21 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <script>document.documentElement.dataset.theme = localStorage.getItem('retro-theme') || 'midnight'</script>
     <title>Game Night</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+    <link rel="preload" href="/fonts/press-start-2p-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pre-JS splash: static subset of ArcadeLoader's boot attract cluster
+           (src/components/ArcadeLoader.jsx). React's createRoot().render()
+           replaces this on mount; in prod, vite build extracts index.css into
+           a render-blocking <link> in <head>, so these classes resolve before
+           this ever paints (dev mode is briefly unstyled). -->
+      <div class="min-h-screen bg-retro-bg flex flex-col items-center justify-center">
+        <p class="font-pixel text-base sm:text-lg tracking-[0.15em] text-retro-cta text-glow-cta arcade-blink">
+          INSERT COIN
+        </p>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -72,7 +72,7 @@ function TouchButton({ className, onDown, onUp, label, ariaLabel }) {
       onPointerLeave={() => onUp?.(false)}
       onPointerCancel={() => onUp?.(false)}
       className={cn(
-        'font-pixel text-[8px] rounded border select-none touch-none active:scale-95',
+        'font-pixel rounded border select-none touch-none active:scale-95 min-h-11 min-w-11',
         'flex items-center justify-center',
         className,
       )}
@@ -102,7 +102,7 @@ function HealthBar({ hp, maxHp, side }) {
 }
 
 const SpaceduelArena = forwardRef(function SpaceduelArena(
-  { ships, bullets, t, hitsX = 0, hitsO = 0, hpX = 0, hpO = 0, mySide, namesX = 'X', namesO = 'O', dim = false, overlay, touch },
+  { ships, bullets, t, hpX = 0, hpO = 0, mySide, namesX = 'X', namesO = 'O', dim = false, overlay, touch },
   ref,
 ) {
   const timeLeft = Math.max(0, Math.ceil(ROUND_CAP_S - (t ?? 0)))
@@ -118,14 +118,16 @@ const SpaceduelArena = forwardRef(function SpaceduelArena(
         <HealthBar hp={hpO} maxHp={SHIP_MAX_HP} side="O" />
       </div>
 
-      {/* Arena */}
+      {/* Arena — width is capped by both the container AND the viewport height
+          (min() against a 100dvh-derived budget) so short/landscape phones
+          still see the whole square court instead of it overflowing. */}
       <div
         ref={ref}
         className={cn(
-          'relative w-full rounded-lg border-2 border-retro-border bg-retro-surface overflow-hidden touch-none',
+          'relative mx-auto rounded-lg border-2 border-retro-border bg-retro-surface overflow-hidden touch-none',
           dim && 'opacity-60',
         )}
-        style={{ aspectRatio: '1 / 1' }}
+        style={{ aspectRatio: '1 / 1', width: 'min(100%, calc(100dvh - 260px))' }}
       >
         {/* Starfield */}
         {STARS.map(([sx, sy], i) => (
@@ -143,7 +145,7 @@ const SpaceduelArena = forwardRef(function SpaceduelArena(
 
         {/* Fire-lock indicator during the grace period (top-right) */}
         {fireLocked && (
-          <div className="absolute top-1.5 right-2 font-pixel text-[8px] text-retro-p2/70 animate-pulse">
+          <div className="absolute top-1.5 right-2 font-pixel text-[8px] text-retro-p2/70 arcade-blink">
             NO FIRE
           </div>
         )}
@@ -152,50 +154,22 @@ const SpaceduelArena = forwardRef(function SpaceduelArena(
         {ships?.X && <Ship ship={ships.X} side="X" thrusting={!!ships.X.thrust} />}
         {ships?.O && <Ship ship={ships.O} side="O" thrusting={!!ships.O.thrust} />}
 
-        {/* Bullets */}
+        {/* Bullets — rendered with a fixed pixel floor + halo so they stay
+            legible at phone widths (M-75); the sim's BULLET_R still drives
+            the actual hit geometry, this is visual-only. */}
         {(bullets || []).map((b, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-retro-cta shadow-glow-dot"
+            className="absolute rounded-full bg-retro-cta"
             style={{
-              left: pct(b.x - BULLET_R), top: pct(b.y - BULLET_R),
-              width: pct(BULLET_R * 2), height: pct(BULLET_R * 2),
+              left: pct(b.x), top: pct(b.y),
+              width: `max(10px, ${pct(BULLET_R * 2)})`,
+              height: `max(10px, ${pct(BULLET_R * 2)})`,
+              transform: 'translate(-50%, -50%)',
+              boxShadow: '0 0 6px 2px rgb(var(--c-cta)), 0 0 12px 4px rgb(var(--c-cta) / 0.45)',
             }}
           />
         ))}
-
-        {/* Touch controls overlaid on the bottom of the arena */}
-        {showTouch && (
-          <div className="absolute inset-x-0 bottom-0 grid grid-cols-4 gap-1.5 p-1.5 pointer-events-none">
-            <TouchButton
-              className="pointer-events-auto bg-retro-tint-p1/50 border-retro-p1/60 text-retro-p1"
-              ariaLabel="rotate left"
-              label="◀"
-              onDown={() => touch.setLeft(true)}
-              onUp={() => touch.setLeft(false)}
-            />
-            <TouchButton
-              className="pointer-events-auto bg-retro-tint-p1/50 border-retro-p1/60 text-retro-p1"
-              ariaLabel="rotate right"
-              label="▶"
-              onDown={() => touch.setRight(true)}
-              onUp={() => touch.setRight(false)}
-            />
-            <TouchButton
-              className="pointer-events-auto bg-retro-tint-cta/50 border-retro-cta/60 text-retro-cta"
-              ariaLabel="thrust"
-              label="THR"
-              onDown={() => touch.setThrust(true)}
-              onUp={() => touch.setThrust(false)}
-            />
-            <TouchButton
-              className="pointer-events-auto bg-retro-tint-cta/50 border-retro-cta/60 text-retro-cta"
-              ariaLabel="fire"
-              label="FIRE"
-              onDown={() => touch.fire()}
-            />
-          </div>
-        )}
 
         {overlay && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-bg/70 backdrop-blur-[1px]">
@@ -204,12 +178,55 @@ const SpaceduelArena = forwardRef(function SpaceduelArena(
         )}
       </div>
 
+      {/* Twin-stick touch controls — BELOW the arena (never overlaying live
+          play): bottom-left thumb cluster rotates, bottom-right thrusts/fires.
+          Every button is a full min-h-11/min-w-11+ tap target; hold semantics
+          (pointerdown/up/cancel) are preserved per-button, so multi-touch
+          across both clusters (e.g. rotate + thrust + fire at once) works. */}
+      {showTouch && (
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex gap-2">
+            <TouchButton
+              className="h-14 w-14 text-base bg-retro-tint-p1/50 border-retro-p1/60 text-retro-p1"
+              ariaLabel="rotate left"
+              label="◀"
+              onDown={() => touch.setLeft(true)}
+              onUp={() => touch.setLeft(false)}
+            />
+            <TouchButton
+              className="h-14 w-14 text-base bg-retro-tint-p1/50 border-retro-p1/60 text-retro-p1"
+              ariaLabel="rotate right"
+              label="▶"
+              onDown={() => touch.setRight(true)}
+              onUp={() => touch.setRight(false)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <TouchButton
+              className="h-14 w-14 text-[10px] bg-retro-tint-cta/50 border-retro-cta/60 text-retro-cta"
+              ariaLabel="thrust"
+              label="THR"
+              onDown={() => touch.setThrust(true)}
+              onUp={() => touch.setThrust(false)}
+            />
+            <TouchButton
+              className="h-14 w-14 text-[10px] bg-retro-tint-cta/50 border-retro-cta/60 text-retro-cta"
+              ariaLabel="fire"
+              label="FIRE"
+              onDown={() => touch.fire()}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Player labels */}
       <div className="flex items-center justify-between px-1 font-pixel text-[8px]">
         <span className="text-retro-p1">{namesX?.toUpperCase()}{mySide === 'X' ? ' (YOU)' : ''}</span>
-        <span className="text-retro-dim">A/D ROTATE · W THRUST · SPACE FIRE</span>
         <span className="text-retro-p2">{namesO?.toUpperCase()}{mySide === 'O' ? ' (YOU)' : ''}</span>
       </div>
+      <p className="text-center font-pixel text-[10px] text-retro-dim leading-relaxed">
+        A/D ROTATE · W THRUST · SPACE FIRE · TOUCH: BUTTONS BELOW
+      </p>
     </div>
   )
 })

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 
 const COLORS = { X: 'rgb(var(--c-p1))', O: 'rgb(var(--c-p2))', draw: 'rgb(var(--c-cta))' }
 const GLOWS  = { X: '0 0 6px rgb(var(--c-p1))', O: '0 0 6px rgb(var(--c-p2))', draw: '0 0 6px rgb(var(--c-cta))' }
@@ -17,7 +17,7 @@ export default function WinEffect({ winner, onDone, intensity = 'round' }) {
   const glow  = GLOWS[winner]  ?? GLOWS.draw
 
   const count = isMatch ? 64 : 30
-  const particles = useRef(
+  const [particles] = useState(() =>
     Array.from({ length: count }, (_, i) => {
       const angle = (i / count) * Math.PI * 2
       const dist  = (isMatch ? 110 : 80) + Math.random() * (isMatch ? 220 : 140)
@@ -32,7 +32,7 @@ export default function WinEffect({ winner, onDone, intensity = 'round' }) {
         color: isMatch ? CONFETTI[i % CONFETTI.length] : color,
       }
     })
-  ).current
+  )
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center overflow-hidden">

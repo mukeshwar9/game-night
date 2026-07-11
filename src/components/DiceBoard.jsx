@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { PIG_TARGET } from '../lib/diceLogic'
 
 // Pip positions per face on a 3×3 grid (indices 0–8, left→right, top→bottom).
@@ -47,10 +48,10 @@ function Die({ value, bust }) {
 function MiniDie({ value }) {
   const pips = PIP_LAYOUT[value] || []
   return (
-    <div className="w-5 h-5 rounded border border-retro-border bg-retro-surface grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 opacity-80">
+    <div className="w-7 h-7 rounded border border-retro-border bg-retro-surface grid grid-cols-3 grid-rows-3 gap-0.5 p-1 opacity-80">
       {Array.from({ length: 9 }, (_, i) => (
         <div key={i} className="flex items-center justify-center">
-          {pips.includes(i) && <span className="w-1 h-1 rounded-full bg-retro-cta shadow-glow-dot" />}
+          {pips.includes(i) && <span className="w-1.5 h-1.5 rounded-full bg-retro-cta shadow-glow-dot" />}
         </div>
       ))}
     </div>
@@ -67,6 +68,7 @@ export default function DiceBoard({
   diceLast = null,
   diceRolls = [],
   diceSeed = null,
+  diceSeedPending = false,
 }) {
   const turnColor = currentTurn === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
 
@@ -107,7 +109,7 @@ export default function DiceBoard({
         </div>
 
         {/* Roll-history trail (this turn's at-risk rolls) */}
-        <div className="min-h-[20px] flex items-center justify-center gap-1 flex-wrap">
+        <div className="min-h-7 flex items-center justify-center gap-1 flex-wrap">
           {overflow && <span className="font-pixel text-[8px] text-retro-dim">…</span>}
           {shown.map((v, i) => (
             <MiniDie key={i} value={v} />
@@ -133,9 +135,23 @@ export default function DiceBoard({
           <div className={cn('font-pixel text-base mt-1', turnColor)}>{diceTurnScore}</div>
         </div>
 
-        {/* Fair-play verified badge when a deterministic seed is in play */}
+        {/* Fair-play verified badge when a deterministic seed is in play — a
+            tap explains the commit-reveal anti-cheat protocol it represents. */}
         {diceSeed && (
-          <div className="font-pixel text-[8px] text-retro-win text-glow-win">✓ FAIR ROLL</div>
+          <button
+            type="button"
+            onClick={() => toast('FAIR ROLL: BOTH PLAYERS SEED THE DICE BEFORE ANY ROLL, SO NEITHER CAN RIG THE OUTCOME.')}
+            aria-label="How fair roll verification works"
+            className="min-h-11 flex items-center gap-1.5 px-3 -my-2 rounded font-pixel text-[10px] text-retro-win text-glow-win active:scale-95 transition-all"
+          >
+            <span
+              aria-hidden="true"
+              className="w-3.5 h-3.5 shrink-0 rounded-full border border-retro-win flex items-center justify-center text-[8px] leading-none"
+            >
+              i
+            </span>
+            ✓ FAIR ROLL
+          </button>
         )}
 
         {/* ROLL / BANK */}
@@ -152,7 +168,7 @@ export default function DiceBoard({
                 : 'border-retro-cta text-retro-cta shadow-neon-cta cursor-pointer hover:bg-retro-tint-cta',
             )}
           >
-            ROLL
+            {diceSeedPending ? 'SHUFFLING…' : 'ROLL'}
           </button>
           <button
             aria-label="bank"

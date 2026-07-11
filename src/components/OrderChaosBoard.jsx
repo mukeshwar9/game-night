@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { OC_SIZE } from '../lib/orderChaosLogic'
 
-export default function OrderChaosBoard({ board, onMove, disabled, winningLine = [], currentTurn }) {
+export default function OrderChaosBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null }) {
   const [selectedLetter, setSelectedLetter] = useState('X')
 
   const cells = []
@@ -30,6 +30,8 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
               : 'bg-retro-p2/10'
             : '',
           isWin && 'bg-retro-win/20 shadow-neon-win',
+          // M-47: persistent marker on the most recently placed letter
+          !isWin && i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
           isClickable
             ? currentTurn === 'X'
               ? 'hover:bg-retro-p1/10 hover:border-retro-p1/40 cursor-pointer'
@@ -54,21 +56,41 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
 
   return (
     <div className="w-full max-w-sm mx-auto">
-      <div className="bg-retro-surface border-2 border-retro-border rounded p-3">
+      <div className="relative">
         <div
-          className="w-full"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${OC_SIZE}, minmax(0, 1fr))`,
-            gap: '3px',
-          }}
+          className={cn(
+            'bg-retro-surface border-2 border-retro-border rounded p-3 transition-all duration-200',
+            disabled && 'opacity-60 saturate-50',
+          )}
         >
-          {cells}
+          <div
+            className="w-full"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${OC_SIZE}, minmax(0, 1fr))`,
+              gap: '3px',
+            }}
+          >
+            {cells}
+          </div>
+        </div>
+
+        {/* Persistent armed-letter badge, anchored to the board's corner */}
+        <div
+          className={cn(
+            'absolute -top-2 -right-2 w-7 h-7 flex items-center justify-center rounded-full border-2 bg-retro-card font-pixel text-[11px]',
+            selectedLetter === 'X'
+              ? 'border-retro-p1 text-retro-p1 shadow-neon-p1'
+              : 'border-retro-p2 text-retro-p2 shadow-neon-p2',
+          )}
+          aria-label={`armed letter ${selectedLetter}`}
+        >
+          {selectedLetter}
         </div>
       </div>
 
-      {/* Letter picker — both seats may place either X or O */}
-      <div className="mt-3 flex items-center justify-center gap-3">
+      {/* Letter picker — both seats may place either X or O; anchored tight against the board edge */}
+      <div className="mt-1.5 flex items-center justify-center gap-3">
         {['X', 'O'].map(l => (
           <button
             key={l}
@@ -76,9 +98,10 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
             disabled={disabled}
             onClick={() => !disabled && setSelectedLetter(l)}
             className={cn(
-              'w-10 h-10 flex items-center justify-center',
+              'w-11 h-11 flex items-center justify-center',
               'font-pixel text-[11px] rounded border-2',
-              'transition-all duration-100 active:scale-95',
+              'transition-all duration-100',
+              !disabled && 'active:scale-95',
               selectedLetter === l
                 ? l === 'X'
                   ? 'border-retro-p1 text-retro-p1 shadow-neon-p1'

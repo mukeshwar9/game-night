@@ -5,6 +5,8 @@ import { db } from '../lib/firebase'
 import { getGameConfig } from '../lib/games'
 import QrCode from './QrCode'
 import InviteFriendModal from './InviteFriendModal'
+import PixelDots from './loading/PixelDots'
+import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
@@ -13,12 +15,21 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
   const shareUrl = `${window.location.origin}/game/${gameId}`
   const label = getGameConfig(gameType)?.label
   const [showInvite, setShowInvite] = useState(false)
+  const [matchLengthBusy, setMatchLengthBusy] = useState(false)
+  const [shareBusy, runShare] = useBusy()
 
   const isPongHost = gameType === 'pong' && mySymbol === 'X'
   const matchLength = game?.matchLength ?? 3
 
-  const setMatchLength = (n) => {
-    update(ref(db, `games/${gameId}`), { matchLength: n }).catch(() => {})
+  const setMatchLength = async (n) => {
+    setMatchLengthBusy(true)
+    try {
+      await update(ref(db, `games/${gameId}`), { matchLength: n })
+    } catch {
+      toast.error("COULDN'T SET MATCH LENGTH — TRY AGAIN")
+    } finally {
+      setMatchLengthBusy(false)
+    }
   }
 
   const copyLink = async () => {
@@ -32,7 +43,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
       document.execCommand('copy')
       document.body.removeChild(el)
     }
-    toast.success('Link copied!')
+    toast.success('LINK COPIED!')
   }
 
   const shareInvite = async () => {
@@ -45,16 +56,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
 
   return (
     <div className="flex flex-col items-center gap-5 py-6">
-      {/* Bouncing dots */}
-      <div className="flex gap-2">
-        {[0, 1, 2].map(i => (
-          <div
-            key={i}
-            className="w-2.5 h-2.5 rounded-full bg-retro-cta animate-bounce shadow-neon-cta"
-            style={{ animationDelay: `${i * 200}ms` }}
-          />
-        ))}
-      </div>
+      <PixelDots size="lg" tone="cta" glow />
 
       {/* Status text + game label */}
       <div className="text-center space-y-1">
@@ -73,14 +75,14 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
             {PONG_MATCH_OPTIONS.map(n => (
               <button
                 key={n}
-                disabled={!isPongHost}
+                disabled={!isPongHost || matchLengthBusy}
                 onClick={() => setMatchLength(n)}
                 className={cn(
                   'px-4 py-1.5 font-pixel text-[10px] rounded border-2 transition-all active:scale-95',
                   matchLength === n
                     ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
-                  !isPongHost && 'opacity-60 cursor-not-allowed',
+                  (!isPongHost || matchLengthBusy) && 'opacity-60 cursor-not-allowed',
                 )}
               >
                 {n}
@@ -104,17 +106,19 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
       {/* Share + Copy buttons */}
       <div className="flex gap-2">
         <button
-          onClick={shareInvite}
+          onClick={() => runShare(shareInvite)}
+          disabled={shareBusy}
           className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-            hover:shadow-neon-cta transition-all active:scale-95 shadow-neon-cta"
+            hover:shadow-neon-cta transition-all active:scale-95 shadow-neon-cta disabled:opacity-50"
         >
           SHARE
         </button>
         <button
-          onClick={copyLink}
+          onClick={() => runShare(copyLink)}
+          disabled={shareBusy}
           className="px-4 py-2 bg-retro-card border border-retro-border text-retro-dim
             font-pixel text-[10px] rounded hover:text-retro-text hover:border-retro-p1
-            transition-all active:scale-95"
+            transition-all active:scale-95 disabled:opacity-50"
         >
           COPY
         </button>

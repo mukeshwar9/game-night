@@ -6,8 +6,6 @@ const RAM_ROWS = [
   '0x2000-3FFF  OK',
   '0x4000-5FFF  OK',
   '0x6000-7FFF  OK',
-  '0x8000-9FFF  OK',
-  '0xA000-BFFF  OK',
 ]
 
 const HI_SCORES = [
@@ -88,20 +86,50 @@ function Marquee() {
   )
 }
 
-export default function ArcadeLoader({ variant = 'boot' }) {
+export default function ArcadeLoader({ variant = 'boot', ready = false, onDone }) {
   const [ramRows, setRamRows] = useState([])
-  const [done, setDone] = useState(false)
+  const [naturalDone, setNaturalDone] = useState(false)
   const timers = useRef([])
+  const beatTimer = useRef(null)
+  const onDoneRef = useRef(onDone)
+  const onDoneFired = useRef(false)
 
+  useEffect(() => { onDoneRef.current = onDone })
+
+  // RAM-check row reveal — always scheduled on mount; if `ready` is already
+  // true these timers are cancelled before any of them fire (see the effect
+  // below, which runs right after this one on the same commit), so this
+  // never visibly plays for a warm boot. `done`/displayed rows below are
+  // derived from `ready` directly rather than mirrored into state, so the
+  // fast-forward never needs a setState of its own.
   useEffect(() => {
     if (variant !== 'boot') return
-    const ms = 140
+    const ms = 100
     RAM_ROWS.forEach((row, i) => {
       timers.current.push(setTimeout(() => setRamRows(r => [...r, row]), i * ms))
     })
-    timers.current.push(setTimeout(() => setDone(true), RAM_ROWS.length * ms + 200))
+    timers.current.push(setTimeout(() => setNaturalDone(true), RAM_ROWS.length * ms + 200))
     return () => { timers.current.forEach(clearTimeout); timers.current = [] }
   }, [variant])
+
+  // Fast-forward + handoff — fires once `ready` is true, whether that's on
+  // mount (warm auth) or mid-sequence/after the attract loop starts (cold
+  // auth). Cancels any still-pending row timers, holds one READY beat, then
+  // calls onDone exactly once.
+  useEffect(() => {
+    if (variant !== 'boot' || !ready) return
+    timers.current.forEach(clearTimeout)
+    timers.current = []
+    beatTimer.current = setTimeout(() => {
+      if (onDoneFired.current) return
+      onDoneFired.current = true
+      onDoneRef.current?.()
+    }, 150)
+    return () => clearTimeout(beatTimer.current)
+  }, [variant, ready])
+
+  const done = naturalDone || ready
+  const displayRows = ready ? RAM_ROWS : ramRows
 
   // Realtime variant — just coin + blink, sized to replace one <p> line
   if (variant === 'realtime') {
@@ -138,17 +166,14 @@ export default function ArcadeLoader({ variant = 'boot' }) {
       >
         {!done ? (
           <div className="space-y-0.5 min-h-[8.4rem]">
-            {ramRows.map((row, i) => (
+            {displayRows.map((row, i) => (
               <div key={i} className="text-retro-win" style={{ animation: 'ram-typewriter 80ms steps(1)' }}>
                 <span className="text-retro-p1">{row.split('  ')[0]}</span>
                 <span className="text-retro-dim">  </span>
                 <span className="text-retro-win">{row.split('  ')[1]}</span>
               </div>
             ))}
-            <span
-              className="inline-block w-1.5 h-[9px] bg-retro-p1 align-middle arcade-blink"
-              style={{ animationDuration: '0.5s' }}
-            />
+            <span className="inline-block w-1.5 h-[9px] bg-retro-p1 align-middle arcade-blink" />
           </div>
         ) : (
           <div className="min-h-[8.4rem] flex flex-col gap-1 justify-center">

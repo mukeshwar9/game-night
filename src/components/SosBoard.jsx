@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { SOS_SIZE } from '../lib/sosLogic'
 
-export default function SosBoard({ board, onMove, disabled, currentTurn, sosLines }) {
+export default function SosBoard({ board, onMove, disabled, currentTurn, sosLines, lastMove = null }) {
   const [selectedLetter, setSelectedLetter] = useState('S')
 
   // Build a map from cell index to the most recent scorer's symbol
@@ -42,6 +42,8 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
             : scorer === 'O'
               ? 'bg-retro-p2/15 shadow-[inset_0_0_4px_rgba(255,0,128,0.25)]'
               : '',
+          // M-47: persistent marker on the most recently placed letter
+          i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
           isClickable && !isOccupied
             ? currentTurn === 'X'
               ? 'hover:bg-retro-p1/10 hover:border-retro-p1/40 cursor-pointer'
@@ -60,21 +62,36 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
 
   return (
     <div className="w-full max-w-sm mx-auto">
-      <div className="bg-retro-surface border-2 border-retro-border rounded p-3">
+      <div className="relative">
         <div
-          className="w-full"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${SOS_SIZE}, minmax(0, 1fr))`,
-            gap: '3px',
-          }}
+          className={cn(
+            'bg-retro-surface border-2 border-retro-border rounded p-3 transition-all duration-200',
+            disabled && 'opacity-60 saturate-50',
+          )}
         >
-          {cells}
+          <div
+            className="w-full"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${SOS_SIZE}, minmax(0, 1fr))`,
+              gap: '3px',
+            }}
+          >
+            {cells}
+          </div>
+        </div>
+
+        {/* Persistent armed-letter badge, anchored to the board's corner */}
+        <div
+          className="absolute -top-2 -right-2 w-7 h-7 flex items-center justify-center rounded-full border-2 border-retro-cta bg-retro-card font-pixel text-[11px] text-retro-cta shadow-neon-cta"
+          aria-label={`armed letter ${selectedLetter}`}
+        >
+          {selectedLetter}
         </div>
       </div>
 
-      {/* Letter picker */}
-      <div className="mt-3 flex items-center justify-center gap-3">
+      {/* Letter picker — anchored tight against the board edge */}
+      <div className="mt-1.5 flex items-center justify-center gap-3">
         {['S', 'O'].map(letter => (
           <button
             key={letter}
@@ -82,9 +99,10 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
             disabled={disabled}
             onClick={() => !disabled && setSelectedLetter(letter)}
             className={cn(
-              'w-10 h-10 flex items-center justify-center',
+              'w-11 h-11 flex items-center justify-center',
               'font-pixel text-[11px] rounded border-2',
-              'transition-all duration-100 active:scale-95',
+              'transition-all duration-100',
+              !disabled && 'active:scale-95',
               selectedLetter === letter
                 ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-cta/50',

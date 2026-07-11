@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { hEdgeIndex, vEdgeIndex } from '../lib/dotsAndBoxesLogic'
 
-export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, currentTurn }) {
+export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, currentTurn, lastMove = null }) {
   const [hoveredEdge, setHoveredEdge] = useState(null)
 
   const xCount = boxes ? boxes.filter(b => b === 'X').length : 0
@@ -43,7 +43,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
             onMouseEnter={() => setHoveredEdge(edgeIdx)}
             onMouseLeave={() => setHoveredEdge(null)}
             className={cn(
-              'absolute z-10 -top-[9px] -bottom-[9px] left-0 right-0',
+              'absolute z-10 -top-[15px] -bottom-[15px] left-0 right-0',
               'rounded-sm transition-all duration-100',
               owner === 'X'
                 ? 'bg-retro-p1 shadow-neon-p1'
@@ -53,6 +53,8 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
                     ? hoverColor
                     : 'bg-retro-border/50',
               !owner && !disabled ? 'cursor-pointer' : 'cursor-default',
+              // M-47: persistent marker on the most recently claimed edge
+              edgeIdx === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
             )}
           />
         </div>
@@ -75,7 +77,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
             onMouseEnter={() => setHoveredEdge(edgeIdx)}
             onMouseLeave={() => setHoveredEdge(null)}
             className={cn(
-              'absolute z-10 top-0 bottom-0 -left-[9px] -right-[9px]',
+              'absolute z-10 top-0 bottom-0 -left-[15px] -right-[15px]',
               'rounded-sm transition-all duration-100',
               owner === 'X'
                 ? 'bg-retro-p1 shadow-neon-p1'
@@ -85,6 +87,8 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
                     ? hoverColor
                     : 'bg-retro-border/50',
               !owner && !disabled ? 'cursor-pointer' : 'cursor-default',
+              // M-47: persistent marker on the most recently claimed edge
+              edgeIdx === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
             )}
           />
         </div>
@@ -120,7 +124,12 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
 
   return (
     <div className="w-full max-w-sm mx-auto">
-      <div className="bg-retro-surface border-2 border-retro-border rounded p-3">
+      <div
+        className={cn(
+          'bg-retro-surface border-2 border-retro-border rounded p-3 transition-all duration-200',
+          disabled && 'opacity-60 saturate-50',
+        )}
+      >
         <div
           className="aspect-square w-full"
           style={{

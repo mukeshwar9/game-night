@@ -18,6 +18,8 @@ import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
+import useBusy from '@/hooks/useBusy'
+import { toast } from 'sonner'
 
 const MIN_PLAYERS = 3
 const MATCH_WIN_SCORE = 5000
@@ -73,6 +75,7 @@ export default function FibbageGame({
   const [localLie, setLocalLie] = useState(false)   // I committed this round
   const [localVote, setLocalVote] = useState(null)  // optionId I picked locally
   const [submitting, setSubmitting] = useState(false)
+  const [sharing, runShare] = useBusy()
   // My own secret — only ever known to me. Used to guard against voting for my own
   // lie and to publish my reveal; the DB never sees it until the reveal phase.
   const [mySecret, setMySecret] = useState(() => (round ? readSecret(gameId, round.promptIndex) : null))
@@ -321,7 +324,7 @@ export default function FibbageGame({
             PLAYERS ({playerCount})
           </p>
           {ranked.length === 0 && (
-            <p className="font-mono text-[11px] text-retro-dim">WAITING…</p>
+            <p className="font-mono text-[11px] text-retro-dim arcade-blink">WAITING…</p>
           )}
           {ranked.map(p => (
             <div key={p.id} className="flex items-center justify-between font-mono text-[11px]">
@@ -338,7 +341,7 @@ export default function FibbageGame({
         </div>
 
         {!enough && (
-          <p className="font-pixel text-[10px] text-retro-p2 animate-pulse leading-relaxed">
+          <p className="font-pixel text-[10px] text-retro-p2 arcade-blink leading-relaxed">
             NEED {MIN_PLAYERS}+ PLAYERS<br />
             ({Math.max(0, MIN_PLAYERS - playerCount)} MORE TO START)
           </p>
@@ -353,7 +356,7 @@ export default function FibbageGame({
           </button>
         )}
         {!isHost && enough && !matchOver && (
-          <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
+          <p className="font-pixel text-[10px] text-retro-dim arcade-blink">
             WAITING FOR HOST TO START…
           </p>
         )}
@@ -369,18 +372,22 @@ export default function FibbageGame({
               </button>
             )}
             <button
-              onClick={() => shareResult({
-                gameLabel: 'FIBBAGE',
-                headline: champ?.id === mySeat
-                  ? 'YOU WIN!'
-                  : `${(champ?.name || '').toUpperCase()} WINS`,
-                sub: 'Fibbage · Game Night',
-                accentVar: '--c-cta',
-                url: window.location.href,
+              onClick={() => runShare(async () => {
+                const ok = await shareResult({
+                  gameLabel: 'FIBBAGE',
+                  headline: champ?.id === mySeat
+                    ? 'YOU WIN!'
+                    : `${(champ?.name || '').toUpperCase()} WINS`,
+                  sub: 'Fibbage · Game Night',
+                  accentVar: '--c-cta',
+                  url: window.location.href,
+                })
+                if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
               })}
-              className="px-6 py-2.5 font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
+              disabled={sharing}
+              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
             >
-              SHARE
+              {sharing ? 'BUILDING…' : 'SHARE'}
             </button>
           </div>
         )}
@@ -392,7 +399,13 @@ export default function FibbageGame({
     )
   }
 
-  if (!round || !fact) return null
+  if (!round || !fact) {
+    return (
+      <div className="text-center py-8 font-pixel text-[10px] text-retro-dim arcade-blink">
+        STARTING ROUND…
+      </div>
+    )
+  }
 
   // -------------------------------------------------------------------------
   // Shared header: prompt with blank
@@ -442,7 +455,9 @@ export default function FibbageGame({
                 maxLength={60}
                 onChange={e => { setLieInput(e.target.value); setInputError('') }}
                 onKeyDown={e => e.key === 'Enter' && handleSubmitLie()}
-                autoFocus
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 placeholder="YOUR FAKE ANSWER"
                 className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-[11px] text-center rounded px-3 py-2.5 focus:outline-none focus:border-retro-p1 disabled:opacity-40"
               />
@@ -456,7 +471,7 @@ export default function FibbageGame({
               </button>
             </div>
           ) : (
-            <p className="font-pixel text-[10px] text-retro-win text-glow-win text-center animate-pulse">
+            <p className="font-pixel text-[10px] text-retro-win text-glow-win text-center arcade-blink">
               {isPlayer ? 'LIE LOCKED ✓' : 'SPECTATING'}
             </p>
           )}
@@ -478,7 +493,7 @@ export default function FibbageGame({
                 onClick={() => handleVote(opt.id)}
                 disabled={iVoted || isMine || !isPlayer}
                 className={cn(
-                  'w-full px-3 py-2.5 font-mono text-[12px] text-left rounded border-2 transition-all active:scale-[0.98]',
+                  'w-full min-h-11 px-3 py-2.5 font-mono text-[12px] text-left rounded border-2 transition-all active:scale-[0.98]',
                   picked
                     ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border text-retro-text hover:border-retro-p1/50',
@@ -501,7 +516,7 @@ export default function FibbageGame({
       {round.phase === 'reveal' && (
         <div className="space-y-3">
           {!round.scored ? (
-            <p className="font-pixel text-[10px] text-retro-cta text-glow-cta text-center animate-pulse py-4">
+            <p className="font-pixel text-[10px] text-retro-cta text-glow-cta text-center arcade-blink py-4">
               TALLYING…
             </p>
           ) : (

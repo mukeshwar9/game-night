@@ -109,6 +109,10 @@ Mouse cursors are static white pixel-art SVG data URIs (cursors can't read CSS v
 
 **Note:** `npm run dev` must be restarted after `tailwind.config.js` changes — the ESM config is cached for the process lifetime.
 
+### Async-action busy convention
+
+Every button that fires an async action (Firebase write, `navigator.share`, service-worker update) sets a `busy` flag synchronously before any `await` — via `useBusy()` (`src/hooks/useBusy.js`) — disables itself, and swaps its label to an "…ING" gerund (SAVING…, SENDING…, CANCELLING…); failures `toast.error(...)` rather than failing silently. Never gate the guard behind `setTimeout`/debounce — it must be synchronous or it breaks `navigator.share`'s user-activation window. Loading (machine work) vs waiting-for-a-human vs error each has its own grammar — steps() motion / `PixelDots` for the former two, static (never animated) for errors — per `src/components/loading/`.
+
 ### Adding a new game
 
 The room/invite/Firebase/presence layer is game-agnostic. `src/lib/games.js` is the single registry — `Game.jsx` reads config from it and needs no per-game changes. To add a new board game:

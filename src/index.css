@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Self-hosted pixel font — replaces the Google Fonts round-trip (removes
+   render-blocking preconnect + stylesheet fetch, avoids the FOUT swap). */
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/press-start-2p-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* shadcn/ui CSS variables — retro palette */
 @layer base {
   :root {
@@ -37,9 +48,14 @@
     --c-p2:       255 64 129;   /* #ff4081 */
     --c-cta:      255 230 0;    /* #ffe600 */
     --c-win:      57 255 20;    /* #39ff14 */
+    /* M-86/M-88: dedicated error/danger accent — distinct from p2 (O's
+       identity color), cta and win in every theme, so danger states never
+       double as "player O". A true low-blue red vs p2's pink (high blue). */
+    --c-danger:      255 45 45; /* #ff2d2d */
     --c-tint-p1:  0 26 46;      /* #001a2e */
     --c-tint-p2:  46 0 24;      /* #2e0018 */
     --c-tint-cta: 26 21 0;      /* #1a1500 */
+    --c-tint-danger: 46 8 8;    /* #2e0808 */
     --c-structure:42 42 80;     /* #2a2a50 */
     --c-deep:     12 12 32;     /* #0c0c20 */
     --c-skin:     230 190 160;  /* muted warm neutral (humanoid avatar skin) */
@@ -59,9 +75,11 @@
   --c-p2:       216 255 216;
   --c-cta:      204 255 51;
   --c-win:      118 255 118;
+  --c-danger:      255 60 40;
   --c-tint-p1:  6 46 6;
   --c-tint-p2:  26 46 26;
   --c-tint-cta: 24 38 0;
+  --c-tint-danger: 46 10 6;
   --c-structure:20 82 20;
   --c-deep:     4 22 4;
   --c-skin:     220 185 150;
@@ -78,9 +96,11 @@
   --c-p2:       255 94 0;
   --c-cta:      255 208 0;
   --c-win:      255 242 176;
+  --c-danger:      210 25 45;
   --c-tint-p1:  46 30 0;
   --c-tint-p2:  46 16 0;
   --c-tint-cta: 38 30 0;
+  --c-tint-danger: 40 6 10;
   --c-structure:74 52 21;
   --c-deep:     18 10 2;
   --c-skin:     235 195 150;
@@ -97,9 +117,11 @@
   --c-p2:       255 41 117;
   --c-cta:      255 159 28;
   --c-win:      182 255 0;
+  --c-danger:      255 20 20;
   --c-tint-p1:  0 42 56;
   --c-tint-p2:  56 6 28;
   --c-tint-cta: 56 32 0;
+  --c-tint-danger: 56 6 6;
   --c-structure:61 43 110;
   --c-deep:     16 4 44;
   --c-skin:     235 190 170;
@@ -116,9 +138,11 @@
   --c-p2:       255 127 17;
   --c-cta:      244 244 244;
   --c-win:      159 255 224;
+  --c-danger:      235 30 40;
   --c-tint-p1:  0 38 56;
   --c-tint-p2:  50 24 0;
   --c-tint-cta: 34 38 40;
+  --c-tint-danger: 50 8 10;
   --c-structure:21 74 102;
   --c-deep:     3 14 24;
   --c-skin:     225 190 165;
@@ -135,9 +159,11 @@
   --c-p2:       176 175 164;
   --c-cta:      250 249 240;
   --c-win:      255 255 248;
+  --c-danger:      224 90 90;
   --c-tint-p1:  50 50 44;
   --c-tint-p2:  40 40 35;
   --c-tint-cta: 50 50 44;
+  --c-tint-danger: 46 30 28;
   --c-structure:78 78 68;
   --c-deep:     24 24 20;
   --c-skin:     170 168 160;
@@ -171,6 +197,24 @@ body {
   /* Faster taps + no grey tap-flash on mobile */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* M-21: without this a stray downward swipe outside a real-time game's own
+   court div can trigger the browser's native pull-to-refresh, reloading the
+   whole SPA (and killing any live WebRTC connection). Cheap, no visual cost. */
+html, body {
+  overscroll-behavior-y: contain;
+}
+
+/* M-11: below 16px iOS Safari force-zooms the whole page on input focus —
+   fires on every text field in the app since all use text-xs/sm pixel-font
+   classes. This 16px floor applies regardless of Tailwind text-size utility
+   classes (which normally win specificity as class selectors over this
+   element selector) so it needs !important; components that must keep the
+   tiny pixel-font *look* should shrink visually via transform: scale() on an
+   inner wrapper rather than lowering the input's own font-size. */
+input, textarea, select {
+  font-size: 16px !important;
 }
 
 /* CRT scanlines */
@@ -290,6 +334,13 @@ body::before {
   100% { transform: translateY(0); }
 }
 
+/* Modal panels pop in over a few chunky frames — same stepped grammar as update-drop */
+@keyframes modal-pop {
+  0%   { opacity: 0; transform: scale(0.92) translateY(6px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-pop { animation: modal-pop 0.12s steps(3) both; }
+
 /* A freshly-placed mark pops in (gated on mount so only the new piece animates) */
 @keyframes place-pop {
   0%   { transform: scale(0.4); opacity: 0.3; }
@@ -321,26 +372,15 @@ body::before {
 }
 .arcade-blink { animation: arcade-blink 0.8s steps(1) infinite; }
 
-/* Loading-bar segments light up in sequence, then all hold */
+/* Loading-bar segments chase-pulse in sequence (delays set inline per-segment in ArcadeLoader.jsx) */
 @keyframes arcade-load-seg {
-  0%, 100% { opacity: 0.12; }
+  0%, 92%, 100% { opacity: 0.12; }
+  8%            { opacity: 1; }
 }
 .arcade-load-seg {
   opacity: 0.12;
   animation: arcade-load-seg 1.08s steps(1) infinite;
 }
-.arcade-load-seg:nth-child(1)  { animation-delay: 0ms; }
-.arcade-load-seg:nth-child(2)  { animation-delay: 90ms; }
-.arcade-load-seg:nth-child(3)  { animation-delay: 180ms; }
-.arcade-load-seg:nth-child(4)  { animation-delay: 270ms; }
-.arcade-load-seg:nth-child(5)  { animation-delay: 360ms; }
-.arcade-load-seg:nth-child(6)  { animation-delay: 450ms; }
-.arcade-load-seg:nth-child(7)  { animation-delay: 540ms; }
-.arcade-load-seg:nth-child(8)  { animation-delay: 630ms; }
-.arcade-load-seg:nth-child(9)  { animation-delay: 720ms; }
-.arcade-load-seg:nth-child(10) { animation-delay: 810ms; }
-.arcade-load-seg:nth-child(11) { animation-delay: 900ms; }
-.arcade-load-seg:nth-child(12) { animation-delay: 990ms; }
 
 /* High-score marquee scrolls left forever */
 @keyframes arcade-marquee {
@@ -364,6 +404,20 @@ body::before {
 .arcade-dots span:nth-child(2) { animation-delay: 0.2s; }
 .arcade-dots span:nth-child(3) { animation-delay: 0.4s; }
 
+/* Waiting dots hop one pixel at a time — discrete frames, no tween */
+@keyframes pixel-dot-hop {
+  0%, 66%, 100% { transform: translateY(0); opacity: 0.35; }
+  33%           { transform: translateY(-3px); opacity: 1; }
+}
+.pixel-dot-hop { animation: pixel-dot-hop 1.2s steps(1) infinite; }
+
+/* Skeleton blocks flicker between two dim frames — slower + calmer than active loaders */
+@keyframes skel-flicker {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.6; }
+}
+.skel-flicker { animation: skel-flicker 1.6s steps(1) infinite; }
+
 /* Emote reaction floats up over a player card, then fades */
 @keyframes emote-float {
   0%   { transform: translateY(8px) scale(0.6); opacity: 0; }
@@ -375,6 +429,17 @@ body::before {
 @keyframes emote-pop {
   0%   { transform: scale(1.6); }
   100% { transform: scale(1); }
+}
+
+/* M-84: lightweight route-level transition — App.jsx keys a wrapper div on
+   the route pathname so this replays on every navigation. Killed globally
+   for prefers-reduced-motion by the block below (animation-duration override). */
+@keyframes route-fade-in {
+  0%   { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.route-fade {
+  animation: route-fade-in 180ms ease-out both;
 }
 
 /* Respect users who ask for less motion: kill animations + the scanline overlay */

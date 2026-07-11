@@ -12,7 +12,7 @@ export default function DailyTile() {
   return (
     <Link
       to="/daily"
-      className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden bg-retro-card border-2 border-retro-border rounded px-3 py-2.5
+      className="flex-1 min-w-0 min-h-11 flex flex-col justify-center overflow-hidden bg-retro-card border-2 border-retro-border rounded px-3 py-3
         hover:border-retro-cta/50 transition-colors active:scale-[0.98]"
     >
       {/* Single-line, nowrap text only — the tile shares a row with the join
@@ -22,7 +22,7 @@ export default function DailyTile() {
       <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
         <p className={cn(
           'font-pixel text-[9px] whitespace-nowrap',
-          played ? 'text-retro-win' : 'text-retro-cta animate-pulse',
+          played ? 'text-retro-win' : 'text-retro-cta arcade-blink',
         )}>
           {played ? `BEST: ${best.best}` : 'NOT PLAYED'}
         </p>

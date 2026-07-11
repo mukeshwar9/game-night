@@ -1,4 +1,8 @@
+import { useState } from 'react'
+import { toast } from 'sonner'
 import { getGameConfig } from '../lib/games'
+import PixelDots from './loading/PixelDots'
+import useBusy from '../hooks/useBusy'
 
 function actionLabel(proposal) {
   if (proposal.action === 'playAgain') return 'PLAY AGAIN'
@@ -8,6 +12,9 @@ function actionLabel(proposal) {
 }
 
 export default function ProposalBanner({ proposal, mySymbol, players, onAccept, onDecline, onCancel }) {
+  const [busy, run] = useBusy()
+  const [tapped, setTapped] = useState(null)
+
   if (!proposal) return null
 
   const opponentSym = proposal.by === 'X' ? 'O' : 'X'
@@ -18,18 +25,25 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
   const isRecipient = mySymbol && !isProposer
   const isSpectator = !mySymbol
 
+  const handle = (action, fn) => {
+    setTapped(action)
+    run(fn, () => toast.error("COULDN'T UPDATE — CHECK CONNECTION")).finally(() => setTapped(null))
+  }
+
   return (
     <div className="border-2 border-retro-cta/50 bg-retro-card rounded p-3 text-center space-y-2">
       {isProposer && (
         <>
-          <p className="font-pixel text-[10px] text-retro-cta animate-pulse">
+          <PixelDots size="sm" tone="cta" className="justify-center" />
+          <p className="font-pixel text-[10px] text-retro-cta arcade-blink">
             WAITING FOR {((players?.[opponentSym]?.name) || opponentSym).toUpperCase()}…
           </p>
           <button
-            onClick={onCancel}
-            className="border border-retro-border text-retro-dim font-pixel text-[10px] px-4 py-2 rounded"
+            onClick={() => handle('cancel', onCancel)}
+            disabled={busy}
+            className="border border-retro-border text-retro-dim font-pixel text-[10px] px-4 py-2 rounded disabled:opacity-50"
           >
-            CANCEL
+            {tapped === 'cancel' ? 'CANCELLING…' : 'CANCEL'}
           </button>
         </>
       )}
@@ -40,16 +54,18 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
           </p>
           <div className="flex justify-center gap-2">
             <button
-              onClick={onAccept}
-              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+              onClick={() => handle('accept', onAccept)}
+              disabled={busy}
+              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
             >
-              ACCEPT
+              {tapped === 'accept' ? 'ACCEPTING…' : 'ACCEPT'}
             </button>
             <button
-              onClick={onDecline}
-              className="border border-retro-p2 text-retro-p2 font-pixel text-[10px] px-4 py-2 rounded hover:shadow-neon-p2"
+              onClick={() => handle('decline', onDecline)}
+              disabled={busy}
+              className="border border-retro-danger text-retro-danger font-pixel text-[10px] px-4 py-2 rounded hover:shadow-neon-danger disabled:opacity-50"
             >
-              DECLINE
+              {tapped === 'decline' ? 'DECLINING…' : 'DECLINE'}
             </button>
           </div>
         </>

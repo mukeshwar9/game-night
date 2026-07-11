@@ -4,6 +4,7 @@ import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
+import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -93,34 +94,16 @@ export default function ReactionGame({
   const myTimes = normalizeReactionTimes(game[`reactionTimes${myKey}`])
   const opTimes = normalizeReactionTimes(game[`reactionTimes${opKey}`])
 
-  const [phase, setPhase] = useState('start')
-  const [times, setTimes] = useState([])
+  const [phase, setPhase] = useState(() => (myTimes.length === ROUNDS ? 'submitted' : 'start'))
+  const [times, setTimes] = useState(() => (myTimes.length === ROUNDS ? myTimes : []))
   const [lastTime, setLastTime] = useState(null)
   const roundStartRef = useRef(null)
   const timerRef = useRef(null)
   const prevMyLen = useRef(myTimes.length)
   const prevOpLen = useRef(opTimes.length)
 
-  // On mount: if I already submitted (reconnect), restore state
-  useEffect(() => {
-    if (myTimes.length === ROUNDS) {
-      setPhase('submitted')
-      setTimes(myTimes)
-    }
-    return () => clearTimeout(timerRef.current)
-  }, [])
-
-  // When both players done → resolve
-  useEffect(() => {
-    const ml = myTimes.length
-    const ol = opTimes.length
-    if (ml === ROUNDS && ol === ROUNDS &&
-        (prevMyLen.current < ROUNDS || prevOpLen.current < ROUNDS)) {
-      tryFinish()
-    }
-    prevMyLen.current = ml
-    prevOpLen.current = ol
-  }, [myTimes.length, opTimes.length])
+  // Clear any pending round timer on unmount
+  useEffect(() => () => clearTimeout(timerRef.current), [])
 
   const tryFinish = async () => {
     try {
@@ -139,6 +122,19 @@ export default function ReactionGame({
     } catch { /* other client resolved — ignore */ }
   }
 
+  // When both players done → resolve
+  useEffect(() => {
+    const ml = myTimes.length
+    const ol = opTimes.length
+    if (ml === ROUNDS && ol === ROUNDS &&
+        (prevMyLen.current < ROUNDS || prevOpLen.current < ROUNDS)) {
+      tryFinish()
+    }
+    prevMyLen.current = ml
+    prevOpLen.current = ol
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tryFinish is recreated every render; the prevMyLen/prevOpLen refs already dedupe repeat calls
+  }, [myTimes.length, opTimes.length])
+
   const startRound = () => {
     setPhase('waiting')
     const delay = MIN_DELAY_MS + Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS)
@@ -149,7 +145,10 @@ export default function ReactionGame({
     }, delay)
   }
 
-  const handleClick = async () => {
+  // Captured on onPointerDown (not onClick) so the recorded time doesn't pay
+  // the touch→click event-synthesis latency every other custom keypad in this
+  // codebase already avoids (M-50).
+  const handleTap = async () => {
     if (!mySymbol || game.status !== 'playing' || phase === 'submitted') return
 
     switch (phase) {
@@ -245,7 +244,7 @@ export default function ReactionGame({
     <div className="space-y-4">
       {/* Big clickable game area */}
       <button
-        onClick={handleClick}
+        onPointerDown={e => { e.preventDefault(); handleTap() }}
         disabled={phase === 'submitted'}
         className={cn(
           'w-full rounded-xl border-2 transition-colors duration-75 select-none',
@@ -269,7 +268,7 @@ export default function ReactionGame({
             <p className="font-pixel text-[9px] text-retro-cta">
               AVG {avg(times)}ms · BEST {Math.min(...times)}ms
             </p>
-            <p className="font-pixel text-[8px] text-retro-dim animate-pulse">
+            <p className="font-pixel text-[8px] text-retro-dim arcade-blink">
               WAITING FOR OPPONENT {opTimes.length}/{ROUNDS}
             </p>
           </div>
@@ -290,7 +289,7 @@ export default function ReactionGame({
             </p>
             <p className={cn(
               'font-pixel text-[9px]',
-              phase === 'too_early' ? 'text-retro-p2' : 'text-retro-dim animate-pulse',
+              phase === 'too_early' ? 'text-retro-p2' : 'text-retro-dim arcade-blink',
             )}>
               {phase === 'waiting'   ? "DON'T CLICK YET"              :
                phase === 'too_early' ? 'TAP TO TRY AGAIN'             :
@@ -325,11 +324,7 @@ export default function ReactionGame({
         ))}
       </div>
 
-      {!opponentOnline && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">
-          OPPONENT IS OFFLINE
-        </p>
-      )}
+      {!opponentOnline && <OfflineNotice label="OPPONENT" />}
       {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>
   )

@@ -18,9 +18,11 @@ export default {
           p2:         'rgb(var(--c-p2) / <alpha-value>)',
           cta:        'rgb(var(--c-cta) / <alpha-value>)',
           win:        'rgb(var(--c-win) / <alpha-value>)',
+          danger:     'rgb(var(--c-danger) / <alpha-value>)',
           'tint-p1':  'rgb(var(--c-tint-p1) / <alpha-value>)',
           'tint-p2':  'rgb(var(--c-tint-p2) / <alpha-value>)',
           'tint-cta': 'rgb(var(--c-tint-cta) / <alpha-value>)',
+          'tint-danger': 'rgb(var(--c-tint-danger) / <alpha-value>)',
           structure:  'rgb(var(--c-structure) / <alpha-value>)',
           deep:       'rgb(var(--c-deep) / <alpha-value>)',
         },
@@ -30,16 +32,8 @@ export default {
         'neon-p2':  '0 0 8px rgb(var(--c-p2)), 0 0 24px rgb(var(--c-p2) / 0.35)',
         'neon-cta': '0 0 8px rgb(var(--c-cta)), 0 0 24px rgb(var(--c-cta) / 0.35)',
         'neon-win': '0 0 8px rgb(var(--c-win)), 0 0 24px rgb(var(--c-win) / 0.35)',
+        'neon-danger': '0 0 8px rgb(var(--c-danger)), 0 0 24px rgb(var(--c-danger) / 0.35)',
         'glow-dot': '0 0 4px rgb(var(--c-win))',
-      },
-      keyframes: {
-        blink: {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0' },
-        },
-      },
-      animation: {
-        blink: 'blink 1s step-end infinite',
       },
     },
   },
@@ -50,6 +44,7 @@ export default {
         '.text-glow-p2':  { textShadow: '0 0 8px rgb(var(--c-p2)), 0 0 20px rgb(var(--c-p2) / 0.5)' },
         '.text-glow-cta': { textShadow: '0 0 10px rgb(var(--c-cta)), 0 0 28px rgb(var(--c-cta) / 0.5)' },
         '.text-glow-win': { textShadow: '0 0 8px rgb(var(--c-win)), 0 0 20px rgb(var(--c-win) / 0.5)' },
+        '.text-glow-danger': { textShadow: '0 0 8px rgb(var(--c-danger)), 0 0 20px rgb(var(--c-danger) / 0.5)' },
         '.scanline': {
           position: 'relative',
           '&::after': {

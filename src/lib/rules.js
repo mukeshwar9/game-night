@@ -284,6 +284,17 @@ export const GAME_RULES = {
     win: 'Destroy your opponent’s ship to win the round. If both survive the 60-second cap, whoever landed more hits wins (a 1-hit margin is required, otherwise it’s a draw). One round decides the match.',
   },
 
+  paint: {
+    objective: 'Paint more of the 20×20 arena than your opponent before the 60-second clock runs out.',
+    howToPlay: [
+      'Steer with arrow keys, WASD, or swipe on touch screens — turns are instant, including full reversals.',
+      'The cell you leave turns your color as you move off it — cut a wide swath through the arena to claim it.',
+      'Standing on your opponent’s paint slows you to 70% speed until you cross off it — use this to trap them.',
+      'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
+    ],
+    win: 'When the clock hits zero, whoever painted more cells wins the round; equal counts draw. First to 3 round wins takes the match.',
+  },
+
   chainreaction: {
     objective: 'Trigger chain reactions on the 6×8 grid to wipe every orb of your opponent’s color off the board.',
     howToPlay: [
@@ -293,6 +304,17 @@ export const GAME_RULES = {
       'You can only place on empty cells or cells you already own; opponent-owned cells are off limits.',
     ],
     win: 'Once both players have made at least one move, if your opponent has no orbs left on the board, you win.',
+  },
+
+  blockade: {
+    objective: 'Race your pawn to the far edge of the board before your opponent — or wall them off their path.',
+    howToPlay: [
+      'On your turn, either step your pawn one square (up, down, left, or right) or place one of your 10 walls in a gap between squares.',
+      'A wall blocks movement across it for both players — plan your own route as you cut off theirs.',
+      'If your pawn and your opponent’s are adjacent, you may jump straight over them; if that jump is blocked, you may hop diagonally around them instead.',
+      'A wall can never be placed if it would seal either player’s pawn off from their goal row completely — there must always be a path for both.',
+    ],
+    win: 'First pawn to reach the far edge wins. X starts at the bottom and aims for the top row; O starts at the top and aims for the bottom row.',
   },
 
   wordduel: {
@@ -305,6 +327,17 @@ export const GAME_RULES = {
     win: 'Solve it in fewer guesses than your opponent to win. Equal guess counts — faster solver wins. Both fail to solve it: draw. First to 3 round wins takes the match.',
   },
 
+  wordhunt: {
+    objective: 'Trace more valid words than your opponent on a shared 4×4 letter grid before time runs out.',
+    howToPlay: [
+      'Both players get the identical grid and 80 seconds.',
+      'Drag across adjacent tiles (including diagonals) to spell a word, or type it and press Enter.',
+      'Words must be 3+ letters and can’t reuse a tile in the same word. The Qu tile counts as two letters.',
+      'Both players can score the same word — there’s no penalty for overlapping finds.',
+    ],
+    win: 'Longer words score more (3–4 letters = 1 point, up to 11 for 8+). Highest total score when time runs out wins; equal scores draw. First to 3 round wins takes the match.',
+  },
+
   spyfair: {
     objective: 'Find the spy in your midst — or, as the spy, survive without being caught.',
     howToPlay: [
@@ -313,6 +346,27 @@ export const GAME_RULES = {
       'When time runs out, everyone votes on who they think is the spy.',
     ],
     win: 'The group wins if a clear majority votes for the actual spy. Otherwise the spy wins. First to 3 round wins takes the match.',
+  },
+
+  sketch: {
+    objective: 'One player draws a secret word while everyone else races to guess it in chat.',
+    howToPlay: [
+      '2–8 players. Each round, one player is the artist and picks a secret word from 3 options.',
+      'The artist draws it on the shared canvas.',
+      'Everyone else types guesses — the word length is shown as blanks.',
+      'Guessing correctly locks you in early and reveals the word to you — keep it secret from the others still guessing.',
+    ],
+    win: 'Guessers score by how fast they guess correctly; the artist scores per correct guesser. Everyone draws twice (three times in a 2-player match) — most total points wins, ties share the win.',
+  },
+
+  pairs: {
+    objective: 'Find more matching pairs than your opponent on the 6×6 grid of 18 hidden pairs.',
+    howToPlay: [
+      'Tap any two face-down cards to flip them.',
+      'Match the pair and you claim it — plus you immediately go again.',
+      'Miss, and both cards stay face-up until your opponent\'s first tap of their turn, then it flips to them.',
+    ],
+    win: 'Claim 10 of the 18 pairs to win instantly. If the board fills first, whoever claimed more pairs wins — 9–9 is a draw.',
   },
 }
 

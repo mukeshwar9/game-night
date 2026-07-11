@@ -1,5 +1,23 @@
-export const GAME_MS     = 120_000
-export const QUESTION_MS =   8_000
+export const GAME_MS = 120_000
+
+// Per-question time budgets, scaled by difficulty tier — hard-tier answers run
+// up to 3 digits (more NumberPad taps) plus harder mental math, so they get a
+// bigger window than easy single-digit questions. Both game clients derive
+// this the same way from the shared question index (never randomized), so
+// X and O always agree on how long a given question is worth.
+const QUESTION_MS_BY_LEVEL = { easy: 8_000, medium: 10_000, hard: 13_000 }
+
+export function levelForIndex(index) {
+  return index < 20 ? 'easy' : index < 40 ? 'medium' : 'hard'
+}
+
+export function questionMsForIndex(index) {
+  return QUESTION_MS_BY_LEVEL[levelForIndex(index)]
+}
+
+// Flat fallback for callers that don't scale per-question (e.g. the offline
+// solo Demo) — equals the easy-tier window.
+export const QUESTION_MS = QUESTION_MS_BY_LEVEL.easy
 
 export function generateSeed() {
   return Math.floor(Math.random() * 1_000_000_000)
@@ -23,7 +41,7 @@ function seededChoice(arr, seed, index, slot) {
 
 export function generateQuestion(seed, index) {
   const isPower = index % 8 === 5
-  const level   = index < 20 ? 'easy' : index < 40 ? 'medium' : 'hard'
+  const level   = levelForIndex(index)
 
   let text, answer
 

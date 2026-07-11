@@ -39,14 +39,17 @@ const PongCourt = forwardRef(function PongCourt(
         </span>
       </div>
 
-      {/* Court */}
+      {/* Court — width is capped by both the container AND the viewport
+          height (min() against a 100dvh-derived budget, scaled by the 3:2
+          aspect ratio) so short/landscape phones still see the whole court
+          instead of it overflowing. */}
       <div
         ref={ref}
         className={cn(
-          'relative w-full rounded-lg border-2 border-retro-border bg-retro-surface overflow-hidden touch-none',
+          'relative mx-auto rounded-lg border-2 border-retro-border bg-retro-surface overflow-hidden touch-none',
           dim && 'opacity-60',
         )}
-        style={{ aspectRatio: '3 / 2', cursor: 'none' }}
+        style={{ aspectRatio: '3 / 2', cursor: 'none', width: 'min(100%, calc((100dvh - 260px) * 1.5))' }}
       >
         {/* Centre net */}
         <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-0 border-l-2 border-dashed border-retro-border/60" />
@@ -111,9 +114,11 @@ const PongCourt = forwardRef(function PongCourt(
       {/* Player labels */}
       <div className="flex items-center justify-between px-1 font-pixel text-[8px]">
         <span className="text-retro-p1">{namesX?.toUpperCase()}{mySide === 'X' ? ' (YOU)' : ''}</span>
-        <span className="text-retro-dim">↑ / ↓ · W / S · DRAG</span>
         <span className="text-retro-p2">{namesO?.toUpperCase()}{mySide === 'O' ? ' (YOU)' : ''}</span>
       </div>
+      <p className="text-center font-pixel text-[10px] text-retro-dim leading-relaxed">
+        ↑ / ↓ · W / S · DRAG THE COURT ON TOUCH
+      </p>
     </div>
   )
 })

@@ -1,8 +1,6 @@
 import { cn } from '@/lib/utils'
 import { normalizeVmArray } from '../lib/visualMemoryLogic'
 
-const COLS = 4
-
 export default function VisualMemoryBoard({ onMove, disabled, vmPattern, vmClicked, vmLevel }) {
   const pattern = normalizeVmArray(vmPattern)
   const clicked = normalizeVmArray(vmClicked)
@@ -57,7 +55,7 @@ export default function VisualMemoryBoard({ onMove, disabled, vmPattern, vmClick
       {/* Hint */}
       <p className="font-pixel text-[9px] text-center">
         {showPattern ? (
-          <span className={cn('text-retro-cta', !disabled && 'animate-pulse')}>
+          <span className={cn('text-retro-cta', !disabled && 'arcade-blink')}>
             {disabled ? 'OPPONENT IS MEMORIZING...' : 'MEMORIZE — CLICK ANY TILE TO START'}
           </span>
         ) : (

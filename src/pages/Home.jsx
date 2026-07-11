@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
@@ -10,6 +10,7 @@ import { recordPlay } from '../lib/analytics'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { sounds } from '../lib/sounds'
 import GamePicker from '../components/GamePicker'
+import EmptyState from '../components/EmptyState'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import Avatar from '../components/Avatar'
 import Onboarding from '../components/Onboarding'
@@ -36,7 +37,7 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
   const [onboarded, setOnboarded] = useState(() => hasOnboarded())
   const [howItWorksDismissed, setHowItWorksDismissed] = useState(() => !!localStorage.getItem('gn-howitworks-dismissed'))
-  const { profile, invites, requestCount, isAnonymous } = useAuth()
+  const { profile, invites, isAnonymous } = useAuth()
   const gameCount = useMemo(() => GAME_TYPES.filter(t => !t.variantOf).length, [])
   const [nudgeDismissed, setNudgeDismissed] = useState(() => {
     const ts = Number(localStorage.getItem('gn-upgrade-nudge-dismissed'))
@@ -61,6 +62,21 @@ export default function Home() {
   const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
 
   const toggleMute = () => setMuted(sounds.toggle())
+
+  // M-82: restore scroll position on return from a game (Home fully
+  // unmounts on navigation, so this can't be a simple useState/useRef).
+  useEffect(() => {
+    const KEY = 'gn-home-scrollY'
+    const saved = Number(sessionStorage.getItem(KEY))
+    if (saved > 0) {
+      // Double rAF so the full catalog (GamePicker's restored category/filters
+      // included) has laid out before we jump to a mid-page scroll position.
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, saved)))
+    }
+    const onScroll = () => sessionStorage.setItem(KEY, String(window.scrollY))
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const createGame = async (gameType) => {
     const playerName = getPlayerName(profile)
@@ -130,7 +146,7 @@ export default function Home() {
         <button
           onClick={toggleMute}
           title={muted ? 'Unmute sounds' : 'Mute sounds'}
-          className="text-retro-dim hover:text-retro-text transition-colors p-2 rounded border border-retro-border bg-retro-card"
+          className="min-h-11 min-w-11 flex items-center justify-center text-retro-dim hover:text-retro-text transition-colors p-2 rounded border border-retro-border bg-retro-card"
         >
           {muted ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Unmute">
@@ -148,35 +164,17 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Account + friends — fixed top-left */}
-      <div className="fixed top-[max(1rem,env(safe-area-inset-top))] left-[max(1rem,env(safe-area-inset-left))] z-10 flex gap-2 items-center">
-        <Link
-          to="/profile"
-          title="Your profile"
-          className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded border border-retro-border bg-retro-card hover:border-retro-p1 transition-colors"
-        >
-          <Avatar id={myAvatar} size={22} />
-          <span className="font-pixel text-[9px] text-retro-text max-w-[72px] truncate">{profile?.displayName || 'PROFILE'}</span>
-        </Link>
-        <Link
-          to="/friends"
-          title="Friends"
-          aria-label="Friends"
-          className="relative p-2 rounded border border-retro-border bg-retro-card text-retro-dim hover:text-retro-text transition-colors"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-          {requestCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-retro-cta text-retro-bg font-pixel text-[7px] flex items-center justify-center">
-              {requestCount}
-            </span>
-          )}
-        </Link>
-      </div>
+      {/* M-62: the profile/friends chips that used to live here are now the
+          Profile/Friends tabs in BottomTabBar (rendered app-wide at App
+          level), so Home no longer hand-rolls its own copy of that nav. */}
+
+      {/* M-23: in-flow spacer clearing the fixed top-right control row above —
+          matches its top offset + height so scrolling content never runs
+          underneath (and steals/blocks taps from) the theme/mute chips. */}
+      <div
+        aria-hidden="true"
+        style={{ height: 'calc(max(1rem, env(safe-area-inset-top)) + 2.75rem)' }}
+      />
 
       {configError && (
         <div className="w-full max-w-sm mb-6 border border-retro-p2/50 bg-retro-card rounded px-4 py-3">
@@ -219,16 +217,18 @@ export default function Home() {
                   </p>
                   <p className="font-pixel text-[8px] text-retro-dim mt-0.5">{getGameConfig(inv.gameType).label}</p>
                 </div>
+                {/* M-59: JOIN and dismiss both hit ≥44px, with a clear gap between
+                    them so "not now" isn't a mis-tap away from joining someone's room. */}
                 <button
                   onClick={() => { dismissInvite(inv.id); navigate(`/game/${inv.gameId}`) }}
-                  className="px-3 py-1.5 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-95"
+                  className="min-h-11 px-3 flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-95"
                 >
                   JOIN
                 </button>
                 <button
                   onClick={() => dismissInvite(inv.id)}
                   aria-label="Dismiss invite"
-                  className="px-1.5 text-retro-dim hover:text-retro-p2 font-pixel text-[9px] transition-colors"
+                  className="min-h-11 min-w-11 ml-1 flex items-center justify-center text-retro-dim hover:text-retro-p2 font-pixel text-[9px] rounded transition-colors"
                 >
                   ✕
                 </button>
@@ -237,10 +237,13 @@ export default function Home() {
           </div>
         )}
 
-        {/* Utility row — daily challenge + join by code */}
-        <div className="max-w-md mx-auto w-full flex gap-2">
-          <DailyTile />
-          <div className="flex-1 flex gap-2">
+        {/* Utility row — daily challenge + join by code. Wraps to its own
+            line below ~360px wide so neither lane gets crushed under 44px. */}
+        <div className="max-w-md mx-auto w-full flex flex-wrap gap-2">
+          <div className="flex-1 min-w-[140px]">
+            <DailyTile />
+          </div>
+          <div className="flex-1 min-w-[180px] flex gap-2">
             <input
               type="text"
               placeholder="JOIN CODE"
@@ -248,13 +251,13 @@ export default function Home() {
               onChange={e => setJoinCode(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && joinGame()}
               maxLength={6}
-              className="flex-1 min-w-0 bg-retro-card border-2 border-retro-border text-retro-p1
+              className="flex-1 min-w-0 min-h-11 bg-retro-card border-2 border-retro-border text-retro-p1
                 font-pixel text-xs placeholder-retro-border rounded px-3 py-2
                 focus:outline-none focus:border-retro-p1 tracking-widest transition-colors"
             />
             <button
               onClick={joinGame}
-              className="px-4 py-2 bg-retro-card border-2 border-retro-border text-retro-text
+              className="min-h-11 px-4 flex items-center justify-center bg-retro-card border-2 border-retro-border text-retro-text
                 font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-colors active:scale-95"
             >
               JOIN
@@ -346,7 +349,7 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <p className="font-pixel text-[9px] text-retro-dim">PLAY A MATCH TO START YOUR RECORD</p>
+            <EmptyState>PLAY A MATCH TO START YOUR RECORD</EmptyState>
           )}
         </div>
 

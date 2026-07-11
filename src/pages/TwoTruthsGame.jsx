@@ -4,11 +4,14 @@ import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import GameSwitcher from '../components/GameSwitcher'
 import SpectatorCard from '../components/SpectatorCard'
+import PixelDots from '../components/loading/PixelDots'
 import WinEffect from '../components/WinEffect'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import useBusy from '@/hooks/useBusy'
+import { toast } from 'sonner'
 
 const MATCH_WINS = 3
 const MAX_LEN = 80
@@ -51,10 +54,20 @@ function StatementSetter({ onLock, loading }) {
   const [statements, setStatements] = useState(['', '', ''])
   const [lieIndex, setLieIndex] = useState(null)
   const [error, setError] = useState('')
+  const submitRef = useRef(null)
 
   const setStatement = (i, val) => {
     setStatements(prev => prev.map((s, idx) => (idx === i ? val.slice(0, MAX_LEN) : s)))
     setError('')
+  }
+
+  // Nudge LOCK IT IN back into view once the on-screen keyboard finishes
+  // animating in — otherwise the last statement + submit button can land
+  // under the keyboard fold on short viewports.
+  const handleFieldFocus = () => {
+    setTimeout(() => {
+      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }, 300)
   }
 
   const handleSubmit = () => {
@@ -89,6 +102,7 @@ function StatementSetter({ onLock, loading }) {
               <textarea
                 value={s}
                 onChange={e => setStatement(i, e.target.value)}
+                onFocus={handleFieldFocus}
                 maxLength={MAX_LEN}
                 rows={2}
                 placeholder={`STATEMENT ${i + 1}`}
@@ -116,10 +130,11 @@ function StatementSetter({ onLock, loading }) {
       </div>
 
       {error && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">{error}</p>
+        <p className="font-pixel text-[10px] text-retro-p2 text-center">{error}</p>
       )}
 
       <button
+        ref={submitRef}
         onClick={handleSubmit}
         disabled={loading}
         className={cn(
@@ -156,6 +171,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   const [cheatEvidence, setCheatEvidence] = useState(null)
   const [showWinEffect, setShowWinEffect] = useState(false)
   const [winEffectFor, setWinEffectFor] = useState(null)
+  const [sharing, runShare] = useBusy()
 
   const verifiedCommitment = useRef(null)
   const lieRevealed = round.reveal?.lieIndex
@@ -323,18 +339,22 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
               </button>
             )}
             <button
-              onClick={() => shareResult({
-                gameLabel: 'TWO TRUTHS',
-                headline: matchWinner === mySymbol
-                  ? 'YOU WIN!'
-                  : `${game.players?.[matchWinner]?.name || matchWinner} WINS`,
-                sub: `${scoreX} – ${scoreO}`,
-                accentVar: '--c-cta',
-                url: window.location.href,
+              onClick={() => runShare(async () => {
+                const ok = await shareResult({
+                  gameLabel: 'TWO TRUTHS',
+                  headline: matchWinner === mySymbol
+                    ? 'YOU WIN!'
+                    : `${game.players?.[matchWinner]?.name || matchWinner} WINS`,
+                  sub: `${scoreX} – ${scoreO}`,
+                  accentVar: '--c-cta',
+                  url: window.location.href,
+                })
+                if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
               })}
-              className="px-6 py-2.5 font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
+              disabled={sharing}
+              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
             >
-              SHARE
+              {sharing ? 'BUILDING…' : 'SHARE'}
             </button>
           </div>
         )}
@@ -357,17 +377,14 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
           <StatementSetter onLock={handleLock} loading={locking} />
         ) : (
           <div className="text-center space-y-3 py-6">
-            <div className="flex gap-2 justify-center">
-              {[0, 1, 2].map(i => (
-                <div key={i} className="w-2 h-2 rounded-full bg-retro-p1 animate-bounce shadow-neon-p1"
-                  style={{ animationDelay: `${i * 200}ms` }} />
-              ))}
+            <div className="flex justify-center">
+              <PixelDots tone="p1" size="lg" glow />
             </div>
             <p className="font-pixel text-[10px] text-retro-p1 text-glow-p1 leading-relaxed">
               WAITING FOR<br />STORYTELLER…
             </p>
             {!opponentOnline && (
-              <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
+              <p className="font-pixel text-[10px] text-retro-dim">
                 (STORYTELLER IS OFFLINE)
               </p>
             )}
@@ -397,7 +414,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
         <p className={cn(
           'font-pixel text-[9px]',
           isReveal ? 'text-retro-dim'
-            : isGuesser && guess == null ? 'text-retro-cta text-glow-cta animate-pulse'
+            : isGuesser && guess == null ? 'text-retro-cta text-glow-cta arcade-blink'
             : 'text-retro-dim',
         )}>
           {isReveal
@@ -424,7 +441,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
               onClick={() => canPick && handleGuess(i)}
               disabled={!canPick}
               className={cn(
-                'w-full text-left rounded border-2 px-3 py-3 transition-all',
+                'w-full min-h-11 text-left rounded border-2 px-3 py-3 transition-all',
                 'font-mono text-xs leading-relaxed flex items-start gap-2',
                 canPick && 'hover:border-retro-p2 hover:bg-retro-tint-p2 active:scale-[0.99] cursor-pointer',
                 isTheLie
@@ -485,7 +502,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
           give them a way out with no score change */}
       {setterMissingSecret && (
         <div className="text-center space-y-2">
-          <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
+          <p className="font-pixel text-[10px] text-retro-dim">
             THE REVEAL CAN&apos;T LAND WITHOUT YOUR SECRET
           </p>
           <button
@@ -500,7 +517,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
       {/* Setter lost their secret — let guesser bail out */}
       {!isReveal && !isSetter && !opponentOnline && (
         <div className="text-center space-y-2">
-          <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
+          <p className="font-pixel text-[10px] text-retro-dim">
             STORYTELLER IS OFFLINE — REVEAL WILL STALL
           </p>
           {isGuesser && (

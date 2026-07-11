@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { CF_COLS, CF_ROWS } from '../lib/connectFourLogic'
 
-export default function ConnectFourBoard({ board, onMove, disabled, winningLine = [], currentTurn, popMode = false }) {
+export default function ConnectFourBoard({ board, onMove, disabled, winningLine = [], currentTurn, popMode = false, lastMove = null }) {
   const [hoveredCol, setHoveredCol] = useState(null)
 
   // In pop mode the board emits { col, action }; classic mode emits a bare col.
@@ -14,7 +14,12 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
 
   return (
     <div className="w-full max-w-sm sm:max-w-md mx-auto">
-      <div className="bg-retro-surface border-2 border-retro-border rounded p-2 sm:p-2.5">
+      <div
+        className={cn(
+          'bg-retro-surface border-2 border-retro-border rounded p-2 sm:p-2.5 transition-all duration-200',
+          disabled && 'opacity-60 saturate-50',
+        )}
+      >
         <div className="grid gap-1 sm:gap-1.5" style={{ gridTemplateColumns: `repeat(${CF_COLS}, 1fr)` }}>
           {board.map((cell, i) => {
             const col = i % CF_COLS
@@ -29,7 +34,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                 disabled={disabled || colFull}
                 aria-label={`Column ${col + 1}, ${cell || 'empty'}`}
                 className={cn(
-                  'aspect-square rounded-full border-2 transition-all duration-150 overflow-hidden',
+                  'aspect-square rounded-full border-2 transition-all duration-100 overflow-hidden',
                   'flex items-center justify-center',
                   cell
                     ? 'bg-retro-bg border-retro-border'
@@ -49,6 +54,8 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                       cell === 'X' ? 'bg-retro-p1' : 'bg-retro-p2',
                       winningLine.includes(i) && 'scale-110',
                       winningLine.includes(i) && (cell === 'X' ? 'shadow-neon-p1' : 'shadow-neon-p2'),
+                      // M-47: persistent ring on the just-landed disc
+                      !winningLine.includes(i) && i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
                     )}
                     style={{ animation: 'disc-drop 0.3s cubic-bezier(0.34,1.15,0.64,1)' }}
                   >
@@ -75,7 +82,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                   title="Pop your own disc out of the bottom"
                   aria-label={`Pop column ${col + 1}`}
                   className={cn(
-                    'h-5 rounded-sm border font-pixel text-[9px] leading-none flex items-center justify-center transition-all',
+                    'h-11 rounded-sm border font-pixel text-[9px] leading-none flex items-center justify-center transition-all',
                     canPop
                       ? 'border-retro-cta/60 text-retro-cta hover:bg-retro-tint-cta active:scale-90 cursor-pointer'
                       : 'border-retro-border/40 text-retro-border/50 cursor-default',

@@ -12,6 +12,10 @@ import GameSwitcher from '../components/GameSwitcher'
 import { cn } from '@/lib/utils'
 import { getGameConfig } from '@/lib/games'
 import { shareResult } from '@/lib/shareCard'
+import PixelDots from '@/components/loading/PixelDots'
+import OfflineNotice from '@/components/loading/OfflineNotice'
+import useBusy from '@/hooks/useBusy'
+import { toast } from 'sonner'
 
 const STORAGE_PREFIX = 'wordduel-word-'
 
@@ -74,14 +78,14 @@ function GameTile({ letter, mark, pending }) {
   return (
     <div
       className={cn(
-        'w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded',
-        'text-xl sm:text-2xl font-bold border-2 uppercase select-none',
+        'w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center rounded',
+        'text-base sm:text-2xl font-bold border-2 uppercase select-none',
         'transition-colors duration-300',
         colorClass,
         letter && mark === 'G' ? 'text-white' :
         letter && mark === 'Y' ? 'text-white' :
         letter ? 'text-retro-text' : '',
-        pending && 'animate-pulse border-retro-cta',
+        pending && 'arcade-blink border-retro-cta',
       )}
     >
       {letter || ''}
@@ -106,24 +110,24 @@ function GameBoard({ guesses, compact, ghostMode }) {
       }
     }
     rows.push(
-      <div key={r} className={cn('flex', compact ? 'gap-0.5' : 'gap-1.5')}>
+      <div key={r} className={cn('flex', compact ? 'gap-0.5' : 'gap-1')}>
         {cells}
       </div>
     )
   }
-  return <div className="flex flex-col gap-1.5">{rows}</div>
+  return <div className="flex flex-col gap-1">{rows}</div>
 }
 
 function Keyboard({ keyState, onKey, disabled }) {
   return (
-    <div className="flex flex-col items-center gap-1.5 w-full max-w-md">
+    <div className="flex flex-col gap-1.5 w-full max-w-md mx-auto">
       {KB_ROWS.map((row, ri) => (
-        <div key={ri} className="flex gap-1">
+        <div key={ri} className="flex gap-1 w-full">
           {ri === 2 && (
             <button
               className={cn(
                 'relative before:content-[\'\'] before:absolute before:inset-y-0 before:-left-0.5 before:-right-0.5',
-                'px-2 sm:px-3 h-11 sm:h-auto sm:py-3 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
+                'flex-[1.5] min-w-0 h-11 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
                 'bg-retro-structure text-retro-text hover:bg-retro-border transition-colors',
                 'disabled:opacity-30 disabled:cursor-default',
               )}
@@ -145,7 +149,7 @@ function Keyboard({ keyState, onKey, disabled }) {
                 key={letter}
                 className={cn(
                   'relative before:content-[\'\'] before:absolute before:inset-y-0 before:-left-0.5 before:-right-0.5',
-                  'px-1.5 sm:px-3 h-11 sm:h-auto sm:py-3 rounded text-xs sm:text-sm font-bold uppercase',
+                  'flex-1 min-w-0 h-11 rounded text-xs sm:text-sm font-bold uppercase',
                   'hover:opacity-80 transition-colors',
                   bg,
                   'disabled:opacity-30 disabled:cursor-default',
@@ -161,7 +165,7 @@ function Keyboard({ keyState, onKey, disabled }) {
             <button
               className={cn(
                 'relative before:content-[\'\'] before:absolute before:inset-y-0 before:-left-0.5 before:-right-0.5',
-                'px-2 sm:px-3 h-11 sm:h-auto sm:py-3 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
+                'flex-[1.5] min-w-0 h-11 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
                 'bg-retro-structure text-retro-text hover:bg-retro-border transition-colors',
                 'disabled:opacity-30 disabled:cursor-default',
               )}
@@ -201,14 +205,15 @@ function WordInput({ value }) {
 }
 
 // Outline share CTA — classes copied from GameStatus's ShareButton for visual parity
-function ShareButton({ onClick }) {
+function ShareButton({ onClick, busy }) {
   return (
     <button
       onClick={onClick}
-      className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs
-        rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95"
+      disabled={busy}
+      className="px-6 py-2.5 min-w-[6.5rem] border-2 border-retro-border text-retro-text font-pixel text-xs
+        rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
     >
-      SHARE
+      {busy ? 'BUILDING…' : 'SHARE'}
     </button>
   )
 }
@@ -230,6 +235,8 @@ export default function WordDuelGame({
   const verifiedRef = useRef(false)
   const scoredRef = useRef(false)
   const gradingRef = useRef(false)
+
+  const [sharing, runShare] = useBusy()
 
   // Derived from game
   const round = useMemo(() => game?.round || {}, [game])
@@ -518,20 +525,15 @@ export default function WordDuelGame({
             >
               {lockingWord ? 'LOCKING…' : 'LOCK IN'}
             </button>
+            <div className="w-full">
+              <Keyboard keyState={{}} onKey={handleSettingKey} disabled={lockingWord} />
+            </div>
           </>
         ) : (
           <div className="flex flex-col items-center gap-3">
-            {!opponentOnline && (
-              <p className="text-xs text-retro-cta animate-pulse">OPPONENT IS OFFLINE</p>
-            )}
-            <div className="flex gap-1.5">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-3 h-3 rounded-full animate-bounce bg-retro-cta"
-                  style={{ animationDelay: `${i * 150}ms` }}
-                />
-              ))}
+            {!opponentOnline && <OfflineNotice label="OPPONENT" />}
+            <div className="flex justify-center">
+              <PixelDots tone="cta" size="lg" />
             </div>
             <p className="text-xs text-retro-dim mt-1">
               {oppCommit ? 'STARTING…' : 'WAITING FOR OPPONENT…'}
@@ -545,7 +547,7 @@ export default function WordDuelGame({
   // Guessing phase
   if (phase === 'guessing') {
     return (
-      <div className="flex flex-col items-center gap-4 py-4 max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-2 py-2 max-w-md mx-auto">
         {/* Header: scores */}
         <div className="flex items-center gap-4 text-xs text-retro-dim">
           <span className={cn(mySymbol === 'X' ? 'text-retro-p1' : '')}>
@@ -558,15 +560,15 @@ export default function WordDuelGame({
         </div>
 
         {myDone && (
-          <p className="text-xs text-retro-cta animate-pulse">
+          <p className="text-xs text-retro-cta arcade-blink">
             WAITING FOR OPPONENT TO FINISH…
           </p>
         )}
 
         {/* My guesses board */}
-        <div className="flex items-start gap-6">
+        <div className="flex items-start gap-4">
           <div>
-            <p className="text-xs text-retro-dim mb-2 text-center uppercase tracking-wider">YOUR GUESSES</p>
+            <p className="text-xs text-retro-dim mb-1 text-center uppercase tracking-wider">YOUR GUESSES</p>
             <GameBoard
               guesses={[
                 ...myGuesses,
@@ -577,13 +579,13 @@ export default function WordDuelGame({
           </div>
           {/* Opponent ghost */}
           <div>
-            <p className="text-xs text-retro-dim mb-2 text-center uppercase tracking-wider">OPPONENT</p>
+            <p className="text-xs text-retro-dim mb-1 text-center uppercase tracking-wider">OPPONENT</p>
             <GameBoard guesses={oppGuesses} compact ghostMode={true} />
           </div>
         </div>
 
         {/* Keyboard */}
-        <div className="mt-2 w-full">
+        <div className="mt-1 w-full">
           <Keyboard keyState={keyboardState} onKey={handleKey} disabled={!!myDone} />
         </div>
 
@@ -593,7 +595,7 @@ export default function WordDuelGame({
             <div
               key={i}
               className={cn(
-                'w-8 h-8 flex items-center justify-center rounded text-sm font-bold uppercase border',
+                'w-7 h-7 flex items-center justify-center rounded text-sm font-bold uppercase border',
                 'border-retro-border bg-retro-card text-retro-dim',
               )}
             >
@@ -602,9 +604,7 @@ export default function WordDuelGame({
           ))}
         </div>
 
-        {!opponentOnline && !myDone && (
-          <p className="text-xs text-retro-cta animate-pulse mt-1">OPPONENT IS OFFLINE</p>
-        )}
+        {!opponentOnline && !myDone && <OfflineNotice label="OPPONENT" className="mt-1" />}
       </div>
     )
   }
@@ -625,12 +625,15 @@ export default function WordDuelGame({
   const shareAccent = matchWinner
     ? (matchWinner === 'X' ? '--c-p1' : '--c-p2')
     : (finalWinner === 'X' ? '--c-p1' : finalWinner === 'O' ? '--c-p2' : '--c-cta')
-  const shareScore = () => shareResult({
-    gameLabel: getGameConfig('wordduel')?.label || 'WORD DUEL',
-    headline: shareHeadline,
-    sub: `${allScores.X} – ${allScores.O}`,
-    accentVar: shareAccent,
-    url: window.location.href,
+  const shareScore = () => runShare(async () => {
+    const ok = await shareResult({
+      gameLabel: getGameConfig('wordduel')?.label || 'WORD DUEL',
+      headline: shareHeadline,
+      sub: `${allScores.X} – ${allScores.O}`,
+      accentVar: shareAccent,
+      url: window.location.href,
+    })
+    if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
   })
 
   return (
@@ -737,7 +740,7 @@ export default function WordDuelGame({
 
       {/* Buttons */}
       <div className="flex flex-wrap gap-3 mt-2 justify-center">
-        <ShareButton onClick={shareScore} />
+        <ShareButton onClick={shareScore} busy={sharing} />
         {!matchWinner && !proposal && (
           <button
             className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs

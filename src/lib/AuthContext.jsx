@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import ArcadeLoader from '@/components/ArcadeLoader'
 import { authReady, onUser, upgradeWithGoogle, signOutToGuest as signOutToGuestFn } from './auth'
 import {
@@ -13,17 +14,19 @@ export function useAuth() {
   return useContext(AuthContext) || {}
 }
 
-function ConnectingSplash() {
-  return <ArcadeLoader variant="boot" />
+function ConnectingSplash({ ready, onDone }) {
+  return <ArcadeLoader variant="boot" ready={ready} onDone={onDone} />
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [booted, setBooted] = useState(false)
+  const [splashDone, setSplashDone] = useState(false)
   const [invites, setInvites] = useState([])
   const [requestCount, setRequestCount] = useState(0)
   const uid = user?.uid ?? null
+  const authFailToastShown = useRef(false)
 
   // Boot: kick anonymous sign-in (if needed) and track auth state.
   useEffect(() => {
@@ -31,6 +34,15 @@ export function AuthProvider({ children }) {
     authReady().finally(() => setBooted(true))
     return unsub
   }, [])
+
+  // Boot-time anonymous sign-in failure is otherwise silent. Toaster only
+  // mounts once `booted` flips `children` on, so this can't fire during the
+  // splash — it runs on the render right after, once per session.
+  useEffect(() => {
+    if (!booted || user || authFailToastShown.current) return
+    authFailToastShown.current = true
+    toast.error("Couldn't connect — playing as a local guest.")
+  }, [booted, user])
 
   // Per-uid: ensure a profile exists, subscribe to it, and publish presence.
   // Re-runs when the uid changes (e.g. after signing out to a fresh guest).
@@ -71,7 +83,9 @@ export function AuthProvider({ children }) {
     await signOutToGuestFn()
   }
 
-  if (!booted) return <ConnectingSplash />
+  if (!(booted && splashDone)) {
+    return <ConnectingSplash ready={booted} onDone={() => setSplashDone(true)} />
+  }
 
   const value = {
     uid,
@@ -79,6 +93,10 @@ export function AuthProvider({ children }) {
     profile: uid ? profile : null,
     isAnonymous: user?.isAnonymous ?? true,
     invites,
+    // M-63: pending game-invite count, exposed alongside requestCount so
+    // NavBar can badge it from every screen — a missed 10s invite toast
+    // (InviteToasts.jsx) is otherwise only recoverable from Home's own list.
+    inviteCount: invites.length,
     requestCount,
     upgrade,
     signOutToGuest,

@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 import { REVERSI_DIM, legalMoves } from '../lib/reversiLogic'
 
-export default function ReversiBoard({ board, onMove, disabled, currentTurn }) {
+export default function ReversiBoard({ board, onMove, disabled, currentTurn, lastMove = null }) {
   const xCount = board.filter(c => c === 'X').length
   const oCount = board.filter(c => c === 'O').length
 
@@ -41,6 +41,8 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn }) {
                       ? 'hover:bg-retro-p1/15 hover:border-retro-p1/40 cursor-pointer'
                       : 'hover:bg-retro-p2/15 hover:border-retro-p2/40 cursor-pointer'
                     : 'cursor-default',
+                  // M-47: persistent marker on the most recently placed disc
+                  i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
                 )}
               >
                 {cell ? (

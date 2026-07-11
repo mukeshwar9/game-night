@@ -5,8 +5,8 @@ import { getFavorites, toggleFavorite } from '../lib/favorites'
 import RulesModal from './RulesModal'
 import CategoryTabs from './CategoryTabs'
 import VariantChooser from './VariantChooser'
-import ModeChooser from './ModeChooser'
 import GameCard from './GameCard'
+import EmptyState from './EmptyState'
 import { cn } from '@/lib/utils'
 
 // Variant entries (those with `variantOf`) are hidden from the grid and surfaced
@@ -20,20 +20,43 @@ const FILTER_DEFS = [
   { key: 'solo', label: 'SOLO OK', test: (t) => t.solo === true },
 ]
 
+// M-82: activeCat/filters/query survive a round-trip to a game and back
+// (Home fully unmounts on navigation, so this can't live in useState alone).
+// Scoped to layout="full" (the Home catalog) — GameSwitcher's compact picker
+// always wants to default to the current game's category.
+const PICKER_STATE_KEY = 'gn-picker-state'
+function readPickerState() {
+  try {
+    const raw = sessionStorage.getItem(PICKER_STATE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 export default function GamePicker({ onSelect, onSolo, excludeType, loadingType, layout = 'compact' }) {
   const isFull = layout === 'full'
   const defaultCat = isFull ? 'all' : ((excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id)
-  const [activeCat, setActiveCat] = useState(defaultCat)
+  const persisted = isFull ? readPickerState() : null
+  const [activeCat, setActiveCat] = useState(persisted?.activeCat || defaultCat)
   const [rulesType, setRulesType] = useState(null)
-  const [modeGame, setModeGame] = useState(null)
   const [variantBase, setVariantBase] = useState(null)
   // Which action VariantChooser's onPick performs — 'friend' (room creation,
-  // the pre-existing path) or 'solo' (opened from ModeChooser's VS AI option).
+  // opened from the card's +MODES chip) or 'solo' (opened from the VS AI chip).
   const [variantMode, setVariantMode] = useState('friend')
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(persisted?.query || '')
   const [favVersion, setFavVersion] = useState(0)
-  const [filters, setFilters] = useState({})
+  const [filters, setFilters] = useState(persisted?.filters || {})
   const searchRef = useRef(null)
+
+  useEffect(() => {
+    if (!isFull) return
+    try {
+      sessionStorage.setItem(PICKER_STATE_KEY, JSON.stringify({ activeCat, filters, query }))
+    } catch {
+      // sessionStorage unavailable (private mode / quota) — restoration just no-ops
+    }
+  }, [isFull, activeCat, filters, query])
 
   const activeFilterKeys = Object.keys(filters).filter(k => filters[k])
   const passesFilters = (t) => activeFilterKeys.every(k => FILTER_DEFS.find(f => f.key === k).test(t))
@@ -81,25 +104,14 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
     return () => window.removeEventListener('keydown', onKey)
   }, [isFull])
 
-  // Search results surface variant entries (e.g. ULTIMATE TTT) directly —
-  // those keep going straight to room creation, unchanged, rather than
-  // re-opening a mode/variant choice for what's already a specific pick.
-  const handleTap = (g) => {
-    if (g.variantOf) { onSelect(g.type); return }
-    if (onSolo && g.solo) { setModeGame(g); return }
-    if (variantsFor(g.type).length) { setVariantMode('friend'); setVariantBase(g) }
-    else onSelect(g.type)
-  }
+  // M-13: tapping the card creates a PLAY-A-FRIEND room directly with the
+  // default/Classic variant — no intermediate mode/variant modal. Variant
+  // entries surfaced via search (e.g. ULTIMATE TTT) go straight to room
+  // creation too, since they're already a specific pick.
+  const handleTap = (g) => onSelect(g.type)
 
-  const handleModeFriend = (g) => {
-    setModeGame(null)
-    const variants = variantsFor(g.type)
-    if (variants.length) { setVariantMode('friend'); setVariantBase(g) }
-    else onSelect(g.type)
-  }
-
-  const handleModeSolo = (g) => {
-    setModeGame(null)
+  // Secondary chip on the card — VS AI, skips straight to the solo demo.
+  const handleVsAi = (g) => {
     // Only chain into a variant pick if a variant actually has a working
     // solo demo (e.g. ultimatettt, connectfourpop) — otherwise the base
     // game's demo is the only solo option, so skip straight to it.
@@ -107,6 +119,9 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
     if (soloVariants.length) { setVariantMode('solo'); setVariantBase(g) }
     else onSolo(g.type)
   }
+
+  // Secondary chip on the card — +MODES, opens the friend-room variant pick.
+  const handleModes = (g) => { setVariantMode('friend'); setVariantBase(g) }
 
   const gridClass = isFull
     ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'
@@ -120,6 +135,8 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
           game={{ ...g, hasVariants: !g.variantOf && variantsFor(g.type).length > 0 }}
           onTap={handleTap}
           onRules={setRulesType}
+          onVsAi={onSolo ? handleVsAi : undefined}
+          onModes={handleModes}
           loadingType={loadingType}
           isFav={favSet.has(g.type)}
           onToggleFav={isFull ? handleToggleFav : undefined}
@@ -132,47 +149,75 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
     ? searchGames(query, { excludePredicate: (t) => t.type === excludeType || (excludeCfg && !!t.nPlayer !== !!excludeCfg.nPlayer) }).filter(passesFilters)
     : []
 
-  const emptyState = (message) => (
-    <p className="font-pixel text-[9px] text-retro-dim text-center py-6 tracking-wider">{message}</p>
+  // M-85: one bordered-card treatment for every "nothing here" moment in
+  // this component, matching the Friends-page standard.
+  const emptyState = (message) => <EmptyState>{message}</EmptyState>
+
+  const searchBlock = isFull && (
+    <div className="relative">
+      <input
+        ref={searchRef}
+        type="text"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="SEARCH GAMES… ( / )"
+        className="w-full min-h-11 bg-retro-card border-2 border-retro-border text-retro-text
+          font-pixel text-xs tracking-widest placeholder-retro-border rounded pl-4 pr-11 py-3
+          focus:outline-none focus:border-retro-p1 transition-colors"
+      />
+      {query && (
+        <button
+          type="button"
+          onClick={() => { setQuery(''); searchRef.current?.focus() }}
+          aria-label="Clear search"
+          className="absolute inset-y-0 right-0 px-4 flex items-center justify-center
+            text-retro-dim hover:text-retro-text font-pixel text-xs transition-colors"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  )
+
+  const filterBlock = isFull && (
+    <div className="flex flex-wrap gap-3 justify-center">
+      {FILTER_DEFS.map(f => (
+        <button
+          key={f.key}
+          onClick={() => toggleFilter(f.key)}
+          aria-pressed={!!filters[f.key]}
+          className={cn(
+            'min-h-11 px-3.5 inline-flex items-center justify-center rounded border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
+            filters[f.key]
+              ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
+              : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
+          )}
+        >
+          {f.label}
+        </button>
+      ))}
+    </div>
+  )
+
+  const tabsBlock = !(isFull && query.trim()) && (
+    <CategoryTabs categories={categoriesWithAll} active={activeCat} onSelect={setActiveCat} />
   )
 
   return (
     <div className="space-y-3">
-      {isFull && (
-        <input
-          ref={searchRef}
-          type="text"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="SEARCH GAMES… ( / )"
-          className="w-full bg-retro-card border-2 border-retro-border text-retro-text
-            font-pixel text-xs tracking-widest placeholder-retro-border rounded px-4 py-3
-            focus:outline-none focus:border-retro-p1 transition-colors"
-        />
-      )}
-
-      {isFull && (
-        <div className="flex flex-wrap gap-2 justify-center">
-          {FILTER_DEFS.map(f => (
-            <button
-              key={f.key}
-              onClick={() => toggleFilter(f.key)}
-              aria-pressed={!!filters[f.key]}
-              className={cn(
-                'px-2.5 py-1.5 rounded border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
-                filters[f.key]
-                  ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
-                  : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+      {/* M-42: search/filters/tabs stay reachable through the full scroll —
+          sticky, safe-area aware, solid bg so cards don't show through. */}
+      {isFull ? (
+        <div
+          className="sticky z-[5] bg-retro-bg pt-1 pb-2 space-y-3"
+          style={{ top: 'max(4.5rem, calc(env(safe-area-inset-top) + 4rem))' }}
+        >
+          {searchBlock}
+          {filterBlock}
+          {tabsBlock}
         </div>
-      )}
-
-      {!(isFull && query.trim()) && (
-        <CategoryTabs categories={categoriesWithAll} active={activeCat} onSelect={setActiveCat} />
+      ) : (
+        tabsBlock
       )}
 
       {isFull && query.trim() ? (
@@ -206,14 +251,6 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
 
       {rulesType && (
         <RulesModal gameType={rulesType} onClose={() => setRulesType(null)} />
-      )}
-      {modeGame && (
-        <ModeChooser
-          game={modeGame}
-          onFriend={() => handleModeFriend(modeGame)}
-          onSolo={() => handleModeSolo(modeGame)}
-          onClose={() => setModeGame(null)}
-        />
       )}
       {variantBase && (
         <VariantChooser

@@ -6,14 +6,19 @@ import { cn } from '@/lib/utils'
 // board the current player must play in (-1 = any).
 export default function UltimateTttBoard({
   board, onMove, disabled, winningLine = [], currentTurn,
-  uWon = [], uActiveBoard = -1,
+  uWon = [], uActiveBoard = -1, lastMove = null,
 }) {
   const activeRing = currentTurn === 'O' ? 'border-retro-p2 shadow-neon-p2' : 'border-retro-p1 shadow-neon-p1'
   const isBoardActive = (m) => !disabled && !uWon[m] && (uActiveBoard === -1 || uActiveBoard === m)
 
   return (
-    <div className="w-full max-w-[360px] sm:max-w-[420px] mx-auto">
-      <div className="grid grid-cols-3 gap-1.5 sm:gap-2 bg-retro-border/40 p-1.5 sm:p-2 rounded">
+    <div className="w-full max-w-md mx-auto">
+      <div
+        className={cn(
+          'grid grid-cols-3 gap-1.5 sm:gap-2 bg-retro-border/40 p-1.5 sm:p-2 rounded transition-all duration-200',
+          disabled && 'opacity-60 saturate-50',
+        )}
+      >
         {Array.from({ length: 9 }, (_, m) => {
           const decided = uWon[m]
           const active = isBoardActive(m)
@@ -47,6 +52,8 @@ export default function UltimateTttBoard({
                         v === 'X' && 'bg-retro-bg text-retro-p1 text-glow-p1',
                         v === 'O' && 'bg-retro-bg text-retro-p2 text-glow-p2',
                         !v && (playable ? 'bg-retro-bg hover:bg-retro-surface cursor-pointer' : 'bg-retro-bg/50 cursor-default'),
+                        // M-47: persistent marker on the most recently placed mark
+                        i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
                       )}
                     >
                       {v && <span style={{ animation: 'place-pop 0.2s ease-out', display: 'inline-block' }}>{v}</span>}

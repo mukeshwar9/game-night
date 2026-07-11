@@ -7,6 +7,7 @@ import {
   MAX_WRONG, verifyRoundConsistency, deriveRoundResult, wordStructure,
 } from '../lib/hangmanLogic'
 import HangmanGallows from '../components/HangmanGallows'
+import PixelDots from '../components/loading/PixelDots'
 import WordDisplay from '../components/WordDisplay'
 import LetterKeyboard from '../components/LetterKeyboard'
 import WordSetter from '../components/WordSetter'
@@ -91,7 +92,7 @@ function CheatForfeitScreen({ waiting, onReset }) {
         <p className="font-mono text-xs text-retro-dim">Round forfeited — the guesser takes the point.</p>
       </div>
       {waiting && (
-        <p className="font-pixel text-[10px] text-retro-dim animate-pulse">WAITING FOR GUESSER…</p>
+        <p className="font-pixel text-[10px] text-retro-dim arcade-blink">WAITING FOR GUESSER…</p>
       )}
       {onReset && (
         <button
@@ -455,17 +456,14 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
           <WordSetter onWordSet={handleWordSet} loading={lockingWord} />
         ) : (
           <div className="text-center space-y-3 py-6">
-            <div className="flex gap-2 justify-center">
-              {[0, 1, 2].map(i => (
-                <div key={i} className="w-2 h-2 rounded-full bg-retro-p2 animate-bounce shadow-neon-p2"
-                  style={{ animationDelay: `${i * 200}ms` }} />
-              ))}
+            <div className="flex justify-center">
+              <PixelDots tone="p2" size="lg" glow />
             </div>
             <p className="font-pixel text-[10px] text-retro-p2 text-glow-p2 leading-relaxed">
               WAITING FOR<br />WORD-KEEPER…
             </p>
             {!opponentOnline && (
-              <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
+              <p className="font-pixel text-[10px] text-retro-dim">
                 (WORD-KEEPER IS OFFLINE)
               </p>
             )}
@@ -515,7 +513,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
             canGuess && wrongCount === MAX_WRONG - 1
               ? 'text-retro-p2 text-glow-p2'
               : canGuess
-                ? 'text-retro-cta text-glow-cta animate-pulse'
+                ? 'text-retro-cta text-glow-cta arcade-blink'
                 : 'text-retro-dim',
           )}
           style={canGuess && wrongCount === MAX_WRONG - 1
@@ -564,7 +562,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
               </div>
             )}
             {isSetter && (
-              <p className="mt-2 font-pixel text-[10px] text-retro-dim animate-pulse">
+              <p className="mt-2 font-pixel text-[10px] text-retro-dim arcade-blink">
                 WAITING FOR GUESSER…
               </p>
             )}
@@ -593,7 +591,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
               </div>
             )}
             {isSetter && (
-              <p className="mt-2 font-pixel text-[10px] text-retro-dim animate-pulse">
+              <p className="mt-2 font-pixel text-[10px] text-retro-dim arcade-blink">
                 WAITING FOR GUESSER…
               </p>
             )}
@@ -630,7 +628,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       {/* Setter offline warning + guesser escape hatch */}
       {!isSetter && !isReveal && !opponentOnline && (
         <div className="text-center space-y-2">
-          <p className="font-pixel text-[10px] text-retro-dim animate-pulse">
+          <p className="font-pixel text-[10px] text-retro-dim">
             WORD-KEEPER IS OFFLINE — GUESSES WILL STALL
           </p>
           {isGuesser && (

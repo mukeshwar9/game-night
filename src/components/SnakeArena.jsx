@@ -36,14 +36,16 @@ const SnakeArena = forwardRef(function SnakeArena(
         </span>
       </div>
 
-      {/* Arena */}
+      {/* Arena — width is capped by both the container AND the viewport
+          height (min() against a 100dvh-derived budget) so short/landscape
+          phones still see the whole square arena instead of it overflowing. */}
       <div
         ref={ref}
         className={cn(
-          'relative w-full rounded-lg border-2 border-retro-border bg-retro-surface overflow-hidden touch-none',
+          'relative mx-auto rounded-lg border-2 border-retro-border bg-retro-surface overflow-hidden touch-none',
           dim && 'opacity-60',
         )}
-        style={{ aspectRatio: '1 / 1', cursor: 'none' }}
+        style={{ aspectRatio: '1 / 1', cursor: 'none', width: 'min(100%, calc(100dvh - 260px))' }}
       >
         <div
           className="grid w-full h-full"
@@ -77,9 +79,11 @@ const SnakeArena = forwardRef(function SnakeArena(
       {/* Player labels */}
       <div className="flex items-center justify-between px-1 font-pixel text-[8px]">
         <span className="text-retro-p1">{namesX?.toUpperCase()}{mySide === 'X' ? ' (YOU)' : ''}</span>
-        <span className="text-retro-dim">↑ ↓ ← → · WASD · SWIPE</span>
         <span className="text-retro-p2">{namesO?.toUpperCase()}{mySide === 'O' ? ' (YOU)' : ''}</span>
       </div>
+      <p className="text-center font-pixel text-[10px] text-retro-dim leading-relaxed">
+        ARROWS / WASD · SWIPE OR HOLD + DRAG ON TOUCH
+      </p>
     </div>
   )
 })

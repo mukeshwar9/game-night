@@ -37,7 +37,9 @@ export default function ThemeSwitcher() {
         onClick={() => setOpen(v => !v)}
         aria-label="Switch theme"
         title="Switch theme"
-        className="p-2 rounded border border-retro-border bg-retro-card text-retro-dim hover:text-retro-text transition-colors flex items-center gap-1"
+        className="relative p-2 rounded border border-retro-border bg-retro-card text-retro-dim hover:text-retro-text
+          active:scale-95 transition-colors flex items-center gap-1
+          before:content-[''] before:absolute before:-inset-y-3 before:-inset-x-1"
       >
         <div style={{ width: 5, height: 5, background: 'rgb(var(--c-p1))', borderRadius: 1 }} />
         <div style={{ width: 5, height: 5, background: 'rgb(var(--c-p2))', borderRadius: 1 }} />
@@ -51,7 +53,7 @@ export default function ThemeSwitcher() {
               key={id}
               onClick={() => handleSelect(id)}
               className={cn(
-                'w-full text-left px-3 py-2 font-pixel text-[9px] transition-colors',
+                'w-full text-left px-3 py-2 font-pixel text-[9px] transition-colors active:bg-retro-tint-cta',
                 selected === id
                   ? 'text-retro-cta'
                   : 'text-retro-dim hover:text-retro-text',

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import ThemeSwitcher from './ThemeSwitcher'
 import AvatarCustomizer from './AvatarCustomizer'
@@ -6,7 +6,7 @@ import { defaultAvatarForId, canonicalAvatar } from '../lib/avatars'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { getPlayerId } from '../lib/playerId'
-import { UPGRADE_ERRORS } from '../lib/auth'
+import { UPGRADE_ERRORS, consumePendingAuthToast } from '../lib/auth'
 import { configError } from '../lib/firebase'
 import { markOnboarded } from '../lib/onboarding'
 import { sounds } from '../lib/sounds'
@@ -19,6 +19,19 @@ export default function Onboarding({ onDone }) {
   const [nameTouched, setNameTouched] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [avatar, setAvatar] = useState(null)
+
+  // M-07: redirect-based Google sign-in (mobile/standalone PWA fallback)
+  // completes on a full page reload — before <Toaster/> is mounted — so
+  // auth.js stashes the outcome instead of toasting directly. Surface it
+  // once this screen has actually mounted (Onboarding re-renders here since
+  // the redirect returns to whichever page started it, and onboarding isn't
+  // marked done until `finish()`).
+  useEffect(() => {
+    const pending = consumePendingAuthToast()
+    if (!pending) return
+    if (pending.type === 'success') toast.success(pending.message)
+    else toast.error(pending.message)
+  }, [])
 
   // Derived avatar — no sync effect: respects whatever ensureProfile seeded.
   const selectedAvatar = avatar || profile?.avatar || defaultAvatarForId(getPlayerId())
@@ -42,7 +55,7 @@ export default function Onboarding({ onDone }) {
       setStep('identity')
     } catch (e) {
       console.error('Google sign-in failed:', e)
-      toast.error(UPGRADE_ERRORS[e?.code] || `Sign-in failed${e?.code ? ` (${e.code})` : ''}. Please try again.`)
+      toast.error(UPGRADE_ERRORS[e?.code] || `SIGN-IN FAILED${e?.code ? ` (${e.code})` : ''}. PLEASE TRY AGAIN.`)
     } finally {
       setBusy(false)
     }
@@ -91,7 +104,7 @@ export default function Onboarding({ onDone }) {
             </div>
             <div>
               <h1 className="font-pixel text-xl text-retro-cta text-glow-cta leading-relaxed">GAME NIGHT</h1>
-              <p className="font-pixel text-[10px] text-retro-dim mt-3 animate-blink tracking-widest">INSERT COIN TO PLAY</p>
+              <p className="font-pixel text-[10px] text-retro-dim mt-3 arcade-blink tracking-widest">INSERT COIN TO PLAY</p>
             </div>
           </div>
 
@@ -147,7 +160,6 @@ export default function Onboarding({ onDone }) {
               value={name}
               onChange={e => { setNameInput(e.target.value); setNameTouched(true) }}
               maxLength={20}
-              autoFocus
               className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest placeholder-retro-border rounded px-4 py-3 focus:outline-none focus:border-retro-p1 transition-colors"
             />
           </div>

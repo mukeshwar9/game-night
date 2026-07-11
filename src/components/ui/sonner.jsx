@@ -5,6 +5,11 @@ export function Toaster(props) {
     <Sonner
       theme="dark"
       position="bottom-center"
+      closeButton
+      // M-34: sonner's default mobile offset is a flat 16px with no
+      // safe-area awareness — on an iPhone home-indicator that puts a
+      // tappable JOIN/action button inside the OS gesture zone.
+      mobileOffset={{ bottom: 'max(16px, env(safe-area-inset-bottom))' }}
       toastOptions={{
         style: {
           background: 'rgb(var(--c-surface))',
@@ -17,7 +22,12 @@ export function Toaster(props) {
         },
         classNames: {
           success: 'border-retro-p1!',
-          error: 'border-retro-p2!',
+          // M-86: dedicated danger token — error toasts no longer borrow
+          // Player O's identity color.
+          error: 'border-retro-danger!',
+          // M-59: explicit on-brand dismiss control so declining/closing a
+          // toast (e.g. an invite) never depends on swipe-to-dismiss alone.
+          closeButton: 'bg-retro-card! border-retro-border! text-retro-dim! hover:text-retro-text! hover:bg-retro-tint-cta!',
         },
       }}
       {...props}

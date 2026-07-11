@@ -5,6 +5,7 @@ import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
 import TypingKeyboard from '../components/TypingKeyboard'
+import OfflineNotice from '../components/loading/OfflineNotice'
 import { cn } from '@/lib/utils'
 
 function ProgressBar({ label, val, max, colorClass }) {
@@ -14,7 +15,7 @@ function ProgressBar({ label, val, max, colorClass }) {
       <span className={cn('font-pixel text-[8px] w-16 truncate', colorClass)}>{label}</span>
       <div className="flex-1 h-2 bg-retro-surface rounded-full overflow-hidden">
         <div
-          className={cn('h-full rounded-full transition-all duration-150', colorClass === 'text-retro-p1' ? 'bg-retro-p1' : 'bg-retro-p2')}
+          className={cn('h-full rounded-full transition-all duration-200', colorClass === 'text-retro-p1' ? 'bg-retro-p1' : 'bg-retro-p2')}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -84,14 +85,14 @@ export default function TypingGame({
   const opKey = myKey === 'X' ? 'O' : 'X'
 
   const [typed, setTyped] = useState('')
-  const [tick, setTick]   = useState(0)
+  const [now, setNow]     = useState(() => Date.now())
 
   const syncTimerRef  = useRef(null)
   const gameStartRef  = useRef(null)
   const finishedRef   = useRef(false)
+  const prevPassageRef = useRef(game.typingPassage ?? '')
 
   const passage   = game.typingPassage ?? ''
-  const now       = Date.now()
   const startedAt = game.typingStartedAt ?? null
   const isCountdown = !!startedAt && now < startedAt + 3000
   const isRacing    = !!startedAt && now >= startedAt + 3000 && game.status !== 'finished'
@@ -105,16 +106,18 @@ export default function TypingGame({
   useEffect(() => {
     if (!startedAt || game.status === 'finished') return
     gameStartRef.current = startedAt + 3000
-    const id = setInterval(() => setTick(n => n + 1), 100)
+    const id = setInterval(() => setNow(Date.now()), 100)
     return () => clearInterval(id)
   }, [startedAt, game.status])
 
   // Reset local state on new game (passage change)
   useEffect(() => {
-    setTyped('')
-    setTick(0)
-    finishedRef.current = false
-    clearTimeout(syncTimerRef.current)
+    if (passage !== prevPassageRef.current) {
+      prevPassageRef.current = passage
+      setTyped('')
+      finishedRef.current = false
+      clearTimeout(syncTimerRef.current)
+    }
   }, [passage])
 
   const syncProgress = (len) => {
@@ -127,7 +130,9 @@ export default function TypingGame({
   const handleFinish = async (finalTyped) => {
     finishedRef.current = true
     clearTimeout(syncTimerRef.current)
-    const elapsed = Date.now() - (gameStartRef.current ?? Date.now())
+    // eslint-disable-next-line react-hooks/purity -- runs only from handleKey (a keystroke handler), never during render
+    const finishedAt = Date.now()
+    const elapsed = finishedAt - (gameStartRef.current ?? finishedAt)
     const wpm = Math.max(1, Math.round((passage.length / 5) / (elapsed / 60_000)))
     let matches = 0
     for (let i = 0; i < finalTyped.length; i++) {
@@ -225,7 +230,7 @@ export default function TypingGame({
   const showPassage = isRacing || isWaiting
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 [@media(max-height:700px)]:space-y-2">
       {/* Progress bars */}
       {startedAt && (
         <div className="space-y-1">
@@ -242,16 +247,16 @@ export default function TypingGame({
         </div>
       )}
 
-      {/* Passage + start/countdown overlay */}
-      <div className="bg-retro-surface border border-retro-border rounded p-3">
+      {/* Passage + start/countdown overlay — padding/line-height compact on short viewports (M-52) so the keyboard stays above the fold */}
+      <div className="bg-retro-surface border border-retro-border rounded p-3 [@media(max-height:700px)]:p-2">
         {!startedAt && (
-          <div className="flex flex-col items-center gap-3 py-4">
+          <div className="flex flex-col items-center gap-3 py-4 [@media(max-height:700px)]:py-2">
             <p className="font-pixel text-[9px] text-retro-dim text-center leading-loose">
               TYPE EVERYTHING · ERRORS STAY · ⌫ CORRECTS · WIN ON EFF-WPM
             </p>
             <button
               onClick={handleStartClick}
-              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+              className="px-6 py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
             >
               START
             </button>
@@ -259,15 +264,15 @@ export default function TypingGame({
         )}
 
         {isCountdown && (
-          <div className="flex flex-col items-center gap-2 py-4">
+          <div className="flex flex-col items-center gap-2 py-4 [@media(max-height:700px)]:py-2">
             <p className="font-pixel text-6xl text-retro-win text-glow-win">{countdownSec}</p>
-            <p className="font-pixel text-[9px] text-retro-dim animate-pulse">GET READY!</p>
+            <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
           </div>
         )}
 
         {showPassage && (
           <>
-            <p className="font-mono text-[13px] leading-6 break-words">
+            <p className="font-mono text-[13px] leading-6 break-words [@media(max-height:700px)]:text-[12px] [@media(max-height:700px)]:leading-5">
               {passage.split('').map((char, i) => {
                 const isTyped   = i < typed.length
                 const isCorrect = isTyped && typed[i] === passage[i]
@@ -291,7 +296,7 @@ export default function TypingGame({
               })}
             </p>
             {isWaiting && (
-              <p className="font-pixel text-[9px] text-retro-cta text-center mt-3 animate-pulse">
+              <p className="font-pixel text-[9px] text-retro-cta text-center mt-3 arcade-blink">
                 WAITING FOR OPPONENT...
               </p>
             )}
@@ -305,9 +310,7 @@ export default function TypingGame({
       )}
 
       {!opponentOnline && mySymbol && (
-        <p className="font-pixel text-[10px] text-retro-p2 text-center animate-pulse">
-          OPPONENT IS OFFLINE
-        </p>
+        <OfflineNotice label="OPPONENT" />
       )}
       {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>

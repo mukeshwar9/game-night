@@ -34,7 +34,9 @@ export default function SimonBoard({ onMove, disabled, simonSequence, simonProgr
   // Flash the sequence once at the start of each recall turn, then hide it.
   useEffect(() => {
     if (!isMyTurn) {
-      clearTimers(); setWatching(false); setFlashIndex(-1); watchedLenRef.current = null
+      clearTimers()
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- turn flip must synchronously clear the flash/watch display before the opponent's turn paints (timing-critical recall)
+      setWatching(false); setFlashIndex(-1); watchedLenRef.current = null
       return
     }
     if (!needsRecall) { clearTimers(); setWatching(false); setFlashIndex(-1); return }
@@ -51,6 +53,7 @@ export default function SimonBoard({ onMove, disabled, simonSequence, simonProgr
     })
     timersRef.current.push(setTimeout(() => setWatching(false), seq.length * step))
     return clearTimers
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally narrow: `seq` is a new array reference every render (derived from the Firebase snapshot), so tracking the full array instead of its length would replay the flash sequence on every unrelated game-state update
   }, [isMyTurn, needsRecall, seq.length])
 
   // Clear any pending timers on unmount
@@ -73,9 +76,9 @@ export default function SimonBoard({ onMove, disabled, simonSequence, simonProgr
 
   const labelClass =
     !isMyTurn   ? 'text-retro-dim' :
-    watching    ? 'text-retro-cta text-glow-cta animate-pulse' :
+    watching    ? 'text-retro-cta text-glow-cta arcade-blink' :
     needsRecall ? 'text-retro-win text-glow-win' :
-    'text-retro-cta text-glow-cta animate-pulse'
+    'text-retro-cta text-glow-cta arcade-blink'
 
   return (
     <div className="w-full max-w-xs mx-auto space-y-4">
@@ -107,7 +110,7 @@ export default function SimonBoard({ onMove, disabled, simonSequence, simonProgr
           )}
           {/* Slot for the new pad the player will add after recalling */}
           {inAppend && (
-            <div className="w-3.5 h-3.5 rounded-sm border-2 border-dashed border-retro-cta/60 animate-pulse" />
+            <div className="w-3.5 h-3.5 rounded-sm border-2 border-dashed border-retro-cta/60 arcade-blink" />
           )}
         </div>
       </div>
