@@ -34,6 +34,43 @@ describe('FIBBAGE_FACTS deck', () => {
 })
 
 // ---------------------------------------------------------------------------
+// decoys
+// ---------------------------------------------------------------------------
+describe('decoys', () => {
+  it('every fact has at least 2 decoys', () => {
+    for (const f of FIBBAGE_FACTS) {
+      expect(Array.isArray(f.decoys)).toBe(true)
+      expect(f.decoys.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('every decoy is a non-empty string', () => {
+    for (const f of FIBBAGE_FACTS) {
+      for (const d of f.decoys) {
+        expect(typeof d).toBe('string')
+        expect(d.trim().length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('no decoy case-insensitively equals the fact answer', () => {
+    for (const f of FIBBAGE_FACTS) {
+      const answerLower = f.answer.toLowerCase()
+      for (const d of f.decoys) {
+        expect(d.toLowerCase()).not.toBe(answerLower)
+      }
+    }
+  })
+
+  it('decoys are unique within a fact (case-insensitive)', () => {
+    for (const f of FIBBAGE_FACTS) {
+      const lower = f.decoys.map(d => d.toLowerCase())
+      expect(new Set(lower).size).toBe(lower.length)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
 // seatOrder
 // ---------------------------------------------------------------------------
 describe('seatOrder', () => {

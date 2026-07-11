@@ -38,6 +38,37 @@ describe('WAVELENGTH_PAIRS deck', () => {
 })
 
 // ---------------------------------------------------------------------------
+// clueBank
+// ---------------------------------------------------------------------------
+describe('clueBank', () => {
+  it('every pair has at least 3 clues', () => {
+    for (const p of WAVELENGTH_PAIRS) {
+      expect(Array.isArray(p.clueBank)).toBe(true)
+      expect(p.clueBank.length).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('every clue has a non-empty word and an in-range numeric pos', () => {
+    for (const p of WAVELENGTH_PAIRS) {
+      for (const c of p.clueBank) {
+        expect(typeof c.word).toBe('string')
+        expect(c.word.length).toBeGreaterThan(0)
+        expect(typeof c.pos).toBe('number')
+        expect(c.pos).toBeGreaterThanOrEqual(0)
+        expect(c.pos).toBeLessThanOrEqual(100)
+      }
+    }
+  })
+
+  it('clue words are unique within a pair (case-insensitive)', () => {
+    for (const p of WAVELENGTH_PAIRS) {
+      const words = p.clueBank.map(c => c.word.toLowerCase())
+      expect(new Set(words).size).toBe(words.length)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
 // getSpectrumPair
 // ---------------------------------------------------------------------------
 describe('getSpectrumPair', () => {
