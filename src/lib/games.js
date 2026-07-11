@@ -449,7 +449,7 @@ export const GAME_TYPES = [
     desc: 'guess the hidden target', Icon: WavelengthIcon,
     badge: 'WL', maxWidth: 'max-w-sm',
     category: 'party',
-    durationMin: 10, tags: ['thinky'],
+    durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     startRound: (players) => ({
       round: {
@@ -465,7 +465,7 @@ export const GAME_TYPES = [
     desc: 'bluff a believable answer', Icon: FibbageIcon,
     badge: 'FB', maxWidth: 'max-w-sm',
     category: 'party',
-    durationMin: 10, tags: ['thinky'],
+    durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     startRound: () => ({ round: { phase: 'lying', promptIndex: 0 } }),
   },
@@ -474,7 +474,7 @@ export const GAME_TYPES = [
     desc: 'find the spy among you', Icon: SpyfairIcon,
     badge: 'SF', maxWidth: 'max-w-sm',
     category: 'party',
-    durationMin: 10, tags: ['thinky'],
+    durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     // no startRound — SpyfairGame drives its own round start
   },

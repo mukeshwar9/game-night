@@ -40,6 +40,9 @@ import { cn } from '@/lib/utils';
 import NavBar from '../components/NavBar';
 import TronDemo from './TronDemo';
 import SumoDemo from './SumoDemo';
+import WavelengthDemo from './WavelengthDemo';
+import FibbageDemo from './FibbageDemo';
+import SpyfairDemo from './SpyfairDemo';
 import SpaceduelDemo from './SpaceduelDemo';
 
 function generateNumberLocal(level) {
@@ -143,9 +146,6 @@ function BotBoardDemo({ type }) {
 const PARTY_BLURB = {
   twotruths: 'Spot the lie among three statements.',
   bluff: "Liar's dice — out-bluff your opponent.",
-  wavelength: 'Read minds on a hidden spectrum.',
-  fibbage: 'Invent fake answers, fool your friends.',
-  spyfair: 'Find the spy before time runs out.',
 }
 
 function PartyGameCard({ type }) {
@@ -1872,9 +1872,9 @@ const DEMOS = [
   // Party cards (2+ players only)
   { type: 'twotruths',    short: 'TWO\nTRUTHS',   Icon: TwoTruthsIcon,    Component: () => <PartyGameCard type="twotruths" />   },
   { type: 'bluff',        short: 'BLUFF',         Icon: BluffIcon,        Component: () => <PartyGameCard type="bluff" />       },
-  { type: 'wavelength',   short: 'WAVE\nLENGTH',  Icon: WavelengthIcon,   Component: () => <PartyGameCard type="wavelength" />  },
-  { type: 'fibbage',      short: 'FIBBAGE',       Icon: FibbageIcon,      Component: () => <PartyGameCard type="fibbage" />     },
-  { type: 'spyfair',      short: 'SPYFAIR',       Icon: SpyfairIcon,      Component: () => <PartyGameCard type="spyfair" />     },
+  { type: 'wavelength',   short: 'WAVE\nLENGTH',  Icon: WavelengthIcon,   Component: WavelengthDemo   },
+  { type: 'fibbage',      short: 'FIBBAGE',       Icon: FibbageIcon,      Component: FibbageDemo      },
+  { type: 'spyfair',      short: 'SPYFAIR',       Icon: SpyfairIcon,      Component: SpyfairDemo      },
 ]
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
