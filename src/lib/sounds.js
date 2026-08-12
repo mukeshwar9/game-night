@@ -76,6 +76,8 @@ export const sounds = {
   bell:  ()    => seq([[98, 0, 1.8, 'sine', 0.16], [196, 0, 1.4, 'sine', 0.08]]),
   // Soft two-note pop for emoji reactions
   emote: () => { seq([[660, 0, 0.05, 'sine', 0.1], [990, 0.05, 0.07, 'sine', 0.08]]); vibrate(8) },
+  // Breathy descending hiss for the shh reaction
+  shh:   () => { seq([[3200, 0, 0.22, 'sawtooth', 0.03], [2400, 0.02, 0.2, 'sawtooth', 0.025]]); vibrate(10) },
   isMuted: ()  => _muted,
   toggle() {
     _muted = !_muted

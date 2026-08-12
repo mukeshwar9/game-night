@@ -59,7 +59,7 @@ const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
 // score that keeps changing even while a modal hides the board.
 const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel'])
 
-const EMOTES = ['🔥', '😂', '😭', '😎', '👏', '💀']
+const EMOTES = ['🔥', '😂', '😭', '😎', '👏', '💀', '🤫']
 
 function toArray(val) {
   if (!val) return []
@@ -576,7 +576,7 @@ export default function Game() {
   // combo count and re-arms its removal timer.
   const pushEmote = (e) => {
     const name = game?.players?.[e.by]?.name ?? ''
-    sounds.emote()
+    e.glyph === '🤫' ? sounds.shh() : sounds.emote()
     setFloats(prev => {
       const last = prev[prev.length - 1]
       const now = Date.now()
