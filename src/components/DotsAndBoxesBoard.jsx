@@ -1,19 +1,18 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { hEdgeIndex, vEdgeIndex } from '../lib/dotsAndBoxesLogic'
+import { hEdgeIndex, vEdgeIndex, DB_SIZE } from '../lib/dotsAndBoxesLogic'
 
-export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, currentTurn, lastMove = null }) {
+export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, currentTurn, lastMove = null, size = DB_SIZE }) {
   const [hoveredEdge, setHoveredEdge] = useState(null)
 
   const xCount = boxes ? boxes.filter(b => b === 'X').length : 0
   const oCount = boxes ? boxes.filter(b => b === 'O').length : 0
 
-  // 9x9 grid: even rows/cols = dots, odd=edges/boxes
-  // gr = grid row 0-8, gc = grid col 0-8
+  const grid = size * 2 + 1
   const cells = []
-  for (let i = 0; i < 81; i++) {
-    const gr = Math.floor(i / 9)
-    const gc = i % 9
+  for (let i = 0; i < grid * grid; i++) {
+    const gr = Math.floor(i / grid)
+    const gc = i % grid
 
     const isEvenRow = gr % 2 === 0
     const isEvenCol = gc % 2 === 0
@@ -29,7 +28,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       // Horizontal edge
       const row = gr / 2
       const col = (gc - 1) / 2
-      const edgeIdx = hEdgeIndex(row, col)
+      const edgeIdx = hEdgeIndex(row, col, size)
       const owner = board[edgeIdx]
       const isHovered = hoveredEdge === edgeIdx && !disabled && !owner
       const hoverColor = currentTurn === 'X' ? 'bg-retro-p1/40' : 'bg-retro-p2/40'
@@ -63,7 +62,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       // Vertical edge
       const row = (gr - 1) / 2
       const col = gc / 2
-      const edgeIdx = vEdgeIndex(row, col)
+      const edgeIdx = vEdgeIndex(row, col, size)
       const owner = board[edgeIdx]
       const isHovered = hoveredEdge === edgeIdx && !disabled && !owner
       const hoverColor = currentTurn === 'X' ? 'bg-retro-p1/40' : 'bg-retro-p2/40'
@@ -95,7 +94,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       )
     } else {
       // Box cell: odd row, odd col
-      const boxIdx = ((gr - 1) / 2) * 4 + (gc - 1) / 2
+      const boxIdx = ((gr - 1) / 2) * size + (gc - 1) / 2
       const owner = boxes ? boxes[boxIdx] : ''
 
       cells.push(
@@ -134,8 +133,8 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
           className="aspect-square w-full"
           style={{
             display: 'grid',
-            gridTemplateRows: '14px repeat(4, minmax(0,1fr) 14px)',
-            gridTemplateColumns: '14px repeat(4, minmax(0,1fr) 14px)',
+            gridTemplateRows: `10px repeat(${size}, minmax(0,1fr) 10px)`,
+            gridTemplateColumns: `10px repeat(${size}, minmax(0,1fr) 10px)`,
           }}
         >
           {cells}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { CR_COLS, CR_CELL_COUNT, criticalMass, decodeCell, applyPlacement } from '../lib/chainReactionLogic'
+import { CR_COLS, CR_ROWS, criticalMass, decodeCell, applyPlacement } from '../lib/chainReactionLogic'
 import { sounds } from '../lib/sounds'
 
 // Small orb dots rendered inside each cell
@@ -35,7 +35,9 @@ function OrbDots({ count, symbol, nearCritical }) {
   )
 }
 
-export default function ChainReactionBoard({ board, onMove, disabled, currentTurn, crLastMove }) {
+export default function ChainReactionBoard({ board, onMove, disabled, currentTurn, crLastMove, cols = CR_COLS, rows = CR_ROWS }) {
+  const dims = { cols, rows }
+  const cellCount = cols * rows
   const prevBoardRef = useRef(null)
   const [displayBoard, setDisplayBoard] = useState(board)
   // Set of indices currently exploding this wave (for flash overlay)
@@ -77,7 +79,7 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
         return
       }
 
-      const { steps } = applyPlacement(prevBoard, crLastMove, moverSymbol)
+      const { steps } = applyPlacement(prevBoard, crLastMove, moverSymbol, dims)
 
       setIsReplaying(true)
       setExplodingSet(new Set())
@@ -100,7 +102,7 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
 
           // Fire exploding cells
           for (const idx of step.exploded) {
-            const cm = criticalMass(idx)
+            const cm = criticalMass(idx, cols, rows)
             const { owner, count } = decodeCell(nextBoard[idx])
             if (count >= cm) {
               nextBoard[idx] = count - cm > 0 ? `${owner}${count - cm}` : ''
@@ -146,14 +148,14 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
   // Compute which cells the current player can legally click.
   const legalSet = new Set()
   if (!disabled && !isReplaying && currentTurn) {
-    for (let i = 0; i < CR_CELL_COUNT; i++) {
+    for (let i = 0; i < cellCount; i++) {
       const cell = board[i]
       if (cell === '' || cell[0] === currentTurn) legalSet.add(i)
     }
   }
 
   return (
-    <div className="w-full max-w-[280px] mx-auto">
+    <div className="w-full max-w-sm mx-auto">
       <div
         className={cn(
           'border-2 border-retro-border rounded p-1 sm:p-1.5 transition-all duration-200',
@@ -165,16 +167,16 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
       >
         <div
           className="grid gap-[1.5px]"
-          style={{ gridTemplateColumns: `repeat(${CR_COLS}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
         >
           {displayBoard.map((cell, i) => {
             const { owner, count } = decodeCell(cell)
-            const cm = criticalMass(i)
+            const cm = criticalMass(i, cols, rows)
             const isLegal = legalSet.has(i)
             const nearCritical = owner && count >= cm - 1
             const isExploding = explodingSet.has(i)
-            const row = Math.floor(i / CR_COLS)
-            const col = i % CR_COLS
+            const row = Math.floor(i / cols)
+            const col = i % cols
 
             return (
               <button

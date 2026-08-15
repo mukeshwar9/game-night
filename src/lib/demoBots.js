@@ -21,16 +21,15 @@ import {
   applyEdgeMove,
   edgesOfBox,
   boxesOfEdge,
-  DB_EDGE_COUNT,
+  dbSizeFromGame,
+  dbConfig,
 } from './dotsAndBoxesLogic'
 import { PIG_TARGET } from './diceLogic'
 import {
   applyPlacement,
   decodeCell,
   criticalMass,
-  CR_CELL_COUNT,
-  CR_COLS,
-  CR_ROWS,
+  crDimsFromLength,
 } from './chainReactionLogic'
 import { computeBotMove as botBlockade } from './blockadeLogic'
 import { computePairsBotMove } from './pairsLogic'
@@ -317,25 +316,26 @@ function botSos(game, botSymbol) {
 // 7. Dots and Boxes (classic casual heuristic)
 // ---------------------------------------------------------------------------
 
-function countFilledEdges(edges, boxIdx) {
-  return edgesOfBox(boxIdx).filter(e => edges[e]).length
+function countFilledEdges(edges, boxIdx, size) {
+  return edgesOfBox(boxIdx, size).filter(e => edges[e]).length
 }
 
 function botDotsAndBoxes(game, botSymbol) {
-  const edges = game.board  // board = edges array for dots and boxes
+  const size = dbSizeFromGame(game)
+  const { edgeCount } = dbConfig(size)
+  const edges = game.board
   const boxes = game.boxes
 
   const emptyEdges = []
-  for (let e = 0; e < DB_EDGE_COUNT; e++) {
+  for (let e = 0; e < edgeCount; e++) {
     if (!edges[e]) emptyEdges.push(e)
   }
   if (!emptyEdges.length) return null
 
-  // (a) Complete a box — prefer the move that closes the most boxes
   let bestCompletion = null
   let bestBoxCount = 0
   for (const e of emptyEdges) {
-    const result = applyEdgeMove(edges, boxes, e, botSymbol)
+    const result = applyEdgeMove(edges, boxes, e, botSymbol, size)
     if (!result) continue
     if (result.completedBoxes.length > bestBoxCount) {
       bestBoxCount = result.completedBoxes.length
@@ -344,15 +344,11 @@ function botDotsAndBoxes(game, botSymbol) {
   }
   if (bestCompletion !== null && bestBoxCount > 0) return bestCompletion
 
-  // (b) Safe edges — adding them won't bring any adjacent box to 3 filled sides
   const safeEdges = emptyEdges.filter(e => {
-    const adjacentBoxes = boxesOfEdge(e)
-    // After placing this edge, check if any adjacent box would have 3 filled sides
-    // (opponent could then close it next turn)
+    const adjacentBoxes = boxesOfEdge(e, size)
     for (const b of adjacentBoxes) {
-      if (boxes[b]) continue // already claimed
-      if (countFilledEdges(edges, b) === 2) {
-        // Adding e brings it to 3 — unsafe
+      if (boxes[b]) continue
+      if (countFilledEdges(edges, b, size) === 2) {
         return false
       }
     }
@@ -360,8 +356,6 @@ function botDotsAndBoxes(game, botSymbol) {
   })
 
   if (safeEdges.length) return pickRandom(safeEdges)
-
-  // (c) No safe edge — play any empty edge
   return pickRandom(emptyEdges)
 }
 
@@ -389,25 +383,27 @@ function botDice(game, botSymbol) {
 // 9. Chain Reaction
 // ---------------------------------------------------------------------------
 
-function crNeighbours(index) {
-  const row = Math.floor(index / CR_COLS)
-  const col = index % CR_COLS
+function crNeighbours(index, cols, rows) {
+  const row = Math.floor(index / cols)
+  const col = index % cols
   const ns = []
-  if (row > 0)           ns.push(index - CR_COLS)
-  if (row < CR_ROWS - 1) ns.push(index + CR_COLS)
+  if (row > 0)           ns.push(index - cols)
+  if (row < rows - 1)    ns.push(index + cols)
   if (col > 0)           ns.push(index - 1)
-  if (col < CR_COLS - 1) ns.push(index + 1)
+  if (col < cols - 1)    ns.push(index + 1)
   return ns
 }
 
 function botChainReaction(game, botSymbol) {
   const board = game.board || []
+  const { cols, rows } = crDimsFromLength(board.length)
+  const cellCount = cols * rows
+  const dims = { cols, rows }
   const crMoves = game.crMoves ?? 0
   const opp = opponent(botSymbol)
 
-  // Legal moves: empty or own cells
   const moves = []
-  for (let i = 0; i < CR_CELL_COUNT; i++) {
+  for (let i = 0; i < cellCount; i++) {
     const cell = board[i]
     if (!cell || cell[0] === botSymbol) moves.push(i)
   }
@@ -421,19 +417,17 @@ function botChainReaction(game, botSymbol) {
 
   const oppBefore = countOppOrbs(board)
 
-  // (1) Win: any move that leaves opponent with 0 orbs (needs crMoves+1 >= 2)
   if (crMoves >= 1) {
     for (const i of moves) {
-      const { board: nb } = applyPlacement(board, i, botSymbol)
+      const { board: nb } = applyPlacement(board, i, botSymbol, dims)
       if (countOppOrbs(nb) === 0) return i
     }
   }
 
-  // (2) Capture: pick move that reduces opponent orb count the most
   let bestCapture = -1
   let bestMoves = []
   for (const i of moves) {
-    const { board: nb } = applyPlacement(board, i, botSymbol)
+    const { board: nb } = applyPlacement(board, i, botSymbol, dims)
     const captured = oppBefore - countOppOrbs(nb)
     if (captured > bestCapture) {
       bestCapture = captured
@@ -445,28 +439,25 @@ function botChainReaction(game, botSymbol) {
 
   if (bestMoves.length === 1) return bestMoves[0]
 
-  // (3) Tie-break: avoid cells adjacent to opponent near-critical cells;
-  //     prefer corners > edges > interior
   const nearCritical = new Set()
-  for (let i = 0; i < CR_CELL_COUNT; i++) {
+  for (let i = 0; i < cellCount; i++) {
     const cell = board[i]
     if (cell && cell[0] === opp) {
       const { count } = decodeCell(cell)
-      if (count === criticalMass(i) - 1) nearCritical.add(i)
+      if (count === criticalMass(i, cols, rows) - 1) nearCritical.add(i)
     }
   }
 
-  const crCorners = new Set([0, CR_COLS - 1, CR_CELL_COUNT - CR_COLS, CR_CELL_COUNT - 1])
+  const crCorners = new Set([0, cols - 1, cellCount - cols, cellCount - 1])
   const isEdge = (i) => {
-    const row = Math.floor(i / CR_COLS)
-    const col = i % CR_COLS
-    return (row === 0 || row === CR_ROWS - 1 || col === 0 || col === CR_COLS - 1) && !crCorners.has(i)
+    const row = Math.floor(i / cols)
+    const col = i % cols
+    return (row === 0 || row === rows - 1 || col === 0 || col === cols - 1) && !crCorners.has(i)
   }
 
   const scored = bestMoves.map(i => {
-    const adjToNearCrit = crNeighbours(i).some(n => nearCritical.has(n))
+    const adjToNearCrit = crNeighbours(i, cols, rows).some(n => nearCritical.has(n))
     const posScore = crCorners.has(i) ? 3 : isEdge(i) ? 2 : 1
-    // Danger avoidance dominates; within same danger tier, prefer better position
     const safeBonus = adjToNearCrit ? 0 : 100
     return { i, score: safeBonus + posScore }
   })
@@ -518,9 +509,11 @@ export function pickBotMove(type, game, botSymbol) {
     case 'reversi':      return botReversi(game, botSymbol)
     case 'orderchaos':   return botOrderChaos(game, botSymbol)
     case 'sos':          return botSos(game, botSymbol)
-    case 'dotsandboxes':   return botDotsAndBoxes(game, botSymbol)
+    case 'dotsandboxes':
+    case 'dotsandboxes4':  return botDotsAndBoxes(game, botSymbol)
     case 'dice':           return botDice(game, botSymbol)
-    case 'chainreaction':  return botChainReaction(game, botSymbol)
+    case 'chainreaction':
+    case 'chainreaction6': return botChainReaction(game, botSymbol)
     case 'blockade':      return botBlockade(game, botSymbol)
     case 'pairs':        return computePairsBotMove(game, botSymbol)
     default:               return null

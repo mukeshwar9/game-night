@@ -8,7 +8,7 @@ import BottomSheet from './BottomSheet'
 export default function VariantChooser({ base, variants, onPick, onClose }) {
   const Icon = base.Icon
   const options = [
-    { type: base.type, name: 'CLASSIC', blurb: base.classicBlurb || `The original ${base.label}.` },
+            { type: base.type, name: base.classicLabel || 'CLASSIC', blurb: base.classicBlurb || `The original ${base.label}.` },
     ...variants.map(v => ({ type: v.type, name: v.variantLabel || v.label, blurb: v.variantBlurb || v.desc })),
   ]
 

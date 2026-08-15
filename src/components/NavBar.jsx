@@ -1,67 +1,70 @@
-import { useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import ThemeSwitcher from './ThemeSwitcher'
 import { sounds } from '../lib/sounds'
 
-// M-62: Home/Profile/Friends destinations now live in BottomTabBar (rendered
-// at App level on every meta route), so NavBar no longer duplicates them —
-// it keeps only the brand mark plus the global theme/mute controls that have
-// no home in the tab bar.
-//
-// M-69: NavBar is still mounted standalone on some of BottomTabBar's own
-// routes (Profile/Friends/DailyGame), so its brand mark stays a live "go
-// home" Link only on screens where the tab bar (with its own HOME tab) is
-// NOT already showing (NotFound, Demo). On tab-bar routes it renders as an
-// inert brand mark to avoid two simultaneous go-home controls on one screen.
-// Keep in sync with TAB_BAR_ROUTES in App.jsx.
-const TAB_BAR_ROUTES = ['/', '/daily', '/friends', '/profile']
+/* eslint-disable react-refresh/only-export-components */
+
+// Game rooms can intercept the logo tap (leave-match confirm) without
+// owning their own Home link. The ref is stable; Game registers a handler
+// for the lifetime of the room via useHomeIntercept().
+const HomeInterceptContext = createContext({ current: null })
+
+export function HomeInterceptProvider({ children }) {
+  const interceptRef = useRef(null)
+  return (
+    <HomeInterceptContext.Provider value={interceptRef}>
+      {children}
+    </HomeInterceptContext.Provider>
+  )
+}
+
+export function useHomeIntercept(handler) {
+  const interceptRef = useContext(HomeInterceptContext)
+  useEffect(() => {
+    interceptRef.current = handler
+    return () => { interceptRef.current = null }
+  }, [interceptRef, handler])
+}
 
 export default function NavBar() {
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const toggleMute = () => setMuted(sounds.toggle())
   const { pathname } = useLocation()
-  const tabBarShowing = TAB_BAR_ROUTES.includes(pathname)
-
-  const brandMark = (
-    <>
-      <div className="relative w-7 h-7 border-2 border-retro-cta bg-retro-tint-cta rounded
-        flex items-center justify-center shadow-neon-cta">
-        <svg width="14" height="14" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-          <line x1="10" y1="2" x2="10" y2="28" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
-          <line x1="20" y1="2" x2="20" y2="28" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
-          <line x1="2" y1="10" x2="28" y2="10" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
-          <line x1="2" y1="20" x2="28" y2="20" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
-        </svg>
-      </div>
-      <span className="hidden sm:inline font-pixel text-[9px] text-retro-cta text-glow-cta tracking-wide">
-        GAME NIGHT
-      </span>
-    </>
-  )
+  const interceptRef = useContext(HomeInterceptContext)
 
   return (
-    <div className="w-full border-b border-retro-border/60
-      pt-[max(0.75rem,env(safe-area-inset-top))]
-      pl-[max(1rem,env(safe-area-inset-left))]
-      pr-[max(1rem,env(safe-area-inset-right))]
-      pb-3">
-      <div className="max-w-sm mx-auto flex items-center justify-between gap-2">
-        {tabBarShowing ? (
-          // BottomTabBar's own HOME tab already covers this screen — render
-          // the brand mark as a plain, non-interactive block (M-69).
-          <div className="relative flex items-center gap-2 shrink-0">
-            {brandMark}
+    <header
+      className="sticky top-0 z-30 w-full border-b border-retro-border/60 bg-retro-bg/95 backdrop-blur
+        pt-[max(0.75rem,env(safe-area-inset-top))]
+        pl-[max(1rem,env(safe-area-inset-left))]
+        pr-[max(1rem,env(safe-area-inset-right))]
+        pb-3"
+    >
+      <div className="max-w-sm mx-auto flex items-center justify-between gap-2 min-h-11">
+        <Link
+          to="/"
+          title="Home"
+          onClick={(e) => {
+            interceptRef.current?.(e)
+            if (!e.defaultPrevented && pathname === '/') window.scrollTo(0, 0)
+          }}
+          className="relative flex items-center gap-2 shrink-0 active:scale-95 transition-transform
+            before:content-[''] before:absolute before:-inset-y-2.5 before:-inset-x-2"
+        >
+          <div className="relative w-7 h-7 border-2 border-retro-cta bg-retro-tint-cta rounded
+            flex items-center justify-center shadow-neon-cta">
+            <svg width="14" height="14" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+              <line x1="10" y1="2" x2="10" y2="28" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
+              <line x1="20" y1="2" x2="20" y2="28" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
+              <line x1="2" y1="10" x2="28" y2="10" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
+              <line x1="2" y1="20" x2="28" y2="20" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
+            </svg>
           </div>
-        ) : (
-          <Link
-            to="/"
-            title="Home"
-            className="relative flex items-center gap-2 shrink-0 active:scale-95 transition-transform
-              before:content-[''] before:absolute before:-inset-y-2.5 before:-inset-x-2"
-          >
-            {brandMark}
-          </Link>
-        )}
+          <span className="font-pixel text-[9px] text-retro-cta text-glow-cta tracking-wide">
+            GAME NIGHT
+          </span>
+        </Link>
 
         <div className="flex items-center gap-2 shrink-0">
           <ThemeSwitcher />
@@ -88,6 +91,6 @@ export default function NavBar() {
           </button>
         </div>
       </div>
-    </div>
+    </header>
   )
 }

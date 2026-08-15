@@ -70,6 +70,23 @@ export function recordMatch({ gameType, won, opponentName, opponentUid }) {
   return s
 }
 
+// Head-to-head vs a seated opponent (uid-keyed only — no legacy name fallback).
+export function getHeadToHead(opponentUid) {
+  if (!opponentUid) return null
+  const entry = getStats()?.vs?.[opponentUid]
+  if (!entry) return null
+  const myWins = entry.w || 0
+  const theirWins = entry.l || 0
+  if (myWins + theirWins === 0) return null
+  return { myWins, theirWins }
+}
+
+export function formatHeadToHeadLabel(myWins, theirWins) {
+  if (myWins > theirWins) return `YOU LEAD ${myWins}–${theirWins}`
+  if (theirWins > myWins) return `THEY LEAD ${theirWins}–${myWins}`
+  return `SERIES TIED ${myWins}–${theirWins}`
+}
+
 export function getRooms() {
   try {
     const list = JSON.parse(localStorage.getItem(ROOMS_KEY))

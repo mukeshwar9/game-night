@@ -14,6 +14,7 @@ import {
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
+  PacmacIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
@@ -25,6 +26,11 @@ import { applyConnectFourPopMove, bottomIndex } from './connectFourPopLogic'
 import {
   DB_EDGE_COUNT,
   DB_BOX_COUNT,
+  DB_SIZE,
+  DB_SIZE_CLASSIC,
+  DB_EDGE_COUNT_CLASSIC,
+  DB_BOX_COUNT_CLASSIC,
+  dbConfig,
   applyEdgeMove,
   getDotsAndBoxesWinner,
 } from './dotsAndBoxesLogic'
@@ -53,7 +59,7 @@ import { REVERSI_SIZE, reversiInitialBoard, applyReversiMove, hasAnyMove, getRev
 import ReversiBoard from '../components/ReversiBoard'
 import { OC_CELL_COUNT, applyOrderChaosMove, getOrderChaosWinner } from './orderChaosLogic'
 import OrderChaosBoard from '../components/OrderChaosBoard'
-import { CR_CELL_COUNT, applyChainReactionMove } from './chainReactionLogic'
+import { CR_CELL_COUNT, CR_CELL_COUNT_CLASSIC, CR_COLS, CR_ROWS, CR_COLS_CLASSIC, CR_ROWS_CLASSIC, applyChainReactionMove } from './chainReactionLogic'
 import ChainReactionBoard from '../components/ChainReactionBoard'
 import {
   BK_CELL_COUNT,
@@ -97,6 +103,25 @@ function generateNumber(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
   for (let i = 1; i < level; i++) n += String(Math.floor(Math.random() * 10))
   return n
+}
+
+function dotsAndBoxesMove(size) {
+  const { boxCount } = dbConfig(size)
+  return ({ board, game, index, symbol }) => {
+    const boxes = normalizeBoard(game.boxes, boxCount)
+    const moved = applyEdgeMove(board, boxes, index, symbol, size)
+    if (!moved) return null
+    const extraTurn = moved.completedBoxes.length > 0
+    return {
+      updates: {
+        board: moved.edges,
+        boxes: moved.boxes,
+        currentTurn: extraTurn ? symbol : (symbol === 'X' ? 'O' : 'X'),
+        extraTurn: extraTurn ? true : null,
+      },
+      result: getDotsAndBoxesWinner(moved.boxes, size),
+    }
+  }
 }
 
 export const GAME_TYPES = [
@@ -190,31 +215,30 @@ export const GAME_TYPES = [
   {
     type: 'dotsandboxes', label: 'DOTS & BOXES',
     desc: 'claim the most boxes', Icon: DotsAndBoxesIcon,
-    badge: 'DB', maxWidth: 'max-w-sm',
+    badge: 'DB', maxWidth: 'max-w-md',
     category: 'board',
     durationMin: 8, tags: ['thinky'], solo: true,
+    classicLabel: '6×6',
+    classicBlurb: '36 boxes on a 6×6 grid. First to 19 clinches.',
     boardSize: DB_EDGE_COUNT,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: DotsAndBoxesBoard,
-    applyMove: ({ board, game, index, symbol }) => {
-      const boxes = normalizeBoard(game.boxes, DB_BOX_COUNT)
-      const moved = applyEdgeMove(board, boxes, index, symbol)
-      if (!moved) return null
-      // M-48: completing >=1 box grants an extra turn — flag it distinctly
-      // (cleared/renewed on every subsequent move write) so GameStatus can
-      // show a "GO AGAIN!" pulse instead of the normal turn text.
-      const extraTurn = moved.completedBoxes.length > 0
-      return {
-        updates: {
-          board: moved.edges,
-          boxes: moved.boxes,
-          currentTurn: extraTurn ? symbol : (symbol === 'X' ? 'O' : 'X'),
-          extraTurn: extraTurn ? true : null,
-        },
-        result: getDotsAndBoxesWinner(moved.boxes),
-      }
-    },
-    boardProps: (game) => ({ boxes: normalizeBoard(game.boxes, DB_BOX_COUNT) }),
+    applyMove: dotsAndBoxesMove(DB_SIZE),
+    boardProps: (game) => ({ boxes: normalizeBoard(game.boxes, DB_BOX_COUNT), size: DB_SIZE }),
+  },
+  {
+    type: 'dotsandboxes4', label: 'DOTS & BOXES 4×4',
+    desc: 'classic 4×4 boxes', Icon: DotsAndBoxesIcon,
+    badge: 'DB4', maxWidth: 'max-w-sm',
+    category: 'board',
+    durationMin: 5, tags: ['quick', 'thinky'], solo: true,
+    variantOf: 'dotsandboxes', variantLabel: '4×4',
+    variantBlurb: '16 boxes. First to 9 clinches. Bigger taps on a phone.',
+    boardSize: DB_EDGE_COUNT_CLASSIC,
+    getMoveIndex: (board, index) => (board[index] ? -1 : index),
+    BoardComponent: DotsAndBoxesBoard,
+    applyMove: dotsAndBoxesMove(DB_SIZE_CLASSIC),
+    boardProps: (game) => ({ boxes: normalizeBoard(game.boxes, DB_BOX_COUNT_CLASSIC), size: DB_SIZE_CLASSIC }),
   },
   {
     type: 'sos', label: 'SOS',
@@ -266,7 +290,7 @@ export const GAME_TYPES = [
     badge: 'CT', maxWidth: 'max-w-xs',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
-    custom: true,
+    custom: true, simultaneous: true,
   },
   {
     type: 'numbermemory', label: 'NUMBER MEMORY',
@@ -274,7 +298,7 @@ export const GAME_TYPES = [
     badge: 'NM', maxWidth: 'max-w-xs',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
-    custom: true,
+    custom: true, simultaneous: true,
   },
   {
     type: 'reaction', label: 'REACTION TIME',
@@ -282,7 +306,7 @@ export const GAME_TYPES = [
     badge: 'RT', maxWidth: 'max-w-xs',
     category: 'reflex',
     durationMin: 1, tags: ['quick', 'skill'], solo: true,
-    custom: true,
+    custom: true, simultaneous: true,
   },
   {
     type: 'aim', label: 'AIM TRAINER',
@@ -290,7 +314,7 @@ export const GAME_TYPES = [
     badge: 'AT', maxWidth: 'max-w-xs',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
-    custom: true,
+    custom: true, simultaneous: true,
   },
   {
     type: 'typing', label: 'TYPING RACE',
@@ -298,7 +322,7 @@ export const GAME_TYPES = [
     badge: 'TR', maxWidth: 'max-w-sm',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
-    custom: true,
+    custom: true, simultaneous: true,
     // M-52: TypingGame renders its own progress bars (names + live WPM
     // progress) right above the passage — Game.jsx's generic PlayerCard grid
     // would just duplicate it and eat vertical space the keyboard needs.
@@ -310,7 +334,7 @@ export const GAME_TYPES = [
     badge: 'MM', maxWidth: 'max-w-xs',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
-    custom: true,
+    custom: true, simultaneous: true,
     // M-26: MathGame renders its own ScoreBar (names + live score) right
     // above the question — Game.jsx's generic PlayerCard grid would just
     // duplicate it and eat vertical space the NumberPad needs.
@@ -369,6 +393,16 @@ export const GAME_TYPES = [
     custom: true, realtime: true,
   },
   {
+    type: 'pacmac', label: 'PAC MAC',
+    desc: 'eat more pellets than they do', Icon: PacmacIcon,
+    badge: 'PM', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-08-14',
+    durationMin: 3, tags: ['frantic', 'skill'], solo: true,
+    custom: true, realtime: true,
+    hidePlayerCards: true,
+  },
+  {
     type: 'visualmemory', label: 'VISUAL MEMORY',
     desc: 'remember the lit tiles', Icon: VisualMemoryIcon,
     badge: 'VM', maxWidth: 'max-w-xs',
@@ -418,20 +452,39 @@ export const GAME_TYPES = [
   {
     type: 'chainreaction', label: 'CHAIN REACTION',
     desc: 'trigger chain explosions', Icon: ChainReactionIcon,
-    badge: 'CR', maxWidth: 'max-w-xs',
+    badge: 'CR', maxWidth: 'max-w-sm',
     category: 'board',
     addedAt: '2026-07-04',
     durationMin: 6, tags: ['thinky'], solo: true,
+    classicLabel: '8×10',
+    classicBlurb: '8 columns by 10 rows. More room for long cascades.',
     boardSize: CR_CELL_COUNT,
     getMoveIndex: (_board, index) => {
       if (index < 0 || index >= CR_CELL_COUNT) return -1
-      // Ownership check is done in applyMove; any in-range index passes here.
       return index
     },
     BoardComponent: ChainReactionBoard,
     applyMove: ({ board, game, index, symbol }) =>
-      applyChainReactionMove({ board, game, index, symbol }),
-    boardProps: (game) => ({ crLastMove: game.crLastMove ?? null }),
+      applyChainReactionMove({ board, game, index, symbol, cols: CR_COLS, rows: CR_ROWS }),
+    boardProps: (game) => ({ crLastMove: game.crLastMove ?? null, cols: CR_COLS, rows: CR_ROWS }),
+  },
+  {
+    type: 'chainreaction6', label: 'CHAIN REACTION 6×8',
+    desc: 'compact chain reaction', Icon: ChainReactionIcon,
+    badge: 'CR6', maxWidth: 'max-w-xs',
+    category: 'board',
+    durationMin: 4, tags: ['quick', 'thinky'], solo: true,
+    variantOf: 'chainreaction', variantLabel: '6×8',
+    variantBlurb: 'The original smaller grid. Bigger cells on a phone.',
+    boardSize: CR_CELL_COUNT_CLASSIC,
+    getMoveIndex: (_board, index) => {
+      if (index < 0 || index >= CR_CELL_COUNT_CLASSIC) return -1
+      return index
+    },
+    BoardComponent: ChainReactionBoard,
+    applyMove: ({ board, game, index, symbol }) =>
+      applyChainReactionMove({ board, game, index, symbol, cols: CR_COLS_CLASSIC, rows: CR_ROWS_CLASSIC }),
+    boardProps: (game) => ({ crLastMove: game.crLastMove ?? null, cols: CR_COLS_CLASSIC, rows: CR_ROWS_CLASSIC }),
   },
   {
     type: 'blockade', label: 'BLOCKADE',
@@ -595,7 +648,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-04',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true,
+    custom: true, simultaneous: true,
   },
   {
     type: 'wordhunt', label: 'WORD HUNT',
@@ -604,7 +657,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-11',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
-    custom: true,
+    custom: true, simultaneous: true,
   },
   {
     type: 'pairs', label: 'PAIRS',
@@ -669,6 +722,32 @@ export const isNewGame = (entry, now = new Date()) => {
 
 export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
 
+// 2P turn-based games: one seat must act first, so the waiting room (and
+// rematch) asks who starts. Real-time, party, and simultaneous races skip
+// this and still auto-start when the second player sits.
+export function usesFirstMover(gameType) {
+  const cfg = GAME_TYPES.find(t => t.type === gameType)
+  if (!cfg) return false
+  return !cfg.nPlayer && !cfg.realtime && !cfg.simultaneous
+}
+
+export function resolveGoesFirst(goesFirst) {
+  if (goesFirst === 'O') return 'O'
+  if (goesFirst === 'random') return Math.random() < 0.5 ? 'X' : 'O'
+  return 'X'
+}
+
+export function firstMoverUpdates(gameType, symbol) {
+  if (!usesFirstMover(gameType)) return {}
+  if (gameType === 'hangwoman' || gameType === 'twotruths') {
+    return { 'round/setter': symbol }
+  }
+  if (gameType === 'bluff') {
+    return { 'bluffRound/turn': symbol }
+  }
+  return { currentTurn: symbol }
+}
+
 export const GAME_CATEGORIES = [
   { id: 'board',     label: 'BOARD',  full: 'BOARD GAMES' },
   { id: 'reflex',    label: 'REFLEX', full: 'REFLEX & SKILL' },
@@ -724,6 +803,7 @@ const FIELD_NULLS = {
   spaceduelScoreX: null, spaceduelScoreO: null,
   spaceduelHitsX: null, spaceduelHitsO: null,
   paintScoreX: null, paintScoreO: null,
+  pacmacScoreX: null, pacmacScoreO: null,
   crMoves: null,
   crLastMove: null,
   // M-47: last cell/edge played, written by every board move so boards can
@@ -753,9 +833,10 @@ export function freshGameState(gameType) {
       uActiveBoard: -1,
       currentTurn: 'X' }
   }
-  if (gameType === 'dotsandboxes') {
+  if (gameType === 'dotsandboxes' || gameType === 'dotsandboxes4') {
+    const { edgeCount, boxCount } = dbConfig(gameType === 'dotsandboxes4' ? DB_SIZE_CLASSIC : DB_SIZE)
     return { ...FIELD_NULLS, round: null,
-      board: Array(DB_EDGE_COUNT).fill(''), boxes: Array(DB_BOX_COUNT).fill(''), currentTurn: 'X' }
+      board: Array(edgeCount).fill(''), boxes: Array(boxCount).fill(''), currentTurn: 'X' }
   }
   if (gameType === 'sos') {
     return { ...FIELD_NULLS, round: null, boxes: null,
@@ -809,6 +890,10 @@ export function freshGameState(gameType) {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       paintScoreX: 0, paintScoreO: 0 }
   }
+  if (gameType === 'pacmac') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      pacmacScoreX: 0, pacmacScoreO: 0 }
+  }
   if (gameType === 'aim') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       aimScoreX: 0, aimScoreO: 0, aimHitsX: 0, aimHitsO: 0, aimFriendlyX: 0, aimFriendlyO: 0 }
@@ -843,9 +928,10 @@ export function freshGameState(gameType) {
     return { ...FIELD_NULLS, boxes: null, round: null,
       board: reversiInitialBoard(), currentTurn: 'X' }
   }
-  if (gameType === 'chainreaction') {
+  if (gameType === 'chainreaction' || gameType === 'chainreaction6') {
+    const n = gameType === 'chainreaction6' ? CR_CELL_COUNT_CLASSIC : CR_CELL_COUNT
     return { ...FIELD_NULLS, boxes: null, round: null,
-      board: Array(CR_CELL_COUNT).fill(''), currentTurn: 'X', crMoves: 0 }
+      board: Array(n).fill(''), currentTurn: 'X', crMoves: 0 }
   }
   if (gameType === 'blockade') {
     return { ...FIELD_NULLS, boxes: null, round: null,

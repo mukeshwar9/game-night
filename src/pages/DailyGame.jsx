@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import NumberPad from '../components/NumberPad'
-import NavBar from '../components/NavBar'
 import { generateQuestion } from '../lib/mathLogic'
 import { sounds } from '../lib/sounds'
 import { todayKey, seedFromDate, readBest, writeBest, getDailyNumber, bumpStreak } from '../lib/daily'
@@ -136,7 +135,6 @@ export default function DailyGame() {
 
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center">
-      <NavBar />
       <div className="w-full max-w-sm space-y-6 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {/* Header */}
         <div className="text-center space-y-2">

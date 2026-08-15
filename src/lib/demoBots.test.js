@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { pickBotMove } from './demoBots'
 import { legalMoves } from './reversiLogic'
+import { CR_CELL_COUNT, CR_COLS } from './chainReactionLogic'
+import { DB_EDGE_COUNT, DB_BOX_COUNT, edgesOfBox } from './dotsAndBoxesLogic'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -337,32 +339,30 @@ describe('pickBotMove — gomoku', () => {
 
 describe('pickBotMove — dotsandboxes', () => {
   it('returns a valid edge index', () => {
-    const game = { board: emptyBoard(40), boxes: emptyBoard(16) }
+    const game = { board: emptyBoard(DB_EDGE_COUNT), boxes: emptyBoard(DB_BOX_COUNT) }
     const move = pickBotMove('dotsandboxes', game, 'O')
     expect(move).toBeGreaterThanOrEqual(0)
-    expect(move).toBeLessThan(40)
+    expect(move).toBeLessThan(DB_EDGE_COUNT)
   })
 
   it('completes a box when 3 edges are already filled', () => {
-    // Box 0 has edges: top=0, bottom=4, left=20, right=21
-    // Fill 3 of them; bot should play the 4th
-    const edges = emptyBoard(40)
-    edges[0] = 'X'  // top
-    edges[4] = 'X'  // bottom
-    edges[20] = 'X' // left
-    // right = 21 is open → bot should play 21
-    const game = { board: edges, boxes: emptyBoard(16) }
+    const [top, bottom, left, right] = edgesOfBox(0)
+    const edges = emptyBoard(DB_EDGE_COUNT)
+    edges[top] = 'X'
+    edges[bottom] = 'X'
+    edges[left] = 'X'
+    const game = { board: edges, boxes: emptyBoard(DB_BOX_COUNT) }
     const move = pickBotMove('dotsandboxes', game, 'O')
-    expect(move).toBe(21)
+    expect(move).toBe(right)
   })
 
   it('does not play an already-filled edge', () => {
-    // Fill all but edge 39
-    const edges = Array(40).fill('X')
-    edges[39] = ''
-    const game = { board: edges, boxes: emptyBoard(16) }
+    const last = DB_EDGE_COUNT - 1
+    const edges = Array(DB_EDGE_COUNT).fill('X')
+    edges[last] = ''
+    const game = { board: edges, boxes: emptyBoard(DB_BOX_COUNT) }
     const move = pickBotMove('dotsandboxes', game, 'O')
-    expect(move).toBe(39)
+    expect(move).toBe(last)
   })
 })
 
@@ -371,88 +371,57 @@ describe('pickBotMove — dotsandboxes', () => {
 // ---------------------------------------------------------------------------
 
 describe('pickBotMove — chainreaction', () => {
-  const emptyBoard48 = () => Array(48).fill('')
+  const emptyCr = () => Array(CR_CELL_COUNT).fill('')
 
   it('returns a valid index on an empty board', () => {
-    const game = { board: emptyBoard48(), crMoves: 0 }
+    const game = { board: emptyCr(), crMoves: 0 }
     const move = pickBotMove('chainreaction', game, 'O')
     expect(move).not.toBeNull()
     expect(typeof move).toBe('number')
     expect(move).toBeGreaterThanOrEqual(0)
-    expect(move).toBeLessThan(48)
+    expect(move).toBeLessThan(CR_CELL_COUNT)
   })
 
   it('picks a winning capture (clears all opponent orbs) when available', () => {
-    // Board: opponent (X) has a single orb at cell 6 (row 1, col 0 — criticalMass 3).
-    // Bot (O) has three orbs at cell 0 (corner, criticalMass 2) so placing there causes
-    // an explosion that reaches cell 6. Build a simpler scenario:
-    // X has one orb at cell 47 (corner). O has two orbs at cell 47's neighbour cell 41
-    // (criticalMass 3 — row 6 col 5, neighbours: 35, 47, 40). Place O at 41 → count=3=cm
-    // → explodes → orb goes to 47, converting it to O.
-    // But crMoves must be >= 1 for win check to apply.
-    const board = emptyBoard48()
-    board[47] = 'X1'  // opponent single orb at corner (criticalMass=2)
-    board[41] = 'O1'  // bot has one orb at 41 (neighbour of 47; criticalMass=3)
-    // Placing O at 41 again: count becomes 2 (< 3), no explosion yet. Need count=3 to explode.
-    // Let's put 2 orbs at 41 already:
-    board[41] = 'O2'
-    // Now placing O at 41 → count=3 = criticalMass(41)=3 → explodes → sends to 35, 47, 40
-    // cell 47 (was X1) becomes O2, 40 and 35 each get +1 orb. Opponent orbs = 0 → win.
-    const game = { board, crMoves: 2 } // both have moved at least once
+    // X has one orb at the bottom-right corner (cm=2). O has two orbs at the
+    // left neighbour (bottom edge, cm=3). Placing there explodes into the
+    // corner and converts it — opponent orbs drop to 0.
+    const last = CR_CELL_COUNT - 1
+    const left = last - 1
+    const board = emptyCr()
+    board[last] = 'X1'
+    board[left] = 'O2'
+    const game = { board, crMoves: 2 }
     const move = pickBotMove('chainreaction', game, 'O')
-    expect(move).toBe(41)
+    expect(move).toBe(left)
   })
 
   it('prefers a move that captures more opponent orbs', () => {
-    // Two candidate moves: move A captures 1 opponent orb, move B captures 3.
-    // 6×8 grid — use row 0 (top edge).
-    // Opponent at cell 1 with 2 orbs (criticalMass(1)=3, edge cell). Placing at cell 0
-    // (corner, criticalMass=2): with 1 own orb at 0, placing makes count=2=cm → explodes
-    // → sends to cell 1 (right) and cell 6 (below). Cell 1 was X2 → becomes O3 → cm=3
-    // → explodes again. Complex; let's use a direct scenario.
-    // Simpler: O has orbs at a cell that when placed causes 3 captures vs another cell
-    // causing 0 captures. We'll craft:
-    // X3 at cell 1 (edge, cm=3). Placing O at cell 0 (corner, cm=2) with count 1 there:
-    //   0 gets count=2=cm(0)=2 → explodes → sends to 1 and 6.
-    //   cell 1 (X3) → gains 1 → X4 = cm reached (3) → explodes → sends to 0,2,7 as O.
-    //   Actually the explosion converts cells to the current symbol.
-    // This is complex. Let's do a simpler test: move at a cell adjacent to opponent vs not.
-    const board = emptyBoard48()
-    board[0] = 'O1'  // bot owns corner 0
-    // Opponent owns cell 1 with 2 orbs (1 below critical mass=3)
-    // Placing O at 0 → count=2=cm(0)=2 → explodes → sends to cell 1 and cell 6
-    // cell 1: gains O orb, becomes O1 (was X2 → now O3, but wait conversion: it's X2+1=X3
-    // Actually in applyPlacement, the conversion happens: neighbours get symbol of exploder.
-    // So cell 1 (X2) gains 1 orb and converts to O: becomes O3. criticalMass(1)=3. O3=cm → explodes.
-    // Chain: O captures cell 1 (and possibly more). That's 2 opponent orbs captured.
-    // If we instead place at cell 36 (interior, far from opponent): 0 captures.
-    // So bot should prefer placing at 0.
+    const board = emptyCr()
+    board[0] = 'O1'
     board[1] = 'X2'
     const game = { board, crMoves: 1 }
     const move = pickBotMove('chainreaction', game, 'O')
-    // Move at 0 leads to capturing opponent orbs; other moves capture 0
     expect(move).toBe(0)
   })
 
   it('avoids placing adjacent to opponent near-critical cell on tie (no captures)', () => {
-    // Empty board, no opponent orbs → all moves capture 0 (tie).
-    // Opponent has a near-critical cell at index 7 (row 1, col 1, cm=4, so near-crit at count=3).
-    // Neighbours of 7: 1, 13, 6, 8.
-    // Bot should prefer a corner (e.g. 0) over cells adjacent to 7.
-    const board = emptyBoard48()
-    board[7] = 'X3'  // near critical (cm=4, count=3)
+    const interior = CR_COLS + 1 // (1,1), cm=4
+    const board = emptyCr()
+    board[interior] = 'X3'
     const game = { board, crMoves: 1 }
     const move = pickBotMove('chainreaction', game, 'O')
-    // Move should NOT be one of the neighbours of 7 (1, 13, 6, 8) if a better option exists
-    // Corners are 0, 5, 42, 47 — all safe and higher-scored
-    const nearCritNeighbours = [1, 6, 8, 13]
-    // All captures are 0 here (no opponent orbs to capture), so tie-break applies
+    const nearCritNeighbours = [
+      interior - CR_COLS,
+      interior + CR_COLS,
+      interior - 1,
+      interior + 1,
+    ]
     expect(nearCritNeighbours).not.toContain(move)
   })
 
   it('returns null when no legal moves exist (all cells owned by opponent)', () => {
-    // All cells owned by opponent — bot has no legal moves
-    const board = Array(48).fill('X1')
+    const board = Array(CR_CELL_COUNT).fill('X1')
     const game = { board, crMoves: 5 }
     const move = pickBotMove('chainreaction', game, 'O')
     expect(move).toBeNull()

@@ -13,7 +13,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Ultimate Tic Tac Toe** — nine boards in a 3×3 grid; your move dictates which board your rival plays next; win three boards in a row *(selectable as a mode when starting Tic Tac Toe)*
 - **Connect Four** — 6×7 drop-a-disc
 - **Connect Four Pop Out** — drop *or* pop one of your own bottom discs so the column slides down; a pop can complete a line for either player *(selectable as a mode when starting Connect Four)*
-- **Dots & Boxes** — 4×4; completing a box claims it and grants an extra turn; first to 9 boxes clinches ([design notes](README-dots-and-boxes.md))
+- **Dots & Boxes** — 6×6 by default (first to 19 clinches); 4×4 classic mode via +MODES ([design notes](README-dots-and-boxes.md))
 - **SOS** — 7×7; place an S or an O anywhere; each S-O-S line scores and grants another move
 - **Gomoku** — five in a row on 15×15
 - **Reversi** — 8×8 capture-and-flip with forced passes and big late-game swings

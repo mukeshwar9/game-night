@@ -16,7 +16,7 @@ import {
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, BlockadeIcon, PairsIcon,
-  WordHuntIcon, PaintIcon, SketchIcon,
+  WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
 import SnakeArena from '../components/SnakeArena';
@@ -46,7 +46,6 @@ import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
 import { Link, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import NavBar from '../components/NavBar';
 import TronDemo from './TronDemo';
 import SumoDemo from './SumoDemo';
 import WavelengthDemo from './WavelengthDemo';
@@ -54,6 +53,7 @@ import FibbageDemo from './FibbageDemo';
 import SpyfairDemo from './SpyfairDemo';
 import SpaceduelDemo from './SpaceduelDemo';
 import PaintDemo from './PaintDemo';
+import PacmacDemo from './PacmacDemo';
 
 function generateNumberLocal(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
@@ -104,6 +104,33 @@ function BotBoardDemo({ type }) {
       return applyOne(g, payload, 'X') || g
     })
   }
+
+  const prevPig = useRef({ idx: 0, turnScore: 0, rolls: 0 })
+  const prevStatus = useRef(game.status)
+  useEffect(() => {
+    if (type !== 'dice') return
+    const rolled = (game.diceRollIndex ?? 0) > prevPig.current.idx
+    const bankedOrBust = (game.diceTurnScore ?? 0) === 0 && prevPig.current.turnScore > 0
+    if (rolled || bankedOrBust) {
+      if (game.diceLast === 1) sounds.pigBust(prevPig.current.rolls)
+      else if (rolled) sounds.pigRoll((game.diceRolls || []).length)
+      else sounds.pigBank()
+    }
+    prevPig.current = {
+      idx: game.diceRollIndex ?? 0,
+      turnScore: game.diceTurnScore ?? 0,
+      rolls: Array.isArray(game.diceRolls) ? game.diceRolls.length : 0,
+    }
+  }, [game, type])
+
+  useEffect(() => {
+    if (prevStatus.current === 'playing' && game.status === 'finished') {
+      if (game.winner === 'draw') sounds.draw()
+      else if (game.winner === 'X') sounds.win()
+      else sounds.lose()
+    }
+    prevStatus.current = game.status
+  }, [game.status, game.winner])
 
   // Bot turn driver — re-runs whenever game changes; handles extra-turns/passes/dice streaks
   // because it simply fires again while it's still O's turn.
@@ -2205,8 +2232,10 @@ const DEMOS = [
   { type: 'orderchaos',   short: 'ORDER &\nCHAOS',Icon: OrderChaosIcon,   Component: () => <BotBoardDemo type="orderchaos" />   },
   { type: 'sos',          short: 'SOS',           Icon: SosIcon,          Component: () => <BotBoardDemo type="sos" />          },
   { type: 'dotsandboxes',  short: 'DOTS &\nBOXES',  Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes" />  },
+  { type: 'dotsandboxes4', short: 'DOTS\n4×4',      Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes4" /> },
   { type: 'dice',          short: 'PIG',            Icon: DiceIcon,           Component: () => <BotBoardDemo type="dice" />          },
   { type: 'chainreaction', short: 'CHAIN\nREACTION',Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction" /> },
+  { type: 'chainreaction6',short: 'CHAIN\n6×8',     Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction6" /> },
   { type: 'blockade',      short: 'BLOCKADE',       Icon: BlockadeIcon,       Component: () => <BotBoardDemo type="blockade" /> },
   { type: 'pairs',         short: 'PAIRS',          Icon: PairsIcon,          Component: () => <BotBoardDemo type="pairs" /> },
   // Skill bots
@@ -2220,6 +2249,7 @@ const DEMOS = [
   { type: 'sumo',         short: 'SUMO\nARENA',   Icon: SumoIcon,         Component: SumoDemo         },
   { type: 'spaceduel',    short: 'SPACE\nDUEL',   Icon: SpaceDuelIcon,    Component: SpaceduelDemo    },
   { type: 'paint',        short: 'PAINT\nTURF',   Icon: PaintIcon,        Component: PaintDemo        },
+  { type: 'pacmac',       short: 'PAC\nMAC',      Icon: PacmacIcon,       Component: PacmacDemo       },
   // Memory hot-seat
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonDemo        },
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemoryDemo },
@@ -2270,7 +2300,6 @@ export default function Demo() {
 
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center">
-      <NavBar />
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {/* Header */}
         <div className="flex items-center justify-end">

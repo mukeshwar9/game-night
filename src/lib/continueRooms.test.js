@@ -25,8 +25,13 @@ const partyGame = (overrides = {}) => ({
 
 describe('deriveChip', () => {
   it('shows WAITING FOR OPPONENT when status is waiting', () => {
-    const game = twoPlayerGame({ status: 'waiting' })
+    const game = twoPlayerGame({ status: 'waiting', players: { X: { name: 'Alice', playerId: 'uid-alice' } } })
     expect(deriveChip(game, 'uid-alice', null)).toEqual({ text: 'WAITING FOR OPPONENT', tone: 'dim' })
+  })
+
+  it('shows READY TO START when waiting with both seats filled', () => {
+    const game = twoPlayerGame({ status: 'waiting' })
+    expect(deriveChip(game, 'uid-alice', null)).toEqual({ text: 'READY TO START', tone: 'action' })
   })
 
   it('shows FINISHED win tone when I won', () => {

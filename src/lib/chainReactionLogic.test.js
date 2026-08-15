@@ -240,3 +240,24 @@ describe('win condition', () => {
     expect(res.result).toBeNull()
   })
 })
+
+describe('classic 6×8 board', () => {
+  const cols = 6
+  const rows = 8
+  const idx6 = (r, c) => r * cols + c
+
+  it('corners have mass 2 on 6×8', () => {
+    expect(criticalMass(idx6(0, 0), cols, rows)).toBe(2)
+    expect(criticalMass(idx6(0, cols - 1), cols, rows)).toBe(2)
+    expect(criticalMass(idx6(rows - 1, 0), cols, rows)).toBe(2)
+    expect(criticalMass(idx6(rows - 1, cols - 1), cols, rows)).toBe(2)
+  })
+
+  it('rejects a move past 48 cells', () => {
+    const board = Array(48).fill('')
+    const res = applyChainReactionMove({
+      board, game: { crMoves: 0 }, index: 48, symbol: 'X', cols, rows,
+    })
+    expect(res).toBeNull()
+  })
+})

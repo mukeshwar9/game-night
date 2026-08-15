@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import NavBar from '../components/NavBar'
 import Avatar from '../components/Avatar'
 import AvatarCustomizer from '../components/AvatarCustomizer'
 import EmptyState from '../components/EmptyState'
@@ -123,7 +122,6 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-retro-bg">
-      <NavBar />
       <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-sm mx-auto space-y-6 pt-2">
         <h1 className="font-pixel text-base text-retro-cta text-glow-cta">PROFILE</h1>
@@ -134,7 +132,7 @@ export default function Profile() {
           <div className="min-w-0 flex-1">
             <p className="font-pixel text-xs text-retro-text truncate">{profile?.displayName || '…'}</p>
             <p className="font-mono text-[11px] text-retro-dim mt-1">
-              {isAnonymous ? 'Guest account' : (user?.email || 'Signed in')}
+              {isAnonymous ? 'Guest account' : `Signed in with Google${user?.email ? ` · ${user.email}` : ''}`}
             </p>
           </div>
         </div>

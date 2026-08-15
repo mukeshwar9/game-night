@@ -13,7 +13,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   }
 }
 
-const { getStats, recordMatch } = await import('./profile')
+const { getStats, recordMatch, getHeadToHead, formatHeadToHeadLabel } = await import('./profile')
 
 describe('recordMatch', () => {
   beforeEach(() => localStorage.clear())
@@ -50,5 +50,32 @@ describe('recordMatch', () => {
     recordMatch({ gameType: 'connectfour', won: true, opponentName: 'Alice', opponentUid: 'uid-1' })
     expect(getStats().games).toBe(1)
     expect(getStats().byGame.connectfour).toEqual({ w: 1, l: 0 })
+  })
+})
+
+describe('getHeadToHead', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('returns null without opponent uid', () => {
+    expect(getHeadToHead(null)).toBeNull()
+    expect(getHeadToHead('')).toBeNull()
+  })
+
+  it('returns null when no prior matches vs that uid', () => {
+    expect(getHeadToHead('uid-1')).toBeNull()
+  })
+
+  it('returns win counts after recorded matches', () => {
+    recordMatch({ gameType: 'tictactoe', won: true, opponentName: 'Alice', opponentUid: 'uid-1' })
+    recordMatch({ gameType: 'tictactoe', won: false, opponentName: 'Alice', opponentUid: 'uid-1' })
+    expect(getHeadToHead('uid-1')).toEqual({ myWins: 1, theirWins: 1 })
+  })
+})
+
+describe('formatHeadToHeadLabel', () => {
+  it('formats lead, behind, and tied copy', () => {
+    expect(formatHeadToHeadLabel(7, 4)).toBe('YOU LEAD 7–4')
+    expect(formatHeadToHeadLabel(3, 5)).toBe('THEY LEAD 5–3')
+    expect(formatHeadToHeadLabel(2, 2)).toBe('SERIES TIED 2–2')
   })
 })

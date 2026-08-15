@@ -11,6 +11,15 @@ function actionLabel(proposal) {
   return proposal.action
 }
 
+function firstMoverLabel(proposal, players) {
+  if (proposal.goesFirst === 'random') return 'RANDOM STARTS'
+  if (proposal.goesFirst === 'X' || proposal.goesFirst === 'O') {
+    const name = (players?.[proposal.goesFirst]?.name || proposal.goesFirst).toUpperCase()
+    return `${name} STARTS`
+  }
+  return null
+}
+
 export default function ProposalBanner({ proposal, mySymbol, players, onAccept, onDecline, onCancel }) {
   const [busy, run] = useBusy()
   const [tapped, setTapped] = useState(null)
@@ -20,6 +29,7 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
   const opponentSym = proposal.by === 'X' ? 'O' : 'X'
   const proposerName = (players?.[proposal.by]?.name || proposal.by).toUpperCase()
   const label = actionLabel(proposal)
+  const whoStarts = firstMoverLabel(proposal, players)
 
   const isProposer = proposal.by === mySymbol
   const isRecipient = mySymbol && !isProposer
@@ -52,6 +62,9 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
           <p className="font-pixel text-[10px] text-retro-text leading-relaxed">
             {proposerName} WANTS TO {label}
           </p>
+          {whoStarts && (
+            <p className="font-pixel text-[9px] text-retro-cta">{whoStarts}</p>
+          )}
           <div className="flex justify-center gap-2">
             <button
               onClick={() => handle('accept', onAccept)}

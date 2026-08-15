@@ -1,53 +1,83 @@
-export const DB_SIZE = 4
-export const DB_EDGE_COUNT = 40
-export const DB_BOX_COUNT = 16
+export const DB_SIZE = 6
+export const DB_SIZE_CLASSIC = 4
 
-// Horizontal edge index: row 0-4, col 0-3
-export const hEdgeIndex = (row, col) => row * 4 + col
+export function dbConfig(size = DB_SIZE) {
+  const dots = size + 1
+  const hEdgeCount = dots * size
+  const vEdgeCount = size * dots
+  const boxCount = size * size
+  return {
+    size,
+    dots,
+    hEdgeCount,
+    vEdgeCount,
+    edgeCount: hEdgeCount + vEdgeCount,
+    boxCount,
+    clinch: Math.floor(boxCount / 2) + 1,
+  }
+}
 
-// Vertical edge index: row 0-3, col 0-4
-export const vEdgeIndex = (row, col) => 20 + row * 5 + col
+const LARGE = dbConfig(DB_SIZE)
+export const DB_DOTS = LARGE.dots
+export const DB_H_EDGE_COUNT = LARGE.hEdgeCount
+export const DB_V_EDGE_COUNT = LARGE.vEdgeCount
+export const DB_EDGE_COUNT = LARGE.edgeCount
+export const DB_BOX_COUNT = LARGE.boxCount
+export const DB_CLINCH = LARGE.clinch
+
+const CLASSIC = dbConfig(DB_SIZE_CLASSIC)
+export const DB_EDGE_COUNT_CLASSIC = CLASSIC.edgeCount
+export const DB_BOX_COUNT_CLASSIC = CLASSIC.boxCount
+
+// Horizontal edge index: row 0..size, col 0..size-1
+export const hEdgeIndex = (row, col, size = DB_SIZE) => row * size + col
+
+// Vertical edge index: row 0..size-1, col 0..size
+export const vEdgeIndex = (row, col, size = DB_SIZE) => {
+  const { hEdgeCount, dots } = dbConfig(size)
+  return hEdgeCount + row * dots + col
+}
 
 // Returns [top, bottom, left, right] edge indices for box b
-export function edgesOfBox(b) {
-  const r = Math.floor(b / DB_SIZE)
-  const c = b % DB_SIZE
+export function edgesOfBox(b, size = DB_SIZE) {
+  const r = Math.floor(b / size)
+  const c = b % size
   return [
-    hEdgeIndex(r, c),     // top
-    hEdgeIndex(r + 1, c), // bottom
-    vEdgeIndex(r, c),     // left
-    vEdgeIndex(r, c + 1), // right
+    hEdgeIndex(r, c, size),
+    hEdgeIndex(r + 1, c, size),
+    vEdgeIndex(r, c, size),
+    vEdgeIndex(r, c + 1, size),
   ]
 }
 
 // Returns 1-2 box indices adjacent to edge e
-export function boxesOfEdge(e) {
-  if (e < 0 || e >= DB_EDGE_COUNT) return []
+export function boxesOfEdge(e, size = DB_SIZE) {
+  const { hEdgeCount, dots, edgeCount } = dbConfig(size)
+  if (e < 0 || e >= edgeCount) return []
 
-  if (e < 20) {
-    // Horizontal edge: hEdgeIndex(row, col) = row*4+col
-    const row = Math.floor(e / 4)
-    const col = e % 4
+  if (e < hEdgeCount) {
+    const row = Math.floor(e / size)
+    const col = e % size
     const result = []
-    if (row > 0) result.push((row - 1) * DB_SIZE + col)   // box above
-    if (row < DB_SIZE) result.push(row * DB_SIZE + col)   // box below
-    return result
-  } else {
-    // Vertical edge: vEdgeIndex(row, col) = 20 + row*5 + col
-    const idx = e - 20
-    const row = Math.floor(idx / 5)
-    const col = idx % 5
-    const result = []
-    if (col > 0) result.push(row * DB_SIZE + (col - 1))  // box to left
-    if (col < DB_SIZE) result.push(row * DB_SIZE + col)  // box to right
+    if (row > 0) result.push((row - 1) * size + col)
+    if (row < size) result.push(row * size + col)
     return result
   }
+
+  const idx = e - hEdgeCount
+  const row = Math.floor(idx / dots)
+  const col = idx % dots
+  const result = []
+  if (col > 0) result.push(row * size + (col - 1))
+  if (col < size) result.push(row * size + col)
+  return result
 }
 
 // Pure: apply edge move. Returns null if out of range or already occupied.
 // Returns { edges, boxes, completedBoxes: number[] }
-export function applyEdgeMove(edges, boxes, edgeIndex, symbol) {
-  if (edgeIndex < 0 || edgeIndex >= DB_EDGE_COUNT) return null
+export function applyEdgeMove(edges, boxes, edgeIndex, symbol, size = DB_SIZE) {
+  const { edgeCount } = dbConfig(size)
+  if (edgeIndex < 0 || edgeIndex >= edgeCount) return null
   if (edges[edgeIndex]) return null
 
   const newEdges = [...edges]
@@ -56,9 +86,9 @@ export function applyEdgeMove(edges, boxes, edgeIndex, symbol) {
   const newBoxes = [...boxes]
   const completedBoxes = []
 
-  for (const boxIdx of boxesOfEdge(edgeIndex)) {
-    if (newBoxes[boxIdx]) continue // already claimed, skip
-    const [top, bottom, left, right] = edgesOfBox(boxIdx)
+  for (const boxIdx of boxesOfEdge(edgeIndex, size)) {
+    if (newBoxes[boxIdx]) continue
+    const [top, bottom, left, right] = edgesOfBox(boxIdx, size)
     if (newEdges[top] && newEdges[bottom] && newEdges[left] && newEdges[right]) {
       newBoxes[boxIdx] = symbol
       completedBoxes.push(boxIdx)
@@ -68,16 +98,24 @@ export function applyEdgeMove(edges, boxes, edgeIndex, symbol) {
   return { edges: newEdges, boxes: newBoxes, completedBoxes }
 }
 
-// Returns winner object or null
-export function getDotsAndBoxesWinner(boxes) {
+export function getDotsAndBoxesWinner(boxes, size = DB_SIZE) {
+  const { boxCount, clinch } = dbConfig(size)
   let x = 0
   let o = 0
   for (const b of boxes) {
     if (b === 'X') x++
     else if (b === 'O') o++
   }
-  if (x >= 9) return { winner: 'X' }
-  if (o >= 9) return { winner: 'O' }
-  if (x + o === DB_BOX_COUNT) return { winner: 'draw' }
+  if (x >= clinch) return { winner: 'X' }
+  if (o >= clinch) return { winner: 'O' }
+  if (x + o === boxCount) return { winner: 'draw' }
   return null
+}
+
+export function dbSizeFromGame(game) {
+  const n = game?.boxes?.length
+  if (n === DB_BOX_COUNT_CLASSIC) return DB_SIZE_CLASSIC
+  if (n === DB_BOX_COUNT) return DB_SIZE
+  if (game?.board?.length === DB_EDGE_COUNT_CLASSIC) return DB_SIZE_CLASSIC
+  return DB_SIZE
 }

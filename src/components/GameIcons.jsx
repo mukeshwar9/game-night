@@ -513,6 +513,15 @@ export function WordHuntIcon() {
   )
 }
 
+export function PacmacIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 12 L22 4 A10 10 0 1 1 22 20 Z" fill="currentColor" />
+      <rect x="20" y="11" width="2" height="2" fill="currentColor" opacity="0.7" />
+    </svg>
+  )
+}
+
 export function SketchIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

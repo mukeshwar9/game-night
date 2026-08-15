@@ -208,10 +208,7 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
       {/* M-42: search/filters/tabs stay reachable through the full scroll —
           sticky, safe-area aware, solid bg so cards don't show through. */}
       {isFull ? (
-        <div
-          className="sticky z-[5] bg-retro-bg pt-1 pb-2 space-y-3"
-          style={{ top: 'max(4.5rem, calc(env(safe-area-inset-top) + 4rem))' }}
-        >
+        <div className="sticky top-[var(--app-header-h)] z-[5] bg-retro-bg pt-1 pb-2 space-y-3">
           {searchBlock}
           {filterBlock}
           {tabsBlock}

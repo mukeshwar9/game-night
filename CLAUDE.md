@@ -29,8 +29,8 @@ Each game is a node at `games/{gameId}` in Firebase:
 ```
 gameType:    "tictactoe" | "connectfour" | "hangwoman" | "dotsandboxes" | "sos"
 status:      "waiting" | "playing" | "finished"
-board:       string[9] (TTT) | string[42] (Connect Four) | string[40] (Dots & Boxes edges) — '' for empty, 'X'/'O' for occupied; absent for hangwoman
-boxes:       string[16] (Dots & Boxes only) — box ownership, '' / 'X' / 'O'; null/absent for other game types
+board:       string[9] (TTT) | string[42] (Connect Four) | string[84] (Dots & Boxes edges) — '' for empty, 'X'/'O' for occupied; absent for hangwoman
+boxes:       string[36] (Dots & Boxes only) — box ownership, '' / 'X' / 'O'; null/absent for other game types
 currentTurn: "X" | "O"                                     (absent for hangwoman)
 winner:      "X" | "O" | "draw"  (absent until game ends)
 winningLine: number[3]            (absent until game ends; absent for dotsandboxes — no line concept)
@@ -49,7 +49,7 @@ proposal: { action: 'playAgain'|'newMatch'|'switch', gameType, by, declined } �
 
 Hangwoman has no `board`/`currentTurn`; it stores a `round` sub-node instead (`setter`, `phase`, `wrongCount`, `wordLength`, `commitment`, `guesses`, `reveal`, `result` — see `src/pages/HangmanGame.jsx`). The word never touches Firebase until reveal: the setter keeps it in sessionStorage and publishes a salted SHA-256 commitment (`src/lib/commit.js`); the guesser's client verifies the reveal against the commitment and all recorded answers.
 
-**Dots and Boxes** uses `board: string[40]` for edges (horizontal edges 0–19: `row*4+col`; vertical edges 20–39: `20+row*5+col`) and `boxes: string[16]` for box ownership. `currentTurn` does **not** flip when a move completes ≥1 box (extra turn). The round ends when one player owns 9 boxes (early clinch) or all 16 are claimed (8–8 = draw). There is no `winningLine`.
+**Dots and Boxes** default is `dotsandboxes` (`board: string[84]`, `boxes: string[36]`, clinch 19). Compact mode `dotsandboxes4` is 4×4 (`board: string[40]`, `boxes: string[16]`, clinch 9). Horizontal edges on 6×6: 0–41 `row*6+col`; vertical 42–83 `42+row*7+col`. `currentTurn` does **not** flip when a move completes ≥1 box (extra turn). The round ends on majority or a full-board draw (18–18 / 8–8). There is no `winningLine`.
 
 **SOS** uses `board: string[49]` — each cell holds `''` | `'S'` | `'O'` (board letters, not player symbols), row-major in a 7×7 grid. `sosLines: [{ cells: [a,b,c], by: 'X'|'O' }]` is an append-only record of completed S-O-S sequences (absent/null when none yet — Firebase deletes empty arrays; always normalize on read with `normalizeSosLines()`). Round scores are derived: X's count = lines where `by === 'X'`. When a move completes ≥1 SOS, `currentTurn` stays on the mover (extra turn); otherwise it flips. The round ends when all 49 cells are filled: most SOS sequences wins; equal → draw. There is no `winningLine`.
 

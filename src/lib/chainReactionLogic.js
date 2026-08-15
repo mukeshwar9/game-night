@@ -1,31 +1,46 @@
 // Chain Reaction — pure game logic
-// Board: 6 columns × 8 rows = 48 cells, row-major.
+// Default board: 8 columns × 10 rows = 80 cells, row-major.
+// Classic variant: 6×8 = 48 cells.
 // Cell encoding: '' = empty, '<symbol><count>' e.g. 'X1', 'O3'.
 
-export const CR_COLS = 6
-export const CR_ROWS = 8
-export const CR_CELL_COUNT = CR_COLS * CR_ROWS // 48
+export const CR_COLS = 8
+export const CR_ROWS = 10
+export const CR_CELL_COUNT = CR_COLS * CR_ROWS
+
+export const CR_COLS_CLASSIC = 6
+export const CR_ROWS_CLASSIC = 8
+export const CR_CELL_COUNT_CLASSIC = CR_COLS_CLASSIC * CR_ROWS_CLASSIC
+
+export function crDimsFromLength(n) {
+  if (n === CR_CELL_COUNT_CLASSIC) return { cols: CR_COLS_CLASSIC, rows: CR_ROWS_CLASSIC }
+  return { cols: CR_COLS, rows: CR_ROWS }
+}
+
+function resolveDims(board, dims) {
+  if (dims?.cols && dims?.rows) return dims
+  return crDimsFromLength(board?.length)
+}
 
 // How many orthogonal neighbours a cell has (= critical mass to explode).
-export function criticalMass(index) {
-  const row = Math.floor(index / CR_COLS)
-  const col = index % CR_COLS
+export function criticalMass(index, cols = CR_COLS, rows = CR_ROWS) {
+  const row = Math.floor(index / cols)
+  const col = index % cols
   const top    = row > 0
-  const bottom = row < CR_ROWS - 1
+  const bottom = row < rows - 1
   const left   = col > 0
-  const right  = col < CR_COLS - 1
+  const right  = col < cols - 1
   return (top ? 1 : 0) + (bottom ? 1 : 0) + (left ? 1 : 0) + (right ? 1 : 0)
 }
 
 // Orthogonal neighbour indices of a cell.
-function neighbours(index) {
-  const row = Math.floor(index / CR_COLS)
-  const col = index % CR_COLS
+function neighbours(index, cols, rows) {
+  const row = Math.floor(index / cols)
+  const col = index % cols
   const ns = []
-  if (row > 0)             ns.push(index - CR_COLS)
-  if (row < CR_ROWS - 1)   ns.push(index + CR_COLS)
-  if (col > 0)             ns.push(index - 1)
-  if (col < CR_COLS - 1)   ns.push(index + 1)
+  if (row > 0)           ns.push(index - cols)
+  if (row < rows - 1)    ns.push(index + cols)
+  if (col > 0)           ns.push(index - 1)
+  if (col < cols - 1)    ns.push(index + 1)
   return ns
 }
 
@@ -48,45 +63,41 @@ export function encodeCell(owner, count) {
  * @param {string[]} board  - board before placement (not mutated)
  * @param {number}   index  - cell to place on
  * @param {string}   symbol - 'X' or 'O'
+ * @param {{cols:number, rows:number}} [dims]
  * @returns {{ board: string[], steps: Array<{ exploded: number[], converted: number[] }> }}
- *   steps: one entry per explosion wave.
- *   exploded = indices that fired that wave (ascending).
- *   converted = neighbour indices that received an orb that wave (ascending, may overlap with exploded from prior waves).
  */
-export function applyPlacement(board, index, symbol) {
+export function applyPlacement(board, index, symbol, dims) {
+  const { cols, rows } = resolveDims(board, dims)
+  const cellCount = cols * rows
   const newBoard = [...board]
 
-  // Place one orb.
   const { count: c0 } = decodeCell(newBoard[index])
   newBoard[index] = encodeCell(symbol, c0 + 1)
 
   const steps = []
-  const MAX_WAVES = CR_CELL_COUNT * 10
+  const MAX_WAVES = cellCount * 10
   let safetyWaves = 0
 
-  // Seed the first wave: if the placed cell is now at or above critical mass.
-  let currentLevel = c0 + 1 >= criticalMass(index) ? [index] : []
+  let currentLevel = c0 + 1 >= criticalMass(index, cols, rows) ? [index] : []
 
   while (currentLevel.length && safetyWaves++ < MAX_WAVES) {
-    // Deduplicate and sort ascending for determinism.
     const toExplode = [...new Set(currentLevel)].sort((a, b) => a - b)
     const nextLevel = []
     const convertedSet = new Set()
 
     for (const idx of toExplode) {
-      const cm = criticalMass(idx)
+      const cm = criticalMass(idx, cols, rows)
       const { owner, count } = decodeCell(newBoard[idx])
-      if (count < cm) continue // no longer critical (resolved by a prior step this wave)
+      if (count < cm) continue
 
-      // Explode: shed criticalMass orbs, remainder stays with original owner.
       const remainder = count - cm
       newBoard[idx] = encodeCell(owner, remainder)
 
-      for (const n of neighbours(idx)) {
+      for (const n of neighbours(idx, cols, rows)) {
         const { count: nc } = decodeCell(newBoard[n])
         newBoard[n] = encodeCell(symbol, nc + 1)
         convertedSet.add(n)
-        if (nc + 1 >= criticalMass(n)) {
+        if (nc + 1 >= criticalMass(n, cols, rows)) {
           nextLevel.push(n)
         }
       }
@@ -102,11 +113,8 @@ export function applyPlacement(board, index, symbol) {
   return { board: newBoard, steps }
 }
 
-// Check winner after the board is stable.
-// Returns { winner } or null.
-// `crMoves` is the total move count *after* this move (≥2 means both players moved).
 function checkWinner(board, crMoves) {
-  if (crMoves < 2) return null // need at least one move each
+  if (crMoves < 2) return null
   const hasX = board.some(c => c && c[0] === 'X')
   const hasO = board.some(c => c && c[0] === 'O')
   if (!hasX) return { winner: 'O' }
@@ -116,20 +124,17 @@ function checkWinner(board, crMoves) {
 
 /**
  * Apply a Chain Reaction move.
- * @param {object} params
- * @param {string[]} params.board  - current board (string[48])
- * @param {object}  params.game   - full game node (for crMoves)
- * @param {number}  params.index  - target cell index
- * @param {string}  params.symbol - 'X' or 'O'
- * @returns {{ updates, result } | null}  null = invalid move (ignored by Game.jsx)
+ * @returns {{ updates, result } | null}
  */
-export function applyChainReactionMove({ board, game, index, symbol }) {
-  if (index < 0 || index >= CR_CELL_COUNT) return null
+export function applyChainReactionMove({ board, game, index, symbol, cols, rows }) {
+  const dims = resolveDims(board, (cols && rows) ? { cols, rows } : undefined)
+  const cellCount = dims.cols * dims.rows
+  if (index < 0 || index >= cellCount) return null
 
   const cell = board[index]
-  if (cell && cell[0] !== symbol) return null // opponent's cell — illegal
+  if (cell && cell[0] !== symbol) return null
 
-  const { board: newBoard } = applyPlacement(board, index, symbol)
+  const { board: newBoard } = applyPlacement(board, index, symbol, dims)
 
   const newMoves = (game.crMoves ?? 0) + 1
   const result = checkWinner(newBoard, newMoves)

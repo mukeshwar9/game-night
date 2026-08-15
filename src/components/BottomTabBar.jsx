@@ -2,15 +2,9 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { cn } from '@/lib/utils'
 
-// M-62: persistent Home/Daily/Friends/Profile tab bar, rendered at App level
-// on the meta routes only (App.jsx decides when to mount this). Replaces the
-// scattered per-page nav (NavBar's profile/friends links, Home's fixed corner
-// chips) with one consistent, always-44px affordance — also closes M-69's
-// "three uncoordinated go-home patterns" since Home is now one of four equal
-// tabs instead of a bespoke logo/text-link per screen. On the routes where
-// NavBar is still mounted alongside this bar (Profile/Friends/DailyGame),
-// NavBar.jsx itself suppresses its brand-logo Link so this HOME tab stays the
-// only go-home control on screen.
+// Persistent Home/Daily/Friends/Profile tab bar, rendered at App level
+// on the meta routes only (App.jsx decides when to mount this). The Game
+// Night logo in the sticky NavBar is the go-home control on every screen.
 const TABS = [
   {
     to: '/',
@@ -73,7 +67,7 @@ export default function BottomTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed bottom-0 inset-x-0 z-20 border-t border-retro-border/60 bg-retro-bg/95 backdrop-blur
+      className="fixed bottom-0 inset-x-0 z-30 border-t border-retro-border/60 bg-retro-bg/95 backdrop-blur
         pb-[max(0.5rem,env(safe-area-inset-bottom))]
         pl-[max(0,env(safe-area-inset-left))] pr-[max(0,env(safe-area-inset-right))]"
     >

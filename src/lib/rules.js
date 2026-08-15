@@ -46,6 +46,17 @@ export const GAME_RULES = {
     win: 'First to line up four in a row (horizontally, vertically, or diagonally) wins. If one move makes four for both players, the mover wins.',
   },
 
+  pacmac: {
+    objective: 'Eat more pellets than your rival in a shared maze while dodging ghosts.',
+    howToPlay: [
+      'Steer your muncher with arrow keys, WASD, or swipe — reverse is allowed.',
+      'Pellets are shared: whoever bites first gets the points. Power pellets frighten ghosts.',
+      'A ghost hit stuns you and sends you home; eating a frightened ghost scores a bonus.',
+      'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
+    ],
+    win: 'Highest score when the maze is empty or the 90-second clock hits zero wins the round. A tie is a draw. First to 3 rounds wins the match.',
+  },
+
   pong: {
     objective: 'Send the ball past your opponent’s paddle to score.',
     howToPlay: [
@@ -79,6 +90,16 @@ export const GAME_RULES = {
   },
 
   dotsandboxes: {
+    objective: 'Claim more of the 36 boxes (a 6×6 grid) than your opponent.',
+    howToPlay: [
+      'Take turns drawing one edge between two dots.',
+      'Complete the 4th side of a box to claim it and stamp it with your mark.',
+      'Completing a box earns you an extra turn — keep going while you keep closing boxes.',
+    ],
+    win: 'Own the most boxes when all 36 are claimed. First to 19 clinches it early; 18–18 is a draw.',
+  },
+
+  dotsandboxes4: {
     objective: 'Claim more of the 16 boxes (a 4×4 grid) than your opponent.',
     howToPlay: [
       'Take turns drawing one edge between two dots.',
@@ -296,6 +317,17 @@ export const GAME_RULES = {
   },
 
   chainreaction: {
+    objective: 'Trigger chain reactions on the 8×10 grid to wipe every orb of your opponent’s color off the board.',
+    howToPlay: [
+      'On your turn, place an orb in any empty cell or a cell you already own.',
+      'Each cell has a capacity (2 in a corner, 3 on an edge, 4 in the interior) — reaching it makes the cell explode.',
+      'An exploding cell fires one orb into each orthogonal neighbor, converting those cells to your color and possibly pushing them past their own capacity — cascading into a chain reaction.',
+      'You can only place on empty cells or cells you already own; opponent-owned cells are off limits.',
+    ],
+    win: 'Once both players have made at least one move, if your opponent has no orbs left on the board, you win.',
+  },
+
+  chainreaction6: {
     objective: 'Trigger chain reactions on the 6×8 grid to wipe every orb of your opponent’s color off the board.',
     howToPlay: [
       'On your turn, place an orb in any empty cell or a cell you already own.',

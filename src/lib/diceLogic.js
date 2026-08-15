@@ -20,14 +20,13 @@ export const PIG_TARGET = 100
 // same value on snapshot.
 
 function randomSeedHex(bytes = 16) {
-  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)))
-    .map(b => b.toString(16).padStart(2, '0')).join('')
+  const buf = new Uint8Array(bytes)
+  if (globalThis.crypto?.getRandomValues) crypto.getRandomValues(buf)
+  else for (let i = 0; i < bytes; i++) buf[i] = Math.floor(Math.random() * 256)
+  return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-async function sha256hex(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
-}
+import { sha256hex } from './sha256'
 
 // Hex-encoded random seed (16 bytes / 32 hex chars).
 export function generateSeedHex() {

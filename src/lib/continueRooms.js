@@ -35,7 +35,11 @@ export function deriveChip(game, myId, sessionSeat) {
   const mySeat = resolveSeat(game, myId, sessionSeat)
   const isNPlayer = isNPlayerGame(game)
 
-  if (game?.status === 'waiting') return { text: 'WAITING FOR OPPONENT', tone: 'dim' }
+  if (game?.status === 'waiting') {
+    const bothSeated = !isNPlayer && game.players?.X && game.players?.O
+    if (bothSeated) return { text: 'READY TO START', tone: 'action' }
+    return { text: 'WAITING FOR OPPONENT', tone: 'dim' }
+  }
 
   if (game?.status === 'finished') {
     const won = !!game.winner && game.winner === mySeat

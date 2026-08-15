@@ -4,15 +4,15 @@
 
 The fourth game type on the platform (React + Vite + Firebase RTDB, no backend), alongside tictactoe, connectfour, and hangwoman. Players take turns drawing edges on a dot grid; completing a box claims it and grants an extra turn; most boxes wins the round. Rounds feed the existing first-to-3 match system.
 
-Rules as built: **4×4 boxes** (5×5 dots, 40 edges, 16 boxes) and **early clinch** — a round ends as soon as one player owns 9 boxes (majority); 8–8 with all boxes claimed is a draw.
+Rules as built: **6×6 boxes** by default (7×7 dots, 84 edges, 36 boxes, clinch 19); **4×4 classic** is a `variantOf` mode (`dotsandboxes4`, 40 edges, 16 boxes, clinch 9).
 
 The room/invite/presence/score/win-effect layer is game-agnostic, and `Game.jsx` has no per-game branches. Dots and Boxes doesn't fit the registry's standard place-symbol → flip-turn → check-winner shape (extra turn on box completion, a second `boxes` array, winner computed from boxes), so it shipped with two new **optional registry hooks** — `applyMove` and `boardProps` — rather than per-game branches in `Game.jsx`. Any future non-standard game can use the same hooks.
 
 ## Data model (Firebase `games/{gameId}`)
 
 - `gameType: 'dotsandboxes'`
-- `board: string[40]` — edges, `''`/`'X'`/`'O'` (keeps the platform's empty-string convention so `normalizeBoard` works). Horizontal edges 0–19: `row*4+col` (rows 0–4, cols 0–3). Vertical edges 20–39: `20 + row*5 + col` (rows 0–3, cols 0–4).
-- `boxes: string[16]` — box ownership, `''`/`'X'`/`'O'`. Stored, not derived: ownership depends on who drew each box's *last* edge.
+- `board: string[84]` — edges, `''`/`'X'`/`'O'` (keeps the platform's empty-string convention so `normalizeBoard` works). Horizontal edges 0–41: `row*6+col` (rows 0–6, cols 0–5). Vertical edges 42–83: `42 + row*7 + col` (rows 0–5, cols 0–6).
+- `boxes: string[36]` — box ownership, `''`/`'X'`/`'O'`. Stored, not derived: ownership depends on who drew each box's *last* edge.
 - `currentTurn` does **not** flip when the move completes ≥1 box (extra turn).
 - `winner` is set with no `winningLine` (`Game.jsx` guards `result.line?.length`).
 
@@ -21,20 +21,20 @@ The room/invite/presence/score/win-effect layer is game-agnostic, and `Game.jsx`
 ### `src/lib/dotsAndBoxesLogic.js`
 Pure logic, no DOM or Firebase:
 ```js
-export const DB_SIZE = 4, DB_EDGE_COUNT = 40, DB_BOX_COUNT = 16
-export const hEdgeIndex = (row, col) => row * 4 + col
-export const vEdgeIndex = (row, col) => 20 + row * 5 + col
+export const DB_SIZE = 6, DB_EDGE_COUNT = 84, DB_BOX_COUNT = 36
+export const hEdgeIndex = (row, col) => row * 6 + col
+export const vEdgeIndex = (row, col) => 42 + row * 7 + col
 export function edgesOfBox(b)   // [top, bottom, left, right]
 export function boxesOfEdge(e)  // 1–2 adjacent box indices (border edges → 1, interior → 2)
 export function applyEdgeMove(edges, boxes, edgeIndex, symbol)
   // pure; null if out of range or occupied
   // → { edges, boxes, completedBoxes: number[] } — completed boxes assigned to symbol
 export function getDotsAndBoxesWinner(boxes)
-  // x>=9 → {winner:'X'}; o>=9 → {winner:'O'}; all 16 claimed → {winner:'draw'}; else null
+  // x>=19 → {winner:'X'}; o>=19 → {winner:'O'}; all 36 claimed → {winner:'draw'}; else null
 ```
 
 ### `src/lib/dotsAndBoxesLogic.test.js`
-Vitest suite covering: index helpers and box/edge adjacency (every box appears in `boxesOfEdge(e)` for each of its 4 edges; 64 total incidences); `applyEdgeMove` immutability, occupied/out-of-range rejection, **last-edge-wins ownership** (3 edges by X, 4th by O → O owns), **double completion** (one shared interior edge completes 2 boxes, both to the mover); clinch at 9, 8–8 full-board draw, and a full-game simulation driving every move through `applyEdgeMove` with the extra-turn rule.
+Vitest suite covering: index helpers and box/edge adjacency (every box appears in `boxesOfEdge(e)` for each of its 4 edges); `applyEdgeMove` immutability, occupied/out-of-range rejection, **last-edge-wins ownership** (3 edges by X, 4th by O → O owns), **double completion** (one shared interior edge completes 2 boxes, both to the mover); clinch at 19, 18–18 full-board draw, and a full-game simulation driving every move through `applyEdgeMove` with the extra-turn rule.
 
 ### `src/components/DotsAndBoxesBoard.jsx`
 Props `{ board, boxes, onMove, disabled, currentTurn }`, following the `ConnectFourBoard.jsx` patterns (X=`retro-p1` / O=`retro-p2` — cyan/pink in the default theme). A 9×9 CSS grid renders dots, edges, and boxes from one loop. Each edge is a thin visible line inside a **32px touch target** (the button overflows the 14px cross-axis track). Claimed boxes get an owner-tinted background and a glowing owner letter entering via the `box-claim` keyframe (`src/index.css`). A box-count bar (`X n — n O`) sits under the grid.

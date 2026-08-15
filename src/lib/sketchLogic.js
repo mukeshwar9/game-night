@@ -166,6 +166,7 @@ export function nextRoundState(round) {
       commitment: null,
       wordPattern: '',
       strokes: null,
+      fills: null,
       chat: null,
       correct: null,
       scored: false,

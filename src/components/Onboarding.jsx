@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import ThemeSwitcher from './ThemeSwitcher'
 import AvatarCustomizer from './AvatarCustomizer'
 import { defaultAvatarForId, canonicalAvatar } from '../lib/avatars'
 import { useAuth } from '../lib/AuthContext'
@@ -85,11 +84,6 @@ export default function Onboarding({ onDone }) {
 
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-4">
-      {/* Theme switcher — fixed top-right per every-page convention */}
-      <div className="fixed top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-10">
-        <ThemeSwitcher />
-      </div>
-
       {step === 'welcome' && (
         <div key="welcome" className="w-full max-w-xs space-y-8 text-center" style={{ animation: 'place-pop 0.25s ease-out' }}>
           {/* Logo — mirrors Home.jsx logo block */}

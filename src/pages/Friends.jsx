@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { toast } from 'sonner'
-import NavBar from '../components/NavBar'
 import Avatar from '../components/Avatar'
 import Skeleton from '../components/loading/Skeleton'
 import EmptyState from '../components/EmptyState'
@@ -201,7 +200,6 @@ export default function Friends() {
 
   return (
     <div className="min-h-screen bg-retro-bg">
-      <NavBar />
       <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-sm mx-auto space-y-6 pt-2">
         <h1 className="font-pixel text-base text-retro-cta text-glow-cta">FRIENDS</h1>

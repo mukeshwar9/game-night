@@ -8,10 +8,8 @@ import { getPlayerId } from '../lib/playerId'
 import { getStats, getRooms, recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
-import { sounds } from '../lib/sounds'
 import GamePicker from '../components/GamePicker'
 import EmptyState from '../components/EmptyState'
-import ThemeSwitcher from '../components/ThemeSwitcher'
 import Avatar from '../components/Avatar'
 import Onboarding from '../components/Onboarding'
 import DailyTile from '../components/DailyTile'
@@ -30,7 +28,6 @@ export default function Home() {
   const navigate = useNavigate()
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(null)
-  const [muted, setMuted] = useState(() => sounds.isMuted())
   const { canInstall, install, isIos } = useInstallPrompt()
   const stats = useMemo(() => getStats(), [])
   const [isNewVisitor] = useState(() => !localStorage.getItem('playerName') && getRooms().length === 0)
@@ -60,8 +57,6 @@ export default function Home() {
   }
 
   const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
-
-  const toggleMute = () => setMuted(sounds.toggle())
 
   // M-82: restore scroll position on return from a game (Home fully
   // unmounts on navigation, so this can't be a simple useState/useRef).
@@ -139,43 +134,7 @@ export default function Home() {
   )
 
   return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-4 relative">
-      {/* Controls — fixed top-right */}
-      <div className="fixed top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-10 flex gap-2">
-        <ThemeSwitcher />
-        <button
-          onClick={toggleMute}
-          title={muted ? 'Unmute sounds' : 'Mute sounds'}
-          className="min-h-11 min-w-11 flex items-center justify-center text-retro-dim hover:text-retro-text transition-colors p-2 rounded border border-retro-border bg-retro-card"
-        >
-          {muted ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Unmute">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-              <line x1="23" y1="9" x2="17" y2="15"/>
-              <line x1="17" y1="9" x2="23" y2="15"/>
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Mute">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-            </svg>
-          )}
-        </button>
-      </div>
-
-      {/* M-62: the profile/friends chips that used to live here are now the
-          Profile/Friends tabs in BottomTabBar (rendered app-wide at App
-          level), so Home no longer hand-rolls its own copy of that nav. */}
-
-      {/* M-23: in-flow spacer clearing the fixed top-right control row above —
-          matches its top offset + height so scrolling content never runs
-          underneath (and steals/blocks taps from) the theme/mute chips. */}
-      <div
-        aria-hidden="true"
-        style={{ height: 'calc(max(1rem, env(safe-area-inset-top)) + 2.75rem)' }}
-      />
-
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 relative">
       {configError && (
         <div className="w-full max-w-sm mb-6 border border-retro-p2/50 bg-retro-card rounded px-4 py-3">
           <p className="font-pixel text-[10px] text-retro-p2">FIREBASE NOT CONFIGURED</p>
