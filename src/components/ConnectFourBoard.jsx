@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { CF_COLS, CF_ROWS } from '../lib/connectFourLogic'
-
-export default function ConnectFourBoard({ board, onMove, disabled, winningLine = [], currentTurn, popMode = false, lastMove = null }) {
+export default function ConnectFourBoard({ board, onMove, disabled, winningLine = [], currentTurn, popMode = false, lastMove = null, cols = 7, rows = 6 }) {
   const [hoveredCol, setHoveredCol] = useState(null)
 
   // In pop mode the board emits { col, action }; classic mode emits a bare col.
@@ -10,19 +8,19 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
     if (disabled) return
     onMove(popMode ? { col, action } : col)
   }
-  const bottomOf = (col) => board[(CF_ROWS - 1) * CF_COLS + col]
+  const bottomOf = (col) => board[(rows - 1) * cols + col]
 
   return (
-    <div className="w-full max-w-sm sm:max-w-md mx-auto">
+    <div className={cn('w-full mx-auto', cols > 7 ? 'max-w-md sm:max-w-xl' : 'max-w-sm sm:max-w-md')}>
       <div
         className={cn(
           'bg-retro-surface border-2 border-retro-border rounded p-2 sm:p-2.5 transition-all duration-200',
           disabled && 'opacity-60 saturate-50',
         )}
       >
-        <div className="grid gap-1 sm:gap-1.5" style={{ gridTemplateColumns: `repeat(${CF_COLS}, 1fr)` }}>
+        <div className="grid gap-1 sm:gap-1.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
           {board.map((cell, i) => {
-            const col = i % CF_COLS
+            const col = i % cols
             const colFull = !!board[col]
             const isHovered = hoveredCol === col && !disabled && !colFull
             return (
@@ -70,9 +68,9 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
         {popMode && (
           <div
             className="grid gap-1 sm:gap-1.5 mt-1.5 pt-1.5 border-t border-retro-border/60"
-            style={{ gridTemplateColumns: `repeat(${CF_COLS}, 1fr)` }}
+            style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
           >
-            {Array.from({ length: CF_COLS }, (_, col) => {
+            {Array.from({ length: cols }, (_, col) => {
               const canPop = !disabled && bottomOf(col) === currentTurn
               return (
                 <button

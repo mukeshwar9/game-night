@@ -14,7 +14,7 @@ const PIP_LAYOUT = {
 
 function Die({ value, bust }) {
   const pips = PIP_LAYOUT[value] || []
-  const isBust = bust || value === 1
+  const isBust = !!bust
   return (
     <div
       className={cn(
@@ -69,6 +69,7 @@ export default function DiceBoard({
   diceRolls = [],
   diceSeed = null,
   diceSeedPending = false,
+  isBig = false,
 }) {
   const turnColor = currentTurn === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
 
@@ -77,7 +78,7 @@ export default function DiceBoard({
   const overflow = trail.length > TRAIL_CAP
   const shown = overflow ? trail.slice(trail.length - TRAIL_CAP) : trail
 
-  const justBusted = diceLast === 1
+  const justBusted = isBig ? (Array.isArray(diceLast) && diceLast[0] === 1 && diceLast[1] === 1) : diceLast === 1
 
   return (
     <div className="w-full max-w-xs mx-auto">
@@ -111,14 +112,32 @@ export default function DiceBoard({
         {/* Roll-history trail (this turn's at-risk rolls) */}
         <div className="min-h-7 flex items-center justify-center gap-1 flex-wrap">
           {overflow && <span className="font-pixel text-[8px] text-retro-dim">…</span>}
-          {shown.map((v, i) => (
+          {isBig ? shown.map((pair, i) => (
+            <div key={i} className="flex gap-0.5">
+              <div className="w-5 h-5 rounded border border-retro-border bg-retro-surface flex items-center justify-center font-pixel text-[7px] text-retro-cta">{Array.isArray(pair) ? pair[0] : pair}</div>
+              <div className="w-5 h-5 rounded border border-retro-border bg-retro-surface flex items-center justify-center font-pixel text-[7px] text-retro-cta">{Array.isArray(pair) ? pair[1] : ''}</div>
+            </div>
+          )) : shown.map((v, i) => (
             <MiniDie key={i} value={v} />
           ))}
         </div>
 
         {/* The last die */}
         <div className="h-24 flex items-center justify-center">
-          {diceLast ? (
+          {isBig ? (
+            Array.isArray(diceLast) ? (
+              <div className="flex gap-3">
+                <Die value={diceLast[0]} bust={justBusted} />
+                <Die value={diceLast[1]} bust={justBusted} />
+              </div>
+            ) : (
+              <div className="w-24 h-24 rounded-lg border-2 border-dashed border-retro-border flex items-center justify-center">
+                <span className="font-pixel text-[8px] text-retro-dim text-center leading-relaxed">
+                  ROLL<br />TO<br />START
+                </span>
+              </div>
+            )
+          ) : diceLast ? (
             <Die value={diceLast} bust={justBusted} />
           ) : (
             <div className="w-24 h-24 rounded-lg border-2 border-dashed border-retro-border flex items-center justify-center">

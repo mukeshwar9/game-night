@@ -75,6 +75,45 @@ export function rollDie() {
   return Math.floor(Math.random() * 6) + 1
 }
 
+// Pig Big — two dice, only snake eyes bust
+export function applyDiceBigMove(game, action, symbol, facePair) {
+  if (symbol !== 'X' && symbol !== 'O') return null
+  if (action !== 'roll' && action !== 'bank') return null
+  const opponent = symbol === 'X' ? 'O' : 'X'
+  const turnScore = game.diceTurnScore ?? 0
+  const myScore = (symbol === 'X' ? game.diceScoreX : game.diceScoreO) ?? 0
+  const seed = game.diceSeed ?? null
+  const rollIndex = game.diceRollIndex ?? 0
+  const rollTrail = Array.isArray(game.diceRolls) ? game.diceRolls : []
+  if (action === 'roll') {
+    let d1, d2
+    if (Array.isArray(facePair)) [d1, d2] = facePair
+    else if (seed) return null
+    else { d1 = rollDie(); d2 = rollDie() }
+    const isDoubleOne = d1 === 1 && d2 === 1
+    const sum = d1 + d2
+    const updates = { diceLast: [d1, d2], diceRolls: [...rollTrail, [d1, d2]], diceRollIndex: rollIndex + 1, lastMove: 0 }
+    if (isDoubleOne) {
+      updates.diceTurnScore = 0
+      updates.currentTurn = opponent
+      return { updates, result: null }
+    }
+    updates.diceTurnScore = turnScore + sum
+    updates.currentTurn = symbol
+    return { updates, result: null }
+  }
+  const newScore = myScore + turnScore
+  const scoreKey = symbol === 'X' ? 'diceScoreX' : 'diceScoreO'
+  const win = newScore >= PIG_TARGET
+  return { updates: { [scoreKey]: newScore, diceTurnScore: 0, diceRolls: [], diceLast: null, currentTurn: opponent }, result: win ? { winner: symbol } : null }
+}
+
+export async function rollFacePairAsync(seedHex, index) {
+  const d1 = await rollFaceAsync(seedHex, index * 2)
+  const d2 = await rollFaceAsync(seedHex, index * 2 + 1)
+  return [d1, d2]
+}
+
 // Move application for PIG (push-your-luck dice). Synchronous so it composes
 // with the generic BotBoardDemo harness (and Game.jsx's applyMove path).
 // action: 'roll' | 'bank'

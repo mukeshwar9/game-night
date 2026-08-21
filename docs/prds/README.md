@@ -20,6 +20,9 @@ conventions** below — read this file first.
 | [trivia-blitz.md](trivia-blitz.md) | Trivia Blitz | party | 2–8 | custom party page | RTDB | S/M | P3 |
 | [air-hockey.md](air-hockey.md) | Air Hockey | reflex | 2 | custom realtime page | WebRTC (pong stack) | M | P3 |
 | [artillery.md](artillery.md) | Artillery | reflex | 2 | custom page | RTDB (deterministic replay) | L | P3 |
+| [connectfour5.md](connectfour5.md) | Connect Four 5 (9×7) | board | 2 | standard registry (`variantOf` C4) | RTDB | S | P2 |
+| [dice-big.md](dice-big.md) | Pig Big (2 dice) | dicebluff | 2 | registry + `applyMove` (`variantOf` Pig) | RTDB + Pig seed | S/M | P2 |
+| [tictactoe4.md](tictactoe4.md) | Tic Tac Toe 4×4 | board | 2 | standard registry (`variantOf` TTT) | RTDB | S | P2 |
 
 **Effort legend:** S ≈ one focused session · M ≈ 2–3 sessions · L ≈ a week of sessions.
 

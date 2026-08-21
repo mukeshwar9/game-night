@@ -15,10 +15,20 @@ export const GAME_RULES = {
     win: 'Get 3 in a row across, down, or diagonally to win. If the board fills with no line, it’s a draw.',
   },
 
+  tictactoe4: {
+    objective: 'Be the first to line up four of your marks in a row on the 4×4 board.',
+    howToPlay: [
+      'Players take turns — one is X, the other is O.',
+      'Tap any empty square on the 4×4 grid to place your mark.',
+      'Four in any row, column, or diagonal wins — three does not.',
+    ],
+    win: 'Get 4 in a row to win. If all 16 cells fill with no line, it’s a draw.',
+  },
+
   connectfour: {
     objective: 'Connect four of your discs in a line before your opponent does.',
     howToPlay: [
-      'Take turns dropping a disc into one of the 7 columns on the 7×6 grid.',
+      'Take turns dropping a disc into one of the 9 columns on the 9×7 grid.',
       'Discs fall to the lowest empty slot — you only choose the column.',
     ],
     win: 'Line up 4 of your discs horizontally, vertically, or diagonally to win. A full board with no four-in-a-row is a draw.',
@@ -44,6 +54,16 @@ export const GAME_RULES = {
       'A pop can complete a line for either player — watch what falls into place.',
     ],
     win: 'First to line up four in a row (horizontally, vertically, or diagonally) wins. If one move makes four for both players, the mover wins.',
+  },
+
+  connectfour5: {
+    objective: 'Connect five of your discs in a line on the 9×7 board before your opponent does.',
+    howToPlay: [
+      'Take turns dropping a disc into one of the 9 columns on the 9×7 grid.',
+      'Discs fall to the lowest empty slot — you only choose the column.',
+      'Four in a row does not win — you need five.',
+    ],
+    win: 'Line up 5 of your discs horizontally, vertically, or diagonally to win. A full board with no five-in-a-row is a draw.',
   },
 
   pacmac: {
@@ -231,6 +251,59 @@ export const GAME_RULES = {
       'Roll a 1 and you lose all at-risk points for the turn and the dice pass.',
     ],
     win: 'First player to reach 100 banked points wins.',
+  },
+
+  'dice-big': {
+    objective: 'Be the first to bank 100 points with two dice — only snake eyes bust.',
+    howToPlay: [
+      'On your turn, roll two dice — both add to your at-risk total.',
+      'Only a double 1 (snake eyes) wipes your at-risk points and passes the dice; a single 1 still scores.',
+      'Bank to add your at-risk points to your score and pass the dice.',
+    ],
+    win: 'First player to reach 100 banked points wins.',
+  },
+
+  hex: {
+    objective: 'Connect your two assigned edges with an unbroken chain of stones.',
+    howToPlay: [
+      'Take turns placing one stone on any empty cell of the 11×11 rhombus.',
+      'X must connect the LEFT and RIGHT edges; O must connect the TOP and BOTTOM.',
+      'Stones never move or get captured — every stone stays forever.',
+    ],
+    win: 'First chain linking your two edges wins. Draws are mathematically impossible.',
+  },
+
+  minesweeper: {
+    objective: 'Clear the identical seeded minefield faster than your opponent.',
+    howToPlay: [
+      'Both players sweep the SAME 12×12 board with 22 hidden mines, simultaneously.',
+      'Tap to reveal a cell; numbers show adjacent mines; zeros flood-fill.',
+      'Long-press (or toggle FLAG mode) to mark suspected mines — flags are private.',
+      'Tap a satisfied number to chord-reveal its remaining neighbors.',
+    ],
+    win: 'Reveal all 122 safe cells first — or win instantly when your opponent hits a mine.',
+  },
+
+  herd: {
+    objective: 'Answer like the majority — and avoid becoming the odd one out.',
+    howToPlay: [
+      '3–8 players. Each round everyone secretly answers the same prompt (45s).',
+      'Answers are grouped by matching text: every member of the biggest group(s) scores a point.',
+      'If exactly one player matched nobody, they are stuck with the Pink Cow.',
+      'The Cow holder cannot win — shed it before you reach 8 points.',
+    ],
+    win: 'First player to 8 points while NOT holding the Pink Cow wins the match.',
+  },
+
+  trivia: {
+    objective: 'Answer the most questions correctly — and quickly.',
+    howToPlay: [
+      '2–8 players. 10 questions, everyone answers each one secretly at the same time.',
+      'You have 15 seconds per question; faster correct answers earn more points (up to 1000).',
+      'Consecutive correct answers build a streak worth up to +300 extra per question.',
+      'A wrong answer or a timeout resets your streak to zero.',
+    ],
+    win: 'Highest total score after 10 questions wins — ties are shared.',
   },
 
   twotruths: {

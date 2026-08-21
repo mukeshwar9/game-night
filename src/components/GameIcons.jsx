@@ -522,6 +522,55 @@ export function PacmacIcon() {
   )
 }
 
+export function HexIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 2 L20.5 7 L20.5 17 L12 22 L3.5 17 L3.5 7 Z"
+        stroke="currentColor" strokeWidth="2" strokeLinejoin="miter" />
+      <circle cx="8" cy="9" r="1.6" fill="currentColor" />
+      <circle cx="16" cy="15" r="1.6" fill="currentColor" opacity="0.45" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" opacity="0.7" />
+    </svg>
+  )
+}
+
+export function MinesIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="9" width="6" height="6" fill="currentColor" />
+      <rect x="10.5" y="4" width="3" height="3" fill="currentColor" opacity="0.85" />
+      <rect x="4" y="10.5" width="3" height="3" fill="currentColor" opacity="0.85" />
+      <rect x="17" y="10.5" width="3" height="3" fill="currentColor" opacity="0.85" />
+      <rect x="10.5" y="17" width="3" height="3" fill="currentColor" opacity="0.85" />
+      <rect x="6" y="6" width="2" height="2" fill="currentColor" opacity="0.5" />
+      <rect x="16" y="6" width="2" height="2" fill="currentColor" opacity="0.5" />
+      <rect x="6" y="16" width="2" height="2" fill="currentColor" opacity="0.5" />
+      <rect x="16" y="16" width="2" height="2" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function HerdIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* three heads, one herd */}
+      <circle cx="7" cy="9" r="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="17" cy="9" r="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="12" cy="16" r="3.5" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function TriviaIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <text x="12" y="17" textAnchor="middle" fontSize="16" fontWeight="bold"
+        fill="currentColor" fontFamily="monospace">?</text>
+      <rect x="10.5" y="19" width="3" height="3" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function SketchIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

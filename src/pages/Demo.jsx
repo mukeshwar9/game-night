@@ -17,6 +17,7 @@ import {
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, BlockadeIcon, PairsIcon,
   WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
+  HexIcon, MinesIcon, HerdIcon, TriviaIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
 import SnakeArena from '../components/SnakeArena';
@@ -54,6 +55,9 @@ import SpyfairDemo from './SpyfairDemo';
 import SpaceduelDemo from './SpaceduelDemo';
 import PaintDemo from './PaintDemo';
 import PacmacDemo from './PacmacDemo';
+import MineRaceDemo from './MineRaceDemo';
+import TriviaDemo from './TriviaDemo';
+import HerdDemo from './HerdDemo';
 
 function generateNumberLocal(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
@@ -2238,6 +2242,7 @@ const DEMOS = [
   { type: 'chainreaction6',short: 'CHAIN\n6×8',     Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction6" /> },
   { type: 'blockade',      short: 'BLOCKADE',       Icon: BlockadeIcon,       Component: () => <BotBoardDemo type="blockade" /> },
   { type: 'pairs',         short: 'PAIRS',          Icon: PairsIcon,          Component: () => <BotBoardDemo type="pairs" /> },
+  { type: 'hex',           short: 'HEX',            Icon: HexIcon,            Component: () => <BotBoardDemo type="hex" /> },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
@@ -2250,6 +2255,7 @@ const DEMOS = [
   { type: 'spaceduel',    short: 'SPACE\nDUEL',   Icon: SpaceDuelIcon,    Component: SpaceduelDemo    },
   { type: 'paint',        short: 'PAINT\nTURF',   Icon: PaintIcon,        Component: PaintDemo        },
   { type: 'pacmac',       short: 'PAC\nMAC',      Icon: PacmacIcon,       Component: PacmacDemo       },
+  { type: 'minesweeper',  short: 'MINE\nRACE',    Icon: MinesIcon,        Component: MineRaceDemo     },
   // Memory hot-seat
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonDemo        },
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemoryDemo },
@@ -2265,6 +2271,8 @@ const DEMOS = [
   { type: 'wavelength',   short: 'WAVE\nLENGTH',  Icon: WavelengthIcon,   Component: WavelengthDemo   },
   { type: 'fibbage',      short: 'FIBBAGE',       Icon: FibbageIcon,      Component: FibbageDemo      },
   { type: 'spyfair',      short: 'SPYFAIR',       Icon: SpyfairIcon,      Component: SpyfairDemo      },
+  { type: 'herd',         short: 'HERD\nMIND',    Icon: HerdIcon,         Component: HerdDemo         },
+  { type: 'trivia',       short: 'TRIVIA\nBLITZ', Icon: TriviaIcon,       Component: TriviaDemo       },
   { type: 'sketch',       short: 'SKETCH',        Icon: SketchIcon,       Component: () => <PartyGameCard type="sketch" />      },
 ]
 

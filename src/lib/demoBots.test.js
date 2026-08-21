@@ -69,50 +69,48 @@ describe('pickBotMove — tictactoe', () => {
 // ---------------------------------------------------------------------------
 
 describe('pickBotMove — connectfour', () => {
+  // Classic Connect Four is a 9×7 grid: 63 cells, index = row * 9 + col,
+  // row 0 = top, row 6 = bottom.
   it('takes a winning column immediately', () => {
-    // O has three in a row vertically at col 3 (rows 5,4,3 = 38,31,24).
-    // Only col 3 lets O drop to row 2 (index 17) and win vertically.
-    // No other column gives O a 4-in-a-row.
-    const board = emptyBoard(42)
-    board[38] = 'O' // row5 col3
-    board[31] = 'O' // row4 col3
-    board[24] = 'O' // row3 col3
-    // Block col 2 and col 4 with X so bot can't accidentally win elsewhere
-    board[41] = 'X'
+    // O has three in a row vertically at col 3 (rows 6,5,4 = 57,48,39).
+    // Only col 3 lets O drop to row 3 (index 30) and win vertically.
+    const board = emptyBoard(63)
+    board[57] = 'O' // row6 col3
+    board[48] = 'O' // row5 col3
+    board[39] = 'O' // row4 col3
+    board[62] = 'X'
     const move = pickBotMove('connectfour', boardGame(board), 'O')
-    // O must win via col 3 (vertical completion at index 17)
     expect(move).toBe(3)
   })
 
   it('blocks the opponent from winning (vertical threat)', () => {
-    // X has 3 in a row vertically at col 3 (rows 5,4,3 = indices 38,31,24)
-    // X would win at col 3 row 2 (index 17). Bot must block col 3.
-    const board = emptyBoard(42)
-    board[38] = 'X' // row5 col3
-    board[31] = 'X' // row4 col3
-    board[24] = 'X' // row3 col3
-    board[35] = 'O' // O at row5 col0
-    board[36] = 'O' // O at row5 col1 — no immediate O win
+    // X would win at col 3 row 3 (index 30). Bot must block col 3.
+    const board = emptyBoard(63)
+    board[57] = 'X' // row6 col3
+    board[48] = 'X' // row5 col3
+    board[39] = 'X' // row4 col3
+    board[54] = 'O' // row6 col0
+    board[55] = 'O' // row6 col1 — no immediate O win
     const move = pickBotMove('connectfour', boardGame(board), 'O')
     expect(move).toBe(3)
   })
 
-  it('returns a valid column (0-6) for an empty board', () => {
-    const move = pickBotMove('connectfour', boardGame(emptyBoard(42)), 'O')
+  it('returns a valid column (0-8) for an empty board', () => {
+    const move = pickBotMove('connectfour', boardGame(emptyBoard(63)), 'O')
     expect(move).toBeGreaterThanOrEqual(0)
-    expect(move).toBeLessThanOrEqual(6)
+    expect(move).toBeLessThanOrEqual(8)
   })
 
   it('does not play in a full column', () => {
-    // Fill columns 0-5 completely, only col 6 has space
-    const board = emptyBoard(42)
-    for (let col = 0; col < 6; col++) {
-      for (let row = 0; row < 6; row++) {
-        board[row * 7 + col] = 'X'
+    // Fill columns 0-7 completely, only col 8 has space
+    const board = emptyBoard(63)
+    for (let col = 0; col < 8; col++) {
+      for (let row = 0; row < 7; row++) {
+        board[row * 9 + col] = 'X'
       }
     }
     const move = pickBotMove('connectfour', boardGame(board), 'O')
-    expect(move).toBe(6)
+    expect(move).toBe(8)
   })
 })
 

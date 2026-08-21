@@ -32,19 +32,24 @@ import SpaceduelGame from './SpaceduelGame'
 import PaintGame from './PaintGame'
 import WordDuelGame from './WordDuelGame'
 import WordHuntGame from './WordHuntGame'
+import MineRaceGame from './MineRaceGame'
 import WavelengthGame from './WavelengthGame'
 import FibbageGame from './FibbageGame'
+import HerdGame from './HerdGame'
+import TriviaGame from './TriviaGame'
 import SpyfairGame from './SpyfairGame'
 import SketchGame from './SketchGame'
 import ProposalBanner from '../components/ProposalBanner'
 import GameSwitcher from '../components/GameSwitcher'
+import EmoteBar from '../components/EmoteBar'
+import { isQuickChat } from '../lib/emotes'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import RulesModal, { RulesButton } from '../components/RulesModal'
 import {
-  commitSeed, deriveSeed, generateSeedHex, rollFaceAsync,
+  commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
 } from '../lib/diceLogic'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
@@ -58,8 +63,6 @@ const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
 // dedicated page component, square/wide viewport-hungry courts, and a live
 // score that keeps changing even while a modal hides the board.
 const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel'])
-
-const EMOTES = ['🔥', '😂', '😭', '😎', '👏', '💀', '🤫']
 
 function toArray(val) {
   if (!val) return []
@@ -143,7 +146,11 @@ function EmoteFloats({ floats }) {
             className="flex items-center gap-1"
             style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
           >
-            <span className="text-6xl">{f.glyph}</span>
+            {isQuickChat(f.glyph) ? (
+              <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
+            ) : (
+              <span className="text-6xl">{f.glyph}</span>
+            )}
             {f.count > 1 && (
               <span
                 key={f.count}
@@ -474,7 +481,8 @@ export default function Game() {
     const filledCount = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize).filter(Boolean).length : 0
 
     if (cfg.applyMove) {
-      if (cfg.type === 'dice') {
+      const isPigType = cfg.type === 'dice' || cfg.type === 'dice-big'
+      if (isPigType) {
         // Pig is boardless (filledCount always 0): detect an opponent action
         // by tracking the die roll index + turn score, and verify the roll
         // face against the deterministic seed (anti-cheat, see diceLogic.js).
@@ -482,18 +490,22 @@ export default function Game() {
         const rolled = (game.diceRollIndex ?? 0) > prevDiceRollIndex.current
         const bankedOrBust = (game.diceTurnScore ?? 0) === 0
           && prevDiceTurnScore.current > 0
-          && game.diceLast !== prevDiceLast.current
+          && JSON.stringify(game.diceLast) !== JSON.stringify(prevDiceLast.current)
+        const isBust = Array.isArray(game.diceLast)
+          ? game.diceLast[0] === 1 && game.diceLast[1] === 1
+          : game.diceLast === 1
         if (game.status === 'playing' && opp && (rolled || bankedOrBust)) {
-          if (game.diceLast === 1) sounds.bust()
+          if (isBust) sounds.bust()
           else sounds.move(prevTurn.current)
         }
         // Verify a deterministic roll (only meaningful once diceSeed is set).
         if (rolled && game.diceSeed && game.diceLast != null) {
           const idx = (game.diceRollIndex ?? 0) - 1
-          rollFaceAsync(game.diceSeed, idx).then(expected => {
-            if (expected !== game.diceLast) {
-              toast.error('ROLL MISMATCH — TAMPERING SUSPECTED')
-            }
+          const verify = cfg.type === 'dice-big'
+            ? rollFacePairAsync(game.diceSeed, idx).then(expected => JSON.stringify(expected) !== JSON.stringify(game.diceLast))
+            : rollFaceAsync(game.diceSeed, idx).then(expected => expected !== game.diceLast)
+          verify.then(mismatch => {
+            if (mismatch) toast.error('ROLL MISMATCH — TAMPERING SUSPECTED')
           }).catch(() => {})
         }
       } else if (cfg.type === 'blockade') {
@@ -764,7 +776,7 @@ export default function Game() {
     window.history.pushState({ matchGuard: true }, '')
 
     const onPopState = (e) => {
-      if (e.state && e.state.matchGuard) return
+      if (e.state && (e.state.matchGuard || e.state.modalHistory)) return
       window.history.pushState({ matchGuard: true }, '')
       setShowLeaveConfirm(true)
     }
@@ -806,7 +818,8 @@ export default function Game() {
     if (cfg.custom) return
     // Pig: the deterministic roll seed must be established before any roll so
     // no client can fall back to insecure Math.random(). Banks are seedless.
-    if (cfg.type === 'dice' && colOrIndex === 'roll' && !game.diceSeed) return
+    const isPig = (t) => t === 'dice' || t === 'dice-big'
+    if (isPig(cfg.type) && colOrIndex === 'roll' && !game.diceSeed) return
     const board = normalizeBoard(game.board, cfg.boardSize)
     const index = cfg.getMoveIndex(board, colOrIndex)
     if (index === -1) return
@@ -815,10 +828,12 @@ export default function Game() {
     // seed so applyDiceMove can stay synchronous (the demo/bot harness calls
     // it without a face, falling back to Math.random which is fine vs a bot).
     let movePayload = colOrIndex
-    if (cfg.type === 'dice') {
+    if (isPig(cfg.type)) {
       let face
       if (colOrIndex === 'roll' && game.diceSeed) {
-        face = await rollFaceAsync(game.diceSeed, game.diceRollIndex ?? 0)
+        face = cfg.type === 'dice-big'
+          ? await rollFacePairAsync(game.diceSeed, game.diceRollIndex ?? 0)
+          : await rollFaceAsync(game.diceSeed, game.diceRollIndex ?? 0)
       }
       movePayload = { action: colOrIndex, face }
     }
@@ -847,7 +862,8 @@ export default function Game() {
     // Firebase echo, so a fast second tap could recompute from the pre-tap board.
     moveInFlight.current = true
 
-    if (cfg.type === 'dice' && updates.diceLast === 1) {
+    const isBustMove = isPig(cfg.type) && (Array.isArray(updates.diceLast) ? updates.diceLast[0] === 1 && updates.diceLast[1] === 1 : updates.diceLast === 1)
+    if (isBustMove) {
       sounds.bust()
     } else {
       sounds.move(mySymbol.current)
@@ -1216,6 +1232,10 @@ export default function Game() {
             <WavelengthGame {...nProps} />
           ) : game.gameType === 'fibbage' ? (
             <FibbageGame {...nProps} />
+          ) : game.gameType === 'herd' ? (
+            <HerdGame {...nProps} />
+          ) : game.gameType === 'trivia' ? (
+            <TriviaGame {...nProps} />
           ) : game.gameType === 'sketch' ? (
             <SketchGame {...nProps} />
           ) : (
@@ -1223,21 +1243,7 @@ export default function Game() {
           )}
 
           {amSeated && game.status !== 'waiting' && (
-            <div className="flex justify-center gap-1.5 pt-1">
-              {EMOTES.map(g => (
-                <button
-                  key={g}
-                  onClick={() => sendEmote(g)}
-                  aria-label={`Send ${g} reaction`}
-                  className={cn(
-                    'w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all',
-                    emoteCooldown && 'opacity-50'
-                  )}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
+            <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} />
           )}
         </div>
         {showInvite && (
@@ -1504,6 +1510,17 @@ export default function Game() {
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
+          ) : game.gameType === 'minesweeper' ? (
+            <MineRaceGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
           ) : game.gameType === 'numbermemory' ? (
             <NumberMemoryGame
               gameId={gameId}
@@ -1689,21 +1706,7 @@ export default function Game() {
 
         {/* Emote / reaction bar — players only, once the room is live */}
         {!isSpectator && game.status !== 'waiting' && (
-          <div className="flex justify-center gap-1.5 pt-1">
-            {EMOTES.map(g => (
-              <button
-                key={g}
-                onClick={() => sendEmote(g)}
-                aria-label={`Send ${g} reaction`}
-                className={cn(
-                  'w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all',
-                  emoteCooldown && 'opacity-50'
-                )}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
+          <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} />
         )}
       </div>
       {showInvite && (

@@ -8,6 +8,8 @@ import { getWinner, normalizeBoard } from './gameLogic'
 import {
   getConnectFourWinner,
   getConnectFourDrop,
+  CF_BIG,
+  CF5,
 } from './connectFourLogic'
 import { legalCells, miniBoardWinner, normalizeUWon } from './ultimateTttLogic'
 import { getGomokuWinner, GOMOKU_SIZE, GOMOKU_CELL_COUNT } from './gomokuLogic'
@@ -33,6 +35,7 @@ import {
 } from './chainReactionLogic'
 import { computeBotMove as botBlockade } from './blockadeLogic'
 import { computePairsBotMove } from './pairsLogic'
+import { neighbors, HEX_CELL_COUNT } from './hexLogic'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -102,27 +105,34 @@ function botTicTacToe(game, botSymbol) {
 // Center-biased column preference order
 const CF_COL_PREF = [3, 2, 4, 1, 5, 0, 6]
 
-function botConnectFour(game, botSymbol) {
+// Centre-out column order for any width (7 → [3,2,4,1,5,0,6]).
+function colPref(cols) {
+  if (cols === 7) return CF_COL_PREF
+  const centre = Math.floor(cols / 2)
+  return [...Array(cols).keys()].sort((a, b) => Math.abs(a - centre) - Math.abs(b - centre) || a - b)
+}
+
+function botConnectFour(game, botSymbol, config = null) {
   const board = game.board
   const opp = opponent(botSymbol)
-  const legalCols = CF_COL_PREF.filter(c => getConnectFourDrop(board, c) !== -1)
+  const legalCols = colPref(config?.cols ?? 7).filter(c => getConnectFourDrop(board, c, config ?? undefined) !== -1)
   if (!legalCols.length) return null
 
   // Win immediately
   for (const col of shuffle(legalCols)) {
-    const landing = getConnectFourDrop(board, col)
+    const landing = getConnectFourDrop(board, col, config ?? undefined)
     const b = [...board]
     b[landing] = botSymbol
-    const res = getConnectFourWinner(b)
+    const res = getConnectFourWinner(b, config ?? undefined)
     if (res && res.winner === botSymbol) return col
   }
 
   // Block opponent win
   for (const col of shuffle(legalCols)) {
-    const landing = getConnectFourDrop(board, col)
+    const landing = getConnectFourDrop(board, col, config ?? undefined)
     const b = [...board]
     b[landing] = opp
-    const res = getConnectFourWinner(b)
+    const res = getConnectFourWinner(b, config ?? undefined)
     if (res && res.winner === opp) return col
   }
 
@@ -495,6 +505,23 @@ function botUltimate(game, botSymbol) {
   return pickRandom(centers.length ? centers : cells)
 }
 
+// Hex — casual bot: prefers cells that touch existing stones (builds shapes,
+// contests the center) and falls back to random empties. No deep search; the
+// 11×11 board is far too wide for the demo's 600ms budget to matter.
+function botHex(game, botSymbol) {
+  const board = game.board
+  const empties = []
+  for (let i = 0; i < HEX_CELL_COUNT; i++) {
+    if (board[i] === '' || board[i] == null) empties.push(i)
+  }
+  if (!empties.length) return null
+  const adjacent = empties.filter(i => neighbors(i).some(n => board[n] === botSymbol))
+  const contested = empties.filter(i => neighbors(i).some(n => board[n] && board[n] !== botSymbol))
+  if (adjacent.length && Math.random() < 0.7) return pickRandom(adjacent)
+  if (contested.length && Math.random() < 0.5) return pickRandom(contested)
+  return pickRandom(empties)
+}
+
 // ---------------------------------------------------------------------------
 // Dispatcher
 // ---------------------------------------------------------------------------
@@ -502,8 +529,10 @@ function botUltimate(game, botSymbol) {
 export function pickBotMove(type, game, botSymbol) {
   switch (type) {
     case 'tictactoe':    return botTicTacToe(game, botSymbol)
+    case 'tictactoe4':   return botTicTacToe(game, botSymbol)
     case 'ultimatettt':  return botUltimate(game, botSymbol)
-    case 'connectfour':  return botConnectFour(game, botSymbol)
+    case 'connectfour':  return botConnectFour(game, botSymbol, CF_BIG)
+    case 'connectfour5': return botConnectFour(game, botSymbol, CF5)
     case 'connectfourpop': return botConnectFourPop(game, botSymbol)
     case 'gomoku':       return botGomoku(game, botSymbol)
     case 'reversi':      return botReversi(game, botSymbol)
@@ -512,10 +541,12 @@ export function pickBotMove(type, game, botSymbol) {
     case 'dotsandboxes':
     case 'dotsandboxes4':  return botDotsAndBoxes(game, botSymbol)
     case 'dice':           return botDice(game, botSymbol)
+    case 'dice-big':       return botDice(game, botSymbol)
     case 'chainreaction':
     case 'chainreaction6': return botChainReaction(game, botSymbol)
     case 'blockade':      return botBlockade(game, botSymbol)
     case 'pairs':        return computePairsBotMove(game, botSymbol)
+    case 'hex':          return botHex(game, botSymbol)
     default:               return null
   }
 }

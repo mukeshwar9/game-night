@@ -14,10 +14,10 @@ import {
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
-  PacmacIcon,
+  PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
-import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE } from './connectFourLogic'
+import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5, CF_BIG, CF_BIG_BOARD_SIZE } from './connectFourLogic'
 import {
   UT_CELL_COUNT, UT_BOARD_COUNT, applyUltimateMove, getUltimateWinner, normalizeUWon,
 } from './ultimateTttLogic'
@@ -83,6 +83,12 @@ import {
   getPairsWinner,
 } from './pairsLogic'
 import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
+import { ANSWER_MS as HERD_ANSWER_MS } from './herdLogic'
+import { QUESTION_MS as TRIVIA_QUESTION_MS } from './triviaLogic'
+import { getTicTacToe4Winner } from './tictactoe4Logic'
+import { applyDiceBigMove } from './diceLogic'
+import HexBoard from '../components/HexBoard'
+import { getHexWinner, HEX_CELL_COUNT } from './hexLogic'
 
 const PASSAGES = [
   "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. A wizard's job is to vex chumps quickly in fog.",
@@ -131,6 +137,8 @@ export const GAME_TYPES = [
     badge: null, maxWidth: 'max-w-sm',
     category: 'board',
     durationMin: 1, tags: ['quick', 'thinky'], solo: true,
+    classicLabel: '3×3',
+    classicBlurb: 'Three in a row on a 3×3. The original.',
     boardSize: 9,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     getWinner,
@@ -169,15 +177,44 @@ export const GAME_TYPES = [
     }),
   },
   {
+    type: 'tictactoe4', label: 'TTT 4×4', desc: 'four in a row on 4×4',
+    Icon: TicTacToeIcon, badge: 'TT4', maxWidth: 'max-w-sm',
+    category: 'board', addedAt: '2026-08-15',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    variantOf: 'tictactoe', variantLabel: '4×4',
+    variantBlurb: '16 cells. Four in a row wins. Three does not.',
+    boardSize: 16,
+    getMoveIndex: (board, i) => (board[i] ? -1 : i),
+    getWinner: getTicTacToe4Winner,
+    BoardComponent: Board,
+    boardProps: () => ({ cols: 4 }),
+  },
+  {
     type: 'connectfour', label: 'CONNECT FOUR',
     desc: 'four in a row wins', Icon: ConnectFourIcon,
-    badge: 'C4', maxWidth: 'max-w-md',
+    badge: 'C4', maxWidth: 'max-w-lg',
     category: 'board',
     durationMin: 4, tags: ['thinky'], solo: true,
-    boardSize: CF_BOARD_SIZE,
-    getMoveIndex: getConnectFourDrop,
-    getWinner: getConnectFourWinner,
+    classicLabel: '9×7',
+    classicBlurb: 'Nine columns, four in a row. More room to scheme.',
+    boardSize: CF_BIG_BOARD_SIZE,
+    getMoveIndex: (board, col) => getConnectFourDrop(board, col, CF_BIG),
+    getWinner: (board) => getConnectFourWinner(board, CF_BIG),
     BoardComponent: ConnectFourBoard,
+    boardProps: () => ({ cols: 9, rows: 7 }),
+  },
+  {
+    type: 'connectfour5', label: 'C4 FIVE', desc: 'five in a row on 9×7',
+    Icon: ConnectFourIcon, badge: 'C5', maxWidth: 'max-w-lg',
+    category: 'board', addedAt: '2026-08-15',
+    durationMin: 5, tags: ['thinky'], solo: true,
+    variantOf: 'connectfour', variantLabel: '9×7 · 5',
+    variantBlurb: '9×7 grid. Five in a row wins. Four does not.',
+    boardSize: 63,
+    getMoveIndex: (board, col) => getConnectFourDrop(board, col, CF5),
+    getWinner: (board) => getConnectFourWinner(board, CF5),
+    BoardComponent: ConnectFourBoard,
+    boardProps: () => ({ cols: 9, rows: 7 }),
   },
   {
     type: 'connectfourpop', label: 'C4 POP OUT',
@@ -572,12 +609,12 @@ export const GAME_TYPES = [
     badge: 'PIG', maxWidth: 'max-w-xs',
     category: 'dicebluff',
     durationMin: 5, tags: ['luck'], solo: true,
+    classicLabel: 'ONE DIE',
+    classicBlurb: 'Roll a 1 and the turn pot is gone. First to 100.',
     boardSize: 0,
     getMoveIndex: () => 0,
     BoardComponent: DiceBoard,
     applyMove: ({ game, move, symbol }) => {
-      // `move` is a string ('roll'/'bank') from the bot/demo harness, or
-      // { action, face } from Game.jsx (precomputed deterministic face).
       const action = typeof move === 'string' ? move : move?.action
       const face = typeof move === 'string' ? undefined : move?.face
       return applyDiceMove(game, action, symbol, face)
@@ -589,6 +626,88 @@ export const GAME_TYPES = [
       diceLast: game.diceLast ?? null,
       diceRolls: Array.isArray(game.diceRolls) ? game.diceRolls : [],
       diceSeed: game.diceSeed ?? null,
+    }),
+  },
+  {
+    type: 'dice-big', label: 'PIG BIG', desc: 'two dice, snake eyes bust',
+    Icon: DiceIcon, badge: 'PIG2', maxWidth: 'max-w-xs',
+    category: 'dicebluff', addedAt: '2026-08-15',
+    durationMin: 4, tags: ['luck'], solo: true,
+    variantOf: 'dice', variantLabel: '2 DICE',
+    variantBlurb: 'Two dice. Only double 1 busts. A single 1 still scores.',
+    boardSize: 0,
+    getMoveIndex: () => 0,
+    BoardComponent: DiceBoard,
+    applyMove: ({ game, move, symbol }) => {
+      const action = typeof move === 'string' ? move : move?.action
+      const face = typeof move === 'string' ? undefined : move?.face
+      return applyDiceBigMove(game, action, symbol, face)
+    },
+    boardProps: (game) => ({
+      isBig: true,
+      diceScoreX: game.diceScoreX ?? 0,
+      diceScoreO: game.diceScoreO ?? 0,
+      diceTurnScore: game.diceTurnScore ?? 0,
+      diceLast: game.diceLast ?? null,
+      diceRolls: Array.isArray(game.diceRolls) ? game.diceRolls : [],
+      diceSeed: game.diceSeed ?? null,
+    }),
+  },
+  {
+    type: 'hex', label: 'HEX',
+    desc: 'connect your two edges', Icon: HexIcon,
+    badge: 'HX', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-08-21',
+    durationMin: 8, tags: ['thinky'], solo: true,
+    boardSize: HEX_CELL_COUNT,
+    getMoveIndex: (board, i) => (board[i] ? -1 : i),
+    getWinner: getHexWinner,
+    BoardComponent: HexBoard,
+  },
+  {
+    type: 'minesweeper', label: 'MINE RACE',
+    desc: 'clear the same minefield faster', Icon: MinesIcon,
+    badge: 'MR', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-08-21',
+    durationMin: 3, tags: ['quick', 'skill'], solo: true,
+    custom: true, simultaneous: true,
+  },
+  {
+    type: 'herd', label: 'HERD MIND',
+    desc: 'match the majority answer', Icon: HerdIcon,
+    badge: 'HD', maxWidth: 'max-w-sm',
+    category: 'party',
+    addedAt: '2026-08-21',
+    durationMin: 10, tags: ['thinky'], solo: true,
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    startRound: () => ({
+      round: {
+        phase: 'answering',
+        promptIndex: 0,
+        deckSeed: Math.floor(Math.random() * 2147483647),
+        answers: null,
+        endsAt: Date.now() + HERD_ANSWER_MS,
+      },
+    }),
+  },
+  {
+    type: 'trivia', label: 'TRIVIA BLITZ',
+    desc: 'fast answers score more', Icon: TriviaIcon,
+    badge: 'TQ', maxWidth: 'max-w-sm',
+    category: 'party',
+    addedAt: '2026-08-21',
+    durationMin: 6, tags: ['quick', 'thinky'], solo: true,
+    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    startRound: () => ({
+      round: {
+        phase: 'question',
+        qNum: 0,
+        deckSeed: Math.floor(Math.random() * 2147483647),
+        qStartAt: Date.now() + TRIVIA_QUESTION_MS,
+        answers: null,
+      },
     }),
   },
   {
@@ -815,6 +934,11 @@ const FIELD_NULLS = {
   blockadeWallsX: null, blockadeWallsO: null,
   blockadeMoves: null,
   pairsDeck: null, pairsFlipped: null,
+  minesSeed: null, minesStartedAt: null,
+  minesRevealedX: null, minesRevealedO: null,
+  minesDeadX: null, minesDeadO: null,
+  minesDoneX: null, minesDoneO: null,
+  herdCow: null,
 }
 
 export function freshGameState(gameType) {
@@ -962,6 +1086,15 @@ export function freshGameState(gameType) {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       wordhuntGrid: generateGrid(generateSeed()),
       wordhuntScoreX: 0, wordhuntScoreO: 0 }
+  }
+  if (gameType === 'minesweeper') {
+    // minesStartedAt is written by MineRaceGame once both players are ready
+    // (same flow as typingStartedAt). Revealed positions never touch Firebase.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      minesSeed: generateSeed(),
+      minesRevealedX: 0, minesRevealedO: 0,
+      minesDeadX: false, minesDeadO: false,
+      minesDoneX: false, minesDoneO: false }
   }
   if (gameType === 'pairs') {
     return { ...FIELD_NULLS, boxes: null, round: null, currentTurn: 'X',
