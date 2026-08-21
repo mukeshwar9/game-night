@@ -274,6 +274,49 @@ export const GAME_RULES = {
     win: 'First player to hit all 17 ship cells wins — or win instantly if the rival’s transcript fails verification.',
   },
 
+  mancala: {
+    objective: 'Sow seeds into your store — finish with more than your rival.',
+    howToPlay: [
+      'On your turn, pick one of your six pits; its seeds sow counterclockwise, one per slot.',
+      'Land your last seed in your own store and you go again.',
+      'Land it in one of your own empty pits and you capture that seed plus everything in the opposite pit.',
+      'When one side empties, the other sweeps their remaining seeds home.',
+    ],
+    win: 'Most seeds in your store when all pits empty — 24–24 is a draw.',
+  },
+
+  checkers: {
+    objective: 'Jump every rival piece off the board.',
+    howToPlay: [
+      'Men move diagonally forward one square on the dark squares.',
+      'Captures jump an adjacent enemy to the empty square beyond — jumps are mandatory.',
+      'Chained multi-jumps keep going; reaching the far row crowns a KING (moves and captures backward too).',
+      'Crowning ends a move, even if further jumps are available.',
+    ],
+    win: 'Opponent loses when they have no pieces left or no legal move.',
+  },
+
+  airhockey: {
+    objective: 'Flick the puck past your rival seven times.',
+    howToPlay: [
+      'Portrait table — you defend the bottom goal, drag your mallet in your half.',
+      'Strike the puck with a moving mallet for flick shots; a stationary block absorbs them.',
+      'Walls bounce, the puck glides and slows; goals are the glowing mouths on each end.',
+    ],
+    win: 'First to 7 goals wins.',
+  },
+
+  artillery: {
+    objective: 'Bracket the rival tank with angle and power, then blow it up.',
+    howToPlay: [
+      'Turn-based duel on destructible seeded terrain — X fires first.',
+      'Set angle (5–90°) and power (10–100); wind pushes every shell differently.',
+      'Explosions carve craters and deal splash damage — your own shell can hurt you.',
+      'Tanks settle into craters; bracket with fine-tune buttons before you commit.',
+    ],
+    win: 'Reduce the rival tank to 0 HP. Both tanks dying on one shot is a draw.',
+  },
+
   hex: {
     objective: 'Connect your two assigned edges with an unbroken chain of stones.',
     howToPlay: [

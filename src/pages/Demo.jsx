@@ -18,6 +18,7 @@ import {
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, BlockadeIcon, PairsIcon,
   WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
 import SnakeArena from '../components/SnakeArena';
@@ -57,6 +58,10 @@ import PaintDemo from './PaintDemo';
 import PacmacDemo from './PacmacDemo';
 import MineRaceDemo from './MineRaceDemo';
 import BattleshipDemo from './BattleshipDemo';
+import MancalaDemo from './MancalaDemo';
+import CheckersDemo from './CheckersDemo';
+import AirHockeyDemo from './AirHockeyDemo';
+import ArtilleryDemo from './ArtilleryDemo';
 import TriviaDemo from './TriviaDemo';
 import HerdDemo from './HerdDemo';
 
@@ -2245,6 +2250,10 @@ const DEMOS = [
   { type: 'pairs',         short: 'PAIRS',          Icon: PairsIcon,          Component: () => <BotBoardDemo type="pairs" /> },
   { type: 'hex',           short: 'HEX',            Icon: HexIcon,            Component: () => <BotBoardDemo type="hex" /> },
   { type: 'battleship',    short: 'BATTLE\nSHIP',   Icon: BattleshipIcon,     Component: BattleshipDemo },
+  { type: 'mancala',       short: 'MANCALA',        Icon: MancalaIcon,        Component: MancalaDemo },
+  { type: 'checkers',      short: 'CHECK\nERS',     Icon: CheckersIcon,       Component: CheckersDemo },
+  { type: 'airhockey',     short: 'AIR\nHOCKEY',    Icon: AirHockeyIcon,      Component: AirHockeyDemo },
+  { type: 'artillery',     short: 'ARTIL\nLERY',    Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },

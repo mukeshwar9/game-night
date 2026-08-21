@@ -15,6 +15,7 @@ import {
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5, CF_BIG, CF_BIG_BOARD_SIZE } from './connectFourLogic'
@@ -85,6 +86,15 @@ import {
 import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
 import { ANSWER_MS as HERD_ANSWER_MS } from './herdLogic'
 import { QUESTION_MS as TRIVIA_QUESTION_MS } from './triviaLogic'
+import MancalaBoard from '../components/MancalaBoard'
+import {
+  INITIAL_PITS,
+  normalizePits,
+  applyMancalaMove,
+} from './mancalaLogic'
+import {
+  INITIAL_CHECKERS,
+} from './checkersLogic'
 import { getTicTacToe4Winner } from './tictactoe4Logic'
 import { applyDiceBigMove } from './diceLogic'
 import HexBoard from '../components/HexBoard'
@@ -720,6 +730,63 @@ export const GAME_TYPES = [
     custom: true,
   },
   {
+    type: 'mancala', label: 'MANCALA',
+    desc: 'sow & capture', Icon: MancalaIcon,
+    badge: 'MC', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-08-22',
+    durationMin: 8, tags: ['thinky'], solo: true,
+    boardSize: 0,
+    getMoveIndex: (_, pit) => pit,
+    BoardComponent: MancalaBoard,
+    applyMove: ({ game, index, symbol }) => {
+      const pits = normalizePits(game.mancalaPits)
+      const moved = applyMancalaMove(pits, index, symbol)
+      if (!moved) return null
+      return {
+        updates: {
+          mancalaPits: moved.pits,
+          mancalaLast: { pit: index, by: symbol, seeds: pits[index] },
+          currentTurn: moved.extraTurn ? symbol : (symbol === 'X' ? 'O' : 'X'),
+        },
+        result: moved.result
+          ? { winner: moved.result.winner, scoreX: moved.result.scoreX, scoreO: moved.result.scoreO }
+          : null,
+      }
+    },
+    boardProps: (game) => ({
+      pits: normalizePits(game.mancalaPits),
+      last: game.mancalaLast ?? null,
+    }),
+  },
+  {
+    type: 'checkers', label: 'CHECKERS',
+    desc: 'jumps forced, kings crown', Icon: CheckersIcon,
+    badge: 'CK', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-08-22',
+    durationMin: 8, tags: ['thinky'], solo: true,
+    custom: true,
+  },
+  {
+    type: 'airhockey', label: 'AIR HOCKEY',
+    desc: 'flick the puck, score 7', Icon: AirHockeyIcon,
+    badge: 'AH', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-08-22',
+    durationMin: 5, tags: ['skill'], solo: true,
+    custom: true, realtime: true,
+  },
+  {
+    type: 'artillery', label: 'ARTILLERY',
+    desc: 'angle, power, bracket', Icon: ArtilleryIcon,
+    badge: 'AR', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-08-22',
+    durationMin: 8, tags: ['skill', 'thinky'], solo: true,
+    custom: true,
+  },
+  {
     type: 'twotruths', label: 'TWO TRUTHS',
     desc: 'spot the lie', Icon: TwoTruthsIcon,
     badge: 'TT', maxWidth: 'max-w-sm',
@@ -943,6 +1010,9 @@ const FIELD_NULLS = {
   blockadeWallsX: null, blockadeWallsO: null,
   blockadeMoves: null,
   pairsDeck: null, pairsFlipped: null,
+  mancalaPits: null, mancalaLast: null,
+  airhockeyScoreX: null, airhockeyScoreO: null,
+  artillerySeed: null, artilleryShots: null,
   minesSeed: null, minesStartedAt: null,
   minesRevealedX: null, minesRevealedO: null,
   minesDeadX: null, minesDeadO: null,
@@ -1084,6 +1154,28 @@ export function freshGameState(gameType) {
     // precedent). Everything else lives in round; no new top-level keys.
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
       round: { phase: 'placing' } }
+  }
+  if (gameType === 'mancala') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null,
+      currentTurn: 'X',
+      mancalaPits: INITIAL_PITS(),
+      mancalaLast: null }
+  }
+  if (gameType === 'checkers') {
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: INITIAL_CHECKERS(),
+      currentTurn: 'X' }
+  }
+  if (gameType === 'airhockey') {
+    // Realtime (pong family): currentTurn null, page drives its own audio.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      airhockeyScoreX: 0, airhockeyScoreO: 0 }
+  }
+  if (gameType === 'artillery') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null,
+      currentTurn: 'X',
+      artillerySeed: generateSeed(),
+      artilleryShots: null }
   }
   if (gameType === 'twotruths') {
     return { ...FIELD_NULLS, board: null, currentTurn: null, boxes: null,

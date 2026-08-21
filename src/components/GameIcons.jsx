@@ -585,6 +585,55 @@ export function BattleshipIcon() {
   )
 }
 
+export function MancalaIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2" y="7" width="4" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
+      <rect x="18" y="7" width="4" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
+      <rect x="8" y="6" width="8" height="5" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.7" />
+      <rect x="8" y="13" width="8" height="5" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.7" />
+      <circle cx="11" cy="8.5" r="1" fill="currentColor" />
+      <circle cx="13.5" cy="15.5" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function CheckersIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {[4, 12, 20].map((cy, r) =>
+        [4, 12, 20].map((cx, c) =>
+          ((r + c) % 2 === 1)
+            ? <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3" fill="currentColor"
+                opacity={r === 0 ? '1' : '0.45'} />
+            : null
+        )
+      )}
+    </svg>
+  )
+}
+
+export function AirHockeyIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="5" y="2" width="14" height="20" rx="3" stroke="currentColor" strokeWidth="2" />
+      <line x1="6.5" y1="12" x2="17.5" y2="12" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+      <circle cx="12" cy="8" r="1.4" fill="currentColor" />
+      <circle cx="12" cy="16.5" r="2.6" fill="currentColor" opacity="0.85" />
+    </svg>
+  )
+}
+
+export function ArtilleryIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 20 L20 20 L17 16 L7 16 Z" fill="currentColor" />
+      <line x1="12" y1="15" x2="18" y2="5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" />
+      <circle cx="19" cy="3.5" r="1.6" fill="currentColor" opacity="0.7" />
+    </svg>
+  )
+}
+
 export function SketchIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
