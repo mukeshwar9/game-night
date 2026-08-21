@@ -571,6 +571,20 @@ export function TriviaIcon() {
   )
 }
 
+export function BattleshipIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* hull */}
+      <path d="M3 15 L21 15 L18 20 L6 20 Z" fill="currentColor" />
+      <rect x="9" y="11" width="6" height="4" fill="currentColor" opacity="0.8" />
+      <rect x="11" y="7" width="2" height="4" fill="currentColor" opacity="0.6" />
+      {/* radar blips */}
+      <circle cx="5" cy="5" r="1.4" fill="currentColor" opacity="0.45" />
+      <circle cx="19" cy="4" r="1.4" fill="currentColor" opacity="0.45" />
+    </svg>
+  )
+}
+
 export function SketchIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

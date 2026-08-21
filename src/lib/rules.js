@@ -263,6 +263,17 @@ export const GAME_RULES = {
     win: 'First player to reach 100 banked points wins.',
   },
 
+  battleship: {
+    objective: 'Find and sink all five ships in the rival’s hidden fleet.',
+    howToPlay: [
+      'Secretly place your fleet — Carrier 5, Battleship 4, Cruiser 3, Submarine 3, Destroyer 2.',
+      'Take turns firing at grid coordinates; hits are marked, misses splash.',
+      'A hit lets you shoot again; sink a ship when every one of its cells is hit.',
+      'Fleets stay hidden by commit-reveal cryptography — the transcript is verified at the end, so cheating voids the game.',
+    ],
+    win: 'First player to hit all 17 ship cells wins — or win instantly if the rival’s transcript fails verification.',
+  },
+
   hex: {
     objective: 'Connect your two assigned edges with an unbroken chain of stones.',
     howToPlay: [

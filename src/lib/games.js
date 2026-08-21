@@ -14,7 +14,7 @@ import {
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
-  PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon,
+  PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5, CF_BIG, CF_BIG_BOARD_SIZE } from './connectFourLogic'
@@ -711,6 +711,15 @@ export const GAME_TYPES = [
     }),
   },
   {
+    type: 'battleship', label: 'BATTLESHIP',
+    desc: 'sink the hidden fleet', Icon: BattleshipIcon,
+    badge: 'BS', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-08-21',
+    durationMin: 8, tags: ['thinky'], solo: true,
+    custom: true,
+  },
+  {
     type: 'twotruths', label: 'TWO TRUTHS',
     desc: 'spot the lie', Icon: TwoTruthsIcon,
     badge: 'TT', maxWidth: 'max-w-sm',
@@ -1069,6 +1078,12 @@ export function freshGameState(gameType) {
       diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null,
       diceRolls: [], diceRollIndex: 0,
       diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null }
+  }
+  if (gameType === 'battleship') {
+    // currentTurn null — the page drives its own shot sounds (hangwoman
+    // precedent). Everything else lives in round; no new top-level keys.
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
+      round: { phase: 'placing' } }
   }
   if (gameType === 'twotruths') {
     return { ...FIELD_NULLS, board: null, currentTurn: null, boxes: null,

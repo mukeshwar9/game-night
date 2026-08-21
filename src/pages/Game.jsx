@@ -33,6 +33,7 @@ import PaintGame from './PaintGame'
 import WordDuelGame from './WordDuelGame'
 import WordHuntGame from './WordHuntGame'
 import MineRaceGame from './MineRaceGame'
+import BattleshipGame from './BattleshipGame'
 import WavelengthGame from './WavelengthGame'
 import FibbageGame from './FibbageGame'
 import HerdGame from './HerdGame'
@@ -1512,6 +1513,17 @@ export default function Game() {
             />
           ) : game.gameType === 'minesweeper' ? (
             <MineRaceGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'battleship' ? (
+            <BattleshipGame
               gameId={gameId}
               game={game}
               mySymbol={mySeat}

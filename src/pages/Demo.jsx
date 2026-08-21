@@ -17,7 +17,7 @@ import {
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, BlockadeIcon, PairsIcon,
   WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
-  HexIcon, MinesIcon, HerdIcon, TriviaIcon,
+  HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
 import SnakeArena from '../components/SnakeArena';
@@ -56,6 +56,7 @@ import SpaceduelDemo from './SpaceduelDemo';
 import PaintDemo from './PaintDemo';
 import PacmacDemo from './PacmacDemo';
 import MineRaceDemo from './MineRaceDemo';
+import BattleshipDemo from './BattleshipDemo';
 import TriviaDemo from './TriviaDemo';
 import HerdDemo from './HerdDemo';
 
@@ -2243,6 +2244,7 @@ const DEMOS = [
   { type: 'blockade',      short: 'BLOCKADE',       Icon: BlockadeIcon,       Component: () => <BotBoardDemo type="blockade" /> },
   { type: 'pairs',         short: 'PAIRS',          Icon: PairsIcon,          Component: () => <BotBoardDemo type="pairs" /> },
   { type: 'hex',           short: 'HEX',            Icon: HexIcon,            Component: () => <BotBoardDemo type="hex" /> },
+  { type: 'battleship',    short: 'BATTLE\nSHIP',   Icon: BattleshipIcon,     Component: BattleshipDemo },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
