@@ -58,6 +58,14 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-36 | iOS users get no install path | Medium | Quick Win | ✅ Done |
 | F-37 | Two undersized tap targets | Low | Quick Win | ✅ Done |
 | F-38 | Keyboard-over-content on Home | Low | — | ✅ Done (via F-01) |
+| F-39 | Arcade splash doesn't pitch the product | High | Quick Win | Open |
+| F-40 | Demo hub tiles mislabeled ("2P" on vs-CPU demos, mid-word breaks) | High | Quick Win | Open |
+| F-41 | Demo hub vs Home tell different stories (counts, framing) | Medium | Quick Win | Open |
+| F-42 | Hidden-info rooms give joiners no anticipation copy | Medium-High | Medium Effort | Open |
+| F-43 | Rules unreachable inside a room before start | Medium | Quick Win | Open |
+| F-44 | Multi-act moments under-weighted (extra turn / hit again) | Medium | Medium Effort | Open |
+| F-45 | No curated START HERE path at 44 tiles | Low-Medium | Medium Effort | Open |
+| F-46 | Share cards not standardized across all end screens | Low | Quick Win | Open |
 
 ---
 
@@ -677,3 +685,126 @@ Quick wins are individually verifiable in the running app (`npm run dev`):
 - Invite toast fires while in a game (two-player test: normal window + incognito, per CLAUDE.md — same-browser tabs share playerId)
 
 Larger items (home restructure, rails, search) should be validated against the five flow checks in §7: first-time visitor, returning visitor, specific-game seeker, casual browser, continue-playing.
+
+---
+
+# Round 2 audit — August 2026 (catalog at 44 entries / 40 playable)
+
+Fresh-eyes pass on the live app after the second game wave (hex, mine race,
+herd mind, trivia blitz, battleship, mancala, checkers, air hockey, artillery).
+The July round's shell fixes held up; what's new is **wayfinding drift between
+the three surfaces** (coin screen, catalog, demo hub) plus gaps opened by the
+new hidden-info and multi-turn games. Findings continue the F-numbering.
+
+### F-39 · High · Quick Win — The arcade splash doesn't pitch the product
+
+**Where:** Boot/landing screen — "INSERT COIN TO PLAY" / "CREDIT 1" with
+PLAY AS GUEST / SIGN IN buttons. The one-line pitch ("44 GAMES · SHARE A LINK ·
+NO ACCOUNT") only renders *after* sign-in on Home.
+
+**Why it hurts:** Charming, but a first-time visitor gets theme with zero
+product identity for two clicks. The pitch is the conversion line and it's
+buried behind the exact action we're asking for.
+
+**Fix:** Put "{N} GAMES · SHARE A LINK · NO ACCOUNT" on the coin screen itself
+(derive N from GAME_TYPES so it can't rot, per F-12).
+
+**Impact:** Landing page converts curiosity → play without requiring trust
+first.
+
+### F-40 · High · Quick Win — Demo hub tiles mislabeled
+
+**Where:** `src/pages/Demo.jsx` DEMOS array + tile renderer. Every tile shows
+the registry player-tag ("2P") even though every demo is vs-CPU; short names
+break mid-word: "BATTLE SHIP", "CHECK ERS", "ARTIL LERY" (`\n` in `short`).
+
+**Why it hurts:** The hub reads as multiplayer browse mode, contradicting what
+tapping does. Mid-word breaks look broken rather than stylized at 7px pixel
+font.
+
+**Fix:** In demo context render "VS CPU" instead of `getPlayerTag`; fix shorts
+("BATTLE\nSHIP" is fine, CHECKERS → smaller font or "CHECKERS" single line at
+6px, ARTILLERY → "ARTIL-\nLERY" hyphenated or shrink).
+
+**Impact:** Kills the biggest "this looks unfinished" surface.
+
+### F-41 · Medium · Quick Win — Demo hub vs Home tell different stories
+
+**Where:** Demo category tabs show different counts than Home ("BOARD ·17" vs
+"·13") because DEMOS includes variants Home hides; hub header says just "Demo";
+no cross-link from catalog cards to practice mode beyond the VS AI button.
+
+**Why it hurts:** Two surfaces naming the same games differently erodes the
+mental model (extends F-02, which unified *entry*, not *presentation*).
+
+**Fix:** Header → "PRACTICE · VS CPU"; derive tab counts from the same source;
+add a "PRACTICE MODE" caption linking back to full catalog.
+
+**Impact:** One coherent story across surfaces.
+
+### F-42 · Medium-High · Medium Effort — Hidden-info rooms give joiners no anticipation copy
+
+**Where:** Battleship/Hangwoman waiting rooms show generic waiting UI. What
+the joiner is waiting *for* (rival deploying a secret fleet / setter choosing
+a word) only appears after start.
+
+**Why it hurts:** Anticipation is the fun of hidden-info games; an empty room
+with no narrative wastes the wait.
+
+**Fix:** Per-game waiting-room flavor line via registry field (`waitingCopy`)
+— e.g. Battleship: "RIVAL IS DEPLOYING THEIR SECRET FLEET…"
+
+**Impact:** Turns dead wait time into hype.
+
+### F-43 · Medium · Quick Win — Rules unreachable inside a room before start
+
+**Where:** "?" rules live on catalog cards only. Inside a created room, before
+start, nothing teaches the game — worst for party games (herd/trivia) where
+one confused player stalls everyone.
+
+**Fix:** RulesButton in the waiting-room header (same modal component).
+
+**Impact:** Fewer stalled rooms; party games self-onboard.
+
+### F-44 · Medium · Medium Effort — Multi-act moments are under-weighted
+
+**Where:** Mancala extra turn ("GO AGAIN" toast) and Battleship hit-again
+(one-line banner) use small text while goals get full-screen flashes.
+
+**Why it hurts:** These are each game's signature dopamine moment — the most
+missed feedback in the platform.
+
+**Fix:** Full-width flash treatment (goal-flash precedent) + dedicated sound
+for extra-turn/hit-again states.
+
+**Impact:** Game feel; these moments are why people replay.
+
+### F-45 · Low-Medium · Medium Effort — No curated START HERE path at 44 tiles
+
+**Where:** Home ALL view is sectioned by category; NEW badges exist; no
+editorial on-ramp for a newcomer facing 44 cards.
+
+**Fix:** "START HERE" rail (3–5 curated: TTT → Connect Four → Battleship →
+Sketch), rendered above categories for first-session visitors only
+(`hasOnboarded`-gated like F-13).
+
+**Impact:** Conversion of new visitors who freeze at choice overload.
+
+### F-46 · Low · Quick Win — Share cards not standardized
+
+**Where:** shareCard.js wired into GameStatus-driven games + some custom pages
+(wordduel F-30); herd/trivia/battleship/mancala/checkers/artillery demos and
+some custom end screens lack it.
+
+**Fix:** Audit all end screens against a checklist: PLAY AGAIN · SHARE · TRY
+NEXT · SWITCH GAME.
+
+**Impact:** Every match end becomes a growth loop.
+
+### Round 2 watch items
+
+- Mute state persistence across reloads — verify once.
+- Emote bar discoverability for first-session players (no hint it exists).
+- Air Hockey ships demo-first (PRD order); catalogue entry goes realtime-only
+  until the transport page lands — confirm the ModeChooser doesn't offer
+  broken "PLAY A FRIEND" for it.
