@@ -5,6 +5,7 @@ import { getGameConfig } from '@/lib/games'
 import { shareResult } from '@/lib/shareCard'
 import { suggestGames } from '@/lib/gameSuggestions'
 import useBusy from '@/hooks/useBusy'
+import { getHeadToHead, formatHeadToHeadLabel } from '@/lib/profile'
 import { toast } from 'sonner'
 
 const MATCH_WINS = 3
@@ -34,7 +35,7 @@ function ShareButton({ onClick, busy, busyLabel = 'BUILDING…', locked }) {
       onClick={onClick}
       disabled={busy || locked}
       className={cn(
-        'px-6 py-2.5 min-w-[6.5rem] border-2 border-retro-border text-retro-text font-pixel text-xs',
+        'min-h-11 px-6 py-2.5 min-w-[6.5rem] border-2 border-retro-border text-retro-text font-pixel text-xs',
         'rounded transition-all active:scale-95 disabled:opacity-50',
         !locked && 'hover:border-retro-p1/50 hover:text-retro-p1',
       )}
@@ -63,6 +64,17 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
   const scoreX = scores?.X || 0
   const scoreO = scores?.O || 0
   const matchWinner = scoreX >= MATCH_WINS ? 'X' : scoreO >= MATCH_WINS ? 'O' : null
+  const opponentUid = mySymbol && players?.[mySymbol === 'X' ? 'O' : 'X']?.playerId || null
+  const headToHead = getHeadToHead(opponentUid)
+
+  const renderHeadToHead = () => {
+    if (!headToHead) return null
+    return (
+      <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
+        {formatHeadToHeadLabel(headToHead.myWins, headToHead.theirWins)}
+      </p>
+    )
+  }
 
   const [startBusy, runStart] = useBusy()
   const [shareBusy, runShare] = useBusy()
@@ -150,6 +162,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
             {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
           </p>
           <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
+          {renderHeadToHead()}
         </div>
         {renderTryNext()}
         {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
@@ -193,6 +206,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
         >
           {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : mySymbol ? 'GAME OVER' : `${winner} WINS!`}
         </p>
+        {renderHeadToHead()}
         {renderTryNext()}
         {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
         <StickyActionBar>
