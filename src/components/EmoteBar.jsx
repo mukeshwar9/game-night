@@ -3,8 +3,8 @@ import BottomSheet from './BottomSheet'
 import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, QUICK_CHAT, searchEmotes } from '../lib/emotes'
 import { cn } from '@/lib/utils'
 
-const EMOTE_BTN_CLASS = 'shrink-0 w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all'
-const CHIP_BTN_CLASS = 'shrink-0 px-2.5 py-1.5 flex items-center justify-center font-pixel text-[8px] tracking-widest rounded border border-retro-border bg-retro-card hover:border-retro-cta/50 active:scale-95 transition-all'
+const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all'
+const CHIP_BTN_CLASS = 'shrink-0 px-2.5 min-h-11 flex items-center justify-center font-pixel text-[8px] tracking-widest rounded border border-retro-border bg-retro-card hover:border-retro-cta/50 active:scale-95 transition-all'
 
 function EmoteGrid({ glyphs, onPick, className }) {
   return (
