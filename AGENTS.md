@@ -123,6 +123,10 @@ Enforceable conventions live here — always follow them:
 - `adding-a-game-rules.md` — the registry procedure, `applyMove`/`boardProps` hooks
 - `game-logic-rules.md` — pure logic module placement and test-coverage requirement
 
+## Prior reviews (`docs/reviews/2026-08/`)
+
+Dated source reports behind `docs/REVIEW-2026-08.md`. Before reading any of them, see [`docs/reviews/2026-08/HOW-TO-READ.md`](docs/reviews/2026-08/HOW-TO-READ.md) for reading order — findings are a snapshot, not a live issue tracker.
+
 ## Skills (`.claude/skills/`)
 
 - `add-a-game` — full end-to-end procedure for adding a new game, including what you get for free
