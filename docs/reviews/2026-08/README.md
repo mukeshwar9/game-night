@@ -2,6 +2,8 @@
 
 This directory holds the sixteen independent review reports behind [`docs/REVIEW-2026-08.md`](../../REVIEW-2026-08.md), copied byte-for-byte from the review session. Every finding in the consolidated document traces back to one of these files.
 
+These reports are a snapshot taken on 22 August 2026. Findings describe the code as it stood that day. **Verify any finding against the current code before acting on it** — a fixed bug still reads as broken here. Start from `docs/REVIEW-2026-08.md`; read an individual report only when working on what it covers.
+
 **Start with [`docs/REVIEW-2026-08.md`](../../REVIEW-2026-08.md)** — it synthesizes, ranks, and cross-references all sixteen. Read a source file directly only when you need a specific finding's full context or file:line detail.
 
 ## Files
