@@ -3,9 +3,10 @@ const EPOCH_KEY = '2026-06-20'
 
 const STREAK_KEY = 'gn-daily-streak'
 
-// Local yyyy-mm-dd for an arbitrary Date, so the puzzle rolls over at the player's midnight.
+// UTC yyyy-mm-dd for an arbitrary Date — every client derives the same puzzle
+// for the same calendar day regardless of local timezone offset.
 export function dateKeyFor(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
 }
 
 export function todayKey() {
@@ -13,7 +14,7 @@ export function todayKey() {
 }
 
 function addDays(date, delta) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + delta)
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + delta))
 }
 
 // Stable integer seed derived from the date string — identical for every client today.

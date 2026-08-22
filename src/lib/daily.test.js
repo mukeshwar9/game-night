@@ -12,13 +12,31 @@ beforeEach(() => {
   }
 })
 
+// Date keys are UTC-derived, so test inputs must be built from UTC instants —
+// a local-midnight constructor would land on a different UTC date in any
+// timezone ahead of UTC.
+const utcDate = (key) => new Date(`${key}T00:00:00Z`)
+
 describe('dateKeyFor', () => {
-  it('formats as local yyyy-mm-dd', () => {
-    expect(dateKeyFor(new Date(2026, 5, 20))).toBe('2026-06-20')
+  it('formats as UTC yyyy-mm-dd', () => {
+    expect(dateKeyFor(utcDate('2026-06-20'))).toBe('2026-06-20')
   })
 
   it('pads single-digit months and days', () => {
-    expect(dateKeyFor(new Date(2026, 0, 5))).toBe('2026-01-05')
+    expect(dateKeyFor(utcDate('2026-01-05'))).toBe('2026-01-05')
+  })
+
+  it('derives the key from UTC, not the local calendar', () => {
+    // 23:30Z is already "tomorrow" for anyone east of UTC — must still key as
+    // June 20 so every client gets the same puzzle for the same UTC day.
+    expect(dateKeyFor(new Date('2026-06-20T23:30:00Z'))).toBe('2026-06-20')
+  })
+
+  it('gives one key per instant regardless of how the offset is written', () => {
+    // Same instant expressed at +05:30 vs Z — both parse to identical ms.
+    expect(dateKeyFor(new Date('2026-06-21T00:00:00+05:30')))
+      .toBe(dateKeyFor(new Date('2026-06-20T18:30:00Z')))
+    expect(dateKeyFor(new Date('2026-06-21T00:00:00+05:30'))).toBe('2026-06-20')
   })
 })
 
@@ -39,53 +57,53 @@ describe('getDailyNumber', () => {
 
 describe('getStreak', () => {
   it('is zero with nothing stored', () => {
-    expect(getStreak(new Date(2026, 5, 20))).toEqual({ count: 0, lastDate: null })
+    expect(getStreak(utcDate('2026-06-20'))).toEqual({ count: 0, lastDate: null })
   })
 
   it('reports the stored count when last played today', () => {
-    bumpStreak(new Date(2026, 5, 20))
-    expect(getStreak(new Date(2026, 5, 20))).toEqual({ count: 1, lastDate: '2026-06-20' })
+    bumpStreak(utcDate('2026-06-20'))
+    expect(getStreak(utcDate('2026-06-20'))).toEqual({ count: 1, lastDate: '2026-06-20' })
   })
 
   it('reports the stored count when last played yesterday (streak still alive)', () => {
-    bumpStreak(new Date(2026, 5, 20))
-    expect(getStreak(new Date(2026, 5, 21))).toEqual({ count: 1, lastDate: '2026-06-20' })
+    bumpStreak(utcDate('2026-06-20'))
+    expect(getStreak(utcDate('2026-06-21'))).toEqual({ count: 1, lastDate: '2026-06-20' })
   })
 
   it('reports zero once more than a day has passed (streak lapsed)', () => {
-    bumpStreak(new Date(2026, 5, 20))
-    expect(getStreak(new Date(2026, 5, 22))).toEqual({ count: 0, lastDate: '2026-06-20' })
+    bumpStreak(utcDate('2026-06-20'))
+    expect(getStreak(utcDate('2026-06-22'))).toEqual({ count: 0, lastDate: '2026-06-20' })
   })
 })
 
 describe('bumpStreak', () => {
   it('starts a fresh streak at 1', () => {
-    expect(bumpStreak(new Date(2026, 5, 20))).toEqual({ count: 1, lastDate: '2026-06-20' })
+    expect(bumpStreak(utcDate('2026-06-20'))).toEqual({ count: 1, lastDate: '2026-06-20' })
   })
 
   it('is idempotent for repeat completions the same day', () => {
-    bumpStreak(new Date(2026, 5, 20))
-    const second = bumpStreak(new Date(2026, 5, 20, 23, 59))
+    bumpStreak(utcDate('2026-06-20'))
+    const second = bumpStreak(new Date('2026-06-20T23:59:00Z'))
     expect(second).toEqual({ count: 1, lastDate: '2026-06-20' })
   })
 
   it('increments on consecutive days', () => {
-    bumpStreak(new Date(2026, 5, 20))
-    bumpStreak(new Date(2026, 5, 21))
-    const third = bumpStreak(new Date(2026, 5, 22))
+    bumpStreak(utcDate('2026-06-20'))
+    bumpStreak(utcDate('2026-06-21'))
+    const third = bumpStreak(utcDate('2026-06-22'))
     expect(third).toEqual({ count: 3, lastDate: '2026-06-22' })
   })
 
   it('resets to 1 after a gap day', () => {
-    bumpStreak(new Date(2026, 5, 20))
-    bumpStreak(new Date(2026, 5, 21))
-    const afterGap = bumpStreak(new Date(2026, 5, 23))
+    bumpStreak(utcDate('2026-06-20'))
+    bumpStreak(utcDate('2026-06-21'))
+    const afterGap = bumpStreak(utcDate('2026-06-23'))
     expect(afterGap).toEqual({ count: 1, lastDate: '2026-06-23' })
   })
 
   it('crosses a month/year boundary (Jan 1 after Dec 31)', () => {
-    bumpStreak(new Date(2026, 11, 31))
-    const newYear = bumpStreak(new Date(2027, 0, 1))
+    bumpStreak(utcDate('2026-12-31'))
+    const newYear = bumpStreak(utcDate('2027-01-01'))
     expect(newYear).toEqual({ count: 2, lastDate: '2027-01-01' })
   })
 })

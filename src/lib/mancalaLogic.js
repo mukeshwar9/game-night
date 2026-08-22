@@ -19,8 +19,13 @@ export function INITIAL_PITS() {
 // Firebase may hand back arrays or numeric-keyed objects (normalizeBoard
 // precedent). Always returns a 14-element number array.
 export function normalizePits(raw) {
-  const arr = Array.isArray(raw) ? raw : Object.values(raw ?? {})
-  return Array.from({ length: PIT_COUNT }, (_, i) => Number(arr[i]) || 0)
+  const arr = Array(PIT_COUNT).fill(0)
+  if (!raw) return arr
+  const entries = Array.isArray(raw)
+    ? raw.map((v, i) => [i, v])
+    : Object.entries(raw).map(([k, v]) => [parseInt(k), v])
+  entries.forEach(([i, v]) => { if (i >= 0 && i < PIT_COUNT) arr[i] = Number(v) || 0 })
+  return arr
 }
 
 export const opposite = i => 12 - i

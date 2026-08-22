@@ -65,6 +65,44 @@ describe('pickBotMove — tictactoe', () => {
 })
 
 // ---------------------------------------------------------------------------
+// 1b. Tic-tac-toe 4×4 (four-in-a-row on a 16-cell board)
+// ---------------------------------------------------------------------------
+
+describe('pickBotMove — tictactoe4', () => {
+  it('completes a winning line when given the chance', () => {
+    // O has three in a row on the bottom row (12-14) — playing 15 wins.
+    // The old 3×3-geometry bot could never return anything past index 8.
+    const board = place(emptyBoard(16), [12, 13, 14], 'O')
+    board[0] = 'X'; board[1] = 'X'
+    const move = pickBotMove('tictactoe4', boardGame(board), 'O')
+    expect(move).toBe(15)
+  })
+
+  it('blocks a bottom-row threat spanning cells beyond index 8', () => {
+    // X has 8,9,10 — wins at 11; O must block.
+    const board = emptyBoard(16)
+    board[8] = 'X'; board[9] = 'X'; board[10] = 'X'
+    board[0] = 'O'
+    const move = pickBotMove('tictactoe4', boardGame(board), 'O')
+    expect(move).toBe(11)
+  })
+
+  it('blocks the anti-diagonal through cells 3,6,9,12', () => {
+    // X has 3,6,9 — wins at 12; O must block.
+    const board = emptyBoard(16)
+    board[3] = 'X'; board[6] = 'X'; board[9] = 'X'
+    board[0] = 'O'
+    const move = pickBotMove('tictactoe4', boardGame(board), 'O')
+    expect(move).toBe(12)
+  })
+
+  it('returns a valid inner-square cell on a fresh board', () => {
+    const move = pickBotMove('tictactoe4', boardGame(emptyBoard(16)), 'O')
+    expect([5, 6, 9, 10]).toContain(move)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // 2. Connect Four
 // ---------------------------------------------------------------------------
 

@@ -5,6 +5,7 @@
 // Returns null when no move is possible (e.g. Reversi pass).
 
 import { getWinner, normalizeBoard } from './gameLogic'
+import { getTicTacToe4Winner } from './tictactoe4Logic'
 import {
   getConnectFourWinner,
   getConnectFourDrop,
@@ -96,6 +97,25 @@ function botTicTacToe(game, botSymbol) {
   }
 
   return pickRandom(empties)
+}
+
+// 4×4 four-in-a-row — same win/block logic as the 3×3 bot but checked against
+// the real 4×4 win lines; falls back to the inner square, then any empty.
+function botTicTacToe4(game, botSymbol) {
+  const board = game.board
+  const opp = opponent(botSymbol)
+  const empties = board.map((c, i) => (c === '' ? i : -1)).filter(i => i >= 0)
+  if (!empties.length) return null
+
+  const win = findWinningMove(board, empties, botSymbol, getTicTacToe4Winner)
+  if (win !== null) return win
+
+  const block = findWinningMove(board, empties, opp, getTicTacToe4Winner)
+  if (block !== null) return block
+
+  const centers = [5, 6, 9, 10]
+  const avail = centers.filter(i => board[i] === '')
+  return pickRandom(avail.length ? avail : empties)
 }
 
 // ---------------------------------------------------------------------------
@@ -529,7 +549,7 @@ function botHex(game, botSymbol) {
 export function pickBotMove(type, game, botSymbol) {
   switch (type) {
     case 'tictactoe':    return botTicTacToe(game, botSymbol)
-    case 'tictactoe4':   return botTicTacToe(game, botSymbol)
+    case 'tictactoe4':   return botTicTacToe4(game, botSymbol)
     case 'ultimatettt':  return botUltimate(game, botSymbol)
     case 'connectfour':  return botConnectFour(game, botSymbol, CF_BIG)
     case 'connectfour5': return botConnectFour(game, botSymbol, CF5)
