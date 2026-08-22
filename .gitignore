@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local tooling / agent workspaces
+.commandcode/
+.pi/
+.windsurf/
+.claude/skills/
+.tmp-*

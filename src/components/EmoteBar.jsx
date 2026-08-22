@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import BottomSheet from './BottomSheet'
-import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, QUICK_CHAT } from '../lib/emotes'
+import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, QUICK_CHAT, searchEmotes } from '../lib/emotes'
 import { cn } from '@/lib/utils'
 
 const EMOTE_BTN_CLASS = 'shrink-0 w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all'
@@ -25,14 +25,36 @@ function EmoteGrid({ glyphs, onPick, className }) {
 }
 
 function EmotePicker({ onPick, onClose }) {
+  const [query, setQuery] = useState('')
   const pick = (g) => { onPick(g); onClose() }
+  const trimmed = query.trim()
+  const results = trimmed ? searchEmotes(query) : []
   return (
     <BottomSheet onClose={onClose} ariaLabel="Choose a reaction">
       <p className="font-pixel text-[10px] text-retro-dim text-center tracking-widest">REACTIONS</p>
-      <p className="font-pixel text-[8px] text-retro-dim tracking-widest pt-3">FACES</p>
-      <EmoteGrid glyphs={EMOTES_PICKER_FACES} onPick={pick} className="pt-1.5" />
-      <p className="font-pixel text-[8px] text-retro-dim tracking-widest pt-3">GESTURES</p>
-      <EmoteGrid glyphs={EMOTES_PICKER_GESTURES} onPick={pick} className="pt-1.5" />
+      <input
+        type="search"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="SEARCH…"
+        aria-label="Search reactions"
+        autoFocus={false}
+        className="w-full px-2.5 py-2 mt-3 rounded border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-widest placeholder:text-retro-dim focus:outline-none focus:border-retro-cta/60"
+      />
+      {trimmed ? (
+        results.length > 0 ? (
+          <EmoteGrid glyphs={results} onPick={pick} className="pt-3" />
+        ) : (
+          <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest pt-6">NO MATCH</p>
+        )
+      ) : (
+        <>
+          <p className="font-pixel text-[8px] text-retro-dim tracking-widest pt-3">FACES</p>
+          <EmoteGrid glyphs={EMOTES_PICKER_FACES} onPick={pick} className="pt-1.5" />
+          <p className="font-pixel text-[8px] text-retro-dim tracking-widest pt-3">GESTURES</p>
+          <EmoteGrid glyphs={EMOTES_PICKER_GESTURES} onPick={pick} className="pt-1.5" />
+        </>
+      )}
     </BottomSheet>
   )
 }
