@@ -9,7 +9,6 @@ import { getTicTacToe4Winner } from './tictactoe4Logic'
 import {
   getConnectFourWinner,
   getConnectFourDrop,
-  CF_BIG,
   CF5,
 } from './connectFourLogic'
 import { legalCells, miniBoardWinner, normalizeUWon } from './ultimateTttLogic'
@@ -551,7 +550,7 @@ export function pickBotMove(type, game, botSymbol) {
     case 'tictactoe':    return botTicTacToe(game, botSymbol)
     case 'tictactoe4':   return botTicTacToe4(game, botSymbol)
     case 'ultimatettt':  return botUltimate(game, botSymbol)
-    case 'connectfour':  return botConnectFour(game, botSymbol, CF_BIG)
+    case 'connectfour':  return botConnectFour(game, botSymbol)
     case 'connectfour5': return botConnectFour(game, botSymbol, CF5)
     case 'connectfourpop': return botConnectFourPop(game, botSymbol)
     case 'gomoku':       return botGomoku(game, botSymbol)

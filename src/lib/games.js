@@ -18,7 +18,7 @@ import {
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
-import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5, CF_BIG, CF_BIG_BOARD_SIZE } from './connectFourLogic'
+import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
   UT_CELL_COUNT, UT_BOARD_COUNT, applyUltimateMove, getUltimateWinner, normalizeUWon,
 } from './ultimateTttLogic'
@@ -201,16 +201,15 @@ export const GAME_TYPES = [
   {
     type: 'connectfour', label: 'CONNECT FOUR',
     desc: 'four in a row wins', Icon: ConnectFourIcon,
-    badge: 'C4', maxWidth: 'max-w-lg',
+    badge: 'C4', maxWidth: 'max-w-md',
     category: 'board',
     durationMin: 4, tags: ['thinky'], solo: true,
-    classicLabel: '9×7',
-    classicBlurb: 'Nine columns, four in a row. More room to scheme.',
-    boardSize: CF_BIG_BOARD_SIZE,
-    getMoveIndex: (board, col) => getConnectFourDrop(board, col, CF_BIG),
-    getWinner: (board) => getConnectFourWinner(board, CF_BIG),
+    classicLabel: '7×6',
+    classicBlurb: 'The classic board. Four in a row wins.',
+    boardSize: CF_BOARD_SIZE,
+    getMoveIndex: getConnectFourDrop,
+    getWinner: getConnectFourWinner,
     BoardComponent: ConnectFourBoard,
-    boardProps: () => ({ cols: 9, rows: 7 }),
   },
   {
     type: 'connectfour5', label: 'C4 FIVE', desc: 'five in a row on 9×7',
