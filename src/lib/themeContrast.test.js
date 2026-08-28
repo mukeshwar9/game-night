@@ -7,6 +7,7 @@ const themes = parseThemes(cssText)
 
 const EXPECTED_THEME_IDS = [
   'midnight', 'phosphor', 'amber', 'synthwave', 'grid', 'mono', 'virtualboy', 'paper',
+  'c64', 'blueprint', 'sakura', 'matcha',
 ]
 
 const REQUIRED_KEYS = [

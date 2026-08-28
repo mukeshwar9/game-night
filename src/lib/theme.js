@@ -7,6 +7,10 @@ export const THEMES = [
   { id: 'mono',      label: '1-BIT MONO' },
   { id: 'virtualboy', label: 'VIRTUAL BOY' },
   { id: 'paper',      label: 'PAPERWHITE' },
+  { id: 'c64',        label: 'COMMODORE 64' },
+  { id: 'blueprint',  label: 'BLUEPRINT' },
+  { id: 'sakura',     label: 'SAKURA' },
+  { id: 'matcha',     label: 'MATCHA' },
 ]
 
 const STORAGE_KEY = 'retro-theme'
