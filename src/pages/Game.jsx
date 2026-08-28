@@ -756,10 +756,10 @@ export default function Game() {
 
   // Pig anti-cheat: coin-flipping protocol to establish a shared deterministic
   // roll seed (see src/lib/diceLogic.js). X commits seedA, O contributes seedB,
-  // X reveals seedA, both derive diceSeed. Runs only for gameType 'dice'.
+  // X reveals seedA, both derive diceSeed. Runs for both Pig variants.
   const coinFlipStarted = useRef(false)
   useEffect(() => {
-    if (!game || game.gameType !== 'dice' || game.status !== 'playing') return
+    if (!game || (game.gameType !== 'dice' && game.gameType !== 'dice-big') || game.status !== 'playing') return
     if (!mySymbol.current) return
     const sym = mySymbol.current
     const SK = `pig-seedA-${gameId}`
@@ -1792,12 +1792,13 @@ export default function Game() {
             <cfg.BoardComponent
               board={board}
               onMove={handleMove}
-              disabled={!canMove || (cfg.type === 'dice' && !game.diceSeed)}
+              disabled={!canMove || ((cfg.type === 'dice' || cfg.type === 'dice-big') && !game.diceSeed)}
               winningLine={winningLine}
               currentTurn={game.currentTurn}
               lastMove={game.lastMove ?? null}
+              mySymbol={mySeat}
               {...(cfg.boardProps ? cfg.boardProps(game) : {})}
-              {...(cfg.type === 'dice' ? { diceSeedPending: !game.diceSeed } : {})}
+              {...(cfg.type === 'dice' || cfg.type === 'dice-big' ? { diceSeedPending: !game.diceSeed } : {})}
             />
             <GameStatus
               status={game.status}
@@ -1808,6 +1809,7 @@ export default function Game() {
               players={game.players}
               gameType={game.gameType}
               extraTurn={!!game.extraTurn}
+              passNote={game.passNote ?? null}
               onPlayAgain={game.status === 'finished' && !isSpectator && !matchWinner && !activeProposal ? () => propose('playAgain') : null}
               onNewMatch={matchWinner && !isSpectator && !activeProposal ? () => propose('newMatch') : null}
               onSwitchGame={!isSpectator && !activeProposal ? (t) => propose('switch', t) : null}

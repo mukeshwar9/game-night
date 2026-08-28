@@ -292,7 +292,10 @@ export const GAME_TYPES = [
     category: 'board',
     durationMin: 10, tags: ['thinky'], solo: true,
     boardSize: SOS_CELL_COUNT,
-    getMoveIndex: (board, move) => (board[move.index] ? -1 : move.index),
+    getMoveIndex: (board, move) => {
+      if (!move || typeof move !== 'object' || !Number.isInteger(move.index)) return -1
+      return board[move.index] ? -1 : move.index
+    },
     BoardComponent: SosBoard,
     applyMove: ({ board, game, move, symbol }) => {
       const lines = normalizeSosLines(game.sosLines)
@@ -487,9 +490,15 @@ export const GAME_TYPES = [
       const moved = applyReversiMove(board, index, symbol)
       if (!moved) return null
       const opp = symbol === 'X' ? 'O' : 'X'
-      const nextTurn = hasAnyMove(moved.board, opp) ? opp : symbol
+      const oppCanMove = hasAnyMove(moved.board, opp)
       return {
-        updates: { board: moved.board, currentTurn: nextTurn },
+        updates: {
+          board: moved.board,
+          currentTurn: oppCanMove ? opp : symbol,
+          // Surfaced by GameStatus as "OPPONENT PASSED" — without it a pass
+          // is silent and both players think a move failed to send.
+          passNote: oppCanMove ? null : opp,
+        },
         result: getReversiWinner(moved.board),
       }
     },
@@ -518,6 +527,7 @@ export const GAME_TYPES = [
     desc: 'compact chain reaction', Icon: ChainReactionIcon,
     badge: 'CR6', maxWidth: 'max-w-xs',
     category: 'board',
+    addedAt: '2026-07-11',
     durationMin: 4, tags: ['quick', 'thinky'], solo: true,
     variantOf: 'chainreaction', variantLabel: '6×8',
     variantBlurb: 'The original smaller grid. Bigger cells on a phone.',
@@ -566,7 +576,10 @@ export const GAME_TYPES = [
     category: 'board',
     durationMin: 6, tags: ['thinky'], solo: true,
     boardSize: OC_CELL_COUNT,
-    getMoveIndex: (board, move) => (board[move.index] ? -1 : move.index),
+    getMoveIndex: (board, move) => {
+      if (!move || typeof move !== 'object' || !Number.isInteger(move.index)) return -1
+      return board[move.index] ? -1 : move.index
+    },
     BoardComponent: OrderChaosBoard,
     applyMove: ({ board, move, symbol }) => {
       const applied = applyOrderChaosMove(board, move.index, move.letter)
@@ -710,8 +723,14 @@ export const GAME_TYPES = [
       return {
         updates: {
           mancalaPits: moved.pits,
-          mancalaLast: { pit: index, by: symbol, seeds: pits[index] },
+          // `captured` feeds the board's capture banner; `at` makes the sow
+          // replay key unique when the same pit/seed-count repeats.
+          mancalaLast: {
+            pit: index, by: symbol, seeds: pits[index],
+            captured: moved.captured ?? 0, at: Date.now(),
+          },
           currentTurn: moved.extraTurn ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          extraTurn: moved.extraTurn ? true : null,
         },
         result: moved.result
           ? { winner: moved.result.winner, scoreX: moved.result.scoreX, scoreO: moved.result.scoreO }
@@ -838,6 +857,7 @@ export const GAME_TYPES = [
           board: applied.board,
           pairsFlipped: applied.flipped,
           currentTurn: applied.turnStays ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          extraTurn: applied.turnStays ? true : null,
         },
         result: getPairsWinner(applied.board),
       }
@@ -932,6 +952,7 @@ export const getPlayerTag = (cfg) =>
 // games clears the previous game's keys from Firebase.
 const FIELD_NULLS = {
   uWon: null, uActiveBoard: null,
+  passNote: null,
   sosLines: null,
   simonSequence: null, simonProgress: null,
   chimpLevel: null, chimpLayout: null,
@@ -1119,7 +1140,10 @@ export function freshGameState(gameType) {
       blockadeWallsX: BK_WALLS_PER_PLAYER, blockadeWallsO: BK_WALLS_PER_PLAYER,
       blockadeMoves: 0 }
   }
-  if (gameType === 'dice') {
+  if (gameType === 'dice' || gameType === 'dice-big') {
+    // Both Pig variants share the dice state shape and the commit-reveal
+    // seed protocol; dice-big previously fell through to the generic board
+    // branch and never got a seed, leaving every roll rejected.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: 'X',
       diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null,
       diceRolls: [], diceRollIndex: 0,

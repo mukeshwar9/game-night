@@ -60,7 +60,7 @@ function StickyActionBar({ children }) {
   )
 }
 
-export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, onPlayAgain, onNewMatch, onSwitchGame }) {
+export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame }) {
   const scoreX = scores?.X || 0
   const scoreO = scores?.O || 0
   const matchWinner = scoreX >= MATCH_WINS ? 'X' : scoreO >= MATCH_WINS ? 'O' : null
@@ -241,6 +241,17 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
       return (
         <p className="text-center font-pixel text-[10px] tracking-wider">
           <span className="inline-block text-retro-cta text-glow-cta animate-bounce">GO AGAIN!</span>
+        </p>
+      )
+    }
+    // Reversi: a player with no legal move is skipped by the rules. Without
+    // this line the pass is silent and both players think a move got lost.
+    if (passNote) {
+      return (
+        <p className="text-center font-pixel text-[10px] tracking-wider">
+          <span className="inline-block text-retro-cta text-glow-cta animate-bounce">
+            {passNote === mySymbol ? 'NO LEGAL MOVE — YOU PASS' : 'OPPONENT PASSED — GO AGAIN'}
+          </span>
         </p>
       )
     }
