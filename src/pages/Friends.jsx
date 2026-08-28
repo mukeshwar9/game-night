@@ -14,7 +14,7 @@ import {
 import { fetchFriendsLeaderboard, rankEntries } from '../lib/leaderboard'
 import { db } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
-import { freshGameState, GAME_TYPES } from '../lib/games'
+import { buildChallengeRoom } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom } from '../lib/profile'
@@ -28,11 +28,6 @@ const REQUEST_ERRORS = {
   already: "YOU'RE ALREADY FRIENDS.",
 }
 
-// One-tap challenge (M-20): standard 2-player games only, mirroring the X/O
-// room shape Home.jsx creates — party (nPlayer) games need 3+ players so
-// they don't fit a single-friend challenge.
-const CHALLENGE_GAME_TYPES = GAME_TYPES.filter(t => !t.variantOf && !t.nPlayer)
-
 export default function Friends() {
   const navigate = useNavigate()
   const { profile, uid } = useAuth()
@@ -44,7 +39,6 @@ export default function Friends() {
   const [requests, setRequests] = useState([])
   const [profiles, setProfiles] = useState({})
   const [leaderboard, setLeaderboard] = useState(null)
-  const [challengeGameType, setChallengeGameType] = useState(CHALLENGE_GAME_TYPES[0]?.type || 'tictactoe')
   const [challengingUid, setChallengingUid] = useState(null)
   const [, runChallenge] = useBusy()
 
@@ -169,8 +163,9 @@ export default function Friends() {
     await copyCode()
   }
 
-  // One-tap challenge (M-20): create a room the same way Home.jsx does, send
-  // the friend an invite into it, and jump straight into the room.
+  // One-tap challenge (M-20): create a lobby room (gameType still mutable —
+  // either player picks a game once both are in) and send the friend an
+  // invite into it, jumping straight into the room.
   const challengeFriend = (friendUid, friendName) => {
     setChallengingUid(friendUid)
     runChallenge(async () => {
@@ -178,21 +173,12 @@ export default function Friends() {
       const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
       const gameId = generateGameId()
       const myId = getPlayerId()
-      const now = Date.now()
-      const gameData = {
-        gameType: challengeGameType,
-        status: 'waiting',
-        scores: { X: 0, O: 0 },
-        createdAt: now,
-        lastActivityAt: now,
-        players: { X: { name: playerName, joinedAt: now, playerId: myId, avatar: myAvatar } },
-        ...freshGameState(challengeGameType),
-      }
+      const gameData = buildChallengeRoom({ name: playerName, avatar: myAvatar, playerId: myId })
       await set(ref(db, `games/${gameId}`), gameData)
-      recordPlay(challengeGameType, 'multi')
+      recordPlay('tictactoe', 'multi')
       sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
-      recordRoom({ id: gameId, gameType: challengeGameType })
-      await inviteFriendToGame(friendUid, { gameId, gameType: challengeGameType })
+      recordRoom({ id: gameId, gameType: gameData.gameType })
+      await inviteFriendToGame(friendUid, { gameId, gameType: 'tictactoe' })
       toast.success(`CHALLENGE SENT TO ${(friendName || 'FRIEND').toUpperCase()}!`)
       navigate(`/game/${gameId}`)
     }, () => toast.error("COULDN'T START THE GAME — TRY AGAIN.")).finally(() => setChallengingUid(null))
@@ -250,9 +236,12 @@ export default function Friends() {
             />
             <button
               onClick={sendRequest}
-              disabled={sending || !codeInput}
-              className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={sending || !isValidFriendCode(codeInput)}
+              className={`min-h-11 px-4 font-pixel text-[10px] rounded transition-all active:scale-95 ${
+                isValidFriendCode(codeInput)
+                  ? 'bg-retro-cta text-retro-bg hover:shadow-neon-cta disabled:opacity-60'
+                  : 'bg-transparent border border-retro-border text-retro-dim cursor-default'
+              }`}
             >
               {sending ? 'SENDING…' : 'SEND'}
             </button>
@@ -299,22 +288,6 @@ export default function Friends() {
             <label className="font-pixel text-[10px] text-retro-dim tracking-wider">
               MY FRIENDS{friendUids !== null ? ` (${friendUids.length})` : ''}
             </label>
-            {friendUids?.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="shrink-0 font-pixel text-[8px] text-retro-dim tracking-wider">CHALLENGE GAME</span>
-                <select
-                  value={challengeGameType}
-                  onChange={e => setChallengeGameType(e.target.value)}
-                  aria-label="Game to challenge a friend to"
-                  className="flex-1 min-w-0 min-h-11 bg-retro-card border border-retro-border rounded px-2
-                    text-retro-dim focus:outline-none focus:border-retro-p1"
-                >
-                  {CHALLENGE_GAME_TYPES.map(t => (
-                    <option key={t.type} value={t.type}>{t.label}</option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
           {friendUids === null ? (
             <div className="space-y-2">

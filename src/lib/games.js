@@ -1215,3 +1215,34 @@ export function freshGameState(gameType) {
   }
   return { ...FIELD_NULLS, board: Array(cfg.boardSize).fill(''), boxes: null, round: null, currentTurn: 'X' }
 }
+
+// Lobby (challenge-created room) support ------------------------------------
+//
+// A challenge room is created with a concrete `gameType` (default tictactoe)
+// plus `lobby: true`; status stays 'waiting' until either seated player taps
+// START, which clears the flag. See CLAUDE.md's Data model delta.
+
+// Forces a switch-updates patch back to 'waiting' (a lobby switch must never
+// auto-start even once both seats are filled) and strips chatLog/emote from
+// it so lobby chat/reactions survive a pre-game game-type switch — the
+// freshGameState()-derived nulls in `updates` would otherwise wipe them via
+// FIELD_NULLS. Does not mutate its input.
+export function lobbySwitchOverrides(updates) {
+  const out = { ...updates, status: 'waiting' }
+  delete out.chatLog
+  delete out.emote
+  return out
+}
+
+// Builds the room doc for a friend challenge (Friends.jsx) — same X-seat/
+// scores/createdAt shape Home.jsx uses for a link-created room, plus the
+// `lobby: true` flag so both players land in a shared lobby instead of the
+// challenger's game-type choice being forced up front.
+export function buildChallengeRoom({ name, avatar, playerId, now = Date.now(), gameType = 'tictactoe' }) {
+  return {
+    gameType, status: 'waiting', lobby: true,
+    scores: { X: 0, O: 0 }, createdAt: now, lastActivityAt: now,
+    players: { X: { name, joinedAt: now, playerId, avatar } },
+    ...freshGameState(gameType),
+  }
+}

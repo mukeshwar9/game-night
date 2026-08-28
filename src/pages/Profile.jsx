@@ -20,8 +20,23 @@ export default function Profile() {
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [nameBusy, runNameSave] = useBusy()
   const [avatarBusy, runAvatarSave] = useBusy()
+  // Draft avatar edits — customizer edits this only; SAVE commits to the profile.
+  // Seeded from the saved profile avatar; re-seeded when the profile avatar changes
+  // externally, but only while the draft isn't dirty (don't clobber in-progress edits).
+  // Follows React's sanctioned "adjust state during rendering" pattern (comparing
+  // against a tracked previous value in state, not an effect) — see
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-state-when-a-prop-changes
+  const savedAvatar = canonicalAvatar(profile?.avatar)
+  const [avatarDraft, setAvatarDraft] = useState(savedAvatar)
+  const [avatarDraftDirty, setAvatarDraftDirty] = useState(false)
+  const [prevSavedAvatar, setPrevSavedAvatar] = useState(savedAvatar)
   const stats = getStats()
   const matches = getMatches()
+
+  if (savedAvatar !== prevSavedAvatar) {
+    setPrevSavedAvatar(savedAvatar)
+    if (!avatarDraftDirty) setAvatarDraft(savedAvatar)
+  }
 
   // M-07: a redirect-based Google sign-in (mobile/standalone PWA fallback)
   // completes on a full page reload, before <Toaster/> is mounted — auth.js
@@ -45,9 +60,15 @@ export default function Profile() {
     toast.success('NAME SAVED!')
   }, () => toast.error("COULDN'T SAVE YOUR NAME — TRY AGAIN."))
 
-  const pickAvatar = (next) => runAvatarSave(async () => {
-    if (next === canonicalAvatar(profile?.avatar)) return
-    await setProfile({ avatar: next })
+  const pickAvatar = (next) => {
+    setAvatarDraft(next)
+    setAvatarDraftDirty(next !== savedAvatar)
+  }
+
+  const saveAvatar = () => runAvatarSave(async () => {
+    if (avatarDraft === savedAvatar) { setAvatarDraftDirty(false); return }
+    await setProfile({ avatar: avatarDraft })
+    setAvatarDraftDirty(false)
     toast.success('AVATAR SAVED!')
   }, () => toast.error("COULDN'T SAVE YOUR AVATAR — TRY AGAIN."))
 
@@ -167,8 +188,19 @@ export default function Profile() {
         <div className="space-y-2">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">AVATAR</label>
           <div className={avatarBusy ? 'pointer-events-none opacity-60' : ''}>
-            <AvatarCustomizer value={profile?.avatar} onChange={pickAvatar} />
+            <AvatarCustomizer value={avatarDraft} onChange={pickAvatar} />
           </div>
+          {avatarDraftDirty && (
+            <button
+              onClick={saveAvatar}
+              disabled={avatarBusy}
+              className="w-full max-w-[380px] mx-auto block py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded
+                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-60 animate-pulse"
+              style={{ animationDuration: '1.6s' }}
+            >
+              {avatarBusy ? 'SAVING…' : 'SAVE'}
+            </button>
+          )}
         </div>
 
         {/* Friend code */}

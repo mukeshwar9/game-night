@@ -143,7 +143,7 @@ export default function Onboarding({ onDone }) {
         <div key="identity" className="w-full max-w-xs space-y-6" style={{ animation: 'place-pop 0.25s ease-out' }}>
           <h2 className="font-pixel text-sm text-retro-cta text-glow-cta text-center tracking-widest">CHOOSE YOUR FIGHTER</h2>
 
-          <AvatarCustomizer value={selectedAvatar} onChange={setAvatar} previewSize={72} />
+          <AvatarCustomizer value={selectedAvatar} onChange={setAvatar} previewSize={72} compact />
 
           {/* Name input — matches Home.jsx name input style */}
           <div className="space-y-1.5">

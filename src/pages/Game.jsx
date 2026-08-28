@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ref, onValue, update, get, push, runTransaction, onDisconnect, set as dbSet } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig } from '../lib/games'
+import { freshGameState, getGameConfig, lobbySwitchOverrides } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
@@ -282,6 +282,11 @@ export default function Game() {
   const blockedMoveFeedbackAt = useRef(0)
   const spectatorToastShown = useRef(false)
   const abandonTimerRef = useRef(null)
+  // Lobby liveliness (waiting-room chat/switch/join cues) bookkeeping.
+  const mySwitchedTo = useRef(null)
+  const lobbyLivelinessInit = useRef(false)
+  const prevLobbyGameType = useRef(null)
+  const prevLobbyHasOpponent = useRef(false)
 
   // Firebase init: join room, set up listeners, set up presence
   useEffect(() => {
@@ -395,8 +400,13 @@ export default function Game() {
             if (committed) {
               assignSeat('O')
               sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
-              const joinUpdates = { status: 'playing' }
-              if (data.gameType === 'hangwoman') {
+              // Lobby rooms (challenge-created, `lobby: true`) stay 'waiting'
+              // when the second seat fills — either player picks the game and
+              // taps START from WaitingRoom instead of auto-playing.
+              const joinUpdates = data.lobby
+                ? { lastActivityAt: Date.now() }
+                : { status: 'playing' }
+              if (!data.lobby && data.gameType === 'hangwoman') {
                 joinUpdates['round/setter'] = 'X'
                 joinUpdates['round/phase'] = 'setting'
                 joinUpdates['round/wrongCount'] = 0
@@ -719,6 +729,44 @@ export default function Game() {
     }
   }, [game])
 
+  // Lobby liveliness — while a challenge-created lobby room (`game.lobby`)
+  // sits in 'waiting', surface cues for activity that would otherwise happen
+  // silently behind the chat/reaction UI: a remote game-type switch (toast +
+  // bell) and the second seat filling (join sound, no auto-start). Guarded to
+  // lobby rooms only — legacy/link-created rooms have no `lobby` flag and
+  // never run this.
+  useEffect(() => {
+    if (!game || !game.lobby || game.status !== 'waiting') {
+      lobbyLivelinessInit.current = false
+      return
+    }
+    if (!lobbyLivelinessInit.current) {
+      lobbyLivelinessInit.current = true
+      prevLobbyGameType.current = game.gameType
+      prevLobbyHasOpponent.current = !!(game.players?.X && game.players?.O)
+      return
+    }
+
+    if (game.gameType !== prevLobbyGameType.current) {
+      if (mySwitchedTo.current === game.gameType) {
+        mySwitchedTo.current = null
+      } else if (mySymbol.current) {
+        const opSym = mySymbol.current === 'X' ? 'O' : 'X'
+        const opName = (game.players?.[opSym]?.name || 'OPPONENT').toUpperCase()
+        const label = getGameConfig(game.gameType)?.label || game.gameType
+        toast(`${opName} SWITCHED TO ${label}`)
+        sounds.bell()
+      }
+    }
+    prevLobbyGameType.current = game.gameType
+
+    const hasOpponent = !!(game.players?.X && game.players?.O)
+    if (hasOpponent && !prevLobbyHasOpponent.current) {
+      sounds.join()
+    }
+    prevLobbyHasOpponent.current = hasOpponent
+  }, [game])
+
   // Abandoned-opponent recovery (F-23) — after 120s of CONTINUOUS opponent
   // offline time in a standard 2P turn-based round, offer claim-win / invite
   // / go-home instead of leaving the board interactive forever. Restarts the
@@ -981,8 +1029,12 @@ export default function Game() {
 
   const applySwitchGame = async (newType) => {
     sessionStorage.removeItem(`hangwoman-word-${gameId}`)
+    // Suppresses the lobby-liveliness "opponent switched" toast for a switch
+    // this client itself initiated (see the liveliness effect below).
+    mySwitchedTo.current = newType
+    const updates = buildSwitchUpdates(game, newType)
     try {
-      await update(ref(db, `games/${gameId}`), buildSwitchUpdates(game, newType))
+      await update(ref(db, `games/${gameId}`), game.status === 'waiting' ? lobbySwitchOverrides(updates) : updates)
       recordPlay(newType, 'multi')
     } catch { toast.error('SWITCH FAILED — CHECK CONNECTION') }
   }
@@ -1436,8 +1488,12 @@ export default function Game() {
                 banner can't cover it — gate the trigger itself instead so a
                 real-time match's physics/score can never keep changing
                 invisibly behind an opened switcher. */}
-            {!isSpectator && game.status !== 'waiting' && !activeProposal && !(isRealtimeCustom && game.status === 'playing') && (
-              <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => propose('switch', t)} />
+            {!isSpectator && !activeProposal && !(isRealtimeCustom && game.status === 'playing') && (
+              <GameSwitcher
+                variant="icon"
+                currentType={game.gameType}
+                onSwitch={(t) => (game.status === 'waiting' ? applySwitchGame(t) : propose('switch', t))}
+              />
             )}
             {!isSpectator && (
               <button
@@ -1563,7 +1619,7 @@ export default function Game() {
 
         {/* Game area */}
         {game.status === 'waiting' ? (
-          <WaitingRoom gameId={gameId} gameType={game.gameType} game={game} mySymbol={mySeat} />
+          <WaitingRoom gameId={gameId} gameType={game.gameType} game={game} mySymbol={mySeat} onSwitch={applySwitchGame} opponentOnline={opponentOnline} />
         ) : isCustom ? (
           game.gameType === 'reaction' ? (
             <ReactionGame
@@ -1841,6 +1897,14 @@ export default function Game() {
               onNewMatch={matchWinner && !isSpectator && !activeProposal ? () => propose('newMatch') : null}
               onSwitchGame={!isSpectator && !activeProposal ? (t) => propose('switch', t) : null}
             />
+            {game.status === 'finished' && (
+              <Link
+                to="/leaderboard"
+                className="block text-center font-mono text-[10px] text-retro-dim hover:text-retro-text transition-colors p-2 -m-2"
+              >
+                SEE WHERE YOU RANK →
+              </Link>
+            )}
           </>
         )}
 
@@ -1860,8 +1924,10 @@ export default function Game() {
         {/* Free-text chat log — visible to spectators too; self-hides when empty */}
         <ChatLog chatLog={game.chatLog} myUid={getPlayerId()} />
 
-        {/* Emote / reaction bar — players only, once the room is live */}
-        {!isSpectator && game.status !== 'waiting' && (
+        {/* Emote / reaction bar — hidden while waiting for an opponent (M-XX:
+            nobody to react to yet). Shown to a seated player once an
+            opponent has joined, or to a spectator watching a live game. */}
+        {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
           <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
         )}
       </div>

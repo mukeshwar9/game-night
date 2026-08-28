@@ -73,7 +73,7 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
   return (
     <>
       <div className="flex flex-col items-center gap-1.5 pt-1">
-        <div className="flex justify-center gap-1.5">
+        <div className="flex justify-center gap-1.5 flex-wrap max-w-full px-2">
           {EMOTES_PRIMARY.map(g => (
             <button
               key={g}
