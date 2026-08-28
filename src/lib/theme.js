@@ -5,6 +5,8 @@ export const THEMES = [
   { id: 'synthwave', label: 'SYNTHWAVE' },
   { id: 'grid',      label: 'THE GRID' },
   { id: 'mono',      label: '1-BIT MONO' },
+  { id: 'virtualboy', label: 'VIRTUAL BOY' },
+  { id: 'paper',      label: 'PAPERWHITE' },
 ]
 
 const STORAGE_KEY = 'retro-theme'

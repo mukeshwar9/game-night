@@ -72,12 +72,12 @@
   --c-text:     184 255 184;
   --c-dim:      82 148 82;
   --c-p1:       57 255 20;
-  --c-p2:       216 255 216;
+  --c-p2:       255 211 122;
   --c-cta:      204 255 51;
   --c-win:      118 255 118;
   --c-danger:      255 60 40;
   --c-tint-p1:  6 46 6;
-  --c-tint-p2:  26 46 26;
+  --c-tint-p2:  46 34 8;
   --c-tint-cta: 24 38 0;
   --c-tint-danger: 46 10 6;
   --c-structure:20 82 20;
@@ -88,17 +88,17 @@
 [data-theme="amber"] {
   --c-bg:       13 7 0;
   --c-surface:  22 13 2;
-  --c-card:     29 18 4;
-  --c-border:   58 42 16;
+  --c-card:     36 23 6;
+  --c-border:   70 50 18;
   --c-text:     255 217 160;
   --c-dim:      157 121 66;
   --c-p1:       255 176 0;
-  --c-p2:       255 94 0;
+  --c-p2:       255 244 214;
   --c-cta:      255 208 0;
   --c-win:      255 242 176;
   --c-danger:      246 29 53;
   --c-tint-p1:  46 30 0;
-  --c-tint-p2:  46 16 0;
+  --c-tint-p2:  44 40 30;
   --c-tint-cta: 38 30 0;
   --c-tint-danger: 40 6 10;
   --c-structure:74 52 21;
@@ -138,42 +138,90 @@
   --c-p2:       255 127 17;
   --c-cta:      244 244 244;
   --c-win:      159 255 224;
-  --c-danger:      235 30 40;
+  --c-danger:      255 64 72;
   --c-tint-p1:  0 38 56;
   --c-tint-p2:  50 24 0;
   --c-tint-cta: 34 38 40;
-  --c-tint-danger: 50 8 10;
+  --c-tint-danger: 52 10 12;
   --c-structure:21 74 102;
   --c-deep:     3 14 24;
   --c-skin:     225 190 165;
 }
 
 [data-theme="mono"] {
-  --c-bg:       18 18 15;
-  --c-surface:  28 28 24;
-  --c-card:     38 38 33;
-  --c-border:   64 64 56;
-  --c-text:     240 238 226;
-  --c-dim:      143 143 131;
-  --c-p1:       250 249 240;
-  --c-p2:       176 175 164;
-  --c-cta:      250 249 240;
-  --c-win:      255 255 248;
-  --c-danger:      224 90 90;
-  --c-tint-p1:  50 50 44;
-  --c-tint-p2:  40 40 35;
-  --c-tint-cta: 50 50 44;
-  --c-tint-danger: 46 30 28;
-  --c-structure:78 78 68;
-  --c-deep:     24 24 20;
-  --c-skin:     170 168 160;
+  --c-bg:       0 0 0;
+  --c-surface:  10 10 10;
+  --c-card:     16 16 16;
+  --c-border:   96 96 96;
+  --c-text:     255 255 255;
+  --c-dim:      150 150 150;
+  --c-p1:       255 255 255;
+  --c-p2:       168 168 168;
+  --c-cta:      255 255 255;
+  --c-win:      255 255 255;
+  --c-danger:      235 80 80;
+  --c-tint-p1:  44 44 44;
+  --c-tint-p2:  30 30 30;
+  --c-tint-cta: 44 44 44;
+  --c-tint-danger: 48 26 26;
+  --c-structure:120 120 120;
+  --c-deep:     6 6 6;
+  --c-skin:     205 205 205;
 }
 
-/* Sticky header height (NavBar padding + min-h-11 row) so in-page sticky
+[data-theme="virtualboy"] {
+  --c-bg:       10 0 0;
+  --c-surface:  20 2 2;
+  --c-card:     30 4 4;
+  --c-border:   70 10 10;
+  --c-text:     255 120 110;
+  --c-dim:      150 55 50;
+  --c-p1:       255 45 45;
+  --c-p2:       255 190 170;
+  --c-cta:      255 110 60;
+  --c-win:      255 230 200;
+  --c-danger:      255 255 255;
+  --c-tint-p1:  50 6 6;
+  --c-tint-p2:  52 26 20;
+  --c-tint-cta: 48 18 8;
+  --c-tint-danger: 50 50 50;
+  --c-structure:90 16 16;
+  --c-deep:     16 0 0;
+  --c-skin:     255 190 170;
+}
+
+[data-theme="paper"] {
+  --c-bg:       242 240 233;
+  --c-surface:  250 248 242;
+  --c-card:     255 255 252;
+  --c-border:   200 196 184;
+  --c-text:     40 38 34;
+  --c-dim:      130 126 116;
+  --c-p1:       20 110 180;
+  --c-p2:       220 90 30;
+  --c-cta:      200 120 0;
+  --c-win:      30 130 60;
+  --c-danger:      200 20 45;
+  --c-tint-p1:  215 230 245;
+  --c-tint-p2:  250 225 210;
+  --c-tint-cta: 248 235 205;
+  --c-tint-danger: 248 215 220;
+  --c-structure:170 165 152;
+  --c-deep:     232 229 220;
+  --c-skin:     225 185 155;
+}
+
+/* Sticky header height (NavBar padding + min-h-9 row) so in-page sticky
    chrome (GamePicker filters) can sit flush under it. */
 :root {
-  --app-header-h: calc(max(0.75rem, env(safe-area-inset-top)) + 0.75rem + 2.75rem);
+  --app-header-h: calc(max(0.75rem, env(safe-area-inset-top)) + 0.5rem + 2.25rem);
+  /* Offset sticky chrome actually uses — collapses to 0 while the header is
+     slid away (useHideOnScroll toggles `header-hidden` on <html>) so the
+     sticky block rides up flush instead of leaving a gap. */
+  --app-header-offset: var(--app-header-h);
+  --app-tabbar-h: calc(3.75rem + env(safe-area-inset-bottom));
 }
+html.header-hidden { --app-header-offset: 0px; }
 
 /* ── Pixel cursors — static white pixel-art (cursors can't read CSS vars) ── */
 :root {
