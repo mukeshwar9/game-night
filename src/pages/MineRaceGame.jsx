@@ -324,9 +324,9 @@ export default function MineRaceGame({
     const showMine = mine && showMines
     const n = isRevealed ? (board?.counts?.[i] ?? 0) : 0
     return (
-      <div
+      <button
         key={i}
-        role="gridcell"
+        disabled={!canAct}
         aria-label={`cell ${i}`}
         className={cn(
           'aspect-square flex items-center justify-center rounded-[2px] border font-pixel text-[10px] leading-none select-none',
@@ -347,7 +347,7 @@ export default function MineRaceGame({
         onPointerCancel={cancelPress}
       >
         {showMine ? (isFatal ? '💥' : '💣') : isFlagged ? '🚩' : isRevealed && n > 0 ? n : ''}
-      </div>
+      </button>
     )
   }
 
