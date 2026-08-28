@@ -6,6 +6,7 @@ import {
   ensureProfile, subscribeProfile, setupPresence, subscribeInvites, subscribeRequests,
 } from './social'
 import { syncStatsOnBoot } from './statsSync'
+import { THEMES, applyTheme, getStoredTheme } from './theme'
 
 const AuthContext = createContext(null)
 
@@ -61,7 +62,15 @@ export function AuthProvider({ children }) {
       try { await ensureProfile() } catch (e) { console.warn('Profile init skipped:', e?.message) }
       if (cancelled) return
       syncStatsOnBoot()
-      unsubProfile = subscribeProfile(uid, p => { if (!cancelled) setProfile(p) })
+      unsubProfile = subscribeProfile(uid, p => {
+        if (cancelled) return
+        setProfile(p)
+        // Theme follows the account across devices: applyTheme only touches
+        // DOM + localStorage, so this can't loop back into another setProfile write.
+        if (p?.theme && THEMES.some(t => t.id === p.theme) && p.theme !== getStoredTheme()) {
+          applyTheme(p.theme)
+        }
+      })
       unsubPresence = setupPresence(uid)
       unsubInvites = subscribeInvites(list => { if (!cancelled) setInvites(list) })
       unsubRequests = subscribeRequests(list => { if (!cancelled) setRequestCount(list.length) })
