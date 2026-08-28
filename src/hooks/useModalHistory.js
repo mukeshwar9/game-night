@@ -8,6 +8,14 @@ import { useEffect, useRef } from 'react'
 // button inside the overlay) the overlay unmounts first — the cleanup then
 // consumes the still-pending marker with a programmatic back-step so it
 // never lingers as an extra dead entry in history.
+// A marker whose consuming back-step is scheduled but not yet executed. When
+// the next overlay effect mounts inside the same task (StrictMode's dev-only
+// mount → cleanup → remount, or one overlay swapped for another), it adopts
+// the still-live marker instead of pushing a second one — otherwise the
+// deferred history.back() lands *after* the remount attaches its popstate
+// listener and instantly closes the freshly opened overlay.
+let pendingBack = false
+
 export default function useModalHistory(onClose) {
   const pushedRef = useRef(false)
   const onCloseRef = useRef(onClose)
@@ -17,7 +25,11 @@ export default function useModalHistory(onClose) {
   }, [onClose])
 
   useEffect(() => {
-    window.history.pushState({ modalHistory: true }, '')
+    if (pendingBack) {
+      pendingBack = false // adopt the marker the outgoing effect left behind
+    } else {
+      window.history.pushState({ modalHistory: true }, '')
+    }
     pushedRef.current = true
 
     const onPopState = () => {
@@ -30,7 +42,16 @@ export default function useModalHistory(onClose) {
       window.removeEventListener('popstate', onPopState)
       if (pushedRef.current) {
         pushedRef.current = false
-        window.history.back()
+        pendingBack = true
+        setTimeout(() => {
+          if (!pendingBack) return
+          pendingBack = false
+          // Only consume the marker if we're still sitting on it. If closing
+          // the overlay also navigated (pick-a-mode → /solo/:type), the new
+          // route's entry is on top — a back-step here would pop the player
+          // right back off the page they just entered.
+          if (window.history.state?.modalHistory) window.history.back()
+        }, 0)
       }
     }
   }, [])
