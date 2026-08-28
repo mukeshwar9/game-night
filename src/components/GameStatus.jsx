@@ -237,10 +237,22 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     // M-48: an extra turn (D&B box / SOS completed) gets a distinct pulse —
     // animate-bounce (Tailwind built-in) reads differently from the steady
     // arcade-blink used for a normal turn, so it can't be misread as a bug.
-    if (extraTurn && currentTurn === mySymbol) {
+    if (extraTurn && (mySymbol == null || currentTurn === mySymbol)) {
       return (
         <p className="text-center font-pixel text-[10px] tracking-wider">
           <span className="inline-block text-retro-cta text-glow-cta animate-bounce">GO AGAIN!</span>
+        </p>
+      )
+    }
+    if (mySymbol == null) {
+      return (
+        <p className="text-center font-pixel text-[10px] tracking-wider">
+          <span className={cn(
+            'arcade-blink',
+            currentTurn === 'X' ? 'text-retro-p1' : 'text-retro-p2',
+          )}>
+            {currentTurn}&apos;S TURN
+          </span>
         </p>
       )
     }

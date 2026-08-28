@@ -271,6 +271,7 @@ export default function Home() {
             layout="full"
             onSelect={createGame}
             onSolo={(type) => navigate('/solo/' + type)}
+            onLocal={(type) => navigate('/local/' + type)}
             loadingType={loading}
           />
         </div>

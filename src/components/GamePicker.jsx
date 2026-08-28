@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { GAME_TYPES, GAME_CATEGORIES, getGameConfig } from '../lib/games'
+import { GAME_TYPES, GAME_CATEGORIES, getGameConfig, supportsLocalPlay } from '../lib/games'
 import { searchGames } from '../lib/gameSearch'
 import { getFavorites, toggleFavorite } from '../lib/favorites'
 import RulesModal from './RulesModal'
@@ -34,7 +34,7 @@ function readPickerState() {
   }
 }
 
-export default function GamePicker({ onSelect, onSolo, excludeType, loadingType, layout = 'compact' }) {
+export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loadingType, layout = 'compact' }) {
   const isFull = layout === 'full'
   const defaultCat = isFull ? 'all' : ((excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id)
   const persisted = isFull ? readPickerState() : null
@@ -42,7 +42,8 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
   const [rulesType, setRulesType] = useState(null)
   const [variantBase, setVariantBase] = useState(null)
   // Which action VariantChooser's onPick performs — 'friend' (room creation,
-  // opened from the card's +MODES chip) or 'solo' (opened from the VS AI chip).
+  // opened from the card's +MODES chip), 'solo' (VS AI chip), or 'local'
+  // (2P PASS chip, opens the hot-seat pass-and-play route).
   const [variantMode, setVariantMode] = useState('friend')
   const [query, setQuery] = useState(persisted?.query || '')
   const [favVersion, setFavVersion] = useState(0)
@@ -123,6 +124,13 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
   // Secondary chip on the card — +MODES, opens the friend-room variant pick.
   const handleModes = (g) => { setVariantMode('friend'); setVariantBase(g) }
 
+  // Secondary chip on the card — 2P PASS, opens the local hot-seat mode.
+  const handleLocal = (g) => {
+    const localVariants = variantsFor(g.type).filter(v => supportsLocalPlay(v.type))
+    if (localVariants.length) { setVariantMode('local'); setVariantBase(g) }
+    else onLocal(g.type)
+  }
+
   const gridClass = isFull
     ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'
     : 'grid grid-cols-2 gap-3'
@@ -136,6 +144,7 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
           onTap={handleTap}
           onRules={setRulesType}
           onVsAi={onSolo ? handleVsAi : undefined}
+          onLocal={onLocal ? handleLocal : undefined}
           onModes={handleModes}
           loadingType={loadingType}
           isFav={favSet.has(g.type)}
@@ -252,10 +261,15 @@ export default function GamePicker({ onSelect, onSolo, excludeType, loadingType,
       {variantBase && (
         <VariantChooser
           base={variantBase}
-          variants={variantMode === 'solo' ? variantsFor(variantBase.type).filter(v => v.solo) : variantsFor(variantBase.type)}
+          variants={
+            variantMode === 'solo' ? variantsFor(variantBase.type).filter(v => v.solo)
+              : variantMode === 'local' ? variantsFor(variantBase.type).filter(v => supportsLocalPlay(v.type))
+              : variantsFor(variantBase.type)
+          }
           onPick={(type) => {
             setVariantBase(null)
             if (variantMode === 'solo') onSolo(type)
+            else if (variantMode === 'local') onLocal(type)
             else if (type !== excludeType) onSelect(type)
           }}
           onClose={() => setVariantBase(null)}

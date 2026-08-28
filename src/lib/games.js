@@ -926,6 +926,15 @@ export function usesFirstMover(gameType) {
   return !cfg.nPlayer && !cfg.realtime && !cfg.simultaneous
 }
 
+// Offline local pass-and-play (hot-seat, no Firebase): same eligibility as a
+// standard registry-driven board game — a real board/win-checker, not custom
+// (hidden-info or bespoke-state) logic, not nPlayer, simultaneous, or realtime.
+export function supportsLocalPlay(gameType) {
+  const cfg = GAME_TYPES.find(t => t.type === gameType)
+  if (!cfg) return false
+  return !!cfg.BoardComponent && !cfg.custom && !cfg.nPlayer && !cfg.simultaneous && !cfg.realtime
+}
+
 export function resolveGoesFirst(goesFirst) {
   if (goesFirst === 'O') return 'O'
   if (goesFirst === 'random') return Math.random() < 0.5 ? 'X' : 'O'

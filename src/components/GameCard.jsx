@@ -1,4 +1,4 @@
-import { getPlayerTag, getGameConfig, isNewGame } from '../lib/games'
+import { getPlayerTag, getGameConfig, isNewGame, supportsLocalPlay } from '../lib/games'
 import { cn } from '@/lib/utils'
 import { RulesButton } from './RulesModal'
 import PixelDots from './loading/PixelDots'
@@ -10,7 +10,7 @@ import PixelDots from './loading/PixelDots'
 // default/Classic variant (one-tap room creation) — VS AI and variant
 // picks are demoted to small secondary chips below the card so the common
 // path isn't gated behind a modal (`onVsAi`/`onModes`, both optional).
-export default function GameCard({ game, onTap, onRules, onVsAi, onModes, loadingType, disabled, isFav, onToggleFav }) {
+export default function GameCard({ game, onTap, onRules, onVsAi, onModes, onLocal, loadingType, disabled, isFav, onToggleFav }) {
   const { type, variantOf } = game
   const base = variantOf ? getGameConfig(variantOf) : null
   const label = variantOf ? (game.variantLabel || game.label) : game.label
@@ -21,6 +21,7 @@ export default function GameCard({ game, onTap, onRules, onVsAi, onModes, loadin
   const isBusy = disabled ?? !!loadingType
   const showVsAi = !!(onVsAi && game.solo)
   const showModes = !!(onModes && hasVariants)
+  const showLocal = !!(onLocal && supportsLocalPlay(type))
 
   return (
     <div className="relative">
@@ -78,7 +79,7 @@ export default function GameCard({ game, onTap, onRules, onVsAi, onModes, loadin
           </svg>
         </button>
       )}
-      {(showVsAi || showModes) && (
+      {(showVsAi || showLocal || showModes) && (
         <div className="flex items-center justify-center gap-1">
           {showVsAi && (
             <button
@@ -89,6 +90,17 @@ export default function GameCard({ game, onTap, onRules, onVsAi, onModes, loadin
                 text-retro-p1/90 hover:text-retro-p1 tracking-wider transition-colors disabled:opacity-40"
             >
               VS AI
+            </button>
+          )}
+          {showLocal && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onLocal(game) }}
+              disabled={isBusy}
+              aria-label={`Play ${label} pass and play`}
+              className="min-h-11 px-2.5 flex items-center justify-center font-pixel text-[7px]
+                text-retro-p2/90 hover:text-retro-p2 tracking-wider transition-colors disabled:opacity-40"
+            >
+              2P PASS
             </button>
           )}
           {showModes && (

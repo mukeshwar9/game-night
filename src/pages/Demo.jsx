@@ -42,7 +42,7 @@ import useBusy from '../hooks/useBusy'
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
-import { getGameConfig, freshGameState, GAME_CATEGORIES, getPlayerTag } from '../lib/games'
+import { getGameConfig, freshGameState, GAME_CATEGORIES, getPlayerTag, supportsLocalPlay } from '../lib/games'
 import { recordPlay } from '../lib/analytics'
 import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
@@ -73,7 +73,8 @@ function generateNumberLocal(level) {
 
 // ─── Generic bot harness ──────────────────────────────────────────────────────
 
-function BotBoardDemo({ type }) {
+function BotBoardDemo({ type, mode = 'bot' }) {
+  const isLocal = mode === 'local'
   const cfg = getGameConfig(type)
   const makeInit = () => ({
     ...freshGameState(type),
@@ -110,15 +111,17 @@ function BotBoardDemo({ type }) {
 
   const handleHumanMove = (payload) => {
     setGame(g => {
-      if (g.status !== 'playing' || g.currentTurn !== 'X') return g
-      return applyOne(g, payload, 'X') || g
+      if (g.status !== 'playing') return g
+      const symbol = isLocal ? g.currentTurn : 'X'
+      if (!isLocal && g.currentTurn !== 'X') return g
+      return applyOne(g, payload, symbol) || g
     })
   }
 
   const prevPig = useRef({ idx: 0, turnScore: 0, rolls: 0 })
   const prevStatus = useRef(game.status)
   useEffect(() => {
-    if (type !== 'dice') return
+    if (type !== 'dice' && type !== 'dice-big') return
     const rolled = (game.diceRollIndex ?? 0) > prevPig.current.idx
     const bankedOrBust = (game.diceTurnScore ?? 0) === 0 && prevPig.current.turnScore > 0
     if (rolled || bankedOrBust) {
@@ -136,15 +139,17 @@ function BotBoardDemo({ type }) {
   useEffect(() => {
     if (prevStatus.current === 'playing' && game.status === 'finished') {
       if (game.winner === 'draw') sounds.draw()
-      else if (game.winner === 'X') sounds.win()
+      else if (isLocal || game.winner === 'X') sounds.win()
       else sounds.lose()
     }
     prevStatus.current = game.status
-  }, [game.status, game.winner])
+  }, [game.status, game.winner, isLocal])
 
   // Bot turn driver — re-runs whenever game changes; handles extra-turns/passes/dice streaks
-  // because it simply fires again while it's still O's turn.
+  // because it simply fires again while it's still O's turn. Skipped entirely
+  // in local mode — both seats are human, no timer needed.
   useEffect(() => {
+    if (isLocal) return
     if (game.status !== 'playing' || game.currentTurn !== 'O') return
     timerRef.current = setTimeout(() => {
       setGame(g => {
@@ -161,13 +166,22 @@ function BotBoardDemo({ type }) {
   const reset = () => { clearTimeout(timerRef.current); setGame(makeInit()) }
 
   const board = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize) : []
-  const canMove = game.status === 'playing' && game.currentTurn === 'X'
+  const canMove = game.status === 'playing' && (isLocal || game.currentTurn === 'X')
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
-        <PlayerCard name="You" symbol="X" isActive={canMove} isMe />
-        <PlayerCard name="CPU" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
+        {isLocal ? (
+          <>
+            <PlayerCard name="PLAYER 1" symbol="X" isActive={game.status === 'playing' && game.currentTurn === 'X'} isMe={false} />
+            <PlayerCard name="PLAYER 2" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
+          </>
+        ) : (
+          <>
+            <PlayerCard name="You" symbol="X" isActive={canMove} isMe />
+            <PlayerCard name="CPU" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
+          </>
+        )}
       </div>
       <cfg.BoardComponent
         board={board}
@@ -181,7 +195,8 @@ function BotBoardDemo({ type }) {
         status={game.status}
         winner={game.winner}
         currentTurn={game.currentTurn}
-        mySymbol="X"
+        mySymbol={isLocal ? null : 'X'}
+        extraTurn={!!game.extraTurn}
         onPlayAgain={game.status === 'finished' ? reset : null}
       />
     </div>
@@ -2289,7 +2304,55 @@ const DEMOS = [
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function Demo() {
+// Local pass-and-play: two people share one screen/keyboard, alternating
+// moves on the real BoardComponent with no bot and no Firebase. Reuses the
+// generic BotBoardDemo engine (mode="local") — no per-game code needed.
+function LocalPlayPage({ routeType }) {
+  const cfg = getGameConfig(routeType)
+  const playRecorded = useRef(false)
+  useEffect(() => {
+    if (playRecorded.current) return
+    playRecorded.current = true
+    recordPlay(routeType, 'local')
+  }, [routeType])
+
+  return (
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-center justify-end">
+          <span className="text-xs text-retro-p2 bg-retro-tint-p2 border border-retro-p2/60 rounded px-2 py-1 font-mono">
+            PASS & PLAY
+          </span>
+        </div>
+        <div className="border border-retro-border rounded p-4 bg-retro-card space-y-1">
+          <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">
+            {cfg.label} — PASS & PLAY
+          </p>
+          <p className="font-pixel text-[8px] text-retro-dim text-center">
+            SHARE THIS SCREEN — TAKE TURNS
+          </p>
+          <div className="pt-3">
+            <BotBoardDemo type={routeType} mode="local" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Dispatcher — no hooks of its own, so branching to a different child
+// component ahead of any hook call stays rules-of-hooks safe.
+export default function Demo({ mode }) {
+  const { type: routeType } = useParams()
+
+  if (mode === 'local' && routeType && supportsLocalPlay(routeType)) {
+    return <LocalPlayPage routeType={routeType} />
+  }
+  // /local/:type with an invalid/ineligible type falls back to the hub below.
+  return <DemoHub />
+}
+
+function DemoHub() {
   const { type: routeType } = useParams()
   const hasRouteType = !!routeType && DEMOS.some(d => d.type === routeType)
   const initialType = hasRouteType ? routeType : 'tictactoe'

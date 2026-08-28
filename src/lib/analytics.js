@@ -10,6 +10,6 @@ const SAFE_GAME_TYPE = /^[a-zA-Z0-9]+$/
 export function recordPlay(gameType, mode) {
   if (!db) return
   if (!SAFE_GAME_TYPE.test(gameType || '')) return
-  if (mode !== 'multi' && mode !== 'solo') return
+  if (mode !== 'multi' && mode !== 'solo' && mode !== 'local') return
   set(ref(db, `plays/${gameType}/${mode}`), increment(1)).catch(() => {})
 }

@@ -7,10 +7,10 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: () => null, setItem: () => {} }
 }
 
-let isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState
+let isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState, supportsLocalPlay
 
 beforeAll(async () => {
-  ;({ isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState } = await import('./games'))
+  ;({ isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState, supportsLocalPlay } = await import('./games'))
 })
 
 describe('isNewGame', () => {
@@ -58,6 +58,48 @@ describe('first mover', () => {
     expect(firstMoverUpdates('twotruths', 'X')).toEqual({ 'round/setter': 'X' })
     expect(firstMoverUpdates('bluff', 'O')).toEqual({ 'bluffRound/turn': 'O' })
     expect(firstMoverUpdates('pong', 'O')).toEqual({})
+  })
+})
+
+describe('supportsLocalPlay', () => {
+  const LOCAL_TYPES = [
+    'tictactoe', 'ultimatettt', 'tictactoe4', 'connectfour', 'connectfour5', 'connectfourpop',
+    'dotsandboxes', 'dotsandboxes4', 'sos', 'gomoku', 'reversi', 'chainreaction', 'chainreaction6',
+    'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'visualmemory', 'pairs', 'dice', 'dice-big',
+  ]
+
+  it('is true for all 22 eligible registry-driven turn-based games', () => {
+    expect(LOCAL_TYPES).toHaveLength(22)
+    for (const type of LOCAL_TYPES) {
+      expect(supportsLocalPlay(type), type).toBe(true)
+    }
+  })
+
+  it('is false for custom (hidden-info/bespoke-state) games', () => {
+    expect(supportsLocalPlay('checkers')).toBe(false)
+    expect(supportsLocalPlay('hangwoman')).toBe(false)
+    expect(supportsLocalPlay('battleship')).toBe(false)
+  })
+
+  it('is false for realtime games', () => {
+    expect(supportsLocalPlay('pong')).toBe(false)
+  })
+
+  it('is false for simultaneous games', () => {
+    expect(supportsLocalPlay('reaction')).toBe(false)
+  })
+
+  it('is false for nPlayer games', () => {
+    expect(supportsLocalPlay('herd')).toBe(false)
+  })
+
+  it('is false for an unknown type', () => {
+    expect(supportsLocalPlay('nonexistent')).toBe(false)
+  })
+
+  it('matches the exact 22-type registry predicate', () => {
+    const derived = GAME_TYPES.filter(t => supportsLocalPlay(t.type)).map(t => t.type).sort()
+    expect(derived).toEqual([...LOCAL_TYPES].sort())
   })
 })
 
