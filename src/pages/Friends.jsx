@@ -245,7 +245,7 @@ export default function Friends() {
               autoCapitalize="characters"
               autoCorrect="off"
               spellCheck={false}
-              className="flex-1 min-h-11 bg-retro-card border border-retro-border rounded px-3 py-2 font-pixel text-sm tracking-[0.2em]
+              className="flex-1 min-w-0 min-h-11 bg-retro-card border border-retro-border rounded px-3 py-2 font-pixel text-sm tracking-[0.2em]
                 text-retro-text placeholder:text-retro-dim placeholder:tracking-normal placeholder:font-mono focus:outline-none focus:border-retro-p1"
             />
             <button
