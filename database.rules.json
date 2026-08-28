@@ -64,6 +64,20 @@
         }
       }
     },
+    "leaderboard": {
+      ".read": "auth != null",
+      ".indexOn": ["wins"],
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['name','wins','games'])",
+        "name":       { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "wins":       { ".validate": "newData.isNumber()" },
+        "games":      { ".validate": "newData.isNumber()" },
+        "bestStreak": { ".validate": "newData.isNumber()" },
+        "avatar":     { ".validate": "newData.isString()" },
+        "updatedAt":  { ".validate": "newData.isNumber()" }
+      }
+    },
     "invites": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

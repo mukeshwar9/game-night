@@ -7,7 +7,7 @@ import EmptyState from '../components/EmptyState'
 import { canonicalAvatar } from '../lib/avatars'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
-import { getStats } from '../lib/profile'
+import { getStats, getMatches } from '../lib/profile'
 import { getGameConfig } from '../lib/games'
 import { UPGRADE_ERRORS, consumePendingAuthToast } from '../lib/auth'
 import useBusy from '../hooks/useBusy'
@@ -21,6 +21,7 @@ export default function Profile() {
   const [nameBusy, runNameSave] = useBusy()
   const [avatarBusy, runAvatarSave] = useBusy()
   const stats = getStats()
+  const matches = getMatches()
 
   // M-07: a redirect-based Google sign-in (mobile/standalone PWA fallback)
   // completes on a full page reload, before <Toaster/> is mounted — auth.js
@@ -119,6 +120,7 @@ export default function Profile() {
 
   const byGame = stats?.byGame ? Object.entries(stats.byGame) : []
   const vs = stats?.vs ? Object.entries(stats.vs) : []
+  const recentMatches = matches.slice(0, 10)
 
   return (
     <div className="min-h-screen bg-retro-bg">
@@ -283,10 +285,54 @@ export default function Profile() {
           </>
           )}
         </div>
+
+        {/* Recent matches */}
+        <div className="space-y-2">
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">RECENT MATCHES</label>
+          {recentMatches.length === 0 ? (
+            <EmptyState>PLAY A MATCH TO SEE IT HERE</EmptyState>
+          ) : (
+            <div className="space-y-2">
+              {recentMatches.map((m, i) => {
+                const Icon = m.gameType ? getGameConfig(m.gameType)?.Icon : null
+                return (
+                  <div key={`${m.ts}-${i}`} className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-2.5">
+                    <div className="w-7 h-7 shrink-0 flex items-center justify-center text-retro-dim">
+                      {Icon && <Icon />}
+                    </div>
+                    <Avatar id={m.opponentAvatar} size={32} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-sm text-retro-text truncate">{m.opponentName || 'Opponent'}</p>
+                      <p className="font-mono text-[10px] text-retro-dim">{formatRelativeTime(m.ts)}</p>
+                    </div>
+                    <span className={cn('font-pixel text-[10px] shrink-0', m.won ? 'text-retro-win' : 'text-retro-p2')}>
+                      {m.won ? 'WIN' : 'LOSS'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
       </div>
     </div>
   )
+}
+
+// Short relative-time label (e.g. "2h ago") — no existing helper in the repo
+// to reuse (checked); kept local/minimal since it's only used here.
+function formatRelativeTime(ts) {
+  if (!ts) return ''
+  const diffMs = Date.now() - ts
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+  if (diffMs < minute) return 'JUST NOW'
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)}M AGO`
+  if (diffMs < day) return `${Math.floor(diffMs / hour)}H AGO`
+  if (diffMs < 7 * day) return `${Math.floor(diffMs / day)}D AGO`
+  return new Date(ts).toLocaleDateString()
 }
 
 function GoogleMark() {

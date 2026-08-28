@@ -311,6 +311,9 @@ export default function Home() {
           ) : (
             <EmptyState>PLAY A MATCH TO START YOUR RECORD</EmptyState>
           )}
+          <Link to="/leaderboard" className="inline-block font-pixel text-[10px] text-retro-cta hover:text-glow-cta transition-all">
+            LEADERBOARD →
+          </Link>
         </div>
 
         {/* Upgrade nudge — anonymous users at a milestone */}

@@ -6,6 +6,7 @@ import Demo from './pages/Demo';
 import DailyGame from './pages/DailyGame';
 import Profile from './pages/Profile';
 import Friends from './pages/Friends';
+import Leaderboard from './pages/Leaderboard';
 import NotFound from './pages/NotFound';
 import { Toaster } from './components/ui/sonner';
 import UpdatePrompt from './components/UpdatePrompt';
@@ -49,6 +50,7 @@ function AppRoutes() {
             <Route path="/daily" element={<DailyGame />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/friends" element={<Friends />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

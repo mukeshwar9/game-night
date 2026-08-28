@@ -13,7 +13,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   }
 }
 
-const { getStats, recordMatch, getHeadToHead, formatHeadToHeadLabel } = await import('./profile')
+const { getStats, recordMatch, getHeadToHead, formatHeadToHeadLabel, getMatches } = await import('./profile')
 
 describe('recordMatch', () => {
   beforeEach(() => localStorage.clear())
@@ -69,6 +69,53 @@ describe('getHeadToHead', () => {
     recordMatch({ gameType: 'tictactoe', won: true, opponentName: 'Alice', opponentUid: 'uid-1' })
     recordMatch({ gameType: 'tictactoe', won: false, opponentName: 'Alice', opponentUid: 'uid-1' })
     expect(getHeadToHead('uid-1')).toEqual({ myWins: 1, theirWins: 1 })
+  })
+})
+
+describe('match history (getMatches / recordMatch)', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('appends newest match first', () => {
+    recordMatch({ gameType: 'tictactoe', won: true, opponentName: 'Alice', opponentUid: 'uid-1', opponentAvatar: 'invader-1' })
+    recordMatch({ gameType: 'connectfour', won: false, opponentName: 'Bob', opponentUid: 'uid-2', opponentAvatar: 'robot-2' })
+    const matches = getMatches()
+    expect(matches).toHaveLength(2)
+    expect(matches[0].gameType).toBe('connectfour')
+    expect(matches[1].gameType).toBe('tictactoe')
+  })
+
+  it('records the full entry shape', () => {
+    recordMatch({ gameType: 'sos', won: true, opponentName: 'Alice', opponentUid: 'uid-1', opponentAvatar: 'invader-1' })
+    const [m] = getMatches()
+    expect(m).toMatchObject({
+      gameType: 'sos',
+      won: true,
+      opponentName: 'Alice',
+      opponentUid: 'uid-1',
+      opponentAvatar: 'invader-1',
+    })
+    expect(typeof m.ts).toBe('number')
+  })
+
+  it('defaults opponentAvatar to null when omitted (legacy call sites)', () => {
+    recordMatch({ gameType: 'tictactoe', won: false, opponentName: 'Bob' })
+    expect(getMatches()[0].opponentAvatar).toBeNull()
+  })
+
+  it('caps history at 50 entries, dropping the oldest', () => {
+    for (let i = 0; i < 55; i++) {
+      recordMatch({ gameType: 'tictactoe', won: true, opponentName: `P${i}`, opponentUid: `uid-${i}` })
+    }
+    const matches = getMatches()
+    expect(matches).toHaveLength(50)
+    expect(matches[0].opponentUid).toBe('uid-54')
+    expect(matches[49].opponentUid).toBe('uid-5')
+  })
+
+  it('getMatches returns [] when nothing recorded or storage is corrupt', () => {
+    expect(getMatches()).toEqual([])
+    localStorage.setItem('gn-matches', 'not json')
+    expect(getMatches()).toEqual([])
   })
 })
 

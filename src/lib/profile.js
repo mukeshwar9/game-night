@@ -8,9 +8,13 @@
 import { ref, set as dbSet } from 'firebase/database'
 import { db } from './firebase'
 import { getUid } from './auth'
+import { guestName } from './social'
+import { defaultAvatarForId } from './avatars'
 
 const STATS_KEY = 'gn-stats'
 const ROOMS_KEY = 'gn-rooms'
+const MATCHES_KEY = 'gn-matches'
+const MAX_MATCHES = 50
 
 const blankStats = () => ({
   games: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0,
@@ -31,17 +35,56 @@ export function setStats(s) {
 
 // Fire-and-forget mirror to Firebase — swallow errors, no-op when signed out
 // or db unavailable. Never awaited by callers; localStorage is already durable.
+// Also mirrors a denormalized leaderboard row (leaderboard/{uid}) so the global
+// Leaderboard page can query top-N by wins without opening up `users` to
+// queries (see database.rules.json). Name/avatar come from the same
+// localStorage mirror ensureProfile() (social.js) keeps in sync, falling back
+// the same way social.js does for a profile that hasn't loaded yet.
 function mirrorStats(stats) {
   const uid = getUid()
   if (!db || !uid) return
   dbSet(ref(db, `users/${uid}/stats`), stats).catch(() => {})
+
+  const name = localStorage.getItem('playerName') || guestName(uid)
+  const avatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(uid)
+  dbSet(ref(db, `leaderboard/${uid}`), {
+    name,
+    avatar,
+    wins: stats.wins,
+    games: stats.games,
+    bestStreak: stats.bestStreak,
+    updatedAt: Date.now(),
+  }).catch(() => {})
+}
+
+export function getMatches() {
+  try {
+    const list = JSON.parse(localStorage.getItem(MATCHES_KEY))
+    return Array.isArray(list) ? list : []
+  } catch { return [] }
+}
+
+export function setMatches(list) {
+  try { localStorage.setItem(MATCHES_KEY, JSON.stringify(list)) } catch { /* quota */ }
+  return list
+}
+
+// Fire-and-forget mirror of the whole match-history list to Firebase, same
+// pattern as mirrorStats. Covered by the existing owner-write rule on
+// users/$uid (no new rules needed for this path).
+function mirrorMatches(list) {
+  const uid = getUid()
+  if (!db || !uid) return
+  dbSet(ref(db, `users/${uid}/matches`), list).catch(() => {})
 }
 
 // Record one finished MATCH from this browser's perspective. Idempotency is the
 // caller's responsibility (call once per match-end transition). `opponentUid`
 // keys head-to-head by identity (rename-proof); omit it to fall back to the
 // legacy name-keyed entry shape for callers that don't have it yet.
-export function recordMatch({ gameType, won, opponentName, opponentUid }) {
+// `opponentAvatar` is optional (older/legacy call sites may not have it) and
+// is stored on the match-history entry for display on the Profile page.
+export function recordMatch({ gameType, won, opponentName, opponentUid, opponentAvatar }) {
   const s = getStats() || blankStats()
   s.games += 1
   if (won) {
@@ -67,6 +110,14 @@ export function recordMatch({ gameType, won, opponentName, opponentUid }) {
   }
   setStats(s)
   mirrorStats(s)
+
+  const matches = [
+    { ts: Date.now(), gameType: gameType || null, won: !!won, opponentName: name || null, opponentUid: opponentUid || null, opponentAvatar: opponentAvatar || null },
+    ...getMatches(),
+  ].slice(0, MAX_MATCHES)
+  setMatches(matches)
+  mirrorMatches(matches)
+
   return s
 }
 

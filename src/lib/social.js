@@ -41,7 +41,7 @@ export function isValidFriendCode(code) {
 }
 
 // ---- Profile ----
-function guestName(uid) {
+export function guestName(uid) {
   return `Guest-${String(uid || '').slice(0, 4).toUpperCase() || 'XXXX'}`
 }
 
