@@ -9,7 +9,7 @@ import TypingKeyboard from '../components/TypingKeyboard';
 import WordSetter from '../components/WordSetter';
 import ChimpBoard from '../components/ChimpBoard';
 import VisualMemoryBoard from '../components/VisualMemoryBoard';
-import ArcadeLoader from '../components/ArcadeLoader';
+import LoadingLine from '../components/loading/LoadingLine';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
@@ -729,7 +729,7 @@ function WordHuntDemo() {
   if (!dict) {
     return (
       <div className="flex flex-col items-center justify-center py-8">
-        <ArcadeLoader variant="inline" />
+        <LoadingLine />
         {dictError && (
           <>
             <p className="font-pixel text-[9px] text-retro-p2 mt-3">COULDN&apos;T LOAD WORD LIST</p>

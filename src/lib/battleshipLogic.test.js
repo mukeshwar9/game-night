@@ -14,6 +14,7 @@ import {
   remainingShips,
   pickShot,
   verifyTranscript,
+  canPlace,
 } from './battleshipLogic'
 import { commit } from './commit'
 
@@ -191,6 +192,30 @@ describe('pickShot', () => {
     }
     // Line extension must propose 0 or 3 far more often than other neighbors.
     expect(seen.has(0) || seen.has(3)).toBe(true)
+  })
+})
+
+describe('canPlace', () => {
+  const fleet = baseFleet() // carrier h@0..4, battleship v@20,30,40,50, cruiser h@55..57, submarine v@77,87,97, destroyer h@95,96
+
+  it('accepts a valid, non-overlapping in-bounds spot', () => {
+    expect(canPlace(fleet, 'destroyer', 'h', 10)).toBe(true) // 10,11 empty
+  })
+  it('rejects horizontal placement overflowing the right edge', () => {
+    expect(canPlace(fleet, 'destroyer', 'h', 9)).toBe(false) // col 9 + size 2 > 10
+  })
+  it('rejects vertical placement overflowing the bottom edge', () => {
+    expect(canPlace(fleet, 'destroyer', 'v', 90)).toBe(false) // row 9 + size 2 > 10
+  })
+  it('rejects overlap with another ship', () => {
+    expect(canPlace(fleet, 'destroyer', 'h', 0)).toBe(false) // overlaps carrier's 0,1
+  })
+  it('is permissive against a partial fleet (only the entries present matter)', () => {
+    const partial = { carrier: fleet.carrier }
+    expect(canPlace(partial, 'destroyer', 'h', 50)).toBe(true)
+  })
+  it('allows self-replacement — a ship never blocks its own current spot', () => {
+    expect(canPlace(fleet, 'carrier', 'h', 0)).toBe(true)
   })
 })
 

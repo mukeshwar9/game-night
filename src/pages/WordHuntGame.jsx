@@ -4,7 +4,7 @@ import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
-import ArcadeLoader from '../components/ArcadeLoader'
+import LoadingLine from '../components/loading/LoadingLine'
 import PixelDots from '../components/loading/PixelDots'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import {
@@ -596,14 +596,14 @@ export default function WordHuntGame({
   // Dictionary-load status block, reused wherever a screen needs `dict` to be
   // ready (word verification at the end screen). Deliberately NOT a blanket
   // early-return for every render path any more — a slow ~1.1MB dictionary
-  // fetch used to blank the whole page behind ArcadeLoader, hiding the
+  // fetch used to blank the whole page behind the loading screen, hiding the
   // lobby/countdown/timer from a slow client while the round clock (synced
   // via serverNow) kept running underneath. Now those screens render
   // regardless; only the actions that truly need `dict` are gated on it.
   const dictLoader = (
     <div className="min-h-screen bg-retro-bg flex items-center justify-center">
       <div className="flex flex-col items-center">
-        <ArcadeLoader variant="inline" />
+        <LoadingLine />
         {dictError && (
           <>
             <p className="font-pixel text-[9px] text-retro-p2 mt-3">COULDN&apos;T LOAD WORD LIST</p>

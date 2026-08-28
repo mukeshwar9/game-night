@@ -9,6 +9,7 @@ import {
   allSunk,
   remainingShips,
   pickShot,
+  canPlace,
 } from '../lib/battleshipLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -22,12 +23,19 @@ function cellsOf(fleet, ship) {
   return shipCells(spec.size, fleet[ship].orient, fleet[ship].cell)
 }
 
-// cell index -> ship index (for per-ship boundary/shade in BattleshipBoard)
+// cell index -> { shipIdx, seg } for hull rendering (color + end-cap) in
+// BattleshipBoard. seg is derived from shipCells() order (index 0 = start,
+// last = end) plus the ship's orient.
 function fleetCellMap(fleet) {
   const map = new Map()
   for (const ship of Object.keys(fleet)) {
-    const idx = FLEET_SPEC.findIndex(s => s.ship === ship)
-    for (const c of cellsOf(fleet, ship)) map.set(c, idx)
+    const shipIdx = FLEET_SPEC.findIndex(s => s.ship === ship)
+    const { orient } = fleet[ship]
+    const cells = cellsOf(fleet, ship)
+    cells.forEach((c, i) => {
+      const pos = i === 0 ? 'start' : i === cells.length - 1 ? 'end' : 'mid'
+      map.set(c, { shipIdx, seg: `${pos}-${orient}` })
+    })
   }
   return map
 }
@@ -37,6 +45,7 @@ export default function BattleshipDemo() {
   const [draft, setDraft] = useState({})
   const [selected, setSelected] = useState('carrier')
   const [placeError, setPlaceError] = useState('')
+  const [hoverCell, setHoverCell] = useState(null)
   const [playerFleet, setPlayerFleet] = useState(null)
   const [botFleet, setBotFleet] = useState(null)
   const [playerShots, setPlayerShots] = useState([]) // at the bot
@@ -56,6 +65,18 @@ export default function BattleshipDemo() {
     () => (playerFleet ? fleetCellMap(playerFleet) : draftCells),
     [playerFleet, draftCells],
   )
+
+  // Hover preview — whole-ship footprint while placing, live-updates on rotate.
+  const selectedSize = selected ? FLEET_SPEC.find(s => s.ship === selected)?.size : null
+  const preview = useMemo(() => {
+    if (phase !== 'placing' || !selected || hoverCell == null || selectedSize == null) return null
+    const orient = draft[selected]?.orient ?? 'h'
+    const row = Math.floor(hoverCell / 10)
+    const cells = shipCells(selectedSize, orient, hoverCell)
+      .filter(c => c >= 0 && c < 100 && (orient !== 'h' || Math.floor(c / 10) === row))
+    const valid = canPlace(draft, selected, orient, hoverCell)
+    return { cells, valid }
+  }, [phase, selected, hoverCell, selectedSize, draft])
 
   // Bot driver: fires whenever it's the bot's turn.
   useEffect(() => {
@@ -93,6 +114,7 @@ export default function BattleshipDemo() {
     const next = { ...candidate }
     setDraft(next)
     setSelected(FLEET_SPEC.find(s => !next[s.ship])?.ship ?? null)
+    setHoverCell(null)
   }
 
   const rotateSelected = () => {
@@ -176,7 +198,7 @@ export default function BattleshipDemo() {
 
       <div className="grid sm:grid-cols-2 gap-4 justify-items-center">
         {/* Targeting */}
-        <div className="space-y-1 w-full max-w-[340px]">
+        <div className="space-y-1 w-full max-w-sm md:max-w-md">
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">TARGETING</p>
           <BattleshipBoard
             shots={toMap(playerShots)}
@@ -203,7 +225,7 @@ export default function BattleshipDemo() {
         </div>
 
         {/* Your waters */}
-        <div className="space-y-1 w-full max-w-[340px]">
+        <div className="space-y-1 w-full max-w-sm md:max-w-md">
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">YOUR WATERS</p>
           <BattleshipBoard
             shots={toMap(botShots)}
@@ -212,6 +234,8 @@ export default function BattleshipDemo() {
             onCell={phase === 'placing' ? placeShip : undefined}
             disabled={phase !== 'placing'}
             accent="p2"
+            preview={phase === 'placing' ? preview : null}
+            onHoverCell={phase === 'placing' ? setHoverCell : undefined}
           />
           <div className="flex flex-wrap gap-1.5 pt-1">
             {myRemaining.map(({ ship, sunk }) => (
@@ -251,9 +275,22 @@ export default function BattleshipDemo() {
                   )}
                 >
                   <span className="font-mono text-[11px] uppercase">{ship}</span>
-                  <span className="font-pixel text-[9px] tracking-widest">
-                    {placed ? '✓ DEPLOYED' : '■ '.repeat(size)}
-                  </span>
+                  {placed ? (
+                    <span className="font-pixel text-[9px] tracking-widest">✓ DEPLOYED</span>
+                  ) : (
+                    <span className="flex gap-px" aria-hidden="true">
+                      {Array.from({ length: size }, (_, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            'w-2.5 h-2.5 bg-retro-structure',
+                            i === 0 && 'rounded-l-full',
+                            i === size - 1 && 'rounded-r-full',
+                          )}
+                        />
+                      ))}
+                    </span>
+                  )}
                 </button>
               )
             })}

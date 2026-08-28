@@ -8,7 +8,7 @@ import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
-import ArcadeLoader from '@/components/ArcadeLoader'
+import LoadingLine from '@/components/loading/LoadingLine'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
@@ -118,7 +118,7 @@ function LoadingScreen() {
   }, [])
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <ArcadeLoader variant="inline" />
+      <LoadingLine />
       {slow && (
         <div className="flex flex-col items-center gap-2">
           <p className="font-pixel text-[10px] text-retro-dim tracking-wider">STILL CONNECTING…</p>
