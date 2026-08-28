@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { dateKeyFor, getDailyNumber, getStreak, bumpStreak } from './daily'
+import { dateKeyFor, getDailyNumber, getStreak, bumpStreak, writeBest, readHistory } from './daily'
 
 // daily.js touches localStorage directly (no DOM needed) — stub a minimal
 // in-memory implementation per test, mirroring the gameSearch.test.js pattern.
@@ -105,5 +105,26 @@ describe('bumpStreak', () => {
     bumpStreak(utcDate('2026-12-31'))
     const newYear = bumpStreak(utcDate('2027-01-01'))
     expect(newYear).toEqual({ count: 2, lastDate: '2027-01-01' })
+  })
+})
+
+describe('readHistory', () => {
+  it('is empty with nothing stored', () => {
+    expect(readHistory(utcDate('2026-06-20'))).toEqual({})
+  })
+
+  it('collects per-day best scores written by writeBest', () => {
+    writeBest('2026-06-21', 4)
+    writeBest('2026-06-22', 7)
+    expect(readHistory(utcDate('2026-06-22'))).toEqual({
+      '2026-06-21': 4,
+      '2026-06-22': 7,
+    })
+  })
+
+  it('never scans before the epoch date', () => {
+    // getDailyNumber(EPOCH_KEY) === 1, so only "today" itself is scanned.
+    writeBest('2026-06-20', 9)
+    expect(readHistory(utcDate('2026-06-20'))).toEqual({ '2026-06-20': 9 })
   })
 })

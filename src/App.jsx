@@ -13,13 +13,9 @@ import UpdatePrompt from './components/UpdatePrompt';
 import ConnectionBanner from './components/ConnectionBanner';
 import InviteToasts from './components/InviteToasts';
 import BottomTabBar from './components/BottomTabBar';
-import NavBar, { HomeInterceptProvider } from './components/NavBar';
+import NavBar, { HomeInterceptProvider, TAB_BAR_ROUTES } from './components/NavBar';
 import { AuthProvider } from './lib/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
-
-// Persistent Home/Daily/Friends/Profile tab bar — only on the four meta
-// routes. Game rooms and /demo stay bar-free so it doesn't cover controls.
-const TAB_BAR_ROUTES = ['/', '/daily', '/friends', '/profile'];
 
 // M-61 + M-84: reset scroll and replay a short fade on every route change.
 // `key={pathname}` remounts the wrapper so the CSS animation (index.css
@@ -40,7 +36,7 @@ function AppRoutes() {
       <div key={pathname} className="route-fade">
         {/* Bottom padding clears the fixed tab bar so page content (including
             bottom-of-page CTAs like Home's install prompt) never sits under it. */}
-        <div className={showTabBar ? 'pb-[calc(3.75rem+env(safe-area-inset-bottom))]' : undefined}>
+        <div className={showTabBar ? 'pb-[var(--app-tabbar-h)]' : undefined}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/game/:gameId" element={<Game />} />

@@ -21,6 +21,22 @@ const HI_SCORES = [
 
 const SEGMENTS = 12
 
+// First-visit gets the full theatrical boot sequence; repeat visits (this
+// browser has already seen it) collapse the RAM-check reveal to fit under
+// ~1s so the retro flourish doesn't reappear as friction on every load —
+// the splash still never unmounts before `ready` (authReady()) regardless,
+// see the fast-forward effect below. localStorage is best-effort: a
+// private/blocked-storage session just always gets the full sequence.
+const SPLASH_SEEN_KEY = 'splashSeen'
+
+function hasSeenSplash() {
+  try { return localStorage.getItem(SPLASH_SEEN_KEY) === '1' } catch { return false }
+}
+
+function markSplashSeen() {
+  try { localStorage.setItem(SPLASH_SEEN_KEY, '1') } catch { /* ignore */ }
+}
+
 function PixelCoin({ size = 18, className = '' }) {
   // Pixel-art coin — themed via style props (SVG can't read CSS vars).
   return (
@@ -89,6 +105,10 @@ function Marquee() {
 export default function ArcadeLoader({ variant = 'boot', ready = false, onDone }) {
   const [ramRows, setRamRows] = useState([])
   const [naturalDone, setNaturalDone] = useState(false)
+  const [skipped, setSkipped] = useState(false)
+  // Read once per mount — a repeat visitor gets the compact sequence for
+  // this whole boot even if markSplashSeen() flips the flag mid-sequence.
+  const firstVisit = useRef(!hasSeenSplash())
   const timers = useRef([])
   const beatTimer = useRef(null)
   const onDoneRef = useRef(onDone)
@@ -101,10 +121,13 @@ export default function ArcadeLoader({ variant = 'boot', ready = false, onDone }
   // below, which runs right after this one on the same commit), so this
   // never visibly plays for a warm boot. `done`/displayed rows below are
   // derived from `ready` directly rather than mirrored into state, so the
-  // fast-forward never needs a setState of its own.
+  // fast-forward never needs a setState of its own. Repeat visits use a much
+  // shorter row interval so the whole reveal fits under ~1s — the splash
+  // still holds on the READY state until `ready` regardless (see below).
   useEffect(() => {
     if (variant !== 'boot') return
-    const ms = 100
+    markSplashSeen()
+    const ms = firstVisit.current ? 100 : 15
     RAM_ROWS.forEach((row, i) => {
       timers.current.push(setTimeout(() => setRamRows(r => [...r, row]), i * ms))
     })
@@ -128,8 +151,18 @@ export default function ArcadeLoader({ variant = 'boot', ready = false, onDone }
     return () => clearTimeout(beatTimer.current)
   }, [variant, ready])
 
-  const done = naturalDone || ready
-  const displayRows = ready ? RAM_ROWS : ramRows
+  // Tap/click anywhere on the boot splash skips straight to the READY visual
+  // — it still waits for `ready` (auth) before handing off, same as the
+  // natural-sequence and repeat-visit paths above.
+  const handleSkip = () => {
+    if (variant !== 'boot' || skipped) return
+    timers.current.forEach(clearTimeout)
+    timers.current = []
+    setSkipped(true)
+  }
+
+  const done = naturalDone || ready || skipped
+  const displayRows = done ? RAM_ROWS : ramRows
 
   // Realtime variant — just coin + blink, sized to replace one <p> line
   if (variant === 'realtime') {
@@ -156,9 +189,13 @@ export default function ArcadeLoader({ variant = 'boot', ready = false, onDone }
     )
   }
 
-  // Boot variant — full attract sequence
+  // Boot variant — full attract sequence. Tap/click anywhere skips straight
+  // to the READY visual (still waits for auth before calling onDone).
   return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-4 px-4">
+    <div
+      onClick={handleSkip}
+      className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-4 px-4 cursor-pointer"
+    >
       {/* RAM check window */}
       <div
         className="w-full max-w-[18rem] font-mono text-[8px] sm:text-[9px] leading-[1.4] p-3 rounded border bg-retro-card/60 overflow-hidden"

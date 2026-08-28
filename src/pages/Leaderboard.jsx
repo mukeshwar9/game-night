@@ -52,11 +52,15 @@ export default function Leaderboard() {
     <div className="min-h-screen bg-retro-bg">
       <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="w-full max-w-sm mx-auto space-y-6 pt-2">
+          <Link
+            to="/profile"
+            className="inline-flex items-center gap-1.5 min-h-11 -ml-2 px-2 font-pixel text-[10px] text-retro-dim hover:text-retro-text transition-all active:scale-95"
+          >
+            ← PROFILE
+          </Link>
+
           <div className="flex items-center justify-between gap-2">
             <h1 className="font-pixel text-base text-retro-cta text-glow-cta">LEADERBOARD</h1>
-            <Link to="/profile" className="font-pixel text-[10px] text-retro-dim hover:text-retro-text transition-all">
-              PROFILE →
-            </Link>
           </div>
 
           {error ? (
@@ -68,7 +72,15 @@ export default function Leaderboard() {
               <PixelDots tone="cta" size="lg" glow />
             </div>
           ) : entries.length === 0 ? (
-            <EmptyState>NO SCORES YET. PLAY A MATCH TO CLAIM THE TOP SPOT.</EmptyState>
+            <EmptyState>
+              NO SCORES YET. PLAY A MATCH TO CLAIM THE TOP SPOT.
+              <Link
+                to="/"
+                className="mt-4 flex w-fit mx-auto items-center justify-center min-h-11 px-6 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+              >
+                PLAY A MATCH
+              </Link>
+            </EmptyState>
           ) : (
             <div className="space-y-2">
               {entries.map((e, i) => {

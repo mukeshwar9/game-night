@@ -144,10 +144,10 @@ export default function Home() {
 
       <div className="w-full max-w-sm md:max-w-3xl lg:max-w-5xl space-y-6">
         {/* Logo */}
-        <div className="max-w-md mx-auto w-full text-center space-y-3">
-          <div className="mx-auto w-14 h-14 border-2 border-retro-cta bg-retro-tint-cta rounded
+        <div className="max-w-md mx-auto w-full text-center space-y-2 sm:space-y-3">
+          <div className="mx-auto w-10 h-10 sm:w-14 sm:h-14 border-2 border-retro-cta bg-retro-tint-cta rounded
             flex items-center justify-center shadow-neon-cta">
-            <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 30 30" fill="none" aria-hidden="true" className="sm:w-[30px] sm:h-[30px]">
               <line x1="10" y1="2" x2="10" y2="28" className="stroke-retro-cta" strokeWidth="2.5" strokeLinecap="square"/>
               <line x1="20" y1="2" x2="20" y2="28" className="stroke-retro-cta" strokeWidth="2.5" strokeLinecap="square"/>
               <line x1="2" y1="10" x2="28" y2="10" className="stroke-retro-cta" strokeWidth="2.5" strokeLinecap="square"/>
@@ -155,10 +155,10 @@ export default function Home() {
             </svg>
           </div>
           <div>
-            <h1 className="font-pixel text-xl text-retro-cta text-glow-cta leading-relaxed">
+            <h1 className="font-pixel text-lg sm:text-xl text-retro-cta text-glow-cta leading-relaxed">
               GAME NIGHT
             </h1>
-            <p className="font-mono text-xs text-retro-dim mt-2 tracking-widest">
+            <p className="font-mono text-xs text-retro-dim mt-2 tracking-widest hidden sm:block">
               {gameCount} GAMES · SHARE A LINK · NO ACCOUNT
             </p>
           </div>
@@ -205,13 +205,13 @@ export default function Home() {
           <div className="flex-1 min-w-[180px] flex gap-2">
             <input
               type="text"
-              placeholder="JOIN CODE"
+              placeholder="enter code…"
               value={joinCode}
               onChange={e => setJoinCode(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && joinGame()}
               maxLength={6}
-              className="flex-1 min-w-0 min-h-11 bg-retro-card border-2 border-retro-border text-retro-p1
-                font-pixel text-xs placeholder-retro-border rounded px-3 py-2
+              className="flex-1 min-w-0 min-h-11 bg-transparent border-0 border-b-2 border-retro-border text-retro-p1
+                font-mono text-xs placeholder-retro-dim/60 placeholder:font-mono placeholder:normal-case rounded-none px-1 py-2
                 focus:outline-none focus:border-retro-p1 tracking-widest transition-colors"
             />
             <button

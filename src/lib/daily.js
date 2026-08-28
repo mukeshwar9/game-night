@@ -50,6 +50,21 @@ export function writeBest(date, score) {
   catch { /* storage unavailable — best is in-memory only */ }
 }
 
+// Builds a { 'YYYY-MM-DD': score } history map from the per-day best-score
+// records `writeBest()` already writes (storageKey(date)) — no separate
+// history record needed. Scans back to EPOCH_KEY, so cost grows by one
+// localStorage read per day the app has existed (a few hundred at most).
+export function readHistory(now = new Date()) {
+  const total = getDailyNumber(dateKeyFor(now))
+  const history = {}
+  for (let i = 0; i < total; i++) {
+    const date = dateKeyFor(addDays(now, -i))
+    const rec = readBest(date)
+    if (rec) history[date] = rec.best
+  }
+  return history
+}
+
 function readStreakRaw() {
   try {
     const raw = localStorage.getItem(STREAK_KEY)

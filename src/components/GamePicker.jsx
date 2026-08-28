@@ -5,6 +5,7 @@ import { getFavorites, toggleFavorite } from '../lib/favorites'
 import RulesModal from './RulesModal'
 import CategoryTabs from './CategoryTabs'
 import VariantChooser from './VariantChooser'
+import GameOptionsSheet from './GameOptionsSheet'
 import GameCard from './GameCard'
 import EmptyState from './EmptyState'
 import { cn } from '@/lib/utils'
@@ -40,15 +41,19 @@ export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loa
   const persisted = isFull ? readPickerState() : null
   const [activeCat, setActiveCat] = useState(persisted?.activeCat || defaultCat)
   const [rulesType, setRulesType] = useState(null)
+  const [optionsGame, setOptionsGame] = useState(null)
   const [variantBase, setVariantBase] = useState(null)
   // Which action VariantChooser's onPick performs — 'friend' (room creation,
-  // opened from the card's +MODES chip), 'solo' (VS AI chip), or 'local'
-  // (2P PASS chip, opens the hot-seat pass-and-play route).
+  // opened from the sheet's MORE MODES row), 'solo' (VS AI row), or 'local'
+  // (2P PASS row, opens the hot-seat pass-and-play route).
   const [variantMode, setVariantMode] = useState('friend')
   const [query, setQuery] = useState(persisted?.query || '')
   const [favVersion, setFavVersion] = useState(0)
   const [filters, setFilters] = useState(persisted?.filters || {})
   const searchRef = useRef(null)
+  // Computed once — the " ( / )" keyboard hint is desktop-only real estate;
+  // no need to re-check on resize for a hint this minor.
+  const [showSlashHint] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches)
 
   useEffect(() => {
     if (!isFull) return
@@ -105,31 +110,42 @@ export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loa
     return () => window.removeEventListener('keydown', onKey)
   }, [isFull])
 
-  // M-13: tapping the card creates a PLAY-A-FRIEND room directly with the
-  // default/Classic variant — no intermediate mode/variant modal. Variant
-  // entries surfaced via search (e.g. ULTIMATE TTT) go straight to room
-  // creation too, since they're already a specific pick.
-  const handleTap = (g) => onSelect(g.type)
+  // Home's catalog (layout="full"): tapping a card opens the options sheet
+  // (PLAY ONLINE first, then VS AI / 2P PASS / MORE MODES / RULES) instead of
+  // silently creating a live Firebase room — see CLAUDE.md's Home → play
+  // funnel fix. GameSwitcher's compact in-room picker keeps the old
+  // tap-to-select behavior since there `onSelect` proposes a game-type
+  // switch, not a new room, and the sheet there has no PLAY ONLINE row.
+  const handleTap = (g) => (isFull ? setOptionsGame(g) : onSelect(g.type))
 
-  // Secondary chip on the card — VS AI, skips straight to the solo demo.
+  // GameOptionsSheet's PLAY ONLINE row — the old direct-tap behavior: create
+  // a PLAY-A-FRIEND room with the default/Classic variant, no intermediate
+  // mode/variant modal.
+  const handlePlayOnline = (g) => onSelect(g.type)
+
+  // GameOptionsSheet's VS AI row — skips straight to the solo demo, only
+  // chaining into a variant pick if a variant actually has a working solo
+  // demo (e.g. ultimatettt, connectfourpop) — otherwise the base game's demo
+  // is the only solo option, so skip straight to it.
   const handleVsAi = (g) => {
-    // Only chain into a variant pick if a variant actually has a working
-    // solo demo (e.g. ultimatettt, connectfourpop) — otherwise the base
-    // game's demo is the only solo option, so skip straight to it.
+    setOptionsGame(null)
     const soloVariants = variantsFor(g.type).filter(v => v.solo)
     if (soloVariants.length) { setVariantMode('solo'); setVariantBase(g) }
     else onSolo(g.type)
   }
 
-  // Secondary chip on the card — +MODES, opens the friend-room variant pick.
-  const handleModes = (g) => { setVariantMode('friend'); setVariantBase(g) }
-
-  // Secondary chip on the card — 2P PASS, opens the local hot-seat mode.
+  // GameOptionsSheet's 2P PASS row — opens the local hot-seat mode.
   const handleLocal = (g) => {
+    setOptionsGame(null)
     const localVariants = variantsFor(g.type).filter(v => supportsLocalPlay(v.type))
     if (localVariants.length) { setVariantMode('local'); setVariantBase(g) }
     else onLocal(g.type)
   }
+
+  // GameOptionsSheet's MORE MODES row — opens the friend-room variant pick.
+  const handleModes = (g) => { setOptionsGame(null); setVariantMode('friend'); setVariantBase(g) }
+
+  const handleRules = (type) => { setOptionsGame(null); setRulesType(type) }
 
   const gridClass = isFull
     ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'
@@ -142,10 +158,7 @@ export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loa
           key={g.type}
           game={{ ...g, hasVariants: !g.variantOf && variantsFor(g.type).length > 0 }}
           onTap={handleTap}
-          onRules={setRulesType}
-          onVsAi={onSolo ? handleVsAi : undefined}
-          onLocal={onLocal ? handleLocal : undefined}
-          onModes={handleModes}
+          onOptions={isFull ? undefined : setOptionsGame}
           loadingType={loadingType}
           isFav={favSet.has(g.type)}
           onToggleFav={isFull ? handleToggleFav : undefined}
@@ -169,7 +182,7 @@ export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loa
         type="text"
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder="SEARCH GAMES… ( / )"
+        placeholder={showSlashHint ? 'SEARCH GAMES… ( / )' : 'SEARCH GAMES…'}
         className="w-full min-h-11 bg-retro-card border-2 border-retro-border text-retro-text
           font-pixel text-xs tracking-widest placeholder-retro-border rounded pl-4 pr-11 py-3
           focus:outline-none focus:border-retro-p1 transition-colors"
@@ -188,42 +201,54 @@ export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loa
     </div>
   )
 
-  const filterBlock = isFull && (
-    <div className="flex flex-wrap gap-3 justify-center">
-      {FILTER_DEFS.map(f => (
-        <button
-          key={f.key}
-          onClick={() => toggleFilter(f.key)}
-          aria-pressed={!!filters[f.key]}
-          className={cn(
-            'min-h-11 px-3.5 inline-flex items-center justify-center rounded border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
-            filters[f.key]
-              ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
-              : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
-          )}
-        >
-          {f.label}
-        </button>
-      ))}
-    </div>
+  const filterChipClass = (active) => cn(
+    'min-h-11 px-3.5 shrink-0 snap-start whitespace-nowrap inline-flex items-center justify-center rounded border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
+    active
+      ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
+      : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
   )
 
-  const tabsBlock = !(isFull && query.trim()) && (
-    <CategoryTabs categories={categoriesWithAll} active={activeCat} onSelect={setActiveCat} />
+  const filterChips = isFull && FILTER_DEFS.map(f => (
+    <button
+      key={f.key}
+      onClick={() => toggleFilter(f.key)}
+      aria-pressed={!!filters[f.key]}
+      className={filterChipClass(!!filters[f.key])}
+    >
+      {f.label}
+    </button>
+  ))
+
+  const isSearching = isFull && !!query.trim()
+
+  // Search hides the category tabs entirely (categories don't apply to a
+  // free-text result set) but filters stay reachable via their own row.
+  const chipRow = isSearching ? (
+    <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-1 pb-1">
+      {filterChips}
+    </div>
+  ) : (
+    <CategoryTabs
+      categories={categoriesWithAll}
+      active={activeCat}
+      onSelect={setActiveCat}
+      leading={isFull ? <>{filterChips}<div className="w-px shrink-0 self-stretch bg-retro-border" aria-hidden="true" /></> : undefined}
+    />
   )
 
   return (
     <div className="space-y-3">
       {/* M-42: search/filters/tabs stay reachable through the full scroll —
-          sticky, safe-area aware, solid bg so cards don't show through. */}
+          sticky, safe-area aware, solid bg so cards don't show through.
+          top offset collapses to 0 while NavBar is hidden (useHideOnScroll)
+          so this rides up flush instead of leaving a gap. */}
       {isFull ? (
-        <div className="sticky top-[var(--app-header-h)] z-[5] bg-retro-bg pt-1 pb-2 space-y-3">
+        <div className="sticky top-[var(--app-header-offset)] z-20 bg-retro-bg pt-1 pb-2 space-y-3 transition-[top] duration-200">
           {searchBlock}
-          {filterBlock}
-          {tabsBlock}
+          {chipRow}
         </div>
       ) : (
-        tabsBlock
+        chipRow
       )}
 
       {isFull && query.trim() ? (
@@ -255,6 +280,18 @@ export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loa
         games.length > 0 ? renderGrid(games) : emptyState('NO GAMES MATCH THESE FILTERS')
       )}
 
+      {optionsGame && (
+        <GameOptionsSheet
+          game={optionsGame}
+          onPlayOnline={isFull ? handlePlayOnline : undefined}
+          onSolo={onSolo ? handleVsAi : undefined}
+          onLocal={onLocal ? handleLocal : undefined}
+          onModes={handleModes}
+          onRules={handleRules}
+          onClose={() => setOptionsGame(null)}
+          loadingType={loadingType}
+        />
+      )}
       {rulesType && (
         <RulesModal gameType={rulesType} onClose={() => setRulesType(null)} />
       )}
