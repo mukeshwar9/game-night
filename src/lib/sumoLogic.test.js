@@ -79,6 +79,12 @@ describe('step — push toward opponent', () => {
     const r = step(s, { X: { press: 1 }, O: { press: 0 } }, DT)
     expect(r.state.blobs.X.vx).toBeCloseTo(PUSH_IMPULSE, 5)
   })
+
+  it('an accumulated multi-tap press (N) applies N impulses worth of push in one substep', () => {
+    const s = createState()
+    const r = step(s, { X: { press: 3 }, O: { press: 0 } }, DT)
+    expect(r.state.blobs.X.vx).toBeCloseTo(PUSH_IMPULSE * 3, 5)
+  })
 })
 
 describe('step — blob collision', () => {
@@ -140,6 +146,24 @@ describe('step — blob collision', () => {
     const r = step(s, {}, DT)
     const dist = Math.hypot(r.state.blobs.O.x - r.state.blobs.X.x, r.state.blobs.O.y - r.state.blobs.X.y)
     expect(dist).toBeGreaterThanOrEqual(2 * BLOB_R - 1e-9)
+  })
+
+  it('emits a clash event when the blobs actually collide', () => {
+    const s = {
+      blobs: {
+        X: { x: 0.5 - BLOB_R * 0.4, y: 0.5, vx: 1, vy: 0, alive: true },
+        O: { x: 0.5 + BLOB_R * 0.4, y: 0.5, vx: -1, vy: 0, alive: true },
+      },
+      arenaR: START_RADIUS, t: 0,
+    }
+    const r = step(s, {}, DT)
+    expect(r.events.some(e => e.type === 'clash')).toBe(true)
+  })
+
+  it('does not emit a clash event when the blobs are not touching', () => {
+    const s = createState() // X and O start far apart
+    const r = step(s, {}, DT)
+    expect(r.events.some(e => e.type === 'clash')).toBe(false)
   })
 })
 
@@ -231,14 +255,40 @@ describe('computeAI', () => {
     expect([0, 1]).toContain(inp.press)
   })
 
-  it('taps toward the edge when near it (presses to retreat to centre)', () => {
+  it('near the edge, does NOT press when the opponent is further out (pressing would push it off — the cornered bug)', () => {
+    const s = createState()
+    s.arenaR = MIN_RADIUS
+    // X is near the edge; O is beyond X on the same radial line, so pushing
+    // toward O also pushes further away from centre.
+    s.blobs.X.x = 0.5 + MIN_RADIUS - 0.05
+    s.blobs.X.y = 0.5
+    s.blobs.O.x = 0.9
+    s.blobs.O.y = 0.5
+    s.t = 0 // on an even tap window
+    const inp = computeAI(s, 'X')
+    expect(inp.press).toBe(0)
+    // Verify actual motion: with no press, X should not gain outward velocity.
+    const r = step(s, { X: inp }, DT)
+    expect(r.state.blobs.X.vx).toBeCloseTo(0, 6)
+  })
+
+  it('near the edge, presses when the opponent is between it and centre (pushing toward the opponent also moves it toward centre)', () => {
     const s = createState()
     s.arenaR = MIN_RADIUS
     s.blobs.X.x = 0.5 + MIN_RADIUS - 0.05
     s.blobs.X.y = 0.5
-    s.t = 0 // on an even tap window → press=1
+    // O sits on the centre side of X, so pushing toward O moves X toward centre.
+    s.blobs.O.x = 0.2
+    s.blobs.O.y = 0.5
+    s.t = 0 // on an even tap window
     const inp = computeAI(s, 'X')
     expect(inp.press).toBe(1)
+    // Verify actual motion: pressing should move X leftward, i.e. toward centre.
+    const r = step(s, { X: inp }, DT)
+    expect(r.state.blobs.X.vx).toBeLessThan(0)
+    const distBefore = Math.hypot(s.blobs.X.x - 0.5, s.blobs.X.y - 0.5)
+    const distAfter = Math.hypot(r.state.blobs.X.x - 0.5, r.state.blobs.X.y - 0.5)
+    expect(distAfter).toBeLessThan(distBefore)
   })
 
   it('taps to ram when opponent is close', () => {

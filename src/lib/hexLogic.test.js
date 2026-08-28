@@ -15,21 +15,22 @@ const colOf = i => i % HEX_SIZE
 // Verify a winningLine is a genuine connection: consecutive cells adjacent,
 // every cell holds the winner's stone, spans the winner's two edges.
 function assertValidPath(board, result, symbol) {
-  const { winner, winningLine } = result
+  const { winner, line } = result
+  expect(result).not.toHaveProperty('winningLine')
   expect(winner).toBe(symbol)
-  expect(winningLine.length).toBeGreaterThanOrEqual(HEX_SIZE)
-  for (const cell of winningLine) {
+  expect(line.length).toBeGreaterThanOrEqual(HEX_SIZE)
+  for (const cell of line) {
     expect(board[cell]).toBe(symbol)
   }
-  for (let k = 1; k < winningLine.length; k++) {
-    expect(neighbors(winningLine[k - 1])).toContain(winningLine[k])
+  for (let k = 1; k < line.length; k++) {
+    expect(neighbors(line[k - 1])).toContain(line[k])
   }
   if (symbol === 'X') {
-    expect(winningLine.some(i => colOf(i) === 0)).toBe(true)
-    expect(winningLine.some(i => colOf(i) === HEX_SIZE - 1)).toBe(true)
+    expect(line.some(i => colOf(i) === 0)).toBe(true)
+    expect(line.some(i => colOf(i) === HEX_SIZE - 1)).toBe(true)
   } else {
-    expect(winningLine.some(i => rowOf(i) === 0)).toBe(true)
-    expect(winningLine.some(i => rowOf(i) === HEX_SIZE - 1)).toBe(true)
+    expect(line.some(i => rowOf(i) === 0)).toBe(true)
+    expect(line.some(i => rowOf(i) === HEX_SIZE - 1)).toBe(true)
   }
 }
 
@@ -74,8 +75,8 @@ describe('getHexWinner: X connects left-right', () => {
     for (let c = 0; c < HEX_SIZE; c++) board[idx(5, c)] = 'X'
     const result = getHexWinner(board)
     assertValidPath(board, result, 'X')
-    expect(result.winningLine).toHaveLength(HEX_SIZE)
-    for (let c = 0; c < HEX_SIZE; c++) expect(result.winningLine[c]).toBe(idx(5, c))
+    expect(result.line).toHaveLength(HEX_SIZE)
+    for (let c = 0; c < HEX_SIZE; c++) expect(result.line[c]).toBe(idx(5, c))
   })
 
   it('detects a zigzag staircase chain', () => {
@@ -110,7 +111,7 @@ describe('getHexWinner: X connects left-right', () => {
     board[idx(6, 5)] = 'X'
     const result = getHexWinner(board)
     assertValidPath(board, result, 'X')
-    expect(result.winningLine).toContain(idx(6, 5))
+    expect(result.line).toContain(idx(6, 5))
   })
 })
 
@@ -123,8 +124,8 @@ describe('getHexWinner: O connects top-bottom', () => {
     for (let r = 0; r < HEX_SIZE; r++) board[idx(r, 3)] = 'O'
     const result = getHexWinner(board)
     assertValidPath(board, result, 'O')
-    expect(result.winningLine).toHaveLength(HEX_SIZE)
-    for (let r = 0; r < HEX_SIZE; r++) expect(result.winningLine[r]).toBe(idx(r, 3))
+    expect(result.line).toHaveLength(HEX_SIZE)
+    for (let r = 0; r < HEX_SIZE; r++) expect(result.line[r]).toBe(idx(r, 3))
   })
 
   it('detects a zigzag staircase chain', () => {
@@ -195,7 +196,7 @@ describe('getHexWinner: normalization', () => {
     for (let c = 0; c < HEX_SIZE; c++) obj[idx(7, c)] = 'X'
     const result = getHexWinner(obj)
     expect(result.winner).toBe('X')
-    expect(result.winningLine).toEqual(Array.from({ length: HEX_SIZE }, (_, c) => idx(7, c)))
+    expect(result.line).toEqual(Array.from({ length: HEX_SIZE }, (_, c) => idx(7, c)))
   })
 
   it('treats missing cells as empty', () => {

@@ -100,6 +100,10 @@ function BotBoardDemo({ type, mode = 'bot' }) {
       result = cfg.getWinner(nb)
       updates = { board: nb, currentTurn: symbol === 'X' ? 'O' : 'X' }
     }
+    // Mirror Game.jsx's handleMove: mark the cell/edge just played so boards
+    // render the same lasting last-move ring in the demo as in the live game.
+    // A hook that already set its own lastMove wins.
+    if (cfg.boardSize > 0 && updates.lastMove === undefined) updates.lastMove = index
     const next = { ...g, ...updates }
     if (result) {
       next.winner = result.winner
@@ -189,6 +193,7 @@ function BotBoardDemo({ type, mode = 'bot' }) {
         disabled={!canMove}
         winningLine={game.winningLine || []}
         currentTurn={game.currentTurn}
+        lastMove={game.lastMove ?? null}
         {...(cfg.boardProps ? cfg.boardProps(game) : {})}
       />
       <GameStatus

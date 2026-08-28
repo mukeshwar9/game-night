@@ -238,6 +238,19 @@ function ghostSpeed(g) {
   return GHOST_SPEED
 }
 
+/**
+ * Dead-reckon a ghost forward along its current heading for `dt` seconds,
+ * without re-picking a target/direction. Pure — used by the guest to
+ * extrapolate ghost position between host snapshots (host snapshots stream
+ * at ~30 Hz; painting the raw snapshot coord left ghosts visibly lagged/
+ * stuttery). `advanceActor` already hard-stops before a wall, so this stays
+ * safe even if the real ghost would have turned by the time the next
+ * snapshot arrives — it just holds position until corrected.
+ */
+export function advanceGhostDeadReckon(ghost, dt) {
+  return advanceActor(ghost, ghost.dir, ghostSpeed(ghost), dt, true)
+}
+
 function pickGhostDir(state, g, target) {
   const tx = Math.floor(wrapX(g.x))
   const ty = Math.floor(g.y)
@@ -263,16 +276,22 @@ function pickGhostDir(state, g, target) {
   return best
 }
 
-function nearestMuncher(state, gx, gy) {
-  let best = state.players.X
+export function nearestMuncher(state, gx, gy) {
+  // Only alive munchers are targets. Exact-distance ties are split by the
+  // shared rng instead of always favoring X (whichever side iterates first) —
+  // previously a strict `<` comparison meant a tie always kept the seeded
+  // `best = state.players.X`, biasing ghosts toward the host.
+  let best = null
   let bestD = Infinity
   for (const side of ['X', 'O']) {
     const p = state.players[side]
     if (p.dead > 0) continue
     const d = Math.abs(wrapX(p.x) - gx) + Math.abs(p.y - gy)
     if (d < bestD) { bestD = d; best = p }
+    else if (d === bestD && best && rand(state) < 0.5) { best = p }
   }
-  return best
+  // Both munchers dead: harmless fallback (no live target to chase).
+  return best || state.players.X
 }
 
 function rand(state) {
@@ -356,6 +375,10 @@ export function step(state, inputs, dt) {
 
   const phase = nextPhase(next.phaseClock)
 
+  // Pass 1: steer + move both munchers. Pellet pickups are resolved in a
+  // second pass below, after both have moved, so a same-tick shared pellet
+  // isn't always awarded to X just because it's consumed first (host bias).
+  const arrivedAt = {}
   for (const side of ['X', 'O']) {
     const p = next.players[side]
     const inputDir = inputs?.[side]
@@ -379,8 +402,19 @@ export function step(state, inputs, dt) {
     p.y = moved.y
     p.dir = moved.dir
     p.want = moved.want
+    arrivedAt[side] = cellIndex(p.x, p.y)
+  }
 
-    const idx = cellIndex(p.x, p.y)
+  // Pass 2: resolve pellet pickups. When both munchers land on the same
+  // pellet cell this tick, award it to exactly one side via the shared rng
+  // (fair coin, not iteration order) instead of always X.
+  const contested = arrivedAt.X != null && arrivedAt.O != null && arrivedAt.X === arrivedAt.O
+  const contestedWinner = contested ? (rand(next) < 0.5 ? 'X' : 'O') : null
+  for (const side of ['X', 'O']) {
+    const idx = arrivedAt[side]
+    if (idx == null) continue
+    if (contested && side !== contestedWinner) continue
+    const p = next.players[side]
     const kind = next.pellets[idx]
     if (kind) {
       next.pellets[idx] = 0

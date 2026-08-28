@@ -1,31 +1,34 @@
 import { forwardRef } from 'react'
-import { BLOB_R } from '../lib/sumoLogic'
+import { BLOB_R, SHRINK_START, START_RADIUS } from '../lib/sumoLogic'
 import { cn } from '@/lib/utils'
 
 const pct = (n) => `${n * 100}%`
 
-function Wrestler({ blob, side }) {
+const fmtTime = (t) => {
+  const s = Math.max(0, Math.floor(t))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+// Wrestler renders continuously (never unmounts on death) so the alive→dead
+// transition can animate via CSS transition instead of swapping to a
+// different element instantly. Dying shrinks, rotates and fades the sprite
+// out in place; `flash` briefly brightens+bumps it on blob-blob collision.
+function Wrestler({ blob, side, flash }) {
   const size = BLOB_R * 2
   const color = side === 'X' ? 'bg-retro-p1' : 'bg-retro-p2'
-  const rim = side === 'X' ? 'border-retro-p1' : 'border-retro-p2'
-  if (!blob?.alive) {
-    return (
-      <div
-        className={cn('absolute rounded-md border opacity-30', rim)}
-        style={{
-          left: pct(blob.x - BLOB_R), top: pct(blob.y - BLOB_R),
-          width: pct(size), height: pct(size),
-        }}
-      />
-    )
-  }
+  const alive = !!blob?.alive
+  const scale = alive ? (flash ? 1.15 : 1) : 0.3
+  const rotate = alive ? 0 : 120
   return (
     <div
       className="absolute"
       style={{
         left: pct(blob.x), top: pct(blob.y),
         width: pct(size), height: pct(size),
-        transform: 'translate(-50%, -50%)',
+        transition: 'transform 0.5s, opacity 0.5s, filter 0.15s',
+        transform: `translate(-50%, -50%) scale(${scale}) rotate(${rotate}deg)`,
+        opacity: alive ? 1 : 0,
+        filter: flash && alive ? 'brightness(1.6)' : 'none',
       }}
     >
       {/* Head */}
@@ -51,19 +54,29 @@ function Wrestler({ blob, side }) {
 }
 
 const SumoArena = forwardRef(function SumoArena(
-  { blobs, arenaR, mySide, namesX = 'X', namesO = 'O', dim = false, overlay },
+  { blobs, arenaR, t = 0, mySide, namesX = 'X', namesO = 'O', dim = false, overlay, flash = false },
   ref,
 ) {
   const diameter = arenaR * 2
   const X = blobs?.X
   const O = blobs?.O
+  // Once the platform has started shrinking (or has already shrunk below its
+  // starting size — covers the guest, which derives arenaR from the host's
+  // snapshot rather than its own clock), upgrade the danger ring so the
+  // shrink is actually noticeable.
+  const shrinking = t > SHRINK_START || arenaR < START_RADIUS - 1e-6
   return (
     <div className="space-y-2 select-none">
       <div className="flex items-center justify-center gap-8 font-pixel">
         <span className={cn('text-[8px] tracking-widest', mySide === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p1/80')}>
           {namesX?.toUpperCase()}{mySide === 'X' ? ' (YOU)' : ''}
         </span>
-        <span className="text-[8px] text-retro-dim tracking-widest">SUMO</span>
+        <span className="flex flex-col items-center">
+          <span className="text-[8px] text-retro-dim tracking-widest">SUMO</span>
+          <span className={cn('text-[7px] tracking-widest', shrinking ? 'text-retro-danger' : 'text-retro-dim')}>
+            {fmtTime(t)}
+          </span>
+        </span>
         <span className={cn('text-[8px] tracking-widest', mySide === 'O' ? 'text-retro-p2 text-glow-p2' : 'text-retro-p2/80')}>
           {namesO?.toUpperCase()}{mySide === 'O' ? ' (YOU)' : ''}
         </span>
@@ -90,9 +103,15 @@ const SumoArena = forwardRef(function SumoArena(
             height: pct(diameter),
           }}
         />
-        {/* Danger ring just inside the shrinking boundary */}
+        {/* Danger ring just inside the shrinking boundary — upgrades to a
+            thicker, pulsing ring once the platform is actively shrinking. */}
         <div
-          className="absolute rounded-full border border-retro-p2/40 pointer-events-none"
+          className={cn(
+            'absolute rounded-full pointer-events-none',
+            shrinking
+              ? 'border-2 border-retro-danger animate-pulse'
+              : 'border border-retro-p2/40',
+          )}
           style={{
             left: pct(0.5 - arenaR + BLOB_R * 0.5),
             top: pct(0.5 - arenaR + BLOB_R * 0.5),
@@ -101,8 +120,8 @@ const SumoArena = forwardRef(function SumoArena(
           }}
         />
 
-        {X && <Wrestler blob={X} side="X" />}
-        {O && <Wrestler blob={O} side="O" />}
+        {X && <Wrestler blob={X} side="X" flash={flash} />}
+        {O && <Wrestler blob={O} side="O" flash={flash} />}
 
         {overlay && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-bg/70 backdrop-blur-[1px]">
@@ -111,7 +130,7 @@ const SumoArena = forwardRef(function SumoArena(
         )}
       </div>
       <p className="text-center font-pixel text-[10px] text-retro-dim leading-relaxed">
-        ANY KEY · TAP PUSH BELOW ON TOUCH
+        SPACE / ENTER · TAP PUSH BELOW ON TOUCH
       </p>
     </div>
   )

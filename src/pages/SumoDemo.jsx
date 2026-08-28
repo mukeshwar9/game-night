@@ -76,7 +76,13 @@ export default function SumoDemo() {
       <p className="text-center font-pixel text-[8px] text-retro-dim">PUSH THE BOT OFF · TAP TO PUSH</p>
       <div className="flex justify-center pt-1">
         <button
+          data-sumo-push
           onPointerDown={(e) => { e.preventDefault(); press() }}
+          onKeyDown={(e) => {
+            if (e.key !== ' ' && e.key !== 'Enter') return
+            e.preventDefault()
+            press()
+          }}
           className="px-10 py-4 bg-retro-cta text-retro-bg font-pixel text-sm rounded-lg hover:shadow-neon-cta active:scale-95 active:bg-retro-cta/80 select-none touch-none"
         >
           PUSH

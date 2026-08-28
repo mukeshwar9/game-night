@@ -22,6 +22,16 @@ function cellsOf(fleet, ship) {
   return shipCells(spec.size, fleet[ship].orient, fleet[ship].cell)
 }
 
+// cell index -> ship index (for per-ship boundary/shade in BattleshipBoard)
+function fleetCellMap(fleet) {
+  const map = new Map()
+  for (const ship of Object.keys(fleet)) {
+    const idx = FLEET_SPEC.findIndex(s => s.ship === ship)
+    for (const c of cellsOf(fleet, ship)) map.set(c, idx)
+  }
+  return map
+}
+
 export default function BattleshipDemo() {
   const [phase, setPhase] = useState('placing')
   const [draft, setDraft] = useState({})
@@ -40,18 +50,12 @@ export default function BattleshipDemo() {
   const playerWon = done && allSunk(botFleet ?? {}, playerShots)
   const myTurn = phase === 'battle' && turn === 'me' && !done
 
-  const draftCells = useMemo(() => {
-    const set = new Set()
-    for (const ship of Object.keys(draft)) cellsOf(draft, ship).forEach(c => set.add(c))
-    return set
-  }, [draft])
+  const draftCells = useMemo(() => fleetCellMap(draft), [draft])
 
-  const playerFleetCells = useMemo(() => {
-    if (!playerFleet) return draftCells
-    const set = new Set()
-    for (const ship of Object.keys(playerFleet)) cellsOf(playerFleet, ship).forEach(c => set.add(c))
-    return set
-  }, [playerFleet, draftCells])
+  const playerFleetCells = useMemo(
+    () => (playerFleet ? fleetCellMap(playerFleet) : draftCells),
+    [playerFleet, draftCells],
+  )
 
   // Bot driver: fires whenever it's the bot's turn.
   useEffect(() => {
@@ -61,7 +65,7 @@ export default function BattleshipDemo() {
         const cell = pickShot(prev)
         if (cell == null) return prev
         const result = gradeShot(playerFleet, cell, prev)
-        if (result === 'hit') sounds.miss()
+        if (result === 'hit') sounds.hit(4)
         if (result?.startsWith('sunk:')) setBanner(`RIVAL SUNK YOUR ${result.split(':')[1].toUpperCase()}!`)
         const next = [...prev, { cell, result }]
         if (allSunk(playerFleet, next)) {
@@ -186,7 +190,7 @@ export default function BattleshipDemo() {
               <span
                 key={ship}
                 className={cn(
-                  'font-pixel text-[7px] uppercase px-1.5 py-0.5 rounded border',
+                  'font-pixel text-[8px] uppercase px-1.5 py-0.5 rounded border',
                   botSunkNames.includes(ship)
                     ? 'border-retro-win text-retro-win'
                     : 'border-retro-border text-retro-dim',
@@ -214,7 +218,7 @@ export default function BattleshipDemo() {
               <span
                 key={ship}
                 className={cn(
-                  'font-pixel text-[7px] uppercase px-1.5 py-0.5 rounded border',
+                  'font-pixel text-[8px] uppercase px-1.5 py-0.5 rounded border',
                   sunk ? 'border-retro-danger text-retro-danger' : 'border-retro-p1 text-retro-p1',
                 )}
               >

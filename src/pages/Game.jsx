@@ -1505,8 +1505,10 @@ export default function Game() {
           <OfflineNotice />
         )}
 
-        {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline */}
-        {!isCustom && !isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
+        {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline
+            (60s for custom real-time games, where a vanished peer hard-freezes
+            the round and forfeit would be the only other exit) */}
+        {!isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
           <div className="border-2 border-retro-p2/50 bg-retro-card rounded p-3 text-center space-y-2">
             <p className="font-pixel text-[10px] text-retro-p2 leading-relaxed">
               OPPONENT&apos;S BEEN GONE A WHILE

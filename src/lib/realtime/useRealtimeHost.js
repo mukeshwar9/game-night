@@ -85,7 +85,21 @@ export function useRealtimeHost(opts) {
   // `onMessage` is stable (owns no game-specific deps) so the peer connection
   // effect inside useRealtimePeer won't tear down on every re-render.
   const onMessage = useCallback((msg) => {
-    if (msg.t === 'i') guestInputRef.current = msg.d
+    if (msg.t === 'i') {
+      // Additive accumulation for tap-count inputs (Sumo's { press: N }):
+      // two guest taps can land between host substeps, and a plain
+      // last-write-wins assignment would coalesce them into a single
+      // impulse — the guest silently loses pushes the host never loses.
+      // Only messages that carry a numeric `press` field accumulate; every
+      // other shape (Pong's continuous paddle dir, Pac-Mac's direction
+      // string) keeps the prior last-write-wins replace behavior.
+      const prev = guestInputRef.current
+      if (prev && typeof prev.press === 'number' && typeof msg.d?.press === 'number') {
+        guestInputRef.current = { ...msg.d, press: prev.press + msg.d.press }
+      } else {
+        guestInputRef.current = msg.d
+      }
+    }
     // 's' never arrives on the host; 'e' is what we emit, not receive.
   }, [])
 

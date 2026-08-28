@@ -68,8 +68,7 @@ import {
   BK_WALLS_PER_PLAYER,
   BK_START_X,
   BK_START_O,
-  applyPawnMove,
-  applyWallMove,
+  applyBlockadeMove,
 } from './blockadeLogic'
 import { applyDiceMove } from './diceLogic'
 import DiceBoard from '../components/DiceBoard'
@@ -553,43 +552,9 @@ export const GAME_TYPES = [
       return -1
     },
     BoardComponent: BlockadeBoard,
-    applyMove: ({ board, game, move, symbol }) => {
-      const pawns = { X: game.blockadePawnX ?? BK_START_X, O: game.blockadePawnO ?? BK_START_O }
-      const wallsRemaining = {
-        X: game.blockadeWallsX ?? BK_WALLS_PER_PLAYER,
-        O: game.blockadeWallsO ?? BK_WALLS_PER_PLAYER,
-      }
-      const opp = symbol === 'X' ? 'O' : 'X'
-
-      if (move?.type === 'pawn') {
-        const applied = applyPawnMove({ walls: board, pawns, symbol, to: move.to })
-        if (!applied) return null
-        return {
-          updates: {
-            [`blockadePawn${symbol}`]: move.to,
-            currentTurn: opp,
-            blockadeMoves: (game.blockadeMoves ?? 0) + 1,
-          },
-          result: applied.winner ? { winner: applied.winner } : null,
-        }
-      }
-      if (move?.type === 'wall') {
-        const applied = applyWallMove({
-          walls: board, pawns, wallsRemaining: wallsRemaining[symbol], symbol, slot: move.slot,
-        })
-        if (!applied) return null
-        return {
-          updates: {
-            board: applied.walls,
-            [`blockadeWalls${symbol}`]: wallsRemaining[symbol] - 1,
-            currentTurn: opp,
-            blockadeMoves: (game.blockadeMoves ?? 0) + 1,
-          },
-          result: null,
-        }
-      }
-      return null
-    },
+    // Full-move applier lives in blockadeLogic (pure, tested) — includes the
+    // trapped-player skip house rule the old inline copy here lacked.
+    applyMove: applyBlockadeMove,
     boardProps: (game) => ({
       pawns: { X: game.blockadePawnX ?? BK_START_X, O: game.blockadePawnO ?? BK_START_O },
       walls: { X: game.blockadeWallsX ?? BK_WALLS_PER_PLAYER, O: game.blockadeWallsO ?? BK_WALLS_PER_PLAYER },

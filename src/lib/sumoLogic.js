@@ -54,8 +54,11 @@ function applyInput(b, input, opp) {
   const dx = opp.x - b.x
   const dy = opp.y - b.y
   const dist = Math.hypot(dx, dy) || 1
-  b.vx += PUSH_IMPULSE * (dx / dist)
-  b.vy += PUSH_IMPULSE * (dy / dist)
+  // `press` is a tap COUNT (a guest can land >1 tap between host substeps —
+  // see useRealtimeHost's additive guest-input accumulation), so N taps apply
+  // N impulses' worth of push in this single substep.
+  b.vx += PUSH_IMPULSE * press * (dx / dist)
+  b.vy += PUSH_IMPULSE * press * (dy / dist)
   const sp = Math.hypot(b.vx, b.vy)
   if (sp > MAX_SPEED) {
     b.vx *= MAX_SPEED / sp
@@ -80,7 +83,7 @@ function resolveCollision(a, b) {
   const dx = b.x - a.x
   const dy = b.y - a.y
   const dist = Math.hypot(dx, dy)
-  if (dist >= 2 * BLOB_R || dist === 0) return
+  if (dist >= 2 * BLOB_R || dist === 0) return false
   const nx = dx / dist
   const ny = dy / dist
   const v1n = a.vx * nx + a.vy * ny
@@ -97,6 +100,7 @@ function resolveCollision(a, b) {
   a.y -= ny * overlap / 2
   b.x += nx * overlap / 2
   b.y += ny * overlap / 2
+  return true
 }
 
 /**
@@ -126,7 +130,7 @@ export function step(state, inputs, dt) {
     if (!b.alive) continue
     moveAndBounceWalls(b, dt)
   }
-  if (X.alive && O.alive) resolveCollision(X, O)
+  if (X.alive && O.alive && resolveCollision(X, O)) events.push({ type: 'clash' })
 
   if (s.t > SHRINK_START) s.arenaR = Math.max(MIN_RADIUS, s.arenaR - SHRINK_RATE * dt)
 
@@ -162,7 +166,11 @@ export function getWinner(state) {
 
 /**
  * Reaction-handicapped AI input. Taps the push button at intervals to ram the
- * opponent when close, and taps to retreat toward centre when near the edge.
+ * opponent when close. Pressing ALWAYS pushes toward the opponent (see
+ * applyInput) — there is no separate "retreat" impulse — so near the edge the
+ * AI only taps when doing so also carries it back toward centre (i.e. the
+ * opponent is roughly between it and the centre); otherwise tapping would
+ * shove it further off the platform, so it holds off instead.
  * Beatable by a human that taps faster and times their pushes.
  * @param {object} state
  * @param {'X'|'O'} side
@@ -178,7 +186,13 @@ export function computeAI(state, side) {
   // Tap rhythm: ~every 200ms (deterministic from sim time) so the AI is beatable.
   const tapWindow = (Math.floor(state.t * 5) % 2) === 0
   if (!tapWindow) return { press: 0 }
-  if (distCenter > edgeThresh) return { press: 1 }
+  if (distCenter > edgeThresh) {
+    const toOppDist = distOpp || 1
+    const toCenterDist = distCenter || 1
+    const dot = ((opp.x - me.x) / toOppDist) * ((CENTER_X - me.x) / toCenterDist)
+              + ((opp.y - me.y) / toOppDist) * ((CENTER_Y - me.y) / toCenterDist)
+    return { press: dot > 0 ? 1 : 0 }
+  }
   if (distOpp < 0.25) return { press: 1 }
   return { press: 0 }
 }

@@ -474,6 +474,15 @@ body::before {
 .pacmac-power-pulse { animation: pacmac-power 0.55s ease-in-out infinite; }
 .pacmac-fright { animation: pacmac-power 0.34s ease-in-out infinite; }
 
+/* Pellet-eat feedback: a short pop at the cell a pellet just vanished from,
+   instead of the dot simply disappearing. Runs once (`forwards` holds the
+   end state) and the div is pruned by JS after ~260ms. */
+@keyframes pacmac-eat-flash {
+  0%   { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.pacmac-eat-flash { animation: pacmac-eat-flash 250ms ease-out forwards; }
+
 /* Respect users who ask for less motion: kill animations + the scanline overlay */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

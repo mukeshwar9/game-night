@@ -176,6 +176,78 @@ export function applyWallMove({ walls, pawns, wallsRemaining, symbol, slot }) {
   return { walls: next }
 }
 
+// --- Zero-legal-move detection ---------------------------------------------
+
+// True if `symbol` has ANY legal move at all — a pawn step/jump, or a legal
+// wall placement (if any walls remain). Used to guard against the freeze
+// case where legalPawnMoves() legitimately returns [] (both diagonals AND
+// the straight jump blocked — see the blockadeLogic.test.js case for it)
+// while the player is also out of walls or every wall placement is illegal
+// (occupied/conflicting/would seal someone's path).
+export function hasAnyLegalMove(walls, pawns, wallsRemaining, symbol) {
+  if (legalPawnMoves(pawns, walls, symbol).length > 0) return true
+  if (wallsRemaining <= 0) return false
+  for (let slot = 0; slot < BK_WALL_SLOT_COUNT; slot++) {
+    if (isWallMoveLegal(walls, pawns, wallsRemaining, slot, symbol)) return true
+  }
+  return false
+}
+
+// --- Whole-move applier (house rule: skip a trapped player's turn) --------
+
+// Mirrors the { updates, result } contract the GAME_TYPES registry's
+// `applyMove` hook returns (see src/lib/games.js's 'blockade' entry, which
+// currently duplicates this inline calling applyPawnMove/applyWallMove
+// directly). This version additionally applies the house rule: if the move
+// leaves the OPPONENT with zero legal moves at all (hasAnyLegalMove false —
+// a freak wall-lockout position), currentTurn stays on the mover instead of
+// flipping, so the trapped player's turn is skipped rather than the game
+// freezing on an unclickable board with no pass button.
+// NOTE: games.js's registry entry does not yet call this function (it has
+// its own inline copy without the skip rule) — wiring it in is a one-line
+// change to games.js, outside this file's edit scope.
+export function applyBlockadeMove({ board, game, move, symbol }) {
+  const pawns = { X: game.blockadePawnX ?? BK_START_X, O: game.blockadePawnO ?? BK_START_O }
+  const wallsRemaining = {
+    X: game.blockadeWallsX ?? BK_WALLS_PER_PLAYER,
+    O: game.blockadeWallsO ?? BK_WALLS_PER_PLAYER,
+  }
+  const opp = symbol === 'X' ? 'O' : 'X'
+
+  if (move?.type === 'pawn') {
+    const applied = applyPawnMove({ walls: board, pawns, symbol, to: move.to })
+    if (!applied) return null
+    const nextPawns = { ...pawns, [symbol]: move.to }
+    const nextTurn = hasAnyLegalMove(board, nextPawns, wallsRemaining[opp], opp) ? opp : symbol
+    return {
+      updates: {
+        [`blockadePawn${symbol}`]: move.to,
+        currentTurn: nextTurn,
+        blockadeMoves: (game.blockadeMoves ?? 0) + 1,
+      },
+      result: applied.winner ? { winner: applied.winner } : null,
+    }
+  }
+  if (move?.type === 'wall') {
+    const applied = applyWallMove({
+      walls: board, pawns, wallsRemaining: wallsRemaining[symbol], symbol, slot: move.slot,
+    })
+    if (!applied) return null
+    const nextWallsRemaining = { ...wallsRemaining, [symbol]: wallsRemaining[symbol] - 1 }
+    const nextTurn = hasAnyLegalMove(applied.walls, pawns, nextWallsRemaining[opp], opp) ? opp : symbol
+    return {
+      updates: {
+        board: applied.walls,
+        [`blockadeWalls${symbol}`]: nextWallsRemaining[symbol],
+        currentTurn: nextTurn,
+        blockadeMoves: (game.blockadeMoves ?? 0) + 1,
+      },
+      result: null,
+    }
+  }
+  return null
+}
+
 // --- Bot heuristic (casual /demo opponent) ---------------------------------
 
 // The up-to-8 wall slots whose 2x2 footprint touches this cell's corners —
@@ -205,7 +277,7 @@ export function computeBotMove(game, symbol) {
 
   function bestStep() {
     const legal = legalPawnMoves(pawns, walls, symbol)
-    if (!legal.length) return null // mathematically unreachable (see PRD §1) — defensive only
+    if (!legal.length) return null // possible in a wall-lockout position — see hasAnyLegalMove
     let best = legal[0], bestD = Infinity
     for (const to of legal) {
       const d = shortestPathToGoal(walls, to, myGoal).distance
@@ -214,25 +286,44 @@ export function computeBotMove(game, symbol) {
     return { type: 'pawn', to: best }
   }
 
+  function bestWall() {
+    if (wallsRemaining[symbol] <= 0) return null
+    // Behind — look for a wall that hurts the opponent's path more than it hurts ours.
+    const oppPath = shortestPathToGoal(walls, pawns[opp], oppGoal).path
+    const candidates = new Set()
+    for (const cell of oppPath) for (const slot of slotsNearCell(cell)) candidates.add(slot)
+
+    let bestSlot = null, bestGain = 0
+    for (const slot of candidates) {
+      if (!isWallMoveLegal(walls, pawns, wallsRemaining[symbol], slot, symbol)) continue
+      const trial = [...walls]; trial[slot] = symbol
+      const newOppDist = shortestPathToGoal(trial, pawns[opp], oppGoal).distance
+      const newMyDist = shortestPathToGoal(trial, pawns[symbol], myGoal).distance
+      const gain = (newOppDist - oppDist) - (newMyDist - myDist)
+      if (gain > bestGain) { bestGain = gain; bestSlot = slot }
+    }
+    return bestSlot !== null ? { type: 'wall', slot: bestSlot } : null
+  }
+
+  // Any legal wall placement at all, ignoring heuristic gain — last-resort
+  // fallback so the bot only ever "passes" (returns null) when hasAnyLegalMove
+  // would also say false.
+  function anyLegalWall() {
+    if (wallsRemaining[symbol] <= 0) return null
+    for (let slot = 0; slot < BK_WALL_SLOT_COUNT; slot++) {
+      if (isWallMoveLegal(walls, pawns, wallsRemaining[symbol], slot, symbol)) return { type: 'wall', slot }
+    }
+    return null
+  }
+
   // Ahead or tied on distance, or out of walls: just walk your shortest path.
   // (A move landing on the goal row has distance 0 post-move, so this also
   // naturally prefers an immediate winning step over any other option.)
-  if (wallsRemaining[symbol] <= 0 || myDist <= oppDist) return bestStep()
+  const primary = (wallsRemaining[symbol] <= 0 || myDist <= oppDist) ? bestStep() : (bestWall() ?? bestStep())
 
-  // Behind — look for a wall that hurts the opponent's path more than it hurts ours.
-  const oppPath = shortestPathToGoal(walls, pawns[opp], oppGoal).path
-  const candidates = new Set()
-  for (const cell of oppPath) for (const slot of slotsNearCell(cell)) candidates.add(slot)
-
-  let bestSlot = null, bestGain = 0
-  for (const slot of candidates) {
-    if (!isWallMoveLegal(walls, pawns, wallsRemaining[symbol], slot, symbol)) continue
-    const trial = [...walls]; trial[slot] = symbol
-    const newOppDist = shortestPathToGoal(trial, pawns[opp], oppGoal).distance
-    const newMyDist = shortestPathToGoal(trial, pawns[symbol], myGoal).distance
-    const gain = (newOppDist - oppDist) - (newMyDist - myDist)
-    if (gain > bestGain) { bestGain = gain; bestSlot = slot }
-  }
-
-  return bestSlot !== null ? { type: 'wall', slot: bestSlot } : bestStep()
+  // Defensive fallback chain: never return null while ANY legal move exists
+  // for this symbol (pawn or wall) — only a true hasAnyLegalMove()===false
+  // position should surface as null (a pass, which callers already tolerate;
+  // see demoBots.js's doc comment).
+  return primary ?? bestWall() ?? anyLegalWall()
 }
