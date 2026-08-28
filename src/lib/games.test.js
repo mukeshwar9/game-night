@@ -8,9 +8,13 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 let isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState, supportsLocalPlay
+let lobbySwitchOverrides, buildChallengeRoom
 
 beforeAll(async () => {
-  ;({ isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState, supportsLocalPlay } = await import('./games'))
+  ;({
+    isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState, supportsLocalPlay,
+    lobbySwitchOverrides, buildChallengeRoom,
+  } = await import('./games'))
 })
 
 describe('isNewGame', () => {
@@ -116,5 +120,87 @@ describe('freshGameState board sizes', () => {
   it('chain reaction 8×10 vs 6×8', () => {
     expect(freshGameState('chainreaction').board).toHaveLength(80)
     expect(freshGameState('chainreaction6').board).toHaveLength(48)
+  })
+})
+
+describe('lobbySwitchOverrides', () => {
+  it('forces status to waiting', () => {
+    const out = lobbySwitchOverrides({ gameType: 'connectfour', status: 'playing' })
+    expect(out.status).toBe('waiting')
+  })
+
+  it('removes chatLog and emote keys entirely (not nulled)', () => {
+    const out = lobbySwitchOverrides({ gameType: 'connectfour', status: 'playing', chatLog: null, emote: null })
+    expect('chatLog' in out).toBe(false)
+    expect('emote' in out).toBe(false)
+  })
+
+  it('preserves other keys untouched', () => {
+    const out = lobbySwitchOverrides({ gameType: 'connectfour', board: ['', ''], currentTurn: 'X', winner: null })
+    expect(out.gameType).toBe('connectfour')
+    expect(out.board).toEqual(['', ''])
+    expect(out.currentTurn).toBe('X')
+    expect(out.winner).toBe(null)
+  })
+
+  it('does not mutate its input', () => {
+    const input = { status: 'playing', chatLog: null }
+    const inputCopy = { ...input }
+    lobbySwitchOverrides(input)
+    expect(input).toEqual(inputCopy)
+  })
+
+  it('regression: a 2-seat switch-updates patch stays waiting, not playing', () => {
+    // Mirrors what Game.jsx's buildSwitchUpdates produces once both seats are
+    // filled (status: 'playing') — the bug this hook fixes is a waiting-room
+    // switch with 2 seats insta-starting the round.
+    const switchUpdates = {
+      gameType: 'connectfour',
+      ...freshGameState('connectfour'),
+      winner: null,
+      winningLine: null,
+      proposal: null,
+      lastActivityAt: Date.now(),
+      players: { X: { name: 'A' }, O: { name: 'B' } },
+      scores: { X: 0, O: 0 },
+      status: 'playing',
+    }
+    const out = lobbySwitchOverrides(switchUpdates)
+    expect(out.status).toBe('waiting')
+  })
+})
+
+describe('buildChallengeRoom', () => {
+  it('defaults to tictactoe', () => {
+    const room = buildChallengeRoom({ name: 'A', avatar: 'a1', playerId: 'p1' })
+    expect(room.gameType).toBe('tictactoe')
+  })
+
+  it('sets lobby:true and status:waiting', () => {
+    const room = buildChallengeRoom({ name: 'A', avatar: 'a1', playerId: 'p1' })
+    expect(room.lobby).toBe(true)
+    expect(room.status).toBe('waiting')
+  })
+
+  it('builds players.X from the given identity', () => {
+    const room = buildChallengeRoom({ name: 'A', avatar: 'a1', playerId: 'p1', now: 123 })
+    expect(room.players).toEqual({ X: { name: 'A', joinedAt: 123, playerId: 'p1', avatar: 'a1' } })
+  })
+
+  it('scores start at zero-zero', () => {
+    const room = buildChallengeRoom({ name: 'A', avatar: 'a1', playerId: 'p1' })
+    expect(room.scores).toEqual({ X: 0, O: 0 })
+  })
+
+  it('spreads freshGameState fields for the chosen gameType', () => {
+    const room = buildChallengeRoom({ name: 'A', avatar: 'a1', playerId: 'p1', gameType: 'connectfour' })
+    const fresh = freshGameState('connectfour')
+    expect(room.board).toEqual(fresh.board)
+    expect(room.currentTurn).toEqual(fresh.currentTurn)
+  })
+
+  it('honors a gameType override', () => {
+    const room = buildChallengeRoom({ name: 'A', avatar: 'a1', playerId: 'p1', gameType: 'sos' })
+    expect(room.gameType).toBe('sos')
   })
 })

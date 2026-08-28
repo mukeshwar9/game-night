@@ -6,12 +6,14 @@ import { getGameConfig, usesFirstMover, firstMoverUpdates, resolveGoesFirst } fr
 import QrCode from './QrCode'
 import InviteFriendModal from './InviteFriendModal'
 import PixelDots from './loading/PixelDots'
+import Avatar from './Avatar'
+import GameSwitcher from './GameSwitcher'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
 
-export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
+export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch, opponentOnline }) {
   const shareUrl = `${window.location.origin}/game/${gameId}`
   const label = getGameConfig(gameType)?.label
   const [showInvite, setShowInvite] = useState(false)
@@ -19,12 +21,19 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
   const [shareBusy, runShare] = useBusy()
   const [startBusy, runStart] = useBusy()
 
+  // Lobby (challenge-created) rooms get a game picker + generalized START
+  // that works for any game type; legacy/link-created rooms (no `lobby`
+  // flag) render exactly as before — see CLAUDE.md's lobby data-model delta.
+  const isLobby = !!game?.lobby
   const bothSeated = !!(game?.players?.X && game?.players?.O)
   const pickFirst = usesFirstMover(gameType) && bothSeated
   const seated = mySymbol === 'X' || mySymbol === 'O'
   const goesFirst = game?.goesFirst === 'O' || game?.goesFirst === 'random' ? game.goesFirst : 'X'
   const nameX = (game?.players?.X?.name || 'PLAYER 1').toUpperCase()
   const nameO = (game?.players?.O?.name || 'PLAYER 2').toUpperCase()
+  const xOnline = mySymbol === 'X' ? true : mySymbol === 'O' ? opponentOnline !== false : game?.presence?.X?.online !== false
+  const oOnline = mySymbol === 'O' ? true : mySymbol === 'X' ? opponentOnline !== false : game?.presence?.O?.online !== false
+  const readyToPlay = pickFirst || (isLobby && bothSeated)
 
   const isPongHost = gameType === 'pong' && mySymbol === 'X'
   const matchLength = game?.matchLength ?? 3
@@ -56,6 +65,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
     const starter = resolveGoesFirst(goesFirst)
     await update(ref(db, `games/${gameId}`), {
       status: 'playing',
+      ...(isLobby ? { lobby: null } : {}),
       ...firstMoverUpdates(gameType, starter),
       lastActivityAt: Date.now(),
     })
@@ -85,20 +95,72 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
 
   return (
     <div className="flex flex-col items-center gap-5 py-6">
-      <PixelDots size="lg" tone="cta" glow />
+      {isLobby ? (
+        <div className="w-full bg-retro-card border border-retro-border rounded p-4 flex items-center justify-center gap-3">
+          <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+            <div className="relative">
+              <Avatar id={game?.players?.X?.avatar} size={44} />
+              <span
+                className={cn('absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-retro-card', xOnline ? 'bg-retro-win' : 'bg-retro-dim')}
+                title={xOnline ? 'Online' : 'Offline'}
+              />
+            </div>
+            <p className="font-mono text-xs text-retro-text truncate max-w-full">{nameX}</p>
+          </div>
+          <span className="font-pixel text-[10px] text-retro-cta text-glow-cta shrink-0">VS</span>
+          <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+            {bothSeated ? (
+              <>
+                <div className="relative">
+                  <Avatar id={game?.players?.O?.avatar} size={44} />
+                  <span
+                    className={cn('absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-retro-card', oOnline ? 'bg-retro-win' : 'bg-retro-dim')}
+                    title={oOnline ? 'Online' : 'Offline'}
+                  />
+                </div>
+                <p className="font-mono text-xs text-retro-text truncate max-w-full">{nameO}</p>
+              </>
+            ) : (
+              <>
+                <div className="w-11 h-11 rounded-full border-2 border-dashed border-retro-border flex items-center justify-center animate-pulse">
+                  <span className="font-pixel text-sm text-retro-dim">?</span>
+                </div>
+                <p className="font-pixel text-[7px] text-retro-dim tracking-wider">WAITING…</p>
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        <PixelDots size="lg" tone="cta" glow />
+      )}
 
       {/* Status text + game label */}
       <div className="text-center space-y-1">
         <p className="font-pixel text-xs text-retro-text">
-          {pickFirst ? 'READY TO PLAY' : 'WAITING FOR OPPONENT'}
+          {readyToPlay ? 'READY TO PLAY' : 'WAITING FOR OPPONENT'}
         </p>
         {label && (
           <p className="font-pixel text-[10px] text-retro-dim">· {label} ·</p>
         )}
         <p className="font-mono text-xs text-retro-dim">
-          {pickFirst ? 'choose who goes first, then start' : 'share the link to invite a friend'}
+          {readyToPlay
+            ? (pickFirst ? 'choose who goes first, then start' : 'pick a game, then start')
+            : isLobby ? 'chat while you wait — pick a game anytime' : 'share the link to invite a friend'}
         </p>
       </div>
+
+      {/* Lobby-only: live game picker, works pre-game with no proposal handshake */}
+      {isLobby && (
+        <div className="w-full bg-retro-card border border-retro-border rounded p-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-pixel text-[8px] text-retro-dim tracking-wider">GAME</p>
+            <p className="font-pixel text-[11px] text-retro-p1 text-glow-p1 truncate">{label}</p>
+          </div>
+          {seated && (
+            <GameSwitcher variant="button" currentType={gameType} onSwitch={onSwitch} />
+          )}
+        </div>
+      )}
 
       {pickFirst && (
         <div className="w-full bg-retro-card border border-retro-border rounded p-3 space-y-3 text-center">
@@ -133,6 +195,27 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol }) {
                 hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
             >
               {startBusy ? 'STARTING…' : 'START GAME'}
+            </button>
+          ) : (
+            <p className="font-pixel text-[7px] text-retro-dim/70">WAITING FOR A PLAYER TO START</p>
+          )}
+        </div>
+      )}
+
+      {/* Lobby games that don't use the WHO GOES FIRST picker (realtime/
+          simultaneous types, or a solo challenger before the second seat
+          fills) still get a START — generalized: enabled once both are
+          seated, disabled with a hint otherwise. */}
+      {!pickFirst && isLobby && (
+        <div className="w-full bg-retro-card border border-retro-border rounded p-3 text-center">
+          {seated ? (
+            <button
+              onClick={startMatch}
+              disabled={startBusy || !bothSeated}
+              className="w-full min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
+                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            >
+              {startBusy ? 'STARTING…' : bothSeated ? 'START GAME' : 'WAITING FOR OPPONENT'}
             </button>
           ) : (
             <p className="font-pixel text-[7px] text-retro-dim/70">WAITING FOR A PLAYER TO START</p>
