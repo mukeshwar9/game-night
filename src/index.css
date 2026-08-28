@@ -608,54 +608,12 @@ body::before {
   100% { transform: translateY(0); }
 }
 
-/* ── Arcade loader animations ── */
-
-/* Pixel coin spins around its vertical axis (faux 3D) */
-@keyframes arcade-coin-spin {
-  0%   { transform: scaleX(1); }
-  50%  { transform: scaleX(0.1); filter: brightness(0.55); }
-  100% { transform: scaleX(1); }
-}
-.arcade-coin-spin { animation: arcade-coin-spin 1s steps(8) infinite; }
-
 /* "INSERT COIN" classic arcade blink */
 @keyframes arcade-blink {
   0%, 49%   { opacity: 1; }
   50%, 100% { opacity: 0.15; }
 }
 .arcade-blink { animation: arcade-blink 0.8s steps(1) infinite; }
-
-/* Loading-bar segments chase-pulse in sequence (delays set inline per-segment in ArcadeLoader.jsx) */
-@keyframes arcade-load-seg {
-  0%, 92%, 100% { opacity: 0.12; }
-  8%            { opacity: 1; }
-}
-.arcade-load-seg {
-  opacity: 0.12;
-  animation: arcade-load-seg 1.08s steps(1) infinite;
-}
-
-/* High-score marquee scrolls left forever */
-@keyframes arcade-marquee {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.arcade-marquee { animation: arcade-marquee 16s linear infinite; }
-
-/* RAM-check row reveal */
-@keyframes ram-typewriter {
-  0%   { opacity: 0; transform: translateY(-2px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-/* Loading-dots cycle */
-@keyframes arcade-dot {
-  0%, 60%, 100% { opacity: 0.2; }
-  30%           { opacity: 1; }
-}
-.arcade-dots span { display: inline-block; animation: arcade-dot 1.2s infinite; }
-.arcade-dots span:nth-child(2) { animation-delay: 0.2s; }
-.arcade-dots span:nth-child(3) { animation-delay: 0.4s; }
 
 /* Waiting dots hop one pixel at a time — discrete frames, no tween */
 @keyframes pixel-dot-hop {
@@ -744,6 +702,20 @@ body::before {
   98%, 100% { opacity: 0; }
 }
 .avatar-eyelid { opacity: 0; animation: avatar-blink 4.2s steps(1) infinite; }
+
+/* Playground world: avatar walk bob while moving */
+@keyframes pg-walk-bob {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+.pg-walk-bob { animation: pg-walk-bob 0.3s steps(2) infinite; }
+
+/* Playground world: goal-scored burst ring at the net */
+@keyframes pg-goal-burst {
+  0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
 
 /* Respect users who ask for less motion: kill animations + the scanline overlay */
 @media (prefers-reduced-motion: reduce) {

@@ -37,8 +37,10 @@ export function useHomeIntercept(handler) {
 // rules/invite baked in (see Game.jsx) — showing the global NavBar on top of
 // it doubled the header (~170px of chrome, theme+mute duplicated). /demo,
 // /solo/:type and /local/:type have no header of their own and rely on this
-// bar for theme/mute, so they're left out of the hidden set.
-const HIDDEN_ROUTES_PREFIXES = ['/game/']
+// bar for theme/mute, so they're left out of the hidden set. /playground is
+// fullscreen (h-dvh, camera-panned world) and hosts its own back/mute/theme
+// HUD overlaid on the world — same reasoning as /game/.
+const HIDDEN_ROUTES_PREFIXES = ['/game/', '/playground']
 
 export default function NavBar() {
   const [muted, setMuted] = useState(() => sounds.isMuted())

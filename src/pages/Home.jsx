@@ -292,6 +292,23 @@ export default function Home() {
           BROWSE ALL SOLO GAMES →
         </Link>
 
+        {/* Playground CTA — walk-around hangout, see friends' presence */}
+        <Link
+          to="/playground"
+          className={cn(
+            'max-w-md mx-auto w-full flex items-center gap-3 px-4 py-3 rounded',
+            'border-2 border-retro-cta/40 bg-retro-card',
+            'hover:border-retro-cta/70 hover:shadow-neon-cta hover:bg-retro-tint-cta',
+            'transition-all active:scale-[0.98]'
+          )}
+        >
+          <Avatar id={myAvatar} size={28} tile={false} />
+          <div className="flex-1 min-w-0 text-left">
+            <p className="font-pixel text-[10px] tracking-widest text-retro-cta">ENTER PLAYGROUND →</p>
+            <p className="font-pixel text-[8px] text-retro-dim mt-0.5 tracking-wider">WALK AROUND · SEE FRIENDS</p>
+          </div>
+        </Link>
+
         {/* Your stats — local, no login */}
         <div className="max-w-md mx-auto w-full space-y-1.5">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">YOUR STATS</label>

@@ -136,6 +136,10 @@ export const sounds = {
   },
   // Short blip when the Pong ball bounces off a wall
   wall:  ()    => { seq([[300, 0, 0.04, 'square', 0.09]]); vibrate(5) },
+  // Tiny soft footstep tick — Playground world movement, throttled by the caller
+  step:  ()    => { seq([[1500, 0, 0.02, 'square', 0.06]]); vibrate(0) },
+  // Punchy low thump — Playground ball kick, distinct from wall()'s bright blip
+  kick:  ()    => { seq([[220, 0, 0.05, 'square', 0.12], [140, 0.04, 0.08, 'sawtooth', 0.09]]); vibrate(0) },
   // Rising-pitch combo: pitch climbs with the streak (capped), reset by a miss elsewhere
   hit:   (streak = 0) => {
     const step = Math.min(streak, 10)
