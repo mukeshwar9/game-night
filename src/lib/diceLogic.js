@@ -92,9 +92,10 @@ export function applyDiceBigMove(game, action, symbol, facePair) {
     else { d1 = rollDie(); d2 = rollDie() }
     const isDoubleOne = d1 === 1 && d2 === 1
     const sum = d1 + d2
-    const updates = { diceLast: [d1, d2], diceRolls: [...rollTrail, [d1, d2]], diceRollIndex: rollIndex + 1, lastMove: 0 }
+    const updates = { diceLast: [d1, d2], diceRolls: [...rollTrail, [d1, d2]], diceRollIndex: rollIndex + 1 }
     if (isDoubleOne) {
       updates.diceTurnScore = 0
+      updates.diceRolls = []
       updates.currentTurn = opponent
       return { updates, result: null }
     }
@@ -102,6 +103,9 @@ export function applyDiceBigMove(game, action, symbol, facePair) {
     updates.currentTurn = symbol
     return { updates, result: null }
   }
+  // action === 'bank' — a zero turn score has nothing to bank; refuse rather
+  // than let it pass the turn for free (mirrors applyDiceMove's guard).
+  if (turnScore === 0) return null
   const newScore = myScore + turnScore
   const scoreKey = symbol === 'X' ? 'diceScoreX' : 'diceScoreO'
   const win = newScore >= PIG_TARGET
@@ -177,7 +181,10 @@ export function applyDiceMove(game, action, symbol, face) {
     }
   }
 
-  // action === 'bank'
+  // action === 'bank' — a zero turn score has nothing to bank; refuse rather
+  // than let it pass the turn for free.
+  if (turnScore === 0) return null
+
   const newScore = myScore + turnScore
   const scoreKey = symbol === 'X' ? 'diceScoreX' : 'diceScoreO'
   const win = newScore >= PIG_TARGET

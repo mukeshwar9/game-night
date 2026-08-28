@@ -64,9 +64,17 @@ export function encodeCell(owner, count) {
  * @param {number}   index  - cell to place on
  * @param {string}   symbol - 'X' or 'O'
  * @param {{cols:number, rows:number}} [dims]
+ * @param {{stopOnDomination?: boolean}} [opts] - when true (pass only once both players
+ *   have placed at least once — see applyChainReactionMove), the wave loop stops as soon
+ *   as one side's orbs are wiped from the board. Standard Chain Reaction rule: a player
+ *   eliminated mid-cascade is out immediately, so there's no need to keep simulating
+ *   waves that can only ever belong to the sole remaining owner — this is what keeps a
+ *   full-board domination cascade from grinding out MAX_WAVES steps (and the UI replay
+ *   that walks them one at a time) for a game that's already decided.
  * @returns {{ board: string[], steps: Array<{ exploded: number[], converted: number[] }> }}
  */
-export function applyPlacement(board, index, symbol, dims) {
+export function applyPlacement(board, index, symbol, dims, opts = {}) {
+  const { stopOnDomination = false } = opts
   const { cols, rows } = resolveDims(board, dims)
   const cellCount = cols * rows
   const newBoard = [...board]
@@ -108,6 +116,12 @@ export function applyPlacement(board, index, symbol, dims) {
       converted: [...convertedSet].sort((a, b) => a - b),
     })
     currentLevel = nextLevel
+
+    if (stopOnDomination) {
+      const hasX = newBoard.some(c => c && c[0] === 'X')
+      const hasO = newBoard.some(c => c && c[0] === 'O')
+      if (!hasX || !hasO) break
+    }
   }
 
   return { board: newBoard, steps }
@@ -134,16 +148,21 @@ export function applyChainReactionMove({ board, game, index, symbol, cols, rows 
   const cell = board[index]
   if (cell && cell[0] !== symbol) return null
 
-  const { board: newBoard } = applyPlacement(board, index, symbol, dims)
-
   const newMoves = (game.crMoves ?? 0) + 1
+  // Both players have moved at least once by move 2, so domination (one side's orbs
+  // wiped by this cascade) is a real end condition from here on — see applyPlacement's
+  // stopOnDomination doc. Gating on newMoves >= 2 avoids a false trigger on X's very
+  // first placement, when O simply hasn't moved yet (not "eliminated").
+  const { board: newBoard } = applyPlacement(board, index, symbol, dims, { stopOnDomination: newMoves >= 2 })
   const result = checkWinner(newBoard, newMoves)
 
   return {
     updates: {
       board: newBoard,
       crMoves: newMoves,
-      crLastMove: index,
+      // { index, by } — carries the mover explicitly so board replay doesn't need to
+      // infer it from currentTurn (which is unreliable once the game has finished).
+      crLastMove: { index, by: symbol },
       currentTurn: symbol === 'X' ? 'O' : 'X',
     },
     result,

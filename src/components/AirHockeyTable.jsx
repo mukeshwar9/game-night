@@ -9,6 +9,8 @@ export default function AirHockeyTable({
   mallets = { X: { x: 0.5, y: 1.25 }, O: { x: 0.5, y: 0.25 } },
   flash = null, // 'goal' | null
   tableRef,
+  dim = false,
+  overlay,
 }) {
   const pctX = v => `${(v / 1) * 100}%`
   const pctY = v => `${(v / 1.5) * 100}%`
@@ -16,8 +18,14 @@ export default function AirHockeyTable({
   return (
     <div
       ref={tableRef}
-      className="relative w-full max-w-[340px] mx-auto rounded-xl border-2 border-retro-border bg-retro-deep overflow-hidden select-none touch-none"
-      style={{ aspectRatio: '1 / 1.5' }}
+      className={cn(
+        'relative mx-auto rounded-xl border-2 border-retro-border bg-retro-deep overflow-hidden select-none touch-none',
+        dim && 'opacity-60',
+      )}
+      // Portrait 1:1.5 table (width:height) — the height budget converts to a
+      // width by dividing, not multiplying (cf. Pong's landscape 3:2 court,
+      // which multiplies by 1.5 for the opposite reason).
+      style={{ aspectRatio: '1 / 1.5', width: 'min(100%, calc((100dvh - 260px) / 1.5))' }}
     >
       {/* Center line + circle */}
       <div className="absolute inset-x-0 top-1/2 h-px bg-retro-border/70" />
@@ -73,6 +81,12 @@ export default function AirHockeyTable({
           </div>
         )
       })}
+
+      {overlay && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-bg/70 backdrop-blur-[1px]">
+          {overlay}
+        </div>
+      )}
     </div>
   )
 }

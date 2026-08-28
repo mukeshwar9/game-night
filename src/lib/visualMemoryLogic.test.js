@@ -31,6 +31,7 @@ describe('applyVmMove — correct click', () => {
     expect(r.updates.vmPattern).toHaveLength(4)
     expect(r.updates.vmClicked).toBeNull()
     expect(r.updates.currentTurn).toBe('O')
+    expect(r.updates.vmDeadline).toBeNull()
     expect(r.result).toBeNull()
   })
 })
@@ -41,6 +42,7 @@ describe('applyVmMove — wrong click', () => {
   it('wrong cell gives win to opponent', () => {
     const r = applyVmMove(game, 5, 'X')
     expect(r.result).toEqual({ winner: 'O' })
+    expect(r.updates.vmDeadline).toBeNull()
   })
 
   it('wrong cell with some already clicked still loses', () => {

@@ -31,9 +31,28 @@ function OrbDots({ count, symbol, nearCritical }) {
           />
         )
       })}
+      {/* 4+ orbs render identically to 3 above (visual cap) — a numeric badge keeps the
+          real count legible instead of silently looking the same as a 3-stack. */}
+      {count >= 4 && (
+        <span
+          className={cn(
+            'absolute bottom-0 right-0 font-pixel text-[7px] leading-none px-[2px] rounded-sm',
+            symbol === 'X' ? 'text-retro-p1' : 'text-retro-p2',
+          )}
+          style={{ background: 'rgb(var(--c-surface) / 0.85)' }}
+        >
+          {count}
+        </span>
+      )}
     </div>
   )
 }
+
+// Cap how many explosion waves we actually animate. A full-board domination cascade can
+// run to MAX_WAVES (cellCount * 10 in chainReactionLogic) — animating every one of those
+// at 140ms/wave would lock the board for well over a minute. Play the first
+// MAX_REPLAY_WAVES for drama, then jump straight to the settled board.
+const MAX_REPLAY_WAVES = 12
 
 export default function ChainReactionBoard({ board, onMove, disabled, currentTurn, crLastMove, cols = CR_COLS, rows = CR_ROWS }) {
   const dims = { cols, rows }
@@ -44,6 +63,11 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
   const [explodingSet, setExplodingSet] = useState(new Set())
   const [isReplaying, setIsReplaying] = useState(false)
   const timersRef = useRef([])
+  // crLastMove is { index, by } — `by` names the mover explicitly, so replay never has to
+  // infer it from currentTurn (which is unreliable once the game has finished: the last
+  // mover's cascade should still animate even though currentTurn has already flipped past
+  // them and the room is no longer "playing").
+  const lastMoveIndex = crLastMove?.index ?? null
 
   useEffect(() => {
     const prevBoard = prevBoardRef.current
@@ -53,22 +77,16 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
     timersRef.current = []
 
     const shouldReplay =
-      crLastMove != null &&
+      lastMoveIndex != null &&
+      crLastMove?.by &&
       prevBoard != null &&
       prevBoard.join(',') !== board.join(',')
 
     if (shouldReplay) {
-      // Determine who placed (the mover): look at the crLastMove cell in the new board
-      // After settling it might be empty due to explosion, so look at prevBoard owner
-      // or just try X first then O.
-      const prevCell = prevBoard[crLastMove]
-      // The mover is the one who isn't in prevBoard at that cell
-      // If prevBoard[crLastMove] is empty or opponent, mover is the current player who just went
-      // We can determine by seeing who's orb count increased: check currentTurn which has already flipped
-      // So the mover is the opposite of currentTurn
-      const moverSymbol = currentTurn === 'X' ? 'O' : 'X'
+      const moverSymbol = crLastMove.by
 
-      // Validate: prevBoard must allow placing at crLastMove for moverSymbol
+      // Validate: prevBoard must allow placing at lastMoveIndex for moverSymbol
+      const prevCell = prevBoard[lastMoveIndex]
       const prevOwner = prevCell ? prevCell[0] : null
       if (prevOwner && prevOwner !== moverSymbol) {
         // Unexpected state, just sync
@@ -79,23 +97,24 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
         return
       }
 
-      const { steps } = applyPlacement(prevBoard, crLastMove, moverSymbol, dims)
+      const { steps } = applyPlacement(prevBoard, lastMoveIndex, moverSymbol, dims)
+      const animSteps = steps.slice(0, MAX_REPLAY_WAVES)
 
       setIsReplaying(true)
       setExplodingSet(new Set())
 
       // Show placement immediately (the placed cell pops via key change in displayBoard)
       const postPlacement = [...prevBoard]
-      const { count: c0 } = decodeCell(prevBoard[crLastMove])
-      postPlacement[crLastMove] = `${moverSymbol}${c0 + 1}`
+      const { count: c0 } = decodeCell(prevBoard[lastMoveIndex])
+      postPlacement[lastMoveIndex] = `${moverSymbol}${c0 + 1}`
       setDisplayBoard(postPlacement)
 
       sounds.drop()
 
-      // Simulate board through each wave
+      // Simulate board through each wave (capped — see MAX_REPLAY_WAVES)
       let currentSimBoard = postPlacement
 
-      steps.forEach((step, waveIdx) => {
+      animSteps.forEach((step, waveIdx) => {
         const t = setTimeout(() => {
           // Apply this wave to currentSimBoard
           const nextBoard = [...currentSimBoard]
@@ -128,12 +147,13 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
         timersRef.current.push(t)
       })
 
-      // Final: ensure we land exactly on the settled board
+      // Final: ensure we land exactly on the settled board — whether the cascade fully
+      // played out or got cut short by the MAX_REPLAY_WAVES cap.
       const finalT = setTimeout(() => {
         setDisplayBoard(board)
         setExplodingSet(new Set())
         setIsReplaying(false)
-      }, (steps.length + 1) * 140)
+      }, (animSteps.length + 1) * 140)
       timersRef.current.push(finalT)
     } else {
       setDisplayBoard(board)
@@ -200,7 +220,7 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
                   // M-47: persistent marker on the last-played cell, once the
                   // chain-reaction replay has settled (avoids fighting the
                   // explosion flash overlay mid-cascade).
-                  !isReplaying && i === crLastMove && 'ring-2 ring-inset ring-retro-cta/70',
+                  !isReplaying && i === lastMoveIndex && 'ring-2 ring-inset ring-retro-cta/70',
                 )}
               >
                 {/* Explosion flash overlay */}

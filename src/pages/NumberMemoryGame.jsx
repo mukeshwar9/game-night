@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ref, update, runTransaction } from 'firebase/database'
+import { ref, update, runTransaction, onValue } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
@@ -7,6 +7,8 @@ import SpectatorCard from '../components/SpectatorCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
+import useBusy from '../hooks/useBusy'
+import { generateNumber, resolveNumberMemoryRound } from '../lib/numberMemoryLogic'
 
 // Reveal window scales with digit count so harder (longer) numbers get more
 // time to memorize instead of the same flash as a 1-digit number. Level 1
@@ -21,20 +23,15 @@ function showMsForLevel(level) { return SHOW_MS_BASE + SHOW_MS_PER_DIGIT * level
 const CLAIM_IDLE_MS = 45000
 const CLAIM_HINT_MS = 30000  // show the countdown hint this far in
 
-function generateNumber(level) {
-  let n = String(Math.floor(Math.random() * 9) + 1)
-  for (let i = 1; i < level; i++) n += String(Math.floor(Math.random() * 10))
-  return n
-}
-
 function normalizeRound(raw) {
-  if (!raw) return { phase: 'showing', level: 1, number: '1', answerX: null, answerO: null }
+  if (!raw) return { phase: 'showing', level: 1, number: '1', answerX: null, answerO: null, showUntil: null }
   return {
     phase: raw.phase ?? 'showing',
     level: raw.level ?? 1,
     number: raw.number ?? '1',
     answerX: raw.answerX ?? null,
     answerO: raw.answerO ?? null,
+    showUntil: raw.showUntil ?? null,
   }
 }
 
@@ -52,6 +49,8 @@ export default function NumberMemoryGame({
   const [inputError, setInputError] = useState('')
   const [countdown, setCountdown] = useState(null)
   const [localSubmitted, setLocalSubmitted] = useState(false)
+  const [submitting, runSubmit] = useBusy()
+  const [clockOffset, setClockOffset] = useState(0)
   const timerRef = useRef(null)
   const prevLevel = useRef(round.level)
   const prevAnswerX = useRef(round.answerX)
@@ -59,6 +58,16 @@ export default function NumberMemoryGame({
   const claimingRef = useRef(false)  // prevents double-click on claim button
 
   const hasSubmitted = localSubmitted || myAnswer != null
+
+  // Corrected clock — the memorize window is anchored to a shared `showUntil`
+  // server-ish timestamp (see below) so both players get equal time regardless
+  // of when their own client happened to render the phase change.
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = () => Date.now() + clockOffset
 
   // Reset local state when round advances (level changes)
   useEffect(() => {
@@ -70,7 +79,17 @@ export default function NumberMemoryGame({
     }
   }, [round.level])
 
-  // Both clients drive showing→recall transition (idempotent — same value written twice)
+  // Arm the shared reveal deadline once, via CAS — whichever client gets here
+  // first wins, so both players see the same absolute end time.
+  useEffect(() => {
+    if (round.phase !== 'showing' || round.showUntil != null) return
+    const showMs = showMsForLevel(round.level)
+    runTransaction(ref(db, `games/${gameId}/numRound/showUntil`), cur => cur ?? (serverNow() + showMs)).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- serverNow reads clockOffset via closure; re-running on every offset tick would fight the CAS unnecessarily
+  }, [round.phase, round.level, round.showUntil, gameId])
+
+  // Both clients drive showing→recall transition off the shared `showUntil`
+  // deadline (idempotent — same value written twice).
   useEffect(() => {
     if (round.phase !== 'showing') {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -79,20 +98,22 @@ export default function NumberMemoryGame({
       return
     }
     const showMs = showMsForLevel(round.level)
-    setCountdown(Math.ceil(showMs / 1000))
-    let remaining = showMs
-    const interval = setInterval(() => {
-      remaining -= 100
-      setCountdown(Math.ceil(remaining / 1000))
+    const showUntil = round.showUntil ?? (serverNow() + showMs) // fallback until the CAS above lands
+    const tick = () => {
+      const remaining = showUntil - serverNow()
+      setCountdown(Math.max(0, Math.ceil(remaining / 1000)))
       if (remaining <= 0) {
         clearInterval(interval)
         setCountdown(null)
         update(ref(db, `games/${gameId}/numRound`), { phase: 'recall' }).catch(() => {})
       }
-    }, 100)
+    }
+    tick()
+    const interval = setInterval(tick, 100)
     timerRef.current = interval
     return () => clearInterval(interval)
-  }, [round.phase, round.level, gameId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- serverNow reads clockOffset via closure; recreating the ticker on every offset update would jitter the visible countdown
+  }, [round.phase, round.level, round.showUntil, gameId])
 
   // Avoids spreading ...current through a root transaction (would re-write
   // players.O.playerId under the wrong auth.uid and fail the security rule).
@@ -106,10 +127,9 @@ export default function NumberMemoryGame({
     if (!r || r.answerX == null || r.answerO == null) return  // bail — not both submitted yet
     if (game.status === 'finished') return                    // bail — already resolved
 
-    const xCorrect = r.answerX === r.number
-    const oCorrect = r.answerO === r.number
+    const outcome = resolveNumberMemoryRound({ answerX: r.answerX, answerO: r.answerO, number: r.number })
 
-    if (xCorrect && oCorrect) {
+    if (outcome.type === 'advance') {
       // Both correct: advance to the next level.
       // CAS on numRound/level deduplicates concurrent calls from both clients.
       const currentLevel = r.level
@@ -130,13 +150,35 @@ export default function NumberMemoryGame({
           number: generateNumber(newLevel),
           answerX: null,  // Firebase deletes null-valued keys → normalizeRound treats absent as null ✓
           answerO: null,
+          showUntil: null, // re-armed by the CAS effect once phase === 'showing' lands
         })
       } catch { /* level was already advanced; ignore */ }
+    } else if (outcome.type === 'replay') {
+      // Both wrong with an equal correct-prefix — a fair tie. Replay the same
+      // level rather than crediting either player. CAS on phase deduplicates
+      // concurrent calls from both clients.
+      let claimed = false
+      try {
+        await runTransaction(ref(db, `games/${gameId}/numRound/phase`), phase => {
+          if (phase !== 'recall') return  // abort — already resolved
+          claimed = true
+          return 'showing'
+        })
+      } catch { return }
+      if (!claimed) return
+      try {
+        await update(ref(db, `games/${gameId}/numRound`), {
+          number: generateNumber(r.level),
+          answerX: null,
+          answerO: null,
+          showUntil: null,
+        })
+      } catch { /* already advanced; ignore */ }
+      toast('TIE — SAME PREFIX LENGTH, REPLAYING THE ROUND')
     } else {
-      // One or both wrong: end the round.
+      // Exactly one correct, or both wrong with a clearly longer correct prefix.
       // CAS on winner deduplicates concurrent resolution attempts.
-      const loser = !xCorrect ? 'X' : 'O'
-      const winner = loser === 'X' ? 'O' : 'X'
+      const { winner } = outcome
       let claimed = false
       try {
         await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
@@ -226,7 +268,7 @@ export default function NumberMemoryGame({
     finally { claimingRef.current = false }
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => runSubmit(async () => {
     if (!mySymbol || hasSubmitted) return
     const guess = guessInput.trim()
     if (!guess) { setInputError('TYPE YOUR ANSWER'); return }
@@ -241,7 +283,7 @@ export default function NumberMemoryGame({
       setLocalSubmitted(false)
       toast.error('SUBMIT FAILED — CHECK CONNECTION')
     }
-  }
+  })
 
   const matchWinner = (game.scores?.X || 0) >= 3 ? 'X' : (game.scores?.O || 0) >= 3 ? 'O' : null
 
@@ -325,10 +367,10 @@ export default function NumberMemoryGame({
           {inputError && <p className="font-pixel text-[8px] text-retro-p2 text-center">{inputError}</p>}
           <button
             onClick={handleSubmit}
-            disabled={hasSubmitted || !mySymbol}
+            disabled={hasSubmitted || !mySymbol || submitting}
             className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40 disabled:cursor-default"
           >
-            SUBMIT
+            {submitting ? 'SUBMITTING…' : 'SUBMIT'}
           </button>
         </div>
       )}

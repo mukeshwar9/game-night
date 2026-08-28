@@ -17,12 +17,15 @@ import { cn } from '@/lib/utils'
 // append-only shot list; every client re-simulates identically.
 
 const FINE_STEP = 1
+const SHELL_ANIM_MS = 600     // how long the shell takes to travel its full path
+const IMPACT_HOLD_MS = 900    // how long the impact burst stays visible after landing
 
 export default function ArtilleryGame({
   gameId, game, mySymbol, opponentOnline,
   onPlayAgain,
 }) {
   const me = mySymbol === 'X' ? 'X' : 'O'
+  const rival = me === 'X' ? 'O' : 'X'
   const isSpectator = !mySymbol
   const seed = game.artillerySeed ?? 0
   const shots = game.artilleryShots || {}
@@ -47,19 +50,38 @@ export default function ArtilleryGame({
   const shotKeys = Object.keys(shots).sort()
   const windNow = windForShot(seed, shotKeys.length)
 
-  // Animate ONLY the newest shot when it arrives; older shots skip.
+  // Animate ONLY the newest shot when it arrives; older shots skip. The
+  // shell travels progressively along its recorded path over SHELL_ANIM_MS
+  // (rAF-driven, so the trail visibly flies rather than the whole path +
+  // impact burst appearing in one frame); the impact burst only renders once
+  // the animation reaches the end of the path, then holds briefly before
+  // clearing.
   useEffect(() => {
     if (shotKeys.length === lastCountRef.current) return
     const isNew = shotKeys.length > lastCountRef.current
     lastCountRef.current = shotKeys.length
     if (!isNew || !records.length) return
     const rec = records[records.length - 1]
-    setAnimating(rec)
-    if (rec.damage.X > 0 || rec.damage.O > 0) sounds.bust()
-    else sounds.miss()
-    const t = setTimeout(() => setAnimating(null), Math.min(2000, rec.path.length * 8))
-    return () => clearTimeout(t)
-  }, [shotKeys.length, records]) // eslint-disable-line react-hooks/exhaustive-deps
+    const totalPoints = rec.path.length
+    const start = performance.now()
+    let raf = 0
+    let holdTimer = 0
+
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / SHELL_ANIM_MS)
+      const count = Math.max(1, Math.ceil(totalPoints * t))
+      setAnimating({ ...rec, path: rec.path.slice(0, count), impact: t >= 1 ? rec.impact : null })
+      if (t < 1) {
+        raf = requestAnimationFrame(tick)
+      } else {
+        if (rec.damage.X > 0 || rec.damage.O > 0) sounds.bust()
+        else sounds.miss()
+        holdTimer = setTimeout(() => setAnimating(null), IMPACT_HOLD_MS)
+      }
+    }
+    raf = requestAnimationFrame(tick)
+    return () => { cancelAnimationFrame(raf); clearTimeout(holdTimer) }
+  }, [shotKeys.length, records])
 
   // Winner transaction when the replay shows a death and no winner recorded.
   useEffect(() => {
@@ -81,7 +103,23 @@ export default function ArtilleryGame({
   const fire = useCallback(() => {
     if (!myTurn || firingRef.current) return
     firingRef.current = true
-    push(ref(db, `games/${gameId}/artilleryShots`), { by: me, angleDeg: angle, power })
+    // CRITICAL: the shot AND the currentTurn flip must land in the SAME
+    // atomic write from the firing client — nothing else in this room ever
+    // advances turns for artillery. Without this, O could never fire: X
+    // (the room creator) starts as currentTurn, and appending only to
+    // artilleryShots (the old push()-only path) never flipped it.
+    const shotRef = push(ref(db, `games/${gameId}/artilleryShots`))
+    runTransaction(ref(db, `games/${gameId}`), (current) => {
+      if (!current || current.status !== 'playing') return
+      if (current.currentTurn !== me) return // stale read / already fired
+      const shots = { ...(current.artilleryShots || {}) }
+      shots[shotRef.key] = { by: me, angleDeg: angle, power }
+      return {
+        ...current,
+        artilleryShots: shots,
+        currentTurn: me === 'X' ? 'O' : 'X',
+      }
+    })
       .then(() => sounds.move(me))
       .catch(() => toast.error('FIRE FAILED — RETRY'))
       .finally(() => { firingRef.current = false })
@@ -102,7 +140,7 @@ export default function ArtilleryGame({
     }
     window.addEventListener('keydown', kd)
     return () => window.removeEventListener('keydown', kd)
-  }, [myTurn, fire]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [myTurn, fire])
 
   if (isSpectator) {
     return (
@@ -122,16 +160,17 @@ export default function ArtilleryGame({
 
   return (
     <div className="space-y-4">
-      {/* HUD */}
+      {/* HUD — seat-aware: YOU is always the local player's own tank, RIVAL
+          the opponent's, regardless of which symbol (X/O) that happens to be. */}
       <div className="flex items-center justify-between font-pixel text-[9px]">
-        <span className={cn('text-retro-p1', me === 'X' && myTurn && 'text-glow-p1')}>
-          YOU {state.tanks.X.hp} HP
+        <span className={cn(me === 'X' ? 'text-retro-p1' : 'text-retro-p2', myTurn && (me === 'X' ? 'text-glow-p1' : 'text-glow-p2'))}>
+          YOU {state.tanks[me].hp} HP
         </span>
         <span className="text-retro-dim">
           WIND {windNow >= 0 ? '→' : '←'} {Math.abs(windNow * 100).toFixed(0)}
         </span>
-        <span className={cn('text-retro-p2', me === 'O' && myTurn && 'text-glow-p2')}>
-          {state.tanks.O.hp} HP RIVAL
+        <span className={cn(rival === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
+          {state.tanks[rival].hp} HP RIVAL
         </span>
       </div>
 

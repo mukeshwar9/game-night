@@ -110,6 +110,23 @@ function reflect(paddleY, ballY, dirX, vx, vy, paddleVel, eh) {
 }
 
 /**
+ * Given the side that served the previous round (or null for the very first
+ * round of a session), returns who should serve next: always the opposite
+ * side when a previous server is known, otherwise a random pick. Callers
+ * that want deterministic round-to-round fairness should track the return
+ * value and feed it back in as `prevServeTo` on the next call — see
+ * PongGame.jsx's host loop, which threads this through a ref so serve
+ * advantage alternates across rounds instead of always favoring one side.
+ * @param {'X'|'O'|null} [prevServeTo]
+ * @returns {'X'|'O'}
+ */
+export function nextServeTo(prevServeTo) {
+  if (prevServeTo === 'X') return 'O'
+  if (prevServeTo === 'O') return 'X'
+  return Math.random() < 0.5 ? 'X' : 'O'
+}
+
+/**
  * Build a fresh simulation state.
  * @param {{ serveTo?: 'X'|'O', serveIn?: number, score?: {X:number,O:number}, serveCount?: number }} [opts]
  */

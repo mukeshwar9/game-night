@@ -178,9 +178,12 @@ export function applyCheckersMove(board, from, to) {
   return { board: nb, promoted: move.promotes };
 }
 
-// Side with no pieces loses; side with no legal moves loses; nobody able to
-// move is a draw. Purely board-derived — safe to call after any completed move.
-export function getCheckersWinner(board) {
+// Side with no pieces loses. No-legal-moves is only a loss for the side whose
+// turn it now is (`toMove`) — a side that happens to be temporarily blocked
+// while it's *not* their turn may still be unblocked by the time play comes
+// back to them, so that alone must not end the game. Purely board-derived —
+// safe to call after any completed move, passing the side who moves next.
+export function getCheckersWinner(board, toMove) {
   const b = normalizeCheckers(board);
   let xCount = 0;
   let oCount = 0;
@@ -191,9 +194,11 @@ export function getCheckersWinner(board) {
   if (xCount === 0 && oCount === 0) return { winner: "draw" };
   if (xCount === 0) return { winner: "O" };
   if (oCount === 0) return { winner: "X" };
-  const xCan = getLegalMoves(b, "X").length > 0;
-  const oCan = getLegalMoves(b, "O").length > 0;
-  if (xCan && oCan) return null;
-  if (!xCan && !oCan) return { winner: "draw" };
-  return { winner: oCan ? "O" : "X" };
+  const side = toMove === "O" ? "O" : "X";
+  const other = side === "X" ? "O" : "X";
+  const canMove = getLegalMoves(b, side).length > 0;
+  if (canMove) return null;
+  const otherCan = getLegalMoves(b, other).length > 0;
+  if (!otherCan) return { winner: "draw" };
+  return { winner: other };
 }

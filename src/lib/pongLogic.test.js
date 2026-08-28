@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  createState, step, computeAI, getWinner,
+  createState, step, computeAI, getWinner, nextServeTo,
   WIN_SCORE, BALL_R, PADDLE_H, BALL_MAX_SPEED, X_FACE, O_FACE,
   SERVE_DELAY, SERVE_SPEED, SPIN_TRANSFER, OFFSET_SPIN, SPIN_DECAY_RATE,
   PICKUP_FIRST_AT,
@@ -241,6 +241,28 @@ describe('computeAI', () => {
     const s = { ball: { x: 0.6, y: 0.9, vx: 0.5, vy: 0 }, paddles: { X: 0.2, O: 0.5 }, score: { X: 0, O: 0 }, serveCount: 0 }
     // ball below but moving away → target is centre (0.5), paddle at 0.2 → move down
     expect(computeAI(s, 'X')).toBe(1)
+  })
+})
+
+describe('nextServeTo', () => {
+  it('alternates deterministically from a known prior server', () => {
+    expect(nextServeTo('X')).toBe('O')
+    expect(nextServeTo('O')).toBe('X')
+  })
+
+  it('alternates across many rounds when the result is threaded back in', () => {
+    let serveTo = nextServeTo('X') // seed deterministically
+    for (let i = 0; i < 20; i++) {
+      const prev = serveTo
+      serveTo = nextServeTo(serveTo)
+      expect(serveTo).not.toBe(prev)
+      expect(['X', 'O']).toContain(serveTo)
+    }
+  })
+
+  it('picks a side (not undefined) when there is no prior server', () => {
+    expect(['X', 'O']).toContain(nextServeTo(null))
+    expect(['X', 'O']).toContain(nextServeTo(undefined))
   })
 })
 

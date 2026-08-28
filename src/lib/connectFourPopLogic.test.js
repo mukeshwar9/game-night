@@ -1,12 +1,27 @@
 import { describe, it, expect } from 'vitest'
 import {
   applyConnectFourPopMove, popWinner, canPop, popColumn, bottomIndex,
-  connectFourLineFor, CF_BOARD_SIZE,
+  connectFourLineFor, hasLegalPop, CF_BOARD_SIZE,
 } from './connectFourPopLogic'
 
 const COLS = 7
 const empty = () => Array(CF_BOARD_SIZE).fill('')
 const idx = (row, col) => row * COLS + col
+
+// Verified draw board (same pattern as connectFourLogic.test.js's drawBoard):
+// column patterns XXOOXX / OOXXOO alternating — no four-in-a-row in any
+// direction, including diagonals. Bottom row (row 5) is X,O,X,O,X,O,X, so
+// both colours own at least one column bottom.
+const noFourBoard = () => {
+  const colPatterns = ['XXOOXX', 'OOXXOO', 'XXOOXX', 'OOXXOO', 'XXOOXX', 'OOXXOO', 'XXOOXX']
+  const b = empty()
+  for (let col = 0; col < COLS; col++) {
+    for (let row = 0; row < 6; row++) {
+      b[idx(row, col)] = colPatterns[col][row]
+    }
+  }
+  return b
+}
 
 describe('drop moves', () => {
   it('drops to the bottom of an empty column', () => {
@@ -75,15 +90,40 @@ describe('pop moves', () => {
   })
 })
 
+describe('hasLegalPop', () => {
+  it('true when the symbol owns at least one column bottom', () => {
+    const b = empty(); b[bottomIndex(2)] = 'X'
+    expect(hasLegalPop(b, 'X')).toBe(true)
+    expect(hasLegalPop(b, 'O')).toBe(false)
+  })
+
+  it('false when the symbol owns no column bottoms', () => {
+    const b = empty()
+    for (let c = 0; c < 7; c++) b[bottomIndex(c)] = 'O'
+    expect(hasLegalPop(b, 'X')).toBe(false)
+    expect(hasLegalPop(b, 'O')).toBe(true)
+  })
+})
+
 describe('popWinner', () => {
   it('returns null on an ongoing board', () => {
     expect(popWinner(empty(), 'X')).toBeNull()
   })
-  it('detects a draw only when the board is full', () => {
-    const b = empty().map((_, i) => (i % 2 ? 'X' : 'O'))
-    // guarantee no accidental four by checking the helper directly
-    if (!connectFourLineFor(b, 'X') && !connectFourLineFor(b, 'O')) {
-      expect(popWinner(b, 'X').winner).toBe('draw')
-    }
+
+  it('BUG FIX: full board with no four-in-a-row still continues if the opponent can pop', () => {
+    // Board full, no four-in-a-row anywhere, and both colours own at least
+    // one column bottom (row 5 alternates X,O,X,O,X,O,X). Previously
+    // popWinner declared this a draw purely because the board was full;
+    // it must instead see that O (the side to move after X) can still pop.
+    const b = noFourBoard()
+    expect(connectFourLineFor(b, 'X')).toBeNull()
+    expect(connectFourLineFor(b, 'O')).toBeNull()
+    expect(b.every(c => c)).toBe(true)
+    expect(hasLegalPop(b, 'O')).toBe(true)
+    expect(hasLegalPop(b, 'X')).toBe(true)
+    // Full board, no four, opponent (O) can still pop → not a draw yet.
+    expect(popWinner(b, 'X')).toBeNull()
+    expect(popWinner(b, 'O')).toBeNull()
   })
+
 })

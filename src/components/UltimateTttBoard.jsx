@@ -10,32 +10,42 @@ export default function UltimateTttBoard({
 }) {
   const activeRing = currentTurn === 'O' ? 'border-retro-p2 shadow-neon-p2' : 'border-retro-p1 shadow-neon-p1'
   const isBoardActive = (m) => !disabled && !uWon[m] && (uActiveBoard === -1 || uActiveBoard === m)
+  const isTargeted = (m) => uActiveBoard === m
 
   return (
     <div className="w-full max-w-md mx-auto">
+      {/* Persistent free-play cue — reserved height so it never shifts layout when hidden */}
+      <div className="h-4 mb-1 flex items-center justify-center">
+        {!disabled && uActiveBoard === -1 && (
+          <span className="font-pixel text-[9px] sm:text-[10px] text-retro-cta animate-pulse tracking-wide">
+            ◆ PLAY ANY BOARD ◆
+          </span>
+        )}
+      </div>
       <div
         className={cn(
-          'grid grid-cols-3 gap-1.5 sm:gap-2 bg-retro-border/40 p-1.5 sm:p-2 rounded transition-all duration-200',
+          'grid grid-cols-3 gap-1 sm:gap-1.5 bg-retro-border/40 p-1 sm:p-1.5 rounded transition-all duration-200',
           disabled && 'opacity-60 saturate-50',
         )}
       >
         {Array.from({ length: 9 }, (_, m) => {
           const decided = uWon[m]
           const active = isBoardActive(m)
+          const targeted = isTargeted(m)
           const metaWin = winningLine.includes(m)
           return (
             <div
               key={m}
               className={cn(
-                'relative rounded-sm p-1 border-2 transition-all',
+                'relative rounded-sm p-0.5 border-2 transition-all',
                 metaWin
                   ? 'border-retro-win shadow-neon-win bg-retro-win/10'
                   : active
-                    ? cn('bg-retro-card', activeRing)
+                    ? cn('bg-retro-card', targeted ? cn(activeRing, 'animate-pulse') : 'border-retro-border')
                     : 'border-retro-border bg-retro-surface',
               )}
             >
-              <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
+              <div className="grid grid-cols-3 gap-0.5">
                 {Array.from({ length: 9 }, (_, c) => {
                   const i = m * 9 + c
                   const v = board[i]
@@ -64,7 +74,12 @@ export default function UltimateTttBoard({
               {decided && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-retro-bg/60 rounded-sm">
                   {decided === 'D' ? (
-                    <span className="font-pixel text-lg text-retro-dim">—</span>
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <div className="absolute inset-2 border-t-2 border-retro-dim rotate-12" aria-hidden="true" />
+                      <span className="relative font-pixel text-[7px] sm:text-[8px] text-retro-dim tracking-wide bg-retro-bg/70 px-1 rounded-sm">
+                        DRAW
+                      </span>
+                    </div>
                   ) : (
                     <span className={cn(
                       'font-pixel text-3xl sm:text-4xl',

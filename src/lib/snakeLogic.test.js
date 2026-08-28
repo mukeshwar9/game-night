@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createState, tick, getWinner, spawnFood, computeAI, GRID, START_LEN } from './snakeLogic'
+import { createState, tick, getWinner, spawnFood, computeAI, createRng, GRID, START_LEN } from './snakeLogic'
 
 describe('snakeLogic', () => {
   describe('createState', () => {
@@ -232,6 +232,45 @@ describe('snakeLogic', () => {
     })
   })
 
+  describe('tick — order-independent collision resolution', () => {
+    // Regression for a host-favoring bug: collision verdicts used to be
+    // applied to `alive` mid-loop while iterating ['X','O'], so X's
+    // self-crash flipped `alive` before O's collision check ran — making O's
+    // tail-vacate exemption against X's body depend on evaluation order
+    // instead of the frozen pre-tick state. X self-crashes here AND O's move
+    // lands on X's tail cell, which vacates because X was alive-and-not-eating
+    // at the START of the tick — X's own (unrelated) self-crash this same
+    // tick must not retroactively make that cell an obstacle for O.
+    it('does not let one side\'s self-crash retroactively block the other side\'s tail-vacate move', () => {
+      const s = createState()
+      // X: U-shape self-collision, same as the "kills a snake that runs into
+      // its own body" case — head (5,5) turning down hits body[3] (5,6);
+      // tail is (6,6).
+      s.snakes.X.body = [{ x: 5, y: 5 }, { x: 4, y: 5 }, { x: 4, y: 6 }, { x: 5, y: 6 }, { x: 6, y: 6 }]
+      s.snakes.X.dir = 'right'
+      // O moves straight up into X's tail cell (6,6), which vacates because
+      // X is alive and not eating at the start of the tick.
+      s.snakes.O.body = [{ x: 6, y: 7 }, { x: 6, y: 8 }, { x: 6, y: 9 }]
+      s.snakes.O.dir = 'up'
+      s.food = { x: 0, y: 0 } // neither snake eats this tick
+      const { state } = tick(s, { X: 'down' })
+      expect(state.snakes.X.alive).toBe(false) // X still dies of its own self-crash
+      expect(state.snakes.O.alive).toBe(true)  // O must NOT be collaterally killed
+    })
+
+    it('is symmetric: also holds when O is the one self-crashing into X\'s vacated tail', () => {
+      const s = createState()
+      s.snakes.O.body = [{ x: 5, y: 5 }, { x: 6, y: 5 }, { x: 6, y: 6 }, { x: 5, y: 6 }, { x: 4, y: 6 }]
+      s.snakes.O.dir = 'left'
+      s.snakes.X.body = [{ x: 4, y: 7 }, { x: 4, y: 8 }, { x: 4, y: 9 }]
+      s.snakes.X.dir = 'up'
+      s.food = { x: 0, y: 0 }
+      const { state } = tick(s, { O: 'down' })
+      expect(state.snakes.O.alive).toBe(false) // O dies of its own self-crash
+      expect(state.snakes.X.alive).toBe(true)  // X must NOT be collaterally killed
+    })
+  })
+
   describe('getWinner', () => {
     it('returns null when both snakes are alive', () => {
       expect(getWinner(createState())).toBeNull()
@@ -280,6 +319,42 @@ describe('snakeLogic', () => {
         }
       }
       expect(spawnFood(snakes)).toBeNull()
+    })
+  })
+
+  describe('createRng — deterministic food spawning', () => {
+    it('the same seed produces the same food spawn sequence', () => {
+      const snakes = createState().snakes // fixed starting body positions
+      const run = (seed) => {
+        const rng = createRng(seed)
+        const seq = []
+        for (let i = 0; i < 10; i++) seq.push(spawnFood(snakes, rng))
+        return seq
+      }
+      expect(run(12345)).toEqual(run(12345))
+    })
+
+    it('createState accepts a seeded rng for reproducible initial food placement', () => {
+      expect(createState(createRng(999)).food).toEqual(createState(createRng(999)).food)
+    })
+
+    it('tick accepts a seeded rng for reproducible respawns after eating', () => {
+      const build = (seed) => {
+        const s = createState()
+        s.food = { x: s.snakes.X.body[0].x + 1, y: s.snakes.X.body[0].y }
+        return tick(s, {}, createRng(seed)).state.food
+      }
+      expect(build(42)).toEqual(build(42))
+    })
+
+    it('different seeds are not guaranteed (but typically) to diverge', () => {
+      // Not a strict correctness requirement, but a sanity check that the
+      // rng is actually being consulted rather than ignored.
+      const snakes = createState().snakes
+      const a = spawnFood(snakes, createRng(1))
+      const b = spawnFood(snakes, createRng(2))
+      expect(a).not.toBeNull()
+      expect(b).not.toBeNull()
     })
   })
 

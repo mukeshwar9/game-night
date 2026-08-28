@@ -1,5 +1,5 @@
-import { forwardRef } from 'react'
-import { SHIP_R, BULLET_R, ROUND_CAP_S, SHIP_MAX_HP, START_FIRE_DELAY } from '../lib/spaceduelLogic'
+import { forwardRef, useEffect, useRef, useState } from 'react'
+import { SHIP_R, BULLET_R, ROUND_CAP_S, SHIP_MAX_HP, START_FIRE_DELAY, FIRE_COOLDOWN } from '../lib/spaceduelLogic'
 import { cn } from '@/lib/utils'
 
 const pct = (n) => `${n * 100}%`
@@ -59,6 +59,70 @@ function Ship({ ship, side, thrusting }) {
         style={{ clipPath: TRAILIEN }}
       />
     </div>
+  )
+}
+
+// Small decorative cooldown wipe over the FIRE button — restarts (via
+// `triggerKey`) on every shot. Purely visual, not synced to the sim's actual
+// cooldown state (the guest doesn't run the sim), so it's an approximation
+// of FIRE_COOLDOWN rather than ground truth.
+function CooldownOverlay({ triggerKey }) {
+  // Imperative DOM style writes (not React state) — purely decorative, and a
+  // setState-driven two-phase restart would fire setState synchronously
+  // inside an effect on every shot.
+  const elRef = useRef(null)
+  useEffect(() => {
+    const el = elRef.current
+    if (!el) return
+    el.style.transition = 'none'
+    el.style.transform = 'scaleY(1)'
+    const id = requestAnimationFrame(() => {
+      el.style.transition = `transform ${FIRE_COOLDOWN}s linear`
+      el.style.transform = 'scaleY(0)'
+    })
+    return () => cancelAnimationFrame(id)
+  }, [triggerKey])
+  return (
+    <span
+      ref={elRef}
+      aria-hidden="true"
+      className="absolute inset-0 bg-retro-bg/60 pointer-events-none"
+      style={{ transformOrigin: 'bottom' }}
+    />
+  )
+}
+
+// FIRE button — auto-repeats while held (at FIRE_COOLDOWN cadence, matching
+// the sim's own per-shot rate limit) instead of firing once per press, since
+// a touch button has no native key-repeat the way a held keyboard key would.
+function FireButton({ onFire, className }) {
+  const [pulse, setPulse] = useState(0)
+  const intervalRef = useRef(null)
+  const fireOnce = () => { onFire(); setPulse((p) => p + 1) }
+  const start = () => {
+    fireOnce()
+    clearInterval(intervalRef.current)
+    intervalRef.current = setInterval(fireOnce, FIRE_COOLDOWN * 1000)
+  }
+  const stop = () => { clearInterval(intervalRef.current); intervalRef.current = null }
+  useEffect(() => () => clearInterval(intervalRef.current), [])
+  return (
+    <button
+      type="button"
+      aria-label="fire"
+      onPointerDown={(e) => { e.preventDefault(); start() }}
+      onPointerUp={(e) => { e.preventDefault(); stop() }}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+      className={cn(
+        'relative font-pixel rounded border select-none touch-none active:scale-95 min-h-11 min-w-11',
+        'flex items-center justify-center overflow-hidden',
+        className,
+      )}
+    >
+      <span className="relative z-10">FIRE</span>
+      <CooldownOverlay triggerKey={pulse} />
+    </button>
   )
 }
 
@@ -209,11 +273,9 @@ const SpaceduelArena = forwardRef(function SpaceduelArena(
               onDown={() => touch.setThrust(true)}
               onUp={() => touch.setThrust(false)}
             />
-            <TouchButton
+            <FireButton
               className="h-14 w-14 text-[10px] bg-retro-tint-cta/50 border-retro-cta/60 text-retro-cta"
-              ariaLabel="fire"
-              label="FIRE"
-              onDown={() => touch.fire()}
+              onFire={() => touch.fire()}
             />
           </div>
         </div>

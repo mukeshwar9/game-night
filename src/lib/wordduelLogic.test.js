@@ -295,4 +295,12 @@ describe('verifyTranscript', () => {
     expect(result.ok).toBe(false)
     expect(result.reason).toBe('marks_mismatch')
   })
+
+  it('accepts a word that is a valid guess but not in the smaller answer list', async () => {
+    // 'ABYSM' is in _VALID (guessable) but not in the ~2100-word _ANSWERS list —
+    // setting a word from the full valid list must not be flagged as cheating.
+    const { hash, salt } = await commit('ABYSM')
+    const result = await verifyTranscript(hash, { word: 'ABYSM', salt }, [])
+    expect(result.ok).toBe(true)
+  })
 })

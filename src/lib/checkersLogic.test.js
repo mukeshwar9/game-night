@@ -345,26 +345,39 @@ describe("promotion", () => {
 // ---------------------------------------------------------------------------
 describe("getCheckersWinner", () => {
   it("returns null mid-game", () => {
-    expect(getCheckersWinner(INITIAL_CHECKERS())).toBeNull();
+    expect(getCheckersWinner(INITIAL_CHECKERS(), "X")).toBeNull();
+    expect(getCheckersWinner(INITIAL_CHECKERS(), "O")).toBeNull();
   });
 
-  it("wins by elimination", () => {
+  it("wins by elimination regardless of whose turn it is", () => {
     const b = boardWith({ [idx(5, 2)]: "x" });
-    expect(getCheckersWinner(b)).toEqual({ winner: "X" });
-    expect(getCheckersWinner(boardWith({ [idx(2, 5)]: "o" }))).toEqual({ winner: "O" });
+    expect(getCheckersWinner(b, "O")).toEqual({ winner: "X" });
+    expect(getCheckersWinner(b, "X")).toEqual({ winner: "X" });
+    expect(getCheckersWinner(boardWith({ [idx(2, 5)]: "o" }), "X")).toEqual({ winner: "O" });
   });
 
-  it("wins when opponent is fully blocked (no legal moves)", () => {
-    // o at (0,1): forward squares (1,0),(1,2),(2,3) occupied by X; jumps land
-    // off-board or on X at (2,3) — O cannot move, X can.
-    const b = boardWith({
+  // o at (0,1): forward squares (1,0),(1,2),(2,3) occupied by X; jumps land
+  // off-board or on X at (2,3) — O cannot move, X can.
+  function oBlockedBoard() {
+    return boardWith({
       [idx(0, 1)]: "o",
       [idx(1, 0)]: "x",
       [idx(1, 2)]: "x",
       [idx(2, 3)]: "x",
       [idx(7, 6)]: "x",
     });
-    expect(getCheckersWinner(b)).toEqual({ winner: "X" });
+  }
+
+  it("wins when the side to move is fully blocked (no legal moves)", () => {
+    const b = oBlockedBoard();
+    expect(getCheckersWinner(b, "O")).toEqual({ winner: "X" });
+  });
+
+  it("does not end the game when the blocked side is not the one to move", () => {
+    // Same board, but it's X's turn next — O being stuck right now doesn't
+    // matter yet; O might get unstuck before it's O's turn again.
+    const b = oBlockedBoard();
+    expect(getCheckersWinner(b, "X")).toBeNull();
   });
 
   it("draws when neither side can move", () => {
@@ -375,7 +388,8 @@ describe("getCheckersWinner", () => {
         if ((r + c) % 2 === 1) b[idx(r, c)] = c < 4 ? "o" : "x";
       }
     }
-    expect(getCheckersWinner(b)).toEqual({ winner: "draw" });
+    expect(getCheckersWinner(b, "X")).toEqual({ winner: "draw" });
+    expect(getCheckersWinner(b, "O")).toEqual({ winner: "draw" });
   });
 });
 

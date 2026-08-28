@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import {
-  normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL, CHIMP_GRID,
+  normalizeChimpLayout, CHIMP_START_LEVEL,
+  evaluateChimpTap, buildChimpAdvance,
 } from '../lib/chimpLogic'
 import ChimpBoard from '../components/ChimpBoard'
 import GameStatus from '../components/GameStatus'
@@ -11,6 +12,7 @@ import SpectatorCard from '../components/SpectatorCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
+import useBusy from '../hooks/useBusy'
 
 // Opponent-idle claim: presence only catches real disconnects, so an opponent
 // who is online but walked away would leave me waiting forever. After I finish
@@ -35,7 +37,7 @@ export default function ChimpGame({
 
   const prevDoneX = useRef(game.chimpDoneX ?? false)
   const prevDoneO = useRef(game.chimpDoneO ?? false)
-  const claimingRef = useRef(false)  // prevents double-click on claim button
+  const [claimBusy, runClaim] = useBusy()
 
   // --- Opponent-idle claim ---
   // opIdleSinceRef is set to Date.now() in the effect body (safe — not during
@@ -70,40 +72,38 @@ export default function ChimpGame({
   // would write players.O.playerId under X's auth.uid and fail the security rule):
   //   1. Narrow CAS on `winner` only — `players` is never in scope of this ref.
   //   2. Targeted update() for status + scores (same pattern as handleCellClick).
-  // claimingRef prevents a second in-flight call while the first is pending.
-  const claimIdleRound = async () => {
-    if (claimingRef.current) return
-    claimingRef.current = true
-    try {
-      // Local pre-condition re-check before any network call
-      if (game.status !== 'playing' || !game[`chimpDone${myKey}`] || game[`chimpDone${opKey}`]) return
-      // Atomic CAS: only write winner if the slot is still empty
-      let claimed = false
-      await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
-        if (currentWinner != null) return  // abort — already resolved
-        claimed = true
-        return myKey
-      })
-      if (!claimed) return  // opponent finished at the same instant — no-op
-      await update(ref(db, `games/${gameId}`), {
-        status: 'finished',
-        [`scores/${myKey}`]: (game.scores?.[myKey] || 0) + 1,
-      })
-    } catch { toast.error('CLAIM FAILED — CHECK CONNECTION') }
-    finally { claimingRef.current = false }
-  }
+  // useBusy's synchronous guard prevents a second in-flight call while the first
+  // is pending (and drives the CLAIMING… button state).
+  const claimIdleRound = () => runClaim(async () => {
+    // Local pre-condition re-check before any network call
+    if (game.status !== 'playing' || !game[`chimpDone${myKey}`] || game[`chimpDone${opKey}`]) return
+    // Atomic CAS: only write winner if the slot is still empty
+    let claimed = false
+    await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
+      if (currentWinner != null) return  // abort — already resolved
+      claimed = true
+      return myKey
+    })
+    if (!claimed) return  // opponent finished at the same instant — no-op
+    await update(ref(db, `games/${gameId}`), {
+      status: 'finished',
+      [`scores/${myKey}`]: (game.scores?.[myKey] || 0) + 1,
+    })
+  }, () => toast.error('CLAIM FAILED — CHECK CONNECTION'))
 
-  // When both players are done, one client advances the level.
-  // Avoids spreading ...current through a root transaction (would re-write
-  // players.O.playerId under the wrong auth.uid and fail the security rule).
-  // Instead: CAS on chimpLevel (narrow ref, no players in scope) deduplicates
-  // concurrent calls; targeted update() writes only the changed game fields.
+  // When both players are done, one client advances the level. The whole
+  // patch (level + fresh layout + reset progress/done) is written in a
+  // single update() call so it lands atomically — no window where chimpLevel
+  // has moved on but chimpLayout/progress/done still describe the old round
+  // (that mismatch previously meant `layout[progress]` pointed past the new,
+  // shorter/older array and both players insta-lost next round).
+  // Deduplication across the two clients calling this concurrently is via a
+  // CAS on chimpLevel first: only the client that wins the CAS proceeds to
+  // write the round patch, so at most one patch is written per advance.
   const tryAdvanceLevel = async () => {
     // Pre-condition from local state (watcher always has fresh values here)
     if (!(game.chimpDoneX ?? false) || !(game.chimpDoneO ?? false)) return
     const currentLevel = game.chimpLevel ?? CHIMP_START_LEVEL
-    // Atomic CAS: only the first client to increment from currentLevel wins;
-    // the second sees a different value and aborts.
     let claimed = false
     try {
       await runTransaction(ref(db, `games/${gameId}/chimpLevel`), lvl => {
@@ -113,16 +113,21 @@ export default function ChimpGame({
       })
     } catch { /* other client already advanced */ }
     if (!claimed) return
-    const newLayout = generateChimpLayout(currentLevel + 1)
     try {
       await update(ref(db, `games/${gameId}`), {
-        chimpLayout: newLayout,
-        chimpProgressX: 0,
-        chimpProgressO: 0,
-        chimpDoneX: false,
-        chimpDoneO: false,
+        ...buildChimpAdvance(currentLevel),
+        chimpRoundStartedAt: Date.now(),
       })
-    } catch { /* layout update failed; level was already advanced */ }
+    } catch {
+      // The round patch failed to land after the level CAS succeeded — revert
+      // the level so the game doesn't sit on an advanced level with the old
+      // round's layout/progress/done still in place (the insta-lose bug).
+      try {
+        await runTransaction(ref(db, `games/${gameId}/chimpLevel`), lvl =>
+          lvl === currentLevel + 1 ? currentLevel : undefined)
+      } catch { /* best-effort revert */ }
+      toast.error('ROUND ADVANCE FAILED — CHECK CONNECTION')
+    }
   }
 
   // Also trigger from the watcher side (the player who finishes second)
@@ -139,14 +144,25 @@ export default function ChimpGame({
 
   const handleCellClick = async (cellIndex) => {
     if (!mySymbol || myDone || game.status !== 'playing') return
-    if (cellIndex < 0 || cellIndex >= CHIMP_GRID) return
 
-    const expected = layout[myProgress]
-    if (expected !== cellIndex) {
+    const tap = evaluateChimpTap({ layout, progress: myProgress, level, cellIndex })
+    if (!tap.valid) return
+
+    if (!tap.correct) {
       sounds.lose()
       try {
+        // Atomic CAS on winner (mirrors claimIdleRound): if both players
+        // mis-tap on the same instant, only the first write to land wins the
+        // round and bumps the score — the second aborts as a no-op instead of
+        // double-bumping both scores / racing the winner field last-write-wins.
+        let claimed = false
+        await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
+          if (currentWinner != null) return  // abort — already resolved
+          claimed = true
+          return opKey
+        })
+        if (!claimed) return
         await update(ref(db, `games/${gameId}`), {
-          winner: opKey,
           status: 'finished',
           [`scores/${opKey}`]: (game.scores?.[opKey] || 0) + 1,
         })
@@ -155,19 +171,18 @@ export default function ChimpGame({
     }
 
     sounds.move(mySymbol)
-    const newProgress = myProgress + 1
 
-    if (newProgress === level) {
+    if (tap.done) {
       try {
         await update(ref(db, `games/${gameId}`), {
-          [`chimpProgress${myKey}`]: newProgress,
+          [`chimpProgress${myKey}`]: tap.newProgress,
           [`chimpDone${myKey}`]: true,
         })
         await tryAdvanceLevel()
       } catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
     } else {
       try {
-        await update(ref(db, `games/${gameId}`), { [`chimpProgress${myKey}`]: newProgress })
+        await update(ref(db, `games/${gameId}`), { [`chimpProgress${myKey}`]: tap.newProgress })
       } catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
     }
   }
@@ -196,6 +211,10 @@ export default function ChimpGame({
     <div className="space-y-4">
       {!mySymbol && <SpectatorCard game={game} />}
       <ChimpBoard
+        // Remount per round so the memorize countdown (and its local-fallback
+        // start-time ref) resets cleanly instead of needing derived-state
+        // reconciliation inside the board component.
+        key={`${level}-${layout.join(',')}`}
         onMove={handleCellClick}
         disabled={!mySymbol || myDone}
         chimpLayout={layout}
@@ -204,6 +223,7 @@ export default function ChimpGame({
         myDone={myDone}
         opDone={opDone}
         chimpLevel={level}
+        roundStartedAt={game.chimpRoundStartedAt ?? null}
       />
       {!opponentOnline && mySymbol && <OfflineNotice label="OPPONENT" />}
       {showClaimHint && (
@@ -214,9 +234,10 @@ export default function ChimpGame({
       {claimReady && (
         <button
           onClick={claimIdleRound}
-          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95"
+          disabled={claimBusy}
+          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50 disabled:cursor-default"
         >
-          CLAIM ROUND — OPPONENT IDLE
+          {claimBusy ? 'CLAIMING…' : 'CLAIM ROUND — OPPONENT IDLE'}
         </button>
       )}
       {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}

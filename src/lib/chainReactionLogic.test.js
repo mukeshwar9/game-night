@@ -57,12 +57,12 @@ describe('applyPlacement — steps', () => {
 // applyChainReactionMove — crLastMove
 // ---------------------------------------------------------------------------
 describe('applyChainReactionMove — crLastMove', () => {
-  it('includes crLastMove in updates equal to the placed index', () => {
+  it('includes crLastMove as { index, by } — carries the mover explicitly so the board never has to guess it', () => {
     const board = emptyBoard()
     const target = idx(2, 3)
     const res = applyChainReactionMove({ board, game: { crMoves: 0 }, index: target, symbol: 'X' })
     expect(res).not.toBeNull()
-    expect(res.updates.crLastMove).toBe(target)
+    expect(res.updates.crLastMove).toEqual({ index: target, by: 'X' })
   })
 })
 
@@ -196,10 +196,15 @@ describe('explosion mechanics', () => {
   it('cascades: explosion of one cell triggers neighbouring cell explosion', () => {
     // Set up: (0,1) has mass=3. Seed it with O2. X explodes into it pushing it to 3 → chain.
     // (0,0) X1 → place X → explode corner → (0,1) becomes X3 which >= mass3 → chain explode
+    // crMoves: 0 (newMoves 1) deliberately keeps this below the domination early-stop's
+    // "both players have moved" gate (see applyChainReactionMove — settles immediately on
+    // domination) — this test is about cascade mechanics, not the win condition, and this
+    // board's only O orb gets wiped by wave 1, which would otherwise cut the cascade short
+    // before it reaches the chain explosion under test.
     const board = emptyBoard()
     board[idx(0, 0)] = 'X1'
     board[idx(0, 1)] = 'O2' // mass=3, after +1 = 3 → explodes in chain
-    const res = applyChainReactionMove({ board, game: fakeGame(2), index: idx(0, 0), symbol: 'X' })
+    const res = applyChainReactionMove({ board, game: fakeGame(0), index: idx(0, 0), symbol: 'X' })
     // (0,1) should have exploded (3 - 3 = 0)
     expect(res.updates.board[idx(0, 1)]).toBe('')
   })
@@ -238,6 +243,53 @@ describe('win condition', () => {
     const res = applyChainReactionMove({ board, game: { crMoves: 1 }, index: idx(0, 0), symbol: 'X' })
     // O still has orb at (3,3), no winner
     expect(res.result).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Domination early-stop — applyPlacement(..., { stopOnDomination: true }) should cut the
+// wave loop short as soon as one side's orbs are wiped, instead of continuing to fully
+// settle a cascade that can only ever belong to the sole remaining owner from then on.
+// Linear 5-cell board (cols=5, rows=1): end cells mass 1, middle cells mass 2.
+// ---------------------------------------------------------------------------
+describe('applyPlacement — stopOnDomination', () => {
+  const dims = { cols: 5, rows: 1 }
+  const dominationBoard = () => ['', 'O1', 'X1', 'O1', '']
+
+  it('without the flag, the cascade keeps running past the wave that wipes O', () => {
+    const { steps, board } = applyPlacement(dominationBoard(), 0, 'X', dims)
+    // O is wiped after wave 3 (index 3 converts to X), but waves continue settling X's
+    // own remaining stacks at indices 1 and 3.
+    expect(steps.length).toBeGreaterThan(3)
+    expect(board.some(c => c && c[0] === 'O')).toBe(false)
+  })
+
+  it('with the flag, the cascade stops the instant O is wiped, leaving X stacks unsettled', () => {
+    const { steps, board } = applyPlacement(dominationBoard(), 0, 'X', dims, { stopOnDomination: true })
+    expect(steps).toHaveLength(3)
+    expect(board.some(c => c && c[0] === 'O')).toBe(false)
+    // Wave 4+ (which would have exploded these) never ran.
+    expect(board[1]).toBe('X2')
+    expect(board[3]).toBe('X2')
+  })
+})
+
+describe('applyChainReactionMove — settles immediately on domination', () => {
+  it('returns a winner without waiting for the full cascade to settle, once both players have moved', () => {
+    const board = ['', 'O1', 'X1', 'O1', '']
+    const res = applyChainReactionMove({ board, game: { crMoves: 1 }, index: 0, symbol: 'X', cols: 5, rows: 1 })
+    expect(res.result).toEqual({ winner: 'X' })
+    expect(res.updates.board[1]).toBe('X2')
+    expect(res.updates.board[3]).toBe('X2')
+  })
+
+  it('on the very first move (O has not played yet), domination is not falsely triggered', () => {
+    // Same placement, but crMoves: 0 → newMoves 1 → O simply hasn't moved, not eliminated.
+    // The cascade must run to full settlement (no winner: crMoves < 2 guards that too).
+    const board = ['', 'O1', 'X1', 'O1', '']
+    const res = applyChainReactionMove({ board, game: { crMoves: 0 }, index: 0, symbol: 'X', cols: 5, rows: 1 })
+    expect(res.result).toBeNull()
+    expect(res.updates.board.some(c => c && c[0] === 'O')).toBe(false)
   })
 })
 

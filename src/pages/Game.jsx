@@ -29,6 +29,8 @@ import SnakeGame from './SnakeGame'
 import TronGame from './TronGame'
 import SumoGame from './SumoGame'
 import SpaceduelGame from './SpaceduelGame'
+import PacmacGame from './PacmacGame'
+import AirHockeyGame from './AirHockeyGame'
 import PaintGame from './PaintGame'
 import WordDuelGame from './WordDuelGame'
 import WordHuntGame from './WordHuntGame'
@@ -67,7 +69,7 @@ const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
 // Real-time custom arenas (M-05/M-24) — physics-driven games with their own
 // dedicated page component, square/wide viewport-hungry courts, and a live
 // score that keeps changing even while a modal hides the board.
-const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel'])
+const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'pacmac', 'airhockey', 'paint'])
 
 function toArray(val) {
   if (!val) return []
@@ -902,7 +904,10 @@ export default function Game() {
     let updates, result
     if (cfg.applyMove) {
       const applied = cfg.applyMove({ board, game, index, move: movePayload, symbol: mySymbol.current })
-      if (!applied) return
+      // Rejected by the game's own rules (non-flanking Reversi cell, illegal
+      // pop, …) — give the same feedback as any other blocked tap instead of
+      // silently swallowing it.
+      if (!applied) { blockedMoveFeedback(); return }
       updates = applied.updates
       result = applied.result
     } else {
@@ -1733,6 +1738,28 @@ export default function Game() {
             />
           ) : game.gameType === 'spaceduel' ? (
             <SpaceduelGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'pacmac' ? (
+            <PacmacGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'airhockey' ? (
+            <AirHockeyGame
               gameId={gameId}
               game={game}
               mySymbol={mySeat}

@@ -92,10 +92,13 @@ export default function AirHockeyDemo() {
       }
 
       const DT = 1 / 120
+      let dirty = false
       while (accRef.current >= DT * 1000 && alive) {
         accRef.current -= DT * 1000
         const cur = stateRef.current
-        const aiTarget = computeAI(cur, difficulty)
+        // Pass this substep's own DT so the AI's effective speed is
+        // difficulty-dependent, not substep-count-dependent (M-10).
+        const aiTarget = computeAI(cur, difficulty, DT)
         const inputs = {
           X: { ...inputRef.current },
           O: { x: aiTarget.x, y: aiTarget.y },
@@ -117,8 +120,11 @@ export default function AirHockeyDemo() {
           }
         }
         stateRef.current = next
-        setState(next)
+        dirty = true
       }
+      // One render per animation frame, not one per substep (M-10) — several
+      // substeps can run per frame at this fixed 1/120 timestep.
+      if (dirty) setState(stateRef.current)
       rafRef.current = requestAnimationFrame(loop)
     }
     rafRef.current = requestAnimationFrame(loop)

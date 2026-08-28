@@ -204,7 +204,11 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           )}
           style={{ animation: 'modal-pop 0.28s ease-out both' }}
         >
-          {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : mySymbol ? 'GAME OVER' : `${winner} WINS!`}
+          {/* Order & Chaos: both players place both letters, so "X WINS" reads
+              as "the X letters won" — name the role instead of the seat. */}
+          {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : mySymbol ? 'GAME OVER'
+            : gameType === 'orderchaos' ? (winner === 'X' ? 'ORDER WINS!' : 'CHAOS WINS!')
+              : `${winner} WINS!`}
         </p>
         {renderHeadToHead()}
         {renderTryNext()}

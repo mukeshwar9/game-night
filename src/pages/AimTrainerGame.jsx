@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ref, update, runTransaction, increment } from 'firebase/database'
+import { ref, update, runTransaction, increment, onValue } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
@@ -68,15 +68,25 @@ export default function AimTrainerGame({
   const myKey = mySymbol === 'X' ? 'X' : 'O'
   const opKey = myKey === 'X' ? 'O' : 'X'
 
-  const [now, setNow]    = useState(() => Date.now())
+  const [now, setNow]         = useState(() => Date.now())
+  const [clockOffset, setClockOffset] = useState(0)
   const containerRef      = useRef(null)
   const hasSpawnedRef     = useRef(false)
 
+  // Corrected clock — every deadline comparison runs through this offset so
+  // a device with a skewed local clock doesn't see a wrong countdown/timer.
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = now + clockOffset
+
   const endTime    = game.aimEndTime ?? null
-  const isCountdown = !!endTime && now < endTime - GAME_MS
-  const isActive    = !!endTime && now >= endTime - GAME_MS && now < endTime
-  const countdownSec = isCountdown ? Math.ceil((endTime - GAME_MS - now) / 1000) : 0
-  const timeLeft    = isActive    ? Math.ceil((endTime - now) / 1000) : 0
+  const isCountdown = !!endTime && serverNow < endTime - GAME_MS
+  const isActive    = !!endTime && serverNow >= endTime - GAME_MS && serverNow < endTime
+  const countdownSec = isCountdown ? Math.ceil((endTime - GAME_MS - serverNow) / 1000) : 0
+  const timeLeft    = isActive    ? Math.ceil((endTime - serverNow) / 1000) : 0
 
   const myTarget = game[`aimTarget${myKey}`] ?? null
   const opTarget = game[`aimTarget${opKey}`] ?? null
@@ -119,12 +129,24 @@ export default function AimTrainerGame({
     return pos
   }
 
+  // Retries once on failure so a single dropped write doesn't leave the
+  // whole 30s round with no target to shoot; if both attempts fail, resets
+  // hasSpawnedRef so the ticker's next tick tries again instead of the
+  // arena staying blank for the rest of the round.
   const spawnTarget = async () => {
     const pos = randomPos(game[`aimTarget${opKey}`] ?? null)
     if (!pos) return
+    const write = () => update(ref(db, `games/${gameId}`), { [`aimTarget${myKey}`]: pos })
     try {
-      await update(ref(db, `games/${gameId}`), { [`aimTarget${myKey}`]: pos })
-    } catch { /* ignore */ }
+      await write()
+    } catch {
+      try {
+        await write()
+      } catch {
+        hasSpawnedRef.current = false
+        toast.error('TARGET SPAWN FAILED — RETRYING')
+      }
+    }
   }
 
   // Ticker: drives countdown display, first-target spawn, and game-over detection
@@ -132,16 +154,16 @@ export default function AimTrainerGame({
     if (!endTime) return
     hasSpawnedRef.current = false
     const id = setInterval(() => {
-      const t = Date.now()
+      const t = Date.now() + clockOffset
       if (!hasSpawnedRef.current && mySymbol && t >= endTime - GAME_MS) {
         hasSpawnedRef.current = true
         spawnTarget()
       }
       if (t >= endTime) { clearInterval(id); tryFinish() }
-      else setNow(t)
+      else setNow(Date.now())
     }, 100)
     return () => clearInterval(id)
-  }, [endTime]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [endTime, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStartClick = async () => {
     if (endTime) return
@@ -186,9 +208,10 @@ export default function AimTrainerGame({
   const renderTarget = (target, sym) => {
     if (!target) return null
     const isOwn = sym === myKey
+    const handler = isOwn ? handleOwnTargetClick : handleOpponentTargetClick
     return (
       <button
-        onClick={isOwn ? handleOwnTargetClick : handleOpponentTargetClick}
+        onPointerDown={e => { e.preventDefault(); handler(e) }}
         style={{
           position:  'absolute',
           left:      `${target.xPct * 100}%`,
@@ -199,12 +222,20 @@ export default function AimTrainerGame({
         }}
         className={cn(
           'rounded-full active:scale-90 transition-transform duration-75',
+          'flex items-center justify-center',
           sym === 'X'
             ? 'bg-retro-p1 shadow-neon-p1 hover:brightness-110'
             : 'bg-retro-p2 shadow-neon-p2 hover:brightness-110',
         )}
         aria-label={isOwn ? 'your target' : "opponent's target"}
-      />
+      >
+        {/* Glyph on top of color so whose target this is doesn't rely on
+            color alone — a friendly-fire miss should be readable without
+            distinguishing red from... a slightly different red. */}
+        <span className="font-pixel text-[10px] text-retro-bg leading-none select-none">
+          {sym}
+        </span>
+      </button>
     )
   }
 

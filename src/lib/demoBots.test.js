@@ -328,6 +328,44 @@ describe('pickBotMove — orderchaos', () => {
     expect(move).not.toBeNull()
     expect(move.index).toBe(35)
   })
+
+  // -------------------------------------------------------------------------
+  // botSymbol 'X' — Order role: builds toward a 5-run instead of blocking one
+  // -------------------------------------------------------------------------
+
+  it('Order (X) takes an immediate win when a 5-run is completable', () => {
+    const board = emptyBoard(36)
+    board[0] = 'X'; board[1] = 'X'; board[2] = 'X'; board[3] = 'X'
+    const move = pickBotMove('orderchaos', boardGame(board), 'X')
+    expect(move).not.toBeNull()
+    expect(move.index).toBe(4)
+    expect(move.letter).toBe('X')
+  })
+
+  it('Order (X) extends an existing run rather than playing at random', () => {
+    // Three X's in a row at 0,1,2 (row 0, cols 0-2) — only extension is col 3 (index 3)
+    const board = emptyBoard(36)
+    board[0] = 'X'; board[1] = 'X'; board[2] = 'X'
+    const move = pickBotMove('orderchaos', boardGame(board), 'X')
+    expect(move).not.toBeNull()
+    expect(move.index).toBe(3)
+    expect(move.letter).toBe('X')
+  })
+
+  it('Order (X) does not play on an occupied cell', () => {
+    const board = Array(36).fill('X')
+    board[35] = ''
+    const move = pickBotMove('orderchaos', boardGame(board), 'X')
+    expect(move).not.toBeNull()
+    expect(move.index).toBe(35)
+  })
+
+  it('Order (X) returns a valid payload on an empty board', () => {
+    const move = pickBotMove('orderchaos', boardGame(emptyBoard(36)), 'X')
+    expect(move).not.toBeNull()
+    expect(typeof move.index).toBe('number')
+    expect(['X', 'O']).toContain(move.letter)
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -9,6 +9,8 @@ import {
   simulateShot,
   replayAll,
   TERRAIN_COLS,
+  MAX_DAMAGE,
+  BLAST_RADIUS,
 } from './artilleryLogic'
 
 describe('deterministic trig', () => {
@@ -130,12 +132,68 @@ describe('ballistics behavior', () => {
     expect(state.terrain.length).toBe(TERRAIN_COLS)
     void before
   })
-  it('self-splash damage applies to the shooter too', () => {
-    const seed = 555
-    const st = initialState(seed)
-    // Fire almost straight up from X's position — shell falls back nearby.
-    const { state } = replayAll(seed, { k: { by: 'X', angleDeg: 90, power: 90 } })
-    const selfHit = state.tanks.X.hp < 100 || st.tanks.X.hp === 100
-    expect(selfHit).toBe(true) // either damaged or genuinely missed — no crash path
+  it('self-splash damage applies to the shooter when the shell lands on top of them', () => {
+    // Build a scenario where the crater math is unambiguous: X sits at
+    // x=0.15 on flat ground, a shell impacts directly on that x (dist 0) —
+    // full MAX_DAMAGE must land on X regardless of engine.
+    const flat = new Array(TERRAIN_COLS).fill(0.5)
+    const st = {
+      terrain: flat,
+      tanks: { X: { x: 0.15, hp: 100, y: surfaceY(flat, 0.15) }, O: { x: 0.85, hp: 100, y: surfaceY(flat, 0.85) } },
+    }
+    const { state } = simulateShot(
+      { ...st, seed: 0, shotIndex: 0 },
+      { by: 'X', angleDeg: 90, power: 1 }, // negligible power — lands ~at the muzzle
+    )
+    expect(state.tanks.X.hp).toBeLessThan(100)
+    expect(state.lastShot.damage.X).toBeGreaterThan(0)
+  })
+
+  it('computed splash damage matches the real 2D-distance falloff formula (regression guard for the old x-only distance bug)', () => {
+    // Cliff terrain: low ground left of the midpoint, a tall plateau right of
+    // it, with both tanks sitting right at the edge on the plateau side. A
+    // shell that lands mid-air near one tank but on a different height band
+    // than the other exercises the y term the old x-only formula dropped.
+    const terrain = new Array(TERRAIN_COLS).fill(0)
+    for (let i = 0; i < TERRAIN_COLS; i++) terrain[i] = i < TERRAIN_COLS / 2 ? 0.1 : 0.9
+    const tankX = { x: 0.52, hp: 100, y: surfaceY(terrain, 0.52) }
+    const tankO = { x: 0.6, hp: 100, y: surfaceY(terrain, 0.6) }
+    const st = { terrain, tanks: { X: tankX, O: tankO } }
+
+    const { state } = simulateShot({ ...st, seed: 42, shotIndex: 0 }, { by: 'O', angleDeg: 15, power: 30 })
+    const impact = state.lastShot.impact
+    expect(impact.kind).not.toBe('out')
+    // Both tanks sit at very different heights than the shell's mid-air
+    // impact point in this setup — a real assertion the y term is load-bearing.
+    expect(state.lastShot.damage.X).toBeGreaterThan(0)
+
+    for (const sym of ['X', 'O']) {
+      const t = st.tanks[sym] // PRE-shot position/height — matches what the fix measures against
+      const ty = surfaceY(terrain, t.x) // PRE-crater terrain
+      const dx = t.x - impact.x
+      const dy = ty - impact.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const expected = Math.round(MAX_DAMAGE * Math.max(0, 1 - dist / BLAST_RADIUS))
+      expect(state.lastShot.damage[sym]).toBe(expected)
+    }
+  })
+
+  it('determinism: replaying the same shot twice against sloped terrain (crater math) yields bit-identical damage and terrain', () => {
+    const seed = 20260828
+    const shots = {
+      a: { by: 'X', angleDeg: 42, power: 55 },
+      b: { by: 'O', angleDeg: 38, power: 62 },
+      c: { by: 'X', angleDeg: 50, power: 70 },
+    }
+    const r1 = replayAll(seed, shots)
+    const r2 = replayAll(seed, shots)
+    expect(JSON.stringify(r1.state.terrain)).toBe(JSON.stringify(r2.state.terrain))
+    expect(JSON.stringify(r1.state.tanks)).toBe(JSON.stringify(r2.state.tanks))
+    expect(r1.records.map(r => r.damage)).toEqual(r2.records.map(r => r.damage))
+  })
+
+  it('crater shaping never calls Math.cos/sin/pow/tan — only the deterministic detSin/detCos', () => {
+    const src = generateTerrain.toString() + surfaceY.toString() + simulateShot.toString()
+    expect(src).not.toMatch(/Math\.(cos|sin|pow|tan)\(/)
   })
 })

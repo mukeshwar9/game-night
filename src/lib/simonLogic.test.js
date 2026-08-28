@@ -39,6 +39,7 @@ describe('applySimonMove — replay phase', () => {
   it('wrong first pad gives win to opponent', () => {
     const r = applySimonMove(game, 2, 'O')
     expect(r.result).toEqual({ winner: 'X' })
+    expect(r.updates.simonDeadline).toBeNull()
   })
 
   it('correct mid-sequence press advances progress', () => {
@@ -69,6 +70,7 @@ describe('applySimonMove — replay-to-append transition', () => {
     expect(r.updates.simonSequence).toEqual([2, 3])
     expect(r.updates.simonProgress).toBe(0)
     expect(r.updates.currentTurn).toBe('X')
+    expect(r.updates.simonDeadline).toBeNull()
     expect(r.result).toBeNull()
   })
 })

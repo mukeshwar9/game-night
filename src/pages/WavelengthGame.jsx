@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ref, update, runTransaction } from 'firebase/database'
+import { ref, update, onValue, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
   getSpectrumPair,
-  randomSpectrumIndex,
+  nextSpectrumIndex,
   randomTarget,
   clampGuess,
   scoreGuess,
@@ -23,6 +23,11 @@ import useBusy from '@/hooks/useBusy'
 
 const MIN_PLAYERS = 3
 const WIN_SCORE = 200 // first to this many points clinches the match
+// An AFK clue-giver or guesser would otherwise stall the round forever — these
+// back per-phase deadlines (anchored via `round.phaseStartedAt` + the
+// server-time offset, same pattern as TriviaGame's question clock).
+const CLUE_DEADLINE_MS = 90000
+const GUESS_DEADLINE_MS = 60000
 
 // sessionStorage key for the clue-giver's hidden {target, salt}
 const targetKey = (gameId, spectrumIndex) => `wavelength-target-${gameId}-${spectrumIndex}`
@@ -37,6 +42,9 @@ function normalizeRound(raw) {
     clue: raw.clue ?? '',
     guesses: normalizeGuesses(raw.guesses),
     reveal: raw.reveal ?? null,
+    phaseStartedAt: raw.phaseStartedAt ?? null,
+    usedSpectrums: Array.isArray(raw.usedSpectrums) ? raw.usedSpectrums : [],
+    cheatDetected: !!raw.cheatDetected,
   }
 }
 
@@ -147,10 +155,34 @@ export default function WavelengthGame({
   const [submittingGuess, setSubmittingGuess] = useState(false)
   const [lastDelta, setLastDelta] = useState(null) // {playerId: pointsGained} after a reveal
   const [sharing, runShare] = useBusy()
+  const [clockOffset, setClockOffset] = useState(0)
+  const [nowTs, setNowTs] = useState(() => Date.now())
 
   const revealResolved = useRef(null)
   const prevPhase = useRef(round?.phase)
   const prevSpectrum = useRef(round?.spectrumIndex)
+
+  // Corrected clock — every deadline comparison below runs through this offset.
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = nowTs + clockOffset
+
+  // Ticker drives the clue/guess deadline countdowns.
+  useEffect(() => {
+    if (round?.phase !== 'clue' && round?.phase !== 'guessing') return
+    const id = setInterval(() => setNowTs(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [round?.phase])
+
+  // Anchor the phase-start time so every client agrees on when the clock
+  // began (first client to notice writes it).
+  useEffect(() => {
+    if ((round?.phase !== 'clue' && round?.phase !== 'guessing') || round?.phaseStartedAt) return
+    update(ref(db, `games/${gameId}/round`), { phaseStartedAt: Date.now() + clockOffset }).catch(() => {})
+  }, [round?.phase, round?.phaseStartedAt, gameId, clockOffset])
 
   // Reset local input when the round advances to a new spectrum.
   useEffect(() => {
@@ -191,6 +223,7 @@ export default function WavelengthGame({
         commitment: hash,
         clue: clue.toUpperCase(),
         phase: 'guessing',
+        phaseStartedAt: null,
       })
       sounds.move('X')
     } catch {
@@ -224,12 +257,20 @@ export default function WavelengthGame({
   // never auto-reveal into an empty room.
   const guesserIds = order.filter(id => id !== round?.clueGiver)
   const requiredGuesserIds = onlineGuessers(players, round?.clueGiver)
+  const guessDeadlineExpired = round?.phase === 'guessing' && !!round.phaseStartedAt &&
+    (serverNow - round.phaseStartedAt >= GUESS_DEADLINE_MS)
+  // Past the deadline, stop waiting on stragglers — their guess (if it never
+  // lands) simply isn't counted when scores are computed.
   const allGuessed =
     round?.phase === 'guessing' &&
     requiredGuesserIds.length > 0 &&
-    requiredGuesserIds.every(id => round.guesses[id] != null)
+    (requiredGuesserIds.every(id => round.guesses[id] != null) || guessDeadlineExpired)
 
-  // --- Clue-giver: once everyone has guessed, reveal target + salt ---
+  const clueDeadlineExpired = round?.phase === 'clue' && !!round.phaseStartedAt &&
+    (serverNow - round.phaseStartedAt >= CLUE_DEADLINE_MS)
+
+  // --- Clue-giver: once everyone has guessed (or the deadline lapsed), reveal
+  // target + salt ---
   useEffect(() => {
     if (!isClueGiver || !allGuessed) return
     if (round.phase !== 'guessing') return
@@ -243,6 +284,35 @@ export default function WavelengthGame({
     }).catch(() => {})
   }, [isClueGiver, allGuessed, round?.phase, round?.spectrumIndex, gameId])
 
+  // --- Anyone: an AFK clue-giver who never submits a clue would otherwise
+  // stall the round forever — auto-skip to the next seat once the clue
+  // deadline lapses. Any connected client can trigger this (host-or-any-client
+  // transaction), guarded by a fresh re-check of the deadline inside the
+  // transaction so a race between clients can't double-skip.
+  useEffect(() => {
+    if (!clueDeadlineExpired) return
+    runTransaction(ref(db, `games/${gameId}`), current => {
+      const r = current?.round
+      if (!r || r.phase !== 'clue' || !r.phaseStartedAt) return
+      if (Date.now() + clockOffset - r.phaseStartedAt < CLUE_DEADLINE_MS) return
+      const usedSpectrums = Array.isArray(r.usedSpectrums) ? r.usedSpectrums : []
+      return {
+        ...current,
+        round: {
+          clueGiver: nextClueGiver(current.players, r.clueGiver),
+          phase: 'clue',
+          spectrumIndex: nextSpectrumIndex(usedSpectrums, r.spectrumIndex),
+          usedSpectrums: [...usedSpectrums, r.spectrumIndex],
+          clue: '',
+          commitment: null,
+          guesses: null,
+          reveal: null,
+          phaseStartedAt: null,
+        },
+      }
+    }).catch(() => {})
+  }, [clueDeadlineExpired, gameId, clockOffset])
+
   // --- Everyone: on reveal, verify the commitment then score each guesser ---
   useEffect(() => {
     if (round?.phase !== 'reveal' || !round.reveal || !round.commitment) return
@@ -254,6 +324,9 @@ export default function WavelengthGame({
     verifyReveal(round.commitment, String(target), salt).then(ok => {
       if (!ok) {
         toast.error('CLUE-GIVER CHEATED — TARGET MISMATCH')
+        // Persist the verdict so scoring (handleNextRound) can void the round
+        // instead of quietly awarding points off a tampered target.
+        update(ref(db, `games/${gameId}/round`), { cheatDetected: true }).catch(() => {})
         return
       }
       const delta = {}
@@ -270,7 +343,7 @@ export default function WavelengthGame({
       }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round?.phase, round?.reveal, round?.commitment, round?.spectrumIndex])
+  }, [round?.phase, round?.reveal, round?.commitment, round?.spectrumIndex, gameId])
 
   // --- Anyone: advance to the next round (commit scores, rotate clue-giver) ---
   const handleNextRound = async () => {
@@ -285,15 +358,20 @@ export default function WavelengthGame({
         const scores = { ...(current.scores || {}) }
         const livePlayers = current.players || {}
         const liveOrder = seatOrder(livePlayers)
-        for (const id of liveOrder) {
-          if (id === r.clueGiver) continue
-          const g = guesses[id]
-          if (g != null) scores[id] = (scores[id] || 0) + scoreGuess(g, target)
+        // A cheating clue-giver (commitment didn't match the revealed target)
+        // voids the round — nobody scores, but play still moves on.
+        if (!r.cheatDetected) {
+          for (const id of liveOrder) {
+            if (id === r.clueGiver) continue
+            const g = guesses[id]
+            if (g != null) scores[id] = (scores[id] || 0) + scoreGuess(g, target)
+          }
         }
-        const clinch = liveOrder.find(id => (scores[id] || 0) >= WIN_SCORE)
+        const clinch = !r.cheatDetected && liveOrder.find(id => (scores[id] || 0) >= WIN_SCORE)
         if (clinch) {
           return { ...current, scores, status: 'finished', winner: clinch, proposal: null }
         }
+        const usedSpectrums = Array.isArray(r.usedSpectrums) ? r.usedSpectrums : []
         return {
           ...current,
           scores,
@@ -301,11 +379,13 @@ export default function WavelengthGame({
           round: {
             clueGiver: nextClueGiver(livePlayers, r.clueGiver),
             phase: 'clue',
-            spectrumIndex: randomSpectrumIndex(r.spectrumIndex),
+            spectrumIndex: nextSpectrumIndex(usedSpectrums, r.spectrumIndex),
+            usedSpectrums: [...usedSpectrums, r.spectrumIndex],
             clue: '',
             commitment: null,
             guesses: null,
             reveal: null,
+            phaseStartedAt: null,
           },
         }
       })
@@ -320,14 +400,18 @@ export default function WavelengthGame({
   const handleRestartLostRound = async () => {
     if (!isClueGiver) return
     try {
+      const usedSpectrums = round.usedSpectrums || []
       await update(ref(db, `games/${gameId}/round`), {
         clueGiver: nextClueGiver(players, round.clueGiver),
         phase: 'clue',
-        spectrumIndex: randomSpectrumIndex(round.spectrumIndex),
+        spectrumIndex: nextSpectrumIndex(usedSpectrums, round.spectrumIndex),
+        usedSpectrums: [...usedSpectrums, round.spectrumIndex],
         clue: '',
         commitment: null,
         guesses: null,
         reveal: null,
+        phaseStartedAt: null,
+        cheatDetected: null,
       })
     } catch { toast.error('RESTART FAILED — CHECK CONNECTION') }
   }
@@ -562,6 +646,12 @@ export default function WavelengthGame({
       {/* REVEAL PHASE ----------------------------------------------------- */}
       {isReveal && (
         <div className="bg-retro-card border border-retro-border rounded p-4 space-y-3">
+          {round.cheatDetected && (
+            <p className="font-pixel text-[9px] text-retro-p2 text-glow-p2 text-center"
+               style={{ animation: 'blink-text 0.6s step-end infinite' }}>
+              ⚠ CLUE-GIVER CHEATED — ROUND VOIDED, NO POINTS
+            </p>
+          )}
           <p className="font-pixel text-[9px] text-retro-win text-glow-win text-center">
             TARGET WAS {clampGuess(target)}
           </p>
@@ -607,7 +697,7 @@ export default function WavelengthGame({
           </p>
           <button
             onClick={handleRestartLostRound}
-            className="px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
           >
             RESTART ROUND
           </button>
@@ -624,18 +714,22 @@ export default function WavelengthGame({
           <button
             onClick={async () => {
               try {
+                const usedSpectrums = round.usedSpectrums || []
                 await update(ref(db, `games/${gameId}/round`), {
                   clueGiver: nextClueGiver(players, round.clueGiver),
                   phase: 'clue',
-                  spectrumIndex: randomSpectrumIndex(round.spectrumIndex),
+                  spectrumIndex: nextSpectrumIndex(usedSpectrums, round.spectrumIndex),
+                  usedSpectrums: [...usedSpectrums, round.spectrumIndex],
                   clue: '',
                   commitment: null,
                   guesses: null,
                   reveal: null,
+                  phaseStartedAt: null,
+                  cheatDetected: null,
                 })
               } catch { toast.error('SKIP FAILED — CHECK CONNECTION') }
             }}
-            className="px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
           >
             SKIP CLUE-GIVER
           </button>

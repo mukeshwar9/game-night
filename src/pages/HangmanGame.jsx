@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ref, onValue, update } from 'firebase/database'
+import { ref, onValue, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
@@ -113,6 +113,11 @@ function CheatForfeitScreen({ waiting, onReset }) {
 }
 
 const MATCH_WINS = 3
+// Escape-hatch deadlines — anchored to server-corrected timestamps (see
+// clockOffset below) so they can't be gamed by a client's local clock.
+const SETTING_DEADLINE_MS = 120_000 // setter never locks a word
+const GRADING_STALL_MS = 60_000 // setter online but stops resolving a pending guess
+const NO_GUESS_DEADLINE_MS = 120_000 // guesser never makes a first guess
 
 export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, onSwitchGame, onNewMatch, proposal }) {
   const round = game.round || {}
@@ -137,11 +142,53 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   const [cheatEvidence, setCheatEvidence] = useState(null)
   const [showWinEffect, setShowWinEffect] = useState(false)
   const [winEffectFor, setWinEffectFor] = useState(null)
+  const [clockOffset, setClockOffset] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
 
   const verifiedCommitment = useRef(null)
   const prevWrongCount = useRef(wrongCount)
   const prevWrongDrop = useRef(wrongCount)
   const advancingRound = useRef(false)
+
+  // Corrected clock for the deadline/hatch paths below — never used by the
+  // commit-reveal machinery itself.
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = now + clockOffset
+
+  // Ticker — only runs while a deadline could matter, so idle reveal/finished
+  // screens don't re-render every second for no reason.
+  useEffect(() => {
+    if (phase !== 'setting' && phase !== 'guessing') return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [phase])
+
+  // Anchor `round/settingStartedAt` the moment a round enters 'setting', so
+  // the 120s no-word deadline has a fixed, server-corrected reference point.
+  // Guarded by a transaction so only one client's write sticks.
+  useEffect(() => {
+    if (phase !== 'setting' || matchWinner || round.settingStartedAt) return
+    runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.phase !== 'setting' || current.settingStartedAt) return
+      return { ...current, settingStartedAt: Date.now() + clockOffset }
+    }).catch(() => {})
+  }, [phase, matchWinner, round.settingStartedAt, gameId, clockOffset])
+
+  const settingStartedAt = round.settingStartedAt ?? null
+  const settingElapsedMs = settingStartedAt ? Math.max(0, serverNow - settingStartedAt) : 0
+  const settingExpired = phase === 'setting' && !!settingStartedAt && settingElapsedMs >= SETTING_DEADLINE_MS
+
+  const pendingAt = round.pendingAt ?? null
+  const gradingStalled = phase === 'guessing' && !!pendingAt && (serverNow - pendingAt) >= GRADING_STALL_MS
+
+  const guessingStartedAt = round.guessingStartedAt ?? null
+  const noGuessYet = phase === 'guessing' && Object.keys(guesses).length === 0
+  const guesserIdleExpired = noGuessYet && !!guessingStartedAt &&
+    (serverNow - guessingStartedAt) >= NO_GUESS_DEADLINE_MS
 
   // --- Setter: process pending guesses ---
   useEffect(() => {
@@ -172,6 +219,9 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
       const newWrongCount = countWrong(merged)
       updates[`games/${gameId}/round/wrongCount`] = newWrongCount
+      // Every pending guess in this batch is resolved above — clear the
+      // grading-stall anchor so the guesser's 60s hatch doesn't fire stale.
+      updates[`games/${gameId}/round/pendingAt`] = null
 
       const guessed = isWordGuessed(word, merged)
       const hanged = newWrongCount >= MAX_WRONG
@@ -281,21 +331,28 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         'round/guesses': null,
         'round/reveal': null,
         'round/result': null,
+        'round/settingStartedAt': null,
+        'round/pendingAt': null,
+        'round/guessingStartedAt': Date.now() + clockOffset,
       })
     } catch {
       /* ignore */
     } finally {
       setLockingWord(false)
     }
-  }, [gameId])
+  }, [gameId, clockOffset])
 
   const handleGuess = useCallback(async (letter) => {
     if (phase !== 'guessing' || !isGuesser) return
     if (letter in guesses) return
     try {
       await update(ref(db), { [`games/${gameId}/round/guesses/${letter}`]: 'pending' })
+      // Anchor the grading-stall timestamp on the first outstanding pending
+      // guess only — later pending guesses don't push the deadline out.
+      await runTransaction(ref(db, `games/${gameId}/round/pendingAt`), current =>
+        current == null ? Date.now() + clockOffset : current)
     } catch { /* ignore */ }
-  }, [phase, isGuesser, guesses, gameId])
+  }, [phase, isGuesser, guesses, gameId, clockOffset])
 
   const handleNextRound = useCallback(async () => {
     // Clear local cheat state so a previously detected cheat doesn't leave the
@@ -337,6 +394,9 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       'round/result': null,
       // Clear the cheat flag so it does not bleed into the next round.
       'round/cheatDetected': null,
+      'round/settingStartedAt': null,
+      'round/pendingAt': null,
+      'round/guessingStartedAt': null,
       proposal: null,
     }
 
@@ -371,6 +431,9 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       'round/reveal': null,
       'round/result': null,
       'round/cheatDetected': null,
+      'round/settingStartedAt': null,
+      'round/pendingAt': null,
+      'round/guessingStartedAt': null,
       proposal: null,
     }
 
@@ -382,27 +445,64 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     try { await update(ref(db, `games/${gameId}`), updates) } catch { /* ignore */ }
   }, [setter, guesser, scoreX, scoreO, gameId])
 
-  // Guesser escape hatch: if the word-keeper abandons mid-round (closed the tab
-  // with the word, so pending guesses can never be resolved), let the guesser
-  // reset to a fresh round (no score change) and swap setter so play continues.
+  // Symmetric escape hatch, callable by either side once their opposite
+  // number has gone unresponsive: the word-keeper abandoning mid-round
+  // (offline, or online but stalled resolving a pending guess for
+  // GRADING_STALL_MS — called by the guesser), or the guesser never making a
+  // first guess for NO_GUESS_DEADLINE_MS (called by the setter). No score
+  // change — resets to a fresh round with setter/guesser swapped so play
+  // continues. Runs as a transaction guarded on phase still being 'guessing'
+  // so it can never clobber a reveal that resolved in the same instant.
   const handleResetStuckRound = useCallback(async () => {
-    const newSetter = setter === 'X' ? 'O' : 'X'
     try {
-      await update(ref(db, `games/${gameId}`), {
-        'round/setter': newSetter,
-        'round/phase': 'setting',
-        'round/wrongCount': 0,
-        'round/wordStructure': null,
-        'round/hint': null,
-        'round/commitment': null,
-        'round/guesses': null,
-        'round/reveal': null,
-        'round/result': null,
-        'round/cheatDetected': null,
-        proposal: null,
+      await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || !current.round) return current
+        if (current.round.phase !== 'guessing') return // already resolved — don't clobber a live reveal
+        const curSetter = current.round.setter || 'X'
+        const newSetter = curSetter === 'X' ? 'O' : 'X'
+        return {
+          ...current,
+          round: { setter: newSetter, phase: 'setting', wrongCount: 0 },
+          proposal: null,
+        }
       })
     } catch { /* ignore */ }
-  }, [setter, gameId])
+  }, [gameId])
+
+  // Guesser-only hatch: the setter never locked in a word within
+  // SETTING_DEADLINE_MS. Awards the round to the guesser, same as conceding
+  // (setterMissingWord/handleForfeit) — failing to set a word in time is the
+  // same failure as losing the word after setting it. Transaction-guarded on
+  // the phase still being 'setting' and the deadline having actually passed
+  // server-side, so a setter who locks a word in the same instant wins the
+  // race instead of being overridden.
+  const handleClaimSettingTimeout = useCallback(async () => {
+    if (!isGuesser) return
+    try {
+      await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || !current.round) return current
+        const r = current.round
+        if (r.phase !== 'setting') return // setter locked a word already
+        const anchor = r.settingStartedAt
+        if (!anchor || Date.now() + clockOffset - anchor < SETTING_DEADLINE_MS) return // not expired yet
+        const curSetter = r.setter || 'X'
+        const curGuesser = curSetter === 'X' ? 'O' : 'X'
+        const sX = current.scores?.X || 0
+        const sO = current.scores?.O || 0
+        const newScores = { X: sX, O: sO }
+        newScores[curGuesser] = (newScores[curGuesser] || 0) + 1
+        const newMatchWinner = newScores.X >= MATCH_WINS ? 'X' : newScores.O >= MATCH_WINS ? 'O' : null
+        const newSetter = curSetter === 'X' ? 'O' : 'X'
+        return {
+          ...current,
+          scores: newScores,
+          round: { setter: newSetter, phase: 'setting', wrongCount: 0 },
+          ...(newMatchWinner ? { status: 'finished', winner: newMatchWinner } : {}),
+          proposal: null,
+        }
+      })
+    } catch { /* ignore */ }
+  }, [isGuesser, gameId, clockOffset])
 
   // Binding verdict written by the guesser's client: setter (and spectators)
   // see the forfeit screen; guesser sees evidence + NEXT ROUND button.
@@ -465,6 +565,19 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
             {!opponentOnline && (
               <p className="font-pixel text-[10px] text-retro-dim">
                 (WORD-KEEPER IS OFFLINE)
+              </p>
+            )}
+            {isGuesser && settingExpired && (
+              <button
+                onClick={handleClaimSettingTimeout}
+                className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95"
+              >
+                CLAIM ROUND — NO WORD SET
+              </button>
+            )}
+            {isGuesser && settingStartedAt && !settingExpired && (
+              <p className="font-mono text-[9px] text-retro-dim">
+                CAN CLAIM IN {Math.max(0, Math.ceil((SETTING_DEADLINE_MS - settingElapsedMs) / 1000))}s
               </p>
             )}
           </div>
@@ -625,11 +738,13 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         </div>
       )}
 
-      {/* Setter offline warning + guesser escape hatch */}
-      {!isSetter && !isReveal && !opponentOnline && (
+      {/* Setter offline / stalled warning + guesser escape hatch */}
+      {!isSetter && !isReveal && (!opponentOnline || gradingStalled) && (
         <div className="text-center space-y-2">
           <p className="font-pixel text-[10px] text-retro-dim">
-            WORD-KEEPER IS OFFLINE — GUESSES WILL STALL
+            {!opponentOnline
+              ? 'WORD-KEEPER IS OFFLINE — GUESSES WILL STALL'
+              : 'WORD-KEEPER HAS NOT RESPONDED IN 60s'}
           </p>
           {isGuesser && (
             <button
@@ -639,6 +754,21 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
               END ROUND
             </button>
           )}
+        </div>
+      )}
+
+      {/* Symmetric hatch: guesser never made a first guess — setter may end it */}
+      {isSetter && !isReveal && guesserIdleExpired && (
+        <div className="text-center space-y-2">
+          <p className="font-pixel text-[10px] text-retro-dim">
+            GUESSER HAS NOT MOVED IN 120s
+          </p>
+          <button
+            onClick={handleResetStuckRound}
+            className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95"
+          >
+            END ROUND
+          </button>
         </div>
       )}
 

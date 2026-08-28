@@ -1,12 +1,15 @@
 import { cn } from '@/lib/utils'
 
-export default function Cell({ value, index, onClick, isWinning, disabled, isLastMove }) {
+export default function Cell({ value, index, onClick, isWinning, disabled, isLastMove, row, col }) {
   const isEmpty = !value
+  const position = row != null && col != null ? `Row ${row + 1}, column ${col + 1}` : `Cell ${index + 1}`
+  const ariaLabel = isEmpty ? `${position}, empty` : `${position}, ${value}`
 
   return (
     <button
       onClick={() => isEmpty && !disabled && onClick(index)}
       disabled={!isEmpty || disabled}
+      aria-label={ariaLabel}
       className={cn(
         'aspect-square flex items-center justify-center font-pixel text-2xl sm:text-3xl',
         'border-2 rounded transition-all duration-100 select-none outline-none',

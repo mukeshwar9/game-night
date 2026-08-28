@@ -30,7 +30,7 @@ function TronResult({ winner, mySymbol, players }) {
             <p className={cn('font-pixel text-xl', winner === sym ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
               {winner === sym ? 'WIN' : winner === 'draw' ? 'DRAW' : 'CRASH'}
             </p>
-            <p className="font-pixel text-[8px] text-retro-dim">single round</p>
+            <p className="font-pixel text-[8px] text-retro-dim">this round</p>
           </div>
         )
       })}
@@ -39,6 +39,9 @@ function TronResult({ winner, mySymbol, players }) {
 }
 
 const initialRender = { cycles: null, countdown: 0 }
+const MATCH_TARGET = 3        // round wins needed to take the match — matches Snake's WIN_SCORE / Pong's default matchLength convention
+const COUNTDOWN_MS = 2000     // mirrors useRealtimeHost's own DEFAULT_COUNTDOWN, used locally by the guest for its own "GET READY" display
+const RENDER_DELAY_MS = 100   // guest: render slightly behind realtime so there are always two snapshots to interpolate the head between
 
 export default function TronGame({
   gameId, game, mySymbol, opponentOnline,
@@ -136,18 +139,68 @@ export default function TronGame({
     setRender, initialRender,
   })
 
-  const guestTick = useCallback((snap) => {
-    const toCycle = (body, alive, dir) => ({
-      body: body.map(([x, y]) => ({ x, y })),
+  // Guest: two-snapshot buffer for smooth head interpolation (trail cells
+  // behind the head never move once laid, so only the head needs it) and a
+  // local "GET READY" countdown — the snapshot carries neither, and
+  // useRealtimeGuest only calls `tick` once a snapshot has actually arrived,
+  // so "first tick call" is a reliable local stand-in for "just connected".
+  const prevSnapRef = useRef(null)
+  const curSnapRef = useRef(null)
+  const prevArrivalRef = useRef(0)
+  const curArrivalRef = useRef(0)
+  const firstTickAtRef = useRef(0)
+
+  useEffect(() => {
+    firstTickAtRef.current = 0
+    prevSnapRef.current = null
+    curSnapRef.current = null
+  }, [gameId, mySymbol, game.status])
+
+  const guestTick = useCallback((snap, ageSec) => {
+    const now = performance.now()
+    const arrival = now - ageSec * 1000 // exact arrival time of `snap`
+
+    if (snap !== curSnapRef.current) {
+      prevSnapRef.current = curSnapRef.current
+      prevArrivalRef.current = curArrivalRef.current
+      curSnapRef.current = snap
+      curArrivalRef.current = arrival
+    }
+
+    const prev = prevSnapRef.current
+    let t = 1
+    if (prev) {
+      const span = curArrivalRef.current - prevArrivalRef.current
+      t = span > 0 ? (now - RENDER_DELAY_MS - prevArrivalRef.current) / span : 1
+      t = Math.min(Math.max(t, 0), 1)
+    }
+
+    const lerpHead = (prevBody, curBody) => {
+      const [cx, cy] = curBody[0]
+      if (!prevBody?.length) return { x: cx, y: cy }
+      const [px, py] = prevBody[0]
+      const dx = cx - px, dy = cy - py
+      // Skip lerp across a wrap-around jump (>1 cell) — snap instead.
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) return { x: cx, y: cy }
+      return { x: px + dx * t, y: py + dy * t }
+    }
+
+    const toCycle = (body, prevBody, alive, dir) => ({
+      body: [lerpHead(prevBody, body), ...body.slice(1).map(([x, y]) => ({ x, y }))],
       alive: !!alive,
-      dir: dir || (body.length > 1 ? null : null),
+      dir: dir || null,
     })
+
+    if (!firstTickAtRef.current) firstTickAtRef.current = now
+    const elapsed = now - firstTickAtRef.current
+    const countdown = elapsed < COUNTDOWN_MS ? Math.ceil((COUNTDOWN_MS - elapsed) / 1000) : 0
+
     const view = {
       cycles: {
-        X: toCycle(snap.X, snap.xa, snap.dx),
-        O: toCycle(snap.O, snap.oa, snap.dy),
+        X: toCycle(snap.X, prev?.X, snap.xa, snap.dx),
+        O: toCycle(snap.O, prev?.O, snap.oa, snap.dy),
       },
-      countdown: 0,
+      countdown,
     }
     const dir = getDir(view.cycles.O.dir ?? 'left')
     return { view, input: dir ? { t: 'i', d: dir } : null }
@@ -163,7 +216,7 @@ export default function TronGame({
 
   const conn = isHost ? hostConn : guestConn
 
-  const matchWinner = (game.scores?.X || 0) >= 1 ? 'X' : (game.scores?.O || 0) >= 1 ? 'O' : null
+  const matchWinner = (game.scores?.X || 0) >= MATCH_TARGET ? 'X' : (game.scores?.O || 0) >= MATCH_TARGET ? 'O' : null
 
   if (game.status === 'finished') {
     return (
@@ -209,7 +262,7 @@ export default function TronGame({
         text="SWIPE OR HOLD + DRAG TO STEER"
         active={coachActive}
       />
-      <p className="text-center font-pixel text-[8px] text-retro-dim [@media(max-height:420px)]:hidden">SINGLE ROUND · LAST CYCLE ALIVE WINS</p>
+      <p className="text-center font-pixel text-[8px] text-retro-dim [@media(max-height:420px)]:hidden">LAST CYCLE ALIVE WINS · FIRST TO {MATCH_TARGET} ROUNDS WINS</p>
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
       {!proposal && (
         <div className="text-center">

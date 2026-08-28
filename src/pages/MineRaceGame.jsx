@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ref, update, runTransaction } from 'firebase/database'
+import { ref, update, runTransaction, onValue } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
@@ -24,6 +24,9 @@ const COUNTDOWN_MS = 3000
 const LONG_PRESS_MS = 450
 const SYNC_DEBOUNCE_MS = 150
 const MATCH_WINS = 3
+// Two idle/stuck players would otherwise leave a round open forever (no move
+// ever completes it). 5 minutes from minesStartedAt, anchored to server time.
+const ROUND_MS = 5 * 60 * 1000
 
 // Classic 1–8 palette mapped to theme tokens (never hardcoded blue/green/red).
 const NUM_COLORS = {
@@ -141,6 +144,7 @@ export default function MineRaceGame({
   const [dead, setDead] = useState(false)
   const [done, setDone] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  const [clockOffset, setClockOffset] = useState(0)
   const [readying, runReady] = useBusy()
 
   const revealedRef = useRef(revealed)
@@ -149,6 +153,7 @@ export default function MineRaceGame({
   const prevSeedRef = useRef(seed)
   const pressTimerRef = useRef(null)
   const longPressFiredRef = useRef(false)
+  const roundTimeoutFiredRef = useRef(false)
 
   // New round (new seed via PLAY AGAIN / NEW MATCH / SWITCH-back): reset to the
   // fresh opening. Reload mid-round keeps state (same seed → no reset here;
@@ -166,9 +171,25 @@ export default function MineRaceGame({
     }
   }
 
-  const isCountdown = !!startedAt && now < startedAt + COUNTDOWN_MS
-  const isRacing = !!startedAt && now >= startedAt + COUNTDOWN_MS && game.status !== 'finished'
-  const countdownSec = isCountdown ? Math.ceil((startedAt + COUNTDOWN_MS - now) / 1000) : 0
+  // Companion reset for the round-timeout ref (a ref mutation can't happen in
+  // the render-phase block above — refs aren't render-safe there).
+  useEffect(() => {
+    roundTimeoutFiredRef.current = false
+  }, [seed])
+
+  // Corrected clock — every deadline comparison runs through this offset
+  // (mirrors TriviaGame.jsx) so minesStartedAt/round-timeout compare against
+  // server time, not each device's possibly-skewed local clock.
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = now + clockOffset
+
+  const isCountdown = !!startedAt && serverNow < startedAt + COUNTDOWN_MS
+  const isRacing = !!startedAt && serverNow >= startedAt + COUNTDOWN_MS && game.status !== 'finished'
+  const countdownSec = isCountdown ? Math.ceil((startedAt + COUNTDOWN_MS - serverNow) / 1000) : 0
   const canAct = isRacing && !dead && !done
 
   const myCount = countRevealed(revealed)
@@ -206,7 +227,7 @@ export default function MineRaceGame({
     runReady(async () => {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || current.minesStartedAt) return
-        return { ...current, minesStartedAt: Date.now() }
+        return { ...current, minesStartedAt: Date.now() + clockOffset }
       })
     }, () => toast.error('START FAILED — CHECK CONNECTION'))
   }
@@ -252,6 +273,38 @@ export default function MineRaceGame({
     update(ref(db, `games/${gameId}`), { [`minesDone${myKey}`]: true }).catch(() => {})
     resolveEnd(myKey)
   }
+
+  // The opponent's minesDead write and their resolveEnd() transaction land as
+  // two separate Firebase writes — there's a real window where opDead is true
+  // but status is still 'playing'. Their detonation already decided the round
+  // (I win), so resolve it from here too the instant I see it, rather than
+  // showing a banner that tells me to keep clearing cells I no longer need to.
+  useEffect(() => {
+    if (opDead && !dead && !done && game.status !== 'finished') {
+      resolveEnd(myKey)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveEnd is recreated every render; it's idempotent (guards on status==='finished') so re-running it isn't a correctness issue
+  }, [opDead, dead, done, game.status, myKey])
+
+  // Round timer: two idle players would otherwise leave the round open
+  // forever (no move ever completes it). Either client can run this — the
+  // transaction's status==='finished' guard makes it safe for both to try.
+  useEffect(() => {
+    if (!isRacing || !startedAt || roundTimeoutFiredRef.current) return
+    const deadline = startedAt + COUNTDOWN_MS + ROUND_MS
+    const msLeft = deadline - serverNow
+    if (msLeft > 0) return
+    roundTimeoutFiredRef.current = true
+    runTransaction(ref(db, `games/${gameId}`), current => {
+      if (!current || current.status === 'finished') return
+      const cX = current.minesRevealedX ?? 0
+      const cO = current.minesRevealedO ?? 0
+      const winner = cX > cO ? 'X' : cX < cO ? 'O' : 'draw'
+      const scores = { ...(current.scores || {}) }
+      if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
+      return { ...current, winner, status: 'finished', scores }
+    }).catch(() => { /* other client resolved it */ })
+  }, [isRacing, startedAt, serverNow, gameId])
 
   // ── play ────────────────────────────────────────────────────────────────
 
@@ -339,6 +392,13 @@ export default function MineRaceGame({
         onClick={() => handleTap(i)}
         onContextMenu={(e) => {
           e.preventDefault()
+          // Android fires both the long-press timer path (below) AND a native
+          // contextmenu event for the same press — without this guard both
+          // handlers call toggleFlag and cancel each other out (flag never
+          // sticks). Skip the redundant toggle when the long-press already
+          // handled it; handleTap still owns resetting the ref on the
+          // trailing click.
+          if (longPressFiredRef.current) return
           if (canAct) toggleFlag(i)
         }}
         onPointerDown={(e) => handlePointerDown(e, i)}
@@ -363,8 +423,19 @@ export default function MineRaceGame({
         {board && (
           <div className="space-y-1">
             <p className="font-pixel text-[8px] text-retro-dim text-center">FINAL MINEFIELD</p>
-            <div className="grid grid-cols-12 gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border max-w-md mx-auto pointer-events-none">
-              {Array.from({ length: CELL_COUNT }, (_, i) => renderCell(i))}
+            {/* Break out of the page's p-4 gutter on phones and enforce a
+                ~38-40px min cell (M-?) — was ~34px and cramped for taps. On
+                screens too narrow to fit 12×38px, the grid scrolls horizontally
+                rather than shrinking cells below the tap-target floor. */}
+            <div className="relative -mx-4 sm:mx-0">
+              <div className="overflow-x-auto">
+                <div
+                  className="grid gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border mx-auto pointer-events-none"
+                  style={{ gridTemplateColumns: 'repeat(12, minmax(38px, 1fr))', maxWidth: '32rem' }}
+                >
+                  {Array.from({ length: CELL_COUNT }, (_, i) => renderCell(i))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -457,13 +528,17 @@ export default function MineRaceGame({
         <GhostRow name={oppName} avatarId={game.players?.[opKey]?.avatar} val={opCount} dead={opDead} />
       </div>
 
-      {/* Board */}
-      <div className="relative max-w-md mx-auto">
-        <div
-          className="grid grid-cols-12 gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border select-none"
-          style={{ touchAction: 'manipulation' }}
-        >
-          {board && Array.from({ length: CELL_COUNT }, (_, i) => renderCell(i))}
+      {/* Board — break out of the page's p-4 gutter on phones so cells clear a
+          ~38-40px tap-target floor instead of shrinking to fit; too-narrow
+          screens scroll the grid horizontally instead of cramming cells. */}
+      <div className="relative -mx-4 sm:mx-0">
+        <div className="overflow-x-auto">
+          <div
+            className="grid gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border select-none mx-auto"
+            style={{ touchAction: 'manipulation', gridTemplateColumns: 'repeat(12, minmax(38px, 1fr))', maxWidth: '32rem' }}
+          >
+            {board && Array.from({ length: CELL_COUNT }, (_, i) => renderCell(i))}
+          </div>
         </div>
 
         {/* End-state overlays (pre-transaction grace window) */}
@@ -505,7 +580,7 @@ export default function MineRaceGame({
       {/* Race status lines */}
       <div className="min-h-[16px] text-center">
         {opDead && game.status !== 'finished' && (
-          <p className="font-pixel text-[9px] text-retro-win arcade-blink">{oppName} DETONATED — CLEAR THE REST TO WIN!</p>
+          <p className="font-pixel text-[9px] text-retro-win arcade-blink">💥 {oppName} DETONATED — YOU WIN!</p>
         )}
         {opDone && !opDead && game.status !== 'finished' && (
           <p className="font-pixel text-[9px] text-retro-p2 arcade-blink">{oppName} CLEARED IT — TOO SLOW!</p>

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeChimpLayout, applyChimpMove, CHIMP_GRID } from './chimpLogic'
+import {
+  normalizeChimpLayout, evaluateChimpTap, buildChimpAdvance,
+  generateChimpLayout, CHIMP_GRID, CHIMP_START_LEVEL,
+} from './chimpLogic'
 
 describe('normalizeChimpLayout', () => {
   it('returns [] for null', () => expect(normalizeChimpLayout(null)).toEqual([]))
@@ -8,50 +11,93 @@ describe('normalizeChimpLayout', () => {
     expect(normalizeChimpLayout({ 0: 5, 1: 12, 2: 0 })).toEqual([5, 12, 0]))
 })
 
-describe('applyChimpMove — correct sequence', () => {
-  const game = { chimpLayout: [5, 12, 0, 20], chimpProgress: 0, chimpLevel: 4 }
-
-  it('correct first click advances progress', () => {
-    const r = applyChimpMove(game, 5, 'X')
-    expect(r.updates.chimpProgress).toBe(1)
-    expect(r.result).toBeNull()
-  })
-
-  it('wrong first click gives win to opponent', () => {
-    const r = applyChimpMove(game, 12, 'X')
-    expect(r.result).toEqual({ winner: 'O' })
-  })
-
-  it('completing last click generates new layout and flips turn', () => {
-    const g = { chimpLayout: [5], chimpProgress: 0, chimpLevel: 1 }
-    const r = applyChimpMove(g, 5, 'X')
-    expect(r.updates.chimpLevel).toBe(2)
-    expect(r.updates.chimpLayout).toHaveLength(2)
-    expect(r.updates.chimpProgress).toBe(0)
-    expect(r.updates.currentTurn).toBe('O')
-    expect(r.result).toBeNull()
-  })
-
-  it('mid-sequence correct click advances progress', () => {
-    const g = { chimpLayout: [5, 12, 0, 20], chimpProgress: 2, chimpLevel: 4 }
-    const r = applyChimpMove(g, 0, 'O')
-    expect(r.updates.chimpProgress).toBe(3)
-    expect(r.result).toBeNull()
-  })
-
-  it('mid-sequence wrong click gives win to opponent', () => {
-    const g = { chimpLayout: [5, 12, 0, 20], chimpProgress: 2, chimpLevel: 4 }
-    const r = applyChimpMove(g, 5, 'O')
-    expect(r.result).toEqual({ winner: 'X' })
+describe('generateChimpLayout', () => {
+  it('returns `level` unique indices within the grid', () => {
+    const layout = generateChimpLayout(10, CHIMP_GRID)
+    expect(layout).toHaveLength(10)
+    expect(new Set(layout).size).toBe(10)
+    layout.forEach(i => {
+      expect(i).toBeGreaterThanOrEqual(0)
+      expect(i).toBeLessThan(CHIMP_GRID)
+    })
   })
 })
 
-describe('applyChimpMove — invalid', () => {
-  const game = { chimpLayout: [5, 12], chimpProgress: 0, chimpLevel: 2 }
-  it('returns null for empty layout', () =>
-    expect(applyChimpMove({ chimpLayout: null, chimpProgress: 0, chimpLevel: 4 }, 5, 'X')).toBeNull())
-  it('returns null for out-of-range cell', () =>
-    expect(applyChimpMove(game, CHIMP_GRID, 'X')).toBeNull())
-  it('returns null for negative cell', () =>
-    expect(applyChimpMove(game, -1, 'X')).toBeNull())
+// ---------------------------------------------------------------------------
+// evaluateChimpTap — the real per-player rule ChimpGame.jsx's handleCellClick
+// applies: each player races through their own copy of the shared layout
+// independently, no shared turn.
+// ---------------------------------------------------------------------------
+describe('evaluateChimpTap — invalid', () => {
+  it('is invalid when the layout is empty/missing', () => {
+    expect(evaluateChimpTap({ layout: null, progress: 0, level: 4, cellIndex: 5 })).toEqual({ valid: false })
+  })
+
+  it('is invalid for an out-of-range cell', () => {
+    expect(evaluateChimpTap({ layout: [5, 12], progress: 0, level: 2, cellIndex: CHIMP_GRID })).toEqual({ valid: false })
+  })
+
+  it('is invalid for a negative cell', () => {
+    expect(evaluateChimpTap({ layout: [5, 12], progress: 0, level: 2, cellIndex: -1 })).toEqual({ valid: false })
+  })
+})
+
+describe('evaluateChimpTap — correct sequence', () => {
+  const layout = [5, 12, 0, 20]
+
+  it('correct first tap advances progress, not done', () => {
+    const r = evaluateChimpTap({ layout, progress: 0, level: 4, cellIndex: 5 })
+    expect(r).toEqual({ valid: true, correct: true, newProgress: 1, done: false })
+  })
+
+  it('mid-sequence correct tap advances progress', () => {
+    const r = evaluateChimpTap({ layout, progress: 2, level: 4, cellIndex: 0 })
+    expect(r).toEqual({ valid: true, correct: true, newProgress: 3, done: false })
+  })
+
+  it('the final correct tap marks done', () => {
+    const r = evaluateChimpTap({ layout: [5], progress: 0, level: 1, cellIndex: 5 })
+    expect(r).toEqual({ valid: true, correct: true, newProgress: 1, done: true })
+  })
+
+  it('treats a missing progress as 0', () => {
+    const r = evaluateChimpTap({ layout, progress: undefined, level: 4, cellIndex: 5 })
+    expect(r).toEqual({ valid: true, correct: true, newProgress: 1, done: false })
+  })
+})
+
+describe('evaluateChimpTap — mis-taps', () => {
+  const layout = [5, 12, 0, 20]
+
+  it('wrong first tap is a mis-tap (caller resolves the round for the opponent)', () => {
+    expect(evaluateChimpTap({ layout, progress: 0, level: 4, cellIndex: 12 })).toEqual({ valid: true, correct: false })
+  })
+
+  it('mid-sequence wrong tap is a mis-tap', () => {
+    expect(evaluateChimpTap({ layout, progress: 2, level: 4, cellIndex: 5 })).toEqual({ valid: true, correct: false })
+  })
+
+  it('tapping an already-completed cell again is a mis-tap', () => {
+    expect(evaluateChimpTap({ layout, progress: 2, level: 4, cellIndex: 12 })).toEqual({ valid: true, correct: false })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// buildChimpAdvance — the round-advance patch both clients race to apply
+// ---------------------------------------------------------------------------
+describe('buildChimpAdvance', () => {
+  it('bumps the level and resets both players for the new round', () => {
+    const patch = buildChimpAdvance(CHIMP_START_LEVEL)
+    expect(patch.chimpLevel).toBe(CHIMP_START_LEVEL + 1)
+    expect(patch.chimpLayout).toHaveLength(CHIMP_START_LEVEL + 1)
+    expect(patch.chimpProgressX).toBe(0)
+    expect(patch.chimpProgressO).toBe(0)
+    expect(patch.chimpDoneX).toBe(false)
+    expect(patch.chimpDoneO).toBe(false)
+  })
+
+  it('generates a fresh layout with unique cells', () => {
+    const patch = buildChimpAdvance(6)
+    expect(new Set(patch.chimpLayout).size).toBe(patch.chimpLayout.length)
+  })
 })

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { ref, runTransaction } from 'firebase/database'
 import { cn } from '@/lib/utils'
 import { sounds } from '../lib/sounds'
+import { db } from '../lib/firebase'
+import useTurnDeadlineEnforcer from '../hooks/useTurnDeadlineEnforcer'
 
 // Static classes per pad — must be complete strings for Tailwind's scanner
 const PAD = [
@@ -10,39 +14,41 @@ const PAD = [
   { active: 'bg-retro-win shadow-neon-win border-retro-win', dim: 'bg-retro-win/10 border-retro-win/30' },
 ]
 
+// Position glyphs so pads carry a non-color signal (aria + visible on the pad itself)
+const PAD_GLYPH = ['▲', '▼', '◀', '▶']
+
 const FLASH_ON_MS  = 480
 const FLASH_GAP_MS = 240
+const TURN_DEADLINE_MS = 30000 // idle-opponent forfeit window, armed once the flash ends
 
 // A true memory duel: when it's your turn to recall, the whole sequence flashes
 // once (and is otherwise hidden), then you must replay it from memory before
 // adding one new pad. Pad colours are concealed at every moment EXCEPT the flash,
 // so neither player can read the answer off the board.
 export default function SimonBoard({ onMove, disabled, simonSequence, simonProgress }) {
+  const { gameId } = useParams() // present under /game/:gameId; undefined in demo/solo — writes below no-op there
+  useTurnDeadlineEnforcer(gameId, 'simon', 'simonDeadline')
+
   const seq      = simonSequence ?? []
   const progress = simonProgress ?? 0
   const isMyTurn    = !disabled
   const needsRecall = progress < seq.length        // a sequence is waiting to be replayed
   const inAppend    = isMyTurn && progress >= seq.length
 
-  const [flashIndex, setFlashIndex] = useState(-1) // seq position lit during the watch flash
-  const [watching, setWatching]     = useState(false)
-  const watchedLenRef = useRef(null)               // seq length already flashed this turn
+  const [flashIndex, setFlashIndex]   = useState(-1) // seq position lit during the watch flash
+  const [watching, setWatching]       = useState(false)
+  const [replayAvailable, setReplayAvailable] = useState(true) // one manual re-flash per recall turn
+  const watchedKeyRef = useRef(null)                // sequence signature already flashed this turn
   const timersRef     = useRef([])
 
   const clearTimers = () => { timersRef.current.forEach(clearTimeout); timersRef.current = [] }
 
-  // Flash the sequence once at the start of each recall turn, then hide it.
-  useEffect(() => {
-    if (!isMyTurn) {
-      clearTimers()
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- turn flip must synchronously clear the flash/watch display before the opponent's turn paints (timing-critical recall)
-      setWatching(false); setFlashIndex(-1); watchedLenRef.current = null
-      return
-    }
-    if (!needsRecall) { clearTimers(); setWatching(false); setFlashIndex(-1); return }
-    if (watchedLenRef.current === seq.length) return // already flashed for this turn
-    watchedLenRef.current = seq.length
+  const armDeadline = () => {
+    if (!gameId) return
+    runTransaction(ref(db, `games/${gameId}/simonDeadline`), cur => cur ?? (Date.now() + TURN_DEADLINE_MS)).catch(() => {})
+  }
 
+  const runFlash = () => {
     clearTimers()
     setWatching(true)
     setFlashIndex(-1)
@@ -51,10 +57,44 @@ export default function SimonBoard({ onMove, disabled, simonSequence, simonProgr
       timersRef.current.push(setTimeout(() => { setFlashIndex(i); sounds.simPad(padIdx) }, i * step))
       timersRef.current.push(setTimeout(() => setFlashIndex(-1), i * step + FLASH_ON_MS))
     })
-    timersRef.current.push(setTimeout(() => setWatching(false), seq.length * step))
+    timersRef.current.push(setTimeout(() => { setWatching(false); armDeadline() }, seq.length * step))
+  }
+
+  const seqKey = seq.join('-')
+
+  // Flash the sequence once at the start of each recall turn, then hide it.
+  useEffect(() => {
+    if (!isMyTurn) {
+      clearTimers()
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- turn flip must synchronously clear the flash/watch display before the opponent's turn paints (timing-critical recall)
+      setWatching(false); setFlashIndex(-1); watchedKeyRef.current = null; setReplayAvailable(true)
+      return
+    }
+    if (!needsRecall) {
+      // Nothing to watch — either the append-only step of this turn, or a
+      // brand-new empty sequence. The deadline still applies to this action.
+      clearTimers(); setWatching(false); setFlashIndex(-1)
+      armDeadline()
+      return
+    }
+    if (watchedKeyRef.current === seqKey) return // already flashed this exact sequence this turn
+    watchedKeyRef.current = seqKey
+    setReplayAvailable(true)
+    runFlash()
     return clearTimers
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally narrow: `seq` is a new array reference every render (derived from the Firebase snapshot), so tracking the full array instead of its length would replay the flash sequence on every unrelated game-state update
-  }, [isMyTurn, needsRecall, seq.length])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the sequence's own content (seqKey), not identity, so a re-render with the same pattern never restarts the flash
+  }, [isMyTurn, needsRecall, seqKey])
+
+  // Recover a flash that was hidden (tab backgrounded) mid-animation — timers
+  // still fire while hidden, but the player saw nothing, so replay it clean.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && watching) runFlash()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only re-subscribes on `watching` so the handler always reads the latest watching flag
+  }, [watching])
 
   // Clear any pending timers on unmount
   useEffect(() => clearTimers, [])
@@ -66,6 +106,12 @@ export default function SimonBoard({ onMove, disabled, simonSequence, simonProgr
     if (!canClick) return
     sounds.simPad(i)
     onMove(i)
+  }
+
+  const handleReplay = () => {
+    if (!replayAvailable || watching || !needsRecall || !isMyTurn) return
+    setReplayAvailable(false)
+    runFlash()
   }
 
   const label =
@@ -120,6 +166,16 @@ export default function SimonBoard({ onMove, disabled, simonSequence, simonProgr
         <span className={labelClass}>{label}</span>
       </p>
 
+      {/* Replay — recovers a missed flash without unlimited free re-watches */}
+      {isMyTurn && needsRecall && !watching && replayAvailable && (
+        <button
+          onClick={handleReplay}
+          className="w-full py-2 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[8px] rounded hover:border-retro-cta/60 active:scale-95 tracking-widest"
+        >
+          WATCH AGAIN (1)
+        </button>
+      )}
+
       {/* 2 × 2 pad grid */}
       <div className="grid grid-cols-2 gap-3">
         {[0, 1, 2, 3].map((i) => {
@@ -128,16 +184,24 @@ export default function SimonBoard({ onMove, disabled, simonSequence, simonProgr
           return (
             <button
               key={i}
-              aria-label={`simon-pad-${i}`}
+              aria-label={`simon pad ${PAD_GLYPH[i]}${lit ? ', lit' : ''}`}
               disabled={!canClick}
               onClick={() => handlePad(i)}
               className={cn(
                 'aspect-square rounded-xl border-2 transition-all duration-100 active:scale-95',
+                'flex items-center justify-center',
                 lit
                   ? cn(p.active, 'scale-105 ring-2 ring-white/40')
                   : cn(p.dim, canClick ? 'hover:opacity-90 cursor-pointer' : 'cursor-default opacity-60'),
               )}
-            />
+            >
+              <span
+                className={cn('font-pixel text-lg select-none', lit ? 'text-retro-bg' : 'text-retro-text/35')}
+                aria-hidden="true"
+              >
+                {PAD_GLYPH[i]}
+              </span>
+            </button>
           )
         })}
       </div>

@@ -1,9 +1,9 @@
 import { cn } from '@/lib/utils'
 import { GOMOKU_SIZE } from '../lib/gomokuLogic'
 
-// Minimum per-cell width (px) — keeps tap targets >=32px by letting the
+// Minimum per-cell width (px) — keeps tap targets >=38px by letting the
 // board scroll horizontally edge-to-edge instead of crushing cells to fit.
-const GOMOKU_CELL_MIN = 34
+const GOMOKU_CELL_MIN = 38
 
 export default function GomokuBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null }) {
   return (

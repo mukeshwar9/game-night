@@ -66,7 +66,12 @@ export function getPairsWinner(board) {
 // Returns null if illegal:
 //   - index out of range
 //   - board[index] already claimed
-//   - index already in `flipped` (can't re-tap your own held card or a stale mismatch card)
+//   - index is your own currently-held first pick (flipped.length === 1 && flipped[0] === index)
+// A *leftover mismatch* pair (flipped.length === 2, from the previous player's failed
+// attempt) is NOT "held" by anyone — those two cards flip back face-down at the start of
+// the next turn, so tapping either of them (or any other face-down cell) is a legal first
+// flip for the new turn. Without this, the two mismatched cards were permanently dead —
+// unflippable by every subsequent player — which is the bug this contract fixes.
 // ("game finished" is NOT re-checked here — Game.jsx's handleMove already refuses to call
 // applyMove at all once game.status !== 'playing', and the BotBoardDemo harness in
 // src/pages/Demo.jsx applies the identical guard — see Logic details for why this branch
@@ -81,7 +86,7 @@ export function getPairsWinner(board) {
 export function applyPairsMove(board, deck, flipped, index, symbol) {
   if (index < 0 || index >= PAIRS_CELL_COUNT) return null
   if (board[index]) return null
-  if (flipped.includes(index)) return null
+  if (flipped.length === 1 && flipped[0] === index) return null
 
   if (flipped.length !== 1) {
     return { board, flipped: [index], turnStays: true, matched: false }

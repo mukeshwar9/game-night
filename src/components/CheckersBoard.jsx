@@ -15,6 +15,7 @@ export default function CheckersBoard({
   accent = "p1", // viewer's side: highlights + which pieces are selectable
   lastFrom = null,
   lastTo = null,
+  flashCell = null, // cell to flash a "CAPTURE REQUIRED"-style warning tint on
 }) {
   const accentBg = accent === "p1" ? "bg-retro-p1" : "bg-retro-p2";
   const ownChars = accent === "p1" ? ["x", "X"] : ["o", "O"];
@@ -31,7 +32,12 @@ export default function CheckersBoard({
   };
 
   return (
-    <div className={cn("grid grid-cols-8 gap-[2px] select-none", disabled && "opacity-70")}>
+    <div
+      className={cn(
+        "grid grid-cols-8 gap-[2px] select-none w-full max-w-[min(90vw,520px)] mx-auto",
+        disabled && "opacity-70",
+      )}
+    >
       {board.map((p, cell) => {
         const r = Math.floor(cell / SIZE);
         const c = cell % SIZE;
@@ -49,12 +55,13 @@ export default function CheckersBoard({
             disabled={!clickable}
             aria-label={`${r}${c}${isKing ? " king" : p ? "" : " empty"}`}
             className={cn(
-              "aspect-square min-w-[30px] rounded-[3px] flex items-center justify-center relative transition-colors",
+              "aspect-square rounded-[3px] flex items-center justify-center relative transition-colors",
               dark ? "bg-retro-deep" : "bg-retro-surface",
               isSelected && `ring-2 ${accent === "p1" ? "ring-retro-p1" : "ring-retro-p2"}`,
               isTarget && dark && "bg-retro-card",
               cell === lastFrom && "ring-1 ring-retro-border",
               cell === lastTo && `ring-1 ${accent === "p1" ? "ring-retro-p1/60" : "ring-retro-p2/60"}`,
+              cell === flashCell && "ring-2 ring-retro-danger bg-retro-danger/30",
               clickable && "cursor-pointer hover:brightness-125",
               isOwn && !disabled && "cursor-pointer",
             )}

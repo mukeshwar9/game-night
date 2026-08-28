@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ref, update, runTransaction } from 'firebase/database'
+import { ref, onValue, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
@@ -430,6 +430,7 @@ export default function WordHuntGame({
   const [dictError, setDictError] = useState(false)
   const [retrying, runRetry] = useBusy()
   const [readying, runReady] = useBusy()
+  const [clockOffset, setClockOffset] = useState(0)
   const [now, setNow] = useState(() => Date.now())
   const [myWords, setMyWords] = useState(() => normalizeWordList(game[`wordhuntWords${myKey}`]))
   const [myScore, setMyScore] = useState(() => game[`wordhuntScore${myKey}`] ?? 0)
@@ -443,6 +444,16 @@ export default function WordHuntGame({
   const prevGridRef = useRef(grid)
   const doneRef = useRef(false)
   const resultIdRef = useRef(0)
+
+  // Corrected clock — every deadline comparison (countdown/round-end/finish
+  // detection) runs through this offset so clients on different local clocks
+  // agree on when the round actually started/ends (matches TriviaGame.jsx).
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = now + clockOffset
 
   // Dictionary-load gate — checked before every other phase, for both
   // players and spectators (spec §5.1). Runs once on mount; the RETRY button
@@ -488,19 +499,19 @@ export default function WordHuntGame({
     }
   }, [grid])
 
-  const isCountdown = !!startedAt && now < startedAt + COUNTDOWN_MS
-  const isPlaying = !!startedAt && now >= startedAt + COUNTDOWN_MS
-    && now < startedAt + COUNTDOWN_MS + ROUND_MS && game.status !== 'finished'
-  const countdownSec = isCountdown ? Math.ceil((startedAt + COUNTDOWN_MS - now) / 1000) : 0
+  const isCountdown = !!startedAt && serverNow < startedAt + COUNTDOWN_MS
+  const isPlaying = !!startedAt && serverNow >= startedAt + COUNTDOWN_MS
+    && serverNow < startedAt + COUNTDOWN_MS + ROUND_MS && game.status !== 'finished'
+  const countdownSec = isCountdown ? Math.ceil((startedAt + COUNTDOWN_MS - serverNow) / 1000) : 0
   const deadline = startedAt ? startedAt + COUNTDOWN_MS + ROUND_MS : null
-  const timeLeftMs = deadline ? Math.max(0, deadline - now) : ROUND_MS
+  const timeLeftMs = deadline ? Math.max(0, deadline - serverNow) : ROUND_MS
 
   const tryFinishGame = async () => {
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || current.status === 'finished') return
         const startedAtC = current.wordhuntStartedAt
-        if (!startedAtC || Date.now() < startedAtC + COUNTDOWN_MS + ROUND_MS) return // not over yet
+        if (!startedAtC || Date.now() + clockOffset < startedAtC + COUNTDOWN_MS + ROUND_MS) return // not over yet
         const sX = current.wordhuntScoreX ?? 0
         const sO = current.wordhuntScoreO ?? 0
         const winner = sX > sO ? 'X' : sX < sO ? 'O' : 'draw'
@@ -517,7 +528,7 @@ export default function WordHuntGame({
     const id = setInterval(() => {
       const n = Date.now()
       setNow(n)
-      if (mySymbol && n >= startedAt + COUNTDOWN_MS + ROUND_MS && !doneRef.current) {
+      if (mySymbol && n + clockOffset >= startedAt + COUNTDOWN_MS + ROUND_MS && !doneRef.current) {
         doneRef.current = true
         update(ref(db, `games/${gameId}`), { [`wordhuntDone${myKey}`]: true }).catch(() => {})
         tryFinishGame()
@@ -525,14 +536,14 @@ export default function WordHuntGame({
     }, 100)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tryFinishGame is recreated every render; adding it would tear down and restart this interval on every tick
-  }, [startedAt, game.status, mySymbol, gameId, myKey])
+  }, [startedAt, game.status, mySymbol, gameId, myKey, clockOffset])
 
   const handleReady = () => {
-    if (game.wordhuntStartedAt) return
+    if (!mySymbol || game.wordhuntStartedAt) return
     runReady(async () => {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || current.wordhuntStartedAt) return
-        return { ...current, wordhuntStartedAt: Date.now() }
+        return { ...current, wordhuntStartedAt: Date.now() + clockOffset }
       })
     }, () => toast.error('START FAILED — CHECK CONNECTION'))
   }
@@ -582,33 +593,37 @@ export default function WordHuntGame({
 
   const matchWinner = (game.scores?.X || 0) >= MATCH_WINS ? 'X' : (game.scores?.O || 0) >= MATCH_WINS ? 'O' : null
 
-  // ── render: dictionary-load gate ──────────────────────────────────
-
-  if (!dict) {
-    return (
-      <div className="min-h-screen bg-retro-bg flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <ArcadeLoader variant="inline" />
-          {dictError && (
-            <>
-              <p className="font-pixel text-[9px] text-retro-p2 mt-3">COULDN&apos;T LOAD WORD LIST</p>
-              <button
-                onClick={retryDictionary}
-                disabled={retrying}
-                className="mt-2 px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
-              >
-                {retrying ? 'RETRYING…' : 'RETRY'}
-              </button>
-            </>
-          )}
-        </div>
+  // Dictionary-load status block, reused wherever a screen needs `dict` to be
+  // ready (word verification at the end screen). Deliberately NOT a blanket
+  // early-return for every render path any more — a slow ~1.1MB dictionary
+  // fetch used to blank the whole page behind ArcadeLoader, hiding the
+  // lobby/countdown/timer from a slow client while the round clock (synced
+  // via serverNow) kept running underneath. Now those screens render
+  // regardless; only the actions that truly need `dict` are gated on it.
+  const dictLoader = (
+    <div className="min-h-screen bg-retro-bg flex items-center justify-center">
+      <div className="flex flex-col items-center">
+        <ArcadeLoader variant="inline" />
+        {dictError && (
+          <>
+            <p className="font-pixel text-[9px] text-retro-p2 mt-3">COULDN&apos;T LOAD WORD LIST</p>
+            <button
+              onClick={retryDictionary}
+              disabled={retrying}
+              className="mt-2 px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
+            >
+              {retrying ? 'RETRYING…' : 'RETRY'}
+            </button>
+          </>
+        )}
       </div>
-    )
-  }
+    </div>
+  )
 
   // ── render: finished ──────────────────────────────────────────────
 
   if (game.status === 'finished') {
+    if (!dict) return dictLoader
     const xWords = normalizeWordList(game.wordhuntWordsX)
     const oWords = normalizeWordList(game.wordhuntWordsO)
     const scoreX = game.wordhuntScoreX ?? 0
@@ -673,11 +688,23 @@ export default function WordHuntGame({
           </div>
           <button
             onClick={handleReady}
-            disabled={readying}
+            disabled={readying || !dict}
             className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
           >
-            {readying ? 'STARTING…' : 'READY'}
+            {!dict ? 'LOADING DICTIONARY…' : readying ? 'STARTING…' : 'READY'}
           </button>
+          {!dict && dictError && (
+            <>
+              <p className="font-pixel text-[9px] text-retro-p2">COULDN&apos;T LOAD WORD LIST</p>
+              <button
+                onClick={retryDictionary}
+                disabled={retrying}
+                className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-cta hover:text-retro-cta active:scale-95 disabled:opacity-50"
+              >
+                {retrying ? 'RETRYING…' : 'RETRY'}
+              </button>
+            </>
+          )}
         </div>
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
@@ -731,7 +758,24 @@ export default function WordHuntGame({
           {oppName} · {oppWordsCount} WORD{oppWordsCount === 1 ? '' : 'S'} FOUND
         </p>
 
-        <WordGrid grid={grid} disabled={!!myDone} onSubmit={handleSubmit} lastResult={lastResult} />
+        <WordGrid grid={grid} disabled={!!myDone || !dict} onSubmit={handleSubmit} lastResult={lastResult} />
+
+        {!dict && (
+          <p className="font-pixel text-[9px] text-retro-cta text-center arcade-blink">
+            {dictError ? "COULDN'T LOAD WORD LIST — " : ''}LOADING DICTIONARY…
+          </p>
+        )}
+        {!dict && dictError && (
+          <div className="flex justify-center">
+            <button
+              onClick={retryDictionary}
+              disabled={retrying}
+              className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-cta hover:text-retro-cta active:scale-95 disabled:opacity-50"
+            >
+              {retrying ? 'RETRYING…' : 'RETRY'}
+            </button>
+          </div>
+        )}
 
         <WordList words={myWords} emptyHint="TRACE OR TYPE WORDS TO FIND THEM HERE" />
 

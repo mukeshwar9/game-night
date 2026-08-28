@@ -21,6 +21,25 @@ export function randomSpectrumIndex(exclude = -1) {
   return i
 }
 
+// Pick the next spectrum index, avoiding every pair already used this match
+// (`usedIndices`) as well as the current one, so pairs don't repeat within a
+// match. Once the whole deck has been used, the pool resets (still excluding
+// only the current index) rather than stalling on an empty pool.
+export function nextSpectrumIndex(usedIndices = [], currentIndex = -1) {
+  if (WAVELENGTH_PAIR_COUNT <= 1) return 0
+  const used = new Set(usedIndices)
+  let available = []
+  for (let i = 0; i < WAVELENGTH_PAIR_COUNT; i++) {
+    if (i !== currentIndex && !used.has(i)) available.push(i)
+  }
+  if (available.length === 0) {
+    for (let i = 0; i < WAVELENGTH_PAIR_COUNT; i++) {
+      if (i !== currentIndex) available.push(i)
+    }
+  }
+  return available[Math.floor(Math.random() * available.length)]
+}
+
 // Hidden target somewhere comfortably inside the dial (8–92) so it's always
 // reachable from either side.
 export function randomTarget() {

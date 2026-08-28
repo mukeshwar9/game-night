@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ref, update, get } from 'firebase/database'
+import { ref, update, get, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
+import { isCoordinator } from '../lib/coordinator'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
@@ -57,9 +58,14 @@ function findSpy(privates) {
 // Deal a fresh round: pick the spy + location, hand out private roles, and COMMIT the
 // location. Stores the reveal secret in the host's sessionStorage. Returns the round
 // object to write to Firebase — note it contains NO plaintext spy/locationIndex.
-async function dealRound(gameId, order) {
+async function dealRound(gameId, order, excludeLocationIndex = null) {
   const spy = order[Math.floor(Math.random() * order.length)]
-  const locationIndex = Math.floor(Math.random() * SPYFAIR_LOCATIONS.length)
+  // Exclude the previous round's location so back-to-back rounds don't repeat it.
+  const pool = SPYFAIR_LOCATIONS
+    .map((_, i) => i)
+    .filter(i => i !== excludeLocationIndex)
+  const candidates = pool.length > 0 ? pool : SPYFAIR_LOCATIONS.map((_, i) => i)
+  const locationIndex = candidates[Math.floor(Math.random() * candidates.length)]
   const loc = SPYFAIR_LOCATIONS[locationIndex]
   const roleBag = [...loc.roles].sort(() => Math.random() - 0.5)
   const privates = {}
@@ -121,14 +127,21 @@ function fmtClock(secs) {
 }
 
 export default function SpyfairGame({
-  gameId, game, mySeat, players, isHost,
+  gameId, game, mySeat, players,
   onStart, onSwitchGame, onNewMatch, proposal,
 }) {
   const round = game.round || {}
   const phase = round.phase || null
   const seats = useMemo(() => seatOrder(players), [players])
+  const seatIds = useMemo(() => seats.map(p => p.playerId), [seats])
   const playerCount = seats.length
   const enoughPlayers = playerCount >= 3
+  // Deterministic host-fallback: the coordinator is the lowest-uid ONLINE seat, not
+  // the fixed `isHost` — so a host disconnect hands transitions off instead of
+  // freezing the match. Every write below that used to be `isHost`-gated is now
+  // gated on this, and each write itself re-checks phase inside a transaction so a
+  // handover mid-transition stays single-writer/idempotent.
+  const amCoordinator = !!mySeat && !!players?.[mySeat] && isCoordinator(mySeat, seatIds, players)
 
   const myPlayer = players?.[mySeat] || null
   const amSpectator = !myPlayer
@@ -154,7 +167,9 @@ export default function SpyfairGame({
     votesCast >= 2
 
   const scores = game.scores || {}
-  const matchWinner = seats.find(p => (scores[p.playerId] || 0) >= MATCH_WINS) || null
+  // Co-winners: everyone who has crossed MATCH_WINS, not just the earliest joiner —
+  // a round that pushes two players over the line at once is a shared victory.
+  const winners = seats.filter(p => (scores[p.playerId] || 0) >= MATCH_WINS)
 
   const [secretRevealed, setSecretRevealed] = useState(false)
   const [now, setNow] = useState(() => Date.now())
@@ -177,12 +192,18 @@ export default function SpyfairGame({
     if (phase === 'reveal' && prevPhase.current !== 'reveal') setSecretRevealed(false)
   }, [phase])
 
-  // --- Host: when the questioning timer expires, advance to the vote phase. ---
+  // --- Coordinator: when the questioning timer expires, advance to the vote phase.
+  // `now` ticks for every client (see the interval above), so every client agrees
+  // the deadline has passed — only the coordinator actually writes the transition,
+  // and the write re-checks phase so a coordinator handover mid-flight is safe. ---
   useEffect(() => {
-    if (!isHost || phase !== 'questioning' || !round.timerEnds) return
+    if (!amCoordinator || phase !== 'questioning' || !round.timerEnds) return
     if (now < round.timerEnds) return
-    update(ref(db, `games/${gameId}/round`), { phase: 'vote' }).catch(() => {})
-  }, [isHost, phase, round.timerEnds, now, gameId])
+    runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.phase !== 'questioning') return current
+      return { ...current, phase: 'vote' }
+    }).catch(() => {})
+  }, [amCoordinator, phase, round.timerEnds, now, gameId])
 
   useEffect(() => {
     if (phase !== 'vote') resolvedRef.current = null
@@ -215,10 +236,12 @@ export default function SpyfairGame({
   }, [phase, round.spyWon, amSpy, amSpectator])
 
   // -------------------------------------------------------------------------
-  // Host actions
+  // Coordinator actions — gated on `amCoordinator` (the lowest-uid ONLINE seat),
+  // not the fixed `isHost`, so a host disconnect hands these off instead of
+  // freezing the match. See the `amCoordinator` comment above for the invariant.
   // -------------------------------------------------------------------------
   async function startRound() {
-    if (!isHost || !enoughPlayers || busy) return
+    if (!amCoordinator || !enoughPlayers || busy) return
     setBusy(true)
     try {
       const round = await dealRound(gameId, seatOrder(players))
@@ -235,16 +258,19 @@ export default function SpyfairGame({
   }
 
   async function beginQuestioning() {
-    if (!isHost) return
-    await update(ref(db, `games/${gameId}/round`), {
-      phase: 'questioning',
-      timerEnds: Date.now() + QUESTION_SECONDS * 1000,
+    if (!amCoordinator) return
+    await runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.phase !== 'reveal') return current
+      return { ...current, phase: 'questioning', timerEnds: Date.now() + QUESTION_SECONDS * 1000 }
     }).catch(() => {})
   }
 
   async function callVote() {
-    if (!isHost) return
-    await update(ref(db, `games/${gameId}/round`), { phase: 'vote' }).catch(() => {})
+    if (!amCoordinator) return
+    await runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.phase !== 'questioning') return current
+      return { ...current, phase: 'vote' }
+    }).catch(() => {})
   }
 
   async function resolveRound() {
@@ -301,23 +327,23 @@ export default function SpyfairGame({
     } catch { /* ignore */ }
   }
 
-  // Manual fallback for the host: tally whatever votes are in RIGHT NOW. Covers flapping
-  // presence (a gone player still reading online:true) where the auto-resolve never fires.
-  // Idempotent vs the auto path: the resolvedRef check-and-set is synchronous (no await
-  // before it), and resolveRound itself re-reads the round and bails unless phase is
-  // still 'vote' — same guards the auto-resolve effect relies on.
+  // Manual fallback for the coordinator: tally whatever votes are in RIGHT NOW. Covers
+  // flapping presence (a gone player still reading online:true) where the auto-resolve
+  // never fires. Idempotent vs the auto path: the resolvedRef check-and-set is
+  // synchronous (no await before it), and resolveRound itself re-reads the round and
+  // bails unless phase is still 'vote' — same guards the auto-resolve effect relies on.
   async function forceResolveVote() {
-    if (!isHost || phase !== 'vote' || votesCast === 0) return
+    if (!amCoordinator || phase !== 'vote' || votesCast === 0) return
     if (resolvedRef.current === 'vote') return
     resolvedRef.current = 'vote'
     await resolveRound()
   }
 
   async function nextRound() {
-    if (!isHost || busy) return
+    if (!amCoordinator || busy) return
     setBusy(true)
     try {
-      const round = await dealRound(gameId, seatOrder(players))
+      const round = await dealRound(gameId, seatOrder(players), game.round?.locationIndex ?? null)
       await update(ref(db, `games/${gameId}`), { round, proposal: null })
     } catch { /* ignore */ } finally {
       setBusy(false)
@@ -333,15 +359,15 @@ export default function SpyfairGame({
     await update(ref(db, `games/${gameId}/round/votes`), { [mySeat]: accusedId }).catch(() => {})
   }
 
-  // --- Host: once every ONLINE player has voted (min 2 votes), resolve the round. ---
+  // --- Coordinator: once every ONLINE player has voted (min 2 votes), resolve. ---
   // Also fires when the last non-voter drops offline mid-vote, un-sticking the round.
   useEffect(() => {
-    if (!isHost || phase !== 'vote' || !allOnlineVoted) return
+    if (!amCoordinator || phase !== 'vote' || !allOnlineVoted) return
     if (resolvedRef.current === 'vote') return
     resolvedRef.current = 'vote'
     resolveRound()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHost, phase, allOnlineVoted])
+  }, [amCoordinator, phase, allOnlineVoted])
 
   // -------------------------------------------------------------------------
   // Render: waiting lobby (status not playing, no live result to show)
@@ -385,7 +411,7 @@ export default function SpyfairGame({
           </ul>
         </div>
 
-        {isHost ? (
+        {amCoordinator ? (
           <div className="text-center space-y-2">
             {enoughPlayers ? (
               <button
@@ -403,7 +429,7 @@ export default function SpyfairGame({
           </div>
         ) : (
           <p className="text-center font-pixel text-[10px] text-retro-dim arcade-blink">
-            {enoughPlayers ? 'WAITING FOR HOST TO START…' : `WAITING FOR PLAYERS (${playerCount}/3)`}
+            {enoughPlayers ? 'WAITING TO START…' : `WAITING FOR PLAYERS (${playerCount}/3)`}
           </p>
         )}
 
@@ -415,14 +441,23 @@ export default function SpyfairGame({
   // -------------------------------------------------------------------------
   // Render: match over
   // -------------------------------------------------------------------------
-  if (matchWinner && game.status === 'finished' && phase === 'result') {
-    const iWon = matchWinner.playerId === mySeat
+  if (winners.length > 0 && game.status === 'finished' && phase === 'result') {
+    const iWon = winners.some(w => w.playerId === mySeat)
+    const winnerNames = winners.map(w => w.name || 'PLAYER')
+    const headline = iWon
+      ? 'YOU WIN!'
+      : winners.length > 1
+        ? `${winnerNames.join(' & ')} WIN`
+        : `${winnerNames[0]} WINS`
     return (
       <div className="space-y-5 text-center">
         <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
         <p className={cn('font-pixel text-base', iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
-          {iWon ? 'YOU WIN!' : `${matchWinner.name || 'PLAYER'} WINS`}
+          {headline}
         </p>
+        {winners.length > 1 && (
+          <p className="font-pixel text-[9px] text-retro-dim">SHARED VICTORY</p>
+        )}
         <ScoreBoard seats={seats} scores={scores} mySeat={mySeat} spyId={round.spy} />
         {!amSpectator && (
           <div className="flex flex-wrap items-center justify-center gap-2">
@@ -438,7 +473,7 @@ export default function SpyfairGame({
               onClick={() => runShare(async () => {
                 const ok = await shareResult({
                   gameLabel: 'SPYFAIR',
-                  headline: iWon ? 'YOU WIN!' : `${matchWinner.name || 'PLAYER'} WINS`,
+                  headline,
                   sub: 'Spyfair · Game Night',
                   accentVar: '--c-cta',
                   url: window.location.href,
@@ -509,7 +544,7 @@ export default function SpyfairGame({
             </div>
           )}
 
-          {isHost ? (
+          {amCoordinator ? (
             <div className="text-center">
               <button
                 onClick={beginQuestioning}
@@ -520,7 +555,7 @@ export default function SpyfairGame({
             </div>
           ) : (
             <p className="text-center font-pixel text-[10px] text-retro-dim arcade-blink">
-              WAITING FOR HOST TO START QUESTIONING…
+              WAITING TO START QUESTIONING…
             </p>
           )}
         </div>
@@ -555,7 +590,7 @@ export default function SpyfairGame({
             </div>
           )}
 
-          {isHost && (
+          {amCoordinator && (
             <div className="text-center">
               <button
                 onClick={callVote}
@@ -607,9 +642,9 @@ export default function SpyfairGame({
           <p className="text-center font-pixel text-[9px] text-retro-dim">
             {votesCast}/{playerCount} VOTED
           </p>
-          {/* Host escape hatch: presence can flap, leaving the auto-resolve waiting on a
-              seat that will never vote — let the host tally the votes cast so far. */}
-          {isHost && votesCast > 0 && (
+          {/* Coordinator escape hatch: presence can flap, leaving the auto-resolve
+              waiting on a seat that will never vote — tally the votes cast so far. */}
+          {amCoordinator && votesCast > 0 && (
             <div className="text-center space-y-1.5">
               <button
                 onClick={forceResolveVote}
@@ -662,7 +697,7 @@ export default function SpyfairGame({
 
                 <ScoreBoard seats={seats} scores={scores} mySeat={mySeat} spyId={round.spy} />
 
-                {isHost && !proposal && (
+                {amCoordinator && !proposal && (
                   <button
                     onClick={nextRound}
                     disabled={busy}
@@ -671,8 +706,8 @@ export default function SpyfairGame({
                     NEXT ROUND
                   </button>
                 )}
-                {!isHost && !proposal && (
-                  <p className="font-pixel text-[10px] text-retro-dim arcade-blink">WAITING FOR HOST…</p>
+                {!amCoordinator && !proposal && (
+                  <p className="font-pixel text-[10px] text-retro-dim arcade-blink">WAITING…</p>
                 )}
               </>
             )

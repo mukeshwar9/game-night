@@ -25,11 +25,29 @@ const eq = (a, b) => a.x === b.x && a.y === b.y
 const wrap = (n) => ((n % GRID) + GRID) % GRID
 
 /**
+ * Deterministic, seedable PRNG (a Numerical-Recipes-constants LCG) so
+ * spawnFood — and therefore createState/tick, which call it — can be
+ * reproduced in tests instead of depending on Math.random(). Callers that
+ * don't care about reproducibility can omit the seed entirely; every rng
+ * param below defaults to Math.random so production behavior is unchanged.
+ * @param {number} [seed]
+ * @returns {() => number}  a function returning a float in [0, 1)
+ */
+export function createRng(seed = Date.now()) {
+  let state = seed >>> 0
+  return () => {
+    state = (Math.imul(1664525, state) + 1013904223) >>> 0
+    return state / 4294967296
+  }
+}
+
+/**
  * Pick a random free cell for food (not on any snake body).
  * @param {object} snakes  { X: {body}, O: {body} }
+ * @param {() => number} [rng]  defaults to Math.random
  * @returns {{x,y}|null}
  */
-export function spawnFood(snakes) {
+export function spawnFood(snakes, rng = Math.random) {
   const occupied = new Set()
   for (const side of ['X', 'O']) {
     for (const seg of snakes[side].body) occupied.add(`${seg.x},${seg.y}`)
@@ -41,15 +59,16 @@ export function spawnFood(snakes) {
     }
   }
   if (!free.length) return null
-  return free[Math.floor(Math.random() * free.length)]
+  return free[Math.floor(rng() * free.length)]
 }
 
 /**
  * Build a fresh round state. X spawns left-center heading right; O spawns
  * right-center heading left. Both start with START_LEN segments.
- * @param {{ score?: {X:number,O:number} }} [opts]
+ * @param {() => number} [rng]  defaults to Math.random; pass a seeded rng
+ *   (see createRng) for reproducible food placement.
  */
-export function createState() {
+export function createState(rng = Math.random) {
   const cy = Math.floor(GRID / 2)
   const snakes = {
     X: {
@@ -65,7 +84,7 @@ export function createState() {
       eaten: 0,
     },
   }
-  return { snakes, food: spawnFood(snakes), tick: 0 }
+  return { snakes, food: spawnFood(snakes, rng), tick: 0 }
 }
 
 /**
@@ -83,9 +102,10 @@ export function createState() {
  *
  * @param {object} state
  * @param {{X?:string,O?:string}} inputs  intended direction per side ('up'|'down'|'left'|'right'); null/undefined = keep current
+ * @param {() => number} [rng]  defaults to Math.random; passed through to spawnFood on a respawn
  * @returns {{ state: object, events: Array<{type:string,by?:string,cause?:string}> }}
  */
-export function tick(state, inputs = {}) {
+export function tick(state, inputs = {}, rng = Math.random) {
   const s = {
     snakes: {
       X: { ...state.snakes.X, body: state.snakes.X.body.map(c => ({ ...c })) },
@@ -120,33 +140,46 @@ export function tick(state, inputs = {}) {
     eating[side] = !!(s.food && eq(newHeads[side], s.food))
   }
 
-  // 4. Body collisions (self + other). Check against OLD body positions,
-  //    excluding the tail of a snake that will move (i.e. isn't eating).
+  // 4. Body collisions (self + other). Check against the FROZEN pre-tick
+  //    state (`state`, not `s`) for both sides before applying either
+  //    verdict — mutating `s.snakes[side].alive` mid-loop (as this used to)
+  //    made X's collision result visible to O's check (and vice versa)
+  //    depending on iteration order, which meant which side got the
+  //    tail-vacate exemption in a same-tick double-kill was order-dependent
+  //    (host-favoring, since X is always evaluated first). Reading only
+  //    from `state` — and writing verdicts into `dies` — makes the outcome
+  //    independent of which side is evaluated first.
+  const dies = { X: false, O: false }
   for (const side of ['X', 'O']) {
-    const snake = s.snakes[side]
-    if (!snake.alive) continue
+    const frozen = state.snakes[side]
+    if (!frozen.alive) continue
     const h = newHeads[side]
 
     // Own body (exclude tail if not eating, since it vacates).
-    const ownBody = eating[side] ? snake.body : snake.body.slice(0, -1)
+    const ownBody = eating[side] ? frozen.body : frozen.body.slice(0, -1)
     if (ownBody.some(seg => eq(h, seg))) {
-      snake.alive = false
+      dies[side] = true
       events.push({ type: 'die', by: side, cause: 'self' })
       continue
     }
 
-    // Other snake's body. Always check — even dead snakes' bodies linger as
-    // obstacles. Exclude the other's tail only if it is alive AND not eating
-    // (a moving, non-growing snake vacates its tail cell).
+    // Other snake's body, read from the frozen pre-tick state. Always
+    // check — even dead snakes' bodies linger as obstacles. Exclude the
+    // other's tail only if it was alive AND not eating (a moving,
+    // non-growing snake vacates its tail cell) — evaluated from the SAME
+    // pre-tick snapshot regardless of which side is checked first.
     const other = side === 'X' ? 'O' : 'X'
-    const otherSnake = s.snakes[other]
-    const otherBody = (otherSnake.alive && !eating[other])
-      ? otherSnake.body.slice(0, -1)
-      : otherSnake.body
+    const otherFrozen = state.snakes[other]
+    const otherBody = (otherFrozen.alive && !eating[other])
+      ? otherFrozen.body.slice(0, -1)
+      : otherFrozen.body
     if (otherBody.some(seg => eq(h, seg))) {
-      snake.alive = false
+      dies[side] = true
       events.push({ type: 'die', by: side, cause: 'other' })
     }
+  }
+  for (const side of ['X', 'O']) {
+    if (dies[side]) s.snakes[side].alive = false
   }
 
   // 5. Head-on: both new heads land on the same cell.
@@ -172,7 +205,7 @@ export function tick(state, inputs = {}) {
 
   // 7. Respawn food if eaten (by any snake that ate this tick).
   if (eating.X || eating.O) {
-    s.food = spawnFood(s.snakes)
+    s.food = spawnFood(s.snakes, rng)
   }
 
   return { state: s, events }

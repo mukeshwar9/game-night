@@ -30,7 +30,7 @@ export function applyVmMove(game, cellIndex, symbol) {
   if (clicked.includes(cellIndex)) return null  // already clicked this cell
 
   if (!pattern.includes(cellIndex)) {
-    return { updates: {}, result: { winner: opponent } }
+    return { updates: { vmDeadline: null }, result: { winner: opponent } }
   }
 
   const newClicked = [...clicked, cellIndex]
@@ -41,6 +41,7 @@ export function applyVmMove(game, cellIndex, symbol) {
         vmPattern: generateVmPattern(level + 1),
         vmClicked: null,
         currentTurn: opponent,
+        vmDeadline: null,
       },
       result: null,
     }

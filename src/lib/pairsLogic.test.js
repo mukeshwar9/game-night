@@ -85,17 +85,17 @@ describe('applyPairsMove', () => {
     expect(applyPairsMove(board, deck, [], 3, 'X')).toBeNull()
   })
 
-  it('is illegal when index is already in flipped (flipped.length === 1 self-retap)', () => {
+  it('is illegal when index is your own currently-held first pick (flipped.length === 1 self-retap)', () => {
     const board = emptyBoard()
     const deck = generatePairsDeck()
     expect(applyPairsMove(board, deck, [5], 5, 'X')).toBeNull()
   })
 
-  it('is illegal when index is already in flipped (flipped.length === 2 stale mismatch retap)', () => {
+  it('a leftover mismatch pair (flipped.length === 2) is NOT dead — tapping either of its own cells starts a fresh first flip', () => {
     const board = emptyBoard()
     const deck = generatePairsDeck()
-    expect(applyPairsMove(board, deck, [4, 9], 4, 'X')).toBeNull()
-    expect(applyPairsMove(board, deck, [4, 9], 9, 'X')).toBeNull()
+    expect(applyPairsMove(board, deck, [4, 9], 4, 'X')).toEqual({ board, flipped: [4], turnStays: true, matched: false })
+    expect(applyPairsMove(board, deck, [4, 9], 9, 'X')).toEqual({ board, flipped: [9], turnStays: true, matched: false })
   })
 
   it('is illegal when index is out of range', () => {

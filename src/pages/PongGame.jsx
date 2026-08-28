@@ -9,7 +9,7 @@ import TouchCoachmark from '../components/TouchCoachmark'
 import { usePongControls } from '../hooks/usePongControls'
 import { useRealtimePeer } from '../lib/realtime/useRealtimePeer'
 import {
-  createState, step, getWinner, WIN_SCORE, PADDLE_SPEED, PADDLE_H,
+  createState, step, getWinner, nextServeTo, WIN_SCORE, PADDLE_SPEED, PADDLE_H,
 } from '../lib/pongLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -20,6 +20,7 @@ const DT = 1 / 120            // fixed physics timestep
 const SNAPSHOT_MS = 33        // ~30 Hz host → guest state snapshots
 const INPUT_MS = 33           // ~30 Hz guest → host input
 const COUNTDOWN_MS = 2000     // "get ready" before the first serve
+const RECONCILE_LERP = 0.2    // guest: per-frame correction of predicted own paddle toward the host's value
 const HALF = PADDLE_H / 2
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v)
@@ -123,6 +124,8 @@ export default function PongGame({
   const predRef = useRef(0.5)          // guest: locally-predicted own paddle y
   const simRef = useRef(null)          // host: authoritative simulation state
   const finishedRef = useRef(false)
+  const lastServeToRef = useRef(null)  // host: who served the previous round, for alternation
+  const connectedAtRef = useRef(0)     // guest: perf time the connection reached 'connected', for the local countdown
 
   const onMessage = useCallback((msg) => {
     if (msg.t === 's') { snapRef.current = msg; snapAtRef.current = performance.now() }
@@ -165,7 +168,14 @@ export default function PongGame({
   // --- Host: authoritative simulation loop ---
   useEffect(() => {
     if (isSpectator || !isHost || game.status !== 'playing') return
-    simRef.current = createState({ score: { X: game.pongScoreX ?? 0, O: game.pongScoreO ?? 0 } })
+    // M-?: alternate which side receives the opening serve each round —
+    // nextServeTo flips from the previous round's server, or picks randomly
+    // for the very first round of the session — so serve advantage doesn't
+    // favor the same side every round (createState's own default always
+    // opened toward 'O').
+    const serveTo = nextServeTo(lastServeToRef.current)
+    lastServeToRef.current = serveTo
+    simRef.current = createState({ score: { X: game.pongScoreX ?? 0, O: game.pongScoreO ?? 0 }, serveTo })
     finishedRef.current = false
     let raf, last = performance.now(), acc = 0, lastSnap = 0, startAt = 0
 
@@ -239,6 +249,7 @@ export default function PongGame({
   useEffect(() => {
     if (isSpectator || isHost || game.status !== 'playing') return
     predRef.current = 0.5
+    connectedAtRef.current = 0
     let raf, last = performance.now(), lastInput = 0
     const loop = (now) => {
       raf = requestAnimationFrame(loop)
@@ -247,6 +258,19 @@ export default function PongGame({
       const dir = getDir(predRef.current)
       predRef.current = clamp(predRef.current + dir * PADDLE_SPEED * dt, HALF, 1 - HALF)
       if (now - lastInput >= INPUT_MS) { lastInput = now; peerSend({ t: 'i', d: dir }) }
+
+      // M-?: mirror the host's "hold the serve until connected, then count
+      // down COUNTDOWN_MS" window locally — the host never sends this over
+      // the wire, so derive it from the same connRef transition the host
+      // gates its own loop on.
+      if (connRef.current === 'connected') {
+        if (!connectedAtRef.current) connectedAtRef.current = now
+      } else {
+        connectedAtRef.current = 0
+      }
+      const countdown = connectedAtRef.current
+        ? Math.max(0, Math.ceil((connectedAtRef.current + COUNTDOWN_MS - now) / 1000))
+        : 0
 
       const snap = snapRef.current
       let ball = { x: 0.5, y: 0.5 }, paddleX = 0.5
@@ -262,8 +286,15 @@ export default function PongGame({
         scoreX = snap.x; scoreO = snap.o
         serving = snap.b[2] === 0 && snap.b[3] === 0
         fxState = expandFx(snap.fx)
+        // M-?: the guest predicts its own paddle locally for zero-lag input,
+        // but the host is the collision authority and computes its own copy
+        // of the guest's paddle (snap.p[1]) from delayed network input —
+        // without correction the two permanently disagree. Blend the local
+        // prediction toward the host's value each frame rather than
+        // snapping to it, so responsiveness is preserved.
+        predRef.current = clamp(predRef.current + (snap.p[1] - predRef.current) * RECONCILE_LERP, HALF, 1 - HALF)
       }
-      setRender({ ball, paddles: { X: paddleX, O: predRef.current }, scoreX, scoreO, countdown: 0, serving, ...fxState })
+      setRender({ ball, paddles: { X: paddleX, O: predRef.current }, scoreX, scoreO, countdown, serving, ...fxState })
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)

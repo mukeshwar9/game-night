@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ref, runTransaction } from 'firebase/database'
+import { ref, runTransaction, onValue } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
@@ -9,6 +9,7 @@ import OfflineNotice from '../components/loading/OfflineNotice'
 import { generateQuestion, GAME_MS, questionMsForIndex } from '../lib/mathLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 // ── small helpers ────────────────────────────────────────────────────
 
@@ -143,6 +144,7 @@ export default function MathGame({
   const [lastResult, setLastResult]   = useState(null) // { correct, pts } | null
   const [now, setNow]                 = useState(() => Date.now())
   const [qElapsed, setQElapsed]       = useState(0)
+  const [clockOffset, setClockOffset] = useState(0)
 
   const hasAutoAdvancedRef = useRef(null)
   const hasFinishedRef     = useRef(false)
@@ -156,10 +158,20 @@ export default function MathGame({
   const endTime    = game.mathEndTime   ?? null
   const seed       = game.mathSeed      ?? null
 
-  const isCountdown  = !!startedAt && now < startedAt + 3000
-  const isPlaying    = !!startedAt && now >= startedAt + 3000 && game.status !== 'finished'
-  const countdownSec = isCountdown ? Math.ceil((startedAt + 3000 - now) / 1000) : 0
-  const timeLeftMs   = endTime ? Math.max(0, endTime - now) : GAME_MS
+  // Corrected clock — every deadline comparison runs through this offset
+  // (mirrors TriviaGame.jsx) so mathStartedAt/mathEndTime compare against
+  // server time, not each device's possibly-skewed local clock.
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = now + clockOffset
+
+  const isCountdown  = !!startedAt && serverNow < startedAt + 3000
+  const isPlaying    = !!startedAt && serverNow >= startedAt + 3000 && game.status !== 'finished'
+  const countdownSec = isCountdown ? Math.ceil((startedAt + 3000 - serverNow) / 1000) : 0
+  const timeLeftMs   = endTime ? Math.max(0, endTime - serverNow) : GAME_MS
   const questionMs   = questionMsForIndex(myQIndex)
   const qPct         = Math.max(0, 1 - qElapsed / questionMs)
   const qCritical    = isPlaying && questionMs - qElapsed <= 2000
@@ -242,14 +254,14 @@ export default function MathGame({
       }
 
       // Check game end
-      if (isPlaying && endTime && n >= endTime && !hasFinishedRef.current) {
+      if (isPlaying && endTime && n + clockOffset >= endTime && !hasFinishedRef.current) {
         hasFinishedRef.current = true
         tryFinishGame()
       }
     }, 100)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- advanceQuestion/tryFinishGame are recreated every render; adding them would tear down and restart this interval on every tick
-  }, [startedAt, game.status, isPlaying, mySymbol, myQIndex, endTime])
+  }, [startedAt, game.status, isPlaying, mySymbol, myQIndex, endTime, clockOffset])
 
   // ── Firebase transactions ─────────────────────────────────────────
 
@@ -258,7 +270,7 @@ export default function MathGame({
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || current.mathStartedAt) return
-        const t = Date.now()
+        const t = Date.now() + clockOffset
         return {
           ...current,
           mathStartedAt: t,
@@ -320,9 +332,15 @@ export default function MathGame({
       if (result.committed && result.snapshot.val()) {
         const after = result.snapshot.val()
         const wasCorrect = (after[`mathQIndex${myKey}`] ?? 0) > myQIndex
+        // Points come from the transaction's committed streak, not the local
+        // myStreak snapshot taken at render time — myStreak can be one step
+        // behind the write that just landed (stale-streak "+N" display bug).
+        // after[streak] is post-increment on a correct answer, so the streak
+        // tier that decided this answer's multiplier is one less than that.
+        const preAnswerStreak = wasCorrect ? (after[`mathStreak${myKey}`] ?? 1) - 1 : 0
         const speed = speedPtsFor(elapsed, questionMsForIndex(myQIndex))
         const power = q.isPower ? 2 : 1
-        const mult  = myStreak >= 3 ? 2 : 1
+        const mult  = preAnswerStreak >= 3 ? 2 : 1
         const pts   = wasCorrect ? speed * power * mult : 0
         setLastResult({ correct: wasCorrect, pts })
         if (wasCorrect) sounds.hit(after[`mathStreak${myKey}`] ?? 1)
@@ -331,8 +349,23 @@ export default function MathGame({
           // brief feedback (shows the right answer), then move to my next question — no lockout
           setTimeout(() => advanceQuestion(myQIndex), WRONG_FEEDBACK_MS)
         }
+      } else {
+        // Aborted commit (updateFn returned undefined — e.g. the game finished
+        // mid-flight, or my question index already moved on from a concurrent
+        // auto-timeout). Re-sync local state instead of leaving the pad stuck
+        // on "CHECKING..." forever.
+        submittingRef.current = false
+        setHasAnswered(false)
+        setLastResult(null)
       }
-    } catch { /* retry; result will show via firebase update */ }
+    } catch {
+      // Thrown runTransaction (e.g. offline/permission-denied): revert so the
+      // pad re-enables instead of soft-locking on "CHECKING...".
+      submittingRef.current = false
+      setHasAnswered(false)
+      setLastResult(null)
+      toast.error('ANSWER FAILED — RETRY')
+    }
   }
 
   // ── render: finished ─────────────────────────────────────────────

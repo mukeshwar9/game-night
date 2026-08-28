@@ -13,6 +13,8 @@ import { useCallback, useEffect, useRef } from 'react'
 export function usePaintControls(arenaRef, enabled = true) {
   const pendingRef = useRef(null)
   const touchStart = useRef(null)
+  const anchorRef = useRef(null)
+  const movedRef = useRef(false)
 
   useEffect(() => {
     if (!enabled) return
@@ -33,26 +35,53 @@ export function usePaintControls(arenaRef, enabled = true) {
     return () => window.removeEventListener('keydown', onDown)
   }, [enabled])
 
+  // Hold-and-drag re-anchoring (mirrors usePacmacControls' pattern): a swipe
+  // re-anchors every time it crosses THRESHOLD so a held drag keeps steering
+  // continuously instead of firing once per discrete lift-and-reswipe
+  // ("phantom turns") — and pointercancel (e.g. an OS gesture stealing the
+  // pointer mid-drag) clears state instead of leaving a stale anchor.
   useEffect(() => {
     const el = arenaRef.current
     if (!el || !enabled) return
-    const onDown = (e) => { touchStart.current = { x: e.clientX, y: e.clientY } }
-    const onUp = (e) => {
-      if (!touchStart.current) return
-      const dx = e.clientX - touchStart.current.x
-      const dy = e.clientY - touchStart.current.y
-      touchStart.current = null
-      if (Math.abs(dx) < 16 && Math.abs(dy) < 16) return
-      let dir
-      if (Math.abs(dx) > Math.abs(dy)) dir = dx > 0 ? 'right' : 'left'
-      else dir = dy > 0 ? 'down' : 'up'
-      pendingRef.current = dir
+    const THRESHOLD = 16
+    const dirFromDelta = (dx, dy) => (
+      Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')
+    )
+    const onDown = (e) => {
+      touchStart.current = { x: e.clientX, y: e.clientY }
+      anchorRef.current = { x: e.clientX, y: e.clientY }
+      movedRef.current = false
     }
+    const onMove = (e) => {
+      if (!touchStart.current || !anchorRef.current) return
+      const dx = e.clientX - anchorRef.current.x
+      const dy = e.clientY - anchorRef.current.y
+      if (Math.abs(dx) < THRESHOLD && Math.abs(dy) < THRESHOLD) return
+      pendingRef.current = dirFromDelta(dx, dy)
+      anchorRef.current = { x: e.clientX, y: e.clientY }
+      movedRef.current = true
+    }
+    const onUp = (e) => {
+      const start = touchStart.current
+      touchStart.current = null
+      anchorRef.current = null
+      if (movedRef.current) { movedRef.current = false; return }
+      if (!start) return
+      const dx = e.clientX - start.x
+      const dy = e.clientY - start.y
+      if (Math.abs(dx) < THRESHOLD && Math.abs(dy) < THRESHOLD) return
+      pendingRef.current = dirFromDelta(dx, dy)
+    }
+    const onCancel = () => { touchStart.current = null; anchorRef.current = null; movedRef.current = false }
     el.addEventListener('pointerdown', onDown)
+    el.addEventListener('pointermove', onMove)
     el.addEventListener('pointerup', onUp)
+    el.addEventListener('pointercancel', onCancel)
     return () => {
       el.removeEventListener('pointerdown', onDown)
+      el.removeEventListener('pointermove', onMove)
       el.removeEventListener('pointerup', onUp)
+      el.removeEventListener('pointercancel', onCancel)
     }
   }, [arenaRef, enabled])
 

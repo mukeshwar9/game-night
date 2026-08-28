@@ -64,6 +64,11 @@ export function flippedBy(board, index, symbol) {
   return flips
 }
 
+// True iff `symbol` playing at `index` flanks ≥1 disc (i.e. is a legal move).
+export function isLegalReversiMove(board, index, symbol) {
+  return flippedBy(board, index, symbol).length > 0
+}
+
 // All indices where `symbol` has a legal move (flanks ≥1 disc).
 export function legalMoves(board, symbol) {
   const moves = []

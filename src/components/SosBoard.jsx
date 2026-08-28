@@ -5,13 +5,14 @@ import { SOS_SIZE } from '../lib/sosLogic'
 export default function SosBoard({ board, onMove, disabled, currentTurn, sosLines, lastMove = null }) {
   const [selectedLetter, setSelectedLetter] = useState('S')
 
-  // Build a map from cell index to the most recent scorer's symbol
-  // (last entry wins when a cell appears in multiple lines)
-  const cellScorer = {}
+  // Build a map from cell index to the set of scorers who claimed it
+  // (a cell can be scored by both players across overlapping lines — keep both).
+  const cellScorers = {}
   const lines = sosLines || []
   for (const line of lines) {
     for (const cell of line.cells) {
-      cellScorer[cell] = line.by
+      const set = cellScorers[cell] || (cellScorers[cell] = new Set())
+      set.add(line.by)
     }
   }
 
@@ -23,7 +24,9 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
     const row = Math.floor(i / SOS_SIZE)
     const col = i % SOS_SIZE
     const letter = board[i]
-    const scorer = cellScorer[i]
+    const scorers = cellScorers[i]
+    const scoredByX = scorers?.has('X')
+    const scoredByO = scorers?.has('O')
     const isOccupied = letter !== ''
     const isClickable = !disabled && !isOccupied
 
@@ -37,11 +40,13 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
           'aspect-square flex items-center justify-center',
           'border border-retro-border/60 rounded-sm',
           'transition-all duration-100',
-          scorer === 'X'
-            ? 'bg-retro-p1/15 shadow-[inset_0_0_4px_rgba(0,255,255,0.25)]'
-            : scorer === 'O'
-              ? 'bg-retro-p2/15 shadow-[inset_0_0_4px_rgba(255,0,128,0.25)]'
-              : '',
+          scoredByX && scoredByO
+            ? 'bg-gradient-to-br from-retro-p1/20 to-retro-p2/20 shadow-[inset_0_0_4px_rgb(var(--c-p1)/0.2),inset_0_0_4px_rgb(var(--c-p2)/0.2)]'
+            : scoredByX
+              ? 'bg-retro-p1/15 shadow-[inset_0_0_4px_rgb(var(--c-p1)/0.25)]'
+              : scoredByO
+                ? 'bg-retro-p2/15 shadow-[inset_0_0_4px_rgb(var(--c-p2)/0.25)]'
+                : '',
           // M-47: persistent marker on the most recently placed letter
           i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
           isClickable && !isOccupied
@@ -69,15 +74,45 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
             disabled && 'opacity-60 saturate-50',
           )}
         >
-          <div
-            className="w-full"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${SOS_SIZE}, minmax(0, 1fr))`,
-              gap: '3px',
-            }}
-          >
-            {cells}
+          <div className="relative w-full">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${SOS_SIZE}, minmax(0, 1fr))`,
+                gap: '3px',
+              }}
+            >
+              {cells}
+            </div>
+            {/* SVG overlay: draws a strike line across each completed S-O-S triple
+                so overlapping scores stay auditable, not just tinted. */}
+            {lines.length > 0 && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox={`0 0 ${SOS_SIZE} ${SOS_SIZE}`}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                {lines.map((line, idx) => {
+                  const [a, , c] = line.cells
+                  const ar = Math.floor(a / SOS_SIZE) + 0.5
+                  const ac = (a % SOS_SIZE) + 0.5
+                  const cr = Math.floor(c / SOS_SIZE) + 0.5
+                  const cc = (c % SOS_SIZE) + 0.5
+                  const color = line.by === 'X' ? 'rgb(var(--c-p1))' : 'rgb(var(--c-p2))'
+                  return (
+                    <line
+                      key={idx}
+                      x1={ac} y1={ar} x2={cc} y2={cr}
+                      stroke={color}
+                      strokeWidth={0.08}
+                      strokeLinecap="round"
+                      opacity={0.85}
+                    />
+                  )
+                })}
+              </svg>
+            )}
           </div>
         </div>
 

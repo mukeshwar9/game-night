@@ -11,14 +11,32 @@ export const MALLET_R = 0.06
 export const PUCK_R = 0.035
 export const GOAL_HALF_W = 0.175 // mouth ~35% of court width
 export const WIN_SCORE = 7
+export const MAX_MALLET_SPEED = 3.0 // exported for tests — see const block below
 
 const FRICTION_U = 0.25          // v *= (1 - μ·dt)
 const WALL_RESTITUTION = 0.92
 const MALLET_K = 0.6             // flick injection factor — #1 tuning knob
 const MAX_SPEED = 2.2            // court-heights/s clamp
+// MAX_MALLET_SPEED (exported above) clamps the mallet's DERIVED velocity — a
+// touch/network position jump (coalesced pointermove, a guest snapshot
+// resync) shouldn't be able to inject an unrealistic instantaneous "flick"
+// into the puck via MALLET_K.
 const STUCK_MS = 1500
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
+
+// Clamp a raw target position to the symbol's half + the table bounds — the
+// exact rule trackVelocity() applies each tick. Exported so the page's guest
+// prediction can compute precisely where the host's sim will place a mallet
+// for a given target, without duplicating this math (mallets are
+// position-driven — no lag beyond this clamp — so this alone is a correct
+// zero-input-lag local prediction of the guest's own mallet).
+export function clampMalletTarget(symbol, x, y) {
+  const halfTop = symbol === 'O'
+  const minY = halfTop ? MALLET_R : COURT_H / 2 + MALLET_R
+  const maxY = halfTop ? COURT_H / 2 - MALLET_R : COURT_H - MALLET_R
+  return { x: clamp(x, MALLET_R, COURT_W - MALLET_R), y: clamp(y, minY, maxY) }
+}
 
 export function createState() {
   return {
@@ -37,25 +55,32 @@ export function createState() {
     serveTo: 'X',       // conceded player receives the serve
     serveTimer: 1000,   // ms remaining before live puck
     stuckMs: 0,
+    tick: 0,            // parity drives collision-resolution order — see step()
   }
 }
 
 // Mallets are position-driven: velocity derived from position delta each tick.
 function trackVelocity(state, symbol, targetX, targetY, dt) {
   const m = state.mallets[symbol]
-  const halfTop = symbol === 'O'
-  const minY = halfTop ? MALLET_R : COURT_H / 2 + MALLET_R
-  const maxY = halfTop ? COURT_H / 2 - MALLET_R : COURT_H - MALLET_R
-  const nx = clamp(targetX, MALLET_R, COURT_W - MALLET_R)
-  const ny = clamp(targetY, minY, maxY)
-  const vx = dt > 0 ? (nx - m.x) / dt : 0
-  const vy = dt > 0 ? (ny - m.y) / dt : 0
+  const { x: nx, y: ny } = clampMalletTarget(symbol, targetX, targetY)
+  let vx = dt > 0 ? (nx - m.x) / dt : 0
+  let vy = dt > 0 ? (ny - m.y) / dt : 0
+  const sp = Math.hypot(vx, vy)
+  if (sp > MAX_MALLET_SPEED) {
+    vx = (vx / sp) * MAX_MALLET_SPEED
+    vy = (vy / sp) * MAX_MALLET_SPEED
+  }
   m.x = nx
   m.y = ny
   state.velocities[symbol] = { vx, vy }
 }
 
-// Circle–circle impulse vs infinite-mass mallet + flick injection.
+// Circle–circle impulse vs infinite-mass mallet + flick injection. Mutates
+// `state.puck` in place (positional correction) — when both mallets overlap
+// the puck at once (a pinch), whichever symbol resolves FIRST sees the
+// pre-correction puck position and wins the positional push; resolving
+// X then O every substep would bias every pinch toward X. Callers alternate
+// the resolution order by tick/substep parity to keep this fair — see step().
 function collideMalletPuck(state, symbol, events) {
   const p = state.puck
   const m = state.mallets[symbol]
@@ -96,6 +121,7 @@ export function step(state, inputs, dt) {
       O: { ...state.velocities.O },
     },
     score: { ...state.score },
+    tick: (state.tick ?? 0) + 1,
   }
 
   // Serve delay countdown — mallets move, puck frozen at center-ish.
@@ -158,8 +184,15 @@ export function step(state, inputs, dt) {
       }
     }
 
-    collideMalletPuck(s, 'X', events)
-    collideMalletPuck(s, 'O', events)
+    // Alternate resolution order by (tick + substep) parity — see
+    // collideMalletPuck's header comment for why order matters on a pinch.
+    if ((s.tick + i) % 2 === 0) {
+      collideMalletPuck(s, 'X', events)
+      collideMalletPuck(s, 'O', events)
+    } else {
+      collideMalletPuck(s, 'O', events)
+      collideMalletPuck(s, 'X', events)
+    }
   }
 
   // Stuck detector: near-zero speed while overlapping either mallet too long
@@ -201,7 +234,11 @@ export function getWinner(state) {
 }
 
 // Reaction-delay AI for demo mode. difficulty ∈ {easy, normal, hard}.
-export function computeAI(state, difficulty = 'normal') {
+// `dt` (seconds) scales the per-call step toward the target — callers
+// invoking this once per physics substep (dt ≈ 1/120) must pass the
+// substep's own dt, not a fixed per-frame constant, or the AI's effective
+// speed becomes substep-count-dependent instead of difficulty-dependent.
+export function computeAI(state, difficulty = 'normal', dt = 1 / 120) {
   const cfg = {
     easy: { reactMs: 420, error: 0.12, speed: 0.55 },
     normal: { reactMs: 240, error: 0.06, speed: 0.75 },
@@ -228,11 +265,14 @@ export function computeAI(state, difficulty = 'normal') {
     ty = Math.min(defendY, Math.max(MALLET_R, p.y - 0.22))
   }
 
-  // Move toward target limited by speed factor of the tick distance.
+  // Move toward target limited by speed factor of the elapsed time — scaled
+  // by dt (not a fixed per-call constant) so calling this once per physics
+  // substep doesn't multiply the AI's effective speed by the substep count.
+  // 3.6 keeps the old fixed-0.06-per-call feel at a 1/60s reference dt.
   const dx = tx - me.x
   const dy = ty - me.y
   const dist = Math.hypot(dx, dy)
-  const maxStep = cfg.speed * 0.06
+  const maxStep = cfg.speed * 3.6 * dt
   const scale = dist > maxStep ? maxStep / dist : 1
   return {
     x: me.x + dx * scale,

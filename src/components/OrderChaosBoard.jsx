@@ -24,11 +24,7 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
           'aspect-square flex items-center justify-center',
           'border border-retro-border/60 rounded-sm',
           'transition-all duration-100',
-          isOccupied
-            ? letter === 'X'
-              ? 'bg-retro-p1/10'
-              : 'bg-retro-p2/10'
-            : '',
+          isOccupied && 'bg-retro-structure/10',
           isWin && 'bg-retro-win/20 shadow-neon-win',
           // M-47: persistent marker on the most recently placed letter
           !isWin && i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
@@ -42,8 +38,7 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
         {isOccupied && (
           <span
             className={cn(
-              'font-pixel text-[11px] leading-none',
-              letter === 'X' ? 'text-retro-p1' : 'text-retro-p2',
+              'font-pixel text-[11px] leading-none text-retro-text',
               isWin && 'text-retro-win text-glow-win',
             )}
           >

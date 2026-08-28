@@ -67,10 +67,6 @@ export const CF5_ROWS = 7;
 export const CF5_BOARD_SIZE = 63;
 export const CF5 = { cols: 9, rows: 7, winRun: 5 };
 
-// Classic Connect Four now plays on a 9×7 grid (four in a row still wins).
-// Pop Out keeps the original 7×6 board, so the DEFAULT_* constants above stay
-// at 7×6 and the bigger classic board passes this config explicitly.
-export const CF_BIG_COLS = 9;
-export const CF_BIG_ROWS = 7;
-export const CF_BIG_BOARD_SIZE = 63;
-export const CF_BIG = { cols: 9, rows: 7, winRun: 4 };
+// Classic Connect Four plays on the original 7×6 board (DEFAULT_* above).
+// The 9×7 board is used by the Connect 5 variant (CF5 above), which also
+// raises the win run to 5. Pop Out keeps the classic 7×6 board too.

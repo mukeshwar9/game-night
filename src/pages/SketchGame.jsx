@@ -19,6 +19,7 @@ import {
   roundDeltas,
   deriveWord,
 } from '../lib/sketchLogic'
+import { isCoordinator } from '../lib/coordinator'
 import { SKETCH_WORDS } from '../lib/decks/sketch'
 import SketchCanvas from '../components/SketchCanvas'
 import Avatar from '../components/Avatar'
@@ -31,6 +32,9 @@ import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
 
 const MIN_PLAYERS = 2
+const MAX_GUESS_LEN = 40
+const MIN_GUESS_INTERVAL_MS = 500
+const MAX_CHAT_FEED = 60 // cap how much of the guess feed we render
 
 // ---------------------------------------------------------------------------
 // useServerNow — .info/serverTimeOffset corrected clock, ticking every 250ms
@@ -130,6 +134,12 @@ export default function SketchGame({
   const isPlayer = !!mySeat && !!players?.[mySeat]
   const guesserIds = round ? activeGuessers(players || {}, round.order, round.artist) : []
   const haveIGuessedCorrectly = !!round?.correct?.[mySeat]
+  // Deterministic host-fallback: the coordinator is the lowest-uid ONLINE seat, not
+  // the fixed `isHost` — so a host disconnect hands phase-advance duty off instead
+  // of freezing the match. Every `isHost`-gated auto-advance/skip below now gates
+  // on this; each write re-checks phase inside its transaction, so a coordinator
+  // handover mid-transition stays single-writer/idempotent.
+  const amCoordinator = isPlayer && isCoordinator(mySeat, seatOrder(players || {}), players)
 
   const [guessInput, setGuessInput] = useState('')
   const [derivedWord, setDerivedWord] = useState(null)
@@ -164,6 +174,7 @@ export default function SketchGame({
   const drawEndsAtStoredRef = useRef(null)            // last `drawEndsAt` value already pushed into state
   const artistOfflineSinceStoredRef = useRef(null)    // last `artistOfflineSince` value already pushed into state
   const chatRef = useRef(null)
+  const lastGuessAtRef = useRef(0)                    // client-side guess throttle (see MIN_GUESS_INTERVAL_MS)
 
   // Always-fresh ref mirror of `round` — updated post-render (in an effect, not
   // during render, so this stays clear of the "no ref access during render"
@@ -218,12 +229,17 @@ export default function SketchGame({
   }, [mySeat, gameId, now])
 
   // ---- Guesser: submit a guess — correct locks in via commit verification --
+  // Throttled client-side (min 500ms between guesses) so a fast-tapping/scripted
+  // client can't spam unthrottled writes into the shared chat feed.
   const handleSubmitGuess = useCallback(async () => {
     const r = roundRef.current
     if (!r || r.phase !== 'drawing') return
     if (r.artist === mySeat || r.correct?.[mySeat] || correctSentRef.current) return
-    const raw = guessInput.trim()
+    const nowTs = Date.now()
+    if (nowTs - lastGuessAtRef.current < MIN_GUESS_INTERVAL_MS) return
+    const raw = guessInput.trim().slice(0, MAX_GUESS_LEN)
     if (!raw) return
+    lastGuessAtRef.current = nowTs
     try {
       const isCorrect = r.commitment
         ? await verifyReveal(r.commitment.hash, normalize(raw), r.commitment.salt)
@@ -411,23 +427,25 @@ export default function SketchGame({
     }
   }, [round?.phase, round?.artist, players, nowMs]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- Host: drawing -> reveal, automatically, on timeout or all-correct --
+  // ---- Coordinator: drawing -> reveal, automatically, on timeout or all-correct --
   useEffect(() => {
-    if (!isHost || !round || round.phase !== 'drawing') return
+    if (!amCoordinator || !round || round.phase !== 'drawing') return
     const allCorrect = guesserIds.length > 0 && guesserIds.every(id => round.correct?.[id])
     const timedOut = nowMs >= (round.endsAt || 0)
     if (allCorrect || timedOut) advanceDrawingToReveal()
-  }, [isHost, round?.phase, round?.endsAt, round?.correct, guesserIds.join(','), nowMs, advanceDrawingToReveal]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [amCoordinator, round?.phase, round?.endsAt, round?.correct, guesserIds.join(','), nowMs, advanceDrawingToReveal]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- Host: reveal -> next round, automatically, on timeout --------------
+  // ---- Coordinator: reveal -> next round, automatically, on timeout --------------
   useEffect(() => {
-    if (!isHost || !round || round.phase !== 'reveal') return
+    if (!amCoordinator || !round || round.phase !== 'reveal') return
     if (nowMs < (round.endsAt || 0)) return
     advanceRevealToNext(round.endsAt)
-  }, [isHost, round?.phase, round?.endsAt, nowMs, advanceRevealToNext]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [amCoordinator, round?.phase, round?.endsAt, nowMs, advanceRevealToNext]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Chat auto-scroll.
-  const chatEntries = round ? Object.entries(round.chat || {}).sort(([a], [b]) => (a < b ? -1 : 1)) : []
+  // Chat auto-scroll. Rendered feed is capped (MAX_CHAT_FEED) — a spammy/scripted
+  // guesser can still push many entries, but the DOM never has to render all of them.
+  const allChatEntries = round ? Object.entries(round.chat || {}).sort(([a], [b]) => (a < b ? -1 : 1)) : []
+  const chatEntries = allChatEntries.slice(-MAX_CHAT_FEED)
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
   }, [chatEntries.length])
@@ -549,9 +567,9 @@ export default function SketchGame({
   // -------------------------------------------------------------------------
   const artistName = (players[round.artist]?.name || '???').toUpperCase()
   const totalCycles = cyclesFor(round.order.length)
-  const showChoosingSkip = isHost && round.phase === 'choosing' && nowMs >= (round.endsAt || 0) + SKIP_CHOOSING_GRACE_MS
+  const showChoosingSkip = amCoordinator && round.phase === 'choosing' && nowMs >= (round.endsAt || 0) + SKIP_CHOOSING_GRACE_MS
   const artistOfflineMs = artistOfflineSince != null ? nowMs - artistOfflineSince : 0
-  const showArtistOfflineSkip = isHost && round.phase === 'drawing' && artistOfflineMs >= ARTIST_OFFLINE_DRAWING_MS
+  const showArtistOfflineSkip = amCoordinator && round.phase === 'drawing' && artistOfflineMs >= ARTIST_OFFLINE_DRAWING_MS
 
   const revealGuesserIds = activeGuessers(players || {}, round.order, round.artist)
   const revealDeltas = round.phase === 'reveal'
@@ -649,6 +667,7 @@ export default function SketchGame({
                 onChange={e => setGuessInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && runGuess(handleSubmitGuess)}
                 autoFocus
+                maxLength={MAX_GUESS_LEN}
                 placeholder="TYPE YOUR GUESS…"
                 className="flex-1 bg-retro-surface border-2 border-retro-border text-retro-text font-mono text-[12px] rounded px-3 py-2 focus:outline-none focus:border-retro-p1"
               />
@@ -685,7 +704,7 @@ export default function SketchGame({
               <button
                 onClick={() => runSkipDrawing(() => advanceDrawingToReveal())}
                 disabled={skippingDrawing}
-                className="px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
               >
                 {skippingDrawing ? 'SKIPPING…' : 'SKIP ROUND'}
               </button>

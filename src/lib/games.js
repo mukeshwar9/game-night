@@ -84,7 +84,6 @@ import {
 } from './pairsLogic'
 import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
 import { ANSWER_MS as HERD_ANSWER_MS } from './herdLogic'
-import { QUESTION_MS as TRIVIA_QUESTION_MS } from './triviaLogic'
 import MancalaBoard from '../components/MancalaBoard'
 import {
   INITIAL_PITS,
@@ -98,6 +97,7 @@ import { getTicTacToe4Winner } from './tictactoe4Logic'
 import { applyDiceBigMove } from './diceLogic'
 import HexBoard from '../components/HexBoard'
 import { getHexWinner, HEX_CELL_COUNT } from './hexLogic'
+import { generateNumber } from './numberMemoryLogic'
 
 const PASSAGES = [
   "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. A wizard's job is to vex chumps quickly in fog.",
@@ -114,11 +114,7 @@ const PASSAGES = [
   "The secret of getting ahead is getting started. Break your tasks into small steps and tackle one at a time. Progress, not perfection, is the goal.",
 ]
 
-function generateNumber(level) {
-  let n = String(Math.floor(Math.random() * 9) + 1)
-  for (let i = 1; i < level; i++) n += String(Math.floor(Math.random() * 10))
-  return n
-}
+// generateNumber moved to numberMemoryLogic.js (single tested source).
 
 function dotsAndBoxesMove(size) {
   const { boxCount } = dbConfig(size)
@@ -692,7 +688,10 @@ export const GAME_TYPES = [
         phase: 'question',
         qNum: 0,
         deckSeed: Math.floor(Math.random() * 2147483647),
-        qStartAt: Date.now() + TRIVIA_QUESTION_MS,
+        // Question START, not deadline — the page computes the deadline as
+        // qStartAt + QUESTION_MS. Stamping this in the future gave everyone
+        // a 30s Q1 with free max-speed points.
+        qStartAt: Date.now(),
         answers: null,
       },
     }),
@@ -953,11 +952,14 @@ export const getPlayerTag = (cfg) =>
 const FIELD_NULLS = {
   uWon: null, uActiveBoard: null,
   passNote: null,
+  lastFrom: null, lastTo: null,
   sosLines: null,
   simonSequence: null, simonProgress: null,
+  simonDeadline: null, vmDeadline: null,
   chimpLevel: null, chimpLayout: null,
   chimpProgressX: null, chimpProgressO: null,
   chimpDoneX: null, chimpDoneO: null,
+  chimpRoundStartedAt: null,
   vmLevel: null, vmPattern: null, vmClicked: null,
   numRound: null,
   reactionTimesX: null, reactionTimesO: null,
@@ -967,6 +969,7 @@ const FIELD_NULLS = {
   aimHitsX: null, aimHitsO: null,
   aimFriendlyX: null, aimFriendlyO: null,
   typingPassage: null, typingStartedAt: null,
+  typingFinishedAtX: null, typingFinishedAtO: null,
   typingProgressX: null, typingProgressO: null,
   typingWpmX: null, typingWpmO: null,
   typingAccX: null, typingAccO: null,
@@ -1053,7 +1056,8 @@ export function freshGameState(gameType) {
       chimpLevel: CHIMP_START_LEVEL,
       chimpLayout: generateChimpLayout(CHIMP_START_LEVEL),
       chimpProgressX: 0, chimpProgressO: 0,
-      chimpDoneX: false, chimpDoneO: false }
+      chimpDoneX: false, chimpDoneO: false,
+      chimpRoundStartedAt: Date.now() }
   }
   if (gameType === 'reaction') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
