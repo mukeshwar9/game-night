@@ -28,7 +28,11 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
   }, [])
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    // -mx-2 on phones: break out of the parent card's padding (both Game.jsx
+    // and the demo card pad ≥16px, so 8px each side never overflows the page).
+    // The 11-wide rhombus scales with wrapper width, so reclaimed pixels go
+    // straight into bigger, easier-to-tap cells.
+    <div className="w-[calc(100%+1rem)] -mx-2 sm:w-full sm:mx-auto max-w-md">
       <div
         className={cn(
           'relative bg-retro-bg border-2 border-retro-border rounded transition-all duration-200',
@@ -47,7 +51,9 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-gradient-to-t from-retro-p2/30 to-transparent flex items-end justify-center pb-1">
           <span className="font-pixel text-[8px] text-retro-p2">O</span>
         </div>
-        <div className="p-3">
+        {/* Tight padding on phones — every horizontal pixel feeds the scale
+            factor, and an 11-wide rhombus is starved for width as it is. */}
+        <div className="p-1.5 sm:p-3">
           <div ref={wrapperRef} className="w-full flex justify-center">
             <div style={{ width: `${BOARD_W * scale}px`, height: `${BOARD_H * scale}px`, position: 'relative' }}>
               <div
@@ -82,8 +88,8 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
                           disabled={!isClickable}
                           onClick={() => isClickable && onMove(i)}
                           className={cn(
-                            'relative shrink-0 transition-[filter] duration-100',
-                            isClickable ? 'cursor-pointer hover:brightness-150' : 'cursor-default',
+                            'relative shrink-0 transition-[filter] duration-100 touch-manipulation',
+                            isClickable ? 'cursor-pointer hover:brightness-150 active:brightness-[1.75]' : 'cursor-default',
                           )}
                           style={{ width: `${CELL_W}px`, height: `${CELL_H}px`, clipPath: HEX_CLIP }}
                         >
