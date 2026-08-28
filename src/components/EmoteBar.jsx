@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import BottomSheet from './BottomSheet'
 import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, QUICK_CHAT, searchEmotes } from '../lib/emotes'
+import { CHAT_MAX_LENGTH } from '../lib/chat'
 import { cn } from '@/lib/utils'
 
 const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all'
@@ -59,10 +60,16 @@ function EmotePicker({ onPick, onClose }) {
   )
 }
 
-export default function EmoteBar({ onSend, onSendChip, cooldown }) {
+export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, textCooldown }) {
   const [showPicker, setShowPicker] = useState(false)
+  const [text, setText] = useState('')
   const handleEmote = (g) => onSend(g)
   const handleChip = (t) => (onSendChip || onSend)(t)
+  const handleSubmitText = async (e) => {
+    e.preventDefault()
+    const ok = await onSendText(text)
+    if (ok) setText('')
+  }
   return (
     <>
       <div className="flex flex-col items-center gap-1.5 pt-1">
@@ -109,6 +116,37 @@ export default function EmoteBar({ onSend, onSendChip, cooldown }) {
             </button>
           ))}
         </div>
+        {onSendText && (
+          <form onSubmit={handleSubmitText} className="flex gap-2 w-full max-w-[280px]">
+            <input
+              type="text"
+              value={text}
+              onChange={e => setText(e.target.value)}
+              maxLength={CHAT_MAX_LENGTH}
+              enterKeyHint="send"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder="SAY SOMETHING…"
+              aria-label="Chat message"
+              className="flex-1 min-w-0 min-h-11 bg-retro-card border-2 border-retro-border text-retro-text
+                font-pixel text-xs placeholder-retro-border rounded px-3 py-2
+                focus:outline-none focus:border-retro-p1 tracking-widest transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={!text.trim() || textCooldown}
+              className={cn(
+                'min-h-11 px-4 flex items-center justify-center bg-retro-card border-2 border-retro-border text-retro-text',
+                'font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-colors active:scale-95',
+                (!text.trim() || textCooldown) && 'opacity-50'
+              )}
+            >
+              SEND
+            </button>
+          </form>
+        )}
       </div>
       {showPicker && (
         <EmotePicker onPick={handleEmote} onClose={() => setShowPicker(false)} />

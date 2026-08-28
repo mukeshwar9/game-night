@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ref, onValue, update, get, runTransaction, onDisconnect, set as dbSet } from 'firebase/database'
+import { ref, onValue, update, get, push, runTransaction, onDisconnect, set as dbSet } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
 import { freshGameState, getGameConfig } from '../lib/games'
@@ -45,7 +45,9 @@ import SketchGame from './SketchGame'
 import ProposalBanner from '../components/ProposalBanner'
 import GameSwitcher from '../components/GameSwitcher'
 import EmoteBar from '../components/EmoteBar'
+import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
+import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../lib/chat'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -142,35 +144,49 @@ function EmoteFloats({ floats }) {
           // otherwise the `forwards` fill leaves the element invisible while
           // its re-armed removal timer keeps it alive
           key={`${f.id}-${f.count}`}
-          className={cn('absolute flex flex-col items-center gap-1', f.by === 'X' ? 'left-[16%]' : 'right-[16%]')}
+          className={cn(
+            'absolute flex flex-col items-center gap-1',
+            f.kind === 'chat'
+              ? (f.seat === 'X' ? 'left-[16%]' : f.seat === 'O' ? 'right-[16%]' : 'left-1/2 -translate-x-1/2')
+              : (f.by === 'X' ? 'left-[16%]' : 'right-[16%]')
+          )}
           style={{ animation: 'emote-float 2s ease-out forwards' }}
         >
-          <div
-            className="flex items-center gap-1"
-            style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
-          >
-            {isQuickChat(f.glyph) ? (
-              <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
-            ) : (
-              <span className="text-6xl">{f.glyph}</span>
-            )}
-            {f.count > 1 && (
-              <span
-                key={f.count}
-                className="font-pixel text-sm text-retro-cta text-glow-cta"
-                style={{ animation: 'emote-pop 0.15s ease-out' }}
+          {f.kind === 'chat' ? (
+            <div className="flex flex-col items-center gap-0.5 max-w-[60vw]">
+              <span className="font-pixel text-[7px] text-retro-dim">{f.name}</span>
+              <span className="font-pixel text-sm text-retro-cta text-glow-cta break-words">{f.text}</span>
+            </div>
+          ) : (
+            <>
+              <div
+                className="flex items-center gap-1"
+                style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
               >
-                ×{f.count}
-              </span>
-            )}
-          </div>
-          {f.name && (
-            <span className={cn(
-              'font-pixel text-[8px]',
-              f.by === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
-            )}>
-              {f.name}
-            </span>
+                {isQuickChat(f.glyph) ? (
+                  <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
+                ) : (
+                  <span className="text-6xl">{f.glyph}</span>
+                )}
+                {f.count > 1 && (
+                  <span
+                    key={f.count}
+                    className="font-pixel text-sm text-retro-cta text-glow-cta"
+                    style={{ animation: 'emote-pop 0.15s ease-out' }}
+                  >
+                    ×{f.count}
+                  </span>
+                )}
+              </div>
+              {f.name && (
+                <span className={cn(
+                  'font-pixel text-[8px]',
+                  f.by === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
+                )}>
+                  {f.name}
+                </span>
+              )}
+            </>
           )}
         </div>
       ))}
@@ -226,6 +242,10 @@ export default function Game() {
   const emoteTimeouts = useRef(new Map())
   const emoteReadyAt = useRef(0)
   const [emoteCooldown, setEmoteCooldown] = useState(false)
+  const prevChatTs = useRef(0)
+  const chatInit = useRef(false)
+  const chatReadyAt = useRef(0)
+  const [chatCooldown, setChatCooldown] = useState(false)
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const [showRules, setShowRules] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
@@ -618,6 +638,19 @@ export default function Game() {
     })
   }
 
+  // Push a chat message onto the floats array — unlike pushEmote, always a
+  // fresh float (no combo/count merging), same 2s removal timing.
+  const pushChatFloat = (msg) => {
+    const id = ++emoteIdRef.current
+    const float = { id, kind: 'chat', text: msg.text, name: msg.name, seat: msg.seat ?? null, count: 1, at: Date.now() }
+    const t = setTimeout(() => {
+      setFloats(f => f.filter(fl => fl.id !== id))
+      emoteTimeouts.current.delete(id)
+    }, 2000)
+    emoteTimeouts.current.set(id, t)
+    setFloats(prev => [...prev, float])
+  }
+
   // Clear any pending float-removal timers on unmount
   useEffect(() => {
     const timeouts = emoteTimeouts.current
@@ -629,7 +662,8 @@ export default function Game() {
 
   // Emote channel — float a newly-received reaction (skip the stale one present on join)
   useEffect(() => {
-    const e = game?.emote
+    if (!game) return // don't latch the init guard before the first snapshot
+    const e = game.emote
     if (!emoteInit.current) {
       emoteInit.current = true
       prevEmoteTs.current = e?.ts || 0
@@ -645,6 +679,26 @@ export default function Game() {
     // object would refire on every unrelated Firebase snapshot instead.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.emote?.ts])
+
+  // Chat channel — float the newest free-text message (skip whatever was
+  // already in the log on join, and our own — already floated optimistically
+  // by sendChat).
+  useEffect(() => {
+    if (!game) return // don't latch the init guard before the first snapshot
+    const entries = normalizeChatLog(game.chatLog)
+    const newest = entries[entries.length - 1]?.[1]
+    if (!chatInit.current) {
+      chatInit.current = true
+      prevChatTs.current = newest?.ts || 0
+      return
+    }
+    if (!newest || newest.ts <= prevChatTs.current) return
+    prevChatTs.current = newest.ts
+    if (newest.by === getPlayerId()) return
+    if (!isValidChatMessage(newest)) return
+    pushChatFloat(newest)
+    sounds.emote()
+  }, [game?.chatLog])
 
   // A fresh snapshot means React state has caught up with the last write —
   // safe to accept the next move (see moveInFlight in handleMove).
@@ -680,13 +734,16 @@ export default function Game() {
 
     if (!game || !mySymbol.current) return
     const gcfg = getGameConfig(game.gameType)
-    if (gcfg.nPlayer || gcfg.custom) return
+    if (gcfg.nPlayer) return
     if (game.status !== 'playing') return
     const opSym = mySymbol.current === 'X' ? 'O' : 'X'
     if (!game.players?.[opSym]) return
     if (opponentOnline) return
 
-    abandonTimerRef.current = setTimeout(() => setShowAbandonBanner(true), 120_000)
+    // Custom real-time games (Pong/Sumo/Pac-Mac) use a shorter window: a
+    // vanished peer freezes the round outright, and without this banner the
+    // guest's only exit is self-forfeit — which rewards the vanished player.
+    abandonTimerRef.current = setTimeout(() => setShowAbandonBanner(true), gcfg.custom ? 60_000 : 120_000)
     return () => {
       if (abandonTimerRef.current) { clearTimeout(abandonTimerRef.current); abandonTimerRef.current = null }
     }
@@ -1074,6 +1131,35 @@ export default function Game() {
     } catch { /* ignore */ }
   }
 
+  // Free-text chat — sanitize, rate-limit (2s), float our own message
+  // optimistically, append via a push id, and prune the log back to cap.
+  const sendChat = async (raw) => {
+    const text = sanitizeChatText(raw)
+    if (!text) return false
+    const now = Date.now()
+    if (now < chatReadyAt.current) return false
+    chatReadyAt.current = now + 2000
+    setChatCooldown(true)
+    setTimeout(() => setChatCooldown(false), 2000)
+
+    const msg = {
+      by: getPlayerId(),
+      name: localStorage.getItem('playerName') || 'PLAYER',
+      text,
+      ts: now,
+      ...(mySymbol.current ? { seat: mySymbol.current } : {}),
+    }
+    prevChatTs.current = now
+    pushChatFloat(msg)
+    const k = push(ref(db, `games/${gameId}/chatLog`)).key
+    const updates = { [k]: msg }
+    for (const key of chatKeysToPrune(normalizeChatLog(game?.chatLog), CHAT_LOG_CAP - 1)) updates[key] = null
+    try {
+      await update(ref(db, `games/${gameId}/chatLog`), updates)
+    } catch { return false }
+    return true
+  }
+
   // Feature A — name prompt for invited players
   if (needName) {
     const handleNameSubmit = () => {
@@ -1245,8 +1331,10 @@ export default function Game() {
             <SpyfairGame {...nProps} />
           )}
 
+          <ChatLog chatLog={game.chatLog} myUid={myUid} />
+
           {amSeated && game.status !== 'waiting' && (
-            <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} />
+            <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
           )}
         </div>
         {showInvite && (
@@ -1737,9 +1825,12 @@ export default function Game() {
           </div>
         )}
 
+        {/* Free-text chat log — visible to spectators too; self-hides when empty */}
+        <ChatLog chatLog={game.chatLog} myUid={getPlayerId()} />
+
         {/* Emote / reaction bar — players only, once the room is live */}
         {!isSpectator && game.status !== 'waiting' && (
-          <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} />
+          <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
         )}
       </div>
       {showInvite && (

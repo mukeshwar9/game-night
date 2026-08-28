@@ -1027,6 +1027,9 @@ const FIELD_NULLS = {
   minesDeadX: null, minesDeadO: null,
   minesDoneX: null, minesDoneO: null,
   herdCow: null,
+  chatLog: null,
+  // emote currently leaks across game switches — clear it too.
+  emote: null,
 }
 
 export function freshGameState(gameType) {

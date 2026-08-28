@@ -14,6 +14,11 @@
               ".validate": "newData.isString() && newData.val().length <= 40"
             }
           }
+        },
+        "chatLog": {
+          "$msgId": {
+            ".validate": "newData.val() === null || (newData.hasChildren(['by','name','text','ts']) && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 80 && newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('by').val() === auth.uid && newData.child('ts').isNumber())"
+          }
         }
       }
     },
