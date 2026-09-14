@@ -244,6 +244,7 @@ export default function Game() {
   const emoteIdRef = useRef(0)
   const emoteTimeouts = useRef(new Map())
   const emoteReadyAt = useRef(0)
+  const emoteSoundReadyAt = useRef(0)
   const [emoteCooldown, setEmoteCooldown] = useState(false)
   const prevChatTs = useRef(0)
   const chatInit = useRef(false)
@@ -625,7 +626,11 @@ export default function Game() {
   // combo count and re-arms its removal timer.
   const pushEmote = (e) => {
     const name = game?.players?.[e.by]?.name ?? ''
-    e.glyph === '🤫' ? sounds.shh() : sounds.emote()
+    const now = Date.now()
+    if (document.visibilityState === 'visible' && now >= emoteSoundReadyAt.current) {
+      emoteSoundReadyAt.current = now + 140
+      sounds.reaction(e.glyph)
+    }
     setFloats(prev => {
       const last = prev[prev.length - 1]
       const now = Date.now()
