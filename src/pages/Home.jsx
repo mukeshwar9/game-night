@@ -144,7 +144,15 @@ export default function Home() {
 
       <div className="w-full max-w-sm md:max-w-3xl lg:max-w-5xl space-y-6">
         {/* Logo */}
-        <div className="max-w-md mx-auto w-full text-center space-y-2 sm:space-y-3">
+        <div className="max-w-md mx-auto w-full text-center space-y-2 sm:space-y-3 relative">
+          <Link
+            to="/emoji-lab"
+            title="Emoji lab"
+            aria-label="Open emoji lab"
+            className="absolute right-0 top-0 w-11 h-11 flex items-center justify-center rounded border border-retro-border bg-retro-card text-xl hover:border-retro-cta/60 hover:bg-retro-tint-cta transition-all active:scale-90"
+          >
+            <span aria-hidden="true">🧪</span>
+          </Link>
           <div className="mx-auto w-10 h-10 sm:w-14 sm:h-14 border-2 border-retro-cta bg-retro-tint-cta rounded
             flex items-center justify-center shadow-neon-cta">
             <svg width="22" height="22" viewBox="0 0 30 30" fill="none" aria-hidden="true" className="sm:w-[30px] sm:h-[30px]">

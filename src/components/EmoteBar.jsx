@@ -4,6 +4,8 @@ import BottomSheet from './BottomSheet'
 import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, QUICK_CHAT, searchEmotes } from '../lib/emotes'
 import { CHAT_MAX_LENGTH } from '../lib/chat'
 import { cn } from '@/lib/utils'
+import { getPlayerId } from '../lib/playerId'
+import { getQuickEmotes, normalizeEmoteUsage, recordEmoteUsage } from '../lib/emoteUsage'
 
 const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 transition-colors'
 const EMOTE_TAP_PROPS = {
@@ -37,6 +39,14 @@ function EmoteGrid({ glyphs, onPick, className }) {
       ))}
     </div>
   )
+}
+
+function readUsage(key) {
+  try {
+    return normalizeEmoteUsage(JSON.parse(localStorage.getItem(key) || '{}'))
+  } catch {
+    return {}
+  }
 }
 
 function EmotePicker({ onPick, onClose }) {
@@ -77,7 +87,18 @@ function EmotePicker({ onPick, onClose }) {
 export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, textCooldown }) {
   const [showPicker, setShowPicker] = useState(false)
   const [text, setText] = useState('')
-  const handleEmote = (g) => onSend(g)
+  const [usageKey] = useState(() => `emoteUsage:${getPlayerId()}`)
+  const [usage, setUsage] = useState(() => readUsage(usageKey))
+  const quickEmotes = getQuickEmotes(usage, EMOTES_PRIMARY)
+  const handleEmote = async (g) => {
+    const sent = await onSend(g)
+    if (sent === false) return
+    setUsage(previous => {
+      const next = recordEmoteUsage(previous, g, Date.now())
+      try { localStorage.setItem(usageKey, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
   const handleChip = (t) => (onSendChip || onSend)(t)
   const handleSubmitText = async (e) => {
     e.preventDefault()
@@ -87,8 +108,11 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
   return (
     <>
       <div className="flex flex-col items-center gap-1.5 pt-1">
+        {Object.keys(usage).length > 0 && (
+          <p className="font-pixel text-[7px] text-retro-dim tracking-widest">YOUR REACTIONS</p>
+        )}
         <div className="flex justify-center gap-1.5 flex-wrap max-w-full px-2">
-          {EMOTES_PRIMARY.map(g => (
+          {quickEmotes.map(g => (
             <AnimatedEmoteButton
               key={g}
               type="button"

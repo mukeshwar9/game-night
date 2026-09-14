@@ -1179,12 +1179,12 @@ export default function Game() {
   const toggleMute = () => setMuted(sounds.toggle())
 
   const sendEmote = async (glyph) => {
-    if (!mySymbol.current) return
+    if (!mySymbol.current) return false
     // sendEmote only ever runs from an onClick handler, never during render;
     // the compiler's static analysis can't see that, hence the disable.
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now()
-    if (now < emoteReadyAt.current) return
+    if (now < emoteReadyAt.current) return false
     emoteReadyAt.current = now + 600
     setEmoteCooldown(true)
     setTimeout(() => setEmoteCooldown(false), 600)
@@ -1194,6 +1194,7 @@ export default function Game() {
     try {
       await update(ref(db, `games/${gameId}`), { emote: { by: mySymbol.current, glyph, ts: now } })
     } catch { /* ignore */ }
+    return true
   }
 
   // Free-text chat — sanitize, rate-limit (2s), float our own message
