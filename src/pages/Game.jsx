@@ -47,6 +47,7 @@ import SketchGame from './SketchGame'
 import ProposalBanner from '../components/ProposalBanner'
 import GameSwitcher from '../components/GameSwitcher'
 import EmoteBar from '../components/EmoteBar'
+import AnimatedEmoji from '../components/AnimatedEmoji'
 import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
 import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../lib/chat'
@@ -168,7 +169,7 @@ function EmoteFloats({ floats }) {
                 {isQuickChat(f.glyph) ? (
                   <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
                 ) : (
-                  <span className="text-6xl">{f.glyph}</span>
+                  <AnimatedEmoji glyph={f.glyph} className="w-20 h-20 object-contain" />
                 )}
                 {f.count > 1 && (
                   <span
