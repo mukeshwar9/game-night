@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import ThemeSwitcher from './ThemeSwitcher'
+import AudioSettingsButton from './AudioSettingsButton'
 import { sounds } from '../lib/sounds'
 import useHideOnScroll from '../hooks/useHideOnScroll'
 
@@ -115,6 +116,7 @@ export default function NavBar() {
               </svg>
             )}
           </button>
+          <AudioSettingsButton />
         </div>
       </div>
     </header>

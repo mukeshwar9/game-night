@@ -9,6 +9,7 @@ import Friends from './pages/Friends';
 import Leaderboard from './pages/Leaderboard';
 import Playground from './pages/Playground';
 import Notes from './pages/Notes';
+import EmojiLab from './pages/EmojiLab';
 import NotFound from './pages/NotFound';
 import { Toaster } from './components/ui/sonner';
 import UpdatePrompt from './components/UpdatePrompt';
@@ -49,6 +50,7 @@ function AppRoutes() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/friends" element={<Friends />} />
             <Route path="/notes" element={<Notes />} />
+            <Route path="/emoji-lab" element={<EmojiLab />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/playground" element={<Playground />} />
             <Route path="*" element={<NotFound />} />

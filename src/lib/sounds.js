@@ -1,4 +1,11 @@
 let _ctx = null
+let _volume = Number(localStorage.getItem('sfxVolume') ?? 1)
+let _reactionMuted = localStorage.getItem('reactionSfx') === 'off'
+let _reactionVolumeScale = 1
+let _reactionPitchScale = 1
+
+if (!Number.isFinite(_volume)) _volume = 1
+_volume = Math.max(0, Math.min(1, _volume))
 
 function ctx() {
   if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)()
@@ -9,7 +16,7 @@ function ctx() {
 let _muted = localStorage.getItem('sfx') === 'off'
 
 // Haptics disabled — keep audio, kill vibration.
-function vibrate(pattern) {
+function vibrate() {
   return
 }
 
@@ -20,10 +27,10 @@ function note(freq, start, dur, type = 'square', vol = 0.11) {
     const osc = c.createOscillator()
     const gain = c.createGain()
     osc.type = type
-    osc.frequency.setValueAtTime(freq, start)
+    osc.frequency.setValueAtTime(freq * _reactionPitchScale, start)
     // ~4ms attack ramp so square/saw beeps don't audibly click on start
     gain.gain.setValueAtTime(0.0001, start)
-    gain.gain.exponentialRampToValueAtTime(vol, start + 0.004)
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, vol * _volume * _reactionVolumeScale), start + 0.004)
     gain.gain.exponentialRampToValueAtTime(0.0001, start + dur)
     osc.connect(gain)
     gain.connect(c.destination)
@@ -57,8 +64,8 @@ function noise(start, dur, vol = 0.08, freq = 1800) {
     const gain = c.createGain()
     src.buffer = buffer
     filter.type = 'bandpass'
-    filter.frequency.setValueAtTime(freq, start)
-    gain.gain.setValueAtTime(Math.max(0.0001, vol), start)
+    filter.frequency.setValueAtTime(freq * _reactionPitchScale, start)
+    gain.gain.setValueAtTime(Math.max(0.0001, vol * _volume * _reactionVolumeScale), start)
     gain.gain.exponentialRampToValueAtTime(0.0001, start + dur)
     src.connect(filter)
     filter.connect(gain)
@@ -162,9 +169,19 @@ export const sounds = {
   // Breathy descending hiss — shh reaction audio (haptics via reaction())
   shh:   () => shhAudio(),
   // Per-glyph reaction SFX + matched haptic pattern
-  reaction(glyph) {
-    playReactionAudio(glyph)
-    playReactionHaptic(glyph)
+  reaction(glyph, { volume = 1 } = {}) {
+    if (_reactionMuted) return
+    const previousVolumeScale = _reactionVolumeScale
+    const previousPitchScale = _reactionPitchScale
+    _reactionVolumeScale = Math.max(0, Math.min(1, Number(volume) || 1))
+    _reactionPitchScale = 0.97 + Math.random() * 0.06
+    try {
+      playReactionAudio(glyph)
+      playReactionHaptic(glyph)
+    } finally {
+      _reactionVolumeScale = previousVolumeScale
+      _reactionPitchScale = previousPitchScale
+    }
   },
   // Quick-chat chip — short bright tick, distinct from emoji reaction
   chatChip() {
@@ -172,6 +189,18 @@ export const sounds = {
     vibrate(10)
   },
   isMuted: ()  => _muted,
+  isReactionMuted: () => _reactionMuted,
+  toggleReactionMute() {
+    _reactionMuted = !_reactionMuted
+    localStorage.setItem('reactionSfx', _reactionMuted ? 'off' : 'on')
+    return _reactionMuted
+  },
+  getVolume: () => _volume,
+  setVolume(value) {
+    _volume = Math.max(0, Math.min(1, Number(value) || 0))
+    localStorage.setItem('sfxVolume', String(_volume))
+    return _volume
+  },
   toggle() {
     _muted = !_muted
     localStorage.setItem('sfx', _muted ? 'off' : 'on')

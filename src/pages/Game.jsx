@@ -48,6 +48,7 @@ import ProposalBanner from '../components/ProposalBanner'
 import GameSwitcher from '../components/GameSwitcher'
 import EmoteBar from '../components/EmoteBar'
 import AnimatedEmoji from '../components/AnimatedEmoji'
+import AudioSettingsButton from '../components/AudioSettingsButton'
 import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
 import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../lib/chat'
@@ -629,7 +630,7 @@ export default function Game() {
     const now = Date.now()
     if (document.visibilityState === 'visible' && now >= emoteSoundReadyAt.current) {
       emoteSoundReadyAt.current = now + 140
-      sounds.reaction(e.glyph)
+      sounds.reaction(e.glyph, { volume: e.by === mySymbol.current ? 0.7 : 1 })
     }
     setFloats(prev => {
       const last = prev[prev.length - 1]
@@ -1374,6 +1375,7 @@ export default function Game() {
                   </svg>
                 )}
               </button>
+              <AudioSettingsButton />
               {cfg.badge && (
                 <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
               )}
@@ -1532,6 +1534,7 @@ export default function Game() {
                 </svg>
               )}
             </button>
+            <AudioSettingsButton />
             {cfg.badge && (
               <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
             )}
