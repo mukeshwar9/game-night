@@ -3,7 +3,7 @@ import Avatar from './Avatar'
 import {
   PICKER_SHAPES, TONES, SKIN_TONES, HAIR_STYLES, ACCESSORIES, OUTFIT_PRESETS,
   TONE_LABEL, SKIN_LABEL, HAIR_LABEL, ACCESSORY_LABEL,
-  parseAvatar, canonicalAvatar, makeHumanoid,
+  humanoidCustomizerSeed, makeHumanoid,
 } from '../lib/avatars'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -44,8 +44,8 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96, co
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-state-when-a-prop-changes
   const [track, setTrack] = useState({ history: [], lastEmitted: null })
 
-  const { shape, parts } = parseAvatar(value)
-  const canonical = canonicalAvatar(value)
+  const { shape, parts } = humanoidCustomizerSeed(value)
+  const canonical = makeHumanoid(shape, parts)
   const idx = PICKER_SHAPES.indexOf(shape)
 
   // If the incoming `value` changed to something this component didn't itself emit

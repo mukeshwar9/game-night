@@ -25,9 +25,12 @@
     "users": {
       "$uid": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && ((!data.child('admin').exists() && !newData.child('admin').exists()) || newData.child('admin').val() === data.child('admin').val())",
         "displayName": {
           ".validate": "newData.isString() && newData.val().length <= 40"
+        },
+        "admin": {
+          ".validate": "newData.isBoolean()"
         }
       }
     },
@@ -85,6 +88,23 @@
           ".write": "auth != null && (auth.uid === $uid || (newData.child('fromUid').val() === auth.uid && root.child('friends').child($uid).child(auth.uid).exists()))",
           ".validate": "!newData.exists() || (newData.child('fromUid').val() === auth.uid && newData.hasChild('gameId'))"
         }
+      }
+    },
+    "feedback": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('admin').val() === true",
+      ".indexOn": ["createdAt"],
+      "$feedbackId": {
+        ".write": "auth != null && ((!data.exists() && newData.child('by').val() === auth.uid) || root.child('users').child(auth.uid).child('admin').val() === true)",
+        ".validate": "!newData.exists() || newData.hasChildren(['type','message','by','name','status','createdAt','updatedAt'])",
+        "type": { ".validate": "newData.val() === 'bug' || newData.val() === 'feature'" },
+        "message": { ".validate": "newData.isString() && newData.val().length >= 10 && newData.val().length <= 1000" },
+        "page": { ".validate": "newData.isString() && newData.val().length <= 300" },
+        "by": { ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === auth.uid)" },
+        "name": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "avatar": { ".validate": "newData.isString() && newData.val().length <= 160" },
+        "status": { ".validate": "newData.val() === 'open' || newData.val() === 'planned' || newData.val() === 'done' || newData.val() === 'closed'" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" }
       }
     },
     "$other": {

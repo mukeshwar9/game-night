@@ -52,6 +52,16 @@ describe('step — serve delay', () => {
     expect(state.mallets.X.x).toBeCloseTo(s0.mallets.X.x + 0.02)
     expect(state.serveTimer).toBeLessThan(s0.serveTimer)
   })
+
+  it('tolerates null guest input (host loop before first {t:i})', () => {
+    const s0 = createState()
+    const { state } = step(s0, {
+      X: { x: s0.mallets.X.x, y: s0.mallets.X.y },
+      O: null,
+    }, 1 / 120)
+    expect(state.mallets.O).toEqual(s0.mallets.O)
+    expect(state.serveTimer).toBeLessThan(s0.serveTimer)
+  })
 })
 
 describe('step determinism', () => {

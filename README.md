@@ -202,6 +202,40 @@ functions/                   # scheduled room cleanup (Blaze)
 database.rules.json          # the security boundary — deploy after every change
 ```
 
+## Improvement backlog
+
+Ranked by player impact. Status as of 2026-09-04 (unit tests green: 138 files / 3204 tests). Most of the August review's top-10 items are already fixed; these are what remains.
+
+### Finish / ship
+
+1. **Notes (feedback) feature is uncommitted** — `src/pages/Notes.jsx`, `src/lib/feedback.js`, the `/notes` route + tab, and the `feedback` rules block. Works, but nothing in the app sets `users/{uid}/admin` (only the rules reference it) — set it once from the Firebase console or add a script. Add `feedback.test.js` for the `normalize*` helpers, then commit.
+2. **Herd Mind still leaks answers** — `HerdGame.jsx` writes plaintext to `round/answers` the moment a player submits, before the window closes for everyone else. The commit-reveal imports (`makeCommit`, `verifyReveal`, `allCommitted`) are already there but unused; finish wiring the same salted commit-reveal pattern Hangwoman/Wavelength/Bluff/Word Duel use.
+3. **Word Hunt dictionary is unfiltered** — `public/wordhunt-dict.txt` still contains playable slurs/profanity. One denylist pass at asset-prep time, no logic change.
+
+### Correctness
+
+4. **Lint has 19 errors** — one impure call during render in `DailyGame.jsx`, the rest unused imports/vars (six of them in `HerdGame.jsx`, cleared by item 2). Add `npm run lint` to the pre-push gate / CI so it can't drift again.
+5. **Reversi auto-pass** now exists in `games.js` — verify the double-blocked case (neither player can move) ends the round rather than passing forever.
+
+### Performance
+
+6. **Single ~1.7 MB JS bundle** — no `React.lazy` anywhere in `App.jsx`/`Game.jsx`, no `manualChunks`; every game page loads eagerly. Lazy-load per game page (via the `GAME_TYPES` registry or route level) to cut first load substantially for cold mobile visits.
+
+### Platform themes (open since the August review)
+
+7. **Host latency advantage** in Pong / Air Hockey / Space Duel — no input-delay compensation. Options: host delays its own input by half RTT, or lag-compensated hit detection.
+8. **Mixed-game leaderboard** — wins in Pong and Tic Tac Toe rank equally. Split by game or category.
+9. **`--c-dim` contrast** — still fails AA body-text contrast on `card` surfaces in several themes. Extend the existing theme contrast regression tests to cover `dim` on `card`, then raise the token per theme.
+10. **No TURN server** — roughly 5–10% of P2P connections fail behind symmetric NATs. Add a free-tier TURN provider or accept the failure rate.
+
+### Hygiene
+
+11. **No end-to-end tests** — a Playwright smoke test (create room, join from a second context, play one Tic Tac Toe move) would catch multiplayer regressions unit tests never see.
+12. **`Game.jsx` is ~1,900 lines** — extract the lobby, status, and proposal-handshake logic into hooks.
+13. **Unreviewed layer** — `src/hooks/`, the sound layer, `src/components/loading/`, and `EmoteBar.jsx` have never been audited. Run the `review-a-game` checklist on the reflex games.
+
+Suggested order: 1, 2, 3, 6, 4.
+
 ## Roadmap
 
 - **Leaderboards + cross-device stats** — the biggest open opportunity: persist skill-game scores (reaction ms, WPM, chimp level, daily results) to `users/{uid}`, add global + friends boards. Blocked on server-authoritative score writes (Cloud Function) so scores aren't forgeable

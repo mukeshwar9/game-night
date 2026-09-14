@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   SHAPES, TONES, CLASSIC_TONES, HUMANOIDS, PARTS, PICKER_SHAPES,
   SKIN_TONES, HAIR_STYLES, ACCESSORIES,
-  makeAvatar, parseAvatar, canonicalAvatar,
+  makeAvatar, parseAvatar, canonicalAvatar, humanoidCustomizerSeed,
   isValidAvatar, defaultAvatarForId,
   isHumanoid, makeHumanoid, outfitFromTone,
   OUTFIT_PRESETS, TONE_LABEL, SKIN_LABEL, HAIR_LABEL, ACCESSORY_LABEL,
@@ -288,6 +288,24 @@ describe('parseAvatar', () => {
     expect(parseAvatar('boy.p1-p2-dim-text-s3')).toEqual(expected) // 5
     expect(parseAvatar('boy.p1-p2-dim-text-s3-none')).toEqual(expected) // 6
     expect(parseAvatar('boy.p1-p2-dim-text-s3-none-p1')).toEqual(expected) // 7
+  })
+})
+
+describe('humanoidCustomizerSeed', () => {
+  it('passes humanoid avatars through unchanged', () => {
+    expect(humanoidCustomizerSeed('boy.p1-p2-dim-text')).toEqual(parseAvatar('boy.p1-p2-dim-text'))
+  })
+
+  it('seeds a humanoid from legacy creature keys (no parts.cap crash)', () => {
+    const seeded = humanoidCustomizerSeed('ghost.p2')
+    expect(HUMANOIDS).toContain(seeded.shape)
+    expect(seeded.parts?.cap).toBeTruthy()
+  })
+
+  it('seeds a humanoid when id is missing', () => {
+    const seeded = humanoidCustomizerSeed(null)
+    expect(HUMANOIDS).toContain(seeded.shape)
+    expect(seeded.parts).toBeTruthy()
   })
 })
 

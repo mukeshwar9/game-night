@@ -107,6 +107,10 @@ function collideMalletPuck(state, symbol, events) {
 }
 
 // Substeps so max-speed pucks can't tunnel through mallets/goal lines.
+// Missing side input (host's guestInputRef starts null; also cleared after
+// STALE_INPUT_MS) → hold that mallet at its current seat. Matches Space
+// Duel's `inputs?.X || {}` null-tolerance — without it the rAF loop throws
+// on the first post-countdown tick before the guest's first `{t:'i'}`.
 export function step(state, inputs, dt) {
   const events = []
   const s = {
@@ -124,16 +128,19 @@ export function step(state, inputs, dt) {
     tick: (state.tick ?? 0) + 1,
   }
 
+  const inX = inputs?.X ?? s.mallets.X
+  const inO = inputs?.O ?? s.mallets.O
+
   // Serve delay countdown — mallets move, puck frozen at center-ish.
   if (s.serveTimer > 0) {
     s.serveTimer -= dt * 1000
-    trackVelocity(s, 'X', inputs.X.x, inputs.X.y, dt)
-    trackVelocity(s, 'O', inputs.O.x, inputs.O.y, dt)
+    trackVelocity(s, 'X', inX.x, inX.y, dt)
+    trackVelocity(s, 'O', inO.x, inO.y, dt)
     return { state: s, events }
   }
 
-  trackVelocity(s, 'X', inputs.X.x, inputs.X.y, dt)
-  trackVelocity(s, 'O', inputs.O.x, inputs.O.y, dt)
+  trackVelocity(s, 'X', inX.x, inX.y, dt)
+  trackVelocity(s, 'O', inO.x, inO.y, dt)
 
   // Friction + integrate with substeps sized to never skip more than a radius.
   const p = s.puck

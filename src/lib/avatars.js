@@ -61,15 +61,16 @@ export function makeAvatar(shape, tone) { return `${shape}.${tone}` }
 // not 'none' (a plain cap is what a 4-tuple means), otherwise the full 8-tuple.
 export function makeHumanoid(shape, parts) {
   const classic = CLASSIC_TONES[shape]
+  const base = parts?.cap != null ? parts : defaultHumanoidParts(shape, classic)
   const full = {
-    cap: parts.cap,
-    shirt: parts.shirt,
-    pants: parts.pants,
-    shoes: parts.shoes,
-    skin: parts.skin ?? 's3',
-    hair: parts.hair ?? 'none',
-    hairColor: parts.hairColor ?? classic,
-    acc: parts.acc ?? 'none',
+    cap: base.cap,
+    shirt: base.shirt,
+    pants: base.pants,
+    shoes: base.shoes,
+    skin: base.skin ?? 's3',
+    hair: base.hair ?? 'none',
+    hairColor: base.hairColor ?? classic,
+    acc: base.acc ?? 'none',
   }
   const isDefaultExtras = full.skin === 's3' && full.hair === 'none' && full.acc === 'none' &&
     full.hairColor === classic && full.cap !== 'none'
@@ -152,6 +153,16 @@ export function canonicalAvatar(id) {
   const { shape, tone, parts } = parseAvatar(id)
   if (isHumanoid(shape)) return makeHumanoid(shape, parts)
   return makeAvatar(shape, tone)
+}
+
+// AvatarCustomizer only edits humanoids. Legacy creature keys ('ghost.p2') and
+// other ids without a parts map would crash on parts.cap — seed a stable humanoid
+// outfit hashed from the stored id instead.
+export function humanoidCustomizerSeed(id) {
+  const parsed = parseAvatar(id)
+  if (parsed.parts && isHumanoid(parsed.shape)) return parsed
+  const seed = typeof id === 'string' && id ? id : 'guest'
+  return parseAvatar(defaultAvatarForId(seed))
 }
 
 export function isValidAvatar(key) {
