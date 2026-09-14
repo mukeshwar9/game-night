@@ -1,17 +1,31 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import BottomSheet from './BottomSheet'
 import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, QUICK_CHAT, searchEmotes } from '../lib/emotes'
 import { CHAT_MAX_LENGTH } from '../lib/chat'
 import { cn } from '@/lib/utils'
 
-const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all'
+const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 transition-colors'
+const EMOTE_TAP_PROPS = {
+  whileTap: { scale: 0.82, rotate: -8 },
+  whileHover: { scale: 1.06 },
+  transition: { type: 'spring', stiffness: 500, damping: 18 },
+}
+
+function AnimatedEmoteButton({ children, className, ...props }) {
+  return (
+    <motion.button {...props} {...EMOTE_TAP_PROPS} className={className}>
+      {children}
+    </motion.button>
+  )
+}
 const CHIP_BTN_CLASS = 'shrink-0 px-2.5 min-h-11 flex items-center justify-center font-pixel text-[8px] tracking-widest rounded border border-retro-border bg-retro-card hover:border-retro-cta/50 active:scale-95 transition-all'
 
 function EmoteGrid({ glyphs, onPick, className }) {
   return (
     <div className={cn('grid grid-cols-6 gap-2', className)}>
       {glyphs.map(g => (
-        <button
+        <AnimatedEmoteButton
           key={g}
           type="button"
           onClick={() => onPick(g)}
@@ -19,7 +33,7 @@ function EmoteGrid({ glyphs, onPick, className }) {
           className={cn(EMOTE_BTN_CLASS, 'w-full aspect-square text-xl')}
         >
           {g}
-        </button>
+        </AnimatedEmoteButton>
       ))}
     </div>
   )
@@ -75,7 +89,7 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
       <div className="flex flex-col items-center gap-1.5 pt-1">
         <div className="flex justify-center gap-1.5 flex-wrap max-w-full px-2">
           {EMOTES_PRIMARY.map(g => (
-            <button
+            <AnimatedEmoteButton
               key={g}
               type="button"
               onClick={() => handleEmote(g)}
@@ -84,7 +98,7 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
               className={cn(EMOTE_BTN_CLASS, cooldown && 'opacity-50')}
             >
               {g}
-            </button>
+            </AnimatedEmoteButton>
           ))}
           <button
             type="button"
