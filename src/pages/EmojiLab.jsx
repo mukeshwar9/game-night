@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AnimatedEmoji from '../components/AnimatedEmoji'
 import AudioSettingsButton from '../components/AudioSettingsButton'
@@ -9,11 +9,23 @@ export default function EmojiLab() {
   const [selected, setSelected] = useState(EMOTES_PICKER_ALL[0])
   const [query, setQuery] = useState('')
   const [previewKey, setPreviewKey] = useState(0)
+  // 'preview' — current behavior (animate in the box above).
+  // 'screen' — emoji floats up center-screen like in-game reactions
+  // (same emote-float keyframes Game.jsx uses).
+  const [mode, setMode] = useState('preview')
+  const [floats, setFloats] = useState([])
+  const floatId = useRef(0)
   const emojis = query.trim() ? searchEmotes(query) : EMOTES_PICKER_ALL
 
   const testEmoji = (glyph) => {
     setSelected(glyph)
-    setPreviewKey(key => key + 1)
+    if (mode === 'screen') {
+      const id = ++floatId.current
+      setFloats(f => [...f, { id, glyph }])
+      setTimeout(() => setFloats(f => f.filter(fl => fl.id !== id)), 2000)
+    } else {
+      setPreviewKey(key => key + 1)
+    }
     sounds.reaction(glyph)
   }
 
@@ -34,10 +46,42 @@ export default function EmojiLab() {
           </p>
         </header>
 
+        {/* Display-mode toggle sits outside the preview card: PREVIEW plays
+            in the box, ON SCREEN floats center-screen like in-game reactions
+            (preview box hidden so the emoji doesn't show twice). */}
+        <div className="flex justify-center gap-1" role="group" aria-label="Reaction display mode">
+          <button
+            type="button"
+            onClick={() => setMode('preview')}
+            aria-pressed={mode === 'preview'}
+            className={`px-3 py-1.5 font-pixel text-[8px] tracking-widest rounded border transition-all active:scale-95 ${
+              mode === 'preview'
+                ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
+                : 'border-retro-border text-retro-dim hover:text-retro-text'
+            }`}
+          >
+            PREVIEW
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('screen')}
+            aria-pressed={mode === 'screen'}
+            className={`px-3 py-1.5 font-pixel text-[8px] tracking-widest rounded border transition-all active:scale-95 ${
+              mode === 'screen'
+                ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
+                : 'border-retro-border text-retro-dim hover:text-retro-text'
+            }`}
+          >
+            ON SCREEN
+          </button>
+        </div>
+
         <section className="flex flex-col items-center gap-3 rounded border border-retro-border bg-retro-card p-5">
-          <div className="h-28 w-28 flex items-center justify-center">
-            <AnimatedEmoji key={`${selected}-${previewKey}`} glyph={selected} className="w-28 h-28 object-contain" />
-          </div>
+          {mode === 'preview' && (
+            <div className="h-28 w-28 flex items-center justify-center">
+              <AnimatedEmoji key={`${selected}-${previewKey}`} glyph={selected} className="w-28 h-28 object-contain" />
+            </div>
+          )}
           <span className="text-3xl" aria-label={selected}>{selected}</span>
           <button
             type="button"
@@ -57,28 +101,46 @@ export default function EmojiLab() {
           className="w-full px-3 py-2.5 rounded border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-widest placeholder:text-retro-dim focus:outline-none focus:border-retro-cta/60"
         />
 
-        <section aria-label="Emoji test grid" className="grid grid-cols-7 gap-1.5">
-          {emojis.map(glyph => (
-            <button
-              key={glyph}
-              type="button"
-              onClick={() => testEmoji(glyph)}
-              aria-label={`Test ${glyph}`}
-              aria-pressed={selected === glyph}
-              className={`aspect-square flex items-center justify-center rounded border text-xl transition-all active:scale-90 ${
-                selected === glyph
-                  ? 'border-retro-cta bg-retro-tint-cta'
-                  : 'border-retro-border bg-retro-card hover:border-retro-p1/60'
-              }`}
-            >
-              {glyph}
-            </button>
-          ))}
+        {/* Fixed-height scrollable grid — all emojis reachable, page stays put. */}
+        <section
+          aria-label="Emoji test grid"
+          className="max-h-72 overflow-y-auto rounded border border-retro-border bg-retro-bg/40 p-1.5"
+        >
+          <div className="grid grid-cols-7 gap-1.5">
+            {emojis.map(glyph => (
+              <button
+                key={glyph}
+                type="button"
+                onClick={() => testEmoji(glyph)}
+                aria-label={`Test ${glyph}`}
+                aria-pressed={selected === glyph}
+                className={`aspect-square flex items-center justify-center rounded border text-xl transition-all active:scale-90 ${
+                  selected === glyph
+                    ? 'border-retro-cta bg-retro-tint-cta'
+                    : 'border-retro-border bg-retro-card hover:border-retro-p1/60'
+                }`}
+              >
+                {glyph}
+              </button>
+            ))}
+          </div>
+          {emojis.length === 0 && (
+            <p className="font-pixel text-[9px] text-retro-dim text-center tracking-widest py-4">NO MATCH</p>
+          )}
         </section>
-        {emojis.length === 0 && (
-          <p className="font-pixel text-[9px] text-retro-dim text-center tracking-widest">NO MATCH</p>
-        )}
       </div>
+
+      {/* ON SCREEN mode: reaction floats up center-screen, then fades —
+          same emote-float animation the in-game EmoteFloats overlay uses. */}
+      {mode === 'screen' && floats.length > 0 && (
+        <div className="fixed inset-x-0 top-1/3 z-50 pointer-events-none flex flex-col items-center gap-2">
+          {floats.map(f => (
+            <div key={f.id} style={{ animation: 'emote-float 2s ease-out forwards' }}>
+              <AnimatedEmoji glyph={f.glyph} className="w-24 h-24" />
+            </div>
+          ))}
+        </div>
+      )}
     </main>
   )
 }
