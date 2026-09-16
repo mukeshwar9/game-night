@@ -40,18 +40,23 @@ export default function GameCard({ game, onTap, onOptions, loadingType, disabled
           {Icon && <Icon />}
         </div>
         <div className="text-center">
+          {/* UX-03: pixel type carries character (titles, scores); supporting
+              metadata and descriptions stay mono so player count, duration,
+              and what a game actually is remain readable on phones. */}
           <p className="font-pixel text-[10px] text-retro-text leading-relaxed">{label}</p>
-          <p className="font-mono text-[10px] text-retro-dim mt-0.5 hidden sm:block">{desc}</p>
-          <p className="font-pixel text-[7px] mt-1 flex items-center justify-center gap-1.5">
+          {desc && (
+            <p className="font-mono text-[11px] text-retro-dim mt-1 leading-tight line-clamp-2">{desc}</p>
+          )}
+          <p className="font-mono text-[12px] mt-1 flex items-center justify-center gap-1.5">
             <span className={game.nPlayer ? 'text-retro-p2' : 'text-retro-dim'}>{getPlayerTag(game)}</span>
             {game.durationMin != null && (
-              <span className="text-[6px] text-retro-dim">~{game.durationMin} MIN</span>
+              <span className="text-retro-dim">~{game.durationMin} MIN</span>
             )}
           </p>
         </div>
         {loadingType === type && <PixelDots size="sm" tone="cta" />}
         {isNew && (
-          <span className="absolute bottom-1 right-1 font-pixel text-[6px] text-retro-win tracking-wider">NEW</span>
+          <span className="absolute bottom-1 right-1 font-pixel text-[7px] text-retro-win tracking-wider">NEW</span>
         )}
       </button>
       {onToggleFav && (

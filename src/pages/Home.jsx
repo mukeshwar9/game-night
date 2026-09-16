@@ -211,7 +211,11 @@ export default function Home() {
             <DailyTile />
           </div>
           <div className="flex-1 min-w-[180px] flex gap-2">
+            {/* UX-03: labeled room-code field (sr-only keeps the chrome-free
+                underline look); label-click now focuses the input too. */}
+            <label htmlFor="gn-join-code" className="sr-only">Room code</label>
             <input
+              id="gn-join-code"
               type="text"
               placeholder="enter code…"
               value={joinCode}

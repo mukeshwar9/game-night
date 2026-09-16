@@ -2354,24 +2354,121 @@ export default function Demo({ mode }) {
     return <LocalPlayPage routeType={routeType} />
   }
   // /local/:type with an invalid/ineligible type falls back to the hub below.
+  // UX-01: an explicit /solo/:type deep link (e.g. the catalog's VS AI option)
+  // IS play intent — show the selected game board-first, picker behind a
+  // "CHANGE GAME" toggle instead of another catalog above the board. Bare
+  // /demo stays the browse-first hub.
+  if (routeType && DEMOS.some(d => d.type === routeType)) {
+    // key: navigating between two /solo/:type routes reuses this route element,
+    // so the type change must remount the page (fresh game state per game).
+    return <SoloPlayPage key={routeType} routeType={routeType} />
+  }
   return <DemoHub />
 }
 
+// UX-01: board-first solo page for explicit /solo/:type routes. Reuses the
+// exact DemoHub selection machinery (DEMOS entries, keyed remount on switch,
+// play-record on intent) — no second game registry, no duplicated engines.
+function SoloPlayPage({ routeType }) {
+  const [selected, setSelected] = useState(routeType)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerCat, setPickerCat] = useState(() => getGameConfig(routeType)?.category || 'board')
+  const active = DEMOS.find(d => d.type === selected)
+
+  // Deep-link arrival is intentional play — record immediately (same rule as
+  // DemoHub), then record each explicit switch. Party entries are excluded:
+  // they explain multiplayer requirements rather than run a solo game.
+  const playRecorded = useRef(false)
+  useEffect(() => {
+    if (!playRecorded.current) { playRecorded.current = true; return }
+    if (!(selected in PARTY_BLURB)) recordPlay(selected, 'solo')
+  }, [selected])
+
+  const demoCounts = {}
+  for (const d of DEMOS) {
+    const cat = getGameConfig(d.type)?.category
+    if (cat) demoCounts[cat] = (demoCounts[cat] || 0) + 1
+  }
+  const demoCategories = GAME_CATEGORIES.map(c => ({ ...c, count: demoCounts[c.id] || 0 })).filter(c => c.count > 0)
+  const shown = DEMOS.filter(d => getGameConfig(d.type)?.category === pickerCat)
+
+  const togglePicker = () => {
+    setPickerOpen(o => {
+      if (!o) setPickerCat(getGameConfig(selected)?.category || 'board')
+      return !o
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        {/* Compact header — context label + change-game toggle */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">
+            Solo play
+          </span>
+          <button
+            onClick={togglePicker}
+            aria-expanded={pickerOpen}
+            className={cn(
+              'min-h-11 px-3 font-pixel text-[9px] tracking-widest rounded border transition-all active:scale-95',
+              pickerOpen
+                ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
+                : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
+            )}
+          >
+            CHANGE GAME
+          </button>
+        </div>
+
+        {/* Picker — collapsed by default; opened on demand via CHANGE GAME */}
+        {pickerOpen && (
+          <div className="space-y-2">
+            <CategoryTabs categories={demoCategories} active={pickerCat} onSelect={setPickerCat} />
+            <div className="grid grid-cols-4 gap-2">
+              {shown.map(({ type, short, Icon }) => (
+                <button
+                  key={type}
+                  onClick={() => { setSelected(type); setPickerOpen(false) }}
+                  className={cn(
+                    'flex flex-col items-center gap-1 p-2 rounded border transition-all active:scale-95',
+                    selected === type
+                      ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
+                      : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
+                  )}
+                >
+                  <Icon />
+                  <span className="font-pixel text-[7px] text-center leading-tight whitespace-pre-line">{short}</span>
+                  <span className="font-pixel text-[6px] text-retro-dim/70">{getPlayerTag(getGameConfig(type))}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Active game first — key forces fresh mount on game switch */}
+        <div key={selected} className="border border-retro-border rounded p-4 bg-retro-card">
+          <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider mb-4">
+            {active.short.replace('\n', ' ')}
+          </p>
+          <active.Component />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DemoHub() {
-  const { type: routeType } = useParams()
-  const hasRouteType = !!routeType && DEMOS.some(d => d.type === routeType)
-  const initialType = hasRouteType ? routeType : 'tictactoe'
-  const [selected, setSelected] = useState(initialType)
-  const [activeCat, setActiveCat] = useState(() => getGameConfig(initialType)?.category || 'board')
+  const [selected, setSelected] = useState('tictactoe')
+  const [activeCat, setActiveCat] = useState(() => getGameConfig('tictactoe')?.category || 'board')
   const active = DEMOS.find(d => d.type === selected)
 
   // Party cards don't start an actual solo game (2+ players only) — every
   // other selection mounts a fresh bot/skill demo, so that's the play. Landing
   // on the bare /demo hub defaults to tictactoe with no explicit intent, so
-  // that first mount is skipped — but arriving via a /solo/:type deep link
-  // (e.g. from the catalog's VS AI option) IS an intentional play and should
-  // be recorded immediately.
-  const playRecorded = useRef(hasRouteType)
+  // that first mount is skipped — explicit play intent (/solo/:type) now goes
+  // through SoloPlayPage, so the hub only records in-place game switches.
+  const playRecorded = useRef(false)
   useEffect(() => {
     if (!playRecorded.current) { playRecorded.current = true; return }
     if (!(selected in PARTY_BLURB)) recordPlay(selected, 'solo')

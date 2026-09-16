@@ -177,8 +177,12 @@ export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loa
 
   const searchBlock = isFull && (
     <div className="relative">
+      {/* UX-03: visible label, programmatically associated. sr-only keeps the
+          retro look while screen readers and the label-click target both work. */}
+      <label htmlFor="gn-game-search" className="sr-only">Search games</label>
       <input
         ref={searchRef}
+        id="gn-game-search"
         type="text"
         value={query}
         onChange={e => setQuery(e.target.value)}
