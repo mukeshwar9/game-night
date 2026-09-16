@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import ArcadeLoader from '@/components/ArcadeLoader'
+import PixelDots from '@/components/loading/PixelDots'
 import { authReady, onUser, upgradeWithGoogle, signOutToGuest as signOutToGuestFn } from './auth'
 import {
   ensureProfile, subscribeProfile, setupPresence, subscribeInvites, subscribeRequests,
 } from './social'
 import { syncStatsOnBoot } from './statsSync'
+import { THEMES, applyTheme, getStoredTheme } from './theme'
 
 const AuthContext = createContext(null)
 
@@ -14,15 +15,23 @@ export function useAuth() {
   return useContext(AuthContext) || {}
 }
 
-function ConnectingSplash({ ready, onDone }) {
-  return <ArcadeLoader variant="boot" ready={ready} onDone={onDone} />
+// Mirrors the pre-JS splash markup in index.html so there's no visual jump
+// once React mounts and takes over the boot gate.
+function ConnectingSplash() {
+  return (
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-4">
+      <p className="font-pixel text-base sm:text-lg tracking-[0.15em] text-retro-cta text-glow-cta arcade-blink">
+        INSERT COIN
+      </p>
+      <PixelDots size="lg" glow />
+    </div>
+  )
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [booted, setBooted] = useState(false)
-  const [splashDone, setSplashDone] = useState(false)
   const [invites, setInvites] = useState([])
   const [requestCount, setRequestCount] = useState(0)
   const uid = user?.uid ?? null
@@ -61,7 +70,15 @@ export function AuthProvider({ children }) {
       try { await ensureProfile() } catch (e) { console.warn('Profile init skipped:', e?.message) }
       if (cancelled) return
       syncStatsOnBoot()
-      unsubProfile = subscribeProfile(uid, p => { if (!cancelled) setProfile(p) })
+      unsubProfile = subscribeProfile(uid, p => {
+        if (cancelled) return
+        setProfile(p)
+        // Theme follows the account across devices: applyTheme only touches
+        // DOM + localStorage, so this can't loop back into another setProfile write.
+        if (p?.theme && THEMES.some(t => t.id === p.theme) && p.theme !== getStoredTheme()) {
+          applyTheme(p.theme)
+        }
+      })
       unsubPresence = setupPresence(uid)
       unsubInvites = subscribeInvites(list => { if (!cancelled) setInvites(list) })
       unsubRequests = subscribeRequests(list => { if (!cancelled) setRequestCount(list.length) })
@@ -83,8 +100,8 @@ export function AuthProvider({ children }) {
     await signOutToGuestFn()
   }
 
-  if (!(booted && splashDone)) {
-    return <ConnectingSplash ready={booted} onDone={() => setSplashDone(true)} />
+  if (!booted) {
+    return <ConnectingSplash />
   }
 
   const value = {

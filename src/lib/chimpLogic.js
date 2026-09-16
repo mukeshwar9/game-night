@@ -19,32 +19,37 @@ export function generateChimpLayout(level, gridSize = CHIMP_GRID) {
   return layout
 }
 
-// Returns { updates, result } or null if invalid.
-// cellIndex = the cell the player clicked (0–24)
-export function applyChimpMove(game, cellIndex, symbol) {
-  const layout = normalizeChimpLayout(game.chimpLayout)
-  const progress = game.chimpProgress ?? 0
-  const level = game.chimpLevel ?? CHIMP_START_LEVEL
-  const opponent = symbol === 'X' ? 'O' : 'X'
+// Pure per-player tap evaluation — mirrors ChimpGame.jsx's real rules:
+// each player races through their own copy of the shared layout
+// independently (no shared `currentTurn`/turn-flip; both play simultaneously).
+//
+// Returns one of:
+//   { valid: false }                              — out-of-range cell or no layout yet
+//   { valid: true, correct: false }                — mis-tap: this player loses the round
+//   { valid: true, correct: true, newProgress, done } — correct tap; `done` when
+//                                                       newProgress reaches `level`
+export function evaluateChimpTap({ layout, progress, level, cellIndex }) {
+  const board = normalizeChimpLayout(layout)
+  if (board.length === 0 || cellIndex < 0 || cellIndex >= CHIMP_GRID) return { valid: false }
 
-  if (layout.length === 0 || cellIndex < 0 || cellIndex >= CHIMP_GRID) return null
+  const p = progress ?? 0
+  if (board[p] !== cellIndex) return { valid: true, correct: false }
 
-  if (layout[progress] !== cellIndex) {
-    return { updates: {}, result: { winner: opponent } }
+  const newProgress = p + 1
+  return { valid: true, correct: true, newProgress, done: newProgress === (level ?? CHIMP_START_LEVEL) }
+}
+
+// The Firebase patch to advance both players into the next round once both
+// have finished the current level. Pure — the caller is responsible for the
+// CAS/atomicity around applying it.
+export function buildChimpAdvance(currentLevel) {
+  const level = currentLevel + 1
+  return {
+    chimpLevel: level,
+    chimpLayout: generateChimpLayout(level),
+    chimpProgressX: 0,
+    chimpProgressO: 0,
+    chimpDoneX: false,
+    chimpDoneO: false,
   }
-
-  const newProgress = progress + 1
-  if (newProgress === level) {
-    return {
-      updates: {
-        chimpLevel: level + 1,
-        chimpLayout: generateChimpLayout(level + 1),
-        chimpProgress: 0,
-        currentTurn: opponent,
-      },
-      result: null,
-    }
-  }
-
-  return { updates: { chimpProgress: newProgress }, result: null }
 }

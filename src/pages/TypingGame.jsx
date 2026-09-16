@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { ref, update, runTransaction } from 'firebase/database'
+import { ref, update, runTransaction, onValue } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
 import TypingKeyboard from '../components/TypingKeyboard'
 import OfflineNotice from '../components/loading/OfflineNotice'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { countCorrectChars, computeWpm, computeAccuracy, computeEffWpm } from '../lib/typingLogic'
+
+// After my finish, if the opponent is online but idle (no wpm posted) for
+// this long, let me claim the win via a transaction instead of waiting forever.
+const CLAIM_WIN_MS = 60_000
 
 function ProgressBar({ label, val, max, colorClass }) {
   const pct = max > 0 ? Math.min(100, Math.round((val / max) * 100)) : 0
@@ -30,8 +36,8 @@ function ResultsPanel({ game, mySymbol, players }) {
   const accX  = game.typingAccX  ?? null
   const accO  = game.typingAccO  ?? null
   const winner = game.winner
-  const eX = wpmX != null && accX != null ? Math.round(wpmX * accX / 100) : null
-  const eO = wpmO != null && accO != null ? Math.round(wpmO * accO / 100) : null
+  const eX = computeEffWpm(wpmX, accX)
+  const eO = computeEffWpm(wpmO, accO)
 
   return (
     <div className="space-y-3">
@@ -86,23 +92,40 @@ export default function TypingGame({
 
   const [typed, setTyped] = useState('')
   const [now, setNow]     = useState(() => Date.now())
+  const [clockOffset, setClockOffset] = useState(0)
 
   const syncTimerRef  = useRef(null)
   const gameStartRef  = useRef(null)
   const finishedRef   = useRef(false)
   const prevPassageRef = useRef(game.typingPassage ?? '')
 
+  // Corrected clock — every deadline/elapsed-time calc runs through this
+  // offset so a skewed local clock can't produce a negative or wildly
+  // inflated WPM.
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = now + clockOffset
+
   const passage   = game.typingPassage ?? ''
   const startedAt = game.typingStartedAt ?? null
-  const isCountdown = !!startedAt && now < startedAt + 3000
-  const isRacing    = !!startedAt && now >= startedAt + 3000 && game.status !== 'finished'
-  const countdownSec = isCountdown ? Math.ceil((startedAt + 3000 - now) / 1000) : 0
+  const isCountdown = !!startedAt && serverNow < startedAt + 3000
+  const isRacing    = !!startedAt && serverNow >= startedAt + 3000 && game.status !== 'finished'
+  const countdownSec = isCountdown ? Math.ceil((startedAt + 3000 - serverNow) / 1000) : 0
   const opProgress  = game[`typingProgress${opKey}`] ?? 0
   const myProgress  = typed.length
   const myFinished  = game[`typingWpm${myKey}`] != null
   const isWaiting   = myFinished && game.status !== 'finished'
+  const myFinishedAt = game[`typingFinishedAt${myKey}`] ?? null
+  const opFinishedWpm = game[`typingWpm${opKey}`] ?? null
+  const canClaimWin = isWaiting && !!myFinishedAt && opFinishedWpm == null &&
+    (serverNow - myFinishedAt) >= CLAIM_WIN_MS
 
-  // Ticker + set gameStartRef when startedAt arrives
+  // Ticker + set gameStartRef when startedAt arrives. Keeps running through
+  // my own finish (status stays 'playing') so the post-finish claim-win
+  // countdown updates.
   useEffect(() => {
     if (!startedAt || game.status === 'finished') return
     gameStartRef.current = startedAt + 3000
@@ -131,19 +154,25 @@ export default function TypingGame({
     finishedRef.current = true
     clearTimeout(syncTimerRef.current)
     // eslint-disable-next-line react-hooks/purity -- runs only from handleKey (a keystroke handler), never during render
-    const finishedAt = Date.now()
+    const finishedAt = Date.now() + clockOffset
     const elapsed = finishedAt - (gameStartRef.current ?? finishedAt)
-    const wpm = Math.max(1, Math.round((passage.length / 5) / (elapsed / 60_000)))
-    let matches = 0
-    for (let i = 0; i < finalTyped.length; i++) {
-      if (finalTyped[i] === passage[i]) matches++
+    const correctChars = countCorrectChars(finalTyped, passage)
+    const wpm = computeWpm(correctChars, elapsed)
+    const acc = computeAccuracy(correctChars, passage.length)
+    try {
+      await update(ref(db, `games/${gameId}`), {
+        [`typingProgress${myKey}`]: passage.length,
+        [`typingWpm${myKey}`]: wpm,
+        [`typingAcc${myKey}`]: acc,
+        [`typingFinishedAt${myKey}`]: finishedAt,
+      })
+    } catch {
+      // Write failed — un-finish so retyping the last character retries,
+      // instead of the round hanging with a swallowed rejection.
+      finishedRef.current = false
+      toast.error('SUBMIT FAILED — RETYPE THE LAST CHARACTER TO RETRY')
+      return
     }
-    const acc = Math.round((matches / passage.length) * 100)
-    await update(ref(db, `games/${gameId}`), {
-      [`typingProgress${myKey}`]: passage.length,
-      [`typingWpm${myKey}`]: wpm,
-      [`typingAcc${myKey}`]: acc,
-    }).catch(() => {})
     tryFinish()
   }
 
@@ -156,14 +185,33 @@ export default function TypingGame({
         if (wX == null || wO == null) return  // wait for both
         const aX = current.typingAccX ?? 100
         const aO = current.typingAccO ?? 100
-        const eX = wX * aX / 100
-        const eO = wO * aO / 100
+        const eX = computeEffWpm(wX, aX)
+        const eO = computeEffWpm(wO, aO)
         const winner = eX > eO ? 'X' : eX < eO ? 'O' : 'draw'
         const scores = { ...(current.scores || {}) }
         if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
         return { ...current, winner, status: 'finished', scores }
       })
     } catch { /* other client resolved */ }
+  }
+
+  // Opponent is online but idle post-finish (no wpm posted) for 60s+ —
+  // claim the win via transaction instead of waiting on them forever.
+  const handleClaimWin = async () => {
+    try {
+      await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || current.status === 'finished') return
+        const myFin = current[`typingFinishedAt${myKey}`]
+        const opWpm = current[`typingWpm${opKey}`]
+        if (!myFin || opWpm != null) return
+        if (Date.now() + clockOffset - myFin < CLAIM_WIN_MS) return
+        const scores = { ...(current.scores || {}) }
+        scores[myKey] = (scores[myKey] || 0) + 1
+        return { ...current, winner: myKey, status: 'finished', scores }
+      })
+    } catch {
+      toast.error('CLAIM FAILED — CHECK CONNECTION')
+    }
   }
 
   const handleKey = (char) => {
@@ -296,9 +344,19 @@ export default function TypingGame({
               })}
             </p>
             {isWaiting && (
-              <p className="font-pixel text-[9px] text-retro-cta text-center mt-3 arcade-blink">
-                WAITING FOR OPPONENT...
-              </p>
+              <div className="flex flex-col items-center gap-2 mt-3">
+                <p className="font-pixel text-[9px] text-retro-cta text-center arcade-blink">
+                  WAITING FOR OPPONENT...
+                </p>
+                {canClaimWin && (
+                  <button
+                    onClick={handleClaimWin}
+                    className="px-4 py-2 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95"
+                  >
+                    OPPONENT IDLE — CLAIM WIN
+                  </button>
+                )}
+              </div>
             )}
           </>
         )}

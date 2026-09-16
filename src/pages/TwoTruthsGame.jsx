@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ref, onValue, update } from 'firebase/database'
+import { ref, onValue, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import GameSwitcher from '../components/GameSwitcher'
@@ -15,6 +15,10 @@ import { toast } from 'sonner'
 
 const MATCH_WINS = 3
 const MAX_LEN = 80
+// Storyteller never locks in their 3 statements — anchored to a
+// server-corrected timestamp (see clockOffset below) so the guesser can end
+// a dead round without depending on presence alone.
+const WRITING_DEADLINE_MS = 180_000
 
 function normalizeStatements(raw) {
   if (!raw) return ['', '', '']
@@ -172,10 +176,41 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   const [showWinEffect, setShowWinEffect] = useState(false)
   const [winEffectFor, setWinEffectFor] = useState(null)
   const [sharing, runShare] = useBusy()
+  const [clockOffset, setClockOffset] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
 
   const verifiedCommitment = useRef(null)
   const lieRevealed = round.reveal?.lieIndex
   const guessedRight = guess != null && lieRevealed != null && guess === lieRevealed
+
+  // Corrected clock, used only by the writing-phase deadline below.
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = now + clockOffset
+
+  useEffect(() => {
+    if (phase !== 'writing') return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [phase])
+
+  // Anchor `round/writingStartedAt` the moment a round enters 'writing', so
+  // the 180s no-statements deadline has a fixed, server-corrected reference
+  // point. Guarded by a transaction so only one client's write sticks.
+  useEffect(() => {
+    if (phase !== 'writing' || matchWinner || round.writingStartedAt) return
+    runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.phase !== 'writing' || current.writingStartedAt) return
+      return { ...current, writingStartedAt: Date.now() + clockOffset }
+    }).catch(() => {})
+  }, [phase, matchWinner, round.writingStartedAt, gameId, clockOffset])
+
+  const writingStartedAt = round.writingStartedAt ?? null
+  const writingElapsedMs = writingStartedAt ? Math.max(0, serverNow - writingStartedAt) : 0
+  const writingExpired = phase === 'writing' && !!writingStartedAt && writingElapsedMs >= WRITING_DEADLINE_MS
 
   // --- Setter: when guess arrives, reveal + verify own commitment ---
   useEffect(() => {
@@ -242,6 +277,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
         'round/commitment': hash,
         'round/guess': null,
         'round/reveal': null,
+        'round/writingStartedAt': null,
       })
     } catch {
       /* ignore */
@@ -278,6 +314,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
       'round/commitment': null,
       'round/guess': null,
       'round/reveal': null,
+      'round/writingStartedAt': null,
       proposal: null,
     }
 
@@ -292,22 +329,25 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   // Stuck-round escape hatch: the storyteller's lie index lives only in
   // sessionStorage, so if it's gone (new tab) the reveal can never land — reset
   // to a fresh round with no score change, swap setter. Used by the guesser
-  // when the storyteller is offline, and by the storyteller themselves when
-  // they detect their own secret is missing.
+  // when the storyteller is offline, when the storyteller never locks in
+  // statements within WRITING_DEADLINE_MS, and by the storyteller themselves
+  // when they detect their own secret is missing. Transaction-guarded so it
+  // can't fire after a reveal has already landed.
   const handleResetStuckRound = useCallback(async () => {
-    const newSetter = setter === 'X' ? 'O' : 'X'
     try {
-      await update(ref(db, `games/${gameId}`), {
-        'round/setter': newSetter,
-        'round/phase': 'writing',
-        'round/statements': null,
-        'round/commitment': null,
-        'round/guess': null,
-        'round/reveal': null,
-        proposal: null,
+      await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || !current.round) return current
+        if (current.round.phase === 'reveal') return // already resolved — don't clobber a live reveal
+        const curSetter = current.round.setter || 'X'
+        const newSetter = curSetter === 'X' ? 'O' : 'X'
+        return {
+          ...current,
+          round: { setter: newSetter, phase: 'writing' },
+          proposal: null,
+        }
       })
     } catch { /* ignore */ }
-  }, [setter, gameId])
+  }, [gameId])
 
   if (cheatDetected) return <CheatScreen evidence={cheatEvidence} />
 
@@ -386,6 +426,19 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
             {!opponentOnline && (
               <p className="font-pixel text-[10px] text-retro-dim">
                 (STORYTELLER IS OFFLINE)
+              </p>
+            )}
+            {isGuesser && writingExpired && (
+              <button
+                onClick={handleResetStuckRound}
+                className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+              >
+                END ROUND — NO STATEMENTS SET
+              </button>
+            )}
+            {isGuesser && writingStartedAt && !writingExpired && (
+              <p className="font-mono text-[9px] text-retro-dim">
+                CAN END IN {Math.max(0, Math.ceil((WRITING_DEADLINE_MS - writingElapsedMs) / 1000))}s
               </p>
             )}
           </div>

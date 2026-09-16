@@ -12,6 +12,8 @@ export default function Board({ board, onMove, disabled, winningLine = [], lastM
           disabled={disabled}
           isWinning={winningLine.includes(i)}
           isLastMove={i === lastMove}
+          row={Math.floor(i / cols)}
+          col={i % cols}
         />
       ))}
     </div>

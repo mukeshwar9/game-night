@@ -2,26 +2,41 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
   BK_SIZE,
+  BK_CELL_COUNT,
   BK_WALL_SLOT_COUNT,
   decodeSlot,
   legalPawnMoves,
   isWallMoveLegal,
 } from '../lib/blockadeLogic'
 
-export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, currentTurn }) {
+export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, currentTurn, lastMove = null }) {
   const [mode, setMode] = useState('move')
   const [pendingWallSlot, setPendingWallSlot] = useState(null)
   const [hoverSlot, setHoverSlot] = useState(null)
+  const [illegalFlashSlot, setIllegalFlashSlot] = useState(null)
 
-  // Opponent just moved, or I just moved — either way, clear any wall preview.
-  // Adjusted during render (not an effect) per React's "adjusting state when a prop
-  // changes" pattern — avoids an extra render pass and the lint rule against
-  // setState-in-effect.
+  // Opponent just moved, or I just moved — either way, clear any wall preview
+  // and reset back to MOVE mode. Adjusted during render (not an effect) per
+  // React's "adjusting state when a prop changes" pattern — avoids an extra
+  // render pass and the lint rule against setState-in-effect.
   const [lastTurn, setLastTurn] = useState(currentTurn)
   if (currentTurn !== lastTurn) {
     setLastTurn(currentTurn)
+    setMode('move')
     setPendingWallSlot(null)
     setHoverSlot(null)
+  }
+
+  // Also reset to MOVE mode the moment the board becomes interactive again
+  // (covers a `disabled` flip that isn't accompanied by a currentTurn change).
+  const [lastDisabled, setLastDisabled] = useState(disabled)
+  if (disabled !== lastDisabled) {
+    setLastDisabled(disabled)
+    if (!disabled) {
+      setMode('move')
+      setPendingWallSlot(null)
+      setHoverSlot(null)
+    }
   }
 
   function handleSetMode(next) {
@@ -31,16 +46,31 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
     setHoverSlot(null)
   }
 
+  function flashIllegal(slot) {
+    setIllegalFlashSlot(slot)
+    setTimeout(() => setIllegalFlashSlot(cur => (cur === slot ? null : cur)), 300)
+  }
+
   function handleWallTap(slot) {
     if (disabled) return
     if (pendingWallSlot === slot) {
-      // second tap on the same slot confirms — clear optimistically, don't wait for the round-trip
+      // second tap on the same slot confirms — but reject silently-turned-loud
+      // if it's illegal (occupied/conflicting/would seal a path): flash it
+      // instead of sending a doomed move to the server.
+      if (!isWallMoveLegal(board, pawns, walls[currentTurn], slot, currentTurn)) {
+        flashIllegal(slot)
+        return
+      }
+      // clear optimistically, don't wait for the round-trip
       onMove({ type: 'wall', slot })
       setPendingWallSlot(null)
     } else {
       setPendingWallSlot(slot)
     }
   }
+
+  const lastMoveCell = lastMove != null && lastMove >= 0 && lastMove < BK_CELL_COUNT ? lastMove : null
+  const lastMoveWallSlot = lastMove != null && lastMove >= BK_CELL_COUNT ? lastMove - BK_CELL_COUNT : null
 
   const legalMoveSet = mode === 'move' && !disabled
     ? new Set(legalPawnMoves(pawns, board, currentTurn))
@@ -80,10 +110,14 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
           )}
           {pawnHere && (
             <span
+              // Mounts fresh each time this cell newly gains a pawn (it moved
+              // here), so place-pop replays on every move without extra state.
               className={cn(
                 'w-[60%] h-[60%] rounded-full',
                 pawnHere === 'X' ? 'bg-retro-p1 shadow-neon-p1' : 'bg-retro-p2 shadow-neon-p2',
+                cellIndex === lastMoveCell && 'ring-2 ring-retro-cta/70',
               )}
+              style={{ animation: 'place-pop 0.25s ease-out' }}
             />
           )}
         </div>
@@ -100,24 +134,32 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
 
     const gridRow = orientation === 'h' ? `${2 * r + 2} / ${2 * r + 3}` : `${2 * r + 1} / ${2 * r + 4}`
     const gridColumn = orientation === 'h' ? `${2 * c + 1} / ${2 * c + 4}` : `${2 * c + 2} / ${2 * c + 3}`
+    // ±19px over the 6px groove = 44px tap target on the thin axis (was ±8px = 22px).
     const hitClasses = orientation === 'h'
-      ? 'absolute -top-[8px] -bottom-[8px] left-0 right-0'
-      : 'absolute top-0 bottom-0 -left-[8px] -right-[8px]'
+      ? 'absolute -top-[19px] -bottom-[19px] left-0 right-0'
+      : 'absolute top-0 bottom-0 -left-[19px] -right-[19px]'
 
     const isPending = pendingWallSlot === slot
     const isHovered = hoverSlot === slot
-    const showPreview = !isOccupied && mode === 'wall' && !disabled && (isPending || isHovered)
-    const isLegalPreview = showPreview && isWallMoveLegal(board, pawns, walls[currentTurn], slot, currentTurn)
+    const isFlashing = illegalFlashSlot === slot
+    const showPreview = !isOccupied && mode === 'wall' && !disabled && (isPending || isHovered || isFlashing)
+    const isLegalPreview = showPreview && !isFlashing
+      && isWallMoveLegal(board, pawns, walls[currentTurn], slot, currentTurn)
+    const isLastMoveWall = isOccupied && slot === lastMoveWallSlot
 
     let inner
     if (isOccupied) {
       inner = (
         <div
+          // Mounts fresh the instant this slot flips from empty to occupied,
+          // so place-pop replays on every wall placement without extra state.
           className={cn(
             hitClasses,
             'pointer-events-none rounded-sm',
             owner === 'X' ? 'bg-retro-p1 shadow-neon-p1' : 'bg-retro-p2 shadow-neon-p2',
+            isLastMoveWall && 'ring-2 ring-retro-cta/70',
           )}
+          style={{ animation: 'place-pop 0.25s ease-out' }}
         />
       )
     } else if (mode === 'wall' && !disabled) {
@@ -130,11 +172,20 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
           className={cn(
             hitClasses,
             'rounded-sm transition-all duration-100',
-            showPreview
-              ? isLegalPreview
-                ? 'bg-retro-cta/40 border border-retro-cta shadow-neon-cta cursor-pointer'
-                : 'bg-retro-dim/20 border border-retro-dim opacity-50 cursor-not-allowed'
-              : 'bg-retro-border/30 hover:bg-retro-border/50 cursor-pointer',
+            isFlashing
+              // Illegal-tap rejection: a brief danger pulse instead of silently doing nothing.
+              ? 'bg-retro-danger/40 border border-retro-danger shadow-neon-danger animate-pulse cursor-not-allowed'
+              : showPreview
+                ? isLegalPreview
+                  ? isPending
+                    // Armed-for-confirm: solid player-color fill + pulsing ring, distinct from hover.
+                    ? cn(
+                        currentTurn === 'X' ? 'bg-retro-p1' : 'bg-retro-p2',
+                        'ring-2 ring-retro-cta animate-pulse shadow-neon-cta cursor-pointer',
+                      )
+                    : 'bg-retro-cta/40 border border-retro-cta shadow-neon-cta cursor-pointer'
+                  : 'bg-retro-danger/15 border border-retro-danger/50 cursor-not-allowed'
+                : 'bg-retro-border/30 hover:bg-retro-border/50 cursor-pointer',
           )}
         />
       )
@@ -151,7 +202,13 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="bg-retro-surface border-2 border-retro-border rounded p-3">
+      <div
+        className={cn(
+          'bg-retro-surface border-2 rounded p-3 transition-all duration-200',
+          mode === 'wall' && !disabled ? 'border-retro-cta' : 'border-retro-border',
+          disabled && 'opacity-60 saturate-50',
+        )}
+      >
         <div
           className="aspect-square w-full"
           style={{

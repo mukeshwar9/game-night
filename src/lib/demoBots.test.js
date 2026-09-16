@@ -65,56 +65,93 @@ describe('pickBotMove — tictactoe', () => {
 })
 
 // ---------------------------------------------------------------------------
+// 1b. Tic-tac-toe 4×4 (four-in-a-row on a 16-cell board)
+// ---------------------------------------------------------------------------
+
+describe('pickBotMove — tictactoe4', () => {
+  it('completes a winning line when given the chance', () => {
+    // O has three in a row on the bottom row (12-14) — playing 15 wins.
+    // The old 3×3-geometry bot could never return anything past index 8.
+    const board = place(emptyBoard(16), [12, 13, 14], 'O')
+    board[0] = 'X'; board[1] = 'X'
+    const move = pickBotMove('tictactoe4', boardGame(board), 'O')
+    expect(move).toBe(15)
+  })
+
+  it('blocks a bottom-row threat spanning cells beyond index 8', () => {
+    // X has 8,9,10 — wins at 11; O must block.
+    const board = emptyBoard(16)
+    board[8] = 'X'; board[9] = 'X'; board[10] = 'X'
+    board[0] = 'O'
+    const move = pickBotMove('tictactoe4', boardGame(board), 'O')
+    expect(move).toBe(11)
+  })
+
+  it('blocks the anti-diagonal through cells 3,6,9,12', () => {
+    // X has 3,6,9 — wins at 12; O must block.
+    const board = emptyBoard(16)
+    board[3] = 'X'; board[6] = 'X'; board[9] = 'X'
+    board[0] = 'O'
+    const move = pickBotMove('tictactoe4', boardGame(board), 'O')
+    expect(move).toBe(12)
+  })
+
+  it('returns a valid inner-square cell on a fresh board', () => {
+    const move = pickBotMove('tictactoe4', boardGame(emptyBoard(16)), 'O')
+    expect([5, 6, 9, 10]).toContain(move)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // 2. Connect Four
 // ---------------------------------------------------------------------------
 
 describe('pickBotMove — connectfour', () => {
-  // Classic Connect Four is a 9×7 grid: 63 cells, index = row * 9 + col,
-  // row 0 = top, row 6 = bottom.
+  // Classic Connect Four is a 7×6 grid: 42 cells, index = row * 7 + col,
+  // row 0 = top, row 5 = bottom.
   it('takes a winning column immediately', () => {
-    // O has three in a row vertically at col 3 (rows 6,5,4 = 57,48,39).
-    // Only col 3 lets O drop to row 3 (index 30) and win vertically.
-    const board = emptyBoard(63)
-    board[57] = 'O' // row6 col3
-    board[48] = 'O' // row5 col3
-    board[39] = 'O' // row4 col3
-    board[62] = 'X'
+    // O has three in a row vertically at col 3 (rows 5,4,3 = 38,31,24).
+    // Only col 3 lets O drop to row 2 (index 17) and win vertically.
+    const board = emptyBoard(42)
+    board[38] = 'O' // row5 col3
+    board[31] = 'O' // row4 col3
+    board[24] = 'O' // row3 col3
+    board[41] = 'X'
     const move = pickBotMove('connectfour', boardGame(board), 'O')
     expect(move).toBe(3)
   })
 
   it('blocks the opponent from winning (vertical threat)', () => {
-    // X would win at col 3 row 3 (index 30). Bot must block col 3.
-    const board = emptyBoard(63)
-    board[57] = 'X' // row6 col3
-    board[48] = 'X' // row5 col3
-    board[39] = 'X' // row4 col3
-    board[54] = 'O' // row6 col0
-    board[55] = 'O' // row6 col1 — no immediate O win
+    // X would win at col 3 row 2 (index 17). Bot must block col 3.
+    const board = emptyBoard(42)
+    board[38] = 'X' // row5 col3
+    board[31] = 'X' // row4 col3
+    board[24] = 'X' // row3 col3
+    board[35] = 'O' // row5 col0
+    board[36] = 'O' // row5 col1 — no immediate O win
     const move = pickBotMove('connectfour', boardGame(board), 'O')
     expect(move).toBe(3)
   })
 
-  it('returns a valid column (0-8) for an empty board', () => {
-    const move = pickBotMove('connectfour', boardGame(emptyBoard(63)), 'O')
+  it('returns a valid column (0-6) for an empty board', () => {
+    const move = pickBotMove('connectfour', boardGame(emptyBoard(42)), 'O')
     expect(move).toBeGreaterThanOrEqual(0)
-    expect(move).toBeLessThanOrEqual(8)
+    expect(move).toBeLessThanOrEqual(6)
   })
 
   it('does not play in a full column', () => {
-    // Fill columns 0-7 completely, only col 8 has space
-    const board = emptyBoard(63)
-    for (let col = 0; col < 8; col++) {
-      for (let row = 0; row < 7; row++) {
-        board[row * 9 + col] = 'X'
+    // Fill columns 0-5 completely, only col 6 has space
+    const board = emptyBoard(42)
+    for (let col = 0; col < 6; col++) {
+      for (let row = 0; row < 6; row++) {
+        board[row * 7 + col] = 'X'
       }
     }
     const move = pickBotMove('connectfour', boardGame(board), 'O')
-    expect(move).toBe(8)
+    expect(move).toBe(6)
   })
 })
 
-// ---------------------------------------------------------------------------
 // 3. Dice (Pig)
 // ---------------------------------------------------------------------------
 
@@ -290,6 +327,44 @@ describe('pickBotMove — orderchaos', () => {
     const move = pickBotMove('orderchaos', boardGame(board), 'O')
     expect(move).not.toBeNull()
     expect(move.index).toBe(35)
+  })
+
+  // -------------------------------------------------------------------------
+  // botSymbol 'X' — Order role: builds toward a 5-run instead of blocking one
+  // -------------------------------------------------------------------------
+
+  it('Order (X) takes an immediate win when a 5-run is completable', () => {
+    const board = emptyBoard(36)
+    board[0] = 'X'; board[1] = 'X'; board[2] = 'X'; board[3] = 'X'
+    const move = pickBotMove('orderchaos', boardGame(board), 'X')
+    expect(move).not.toBeNull()
+    expect(move.index).toBe(4)
+    expect(move.letter).toBe('X')
+  })
+
+  it('Order (X) extends an existing run rather than playing at random', () => {
+    // Three X's in a row at 0,1,2 (row 0, cols 0-2) — only extension is col 3 (index 3)
+    const board = emptyBoard(36)
+    board[0] = 'X'; board[1] = 'X'; board[2] = 'X'
+    const move = pickBotMove('orderchaos', boardGame(board), 'X')
+    expect(move).not.toBeNull()
+    expect(move.index).toBe(3)
+    expect(move.letter).toBe('X')
+  })
+
+  it('Order (X) does not play on an occupied cell', () => {
+    const board = Array(36).fill('X')
+    board[35] = ''
+    const move = pickBotMove('orderchaos', boardGame(board), 'X')
+    expect(move).not.toBeNull()
+    expect(move.index).toBe(35)
+  })
+
+  it('Order (X) returns a valid payload on an empty board', () => {
+    const move = pickBotMove('orderchaos', boardGame(emptyBoard(36)), 'X')
+    expect(move).not.toBeNull()
+    expect(typeof move.index).toBe('number')
+    expect(['X', 'O']).toContain(move.letter)
   })
 })
 

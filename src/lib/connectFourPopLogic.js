@@ -55,17 +55,28 @@ export function popColumn(board, col) {
   return nb
 }
 
+// Does `symbol` have any legal pop available (owns the bottom disc of at
+// least one column)? On a full board, a drop is never legal, so this is the
+// only move type left to check.
+export function hasLegalPop(board, symbol) {
+  for (let col = 0; col < COLS; col++) {
+    if (canPop(board, col, symbol)) return true
+  }
+  return false
+}
+
 // After a move by `mover`, decide the outcome. A pop can complete fours for
 // either or both sides. House rule: if both complete a four, the mover (who
-// chose the move) wins; otherwise whoever has four wins; a full board with
-// none is a draw. Returns { winner, line } or null while the game is live.
+// chose the move) wins; otherwise whoever has four wins. A full board is a
+// draw only once the side to move next (the opponent) has no legal pop left
+// either — otherwise the game continues even though every cell is filled.
 export function popWinner(board, mover) {
   const opp = mover === 'X' ? 'O' : 'X'
   const mine = connectFourLineFor(board, mover)
   const theirs = connectFourLineFor(board, opp)
   if (mine) return { winner: mover, line: mine }
   if (theirs) return { winner: opp, line: theirs }
-  if (board.every(c => c)) return { winner: 'draw', line: [] }
+  if (board.every(c => c) && !hasLegalPop(board, opp)) return { winner: 'draw', line: [] }
   return null
 }
 

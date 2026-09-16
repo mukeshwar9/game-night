@@ -9,7 +9,7 @@ import TypingKeyboard from '../components/TypingKeyboard';
 import WordSetter from '../components/WordSetter';
 import ChimpBoard from '../components/ChimpBoard';
 import VisualMemoryBoard from '../components/VisualMemoryBoard';
-import ArcadeLoader from '../components/ArcadeLoader';
+import LoadingLine from '../components/loading/LoadingLine';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
@@ -42,7 +42,7 @@ import useBusy from '../hooks/useBusy'
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
-import { getGameConfig, freshGameState, GAME_CATEGORIES, getPlayerTag } from '../lib/games'
+import { getGameConfig, freshGameState, GAME_CATEGORIES, getPlayerTag, supportsLocalPlay } from '../lib/games'
 import { recordPlay } from '../lib/analytics'
 import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
@@ -73,7 +73,8 @@ function generateNumberLocal(level) {
 
 // ─── Generic bot harness ──────────────────────────────────────────────────────
 
-function BotBoardDemo({ type }) {
+function BotBoardDemo({ type, mode = 'bot' }) {
+  const isLocal = mode === 'local'
   const cfg = getGameConfig(type)
   const makeInit = () => ({
     ...freshGameState(type),
@@ -99,6 +100,10 @@ function BotBoardDemo({ type }) {
       result = cfg.getWinner(nb)
       updates = { board: nb, currentTurn: symbol === 'X' ? 'O' : 'X' }
     }
+    // Mirror Game.jsx's handleMove: mark the cell/edge just played so boards
+    // render the same lasting last-move ring in the demo as in the live game.
+    // A hook that already set its own lastMove wins.
+    if (cfg.boardSize > 0 && updates.lastMove === undefined) updates.lastMove = index
     const next = { ...g, ...updates }
     if (result) {
       next.winner = result.winner
@@ -110,15 +115,17 @@ function BotBoardDemo({ type }) {
 
   const handleHumanMove = (payload) => {
     setGame(g => {
-      if (g.status !== 'playing' || g.currentTurn !== 'X') return g
-      return applyOne(g, payload, 'X') || g
+      if (g.status !== 'playing') return g
+      const symbol = isLocal ? g.currentTurn : 'X'
+      if (!isLocal && g.currentTurn !== 'X') return g
+      return applyOne(g, payload, symbol) || g
     })
   }
 
   const prevPig = useRef({ idx: 0, turnScore: 0, rolls: 0 })
   const prevStatus = useRef(game.status)
   useEffect(() => {
-    if (type !== 'dice') return
+    if (type !== 'dice' && type !== 'dice-big') return
     const rolled = (game.diceRollIndex ?? 0) > prevPig.current.idx
     const bankedOrBust = (game.diceTurnScore ?? 0) === 0 && prevPig.current.turnScore > 0
     if (rolled || bankedOrBust) {
@@ -136,15 +143,17 @@ function BotBoardDemo({ type }) {
   useEffect(() => {
     if (prevStatus.current === 'playing' && game.status === 'finished') {
       if (game.winner === 'draw') sounds.draw()
-      else if (game.winner === 'X') sounds.win()
+      else if (isLocal || game.winner === 'X') sounds.win()
       else sounds.lose()
     }
     prevStatus.current = game.status
-  }, [game.status, game.winner])
+  }, [game.status, game.winner, isLocal])
 
   // Bot turn driver — re-runs whenever game changes; handles extra-turns/passes/dice streaks
-  // because it simply fires again while it's still O's turn.
+  // because it simply fires again while it's still O's turn. Skipped entirely
+  // in local mode — both seats are human, no timer needed.
   useEffect(() => {
+    if (isLocal) return
     if (game.status !== 'playing' || game.currentTurn !== 'O') return
     timerRef.current = setTimeout(() => {
       setGame(g => {
@@ -161,13 +170,22 @@ function BotBoardDemo({ type }) {
   const reset = () => { clearTimeout(timerRef.current); setGame(makeInit()) }
 
   const board = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize) : []
-  const canMove = game.status === 'playing' && game.currentTurn === 'X'
+  const canMove = game.status === 'playing' && (isLocal || game.currentTurn === 'X')
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
-        <PlayerCard name="You" symbol="X" isActive={canMove} isMe />
-        <PlayerCard name="CPU" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
+        {isLocal ? (
+          <>
+            <PlayerCard name="PLAYER 1" symbol="X" isActive={game.status === 'playing' && game.currentTurn === 'X'} isMe={false} />
+            <PlayerCard name="PLAYER 2" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
+          </>
+        ) : (
+          <>
+            <PlayerCard name="You" symbol="X" isActive={canMove} isMe />
+            <PlayerCard name="CPU" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
+          </>
+        )}
       </div>
       <cfg.BoardComponent
         board={board}
@@ -175,13 +193,15 @@ function BotBoardDemo({ type }) {
         disabled={!canMove}
         winningLine={game.winningLine || []}
         currentTurn={game.currentTurn}
+        lastMove={game.lastMove ?? null}
         {...(cfg.boardProps ? cfg.boardProps(game) : {})}
       />
       <GameStatus
         status={game.status}
         winner={game.winner}
         currentTurn={game.currentTurn}
-        mySymbol="X"
+        mySymbol={isLocal ? null : 'X'}
+        extraTurn={!!game.extraTurn}
         onPlayAgain={game.status === 'finished' ? reset : null}
       />
     </div>
@@ -709,7 +729,7 @@ function WordHuntDemo() {
   if (!dict) {
     return (
       <div className="flex flex-col items-center justify-center py-8">
-        <ArcadeLoader variant="inline" />
+        <LoadingLine />
         {dictError && (
           <>
             <p className="font-pixel text-[9px] text-retro-p2 mt-3">COULDN&apos;T LOAD WORD LIST</p>
@@ -2289,21 +2309,166 @@ const DEMOS = [
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function Demo() {
+// Local pass-and-play: two people share one screen/keyboard, alternating
+// moves on the real BoardComponent with no bot and no Firebase. Reuses the
+// generic BotBoardDemo engine (mode="local") — no per-game code needed.
+function LocalPlayPage({ routeType }) {
+  const cfg = getGameConfig(routeType)
+  const playRecorded = useRef(false)
+  useEffect(() => {
+    if (playRecorded.current) return
+    playRecorded.current = true
+    recordPlay(routeType, 'local')
+  }, [routeType])
+
+  return (
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-center justify-end">
+          <span className="text-xs text-retro-p2 bg-retro-tint-p2 border border-retro-p2/60 rounded px-2 py-1 font-mono">
+            PASS & PLAY
+          </span>
+        </div>
+        <div className="border border-retro-border rounded p-4 bg-retro-card space-y-1">
+          <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">
+            {cfg.label} — PASS & PLAY
+          </p>
+          <p className="font-pixel text-[8px] text-retro-dim text-center">
+            SHARE THIS SCREEN — TAKE TURNS
+          </p>
+          <div className="pt-3">
+            <BotBoardDemo type={routeType} mode="local" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Dispatcher — no hooks of its own, so branching to a different child
+// component ahead of any hook call stays rules-of-hooks safe.
+export default function Demo({ mode }) {
   const { type: routeType } = useParams()
-  const hasRouteType = !!routeType && DEMOS.some(d => d.type === routeType)
-  const initialType = hasRouteType ? routeType : 'tictactoe'
-  const [selected, setSelected] = useState(initialType)
-  const [activeCat, setActiveCat] = useState(() => getGameConfig(initialType)?.category || 'board')
+
+  if (mode === 'local' && routeType && supportsLocalPlay(routeType)) {
+    return <LocalPlayPage routeType={routeType} />
+  }
+  // /local/:type with an invalid/ineligible type falls back to the hub below.
+  // UX-01: an explicit /solo/:type deep link (e.g. the catalog's VS AI option)
+  // IS play intent — show the selected game board-first, picker behind a
+  // "CHANGE GAME" toggle instead of another catalog above the board. Bare
+  // /demo stays the browse-first hub.
+  if (routeType && DEMOS.some(d => d.type === routeType)) {
+    // key: navigating between two /solo/:type routes reuses this route element,
+    // so the type change must remount the page (fresh game state per game).
+    return <SoloPlayPage key={routeType} routeType={routeType} />
+  }
+  return <DemoHub />
+}
+
+// UX-01: board-first solo page for explicit /solo/:type routes. Reuses the
+// exact DemoHub selection machinery (DEMOS entries, keyed remount on switch,
+// play-record on intent) — no second game registry, no duplicated engines.
+function SoloPlayPage({ routeType }) {
+  const [selected, setSelected] = useState(routeType)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerCat, setPickerCat] = useState(() => getGameConfig(routeType)?.category || 'board')
+  const active = DEMOS.find(d => d.type === selected)
+
+  // Deep-link arrival is intentional play — record immediately (same rule as
+  // DemoHub), then record each explicit switch. Party entries are excluded:
+  // they explain multiplayer requirements rather than run a solo game.
+  const playRecorded = useRef(false)
+  useEffect(() => {
+    if (!playRecorded.current) { playRecorded.current = true; return }
+    if (!(selected in PARTY_BLURB)) recordPlay(selected, 'solo')
+  }, [selected])
+
+  const demoCounts = {}
+  for (const d of DEMOS) {
+    const cat = getGameConfig(d.type)?.category
+    if (cat) demoCounts[cat] = (demoCounts[cat] || 0) + 1
+  }
+  const demoCategories = GAME_CATEGORIES.map(c => ({ ...c, count: demoCounts[c.id] || 0 })).filter(c => c.count > 0)
+  const shown = DEMOS.filter(d => getGameConfig(d.type)?.category === pickerCat)
+
+  const togglePicker = () => {
+    setPickerOpen(o => {
+      if (!o) setPickerCat(getGameConfig(selected)?.category || 'board')
+      return !o
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        {/* Compact header — context label + change-game toggle */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">
+            Solo play
+          </span>
+          <button
+            onClick={togglePicker}
+            aria-expanded={pickerOpen}
+            className={cn(
+              'min-h-11 px-3 font-pixel text-[9px] tracking-widest rounded border transition-all active:scale-95',
+              pickerOpen
+                ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
+                : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
+            )}
+          >
+            CHANGE GAME
+          </button>
+        </div>
+
+        {/* Picker — collapsed by default; opened on demand via CHANGE GAME */}
+        {pickerOpen && (
+          <div className="space-y-2">
+            <CategoryTabs categories={demoCategories} active={pickerCat} onSelect={setPickerCat} />
+            <div className="grid grid-cols-4 gap-2">
+              {shown.map(({ type, short, Icon }) => (
+                <button
+                  key={type}
+                  onClick={() => { setSelected(type); setPickerOpen(false) }}
+                  className={cn(
+                    'flex flex-col items-center gap-1 p-2 rounded border transition-all active:scale-95',
+                    selected === type
+                      ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
+                      : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
+                  )}
+                >
+                  <Icon />
+                  <span className="font-pixel text-[7px] text-center leading-tight whitespace-pre-line">{short}</span>
+                  <span className="font-pixel text-[6px] text-retro-dim/70">{getPlayerTag(getGameConfig(type))}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Active game first — key forces fresh mount on game switch */}
+        <div key={selected} className="border border-retro-border rounded p-4 bg-retro-card">
+          <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider mb-4">
+            {active.short.replace('\n', ' ')}
+          </p>
+          <active.Component />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DemoHub() {
+  const [selected, setSelected] = useState('tictactoe')
+  const [activeCat, setActiveCat] = useState(() => getGameConfig('tictactoe')?.category || 'board')
   const active = DEMOS.find(d => d.type === selected)
 
   // Party cards don't start an actual solo game (2+ players only) — every
   // other selection mounts a fresh bot/skill demo, so that's the play. Landing
   // on the bare /demo hub defaults to tictactoe with no explicit intent, so
-  // that first mount is skipped — but arriving via a /solo/:type deep link
-  // (e.g. from the catalog's VS AI option) IS an intentional play and should
-  // be recorded immediately.
-  const playRecorded = useRef(hasRouteType)
+  // that first mount is skipped — explicit play intent (/solo/:type) now goes
+  // through SoloPlayPage, so the hub only records in-place game switches.
+  const playRecorded = useRef(false)
   useEffect(() => {
     if (!playRecorded.current) { playRecorded.current = true; return }
     if (!(selected in PARTY_BLURB)) recordPlay(selected, 'solo')

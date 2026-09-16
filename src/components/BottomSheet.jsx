@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import useModalHistory from '../hooks/useModalHistory'
 
 const DRAG_CLOSE_PX = 90
+
+// Elements Tab can reach. `getClientRects()` filters out elements hidden via
+// display:none/visibility:hidden (querySelectorAll matches those regardless)
+// while keeping position:fixed elements, which an offsetParent check drops.
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ')
 
 // Shared overlay primitive (M-73). On phones this is a true bottom sheet —
 // pinned to the bottom edge, rounded top corners, a drag handle you can
@@ -27,11 +40,20 @@ const DRAG_CLOSE_PX = 90
 // GameSwitcher while a switch request is pending) must pass an unconditional
 // `onBack` or the guard can eat a back-press and let the *next* one fall
 // through to the underlying route (M-06).
+//
+// UX-02: the sheet is a real focus boundary. The overlay portals to
+// document.body, every other body child goes inert + aria-hidden while it's
+// open (no background focus or pointer interaction), body scroll locks,
+// initial focus moves into the dialog, Tab/Shift+Tab cycle inside it, and
+// focus returns to the opener on close if it still exists. All previous
+// dismissal paths (Escape, backdrop, drag, back gesture) are unchanged.
 export default function BottomSheet({ onClose, onBack, children, className = '', ariaLabel, labelledBy }) {
   const [dragY, setDragY] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [entered, setEntered] = useState(false)
   const dragStartRef = useRef(0)
+  const panelRef = useRef(null)
+  const openerRef = useRef(null)
 
   useModalHistory(onBack || onClose)
 
@@ -40,6 +62,84 @@ export default function BottomSheet({ onClose, onBack, children, className = '',
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // Remember the opener and move focus into the dialog on the frame after
+  // mount (the panel itself is the safe target when no focusable child
+  // exists — or before children mount).
+  useEffect(() => {
+    openerRef.current = document.activeElement
+    const id = requestAnimationFrame(() => panelRef.current?.focus({ preventScroll: true }))
+    return () => cancelAnimationFrame(id)
+  }, [])
+
+  // UX-02: Tab trap. Window capture phase so it wins over caller key
+  // handlers and can never leak a Tab into the inerted background.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Tab') return
+      const panel = panelRef.current
+      if (!panel) return
+      const focusables = [...panel.querySelectorAll(FOCUSABLE_SELECTOR)]
+        .filter(el => el.getClientRects().length > 0 || el === document.activeElement)
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement
+      const inside = panel.contains(active)
+      if (e.shiftKey) {
+        if (!inside || active === first || (first && active.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+          e.preventDefault()
+          if (last) last.focus()
+          else panel.focus()
+        }
+      } else if (!inside || active === last) {
+        e.preventDefault()
+        if (first) first.focus()
+        else panel.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
+
+  // UX-02: make the rest of the page inert + hidden from assistive tech and
+  // lock background scroll while the sheet is open. The panel must live as a
+  // direct child of body (portal) or the app root — an ancestor of the
+  // dialog — would have to be skipped, leaving the background reachable.
+  // Per-element snapshots of the previous state keep nested sheets correct
+  // (the second sheet restores the inert state the first one left behind).
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return undefined
+    const touched = []
+    for (const node of document.body.children) {
+      if (node === panel || node.contains(panel)) continue
+      touched.push({
+        el: node,
+        inert: node.inert,
+        hidden: node.getAttribute('aria-hidden'),
+      })
+      node.inert = true
+      node.setAttribute('aria-hidden', 'true')
+    }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      for (const t of touched) {
+        t.el.inert = t.inert
+        if (t.hidden === null) t.el.removeAttribute('aria-hidden')
+        else t.el.setAttribute('aria-hidden', t.hidden)
+      }
+      document.body.style.overflow = prevOverflow
+      // Restore focus to the opener. Runs while the panel is still in the
+      // DOM (effect cleanup precedes removal), so focus currently inside the
+      // dying panel counts as homeless too. Never steal focus otherwise.
+      const opener = openerRef.current
+      const active = document.activeElement
+      if (opener && opener.isConnected && (active === document.body || (active && panel.contains(active)))) {
+        opener.focus({ preventScroll: true })
+      }
+    }
+  }, [])
 
   // Trigger the slide-up entrance on the frame after mount.
   useEffect(() => {
@@ -63,16 +163,18 @@ export default function BottomSheet({ onClose, onBack, children, className = '',
     else setDragY(0)
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center"
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
         aria-labelledby={labelledBy}
+        tabIndex={-1}
         onClick={e => e.stopPropagation()}
         style={{
           transform: dragging ? `translateY(${dragY}px)` : `translateY(${entered ? '0' : '100%'})`,
@@ -82,6 +184,7 @@ export default function BottomSheet({ onClose, onBack, children, className = '',
           'w-full sm:max-w-sm max-h-[85vh] sm:max-h-[80vh] overflow-y-auto',
           'bg-retro-bg border-2 border-retro-border rounded-t-2xl sm:rounded',
           'p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4',
+          'focus:outline-none',
           className,
         )}
       >
@@ -98,6 +201,7 @@ export default function BottomSheet({ onClose, onBack, children, className = '',
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

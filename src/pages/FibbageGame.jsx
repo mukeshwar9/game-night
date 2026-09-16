@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ref, update, runTransaction } from 'firebase/database'
+import { ref, onValue, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
@@ -13,6 +13,7 @@ import {
   allVoted,
   allRevealed,
 } from '../lib/fibbageLogic'
+import { isCoordinator } from '../lib/coordinator'
 import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
@@ -21,8 +22,12 @@ import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
 
-const MIN_PLAYERS = 3
+const MIN_PLAYERS = 3    // needed in the lobby to START a match
+const MIN_ACTIVE = 2     // needed mid-match to keep a round moving; below this we pause
 const MATCH_WIN_SCORE = 5000
+const LIE_MS = 60_000
+const VOTE_MS = 45_000
+const REVEAL_MS = 20_000
 
 // sessionStorage key for the player's secret lie ({ text, salt, subKey }) per round.
 // The plaintext + salt never touch Firebase until the reveal phase — matching the
@@ -48,12 +53,12 @@ function normalizeRound(raw) {
   }
 }
 
-// Seat list of players currently present (online). Falls back to all known
-// players if presence data is missing so the round can never deadlock.
+// Seat list of players actually online right now. Deliberately does NOT fall
+// back to the full roster when few are online — waiting on an offline seat's
+// lie/vote is exactly what deadlocked a room when the host (or anyone else)
+// dropped. Below MIN_ACTIVE the round pauses instead (see `paused` below).
 function activeSeats(players) {
-  const all = seatOrder(players)
-  const online = all.filter(id => players[id]?.online !== false)
-  return online.length >= MIN_PLAYERS ? online : all
+  return seatOrder(players).filter(id => players[id]?.online !== false)
 }
 
 export default function FibbageGame({
@@ -63,13 +68,22 @@ export default function FibbageGame({
   const round = normalizeRound(game.round)
   const seats = activeSeats(players || {})
   const playerCount = Object.keys(players || {}).length
-  const enough = seats.length >= MIN_PLAYERS
+  const enough = playerCount >= MIN_PLAYERS
+  // Mid-match, a round can only progress with at least MIN_ACTIVE seats actually
+  // online — below that, no fixed host to blame: pause and wait rather than spin.
+  const paused = game.status === 'playing' && !!round && seats.length < MIN_ACTIVE
 
   const scores = game.scores || {}
   const isPlayer = !!mySeat && !!players?.[mySeat]
+  // Deterministic host-fallback: the coordinator is the lowest-uid ONLINE seat, not
+  // the fixed `isHost`. Every phase transition below is gated on this instead, so a
+  // host disconnect hands off to whichever seat is next instead of freezing the match.
+  const amCoordinator = isPlayer && isCoordinator(mySeat, seats, players)
 
   const fact = round ? FIBBAGE_FACTS[round.promptIndex % FIBBAGE_FACTS.length] : null
 
+  const [clockOffset, setClockOffset] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
   const [lieInput, setLieInput] = useState('')
   const [inputError, setInputError] = useState('')
   const [localLie, setLocalLie] = useState(false)   // I committed this round
@@ -85,6 +99,22 @@ export default function FibbageGame({
   const subPublished = useRef(false)
   const revealPublished = useRef(false)
   const scoringStarted = useRef(false)
+  const advancingToVoting = useRef(false)
+  const advancingToReveal = useRef(false)
+
+  // Corrected clock — every deadline comparison runs through this offset, matching
+  // the serverTimeOffset pattern used elsewhere (see TriviaGame.jsx).
+  useEffect(() => {
+    const offRef = ref(db, '.info/serverTimeOffset')
+    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  useEffect(() => {
+    if (!round || game.status !== 'playing') return
+    const id = setInterval(() => setNow(Date.now()), 500)
+    return () => clearInterval(id)
+  }, [round?.phase, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  const serverNow = now + clockOffset
 
   // Reset per-round local state when the prompt advances.
   useEffect(() => {
@@ -98,6 +128,8 @@ export default function FibbageGame({
       subPublished.current = false
       revealPublished.current = false
       scoringStarted.current = false
+      advancingToVoting.current = false
+      advancingToReveal.current = false
       prevPromptIndex.current = round.promptIndex
     }
   }, [round?.promptIndex]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -140,29 +172,50 @@ export default function FibbageGame({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlayer, round?.phase, round?.lies, gameId])
 
-  // ---- HOST: lying → voting once everyone committed AND all anonymous lies are in.
-  // Builds the shuffled, author-less, truth-unmarked ballot and deletes the pool. --
+  // ---- COORDINATOR: seed the lying-phase deadline as soon as the round enters
+  // 'lying' with none set (fresh round). Anchored server time, not client-local. --
   useEffect(() => {
-    if (!isHost || !round || round.phase !== 'lying') return
-    if (!allLied(seats, round.lies)) return
+    if (!amCoordinator || !round || round.phase !== 'lying' || round.lieDeadline) return
+    update(ref(db, `games/${gameId}/round`), { lieDeadline: Date.now() + clockOffset + LIE_MS }).catch(() => {})
+  }, [amCoordinator, round?.phase, round?.lieDeadline, gameId, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- COORDINATOR: lying → voting once everyone committed AND all anonymous lies
+  // are in — OR the lie deadline has passed, in which case we build the ballot from
+  // whatever lies actually arrived rather than waiting on a seat that will never
+  // respond. Builds the shuffled, author-less, truth-unmarked ballot and deletes the
+  // submission pool. Idempotent guard (advancingToVoting) + a stale-phase re-check
+  // inside the write keeps this single-writer even during a coordinator handover. ---
+  useEffect(() => {
+    if (!amCoordinator || !round || round.phase !== 'lying' || paused) return
+    const deadlinePassed = round.lieDeadline != null && serverNow >= round.lieDeadline
+    if (!allLied(seats, round.lies) && !deadlinePassed) return
     const committedIds = Object.keys(round.lies)
     const texts = Object.values(round.subs)
-    if (texts.length < committedIds.length) return // wait for every anonymous submission
+    if (texts.length < committedIds.length && !deadlinePassed) return // wait for every anonymous submission
+    if (advancingToVoting.current) return
+    advancingToVoting.current = true
     const seed = hashString(`${gameId}:${round.promptIndex}`)
     const options = buildOptions(fact.answer, texts, seed)
-    update(ref(db, `games/${gameId}/round`), { phase: 'voting', options, subs: null })
-      .catch(() => { /* another client may have advanced — ignore */ })
+    runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.phase !== 'lying') return current // already advanced
+      return { ...current, phase: 'voting', options, subs: null, voteDeadline: Date.now() + clockOffset + VOTE_MS }
+    }).catch(() => { advancingToVoting.current = false })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHost, round?.phase, round?.lies, round?.subs, gameId])
+  }, [amCoordinator, round?.phase, round?.lies, round?.subs, round?.lieDeadline, serverNow, paused, gameId])
 
-  // ---- HOST: voting → reveal (phase flip only) once everyone has voted. Scoring
-  // waits for reveals, which only exist in the reveal phase (see below). ----------
+  // ---- COORDINATOR: voting → reveal (phase flip only) once everyone has voted, or
+  // the vote deadline has passed. Scoring waits for reveals (see below). -----------
   useEffect(() => {
-    if (!isHost || !round || round.phase !== 'voting') return
-    if (!allVoted(seats, round.votes)) return
-    update(ref(db, `games/${gameId}/round`), { phase: 'reveal' }).catch(() => {})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHost, round?.phase, round?.votes, gameId])
+    if (!amCoordinator || !round || round.phase !== 'voting' || paused) return
+    const deadlinePassed = round.voteDeadline != null && serverNow >= round.voteDeadline
+    if (!allVoted(seats, round.votes) && !deadlinePassed) return
+    if (advancingToReveal.current) return
+    advancingToReveal.current = true
+    runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.phase !== 'voting') return current // already advanced
+      return { ...current, phase: 'reveal', revealDeadline: Date.now() + clockOffset + REVEAL_MS }
+    }).catch(() => { advancingToReveal.current = false })
+  }, [amCoordinator, round?.phase, round?.votes, round?.voteDeadline, serverNow, paused, gameId, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- PLAYER: publish my author→lie reveal — ONLY now, at the reveal phase. This
   // is the first (and only) time the DB learns who wrote which lie. ---------------
@@ -177,11 +230,14 @@ export default function FibbageGame({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlayer, round?.phase, round?.reveals, gameId, mySeat])
 
-  // ---- HOST: once all reveals are in, verify each against its commitment, recover
-  // the answer key, and apply scores once (idempotent via round.scored). ----------
+  // ---- COORDINATOR: once all reveals are in — or the reveal deadline has passed —
+  // verify each against its commitment, recover the answer key, and apply scores
+  // once (idempotent via round.scored). A seat that never reveals (dropped offline
+  // mid-transition) simply earns no authorship credit; it doesn't block scoring. ---
   useEffect(() => {
-    if (!isHost || !round || round.phase !== 'reveal' || round.scored) return
-    if (!allRevealed(seats, round.reveals)) return
+    if (!amCoordinator || !round || round.phase !== 'reveal' || round.scored) return
+    const deadlinePassed = round.revealDeadline != null && serverNow >= round.revealDeadline
+    if (!allRevealed(seats, round.reveals) && !deadlinePassed) return
     if (scoringStarted.current) return
     scoringStarted.current = true
 
@@ -222,7 +278,7 @@ export default function FibbageGame({
     }
     run()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHost, round?.phase, round?.reveals, round?.scored, gameId])
+  }, [amCoordinator, round?.phase, round?.reveals, round?.scored, round?.revealDeadline, serverNow, gameId])
 
   // ---- Submit my lie (commit hash now; plaintext stays local until reveal) ------
   const handleSubmitLie = useCallback(async () => {
@@ -275,9 +331,10 @@ export default function FibbageGame({
     }
   }, [isPlayer, iVoted, round, gameId, mySeat, mySecret])
 
-  // ---- Next prompt (any player can advance after reveal) ----
+  // ---- Next prompt (any player can advance, but only once the round has actually
+  // scored — otherwise a stray/racy click could skip a round before it's tallied) --
   const handleNextPrompt = useCallback(async () => {
-    if (!isPlayer || !round) return
+    if (!isPlayer || !round || round.phase !== 'reveal' || !round.scored) return
     const nextIndex = (round.promptIndex + 1) % FIBBAGE_FACTS.length
     const matchOver = Object.values(game.scores || {}).some(s => s >= MATCH_WIN_SCORE)
     sessionStorage.removeItem(lieKey(gameId, round.promptIndex))
@@ -403,6 +460,18 @@ export default function FibbageGame({
     return (
       <div className="text-center py-8 font-pixel text-[10px] text-retro-dim arcade-blink">
         STARTING ROUND…
+      </div>
+    )
+  }
+
+  if (paused) {
+    return (
+      <div className="text-center py-8 space-y-2">
+        <p className="font-pixel text-[11px] text-retro-p2 text-glow-p2 arcade-blink">⏸ ROUND PAUSED</p>
+        <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
+          NEED {MIN_ACTIVE}+ PLAYERS ONLINE TO CONTINUE<br />
+          ({seats.length}/{playerCount} ONLINE NOW)
+        </p>
       </div>
     )
   }

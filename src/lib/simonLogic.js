@@ -20,17 +20,20 @@ export function applySimonMove(game, padIndex, symbol) {
   if (progress < seq.length) {
     // Replay phase — verify correct pad
     if (padIndex !== seq[progress]) {
-      return { updates: {}, result: { winner: opponent } }
+      return { updates: { simonDeadline: null }, result: { winner: opponent } }
     }
     return { updates: { simonProgress: progress + 1 }, result: null }
   }
 
-  // Append phase — add pad, flip turn, reset progress
+  // Append phase — add pad, flip turn, reset progress. Clear the per-turn
+  // deadline: the new current player's board will arm a fresh one once their
+  // watch-flash (or immediate append, if the sequence was empty) finishes.
   return {
     updates: {
       simonSequence: [...seq, padIndex],
       simonProgress: 0,
       currentTurn: opponent,
+      simonDeadline: null,
     },
     result: null,
   }

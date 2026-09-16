@@ -42,7 +42,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
             onMouseEnter={() => setHoveredEdge(edgeIdx)}
             onMouseLeave={() => setHoveredEdge(null)}
             className={cn(
-              'absolute z-10 -top-[15px] -bottom-[15px] left-0 right-0',
+              'absolute z-10 -top-[17px] -bottom-[17px] left-0 right-0',
               'rounded-sm transition-all duration-100',
               owner === 'X'
                 ? 'bg-retro-p1 shadow-neon-p1'
@@ -76,7 +76,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
             onMouseEnter={() => setHoveredEdge(edgeIdx)}
             onMouseLeave={() => setHoveredEdge(null)}
             className={cn(
-              'absolute z-10 top-0 bottom-0 -left-[15px] -right-[15px]',
+              'absolute z-10 top-0 bottom-0 -left-[17px] -right-[17px]',
               'rounded-sm transition-all duration-100',
               owner === 'X'
                 ? 'bg-retro-p1 shadow-neon-p1'
@@ -125,7 +125,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
     <div className="w-full max-w-sm mx-auto">
       <div
         className={cn(
-          'bg-retro-surface border-2 border-retro-border rounded p-3 transition-all duration-200',
+          'bg-retro-surface border-2 border-retro-border rounded p-[18px] transition-all duration-200',
           disabled && 'opacity-60 saturate-50',
         )}
       >

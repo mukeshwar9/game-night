@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import NumberPad from '../components/NumberPad'
 import { generateQuestion } from '../lib/mathLogic'
 import { sounds } from '../lib/sounds'
-import { todayKey, seedFromDate, readBest, writeBest, getDailyNumber, bumpStreak } from '../lib/daily'
+import { todayKey, seedFromDate, readBest, writeBest, getDailyNumber, bumpStreak, readHistory } from '../lib/daily'
+import { getCurrentStreak, getBestStreak, getLast7Days } from '../lib/dailyStreakLogic'
 import { shareResult } from '@/lib/shareCard'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
@@ -32,6 +33,7 @@ export default function DailyGame() {
   const [timeLeft, setTimeLeft] = useState(DAILY_MS)
   const [best, setBest] = useState(() => readBest(todayKey()))
   const [dayStreak, setDayStreak] = useState(0)
+  const [history, setHistory] = useState(() => readHistory())
 
   const fbTimer = useRef(null)
   const correctRef = useRef(0)   // mirrors `correct` so the timer reads the final value
@@ -40,6 +42,10 @@ export default function DailyGame() {
   const [sharing, runShare] = useBusy()
 
   const q = generateQuestion(seed, qIndex)
+
+  const currentStreak = getCurrentStreak(history, date)
+  const bestStreak = getBestStreak(history)
+  const last7 = getLast7Days(history, date)
 
   const start = () => {
     correctRef.current = 0
@@ -68,6 +74,7 @@ export default function DailyGame() {
       sounds.lose()
     }
     setDayStreak(bumpStreak().count)
+    setHistory(readHistory())
   }
 
   // Countdown ticker while playing
@@ -274,6 +281,42 @@ export default function DailyGame() {
             </button>
           </div>
         )}
+
+        {/* Streak / history strip */}
+        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-3">
+          <div className="flex justify-around text-center">
+            <div>
+              <p className={cn(
+                'font-pixel text-base tabular-nums',
+                currentStreak > 0 ? 'text-retro-cta text-glow-cta' : 'text-retro-dim',
+              )}>
+                {currentStreak > 0 ? `🔥 ${currentStreak}` : '0'}
+              </p>
+              <p className="font-pixel text-[7px] text-retro-dim mt-1">CURRENT STREAK</p>
+            </div>
+            <div>
+              <p className="font-pixel text-base text-retro-win tabular-nums">{bestStreak}</p>
+              <p className="font-pixel text-[7px] text-retro-dim mt-1">BEST STREAK</p>
+            </div>
+          </div>
+          <div className="flex justify-center gap-1.5">
+            {last7.map(day => (
+              <div key={day.date} className="flex flex-col items-center gap-1 w-7">
+                <div
+                  className={cn(
+                    'w-5 h-5 rounded-sm border',
+                    day.played ? 'bg-retro-win border-retro-win' : 'border-retro-border',
+                    day.date === date && 'ring-1 ring-retro-cta ring-offset-1 ring-offset-retro-card',
+                  )}
+                  title={day.date}
+                />
+                <p className="font-pixel text-[6px] text-retro-dim tabular-nums leading-none">
+                  {day.played ? day.score : '·'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

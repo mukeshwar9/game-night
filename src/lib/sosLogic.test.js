@@ -279,22 +279,33 @@ describe('getSosWinner', () => {
     expect(getSosWinner(board, lines)).toBeNull()
   })
 
-  it('returns X winner when X has more lines on full board', () => {
+  it('returns X winner when X has more lines on full board, with line = X\'s scoring cells', () => {
     const lines = [
       { cells: [0, 1, 2], by: 'X' },
       { cells: [3, 4, 5], by: 'X' },
       { cells: [6, 7, 8], by: 'O' },
     ]
-    expect(getSosWinner(fullBoard(), lines)).toEqual({ winner: 'X' })
+    expect(getSosWinner(fullBoard(), lines)).toEqual({ winner: 'X', line: [0, 1, 2, 3, 4, 5] })
   })
 
-  it('returns O winner when O has more lines on full board', () => {
+  it('returns O winner when O has more lines on full board, with line = O\'s scoring cells', () => {
     const lines = [
       { cells: [0, 1, 2], by: 'X' },
       { cells: [3, 4, 5], by: 'O' },
       { cells: [6, 7, 8], by: 'O' },
     ]
-    expect(getSosWinner(fullBoard(), lines)).toEqual({ winner: 'O' })
+    expect(getSosWinner(fullBoard(), lines)).toEqual({ winner: 'O', line: [3, 4, 5, 6, 7, 8] })
+  })
+
+  it('line is deduped when winner scores overlapping triples sharing a cell', () => {
+    const lines = [
+      { cells: [0, 1, 2], by: 'X' },
+      { cells: [2, 9, 16], by: 'X' },
+      { cells: [6, 7, 8], by: 'O' },
+    ]
+    const result = getSosWinner(fullBoard(), lines)
+    expect(result.winner).toBe('X')
+    expect(result.line).toEqual([0, 1, 2, 9, 16])
   })
 
   it('returns draw when counts are equal on full board', () => {
@@ -309,8 +320,8 @@ describe('getSosWinner', () => {
     expect(getSosWinner(fullBoard(), [])).toEqual({ winner: 'draw' })
   })
 
-  it('result has no line property', () => {
-    const result = getSosWinner(fullBoard(), [{ cells: [0, 1, 2], by: 'X' }])
+  it('draw result has no line property', () => {
+    const result = getSosWinner(fullBoard(), [])
     expect(result).not.toHaveProperty('line')
   })
 })

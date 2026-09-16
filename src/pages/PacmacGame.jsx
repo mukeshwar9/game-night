@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
@@ -11,7 +11,7 @@ import { useRealtimeHost } from '../lib/realtime/useRealtimeHost'
 import { useRealtimeGuest } from '../lib/realtime/useRealtimeGuest'
 import { RealtimeOverlay } from '../lib/realtime/realtimeStatus'
 import {
-  createState, step, getWinner, advanceActor,
+  createState, step, getWinner, advanceActor, advanceGhostDeadReckon,
   packPellets, unpackPellets, bytesToBase64, base64ToBytes,
   MATCH_TARGET, MATCH_SECONDS, SPEED,
 } from '../lib/pacmacLogic'
@@ -26,6 +26,48 @@ const r1 = (n) => Math.round(n * 10) / 10
 const initialRender = {
   pellets: null, players: null, ghosts: null,
   scoreX: 0, scoreO: 0, timeLeft: MATCH_SECONDS, countdown: 0,
+}
+
+// The host's real countdown start (`startAt`) is purely local to
+// useRealtimeHost's loop and never crosses the wire — the host doesn't send
+// any snapshot until after it, so the guest has nothing to read it from. We
+// can't edit realtime/* to add that, so the guest approximates: start its
+// own COUNTDOWN_MS-long countdown from the moment its own peer connection
+// reports 'connected' (which the host also gates its countdown on), instead
+// of showing no countdown at all. GUEST_COUNTDOWN_MS mirrors useRealtimeHost's
+// DEFAULT_COUNTDOWN (2000ms) — PacmacGame doesn't override COUNTDOWN_MS.
+const GUEST_COUNTDOWN_MS = 2000
+
+const FLASH_MS = 260
+const MAX_FLASHES = 3
+
+// Pellet-eat pop feedback: diff the pellet grid frame-to-frame and remember
+// recently-emptied cells for a short-lived CSS pop in the arena. Pure diff;
+// the two ref-mutating helpers below are the page's small bit of view state.
+function diffEatenCells(prev, next) {
+  if (!prev || !next) return []
+  const out = []
+  for (let i = 0; i < next.length; i++) {
+    if (prev[i] && !next[i]) out.push(i)
+  }
+  return out
+}
+
+function recordEatenFlashes(flashListRef, prevPelletsRef, pellets) {
+  const eaten = diffEatenCells(prevPelletsRef.current, pellets)
+  if (eaten.length) {
+    const now = performance.now()
+    flashListRef.current = flashListRef.current.concat(eaten.map(idx => ({ idx, at: now })))
+  }
+  prevPelletsRef.current = pellets
+}
+
+function pruneFlashes(flashListRef) {
+  const now = performance.now()
+  flashListRef.current = flashListRef.current
+    .filter(f => now - f.at < FLASH_MS)
+    .slice(-MAX_FLASHES)
+  return flashListRef.current
 }
 
 function playSfx(kind) {
@@ -63,7 +105,7 @@ function PacmacResult({ scoreX, scoreO, winner, mySymbol, players }) {
             <p className={cn('font-pixel text-xl', winner === sym ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
               {pts}
             </p>
-            <p className="font-pixel text-[8px] text-retro-dim">points</p>
+            <p className="font-pixel text-[8px] text-retro-dim">POINTS</p>
           </div>
         )
       })}
@@ -87,6 +129,10 @@ export default function PacmacGame({
   const lastSnapRef = useRef(null)
   const predORef = useRef(null)
   const hostWantRef = useRef('right')
+  const prevPelletsRef = useRef(null)
+  const flashListRef = useRef([])
+  const guestConnectedAtRef = useRef(null)
+  const [guestCountdown, setGuestCountdown] = useState(0)
 
   const [forfeitArmed, setForfeitArmed] = useState(false)
   const forfeitTimerRef = useRef(null)
@@ -138,7 +184,8 @@ export default function PacmacGame({
 
   const buildView = useCallback((sim) => {
     simRef.current = sim
-    return viewOf(sim, 0)
+    recordEatenFlashes(flashListRef, prevPelletsRef, sim.pellets)
+    return { ...viewOf(sim, 0), pelletFlashes: pruneFlashes(flashListRef) }
   }, [])
 
   const buildSnapshot = useCallback((sim) => ({
@@ -169,12 +216,17 @@ export default function PacmacGame({
   })
 
   const guestTick = useCallback((snap, age, dt) => {
+    let pellets
     if (snap !== lastSnapRef.current) {
       lastSnapRef.current = snap
       predORef.current = {
         x: snap.O[0], y: snap.O[1], dir: snap.O[2],
         want: snap.O[2], dead: snap.O[3], combo: 0,
       }
+      pellets = unpackPellets(base64ToBytes(snap.p))
+      recordEatenFlashes(flashListRef, prevPelletsRef, pellets)
+    } else {
+      pellets = unpackPellets(base64ToBytes(snap.p))
     }
     const dir = getDir()
     if (dir) predORef.current.want = dir
@@ -186,24 +238,36 @@ export default function PacmacGame({
     const hostPred = snap.X[3] > 0 ? hostDummy : advanceActor(hostDummy, snap.X[2], SPEED, a, false)
 
     const view = {
-      pellets: unpackPellets(base64ToBytes(snap.p)),
+      pellets,
       players: {
         X: { ...hostPred, dead: snap.X[3] },
         O: predORef.current,
       },
-      ghosts: snap.g.map(([x, y, dir, mode]) => ({ x, y, dir, mode })),
+      // Snapshots stream at ~30 Hz; dead-reckon each ghost forward by the
+      // snapshot's age (same idea as the host-muncher prediction above) so
+      // motion stays smooth between snapshots instead of visibly stepping.
+      ghosts: snap.g.map(([x, y, dir, mode]) => advanceGhostDeadReckon({ x, y, dir, mode }, a)),
       scoreX: snap.sx,
       scoreO: snap.so,
       timeLeft: snap.tl,
       countdown: 0,
+      pelletFlashes: pruneFlashes(flashListRef),
     }
     return { view, input: dir ? { t: 'i', d: dir } : null }
   }, [getDir])
 
+  // The host's real countdown (see GUEST_COUNTDOWN_MS comment above) never
+  // reaches the guest, so approximate it from this client's own connect time.
+  // `guestCountdown` state is computed inside the effect below (refs/`Date.now`
+  // can't be read during render) and just plugged into the view here.
+  const guestInitialRender = guestCountdown > 0
+    ? { ...initialRender, countdown: guestCountdown }
+    : initialRender
+
   const guestConn = useRealtimeGuest({
     gameId, mySymbol, enabled: !isSpectator && !isHost && game.status === 'playing',
     tick: guestTick,
-    setRender, initialRender,
+    setRender, initialRender: guestInitialRender,
     sfxMap: {
       pellet: () => playSfx('pellet'),
       power: () => playSfx('power'),
@@ -214,15 +278,39 @@ export default function PacmacGame({
     INPUT_MS: 0,
   })
 
+  // Force a periodic re-render while waiting so the ticking countdown above
+  // keeps reaching useRealtimeGuest's cbRef (it re-reads `initialRender`
+  // fresh on every commit, per its own comments) — the hook's internal rAF
+  // loop paints whatever `c.initialRender` says whenever there's no snapshot.
+  useEffect(() => {
+    if (isHost || isSpectator || guestConn.status !== 'connected') {
+      guestConnectedAtRef.current = null
+      const t = setTimeout(() => setGuestCountdown(0), 0)
+      return () => clearTimeout(t)
+    }
+    if (guestConnectedAtRef.current == null) guestConnectedAtRef.current = performance.now()
+    const id = setInterval(() => {
+      if (lastSnapRef.current) { setGuestCountdown(0); return } // real snapshots arrived — stop faking it
+      const remain = guestConnectedAtRef.current + GUEST_COUNTDOWN_MS - performance.now()
+      setGuestCountdown(remain > 0 ? Math.ceil(remain / 1000) : 0)
+    }, 200)
+    return () => clearInterval(id)
+  }, [isHost, isSpectator, guestConn.status])
+
   const conn = isHost ? hostConn : guestConn
   const matchWinner = (game.scores?.X || 0) >= MATCH_TARGET ? 'X' : (game.scores?.O || 0) >= MATCH_TARGET ? 'O' : null
 
   if (game.status === 'finished') {
     return (
       <div className="space-y-4">
+        {/* status === 'finished' ⇒ finishRound's transaction already stamped
+            exact pacmacScoreX/O atomically with the status flip, so trust it
+            outright here — `render.*` is the live loop's view and can be a
+            frame behind (or, on the guest, frozen mid-prediction) by the time
+            the round ends; it belongs to the playing view below, not this one. */}
         <PacmacResult
-          scoreX={game.pacmacScoreX ?? render.scoreX}
-          scoreO={game.pacmacScoreO ?? render.scoreO}
+          scoreX={game.pacmacScoreX ?? 0}
+          scoreO={game.pacmacScoreO ?? 0}
           winner={game.winner} mySymbol={mySymbol} players={game.players}
         />
         <GameStatus
@@ -263,6 +351,7 @@ export default function PacmacGame({
         pellets={render.pellets}
         players={render.players}
         ghosts={render.ghosts}
+        pelletFlashes={render.pelletFlashes}
         scoreX={render.scoreX}
         scoreO={render.scoreO}
         timeLeft={render.timeLeft}

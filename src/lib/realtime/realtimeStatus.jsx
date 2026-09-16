@@ -2,7 +2,6 @@
 // reconnecting / countdown / failed states identically across Pong, Snake,
 // and the new real-time games, so each page doesn't re-paste ~18 lines.
 import { useEffect, useState } from 'react'
-import ArcadeLoader from '@/components/ArcadeLoader'
 import PixelDots from '@/components/loading/PixelDots'
 
 export function RealtimeOverlay({ conn, countdown, retry }) {
@@ -41,8 +40,8 @@ export function RealtimeOverlay({ conn, countdown, retry }) {
     }
     return (
       <div className="text-center space-y-2">
-        <ArcadeLoader variant="realtime" />
         <p className="font-pixel text-[7px] text-retro-dim tracking-widest">LINKING PLAYERS</p>
+        <PixelDots size="sm" tone="cta" className="justify-center" />
       </div>
     )
   }

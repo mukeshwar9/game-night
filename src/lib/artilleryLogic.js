@@ -234,14 +234,32 @@ export function simulateShot(state, shot) {
       const cx = i / (TERRAIN_COLS - 1)
       const dist = Math.abs(cx - impact.x)
       if (dist < BLAST_RADIUS) {
-        const shape = Math.cos((dist / BLAST_RADIUS) * Math.PI / 2) // 1→0
+        // detCos, not Math.cos — this whole module must stay bit-identical
+        // across engines/architectures per the DETERMINISM CONTRACT above;
+        // Math.cos is not guaranteed bit-identical cross-engine.
+        const shape = detCos((dist / BLAST_RADIUS) * Math.PI / 2) // 1→0
         next.terrain[i] = clamp01(next.terrain[i] - depth * shape)
       }
     }
-    // Splash damage on both tanks (self-hits real).
+    // Splash damage on both tanks (self-hits real). Real 2D distance — the
+    // old `Math.sqrt((t.x - impact.x)^2)` silently dropped the y term
+    // (equivalent to Math.abs(dx)), so a shell exploding well above/below a
+    // tank on sloped terrain was scored as a direct hit as long as it was
+    // horizontally close, ignoring how far below/above the actual impact was.
+    // ty is read from `state.terrain` (PRE-crater, this shot's own crater
+    // hasn't been carved yet) — that's the tank's real resting height at the
+    // instant of the blast, which is what distance must be measured against.
+    // Recomputing from the POST-crater terrain instead would (wrongly) treat
+    // a direct hit as a miss whenever this shot's own crater happens to
+    // lower the ground under the tank being hit (a real regression we hit
+    // while writing this: firing straight up from a tank's own position
+    // craters the ground under it before the "did I hit myself" check runs).
     for (const sym of ['X', 'O']) {
       const t = next.tanks[sym]
-      const dist = Math.sqrt((t.x - impact.x) * (t.x - impact.x))
+      const ty = surfaceY(state.terrain, t.x)
+      const dx = t.x - impact.x
+      const dy = ty - impact.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
       const d = Math.round(MAX_DAMAGE * Math.max(0, 1 - dist / BLAST_RADIUS))
       damage[sym] = d
       t.hp = Math.max(0, t.hp - d)

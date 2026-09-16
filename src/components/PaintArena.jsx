@@ -113,10 +113,14 @@ const PaintArena = forwardRef(function PaintArena(
       <div
         ref={ref}
         className={cn(
-          'relative w-full rounded-lg border-2 border-retro-border bg-retro-surface overflow-hidden touch-none',
+          'relative mx-auto rounded-lg border-2 border-retro-border bg-retro-surface overflow-hidden touch-none',
           dim && 'opacity-60',
         )}
-        style={{ aspectRatio: `${GRID_W} / ${GRID_H}`, cursor: 'none' }}
+        style={{
+          aspectRatio: `${GRID_W} / ${GRID_H}`,
+          cursor: 'none',
+          width: 'min(100%, calc(100dvh - 260px))',
+        }}
       >
         <div
           className="grid w-full h-full"

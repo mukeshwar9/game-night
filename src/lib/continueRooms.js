@@ -4,10 +4,12 @@
 // unit-tested without any Firebase mocking; fetchContinueRooms is the thin I/O
 // wrapper that follows the get(ref(db, ...)) pattern from social.js.
 
-import { ref, get } from 'firebase/database'
+import { ref, get, set } from 'firebase/database'
 import { db } from './firebase'
 import { getRooms, forgetRoom } from './profile'
 import { getPlayerId } from './playerId'
+
+const WAITING_ROOM_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 // Party rooms key players by uid; 2P rooms always key by 'X'/'O' (see
 // CLAUDE.md data model). Inferred from the players object shape rather than
@@ -85,6 +87,15 @@ function readSessionSeat(id) {
   } catch { return null }
 }
 
+// A room is "orphaned" once it's waited over 24h with nobody having joined —
+// hide it from Continue Playing entirely rather than let stale WAITING rows
+// pile up forever.
+function isStaleWaitingRoom(game) {
+  if (game?.status !== 'waiting') return false
+  if (game.players?.O) return false
+  return typeof game.createdAt === 'number' && Date.now() - game.createdAt > WAITING_ROOM_MAX_AGE_MS
+}
+
 export async function fetchContinueRooms({ limit = 4 } = {}) {
   const rooms = getRooms().slice(0, limit)
   if (!db || !rooms.length) return []
@@ -103,6 +114,7 @@ export async function fetchContinueRooms({ limit = 4 } = {}) {
       return
     }
     const game = res.value.val()
+    if (isStaleWaitingRoom(game)) return
     const sessionSeat = readSessionSeat(room.id)
     out.push({
       id: room.id,
@@ -110,7 +122,22 @@ export async function fetchContinueRooms({ limit = 4 } = {}) {
       status: game.status,
       chip: deriveChip(game, myId, sessionSeat),
       opponent: getOpponent(game, myId, sessionSeat),
+      // Dismiss (Continue Playing hygiene): a still-waiting, opponent-less
+      // room can be torn down entirely if I'm the creator (X seat); anyone
+      // else dismissing just forgets it locally.
+      isCreator: game.players?.X?.playerId === myId,
     })
   })
   return out
+}
+
+// Dismiss a waiting/no-opponent Continue Playing row. The creator's dismiss
+// deletes the live Firebase room (null delete — see firebase-rules.md) so it
+// stops existing for anyone with the link; a non-creator just drops it from
+// their own local recent-rooms list.
+export async function dismissContinueRoom(room) {
+  if (room?.isCreator && db) {
+    await set(ref(db, `games/${room.id}`), null)
+  }
+  forgetRoom(room.id)
 }

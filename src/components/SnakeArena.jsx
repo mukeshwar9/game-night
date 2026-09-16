@@ -1,27 +1,21 @@
-import { forwardRef, useMemo } from 'react'
+import { forwardRef } from 'react'
 import { GRID } from '../lib/snakeLogic'
 import { cn } from '@/lib/utils'
 
-// Presentational Snake Battle arena. DOM/CSS grid (no canvas) so it themes
-// like every other board via --c-* vars. Body cells are colored by owner
-// (retro-p1 / retro-p2); food is retro-cta; dead snake bodies dim. Input
-// is captured by the parent via the forwarded ref to the arena element.
+// Presentational Snake Battle arena. DOM/CSS (no canvas) so it themes like
+// every other board via --c-* vars. The background is a static GRID×GRID
+// grid (empty cells + food); snake segments render as absolutely-positioned
+// overlay cells on top, keyed by fractional x/y (0..GRID) rather than a
+// grid-cell lookup — this lets the guest interpolate segment positions
+// between snapshots (see SnakeGame.jsx's RENDER_DELAY_MS lerp) instead of
+// only ever snapping to whole cells. Body cells are colored by owner
+// (retro-p1 / retro-p2); food is retro-cta; dead snake bodies dim. Input is
+// captured by the parent via the forwarded ref to the arena element.
 const SnakeArena = forwardRef(function SnakeArena(
   { snakes, food, eatenX, eatenO, mySide, namesX = 'X', namesO = 'O', overlay, dim = false },
   ref,
 ) {
-  // Build a cell-lookup map so we render a single flat grid of GRID*GRID cells.
-  const cellMap = useMemo(() => {
-    const map = new Map()
-    for (const side of ['X', 'O']) {
-      const snake = snakes?.[side]
-      if (!snake) continue
-      snake.body.forEach((seg, i) => {
-        map.set(`${seg.x},${seg.y}`, { side, head: i === 0, alive: snake.alive })
-      })
-    }
-    return map
-  }, [snakes])
+  const cellSize = 100 / GRID
 
   return (
     <div className="space-y-2 select-none">
@@ -54,20 +48,31 @@ const SnakeArena = forwardRef(function SnakeArena(
           {Array.from({ length: GRID * GRID }, (_, i) => {
             const x = i % GRID
             const y = Math.floor(i / GRID)
-            const cell = cellMap.get(`${x},${y}`)
-            let className = 'bg-retro-bg/40'
-            if (cell) {
-              if (cell.head && cell.alive) {
-                className = cell.side === 'X' ? 'bg-retro-p1 shadow-neon-p1' : 'bg-retro-p2 shadow-neon-p2'
-              } else {
-                className = cell.side === 'X' ? 'bg-retro-p1/70' : 'bg-retro-p2/70'
-              }
-            } else if (food && food.x === x && food.y === y) {
-              className = 'bg-retro-cta shadow-glow-dot'
-            }
-            return <div key={i} className={cn('w-full h-full', className)} />
+            const isFood = food && food.x === x && food.y === y
+            return <div key={i} className={cn('w-full h-full', isFood ? 'bg-retro-cta shadow-glow-dot' : 'bg-retro-bg/40')} />
           })}
         </div>
+
+        {['X', 'O'].flatMap(side => {
+          const snake = snakes?.[side]
+          if (!snake) return []
+          return snake.body.map((seg, i) => {
+            const head = i === 0
+            const className = head && snake.alive
+              ? (side === 'X' ? 'bg-retro-p1 shadow-neon-p1' : 'bg-retro-p2 shadow-neon-p2')
+              : (side === 'X' ? 'bg-retro-p1/70' : 'bg-retro-p2/70')
+            return (
+              <div
+                key={`${side}-${i}`}
+                className={cn('absolute', className)}
+                style={{
+                  width: `${cellSize}%`, height: `${cellSize}%`,
+                  left: `${seg.x * cellSize}%`, top: `${seg.y * cellSize}%`,
+                }}
+              />
+            )
+          })
+        })}
 
         {overlay && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-bg/70 backdrop-blur-[1px]">

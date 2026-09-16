@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
@@ -17,6 +17,8 @@ import {
 } from '../lib/paintLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import useBusy from '@/hooks/useBusy'
 
 const r4 = (n) => Math.round(n * 1e4) / 1e4
 const r1 = (n) => Math.round(n * 10) / 10
@@ -24,6 +26,11 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v)
 const DIR_VEC = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }
 
 const initialRender = { grid: null, players: null, timeLeft: MATCH_SECONDS, countdown: 0 }
+
+// Keep in sync with useRealtimeHost's DEFAULT_COUNTDOWN — see SumoGame's
+// identical GUEST_COUNTDOWN_MS for why the guest runs its own local timer
+// instead of waiting on a message from the host.
+const GUEST_COUNTDOWN_MS = 2000
 
 // Mirrors paintLogic.step()'s per-player math, applied to ONLY the guest's
 // own side (O) — zero-input-lag local prediction between host snapshots.
@@ -97,6 +104,25 @@ export default function PaintGame({
     paintEventCountRef.current += 1
     if (paintEventCountRef.current % 20 === 0) sounds.move(sym)
   }, [])
+
+  // M-76-style: lightweight, no-consent-needed forfeit for the current round
+  // only (hands the win to the opponent via the existing finishRound path) —
+  // distinct from SWITCH GAME, which reroutes the whole room's game type.
+  const [forfeitArmed, setForfeitArmed] = useState(false)
+  const forfeitTimerRef = useRef(null)
+  const [forfeitBusy, runForfeit] = useBusy()
+  const handleForfeit = () => {
+    if (!forfeitArmed) {
+      setForfeitArmed(true)
+      clearTimeout(forfeitTimerRef.current)
+      forfeitTimerRef.current = setTimeout(() => setForfeitArmed(false), 3000)
+      return
+    }
+    clearTimeout(forfeitTimerRef.current)
+    setForfeitArmed(false)
+    runForfeit(() => finishRound(mySymbol === 'X' ? 'O' : 'X'), () => toast.error('FORFEIT FAILED — CHECK CONNECTION'))
+  }
+  useEffect(() => () => clearTimeout(forfeitTimerRef.current), [])
 
   const finishRound = useCallback(async (winner) => {
     try {
@@ -204,17 +230,46 @@ export default function PaintGame({
     gameId, mySymbol, enabled: !isSpectator && !isHost && game.status === 'playing',
     tick: guestTick,
     setRender, initialRender,
-    // Wire events carry only the type (no `by`) — see rtc.js's generic relay
-    // — so the guest can't attribute the exact painter; it still ticks the
-    // shared every-20th-move counter for a comparable cadence of feedback.
+    // KNOWN GAP (needs a realtime/* change, out of scope here — flagged to
+    // the owning agent): useRealtimeHost.js broadcasts `{t:'e', k}` with no
+    // painter, and useRealtimeGuest.js invokes `sfxMap[k]()` with no args,
+    // so `by` below is always undefined today — cellPainted always falls
+    // back to mySymbol regardless of which side actually painted, which
+    // plays the wrong pitch (sounds.move is X/O-pitched) whenever the HOST
+    // paints. Written to accept `by` so it self-corrects the moment
+    // useRealtimeHost relays `{t:'e', k, by}` and useRealtimeGuest forwards
+    // it as `sfxMap[k]?.(by)` — no further change needed here.
     sfxMap: {
-      cellPainted: () => bumpPaintSfx(mySymbol === 'O' ? 'O' : 'X'),
+      cellPainted: (by) => bumpPaintSfx(by === 'X' || by === 'O' ? by : mySymbol),
       warning10s: () => sounds.bell(),
     },
     INPUT_MS: 0,
   })
 
+  // Guest-only local countdown — the host's own COUNTDOWN_MS gate (inside
+  // useRealtimeHost) is invisible to the guest, so run an equivalent timer
+  // client-side keyed off the peer connection reaching 'connected' (mirrors
+  // SumoGame's identical guestCountdown effect).
+  const [guestCountdown, setGuestCountdown] = useState(0)
+  const guestStartAtRef = useRef(0)
+  useEffect(() => {
+    if (isHost || !playing || guestConn.status !== 'connected') {
+      guestStartAtRef.current = 0
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-way reset driven by the external peer/game-status transition, mirrors SumoGame's identical guestCountdown effect
+      setGuestCountdown(0)
+      return
+    }
+    guestStartAtRef.current = Date.now() + GUEST_COUNTDOWN_MS
+    const iv = setInterval(() => {
+      const remain = Math.ceil((guestStartAtRef.current - Date.now()) / 1000)
+      setGuestCountdown(remain > 0 ? remain : 0)
+      if (remain <= 0) clearInterval(iv)
+    }, 200)
+    return () => clearInterval(iv)
+  }, [isHost, playing, guestConn.status])
+
   const conn = isHost ? hostConn : guestConn
+  const countdown = isHost ? render.countdown : guestCountdown
 
   const matchWinner = (game.scores?.X || 0) >= MATCH_TARGET ? 'X' : (game.scores?.O || 0) >= MATCH_TARGET ? 'O' : null
 
@@ -257,8 +312,9 @@ export default function PaintGame({
     )
   }
 
-  // --- Playing ---
-  const overlay = <RealtimeOverlay conn={conn.status} countdown={render.countdown} retry={conn.retry} />
+  // --- Playing --- (SWITCH GAME is hidden while live, matching Sumo — replaced
+  // by a dedicated FORFEIT ROUND action below, which only concedes this round.)
+  const overlay = <RealtimeOverlay conn={conn.status} countdown={countdown} retry={conn.retry} />
 
   return (
     <div className="space-y-3">
@@ -277,7 +333,20 @@ export default function PaintGame({
         60s CLOCK · MOST TURF PAINTED WINS · FIRST TO {MATCH_TARGET} ROUNDS
       </p>
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
-      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
+      {!proposal && (
+        <div className="text-center">
+          <button
+            onClick={handleForfeit}
+            disabled={forfeitBusy}
+            className={cn(
+              'min-h-11 px-4 font-pixel text-[9px] tracking-wide rounded transition-colors disabled:opacity-50',
+              forfeitArmed ? 'text-retro-danger' : 'text-retro-dim hover:text-retro-danger',
+            )}
+          >
+            {forfeitBusy ? 'FORFEITING…' : forfeitArmed ? 'TAP AGAIN TO FORFEIT' : 'FORFEIT ROUND'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

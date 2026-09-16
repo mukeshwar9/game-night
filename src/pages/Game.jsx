@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ref, onValue, update, get, runTransaction, onDisconnect, set as dbSet } from 'firebase/database'
+import { ref, onValue, update, get, push, runTransaction, onDisconnect, set as dbSet } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig } from '../lib/games'
+import { freshGameState, getGameConfig, lobbySwitchOverrides } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
-import ArcadeLoader from '@/components/ArcadeLoader'
+import LoadingLine from '@/components/loading/LoadingLine'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
@@ -29,6 +29,8 @@ import SnakeGame from './SnakeGame'
 import TronGame from './TronGame'
 import SumoGame from './SumoGame'
 import SpaceduelGame from './SpaceduelGame'
+import PacmacGame from './PacmacGame'
+import AirHockeyGame from './AirHockeyGame'
 import PaintGame from './PaintGame'
 import WordDuelGame from './WordDuelGame'
 import WordHuntGame from './WordHuntGame'
@@ -45,7 +47,11 @@ import SketchGame from './SketchGame'
 import ProposalBanner from '../components/ProposalBanner'
 import GameSwitcher from '../components/GameSwitcher'
 import EmoteBar from '../components/EmoteBar'
+import AnimatedEmoji from '../components/AnimatedEmoji'
+import AudioSettingsButton from '../components/AudioSettingsButton'
+import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
+import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../lib/chat'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -65,7 +71,7 @@ const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
 // Real-time custom arenas (M-05/M-24) — physics-driven games with their own
 // dedicated page component, square/wide viewport-hungry courts, and a live
 // score that keeps changing even while a modal hides the board.
-const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel'])
+const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'pacmac', 'airhockey', 'paint'])
 
 function toArray(val) {
   if (!val) return []
@@ -114,7 +120,7 @@ function LoadingScreen() {
   }, [])
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <ArcadeLoader variant="inline" />
+      <LoadingLine />
       {slow && (
         <div className="flex flex-col items-center gap-2">
           <p className="font-pixel text-[10px] text-retro-dim tracking-wider">STILL CONNECTING…</p>
@@ -142,35 +148,49 @@ function EmoteFloats({ floats }) {
           // otherwise the `forwards` fill leaves the element invisible while
           // its re-armed removal timer keeps it alive
           key={`${f.id}-${f.count}`}
-          className={cn('absolute flex flex-col items-center gap-1', f.by === 'X' ? 'left-[16%]' : 'right-[16%]')}
+          className={cn(
+            'absolute flex flex-col items-center gap-1',
+            f.kind === 'chat'
+              ? (f.seat === 'X' ? 'left-[16%]' : f.seat === 'O' ? 'right-[16%]' : 'left-1/2 -translate-x-1/2')
+              : (f.by === 'X' ? 'left-[16%]' : 'right-[16%]')
+          )}
           style={{ animation: 'emote-float 2s ease-out forwards' }}
         >
-          <div
-            className="flex items-center gap-1"
-            style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
-          >
-            {isQuickChat(f.glyph) ? (
-              <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
-            ) : (
-              <span className="text-6xl">{f.glyph}</span>
-            )}
-            {f.count > 1 && (
-              <span
-                key={f.count}
-                className="font-pixel text-sm text-retro-cta text-glow-cta"
-                style={{ animation: 'emote-pop 0.15s ease-out' }}
+          {f.kind === 'chat' ? (
+            <div className="flex flex-col items-center gap-0.5 max-w-[60vw]">
+              <span className="font-pixel text-[7px] text-retro-dim">{f.name}</span>
+              <span className="font-pixel text-sm text-retro-cta text-glow-cta break-words">{f.text}</span>
+            </div>
+          ) : (
+            <>
+              <div
+                className="flex items-center gap-1"
+                style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
               >
-                ×{f.count}
-              </span>
-            )}
-          </div>
-          {f.name && (
-            <span className={cn(
-              'font-pixel text-[8px]',
-              f.by === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
-            )}>
-              {f.name}
-            </span>
+                {isQuickChat(f.glyph) ? (
+                  <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
+                ) : (
+                  <AnimatedEmoji glyph={f.glyph} className="w-20 h-20 object-contain" />
+                )}
+                {f.count > 1 && (
+                  <span
+                    key={f.count}
+                    className="font-pixel text-sm text-retro-cta text-glow-cta"
+                    style={{ animation: 'emote-pop 0.15s ease-out' }}
+                  >
+                    ×{f.count}
+                  </span>
+                )}
+              </div>
+              {f.name && (
+                <span className={cn(
+                  'font-pixel text-[8px]',
+                  f.by === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
+                )}>
+                  {f.name}
+                </span>
+              )}
+            </>
           )}
         </div>
       ))}
@@ -225,7 +245,12 @@ export default function Game() {
   const emoteIdRef = useRef(0)
   const emoteTimeouts = useRef(new Map())
   const emoteReadyAt = useRef(0)
+  const emoteSoundReadyAt = useRef(0)
   const [emoteCooldown, setEmoteCooldown] = useState(false)
+  const prevChatTs = useRef(0)
+  const chatInit = useRef(false)
+  const chatReadyAt = useRef(0)
+  const [chatCooldown, setChatCooldown] = useState(false)
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const [showRules, setShowRules] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
@@ -260,6 +285,11 @@ export default function Game() {
   const blockedMoveFeedbackAt = useRef(0)
   const spectatorToastShown = useRef(false)
   const abandonTimerRef = useRef(null)
+  // Lobby liveliness (waiting-room chat/switch/join cues) bookkeeping.
+  const mySwitchedTo = useRef(null)
+  const lobbyLivelinessInit = useRef(false)
+  const prevLobbyGameType = useRef(null)
+  const prevLobbyHasOpponent = useRef(false)
 
   // Firebase init: join room, set up listeners, set up presence
   useEffect(() => {
@@ -373,8 +403,13 @@ export default function Game() {
             if (committed) {
               assignSeat('O')
               sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
-              const joinUpdates = { status: 'playing' }
-              if (data.gameType === 'hangwoman') {
+              // Lobby rooms (challenge-created, `lobby: true`) stay 'waiting'
+              // when the second seat fills — either player picks the game and
+              // taps START from WaitingRoom instead of auto-playing.
+              const joinUpdates = data.lobby
+                ? { lastActivityAt: Date.now() }
+                : { status: 'playing' }
+              if (!data.lobby && data.gameType === 'hangwoman') {
                 joinUpdates['round/setter'] = 'X'
                 joinUpdates['round/phase'] = 'setting'
                 joinUpdates['round/wrongCount'] = 0
@@ -476,6 +511,7 @@ export default function Game() {
           won: w === mySymbol.current,
           opponentName: game.players?.[opSym]?.name,
           opponentUid: game.players?.[opSym]?.playerId,
+          opponentAvatar: game.players?.[opSym]?.avatar,
         })
       }
     }
@@ -591,7 +627,11 @@ export default function Game() {
   // combo count and re-arms its removal timer.
   const pushEmote = (e) => {
     const name = game?.players?.[e.by]?.name ?? ''
-    e.glyph === '🤫' ? sounds.shh() : sounds.emote()
+    const now = Date.now()
+    if (document.visibilityState === 'visible' && now >= emoteSoundReadyAt.current) {
+      emoteSoundReadyAt.current = now + 140
+      sounds.reaction(e.glyph, { volume: e.by === mySymbol.current ? 0.7 : 1 })
+    }
     setFloats(prev => {
       const last = prev[prev.length - 1]
       const now = Date.now()
@@ -618,6 +658,19 @@ export default function Game() {
     })
   }
 
+  // Push a chat message onto the floats array — unlike pushEmote, always a
+  // fresh float (no combo/count merging), same 2s removal timing.
+  const pushChatFloat = (msg) => {
+    const id = ++emoteIdRef.current
+    const float = { id, kind: 'chat', text: msg.text, name: msg.name, seat: msg.seat ?? null, count: 1, at: Date.now() }
+    const t = setTimeout(() => {
+      setFloats(f => f.filter(fl => fl.id !== id))
+      emoteTimeouts.current.delete(id)
+    }, 2000)
+    emoteTimeouts.current.set(id, t)
+    setFloats(prev => [...prev, float])
+  }
+
   // Clear any pending float-removal timers on unmount
   useEffect(() => {
     const timeouts = emoteTimeouts.current
@@ -629,7 +682,8 @@ export default function Game() {
 
   // Emote channel — float a newly-received reaction (skip the stale one present on join)
   useEffect(() => {
-    const e = game?.emote
+    if (!game) return // don't latch the init guard before the first snapshot
+    const e = game.emote
     if (!emoteInit.current) {
       emoteInit.current = true
       prevEmoteTs.current = e?.ts || 0
@@ -646,6 +700,26 @@ export default function Game() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.emote?.ts])
 
+  // Chat channel — float the newest free-text message (skip whatever was
+  // already in the log on join, and our own — already floated optimistically
+  // by sendChat).
+  useEffect(() => {
+    if (!game) return // don't latch the init guard before the first snapshot
+    const entries = normalizeChatLog(game.chatLog)
+    const newest = entries[entries.length - 1]?.[1]
+    if (!chatInit.current) {
+      chatInit.current = true
+      prevChatTs.current = newest?.ts || 0
+      return
+    }
+    if (!newest || newest.ts <= prevChatTs.current) return
+    prevChatTs.current = newest.ts
+    if (newest.by === getPlayerId()) return
+    if (!isValidChatMessage(newest)) return
+    pushChatFloat(newest)
+    sounds.emote()
+  }, [game?.chatLog])
+
   // A fresh snapshot means React state has caught up with the last write —
   // safe to accept the next move (see moveInFlight in handleMove).
   useEffect(() => {
@@ -660,6 +734,44 @@ export default function Game() {
       spectatorToastShown.current = true
       toast("ROOM'S FULL — YOU'RE SPECTATING")
     }
+  }, [game])
+
+  // Lobby liveliness — while a challenge-created lobby room (`game.lobby`)
+  // sits in 'waiting', surface cues for activity that would otherwise happen
+  // silently behind the chat/reaction UI: a remote game-type switch (toast +
+  // bell) and the second seat filling (join sound, no auto-start). Guarded to
+  // lobby rooms only — legacy/link-created rooms have no `lobby` flag and
+  // never run this.
+  useEffect(() => {
+    if (!game || !game.lobby || game.status !== 'waiting') {
+      lobbyLivelinessInit.current = false
+      return
+    }
+    if (!lobbyLivelinessInit.current) {
+      lobbyLivelinessInit.current = true
+      prevLobbyGameType.current = game.gameType
+      prevLobbyHasOpponent.current = !!(game.players?.X && game.players?.O)
+      return
+    }
+
+    if (game.gameType !== prevLobbyGameType.current) {
+      if (mySwitchedTo.current === game.gameType) {
+        mySwitchedTo.current = null
+      } else if (mySymbol.current) {
+        const opSym = mySymbol.current === 'X' ? 'O' : 'X'
+        const opName = (game.players?.[opSym]?.name || 'OPPONENT').toUpperCase()
+        const label = getGameConfig(game.gameType)?.label || game.gameType
+        toast(`${opName} SWITCHED TO ${label}`)
+        sounds.bell()
+      }
+    }
+    prevLobbyGameType.current = game.gameType
+
+    const hasOpponent = !!(game.players?.X && game.players?.O)
+    if (hasOpponent && !prevLobbyHasOpponent.current) {
+      sounds.join()
+    }
+    prevLobbyHasOpponent.current = hasOpponent
   }, [game])
 
   // Abandoned-opponent recovery (F-23) — after 120s of CONTINUOUS opponent
@@ -680,13 +792,16 @@ export default function Game() {
 
     if (!game || !mySymbol.current) return
     const gcfg = getGameConfig(game.gameType)
-    if (gcfg.nPlayer || gcfg.custom) return
+    if (gcfg.nPlayer) return
     if (game.status !== 'playing') return
     const opSym = mySymbol.current === 'X' ? 'O' : 'X'
     if (!game.players?.[opSym]) return
     if (opponentOnline) return
 
-    abandonTimerRef.current = setTimeout(() => setShowAbandonBanner(true), 120_000)
+    // Custom real-time games (Pong/Sumo/Pac-Mac) use a shorter window: a
+    // vanished peer freezes the round outright, and without this banner the
+    // guest's only exit is self-forfeit — which rewards the vanished player.
+    abandonTimerRef.current = setTimeout(() => setShowAbandonBanner(true), gcfg.custom ? 60_000 : 120_000)
     return () => {
       if (abandonTimerRef.current) { clearTimeout(abandonTimerRef.current); abandonTimerRef.current = null }
     }
@@ -698,10 +813,10 @@ export default function Game() {
 
   // Pig anti-cheat: coin-flipping protocol to establish a shared deterministic
   // roll seed (see src/lib/diceLogic.js). X commits seedA, O contributes seedB,
-  // X reveals seedA, both derive diceSeed. Runs only for gameType 'dice'.
+  // X reveals seedA, both derive diceSeed. Runs for both Pig variants.
   const coinFlipStarted = useRef(false)
   useEffect(() => {
-    if (!game || game.gameType !== 'dice' || game.status !== 'playing') return
+    if (!game || (game.gameType !== 'dice' && game.gameType !== 'dice-big') || game.status !== 'playing') return
     if (!mySymbol.current) return
     const sym = mySymbol.current
     const SK = `pig-seedA-${gameId}`
@@ -844,7 +959,10 @@ export default function Game() {
     let updates, result
     if (cfg.applyMove) {
       const applied = cfg.applyMove({ board, game, index, move: movePayload, symbol: mySymbol.current })
-      if (!applied) return
+      // Rejected by the game's own rules (non-flanking Reversi cell, illegal
+      // pop, …) — give the same feedback as any other blocked tap instead of
+      // silently swallowing it.
+      if (!applied) { blockedMoveFeedback(); return }
       updates = applied.updates
       result = applied.result
     } else {
@@ -918,8 +1036,12 @@ export default function Game() {
 
   const applySwitchGame = async (newType) => {
     sessionStorage.removeItem(`hangwoman-word-${gameId}`)
+    // Suppresses the lobby-liveliness "opponent switched" toast for a switch
+    // this client itself initiated (see the liveliness effect below).
+    mySwitchedTo.current = newType
+    const updates = buildSwitchUpdates(game, newType)
     try {
-      await update(ref(db, `games/${gameId}`), buildSwitchUpdates(game, newType))
+      await update(ref(db, `games/${gameId}`), game.status === 'waiting' ? lobbySwitchOverrides(updates) : updates)
       recordPlay(newType, 'multi')
     } catch { toast.error('SWITCH FAILED — CHECK CONNECTION') }
   }
@@ -1057,12 +1179,12 @@ export default function Game() {
   const toggleMute = () => setMuted(sounds.toggle())
 
   const sendEmote = async (glyph) => {
-    if (!mySymbol.current) return
+    if (!mySymbol.current) return false
     // sendEmote only ever runs from an onClick handler, never during render;
     // the compiler's static analysis can't see that, hence the disable.
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now()
-    if (now < emoteReadyAt.current) return
+    if (now < emoteReadyAt.current) return false
     emoteReadyAt.current = now + 600
     setEmoteCooldown(true)
     setTimeout(() => setEmoteCooldown(false), 600)
@@ -1072,6 +1194,36 @@ export default function Game() {
     try {
       await update(ref(db, `games/${gameId}`), { emote: { by: mySymbol.current, glyph, ts: now } })
     } catch { /* ignore */ }
+    return true
+  }
+
+  // Free-text chat — sanitize, rate-limit (2s), float our own message
+  // optimistically, append via a push id, and prune the log back to cap.
+  const sendChat = async (raw) => {
+    const text = sanitizeChatText(raw)
+    if (!text) return false
+    const now = Date.now()
+    if (now < chatReadyAt.current) return false
+    chatReadyAt.current = now + 2000
+    setChatCooldown(true)
+    setTimeout(() => setChatCooldown(false), 2000)
+
+    const msg = {
+      by: getPlayerId(),
+      name: localStorage.getItem('playerName') || 'PLAYER',
+      text,
+      ts: now,
+      ...(mySymbol.current ? { seat: mySymbol.current } : {}),
+    }
+    prevChatTs.current = now
+    pushChatFloat(msg)
+    const k = push(ref(db, `games/${gameId}/chatLog`)).key
+    const updates = { [k]: msg }
+    for (const key of chatKeysToPrune(normalizeChatLog(game?.chatLog), CHAT_LOG_CAP - 1)) updates[key] = null
+    try {
+      await update(ref(db, `games/${gameId}/chatLog`), updates)
+    } catch { return false }
+    return true
   }
 
   // Feature A — name prompt for invited players
@@ -1224,6 +1376,7 @@ export default function Game() {
                   </svg>
                 )}
               </button>
+              <AudioSettingsButton />
               {cfg.badge && (
                 <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
               )}
@@ -1245,8 +1398,10 @@ export default function Game() {
             <SpyfairGame {...nProps} />
           )}
 
+          <ChatLog chatLog={game.chatLog} myUid={myUid} />
+
           {amSeated && game.status !== 'waiting' && (
-            <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} />
+            <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
           )}
         </div>
         {showInvite && (
@@ -1342,8 +1497,12 @@ export default function Game() {
                 banner can't cover it — gate the trigger itself instead so a
                 real-time match's physics/score can never keep changing
                 invisibly behind an opened switcher. */}
-            {!isSpectator && game.status !== 'waiting' && !activeProposal && !(isRealtimeCustom && game.status === 'playing') && (
-              <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => propose('switch', t)} />
+            {!isSpectator && !activeProposal && !(isRealtimeCustom && game.status === 'playing') && (
+              <GameSwitcher
+                variant="icon"
+                currentType={game.gameType}
+                onSwitch={(t) => (game.status === 'waiting' ? applySwitchGame(t) : propose('switch', t))}
+              />
             )}
             {!isSpectator && (
               <button
@@ -1376,6 +1535,7 @@ export default function Game() {
                 </svg>
               )}
             </button>
+            <AudioSettingsButton />
             {cfg.badge && (
               <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
             )}
@@ -1416,8 +1576,10 @@ export default function Game() {
           <OfflineNotice />
         )}
 
-        {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline */}
-        {!isCustom && !isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
+        {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline
+            (60s for custom real-time games, where a vanished peer hard-freezes
+            the round and forfeit would be the only other exit) */}
+        {!isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
           <div className="border-2 border-retro-p2/50 bg-retro-card rounded p-3 text-center space-y-2">
             <p className="font-pixel text-[10px] text-retro-p2 leading-relaxed">
               OPPONENT&apos;S BEEN GONE A WHILE
@@ -1467,7 +1629,7 @@ export default function Game() {
 
         {/* Game area */}
         {game.status === 'waiting' ? (
-          <WaitingRoom gameId={gameId} gameType={game.gameType} game={game} mySymbol={mySeat} />
+          <WaitingRoom gameId={gameId} gameType={game.gameType} game={game} mySymbol={mySeat} onSwitch={applySwitchGame} opponentOnline={opponentOnline} />
         ) : isCustom ? (
           game.gameType === 'reaction' ? (
             <ReactionGame
@@ -1651,6 +1813,28 @@ export default function Game() {
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
+          ) : game.gameType === 'pacmac' ? (
+            <PacmacGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'airhockey' ? (
+            <AirHockeyGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
           ) : game.gameType === 'paint' ? (
             <PaintGame
               gameId={gameId}
@@ -1701,12 +1885,13 @@ export default function Game() {
             <cfg.BoardComponent
               board={board}
               onMove={handleMove}
-              disabled={!canMove || (cfg.type === 'dice' && !game.diceSeed)}
+              disabled={!canMove || ((cfg.type === 'dice' || cfg.type === 'dice-big') && !game.diceSeed)}
               winningLine={winningLine}
               currentTurn={game.currentTurn}
               lastMove={game.lastMove ?? null}
+              mySymbol={mySeat}
               {...(cfg.boardProps ? cfg.boardProps(game) : {})}
-              {...(cfg.type === 'dice' ? { diceSeedPending: !game.diceSeed } : {})}
+              {...(cfg.type === 'dice' || cfg.type === 'dice-big' ? { diceSeedPending: !game.diceSeed } : {})}
             />
             <GameStatus
               status={game.status}
@@ -1717,10 +1902,19 @@ export default function Game() {
               players={game.players}
               gameType={game.gameType}
               extraTurn={!!game.extraTurn}
+              passNote={game.passNote ?? null}
               onPlayAgain={game.status === 'finished' && !isSpectator && !matchWinner && !activeProposal ? () => propose('playAgain') : null}
               onNewMatch={matchWinner && !isSpectator && !activeProposal ? () => propose('newMatch') : null}
               onSwitchGame={!isSpectator && !activeProposal ? (t) => propose('switch', t) : null}
             />
+            {game.status === 'finished' && (
+              <Link
+                to="/leaderboard"
+                className="block text-center font-mono text-[10px] text-retro-dim hover:text-retro-text transition-colors p-2 -m-2"
+              >
+                SEE WHERE YOU RANK →
+              </Link>
+            )}
           </>
         )}
 
@@ -1737,9 +1931,14 @@ export default function Game() {
           </div>
         )}
 
-        {/* Emote / reaction bar — players only, once the room is live */}
-        {!isSpectator && game.status !== 'waiting' && (
-          <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} />
+        {/* Free-text chat log — visible to spectators too; self-hides when empty */}
+        <ChatLog chatLog={game.chatLog} myUid={getPlayerId()} />
+
+        {/* Emote / reaction bar — hidden while waiting for an opponent (M-XX:
+            nobody to react to yet). Shown to a seated player once an
+            opponent has joined, or to a spectator watching a live game. */}
+        {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
+          <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
         )}
       </div>
       {showInvite && (

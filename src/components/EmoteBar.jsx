@@ -1,16 +1,33 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import BottomSheet from './BottomSheet'
 import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, QUICK_CHAT, searchEmotes } from '../lib/emotes'
+import { CHAT_MAX_LENGTH } from '../lib/chat'
 import { cn } from '@/lib/utils'
+import { getPlayerId } from '../lib/playerId'
+import { getQuickEmotes, normalizeEmoteUsage, recordEmoteUsage } from '../lib/emoteUsage'
 
-const EMOTE_BTN_CLASS = 'shrink-0 w-9 h-9 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 active:scale-90 transition-all'
-const CHIP_BTN_CLASS = 'shrink-0 px-2.5 py-1.5 flex items-center justify-center font-pixel text-[8px] tracking-widest rounded border border-retro-border bg-retro-card hover:border-retro-cta/50 active:scale-95 transition-all'
+const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 transition-colors'
+const EMOTE_TAP_PROPS = {
+  whileTap: { scale: 0.82, rotate: -8 },
+  whileHover: { scale: 1.06 },
+  transition: { type: 'spring', stiffness: 500, damping: 18 },
+}
+
+function AnimatedEmoteButton({ children, className, ...props }) {
+  return (
+    <motion.button {...props} {...EMOTE_TAP_PROPS} className={className}>
+      {children}
+    </motion.button>
+  )
+}
+const CHIP_BTN_CLASS = 'shrink-0 px-2.5 min-h-11 flex items-center justify-center font-pixel text-[8px] tracking-widest rounded border border-retro-border bg-retro-card hover:border-retro-cta/50 active:scale-95 transition-all'
 
 function EmoteGrid({ glyphs, onPick, className }) {
   return (
     <div className={cn('grid grid-cols-6 gap-2', className)}>
       {glyphs.map(g => (
-        <button
+        <AnimatedEmoteButton
           key={g}
           type="button"
           onClick={() => onPick(g)}
@@ -18,10 +35,18 @@ function EmoteGrid({ glyphs, onPick, className }) {
           className={cn(EMOTE_BTN_CLASS, 'w-full aspect-square text-xl')}
         >
           {g}
-        </button>
+        </AnimatedEmoteButton>
       ))}
     </div>
   )
+}
+
+function readUsage(key) {
+  try {
+    return normalizeEmoteUsage(JSON.parse(localStorage.getItem(key) || '{}'))
+  } catch {
+    return {}
+  }
 }
 
 function EmotePicker({ onPick, onClose }) {
@@ -59,16 +84,36 @@ function EmotePicker({ onPick, onClose }) {
   )
 }
 
-export default function EmoteBar({ onSend, onSendChip, cooldown }) {
+export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, textCooldown }) {
   const [showPicker, setShowPicker] = useState(false)
-  const handleEmote = (g) => onSend(g)
+  const [text, setText] = useState('')
+  const [usageKey] = useState(() => `emoteUsage:${getPlayerId()}`)
+  const [usage, setUsage] = useState(() => readUsage(usageKey))
+  const quickEmotes = getQuickEmotes(usage, EMOTES_PRIMARY)
+  const handleEmote = async (g) => {
+    const sent = await onSend(g)
+    if (sent === false) return
+    setUsage(previous => {
+      const next = recordEmoteUsage(previous, g, Date.now())
+      try { localStorage.setItem(usageKey, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
   const handleChip = (t) => (onSendChip || onSend)(t)
+  const handleSubmitText = async (e) => {
+    e.preventDefault()
+    const ok = await onSendText(text)
+    if (ok) setText('')
+  }
   return (
     <>
       <div className="flex flex-col items-center gap-1.5 pt-1">
-        <div className="flex justify-center gap-1.5">
-          {EMOTES_PRIMARY.map(g => (
-            <button
+        {Object.keys(usage).length > 0 && (
+          <p className="font-pixel text-[7px] text-retro-dim tracking-widest">YOUR REACTIONS</p>
+        )}
+        <div className="flex justify-center gap-1.5 flex-wrap max-w-full px-2">
+          {quickEmotes.map(g => (
+            <AnimatedEmoteButton
               key={g}
               type="button"
               onClick={() => handleEmote(g)}
@@ -77,7 +122,7 @@ export default function EmoteBar({ onSend, onSendChip, cooldown }) {
               className={cn(EMOTE_BTN_CLASS, cooldown && 'opacity-50')}
             >
               {g}
-            </button>
+            </AnimatedEmoteButton>
           ))}
           <button
             type="button"
@@ -109,6 +154,37 @@ export default function EmoteBar({ onSend, onSendChip, cooldown }) {
             </button>
           ))}
         </div>
+        {onSendText && (
+          <form onSubmit={handleSubmitText} className="flex gap-2 w-full max-w-[280px]">
+            <input
+              type="text"
+              value={text}
+              onChange={e => setText(e.target.value)}
+              maxLength={CHAT_MAX_LENGTH}
+              enterKeyHint="send"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder="SAY SOMETHING…"
+              aria-label="Chat message"
+              className="flex-1 min-w-0 min-h-11 bg-retro-card border-2 border-retro-border text-retro-text
+                font-pixel text-xs placeholder-retro-border placeholder:text-[10px] placeholder:tracking-normal rounded px-3 py-2
+                focus:outline-none focus:border-retro-p1 tracking-widest transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={!text.trim() || textCooldown}
+              className={cn(
+                'min-h-11 px-4 flex items-center justify-center bg-retro-card border-2 border-retro-border text-retro-text',
+                'font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-colors active:scale-95',
+                (!text.trim() || textCooldown) && 'opacity-50'
+              )}
+            >
+              SEND
+            </button>
+          </form>
+        )}
       </div>
       {showPicker && (
         <EmotePicker onPick={handleEmote} onClose={() => setShowPicker(false)} />

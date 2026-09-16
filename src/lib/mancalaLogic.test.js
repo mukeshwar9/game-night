@@ -26,6 +26,13 @@ describe('setup', () => {
     expect(normalizePits({ 0: 5 })[0]).toBe(5)
     expect(normalizePits(null)).toEqual(Array(14).fill(0))
   })
+  it('normalizePits preserves original object keys instead of reindexing', () => {
+    // Firebase hands back numeric-keyed objects; Object.values would compact
+    // {0:5, 13:2} into [5,2] and land seeds in the wrong pits.
+    expect(normalizePits({ 0: 5, 13: 2 })).toEqual([5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2])
+    expect(normalizePits({ 3: 1 })).toEqual([0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    expect(normalizePits({ 99: 7 })).toEqual(Array(14).fill(0))
+  })
   it('opposite() pairs across the board', () => {
     expect(opposite(0)).toBe(12)
     expect(opposite(5)).toBe(7)

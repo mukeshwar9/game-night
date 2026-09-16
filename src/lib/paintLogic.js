@@ -105,20 +105,31 @@ export function step(state, inputs, dt) {
   // official end of the round.
   if (state.ended) return { state, events: [] }
 
+  // Read-only snapshot of the grid as it stood BEFORE this step. Both
+  // players' movement/speed are computed against this pre-step grid — never
+  // against `grid` below, which starts mutating as soon as the first
+  // player's paint is applied. Reading the mutating array mid-loop is what
+  // made the sim host-favoring: whichever side is processed first (X) always
+  // saw pristine data, while the side processed second (O) could see a cell
+  // X had just repainted THIS step and get erroneously slowed/unslowed by an
+  // event that, from the pre-step world's perspective, hadn't happened yet.
+  const origGrid = state.grid
   const grid = state.grid.slice()
   const events = []
   const players = {}
+  const moves = {}
 
-  // X THEN O, always — deterministic same-frame order for contested cells.
+  // Pass 1 — movement. Order doesn't matter here since both sides read the
+  // same untouched origGrid; kept as X-then-O for readability only.
   for (const side of ['X', 'O']) {
     const p = { ...state.players[side] }
     const ownerCode = side === 'X' ? 1 : 2
     const inputDir = inputs?.[side]
     if (VALID_DIRS.has(inputDir)) p.dir = inputDir
 
-    // Speed check uses the PRE-DEPARTURE cell (not the destination).
+    // Speed check uses the PRE-DEPARTURE cell, read from the pre-step grid.
     const oldIdx = cellIndex(p.x, p.y)
-    const curOwner = grid[oldIdx]
+    const curOwner = origGrid[oldIdx]
     const speedMult = (curOwner !== 0 && curOwner !== ownerCode) ? ENEMY_SLOW_MULT : 1
     const speed = BASE_SPEED * speedMult * (p.speedCap ?? 1)
 
@@ -127,6 +138,19 @@ export function step(state, inputs, dt) {
     const ny = clamp(p.y + vec.y * speed * dt, 0, GRID_H - EPS)
     const newIdx = cellIndex(nx, ny)
 
+    p.x = nx
+    p.y = ny
+    players[side] = p
+    moves[side] = { oldIdx, newIdx, ownerCode }
+  }
+
+  // Pass 2 — paint. X THEN O, always — deterministic same-frame order for
+  // which color wins a cell both players vacate this step (this ordering is
+  // fine to keep, since by now both players' MOVEMENT was already decided
+  // fairly in pass 1; only the tie-break for painting a shared exit cell is
+  // order-dependent, same as before).
+  for (const side of ['X', 'O']) {
+    const { oldIdx, newIdx, ownerCode } = moves[side]
     if (newIdx !== oldIdx) {
       // The mover VACATED oldIdx this step — paint it (regardless of which
       // neighbor they exited toward, so a 180° reversal still paints it).
@@ -139,10 +163,6 @@ export function step(state, inputs, dt) {
         }
       }
     }
-
-    p.x = nx
-    p.y = ny
-    players[side] = p
   }
 
   let timeLeft = state.timeLeft

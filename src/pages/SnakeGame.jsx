@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import useBusy from '@/hooks/useBusy'
 
 const COUNTDOWN_MS = 2000
+const RENDER_DELAY_MS = 100  // guest: render slightly behind realtime so there are always two snapshots to interpolate between
 
 const playSfx = (kind) => {
   if (kind === 'eat') sounds.hit()
@@ -90,9 +91,12 @@ export default function SnakeGame({
     snakes: null, food: null, eatenX: 0, eatenO: 0, countdown: 0,
   })
 
-  const guestInputRef = useRef(null)      // host: latest direction from the guest (O)
+  const guestQueueRef = useRef([])        // host: queued directions from the guest (O), cap 2 pending
   const snapRef = useRef(null)            // guest: latest snapshot from the host
-  const snapAtRef = useRef(0)             // guest: perf time the snapshot arrived
+  const snapAtRef = useRef(0)             // guest: perf time the latest snapshot arrived
+  const prevSnapRef = useRef(null)        // guest: previous snapshot, for interpolation
+  const prevSnapAtRef = useRef(0)         // guest: perf time the previous snapshot arrived
+  const connectedAtRef = useRef(0)        // guest: perf time we first saw 'connected', for a local GET READY countdown
   const simRef = useRef(null)             // host: authoritative simulation state
   const finishedRef = useRef(false)
   const hostDirRef = useRef(null)         // host: latest local direction (X)
@@ -100,10 +104,20 @@ export default function SnakeGame({
   const onMessage = useCallback((msg) => {
     if (msg.t === 's') {
       // Snapshot: { t:'s', X:[[x,y],...], O:[[x,y],...], f:[x,y]|null, x:eatenX, o:eatenO, d:dirX, e:dirO }
+      prevSnapRef.current = snapRef.current
+      prevSnapAtRef.current = snapAtRef.current
       snapRef.current = msg
       snapAtRef.current = performance.now()
     } else if (msg.t === 'i') {
-      guestInputRef.current = msg.d
+      // M-XX: queue guest turns (cap 2 pending distinct changes) instead of
+      // last-write-wins — two quick sequential turns sent one rAF frame
+      // apart must both register across consecutive host ticks, not
+      // collapse into whichever arrived last before a given tick.
+      const q = guestQueueRef.current
+      if (q[q.length - 1] !== msg.d) {
+        q.push(msg.d)
+        if (q.length > 2) q.shift()
+      }
     } else if (msg.t === 'e') {
       playSfx(msg.k)
     }
@@ -145,7 +159,7 @@ export default function SnakeGame({
     simRef.current = createState()
     finishedRef.current = false
     hostDirRef.current = null
-    guestInputRef.current = null
+    guestQueueRef.current = []
     let timer, lastSnap = 0, startAt = 0
 
     const renderSim = (countdown = 0) => {
@@ -174,9 +188,11 @@ export default function SnakeGame({
       const s = simRef.current
       const inputs = {
         X: getDir(s.snakes.X.dir),
-        O: guestInputRef.current,
+        // Dequeue one pending guest turn per tick (instead of always taking
+        // only the latest) so two quick sequential turns both register
+        // across consecutive ticks rather than collapsing into one.
+        O: guestQueueRef.current.shift() ?? null,
       }
-      guestInputRef.current = null  // consume guest input
       const { state: next, events } = tick(s, inputs)
       simRef.current = next
 
@@ -206,6 +222,11 @@ export default function SnakeGame({
           f: next.food ? [next.food.x, next.food.y] : null,
           x: next.snakes.X.eaten,
           o: next.snakes.O.eaten,
+          // Real current direction per side — the guest decode used to
+          // default to 'left' when this was missing, and the 180°-reversal
+          // guard then rejected legitimate 'right' turns from the guest.
+          d: next.snakes.X.dir,
+          e: next.snakes.O.dir,
         })
       }
 
@@ -223,19 +244,49 @@ export default function SnakeGame({
   // --- Guest: render from snapshots, send direction inputs ---
   useEffect(() => {
     if (isSpectator || isHost || game.status !== 'playing') return
+    connectedAtRef.current = 0
     let raf
 
+    // Render a blend of the last two snapshots, ~RENDER_DELAY_MS behind
+    // realtime, so playback timing isn't at the mercy of irregular ~8Hz
+    // packet arrival (which otherwise reads as jitter — a snapshot arriving
+    // a little early or late used to pop straight onto the screen).
     const fromSnap = () => {
       const snap = snapRef.current
       if (!snap) return null
-      const toSnake = (body, alive) => ({
-        body: body.map(([x, y]) => ({ x, y })),
+      const prev = prevSnapRef.current
+      const now = performance.now()
+      let t = 1
+      if (prev) {
+        const span = snapAtRef.current - prevSnapAtRef.current
+        t = span > 0 ? (now - RENDER_DELAY_MS - prevSnapAtRef.current) / span : 1
+        t = Math.min(Math.max(t, 0), 1)
+      }
+
+      const lerpBody = (prevBody, curBody) => {
+        if (!prevBody || prevBody.length !== curBody.length) {
+          return curBody.map(([x, y]) => ({ x, y }))
+        }
+        return curBody.map(([cx, cy], i) => {
+          const [px, py] = prevBody[i]
+          const dx = cx - px, dy = cy - py
+          // Skip lerp across a wrap-around or grow jump (>1 cell) — snap
+          // straight to the new cell instead of sliding across the board.
+          if (Math.abs(dx) > 1 || Math.abs(dy) > 1) return { x: cx, y: cy }
+          return { x: px + dx * t, y: py + dy * t }
+        })
+      }
+
+      const toSnake = (body, prevBody, alive, dir) => ({
+        body: lerpBody(prevBody, body),
         alive: !!alive,
+        dir: dir || 'left',
       })
+
       return {
         snakes: {
-          X: toSnake(snap.X, snap.xa),
-          O: toSnake(snap.O, snap.oa),
+          X: toSnake(snap.X, prev?.X, snap.xa, snap.d),
+          O: toSnake(snap.O, prev?.O, snap.oa, snap.e),
         },
         food: snap.f ? { x: snap.f[0], y: snap.f[1] } : null,
         eatenX: snap.x,
@@ -245,8 +296,22 @@ export default function SnakeGame({
 
     const loop = () => {
       raf = requestAnimationFrame(loop)
+      const now = performance.now()
+
+      // Local "GET READY" countdown mirroring the host's own COUNTDOWN_MS
+      // window. The snapshot carries no countdown info, so this is derived
+      // purely from when we locally observed the connection go 'connected'.
+      if (connRef.current !== 'connected') {
+        connectedAtRef.current = 0
+      } else if (!connectedAtRef.current) {
+        connectedAtRef.current = now
+      }
+      const elapsed = connectedAtRef.current ? now - connectedAtRef.current : 0
+      const countdown = connectedAtRef.current && elapsed < COUNTDOWN_MS
+        ? Math.ceil((COUNTDOWN_MS - elapsed) / 1000) : 0
+
       const view = fromSnap()
-      if (view) setRender({ ...view, countdown: 0 })
+      if (view) setRender({ ...view, countdown })
 
       // Send direction input (throttled — only when there's a new one).
       const dir = getDir(view?.snakes.O?.dir ?? 'left')

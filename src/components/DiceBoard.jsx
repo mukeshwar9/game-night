@@ -79,6 +79,7 @@ export default function DiceBoard({
   const shown = overflow ? trail.slice(trail.length - TRAIL_CAP) : trail
 
   const justBusted = isBig ? (Array.isArray(diceLast) && diceLast[0] === 1 && diceLast[1] === 1) : diceLast === 1
+  const bustMessage = isBig ? 'SNAKE EYES — SCORE WIPED' : 'BUST — TURN LOST'
 
   return (
     <div className="w-full max-w-xs mx-auto">
@@ -148,6 +149,16 @@ export default function DiceBoard({
           )}
         </div>
 
+        {/* Bust callout — text, not just color+shake, so it reads without color vision
+            and announces to screen readers via aria-live. */}
+        <div className="min-h-4" aria-live="assertive" role="status">
+          {justBusted && (
+            <p className="font-pixel text-[9px] text-retro-p2 text-glow-p2 text-center arcade-blink">
+              {bustMessage}
+            </p>
+          )}
+        </div>
+
         {/* At-risk turn score */}
         <div className="text-center">
           <div className="font-pixel text-[8px] text-retro-dim">AT RISK</div>
@@ -176,7 +187,7 @@ export default function DiceBoard({
         {/* ROLL / BANK */}
         <div className="flex items-center justify-center gap-3 w-full">
           <button
-            aria-label="roll"
+            aria-label={diceSeedPending ? 'Rolling, please wait' : `Roll the dice${justBusted ? ` — last roll was ${bustMessage.toLowerCase()}` : ''}`}
             disabled={disabled}
             onClick={() => !disabled && onMove('roll')}
             className={cn(
@@ -190,7 +201,7 @@ export default function DiceBoard({
             {diceSeedPending ? 'SHUFFLING…' : 'ROLL'}
           </button>
           <button
-            aria-label="bank"
+            aria-label={diceTurnScore === 0 ? 'Bank, disabled — no points at risk yet' : `Bank ${diceTurnScore} points into your score`}
             disabled={disabled || diceTurnScore === 0}
             onClick={() => !disabled && diceTurnScore > 0 && onMove('bank')}
             className={cn(

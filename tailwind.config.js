@@ -25,6 +25,15 @@ export default {
           'tint-danger': 'rgb(var(--c-tint-danger) / <alpha-value>)',
           structure:  'rgb(var(--c-structure) / <alpha-value>)',
           deep:       'rgb(var(--c-deep) / <alpha-value>)',
+          av1:        'rgb(var(--c-av1) / <alpha-value>)',
+          av2:        'rgb(var(--c-av2) / <alpha-value>)',
+          av3:        'rgb(var(--c-av3) / <alpha-value>)',
+          av4:        'rgb(var(--c-av4) / <alpha-value>)',
+          skin1:      'rgb(var(--c-skin-1) / <alpha-value>)',
+          skin2:      'rgb(var(--c-skin-2) / <alpha-value>)',
+          skin3:      'rgb(var(--c-skin-3) / <alpha-value>)',
+          skin4:      'rgb(var(--c-skin-4) / <alpha-value>)',
+          skin5:      'rgb(var(--c-skin-5) / <alpha-value>)',
         },
       },
       boxShadow: {
@@ -45,6 +54,10 @@ export default {
         '.text-glow-cta': { textShadow: '0 0 10px rgb(var(--c-cta)), 0 0 28px rgb(var(--c-cta) / 0.5)' },
         '.text-glow-win': { textShadow: '0 0 8px rgb(var(--c-win)), 0 0 20px rgb(var(--c-win) / 0.5)' },
         '.text-glow-danger': { textShadow: '0 0 8px rgb(var(--c-danger)), 0 0 20px rgb(var(--c-danger) / 0.5)' },
+        '.no-scrollbar': {
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        },
         '.scanline': {
           position: 'relative',
           '&::after': {

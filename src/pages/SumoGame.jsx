@@ -27,8 +27,19 @@ const INITIAL_VIEW = {
     O: { x: 0.7, y: 0.5, vx: 0, vy: 0, alive: true },
   },
   arenaR: START_RADIUS,
+  t: 0,
   countdown: 0,
 }
+
+// The guest's WebRTC peer connection reaches 'connected' independently of
+// (and slightly before) the host's own COUNTDOWN_MS gate, so without this
+// the guest sees no 3‑2‑1 at all — the host counts down locally while the
+// guest just stares at static blobs until the first snapshot arrives. Since
+// both peers reach 'connected' on the same data channel at essentially the
+// same moment, the guest runs its own local countdown of the same length
+// rather than waiting on a message from the host. Keep in sync with
+// useRealtimeHost's DEFAULT_COUNTDOWN.
+const GUEST_COUNTDOWN_MS = 2000
 
 function SumoResult({ winner, mySymbol, players }) {
   return (
@@ -45,7 +56,7 @@ function SumoResult({ winner, mySymbol, players }) {
             <p className={cn('font-pixel text-xl', won ? 'text-retro-win text-glow-win' : 'text-retro-dim')}>
               {won ? 'WIN' : 'OUT'}
             </p>
-            <p className="font-pixel text-[8px] text-retro-dim">{sym === 'X' ? 'RED' : 'BLUE'}</p>
+            <p className={cn('font-pixel text-[8px]', col)}>{sym}</p>
           </div>
         )
       })}
@@ -97,9 +108,22 @@ export default function SumoGame({
     runForfeit(() => finishRound(mySymbol === 'X' ? 'O' : 'X'), () => toast.error('FORFEIT FAILED — CHECK CONNECTION'))
   }
 
+  // Brief collision flash — shared by host (local sim events) and guest
+  // (broadcast 'e' messages via sfxMap below), purely a transient UI cue,
+  // not part of the synced sim state.
+  const [clashFlash, setClashFlash] = useState(false)
+  const clashTimerRef = useRef(null)
+  const triggerClashFlash = useCallback(() => {
+    setClashFlash(true)
+    clearTimeout(clashTimerRef.current)
+    clashTimerRef.current = setTimeout(() => setClashFlash(false), 150)
+  }, [])
+  useEffect(() => () => clearTimeout(clashTimerRef.current), [])
+
   const onEvent = useCallback((event) => {
     if (event.type === 'out') sounds.miss()
-  }, [])
+    else if (event.type === 'clash') { sounds.hit(); triggerClashFlash() }
+  }, [triggerClashFlash])
 
   const buildSnapshot = useCallback((sim) => {
     const X = sim.blobs.X
@@ -109,6 +133,7 @@ export default function SumoGame({
       X: [r4(X.x), r4(X.y), r4(X.vx), r4(X.vy), X.alive ? 1 : 0],
       O: [r4(O.x), r4(O.y), r4(O.vx), r4(O.vy), O.alive ? 1 : 0],
       r: r4(sim.arenaR),
+      st: r4(sim.t), // round elapsed time — 'st' (not 't') since 't' is the message-type discriminant
     }
   }, [])
 
@@ -130,6 +155,7 @@ export default function SumoGame({
   const buildView = useCallback((sim) => ({
     blobs: sim.blobs,
     arenaR: sim.arenaR,
+    t: sim.t,
     countdown: 0,
   }), [])
 
@@ -192,6 +218,7 @@ export default function SumoGame({
         [oppSide]: { x: ox, y: oy, vx: opp[2], vy: opp[3], alive: !!opp[4] },
       },
       arenaR: snap.r,
+      t: (snap.st ?? 0) + age,
       countdown: 0,
     }
     return {
@@ -205,9 +232,30 @@ export default function SumoGame({
     tick,
     setRender,
     initialRender: INITIAL_VIEW,
-    sfxMap: { out: () => sounds.miss() },
+    sfxMap: { out: () => sounds.miss(), clash: () => { sounds.hit(); triggerClashFlash() } },
     INPUT_MS: 0,
   })
+
+  // Guest-only local countdown (see GUEST_COUNTDOWN_MS above) — the host's
+  // COUNTDOWN_MS gate is invisible to the guest, so run an equivalent timer
+  // client-side, keyed off the peer connection reaching 'connected'.
+  const [guestCountdown, setGuestCountdown] = useState(0)
+  const guestStartAtRef = useRef(0)
+  useEffect(() => {
+    if (isHost || !playing || guest.status !== 'connected') {
+      guestStartAtRef.current = 0
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-way reset driven by the external peer/game-status transition, mirrors coachActive above
+      setGuestCountdown(0)
+      return
+    }
+    guestStartAtRef.current = Date.now() + GUEST_COUNTDOWN_MS
+    const iv = setInterval(() => {
+      const remain = Math.ceil((guestStartAtRef.current - Date.now()) / 1000)
+      setGuestCountdown(remain > 0 ? remain : 0)
+      if (remain <= 0) clearInterval(iv)
+    }, 200)
+    return () => clearInterval(iv)
+  }, [isHost, playing, guest.status])
 
   const conn = isHost ? host.status : isSpectator ? null : guest.status
   const retry = isHost ? host.retry : isSpectator ? null : guest.retry
@@ -242,13 +290,15 @@ export default function SumoGame({
 
   // --- Playing --- (SWITCH GAME is hidden while live — M-76 — replaced by a
   // dedicated FORFEIT ROUND action below, which only concedes this round.)
-  const overlay = <RealtimeOverlay conn={conn} countdown={render.countdown} retry={retry} />
+  const overlay = <RealtimeOverlay conn={conn} countdown={isHost ? render.countdown : guestCountdown} retry={retry} />
 
   return (
     <div className="space-y-3 [@media(max-height:420px)]:space-y-1.5">
       <SumoArena
         blobs={render.blobs}
         arenaR={render.arenaR}
+        t={render.t}
+        flash={clashFlash}
         mySide={mySymbol}
         namesX={game.players?.X?.name}
         namesO={game.players?.O?.name}
@@ -265,7 +315,13 @@ export default function SumoGame({
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
       <div className="flex justify-center pt-1">
         <button
+          data-sumo-push
           onPointerDown={(e) => { e.preventDefault(); press() }}
+          onKeyDown={(e) => {
+            if (e.key !== ' ' && e.key !== 'Enter') return
+            e.preventDefault()
+            press()
+          }}
           className="px-10 py-4 bg-retro-cta text-retro-bg font-pixel text-sm rounded-lg hover:shadow-neon-cta active:scale-95 active:bg-retro-cta/80 select-none touch-none"
         >
           PUSH

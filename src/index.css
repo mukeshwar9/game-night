@@ -43,7 +43,7 @@
     --c-card:     19 19 40;     /* #131328 */
     --c-border:   30 30 58;     /* #1e1e3a */
     --c-text:     224 224 255;  /* #e0e0ff */
-    --c-dim:      90 90 138;    /* #5a5a8a */
+    --c-dim:      122 122 186;  /* #7a7aba */
     --c-p1:       0 229 255;    /* #00e5ff */
     --c-p2:       255 64 129;   /* #ff4081 */
     --c-cta:      255 230 0;    /* #ffe600 */
@@ -58,7 +58,16 @@
     --c-tint-danger: 46 8 8;    /* #2e0808 */
     --c-structure:42 42 80;     /* #2a2a50 */
     --c-deep:     12 12 32;     /* #0c0c20 */
-    --c-skin:     230 190 160;  /* muted warm neutral (humanoid avatar skin) */
+    --c-skin-1:   245 215 190;
+    --c-skin-2:   238 202 176;
+    --c-skin-3:   230 190 160;
+    --c-skin-4:   200 155 125;
+    --c-skin-5:   150 110 85;
+    --c-skin:     230 190 160;  /* muted warm neutral (humanoid avatar skin); alias of --c-skin-3 */
+    --c-av1:      255 140 60;   /* orange */
+    --c-av2:      170 110 255;  /* violet */
+    --c-av3:      45 210 190;   /* teal */
+    --c-av4:      140 95 65;    /* brown */
   }
 }
 
@@ -70,40 +79,58 @@
   --c-card:     8 32 8;
   --c-border:   16 58 16;
   --c-text:     184 255 184;
-  --c-dim:      77 138 77;
+  --c-dim:      82 148 82;
   --c-p1:       57 255 20;
-  --c-p2:       216 255 216;
+  --c-p2:       255 211 122;
   --c-cta:      204 255 51;
   --c-win:      118 255 118;
   --c-danger:      255 60 40;
   --c-tint-p1:  6 46 6;
-  --c-tint-p2:  26 46 26;
+  --c-tint-p2:  46 34 8;
   --c-tint-cta: 24 38 0;
   --c-tint-danger: 46 10 6;
   --c-structure:20 82 20;
   --c-deep:     4 22 4;
+  --c-skin-1:   235 205 175;
+  --c-skin-2:   228 195 163;
+  --c-skin-3:   220 185 150;
+  --c-skin-4:   190 150 115;
+  --c-skin-5:   145 108 80;
   --c-skin:     220 185 150;
+  --c-av1:      235 150 55;
+  --c-av2:      160 130 220;
+  --c-av3:      60 215 170;
+  --c-av4:      130 100 65;
 }
 
 [data-theme="amber"] {
   --c-bg:       13 7 0;
   --c-surface:  22 13 2;
-  --c-card:     29 18 4;
-  --c-border:   58 42 16;
+  --c-card:     36 23 6;
+  --c-border:   70 50 18;
   --c-text:     255 217 160;
-  --c-dim:      138 106 58;
+  --c-dim:      157 121 66;
   --c-p1:       255 176 0;
-  --c-p2:       255 94 0;
+  --c-p2:       255 244 214;
   --c-cta:      255 208 0;
   --c-win:      255 242 176;
-  --c-danger:      210 25 45;
+  --c-danger:      246 29 53;
   --c-tint-p1:  46 30 0;
-  --c-tint-p2:  46 16 0;
+  --c-tint-p2:  44 40 30;
   --c-tint-cta: 38 30 0;
   --c-tint-danger: 40 6 10;
   --c-structure:74 52 21;
   --c-deep:     18 10 2;
+  --c-skin-1:   248 218 180;
+  --c-skin-2:   242 207 168;
+  --c-skin-3:   235 195 150;
+  --c-skin-4:   205 160 115;
+  --c-skin-5:   160 120 80;
   --c-skin:     235 195 150;
+  --c-av1:      255 150 40;
+  --c-av2:      190 120 220;
+  --c-av3:      70 200 180;
+  --c-av4:      150 100 55;
 }
 
 [data-theme="synthwave"] {
@@ -112,7 +139,7 @@
   --c-card:     26 6 64;
   --c-border:   45 27 94;
   --c-text:     240 230 255;
-  --c-dim:      122 106 168;
+  --c-dim:      135 118 186;
   --c-p1:       0 240 255;
   --c-p2:       255 41 117;
   --c-cta:      255 159 28;
@@ -124,7 +151,16 @@
   --c-tint-danger: 56 6 6;
   --c-structure:61 43 110;
   --c-deep:     16 4 44;
+  --c-skin-1:   248 212 195;
+  --c-skin-2:   242 202 183;
+  --c-skin-3:   235 190 170;
+  --c-skin-4:   205 155 140;
+  --c-skin-5:   160 115 105;
   --c-skin:     235 190 170;
+  --c-av1:      255 140 90;
+  --c-av2:      190 90 255;
+  --c-av3:      40 230 220;
+  --c-av4:      150 90 90;
 }
 
 [data-theme="grid"] {
@@ -133,47 +169,258 @@
   --c-card:     6 24 39;
   --c-border:   15 58 82;
   --c-text:     207 238 255;
-  --c-dim:      74 122 150;
+  --c-dim:      82 135 167;
   --c-p1:       0 216 255;
   --c-p2:       255 127 17;
   --c-cta:      244 244 244;
   --c-win:      159 255 224;
-  --c-danger:      235 30 40;
+  --c-danger:      255 64 72;
   --c-tint-p1:  0 38 56;
   --c-tint-p2:  50 24 0;
   --c-tint-cta: 34 38 40;
-  --c-tint-danger: 50 8 10;
+  --c-tint-danger: 52 10 12;
   --c-structure:21 74 102;
   --c-deep:     3 14 24;
+  --c-skin-1:   240 210 188;
+  --c-skin-2:   233 200 176;
+  --c-skin-3:   225 190 165;
+  --c-skin-4:   195 155 130;
+  --c-skin-5:   150 115 95;
   --c-skin:     225 190 165;
+  --c-av1:      255 150 60;
+  --c-av2:      150 130 255;
+  --c-av3:      40 220 210;
+  --c-av4:      130 95 70;
 }
 
 [data-theme="mono"] {
-  --c-bg:       18 18 15;
-  --c-surface:  28 28 24;
-  --c-card:     38 38 33;
-  --c-border:   64 64 56;
-  --c-text:     240 238 226;
-  --c-dim:      140 140 128;
-  --c-p1:       250 249 240;
-  --c-p2:       176 175 164;
-  --c-cta:      250 249 240;
-  --c-win:      255 255 248;
-  --c-danger:      224 90 90;
-  --c-tint-p1:  50 50 44;
-  --c-tint-p2:  40 40 35;
-  --c-tint-cta: 50 50 44;
-  --c-tint-danger: 46 30 28;
-  --c-structure:78 78 68;
-  --c-deep:     24 24 20;
-  --c-skin:     170 168 160;
+  --c-bg:       0 0 0;
+  --c-surface:  10 10 10;
+  --c-card:     16 16 16;
+  --c-border:   96 96 96;
+  --c-text:     255 255 255;
+  --c-dim:      150 150 150;
+  --c-p1:       255 255 255;
+  --c-p2:       168 168 168;
+  --c-cta:      255 255 255;
+  --c-win:      255 255 255;
+  --c-danger:      235 80 80;
+  --c-tint-p1:  44 44 44;
+  --c-tint-p2:  30 30 30;
+  --c-tint-cta: 44 44 44;
+  --c-tint-danger: 48 26 26;
+  --c-structure:120 120 120;
+  --c-deep:     6 6 6;
+  --c-skin-1:   235 235 235;
+  --c-skin-2:   220 220 220;
+  --c-skin-3:   205 205 205;
+  --c-skin-4:   150 150 150;
+  --c-skin-5:   100 100 100;
+  --c-skin:     205 205 205;
+  /* Mono is grayscale-only — avatar accents are distinguishable neutral
+     steps, deliberately distinct from the skin ramp above, not hues. */
+  --c-av1:      190 190 190;
+  --c-av2:      165 165 165;
+  --c-av3:      120 120 120;
+  --c-av4:      75 75 75;
 }
 
-/* Sticky header height (NavBar padding + min-h-11 row) so in-page sticky
+[data-theme="virtualboy"] {
+  --c-bg:       10 0 0;
+  --c-surface:  20 2 2;
+  --c-card:     30 4 4;
+  --c-border:   70 10 10;
+  --c-text:     255 120 110;
+  --c-dim:      200 88 80;
+  --c-p1:       255 45 45;
+  --c-p2:       255 190 170;
+  --c-cta:      255 110 60;
+  --c-win:      255 230 200;
+  --c-danger:      255 255 255;
+  --c-tint-p1:  50 6 6;
+  --c-tint-p2:  52 26 20;
+  --c-tint-cta: 48 18 8;
+  --c-tint-danger: 50 50 50;
+  --c-structure:90 16 16;
+  --c-deep:     16 0 0;
+  --c-skin-1:   255 210 195;
+  --c-skin-2:   255 200 183;
+  --c-skin-3:   255 190 170;
+  --c-skin-4:   220 140 120;
+  --c-skin-5:   170 90 75;
+  --c-skin:     255 190 170;
+  /* Virtual Boy is a single-hue red palette — avatar accents are
+     distinguishable red/pink steps, distinct from the skin ramp, not
+     separate hue families. */
+  --c-av1:      255 60 60;
+  --c-av2:      200 40 40;
+  --c-av3:      255 140 100;
+  --c-av4:      130 30 30;
+}
+
+[data-theme="paper"] {
+  --c-bg:       242 240 233;
+  --c-surface:  250 248 242;
+  --c-card:     255 255 252;
+  --c-border:   200 196 184;
+  --c-text:     40 38 34;
+  --c-dim:      110 106 96;
+  --c-p1:       20 110 180;
+  --c-p2:       220 90 30;
+  --c-cta:      200 120 0;
+  --c-win:      30 130 60;
+  --c-danger:      200 20 45;
+  --c-tint-p1:  215 230 245;
+  --c-tint-p2:  250 225 210;
+  --c-tint-cta: 248 235 205;
+  --c-tint-danger: 248 215 220;
+  --c-structure:170 165 152;
+  --c-deep:     232 229 220;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      210 110 40;
+  --c-av2:      130 90 180;
+  --c-av3:      30 140 130;
+  --c-av4:      120 85 55;
+}
+
+[data-theme="c64"] {
+  --c-bg:       64 49 141;
+  --c-surface:  72 58 155;
+  --c-card:     80 66 170;
+  --c-border:   120 110 200;
+  --c-text:     205 218 255;
+  --c-dim:      168 165 232;
+  --c-p1:       137 255 255;
+  --c-p2:       255 119 119;
+  --c-cta:      255 255 119;
+  --c-win:      155 255 130;
+  /* On the saturated blue ground light-red is p2's identity, so danger is
+     white — same single-hue compromise as Virtual Boy. */
+  --c-danger:      255 255 255;
+  --c-tint-p1:  40 90 150;
+  --c-tint-p2:  110 50 120;
+  --c-tint-cta: 105 95 60;
+  --c-tint-danger: 100 100 150;
+  --c-structure:100 90 190;
+  --c-deep:     50 38 115;
+  --c-skin-1:   245 215 190;
+  --c-skin-2:   238 202 176;
+  --c-skin-3:   230 190 160;
+  --c-skin-4:   200 155 125;
+  --c-skin-5:   150 110 85;
+  --c-skin:     230 190 160;
+  --c-av1:      255 150 70;
+  --c-av2:      190 140 255;
+  --c-av3:      80 220 210;
+  --c-av4:      150 105 75;
+}
+
+[data-theme="blueprint"] {
+  --c-bg:       22 62 110;
+  --c-surface:  28 72 125;
+  --c-card:     32 80 138;
+  --c-border:   90 140 190;
+  --c-text:     225 240 255;
+  --c-dim:      150 180 210;
+  --c-p1:       255 255 255;
+  --c-p2:       255 200 90;
+  --c-cta:      255 220 100;
+  --c-win:      140 255 190;
+  --c-danger:      255 140 130;
+  --c-tint-p1:  55 100 150;
+  --c-tint-p2:  70 90 95;
+  --c-tint-cta: 65 92 100;
+  --c-tint-danger: 80 65 95;
+  --c-structure:110 155 205;
+  --c-deep:     16 50 92;
+  --c-skin-1:   245 215 190;
+  --c-skin-2:   238 202 176;
+  --c-skin-3:   230 190 160;
+  --c-skin-4:   200 155 125;
+  --c-skin-5:   150 110 85;
+  --c-skin:     230 190 160;
+  --c-av1:      255 155 75;
+  --c-av2:      185 145 255;
+  --c-av3:      85 220 205;
+  --c-av4:      155 110 80;
+}
+
+[data-theme="sakura"] {
+  --c-bg:       30 18 28;
+  --c-surface:  40 24 38;
+  --c-card:     50 30 46;
+  --c-border:   100 60 90;
+  --c-text:     255 230 240;
+  --c-dim:      175 135 160;
+  --c-p1:       255 150 190;
+  --c-p2:       130 220 200;
+  --c-cta:      255 200 120;
+  --c-win:      150 255 180;
+  --c-danger:      255 60 60;
+  --c-tint-p1:  70 35 50;
+  --c-tint-p2:  30 60 55;
+  --c-tint-cta: 65 50 30;
+  --c-tint-danger: 60 20 22;
+  --c-structure:110 65 100;
+  --c-deep:     24 14 22;
+  --c-skin-1:   248 214 196;
+  --c-skin-2:   242 203 184;
+  --c-skin-3:   235 192 172;
+  --c-skin-4:   205 155 138;
+  --c-skin-5:   158 112 100;
+  --c-skin:     235 192 172;
+  --c-av1:      255 150 110;
+  --c-av2:      190 140 255;
+  --c-av3:      90 215 200;
+  --c-av4:      150 100 80;
+}
+
+[data-theme="matcha"] {
+  --c-bg:       238 240 226;
+  --c-surface:  246 248 236;
+  --c-card:     252 253 246;
+  --c-border:   185 195 165;
+  --c-text:     45 55 35;
+  --c-dim:      100 112 85;
+  --c-p1:       90 155 60;
+  --c-p2:       130 90 180;
+  --c-cta:      150 110 20;
+  --c-win:      40 130 70;
+  --c-danger:      190 30 50;
+  --c-tint-p1:  220 238 205;
+  --c-tint-p2:  235 225 245;
+  --c-tint-cta: 242 232 200;
+  --c-tint-danger: 242 214 214;
+  --c-structure:160 170 140;
+  --c-deep:     228 232 214;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      210 110 50;
+  --c-av2:      150 90 180;
+  --c-av3:      30 150 140;
+  --c-av4:      130 90 60;
+}
+
+/* Sticky header height (NavBar padding + min-h-9 row) so in-page sticky
    chrome (GamePicker filters) can sit flush under it. */
 :root {
-  --app-header-h: calc(max(0.75rem, env(safe-area-inset-top)) + 0.75rem + 2.75rem);
+  --app-header-h: calc(max(0.75rem, env(safe-area-inset-top)) + 0.5rem + 2.25rem);
+  /* Offset sticky chrome actually uses — collapses to 0 while the header is
+     slid away (useHideOnScroll toggles `header-hidden` on <html>) so the
+     sticky block rides up flush instead of leaving a gap. */
+  --app-header-offset: var(--app-header-h);
+  --app-tabbar-h: calc(3.75rem + env(safe-area-inset-bottom));
 }
+html.header-hidden { --app-header-offset: 0px; }
 
 /* ── Pixel cursors — static white pixel-art (cursors can't read CSS vars) ── */
 :root {
@@ -361,54 +608,12 @@ body::before {
   100% { transform: translateY(0); }
 }
 
-/* ── Arcade loader animations ── */
-
-/* Pixel coin spins around its vertical axis (faux 3D) */
-@keyframes arcade-coin-spin {
-  0%   { transform: scaleX(1); }
-  50%  { transform: scaleX(0.1); filter: brightness(0.55); }
-  100% { transform: scaleX(1); }
-}
-.arcade-coin-spin { animation: arcade-coin-spin 1s steps(8) infinite; }
-
 /* "INSERT COIN" classic arcade blink */
 @keyframes arcade-blink {
   0%, 49%   { opacity: 1; }
   50%, 100% { opacity: 0.15; }
 }
 .arcade-blink { animation: arcade-blink 0.8s steps(1) infinite; }
-
-/* Loading-bar segments chase-pulse in sequence (delays set inline per-segment in ArcadeLoader.jsx) */
-@keyframes arcade-load-seg {
-  0%, 92%, 100% { opacity: 0.12; }
-  8%            { opacity: 1; }
-}
-.arcade-load-seg {
-  opacity: 0.12;
-  animation: arcade-load-seg 1.08s steps(1) infinite;
-}
-
-/* High-score marquee scrolls left forever */
-@keyframes arcade-marquee {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.arcade-marquee { animation: arcade-marquee 16s linear infinite; }
-
-/* RAM-check row reveal */
-@keyframes ram-typewriter {
-  0%   { opacity: 0; transform: translateY(-2px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-/* Loading-dots cycle */
-@keyframes arcade-dot {
-  0%, 60%, 100% { opacity: 0.2; }
-  30%           { opacity: 1; }
-}
-.arcade-dots span { display: inline-block; animation: arcade-dot 1.2s infinite; }
-.arcade-dots span:nth-child(2) { animation-delay: 0.2s; }
-.arcade-dots span:nth-child(3) { animation-delay: 0.4s; }
 
 /* Waiting dots hop one pixel at a time — discrete frames, no tween */
 @keyframes pixel-dot-hop {
@@ -473,6 +678,44 @@ body::before {
 }
 .pacmac-power-pulse { animation: pacmac-power 0.55s ease-in-out infinite; }
 .pacmac-fright { animation: pacmac-power 0.34s ease-in-out infinite; }
+
+/* Pellet-eat feedback: a short pop at the cell a pellet just vanished from,
+   instead of the dot simply disappearing. Runs once (`forwards` holds the
+   end state) and the div is pruned by JS after ~260ms. */
+@keyframes pacmac-eat-flash {
+  0%   { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.pacmac-eat-flash { animation: pacmac-eat-flash 250ms ease-out forwards; }
+
+/* Avatar customizer preview: idle bounce + eyelid blink (animate prop only) */
+@keyframes avatar-idle {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-3%); }
+  100% { transform: translateY(0); }
+}
+.avatar-idle-anim { animation: avatar-idle 1.8s steps(2, jump-none) infinite; }
+
+@keyframes avatar-blink {
+  0%, 92% { opacity: 0; }
+  93%, 97% { opacity: 1; }
+  98%, 100% { opacity: 0; }
+}
+.avatar-eyelid { opacity: 0; animation: avatar-blink 4.2s steps(1) infinite; }
+
+/* Playground world: avatar walk bob while moving */
+@keyframes pg-walk-bob {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+.pg-walk-bob { animation: pg-walk-bob 0.3s steps(2) infinite; }
+
+/* Playground world: goal-scored burst ring at the net */
+@keyframes pg-goal-burst {
+  0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
 
 /* Respect users who ask for less motion: kill animations + the scanline overlay */
 @media (prefers-reduced-motion: reduce) {

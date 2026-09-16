@@ -5,7 +5,8 @@
 //   { phase: 'answering' | 'reveal',
 //     promptIndex: number,          // index into seededShuffle(HERD_PROMPTS, deckSeed)
 //     deckSeed: number,             // set once at match start; same order on every client
-//     answers: { [uid]: string },   // plaintext; hidden by the UI until reveal
+//   answers: { [uid]: { commit } },// salted SHA-256 commitment — plaintext is
+//                                   // tab-local until reveal (reveals/{uid})
 //     endsAt: epoch-ms,             // answering deadline (server-corrected clock)
 //     scored: true }                // scores + cow applied once, idempotently
 //
@@ -149,4 +150,38 @@ export function seatOrder(players) {
 export function allAnswered(eligibleIds, answers) {
   const a = answers || {}
   return eligibleIds.length > 0 && eligibleIds.every(id => String(a[id] ?? '').trim() !== '')
+}
+
+// ---------------------------------------------------------------------------
+// Commit-reveal (anti-peek): during 'answering' clients publish only
+// answers/{uid} = { commit } — a salted SHA-256 of the answer, so a player
+// watching network traffic learns nothing until the phase flips. At reveal,
+// each client publishes its own { text, salt } to reveals/{uid}; scoring runs
+// after a short grace so slow/tab-closed players simply count as non-answers.
+// ---------------------------------------------------------------------------
+
+// How long after the reveal opens clients may still publish their plaintext.
+export const REVEAL_GRACE_MS = 4000
+
+// True once every eligible seat holds a commitment ({ commit }) — or a legacy
+// plaintext string, so rounds written before commit-reveal still resolve.
+export function allCommitted(eligibleIds, answers) {
+  const a = answers || {}
+  return eligibleIds.length > 0 &&
+    eligibleIds.every(id => !!a[id] && (!!a[id].commit || typeof a[id] === 'string'))
+}
+
+// Derive the scorable text per uid from reveals + verification results. Only
+// uids whose reveal VERIFIED against their commitment (verifiedUids — the
+// async sha check lives in the caller via commit.verifyReveal) contribute,
+// and blanks are dropped like any other non-answer.
+export function collectRevealedTexts(reveals, verifiedUids) {
+  const ok = verifiedUids instanceof Set ? verifiedUids : new Set(verifiedUids || [])
+  const out = {}
+  for (const [uid, rev] of Object.entries(reveals || {})) {
+    if (!ok.has(uid)) continue
+    const text = String(rev?.text ?? '').trim()
+    if (text) out[uid] = text
+  }
+  return out
 }

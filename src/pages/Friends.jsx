@@ -14,7 +14,7 @@ import {
 import { fetchFriendsLeaderboard, rankEntries } from '../lib/leaderboard'
 import { db } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
-import { freshGameState, GAME_TYPES } from '../lib/games'
+import { buildChallengeRoom } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom } from '../lib/profile'
@@ -28,11 +28,6 @@ const REQUEST_ERRORS = {
   already: "YOU'RE ALREADY FRIENDS.",
 }
 
-// One-tap challenge (M-20): standard 2-player games only, mirroring the X/O
-// room shape Home.jsx creates — party (nPlayer) games need 3+ players so
-// they don't fit a single-friend challenge.
-const CHALLENGE_GAME_TYPES = GAME_TYPES.filter(t => !t.variantOf && !t.nPlayer)
-
 export default function Friends() {
   const navigate = useNavigate()
   const { profile, uid } = useAuth()
@@ -44,7 +39,6 @@ export default function Friends() {
   const [requests, setRequests] = useState([])
   const [profiles, setProfiles] = useState({})
   const [leaderboard, setLeaderboard] = useState(null)
-  const [challengeGameType, setChallengeGameType] = useState(CHALLENGE_GAME_TYPES[0]?.type || 'tictactoe')
   const [challengingUid, setChallengingUid] = useState(null)
   const [, runChallenge] = useBusy()
 
@@ -169,8 +163,9 @@ export default function Friends() {
     await copyCode()
   }
 
-  // One-tap challenge (M-20): create a room the same way Home.jsx does, send
-  // the friend an invite into it, and jump straight into the room.
+  // One-tap challenge (M-20): create a lobby room (gameType still mutable —
+  // either player picks a game once both are in) and send the friend an
+  // invite into it, jumping straight into the room.
   const challengeFriend = (friendUid, friendName) => {
     setChallengingUid(friendUid)
     runChallenge(async () => {
@@ -178,21 +173,12 @@ export default function Friends() {
       const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
       const gameId = generateGameId()
       const myId = getPlayerId()
-      const now = Date.now()
-      const gameData = {
-        gameType: challengeGameType,
-        status: 'waiting',
-        scores: { X: 0, O: 0 },
-        createdAt: now,
-        lastActivityAt: now,
-        players: { X: { name: playerName, joinedAt: now, playerId: myId, avatar: myAvatar } },
-        ...freshGameState(challengeGameType),
-      }
+      const gameData = buildChallengeRoom({ name: playerName, avatar: myAvatar, playerId: myId })
       await set(ref(db, `games/${gameId}`), gameData)
-      recordPlay(challengeGameType, 'multi')
+      recordPlay('tictactoe', 'multi')
       sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
-      recordRoom({ id: gameId, gameType: challengeGameType })
-      await inviteFriendToGame(friendUid, { gameId, gameType: challengeGameType })
+      recordRoom({ id: gameId, gameType: gameData.gameType })
+      await inviteFriendToGame(friendUid, { gameId, gameType: 'tictactoe' })
       toast.success(`CHALLENGE SENT TO ${(friendName || 'FRIEND').toUpperCase()}!`)
       navigate(`/game/${gameId}`)
     }, () => toast.error("COULDN'T START THE GAME — TRY AGAIN.")).finally(() => setChallengingUid(null))
@@ -200,29 +186,34 @@ export default function Friends() {
 
   return (
     <div className="min-h-screen bg-retro-bg">
-      <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <div className="w-full max-w-sm mx-auto space-y-6 pt-2">
-        <h1 className="font-pixel text-base text-retro-cta text-glow-cta">FRIENDS</h1>
+      <div className="p-4">
+      <div className="w-full max-w-sm md:max-w-3xl lg:max-w-4xl mx-auto pt-2">
+        <h1 className="font-pixel text-base text-retro-cta text-glow-cta mb-6">FRIENDS</h1>
+
+        <div className="space-y-6 md:space-y-0 md:grid md:grid-cols-2 md:gap-8 md:items-start">
+        <div className="space-y-6">
 
         {/* My code */}
         <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
           <p className="font-pixel text-[9px] text-retro-dim tracking-wider">YOUR FRIEND CODE</p>
-          <div className="flex items-center gap-2">
-            <span className="flex-1 font-pixel text-lg text-retro-p1 text-glow-p1 tracking-[0.3em]">{profile?.code || '······'}</span>
-            <button
-              onClick={copyCode}
-              className="min-h-11 px-3 bg-retro-bg border border-retro-border text-retro-dim font-pixel text-[10px] rounded
-                hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
-            >
-              COPY
-            </button>
-            <button
-              onClick={shareCode}
-              className="min-h-11 px-3 bg-retro-bg border border-retro-border text-retro-dim font-pixel text-[10px] rounded
-                hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
-            >
-              SHARE
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex-1 min-w-[9ch] font-pixel text-base sm:text-lg text-retro-p1 text-glow-p1 tracking-[0.25em]">{profile?.code || '······'}</span>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={copyCode}
+                className="min-h-11 px-3 bg-retro-bg border border-retro-border text-retro-dim font-pixel text-[10px] rounded
+                  hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
+              >
+                COPY
+              </button>
+              <button
+                onClick={shareCode}
+                className="min-h-11 px-3 bg-retro-bg border border-retro-border text-retro-dim font-pixel text-[10px] rounded
+                  hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
+              >
+                SHARE
+              </button>
+            </div>
           </div>
           <p className="font-mono text-[10px] text-retro-dim">Share this so friends can add you.</p>
         </div>
@@ -236,14 +227,21 @@ export default function Friends() {
               onChange={e => setCodeInput(normalizeFriendCode(e.target.value))}
               onKeyDown={e => e.key === 'Enter' && sendRequest()}
               placeholder="ENTER CODE"
-              className="flex-1 bg-retro-card border border-retro-border rounded px-3 py-2 font-pixel text-sm tracking-[0.2em]
+              maxLength={6}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              className="flex-1 min-w-0 min-h-11 bg-retro-card border border-retro-border rounded px-3 py-2 font-pixel text-sm tracking-[0.2em]
                 text-retro-text placeholder:text-retro-dim placeholder:tracking-normal placeholder:font-mono focus:outline-none focus:border-retro-p1"
             />
             <button
               onClick={sendRequest}
-              disabled={sending || !codeInput}
-              className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={sending || !isValidFriendCode(codeInput)}
+              className={`min-h-11 px-4 font-pixel text-[10px] rounded transition-all active:scale-95 ${
+                isValidFriendCode(codeInput)
+                  ? 'bg-retro-cta text-retro-bg hover:shadow-neon-cta disabled:opacity-60'
+                  : 'bg-transparent border border-retro-border text-retro-dim cursor-default'
+              }`}
             >
               {sending ? 'SENDING…' : 'SEND'}
             </button>
@@ -256,7 +254,7 @@ export default function Friends() {
             <label className="font-pixel text-[10px] text-retro-cta tracking-wider">REQUESTS ({requests.length})</label>
             <div className="space-y-2">
               {requests.map(r => (
-                <div key={r.uid} className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-2.5">
+                <div key={r.uid} className="flex items-center gap-3 bg-retro-tint-cta border border-retro-cta/40 rounded p-2.5">
                   <Avatar id={r.avatar} size={36} />
                   <span className="flex-1 font-mono text-sm text-retro-text truncate">{r.name || 'player'}</span>
                   <button
@@ -281,25 +279,15 @@ export default function Friends() {
           </div>
         )}
 
+        </div>
+        <div className="space-y-6">
+
         {/* Friends list */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
+          <div className="space-y-2">
             <label className="font-pixel text-[10px] text-retro-dim tracking-wider">
               MY FRIENDS{friendUids !== null ? ` (${friendUids.length})` : ''}
             </label>
-            {friendUids?.length > 0 && (
-              <select
-                value={challengeGameType}
-                onChange={e => setChallengeGameType(e.target.value)}
-                aria-label="Game to challenge a friend to"
-                className="bg-retro-card border border-retro-border rounded px-2 py-1.5 font-pixel text-[8px]
-                  text-retro-dim focus:outline-none focus:border-retro-p1"
-              >
-                {CHALLENGE_GAME_TYPES.map(t => (
-                  <option key={t.type} value={t.type}>{t.label}</option>
-                ))}
-              </select>
-            )}
           </div>
           {friendUids === null ? (
             <div className="space-y-2">
@@ -364,17 +352,18 @@ export default function Friends() {
         {friendUids?.length > 0 && (
           <div className="space-y-2">
             <label className="font-pixel text-[10px] text-retro-dim tracking-wider">LEADERBOARD</label>
+            <p className="font-mono text-[10px] text-retro-dim">Tap a friend to challenge them.</p>
             {!rankedLeaderboard ? (
               <div className="space-y-2">
                 {[0, 1].map(i => (
-                  <div key={i} className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-2.5">
-                    <Skeleton pulse className="h-3 w-7 shrink-0" />
+                  <div key={i} className="flex items-center gap-2.5 bg-retro-card border border-retro-border rounded p-2.5">
+                    <Skeleton pulse className="h-3 w-5 shrink-0" />
                     <Skeleton pulse className="w-9 h-9 rounded-full shrink-0" />
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <Skeleton pulse className="h-3 w-24" />
                       <Skeleton pulse className="h-2 w-16" />
                     </div>
-                    <Skeleton pulse className="h-2.5 w-8 shrink-0" />
+                    <Skeleton pulse className="h-2.5 w-10 shrink-0" />
                   </div>
                 ))}
               </div>
@@ -404,12 +393,12 @@ export default function Friends() {
                       onClick={onRowActivate}
                       disabled={busy}
                       aria-label={e.isMe ? 'View your profile' : `Challenge ${e.displayName || 'friend'} to a game`}
-                      className={`w-full flex items-center gap-3 bg-retro-card border rounded p-2.5 transition-all
+                      className={`w-full flex items-center gap-2.5 bg-retro-card border rounded p-2.5 transition-all
                         hover:border-retro-p1/50 active:scale-[0.99] disabled:opacity-60 disabled:active:scale-100
                         ${e.isMe ? 'border-retro-cta' : 'border-retro-border'}`}
                     >
-                      <span className="font-pixel text-[11px] text-retro-dim w-7 text-center shrink-0">{e.rank}</span>
-                      <Avatar id={e.avatar} size={36} />
+                      <span className="font-pixel text-[11px] text-retro-dim w-5 text-center shrink-0">{e.rank}</span>
+                      <span className="shrink-0"><Avatar id={e.avatar} size={36} /></span>
                       <div className="flex-1 min-w-0 flex items-center gap-1.5">
                         <div className="min-w-0 text-left">
                           <p className="font-mono text-sm text-retro-text truncate">
@@ -421,7 +410,7 @@ export default function Friends() {
                           <span className="shrink-0 font-pixel text-[8px] text-retro-cta">(YOU)</span>
                         )}
                       </div>
-                      <span className="font-pixel text-[10px] text-retro-win text-glow-win">
+                      <span className="shrink-0 w-10 text-right font-pixel text-[10px] text-retro-win text-glow-win">
                         {busy ? '…' : e.games > 0 ? `${Math.round((e.wins / e.games) * 100)}%` : '—'}
                       </span>
                     </button>
@@ -431,6 +420,9 @@ export default function Friends() {
             )}
           </div>
         )}
+
+        </div>
+        </div>
       </div>
       </div>
     </div>

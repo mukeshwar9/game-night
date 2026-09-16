@@ -8,6 +8,14 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
   // Legal-move hints for whoever is on the move (only while playable)
   const hints = !disabled && currentTurn ? new Set(legalMoves(board, currentTurn)) : new Set()
 
+  // Round-over detection independent of the `disabled` prop (which also goes
+  // true when it's simply not your turn): mirrors getReversiWinner's own
+  // end condition — full board, or neither side has a legal move.
+  const boardFull = !board.includes('')
+  const roundOver =
+    boardFull || (legalMoves(board, 'X').length === 0 && legalMoves(board, 'O').length === 0)
+  const finalWinner = roundOver ? (xCount > oCount ? 'X' : oCount > xCount ? 'O' : 'draw') : null
+
   return (
     <div className="w-full max-w-sm mx-auto">
       {/* green-felt-ish board: a tinted surface with a subtle inner glow */}
@@ -49,10 +57,13 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
                   <span
                     key={cell}
                     className={cn(
-                      'w-[80%] h-[80%] rounded-full',
+                      'w-[80%] h-[80%] rounded-full transition-all duration-200',
                       cell === 'X'
                         ? 'bg-retro-p1 shadow-neon-p1'
                         : 'bg-retro-p2 shadow-neon-p2',
+                      // Round-over: emphasize the winning side's discs, dim the loser's.
+                      roundOver && finalWinner !== 'draw' && cell === finalWinner && 'scale-110 shadow-neon-win ring-2 ring-retro-win',
+                      roundOver && finalWinner !== 'draw' && cell !== finalWinner && 'opacity-50',
                     )}
                     // re-keyed by colour so a flip re-mounts and re-pops the disc
                     style={{ animation: 'place-pop 0.2s ease-out', display: 'inline-block' }}
@@ -71,11 +82,32 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
         </div>
       </div>
 
-      {/* Disc count bar */}
-      <div className="mt-2 flex items-center justify-center gap-3 font-pixel text-[10px]">
-        <span className="text-retro-p1 text-glow-p1">X {xCount}</span>
-        <span className="text-retro-dim">—</span>
-        <span className="text-retro-p2 text-glow-p2">{oCount} O</span>
+      {/* Disc count bar — emphasized final tally once the round is over */}
+      <div
+        className={cn(
+          'mt-2 flex items-center justify-center gap-3 font-pixel transition-all duration-200',
+          roundOver ? 'text-sm sm:text-base' : 'text-[10px]',
+        )}
+      >
+        <span
+          className={cn(
+            'text-retro-p1 text-glow-p1',
+            roundOver && finalWinner === 'X' && 'scale-125 inline-block',
+            roundOver && finalWinner === 'O' && 'opacity-50',
+          )}
+        >
+          X {xCount}
+        </span>
+        <span className="text-retro-dim">{roundOver ? (finalWinner === 'draw' ? 'DRAW' : 'WINS') : '—'}</span>
+        <span
+          className={cn(
+            'text-retro-p2 text-glow-p2',
+            roundOver && finalWinner === 'O' && 'scale-125 inline-block',
+            roundOver && finalWinner === 'X' && 'opacity-50',
+          )}
+        >
+          {oCount} O
+        </span>
       </div>
     </div>
   )

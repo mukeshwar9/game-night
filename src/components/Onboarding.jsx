@@ -98,19 +98,31 @@ export default function Onboarding({ onDone }) {
             </div>
             <div>
               <h1 className="font-pixel text-xl text-retro-cta text-glow-cta leading-relaxed">GAME NIGHT</h1>
-              <p className="font-pixel text-[10px] text-retro-dim mt-3 arcade-blink tracking-widest">INSERT COIN TO PLAY</p>
+              <p className="font-mono text-[12px] text-retro-dim mt-3 leading-relaxed">
+                Quick games with friends.<br />Solo rounds, or share a room link.
+              </p>
             </div>
           </div>
 
-          {/* CTA buttons */}
+          {/* UX-04: one tap reaches the catalog with generated defaults —
+              name/avatar customization moves behind CHOOSE NAME & AVATAR
+              (and stays available in Profile). finish() already falls back to
+              Guest-XXXX + a derived avatar, so no parallel identity path. */}
           <div className="space-y-3">
             {isAnonymous ? (
               <>
                 <button
-                  onClick={() => { sounds.go(); setStep('identity') }}
-                  className="w-full py-3 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-95"
+                  onClick={finish}
+                  disabled={busy}
+                  className="w-full py-3 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-60"
                 >
-                  PLAY AS GUEST
+                  {busy ? '…' : "LET'S PLAY"}
+                </button>
+                <button
+                  onClick={() => { sounds.go(); setStep('identity') }}
+                  className="w-full py-2.5 border border-retro-border bg-retro-card text-retro-text font-pixel text-[10px] tracking-widest rounded hover:border-retro-cta/60 transition-all active:scale-95"
+                >
+                  CHOOSE NAME &amp; AVATAR
                 </button>
                 {!configError && (
                   <button
@@ -118,7 +130,7 @@ export default function Onboarding({ onDone }) {
                     disabled={busy}
                     className="w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/40 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1 hover:shadow-neon-p1 transition-all active:scale-95 disabled:opacity-50"
                   >
-                    <GoogleMark /> SIGN IN WITH GOOGLE
+                    <GoogleMark /> SIGN IN · SYNCS ACROSS DEVICES
                   </button>
                 )}
               </>
@@ -135,7 +147,10 @@ export default function Onboarding({ onDone }) {
             )}
           </div>
 
-          <p className="font-pixel text-[8px] text-retro-dim tracking-widest">CREDIT 1</p>
+          <div className="space-y-2">
+            <p className="font-mono text-[11px] text-retro-dim">Free to play. No account required.</p>
+            <p className="font-pixel text-[8px] text-retro-dim tracking-widest">CREDIT 1 · FREE PLAY</p>
+          </div>
         </div>
       )}
 
@@ -143,7 +158,7 @@ export default function Onboarding({ onDone }) {
         <div key="identity" className="w-full max-w-xs space-y-6" style={{ animation: 'place-pop 0.25s ease-out' }}>
           <h2 className="font-pixel text-sm text-retro-cta text-glow-cta text-center tracking-widest">CHOOSE YOUR FIGHTER</h2>
 
-          <AvatarCustomizer value={selectedAvatar} onChange={setAvatar} previewSize={72} />
+          <AvatarCustomizer value={selectedAvatar} onChange={setAvatar} previewSize={72} compact />
 
           {/* Name input — matches Home.jsx name input style */}
           <div className="space-y-1.5">

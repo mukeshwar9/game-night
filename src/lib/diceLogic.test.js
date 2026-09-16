@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import {
-  PIG_TARGET, rollDie, applyDiceMove,
+  PIG_TARGET, rollDie, applyDiceMove, applyDiceBigMove,
   generateSeedHex, commitSeed, deriveSeed, rollFaceAsync,
 } from './diceLogic'
 
@@ -150,12 +150,79 @@ describe('applyDiceMove bank', () => {
     expect(result).toBeNull()
   })
 
-  it('banking a zero turn score keeps the score and still flips the turn', async () => {
+  it('refuses to bank a zero turn score (no free turn pass)', async () => {
     const game = { diceScoreX: 40, diceScoreO: 40, diceTurnScore: 0, currentTurn: 'X' }
-    const { updates, result } = await applyDiceMove(game, 'bank', 'X')
-    expect(updates.diceScoreX).toBe(40)
+    expect(await applyDiceMove(game, 'bank', 'X')).toBeNull()
+  })
+
+  it('refuses to bank when diceTurnScore is missing (defaults to 0)', async () => {
+    expect(await applyDiceMove({ diceScoreX: 0, currentTurn: 'X' }, 'bank', 'X')).toBeNull()
+  })
+
+  it('a roll never sets lastMove (dead field dropped from both variants)', async () => {
+    forceDie(3)
+    const { updates } = await applyDiceMove({ diceTurnScore: 0, currentTurn: 'X' }, 'roll', 'X')
+    expect(updates).not.toHaveProperty('lastMove')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// applyDiceBigMove — Pig Big (two dice, only snake eyes bust)
+// ---------------------------------------------------------------------------
+describe('applyDiceBigMove roll', () => {
+  it('a safe pair adds the sum to the turn score, keeps the turn, and appends to the trail', () => {
+    const game = { diceTurnScore: 10, diceRolls: [[2, 3]], currentTurn: 'X' }
+    const { updates, result } = applyDiceBigMove(game, 'roll', 'X', [4, 5])
+    expect(result).toBeNull()
+    expect(updates.diceLast).toEqual([4, 5])
+    expect(updates.diceTurnScore).toBe(19)
+    expect(updates.diceRolls).toEqual([[2, 3], [4, 5]])
+    expect(updates.currentTurn).toBe('X')
+  })
+
+  it('a single 1 (not snake eyes) still scores — only double-1 busts', () => {
+    const { updates, result } = applyDiceBigMove({ diceTurnScore: 6, currentTurn: 'X' }, 'roll', 'X', [1, 4])
+    expect(result).toBeNull()
+    expect(updates.diceTurnScore).toBe(11)
+    expect(updates.currentTurn).toBe('X')
+  })
+
+  it('snake eyes (1,1) wipes the turn score AND clears the roll trail, then flips the turn', () => {
+    const game = { diceTurnScore: 14, diceRolls: [[3, 4], [2, 6]], currentTurn: 'X' }
+    const { updates, result } = applyDiceBigMove(game, 'roll', 'X', [1, 1])
+    expect(result).toBeNull()
+    expect(updates.diceTurnScore).toBe(0)
+    expect(updates.diceRolls).toEqual([])
+    expect(updates.currentTurn).toBe('O')
+  })
+
+  it('never sets lastMove (dropped for consistency with applyDiceMove)', () => {
+    const { updates } = applyDiceBigMove({ diceTurnScore: 0, currentTurn: 'X' }, 'roll', 'X', [2, 3])
+    expect(updates).not.toHaveProperty('lastMove')
+    const bust = applyDiceBigMove({ diceTurnScore: 0, currentTurn: 'X' }, 'roll', 'X', [1, 1])
+    expect(bust.updates).not.toHaveProperty('lastMove')
+  })
+})
+
+describe('applyDiceBigMove bank', () => {
+  it('adds the turn score to the mover and flips the turn', () => {
+    const game = { diceScoreX: 20, diceScoreO: 5, diceTurnScore: 15, currentTurn: 'X' }
+    const { updates, result } = applyDiceBigMove(game, 'bank', 'X')
+    expect(updates.diceScoreX).toBe(35)
+    expect(updates.diceRolls).toEqual([])
     expect(updates.currentTurn).toBe('O')
     expect(result).toBeNull()
+  })
+
+  it('returns a winner when the banked score reaches the target', () => {
+    const game = { diceScoreX: 92, diceTurnScore: 10, currentTurn: 'X' }
+    const { result } = applyDiceBigMove(game, 'bank', 'X')
+    expect(result).toEqual({ winner: 'X' })
+  })
+
+  it('refuses to bank a zero turn score (no free turn pass)', () => {
+    const game = { diceScoreX: 10, diceScoreO: 10, diceTurnScore: 0, currentTurn: 'X' }
+    expect(applyDiceBigMove(game, 'bank', 'X')).toBeNull()
   })
 })
 

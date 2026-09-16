@@ -28,7 +28,7 @@ export const GAME_RULES = {
   connectfour: {
     objective: 'Connect four of your discs in a line before your opponent does.',
     howToPlay: [
-      'Take turns dropping a disc into one of the 9 columns on the 9×7 grid.',
+      'Take turns dropping a disc into one of the 7 columns on the 7×6 grid.',
       'Discs fall to the lowest empty slot — you only choose the column.',
     ],
     win: 'Line up 4 of your discs horizontally, vertically, or diagonally to win. A full board with no four-in-a-row is a draw.',
@@ -220,7 +220,7 @@ export const GAME_RULES = {
     howToPlay: [
       'Take turns placing a stone on any empty point of the 15×15 board.',
     ],
-    win: 'Line up exactly five in a row — horizontally, vertically, or diagonally — to win.',
+    win: 'Line up five (or more) in a row — horizontally, vertically, or diagonally — to win.',
   },
 
   reversi: {

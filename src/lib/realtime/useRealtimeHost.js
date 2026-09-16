@@ -21,7 +21,10 @@ import { useRealtimePeer } from './useRealtimePeer'
 // writes into it on every incoming `{t:'i'}` frame.
 //
 // After every step the hook:
-//   • emits `{t:'e', k: event.type}` to the guest for each event (sfx broadcast),
+//   • emits `{t:'e', k: event.type, by?: event.by}` to the guest for each event
+//     (sfx broadcast) — `by` is included only when the event carries one
+//     (e.g. Space Duel/Air Hockey's `{type, by: 'X'|'O'}`), so events with no
+//     `by` (Sumo's `clash`/`out`) go out exactly as before,
 //   • calls `onEvent(event, sim)` so the page can do local sfx + Firebase writes
 //     (e.g. `update(ref(db, …), { snakeScoreX, … })` on `eat`).
 //   • `setRender(buildView(sim))` once per rAF frame (rAF driver) or per tick
@@ -39,6 +42,15 @@ import { useRealtimePeer } from './useRealtimePeer'
 // to its spectator + finished views.
 
 const DEFAULT_COUNTDOWN = 2000
+
+// Guest input is expired if no `{t:'i'}` message has arrived for this long —
+// only when consumeGuestInput is false (a latched, non-tap payload like
+// Space Duel's {turn,thrust,fire} or Pac-Mac's direction). Without this, a
+// stalled/dropped data channel leaves the last continuous input (e.g.
+// "turning left, thrusting") applied forever — the ship keeps moving with no
+// guest actually driving it. consumeGuestInput:true games (Sumo's tap-count)
+// already self-clear every step, so they never hit this path.
+const STALE_INPUT_MS = 250
 
 export function useRealtimeHost(opts) {
   const {
@@ -64,6 +76,7 @@ export function useRealtimeHost(opts) {
   const simRef = useRef(null)
   const finishedRef = useRef(false)
   const guestInputRef = useRef(null)
+  const guestInputAtRef = useRef(0)   // performance.now() of the last received {t:'i'} message
 
   // Page-supplied callbacks live in a ref that is refreshed on every commit
   // (in a layout effect, so it lands before the loop effect below can re-run).
@@ -85,7 +98,22 @@ export function useRealtimeHost(opts) {
   // `onMessage` is stable (owns no game-specific deps) so the peer connection
   // effect inside useRealtimePeer won't tear down on every re-render.
   const onMessage = useCallback((msg) => {
-    if (msg.t === 'i') guestInputRef.current = msg.d
+    if (msg.t === 'i') {
+      guestInputAtRef.current = performance.now()
+      // Additive accumulation for tap-count inputs (Sumo's { press: N }):
+      // two guest taps can land between host substeps, and a plain
+      // last-write-wins assignment would coalesce them into a single
+      // impulse — the guest silently loses pushes the host never loses.
+      // Only messages that carry a numeric `press` field accumulate; every
+      // other shape (Pong's continuous paddle dir, Pac-Mac's direction
+      // string) keeps the prior last-write-wins replace behavior.
+      const prev = guestInputRef.current
+      if (prev && typeof prev.press === 'number' && typeof msg.d?.press === 'number') {
+        guestInputRef.current = { ...msg.d, press: prev.press + msg.d.press }
+      } else {
+        guestInputRef.current = msg.d
+      }
+    }
     // 's' never arrives on the host; 'e' is what we emit, not receive.
   }, [])
 
@@ -96,7 +124,11 @@ export function useRealtimeHost(opts) {
 
   // Reset the round-guard whenever the round (re)starts.
   useEffect(() => {
-    if (enabled) finishedRef.current = false
+    if (enabled) {
+      finishedRef.current = false
+      guestInputRef.current = null
+      guestInputAtRef.current = 0
+    }
   }, [enabled, peer.retryKey])
 
   // The loop effect depends ONLY on connection/identity values, so it (and the
@@ -127,6 +159,9 @@ export function useRealtimeHost(opts) {
         let dt = (now - last) / 1000; last = now
         if (dt > 0.1) dt = 0.1
         acc += dt
+        if (!consumeGuestInput && guestInputRef.current && now - guestInputAtRef.current > STALE_INPUT_MS) {
+          guestInputRef.current = null
+        }
         const events = []
         while (acc >= DT) {
           const inputs = { X: c.readHostInput(simRef.current), O: guestInputRef.current }
@@ -137,7 +172,7 @@ export function useRealtimeHost(opts) {
           acc -= DT
         }
         for (const e of events) {
-          peerSend({ t: 'e', k: e.type })
+          peerSend(e.by != null ? { t: 'e', k: e.type, by: e.by } : { t: 'e', k: e.type })
           c.onEvent?.(e, simRef.current)
         }
         // Host renders its own view every frame (same view shape the page would
@@ -175,12 +210,15 @@ export function useRealtimeHost(opts) {
           c.setRender({ ...c.initialRender, countdown: Math.ceil((startAt - Date.now()) / 1000) })
           return
         }
+        if (!consumeGuestInput && guestInputRef.current && performance.now() - guestInputAtRef.current > STALE_INPUT_MS) {
+          guestInputRef.current = null
+        }
         const inputs = { X: c.readHostInput(simRef.current), O: guestInputRef.current }
         if (consumeGuestInput) guestInputRef.current = null
         const res = c.tickSim(simRef.current, inputs)
         simRef.current = res.state
         for (const e of res.events || []) {
-          peerSend({ t: 'e', k: e.type })
+          peerSend(e.by != null ? { t: 'e', k: e.type, by: e.by } : { t: 'e', k: e.type })
           c.onEvent?.(e, simRef.current)
         }
         // Host paints its own view each tick.

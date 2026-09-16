@@ -1,15 +1,47 @@
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { normalizeChimpLayout } from '../lib/chimpLogic'
+
+// How long the numbers stay visible before they hide on their own, even if
+// the player hasn't tapped anything yet — otherwise a player could just read
+// the sequence off the grid with no time pressure. Scales up with level so
+// harder (longer) sequences still get enough time to memorize.
+function memorizeWindowMs(level) {
+  return (3 + level * 0.5) * 1000
+}
 
 export default function ChimpBoard({
   onMove, disabled,
   chimpLayout, myProgress, opProgress,
   myDone, opDone, chimpLevel,
+  roundStartedAt = null,
 }) {
   const layout = normalizeChimpLayout(chimpLayout)
   const progress = myProgress ?? 0
   const level    = chimpLevel ?? 4
-  const showNumbers = progress === 0
+
+  // Anchor the memorize window to a shared round-start timestamp when the
+  // caller provides one (keeps both players' countdowns in sync); otherwise
+  // fall back to this client's own local clock. `layoutSignature` changes
+  // exactly once per round, so it's the dependency that re-arms the timer —
+  // all clock reads/ref writes happen inside the effect (not render) to stay
+  // pure, and the expiry state is reset asynchronously via setTimeout(...,0)
+  // rather than synchronously in the effect body.
+  const layoutSignature = `${level}:${layout.join(',')}`
+  const startRef = useRef(null)
+  const [numbersExpired, setNumbersExpired] = useState(false)
+
+  useEffect(() => {
+    startRef.current = roundStartedAt ?? Date.now()
+    const windowMs = memorizeWindowMs(level)
+    const remaining = windowMs - (Date.now() - startRef.current)
+    const reset = setTimeout(() => setNumbersExpired(remaining <= 0), 0)
+    const timer = remaining > 0 ? setTimeout(() => setNumbersExpired(true), remaining) : null
+    return () => { clearTimeout(reset); if (timer) clearTimeout(timer) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutSignature is the intentional re-arm trigger (one per round); level is folded into it, roundStartedAt is stable for the round
+  }, [layoutSignature, roundStartedAt])
+
+  const showNumbers = progress === 0 && !numbersExpired
 
   // cellIndex → 1-based number (only for numbered cells)
   const cellNum = {}

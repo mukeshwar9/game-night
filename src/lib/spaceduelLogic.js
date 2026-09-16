@@ -37,8 +37,8 @@ const TWO_PI = Math.PI * 2
 export function createState() {
   return {
     ships: {
-      X: { x: 0.25, y: 0.5, vx: 0, vy: 0, ang: 0, alive: true, cool: START_FIRE_DELAY, hits: 0, hp: SHIP_MAX_HP },
-      O: { x: 0.75, y: 0.5, vx: 0, vy: 0, ang: Math.PI, alive: true, cool: START_FIRE_DELAY, hits: 0, hp: SHIP_MAX_HP },
+      X: { x: 0.25, y: 0.5, vx: 0, vy: 0, ang: 0, alive: true, cool: START_FIRE_DELAY, hits: 0, hp: SHIP_MAX_HP, thrusting: false },
+      O: { x: 0.75, y: 0.5, vx: 0, vy: 0, ang: Math.PI, alive: true, cool: START_FIRE_DELAY, hits: 0, hp: SHIP_MAX_HP, thrusting: false },
     },
     bullets: [],
     t: 0,
@@ -72,6 +72,7 @@ export function step(state, inputs, dt) {
   for (const side of ['X', 'O']) {
     const sh = s.ships[side]
     sh.cool = Math.max(0, sh.cool - dt)                       // 1. cooldown
+    sh.thrusting = sh.alive && !!ins[side].thrust               // exposed for rendering (host's own view + wire snapshot)
     if (sh.alive) {
       sh.ang = wrapAng(sh.ang + (ins[side].turn || 0) * ROT_SPEED * dt) // 2. rotate
       if (ins[side].thrust) {                                  // 3. thrust

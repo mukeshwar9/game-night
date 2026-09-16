@@ -128,7 +128,7 @@ describe('step — purity & movement', () => {
     expect(state.players.X.x).toBeLessThan(2.5)
   })
 
-  it('processes X before O within a step — deterministic contested-cell outcome', () => {
+  it('processes X before O for paint tie-breaking on a shared exit cell, but speed is order-independent', () => {
     // Both players start inside the SAME cell (legal — there's no collision).
     const shared = cellIndex(5.1, 5.1)
     expect(cellIndex(5.9, 5.9)).toBe(shared)
@@ -142,16 +142,46 @@ describe('step — purity & movement', () => {
 
     // X is processed first and paints the shared cell...
     expect(events[0]).toEqual({ type: 'cellPainted', by: 'X', index: shared })
-    // ...then O, reading the ALREADY-repainted grid, is slowed leaving it,
-    // and its own exit overwrites the cell back to O (host-order steal).
+    // ...then O's own exit overwrites the cell back to O (paint tie-break
+    // stays X-then-O; this part is unaffected by the movement-order fix).
     expect(events).toContainEqual({ type: 'cellStolen', by: 'O', index: shared, from: 'X' })
     expect(state.grid[shared]).toBe(2)
 
-    // O only covered ENEMY_SLOW_MULT × the distance X covered this step,
-    // proving O's speed check saw the grid AFTER X's mutation.
+    // Movement/speed for BOTH players is computed against the PRE-STEP grid
+    // (the shared cell started neutral) — O must NOT be slowed by X's
+    // mid-step paint of the same cell. This was the host-favoring bug: O,
+    // processed second, used to read the grid AFTER X's mutation.
     const xDist = state.players.X.x - 5.1
     const oDist = state.players.O.y - 5.9
-    expect(oDist).toBeCloseTo(xDist * ENEMY_SLOW_MULT)
+    expect(oDist).toBeCloseTo(xDist)
+  })
+
+  it('mirrored-case symmetry: which side is processed first (X) must not change the slow-zone outcome', () => {
+    // Scenario A: X (processed first) starts standing on O's (enemy) paint;
+    // O starts on fresh neutral ground elsewhere.
+    const idx = cellIndex(5.1, 5.1)
+    const a = baseState({
+      gridEntries: { [idx]: 2 },
+      players: { X: { x: 5.1, y: 5.1, dir: 'right' }, O: { x: 15.1, y: 15.1, dir: 'right' } },
+    })
+    const rA = step(a, {}, 0.1)
+
+    // Scenario B: mirror — O (processed second) starts standing on X's
+    // (enemy) paint at the same spot; X starts on fresh ground. If movement
+    // is order-independent (fixed), O's slowdown in B must exactly match
+    // X's slowdown in A.
+    const b = baseState({
+      gridEntries: { [idx]: 1 },
+      players: { O: { x: 5.1, y: 5.1, dir: 'right' }, X: { x: 15.1, y: 15.1, dir: 'right' } },
+    })
+    const rB = step(b, {}, 0.1)
+
+    const distA = rA.state.players.X.x - 5.1   // X, processed FIRST, on enemy paint
+    const distB = rB.state.players.O.x - 5.1   // O, processed SECOND, on enemy paint
+
+    expect(distA).toBeCloseTo(BASE_SPEED * ENEMY_SLOW_MULT * 0.1)
+    expect(distB).toBeCloseTo(BASE_SPEED * ENEMY_SLOW_MULT * 0.1)
+    expect(distB).toBeCloseTo(distA)
   })
 })
 

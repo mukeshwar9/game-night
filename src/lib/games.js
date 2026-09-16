@@ -18,7 +18,7 @@ import {
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
-import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5, CF_BIG, CF_BIG_BOARD_SIZE } from './connectFourLogic'
+import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
   UT_CELL_COUNT, UT_BOARD_COUNT, applyUltimateMove, getUltimateWinner, normalizeUWon,
 } from './ultimateTttLogic'
@@ -68,8 +68,7 @@ import {
   BK_WALLS_PER_PLAYER,
   BK_START_X,
   BK_START_O,
-  applyPawnMove,
-  applyWallMove,
+  applyBlockadeMove,
 } from './blockadeLogic'
 import { applyDiceMove } from './diceLogic'
 import DiceBoard from '../components/DiceBoard'
@@ -85,7 +84,6 @@ import {
 } from './pairsLogic'
 import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
 import { ANSWER_MS as HERD_ANSWER_MS } from './herdLogic'
-import { QUESTION_MS as TRIVIA_QUESTION_MS } from './triviaLogic'
 import MancalaBoard from '../components/MancalaBoard'
 import {
   INITIAL_PITS,
@@ -99,6 +97,7 @@ import { getTicTacToe4Winner } from './tictactoe4Logic'
 import { applyDiceBigMove } from './diceLogic'
 import HexBoard from '../components/HexBoard'
 import { getHexWinner, HEX_CELL_COUNT } from './hexLogic'
+import { generateNumber } from './numberMemoryLogic'
 
 const PASSAGES = [
   "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. A wizard's job is to vex chumps quickly in fog.",
@@ -115,11 +114,7 @@ const PASSAGES = [
   "The secret of getting ahead is getting started. Break your tasks into small steps and tackle one at a time. Progress, not perfection, is the goal.",
 ]
 
-function generateNumber(level) {
-  let n = String(Math.floor(Math.random() * 9) + 1)
-  for (let i = 1; i < level; i++) n += String(Math.floor(Math.random() * 10))
-  return n
-}
+// generateNumber moved to numberMemoryLogic.js (single tested source).
 
 function dotsAndBoxesMove(size) {
   const { boxCount } = dbConfig(size)
@@ -202,16 +197,15 @@ export const GAME_TYPES = [
   {
     type: 'connectfour', label: 'CONNECT FOUR',
     desc: 'four in a row wins', Icon: ConnectFourIcon,
-    badge: 'C4', maxWidth: 'max-w-lg',
+    badge: 'C4', maxWidth: 'max-w-md',
     category: 'board',
     durationMin: 4, tags: ['thinky'], solo: true,
-    classicLabel: '9×7',
-    classicBlurb: 'Nine columns, four in a row. More room to scheme.',
-    boardSize: CF_BIG_BOARD_SIZE,
-    getMoveIndex: (board, col) => getConnectFourDrop(board, col, CF_BIG),
-    getWinner: (board) => getConnectFourWinner(board, CF_BIG),
+    classicLabel: '7×6',
+    classicBlurb: 'The classic board. Four in a row wins.',
+    boardSize: CF_BOARD_SIZE,
+    getMoveIndex: getConnectFourDrop,
+    getWinner: getConnectFourWinner,
     BoardComponent: ConnectFourBoard,
-    boardProps: () => ({ cols: 9, rows: 7 }),
   },
   {
     type: 'connectfour5', label: 'C4 FIVE', desc: 'five in a row on 9×7',
@@ -294,7 +288,10 @@ export const GAME_TYPES = [
     category: 'board',
     durationMin: 10, tags: ['thinky'], solo: true,
     boardSize: SOS_CELL_COUNT,
-    getMoveIndex: (board, move) => (board[move.index] ? -1 : move.index),
+    getMoveIndex: (board, move) => {
+      if (!move || typeof move !== 'object' || !Number.isInteger(move.index)) return -1
+      return board[move.index] ? -1 : move.index
+    },
     BoardComponent: SosBoard,
     applyMove: ({ board, game, move, symbol }) => {
       const lines = normalizeSosLines(game.sosLines)
@@ -489,9 +486,15 @@ export const GAME_TYPES = [
       const moved = applyReversiMove(board, index, symbol)
       if (!moved) return null
       const opp = symbol === 'X' ? 'O' : 'X'
-      const nextTurn = hasAnyMove(moved.board, opp) ? opp : symbol
+      const oppCanMove = hasAnyMove(moved.board, opp)
       return {
-        updates: { board: moved.board, currentTurn: nextTurn },
+        updates: {
+          board: moved.board,
+          currentTurn: oppCanMove ? opp : symbol,
+          // Surfaced by GameStatus as "OPPONENT PASSED" — without it a pass
+          // is silent and both players think a move failed to send.
+          passNote: oppCanMove ? null : opp,
+        },
         result: getReversiWinner(moved.board),
       }
     },
@@ -520,6 +523,7 @@ export const GAME_TYPES = [
     desc: 'compact chain reaction', Icon: ChainReactionIcon,
     badge: 'CR6', maxWidth: 'max-w-xs',
     category: 'board',
+    addedAt: '2026-07-11',
     durationMin: 4, tags: ['quick', 'thinky'], solo: true,
     variantOf: 'chainreaction', variantLabel: '6×8',
     variantBlurb: 'The original smaller grid. Bigger cells on a phone.',
@@ -553,43 +557,9 @@ export const GAME_TYPES = [
       return -1
     },
     BoardComponent: BlockadeBoard,
-    applyMove: ({ board, game, move, symbol }) => {
-      const pawns = { X: game.blockadePawnX ?? BK_START_X, O: game.blockadePawnO ?? BK_START_O }
-      const wallsRemaining = {
-        X: game.blockadeWallsX ?? BK_WALLS_PER_PLAYER,
-        O: game.blockadeWallsO ?? BK_WALLS_PER_PLAYER,
-      }
-      const opp = symbol === 'X' ? 'O' : 'X'
-
-      if (move?.type === 'pawn') {
-        const applied = applyPawnMove({ walls: board, pawns, symbol, to: move.to })
-        if (!applied) return null
-        return {
-          updates: {
-            [`blockadePawn${symbol}`]: move.to,
-            currentTurn: opp,
-            blockadeMoves: (game.blockadeMoves ?? 0) + 1,
-          },
-          result: applied.winner ? { winner: applied.winner } : null,
-        }
-      }
-      if (move?.type === 'wall') {
-        const applied = applyWallMove({
-          walls: board, pawns, wallsRemaining: wallsRemaining[symbol], symbol, slot: move.slot,
-        })
-        if (!applied) return null
-        return {
-          updates: {
-            board: applied.walls,
-            [`blockadeWalls${symbol}`]: wallsRemaining[symbol] - 1,
-            currentTurn: opp,
-            blockadeMoves: (game.blockadeMoves ?? 0) + 1,
-          },
-          result: null,
-        }
-      }
-      return null
-    },
+    // Full-move applier lives in blockadeLogic (pure, tested) — includes the
+    // trapped-player skip house rule the old inline copy here lacked.
+    applyMove: applyBlockadeMove,
     boardProps: (game) => ({
       pawns: { X: game.blockadePawnX ?? BK_START_X, O: game.blockadePawnO ?? BK_START_O },
       walls: { X: game.blockadeWallsX ?? BK_WALLS_PER_PLAYER, O: game.blockadeWallsO ?? BK_WALLS_PER_PLAYER },
@@ -602,7 +572,10 @@ export const GAME_TYPES = [
     category: 'board',
     durationMin: 6, tags: ['thinky'], solo: true,
     boardSize: OC_CELL_COUNT,
-    getMoveIndex: (board, move) => (board[move.index] ? -1 : move.index),
+    getMoveIndex: (board, move) => {
+      if (!move || typeof move !== 'object' || !Number.isInteger(move.index)) return -1
+      return board[move.index] ? -1 : move.index
+    },
     BoardComponent: OrderChaosBoard,
     applyMove: ({ board, move, symbol }) => {
       const applied = applyOrderChaosMove(board, move.index, move.letter)
@@ -715,7 +688,10 @@ export const GAME_TYPES = [
         phase: 'question',
         qNum: 0,
         deckSeed: Math.floor(Math.random() * 2147483647),
-        qStartAt: Date.now() + TRIVIA_QUESTION_MS,
+        // Question START, not deadline — the page computes the deadline as
+        // qStartAt + QUESTION_MS. Stamping this in the future gave everyone
+        // a 30s Q1 with free max-speed points.
+        qStartAt: Date.now(),
         answers: null,
       },
     }),
@@ -723,7 +699,7 @@ export const GAME_TYPES = [
   {
     type: 'battleship', label: 'BATTLESHIP',
     desc: 'sink the hidden fleet', Icon: BattleshipIcon,
-    badge: 'BS', maxWidth: 'max-w-md',
+    badge: 'BS', maxWidth: 'max-w-3xl',
     category: 'board',
     addedAt: '2026-08-21',
     durationMin: 8, tags: ['thinky'], solo: true,
@@ -746,8 +722,14 @@ export const GAME_TYPES = [
       return {
         updates: {
           mancalaPits: moved.pits,
-          mancalaLast: { pit: index, by: symbol, seeds: pits[index] },
+          // `captured` feeds the board's capture banner; `at` makes the sow
+          // replay key unique when the same pit/seed-count repeats.
+          mancalaLast: {
+            pit: index, by: symbol, seeds: pits[index],
+            captured: moved.captured ?? 0, at: Date.now(),
+          },
           currentTurn: moved.extraTurn ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          extraTurn: moved.extraTurn ? true : null,
         },
         result: moved.result
           ? { winner: moved.result.winner, scoreX: moved.result.scoreX, scoreO: moved.result.scoreO }
@@ -874,6 +856,7 @@ export const GAME_TYPES = [
           board: applied.board,
           pairsFlipped: applied.flipped,
           currentTurn: applied.turnStays ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          extraTurn: applied.turnStays ? true : null,
         },
         result: getPairsWinner(applied.board),
       }
@@ -926,6 +909,15 @@ export function usesFirstMover(gameType) {
   return !cfg.nPlayer && !cfg.realtime && !cfg.simultaneous
 }
 
+// Offline local pass-and-play (hot-seat, no Firebase): same eligibility as a
+// standard registry-driven board game — a real board/win-checker, not custom
+// (hidden-info or bespoke-state) logic, not nPlayer, simultaneous, or realtime.
+export function supportsLocalPlay(gameType) {
+  const cfg = GAME_TYPES.find(t => t.type === gameType)
+  if (!cfg) return false
+  return !!cfg.BoardComponent && !cfg.custom && !cfg.nPlayer && !cfg.simultaneous && !cfg.realtime
+}
+
 export function resolveGoesFirst(goesFirst) {
   if (goesFirst === 'O') return 'O'
   if (goesFirst === 'random') return Math.random() < 0.5 ? 'X' : 'O'
@@ -959,11 +951,15 @@ export const getPlayerTag = (cfg) =>
 // games clears the previous game's keys from Firebase.
 const FIELD_NULLS = {
   uWon: null, uActiveBoard: null,
+  passNote: null,
+  lastFrom: null, lastTo: null,
   sosLines: null,
   simonSequence: null, simonProgress: null,
+  simonDeadline: null, vmDeadline: null,
   chimpLevel: null, chimpLayout: null,
   chimpProgressX: null, chimpProgressO: null,
   chimpDoneX: null, chimpDoneO: null,
+  chimpRoundStartedAt: null,
   vmLevel: null, vmPattern: null, vmClicked: null,
   numRound: null,
   reactionTimesX: null, reactionTimesO: null,
@@ -973,6 +969,7 @@ const FIELD_NULLS = {
   aimHitsX: null, aimHitsO: null,
   aimFriendlyX: null, aimFriendlyO: null,
   typingPassage: null, typingStartedAt: null,
+  typingFinishedAtX: null, typingFinishedAtO: null,
   typingProgressX: null, typingProgressO: null,
   typingWpmX: null, typingWpmO: null,
   typingAccX: null, typingAccO: null,
@@ -1018,6 +1015,9 @@ const FIELD_NULLS = {
   minesDeadX: null, minesDeadO: null,
   minesDoneX: null, minesDoneO: null,
   herdCow: null,
+  chatLog: null,
+  // emote currently leaks across game switches — clear it too.
+  emote: null,
 }
 
 export function freshGameState(gameType) {
@@ -1056,7 +1056,8 @@ export function freshGameState(gameType) {
       chimpLevel: CHIMP_START_LEVEL,
       chimpLayout: generateChimpLayout(CHIMP_START_LEVEL),
       chimpProgressX: 0, chimpProgressO: 0,
-      chimpDoneX: false, chimpDoneO: false }
+      chimpDoneX: false, chimpDoneO: false,
+      chimpRoundStartedAt: Date.now() }
   }
   if (gameType === 'reaction') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
@@ -1143,7 +1144,10 @@ export function freshGameState(gameType) {
       blockadeWallsX: BK_WALLS_PER_PLAYER, blockadeWallsO: BK_WALLS_PER_PLAYER,
       blockadeMoves: 0 }
   }
-  if (gameType === 'dice') {
+  if (gameType === 'dice' || gameType === 'dice-big') {
+    // Both Pig variants share the dice state shape and the commit-reveal
+    // seed protocol; dice-big previously fell through to the generic board
+    // branch and never got a seed, leaving every roll rejected.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: 'X',
       diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null,
       diceRolls: [], diceRollIndex: 0,
@@ -1210,4 +1214,35 @@ export function freshGameState(gameType) {
       pairsFlipped: null }
   }
   return { ...FIELD_NULLS, board: Array(cfg.boardSize).fill(''), boxes: null, round: null, currentTurn: 'X' }
+}
+
+// Lobby (challenge-created room) support ------------------------------------
+//
+// A challenge room is created with a concrete `gameType` (default tictactoe)
+// plus `lobby: true`; status stays 'waiting' until either seated player taps
+// START, which clears the flag. See CLAUDE.md's Data model delta.
+
+// Forces a switch-updates patch back to 'waiting' (a lobby switch must never
+// auto-start even once both seats are filled) and strips chatLog/emote from
+// it so lobby chat/reactions survive a pre-game game-type switch — the
+// freshGameState()-derived nulls in `updates` would otherwise wipe them via
+// FIELD_NULLS. Does not mutate its input.
+export function lobbySwitchOverrides(updates) {
+  const out = { ...updates, status: 'waiting' }
+  delete out.chatLog
+  delete out.emote
+  return out
+}
+
+// Builds the room doc for a friend challenge (Friends.jsx) — same X-seat/
+// scores/createdAt shape Home.jsx uses for a link-created room, plus the
+// `lobby: true` flag so both players land in a shared lobby instead of the
+// challenger's game-type choice being forced up front.
+export function buildChallengeRoom({ name, avatar, playerId, now = Date.now(), gameType = 'tictactoe' }) {
+  return {
+    gameType, status: 'waiting', lobby: true,
+    scores: { X: 0, O: 0 }, createdAt: now, lastActivityAt: now,
+    players: { X: { name, joinedAt: now, playerId, avatar } },
+    ...freshGameState(gameType),
+  }
 }

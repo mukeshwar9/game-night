@@ -26,8 +26,10 @@ export default function CheckersGame({
   const myTurn = game.status === 'playing' && game.currentTurn === me
 
   const [selected, setSelected] = useState(null)
-  const [lastFrom, setLastFrom] = useState(null)
-  const [lastTo, setLastTo] = useState(null)
+  const lastFrom = game.lastFrom ?? null
+  const lastTo = game.lastTo ?? null
+  const [flashCell, setFlashCell] = useState(null)
+  const flashTimerRef = useRef(null)
   const prevShotRef = useRef({ count: 0 })
 
   const moves = useMemo(
@@ -62,18 +64,27 @@ export default function CheckersGame({
     prevShotRef.current = { init: true, count: pieces }
   }, [board, me, myTurn, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => () => clearTimeout(flashTimerRef.current), [])
+
   const handleCell = (cell) => {
     if (!myTurn) return
     const piece = board[cell]
     if (piece && piece.toLowerCase() === me.toLowerCase()) {
       const hasMoves = moves.some(m => m.from === cell)
-      if (hasMoves) setSelected(cell)
+      if (hasMoves) {
+        setSelected(cell)
+      } else if (moves.length > 0) {
+        // Forced capture is active and this piece isn't one of the movers —
+        // flash a brief hint instead of failing silently.
+        setFlashCell(cell)
+        clearTimeout(flashTimerRef.current)
+        flashTimerRef.current = setTimeout(() => setFlashCell(null), 600)
+      }
       return
     }
     if (selected == null) return
     const move = selectedMoves.find(m => m.to === cell)
     if (!move) return
-    setLastFrom(move.from); setLastTo(move.to)
     setSelected(null)
     if (move.captures?.length) sounds.bust()
     void runTransaction(ref(db, `games/${gameId}`), current => {
@@ -82,11 +93,14 @@ export default function CheckersGame({
       const curBoard = normalizeCheckers(current.board)
       const applied = applyCheckersMove(curBoard, move.from, move.to)
       if (!applied) return
-      const winner = getCheckersWinner(applied.board)
+      const nextTurn = me === 'X' ? 'O' : 'X'
+      const winner = getCheckersWinner(applied.board, nextTurn)
       const next = {
         ...current,
         board: applied.board,
-        currentTurn: me === 'X' ? 'O' : 'X',
+        currentTurn: nextTurn,
+        lastFrom: move.from,
+        lastTo: move.to,
       }
       if (winner) {
         next.winner = winner.winner
@@ -131,6 +145,7 @@ export default function CheckersGame({
           accent={me === 'X' ? 'p1' : 'p2'}
           lastFrom={lastFrom}
           lastTo={lastTo}
+          flashCell={flashCell}
         />
       </div>
 

@@ -75,21 +75,27 @@ const PongCourt = forwardRef(function PongCourt(
           }}
         />
 
-        {/* Power-up pickups */}
+        {/* Power-up pickups — width driven by the % (of court width) sim
+            value, aspect-ratio:1 + a self-relative translate keeps them
+            visually square regardless of the court's 3:2 box, and centers
+            on (pk.x, pk.y) without needing a height% (which would render as
+            an ellipse — height% is relative to court height, not width). */}
         {pickups.map((pk) => (
           <div
             key={pk.id}
             className={cn('absolute rounded-sm animate-pulse', PICKUP_COLORS[pk.kind] || 'bg-retro-cta')}
             style={{
-              left: pct(pk.x - PICKUP_SIZE / 2),
-              top: pct(pk.y - PICKUP_SIZE / 2),
+              left: pct(pk.x),
+              top: pct(pk.y),
               width: pct(PICKUP_SIZE),
-              height: pct(PICKUP_SIZE),
+              aspectRatio: '1',
+              transform: 'translate(-50%, -50%)',
             }}
           />
         ))}
         {/* Ball — a square, classic Pong style. Pulses while held at centre during a serve delay.
-            Tinted cta when the slow power-up is active. */}
+            Tinted cta when the slow power-up is active. Same width%/aspect-ratio:1 trick as the
+            pickups above so it renders as a true square, not an ellipse. */}
         <div
           className={cn(
             'absolute shadow-glow-dot',
@@ -97,10 +103,11 @@ const PongCourt = forwardRef(function PongCourt(
             ballMod?.slow > 0 ? 'bg-retro-cta' : 'bg-retro-text',
           )}
           style={{
-            left: pct(ball.x - BALL_R),
-            top: pct(ball.y - BALL_R),
+            left: pct(ball.x),
+            top: pct(ball.y),
             width: pct(BALL_R * 2),
-            height: pct(BALL_R * 2),
+            aspectRatio: '1',
+            transform: 'translate(-50%, -50%)',
           }}
         />
 

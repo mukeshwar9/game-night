@@ -8,48 +8,53 @@ import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import {
+  ROUNDS,
+  normalizeReactionTimes,
+  avgReactionTime,
+  fastestReactionTime,
+  getReactionWinner,
+  formatMs,
+} from '../lib/reactionLogic'
 
-const ROUNDS = 4
 const MIN_DELAY_MS = 1500
 const MAX_DELAY_MS = 4000
 
-function normalizeReactionTimes(raw) {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw
-  return Object.values(raw).map(Number)
-}
-
-function avg(arr) {
-  return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length)
+// Static per-symbol class maps — Tailwind's scanner can't see dynamically
+// composed class names like `border-${col}/60`, so every class variant must
+// appear as a literal string somewhere in source.
+const RESULT_CARD_STYLE = {
+  X: { name: 'text-retro-p1', border: 'border-retro-p1/60' },
+  O: { name: 'text-retro-p2', border: 'border-retro-p2/60' },
 }
 
 function ResultsPanel({ timesX, timesO, mySymbol, players }) {
-  const avgX = avg(timesX)
-  const avgO = avg(timesO)
-  const fastX = Math.min(...timesX)
-  const fastO = Math.min(...timesO)
-  const winner = avgX < avgO ? 'X' : avgX > avgO ? 'O' : null
+  const avgX = avgReactionTime(timesX)
+  const avgO = avgReactionTime(timesO)
+  const fastX = fastestReactionTime(timesX)
+  const fastO = fastestReactionTime(timesO)
+  const winner = getReactionWinner(timesX, timesO)
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         {[
-          { sym: 'X', a: avgX, f: fastX, col: 'retro-p1' },
-          { sym: 'O', a: avgO, f: fastO, col: 'retro-p2' },
-        ].map(({ sym, a, f, col }) => (
+          { sym: 'X', a: avgX, f: fastX },
+          { sym: 'O', a: avgO, f: fastO },
+        ].map(({ sym, a, f }) => (
           <div key={sym} className={cn(
             'bg-retro-card border rounded p-3 text-center space-y-1',
-            mySymbol === sym ? `border-${col}/60` : 'border-retro-border',
+            mySymbol === sym ? RESULT_CARD_STYLE[sym].border : 'border-retro-border',
           )}>
-            <p className={`font-pixel text-[8px] text-${col}`}>
+            <p className={cn('font-pixel text-[8px]', RESULT_CARD_STYLE[sym].name)}>
               {players?.[sym]?.name?.toUpperCase() ?? sym}
             </p>
             <p className={cn('font-pixel text-xl', winner === sym ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
-              {a}<span className="text-[8px] text-retro-dim">ms</span>
+              {formatMs(a)}
             </p>
             <p className="font-pixel text-[8px] text-retro-dim">avg</p>
             <p className="font-pixel text-[9px] text-retro-cta">
-              {f}ms <span className="text-retro-dim text-[7px]">best</span>
+              {formatMs(f)} <span className="text-retro-dim text-[7px]">best</span>
             </p>
           </div>
         ))}
@@ -61,19 +66,20 @@ function ResultsPanel({ timesX, timesO, mySymbol, players }) {
           <span className="text-center">RND</span>
           <span className="text-right text-retro-p2">{players?.O?.name?.toUpperCase() ?? 'O'}</span>
         </div>
-        {timesX.map((tx, i) => {
+        {Array.from({ length: Math.max(timesX.length, timesO.length) }, (_, i) => {
+          const tx = timesX[i]
           const to = timesO[i]
           return (
             <div key={i} className="grid grid-cols-3 font-pixel text-[8px]">
-              <span className={tx < to ? 'text-retro-win' : 'text-retro-text'}>{tx}ms</span>
+              <span className={tx != null && to != null && tx < to ? 'text-retro-win' : 'text-retro-text'}>{formatMs(tx)}</span>
               <span className="text-center text-retro-dim">{i + 1}</span>
-              <span className={cn('text-right', to < tx ? 'text-retro-win' : 'text-retro-text')}>{to}ms</span>
+              <span className={cn('text-right', tx != null && to != null && to < tx ? 'text-retro-win' : 'text-retro-text')}>{formatMs(to)}</span>
             </div>
           )
         })}
       </div>
 
-      {winner ? (
+      {winner && winner !== 'draw' ? (
         <p className="font-pixel text-[8px] text-retro-dim text-center">
           {players?.[winner]?.name?.toUpperCase() ?? winner} WAS{' '}
           <span className="text-retro-win">{Math.abs(avgX - avgO)}ms</span> FASTER ON AVERAGE
@@ -112,9 +118,7 @@ export default function ReactionGame({
         const tx = normalizeReactionTimes(current.reactionTimesX)
         const to = normalizeReactionTimes(current.reactionTimesO)
         if (tx.length < ROUNDS || to.length < ROUNDS) return
-        const avgX = tx.reduce((a, b) => a + b, 0) / tx.length
-        const avgO = to.reduce((a, b) => a + b, 0) / to.length
-        const winner = avgX < avgO ? 'X' : avgX > avgO ? 'O' : 'draw'
+        const winner = getReactionWinner(tx, to)
         const scores = { ...(current.scores || {}) }
         if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
         return { ...current, winner, status: 'finished', scores }
@@ -245,6 +249,15 @@ export default function ReactionGame({
       {/* Big clickable game area */}
       <button
         onPointerDown={e => { e.preventDefault(); handleTap() }}
+        onKeyDown={e => {
+          // Keyboard-equivalent activation (Space/Enter) — the area is
+          // otherwise pointer-only, which locks keyboard users out entirely.
+          if (e.repeat) return
+          if (e.code === 'Space' || e.code === 'Enter') {
+            e.preventDefault()
+            handleTap()
+          }
+        }}
         disabled={phase === 'submitted'}
         className={cn(
           'w-full rounded-xl border-2 transition-colors duration-75 select-none',
@@ -266,7 +279,7 @@ export default function ReactionGame({
               ))}
             </div>
             <p className="font-pixel text-[9px] text-retro-cta">
-              AVG {avg(times)}ms · BEST {Math.min(...times)}ms
+              AVG {formatMs(avgReactionTime(times))} · BEST {formatMs(fastestReactionTime(times))}
             </p>
             <p className="font-pixel text-[8px] text-retro-dim arcade-blink">
               WAITING FOR OPPONENT {opTimes.length}/{ROUNDS}

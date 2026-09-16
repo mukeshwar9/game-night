@@ -21,12 +21,28 @@ import useBusy from '@/hooks/useBusy'
 
 const r4 = (n) => Math.round(n * 1e4) / 1e4
 const wrap = (v) => ((v % 1) + 1) % 1
+const TWO_PI = Math.PI * 2
+// Fraction of the position/angle gap toward each fresh snapshot to correct
+// per snapshot arrival (guest's own-ship prediction) — see guestTick below.
+const SNAP_LERP = 0.25
+const lerpAngle = (a, b, t) => {
+  const diff = ((b - a + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI
+  return a + diff * t
+}
 
 const initialShips = {
   X: { x: 0.25, y: 0.5, ang: 0, alive: true, thrust: false },
   O: { x: 0.75, y: 0.5, ang: Math.PI, alive: true, thrust: false },
 }
 const initialRender = { ships: initialShips, bullets: [], t: 0, hitsX: 0, hitsO: 0, hpX: SHIP_MAX_HP, hpO: SHIP_MAX_HP, countdown: 0 }
+
+// The guest's WebRTC peer connection reaches 'connected' independently of
+// (and slightly before) the host's own COUNTDOWN_MS gate, so render.countdown
+// (which guestTick always reports as 0) can't drive the guest's overlay — it
+// would show no countdown at all. Run an equivalent local timer keyed off the
+// guest's own peer connection, same pattern as SumoGame. Keep in sync with
+// useRealtimeHost's DEFAULT_COUNTDOWN.
+const GUEST_COUNTDOWN_MS = 2000
 
 function SpaceduelResult({ winner, mySymbol, players, hitsX = 0, hitsO = 0 }) {
   return (
@@ -77,7 +93,6 @@ export default function SpaceduelGame({
 
   // Page-side bookkeeping that the page-owned callbacks need.
   const hitsRef = useRef({ X: 0, O: 0 })          // final hit tally, updated on hit events
-  const lastXInputRef = useRef({ thrust: 0 })     // host: last local thrust (for the flame)
   const predRef = useRef(null)                    // guest: locally-predicted own ship (O)
   const lastSnapRef = useRef(null)                // guest: last snapshot object (to detect new ones)
   const simRef = useRef(null)                     // host: mirror of the hook's sim, kept fresh for finish()
@@ -141,17 +156,18 @@ export default function SpaceduelGame({
 
   const readHostInput = useCallback((sim) => {
     simRef.current = sim
-    const inp = getInput()
-    lastXInputRef.current = inp
-    return inp
+    return getInput()
   }, [getInput])
 
+  // Both ships' `thrusting` bit comes straight off the sim (set in step()
+  // from that side's input) — this is what makes the guest's own flame visible
+  // to the host too (item M-?: previously O always rendered thrust:false here).
   const buildView = useCallback((sim) => {
     const X = sim.ships.X, O = sim.ships.O
     return {
       ships: {
-        X: { x: X.x, y: X.y, ang: X.ang, alive: X.alive, thrust: !!lastXInputRef.current.thrust },
-        O: { x: O.x, y: O.y, ang: O.ang, alive: O.alive, thrust: false },
+        X: { x: X.x, y: X.y, ang: X.ang, alive: X.alive, thrust: !!X.thrusting },
+        O: { x: O.x, y: O.y, ang: O.ang, alive: O.alive, thrust: !!O.thrusting },
       },
       bullets: sim.bullets.map(b => ({ x: b.x, y: b.y })),
       t: sim.t, hitsX: X.hits, hitsO: O.hits, hpX: X.hp, hpO: O.hp, countdown: 0,
@@ -163,7 +179,10 @@ export default function SpaceduelGame({
     const { X, O } = sim.ships
     return {
       t: 's',
-      X: [r4(X.x), r4(X.y), r4(X.ang), r4(X.vx), r4(X.vy), X.alive ? 1 : 0, X.hp],
+      // X carries an extra bit (thrusting) so the guest can render the
+      // opponent's flame — O doesn't need it on the wire since the guest
+      // already knows its own live thrust locally.
+      X: [r4(X.x), r4(X.y), r4(X.ang), r4(X.vx), r4(X.vy), X.alive ? 1 : 0, X.hp, X.thrusting ? 1 : 0],
       O: [r4(O.x), r4(O.y), r4(O.ang), r4(O.vx), r4(O.vy), O.alive ? 1 : 0, O.hp],
       b: sim.bullets.map(b => [r4(b.x), r4(b.y)]),
       bi: sim.bullets.map(b => [r4(b.vx), r4(b.vy)]),
@@ -191,12 +210,29 @@ export default function SpaceduelGame({
   })
 
   const guestTick = useCallback((snap, age, dt) => {
-    // (re)seed local prediction whenever a fresh snapshot arrives
+    // (re)seed local prediction whenever a fresh snapshot arrives — SMOOTH
+    // correction rather than a hard reset: the local sim has usually run a
+    // bit ahead of what the (network-delayed) snapshot reports, so snapping
+    // straight to the raw snapshot every ~33ms reads as rubber-banding. Lerp
+    // position/angle a fraction of the way toward the snapshot instead, and
+    // trust velocity directly (it's a physical quantity, not something the
+    // eye tracks continuously the way position/heading are).
     if (snap !== lastSnapRef.current) {
       lastSnapRef.current = snap
-      predRef.current = {
-        x: snap.O[0], y: snap.O[1], ang: snap.O[2], vx: snap.O[3], vy: snap.O[4],
-        alive: !!snap.O[5], thrust: false,
+      const prev = predRef.current
+      if (prev && prev.alive) {
+        predRef.current = {
+          x: prev.x + (snap.O[0] - prev.x) * SNAP_LERP,
+          y: prev.y + (snap.O[1] - prev.y) * SNAP_LERP,
+          ang: lerpAngle(prev.ang, snap.O[2], SNAP_LERP),
+          vx: snap.O[3], vy: snap.O[4],
+          alive: !!snap.O[5], thrust: false,
+        }
+      } else {
+        predRef.current = {
+          x: snap.O[0], y: snap.O[1], ang: snap.O[2], vx: snap.O[3], vy: snap.O[4],
+          alive: !!snap.O[5], thrust: false,
+        }
       }
     }
     const inp = getInput()
@@ -238,7 +274,7 @@ export default function SpaceduelGame({
 
     const view = {
       ships: {
-        X: { x: ox, y: oy, ang: snap.X[2], alive: !!snap.X[5], thrust: false },
+        X: { x: ox, y: oy, ang: snap.X[2], alive: !!snap.X[5], thrust: !!snap.X[7] },
         O: own,
       },
       bullets,
@@ -258,9 +294,42 @@ export default function SpaceduelGame({
     setRender, initialRender,
     sfxMap: { fire: () => sounds.hit(), hit: () => sounds.hit(), kill: () => sounds.miss() },
     INPUT_MS: 33,
+    // Sends are throttled to ~30 Hz but tick() runs every rAF (~60 Hz); `fire`
+    // is edge-triggered and cleared the moment useSpaceduelControls' getInput()
+    // reads it, so a tap landing between two sends would otherwise be lost.
+    // Latch it (OR) across frames until it actually goes out; turn/thrust are
+    // continuous held state, so last-write-wins (the latest tick) is correct
+    // for those.
+    mergeInput: (pending, next) => ({
+      t: 'i',
+      d: {
+        turn: next.d.turn,
+        thrust: next.d.thrust,
+        fire: (pending?.d?.fire || next.d.fire) ? 1 : 0,
+      },
+    }),
   })
 
   const conn = isHost ? hostConn : guestConn
+
+  // Guest-only local countdown (see GUEST_COUNTDOWN_MS above).
+  const [guestCountdown, setGuestCountdown] = useState(0)
+  const guestStartAtRef = useRef(0)
+  useEffect(() => {
+    if (isHost || isSpectator || game.status !== 'playing' || guestConn.status !== 'connected') {
+      guestStartAtRef.current = 0
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-way reset driven by the external peer/game-status transition, mirrors coachActive above
+      setGuestCountdown(0)
+      return
+    }
+    guestStartAtRef.current = Date.now() + GUEST_COUNTDOWN_MS
+    const iv = setInterval(() => {
+      const remain = Math.ceil((guestStartAtRef.current - Date.now()) / 1000)
+      setGuestCountdown(remain > 0 ? remain : 0)
+      if (remain <= 0) clearInterval(iv)
+    }, 200)
+    return () => clearInterval(iv)
+  }, [isHost, isSpectator, game.status, guestConn.status])
 
   // Single round decides the match → match target is 1.
   const matchWinner = (game.scores?.X || 0) >= 1 ? 'X' : (game.scores?.O || 0) >= 1 ? 'O' : null
@@ -303,7 +372,7 @@ export default function SpaceduelGame({
 
   // --- Playing --- (SWITCH GAME is hidden while live — M-76 — replaced by a
   // dedicated FORFEIT ROUND action below, which only concedes this round.)
-  const overlay = <RealtimeOverlay conn={conn.status} countdown={render.countdown} retry={conn.retry} />
+  const overlay = <RealtimeOverlay conn={conn.status} countdown={isHost ? render.countdown : guestCountdown} retry={conn.retry} />
 
   return (
     <div className="space-y-3 [@media(max-height:420px)]:space-y-1.5">

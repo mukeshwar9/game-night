@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { HEX_SIZE } from '../lib/hexLogic'
 
@@ -6,81 +7,125 @@ const CELL_W = 26
 const CELL_H = 30
 const ROW_OVERLAP = CELL_H * 0.25
 const BOARD_W = CELL_W * HEX_SIZE + (CELL_W / 2) * (HEX_SIZE - 1)
+const BOARD_H = CELL_H + (HEX_SIZE - 1) * (CELL_H - ROW_OVERLAP)
 
 export default function HexBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null }) {
   const showHint = board.every(c => !c)
+  const wrapperRef = useRef(null)
+  const [scale, setScale] = useState(1)
+
+  useLayoutEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return undefined
+    const update = () => {
+      const w = el.clientWidth
+      setScale(w > 0 ? Math.min(1, w / BOARD_W) : 1)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   return (
-    <div className="w-full max-w-md mx-auto">
+    // -mx-2 on phones: break out of the parent card's padding (both Game.jsx
+    // and the demo card pad ≥16px, so 8px each side never overflows the page).
+    // The 11-wide rhombus scales with wrapper width, so reclaimed pixels go
+    // straight into bigger, easier-to-tap cells.
+    <div className="w-[calc(100%+1rem)] -mx-2 sm:w-full sm:mx-auto max-w-md">
       <div
         className={cn(
           'relative bg-retro-bg border-2 border-retro-border rounded transition-all duration-200',
           disabled && 'opacity-60 saturate-50',
         )}
       >
-        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-9 rounded-l bg-gradient-to-r from-retro-p1/30 to-transparent" />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-9 rounded-r bg-gradient-to-l from-retro-p1/30 to-transparent" />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-9 bg-gradient-to-b from-retro-p2/30 to-transparent" />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-gradient-to-t from-retro-p2/30 to-transparent" />
-        <div className="p-3 overflow-x-auto">
-          <div className="mx-auto" style={{ width: `${BOARD_W}px` }}>
-            {Array.from({ length: HEX_SIZE }, (_, row) => (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-9 rounded-l bg-gradient-to-r from-retro-p1/30 to-transparent flex items-center justify-start pl-1">
+          <span className="font-pixel text-[8px] text-retro-p1">X</span>
+        </div>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-9 rounded-r bg-gradient-to-l from-retro-p1/30 to-transparent flex items-center justify-end pr-1">
+          <span className="font-pixel text-[8px] text-retro-p1">X</span>
+        </div>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-9 bg-gradient-to-b from-retro-p2/30 to-transparent flex items-start justify-center pt-1">
+          <span className="font-pixel text-[8px] text-retro-p2">O</span>
+        </div>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-gradient-to-t from-retro-p2/30 to-transparent flex items-end justify-center pb-1">
+          <span className="font-pixel text-[8px] text-retro-p2">O</span>
+        </div>
+        {/* Tight padding on phones — every horizontal pixel feeds the scale
+            factor, and an 11-wide rhombus is starved for width as it is. */}
+        <div className="p-1.5 sm:p-3">
+          <div ref={wrapperRef} className="w-full flex justify-center">
+            <div style={{ width: `${BOARD_W * scale}px`, height: `${BOARD_H * scale}px`, position: 'relative' }}>
               <div
-                key={row}
-                className="flex"
                 style={{
-                  marginTop: row === 0 ? 0 : `-${ROW_OVERLAP}px`,
-                  marginLeft: `${(row * CELL_W) / 2}px`,
+                  width: `${BOARD_W}px`,
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
                 }}
               >
-                {board.slice(row * HEX_SIZE, row * HEX_SIZE + HEX_SIZE).map((cell, col) => {
-                  const i = row * HEX_SIZE + col
-                  const isOccupied = cell !== ''
-                  const isClickable = !disabled && !isOccupied
-                  const isWinning = winningLine.includes(i)
-                  const isLast = i === lastMove && !isWinning
-                  return (
-                    <button
-                      key={i}
-                      aria-label={`hex-cell-${row}-${col}`}
-                      disabled={!isClickable}
-                      onClick={() => isClickable && onMove(i)}
-                      className={cn(
-                        'relative shrink-0 transition-[filter] duration-100',
-                        isClickable ? 'cursor-pointer hover:brightness-150' : 'cursor-default',
-                      )}
-                      style={{ width: `${CELL_W}px`, height: `${CELL_H}px` }}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-0"
-                        style={{ clipPath: HEX_CLIP, background: 'rgb(var(--c-border))' }}
-                      />
-                      <span
-                        aria-hidden="true"
-                        className="absolute"
-                        style={{
-                          clipPath: HEX_CLIP,
-                          inset: '1.5px',
-                          background: isOccupied
-                            ? `rgb(var(--c-${cell === 'X' ? 'p1' : 'p2'}))`
-                            : 'rgb(var(--c-surface))',
-                          filter: isOccupied
-                            ? `drop-shadow(0 0 ${isWinning ? 8 : 5}px rgb(var(--c-${cell === 'X' ? 'p1' : 'p2'})${isWinning ? '' : ' / 0.7'}))${isWinning ? ' brightness(1.35)' : ''}`
-                            : undefined,
-                          animation: isOccupied ? 'place-pop 0.2s cubic-bezier(0.34,1.15,0.64,1)' : undefined,
-                        }}
-                      />
-                      {isLast && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-retro-bg animate-pulse"
-                        />
-                      )}
-                    </button>
-                  )
-                })}
+                {Array.from({ length: HEX_SIZE }, (_, row) => (
+                  <div
+                    key={row}
+                    className="flex"
+                    style={{
+                      marginTop: row === 0 ? 0 : `-${ROW_OVERLAP}px`,
+                      marginLeft: `${(row * CELL_W) / 2}px`,
+                    }}
+                  >
+                    {board.slice(row * HEX_SIZE, row * HEX_SIZE + HEX_SIZE).map((cell, col) => {
+                      const i = row * HEX_SIZE + col
+                      const isOccupied = cell !== ''
+                      const isClickable = !disabled && !isOccupied
+                      const isWinning = winningLine.includes(i)
+                      const isLast = i === lastMove && !isWinning
+                      return (
+                        <button
+                          key={i}
+                          aria-label={`hex-cell-${row}-${col}`}
+                          disabled={!isClickable}
+                          onClick={() => isClickable && onMove(i)}
+                          className={cn(
+                            'relative shrink-0 transition-[filter] duration-100 touch-manipulation',
+                            isClickable ? 'cursor-pointer hover:brightness-150 active:brightness-[1.75]' : 'cursor-default',
+                          )}
+                          style={{ width: `${CELL_W}px`, height: `${CELL_H}px`, clipPath: HEX_CLIP }}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-0"
+                            style={{ clipPath: HEX_CLIP, background: 'rgb(var(--c-border))' }}
+                          />
+                          <span
+                            aria-hidden="true"
+                            className="absolute"
+                            style={{
+                              clipPath: HEX_CLIP,
+                              inset: '1.5px',
+                              background: isOccupied
+                                ? `rgb(var(--c-${cell === 'X' ? 'p1' : 'p2'}))`
+                                : 'rgb(var(--c-surface))',
+                              filter: isOccupied
+                                ? `drop-shadow(0 0 ${isWinning ? 8 : 5}px rgb(var(--c-${cell === 'X' ? 'p1' : 'p2'})${isWinning ? '' : ' / 0.7'}))${isWinning ? ' brightness(1.35)' : ''}`
+                                : undefined,
+                              animation: isOccupied ? 'place-pop 0.2s cubic-bezier(0.34,1.15,0.64,1)' : undefined,
+                            }}
+                          />
+                          {isLast && (
+                            <span
+                              aria-hidden="true"
+                              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-retro-bg animate-pulse"
+                            />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { getGameConfig } from '@/lib/games'
 import { shareResult } from '@/lib/shareCard'
 import { suggestGames } from '@/lib/gameSuggestions'
 import useBusy from '@/hooks/useBusy'
+import { getHeadToHead, formatHeadToHeadLabel } from '@/lib/profile'
 import { toast } from 'sonner'
 
 const MATCH_WINS = 3
@@ -34,7 +35,7 @@ function ShareButton({ onClick, busy, busyLabel = 'BUILDING…', locked }) {
       onClick={onClick}
       disabled={busy || locked}
       className={cn(
-        'px-6 py-2.5 min-w-[6.5rem] border-2 border-retro-border text-retro-text font-pixel text-xs',
+        'min-h-11 px-6 py-2.5 min-w-[6.5rem] border-2 border-retro-border text-retro-text font-pixel text-xs',
         'rounded transition-all active:scale-95 disabled:opacity-50',
         !locked && 'hover:border-retro-p1/50 hover:text-retro-p1',
       )}
@@ -59,10 +60,21 @@ function StickyActionBar({ children }) {
   )
 }
 
-export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, onPlayAgain, onNewMatch, onSwitchGame }) {
+export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame }) {
   const scoreX = scores?.X || 0
   const scoreO = scores?.O || 0
   const matchWinner = scoreX >= MATCH_WINS ? 'X' : scoreO >= MATCH_WINS ? 'O' : null
+  const opponentUid = mySymbol && players?.[mySymbol === 'X' ? 'O' : 'X']?.playerId || null
+  const headToHead = getHeadToHead(opponentUid)
+
+  const renderHeadToHead = () => {
+    if (!headToHead) return null
+    return (
+      <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
+        {formatHeadToHeadLabel(headToHead.myWins, headToHead.theirWins)}
+      </p>
+    )
+  }
 
   const [startBusy, runStart] = useBusy()
   const [shareBusy, runShare] = useBusy()
@@ -150,6 +162,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
             {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
           </p>
           <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
+          {renderHeadToHead()}
         </div>
         {renderTryNext()}
         {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
@@ -191,8 +204,13 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           )}
           style={{ animation: 'modal-pop 0.28s ease-out both' }}
         >
-          {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : mySymbol ? 'GAME OVER' : `${winner} WINS!`}
+          {/* Order & Chaos: both players place both letters, so "X WINS" reads
+              as "the X letters won" — name the role instead of the seat. */}
+          {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : mySymbol ? 'GAME OVER'
+            : gameType === 'orderchaos' ? (winner === 'X' ? 'ORDER WINS!' : 'CHAOS WINS!')
+              : `${winner} WINS!`}
         </p>
+        {renderHeadToHead()}
         {renderTryNext()}
         {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
         <StickyActionBar>
@@ -223,10 +241,33 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     // M-48: an extra turn (D&B box / SOS completed) gets a distinct pulse —
     // animate-bounce (Tailwind built-in) reads differently from the steady
     // arcade-blink used for a normal turn, so it can't be misread as a bug.
-    if (extraTurn && currentTurn === mySymbol) {
+    if (extraTurn && (mySymbol == null || currentTurn === mySymbol)) {
       return (
         <p className="text-center font-pixel text-[10px] tracking-wider">
           <span className="inline-block text-retro-cta text-glow-cta animate-bounce">GO AGAIN!</span>
+        </p>
+      )
+    }
+    // Reversi: a player with no legal move is skipped by the rules. Without
+    // this line the pass is silent and both players think a move got lost.
+    if (passNote) {
+      return (
+        <p className="text-center font-pixel text-[10px] tracking-wider">
+          <span className="inline-block text-retro-cta text-glow-cta animate-bounce">
+            {passNote === mySymbol ? 'NO LEGAL MOVE — YOU PASS' : 'OPPONENT PASSED — GO AGAIN'}
+          </span>
+        </p>
+      )
+    }
+    if (mySymbol == null) {
+      return (
+        <p className="text-center font-pixel text-[10px] tracking-wider">
+          <span className={cn(
+            'arcade-blink',
+            currentTurn === 'X' ? 'text-retro-p1' : 'text-retro-p2',
+          )}>
+            {currentTurn}&apos;S TURN
+          </span>
         </p>
       )
     }

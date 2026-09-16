@@ -4,6 +4,24 @@ import PixelDots from './loading/PixelDots'
 
 export default function PlayerCard({ name, symbol, isActive, isMe, score, online, avatar }) {
   const isX = symbol === 'X'
+  // Empty O seat pre-game (no name, no avatar) — an inviting open slot,
+  // not an error state. X is always filled (creator), so this only ever
+  // applies to O while waiting for an opponent.
+  const isOpenSeat = !name && !avatar
+
+  if (isOpenSeat) {
+    return (
+      <div className="flex items-center gap-2.5 px-3 py-2.5 border-2 border-dashed border-retro-border rounded">
+        <div className="w-9 h-9 flex items-center justify-center rounded flex-shrink-0 border border-dashed border-retro-border">
+          <span className="font-pixel text-base text-retro-dim">?</span>
+        </div>
+        <div className="text-left min-w-0 flex-1">
+          <p className="font-mono text-sm text-retro-dim truncate">OPEN SEAT</p>
+          <p className="font-mono text-[10px] text-retro-dim mt-0.5 truncate">share to fill</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={cn(

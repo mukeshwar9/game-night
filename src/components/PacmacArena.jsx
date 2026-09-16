@@ -40,7 +40,7 @@ function actorStyle(p, scale = 0.86, rotate = true) {
 
 const PacmacArena = forwardRef(function PacmacArena(
   {
-    pellets, players, ghosts, scoreX = 0, scoreO = 0, timeLeft = 0,
+    pellets, players, ghosts, pelletFlashes, scoreX = 0, scoreO = 0, timeLeft = 0,
     mySide, namesX = 'X', namesO = 'O', overlay, dim = false,
   },
   ref,
@@ -102,9 +102,14 @@ const PacmacArena = forwardRef(function PacmacArena(
     <div className="space-y-2 select-none">
       <div className="flex items-center justify-center gap-6 font-pixel">
         <div className="flex items-center gap-2">
-          <span className={cn('text-2xl tabular-nums', mySide === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p1/80', isDead('X') && 'opacity-40')}>
-            {scoreX}
-          </span>
+          <div className="text-center">
+            <span className={cn('block text-2xl tabular-nums', mySide === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p1/80', isDead('X') && 'opacity-40')}>
+              {scoreX}
+            </span>
+            <span className="block text-[6px] tracking-widest text-retro-dim truncate max-w-[64px]">
+              {namesX?.toUpperCase() || 'X'}{mySide === 'X' ? ' · YOU' : ''}
+            </span>
+          </div>
           <span className={cn('w-2 h-2 rounded-full border', isDead('X') ? 'bg-retro-border border-retro-border opacity-40' : 'bg-retro-p1 border-retro-p1 shadow-glow-dot')} aria-hidden="true" />
         </div>
         <div className="text-center min-w-[64px]">
@@ -115,9 +120,14 @@ const PacmacArena = forwardRef(function PacmacArena(
         </div>
         <div className="flex items-center gap-2">
           <span className={cn('w-2 h-2 rounded-full border', isDead('O') ? 'bg-retro-border border-retro-border opacity-40' : 'bg-retro-p2 border-retro-p2 shadow-glow-dot')} aria-hidden="true" />
-          <span className={cn('text-2xl tabular-nums', mySide === 'O' ? 'text-retro-p2 text-glow-p2' : 'text-retro-p2/80', isDead('O') && 'opacity-40')}>
-            {scoreO}
-          </span>
+          <div className="text-center">
+            <span className={cn('block text-2xl tabular-nums', mySide === 'O' ? 'text-retro-p2 text-glow-p2' : 'text-retro-p2/80', isDead('O') && 'opacity-40')}>
+              {scoreO}
+            </span>
+            <span className="block text-[6px] tracking-widest text-retro-dim truncate max-w-[64px]">
+              {namesO?.toUpperCase() || 'O'}{mySide === 'O' ? ' · YOU' : ''}
+            </span>
+          </div>
         </div>
       </div>
       <div className="h-1.5 w-full rounded-full bg-retro-card border border-retro-border overflow-hidden">
@@ -150,6 +160,28 @@ const PacmacArena = forwardRef(function PacmacArena(
 
         {dots}
 
+        {pelletFlashes?.map(f => {
+          const x = f.idx % MAZE_W
+          const y = Math.floor(f.idx / MAZE_W)
+          return (
+            <div
+              key={`${f.idx}-${f.at}`}
+              className="absolute pointer-events-none flex items-center justify-center"
+              style={{
+                width: `${100 / MAZE_W}%`,
+                height: `${100 / MAZE_H}%`,
+                left: `${(x / MAZE_W) * 100}%`,
+                top: `${(y / MAZE_H) * 100}%`,
+              }}
+            >
+              <span
+                className="w-[40%] h-[40%] rounded-full pacmac-eat-flash"
+                style={{ background: 'rgb(var(--c-cta))' }}
+              />
+            </div>
+          )
+        })}
+
         {ghosts?.map((g, i) => {
           const fright = g.mode === 'frightened'
           const eaten = g.mode === 'eaten'
@@ -158,7 +190,10 @@ const PacmacArena = forwardRef(function PacmacArena(
             key={i}
             style={actorStyle(g, eaten ? 0.68 : 0.82, false)}
             className={cn(
-              'absolute pointer-events-none transition-all duration-100',
+              // Position comes pre-extrapolated (host: authoritative; guest:
+              // dead-reckoned from the last snapshot) — no CSS transition on
+              // position, or motion permanently lags behind ~33ms updates.
+              'absolute pointer-events-none transition-opacity duration-100',
               eaten && 'opacity-50',
             )}
           >
@@ -214,22 +249,22 @@ const PacmacArena = forwardRef(function PacmacArena(
                     : 'drop-shadow(0 0 4px rgb(var(--c-p2) / 0.7))',
                 }}
               >
-                {/* Simple OG Pac — yellow pie + black eye. Two paths cross-fade for chomp */}
+                {/* Pac silhouette tinted per player token (p1/X, p2/O) — two paths
+                    cross-fade for chomp. Colors flow through --c-* vars, never hex,
+                    so whose muncher is whose reads at a glance and themes correctly. */}
                 <path
                   className="pacmac-muncher-open"
-                  fill="#FFCC00"
-                  stroke="#000"
+                  style={{ fill: p1 ? 'rgb(var(--c-p1))' : 'rgb(var(--c-p2))', stroke: 'rgb(var(--c-deep))' }}
                   strokeWidth="0.9"
                   d="M16 16 L28.2 5.2 A13.2 13.2 0 1 1 28.2 26.8 Z"
                 />
                 <path
                   className="pacmac-muncher-shut"
-                  fill="#FFCC00"
-                  stroke="#000"
+                  style={{ fill: p1 ? 'rgb(var(--c-p1))' : 'rgb(var(--c-p2))', stroke: 'rgb(var(--c-deep))' }}
                   strokeWidth="0.9"
                   d="M16 16 L29.2 13.2 A13.2 13.2 0 1 1 29.2 18.8 Z"
                 />
-                <circle cx="18.8" cy="9.2" r="2" fill="black" />
+                <circle cx="18.8" cy="9.2" r="2" style={{ fill: 'rgb(var(--c-deep))' }} />
               </svg>
             </div>
           )

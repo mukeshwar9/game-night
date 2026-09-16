@@ -1,5 +1,5 @@
 import { commit, verifyReveal } from './commit'
-import { has, isAnswerWord } from './dictionary'
+import { has } from './dictionary'
 
 export const MAX_GUESSES = 6
 export const WORD_LENGTH = 5
@@ -82,8 +82,11 @@ export async function verifyTranscript(commitmentHash, reveal, guesses) {
   const commitOk = await verifyReveal(commitmentHash, word, salt)
   if (!commitOk) return { ok: false, reason: 'commit_mismatch' }
 
-  // Check answer word validity
-  if (!isAnswerWord(upperWord)) return { ok: false, reason: 'not_answer_word' }
+  // Check the revealed word was legal to set in the first place — must accept
+  // exactly what the setting UI accepted (isValidGuess), not the smaller
+  // answer-only list, or the vast majority of legitimately-set words fail
+  // verification as "cheating".
+  if (!isValidGuess(upperWord)) return { ok: false, reason: 'not_valid_word' }
 
   // Recompute all marks
   if (guesses) {

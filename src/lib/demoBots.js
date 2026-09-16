@@ -5,10 +5,10 @@
 // Returns null when no move is possible (e.g. Reversi pass).
 
 import { getWinner, normalizeBoard } from './gameLogic'
+import { getTicTacToe4Winner } from './tictactoe4Logic'
 import {
   getConnectFourWinner,
   getConnectFourDrop,
-  CF_BIG,
   CF5,
 } from './connectFourLogic'
 import { legalCells, miniBoardWinner, normalizeUWon } from './ultimateTttLogic'
@@ -17,6 +17,7 @@ import { legalMoves, flippedBy } from './reversiLogic'
 import {
   applyOrderChaosMove,
   getOrderChaosWinner,
+  OC_SIZE,
 } from './orderChaosLogic'
 import { applySosMove, normalizeSosLines } from './sosLogic'
 import {
@@ -96,6 +97,25 @@ function botTicTacToe(game, botSymbol) {
   }
 
   return pickRandom(empties)
+}
+
+// 4×4 four-in-a-row — same win/block logic as the 3×3 bot but checked against
+// the real 4×4 win lines; falls back to the inner square, then any empty.
+function botTicTacToe4(game, botSymbol) {
+  const board = game.board
+  const opp = opponent(botSymbol)
+  const empties = board.map((c, i) => (c === '' ? i : -1)).filter(i => i >= 0)
+  if (!empties.length) return null
+
+  const win = findWinningMove(board, empties, botSymbol, getTicTacToe4Winner)
+  if (win !== null) return win
+
+  const block = findWinningMove(board, empties, opp, getTicTacToe4Winner)
+  if (block !== null) return block
+
+  const centers = [5, 6, 9, 10]
+  const avail = centers.filter(i => board[i] === '')
+  return pickRandom(avail.length ? avail : empties)
 }
 
 // ---------------------------------------------------------------------------
@@ -251,10 +271,82 @@ function botReversi(game, botSymbol) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Order & Chaos — bot plays as CHAOS (seat O), wants to PREVENT 5-in-a-row
+// 5. Order & Chaos — botSymbol picks the role: X = ORDER (wants a 5-run of
+// either letter), O = CHAOS (wants to prevent one until the board fills).
 // ---------------------------------------------------------------------------
 
-function botOrderChaos(game) {
+// [dr, dc] for 4 canonical directions: right, down, down-right, down-left —
+// mirrors orderChaosLogic's own DIRECTIONS (not exported, kept in sync here).
+const OC_DIRECTIONS = [
+  [0, 1],
+  [1, 0],
+  [1, 1],
+  [1, -1],
+]
+
+// Longest contiguous run of `letter` that passes through `index`, assuming
+// `letter` has already been placed there.
+function ocRunLengthThrough(board, index, letter) {
+  const row = Math.floor(index / OC_SIZE)
+  const col = index % OC_SIZE
+  let best = 1
+  for (const [dr, dc] of OC_DIRECTIONS) {
+    let count = 1
+    let r = row + dr, c = col + dc
+    while (r >= 0 && r < OC_SIZE && c >= 0 && c < OC_SIZE && board[r * OC_SIZE + c] === letter) {
+      count++; r += dr; c += dc
+    }
+    r = row - dr; c = col - dc
+    while (r >= 0 && r < OC_SIZE && c >= 0 && c < OC_SIZE && board[r * OC_SIZE + c] === letter) {
+      count++; r -= dr; c -= dc
+    }
+    if (count > best) best = count
+  }
+  return best
+}
+
+function botOrderChaosOrder(game) {
+  const board = game.board
+  const empties = board.map((c, i) => (c === '' ? i : -1)).filter(i => i >= 0)
+  if (!empties.length) return null
+
+  const letters = ['X', 'O']
+
+  // 1. Take an immediate win if one exists.
+  for (const i of empties) {
+    for (const letter of letters) {
+      const result = applyOrderChaosMove(board, i, letter)
+      if (!result) continue
+      const res = getOrderChaosWinner(result.board)
+      if (res && res.winner === 'X') return { index: i, letter }
+    }
+  }
+
+  // 2. Otherwise, greedily extend the longest run available — center bias
+  // as a tiebreaker so early moves aren't wasted against the edge.
+  const centerCells = [14, 15, 20, 21]
+  let best = null
+  let bestScore = -1
+  for (const i of shuffle(empties)) {
+    for (const letter of letters) {
+      const length = ocRunLengthThrough(place(board, i, letter), i, letter)
+      const score = length * 10 + (centerCells.includes(i) ? 1 : 0)
+      if (score > bestScore) {
+        bestScore = score
+        best = { index: i, letter }
+      }
+    }
+  }
+  return best
+}
+
+function place(board, index, letter) {
+  const copy = [...board]
+  copy[index] = letter
+  return copy
+}
+
+function botOrderChaosChaos(game) {
   const board = game.board
   const empties = board.map((c, i) => (c === '' ? i : -1)).filter(i => i >= 0)
   if (!empties.length) return null
@@ -286,6 +378,10 @@ function botOrderChaos(game) {
   const pool = centerSafe.length && Math.random() < 0.4 ? centerSafe : safe
 
   return pickRandom(pool)
+}
+
+function botOrderChaos(game, botSymbol) {
+  return botSymbol === 'X' ? botOrderChaosOrder(game) : botOrderChaosChaos(game)
 }
 
 // ---------------------------------------------------------------------------
@@ -529,9 +625,9 @@ function botHex(game, botSymbol) {
 export function pickBotMove(type, game, botSymbol) {
   switch (type) {
     case 'tictactoe':    return botTicTacToe(game, botSymbol)
-    case 'tictactoe4':   return botTicTacToe(game, botSymbol)
+    case 'tictactoe4':   return botTicTacToe4(game, botSymbol)
     case 'ultimatettt':  return botUltimate(game, botSymbol)
-    case 'connectfour':  return botConnectFour(game, botSymbol, CF_BIG)
+    case 'connectfour':  return botConnectFour(game, botSymbol)
     case 'connectfour5': return botConnectFour(game, botSymbol, CF5)
     case 'connectfourpop': return botConnectFourPop(game, botSymbol)
     case 'gomoku':       return botGomoku(game, botSymbol)

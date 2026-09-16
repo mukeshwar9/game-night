@@ -6,6 +6,7 @@ import {
   WAVELENGTH_PAIR_COUNT,
   getSpectrumPair,
   randomSpectrumIndex,
+  nextSpectrumIndex,
   randomTarget,
   clampGuess,
   scoreGuess,
@@ -103,6 +104,31 @@ describe('randomSpectrumIndex', () => {
     for (let i = 0; i < 200; i++) {
       expect(randomSpectrumIndex(5)).not.toBe(5)
     }
+  })
+})
+
+describe('nextSpectrumIndex', () => {
+  it('never returns the current index', () => {
+    for (let i = 0; i < 200; i++) {
+      expect(nextSpectrumIndex([], 5)).not.toBe(5)
+    }
+  })
+
+  it('never returns an already-used index while unused ones remain', () => {
+    const used = Array.from({ length: WAVELENGTH_PAIR_COUNT - 1 }, (_, i) => i).filter(i => i !== 3)
+    for (let i = 0; i < 50; i++) {
+      const idx = nextSpectrumIndex(used, 3)
+      expect(used).not.toContain(idx)
+      expect(idx).not.toBe(3)
+    }
+  })
+
+  it('resets the pool once every other index has been used', () => {
+    const used = Array.from({ length: WAVELENGTH_PAIR_COUNT }, (_, i) => i).filter(i => i !== 3)
+    const idx = nextSpectrumIndex(used, 3)
+    expect(idx).toBeGreaterThanOrEqual(0)
+    expect(idx).toBeLessThan(WAVELENGTH_PAIR_COUNT)
+    expect(idx).not.toBe(3)
   })
 })
 

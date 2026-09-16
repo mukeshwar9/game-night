@@ -87,6 +87,9 @@ export function applySosMove(board, sosLines, index, letter, symbol) {
 
 // Returns null unless every cell is filled.
 // Then counts lines by each player and returns winner object.
+// On a decisive win, `line` is the flattened, deduped list of cells across
+// every triple the winner scored, so Game.jsx's winningLine highlight fires
+// over the winner's actual claimed cells.
 export function getSosWinner(board, sosLines) {
   if (board.some(c => c === '')) return null
 
@@ -97,7 +100,12 @@ export function getSosWinner(board, sosLines) {
     else if (line.by === 'O') o++
   }
 
-  if (x > o) return { winner: 'X' }
-  if (o > x) return { winner: 'O' }
-  return { winner: 'draw' }
+  if (x === o) return { winner: 'draw' }
+
+  const winner = x > o ? 'X' : 'O'
+  const line = [...new Set(
+    sosLines.filter(l => l.by === winner).flatMap(l => l.cells),
+  )].sort((a, b) => a - b)
+
+  return { winner, line }
 }

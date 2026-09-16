@@ -4,14 +4,18 @@ import { db } from '../lib/firebase'
 import {
   HERD_TARGET,
   ANSWER_MS,
+  REVEAL_GRACE_MS,
   groupAnswers,
   scoreGroups,
   nextCow,
   getMatchWinner,
   seatOrder,
   allAnswered,
+  allCommitted,
+  collectRevealedTexts,
   seededShuffle,
 } from '../lib/herdLogic'
+import { commit as makeCommit, verifyReveal } from '../lib/commit'
 import { HERD_PROMPTS } from '../lib/decks/herd'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
@@ -29,6 +33,8 @@ function normalizeRound(raw) {
     promptIndex: raw.promptIndex ?? 0,
     deckSeed: raw.deckSeed ?? 1,
     answers: raw.answers ?? {},
+    reveals: raw.reveals ?? {},
+    revealAt: raw.revealAt ?? null,
     endsAt: raw.endsAt ?? null,
     scored: !!raw.scored,
     cowTo: raw.cowTo ?? null,
@@ -75,6 +81,13 @@ export default function HerdGame({
   const prevPhase = useRef(round?.phase)
   const prevPromptIndex = useRef(round?.promptIndex)
   const advancing = useRef(false)
+  const scoring = useRef(false)
+
+  // Verified reveals — Set of uids whose published {text, salt} matched their
+  // commitment. Null until the reveal-phase digest pass completes, so render
+  // and scoring never group unverified plaintext.
+  const [verified, setVerified] = useState(null)
+  const verifiedRef = useRef(null)
 
   // Corrected clock — every deadline comparison runs through this offset.
   useEffect(() => {
@@ -90,7 +103,10 @@ export default function HerdGame({
     if (round.promptIndex !== prevPromptIndex.current) {
       setAnswerInput('')
       setInputError('')
+      setVerified(null)
+      verifiedRef.current = null
       advancing.current = false
+      scoring.current = false
       prevPromptIndex.current = round.promptIndex
     }
   }, [round?.promptIndex]) // eslint-disable-line react-hooks/exhaustive-deps

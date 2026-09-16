@@ -4,6 +4,7 @@ import {
   REVERSI_DIM,
   reversiInitialBoard,
   flippedBy,
+  isLegalReversiMove,
   legalMoves,
   hasAnyMove,
   applyReversiMove,
@@ -114,6 +115,30 @@ describe('flippedBy', () => {
     // Place X at (4,0): scanning west from col 0 immediately leaves the row.
     // There is nothing to flip → illegal.
     expect(flippedBy(board, idx(4, 0), 'X')).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// isLegalReversiMove
+// ---------------------------------------------------------------------------
+describe('isLegalReversiMove', () => {
+  it('true for a standard opening move', () => {
+    expect(isLegalReversiMove(reversiInitialBoard(), 20, 'X')).toBe(true)
+  })
+
+  it('false for an occupied cell', () => {
+    expect(isLegalReversiMove(reversiInitialBoard(), 27, 'X')).toBe(false)
+  })
+
+  it('false for an empty cell that flanks nothing', () => {
+    expect(isLegalReversiMove(reversiInitialBoard(), 0, 'X')).toBe(false)
+  })
+
+  it('matches flippedBy truthiness across the whole opening board', () => {
+    const board = reversiInitialBoard()
+    for (let i = 0; i < REVERSI_SIZE; i++) {
+      expect(isLegalReversiMove(board, i, 'X')).toBe(flippedBy(board, i, 'X').length > 0)
+    }
   })
 })
 

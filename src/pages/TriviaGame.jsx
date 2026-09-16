@@ -8,6 +8,7 @@ import {
   applyRoundScores,
 } from '../lib/triviaLogic'
 import { TRIVIA_DECK } from '../lib/decks/trivia'
+import { isCoordinator } from '../lib/coordinator'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
@@ -54,6 +55,12 @@ export default function TriviaGame({
 
   const scores = game.scores || {}
   const isPlayer = !!mySeat && !!players?.[mySeat]
+  // Deterministic host-fallback: the coordinator is the lowest-uid ONLINE seat, not
+  // the fixed `isHost` — so a host disconnect hands the question->reveal and
+  // reveal->next transitions off instead of freezing the match. Each write below
+  // re-checks phase inside its transaction, so a coordinator handover mid-flight
+  // stays single-writer/idempotent.
+  const amCoordinator = isPlayer && isCoordinator(mySeat, seats, players)
 
   const questions = useMemo(
     () => (round ? seededDraw(TRIVIA_DECK, round.deckSeed, MATCH_QUESTIONS) : []),
@@ -68,7 +75,17 @@ export default function TriviaGame({
 
   const prevPhaseKey = useRef(null)
   const advancing = useRef(false)
+  const advancingReveal = useRef(false)
   const lastQNumRef = useRef(round?.qNum)
+  const scoresSeeded = useRef(false)
+  // Snapshot of who was seated when the match's first question started — used to
+  // compute `joinedLate` from actual seat membership rather than from `scores`
+  // (a seated player who never answers Q1 has no score delta and would otherwise
+  // be wrongly benched as "joined late" the moment Q2 starts). State, not a ref,
+  // because it's read during render.
+  const [seatedAtStart, setSeatedAtStart] = useState(
+    () => new Set(round?.qNum === 0 ? Object.keys(players || {}) : []),
+  )
 
   // Corrected clock — every deadline comparison runs through this offset.
   useEffect(() => {
@@ -77,6 +94,46 @@ export default function TriviaGame({
     return () => unsub()
   }, [])
   const serverNow = now + clockOffset
+
+  // Snapshot who is seated as of Q1 (qNum 0) — the definitive "was here at match
+  // start" roster `joinedLate` is computed against, independent of `scores`. Kept
+  // in sync via the render-phase derive-from-prop-change pattern (see `prevQNum`
+  // below), not an effect, so it never trails a player joining right at kickoff.
+  if (round?.qNum === 0) {
+    const seatIds = Object.keys(players || {})
+    const same = seatIds.length === seatedAtStart.size && seatIds.every(id => seatedAtStart.has(id))
+    if (!same) setSeatedAtStart(new Set(seatIds))
+  }
+
+  // ---- COORDINATOR: seed scores[seat]=0 for every seated player once, at match
+  // start, so a player who never answers Q1 still has a score entry and isn't
+  // mistaken for someone who joined mid-match (see `joinedLate` below). -----------
+  useEffect(() => {
+    if (!amCoordinator || !round || round.qNum !== 0 || game.status !== 'playing') return
+    if (scoresSeeded.current) return
+    const seatIds = Object.keys(players || {})
+    if (seatIds.every(id => id in scores)) { scoresSeeded.current = true; return }
+    scoresSeeded.current = true
+    runTransaction(ref(db, `games/${gameId}/scores`), current => {
+      const next = { ...(current || {}) }
+      for (const id of seatIds) if (!(id in next)) next[id] = 0
+      return next
+    }).catch(() => { scoresSeeded.current = false })
+  }, [amCoordinator, round?.qNum, game.status, players, scores, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- COORDINATOR: defend against a bad qStartAt seed (e.g. stamped in the future)
+  // by restamping it at the very start of the match if it's implausibly far ahead. --
+  useEffect(() => {
+    if (!amCoordinator || !round || round.phase !== 'question' || round.qNum !== 0) return
+    if (round.qStartAt == null) return
+    const TOLERANCE_MS = 2000
+    if (round.qStartAt - serverNow <= TOLERANCE_MS) return
+    runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.phase !== 'question' || current.qNum !== 0) return current
+      if ((current.qStartAt ?? 0) - (Date.now() + clockOffset) <= TOLERANCE_MS) return current
+      return { ...current, qStartAt: Date.now() + clockOffset }
+    }).catch(() => {})
+  }, [amCoordinator, round?.phase, round?.qNum, round?.qStartAt, serverNow, gameId, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset per-question local state when the question advances (render-phase
   // derive-from-prop-change pattern — no cascading effect renders).
@@ -114,16 +171,18 @@ export default function TriviaGame({
     ? Math.max(0, round.qStartAt + QUESTION_MS - serverNow)
     : null
   const timeUp = remainingMs != null && remainingMs <= 0
-  // Joined mid-match (no score yet, past question 0): spectate until next match.
-  const joinedLate = isPlayer && !(mySeat in scores) && (round?.qNum ?? 0) > 0
+  // Joined mid-match (seat wasn't part of the roster snapshotted at Q1, past
+  // question 0): spectate until next match. Computed from seat membership, not
+  // `scores` — a seated player who simply never answers Q1 must not be benched.
+  const joinedLate = isPlayer && (round?.qNum ?? 0) > 0 && !seatedAtStart.has(mySeat)
 
-  // ---- HOST: question → reveal + score, one idempotent transaction ----------
+  // ---- COORDINATOR: question → reveal + score, one idempotent transaction -------
   useEffect(() => {
     if (lastQNumRef.current !== round?.qNum) {
       lastQNumRef.current = round?.qNum
       advancing.current = false
     }
-    if (!isHost || !round || round.phase !== 'question' || game.status !== 'playing') return
+    if (!amCoordinator || !round || round.phase !== 'question' || game.status !== 'playing') return
     const everyoneIn = seats.length > 0 && seats.every(id =>
       id in (round.answers || {}) || players[id]?.online === false)
     if (!everyoneIn && !timeUp) return
@@ -162,31 +221,39 @@ export default function TriviaGame({
       }
     }
     run()
-  }, [isHost, round?.phase, round?.answers, timeUp, gameId, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [amCoordinator, round?.phase, round?.answers, timeUp, gameId, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- HOST: reveal auto-advances after REVEAL_MS ---------------------------
+  // ---- COORDINATOR: reveal auto-advances after REVEAL_MS ---------------------
   useEffect(() => {
-    if (!isHost || !round || round.phase !== 'reveal' || !round.scored) return
+    if (!amCoordinator || !round || round.phase !== 'reveal' || !round.scored) return
     if (game.status !== 'playing') return
     const t = setTimeout(() => {
+      if (advancingReveal.current) return
+      advancingReveal.current = true
       const isLast = round.qNum + 1 >= MATCH_QUESTIONS
-      update(ref(db, `games/${gameId}`), isLast
-        ? { status: 'finished', proposal: null }
-        : {
-            round: {
-              phase: 'question',
-              deckSeed: round.deckSeed,
-              qNum: round.qNum + 1,
-              qStartAt: Date.now() + clockOffset,
-              answers: null,
-              scored: null,
-              deltas: null,
-            },
-            proposal: null,
-          }).catch(() => {})
+      runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || !current.round || current.round.phase !== 'reveal' || current.round.qNum !== round.qNum) {
+          return current // already advanced (e.g. by a coordinator handover)
+        }
+        return isLast
+          ? { ...current, status: 'finished', proposal: null }
+          : {
+              ...current,
+              round: {
+                phase: 'question',
+                deckSeed: current.round.deckSeed,
+                qNum: current.round.qNum + 1,
+                qStartAt: Date.now() + clockOffset,
+                answers: null,
+                scored: null,
+                deltas: null,
+              },
+              proposal: null,
+            }
+      }).catch(() => {}).finally(() => { advancingReveal.current = false })
     }, REVEAL_MS)
     return () => clearTimeout(t)
-  }, [isHost, round?.phase, round?.scored, round?.qNum, game.status, gameId, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [amCoordinator, round?.phase, round?.scored, round?.qNum, game.status, gameId, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Answer pick ----------------------------------------------------------
   const handlePick = useCallback(async (choice) => {

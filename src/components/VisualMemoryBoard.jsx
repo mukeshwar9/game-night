@@ -1,14 +1,62 @@
+import { useEffect, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { ref, runTransaction } from 'firebase/database'
 import { cn } from '@/lib/utils'
+import { db } from '../lib/firebase'
 import { normalizeVmArray } from '../lib/visualMemoryLogic'
+import useTurnDeadlineEnforcer from '../hooks/useTurnDeadlineEnforcer'
+
+const VM_REVEAL_MS = 1800       // fixed memorize window before the pattern hides
+const TURN_DEADLINE_MS = 30000  // idle-opponent forfeit window, armed once the reveal ends
 
 export default function VisualMemoryBoard({ onMove, disabled, vmPattern, vmClicked, vmLevel }) {
+  const { gameId } = useParams() // present under /game/:gameId; undefined in demo/solo — writes below no-op there
+  useTurnDeadlineEnforcer(gameId, 'visualmemory', 'vmDeadline')
+
   const pattern = normalizeVmArray(vmPattern)
   const clicked = normalizeVmArray(vmClicked)
   const level = vmLevel ?? 3
-  const showPattern = clicked.length === 0
 
   const clickedSet = new Set(clicked)
   const patternSet = new Set(pattern)
+
+  const [showPattern, setShowPattern] = useState(false)
+  const shownKeyRef = useRef(null)  // pattern signature already revealed this turn
+  const revealTimerRef = useRef(null)
+
+  const patternKey = pattern.join('-')
+
+  const armDeadline = () => {
+    if (!gameId) return
+    runTransaction(ref(db, `games/${gameId}/vmDeadline`), cur => cur ?? (Date.now() + TURN_DEADLINE_MS)).catch(() => {})
+  }
+
+  // Reveal the pattern for a fixed window, once, at the start of my turn — then
+  // hide it. After that every cell is clickable (a wrong one loses the round),
+  // matching Simon's watch-then-recall-from-memory shape.
+  useEffect(() => {
+    clearTimeout(revealTimerRef.current)
+    if (disabled || pattern.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- turn flip must synchronously hide the reveal before the opponent's turn paints (prevents the lit-tile leak, item 6)
+      setShowPattern(false)
+      shownKeyRef.current = null
+      return
+    }
+    if (clicked.length > 0) {
+      // Mid-recall already (e.g. a remount) — nothing left to reveal.
+      setShowPattern(false)
+      if (shownKeyRef.current !== patternKey) { shownKeyRef.current = patternKey; armDeadline() }
+      return
+    }
+    if (shownKeyRef.current === patternKey) return // already revealed this pattern this turn
+    shownKeyRef.current = patternKey
+    setShowPattern(true)
+    revealTimerRef.current = setTimeout(() => { setShowPattern(false); armDeadline() }, VM_REVEAL_MS)
+    return () => clearTimeout(revealTimerRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the pattern's own content (patternKey), not identity, so a re-render with the same pattern never restarts the reveal
+  }, [disabled, clicked.length, patternKey])
+
+  useEffect(() => () => clearTimeout(revealTimerRef.current), [])
 
   return (
     <div className="w-full max-w-xs mx-auto space-y-3">
@@ -26,13 +74,15 @@ export default function VisualMemoryBoard({ onMove, disabled, vmPattern, vmClick
           {Array.from({ length: 16 }, (_, i) => {
             const inPattern = patternSet.has(i)
             const isClicked = clickedSet.has(i)
+            // Lit tiles only ever render on the active player's own screen —
+            // `showPattern` is only ever true when `disabled` is false.
             const lit = showPattern && inPattern
-            const isClickable = !disabled && !isClicked && (showPattern ? inPattern : true)
+            const isClickable = !disabled && !showPattern && !isClicked && pattern.length > 0
 
             return (
               <button
                 key={i}
-                aria-label={`vm-cell-${i}`}
+                aria-label={`vm-cell-${i}${lit ? ', lit' : ''}`}
                 disabled={!isClickable}
                 onClick={() => isClickable && onMove(i)}
                 className={cn(
@@ -54,15 +104,13 @@ export default function VisualMemoryBoard({ onMove, disabled, vmPattern, vmClick
 
       {/* Hint */}
       <p className="font-pixel text-[9px] text-center">
-        {showPattern ? (
-          <span className={cn('text-retro-cta', !disabled && 'arcade-blink')}>
-            {disabled ? 'OPPONENT IS MEMORIZING...' : 'MEMORIZE — CLICK ANY TILE TO START'}
-          </span>
+        {disabled ? (
+          <span className="text-retro-dim">OPPONENT’S TURN</span>
+        ) : showPattern ? (
+          <span className="text-retro-cta arcade-blink">MEMORIZE THE LIT TILES</span>
         ) : (
           <span className="text-retro-dim">
-            {disabled
-              ? `OPPONENT RECALLING — ${clicked.length}/${pattern.length}`
-              : `CLICK THE TILES YOU MEMORIZED — ${clicked.length}/${pattern.length}`}
+            CLICK THE TILES YOU MEMORIZED — {clicked.length}/{pattern.length}
           </span>
         )}
       </p>

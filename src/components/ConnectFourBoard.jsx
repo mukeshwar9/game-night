@@ -1,7 +1,46 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 export default function ConnectFourBoard({ board, onMove, disabled, winningLine = [], currentTurn, popMode = false, lastMove = null, cols = 7, rows = 6 }) {
   const [hoveredCol, setHoveredCol] = useState(null)
+
+  // Per-cell "version" bumped only when that cell's content actually changes,
+  // so a pop's downward slide re-triggers the drop animation for every disc
+  // that moved — a plain drop still only re-triggers the one new cell, same
+  // as before. Also detects which column just popped (multiple cells in one
+  // column changing at once is the pop's signature) to flash a highlight.
+  const [cellVersions, setCellVersions] = useState(() => board.map(() => 0))
+  const [poppedCol, setPoppedCol] = useState(null)
+  const prevBoardRef = useRef(board)
+  const popTimerRef = useRef(null)
+
+  useEffect(() => {
+    const prev = prevBoardRef.current
+    if (prev !== board) {
+      const colChangeCounts = {}
+      setCellVersions(versions => {
+        let changed = false
+        const next = [...versions]
+        board.forEach((cell, i) => {
+          if (prev[i] !== cell) {
+            next[i] = (next[i] || 0) + 1
+            changed = true
+            const c = i % cols
+            colChangeCounts[c] = (colChangeCounts[c] || 0) + 1
+          }
+        })
+        return changed ? next : versions
+      })
+      const shiftedCol = Object.entries(colChangeCounts).find(([, n]) => n > 1)
+      if (shiftedCol) {
+        const c = Number(shiftedCol[0])
+        setPoppedCol(c)
+        clearTimeout(popTimerRef.current)
+        popTimerRef.current = setTimeout(() => setPoppedCol(null), 350)
+      }
+      prevBoardRef.current = board
+    }
+    return () => clearTimeout(popTimerRef.current)
+  }, [board, cols])
 
   // In pop mode the board emits { col, action }; classic mode emits a bare col.
   const emit = (col, action) => {
@@ -18,19 +57,20 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
           disabled && 'opacity-60 saturate-50',
         )}
       >
-        <div className="grid gap-1 sm:gap-1.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+        <div className="grid gap-1 sm:gap-1.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }} role="grid">
           {board.map((cell, i) => {
             const col = i % cols
             const colFull = !!board[col]
             const isHovered = hoveredCol === col && !disabled && !colFull
             return (
-              <button
+              <div
                 key={i}
+                role="gridcell"
+                aria-hidden="true"
+                tabIndex={-1}
                 onClick={() => !colFull && emit(col, 'drop')}
                 onMouseEnter={() => setHoveredCol(col)}
                 onMouseLeave={() => setHoveredCol(null)}
-                disabled={disabled || colFull}
-                aria-label={`Column ${col + 1}, ${cell || 'empty'}`}
                 className={cn(
                   'aspect-square rounded-full border-2 transition-all duration-100 overflow-hidden',
                   'flex items-center justify-center',
@@ -41,12 +81,16 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                         ? 'bg-retro-p1/20 border-retro-p1/40'
                         : 'bg-retro-p2/20 border-retro-p2/40'
                       : 'bg-retro-bg border-retro-border',
+                  poppedCol === col && 'ring-2 ring-retro-cta/70',
                   !cell && !disabled && !colFull ? 'cursor-pointer' : 'cursor-default',
                 )}
               >
-                {/* inner disc mounts only when filled → drops in once on placement */}
+                {/* inner disc mounts only when filled → drops in once on placement;
+                    keyed by cell content + a per-cell version so a pop's downward
+                    slide re-triggers the drop animation for every shifted disc */}
                 {cell && (
                   <span
+                    key={`${cell}-${cellVersions[i] || 0}`}
                     className={cn(
                       'w-full h-full rounded-full flex items-center justify-center',
                       cell === 'X' ? 'bg-retro-p1' : 'bg-retro-p2',
@@ -60,7 +104,35 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                     <span className="font-pixel text-[10px] sm:text-xs text-retro-bg/80 select-none">{cell}</span>
                   </span>
                 )}
-              </button>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* One focusable, labelled control per column — replaces 42 individual
+            cell tab stops with 7-9 meaningful ones. */}
+        <div className="grid gap-1 sm:gap-1.5 mt-1" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+          {Array.from({ length: cols }, (_, col) => {
+            const colFull = !!board[col]
+            const filled = board.reduce((n, c, j) => (j % cols === col && c ? n + 1 : n), 0)
+            const clickable = !disabled && !colFull
+            return (
+              <button
+                key={col}
+                onClick={() => clickable && emit(col, 'drop')}
+                onMouseEnter={() => setHoveredCol(col)}
+                onMouseLeave={() => setHoveredCol(null)}
+                disabled={!clickable}
+                aria-label={
+                  colFull
+                    ? `Column ${col + 1}, full`
+                    : `Column ${col + 1}, ${filled} disc${filled === 1 ? '' : 's'}, drop here`
+                }
+                className={cn(
+                  'h-2 sm:h-2.5 rounded-full transition-all',
+                  clickable ? 'bg-retro-border/60 hover:bg-retro-cta/60 cursor-pointer' : 'bg-retro-border/20 cursor-default',
+                )}
+              />
             )
           })}
         </div>

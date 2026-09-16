@@ -19,11 +19,27 @@ import { useRealtimePeer } from './useRealtimePeer'
 //   • read the local controls hook and return the input to send upstream.
 //
 // `INPUT_MS` throttles upstream send frequency. The Pong guest sends a dir at
-// ~30 Hz (INPUT_MS = 33); the Snake / Tron / Sumo / Space Duel guests send only
-// on edge-triggered changes (INPUT_MS = 0, page returns input: null between
+// ~30 Hz (INPUT_MS = 33); the Snake / Tron / Sumo guests send only on
+// edge-triggered changes (INPUT_MS = 0, page returns input: null between
 // presses). `input: null` is never sent.
 //
-// `sfxMap` is `{ [kind]: () => void }` — applied to incoming `{t:'e', k}` frames.
+// Between two throttled sends, `tick` can be called several times (it runs
+// every rAF, ~60 Hz, while sends are capped to INPUT_MS). A plain
+// last-write-wins replace of the pending payload silently drops anything true
+// only on an intermediate frame — e.g. Space Duel's edge-triggered `fire`
+// flag, which `tick`'s local input hook clears the moment it is read, so a
+// press landing on a frame that isn't the send frame vanishes (~half of
+// guest shots). `mergeInput(pending, next)` lets a page combine the pending
+// payload with each new one instead of overwriting it — e.g. OR the boolean
+// flag across frames — so nothing true gets lost before it is actually sent;
+// the merged payload is cleared right after it goes out. Default (omitted)
+// is `(pending, next) => next`, i.e. the previous plain replace behavior —
+// every other game is unaffected.
+//
+// `sfxMap` is `{ [kind]: (by?) => void }` — applied to incoming `{t:'e', k, by?}`
+// frames; `by` (the event's originating side, 'X'|'O') is passed through when
+// the host included one, `undefined` otherwise — existing sfxMap callbacks
+// that ignore their argument are unaffected.
 
 export function useRealtimeGuest(opts) {
   const {
@@ -32,6 +48,7 @@ export function useRealtimeGuest(opts) {
     setRender, initialRender,
     sfxMap = {},
     INPUT_MS = 0,                                // ms between upstream input sends; 0 = no throttle
+    mergeInput,                                  // (pending, next) => merged; default replaces (last-write-wins)
   } = opts
 
   const snapRef = useRef(null)
@@ -45,12 +62,12 @@ export function useRealtimeGuest(opts) {
   // loop run once per connection lifecycle while still calling the latest tick.
   const cbRef = useRef(null)
   useLayoutEffect(() => {
-    cbRef.current = { tick, setRender, initialRender, sfxMap }
+    cbRef.current = { tick, setRender, initialRender, sfxMap, mergeInput }
   })
 
   const onMessage = useCallback((msg) => {
     if (msg.t === 's') { snapRef.current = msg; snapAtRef.current = performance.now() }
-    else if (msg.t === 'e') cbRef.current.sfxMap[msg.k]?.()
+    else if (msg.t === 'e') cbRef.current.sfxMap[msg.k]?.(msg.by)
   }, [])
 
   const peer = useRealtimePeer({ gameId, mySymbol, enabled, onMessage })
@@ -61,6 +78,10 @@ export function useRealtimeGuest(opts) {
   useEffect(() => {
     if (!enabled) return
     let raf, last = performance.now(), lastInput = 0
+    // Pending outgoing payload, accumulated via mergeInput() across every
+    // tick() call since the last send — reset per connection lifecycle, same
+    // scope as `lastInput`/`last` above.
+    let pending = null
     const loop = (now) => {
       raf = requestAnimationFrame(loop)
       const c = cbRef.current
@@ -72,10 +93,13 @@ export function useRealtimeGuest(opts) {
       if (!res) { c.setRender(c.initialRender); return }
       c.setRender(res.view)
       if (res.input != null) {
-        if (INPUT_MS <= 0 || now - lastInput >= INPUT_MS) {
-          lastInput = now
-          peerSend(res.input)
-        }
+        const merge = c.mergeInput || ((_pending, next) => next)
+        pending = merge(pending, res.input)
+      }
+      if (pending != null && (INPUT_MS <= 0 || now - lastInput >= INPUT_MS)) {
+        lastInput = now
+        peerSend(pending)
+        pending = null
       }
     }
     raf = requestAnimationFrame(loop)

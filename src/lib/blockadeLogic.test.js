@@ -19,6 +19,8 @@ import {
   isWallMoveLegal,
   applyPawnMove,
   applyWallMove,
+  hasAnyLegalMove,
+  applyBlockadeMove,
   computeBotMove,
 } from './blockadeLogic'
 
@@ -389,6 +391,103 @@ describe('applyMove full contract', () => {
   })
 })
 
+describe('hasAnyLegalMove', () => {
+  it('true when pawn moves exist, regardless of walls', () => {
+    const pawns = { X: BK_START_X, O: BK_START_O }
+    expect(hasAnyLegalMove(emptyWalls(), pawns, 0, 'X')).toBe(true)
+  })
+
+  it('structural invariant: legalPawnMoves fully empty implies no legal wall either', () => {
+    // legalPawnMoves(P) is [] only when every one of P's orthogonal neighbors
+    // is either wall-blocked or (occupied by the opponent with straight jump
+    // AND both diagonals blocked). In the occupancy case, blocking all of the
+    // opponent's jump targets necessarily blocks all of the OPPONENT's other
+    // edges too (they're the same edges, just viewed from the other side),
+    // which strands the opponent -- and isWallMoveLegal requires a path for
+    // BOTH players, so once one pawn is already pathless, no wall (by either
+    // player) can ever be legal again. So hasAnyLegalMove's wall-checking
+    // branch is a pure defensive backstop, not something reachable via legal
+    // play; this test documents/pins that invariant with the box-and-jump
+    // construction from the "zero legal moves" test above.
+    const pawns = { X: cellAt(4, 4), O: cellAt(3, 4) }
+    const walls = emptyWalls()
+    walls[hSlot(2, 3)] = 'X' // blocks the straight jump (2,4)<->(3,4)
+    walls[vSlot(2, 3)] = 'X' // blocks the left diagonal
+    walls[vSlot(2, 4)] = 'X' // blocks the right diagonal
+    walls[vSlot(4, 3)] = 'X' // blocks left step
+    walls[vSlot(4, 4)] = 'X' // blocks right step
+    walls[hSlot(4, 4)] = 'X' // blocks down step
+    expect(legalPawnMoves(pawns, walls, 'X')).toEqual([])
+    expect(hasPathToGoal(walls, pawns.X, 0)).toBe(false) // X's own path also dies
+    expect(hasAnyLegalMove(walls, pawns, 10, 'X')).toBe(false)
+  })
+
+  it('false when no pawn moves and zero walls remaining', () => {
+    // O cornered at (0,0); both its only two neighbors are wall-blocked.
+    const pawns = { X: BK_START_X, O: cellAt(0, 0) }
+    const walls = emptyWalls()
+    walls[vSlot(0, 0)] = 'X' // blocks (0,0)<->(0,1)
+    walls[hSlot(0, 0)] = 'X' // blocks (0,0)<->(1,0)
+    expect(legalPawnMoves(pawns, walls, 'O')).toEqual([])
+    expect(hasAnyLegalMove(walls, pawns, 0, 'O')).toBe(false)
+  })
+
+  it('false when no pawn moves and every wall placement is illegal', () => {
+    // Same corner-block as above, but with walls remaining -- since O's own
+    // BFS path is already Infinity (fully boxed), no trial wall can pass
+    // isWallMoveLegal's hasPathToGoal check for O either.
+    const pawns = { X: BK_START_X, O: cellAt(0, 0) }
+    const walls = emptyWalls()
+    walls[vSlot(0, 0)] = 'X'
+    walls[hSlot(0, 0)] = 'X'
+    expect(hasAnyLegalMove(walls, pawns, 10, 'O')).toBe(false)
+  })
+})
+
+describe('applyBlockadeMove — trapped-opponent turn-skip house rule', () => {
+  it('keeps currentTurn on the mover when the move leaves the opponent with zero legal moves', () => {
+    const walls = emptyWalls()
+    walls[vSlot(0, 0)] = 'X' // boxes O in at (0,0): blocks (0,0)<->(0,1)
+    walls[hSlot(0, 0)] = 'X' // blocks (0,0)<->(1,0)
+    const game = {
+      blockadePawnX: cellAt(4, 4),
+      blockadePawnO: cellAt(0, 0),
+      blockadeWallsX: 10,
+      blockadeWallsO: 0, // O out of walls -> hasAnyLegalMove(O) is false
+      blockadeMoves: 3,
+    }
+    const result = applyBlockadeMove({
+      board: walls, game, symbol: 'X', move: { type: 'pawn', to: cellAt(4, 5) },
+    })
+    expect(result).not.toBeNull()
+    expect(result.updates.blockadePawnX).toBe(cellAt(4, 5))
+    expect(result.updates.currentTurn).toBe('X') // skipped O, not flipped
+    expect(result.updates.blockadeMoves).toBe(4)
+  })
+
+  it('flips currentTurn normally when the opponent still has a legal move', () => {
+    const game = {
+      blockadePawnX: cellAt(4, 4),
+      blockadePawnO: BK_START_O,
+      blockadeWallsX: 10,
+      blockadeWallsO: 10,
+      blockadeMoves: 0,
+    }
+    const result = applyBlockadeMove({
+      board: emptyWalls(), game, symbol: 'X', move: { type: 'pawn', to: cellAt(4, 5) },
+    })
+    expect(result.updates.currentTurn).toBe('O')
+  })
+
+  it('returns null for an illegal move, same as the underlying appliers', () => {
+    const game = { blockadePawnX: BK_START_X, blockadePawnO: BK_START_O, blockadeWallsX: 10, blockadeWallsO: 10 }
+    const result = applyBlockadeMove({
+      board: emptyWalls(), game, symbol: 'X', move: { type: 'pawn', to: cellAt(0, 0) },
+    })
+    expect(result).toBeNull()
+  })
+})
+
 describe('computeBotMove sanity', () => {
   function randomGame(seed) {
     // deterministic pseudo-random game state generator
@@ -453,6 +552,23 @@ describe('computeBotMove sanity', () => {
     }
     const move = computeBotMove(game, 'X')
     expect(move).toEqual({ type: 'pawn', to: cellAt(0, 4) })
+  })
+
+  it('never returns null while hasAnyLegalMove says a move exists (fallback chain)', () => {
+    // Property test for the defensive fallback: computeBotMove should only
+    // ever return null (a pass, tolerated by demoBots.js's caller) in lockstep
+    // with hasAnyLegalMove being false for that symbol -- never null while a
+    // legal pawn or wall move genuinely exists.
+    for (let seed = 1; seed <= 200; seed++) {
+      const game = randomGame(seed)
+      for (const symbol of ['X', 'O']) {
+        const pawns = { X: game.blockadePawnX, O: game.blockadePawnO }
+        const wallsRemaining = symbol === 'X' ? game.blockadeWallsX : game.blockadeWallsO
+        const canMove = hasAnyLegalMove(game.board, pawns, wallsRemaining, symbol)
+        const move = computeBotMove(game, symbol)
+        expect(move !== null).toBe(canMove)
+      }
+    }
   })
 
   it('bot with 0 walls remaining never returns a wall move', () => {

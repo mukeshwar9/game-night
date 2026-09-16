@@ -20,6 +20,10 @@ export default function TypingKeyboard({ onKey, disabled = false }) {
         onKey(e.ctrlKey || e.metaKey ? 'WORD_BACKSPACE' : 'BACKSPACE')
         return
       }
+      // Modifier combos (Ctrl/Meta/Alt+letter — copy, select-all, browser
+      // shortcuts, etc.) are not typing input; letting them through injects
+      // stray characters into the passage.
+      if (e.ctrlKey || e.metaKey || e.altKey) return
       if (e.key === ' ') { e.preventDefault(); onKey(' '); return }
       if (e.key.length === 1) onKey(e.key)
     }
@@ -37,10 +41,10 @@ export default function TypingKeyboard({ onKey, disabled = false }) {
     if (/^[A-Z]$/.test(raw)) setShifted(false)
   }
 
-  // Compact row height on short viewports (M-52) so the keyboard stays above
-  // the fold at ~667px alongside the passage above it.
+  // h-11 (44px) is the tap-target floor — never shrink below it, even on
+  // short viewports (the M-52 compact mode used to drop to h-9/36px).
   const baseBtn = cn(
-    'h-10 [@media(max-height:700px)]:h-9 flex items-center justify-center font-pixel text-[10px] rounded border transition-all',
+    'h-11 flex items-center justify-center font-pixel text-[10px] rounded border transition-all',
     'select-none active:scale-90',
   )
   const normalStyle = disabled

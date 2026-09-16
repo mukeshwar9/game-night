@@ -49,8 +49,9 @@ function shortestPath(board, symbol, isStart, isGoal) {
 
 // X connects left↔right edges, O connects top↔bottom. Draws are impossible:
 // a full board always yields exactly one winner, so there is no draw branch.
-// Returns null while unresolved, else { winner, winningLine } where
-// winningLine is the shortest connecting path (variable length, ≥ 11 cells).
+// Returns null while unresolved, else { winner, line } where line is the
+// shortest connecting path (variable length, ≥ 11 cells). Key is `line` to
+// match every other logic module's getWinner contract (see gameLogic.js).
 export function getHexWinner(rawBoard) {
   const board = normalizeBoard(rawBoard, HEX_CELL_COUNT);
   const xPath = shortestPath(
@@ -59,14 +60,14 @@ export function getHexWinner(rawBoard) {
     i => i % HEX_SIZE === 0,
     i => i % HEX_SIZE === HEX_SIZE - 1,
   );
-  if (xPath) return { winner: 'X', winningLine: xPath };
+  if (xPath) return { winner: 'X', line: xPath };
   const oPath = shortestPath(
     board,
     'O',
     i => i < HEX_SIZE,
     i => i >= HEX_CELL_COUNT - HEX_SIZE,
   );
-  if (oPath) return { winner: 'O', winningLine: oPath };
+  if (oPath) return { winner: 'O', line: oPath };
   return null;
 }
 

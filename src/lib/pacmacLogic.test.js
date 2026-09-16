@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   createState, step, getWinner, computeAI, advanceActor,
-  isWall, cellIndex, packPellets, unpackPellets,
+  isWall, cellIndex, packPellets, unpackPellets, nearestMuncher,
+  advanceGhostDeadReckon,
   MAZE_W, MAZE_H, MAZE_ROWS, SPEED, PELLET_PTS, POWER_PTS,
-  START_PELLETS, HIT_DIST,
+  START_PELLETS, HIT_DIST, GHOST_SPEED, FRIGHT_SPEED, EATEN_SPEED,
 } from './pacmacLogic'
 
 const DT = 1 / 120
@@ -94,6 +95,47 @@ describe('step', () => {
     const a = step(s, {}, DT)
     expect(a.state.pellets[idx]).toBe(0)
     expect(a.state.scoreX + a.state.scoreO).toBe(PELLET_PTS)
+  })
+
+  it('splits a same-tick contested pellet fairly, not always to X (host bias)', () => {
+    let s = createState()
+    let xWins = 0
+    let oWins = 0
+    const idx = cellIndex(3.5, 1.5)
+    for (let i = 0; i < 50; i++) {
+      const pellets = s.pellets.slice()
+      pellets[idx] = 1
+      const trial = {
+        ...s,
+        pellets,
+        scoreX: 0,
+        scoreO: 0,
+        players: {
+          ...s.players,
+          X: { ...s.players.X, x: 3.5, y: 1.5, dir: 'right', want: 'right', dead: 0, combo: 0 },
+          O: { ...s.players.O, x: 3.5, y: 1.5, dir: 'right', want: 'right', dead: 0, combo: 0 },
+        },
+      }
+      const { state } = step(trial, {}, DT)
+      expect(state.scoreX + state.scoreO).toBe(PELLET_PTS) // still exactly one winner
+      if (state.scoreX > 0) xWins++
+      if (state.scoreO > 0) oWins++
+      s = state // carry the rng forward so it evolves across trials
+    }
+    expect(xWins).toBeGreaterThan(0)
+    expect(oWins).toBeGreaterThan(0)
+  })
+
+  it('still awards independently when munchers land on different pellets', () => {
+    let s = createState()
+    s = { ...s, players: {
+      ...s.players,
+      X: { ...s.players.X, x: 3.5, y: 1.5, dir: 'right', want: 'right', dead: 0, combo: 0 },
+      O: { ...s.players.O, x: 5.5, y: 1.5, dir: 'right', want: 'right', dead: 0, combo: 0 },
+    } }
+    const { state } = step(s, {}, DT)
+    expect(state.scoreX).toBeGreaterThanOrEqual(PELLET_PTS)
+    expect(state.scoreO).toBeGreaterThanOrEqual(PELLET_PTS)
   })
 
   it('power pellet frightens ghosts and scores POWER_PTS', () => {
@@ -199,6 +241,64 @@ describe('packPellets', () => {
     const packed = packPellets(s.pellets)
     const out = unpackPellets(packed)
     expect(Array.from(out)).toEqual(Array.from(s.pellets))
+  })
+})
+
+describe('nearestMuncher (ghost targeting fairness)', () => {
+  it('ignores a dead muncher and targets the alive one', () => {
+    const s = createState()
+    s.players.X.dead = 1
+    s.players.X.x = 5; s.players.X.y = 9
+    s.players.O.x = 13; s.players.O.y = 9
+    const target = nearestMuncher(s, 9, 9)
+    expect(target).toBe(s.players.O)
+  })
+
+  it('falls back harmlessly when both munchers are dead', () => {
+    const s = createState()
+    s.players.X.dead = 1
+    s.players.O.dead = 1
+    const target = nearestMuncher(s, 9, 9)
+    expect(target).toBe(s.players.X)
+  })
+
+  it('splits an exact-distance tie fairly over time, not always X', () => {
+    let s = createState()
+    let xWins = 0
+    let oWins = 0
+    for (let i = 0; i < 50; i++) {
+      s.players.X.x = 5; s.players.X.y = 9
+      s.players.O.x = 13; s.players.O.y = 9 // both distance 4 from (9,9)
+      const target = nearestMuncher(s, 9, 9)
+      if (target === s.players.X) xWins++
+      else oWins++
+    }
+    expect(xWins).toBeGreaterThan(0)
+    expect(oWins).toBeGreaterThan(0)
+  })
+})
+
+describe('advanceGhostDeadReckon', () => {
+  it('moves the ghost forward along its heading at the mode-appropriate speed', () => {
+    const g = { x: 9.5, y: 8.5, dir: 'left', mode: 'chase' }
+    const dt = 0.1
+    const moved = advanceGhostDeadReckon(g, dt)
+    expect(moved.x).toBeCloseTo(9.5 - GHOST_SPEED * dt, 5)
+    expect(moved.y).toBeCloseTo(8.5, 5)
+  })
+
+  it('uses frightened/eaten speeds', () => {
+    const dt = 0.1
+    const fright = advanceGhostDeadReckon({ x: 9.5, y: 8.5, dir: 'left', mode: 'frightened' }, dt)
+    expect(fright.x).toBeCloseTo(9.5 - FRIGHT_SPEED * dt, 5)
+    const eaten = advanceGhostDeadReckon({ x: 9.5, y: 8.5, dir: 'left', mode: 'eaten' }, dt)
+    expect(eaten.x).toBeCloseTo(9.5 - EATEN_SPEED * dt, 5)
+  })
+
+  it('hard-stops before a wall instead of clipping through it', () => {
+    const g = { x: 1.5, y: 1.5, dir: 'up', mode: 'chase' } // wall at y=0
+    const moved = advanceGhostDeadReckon(g, 1)
+    expect(moved.y).toBeGreaterThan(0.9)
   })
 })
 

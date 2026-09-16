@@ -129,7 +129,7 @@ export default function BluffBattleGame({
 
   // --- Roll: every non-spectator rolls hidden dice, stores them, publishes commit ---
   const handleRoll = useCallback(async () => {
-    if (isSpectator || busy) return
+    if (isSpectator || busy || myDiceCount <= 0 || phase !== 'rolling') return
     setBusy(true)
     try {
       const dice = rollDice(myDiceCount)
@@ -143,7 +143,7 @@ export default function BluffBattleGame({
     } finally {
       setBusy(false)
     }
-  }, [isSpectator, busy, myDiceCount, roundKey, gameId, myKey])
+  }, [isSpectator, busy, myDiceCount, phase, roundKey, gameId, myKey])
 
   // --- Both committed → advance rolling → bidding (idempotent) ---
   useEffect(() => {
@@ -271,7 +271,14 @@ export default function BluffBattleGame({
           const winner = matchOver
           out.status = 'finished'
           out.winner = winner
-          out.scores = { ...(cur.scores || {}), [winner]: (cur.scores?.[winner] || 0) + 1 }
+          // A player hitting 0 dice loses the MATCH outright (Perudo rules),
+          // independent of the round-win tally — force the winner's score to
+          // MATCH_WINS so the shared GameStatus component's own "MATCH OVER"
+          // branch renders (it derives match-over from scores, not dice).
+          out.scores = {
+            ...(cur.scores || {}),
+            [winner]: Math.max((cur.scores?.[winner] || 0) + 1, MATCH_WINS),
+          }
         }
         return out
       }).catch(() => {})
@@ -294,9 +301,12 @@ export default function BluffBattleGame({
 
   // --- NEXT ROUND: clear reveal/bids/commits, alternate opening turn, reroll ---
   const handleNextRound = useCallback(async () => {
-    if (isSpectator) return
+    if (isSpectator || matchWinner) return
     const r = game.bluffRound || {}
     const dc = normalizeRound(r)
+    // Defense in depth: never resume a round with a 0-dice player — the
+    // match should already have ended (see the resolve effect above).
+    if (dc.diceCountX <= 0 || dc.diceCountO <= 0) return
     // loser of the prior exchange opens the next bidding round
     const opener = dc.outcome?.loser || (dc.turn === 'X' ? 'O' : 'X')
     sessionStorage.removeItem(roundKey)
@@ -311,7 +321,51 @@ export default function BluffBattleGame({
         // diceCountX / diceCountO carry over (already decremented)
       })
     } catch { toast.error('NEXT ROUND FAILED — CHECK CONNECTION') }
-  }, [isSpectator, game.bluffRound, roundKey, gameId])
+  }, [isSpectator, matchWinner, game.bluffRound, roundKey, gameId])
+
+  // --- Secret lost (new tab wiped sessionStorage) → showdown can never land.
+  // Concede the round instead of stalling forever (Hangwoman precedent). ---
+  const mySecretLost = phase === 'reveal' && !isSpectator &&
+    !round[`reveal${myKey}`] && !sessionStorage.getItem(roundKey)
+
+  const [conceding, setConceding] = useState(false)
+  const handleConcedeLostSecret = useCallback(async () => {
+    if (conceding) return
+    setConceding(true)
+    try {
+      await runTransaction(ref(db, `games/${gameId}`), (cur) => {
+        if (!cur) return
+        const r = cur.bluffRound
+        if (!r || r.phase !== 'reveal' || r.outcome) return // already resolved
+        const newDiceX = r.diceCountX - (myKey === 'X' ? 1 : 0)
+        const newDiceO = r.diceCountO - (myKey === 'O' ? 1 : 0)
+        const dead = newDiceX <= 0 ? 'X' : newDiceO <= 0 ? 'O' : null
+        const matchOver = dead ? (dead === 'X' ? 'O' : 'X') : null
+        const out = {
+          ...cur,
+          bluffRound: {
+            ...r,
+            outcome: { loser: myKey, actual: null, bidMet: null, cheat: null, conceded: true },
+            diceCountX: newDiceX,
+            diceCountO: newDiceO,
+          },
+        }
+        if (matchOver) {
+          out.status = 'finished'
+          out.winner = matchOver
+          out.scores = {
+            ...(cur.scores || {}),
+            [matchOver]: Math.max((cur.scores?.[matchOver] || 0) + 1, MATCH_WINS),
+          }
+        }
+        return out
+      })
+    } catch {
+      toast.error('CONCEDE FAILED — CHECK CONNECTION')
+    } finally {
+      setConceding(false)
+    }
+  }, [conceding, gameId, myKey])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -505,6 +559,22 @@ export default function BluffBattleGame({
         />
       )}
 
+      {mySecretLost && (
+        <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3">
+          <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
+            Your dice were stored in this browser tab only.<br />
+            Concede the round to continue.
+          </p>
+          <button
+            onClick={handleConcedeLostSecret}
+            disabled={conceding}
+            className="min-h-11 px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {conceding ? 'CONCEDING…' : 'CONCEDE ROUND'}
+          </button>
+        </div>
+      )}
+
       {!opponentOnline && !isSpectator && phase !== 'reveal' && <OfflineNotice label="OPPONENT" />}
 
       {!proposal && phase !== 'reveal' && onSwitchGame && (
@@ -525,6 +595,60 @@ function RevealPanel({
 
   const diceX = toDice(revealX?.dice)
   const diceO = toDice(revealO?.dice)
+
+  // Shared footer: match-over screen, or the NEXT ROUND control.
+  const footer = matchWinner ? (
+    <GameStatus
+      status="finished"
+      winner={game.winner}
+      mySymbol={mySymbol}
+      scores={game.scores}
+      players={game.players}
+      gameType={game.gameType}
+      onNewMatch={null}
+      onSwitchGame={!proposal ? onSwitchGame : null}
+    />
+  ) : (
+    !isSpectator && (
+      <div className="text-center space-y-2">
+        <button
+          onClick={onNextRound}
+          className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+        >
+          NEXT ROUND
+        </button>
+        {onSwitchGame && !proposal && (
+          <GameSwitcher currentType="bluff" onSwitch={onSwitchGame} />
+        )}
+      </div>
+    )
+  )
+
+  // One side conceded (lost their secret dice) — no cups to reveal, so show
+  // a simple forfeit summary instead of the showdown tally.
+  if (outcome?.conceded) {
+    const iLost = !isSpectator && outcome.loser === mySymbol
+    const loserName = outcome.loser === 'X' ? (game.players?.X?.name || 'X') : (game.players?.O?.name || 'O')
+    return (
+      <div className="space-y-3">
+        <p className="text-center font-pixel text-xs text-retro-p2 text-glow-p2">SHOWDOWN!</p>
+        <div className="bg-retro-surface border border-retro-border rounded p-3 text-center space-y-1">
+          <p className="font-pixel text-[10px] text-retro-text">
+            {loserName.toUpperCase()} CONCEDED THE ROUND (LOST THEIR DICE)
+          </p>
+        </div>
+        {!isSpectator && (
+          <p className={cn(
+            'text-center font-pixel text-sm',
+            iLost ? 'text-retro-p2 text-glow-p2' : 'text-retro-cta text-glow-cta',
+          )}>
+            {iLost ? 'YOU LOSE A DIE' : `${opName} LOSES A DIE`}
+          </p>
+        )}
+        {footer}
+      </div>
+    )
+  }
 
   if (!outcome || !bothRevealed) {
     return (
@@ -585,32 +709,7 @@ function RevealPanel({
       )}
 
       {/* Match / next-round controls */}
-      {matchWinner ? (
-        <GameStatus
-          status="finished"
-          winner={game.winner}
-          mySymbol={mySymbol}
-          scores={game.scores}
-          players={game.players}
-          gameType={game.gameType}
-          onNewMatch={null}
-          onSwitchGame={!proposal ? onSwitchGame : null}
-        />
-      ) : (
-        !isSpectator && (
-          <div className="text-center space-y-2">
-            <button
-              onClick={onNextRound}
-              className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
-            >
-              NEXT ROUND
-            </button>
-            {onSwitchGame && !proposal && (
-              <GameSwitcher currentType="bluff" onSwitch={onSwitchGame} />
-            )}
-          </div>
-        )
-      )}
+      {footer}
     </div>
   )
 }
@@ -628,20 +727,27 @@ function CupReveal({ label, dice, face, accent }) {
         {dice.map((d, i) => {
           const counts = d === face || d === 1
           return (
-            <span
-              key={i}
-              className={cn(
-                'text-2xl leading-none',
-                counts
-                  ? (accent === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2')
-                  : 'text-retro-dim opacity-50',
-              )}
-            >
-              {DIE_GLYPH[d] ?? '?'}
+            <span key={i} className="relative inline-flex flex-col items-center">
+              <span
+                className={cn(
+                  'text-2xl leading-none',
+                  counts
+                    ? cn(accent === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2', 'underline decoration-2 underline-offset-4')
+                    : 'text-retro-dim opacity-50',
+                )}
+              >
+                {DIE_GLYPH[d] ?? '?'}
+              </span>
+              {/* Non-color signal that this die counts toward the bid — glyph
+                  alone (color) is unreadable for colorblind players. */}
+              {counts && <span className="font-pixel text-[6px] text-retro-cta leading-none">✓</span>}
             </span>
           )
         })}
       </div>
+      <p className="font-pixel text-[6px] text-retro-dim text-center tracking-widest">
+        ✓ = COUNTS TOWARD BID
+      </p>
     </div>
   )
 }

@@ -15,6 +15,7 @@ import {
   allSunk,
   remainingShips,
   verifyTranscript,
+  canPlace,
 } from '../lib/battleshipLogic'
 import { commit } from '../lib/commit'
 import { sounds } from '../lib/sounds'
@@ -28,6 +29,7 @@ import { toast } from 'sonner'
 // re-grades the whole transcript at reveal and voids cheaters.
 
 const REVEAL_GRACE_MS = 30000
+const SHOT_GRACE_MS = 60000
 
 const fleetKey = gameId => `battleship-fleet-${gameId}`
 
@@ -45,6 +47,23 @@ function shotsArray(raw) {
 function cellsOf(fleet, ship) {
   const spec = FLEET_SPEC.find(s => s.ship === ship)
   return shipCells(spec.size, fleet[ship].orient, fleet[ship].cell)
+}
+
+// cell index -> { shipIdx, seg } for hull rendering (color + end-cap) in
+// BattleshipBoard. seg is derived from shipCells() order (index 0 = start,
+// last = end) plus the ship's orient.
+function fleetCellMap(fleet) {
+  const map = new Map()
+  for (const ship of Object.keys(fleet)) {
+    const shipIdx = FLEET_SPEC.findIndex(s => s.ship === ship)
+    const { orient } = fleet[ship]
+    const cells = cellsOf(fleet, ship)
+    cells.forEach((c, i) => {
+      const pos = i === 0 ? 'start' : i === cells.length - 1 ? 'end' : 'mid'
+      map.set(c, { shipIdx, seg: `${pos}-${orient}` })
+    })
+  }
+  return map
 }
 
 export default function BattleshipGame({
@@ -66,6 +85,7 @@ export default function BattleshipGame({
   const [draft, setDraft] = useState({})
   const [selected, setSelected] = useState('carrier')
   const [placeError, setPlaceError] = useState('')
+  const [hoverCell, setHoverCell] = useState(null)
   const [readying, runReady] = useBusy()
   const [conceding, runConcede] = useBusy()
 
@@ -152,10 +172,11 @@ export default function BattleshipGame({
     update(ref(db, `games/${gameId}/round/reveal/${me}`), secret).catch(() => {})
   }, [phase, secret, reveals, me, gameId])
 
-  // Loser refuses to reveal → claim after grace.
+  // Loser refuses to reveal → claim after grace. Also drives the ungraded-shot
+  // stall clock below, so tick through 'battle' too.
   const [nowTs, setNowTs] = useState(() => Date.now())
   useEffect(() => {
-    if (phase !== 'reveal') return
+    if (phase !== 'reveal' && phase !== 'battle') return
     const id = setInterval(() => setNowTs(Date.now()), 1000)
     return () => clearInterval(id)
   }, [phase])
@@ -248,7 +269,20 @@ export default function BattleshipGame({
     setDraft(next)
     const nextMissing = FLEET_SPEC.find(s => !next[s.ship])
     setSelected(nextMissing?.ship ?? null)
+    setHoverCell(null)
   }, [draft, selected])
+
+  // Hover preview — whole-ship footprint while placing, live-updates on rotate.
+  const selectedSize = selected ? FLEET_SPEC.find(s => s.ship === selected)?.size : null
+  const preview = useMemo(() => {
+    if (!selected || hoverCell == null || selectedSize == null) return null
+    const orient = draft[selected]?.orient ?? 'h'
+    const row = Math.floor(hoverCell / 10)
+    const cells = shipCells(selectedSize, orient, hoverCell)
+      .filter(c => c >= 0 && c < 100 && (orient !== 'h' || Math.floor(c / 10) === row))
+    const valid = canPlace(draft, selected, orient, hoverCell)
+    return { cells, valid }
+  }, [selected, hoverCell, selectedSize, draft])
 
   const rotateSelected = () => {
     if (!selected) return
@@ -282,13 +316,41 @@ export default function BattleshipGame({
   }
 
   // ── Shooting ──────────────────────────────────────────────────────────────
+  // `shooting` is set synchronously before the await so a double-tap (or two
+  // rapid taps landing before Firebase/turn state catches up) can't fire twice.
+  const [shooting, runShoot] = useBusy()
   const handleShoot = useCallback((cell) => {
-    if (!myTurn || !iCommitted) return
+    if (!myTurn || !iCommitted || shooting) return
     if (myShots.some(s => s.cell === cell)) return
-    update(ref(db, `games/${gameId}/round/shots`), {
-      [`${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`]: { by: me, cell, result: null },
-    }).catch(() => toast.error('SHOT FAILED — RETRY'))
-  }, [myTurn, iCommitted, myShots, gameId, me])
+    runShoot(async () => {
+      await update(ref(db, `games/${gameId}/round/shots`), {
+        [`${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`]: { by: me, cell, result: null, at: Date.now() },
+      })
+    }, () => toast.error('SHOT FAILED — RETRY'))
+  }, [myTurn, iCommitted, shooting, runShoot, myShots, gameId, me])
+
+  // My own shot sitting ungraded — the opponent's the only one who can grade
+  // it (they hold the fleet); if their tab never comes back, let me claim
+  // after a grace period instead of stalling forever. Same runTransaction
+  // shape as the reveal-grace forfeit above.
+  const myShotPending = !!lastMyShot && !lastMyShot.result
+  const shotStalled = myShotPending && !!lastMyShot.at && (nowTs - lastMyShot.at >= SHOT_GRACE_MS)
+  const [claiming, runClaim] = useBusy()
+  const handleClaimStall = () => {
+    if (!shotStalled || claiming) return
+    runClaim(async () => {
+      await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || current.status === 'finished') return
+        return {
+          ...current,
+          status: 'finished',
+          winner: me,
+          scores: { ...current.scores, [me]: (current.scores?.[me] || 0) + 1 },
+          round: { ...current.round, result: { winner: me, reason: 'forfeit' } },
+        }
+      })
+    }, () => toast.error('CLAIM FAILED — RETRY'))
+  }
 
   const handleConcede = () => {
     if (phase !== 'battle' || conceding) return
@@ -310,17 +372,11 @@ export default function BattleshipGame({
   const shotsToMap = arr => Object.fromEntries(arr.filter(s => s.result).map(s => [s.cell, s.result]))
   const myWatersShots = shotsToMap(oppShots)
   const targetingShots = shotsToMap(myShots)
-  const myFleetCells = useMemo(() => {
-    if (!myFleet) {
-      // During placement, render the draft instead.
-      const set = new Set()
-      for (const ship of Object.keys(draft)) cellsOf(draft, ship).forEach(c => set.add(c))
-      return set
-    }
-    const set = new Set()
-    for (const ship of Object.keys(myFleet)) cellsOf(myFleet, ship).forEach(c => set.add(c))
-    return set
-  }, [myFleet, draft])
+  const myFleetCells = useMemo(
+    // During placement (no myFleet yet), render the draft instead.
+    () => fleetCellMap(myFleet ?? draft),
+    [myFleet, draft],
+  )
 
   const matchOver = game.status === 'finished'
   const result = round.result
@@ -328,12 +384,10 @@ export default function BattleshipGame({
 
   // Reveal-time opponent fleet cells (fog lifts only after reveal).
   const oppRevealedFleet = reveals[opp]?.fleet ?? null
-  const oppRevealedCells = useMemo(() => {
-    if (!oppRevealedFleet) return null
-    const set = new Set()
-    for (const ship of Object.keys(oppRevealedFleet)) cellsOf(oppRevealedFleet, ship).forEach(c => set.add(c))
-    return set
-  }, [oppRevealedFleet])
+  const oppRevealedCells = useMemo(
+    () => (oppRevealedFleet ? fleetCellMap(oppRevealedFleet) : null),
+    [oppRevealedFleet],
+  )
 
   // -------------------------------------------------------------------------
   // SPECTATOR: two tracking views, zero fleet data.
@@ -385,12 +439,14 @@ export default function BattleshipGame({
           </p>
         </div>
 
-        <div className="flex justify-center">
+        <div className="w-full max-w-sm sm:max-w-md mx-auto">
           <BattleshipBoard
             shots={{}}
             fleetCells={myFleetCells}
             onCell={placeShip}
             disabled={!!secret}
+            preview={secret ? null : preview}
+            onHoverCell={secret ? undefined : setHoverCell}
           />
         </div>
 
@@ -416,9 +472,22 @@ export default function BattleshipGame({
                     )}
                   >
                     <span className="font-mono text-[11px] uppercase">{ship}</span>
-                    <span className="font-pixel text-[9px] tracking-widest">
-                      {placed ? '✓ DEPLOYED' : '■ '.repeat(size)}
-                    </span>
+                    {placed ? (
+                      <span className="font-pixel text-[9px] tracking-widest">✓ DEPLOYED</span>
+                    ) : (
+                      <span className="flex gap-px" aria-hidden="true">
+                        {Array.from({ length: size }, (_, i) => (
+                          <span
+                            key={i}
+                            className={cn(
+                              'w-2.5 h-2.5 bg-retro-structure',
+                              i === 0 && 'rounded-l-full',
+                              i === size - 1 && 'rounded-r-full',
+                            )}
+                          />
+                        ))}
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -481,13 +550,28 @@ export default function BattleshipGame({
   return (
     <div className="space-y-4">
       {opponentOnline === false && phase === 'battle' && (
-        <OfflineNotice name={game.players?.[opp]?.name} />
+        <OfflineNotice label={game.players?.[opp]?.name} />
       )}
 
       {/* Status line */}
       {!matchOver && (
-        <div className="text-center space-y-1">
-          {pendingGrade ? (
+        <div className="text-center space-y-1.5">
+          {myShotPending ? (
+            <div className="space-y-1.5">
+              <p className="font-pixel text-[10px] text-retro-p2 arcade-blink">
+                SHOT FIRED — WAITING FOR RIVAL TO GRADE…
+              </p>
+              {shotStalled && (
+                <button
+                  onClick={handleClaimStall}
+                  disabled={claiming}
+                  className="px-4 py-1.5 bg-retro-danger text-retro-bg font-pixel text-[9px] rounded active:scale-95 disabled:opacity-40"
+                >
+                  {claiming ? 'CLAIMING…' : 'CLAIM WIN — RIVAL WENT AFK'}
+                </button>
+              )}
+            </div>
+          ) : pendingGrade ? (
             <p className="font-pixel text-[10px] text-retro-p2 arcade-blink">
               SHOT FIRED — WAITING FOR RIVAL TO GRADE…
             </p>
@@ -505,7 +589,7 @@ export default function BattleshipGame({
 
       {/* Grids */}
       <div className="grid sm:grid-cols-2 gap-4 justify-items-center">
-        <div className="space-y-1 w-full max-w-[340px]">
+        <div className="space-y-1 w-full max-w-sm md:max-w-md">
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
             TARGETING {myTurn && !matchOver && <span className="text-retro-cta">· YOUR SHOT</span>}
           </p>
@@ -514,7 +598,7 @@ export default function BattleshipGame({
             fleetCells={oppRevealedCells}
             lastCell={lastMyShot?.cell}
             onCell={handleShoot}
-            disabled={!myTurn || pendingGrade || matchOver}
+            disabled={!myTurn || pendingGrade || myShotPending || shooting || matchOver}
             accent={me === 'X' ? 'p1' : 'p2'}
           />
           {/* Enemy silhouettes */}
@@ -525,7 +609,7 @@ export default function BattleshipGame({
                 <span
                   key={ship}
                   className={cn(
-                    'font-pixel text-[7px] uppercase px-1.5 py-0.5 rounded border',
+                    'font-pixel text-[8px] uppercase px-1.5 py-0.5 rounded border',
                     sunkCount ? 'border-retro-win text-retro-win' : 'border-retro-border text-retro-dim',
                   )}
                 >
@@ -536,7 +620,7 @@ export default function BattleshipGame({
           </div>
         </div>
 
-        <div className="space-y-1 w-full max-w-[340px]">
+        <div className="space-y-1 w-full max-w-sm md:max-w-md">
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">YOUR WATERS</p>
           <BattleshipBoard
             shots={myWatersShots}
@@ -550,7 +634,7 @@ export default function BattleshipGame({
               <span
                 key={ship}
                 className={cn(
-                  'font-pixel text-[7px] uppercase px-1.5 py-0.5 rounded border',
+                  'font-pixel text-[8px] uppercase px-1.5 py-0.5 rounded border',
                   sunk ? 'border-retro-danger text-retro-danger' : 'border-retro-p1 text-retro-p1',
                 )}
               >

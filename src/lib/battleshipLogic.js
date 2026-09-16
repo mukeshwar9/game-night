@@ -64,6 +64,31 @@ export function validateFleet(fleet) {
 }
 
 // ---------------------------------------------------------------------------
+// canPlace — pure hover-preview check: would placing `ship` at `orient`/`cell`
+// be in-bounds and non-overlapping with every OTHER ship already in `fleet`?
+// Ignores `ship`'s own current entry so re-placing/moving it is never blocked
+// by itself.
+// ---------------------------------------------------------------------------
+export function canPlace(fleet, ship, orient, cell) {
+  const spec = FLEET_SPEC.find(s => s.ship === ship)
+  if (!spec) return false
+  if (orient !== 'h' && orient !== 'v') return false
+  if (!Number.isInteger(cell) || cell < 0 || cell >= CELL_COUNT) return false
+  if (orient === 'h' && colOf(cell) + spec.size > GRID_SIZE) return false
+  if (orient === 'v' && rowOf(cell) + spec.size > GRID_SIZE) return false
+  const cells = shipCells(spec.size, orient, cell)
+  const occupied = new Set()
+  for (const other of Object.keys(fleet || {})) {
+    if (other === ship) continue
+    const entry = fleet[other]
+    if (!entry) continue
+    const otherSpec = FLEET_SPEC.find(s => s.ship === other)
+    for (const c of shipCells(otherSpec.size, entry.orient, entry.cell)) occupied.add(c)
+  }
+  return !cells.some(c => occupied.has(c))
+}
+
+// ---------------------------------------------------------------------------
 // serializeFleet / parseFleet — the canonical commitment payload. Fixed order,
 // so identical fleets always serialize identically regardless of key order.
 // ---------------------------------------------------------------------------
