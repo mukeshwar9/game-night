@@ -50,7 +50,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
                   {isOccupied && (
                     <span
                       className={cn(
-                        'rounded-full',
+                        'rounded-full flex items-center justify-center',
                         'w-[70%] h-[70%]',
                         cell === 'X' ? 'bg-retro-p1' : 'bg-retro-p2',
                         isWinning && 'scale-110',
@@ -59,7 +59,13 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
                         !isWinning && i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
                       )}
                       style={{ animation: 'disc-drop 0.3s cubic-bezier(0.34,1.15,0.64,1)' }}
-                    />
+                    >
+                      {/* GAMEPLAY-04: side letter in every stone — the board must
+                          not rely on color alone for player identity (amber and
+                          mono themes reduce the pair to brightness). Matches the
+                          repo-wide X/O glyph convention. */}
+                      <span className="font-pixel text-[9px] text-retro-bg leading-none">{cell}</span>
+                    </span>
                   )}
                 </button>
               )

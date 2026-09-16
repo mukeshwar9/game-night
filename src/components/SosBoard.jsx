@@ -5,6 +5,11 @@ import { SOS_SIZE } from '../lib/sosLogic'
 export default function SosBoard({ board, onMove, disabled, currentTurn, sosLines, lastMove = null }) {
   const [selectedLetter, setSelectedLetter] = useState('S')
 
+  // GAMEPLAY-05 (starting value, not a tuned constant): how many of the newest
+  // scored lines render at full strength. If late boards still feel noisy,
+  // lower it; if players can't trace their own recent scores, raise it.
+  const RECENT_LINES = 6
+
   // Build a map from cell index to the set of scorers who claimed it
   // (a cell can be scored by both players across overlapping lines — keep both).
   const cellScorers = {}
@@ -85,7 +90,10 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
               {cells}
             </div>
             {/* SVG overlay: draws a strike line across each completed S-O-S triple
-                so overlapping scores stay auditable, not just tinted. */}
+                so overlapping scores stay auditable, not just tinted.
+                GAMEPLAY-05: only the most recent RECENT_LINES lines stay at full
+                strength; older ones fade to 25% so a late-game board doesn't
+                become a wall of glow hiding fresh threats. */}
             {lines.length > 0 && (
               <svg
                 className="absolute inset-0 w-full h-full pointer-events-none"
@@ -100,14 +108,15 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
                   const cr = Math.floor(c / SOS_SIZE) + 0.5
                   const cc = (c % SOS_SIZE) + 0.5
                   const color = line.by === 'X' ? 'rgb(var(--c-p1))' : 'rgb(var(--c-p2))'
+                  const isRecent = idx >= lines.length - RECENT_LINES
                   return (
                     <line
                       key={idx}
                       x1={ac} y1={ar} x2={cc} y2={cr}
                       stroke={color}
-                      strokeWidth={0.08}
+                      strokeWidth={isRecent ? 0.08 : 0.06}
                       strokeLinecap="round"
-                      opacity={0.85}
+                      opacity={isRecent ? 0.85 : 0.25}
                     />
                   )
                 })}

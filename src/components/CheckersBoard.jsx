@@ -80,7 +80,10 @@ export default function CheckersBoard({
                       : "ring-retro-bg/80 shadow-neon-p2"),
                 )}
               >
-                {isKing ? "★" : ""}
+                {/* GAMEPLAY-04: side letter on every piece (men too) — pink vs
+                    cyan alone fails some color-vision types, and amber/mono
+                    themes reduce the pair to brightness. Kings keep their ★. */}
+                {isKing ? "★" : p.toUpperCase()}
               </span>
             )}
             {isHop && (

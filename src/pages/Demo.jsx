@@ -2254,9 +2254,12 @@ function SnakeDemo() {
 const DEMOS = [
   // vs-AI board games
   { type: 'tictactoe',    short: 'TTT',           Icon: TicTacToeIcon,    Component: () => <BotBoardDemo type="tictactoe" />    },
+  { type: 'tictactoe4',   short: 'TTT\n4×4',      Icon: TicTacToeIcon,    Component: () => <BotBoardDemo type="tictactoe4" />   },
   { type: 'ultimatettt',  short: 'ULTIMATE\nTTT', Icon: TicTacToeIcon,    Component: () => <BotBoardDemo type="ultimatettt" />  },
   { type: 'connectfour',  short: 'CONNECT\nFOUR', Icon: ConnectFourIcon,  Component: () => <BotBoardDemo type="connectfour" />  },
+  { type: 'connectfour5', short: 'C4\nFIVE',      Icon: ConnectFourIcon,  Component: () => <BotBoardDemo type="connectfour5" /> },
   { type: 'connectfourpop', short: 'C4 POP\nOUT', Icon: ConnectFourIcon,  Component: () => <BotBoardDemo type="connectfourpop" /> },
+  { type: 'dice-big',     short: 'PIG\nBIG',      Icon: DiceIcon,         Component: () => <BotBoardDemo type="dice-big" />     },
   { type: 'gomoku',       short: 'GOMOKU',        Icon: GomokuIcon,       Component: () => <BotBoardDemo type="gomoku" />       },
   { type: 'reversi',      short: 'REVERSI',       Icon: ReversiIcon,      Component: () => <BotBoardDemo type="reversi" />      },
   { type: 'orderchaos',   short: 'ORDER &\nCHAOS',Icon: OrderChaosIcon,   Component: () => <BotBoardDemo type="orderchaos" />   },

@@ -39,17 +39,24 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
           disabled && 'opacity-60 saturate-50',
         )}
       >
-        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-9 rounded-l bg-gradient-to-r from-retro-p1/30 to-transparent flex items-center justify-start pl-1">
-          <span className="font-pixel text-[8px] text-retro-p1">X</span>
+        {/* GAMEPLAY-03: solid tinted goal rails + direction arrows. The old
+            30%-alpha gradients were nearly invisible on midnight (and rely on
+            theme alpha generally) — the goal IS the ruleset, so it gets the
+            semantic tint tokens, not a wash. Arrows point inward, the way
+            each side travels. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-9 rounded-l bg-retro-tint-p1 border-r-2 border-retro-p1/60 flex items-center justify-start pl-1 flex-col gap-1">
+          <span className="font-pixel text-[9px] text-retro-p1 text-glow-p1">X</span>
+          <span className="font-pixel text-[8px] text-retro-p1">▶</span>
         </div>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-9 rounded-r bg-gradient-to-l from-retro-p1/30 to-transparent flex items-center justify-end pr-1">
-          <span className="font-pixel text-[8px] text-retro-p1">X</span>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-9 rounded-r bg-retro-tint-p1 border-l-2 border-retro-p1/60 flex items-center justify-end pr-1 flex-col gap-1">
+          <span className="font-pixel text-[9px] text-retro-p1 text-glow-p1">X</span>
+          <span className="font-pixel text-[8px] text-retro-p1">◀</span>
         </div>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-9 bg-gradient-to-b from-retro-p2/30 to-transparent flex items-start justify-center pt-1">
-          <span className="font-pixel text-[8px] text-retro-p2">O</span>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-9 bg-retro-tint-p2 border-b-2 border-retro-p2/60 flex items-start justify-center pt-1 gap-2">
+          <span className="font-pixel text-[9px] text-retro-p2 text-glow-p2">O ▼</span>
         </div>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-gradient-to-t from-retro-p2/30 to-transparent flex items-end justify-center pb-1">
-          <span className="font-pixel text-[8px] text-retro-p2">O</span>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-retro-tint-p2 border-t-2 border-retro-p2/60 flex items-end justify-center pb-1 gap-2">
+          <span className="font-pixel text-[9px] text-retro-p2 text-glow-p2">▲ O</span>
         </div>
         {/* Tight padding on phones — every horizontal pixel feeds the scale
             factor, and an 11-wide rhombus is starved for width as it is. */}
@@ -113,11 +120,21 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
                               animation: isOccupied ? 'place-pop 0.2s cubic-bezier(0.34,1.15,0.64,1)' : undefined,
                             }}
                           />
-                          {isLast && (
+                          {/* GAMEPLAY-04: side letter inside every stone — color
+                              alone must not carry player identity (amber/mono
+                              themes reduce the pair to brightness). Matches the
+                              repo-wide X/O glyph convention. */}
+                          {isOccupied && (
                             <span
                               aria-hidden="true"
-                              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-retro-bg animate-pulse"
-                            />
+                              className={cn(
+                                'absolute inset-0 flex items-center justify-center font-pixel text-[8px]',
+                                'text-retro-bg',
+                                isLast && 'animate-pulse',
+                              )}
+                            >
+                              {cell}
+                            </span>
                           )}
                         </button>
                       )

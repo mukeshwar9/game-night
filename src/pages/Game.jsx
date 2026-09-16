@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ref, onValue, update, get, push, runTransaction, onDisconnect, set as dbSet } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig, lobbySwitchOverrides } from '../lib/games'
+import { freshGameState, getGameConfig, lobbySwitchOverrides, firstMoverUpdates } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
@@ -1005,8 +1005,22 @@ export default function Game() {
     finally { moveInFlight.current = false }
   }
 
+  // GAMEPLAY-02: rematch starter. The loser of the previous round opens the
+  // next one (catch-up house rule); on a draw, alternate from the previous
+  // starter. `starter` is persisted on the room so draw-alternation stays
+  // correct across consecutive rematches — without it, freshGameState would
+  // hand the creator (X) the first move in every single game, a compounding
+  // edge in games with a proven first-move advantage (C4, TTT, Gomoku, Hex).
+  const nextStarter = (prev) => {
+    const lastStarter = prev?.starter === 'O' ? 'O' : 'X'
+    if (prev?.winner === 'X') return 'O'
+    if (prev?.winner === 'O') return 'X'
+    return lastStarter === 'X' ? 'O' : 'X'
+  }
+
   // Apply functions (called directly when no second player / opponent offline)
   const applyPlayAgain = async () => {
+    const starter = nextStarter(game)
     try {
       await update(ref(db, `games/${gameId}`), {
         ...freshGameState(game.gameType),
@@ -1014,12 +1028,15 @@ export default function Game() {
         winner: null,
         winningLine: null,
         proposal: null,
+        starter,
+        ...firstMoverUpdates(game.gameType, starter),
         lastActivityAt: Date.now(),
       })
     } catch { toast.error('PLAY AGAIN FAILED — CHECK CONNECTION') }
   }
 
   const applyNewMatch = async () => {
+    const starter = nextStarter(game)
     try {
       await update(ref(db, `games/${gameId}`), {
         ...freshGameState(game.gameType),
@@ -1029,6 +1046,8 @@ export default function Game() {
         'scores/X': 0,
         'scores/O': 0,
         proposal: null,
+        starter,
+        ...firstMoverUpdates(game.gameType, starter),
         lastActivityAt: Date.now(),
       })
     } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
