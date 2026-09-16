@@ -58,21 +58,25 @@ export default function GameOptionsSheet({ game, onPlayOnline, onSolo, onLocal, 
       </div>
 
       <div className="space-y-2">
+        {/* UX-05: labels say what happens, not jargon. PLAY ONLINE read like
+            matchmaking; 2P PASS and hot-seat needed translation. Copy only —
+            eligibility still comes from the registry (game.solo /
+            supportsLocalPlay), never from this sheet. */}
         {showPlayOnline && (
           <Row
             onClick={() => onPlayOnline(game)}
-            label="PLAY ONLINE"
+            label="CREATE A ROOM"
             tone="cta"
             primary
             busy={isBusy}
             disabled={isBusy}
-            blurb="Create a room and share the link."
+            blurb="Private room — share the link with a friend."
           />
         )}
-        {showVsAi && <Row onClick={() => onSolo(game)} label="VS AI" tone="p1" disabled={isBusy} blurb="Play instantly, no opponent needed." />}
-        {showLocal && <Row onClick={() => onLocal(game)} label="2P PASS" tone="p2" disabled={isBusy} blurb="Hot-seat — pass the device between turns." />}
+        {showVsAi && <Row onClick={() => onSolo(game)} label="PLAY SOLO" tone="p1" disabled={isBusy} blurb="Start playing right away, no opponent needed." />}
+        {showLocal && <Row onClick={() => onLocal(game)} label="SAME DEVICE" tone="p2" disabled={isBusy} blurb="Two players take turns on one device." />}
         {showModes && <Row onClick={() => onModes(game)} label="MORE MODES" tone="cta" disabled={isBusy} blurb="See every variant for this game." />}
-        <Row onClick={() => onRules(game.type)} label="RULES" disabled={isBusy} blurb="How to play." />
+        <Row onClick={() => onRules(game.type)} label="HOW TO PLAY" disabled={isBusy} blurb="Rules for this game." />
       </div>
     </BottomSheet>
   )

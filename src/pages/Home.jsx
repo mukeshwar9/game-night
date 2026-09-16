@@ -276,6 +276,11 @@ export default function Home() {
 
         <ContinuePlaying />
 
+        {/* UX-06: recent shortcuts sit above full discovery — returning
+            players reach their games before the catalog. Renders nothing
+            when there's no history, so new visitors see no extra chrome. */}
+        <RecentlyPlayed onSelect={createGame} loadingType={loading} />
+
         {/* Game selection */}
         <div className="space-y-1.5">
           <label className="max-w-md mx-auto w-full block font-pixel text-[10px] text-retro-dim tracking-wider">SELECT GAME</label>
@@ -287,8 +292,6 @@ export default function Home() {
             loadingType={loading}
           />
         </div>
-
-        <RecentlyPlayed onSelect={createGame} loadingType={loading} />
 
         {/* Solo play CTA — visible to everyone, especially useful before a friend joins */}
         <Link
