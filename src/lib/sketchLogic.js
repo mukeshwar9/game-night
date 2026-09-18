@@ -6,6 +6,7 @@
 //     artist:      uid,
 //     order:       [uid, ...],           // fixed snapshot from startRound, never mutated
 //     used:        [number, ...],        // deck indices already offered this match (any tier)
+//     matchSeed:   number | string,      // changes every new match so first options don't repeat
 //     options:     [number, number, number] | null,  // 3 deck indices; null until artist publishes
 //     commitment:  { hash, salt } | null,             // set when artist picks a word
 //     wordPattern: string,               // e.g. "5" or "3 3"; '' until artist picks
@@ -149,7 +150,7 @@ export function matchOver(order, artist, cycle) {
 // not touch wall-clock time). `used` carries forward round.used + round.options
 // (the 3 offered candidates, whether or not the chosen one was ever confirmed).
 export function nextRoundState(round) {
-  const { order, artist, cycle, used, options } = round
+  const { order, artist, cycle, used, options, matchSeed } = round
   const carryUsed = [...(used || []), ...(options || [])]
   if (matchOver(order, artist, cycle)) return { finished: true }
   const idx = order.indexOf(artist)
@@ -162,6 +163,7 @@ export function nextRoundState(round) {
       artist: nextArtist(order, artist),
       order,
       used: carryUsed,
+      matchSeed,
       options: null,
       commitment: null,
       wordPattern: '',

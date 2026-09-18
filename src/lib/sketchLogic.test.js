@@ -210,14 +210,15 @@ describe('matchOver / rotation — 5 players (cyclesFor = 2, 10 rounds)', () => 
 })
 
 describe('nextRoundState', () => {
-  it('mid-match: advances artist/cycle and carries used forward', () => {
-    const round = { order: ['a', 'b', 'c'], artist: 'a', cycle: 1, used: [1, 2], options: [5, 6, 7] }
+  it('mid-match: advances artist/cycle and carries used/matchSeed forward', () => {
+    const round = { order: ['a', 'b', 'c'], artist: 'a', cycle: 1, used: [1, 2], matchSeed: 'seed1', options: [5, 6, 7] }
     const result = nextRoundState(round)
     expect(result.finished).toBe(false)
     expect(result.round.phase).toBe('choosing')
     expect(result.round.artist).toBe('b')
     expect(result.round.cycle).toBe(1)
     expect(result.round.used).toEqual([1, 2, 5, 6, 7])
+    expect(result.round.matchSeed).toBe('seed1')
     expect(result.round.options).toBeNull()
     expect(result.round.commitment).toBeNull()
     expect(result.round.wordPattern).toBe('')

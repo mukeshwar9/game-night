@@ -1246,6 +1246,7 @@ export const GAME_TYPES = [
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     startRound: (players) => {
       const order = seatOrderSketch(players)
+      const startedAt = Date.now()
       return {
         round: {
           phase: 'choosing',
@@ -1253,7 +1254,8 @@ export const GAME_TYPES = [
           artist: order[0] ?? null,
           order,
           used: [],
-          endsAt: Date.now() + SKETCH_CHOOSE_MS,
+          matchSeed: `${startedAt}:${Math.random().toString(36).slice(2)}`,
+          endsAt: startedAt + SKETCH_CHOOSE_MS,
         },
       }
     },

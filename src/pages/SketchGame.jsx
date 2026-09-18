@@ -60,6 +60,7 @@ function normalizeRound(raw) {
     artist: raw.artist ?? null,
     order: Array.isArray(raw.order) ? raw.order : (raw.order ? Object.values(raw.order) : []),
     used: Array.isArray(raw.used) ? raw.used : (raw.used ? Object.values(raw.used) : []),
+    matchSeed: raw.matchSeed ?? '',
     options: Array.isArray(raw.options) ? raw.options : (raw.options ? Object.values(raw.options) : null),
     commitment: raw.commitment ?? null,
     wordPattern: raw.wordPattern ?? '',
@@ -190,7 +191,7 @@ export default function SketchGame({
     if (!r || r.phase !== 'choosing' || r.artist !== mySeat || r.options) return
     if (optionsPublishAttemptRef.current === roundKey) return
     optionsPublishAttemptRef.current = roundKey
-    const seed = hashString(`${gameId}:${roundKey}`)
+    const seed = hashString(`${gameId}:${r.matchSeed || 'legacy'}:${roundKey}`)
     const picks = pickOptions(SKETCH_WORDS, seed, r.used)
     const publishEndsAt = now() + CHOOSE_MS
     runTransaction(ref(db, `games/${gameId}`), current => {
