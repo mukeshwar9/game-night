@@ -18,6 +18,8 @@ import {
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, BlockadeIcon, PairsIcon,
   WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
+  SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
+  OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
@@ -2272,6 +2274,16 @@ const DEMOS = [
   { type: 'blockade',      short: 'BLOCKADE',       Icon: BlockadeIcon,       Component: () => <BotBoardDemo type="blockade" /> },
   { type: 'pairs',         short: 'PAIRS',          Icon: PairsIcon,          Component: () => <BotBoardDemo type="pairs" /> },
   { type: 'hex',           short: 'HEX',            Icon: HexIcon,            Component: () => <BotBoardDemo type="hex" /> },
+  { type: 'sim',           short: 'SIM',            Icon: SimIcon,            Component: () => <BotBoardDemo type="sim" /> },
+  { type: 'chomp',         short: 'CHOMP',          Icon: ChompIcon,          Component: () => <BotBoardDemo type="chomp" /> },
+  { type: 'breakthrough',  short: 'BREAK\nTHROUGH', Icon: BreakthroughIcon,   Component: () => <BotBoardDemo type="breakthrough" /> },
+  { type: 'ataxx',         short: 'ATAXX',          Icon: AtaxxIcon,          Component: () => <BotBoardDemo type="ataxx" /> },
+  { type: 'kamisado',      short: 'KAMISADO',       Icon: KamisadoIcon,       Component: () => <BotBoardDemo type="kamisado" /> },
+  { type: 'onitama',       short: 'ONITAMA',        Icon: OnitamaIcon,        Component: () => <BotBoardDemo type="onitama" /> },
+  { type: 'quarto',        short: 'QUARTO',         Icon: QuartoIcon,         Component: () => <BotBoardDemo type="quarto" /> },
+  { type: 'santorini',     short: 'SANTO\nRINI',    Icon: SantoriniIcon,      Component: () => <BotBoardDemo type="santorini" /> },
+  { type: 'loa',           short: 'LINES OF\nACTION', Icon: LoaIcon,          Component: () => <BotBoardDemo type="loa" /> },
+  { type: 'yavalath',      short: 'YAVALATH',       Icon: YavalathIcon,       Component: () => <BotBoardDemo type="yavalath" /> },
   { type: 'battleship',    short: 'BATTLE\nSHIP',   Icon: BattleshipIcon,     Component: BattleshipDemo },
   { type: 'mancala',       short: 'MANCALA',        Icon: MancalaIcon,        Component: MancalaDemo },
   { type: 'checkers',      short: 'CHECK\nERS',     Icon: CheckersIcon,       Component: CheckersDemo },
@@ -2348,6 +2360,47 @@ function LocalPlayPage({ routeType }) {
   )
 }
 
+// Explicit dead end for a deep-linked /solo/:type with no demo entry — an
+// unknown type, or a registry type that advertises solo before its demo ships.
+// It must never silently play a different game (GAMEPLAY-01: tictactoe4 /
+// connectfour5 / dice-big used to fall back to their base game's demo). Kept in
+// the hook-free dispatcher: DemoHub holds state and does not remount on param
+// change, so a conditional return inside it would break rules-of-hooks.
+function SoloNotAvailable({ routeType }) {
+  // getGameConfig falls back to GAME_TYPES[0] for unknown types, so compare
+  // back to distinguish "registry type, no demo" from a garbage deep link.
+  const cfg = getGameConfig(routeType)
+  const known = cfg?.type === routeType
+  return (
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="border border-retro-border rounded p-6 bg-retro-card text-center space-y-3">
+          <p className="font-pixel text-[10px] text-retro-p2 text-glow-p2 tracking-wider">NO SOLO DEMO</p>
+          <p className="font-mono text-xs text-retro-dim leading-relaxed">
+            {known
+              ? <>{cfg.label} DOESN&apos;T HAVE SOLO PLAY YET.</>
+              : <>UNKNOWN GAME &quot;{String(routeType).toUpperCase()}&quot;.</>}
+          </p>
+          <div className="flex justify-center gap-2 pt-1">
+            <Link
+              to="/"
+              className="px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+            >
+              CREATE A ROOM →
+            </Link>
+            <Link
+              to="/demo"
+              className="px-5 py-2.5 border border-retro-border text-retro-dim font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-text transition-all active:scale-95"
+            >
+              ALL DEMOS
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Dispatcher — no hooks of its own, so branching to a different child
 // component ahead of any hook call stays rules-of-hooks safe.
 export default function Demo({ mode }) {
@@ -2355,6 +2408,11 @@ export default function Demo({ mode }) {
 
   if (mode === 'local' && routeType && supportsLocalPlay(routeType)) {
     return <LocalPlayPage routeType={routeType} />
+  }
+  // /solo/:type with no demo entry gets the explicit not-available card; only
+  // a bare /demo (no type) or a valid /solo/:type reaches the hub.
+  if (mode !== 'local' && routeType && !DEMOS.some(d => d.type === routeType)) {
+    return <SoloNotAvailable routeType={routeType} />
   }
   // /local/:type with an invalid/ineligible type falls back to the hub below.
   return <DemoHub />

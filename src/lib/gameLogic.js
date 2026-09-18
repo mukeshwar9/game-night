@@ -24,6 +24,6 @@ export function normalizeBoard(raw, size = 9) {
   const entries = Array.isArray(raw)
     ? raw.map((v, i) => [i, v])
     : Object.entries(raw).map(([k, v]) => [parseInt(k), v]);
-  entries.forEach(([i, v]) => { if (i < size) board[i] = v || ''; });
+  entries.forEach(([i, v]) => { if (i < size) board[i] = v == null ? '' : v; });
   return board;
 }

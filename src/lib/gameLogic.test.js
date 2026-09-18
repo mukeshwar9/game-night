@@ -48,6 +48,18 @@ describe('getWinner', () => {
 })
 
 describe('normalizeBoard', () => {
+  it('preserves numeric 0 (Quarto piece id 0, Santorini height 0)', () => {
+    const raw = ['', 0, '', 1]
+    expect(normalizeBoard(raw, 4)).toEqual(['', 0, '', 1])
+  })
+  it('maps null/undefined/absent to empty string', () => {
+    expect(normalizeBoard([null, undefined, ''], 4)).toEqual(['', '', '', ''])
+    expect(normalizeBoard(undefined, 3)).toEqual(['', '', ''])
+  })
+  it('accepts sparse objects from Firebase', () => {
+    expect(normalizeBoard({ 1: 0, 3: 'X' }, 4)).toEqual(['', 0, '', 'X'])
+  })
+
   it('returns a 9-element array of empty strings for null input', () => {
     const board = normalizeBoard(null)
     expect(board).toHaveLength(9)

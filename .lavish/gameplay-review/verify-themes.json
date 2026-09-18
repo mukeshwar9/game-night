@@ -1,0 +1,77 @@
+{
+  "themes": {
+    "midnight": {
+      "hex": {
+        "stones": 16,
+        "railX": 2,
+        "railO": 2
+      },
+      "sos": {
+        "full": 6,
+        "faded": 13
+      }
+    },
+    "phosphor": {
+      "hex": {
+        "stones": 16,
+        "railX": 2,
+        "railO": 2
+      },
+      "sos": {
+        "full": 6,
+        "faded": 13
+      }
+    },
+    "amber": {
+      "hex": {
+        "stones": 16,
+        "railX": 2,
+        "railO": 2
+      },
+      "sos": {
+        "full": 6,
+        "faded": 30
+      }
+    },
+    "synthwave": {
+      "hex": {
+        "stones": 16,
+        "railX": 2,
+        "railO": 2
+      },
+      "sos": {
+        "full": 6,
+        "faded": 6
+      }
+    },
+    "grid": {
+      "hex": {
+        "stones": 16,
+        "railX": 2,
+        "railO": 2
+      },
+      "sos": {
+        "full": 6,
+        "faded": 10
+      }
+    },
+    "mono": {
+      "hex": {
+        "stones": 16,
+        "railX": 2,
+        "railO": 2
+      },
+      "sos": {
+        "full": 6,
+        "faded": 27
+      }
+    }
+  },
+  "errors": [],
+  "unknownCard": {
+    "showsUnknown": true
+  },
+  "validSoloStillWorks": {
+    "showsDemo": true
+  }
+}

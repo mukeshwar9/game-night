@@ -37,6 +37,38 @@ import {
 import { computeBotMove as botBlockade } from './blockadeLogic'
 import { computePairsBotMove } from './pairsLogic'
 import { neighbors, HEX_CELL_COUNT } from './hexLogic'
+import {
+  SIM_EDGE_COUNT, SIM_EDGES, edgesOf, triangleOf,
+} from './simLogic'
+import { applyChompMove, edibleSquares, POISON_INDEX } from './chompLogic'
+import {
+  BT_COLS, BT_ROWS, legalMoves as btLegalMoves,
+} from './breakthroughLogic'
+import {
+  legalAtaxxMoves, applyAtaxxMove, getAtaxxWinner,
+  countAtaxx, AX_COLS,
+} from './ataxxLogic'
+import {
+  KM_COLORS, kmTowerMoves, kmTowerCellOf as kmTowerOf, applyKamisadoMove,
+} from './kamisadoLogic'
+import {
+  normalizeOnBoard, legalOnMoves, applyOnitamaMove,
+} from './onitamaLogic'
+import {
+  normalizeQuartoBoard, lineWins, QRT_LINES,
+} from './quartoLogic'
+import {
+  normalizeStBoard, normalizeStWorkers, legalStTurns, applyStMove,
+} from './santoriniLogic'
+import {
+  normalizeLoaBoard, loaMoves, applyLoaMove,
+} from './loaLogic'
+import {
+  YV_CELL_COUNT, normalizeYvBoard, getYavalathResult,
+} from './yavalathLogic'
+import {
+  KM_SIZE,
+} from './kamisadoLogic'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -618,9 +650,328 @@ function botHex(game, botSymbol) {
   return pickRandom(empties)
 }
 
+// Sim — avoid completing our own triangle, then try to force the opponent:
+// prefer edges that create two shared endpoints with enemy edges (they're
+// one move from a loss only if WE would benefit... in Sim you lose by your
+// OWN triangle, so the bot simply: (1) never closes its own triangle, (2)
+// avoids moves that leave an opponent-color triangle available, (3) picks
+// the edge touching the most of its own edges (contests space).
+function botSim(game, botSymbol) {
+  const board = game.board
+  const myEdges = edgesOf(board, botSymbol)
+  const oppEdges = edgesOf(board, opponent(botSymbol))
+  const candidates = []
+  for (let i = 0; i < SIM_EDGE_COUNT; i++) {
+    if (board[i]) continue
+    // Does taking edge i complete MY triangle? Then never take it.
+    const mine = [...myEdges, i]
+    if (triangleOf(mine)) continue
+    // Does taking i leave the opponent able to complete theirs next turn?
+    // (i.e. they own two edges of a triangle whose third is still empty)
+    const theirs = [...oppEdges, i]
+    const oppTri = triangleOf(theirs)
+    if (!oppTri) candidates.push({ i, score: 1 })
+    else candidates.push({ i, score: 0 }) // forced-loss-avoidance tier
+  }
+  if (!candidates.length) {
+    // All remaining edges complete our triangle — we're lost; take anything.
+    const any = board.map((c, i) => (c ? -1 : i)).filter(i => i >= 0)
+    return any.length ? any[0] : null
+  }
+  // Prefer safe edges that share endpoints with existing own edges (build
+  // pressure), then random.
+  const scored = candidates.map(c => {
+    const [a, b] = SIM_EDGES[c.i]
+    const touches = myEdges.filter(e => SIM_EDGES[e].includes(a) || SIM_EDGES[e].includes(b)).length
+    return { ...c, score: c.score * 10 + touches }
+  })
+  const top = scored.filter(s => s.score === Math.max(...scored.map(s => s.score)))
+  return pickRandom(top).i
+}
+
+// Chomp — greedy safety heuristic: never eat the poison; among safe bites,
+// prefer leaving the opponent a position with the fewest safe replies
+// (1-ply trap search); skip full solve (larger bars are exponential).
+function botChomp(game) {
+  const board = game.board
+  const options = edibleSquares(board).filter(i => i !== POISON_INDEX)
+  if (!options.length) return POISON_INDEX // forced: we must eat the poison
+  // If a bite leaves exactly [poison], the OPPONENT is forced to eat it — win.
+  for (const i of shuffle(options)) {
+    const res = applyChompMove(board, i)
+    if (edibleSquares(res.board).length === 1) return i // only poison left
+  }
+  // Otherwise minimize opponent's non-poison reply count (trap-seeking),
+  // with a bias toward big bites (keeps the game short).
+  let best = null
+  let bestScore = Infinity
+  for (const i of shuffle(options)) {
+    const { board: next } = applyChompMove(board, i)
+    const replies = edibleSquares(next).filter(x => x !== POISON_INDEX).length
+    const score = replies * 100 + next.filter(v => v !== 'eaten').length
+    if (score < bestScore) { bestScore = score; best = i }
+  }
+  return best
+}
+
+// Breakthrough — 1-ply: win by advancing to the goal row; block nothing
+// (racing game), instead prefer captures, then advances that don't hang the
+// pawn to an immediate recapture-free enemy advance, then random.
+function botBreakthrough(game, botSymbol) {
+  const board = game.board
+  const moves = btLegalMoves(board, botSymbol)
+  if (!moves.length) return null
+  // 1. Win now: any move reaching the goal row.
+  const goalRow = botSymbol === 'X' ? 0 : BT_ROWS - 1
+  for (const m of shuffle(moves)) {
+    if (Math.floor(m.to / BT_COLS) === goalRow) return m
+  }
+  // 2. Capture if it doesn't hang the capturing pawn immediately.
+  const captures = moves.filter(m => {
+    const dest = board[m.to]
+    return dest && dest !== botSymbol
+  })
+  if (captures.length) return pickRandom(shuffle(captures))
+  // 3. Prefer advanced pawns (closest to goal) that keep a safe structure.
+  const scored = moves.map(m => {
+    const toRow = Math.floor(m.to / BT_COLS)
+    const progress = botSymbol === 'X' ? (BT_ROWS - 1 - toRow) : toRow
+    return { m, score: progress + Math.random() }
+  })
+  scored.sort((a, b) => b.score - a.score)
+  return scored[0].m
+}
+
+// Ataxx — 1-ply greedy: win now, take max (converted + gained - lost),
+// slight preference for jumps late (mobility) and clones early.
+function botAtaxx(game, botSymbol) {
+  const board = game.board
+  const moves = legalAtaxxMoves(board, botSymbol)
+  if (!moves.length) return null // pass (turn handling is the harness's job)
+  const opp = opponent(botSymbol)
+  let best = null
+  let bestScore = -Infinity
+  for (const m of shuffle(moves)) {
+    const res = applyAtaxxMove(board, m, botSymbol)
+    if (!res) continue
+    let score = res.converted * 10
+    // net material after the move
+    const myCount = countAtaxx(res.board, botSymbol)
+    const oppCount = countAtaxx(res.board, opp)
+    score += (myCount - oppCount) * 6
+    // immediate win?
+    const w = getAtaxxWinner(res.board, (game.ataxxMoves ?? 0) + 1)
+    if (w && w.winner === botSymbol) score += 1000
+    // discourage staking everything on the rim early
+    const [tr, tc] = [Math.floor(m.to / AX_COLS), m.to % AX_COLS]
+    const rim = tr === 0 || tc === 0 || tr === 6 || tc === 6
+    if (m.kind === 'clone' && !rim) score += 2
+    if (score > bestScore) { bestScore = score; best = m }
+  }
+  return best
+}
+
+// Kamisado — move the forced tower toward the goal, preferring landings that
+// send the opponent a color tower that is badly blocked (stuck = bonus move).
+function botKamisado(game, botSymbol) {
+  const board = game.board
+  const forced = game.kamisadoColor ?? null
+  const towers = game.kamisadoTowers ?? null
+  // Collect legal moves for the forced tower (any tower if unforced).
+  let all = []
+  if (forced == null) {
+    for (let k = 0; k < 8; k++) all.push(...kmTowerMoves(board, botSymbol, k, towers))
+  } else {
+    all = kmTowerMoves(board, botSymbol, forced, towers)
+  }
+  if (!all.length) return null // pass — bonus move with constraint lifted
+  const opp = opponent(botSymbol)
+  let best = null
+  let bestScore = -Infinity
+  for (const m of shuffle(all)) {
+    const res = applyKamisadoMove(board, m, botSymbol, forced, { towers })
+    if (!res) continue
+    let score = 0
+    if (res.result) {
+      score = res.result.winner === botSymbol ? 1000 : -1000
+    } else {
+      // advance: rows toward goal
+      const toRow = Math.floor(m.to / KM_SIZE)
+      score += botSymbol === 'X' ? (KM_SIZE - 1 - toRow) * 4 : toRow * 4
+      // reward forcing the opponent onto a stuck tower (bonus move for us)
+      if (res.extraTurn) score += 40
+      // mild penalty for giving the opponent free choice (they sent US null)
+      if (res.forcedColor == null) score -= 6
+      // prefer landing squares whose matching enemy tower is far away
+      const enemyTower = kmTowerOf(res.board, opp, KM_COLORS[m.to], res.towers)
+      if (enemyTower >= 0) {
+        const dist = Math.abs(Math.floor(m.to / KM_SIZE) - Math.floor(enemyTower / KM_SIZE))
+        score += dist
+      }
+    }
+    if (score > bestScore) { bestScore = score; best = m }
+  }
+  return best
+}
+
+// ─── ONITAMA — prefer capturing the master, then temple runs, else random ───
+function botOnitama(game, botSymbol) {
+  const hands = { handX: game.onitamaHandX, handO: game.onitamaHandO, spare: game.onitamaSpare }
+  if (!hands.handX || !hands.handO || !Number.isInteger(hands.spare)) return null
+  const board = normalizeOnBoard(game.board)
+  const hand = botSymbol === 'X' ? hands.handX : hands.handO
+  const all = hand.flatMap(k => legalOnMoves(board, botSymbol, k))
+  if (!all.length) return null
+  let best = null
+  let bestScore = -Infinity
+  for (const m of shuffle(all)) {
+    const res = applyOnitamaMove(board, m, botSymbol, hands)
+    if (!res) continue
+    let score = 0
+    if (res.result) {
+      score = res.result.winner === botSymbol ? 1000 : -1000
+    } else {
+      // March toward the enemy temple (X's goal row 0, O's goal row 4).
+      const goalRow = botSymbol === 'X' ? 0 : 4
+      score += (4 - Math.abs(Math.floor(m.to / 5) - goalRow)) * 2
+      // Reward captures: the piece that WAS on `to` belongs to the enemy.
+      const moved = res.board[m.to]
+      if (moved && moved[0] !== botSymbol) score += 8 // moved is the mover's piece — capture detection via removed enemy instead
+      const enemyCountBefore = board.filter(v => v[0] !== botSymbol && v !== '').length
+      const enemyCountAfter = res.board.filter(v => v[0] !== botSymbol && v !== '').length
+      if (enemyCountAfter < enemyCountBefore) score += 12
+    }
+    if (score > bestScore) { bestScore = score; best = m }
+  }
+  return best
+}
+
+// ─── QUARTO — place smart, then hand over the LEAST dangerous piece ─────────
+function botQuarto(game) {
+  const board = normalizeQuartoBoard(game.board)
+  const unplaced = Array.isArray(game.quartoUnplaced) ? game.quartoUnplaced : []
+  const pending = game.quartoPending
+  if (!Number.isInteger(pending) || !unplaced.includes(pending)) return null
+  // Choose the empty cell — prefer cells that do NOT complete a line now.
+  const empties = []
+  for (let i = 0; i < 16; i++) if (board[i] === '') empties.push(i)
+  if (!empties.length) return null
+  const place = shuffle(empties)[0]
+  // Give: simulate each candidate gift; prefer pieces where the OPPONENT has
+  // no winning placement on any empty cell (else pick randomly among safe).
+  const rest = unplaced.filter(v => v !== pending)
+  if (!rest.length) return { place } // last piece placed → win/draw, no give
+  const safe = []
+  for (const gift of shuffle(rest)) {
+    const b2 = [...board]
+    b2[place] = pending
+    const oppCanWin = QRT_LINES.some(line => {
+      const cells = line.filter(i => b2[i] === '')
+      if (cells.length !== 1) return false
+      const ids = line.map(i => (i === cells[0] ? gift : b2[i]))
+      return lineWins(ids)
+    })
+    if (!oppCanWin) safe.push(gift)
+  }
+  const give = safe.length ? safe[0] : rest[0]
+  return { place, give }
+}
+
+// ─── SANTORINI — climb toward level 3, dodge opponent summits, else random ──
+function botSantorini(game, botSymbol) {
+  const board = normalizeStBoard(game.board)
+  const workers = normalizeStWorkers(game.santoriniWorkers)
+  const turns = legalStTurns(board, workers, botSymbol)
+  if (!turns.length) return null
+  const opp = botSymbol === 'X' ? 'O' : 'X'
+  let best = null
+  let bestScore = -Infinity
+  for (const t of shuffle(turns)) {
+    const res = applyStMove({ board, workers }, t, botSymbol)
+    if (!res) continue
+    let score = 0
+    if (res.result) {
+      score = res.result.winner === botSymbol ? 1000 : -1000
+    } else {
+      // Tower height at destination (higher = closer to winning).
+      score += board[t.to] * 3
+      // Danger: could the opponent reach a level-3 square next turn?
+      const oppTurns = legalStTurns(res.board, res.workers, opp)
+      const oppWins = oppTurns.some(t2 => res.board[t2.to] === 3)
+      if (oppWins) score -= 200
+      // Deny: building on squares the opponent wants to climb.
+      score += res.board[t.build] * 2
+    }
+    if (score > bestScore) { bestScore = score; best = t }
+  }
+  return best
+}
+
+// ─── LINES OF ACTION — prefer captures and uniting, else biggest progress ───
+function botLoa(game, botSymbol) {
+  const board = normalizeLoaBoard(game.board)
+  const all = []
+  for (let i = 0; i < 64; i++) {
+    if (board[i] === botSymbol) {
+      for (const to of loaMoves(board, i, botSymbol)) all.push({ from: i, to })
+    }
+  }
+  if (!all.length) return null
+  let best = null
+  let bestScore = -Infinity
+  for (const m of shuffle(all)) {
+    const res = applyLoaMove(board, m, botSymbol)
+    if (!res) continue
+    let score = 0
+    if (res.result) {
+      score = res.result.winner === botSymbol ? 1000 : -1000
+    } else {
+      if (res.captured) score += 30
+      // Progress: total pairwise distance shrink (proxy for uniting).
+      const mine = []
+      for (let i = 0; i < 64; i++) if (res.board[i] === botSymbol) mine.push(i)
+      let dist = 0
+      for (const a of mine) {
+        for (const b of mine) {
+          dist += Math.max(Math.abs(Math.floor(a / 8) - Math.floor(b / 8)), Math.abs((a % 8) - (b % 8)))
+        }
+      }
+      score -= dist / 10
+    }
+    if (score > bestScore) { bestScore = score; best = m }
+  }
+  return best
+}
+
+// ─── YAVALATH — make 4 if possible, dodge forced 3s, else random ────────────
+function botYavalath(game, botSymbol) {
+  const board = normalizeYvBoard(game.board)
+  const opp = botSymbol === 'X' ? 'O' : 'X'
+  const open = []
+  for (let i = 0; i < YV_CELL_COUNT; i++) if (board[i] === '') open.push(i)
+  if (!open.length) return null
+  const safe = []
+  const winning = []
+  const oppWinning = []
+  for (const i of open) {
+    const b2 = [...board]
+    b2[i] = botSymbol
+    const res = getYavalathResult(b2, botSymbol)
+    if (res?.winner === botSymbol) winning.push(i)
+    if (res?.winner === opp) continue // immediate self-loss — skip
+    safe.push(i)
+    const b3 = [...board]
+    b3[i] = opp
+    const resOpp = getYavalathResult(b3, opp)
+    if (resOpp?.winner === opp) oppWinning.push(i)
+  }
+  if (winning.length) return winning[0]
+  if (oppWinning.length) return shuffle(oppWinning)[0] // block
+  return safe.length ? shuffle(safe)[0] : shuffle(open)[0] // all lose: random
+}
+
 // ---------------------------------------------------------------------------
 // Dispatcher
-// ---------------------------------------------------------------------------
 
 export function pickBotMove(type, game, botSymbol) {
   switch (type) {
@@ -643,6 +994,16 @@ export function pickBotMove(type, game, botSymbol) {
     case 'blockade':      return botBlockade(game, botSymbol)
     case 'pairs':        return computePairsBotMove(game, botSymbol)
     case 'hex':          return botHex(game, botSymbol)
+    case 'sim':          return botSim(game, botSymbol)
+    case 'chomp':        return botChomp(game, botSymbol)
+    case 'breakthrough': return botBreakthrough(game, botSymbol)
+    case 'ataxx':        return botAtaxx(game, botSymbol)
+    case 'kamisado':     return botKamisado(game, botSymbol)
+    case 'onitama':      return botOnitama(game, botSymbol)
+    case 'quarto':       return botQuarto(game, botSymbol)
+    case 'santorini':    return botSantorini(game, botSymbol)
+    case 'loa':          return botLoa(game, botSymbol)
+    case 'yavalath':     return botYavalath(game, botSymbol)
     default:               return null
   }
 }

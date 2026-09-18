@@ -517,7 +517,9 @@ export default function Game() {
     }
 
     const cfg = getGameConfig(game.gameType)
-    const filledCount = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize).filter(Boolean).length : 0
+    // Count non-empty cells; `!== ''` (not truthiness) so numeric ids/heights
+    // of 0 (quarto piece 0, santorini level 1 ground) still count as filled.
+    const filledCount = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize).filter(v => v !== '').length : 0
 
     if (cfg.applyMove) {
       const isPigType = cfg.type === 'dice' || cfg.type === 'dice-big'

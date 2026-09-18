@@ -70,10 +70,12 @@ describe('supportsLocalPlay', () => {
     'tictactoe', 'ultimatettt', 'tictactoe4', 'connectfour', 'connectfour5', 'connectfourpop',
     'dotsandboxes', 'dotsandboxes4', 'sos', 'gomoku', 'reversi', 'chainreaction', 'chainreaction6',
     'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'visualmemory', 'pairs', 'dice', 'dice-big',
+    'sim', 'chomp', 'breakthrough', 'ataxx', 'kamisado',
+    'onitama', 'quarto', 'santorini', 'loa', 'yavalath',
   ]
 
-  it('is true for all 22 eligible registry-driven turn-based games', () => {
-    expect(LOCAL_TYPES).toHaveLength(22)
+  it('is true for all 32 eligible registry-driven turn-based games', () => {
+    expect(LOCAL_TYPES).toHaveLength(32)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }

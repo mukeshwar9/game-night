@@ -68,6 +68,15 @@
     --c-av2:      170 110 255;  /* violet */
     --c-av3:      45 210 190;   /* teal */
     --c-av4:      140 95 65;    /* brown */
+    /* Kamisado square colors (kam0..kam7) — bright arcade hues */
+    --c-kam0:     157 106 56;   /* brown */
+    --c-kam1:     57 255 120;   /* green */
+    --c-kam2:     255 77 77;    /* red */
+    --c-kam3:     255 230 90;   /* yellow */
+    --c-kam4:     255 105 180;  /* pink */
+    --c-kam5:     187 134 252;  /* purple */
+    --c-kam6:     80 160 255;   /* blue */
+    --c-kam7:     255 159 28;   /* orange */
   }
 }
 
@@ -101,6 +110,15 @@
   --c-av2:      160 130 220;
   --c-av3:      60 215 170;
   --c-av4:      130 100 65;
+  /* Kamisado — phosphor luminance ramp (single-hue green CRT) */
+  --c-kam0:     10 40 10;
+  --c-kam1:     16 70 16;
+  --c-kam2:     24 100 24;
+  --c-kam3:     36 130 36;
+  --c-kam4:     52 160 52;
+  --c-kam5:     80 190 80;
+  --c-kam6:     120 220 120;
+  --c-kam7:     184 255 184;
 }
 
 [data-theme="amber"] {
@@ -131,6 +149,15 @@
   --c-av2:      190 120 220;
   --c-av3:      70 200 180;
   --c-av4:      150 100 55;
+  /* Kamisado — amber luminance ramp */
+  --c-kam0:     40 20 4;
+  --c-kam1:     70 36 6;
+  --c-kam2:     100 54 10;
+  --c-kam3:     130 76 16;
+  --c-kam4:     160 100 26;
+  --c-kam5:     190 128 40;
+  --c-kam6:     218 158 60;
+  --c-kam7:     255 200 90;
 }
 
 [data-theme="synthwave"] {
@@ -161,6 +188,15 @@
   --c-av2:      190 90 255;
   --c-av3:      40 230 220;
   --c-av4:      150 90 90;
+  /* Kamisado — synthwave neon set */
+  --c-kam0:     110 70 40;
+  --c-kam1:     182 255 0;
+  --c-kam2:     255 41 117;
+  --c-kam3:     255 230 90;
+  --c-kam4:     255 120 200;
+  --c-kam5:     190 90 255;
+  --c-kam6:     0 240 255;
+  --c-kam7:     255 159 28;
 }
 
 [data-theme="grid"] {
@@ -191,6 +227,15 @@
   --c-av2:      150 130 255;
   --c-av3:      40 220 210;
   --c-av4:      130 95 70;
+  /* Kamisado — grid: blue luminance ramp + white top step */
+  --c-kam0:     6 24 44;
+  --c-kam1:     12 44 74;
+  --c-kam2:     20 66 104;
+  --c-kam3:     30 92 140;
+  --c-kam4:     48 124 178;
+  --c-kam5:     82 160 220;
+  --c-kam6:     140 200 245;
+  --c-kam7:     244 244 244;
 }
 
 [data-theme="mono"] {
@@ -223,6 +268,16 @@
   --c-av2:      165 165 165;
   --c-av3:      120 120 120;
   --c-av4:      75 75 75;
+  /* Kamisado — grayscale steps (color names in the UI strip carry the
+     distinction; the ramp keeps squares readable) */
+  --c-kam0:     18 18 18;
+  --c-kam1:     40 40 40;
+  --c-kam2:     64 64 64;
+  --c-kam3:     90 90 90;
+  --c-kam4:     118 118 118;
+  --c-kam5:     150 150 150;
+  --c-kam6:     188 188 188;
+  --c-kam7:     228 228 228;
 }
 
 [data-theme="virtualboy"] {
@@ -256,6 +311,15 @@
   --c-av2:      200 40 40;
   --c-av3:      255 140 100;
   --c-av4:      130 30 30;
+  /* Kamisado — virtual-boy red luminance ramp */
+  --c-kam0:     24 0 0;
+  --c-kam1:     52 4 4;
+  --c-kam2:     84 8 8;
+  --c-kam3:     118 16 16;
+  --c-kam4:     156 28 28;
+  --c-kam5:     196 48 48;
+  --c-kam6:     232 90 90;
+  --c-kam7:     255 150 140;
 }
 
 [data-theme="paper"] {
@@ -286,6 +350,15 @@
   --c-av2:      130 90 180;
   --c-av3:      30 140 130;
   --c-av4:      120 85 55;
+  /* Kamisado — muted ink colors on light paper */
+  --c-kam0:     120 80 50;
+  --c-kam1:     60 140 70;
+  --c-kam2:     200 60 60;
+  --c-kam3:     230 180 40;
+  --c-kam4:     220 110 160;
+  --c-kam5:     130 90 200;
+  --c-kam6:     60 110 200;
+  --c-kam7:     230 140 50;
 }
 
 [data-theme="c64"] {
@@ -318,6 +391,15 @@
   --c-av2:      190 140 255;
   --c-av3:      80 220 210;
   --c-av4:      150 105 75;
+  /* Kamisado — authentic C64 palette entries */
+  --c-kam0:     108 74 26;
+  --c-kam1:     108 228 72;
+  --c-kam2:     200 80 72;
+  --c-kam3:     222 222 108;
+  --c-kam4:     255 119 119;
+  --c-kam5:     104 68 188;
+  --c-kam6:     114 240 240;
+  --c-kam7:     222 130 44;
 }
 
 [data-theme="blueprint"] {
@@ -348,6 +430,15 @@
   --c-av2:      185 145 255;
   --c-av3:      85 220 205;
   --c-av4:      155 110 80;
+  /* Kamisado — blueprint blue ramp + white top step */
+  --c-kam0:     14 36 66;
+  --c-kam1:     22 52 88;
+  --c-kam2:     34 72 112;
+  --c-kam3:     52 96 140;
+  --c-kam4:     76 124 172;
+  --c-kam5:     108 156 208;
+  --c-kam6:     152 196 240;
+  --c-kam7:     255 255 255;
 }
 
 [data-theme="sakura"] {
@@ -378,6 +469,15 @@
   --c-av2:      190 140 255;
   --c-av3:      90 215 200;
   --c-av4:      150 100 80;
+  /* Kamisado — sakura pastels on dark plum */
+  --c-kam0:     170 130 85;
+  --c-kam1:     140 200 130;
+  --c-kam2:     235 110 110;
+  --c-kam3:     245 205 110;
+  --c-kam4:     255 160 200;
+  --c-kam5:     195 145 240;
+  --c-kam6:     130 180 240;
+  --c-kam7:     250 195 145;
 }
 
 [data-theme="matcha"] {
@@ -408,6 +508,15 @@
   --c-av2:      150 90 180;
   --c-av3:      30 150 140;
   --c-av4:      130 90 60;
+  /* Kamisado — earthy matcha tones on light ground */
+  --c-kam0:     130 90 55;
+  --c-kam1:     90 150 60;
+  --c-kam2:     190 70 60;
+  --c-kam3:     210 170 50;
+  --c-kam4:     200 120 170;
+  --c-kam5:     130 100 190;
+  --c-kam6:     70 130 190;
+  --c-kam7:     220 140 60;
 }
 
 /* Sticky header height (NavBar padding + min-h-9 row) so in-page sticky

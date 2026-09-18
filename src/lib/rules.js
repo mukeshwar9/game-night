@@ -527,6 +527,115 @@ export const GAME_RULES = {
     ],
     win: 'Claim 10 of the 18 pairs to win instantly. If the board fills first, whoever claimed more pairs wins — 9–9 is a draw.',
   },
+
+  sim: {
+    objective: 'Color connecting lines between six dots — but never complete a triangle of your own color.',
+    howToPlay: [
+      'Take turns claiming one of the 15 lines between the six dots.',
+      'X colors first; there is no passing.',
+      'The first player forced to close a triangle in their own color LOSES — so dodge, divert and dump lines on your rival.',
+      'A draw is mathematically impossible — someone must eventually complete a triangle.',
+    ],
+    win: 'You win the moment your opponent completes a triangle in their color. In a 2-coloring of all 15 lines one triangle always exists.',
+  },
+
+  chomp: {
+    objective: 'Nibble the chocolate bar and leave your opponent the poisoned corner.',
+    howToPlay: [
+      'The 5×6 bar has one poisoned square in the top-left corner.',
+      'On your turn pick any remaining square and eat it PLUS everything below and to the right of it.',
+      'Bites carve a staircase out of the bar — the shape only ever shrinks.',
+      'Whoever eats the poison loses, and the bar keeps shrinking until someone must.',
+    ],
+    win: 'Force your opponent to bite the poisoned square. The first player has a proven winning strategy — but only perfect play finds it.',
+  },
+
+  breakthrough: {
+    objective: 'Race your pawns across the board and break through to the far row.',
+    howToPlay: [
+      'Each side starts with two full rows of pawns.',
+      'A pawn moves one square straight or diagonally forward into an empty square.',
+      'A pawn captures one square diagonally forward — there are no backward moves.',
+      'First pawn to reach the opposite home row wins; wiping out every enemy pawn also wins.',
+    ],
+    win: 'Reach the far row with any pawn, or capture all of the opponent’s pawns. A player with no legal move loses. Draws are impossible.',
+  },
+
+  ataxx: {
+    objective: 'Infect the board — clone your pieces and convert every enemy next to them.',
+    howToPlay: [
+      'Move one of your pieces one square (it clones, original stays) or two squares (it jumps, original vacates).',
+      'Every enemy piece directly adjacent to where you land is converted to your color.',
+      'Convert at least one piece and you get another turn.',
+      'You must move if you can; with no legal move you sit out while your opponent plays on.',
+    ],
+    win: 'When no moves remain, the larger territory wins. You also win instantly by eliminating every enemy piece.',
+  },
+
+  kamisado: {
+    objective: 'Race your towers to the far row — but your landing square dictates the color your opponent must move.',
+    howToPlay: [
+      'The 8×8 board is a mosaic of 8 colors; each player owns one tower of every color.',
+      'On your turn move the tower matching the color of the square your opponent just landed on (first move: any tower).',
+      'Towers glide any number of squares straight or diagonally FORWARD only — never sideways or back.',
+      'Land on the color that strands your rival’s matching tower behind a wall of blockers.',
+    ],
+    win: 'First tower to reach the opponent’s home row wins the round. Best of three rounds takes the match.',
+  },
+
+  onitama: {
+    objective: 'Capture the enemy master — or land your own on their temple. The catch: every card you play is handed to your opponent.',
+    howToPlay: [
+      'Five movement cards are dealt: two to each player, one face-up spare. Each card shows a movement pattern.',
+      'Pick one of your two cards, then move any of your pieces per its pattern — patterns are read from YOUR side of the board.',
+      'Land on an enemy piece to capture it. Your played card now becomes their card: the spare swaps into your hand.',
+      'No two games play the same — the same five cards serve both sides, rotated 180°.',
+    ],
+    win: 'Capture the enemy master, or march your master onto the temple square at the center of their home row.',
+  },
+
+  quarto: {
+    objective: 'Line up four pieces that share ONE attribute — but you never pick your own piece: you give it to your rival.',
+    howToPlay: [
+      '16 pieces, each with 4 attributes: tall/short, round/square, hollow/solid, light/dark.',
+      'On your turn PLACE the piece you were handed on any empty cell, then hand your opponent any shelf piece.',
+      'Four pieces in a row, column or diagonal win if all four share ANY one attribute.',
+      'The skill: hand over a piece that is useless to them — never one that completes their line.',
+    ],
+    win: 'Complete a shared-attribute line of four. If the last piece is placed with no line, the game is a draw.',
+  },
+
+  santorini: {
+    objective: 'Climb to the third level of the island — or wall your rival in so completely they cannot move.',
+    howToPlay: [
+      'Each player commands two workers on a 5×5 island of rising towers.',
+      'Your turn: MOVE one worker to any of its 8 neighboring squares (climb at most one level up, any number down), then BUILD one level on any adjacent square.',
+      'You may build under your own worker. Towers cap at 4 levels — a dome — and nothing moves onto or builds on a dome.',
+      'Cut off space: every square they could move to or build on is gone, and they lose.',
+    ],
+    win: 'A worker standing on level 3 wins instantly. If the opponent has no legal move+build at the start of their turn, they lose.',
+  },
+
+  loa: {
+    objective: 'Unite all your checkers into one connected group — moving exactly as far as the line is crowded.',
+    howToPlay: [
+      'A checker moves in a straight line (row, column or diagonal) EXACTLY as many squares as there are checkers of either color on that entire line.',
+      'You may jump over your own checkers, never over an enemy. Land on an enemy checker to capture it.',
+      'Count before you move: a crowded line means a long stride; an empty one means a single step.',
+    ],
+    win: 'First player whose remaining checkers all form one orthogonally/diagonally connected group wins. If both connect on the same move, the mover wins.',
+  },
+
+  yavalath: {
+    objective: 'Make FOUR in a row before you accidentally make THREE — the game where winning lines are forbidden at 3.',
+    howToPlay: [
+      'Players alternate placing stones on a hexagonal board.',
+      'Four or more of your stones in a straight hex line WINS.',
+      'Three in a row LOSES — instantly, even if you were forced to play it.',
+      'Threaten a 4 to force your rival to extend your line to 3, or block forever.',
+    ],
+    win: 'First 4-in-a-row wins; first 3-in-a-row loses. A full board with no result is a draw.',
+  },
 }
 
 // Returns the rules object for a game type, or null if none is defined.

@@ -1,0 +1,27 @@
+{
+  "tictactoe4": {
+    "title": "TTT 4×4 DEMO",
+    "boardInfo": {
+      "cells": 16,
+      "cols": 2
+    }
+  },
+  "connectfive": {
+    "title": "TTT DEMO",
+    "boardInfo": {
+      "cells": 9,
+      "cols": 2
+    }
+  },
+  "connectfour5": {
+    "title": "C4 FIVE DEMO",
+    "boardInfo": {
+      "cells": 9,
+      "cols": 2
+    }
+  },
+  "dice-big": {
+    "title": "PIG BIG DEMO",
+    "twoDice": true
+  }
+}

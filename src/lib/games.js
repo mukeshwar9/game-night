@@ -16,9 +16,58 @@ import {
   WordDuelIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
+  SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
+  OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
+import {
+  SIM_EDGE_COUNT, getSimWinner, getMoveIndex as simMoveIndex,
+} from './simLogic'
+import SimBoard from '../components/SimBoard'
+import {
+  CHOMP_CELL_COUNT, applyChompMove, getChompWinner,
+} from './chompLogic'
+import ChompBoard from '../components/ChompBoard'
+import {
+  BT_CELL_COUNT, INITIAL_BREAKTHROUGH,
+  applyBreakthroughMove, getBreakthroughWinner,
+} from './breakthroughLogic'
+import BreakthroughBoard from '../components/BreakthroughBoard'
+import {
+  AX_CELL_COUNT, INITIAL_ATAXX,
+  applyAtaxxMove, getAtaxxWinner,
+} from './ataxxLogic'
+import AtaxxBoard from '../components/AtaxxBoard'
+import {
+  KM_CELL_COUNT, INITIAL_KAMISADO, INITIAL_KAMISADO_TOWERS,
+  applyKamisadoMove,
+} from './kamisadoLogic'
+import KamisadoBoard from '../components/KamisadoBoard'
+import {
+  ON_CELL_COUNT, INITIAL_ONITAMA, dealCards,
+  applyOnitamaMove, normalizeOnBoard,
+} from './onitamaLogic'
+import OnitamaBoard from '../components/OnitamaBoard'
+import {
+  QRT_CELL_COUNT, applyQuartoMove, dealQuarto,
+  normalizeQuartoBoard,
+} from './quartoLogic'
+import QuartoBoard from '../components/QuartoBoard'
+import {
+  ST_CELL_COUNT, INITIAL_SANTORINI,
+  applyStMove, normalizeStBoard, normalizeStWorkers,
+} from './santoriniLogic'
+import SantoriniBoard from '../components/SantoriniBoard'
+import {
+  LOA_CELL_COUNT, INITIAL_LOA,
+  applyLoaMove, normalizeLoaBoard,
+} from './loaLogic'
+import LoaBoard from '../components/LoaBoard'
+import {
+  YV_CELL_COUNT, applyYavalathMove, normalizeYvBoard,
+} from './yavalathLogic'
+import YavalathBoard from '../components/YavalathBoard'
 import {
   UT_CELL_COUNT, UT_BOARD_COUNT, applyUltimateMove, getUltimateWinner, normalizeUWon,
 } from './ultimateTttLogic'
@@ -148,6 +197,299 @@ export const GAME_TYPES = [
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     getWinner,
     BoardComponent: Board,
+  },
+  {
+    type: 'sim', label: 'SIM',
+    desc: "color an edge, don't close a triangle", Icon: SimIcon,
+    badge: 'SIM', maxWidth: 'max-w-sm',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    boardSize: SIM_EDGE_COUNT,
+    getMoveIndex: simMoveIndex,
+    getWinner: getSimWinner,
+    BoardComponent: SimBoard,
+  },
+  {
+    type: 'chomp', label: 'CHOMP',
+    desc: 'eat the bar, dodge the poison', Icon: ChompIcon,
+    badge: 'CH', maxWidth: 'max-w-sm',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 4, tags: ['quick', 'thinky'], solo: true,
+    boardSize: CHOMP_CELL_COUNT,
+    getMoveIndex: (board, i) => (board[i] ? -1 : i),
+    BoardComponent: ChompBoard,
+    applyMove: ({ board, index, symbol }) => {
+      const moved = applyChompMove(board, index)
+      if (!moved) return null
+      return {
+        updates: {
+          board: moved.board,
+          currentTurn: symbol === 'X' ? 'O' : 'X',
+        },
+        // The ONLY resolving event: the mover biting the poison themselves.
+        // Leaving the poison alone does NOT resolve — the opponent must eat it.
+        result: getChompWinner(moved.atePoison, symbol),
+      }
+    },
+  },
+  {
+    type: 'breakthrough', label: 'BREAKTHROUGH',
+    desc: 'race a pawn to the far row', Icon: BreakthroughIcon,
+    badge: 'BT', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 8, tags: ['thinky'], solo: true,
+    boardSize: BT_CELL_COUNT,
+    // Move payload { from, to }: getMoveIndex only checks payload shape (the
+    // Mancala precedent) — ownership + legality live in applyBreakthroughMove.
+    getMoveIndex: (_, move) =>
+      move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
+    BoardComponent: BreakthroughBoard,
+    applyMove: ({ board, move, symbol }) => {
+      const moved = applyBreakthroughMove(board, move, symbol)
+      if (!moved) return null
+      return {
+        updates: {
+          board: moved.board,
+          currentTurn: symbol === 'X' ? 'O' : 'X',
+          lastMove: move.to,
+        },
+        result: getBreakthroughWinner(moved.board, symbol),
+      }
+    },
+    boardProps: (game) => ({
+      board: normalizeBoard(game.board, BT_CELL_COUNT),
+    }),
+  },
+  {
+    type: 'ataxx', label: 'ATAXX',
+    desc: 'clone, jump, convert the neighborhood', Icon: AtaxxIcon,
+    badge: 'AX', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 6, tags: ['thinky'], solo: true,
+    boardSize: AX_CELL_COUNT,
+    // Payload { from, to }: shape check only (Mancala precedent) — ownership
+    // + clone/jump legality live in applyAtaxxMove.
+    getMoveIndex: (_, move) =>
+      move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
+    BoardComponent: AtaxxBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const moved = applyAtaxxMove(board, move, symbol)
+      if (!moved) return null
+      const moveCount = (game.ataxxMoves ?? 0) + 1
+      return {
+        updates: {
+          board: moved.board,
+          ataxxMoves: moveCount,
+          // Pass note: if the opponent has no legal move they skip (Reversi
+          // precedent) — surfaced by GameStatus as "OPPONENT PASSED".
+          currentTurn: symbol === 'X' ? 'O' : 'X',
+          passNote: null,
+          lastMove: move.to,
+        },
+        result: getAtaxxWinner(moved.board, moveCount),
+      }
+    },
+  },
+  {
+    type: 'kamisado', label: 'KAMISADO',
+    desc: 'your landing picks their tower', Icon: KamisadoIcon,
+    badge: 'KM', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 10, tags: ['thinky'], solo: true,
+    boardSize: KM_CELL_COUNT,
+    // Payload { from, to }: shape check only (Mancala precedent) — ownership,
+    // forward-glide legality and the forced-color rule live in applyKamisadoMove.
+    getMoveIndex: (_, move) =>
+      move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
+    BoardComponent: KamisadoBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const forced = game.kamisadoColor ?? null
+      const res = applyKamisadoMove(board, move, symbol, forced, { towers: game.kamisadoTowers })
+      if (!res) return null
+      // extraTurn (opponent's forced tower stuck): turn STAYS on the mover
+      // with the constraint lifted (kamisadoColor null — any tower).
+      const nextMover = res.extraTurn ? symbol : (symbol === 'X' ? 'O' : 'X')
+      return {
+        updates: {
+          board: res.board,
+          kamisadoTowers: res.towers,
+          kamisadoColor: res.forcedColor,
+          currentTurn: nextMover,
+          extraTurn: res.extraTurn ? true : null,
+          lastMove: move.to,
+        },
+        result: res.result,
+      }
+    },
+    boardProps: (game) => ({
+      board: normalizeBoard(game.board, KM_CELL_COUNT),
+      forcedColor: game.kamisadoColor ?? null,
+      towers: game.kamisadoTowers ?? null,
+    }),
+  },
+  {
+    type: 'onitama', label: 'ONITAMA',
+    desc: 'the way of the master — your card becomes their move', Icon: OnitamaIcon,
+    badge: 'ON', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 15, tags: ['thinky'], solo: true,
+    boardSize: ON_CELL_COUNT,
+    // Payload { from, to, card }: shape check only (Mancala precedent) —
+    // hand membership, card legality and captures live in applyOnitamaMove.
+    getMoveIndex: (_, move) =>
+      move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
+    BoardComponent: OnitamaBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const hands = { handX: game.onitamaHandX, handO: game.onitamaHandO, spare: game.onitamaSpare }
+      const res = applyOnitamaMove(board, move, symbol, hands)
+      if (!res) return null
+      return {
+        updates: {
+          board: res.board,
+          onitamaHandX: res.handX,
+          onitamaHandO: res.handO,
+          onitamaSpare: res.spare,
+          currentTurn: res.currentTurn,
+          lastMove: move.to,
+        },
+        result: res.result,
+      }
+    },
+    boardProps: (game) => ({
+      board: normalizeOnBoard(game.board),
+      handX: game.onitamaHandX ?? [],
+      handO: game.onitamaHandO ?? [],
+      spare: game.onitamaSpare ?? null,
+    }),
+  },
+  {
+    type: 'quarto', label: 'QUARTO',
+    desc: 'place the piece you are given, give the next', Icon: QuartoIcon,
+    badge: 'QT', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 15, tags: ['thinky'], solo: true,
+    boardSize: QRT_CELL_COUNT,
+    // Payload { place, give }: `place` is the cell index; `give` the piece
+    // handed over. Shape check only — shelf/pending rules in applyQuartoMove.
+    getMoveIndex: (_, move) =>
+      move && Number.isInteger(move.place) ? move.place : -1,
+    BoardComponent: QuartoBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const res = applyQuartoMove(board, move, symbol, {
+        unplaced: game.quartoUnplaced,
+        pending: game.quartoPending,
+      })
+      if (!res) return null
+      return {
+        updates: {
+          board: res.board,
+          quartoUnplaced: res.unplaced,
+          quartoPending: res.pending,
+          currentTurn: res.currentTurn,
+          lastMove: move.place,
+        },
+        result: res.result,
+      }
+    },
+    boardProps: (game) => ({
+      board: normalizeQuartoBoard(game.board),
+      unplaced: game.quartoUnplaced ?? [],
+      pending: game.quartoPending ?? null,
+    }),
+  },
+  {
+    type: 'santorini', label: 'SANTORINI',
+    desc: 'climb the island, build their grave', Icon: SantoriniIcon,
+    badge: 'SA', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 12, tags: ['thinky'], solo: true,
+    boardSize: ST_CELL_COUNT,
+    getMoveIndex: (_, move) =>
+      move && Number.isInteger(move.worker) && Number.isInteger(move.to) ? move.worker : -1,
+    BoardComponent: SantoriniBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const res = applyStMove(
+        { board, workers: game.santoriniWorkers },
+        move,
+        symbol,
+      )
+      if (!res) return null
+      return {
+        updates: {
+          board: res.board,
+          santoriniWorkers: res.workers,
+          currentTurn: res.currentTurn,
+          lastMove: move.build ?? move.to,
+        },
+        result: res.result,
+      }
+    },
+    boardProps: (game) => ({
+      board: normalizeStBoard(game.board),
+      workers: normalizeStWorkers(game.santoriniWorkers),
+    }),
+  },
+  {
+    type: 'loa', label: 'LINES OF ACTION',
+    desc: 'move as far as the line is crowded, unite all', Icon: LoaIcon,
+    badge: 'LOA', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 15, tags: ['thinky'], solo: true,
+    boardSize: LOA_CELL_COUNT,
+    getMoveIndex: (_, move) =>
+      move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
+    BoardComponent: LoaBoard,
+    applyMove: ({ board, move, symbol }) => {
+      const res = applyLoaMove(board, move, symbol)
+      if (!res) return null
+      return {
+        updates: {
+          board: res.board,
+          currentTurn: res.currentTurn,
+          lastMove: move.to,
+        },
+        result: res.result,
+      }
+    },
+    boardProps: (game) => ({
+      board: normalizeLoaBoard(game.board),
+    }),
+  },
+  {
+    type: 'yavalath', label: 'YAVALATH',
+    desc: 'four in a row wins — three in a row loses', Icon: YavalathIcon,
+    badge: 'YV', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-17',
+    durationMin: 10, tags: ['thinky'], solo: true,
+    boardSize: YV_CELL_COUNT,
+    // Standard placement: payload = cell index.
+    getMoveIndex: (board, i) => (!board[i] && Number.isInteger(i) ? i : -1),
+    BoardComponent: YavalathBoard,
+    applyMove: ({ board, index, symbol }) => {
+      const res = applyYavalathMove(board, index, symbol)
+      if (!res) return null
+      return {
+        updates: {
+          board: res.board,
+          currentTurn: res.currentTurn,
+          lastMove: index,
+        },
+        result: res.result,
+      }
+    },
+    boardProps: (game) => ({
+      board: normalizeYvBoard(game.board),
+    }),
   },
   {
     type: 'ultimatettt', label: 'ULTIMATE TTT',
@@ -1018,6 +1360,21 @@ const FIELD_NULLS = {
   chatLog: null,
   // emote currently leaks across game switches — clear it too.
   emote: null,
+  // Ataxx ply counter for the anti-cycle move cap (getAtaxxWinner).
+  ataxxMoves: null,
+  // Kamisado forced-color chain: color index 0-7 the current mover must play
+  // (null = any tower). Shared state, lives outside round. Tower identity is
+  // explicit: kamisadoTowers[sym][k] = cell of sym's home-color-k tower —
+  // towers keep their home color after cross-color marches.
+  kamisadoColor: null,
+  kamisadoTowers: null,
+  // Onitama card pool: 2/2 hands + face-up spare. Numbers rotate every move;
+  // they never leave play, so switching games must clear them.
+  onitamaHandX: null, onitamaHandO: null, onitamaSpare: null,
+  // Quarto shared shelf + the piece the current mover must place.
+  quartoUnplaced: null, quartoPending: null,
+  // Santorini worker positions (heights live in `board`).
+  santoriniWorkers: null,
 }
 
 export function freshGameState(gameType) {
@@ -1168,6 +1525,60 @@ export function freshGameState(gameType) {
   if (gameType === 'checkers') {
     return { ...FIELD_NULLS, boxes: null, round: null,
       board: INITIAL_CHECKERS(),
+      currentTurn: 'X' }
+  }
+  if (gameType === 'breakthrough') {
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: INITIAL_BREAKTHROUGH(),
+      currentTurn: 'X' }
+  }
+  if (gameType === 'ataxx') {
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: INITIAL_ATAXX(),
+      currentTurn: 'X',
+      ataxxMoves: 0 }
+  }
+  if (gameType === 'kamisado') {
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: INITIAL_KAMISADO(),
+      currentTurn: 'X',
+      kamisadoColor: null,
+      kamisadoTowers: INITIAL_KAMISADO_TOWERS() }
+  }
+  if (gameType === 'onitama') {
+    // Deal 2/2/1 from the 16-card deck; X moves first.
+    const deal = dealCards()
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: INITIAL_ONITAMA(),
+      currentTurn: 'X',
+      onitamaHandX: deal.handX,
+      onitamaHandO: deal.handO,
+      onitamaSpare: deal.spare }
+  }
+  if (gameType === 'quarto') {
+    // Random piece awaits X on turn one (the imaginary first hand-over).
+    const deal = dealQuarto()
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: Array(QRT_CELL_COUNT).fill(''),
+      currentTurn: 'X',
+      quartoUnplaced: deal.unplaced,
+      quartoPending: deal.pending }
+  }
+  if (gameType === 'santorini') {
+    const st = INITIAL_SANTORINI()
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: st.board,
+      currentTurn: 'X',
+      santoriniWorkers: st.workers }
+  }
+  if (gameType === 'loa') {
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: INITIAL_LOA(),
+      currentTurn: 'X' }
+  }
+  if (gameType === 'yavalath') {
+    return { ...FIELD_NULLS, boxes: null, round: null,
+      board: Array(YV_CELL_COUNT).fill(''),
       currentTurn: 'X' }
   }
   if (gameType === 'airhockey') {

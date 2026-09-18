@@ -1,0 +1,304 @@
+{
+  "base": "http://localhost:5179",
+  "viewport": "390x844",
+  "captures": [
+    {
+      "name": "sim-1-midgame",
+      "url": "http://localhost:5179/solo/sim"
+    },
+    {
+      "name": "chomp-1-fresh",
+      "url": "http://localhost:5179/solo/chomp"
+    },
+    {
+      "name": "chomp-2-after-bite",
+      "url": "http://localhost:5179/solo/chomp"
+    },
+    {
+      "name": "chomp-3-later",
+      "url": "http://localhost:5179/solo/chomp"
+    },
+    {
+      "name": "breakthrough-1-targets",
+      "url": "http://localhost:5179/solo/breakthrough"
+    },
+    {
+      "name": "breakthrough-2-after-bot",
+      "url": "http://localhost:5179/solo/breakthrough"
+    },
+    {
+      "name": "ataxx-1-targets",
+      "url": "http://localhost:5179/solo/ataxx"
+    },
+    {
+      "name": "ataxx-2-after-bot",
+      "url": "http://localhost:5179/solo/ataxx"
+    },
+    {
+      "name": "kamisado-1-targets",
+      "url": "http://localhost:5179/solo/kamisado"
+    },
+    {
+      "name": "kamisado-2-after-bot",
+      "url": "http://localhost:5179/solo/kamisado"
+    }
+  ],
+  "games": {
+    "sim": {
+      "taps": [
+        "edge-0",
+        "edge-1",
+        "edge-3",
+        "edge-4",
+        "edge-5"
+      ],
+      "claims": [],
+      "lastLine": "LAST: B–C",
+      "done": "only 0 free — board filling up",
+      "disabledFinal": 15
+    },
+    "chomp": {
+      "taps": [
+        "4-1",
+        "chomp-cell-4-0"
+      ],
+      "eatenAfterRound1": 25,
+      "eatenAfterRound2": 29,
+      "poisonStill": "alive & enabled"
+    },
+    "breakthrough": {
+      "taps": [
+        "select 6-3",
+        "move bt-cell-5-3"
+      ],
+      "targets": [
+        "bt-cell-5-2",
+        "bt-cell-5-3",
+        "bt-cell-5-4"
+      ],
+      "xPawns": 16,
+      "oPawns": 16
+    },
+    "ataxx": {
+      "taps": [
+        "select 6-0",
+        "move ataxx-cell-6-1"
+      ],
+      "piecesBefore": 2,
+      "targets": [
+        "ataxx-cell-4-0",
+        "ataxx-cell-4-1",
+        "ataxx-cell-4-2",
+        "ataxx-cell-5-0",
+        "ataxx-cell-5-1",
+        "ataxx-cell-5-2",
+        "ataxx-cell-6-1",
+        "ataxx-cell-6-2"
+      ],
+      "piecesAfter": 4
+    },
+    "kamisado": {
+      "taps": [
+        "select 7-3",
+        "move km-cell-5-3"
+      ],
+      "targetCount": 13,
+      "targets": [
+        "km-cell-1-3",
+        "km-cell-2-3",
+        "km-cell-3-3",
+        "km-cell-3-7",
+        "km-cell-4-0",
+        "km-cell-4-3"
+      ],
+      "xTowers": 8,
+      "oTowers": 8,
+      "botReplyRow": "no O advanced?"
+    }
+  },
+  "consoleErrors": [
+    {
+      "page": "http://localhost:5179/solo/sim",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/sim",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/sim",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/chomp",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/chomp",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/chomp",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/chomp",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/breakthrough",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/breakthrough",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/breakthrough",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/breakthrough",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/ataxx",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/ataxx",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/ataxx",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/ataxx",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/kamisado",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/kamisado",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/kamisado",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/kamisado",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/sim",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/sim",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/sim",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/sim",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/chomp",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/chomp",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/chomp",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/chomp",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/breakthrough",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/breakthrough",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/breakthrough",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/breakthrough",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/ataxx",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/ataxx",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/ataxx",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/ataxx",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/kamisado",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/kamisado",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/kamisado",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/kamisado",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    }
+  ],
+  "mobileFeel": {
+    "sim": {
+      "count": 15,
+      "minW": 44,
+      "minH": 44
+    },
+    "chomp": {
+      "count": 30,
+      "minW": 46,
+      "minH": 46
+    },
+    "breakthrough": {
+      "count": 64,
+      "minW": 34,
+      "minH": 34
+    },
+    "ataxx": {
+      "count": 49,
+      "minW": 39,
+      "minH": 39
+    },
+    "kamisado": {
+      "count": 64,
+      "minW": 36,
+      "minH": 36
+    }
+  }
+}

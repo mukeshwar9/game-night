@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Board Game Playability Review — Game Night</title>
+<style>
+  @font-face {
+    font-family: 'Press Start 2P';
+    src: url('./press-start-2p-latin.woff2') format('woff2');
+    font-display: swap;
+  }
+  :root {
+    --bg: #080810;
+    --surface: #0e0e1a;
+    --card: #12121f;
+    --border: #26263c;
+    --text: #e8e8f0;
+    --dim: #8a8aa3;
+    --p1: #00e5ff;
+    --p2: #ff4081;
+    --cta: #ffd60a;
+    --win: #7cff6b;
+    --danger: #ff4d4d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.55;
+    padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+  h1, h2, h3, .pix { font-family: 'Press Start 2P', ui-monospace, monospace; }
+  h1 { font-size: 17px; line-height: 1.7; color: var(--cta); text-shadow: 0 0 14px rgba(255,214,10,.35); }
+  h2 { font-size: 13px; color: var(--p1); margin-bottom: 14px; letter-spacing: 1px; }
+  h3 { font-size: 10px; line-height: 1.7; margin-bottom: 10px; }
+  a { color: var(--p1); }
+  .sub { color: var(--dim); font-size: 12.5px; margin-top: 8px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    min-width: 0;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip {
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 10px; font-size: 11px; color: var(--dim);
+    background: var(--surface); white-space: nowrap;
+  }
+  .chip b { color: var(--text); font-weight: 600; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+  .stat .n { font-family: 'Press Start 2P', monospace; font-size: 20px; color: var(--cta); margin-bottom: 6px; }
+  .stat .l { color: var(--dim); font-size: 11.5px; }
+  .sev {
+    display: inline-block; font-family: 'Press Start 2P', monospace; font-size: 8px;
+    padding: 4px 8px; border-radius: 4px; margin-right: 8px; vertical-align: middle;
+  }
+  .sev.p1 { background: rgba(255,77,77,.15); color: var(--danger); border: 1px solid rgba(255,77,77,.5); }
+  .sev.p2 { background: rgba(255,214,10,.12); color: var(--cta); border: 1px solid rgba(255,214,10,.45); }
+  .sev.p3 { background: rgba(0,229,255,.1); color: var(--p1); border: 1px solid rgba(0,229,255,.4); }
+  .sev.ok { background: rgba(124,255,107,.1); color: var(--win); border: 1px solid rgba(124,255,107,.4); }
+  .finding { border-left: 3px solid var(--border); padding-left: 14px; }
+  .finding.f1 { border-left-color: var(--danger); }
+  .finding.f2 { border-left-color: var(--cta); }
+  .finding.f3 { border-left-color: var(--p1); }
+  .shot { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+  .shotcap { color: var(--dim); font-size: 11px; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--border); vertical-align: top; min-width: 0; }
+  th { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  td.g { color: var(--p1); white-space: nowrap; font-weight: 600; }
+  .tscroll { overflow-x: auto; }
+  code {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 5px; font-size: 11.5px; color: var(--p2); word-break: break-all;
+  }
+  ul { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+  li { min-width: 0; }
+  .good li::marker { color: var(--win); }
+  .note { color: var(--dim); font-size: 12px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: minmax(0,1fr); } }
+  .kicker { font-size: 10px; color: var(--dim); letter-spacing: 2px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="card">
+    <div class="kicker">GAME NIGHT · PLAYABILITY REVIEW · SEPT 16 2026</div>
+    <h1>BOARD GAMES: PLAYED, MEASURED, SCORED</h1>
+    <p class="sub">All 19 <code>category: 'board'</code> games (+ Pig for comparison) played vs their demo bots on localhost:5179 with a scripted browser (real clicks, 390×844, midnight theme, Firebase blocked — no rooms/profiles written). Every win-checker and bot traced in source. 20 screenshots captured.</p>
+    <div class="chips">
+      <span class="chip"><b>20</b> games played end-to-end</span>
+      <span class="chip"><b>2</b> P1 findings</span>
+      <span class="chip"><b>4</b> P2 findings</span>
+      <span class="chip"><b>5</b> P3 bot-depth notes</span>
+      <span class="chip"><b>0</b> win-logic bugs found</span>
+    </div>
+  </header>
+
+  <section class="stats">
+    <div class="stat"><div class="n">3</div><div class="l">solo variants advertised but silently play the wrong game</div></div>
+    <div class="stat"><div class="n">100%</div><div class="l">of rematches give the creator the first move — in games with a proven first-move edge</div></div>
+    <div class="stat"><div class="n">19/19</div><div class="l">win-detectors traced correct against their rules</div></div>
+  </section>
+
+  <section class="card">
+    <h2>P1 — FIX FIRST</h2>
+    <p class="note" style="margin-bottom:12px"><b style="color:var(--win)">UPDATE:</b> both P1s are now <b style="color:var(--win)">shipped &amp; verified</b> — details under each finding.</p>
+
+    <div class="card finding f1">
+      <h3><span class="sev p1">P1 · BUG</span>VARIANT SOLO MODE PLAYS THE WRONG GAME</h3>
+      <p>The catalog's <b>VS AI</b> flow offers every registry variant with <code>solo: true</code> and navigates to <code>/solo/&lt;variant&gt;</code> — but <code>DEMOS</code> in <code>src/pages/Demo.jsx</code> has <b>no entry for <code>tictactoe4</code>, <code>connectfour5</code>, or <code>dice-big</code></b>. <code>DemoHub</code> falls back to <code>initialType = 'tictactoe'</code> (or connectfour), so the player who picked "TTT 4×4" lands on a 3×3 board titled "TTT DEMO". The demo hub's BOARD tab is also missing both tiles (17 shown vs 19 in the registry).</p>
+      <div class="shots">
+        <div>
+          <img class="shot" src="shots/solo-tictactoe4.png" alt="/solo/tictactoe4 showing a 3x3 board">
+          <div class="shotcap">Picked TTT 4×4 via VS AI → got 3×3 "TTT DEMO". Nothing tells the player they're playing the wrong game.</div>
+        </div>
+        <div>
+          <img class="shot" src="shots/solo-tictactoe.png" alt="plain tictactoe demo — pixel-identical to the tictactoe4 capture">
+          <div class="shotcap">Plain <code>/solo/tictactoe</code> — byte-identical to the tictactoe4 capture (same MD5), proving the fallback.</div>
+        </div>
+      </div>
+      <p style="margin-top:12px"><b>Why it's cheap:</b> <code>BotBoardDemo</code> is registry-driven — tictactoe4 and connectfour5 already have full <code>getMoveIndex</code>/<code>getWinner</code>/<code>applyMove</code> config, so each is a one-line <code>DEMOS</code> entry (verified pattern: <code>connectfourpop</code> works exactly this way). <code>dice-big</code> needs a boardProps check for the second die before adding.</p>
+      <p style="margin-top:10px; color:var(--win)"><b>✔ SHIPPED (verified live):</b> all three <code>DEMOS</code> entries added. Re-verified in the browser: <code>/solo/tictactoe4</code → "TTT 4×4 DEMO" on a 16-cell board, <code>/solo/connectfour5</code → "C4 FIVE DEMO" with DOM-verified 9 drop columns, <code>/solo/dice-big</code → "PIG BIG DEMO" with two dice. Screenshots: <code>fix-tictactoe4.png</code>, <code>fix-connectfour5.png</code>, <code>fix-dice-big.png</code>. Also shipped: the explicit not-available card — <code>/solo/:type</code> with no demo now shows "NO SOLO DEMO" (registry label or UNKNOWN GAME for garbage links) with CREATE A ROOM / ALL DEMOS exits, verified live (<code>fix3-notavailable.png</code>). Registry↔DEMOS audit: zero gaps today; the card guards future variants.</p>
+    </div>
+
+    <div class="card finding f1" style="margin-top:14px">
+      <h3><span class="sev p1">P1 · FAIRNESS</span>REMATCH ALWAYS HANDS THE FIRST MOVE TO THE CREATOR</h3>
+      <p><code>applyPlayAgain</code>/<code>applyNewMatch</code> in <code>src/pages/Game.jsx</code> reset state via <code>freshGameState()</code>, which hardcodes <code>currentTurn: 'X'</code> — and X is always the room creator. In a best-of-N, the same player opens <b>every single game</b>. That's a compounding advantage in exactly the games where the first move is provably strongest (TTT/C4 are solved first-player wins; Gomoku and Hex give a large practical edge — freestyle first-move facts, not estimates).</p>
+      <p style="margin-top:10px"><b>Suggested fix (schema-free):</b> on play-again, set <code>currentTurn</code> to the previous round's loser (common house rule, adds a catch-up dynamic) or alternate via a persisted <code>nextStarter</code> flip in the room node. Do it once in <code>applyPlayAgain</code>/<code>applyNewMatch</code> — no per-game changes needed.</p>
+      <p style="margin-top:10px; color:var(--win)"><b>✔ SHIPPED:</b> rematches now give the first move to the previous round's loser (draws alternate from the last starter, persisted in a <code>starter</code> room field). Applied through the existing <code>firstMoverUpdates()</code> helper, so boards, hangwoman/twotruths (<code>round/setter</code>), and bluff (<code>bluffRound/turn</code>) all get the correct key; real-time/simultaneous games are untouched (helper no-ops). Tests 3214 ✓, build ✓, lint unchanged from baseline. Still open: live two-identity rematch check.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>P2 — READABILITY &amp; ACCESSIBILITY ON THE BOARD ITSELF</h2>
+    <p class="note" style="margin-bottom:12px"><b style="color:var(--win)">UPDATE:</b> all three implementation findings below are now <b style="color:var(--win)">shipped &amp; verified</b> — details under each. (Two corrections from the first write-up: Checkers kings always had a ★ glyph, and SOS already had a score bar — the real gaps were the men-discs and the line-fade.)</p>
+
+    <div class="card finding f2">
+      <h3><span class="sev p2">P2 · CONTRAST</span>HEX: GOAL EDGES ARE NEARLY INVISIBLE</h3>
+      <div class="grid2">
+        <div>
+          <p>The four goal edges are painted as <code>from-retro-p1/30</code> gradients (30% opacity) and empty cells sit one step above the background. On the default theme the board reads as one dark blob — a new player can't tell where they must connect, which for Hex is the entire ruleset. Contrast claims here are eyeballed on midnight only; the 30%-alpha token math should be checked across all 5 themes.</p>
+          <p style="margin-top:10px"><b>Fix:</b> solid tinted rails (p1 left/right, p2 top/bottom) with small ▲/● direction glyphs at the corners; keep glow for occupied stones only.</p>
+          <p style="margin-top:10px; color:var(--win)"><b>✔ SHIPPED (verified live):</b> solid tint rails + 60%-alpha side borders + inward arrows + side-letter stones. Screenshot <code>fix2-hex.png</code>. Theme sweep complete: rails + glyphs verified across all six dark themes (midnight/phosphor/amber/synthwave/grid/mono) — <code>fix3-hex-*.png</code>; no contrast fixes needed.</p>
+        </div>
+        <div>
+          <img class="shot" src="shots/solo-hex.png" alt="Hex board with barely visible goal edges">
+          <div class="shotcap">Live capture: goal zones (left/right cyan, top/bottom pink) are ~30%-alpha washes.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card finding f2" style="margin-top:14px">
+      <h3><span class="sev p2">P2 · A11Y</span>GOMOKU &amp; CHECKERS IDENTIFY PIECES BY COLOR ALONE</h3>
+      <div class="grid2">
+        <div>
+          <p>Both boards render plain discs — Gomoku <code>bg-retro-p1</code>/<code>bg-retro-p2</code> circles, Checkers the same with only a ring for kings. The review checklist's reference pattern (X/O/S glyphs on every other board) exists precisely for this: cyan-vs-pink fails for some color-vision types, and in <b>amber</b> (amber vs cream) or <b>mono</b> (white vs gray) the distinction degrades to brightness-only. Kings are even weaker — a thin ring on a disc.</p>
+          <p style="margin-top:10px"><b>Fix:</b> a small glyph on each stone (● vs ○, or X/O) at ~60% size; Checkers kings get a crown glyph instead of the ring. No logic changes, board components only.</p>
+          <p style="margin-top:10px; color:var(--win)"><b>✔ SHIPPED (verified live):</b> X/O letter inside every Gomoku stone, Hex stone, and Checkers man (kings keep ★). Screenshots <code>fix2-gomoku.png</code>, <code>fix2-checkers.png</code>.</p>
+        </div>
+        <div>
+          <img class="shot" src="shots/solo-checkers.png" alt="Checkers with color-only discs">
+          <div class="shotcap">Checkers: pink vs cyan discs, no glyph; kings differ only by ring.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card finding f2" style="margin-top:14px">
+      <h3><span class="sev p2">P2 · ENDGAME READABILITY</span>SOS: SCORED-LINE OVERLAY TURNS TO NOISE</h3>
+      <div class="grid2">
+        <div>
+          <p>Every completed S-O-S draws a persistent highlight. In a real game both players score often (extra-turn chains), and by ~20 lines the board is a wall of glowing strokes — you can't see fresh threats or verify the score. Also, the extra-turn mechanic means one careless S placement can snowball 3–4 points in a row with only a small "GO AGAIN" pulse as warning.</p>
+          <p style="margin-top:10px"><b>Fix:</b> render only the last N lines at full glow (older ones at ~25% alpha), and add a per-player score chip on the status bar. Pure presentation change.</p>
+          <p style="margin-top:10px; color:var(--win)"><b>✔ SHIPPED (verified live):</b> newest 6 lines full-strength, older lines fade to 25% — DOM-verified in a 31-line endgame (6 full / 25 faded). Score bar already existed (correction). Screenshot <code>fix2-sos.png</code>.</p>
+        </div>
+        <div>
+          <img class="shot" src="shots/solo-sos.png" alt="SOS board covered in overlapping highlight lines">
+          <div class="shotcap">Live capture near game end: 30+ overlapping highlights.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card finding f2" style="margin-top:14px">
+      <h3><span class="sev p2">P2 · FLOW</span>SOLO ROUTE STILL BURIES THE BOARD UNDER THE CATALOG</h3>
+      <p>Reconfirmed on every game this pass: <code>/solo/:type</code> renders the full category tabs + game grid above the active board (see any capture — the game starts ~1.5 screens down). This is exactly <b>UX-01</b> from the September UX review, already selected for the focused playability pass — no new work needed, just noting it dominates every screenshot taken for this review. Same fix covers it.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>P3 — BOT DEPTH (SOLO FEEL)</h2>
+    <p class="note" style="margin-bottom:12px">All bots are intentionally casual (≤1-ply heuristics). These are the spots where the ceiling is low enough to teach wrong instincts. Numbers below are code constants, not tuned recommendations — anything changed should be playtested (starting values, move direction decided by whether the bot still loses to a basic strategy).</p>
+    <div class="tscroll">
+    <table>
+      <tr><th>Game</th><th>Observed behavior</th><th>Suggested nudge</th></tr>
+      <tr><td class="g">C4 POP OUT</td><td>Bot <b>never pops</b> (documented in <code>demoBots.js</code>). The variant's core mechanic doesn't exist in solo play — you can't learn to defend a pop because the bot can't make one.</td><td>Minimum: pop when popping avoids an immediate loss or wins outright. ~15 lines reusing <code>applyConnectFourPopMove</code>.</td></tr>
+      <tr><td class="g">DOTS &amp; BOXES</td><td>Bot takes every available box and always plays a "safe" edge otherwise — it never sacrifices 2 boxes to hold a chain (double-cross). Result: learn one technique and every game ends like the capture — 19–0.</td><td>Fine as the easy tier. A "chain-aware" hard mode (all-boxes-then-double-cross heuristic) would give the game any longevity.</td></tr>
+      <tr><td class="g">ORDER &amp; CHAOS</td><td>Order-bot only extends the single longest run — it never builds forks (two simultaneous 5-threats), so it's reliably beatable. Chaos-bot is random-safe, which is closer to real Chaos play.</td><td>Order-bot: score moves by threats-created (runs of length ≥4 after placement), not just current run length.</td></tr>
+      <tr><td class="g">GOMOKU</td><td>Win/block-then-adjacent heuristic. It blocks an open four but doesn't distinguish open vs closed threes, so it loses to any double threat.</td><td>Add a 3/4-threat count term. Cheap (~20 lines), big difficulty bump.</td></tr>
+      <tr><td class="g">PIG / MANCALA</td><td>Hold-at-20 (risk-scaling behind) and 1-ply greedy are both reasonable casual baselines — no change needed.</td><td>—</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>PER-GAME VERDICTS (ALL 19 + PIG)</h2>
+    <div class="tscroll">
+    <table>
+      <tr><th>Game</th><th>Played</th><th>Win logic</th><th>Verdict</th></tr>
+      <tr><td class="g">TIC TAC TOE</td><td>✅</td><td>✅</td><td>Works. Bot plays optimal-ish (win/block/center). No issues.</td></tr>
+      <tr><td class="g">TTT 4×4</td><td>⚠️</td><td>✅</td><td><b>Solo mode unreachable — plays 3×3 instead</b> (P1). Logic itself correct (verified 4-length lines).</td></tr>
+      <tr><td class="g">ULTIMATE TTT</td><td>✅</td><td>✅</td><td>Works; send-to-decided-board → play-anywhere handled. Bot grabs mini-wins/blocks; majority tie-break sensible.</td></tr>
+      <tr><td class="g">CONNECT FOUR</td><td>✅</td><td>✅</td><td>Works. Center-biased bot with 20% jitter — decent casual.</td></tr>
+      <tr><td class="g">C4 FIVE (9×7)</td><td>⚠️</td><td>✅</td><td><b>Solo mode unreachable</b> (P1). Board renders fine in multiplayer config.</td></tr>
+      <tr><td class="g">C4 POP OUT</td><td>✅</td><td>✅</td><td>Works, but bot never pops (P3).</td></tr>
+      <tr><td class="g">GOMOKU</td><td>✅</td><td>✅</td><td>Freestyle rules (overlines win) — legit variant, but consider stating it in the rules sheet. Color-only stones (P2). Bot shallow (P3).</td></tr>
+      <tr><td class="g">REVERSI</td><td>✅</td><td>✅</td><td>Pass handled correctly with "OPPONENT PASSED" note; no-moves-both → correct count end. Bot takes corners, greedy flips — solid casual.</td></tr>
+      <tr><td class="g">ORDER &amp; CHAOS</td><td>✅</td><td>✅</td><td>Works; role glyphs (X=ORDER/O=CHAOS) clearly labeled. Bot notes in P3.</td></tr>
+      <tr><td class="g">SOS</td><td>✅</td><td>✅</td><td>Extra-turn on completion correct; draw on tie correct. Endgame overlay noise (P2).</td></tr>
+      <tr><td class="g">DOTS &amp; BOXES 6×6</td><td>✅</td><td>✅</td><td>Clinch-at-19 correct; extra-turn on box correct. Bot trivially exploitable (P3).</td></tr>
+      <tr><td class="g">DOTS &amp; BOXES 4×4</td><td>✅</td><td>✅</td><td>Same engine, correct 9-clinch. Renders well.</td></tr>
+      <tr><td class="g">CHAIN REACTION 8×10</td><td>✅</td><td>✅</td><td>Works; bot has real strategy (capture + corner/safety scoring). Best bot in the set.</td></tr>
+      <tr><td class="g">CHAIN REACTION 6×8</td><td>✅</td><td>✅</td><td>Works, renders great on phone.</td></tr>
+      <tr><td class="g">BLOCKADE</td><td>✅</td><td>✅</td><td>Pathfinding bot is genuinely strong (wall-gain heuristic); fallback chain prevents soft-locks. Strongest solo mode.</td></tr>
+      <tr><td class="g">HEX 11×11</td><td>✅</td><td>✅</td><td>Win-check via shortest path, correct. Goal-edge contrast (P2) hurts teaching; bot plays adjacent/contested — weak but fine.</td></tr>
+      <tr><td class="g">BATTLESHIP</td><td>✅</td><td>✅</td><td>Hunt/target bot correct; placement flow is per-ship tap (fine). Fold contains picker (UX-01).</td></tr>
+      <tr><td class="g">MANCALA</td><td>✅</td><td>✅</td><td>Sow/skip/capture/sweep all traced correct; greedy bot reasonable.</td></tr>
+      <tr><td class="g">CHECKERS</td><td>✅</td><td>✅</td><td>Forced-capture enforced in UI (only movable pieces selectable) — nice. Color-only discs (P2); greedy bot OK.</td></tr>
+      <tr><td class="g">PIG (dice)</td><td>✅</td><td>✅</td><td>Hold-at-20 bot with behind-scaling; fine.</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2><span class="sev ok">VERIFIED</span>WHAT CHECKED OUT</h2>
+      <ul class="good">
+        <li>All 19 board win-detectors traced against real rules — <b>zero logic bugs found</b> (past review passes found several; the current state is clean).</li>
+        <li>Pass/stalemate paths verified where they exist: Reversi auto-pass + end, Blockade lockout fallback, Ultimate TTT play-anywhere.</li>
+        <li>Boards are real <code>&lt;button&gt;</code>s with aria-labels (keyboard-reachable, spot-checked on 8 boards).</li>
+        <li>Last-move ring (M-47) present on every board — genuinely helps re-orientation.</li>
+        <li>No console errors in any of the 20 automated sessions.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2><span class="sev p3">SCOPE</span>NOT COVERED THIS PASS</h2>
+      <ul>
+        <li>Live two-player multiplayer (needs two distinct identities/networks — same-browser tabs share a uid here).</li>
+        <li>Real-time games (Pong, Snake, Tron, etc.) — out of scope; "board games" only.</li>
+        <li>Contrast claims eyeballed on midnight are now closed: Hex rails + SOS fade captured and DOM-verified across all six dark themes (<code>fix3-*.png</code>, <code>verify-themes.json</code>) — no fixes needed.</li>
+        <li>Feel/latency on real devices (animations verified visually only).</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>SUGGESTED ORDER OF WORK</h2>
+    <ol style="padding-left:18px; display:flex; flex-direction:column; gap:8px">
+      <li><b>1.</b> ✅ <b>SHIPPED</b> — <code>DEMOS</code> entries added for <code>tictactoe4</code> + <code>connectfour5</code> + <code>dice-big</code>, verified live. Explicit not-available card also shipped for future/demo-less types.</li>
+      <li><b>2.</b> ✅ <b>SHIPPED</b> — loser-first rematch starter in <code>applyPlayAgain</code>/<code>applyNewMatch</code> via <code>firstMoverUpdates()</code>. Remaining: two-identity live check.</li>
+      <li><b>3.</b> ✅ <b>SHIPPED</b> — Hex rails + arrows; X/O glyphs in Hex/Gomoku/Checkers pieces. Verified across all six dark themes.</li>
+      <li><b>4.</b> ✅ <b>SHIPPED</b> — SOS recent-6 fade; score bar already existed.</li>
+      <li><b>5.</b> Ship UX-01 (board-first solo) from the existing UX plan — it amplifies everything above.</li>
+      <li><b>6.</b> Bot nudges (C4-pop defense, Gomoku threat counting) behind a difficulty toggle if desired.</li>
+    </ol>
+    <p class="note" style="margin-top:12px">Everything in steps 1–4 is presentation or one-line registry wiring — no Firebase schema, no game-logic-module changes, so unit tests and the registry stay untouched.</p>
+  </section>
+
+  <footer class="note" style="text-align:center">
+    Evidence: 20 screenshots in <code>.lavish/gameplay-review/shots/</code> · scripted-session log in <code>evidence.json</code> · review method per <code>review-a-game</code> checklist.<br>
+    Annotate anything and hit Send — feedback goes straight back to the agent.
+  </footer>
+
+</div>
+</body>
+</html>

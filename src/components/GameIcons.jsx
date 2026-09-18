@@ -645,3 +645,140 @@ export function SketchIcon() {
     </svg>
   )
 }
+
+export function SimIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* hexagon of dots + three colored-in edges forming a losing triangle */}
+      <circle cx="12" cy="3.5" r="1.7" fill="currentColor" />
+      <circle cx="19.5" cy="8.5" r="1.7" fill="currentColor" />
+      <circle cx="16.5" cy="17" r="1.7" fill="currentColor" />
+      <circle cx="7.5" cy="17" r="1.7" fill="currentColor" />
+      <circle cx="4.5" cy="8.5" r="1.7" fill="currentColor" />
+      <circle cx="12" cy="10.5" r="0" fill="none" />
+      <line x1="12" y1="3.5" x2="19.5" y2="8.5" stroke="currentColor" strokeWidth="1.6" />
+      <line x1="19.5" y1="8.5" x2="16.5" y2="17" stroke="currentColor" strokeWidth="1.6" />
+      <line x1="16.5" y1="17" x2="12" y2="3.5" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  )
+}
+
+export function ChompIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* chocolate bar with a bite (missing lower-right block) + poison skull dot */}
+      <rect x="3" y="3" width="8" height="8" stroke="currentColor" strokeWidth="2" />
+      <rect x="13" y="3" width="8" height="8" stroke="currentColor" strokeWidth="2" />
+      <rect x="3" y="13" width="8" height="8" stroke="currentColor" strokeWidth="2" />
+      <circle cx="6" cy="6" r="1.4" fill="currentColor" />
+      <circle cx="9.9" cy="6" r="1.4" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function BreakthroughIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* pawn racing forward through a gap in the wall */}
+      <rect x="3" y="4" width="4" height="3" fill="currentColor" opacity="0.5" />
+      <rect x="10" y="4" width="4" height="3" fill="currentColor" opacity="0.5" />
+      <rect x="17" y="4" width="4" height="3" fill="currentColor" opacity="0.5" />
+      <rect x="3" y="10" width="4" height="3" fill="currentColor" opacity="0.5" />
+      <rect x="17" y="10" width="4" height="3" fill="currentColor" opacity="0.5" />
+      <path d="M12 20 L9 16 L11 16 L11 8 L13 8 L13 16 L15 16 Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function AtaxxIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* center piece converting ring of neighbors: filled center, half-tinted ring */}
+      <circle cx="12" cy="12" r="3.2" fill="currentColor" />
+      <circle cx="12" cy="5.5" r="2" fill="currentColor" opacity="0.45" />
+      <circle cx="17.7" cy="8.7" r="2" fill="currentColor" opacity="0.45" />
+      <circle cx="17.7" cy="15.3" r="2" fill="currentColor" opacity="0.45" />
+      <circle cx="12" cy="18.5" r="2" fill="currentColor" opacity="0.45" />
+      <circle cx="6.3" cy="15.3" r="2" fill="currentColor" opacity="0.45" />
+      <circle cx="6.3" cy="8.7" r="2" fill="currentColor" opacity="0.45" />
+    </svg>
+  )
+}
+
+export function KamisadoIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* colored checkerboard + a tower striding across */}
+      <rect x="3" y="3" width="8" height="8" fill="currentColor" opacity="0.35" />
+      <rect x="13" y="13" width="8" height="8" fill="currentColor" opacity="0.35" />
+      <rect x="13" y="3" width="8" height="8" stroke="currentColor" strokeWidth="1.6" opacity="0.7" />
+      <rect x="3" y="13" width="8" height="8" stroke="currentColor" strokeWidth="1.6" opacity="0.7" />
+      <path d="M9 19 L11 15 L13 15 L15 19 Z" fill="currentColor" />
+      <rect x="11" y="9" width="2" height="6" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function OnitamaIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* movement card + dojo grid */}
+      <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      <circle cx="12" cy="6.5" r="1.4" fill="currentColor" opacity="0.6" />
+      <circle cx="17" cy="12" r="1.4" fill="currentColor" opacity="0.6" />
+      <circle cx="7" cy="12" r="1.4" fill="currentColor" opacity="0.6" />
+    </svg>
+  )
+}
+
+export function QuartoIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* four attribute pieces: round/square, hollow/solid, tall/short */}
+      <circle cx="7" cy="7" r="3.4" stroke="currentColor" strokeWidth="2" />
+      <circle cx="17" cy="7" r="3.4" fill="currentColor" />
+      <rect x="13.6" y="13.6" width="6.8" height="6.8" stroke="currentColor" strokeWidth="2" />
+      <rect x="3.6" y="13.6" width="6.8" height="6.8" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function SantoriniIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* tiered tower with dome + worker */}
+      <rect x="4" y="16" width="16" height="4" fill="currentColor" opacity="0.5" />
+      <rect x="6" y="12" width="12" height="4" fill="currentColor" opacity="0.7" />
+      <rect x="8" y="8" width="8" height="4" fill="currentColor" />
+      <path d="M9 8 A4 3 0 0 1 15 8 Z" fill="currentColor" opacity="0.85" />
+      <circle cx="12" cy="5" r="1.6" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function LoaIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* checkers converging into one connected group */}
+      <circle cx="5" cy="5" r="2.4" fill="currentColor" opacity="0.5" />
+      <circle cx="12" cy="8" r="2.4" fill="currentColor" opacity="0.7" />
+      <circle cx="18" cy="12" r="2.4" fill="currentColor" />
+      <circle cx="12" cy="15" r="2.4" fill="currentColor" opacity="0.7" />
+      <circle cx="6" cy="19" r="2.4" fill="currentColor" opacity="0.5" />
+      <path d="M7 6.5 L10 7.5 M14 9.5 L16 11 M14.5 14 L13 14.5 M9 17.5 L10.5 16" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function YavalathIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* four-in-a-row wins (filled hexes), the fourth stone glowing */}
+      <path d="M6 4 L9 5.75 L9 9.25 L6 11 L3 9.25 L3 5.75 Z" fill="currentColor" opacity="0.5" />
+      <path d="M11 7 L14 8.75 L14 12.25 L11 14 L8 12.25 L8 8.75 Z" fill="currentColor" opacity="0.7" />
+      <path d="M16 10 L19 11.75 L19 15.25 L16 17 L13 15.25 L13 11.75 Z" fill="currentColor" opacity="0.85" />
+      <path d="M21 13 L24 14.75 L24 18.25 L21 20 L18 18.25 L18 14.75 Z" fill="currentColor" />
+    </svg>
+  )
+}

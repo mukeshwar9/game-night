@@ -3,7 +3,7 @@
 > **Direction: keep the board games' solid logic, fix the paths that never reach the player, and make the boards readable at a glance.**
 
 - **Review date:** September 16, 2026.
-- **Status:** GAMEPLAY-01, GAMEPLAY-02, GAMEPLAY-03, GAMEPLAY-04, and GAMEPLAY-05 (line-fade half) **shipped and verified** (same day — see each finding's *Shipped fix* note). GAMEPLAY-06 and the P3 notes remain proposals. An unrelated pre-existing uncommitted edit in `src/index.css` (paper/matcha CRT-overlay suppression) was present in the working tree before this pass and was left untouched.
+- **Status:** GAMEPLAY-01 (including the not-available fallback card), GAMEPLAY-02, GAMEPLAY-03, GAMEPLAY-04, and GAMEPLAY-05 **shipped and verified** (same day — see each finding's *Shipped fix* note). Hex rails + SOS fade additionally swept across all six dark themes (midnight, phosphor, amber, synthwave, grid, mono) with no contrast fixes needed. The P3 bot-depth notes remain proposals. An unrelated pre-existing uncommitted edit in `src/index.css` (paper/matcha CRT-overlay suppression) was present in the working tree before this pass and was left untouched.
 - **Scope:** All 19 `category: 'board'` games in `src/lib/games.js`, plus Pig (`dice`) for comparison. Real-time games (Pong, Snake, Tron, Sumo, Space Duel, Paint, Pac Mac, Air Hockey), memory, word, and party games are out of scope.
 - **Method:** every board game was played end-to-end vs its demo bot in a scripted Chrome session on `http://localhost:5179` (390×844, midnight theme, reduced motion, Firebase requests blocked so no rooms/profiles were written). Each game's win-detector, move application, pass/stalemate handling, and bot heuristic were also traced in source per the `review-a-game` checklist.
 - **Visual companion:** [Interactive review](../.lavish/gameplay-review/index.html) (open via `lavish-axi .lavish/gameplay-review/index.html`).
@@ -50,7 +50,9 @@ The problems are in **reachability and readability**, not rules:
 
 **Also worth fixing in the same patch:** when `/solo/:type` receives a registry-valid type with no demo, show an explicit "solo play for this game is not available yet" state instead of silently swapping games.
 
-> **Shipped fix (verified live):** added `DEMOS` entries for `tictactoe4`, `connectfour5`, and `dice-big` in `src/pages/Demo.jsx`. Browser verification: `/solo/tictactoe4` renders "TTT 4×4 DEMO" with a 16-cell board; `/solo/connectfour5` renders "C4 FIVE DEMO" with 9 drop columns (DOM-verified `dropButtons: 9`); `/solo/dice-big` renders "PIG BIG DEMO" with two dice and playable roll/bank. All three appear in the demo hub's category tabs. The not-yet-available fallback state is **still open** for any future registry entry that ships without a demo.
+> **Shipped fix (verified live):** added `DEMOS` entries for `tictactoe4`, `connectfour5`, and `dice-big` in `src/pages/Demo.jsx`. Browser verification: `/solo/tictactoe4` renders "TTT 4×4 DEMO" with a 16-cell board; `/solo/connectfour5` renders "C4 FIVE DEMO" with 9 drop columns (DOM-verified `dropButtons: 9`); `/solo/dice-big` renders "PIG BIG DEMO" with two dice and playable roll/bank. All three appear in the demo hub's category tabs.
+>
+> **Fallback card also shipped (verified live):** `/solo/:type` with no `DEMOS` entry now renders an explicit "NO SOLO DEMO" card instead of silently swapping games — a registry type shows `"<LABEL> DOESN'T HAVE SOLO PLAY YET."`, a garbage deep link shows `UNKNOWN GAME "ZZZ"`, and both get CREATE A ROOM / ALL DEMOS exits. The guard lives in the hook-free `Demo` dispatcher (DemoHub keeps state across param changes). Screenshot `fix3-notavailable.png`. A registry↔DEMOS audit script confirms zero gaps today — this card is the safety net for future variants.
 
 ### GAMEPLAY-02: Rematch always gives the creator the first move
 
@@ -144,10 +146,10 @@ All demo bots are intentionally casual (≤1-ply heuristics), which is the right
 
 ## 7. Suggested order of work
 
-1. **GAMEPLAY-01:** ✅ **SHIPPED** — `DEMOS` entries added for `tictactoe4`, `connectfour5`, `dice-big`; verified live in the browser. Remaining: not-yet-available fallback state.
+1. **GAMEPLAY-01:** ✅ **SHIPPED** — `DEMOS` entries added for `tictactoe4`, `connectfour5`, `dice-big`; verified live in the browser. Explicit not-available card shipped for future/demo-less types.
 2. **GAMEPLAY-02:** ✅ **SHIPPED** — loser-first rematch starter (draw alternates) in `applyPlayAgain`/`applyNewMatch` via `firstMoverUpdates()`. Remaining: live two-identity verification.
-3. **GAMEPLAY-03/04:** ✅ **SHIPPED** — Hex solid goal rails + direction arrows; side-letter glyphs in Hex/Gomoku/Checkers pieces.
-4. **GAMEPLAY-05:** ✅ **SHIPPED** (line-fade; the score bar already existed). `RECENT_LINES = 6` starting value.
+3. **GAMEPLAY-03/04:** ✅ **SHIPPED** — Hex solid goal rails + direction arrows; side-letter glyphs in Hex/Gomoku/Checkers pieces. Theme sweep across all six dark themes: no contrast fixes needed.
+4. **GAMEPLAY-05:** ✅ **SHIPPED** (line-fade; the score bar already existed). `RECENT_LINES = 6` starting value. Fade tiers verified in all six dark themes.
 5. **GAMEPLAY-06:** ship UX-01 from the existing UX plan (amplifies everything above).
 6. P3 bot nudges (C4-pop defense, Gomoku threat counting), optionally behind a difficulty toggle.
 

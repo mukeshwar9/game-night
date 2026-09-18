@@ -1,0 +1,247 @@
+{
+  "base": "http://localhost:5179",
+  "viewport": "390x844",
+  "captures": [
+    {
+      "name": "onitama-1-card-picked",
+      "url": "http://localhost:5179/solo/onitama"
+    },
+    {
+      "name": "onitama-2-after-move-and-bot",
+      "url": "http://localhost:5179/solo/onitama"
+    },
+    {
+      "name": "quarto-1-cell-selected",
+      "url": "http://localhost:5179/solo/quarto"
+    },
+    {
+      "name": "quarto-2-placed-and-given",
+      "url": "http://localhost:5179/solo/quarto"
+    },
+    {
+      "name": "santorini-1-worker-picked",
+      "url": "http://localhost:5179/solo/santorini"
+    },
+    {
+      "name": "santorini-2-moved-build-stage",
+      "url": "http://localhost:5179/solo/santorini"
+    },
+    {
+      "name": "santorini-3-built-bot-moved",
+      "url": "http://localhost:5179/solo/santorini"
+    },
+    {
+      "name": "loa-1-piece-selected",
+      "url": "http://localhost:5179/solo/loa"
+    },
+    {
+      "name": "loa-2-moved-bot-replied",
+      "url": "http://localhost:5179/solo/loa"
+    },
+    {
+      "name": "yavalath-1-center-played-bot-reply",
+      "url": "http://localhost:5179/solo/yavalath"
+    },
+    {
+      "name": "yavalath-2-hints",
+      "url": "http://localhost:5179/solo/yavalath"
+    }
+  ],
+  "games": {
+    "onitama": {
+      "taps": [
+        "cell#0"
+      ],
+      "handCards": [
+        "onitama-card-GOOSE",
+        "onitama-card-MONKEY"
+      ],
+      "afterCardPick": {
+        "litTargets": 5
+      },
+      "moveAccepted": true
+    },
+    "quarto": {
+      "taps": [
+        "cell5"
+      ],
+      "cellSelected": true,
+      "shelfEnabled": 15,
+      "filledAfterRound": 2,
+      "cell5Label": "qrt-cell-5-11"
+    },
+    "santorini": {
+      "taps": [
+        "worker 20",
+        "move 15",
+        "build 10"
+      ],
+      "stageAfterWorker": "TAP A SQUARE TO MOVE",
+      "stageAfterMove": "TAP A SQUARE TO BUILD · TAP DESTINATION TO CANCEL",
+      "height10AfterMyBuild": "st-cell-2-0-h2",
+      "height10": "st-cell-2-0-h2"
+    },
+    "loa": {
+      "taps": [
+        "piece 6-0",
+        "move 0-0"
+      ],
+      "targetsLit": 3,
+      "capturesLit": 0,
+      "pieceAtDest": "X piece present"
+    },
+    "yavalath": {
+      "taps": [
+        "center"
+      ],
+      "suicideHintsBefore": 0,
+      "filledAfterRound": 2,
+      "suicideHintsAfter": 0
+    }
+  },
+  "consoleErrors": [
+    {
+      "page": "http://localhost:5179/solo/onitama",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/onitama",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/onitama",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/quarto",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/quarto",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/quarto",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/quarto",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/santorini",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/santorini",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/santorini",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/santorini",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/loa",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/loa",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/loa",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/loa",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/yavalath",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/yavalath",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/yavalath",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/yavalath",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/onitama",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/onitama",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/onitama",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/onitama",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/loa",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/loa",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/loa",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/loa",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/yavalath",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/yavalath",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/yavalath",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/yavalath",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    }
+  ],
+  "mobileFeel": {
+    "onitama": {
+      "count": 25,
+      "minW": 56,
+      "minH": 56
+    },
+    "quarto": null,
+    "santorini": null,
+    "loa": {
+      "count": 64,
+      "minW": 34,
+      "minH": 34
+    },
+    "yavalath": {
+      "count": 61,
+      "minW": 30,
+      "minH": 26
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "base": "http://localhost:5179",
+  "viewport": "390x844",
+  "captures": [
+    {
+      "name": "solo-dice",
+      "url": "http://localhost:5179/solo/dice",
+      "scrollH": 901
+    },
+    {
+      "name": "solo-mancala",
+      "url": "http://localhost:5179/solo/mancala",
+      "scrollH": 901
+    },
+    {
+      "name": "solo-checkers",
+      "url": "http://localhost:5179/solo/checkers",
+      "scrollH": 1111
+    },
+    {
+      "name": "solo-battleship",
+      "url": "http://localhost:5179/solo/battleship",
+      "scrollH": 1803
+    }
+  ],
+  "games": {
+    "dice": {
+      "endText": "GAME NIGHT | Demo | BOARD | REFLEX | MEMORY | WORD | DICE | PARTY | PIG | 2P | BLUFF | 2P | PIG DEMO | X"
+    },
+    "mancala": {
+      "endText": "GAME NIGHT | Demo | BOARD | REFLEX | MEMORY | WORD | DICE | PARTY | TTT | 2P | ULTIMATE | TTT | 2P | CONNECT"
+    },
+    "checkers": {
+      "endText": "GAME NIGHT | Demo | BOARD | REFLEX | MEMORY | WORD | DICE | PARTY | TTT | 2P | ULTIMATE | TTT | 2P | CONNECT"
+    },
+    "battleship": {
+      "endText": ""
+    },
+    "tictactoe4": {
+      "endText": "GAME NIGHT | Demo | BOARD | REFLEX | MEMORY | WORD | DICE | PARTY | TTT | 2P | ULTIMATE | TTT | 2P | CONNECT"
+    }
+  },
+  "consoleErrors": [
+    {
+      "page": "http://localhost:5179/solo/checkers",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/checkers",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/checkers",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/battleship",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/battleship",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    },
+    {
+      "page": "http://localhost:5179/solo/battleship",
+      "err": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "page": "http://localhost:5179/solo/battleship",
+      "err": "Anonymous sign-in failed: FirebaseError: Firebase: Error (auth/network-request-failed).\n    at createErrorInternal (http://localhost:5179/node_modules/.vite/deps/firebase_auth.js?v=2278e146:434:35)\n  "
+    }
+  ]
+}
