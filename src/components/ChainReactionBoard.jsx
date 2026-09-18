@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { CR_COLS, CR_ROWS, criticalMass, decodeCell, applyPlacement } from '../lib/chainReactionLogic'
 import { sounds } from '../lib/sounds'
+import { crSymbolColor } from './crColors'
 
 // Small orb dots rendered inside each cell
 function OrbDots({ count, symbol, nearCritical }) {
-  const color = symbol === 'X' ? 'bg-retro-p1 shadow-neon-p1' : 'bg-retro-p2 shadow-neon-p2'
+  const color = crSymbolColor(symbol).orb
   // Cap visual orbs at 3 (display only)
   const dots = Math.min(count, 3)
   const layouts = {
@@ -37,7 +38,7 @@ function OrbDots({ count, symbol, nearCritical }) {
         <span
           className={cn(
             'absolute bottom-0 right-0 font-pixel text-[7px] leading-none px-[2px] rounded-sm',
-            symbol === 'X' ? 'text-retro-p1' : 'text-retro-p2',
+            crSymbolColor(symbol).text,
           )}
           style={{ background: 'rgb(var(--c-surface) / 0.85)' }}
         >
@@ -54,7 +55,11 @@ function OrbDots({ count, symbol, nearCritical }) {
 // MAX_REPLAY_WAVES for drama, then jump straight to the settled board.
 const MAX_REPLAY_WAVES = 12
 
-export default function ChainReactionBoard({ board, onMove, disabled, currentTurn, crLastMove, cols = CR_COLS, rows = CR_ROWS }) {
+export default function ChainReactionBoard({
+  board, onMove, disabled, currentTurn, crLastMove,
+  cols = CR_COLS, rows = CR_ROWS,
+  symbols = ['X', 'O'],
+}) {
   const dims = { cols, rows }
   const cellCount = cols * rows
   const prevBoardRef = useRef(null)
@@ -165,9 +170,10 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board])
 
-  // Compute which cells the current player can legally click.
+  // Compute which cells the current player can legally click. `symbols`
+  // carries the variant's roster so unknown-turn rooms degrade to no-op.
   const legalSet = new Set()
-  if (!disabled && !isReplaying && currentTurn) {
+  if (!disabled && !isReplaying && currentTurn && symbols.includes(currentTurn)) {
     for (let i = 0; i < cellCount; i++) {
       const cell = board[i]
       if (cell === '' || cell[0] === currentTurn) legalSet.add(i)
@@ -207,16 +213,10 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
                 className={cn(
                   'aspect-square relative rounded-sm overflow-hidden',
                   'border transition-all duration-100',
-                  owner === 'X'
-                    ? 'bg-retro-tint-p1 border-retro-p1/30'
-                    : owner === 'O'
-                      ? 'bg-retro-tint-p2 border-retro-p2/30'
-                      : 'bg-retro-deep border-retro-border/20',
-                  isLegal
-                    ? currentTurn === 'X'
-                      ? 'hover:border-retro-p1/60 hover:bg-retro-p1/10 cursor-pointer'
-                      : 'hover:border-retro-p2/60 hover:bg-retro-p2/10 cursor-pointer'
-                    : 'cursor-default',
+                  owner
+                    ? crSymbolColor(owner).cell
+                    : 'bg-retro-deep border-retro-border/20',
+                  isLegal ? crSymbolColor(currentTurn).hover : 'cursor-default',
                   // M-47: persistent marker on the last-played cell, once the
                   // chain-reaction replay has settled (avoids fighting the
                   // explosion flash overlay mid-cascade).
@@ -252,7 +252,7 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
                     className={cn(
                       'absolute inset-0 flex items-center justify-center',
                       'text-[8px] opacity-20',
-                      currentTurn === 'X' ? 'text-retro-p1' : 'text-retro-p2',
+                      crSymbolColor(currentTurn).text,
                     )}
                   >
                     +
@@ -264,15 +264,14 @@ export default function ChainReactionBoard({ board, onMove, disabled, currentTur
         </div>
       </div>
 
-      {/* Legend */}
+      {/* Legend — one orb count per symbol in the variant's roster */}
       <div className="mt-1.5 flex items-center justify-center gap-3 font-pixel text-[10px]">
-        <span className="text-retro-p1 text-glow-p1">
-          X {board.filter(c => c && c[0] === 'X').length}
-        </span>
+        {symbols.map(sym => (
+          <span key={sym} className={crSymbolColor(sym).legend}>
+            {sym === 'X' ? 'X' : sym === 'O' ? 'O' : sym} {board.filter(c => c && c[0] === sym).length}
+          </span>
+        ))}
         <span className="text-retro-dim">cells</span>
-        <span className="text-retro-p2 text-glow-p2">
-          {board.filter(c => c && c[0] === 'O').length} O
-        </span>
       </div>
     </div>
   )

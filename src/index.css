@@ -46,6 +46,8 @@
     --c-dim:      122 122 186;  /* #7a7aba */
     --c-p1:       0 229 255;    /* #00e5ff */
     --c-p2:       255 64 129;   /* #ff4081 */
+    --c-p3:       171 102 255;   /* #ab66ff */
+    --c-p4:       255 158 44;   /* #ff9e2c */
     --c-cta:      255 230 0;    /* #ffe600 */
     --c-win:      57 255 20;    /* #39ff14 */
     /* M-86/M-88: dedicated error/danger accent — distinct from p2 (O's
@@ -54,6 +56,8 @@
     --c-danger:      255 45 45; /* #ff2d2d */
     --c-tint-p1:  0 26 46;      /* #001a2e */
     --c-tint-p2:  46 0 24;      /* #2e0018 */
+    --c-tint-p3: 24 10 46;
+    --c-tint-p4: 46 22 4;
     --c-tint-cta: 26 21 0;      /* #1a1500 */
     --c-tint-danger: 46 8 8;    /* #2e0808 */
     --c-structure:42 42 80;     /* #2a2a50 */
@@ -91,11 +95,15 @@
   --c-dim:      82 148 82;
   --c-p1:       57 255 20;
   --c-p2:       255 211 122;
+    --c-p3:       102 255 218;   /* #66ffda */
+    --c-p4:       200 255 102;  /* #c8ff66 */
   --c-cta:      204 255 51;
   --c-win:      118 255 118;
   --c-danger:      255 60 40;
   --c-tint-p1:  6 46 6;
   --c-tint-p2:  46 34 8;
+    --c-tint-p3: 6 46 40;
+    --c-tint-p4: 24 46 6;
   --c-tint-cta: 24 38 0;
   --c-tint-danger: 46 10 6;
   --c-structure:20 82 20;
@@ -130,11 +138,15 @@
   --c-dim:      157 121 66;
   --c-p1:       255 176 0;
   --c-p2:       255 244 214;
+    --c-p3:       255 122 0;     /* #ff7a00 */
+    --c-p4:       255 214 122;  /* #ffd67a */
   --c-cta:      255 208 0;
   --c-win:      255 242 176;
   --c-danger:      246 29 53;
   --c-tint-p1:  46 30 0;
   --c-tint-p2:  44 40 30;
+    --c-tint-p3: 46 20 0;
+    --c-tint-p4: 46 36 8;
   --c-tint-cta: 38 30 0;
   --c-tint-danger: 40 6 10;
   --c-structure:74 52 21;
@@ -169,11 +181,15 @@
   --c-dim:      135 118 186;
   --c-p1:       0 240 255;
   --c-p2:       255 41 117;
+    --c-p3:       181 102 255;   /* #b566ff */
+    --c-p4:       255 214 61;   /* #ffd63d */
   --c-cta:      255 159 28;
   --c-win:      182 255 0;
   --c-danger:      255 20 20;
   --c-tint-p1:  0 42 56;
   --c-tint-p2:  56 6 28;
+    --c-tint-p3: 24 8 46;
+    --c-tint-p4: 46 32 4;
   --c-tint-cta: 56 32 0;
   --c-tint-danger: 56 6 6;
   --c-structure:61 43 110;
@@ -208,11 +224,15 @@
   --c-dim:      82 135 167;
   --c-p1:       0 216 255;
   --c-p2:       255 127 17;
+    --c-p3:       122 255 122;   /* #7aff7a */
+    --c-p4:       255 102 204;  /* #ff66cc */
   --c-cta:      244 244 244;
   --c-win:      159 255 224;
   --c-danger:      255 64 72;
   --c-tint-p1:  0 38 56;
   --c-tint-p2:  50 24 0;
+    --c-tint-p3: 0 42 20;
+    --c-tint-p4: 42 8 30;
   --c-tint-cta: 34 38 40;
   --c-tint-danger: 52 10 12;
   --c-structure:21 74 102;
@@ -247,11 +267,15 @@
   --c-dim:      150 150 150;
   --c-p1:       255 255 255;
   --c-p2:       168 168 168;
+    --c-p3:       116 116 116;   /* #747474 */
+    --c-p4:       220 220 220;  /* #dcdcdc */
   --c-cta:      255 255 255;
   --c-win:      255 255 255;
   --c-danger:      235 80 80;
   --c-tint-p1:  44 44 44;
   --c-tint-p2:  30 30 30;
+    --c-tint-p3: 24 24 24;
+    --c-tint-p4: 40 40 40;
   --c-tint-cta: 44 44 44;
   --c-tint-danger: 48 26 26;
   --c-structure:120 120 120;
@@ -603,6 +627,15 @@ body::before {
   background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.65) 100%);
   pointer-events: none;
   z-index: 9997;
+}
+
+/* Light themes (paper, matcha) drop the CRT overlay — scanlines and the heavy
+   edge vignette read as muddy film on a pale ground, not arcade glass. */
+[data-theme="paper"] body::after,
+[data-theme="matcha"] body::after,
+[data-theme="paper"] body::before,
+[data-theme="matcha"] body::before {
+  display: none;
 }
 
 #root { width: 100%; }

@@ -109,7 +109,7 @@ import { REVERSI_SIZE, reversiInitialBoard, applyReversiMove, hasAnyMove, getRev
 import ReversiBoard from '../components/ReversiBoard'
 import { OC_CELL_COUNT, applyOrderChaosMove, getOrderChaosWinner } from './orderChaosLogic'
 import OrderChaosBoard from '../components/OrderChaosBoard'
-import { CR_CELL_COUNT, CR_CELL_COUNT_CLASSIC, CR_COLS, CR_ROWS, CR_COLS_CLASSIC, CR_ROWS_CLASSIC, applyChainReactionMove } from './chainReactionLogic'
+import { CR_CELL_COUNT, CR_CELL_COUNT_CLASSIC, CR_COLS, CR_ROWS, CR_COLS_CLASSIC, CR_ROWS_CLASSIC, CR_SYMBOLS_4, applyChainReactionMove } from './chainReactionLogic'
 import ChainReactionBoard from '../components/ChainReactionBoard'
 import {
   BK_CELL_COUNT,
@@ -880,6 +880,34 @@ export const GAME_TYPES = [
     boardProps: (game) => ({ crLastMove: game.crLastMove ?? null, cols: CR_COLS_CLASSIC, rows: CR_ROWS_CLASSIC }),
   },
   {
+    type: 'chainreaction4', label: 'CHAIN REACTION 4P',
+    desc: '2–4 player chain explosions', Icon: ChainReactionIcon,
+    badge: 'CR4', maxWidth: 'max-w-sm',
+    category: 'board',
+    addedAt: '2026-09-18',
+    durationMin: 8, tags: ['thinky', 'party'],
+    // N-player variant: rides the uid-keyed room model (lobby → host start),
+    // NOT the X/O seat flow. Colors deal by join order: X O A B → p1..p4.
+    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    startRound: (players) => {
+      // Same seat order the lobby displays (playersToSeatList): joinedAt, then
+      // uid tiebreak so identical timestamps still deal deterministically.
+      const seats = Object.values(players || {})
+        .filter(p => p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, CR_SYMBOLS_4.length)
+      const crSeatSymbols = {}
+      seats.forEach((p, i) => { crSeatSymbols[p.playerId] = CR_SYMBOLS_4[i] })
+      return {
+        board: Array(CR_CELL_COUNT).fill(''),
+        currentTurn: 'X',
+        crMoves: 0, crPlaced: {}, crEliminated: {}, crLastMove: null,
+        crSeatSymbols,
+        scores: {},
+      }
+    },
+  },
+  {
     type: 'blockade', label: 'BLOCKADE',
     desc: 'race across, wall them off', Icon: BlockadeIcon,
     badge: 'BK', maxWidth: 'max-w-md',
@@ -1340,6 +1368,10 @@ const FIELD_NULLS = {
   pacmacScoreX: null, pacmacScoreO: null,
   crMoves: null,
   crLastMove: null,
+  // chainreaction4 (nPlayer variant): per-game deal + elimination marks.
+  crPlaced: null,
+  crEliminated: null,
+  crSeatSymbols: null,
   // M-47: last cell/edge played, written by every board move so boards can
   // render a persistent marker after the placement animation ends.
   lastMove: null,

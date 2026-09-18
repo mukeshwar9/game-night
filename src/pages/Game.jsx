@@ -44,6 +44,7 @@ import HerdGame from './HerdGame'
 import TriviaGame from './TriviaGame'
 import SpyfairGame from './SpyfairGame'
 import SketchGame from './SketchGame'
+import ChainReaction4Game from './ChainReaction4Game'
 import ProposalBanner from '../components/ProposalBanner'
 import GameSwitcher from '../components/GameSwitcher'
 import EmoteBar from '../components/EmoteBar'
@@ -1415,6 +1416,8 @@ export default function Game() {
             <TriviaGame {...nProps} />
           ) : game.gameType === 'sketch' ? (
             <SketchGame {...nProps} />
+          ) : game.gameType === 'chainreaction4' ? (
+            <ChainReaction4Game {...nProps} />
           ) : (
             <SpyfairGame {...nProps} />
           )}

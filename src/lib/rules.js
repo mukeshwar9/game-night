@@ -454,6 +454,19 @@ export const GAME_RULES = {
     win: 'Once both players have made at least one move, if your opponent has no orbs left on the board, you win.',
   },
 
+  chainreaction4: {
+    objective: 'The classic chain-reaction war for 2–4 players: be the last color with orbs on the board.',
+    howToPlay: [
+      'Everyone shares the 8×10 grid; colors deal by join order (cyan, pink, purple, orange) and turns rotate.',
+      'On your turn, place an orb in any empty cell or a cell you already own.',
+      'Each cell has a capacity (2 in a corner, 3 on an edge, 4 in the interior) — reaching it makes the cell explode.',
+      'An exploding cell fires one orb into each orthogonal neighbor, converting those cells to your color — any color it hits — and possibly cascading further.',
+      'Once every player has placed at least once, a cascade that wipes your last orb eliminates you; play skips you for the rest of the round.',
+      'You can only place on empty cells or cells you already own; enemy-owned cells are off limits.',
+    ],
+    win: 'Be the last player standing — when only one color has orbs left, that player wins.',
+  },
+
   chainreaction6: {
     objective: 'Trigger chain reactions on the 6×8 grid to wipe every orb of your opponent’s color off the board.',
     howToPlay: [

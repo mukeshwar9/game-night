@@ -11,6 +11,10 @@ export const CR_COLS_CLASSIC = 6
 export const CR_ROWS_CLASSIC = 8
 export const CR_CELL_COUNT_CLASSIC = CR_COLS_CLASSIC * CR_ROWS_CLASSIC
 
+// N-player (2–4) variant symbols, in turn order. Colors map through the
+// board's symbolToColor: X→p1, O→p2, A→p3, B→p4.
+export const CR_SYMBOLS_4 = ['X', 'O', 'A', 'B']
+
 export function crDimsFromLength(n) {
   if (n === CR_CELL_COUNT_CLASSIC) return { cols: CR_COLS_CLASSIC, rows: CR_ROWS_CLASSIC }
   return { cols: CR_COLS, rows: CR_ROWS }
@@ -62,19 +66,16 @@ export function encodeCell(owner, count) {
  *
  * @param {string[]} board  - board before placement (not mutated)
  * @param {number}   index  - cell to place on
- * @param {string}   symbol - 'X' or 'O'
+ * @param {string}   symbol - 'X'/'O' (2P) or 'A'/'B' (4P)
  * @param {{cols:number, rows:number}} [dims]
- * @param {{stopOnDomination?: boolean}} [opts] - when true (pass only once both players
- *   have placed at least once — see applyChainReactionMove), the wave loop stops as soon
- *   as one side's orbs are wiped from the board. Standard Chain Reaction rule: a player
- *   eliminated mid-cascade is out immediately, so there's no need to keep simulating
- *   waves that can only ever belong to the sole remaining owner — this is what keeps a
- *   full-board domination cascade from grinding out MAX_WAVES steps (and the UI replay
- *   that walks them one at a time) for a game that's already decided.
+ * @param {{stopOnDomination?: boolean, symbols?: string[]}} [opts] - when true (pass only
+ *   once ALL players have placed at least once — see applyChainReactionMove), the wave
+ *   loop stops as soon as one side's orbs are wiped from the board. `symbols` is the
+ *   full player symbol set for the domination scan (defaults to ['X','O']).
  * @returns {{ board: string[], steps: Array<{ exploded: number[], converted: number[] }> }}
  */
 export function applyPlacement(board, index, symbol, dims, opts = {}) {
-  const { stopOnDomination = false } = opts
+  const { stopOnDomination = false, symbols = ['X', 'O'] } = opts
   const { cols, rows } = resolveDims(board, dims)
   const cellCount = cols * rows
   const newBoard = [...board]
@@ -118,9 +119,8 @@ export function applyPlacement(board, index, symbol, dims, opts = {}) {
     currentLevel = nextLevel
 
     if (stopOnDomination) {
-      const hasX = newBoard.some(c => c && c[0] === 'X')
-      const hasO = newBoard.some(c => c && c[0] === 'O')
-      if (!hasX || !hasO) break
+      const alive = symbols.filter(sym => newBoard.some(c => c && c[0] === sym))
+      if (alive.length <= 1) break
     }
   }
 
@@ -134,6 +134,85 @@ function checkWinner(board, crMoves) {
   if (!hasX) return { winner: 'O' }
   if (!hasO) return { winner: 'X' }
   return null
+}
+
+/**
+ * N-player (2–4) move application — the 4P variant's rules layer. Wraps
+ * applyPlacement (already symbol-agnostic) with:
+ *   - turn rotation over `symbols`, skipping anyone already eliminated
+ *   - elimination marking on the game node (`crEliminated: { X: true, … }`)
+ *   - winner = last standing (once ALL survivors have placed at least once)
+ * The 2P game stays on applyChainReactionMove — untouched.
+ *
+ * @returns {{ updates, result } | null}
+ */
+export function applyChainReaction4Move({
+  board, game, index, symbol,
+  symbols = CR_SYMBOLS_4, cols = CR_COLS, rows = CR_ROWS,
+}) {
+  const dims = { cols, rows }
+  const cellCount = dims.cols * dims.rows
+  if (index < 0 || index >= cellCount) return null
+  if (!symbols.includes(symbol)) return null
+
+  const eliminated = { ...(game.crEliminated || {}) }
+  if (eliminated[symbol]) return null
+
+  const cell = board[index]
+  if (cell && cell[0] !== symbol) return null
+
+  const newMoves = (game.crMoves ?? 0) + 1
+
+  // Domination gating mirrors the 2P rule: elimination is only meaningful
+  // once EVERY survivor has placed at least once (before that, an empty
+  // board for a symbol just means "hasn't moved yet").
+  const everyonePlaced = symbols.every(sym => eliminated[sym] || game.crPlaced?.[sym])
+  const { board: newBoard } = applyPlacement(board, index, symbol, dims, {
+    stopOnDomination: everyonePlaced,
+  })
+
+  const nextPlaced = { ...(game.crPlaced || {}), [symbol]: true }
+  const nextEliminated = { ...eliminated }
+  const justEliminated = []
+
+  if (everyonePlaced) {
+    const survivors = symbols.filter(sym => newBoard.some(c => c && c[0] === sym))
+    for (const sym of symbols) {
+      if (!nextEliminated[sym] && !survivors.includes(sym)) {
+        nextEliminated[sym] = true
+        justEliminated.push(sym)
+      }
+    }
+  }
+
+  // Winner: exactly one survivor left (after everyone has placed at least
+  // once — same gating as eliminations).
+  let result = null
+  if (everyonePlaced) {
+    const alive = symbols.filter(sym => !nextEliminated[sym])
+    if (alive.length === 1) result = { winner: alive[0] }
+  }
+
+  // Turn rotation: next symbol in order after `symbol`, skipping eliminated.
+  let nextTurn = null
+  if (!result) {
+    const order = symbols.filter(sym => !nextEliminated[sym])
+    const pos = order.indexOf(symbol)
+    nextTurn = order[(pos + 1) % order.length]
+  }
+
+  return {
+    updates: {
+      board: newBoard,
+      crMoves: newMoves,
+      crPlaced: nextPlaced,
+      crEliminated: nextEliminated,
+      crLastMove: { index, by: symbol },
+      currentTurn: nextTurn,
+    },
+    result,
+    justEliminated,
+  }
 }
 
 /**

@@ -313,3 +313,112 @@ describe('classic 6×8 board', () => {
     expect(res).toBeNull()
   })
 })
+
+// ---------------------------------------------------------------------------
+// N-player (2–4) variant — applyChainReaction4Move
+
+import {
+  CR_SYMBOLS_4,
+  applyChainReaction4Move,
+} from './chainReactionLogic'
+
+const idx8 = (r, c) => r * 8 + c
+const empty80 = () => Array(CR_CELL_COUNT).fill('')
+const g4 = (over = {}) => ({ crMoves: 0, crPlaced: {}, crEliminated: {}, ...over })
+
+describe('applyChainReaction4Move', () => {
+  it('rejects placements by eliminated players and unknown symbols', () => {
+    const board = empty80()
+    expect(applyChainReaction4Move({ board, game: g4({ crEliminated: { X: true } }), index: 0, symbol: 'X' })).toBeNull()
+    expect(applyChainReaction4Move({ board, game: g4(), index: 0, symbol: 'C' })).toBeNull()
+    expect(applyChainReaction4Move({ board, game: g4(), index: -1, symbol: 'X' })).toBeNull()
+  })
+
+  it('rotates turns in symbol order while everyone is alive', () => {
+    let board = empty80()
+    let game = g4()
+    let sym = 'X'
+    for (let i = 0; i < 4; i++) {
+      const res = applyChainReaction4Move({ board, game, index: i * 9, symbol: sym })
+      expect(res).not.toBeNull()
+      expect(res.updates.currentTurn).toBe(CR_SYMBOLS_4[(i + 1) % 4])
+      board = res.updates.board
+      game = { ...game, ...res.updates }
+      sym = res.updates.currentTurn
+    }
+  })
+
+  it('no elimination before everyone has placed (domination gate)', () => {
+    // X cascade wipes O's single orb before O's first move → NOT a win.
+    let board = empty80()
+    board[idx8(0, 0)] = 'O1'
+    board[idx8(5, 5)] = 'X3'
+    const game = g4({ crPlaced: { X: true, O: true, A: true } }) // B hasn't placed
+    const res = applyChainReaction4Move({ board, game, index: idx8(5, 5), symbol: 'X' })
+    expect(res).not.toBeNull()
+    expect(res.updates.crEliminated).toEqual({})
+    expect(res.result).toBeNull()
+  })
+
+  it('eliminates a wiped player after everyone placed, survivors keep order', () => {
+    let board = empty80()
+    board[idx8(4, 4)] = 'X1'
+    board[idx8(4, 5)] = 'O1'
+    board[idx8(7, 7)] = 'A1'
+    board[idx8(7, 0)] = 'B1'
+    const game = g4({ crPlaced: { X: true, O: true, A: true, B: true }, crMoves: 4 })
+    const res = applyChainReaction4Move({ board, game, index: idx8(4, 4), symbol: 'X' })
+    expect(res).not.toBeNull()
+    // (4,4) has cm 4 — no explosion; nobody eliminated. Turn → O.
+    expect(res.updates.crEliminated).toEqual({})
+    expect(res.updates.currentTurn).toBe('O')
+  })
+
+  it('eliminates only the player actually wiped by the cascade', () => {
+    let board = empty80()
+    board[idx8(5, 5)] = 'X4' // edge cell, cm 4 → fires into all 4 neighbours
+    board[idx8(4, 5)] = 'A1' // A's ONLY orb → converted → A eliminated
+    board[idx8(0, 0)] = 'O1' // far away → alive
+    board[idx8(9, 7)] = 'B1' // far away → alive
+    const game = g4({ crPlaced: { X: true, O: true, A: true, B: true }, crMoves: 5 })
+    const res = applyChainReaction4Move({ board, game, index: idx8(5, 5), symbol: 'X' })
+    expect(res.updates.crEliminated).toEqual({ A: true })
+    expect(res.result).toBeNull() // three still standing
+    expect(res.updates.currentTurn).toBe('O') // rotation skips the dead
+  })
+
+  it('winner = last standing once the field is down to one', () => {
+    // O alone on the board after X is wiped (everyone has placed).
+    const board = empty80()
+    board[idx8(0, 0)] = 'O5'
+    const game = g4({ crPlaced: { X: true, O: true, A: true, B: true }, crEliminated: { A: true, B: true }, crMoves: 9 })
+    const res = applyChainReaction4Move({ board, game, index: idx8(0, 0), symbol: 'O' })
+    expect(res.result).toEqual({ winner: 'O' })
+    expect(res.updates.currentTurn).toBeNull()
+  })
+
+  it('cascade converts ALL enemy symbols it fires into (A and B orbs become X)', () => {
+    let board = empty80()
+    board[idx8(5, 5)] = 'X4'
+    board[idx8(4, 5)] = 'A1'
+    board[idx8(6, 5)] = 'B1'
+    board[idx8(5, 4)] = 'O1'
+    const game = g4({ crPlaced: { X: true, O: true, A: true, B: true }, crMoves: 5 })
+    const res = applyChainReaction4Move({ board, game, index: idx8(5, 5), symbol: 'X' })
+    const nb = res.updates.board
+    // Edge cell (5,5) cm=4 explodes: all three neighbors convert to X.
+    expect(nb[idx8(4, 5)][0]).toBe('X')
+    expect(nb[idx8(6, 5)][0] ).toBe('X')
+    expect(nb[idx8(5, 4)][0]).toBe('X')
+  })
+
+  it('placement legality: can stack own orbs, never enemy cells', () => {
+    const board = empty80()
+    board[idx8(2, 2)] = 'B2'
+    board[idx8(3, 3)] = 'A1'
+    const game = g4()
+    expect(applyChainReaction4Move({ board, game, index: idx8(2, 2), symbol: 'X' })).toBeNull()
+    expect(applyChainReaction4Move({ board, game, index: idx8(3, 3), symbol: 'B' })).toBeNull()
+    expect(applyChainReaction4Move({ board, game, index: idx8(2, 2), symbol: 'B' })).not.toBeNull()
+  })
+})
