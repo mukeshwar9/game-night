@@ -142,7 +142,7 @@ function LoadingScreen() {
 // from both players never collide.
 function EmoteFloats({ floats }) {
   return (
-    <div className="fixed inset-x-0 top-1/3 z-50 pointer-events-none flex justify-center">
+    <div className="fixed inset-x-0 top-1/3 z-[90] pointer-events-none flex justify-center">
       {floats.map(f => (
         <div
           // re-keyed on count so a combo bump restarts the float animation —

@@ -213,7 +213,42 @@ function emoteAudio() {
 }
 
 function shhAudio() {
-  seq([[3200, 0, 0.22, 'sawtooth', 0.03], [2400, 0.02, 0.2, 'sawtooth', 0.025]])
+  if (_muted) return
+  try {
+    const c = ctx()
+    const start = c.currentTime
+    const dur = 0.46
+    const n = Math.max(1, Math.floor(c.sampleRate * dur))
+    const buffer = c.createBuffer(1, n, c.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < n; i++) {
+      const breath = 1 - i / n
+      data[i] = (Math.random() * 2 - 1) * (0.55 + Math.random() * 0.45) * breath
+    }
+
+    const src = c.createBufferSource()
+    const highpass = c.createBiquadFilter()
+    const bandpass = c.createBiquadFilter()
+    const gain = c.createGain()
+
+    src.buffer = buffer
+    highpass.type = 'highpass'
+    highpass.frequency.setValueAtTime(1800 * _reactionPitchScale, start)
+    bandpass.type = 'bandpass'
+    bandpass.frequency.setValueAtTime(3600 * _reactionPitchScale, start)
+    bandpass.Q.setValueAtTime(1.8, start)
+    gain.gain.setValueAtTime(0.0001, start)
+    gain.gain.linearRampToValueAtTime(0.055 * _volume * _reactionVolumeScale, start + 0.025)
+    gain.gain.setValueAtTime(0.045 * _volume * _reactionVolumeScale, start + 0.28)
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+
+    src.connect(highpass)
+    highpass.connect(bandpass)
+    bandpass.connect(gain)
+    gain.connect(c.destination)
+    src.start(start)
+    src.stop(start + dur)
+  } catch { /* audio unavailable */ }
 }
 
 const DEFAULT_REACTION_HAPTIC = [0, 8, 8]
