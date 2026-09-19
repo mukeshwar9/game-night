@@ -14,7 +14,7 @@ import {
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
-  PasswordIcon,
+  PasswordIcon, AnagramsIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
@@ -1235,6 +1235,15 @@ export const GAME_TYPES = [
     custom: true,
   },
   {
+    type: 'anagrams', label: 'ANAGRAMS',
+    desc: 'race to find words', Icon: AnagramsIcon,
+    badge: 'AG', maxWidth: 'max-w-sm',
+    category: 'word',
+    addedAt: '2026-09-18',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    custom: true, simultaneous: true, hidePlayerCards: true,
+  },
+  {
     type: 'pairs', label: 'PAIRS',
     desc: 'match the hidden pairs', Icon: PairsIcon,
     badge: 'PR', maxWidth: 'max-w-md',
@@ -1439,7 +1448,7 @@ const FIELD_NULLS = {
   santoriniWorkers: null,
 }
 
-export function freshGameState(gameType) {
+export function freshGameState(gameType, previous = null) {
   const cfg = getGameConfig(gameType)
   if (cfg.nPlayer) {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
@@ -1680,6 +1689,17 @@ export function freshGameState(gameType) {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       wordhuntGrid: generateGrid(generateSeed()),
       wordhuntScoreX: 0, wordhuntScoreO: 0 }
+  }
+  if (gameType === 'anagrams') {
+    const previousRound = previous?.round
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
+      round: previousRound
+        ? {
+          phase: 'ready',
+          roundNum: (previousRound.roundNum || 1) + 1,
+          usedRacks: previousRound.usedRacks || [],
+        }
+        : null }
   }
   if (gameType === 'minesweeper') {
     // minesStartedAt is written by MineRaceGame once both players are ready

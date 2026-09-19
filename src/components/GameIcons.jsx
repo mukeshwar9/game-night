@@ -550,6 +550,17 @@ export function WordHuntIcon() {
   )
 }
 
+export function AnagramsIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2" y="3" width="8" height="8" rx="1" fill="currentColor" opacity="0.85" />
+      <rect x="14" y="3" width="8" height="8" rx="1" fill="currentColor" opacity="0.45" />
+      <rect x="8" y="13" width="8" height="8" rx="1" fill="currentColor" opacity="0.7" />
+      <path d="M10 7h4M12 5v4M16 17h-2M10 17H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+    </svg>
+  )
+}
+
 export function PacmacIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

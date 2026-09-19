@@ -39,6 +39,7 @@ import WordCoopGame from './WordCoopGame'
 import PasswordGame from './PasswordGame'
 import WordRaceGame from './WordRaceGame'
 import WordHuntGame from './WordHuntGame'
+import AnagramsGame from './AnagramsGame'
 import MineRaceGame from './MineRaceGame'
 import BattleshipGame from './BattleshipGame'
 import CheckersGame from './CheckersGame'
@@ -66,6 +67,7 @@ import RulesModal, { RulesButton } from '../components/RulesModal'
 import {
   commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
 } from '../lib/diceLogic'
+import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../lib/anagramsLogic'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -502,6 +504,7 @@ export default function Game() {
       const sx = game.scores?.X || 0
       const so = game.scores?.O || 0
       const matchTarget = game.gameType === 'password' ? 15 : game.gameType === 'pong' ? (game.matchLength ?? 3)
+        : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
         : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
       const isMatch = game.gameType === 'password' || sx >= matchTarget || so >= matchTarget
       if (w === 'draw') sounds.draw()
@@ -1029,7 +1032,7 @@ export default function Game() {
   // Apply functions (called directly when no second player / opponent offline)
   const applyPlayAgain = async () => {
     const starter = nextStarter(game)
-    const fresh = freshGameState(game.gameType)
+    const fresh = freshGameState(game.gameType, game)
     // Word Race keeps its used answer indexes across rematches so PLAY AGAIN
     // cannot hand out the same puzzle repeatedly within a room.
     if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
@@ -1482,6 +1485,7 @@ export default function Game() {
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
   const matchTarget = game.gameType === 'password' ? 15 : game.gameType === 'pong' ? (game.matchLength ?? 3)
+    : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
     : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
   const matchWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
 
@@ -1950,6 +1954,17 @@ export default function Game() {
             />
           ) : game.gameType === 'password' ? (
             <PasswordGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'anagrams' ? (
+            <AnagramsGame
               gameId={gameId}
               game={game}
               mySymbol={mySeat}

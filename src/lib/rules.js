@@ -540,6 +540,16 @@ export const GAME_RULES = {
     win: 'Longer words score more (3–4 letters = 1 point, up to 11 for 8+). Highest total score when time runs out wins; equal scores draw. First to 3 round wins takes the match.',
   },
 
+  anagrams: {
+    objective: 'Find more words than your opponent from the same seven-letter rack.',
+    howToPlay: [
+      'Tap tiles or type letters with your keyboard to build a word from the rack.',
+      'Press ENTER to submit. Each word scores once per player.',
+      'Press DONE when you cannot find more words — the round ends when both players finish.',
+    ],
+    win: 'Play for 90 seconds. Longer words score more, a seven-letter word earns a bingo bonus, and first to 2 round wins takes the match.',
+  },
+
   spyfair: {
     objective: 'Find the spy in your midst — or, as the spy, survive without being caught.',
     howToPlay: [
