@@ -476,6 +476,18 @@ export function WordDuelIcon() {
   )
 }
 
+export function WordCoopIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="2" width="18" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 6h3M14 6h3M7 10h3M14 10h3M7 14h3M14 14h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8 19h8M10 16v3M14 16v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".8" />
+      <circle cx="5" cy="19" r="1.5" fill="currentColor" opacity=".65" />
+      <circle cx="19" cy="19" r="1.5" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function PasswordIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

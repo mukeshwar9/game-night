@@ -499,6 +499,16 @@ export const GAME_RULES = {
     win: 'Solve it in fewer guesses than your opponent to win. Equal guess counts — faster solver wins. Both fail to solve it: draw. First to 3 round wins takes the match.',
   },
 
+  wordcoop: {
+    objective: 'Solve one secret 5-letter word together in six guesses or fewer.',
+    howToPlay: [
+      'You and your partner share one board and take turns entering guesses.',
+      'Green means right letter and spot. Yellow means the letter is elsewhere. Gray means it is absent.',
+      'Your partner sees every clue, so talk through each row and plan the next guess together.',
+    ],
+    win: 'Guess the word before all six rows are used. You both win or lose together.',
+  },
+
   password: {
     objective: 'Give clues that help your opponent guess the password, then swap roles and score more when you guess.',
     howToPlay: [

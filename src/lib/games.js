@@ -13,7 +13,7 @@ import {
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
-  WordDuelIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
+  WordDuelIcon, WordCoopIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
@@ -1199,6 +1199,15 @@ export const GAME_TYPES = [
     custom: true, simultaneous: true,
   },
   {
+    type: 'wordcoop', label: 'WORD CO-OP',
+    desc: 'solve one word together', Icon: WordCoopIcon,
+    badge: 'WC', maxWidth: 'max-w-md',
+    category: 'word',
+    addedAt: '2026-09-18',
+    durationMin: 4, tags: ['quick', 'thinky'], solo: false,
+    custom: true, hidePlayerCards: true,
+  },
+  {
     type: 'wordhunt', label: 'WORD HUNT',
     desc: 'race to find the most words', Icon: WordHuntIcon,
     badge: 'WH', maxWidth: 'max-w-md',
@@ -1647,6 +1656,9 @@ export function freshGameState(gameType) {
   if (gameType === 'wordduel') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
       round: { phase: 'setting' } }
+  }
+  if (gameType === 'wordcoop') {
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
   }
   if (gameType === 'password') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }

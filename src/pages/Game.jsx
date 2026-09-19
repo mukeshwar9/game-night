@@ -4,6 +4,8 @@ import { ref, onValue, update, get, push, runTransaction, onDisconnect, set as d
 import { db, configError } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
 import { freshGameState, getGameConfig, lobbySwitchOverrides, firstMoverUpdates } from '../lib/games'
+import { getAnswerList } from '../lib/dictionary'
+import { buildWordCoopRoundStart } from '../lib/wordcoopLogic'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
@@ -33,6 +35,7 @@ import PacmacGame from './PacmacGame'
 import AirHockeyGame from './AirHockeyGame'
 import PaintGame from './PaintGame'
 import WordDuelGame from './WordDuelGame'
+import WordCoopGame from './WordCoopGame'
 import PasswordGame from './PasswordGame'
 import WordHuntGame from './WordHuntGame'
 import MineRaceGame from './MineRaceGame'
@@ -1026,6 +1029,27 @@ export default function Game() {
   const applyPlayAgain = async () => {
     const starter = nextStarter(game)
     try {
+      if (game.gameType === 'wordcoop') {
+        const seed = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+        const round = buildWordCoopRoundStart({
+          answerList: getAnswerList(),
+          previousRound: game.round,
+          seed,
+          starter,
+        })
+        await update(ref(db, `games/${gameId}`), {
+          ...freshGameState('wordcoop'),
+          status: 'playing',
+          winner: null,
+          winningLine: null,
+          proposal: null,
+          starter,
+          currentTurn: starter,
+          round,
+          lastActivityAt: Date.now(),
+        })
+        return
+      }
       await update(ref(db, `games/${gameId}`), {
         ...freshGameState(game.gameType),
         status: 'playing',
@@ -1882,8 +1906,8 @@ export default function Game() {
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
-          ) : game.gameType === 'password' ? (
-            <PasswordGame
+          ) : game.gameType === 'wordcoop' ? (
+            <WordCoopGame
               gameId={gameId}
               game={game}
               mySymbol={mySeat}
@@ -1895,6 +1919,17 @@ export default function Game() {
             />
           ) : game.gameType === 'wordhunt' ? (
             <WordHuntGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'password' ? (
+            <PasswordGame
               gameId={gameId}
               game={game}
               mySymbol={mySeat}

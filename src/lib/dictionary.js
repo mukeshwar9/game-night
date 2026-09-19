@@ -862,3 +862,7 @@ export function has(word) {
 export function isAnswerWord(word) {
   return _ANSWERS.has(word.toLowerCase())
 }
+
+export function getAnswerList() {
+  return Array.from(_ANSWERS)
+}

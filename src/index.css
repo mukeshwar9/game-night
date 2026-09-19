@@ -662,6 +662,42 @@ body::before {
   100% { opacity: 0; }
 }
 
+@keyframes wordcoop-tile-reveal {
+  0% { transform: rotateX(0deg); opacity: .65; }
+  45% { transform: rotateX(90deg); opacity: .8; }
+  100% { transform: rotateX(0deg); opacity: 1; }
+}
+
+.wordcoop-tile-reveal,
+.wordcoop-tile[class*="bg-retro-win"],
+.wordcoop-tile[class*="bg-retro-cta"],
+.wordcoop-tile[class*="bg-retro-dim"] {
+  animation: wordcoop-tile-reveal .48s ease both;
+}
+
+.wordcoop-active-row .wordcoop-tile {
+  border-color: rgb(var(--c-cta));
+  box-shadow: 0 0 12px rgb(var(--c-cta) / .18);
+}
+
+@keyframes wordcoop-row-partner-x {
+  from { transform: translateX(-14px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes wordcoop-row-partner-o {
+  from { transform: translateX(14px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.wordcoop-row-partner-x {
+  animation: wordcoop-row-partner-x .35s ease both;
+}
+
+.wordcoop-row-partner-o {
+  animation: wordcoop-row-partner-o .35s ease both;
+}
+
 @keyframes hangman-sway {
   0%   { transform: rotate(-2deg); }
   50%  { transform: rotate(2deg); }
