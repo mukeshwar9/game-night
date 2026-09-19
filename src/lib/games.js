@@ -13,7 +13,7 @@ import {
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
-  WordDuelIcon, WordCoopIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
+  WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
@@ -1208,6 +1208,15 @@ export const GAME_TYPES = [
     custom: true, hidePlayerCards: true,
   },
   {
+    type: 'wordrace', label: 'WORD RACE',
+    desc: 'solve the same word first', Icon: WordRaceIcon,
+    badge: 'WR', maxWidth: 'max-w-4xl',
+    category: 'word',
+    addedAt: '2026-09-18',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    custom: true, simultaneous: true,
+  },
+  {
     type: 'wordhunt', label: 'WORD HUNT',
     desc: 'race to find the most words', Icon: WordHuntIcon,
     badge: 'WH', maxWidth: 'max-w-md',
@@ -1659,6 +1668,10 @@ export function freshGameState(gameType) {
   }
   if (gameType === 'wordcoop') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
+  }
+  if (gameType === 'wordrace') {
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
+      round: null }
   }
   if (gameType === 'password') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }

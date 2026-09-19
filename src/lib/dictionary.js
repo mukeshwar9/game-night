@@ -863,6 +863,8 @@ export function isAnswerWord(word) {
   return _ANSWERS.has(word.toLowerCase())
 }
 
+// Stable array used by seeded multiplayer games. Keep answer indexes tied to
+// this source order so a round remains reproducible across clients.
 export function getAnswerList() {
   return Array.from(_ANSWERS)
 }

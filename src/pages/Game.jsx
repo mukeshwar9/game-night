@@ -37,6 +37,7 @@ import PaintGame from './PaintGame'
 import WordDuelGame from './WordDuelGame'
 import WordCoopGame from './WordCoopGame'
 import PasswordGame from './PasswordGame'
+import WordRaceGame from './WordRaceGame'
 import WordHuntGame from './WordHuntGame'
 import MineRaceGame from './MineRaceGame'
 import BattleshipGame from './BattleshipGame'
@@ -1028,6 +1029,10 @@ export default function Game() {
   // Apply functions (called directly when no second player / opponent offline)
   const applyPlayAgain = async () => {
     const starter = nextStarter(game)
+    const fresh = freshGameState(game.gameType)
+    // Word Race keeps its used answer indexes across rematches so PLAY AGAIN
+    // cannot hand out the same puzzle repeatedly within a room.
+    if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
     try {
       if (game.gameType === 'wordcoop') {
         const seed = `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -1051,7 +1056,7 @@ export default function Game() {
         return
       }
       await update(ref(db, `games/${gameId}`), {
-        ...freshGameState(game.gameType),
+        ...fresh,
         status: 'playing',
         winner: null,
         winningLine: null,
@@ -1065,9 +1070,13 @@ export default function Game() {
 
   const applyNewMatch = async () => {
     const starter = nextStarter(game)
+    const fresh = freshGameState(game.gameType)
+    // A new match still starts with a fresh word. Preserve prior indexes as a
+    // room-level deck history, matching Word Race's non-repeat promise.
+    if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
     try {
       await update(ref(db, `games/${gameId}`), {
-        ...freshGameState(game.gameType),
+        ...fresh,
         status: 'playing',
         winner: null,
         winningLine: null,
@@ -1908,6 +1917,17 @@ export default function Game() {
             />
           ) : game.gameType === 'wordcoop' ? (
             <WordCoopGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'wordrace' ? (
+            <WordRaceGame
               gameId={gameId}
               game={game}
               mySymbol={mySeat}

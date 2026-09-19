@@ -519,6 +519,16 @@ export const GAME_RULES = {
     win: 'First to 15 points wins. If nobody reaches 15 after 12 rounds, the higher score wins; equal scores draw.',
   },
 
+  wordrace: {
+    objective: 'Race your opponent to solve the same hidden 5-letter word.',
+    howToPlay: [
+      'Both players get the same word and can guess at the same time.',
+      'Green means right letter and spot, yellow means right letter in another spot, and gray means absent.',
+      'You get up to 6 guesses. Opponent letters stay hidden during play; their mark progress remains visible.',
+    ],
+    win: 'Solve when your opponent fails, use fewer guesses, or solve faster on an equal guess count. Both misses draw. First to 3 round wins takes the match.',
+  },
+
   wordhunt: {
     objective: 'Trace more valid words than your opponent on a shared 4×4 letter grid before time runs out.',
     howToPlay: [
