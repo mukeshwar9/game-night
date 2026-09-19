@@ -499,6 +499,16 @@ export const GAME_RULES = {
     win: 'Solve it in fewer guesses than your opponent to win. Equal guess counts — faster solver wins. Both fail to solve it: draw. First to 3 round wins takes the match.',
   },
 
+  password: {
+    objective: 'Give clues that help your opponent guess the password, then swap roles and score more when you guess.',
+    howToPlay: [
+      'One player sees the secret password. The other player sees only its length.',
+      'The clue-giver sends one-word clues. The guesser submits one guess after each clue.',
+      'Earlier correct guesses score more: 5 points, then 4, 3, 2, or 1.',
+    ],
+    win: 'First to 15 points wins. If nobody reaches 15 after 12 rounds, the higher score wins; equal scores draw.',
+  },
+
   wordhunt: {
     objective: 'Trace more valid words than your opponent on a shared 4×4 letter grid before time runs out.',
     howToPlay: [

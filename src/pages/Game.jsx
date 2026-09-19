@@ -33,6 +33,7 @@ import PacmacGame from './PacmacGame'
 import AirHockeyGame from './AirHockeyGame'
 import PaintGame from './PaintGame'
 import WordDuelGame from './WordDuelGame'
+import PasswordGame from './PasswordGame'
 import WordHuntGame from './WordHuntGame'
 import MineRaceGame from './MineRaceGame'
 import BattleshipGame from './BattleshipGame'
@@ -496,9 +497,9 @@ export default function Game() {
       const w = game.winner
       const sx = game.scores?.X || 0
       const so = game.scores?.O || 0
-      const matchTarget = game.gameType === 'pong' ? (game.matchLength ?? 3)
+      const matchTarget = game.gameType === 'password' ? 15 : game.gameType === 'pong' ? (game.matchLength ?? 3)
         : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
-      const isMatch = sx >= matchTarget || so >= matchTarget
+      const isMatch = game.gameType === 'password' || sx >= matchTarget || so >= matchTarget
       if (w === 'draw') sounds.draw()
       else if (w === mySymbol.current) (isMatch ? sounds.matchWin() : sounds.win())
       else if (mySymbol.current) sounds.lose()
@@ -1447,7 +1448,7 @@ export default function Game() {
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  const matchTarget = game.gameType === 'pong' ? (game.matchLength ?? 3)
+  const matchTarget = game.gameType === 'password' ? 15 : game.gameType === 'pong' ? (game.matchLength ?? 3)
     : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
   const matchWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
 
@@ -1872,6 +1873,17 @@ export default function Game() {
             />
           ) : game.gameType === 'wordduel' ? (
             <WordDuelGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'password' ? (
+            <PasswordGame
               gameId={gameId}
               game={game}
               mySymbol={mySeat}

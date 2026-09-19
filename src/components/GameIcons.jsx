@@ -476,6 +476,19 @@ export function WordDuelIcon() {
   )
 }
 
+export function PasswordIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="6" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M7 6V4.5A3.5 3.5 0 0 1 10.5 1h3A3.5 3.5 0 0 1 17 4.5V6" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="8" cy="13" r="1" fill="currentColor" />
+      <circle cx="12" cy="13" r="1" fill="currentColor" />
+      <circle cx="16" cy="13" r="1" fill="currentColor" />
+      <path d="M8 17h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function PairsIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

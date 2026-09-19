@@ -14,6 +14,7 @@ import {
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
+  PasswordIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
@@ -1207,6 +1208,15 @@ export const GAME_TYPES = [
     custom: true, simultaneous: true,
   },
   {
+    type: 'password', label: 'PASSWORD',
+    desc: 'give clues, guess the word', Icon: PasswordIcon,
+    badge: 'PW', maxWidth: 'max-w-sm',
+    category: 'word',
+    addedAt: '2026-09-18',
+    durationMin: 6, tags: ['quick', 'thinky'], solo: true,
+    custom: true,
+  },
+  {
     type: 'pairs', label: 'PAIRS',
     desc: 'match the hidden pairs', Icon: PairsIcon,
     badge: 'PR', maxWidth: 'max-w-md',
@@ -1637,6 +1647,9 @@ export function freshGameState(gameType) {
   if (gameType === 'wordduel') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
       round: { phase: 'setting' } }
+  }
+  if (gameType === 'password') {
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
   }
   if (gameType === 'wordhunt') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
