@@ -60,10 +60,10 @@ function StickyActionBar({ children }) {
   )
 }
 
-export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame }) {
+export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame, matchTarget = MATCH_WINS }) {
   const scoreX = scores?.X || 0
   const scoreO = scores?.O || 0
-  const matchWinner = scoreX >= MATCH_WINS ? 'X' : scoreO >= MATCH_WINS ? 'O' : null
+  const matchWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
   const opponentUid = mySymbol && players?.[mySymbol === 'X' ? 'O' : 'X']?.playerId || null
   const headToHead = getHeadToHead(opponentUid)
 

@@ -14,7 +14,7 @@ import {
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
-  PasswordIcon, AnagramsIcon,
+  PasswordIcon, AnagramsIcon, ArrowsIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
@@ -97,6 +97,7 @@ import {
   generateChimpLayout,
 } from './chimpLogic'
 import { generateSeed } from './mathLogic'
+import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
 import { generateGrid } from './wordhuntLogic'
 import {
   VM_START_LEVEL,
@@ -725,6 +726,18 @@ export const GAME_TYPES = [
     // M-26: MathGame renders its own ScoreBar (names + live score) right
     // above the question — Game.jsx's generic PlayerCard grid would just
     // duplicate it and eat vertical space the NumberPad needs.
+    hidePlayerCards: true,
+  },
+  {
+    type: 'arrows', label: 'ARROWS PUZZLE',
+    desc: 'race to clear the arrows', Icon: ArrowsIcon,
+    badge: 'AR', maxWidth: 'max-w-xs',
+    category: 'reflex',
+    addedAt: '2026-09-19',
+    durationMin: 4, tags: ['quick', 'skill'],
+    custom: true, realtime: true,
+    matchTarget: 2,
+    nextRound: arrowsNextRound,
     hidePlayerCards: true,
   },
   {
@@ -1398,6 +1411,8 @@ const FIELD_NULLS = {
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
   bluffRound: null,
   pongScoreX: null, pongScoreO: null, signaling: null, matchLength: null,
+  arrowsRound: null, arrowsLevel: null, arrowsCleared: null,
+  arrowsLivesX: null, arrowsLivesO: null,
   snakeScoreX: null, snakeScoreO: null,
   tronScoreX: null, tronScoreO: null,
   sumoScoreX: null, sumoScoreO: null,
@@ -1674,6 +1689,12 @@ export function freshGameState(gameType, previous = null) {
   if (gameType === 'wordduel') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
       round: { phase: 'setting' } }
+  }
+  if (gameType === 'arrows') {
+    const next = previous ? arrowsNextRound(previous) : null
+    const arrowFields = next ?? arrowsFreshState()
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      ...arrowFields }
   }
   if (gameType === 'wordcoop') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }

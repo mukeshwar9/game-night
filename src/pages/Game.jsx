@@ -24,6 +24,7 @@ import ReactionGame from './ReactionGame'
 import AimTrainerGame from './AimTrainerGame'
 import TypingGame from './TypingGame'
 import MathGame from './MathGame'
+import ArrowsGame from './ArrowsGame'
 import TwoTruthsGame from './TwoTruthsGame'
 import BluffBattleGame from './BluffBattleGame'
 import PongGame from './PongGame'
@@ -68,6 +69,7 @@ import {
   commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
 } from '../lib/diceLogic'
 import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../lib/anagramsLogic'
+import { ARROWS_MATCH_TARGET } from '../lib/arrowsLogic'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -505,6 +507,7 @@ export default function Game() {
       const so = game.scores?.O || 0
       const matchTarget = game.gameType === 'password' ? 15 : game.gameType === 'pong' ? (game.matchLength ?? 3)
         : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
+        : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
         : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
       const isMatch = game.gameType === 'password' || sx >= matchTarget || so >= matchTarget
       if (w === 'draw') sounds.draw()
@@ -1486,6 +1489,7 @@ export default function Game() {
   const scoreO = game.scores?.O || 0
   const matchTarget = game.gameType === 'password' ? 15 : game.gameType === 'pong' ? (game.matchLength ?? 3)
     : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
+    : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
     : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
   const matchWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
 
@@ -1728,6 +1732,17 @@ export default function Game() {
             />
           ) : game.gameType === 'math' ? (
             <MathGame
+              gameId={gameId}
+              game={game}
+              mySymbol={mySeat}
+              opponentOnline={opponentOnline}
+              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
+              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
+              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              proposal={activeProposal}
+            />
+          ) : game.gameType === 'arrows' ? (
+            <ArrowsGame
               gameId={gameId}
               game={game}
               mySymbol={mySeat}

@@ -399,6 +399,17 @@ export const GAME_RULES = {
     win: 'Score for finding the truth, and for every player your lie fools. Most points wins.',
   },
 
+  arrows: {
+    objective: 'Clear more arrows than your rival across a 3-round face-off.',
+    howToPlay: [
+      'Both players share one board of snake-like arrows and tap any uncleared arrow at the same time.',
+      'A clear arrow slides off the board in your color — green for X, purple for O.',
+      'A blocked arrow is a trap: tapping it shakes red and costs a life, and it never clears.',
+      'You have 3 lives per round — at 0 lives you can only watch.',
+    ],
+    win: 'Whoever clears more arrows wins the round. Win 2 of the 3 rounds (easy, medium, hard) to take the match; a drawn round scores for no one.',
+  },
+
   tron: {
     objective: 'Outlast your opponent’s light cycle in a single deadly round.',
     howToPlay: [

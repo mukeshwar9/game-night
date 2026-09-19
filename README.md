@@ -6,7 +6,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 
 ## Games
 
-**29 games** across five categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo`.
+**30 games** across five categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo`.
 
 ### Board (10)
 - **Tic Tac Toe** — the classic 3×3
@@ -20,11 +20,12 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Order & Chaos** — asymmetric 6×6: Order wants any five-in-a-row, Chaos wants a full board without one
 - **Pig** — push-your-luck dice; bank or roll, a 1 wipes your turn; first to 100
 
-### Reflex & skill (9)
+### Reflex & skill (10)
 - **Reaction Time** — four wait-for-green rounds, lowest milliseconds wins
 - **Aim Trainer** — race to click targets
 - **Typing Race** — same passage, live ghost cursor, effective WPM (speed × accuracy) wins
 - **Mental Math** — 2-minute blitz with speed scoring, ⚡ power questions, and 🔥 streak multipliers
+- **Arrows Puzzle** — shared-board tap duel: clear snake arrows, avoid the trap, best of 3 rounds (easy → medium → hard) ([review & backlog](docs/README-ARROWS-REVIEW.md))
 - **Pong** — real-time paddle duel over WebRTC
 - **Snake Battle** — two snakes, one arena, real-time
 - **Tron** — light-cycle trails, one collision decides it
@@ -204,7 +205,7 @@ database.rules.json          # the security boundary — deploy after every chan
 
 ## Improvement backlog
 
-Ranked by player impact. Status as of 2026-09-04 (unit tests green: 138 files / 3204 tests). Most of the August review's top-10 items are already fixed; these are what remains.
+Ranked by player impact. Status as of 2026-09-19 (unit tests green: 155 files / 3483 tests). Most of the August review's top-10 items are already fixed; these are what remains. Arrows Puzzle review: [docs/README-ARROWS-REVIEW.md](docs/README-ARROWS-REVIEW.md).
 
 ### Finish / ship
 
@@ -212,29 +213,43 @@ Ranked by player impact. Status as of 2026-09-04 (unit tests green: 138 files / 
 2. **Herd Mind still leaks answers** — `HerdGame.jsx` writes plaintext to `round/answers` the moment a player submits, before the window closes for everyone else. The commit-reveal imports (`makeCommit`, `verifyReveal`, `allCommitted`) are already there but unused; finish wiring the same salted commit-reveal pattern Hangwoman/Wavelength/Bluff/Word Duel use.
 3. **Word Hunt dictionary is unfiltered** — `public/wordhunt-dict.txt` still contains playable slurs/profanity. One denylist pass at asset-prep time, no logic change.
 
+### Arrows Puzzle (review 2026-09-19)
+
+Full write-up: [docs/README-ARROWS-REVIEW.md](docs/README-ARROWS-REVIEW.md). Suggested ship order: **A → B → C** before more levels.
+
+4. **ARROWS-A — Match closure after 3 rounds** — After easy/medium/hard, if neither side has 2 round wins, force a match draw (per PRD). Today “Play again” can fall through into another easy board while match scores keep climbing.
+5. **ARROWS-B — Trap readability** — Blocked arrows look identical until tapped. Add a soft visual tell and/or a first-match tip (“One arrow is a trap — three lives”).
+6. **ARROWS-C — Feel under lag** — Hit/miss audio fires before the tap is confirmed; play sound from the transaction result. Enlarge invisible hit pads on short/crowded snakes for phones.
+7. **ARROWS-D — Round rhythm / coaching** — Show level label (e.g. `TIGHT PACK`), a short interstitial on round start (“MEDIUM — 10 arrows · 1 trap”), and a first-match tip.
+8. **ARROWS-E — Spectator / out-of-lives HUD** — Keep the full HUD for spectators and KO’d players; dim their side and label `OUT` instead of clears-only / text-only.
+9. **ARROWS-F — Trap / content depth (v2)** — Static one-trap-per-level gets predictable. Next levers: 0–2 traps on hard, dynamic unblock, ban recently played level ids in a room.
+10. **ARROWS-G — Solo / teach mode** — Short solo practice board (same rules, no match score) so discovery doesn’t require a second player.
+11. **ARROWS-H — Accessibility polish** — Prefer `pointerdown` + `touch-action: manipulation`; announce clears/lives to screen readers; enlarge life glyphs slightly.
+12. **ARROWS-I — Hard-tier balance** — Hard is mostly density (16 arrows, still one trap). Try more traps on hard, or fewer clearable arrows with messier routing so exit-direction reading matters more than raw click speed.
+
 ### Correctness
 
-4. **Lint has 19 errors** — one impure call during render in `DailyGame.jsx`, the rest unused imports/vars (six of them in `HerdGame.jsx`, cleared by item 2). Add `npm run lint` to the pre-push gate / CI so it can't drift again.
-5. **Reversi auto-pass** now exists in `games.js` — verify the double-blocked case (neither player can move) ends the round rather than passing forever.
+13. **Lint has 19 errors** — one impure call during render in `DailyGame.jsx`, the rest unused imports/vars (six of them in `HerdGame.jsx`, cleared by item 2). Add `npm run lint` to the pre-push gate / CI so it can't drift again.
+14. **Reversi auto-pass** now exists in `games.js` — verify the double-blocked case (neither player can move) ends the round rather than passing forever.
 
 ### Performance
 
-6. **Single ~1.7 MB JS bundle** — no `React.lazy` anywhere in `App.jsx`/`Game.jsx`, no `manualChunks`; every game page loads eagerly. Lazy-load per game page (via the `GAME_TYPES` registry or route level) to cut first load substantially for cold mobile visits.
+15. **Single ~1.7 MB JS bundle** — no `React.lazy` anywhere in `App.jsx`/`Game.jsx`, no `manualChunks`; every game page loads eagerly. Lazy-load per game page (via the `GAME_TYPES` registry or route level) to cut first load substantially for cold mobile visits.
 
 ### Platform themes (open since the August review)
 
-7. **Host latency advantage** in Pong / Air Hockey / Space Duel — no input-delay compensation. Options: host delays its own input by half RTT, or lag-compensated hit detection.
-8. **Mixed-game leaderboard** — wins in Pong and Tic Tac Toe rank equally. Split by game or category.
-9. **`--c-dim` contrast** — still fails AA body-text contrast on `card` surfaces in several themes. Extend the existing theme contrast regression tests to cover `dim` on `card`, then raise the token per theme.
-10. **No TURN server** — roughly 5–10% of P2P connections fail behind symmetric NATs. Add a free-tier TURN provider or accept the failure rate.
+16. **Host latency advantage** in Pong / Air Hockey / Space Duel — no input-delay compensation. Options: host delays its own input by half RTT, or lag-compensated hit detection.
+17. **Mixed-game leaderboard** — wins in Pong and Tic Tac Toe rank equally. Split by game or category.
+18. **`--c-dim` contrast** — still fails AA body-text contrast on `card` surfaces in several themes. Extend the existing theme contrast regression tests to cover `dim` on `card`, then raise the token per theme.
+19. **No TURN server** — roughly 5–10% of P2P connections fail behind symmetric NATs. Add a free-tier TURN provider or accept the failure rate.
 
 ### Hygiene
 
-11. **No end-to-end tests** — a Playwright smoke test (create room, join from a second context, play one Tic Tac Toe move) would catch multiplayer regressions unit tests never see.
-12. **`Game.jsx` is ~1,900 lines** — extract the lobby, status, and proposal-handshake logic into hooks.
-13. **Unreviewed layer** — `src/hooks/`, the sound layer, `src/components/loading/`, and `EmoteBar.jsx` have never been audited. Run the `review-a-game` checklist on the reflex games.
+20. **No end-to-end tests** — a Playwright smoke test (create room, join from a second context, play one Tic Tac Toe move) would catch multiplayer regressions unit tests never see.
+21. **`Game.jsx` is ~1,900 lines** — extract the lobby, status, and proposal-handshake logic into hooks.
+22. **Unreviewed layer** — `src/hooks/`, the sound layer, `src/components/loading/`, and `EmoteBar.jsx` have never been audited. Run the `review-a-game` checklist on the reflex games (Arrows covered in [docs/README-ARROWS-REVIEW.md](docs/README-ARROWS-REVIEW.md)).
 
-Suggested order: 1, 2, 3, 6, 4.
+Suggested order: 4, 5, 6 (Arrows A→B→C), then 1, 2, 3, 15, 13.
 
 ## Roadmap
 

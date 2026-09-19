@@ -749,6 +749,19 @@ body::before {
   100% { transform: scale(1); opacity: 1; }
 }
 
+@keyframes arrows-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20%      { transform: translate(-3px, 0); }
+  40%      { transform: translate(3px, 0); }
+  60%      { transform: translate(-2px, 0); }
+  80%      { transform: translate(2px, 0); }
+}
+.arrows-group.blocked-shake { animation: arrows-shake 0.38s ease; }
+.arrows-group.blocked-shake .ar-path,
+.arrows-group.blocked-shake .ar-head {
+  stroke: rgb(var(--c-danger)) !important;
+}
+
 /* Pig: a bust (rolling a 1) shakes the die briefly */
 @keyframes dice-bust {
   0%   { transform: translateX(0); }
