@@ -27,6 +27,7 @@ This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime D
 - `src/lib/*Logic.js` — pure game/commit logic, no DOM/Firebase/React, `.test.js` beside each. See `.claude/rules/game-logic-rules.md`.
 - `src/components/` — board/arena components (rendering only, no rules).
 - `src/pages/` — whole games (one page per game, wires board + logic + Firebase together), plus each game's `/demo` bot-play page.
+- `src/pages/Demo.jsx` — the solo-demo hub. Its `DEMOS` array is the registry for every playable demo (`{ type, short, Icon, Component }`); `/solo/:type` and the Demo picker both resolve through it, so a game marked `solo: true` in `GAME_TYPES` still shows "NO SOLO DEMO" until it has a `DEMOS` entry. Larger demos live in their own `src/pages/*Demo.jsx` and are imported here; bot decisions can be a pure, testable module (`src/lib/passwordBot.js`) or drawn from `src/lib/demoBots.js`.
 - `src/lib/games.js` — the `GAME_TYPES` registry; the single source of per-game config. See `.claude/rules/adding-a-game-rules.md`.
 
 ### Data model
