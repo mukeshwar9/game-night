@@ -211,10 +211,14 @@ export default function AnagramsGame({
 
   useEffect(() => {
     if (!round?.seed) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs local rack when Firebase round advances
     setRack(round.rack || [])
     setSelectedIndexes([])
     setFeedback(null)
-  }, [round?.seed, round?.rack])
+  // round.rack identity changes on every round write (opponent word);
+  // seed is the round id. Resetting on rack would wipe selection mid-round.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round?.seed])
 
   const setMessage = useCallback((kind) => {
     setFeedback({ kind, id: Date.now() })
@@ -275,6 +279,8 @@ export default function AnagramsGame({
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.ctrlKey || event.metaKey || event.altKey || !isPlaying || myDone) return
+      const target = event.target
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return
       if (event.key === 'Enter') {
         event.preventDefault()
         submitWord()
@@ -413,7 +419,12 @@ export default function AnagramsGame({
           selectedIndexes={selectedIndexes}
           onPick={pickLetter}
           onRemove={removeLetter}
-          onShuffle={() => setRack(current => [...current].sort(() => Math.random() - 0.5))}
+          onShuffle={() => {
+            // Shuffle reorders by index — stale indexes would point at
+            // different letters, so clear the in-progress word first.
+            setSelectedIndexes([])
+            setRack(current => [...current].sort(() => Math.random() - 0.5))
+          }}
           disabled={!isPlaying || myDone || submitting}
         />
         <div className="mt-3 flex items-center gap-2">

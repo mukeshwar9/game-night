@@ -42,7 +42,7 @@ function ActionButton({ children, busy, onClick, disabled = false, secondary = f
 }
 
 export default function PasswordGame({
-  gameId, game, mySymbol, opponentOnline, onSwitchGame, onPlayAgain, onNewMatch, proposal,
+  gameId, game, mySymbol, opponentOnline, onSwitchGame, onNewMatch, proposal,
 }) {
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
@@ -197,9 +197,9 @@ export default function PasswordGame({
           ))}
         </div>
         <div className="flex flex-wrap justify-center gap-2">
-          {!proposal && onPlayAgain && (
-            <ActionButton onClick={onPlayAgain} secondary>PLAY AGAIN</ActionButton>
-          )}
+          {/* No PLAY AGAIN here: applyPlayAgain preserves scores, so a
+              finished Password match (target reached) would reopen with
+              stale winning scores. NEW MATCH resets via applyNewMatch. */}
           {!proposal && onNewMatch && (
             <ActionButton onClick={onNewMatch}>NEW MATCH</ActionButton>
           )}

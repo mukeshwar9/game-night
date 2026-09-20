@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { CLUE_POINTS, MAX_CLUES, MAX_ROUNDS, TARGET_SCORE } from '../lib/passwordLogic'
 
 function ScoreRail({ scores, players, mySymbol }) {
   const score = { X: scores?.X || 0, O: scores?.O || 0 }
@@ -16,7 +17,7 @@ function ScoreRail({ scores, players, mySymbol }) {
       ))}
       <div className="text-center text-retro-dim">
         <p className="font-pixel text-[8px]">TO</p>
-        <p className="font-pixel text-[10px] text-retro-cta">15</p>
+        <p className="font-pixel text-[10px] text-retro-cta">{TARGET_SCORE}</p>
       </div>
       {['O'].map((symbol) => (
         <div key={symbol} className="min-w-0 text-right">
@@ -53,7 +54,7 @@ export default function PasswordCard({
           'font-pixel text-[9px] tracking-wider px-2 py-1 rounded border',
           mySymbol === clueGiver ? 'text-retro-cta border-retro-cta/50 bg-retro-tint-cta' : 'text-retro-p1 border-retro-p1/40 bg-retro-tint-p1',
         )}>{role}</span>
-        <span className="font-pixel text-[9px] text-retro-dim">ROUND {roundNum}/12</span>
+        <span className="font-pixel text-[9px] text-retro-dim">ROUND {roundNum}/{MAX_ROUNDS}</span>
       </div>
 
       <div key={`${roundNum}-${phase}`} className={cn(
@@ -74,7 +75,7 @@ export default function PasswordCard({
       </div>
 
       <div className="space-y-1.5" aria-label="Clue history">
-        {Array.from({ length: 5 }, (_, index) => {
+        {Array.from({ length: MAX_CLUES }, (_, index) => {
           const clue = clues[index]
           const guess = guesses[index]
           const correct = guess?.correct
@@ -97,7 +98,7 @@ export default function PasswordCard({
           )
         })}
       </div>
-      <p className="font-mono text-[9px] text-retro-dim text-center">EARLY GUESSES SCORE MORE · 5 4 3 2 1</p>
+      <p className="font-mono text-[9px] text-retro-dim text-center">EARLY GUESSES SCORE MORE · {CLUE_POINTS.join(' ')}</p>
     </div>
   )
 }
