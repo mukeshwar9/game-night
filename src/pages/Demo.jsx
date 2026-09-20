@@ -20,7 +20,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArrowsIcon,
 } from '../components/GameIcons';
 import PongCourt from '../components/PongCourt';
 import SnakeArena from '../components/SnakeArena';
@@ -66,6 +66,7 @@ import AirHockeyDemo from './AirHockeyDemo';
 import ArtilleryDemo from './ArtilleryDemo';
 import TriviaDemo from './TriviaDemo';
 import HerdDemo from './HerdDemo';
+import ArrowsDemo from './ArrowsDemo';
 
 function generateNumberLocal(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
@@ -2302,6 +2303,7 @@ const DEMOS = [
   { type: 'paint',        short: 'PAINT\nTURF',   Icon: PaintIcon,        Component: PaintDemo        },
   { type: 'pacmac',       short: 'PAC\nMAC',      Icon: PacmacIcon,       Component: PacmacDemo       },
   { type: 'minesweeper',  short: 'MINE\nRACE',    Icon: MinesIcon,        Component: MineRaceDemo     },
+  { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsDemo        },
   // Memory hot-seat
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonDemo        },
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemoryDemo },

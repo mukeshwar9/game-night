@@ -13,6 +13,8 @@ import { ARROWS_LEVELS, ARROWS_TIERS, levelIdsForTier } from './levels/arrows'
 
 export const ARROWS_LIVES = 3
 export const ARROWS_MATCH_TARGET = 2
+export const ARROWS_MAX_ROUNDS = 3
+export const ARROWS_SEEN_CAP = 6
 export const ARROWS_CORNER_RADIUS = 8
 export const ARROWS_TIP_INSET = 4.2
 export const ARROWS_HEAD_LEN = 5.5
@@ -34,6 +36,9 @@ export function getLevel(id) {
   const level = ARROWS_LEVELS[id] ?? ARROWS_LEVELS.easy1
   return {
     ...level,
+    // Flags a stale-room id so the page can surface it instead of silently
+    // showing the wrong board.
+    fallback: level.id !== id,
     arrows: level.arrows.map((a) => ({ ...a, points: parsePathD(a.d) })),
   }
 }
@@ -71,7 +76,13 @@ export function normalizeCleared(raw, size) {
 }
 
 // Unit exit vector + tip for the arrow's head (the mockup's exitVector).
+// Guards short input so a malformed level can never crash the board: a single
+// point has no direction, so it reports a zero vector tipped at that point.
 export function exitVector(points) {
+  if (!points || points.length < 2) {
+    const tip = points?.length === 1 ? [...points[0]] : [0, 0]
+    return { dx: 0, dy: 0, tip }
+  }
   const a = points[points.length - 2]
   const b = points[points.length - 1]
   const dx = b[0] - a[0]
@@ -156,35 +167,105 @@ export function getArrowsWinner(level, cleared, livesX, livesO) {
 }
 
 // Pick a random level id from a tier (e.g. 'easy' → 'easy1'..'easy5').
-export function pickLevelId(tier, rng = Math.random) {
+// `exclude` bans recently played ids so rematches feel fresh; when every id
+// is excluded the pool resets instead of returning null.
+export function pickLevelId(tier, rng = Math.random, exclude = []) {
   const ids = levelIdsForTier(tier)
   if (ids.length === 0) return null
-  return ids[Math.floor(rng() * ids.length)]
+  const banned = new Set(exclude)
+  const fresh = ids.filter((id) => !banned.has(id))
+  const pool = fresh.length > 0 ? fresh : ids
+  return pool[Math.floor(rng() * pool.length)]
+}
+
+// Normalize the Firebase `arrowsSeen` map (levelId → true) into a plain
+// object. Firebase deletes empty objects, so absent/null reads as {}.
+export function normalizeArrowsSeen(raw) {
+  if (!raw || typeof raw !== 'object') return {}
+  const seen = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (v) seen[k] = true
+  }
+  return seen
+}
+
+// Record level ids into the seen map, capped so the node stays tiny.
+export function recordArrowsSeen(seen, ids) {
+  const next = { ...(seen || {}) }
+  for (const id of ids) {
+    if (id) next[id] = true
+  }
+  const keys = Object.keys(next)
+  if (keys.length > ARROWS_SEEN_CAP) {
+    for (const k of keys.slice(0, keys.length - ARROWS_SEEN_CAP)) delete next[k]
+  }
+  return next
+}
+
+// Match-level result: first to ARROWS_MATCH_TARGET round wins. After the
+// final round finishes, the higher score takes it; level scores draw.
+export function arrowsMatchWinner(scores) {
+  const x = scores?.X || 0
+  const o = scores?.O || 0
+  if (x >= ARROWS_MATCH_TARGET) return 'X'
+  if (o >= ARROWS_MATCH_TARGET) return 'O'
+  return null
+}
+
+export function isFinalArrowsRound(game) {
+  return (game?.arrowsRound ?? 0) >= ARROWS_MAX_ROUNDS - 1
+}
+
+// Conclusive match end for a game object: someone hit the target, or the
+// final round finished (game.status === 'finished'). Returns 'X' | 'O' |
+// 'draw' | null while the match is still live.
+export function getArrowsMatchEnd(game) {
+  const target = arrowsMatchWinner(game?.scores)
+  if (target) return target
+  if (isFinalArrowsRound(game) && game?.status === 'finished') {
+    const x = game?.scores?.X || 0
+    const o = game?.scores?.O || 0
+    if (x === o) return 'draw'
+    return x > o ? 'X' : 'O'
+  }
+  return null
 }
 
 // Config hook for Game.jsx's applyPlayAgain: advance to the next round's state
 // (round 1 easy → 2 medium → 3 hard). Returns null when the match is over.
-export function arrowsNextRound(game) {
+export function arrowsNextRound(game, rng = Math.random) {
+  // Never advance past a decided match or the final round: callers must start
+  // a new match instead. This is what stops the 4th tier-less rematch.
+  if (arrowsMatchWinner(game?.scores)) return null
   const round = (game.arrowsRound ?? 0) + 1
   const tier = ARROWS_TIERS[round]
   if (!tier) return null
-  const levelId = pickLevelId(tier)
+  const seen = normalizeArrowsSeen(game?.arrowsSeen)
+  const levelId = pickLevelId(tier, rng, Object.keys(seen))
   return {
     arrowsRound: round,
     arrowsLevel: levelId,
     arrowsCleared: null,
     arrowsLivesX: ARROWS_LIVES,
     arrowsLivesO: ARROWS_LIVES,
+    arrowsTrapSeen: null,
+    arrowsLastBlocked: null,
+    arrowsSeen: recordArrowsSeen(seen, [game?.arrowsLevel, levelId]),
   }
 }
 
 // Fresh round-0 state fragment (used by freshGameState in games.js).
-export function arrowsFreshState() {
+export function arrowsFreshState(seen = {}, rng = Math.random) {
+  const clean = normalizeArrowsSeen(seen)
+  const levelId = pickLevelId('easy', rng, Object.keys(clean))
   return {
     arrowsRound: 0,
-    arrowsLevel: pickLevelId('easy'),
+    arrowsLevel: levelId,
     arrowsCleared: null,
     arrowsLivesX: ARROWS_LIVES,
     arrowsLivesO: ARROWS_LIVES,
+    arrowsTrapSeen: null,
+    arrowsLastBlocked: null,
+    arrowsSeen: recordArrowsSeen(clean, [levelId]),
   }
 }

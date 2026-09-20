@@ -11,6 +11,13 @@ import {
   applyTap,
   getArrowsWinner,
   arrowsNextRound,
+  arrowsFreshState,
+  arrowsMatchWinner,
+  isFinalArrowsRound,
+  getArrowsMatchEnd,
+  pickLevelId,
+  normalizeArrowsSeen,
+  recordArrowsSeen,
   ARROWS_LIVES,
 } from './arrowsLogic'
 import { ARROWS_LEVELS, ARROWS_TIERS, levelIdsForTier } from './levels/arrows'
@@ -238,5 +245,72 @@ describe('arrowsNextRound', () => {
     expect(levelIdsForTier('hard')).toContain(r2.arrowsLevel)
 
     expect(arrowsNextRound({ arrowsRound: 2 })).toBeNull()
+  })
+
+  it('refuses to advance past a decided match', () => {
+    expect(arrowsNextRound({ arrowsRound: 0, scores: { X: 2, O: 0 } })).toBeNull()
+    expect(arrowsNextRound({ arrowsRound: 1, scores: { X: 0, O: 2 } })).toBeNull()
+  })
+
+  it('resets trap flags and tracks seen levels', () => {
+    const r1 = arrowsNextRound({ arrowsRound: 0, arrowsLevel: 'easy1', arrowsSeen: { easy1: true } })
+    expect(r1.arrowsTrapSeen).toBeNull()
+    expect(r1.arrowsLastBlocked).toBeNull()
+    expect(r1.arrowsSeen.easy1).toBe(true)
+    expect(r1.arrowsSeen[r1.arrowsLevel]).toBe(true)
+  })
+})
+
+describe('arrows match end', () => {
+  it('reads first-to-2 from scores', () => {
+    expect(arrowsMatchWinner({ X: 2, O: 0 })).toBe('X')
+    expect(arrowsMatchWinner({ X: 0, O: 2 })).toBe('O')
+    expect(arrowsMatchWinner({ X: 1, O: 1 })).toBeNull()
+  })
+
+  it('ends the match after the final round finishes', () => {
+    expect(isFinalArrowsRound({ arrowsRound: 2 })).toBe(true)
+    expect(isFinalArrowsRound({ arrowsRound: 1 })).toBe(false)
+    // Leader takes a non-level finish; level scores draw.
+    expect(getArrowsMatchEnd({ arrowsRound: 2, status: 'finished', scores: { X: 1, O: 0 } })).toBe('X')
+    expect(getArrowsMatchEnd({ arrowsRound: 2, status: 'finished', scores: { X: 1, O: 1 } })).toBe('draw')
+    expect(getArrowsMatchEnd({ arrowsRound: 2, status: 'playing', scores: { X: 1, O: 0 } })).toBeNull()
+    expect(getArrowsMatchEnd({ arrowsRound: 1, status: 'finished', scores: { X: 1, O: 0 } })).toBeNull()
+  })
+})
+
+describe('arrows level rotation', () => {
+  it('avoids excluded ids until the pool is exhausted', () => {
+    const ids = levelIdsForTier('easy')
+    expect(pickLevelId('easy', () => 0, ids.slice(1))).toBe(ids[0])
+    // All banned → pool resets instead of null.
+    expect(ids).toContain(pickLevelId('easy', () => 0, ids))
+    expect(pickLevelId('nope')).toBeNull()
+  })
+
+  it('normalizes and caps the seen map', () => {
+    expect(normalizeArrowsSeen(null)).toEqual({})
+    expect(normalizeArrowsSeen({ a: true, b: 0 })).toEqual({ a: true })
+    const capped = recordArrowsSeen({ k1: true, k2: true, k3: true, k4: true, k5: true, k6: true }, ['k7'])
+    expect(Object.keys(capped)).toHaveLength(6)
+    expect(capped.k7).toBe(true)
+  })
+
+  it('fresh state avoids seen levels', () => {
+    const ids = levelIdsForTier('easy')
+    const fresh = arrowsFreshState(Object.fromEntries(ids.slice(0, 4).map((id) => [id, true])), () => 0)
+    expect(fresh.arrowsLevel).toBe(ids[4])
+  })
+})
+
+describe('exitVector guard', () => {
+  it('never crashes on short input', () => {
+    expect(exitVector([])).toEqual({ dx: 0, dy: 0, tip: [0, 0] })
+    expect(exitVector([[3, 4]])).toEqual({ dx: 0, dy: 0, tip: [3, 4] })
+  })
+
+  it('flags stale level ids', () => {
+    expect(getLevel('nope').fallback).toBe(true)
+    expect(getLevel('easy1').fallback).toBe(false)
   })
 })

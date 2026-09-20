@@ -762,6 +762,23 @@ body::before {
   stroke: rgb(var(--c-danger)) !important;
 }
 
+/* Raced tap: opponent cleared the arrow first. Brief amber steal flash. */
+@keyframes arrows-steal {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.arrows-group.stolen-flash .ar-path,
+.arrows-group.stolen-flash .ar-head {
+  stroke: rgb(var(--c-cta)) !important;
+  animation: arrows-steal 0.45s ease;
+}
+
+/* Press feedback: tapped arrow swells briefly (audio is not the only signal). */
+.arrows-group:active .ar-path,
+.arrows-group:active .ar-head {
+  stroke-width: 3.25;
+}
+
 /* Pig: a bust (rolling a 1) shakes the die briefly */
 @keyframes dice-bust {
   0%   { transform: translateX(0); }

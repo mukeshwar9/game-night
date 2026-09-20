@@ -60,10 +60,13 @@ function StickyActionBar({ children }) {
   )
 }
 
-export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame, matchTarget = MATCH_WINS }) {
+export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame, matchTarget = MATCH_WINS, matchOver = false, matchWinnerOverride = null }) {
   const scoreX = scores?.X || 0
   const scoreO = scores?.O || 0
-  const matchWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
+  const targetWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
+  // Lets custom games (arrows) declare a match over on rounds played, not just
+  // on the target score — e.g. 1–0 after 3 rounds, or a 3-round draw.
+  const matchWinner = targetWinner ?? (matchOver ? matchWinnerOverride : null)
   const opponentUid = mySymbol && players?.[mySymbol === 'X' ? 'O' : 'X']?.playerId || null
   const headToHead = getHeadToHead(opponentUid)
 
@@ -142,24 +145,25 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
   }
 
   if (matchWinner) {
-    const iWon = matchWinner === mySymbol
-    const winnerName = players?.[matchWinner]?.name || matchWinner
+    const isMatchDraw = matchWinner === 'draw'
+    const iWon = !isMatchDraw && matchWinner === mySymbol
+    const winnerName = isMatchDraw ? null : (players?.[matchWinner]?.name || matchWinner)
     return (
       <div className="text-center space-y-4">
         <div className="space-y-2">
           <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
           {/* M-67: entrance animation on the outcome text — keyed by score so
-              it replays on every fresh finish (prefers-reduced-motion neuters
-              it globally via the animation-duration override in index.css). */}
+               it replays on every fresh finish (prefers-reduced-motion neuters
+               it globally via the animation-duration override in index.css). */}
           <p
             key={`out-${scoreX}-${scoreO}`}
             className={cn(
               'font-pixel text-base',
-              iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim',
+              isMatchDraw ? 'text-retro-text' : iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim',
             )}
             style={{ animation: 'modal-pop 0.28s ease-out both' }}
           >
-            {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
+            {isMatchDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : `${winnerName} WINS`}
           </p>
           <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
           {renderHeadToHead()}
@@ -178,7 +182,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
             </RetroButton>
           )}
           <ShareButton
-            onClick={() => share(iWon ? 'YOU WIN!' : `${winnerName} WINS`, matchWinner === 'X' ? '--c-p1' : '--c-p2')}
+            onClick={() => share(isMatchDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : `${winnerName} WINS`, matchWinner === 'X' ? '--c-p1' : matchWinner === 'O' ? '--c-p2' : '--c-cta')}
             busy={shareBusy}
             locked={ctaLocked}
           />

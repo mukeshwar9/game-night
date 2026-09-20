@@ -12,7 +12,9 @@ const GRID_STEP = 20
 const DOT_RADIUS = 1.35
 const FLOW_MS = 480
 const FLOW_DIST = 520
-const HIT_WIDTH = 12
+// Wide invisible pad so short stubs and crowded hard boards stay fair on phones.
+const HIT_WIDTH = 18
+const HEAD_HIT_R = 11
 
 // The mockup's buildArrowHead: an outline triangle (closed path, fill none) at
 // the arrow's tip, pointing along the exit vector.
@@ -36,7 +38,15 @@ const strokeFor = (cleared) => {
   return 'rgb(var(--c-text))'
 }
 
-export default function ArrowsBoard({ level, cleared, onTap, interactive, shakeSignal }) {
+export default function ArrowsBoard({
+  level,
+  cleared,
+  onTap,
+  interactive,
+  shakeSignal,
+  stolenSignal,
+  revealTraps = false,
+}) {
   const groupRefs = useRef([])
   // Arrows that have already flown out. Cleared arrows that haven't finished
   // animating stay mounted so the flow-out can play. Initialised from any
@@ -87,7 +97,8 @@ export default function ArrowsBoard({ level, cleared, onTap, interactive, shakeS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleared])
 
-  // Blocked tap — briefly shake + redden the tapped arrow.
+  // Blocked tap — briefly shake + redden the tapped arrow. Fires for local
+  // taps and remote opponent taps (via arrowsLastBlocked) alike.
   useEffect(() => {
     if (!shakeSignal) return
     const group = groupRefs.current[shakeSignal.index]
@@ -99,6 +110,18 @@ export default function ArrowsBoard({ level, cleared, onTap, interactive, shakeS
     const t = setTimeout(() => group.classList.remove('blocked-shake'), 400)
     return () => clearTimeout(t)
   }, [shakeSignal])
+
+  // Raced tap — the arrow cleared under us. Brief amber steal flash.
+  useEffect(() => {
+    if (!stolenSignal) return
+    const group = groupRefs.current[stolenSignal.index]
+    if (!group) return
+    group.classList.remove('stolen-flash')
+    void group.getBoundingClientRect()
+    group.classList.add('stolen-flash')
+    const t = setTimeout(() => group.classList.remove('stolen-flash'), 450)
+    return () => clearTimeout(t)
+  }, [stolenSignal])
 
   const [vx, vy, vw, vh] = level.viewBox
   const dots = []
@@ -123,21 +146,71 @@ export default function ArrowsBoard({ level, cleared, onTap, interactive, shakeS
             const head = arrowHeadD(points)
             const stroke = strokeFor(cleared[i])
             const isCleared = !!cleared[i]
+            const isTrap = !!arrow.blocked && !isCleared
+            const trapRevealed = isTrap && revealTraps
+            const { tip } = exitVector(points)
+            const tappable = interactive && !isCleared
+            const label = isCleared
+              ? `Arrow ${i + 1} cleared by ${cleared[i]}`
+              : trapRevealed
+                ? `Arrow ${i + 1} trap`
+                : `Arrow ${i + 1}`
+            const fireTap = (e) => {
+              if (e) e.preventDefault()
+              onTap(i)
+            }
             return (
               <g key={i} ref={(el) => { groupRefs.current[i] = el }} className="arrows-group">
-                {interactive && !isCleared && (
-                  <path
-                    d={d}
-                    fill="none"
-                    stroke="transparent"
-                    strokeWidth={HIT_WIDTH}
-                    style={{ cursor: 'var(--cursor-hand)', pointerEvents: 'stroke' }}
-                    onClick={() => onTap(i)}
-                    aria-label={`Arrow ${i + 1}`}
-                  />
+                {tappable && (
+                  <>
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={HIT_WIDTH}
+                      style={{ cursor: 'var(--cursor-hand)', pointerEvents: 'stroke', touchAction: 'manipulation' }}
+                      onPointerDown={fireTap}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fireTap(e) }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={label}
+                    />
+                    <circle
+                      cx={tip[0]}
+                      cy={tip[1]}
+                      r={HEAD_HIT_R}
+                      fill="transparent"
+                      style={{ cursor: 'var(--cursor-hand)', pointerEvents: 'all', touchAction: 'manipulation' }}
+                      onPointerDown={fireTap}
+                    />
+                  </>
                 )}
-                <path className="ar-path" d={d} strokeWidth={2.25} style={{ stroke, pointerEvents: 'none' }} />
-                <path className="ar-head" d={head} strokeWidth={2.25} style={{ stroke, pointerEvents: 'none' }} />
+                <path
+                  className="ar-path"
+                  d={d}
+                  strokeWidth={2.25}
+                  strokeDasharray={trapRevealed ? '5 4' : undefined}
+                  style={{ stroke: trapRevealed ? 'rgb(var(--c-danger))' : stroke, pointerEvents: 'none', opacity: trapRevealed ? 0.9 : 1 }}
+                />
+                <path
+                  className="ar-head"
+                  d={head}
+                  strokeWidth={2.25}
+                  style={{ stroke: trapRevealed ? 'rgb(var(--c-danger))' : stroke, pointerEvents: 'none' }}
+                />
+                {trapRevealed && (
+                  <text
+                    x={tip[0]}
+                    y={tip[1] - ARROWS_HEAD_LEN - 3}
+                    textAnchor="middle"
+                    fontSize="8"
+                    fill="rgb(var(--c-danger))"
+                    stroke="none"
+                    aria-hidden="true"
+                  >
+                    ×
+                  </text>
+                )}
               </g>
             )
           })}

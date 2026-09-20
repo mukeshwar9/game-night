@@ -69,7 +69,8 @@ import {
   commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
 } from '../lib/diceLogic'
 import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../lib/anagramsLogic'
-import { ARROWS_MATCH_TARGET } from '../lib/arrowsLogic'
+import { TARGET_SCORE as PASSWORD_TARGET } from '../lib/passwordLogic'
+import { ARROWS_MATCH_TARGET, getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -505,11 +506,15 @@ export default function Game() {
       const w = game.winner
       const sx = game.scores?.X || 0
       const so = game.scores?.O || 0
-      const matchTarget = game.gameType === 'password' ? 15 : game.gameType === 'pong' ? (game.matchLength ?? 3)
+      const matchTarget = game.gameType === 'password' ? PASSWORD_TARGET : game.gameType === 'pong' ? (game.matchLength ?? 3)
         : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
         : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
         : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
-      const isMatch = game.gameType === 'password' || sx >= matchTarget || so >= matchTarget
+      // Arrows also ends the match on final-round completion (leader wins,
+      // level scores draw) — without this a 1–0 / 1–1 finish plays round-end
+      // audio and skips match history.
+      const arrowsOver = game.gameType === 'arrows' && !!getArrowsMatchEnd(game)
+      const isMatch = game.gameType === 'password' || sx >= matchTarget || so >= matchTarget || arrowsOver
       if (w === 'draw') sounds.draw()
       else if (w === mySymbol.current) (isMatch ? sounds.matchWin() : sounds.win())
       else if (mySymbol.current) sounds.lose()
@@ -1034,6 +1039,9 @@ export default function Game() {
 
   // Apply functions (called directly when no second player / opponent offline)
   const applyPlayAgain = async () => {
+    // Arrows: a decided/final match must start over, never advance into a
+    // 4th tier-less round (safety net behind the page's New Match routing).
+    if (game.gameType === 'arrows' && getArrowsMatchEnd(game)) return applyNewMatch()
     const starter = nextStarter(game)
     const fresh = freshGameState(game.gameType, game)
     // Word Race keeps its used answer indexes across rematches so PLAY AGAIN
@@ -1077,6 +1085,15 @@ export default function Game() {
   const applyNewMatch = async () => {
     const starter = nextStarter(game)
     const fresh = freshGameState(game.gameType)
+    // Arrows: keep the seen-level rotation across matches so rematches feel
+    // fresh — re-pick when the fresh draw repeats a recently played level.
+    if (game.gameType === 'arrows') {
+      const seen = normalizeArrowsSeen(game.arrowsSeen)
+      if (seen[fresh.arrowsLevel]) {
+        fresh.arrowsLevel = pickLevelId('easy', Math.random, Object.keys(seen))
+      }
+      fresh.arrowsSeen = recordArrowsSeen(seen, [fresh.arrowsLevel])
+    }
     // A new match still starts with a fresh word. Preserve prior indexes as a
     // room-level deck history, matching Word Race's non-repeat promise.
     if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
@@ -1487,7 +1504,7 @@ export default function Game() {
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  const matchTarget = game.gameType === 'password' ? 15 : game.gameType === 'pong' ? (game.matchLength ?? 3)
+  const matchTarget = game.gameType === 'password' ? PASSWORD_TARGET : game.gameType === 'pong' ? (game.matchLength ?? 3)
     : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
     : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
     : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3

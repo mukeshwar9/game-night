@@ -4,6 +4,7 @@
 
 - **Review date:** September 19, 2026.
 - **Status:** Review and proposed improvement backlog; application changes have **not** been implemented (unless noted elsewhere).
+- **Update September 20, 2026:** slices A–E plus H shipped (match closure via `getArrowsMatchEnd`, teach-once trap tell via `arrowsTrapSeen`, confirm-before-sound + wider hit pads + stolen flash, round interstitial/level label/tip, spectator + KO HUD, solo `ArrowsDemo`, level rotation via `arrowsSeen`). Hard-tier content (ARROWS-F trap depth, ARROWS-I rebalance) intentionally left as follow-up — levels still carry exactly one static trap each.
 - **Live:** https://game-night-91464.web.app — pick **ARROWS PUZZLE** in a room.
 - **PRD:** [docs/prds/arrows-puzzle.md](prds/arrows-puzzle.md)
 - **Also listed in:** [README.md Improvement backlog](../README.md#improvement-backlog)

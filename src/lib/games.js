@@ -97,7 +97,7 @@ import {
   generateChimpLayout,
 } from './chimpLogic'
 import { generateSeed } from './mathLogic'
-import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
+import { arrowsFreshState, arrowsNextRound, normalizeArrowsSeen } from './arrowsLogic'
 import { generateGrid } from './wordhuntLogic'
 import {
   VM_START_LEVEL,
@@ -1413,6 +1413,7 @@ const FIELD_NULLS = {
   pongScoreX: null, pongScoreO: null, signaling: null, matchLength: null,
   arrowsRound: null, arrowsLevel: null, arrowsCleared: null,
   arrowsLivesX: null, arrowsLivesO: null,
+  arrowsTrapSeen: null, arrowsLastBlocked: null, arrowsSeen: null,
   snakeScoreX: null, snakeScoreO: null,
   tronScoreX: null, tronScoreO: null,
   sumoScoreX: null, sumoScoreO: null,
@@ -1691,8 +1692,11 @@ export function freshGameState(gameType, previous = null) {
       round: { phase: 'setting' } }
   }
   if (gameType === 'arrows') {
+    const seen = normalizeArrowsSeen(previous?.arrowsSeen)
+    // A decided/final match must never advance into a 4th round: fall back to
+    // a fresh round-0 board (scores are zeroed separately by applyNewMatch).
     const next = previous ? arrowsNextRound(previous) : null
-    const arrowFields = next ?? arrowsFreshState()
+    const arrowFields = next ?? arrowsFreshState(seen)
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       ...arrowFields }
   }
