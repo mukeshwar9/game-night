@@ -5,6 +5,8 @@ import { getAnswerList } from '../lib/dictionary'
 import {
   FINISH_GRACE_MS,
   MATCH_TARGET,
+  MAX_GUESSES,
+  WORD_LENGTH,
   applyGuessForPlayer,
   compareRace,
   getKeyboardState,
@@ -235,7 +237,7 @@ export default function WordRaceGame({
   const submitGuess = useCallback(async () => {
     const word = currentGuess.trim().toLowerCase()
     if (isSpectator || phase !== 'playing' || myDone || !answer || guessBusy) return
-    if (word.length !== 5) {
+    if (word.length !== WORD_LENGTH) {
       setFeedback('NEED 5 LETTERS')
       sounds.miss()
       return
@@ -285,7 +287,7 @@ export default function WordRaceGame({
       submitGuess()
     } else if (key === 'BACK') {
       setCurrentGuess(value => value.slice(0, -1))
-    } else if (/^[A-Z]$/.test(key) && currentGuess.length < 5) {
+    } else if (/^[A-Z]$/.test(key) && currentGuess.length < WORD_LENGTH) {
       setCurrentGuess(value => value + key)
       setFeedback('')
     }
@@ -310,6 +312,30 @@ export default function WordRaceGame({
   }, [handleKey, isSpectator, myDone, phase])
 
   const handleAction = (action) => runAction(async () => action(), () => toast.error('ACTION FAILED — CHECK CONNECTION'))
+
+  // Idle-opponent hatch: rounds have no deadline and shouldReveal stays false
+  // while neither side marks done, so an opponent who vanishes (closed tab,
+  // idle) stalls the room forever. When they read as offline, close the round
+  // with both sides recorded unsolved — resolves as a draw via the standard
+  // compareRace path, no score change.
+  const canClaimIdle = !isSpectator && phase === 'playing' && !myDone && !opponentDone && opponentOnline === false
+  const handleClaimIdle = () => runAction(async () => {
+    await runTransaction(ref(db, `games/${gameId}`), current => {
+      const r = current?.round
+      if (!current || current.status !== 'playing' || !r || r.phase !== 'playing' || r.result) return
+      if (r.doneX || r.doneO) return
+      const at = Date.now() + clockOffset
+      const doneX = { solved: false, guesses: normalizeGuesses(r.guessesX).length, at }
+      const doneO = { solved: false, guesses: normalizeGuesses(r.guessesO).length, at }
+      const winner = compareRace(doneX, doneO)
+      if (!winner) return
+      return {
+        ...current,
+        round: { ...r, phase: 'reveal', doneX, doneO, result: { winner, reason: getRaceReason(doneX, doneO) }, revealEndsAt: at },
+        lastActivityAt: at,
+      }
+    })
+  }, () => toast.error('CLAIM FAILED — CHECK CONNECTION'))
   const graceLeft = myDone?.solved && !opponentDone
     ? Math.max(0, Math.ceil((myDone.at + FINISH_GRACE_MS - serverNow) / 1000))
     : 0
@@ -327,7 +353,7 @@ export default function WordRaceGame({
 
       {phase === 'playing' && (
         <div className="flex items-center justify-between gap-2 px-1" aria-live="polite">
-          <span className="font-pixel text-[9px] text-retro-dim">SAME WORD · 6 GUESSES</span>
+          <span className="font-pixel text-[9px] text-retro-dim">SAME WORD · {MAX_GUESSES} GUESSES</span>
           <span className="font-mono text-xs tabular-nums text-retro-cta">{timer}</span>
         </div>
       )}
@@ -363,8 +389,8 @@ export default function WordRaceGame({
           {!isSpectator && !myDone && (
             <>
               <div className="flex items-center justify-center gap-2" aria-label="Current guess">
-                {Array.from({ length: 5 }, (_, index) => <span key={index} className={cn('flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded border-2 font-pixel text-lg', currentGuess[index] ? 'border-retro-cta bg-retro-tint-cta text-retro-text' : 'border-retro-border bg-retro-card text-retro-dim')}>{currentGuess[index] || ''}</span>)}
-                <button type="button" onClick={submitGuess} disabled={guessBusy || currentGuess.length !== 5} className="min-h-11 px-4 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] disabled:opacity-40">{guessBusy ? 'SENDING…' : 'GUESS'}</button>
+                {Array.from({ length: WORD_LENGTH }, (_, index) => <span key={index} className={cn('flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded border-2 font-pixel text-lg', currentGuess[index] ? 'border-retro-cta bg-retro-tint-cta text-retro-text' : 'border-retro-border bg-retro-card text-retro-dim')}>{currentGuess[index] || ''}</span>)}
+                <button type="button" onClick={submitGuess} disabled={guessBusy || currentGuess.length !== WORD_LENGTH} className="min-h-11 px-4 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] disabled:opacity-40">{guessBusy ? 'SENDING…' : 'GUESS'}</button>
               </div>
               <p className="h-4 text-center font-pixel text-[9px] text-retro-cta" role="status">{feedback}</p>
               <WordRaceKeyboard keyState={keyboardState} onKey={handleKey} disabled={guessBusy} />
@@ -372,6 +398,13 @@ export default function WordRaceGame({
           )}
           {isSpectator && <p className="text-center font-pixel text-[9px] text-retro-dim">SPECTATING · LETTERS HIDDEN UNTIL REVEAL</p>}
           {!opponentOnline && !isSpectator && <OfflineNotice label="OPPONENT" />}
+          {canClaimIdle && (
+            <div className="text-center">
+              <button type="button" onClick={handleClaimIdle} disabled={actionBusy} className="min-h-10 px-4 rounded border-2 border-retro-border text-retro-dim font-pixel text-[9px] hover:border-retro-cta hover:text-retro-cta active:scale-95 disabled:opacity-50">
+                {actionBusy ? 'CLAIMING…' : 'OPPONENT GONE — END ROUND AS DRAW'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -380,7 +413,7 @@ export default function WordRaceGame({
           <p className="font-pixel text-[9px] text-retro-dim tracking-widest">ANSWER</p>
           <p className="font-pixel text-2xl tracking-[0.35em] text-retro-cta text-glow-cta">{answer?.toUpperCase() || '?????'}</p>
           <ResultCopy result={round.result} mySymbol={mySymbol} myDone={myDone} opponentDone={opponentDone} game={game} />
-          <p className="font-mono text-[11px] text-retro-dim">{myDone?.solved ? `YOU ${myDone.guesses}/6` : 'YOU MISSED'} · {opponentDone?.solved ? `OPPONENT ${opponentDone.guesses}/6` : 'OPPONENT MISSED'}</p>
+          <p className="font-mono text-[11px] text-retro-dim">{myDone?.solved ? `YOU ${myDone.guesses}/${MAX_GUESSES}` : 'YOU MISSED'} · {opponentDone?.solved ? `OPPONENT ${opponentDone.guesses}/${MAX_GUESSES}` : 'OPPONENT MISSED'}</p>
           <div className="flex flex-wrap justify-center gap-2 pt-2">
             {!matchWinner && onPlayAgain && !proposal && <button type="button" disabled={actionBusy} onClick={() => handleAction(onPlayAgain)} className="min-h-11 px-5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] disabled:opacity-50">{actionBusy ? 'STARTING…' : 'PLAY AGAIN'}</button>}
             {onNewMatch && !proposal && (matchWinner || !onPlayAgain) && <button type="button" disabled={actionBusy} onClick={() => handleAction(onNewMatch)} className="min-h-11 px-5 rounded border-2 border-retro-border text-retro-text font-pixel text-[10px] disabled:opacity-50">{actionBusy ? 'STARTING…' : 'NEW MATCH'}</button>}

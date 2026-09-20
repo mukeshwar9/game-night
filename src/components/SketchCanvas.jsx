@@ -187,7 +187,10 @@ export default function SketchCanvas({ gameId, isArtist }) {
 
   const handlePointerDown = useCallback((e) => {
     if (!isArtist) return
-    e.target.setPointerCapture(e.pointerId)
+    // Capture on the svg itself: target may be a polyline/rect child, and
+    // touch-action isn't inherited — a stroke starting on an old stroke would
+    // otherwise hand the gesture to the browser (page scroll).
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* ignore */ }
     const [x, y] = pointToQuantized(e)
     if (tool === 'bucket') {
       handleBucketFill(x, y)
@@ -246,11 +249,12 @@ export default function SketchCanvas({ gameId, isArtist }) {
         viewBox="0 0 256 256"
         shapeRendering="crispEdges"
         style={{ touchAction: 'none', backgroundColor: '#ffffff', width: '100%', aspectRatio: '1 / 1' }}
-        className="rounded border-2 border-retro-border select-none"
+        className="rounded border-2 border-retro-border select-none touch-none [&_*]:touch-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
+        onLostPointerCapture={handlePointerEnd}
       >
         {/* Fills behind strokes */}
         {Object.entries(fills)

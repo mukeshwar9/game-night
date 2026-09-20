@@ -649,7 +649,7 @@ export default function Game() {
     const now = Date.now()
     if (document.visibilityState === 'visible' && now >= emoteSoundReadyAt.current) {
       emoteSoundReadyAt.current = now + 140
-      sounds.reaction(e.glyph, { volume: e.by === mySymbol.current ? 0.7 : 1 })
+      sounds.reaction(e.glyph, { volume: (e.by === mySymbol.current || e.by === getPlayerId()) ? 0.7 : 1 })
     }
     setFloats(prev => {
       const last = prev[prev.length - 1]
@@ -1115,6 +1115,14 @@ export default function Game() {
 
   const applySwitchGame = async (newType) => {
     sessionStorage.removeItem(`hangwoman-word-${gameId}`)
+    // Per-game secrets are keyed by gameId: leaving them behind lets a stale
+    // word/lie grade (or false-cheat) a later round after switching back.
+    // wordduel secrets live in localStorage, one key per seat.
+    sessionStorage.removeItem(`twotruths-${gameId}`)
+    try {
+      localStorage.removeItem(`wordduel-word-${gameId}-X`)
+      localStorage.removeItem(`wordduel-word-${gameId}-O`)
+    } catch { /* private mode — ignore */ }
     // Suppresses the lobby-liveliness "opponent switched" toast for a switch
     // this client itself initiated (see the liveliness effect below).
     mySwitchedTo.current = newType
@@ -1258,7 +1266,12 @@ export default function Game() {
   const toggleMute = () => setMuted(sounds.toggle())
 
   const sendEmote = async (glyph) => {
-    if (!mySymbol.current) return false
+    // Party rooms never assign X/O seats (mySymbol stays null) — identify by
+    // uid there so reactions work; players[].name lookup in pushEmote is
+    // uid-keyed in nPlayer rooms. 2P spectators stay muted as before.
+    const sender = mySymbol.current
+      || (getGameConfig(game?.gameType)?.nPlayer ? getPlayerId() : null)
+    if (!sender) return false
     // sendEmote only ever runs from an onClick handler, never during render;
     // the compiler's static analysis can't see that, hence the disable.
     // eslint-disable-next-line react-hooks/purity
@@ -1269,9 +1282,9 @@ export default function Game() {
     setTimeout(() => setEmoteCooldown(false), 600)
 
     prevEmoteTs.current = now
-    pushEmote({ by: mySymbol.current, glyph, ts: now })
+    pushEmote({ by: sender, glyph, ts: now })
     try {
-      await update(ref(db, `games/${gameId}`), { emote: { by: mySymbol.current, glyph, ts: now } })
+      await update(ref(db, `games/${gameId}`), { emote: { by: sender, glyph, ts: now } })
     } catch { /* ignore */ }
     return true
   }

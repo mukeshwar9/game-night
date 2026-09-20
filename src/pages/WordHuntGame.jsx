@@ -512,12 +512,30 @@ export default function WordHuntGame({
         if (!current || current.status === 'finished') return
         const startedAtC = current.wordhuntStartedAt
         if (!startedAtC || Date.now() + clockOffset < startedAtC + COUNTDOWN_MS + ROUND_MS) return // not over yet
-        const sX = current.wordhuntScoreX ?? 0
-        const sO = current.wordhuntScoreO ?? 0
+        let sX = current.wordhuntScoreX ?? 0
+        let sO = current.wordhuntScoreO ?? 0
+        // Scores are otherwise purely self-reported: recompute from the stored
+        // word lists (dict + grid path check, deduped) when the dictionary is
+        // loaded, and persist the corrected totals alongside the verdict.
+        if (dict) {
+          const verifiedScore = (raw) => {
+            const seen = new Set()
+            let total = 0
+            for (const w of normalizeWordList(raw)) {
+              const word = canonicalize(w)
+              if (!word || seen.has(word)) continue
+              seen.add(word)
+              if (dict.has(word) && findPath(grid, word)) total += scoreWord(word)
+            }
+            return total
+          }
+          sX = verifiedScore(current.wordhuntWordsX)
+          sO = verifiedScore(current.wordhuntWordsO)
+        }
         const winner = sX > sO ? 'X' : sX < sO ? 'O' : 'draw'
         const scores = { ...(current.scores || {}) }
         if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
-        return { ...current, winner, status: 'finished', scores }
+        return { ...current, wordhuntScoreX: sX, wordhuntScoreO: sO, winner, status: 'finished', scores }
       })
     } catch { /* another client already resolved it — fine */ }
   }

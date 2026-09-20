@@ -381,10 +381,10 @@ export default function WordDuelGame({
     if (!isSpectator && phase === 'setting' && bothCommitted) {
       update(ref(db, `games/${gameId}/round`), {
         phase: 'guessing',
-        startedAt: startedAt || Date.now(),
+        startedAt: startedAt || Date.now() + clockOffset,
       }).catch(() => {})
     }
-  }, [phase, bothCommitted, isSpectator, gameId, startedAt])
+  }, [phase, bothCommitted, isSpectator, gameId, startedAt, clockOffset])
 
   // ──── Grading: listen for opponent guesses and fill marks ────
   useEffect(() => {
@@ -396,18 +396,25 @@ export default function WordDuelGame({
 
     gradingRef.current = true
     const word = stored.word
+    // NOTE: indexOf-by-reference is correct here — Firebase entries are
+    // distinct objects, so identical guess words never collide.
     ungraded.forEach(async (g) => {
       const idx = oppGuesses.indexOf(g)
       if (idx < 0 || processedGuesses.current.has(idx)) return
-      processedGuesses.current.add(idx)
       const marks = markGuess(g.word, word)
-      if (marks) {
-        // marks is a plain string ("GYBBB") — update() requires an object and
-        // throws on a string payload, silently killing grading; set() is the
-        // correct primitive for a leaf write.
-        await set(ref(db, `games/${gameId}/round/guesses${opponentSymbol}/${idx}/marks`), marks)
+      try {
+        if (marks) {
+          // marks is a plain string ("GYBBB") — update() requires an object and
+          // throws on a string payload, silently killing grading; set() is the
+          // correct primitive for a leaf write.
+          await set(ref(db, `games/${gameId}/round/guesses${opponentSymbol}/${idx}/marks`), marks)
+        }
+        // Mark processed only after the write lands — a failed set() stays
+        // retryable instead of sitting pending until the stall claim.
+        processedGuesses.current.add(idx)
+      } finally {
+        gradingRef.current = false
       }
-      gradingRef.current = false
     })
   }, [oppGuesses, stored, phase, isSpectator, gameId, opponentSymbol])
 
@@ -430,7 +437,30 @@ export default function WordDuelGame({
     if (isSpectator || phase !== 'guessing') return
     if (bothDone && !bothRevealed) {
       const myReveal = getStoredWord(gameId, mySymbol)
-      if (!myReveal) return
+      if (!myReveal) {
+        // Secret lost (cleared storage / different browser) — the result needs
+        // only done states, so resolve straight to reveal instead of stalling
+        // with both done but bothRevealed false forever.
+        runTransaction(ref(db, `games/${gameId}`), current => {
+          const r = current?.round
+          if (!current || !r || r.phase !== 'guessing' || r.result) return
+          if (!(r.doneX && r.doneO)) return
+          const winner = compareResults(r.doneX, r.doneO)
+          if (!winner) return
+          const next = { ...current, round: { ...r, phase: 'reveal', result: { winner, reason: 'solved' } }, lastActivityAt: Date.now() }
+          if (winner !== 'draw') {
+            const scores = { ...(current.scores || { X: 0, O: 0 }) }
+            scores[winner] += 1
+            next.scores = scores
+            if (scores[winner] >= MATCH_WINS) {
+              next.status = 'finished'
+              next.winner = winner
+            }
+          }
+          return next
+        }).catch(() => {})
+        return
+      }
       update(ref(db, `games/${gameId}/round`), {
         phase: 'reveal',
         ['reveal/' + mySymbol]: myReveal,
@@ -485,7 +515,12 @@ export default function WordDuelGame({
       }
 
       setVerifyStatus({ ok: true })
-      const winner = compareResults(myDone, oppDone)
+      // compareResults is seat-positional (doneX, doneO) — passing
+      // (myDone, oppDone) mirrors the verdict on O's client and races X's
+      // correct write 50/50.
+      const winner = mySymbol === 'X'
+        ? compareResults(myDone, oppDone)
+        : compareResults(oppDone, myDone)
       setLocalResult(winner)
       if (winner) {
         sounds[winner === 'draw' ? 'draw' : winner === mySymbol ? 'win' : 'lose']?.()

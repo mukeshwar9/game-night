@@ -510,8 +510,10 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     if (!isGuesser) return <CheatForfeitScreen waiting={isSetter} onReset={isSetter ? handleResetStuckRound : null} />
     return <CheatScreen evidence={cheatEvidence} onNextRound={handleNextRound} />
   }
-  // Local detection only (brief race window before the Firebase write propagates)
-  if (cheatDetected) return <CheatScreen evidence={cheatEvidence} />
+  // Local detection only (brief race window before the Firebase write propagates).
+  // Still offer NEXT ROUND: if that write failed, the guesser would otherwise
+  // sit on a dead screen with no exit.
+  if (cheatDetected) return <CheatScreen evidence={cheatEvidence} onNextRound={handleNextRound} />
 
   // --- Match over ---
   if (matchWinner) {

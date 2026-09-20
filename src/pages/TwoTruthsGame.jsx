@@ -26,7 +26,7 @@ function normalizeStatements(raw) {
   return [raw[0] ?? '', raw[1] ?? '', raw[2] ?? '']
 }
 
-function CheatScreen({ evidence }) {
+function CheatScreen({ evidence, onSkip }) {
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-6 gap-6">
       <div className="text-center space-y-3">
@@ -43,6 +43,15 @@ function CheatScreen({ evidence }) {
         <p><span className="text-retro-p2">REVEALED LIE:</span> #{evidence?.revealed != null ? evidence.revealed + 1 : '?'}</p>
         <p><span className="text-retro-p2">HASH OK:</span> {String(evidence?.commitOk)}</p>
       </div>
+      {onSkip && (
+        <button
+          type="button"
+          onClick={onSkip}
+          className="font-pixel text-[10px] text-retro-cta text-glow-cta hover:opacity-80 transition-opacity"
+        >
+          SKIP ROUND →
+        </button>
+      )}
       <Link
         to="/"
         className="font-pixel text-[10px] text-retro-p1 text-glow-p1 hover:opacity-80 transition-opacity"
@@ -294,37 +303,36 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
     } catch { /* ignore */ }
   }, [phase, isGuesser, guess, gameId, mySymbol])
 
+  // Transaction-guarded on phase==='reveal' and scored from live values —
+  // the old absolute update() let two clients (or a double click) score the
+  // same reveal twice.
   const handleNextRound = useCallback(async () => {
     if (isSpectator) return
-    const roundWinner = guess === lieRevealed ? guesser : setter
-    const newScores = { X: scoreX, O: scoreO }
-    newScores[roundWinner] = (newScores[roundWinner] || 0) + 1
-
-    const newMatchWinner = newScores.X >= MATCH_WINS ? 'X' : newScores.O >= MATCH_WINS ? 'O' : null
-    const newSetter = setter === 'X' ? 'O' : 'X'
-
     sessionStorage.removeItem(`twotruths-${gameId}`)
-
-    const updates = {
-      'scores/X': newScores.X,
-      'scores/O': newScores.O,
-      'round/setter': newSetter,
-      'round/phase': 'writing',
-      'round/statements': null,
-      'round/commitment': null,
-      'round/guess': null,
-      'round/reveal': null,
-      'round/writingStartedAt': null,
-      proposal: null,
-    }
-
-    if (newMatchWinner) {
-      updates.status = 'finished'
-      updates.winner = newMatchWinner
-    }
-
-    try { await update(ref(db, `games/${gameId}`), updates) } catch { /* ignore */ }
-  }, [guess, lieRevealed, setter, guesser, scoreX, scoreO, isSpectator, gameId])
+    try {
+      await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || current.round?.phase !== 'reveal') return
+        const r = current.round
+        const curSetter = r.setter || 'X'
+        const curGuesser = curSetter === 'X' ? 'O' : 'X'
+        const roundWinner = r.guess === r.reveal?.lieIndex ? curGuesser : curSetter
+        const newScores = { X: current.scores?.X || 0, O: current.scores?.O || 0 }
+        newScores[roundWinner] = (newScores[roundWinner] || 0) + 1
+        const newMatchWinner = newScores.X >= MATCH_WINS ? 'X' : newScores.O >= MATCH_WINS ? 'O' : null
+        const next = {
+          ...current,
+          scores: newScores,
+          round: { setter: curSetter === 'X' ? 'O' : 'X', phase: 'writing' },
+          proposal: null,
+        }
+        if (newMatchWinner) {
+          next.status = 'finished'
+          next.winner = newMatchWinner
+        }
+        return next
+      })
+    } catch { /* ignore */ }
+  }, [isSpectator, gameId])
 
   // Stuck-round escape hatch: the storyteller's lie index lives only in
   // sessionStorage, so if it's gone (new tab) the reveal can never land — reset
@@ -349,7 +357,29 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
     } catch { /* ignore */ }
   }, [gameId])
 
-  if (cheatDetected) return <CheatScreen evidence={cheatEvidence} />
+  // Cheat-exit: a failed commitment leaves the reveal unresolvable, so offer
+  // a scoreless skip (swap setter) instead of bricking the room. Runs even
+  // from phase 'reveal', unlike the stuck-round hatch which must not clobber
+  // a live reveal.
+  const handleCheatSkip = useCallback(async () => {
+    if (isSpectator) return
+    sessionStorage.removeItem(`twotruths-${gameId}`)
+    try {
+      await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || !current.round || current.round.phase !== 'reveal') return
+        const curSetter = current.round.setter || 'X'
+        return {
+          ...current,
+          round: { setter: curSetter === 'X' ? 'O' : 'X', phase: 'writing' },
+          proposal: null,
+        }
+      })
+    } catch { /* ignore */ }
+  }, [isSpectator, gameId])
+
+  if (cheatDetected) {
+    return <CheatScreen evidence={cheatEvidence} onSkip={isSpectator ? null : handleCheatSkip} />
+  }
 
   // --- Match over ---
   if (matchWinner) {

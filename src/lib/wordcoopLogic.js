@@ -84,19 +84,23 @@ export function collectUsedAnswers(previousRound) {
 export function buildWordCoopRoundStart({ answerList, previousRound, seed, starter }) {
   const used = collectUsedAnswers(previousRound)
   const answerIndex = pickAnswer(answerList, seed, used)
-  return createNextRound({ seed, starter, answerIndex, used })
+  const answer = Array.isArray(answerList) ? answerList[answerIndex] : undefined
+  return createNextRound({ seed, starter, answerIndex, answer, used })
 }
 
-export function createNextRound({ previousRound, seed, starter = 'X', answerIndex, used }) {
+export function createNextRound({ previousRound, seed, starter = 'X', answerIndex, answer, used }) {
   const usedList = used ?? (Array.isArray(previousRound?.used) ? previousRound.used : null)
   return {
     phase: 'playing',
     seed: String(seed ?? ''),
     answerIndex: Number.isInteger(answerIndex) ? answerIndex : -1,
+    // Pin the answer word itself: grading against only the local bundle's
+    // answerList lets clients on different deploys mark the same guess
+    // differently. Readers fall back to the bundle when absent (old rooms).
+    ...(typeof answer === 'string' && answer ? { answer } : {}),
     currentTurn: starter === 'O' ? 'O' : 'X',
     guesses: [],
     result: null,
-    endsAt: Date.now() + 8000,
     ...(usedList?.length ? { used: usedList } : {}),
   }
 }

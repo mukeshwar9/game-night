@@ -270,7 +270,8 @@ export default function WordCoopGame({
       const resultTx = await runTransaction(ref(db, `games/${gameId}`), current => {
         const liveRound = current?.round
         if (!current || current.status !== 'playing' || current.gameType !== 'wordcoop') return
-        const answer = answerList[liveRound?.answerIndex]
+        const answer = (typeof liveRound?.answer === 'string' && liveRound.answer)
+          || answerList[liveRound?.answerIndex]
         const nextRound = applySharedGuess(liveRound, { player: mySymbol, guess, answer, at: Date.now() })
         if (!nextRound) return
         const next = {

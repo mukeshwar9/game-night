@@ -77,18 +77,28 @@ export async function ensureProfile() {
   const snap = await get(userRef)
   const anon = auth?.currentUser?.isAnonymous ?? true
 
+  // Google account name wins over a guest-style placeholder — without this an
+  // upgraded (linked) account keeps showing Guest-XXXX forever, since the
+  // stored profile never adopts auth.currentUser.displayName.
+  const googleName = auth?.currentUser?.displayName?.trim() || ''
+  const isGuestStyle = (name) => !name || /^Guest-[0-9A-Z]{4}$/i.test(String(name).trim())
+
   if (snap.exists()) {
     const p = snap.val()
     const patch = { isAnonymous: anon, updatedAt: Date.now() }
     if (!p.code) patch.code = await allocateCode(uid)
     if (!p.avatar) patch.avatar = defaultAvatarForId(uid)
+    if (googleName && isGuestStyle(p.displayName)) {
+      patch.displayName = googleName.slice(0, 20)
+      patch.nameLower = patch.displayName.toLowerCase()
+    }
     await update(userRef, patch)
     const merged = { ...p, ...patch }
     mirrorLocal(merged)
     return merged
   }
 
-  const displayName = localStorage.getItem('playerName') || guestName(uid)
+  const displayName = googleName || localStorage.getItem('playerName') || guestName(uid)
   const avatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(uid)
   const code = await allocateCode(uid)
   const profile = {
