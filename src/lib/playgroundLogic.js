@@ -6,6 +6,7 @@ export const WORLD_W = 3
 export const WORLD_H = 3
 
 export const SPEED = 0.35 // world units/sec
+export const SPRINT_MULT = 1.6 // hold Shift to sprint
 export const AVATAR_HALF = 0.045
 
 // Kickable ball + goal net (top-center wall).
@@ -73,6 +74,7 @@ export const STATIONS = [
   { type: 'snake', x: 2.55, y: 0.50, r: 0.09 },
   { type: 'pacmac', x: 2.60, y: 1.00, r: 0.09 },
   { type: 'tron', x: 2.05, y: 0.90, r: 0.09 },
+  { type: 'arrows', x: 2.32, y: 0.66, r: 0.09 },
   // Memory Corner
   { type: 'simon', x: 0.40, y: 2.05, r: 0.09 },
   { type: 'chimp', x: 0.95, y: 2.20, r: 0.09 },
@@ -82,6 +84,26 @@ export const STATIONS = [
   { type: 'wordduel', x: 2.60, y: 2.05, r: 0.09 },
   { type: 'wordhunt', x: 2.30, y: 2.60, r: 0.09 },
 ]
+
+// Floor signage for the four districts (world-space label anchors).
+export const DISTRICTS = [
+  { id: 'board', label: 'BOARD PLAZA', x: 0.68, y: 0.62 },
+  { id: 'reflex', label: 'REFLEX ARCADE', x: 2.30, y: 0.12 },
+  { id: 'memory', label: 'MEMORY CORNER', x: 0.62, y: 2.38 },
+  { id: 'word', label: 'WORD YARD', x: 2.32, y: 2.36 },
+]
+
+// localStorage best-goals bookkeeping for the goal net.
+export const GOAL_BEST_KEY = 'pg-best-goals'
+export function readGoalBest() {
+  try {
+    const n = Number(localStorage.getItem(GOAL_BEST_KEY))
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+  } catch { return 0 }
+}
+export function writeGoalBest(n) {
+  try { localStorage.setItem(GOAL_BEST_KEY, String(n)) } catch { /* ignore */ }
+}
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 
@@ -213,20 +235,21 @@ export function nearestNpcIndex(state) {
 export function step(state, input, dt, rand = Math.random) {
   const dx = input?.dx ?? 0
   const dy = input?.dy ?? 0
+  const speed = SPEED * (input?.sprint ? SPRINT_MULT : 1)
   const len = Math.hypot(dx, dy)
   let x = state.x
   let y = state.y
   if (len > 0) {
     const ux = dx / len
     const uy = dy / len
-    x += ux * SPEED * dt
-    y += uy * SPEED * dt
+    x += ux * speed * dt
+    y += uy * speed * dt
   }
   x = clamp(x, AVATAR_HALF, WORLD_W - AVATAR_HALF)
   y = clamp(y, AVATAR_HALF, WORLD_H - AVATAR_HALF)
   const facing = dx > 0 ? 'right' : dx < 0 ? 'left' : state.facing
   const moving = len > 0
-  const avatarSpeed = moving ? SPEED : 0
+  const avatarSpeed = moving ? speed : 0
 
   const { ball, kicked, scored } = stepBall(state.ball, { x, y }, avatarSpeed, dt)
   const npcs = state.npcs.map((npc, i) => stepNpc(npc, NPCS[i], dt, rand, { x, y }))

@@ -300,7 +300,7 @@ export default function Home() {
           BROWSE ALL SOLO GAMES →
         </Link>
 
-        {/* Playground CTA — walk-around hangout, see friends' presence */}
+        {/* Playground CTA — walk-around solo hub with cabinets, NPCs, and a goal net */}
         <Link
           to="/playground"
           className={cn(
@@ -313,7 +313,7 @@ export default function Home() {
           <Avatar id={myAvatar} size={28} tile={false} />
           <div className="flex-1 min-w-0 text-left">
             <p className="font-pixel text-[10px] tracking-widest text-retro-cta">ENTER PLAYGROUND →</p>
-            <p className="font-pixel text-[8px] text-retro-dim mt-0.5 tracking-wider">WALK AROUND · SEE FRIENDS</p>
+            <p className="font-pixel text-[8px] text-retro-dim mt-0.5 tracking-wider">WALK AROUND · PLAY CABINETS · SCORE GOALS</p>
           </div>
         </Link>
 

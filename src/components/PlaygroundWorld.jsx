@@ -4,7 +4,8 @@ import Avatar from './Avatar'
 import { usePlaygroundControls } from '../hooks/usePlaygroundControls'
 import {
   createState, step, activeStation, nearestNpcIndex,
-  STATIONS, NPCS, WORLD_W, WORLD_H, GOAL,
+  STATIONS, DISTRICTS, NPCS, WORLD_W, WORLD_H, GOAL,
+  readGoalBest, writeGoalBest,
 } from '../lib/playgroundLogic'
 import { getGameConfig } from '../lib/games'
 import { sounds } from '../lib/sounds'
@@ -69,11 +70,17 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
   const emoteKeyRef = useRef(0)
   const emoteTimerRef = useRef(null)
 
-  const { getInput } = usePlaygroundControls(viewportRef, controlsEnabled)
+  const { getInput, getDrag } = usePlaygroundControls(viewportRef, controlsEnabled)
+  const joyBaseRef = useRef(null)
+  const joyKnobRef = useRef(null)
+  const goalBestRef = useRef(0)
 
-  const [display, setDisplay] = useState({
-    stationType: null, nearNpcIndex: -1, nearNpcLine: null, nearNpcPos: null, band: 'center', goals: 0,
-  })
+  const [display, setDisplay] = useState(() => ({
+    stationType: null, nearNpcIndex: -1, nearNpcKind: null,
+    nearNpcLine: null, nearNpcPos: null, band: 'center', goals: 0, best: readGoalBest(),
+  }))
+
+  useEffect(() => { goalBestRef.current = display.best }, [display.best])
   const displayRef = useRef(display)
   const [emote, setEmote] = useState(null)
   const [bursts, setBursts] = useState([])
@@ -130,6 +137,10 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
       prevKickedRef.current = next.ballKicked
       if (next.goalScored) {
         sounds.hit(Math.min(next.goals, 8))
+        if (next.goals > goalBestRef.current) {
+          goalBestRef.current = next.goals
+          writeGoalBest(next.goals)
+        }
         const id = burstIdRef.current++
         setBursts(list => [...list, { id }])
         setTimeout(() => setBursts(list => list.filter(b => b.id !== id)), 700)
@@ -167,6 +178,29 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
         worldRef.current.style.transform = `translate3d(${(-cam.x * s).toFixed(1)}px, ${(-cam.y * s).toFixed(1)}px, 0)`
       }
 
+      // Visible drag joystick — direct DOM, no re-render.
+      const drag = getDrag()
+      const joyBase = joyBaseRef.current
+      const joyKnob = joyKnobRef.current
+      if (joyBase && joyKnob) {
+        if (drag.active && vp) {
+          const rect = vp.getBoundingClientRect()
+          const ox = drag.ox - rect.left
+          const oy = drag.oy - rect.top
+          let kx = drag.cx - rect.left - ox
+          let ky = drag.cy - rect.top - oy
+          const kd = Math.hypot(kx, ky)
+          const MAX_KNOB = 40
+          if (kd > MAX_KNOB) { kx = (kx / kd) * MAX_KNOB; ky = (ky / kd) * MAX_KNOB }
+          joyBase.style.display = 'block'
+          joyBase.style.left = `${ox}px`
+          joyBase.style.top = `${oy}px`
+          joyKnob.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`
+        } else {
+          joyBase.style.display = 'none'
+        }
+      }
+
       // Discrete state — shallow-diffed before setState, so this only re-renders on
       // an actual station/NPC/goal transition, not every frame.
       const station = activeStation(next)
@@ -180,11 +214,13 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
       ) {
         let nearNpcLine = prevDisplay.nearNpcLine
         let nearNpcPos = prevDisplay.nearNpcPos
+        let nearNpcKind = prevDisplay.nearNpcKind
         let band = prevDisplay.band
         if (nearNpcIndex !== prevDisplay.nearNpcIndex) {
           if (nearNpcIndex >= 0) {
             const def = NPCS[nearNpcIndex]
             const npc = next.npcs[nearNpcIndex]
+            nearNpcKind = def.kind
             nearNpcLine = def.kind === 'flavor' ? def.lines[Math.floor(Math.random() * def.lines.length)] : null
             nearNpcPos = { x: npc.x, y: npc.y }
             // Band decision is viewport-space, not world-space — the world is much
@@ -196,9 +232,10 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
           } else {
             nearNpcLine = null
             nearNpcPos = null
+            nearNpcKind = null
           }
         }
-        const nextDisplay = { stationType, nearNpcIndex, nearNpcLine, nearNpcPos, band, goals: next.goals }
+        const nextDisplay = { stationType, nearNpcIndex, nearNpcKind, nearNpcLine, nearNpcPos, band, goals: next.goals, best: goalBestRef.current }
         displayRef.current = nextDisplay
         setDisplay(nextDisplay)
       }
@@ -250,6 +287,17 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
       className="relative w-full h-full bg-retro-card overflow-hidden focus:outline-none"
     >
       <div ref={worldRef} className="absolute top-0 left-0" style={{ willChange: 'transform' }}>
+        {/* district floor labels */}
+        {DISTRICTS.map((d) => (
+          <p
+            key={d.id}
+            aria-hidden="true"
+            className="absolute font-pixel text-[7px] text-retro-dim/60 tracking-widest text-center pointer-events-none"
+            style={{ left: `${(d.x / WORLD_W) * 100}%`, top: `${(d.y / WORLD_H) * 100}%`, transform: 'translate(-50%, -50%)' }}
+          >
+            {d.label}
+          </p>
+        ))}
         {/* goal net */}
         <div
           className="absolute border-2 border-retro-p2 rounded-sm"
@@ -278,7 +326,12 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
             <div
               key={s.type}
               className="absolute flex flex-col items-center gap-1"
-              style={{ left: `${(s.x / WORLD_W) * 100}%`, top: `${(s.y / WORLD_H) * 100}%`, transform: 'translate(-50%, -50%)' }}
+              style={{
+                left: `${(s.x / WORLD_W) * 100}%`, top: `${(s.y / WORLD_H) * 100}%`, transform: 'translate(-50%, -50%)',
+                cursor: isActive ? 'var(--cursor-hand)' : undefined,
+              }}
+              onClick={isActive ? () => enterStation(s.type) : undefined}
+              title={isActive ? `Play ${cfg.label}` : cfg.label}
             >
               <div
                 className={cn(
@@ -364,23 +417,56 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
         <NpcSpeechBubble display={display} onPlay={goToDaily} />
       </div>
 
+      {/* Screen-reader wayfinding: the canvas world is invisible to AT. */}
+      <nav aria-label="Playground stations" className="sr-only">
+        <ul>
+          {STATIONS.map((s) => (
+            <li key={s.type}>
+              <a href={`/solo/${s.type}`}>Play {getGameConfig(s.type).label}</a>
+            </li>
+          ))}
+          <li><a href="/daily">Play the daily puzzle</a></li>
+        </ul>
+      </nav>
+
+      {/* Drag joystick — painted by the rAF loop, hidden unless dragging. */}
+      <div
+        ref={joyBaseRef}
+        aria-hidden="true"
+        className="absolute z-20 w-20 h-20 rounded-full border-2 border-retro-cta/60 bg-retro-surface/40 pointer-events-none"
+        style={{ display: 'none', transform: 'translate(-50%, -50%)' }}
+      >
+        <div
+          ref={joyKnobRef}
+          className="absolute left-1/2 top-1/2 w-8 h-8 rounded-full bg-retro-cta"
+          style={{ transform: 'translate(-50%, -50%)' }}
+        />
+      </div>
+
       {/* HUD — fixed to the viewport, unaffected by the camera pan */}
-      <p className="absolute top-[max(0.5rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-20 font-pixel text-[7px] text-retro-dim bg-retro-surface/80 px-2 py-1 rounded">
-        ARROWS · WASD · DRAG · 1-4 EMOTE
+      <p className="absolute top-[max(0.5rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-20 font-pixel text-[8px] text-retro-dim bg-retro-surface/80 px-2 py-1 rounded whitespace-nowrap">
+        ARROWS · WASD · SHIFT SPRINT · DRAG · 1-4 EMOTE
       </p>
 
       <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] z-20 px-2 py-1 rounded bg-retro-surface border border-retro-border font-pixel text-[8px] text-retro-win">
-        ⚽ {display.goals}
+        ⚽ {display.goals}{display.best > 0 ? ` · BEST ${display.best}` : ''}
       </div>
 
-      {display.stationType && (
+      {display.stationType ? (
         <button
           onClick={() => enterStation(display.stationType)}
           className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-cta text-retro-bg font-pixel text-[8px] rounded shadow-neon-cta active:scale-95"
         >
           ENTER TO PLAY {(getGameConfig(display.stationType).label || '').toUpperCase()}
         </button>
-      )}
+      ) : display.nearNpcKind === 'daily' ? (
+        <button
+          onClick={goToDaily}
+          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-surface border border-retro-cta/60 text-retro-cta font-pixel text-[8px] rounded active:scale-95"
+        >
+          PRESS ENTER FOR DAILY
+        </button>
+      ) : null}
 
       <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-20 flex gap-1.5">
         {EMOTE_KEYS.map((g) => (
@@ -388,7 +474,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
             key={g}
             onClick={() => fireEmote(g)}
             aria-label={`Emote ${g}`}
-            className="w-8 h-8 rounded bg-retro-surface border border-retro-border text-base flex items-center justify-center active:scale-95"
+            className="w-11 h-11 rounded bg-retro-surface border border-retro-border text-base flex items-center justify-center active:scale-95"
           >
             {g}
           </button>

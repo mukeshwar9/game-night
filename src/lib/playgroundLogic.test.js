@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
-  createState, step, activeStation, SPEED, AVATAR_HALF, WORLD_W, WORLD_H, STATIONS,
+  createState, step, activeStation, SPEED, SPRINT_MULT, AVATAR_HALF, WORLD_W, WORLD_H, STATIONS,
+  DISTRICTS,
   stepBall, BALL_HALF, BALL_FRICTION, KICK_BASE_SPEED, BALL_SPAWN, GOAL,
   stepNpc, nearestNpcIndex, NPCS, NPC_SPEED, NPC_WAIT_MIN, NPC_WAIT_MAX, TALK_RADIUS,
 } from './playgroundLogic'
@@ -139,9 +140,9 @@ describe('activeStation', () => {
     expect(found).not.toBe(target)
   })
 
-  it('has 14 stations, all unique types, all inside the world bounds', () => {
-    expect(STATIONS).toHaveLength(14)
-    expect(new Set(STATIONS.map(s => s.type)).size).toBe(14)
+  it('has 15 stations, all unique types, all inside the world bounds', () => {
+    expect(STATIONS).toHaveLength(15)
+    expect(new Set(STATIONS.map(s => s.type)).size).toBe(15)
     STATIONS.forEach(s => {
       expect(s.x).toBeGreaterThanOrEqual(0)
       expect(s.x).toBeLessThanOrEqual(WORLD_W)
@@ -328,6 +329,36 @@ describe('nearestNpcIndex', () => {
     const s = createState()
     s.npcs = s.npcs.map((npc, i) => ({ ...npc, x: s.x, y: s.y + (i + 1) * 0.02 }))
     expect(nearestNpcIndex(s)).toBe(0)
+  })
+})
+
+describe('step — sprint', () => {
+  it('sprint input moves SPRINT_MULT times farther', () => {
+    const s = createState()
+    const walk = step(s, { dx: 1, dy: 0 }, 0.1)
+    const sprint = step(s, { dx: 1, dy: 0, sprint: true }, 0.1)
+    expect(sprint.x - s.x).toBeCloseTo((walk.x - s.x) * SPRINT_MULT)
+  })
+
+  it('sprint kicks the ball harder than walking', () => {
+    const s = createState()
+    const overlap = { ...s, ball: { x: s.x + AVATAR_HALF, y: s.y, vx: 0, vy: 0 } }
+    const walk = step(overlap, { dx: 1, dy: 0 }, 0.1)
+    const sprint = step(overlap, { dx: 1, dy: 0, sprint: true }, 0.1)
+    expect(Math.hypot(sprint.ball.vx, sprint.ball.vy))
+      .toBeGreaterThan(Math.hypot(walk.ball.vx, walk.ball.vy))
+  })
+})
+
+describe('districts + goal best', () => {
+  it('labels the four districts inside the world bounds', () => {
+    expect(DISTRICTS.map(d => d.id).sort()).toEqual(['board', 'memory', 'reflex', 'word'])
+    DISTRICTS.forEach(d => {
+      expect(d.x).toBeGreaterThanOrEqual(0)
+      expect(d.x).toBeLessThanOrEqual(WORLD_W)
+      expect(d.y).toBeGreaterThanOrEqual(0)
+      expect(d.y).toBeLessThanOrEqual(WORLD_H)
+    })
   })
 })
 

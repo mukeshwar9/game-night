@@ -191,6 +191,9 @@ export default function Playground() {
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">
             MY FRIENDS{friendUids !== null ? ` (${friendUids.length})` : ''}
           </label>
+          <Link to="/friends" className="font-pixel text-[8px] text-retro-cta">
+            OPEN FRIENDS TO CHALLENGE OR REMOVE →
+          </Link>
           {friendUids === null ? (
             <div className="space-y-2">
               {[0, 1, 2].map(i => (
