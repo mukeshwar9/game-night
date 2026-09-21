@@ -60,7 +60,7 @@ import AudioSettingsButton from '../components/AudioSettingsButton'
 import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
 import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../lib/chat'
-import { isStickerDataUrl } from '../lib/stickers'
+import { isStickerSrc } from '../lib/stickers'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -1299,7 +1299,7 @@ export default function Game() {
   // Sticker reaction — a keyboard/file image, downscaled by the caller. Same
   // channel and cooldown as emoji reactions; floats locally and on peers.
   const sendSticker = async (dataUrl) => {
-    if (!isStickerDataUrl(dataUrl)) {
+    if (!isStickerSrc(dataUrl)) {
       toast.error('STICKER DID NOT STICK — TRY ANOTHER IMAGE')
       return false
     }

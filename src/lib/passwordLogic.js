@@ -4,6 +4,15 @@ export const MAX_CLUES = 5
 export const CLUE_POINTS = [5, 4, 3, 2, 1]
 export const INTRO_MS = 2000
 export const REVEAL_MS = 5000
+// Guess clock per clue number (1-indexed): the first two guesses get 30s,
+// the next two 25s, the last 20s. Guessing gets tenser as clues run out.
+export const GUESS_SECONDS = [30, 30, 25, 25, 20]
+
+export function guessSecondsForClueNumber(clueNumber) {
+  const n = Number(clueNumber)
+  if (!Number.isFinite(n) || n < 1) return GUESS_SECONDS[0]
+  return GUESS_SECONDS[Math.min(Math.floor(n), GUESS_SECONDS.length) - 1]
+}
 
 export function normalizeText(text) {
   return String(text ?? '')
@@ -93,11 +102,12 @@ export function applyClue(round, clue, now = Date.now()) {
   if (!round || round.phase !== 'clue' || round.clues?.length >= MAX_CLUES) return null
   const check = validateClue({ clue, word: round.word ?? '', previousClues: round.clues })
   if (!check.valid) return null
+  const clueNumber = (round.clues || []).length + 1
   const next = {
     ...round,
     phase: 'guess',
     clues: [...(round.clues || []), { text: check.value, at: now }],
-    endsAt: null,
+    endsAt: now + guessSecondsForClueNumber(clueNumber) * 1000,
   }
   delete next.word
   return next
@@ -105,6 +115,8 @@ export function applyClue(round, clue, now = Date.now()) {
 
 export function applyGuess(round, guess, word, now = Date.now()) {
   if (!round || round.phase !== 'guess' || (round.clues?.length ?? 0) < 1) return null
+  // Late guesses lose the race to the clock — the timeout owns the slot.
+  if (round.endsAt && now > round.endsAt) return null
   const text = normalizeText(guess)
   if (!text || text.length > 24) return null
   const correct = isCorrectGuess(text, word)
@@ -116,6 +128,24 @@ export function applyGuess(round, guess, word, now = Date.now()) {
     guesses: nextGuesses,
     lastDelta: correct ? { player: round.guesser, points: scoreForClueNumber(clueNumber), clueNumber } : null,
     endsAt: correct || clueNumber >= MAX_CLUES ? now + REVEAL_MS : null,
+  }
+}
+
+// A guess slot left to expire: records a timed-out miss and hands play back
+// to the clue giver (or to reveal when the last clue is spent). Returns null
+// when the timeout does not apply (wrong phase, stale clock, already moved).
+export function applyGuessTimeout(round, now = Date.now()) {
+  if (!round || round.phase !== 'guess' || (round.clues?.length ?? 0) < 1) return null
+  if (!round.endsAt || now <= round.endsAt) return null
+  const clueNumber = round.clues.length
+  const nextGuesses = [...(round.guesses || []), { text: '', at: now, correct: false, timeout: true }]
+  const last = clueNumber >= MAX_CLUES
+  return {
+    ...round,
+    phase: last ? 'reveal' : 'clue',
+    guesses: nextGuesses,
+    lastDelta: null,
+    endsAt: last ? now + REVEAL_MS : null,
   }
 }
 

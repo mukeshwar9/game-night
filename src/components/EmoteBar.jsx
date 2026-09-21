@@ -10,6 +10,7 @@ import {
   addRecentSticker,
   STICKER_RECENT_KEY,
 } from '../lib/stickers'
+import { STICKER_PACKS } from '../lib/decks/stickerPacks'
 import { cn } from '@/lib/utils'
 import { getPlayerId } from '../lib/playerId'
 import { getQuickEmotes, normalizeEmoteUsage, recordEmoteUsage } from '../lib/emoteUsage'
@@ -243,23 +244,58 @@ export default function EmoteBar({ onSend, onSendSticker, onSendChip, cooldown, 
             </button>
           </div>
         )}
-        {onSendSticker && recents.length > 0 && !preview && (
-          <div className="flex items-center gap-1.5 max-w-full px-2">
-            <span className="font-pixel text-[7px] text-retro-dim tracking-widest shrink-0">STICKERS</span>
-            <div className="flex gap-1.5 overflow-x-auto">
-              {recents.map((s) => (
-                <button
-                  key={s.slice(-24)}
-                  type="button"
-                  onClick={() => handleSendSticker(s)}
-                  disabled={cooldown}
-                  aria-label="Resend sticker reaction"
-                  className={cn('shrink-0 w-11 h-11 rounded border border-retro-border bg-retro-card active:scale-95', cooldown && 'opacity-50')}
-                >
-                  <img src={s} alt="" className="w-full h-full object-contain rounded" draggable={false} />
-                </button>
-              ))}
-            </div>
+        {onSendSticker && !preview && (
+          <div className="w-full max-w-[280px] space-y-1.5">
+            <p className="font-pixel text-[7px] text-retro-dim tracking-widest text-center">STICKERS</p>
+            {STICKER_PACKS.map((pack) => (
+              <div key={pack.id}>
+                <p className="font-pixel text-[7px] text-retro-dim tracking-widest px-1">{pack.name}</p>
+                <div className="grid grid-cols-4 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={cooldown || stickerBusy}
+                    aria-label="Create sticker from your photos"
+                    title="Create sticker"
+                    className={cn('aspect-square rounded border border-dashed border-retro-cta/60 bg-retro-tint-cta flex flex-col items-center justify-center gap-0.5 active:scale-95', (cooldown || stickerBusy) && 'opacity-50')}
+                  >
+                    <span className="font-pixel text-sm text-retro-cta leading-none">+</span>
+                    <span className="font-pixel text-[6px] text-retro-cta leading-tight">CREATE</span>
+                  </button>
+                  {pack.items.map((src) => (
+                    <button
+                      key={src}
+                      type="button"
+                      onClick={() => handleSendSticker(src)}
+                      disabled={cooldown}
+                      aria-label={`Send ${pack.name} sticker reaction`}
+                      className={cn('aspect-square rounded border border-retro-border bg-retro-card active:scale-95 overflow-hidden', cooldown && 'opacity-50')}
+                    >
+                      <img src={src} alt="" className="w-full h-full object-contain" draggable={false} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {recents.length > 0 && (
+              <div>
+                <p className="font-pixel text-[7px] text-retro-dim tracking-widest px-1">RECENT</p>
+                <div className="flex gap-1.5 overflow-x-auto pt-1 px-1">
+                  {recents.map((s) => (
+                    <button
+                      key={s.slice(-32)}
+                      type="button"
+                      onClick={() => handleSendSticker(s)}
+                      disabled={cooldown}
+                      aria-label="Resend sticker reaction"
+                      className={cn('shrink-0 w-11 h-11 rounded border border-retro-border bg-retro-card active:scale-95 overflow-hidden', cooldown && 'opacity-50')}
+                    >
+                      <img src={s} alt="" className="w-full h-full object-contain" draggable={false} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
         <input

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { PASSWORD_DECK } from './decks/password'
 import {
-  CLUE_POINTS, MAX_CLUES, MAX_ROUNDS, TARGET_SCORE,
-  advanceAfterReveal, applyClue, applyGuess, createInitialRound,
-  getMatchWinner, isCorrectGuess, nextRoles, normalizeText,
+  CLUE_POINTS, GUESS_SECONDS, MAX_CLUES, MAX_ROUNDS, TARGET_SCORE,
+  advanceAfterReveal, applyClue, applyGuess, applyGuessTimeout, createInitialRound,
+  getMatchWinner, guessSecondsForClueNumber, isCorrectGuess, nextRoles, normalizeText,
   pickWord, scoreForClueNumber, validateClue,
 } from './passwordLogic'
 
@@ -73,6 +73,49 @@ describe('passwordLogic', () => {
     expect(advanced.round.roundNum).toBe(2)
     expect(advanced.round.clueGiver).toBe('O')
     expect(advanced.round.used).toHaveLength(2)
+  })
+
+  it('times guesses 30/30/25/25/20 by clue number', () => {
+    expect(GUESS_SECONDS).toEqual([30, 30, 25, 25, 20])
+    expect(guessSecondsForClueNumber(1)).toBe(30)
+    expect(guessSecondsForClueNumber(2)).toBe(30)
+    expect(guessSecondsForClueNumber(3)).toBe(25)
+    expect(guessSecondsForClueNumber(4)).toBe(25)
+    expect(guessSecondsForClueNumber(5)).toBe(20)
+    expect(guessSecondsForClueNumber(9)).toBe(20)
+    expect(guessSecondsForClueNumber(0)).toBe(30)
+  })
+
+  it('arms the guess clock on every clue', () => {
+    const round = { ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 6 }), phase: 'clue', word: 'planet' }
+    const first = applyClue(round, 'orbit', 1000)
+    expect(first.endsAt).toBe(1000 + 30 * 1000)
+    const second = applyClue({ ...applyGuess(first, 'nope', 'planet', 2000), word: 'planet' }, 'space', 3000)
+    expect(second.endsAt).toBe(3000 + 30 * 1000)
+  })
+
+  it('rejects guesses after the clock and times the slot out instead', () => {
+    const round = { ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 6 }), phase: 'clue', word: 'planet' }
+    const guessing = applyClue(round, 'orbit', 1000)
+    expect(applyGuess(guessing, 'planet', 'planet', guessing.endsAt + 1)).toBeNull()
+    const timedOut = applyGuessTimeout(guessing, guessing.endsAt + 1)
+    expect(timedOut.phase).toBe('clue')
+    expect(timedOut.guesses).toHaveLength(1)
+    expect(timedOut.guesses[0]).toMatchObject({ correct: false, timeout: true })
+    expect(timedOut.endsAt).toBeNull()
+    expect(applyGuessTimeout(guessing, guessing.endsAt)).toBeNull()
+  })
+
+  it('a timeout on the last clue goes to reveal', () => {
+    let round = { ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 6 }), phase: 'clue', word: 'planet' }
+    for (let i = 0; i < MAX_CLUES - 1; i += 1) {
+      round = applyClue(round, `hint${i}`, i)
+      round = applyGuess(round, 'nope', 'planet', i)
+    }
+    round = applyClue(round, 'last', 50)
+    const timedOut = applyGuessTimeout(round, round.endsAt + 1)
+    expect(timedOut.phase).toBe('reveal')
+    expect(timedOut.guesses).toHaveLength(MAX_CLUES)
   })
 
   it('finishes at target or max rounds, including draw', () => {

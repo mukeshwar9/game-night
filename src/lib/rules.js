@@ -526,6 +526,7 @@ export const GAME_RULES = {
       'One player sees the secret password. The other player sees only its length.',
       'The clue-giver sends one-word clues. The guesser submits one guess after each clue.',
       'Earlier correct guesses score more: 5 points, then 4, 3, 2, or 1.',
+      'Each guess is timed: 30 seconds for the first two guesses, 25 for the next two, then 20. A timeout counts as a miss.',
     ],
     win: 'First to 15 points wins. If nobody reaches 15 after 12 rounds, the higher score wins; equal scores draw.',
   },

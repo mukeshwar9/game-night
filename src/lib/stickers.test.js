@@ -1,13 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import {
   isImageFile,
+  isPackStickerSrc,
   isStickerDataUrl,
+  isStickerSrc,
   imageFilesFromClipboard,
   normalizeRecentStickers,
   addRecentSticker,
   STICKER_MAX_DATA_URL_LENGTH,
   STICKER_RECENT_MAX,
 } from './stickers'
+import { STICKER_PACKS, packStickerSet } from './decks/stickerPacks'
 
 const tiny = (len = 100) => `data:image/webp;base64,${'A'.repeat(len)}`
 
@@ -51,6 +54,26 @@ describe('imageFilesFromClipboard', () => {
   it('returns [] without clipboard items', () => {
     expect(imageFilesFromClipboard(null)).toEqual([])
     expect(imageFilesFromClipboard({})).toEqual([])
+  })
+})
+
+describe('pack sticker sources', () => {
+  it('accepts bundled /stickers/ art only', () => {
+    expect(isPackStickerSrc('/stickers/party/hug.svg')).toBe(true)
+    expect(isPackStickerSrc('/stickers/party/a.webp')).toBe(true)
+    expect(isStickerSrc('/stickers/party/hug.svg')).toBe(true)
+    expect(isPackStickerSrc('https://example.com/a.svg')).toBe(false)
+    expect(isPackStickerSrc('/stickers/../secret.svg')).toBe(false)
+    expect(isPackStickerSrc('/stickers/party/hug.gif')).toBe(false)
+  })
+
+  it('ships a non-empty pack with unique items', () => {
+    expect(STICKER_PACKS.length).toBeGreaterThan(0)
+    const all = STICKER_PACKS.flatMap((p) => p.items)
+    expect(all.length).toBeGreaterThan(0)
+    expect(new Set(all).size).toBe(all.length)
+    expect(packStickerSet().size).toBe(all.length)
+    for (const src of all) expect(isPackStickerSrc(src), src).toBe(true)
   })
 })
 

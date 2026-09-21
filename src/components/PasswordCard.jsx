@@ -89,7 +89,9 @@ export default function PasswordCard({
               <span className="font-pixel text-[9px]">{index + 1}</span>
               <span className="min-w-0 truncate font-mono text-xs">
                 {clue?.text || '· · ·'}
-                {guess?.text && <span className="ml-2 text-[10px] text-retro-dim">{guess.text}</span>}
+                {(guess?.text || guess?.timeout) && (
+                  <span className="ml-2 text-[10px] text-retro-dim">{guess.text || 'TIME OUT'}</span>
+                )}
               </span>
               <span className="font-pixel text-[8px] text-right whitespace-nowrap">
                 {correct ? '✓' : guess ? 'MISS' : clue ? 'GUESS…' : 'OPEN'}

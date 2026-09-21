@@ -32,6 +32,24 @@ describe('anagramsLogic', () => {
     expect(applyFoundWord(first, 'zzzz', ['P', 'L', 'A', 'N', 'E', 'T', 'S'], ANAGRAM_VALID_WORDS, 11)).toBe(null)
   })
 
+  it('accepts every buildable dictionary word (no false wrong-word)', () => {
+    // Previously-rejected real words per rack.
+    const cases = [
+      ['PLANETS', 'plates', ['P', 'L', 'A', 'N', 'E', 'T', 'S']],
+      ['PLANETS', 'tapes', ['P', 'L', 'A', 'N', 'E', 'T', 'S']],
+      ['PLANETS', 'nest', ['P', 'L', 'A', 'N', 'E', 'T', 'S']],
+      ['TEACHER', 'aether', ['T', 'E', 'A', 'C', 'H', 'E', 'R']],
+      ['TEACHER', 'reheat', ['T', 'E', 'A', 'C', 'H', 'E', 'R']],
+      ['REACTOR', 'orate', ['R', 'E', 'A', 'C', 'T', 'O', 'R']],
+      ['REACTOR', 'carter', ['R', 'E', 'A', 'C', 'T', 'O', 'R']],
+    ]
+    for (const [, word, rack] of cases) {
+      expect(applyFoundWord({}, word, rack, ANAGRAM_VALID_WORDS, 10), word).not.toBeNull()
+    }
+    // Nonsense still rejected.
+    expect(applyFoundWord({}, 'zzzz', ['P', 'L', 'A', 'N', 'E', 'T', 'S'], ANAGRAM_VALID_WORDS, 11)).toBe(null)
+  })
+
   it('compares score first, then word count, then draw', () => {
     expect(compareRound({ planets: {} }, { plane: {}, plate: {}, slate: {} })).toMatchObject({ winner: 'X', scoreX: 16 })
     expect(compareRound({ plane: {}, plate: {} }, { slate: {}, least: {} }).winner).toBe('draw')

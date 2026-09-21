@@ -8,9 +8,9 @@ import OfflineNotice from '../components/loading/OfflineNotice'
 import GameSwitcher from '../components/GameSwitcher'
 import PasswordCard from '../components/PasswordCard'
 import { PASSWORD_DECK } from '../lib/decks/password'
-import { INTRO_MS, MAX_CLUES } from '../lib/passwordLogic'
+import { INTRO_MS, MAX_CLUES, guessSecondsForClueNumber } from '../lib/passwordLogic'
 import {
-  advanceAfterReveal, applyClue, applyGuess, createInitialRound,
+  advanceAfterReveal, applyClue, applyGuess, applyGuessTimeout, createInitialRound,
   pickWord, validateClue,
 } from '../lib/passwordLogic'
 
@@ -85,21 +85,26 @@ export default function PasswordGame({
     }).catch(() => {})
   }, [game, gameId, mySymbol])
 
-  // Small local ticker drives intro/reveal deadlines. Transaction guards make
-  // simultaneous transitions safe when both clients hit the deadline.
+  // Small local ticker drives intro/guess/reveal deadlines. Transaction guards
+  // make simultaneous transitions safe when both clients hit the deadline.
   useEffect(() => {
-    if (phase !== 'intro' && phase !== 'reveal') return
+    if (phase !== 'intro' && phase !== 'guess' && phase !== 'reveal') return
     const timer = setInterval(() => setClock(Date.now()), 250)
     return () => clearInterval(timer)
   }, [phase])
 
   useEffect(() => {
-    if (!round?.endsAt || clock < round.endsAt || (phase !== 'intro' && phase !== 'reveal')) return
+    if (!round?.endsAt || clock < round.endsAt || (phase !== 'intro' && phase !== 'guess' && phase !== 'reveal')) return
     runTransaction(ref(db, `games/${gameId}`), current => {
       const currentRound = current?.round
       if (!current || current.status !== 'playing' || !currentRound || currentRound.phase !== phase || currentRound.endsAt !== round.endsAt) return
       if (phase === 'intro') {
         return { ...current, round: { ...currentRound, phase: 'clue', endsAt: null }, lastActivityAt: Date.now() }
+      }
+      if (phase === 'guess') {
+        const timedOut = applyGuessTimeout(currentRound, Date.now())
+        if (!timedOut) return
+        return { ...current, round: timedOut, lastActivityAt: Date.now() }
       }
       const advanced = advanceAfterReveal(currentRound, current.scores || { X: 0, O: 0 }, PASSWORD_DECK, Date.now())
       if (!advanced) return
@@ -178,6 +183,10 @@ export default function PasswordGame({
   const submit = phase === 'clue' ? submitClue : submitGuess
   const canSubmit = phase === 'clue' ? isClueGiver : isGuesser
   const matchWinner = game?.winner || null
+  const guessNum = clues.length || 0
+  const guessAllowance = guessSecondsForClueNumber(Math.max(1, guessNum))
+  const guessMsLeft = phase === 'guess' && round?.endsAt ? Math.max(0, round.endsAt - clock) : null
+  const guessSecsLeft = guessMsLeft == null ? null : Math.ceil(guessMsLeft / 1000)
 
   if (matchFinished) {
     const draw = matchWinner === 'draw'
@@ -228,6 +237,12 @@ export default function PasswordGame({
 
       {isSpectator && <p className="font-pixel text-[9px] text-retro-dim text-center">SPECTATING · SECRET LOCKED UNTIL REVEAL</p>}
       {!isSpectator && !opponentOnline && <OfflineNotice label="OPPONENT" />}
+
+      {phase === 'guess' && guessSecsLeft != null && (
+        <p className={`text-center font-pixel text-[10px] tabular-nums ${guessSecsLeft <= 10 ? 'text-retro-danger arcade-blink' : 'text-retro-cta'}`} aria-live="off">
+          GUESS {guessNum} · {guessAllowance}S · {guessSecsLeft}S LEFT
+        </p>
+      )}
 
       {canSubmit && (phase === 'clue' || phase === 'guess') && (
         <form onSubmit={event => { event.preventDefault(); submit() }} className="space-y-2">

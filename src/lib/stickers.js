@@ -31,6 +31,21 @@ export function isStickerDataUrl(s) {
     && s.length <= STICKER_MAX_DATA_URL_LENGTH
 }
 
+// Bundled pack art travels as a same-origin asset path instead of a data:
+// URL (no payload cost on the room node). Anything else is rejected.
+export function isPackStickerSrc(s) {
+  return typeof s === 'string'
+    && s.startsWith('/stickers/')
+    && (s.endsWith('.svg') || s.endsWith('.webp') || s.endsWith('.png'))
+    && s.length <= 120
+    && !s.includes('..')
+}
+
+// Either transport a sticker reaction may legally carry.
+export function isStickerSrc(s) {
+  return isStickerDataUrl(s) || isPackStickerSrc(s)
+}
+
 // Downscale an image File/Blob to a small data: URL. Rejects on non-images,
 // oversize sources, and decode/encode failures — callers toast on rejection.
 export function fileToStickerDataUrl(file) {
@@ -91,7 +106,7 @@ export function imageFilesFromClipboard(clipboardData) {
 
 export function normalizeRecentStickers(raw) {
   if (!Array.isArray(raw)) return []
-  return raw.filter(isStickerDataUrl).slice(0, STICKER_RECENT_MAX)
+  return raw.filter(isStickerSrc).slice(0, STICKER_RECENT_MAX)
 }
 
 export function readRecentStickers() {
@@ -104,7 +119,7 @@ export function readRecentStickers() {
 
 // Most-recent-first, de-duplicated, capped. Returns the list to persist.
 export function addRecentSticker(previous, dataUrl) {
-  if (!isStickerDataUrl(dataUrl)) return normalizeRecentStickers(previous)
+  if (!isStickerSrc(dataUrl)) return normalizeRecentStickers(previous)
   return [dataUrl, ...normalizeRecentStickers(previous).filter((s) => s !== dataUrl)]
     .slice(0, STICKER_RECENT_MAX)
 }
