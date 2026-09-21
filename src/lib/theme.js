@@ -18,7 +18,7 @@ const STORAGE_KEY = 'retro-theme'
 export function getStoredTheme() {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored && THEMES.some(t => t.id === stored)) return stored
-  return 'midnight'
+  return 'matcha'
 }
 
 export function applyTheme(id) {
