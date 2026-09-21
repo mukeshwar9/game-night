@@ -60,6 +60,7 @@ import AudioSettingsButton from '../components/AudioSettingsButton'
 import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
 import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../lib/chat'
+import { isStickerDataUrl } from '../lib/stickers'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -170,7 +171,11 @@ function EmoteFloats({ floats }) {
           {f.kind === 'chat' ? (
             <div className="flex flex-col items-center gap-0.5 max-w-[60vw]">
               <span className="font-pixel text-[7px] text-retro-dim">{f.name}</span>
-              <span className="font-pixel text-sm text-retro-cta text-glow-cta break-words">{f.text}</span>
+              {f.img ? (
+                <img src={f.img} alt="sticker" className="w-20 h-20 object-contain rounded" draggable={false} />
+              ) : (
+                <span className="font-pixel text-sm text-retro-cta text-glow-cta break-words">{f.text}</span>
+              )}
             </div>
           ) : (
             <>
@@ -178,7 +183,9 @@ function EmoteFloats({ floats }) {
                 className="flex items-center gap-1"
                 style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
               >
-                {isQuickChat(f.glyph) ? (
+                {f.img ? (
+                  <img src={f.img} alt="sticker reaction" className="w-20 h-20 object-contain rounded" draggable={false} />
+                ) : isQuickChat(f.glyph) ? (
                   <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
                 ) : (
                   <AnimatedEmoji glyph={f.glyph} className="w-20 h-20 object-contain" />
@@ -654,7 +661,7 @@ export default function Game() {
     setFloats(prev => {
       const last = prev[prev.length - 1]
       const now = Date.now()
-      if (last && last.glyph === e.glyph && last.by === e.by && now - last.at < 1500) {
+      if (last && last.kind !== 'chat' && last.glyph === e.glyph && (last.img ?? null) === (e.img ?? null) && last.by === e.by && now - last.at < 1500) {
         const existing = emoteTimeouts.current.get(last.id)
         if (existing) clearTimeout(existing)
         const t = setTimeout(() => {
@@ -667,7 +674,7 @@ export default function Game() {
       const id = ++emoteIdRef.current
       const dx = Math.round((Math.random() * 2 - 1) * 24)
       const rot = Math.round((Math.random() * 2 - 1) * 10)
-      const float = { id, glyph: e.glyph, by: e.by, name, count: 1, dx, rot, at: now }
+      const float = { id, glyph: e.glyph, img: e.img ?? null, by: e.by, name, count: 1, dx, rot, at: now }
       const t = setTimeout(() => {
         setFloats(f => f.filter(fl => fl.id !== id))
         emoteTimeouts.current.delete(id)
@@ -1289,6 +1296,31 @@ export default function Game() {
     return true
   }
 
+  // Sticker reaction — a keyboard/file image, downscaled by the caller. Same
+  // channel and cooldown as emoji reactions; floats locally and on peers.
+  const sendSticker = async (dataUrl) => {
+    if (!isStickerDataUrl(dataUrl)) {
+      toast.error('STICKER DID NOT STICK — TRY ANOTHER IMAGE')
+      return false
+    }
+    const sender = mySymbol.current
+      || (getGameConfig(game?.gameType)?.nPlayer ? getPlayerId() : null)
+    if (!sender) return false
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now()
+    if (now < emoteReadyAt.current) return false
+    emoteReadyAt.current = now + 600
+    setEmoteCooldown(true)
+    setTimeout(() => setEmoteCooldown(false), 600)
+
+    prevEmoteTs.current = now
+    pushEmote({ by: sender, glyph: '', img: dataUrl, ts: now })
+    try {
+      await update(ref(db, `games/${gameId}`), { emote: { by: sender, glyph: '', img: dataUrl, ts: now } })
+    } catch { /* ignore */ }
+    return true
+  }
+
   // Free-text chat — sanitize, rate-limit (2s), float our own message
   // optimistically, append via a push id, and prune the log back to cap.
   const sendChat = async (raw) => {
@@ -1495,7 +1527,7 @@ export default function Game() {
           <ChatLog chatLog={game.chatLog} myUid={myUid} />
 
           {amSeated && game.status !== 'waiting' && (
-            <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
+            <EmoteBar onSend={sendEmote} onSendSticker={sendSticker} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
           )}
         </div>
         {showInvite && (
@@ -2089,7 +2121,7 @@ export default function Game() {
             nobody to react to yet). Shown to a seated player once an
             opponent has joined, or to a spectator watching a live game. */}
         {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
-          <EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
+          <EmoteBar onSend={sendEmote} onSendSticker={sendSticker} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
         )}
       </div>
       {showInvite && (

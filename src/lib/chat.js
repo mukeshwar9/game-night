@@ -1,8 +1,10 @@
 // Pure helpers for free-text room chat. No Firebase, no React — unit-tested
 // in chat.test.js.
-//
+import { isStickerDataUrl } from './stickers'
+
 // Firebase shape (under games/{gameId}/chatLog):
-//   chatLog/{pushId}: { by: uid, name: string, text: string, ts: epoch-ms }
+//   chatLog/{pushId}: { by: uid, name: string, text: string, ts: epoch-ms,
+//     img?: sticker data: URL (see stickers.js) }
 //
 // Messages are appended via Firebase push ids (so ordering is preserved by
 // key even when reading a sparse/object-shaped snapshot) and pruned client-
@@ -28,15 +30,19 @@ export function sanitizeChatText(raw) {
 // ---------------------------------------------------------------------------
 // isValidChatMessage — shape guard for a single chat entry, used both when
 // reading Firebase snapshots (normalizeChatLog) and by the database rules'
-// client-side mirror of the same checks. `text` must be 1..CHAT_MAX_LENGTH
-// characters, `by` a nonempty string (the author's uid), `ts` a number.
+// client-side mirror of the same checks. `text` must be 0..CHAT_MAX_LENGTH
+// characters (`''` is legal only beside a valid `img` sticker), `by` a
+// nonempty string (the author's uid), `ts` a number, and `img` — when
+// present — a sticker data: URL (see stickers.js).
 // ---------------------------------------------------------------------------
 export function isValidChatMessage(m) {
   if (!m || typeof m !== 'object') return false
   if (typeof m.text !== 'string') return false
-  if (m.text.length < 1 || m.text.length > CHAT_MAX_LENGTH) return false
+  if (m.text.length < 0 || m.text.length > CHAT_MAX_LENGTH) return false
   if (typeof m.by !== 'string' || m.by.length === 0) return false
   if (typeof m.ts !== 'number') return false
+  if (m.img !== undefined && !isStickerDataUrl(m.img)) return false
+  if (m.text.length === 0 && m.img === undefined) return false
   return true
 }
 

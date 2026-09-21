@@ -26,9 +26,14 @@ export default function ChatLog({ chatLog, myUid }) {
             <span className={`font-pixel text-[7px] tracking-wider ${msg.by === myUid ? 'text-retro-p1' : 'text-retro-dim'}`}>
               {msg.name}{' '}
             </span>
-            <span className="font-mono text-[11px] text-retro-text break-words leading-snug">
-              {msg.text}
-            </span>
+            {msg.img ? (
+              <img src={msg.img} alt="sticker" className="w-16 h-16 object-contain rounded mt-0.5" draggable={false} />
+            ) : null}
+            {msg.text ? (
+              <span className="font-mono text-[11px] text-retro-text break-words leading-snug">
+                {msg.text}
+              </span>
+            ) : null}
           </div>
         ))}
       </div>

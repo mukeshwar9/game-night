@@ -1,11 +1,19 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import BottomSheet from './BottomSheet'
 import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, QUICK_CHAT, searchEmotes } from '../lib/emotes'
 import { CHAT_MAX_LENGTH } from '../lib/chat'
+import {
+  fileToStickerDataUrl,
+  imageFilesFromClipboard,
+  readRecentStickers,
+  addRecentSticker,
+  STICKER_RECENT_KEY,
+} from '../lib/stickers'
 import { cn } from '@/lib/utils'
 import { getPlayerId } from '../lib/playerId'
 import { getQuickEmotes, normalizeEmoteUsage, recordEmoteUsage } from '../lib/emoteUsage'
+import { toast } from 'sonner'
 
 const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 transition-colors'
 const EMOTE_TAP_PROPS = {
@@ -86,12 +94,50 @@ function EmotePicker({ onPick, onClose }) {
   )
 }
 
-export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, textCooldown }) {
+export default function EmoteBar({ onSend, onSendSticker, onSendChip, cooldown, onSendText, textCooldown }) {
   const [showPicker, setShowPicker] = useState(false)
   const [text, setText] = useState('')
   const [usageKey] = useState(() => `emoteUsage:${getPlayerId()}`)
   const [usage, setUsage] = useState(() => readUsage(usageKey))
   const quickEmotes = getQuickEmotes(usage, EMOTES_PRIMARY)
+  // Sticker reaction state: attach via the image button or paste an image
+  // into the chat box — either lands in `preview` until SEND STICKER fires.
+  const [preview, setPreview] = useState(null)
+  const [stickerBusy, setStickerBusy] = useState(false)
+  const [recents, setRecents] = useState(() => readRecentStickers())
+  const fileRef = useRef(null)
+
+  const ingestFile = async (file) => {
+    setStickerBusy(true)
+    try {
+      setPreview(await fileToStickerDataUrl(file))
+    } catch {
+      toast.error('STICKER DID NOT STICK — TRY ANOTHER IMAGE')
+    } finally {
+      setStickerBusy(false)
+    }
+  }
+
+  const handlePaste = (e) => {
+    if (!onSendSticker) return
+    const files = imageFilesFromClipboard(e.clipboardData)
+    if (files.length === 0) return
+    e.preventDefault()
+    ingestFile(files[0])
+  }
+
+  const handleSendSticker = async (dataUrl) => {
+    if (!onSendSticker || !dataUrl) return
+    const sent = await onSendSticker(dataUrl)
+    if (sent === false) return
+    setRecents((prev) => {
+      const next = addRecentSticker(prev, dataUrl)
+      try { localStorage.setItem(STICKER_RECENT_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+    setPreview((current) => (current === dataUrl ? null : current))
+    if (fileRef.current) fileRef.current.value = ''
+  }
   const handleEmote = async (g) => {
     const sent = await onSend(g)
     if (sent === false) return
@@ -126,6 +172,22 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
               {g}
             </AnimatedEmoteButton>
           ))}
+          {onSendSticker && (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={cooldown || stickerBusy}
+              aria-label="Add sticker reaction"
+              title="Add sticker reaction"
+              className={cn(EMOTE_BTN_CLASS, 'text-retro-dim', (cooldown || stickerBusy) && 'opacity-50')}
+            >
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <rect x="2.5" y="4" width="15" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                <circle cx="7" cy="8.5" r="1.3" fill="currentColor" />
+                <path d="M3.5 14.5 L8 10.5 L11.5 13 L13.5 11.5 L17.5 14.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowPicker(true)}
@@ -156,12 +218,66 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
             </button>
           ))}
         </div>
+        {preview && (
+          <div className="flex items-center gap-2 w-full max-w-[280px] rounded border border-retro-cta/50 bg-retro-card p-2">
+            <img src={preview} alt="sticker preview" className="w-16 h-16 object-contain rounded" draggable={false} />
+            <div className="flex-1 min-w-0">
+              <p className="font-pixel text-[7px] text-retro-dim tracking-widest">STICKER READY</p>
+              <p className="font-mono text-[10px] text-retro-dim">FLOATS ON BOTH SCREENS</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSendSticker(preview)}
+              disabled={cooldown}
+              className={cn('min-h-11 px-3 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded active:scale-95', cooldown && 'opacity-50')}
+            >
+              SEND
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPreview(null); if (fileRef.current) fileRef.current.value = '' }}
+              aria-label="Discard sticker"
+              className="min-h-11 px-2 text-retro-dim font-pixel text-xs active:scale-95"
+            >
+              ×
+            </button>
+          </div>
+        )}
+        {onSendSticker && recents.length > 0 && !preview && (
+          <div className="flex items-center gap-1.5 max-w-full px-2">
+            <span className="font-pixel text-[7px] text-retro-dim tracking-widest shrink-0">STICKERS</span>
+            <div className="flex gap-1.5 overflow-x-auto">
+              {recents.map((s) => (
+                <button
+                  key={s.slice(-24)}
+                  type="button"
+                  onClick={() => handleSendSticker(s)}
+                  disabled={cooldown}
+                  aria-label="Resend sticker reaction"
+                  className={cn('shrink-0 w-11 h-11 rounded border border-retro-border bg-retro-card active:scale-95', cooldown && 'opacity-50')}
+                >
+                  <img src={s} alt="" className="w-full h-full object-contain rounded" draggable={false} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) ingestFile(f) }}
+        />
         {onSendText && (
           <form onSubmit={handleSubmitText} className="flex gap-2 w-full max-w-[280px]">
             <input
               type="text"
               value={text}
               onChange={e => setText(e.target.value)}
+              onPaste={handlePaste}
               maxLength={CHAT_MAX_LENGTH}
               enterKeyHint="send"
               autoComplete="off"

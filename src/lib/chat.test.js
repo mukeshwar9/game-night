@@ -70,8 +70,19 @@ describe('isValidChatMessage', () => {
     expect(isValidChatMessage(rest)).toBe(false)
   })
 
-  it('rejects empty text', () => {
+  it('rejects empty text without a sticker', () => {
     expect(isValidChatMessage({ ...base, text: '' })).toBe(false)
+  })
+
+  it('accepts empty text beside a valid sticker image', () => {
+    const img = `data:image/webp;base64,${'A'.repeat(100)}`
+    expect(isValidChatMessage({ ...base, text: '', img })).toBe(true)
+    expect(isValidChatMessage({ ...base, text: 'nice', img })).toBe(true)
+  })
+
+  it('rejects invalid sticker images', () => {
+    expect(isValidChatMessage({ ...base, text: '', img: 'https://example.com/a.png' })).toBe(false)
+    expect(isValidChatMessage({ ...base, text: 'hi', img: 'junk' })).toBe(false)
   })
 
   it('rejects text over CHAT_MAX_LENGTH', () => {
