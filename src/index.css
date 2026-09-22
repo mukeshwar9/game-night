@@ -53,7 +53,7 @@
   .video-call-preview {
     position: fixed;
     z-index: 35;
-    bottom: .5rem;
+    bottom: calc(2.5rem + env(safe-area-inset-bottom));
     width: min(var(--video-call-preview-width), 30vw);
     height: auto;
     min-height: 0;

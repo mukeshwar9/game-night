@@ -9,6 +9,7 @@ export const VIDEO_CALL_SIZES = {
 
 export const DEFAULT_VIDEO_CALL_LAYOUT = {
   enabled: false,
+  showOutline: false,
   corner: 'bottom-right',
   size: 'medium',
 }
@@ -17,6 +18,7 @@ export function normalizeVideoCallLayout(value) {
   const input = value && typeof value === 'object' ? value : {}
   return {
     enabled: input.enabled === true,
+    showOutline: input.showOutline === true,
     corner: VIDEO_CALL_CORNERS.includes(input.corner) ? input.corner : DEFAULT_VIDEO_CALL_LAYOUT.corner,
     size: Object.prototype.hasOwnProperty.call(VIDEO_CALL_SIZES, input.size) ? input.size : DEFAULT_VIDEO_CALL_LAYOUT.size,
   }

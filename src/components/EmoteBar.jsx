@@ -58,7 +58,8 @@ function EmotePicker({ onPick, onClose }) {
     <BottomSheet
       onClose={onClose}
       ariaLabel="Choose a reaction"
-      className="w-[min(92vw,22rem)] sm:max-w-[22rem] h-[min(70vh,28rem)] bg-retro-bg/70 backdrop-blur-[2px] overflow-hidden flex flex-col"
+      backdropClassName="bg-transparent"
+      className="w-full max-w-none sm:max-w-none h-[min(70vh,28rem)] bg-retro-bg/20 overflow-hidden flex flex-col"
     >
       <p className="shrink-0 font-pixel text-[10px] text-retro-dim text-center tracking-widest">REACTIONS</p>
       <input

@@ -13,6 +13,11 @@ describe('video call layout', () => {
     expect(normalizeVideoCallLayout({ enabled: 'yes', corner: 'middle', size: 'huge' })).toEqual(DEFAULT_VIDEO_CALL_LAYOUT)
   })
 
+  it('defaults layout outline to hidden and preserves an explicit choice', () => {
+    expect(normalizeVideoCallLayout({ enabled: true }).showOutline).toBe(false)
+    expect(normalizeVideoCallLayout({ enabled: true, showOutline: true }).showOutline).toBe(true)
+  })
+
   it('reads and writes local preferences', () => {
     const data = new Map()
     const storage = { getItem: key => data.get(key) || null, setItem: (key, value) => data.set(key, value) }

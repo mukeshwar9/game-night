@@ -55,12 +55,14 @@ export function VideoCallReactionDock({ children }) {
     style={{ '--video-call-preview-width': `${reserve.width}px`, '--video-call-preview-height': `${reserve.height}px` }}
   >
     <div className={`video-call-reactions video-call-reactions-${layout.corner.endsWith('right') ? 'right' : 'left'}`}>{children}</div>
-    <div
-      className={`video-call-preview video-call-preview-${layout.corner.endsWith('right') ? 'right' : 'left'}`}
-      aria-label="Reserved 9 by 16 video call space"
-    >
-      MOVE VIDEO WINDOW HERE
-    </div>
+    {layout.showOutline && (
+      <div
+        className={`video-call-preview video-call-preview-${layout.corner.endsWith('right') ? 'right' : 'left'}`}
+        aria-label="Reserved 9 by 16 video call space"
+      >
+        MOVE VIDEO WINDOW HERE
+      </div>
+    )}
   </div>
 }
 
@@ -81,8 +83,52 @@ function LayoutPreview({ corner, size }) {
   </div>
 }
 
-export default function VideoCallSettingsButton() {
+export function VideoCallSettingsPanel({ onClose, embedded = false }) {
   const { layout, updateLayout, cramped } = useVideoCallLayout()
+  return <div className={embedded ? 'space-y-4' : undefined}>
+    {!embedded && <div className="flex items-center justify-between">
+      <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">VIDEO CALL LAYOUT</p>
+      <button type="button" onClick={onClose} className="font-pixel text-[10px] text-retro-dim p-2 -m-2">CLOSE</button>
+    </div>}
+    <div className="space-y-4 pt-4">
+      <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
+        <span>PLAYING ON A VIDEO CALL</span>
+        <input type="checkbox" checked={layout.enabled} onChange={e => updateLayout({ enabled: e.target.checked })} className="h-5 w-5 accent-retro-cta" />
+      </label>
+      <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
+        <span>SHOW LAYOUT OUTLINE</span>
+        <input
+          type="checkbox"
+          checked={layout.showOutline}
+          onChange={e => updateLayout({ showOutline: e.target.checked })}
+          aria-label="Show video call layout outline"
+          className="h-5 w-5 accent-retro-cta"
+        />
+      </label>
+      <div className="flex items-center justify-between gap-4">
+        <div><p className="font-pixel text-[9px] text-retro-text tracking-widest">WINDOW ALIGNMENT</p><p className="font-mono text-[10px] text-retro-dim mt-1">Align the portrait call space beside reactions.</p></div>
+        <div className="video-call-corner-picker" aria-label="Video window corner">
+          {VIDEO_CALL_CORNERS.map(corner => <CornerButton key={corner} corner={corner} selected={layout.corner === corner} onClick={value => updateLayout({ corner: value })} />)}
+        </div>
+      </div>
+      <div>
+        <p className="font-pixel text-[9px] text-retro-text tracking-widest mb-2">PREVIEW</p>
+        <LayoutPreview corner={layout.corner} size={layout.size} />
+      </div>
+      <div>
+        <p className="font-pixel text-[9px] text-retro-text tracking-widest mb-2">RESERVED SPACE</p>
+        <div className="grid grid-cols-3 gap-2">
+          {Object.entries(VIDEO_CALL_SIZES).map(([size, config]) => <button key={size} type="button" onClick={() => updateLayout({ size })} className={`border px-2 py-2 rounded font-pixel text-[9px] ${layout.size === size ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : 'border-retro-border text-retro-dim'}`}>{config.label}</button>)}
+        </div>
+      </div>
+      {cramped && <p className="border border-retro-danger/60 bg-retro-tint-danger text-retro-danger p-2 font-mono text-[10px] leading-relaxed">SPACE IS TIGHT. CHOOSE A SMALLER WINDOW OR ANOTHER CORNER.</p>}
+      <p className="font-mono text-[10px] text-retro-dim leading-relaxed">Move WhatsApp or another floating call window to match the preview. Game cannot move or detect that window.</p>
+    </div>
+  </div>
+}
+
+export default function VideoCallSettingsButton() {
+  const { layout } = useVideoCallLayout()
   const [open, setOpen] = useState(false)
   return <>
     <button
@@ -93,34 +139,7 @@ export default function VideoCallSettingsButton() {
       className={`text-retro-dim hover:text-retro-text transition-colors p-3 -m-2 rounded ${layout.enabled ? 'text-retro-p1' : ''}`}
     >▣</button>
     {open && <BottomSheet onClose={() => setOpen(false)} ariaLabel="Video-call layout settings">
-      <div className="flex items-center justify-between">
-        <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">VIDEO CALL LAYOUT</p>
-        <button type="button" onClick={() => setOpen(false)} className="font-pixel text-[10px] text-retro-dim p-2 -m-2">CLOSE</button>
-      </div>
-      <div className="space-y-4 pt-4">
-        <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
-          <span>PLAYING ON A VIDEO CALL</span>
-          <input type="checkbox" checked={layout.enabled} onChange={e => updateLayout({ enabled: e.target.checked })} className="h-5 w-5 accent-retro-cta" />
-        </label>
-        <div className="flex items-center justify-between gap-4">
-          <div><p className="font-pixel text-[9px] text-retro-text tracking-widest">WINDOW ALIGNMENT</p><p className="font-mono text-[10px] text-retro-dim mt-1">Align the portrait call space beside reactions.</p></div>
-          <div className="video-call-corner-picker" aria-label="Video window corner">
-            {VIDEO_CALL_CORNERS.map(corner => <CornerButton key={corner} corner={corner} selected={layout.corner === corner} onClick={value => updateLayout({ corner: value })} />)}
-          </div>
-        </div>
-        <div>
-          <p className="font-pixel text-[9px] text-retro-text tracking-widest mb-2">PREVIEW</p>
-          <LayoutPreview corner={layout.corner} size={layout.size} />
-        </div>
-        <div>
-          <p className="font-pixel text-[9px] text-retro-text tracking-widest mb-2">RESERVED SPACE</p>
-          <div className="grid grid-cols-3 gap-2">
-            {Object.entries(VIDEO_CALL_SIZES).map(([size, config]) => <button key={size} type="button" onClick={() => updateLayout({ size })} className={`border px-2 py-2 rounded font-pixel text-[9px] ${layout.size === size ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : 'border-retro-border text-retro-dim'}`}>{config.label}</button>)}
-          </div>
-        </div>
-        {cramped && <p className="border border-retro-danger/60 bg-retro-tint-danger text-retro-danger p-2 font-mono text-[10px] leading-relaxed">SPACE IS TIGHT. CHOOSE A SMALLER WINDOW OR ANOTHER CORNER.</p>}
-        <p className="font-mono text-[10px] text-retro-dim leading-relaxed">Move WhatsApp or another floating call window to match the preview. Game cannot move or detect that window.</p>
-      </div>
+      <VideoCallSettingsPanel onClose={() => setOpen(false)} />
     </BottomSheet>}
   </>
 }

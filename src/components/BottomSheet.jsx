@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import useModalHistory from '../hooks/useModalHistory'
 
@@ -43,7 +44,7 @@ let openSheets = 0
 // GameSwitcher while a switch request is pending) must pass an unconditional
 // `onBack` or the guard can eat a back-press and let the *next* one fall
 // through to the underlying route (M-06).
-export default function BottomSheet({ onClose, onBack, children, className = '', ariaLabel, labelledBy }) {
+export default function BottomSheet({ onClose, onBack, children, className = '', ariaLabel, labelledBy, backdropClassName = 'bg-black/70' }) {
   const [dragY, setDragY] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [entered, setEntered] = useState(false)
@@ -121,9 +122,9 @@ export default function BottomSheet({ onClose, onBack, children, className = '',
     else setDragY(0)
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center"
+      className={cn('fixed inset-0 z-50 flex items-end sm:items-center justify-center', backdropClassName)}
       onClick={onClose}
     >
       <div
@@ -159,6 +160,7 @@ export default function BottomSheet({ onClose, onBack, children, className = '',
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
