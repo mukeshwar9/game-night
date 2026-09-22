@@ -4,6 +4,7 @@ import { db } from '../lib/firebase'
 import BattleshipBoard from '../components/BattleshipBoard'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
+import MomentFlash from '../components/MomentFlash'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import {
   FLEET_SPEC,
@@ -92,6 +93,10 @@ export default function BattleshipGame({
   const prevShotCount = useRef(0)
   const gradingRef = useRef(false)
   const verifyingRef = useRef(false)
+  // F-44: a hit/sunk shot is the game's signature beat — full MomentFlash
+  // treatment + the dedicated sounds.again() hit-again ping, not just the
+  // inline status suffix.
+  const [hitFlash, setHitFlash] = useState(null) // 'HIT! GO AGAIN' | 'SUNK! GO AGAIN' | null
 
   const shots = useMemo(() => shotsArray(round.shots), [round.shots])
   const myFleet = secret?.fleet ?? null
@@ -158,8 +163,8 @@ export default function BattleshipGame({
     for (const s of fresh) {
       if (!s.result) continue
       if (s.by === me) {
-        if (s.result.startsWith('sunk:')) sounds.bust()
-        else if (s.result === 'hit') sounds.hit(4)
+        if (s.result.startsWith('sunk:')) { sounds.bust(); setHitFlash('SUNK! GO AGAIN') }
+        else if (s.result === 'hit') { sounds.again(); setHitFlash('HIT! GO AGAIN') }
         else sounds.miss()
       }
     }
@@ -554,6 +559,7 @@ export default function BattleshipGame({
       )}
 
       {/* Status line */}
+      {hitFlash && <MomentFlash text={hitFlash} tone="p1" onDone={() => setHitFlash(null)} />}
       {!matchOver && (
         <div className="text-center space-y-1.5">
           {myShotPending ? (

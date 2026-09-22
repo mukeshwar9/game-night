@@ -154,6 +154,10 @@ export const sounds = {
     vibrate(6 + Math.min(step, 6) * 2)
   },
   join:  ()    => { seq([[440, 0, 0.06], [880, 0.08, 0.12]]); vibrate([0, 15, 30, 25]) },
+  // F-44: dedicated extra-turn / hit-again sound — rising two-note "bonus"
+  // ping. Distinct from hit()'s single crash and win()'s fanfare so the
+  // multi-act moment reads as its own beat, not just another move.
+  again: ()    => { seq([[660, 0, 0.07, 'square', 0.12], [990, 0.08, 0.13, 'square', 0.12]]); vibrate([0, 25, 25, 25]) },
   win:   ()    => { winFanfare(); vibrate([0, 40, 30, 70]) },
   // Bigger fanfare + longer rumble for clinching the whole match
   matchWin: () => {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import MancalaBoard from '../components/MancalaBoard'
+import MomentFlash from '../components/MomentFlash'
 import { INITIAL_PITS, applyMancalaMove, legalPits } from '../lib/mancalaLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,10 @@ export default function MancalaDemo() {
   const [turn, setTurn] = useState('me')
   const [last, setLast] = useState(null)
   const [banner, setBanner] = useState(null)
+  // F-44: extra turn is Mancala's signature beat — full MomentFlash instead of
+  // a text banner line. Sound only for MY extra turn (bot's turn stays quiet
+  // so the audio doesn't spam while the bot chains).
+  const [extraFlash, setExtraFlash] = useState(null) // 'GO AGAIN!' | 'RIVAL GOES AGAIN' | null
   const timerRef = useRef(null)
 
   const done = pits[6] + pits[13] === 48
@@ -64,6 +69,8 @@ export default function MancalaDemo() {
     const over = finishRound(moved)
     if (!over && !moved.extraTurn) setTurn('bot')
     else if (moved.extraTurn && !over) {
+      sounds.again()
+      setExtraFlash('GO AGAIN!')
       setBanner(b => b ?? 'GO AGAIN')
     }
   }
@@ -81,6 +88,7 @@ export default function MancalaDemo() {
         sounds.move('O')
         setLast({ pit, by: 'O', seeds: before })
         if (moved.captured > 0) setBanner(`RIVAL CAPTURED ${moved.captured}!`)
+        if (moved.extraTurn && !moved.result) setExtraFlash('RIVAL GOES AGAIN')
         if (moved.result) {
           const { winner } = moved.result
           if (winner === 'draw') sounds.draw()
@@ -94,7 +102,7 @@ export default function MancalaDemo() {
       })
     }, BOT_DELAY_MS)
     return () => clearTimeout(timerRef.current)
-  }, [turn, done]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [turn, done])
 
   useEffect(() => {
     if (!banner) return
@@ -106,7 +114,7 @@ export default function MancalaDemo() {
 
   const reset = () => {
     clearTimeout(timerRef.current)
-    setPits(INITIAL_PITS()); setTurn('me'); setLast(null); setBanner(null)
+    setPits(INITIAL_PITS()); setTurn('me'); setLast(null); setBanner(null); setExtraFlash(null)
   }
 
   return (
@@ -127,6 +135,8 @@ export default function MancalaDemo() {
       {banner && (
         <p className="font-pixel text-[10px] text-retro-win text-glow-win text-center">{banner}</p>
       )}
+
+      {extraFlash && <MomentFlash text={extraFlash} tone={extraFlash === 'GO AGAIN!' ? 'p1' : 'p2'} onDone={() => setExtraFlash(null)} />}
 
       <MancalaBoard
         pits={pits}

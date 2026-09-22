@@ -61,10 +61,10 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-39 | Arcade splash doesn't pitch the product | High | Quick Win | ✅ Done |
 | F-40 | Demo hub tiles mislabeled ("2P" on vs-CPU demos, mid-word breaks) | High | Quick Win | ✅ Done |
 | F-41 | Demo hub vs Home tell different stories (counts, framing) | Medium | Quick Win | ✅ Done |
-| F-42 | Hidden-info rooms give joiners no anticipation copy | Medium-High | Medium Effort | Open |
+| F-42 | Hidden-info rooms give joiners no anticipation copy | Medium-High | Medium Effort | ✅ Done |
 | F-43 | Rules unreachable inside a room before start | Medium | Quick Win | ✅ Done |
-| F-44 | Multi-act moments under-weighted (extra turn / hit again) | Medium | Medium Effort | Open |
-| F-45 | No curated START HERE path at 44 tiles | Low-Medium | Medium Effort | Open |
+| F-44 | Multi-act moments under-weighted (extra turn / hit again) | Medium | Medium Effort | ✅ Done |
+| F-45 | No curated START HERE path at 44 tiles | Low-Medium | Medium Effort | ✅ Done |
 | F-46 | Share cards not standardized across all end screens | Low | Quick Win | ✅ Done |
 
 ---
@@ -762,6 +762,8 @@ with no narrative wastes the wait.
 
 **Impact:** Turns dead wait time into hype.
 
+
+**Status: ✅ Implemented (Sep 2026).** New registry field `waitingCopy` (`src/lib/games.js`) rendered as a blinking glow line in the waiting room's status block (`WaitingRoom.jsx`), shown while the opponent slot is unfilled. Six hidden-info games covered: Battleship ("RIVAL IS DEPLOYING THEIR SECRET FLEET…"), Hangwoman ("WORD-KEEPER IS CHOOSING A SECRET WORD…"), Password, Wavelength, Spyfair, Sketch.
 ### F-43 · Medium · Quick Win — Rules unreachable inside a room before start
 
 **Where:** "?" rules live on catalog cards only. Inside a created room, before
@@ -787,6 +789,8 @@ for extra-turn/hit-again states.
 
 **Impact:** Game feel; these moments are why people replay.
 
+
+**Status: ✅ Implemented (Sep 2026).** New shared `MomentFlash` (`src/components/MomentFlash.jsx`): full-screen win-flash layer + big pixel text (`moment-pop` keyframes in `index.css`), auto-dismissing, input-transparent. Wired into the three multi-act surfaces: GameStatus's extra-turn branch (D&B / SOS / Mancala multiplayer + all board demos — rising-edge guarded, sound only for the seated player), Battleship hit/sunk shots ("HIT! GO AGAIN" / "SUNK! GO AGAIN"), and MancalaDemo ("GO AGAIN!" / "RIVAL GOES AGAIN"). New dedicated `sounds.again()` — rising two-note bonus ping, distinct from `hit()`/`win()`. The inline bounce text stays as the persistent state indicator; the flash is the moment.
 ### F-45 · Low-Medium · Medium Effort — No curated START HERE path at 44 tiles
 
 **Where:** Home ALL view is sectioned by category; NEW badges exist; no
@@ -798,6 +802,8 @@ Sketch), rendered above categories for first-session visitors only
 
 **Impact:** Conversion of new visitors who freeze at choice overload.
 
+
+**Status: ✅ Implemented (Sep 2026).** `StartHere` rail (`src/components/StartHere.jsx`) above the SELECT GAME picker on Home: 4 curated tiles (Tic-Tac-Toe → Connect Four → Battleship → Sketch) with numbered steps and room-creation behavior. Shown only to genuinely-first-session visitors (no local rooms, no recorded stats) and self-retires once either signal exists or it's dismissed (`gn-start-here-dismissed`, same persisted-dismiss pattern as F-35/F-36).
 ### F-46 · Low · Quick Win — Share cards not standardized
 
 **Where:** shareCard.js wired into GameStatus-driven games + some custom pages

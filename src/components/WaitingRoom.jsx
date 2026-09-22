@@ -15,7 +15,11 @@ const PONG_MATCH_OPTIONS = [3, 5, 7]
 
 export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch, opponentOnline }) {
   const shareUrl = `${window.location.origin}/game/${gameId}`
-  const label = getGameConfig(gameType)?.label
+  const cfg = getGameConfig(gameType)
+  const label = cfg?.label
+  // F-42: hidden-info games pitch what the joiner is waiting FOR ("RIVAL IS
+  // DEPLOYING THEIR SECRET FLEET…") — turns dead wait time into hype.
+  const waitingCopy = cfg?.waitingCopy
   const [showInvite, setShowInvite] = useState(false)
   const [matchLengthBusy, setMatchLengthBusy] = useState(false)
   const [shareBusy, runShare] = useBusy()
@@ -147,6 +151,11 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
             ? (pickFirst ? 'choose who goes first, then start' : 'pick a game, then start')
             : isLobby ? 'chat while you wait — pick a game anytime' : 'share the link to invite a friend'}
         </p>
+        {waitingCopy && !readyToPlay && (
+          <p className="font-pixel text-[8px] text-retro-p1 text-glow-p1 tracking-wider arcade-blink pt-1">
+            {waitingCopy}
+          </p>
+        )}
       </div>
 
       {/* Lobby-only: live game picker, works pre-game with no proposal handshake */}

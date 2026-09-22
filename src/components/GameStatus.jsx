@@ -7,6 +7,8 @@ import { suggestGames } from '@/lib/gameSuggestions'
 import useBusy from '@/hooks/useBusy'
 import { getHeadToHead, formatHeadToHeadLabel } from '@/lib/profile'
 import { toast } from 'sonner'
+import MomentFlash from './MomentFlash'
+import { sounds } from '@/lib/sounds'
 
 const MATCH_WINS = 3
 // M-67: hold round-end CTAs briefly so an eager tap can't cut the WinEffect
@@ -63,6 +65,21 @@ function StickyActionBar({ children }) {
 export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame, matchTarget = MATCH_WINS, matchOver = false, matchWinnerOverride = null }) {
   const scoreX = scores?.X || 0
   const scoreO = scores?.O || 0
+  // F-44: the extra-turn beat gets the full MomentFlash treatment (screen
+  // flash + big "GO AGAIN!" + dedicated sounds.again()), not just the inline
+  // bounce text. Fires on the rising edge only, and only when it's my extra
+  // turn (spectators just get the inline text). extraTurn stays latched until
+  // the next move, so the edge guard prevents a re-flash on every snapshot.
+  const myExtraTurn = !!extraTurn && (mySymbol == null || currentTurn === mySymbol)
+  const prevExtraTurn = useRef(false)
+  const [extraFlash, setExtraFlash] = useState(false)
+  useEffect(() => {
+    if (myExtraTurn && !prevExtraTurn.current) {
+      setExtraFlash(true)
+      if (mySymbol != null) sounds.again()
+    }
+    prevExtraTurn.current = myExtraTurn
+  }, [myExtraTurn, mySymbol])
   const targetWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
   // Lets custom games (arrows) declare a match over on rounds played, not just
   // on the target score — e.g. 1–0 after 3 rounds, or a 3-round draw.
@@ -247,9 +264,12 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     // arcade-blink used for a normal turn, so it can't be misread as a bug.
     if (extraTurn && (mySymbol == null || currentTurn === mySymbol)) {
       return (
-        <p className="text-center font-pixel text-[10px] tracking-wider">
-          <span className="inline-block text-retro-cta text-glow-cta animate-bounce">GO AGAIN!</span>
-        </p>
+        <>
+          {extraFlash && <MomentFlash text="GO AGAIN!" tone="cta" onDone={() => setExtraFlash(false)} />}
+          <p className="text-center font-pixel text-[10px] tracking-wider">
+            <span className="inline-block text-retro-cta text-glow-cta animate-bounce">GO AGAIN!</span>
+          </p>
+        </>
       )
     }
     // Reversi: a player with no legal move is skipped by the rules. Without

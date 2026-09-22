@@ -14,6 +14,7 @@ import Avatar from '../components/Avatar'
 import Onboarding from '../components/Onboarding'
 import DailyTile from '../components/DailyTile'
 import ContinuePlaying from '../components/ContinuePlaying'
+import StartHere from '../components/StartHere'
 import RecentlyPlayed from '../components/RecentlyPlayed'
 import { useAuth } from '../lib/AuthContext'
 import { dismissInvite } from '../lib/social'
@@ -271,6 +272,10 @@ export default function Home() {
         )}
 
         <ContinuePlaying />
+
+        {/* F-45: curated on-ramp for first-session visitors — retires itself
+            once they've played anything or dismissed it */}
+        <StartHere onSelect={createGame} loadingType={loading} />
 
         {/* Game selection */}
         <div className="space-y-1.5">

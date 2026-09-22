@@ -596,6 +596,7 @@ export const GAME_TYPES = [
     category: 'word',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
     custom: true,
+    waitingCopy: 'WORD-KEEPER IS CHOOSING A SECRET WORD…',
   },
   {
     type: 'dotsandboxes', label: 'DOTS & BOXES',
@@ -1088,6 +1089,9 @@ export const GAME_TYPES = [
     addedAt: '2026-08-21',
     durationMin: 8, tags: ['thinky'], solo: true,
     custom: true,
+    // F-42: hidden-info games get waiting-room anticipation copy — what the
+    // joiner is waiting FOR, not a generic spinner.
+    waitingCopy: 'RIVAL IS DEPLOYING THEIR SECRET FLEET…',
   },
   {
     type: 'mancala', label: 'MANCALA',
@@ -1175,6 +1179,7 @@ export const GAME_TYPES = [
     category: 'party',
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    waitingCopy: 'THE HIDDEN TARGET IS BEING SET…',
     startRound: (players) => ({
       round: {
         clueGiver: seatOrderWL(players)[0] ?? null,
@@ -1200,6 +1205,7 @@ export const GAME_TYPES = [
     category: 'party',
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    waitingCopy: 'THE ROLE CARDS ARE BEING DEALT…',
     // no startRound — SpyfairGame drives its own round start
   },
   {
@@ -1246,6 +1252,7 @@ export const GAME_TYPES = [
     addedAt: '2026-09-18',
     durationMin: 6, tags: ['quick', 'thinky'], solo: true,
     custom: true,
+    waitingCopy: 'A SECRET PASSWORD AWAITS…',
   },
   {
     type: 'anagrams', label: 'ANAGRAMS',
@@ -1294,6 +1301,7 @@ export const GAME_TYPES = [
     addedAt: '2026-07-11',
     durationMin: 10, tags: ['thinky'],
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    waitingCopy: 'A SECRET WORD WILL SOON NEED DRAWING…',
     startRound: (players) => {
       const order = seatOrderSketch(players)
       const startedAt = Date.now()
