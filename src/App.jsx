@@ -19,6 +19,7 @@ import BottomTabBar from './components/BottomTabBar';
 import NavBar, { HomeInterceptProvider, TAB_BAR_ROUTES } from './components/NavBar';
 import { AuthProvider } from './lib/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import { VideoCallLayoutProvider } from './components/VideoCallLayout';
 
 // M-61 + M-84: reset scroll and replay a short fade on every route change.
 // `key={pathname}` remounts the wrapper so the CSS animation (index.css
@@ -68,7 +69,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <HomeInterceptProvider>
-            <AppRoutes />
+            <VideoCallLayoutProvider><AppRoutes /></VideoCallLayoutProvider>
             <Toaster />
             <InviteToasts />
             <UpdatePrompt />

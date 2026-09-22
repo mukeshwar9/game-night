@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Local side lane for an external floating video-call window. */
+.video-call-shell-on {
+  padding-left: var(--video-call-reserve-left, 0px);
+  padding-right: var(--video-call-reserve-right, 0px);
+  transition: padding 160ms ease-out;
+}
+
+.video-call-corner-picker {
+  width: 74px;
+  height: 58px;
+  position: relative;
+  border: 1px solid rgb(var(--c-border));
+  background: rgb(var(--c-deep));
+  border-radius: 4px;
+}
+.video-call-corner { position: absolute; width: 24px; height: 18px; border: 1px solid rgb(var(--c-border)); background: rgb(var(--c-card)); padding: 0; }
+.video-call-corner span { display: block; width: 8px; height: 6px; background: rgb(var(--c-p2)); opacity: .45; }
+.video-call-corner-selected { border-color: rgb(var(--c-cta)); }
+.video-call-corner-selected span { opacity: 1; box-shadow: 0 0 5px rgb(var(--c-p2)); }
+.video-call-corner-top-left { top: 5px; left: 5px; }
+.video-call-corner-top-right { top: 5px; right: 5px; }
+.video-call-corner-bottom-left { bottom: 5px; left: 5px; }
+.video-call-corner-bottom-right { bottom: 5px; right: 5px; }
+
 /* Self-hosted pixel font — replaces the Google Fonts round-trip (removes
    render-blocking preconnect + stylesheet fetch, avoids the FOUT swap). */
 @font-face {

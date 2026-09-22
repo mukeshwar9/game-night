@@ -50,6 +50,7 @@ import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
 import { Link, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import VideoCallSettingsButton, { VideoCallShell } from '../components/VideoCallLayout';
 import TronDemo from './TronDemo';
 import SumoDemo from './SumoDemo';
 import WavelengthDemo from './WavelengthDemo';
@@ -2339,9 +2340,10 @@ function LocalPlayPage({ routeType }) {
   }, [routeType])
 
   return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+    <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-3">
+          <VideoCallSettingsButton />
           <span className="text-xs text-retro-p2 bg-retro-tint-p2 border border-retro-p2/60 rounded px-2 py-1 font-mono">
             PASS & PLAY
           </span>
@@ -2358,7 +2360,7 @@ function LocalPlayPage({ routeType }) {
           </div>
         </div>
       </div>
-    </div>
+    </div></VideoCallShell>
   )
 }
 
@@ -2449,10 +2451,11 @@ function DemoHub() {
   const shown = DEMOS.filter(d => getGameConfig(d.type)?.category === activeCat)
 
   return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+    <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {/* Header */}
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-3">
+          <VideoCallSettingsButton />
           <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">
             Demo
           </span>
@@ -2489,6 +2492,6 @@ function DemoHub() {
           <active.Component />
         </div>
       </div>
-    </div>
+    </div></VideoCallShell>
   )
 }

@@ -65,6 +65,7 @@ import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import ThemeSwitcher from '../components/ThemeSwitcher'
+import VideoCallSettingsButton, { VideoCallShell } from '../components/VideoCallLayout'
 import RulesModal, { RulesButton } from '../components/RulesModal'
 import {
   commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
@@ -1456,7 +1457,7 @@ export default function Game() {
       proposal: null,
     }
     return (
-      <div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
         {showLeaveConfirm && (
           <LeaveMatchConfirm onConfirm={confirmLeaveMatch} onCancel={cancelLeaveMatch} />
         )}
@@ -1468,6 +1469,7 @@ export default function Game() {
           <div className="flex items-center justify-between">
             <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">← HOME</Link>
             <div className="flex items-center gap-3">
+              <VideoCallSettingsButton />
               <ThemeSwitcher />
               <RulesButton onClick={() => setShowRules(true)} />
               {amSeated && game.status !== 'waiting' && (
@@ -1533,7 +1535,7 @@ export default function Game() {
         {showInvite && (
           <InviteFriendModal gameId={gameId} gameType={game.gameType} onClose={() => setShowInvite(false)} />
         )}
-      </div>
+      </div></VideoCallShell>
     )
   }
 
@@ -1571,7 +1573,7 @@ export default function Game() {
   const reservesStickyBar = !isCustom && game.status === 'finished'
 
   return (
-    <div className={cn(
+    <VideoCallShell><div className={cn(
       'min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]',
       // M-05: on short/landscape viewports, real-time arenas need every
       // pixel of height back from the outer shell chrome.
@@ -1619,6 +1621,7 @@ export default function Game() {
           </Link>
           <div className={cn('flex items-center gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>
             <ThemeSwitcher />
+            <VideoCallSettingsButton />
             <RulesButton onClick={() => setShowRules(true)} />
             {/* M-24: GameSwitcher opens its own full-screen sheet whose open
                 state never surfaces to this component, so a live-score
@@ -2127,6 +2130,6 @@ export default function Game() {
       {showInvite && (
         <InviteFriendModal gameId={gameId} gameType={game.gameType} onClose={() => setShowInvite(false)} />
       )}
-    </div>
+    </div></VideoCallShell>
   )
 }
