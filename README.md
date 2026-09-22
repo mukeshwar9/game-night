@@ -145,16 +145,33 @@ npm run dev
 5. Deploy the security rules: `firebase deploy --only database`
 6. (Recommended) enable **App Check**
 
-Note for manual multiplayer testing: same-browser tabs share the auth uid, so the second player needs a private/incognito window or another browser.
+Note for manual multiplayer testing: same-browser tabs share the auth uid, so the second player needs a private/incognito window or another browser. Two ordinary tabs CAN play as two distinct players with the dev testing mode below (F-51) — see `docs/DEV-MULTIPLAYER.md`.
+
+## Local multiplayer testing (dev emulators)
+
+Same-browser testing of two-player and party games without incognito profiles — each tab gets its own isolated identity backed by local Firebase emulators (no `.env.local` needed for this mode):
+
+```bash
+# Terminal 1 — Auth + Realtime Database emulators (local demo project)
+npm run test:emulators
+
+# Terminal 2 — Vite dev server with the testing flag on
+npm run dev:test
+# → http://localhost:5173 shows the DEV MULTIPLAYER LAUNCHER
+```
+
+From the launcher, open slots **P1**–**P8** or **SPECTATOR** — each opens an ordinary tab as a separate player (`?devPlayer=p1`). Full walkthrough + limitations: `docs/DEV-MULTIPLAYER.md`.
 
 ## Commands
 
 ```bash
-npm run dev       # dev server with HMR
-npm run build     # production build → dist/
-npm run preview   # serve dist/ locally
-npm run lint      # ESLint
-npm test          # Vitest — 28 suites covering every game's pure logic + commit-reveal + social helpers
+npm run dev            # dev server with HMR
+npm run build          # production build → dist/
+npm run preview        # serve dist/ locally
+npm run lint           # ESLint
+npm test               # Vitest — 28 suites covering every game's pure logic + commit-reveal + social helpers
+npm run test:emulators # local Firebase Auth + RTDB emulators (demo-gamenight-test project)
+npm run dev:test       # dev server with the local-multiplayer testing flag on
 ```
 
 ## Deploy
