@@ -66,6 +66,11 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-44 | Multi-act moments under-weighted (extra turn / hit again) | Medium | Medium Effort | Open |
 | F-45 | No curated START HERE path at 44 tiles | Low-Medium | Medium Effort | Open |
 | F-46 | Share cards not standardized across all end screens | Low | Quick Win | Open |
+| F-47 | Real-time simulation continues during disconnect grace | High | Medium Effort | Planned |
+| F-48 | Board moves lack server-acknowledgement feedback | Medium | Medium Effort | Planned |
+| F-49 | Initial database connection failure has no global feedback | Medium | Medium Effort | Planned |
+| F-50 | Searchable bottom sheets can overlap the mobile keyboard | Medium | Medium Effort | Planned; device verification required |
+| F-51 | Same-browser local multiplayer testing needs isolated player sessions | Medium | Medium Effort | Planned |
 
 ---
 
@@ -808,3 +813,174 @@ NEXT · SWITCH GAME.
 - Air Hockey ships demo-first (PRD order); catalogue entry goes realtime-only
   until the transport page lands — confirm the ModeChooser doesn't offer
   broken "PLAY A FRIEND" for it.
+
+---
+
+## Connection recovery and mobile keyboard implementation plan — September 22, 2026
+
+**Status:** documentation only; none of F-47–F-50 is marked implemented. Findings come from code inspection. Network interruption and physical-device keyboard reproduction remain required. Earlier audit completion statements apply to their dated findings, not this section.
+
+**Scope:** address the four findings below. Preserve game rules, scoring, seats, and existing themes. Reuse the current transport, Firebase room model, busy-action convention, and shared sheet. Do not add a backend, change game balance, or treat a browser focus event as proof of disconnection.
+
+### F-47 · High — Pause real-time play during connection recovery
+
+**Evidence and affected files:** `src/lib/realtime/rtc.js` starts its existing disconnect grace timer without publishing a new status. `src/lib/realtime/useRealtimePeer.js` consequently keeps reporting `connected`. Pong's host loop in `src/pages/PongGame.jsx` continues simulation using the last guest direction. Inspect `SnakeGame.jsx`, `useRealtimeHost.js`, and `useRealtimeGuest.js` as shared-status consumers; they must handle the new state consistently. The shared host hook already expires continuous guest input, so preserve that safeguard rather than duplicating it.
+
+**Player experience:** keep the last authoritative board visible with “CONNECTION LOST — GAME PAUSED.” Recover automatically during the existing grace period. A failed connection offers RETRY. Returning to play uses the game's existing countdown and a fresh host snapshot, with no replay of inputs entered during the interruption.
+
+**Implementation:**
+
+1. Add `reconnecting` to the transport status contract and its hook documentation. Emit it immediately when a connected peer enters `disconnected`; retain the existing grace timer only to decide when to emit `failed`. Clear the timer on recovery, terminal failure, and teardown. Do not allow an obsolete timer to change the status of a replacement peer.
+2. Update `src/lib/realtime/realtimeStatus.jsx` to distinguish initial linking, paused recovery, failure, and intentional closure. An unexpected data-channel close must reach a recoverable failure state instead of displaying “reconnecting” indefinitely.
+3. On departure from `connected`, freeze host simulation without resetting the round, accumulated score, or finish guard. Reset frame timestamps and fixed-step accumulators so reconnect does not simulate elapsed offline time. Do not emit points, collision outcomes, or game-over writes while paused.
+4. Clear latched guest controls and queued tap actions. For Pong's separate loop, track guest input freshness and invalidate its cached direction on disconnect; reuse the existing shared-host input-expiry policy where appropriate. Require fresh controls after recovery, including clearing held local controls that would otherwise resume without another input.
+5. Freeze guest extrapolation while reconnecting. After reconnect, keep the paused view until a fresh authoritative snapshot arrives; discard any accumulated outbound input. Share the host's resume/countdown state so peers do not resume independently based only on their local connection events.
+6. Preserve current simulation state for automatic recovery on the same connection. Explicit RETRY currently restarts connection-dependent loops: define and test a synchronized restart of the current rally with committed round scores preserved, rather than silently creating divergent simulations. If retry requires a shared signaling attempt identifier, update both peers together and scope cleanup to that attempt.
+7. Audit every consumer of `useRealtimePeer`, `useRealtimeHost`, and `useRealtimeGuest` for exhaustive status handling. Keep room-database connectivity distinct from gameplay-channel connectivity: a lost signaling connection does not alone prove the existing peer channel failed.
+
+**Timing policy:** retain existing grace and countdown values initially; they are inherited behavior, not newly validated balance targets. Any later input-freshness or timeout tuning must specify a candidate value, test conditions, success criterion, and adjustment direction. Browser disconnect detection is not instantaneous; this change guarantees a pause after detection, not zero elapsed gameplay after physical network loss.
+
+**Acceptance and verification:**
+
+- Interrupt the guest network while its paddle is moving. Once recovery status is reported, both displayed play and authoritative scoring stop; stale movement does not resume.
+- Recover inside the grace window: preserve state, receive a fresh snapshot, complete the existing countdown, and resume without a physics jump or duplicate scoring.
+- Remain disconnected beyond the grace window: show a working retry path. Test retries initiated by each seat, simultaneous retries, and recovery racing the failure timer.
+- Exercise channel closure, unmount, game switching, and host background/foreground transitions. Document any browser suspension behavior that cannot be reproduced reliably.
+- Use fake transport events and timers to verify status transitions and timer cancellation. Add focused pure transition tests where logic is extracted; use two devices/profiles for simulation and UI verification.
+
+### F-48 · Medium — Separate pending moves from confirmed moves
+
+**Evidence and affected files:** `src/pages/Game.jsx` calls `update()` for standard moves, but plays move feedback before acknowledgement. `moveInFlight` is cleared by any new `game` snapshot, including local Firebase echoes and unrelated presence/chat updates. The ref is not a visible confirmation state.
+
+**Player experience:** immediately show the chosen move as pending with “MOVE PENDING — WAITING FOR CONNECTION” when disconnected, or “SAVING MOVE…” while awaiting acknowledgement. Confirm only after the write resolves. On rejection, explain that the move was not saved and show the reconciled board. Do not invite another submission while the first is unresolved.
+
+**Implementation:**
+
+1. Introduce local pending-action state owned by the room page: action token, room/game/round identity, submitted move, and phase. Keep a synchronous ref for re-entry protection and React state for rendering. Acquire the guard before asynchronous move preparation, including deterministic dice calculations, and release it on every preparation failure or rejection path.
+2. Stop clearing the guard in the generic `[game]` snapshot effect. A Firebase local echo, a presence update, or an opponent chat message is not acknowledgement. Only settlement of the matching action may clear its pending state; an older promise must not clear a newer action or affect a switched room.
+3. Pass the pending state into the existing board-disabled path and show a compact status next to the board. For extra-turn games, wait for acknowledgement before accepting the next move even when `currentTurn` stays unchanged.
+4. Keep immediate visual placement if desired, but explicitly distinguish it from confirmed persistence. Delay confirmation sounds and irreversible result feedback until acceptance, or label existing immediate sound as input feedback. Audit optimistic winning moves so they do not expose rematch actions or record a confirmed win before the pending move settles.
+5. On rejection, clear only the matching pending action, show the failure toast, and reconcile with Firebase's authoritative state. Do not restore an old whole-room snapshot, which could overwrite newer player or chat data. Preserve enough move context for a deliberate retry only after eligibility is checked again.
+6. Treat unresolved offline writes as pending, not failed. A UI timeout cannot cancel a queued Firebase write. Do not automatically resubmit, clear the guard, or offer an unsafe cancel action merely because acknowledgement is slow. Explain that leaving/reloading may lose an unacknowledged move.
+7. Close the stale-write gap alongside acknowledgement handling: evaluate moves against current room state in a transaction, rechecking player, game type, round identity, status, and turn. Reuse pure registry move helpers. For asynchronous dice preparation, capture the seed/index and abort or recompute when they no longer match. Keep sounds and UI side effects outside transaction callbacks, which may run repeatedly.
+8. Use an existing reliable round identity if available. Otherwise introduce a round revision only where needed, update all relevant reset paths and rules, and abort queued actions targeting a different revision. Audit `set`/`update` writers on the same room because they can interfere with transactions. Keep this a standard-move change; custom-game write flows require their own review.
+
+**Acceptance and verification:**
+
+- Delay acknowledgement, then send a chat/presence update: the move remains pending and repeated taps do not submit again.
+- Test a normal turn, an extra turn, deterministic dice preparation, and a winning move. Each acknowledged action commits once and unlocks only the appropriate next action.
+- Disconnect before submission, reconnect, and verify either one valid commit or an explained rejection after revalidation. A rematch or game switch must not receive a stale move.
+- Reject a write through emulator rules: show failure, reconcile the board, and avoid duplicate scores or premature match records.
+- Test extracted move-validation helpers as pure logic. Verify acknowledgement/local-echo ordering with the Firebase emulator or controlled two-client testing; pure logic tests alone are insufficient.
+
+### F-49 · Medium — Explain initial database connection failures
+
+**Evidence and affected files:** `src/components/ConnectionBanner.jsx` ignores `.info/connected === false` until `everConnected` becomes true. This avoids startup flicker but also hides a persistent initial connection failure when `navigator.onLine` reports true. `src/App.jsx` mounts the banner; inspect auth boot gating so the initial splash does not hide all recovery guidance.
+
+**Player experience:** distinguish “CONNECTING…”, “UNABLE TO CONNECT — CHECK YOUR CONNECTION”, “OFFLINE”, and “CONNECTION LOST — RECONNECTING”. Keep database connection state separate from a pending write and from an opponent's presence. A successful connection must not imply every queued move is saved.
+
+**Implementation:**
+
+1. Model initial connecting, connected, reconnecting, offline, and delayed-initial-connection states explicitly. Keep `.info/connected` authoritative for the database transport and browser offline events as an additional hint; an online event alone must not mark Firebase connected.
+2. Start an initial-connection feedback timer when Firebase monitoring begins. As an initial implementation hypothesis, reuse the current banner grace duration rather than adding another unrelated constant. This is not a validated latency target: if ordinary successful cold starts repeatedly show failure guidance, increase or separate the initial threshold; if blocked starts leave testers uncertain, shorten it or show neutral connecting copy earlier.
+3. A timer expiry changes explanatory UI only. Continue listening for automatic Firebase recovery. On true connectivity, cancel outstanding timers and clear obsolete status; on teardown, remove listeners and timers.
+4. If Firebase is absent or misconfigured, defer to the existing configuration error rather than showing an endless connection spinner. If auth boot prevents the banner from mounting, expose equivalent boot-stage status without treating auth and database readiness as interchangeable.
+5. Offer an explicit reload fallback only with honest pending-action messaging. Do not call global database disconnect/reconnect functions merely to animate a retry button, and never discard pending writes silently. Keep automatic reconnect as the primary recovery mechanism.
+6. Use a polite status announcement and avoid repeated screen-reader announcements or toasts on each retry tick. Place feedback so it does not cover primary controls or compete with the game-specific peer overlay.
+
+**Acceptance and verification:**
+
+- Block Firebase connectivity while keeping browser networking online from first load: delayed initial guidance appears even though there was never a successful connection.
+- Restore connectivity: the banner clears without reload. Repeat with initial auth delay to ensure the boot splash provides a useful explanation.
+- Verify normal startup avoids failure-message flicker; distinguish offline startup from a later disconnect. An `online` browser event must not clear a still-failed database status.
+- Use fake timers and an extracted pure status reducer for transition coverage. Manually verify browser events, mounted/unmounted listeners, and no duplicate banners.
+
+### F-50 · Medium — Keep searchable sheets usable above mobile keyboards
+
+**Evidence and affected files:** `src/components/BottomSheet.jsx` uses a fixed bottom-aligned overlay with `vh` maximum heights. `src/components/EmoteBar.jsx` gives its searchable picker a fixed `vh`-based height and clipped outer overflow. Neither follows the visual viewport. This is a code-backed risk requiring device reproduction, not a confirmed rendering failure. Mobile keyboards can shrink the visual viewport without shrinking the layout viewport ([Chrome viewport behavior](https://developer.chrome.com/blog/viewport-resize-behavior)).
+
+**Player experience:** opening the reaction search keyboard keeps the search field, results, and dismissal control reachable. Results scroll inside the available sheet. Closing the keyboard or rotating the phone restores the layout without lost search text or unexpected dismissal.
+
+**Implementation:**
+
+1. Reproduce on a physical Android browser and iPhone browser/PWA before editing. Record the visual viewport height/offset and the sheet's bounding rectangle with keyboard closed, open, and closing. Desktop device emulation alone does not establish keyboard behavior.
+2. Add a narrowly scoped visual-viewport hook for open sheets. Read `window.visualViewport.height` and `offsetTop`; subscribe to its resize and scroll events, batch geometry updates through animation frames, and clean up all listeners on close. Fall back to normal viewport layout when the API is unavailable.
+3. Position the overlay's available rectangle against the visual viewport and constrain the panel to that rectangle. Account for viewport offset as well as height; simply replacing `vh` with `dvh` is not a complete keyboard strategy. Preserve pinch zoom and do not assume every viewport resize means a keyboard opened.
+4. Let `BottomSheet` own the available-height constraint. Replace the reaction picker's independent `85vh` sizing with a constraint based on that shared space. Keep its title/search/dismiss controls non-shrinking and its results area `min-height: 0` with internal scrolling. Avoid competing outer and inner scroll areas that make results unreachable.
+5. Preserve safe-area padding without subtracting the keyboard twice. Keep the drag handle and explicit close action reachable. Keyboard focus, typing, result scrolling, or a viewport resize must not trigger drag-to-dismiss.
+6. Preserve the existing 16px input font floor. Do not force blur, clear the search, disable zoom, or call page-wide `scrollTo` on every geometry update. When focus needs scrolling, limit it to the active field within the sheet.
+7. Check every existing `BottomSheet` consumer on desktop and mobile. Maintain desktop centering, modal back-navigation behavior, and focus restoration to the opener. Do not automatically shrink all game boards as part of this sheet-specific change.
+
+**Acceptance and verification:**
+
+- Search reactions with the keyboard open: input and matching results remain visible, scrollable, and tappable; selection closes the picker normally.
+- Test portrait/landscape, keyboard dismissal/reopening, long results, no results, zoom, browser chrome movement, and installed-PWA mode.
+- Verify Android back dismisses keyboard/sheet in the expected order without leaving the game unexpectedly. Verify iPhone scrolling does not strand the sheet above or behind the keyboard.
+- Verify desktop dialogs, non-search sheets, and fallback behavior without `visualViewport`. Test pure viewport-rectangle calculations if extracted; visual acceptance requires real devices.
+
+### Delivery sequence and completion gate
+
+Implement F-47 first because it affects match outcomes. Follow with F-48 and F-49 so action confirmation and connection feedback share consistent terminology; implement F-50 independently after reproducing its device behavior. Keep each finding separately reviewable and update its status only when its own acceptance checks pass.
+
+For code implementation, follow the repository's Firebase, theming, and async-busy rules. Run relevant pure-logic tests, `npm run lint`, and `npm run build`; run the full existing test suite before handoff. Add focused tests for new pure state transitions and move validation, not tests that merely copy implementation. Record manual device/browser/network results and remaining limitations. Use distinct authenticated profiles or devices for multiplayer tests; two regular tabs share identity.
+
+Completion means acknowledged moves cannot be confused with queued moves, detected gameplay disconnects stop authoritative play, initial connection trouble is visible, and keyboard-open sheets pass the device checks. Documentation and passing unit tests alone do not prove those runtime outcomes.
+
+
+## Anagrams Race — next improvements
+
+Added by Luna model · 2026-09-22 16:54 IST.
+
+Prioritized follow-up work:
+
+1. **Reconnect + round state** — IN PROGRESS. Define `ready → playing → reveal → next/finished`; recover rack, timer, words, and finish state after refresh or reconnect; show reconnecting state and lock submissions while disconnected. Validate with two browser profiles, refresh, background tab, disconnect, and reconnect.
+2. **Better word feedback** — Show score delta, visible score burst, consistent sound, and immediate waiting copy after `FINISH EARLY`.
+3. **Dictionary fairness** — Curate obscure words, define plural/proper-noun/abbreviation/offensive-word policy, version the dictionary, and improve missed-word ranking.
+4. **Reveal clarity** — Use player names, show round score, word count, match score, and the tie-break reason.
+5. **Accessibility + mobile** — Add focus state and screen-reader announcements for accepted words, points, timer ending, opponent finish, and reconnecting.
+6. **Automated multiplayer coverage** — Test duplicate Enter, delayed submission, deadline submission, both players finishing, and reconnect recovery.
+
+Stop condition for item 1: a reconnecting player sees a clear saved-round state, cannot submit stale input, and resumes the same Firebase round after reconnection without creating a new rack.
+
+## F-51 · Local multiplayer testing in one browser — September 22, 2026
+
+**Status:** planned; documentation only. This feature is not implemented.
+
+**Goal:** allow Chrome DevTools MCP and human testers to control distinct players in ordinary browser tabs, covering two-player and party games without requiring incognito profiles. Firebase Auth and Realtime Database emulators are the selected backend. Existing same-browser tabs share identity until this feature ships.
+
+### Implementation
+
+- Add dedicated commands to start the Auth and Realtime Database emulators and Vite testing mode. Use a `demo-` Firebase project ID and the repository database rules. Missing emulators must produce a clear error, never a fallback to live Firebase.
+- Enable testing mode only when both its dedicated development flag and a loopback hostname match. Production builds ignore testing parameters. Ordinary development continues using its existing configuration outside this mode.
+- Identify player slots through URLs such as `http://localhost:5173/?devPlayer=p1`. Store the selected slot in tab session storage so navigation preserves it. An explicit URL slot takes precedence over a stored slot; switching slots must initialize the matching identity before rendering the game.
+- Create a separate named Firebase app/Auth instance per player slot, with Database using the same app. Connect both services to their emulators before authentication or database operations. Each slot signs in anonymously with a real emulator uid. Reloading preserves that slot; different slots receive different uids. Opening the same slot intentionally reopens the same player.
+- Namespace player-specific storage by slot: profile mirrors, onboarding, stats, recent rooms, seat records, and hidden-word secrets. Audit direct storage accesses and use a shared storage adapter; do not monkey-patch browser storage. Preserve tab-local storage for secrets that are already tab-local. Normal mode keeps existing keys.
+- Prevent testing profiles from importing normal-browser profile or stats data. Disable Google account upgrade in testing mode. Identity changes must affect only the selected slot.
+- Keep existing seat claims, security rules, presence, game logic, and multiplayer transport active. Do not fake player IDs or bypass authorization.
+
+### Browser UX and automation
+
+- Provide a development-only player launcher with slots P1–P8 and a spectator action. Opening a different slot creates an ordinary tab using a distinct identity; party games still enforce their own capacity.
+- Accept `devPlayer` on existing room URLs so agents can join players directly. Launcher links must explicitly include their target slot to avoid inheriting the opener's session storage identity.
+- Show a persistent development badge with player slot, uid, and emulator connection state. Use stable accessible names for launcher controls so MCP can reliably identify them.
+- The spectator action uses a separate authenticated emulator identity and skips seat claiming only within this gated test mode. Existing spectator restrictions remain in force; this is not a general permission bypass.
+- Document an MCP walkthrough: open P1, create a room, open P2 at that room URL, verify distinct seats, play, reload, and reclaim. Include a party walkthrough that opens additional slots, starts the game, and exercises role rotation.
+- Explain that background-tab throttling can affect simultaneous reflex games. Use separate visible windows for those checks. Same-browser testing does not prove cross-network WebRTC connectivity or NAT traversal.
+
+### Acceptance and tests
+
+- Two ordinary tabs claim X and O with different emulator uids. Opening the same slot retains that player's identity rather than creating an unintended new player.
+- Party slots claim distinct seats up to the selected game's supported limit; excess visitors retain normal spectator behavior.
+- Profile edits, sign-out, stats, room records, and secrets stay isolated between slots and from ordinary browser sessions.
+- Reload preserves identity and seat. Opening a new slot never inherits another slot's copied seat record or hidden-word secret.
+- Spectator mode cannot submit moves or take an empty seat.
+- Disconnect/reconnect, rematches, and game switching use existing gameplay paths without identity collisions.
+- Emulator startup failure stays local and produces actionable feedback. Verify no testing-mode operation targets the configured live Firebase project.
+- Production builds and ordinary development retain existing authentication and storage behavior, including when a testing query parameter is present.
+- Add focused tests for mode gating, slot parsing, URL/session precedence, and storage isolation. Run existing tests, lint, and build. Verify representative board, hidden-word, Sketch, and WebRTC flows through Chrome DevTools MCP.
+
+### Defaults and completion gate
+
+Testing is opt-in, emulator-only, and anonymous. Emulator data is disposable; this plan includes no production account migration or rule relaxation. Document emulator prerequisites and startup commands alongside the MCP walkthrough. Resetting emulator data requires resetting the associated test sessions so cached identities and seats do not masquerade as valid room membership.
+
+Completion requires ordinary same-browser tabs to act as separate authenticated players through real room and game flows, with evidence from both two-player and party tests. Documentation, mock identities, or passing pure-logic tests alone do not meet this condition.

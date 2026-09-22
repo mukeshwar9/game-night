@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAPI JUMP — retro doodle concept</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--c-bg:8 8 16;--c-surface:15 15 26;--c-card:19 19 40;--c-border:30 30 58;--c-text:224 224 255;--c-dim:122 122 186;--c-p1:0 229 255;--c-p2:255 64 129;--c-cta:255 230 0;--c-win:57 255 20;--c-danger:255 45 45}
+body{background:rgb(var(--c-bg));color:rgb(var(--c-text));font-family:ui-monospace,Menlo,Consolas,monospace;margin:0;line-height:1.5}
+.wrap{max-width:1060px;margin:0 auto;padding:24px 16px 80px;min-width:0}
+.pix{font-family:'Press Start 2P',ui-monospace,monospace}
+.hero{border:2px solid rgb(var(--c-border));background:rgb(var(--c-surface));border-radius:12px;padding:26px 22px;position:relative;overflow:hidden}
+.hero:after{content:'';position:absolute;inset:0;background:radial-gradient(600px 200px at 15% 0%,rgb(var(--c-p1)/.14),transparent),radial-gradient(600px 200px at 90% 30%,rgb(var(--c-p2)/.14),transparent);pointer-events:none}
+h1{font-size:20px;margin:0 0 8px;overflow-wrap:anywhere}
+.sub{color:rgb(var(--c-dim));font-size:13px;max-width:72ch}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.badge{font-size:11px;border:1px solid rgb(var(--c-border));border-radius:999px;padding:4px 10px;color:rgb(var(--c-dim));overflow-wrap:anywhere}
+.badge.hot{border-color:rgb(var(--c-cta));color:rgb(var(--c-cta))}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:880px){.grid2{grid-template-columns:1fr}}
+.card{border:2px solid rgb(var(--c-border));background:rgb(var(--c-card));border-radius:12px;padding:20px;margin:20px 0;min-width:0}
+.card h2{font-size:15px;margin:0;overflow-wrap:anywhere}
+.tag{font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid rgb(var(--c-border));color:rgb(var(--c-dim));overflow-wrap:anywhere}
+.tag.p1{color:rgb(var(--c-p1));border-color:rgb(var(--c-p1)/.5)}.tag.p2{color:rgb(var(--c-p2));border-color:rgb(var(--c-p2)/.5)}.tag.cta{color:rgb(var(--c-cta));border-color:rgb(var(--c-cta)/.5)}
+.stage{background:rgb(var(--c-surface));border:1px solid rgb(var(--c-border));border-radius:10px;padding:14px;min-width:0}
+.stage h3{font-size:11px;margin:0 0 10px;color:rgb(var(--c-dim))}
+canvas#jump{display:block;width:100%;max-width:340px;margin:0 auto;border:2px solid rgb(var(--c-border));border-radius:10px;background:#0a0a1c;touch-action:none;image-rendering:pixelated}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.btn{border:1px solid rgb(var(--c-border));background:rgb(var(--c-bg));color:rgb(var(--c-text));border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer}
+.btn:hover{border-color:rgb(var(--c-cta))}.btn.primary{border-color:rgb(var(--c-cta));color:rgb(var(--c-cta))}
+ul{font-size:13px;margin:0;padding-left:18px}li{margin:6px 0}
+pre{background:#0c0c20;border:1px solid rgb(var(--c-border));border-radius:8px;padding:12px;font-size:11.5px;overflow:auto;color:#cfe3ff;overflow-wrap:anywhere;white-space:pre-wrap}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{border:1px solid rgb(var(--c-border));padding:8px 10px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+th{background:rgb(var(--c-surface));font-size:11px;color:rgb(var(--c-dim))}
+.racebar{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:11px}
+.track{flex:1;min-width:0;height:10px;background:rgb(var(--c-bg));border:1px solid rgb(var(--c-border));border-radius:99px;overflow:hidden}
+.fill{height:100%;min-width:0}
+.kbd{border:1px solid rgb(var(--c-border));border-radius:4px;padding:1px 6px;font-size:11px;background:rgb(var(--c-bg))}
+.note{color:rgb(var(--c-dim));font-size:12px}
+.vote{display:flex;gap:8px;flex-wrap:wrap}.vote button{border:1px solid rgb(var(--c-border));background:rgb(var(--c-surface));color:rgb(var(--c-text));padding:8px 12px;border-radius:999px;cursor:pointer;font-size:12px}.vote button.voted{border-color:rgb(var(--c-win));color:rgb(var(--c-win))}
+img,svg,video,canvas{max-width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+<div class="pix" style="font-size:11px;color:rgb(var(--c-cta))">GAME NIGHT // RETRO CONCEPT</div>
+<h1 class="pix">PAPI JUMP — doodle jump, arcade skin</h1>
+<p class="sub">Vertical jumper race. Same seeded platforms both players, own physics each client, ghost height bars, highest wins. Fits existing <b>simultaneous race</b> pattern (MineRace / WordRace / Typing). No WebRTC. Retro look = midnight tokens + pixel font + scanlines + chunky platforms.</p>
+<div class="badges"><span class="badge hot">2P SIMULTANEOUS RACE</span><span class="badge">CUSTOM TRUE</span><span class="badge">NO P2P</span><span class="badge">MOBILE + KEYS</span><span class="badge">PLAYABLE MOCK BELOW</span></div>
+</header>
+
+<div class="grid2">
+<div class="card">
+<h2 class="pix">PLAYABLE MOCK — tap / arrows</h2>
+<div class="stage">
+<h3 class="pix">◀ <span class="kbd">←</span> <span class="kbd">→</span> / DRAG TO STEER · LAND TO BOUNCE · WRAP EDGES</h3>
+<canvas id="jump" width="340" height="480"></canvas>
+<div class="row"><button class="btn primary" id="jStart">START</button><button class="btn" id="jReset">RESET</button><span class="note" id="jScore">SCORE 0m · BEST 0m</span></div>
+<div class="racebar"><span class="pix" style="color:rgb(var(--c-p1));font-size:10px">YOU</span><div class="track"><div class="fill" id="fYou" style="width:0%;background:rgb(var(--c-p1))"></div></div><span id="vYou" style="font-size:11px">0m</span></div>
+<div class="racebar"><span class="pix" style="color:rgb(var(--c-p2));font-size:10px">FOE</span><div class="track"><div class="fill" id="fFoe" style="width:0%;background:rgb(var(--c-p2))"></div></div><span id="vFoe" style="font-size:11px">0m</span></div>
+<p class="note">Foe = seeded bot climbing at ~92% human pace. Real game replaces bot with opponent <b>jumpScoreO</b> from Firebase. Fall below screen = dead, run locks.</p>
+</div>
+</div>
+
+<div class="card">
+<h2 class="pix">HOW IT LOOKS — retro skin</h2>
+<ul>
+<li><b>Player:</b> chunky pixel blob, cyan P1 / pink P2, squash on land, stretch on rise. Trail dots.</li>
+<li><b>Platforms:</b> normal neon-green slab, moving blue slab, breakable cracked amber (1 use), spring gold coil.</li>
+<li><b>Backdrop:</b> deep navy grid + parallax stars + scanline overlay. Height meter right rail.</li>
+<li><b>HUD:</b> pixel score top-left, ghost race bars top (YOU vs FOE), countdown 3-2-1-GO.</li>
+<li><b>Audio:</b> existing <b>sounds</b> boing / crack / spring — same bus as MineRace.</li>
+<li><b>Themes:</b> free via --c-* tokens. Phosphor green, synthwave sunset, mono 1-bit all work.</li>
+</ul>
+<pre>platform types v1: normal 70% | moving 15% | break 10% | spring 5%
+difficulty ramp: gap grows +8px per 500m, moving speed up
+target: highest in 90s, or first to 2000m</pre>
+</div>
+</div>
+
+<div class="card">
+<h2 class="pix">2P RACE FLOW — same as MineRace</h2>
+<div class="grid2">
+<div><ul>
+<li>READY → shared <b>jumpSeed + jumpStartedAt</b> → 3s countdown.</li>
+<li>Both clients generate identical platforms from seed. Physics local 60Hz fixed timestep.</li>
+<li>Sync only <b>height + dead flag</b> debounced 150ms. No positions — anti-leak, anti-cheat-lite.</li>
+<li>Finish: both dead, or timer 90s, or one hits target. <b>runTransaction</b> sets winner + scores.</li>
+<li>Spectators see both heights live via onValue.</li>
+</ul></div>
+<div><pre>games/$id:
+  jumpSeed: "t-9f3a"
+  jumpStartedAt: 1729...
+  jumpScoreX: 1234  // meters
+  jumpScoreO: 1180
+  jumpDeadX: false
+  jumpDeadO: true
+  jumpDoneX/O: false
+  winner: null | 'X' | 'O' | 'draw'
+  scores: { X, O }
+  status: waiting|playing|finished</pre></div>
+</div>
+</div>
+
+<div class="card">
+<h2 class="pix">OPTIONS — pick one</h2>
+<table>
+<tr><th>MODE</th><th>BEHAVIOR</th><th>COST</th><th>VERDICT</th></tr>
+<tr><td><b>A. Height race (recommended)</b></td><td>90s, same seed, highest wins. Ghost bars.</td><td>low — 1 logic + arena + page</td><td>best fit, proven pattern</td></tr>
+<tr><td>B. Survival duel</td><td>screen scrolls up shared speed, miss = die</td><td>mid — shared clock sync pain</td><td>tense but lag-sensitive</td></tr>
+<tr><td>C. P2P shared screen</td><td>both jumpers same canvas via WebRTC</td><td>high — NAT fail ~5-10% like Pong</td><td>skip, no gain</td></tr>
+</table>
+<p class="note">Recommendation: <b>A</b>. Ships fast, reuses MineRace/WordRace machinery, retro skin carries wow.</p>
+</div>
+
+<div class="card">
+<h2 class="pix">BUILD SLICE + VOTE</h2>
+<ul>
+<li><b>1:</b> src/lib/jumpLogic.js — seeded platforms, step(state,input,dt), pure + tests.</li>
+<li><b>2:</b> JumpArena canvas + useJumpControls (keys + drag).</li>
+<li><b>3:</b> JumpGame page — countdown, ghost sync, runTransaction finish. Demo bot page.</li>
+<li><b>4:</b> registry entry custom:true simultaneous:true, hidePlayerCards, matchTarget 3.</li>
+</ul>
+<div class="vote" id="vote"><button data-g="race90">RACE 90S ⏱</button><button data-g="first2000">FIRST 2000M 🏁</button><button data-g="bestof3">BEST OF 3 🏆</button></div>
+<p class="note" id="voteOut">Tap to vote — local only. Annotate or queue prompt in Lavish.</p>
+</div>
+
+<p class="note">Design source: app midnight-arcade tokens + Press Start 2P. Portable HTML, no CDN. Controls: arrows/A/D/drag. Canvas pixelated for CRT feel.</p>
+</div>
+<script>
+const cv=document.getElementById('jump'),ctx=cv.getContext('2d');
+const W=340,H=480;let run=false,score=0,best=0,foe=0,dead=false;
+let px=W/2,py=H-80,vy=0;const G=0.35,JV=-10.2;let plats=[];let keys={};
+function seedPlats(){plats=[];let y=H-20;let s=12345;const rnd=()=>{s=(s*16807)%2147483647;return s/2147483647;};
+for(let i=0;i<14;i++){const w=54+Math.floor(rnd()*14);plats.push({x:rnd()*(W-w),y,w,t:rnd()<0.15?'move':rnd()<0.25?'break':'norm',dir:1,sp:0.6+rnd()*0.8,ph:rnd()*6});y-=62+Math.floor(rnd()*22);}}
+seedPlats();
+function reset(){score=0;foe=0;dead=false;px=W/2;py=H-80;vy=JV;seedPlats();draw();}
+addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();});
+addEventListener('keyup',e=>{keys[e.key]=false;});
+let dragX=null;cv.addEventListener('pointerdown',e=>{dragX=e.clientX;cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(dragX!=null){const dx=e.clientX-dragX;dragX=e.clientX;px+=dx*1.4;}});
+cv.addEventListener('pointerup',()=>dragX=null);
+document.getElementById('jStart').onclick=()=>{if(dead)reset();run=true;};
+document.getElementById('jReset').onclick=()=>{run=false;reset();upd();};
+document.getElementById('vote').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+document.querySelectorAll('#vote button').forEach(x=>x.classList.remove('voted'));b.classList.add('voted');
+try{localStorage.setItem('papijump-vote',b.dataset.g);}catch(e){}
+document.getElementById('voteOut').textContent='Voted '+b.dataset.g+' — stored local. Annotate or queue prompt.';});
+function upd(){document.getElementById('jScore').textContent='SCORE '+Math.floor(score)+'m · BEST '+Math.floor(best)+'m';
+const t=2000;document.getElementById('fYou').style.width=Math.min(100,score/t*100)+'%';document.getElementById('fFoe').style.width=Math.min(100,foe/t*100)+'%';
+document.getElementById('vYou').textContent=Math.floor(score)+'m';document.getElementById('vFoe').textContent=Math.floor(foe)+'m';}
+function draw(){
+ctx.fillStyle='#0a0a1c';ctx.fillRect(0,0,W,H);
+ctx.strokeStyle='rgba(0,229,255,.08)';ctx.lineWidth=1;
+for(let x=0;x<W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+for(let y=(score*0.5)%24;y<H;y+=24){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+plats.forEach(p=>{ctx.fillStyle=p.t==='move'?'#4aa8ff':p.t==='break'?'#c98a2b':'#39ff14';
+ctx.fillRect(p.x|0,p.y|0,p.w,10);ctx.fillStyle='rgba(255,255,255,.35)';ctx.fillRect(p.x|0,p.y|0,p.w,3);
+if(p.spring){ctx.fillStyle='#ffe600';ctx.fillRect((p.x+p.w/2-4)|0,(p.y-8)|0,8,8);}});
+const sq=vy>0?1.25:0.8;
+ctx.fillStyle='#00e5ff';const pw=26,ph=24*sq;ctx.fillRect(px-pw/2,py-ph/2,pw,ph);
+ctx.fillStyle='#fff';ctx.fillRect(px-12,py-6,6,6);ctx.fillRect(px+6,py-6,6,6);
+ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(px-12,py-6,6,2);ctx.fillRect(px+6,py-6,6,2);
+ctx.fillStyle='rgba(0,0,0,.18)';for(let i=0;i<H;i+=4)ctx.fillRect(0,i,W,1);
+ctx.fillStyle='#ffe600';ctx.font='8px monospace';ctx.fillText(Math.floor(score)+'m',8,14);
+if(dead){ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#ff2d2d';ctx.font='16px monospace';ctx.fillText('GAME OVER',110,220);ctx.fillStyle='#e0e0ff';ctx.font='10px monospace';ctx.fillText('press START',130,244);}}
+function loop(){
+if(run&&!dead){
+if(keys['ArrowLeft']||keys['a']||keys['A'])px-=4.2;if(keys['ArrowRight']||keys['d']||keys['D'])px+=4.2;
+if(px<-14)px=W+14;if(px>W+14)px=-14;
+vy+=G;py+=vy;
+plats.forEach(p=>{if(p.t==='move'){p.ph+=0.05;p.x+=Math.sin(p.ph)*p.sp;if(p.x<0)p.x=0;if(p.x+p.w>W)p.x=W-p.w;}});
+if(vy>0){for(const p of plats){if(px+12>p.x&&px-12<p.x+p.w&&py+10>p.y&&py+10<p.y+16){vy=JV;if(p.t==='break'){p.y+=2000;}break;}}}
+if(vy<0){score=Math.max(score,score-vy*0.6);const shift=-vy*0.6;plats.forEach(p=>p.y+=shift*0.4);py+=shift*0.4;}
+plats=plats.filter(p=>p.y<H+30);
+let top=Math.min(...plats.map(p=>p.y));
+while(top>0){const w=54+Math.random()*14;plats.push({x:Math.random()*(W-w),y:top-64-Math.random()*22,w,t:Math.random()<0.15?'move':Math.random()<0.25?'break':'norm',dir:1,sp:0.6+Math.random()*0.8,ph:Math.random()*6});top-=70;}
+if(py>H+40){dead=true;run=false;best=Math.max(best,score);}
+foe=Math.min(score*0.92+performance.now()/1000*1.2,score+40);
+upd();}
+draw();requestAnimationFrame(loop);}
+reset();upd();loop();
+</script>
+</body>
+</html>

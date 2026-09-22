@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Co-op Trio — gameplay screens</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--c-bg:8 8 16;--c-surface:15 15 26;--c-card:19 19 40;--c-border:30 30 58;--c-text:224 224 255;--c-dim:122 122 186;--c-p1:0 229 255;--c-p2:255 64 129;--c-cta:255 230 0;--c-win:57 255 20;--c-danger:255 45 45}
+body{background:rgb(var(--c-bg));color:rgb(var(--c-text));font-family:ui-monospace,Menlo,Consolas,monospace;margin:0;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 16px 90px;min-width:0}
+.pix{font-family:'Press Start 2P',ui-monospace,monospace}
+.hero{border:2px solid rgb(var(--c-border));background:rgb(var(--c-surface));border-radius:12px;padding:26px 22px;position:relative;overflow:hidden}
+.hero:after{content:'';position:absolute;inset:0;background:radial-gradient(600px 200px at 15% 0%,rgb(var(--c-p1)/.14),transparent),radial-gradient(600px 200px at 90% 30%,rgb(var(--c-p2)/.14),transparent);pointer-events:none}
+h1{font-size:19px;margin:0 0 8px;overflow-wrap:anywhere}
+.sub{color:rgb(var(--c-dim));font-size:13px;max-width:74ch}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.badge{font-size:11px;border:1px solid rgb(var(--c-border));border-radius:999px;padding:4px 10px;color:rgb(var(--c-dim));overflow-wrap:anywhere}
+.badge.hot{border-color:rgb(var(--c-cta));color:rgb(var(--c-cta))}
+nav.toc{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+nav.toc a{font-size:12px;color:rgb(var(--c-text));text-decoration:none;border:1px solid rgb(var(--c-border));background:rgb(var(--c-card));padding:8px 12px;border-radius:8px}
+.card{border:2px solid rgb(var(--c-border));background:rgb(var(--c-card));border-radius:12px;padding:20px;margin:20px 0;min-width:0}
+.card h2{font-size:15px;margin:0;overflow-wrap:anywhere}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.tag{font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid rgb(var(--c-border));color:rgb(var(--c-dim));overflow-wrap:anywhere}
+.tag.p1{color:rgb(var(--c-p1));border-color:rgb(var(--c-p1)/.5)}.tag.p2{color:rgb(var(--c-p2));border-color:rgb(var(--c-p2)/.5)}.tag.cta{color:rgb(var(--c-cta));border-color:rgb(var(--c-cta)/.5)}.tag.win{color:rgb(var(--c-win));border-color:rgb(var(--c-win)/.5)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.stage{background:rgb(var(--c-surface));border:1px solid rgb(var(--c-border));border-radius:10px;padding:14px;min-width:0}
+.stage h3{font-size:11px;margin:0 0 10px;color:rgb(var(--c-dim))}
+ul{font-size:13px;margin:0;padding-left:18px}li{margin:6px 0}
+pre{background:#0c0c20;border:1px solid rgb(var(--c-border));border-radius:8px;padding:12px;font-size:11.5px;overflow:auto;color:#cfe3ff;white-space:pre-wrap;overflow-wrap:anywhere}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{border:1px solid rgb(var(--c-border));padding:8px 10px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+th{background:rgb(var(--c-surface));font-size:11px;color:rgb(var(--c-dim))}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.btn{border:1px solid rgb(var(--c-border));background:rgb(var(--c-bg));color:rgb(var(--c-text));border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer}
+.btn:hover{border-color:rgb(var(--c-cta))}.btn.primary{border-color:rgb(var(--c-cta));color:rgb(var(--c-cta))}
+.note{color:rgb(var(--c-dim));font-size:12px}
+svg.flow{width:100%;height:auto;display:block}
+.nono{display:grid;gap:2px;margin:0 auto;max-width:420px}
+.ncell{aspect-ratio:1;border-radius:3px;border:1px solid rgb(var(--c-border));background:rgb(var(--c-bg));display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;min-width:0}
+.ncell.fill{background:rgb(var(--c-p1));border-color:rgb(var(--c-p1))}
+.ncell.cross{color:rgb(var(--c-dim))}
+.ncell.bad{outline:2px solid rgb(var(--c-danger))}
+.clue{font-size:9px;color:rgb(var(--c-dim));text-align:center}
+.bomb{background:linear-gradient(180deg,#1c1c34,#101024);border:2px solid rgb(var(--c-border));border-radius:12px;padding:14px;max-width:360px;margin:0 auto}
+.wire{height:14px;border-radius:7px;margin:7px 0;cursor:pointer;border:1px solid rgba(255,255,255,.25)}
+.mod{border:1px solid rgb(var(--c-border));border-radius:8px;padding:10px;margin:10px 0;background:rgb(var(--c-bg))}
+.keypad{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.key{border:1px solid rgb(var(--c-border));border-radius:6px;padding:10px 0;text-align:center;cursor:pointer;background:rgb(var(--c-surface));font-size:16px}
+.key.hit{border-color:rgb(var(--c-win));color:rgb(var(--c-win))}
+.timer{font-size:26px;text-align:center}
+.mindtable{display:flex;gap:10px;justify-content:center;margin:12px 0}
+.hand{border:2px solid rgb(var(--c-border));border-radius:10px;padding:14px 16px;font-size:24px;background:rgb(var(--c-bg));min-width:76px;text-align:center}
+.hand.me{border-color:rgb(var(--c-p1))}
+.syncbar{height:12px;border:1px solid rgb(var(--c-border));border-radius:99px;overflow:hidden;background:rgb(var(--c-bg))}
+.syncfill{height:100%;background:rgb(var(--c-win))}
+.vote{display:flex;gap:8px;flex-wrap:wrap}.vote button{border:1px solid rgb(var(--c-border));background:rgb(var(--c-surface));color:rgb(var(--c-text));padding:8px 12px;border-radius:999px;cursor:pointer;font-size:12px}.vote button.voted{border-color:rgb(var(--c-win));color:rgb(var(--c-win))}
+img,svg,video,canvas{max-width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+<div class="pix" style="font-size:11px;color:rgb(var(--c-cta))">GAME NIGHT // CO-OP TRIO</div>
+<h1 class="pix">Nonogram · Defuse Together · The Mind — gameplay</h1>
+<p class="sub">Three co-op screens, all <b>playable</b>. Shared win vs system, not vs each other. Only heights/counts sync — never hidden answers. Design source: app midnight-arcade tokens + Press Start 2P.</p>
+<div class="badges"><span class="badge hot">2P CO-OP</span><span class="badge">SHARED WIN</span><span class="badge">NO P2P</span><span class="badge">WORDCOOP PRECEDENT</span></div>
+</header>
+<nav class="toc pix"><a href="#nono">1 NONOGRAM</a><a href="#defuse">2 DEFUSE</a><a href="#mind">3 THE MIND</a><a href="#flow">FLOW</a><a href="#build">BUILD</a></nav>
+
+<svg class="flow" viewBox="0 0 1000 150" role="img" aria-label="co-op flow">
+<title>Shared room flow</title>
+<g font-family="monospace" font-size="13" text-anchor="middle">
+<rect id="f-lobby" x="10" y="40" width="150" height="70" rx="10" fill="none" stroke="rgb(122,122,186)" stroke-width="2"/><text x="85" y="68" fill="rgb(224,224,255)">LOBBY</text><text x="85" y="88" fill="rgb(122,122,186)" font-size="11">X + O seats</text>
+<rect id="f-seed" x="190" y="40" width="170" height="70" rx="10" fill="none" stroke="rgb(0,229,255)" stroke-width="2"/><text x="275" y="68" fill="rgb(224,224,255)">SHARED SEED</text><text x="275" y="88" fill="rgb(122,122,186)" font-size="11">puzzle / bomb / hands</text>
+<rect id="f-play" x="390" y="40" width="200" height="70" rx="10" fill="none" stroke="rgb(255,230,0)" stroke-width="2"/><text x="490" y="68" fill="rgb(224,224,255)">PLAY TOGETHER</text><text x="490" y="88" fill="rgb(122,122,186)" font-size="11">moves + ghost cursors</text>
+<rect id="f-sync" x="620" y="40" width="170" height="70" rx="10" fill="none" stroke="rgb(255,64,129)" stroke-width="2"/><text x="705" y="68" fill="rgb(224,224,255)">SYNC COUNTS</text><text x="705" y="88" fill="rgb(122,122,186)" font-size="11">never hidden answers</text>
+<rect id="f-win" x="820" y="40" width="170" height="70" rx="10" fill="none" stroke="rgb(57,255,20)" stroke-width="2"/><text x="905" y="68" fill="rgb(224,224,255)">JOINT WIN</text><text x="905" y="88" fill="rgb(122,122,186)" font-size="11">both scores +1</text>
+<g stroke="rgb(122,122,186)" stroke-width="2"><line x1="160" y1="75" x2="190" y2="75"/><line x1="360" y1="75" x2="390" y2="75"/><line x1="590" y1="75" x2="620" y2="75"/><line x1="790" y1="75" x2="820" y2="75"/></g>
+</g>
+</svg>
+
+<!-- 1 NONOGRAM -->
+<section class="card" id="nono">
+<h2 class="pix">1 · NONOGRAM DUET — paint together, 3 shared lives</h2>
+<div class="meta"><span class="tag p1">GRID 10×10</span><span class="tag">SIMULTANEOUS</span><span class="tag cta">EASIEST</span><span class="tag">15 MIN BUILD LOGIC</span></div>
+<div class="grid2">
+<div class="stage"><h3 class="pix">PLAYABLE — TAP = FILL · LONG-PRESS/RIGHT-CLICK = ✕ · HEART PUZZLE</h3>
+<div class="row"><span class="note" id="nonoStatus">LIVES ♥♥♥ · 0/28</span><button class="btn" onclick="nonoReset()">RESET</button></div>
+<div class="nono" id="nonoGrid" style="grid-template-columns:24px repeat(8,1fr)"></div>
+<div class="row"><span class="note">You = cyan fills. Partner cursor = pink outline (mock bot fills one cell every 3s).</span></div>
+<div class="note" id="nonoWin" style="display:none;color:rgb(var(--c-win))">SOLVED TOGETHER — both scores +1.</div>
+</div>
+<div>
+<ul>
+<li><b>Screen:</b> left rail row clues, top rail column clues, grid center, shared lives + progress top, partner cursor pink.</li>
+<li><b>Turn:</b> none — both paint anytime. Fill correct = cyan. Wrong = shake, lose 1 of 3 shared lives.</li>
+<li><b>Win:</b> full picture before lives run out. Hints cost: reveal one cell, lock partner out 10s.</li>
+<li><b>Co-op feels:</b> call out runs ("row 4 is 3-2"), split halves, rescue partner mistakes.</li>
+<li><b>Firebase:</b> <b>nonoCells[100]</b> shared (transactional fill), <b>nonoLives</b>, <b>nonoSeed</b>. No hidden state — board public by design.</li>
+</ul>
+<pre>games/$id:
+  nonoSeed: 4821
+  nonoCells: { "12":"X", "13":"O" }  //谁填的
+  nonoLives: 3
+  winner: 'draw' on joint solve (both +1)</pre>
+</div>
+</div>
+</section>
+
+<!-- 2 DEFUSE -->
+<section class="card" id="defuse">
+<h2 class="pix">2 · DEFUSE TOGETHER — X sees bomb, O sees manual</h2>
+<div class="meta"><span class="tag p1">ASYMMETRIC</span><span class="tag">VOICE + TAP</span><span class="tag cta">LOUDEST FUN</span><span class="tag">3 MIN ROUNDS</span></div>
+<div class="grid2">
+<div class="stage"><h3 class="pix">PLAYABLE — YOU ARE X (BOMB). CUT WIRES IN MANUAL ORDER.</h3>
+<div class="bomb">
+<div class="timer pix" id="dTimer" style="color:rgb(var(--c-cta))">03:00</div>
+<div class="note" style="text-align:center">SERIAL <b id="dSerial">K7X-42</b> · 3 STRIKES = BOOM</div>
+<div id="dWires"></div>
+<div class="mod"><div class="note">SYMBOL KEYPAD — tap in manual order</div><div class="keypad" id="dKeys"></div></div>
+<div class="mod"><div class="note">BIG BUTTON — partner reads manual</div><div class="row"><button class="btn primary" onclick="dPress()">PRESS</button><span class="note" id="dOut">strikes: 0</span></div></div>
+<div class="row"><button class="btn" onclick="dReset()">NEW BOMB</button></div>
+</div>
+</div>
+<div>
+<ul>
+<li><b>Screen X (bomb):</b> timer, serial, wire stack, keypad, big button. No instructions.</li>
+<li><b>Screen O (manual):</b> wire table (e.g. "if serial odd → cut 2nd red"), symbol columns, button flowchart. No bomb.</li>
+<li><b>Turn:</b> talk. X describes, O instructs, X taps. Wrong tap = strike + time −15s. 3 strikes = boom.</li>
+<li><b>Co-op feels:</b> shouting serials, spelling symbols, sweaty countdown. Best with voice call.</li>
+<li><b>Firebase:</b> <b>bombSeed</b> generates both views deterministically; sync only <b>strikes, solvedModules, timeLeft</b>. Manual text ships in bundle (accepted leak, deck-game caveat).</li>
+</ul>
+<pre>games/$id:
+  bombSeed: " Amsterdam 7"
+  defStrikes: 0
+  defSolved: { wires:false, keys:false }
+  defEndsAt: epoch-ms (countdown anchor)
+  winner: joint win/lose → both +1 / both +0</pre>
+<div class="mod"><div class="note"><b>O MANUAL (mock excerpt):</b> wires — no red? cut 2nd. Else serial odd? cut last blue. Keypad order: ★ Ω Ψ ⌘.</div></div>
+</div>
+</div>
+</section>
+
+<!-- 3 MIND -->
+<section class="card" id="mind">
+<h2 class="pix">3 · THE MIND — play cards in order, no talking</h2>
+<div class="meta"><span class="tag p1">SYNC TIMING</span><span class="tag">1–100 CARDS</span><span class="tag cta">PARTY WOW</span><span class="tag">2 MIN/LEVEL</span></div>
+<div class="grid2">
+<div class="stage"><h3 class="pix">PLAYABLE — YOUR HAND LEFT. PRESS WHEN YOU FEEL YOUR CARD NEXT.</h3>
+<div class="mindtable"><div class="hand me"><div class="note">YOU</div><div id="mMine">37</div></div><div class="hand"><div class="note">PILE</div><div id="mPile">1</div></div><div class="hand"><div class="note">FOE ?</div><div>?</div></div></div>
+<div class="syncbar"><div class="syncfill" id="mSync" style="width:0%"></div></div>
+<div class="row"><button class="btn primary" onclick="mPlay()">PLAY 37</button><button class="btn" onclick="mReset()">LEVEL 1</button></div>
+<div class="row"><span class="note" id="mOut">Foe holds 52. Lower must go first. No talking!</span></div>
+</div>
+<div>
+<ul>
+<li><b>Screen:</b> your cards bottom, pile center, foe card-count (never values), level pips, sync heartbeat bar.</li>
+<li><b>Turn:</b> none — stare, vibe, press. Cards must land ascending. Wrong order = lose 1 of 3 team lives.</li>
+<li><b>Levels:</b> L1 = 1 card each … L5 = 5 cards each. Beat L5 = joint win.</li>
+<li><b>Co-op feels:</b> silent tension, hovering fingers, gasps. Perfect intermission game.</li>
+<li><b>Firebase:</b> hands dealt from <b>mindSeed</b> into private per-seat keys? v1 simpler: <b>commit-reveal</b> — deal encrypted, reveal on play, verify transcript (hangwoman precedent).</li>
+</ul>
+<pre>games/$id:
+  mindSeed: 9182
+  mindLevel: 2
+  mindLives: 3
+  mindPile: [4, 19]        // public, ascending enforced
+  mindPlayedX/O: timestamps // sync heartbeat</pre>
+</div>
+</div>
+</section>
+
+<section class="card" id="flow">
+<h2 class="pix">SYNC MODEL — what touches Firebase</h2>
+<table>
+<tr><th>GAME</th><th>SYNC (public)</th><th>NEVER SYNC (hidden)</th><th>FINISH</th></tr>
+<tr><td><b>Nonogram</b></td><td>cell fills, lives, seed</td><td>— (all public)</td><td>solved → draw-win, both +1</td></tr>
+<tr><td><b>Defuse</b></td><td>strikes, solved flags, endsAt</td><td>live wire/keypad taps</td><td>all modules / boom / timeout</td></tr>
+<tr><td><b>The Mind</b></td><td>pile, lives, level, heartbeats</td><td>unplayed hand values (commit-reveal)</td><td>clear L5 → draw-win</td></tr>
+</table>
+</section>
+
+<section class="card" id="build">
+<h2 class="pix">BUILD ORDER + VOTE</h2>
+<p style="font-size:13px">Ship <b>Nonogram → Mind → Defuse</b>. Nonogram reuses pairs-grid + transactional fills. Mind needs only timestamps + pile. Defuse last — two UIs + manual content.</p>
+<div class="vote" id="vote"><button data-g="NONO">NONOGRAM 🧩</button><button data-g="DEFUSE">DEFUSE 💣</button><button data-g="MIND">MIND 🔮</button></div>
+<p class="note" id="voteOut">Tap to vote — local only. Annotate or queue prompt in Lavish.</p>
+</section>
+</div>
+<script>
+// NONOGRAM 8x8 heart
+const SOL=new Set([10,11,14,15,17,18,19,21,22,24,25,26,28,29,33,34,36,37,41,42,44,45,49,50,52,53,57,58]);
+let ncells={},nlives=3;
+function nonoDraw(){
+const g=document.getElementById('nonoGrid');g.innerHTML='';
+g.style.gridTemplateColumns='24px repeat(8,1fr)';
+g.appendChild(document.createElement('div'));
+for(let c=0;c<8;c++){const d=document.createElement('div');d.className='clue';d.textContent='●';g.appendChild(d);}
+for(let r=0;r<8;r++){
+const clue=document.createElement('div');clue.className='clue';clue.textContent='▶';g.appendChild(clue);
+for(let c=0;c<8;c++){const i=r*8+c;const d=document.createElement('div');d.className='ncell';
+if(ncells[i]==='X'){d.classList.add('fill');}else if(ncells[i]==='x'){d.classList.add('cross');d.textContent='✕';}
+d.onclick=()=>nonoTap(i,false);d.oncontextmenu=(e)=>{e.preventDefault();nonoTap(i,true);};
+let press=null;d.onpointerdown=()=>{press=setTimeout(()=>nonoTap(i,true),450);};d.onpointerup=()=>clearTimeout(press);
+g.appendChild(d);}}
+const got=Object.keys(ncells).filter(k=>ncells[k]==='X').length;
+document.getElementById('nonoStatus').textContent='LIVES '+'♥'.repeat(Math.max(0,nlives))+' · '+got+'/'+SOL.size;
+if(got===SOL.size&&nlives>0){document.getElementById('nonoWin').style.display='block';}}
+function nonoTap(i,cross){
+if(nlives<=0)return;
+if(cross){ncells[i]=ncells[i]==='x'?'':'x';nonoDraw();return;}
+if(ncells[i])return;
+if(SOL.has(i)){ncells[i]='X';}else{nlives--;const g=document.getElementById('nonoGrid');}
+nonoDraw();
+if(nlives<=0)document.getElementById('nonoStatus').textContent='OUT OF LIVES — RESET TO RETRY';}
+function nonoReset(){ncells={};nlives=3;document.getElementById('nonoWin').style.display='none';nonoDraw();}
+nonoReset();
+setInterval(()=>{ // mock partner bot
+if(nlives<=0)return;const missing=[...SOL].filter(i=>!ncells[i]);if(!missing.length)return;
+if(Math.random()<0.5){ncells[missing[Math.floor(Math.random()*missing.length)]]='X';nonoDraw();}},3000);
+// DEFUSE mock
+let wires=[],keys=[],strikes=0,solved={wires:false,keys:false};
+const KSYM=['★','Ω','Ψ','⌘','§','π','∆','λ'];
+function dReset(){strikes=0;solved={wires:false,keys:false};
+document.getElementById('dSerial').textContent='K7X-'+Math.floor(Math.random()*90+10);
+const cols=['#ff2d2d','#ffe600','#4aa8ff','#39ff14'];wires=[0,1,2,3].map(i=>cols[Math.floor(Math.random()*4)]);
+const w=document.getElementById('dWires');w.innerHTML='';
+wires.forEach((c,i)=>{const d=document.createElement('div');d.className='wire';d.style.background=c;d.title='wire '+(i+1);d.onclick=()=>dCut(i);w.appendChild(d);});
+keys=[...KSYM].sort(()=>Math.random()-0.5).slice(0,4);
+const k=document.getElementById('dKeys');k.innerHTML='';
+keys.forEach(s=>{const d=document.createElement('div');d.className='key';d.textContent=s;d.onclick=()=>{d.classList.add('hit');dDone('keys');};k.appendChild(d);});
+document.getElementById('dOut').textContent='strikes: 0';}
+function dCut(i){if(solved.wires)return;
+if(i===1){solved.wires=true;document.getElementById('dWires').children[i].style.opacity='0.3';dDone('wires');}
+else{strikes++;document.getElementById('dOut').textContent='strikes: '+strikes+(strikes>=3?' — BOOM':'');}}
+function dDone(m){const all=Object.keys(solved).every(k=>solved[k]||k===m||document.querySelectorAll('#dKeys .hit').length>=3);
+if(document.querySelectorAll('#dKeys .hit').length>=3)solved.keys=true;
+if(solved.wires&&solved.keys)document.getElementById('dOut').textContent='DEFUSED — joint win';}
+function dPress(){strikes++;document.getElementById('dOut').textContent='strikes: '+strikes+' (ask O first!)';}
+dReset();
+let t=180;setInterval(()=>{if(t>0)t--;const m=String(Math.floor(t/60)).padStart(2,'0'),s=String(t%60).padStart(2,'0');
+const e=document.getElementById('dTimer');if(e){e.textContent=m+':'+s;e.style.color=t<30?'rgb(255,45,45)':'rgb(255,230,0)';}},1000);
+// MIND mock
+let pile=1,mine=37,foeCard=52;
+function mPlay(){const o=document.getElementById('mOut');
+if(mine<pile){o.textContent='already passed';return;}
+if(mine<foeCard&&mine>pile){pile=mine;o.textContent='clean — pile '+pile+'. foe still holds '+foeCard+'.';
+document.getElementById('mPile').textContent=pile;document.getElementById('mSync').style.width='70%';
+setTimeout(()=>{foeCard=68;pile=foeCard;document.getElementById('mPile').textContent=pile;
+o.textContent='foe plays '+foeCard+' — level clear. joint win.';document.getElementById('mSync').style.width='100%';},1200);}
+else{o.textContent='WRONG ORDER — foe held '+foeCard+'. team loses a life.';document.getElementById('mSync').style.width='30%';}}
+function mReset(){pile=1;mine=20+Math.floor(Math.random()*30);foeCard=mine+5+Math.floor(Math.random()*30);
+document.getElementById('mPile').textContent=pile;document.getElementById('mMine').textContent=mine;
+document.getElementById('mSync').style.width='0%';
+document.getElementById('mOut').textContent='Foe holds ? (actually '+foeCard+'). Lower first. No talking!';}
+mReset();
+document.querySelectorAll('#vote button').forEach(b=>b.onclick=()=>{
+document.querySelectorAll('#vote button').forEach(x=>x.classList.remove('voted'));b.classList.add('voted');
+try{localStorage.setItem('coop-vote',b.dataset.g);}catch(e){}
+document.getElementById('voteOut').textContent='Voted '+b.dataset.g+' — stored local. Annotate or queue prompt.';});
+</script>
+</body>
+</html>

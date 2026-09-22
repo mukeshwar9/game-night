@@ -1,5 +1,11 @@
+import { useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import useBusy from '../hooks/useBusy'
+
+// LATER is remembered for the browser session — dismissing stops the nag
+// across reloads until the next visit, instead of re-popping every load
+// while the waiting service worker sits unclaimed.
+const DISMISS_KEY = 'updatePromptDismissed'
 
 export default function UpdatePrompt() {
   const {
@@ -7,8 +13,17 @@ export default function UpdatePrompt() {
     updateServiceWorker,
   } = useRegisterSW()
   const [busy, run] = useBusy()
+  const [dismissed, setDismissed] = useState(() => {
+    try { return sessionStorage.getItem(DISMISS_KEY) === '1' } catch { return false }
+  })
 
-  if (!needRefresh) return null
+  const dismiss = () => {
+    try { sessionStorage.setItem(DISMISS_KEY, '1') } catch { /* ignore */ }
+    setDismissed(true)
+    setNeedRefresh(false)
+  }
+
+  if (!needRefresh || dismissed) return null
 
   return (
     <div className="fixed top-0 inset-x-0 z-50 flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pointer-events-none">
@@ -29,7 +44,8 @@ export default function UpdatePrompt() {
           {busy ? 'RELOADING…' : 'RELOAD'}
         </button>
         <button
-          onClick={() => setNeedRefresh(false)}
+          onClick={dismiss}
+          aria-label="Dismiss update until next visit"
           className="border border-retro-border text-retro-dim font-pixel text-[10px] px-3 py-1.5 rounded
             hover:border-retro-dim transition-colors"
         >

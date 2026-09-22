@@ -15,16 +15,29 @@ exports.cleanupStaleGames = onSchedule('every 24 hours', async () => {
   // Scan all games and filter by last activity (a single orderByChild can't
   // express the lastActivityAt-or-createdAt fallback; the room set is small).
   const snapshot = await db.ref('games').get();
-  if (!snapshot.exists()) return;
-
-  const deletions = {};
+  const gameDeletions = {};
   let count = 0;
   snapshot.forEach(child => {
     const g = child.val() || {};
     const lastActive = g.lastActivityAt ?? g.createdAt ?? 0;
-    if (lastActive < cutoff) { deletions[child.key] = null; count++; }
+    if (lastActive < cutoff) { gameDeletions[child.key] = null; count++; }
   });
 
-  if (count) await db.ref('games').update(deletions);
-  console.log(`Deleted ${count} stale games`);
+  const listings = await db.ref('matchmaking').get();
+  let listingCount = 0;
+  if (listings.exists()) listings.forEach(child => {
+    const listing = child.val() || {};
+    if (!listing.expiresAt || listing.expiresAt < Date.now() || gameDeletions[child.key] || !snapshot.child(child.key).exists() || snapshot.child(child.key).child('status').val() !== 'waiting') {
+      listingCount++;
+    }
+  });
+
+  if (count) await db.ref('games').update(gameDeletions);
+  const listingDeletions = {};
+  if (listings.exists()) listings.forEach(child => {
+    const listing = child.val() || {};
+    if (!listing.expiresAt || listing.expiresAt < Date.now() || gameDeletions[child.key] || !snapshot.child(child.key).exists() || snapshot.child(child.key).child('status').val() !== 'waiting') listingDeletions[child.key] = null;
+  });
+  if (listingCount) await db.ref('matchmaking').update(listingDeletions);
+  console.log(`Deleted ${count} stale games and ${listingCount} public listings`);
 });

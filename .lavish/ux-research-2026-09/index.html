@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Night — Independent UX Research · Sep 2026</title>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.esm.min.mjs";
+  const paint = document.createElement("canvas").getContext("2d");
+  function toRgba(color) {
+    paint.clearRect(0, 0, 1, 1);
+    paint.fillStyle = "#000";
+    paint.fillStyle = color;
+    paint.fillRect(0, 0, 1, 1);
+    return paint.getImageData(0, 0, 1, 1).data;
+  }
+  function compositeRgba(fg, bg) {
+    const fa = fg[3] / 255, ba = bg[3] / 255;
+    const a = fa + ba * (1 - fa);
+    if (a === 0) return [0, 0, 0, 0];
+    return [
+      (fg[0] * fa + bg[0] * ba * (1 - fa)) / a,
+      (fg[1] * fa + bg[1] * ba * (1 - fa)) / a,
+      (fg[2] * fa + bg[2] * ba * (1 - fa)) / a,
+      a * 255,
+    ];
+  }
+  function pageIsDark() {
+    const root = document.documentElement;
+    const rb = toRgba(getComputedStyle(root).backgroundColor);
+    const bb = document.body ? toRgba(getComputedStyle(document.body).backgroundColor) : [0,0,0,0];
+    const [r,g,b,a] = compositeRgba(bb, rb);
+    if (a > 0) return (0.2126*r + 0.7152*g + 0.0722*b) / 255 < 0.5;
+    return true;
+  }
+  const diagrams = [...document.querySelectorAll(".mermaid")].map((el) => ({ el, src: el.textContent }));
+  let applied;
+  async function render() {
+    const theme = pageIsDark() ? "dark" : "default";
+    if (theme === applied) return;
+    mermaid.initialize({ startOnLoad: false, theme, securityLevel: "strict" });
+    for (const { el, src } of diagrams) {
+      el.removeAttribute("data-processed");
+      el.textContent = src;
+    }
+    await mermaid.run({ nodes: diagrams.map((d) => d.el) });
+    applied = theme;
+  }
+  if (document.readyState === "complete") render();
+  else window.addEventListener("load", render, { once: true });
+</script>
+<style>
+@font-face{font-family:Pixel;src:url('press-start-2p-latin.woff2') format('woff2');font-display:swap}
+:root{color-scheme:dark;--c-bg:8 8 16;--c-surface:15 15 26;--c-card:19 19 40;--c-border:30 30 58;--c-text:224 224 255;--c-dim:122 122 186;--c-p1:0 229 255;--c-p2:255 64 129;--c-cta:255 230 0;--c-win:57 255 20;--c-tint-cta:26 21 0;--c-structure:42 42 80;--c-danger:255 45 45}
+*,*::before,*::after{box-sizing:border-box;min-width:0}
+body{margin:0;background:rgb(var(--c-bg));color:rgb(var(--c-text));font:15px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+button,input,textarea,select{font:inherit;color:inherit}
+button,select,summary{cursor:pointer}
+a{color:rgb(var(--c-p1));text-underline-offset:3px}
+button,input,select,textarea{border:1px solid rgb(var(--c-structure));border-radius:4px;background:rgb(var(--c-card));padding:10px 12px;min-height:44px}
+button:hover{border-color:rgb(var(--c-p1))}
+:focus-visible{outline:3px solid rgb(var(--c-p1));outline-offset:3px}
+p{margin:0 0 14px}
+h1,h2,h3{line-height:1.45;margin:0 0 14px}
+h1{font:clamp(18px,3vw,28px)/1.55 Pixel,monospace}
+h2{font-size:22px;letter-spacing:-.03em}
+h3{font-size:16px}
+.wrap{max-width:1100px;margin:auto;padding:0 24px}
+.pixel{font-family:Pixel,monospace;font-size:10px;line-height:1.8}
+.eyebrow{font:10px/1.9 Pixel,monospace;letter-spacing:.08em;color:rgb(var(--c-cta));margin-bottom:12px}
+.dim{color:rgb(var(--c-dim))}
+.cyan{color:rgb(var(--c-p1))}
+.pink{color:rgb(var(--c-p2))}
+.yellow{color:rgb(var(--c-cta))}
+.win{color:rgb(var(--c-win))}
+.danger{color:rgb(var(--c-danger))}
+header{padding:18px 0;border-bottom:1px solid rgb(var(--c-border))}
+.row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.nav{display:flex;gap:18px;flex-wrap:wrap}
+.nav a{font-size:12px;text-decoration:none;color:rgb(var(--c-dim))}
+.hero{padding:48px 0 28px;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:28px}
+.lede{font-size:16px;max-width:640px}
+.stamp{border-left:2px solid rgb(var(--c-cta));padding:6px 0 6px 18px}
+.stamp p:last-child{margin:0}
+.section{padding:36px 0;border-top:1px solid rgb(var(--c-border));scroll-margin-top:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.card{border:1px solid rgb(var(--c-border));background:rgb(var(--c-card));padding:16px;border-radius:4px}
+.card h3{margin-bottom:8px}
+.card p:last-child{margin:0}
+.tag{display:inline-block;border:1px solid rgb(var(--c-structure));padding:2px 8px;font-size:11px;border-radius:3px;color:rgb(var(--c-dim))}
+.tag.p1{border-color:rgb(var(--c-p1)/.4);color:rgb(var(--c-p1))}
+.tag.p2{border-color:rgb(var(--c-p2)/.45);color:rgb(var(--c-p2))}
+.tag.cta{border-color:rgb(var(--c-cta)/.45);color:rgb(var(--c-cta))}
+.score{display:grid;grid-template-columns:minmax(0,1.2fr) repeat(5,minmax(0,.55fr));gap:8px;align-items:center;font-size:13px}
+.score-head{color:rgb(var(--c-dim));font-size:11px}
+.bar{height:8px;background:rgb(var(--c-structure));border-radius:2px;overflow:hidden}
+.bar>i{display:block;height:100%;background:rgb(var(--c-p1))}
+.bar.bad>i{background:rgb(var(--c-danger))}
+.bar.mid>i{background:rgb(var(--c-cta))}
+.bar.good>i{background:rgb(var(--c-win))}
+.phone{max-width:280px;margin:0 auto;border:1px solid rgb(var(--c-structure));border-radius:12px;overflow:hidden;background:rgb(var(--c-bg))}
+.phone img{display:block;width:100%;height:auto}
+.caption{font-size:12px;color:rgb(var(--c-dim));margin-top:10px;text-align:center}
+.finding{display:grid;grid-template-columns:72px minmax(0,1fr);gap:16px;padding:22px 0;border-top:1px solid rgb(var(--c-border))}
+.finding .id{font:14px/1.7 Pixel,monospace;color:rgb(var(--c-dim))}
+.finding .meta{font-size:12px;margin-bottom:8px}
+.finding p{font-size:14px}
+.evidence{font-size:12px;color:rgb(var(--c-dim));overflow-wrap:anywhere}
+.evidence code{color:rgb(var(--c-p1));font:inherit}
+.phase{border:1px solid rgb(var(--c-border));border-top:2px solid rgb(var(--c-cta));background:rgb(var(--c-card));padding:18px}
+.phase.alt{border-top-color:rgb(var(--c-p1))}
+.phase ol{padding-left:18px;margin:0}
+.phase li{margin:8px 0;font-size:14px}
+.decision{border:1px solid rgb(var(--c-structure));background:rgb(var(--c-surface));padding:22px;margin-top:18px}
+.choices{display:grid;grid-template-columns:1fr;gap:10px;margin:14px 0}
+.choice{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid rgb(var(--c-structure));font-size:14px}
+.choice:has(input:checked){border-color:rgb(var(--c-cta));background:rgb(var(--c-tint-cta))}
+input[type=radio]{min-height:20px;width:20px;height:20px;margin:3px 0;accent-color:rgb(var(--c-cta));flex-shrink:0}
+.decision textarea{width:100%;min-height:88px;resize:vertical;margin:8px 0 14px}
+.primary{background:rgb(var(--c-cta));color:rgb(var(--c-bg));border-color:rgb(var(--c-cta));font-weight:700}
+.queued{color:rgb(var(--c-p1));font-size:13px;min-height:20px;margin-top:12px}
+.footer{padding:28px 0 48px;font-size:12px;color:rgb(var(--c-dim))}
+.mermaid{background:rgb(var(--c-surface));border:1px solid rgb(var(--c-border));padding:16px;border-radius:4px;overflow:auto}
+.shot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media(max-width:820px){
+  .wrap{padding:0 16px}
+  .hero,.grid3,.grid2,.shot-grid{grid-template-columns:minmax(0,1fr)}
+  .score{grid-template-columns:minmax(0,1fr) 80px;gap:6px}
+  .score-head:not(:first-child),.score span:nth-child(n+3):nth-child(-n+6){display:none}
+  .finding{grid-template-columns:48px minmax(0,1fr)}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap row">
+    <div class="pixel yellow">GAME NIGHT <span class="dim">/ UX RESEARCH</span></div>
+    <nav class="nav" aria-label="Sections">
+      <a href="#method">Method</a>
+      <a href="#journeys">Journeys</a>
+      <a href="#findings">Findings</a>
+      <a href="#plan">Plan</a>
+      <a href="#decide">Decide</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">INDEPENDENT PASS · 16 SEP 2026</div>
+      <h1>Faster first move.<br>Keep the arcade.</h1>
+      <p class="lede">Fresh research against the running app (Firebase blocked). Goal: cut friction from “I want to play” to the first intentional action — without a rebrand.</p>
+    </div>
+    <aside class="stamp">
+      <p><strong>Headline evidence</strong></p>
+      <p>First catalog card sits ~434&nbsp;px down on mobile. Options sheet leaves <span class="danger">115</span> background controls focusable. Solo deep-link still opens with a <span class="yellow">Demo</span> badge + full picker above the board.</p>
+    </aside>
+  </section>
+
+  <section class="section" id="method">
+    <div class="eyebrow">01 / METHOD</div>
+    <h2>What this pass did (and did not).</h2>
+    <div class="grid3">
+      <article class="card">
+        <h3>Evidence</h3>
+        <p class="dim">Live captures at 390×844 and 1440×1000. Source walk of Home, Onboarding, GameCard/Picker/Options, BottomSheet, DemoHub, WaitingRoom, BottomTabBar. Keyboard focus check on options sheet.</p>
+      </article>
+      <article class="card">
+        <h3>Lens</h3>
+        <p class="dim">Journey maps + heuristic scores (visibility, match to intent, error prevention, consistency, accessibility). Product type: casual arcade / social play — density OK if next action is obvious.</p>
+      </article>
+      <article class="card">
+        <h3>Limits</h3>
+        <p class="dim">No live multiplayer, no invites, no screen-reader full audit, no conversion metrics. Waiting room judged from source order only.</p>
+      </article>
+    </div>
+    <p class="dim" style="margin-top:18px;font-size:13px">Design source for this artifact: Game Night midnight tokens + Press Start 2P from the product. Not DaisyUI.</p>
+  </section>
+
+  <section class="section" id="journeys">
+    <div class="eyebrow">02 / JOURNEYS</div>
+    <h2>Where intent leaks.</h2>
+    <div class="mermaid">
+flowchart TD
+  A[Land on /] --> B{Onboarded?}
+  B -->|No| C[Welcome INSERT COIN]
+  C --> D[Identity: avatar + name]
+  D --> E[Home catalog]
+  B -->|Yes| E
+  E --> F[Tap game card]
+  F --> G[Options sheet]
+  G -->|VS AI| H["/solo/:type"]
+  H --> I[DemoHub picker ABOVE board]
+  G -->|PLAY ONLINE| J[Create room]
+  J --> K[WaitingRoom QR first]
+  E --> L[Scroll for Recently Played]
+</div>
+    <div class="grid2" style="margin-top:24px">
+      <article class="card">
+        <h3>New visitor</h3>
+        <p>Welcome slogan before product value. Guest path still forces fighter identity before any game is visible. Risk: “INSERT COIN” reads like payment.</p>
+      </article>
+      <article class="card">
+        <h3>Solo intent</h3>
+        <p>User already picked a game + VS AI. Deep link remounts a browse hub (Demo badge, category tabs, grid). Intent ignored; board delayed.</p>
+      </article>
+      <article class="card">
+        <h3>Host waiting</h3>
+        <p>Source order: 150&nbsp;px QR, then Share/Copy, then code. Mobile hosts usually need Share first; QR wins for co-located desktop.</p>
+      </article>
+      <article class="card">
+        <h3>Returning player</h3>
+        <p>Continue Playing is high. Recently Played sits under the full catalog (~3374&nbsp;px mobile scroll). Recents buried.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section" id="score">
+    <div class="eyebrow">03 / HEURISTIC SCORECARD</div>
+    <h2>Arcade personality high. Intent match low.</h2>
+    <div class="card" style="display:grid;gap:12px">
+      <div class="score score-head"><span>Heuristic</span><span>Score</span><span></span><span></span><span></span><span></span></div>
+      <div class="score"><span>Brand / visual identity</span><span class="win">9/10</span><div class="bar good" style="grid-column:3/-1"><i style="width:90%"></i></div></div>
+      <div class="score"><span>Visibility of system status</span><span class="yellow">7/10</span><div class="bar mid" style="grid-column:3/-1"><i style="width:70%"></i></div></div>
+      <div class="score"><span>Match between system &amp; user intent</span><span class="danger">4/10</span><div class="bar bad" style="grid-column:3/-1"><i style="width:40%"></i></div></div>
+      <div class="score"><span>Recognition over recall (copy/labels)</span><span class="yellow">5/10</span><div class="bar mid" style="grid-column:3/-1"><i style="width:50%"></i></div></div>
+      <div class="score"><span>Error prevention / modal focus</span><span class="danger">3/10</span><div class="bar bad" style="grid-column:3/-1"><i style="width:30%"></i></div></div>
+      <div class="score"><span>Aesthetic &amp; minimalist hierarchy</span><span class="yellow">5/10</span><div class="bar mid" style="grid-column:3/-1"><i style="width:50%"></i></div></div>
+      <div class="score"><span>Accessibility baseline (a11y)</span><span class="danger">4/10</span><div class="bar bad" style="grid-column:3/-1"><i style="width:40%"></i></div></div>
+    </div>
+    <p class="dim" style="margin-top:12px;font-size:13px">Scores are researcher judgment from this pass — not lab metrics.</p>
+  </section>
+
+  <section class="section" id="evidence">
+    <div class="eyebrow">04 / CAPTURES</div>
+    <h2>Real screens, this pass.</h2>
+    <div class="shot-grid">
+      <figure>
+        <div class="phone"><img src="01-welcome.png" alt="Welcome: INSERT COIN TO PLAY, Play as Guest" width="390" height="844"></div>
+        <figcaption class="caption">01 Welcome — arcade first, value second</figcaption>
+      </figure>
+      <figure>
+        <div class="phone"><img src="02-identity.png" alt="Choose your fighter identity step" width="390" height="844"></div>
+        <figcaption class="caption">02 Identity — before any game seen</figcaption>
+      </figure>
+      <figure>
+        <div class="phone"><img src="03-home.png" alt="Mobile home catalog" width="390" height="844"></div>
+        <figcaption class="caption">03 Home — card ~434px down</figcaption>
+      </figure>
+      <figure>
+        <div class="phone"><img src="04-options.png" alt="Game options bottom sheet" width="390" height="844"></div>
+        <figcaption class="caption">04 Options — good modes, weak focus</figcaption>
+      </figure>
+      <figure>
+        <div class="phone"><img src="05-solo.png" alt="Solo route with Demo picker above board" width="390" height="844"></div>
+        <figcaption class="caption">05 Solo — Demo hub over board</figcaption>
+      </figure>
+      <figure>
+        <div class="phone" style="max-width:100%"><img src="06-home-desktop.png" alt="Desktop home" width="1440" height="1000"></div>
+        <figcaption class="caption">06 Desktop — brand + utility dense</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section" id="findings">
+    <div class="eyebrow">05 / FINDINGS</div>
+    <h2>Six issues, ranked by play friction.</h2>
+
+    <article class="finding">
+      <div class="id">R-01</div>
+      <div>
+        <div class="meta"><span class="tag p2">P0</span> <span class="tag">Solo journey</span></div>
+        <h3>Deep-linked solo still behaves like a browse hub.</h3>
+        <p><code>/solo/tictactoe</code> shows Demo badge, category tabs, and a dense game grid before the board. Captured first-viewport text is almost all picker labels. Board top ~179&nbsp;px but competing chrome eats the fold.</p>
+        <p class="evidence">Evidence: <code>05-solo.png</code>, heuristics.solo. Source: <code>Demo.jsx</code> DemoHub (~2360–2428).</p>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="id">R-02</div>
+      <div>
+        <div class="meta"><span class="tag p2">P0</span> <span class="tag">A11y</span></div>
+        <h3>Options sheet is not a keyboard modal.</h3>
+        <p>On open, focus stays on the catalog card. Tab moves to “Add to favorites” behind the sheet. <strong>115</strong> background controls remain focusable while <code>aria-modal="true"</code>.</p>
+        <p class="evidence">Evidence: heuristics.focusOnOpen / focusAfterTab / backgroundFocusablesWhileOpen. Source: <code>BottomSheet.jsx</code> — Escape only; no focus trap / inert.</p>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="id">R-03</div>
+      <div>
+        <div class="meta"><span class="tag p2">P0</span> <span class="tag">Readability</span></div>
+        <h3>Catalog metadata is below readable size; blurbs hidden on mobile.</h3>
+        <p>Title 10&nbsp;px pixel. Player tag 7&nbsp;px. Duration 6&nbsp;px. Description “three in a row wins” is <code>display:none</code> below <code>sm</code>. Search + room code use placeholder-only labeling.</p>
+        <p class="evidence">Evidence: heuristics.firstCard + homeInputs. Source: <code>GameCard.jsx</code>, <code>GamePicker.jsx</code>, <code>Home.jsx</code>.</p>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="id">R-04</div>
+      <div>
+        <div class="meta"><span class="tag cta">P1</span> <span class="tag">Onboarding</span></div>
+        <h3>Identity customization gates discovery.</h3>
+        <p>Welcome → fighter avatar/name → catalog. Avatars are delightful, but they delay the product promise. “INSERT COIN” can imply payment.</p>
+        <p class="evidence">Evidence: <code>01-welcome.png</code>, <code>02-identity.png</code>. Source: <code>Onboarding.jsx</code>.</p>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="id">R-05</div>
+      <div>
+        <div class="meta"><span class="tag cta">P1</span> <span class="tag">Copy / IA</span></div>
+        <h3>Mode labels and chip row fight for meaning.</h3>
+        <p>“PLAY ONLINE” = private room, not matchmaking. “2P PASS” less clear than “Same device”. Filters (Quick/Thinky/Solo OK) share one horizontal row with categories — early viewport crowded.</p>
+        <p class="evidence">Source: <code>GameOptionsSheet.jsx</code>, <code>GamePicker.jsx</code> chipRow.</p>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="id">R-06</div>
+      <div>
+        <div class="meta"><span class="tag p1">P2</span> <span class="tag">Hierarchy</span></div>
+        <h3>Home promotes everything; recents arrive late.</h3>
+        <p>Repeated logo vs global nav. Daily + cramped code field. Emoji Lab beside brand. Notes as primary tab. Recently Played after full catalog. Playground CTA adds another destination before play.</p>
+        <p class="evidence">Evidence: <code>03-home.png</code> scrollHeight 3374. Source: <code>Home.jsx</code>, <code>BottomTabBar.jsx</code>.</p>
+      </div>
+    </article>
+
+    <div class="card" style="margin-top:18px">
+      <h3>Keep as-is</h3>
+      <p class="dim" style="margin:0">Midnight arcade identity, semantic <code>--c-*</code> themes, options sheet (explicit modes — no silent room create), Continue Playing, sticky search/filters, touch targets ≥44&nbsp;px on invites/JOIN, reduced-motion support.</p>
+    </div>
+  </section>
+
+  <section class="section" id="plan">
+    <div class="eyebrow">06 / PLAN</div>
+    <h2>Three plan options. One recommended.</h2>
+    <div class="grid2">
+      <article class="phase">
+        <span class="pixel yellow">RECOMMENDED · SPRINT A</span>
+        <h3 style="margin-top:12px">Play-friction sprint</h3>
+        <ol>
+          <li><strong>Board-first solo</strong> — valid <code>/solo/:type</code> shows game first; picker behind “Change game”; rename Demo→Solo. Keep <code>/demo</code> as browse hub.</li>
+          <li><strong>Sheet focus boundary</strong> — initial focus, Tab trap, background inert + scroll lock, restore opener. Own in <code>BottomSheet.jsx</code>.</li>
+          <li><strong>Readable discovery</strong> — mono 12–14&nbsp;px meta; show one-line desc on mobile; visible labels on search + room code.</li>
+        </ol>
+        <p class="dim" style="margin-top:12px;margin-bottom:0;font-size:13px">Out of scope: rebrand, onboarding rewrite, Firebase schema, game rules, mode-first IA.</p>
+      </article>
+      <article class="phase alt">
+        <span class="pixel cyan">ALTERNATE · SPRINT B</span>
+        <h3 style="margin-top:12px">First-session clarity</h3>
+        <ol>
+          <li>One-click guest with generated defaults; defer avatar.</li>
+          <li>Replace INSERT COIN with free-play promise.</li>
+          <li>Copy pass: Create a room / Play solo / Same device.</li>
+          <li>Move Recently Played above full catalog.</li>
+        </ol>
+        <p class="dim" style="margin-top:12px;margin-bottom:0;font-size:13px">Does not fix solo fold or modal focus. Pair with Sprint A, do not replace it.</p>
+      </article>
+    </div>
+    <article class="card" style="margin-top:18px">
+      <h3>Later · Sprint C (after usability check)</h3>
+      <p class="dim" style="margin:0">Home hierarchy trim (Emoji Lab / Notes secondary), optional mode-first browse with All-games reset, WaitingRoom share-first on mobile (capture live lobby first). Do not ship C without A.</p>
+    </article>
+
+    <h3 style="margin-top:28px">Acceptance for Sprint A</h3>
+    <ul>
+      <li>390×844: full Tic Tac Toe board + turn line visible without scroll on solo deep-link.</li>
+      <li>Sheet: focus inside on open; Tab/Shift+Tab wrap; background not focusable; Escape restores opener.</li>
+      <li>Cards: description visible on mobile; no 6–7&nbsp;px pixel meta; labeled search + code fields.</li>
+      <li>Regression: <code>/demo</code>, <code>/local</code>, favorites, room create, theme tokens unchanged.</li>
+    </ul>
+  </section>
+
+  <section class="section" id="decide">
+    <div class="eyebrow">07 / YOUR CALL</div>
+    <h2>Which plan should we run?</h2>
+    <p>Queue one answer, then use Lavish <strong>Send to Agent</strong>. Annotate any screenshot or finding directly.</p>
+    <form class="decision" id="plan-form" data-lavish-question="ux-research-plan">
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="plan" value="Sprint A — play-friction" required>
+          <span><strong>Sprint A — play-friction</strong><br><span class="dim" style="font-size:12px">Board-first solo + sheet focus + readable cards. Recommended.</span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="plan" value="Sprint A then B">
+          <span><strong>A then B</strong><br><span class="dim" style="font-size:12px">Ship friction fixes, then first-session / copy / recents.</span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="plan" value="Sprint B only">
+          <span><strong>Sprint B only</strong><br><span class="dim" style="font-size:12px">Onboarding + copy first. Not recommended alone.</span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="plan" value="Hold — research only">
+          <span><strong>Hold</strong><br><span class="dim" style="font-size:12px">Keep research; no implementation yet.</span></span>
+        </label>
+      </div>
+      <label for="notes">Notes / disagreements</label>
+      <textarea id="notes" name="notes" placeholder="e.g. keep Demo label; prioritize WaitingRoom; disagree with R-04…"></textarea>
+      <button type="submit" class="primary">Queue plan choice</button>
+      <p class="queued" id="queued-state" role="status">Nothing queued yet.</p>
+      <p class="dim" style="font-size:12px;margin:8px 0 0">After queue, press Send to Agent in Lavish chrome.</p>
+    </form>
+  </section>
+</main>
+
+<footer class="wrap footer">
+  Independent research · 16 Sep 2026 · captures + evidence under <code>.lavish/ux-research-2026-09/</code>.
+  Prior Sep 15 review left untouched. App source unchanged by this research pass.
+</footer>
+
+<script>
+document.getElementById('plan-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  const plan = data.get('plan');
+  const notes = String(data.get('notes') || '').trim();
+  const status = document.getElementById('queued-state');
+  if (!window.lavish?.queuePrompt) {
+    status.textContent = 'Open in Lavish to queue. Selection stays local.';
+    return;
+  }
+  const implement = plan !== 'Hold — research only';
+  window.lavish.queuePrompt(
+    'UX research plan choice: ' + plan + '. ' +
+    (notes ? 'Notes: ' + notes + '. ' : '') +
+    (implement
+      ? 'Authorize implementation for the chosen sprint(s) only. Stay inside stated scope. Do not rebrand.'
+      : 'Do not edit application code. Research only.'),
+    {
+      tag: 'choice',
+      queueKey: 'ux-research-plan',
+      text: String(plan),
+      element: event.currentTarget,
+      data: { question: 'ux-research-plan', plan, notes, implement },
+    }
+  );
+  status.textContent = 'Queued: ' + plan + '. Send to Agent next.';
+});
+</script>
+</body>
+</html>

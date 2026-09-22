@@ -4,6 +4,7 @@ import AvatarCustomizer from './AvatarCustomizer'
 import { defaultAvatarForId, canonicalAvatar } from '../lib/avatars'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
+import { GAME_TYPES } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { UPGRADE_ERRORS, consumePendingAuthToast } from '../lib/auth'
 import { configError } from '../lib/firebase'
@@ -12,6 +13,9 @@ import { sounds } from '../lib/sounds'
 
 export default function Onboarding({ onDone }) {
   const { uid, user, profile, isAnonymous, upgrade } = useAuth()
+  // F-39: the one-line pitch belongs on the coin screen, before any CTA —
+  // same copy as Home's hero, derived from the registry so it can't rot (F-12).
+  const gameCount = GAME_TYPES.filter(t => !t.variantOf).length
   const [step, setStep] = useState('welcome')
   const [busy, setBusy] = useState(false)
   // nameTouched/nameInput track user edits; before touching, name is derived
@@ -99,6 +103,7 @@ export default function Onboarding({ onDone }) {
             <div>
               <h1 className="font-pixel text-xl text-retro-cta text-glow-cta leading-relaxed">GAME NIGHT</h1>
               <p className="font-pixel text-[10px] text-retro-dim mt-3 arcade-blink tracking-widest">INSERT COIN TO PLAY</p>
+              <p className="font-pixel text-[8px] text-retro-dim mt-2 tracking-widest">{gameCount} GAMES · SHARE A LINK · NO ACCOUNT</p>
             </div>
           </div>
 

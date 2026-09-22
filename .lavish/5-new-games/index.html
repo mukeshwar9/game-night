@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5 New 2P Games — Visual Concepts</title>
+<style>
+:root{
+  --c-bg:8 8 16; --c-surface:15 15 26; --c-card:19 19 40; --c-border:30 30 58;
+  --c-text:224 224 255; --c-dim:122 122 186; --c-p1:0 229 255; --c-p2:255 64 129;
+  --c-cta:255 230 0; --c-win:57 255 20; --c-danger:255 45 45;
+}
+*{box-sizing:border-box}
+body{background:rgb(var(--c-bg));color:rgb(var(--c-text));font-family:ui-monospace,Menlo,Consolas,monospace;margin:0;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 16px 80px}
+.pix{font-family:'Press Start 2P',ui-monospace,monospace;letter-spacing:.02em}
+header.hero{border:2px solid rgb(var(--c-border));background:rgb(var(--c-surface));border-radius:12px;padding:28px 24px;position:relative;overflow:hidden}
+header.hero:after{content:'';position:absolute;inset:0;background:radial-gradient(600px 200px at 20% 0%,rgb(var(--c-p1)/.12),transparent),radial-gradient(600px 200px at 90% 20%,rgb(var(--c-p2)/.12),transparent);pointer-events:none}
+h1{font-size:22px;margin:0 0 8px}
+.sub{color:rgb(var(--c-dim));font-size:13px;max-width:70ch}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.badge{font-size:11px;border:1px solid rgb(var(--c-border));border-radius:999px;padding:4px 10px;color:rgb(var(--c-dim))}
+.badge.hot{border-color:rgb(var(--c-cta));color:rgb(var(--c-cta))}
+nav.toc{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+nav.toc a{font-size:12px;color:rgb(var(--c-text));text-decoration:none;border:1px solid rgb(var(--c-border));background:rgb(var(--c-card));padding:8px 12px;border-radius:8px}
+nav.toc a:hover{border-color:rgb(var(--c-p1))}
+section.card{border:2px solid rgb(var(--c-border));background:rgb(var(--c-card));border-radius:12px;padding:20px;margin:22px 0}
+section.card h2{font-size:16px;margin:0}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.tag{font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid rgb(var(--c-border));color:rgb(var(--c-dim))}
+.tag.p1{color:rgb(var(--c-p1));border-color:rgb(var(--c-p1)/.5)}
+.tag.p2{color:rgb(var(--c-p2));border-color:rgb(var(--c-p2)/.5)}
+.tag.cta{color:rgb(var(--c-cta));border-color:rgb(var(--c-cta)/.5)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.boardbox{background:rgb(var(--c-surface));border:1px solid rgb(var(--c-border));border-radius:10px;padding:16px}
+.boardbox h3{font-size:12px;margin:0 0 10px;color:rgb(var(--c-dim))}
+.rulelist{font-size:13px;margin:0;padding-left:18px}
+.rulelist li{margin:6px 0}
+pre.fbase{background:#0c0c20;border:1px solid rgb(var(--c-border));border-radius:8px;padding:12px;font-size:11.5px;overflow:auto;color:#cfe3ff}
+button,select{font-family:inherit}
+.btn{border:1px solid rgb(var(--c-border));background:rgb(var(--c-bg));color:rgb(var(--c-text));border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer}
+.btn:hover{border-color:rgb(var(--c-cta))}
+.btn.primary{border-color:rgb(var(--c-cta));color:rgb(var(--c-cta))}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.turnline{font-size:12px;color:rgb(var(--c-dim))}
+.turnline b{color:rgb(var(--c-text))}
+/* BOOP quilt */
+.quilt{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;max-width:380px;margin:0 auto}
+.qcell{aspect-ratio:1;border-radius:6px;border:1px solid rgb(var(--c-border));display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;background:linear-gradient(135deg,#1b1b36,#141428)}
+.qcell:nth-child(odd){background:linear-gradient(135deg,#232348,#171730)}
+.qcell.kittenX{box-shadow:0 0 0 2px rgb(var(--c-p1)/.55)}
+.qcell.kittenO{box-shadow:0 0 0 2px rgb(var(--c-p2)/.55)}
+.qcell small{font-size:9px;color:rgb(var(--c-dim))}
+/* GOBBLET */
+.gsize{display:flex;gap:6px}
+.gsize button{border:1px solid rgb(var(--c-border));background:rgb(var(--c-bg));color:rgb(var(--c-text));border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px}
+.gsize button.sel{border-color:rgb(var(--c-cta));color:rgb(var(--c-cta))}
+.gob{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:320px;margin:0 auto}
+.gcell{aspect-ratio:1;border:2px solid rgb(var(--c-border));border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgb(var(--c-bg));cursor:pointer}
+/* TAK */
+.tak{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;max-width:360px;margin:0 auto}
+.tcell{aspect-ratio:1;border-radius:4px;border:1px solid #4a3a26;background:linear-gradient(135deg,#2a2118,#1a140e);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px}
+.tcell.road{outline:2px solid rgb(var(--c-cta))}
+/* PYLOS */
+.pyr{display:flex;flex-direction:column;gap:8px;align-items:center}
+.play{display:flex;gap:6px}
+.pball{width:44px;height:44px;border-radius:50%;border:2px solid rgb(var(--c-border));background:radial-gradient(circle at 30% 30%,#3a3a6a,#14142a);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px}
+.pball.filledX{background:radial-gradient(circle at 30% 30%,rgb(var(--c-p1)),#063a4a);border-color:rgb(var(--c-p1))}
+.pball.filledO{background:radial-gradient(circle at 30% 30%,rgb(var(--c-p2)),#4a0a24);border-color:rgb(var(--c-p2))}
+.pball.top{width:56px;height:56px;border-color:rgb(var(--c-cta))}
+/* ABALONE */
+.aba{display:flex;flex-direction:column;gap:5px;align-items:center}
+.arow{display:flex;gap:6px}
+.marble{width:38px;height:38px;border-radius:50%;border:2px solid rgb(var(--c-border));background:#1a1a2e;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+.marble.X{background:radial-gradient(circle at 30% 30%,#fff,#8a8ab0)}
+.marble.O{background:radial-gradient(circle at 30% 30%,#555,#000)}
+.marble.sel{outline:2px solid rgb(var(--c-cta))}
+table.cmp{width:100%;border-collapse:collapse;font-size:12.5px}
+table.cmp th,table.cmp td{border:1px solid rgb(var(--c-border));padding:8px 10px;text-align:left;vertical-align:top}
+table.cmp th{background:rgb(var(--c-surface));font-size:11px;color:rgb(var(--c-dim))}
+.stars{color:rgb(var(--c-cta))}
+.vote{display:flex;gap:8px;flex-wrap:wrap}
+.vote button{border:1px solid rgb(var(--c-border));background:rgb(var(--c-surface));color:rgb(var(--c-text));padding:8px 12px;border-radius:999px;cursor:pointer;font-size:12px}
+.vote button.voted{border-color:rgb(var(--c-win));color:rgb(var(--c-win))}
+footer.note{color:rgb(var(--c-dim));font-size:12px;margin-top:26px}
+.winbanner{border:1px solid rgb(var(--c-win));color:rgb(var(--c-win));border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+<div class="pix" style="font-size:11px;color:rgb(var(--c-cta))">GAME NIGHT // NEW CONCEPTS</div>
+<h1 class="pix">5 new 2-player games — how they will look</h1>
+<p class="sub">All 5 fit current room model: X vs O seats, <b>board一阵列 + currentTurn翻转 + getWinner</b>, no new backend. Mock boards below are <b>playable</b> — tap cells to feel one turn. Design language matches app: midnight arcade tokens, pixel headers, neon P1 cyan / P2 pink.</p>
+<div class="badges"><span class="badge hot">2P ONLY</span><span class="badge">TURN-BASED</span><span class="badge">FIREBASE-READY</span><span class="badge">NO NEW SERVER</span><span class="badge">EXISTING: 60+ TYPES — THESE 5 NOT SHIPPED</span></div>
+</header>
+<nav class="toc pix">
+<a href="#boop">1 BOOP</a><a href="#gobblet">2 GOBBLET</a><a href="#tak">3 TAK 5×5</a><a href="#pylos">4 PYLOS</a><a href="#abalone">5 ABALONE</a><a href="#compare">COMPARE</a><a href="#build">BUILD ORDER</a>
+</nav>
+
+<!-- 1 BOOP -->
+<section class="card" id="boop">
+<h2 class="pix">1 · BOOP — quilt, kittens, push fights</h2>
+<div class="meta"><span class="tag p1">BOARD 6×6</span><span class="tag">board[36] 'kittenX'/'catX'…</span><span class="tag cta">WOW ★★★★★</span><span class="tag">3–5 MIN</span></div>
+<div class="grid2">
+<div class="boardbox"><h3 class="pix">PLAYABLE MOCK — TAP EMPTY QUILT CELL (X FIRST, AUTO-ALTERNATE)</h3>
+<div class="quilt" id="boopBoard"></div>
+<div class="row"><button class="btn" onclick="boopReset()">RESET</button><span class="turnline" id="boopTurn"></span></div>
+<div class="winbanner" id="boopWin"></div>
+<p style="font-size:12px;color:rgb(var(--c-dim))">Push demo: placing next to a kitten shoves it 1 cell (chain). Line up 3 kittens → they graduate to cats. 3 cats in row wins. Real logic: <i>boopLogic.applyBoopMove()</i>.</p>
+</div>
+<div>
+<ul class="rulelist">
+<li><b>Look:</b> cozy quilt 6×6, rounded patches, cyan kittens 🐱 vs pink kittens 🐈, graduated cats bigger + glow.</li>
+<li><b>Turn:</b> place 1 kitten on empty bed → all adjacent kittens pushed 1 cell (cats can't be pushed).</li>
+<li><b>Graduate:</b> 3 kittens in row leave board, return as 1 cat. First to 3 cats in row wins.</li>
+<li><b>Why nice:</b> cutest game in catalog, zero overlap (only push game is LOA/Ataxx, neither cute), viral with couples.</li>
+<li><b>Firebase:</b> board string[36], currentTurn flips normally, extraTurn null. Win check = count cats lines.</li>
+</ul>
+<pre class="fbase">board: string[36]  // '' | 'kX' | 'kO' | 'cX' | 'cO'
+applyMove: place + push8(board, idx) + graduate()
+getWinner: 3 'cX'/'cO' in row → X/O; else null</pre>
+</div>
+</div>
+</section>
+
+<!-- 2 GOBBLET -->
+<section class="card" id="gobblet">
+<h2 class="pix">2 · GOBBLET GOBBLERS — nesting cups tic-tac-toe</h2>
+<div class="meta"><span class="tag p1">BOARD 3×3 NESTED</span><span class="tag">board[9] stacks</span><span class="tag cta">WOW ★★★★☆</span><span class="tag">2–4 MIN</span></div>
+<div class="grid2">
+<div class="boardbox"><h3 class="pix">PLAYABLE MOCK — PICK SIZE, TAP CELL (BIGGER GOBBLES)</h3>
+<div class="row"><span class="turnline" id="gobTurn"></span></div>
+<div class="row gsize" id="gobSizes">
+<button data-s="0">🟤 S</button><button data-s="1" class="sel">⚪ M</button><button data-s="2">🟠 L</button>
+</div>
+<div class="gob" id="gobBoard"></div>
+<div class="row"><button class="btn" onclick="gobReset()">RESET</button></div>
+<div class="winbanner" id="gobWin"></div>
+</div>
+<div>
+<ul class="rulelist">
+<li><b>Look:</b> chunky 3×3 diner tray, orange vs blue cups S/M/L, gobble = big cup swallows small with bounce.</li>
+<li><b>Turn:</b> play a cup from hand onto empty cell or onto smaller enemy cup. Memory matters — hidden sizes under cups.</li>
+<li><b>Win:</b> 3 visible tops in row. Bluff + recall, kids learn in 30s, adults mind-game.</li>
+<li><b>Why nice:</b> only nesting game in catalog; TTT players upgrade path; phone taps huge.</li>
+<li><b>Firebase:</b> board = 9 stacks encoded "X2" (owner+size); hand counts per size; currentTurn flips.</li>
+</ul>
+<pre class="fbase">board: string[9]  // '' | 'X0..X2' | 'O0..O2' (visible top)
++ gobHandX/O: [s,m,l] counts
+applyMove: if size &gt; top.size → cover
+getWinner: 3 tops same owner in row</pre>
+</div>
+</div>
+</section>
+
+<!-- 3 TAK -->
+<section class="card" id="tak">
+<h2 class="pix">3 · TAK 5×5 — zen road-building duel</h2>
+<div class="meta"><span class="tag p1">BOARD 5×5 + STACKS</span><span class="tag">board[25] stacks</span><span class="tag cta">WOW ★★★★☆</span><span class="tag">10–15 MIN</span></div>
+<div class="grid2">
+<div class="boardbox"><h3 class="pix">PLAYABLE MOCK — TAP TO LAY FLAT, W = WALL</h3>
+<div class="row"><button class="btn" id="takMode">MODE: FLAT</button><button class="btn" onclick="takRoad()">SHOW ROAD</button><button class="btn" onclick="takReset()">RESET</button></div>
+<div class="tak" id="takBoard"></div>
+<div class="row"><span class="turnline" id="takTurn"></span></div>
+<p style="font-size:12px;color:rgb(var(--c-dim))">Full Tak adds carry stacks + capstone crush. Mock shows placement + road idea; road = edge-to-edge chain wins instantly.</p>
+</div>
+<div>
+<ul class="rulelist">
+<li><b>Look:</b> dark walnut 5×5, ivory vs ebon flat stones, walls upright, road glows gold. Most premium thinky look.</li>
+<li><b>Turn:</b> place flat/wall from reserve, or move a stack carrying N stones dropping 1+ per cell. Capstone flattens walls.</li>
+<li><b>Win:</b> road connecting opposite edges, or flat-majority when board full / reserves out.</li>
+<li><b>Why nice:</b> deep-but-small; fills "chess-like prestige" gap next to Onitama/Quarto; streamers love it.</li>
+<li><b>Firebase:</b> board string[25] stacks "Xf3" style + reserves; currentTurn flips; road BFS in getWinner.</li>
+</ul>
+<pre class="fbase">board: string[25]  // stack tops + height, e.g. 'Xf:3'
++ takReserveX/O, takCapX/O
+applyMove: place | move-stack(drop pattern)
+getWinner: BFS road X/O → winner; else flat count</pre>
+</div>
+</div>
+</section>
+
+<!-- 4 PYLOS -->
+<section class="card" id="pylos">
+<h2 class="pix">4 · PYLOS — wooden pyramid race to top</h2>
+<div class="meta"><span class="tag p1">PYRAMID 4·3·2·1</span><span class="tag">spheres[30]</span><span class="tag cta">WOW ★★★★★</span><span class="tag">8–12 MIN</span></div>
+<div class="grid2">
+<div class="boardbox"><h3 class="pix">PLAYABLE MOCK — FILL BASE, THEN STACK (NEEDS 2×2 SUPPORT)</h3>
+<div class="pyr">
+<div class="play" id="pyr1"></div>
+<div class="play" id="pyr2"></div>
+<div class="play" id="pyr3"></div>
+<div class="play" id="pyr4"></div>
+</div>
+<div class="row"><button class="btn" onclick="pyrReset()">RESET</button><span class="turnline" id="pyrTurn"></span></div>
+<div class="winbanner" id="pyrWin"></div>
+<p style="font-size:12px;color:rgb(var(--c-dim))">Bonus rule live here: close a 2×2 square of your color → take 1–2 spheres back (extra ammo). Top sphere wins.</p>
+</div>
+<div>
+<ul class="rulelist">
+<li><b>Look:</b> layered walnut pyramid, ivory vs walnut spheres with soft 3D radial shading, top plinth gold.</li>
+<li><b>Turn:</b> place from reserve onto base, or stack on a full 2×2 support, or promote a board sphere upward.</li>
+<li><b>Bonus:</b> square or line of own color → remove 1–2 spheres to reserve (economy engine). Sphere shortage loses.</li>
+<li><b>Why nice:</b> only 3D game in catalog; table presence huge; existing <i>.lavish/pylos-concept</i> already explores — this finishes it.</li>
+<li><b>Firebase:</b> board string[30] (4²+3²+2²+1), reserve counts; currentTurn flips except bonus-remove step.</li>
+</ul>
+<pre class="fbase">board: string[30]  // layers [0..15|16..24|25..28|29]
++ pylosReserveX/O
+applyMove: place | stack(support 2x2) | promote
+getWinner: board[29] set → owner wins</pre>
+</div>
+</div>
+</section>
+
+<!-- 5 ABALONE -->
+<section class="card" id="abalone">
+<h2 class="pix">5 · ABALONE — shove marbles off hex island</h2>
+<div class="meta"><span class="tag p1">HEX 61 CELLS</span><span class="tag">board[61]</span><span class="tag cta">WOW ★★★★☆</span><span class="tag">10–15 MIN</span></div>
+<div class="grid2">
+<div class="boardbox"><h3 class="pix">PLAYABLE MOCK — TAP MARBLE TO SELECT, TAP ARROW TO PUSH</h3>
+<div class="aba" id="abaBoard"></div>
+<div class="row"><button class="btn" onclick="abaPush('L')">◀ PUSH</button><button class="btn" onclick="abaPush('R')">PUSH ▶</button><button class="btn" onclick="abaReset()">RESET</button></div>
+<div class="row"><span class="turnline" id="abaTurn"></span></div>
+<p style="font-size:12px;color:rgb(var(--c-dim))">Full rules: 1–3 in line move together; 2 pushes 1, 3 pushes 1–2 (never equal numbers). 6 enemy marbles off wins. Mock = 1-row shove feel.</p>
+</div>
+<div>
+<ul class="rulelist">
+<li><b>Look:</b> slate hex island, glossy white vs black marbles, eject track on rim counts fallen marbles.</li>
+<li><b>Turn:</b> move 1–3 own marbles 1 hex; Sumito push when attackers outnumber defenders in line.</li>
+<li><b>Win:</b> first to eject 6 enemy marbles. No luck, pure positional wrestling.</li>
+<li><b>Why nice:</b> only hex-push game (Hex is connect-only); tactile + dramatic; great vs Checkers/Mancala crowd.</li>
+<li><b>Firebase:</b> board string[61] 'X'/'O'; ejected counts; currentTurn flips; no extraTurn.</li>
+</ul>
+<pre class="fbase">board: string[61]  // '' | 'X' | 'O', hex coords
++ abaOutX/O: ejected counts
+applyMove: { line:[a,b,c], dir } + sumito check
+getWinner: abaOutO==6 → X wins (and reverse)</pre>
+</div>
+</div>
+</section>
+
+<!-- COMPARE -->
+<section class="card" id="compare">
+<h2 class="pix">COMPARE — which to build first</h2>
+<div style="overflow:auto;margin-top:12px">
+<table class="cmp">
+<tr><th>GAME</th><th>FEEL</th><th>BUILD COST</th><th>FIT</th><th>BEST FOR</th></tr>
+<tr><td><b>BOOP</b></td><td>cute push tactics, 3 min</td><td><span class="stars">★★☆☆☆</span> easy — 6×6 + push8</td><td>perfect — board[36], normal flips</td><td>couples, viral, mobile</td></tr>
+<tr><td><b>GOBBLET</b></td><td>bluff TTT, 3 min</td><td><span class="stars">★★☆☆☆</span> easy — 3×3 stacks</td><td>perfect — board[9] + hands</td><td>kids, parties, TTT upgrade</td></tr>
+<tr><td><b>TAK 5×5</b></td><td>deep zen, 12 min</td><td><span class="stars">★★★★☆</span> hard — stacks + road BFS + cap</td><td>good — needs stack encoding</td><td>prestige thinky, streamers</td></tr>
+<tr><td><b>PYLOS</b></td><td>3D economy, 10 min</td><td><span class="stars">★★★☆☆</span> mid — 30 cells + support map</td><td>good — layers + reserves</td><td>table presence, wow shots</td></tr>
+<tr><td><b>ABALONE</b></td><td>wrestle marbles, 12 min</td><td><span class="stars">★★★★☆</span> hard — hex dirs + sumito</td><td>good — 61 hex + eject</td><td>checkers grads, tactile</td></tr>
+</table>
+</div>
+</section>
+
+<section class="card" id="build">
+<h2 class="pix">BUILD ORDER + VOTE</h2>
+<p style="font-size:13px">Ship <b>BOOP → GOBBLET → PYLOS → ABALONE → TAK</b>. First two reuse existing Board grid + getWinner pattern (1 logic file + 1 board file + registry entry each, per <i>adding-a-game</i> rule). Pylos reuses <i>.lavish/pylos-concept</i> art. Tak/Abalone last — hardest win-checks.</p>
+<div class="vote" id="vote">
+<button data-g="BOOP">BOOP 🐱</button><button data-g="GOBBLET">GOBBLET 🥤</button><button data-g="TAK">TAK 🪵</button><button data-g="PYLOS">PYLOS 🔺</button><button data-g="ABALONE">ABALONE ⚫</button>
+</div>
+<p class="turnline" id="voteOut">Tap to vote — stored local only. Then annotate / queue prompts in Lavish.</p>
+</section>
+
+<footer class="note">Design source: app midnight-arcade tokens (--c-*), Press Start 2P headers, P1 cyan / P2 pink. All 5 = X/O turn-based, solo-vs-bot capable, supportLocalPlay-eligible (Boop/Gobblet/Pylos immediately). No realtime/P2P needed.</footer>
+</div>
+<script>
+// BOOP
+let boop=[],boopTurn='X';
+function boopWinner(b){
+  const L=(i,j,k,v)=>b[i]===v&&b[j]===v&&b[k]===v;
+  for(let r=0;r<6;r++)for(let c=0;c<4;c++){let i=r*6+c;
+    if(L(i,i+1,i+2,'cX'))return 'X'; if(L(i,i+1,i+2,'cO'))return 'O';}
+  for(let c=0;c<6;c++)for(let r=0;r<4;r++){let i=r*6+c;
+    if(L(i,i+6,i+12,'cX'))return 'X'; if(L(i,i+6,i+12,'cO'))return 'O';}
+  return null;
+}
+function boopDraw(){
+  const el=document.getElementById('boopBoard');el.innerHTML='';
+  boop.forEach((v,i)=>{
+    const d=document.createElement('div');d.className='qcell';
+    if(v==='kX'){d.classList.add('kittenX');d.textContent='🐱';}
+    if(v==='kO'){d.classList.add('kittenO');d.textContent='🐈';}
+    if(v==='cX'){d.classList.add('kittenX');d.textContent='😸';}
+    if(v==='cO'){d.classList.add('kittenO');d.textContent='😻';}
+    d.onclick=()=>boopMove(i);el.appendChild(d);
+  });
+  document.getElementById('boopTurn').innerHTML='TURN <b>'+boopTurn+'</b> '+(boopTurn==='X'?'🐱':'🐈');
+  const w=boopWinner(boop);const wb=document.getElementById('boopWin');
+  if(w){wb.style.display='block';wb.textContent='🏆 '+w+' WINS — 3 CATS IN ROW';}else wb.style.display='none';
+}
+function boopPush(idx){
+  const dirs=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  const r=Math.floor(idx/6),c=idx%6;
+  dirs.forEach(([dr,dc])=>{
+    const r1=r+dr,c1=c+dc,r2=r+2*dr,c2=c+2*dc;
+    if(r1<0||r1>5||c1<0||c1>5)return;
+    const i1=r1*6+c1;
+    if(!boop[i1]||boop[i1][0]!=='k')return;
+    if(r2<0||r2>5||c2<0||c2>5){boop[i1]='';return;}
+    const i2=r2*6+c2;
+    if(!boop[i2]){boop[i2]=boop[i1];boop[i1]='';}
+  });
+}
+function boopMove(i){
+  if(boopWinner(boop)||boop[i])return;
+  boop[i]='k'+boopTurn;boopPush(i);
+  // graduate demo: any 3 kittens row -> middle becomes cat
+  for(let r=0;r<6;r++)for(let c=0;c<4;c++){let a=r*6+c;
+    if(boop[a]==='k'+boopTurn&&boop[a+1]==='k'+boopTurn&&boop[a+2]==='k'+boopTurn){boop[a]=boop[a+1]=boop[a+2]='';boop[a+1]='c'+boopTurn;}}
+  boopTurn=boopTurn==='X'?'O':'X';boopDraw();
+}
+function boopReset(){boop=Array(36).fill('');boopTurn='X';boopDraw();}
+boopReset();
+// GOBBLET
+let gob=Array(9).fill(''),gobTurn='X',gobSize=1;
+document.querySelectorAll('#gobSizes button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#gobSizes button').forEach(x=>x.classList.remove('sel'));
+  b.classList.add('sel');gobSize=+b.dataset.s;});
+function gobTop(v){return v||'';}
+function gobDraw(){
+  const el=document.getElementById('gobBoard');el.innerHTML='';
+  const emoji={X:['🟤','🔵','🟠'],O:['🟤','🩷','💗']};
+  gob.forEach((v,i)=>{
+    const d=document.createElement('div');d.className='gcell';
+    if(v){const o=v[0],s=+v[1];d.textContent=s===0?'●':s===1?'⬤':'⭕';d.style.color=o==='X'?'rgb(0,229,255)':'rgb(255,64,129)';d.style.fontSize=(14+s*10)+'px';}
+    d.onclick=()=>gobMove(i);el.appendChild(d);});
+  document.getElementById('gobTurn').innerHTML='TURN <b>'+gobTurn+'</b> · SIZE '+(gobSize===0?'S':gobSize===1?'M':'L');
+  const w=gobWin();const wb=document.getElementById('gobWin');
+  if(w){wb.style.display='block';wb.textContent='🏆 '+w+' WINS';}else wb.style.display='none';
+}
+function gobMove(i){
+  if(gobWin())return;const cur=gob[i];
+  if(!cur||+cur[1]<gobSize){gob[i]=gobTurn+gobSize;gobTurn=gobTurn==='X'?'O':'X';}gobDraw();
+}
+function gobWin(){
+  const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for(const [a,b,c] of L){if(gob[a]&&gob[b]&&gob[c]&&gob[a][0]===gob[b][0]&&gob[b][0]===gob[c][0])return gob[a][0];}
+  return null;
+}
+function gobReset(){gob=Array(9).fill('');gobTurn='X';gobDraw();}
+gobDraw();
+// TAK
+let tak=Array(25).fill(''),takTurn='X',takFlat=true;
+document.getElementById('takMode').onclick=(e)=>{takFlat=!takFlat;e.target.textContent='MODE: '+(takFlat?'FLAT':'WALL');};
+function takDraw(road){
+  const el=document.getElementById('takBoard');el.innerHTML='';
+  tak.forEach((v,i)=>{
+    const d=document.createElement('div');d.className='tcell'+(road&&road.includes(i)?' road':'');
+    d.textContent=v==='Xf'?'⬜':v==='Xw'?'🧱':v==='Of'?'⬛':v==='Ow'?'🧱':'';
+    if(v&&v[0]==='O')d.style.filter='hue-rotate(300deg)';
+    d.onclick=()=>{if(!v){tak[i]=takTurn+(takFlat?'f':'w');takTurn=takTurn==='X'?'O':'X';takDraw();takStatus();}};el.appendChild(d);});
+}
+function takStatus(){document.getElementById('takTurn').innerHTML='TURN <b>'+takTurn+'</b> '+(takTurn==='X'?'⬜':'⬛');}
+function takRoad(){takDraw([0,1,2,7,12,17,22]);}
+function takReset(){tak=Array(25).fill('');takTurn='X';takDraw();takStatus();}
+takDraw();takStatus();
+// PYLOS
+let pyr=[],pyrTurn='X';
+function pyrInit(){pyr=[Array(16).fill(''),Array(9).fill(''),Array(4).fill(''),Array(1).fill('')];}
+function pyrDraw(){
+  const ids=['pyr4','pyr3','pyr2','pyr1'];
+  pyr.forEach((layer,li)=>{
+    const el=document.getElementById(ids[li]);el.innerHTML='';
+    layer.forEach((v,i)=>{
+      const d=document.createElement('div');d.className='pball'+(li===3?' top':'')+(v?' filled'+v:'');
+      d.textContent=v?(v==='X'?'●':'●'):'·';d.style.color=v?(v==='X'?'rgb(0,229,255)':'rgb(255,64,129)'):'rgb(122,122,186)';
+      d.onclick=()=>pyrMove(li,i);el.appendChild(d);});
+  });
+  document.getElementById('pyrTurn').innerHTML='TURN <b>'+pyrTurn+'</b> · RESERVE ∞ (mock)';
+  const wb=document.getElementById('pyrWin');
+  if(pyr[3][0]){wb.style.display='block';wb.textContent='🏆 '+pyr[3][0]+' TAKES PYRAMID TOP';}else wb.style.display='none';
+}
+function pyrSupportFilled(li,i){
+  if(li===0)return true;
+  // simplified: allow upper placement once any 4 below exist
+  const below=pyr[li-1].filter(Boolean).length;
+  return below>=4*(li);
+}
+function pyrMove(li,i){
+  if(pyr[3][0]||pyr[li][i])return;
+  if(li>0&&!pyrSupportFilled(li,i))return;
+  pyr[li][i]=pyrTurn;pyrTurn=pyrTurn==='X'?'O':'X';pyrDraw();
+}
+function pyrReset(){pyrInit();pyrTurn='X';pyrDraw();}
+pyrReset();
+// ABALONE
+let aba=[],abaSel=null,abaTurn='X';
+function abaInit(){aba=[['X','X','X','X','X'],['X','X','X','X','X','X'],['','','O','','',''],[],[]];aba=[...Array(5)].map((_,r)=>[...Array(5+r%2)].map(()=>''));aba[0]=['X','X','X','X','X'];aba[1]=['X','X','X','X','X','X'];aba[2]=['','','O','O','','',''];aba[3]=['O','O','O','O','O','O'];aba[4]=['O','O','O','O','O'];}
+function abaDraw(){
+  const el=document.getElementById('abaBoard');el.innerHTML='';
+  aba.forEach((row,r)=>{
+    const rd=document.createElement('div');rd.className='arow';
+    row.forEach((v,c)=>{
+      const d=document.createElement('div');d.className='marble '+v+((abaSel&&abaSel[0]===r&&abaSel[1]===c)?' sel':'');
+      d.textContent=v==='X'?'⚪':v==='O'?'⚫':'·';d.style.color='rgb(122,122,186)';
+      d.onclick=()=>{abaSel=[r,c];abaDraw();};rd.appendChild(d);});
+    el.appendChild(rd);});
+  document.getElementById('abaTurn').innerHTML='TURN <b>'+abaTurn+'</b>'+(abaSel?' · SEL ['+abaSel+']':'');
+}
+function abaPush(dir){
+  if(!abaSel)return;const [r,c]=abaSel;const v=aba[r][c];if(!v)return;
+  const dc=dir==='R'?1:-1;const nc=c+dc;
+  if(nc<0||nc>=aba[r].length){aba[r][c]='';abaSel=null;}
+  else if(!aba[r][nc]){aba[r][nc]=v;aba[r][c]='';}
+  else{const nc2=nc+dc;if(nc2>=0&&nc2<aba[r].length&&!aba[r][nc2]){aba[r][nc2]=aba[r][nc];aba[r][nc]=v;aba[r][c]='';}}
+  abaTurn=abaTurn==='X'?'O':'X';abaSel=null;abaDraw();
+}
+function abaReset(){abaInit();abaSel=null;abaTurn='X';abaDraw();}
+abaReset();
+// vote
+document.querySelectorAll('#vote button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#vote button').forEach(x=>x.classList.remove('voted'));
+  b.classList.add('voted');
+  try{localStorage.setItem('newgame-vote',b.dataset.g);}catch(e){}
+  document.getElementById('voteOut').textContent='Voted '+b.dataset.g+' — stored local. Annotate board or queue prompt in Lavish.';
+});
+</script>
+</body>
+</html>

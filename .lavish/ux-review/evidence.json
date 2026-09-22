@@ -1,0 +1,113 @@
+{
+  "setup": "Local app on localhost:5173; Firebase traffic blocked; isolated local-guest context. No live multiplayer verification.",
+  "captures": [
+    {
+      "name": "current-welcome-mobile",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 961,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "current-identity-mobile",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 961,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "current-home-mobile",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 3374,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "current-options-mobile",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 3374,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "current-home-desktop",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "scrollHeight": 2342,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "current-solo-mobile",
+      "url": "http://localhost:5173/solo/tictactoe",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 1103,
+      "horizontalOverflow": false
+    }
+  ],
+  "mobileCard": {
+    "text": "TIC TAC TOE\n\n2P\n~1 MIN",
+    "bounds": {
+      "x": 16,
+      "y": 433.75,
+      "width": 173,
+      "height": 94.75,
+      "top": 433.75,
+      "right": 189,
+      "bottom": 528.5,
+      "left": 16
+    },
+    "typography": [
+      {
+        "text": "TIC TAC TOE",
+        "size": "10px",
+        "display": "block"
+      },
+      {
+        "text": "three in a row wins",
+        "size": "10px",
+        "display": "none"
+      },
+      {
+        "text": "2P~1 MIN",
+        "size": "7px",
+        "display": "flex"
+      },
+      {
+        "text": "2P",
+        "size": "7px",
+        "display": "block"
+      },
+      {
+        "text": "~1 MIN",
+        "size": "6px",
+        "display": "block"
+      }
+    ]
+  },
+  "focusOnOpen": {
+    "active": "<button class=\"w-full flex flex-col items-center gap-2 py-2.5 px-2 border-2 rounded transition-all active:scale-95 border-retro-border bg-retro-card hover:border-retro-cta/50\"><div class=\"w-8 h-8 rounded flex items-center justify-center tex",
+    "insideDialog": false
+  },
+  "focusAfterTab": {
+    "active": "<button title=\"Add to favorites\" aria-label=\"Add to favorites\" aria-pressed=\"false\" class=\"absolute top-1 left-1 z-10 p-4 -m-3 rounded transition-colors text-retro-dim hover:text-retro-text\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" f",
+    "insideDialog": false
+  }
+}

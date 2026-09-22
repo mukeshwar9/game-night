@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Night — Change Report (Sep 22, 2026)</title>
+<style>
+  @font-face {
+    font-family: 'Press Start 2P';
+    src: url('../fonts/press-start-2p-latin.woff2') format('woff2');
+    font-weight: 400; font-style: normal;
+  }
+  :root {
+    --bg:#080810; --surface:#0f0f1a; --card:#131328; --border:#2a2a50;
+    --text:#e0e0ff; --dim:#9a9ac4; --p1:#00e5ff; --p2:#ff4081;
+    --cta:#ffe600; --win:#39ff14; --danger:#ff2d2d;
+    --tint-cta:#1a1500; --tint-p1:#001a2e; --tint-p2:#2e0018; --tint-win:#0a1f00;
+    --font:"Press Start 2P", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--mono); min-height:100vh }
+  body:before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.08;
+    background:repeating-linear-gradient(0deg,transparent 0 3px,#000 3px 4px) }
+  .page { max-width:1080px; margin:auto; padding:40px 24px 80px; position:relative }
+  h1 { font-family:var(--font); color:var(--cta); font-size:18px; line-height:1.7; letter-spacing:2px;
+       text-shadow:0 0 10px #ffe60088; margin:0 0 8px }
+  .sub { color:var(--dim); font-size:13px; line-height:1.8; max-width:780px; margin:0 0 34px }
+  h2 { font-family:var(--font); color:var(--p1); font-size:12px; letter-spacing:1px;
+       margin:44px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--border) }
+  .commit { background:var(--surface); border:2px solid var(--border); border-radius:6px;
+            padding:18px; margin:18px 0 }
+  .commit:hover { border-color:var(--p1); box-shadow:0 0 16px #00e5ff22 }
+  .commit-head { display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; margin-bottom:10px }
+  .sha { color:var(--cta); background:var(--tint-cta); border:1px solid var(--cta);
+         padding:4px 8px; font-size:11px; border-radius:3px }
+  .commit-msg { font-family:var(--font); font-size:10px; line-height:1.7 }
+  ul { margin:8px 0 0; padding-left:18px; line-height:1.8; font-size:13px }
+  li { margin:6px 0 }
+  code { color:var(--cta); background:var(--tint-cta); padding:2px 7px; border-radius:3px;
+         border:1px solid #332b00; font-size:11.5px }
+  .file { color:var(--p1); font-size:11.5px }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; margin:10px 0 }
+  th { font-family:var(--font); font-size:8px; color:var(--dim); letter-spacing:1px; text-align:left;
+       border-bottom:1px solid var(--border); padding:10px }
+  td { border-bottom:1px solid #1a1a33; padding:9px 10px; line-height:1.7 }
+  .chip { display:inline-block; font-family:var(--font); font-size:8px; padding:4px 7px;
+          border-radius:3px; white-space:nowrap }
+  .done { color:var(--win); background:var(--tint-win); border:1px solid var(--win) }
+  .todo { color:var(--cta); background:var(--tint-cta); border:1px solid var(--cta) }
+  .open { color:var(--danger); background:#2e0808; border:1px solid var(--danger) }
+  .statgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin:20px 0 }
+  .stat { background:var(--surface); border:2px solid var(--border); border-radius:6px; padding:16px }
+  .stat .n { font-family:var(--font); color:var(--win); font-size:15px; display:block; margin-bottom:10px }
+  .stat .l { color:var(--dim); font-size:11px; line-height:1.7 }
+  .box { background:#0a1a2e; border-left:4px solid var(--p1); border-radius:4px;
+         padding:14px 18px; font-size:13px; line-height:1.8; margin:18px 0 }
+  .footer { margin-top:50px; color:var(--dim); font-size:11px; border-top:1px solid var(--border); padding-top:16px }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>CHANGE REPORT — WHAT WE BUILT TODAY</h1>
+  <p class="sub">
+    All work was done in a separate copy of the repo (a git worktree at
+    <code class="file">../games-platform-quickwins</code>, branch <code class="file">quick-wins-ux</code>).
+    This was on purpose — another session was editing the main folder at the same time, and this way
+    nothing clashed. The work is ready to bring into the main folder with one command:
+    <code>git merge quick-wins-ux</code>.
+  </p>
+
+  <div class="statgrid">
+    <div class="stat"><span class="n">12</span><span class="l">problems fixed<br>from the UX list</span></div>
+    <div class="stat"><span class="n">7</span><span class="l">commits</span></div>
+    <div class="stat"><span class="n">44</span><span class="l">files changed<br>(+943 / −135 lines)</span></div>
+    <div class="stat"><span class="n">1965</span><span class="l">tests passing<br>(was 1948)</span></div>
+  </div>
+
+  <h2>WHAT CHANGED, ONE COMMIT AT A TIME</h2>
+
+  <div class="commit">
+    <div class="commit-head"><span class="sha">654c8b8</span>
+      <span class="commit-msg">Small fixes that were quick to do</span></div>
+    <ul>
+      <li><b>Front page pitch on the start screen.</b> The line "44 GAMES · SHARE A LINK · NO ACCOUNT"
+        now shows on the very first screen, before anyone clicks anything. The game count is read from
+        the game list, so it never goes stale.</li>
+      <li><b>Practice hub tiles were lying.</b> Every tile said "2P" but every demo is player-vs-CPU.
+        Tiles now say "VS CPU". Also fixed ugly word breaks like "CHECK ERS" and "ARTIL LERY".</li>
+      <li><b>Practice hub and home page told different stories.</b> The counts were different
+        (17 vs 13 board games) because one place showed game variants and the other hid them.
+        Both now count the same way, and the hub header says "PRACTICE · VS CPU" with a link
+        back to the full catalog.</li>
+      <li><b>Rules inside a room — nothing to do.</b> We checked the code and the rules button is
+        already there in every room, including before the game starts. The report was out of date.</li>
+      <li><b>Share cards on every end screen.</b> Six game pages could not share a result picture.
+        They all share one new Share button now: Anagrams, Hangwoman, Password, Word Co-OP,
+        Word Race, Chain Reaction 4P. Practice demos and EmojiLab were left out on purpose
+        (local games with no result worth sharing).</li>
+    </ul>
+  </div>
+
+  <div class="commit">
+    <div class="commit-head"><span class="sha">2b0471b</span>
+      <span class="commit-msg">The medium-sized round</span></div>
+    <ul>
+      <li><b>Waiting rooms now build excitement.</b> For games with secrets, the waiting room shows a
+        blinking line like "RIVAL IS DEPLOYING THEIR SECRET FLEET…" instead of nothing. Six games
+        got this: Battleship, Hangwoman, Password, Wavelength, Spyfair, Sketch.</li>
+      <li><b>Big moments now feel big.</b> Getting an extra turn or landing a hit used to be one small
+        line of text. Now the whole screen flashes with a big word ("GO AGAIN!", "HIT! GO AGAIN") and
+        a new sound plays — a rising two-note ping made just for this. Works in Dots &amp; Boxes, SOS,
+        Mancala, Battleship, and all board demos. The small text still stays on screen as the ongoing
+        state; the flash is the celebration.</li>
+      <li><b>A starting path for new players.</b> With 40+ game tiles, a new visitor can freeze. The home
+        page now shows a "START HERE" strip with 4 picked games in order: Tic-Tac-Toe → Connect Four →
+        Battleship → Sketch. It only shows to brand-new visitors and quietly goes away once they play
+        something or close it.</li>
+    </ul>
+  </div>
+
+  <div class="commit">
+    <div class="commit-head"><span class="sha">51f639d</span>
+      <span class="commit-msg">Test two players on one computer <span class="chip done">37 files · +703/−113</span></span></div>
+    <p class="files-note" style="color:var(--dim);font-size:12px;line-height:1.8;margin:6px 0">
+      Until now, testing a 2-player game on one browser was awkward: two normal tabs share the same
+      identity, so the "second player" had to use a private window. This feature fixes that.
+      Testing tools (like Chrome DevTools MCP) can now drive several real players in plain tabs.
+    </p>
+    <ul>
+      <li><b>How to start it</b> — run <code>npm run test:emulators</code> (starts fake Firebase servers
+        on your machine) and <code>npm run dev:test</code> (the dev server with testing switched on).
+        No real Firebase account or .env.local needed for this mode.</li>
+      <li><b>The launcher</b> — the browser shows a screen with buttons P1–P8 and SPECTATOR. Each button
+        opens a normal new tab that acts as that player, with its own identity.</li>
+      <li><b>Each slot is a real player</b> — each tab signs in to the local fake Firebase and gets its
+        own user id. Opening P1 again later gets you the same P1 back. The URL decides the slot
+        (<code>?devPlayer=p1</code>), so one tab can never steal another tab's identity.</li>
+      <li><b>Private storage per player</b> — names, stats, room history, seat records, and every secret
+        (the hidden battleship fleet, the hangwoman word, etc.) are stored under separate keys per slot.
+        Two tabs can't read each other's data. Things that should stay shared (theme, sound settings)
+        are still shared. The normal keys are untouched when this mode is off.</li>
+      <li><b>Safe limits</b> — the SPECTATOR slot can watch but never takes a seat. Signing in with
+        Google is switched off in this mode. The mode only works on your own machine during development —
+        the live website and normal dev server ignore it completely.</li>
+      <li><b>A badge shows the state</b> — a small corner tag shows the slot, the player id, and whether
+        the fake servers are up (EMU-OK / EMU-DOWN).</li>
+      <li><b>Docs</b> — step-by-step test walkthroughs for 2-player and party games are in
+        <code class="file">docs/DEV-MULTIPLAYER.md</code>. README and AGENTS.md mention it too.</li>
+      <li><span class="chip open">STILL OPEN</span> — the plan says the real test must be done by hand with
+        the emulators running. That walkthrough has not been done yet. The code-level pieces (the small
+        logic parts) are covered by 17 new automated tests.</li>
+    </ul>
+  </div>
+
+  <div class="commit">
+    <div class="commit-head"><span class="sha">aab8958</span>
+      <span class="commit-msg">README update</span></div>
+    <ul>
+      <li>Added the two testing commands and a short "Local multiplayer testing" section to the README.</li>
+    </ul>
+  </div>
+
+  <h2>EVERY FILE THAT CHANGED</h2>
+  <table>
+    <tr><th>What</th><th>Files</th></tr>
+    <tr><td>New shared parts</td><td class="file">ShareResultButton · MomentFlash · StartHere · DevPlayerBar (all in src/components)</td></tr>
+    <tr><td>New test helpers</td><td class="file">devTestingLogic · devTesting · storage (all in src/lib, with tests)</td></tr>
+    <tr><td>Waiting room</td><td class="file">games.js (new waitingCopy field) · WaitingRoom.jsx</td></tr>
+    <tr><td>The big-moment flash</td><td class="file">GameStatus.jsx · sounds.js · index.css · BattleshipGame.jsx · MancalaDemo.jsx</td></tr>
+    <tr><td>Share buttons added</td><td class="file">AnagramsGame · HangmanGame · PasswordGame · WordCoopGame · WordRaceGame · ChainReaction4Game</td></tr>
+    <tr><td>Private storage switch-over</td><td class="file">profile · social · onboarding · playerId · favorites · continueRooms · Game · Home · Friends · BattleshipGame · WordDuelGame · FibbageGame · TwoTruthsGame · MineRaceGame · SpyfairGame · BluffBattleGame · HangmanGame · WavelengthGame · and demo pages</td></tr>
+    <tr><td>Testing-mode plumbing</td><td class="file">firebase.js · auth.js · App.jsx · Game.jsx</td></tr>
+    <tr><td>Practice hub</td><td class="file">Demo.jsx</td></tr>
+    <tr><td>Docs and setup</td><td class="file">README.md · AGENTS.md · UX-IMPROVEMENTS.md · docs/DEV-MULTIPLAYER.md · package.json</td></tr>
+  </table>
+
+  <h2>WHERE THE TASK LIST STANDS</h2>
+  <table>
+    <tr><th>Task</th><th>What it was</th><th>Status</th></tr>
+    <tr><td>F-39, F-40, F-41, F-46</td><td>Start screen pitch · tile labels · hub story · share cards</td><td><span class="chip done">DONE</span></td></tr>
+    <tr><td>F-43</td><td>Rules in the waiting room</td><td><span class="chip done">WAS ALREADY DONE</span></td></tr>
+    <tr><td>F-42, F-44, F-45</td><td>Waiting-room lines · big-moment flash · START HERE</td><td><span class="chip done">DONE</span></td></tr>
+    <tr><td>F-51</td><td>Two players on one browser for testing</td><td><span class="chip done">DONE</span> — manual test still pending</td></tr>
+    <tr><td>F-47 – F-50</td><td>Connection problems + phone keyboard issues</td><td><span class="chip todo">NEXT</span></td></tr>
+  </table>
+
+  <h2>HOW WE CHECKED THE WORK</h2>
+  <ul>
+    <li>All 90 test files pass — 1965 tests (17 new ones for the small logic parts).</li>
+    <li>The production build works.</li>
+    <li>No new lint errors. There are 13 old lint errors that were already in the code before
+      today — left alone on purpose.</li>
+  </ul>
+
+  <div class="box">
+    <b>Before you merge.</b> The main folder still has another session's unfinished work (a video-call
+    layout, a plan for connection fixes, new games, stickers). Wait until that session stops, then run
+    <code>git merge quick-wins-ux</code> from the main folder. Two files may need a small hand-fix
+    during the merge: <code class="file">Demo.jsx</code> and <code class="file">README.md</code>.
+  </div>
+
+  <h2>WHAT COULD BE NEXT</h2>
+  <ul>
+    <li>Three small checks: does mute setting survive a reload · do new players notice the emote bar ·
+      does Air Hockey offer a "play a friend" button that would break.</li>
+    <li>The connection-fix block: F-47 first (it affects match results), then F-48 and F-49.
+      F-50 needs a real Android/iPhone to test on.</li>
+    <li>One cleanup pass for the 13 old lint errors.</li>
+  </ul>
+
+  <p class="footer">Made Sep 22, 2026 · branch quick-wins-ux · from 95405c7 to aab8958</p>
+</div>
+</body>
+</html>

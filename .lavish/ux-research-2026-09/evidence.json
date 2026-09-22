@@ -1,0 +1,132 @@
+{
+  "date": "2026-09-16",
+  "setup": "localhost:5173; Firebase blocked; isolated guest; independent pass (not prior review reuse).",
+  "journeys": [
+    {
+      "name": "01-welcome",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 961,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "02-identity",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 961,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "03-home",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 3374,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "04-options",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 3374,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "05-solo",
+      "url": "http://localhost:5173/solo/tictactoe",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollHeight": 1103,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "06-home-desktop",
+      "url": "http://localhost:5173/",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "scrollHeight": 2342,
+      "horizontalOverflow": false
+    }
+  ],
+  "heuristics": {
+    "firstCard": {
+      "text": "TIC TAC TOE\n\n2P\n~1 MIN",
+      "top": 433.75,
+      "height": 94.75,
+      "typography": [
+        {
+          "text": "TIC TAC TOE",
+          "size": "10px",
+          "display": "block"
+        },
+        {
+          "text": "three in a row wins",
+          "size": "10px",
+          "display": "none"
+        },
+        {
+          "text": "2P~1 MIN",
+          "size": "7px",
+          "display": "flex"
+        },
+        {
+          "text": "2P",
+          "size": "7px",
+          "display": "block"
+        },
+        {
+          "text": "~1 MIN",
+          "size": "6px",
+          "display": "block"
+        }
+      ]
+    },
+    "focusOnOpen": {
+      "insideDialog": false,
+      "tag": "BUTTON",
+      "label": "TIC TAC TOE\n\n2P\n~1 MIN"
+    },
+    "focusAfterTab": {
+      "insideDialog": false,
+      "label": "Add to favorites"
+    },
+    "backgroundFocusablesWhileOpen": 115,
+    "solo": {
+      "demoBadge": true,
+      "pickerishButtons": 4,
+      "boardTop": 179,
+      "firstViewportText": "GAME NIGHT\nDemo\nBOARD\nREFLEX\nMEMORY\nWORD\nDICE\nPARTY\nTTT\n2P\nULTIMATE\nTTT\n2P\nCONNECT\nFOUR\n2P\nC4 POP\nOUT\n2P\nGOMOKU\n2P\nREVERSI\n2P\nORDER &\nCHAOS\n2P\nSOS\n2P\nDOTS &\nBOXES\n2P\nDOTS\n4×4\n2P\nCHAIN\nREACTION\n2P\nCHAI"
+    },
+    "homeInputs": [
+      {
+        "placeholder": "enter code…",
+        "id": "",
+        "labelledBy": null,
+        "hasLabel": false,
+        "ariaLabel": null
+      },
+      {
+        "placeholder": "SEARCH GAMES… ( / )",
+        "id": "",
+        "labelledBy": null,
+        "hasLabel": false,
+        "ariaLabel": null
+      }
+    ]
+  }
+}

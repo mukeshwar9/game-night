@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pylos — Games Platform concept</title>
+  <style>
+    @font-face {
+      font-family: "Press Start 2P";
+      src: url("press-start-2p-latin.woff2") format("woff2");
+      font-display: swap;
+    }
+    :root {
+      --bg: #080810;
+      --surface: #0f0f1a;
+      --card: #131328;
+      --border: #1e1e3a;
+      --text: #e0e0ff;
+      --dim: #7a7aba;
+      --p1: #00e5ff;
+      --p2: #ff4081;
+      --cta: #ffe600;
+      --win: #39ff14;
+      --deep: #0c0c20;
+      --p1-dark: #001a2e;
+      --p2-dark: #2e0018;
+      --cta-dark: #1a1500;
+      --pixel: "Press Start 2P", system-ui, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 50% -15%, rgba(0,229,255,.10), transparent 32rem),
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+        var(--bg);
+      background-size: auto, 32px 32px, 32px 32px, auto;
+      font-family: var(--mono);
+    }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+      background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.07) 2px 4px);
+      box-shadow: inset 0 0 180px rgba(0,0,0,.65);
+    }
+    button { font: inherit; }
+    .page { width: min(1280px, 100%); margin: 0 auto; padding: 44px 24px 72px; }
+    .eyebrow { margin: 0 0 12px; color: var(--p1); font: 8px/1.6 var(--pixel); letter-spacing: .18em; }
+    h1 { margin: 0; font: 26px/1.35 var(--pixel); color: var(--text); text-shadow: 0 0 24px rgba(0,229,255,.24); }
+    .intro { max-width: 710px; margin: 18px 0 0; color: var(--dim); font-size: 15px; line-height: 1.65; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 22px; color: var(--dim); font: 8px/1.5 var(--pixel); }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; }
+    .legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 34px; }
+    .concept { min-width: 0; }
+    .concept-head { min-height: 74px; padding: 0 3px; }
+    .concept-no { color: var(--p1); font: 8px var(--pixel); letter-spacing: .15em; }
+    .concept h2 { margin: 9px 0 5px; font: 11px/1.5 var(--pixel); color: var(--text); }
+    .concept-note { margin: 0; color: var(--dim); font-size: 12px; line-height: 1.5; }
+    .phone {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      aspect-ratio: 390 / 820;
+      max-height: 820px;
+      overflow: hidden;
+      border: 1px solid #32325d;
+      border-radius: 24px;
+      background: var(--bg);
+      box-shadow: 0 24px 70px rgba(0,0,0,.42), 0 0 0 5px rgba(19,19,40,.9);
+    }
+    .phone::before {
+      content: "";
+      position: absolute;
+      z-index: 6;
+      left: 50%; top: 8px;
+      width: 64px; height: 4px;
+      transform: translateX(-50%);
+      background: #292947;
+      border-radius: 4px;
+    }
+    .game {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(8px, 1.4vw, 14px);
+      padding: clamp(26px, 6vw, 38px) clamp(12px, 3.8vw, 18px) 14px;
+      background: radial-gradient(circle at 50% 36%, rgba(0,229,255,.055), transparent 48%);
+    }
+    .game-header { display: flex; align-items: center; justify-content: space-between; min-width: 0; }
+    .home { color: var(--dim); font: 7px var(--pixel); white-space: nowrap; }
+    .tools { display: flex; align-items: center; gap: 10px; color: var(--dim); }
+    .tool { width: 15px; height: 15px; display: grid; place-items: center; font-size: 14px; }
+    .badge { padding: 4px 6px; border: 1px solid var(--border); border-radius: 3px; font: 6px var(--pixel); }
+    .room { color: var(--p1); font: 7px var(--pixel); letter-spacing: .08em; text-shadow: 0 0 8px var(--p1); }
+    .title-row { display: flex; align-items: flex-end; justify-content: space-between; padding: 1px 2px 0; }
+    .game-title { margin: 0; font: 11px/1.3 var(--pixel); letter-spacing: .08em; }
+    .level-label { color: var(--dim); font: 6px var(--pixel); letter-spacing: .12em; }
+    .players { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .player {
+      min-width: 0;
+      height: clamp(52px, 13vw, 62px);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      background: var(--card);
+    }
+    .player.active.x { border-color: var(--p1); background: rgba(0,26,46,.82); box-shadow: 0 0 9px rgba(0,229,255,.45); }
+    .player.active.o { border-color: var(--p2); background: rgba(46,0,24,.82); box-shadow: 0 0 9px rgba(255,64,129,.45); }
+    .avatar {
+      width: 34px; height: 34px; flex: 0 0 auto;
+      display: grid; place-items: center;
+      border-radius: 3px;
+      font: 11px var(--pixel);
+    }
+    .x .avatar { color: var(--p1); background: var(--p1-dark); }
+    .o .avatar { color: var(--p2); background: var(--p2-dark); }
+    .player-copy { min-width: 0; flex: 1; }
+    .player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(9px,2.4vw,13px); }
+    .player-meta { margin-top: 4px; color: var(--dim); font-size: clamp(7px,2vw,10px); }
+    .dots { color: currentColor; font-size: 9px; letter-spacing: 1px; }
+    .board-shell {
+      position: relative;
+      min-height: 0;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      background: rgba(8,8,16,.8);
+      overflow: hidden;
+    }
+    .instruction {
+      min-height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 10px 5px;
+      color: var(--dim);
+      text-align: center;
+      font: 6px/1.7 var(--pixel);
+      letter-spacing: .08em;
+    }
+    .instruction strong { color: var(--cta); font-weight: 400; text-shadow: 0 0 10px rgba(255,230,0,.4); }
+    .board-wrap { position: relative; min-height: 0; flex: 1; display: grid; place-items: center; }
+    .pylos-board { width: min(100%, 350px); height: auto; max-height: 100%; overflow: visible; }
+    .platform { fill: #111124; stroke: #343463; stroke-width: 1.4; }
+    .platform-side { fill: #090917; stroke: #242448; stroke-width: 1; }
+    .gridline { stroke: #2a2a50; stroke-width: 1; opacity: .9; }
+    .socket { fill: #0a0a16; stroke: #363662; stroke-width: 1.1; }
+    .socket.legal { fill: rgba(255,230,0,.09); stroke: var(--cta); stroke-width: 2; filter: drop-shadow(0 0 5px rgba(255,230,0,.65)); }
+    .sphere-shadow { fill: rgba(0,0,0,.55); }
+    .sphere-x { fill: url(#sphereX); stroke: #61f1ff; stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(0,229,255,.65)); }
+    .sphere-o { fill: url(#sphereO); stroke: #ff77a6; stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(255,64,129,.58)); }
+    .sphere.selected { stroke: var(--cta); stroke-width: 3; filter: drop-shadow(0 0 7px rgba(255,230,0,.9)); }
+    .sphere.reclaim { stroke: var(--win); stroke-width: 3; filter: drop-shadow(0 0 7px rgba(57,255,20,.8)); }
+    .sphere-mark { font: 7px var(--pixel); text-anchor: middle; dominant-baseline: middle; fill: rgba(8,8,16,.78); pointer-events: none; }
+    .legal-plus { font: 13px var(--pixel); fill: var(--cta); text-anchor: middle; dominant-baseline: middle; filter: drop-shadow(0 0 5px rgba(255,230,0,.75)); }
+    .reclaim-ring { fill: none; stroke: var(--win); stroke-width: 1.5; stroke-dasharray: 3 3; }
+    .board-caption { padding: 2px 8px 7px; color: var(--dim); text-align: center; font: 5.5px/1.6 var(--pixel); letter-spacing: .08em; }
+    .reserves { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 7px; padding: 7px 9px 9px; border-top: 1px solid var(--border); }
+    .reserve { display: flex; align-items: center; gap: 4px; min-width: 0; }
+    .reserve.right { justify-content: flex-end; }
+    .mini-ball { width: clamp(7px,2vw,10px); height: clamp(7px,2vw,10px); flex: 0 0 auto; border-radius: 50%; }
+    .mini-ball.x { background: var(--p1); box-shadow: 0 0 5px rgba(0,229,255,.75); }
+    .mini-ball.o { background: var(--p2); box-shadow: 0 0 5px rgba(255,64,129,.75); }
+    .reserve-count { font: 6px var(--pixel); color: var(--dim); white-space: nowrap; }
+    .versus { color: var(--border); font: 6px var(--pixel); }
+    .status { min-height: 24px; display: grid; place-items: center; color: var(--cta); font: 7px var(--pixel); letter-spacing: .08em; text-shadow: 0 0 10px rgba(255,230,0,.45); }
+    .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .ghost-action { min-height: 32px; border: 1px solid var(--border); background: var(--card); color: var(--dim); border-radius: 4px; font: 6px var(--pixel); }
+    .primary-action { min-height: 32px; border: 1px solid var(--cta); background: var(--cta-dark); color: var(--cta); border-radius: 4px; font: 6px var(--pixel); box-shadow: 0 0 8px rgba(255,230,0,.2); }
+    .phase-ribbon {
+      position: absolute;
+      left: 12px; right: 12px; bottom: 42px;
+      z-index: 4;
+      padding: 10px;
+      border: 1px solid rgba(57,255,20,.55);
+      border-radius: 4px;
+      color: var(--win);
+      background: rgba(4,22,4,.94);
+      text-align: center;
+      font: 6px/1.6 var(--pixel);
+      box-shadow: 0 0 14px rgba(57,255,20,.15);
+    }
+    .summary {
+      margin-top: 32px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: rgba(19,19,40,.72);
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 18px;
+    }
+    .summary-item { min-width: 0; }
+    .summary strong { display: block; margin-bottom: 8px; color: var(--p1); font: 8px/1.5 var(--pixel); }
+    .summary p { margin: 0; color: var(--dim); font-size: 12px; line-height: 1.55; }
+    .source-note { margin: 20px 0 0; color: #57578b; font-size: 11px; line-height: 1.5; }
+    @media (max-width: 980px) {
+      .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .concept:last-child { grid-column: 1 / -1; width: min(100%, 430px); justify-self: center; }
+    }
+    @media (max-width: 640px) {
+      .page { padding: 30px 14px 52px; }
+      h1 { font-size: 18px; }
+      .gallery { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+      .concept, .concept:last-child { grid-column: auto; width: min(100%, 410px); justify-self: center; }
+      .concept-head { min-height: auto; margin-bottom: 12px; }
+      .summary { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="eyebrow">GAME CONCEPT / 2 PLAYERS</p>
+      <h1>PYLOS</h1>
+      <p class="intro">Three proposed gameplay screenshots inside current Games Platform shell. Board uses a compact isometric pyramid so support, height, and ownership remain visible on mobile.</p>
+      <div class="legend" aria-label="Visual legend">
+        <span><i style="background:var(--p1);box-shadow:0 0 7px var(--p1)"></i> YOU / X</span>
+        <span><i style="background:var(--p2);box-shadow:0 0 7px var(--p2)"></i> OPPONENT / O</span>
+        <span><i style="border:2px solid var(--cta)"></i> LEGAL TARGET</span>
+        <span><i style="border:2px solid var(--win)"></i> RECLAIMABLE</span>
+      </div>
+    </header>
+
+    <section class="gallery" aria-label="Pylos screen concepts">
+      <article class="concept">
+        <div class="concept-head">
+          <span class="concept-no">01 / CORE TURN</span>
+          <h2>PLACE FROM RESERVE</h2>
+          <p class="concept-note">Playable sockets stay readable across all four levels.</p>
+        </div>
+        <div class="phone shot" data-state="place" aria-label="Pylos normal placement screen"></div>
+      </article>
+
+      <article class="concept">
+        <div class="concept-head">
+          <span class="concept-no">02 / MOVE UP</span>
+          <h2>REUSE AN EXPOSED SPHERE</h2>
+          <p class="concept-note">Selected sphere glows yellow; valid higher socket gets a plus.</p>
+        </div>
+        <div class="phone shot" data-state="move" aria-label="Pylos upward move screen"></div>
+      </article>
+
+      <article class="concept">
+        <div class="concept-head">
+          <span class="concept-no">03 / REWARD</span>
+          <h2>FORM A SQUARE, RECLAIM</h2>
+          <p class="concept-note">Green rings expose optional take-back choices without hiding board.</p>
+        </div>
+        <div class="phone shot" data-state="reclaim" aria-label="Pylos reclaim screen"></div>
+      </article>
+    </section>
+
+    <section class="summary" aria-label="Interaction summary">
+      <div class="summary-item"><strong>ONE TAP</strong><p>Tap an empty supported socket to place a reserve sphere.</p></div>
+      <div class="summary-item"><strong>TWO TAP</strong><p>Tap exposed own sphere, then highlighted higher socket to move upward.</p></div>
+      <div class="summary-item"><strong>BONUS PHASE</strong><p>After making own square or line, tap up to two green-ringed spheres, then confirm.</p></div>
+    </section>
+    <p class="source-note">Visual source: existing Games Platform Midnight Arcade tokens, pixel font, player cards, room header, status language, and neon interaction states. Concept only; no game code changed.</p>
+  </main>
+
+  <script>
+    const states = {
+      place: {
+        instruction: 'TAP A SUPPORTED SOCKET TO PLACE',
+        status: 'YOUR TURN', active: 'x', reserveX: 9, reserveO: 10,
+        pieces: [
+          {l:0,r:0,c:0,p:'x'}, {l:0,r:0,c:1,p:'o'}, {l:0,r:0,c:2,p:'x'}, {l:0,r:1,c:0,p:'o'},
+          {l:0,r:1,c:1,p:'x'}, {l:0,r:1,c:2,p:'o'}, {l:0,r:2,c:0,p:'x'}, {l:0,r:2,c:1,p:'o'},
+          {l:1,r:0,c:0,p:'o'}, {l:1,r:0,c:1,p:'x'}, {l:1,r:1,c:0,p:'x'}
+        ],
+        legal: [{l:0,r:0,c:3},{l:0,r:1,c:3},{l:0,r:2,c:2},{l:0,r:2,c:3},{l:0,r:3,c:0},{l:0,r:3,c:1},{l:0,r:3,c:2},{l:0,r:3,c:3},{l:1,r:1,c:1}]
+      },
+      move: {
+        instruction: '<strong>SPHERE SELECTED</strong> · TAP A HIGHER SOCKET',
+        status: 'YOUR TURN · MOVE UP', active: 'x', reserveX: 8, reserveO: 8,
+        pieces: [
+          {l:0,r:0,c:0,p:'x'}, {l:0,r:0,c:1,p:'o'}, {l:0,r:0,c:2,p:'x'}, {l:0,r:0,c:3,p:'o'},
+          {l:0,r:1,c:0,p:'o'}, {l:0,r:1,c:1,p:'x'}, {l:0,r:1,c:2,p:'o'}, {l:0,r:1,c:3,p:'x'},
+          {l:0,r:2,c:0,p:'x',selected:true}, {l:0,r:2,c:1,p:'o'}, {l:0,r:2,c:2,p:'x'}, {l:0,r:3,c:0,p:'o'},
+          {l:1,r:0,c:0,p:'o'}, {l:1,r:0,c:1,p:'x'}, {l:1,r:1,c:0,p:'x'}, {l:1,r:1,c:1,p:'o'}
+        ],
+        legal: [{l:2,r:0,c:0}]
+      },
+      reclaim: {
+        instruction: '<strong>SQUARE!</strong> · RECLAIM UP TO 2 EXPOSED SPHERES',
+        status: 'BONUS MOVE', active: 'x', reserveX: 7, reserveO: 7, reclaim: true,
+        pieces: [
+          {l:0,r:0,c:0,p:'o'}, {l:0,r:0,c:1,p:'o'}, {l:0,r:0,c:2,p:'x'}, {l:0,r:0,c:3,p:'o'},
+          {l:0,r:1,c:0,p:'x'}, {l:0,r:1,c:1,p:'o'}, {l:0,r:1,c:2,p:'x'}, {l:0,r:1,c:3,p:'x',reclaim:true},
+          {l:0,r:2,c:0,p:'o'}, {l:0,r:2,c:1,p:'x'}, {l:0,r:2,c:2,p:'o'}, {l:0,r:2,c:3,p:'x',reclaim:true},
+          {l:0,r:3,c:0,p:'x'}, {l:0,r:3,c:1,p:'o'},
+          {l:1,r:0,c:0,p:'x'}, {l:1,r:0,c:1,p:'x'}, {l:1,r:1,c:0,p:'x'}, {l:1,r:1,c:1,p:'x'},
+          {l:2,r:0,c:0,p:'o'}
+        ], legal: []
+      }
+    };
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+    }
+
+    function sphereDots(count, type) {
+      const shown = Math.min(count, 7);
+      return `<div class="reserve ${type === 'o' ? 'right' : ''}">${type === 'o' ? `<span class="reserve-count">${count} LEFT</span>` : ''}${Array.from({length: shown}, () => `<i class="mini-ball ${type}"></i>`).join('')}${type === 'x' ? `<span class="reserve-count">${count} LEFT</span>` : ''}</div>`;
+    }
+
+    function boardSvg(state) {
+      const cx = 175;
+      const levelCenters = [218, 164, 113, 68];
+      const dx = 29;
+      const dy = 14.5;
+      const piecesByKey = new Map(state.pieces.map(p => [`${p.l}-${p.r}-${p.c}`, p]));
+      const legal = new Set(state.legal.map(p => `${p.l}-${p.r}-${p.c}`));
+      let out = `<svg class="pylos-board" viewBox="0 0 350 330" role="img" aria-label="Four-level isometric Pylos pyramid">
+        <defs>
+          <radialGradient id="sphereX" cx="34%" cy="25%" r="72%"><stop offset="0" stop-color="#c8fbff"/><stop offset=".22" stop-color="#35efff"/><stop offset=".72" stop-color="#008fa6"/><stop offset="1" stop-color="#003d50"/></radialGradient>
+          <radialGradient id="sphereO" cx="34%" cy="25%" r="72%"><stop offset="0" stop-color="#ffd0df"/><stop offset=".22" stop-color="#ff69a0"/><stop offset=".72" stop-color="#b51e59"/><stop offset="1" stop-color="#520022"/></radialGradient>
+        </defs>`;
+      for (let l = 0; l < 4; l++) {
+        const n = 4 - l;
+        const cy = levelCenters[l];
+        const halfW = n * dx + 5;
+        const halfH = n * dy + 2;
+        out += `<path class="platform-side" d="M ${cx-halfW} ${cy} L ${cx} ${cy+halfH} L ${cx+halfW} ${cy} L ${cx+halfW} ${cy+8} L ${cx} ${cy+halfH+9} L ${cx-halfW} ${cy+8} Z"/>`;
+        out += `<path class="platform" d="M ${cx} ${cy-halfH} L ${cx+halfW} ${cy} L ${cx} ${cy+halfH} L ${cx-halfW} ${cy} Z"/>`;
+        for (let k = 1; k < n; k++) {
+          const t = k / n;
+          const lx = cx-halfW + (halfW)*t, ly = cy + halfH*t;
+          const rx = cx + halfW*t, ry = cy-halfH + halfH*t;
+          out += `<line class="gridline" x1="${lx}" y1="${ly}" x2="${lx+halfW}" y2="${ly-halfH}"/>`;
+          out += `<line class="gridline" x1="${rx}" y1="${ry}" x2="${rx-halfW}" y2="${ry+halfH}"/>`;
+        }
+        const cells = [];
+        for (let r=0; r<n; r++) for (let c=0; c<n; c++) {
+          const x = cx + (c-r)*dx;
+          const y = cy + (r+c-(n-1))*dy - 4;
+          cells.push({r,c,x,y});
+        }
+        cells.sort((a,b) => a.y-b.y);
+        for (const cell of cells) {
+          const key = `${l}-${cell.r}-${cell.c}`;
+          const p = piecesByKey.get(key);
+          const canPlay = legal.has(key);
+          out += `<ellipse class="socket${canPlay ? ' legal' : ''}" cx="${cell.x}" cy="${cell.y+4}" rx="13" ry="7"/>`;
+          if (canPlay) out += `<text class="legal-plus" x="${cell.x}" y="${cell.y+3}">+</text>`;
+          if (p) {
+            out += `<ellipse class="sphere-shadow" cx="${cell.x+2}" cy="${cell.y+8}" rx="15" ry="6"/>`;
+            if (p.reclaim) out += `<circle class="reclaim-ring" cx="${cell.x}" cy="${cell.y-4}" r="21"/>`;
+            out += `<circle class="sphere sphere-${p.p}${p.selected ? ' selected' : ''}${p.reclaim ? ' reclaim' : ''}" cx="${cell.x}" cy="${cell.y-4}" r="16"/>`;
+            out += `<text class="sphere-mark" x="${cell.x}" y="${cell.y-3}">${p.p.toUpperCase()}</text>`;
+          }
+        }
+      }
+      return out + `</svg>`;
+    }
+
+    function gameMarkup(stateName) {
+      const s = states[stateName];
+      return `<div class="game">
+        <div class="game-header">
+          <span class="home">← HOME</span>
+          <div class="tools"><span class="tool">◐</span><span class="tool">?</span><span class="tool">♟</span><span class="tool">⌁</span><span class="badge">PY</span><span class="room">K7M2</span></div>
+        </div>
+        <div class="title-row"><h3 class="game-title">PYLOS</h3><span class="level-label">FIRST TO THE TOP</span></div>
+        <div class="players">
+          <div class="player x ${s.active === 'x' ? 'active' : ''}"><span class="avatar">X</span><div class="player-copy"><div class="player-name">MUKESH</div><div class="player-meta">YOU · ${s.reserveX} SPHERES</div></div>${s.active === 'x' ? '<span class="dots">•••</span>' : ''}</div>
+          <div class="player o ${s.active === 'o' ? 'active' : ''}"><span class="avatar">O</span><div class="player-copy"><div class="player-name">RIVAL</div><div class="player-meta">${s.reserveO} SPHERES</div></div>${s.active === 'o' ? '<span class="dots">•••</span>' : ''}</div>
+        </div>
+        <div class="board-shell">
+          <div class="instruction">${s.instruction}</div>
+          <div class="board-wrap">${boardSvg(s)}</div>
+          <div class="board-caption">PLACE · MOVE UP · FORM A LINE OR SQUARE · RECLAIM</div>
+          <div class="reserves">${sphereDots(s.reserveX,'x')}<span class="versus">VS</span>${sphereDots(s.reserveO,'o')}</div>
+          ${s.reclaim ? '<div class="phase-ribbon">SELECT 0–2 GREEN SPHERES · THEN CONFIRM</div>' : ''}
+        </div>
+        <div class="status">${escapeHtml(s.status)}</div>
+        ${s.reclaim ? '<div class="action-row"><button class="ghost-action">SKIP RECLAIM</button><button class="primary-action">CONFIRM</button></div>' : ''}
+      </div>`;
+    }
+
+    document.querySelectorAll('[data-state]').forEach(el => { el.innerHTML = gameMarkup(el.dataset.state); });
+  </script>
+</body>
+</html>

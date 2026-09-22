@@ -16,6 +16,7 @@ conventions** below — read this file first.
 | [mancala.md](mancala.md) | Mancala (Kalah) | board | 2 | registry + `applyMove` | RTDB | S/M | P2 |
 | [word-duel.md](word-duel.md) | Word Duel (Wordle-style) | word | 2 | custom page | RTDB + commit-reveal | M | P2 |
 | [mine-race.md](mine-race.md) | Mine Race (minesweeper duel) | reflex | 2 | custom race page | RTDB (seeded race) | S/M | P3 |
+| [papi-jump.md](papi-jump.md) | Papi Jump (doodle-jump race) | reflex | 2 | custom race page | RTDB (seeded race) | S/M | P2 |
 | [checkers.md](checkers.md) | Checkers | board | 2 | registry + `applyMove` | RTDB | M | P3 |
 | [trivia-blitz.md](trivia-blitz.md) | Trivia Blitz | party | 2–8 | custom party page | RTDB | S/M | P3 |
 | [air-hockey.md](air-hockey.md) | Air Hockey | reflex | 2 | custom realtime page | WebRTC (pong stack) | M | P3 |

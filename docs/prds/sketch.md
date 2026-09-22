@@ -189,3 +189,48 @@ Also newly specified (the base PRD left these open): the full choosing(15s)/draw
 reveal(6s) phase machine with `.info/serverTimeOffset`-corrected deadlines, the host-authoritative
 expiry/early-end/skip-round transitions and their race mitigations, and the exact
 `SketchCanvas.jsx` component contract. See the delta-spec for all of it.
+## Implemented improvements — review 2026-09-22
+
+These improvements address submission reliability, earned-score preservation, drawing controls, and rule clarity. No timing or scoring-balance changes are included.
+
+### Recover from failed correct-guess writes
+
+The client sets its correct-guess submission flag before Firebase confirms the write, but does not reset the flag on failure. Reset the guard when the write fails, preserve the guess for retry, and show success feedback only after acceptance.
+
+Acceptance: a failed correct-guess write can be retried in the same round without reloading. Retrying cannot award duplicate points or produce a false success state.
+
+### Preserve earned points across disconnects
+
+Round scoring currently filters guessers by their online presence at resolution. A player who guessed correctly and then disconnected can lose credit, and changing the number of online guessers can change the scoring mode. Determine scoring eligibility and mode from round participants; use presence only to decide whether the round can end early.
+
+Acceptance: a correct guess retains its points after the guesser disconnects. Remaining players keep the same scoring rules when another player leaves. Early completion still handles offline players without stalling the round.
+
+### Undo complete drawing gestures
+
+Drawing is stored as periodic segments, while undo removes only the latest segment. Group segments by pointer gesture so one undo removes one complete stroke. Keep fills as separate undoable actions and preserve chronological ordering across strokes and fills.
+
+Acceptance: draw a long stroke spanning multiple saved segments, then undo it once; the entire stroke disappears on every client. Interleaved strokes and fills undo in reverse action order.
+
+### Preserve the next guess during submission
+
+The guess input remains editable while a submission is pending, but completion clears the input, including newer text. Track the submitted guess separately from the current draft so acknowledgement cannot erase subsequent input.
+
+Acceptance: with a delayed response, submitting a guess and immediately typing another preserves the new draft. Failed submissions have a clear retry path without overwriting newer text.
+
+### Answer secrecy boundary
+
+The current trust model deliberately publishes candidate indices, the commitment hash, and its salt; every client can derive the answer during drawing. Treat this as an accepted casual-play limitation, not secret-answer protection. Competitive matchmaking requires a separate design for answer validation, storage, reveal, and artist recovery after reload.
+
+Acceptance: document the trust boundary explicitly. Before claiming competitive answer secrecy, verify that guessers cannot derive the answer from the data available to them during drawing. Hiding the answer in the UI alone does not satisfy this condition.
+
+### Clarify choices, scoring, and progress
+
+- Label word choices with their existing difficulty tiers so artists understand the selection. Do not imply a difficulty-based score bonus unless one is explicitly designed.
+- Explain artist and guesser scoring, including the distinction between two-player and larger-group scoring.
+- Show which players have guessed correctly without exposing their answers during drawing.
+
+Acceptance: new players can explain how each role earns points, identify the difficulty of word choices, and tell who has solved the drawing without learning the answer from feedback.
+
+### Validation scope
+
+The focused logic test run reports 79 passing tests across three files. Live drawing and multiplayer behavior still require manual testing: failed writes, fast typing under delayed responses, disconnects after correct guesses, and undo across strokes and fills using distinct browser profiles or devices.

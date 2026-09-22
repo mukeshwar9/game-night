@@ -1,0 +1,44 @@
+[
+  {
+    "name": "01-onboarding-pitch",
+    "path": ".lavish/quick-wins-ux/01-onboarding-pitch.png",
+    "caption": "F-39 — the start screen now tells visitors what this is before any click: 44 GAMES · SHARE A LINK · NO ACCOUNT.",
+    "url": "http://localhost:5174/"
+  },
+  {
+    "name": "02-home-start-here",
+    "path": ".lavish/quick-wins-ux/02-home-start-here.png",
+    "caption": "F-45 — the START HERE rail sits above the game picker for brand-new visitors: 4 picked games in order, self-hiding once they play or dismiss it.",
+    "url": "http://localhost:5174/"
+  },
+  {
+    "name": "03-practice-hub",
+    "path": ".lavish/quick-wins-ux/03-practice-hub.png",
+    "caption": "F-40 + F-41 — the hub now says PRACTICE · VS CPU, links to the full catalog, tiles are tagged VS CPU, and CHECKERS / SANTORINI no longer break mid-word.",
+    "url": "http://localhost:5174/demo"
+  },
+  {
+    "name": "04-extra-turn-flash",
+    "path": ".lavish/quick-wins-ux/04-extra-turn-flash.png",
+    "caption": "F-44 — completing an S-O-S now fires a full-screen MomentFlash with the dedicated extra-turn feel. The persistent \"GO AGAIN!\" text stays after the flash fades.",
+    "url": "http://localhost:5174/local/sos"
+  },
+  {
+    "name": "05-extra-turn-persistent",
+    "path": ".lavish/quick-wins-ux/05-extra-turn-persistent.png",
+    "caption": "F-44 — the inline GO AGAIN! state that remains, so the extra turn stays readable after the celebration.",
+    "url": "http://localhost:5174/local/sos"
+  },
+  {
+    "name": "06-mancala-flash",
+    "path": ".lavish/quick-wins-ux/06-mancala-flash.png",
+    "caption": "F-44 — Mancala's extra turn (seeds land in your own store) gets the same flash treatment.",
+    "url": "http://localhost:5174/solo/mancala"
+  },
+  {
+    "name": "07-end-screen-share",
+    "path": ".lavish/quick-wins-ux/07-end-screen-share.png",
+    "caption": "F-46 — end screens now follow the same checklist: PLAY AGAIN · SHARE · TRY NEXT · SWITCH GAME.",
+    "url": "http://localhost:5174/local/tictactoe"
+  }
+]

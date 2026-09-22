@@ -33,10 +33,11 @@ function Row({ onClick, label, blurb, tone = 'text', primary, busy, disabled }) 
   )
 }
 
-export default function GameOptionsSheet({ game, onPlayOnline, onSolo, onLocal, onModes, onRules, onClose, loadingType }) {
+export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onLocal, onModes, onRules, onClose, loadingType }) {
   const Icon = game.Icon
   const isBusy = loadingType === game.type
-  const showPlayOnline = !!onPlayOnline
+  const showInvite = !!onInvite
+  const showPublic = !!onPublic
   const showVsAi = !!(onSolo && game.solo)
   const showLocal = !!(onLocal && supportsLocalPlay(game.type))
   const showModes = !!(onModes && game.hasVariants)
@@ -58,15 +59,24 @@ export default function GameOptionsSheet({ game, onPlayOnline, onSolo, onLocal, 
       </div>
 
       <div className="space-y-2">
-        {showPlayOnline && (
+        {showInvite && (
           <Row
-            onClick={() => onPlayOnline(game)}
-            label="PLAY ONLINE"
+            onClick={() => onInvite(game)}
+            label="INVITE FRIEND"
             tone="cta"
             primary
             busy={isBusy}
             disabled={isBusy}
-            blurb="Create a room and share the link."
+            blurb="Create a private room and share the invite link."
+          />
+        )}
+        {showPublic && (
+          <Row
+            onClick={() => onPublic(game)}
+            label="PLAY PUBLIC"
+            tone="p1"
+            disabled={isBusy}
+            blurb="Find an opponent or create a public room."
           />
         )}
         {showVsAi && <Row onClick={() => onSolo(game)} label="VS AI" tone="p1" disabled={isBusy} blurb="Play instantly, no opponent needed." />}

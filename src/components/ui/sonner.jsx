@@ -4,12 +4,12 @@ export function Toaster(props) {
   return (
     <Sonner
       theme="dark"
-      position="bottom-center"
+      position="top-center"
       closeButton
-      // M-34: sonner's default mobile offset is a flat 16px with no
-      // safe-area awareness — on an iPhone home-indicator that puts a
-      // tappable JOIN/action button inside the OS gesture zone.
-      mobileOffset={{ bottom: 'max(16px, env(safe-area-inset-bottom))' }}
+      // Toasts sit below the sticky NavBar / room toolbar (~56px + safe
+      // area) so alerts never cover header controls or the OS gesture zone.
+      offset={{ top: 'max(4rem, env(safe-area-inset-top))' }}
+      mobileOffset={{ top: 'max(4rem, env(safe-area-inset-top))' }}
       toastOptions={{
         style: {
           background: 'rgb(var(--c-surface))',

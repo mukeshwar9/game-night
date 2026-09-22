@@ -2,11 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Local side lane for an external floating video-call window. */
-.video-call-shell-on {
-  padding-left: var(--video-call-reserve-left, 0px);
-  padding-right: var(--video-call-reserve-right, 0px);
-  transition: padding 160ms ease-out;
+/* Portrait 9:16 video-call space shares the reaction row without changing game layout. */
+.video-call-reaction-dock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, var(--video-call-preview-width));
+  align-items: end;
+  gap: .75rem;
+  width: 100%;
+}
+.video-call-reactions { min-width: 0; }
+.video-call-preview {
+  width: min(100%, var(--video-call-preview-width));
+  aspect-ratio: 9 / 16;
+  min-height: 128px;
+  border: 1px dashed rgb(var(--c-p2) / .65);
+  background: rgb(var(--c-tint-p2) / .35);
+  color: rgb(var(--c-p2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: .75rem;
+  font: 7px/1.5 'Press Start 2P', ui-monospace, monospace;
+  text-align: center;
+  text-shadow: 0 0 8px rgb(var(--c-p2));
+}
+.video-call-reaction-dock .video-call-preview { grid-column: 2; }
+@media (max-width: 430px) {
+  .video-call-reaction-dock { grid-template-columns: minmax(0, 1fr) minmax(64px, 30%); gap: .5rem; }
+  .video-call-preview { min-height: 112px; font-size: 6px; }
+}
+@media (max-width: 900px) {
+  .game-header-actions {
+    max-width: calc(100% - 2rem);
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+  .game-header-actions > button,
+  .game-header-actions > div > button {
+    padding: .75rem;
+    margin: -.25rem;
+  }
+  .game-header-meta { display: none; }
+
+    .video-call-reaction-dock {
+      display: block;
+    }
+  .video-call-reactions { width: 100%; }
+  .video-call-reactions-right { padding-right: calc(min(var(--video-call-preview-width), 30vw) + .5rem); }
+  .video-call-reactions-left { padding-left: calc(min(var(--video-call-preview-width), 30vw) + .5rem); }
+  .video-call-preview {
+    position: fixed;
+    z-index: 35;
+    bottom: .5rem;
+    width: min(var(--video-call-preview-width), 30vw);
+    height: auto;
+    min-height: 0;
+  }
+  .video-call-preview-left { left: .5rem; }
+  .video-call-preview-right { right: .5rem; }
 }
 
 .video-call-corner-picker {
@@ -18,13 +71,43 @@
   border-radius: 4px;
 }
 .video-call-corner { position: absolute; width: 24px; height: 18px; border: 1px solid rgb(var(--c-border)); background: rgb(var(--c-card)); padding: 0; }
-.video-call-corner span { display: block; width: 8px; height: 6px; background: rgb(var(--c-p2)); opacity: .45; }
+.video-call-corner span { position: absolute; width: 8px; height: 6px; background: rgb(var(--c-p2)); opacity: .45; }
+.video-call-corner-top-left span { top: 3px; left: 3px; }
+.video-call-corner-top-right span { top: 3px; right: 3px; }
+.video-call-corner-bottom-left span { bottom: 3px; left: 3px; }
+.video-call-corner-bottom-right span { right: 3px; bottom: 3px; }
 .video-call-corner-selected { border-color: rgb(var(--c-cta)); }
 .video-call-corner-selected span { opacity: 1; box-shadow: 0 0 5px rgb(var(--c-p2)); }
-.video-call-corner-top-left { top: 5px; left: 5px; }
-.video-call-corner-top-right { top: 5px; right: 5px; }
 .video-call-corner-bottom-left { bottom: 5px; left: 5px; }
 .video-call-corner-bottom-right { bottom: 5px; right: 5px; }
+.video-call-layout-preview {
+  position: relative;
+  min-height: 132px;
+  border: 1px solid rgb(var(--c-border));
+  border-radius: 4px;
+  background: rgb(var(--c-deep));
+  overflow: hidden;
+}
+.video-call-layout-preview-reactions {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  color: rgb(var(--c-dim));
+  font: 8px 'Press Start 2P', ui-monospace, monospace;
+  letter-spacing: .08em;
+}
+.video-call-layout-preview-video {
+  position: absolute;
+  width: 34px;
+  aspect-ratio: 9 / 16;
+  border: 1px solid rgb(var(--c-p2));
+  background: rgb(var(--c-tint-p2) / .55);
+  box-shadow: 0 0 8px rgb(var(--c-p2) / .35);
+}
+.video-call-layout-preview-video-small { width: 26px; }
+.video-call-layout-preview-video-large { width: 42px; }
+.video-call-layout-preview-video-bottom-left { bottom: 8px; left: 8px; }
+.video-call-layout-preview-video-bottom-right { right: 8px; bottom: 8px; }
 
 /* Self-hosted pixel font — replaces the Google Fonts round-trip (removes
    render-blocking preconnect + stylesheet fetch, avoids the FOUT swap). */

@@ -557,9 +557,10 @@ export const GAME_RULES = {
     howToPlay: [
       'Tap tiles or type letters with your keyboard to build a word from the rack.',
       'Press ENTER to submit. Each word scores once per player.',
-      'Press DONE when you cannot find more words — the round ends when both players finish.',
+      'Scoring: 3 letters = 1, 4 = 2, 5 = 4, 6 = 7, 7 = 11 points; all 7 letters earns +5 bingo.',
+      'Press FINISH EARLY when you cannot find more words — the round ends when both players finish.',
     ],
-    win: 'Play for 90 seconds. Longer words score more, a seven-letter word earns a bingo bonus, and first to 2 round wins takes the match.',
+    win: 'Play for 90 seconds. Higher score wins; equal scores use total words as the tie-breaker. First to 2 round wins takes the match.',
   },
 
   spyfair: {

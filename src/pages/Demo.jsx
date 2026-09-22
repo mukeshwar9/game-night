@@ -44,7 +44,7 @@ import useBusy from '../hooks/useBusy'
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
-import { getGameConfig, freshGameState, GAME_CATEGORIES, getPlayerTag, supportsLocalPlay } from '../lib/games'
+import { getGameConfig, freshGameState, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { recordPlay } from '../lib/analytics'
 import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
@@ -2283,14 +2283,14 @@ const DEMOS = [
   { type: 'kamisado',      short: 'KAMISADO',       Icon: KamisadoIcon,       Component: () => <BotBoardDemo type="kamisado" /> },
   { type: 'onitama',       short: 'ONITAMA',        Icon: OnitamaIcon,        Component: () => <BotBoardDemo type="onitama" /> },
   { type: 'quarto',        short: 'QUARTO',         Icon: QuartoIcon,         Component: () => <BotBoardDemo type="quarto" /> },
-  { type: 'santorini',     short: 'SANTO\nRINI',    Icon: SantoriniIcon,      Component: () => <BotBoardDemo type="santorini" /> },
+  { type: 'santorini',     short: 'SANTORINI',      Icon: SantoriniIcon,      Component: () => <BotBoardDemo type="santorini" /> },
   { type: 'loa',           short: 'LINES OF\nACTION', Icon: LoaIcon,          Component: () => <BotBoardDemo type="loa" /> },
   { type: 'yavalath',      short: 'YAVALATH',       Icon: YavalathIcon,       Component: () => <BotBoardDemo type="yavalath" /> },
   { type: 'battleship',    short: 'BATTLE\nSHIP',   Icon: BattleshipIcon,     Component: BattleshipDemo },
   { type: 'mancala',       short: 'MANCALA',        Icon: MancalaIcon,        Component: MancalaDemo },
-  { type: 'checkers',      short: 'CHECK\nERS',     Icon: CheckersIcon,       Component: CheckersDemo },
+  { type: 'checkers',      short: 'CHECKERS',       Icon: CheckersIcon,       Component: CheckersDemo },
   { type: 'airhockey',     short: 'AIR\nHOCKEY',    Icon: AirHockeyIcon,      Component: AirHockeyDemo },
-  { type: 'artillery',     short: 'ARTIL\nLERY',    Icon: ArtilleryIcon,      Component: ArtilleryDemo },
+  { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
@@ -2376,7 +2376,7 @@ function SoloNotAvailable({ routeType }) {
   const cfg = getGameConfig(routeType)
   const known = cfg?.type === routeType
   return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center">
+    <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="border border-retro-border rounded p-6 bg-retro-card text-center space-y-3">
           <p className="font-pixel text-[10px] text-retro-p2 text-glow-p2 tracking-wider">NO SOLO DEMO</p>
@@ -2401,7 +2401,7 @@ function SoloNotAvailable({ routeType }) {
           </div>
         </div>
       </div>
-    </div>
+    </div></VideoCallShell>
   )
 }
 
@@ -2478,7 +2478,7 @@ function DemoHub() {
               >
                 <Icon />
                 <span className="font-pixel text-[7px] text-center leading-tight whitespace-pre-line">{short}</span>
-                <span className="font-pixel text-[6px] text-retro-dim/70">{getPlayerTag(getGameConfig(type))}</span>
+                <span className="font-pixel text-[6px] text-retro-dim/70">{type in PARTY_BLURB ? '2+ PLAYERS' : 'VS CPU'}</span>
               </button>
             ))}
           </div>

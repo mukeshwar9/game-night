@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ref, onValue, update, get, push, runTransaction, onDisconnect, set as dbSet } from 'firebase/database'
+import { ref, onValue, update, get, push, runTransaction, onDisconnect, remove, set as dbSet } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
 import { freshGameState, getGameConfig, lobbySwitchOverrides, firstMoverUpdates } from '../lib/games'
@@ -60,12 +60,11 @@ import AudioSettingsButton from '../components/AudioSettingsButton'
 import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
 import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../lib/chat'
-import { isStickerSrc } from '../lib/stickers'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import ThemeSwitcher from '../components/ThemeSwitcher'
-import VideoCallSettingsButton, { VideoCallShell } from '../components/VideoCallLayout'
+import VideoCallSettingsButton, { VideoCallReactionDock, VideoCallShell } from '../components/VideoCallLayout'
 import RulesModal, { RulesButton } from '../components/RulesModal'
 import {
   commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
@@ -172,11 +171,7 @@ function EmoteFloats({ floats }) {
           {f.kind === 'chat' ? (
             <div className="flex flex-col items-center gap-0.5 max-w-[60vw]">
               <span className="font-pixel text-[7px] text-retro-dim">{f.name}</span>
-              {f.img ? (
-                <img src={f.img} alt="sticker" className="w-20 h-20 object-contain rounded" draggable={false} />
-              ) : (
-                <span className="font-pixel text-sm text-retro-cta text-glow-cta break-words">{f.text}</span>
-              )}
+              <span className="font-pixel text-sm text-retro-cta text-glow-cta break-words">{f.text}</span>
             </div>
           ) : (
             <>
@@ -184,9 +179,7 @@ function EmoteFloats({ floats }) {
                 className="flex items-center gap-1"
                 style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
               >
-                {f.img ? (
-                  <img src={f.img} alt="sticker reaction" className="w-20 h-20 object-contain rounded" draggable={false} />
-                ) : isQuickChat(f.glyph) ? (
+                {isQuickChat(f.glyph) ? (
                   <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
                 ) : (
                   <AnimatedEmoji glyph={f.glyph} className="w-20 h-20 object-contain" />
@@ -331,6 +324,7 @@ export default function Game() {
     const playerAvatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
 
     const gameRef = ref(db, `games/${gameId}`)
+    const publicListingRef = ref(db, `matchmaking/${gameId}`)
     let cancelled = false
     let unsubGame = null
     let unsubPresence = null
@@ -353,6 +347,8 @@ export default function Game() {
       }
 
       const data = snap.val()
+
+      if (data.visibility === 'public' && (data.status !== 'waiting' || data.players?.O)) remove(publicListingRef).catch(() => {})
 
       const lastActive = data.lastActivityAt ?? data.createdAt
       if (lastActive && Date.now() - lastActive > GAME_TTL_MS) {
@@ -434,6 +430,7 @@ export default function Game() {
                 joinUpdates['round/wrongCount'] = 0
               }
               await update(gameRef, joinUpdates)
+              if (data.visibility === 'public') remove(publicListingRef).catch(() => {})
             } else {
               assignSeat(null)
               sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: null }))
@@ -662,7 +659,7 @@ export default function Game() {
     setFloats(prev => {
       const last = prev[prev.length - 1]
       const now = Date.now()
-      if (last && last.kind !== 'chat' && last.glyph === e.glyph && (last.img ?? null) === (e.img ?? null) && last.by === e.by && now - last.at < 1500) {
+      if (last && last.glyph === e.glyph && last.by === e.by && now - last.at < 1500) {
         const existing = emoteTimeouts.current.get(last.id)
         if (existing) clearTimeout(existing)
         const t = setTimeout(() => {
@@ -675,7 +672,7 @@ export default function Game() {
       const id = ++emoteIdRef.current
       const dx = Math.round((Math.random() * 2 - 1) * 24)
       const rot = Math.round((Math.random() * 2 - 1) * 10)
-      const float = { id, glyph: e.glyph, img: e.img ?? null, by: e.by, name, count: 1, dx, rot, at: now }
+      const float = { id, glyph: e.glyph, by: e.by, name, count: 1, dx, rot, at: now }
       const t = setTimeout(() => {
         setFloats(f => f.filter(fl => fl.id !== id))
         emoteTimeouts.current.delete(id)
@@ -1297,31 +1294,6 @@ export default function Game() {
     return true
   }
 
-  // Sticker reaction — a keyboard/file image, downscaled by the caller. Same
-  // channel and cooldown as emoji reactions; floats locally and on peers.
-  const sendSticker = async (dataUrl) => {
-    if (!isStickerSrc(dataUrl)) {
-      toast.error('STICKER DID NOT STICK — TRY ANOTHER IMAGE')
-      return false
-    }
-    const sender = mySymbol.current
-      || (getGameConfig(game?.gameType)?.nPlayer ? getPlayerId() : null)
-    if (!sender) return false
-    // eslint-disable-next-line react-hooks/purity
-    const now = Date.now()
-    if (now < emoteReadyAt.current) return false
-    emoteReadyAt.current = now + 600
-    setEmoteCooldown(true)
-    setTimeout(() => setEmoteCooldown(false), 600)
-
-    prevEmoteTs.current = now
-    pushEmote({ by: sender, glyph: '', img: dataUrl, ts: now })
-    try {
-      await update(ref(db, `games/${gameId}`), { emote: { by: sender, glyph: '', img: dataUrl, ts: now } })
-    } catch { /* ignore */ }
-    return true
-  }
-
   // Free-text chat — sanitize, rate-limit (2s), float our own message
   // optimistically, append via a push id, and prune the log back to cap.
   const sendChat = async (raw) => {
@@ -1466,11 +1438,11 @@ export default function Game() {
         )}
         {floats.length > 0 && <EmoteFloats floats={floats} />}
         <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
-          <div className="flex items-center justify-between">
+          <div className="game-header flex items-start justify-between gap-2">
             <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">← HOME</Link>
-            <div className="flex items-center gap-3">
-              <VideoCallSettingsButton />
+            <div className="game-header-actions flex items-center justify-end gap-3">
               <ThemeSwitcher />
+              <VideoCallSettingsButton />
               <RulesButton onClick={() => setShowRules(true)} />
               {amSeated && game.status !== 'waiting' && (
                 <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => applySwitchGame(t)} />
@@ -1504,9 +1476,9 @@ export default function Game() {
               </button>
               <AudioSettingsButton />
               {cfg.badge && (
-                <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
+                <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
               )}
-              <span className="font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
+              <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
             </div>
           </div>
 
@@ -1529,7 +1501,7 @@ export default function Game() {
           <ChatLog chatLog={game.chatLog} myUid={myUid} />
 
           {amSeated && game.status !== 'waiting' && (
-            <EmoteBar onSend={sendEmote} onSendSticker={sendSticker} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
+            <VideoCallReactionDock><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></VideoCallReactionDock>
           )}
         </div>
         {showInvite && (
@@ -1615,11 +1587,11 @@ export default function Game() {
         isRealtimeCustom && '[@media(max-height:420px)]:space-y-1.5',
       )} key={game.gameType}>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="game-header flex items-start justify-between gap-2">
           <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">
             ← HOME
           </Link>
-          <div className={cn('flex items-center gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>
+          <div className={cn('game-header-actions flex items-center justify-end gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>
             <ThemeSwitcher />
             <VideoCallSettingsButton />
             <RulesButton onClick={() => setShowRules(true)} />
@@ -1668,9 +1640,9 @@ export default function Game() {
             </button>
             <AudioSettingsButton />
             {cfg.badge && (
-              <span className="font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
+              <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
             )}
-            <span className="font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
+            <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
           </div>
         </div>
 
@@ -2124,7 +2096,7 @@ export default function Game() {
             nobody to react to yet). Shown to a seated player once an
             opponent has joined, or to a spectator watching a live game. */}
         {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
-          <EmoteBar onSend={sendEmote} onSendSticker={sendSticker} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} />
+          <VideoCallReactionDock><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></VideoCallReactionDock>
         )}
       </div>
       {showInvite && (

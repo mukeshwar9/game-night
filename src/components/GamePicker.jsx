@@ -35,7 +35,7 @@ function readPickerState() {
   }
 }
 
-export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loadingType, layout = 'compact' }) {
+export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, excludeType, loadingType, layout = 'compact' }) {
   const isFull = layout === 'full'
   const defaultCat = isFull ? 'all' : ((excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id)
   const persisted = isFull ? readPickerState() : null
@@ -118,10 +118,10 @@ export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loa
   // switch, not a new room, and the sheet there has no PLAY ONLINE row.
   const handleTap = (g) => (isFull ? setOptionsGame(g) : onSelect(g.type))
 
-  // GameOptionsSheet's PLAY ONLINE row — the old direct-tap behavior: create
-  // a PLAY-A-FRIEND room with the default/Classic variant, no intermediate
-  // mode/variant modal.
-  const handlePlayOnline = (g) => onSelect(g.type)
+  // GameOptionsSheet invite/public rows. Private creation uses the existing
+  // Home room flow; public play opens the matchmaking lobby for this game.
+  const handleInvite = (g) => { setOptionsGame(null); onSelect(g.type) }
+  const handlePublic = (g) => { setOptionsGame(null); (onOnline ? onOnline(g.type) : onSelect(g.type)) }
 
   // GameOptionsSheet's VS AI row — skips straight to the solo demo, only
   // chaining into a variant pick if a variant actually has a working solo
@@ -283,7 +283,8 @@ export default function GamePicker({ onSelect, onSolo, onLocal, excludeType, loa
       {optionsGame && (
         <GameOptionsSheet
           game={optionsGame}
-          onPlayOnline={isFull ? handlePlayOnline : undefined}
+          onInvite={isFull ? handleInvite : undefined}
+          onPublic={isFull ? handlePublic : undefined}
           onSolo={onSolo ? handleVsAi : undefined}
           onLocal={onLocal ? handleLocal : undefined}
           onModes={handleModes}

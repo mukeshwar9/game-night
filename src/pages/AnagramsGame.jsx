@@ -37,11 +37,26 @@ function rackKey(rack) {
   return [...(rack || [])].sort().join('')
 }
 
-function feedbackText(kind) {
-  if (kind === 'valid') return 'WORD FOUND'
+function feedbackText(kind, points) {
+  if (kind === 'valid') return 'WORD FOUND · +' + points
   if (kind === 'duplicate') return 'ALREADY FOUND'
   if (kind === 'letters') return 'USE ONLY RACK LETTERS'
+  if (kind === 'short') return 'WORD MUST BE 3+ LETTERS'
+  if (kind === 'closed') return 'ROUND CLOSED — WORD NOT SCORED'
   return 'NOT A WORD'
+}
+
+function sameIndexes(a, b) {
+  return a.length === b.length && a.every((value, index) => value === b[index])
+}
+
+function shuffled(values) {
+  const result = [...values]
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    ;[result[index], result[swapIndex]] = [result[swapIndex], result[index]]
+  }
+  return result
 }
 
 function ScoreRail({ game, myKey, round }) {
@@ -138,6 +153,7 @@ export default function AnagramsGame({
   const opKey = myKey === 'X' ? 'O' : 'X'
   const round = game.round || null
   const [clockOffset, setClockOffset] = useState(0)
+  const [connected, setConnected] = useState(true)
   const [now, setNow] = useState(() => Date.now())
   const [rack, setRack] = useState(() => round?.rack || [])
   const [selectedIndexes, setSelectedIndexes] = useState([])
@@ -152,6 +168,8 @@ export default function AnagramsGame({
     return onValue(offsetRef, snap => setClockOffset(snap.val() || 0))
   }, [])
 
+  useEffect(() => onValue(ref(db, '.info/connected'), snap => setConnected(snap.val() === true)), [])
+
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 250)
     return () => clearInterval(timer)
@@ -160,7 +178,7 @@ export default function AnagramsGame({
   const serverNow = now + clockOffset
   const foundKey = `found${myKey}`
   const myDone = !!round?.[`done${myKey}`]
-  const isPlaying = round?.phase === 'playing' && serverNow < (round.endsAt || 0) && game.status === 'playing'
+  const isPlaying = connected && round?.phase === 'playing' && serverNow < (round.endsAt || 0) && game.status === 'playing'
   const timeLeft = round ? Math.max(0, round.endsAt - serverNow) : ROUND_MS
   const currentWord = selectedIndexes.map(index => rack[index]).join('').toLowerCase()
   const ownWords = useMemo(() => wordsFrom(round?.[foundKey]), [round, foundKey])
@@ -168,7 +186,7 @@ export default function AnagramsGame({
   // First seated client creates round. Ready rounds come from parent rematch
   // flow and preserve used rack keys across best-of-3 play-again rounds.
   useEffect(() => {
-    if (!mySymbol || game.status !== 'playing' || (round && round.phase !== 'ready')) return
+    if (!connected || !mySymbol || game.status !== 'playing' || (round && round.phase !== 'ready')) return
     let cancelled = false
     runTransaction(ref(db, `games/${gameId}`), current => {
       if (!current || current.status !== 'playing') return
@@ -197,7 +215,7 @@ export default function AnagramsGame({
       if (!cancelled) toast.error('ROUND START FAILED — CHECK CONNECTION')
     })
     return () => { cancelled = true }
-  }, [gameId, game.status, mySymbol, round?.phase, clockOffset])
+  }, [connected, gameId, game.status, mySymbol, round?.phase, clockOffset])
 
   useEffect(() => {
     if (!round || round.phase !== 'playing' || !shouldReveal(round, serverNow)) return
@@ -213,6 +231,7 @@ export default function AnagramsGame({
     if (!round?.seed) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs local rack when Firebase round advances
     setRack(round.rack || [])
+    selectedRef.current = []
     setSelectedIndexes([])
     setFeedback(null)
   // round.rack identity changes on every round write (opponent word);
@@ -220,39 +239,47 @@ export default function AnagramsGame({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round?.seed])
 
-  const setMessage = useCallback((kind) => {
-    setFeedback({ kind, id: Date.now() })
+  const setMessage = useCallback((kind, points = null) => {
+    setFeedback({ kind, points, id: Date.now() })
   }, [])
 
   const pickLetter = useCallback((index) => {
     if (!isPlaying || myDone || selectedRef.current.includes(index)) return
-    setSelectedIndexes(current => [...current, index])
+    const next = [...selectedRef.current, index]
+    selectedRef.current = next
+    setSelectedIndexes(next)
   }, [isPlaying, myDone])
 
   const removeLetter = useCallback((position) => {
-    if (position === 'all') return setSelectedIndexes([])
-    setSelectedIndexes(current => current.filter((_, index) => index !== position))
+    const next = position === 'all'
+      ? []
+      : selectedRef.current.filter((_, index) => index !== position)
+    selectedRef.current = next
+    setSelectedIndexes(next)
   }, [])
 
   const submitWord = useCallback((rawWord = currentWord) => {
     const word = normalizeWord(rawWord)
     if (!isPlaying || myDone || submitting || !word) return
+    const submittedIndexes = [...selectedRef.current]
     const localFound = normalizeFound(round?.[foundKey])
     if (localFound[word]) {
       setMessage('duplicate')
-      setSelectedIndexes([])
       return
     }
     if (!canBuildWord(word, round?.rack)) {
       sounds.miss()
       setMessage('letters')
-      setSelectedIndexes([])
       return
     }
-    if (word.length < 3 || word.length > 7 || !VALID_WORDS.has(word)) {
+    if (word.length < 3) {
+      sounds.miss()
+      setMessage('short')
+      return
+    }
+    if (word.length > 7 || !VALID_WORDS.has(word)) {
       sounds.miss()
       setMessage('invalid')
-      setSelectedIndexes([])
       return
     }
 
@@ -266,13 +293,16 @@ export default function AnagramsGame({
         return { ...current, [foundKey]: nextFound }
       })
       if (!result.committed || outcome !== 'valid') {
-        setMessage('invalid')
+        setMessage(outcome === 'closed' ? 'closed' : 'invalid')
         return
       }
       const nextCount = ownWords.length + 1
-      setMessage('valid')
+      setMessage('valid', scoreWord(word))
       sounds.hit(nextCount)
-      setSelectedIndexes([])
+      if (sameIndexes(selectedRef.current, submittedIndexes)) {
+        selectedRef.current = []
+        setSelectedIndexes([])
+      }
     }, () => toast.error('WORD SUBMIT FAILED — CHECK CONNECTION'))
   }, [clockOffset, currentWord, foundKey, gameId, isPlaying, myDone, myKey, ownWords.length, round, setMessage, submitting])
 
@@ -288,7 +318,9 @@ export default function AnagramsGame({
       }
       if (event.key === 'Backspace') {
         event.preventDefault()
-        setSelectedIndexes(current => current.slice(0, -1))
+        const next = selectedRef.current.slice(0, -1)
+        selectedRef.current = next
+        setSelectedIndexes(next)
         return
       }
       if (!/^[a-zA-Z]$/.test(event.key)) return
@@ -309,6 +341,7 @@ export default function AnagramsGame({
 
   const finishEarly = () => {
     if (!isPlaying || myDone) return
+    setFeedback(null)
     runDone(async () => {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current?.round || current.round.phase !== 'playing') return
@@ -329,6 +362,18 @@ export default function AnagramsGame({
       <div className="rounded border border-retro-border bg-retro-card p-6 text-center">
         <PixelDots tone="cta" size="lg" glow />
         <p className="mt-3 font-pixel text-[9px] tracking-widest text-retro-dim">BUILDING FAIR RACK…</p>
+      </div>
+    )
+  }
+
+  if (!connected && round.phase === 'playing') {
+    return (
+      <div className="space-y-3 text-center">
+        <ScoreRail game={game} myKey={myKey} round={round} />
+        <div className="rounded border border-retro-p2/60 bg-retro-card p-6">
+          <p className="font-pixel text-[10px] tracking-widest text-retro-p2">RECONNECTING…</p>
+          <p className="mt-2 font-mono text-[10px] text-retro-dim">ROUND STATE SAVED · TIMER CONTINUES</p>
+        </div>
       </div>
     )
   }
@@ -357,8 +402,7 @@ export default function AnagramsGame({
           <h2 className={cn('mt-2 font-pixel text-xl tracking-widest', result.winner === 'draw' ? 'text-retro-text' : result.winner === myKey ? 'text-retro-win text-glow-win' : 'text-retro-p2 text-glow-p2')}>
             {winnerName}
           </h2>
-          <p className="mt-2 font-mono text-lg text-retro-text">{result.scoreX} – {result.scoreO}</p>
-          <p className="mt-1 font-mono text-[10px] text-retro-dim">{result.wordsX} WORDS · {result.wordsO} WORDS</p>
+          <p className="mt-2 font-mono text-lg text-retro-text">X: {result.scoreX} POINTS · {result.wordsX} WORDS vs O: {result.scoreO} POINTS · {result.wordsO} WORDS</p>
           {matchWinner && <p className="mt-3 font-pixel text-[10px] text-retro-cta">MATCH WON BY {game.players?.[matchWinner]?.name?.toUpperCase() || matchWinner}</p>}
         </section>
         <RevealWords game={game} round={round} myKey={myKey} />
@@ -402,7 +446,7 @@ export default function AnagramsGame({
       <div className="rounded border border-retro-border bg-retro-card p-2" aria-label={`${seconds} seconds remaining`}>
         <div className="flex items-center justify-between font-pixel text-[10px]">
           <span className={cn('tabular-nums', seconds <= 10 && 'text-retro-p2 text-glow-p2 arcade-blink')}>{seconds}s</span>
-          <span className="text-retro-dim">RACK {round.roundNum} · 90s</span>
+          <span className="text-retro-dim">RACK {round.roundNum} · {ROUND_MS / 1000}s</span>
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded bg-retro-deep">
           <div className={cn('h-full rounded bg-retro-cta transition-[width] duration-300', seconds <= 10 && 'bg-retro-p2')} style={{ width: `${timerPct}%` }} />
@@ -420,10 +464,10 @@ export default function AnagramsGame({
           onPick={pickLetter}
           onRemove={removeLetter}
           onShuffle={() => {
-            // Shuffle reorders by index — stale indexes would point at
-            // different letters, so clear the in-progress word first.
+            // Shuffle reorders by index; clear the in-progress word first.
+            selectedRef.current = []
             setSelectedIndexes([])
-            setRack(current => [...current].sort(() => Math.random() - 0.5))
+            setRack(current => shuffled(current))
           }}
           disabled={!isPlaying || myDone || submitting}
         />
@@ -432,11 +476,11 @@ export default function AnagramsGame({
             {submitting ? 'CHECKING…' : 'ENTER WORD'}
           </button>
           <button type="button" onClick={finishEarly} disabled={!isPlaying || myDone || doneBusy} className="min-h-11 rounded border-2 border-retro-border px-4 py-3 font-pixel text-[10px] text-retro-dim transition-colors hover:border-retro-p2 hover:text-retro-p2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta disabled:opacity-50">
-            {doneBusy ? 'SENDING…' : 'DONE'}
+            {doneBusy ? 'SENDING…' : 'FINISH EARLY'}
           </button>
         </div>
         <p aria-live="polite" className={cn('mt-3 min-h-4 text-center font-pixel text-[10px] tracking-widest', feedbackClass)} key={feedback?.id}>
-          {feedback ? feedbackText(feedback.kind) : 'TYPE · TAP · ENTER'}
+          {myDone ? 'WAITING FOR OPPONENT OR TIMER' : feedback ? feedbackText(feedback.kind, feedback.points) : 'TYPE · TAP · ENTER'}
         </p>
       </div>
 

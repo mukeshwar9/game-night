@@ -372,3 +372,47 @@ To win:
 - Racks are deterministic, fair, and have enough solutions.
 - UI has polished tiles, timer, live score, feedback bursts, reveal lists.
 - Unit tests cover validation, scoring, rack generation, and winner logic.
+
+## Proposed improvements — review 2026-09-22
+
+These improvements are pending implementation. Prioritize input reliability, scoring clarity, and early-finish feedback before changing the timer or scoring balance.
+
+### Preserve input during submission
+
+Keyboard input currently remains active while a word submission is pending, but a successful submission clears the selection, including letters entered in the meantime. Keep the submitted word separate from the next draft so its acknowledgement cannot erase subsequent input. Preserve recoverable input on failure and prevent duplicate submissions.
+
+Acceptance: under a delayed response, submitting a word and immediately typing the next word preserves the next draft. Repeated Enter presses do not score the same word twice; a failed submission leaves a clear retry path.
+
+### Explain scoring before play
+
+Show the existing points by word length, the full-rack bingo bonus, and the tie-break rule: equal points are decided by total words found; equal points and word counts produce a draw. Keep the rules and reveal explanation consistent.
+
+Acceptance: a new player can explain how longer words score and why equal point totals can still produce a winner without reading implementation details.
+
+### Clarify finishing early
+
+Rename `DONE` to `FINISH EARLY` and explain that it ends the player's submissions for this round. After confirmation from Firebase, show “Waiting for opponent or timer” instead of leaving an unexplained disabled board. Both players finishing early must still trigger the reveal.
+
+Acceptance: players understand the action before using it, see an explicit waiting state afterward, and cannot submit additional words once finished.
+
+### Keep rejected words editable
+
+Preserve the selected letters when a word is rejected so the player can correct it. Distinguish a word that is too short from a dictionary rejection. Report deadline or closed-round rejection as a round-state message rather than “NOT A WORD.”
+
+Acceptance: an invalid draft remains editable; each rejection explains the actual cause, including a submission racing the deadline.
+
+### Make missed words useful for learning
+
+The accepted dictionary includes obscure entries, and the reveal currently ranks missed words only by points. Prefer familiar words in the teaching reveal and explain the accepted dictionary policy. Familiarity ranking for the reveal must not silently change which words count for scoring.
+
+Acceptance: review sample racks with new players and check whether missed-word suggestions are understandable and useful. If obscure words dominate, revise the reveal selection before changing scoring or the accepted dictionary.
+
+### Keep result ordering consistent
+
+The score rail uses YOU–THEM ordering, while the reveal currently displays unlabeled X–O totals. Use consistent player ordering and label both point totals and word counts. Spectators should see player names rather than a personal perspective.
+
+Acceptance: verify the reveal as X, O, and a spectator; each score and word count clearly belongs to the correct player.
+
+### Validation scope
+
+The review was based on code inspection; all 10 existing pure-logic tests passed. These tests do not verify the UI or multiplayer flow. Manually test delayed submissions with fast typing, submission failures, early finishing, deadline races, and tied scores using distinct browser profiles or devices. No timer or scoring changes are proposed by this review.

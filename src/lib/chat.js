@@ -1,6 +1,15 @@
 // Pure helpers for free-text room chat. No Firebase, no React — unit-tested
 // in chat.test.js.
-import { isStickerDataUrl } from './stickers'
+
+// Keep validation for legacy sticker messages without coupling chat to the
+// removed sticker upload/packs feature.
+const STICKER_MAX_DATA_URL_LENGTH = 60_000
+function isStickerDataUrl(value) {
+  return typeof value === 'string'
+    && value.startsWith('data:image/')
+    && value.includes(';base64,')
+    && value.length <= STICKER_MAX_DATA_URL_LENGTH
+}
 
 // Firebase shape (under games/{gameId}/chatLog):
 //   chatLog/{pushId}: { by: uid, name: string, text: string, ts: epoch-ms,

@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Night — UI/UX Review</title>
+<style>
+  :root {
+    --bg: #080810;
+    --surface: #0f0f1a;
+    --card: #131328;
+    --border: #1e1e3a;
+    --text: #e0e0ff;
+    --dim: #9a9ac4;
+    --p1: #00e5ff;
+    --p2: #ff4081;
+    --cta: #ffe600;
+    --win: #39ff14;
+    --danger: #ff2d2d;
+    --tint-cta: #1a1500;
+    --tint-p1: #001a2e;
+    --tint-p2: #2e0018;
+    --tint-danger: #2e0808;
+  }
+
+  @font-face {
+    font-family: 'Press Start 2P';
+    src: url('./fonts/press-start-2p-latin.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+
+  :where(.grid, .flex) > * { min-width: 0; }
+  :where(p, h1, h2, h3, h4, li, dd, td, th, .label) { overflow-wrap: anywhere; }
+  :where(img, svg, video) { max-width: 100%; height: auto; }
+
+  .pixel { font-family: 'Press Start 2P', monospace; }
+
+  .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  /* Header */
+  .masthead {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 20px; border: 2px solid var(--border);
+    background: linear-gradient(180deg, var(--surface), var(--bg));
+    border-radius: 4px; margin-bottom: 26px; flex-wrap: wrap;
+  }
+  .logo {
+    width: 40px; height: 40px; flex: none;
+    border: 2px solid var(--cta); background: var(--tint-cta);
+    border-radius: 3px; display: grid; place-items: center;
+    box-shadow: 0 0 14px rgb(255 230 0 / .35);
+  }
+  .logo svg { display: block; }
+  .masthead h1 {
+    margin: 0; font-size: 15px; letter-spacing: 1px; color: var(--cta);
+    text-shadow: 0 0 12px rgb(255 230 0 / .5);
+  }
+  .masthead .sub { margin: 3px 0 0; color: var(--dim); font-size: 11px; }
+  .masthead .scope { margin-left: auto; color: var(--dim); font-size: 10px; text-align: right; }
+  .masthead .scope b { color: var(--text); }
+
+  h2.section {
+    font-size: 11px; letter-spacing: 1.5px; color: var(--cta);
+    text-shadow: 0 0 10px rgb(255 230 0 / .4);
+    margin: 34px 0 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+  }
+  h2.section .n { color: var(--dim); margin-right: 6px; }
+
+  .lede { color: var(--text); max-width: 78ch; }
+  .lede b { color: var(--cta); }
+  .lede .warn { color: var(--p2); }
+
+  /* Summary stats */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .stat {
+    border: 2px solid var(--border); background: var(--card); border-radius: 4px;
+    padding: 14px 16px;
+  }
+  .stat .k { font-size: 9px; letter-spacing: 1px; color: var(--dim); }
+  .stat .v { font-size: 18px; margin-top: 6px; }
+  .stat.good .v { color: var(--win); }
+  .stat.bad .v { color: var(--p2); }
+  .stat.hot .v { color: var(--cta); }
+
+  /* Strength cards */
+  .strengths { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .strength { border: 2px solid var(--border); background: var(--surface); border-radius: 4px; padding: 14px 16px; }
+  .strength h3 { margin: 0 0 6px; font-size: 10px; letter-spacing: 1px; color: var(--win); }
+  .strength p { margin: 0; color: var(--dim); font-size: 12.5px; }
+
+  /* Findings table */
+  .table-scroll { overflow-x: auto; border: 2px solid var(--border); border-radius: 4px; background: var(--surface); }
+  table.findings { border-collapse: collapse; width: 100%; min-width: 720px; }
+  table.findings th, table.findings td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.findings th { font-size: 9px; letter-spacing: 1px; color: var(--dim); background: var(--card); position: sticky; top: 0; }
+  table.findings td { font-size: 12.5px; }
+  table.findings tr:last-child td { border-bottom: 0; }
+  table.findings .id { color: var(--dim); font-size: 11px; white-space: nowrap; }
+  table.findings .fix { color: var(--p1); }
+  .sev { display: inline-block; font-size: 9px; letter-spacing: 1px; padding: 3px 7px; border-radius: 3px; border: 1px solid; white-space: nowrap; }
+  .sev.high { color: var(--danger); border-color: var(--danger); background: var(--tint-danger); }
+  .sev.med { color: var(--cta); border-color: var(--cta); background: var(--tint-cta); }
+  .sev.low { color: var(--dim); border-color: var(--border); background: var(--card); }
+  .evid { color: var(--dim); font-size: 11.5px; }
+
+  .queuebar {
+    margin-top: 14px; padding: 14px 16px; border: 2px solid var(--border);
+    background: var(--card); border-radius: 4px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .queuebar .hint { color: var(--dim); font-size: 12px; flex: 1; min-width: 200px; }
+  button.q {
+    font-family: 'Press Start 2P', monospace; font-size: 10px; letter-spacing: 1px;
+    background: var(--cta); color: #080810; border: 0; border-radius: 4px;
+    padding: 13px 18px; cursor: pointer; box-shadow: 0 0 14px rgb(255 230 0 / .3);
+  }
+  button.q:hover { filter: brightness(1.05); }
+  button.q:active { transform: scale(.97); }
+  button.q:disabled { opacity: .5; cursor: not-allowed; }
+  .sent { color: var(--win); font-size: 11px; display: none; }
+
+  input[type=checkbox], input[type=radio] { accent-color: var(--cta); width: 16px; height: 16px; cursor: pointer; }
+
+  /* Before / after comparison */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .compare { grid-template-columns: 1fr; } }
+  .pane { border: 2px solid var(--border); border-radius: 4px; overflow: hidden; background: var(--surface); }
+  .pane .pane-h {
+    padding: 8px 12px; font-size: 9px; letter-spacing: 1px; border-bottom: 1px solid var(--border);
+  }
+  .pane.before .pane-h { color: var(--p2); background: var(--tint-p2); }
+  .pane.after .pane-h { color: var(--win); background: #0b1f06; }
+  .pane .pane-b { padding: 14px; }
+
+  /* Tiny wireframe blocks */
+  .screen { border: 2px solid var(--border); background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .screen .sc-top { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--border); align-items: center; }
+  .screen .sc-body { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .block { border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; font-size: 8px; letter-spacing: .5px; color: var(--dim); background: var(--card); }
+  .block.hot { border-color: var(--cta); color: var(--cta); }
+  .block.p1 { border-color: var(--p1); color: var(--p1); }
+  .block.dim { opacity: .55; }
+  .dot { width: 8px; height: 8px; border-radius: 2px; background: var(--border); }
+  .dot.a { background: var(--cta); }
+  .arrow-tag { color: var(--dim); font-size: 9px; }
+
+  /* Recommendation cards */
+  .recs { display: flex; flex-direction: column; gap: 20px; }
+  .rec { border: 2px solid var(--border); border-radius: 4px; padding: 18px 20px; background: var(--surface); }
+  .rec h3 { margin: 0 0 4px; font-size: 11px; letter-spacing: 1px; color: var(--cta); }
+  .rec .effort { display: inline-block; font-size: 8px; letter-spacing: 1px; color: var(--dim); border: 1px solid var(--border); padding: 2px 7px; border-radius: 3px; margin-left: 8px; vertical-align: 2px; }
+  .rec p { color: var(--dim); font-size: 13px; margin: 8px 0 0; }
+
+  /* Choice form */
+  .choice { border: 2px solid var(--border); background: var(--card); border-radius: 4px; padding: 16px 18px; }
+  .choice label { display: flex; align-items: center; gap: 10px; padding: 9px 0; cursor: pointer; font-size: 12.5px; }
+  .choice .desc { color: var(--dim); font-size: 11.5px; }
+  .choice legend { font-size: 10px; letter-spacing: 1px; color: var(--cta); padding: 0 6px; }
+
+  footer { margin-top: 40px; color: var(--dim); font-size: 10.5px; border-top: 2px solid var(--border); padding-top: 14px; }
+  footer b { color: var(--text); }
+
+  .note { border-left: 3px solid var(--p1); background: var(--tint-p1); padding: 10px 14px; font-size: 12px; color: var(--text); border-radius: 0 4px 4px 0; margin: 14px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="logo" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 30 30" fill="none">
+        <line x1="10" y1="2" x2="10" y2="28" stroke="#ffe600" stroke-width="3" stroke-linecap="square"/>
+        <line x1="20" y1="2" x2="20" y2="28" stroke="#ffe600" stroke-width="3" stroke-linecap="square"/>
+        <line x1="2" y1="10" x2="28" y2="10" stroke="#ffe600" stroke-width="3" stroke-linecap="square"/>
+        <line x1="2" y1="20" x2="28" y2="20" stroke="#ffe600" stroke-width="3" stroke-linecap="square"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="pixel">GAME NIGHT</h1>
+      <p class="sub">UI/UX review + improvement suggestions</p>
+    </div>
+    <div class="scope">
+      <div><b>Source:</b> live code audit</div>
+      <div><b>Scope:</b> Home · Game room · Nav · Catalog · Theming</div>
+    </div>
+  </header>
+
+  <p class="lede">
+    The app has a <b>strong, coherent retro identity</b> and unusually careful mobile ergonomics —
+    large touch targets, safe-area handling, destructive-action confirmations, and reduced-motion
+    support are all real strengths. The main weaknesses are <span class="warn">readability</span>
+    (text too small, a permanent CRT overlay) and <span class="warn">visual density</span>
+    (Home stacks many equal-weight CTAs, the catalog is a wall of tiles). The fixes below are
+    additive — none change the game architecture.
+  </p>
+
+  <div class="stats">
+    <div class="stat good">
+      <div class="k pixel">IDENTITY</div>
+      <div class="v">Cohesive</div>
+      <div class="k">12 themes · one token system · pixel cursors</div>
+    </div>
+    <div class="stat bad">
+      <div class="k pixel">READABILITY</div>
+      <div class="v">Too small</div>
+      <div class="k">7–9px pixel labels common · CRT always on</div>
+    </div>
+    <div class="stat hot">
+      <div class="k pixel">TOP FIX</div>
+      <div class="v">Readability pass</div>
+      <div class="k">Bump sizes · soft CRT · raise contrast</div>
+    </div>
+  </div>
+
+  <h2 class="section"><span class="n">01</span>WHAT'S WORKING</h2>
+  <div class="strengths">
+    <div class="strength">
+      <h3 class="pixel">CONSISTENT THEME SYSTEM</h3>
+      <p>All color flows through <code>--c-*</code> tokens with per-theme overrides. Adding a theme is a token block, not a component rewrite. Hex-hardcoding is banned. This is the right foundation.</p>
+    </div>
+    <div class="strength">
+      <h3 class="pixel">MOBILE ERGONOMICS</h3>
+      <p>44px touch targets, safe-area insets, iOS 16px input floor, tap-highlight suppression, and a blocked-tap toast instead of silent failures. Very few apps handle this layer this deliberately.</p>
+    </div>
+    <div class="strength">
+      <h3 class="pixel">HONEST DANGER VOCABULARY</h3>
+      <p>Destructive confirmations (LEAVE MATCH) and danger states use a dedicated red, distinct from Player O's pink and the CTA yellow. The leave-match back-gesture guard is a thoughtful touch.</p>
+    </div>
+  </div>
+
+  <h2 class="section"><span class="n">02</span>FINDINGS</h2>
+  <p class="lede">
+    Ten findings, each with evidence from the current code. Tick the ones you want fixed and queue
+    them — I get an item-by-item receipt so nothing is dropped.
+  </p>
+
+  <form class="findings-form" data-lavish-question="uiux-findings">
+    <div class="table-scroll">
+      <table class="findings">
+        <thead>
+          <tr>
+            <th style="width:26px"></th>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Area</th>
+            <th>Issue</th>
+            <th>Suggested fix</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-01" data-label="Readability: raise minimum text sizes" data-disposition="fix"></td>
+            <td class="id">F-01</td>
+            <td><span class="sev high">HIGH</span></td>
+            <td>Typography</td>
+            <td>Pixel font is used at 7–10px for functional labels everywhere — tab labels (7px), stat labels (7px), game tags (7px), GameStatus (10px). Press Start 2P at that size is barely legible.</td>
+            <td class="fix">Floor body/label text at a readable size; use the pixel font only for short headings and CTAs, mono for secondary copy.</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-02" data-label="CRT overlay: make it per-theme or toggleable" data-disposition="fix"></td>
+            <td class="id">F-02</td>
+            <td><span class="sev high">HIGH</span></td>
+            <td>Theming</td>
+            <td>CRT scanlines + a heavy edge vignette (<code>rgba(0,0,0,.65)</code>) are always on via <code>body::before/::after</code>. On light themes (paper, matcha) they muddy the page and darken the edges.</td>
+            <td class="fix">Make the CRT effect opt-in per theme (or a single toggle), and disable/soften it on light themes. Keep reduced-motion killing it.</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-03" data-label="Home: reduce stacked CTAs" data-disposition="fix"></td>
+            <td class="id">F-03</td>
+            <td><span class="sev med">MED</span></td>
+            <td>Home</td>
+            <td>Home stacks a dozen near-equal sections: invites, daily + join code, HOW IT WORKS, Continue Playing, catalog, Recently Played, solo CTA, playground CTA, stats, upgrade nudge, install CTA, iOS hint.</td>
+            <td class="fix">Split into primary (play now) and secondary (discover / playground / stats / settings). Collapse less-used banners behind a single secondary zone.</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-04" data-label="Catalog: curated default view" data-disposition="fix"></td>
+            <td class="id">F-04</td>
+            <td><span class="sev med">MED</span></td>
+            <td>Catalog</td>
+            <td>50+ games in the ALL view grouped by 6 categories is a wall, especially at 2 columns on mobile. Search, filters, and favorites help but the default is undifferentiated.</td>
+            <td class="fix">Default to a curated "Featured" or "Recent + Favorites" view. Make player count (solo / 2P / 3–8P) a clearer badge on every card.</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-05" data-label="Game toolbar: collapse secondary icons" data-disposition="fix"></td>
+            <td class="id">F-05</td>
+            <td><span class="sev med">MED</span></td>
+            <td>Game room</td>
+            <td>The room toolbar packs ← HOME, theme, rules, switch, invite, mute, audio settings, a badge, and the game code into one row — ~8 controls before the board on mobile.</td>
+            <td class="fix">Keep back / theme / mute / invite visible; move rules, switch, and audio settings into an overflow menu.</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-06" data-label="Overlays: consolidate fixed/sticky layers" data-disposition="fix"></td>
+            <td class="id">F-06</td>
+            <td><span class="sev med">MED</span></td>
+            <td>Layout</td>
+            <td>Five+ overlay layers can coexist: header, sticky filters, tab bar, round-end action bar, proposal banner, and the real-time "match still running" banner. Offsets are handled but the layer stack is fragile.</td>
+            <td class="fix">Consolidate transient banners into a single toast/banner slot with a stable position, and reduce the number of fixed regions per screen.</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-07" data-label="Theme picker: richer preview grid" data-disposition="fix"></td>
+            <td class="id">F-07</td>
+            <td><span class="sev low">LOW</span></td>
+            <td>Theming</td>
+            <td>12 themes appear as a flat text list with only three 5px color dots each — the visual difference between themes is not visible before picking.</td>
+            <td class="fix">Replace with a grid of larger swatch tiles (name + real palette chips), so each theme previews its actual look.</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-08" data-label="Contrast: raise dim text luminance" data-disposition="fix"></td>
+            <td class="id">F-08</td>
+            <td><span class="sev low">LOW</span></td>
+            <td>Accessibility</td>
+            <td><code>--c-dim</code> is used for a lot of secondary text. On several themes the dim tone sits near or below the readability threshold for its background.</td>
+            <td class="fix">Audit each theme's <code>--c-dim</code> against its surface and bump the ones that fall short; keep the token-based approach.</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-09" data-label="Copy: normalize casing and tone" data-disposition="fix"></td>
+            <td class="id">F-09</td>
+            <td><span class="sev low">LOW</span></td>
+            <td>Copy</td>
+            <td>Minor inconsistency: join-code placeholder is lowercase "enter code…" while every other label is uppercase; some CTAs use "→" and some use "›".</td>
+            <td class="fix">Normalize to the uppercase pixel-voice convention and pick one arrow style.</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="items" value="F-10" data-label="Party games: clearer player-count affordance" data-disposition="fix"></td>
+            <td class="id">F-10</td>
+            <td><span class="sev low">LOW</span></td>
+            <td>Catalog</td>
+            <td>Party games (3–8 players) are only distinguished by a tiny 7px tag. Users can open a party room expecting a 2-player game.</td>
+            <td class="fix">Add a visible "3–8P" party badge and set the party category apart in the catalog.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="queuebar">
+      <div class="hint">Tick findings above, then queue. You can edit the selection before sending.</div>
+      <button class="q" type="submit">QUEUE SELECTED FIXES</button>
+      <span class="sent pixel" aria-live="polite">QUEUED ✓</span>
+    </div>
+  </form>
+
+  <h2 class="section"><span class="n">03</span>TOP RECOMMENDATIONS</h2>
+  <p class="lede">Three changes give the most visible improvement for the least churn. Mocked before/after below.</p>
+
+  <div class="recs">
+    <div class="rec">
+      <h3 class="pixel">R1 — READABILITY PASS <span class="effort">LOW EFFORT · HIGH IMPACT</span></h3>
+      <p>Raise the floor for functional text, reserve Press Start 2P for headings/CTAs, and bump dim-token contrast. Covers findings F-01 and F-08.</p>
+      <div class="compare" style="margin-top:14px">
+        <div class="pane before">
+          <div class="pane-h pixel">BEFORE · HOME STATS</div>
+          <div class="pane-b">
+            <div class="screen">
+              <div class="sc-body">
+                <div class="block" style="font-size:7px">WINS — 12 (pixel 7px)</div>
+                <div class="block" style="font-size:9px">LOSSES — 4 (pixel 9px)</div>
+                <div class="block" style="font-size:10px; color:var(--dim)">BEST STREAK — 5 (pixel 10px, dim)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pane after">
+          <div class="pane-h pixel">AFTER · HOME STATS</div>
+          <div class="pane-b">
+            <div class="screen">
+              <div class="sc-body">
+                <div class="block hot" style="font-size:14px">WINS 12</div>
+                <div class="block" style="font-size:14px">LOSSES 4</div>
+                <div class="block" style="font-size:14px; color:var(--text)">BEST STREAK 5</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rec">
+      <h3 class="pixel">R2 — SOFT CRT, PER THEME <span class="effort">LOW EFFORT</span></h3>
+      <p>Keep scanlines on dark arcade themes where they belong; drop or heavily soften them on light themes (paper, matcha). Covers finding F-02.</p>
+      <div class="compare" style="margin-top:14px">
+        <div class="pane before">
+          <div class="pane-h pixel">BEFORE · LIGHT THEME</div>
+          <div class="pane-b">
+            <div class="screen" style="background:#f2f0e9">
+              <div class="sc-body">
+                <div class="block" style="background:#fffdf7; color:#28241c; border-color:#c8c4b8; box-shadow: inset 0 0 40px rgb(0 0 0 / .35)">Heavy vignette + scanlines over paper theme — edges darken, text muddies.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pane after">
+          <div class="pane-h pixel">AFTER · LIGHT THEME</div>
+          <div class="pane-b">
+            <div class="screen" style="background:#f2f0e9">
+              <div class="sc-body">
+                <div class="block" style="background:#fffdf7; color:#28241c; border-color:#c8c4b8">Clean surface, no scanlines or vignette on light themes. Dark themes keep the effect.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rec">
+      <h3 class="pixel">R3 — HOME HIERARCHY <span class="effort">MED EFFORT · HIGH IMPACT</span></h3>
+      <p>Group Home into a clear primary play lane and a collapsed secondary zone, so the first screen answers "what can I do right now" instead of a long scroll. Covers findings F-03 and F-04.</p>
+      <div class="compare" style="margin-top:14px">
+        <div class="pane before">
+          <div class="pane-h pixel">BEFORE · 12 STACKED SECTIONS</div>
+          <div class="pane-b">
+            <div class="screen">
+              <div class="sc-body">
+                <div class="block">LOGO + EMOJI LAB</div>
+                <div class="block">INVITES</div>
+                <div class="block">DAILY + JOIN CODE</div>
+                <div class="block">HOW IT WORKS</div>
+                <div class="block hot">SELECT GAME · catalog</div>
+                <div class="block">RECENTLY PLAYED</div>
+                <div class="block p1">BROWSE SOLO</div>
+                <div class="block">PLAYGROUND</div>
+                <div class="block">YOUR STATS</div>
+                <div class="block">UPGRADE NUDGE</div>
+                <div class="block">INSTALL CTA</div>
+                <div class="block dim">IOS HINT</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pane after">
+          <div class="pane-h pixel">AFTER · PRIMARY + SECONDARY</div>
+          <div class="pane-b">
+            <div class="screen">
+              <div class="sc-body">
+                <div class="block">LOGO + EMOJI LAB</div>
+                <div class="block">INVITES</div>
+                <div class="block">DAILY + JOIN CODE</div>
+                <div class="block hot">SELECT GAME · featured default</div>
+                <div class="block p1">PLAY SOLO / 2P PASS</div>
+                <div class="block" style="border-style:dashed">SECONDARY ▾ playground · stats · install · upgrade</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section"><span class="n">04</span>WHERE TO START</h2>
+  <p class="lede">Pick a starting point. This queues one decision — no code changes happen until you send it.</p>
+
+  <form class="choice" data-lavish-question="starting-point">
+    <legend class="pixel">START WITH</legend>
+    <label>
+      <input type="radio" name="start" value="R1-readability" checked>
+      <span>R1 — Readability pass <span class="desc">(text sizes + contrast)</span></span>
+    </label>
+    <label>
+      <input type="radio" name="start" value="R2-crt">
+      <span>R2 — Soft CRT per theme</span>
+    </label>
+    <label>
+      <input type="radio" name="start" value="R3-home">
+      <span>R3 — Home hierarchy restructure</span>
+    </label>
+    <label>
+      <input type="radio" name="start" value="findings-only">
+      <span>Just fix the findings I ticked above</span>
+    </label>
+    <div class="queuebar" style="margin-top:12px">
+      <div class="hint">Queues the chosen starting point. Combine with the findings batch above if you want both.</div>
+      <button class="q" type="submit">QUEUE CHOICE</button>
+    </div>
+  </form>
+
+  <footer>
+    Review authored from a live audit of <b>Home.jsx</b>, <b>Game.jsx</b>, <b>NavBar.jsx</b>,
+    <b>BottomTabBar.jsx</b>, <b>GamePicker.jsx</b>, <b>GameCard.jsx</b>, <b>GameStatus.jsx</b>,
+    <b>PlayerCard.jsx</b>, <b>ThemeSwitcher.jsx</b>, <b>EmoteBar.jsx</b>, <b>GameOptionsSheet.jsx</b>,
+    <b>index.css</b>, and <b>tailwind.config.js</b>. Design system matched to the app's own
+    <code>--c-*</code> midnight tokens and self-hosted Press Start 2P font.
+  </footer>
+
+</div>
+
+<script>
+  // Findings tracked batch — queue one concise item set on submit.
+  var findingsForm = document.querySelector('.findings-form');
+  if (findingsForm) {
+    findingsForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var selected = [].slice.call(findingsForm.querySelectorAll('input[name=items]:checked')).map(function (input) {
+        return { id: input.value, label: input.dataset.label, disposition: input.dataset.disposition };
+      });
+      if (!selected.length) return;
+      if (window.lavish) {
+        window.lavish.queuePrompt(
+          'Act on every selected finding and return an item-by-item receipt. Account for every submitted ID before reporting completion. When implementing, follow the app\'s existing design tokens, async-busy, and Firebase conventions.',
+          {
+            tag: 'tracked-batch',
+            text: 'Apply ' + selected.length + ' selected UI/UX findings',
+            element: findingsForm,
+            data: { items: selected }
+          }
+        );
+      }
+      var sent = findingsForm.querySelector('.sent');
+      if (sent) { sent.style.display = 'inline'; }
+    });
+  }
+
+  // Starting-point single choice — queue one prompt on submit.
+  var choiceForm = document.querySelector('[data-lavish-question="starting-point"]');
+  if (choiceForm) {
+    choiceForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var choice = new FormData(choiceForm).get('start');
+      if (!choice) return;
+      var map = {
+        'R1-readability': 'Start with the readability pass: raise minimum functional text sizes and improve dim-token contrast.',
+        'R2-crt': 'Start with the CRT effect: make scanlines/vignette per-theme or toggleable, and disable them on light themes.',
+        'R3-home': 'Start with the Home hierarchy restructure: split primary and secondary zones.',
+        'findings-only': 'Implement only the findings I ticked in the tracked batch, in the order submitted.'
+      };
+      if (window.lavish) {
+        window.lavish.queuePrompt(map[choice], {
+          tag: 'choice',
+          text: 'Starting point: ' + choice,
+          element: choiceForm,
+          data: { question: 'starting-point', answer: choice }
+        });
+      }
+      var q = choiceForm.querySelector('.sent');
+      if (!q) {
+        q = document.createElement('span');
+        q.className = 'sent pixel';
+        q.style.display = 'inline';
+        choiceForm.appendChild(q);
+      }
+      q.textContent = 'QUEUED ✓';
+    });
+  }
+</script>
+</body>
+</html>

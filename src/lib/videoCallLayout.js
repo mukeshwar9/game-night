@@ -1,15 +1,15 @@
 export const VIDEO_CALL_STORAGE_KEY = 'gn-video-call-layout'
 
-export const VIDEO_CALL_CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+export const VIDEO_CALL_CORNERS = ['bottom-left', 'bottom-right']
 export const VIDEO_CALL_SIZES = {
-  small: { label: 'SMALL', width: 180, height: 140 },
-  medium: { label: 'MEDIUM', width: 240, height: 180 },
-  large: { label: 'LARGE', width: 320, height: 240 },
+  small: { label: 'SMALL', width: 96, height: 171 },
+  medium: { label: 'MEDIUM', width: 128, height: 228 },
+  large: { label: 'LARGE', width: 160, height: 284 },
 }
 
 export const DEFAULT_VIDEO_CALL_LAYOUT = {
   enabled: false,
-  corner: 'top-right',
+  corner: 'bottom-right',
   size: 'medium',
 }
 

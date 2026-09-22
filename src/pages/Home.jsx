@@ -232,6 +232,10 @@ export default function Home() {
           </div>
         </div>
 
+        <Link to="/online" className="max-w-md mx-auto w-full flex items-center justify-center gap-2 py-3 rounded border-2 border-retro-cta/60 bg-retro-tint-cta text-retro-cta font-pixel text-[10px] tracking-widest hover:shadow-neon-cta transition-all active:scale-95">
+          PLAY ONLINE — FIND AN OPPONENT
+        </Link>
+
         {/* First-run HOW IT WORKS strip */}
         {isNewVisitor && !onboarded && !howItWorksDismissed && (
           <div className="max-w-md mx-auto w-full bg-retro-card border border-retro-border rounded p-3 relative">
@@ -278,6 +282,7 @@ export default function Home() {
           <GamePicker
             layout="full"
             onSelect={createGame}
+            onOnline={(type) => navigate(`/online?game=${type}`)}
             onSolo={(type) => navigate('/solo/' + type)}
             onLocal={(type) => navigate('/local/' + type)}
             loadingType={loading}

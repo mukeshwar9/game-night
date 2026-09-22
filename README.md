@@ -61,6 +61,44 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 
 Standard games play first-to-3-rounds; Pong has a configurable match length; the arena games (Tron / Sumo / Space Duel) are single-round.
 
+## Choose who goes first (planned)
+
+Add a shared pre-game choice wherever a game has a starting turn or role. This is a documentation-only plan; gameplay is not yet changed.
+
+- **Lobby UX:** show a “WHO GOES FIRST?” row above START with the game's current default selected. Offer RANDOM and eligible players by name/avatar. Use role-specific labels where clearer, such as “FIRST ARTIST” for Sketch or “FIRST WORD SETTER” for Hangwoman.
+- **Shared choice:** the room creator or party host selects; everyone sees the selection and a short explanation before play. Two-player games require the opponent's acceptance when changing the default. Party games use the host's visible selection.
+- **Starting play:** games that currently start immediately when an opponent joins need a ready step for this choice. Resolve RANDOM once when starting and announce the selected player to everyone. Disable repeated start actions while saving.
+- **Game-specific behavior:** keep player identity, seats, teams, and transport host unchanged. Apply the choice to the starting turn or initial role using each game's rules. For rotating-role games, rotate the existing order to start with the selected player, preserving everyone's turns. Games whose rules bind the opening move to a side need an explicit side-selection design before supporting this option.
+- **Simultaneous and solo games:** do not show a first-player selector for races, simultaneous reflex games, or solo play. Keep their existing shared or solo start behavior.
+- **Rematches and recovery:** preserve each game's normal between-round rotation. Offer the choice again before a new match; switching games uses the new game's default. If the selected player leaves before start, explain the change and require a valid selection before continuing.
+- **Validation:** verify both player perspectives, party rotation, random selection, declined changes, disconnects before start, rematches, and game switching. A changed starter must not change scoring, give extra turns, or reassign networking responsibilities.
+
+## Playing on a video call
+
+An optional **PLAYING ON A VIDEO CALL** layout setting adds a portrait 9:16 space beside reactions for a floating WhatsApp or other video-call window. On mobile, the video space stays fixed to the bottom-left or bottom-right while reactions remain below the game. It is available in multiplayer rooms, solo demos, and local pass-and-play games.
+
+- **Entry and setup:** open the video-call layout control before or during play. Toggle the mode, choose one of four corners, and select a Small, Medium, or Large reserved space.
+- **Layout behavior:** the game shell keeps the game board and controls unchanged. Desktop reaction rows share space with the call preview; mobile reactions stay in normal flow while the call preview becomes fixed above the bottom navigation. Tight viewports show a warning to choose another corner or a smaller window.
+- **Manual control:** move the external video window to match the selected corner. The game cannot move that window or automatically detect WhatsApp, its popup position, or its size. Page visibility and focus events do not reliably indicate an overlapping video window ([browser visibility limits](https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API)).
+- **Personal preference:** the setting stays on the player's device in `localStorage`. Changing it affects only that device and never changes the opponent's layout, game rules, timer, or networking.
+- **Validation:** test with a real floating call window in portrait and landscape, including the on-screen keyboard. Disabling the mode restores the normal layout.
+
+## Public online matchmaking (planned)
+
+The next multiplayer slice is a public **PLAY ONLINE** lobby for finding an opponent without sharing a link first.
+
+- Firebase-authenticated guests and Google-linked players can create or join public rooms; Google login remains optional. Linking a new Google account preserves the guest uid and makes its server-backed profile available across devices. Signing into an existing Google account uses that account's identity without merging guest data; local stats remain device-local.
+- A live waiting list groups available rooms by game and shows the host display name/avatar, with one-tap JOIN actions. Players can also see rooms waiting for other games. JOIN must revalidate that the room is public, waiting, unexpired, hosted by an online opponent, and has an open seat. If the seat is taken or the room is no longer eligible, return the player to the lobby with an explanation instead of making them a spectator.
+- V1 covers all existing two-player games; party games remain invite-only until their multi-seat queue flow is designed.
+- Public rooms build on the existing Firebase `games/{gameId}` room model, with transactional seat claims that enforce public-room eligibility. A lightweight `matchmaking/{gameId}` index advertises only eligible waiting rooms; the room is authoritative if the index is stale.
+- The existing share-link and friend-invite flow remains available as **PLAY WITH FRIENDS**.
+
+Before public discovery ships:
+
+- **Permissions:** replace the current broad authenticated room-write access with explicit permissions for creation, seat claims, and participant actions. Define index rules so hosts can advertise only their own eligible rooms and unrelated users cannot alter or delete listings or games.
+- **Listing lifecycle:** register disconnect cleanup before advertising, remove the listing on host cancellation or a successful join, and define an expiry timestamp that lobby readers filter against. Assign responsibility for deleting expired entries and reconciling a successful seat claim whose index cleanup failed.
+- **Reconnects:** revalidate the room before republishing after a host reconnects; occupied, cancelled, or expired rooms must not reappear automatically.
+
 ## Identity & social
 
 Every visitor is signed in **anonymously** with Firebase Auth on boot — a real uid with zero login UI, keeping the "no account needed" promise. Optionally **upgrade to Google** (one tap) to make your profile permanent and cross-device; the uid is preserved so your avatar, friends, and stats carry over.
@@ -257,4 +295,4 @@ Suggested order: 4, 5, 6 (Arrows A→B→C), then 1, 2, 3, 15, 13.
 - **Realtime polish** — TURN fallback for symmetric NATs, guest-side forfeit when the host drops mid-round, live spectator state for the arena games, softer host advantage
 - **More depth** — pie/swap openings for first-player-advantage games, Reversi misère mode, power-ups for the arena games
 - **Party QoL** — host migration when the host leaves, bigger content decks
-- **Chat / matchmaking / pass-and-play** — long-tail candidates
+- **Chat / pass-and-play** — long-tail candidates

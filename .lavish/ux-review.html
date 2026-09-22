@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game Night — UX Review &amp; Improvements</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :where(.grid, .flex, .layout-grid, .layout-flex) > *,
+    :where([style*="display: grid"], [style*="display:grid"], [style*="display: flex"], [style*="display:flex"]) > * {
+      min-width: 0;
+    }
+    :where(p, h1, h2, h3, h4, h5, h6, li, dd, blockquote, figcaption, td, th, .badge, .label) {
+      overflow-wrap: anywhere;
+    }
+    :where(img, svg, video, canvas, iframe) {
+      max-width: 100%;
+      height: auto;
+    }
+
+    :root {
+      --c-bg: 8 8 16;
+      --c-surface: 15 15 26;
+      --c-card: 19 19 40;
+      --c-border: 30 30 58;
+      --c-text: 224 224 255;
+      --c-dim: 122 122 186;
+      --c-dim-aa: 158 158 210;
+      --c-p1: 0 229 255;
+      --c-p2: 255 64 129;
+      --c-cta: 255 230 0;
+      --c-win: 57 255 20;
+      --c-danger: 255 45 45;
+      --c-tint-p1: 0 26 46;
+      --c-tint-cta: 26 21 0;
+      --c-tint-danger: 46 8 8;
+      --radius: 4px;
+      --font-pixel: 'Press Start 2P', monospace;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: rgb(var(--c-bg));
+      color: rgb(var(--c-text));
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .wrap { max-width: 920px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+    .hero {
+      border: 2px solid rgb(var(--c-cta));
+      background: rgb(var(--c-tint-cta));
+      border-radius: var(--radius);
+      padding: 1.25rem 1rem;
+      box-shadow: 0 0 24px rgba(255, 230, 0, 0.15);
+    }
+    .hero-kicker {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      color: rgb(var(--c-cta));
+      margin: 0 0 0.75rem;
+    }
+    .hero h1 {
+      font-family: var(--font-pixel);
+      font-size: clamp(14px, 4vw, 18px);
+      line-height: 1.6;
+      color: rgb(var(--c-cta));
+      margin: 0 0 0.75rem;
+      text-shadow: 0 0 12px rgba(255, 230, 0, 0.35);
+    }
+    .hero-lead { margin: 0; color: rgb(var(--c-dim-aa)); max-width: 62ch; }
+
+    .verdict-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .verdict-card {
+      background: rgb(var(--c-card));
+      border: 1px solid rgb(var(--c-border));
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      text-align: center;
+    }
+    .verdict-score {
+      font-family: var(--font-pixel);
+      font-size: 18px;
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+    .verdict-label {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      color: rgb(var(--c-dim-aa));
+      letter-spacing: 0.08em;
+    }
+    .score-strong { color: rgb(var(--c-win)); }
+    .score-mid { color: rgb(var(--c-cta)); }
+    .score-weak { color: rgb(var(--c-p2)); }
+
+    section { margin-top: 2rem; }
+    .section-label {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: rgb(var(--c-p1));
+      margin: 0 0 0.75rem;
+    }
+    h2 {
+      font-family: var(--font-pixel);
+      font-size: 11px;
+      line-height: 1.6;
+      margin: 0 0 1rem;
+      color: rgb(var(--c-text));
+    }
+
+    .card {
+      background: rgb(var(--c-card));
+      border: 1px solid rgb(var(--c-border));
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .card + .card { margin-top: 0.75rem; }
+
+    .pill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .pill {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      padding: 0.35rem 0.5rem;
+      border-radius: var(--radius);
+      border: 1px solid rgb(var(--c-border));
+      background: rgb(var(--c-surface));
+      color: rgb(var(--c-dim-aa));
+    }
+    .pill-good { border-color: rgba(57, 255, 20, 0.35); color: rgb(var(--c-win)); background: rgba(57, 255, 20, 0.08); }
+    .pill-warn { border-color: rgba(255, 230, 0, 0.35); color: rgb(var(--c-cta)); background: rgb(var(--c-tint-cta)); }
+    .pill-bad { border-color: rgba(255, 45, 45, 0.35); color: rgb(var(--c-danger)); background: rgb(var(--c-tint-danger)); }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    @media (min-width: 640px) {
+      .two-col { grid-template-columns: 1fr 1fr; }
+    }
+
+    .compare-head {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      margin: 0 0 0.5rem;
+      letter-spacing: 0.06em;
+    }
+    .compare-now { color: rgb(var(--c-p2)); }
+    .compare-next { color: rgb(var(--c-win)); }
+
+    .compare-box {
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      min-height: 5.5rem;
+      font-size: 13px;
+    }
+    .compare-box.now {
+      background: rgba(255, 64, 129, 0.08);
+      border: 1px dashed rgba(255, 64, 129, 0.4);
+    }
+    .compare-box.next {
+      background: rgba(57, 255, 20, 0.06);
+      border: 1px solid rgba(57, 255, 20, 0.35);
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      font-family: var(--font-pixel);
+      font-size: 7px;
+    }
+    .meta { color: rgb(var(--c-dim-aa)); }
+    .meta strong { color: rgb(var(--c-text)); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid rgb(var(--c-border));
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      letter-spacing: 0.06em;
+      background: rgb(var(--c-surface));
+      color: rgb(var(--c-p1));
+    }
+    .sev-critical { color: rgb(var(--c-danger)); font-weight: 600; }
+    .sev-high { color: rgb(var(--c-p2)); font-weight: 600; }
+    .sev-med { color: rgb(var(--c-cta)); }
+
+    .journey-wrap {
+      overflow-x: auto;
+      border: 1px solid rgb(var(--c-border));
+      border-radius: var(--radius);
+      background: rgb(var(--c-surface));
+      padding: 0.75rem;
+    }
+    .journey-svg { min-width: 680px; display: block; margin: 0 auto; }
+
+    .input-panel {
+      border: 2px solid rgb(var(--c-p1));
+      background: rgb(var(--c-tint-p1));
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .input-panel p { margin: 0 0 0.75rem; color: rgb(var(--c-dim-aa)); font-size: 13px; }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .choice {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.6rem;
+      background: rgb(var(--c-card));
+      border: 1px solid rgb(var(--c-border));
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .choice:has(input:checked) {
+      border-color: rgb(var(--c-p1));
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.15);
+    }
+    .choice input { margin-top: 0.15rem; accent-color: rgb(var(--c-p1)); }
+    .choice-title {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      display: block;
+      margin-bottom: 0.25rem;
+      color: rgb(var(--c-text));
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 72px;
+      background: rgb(var(--c-bg));
+      border: 1px solid rgb(var(--c-border));
+      border-radius: var(--radius);
+      color: rgb(var(--c-text));
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 0.6rem;
+      resize: vertical;
+    }
+    textarea:focus { outline: 2px solid rgb(var(--c-p1)); outline-offset: 1px; }
+
+    .footnote {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgb(var(--c-border));
+      font-size: 11px;
+      color: rgb(var(--c-dim-aa));
+    }
+
+    ul.compact { margin: 0; padding-left: 1.1rem; }
+    ul.compact li { margin-bottom: 0.35rem; }
+
+    /* ── Phone mockups (Game Night design system) ── */
+    .mock-nav { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+    .mock-nav a {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid rgb(var(--c-border));
+      border-radius: var(--radius);
+      color: rgb(var(--c-dim-aa));
+      text-decoration: none;
+    }
+    .mock-nav a:hover { border-color: rgb(var(--c-p1)); color: rgb(var(--c-p1)); }
+
+    .phone-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+    @media (min-width: 720px) {
+      .phone-grid.pair { grid-template-columns: 1fr 1fr; }
+    }
+
+    .phone-col { min-width: 0; }
+    .phone-label {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      letter-spacing: 0.08em;
+      margin: 0 0 0.5rem;
+      text-align: center;
+    }
+    .phone-label.now { color: rgb(var(--c-p2)); }
+    .phone-label.next { color: rgb(var(--c-win)); }
+
+    .phone {
+      width: 100%;
+      max-width: 320px;
+      margin: 0 auto;
+      border: 2px solid rgb(var(--c-border));
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgb(var(--c-bg));
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    }
+    .phone-bar {
+      height: 28px;
+      background: rgb(var(--c-surface));
+      border-bottom: 1px solid rgb(var(--c-border));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0 0.5rem;
+    }
+    .phone-bar span {
+      font-family: var(--font-pixel);
+      font-size: 6px;
+      color: rgb(var(--c-dim));
+    }
+    .phone-screen {
+      min-height: 420px;
+      max-height: 520px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .gn-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.65rem;
+      border-bottom: 1px solid rgba(30, 30, 58, 0.6);
+      background: rgba(8, 8, 16, 0.95);
+    }
+    .gn-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      color: rgb(var(--c-cta));
+      text-shadow: 0 0 8px rgba(255, 230, 0, 0.3);
+    }
+    .gn-logo-box {
+      width: 18px; height: 18px;
+      border: 2px solid rgb(var(--c-cta));
+      background: rgb(var(--c-tint-cta));
+      border-radius: 3px;
+      display: grid;
+      place-items: center;
+    }
+    .gn-icon-btn {
+      width: 22px; height: 22px;
+      border: 1px solid rgb(var(--c-border));
+      border-radius: 3px;
+      background: rgb(var(--c-card));
+      color: rgb(var(--c-dim));
+      font-size: 10px;
+      display: grid;
+      place-items: center;
+    }
+
+    .gn-body { flex: 1; padding: 0.65rem; overflow: hidden; }
+    .gn-tabbar {
+      display: flex;
+      border-top: 1px solid rgba(30, 30, 58, 0.6);
+      background: rgba(8, 8, 16, 0.95);
+      padding: 0.35rem 0 0.5rem;
+    }
+    .gn-tab {
+      flex: 1;
+      text-align: center;
+      font-family: var(--font-pixel);
+      font-size: 5px;
+      color: rgb(var(--c-dim));
+      padding: 0.2rem 0;
+    }
+    .gn-tab.on { color: rgb(var(--c-cta)); }
+
+    .gn-sticky-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.5rem;
+      background: rgba(8, 8, 16, 0.95);
+      border-top: 1px solid rgb(var(--c-border));
+    }
+    .gn-btn-cta {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      padding: 0.55rem 1rem;
+      background: rgb(var(--c-cta));
+      color: rgb(var(--c-bg));
+      border: none;
+      border-radius: 3px;
+    }
+    .gn-btn-outline {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      padding: 0.5rem 0.85rem;
+      background: transparent;
+      color: rgb(var(--c-text));
+      border: 2px solid rgb(var(--c-border));
+      border-radius: 3px;
+    }
+
+    .gn-win-title {
+      font-family: var(--font-pixel);
+      font-size: 13px;
+      text-align: center;
+      color: rgb(var(--c-cta));
+      text-shadow: 0 0 10px rgba(255, 230, 0, 0.35);
+      margin: 0.5rem 0 0.25rem;
+    }
+    .gn-score { font-family: var(--font-mono); font-size: 12px; text-align: center; margin: 0; }
+    .gn-h2h-subtle {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      text-align: center;
+      color: rgb(var(--c-dim));
+      letter-spacing: 0.08em;
+      margin: 0.35rem 0 0;
+    }
+    .gn-h2h-chip {
+      display: inline-block;
+      margin: 0.5rem auto 0;
+      padding: 0.35rem 0.6rem;
+      border: 1px solid rgba(255, 230, 0, 0.45);
+      background: rgb(var(--c-tint-cta));
+      border-radius: 3px;
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      color: rgb(var(--c-cta));
+      text-align: center;
+    }
+    .gn-margin-badge {
+      display: block;
+      font-family: var(--font-pixel);
+      font-size: 6px;
+      color: rgb(var(--c-win));
+      margin-top: 0.25rem;
+    }
+
+    .gn-board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3px;
+      max-width: 180px;
+      margin: 0.75rem auto;
+    }
+    .gn-cell {
+      aspect-ratio: 1;
+      border: 2px solid rgb(var(--c-border));
+      border-radius: 3px;
+      background: rgb(var(--c-card));
+      display: grid;
+      place-items: center;
+      font-family: var(--font-pixel);
+      font-size: 14px;
+    }
+    .gn-cell.x { color: rgb(var(--c-p1)); }
+    .gn-cell.o { color: rgb(var(--c-p2)); }
+
+    .gn-wait-status {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      text-align: center;
+      color: rgb(var(--c-text));
+      margin: 0.5rem 0 0.15rem;
+    }
+    .gn-wait-sub {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      text-align: center;
+      color: rgb(var(--c-dim));
+      margin: 0 0 0.75rem;
+    }
+    .gn-vs-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 0.65rem;
+      background: rgb(var(--c-card));
+      border: 1px solid rgb(var(--c-border));
+      border-radius: 3px;
+      margin-bottom: 0.5rem;
+    }
+    .gn-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: rgb(var(--c-tint-p1));
+      border: 2px solid rgb(var(--c-p1));
+    }
+    .gn-avatar.empty {
+      border-style: dashed;
+      border-color: rgb(var(--c-border));
+      background: transparent;
+      display: grid;
+      place-items: center;
+      color: rgb(var(--c-dim));
+      font-family: var(--font-pixel);
+      font-size: 10px;
+    }
+    .gn-vs { font-family: var(--font-pixel); font-size: 8px; color: rgb(var(--c-cta)); }
+    .gn-qr {
+      width: 72px; height: 72px;
+      background: #fff;
+      margin: 0.5rem auto;
+      border-radius: 3px;
+      display: grid;
+      place-items: center;
+      font-size: 8px;
+      color: #333;
+    }
+    .gn-ping {
+      margin: 0.5rem 0;
+      padding: 0.45rem 0.5rem;
+      border: 1px solid rgba(0, 229, 255, 0.35);
+      background: rgb(var(--c-tint-p1));
+      border-radius: 3px;
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      color: rgb(var(--c-p1));
+      text-align: center;
+      animation: pulse-soft 2s ease-in-out infinite;
+    }
+    .gn-elapsed {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: rgb(var(--c-dim-aa));
+      text-align: center;
+      margin: 0.25rem 0 0.5rem;
+    }
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .gn-demo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    .gn-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 230, 0, 0.5);
+      background: rgb(var(--c-tint-cta));
+      color: rgb(var(--c-cta));
+    }
+    .gn-rules-btn {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      width: 28px; height: 28px;
+      border: 2px solid rgb(var(--c-border));
+      border-radius: 50%;
+      background: rgb(var(--c-card));
+      color: rgb(var(--c-p1));
+      display: grid;
+      place-items: center;
+    }
+    .gn-rules-btn.new {
+      border-color: rgba(0, 229, 255, 0.5);
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+    }
+
+    .gn-block {
+      background: rgb(var(--c-card));
+      border: 1px solid rgb(var(--c-border));
+      border-radius: 3px;
+      padding: 0.45rem 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .gn-block-label {
+      font-family: var(--font-pixel);
+      font-size: 6px;
+      color: rgb(var(--c-dim));
+      letter-spacing: 0.06em;
+      margin-bottom: 0.25rem;
+    }
+    .gn-block-title {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      color: rgb(var(--c-cta));
+    }
+    .gn-block-dim { font-family: var(--font-mono); font-size: 9px; color: rgb(var(--c-dim)); }
+    .gn-block-dim-aa { font-family: var(--font-mono); font-size: 9px; color: rgb(var(--c-dim-aa)); }
+    .gn-collapsed {
+      opacity: 0.45;
+      border-style: dashed;
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      color: rgb(var(--c-dim));
+      text-align: center;
+      padding: 0.35rem;
+    }
+    .gn-highlight { outline: 2px solid rgb(var(--c-win)); outline-offset: 2px; }
+
+    .mock-block { margin-bottom: 2rem; }
+    .mock-block > h3 {
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      color: rgb(var(--c-text));
+      margin: 0 0 0.75rem;
+      line-height: 1.5;
+    }
+    .mock-caption {
+      font-size: 12px;
+      color: rgb(var(--c-dim-aa));
+      margin: 0.75rem 0 0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <p class="hero-kicker">GAME NIGHT · UX REVIEW · SEP 2026</p>
+      <h1>Strong session loop. Weaker day-to-day pull.</h1>
+      <p class="hero-lead">
+        Retro identity holds. Room create → invite → play → rematch path is best-in-class for a no-backend PWA.
+        Biggest gaps: accessibility tokens, solo rules parity, flat win moments, retention hooks that exist in code but never show.
+      </p>
+      <div class="verdict-grid">
+        <div class="verdict-card"><span class="verdict-score score-strong">A-</span><span class="verdict-label">IN-SESSION FLOW</span></div>
+        <div class="verdict-card"><span class="verdict-score score-mid">B</span><span class="verdict-label">DISCOVERY / HOME</span></div>
+        <div class="verdict-card"><span class="verdict-score score-mid">B-</span><span class="verdict-label">RETENTION LOOP</span></div>
+        <div class="verdict-card"><span class="verdict-score score-weak">C+</span><span class="verdict-label">A11Y / TOKENS</span></div>
+      </div>
+    </header>
+
+    <section>
+      <p class="section-label">01 · WHAT WORKS</p>
+      <h2>Keep these — they carry the product</h2>
+      <div class="card">
+        <div class="pill-row">
+          <span class="pill pill-good">GAME PICKER</span>
+          <span class="pill pill-good">CONSENT REMATCH</span>
+          <span class="pill pill-good">MOBILE CHROME</span>
+          <span class="pill pill-good">THEME SYSTEM</span>
+          <span class="pill pill-good">RECOVERY PATHS</span>
+        </div>
+        <ul class="compact" style="margin-top:0.75rem">
+          <li><strong>Home catalog</strong> — search, filters, favorites, rules modal, variant chooser, scroll restore (M-82). Player can tell what they pick.</li>
+          <li><strong>Game room shell</strong> — proposal handshake, abandoned-opponent recovery, sticky end-of-match bar, connection banner, bottom sheets.</li>
+          <li><strong>Social layer</strong> — friend codes, invites on Home, tab badges, playground presence experiment.</li>
+          <li><strong>Touch targets</strong> — most CTAs hit 44px; LetterKeyboard / NumberPad done right.</li>
+          <li><strong>Cohesive aesthetic</strong> — <code>--c-*</code> tokens, pixel font, neon glows read as one arcade-night product.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <p class="section-label">02 · JOURNEY MAP</p>
+      <h2>Where players stall or bounce</h2>
+      <div class="journey-wrap">
+        <svg class="journey-svg" viewBox="0 0 760 220" role="img" aria-label="User journey: strong mid-session path, weak return loop">
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="rgb(122,122,186)"/>
+            </marker>
+          </defs>
+          <!-- nodes -->
+          <g font-family="JetBrains Mono, monospace" font-size="11">
+            <rect x="10" y="80" width="100" height="44" rx="4" fill="rgb(19,19,40)" stroke="rgb(0,229,255)" stroke-width="1.5"/>
+            <text x="60" y="98" fill="rgb(224,224,255)" text-anchor="middle">Land Home</text>
+            <text x="60" y="114" fill="rgb(158,158,210)" text-anchor="middle" font-size="9">✓ strong</text>
+
+            <rect x="140" y="80" width="100" height="44" rx="4" fill="rgb(19,19,40)" stroke="rgb(0,229,255)" stroke-width="1.5"/>
+            <text x="190" y="98" fill="rgb(224,224,255)" text-anchor="middle">Pick game</text>
+            <text x="190" y="114" fill="rgb(158,158,210)" text-anchor="middle" font-size="9">✓ strong</text>
+
+            <rect x="270" y="80" width="100" height="44" rx="4" fill="rgb(19,19,40)" stroke="rgb(255,230,0)" stroke-width="1.5"/>
+            <text x="320" y="98" fill="rgb(224,224,255)" text-anchor="middle">Wait room</text>
+            <text x="320" y="114" fill="rgb(255,230,0)" text-anchor="middle" font-size="9">⚠ silent dead time</text>
+
+            <rect x="400" y="80" width="100" height="44" rx="4" fill="rgb(19,19,40)" stroke="rgb(0,229,255)" stroke-width="1.5"/>
+            <text x="450" y="98" fill="rgb(224,224,255)" text-anchor="middle">Play</text>
+            <text x="450" y="114" fill="rgb(158,158,210)" text-anchor="middle" font-size="9">✓ strong</text>
+
+            <rect x="530" y="80" width="100" height="44" rx="4" fill="rgb(19,19,40)" stroke="rgb(255,64,129)" stroke-width="1.5"/>
+            <text x="580" y="98" fill="rgb(224,224,255)" text-anchor="middle">Win screen</text>
+            <text x="580" y="114" fill="rgb(255,64,129)" text-anchor="middle" font-size="9">⚠ flat payoff</text>
+
+            <rect x="650" y="80" width="100" height="44" rx="4" fill="rgb(19,19,40)" stroke="rgb(255,64,129)" stroke-width="1.5"/>
+            <text x="700" y="98" fill="rgb(224,224,255)" text-anchor="middle">Close tab</text>
+            <text x="700" y="114" fill="rgb(255,64,129)" text-anchor="middle" font-size="9">✗ no hook</text>
+          </g>
+          <!-- arrows main path -->
+          <line x1="110" y1="102" x2="138" y2="102" stroke="rgb(122,122,186)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="240" y1="102" x2="268" y2="102" stroke="rgb(122,122,186)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="370" y1="102" x2="398" y2="102" stroke="rgb(122,122,186)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="500" y1="102" x2="528" y2="102" stroke="rgb(122,122,186)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="630" y1="102" x2="648" y2="102" stroke="rgb(122,122,186)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <!-- solo branch -->
+          <rect x="140" y="10" width="120" height="44" rx="4" fill="rgb(26,21,0)" stroke="rgb(255,230,0)" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="200" y="28" fill="rgb(255,230,0)" text-anchor="middle" font-family="JetBrains Mono" font-size="10">Solo / Demo</text>
+          <text x="200" y="44" fill="rgb(255,64,129)" text-anchor="middle" font-family="JetBrains Mono" font-size="9">no rules on board</text>
+          <line x1="200" y1="54" x2="200" y2="78" stroke="rgb(255,230,0)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <!-- daily branch -->
+          <rect x="400" y="160" width="130" height="44" rx="4" fill="rgb(0,26,46)" stroke="rgb(0,229,255)" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="465" y="178" fill="rgb(0,229,255)" text-anchor="middle" font-family="JetBrains Mono" font-size="10">Daily challenge</text>
+          <text x="465" y="194" fill="rgb(255,230,0)" text-anchor="middle" font-family="JetBrains Mono" font-size="9">streak local-only</text>
+          <line x1="465" y1="124" x2="465" y2="158" stroke="rgb(0,229,255)" stroke-width="1.5" marker-end="url(#arrow)"/>
+        </svg>
+      </div>
+    </section>
+
+    <section id="screen-mockups">
+      <p class="section-label">03 · SCREEN MOCKUPS</p>
+      <h2>How key screens look today vs proposed</h2>
+      <p style="color:rgb(var(--c-dim-aa));font-size:13px;margin:-0.5rem 0 1rem">CSS mockups in Game Night tokens — not screenshots. Annotate any phone frame in Lavish.</p>
+
+      <nav class="mock-nav" aria-label="Jump to mockup">
+        <a href="#mock-win">Win screen</a>
+        <a href="#mock-wait">Waiting room</a>
+        <a href="#mock-demo">Solo / Demo</a>
+        <a href="#mock-home">Home</a>
+        <a href="#mock-card">Card text</a>
+      </nav>
+
+      <!-- WIN SCREEN -->
+      <div class="mock-block" id="mock-win">
+        <h3>Match win — rivalry line hard to see today</h3>
+        <div class="phone-grid pair">
+          <div class="phone-col">
+            <p class="phone-label now">CURRENT</p>
+            <div class="phone">
+              <div class="phone-bar"><span>GAME NIGHT · CONNECT FOUR</span></div>
+              <div class="phone-screen">
+                <div class="gn-body" style="padding-bottom:3.5rem">
+                  <div class="gn-board" style="grid-template-columns:repeat(7,1fr);max-width:100%;gap:2px">
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell o" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell x" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell o" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell x" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell o" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell x" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell o" style="min-height:22px;border-radius:50%">●</div>
+                  </div>
+                  <p style="font-family:var(--font-pixel);font-size:7px;color:rgb(var(--c-dim));text-align:center;margin:0.5rem 0 0">MATCH OVER</p>
+                  <p class="gn-win-title">YOU WIN!</p>
+                  <p class="gn-score gn-block-dim">3 – 2</p>
+                  <p class="gn-h2h-subtle">4 – 2 ALL TIME</p>
+                </div>
+                <div class="gn-sticky-bar">
+                  <button class="gn-btn-cta">NEW MATCH</button>
+                  <button class="gn-btn-outline">SHARE</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone-col">
+            <p class="phone-label next">PROPOSED</p>
+            <div class="phone">
+              <div class="phone-bar"><span>GAME NIGHT · CONNECT FOUR</span></div>
+              <div class="phone-screen">
+                <div class="gn-body" style="padding-bottom:3.5rem">
+                  <div class="gn-board" style="grid-template-columns:repeat(7,1fr);max-width:100%;gap:2px">
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell" style="font-size:0;min-height:14px;background:rgb(var(--c-surface))"></div>
+                    <div class="gn-cell o" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell x" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell o" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell x" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell o" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell x" style="min-height:22px;border-radius:50%">●</div>
+                    <div class="gn-cell o" style="min-height:22px;border-radius:50%">●</div>
+                  </div>
+                  <p style="font-family:var(--font-pixel);font-size:7px;color:rgb(var(--c-dim-aa));text-align:center;margin:0.5rem 0 0">MATCH OVER</p>
+                  <p class="gn-win-title">YOU WIN!</p>
+                  <p class="gn-score" style="color:rgb(var(--c-text))">3 – 2</p>
+                  <div class="gn-h2h-chip gn-highlight">
+                    4 – 2 VS SAM
+                    <span class="gn-margin-badge">NAILBITER · +1 RIVALRY</span>
+                  </div>
+                </div>
+                <div class="gn-sticky-bar">
+                  <button class="gn-btn-cta">NEW MATCH</button>
+                  <button class="gn-btn-outline">SHARE</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="mock-caption">H2H already wired but uses <code>text-retro-dim</code> at 9px — easy to miss. Proposed: CTA chip + margin label on close games.</p>
+      </div>
+
+      <!-- WAITING ROOM -->
+      <div class="mock-block" id="mock-wait">
+        <h3>Waiting room — silent vs live feedback</h3>
+        <div class="phone-grid pair">
+          <div class="phone-col">
+            <p class="phone-label now">CURRENT</p>
+            <div class="phone">
+              <div class="phone-bar"><span>ROOM · TIC TAC TOE</span></div>
+              <div class="phone-screen">
+                <div class="gn-body">
+                  <div class="gn-vs-row">
+                    <div style="text-align:center"><div class="gn-avatar"></div><p style="font-family:var(--font-mono);font-size:9px;margin:0.25rem 0 0">YOU</p></div>
+                    <span class="gn-vs">VS</span>
+                    <div style="text-align:center"><div class="gn-avatar empty">?</div><p style="font-family:var(--font-pixel);font-size:6px;color:rgb(var(--c-dim));margin:0.25rem 0 0">WAITING…</p></div>
+                  </div>
+                  <p class="gn-wait-status">WAITING FOR OPPONENT</p>
+                  <p class="gn-wait-sub">· TIC TAC TOE ·</p>
+                  <div class="gn-qr">QR</div>
+                  <p style="font-family:var(--font-pixel);font-size:6px;color:rgb(var(--c-dim));text-align:center">SCAN TO JOIN</p>
+                  <div style="display:flex;gap:0.35rem;justify-content:center;margin-top:0.5rem">
+                    <button class="gn-btn-cta" style="font-size:7px;padding:0.4rem 0.6rem">SHARE</button>
+                    <button class="gn-btn-outline" style="font-size:7px;padding:0.35rem 0.5rem">COPY</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone-col">
+            <p class="phone-label next">PROPOSED</p>
+            <div class="phone">
+              <div class="phone-bar"><span>ROOM · TIC TAC TOE</span></div>
+              <div class="phone-screen">
+                <div class="gn-body">
+                  <div class="gn-vs-row">
+                    <div style="text-align:center"><div class="gn-avatar"></div><p style="font-family:var(--font-mono);font-size:9px;margin:0.25rem 0 0">YOU</p></div>
+                    <span class="gn-vs">VS</span>
+                    <div style="text-align:center"><div class="gn-avatar empty">?</div><p style="font-family:var(--font-pixel);font-size:6px;color:rgb(var(--c-dim-aa));margin:0.25rem 0 0">WAITING…</p></div>
+                  </div>
+                  <div class="gn-ping gn-highlight">● LINK OPENED — SAM IS VIEWING</div>
+                  <p class="gn-elapsed">Waiting 0:42</p>
+                  <p class="gn-wait-status">WAITING FOR OPPONENT</p>
+                  <p class="gn-wait-sub">· TIC TAC TOE ·</p>
+                  <div class="gn-qr">QR</div>
+                  <button class="gn-btn-outline" style="display:block;width:100%;font-size:7px;margin-top:0.35rem;border-color:rgba(0,229,255,0.4);color:rgb(var(--c-p1))">INVITE A FRIEND ↑</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="mock-caption">Viewer ping + elapsed timer reduce "did my link work?" anxiety before seat fills.</p>
+      </div>
+
+      <!-- DEMO -->
+      <div class="mock-block" id="mock-demo">
+        <h3>Solo Demo — rules unreachable from board</h3>
+        <div class="phone-grid pair">
+          <div class="phone-col">
+            <p class="phone-label now">CURRENT</p>
+            <div class="phone">
+              <div class="phone-bar"><span>/solo/hex</span></div>
+              <div class="phone-screen">
+                <div class="gn-body">
+                  <div class="gn-demo-header">
+                    <span></span>
+                    <span class="gn-badge">Demo</span>
+                  </div>
+                  <div class="gn-block">
+                    <p style="font-family:var(--font-pixel);font-size:7px;color:rgb(var(--c-dim));text-align:center;margin:0 0 0.5rem">HEX DEMO</p>
+                    <div class="gn-board" style="grid-template-columns:repeat(3,1fr);max-width:140px">
+                      <div class="gn-cell"></div><div class="gn-cell x">X</div><div class="gn-cell"></div>
+                      <div class="gn-cell o">O</div><div class="gn-cell"></div><div class="gn-cell x">X</div>
+                      <div class="gn-cell"></div><div class="gn-cell"></div><div class="gn-cell o">O</div>
+                    </div>
+                    <p style="font-family:var(--font-pixel);font-size:6px;color:rgb(var(--c-dim));text-align:center;margin:0.5rem 0 0">YOUR TURN</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone-col">
+            <p class="phone-label next">PROPOSED</p>
+            <div class="phone">
+              <div class="phone-bar"><span>/solo/hex</span></div>
+              <div class="phone-screen">
+                <div class="gn-body">
+                  <div class="gn-demo-header">
+                    <span class="gn-rules-btn new gn-highlight">?</span>
+                    <span class="gn-badge">Demo</span>
+                  </div>
+                  <div class="gn-block">
+                    <p style="font-family:var(--font-pixel);font-size:7px;color:rgb(var(--c-dim-aa));text-align:center;margin:0 0 0.25rem">HEX DEMO</p>
+                    <p style="font-family:var(--font-mono);font-size:8px;color:rgb(var(--c-dim-aa));text-align:center;margin:0 0 0.5rem">Connect opposite edges · ~8 min</p>
+                    <div class="gn-board" style="grid-template-columns:repeat(3,1fr);max-width:140px">
+                      <div class="gn-cell"></div><div class="gn-cell x">X</div><div class="gn-cell"></div>
+                      <div class="gn-cell o">O</div><div class="gn-cell"></div><div class="gn-cell x">X</div>
+                      <div class="gn-cell"></div><div class="gn-cell"></div><div class="gn-cell o">O</div>
+                    </div>
+                    <p style="font-family:var(--font-pixel);font-size:6px;color:rgb(var(--c-dim-aa));text-align:center;margin:0.5rem 0 0">YOUR TURN</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="mock-caption">Same <code>RulesModal</code> as catalog — tap ? before first move on unfamiliar games.</p>
+      </div>
+
+      <!-- HOME -->
+      <div class="mock-block" id="mock-home">
+        <h3>Home — first scroll for returning player</h3>
+        <div class="phone-grid pair">
+          <div class="phone-col">
+            <p class="phone-label now">CURRENT</p>
+            <div class="phone">
+              <div class="phone-bar"><span>HOME</span></div>
+              <div class="phone-screen">
+                <div class="gn-header">
+                  <div class="gn-logo"><div class="gn-logo-box">▦</div> GAME NIGHT</div>
+                  <div style="display:flex;gap:0.25rem"><span class="gn-icon-btn">◐</span><span class="gn-icon-btn">♪</span></div>
+                </div>
+                <div class="gn-body" style="font-size:0">
+                  <div style="text-align:center;padding:0.35rem 0"><span style="font-family:var(--font-pixel);font-size:11px;color:rgb(var(--c-cta))">GAME NIGHT</span></div>
+                  <div class="gn-block"><div class="gn-block-label">DAILY</div><div class="gn-block-title">MATH BLITZ</div></div>
+                  <div class="gn-block"><div class="gn-block-label">JOIN CODE</div><div class="gn-block-dim">enter code…</div></div>
+                  <div class="gn-block"><div class="gn-block-label">HOW IT WORKS</div><div class="gn-block-dim">1 pick · 2 share · 3 play</div></div>
+                  <div class="gn-block" style="opacity:0.5"><div class="gn-block-label">CONTINUE</div><div class="gn-block-dim">below fold ↓</div></div>
+                  <div class="gn-collapsed">+ catalog + stats + CTAs…</div>
+                </div>
+                <div class="gn-tabbar">
+                  <span class="gn-tab on">HOME</span><span class="gn-tab">DAILY</span><span class="gn-tab">FRIENDS</span><span class="gn-tab">PROFILE</span><span class="gn-tab">NOTES</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone-col">
+            <p class="phone-label next">PROPOSED</p>
+            <div class="phone">
+              <div class="phone-bar"><span>HOME · RETURNING</span></div>
+              <div class="phone-screen">
+                <div class="gn-header">
+                  <div class="gn-logo"><div class="gn-logo-box">▦</div> GAME NIGHT</div>
+                  <div style="display:flex;gap:0.25rem"><span class="gn-icon-btn">◐</span><span class="gn-icon-btn">♪</span></div>
+                </div>
+                <div class="gn-body">
+                  <div class="gn-block gn-highlight">
+                    <div class="gn-block-label">CONTINUE PLAYING</div>
+                    <div class="gn-block-title">CONNECT FOUR · 2–1</div>
+                    <div class="gn-block-dim-aa">Tap to rejoin room</div>
+                  </div>
+                  <div class="gn-block">
+                    <div class="gn-block-label">RECENT</div>
+                    <div class="gn-block-dim-aa">Pong · SOS · Tic Tac Toe</div>
+                  </div>
+                  <div class="gn-block">
+                    <div class="gn-block-label">DAILY</div>
+                    <div class="gn-block-title">MATH BLITZ · STREAK 5</div>
+                  </div>
+                  <div class="gn-collapsed">Browse all 40+ games ↓</div>
+                </div>
+                <div class="gn-tabbar">
+                  <span class="gn-tab on">HOME</span><span class="gn-tab">DAILY</span><span class="gn-tab">FRIENDS</span><span class="gn-tab">PROFILE</span><span class="gn-tab">NOTES</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="mock-caption">Veterans get resume-first Home. Logo + how-it-works tuck for first visit only.</p>
+      </div>
+
+      <!-- GAME CARD -->
+      <div class="mock-block" id="mock-card">
+        <h3>GameCard description — dim token contrast</h3>
+        <div class="phone-grid pair">
+          <div class="phone-col">
+            <p class="phone-label now">CURRENT · --c-dim</p>
+            <div class="phone">
+              <div class="phone-screen" style="min-height:auto;padding:0.75rem">
+                <div class="gn-block">
+                  <div class="gn-block-title" style="margin-bottom:0.35rem">BLOCKADE</div>
+                  <p class="gn-block-dim" style="margin:0;line-height:1.4">Race to the far edge. Place walls to block — but never trap a path.</p>
+                  <p class="gn-block-dim" style="margin:0.35rem 0 0;font-size:8px">~10 min · 2P · thinky</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone-col">
+            <p class="phone-label next">PROPOSED · --c-dim-aa</p>
+            <div class="phone">
+              <div class="phone-screen" style="min-height:auto;padding:0.75rem">
+                <div class="gn-block gn-highlight">
+                  <div class="gn-block-title" style="margin-bottom:0.35rem">BLOCKADE</div>
+                  <p class="gn-block-dim-aa" style="margin:0;line-height:1.4">Race to the far edge. Place walls to block — but never trap a path.</p>
+                  <p class="gn-block-dim-aa" style="margin:0.35rem 0 0;font-size:8px">~10 min · 2P · thinky</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="mock-caption">Same layout — only token change. Descriptions become readable on card surfaces in all themes.</p>
+      </div>
+    </section>
+
+    <section>
+      <p class="section-label">04 · TOP IMPROVEMENTS</p>
+      <h2>Current vs proposed — highest leverage first</h2>
+
+      <article class="card" id="imp-1">
+        <h3 style="font-family:var(--font-pixel);font-size:9px;margin:0 0 0.75rem;color:rgb(var(--c-cta))">1 · RIVALRY ON WIN SCREEN</h3>
+        <div class="two-col">
+          <div>
+            <p class="compare-head compare-now">NOW</p>
+            <div class="compare-box now">H2H line exists but uses <code>text-retro-dim</code> at 9px — fails contrast, easy to miss. 3–0 and 3–2 share identical celebration.</div>
+          </div>
+          <div>
+            <p class="compare-head compare-next">PROPOSED</p>
+            <div class="compare-box next">Prominent rivalry chip under score: <strong>"4–2 VS SAM"</strong> + margin badge on close games. Same data, stronger visual hierarchy.</div>
+          </div>
+        </div>
+        <div class="meta-row"><span class="meta">EFFORT <strong>Trivial</strong></span><span class="meta">IMPACT <strong>Retention + satisfaction</strong></span></div>
+      </article>
+
+      <article class="card" id="imp-2">
+        <h3 style="font-family:var(--font-pixel);font-size:9px;margin:0 0 0.75rem;color:rgb(var(--c-cta))">2 · SOLO RULES PARITY</h3>
+        <div class="two-col">
+          <div>
+            <p class="compare-head compare-now">NOW</p>
+            <div class="compare-box now">Catalog has rules "?" button. <code>/solo/:type</code> and Demo drop player on bare board — no rules affordance for Hex, Blockade, etc.</div>
+          </div>
+          <div>
+            <p class="compare-head compare-next">PROPOSED</p>
+            <div class="compare-box next">Add <code>RulesButton</code> next to demo header in <code>Demo.jsx</code>. Same modal, zero new content. Matches Home "how it works" promise.</div>
+          </div>
+        </div>
+        <div class="meta-row"><span class="meta">EFFORT <strong>Small</strong></span><span class="meta">IMPACT <strong>Clarity for solo path</strong></span></div>
+      </article>
+
+      <article class="card" id="imp-3">
+        <h3 style="font-family:var(--font-pixel);font-size:9px;margin:0 0 0.75rem;color:rgb(var(--c-cta))">3 · FIX --c-dim CONTRAST</h3>
+        <div class="two-col">
+          <div>
+            <p class="compare-head compare-now">NOW</p>
+            <div class="compare-box now"><code>text-retro-dim</code> fails 4.5:1 on card in 5/6 themes. Used in 106 files at 7–10px for descriptions, labels, empty states.</div>
+          </div>
+          <div>
+            <p class="compare-head compare-next">PROPOSED</p>
+            <div class="compare-box next">Raise dim luminance ~15% per theme OR add <code>--c-dim-aa</code> for readable secondary text. Audit decorative vs informational uses.</div>
+          </div>
+        </div>
+        <div class="meta-row"><span class="meta">EFFORT <strong>Medium</strong></span><span class="meta">IMPACT <strong>A11y critical</strong></span></div>
+      </article>
+
+      <article class="card" id="imp-4">
+        <h3 style="font-family:var(--font-pixel);font-size:9px;margin:0 0 0.75rem;color:rgb(var(--c-cta))">4 · WAITING ROOM SIGNAL</h3>
+        <div class="two-col">
+          <div>
+            <p class="compare-head compare-now">NOW</p>
+            <div class="compare-box now">Static "WAITING FOR OPPONENT" + share link. No feedback if link opened, no elapsed time, creator sits in silence.</div>
+          </div>
+          <div>
+            <p class="compare-head compare-next">PROPOSED</p>
+            <div class="compare-box next">Lightweight viewer ping ("Someone opened the link") + optional invite-friend CTA above fold. Reduces session death before seat fills.</div>
+          </div>
+        </div>
+        <div class="meta-row"><span class="meta">EFFORT <strong>Medium</strong></span><span class="meta">IMPACT <strong>Conversion to 2P</strong></span></div>
+      </article>
+
+      <article class="card" id="imp-5">
+        <h3 style="font-family:var(--font-pixel);font-size:9px;margin:0 0 0.75rem;color:rgb(var(--c-cta))">5 · MODAL FOCUS TRAP + BACK GESTURE</h3>
+        <div class="two-col">
+          <div>
+            <p class="compare-head compare-now">NOW</p>
+            <div class="compare-box now"><code>BottomSheet</code> has no focus trap. <code>useModalHistory</code> stubbed — Android swipe-back exits room instead of closing sheet.</div>
+          </div>
+          <div>
+            <p class="compare-head compare-next">PROPOSED</p>
+            <div class="compare-box next">Restore M-06 history hook + small <code>useFocusTrap</code> on sheet open. One fix covers Rules, Invite, Switcher, Emote picker.</div>
+          </div>
+        </div>
+        <div class="meta-row"><span class="meta">EFFORT <strong>Low–Medium</strong></span><span class="meta">IMPACT <strong>Mobile + keyboard</strong></span></div>
+      </article>
+
+      <article class="card" id="imp-6">
+        <h3 style="font-family:var(--font-pixel);font-size:9px;margin:0 0 0.75rem;color:rgb(var(--c-cta))">6 · HOME INFORMATION DENSITY</h3>
+        <div class="two-col">
+          <div>
+            <p class="compare-head compare-now">NOW</p>
+            <div class="compare-box now">Home stacks logo, invites, daily, join, how-it-works, continue, full catalog, solo CTA, playground, stats, nudges, install — long scroll before repeat play.</div>
+          </div>
+          <div>
+            <p class="compare-head compare-next">PROPOSED</p>
+            <div class="compare-box next">Collapse returning-user Home: Continue Playing + compact recents first; tuck catalog below fold or "Browse all". Progressive disclosure by visit count.</div>
+          </div>
+        </div>
+        <div class="meta-row"><span class="meta">EFFORT <strong>Medium</strong></span><span class="meta">IMPACT <strong>Time-to-play</strong></span></div>
+      </article>
+    </section>
+
+    <section>
+      <p class="section-label">05 · FULL BACKLOG</p>
+      <h2>Ranked by severity × effort</h2>
+      <div class="card" style="overflow-x:auto;padding:0">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Area</th>
+              <th>Finding</th>
+              <th>Sev</th>
+              <th>Effort</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Tokens</td><td><code>--c-dim</code> contrast fails on card surfaces</td><td class="sev-critical">Critical</td><td>Med</td></tr>
+            <tr><td>2</td><td>TTT board</td><td><code>Cell.jsx</code> strips focus ring — keyboard blind</td><td class="sev-critical">Critical</td><td>Quick</td></tr>
+            <tr><td>3</td><td>BottomSheet</td><td>No focus trap; back gesture regressed</td><td class="sev-high">High</td><td>Low</td></tr>
+            <tr><td>4</td><td>Win screen</td><td>No H2H / margin-aware celebration</td><td class="sev-high">High</td><td>Trivial</td></tr>
+            <tr><td>5</td><td>EmoteBar</td><td>36px taps — under 44px target</td><td class="sev-high">High</td><td>Low</td></tr>
+            <tr><td>6</td><td>Demo</td><td>Solo route missing rules button</td><td class="sev-high">High</td><td>Small</td></tr>
+            <tr><td>7</td><td>Mono theme</td><td>p1 / cta / win collapse to same color</td><td class="sev-high">High</td><td>Med</td></tr>
+            <tr><td>8</td><td>NotFound</td><td>404 dead end — no home link</td><td class="sev-med">Med</td><td>Quick</td></tr>
+            <tr><td>9</td><td>Proposal</td><td>No timeout when opponent goes offline</td><td class="sev-med">Med</td><td>Med</td></tr>
+            <tr><td>10</td><td>Presence</td><td>Online dot color-only</td><td class="sev-med">Med</td><td>Quick</td></tr>
+            <tr><td>11</td><td>Daily</td><td>Streak localStorage — not cross-device</td><td class="sev-med">Med</td><td>Med</td></tr>
+            <tr><td>12</td><td>Leaderboard</td><td>Cross-game mixed ranking — weak payoff</td><td class="sev-med">Med</td><td>Med</td></tr>
+            <tr><td>13</td><td>Tab bar</td><td>5 tabs — Notes feels orphaned vs core loop</td><td class="sev-med">Med</td><td>Small</td></tr>
+            <tr><td>14</td><td>WaitingRoom</td><td>No "link viewed" feedback</td><td class="sev-med">Med</td><td>Med</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <p class="section-label">06 · YOUR CALL</p>
+      <h2>Which improvements first?</h2>
+      <div class="input-panel">
+        <p>Check priorities below. Add notes in textarea. Use Lavish annotate on any card, then Send feedback — I'll implement what you pick.</p>
+        <div class="choice-grid">
+          <label class="choice"><input type="checkbox" name="prio" value="h2h"><span><span class="choice-title">RIVALRY WIN LINE</span>Wire head-to-head on GameStatus</span></label>
+          <label class="choice"><input type="checkbox" name="prio" value="solo-rules"><span><span class="choice-title">SOLO RULES</span>RulesButton on Demo</span></label>
+          <label class="choice"><input type="checkbox" name="prio" value="dim-contrast"><span><span class="choice-title">DIM TOKEN FIX</span>Readable secondary text</span></label>
+          <label class="choice"><input type="checkbox" name="prio" value="waiting-signal"><span><span class="choice-title">WAIT ROOM</span>Viewer / elapsed feedback</span></label>
+          <label class="choice"><input type="checkbox" name="prio" value="modal-a11y"><span><span class="choice-title">SHEET A11Y</span>Focus trap + back gesture</span></label>
+          <label class="choice"><input type="checkbox" name="prio" value="home-density"><span><span class="choice-title">HOME LAYOUT</span>Returning-user collapse</span></label>
+          <label class="choice"><input type="checkbox" name="prio" value="daily-sync"><span><span class="choice-title">DAILY SYNC</span>Cross-device streak</span></label>
+          <label class="choice"><input type="checkbox" name="prio" value="quick-wins"><span><span class="choice-title">QUICK WINS PACK</span>404, Cell focus, emote size</span></label>
+        </div>
+        <label for="notes" style="font-family:var(--font-pixel);font-size:7px;color:rgb(var(--c-p1));display:block;margin-bottom:0.35rem">NOTES / OTHER UX PAIN</label>
+        <textarea id="notes" placeholder="e.g. Playground feels hidden, leaderboard confusing, want lighter Home for veterans…"></textarea>
+      </div>
+    </section>
+
+    <p class="footnote">
+      Design source: Game Night <code>--c-*</code> tokens from <code>src/index.css</code> (midnight arcade default).
+      Findings synthesize Aug 2026 review docs (<code>docs/reviews/2026-08/</code>) plus current codebase read.
+      Annotate any section in Lavish Editor to queue specific changes.
+    </p>
+  </div>
+</body>
+</html>

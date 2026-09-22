@@ -44,12 +44,24 @@ export function useVideoCallLayout() {
 }
 
 export function VideoCallShell({ children, className = '' }) {
+  return <div className={`video-call-shell ${className}`}>{children}</div>
+}
+
+export function VideoCallReactionDock({ children }) {
   const { layout, reserve } = useVideoCallLayout()
-  const style = layout.enabled ? {
-    '--video-call-reserve-left': `${reserve.left}px`,
-    '--video-call-reserve-right': `${reserve.right}px`,
-  } : undefined
-  return <div className={`video-call-shell ${layout.enabled ? 'video-call-shell-on' : ''} ${className}`} style={style}>{children}</div>
+  if (!layout.enabled) return children
+  return <div
+    className="video-call-reaction-dock"
+    style={{ '--video-call-preview-width': `${reserve.width}px`, '--video-call-preview-height': `${reserve.height}px` }}
+  >
+    <div className={`video-call-reactions video-call-reactions-${layout.corner.endsWith('right') ? 'right' : 'left'}`}>{children}</div>
+    <div
+      className={`video-call-preview video-call-preview-${layout.corner.endsWith('right') ? 'right' : 'left'}`}
+      aria-label="Reserved 9 by 16 video call space"
+    >
+      MOVE VIDEO WINDOW HERE
+    </div>
+  </div>
 }
 
 function CornerButton({ corner, selected, onClick }) {
@@ -60,6 +72,13 @@ function CornerButton({ corner, selected, onClick }) {
     aria-pressed={selected}
     className={`video-call-corner video-call-corner-${corner} ${selected ? 'video-call-corner-selected' : ''}`}
   ><span /></button>
+}
+
+function LayoutPreview({ corner, size }) {
+  return <div className="video-call-layout-preview" aria-label={`Preview: reactions with video window in the ${corner.replace('-', ' ')} corner`}>
+    <span className="video-call-layout-preview-reactions">REACTIONS</span>
+    <span className={`video-call-layout-preview-video video-call-layout-preview-video-${corner} video-call-layout-preview-video-${size}`} />
+  </div>
 }
 
 export default function VideoCallSettingsButton() {
@@ -84,10 +103,14 @@ export default function VideoCallSettingsButton() {
           <input type="checkbox" checked={layout.enabled} onChange={e => updateLayout({ enabled: e.target.checked })} className="h-5 w-5 accent-retro-cta" />
         </label>
         <div className="flex items-center justify-between gap-4">
-          <div><p className="font-pixel text-[9px] text-retro-text tracking-widest">WINDOW CORNER</p><p className="font-mono text-[10px] text-retro-dim mt-1">Reserve a side lane for the floating call.</p></div>
+          <div><p className="font-pixel text-[9px] text-retro-text tracking-widest">WINDOW ALIGNMENT</p><p className="font-mono text-[10px] text-retro-dim mt-1">Align the portrait call space beside reactions.</p></div>
           <div className="video-call-corner-picker" aria-label="Video window corner">
             {VIDEO_CALL_CORNERS.map(corner => <CornerButton key={corner} corner={corner} selected={layout.corner === corner} onClick={value => updateLayout({ corner: value })} />)}
           </div>
+        </div>
+        <div>
+          <p className="font-pixel text-[9px] text-retro-text tracking-widest mb-2">PREVIEW</p>
+          <LayoutPreview corner={layout.corner} size={layout.size} />
         </div>
         <div>
           <p className="font-pixel text-[9px] text-retro-text tracking-widest mb-2">RESERVED SPACE</p>

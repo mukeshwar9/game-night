@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Video-call layout options</title>
+  <style>
+    :root {
+      --bg:#080810; --surface:#0f0f1a; --card:#131328; --border:#2a2a50;
+      --text:#e0e0ff; --dim:#7a7aba; --p1:#00e5ff; --p2:#ff4081;
+      --cta:#ffe600; --win:#39ff14; --danger:#ff2d2d;
+      --font: "Press Start 2P", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    * { box-sizing:border-box }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:var(--mono); min-height:100vh }
+    body:before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.08; background:repeating-linear-gradient(0deg,transparent 0 3px,#000 3px 4px) }
+    .page { max-width:1180px; margin:auto; padding:36px 24px 70px }
+    h1,.title,.pixel,.button,.tag,.label { font-family:var(--font) }
+    h1 { color:var(--cta); font-size:18px; line-height:1.7; letter-spacing:2px; margin:0 0 10px; text-shadow:0 0 10px #ffe60088 }
+    .intro { color:var(--dim); max-width:760px; line-height:1.7; font-size:13px; margin:0 0 28px }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px }
+    .option { background:var(--surface); border:2px solid var(--border); border-radius:6px; overflow:hidden; box-shadow:0 0 0 1px #000 inset }
+    .option:hover { border-color:var(--p1); box-shadow:0 0 18px #00e5ff33 }
+    .option-head { padding:18px 18px 12px; display:flex; justify-content:space-between; gap:12px; align-items:start }
+    .title { color:var(--p1); font-size:11px; line-height:1.5; letter-spacing:1px }
+    .tag { color:var(--bg); background:var(--cta); padding:6px 7px; font-size:8px; white-space:nowrap }
+    .copy { color:var(--dim); font-size:11px; line-height:1.6; padding:0 18px 14px; min-height:58px }
+    .phone { margin:0 14px 18px; border:2px solid #444477; border-radius:10px; background:#0b0b17; min-height:370px; position:relative; overflow:hidden; padding:14px }
+    .topbar { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; font-size:8px; color:var(--dim) }
+    .icons { display:flex; gap:7px; color:var(--dim) }
+    .icon { border:1px solid var(--border); padding:6px; border-radius:3px }
+    .players { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:13px }
+    .player { height:31px; background:#18182d; border:1px solid var(--border); padding:9px; font-size:7px; color:var(--dim) }
+    .player.active { color:var(--p1); border-color:#00e5ff99 }
+    .board-wrap { position:relative; margin:16px auto 10px; width:190px; height:190px; display:grid; grid-template-columns:repeat(3,1fr); gap:4px; background:#242448; padding:4px }
+    .cell { background:#111124; display:grid; place-items:center; color:var(--p1); font-family:var(--font); font-size:23px; text-shadow:0 0 8px #00e5ff }
+    .cell.pink { color:var(--p2); text-shadow:0 0 8px #ff4081 }
+    .status { border:1px solid var(--border); padding:10px; text-align:center; color:var(--cta); font-size:8px; margin:10px 0 }
+    .actions { display:flex; gap:7px; justify-content:center }
+    .button { border:1px solid var(--border); background:#18182d; color:var(--text); padding:9px; font-size:7px; border-radius:3px }
+    .button.primary { border-color:var(--cta); color:var(--cta); background:#262000 }
+    .call { position:absolute; width:86px; height:72px; border:2px solid var(--p2); background:#30132a; color:#ff91b5; display:grid; place-items:center; text-align:center; font-size:7px; line-height:1.4; box-shadow:0 0 12px #ff408155; z-index:2 }
+    .call span { display:block; color:var(--p2); font-family:var(--font); font-size:7px }
+    .corner-tr { top:9px; right:9px } .corner-tl { top:9px; left:9px }
+    .corner-br { bottom:9px; right:9px } .corner-bl { bottom:9px; left:9px }
+    .reserved { position:absolute; border:1px dashed var(--p2); color:#ff91b5; font-size:6px; padding:5px; opacity:.85 }
+    .reserve-tr { top:7px; right:7px; width:95px; height:81px } .reserve-bl { bottom:7px; left:7px; width:95px; height:81px }
+    .compact .board-wrap { width:155px; height:155px; margin-top:11px }
+    .compact .players { margin-top:8px }
+    .compact .status { padding:7px; margin:7px 0 }
+    .compact .call { width:72px; height:60px }
+    .side-layout .phone { padding-right:112px }
+    .side-layout .board-wrap { width:155px; height:155px; margin-top:21px }
+    .side-layout .call { top:91px; right:14px; width:86px; height:108px }
+    .side-layout .status { margin-top:12px }
+    .control { border-top:1px solid var(--border); padding:14px 18px 18px; display:flex; justify-content:space-between; gap:8px; align-items:center }
+    .control small { color:var(--dim); font-size:10px; line-height:1.5 }
+    .toggle { width:34px; height:20px; border-radius:20px; background:var(--p1); position:relative; box-shadow:0 0 8px #00e5ff99 }
+    .toggle:after { content:""; width:14px; height:14px; background:var(--bg); border-radius:50%; position:absolute; right:3px; top:3px }
+    .below { margin:28px 0 0; border:1px solid var(--border); background:var(--card); padding:17px; color:var(--dim); font-size:11px; line-height:1.7 }
+    .below strong { color:var(--cta); font-family:var(--font); font-size:9px; letter-spacing:1px }
+    @media (max-width:900px) { .grid { grid-template-columns:1fr } .option { max-width:430px; margin:auto; width:100% } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>PLAYING ON A VIDEO CALL</h1>
+    <p class="intro">Three layout directions for the local video-call setting. Pink rectangle shows the external floating call window. Each option keeps the call window manual and reserves space for it.</p>
+    <section class="grid" aria-label="Video call layout options">
+      <article class="option">
+        <div class="option-head"><div class="title">A · CORNER RESERVE</div><div class="tag">RECOMMENDED</div></div>
+        <div class="copy">Board reflows away from selected corner. Content keeps normal size until space becomes tight.</div>
+        <div class="phone">
+          <div class="topbar"><span>← HOME</span><div class="icons"><span class="icon">◈</span><span class="icon">⚙</span></div></div>
+          <div class="players"><div class="player active">YOU · X</div><div class="player">MAYA · O</div></div>
+          <div class="reserved reserve-tr">MOVE CALL HERE</div><div class="call corner-tr"><span>VIDEO</span>MAYA</div>
+          <div class="board-wrap"><div class="cell">X</div><div class="cell"></div><div class="cell pink">O</div><div class="cell"></div><div class="cell">X</div><div class="cell"></div><div class="cell pink">O</div><div class="cell"></div><div class="cell"></div></div>
+          <div class="status">YOUR TURN · X</div><div class="actions"><div class="button primary">SEND EMOTE</div><div class="button">CHAT</div></div>
+        </div>
+        <div class="control"><small>ON · TOP RIGHT · MEDIUM</small><div class="toggle"></div></div>
+      </article>
+      <article class="option">
+        <div class="option-head"><div class="title">B · COMPACT SHELL</div><div class="tag">DENSE</div></div>
+        <div class="copy">Game shell compresses board and spacing so controls stay inside remaining viewport.</div>
+        <div class="phone compact">
+          <div class="topbar"><span>← HOME</span><div class="icons"><span class="icon">◈</span><span class="icon">⚙</span></div></div>
+          <div class="players"><div class="player active">YOU · X</div><div class="player">MAYA · O</div></div>
+          <div class="reserved reserve-tr">MOVE CALL HERE</div><div class="call corner-tr">VIDEO<br/><span>MAYA</span></div>
+          <div class="board-wrap"><div class="cell">X</div><div class="cell"></div><div class="cell pink">O</div><div class="cell"></div><div class="cell">X</div><div class="cell"></div><div class="cell pink">O</div><div class="cell"></div><div class="cell"></div></div>
+          <div class="status">YOUR TURN · X</div><div class="actions"><div class="button primary">EMOTE</div><div class="button">CHAT</div></div>
+        </div>
+        <div class="control"><small>ON · TOP RIGHT · MEDIUM</small><div class="toggle"></div></div>
+      </article>
+      <article class="option">
+        <div class="option-head"><div class="title">C · SIDE PANEL</div><div class="tag">WIDEST</div></div>
+        <div class="copy">Game content reserves a visible side lane. Strongest separation when viewport has enough width.</div>
+        <div class="phone side-layout">
+          <div class="topbar"><span>← HOME</span><div class="icons"><span class="icon">◈</span><span class="icon">⚙</span></div></div>
+          <div class="players"><div class="player active">YOU · X</div><div class="player">MAYA · O</div></div>
+          <div class="call">VIDEO<br/><span>MAYA</span></div>
+          <div class="board-wrap"><div class="cell">X</div><div class="cell"></div><div class="cell pink">O</div><div class="cell"></div><div class="cell">X</div><div class="cell"></div><div class="cell pink">O</div><div class="cell"></div><div class="cell"></div></div>
+          <div class="status">YOUR TURN · X</div><div class="actions"><div class="button primary">SEND EMOTE</div><div class="button">CHAT</div></div>
+        </div>
+        <div class="control"><small>ON · RIGHT SIDE · MEDIUM</small><div class="toggle"></div></div>
+      </article>
+    </section>
+    <div class="below"><strong>SETTINGS SHEET PREVIEW</strong><br><br>PLAYING ON A VIDEO CALL <span style="color:var(--p1)">● ON</span><br><br>VIDEO WINDOW CORNER &nbsp; <span style="color:var(--cta)">TOP RIGHT</span><br>RESERVED SPACE &nbsp; <span style="color:var(--cta)">SMALL · MEDIUM · LARGE</span><br><br><span style="color:var(--dim)">Move WhatsApp or another floating call window to match the preview. Game cannot move or detect that window.</span></div>
+  </main>
+</body>
+</html>

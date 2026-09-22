@@ -19,6 +19,7 @@ import BottomTabBar from './components/BottomTabBar';
 import NavBar, { HomeInterceptProvider, TAB_BAR_ROUTES } from './components/NavBar';
 import { AuthProvider } from './lib/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import OnlineLobby from './pages/OnlineLobby';
 import { VideoCallLayoutProvider } from './components/VideoCallLayout';
 
 // M-61 + M-84: reset scroll and replay a short fade on every route change.
@@ -43,6 +44,7 @@ function AppRoutes() {
         <div className={showTabBar ? 'pb-[var(--app-tabbar-h)]' : undefined}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/online" element={<OnlineLobby />} />
             <Route path="/game/:gameId" element={<Game />} />
             <Route path="/demo" element={<Demo />} />
             <Route path="/solo/:type" element={<Demo />} />
