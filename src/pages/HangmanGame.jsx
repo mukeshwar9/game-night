@@ -19,6 +19,7 @@ import ShareResultButton from '../components/ShareResultButton'
 import { sounds } from '../lib/sounds'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { sessionStore } from '../lib/storage'
 
 function normalizeGuess(val) {
   if (val === false || val === null || val === undefined) return false
@@ -195,7 +196,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   useEffect(() => {
     if (!isSetter || phase !== 'guessing') return
 
-    const stored = sessionStorage.getItem(`hangwoman-word-${gameId}`)
+    const stored = sessionStore.getItem(`hangwoman-word-${gameId}`)
     if (!stored) return
     const { word, salt } = JSON.parse(stored)
 
@@ -322,7 +323,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     setLockingWord(true)
     try {
       const { hash, salt } = await commit(word)
-      sessionStorage.setItem(`hangwoman-word-${gameId}`, JSON.stringify({ word, salt }))
+      sessionStore.setItem(`hangwoman-word-${gameId}`, JSON.stringify({ word, salt }))
       await update(ref(db, `games/${gameId}`), {
         'round/phase': 'guessing',
         'round/wordStructure': wordStructure(word),
@@ -379,7 +380,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     const newMatchWinner = newScores.X >= MATCH_WINS ? 'X' : newScores.O >= MATCH_WINS ? 'O' : null
     const newSetter = setter === 'X' ? 'O' : 'X'
 
-    sessionStorage.removeItem(`hangwoman-word-${gameId}`)
+    sessionStore.removeItem(`hangwoman-word-${gameId}`)
 
     const updates = {
       'scores/X': newScores.X,
@@ -417,7 +418,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     const newMatchWinner = newScores.X >= MATCH_WINS ? 'X' : newScores.O >= MATCH_WINS ? 'O' : null
     const newSetter = setter === 'X' ? 'O' : 'X'
 
-    sessionStorage.removeItem(`hangwoman-word-${gameId}`)
+    sessionStore.removeItem(`hangwoman-word-${gameId}`)
 
     const updates = {
       'scores/X': newScores.X,
@@ -603,7 +604,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
   // Setter lost their word (refreshed in new tab)
   const setterMissingWord = isSetter && phase === 'guessing' &&
-    !sessionStorage.getItem(`hangwoman-word-${gameId}`)
+    !sessionStore.getItem(`hangwoman-word-${gameId}`)
 
   const canGuess = isGuesser && phase === 'guessing' && !setterMissingWord
 

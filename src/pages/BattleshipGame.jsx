@@ -23,6 +23,7 @@ import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
+import { localStore } from '../lib/storage'
 
 // BATTLESHIP — hidden-information duel secured by salted-hash commit-reveal
 // (docs/prds/battleship.md). Fleets live ONLY in localStorage until the reveal;
@@ -35,7 +36,7 @@ const SHOT_GRACE_MS = 60000
 const fleetKey = gameId => `battleship-fleet-${gameId}`
 
 function readSecret(gameId) {
-  try { return JSON.parse(localStorage.getItem(fleetKey(gameId)) || 'null') } catch { return null }
+  try { return JSON.parse(localStore.getItem(fleetKey(gameId)) || 'null') } catch { return null }
 }
 
 function shotsArray(raw) {
@@ -313,7 +314,7 @@ export default function BattleshipGame({
     runReady(async () => {
       const { hash, salt } = await commit(serializeFleet(draft))
       const newSecret = { fleet: draft, salt }
-      try { localStorage.setItem(fleetKey(gameId), JSON.stringify(newSecret)) } catch { /* private mode */ }
+      try { localStore.setItem(fleetKey(gameId), JSON.stringify(newSecret)) } catch { /* private mode */ }
       setSecret(newSecret)
       sounds.go()
       await update(ref(db, `games/${gameId}/round/commits`), { [me]: hash })

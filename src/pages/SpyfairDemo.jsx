@@ -17,6 +17,7 @@ import {
   tallySpyfairVotes,
 } from '../lib/partyBots'
 import { cn } from '@/lib/utils'
+import { localStore } from '../lib/storage'
 
 // Solo SPYFAIR: 1 human + N bots, fully local — no Firebase, no commit-reveal (the
 // deck ships in the bundle either way, so there is no info-leak surface to defend
@@ -33,8 +34,8 @@ function readOwnIdentity() {
   let name = 'YOU'
   let avatar
   try {
-    name = localStorage.getItem('playerName') || 'YOU'
-    avatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
+    name = localStore.getItem('playerName') || 'YOU'
+    avatar = localStore.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
   } catch {
     avatar = defaultAvatarForId(getPlayerId())
   }

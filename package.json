@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:emulators": "firebase emulators:start --only auth,database --project demo-gamenight-test",
+    "dev:test": "VITE_DEV_PLAYERS=1 vite"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

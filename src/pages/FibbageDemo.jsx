@@ -11,6 +11,7 @@ import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import { localStore } from '../lib/storage'
 
 // Solo FIBBAGE: human + 2-7 local bots, no Firebase, no commit-reveal — lies live as
 // plaintext in local reducer state and authorship simply isn't rendered until the
@@ -174,7 +175,7 @@ export default function FibbageDemo() {
   // the preview roster's faces/names on every render — only when botCount changes.
   const [previewSeed] = useState(() => Math.random())
   const [myAvatar] = useState(() => {
-    try { return localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId()) }
+    try { return localStore.getItem('playerAvatar') || defaultAvatarForId(getPlayerId()) }
     catch { return defaultAvatarForId(getPlayerId()) }
   })
 

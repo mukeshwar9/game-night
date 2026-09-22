@@ -22,8 +22,9 @@ import { defaultAvatarForId } from '../lib/avatars'
 import { checkShouldOnboard, hasOnboarded } from '../lib/onboarding'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { localStore, sessionStore } from '../lib/storage'
 
-const getPlayerName = (profile) => profile?.displayName || localStorage.getItem('playerName') || ''
+const getPlayerName = (profile) => profile?.displayName || localStore.getItem('playerName') || ''
 
 export default function Home() {
   const navigate = useNavigate()
@@ -31,45 +32,45 @@ export default function Home() {
   const [loading, setLoading] = useState(null)
   const { canInstall, install, isIos } = useInstallPrompt()
   const stats = useMemo(() => getStats(), [])
-  const [isNewVisitor] = useState(() => !localStorage.getItem('playerName') && getRooms().length === 0)
+  const [isNewVisitor] = useState(() => !localStore.getItem('playerName') && getRooms().length === 0)
   const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
   const [onboarded, setOnboarded] = useState(() => hasOnboarded())
-  const [howItWorksDismissed, setHowItWorksDismissed] = useState(() => !!localStorage.getItem('gn-howitworks-dismissed'))
+  const [howItWorksDismissed, setHowItWorksDismissed] = useState(() => !!localStore.getItem('gn-howitworks-dismissed'))
   const { profile, invites, isAnonymous } = useAuth()
   const gameCount = useMemo(() => GAME_TYPES.filter(t => !t.variantOf).length, [])
   const [nudgeDismissed, setNudgeDismissed] = useState(() => {
-    const ts = Number(localStorage.getItem('gn-upgrade-nudge-dismissed'))
+    const ts = Number(localStore.getItem('gn-upgrade-nudge-dismissed'))
     return ts > 0 && Date.now() - ts < 14 * 24 * 60 * 60 * 1000
   })
-  const [iosHintDismissed, setIosHintDismissed] = useState(() => !!localStorage.getItem('gn-ios-install-dismissed'))
+  const [iosHintDismissed, setIosHintDismissed] = useState(() => !!localStore.getItem('gn-ios-install-dismissed'))
   const showUpgradeNudge = isAnonymous && !nudgeDismissed && stats &&
     (stats.bestStreak >= 3 || stats.games >= 5)
   const dismissUpgradeNudge = () => {
-    localStorage.setItem('gn-upgrade-nudge-dismissed', String(Date.now()))
+    localStore.setItem('gn-upgrade-nudge-dismissed', String(Date.now()))
     setNudgeDismissed(true)
   }
   const dismissIosHint = () => {
-    localStorage.setItem('gn-ios-install-dismissed', '1')
+    localStore.setItem('gn-ios-install-dismissed', '1')
     setIosHintDismissed(true)
   }
   const dismissHowItWorks = () => {
-    localStorage.setItem('gn-howitworks-dismissed', '1')
+    localStore.setItem('gn-howitworks-dismissed', '1')
     setHowItWorksDismissed(true)
   }
 
-  const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
+  const myAvatar = profile?.avatar || localStore.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
 
   // M-82: restore scroll position on return from a game (Home fully
   // unmounts on navigation, so this can't be a simple useState/useRef).
   useEffect(() => {
     const KEY = 'gn-home-scrollY'
-    const saved = Number(sessionStorage.getItem(KEY))
+    const saved = Number(sessionStore.getItem(KEY))
     if (saved > 0) {
       // Double rAF so the full catalog (GamePicker's restored category/filters
       // included) has laid out before we jump to a mid-page scroll position.
       requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, saved)))
     }
-    const onScroll = () => sessionStorage.setItem(KEY, String(window.scrollY))
+    const onScroll = () => sessionStore.setItem(KEY, String(window.scrollY))
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
@@ -108,7 +109,7 @@ export default function Home() {
       await set(ref(db, `games/${gameId}`), gameData)
       recordPlay(gameType, 'multi')
       if (!cfg.nPlayer) {
-        sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+        sessionStore.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
       }
       recordRoom({ id: gameId, gameType })
       navigate(`/game/${gameId}`)

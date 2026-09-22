@@ -20,6 +20,7 @@ import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import useBusy from '@/hooks/useBusy'
+import { sessionStore } from '../lib/storage'
 
 const MIN_PLAYERS = 3
 const WIN_SCORE = 200 // first to this many points clinches the match
@@ -215,7 +216,7 @@ export default function WavelengthGame({
     try {
       const target = randomTarget()
       const { hash, salt } = await commit(String(target))
-      sessionStorage.setItem(
+      sessionStore.setItem(
         targetKey(gameId, round.spectrumIndex),
         JSON.stringify({ target, salt }),
       )
@@ -274,7 +275,7 @@ export default function WavelengthGame({
   useEffect(() => {
     if (!isClueGiver || !allGuessed) return
     if (round.phase !== 'guessing') return
-    const stored = sessionStorage.getItem(targetKey(gameId, round.spectrumIndex))
+    const stored = sessionStore.getItem(targetKey(gameId, round.spectrumIndex))
     if (!stored) return
     let parsed
     try { parsed = JSON.parse(stored) } catch { return }
@@ -535,7 +536,7 @@ export default function WavelengthGame({
   // sessionStorage, so the reveal effect above can never fire and the round
   // would stall with everyone online. Only the giver's own client can detect it.
   const secretLost = isClueGiver && round.phase === 'guessing' &&
-    !sessionStorage.getItem(targetKey(gameId, round.spectrumIndex))
+    !sessionStore.getItem(targetKey(gameId, round.spectrumIndex))
 
   return (
     <div className="space-y-4">

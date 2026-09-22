@@ -10,6 +10,7 @@ import { db } from './firebase'
 import { getUid } from './auth'
 import { guestName } from './social'
 import { defaultAvatarForId } from './avatars'
+import { localStore } from './storage'
 
 const STATS_KEY = 'gn-stats'
 const ROOMS_KEY = 'gn-rooms'
@@ -23,13 +24,13 @@ const blankStats = () => ({
 
 export function getStats() {
   try {
-    const s = JSON.parse(localStorage.getItem(STATS_KEY))
+    const s = JSON.parse(localStore.getItem(STATS_KEY))
     return s && typeof s === 'object' ? { ...blankStats(), ...s } : null
   } catch { return null }
 }
 
 export function setStats(s) {
-  try { localStorage.setItem(STATS_KEY, JSON.stringify(s)) } catch { /* quota */ }
+  try { localStore.setItem(STATS_KEY, JSON.stringify(s)) } catch { /* quota */ }
   return s
 }
 
@@ -45,8 +46,8 @@ function mirrorStats(stats) {
   if (!db || !uid) return
   dbSet(ref(db, `users/${uid}/stats`), stats).catch(() => {})
 
-  const name = localStorage.getItem('playerName') || guestName(uid)
-  const avatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(uid)
+  const name = localStore.getItem('playerName') || guestName(uid)
+  const avatar = localStore.getItem('playerAvatar') || defaultAvatarForId(uid)
   dbSet(ref(db, `leaderboard/${uid}`), {
     name,
     avatar,
@@ -59,13 +60,13 @@ function mirrorStats(stats) {
 
 export function getMatches() {
   try {
-    const list = JSON.parse(localStorage.getItem(MATCHES_KEY))
+    const list = JSON.parse(localStore.getItem(MATCHES_KEY))
     return Array.isArray(list) ? list : []
   } catch { return [] }
 }
 
 export function setMatches(list) {
-  try { localStorage.setItem(MATCHES_KEY, JSON.stringify(list)) } catch { /* quota */ }
+  try { localStore.setItem(MATCHES_KEY, JSON.stringify(list)) } catch { /* quota */ }
   return list
 }
 
@@ -140,7 +141,7 @@ export function formatHeadToHeadLabel(myWins, theirWins) {
 
 export function getRooms() {
   try {
-    const list = JSON.parse(localStorage.getItem(ROOMS_KEY))
+    const list = JSON.parse(localStore.getItem(ROOMS_KEY))
     return Array.isArray(list) ? list : []
   } catch { return [] }
 }
@@ -151,9 +152,9 @@ export function recordRoom({ id, gameType, name }) {
   let list = getRooms().filter(r => r.id !== id)
   list.unshift({ id, gameType: gameType || null, name: name || null, ts: Date.now() })
   list = list.slice(0, 6)
-  try { localStorage.setItem(ROOMS_KEY, JSON.stringify(list)) } catch { /* quota */ }
+  try { localStore.setItem(ROOMS_KEY, JSON.stringify(list)) } catch { /* quota */ }
 }
 
 export function forgetRoom(id) {
-  try { localStorage.setItem(ROOMS_KEY, JSON.stringify(getRooms().filter(r => r.id !== id))) } catch { /* ignore */ }
+  try { localStore.setItem(ROOMS_KEY, JSON.stringify(getRooms().filter(r => r.id !== id))) } catch { /* ignore */ }
 }

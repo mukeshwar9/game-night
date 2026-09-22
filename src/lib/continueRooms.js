@@ -8,6 +8,7 @@ import { ref, get, set } from 'firebase/database'
 import { db } from './firebase'
 import { getRooms, forgetRoom } from './profile'
 import { getPlayerId } from './playerId'
+import { sessionStore } from './storage'
 
 const WAITING_ROOM_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
@@ -81,7 +82,7 @@ export function getOpponent(game, myId, sessionSeat) {
 
 function readSessionSeat(id) {
   try {
-    const raw = sessionStorage.getItem(`game-${id}`)
+    const raw = sessionStore.getItem(`game-${id}`)
     const parsed = raw ? JSON.parse(raw) : null
     return parsed?.symbol || null
   } catch { return null }

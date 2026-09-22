@@ -18,6 +18,8 @@ import InviteToasts from './components/InviteToasts';
 import BottomTabBar from './components/BottomTabBar';
 import NavBar, { HomeInterceptProvider, TAB_BAR_ROUTES } from './components/NavBar';
 import { AuthProvider } from './lib/AuthContext';
+import { isTestingMode, devSlot } from './lib/devTesting';
+import DevPlayerBar, { DevPlayerLauncher } from './components/DevPlayerBar';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // M-61 + M-84: reset scroll and replay a short fade on every route change.
@@ -58,11 +60,16 @@ function AppRoutes() {
         </div>
       </div>
       {showTabBar && <BottomTabBar />}
+      {isTestingMode && <DevPlayerBar />}
     </>
   );
 }
 
 export default function App() {
+  // F-51: testing mode without a devPlayer slot renders the launcher INSTEAD
+  // of the app — the launcher tab never authenticates or touches Firebase.
+  if (isTestingMode && !devSlot) return <DevPlayerLauncher />;
+
   return (
     <ErrorBoundary>
       <AuthProvider>

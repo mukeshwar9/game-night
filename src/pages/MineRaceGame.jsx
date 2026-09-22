@@ -14,6 +14,7 @@ import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
+import { sessionStore } from '../lib/storage'
 
 // Seeded-race page — architecture mirrors WordHuntGame/TypingGame:
 // READY → shared minesStartedAt → 3s countdown → race on identical boards.
@@ -129,7 +130,7 @@ export default function MineRaceGame({
     const opening = board ? new Set(board.opening) : new Set()
     if (!board || !mySymbol) return opening
     try {
-      const raw = JSON.parse(sessionStorage.getItem(`minerace-revealed-${gameId}-${mySymbol}`) || 'null')
+      const raw = JSON.parse(sessionStore.getItem(`minerace-revealed-${gameId}-${mySymbol}`) || 'null')
       if (Array.isArray(raw)) {
         for (const i of raw) {
           if (Number.isInteger(i) && i >= 0 && i < CELL_COUNT && !board.mines[i]) opening.add(i)
@@ -209,7 +210,7 @@ export default function MineRaceGame({
   useEffect(() => {
     if (!mySymbol || seed == null) return
     try {
-      sessionStorage.setItem(`minerace-revealed-${gameId}-${mySymbol}`, JSON.stringify([...revealed]))
+      sessionStore.setItem(`minerace-revealed-${gameId}-${mySymbol}`, JSON.stringify([...revealed]))
     } catch { /* private mode */ }
   }, [revealed, gameId, mySymbol, seed])
 

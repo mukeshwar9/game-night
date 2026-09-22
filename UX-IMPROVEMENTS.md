@@ -66,6 +66,7 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-44 | Multi-act moments under-weighted (extra turn / hit again) | Medium | Medium Effort | ✅ Done |
 | F-45 | No curated START HERE path at 44 tiles | Low-Medium | Medium Effort | ✅ Done |
 | F-46 | Share cards not standardized across all end screens | Low | Quick Win | ✅ Done |
+| F-51 | Same-browser local multiplayer testing needs isolated player sessions | Medium | Medium Effort | ✅ Done |
 
 ---
 
@@ -824,3 +825,49 @@ NEXT · SWITCH GAME.
 - Air Hockey ships demo-first (PRD order); catalogue entry goes realtime-only
   until the transport page lands — confirm the ModeChooser doesn't offer
   broken "PLAY A FRIEND" for it.
+
+
+---
+
+## F-51 · Local multiplayer testing in one browser — September 22, 2026
+
+**Status:** planned; documentation only. This feature is not implemented.
+
+**Goal:** allow Chrome DevTools MCP and human testers to control distinct players in ordinary browser tabs, covering two-player and party games without requiring incognito profiles. Firebase Auth and Realtime Database emulators are the selected backend. Existing same-browser tabs share identity until this feature ships.
+
+### Implementation
+
+- Add dedicated commands to start the Auth and Realtime Database emulators and Vite testing mode. Use a `demo-` Firebase project ID and the repository database rules. Missing emulators must produce a clear error, never a fallback to live Firebase.
+- Enable testing mode only when both its dedicated development flag and a loopback hostname match. Production builds ignore testing parameters. Ordinary development continues using its existing configuration outside this mode.
+- Identify player slots through URLs such as `http://localhost:5173/?devPlayer=p1`. Store the selected slot in tab session storage so navigation preserves it. An explicit URL slot takes precedence over a stored slot; switching slots must initialize the matching identity before rendering the game.
+- Create a separate named Firebase app/Auth instance per player slot, with Database using the same app. Connect both services to their emulators before authentication or database operations. Each slot signs in anonymously with a real emulator uid. Reloading preserves that slot; different slots receive different uids. Opening the same slot intentionally reopens the same player.
+- Namespace player-specific storage by slot: profile mirrors, onboarding, stats, recent rooms, seat records, and hidden-word secrets. Audit direct storage accesses and use a shared storage adapter; do not monkey-patch browser storage. Preserve tab-local storage for secrets that are already tab-local. Normal mode keeps existing keys.
+- Prevent testing profiles from importing normal-browser profile or stats data. Disable Google account upgrade in testing mode. Identity changes must affect only the selected slot.
+- Keep existing seat claims, security rules, presence, game logic, and multiplayer transport active. Do not fake player IDs or bypass authorization.
+
+### Browser UX and automation
+
+- Provide a development-only player launcher with slots P1–P8 and a spectator action. Opening a different slot creates an ordinary tab using a distinct identity; party games still enforce their own capacity.
+- Accept `devPlayer` on existing room URLs so agents can join players directly. Launcher links must explicitly include their target slot to avoid inheriting the opener's session storage identity.
+- Show a persistent development badge with player slot, uid, and emulator connection state. Use stable accessible names for launcher controls so MCP can reliably identify them.
+- The spectator action uses a separate authenticated emulator identity and skips seat claiming only within this gated test mode. Existing spectator restrictions remain in force; this is not a general permission bypass.
+- Document an MCP walkthrough: open P1, create a room, open P2 at that room URL, verify distinct seats, play, reload, and reclaim. Include a party walkthrough that opens additional slots, starts the game, and exercises role rotation.
+- Explain that background-tab throttling can affect simultaneous reflex games. Use separate visible windows for those checks. Same-browser testing does not prove cross-network WebRTC connectivity or NAT traversal.
+
+### Acceptance and tests
+
+- Two ordinary tabs claim X and O with different emulator uids. Opening the same slot retains that player's identity rather than creating an unintended new player.
+- Party slots claim distinct seats up to the selected game's supported limit; excess visitors retain normal spectator behavior.
+- Profile edits, sign-out, stats, room records, and secrets stay isolated between slots and from ordinary browser sessions.
+- Reload preserves identity and seat. Opening a new slot never inherits another slot's copied seat record or hidden-word secret.
+- Spectator mode cannot submit moves or take an empty seat.
+- Disconnect/reconnect, rematches, and game switching use existing gameplay paths without identity collisions.
+- Emulator startup failure stays local and produces actionable feedback. Verify no testing-mode operation targets the configured live Firebase project.
+- Production builds and ordinary development retain existing authentication and storage behavior, including when a testing query parameter is present.
+- Add focused tests for mode gating, slot parsing, URL/session precedence, and storage isolation. Run existing tests, lint, and build. Verify representative board, hidden-word, Sketch, and WebRTC flows through Chrome DevTools MCP.
+
+### Defaults and completion gate
+
+Testing is opt-in, emulator-only, and anonymous. Emulator data is disposable; this plan includes no production account migration or rule relaxation. Document emulator prerequisites and startup commands alongside the MCP walkthrough. Resetting emulator data requires resetting the associated test sessions so cached identities and seats do not masquerade as valid room membership.
+
+Completion requires ordinary same-browser tabs to act as separate authenticated players through real room and game flows, with evidence from both two-player and party tests. Documentation, mock identities, or passing pure-logic tests alone do not meet this condition.

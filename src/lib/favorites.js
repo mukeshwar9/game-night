@@ -1,10 +1,11 @@
 import { GAME_TYPES } from './games'
+import { localStore } from './storage'
 
 const STORAGE_KEY = 'gn-favs'
 
 function readStored() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    const parsed = JSON.parse(localStore.getItem(STORAGE_KEY) ?? '[]')
     return Array.isArray(parsed) ? parsed : []
   } catch {
     return []
@@ -13,7 +14,7 @@ function readStored() {
 
 function writeStored(list) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+    localStore.setItem(STORAGE_KEY, JSON.stringify(list))
   } catch {
     // storage unavailable (private mode, quota) — favorites just won't persist
   }

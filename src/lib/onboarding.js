@@ -2,6 +2,7 @@
 // wrapper reads localStorage + local rooms so Home can call it in a state
 // initializer without touching async code.
 import { getRooms } from './profile'
+import { localStore } from './storage'
 
 // Pure predicate — show the onboarding iff the visitor is genuinely new.
 // Returns false as soon as any "been here before" signal is present.
@@ -15,7 +16,7 @@ export function shouldShowOnboarding({ onboarded, playerName, roomsCount }) {
 // Impure: reads the persisted "has completed onboarding" flag.
 export function hasOnboarded() {
   try {
-    return !!localStorage.getItem('onboarded')
+    return !!localStore.getItem('onboarded')
   } catch {
     return false
   }
@@ -24,7 +25,7 @@ export function hasOnboarded() {
 // Impure: reads localStorage and the local rooms list.
 export function checkShouldOnboard() {
   try {
-    const playerName = localStorage.getItem('playerName')
+    const playerName = localStore.getItem('playerName')
     const roomsCount = getRooms().length
     return shouldShowOnboarding({ onboarded: hasOnboarded(), playerName, roomsCount })
   } catch {
@@ -33,5 +34,5 @@ export function checkShouldOnboard() {
 }
 
 export function markOnboarded() {
-  try { localStorage.setItem('onboarded', '1') } catch { /* quota */ }
+  try { localStore.setItem('onboarded', '1') } catch { /* quota */ }
 }

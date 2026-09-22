@@ -10,6 +10,7 @@ import {
 import { db, auth } from './firebase'
 import { getUid } from './auth'
 import { defaultAvatarForId } from './avatars'
+import { localStore } from './storage'
 
 // ---- Friend codes (pure) ----
 // Unambiguous alphabet — no 0/O, 1/I/L.
@@ -47,8 +48,8 @@ export function guestName(uid) {
 
 function mirrorLocal({ displayName, avatar } = {}) {
   try {
-    if (displayName) localStorage.setItem('playerName', displayName)
-    if (avatar) localStorage.setItem('playerAvatar', avatar)
+    if (displayName) localStore.setItem('playerName', displayName)
+    if (avatar) localStore.setItem('playerAvatar', avatar)
   } catch { /* quota — ignore */ }
 }
 
@@ -98,8 +99,8 @@ export async function ensureProfile() {
     return merged
   }
 
-  const displayName = googleName || localStorage.getItem('playerName') || guestName(uid)
-  const avatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(uid)
+  const displayName = googleName || localStore.getItem('playerName') || guestName(uid)
+  const avatar = localStore.getItem('playerAvatar') || defaultAvatarForId(uid)
   const code = await allocateCode(uid)
   const profile = {
     displayName,

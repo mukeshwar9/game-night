@@ -72,6 +72,8 @@ import {
 import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../lib/anagramsLogic'
 import { TARGET_SCORE as PASSWORD_TARGET } from '../lib/passwordLogic'
 import { ARROWS_MATCH_TARGET, getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
+import { localStore, sessionStore } from '../lib/storage'
+import { isTestingMode, devSlot } from '../lib/devTesting'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -321,13 +323,13 @@ export default function Game() {
       return
     }
 
-    const playerName = localStorage.getItem('playerName')
+    const playerName = localStore.getItem('playerName')
     if (!playerName) {
       setNeedName(true)
       setLoading(false)
       return
     }
-    const playerAvatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
+    const playerAvatar = localStore.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
 
     const gameRef = ref(db, `games/${gameId}`)
     let cancelled = false
@@ -362,10 +364,16 @@ export default function Game() {
       }
 
       const cfgData = getGameConfig(data.gameType)
+      // F-51: the dev spectator slot joins through the normal spectator path
+      // but never claims a seat — gated strictly to testing mode, not a
+      // general permission bypass (seat-claim rules stay untouched).
+      const isTestSpectator = isTestingMode && devSlot === 'spectator'
       if (cfgData.nPlayer) {
         const myId = getPlayerId()
         let amPlayer = !!data.players?.[myId]
-        if (amPlayer) {
+        if (isTestSpectator) {
+          amPlayer = false
+        } else if (amPlayer) {
           try { await update(ref(db, `games/${gameId}/players/${myId}`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
         } else if (data.status === 'waiting' && Object.keys(data.players || {}).length < (cfgData.maxPlayers || 8)) {
           try {
@@ -392,21 +400,24 @@ export default function Game() {
         return
       }
 
-      const stored = sessionStorage.getItem(`game-${gameId}`)
+      const stored = isTestSpectator ? null : sessionStore.getItem(`game-${gameId}`)
 
       if (stored && JSON.parse(stored).symbol) {
         // 1. Valid sessionStorage record
         assignSeat(JSON.parse(stored).symbol)
-      } else {
+      } else if (isTestSpectator) {
+        // F-51: dev spectator slot — skip seat records, reclaim and claiming;
+        // watch through the normal spectator path.
+        assignSeat(null)
         // 2. Try playerId reclaim
         const myId = getPlayerId()
         if (data.players?.X?.playerId === myId) {
           assignSeat('X')
-          sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+          sessionStore.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
           try { await update(ref(db, `games/${gameId}/players/X`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
         } else if (data.players?.O?.playerId === myId) {
           assignSeat('O')
-          sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
+          sessionStore.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
           try { await update(ref(db, `games/${gameId}/players/O`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
         } else if (!data.players?.O) {
           // 3. Claim O slot via transaction
@@ -420,7 +431,7 @@ export default function Game() {
             )
             if (committed) {
               assignSeat('O')
-              sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
+              sessionStore.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
               // Lobby rooms (challenge-created, `lobby: true`) stay 'waiting'
               // when the second seat fills — either player picks the game and
               // taps START from WaitingRoom instead of auto-playing.
@@ -435,7 +446,7 @@ export default function Game() {
               await update(gameRef, joinUpdates)
             } else {
               assignSeat(null)
-              sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: null }))
+              sessionStore.setItem(`game-${gameId}`, JSON.stringify({ symbol: null }))
               // We lost the race for O — someone else's write committed first.
               // Mark the generic full-room notice as already shown so it doesn't
               // also fire once `game` reflects both seats filled.
@@ -859,7 +870,7 @@ export default function Game() {
       if (sym === 'X' && !game.diceSeedCommitX && game.players?.O && !coinFlipStarted.current) {
         coinFlipStarted.current = true
         const seedA = generateSeedHex()
-        try { sessionStorage.setItem(SK, seedA) } catch { /* private mode */ }
+        try { sessionStore.setItem(SK, seedA) } catch { /* private mode */ }
         diceSeedARef.current = seedA
         const hash = await commitSeed(seedA)
         await update(gameRef, { diceSeedCommitX: hash }).catch(() => {})
@@ -875,7 +886,7 @@ export default function Game() {
       // Step 3 — X reveals seedA once O has contributed.
       if (sym === 'X' && game.diceSeedCommitX && game.diceSeedB && !game.diceSeedRevealX) {
         let seedA = ''
-        try { seedA = sessionStorage.getItem(SK) || '' } catch { /* */ }
+        try { seedA = sessionStore.getItem(SK) || '' } catch { /* */ }
         if (!seedA) seedA = diceSeedARef.current || ''
         if (seedA) {
           // Verify our local seedA still matches the published commit; if a
@@ -1121,14 +1132,14 @@ export default function Game() {
   }
 
   const applySwitchGame = async (newType) => {
-    sessionStorage.removeItem(`hangwoman-word-${gameId}`)
+    sessionStore.removeItem(`hangwoman-word-${gameId}`)
     // Per-game secrets are keyed by gameId: leaving them behind lets a stale
     // word/lie grade (or false-cheat) a later round after switching back.
     // wordduel secrets live in localStorage, one key per seat.
-    sessionStorage.removeItem(`twotruths-${gameId}`)
+    sessionStore.removeItem(`twotruths-${gameId}`)
     try {
-      localStorage.removeItem(`wordduel-word-${gameId}-X`)
-      localStorage.removeItem(`wordduel-word-${gameId}-O`)
+      localStore.removeItem(`wordduel-word-${gameId}-X`)
+      localStore.removeItem(`wordduel-word-${gameId}-O`)
     } catch { /* private mode — ignore */ }
     // Suppresses the lobby-liveliness "opponent switched" toast for a switch
     // this client itself initiated (see the liveliness effect below).
@@ -1229,9 +1240,9 @@ export default function Game() {
   // the spectator "start your own room" CTA) — a trimmed replica of Home.jsx's
   // createGame, since Home.jsx is off-limits to import from here.
   const createNewRoom = async (gameType) => {
-    const playerName = localStorage.getItem('playerName')
+    const playerName = localStore.getItem('playerName')
     if (!playerName) { navigate('/'); return }
-    const playerAvatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
+    const playerAvatar = localStore.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
     setCreatingRoom(true)
     try {
       const newId = generateGameId()
@@ -1260,7 +1271,7 @@ export default function Game() {
       await dbSet(ref(db, `games/${newId}`), gameData)
       recordPlay(gameType, 'multi')
       if (!cfg.nPlayer) {
-        sessionStorage.setItem(`game-${newId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+        sessionStore.setItem(`game-${newId}`, JSON.stringify({ symbol: 'X', name: playerName }))
       }
       recordRoom({ id: newId, gameType })
       navigate(`/game/${newId}`)
@@ -1334,7 +1345,7 @@ export default function Game() {
 
     const msg = {
       by: getPlayerId(),
-      name: localStorage.getItem('playerName') || 'PLAYER',
+      name: localStore.getItem('playerName') || 'PLAYER',
       text,
       ts: now,
       ...(mySymbol.current ? { seat: mySymbol.current } : {}),
@@ -1355,7 +1366,7 @@ export default function Game() {
     const handleNameSubmit = () => {
       const trimmed = nameInput.trim()
       if (!trimmed) { setNameError('ENTER YOUR NAME FIRST'); return }
-      localStorage.setItem('playerName', trimmed)
+      localStore.setItem('playerName', trimmed)
       setNeedName(false)
       setLoading(true)
       setNameVersion(v => v + 1)

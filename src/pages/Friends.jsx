@@ -20,6 +20,7 @@ import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
 import useBusy from '../hooks/useBusy'
+import { localStore, sessionStore } from '../lib/storage'
 
 const REQUEST_ERRORS = {
   invalid: 'THAT CODE LOOKS WRONG — 6 CHARACTERS.',
@@ -169,14 +170,14 @@ export default function Friends() {
   const challengeFriend = (friendUid, friendName) => {
     setChallengingUid(friendUid)
     runChallenge(async () => {
-      const playerName = profile?.displayName || localStorage.getItem('playerName') || 'Player'
-      const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
+      const playerName = profile?.displayName || localStore.getItem('playerName') || 'Player'
+      const myAvatar = profile?.avatar || localStore.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
       const gameId = generateGameId()
       const myId = getPlayerId()
       const gameData = buildChallengeRoom({ name: playerName, avatar: myAvatar, playerId: myId })
       await set(ref(db, `games/${gameId}`), gameData)
       recordPlay('tictactoe', 'multi')
-      sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+      sessionStore.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
       recordRoom({ id: gameId, gameType: gameData.gameType })
       await inviteFriendToGame(friendUid, { gameId, gameType: 'tictactoe' })
       toast.success(`CHALLENGE SENT TO ${(friendName || 'FRIEND').toUpperCase()}!`)

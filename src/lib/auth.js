@@ -17,6 +17,7 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth'
 import { auth } from './firebase'
+import { isTestingMode } from './devTesting'
 
 // Actionable messages for the common "it's a console-setup problem, not a bug" codes.
 // Imported by Onboarding.jsx and Profile.jsx so both show identical copy.
@@ -152,6 +153,10 @@ export function onUser(cb) {
 // orphaned (merging is out of scope for v1).
 export async function upgradeWithGoogle() {
   if (!auth) throw new Error('Auth unavailable')
+  // F-51: Google account linking is disabled in testing mode — the emulator
+  // has no real Google provider, and a linked slot identity would defeat the
+  // per-slot isolation. Testing stays opt-in, emulator-only, anonymous.
+  if (isTestingMode) throw new Error('ACCOUNT UPGRADE IS DISABLED IN TESTING MODE')
   const provider = new GoogleAuthProvider()
   const current = auth.currentUser
   if (shouldUseRedirect()) {

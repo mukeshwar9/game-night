@@ -1,4 +1,5 @@
 import { getUid } from './auth'
+import { localStore } from './storage'
 
 // Player identity is the Firebase Auth uid (anonymous guest or, after upgrade, a
 // permanent Google account). The app boots behind authReady() (see AuthContext),
@@ -9,10 +10,10 @@ export function getPlayerId() {
   const uid = getUid()
   if (uid) return uid
 
-  let id = localStorage.getItem('playerId')
+  let id = localStore.getItem('playerId')
   if (!id) {
     id = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36))
-    localStorage.setItem('playerId', id)
+    localStore.setItem('playerId', id)
   }
   return id
 }

@@ -16,6 +16,7 @@ import { sounds } from '../lib/sounds'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { cn } from '@/lib/utils'
+import { localStore } from '../lib/storage'
 
 // Solo/bot WAVELENGTH — human + 2-7 bots, fully local (useReducer), no Firebase,
 // no commit-reveal (there's no other real player to cheat against, so the
@@ -35,7 +36,7 @@ const WIN_SCORE = 200 // kept in sync with WavelengthGame.jsx
 // avatar instead of a placeholder.
 function readOwnAvatar() {
   try {
-    return localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
+    return localStore.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
   } catch {
     return defaultAvatarForId(getPlayerId())
   }

@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
+import { sessionStore } from '../lib/storage'
 
 const MATCH_WINS = 3
 const MAX_LEN = 80
@@ -225,7 +226,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   useEffect(() => {
     if (!isSetter || phase !== 'guessing') return
 
-    const stored = sessionStorage.getItem(`twotruths-${gameId}`)
+    const stored = sessionStore.getItem(`twotruths-${gameId}`)
     if (!stored) return
     const { lieIndex, salt } = JSON.parse(stored)
 
@@ -279,7 +280,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
     setLocking(true)
     try {
       const { hash, salt } = await commit(String(lieIndex))
-      sessionStorage.setItem(`twotruths-${gameId}`, JSON.stringify({ lieIndex, salt }))
+      sessionStore.setItem(`twotruths-${gameId}`, JSON.stringify({ lieIndex, salt }))
       await update(ref(db, `games/${gameId}`), {
         'round/phase': 'guessing',
         'round/statements': stmts,
@@ -308,7 +309,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   // same reveal twice.
   const handleNextRound = useCallback(async () => {
     if (isSpectator) return
-    sessionStorage.removeItem(`twotruths-${gameId}`)
+    sessionStore.removeItem(`twotruths-${gameId}`)
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || current.round?.phase !== 'reveal') return
@@ -363,7 +364,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   // a live reveal.
   const handleCheatSkip = useCallback(async () => {
     if (isSpectator) return
-    sessionStorage.removeItem(`twotruths-${gameId}`)
+    sessionStore.removeItem(`twotruths-${gameId}`)
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round || current.round.phase !== 'reveal') return
@@ -480,7 +481,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   // --- Guessing / Reveal phases ---
   const isReveal = phase === 'reveal'
   const setterMissingSecret = isSetter && phase === 'guessing' &&
-    !sessionStorage.getItem(`twotruths-${gameId}`)
+    !sessionStore.getItem(`twotruths-${gameId}`)
 
   return (
     <div className="space-y-4">

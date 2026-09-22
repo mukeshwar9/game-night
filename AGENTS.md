@@ -12,7 +12,7 @@ npm run lint      # ESLint
 npm test          # Vitest — suites for src/lib/hangmanLogic.js, src/lib/commit.js, src/lib/gameLogic.js, src/lib/connectFourLogic.js, src/lib/dotsAndBoxesLogic.js, src/lib/sosLogic.js
 ```
 
-Unit tests cover **only pure logic** — `src/lib/*Logic.js` modules and their `.test.js` siblings. Multiplayer flows, real-time sync, and UI have no automated coverage and are verified by hand. **Note:** same-browser tabs now share `playerId` (stored in localStorage), so manual two-player testing requires the second player in a private/incognito browser profile (or another browser entirely). Opening two regular tabs simulates one player in two windows, not two distinct players.
+Unit tests cover **only pure logic** — `src/lib/*Logic.js` modules and their `.test.js` siblings. Multiplayer flows, real-time sync, and UI have no automated coverage and are verified by hand. **Note:** same-browser tabs now share `playerId` (stored in localStorage), so manual two-player testing requires the second player in a private/incognito browser profile (or another browser entirely) — unless you use the dev testing mode (F-51, `npm run test:emulators` + `npm run dev:test`, see `docs/DEV-MULTIPLAYER.md`), which gives ordinary tabs per-slot isolated identities.
 
 ## Environment
 

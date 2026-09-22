@@ -21,6 +21,7 @@ import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
+import { sessionStore } from '../lib/storage'
 
 const MIN_PLAYERS = 3    // needed in the lobby to START a match
 const MIN_ACTIVE = 2     // needed mid-match to keep a round moving; below this we pause
@@ -35,7 +36,7 @@ const REVEAL_MS = 20_000
 const lieKey = (gameId, promptIndex) => `fibbage-lie-${gameId}-${promptIndex}`
 
 function readSecret(gameId, promptIndex) {
-  try { return JSON.parse(sessionStorage.getItem(lieKey(gameId, promptIndex)) || 'null') } catch { return null }
+  try { return JSON.parse(sessionStore.getItem(lieKey(gameId, promptIndex)) || 'null') } catch { return null }
 }
 
 function normalizeRound(raw) {
@@ -297,7 +298,7 @@ export default function FibbageGame({
       // without leaking authorship (it is not derived from the playerId).
       const subKey = `${(crypto.randomUUID?.() || Math.random().toString(36).slice(2))}${Date.now().toString(36)}`
       const secret = { text, salt, subKey }
-      sessionStorage.setItem(lieKey(gameId, round.promptIndex), JSON.stringify(secret))
+      sessionStore.setItem(lieKey(gameId, round.promptIndex), JSON.stringify(secret))
       setMySecret(secret)
       setLocalLie(true)
       sounds.move('X')
@@ -337,7 +338,7 @@ export default function FibbageGame({
     if (!isPlayer || !round || round.phase !== 'reveal' || !round.scored) return
     const nextIndex = (round.promptIndex + 1) % FIBBAGE_FACTS.length
     const matchOver = Object.values(game.scores || {}).some(s => s >= MATCH_WIN_SCORE)
-    sessionStorage.removeItem(lieKey(gameId, round.promptIndex))
+    sessionStore.removeItem(lieKey(gameId, round.promptIndex))
     try {
       await update(ref(db, `games/${gameId}`), {
         round: { phase: 'lying', promptIndex: nextIndex },

@@ -1,6 +1,7 @@
 import Avatar from './Avatar'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
+import { localStore } from '../lib/storage'
 
 // Reads the local player's display avatar the same way NavBar/Home do — the
 // localStorage mirror of `users/{uid}` set on boot (see CLAUDE.md "Player
@@ -8,7 +9,7 @@ import { defaultAvatarForId } from '../lib/avatars'
 // (e.g. a brand-new guest who hasn't been through onboarding yet).
 function readOwnAvatar() {
   try {
-    return localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
+    return localStore.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
   } catch {
     return defaultAvatarForId(getPlayerId())
   }

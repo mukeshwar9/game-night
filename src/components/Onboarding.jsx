@@ -10,6 +10,7 @@ import { UPGRADE_ERRORS, consumePendingAuthToast } from '../lib/auth'
 import { configError } from '../lib/firebase'
 import { markOnboarded } from '../lib/onboarding'
 import { sounds } from '../lib/sounds'
+import { localStore } from '../lib/storage'
 
 export default function Onboarding({ onDone }) {
   const { uid, user, profile, isAnonymous, upgrade } = useAuth()
@@ -70,9 +71,9 @@ export default function Onboarding({ onDone }) {
     const id = uid || getPlayerId()
     const finalName = name.trim().slice(0, 20) || `Guest-${String(id).slice(0, 4).toUpperCase()}`
     // Write localStorage first — onboarding is committed even if the DB write fails.
-    try { localStorage.setItem('playerName', finalName) } catch { /* quota */ }
+    try { localStore.setItem('playerName', finalName) } catch { /* quota */ }
     const finalAvatar = canonicalAvatar(selectedAvatar)
-    try { localStorage.setItem('playerAvatar', finalAvatar) } catch { /* quota */ }
+    try { localStore.setItem('playerAvatar', finalAvatar) } catch { /* quota */ }
     markOnboarded()
     try {
       await setProfile({ displayName: finalName, avatar: finalAvatar })

@@ -17,6 +17,7 @@ import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { sessionStore } from '../lib/storage'
 
 const MATCH_WINS = 3
 const DIE_GLYPH = { 1: '⚀', 2: '⚁', 3: '⚂', 4: '⚃', 5: '⚄', 6: '⚅' }
@@ -97,7 +98,7 @@ export default function BluffBattleGame({
     if (isSpectator) return
     if (myCommit === prevMyCommitRef.current) return
     prevMyCommitRef.current = myCommit
-    const stored = sessionStorage.getItem(roundKey)
+    const stored = sessionStore.getItem(roundKey)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizes local dice state with sessionStorage (an external store) for this round's commit; guarded above so it only runs once per commit change
     if (!stored) { setMyDice(null); return }
     try {
@@ -134,7 +135,7 @@ export default function BluffBattleGame({
     try {
       const dice = rollDice(myDiceCount)
       const { hash, salt } = await commit(JSON.stringify(dice))
-      sessionStorage.setItem(roundKey, JSON.stringify({ dice, salt, commit: hash }))
+      sessionStore.setItem(roundKey, JSON.stringify({ dice, salt, commit: hash }))
       setMyDice(dice)
       sounds.drop()
       await update(ref(db, `games/${gameId}/bluffRound`), { [`commit${myKey}`]: hash })
@@ -204,7 +205,7 @@ export default function BluffBattleGame({
   useEffect(() => {
     if (phase !== 'reveal' || isSpectator) return
     if (round[`reveal${myKey}`]) return
-    const stored = sessionStorage.getItem(roundKey)
+    const stored = sessionStore.getItem(roundKey)
     if (!stored) return
     try {
       const { dice, salt, commit: storedCommit } = JSON.parse(stored)
@@ -309,7 +310,7 @@ export default function BluffBattleGame({
     if (dc.diceCountX <= 0 || dc.diceCountO <= 0) return
     // loser of the prior exchange opens the next bidding round
     const opener = dc.outcome?.loser || (dc.turn === 'X' ? 'O' : 'X')
-    sessionStorage.removeItem(roundKey)
+    sessionStore.removeItem(roundKey)
     try {
       await update(ref(db, `games/${gameId}/bluffRound`), {
         phase: 'rolling',
@@ -326,7 +327,7 @@ export default function BluffBattleGame({
   // --- Secret lost (new tab wiped sessionStorage) → showdown can never land.
   // Concede the round instead of stalling forever (Hangwoman precedent). ---
   const mySecretLost = phase === 'reveal' && !isSpectator &&
-    !round[`reveal${myKey}`] && !sessionStorage.getItem(roundKey)
+    !round[`reveal${myKey}`] && !sessionStore.getItem(roundKey)
 
   const [conceding, setConceding] = useState(false)
   const handleConcedeLostSecret = useCallback(async () => {

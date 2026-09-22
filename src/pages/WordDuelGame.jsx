@@ -17,6 +17,7 @@ import PixelDots from '@/components/loading/PixelDots'
 import OfflineNotice from '@/components/loading/OfflineNotice'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
+import { localStore } from '../lib/storage'
 
 const STORAGE_PREFIX = 'wordduel-word-'
 // A setter who never commits, or an opponent whose tab closed leaving a guess
@@ -32,16 +33,16 @@ function storageKey(gameId, symbol) {
 
 function getStoredWord(gameId, symbol) {
   try {
-    const raw = localStorage.getItem(storageKey(gameId, symbol))
+    const raw = localStore.getItem(storageKey(gameId, symbol))
     return raw ? JSON.parse(raw) : null
   } catch { return null }
 }
 
 function setStoredWord(gameId, symbol, data) {
   if (data) {
-    localStorage.setItem(storageKey(gameId, symbol), JSON.stringify(data))
+    localStore.setItem(storageKey(gameId, symbol), JSON.stringify(data))
   } else {
-    localStorage.removeItem(storageKey(gameId, symbol))
+    localStore.removeItem(storageKey(gameId, symbol))
   }
 }
 

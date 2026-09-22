@@ -14,6 +14,7 @@ import { subscribeFriends, subscribeProfile } from '../lib/social'
 import { fetchFriendsLeaderboard, rankEntries } from '../lib/leaderboard'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import { localStore } from '../lib/storage'
 
 // Fullscreen hub: PlaygroundWorld fills the viewport, this page owns only the
 // HUD chrome (back/mute/theme + stats/friends launchers) and the two
@@ -23,7 +24,7 @@ import { cn } from '@/lib/utils'
 export default function Playground() {
   const { profile, uid } = useAuth()
   const stats = useMemo(() => getStats(), [])
-  const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
+  const myAvatar = profile?.avatar || localStore.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const toggleMute = () => setMuted(sounds.toggle())
   const [openPanel, setOpenPanel] = useState(null) // null | 'stats' | 'friends'

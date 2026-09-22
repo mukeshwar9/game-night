@@ -10,6 +10,7 @@ import { SPYFAIR_LOCATIONS } from '../lib/decks/spyfair'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
+import { sessionStore } from '../lib/storage'
 
 const QUESTION_SECONDS = 240 // 4 minutes of out-of-band questioning
 const MATCH_WINS = 3
@@ -75,7 +76,7 @@ async function dealRound(gameId, order, excludeLocationIndex = null) {
     else { privates[p.playerId] = { role: roleBag[r % roleBag.length] || 'Local', location: loc.name }; r++ }
   }
   const { hash, salt } = await commit(String(locationIndex))
-  try { sessionStorage.setItem(locKey(gameId), JSON.stringify({ locationIndex, salt })) } catch { /* ignore */ }
+  try { sessionStore.setItem(locKey(gameId), JSON.stringify({ locationIndex, salt })) } catch { /* ignore */ }
   return {
     phase: 'reveal',
     // Hidden until the result phase — see the INFO-LEAK MODEL note above.
@@ -305,7 +306,7 @@ export default function SpyfairGame({
       // reload), fall back to recovering the index from a non-spy private entry so the
       // result screen still shows the correct location (verification is then skipped).
       let secret = null
-      try { secret = JSON.parse(sessionStorage.getItem(locKey(gameId)) || 'null') } catch { /* ignore */ }
+      try { secret = JSON.parse(sessionStore.getItem(locKey(gameId)) || 'null') } catch { /* ignore */ }
       let locationIndex = secret?.locationIndex
       const locationSalt = secret?.salt ?? null
       if (locationIndex == null) {
