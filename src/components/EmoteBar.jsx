@@ -55,7 +55,11 @@ function EmotePicker({ onPick, onClose }) {
   const trimmed = query.trim()
   const results = trimmed ? searchEmotes(query) : []
   return (
-    <BottomSheet onClose={onClose} ariaLabel="Choose a reaction" className="h-[min(85vh,34rem)] overflow-hidden flex flex-col">
+    <BottomSheet
+      onClose={onClose}
+      ariaLabel="Choose a reaction"
+      className="w-[min(92vw,22rem)] sm:max-w-[22rem] h-[min(70vh,28rem)] bg-retro-bg/70 backdrop-blur-[2px] overflow-hidden flex flex-col"
+    >
       <p className="shrink-0 font-pixel text-[10px] text-retro-dim text-center tracking-widest">REACTIONS</p>
       <input
         type="search"

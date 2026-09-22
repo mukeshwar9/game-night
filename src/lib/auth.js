@@ -31,14 +31,11 @@ export const UPGRADE_ERRORS = {
 // Popup-based auth (linkWithPopup/signInWithPopup) is unreliable inside
 // standalone/installed PWAs — most notably iOS Safari home-screen installs,
 // where the popup opens in a disconnected browsing context and the result
-// often never makes it back to the opener — and is generally worse UX on
-// mobile browsers too. Redirect is the resilient path there; desktop keeps
-// the faster, less disruptive popup flow.
+// often never makes it back to the opener. Regular mobile browsers keep the
+// user-gesture popup flow, which avoids redirect-storage failures there.
 function shouldUseRedirect() {
   if (typeof window === 'undefined') return false
-  const standalone = window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true
-  const mobileUA = /Android|iPhone|iPad|iPod/i.test(window.navigator?.userAgent || '')
-  return standalone || mobileUA
+  return window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true
 }
 
 // Shared fallback for both the popup and redirect upgrade paths: if the
