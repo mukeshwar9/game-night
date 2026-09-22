@@ -3,10 +3,10 @@
 // state, and every strokes/undo/clear write. Non-artists render the exact same
 // component with isArtist={false} — read-only, no toolbar, no pointer handlers.
 //
-// Strokes live at games/{gameId}/round/strokes/{pushId}: { c, w, p }
+// Strokes live at games/{gameId}/round/strokes/{pushId}: { c, w, p, g }
 //   c: palette index (0-7), w: brush size (1|2|3), p: [x0,y0,x1,y1,...] — ints
 //   quantized to the 0-255 grid, which IS the SVG viewBox, so rendering needs
-//   no dequantize step.
+//   no dequantize step. g groups periodic segments from one pointer gesture.
 //
 // Fills live at games/{gameId}/round/fills/{pushId}: { c, p }
 //   c: palette index, p: flat [gx0,gy0,gx1,gy1,...] grid cells on a 64×64 grid
@@ -131,6 +131,7 @@ export default function SketchCanvas({ gameId, isArtist }) {
 
   const svgRef = useRef(null)
   const pointerDownRef = useRef(false)
+  const gestureIdRef = useRef(null)
   const bufferRef = useRef([]) // flat quantized ints buffered since the last flush
   const flushTimerRef = useRef(null)
 
@@ -172,7 +173,12 @@ export default function SketchCanvas({ gameId, isArtist }) {
   const flush = useCallback(() => {
     const pts = bufferRef.current
     if (pts.length < 2) return
-    push(ref(db, `games/${gameId}/round/strokes`), { c: color, w: brushSize, p: pts })
+    push(ref(db, `games/${gameId}/round/strokes`), {
+      c: color,
+      w: brushSize,
+      p: pts,
+      ...(gestureIdRef.current ? { g: gestureIdRef.current } : {}),
+    })
     bufferRef.current = pts.slice(-2)
   }, [gameId, color, brushSize])
 
@@ -197,10 +203,11 @@ export default function SketchCanvas({ gameId, isArtist }) {
       return
     }
     bufferRef.current = [x, y]
+    gestureIdRef.current = push(ref(db, `games/${gameId}/round/strokes`)).key
     pointerDownRef.current = true
     if (flushTimerRef.current) clearInterval(flushTimerRef.current)
     flushTimerRef.current = setInterval(flush, FLUSH_MS)
-  }, [isArtist, pointToQuantized, flush, tool, handleBucketFill])
+  }, [gameId, isArtist, pointToQuantized, flush, tool, handleBucketFill])
 
   const handlePointerMove = useCallback((e) => {
     if (!isArtist || !pointerDownRef.current) return
@@ -212,15 +219,18 @@ export default function SketchCanvas({ gameId, isArtist }) {
   const handlePointerEnd = useCallback(() => {
     if (!isArtist) return
     if (tool === 'bucket') return
+    if (!pointerDownRef.current) return
     pointerDownRef.current = false
     if (flushTimerRef.current) {
       clearInterval(flushTimerRef.current)
       flushTimerRef.current = null
     }
     flush() // don't drop whatever was buffered since the last 100ms tick
+    gestureIdRef.current = null
   }, [isArtist, flush, tool])
 
-  // Undo: remove most recent fill if any, otherwise last stroke.
+  // Undo latest action. New stroke segments share gesture ID, so one undo
+  // removes the complete gesture. Legacy segments without g remain standalone.
   const handleUndo = useCallback(() => {
     const fillKeys = Object.keys(fills).sort()
     const strokeKeys = Object.keys(strokes).sort()
@@ -228,12 +238,23 @@ export default function SketchCanvas({ gameId, isArtist }) {
     const lastStroke = strokeKeys[strokeKeys.length - 1]
     // pushIds sort chronologically — pick whichever is lexicographically larger (more recent)
     if (lastFill && lastStroke) {
-      if (lastFill > lastStroke) remove(ref(db, `games/${gameId}/round/fills/${lastFill}`))
-      else remove(ref(db, `games/${gameId}/round/strokes/${lastStroke}`))
+      if (lastFill > lastStroke) {
+        remove(ref(db, `games/${gameId}/round/fills/${lastFill}`))
+      } else {
+        const gesture = strokes[lastStroke]?.g
+        const keys = gesture
+          ? strokeKeys.filter(key => strokes[key]?.g === gesture)
+          : [lastStroke]
+        Promise.all(keys.map(key => remove(ref(db, `games/${gameId}/round/strokes/${key}`))))
+      }
     } else if (lastFill) {
       remove(ref(db, `games/${gameId}/round/fills/${lastFill}`))
     } else if (lastStroke) {
-      remove(ref(db, `games/${gameId}/round/strokes/${lastStroke}`))
+      const gesture = strokes[lastStroke]?.g
+      const keys = gesture
+        ? strokeKeys.filter(key => strokes[key]?.g === gesture)
+        : [lastStroke]
+      Promise.all(keys.map(key => remove(ref(db, `games/${gameId}/round/strokes/${key}`))))
     }
   }, [strokes, fills, gameId])
 

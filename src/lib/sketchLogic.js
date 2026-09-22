@@ -188,6 +188,12 @@ export function activeGuessers(players, order, artist) {
   return online.length > 0 ? online : guessers
 }
 
+// Presence affects early completion only. Every round participant remains
+// eligible for score resolution after disconnecting.
+export function participantGuessers(order, artist) {
+  return (order || []).filter(id => id !== artist)
+}
+
 // ---- roundDeltas({ guesserIds, correct, artistId, endsAt }) -> { [uid]: pts } --
 // Branches on guesserIds.length:
 //   0 guessers: {} (shouldn't happen; defensive)

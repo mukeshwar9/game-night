@@ -16,6 +16,7 @@ import {
   cyclesFor,
   nextRoundState,
   activeGuessers,
+  participantGuessers,
   roundDeltas,
   deriveWord,
 } from '../lib/sketchLogic'
@@ -80,6 +81,8 @@ function renderBlanks(pattern) {
     .join('   ')
 }
 
+const TIER_LABELS = { 1: 'EASY', 2: 'MEDIUM', 3: 'HARD' }
+
 // ---------------------------------------------------------------------------
 // Scoreboard — every seated player, sorted by score desc.
 // ---------------------------------------------------------------------------
@@ -133,7 +136,8 @@ export default function SketchGame({
   const roundKey = round ? `${round.cycle}:${round.artist}` : null
   const isArtist = !!round && round.artist === mySeat
   const isPlayer = !!mySeat && !!players?.[mySeat]
-  const guesserIds = round ? activeGuessers(players || {}, round.order, round.artist) : []
+  const participantGuesserIds = round ? participantGuessers(round.order, round.artist) : []
+  const activeGuesserIds = round ? activeGuessers(players || {}, round.order, round.artist) : []
   const haveIGuessedCorrectly = !!round?.correct?.[mySeat]
   // Deterministic host-fallback: the coordinator is the lowest-uid ONLINE seat, not
   // the fixed `isHost` — so a host disconnect hands phase-advance duty off instead
@@ -166,6 +170,7 @@ export default function SketchGame({
 
   const pickedRef = useRef(false)                    // this client already picked/auto-picked this round
   const correctSentRef = useRef(false)                // this client already published its own correct guess
+  const draftVersionRef = useRef(0)
   const optionsPublishAttemptRef = useRef(null)       // roundKey we last attempted to publish options for
   const hostActionInFlightRef = useRef(false)         // a host advance transaction is currently pending
   const prevPhaseRef = useRef(round?.phase)
@@ -240,6 +245,7 @@ export default function SketchGame({
     if (nowTs - lastGuessAtRef.current < MIN_GUESS_INTERVAL_MS) return
     const raw = guessInput.trim().slice(0, MAX_GUESS_LEN)
     if (!raw) return
+    const submittedDraftVersion = draftVersionRef.current
     lastGuessAtRef.current = nowTs
     try {
       const isCorrect = r.commitment
@@ -247,13 +253,14 @@ export default function SketchGame({
         : false
       if (isCorrect) {
         correctSentRef.current = true
-        sounds.win()
         await update(ref(db, `games/${gameId}/round/correct`), { [mySeat]: { at: serverTimestamp() } })
       } else {
         await push(ref(db, `games/${gameId}/round/chat`), { uid: mySeat, text: raw })
       }
-      setGuessInput('')
+      if (isCorrect) sounds.win()
+      setGuessInput(current => draftVersionRef.current === submittedDraftVersion ? '' : current)
     } catch {
+      correctSentRef.current = false
       toast.error('GUESS FAILED — CHECK CONNECTION')
     }
   }, [mySeat, guessInput, gameId])
@@ -285,7 +292,7 @@ export default function SketchGame({
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'drawing') return // already advanced
-        const liveGuesserIds = activeGuessers(current.players || {}, r.order || [], r.artist)
+        const liveGuesserIds = participantGuessers(r.order || [], r.artist)
         const deltas = roundDeltas({
           guesserIds: liveGuesserIds,
           correct: r.correct || {},
@@ -431,10 +438,10 @@ export default function SketchGame({
   // ---- Coordinator: drawing -> reveal, automatically, on timeout or all-correct --
   useEffect(() => {
     if (!amCoordinator || !round || round.phase !== 'drawing') return
-    const allCorrect = guesserIds.length > 0 && guesserIds.every(id => round.correct?.[id])
+    const allCorrect = activeGuesserIds.length > 0 && activeGuesserIds.every(id => round.correct?.[id])
     const timedOut = nowMs >= (round.endsAt || 0)
     if (allCorrect || timedOut) advanceDrawingToReveal()
-  }, [amCoordinator, round?.phase, round?.endsAt, round?.correct, guesserIds.join(','), nowMs, advanceDrawingToReveal]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [amCoordinator, round?.phase, round?.endsAt, round?.correct, activeGuesserIds.join(','), nowMs, advanceDrawingToReveal]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Coordinator: reveal -> next round, automatically, on timeout --------------
   useEffect(() => {
@@ -480,6 +487,15 @@ export default function SketchGame({
           <p className="font-pixel text-sm text-retro-p1 text-glow-p1">SKETCH</p>
           <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
             One player draws the secret word.<br />Everyone else races to guess it.
+          </p>
+        </div>
+
+        <div className="bg-retro-surface border border-retro-border rounded p-3 text-left space-y-1">
+          <p className="font-pixel text-[8px] text-retro-dim tracking-widest">HOW SCORING WORKS</p>
+          <p className="font-mono text-[10px] text-retro-text leading-relaxed">
+            2 players: guesser earns 50–100 by speed; artist earns half.<br />
+            3+ players: guessers earn 100, 90, 80… down to 50 by order; artist earns +25 per solve.<br />
+            Word difficulty changes the choice, not the score.
           </p>
         </div>
 
@@ -572,7 +588,7 @@ export default function SketchGame({
   const artistOfflineMs = artistOfflineSince != null ? nowMs - artistOfflineSince : 0
   const showArtistOfflineSkip = amCoordinator && round.phase === 'drawing' && artistOfflineMs >= ARTIST_OFFLINE_DRAWING_MS
 
-  const revealGuesserIds = activeGuessers(players || {}, round.order, round.artist)
+  const revealGuesserIds = participantGuessers(round.order, round.artist)
   const revealDeltas = round.phase === 'reveal'
     ? roundDeltas({
       guesserIds: revealGuesserIds,
@@ -612,7 +628,12 @@ export default function SketchGame({
                     disabled={picking}
                     className="w-full px-3 py-2.5 font-mono text-[13px] rounded border-2 border-retro-border text-retro-text hover:border-retro-p1 hover:shadow-neon-p1 transition-all active:scale-[0.98] disabled:opacity-50"
                   >
-                    {picking && pickingIdx === idx ? 'LOCKING IN…' : (SKETCH_WORDS[idx]?.word || '').toUpperCase()}
+                    {picking && pickingIdx === idx ? 'LOCKING IN…' : (
+                      <span className="flex items-center justify-between gap-3">
+                        <span>{(SKETCH_WORDS[idx]?.word || '').toUpperCase()}</span>
+                        <span className="text-[8px] text-retro-dim">{TIER_LABELS[SKETCH_WORDS[idx]?.tier] || 'WORD'}</span>
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -665,7 +686,10 @@ export default function SketchGame({
               <input
                 type="text"
                 value={guessInput}
-                onChange={e => setGuessInput(e.target.value)}
+                onChange={e => {
+                  draftVersionRef.current += 1
+                  setGuessInput(e.target.value)
+                }}
                 onKeyDown={e => e.key === 'Enter' && runGuess(handleSubmitGuess)}
                 autoFocus
                 maxLength={MAX_GUESS_LEN}
@@ -684,8 +708,17 @@ export default function SketchGame({
 
           {isArtist && (
             <p className="font-pixel text-[9px] text-retro-dim text-center">
-              {Object.keys(round.correct || {}).length}/{guesserIds.length} GUESSED SO FAR
+              {Object.keys(round.correct || {}).length}/{participantGuesserIds.length} GUESSED SO FAR
             </p>
+          )}
+
+          {participantGuesserIds.length > 0 && (
+            <div className="bg-retro-surface border border-retro-border rounded p-2 space-y-1">
+              <p className="font-pixel text-[8px] text-retro-dim tracking-widest">SOLVED PLAYERS</p>
+              <p className="font-mono text-[10px] text-retro-win">
+                {participantGuesserIds.filter(id => round.correct?.[id]).map(id => (players[id]?.name || '???').toUpperCase()).join(' · ') || 'NOBODY YET'}
+              </p>
+            </div>
           )}
 
           <div ref={chatRef} className="max-h-40 overflow-y-auto bg-retro-card border border-retro-border rounded p-2 space-y-1">

@@ -12,6 +12,7 @@ import {
   matchOver,
   nextRoundState,
   activeGuessers,
+  participantGuessers,
   roundDeltas,
   deriveWord,
 } from './sketchLogic'
@@ -251,6 +252,17 @@ describe('activeGuessers', () => {
   })
 })
 
+describe('participantGuessers', () => {
+  it('keeps disconnected participants eligible for scoring', () => {
+    expect(participantGuessers(['artist', 'online', 'offline'], 'artist')).toEqual(['online', 'offline'])
+  })
+
+  it('excludes artist without presence input', () => {
+    expect(participantGuessers(['a', 'b'], 'b')).toEqual(['a'])
+    expect(participantGuessers(null, 'b')).toEqual([])
+  })
+})
+
 // ---------------------------------------------------------------------------
 // roundDeltas — 2-player (1 guesser) time-scaled variant, boundaries
 // ---------------------------------------------------------------------------
@@ -281,6 +293,18 @@ describe('roundDeltas — 2-player (1 guesser)', () => {
 // roundDeltas — 3+ guessers
 // ---------------------------------------------------------------------------
 describe('roundDeltas — 3+ guessers', () => {
+  it('keeps scoring mode and credit when one participant is offline', () => {
+    const guesserIds = participantGuessers(['artist', 'online', 'offline'], 'artist')
+    const deltas = roundDeltas({
+      guesserIds,
+      correct: { offline: { at: 10 } },
+      artistId: 'artist',
+      endsAt: 9999,
+    })
+    expect(deltas.offline).toBe(100)
+    expect(deltas.artist).toBe(25)
+  })
+
   it('ranks by `at` ascending: 100/90/80, artist +25 per correct guesser', () => {
     const correct = { g1: { at: 10 }, g2: { at: 20 }, g3: { at: 30 } }
     const deltas = roundDeltas({ guesserIds: ['g1', 'g2', 'g3'], correct, artistId: 'artist', endsAt: 9999 })
