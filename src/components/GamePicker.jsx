@@ -35,13 +35,17 @@ function readPickerState() {
   }
 }
 
-export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, excludeType, loadingType, layout = 'compact' }) {
+export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, excludeType, loadingType, layout = 'compact', initialType }) {
   const isFull = layout === 'full'
   const defaultCat = isFull ? 'all' : ((excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id)
   const persisted = isFull ? readPickerState() : null
   const [activeCat, setActiveCat] = useState(persisted?.activeCat || defaultCat)
   const [rulesType, setRulesType] = useState(null)
-  const [optionsGame, setOptionsGame] = useState(null)
+  const [optionsGame, setOptionsGame] = useState(() => (
+    isFull && initialType
+      ? GAME_TYPES.find(t => t.type === initialType && !t.variantOf) || null
+      : null
+  ))
   const [variantBase, setVariantBase] = useState(null)
   // Which action VariantChooser's onPick performs — 'friend' (room creation,
   // opened from the sheet's MORE MODES row), 'solo' (VS AI row), or 'local'

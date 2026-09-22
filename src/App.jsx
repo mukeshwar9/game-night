@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
+import Games from './pages/Games';
 import Game from './pages/Game';
 import Demo from './pages/Demo';
 import DailyGame from './pages/DailyGame';
@@ -44,6 +45,7 @@ function AppRoutes() {
         <div className={showTabBar ? 'pb-[var(--app-tabbar-h)]' : undefined}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/games" element={<Games />} />
             <Route path="/online" element={<OnlineLobby />} />
             <Route path="/game/:gameId" element={<Game />} />
             <Route path="/demo" element={<Demo />} />
