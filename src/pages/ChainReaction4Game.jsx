@@ -5,6 +5,7 @@ import { CR_SYMBOLS_4, CR_COLS, CR_ROWS, applyChainReaction4Move } from '../lib/
 import ChainReactionBoard from '../components/ChainReactionBoard'
 import { crSymbolColor } from '../components/crColors'
 import GameSwitcher from '../components/GameSwitcher'
+import ShareResultButton from '../components/ShareResultButton'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -208,6 +209,15 @@ export default function ChainReaction4Game({
               {busy ? 'RESETTING…' : 'NEW MATCH'}
             </button>
           )}
+          <div className="pt-1">
+            <ShareResultButton
+              gameLabel="CHAIN REACTION 4P"
+              headline={winner === mySymbol ? 'YOU WIN!' : `${(seats.find(p => seatSymbols[p.playerId] === winner)?.name ?? winner).toUpperCase()} WINS`}
+              sub={`${SYMBOL_LABEL[winner] || winner} TOOK THE BOARD`}
+              accentVar="--c-cta"
+              url={window.location.href}
+            />
+          </div>
         </div>
       )}
 

@@ -18,6 +18,7 @@ import {
 } from '../lib/wordraceLogic'
 import { sounds } from '../lib/sounds'
 import GameSwitcher from '../components/GameSwitcher'
+import ShareResultButton from '../components/ShareResultButton'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import PixelDots from '../components/loading/PixelDots'
 import useBusy from '../hooks/useBusy'
@@ -417,6 +418,19 @@ export default function WordRaceGame({
           <div className="flex flex-wrap justify-center gap-2 pt-2">
             {!matchWinner && onPlayAgain && !proposal && <button type="button" disabled={actionBusy} onClick={() => handleAction(onPlayAgain)} className="min-h-11 px-5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] disabled:opacity-50">{actionBusy ? 'STARTING…' : 'PLAY AGAIN'}</button>}
             {onNewMatch && !proposal && (matchWinner || !onPlayAgain) && <button type="button" disabled={actionBusy} onClick={() => handleAction(onNewMatch)} className="min-h-11 px-5 rounded border-2 border-retro-border text-retro-text font-pixel text-[10px] disabled:opacity-50">{actionBusy ? 'STARTING…' : 'NEW MATCH'}</button>}
+            <ShareResultButton
+              gameLabel="WORD RACE"
+              headline={(() => {
+                const r = round.result
+                if (!r) return 'WORD RACE'
+                if (r.winner === 'draw') return 'DRAW — BOTH MISSED'
+                if (r.winner === mySymbol) return 'YOU WIN!'
+                return `${game.players?.[r.winner]?.name || r.winner} WINS`
+              })()}
+              sub={`${myDone?.solved ? `YOU ${myDone.guesses}/${MAX_GUESSES}` : 'YOU MISSED'} · ${opponentDone?.solved ? `OPPONENT ${opponentDone.guesses}/${MAX_GUESSES}` : 'OPPONENT MISSED'}`}
+              accentVar={round.result?.winner === mySymbol ? '--c-win' : '--c-p2'}
+              url={window.location.href}
+            />
             {onSwitchGame && !proposal && <GameSwitcher currentType="wordrace" onSwitch={onSwitchGame} />}
           </div>
         </div>

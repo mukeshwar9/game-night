@@ -3,6 +3,7 @@ import { onValue, ref, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import AnagramTiles from '../components/AnagramTiles'
 import GameSwitcher from '../components/GameSwitcher'
+import ShareResultButton from '../components/ShareResultButton'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import PixelDots from '../components/loading/PixelDots'
 import useBusy from '../hooks/useBusy'
@@ -374,6 +375,13 @@ export default function AnagramsGame({
               {actionBusy ? 'STARTING…' : 'NEW MATCH'}
             </button>
           )}
+          <ShareResultButton
+            gameLabel="ANAGRAMS"
+            headline={winnerName}
+            sub={`${result.scoreX} – ${result.scoreO}`}
+            accentVar={result.winner === 'draw' ? '--c-cta' : result.winner === myKey ? '--c-win' : '--c-p2'}
+            url={window.location.href}
+          />
           {!proposal && onSwitchGame && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
         </div>
       </div>

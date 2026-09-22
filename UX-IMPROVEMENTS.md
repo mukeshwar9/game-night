@@ -58,14 +58,14 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-36 | iOS users get no install path | Medium | Quick Win | ✅ Done |
 | F-37 | Two undersized tap targets | Low | Quick Win | ✅ Done |
 | F-38 | Keyboard-over-content on Home | Low | — | ✅ Done (via F-01) |
-| F-39 | Arcade splash doesn't pitch the product | High | Quick Win | Open |
-| F-40 | Demo hub tiles mislabeled ("2P" on vs-CPU demos, mid-word breaks) | High | Quick Win | Open |
-| F-41 | Demo hub vs Home tell different stories (counts, framing) | Medium | Quick Win | Open |
+| F-39 | Arcade splash doesn't pitch the product | High | Quick Win | ✅ Done |
+| F-40 | Demo hub tiles mislabeled ("2P" on vs-CPU demos, mid-word breaks) | High | Quick Win | ✅ Done |
+| F-41 | Demo hub vs Home tell different stories (counts, framing) | Medium | Quick Win | ✅ Done |
 | F-42 | Hidden-info rooms give joiners no anticipation copy | Medium-High | Medium Effort | Open |
-| F-43 | Rules unreachable inside a room before start | Medium | Quick Win | Open |
+| F-43 | Rules unreachable inside a room before start | Medium | Quick Win | ✅ Done |
 | F-44 | Multi-act moments under-weighted (extra turn / hit again) | Medium | Medium Effort | Open |
 | F-45 | No curated START HERE path at 44 tiles | Low-Medium | Medium Effort | Open |
-| F-46 | Share cards not standardized across all end screens | Low | Quick Win | Open |
+| F-46 | Share cards not standardized across all end screens | Low | Quick Win | ✅ Done |
 
 ---
 
@@ -712,6 +712,8 @@ buried behind the exact action we're asking for.
 **Impact:** Landing page converts curiosity → play without requiring trust
 first.
 
+
+**Status: ✅ Implemented (Sep 2026).** Pitch line `{N} GAMES · SHARE A LINK · NO ACCOUNT` added to the welcome (coin) screen in `Onboarding.jsx`, derived from `GAME_TYPES` (non-variant count, same formula as Home) so it can't rot.
 ### F-40 · High · Quick Win — Demo hub tiles mislabeled
 
 **Where:** `src/pages/Demo.jsx` DEMOS array + tile renderer. Every tile shows
@@ -728,6 +730,8 @@ font.
 
 **Impact:** Kills the biggest "this looks unfinished" surface.
 
+
+**Status: ✅ Implemented (Sep 2026).** Demo tiles now render `VS CPU` (party tiles keep an honest `2+ PLAYERS` since they still dead-end per F-02) instead of the registry player tag; shorts fixed — `CHECKERS` and `SANTORINI` single-line, `ARTIL-LERY` hyphenated.
 ### F-41 · Medium · Quick Win — Demo hub vs Home tell different stories
 
 **Where:** Demo category tabs show different counts than Home ("BOARD ·17" vs
@@ -742,6 +746,8 @@ add a "PRACTICE MODE" caption linking back to full catalog.
 
 **Impact:** One coherent story across surfaces.
 
+
+**Status: ✅ Implemented (Sep 2026).** Header reads `PRACTICE · VS CPU` with a `FULL CATALOG →` cross-link; variant tiles (7 `variantOf` entries) are hidden from the hub grid and tab counts exactly as Home hides them, so both surfaces now count from the same visibility rule. Deep links to `/solo/:variant` still work — variants stay in the DEMOS routing list.
 ### F-42 · Medium-High · Medium Effort — Hidden-info rooms give joiners no anticipation copy
 
 **Where:** Battleship/Hangwoman waiting rooms show generic waiting UI. What
@@ -766,6 +772,8 @@ one confused player stalls everyone.
 
 **Impact:** Fewer stalled rooms; party games self-onboard.
 
+
+**Status: ✅ Already satisfied (found while picking this up, Sep 2026).** `RulesButton` sits in the header of both `Game.jsx` layout branches (custom/realtime at ~1472, standard at ~1622) and renders at every status including `waiting`, with `RulesModal` wired via `showRules`. The finding predates the header consolidation and was stale — no code change needed.
 ### F-44 · Medium · Medium Effort — Multi-act moments are under-weighted
 
 **Where:** Mancala extra turn ("GO AGAIN" toast) and Battleship hit-again
@@ -801,6 +809,8 @@ NEXT · SWITCH GAME.
 
 **Impact:** Every match end becomes a growth loop.
 
+
+**Status: ✅ Implemented (Sep 2026) for multiplayer end screens.** New shared `ShareResultButton` (`src/components/ShareResultButton.jsx`, GameStatus-styled, busy-convention compliant) wired into the six bespoke end screens that lacked a share card: Anagrams reveal, Hangwoman match-over, Password match-over, Word Co-OP result, Word Race reveal, Chain Reaction 4P match-over. Standard `GameStatus`-driven games, Word Duel, Daily, and the party pages already had one. Two deliberate exclusions: `/demo` practice pages (local vs-CPU results — low share value, noted as a possible follow-up) and `EmojiLab` (toy, no competitive result).
 ### Round 2 watch items
 
 - Mute state persistence across reloads — verify once.

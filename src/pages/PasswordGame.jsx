@@ -6,6 +6,7 @@ import { sounds } from '../lib/sounds'
 import useBusy from '../hooks/useBusy'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import GameSwitcher from '../components/GameSwitcher'
+import ShareResultButton from '../components/ShareResultButton'
 import PasswordCard from '../components/PasswordCard'
 import { PASSWORD_DECK } from '../lib/decks/password'
 import { INTRO_MS, MAX_CLUES, guessSecondsForClueNumber } from '../lib/passwordLogic'
@@ -212,6 +213,13 @@ export default function PasswordGame({
           {!proposal && onNewMatch && (
             <ActionButton onClick={onNewMatch}>NEW MATCH</ActionButton>
           )}
+          <ShareResultButton
+            gameLabel="PASSWORD"
+            headline={draw ? 'DRAW!' : won ? 'YOU WIN!' : `${game.players?.[matchWinner]?.name || matchWinner} WINS`}
+            sub={`${game.scores?.X || 0} – ${game.scores?.O || 0}`}
+            accentVar={won ? '--c-win' : draw ? '--c-cta' : '--c-p2'}
+            url={window.location.href}
+          />
         </div>
         {!proposal && onSwitchGame && <GameSwitcher currentType="password" onSwitch={onSwitchGame} />}
       </div>

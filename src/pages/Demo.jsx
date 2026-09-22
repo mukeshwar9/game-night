@@ -44,7 +44,7 @@ import useBusy from '../hooks/useBusy'
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
-import { getGameConfig, freshGameState, GAME_CATEGORIES, getPlayerTag, supportsLocalPlay } from '../lib/games'
+import { getGameConfig, freshGameState, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { recordPlay } from '../lib/analytics'
 import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
@@ -2282,14 +2282,14 @@ const DEMOS = [
   { type: 'kamisado',      short: 'KAMISADO',       Icon: KamisadoIcon,       Component: () => <BotBoardDemo type="kamisado" /> },
   { type: 'onitama',       short: 'ONITAMA',        Icon: OnitamaIcon,        Component: () => <BotBoardDemo type="onitama" /> },
   { type: 'quarto',        short: 'QUARTO',         Icon: QuartoIcon,         Component: () => <BotBoardDemo type="quarto" /> },
-  { type: 'santorini',     short: 'SANTO\nRINI',    Icon: SantoriniIcon,      Component: () => <BotBoardDemo type="santorini" /> },
+  { type: 'santorini',     short: 'SANTORINI',      Icon: SantoriniIcon,      Component: () => <BotBoardDemo type="santorini" /> },
   { type: 'loa',           short: 'LINES OF\nACTION', Icon: LoaIcon,          Component: () => <BotBoardDemo type="loa" /> },
   { type: 'yavalath',      short: 'YAVALATH',       Icon: YavalathIcon,       Component: () => <BotBoardDemo type="yavalath" /> },
   { type: 'battleship',    short: 'BATTLE\nSHIP',   Icon: BattleshipIcon,     Component: BattleshipDemo },
   { type: 'mancala',       short: 'MANCALA',        Icon: MancalaIcon,        Component: MancalaDemo },
-  { type: 'checkers',      short: 'CHECK\nERS',     Icon: CheckersIcon,       Component: CheckersDemo },
+  { type: 'checkers',      short: 'CHECKERS',       Icon: CheckersIcon,       Component: CheckersDemo },
   { type: 'airhockey',     short: 'AIR\nHOCKEY',    Icon: AirHockeyIcon,      Component: AirHockeyDemo },
-  { type: 'artillery',     short: 'ARTIL\nLERY',    Icon: ArtilleryIcon,      Component: ArtilleryDemo },
+  { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
@@ -2440,21 +2440,32 @@ function DemoHub() {
     if (!(selected in PARTY_BLURB)) recordPlay(selected, 'solo')
   }, [selected])
 
+  // F-41: match Home's catalog story — variants are hidden behind the base
+  // game's "+MODES" there, so the practice hub hides variant tiles too (deep
+  // links to /solo/:variant still work; they stay in DEMOS for routing).
+  const visibleDemos = DEMOS.filter(d => !getGameConfig(d.type)?.variantOf)
   const demoCounts = {}
-  for (const d of DEMOS) {
+  for (const d of visibleDemos) {
     const cat = getGameConfig(d.type)?.category
     if (cat) demoCounts[cat] = (demoCounts[cat] || 0) + 1
   }
   const demoCategories = GAME_CATEGORIES.map(c => ({ ...c, count: demoCounts[c.id] || 0 })).filter(c => c.count > 0)
-  const shown = DEMOS.filter(d => getGameConfig(d.type)?.category === activeCat)
+  const shown = visibleDemos.filter(d => getGameConfig(d.type)?.category === activeCat)
 
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {/* Header */}
-        <div className="flex items-center justify-end">
+        {/* Header — F-41: tell the same story as Home ("Demo" said nothing
+            about what the page is); caption cross-links the full catalog. */}
+        <div className="flex items-center justify-between">
+          <Link
+            to="/"
+            className="text-xs text-retro-dim hover:text-retro-p1 transition-colors font-mono"
+          >
+            FULL CATALOG →
+          </Link>
           <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">
-            Demo
+            PRACTICE · VS CPU
           </span>
         </div>
 
@@ -2475,7 +2486,7 @@ function DemoHub() {
               >
                 <Icon />
                 <span className="font-pixel text-[7px] text-center leading-tight whitespace-pre-line">{short}</span>
-                <span className="font-pixel text-[6px] text-retro-dim/70">{getPlayerTag(getGameConfig(type))}</span>
+                <span className="font-pixel text-[6px] text-retro-dim/70">{type in PARTY_BLURB ? '2+ PLAYERS' : 'VS CPU'}</span>
               </button>
             ))}
           </div>

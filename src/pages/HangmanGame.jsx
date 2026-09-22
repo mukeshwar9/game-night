@@ -15,6 +15,7 @@ import WinEffect from '../components/WinEffect'
 import RoseFall from '../components/RoseFall'
 import Gravestone from '../components/Gravestone'
 import GameSwitcher from '../components/GameSwitcher'
+import ShareResultButton from '../components/ShareResultButton'
 import { sounds } from '../lib/sounds'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -540,6 +541,13 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
             NEW MATCH
           </button>
         )}
+        <ShareResultButton
+          gameLabel="HANGWOMAN"
+          headline={iWon ? 'YOU WIN!' : `${winnerName} WINS`}
+          sub={`${scoreX} – ${scoreO}`}
+          accentVar={iWon ? '--c-cta' : '--c-p2'}
+          url={window.location.href}
+        />
         {!isSpectator && onSwitchGame && !proposal && (
           <GameSwitcher currentType="hangwoman" onSwitch={onSwitchGame} />
         )}

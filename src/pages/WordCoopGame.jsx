@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
+import ShareResultButton from '../components/ShareResultButton'
 
 const KEY_ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
@@ -391,6 +392,13 @@ export default function WordCoopGame({
                 disabled={newMatchBusy || !onNewMatch}
                 className="min-h-11 px-4 py-2.5 rounded border-2 border-retro-border text-retro-text font-pixel text-[10px] hover:border-retro-p1/60 disabled:opacity-50"
               >{newMatchBusy ? 'RESETTING…' : 'NEW MATCH'}</button>
+              <ShareResultButton
+                gameLabel="WORD CO-OP"
+                headline={result?.outcome === 'win' ? 'SOLVED TOGETHER!' : 'WORD ESCAPED'}
+                sub={result?.outcome === 'win' ? `SOLVED IN ${guesses.length}/${MAX_GUESSES} GUESSES` : undefined}
+                accentVar={result?.outcome === 'win' ? '--c-win' : '--c-cta'}
+                url={window.location.href}
+              />
               {onSwitchGame && <GameSwitcher currentType="wordcoop" onSwitch={onSwitchGame} />}
             </div>
           )}
