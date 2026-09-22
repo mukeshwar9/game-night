@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import AvatarCustomizer from './AvatarCustomizer'
+import AuthErrorBanner from './AuthErrorBanner'
 import { defaultAvatarForId, canonicalAvatar } from '../lib/avatars'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { GAME_TYPES } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
-import { UPGRADE_ERRORS, consumePendingAuthToast } from '../lib/auth'
+import { UPGRADE_ERRORS } from '../lib/auth'
 import { configError } from '../lib/firebase'
 import { markOnboarded } from '../lib/onboarding'
 import { sounds } from '../lib/sounds'
@@ -22,19 +23,6 @@ export default function Onboarding({ onDone }) {
   const [nameTouched, setNameTouched] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [avatar, setAvatar] = useState(null)
-
-  // M-07: redirect-based Google sign-in (mobile/standalone PWA fallback)
-  // completes on a full page reload — before <Toaster/> is mounted — so
-  // auth.js stashes the outcome instead of toasting directly. Surface it
-  // once this screen has actually mounted (Onboarding re-renders here since
-  // the redirect returns to whichever page started it, and onboarding isn't
-  // marked done until `finish()`).
-  useEffect(() => {
-    const pending = consumePendingAuthToast()
-    if (!pending) return
-    if (pending.type === 'success') toast.success(pending.message)
-    else toast.error(pending.message)
-  }, [])
 
   // Derived avatar — no sync effect: respects whatever ensureProfile seeded.
   const selectedAvatar = avatar || profile?.avatar || defaultAvatarForId(getPlayerId())
@@ -53,7 +41,10 @@ export default function Onboarding({ onDone }) {
     setBusy(true)
     try {
       const u = await upgrade()
-      if (u === null) return  // popup cancelled — stay silently
+      // undefined = a redirect was kicked off (mobile/standalone PWA) — the page
+      // is navigating away, so don't advance the step. null = the popup was
+      // cancelled. Either way, stay put and stay silent.
+      if (!u) return
       sounds.join()
       setStep('identity')
     } catch (e) {
@@ -90,6 +81,7 @@ export default function Onboarding({ onDone }) {
     <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-4">
       {step === 'welcome' && (
         <div key="welcome" className="w-full max-w-xs space-y-8 text-center" style={{ animation: 'place-pop 0.25s ease-out' }}>
+          <AuthErrorBanner />
           {/* Logo — mirrors Home.jsx logo block */}
           <div className="space-y-3">
             <div className="mx-auto w-14 h-14 border-2 border-retro-cta bg-retro-tint-cta rounded flex items-center justify-center shadow-neon-cta">

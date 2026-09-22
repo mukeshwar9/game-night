@@ -63,6 +63,37 @@ async function resolveUpgradeError(e) {
 let pendingAuthToast = null
 
 const SIGNED_IN_MESSAGE = 'SIGNED IN — YOUR PROFILE IS NOW SAVED ACROSS DEVICES!'
+// Shown when we know a redirect was kicked off but the app came back with no
+// result AND no error (the silent failure mode — see consumeRedirectResult).
+const REDIRECT_INCOMPLETE_MESSAGE =
+  "SIGN-IN DIDN'T COMPLETE — TRY AGAIN, OR OPEN THIS SITE IN YOUR REGULAR BROWSER (NOT AN IN-APP OR INSTALLED VIEW)."
+
+// sessionStorage marker set just before we navigate away to Google. On the way
+// back, its presence is the ONLY way to tell "a redirect was in flight" apart
+// from "an ordinary page load" — getRedirectResult() resolves null in both the
+// success-after-storage-was-blocked case and the never-returned case, with no
+// error to catch. It also survives into the next app open in standalone PWAs
+// whose OAuth lands in a different browsing context, so the user still gets a
+// signal there. Tolerates storage being unavailable (private mode).
+const REDIRECT_PENDING_KEY = 'auth-redirect-pending'
+
+function markRedirectPending() {
+  try { sessionStorage.setItem(REDIRECT_PENDING_KEY, '1') } catch { /* storage unavailable */ }
+}
+
+function clearRedirectPending() {
+  try { sessionStorage.removeItem(REDIRECT_PENDING_KEY) } catch { /* storage unavailable */ }
+}
+
+function takeRedirectPending() {
+  try {
+    const pending = sessionStorage.getItem(REDIRECT_PENDING_KEY) === '1'
+    sessionStorage.removeItem(REDIRECT_PENDING_KEY)
+    return pending
+  } catch {
+    return false
+  }
+}
 
 // Completes a pending signInWithRedirect/linkWithRedirect from a previous
 // upgrade() call (see shouldUseRedirect()). The page fully reloaded after the
@@ -73,13 +104,28 @@ const SIGNED_IN_MESSAGE = 'SIGNED IN — YOUR PROFILE IS NOW SAVED ACROSS DEVICE
 // No-ops if no redirect was pending.
 async function consumeRedirectResult() {
   if (!auth) return
+  const attempted = takeRedirectPending()
   try {
     const result = await getRedirectResult(auth)
-    if (result?.user) pendingAuthToast = { type: 'success', message: SIGNED_IN_MESSAGE }
+    if (result?.user) {
+      pendingAuthToast = { type: 'success', message: SIGNED_IN_MESSAGE }
+      return
+    }
+    // No result and no error. If a redirect WAS in flight, either it silently
+    // failed (third-party storage blocked, PWA/ in-app browser lost the result)
+    // or the session was restored as a real account anyway — distinguish by
+    // whether we still have an anonymous user.
+    if (attempted) {
+      const current = auth.currentUser
+      pendingAuthToast = current && !current.isAnonymous
+        ? { type: 'success', message: SIGNED_IN_MESSAGE }
+        : { type: 'error', message: REDIRECT_INCOMPLETE_MESSAGE }
+    }
   } catch (e) {
     try {
       const user = await resolveUpgradeError(e)
       if (user) pendingAuthToast = { type: 'success', message: SIGNED_IN_MESSAGE }
+      else if (attempted) pendingAuthToast = { type: 'error', message: REDIRECT_INCOMPLETE_MESSAGE }
     } catch (e2) {
       console.error('Google redirect sign-in failed:', e2)
       pendingAuthToast = {
@@ -100,6 +146,18 @@ export function consumePendingAuthToast() {
   const t = pendingAuthToast
   pendingAuthToast = null
   return t
+}
+
+// Same value as consumePendingAuthToast() but WITHOUT clearing it, so a
+// component can render the outcome on its first paint and then clear it from
+// an effect (firing the toast there). Keeping the read side-effect-free lets
+// React's StrictMode double-render return the same value both times.
+export function peekPendingAuthToast() {
+  return pendingAuthToast
+}
+
+export function clearPendingAuthToast() {
+  pendingAuthToast = null
 }
 
 let readyPromise = null
@@ -155,8 +213,15 @@ export async function upgradeWithGoogle() {
   const provider = new GoogleAuthProvider()
   const current = auth.currentUser
   if (shouldUseRedirect()) {
-    if (current?.isAnonymous) await linkWithRedirect(current, provider)
-    else await signInWithRedirect(auth, provider)
+    markRedirectPending()
+    try {
+      if (current?.isAnonymous) await linkWithRedirect(current, provider)
+      else await signInWithRedirect(auth, provider)
+    } catch (e) {
+      // Never navigated — don't leave a marker behind to misfire on next boot.
+      clearRedirectPending()
+      throw e
+    }
     return undefined
   }
   try {

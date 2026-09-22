@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
 import AvatarCustomizer from '../components/AvatarCustomizer'
+import AuthErrorBanner from '../components/AuthErrorBanner'
 import EmptyState from '../components/EmptyState'
 import { canonicalAvatar } from '../lib/avatars'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { getStats, getMatches } from '../lib/profile'
 import { getGameConfig } from '../lib/games'
-import { UPGRADE_ERRORS, consumePendingAuthToast } from '../lib/auth'
+import { UPGRADE_ERRORS } from '../lib/auth'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 
@@ -37,17 +38,6 @@ export default function Profile() {
     setPrevSavedAvatar(savedAvatar)
     if (!avatarDraftDirty) setAvatarDraft(savedAvatar)
   }
-
-  // M-07: a redirect-based Google sign-in (mobile/standalone PWA fallback)
-  // completes on a full page reload, before <Toaster/> is mounted — auth.js
-  // stashes the outcome instead of toasting directly. Surface it here, once
-  // this page has actually mounted (Toaster is guaranteed up by then).
-  useEffect(() => {
-    const pending = consumePendingAuthToast()
-    if (!pending) return
-    if (pending.type === 'success') toast.success(pending.message)
-    else toast.error(pending.message)
-  }, [])
 
   const nameValue = nameEdit ?? profile?.displayName ?? ''
   const dirty = nameEdit !== null && nameEdit.trim() && nameEdit.trim() !== profile?.displayName
@@ -148,6 +138,8 @@ export default function Profile() {
       <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-sm mx-auto space-y-6 pt-2">
         <h1 className="font-pixel text-base text-retro-cta text-glow-cta">PROFILE</h1>
+
+        <AuthErrorBanner />
 
         {/* Identity card */}
         <div className="bg-retro-card border border-retro-border rounded p-4 flex items-center gap-4">
