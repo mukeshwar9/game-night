@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { ref, runTransaction } from 'firebase/database'
 import { cn } from '@/lib/utils'
+import { db } from '../lib/firebase'
+import { serverNow } from '../lib/serverClock'
+import useTurnDeadlineEnforcer from '../hooks/useTurnDeadlineEnforcer'
 import { PAIRS_SIZE, PAIRS_TOTAL_PAIRS } from '../lib/pairsLogic'
 import {
   pairsFaceColor, pairsFaceGlyph, pairsFaceName, pairsCellPosition,
@@ -13,6 +18,10 @@ import {
 const MISMATCH_REVEAL_MS = 1500
 // How long a freshly claimed pair plays its pop + ring burst.
 const MATCH_POP_MS = 650
+// Idle window per flip before the waiting player can claim the round, and when the
+// countdown starts showing on the board.
+const TURN_DEADLINE_MS = 45000
+const DEADLINE_WARN_MS = 10000
 
 // Card-back emblem: a 4-pixel diamond on a knocked-out plate, in the theme's CTA colour
 // so the back recolours with the theme (no hex, per CLAUDE.md).
@@ -54,10 +63,15 @@ function cellLabel({ index, face, owner, held, mismatched }) {
   if (owner) return `${where}: ${name}, claimed by ${owner}`
   if (held) return `${where}: ${name}, first pick`
   if (mismatched) return `${where}: ${name}, no match`
+  if (face) return `${where}: ${name}, unclaimed`
   return `${where}: face down`
 }
 
-export default function PairsBoard({ board, deck, flipped, onMove, disabled, currentTurn }) {
+export default function PairsBoard({
+  board, deck, flipped, onMove, disabled, currentTurn, finished = false, pairsDeadline = null,
+}) {
+  const { gameId } = useParams() // present under /game/:gameId; undefined in demo/solo — deadline writes no-op there
+  useTurnDeadlineEnforcer(gameId, 'pairs', 'pairsDeadline')
   const flippedList = flipped || []
   const xPairs = board.filter(c => c === 'X').length / 2
   const oPairs = board.filter(c => c === 'O').length / 2
@@ -108,6 +122,24 @@ export default function PairsBoard({ board, deck, flipped, onMove, disabled, cur
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the mismatch pair itself
   }, [mismatchKey])
 
+  // Arm the idle deadline on the mover's own client once it is genuinely their flip
+  // (every move clears it, see games.js), so a player who stays connected but walks
+  // away can't stall the room forever. Only the first writer wins the transaction.
+  const turnKey = `${currentTurn}|${flippedList.join(',')}|${boardKey}`
+  useEffect(() => {
+    if (!gameId || disabled || finished) return
+    runTransaction(ref(db, `games/${gameId}/pairsDeadline`), cur => cur ?? (serverNow() + TURN_DEADLINE_MS)).catch(() => {})
+  }, [gameId, disabled, finished, turnKey])
+
+  const [now, setNow] = useState(() => serverNow())
+  useEffect(() => {
+    if (!pairsDeadline || finished) return undefined
+    const t = setInterval(() => setNow(serverNow()), 500)
+    return () => clearInterval(t)
+  }, [pairsDeadline, finished])
+  const msLeft = pairsDeadline && !finished ? pairsDeadline - now : null
+  const showCountdown = msLeft !== null && msLeft <= DEADLINE_WARN_MS
+
   const cells = []
   for (let i = 0; i < board.length; i++) {
     const owner = board[i]
@@ -115,7 +147,9 @@ export default function PairsBoard({ board, deck, flipped, onMove, disabled, cur
     const isHeldFirstPick = flippedList.length === 1 && i === flippedList[0]
     const isLeftoverMismatch = flippedList.length === 2 && flippedList.includes(i)
     const mismatchRevealed = isLeftoverMismatch && !mismatchHidden
-    const faceUp = claimed || isHeldFirstPick || mismatchRevealed
+    // Once the round is decided, the cards nobody claimed turn over too.
+    const leftoverReveal = finished && !claimed
+    const faceUp = claimed || isHeldFirstPick || mismatchRevealed || leftoverReveal
     // Only a currently-held single first pick blocks a re-tap of itself (matches
     // applyPairsMove's contract) — a leftover mismatch cell, revealed or hidden, is
     // always tappable again as the next turn's fresh first flip.
@@ -166,6 +200,7 @@ export default function PairsBoard({ board, deck, flipped, onMove, disabled, cur
             className={cn(
               'pairs-card-face absolute inset-0 flex items-center justify-center rounded-md',
               claimed && 'is-claimed',
+              leftoverReveal && 'opacity-60',
             )}
             style={{
               backfaceVisibility: 'hidden',
@@ -250,6 +285,11 @@ export default function PairsBoard({ board, deck, flipped, onMove, disabled, cur
       <p className="mt-1 text-center font-pixel text-[8px] text-retro-dim">
         {pairsLeft} {pairsLeft === 1 ? 'PAIR' : 'PAIRS'} LEFT
       </p>
+      {showCountdown && (
+        <p className="mt-1 text-center font-pixel text-[9px] text-retro-danger" role="timer">
+          {disabled ? `${currentTurn} MUST FLIP` : 'FLIP A CARD'} — {Math.max(0, Math.ceil(msLeft / 1000))}s
+        </p>
+      )}
       <p className="sr-only" aria-live="polite">{announcement}</p>
     </div>
   )

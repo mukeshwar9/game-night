@@ -1279,6 +1279,7 @@ export const GAME_TYPES = [
           // GO AGAIN! is for a match only — a first flip also keeps the turn, but that
           // is just the middle of a turn, not a bonus one.
           extraTurn: applied.matched ? true : null,
+          pairsDeadline: null, // every flip restarts the mover's idle window
         },
         result: getPairsWinner(applied.board),
       }
@@ -1286,6 +1287,8 @@ export const GAME_TYPES = [
     boardProps: (game) => ({
       deck: normalizePairsDeck(game.pairsDeck),
       flipped: normalizePairsFlipped(game.pairsFlipped),
+      finished: game.status === 'finished',
+      pairsDeadline: game.pairsDeadline ?? null,
     }),
   },
   {
@@ -1437,7 +1440,7 @@ const FIELD_NULLS = {
   blockadePawnX: null, blockadePawnO: null,
   blockadeWallsX: null, blockadeWallsO: null,
   blockadeMoves: null,
-  pairsDeck: null, pairsFlipped: null,
+  pairsDeck: null, pairsFlipped: null, pairsDeadline: null,
   mancalaPits: null, mancalaLast: null,
   airhockeyScoreX: null, airhockeyScoreO: null,
   artillerySeed: null, artilleryShots: null,
