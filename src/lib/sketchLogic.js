@@ -9,6 +9,7 @@
 //     matchSeed:   number | string,      // changes every new match so first options don't repeat
 //     options:     [number, number, number] | null,  // 3 deck indices; null until artist publishes
 //     commitment:  { hash, salt } | null,             // set when artist picks a word
+//     accept:      [sha256(matchKey(variant) + salt)] | null, // every accepted guess form
 //     wordPattern: string,               // e.g. "5" or "3 3"; '' until artist picks
 //     endsAt:      epoch-ms,             // current phase's deadline
 //     strokes:     { [pushId]: { c, w, p } },         // artist-only writes
@@ -28,6 +29,9 @@
 export { seatOrder, hashString, seededShuffle } from './fibbageLogic'
 import { seededShuffle } from './fibbageLogic'
 import { verifyReveal } from './commit'
+import { sha256hex } from './sha256'
+import { matchKey, normalizeText, editDistance, isCloseMatch } from './textMatchLogic'
+import { isBannedWord } from './wordDenylist'
 
 // ---- Tunable constants -----------------------------------------------------
 export const CHOOSE_MS = 15000
@@ -166,6 +170,7 @@ export function nextRoundState(round) {
       matchSeed,
       options: null,
       commitment: null,
+      accept: null,
       wordPattern: '',
       strokes: null,
       fills: null,
@@ -245,4 +250,61 @@ export async function deriveWord(deckWords, options, commitment) {
     if (await verifyReveal(commitment.hash, normalize(word), commitment.salt)) return word
   }
   return null
+}
+
+// ---- Guess matching -----------------------------------------------------------
+// A guess is right when its matchKey (textMatchLogic: case, accents,
+// punctuation, a leading article, plurals, spaces/hyphens and "&" all fold)
+// equals the key of the word or of one of its listed `alts`
+// ("taking a bath" also takes "bath"/"bathing"). The word is hidden behind a
+// hash, so at pick time the artist publishes one salted hash per accepted key
+// (`accept`) and guessers compare the hash of their own guess's key.
+//
+// Near misses — one edit from an accepted form (keys of CLOSE_MIN_KEY_LENGTH+
+// letters), or textMatchLogic.isCloseMatch — earn a private "CLOSE!" hint and
+// never go to the public chat, so one player's "cats" no longer hands everyone
+// else "cat".
+export const CLOSE_MIN_KEY_LENGTH = 4
+
+/** Every word form a round accepts: the word plus its alts, as match keys. */
+export function acceptedKeys(entry) {
+  const forms = [entry?.word, ...(Array.isArray(entry?.alts) ? entry.alts : [])]
+  return [...new Set(forms.map(f => matchKey(f)).filter(Boolean))]
+}
+
+/** Plain-text check (the artist's side, tests, demos). */
+export function isAcceptedGuess(guess, entry) {
+  const key = matchKey(guess)
+  return !!key && acceptedKeys(entry).includes(key)
+}
+
+/** Wrong, but close enough for a private hint. */
+export function isNearMiss(guess, entry) {
+  const key = matchKey(guess)
+  if (!key || isAcceptedGuess(guess, entry)) return false
+  const forms = [entry?.word, ...(Array.isArray(entry?.alts) ? entry.alts : [])].filter(Boolean)
+  return forms.some(form => {
+    if (isCloseMatch(guess, form)) return true
+    const formKey = matchKey(form)
+    return formKey.length >= CLOSE_MIN_KEY_LENGTH && editDistance(key, formKey, 1) <= 1
+  })
+}
+
+/** Salted hashes of every accepted key — published by the artist at pick time. */
+export async function acceptHashes(entry, salt) {
+  return Promise.all(acceptedKeys(entry).map(key => sha256hex(key + salt)))
+}
+
+/** Guesser's side: does this guess's key hash into the published set? */
+export async function guessMatchesAccept(guess, accept, salt) {
+  const key = matchKey(guess)
+  if (!key || !Array.isArray(accept) || accept.length === 0 || salt == null) return false
+  return accept.includes(await sha256hex(key + salt))
+}
+
+/** Slurs and unambiguous vulgarity never reach the public guess chat. */
+export function isBannedGuess(text) {
+  const norm = normalizeText(text)
+  if (!norm) return false
+  return norm.split(' ').some(isBannedWord) || isBannedWord(norm.replace(/ /g, ''))
 }

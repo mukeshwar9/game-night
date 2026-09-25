@@ -15,7 +15,13 @@ import {
   participantGuessers,
   roundDeltas,
   deriveWord,
+  acceptedKeys,
+  isAcceptedGuess,
+  isNearMiss,
+  acceptHashes,
+  guessMatchesAccept,
 } from './sketchLogic'
+import { SKETCH_WORDS } from './decks/sketch'
 
 // ---------------------------------------------------------------------------
 // normalize
@@ -222,6 +228,7 @@ describe('nextRoundState', () => {
     expect(result.round.matchSeed).toBe('seed1')
     expect(result.round.options).toBeNull()
     expect(result.round.commitment).toBeNull()
+    expect(result.round.accept).toBeNull()
     expect(result.round.wordPattern).toBe('')
     expect(result.round.scored).toBe(false)
   })
@@ -362,5 +369,65 @@ describe('deriveWord', () => {
     const { hash, salt } = await commit(normalize('elephant'))
     const word = await deriveWord(deck, [0, 1, 2], { hash, salt })
     expect(word).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Guess matching — plural/space/hyphen folding, listed alts, near misses
+// ---------------------------------------------------------------------------
+describe('guess matching', () => {
+  const deckEntry = word => {
+    const entry = SKETCH_WORDS.find(e => e.word === word)
+    if (!entry) throw new Error(`deck is missing "${word}"`)
+    return entry
+  }
+
+  it('regression: plural, spacing and hyphen variants are accepted', () => {
+    // Previously exact-match only: all of these were wrong answers.
+    expect(normalize('cats')).not.toBe(normalize('cat'))
+    expect(isAcceptedGuess('cats', deckEntry('cat'))).toBe(true)
+    expect(isAcceptedGuess('icecream', deckEntry('ice cream'))).toBe(true)
+    expect(isAcceptedGuess('Ice-Cream', deckEntry('ice cream'))).toBe(true)
+    expect(isAcceptedGuess('yo yo', deckEntry('yo-yo'))).toBe(true)
+    expect(isAcceptedGuess('yoyo', deckEntry('yo-yo'))).toBe(true)
+    expect(isAcceptedGuess('glass', deckEntry('glasses'))).toBe(true)
+    expect(isAcceptedGuess('the cat', deckEntry('cat'))).toBe(true)
+  })
+
+  it('regression: the core noun of a phrase is accepted via alts', () => {
+    const bath = deckEntry('taking a bath')
+    expect(isAcceptedGuess('bath', bath)).toBe(true)
+    expect(isAcceptedGuess('bathing', bath)).toBe(true)
+    expect(isAcceptedGuess('Taking a bath!', bath)).toBe(true)
+    expect(acceptedKeys(bath)).toContain('bath')
+  })
+
+  it('wrong answers stay wrong', () => {
+    expect(isAcceptedGuess('dog', deckEntry('cat'))).toBe(false)
+    expect(isAcceptedGuess('car', deckEntry('cat'))).toBe(false)
+    expect(isAcceptedGuess('', deckEntry('cat'))).toBe(false)
+    expect(isAcceptedGuess('shower', deckEntry('taking a bath'))).toBe(false)
+  })
+
+  it('near misses: one edit from an accepted form, never for accepted or far guesses', () => {
+    expect(isNearMiss('elephent', deckEntry('elephant'))).toBe(true)
+    expect(isNearMiss('bathe', deckEntry('taking a bath'))).toBe(true)
+    expect(isNearMiss('umbrela', deckEntry('umbrella'))).toBe(true)
+    expect(isNearMiss('cats', deckEntry('cat'))).toBe(false) // accepted, not "close"
+    expect(isNearMiss('giraffe', deckEntry('elephant'))).toBe(false)
+    // short keys (< CLOSE_MIN_KEY_LENGTH) only match exactly — "car" is not "close" to "cat"
+    expect(isNearMiss('car', deckEntry('cat'))).toBe(false)
+  })
+
+  it('hashed accept set matches exactly the accepted keys', async () => {
+    const entry = deckEntry('taking a bath')
+    const { salt } = await commit(normalize(entry.word))
+    const accept = await acceptHashes(entry, salt)
+    expect(accept).toHaveLength(acceptedKeys(entry).length)
+    expect(await guessMatchesAccept('bath', accept, salt)).toBe(true)
+    expect(await guessMatchesAccept('Taking-a-Bath', accept, salt)).toBe(true)
+    expect(await guessMatchesAccept('shower', accept, salt)).toBe(false)
+    expect(await guessMatchesAccept('bath', accept, 'wrong-salt')).toBe(false)
+    expect(await guessMatchesAccept('bath', null, salt)).toBe(false)
   })
 })

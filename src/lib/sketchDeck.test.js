@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SKETCH_WORDS } from './decks/sketch'
+import { matchKey } from './textMatchLogic'
 
 describe('SKETCH_WORDS', () => {
   it('has a larger balanced deck', () => {
@@ -20,6 +21,16 @@ describe('SKETCH_WORDS', () => {
 
     for (const entry of SKETCH_WORDS) {
       expect(entry.word.trim().split(/\s+/).length, entry.word).toBeLessThanOrEqual(3)
+    }
+  })
+
+  it('alts are real extra forms: non-empty, distinct from the word and each other', () => {
+    for (const entry of SKETCH_WORDS) {
+      if (entry.alts == null) continue
+      expect(Array.isArray(entry.alts), entry.word).toBe(true)
+      const keys = [entry.word, ...entry.alts].map(matchKey)
+      expect(keys.every(Boolean), entry.word).toBe(true)
+      expect(new Set(keys).size, entry.word).toBe(keys.length)
     }
   })
 })

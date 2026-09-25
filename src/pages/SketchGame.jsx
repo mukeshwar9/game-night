@@ -19,6 +19,9 @@ import {
   participantGuessers,
   roundDeltas,
   deriveWord,
+  acceptHashes,
+  guessMatchesAccept,
+  isNearMiss,
 } from '../lib/sketchLogic'
 import { isCoordinator } from '../lib/coordinator'
 import { SKETCH_WORDS } from '../lib/decks/sketch'
@@ -26,6 +29,7 @@ import SketchCanvas from '../components/SketchCanvas'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
 import PixelDots from '../components/loading/PixelDots'
+import WordFeedback from '../components/WordFeedback'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
@@ -64,6 +68,7 @@ function normalizeRound(raw) {
     matchSeed: raw.matchSeed ?? '',
     options: Array.isArray(raw.options) ? raw.options : (raw.options ? Object.values(raw.options) : null),
     commitment: raw.commitment ?? null,
+    accept: Array.isArray(raw.accept) ? raw.accept : (raw.accept ? Object.values(raw.accept) : null),
     wordPattern: raw.wordPattern ?? '',
     endsAt: raw.endsAt ?? 0,
     chat: raw.chat ?? {},
@@ -157,6 +162,8 @@ export default function SketchGame({
   // epoch-ms when THIS client first observed the artist go offline mid-drawing.
   const [artistOfflineSince, setArtistOfflineSince] = useState(null)
   const [pickingIdx, setPickingIdx] = useState(null)  // word option this client last clicked (busy-label only)
+  // Private guess feedback ("CLOSE!"), keyed by round so a new round starts blank.
+  const [guessFb, setGuessFb] = useState({ key: null, message: '', tone: 'info', id: 0 })
 
   // House convention: every button firing an async Firebase write / navigator.share
   // goes through useBusy — synchronous re-entry guard + disabled/gerund UI state.
@@ -217,6 +224,9 @@ export default function SketchGame({
     pickedRef.current = true
     try {
       const { hash, salt } = await commit(normalize(entry.word))
+      // One salted hash per accepted form (word + alts, plural/space-folded) so
+      // guessers can be matched leniently without the word in the clear.
+      const accept = await acceptHashes(entry, salt)
       const pattern = wordPattern(entry.word)
       const drawPhaseEndsAt = now() + DRAW_MS
       await runTransaction(ref(db, `games/${gameId}`), current => {
@@ -225,7 +235,7 @@ export default function SketchGame({
         if (cr.phase !== 'choosing' || cr.artist !== mySeat) return // stale — a new artist has since taken over
         return {
           ...current,
-          round: { ...cr, commitment: { hash, salt }, wordPattern: pattern, phase: 'drawing', endsAt: drawPhaseEndsAt },
+          round: { ...cr, commitment: { hash, salt }, accept, wordPattern: pattern, phase: 'drawing', endsAt: drawPhaseEndsAt },
         }
       })
     } catch {
@@ -234,9 +244,10 @@ export default function SketchGame({
     }
   }, [mySeat, gameId, now])
 
-  // ---- Guesser: submit a guess — correct locks in via commit verification --
+  // ---- Guesser: submit a guess — correct locks in via hash match -----------
   // Throttled client-side (min 500ms between guesses) so a fast-tapping/scripted
-  // client can't spam unthrottled writes into the shared chat feed.
+  // client can't spam unthrottled writes into the shared chat feed. A near miss
+  // gets a private CLOSE! hint and never reaches the public chat.
   const handleSubmitGuess = useCallback(async () => {
     const r = roundRef.current
     if (!r || r.phase !== 'drawing') return
@@ -246,24 +257,39 @@ export default function SketchGame({
     const raw = guessInput.trim().slice(0, MAX_GUESS_LEN)
     if (!raw) return
     const submittedDraftVersion = draftVersionRef.current
+    const clearDraft = () => setGuessInput(current => draftVersionRef.current === submittedDraftVersion ? '' : current)
+    const say = (message, tone) => setGuessFb(f => ({ key: roundKey, message, tone, id: f.id + 1 }))
     lastGuessAtRef.current = nowTs
     try {
-      const isCorrect = r.commitment
-        ? await verifyReveal(r.commitment.hash, normalize(raw), r.commitment.salt)
-        : false
+      let isCorrect = false
+      if (r.commitment) {
+        isCorrect = r.accept?.length
+          ? await guessMatchesAccept(raw, r.accept, r.commitment.salt)
+          // rounds picked before accept-hashes existed: exact normalized match
+          : await verifyReveal(r.commitment.hash, normalize(raw), r.commitment.salt)
+      }
       if (isCorrect) {
         correctSentRef.current = true
         await update(ref(db, `games/${gameId}/round/correct`), { [mySeat]: { at: serverTimestamp() } })
-      } else {
-        await push(ref(db, `games/${gameId}/round/chat`), { uid: mySeat, text: raw })
+        sounds.win()
+        clearDraft()
+        return
       }
-      if (isCorrect) sounds.win()
-      setGuessInput(current => draftVersionRef.current === submittedDraftVersion ? '' : current)
+      const word = derivedWord ?? (r.commitment ? await deriveWord(SKETCH_WORDS, r.options, r.commitment) : null)
+      const entryIdx = word != null ? (r.options || []).find(i => SKETCH_WORDS[i]?.word === word) : undefined
+      if (entryIdx != null && isNearMiss(raw, SKETCH_WORDS[entryIdx])) {
+        say(`CLOSE! "${raw.toUpperCase()}" IS NEARLY IT — ONLY YOU SEE THIS`, 'info')
+        clearDraft()
+        return
+      }
+      await push(ref(db, `games/${gameId}/round/chat`), { uid: mySeat, text: raw })
+      say('', 'info')
+      clearDraft()
     } catch {
       correctSentRef.current = false
       toast.error('GUESS FAILED — CHECK CONNECTION')
     }
-  }, [mySeat, guessInput, gameId])
+  }, [mySeat, guessInput, gameId, roundKey, derivedWord])
 
   // ---- Host: void the round and rotate the artist (choosing stalled) ------
   const handleSkipChoosing = useCallback(async () => {
@@ -682,27 +708,34 @@ export default function SketchGame({
           <CountdownBar endsAt={round.endsAt} totalMs={DRAW_MS} now={nowMs} />
 
           {isPlayer && !isArtist && !haveIGuessedCorrectly && (
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                value={guessInput}
-                onChange={e => {
-                  draftVersionRef.current += 1
-                  setGuessInput(e.target.value)
-                }}
-                onKeyDown={e => e.key === 'Enter' && runGuess(handleSubmitGuess)}
-                autoFocus
-                maxLength={MAX_GUESS_LEN}
-                placeholder="TYPE YOUR GUESS…"
-                className="flex-1 bg-retro-surface border-2 border-retro-border text-retro-text font-mono text-[12px] rounded px-3 py-2 focus:outline-none focus:border-retro-p1"
+            <div className="space-y-1">
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={guessInput}
+                  onChange={e => {
+                    draftVersionRef.current += 1
+                    setGuessInput(e.target.value)
+                  }}
+                  onKeyDown={e => e.key === 'Enter' && runGuess(handleSubmitGuess)}
+                  autoFocus
+                  maxLength={MAX_GUESS_LEN}
+                  placeholder="TYPE YOUR GUESS…"
+                  className="flex-1 bg-retro-surface border-2 border-retro-border text-retro-text font-mono text-[12px] rounded px-3 py-2 focus:outline-none focus:border-retro-p1"
+                />
+                <button
+                  onClick={() => runGuess(handleSubmitGuess)}
+                  disabled={guessing || !guessInput.trim()}
+                  className="px-4 py-2 min-w-[4.5rem] bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+                >
+                  {guessing ? 'GUESSING…' : 'GO'}
+                </button>
+              </div>
+              <WordFeedback
+                message={guessFb.key === roundKey ? guessFb.message : ''}
+                tone={guessFb.tone}
+                id={guessFb.id}
               />
-              <button
-                onClick={() => runGuess(handleSubmitGuess)}
-                disabled={guessing || !guessInput.trim()}
-                className="px-4 py-2 min-w-[4.5rem] bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
-              >
-                {guessing ? 'GUESSING…' : 'GO'}
-              </button>
             </div>
           )}
 
