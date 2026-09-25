@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   HERD_TARGET, ANSWER_MS,
-  normalizeAnswer, groupAnswers, scoreGroups, nextCow, getMatchWinner,
-  seededShuffle, allAnswered,
+  normalizeAnswer, groupAnswers, scoreGroups, nextCow, getMatchWinners,
+  seededShuffle, allAnswered, isBannedAnswer,
 } from '../lib/herdLogic'
 import { HERD_PROMPTS } from '../lib/decks/herd'
 import { sounds } from '../lib/sounds'
+import WordFeedback from '../components/WordFeedback'
 import { cn } from '@/lib/utils'
 
 // Solo HERD MIND vs four crowd-pleasing bots. Fully local — no Firebase.
@@ -40,7 +41,8 @@ export default function HerdDemo() {
   const [scores, setScores] = useState(zeroScores)
   const [cow, setCow] = useState(null)
   const [reveal, setReveal] = useState(null) // { groups, pointUids, transferred }
-  const [matchWinner, setMatchWinner] = useState(null)
+  const [matchWinners, setMatchWinners] = useState([])
+  const [inputError, setInputError] = useState('')
   const [remaining, setRemaining] = useState(ANSWER_MS)
 
   const answersRef = useRef({})
@@ -75,7 +77,7 @@ export default function HerdDemo() {
     if (pointUids.includes(ME)) sounds.win()
     else sounds.miss()
     if (transferred && nextCowUid === ME) sounds.bust()
-    setMatchWinner(getMatchWinner(nextScores, nextCowUid, HERD_TARGET))
+    setMatchWinners(getMatchWinners(nextScores, nextCowUid, HERD_TARGET))
   }, [])
 
   const maybeResolve = useCallback(() => {
@@ -129,6 +131,8 @@ export default function HerdDemo() {
   const submit = () => {
     const text = input.trim()
     if (!text || resolvedRef.current || myAnswered) return
+    if (isBannedAnswer(text)) { setInputError('NOT ALLOWED — TRY ANOTHER ANSWER'); return }
+    setInputError('')
     answersRef.current = { ...answersRef.current, [ME]: text }
     setAnswers(answersRef.current)
     sounds.move('X')
@@ -154,7 +158,7 @@ export default function HerdDemo() {
     cowRef.current = null
     setScores(zeroScores())
     setCow(null)
-    setMatchWinner(null)
+    setMatchWinners([])
     setDeckSeed(randSeed())
     startRound(0)
   }
@@ -195,13 +199,18 @@ export default function HerdDemo() {
     </div>
   )
 
+  const matchOver = matchWinners.length > 0
+
   if (phase === 'winner') {
-    const iWon = matchWinner === ME
+    const iWon = matchWinners.includes(ME)
+    const names = matchWinners.map(id => NAME[id]).join(' & ')
     return (
       <div className="space-y-4">
         <div className="text-center space-y-2 py-6">
           <p className={cn('font-pixel text-lg', iWon ? 'text-retro-win text-glow-win' : 'text-retro-p2')}>
-            {iWon ? '🎉 YOU WIN!' : `🐄 ${NAME[matchWinner]} WINS!`}
+            {iWon
+              ? (matchWinners.length > 1 ? `🎉 YOU TIE FOR THE WIN! (${names})` : '🎉 YOU WIN!')
+              : matchWinners.length > 1 ? `🐄 ${names} TIE!` : `🐄 ${names} WINS!`}
           </p>
           <p className="font-mono text-[10px] text-retro-dim">
             {iWon ? 'THE HERD SPOKE WITH YOUR VOICE' : 'THE HERD MIND WAS NOT WITH YOU'}
@@ -251,9 +260,14 @@ export default function HerdDemo() {
               <div className="flex gap-2">
                 <input
                   value={input}
-                  onChange={e => setInput(e.target.value)}
+                  onChange={e => { setInput(e.target.value); setInputError('') }}
                   onKeyDown={e => { if (e.key === 'Enter') submit() }}
                   maxLength={40}
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  enterKeyHint="send"
+                  aria-label="Your answer"
                   placeholder="TYPE YOUR ANSWER…"
                   className="flex-1 min-w-0 bg-retro-deep border border-retro-border rounded px-2 py-1.5 font-mono text-[12px] text-retro-text placeholder:text-retro-dim focus:border-retro-cta focus:outline-none"
                 />
@@ -270,6 +284,7 @@ export default function HerdDemo() {
                 LOCKED IN — WAITING FOR THE HERD…
               </p>
             )}
+            <WordFeedback message={inputError} tone="bad" />
 
             <p className="font-mono text-[9px] text-retro-dim text-center leading-relaxed">
               {myAnswered
@@ -335,15 +350,15 @@ export default function HerdDemo() {
 
               <div className="flex justify-center pt-1">
                 <button
-                  onClick={matchWinner != null ? () => setPhase('winner') : nextRound}
+                  onClick={matchOver ? () => setPhase('winner') : nextRound}
                   className={cn(
                     'px-5 py-2 font-pixel text-[10px] border rounded hover:shadow-neon-win active:scale-95',
-                    matchWinner != null
+                    matchOver
                       ? 'border-retro-cta text-retro-cta hover:shadow-neon-cta'
                       : 'border-retro-win text-retro-win',
                   )}
                 >
-                  {matchWinner != null ? 'FINAL RESULTS' : 'NEXT PROMPT'}
+                  {matchOver ? 'FINAL RESULTS' : 'NEXT PROMPT'}
                 </button>
               </div>
             </div>

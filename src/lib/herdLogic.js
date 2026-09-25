@@ -5,10 +5,17 @@
 //   { phase: 'answering' | 'reveal',
 //     promptIndex: number,          // index into seededShuffle(HERD_PROMPTS, deckSeed)
 //     deckSeed: number,             // set once at match start; same order on every client
-//   answers: { [uid]: { commit } },// salted SHA-256 commitment — plaintext is
-//                                   // tab-local until reveal (reveals/{uid})
 //     endsAt: epoch-ms,             // answering deadline (server-corrected clock)
-//     scored: true }                // scores + cow applied once, idempotently
+//     answers: { [uid]: { commit, at } },  // salted SHA-256 commitment + lock-in
+//                                   // time — plaintext stays tab-local until reveal
+//     revealAt: epoch-ms,           // reveal-grace deadline (REVEAL_GRACE_MS)
+//     reveals: { [uid]: { text, salt } },  // published once the phase flips
+//     scored: true,                 // scores + cow applied once, idempotently
+//     tally: { [uid]: text },       // verified answers the coordinator scored
+//     order: [uid],                 // submit order (display-spelling tie-break)
+//     cowTo, cowMoved,              // Pink Cow outcome of this round
+//     nextAt: epoch-ms,             // auto-advance time (REVEAL_ADVANCE_MS)
+//     winners: [uid] }              // set on the round that ends the match
 //
 // Top-level keys on games/{gameId}:
 //   scores/{uid}: number            // 1 point per winning-group member per round
@@ -21,13 +28,17 @@
 // singleton while everyone else grouped. The Cow holder cannot win the match.
 
 import { seededShuffle } from './fibbageLogic'
-import { matchKey } from './textMatchLogic'
+import { matchKey, normalizeText } from './textMatchLogic'
+import { isBannedWord } from './wordDenylist'
 
 // Points needed to win the match — but never while holding the Cow.
 export const HERD_TARGET = 8
 
 // Answering phase length (ms), measured on the server-corrected clock.
 export const ANSWER_MS = 45000
+
+// How long a scored reveal stays up before the next prompt starts on its own.
+export const REVEAL_ADVANCE_MS = 10000
 
 export { seededShuffle }
 
@@ -143,18 +154,25 @@ export function nextCow(groups, currentCow = null, answeredUids = []) {
 }
 
 // ---------------------------------------------------------------------------
-// getMatchWinner — first player to reach `target` points WHILE NOT holding the
-// Cow. Reaching 8 WITH the Cow blocks: play continues until they shed it.
-// Iterates Object key order (stable insertion order; the host applies the win
-// once via the standard finish flow, so ordering ambiguity never matters).
-// Returns the winner uid or null.
+// getMatchWinners — the match ends once any player WITHOUT the Cow reaches
+// `target`. Among those, the highest score wins; players level on that score
+// are co-winners. Seat order and key order never decide it. Reaching the
+// target WITH the Cow blocks: play continues until they shed it.
+// Returns winner uids sorted lexicographically ([] while nobody has won).
 // ---------------------------------------------------------------------------
+export function getMatchWinners(scoresByUid, cowUid = null, target = HERD_TARGET) {
+  const eligible = Object.entries(scoresByUid || {})
+    .filter(([uid, score]) => uid !== cowUid && (score || 0) >= target)
+  if (eligible.length === 0) return []
+  const top = Math.max(...eligible.map(([, score]) => score || 0))
+  return eligible.filter(([, score]) => (score || 0) === top).map(([uid]) => uid).sort()
+}
+
+// Single-winner form kept for existing callers: the highest-scoring eligible
+// player, or null. On an exact tie it returns the first co-winner by uid —
+// use getMatchWinners when co-winners matter.
 export function getMatchWinner(scoresByUid, cowUid = null, target = HERD_TARGET) {
-  for (const [uid, score] of Object.entries(scoresByUid || {})) {
-    if (uid === cowUid) continue // can't win with the Cow
-    if ((score || 0) >= target) return uid
-  }
-  return null
+  return getMatchWinners(scoresByUid, cowUid, target)[0] ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -207,4 +225,62 @@ export function collectRevealedTexts(reveals, verifiedUids) {
     if (text) out[uid] = text
   }
   return out
+}
+
+// True once every committed uid has published a { text, salt } reveal.
+export function allRevealed(committedIds, reveals) {
+  const r = reveals || {}
+  return (committedIds || []).every(id => r[id] != null && r[id].text != null && r[id].salt != null)
+}
+
+// Uids in the order they locked in: answers/{uid}.at ascending (missing
+// stamps last), uid as the tie-break so every client agrees.
+export function submitOrderOf(answers) {
+  const stamp = a => (a && typeof a === 'object' && Number.isFinite(a.at) ? a.at : Infinity)
+  return Object.entries(answers || {})
+    .sort(([ua, a], [ub, b]) => {
+      const d = stamp(a) - stamp(b)
+      return (Number.isNaN(d) ? 0 : d) || ua.localeCompare(ub)
+    })
+    .map(([uid]) => uid)
+}
+
+// Slurs and unambiguous vulgarity are refused as answers — checked per word
+// and on the whole answer with spaces removed ("f u c k").
+export function isBannedAnswer(text) {
+  const norm = normalizeText(text)
+  if (!norm) return false
+  return norm.split(' ').some(isBannedWord) || isBannedWord(norm.replace(/ /g, ''))
+}
+
+// ---------------------------------------------------------------------------
+// resolveHerdRound — one round's whole outcome, as the coordinator writes it.
+// texts: { [uid]: verified answer text }; banned answers count as non-answers.
+// Only seated uids (seatIds) score. Returns
+//   { groups, pointUids, cow, transferred, scores, winners }.
+// ---------------------------------------------------------------------------
+export function resolveHerdRound({
+  texts, submitOrder = null, scores = {}, cow = null, seatIds = null, target = HERD_TARGET,
+}) {
+  const clean = {}
+  for (const [uid, text] of Object.entries(texts || {})) {
+    if (!isBannedAnswer(text)) clean[uid] = text
+  }
+  const groups = groupAnswers(clean, submitOrder)
+  const { pointUids } = scoreGroups(groups)
+  const answeredUids = groups.flatMap(g => g.members)
+  const next = nextCow(groups, cow ?? null, answeredUids)
+  const seated = seatIds ? new Set(seatIds) : null
+  const newScores = { ...(scores || {}) }
+  for (const uid of pointUids) {
+    if (!seated || seated.has(uid)) newScores[uid] = (newScores[uid] || 0) + 1
+  }
+  return {
+    groups,
+    pointUids,
+    cow: next.cow,
+    transferred: next.transferred,
+    scores: newScores,
+    winners: getMatchWinners(newScores, next.cow, target),
+  }
 }

@@ -8,10 +8,20 @@ import {
   scoreGroups,
   nextCow,
   getMatchWinner,
+  getMatchWinners,
   seatOrder,
   allAnswered,
+  allCommitted,
+  allRevealed,
+  collectRevealedTexts,
+  submitOrderOf,
+  isBannedAnswer,
+  resolveHerdRound,
+  REVEAL_GRACE_MS,
+  REVEAL_ADVANCE_MS,
   seededShuffle,
 } from './herdLogic'
+import { commit, verifyReveal } from './commit'
 import { HERD_PROMPTS } from './decks/herd'
 
 describe('normalizeAnswer', () => {
@@ -210,7 +220,7 @@ describe('nextCow — the Pink Cow matrix', () => {
 })
 
 describe('getMatchWinner', () => {
-  it('first uid to reach the target wins', () => {
+  it('a player at the target wins', () => {
     expect(getMatchWinner({ a: 8, b: 5 })).toBe('a')
     expect(getMatchWinner({ a: 7, b: 8 })).toBe('b')
   })
@@ -227,6 +237,24 @@ describe('getMatchWinner', () => {
   })
   it('default target constant is 8', () => {
     expect(HERD_TARGET).toBe(8)
+  })
+})
+
+describe('getMatchWinners — ties at the target', () => {
+  it('regression: the highest score wins, not the first seat', () => {
+    // Seat order (object key order) used to decide: 'a' won with 8 over 'b' with 9.
+    expect(getMatchWinners({ a: 8, b: 9, c: 3 })).toEqual(['b'])
+  })
+  it('exact ties at the top are co-winners', () => {
+    expect(getMatchWinners({ z: 9, a: 9, m: 8 })).toEqual(['a', 'z'])
+  })
+  it('the Cow holder is skipped even with the top score', () => {
+    expect(getMatchWinners({ a: 10, b: 8, c: 8 }, 'a')).toEqual(['b', 'c'])
+    expect(getMatchWinners({ a: 10, b: 7 }, 'a')).toEqual([])
+  })
+  it('nobody at the target → no winners', () => {
+    expect(getMatchWinners({ a: 7, b: 7 })).toEqual([])
+    expect(getMatchWinners(null)).toEqual([])
   })
 })
 
@@ -282,5 +310,88 @@ describe('deck + constants sanity', () => {
   })
   it('answering window is 45s', () => {
     expect(ANSWER_MS).toBe(45000)
+  })
+})
+
+describe('commit-reveal round flow', () => {
+  it('commitments hide answers until reveal, and only verified reveals count', async () => {
+    const a = await commit('Pepperoni')
+    const b = await commit('pepperonis')
+    const answers = { a: { commit: a.hash, at: 2 }, b: { commit: b.hash, at: 1 } }
+    expect(JSON.stringify(answers)).not.toMatch(/pepperoni/i)
+    expect(allCommitted(['a', 'b'], answers)).toBe(true)
+    expect(allCommitted(['a', 'b', 'c'], answers)).toBe(false)
+
+    const reveals = {
+      a: { text: 'Pepperoni', salt: a.salt },
+      b: { text: 'mushroom', salt: b.salt }, // tampered: not what b committed
+    }
+    expect(allRevealed(['a', 'b'], reveals)).toBe(true)
+    expect(allRevealed(['a', 'b', 'c'], reveals)).toBe(false)
+    const verified = []
+    for (const [uid, rev] of Object.entries(reveals)) {
+      if (await verifyReveal(answers[uid].commit, rev.text, rev.salt)) verified.push(uid)
+    }
+    expect(collectRevealedTexts(reveals, verified)).toEqual({ a: 'Pepperoni' })
+  })
+
+  it('submitOrderOf sorts by lock-in time, then uid', () => {
+    expect(submitOrderOf({ c: { at: 5 }, a: { at: 9 }, b: { at: 5 }, d: 'legacy' })).toEqual(['b', 'c', 'a', 'd'])
+    expect(submitOrderOf(null)).toEqual([])
+  })
+
+  it('timers are exported starting values', () => {
+    expect(REVEAL_GRACE_MS).toBeGreaterThan(0)
+    expect(REVEAL_ADVANCE_MS).toBe(10000)
+  })
+})
+
+describe('isBannedAnswer', () => {
+  it('refuses slurs and vulgarity, per word and spaced out', () => {
+    expect(isBannedAnswer('shit')).toBe(true)
+    expect(isBannedAnswer('holy shit')).toBe(true)
+    expect(isBannedAnswer('f u c k')).toBe(true)
+  })
+  it('allows ordinary answers', () => {
+    expect(isBannedAnswer('pepperoni')).toBe(false)
+    expect(isBannedAnswer('mac & cheese')).toBe(false)
+    expect(isBannedAnswer('spicy wings')).toBe(false)
+    expect(isBannedAnswer('')).toBe(false)
+  })
+})
+
+describe('resolveHerdRound', () => {
+  const seats = ['p1', 'p2', 'p3', 'p4', 'p5']
+
+  it('scores the majority, moves the Cow and reports no winner mid-match', () => {
+    const res = resolveHerdRound({
+      texts: { p1: 'Strawberry', p2: 'strawberries', p3: 'Cherries', p4: 'cherry', p5: 'apple' },
+      submitOrder: seats,
+      scores: { p1: 2 },
+      cow: null,
+      seatIds: seats,
+    })
+    expect(res.pointUids.sort()).toEqual(['p1', 'p2', 'p3', 'p4'])
+    expect(res.scores).toEqual({ p1: 3, p2: 1, p3: 1, p4: 1 })
+    expect(res.cow).toBe('p5')
+    expect(res.transferred).toBe(true)
+    expect(res.winners).toEqual([])
+  })
+
+  it('simultaneous crossings at the target → highest score, else co-winners', () => {
+    const texts = { p1: 'dog', p2: 'dogs', p3: 'a dog', p4: 'cat', p5: 'bird' }
+    const tie = resolveHerdRound({ texts, scores: { p1: 7, p2: 7, p3: 5 }, seatIds: seats })
+    expect(tie.winners).toEqual(['p1', 'p2'])
+    const lead = resolveHerdRound({ texts, scores: { p1: 7, p2: 8, p3: 5 }, seatIds: seats })
+    expect(lead.winners).toEqual(['p2'])
+  })
+
+  it('banned answers are non-answers; unseated uids never score', () => {
+    const res = resolveHerdRound({
+      texts: { p1: 'shit', p2: 'shit', p3: 'pizza', ghost: 'pizza' },
+      seatIds: ['p1', 'p2', 'p3'],
+    })
+    expect(res.groups.map(g => g.norm)).toEqual(['pizza'])
+    expect(res.scores).toEqual({ p3: 1 })
   })
 })
