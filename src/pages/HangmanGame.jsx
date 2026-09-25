@@ -3,9 +3,11 @@ import { ref, onValue, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
-  applyGuess, isWordGuessed, countWrong,
   MAX_WRONG, verifyRoundConsistency, deriveRoundResult, wordStructure,
+  PENDING, pendingLetters, canQueueGuess, gradePending,
 } from '../lib/hangmanLogic'
+import useBusy from '../hooks/useBusy'
+import { toast } from 'sonner'
 import HangmanGallows from '../components/HangmanGallows'
 import PixelDots from '../components/loading/PixelDots'
 import WordDisplay from '../components/WordDisplay'
@@ -33,6 +35,17 @@ function normalizeGuesses(raw) {
     out[k] = normalizeGuess(v)
   }
   return out
+}
+
+// The setter's secret: { word, salt, commitment } in this tab only.
+// `commitment` was added later — older entries may lack it.
+function readStoredWord(gameId) {
+  try {
+    const raw = sessionStorage.getItem(`hangwoman-word-${gameId}`)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
 }
 
 function CheatScreen({ evidence, onNextRound }) {
@@ -190,50 +203,41 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   const guesserIdleExpired = noGuessYet && !!guessingStartedAt &&
     (serverNow - guessingStartedAt) >= NO_GUESS_DEADLINE_MS
 
-  // --- Setter: process pending guesses ---
+  // --- Setter: grade the pending guess ---
+  // gradePending() grades in a fixed order and stops once the round is
+  // decided, so a queue left by an older client can't win after six misses.
+  // A transaction guarded on phase + commitment, so a grade can never land in
+  // a round that a claim or reset has already replaced.
   useEffect(() => {
     if (!isSetter || phase !== 'guessing') return
 
-    const stored = sessionStorage.getItem(`hangwoman-word-${gameId}`)
+    const stored = readStoredWord(gameId)
     if (!stored) return
-    const { word, salt } = JSON.parse(stored)
+    const { word, salt, commitment } = stored
 
-    const guessesRef = ref(db, `games/${gameId}/round/guesses`)
-    const unsub = onValue(guessesRef, (snap) => {
-      const raw = snap.val()
-      if (!raw) return
-
-      const pending = Object.entries(raw).filter(([, v]) => v === 'pending')
-      if (pending.length === 0) return
-
-      const currentGuesses = normalizeGuesses(raw)
-      const updates = {}
-      const merged = { ...currentGuesses }
-
-      for (const [letter] of pending) {
-        const positions = applyGuess(word, letter)
-        const guessVal = positions.length > 0 ? positions : false
-        updates[`games/${gameId}/round/guesses/${letter}`] = guessVal
-        merged[letter] = guessVal
-      }
-
-      const newWrongCount = countWrong(merged)
-      updates[`games/${gameId}/round/wrongCount`] = newWrongCount
-      // Every pending guess in this batch is resolved above — clear the
-      // grading-stall anchor so the guesser's 60s hatch doesn't fire stale.
-      updates[`games/${gameId}/round/pendingAt`] = null
-
-      const guessed = isWordGuessed(word, merged)
-      const hanged = newWrongCount >= MAX_WRONG
-
-      if (guessed || hanged) {
-        const result = guessed ? 'guessed' : 'hanged'
-        updates[`games/${gameId}/round/phase`] = 'reveal'
-        updates[`games/${gameId}/round/result`] = result
-        updates[`games/${gameId}/round/reveal`] = { word, salt }
-      }
-
-      update(ref(db), updates).catch(() => {})
+    const roundRef = ref(db, `games/${gameId}/round`)
+    const unsub = onValue(ref(db, `games/${gameId}/round/guesses`), (snap) => {
+      if (pendingLetters(normalizeGuesses(snap.val())).length === 0) return
+      runTransaction(roundRef, current => {
+        if (!current || current.phase !== 'guessing') return
+        if (commitment && current.commitment !== commitment) return
+        const graded = gradePending(word, normalizeGuesses(current.guesses))
+        if (graded.graded.length === 0 && graded.discarded.length === 0) return
+        const next = {
+          ...current,
+          guesses: graded.guesses,
+          wrongCount: graded.wrongCount,
+          // Nothing is pending any more — clear the grading-stall anchor.
+          pendingAt: null,
+          lastGuess: graded.lastGuess ?? current.lastGuess ?? null,
+        }
+        if (graded.result) {
+          next.phase = 'reveal'
+          next.result = graded.result
+          next.reveal = { word, salt }
+        }
+        return next
+      }).catch(() => toast.error('COULD NOT CHECK THE GUESS — CHECK CONNECTION'))
     })
 
     return () => unsub()
@@ -321,7 +325,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     setLockingWord(true)
     try {
       const { hash, salt } = await commit(word)
-      sessionStorage.setItem(`hangwoman-word-${gameId}`, JSON.stringify({ word, salt }))
+      sessionStorage.setItem(`hangwoman-word-${gameId}`, JSON.stringify({ word, salt, commitment: hash }))
       await update(ref(db, `games/${gameId}`), {
         'round/phase': 'guessing',
         'round/wordStructure': wordStructure(word),
@@ -342,17 +346,26 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     }
   }, [gameId, clockOffset])
 
-  const handleGuess = useCallback(async (letter) => {
+  // One pending guess at a time: the keyboard is disabled while a guess waits
+  // for the word-keeper, and the transaction refuses a second pending letter
+  // (a double tap, a key repeat or an older client).
+  const [sendingGuess, runGuess] = useBusy()
+  const handleGuess = useCallback((letter) => {
     if (phase !== 'guessing' || !isGuesser) return
-    if (letter in guesses) return
-    try {
-      await update(ref(db), { [`games/${gameId}/round/guesses/${letter}`]: 'pending' })
-      // Anchor the grading-stall timestamp on the first outstanding pending
-      // guess only — later pending guesses don't push the deadline out.
-      await runTransaction(ref(db, `games/${gameId}/round/pendingAt`), current =>
-        current == null ? Date.now() + clockOffset : current)
-    } catch { /* ignore */ }
-  }, [phase, isGuesser, guesses, gameId, clockOffset])
+    if (!canQueueGuess(guesses, letter)) return
+    runGuess(async () => {
+      await runTransaction(ref(db, `games/${gameId}/round`), current => {
+        if (!current || current.phase !== 'guessing') return
+        if (!canQueueGuess(normalizeGuesses(current.guesses), letter)) return
+        return {
+          ...current,
+          guesses: { ...(current.guesses || {}), [letter]: PENDING },
+          // Anchors the grading-stall clock for this guess.
+          pendingAt: Date.now() + clockOffset,
+        }
+      })
+    }, () => toast.error('GUESS NOT SENT — CHECK CONNECTION'))
+  }, [phase, isGuesser, guesses, gameId, clockOffset, runGuess])
 
   const handleNextRound = useCallback(async () => {
     // Clear local cheat state so a previously detected cheat doesn't leave the
@@ -597,7 +610,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   const setterMissingWord = isSetter && phase === 'guessing' &&
     !sessionStorage.getItem(`hangwoman-word-${gameId}`)
 
-  const canGuess = isGuesser && phase === 'guessing' && !setterMissingWord
+  const waitingLetter = pendingLetters(guesses)[0] ?? null
+  const canGuess = isGuesser && phase === 'guessing' && !setterMissingWord && !waitingLetter
 
   return (
     <div className="space-y-4">
@@ -643,7 +657,9 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
                 ? setterMissingWord
                   ? 'WORD LOST — YOU OPENED A NEW TAB'
                   : 'WAITING FOR GUESS…'
-                : 'WAITING FOR WORD-KEEPER…'}
+                : waitingLetter
+                  ? `CHECKING ${waitingLetter}…`
+                  : 'WAITING FOR WORD-KEEPER…'}
           </p>
         )}
         {isReveal && roundResult === 'hanged' && (
@@ -779,7 +795,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         <LetterKeyboard
           guesses={guesses}
           onGuess={handleGuess}
-          disabled={!canGuess}
+          disabled={!canGuess || sendingGuess}
         />
       )}
 
