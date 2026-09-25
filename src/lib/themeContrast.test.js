@@ -117,3 +117,21 @@ describe('per-theme contrast floors (regression guards, 2026-08 audit)', () => {
     })
   }
 })
+
+describe('ground scheme', () => {
+  const blocks = Object.fromEntries(
+    [...cssText.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\[data-theme="([\w-]+)"\]\s*\{([^{}]*)\}/g)]
+      .map(([, id, body]) => [id, body]),
+  )
+  const black = [0, 0, 0]
+
+  for (const id of EXPECTED_THEME_IDS.filter(id => id !== 'midnight')) {
+    it(`${id} declares the color-scheme and CRT overlay its ground needs`, () => {
+      const t = themes[id]
+      const lightGround = contrastRatio(t.bg, black) > contrastRatio(t.text, black)
+      const body = blocks[id]
+      expect(/color-scheme:\s*light\s*;/.test(body), `${id} color-scheme: light`).toBe(lightGround)
+      expect(/--crt-overlay:\s*none\s*;/.test(body), `${id} --crt-overlay: none`).toBe(lightGround)
+    })
+  }
+})

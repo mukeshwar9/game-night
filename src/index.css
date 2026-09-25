@@ -144,7 +144,13 @@
     --ring: 186 100% 50%;
     --radius: 0.25rem;
 
-    /* ── Retro theme tokens (MIDNIGHT ARCADE — default) ── */
+    /* ── Retro theme tokens (MIDNIGHT ARCADE — the cascade fallback) ── */
+    /* Ground scheme. Dark grounds keep native controls/scrollbars dark and
+       show the CRT overlay (body::before/::after). A light-ground theme sets
+       color-scheme: light and --crt-overlay: none in its own block: scanlines
+       and the heavy edge vignette read as muddy film on a pale ground. */
+    color-scheme: dark;
+    --crt-overlay: block;
     --c-bg:       8 8 16;       /* #080810 */
     --c-surface:  15 15 26;     /* #0f0f1a */
     --c-card:     19 19 40;     /* #131328 */
@@ -458,6 +464,8 @@
 }
 
 [data-theme="paper"] {
+  color-scheme: light;
+  --crt-overlay: none;
   --c-bg:       242 240 233;
   --c-surface:  250 248 242;
   --c-card:     255 255 252;
@@ -632,6 +640,8 @@
 }
 
 [data-theme="matcha"] {
+  color-scheme: light;
+  --crt-overlay: none;
   --c-bg:       238 240 226;
   --c-surface:  246 248 236;
   --c-card:     252 253 246;
@@ -737,6 +747,7 @@ input, textarea, select {
 /* CRT scanlines */
 body::after {
   content: '';
+  display: var(--crt-overlay);
   position: fixed;
   inset: 0;
   background: repeating-linear-gradient(
@@ -753,20 +764,12 @@ body::after {
 /* CRT vignette */
 body::before {
   content: '';
+  display: var(--crt-overlay);
   position: fixed;
   inset: 0;
   background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.65) 100%);
   pointer-events: none;
   z-index: 9997;
-}
-
-/* Light themes (paper, matcha) drop the CRT overlay — scanlines and the heavy
-   edge vignette read as muddy film on a pale ground, not arcade glass. */
-[data-theme="paper"] body::after,
-[data-theme="matcha"] body::after,
-[data-theme="paper"] body::before,
-[data-theme="matcha"] body::before {
-  display: none;
 }
 
 #root { width: 100%; }
