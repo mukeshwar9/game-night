@@ -684,6 +684,103 @@
   --c-kam7:     220 140 60;
 }
 
+/* Matcha Strawberry — whisked-matcha ground with a strawberry-pink CTA.
+   X is matcha green and O grape violet: the pair stays apart under protan
+   and deutan colour blindness (green/amber would not) and neither collides
+   with the pink selection and last-move rings. */
+[data-theme="matcha-strawberry"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --c-bg:       226 236 212;
+  --c-surface:  234 242 222;
+  --c-card:     245 249 238;
+  --c-border:   176 196 152;
+  --c-text:     34 48 26;
+  --c-dim:      78 96 64;
+  --c-p1:       52 110 40;
+  --c-p2:       118 58 190;
+  --c-p3:       31 106 98;
+  --c-p4:       48 95 166;
+  --c-cta:      186 28 90;
+  --c-win:      17 108 82;
+  --c-danger:   180 36 20;
+  --c-tint-p1:  214 234 200;
+  --c-tint-p2:  234 224 248;
+  --c-tint-p3:  208 236 232;
+  --c-tint-p4:  222 230 248;
+  --c-tint-cta: 250 222 234;
+  --c-tint-danger: 248 216 210;
+  --c-structure:150 174 124;
+  --c-deep:     212 226 194;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      210 110 50;
+  --c-av2:      200 80 135;
+  --c-av3:      30 150 140;
+  --c-av4:      130 90 60;
+  /* Kamisado — earthy matcha tones on light ground */
+  --c-kam0:     130 90 55;
+  --c-kam1:     90 150 60;
+  --c-kam2:     190 70 60;
+  --c-kam3:     210 170 50;
+  --c-kam4:     200 120 170;
+  --c-kam5:     130 100 190;
+  --c-kam6:     70 130 190;
+  --c-kam7:     220 140 60;
+}
+
+/* Matcha Blueberry — cooler matcha ground with a blueberry-indigo CTA.
+   X is matcha green and O raspberry, the red-blue berry that stays apart
+   from green under colour blindness without sitting on the indigo rings. */
+[data-theme="matcha-blueberry"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --c-bg:       222 234 214;
+  --c-surface:  231 240 224;
+  --c-card:     243 248 238;
+  --c-border:   170 194 156;
+  --c-text:     28 44 34;
+  --c-dim:      72 92 78;
+  --c-p1:       48 106 40;
+  --c-p2:       172 36 118;
+  --c-p3:       10 103 126;
+  --c-p4:       140 37 208;
+  --c-cta:      76 88 170;
+  --c-win:      17 108 82;
+  --c-danger:   180 36 20;
+  --c-tint-p1:  212 234 202;
+  --c-tint-p2:  248 220 236;
+  --c-tint-p3:  206 232 238;
+  --c-tint-p4:  236 222 250;
+  --c-tint-cta: 226 228 248;
+  --c-tint-danger: 248 214 216;
+  --c-structure:144 172 128;
+  --c-deep:     208 224 198;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      210 110 50;
+  --c-av2:      100 110 200;
+  --c-av3:      30 150 140;
+  --c-av4:      130 90 60;
+  /* Kamisado — earthy matcha tones on light ground */
+  --c-kam0:     130 90 55;
+  --c-kam1:     90 150 60;
+  --c-kam2:     190 70 60;
+  --c-kam3:     210 170 50;
+  --c-kam4:     200 120 170;
+  --c-kam5:     130 100 190;
+  --c-kam6:     70 130 190;
+  --c-kam7:     220 140 60;
+}
+
 /* Sticky header height (NavBar padding + min-h-9 row) so in-page sticky
    chrome (GamePicker filters) can sit flush under it. */
 :root {

@@ -11,6 +11,8 @@ export const THEMES = [
   { id: 'blueprint',  label: 'BLUEPRINT' },
   { id: 'sakura',     label: 'SAKURA' },
   { id: 'matcha',     label: 'MATCHA' },
+  { id: 'matcha-strawberry', label: 'MATCHA STRAWBERRY' },
+  { id: 'matcha-blueberry',  label: 'MATCHA BLUEBERRY' },
 ]
 
 const STORAGE_KEY = 'retro-theme'
