@@ -16,8 +16,11 @@ export default defineConfig({
         name: 'Game Night',
         short_name: 'Game Night',
         description: 'Play games with friends online — no account needed',
-        theme_color: '#080810',
-        background_color: '#080810',
+        // Mirror the default theme (MATCHA): theme_color matches --c-cta and the
+        // index.html theme-color meta, background_color matches --c-bg, so an
+        // installed app's splash is the same light ground the app paints.
+        theme_color: '#8b6612',
+        background_color: '#eef0e2',
         display: 'standalone',
         start_url: '/',
         icons: [
