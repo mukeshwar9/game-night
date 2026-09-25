@@ -551,17 +551,18 @@ export const GAME_RULES = {
   wordhunt: {
     objective: 'Trace more valid words than your opponent on a shared 4×4 letter grid before time runs out.',
     howToPlay: [
-      'Both players get the identical grid and 80 seconds.',
-      'Drag across adjacent tiles (including diagonals) to spell a word, or type it and press Enter.',
+      'Both players press READY; the 80-second clock starts once both are ready, on the same grid.',
+      'Drag across adjacent tiles (including diagonals) to spell a word — drag back onto the previous tile to undo — or type it in the box and press Enter.',
       'Words must be 3+ letters and can’t reuse a tile in the same word. The Qu tile counts as two letters.',
-      'Both players can score the same word — there’s no penalty for overlapping finds.',
+      'Both players can score the same word — there’s no penalty for overlapping finds. After the round you see the best words nobody found.',
     ],
-    win: 'Longer words score more (3–4 letters = 1 point, up to 11 for 8+). Highest total score when time runs out wins; equal scores draw. First to 3 round wins takes the match.',
+    win: 'Longer words score more (3–4 letters = 1 point, up to 11 for 8+). Most points when time runs out wins; equal points go to whoever found more words, then the longer longest word; otherwise a draw. First to 3 round wins takes the match.',
   },
 
   anagrams: {
-    objective: 'Find more words than your opponent from the same seven-letter rack.',
+    objective: 'Score more points than your opponent from the same seven-letter rack.',
     howToPlay: [
+      'Each rack opens after a 3-2-1 countdown; the next rack deals itself a few seconds after the reveal.',
       'Tap tiles or type letters with your keyboard to build a word from the rack.',
       'Press ENTER to submit. Each word scores once per player.',
       'Scoring: 3 letters = 1, 4 = 2, 5 = 4, 6 = 7, 7 = 11 points; all 7 letters earns +5 bingo.',
