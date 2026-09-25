@@ -162,11 +162,11 @@ export const GAME_RULES = {
   numbermemory: {
     objective: 'Recall a growing sequence of digits.',
     howToPlay: [
-      'A number flashes on screen, then disappears.',
-      'Type the digits back exactly from memory.',
-      'Each correct answer adds another digit next round.',
+      'A number flashes on screen (longer numbers stay up longer), then disappears.',
+      'Both players type the digits back from memory at the same time.',
+      'If you both get it right, the next round adds another digit.',
     ],
-    win: 'Miss the sequence and you’re out — the player who remembers the longest number wins.',
+    win: 'Get it right when your opponent misses and you win. If you both miss, whoever typed more correct digits from the start wins; an exact tie replays the round with a new number of the same length.',
   },
 
   reaction: {

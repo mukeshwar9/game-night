@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { generateNumber, countMatchingPrefix, resolveNumberMemoryRound } from './numberMemoryLogic'
+import {
+  generateNumber, countMatchingPrefix, resolveNumberMemoryRound,
+  buildNextNumberRound, normalizeNumberRound, showMsForLevel, chunkDigits,
+} from './numberMemoryLogic'
 
 describe('generateNumber', () => {
   it('generates a number with the requested digit count', () => {
@@ -60,5 +63,56 @@ describe('resolveNumberMemoryRound', () => {
   it('both wrong and neither matches any digit — replay', () => {
     expect(resolveNumberMemoryRound({ answerX: '999', answerO: '888', number: '512' }))
       .toEqual({ type: 'replay' })
+  })
+})
+
+describe('buildNextNumberRound', () => {
+  const recall = { phase: 'recall', level: 4, number: '1234', answerX: '1234', answerO: '1234', showUntil: 99 }
+  const fixed = lvl => '9'.repeat(lvl)
+
+  it('advance replaces the whole round: next level, fresh number, no answers or showUntil', () => {
+    expect(buildNextNumberRound(recall, { type: 'advance' }, 4, fixed))
+      .toEqual({ phase: 'showing', level: 5, number: '99999' })
+  })
+
+  it('replay keeps the level, draws a new number and flags the tie', () => {
+    expect(buildNextNumberRound(recall, { type: 'replay' }, 4, fixed))
+      .toEqual({ phase: 'showing', level: 4, number: '9999', tie: true })
+  })
+
+  it('aborts when another client already moved the round on', () => {
+    expect(buildNextNumberRound({ ...recall, phase: 'showing' }, { type: 'advance' }, 4)).toBeNull()
+    expect(buildNextNumberRound({ ...recall, level: 5 }, { type: 'replay' }, 4)).toBeNull()
+    expect(buildNextNumberRound(null, { type: 'advance' }, 4)).toBeNull()
+  })
+
+  it('never builds a round for a win outcome', () => {
+    expect(buildNextNumberRound(recall, { type: 'win', winner: 'X' }, 4)).toBeNull()
+  })
+})
+
+describe('normalizeNumberRound', () => {
+  it('fills defaults for a missing round', () => {
+    expect(normalizeNumberRound(null)).toMatchObject({ phase: 'showing', level: 1, answerX: null, tie: false })
+  })
+
+  it('treats absent answers and showUntil as null', () => {
+    expect(normalizeNumberRound({ phase: 'recall', level: 3, number: '123' }))
+      .toEqual({ phase: 'recall', level: 3, number: '123', answerX: null, answerO: null, showUntil: null, tie: false })
+  })
+})
+
+describe('showMsForLevel', () => {
+  it('starts at 3s and adds a second per digit', () => {
+    expect(showMsForLevel(1)).toBe(3000)
+    expect(showMsForLevel(8)).toBe(10000)
+  })
+})
+
+describe('chunkDigits', () => {
+  it('groups digits in threes', () => {
+    expect(chunkDigits('12345678')).toEqual(['123', '456', '78'])
+    expect(chunkDigits('7')).toEqual(['7'])
+    expect(chunkDigits('')).toEqual([])
   })
 })
