@@ -46,6 +46,34 @@ export function randomTarget() {
   return 8 + Math.floor(Math.random() * 85)
 }
 
+// The clue-giver's hidden target lives only in their own sessionStorage as
+// `{ target, salt?, hash? }` (salt/hash appear once it has been committed).
+// Returns that entry normalised, or null when it is missing or corrupt.
+export function parseStoredTarget(raw) {
+  if (raw == null || raw === '') return null
+  let value = raw
+  if (typeof raw === 'string') {
+    try { value = JSON.parse(raw) } catch { return null }
+  }
+  if (!value || typeof value !== 'object') return null
+  const target = Number(value.target)
+  if (!Number.isInteger(target) || target < 0 || target > 100) return null
+  return {
+    target,
+    salt: typeof value.salt === 'string' && value.salt ? value.salt : null,
+    hash: typeof value.hash === 'string' && value.hash ? value.hash : null,
+  }
+}
+
+// The target for the round the clue-giver is about to clue: the stored one if
+// there is one (so a reload mid-clue keeps the same target), otherwise a fresh
+// roll. `fresh` tells the caller it must store it before showing it.
+export function storedOrNewTarget(raw, makeTarget = randomTarget) {
+  const stored = parseStoredTarget(raw)
+  if (stored) return { ...stored, fresh: false }
+  return { target: makeTarget(), salt: null, hash: null, fresh: true }
+}
+
 export function clampGuess(value) {
   const n = Math.round(Number(value))
   if (!Number.isFinite(n)) return 50

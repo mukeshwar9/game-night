@@ -8,6 +8,8 @@ import {
   randomSpectrumIndex,
   nextSpectrumIndex,
   randomTarget,
+  parseStoredTarget,
+  storedOrNewTarget,
   clampGuess,
   scoreGuess,
   normalizeGuesses,
@@ -139,6 +141,56 @@ describe('randomTarget', () => {
       expect(t).toBeGreaterThanOrEqual(8)
       expect(t).toBeLessThanOrEqual(92)
       expect(Number.isInteger(t)).toBe(true)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// parseStoredTarget / storedOrNewTarget — the clue-giver's hidden target
+// ---------------------------------------------------------------------------
+describe('parseStoredTarget', () => {
+  it('reads a committed entry', () => {
+    const raw = JSON.stringify({ target: 37, salt: 'ab', hash: 'cd' })
+    expect(parseStoredTarget(raw)).toEqual({ target: 37, salt: 'ab', hash: 'cd' })
+  })
+
+  it('reads an uncommitted entry (target only)', () => {
+    expect(parseStoredTarget(JSON.stringify({ target: 12 }))).toEqual({ target: 12, salt: null, hash: null })
+  })
+
+  it('returns null for missing, corrupt or out-of-range entries', () => {
+    expect(parseStoredTarget(null)).toBeNull()
+    expect(parseStoredTarget('')).toBeNull()
+    expect(parseStoredTarget('{nope')).toBeNull()
+    expect(parseStoredTarget(JSON.stringify({ target: 'x' }))).toBeNull()
+    expect(parseStoredTarget(JSON.stringify({ target: 140 }))).toBeNull()
+    expect(parseStoredTarget(JSON.stringify({ target: 4.5 }))).toBeNull()
+  })
+})
+
+describe('storedOrNewTarget', () => {
+  it('regression: the target exists before the clue — rolled at clue phase, not at submit', () => {
+    // Old flow rolled the target inside handleSubmitClue, so the clue carried no
+    // information. The clue phase now rolls (fresh) and later calls reuse it.
+    const first = storedOrNewTarget(null, () => 61)
+    expect(first).toEqual({ target: 61, salt: null, hash: null, fresh: true })
+    const stored = JSON.stringify({ target: first.target })
+    const again = storedOrNewTarget(stored, () => 5)
+    expect(again.target).toBe(61)
+    expect(again.fresh).toBe(false)
+  })
+
+  it('keeps the committed salt/hash across a reload', () => {
+    const raw = JSON.stringify({ target: 44, salt: 's', hash: 'h' })
+    expect(storedOrNewTarget(raw, () => 9)).toEqual({ target: 44, salt: 's', hash: 'h', fresh: false })
+  })
+
+  it('rolls a fresh in-range target when storage is empty', () => {
+    for (let i = 0; i < 50; i++) {
+      const t = storedOrNewTarget(null)
+      expect(t.fresh).toBe(true)
+      expect(t.target).toBeGreaterThanOrEqual(8)
+      expect(t.target).toBeLessThanOrEqual(92)
     }
   })
 })

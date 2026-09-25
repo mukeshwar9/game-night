@@ -102,9 +102,9 @@ function gameReducer(state, action) {
         scores,
         clueGiver,
         spectrumIndex: randomSpectrumIndex(),
-        // The human clue-giver sees the target immediately (mirrors the
-        // multiplayer clue-giver view of the dial); a bot clue-giver's target
-        // isn't known until its BOT_CLUE_READY dispatch.
+        // The human clue-giver sees the target before writing the clue, as in
+        // multiplayer (the clue-giver's client rolls it when the clue phase
+        // starts); a bot clue-giver's target isn't known until BOT_CLUE_READY.
         target: clueGiver === 'human' ? randomTarget() : null,
         round: 1,
       }
