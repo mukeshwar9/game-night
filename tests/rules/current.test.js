@@ -195,6 +195,15 @@ describe('games — chatLog', () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB, visibility: 'public' }))
     await assertFails(dbAs(testEnv, MALLORY).ref('games/g1/chatLog/m1').set(msg(MALLORY)))
   })
+
+  it('lets a whole-room write carry other players’ messages unchanged', async () => {
+    // Whole-room transactions (party phase advances) rewrite chatLog as-is;
+    // re-validating Bob's message as if Alice authored it used to reject them.
+    const room = { ...gameNode({ x: ALICE, o: BOB }), chatLog: { m1: msg(BOB) } }
+    await seed(testEnv, 'games/g1', room)
+    await assertSucceeds(dbAs(testEnv, ALICE).ref('games/g1').set({ ...room, status: 'finished' }))
+    await assertFails(dbAs(testEnv, ALICE).ref('games/g1').set({ ...room, chatLog: { m1: msg(BOB, 'edited') } }))
+  })
 })
 
 describe('matchmaking', () => {
