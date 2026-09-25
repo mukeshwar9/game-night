@@ -1,6 +1,8 @@
-# PRD — Password Duel
+# PRD — Password (co-op)
 
-**One-liner:** 2-player word clue game — one player gives short clues, the other guesses the secret word. Roles swap every round; first to the target score wins.
+**One-liner:** 2-player co-op word clue game — one player gives short clues, the other guesses the secret word. Roles swap every round; both players share one team score over a fixed 12 rounds and finish with a star rating.
+
+> **Scoring model — captain decision D1 (2026-09-26, reversible).** Password was a head-to-head duel (only the guesser scored, first to 15). The review found two structural problems: the first guesser won 60–80% of matches (they reach 15 a guessing turn earlier), and the clue-giver had no reason to give good clues (a useless clue denied the opponent points). The approved fix was "the clue-giver scores like the guesser". In a two-player game that means both players earn the same points every round, so a competitive 1v1 under that rule **always ties**. Password is therefore played as a **team**: every round's points go to one shared team total, the match is a fixed 12 rounds (6 guessing turns each), and the result is a star rating, not a winner. See [Scoring](#scoring) and [Reverting to 1v1](#reverting-to-1v1).
 
 | | |
 |---|---|
@@ -35,12 +37,13 @@
 
 ### Match
 
-- Two players: X and O.
+- Two players: X and O, playing as one team.
 - Players alternate roles each round:
   - **Clue-giver** sees secret word.
   - **Guesser** does not see secret word and submits guesses.
-- First player to `TARGET_SCORE = 15` wins the match.
-- If neither player reaches target after `MAX_ROUNDS = 12`, higher score wins; equal score is a draw.
+- The first clue-giver is `starter` (the waiting-room first-player choice, written by `firstMoverUpdates`); roles alternate from there.
+- A match is always `MAX_ROUNDS = 12` rounds, so each player guesses exactly 6 times. There is no early finish.
+- At the end the match is written `status: 'finished'`, `winner: 'draw'` (co-op: nobody loses) and the end screen shows the team score out of `MAX_TEAM_SCORE = 60`, a star rating, the best round and a round-by-round recap.
 - New match creates a new match seed and clears used words.
 
 ### Round
@@ -75,12 +78,16 @@ Points depend on how quickly word was guessed:
 | 4 | 2 |
 | 5 | 1 |
 
-- Correct guess: guesser gets points.
-- Clue-giver gets no points in v1.
+- Correct guess: the points go to the **team total** (`round.teamScore`). Both seats mirror it (`scores/X === scores/O === teamScore`) so shared UI and history never show the partners as rivals.
 - No correct guess after 5 clues: 0 points.
-- This keeps incentives simple: clue-giver helps opponent, but role alternates and total skill is clue quality + guessing.
+- Maximum: 12 rounds × 5 = `MAX_TEAM_SCORE = 60`.
+- Star rating (`STAR_THRESHOLDS`, starting values to playtest): ★ at 20, ★★ at 30, ★★★ at 40.
 
-Optional post-v1 scoring variant: clue-giver also gets half the points when guesser succeeds, encouraging helpful clues in casual play. Do not include in v1 unless playtesting feels adversarial.
+Why co-op: with "clue-giver scores like the guesser", every point either player earns is also earned by the other, so head-to-head scores are always equal. Rather than ship a duel that can only draw, the game embraces the shared score. This removes the sabotage incentive entirely (a bad clue now costs you too) and removes the first-guesser edge (there is no race).
+
+#### Reverting to 1v1
+
+The change is contained in `passwordLogic.js`: credit only `lastDelta.player` (instead of the team total) when a round resolves, restore a first-to target in `getMatchWinner`, and only check it after even rounds so both players get equal guessing turns (the first-guesser fix from the review). `PasswordCard`'s team rail and `PasswordMatchResult` would go back to a split scoreboard.
 
 ## Word deck
 
@@ -128,17 +135,25 @@ round: {
     { text: string, at: number, correct: boolean }
   ],
   lastDelta: {
-    player: 'X' | 'O',
+    player: 'X' | 'O',          // the guesser who solved it
     points: number,
     clueNumber: number,
   } | null,
+  teamScore: number,            // co-op team total, source of truth
+  history: [                    // one entry per resolved round (match recap)
+    { roundNum, wordIndex, clueGiver, guesser, points, clueNumber }  // clueNumber 0 = missed
+  ],
+  endedEarly: boolean,          // set by END MATCH (partner offline)
   endsAt: epochMs,
 }
 
-scores: { X: number, O: number }
-winner: 'X' | 'O' | 'draw' | null
+scores: { X: teamScore, O: teamScore }   // both seats mirror the team total
+winner: 'draw' | null                    // co-op: a finished match is always 'draw'
 status: 'waiting' | 'playing' | 'finished'
+starter: 'X' | 'O'                       // first clue-giver (waiting-room choice)
 ```
+
+`history` is append-only and Firebase deletes empty arrays, so it is read through `toList()` (explicit-key normalizer), like `clues`, `guesses` and `used`.
 
 Notes:
 
@@ -153,10 +168,18 @@ File: `src/lib/passwordLogic.js`
 Pure exports:
 
 ```js
-export const TARGET_SCORE = 15
 export const MAX_ROUNDS = 12
 export const MAX_CLUES = 5
 export const CLUE_POINTS = [5, 4, 3, 2, 1]
+export const MAX_TEAM_SCORE = 60
+export const TARGET_SCORE = MAX_TEAM_SCORE   // kept for Game.jsx; never ends a match
+export const STAR_THRESHOLDS = [20, 30, 40]
+
+export function starRating(teamScore)
+export function teamScoresFor(teamScore)     // { X: t, O: t }
+export function teamScoreOf(round, scores)
+export function bestRound(history)
+export function toList(raw)
 
 export function normalizeText(text)
 export function validateClue({ clue, word, previousClues })
@@ -287,9 +310,8 @@ Guesser only:
 
 After reveal deadline, either client runs transaction:
 
-1. Check winner via `TARGET_SCORE` or `MAX_ROUNDS`.
-2. If winner: set `status: 'finished'`, `winner`, clear proposal.
-3. Else: create next round with swapped roles, next word from seeded deck excluding `used`.
+1. If `roundNum >= MAX_ROUNDS`: set `status: 'finished'`, `winner: 'draw'`, both seat scores = team total, clear proposal.
+2. Else: create next round with swapped roles, next word from seeded deck excluding `used`, carrying `teamScore` and `history`.
 
 ## UX and visual direction
 
@@ -306,7 +328,7 @@ User explicitly wants it to look nice. Treat v1 visual polish as acceptance, not
 
 Top:
 
-- Compact score rail: `YOU 7` vs `THEM 5`, target marker `15`.
+- Team rail: `TEAM SCORE 23 / 60`, stars earned so far, next star threshold.
 - Role pill: `YOU GIVE CLUE` / `YOU GUESS`.
 - Round indicator: `ROUND 4/12`.
 
@@ -344,11 +366,12 @@ Reveal:
 - If no guess: `NO POINTS` with muted shake.
 - Next role preview: `NEXT: YOU GUESS`.
 
-End screen:
+End screen (co-op result):
 
-- Reuse custom-game end style.
-- Show final score as big split scoreboard.
-- CTA buttons: `PLAY AGAIN`, `NEW MATCH`, `SWITCH GAME` depending shared custom conventions.
+- Team score out of 60 with the star rating and the thresholds (★ 20 · ★★ 30 · ★★★ 40).
+- Best round (word, points, clue number, who gave → who guessed).
+- Round-by-round recap: word, clue-giver → guesser, `+N · CLUE n` or `MISSED`.
+- CTA buttons: `NEW MATCH`, `SWITCH GAME` (no PLAY AGAIN — it preserves scores).
 
 ### Animation/sound
 
@@ -370,21 +393,7 @@ End screen:
 
 ## Rules modal copy
 
-Objective:
-
-> Give clues that help your opponent guess the password. Then swap roles and try to score more when you guess.
-
-How to play:
-
-- One player sees the secret password.
-- They send one-word clues.
-- The other player guesses after each clue.
-- Earlier guesses score more points.
-- Roles swap every round.
-
-To win:
-
-> First to 15 points wins. If nobody reaches 15 after 12 rounds, high score wins.
+Rules text lives in `src/lib/rules.js` (orchestrator-owned); it must describe the co-op model: one team score, 12 rounds with roles alternating, 5/4/3/2/1 points by clue number, the clue and guess clocks, and the star thresholds.
 
 ## Edge cases
 
@@ -404,10 +413,10 @@ Use two browser profiles/incognito.
 3. X submits valid clue; O receives clue.
 4. O wrong guess; phase returns to clue.
 5. X attempts invalid clue using secret word; blocked locally.
-6. O guesses correctly on clue 2; O gains 4 points.
+6. O guesses correctly on clue 2; the team score goes up by 4 on both screens.
 7. Reveal shows secret and score delta.
 8. Next round swaps roles.
-9. Continue until target score; match finishes with correct winner.
+9. Continue through round 12; the match finishes with the team score, stars, best round and recap on both clients (same numbers on both).
 10. Play again/new match uses different first word.
 11. Switch away and back clears stale Password state.
 12. Mobile viewport: card, ladder, input remain visible and attractive.
@@ -428,8 +437,8 @@ Use two browser profiles/incognito.
 - Supports exactly two seated players.
 - Roles alternate every round.
 - Clues are one word and cannot include secret word.
-- Correct guesses score 5–1 by clue number.
-- Match ends at 15 points or after 12 rounds.
+- Correct guesses score 5–1 by clue number, for the team.
+- Match always lasts 12 rounds (6 guessing turns each) and finishes as a co-op `draw` with a star rating.
 - New match/play again does not repeat same initial word due deterministic static seed.
 - UI has polished game-show card, score rail, clue ladder, and reveal animation.
 - No new Firebase top-level keys remain uncleared when switching games.

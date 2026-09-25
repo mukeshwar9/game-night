@@ -6,21 +6,13 @@ import { sounds } from '../lib/sounds'
 import useBusy from '../hooks/useBusy'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import GameSwitcher from '../components/GameSwitcher'
-import PasswordCard from '../components/PasswordCard'
+import PasswordCard, { PasswordMatchResult } from '../components/PasswordCard'
 import { PASSWORD_DECK } from '../lib/decks/password'
-import { INTRO_MS, MAX_CLUES, guessSecondsForClueNumber } from '../lib/passwordLogic'
+import { INTRO_MS, MAX_CLUES, MAX_ROUNDS, guessSecondsForClueNumber } from '../lib/passwordLogic'
 import {
-  advanceAfterReveal, applyClue, applyGuess, applyGuessTimeout, createInitialRound,
-  pickWord, validateClue,
+  advanceAfterReveal, applyClue, applyGuess, applyGuessTimeout, bestRound, createInitialRound,
+  pickWord, teamScoreOf, teamScoresFor, toList, validateClue,
 } from '../lib/passwordLogic'
-
-function normalizeList(raw) {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw
-  return Object.keys(raw)
-    .sort((a, b) => Number(a) - Number(b))
-    .map(key => raw[key])
-}
 
 function matchSeed() {
   try { return crypto.randomUUID() } catch { return `${Date.now()}-${Math.random()}` }
@@ -53,8 +45,9 @@ export default function PasswordGame({
 
   const round = game?.round || null
   const phase = round?.phase || 'starting'
-  const clues = normalizeList(round?.clues)
-  const guesses = normalizeList(round?.guesses)
+  const clues = toList(round?.clues)
+  const guesses = toList(round?.guesses)
+  const teamScore = teamScoreOf(round, game?.scores)
   const word = PASSWORD_DECK[Number(round?.wordIndex)]?.word || ''
   const isClueGiver = mySymbol && mySymbol === round?.clueGiver
   const isGuesser = mySymbol && mySymbol === round?.guesser
@@ -71,6 +64,8 @@ export default function PasswordGame({
       const starter = current.starter === 'O' ? 'O' : 'X'
       return {
         ...current,
+        // Co-op: both seats carry the team total, which starts every match at 0.
+        scores: teamScoresFor(0),
         round: {
           ...createInitialRound({
             starter,
@@ -170,9 +165,9 @@ export default function PasswordGame({
         if (!current || current.status !== 'playing' || !currentRound || currentRound.phase !== 'guess' || currentRound.guesser !== mySymbol) return
         const nextRound = applyGuess(currentRound, trimmed, word, Date.now())
         if (!nextRound) return
-        const scores = { X: current.scores?.X || 0, O: current.scores?.O || 0 }
-        if (nextRound.lastDelta?.points) scores[nextRound.lastDelta.player] += nextRound.lastDelta.points
-        return { ...current, round: nextRound, scores, lastActivityAt: Date.now() }
+        // Co-op: a solved round's points go to the shared team total, which
+        // both seats mirror so every client (and the shared UI) agrees.
+        return { ...current, round: nextRound, scores: teamScoresFor(nextRound.teamScore), lastActivityAt: Date.now() }
       })
       if (!result.committed) throw new Error('guess rejected')
       setInput('')
@@ -182,33 +177,32 @@ export default function PasswordGame({
 
   const submit = phase === 'clue' ? submitClue : submitGuess
   const canSubmit = phase === 'clue' ? isClueGiver : isGuesser
-  const matchWinner = game?.winner || null
   const guessNum = clues.length || 0
   const guessAllowance = guessSecondsForClueNumber(Math.max(1, guessNum))
   const guessMsLeft = phase === 'guess' && round?.endsAt ? Math.max(0, round.endsAt - clock) : null
   const guessSecsLeft = guessMsLeft == null ? null : Math.ceil(guessMsLeft / 1000)
 
   if (matchFinished) {
-    const draw = matchWinner === 'draw'
-    const won = matchWinner === mySymbol
+    const history = toList(round?.history).map(entry => ({ ...entry, word: PASSWORD_DECK[Number(entry.wordIndex)]?.word || '' }))
+    const best = bestRound(history)
     return (
-      <div className="space-y-5 text-center py-4" aria-live="polite">
-        <p className="font-pixel text-[10px] text-retro-dim tracking-widest">PASSWORD DUEL COMPLETE</p>
-        <p className={`font-pixel text-lg ${draw ? 'text-retro-text' : won ? 'text-retro-win text-glow-win' : 'text-retro-p2'}`}>
-          {draw ? 'DRAW!' : won ? 'YOU WIN!' : `${game.players?.[matchWinner]?.name || matchWinner} WINS`}
-        </p>
-        <div className="grid grid-cols-2 gap-2 max-w-xs mx-auto">
-          {['X', 'O'].map(symbol => (
-            <div key={symbol} className="rounded border border-retro-border bg-retro-card p-3">
-              <p className="font-pixel text-[8px] text-retro-dim truncate">{game.players?.[symbol]?.name || symbol}</p>
-              <p className={`font-pixel text-2xl mt-2 ${symbol === 'X' ? 'text-retro-p1' : 'text-retro-p2'}`}>{game.scores?.[symbol] || 0}</p>
-            </div>
-          ))}
+      <div className="space-y-5 py-4 max-w-sm mx-auto" aria-live="polite">
+        <div className="text-center space-y-1">
+          <p className="font-pixel text-[10px] text-retro-dim tracking-widest">PASSWORD · CO-OP RESULT</p>
+          <p className="font-mono text-[9px] text-retro-dim">YOU PLAY AS A TEAM — EVERY POINT COUNTS FOR BOTH OF YOU</p>
         </div>
+        <PasswordMatchResult
+          teamScore={teamScore}
+          history={history}
+          best={best}
+          players={game.players}
+          mySymbol={mySymbol}
+          endedEarly={!!round?.endedEarly || (history.length > 0 && history.length < MAX_ROUNDS)}
+        />
         <div className="flex flex-wrap justify-center gap-2">
           {/* No PLAY AGAIN here: applyPlayAgain preserves scores, so a
-              finished Password match (target reached) would reopen with
-              stale winning scores. NEW MATCH resets via applyNewMatch. */}
+              finished match would reopen with a stale team total. NEW MATCH
+              resets via applyNewMatch. */}
           {!proposal && onNewMatch && (
             <ActionButton onClick={onNewMatch}>NEW MATCH</ActionButton>
           )}
@@ -228,7 +222,7 @@ export default function PasswordGame({
         clues={clues}
         guesses={guesses}
         roundNum={round?.roundNum || 1}
-        scores={game?.scores}
+        teamScore={teamScore}
         players={game?.players}
         mySymbol={mySymbol}
         clueGiver={round?.clueGiver}
@@ -273,9 +267,11 @@ export default function PasswordGame({
       {phase === 'reveal' && (
         <div className="text-center space-y-1" aria-live="polite">
           {round?.lastDelta?.points ? (
-            <p className="font-pixel text-base text-retro-win text-glow-win">+{round.lastDelta.points} FOR {game.players?.[round.lastDelta.player]?.name || round.lastDelta.player}</p>
+            <p className="font-pixel text-base text-retro-win text-glow-win">+{round.lastDelta.points} TEAM POINTS</p>
           ) : <p className="font-pixel text-[10px] text-retro-dim">NO POINTS THIS ROUND</p>}
-          <p className="font-mono text-[10px] text-retro-dim">NEXT ROUND SWAPS CLUE-GIVER</p>
+          <p className="font-mono text-[10px] text-retro-dim">
+            {(round?.roundNum || 1) >= MAX_ROUNDS ? 'FINAL ROUND · RESULTS NEXT' : 'NEXT ROUND SWAPS CLUE-GIVER'}
+          </p>
         </div>
       )}
 
