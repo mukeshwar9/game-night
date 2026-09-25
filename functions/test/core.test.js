@@ -251,3 +251,33 @@ describe('leaderboard rows', () => {
     assert.equal(core.outcomeFor('O', 'X'), 'loss')
   })
 })
+
+describe('error telemetry retention', () => {
+  const at = (iso) => Date.parse(iso)
+
+  test('keeps today and the previous 13 UTC days', () => {
+    const now = at('2026-09-26T08:00:00Z')
+    assert.equal(core.ERROR_RETENTION_DAYS, 14)
+    assert.equal(core.errorsCutoffKey(now), '2026-09-13')
+    assert.equal(core.isExpiredErrorDay('2026-09-13', '2026-09-13'), false)
+    assert.equal(core.isExpiredErrorDay('2026-09-12', '2026-09-13'), true)
+    assert.equal(core.isExpiredErrorDay('2025-12-31', '2026-09-13'), true)
+    assert.equal(core.isExpiredErrorDay('2026-09-26', '2026-09-13'), false)
+  })
+
+  test('uses UTC day boundaries, like telemetry.js dayKey', () => {
+    assert.equal(core.utcDayKey(at('2026-09-26T23:59:59Z')), '2026-09-26')
+    assert.equal(core.errorsCutoffKey(at('2026-09-26T23:59:59Z')), '2026-09-13')
+    assert.equal(core.errorsCutoffKey(at('2026-09-27T00:00:00Z')), '2026-09-14')
+    // Month and year edges.
+    assert.equal(core.errorsCutoffKey(at('2026-03-05T12:00:00Z')), '2026-02-20')
+    assert.equal(core.errorsCutoffKey(at('2027-01-03T12:00:00Z')), '2026-12-21')
+    assert.equal(core.errorsCutoffKey(at('2026-09-26T08:00:00Z'), 1), '2026-09-26')
+  })
+
+  test('never matches keys that are not day keys', () => {
+    for (const key of ['', 'latest', '2026-9-1', '2026-09-01x', '0000']) {
+      assert.equal(core.isExpiredErrorDay(key, '2026-09-13'), false, key)
+    }
+  })
+})

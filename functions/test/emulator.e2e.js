@@ -7,7 +7,7 @@ const { test, before, after } = require('node:test')
 const assert = require('node:assert/strict')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
-const { initializeApp, deleteApp } = require('firebase-admin/app')
+const { initializeApp, deleteApp, getApps } = require('firebase-admin/app')
 const { getDatabase } = require('firebase-admin/database')
 
 const PROJECT = 'demo-game-night'
@@ -92,7 +92,9 @@ before(async () => {
   await db.ref('leaderboard/dave').set({ name: 'DAVE', wins: 9999, games: 1, bestStreak: 9999 })
 })
 
-after(async () => { await deleteApp(app) })
+// Every admin app, including the default one index.js opens in the cleanup
+// test — an open database connection would keep the test process alive.
+after(async () => { await Promise.all(getApps().map(a => deleteApp(a))) })
 
 test('a finished Tic Tac Toe match is credited once', async () => {
   await openRoom('ROOM1', 'alice', 'bob')
@@ -186,4 +188,26 @@ test('legacy rows stay hidden from the top-N query and go only via the opt-in pu
   assert.match(run('--yes'), /Deleted 1 rows/)
   assert.equal(await row('eve'), null)
   assert.equal((await row('alice')).verified, true)
+})
+
+test('the daily cleanup prunes error-report days older than two weeks', async () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const day = (offset) => new Date(Date.now() - offset * DAY).toISOString().slice(0, 10)
+  const report = { at: 1, kind: 'error', msg: 'boom' }
+  await db.ref('errors').set({
+    [day(30)]: { e1: report },
+    [day(14)]: { e2: report },
+    [day(13)]: { e3: report },
+    [day(0)]: { e4: report },
+  })
+  // Run the scheduled handler in-process (the emulator skips schedules). Its
+  // default admin app needs the emulated database's URL.
+  process.env.FIREBASE_CONFIG = JSON.stringify({ projectId: PROJECT, databaseURL: DATABASE_URL })
+  process.env.GCLOUD_PROJECT = PROJECT
+  const { cleanupStaleGames } = require('../index.js')
+  await cleanupStaleGames.run({})
+
+  assert.deepEqual(Object.keys(await val('errors')).sort(), [day(13), day(0)].sort())
+  // Rooms played in this run are fresh, so nothing else was touched.
+  assert.notEqual(await val('games/ROOM1'), null)
 })

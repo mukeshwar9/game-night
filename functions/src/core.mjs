@@ -382,3 +382,27 @@ export function applyCredit(row, { key, outcome, name, avatar, now }) {
 
 /** 'win' | 'loss' | 'draw' for the seat `sym` given a match result. */
 export const outcomeFor = (winner, sym) => (winner === 'draw' ? 'draw' : winner === sym ? 'win' : 'loss')
+
+// ---- Error telemetry retention (errors/{day}) --------------------------------
+// src/lib/telemetry.js buckets reports under UTC day keys ('2026-09-26', its
+// dayKey). ISO dates sort lexicographically in date order, so "older than the
+// cutoff" is a plain key comparison — and an orderByKey query.
+
+export const ERROR_RETENTION_DAYS = 14
+const DAY_MS = 24 * 60 * 60 * 1000
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/
+
+/** telemetry.js's dayKey: the UTC calendar day of `ts`. */
+export const utcDayKey = (ts) => new Date(ts).toISOString().slice(0, 10)
+
+/**
+ * The oldest errors/{day} key to keep: today plus the previous
+ * `keepDays - 1` UTC days survive (the same days telemetry's lastDayKeys(14)
+ * lists); every earlier bucket is deleted.
+ */
+export function errorsCutoffKey(now, keepDays = ERROR_RETENTION_DAYS) {
+  return utcDayKey(now - (Math.max(1, keepDays) - 1) * DAY_MS)
+}
+
+/** True for a well-formed day key that sorts before the cutoff. */
+export const isExpiredErrorDay = (key, cutoffKey) => DAY_KEY.test(key) && key < cutoffKey

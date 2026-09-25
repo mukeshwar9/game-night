@@ -7,6 +7,7 @@ initializeApp();
 
 // Server-authoritative match results -> leaderboard (see results.js, README.md).
 exports.creditMatchResults = require('./results').creditMatchResults;
+const { errorsCutoffKey, isExpiredErrorDay } = require('./lib/core.cjs');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Query page size and a per-run ceiling, so a backlog (e.g. the first run after
@@ -58,6 +59,7 @@ async function deleteKeys(ref, keys) {
 //  - game invites older than 24 hours, or pointing at a room deleted this run.
 //  - the results/ record (match epochs, see results.js) of every room deleted
 //    this run.
+//  - error-telemetry buckets (errors/{UTC day}) older than the last 14 days.
 exports.cleanupStaleGames = onSchedule({ schedule: 'every 24 hours', timeoutSeconds: 540 }, async () => {
   const db = getDatabase();
   const now = Date.now();
@@ -117,5 +119,16 @@ exports.cleanupStaleGames = onSchedule({ schedule: 'every 24 hours', timeoutSeco
   }
   await deleteKeys(invitesRef, invitePaths);
 
-  logger.info(`Deleted ${deletedGames.size} stale games, ${listingKeys.length} public listings, ${invitePaths.length} invites`);
+  // Error reports: keep the last ERROR_RETENTION_DAYS UTC days. Day keys sort
+  // in date order, so the key-ordered query reads only the expired buckets.
+  const errorsRef = db.ref('errors');
+  const cutoffKey = errorsCutoffKey(now);
+  const oldErrors = await errorsRef.orderByKey().endAt(cutoffKey).get();
+  const errorDays = [];
+  oldErrors.forEach(day => {
+    if (isExpiredErrorDay(day.key, cutoffKey)) errorDays.push(day.key);
+  });
+  await deleteKeys(errorsRef, errorDays);
+
+  logger.info(`Deleted ${deletedGames.size} stale games, ${listingKeys.length} public listings, ${invitePaths.length} invites, ${errorDays.length} error-report days`);
 });

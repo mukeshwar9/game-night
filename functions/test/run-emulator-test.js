@@ -32,10 +32,16 @@ function freePort() {
 async function main() {
   const [database, functions, hub, logging, eventarc, tasks] = await Promise.all(Array.from({ length: 6 }, freePort))
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gn-functions-emu-'))
-  // Deny-all for clients; the index is the one the Leaderboard page's query
-  // needs in the real rules (the emulator refuses unindexed queries).
+  // Deny-all for clients; the indexes are the ones the real rules define for
+  // the Leaderboard page's query and the cleanup's room queries (the emulator
+  // refuses unindexed queries).
   fs.writeFileSync(path.join(dir, 'database.rules.json'), JSON.stringify({
-    rules: { '.read': false, '.write': false, leaderboard: { '.indexOn': ['verifiedWins'] } },
+    rules: {
+      '.read': false,
+      '.write': false,
+      leaderboard: { '.indexOn': ['verifiedWins'] },
+      games: { '.indexOn': ['createdAt', 'lastActivityAt'] },
+    },
   }))
   fs.writeFileSync(path.join(dir, 'firebase.json'), JSON.stringify({
     database: { rules: 'database.rules.json' },
