@@ -58,6 +58,11 @@ const ALLOW = new Set([
   'spice', 'spices', 'spiced', 'spicer', 'spicers', 'spicy', 'spicier',
   'spiciest', 'spicily', 'spicing', 'beanery', 'beaneries', 'niggard',
   'niggards', 'niggardly', 'snigger', 'sniggers', 'sniggered', 'sniggering',
+  'butter', 'butters', 'buttered', 'buttering', 'buttery', 'butterfly',
+  'butterflies', 'buttercup', 'buttercups', 'butte', 'buttes', 'heroine',
+  'heroines', 'shaggy', 'shaggier', 'shaggiest', 'titter', 'titters',
+  'tittered', 'tittering', 'dicker', 'dickers', 'dickered', 'dickering',
+  'crape', 'crapes', 'craped', 'craping', 'cocker', 'cockers', 'brasier',
 ])
 
 const SLUR_SET = new Set(SLURS)
@@ -81,8 +86,9 @@ export function wordForms(word) {
       if (stem.length < 4 && suf !== 's') continue
       forms.add(stem)
       if (suf === 'ies' || suf === 'ier' || suf === 'iest') forms.add(stem + 'y')
-      // doubled consonant before -ing/-ed/-er ("slurring" → "slur")
-      if (stem.length > 2 && stem[stem.length - 1] === stem[stem.length - 2]) forms.add(stem.slice(0, -1))
+      // doubled consonant before -ing/-ed/-er ("slurring" → "slur"), but not
+      // "-ss" stems, which are base words ("assessed" is not "asses" + d)
+      if (stem.length > 2 && !stem.endsWith('ss') && stem[stem.length - 1] === stem[stem.length - 2]) forms.add(stem.slice(0, -1))
     }
   }
   return [...forms].filter(Boolean)

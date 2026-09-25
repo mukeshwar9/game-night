@@ -27,6 +27,9 @@ describe('isFamilySafe', () => {
   })
 
   it('keeps ordinary words', () => {
+    for (const w of ['butter', 'peanut', 'butterfly', 'buttes', 'heroines', 'shaggy', 'titter', 'assessed', 'assesses', 'brassy', 'brasses', 'dicker']) {
+      expect(isFamilySafe(w), w).toBe(true)
+    }
     for (const w of ['apple', 'crane', 'planet', 'teacher', 'glass', 'passes', 'titan', 'scrape', 'brass', 'spicy', 'death', 'crack', 'screw', 'strip', 'balls', 'knobs', 'slave', 'drunk', 'kills', 'idiot', 'weeds']) {
       expect(isFamilySafe(w), w).toBe(true)
     }
