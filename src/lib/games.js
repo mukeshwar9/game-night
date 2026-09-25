@@ -1218,7 +1218,9 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 4, tags: ['quick', 'thinky'], solo: false,
-    custom: true, hidePlayerCards: true,
+    // coop: partners never "claim a win" from each other (Game.jsx skips the
+    // abandoned-opponent banner); the page lets the online partner play on.
+    custom: true, hidePlayerCards: true, coop: true,
   },
   {
     type: 'wordrace', label: 'WORD RACE',
