@@ -408,41 +408,49 @@ export default function WordDuelGame({
     handleCallTime()
   }, [canCallTime, handleCallTime])
 
-  // Auto-advance to reveal when both done
+  // Publish my word once both boards are done. The first client to publish
+  // flips the phase to 'reveal'; the other must still publish after that flip
+  // (a slower client used to skip it, leaving its opponent unable to verify).
+  const myRevealPublished = !!reveal[mySymbol]
   useEffect(() => {
-    if (isSpectator || matchOver || phase !== 'guessing') return
-    if (bothDone && !bothRevealed) {
-      const myReveal = stored ? { word: stored.word, salt: stored.salt } : null
-      if (!myReveal) {
-        // Secret lost (cleared storage / different browser) — the result needs
-        // only done states, so resolve straight to reveal instead of stalling
-        // with both done but bothRevealed false forever.
-        runTransaction(ref(db, `games/${gameId}`), current => {
-          const r = current?.round
-          if (!current || current.status !== 'playing' || !r || r.phase !== 'guessing' || r.result) return
-          if (!(r.doneX && r.doneO)) return
-          const winner = compareResults(r.doneX, r.doneO)
-          if (!winner) return
-          const next = { ...current, round: { ...r, phase: 'reveal', result: { winner, reason: 'solved' } }, lastActivityAt: serverNow() }
-          if (winner !== 'draw') {
-            const scores = { ...(current.scores || { X: 0, O: 0 }) }
-            scores[winner] = (scores[winner] || 0) + 1
-            next.scores = scores
-            if (scores[winner] >= MATCH_TARGET) {
-              next.status = 'finished'
-              next.winner = winner
-            }
+    if (isSpectator || matchOver || !bothDone) return
+    if (phase !== 'guessing' && phase !== 'reveal') return
+    const myReveal = stored ? { word: stored.word, salt: stored.salt } : null
+    if (!myReveal) {
+      if (phase !== 'guessing' || bothRevealed) return
+      // Secret lost (cleared storage / different browser) — the result needs
+      // only done states, so resolve straight to reveal instead of stalling
+      // with both done but bothRevealed false forever.
+      runTransaction(ref(db, `games/${gameId}`), current => {
+        const r = current?.round
+        if (!current || current.status !== 'playing' || !r || r.phase !== 'guessing' || r.result) return
+        if (!(r.doneX && r.doneO)) return
+        const winner = compareResults(r.doneX, r.doneO)
+        if (!winner) return
+        const next = { ...current, round: { ...r, phase: 'reveal', result: { winner, reason: 'solved' } }, lastActivityAt: serverNow() }
+        if (winner !== 'draw') {
+          const scores = { ...(current.scores || { X: 0, O: 0 }) }
+          scores[winner] = (scores[winner] || 0) + 1
+          next.scores = scores
+          if (scores[winner] >= MATCH_TARGET) {
+            next.status = 'finished'
+            next.winner = winner
           }
-          return next
-        }).catch(() => {})
-        return
-      }
-      update(ref(db, `games/${gameId}/round`), {
-        phase: 'reveal',
-        ['reveal/' + mySymbol]: myReveal,
+        }
+        return next
       }).catch(() => {})
+      return
     }
-  }, [bothDone, bothRevealed, phase, isSpectator, matchOver, gameId, mySymbol, stored, serverNow])
+    if (myRevealPublished) return
+    // Transaction guarded on the round number, so a late write can never
+    // land in (and flip the phase of) the next round.
+    runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || (Number(current.roundNum) || 1) !== roundNum) return
+      if (current.phase !== 'guessing' && current.phase !== 'reveal') return
+      if (!current.doneX || !current.doneO || current.reveal?.[mySymbol]) return
+      return { ...current, phase: 'reveal', reveal: { ...(current.reveal || {}), [mySymbol]: myReveal } }
+    }).catch(() => {})
+  }, [bothDone, bothRevealed, myRevealPublished, phase, isSpectator, matchOver, gameId, mySymbol, stored, serverNow, roundNum])
 
   // Write the round result (+ bump the winner's score, ending the match at
   // the registry's matchTarget) via a transaction guarded on `round.result` so
