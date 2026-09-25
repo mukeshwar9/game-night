@@ -22,7 +22,7 @@
   align-items: center;
   justify-content: center;
   padding: .75rem;
-  font: 7px/1.5 'Press Start 2P', ui-monospace, monospace;
+  font: 7px/1.5 var(--font-pixel), ui-monospace, monospace;
   text-align: center;
   text-shadow: 0 0 8px rgb(var(--c-p2));
 }
@@ -93,7 +93,7 @@
   inset: 50% auto auto 50%;
   transform: translate(-50%, -50%);
   color: rgb(var(--c-dim));
-  font: 8px 'Press Start 2P', ui-monospace, monospace;
+  font: 8px var(--font-pixel), ui-monospace, monospace;
   letter-spacing: .08em;
 }
 .video-call-layout-preview-video {
@@ -109,16 +109,32 @@
 .video-call-layout-preview-video-bottom-left { bottom: 8px; left: 8px; }
 .video-call-layout-preview-video-bottom-right { right: 8px; bottom: 8px; }
 
-/* Self-hosted pixel font — replaces the Google Fonts round-trip (removes
-   render-blocking preconnect + stylesheet fetch, avoids the FOUT swap). */
+/* Self-hosted arcade font families. The selected family flows through
+   --font-pixel, which powers Tailwind's font-pixel utility everywhere. */
 @font-face {
   font-family: 'Press Start 2P';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
   src: url('/fonts/press-start-2p-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/silkscreen-regular.ttf') format('truetype'); }
+@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/silkscreen-bold.ttf') format('truetype'); }
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/pixelify-sans-regular.ttf') format('truetype'); }
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/pixelify-sans-bold.ttf') format('truetype'); }
+@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/vt323.ttf') format('truetype'); }
+@font-face { font-family: 'Share Tech Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/share-tech-mono.ttf') format('truetype'); }
+@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/oxanium-regular.ttf') format('truetype'); }
+@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/oxanium-bold.ttf') format('truetype'); }
+@font-face { font-family: 'Audiowide'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/audiowide-latin.ttf') format('truetype'); }
+
+:root { --font-pixel: 'Press Start 2P'; }
+[data-font='silkscreen'] { --font-pixel: 'Silkscreen'; }
+[data-font='pixelify'] { --font-pixel: 'Pixelify Sans'; }
+[data-font='vt323'] { --font-pixel: 'VT323'; }
+[data-font='share-tech'] { --font-pixel: 'Share Tech Mono'; }
+[data-font='oxanium'] { --font-pixel: 'Oxanium'; }
+[data-font='audiowide'] { --font-pixel: 'Audiowide'; }
 
 /* shadcn/ui CSS variables — retro palette */
 @layer base {
@@ -867,6 +883,22 @@ body::before {
   background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.65) 100%);
   pointer-events: none;
   z-index: 9997;
+}
+
+/* Look-and-feel prefs (Settings → Look & feel, see lib/displayPrefs.js).
+   CRT toggle kills both overlay layers regardless of theme. */
+[data-crt="off"] body::after,
+[data-crt="off"] body::before {
+  display: none;
+}
+
+/* Reduce-motion: freeze keyframe + transition motion app-wide. JS-driven
+   loops (WinEffect timers, framer-motion taps) are gated at their own
+   call sites; this covers every CSS animation (blinks, bursts, floats). */
+[data-motion="reduced"] *, [data-motion="reduced"] *::before, [data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }
 
 #root { width: 100%; }

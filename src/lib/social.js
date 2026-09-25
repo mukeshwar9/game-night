@@ -115,7 +115,7 @@ export async function ensureProfile() {
   return profile
 }
 
-export async function setProfile({ displayName, avatar, theme } = {}) {
+export async function setProfile({ displayName, avatar, theme, fontFamily } = {}) {
   const uid = getUid()
   if (!db || !uid) return
   const patch = { updatedAt: Date.now() }
@@ -127,6 +127,7 @@ export async function setProfile({ displayName, avatar, theme } = {}) {
   // Theme is not mirrored to localStorage here — theme.js (applyTheme) owns
   // that mirror; this patch only carries the choice cross-device via the profile.
   if (typeof theme === 'string' && theme) patch.theme = theme
+  if (typeof fontFamily === 'string' && fontFamily) patch.fontFamily = fontFamily
   await update(ref(db, `users/${uid}`), patch)
   mirrorLocal({ displayName: patch.displayName, avatar: patch.avatar })
 }

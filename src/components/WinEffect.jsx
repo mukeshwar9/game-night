@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getWinFx } from '../lib/displayPrefs'
 
 const COLORS = { X: 'rgb(var(--c-p1))', O: 'rgb(var(--c-p2))', draw: 'rgb(var(--c-cta))' }
 const GLOWS  = { X: '0 0 6px rgb(var(--c-p1))', O: '0 0 6px rgb(var(--c-p2))', draw: '0 0 6px rgb(var(--c-cta))' }
@@ -7,11 +8,15 @@ const CONFETTI = ['rgb(var(--c-p1))', 'rgb(var(--c-p2))', 'rgb(var(--c-cta))', '
 
 export default function WinEffect({ winner, onDone, intensity = 'round' }) {
   const isMatch = intensity === 'match'
+  // Settings → Win celebrations off: skip the overlay entirely but still
+  // resolve immediately so round-end CTA timing is unchanged.
+  const enabled = getWinFx()
 
   useEffect(() => {
+    if (!enabled) { onDone(); return }
     const t = setTimeout(onDone, isMatch ? 2600 : 1800)
     return () => clearTimeout(t)
-  }, [onDone, isMatch])
+  }, [onDone, isMatch, enabled])
 
   const color = COLORS[winner] ?? COLORS.draw
   const glow  = GLOWS[winner]  ?? GLOWS.draw
@@ -33,6 +38,8 @@ export default function WinEffect({ winner, onDone, intensity = 'round' }) {
       }
     })
   )
+
+  if (!enabled) return null
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center overflow-hidden">

@@ -56,15 +56,14 @@ import ProposalBanner from '../components/ProposalBanner'
 import GameSwitcher from '../components/GameSwitcher'
 import EmoteBar from '../components/EmoteBar'
 import AnimatedEmoji from '../components/AnimatedEmoji'
-import AudioSettingsButton from '../components/AudioSettingsButton'
+import SettingsButton from '../components/SettingsButton'
 import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
 import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../lib/chat'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import ThemeSwitcher from '../components/ThemeSwitcher'
-import VideoCallSettingsButton, { VideoCallReactionDock, VideoCallShell } from '../components/VideoCallLayout'
+import { VideoCallReactionDock, VideoCallShell } from '../components/VideoCallLayout'
 import RulesModal, { RulesButton } from '../components/RulesModal'
 import {
   commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
@@ -263,7 +262,6 @@ export default function Game() {
   const chatInit = useRef(false)
   const chatReadyAt = useRef(0)
   const [chatCooldown, setChatCooldown] = useState(false)
-  const [muted, setMuted] = useState(() => sounds.isMuted())
   const [showRules, setShowRules] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
@@ -1268,8 +1266,6 @@ export default function Game() {
     }
   }
 
-  const toggleMute = () => setMuted(sounds.toggle())
-
   const sendEmote = async (glyph) => {
     // Party rooms never assign X/O seats (mySymbol stays null) — identify by
     // uid there so reactions work; players[].name lookup in pushEmote is
@@ -1441,8 +1437,7 @@ export default function Game() {
           <div className="game-header flex items-start justify-between gap-2">
             <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">← HOME</Link>
             <div className="game-header-actions flex items-center justify-end gap-3">
-              <ThemeSwitcher />
-              <VideoCallSettingsButton />
+              <SettingsButton />
               <RulesButton onClick={() => setShowRules(true)} />
               {amSeated && game.status !== 'waiting' && (
                 <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => applySwitchGame(t)} />
@@ -1459,22 +1454,7 @@ export default function Game() {
                   </svg>
                 </button>
               )}
-              <button
-                onClick={toggleMute}
-                title={muted ? 'Unmute sounds' : 'Mute sounds'}
-                className="text-retro-dim hover:text-retro-text transition-colors p-3 -m-2 rounded"
-              >
-                {muted ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Unmute">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
-                  </svg>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Mute">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-                  </svg>
-                )}
-              </button>
-              <AudioSettingsButton />
+
               {cfg.badge && (
                 <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
               )}
@@ -1592,8 +1572,7 @@ export default function Game() {
             ← HOME
           </Link>
           <div className={cn('game-header-actions flex items-center justify-end gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>
-            <ThemeSwitcher />
-            <VideoCallSettingsButton />
+            <SettingsButton />
             <RulesButton onClick={() => setShowRules(true)} />
             {/* M-24: GameSwitcher opens its own full-screen sheet whose open
                 state never surfaces to this component, so a live-score
@@ -1619,26 +1598,7 @@ export default function Game() {
                 </svg>
               </button>
             )}
-            <button
-              onClick={toggleMute}
-              title={muted ? 'Unmute sounds' : 'Mute sounds'}
-              className="text-retro-dim hover:text-retro-text transition-colors p-3 -m-2 rounded"
-            >
-              {muted ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Unmute">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <line x1="23" y1="9" x2="17" y2="15"/>
-                  <line x1="17" y1="9" x2="23" y2="15"/>
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Mute">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-                </svg>
-              )}
-            </button>
-            <AudioSettingsButton />
+
             {cfg.badge && (
               <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
             )}

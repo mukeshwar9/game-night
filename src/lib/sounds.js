@@ -1,3 +1,5 @@
+import { getWinFx } from './displayPrefs'
+
 let _ctx = null
 let _volume = Number(localStorage.getItem('sfxVolume') ?? 1)
 let _reactionMuted = localStorage.getItem('reactionSfx') === 'off'
@@ -154,9 +156,10 @@ export const sounds = {
     vibrate(6 + Math.min(step, 6) * 2)
   },
   join:  ()    => { seq([[440, 0, 0.06], [880, 0.08, 0.12]]); vibrate([0, 15, 30, 25]) },
-  win:   ()    => { winFanfare(); vibrate([0, 40, 30, 70]) },
+  win:   ()    => { if (!getWinFx()) return; winFanfare(); vibrate([0, 40, 30, 70]) },
   // Bigger fanfare + longer rumble for clinching the whole match
   matchWin: () => {
+    if (!getWinFx()) return
     matchWinFanfare()
     vibrate([0, 60, 40, 60, 40, 140])
   },
@@ -205,6 +208,15 @@ export const sounds = {
     _muted = !_muted
     localStorage.setItem('sfx', _muted ? 'off' : 'on')
     return _muted
+  },
+  // Settings → Reset all: back to full volume, everything unmuted.
+  resetAudioDefaults() {
+    _muted = false
+    _reactionMuted = false
+    _volume = 1
+    localStorage.setItem('sfx', 'on')
+    localStorage.setItem('reactionSfx', 'on')
+    localStorage.setItem('sfxVolume', '1')
   },
 }
 

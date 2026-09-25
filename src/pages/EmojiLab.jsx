@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import AnimatedEmoji from '../components/AnimatedEmoji'
-import AudioSettingsButton from '../components/AudioSettingsButton'
+import SettingsButton from '../components/SettingsButton'
 import { EMOTES_PICKER_ALL, searchEmotes } from '../lib/emotes'
 import { sounds } from '../lib/sounds'
 
@@ -24,7 +24,7 @@ export default function EmojiLab() {
           <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors">
             ← HOME
           </Link>
-          <AudioSettingsButton />
+          <SettingsButton />
         </div>
 
         <header className="text-center space-y-2">

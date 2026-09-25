@@ -20,7 +20,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <script>document.documentElement.dataset.theme = localStorage.getItem('retro-theme') || 'matcha'</script>
+    <script>
+      document.documentElement.dataset.theme = localStorage.getItem('retro-theme') || 'matcha'
+      document.documentElement.dataset.font = localStorage.getItem('retro-font') || 'press-start'
+    </script>
     <title>Game Night</title>
     <link rel="preload" href="/fonts/press-start-2p-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>

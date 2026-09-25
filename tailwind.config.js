@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        pixel: ['"Press Start 2P"', 'system-ui'],
+        pixel: ['var(--font-pixel)', 'system-ui'],
       },
       colors: {
         retro: {

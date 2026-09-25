@@ -4,6 +4,7 @@
 
 import QRCode from 'qrcode'
 import { toast } from 'sonner'
+import { getFont, getStoredFont } from './font'
 
 function themeColor(name, fallback) {
   try {
@@ -45,7 +46,8 @@ async function drawCard({ brand, gameLabel, headline, sub, accentVar, url }) {
   ctx.fillStyle = 'rgba(0,0,0,0.06)'
   for (let y = 0; y < S; y += 4) ctx.fillRect(0, y, S, 2)
 
-  const font = (px) => `${px}px "Press Start 2P", monospace`
+  const fontFamily = getFont(getStoredFont()).family
+  const font = (px) => `${px}px "${fontFamily}", monospace`
   ctx.textAlign = 'center'
 
   // brand

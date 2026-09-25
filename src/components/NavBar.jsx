@@ -1,8 +1,6 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import ThemeSwitcher from './ThemeSwitcher'
-import AudioSettingsButton from './AudioSettingsButton'
-import { sounds } from '../lib/sounds'
+import SettingsButton from './SettingsButton'
 import useHideOnScroll from '../hooks/useHideOnScroll'
 
 /* eslint-disable react-refresh/only-export-components */
@@ -44,8 +42,6 @@ export function useHomeIntercept(handler) {
 const HIDDEN_ROUTES_PREFIXES = ['/game/', '/playground']
 
 export default function NavBar() {
-  const [muted, setMuted] = useState(() => sounds.isMuted())
-  const toggleMute = () => setMuted(sounds.toggle())
   const { pathname } = useLocation()
   const interceptRef = useContext(HomeInterceptContext)
   const hidden = useHideOnScroll({ enabled: TAB_BAR_ROUTES.includes(pathname), resetKey: pathname })
@@ -94,29 +90,7 @@ export default function NavBar() {
         </Link>
 
         <div className="flex items-center gap-2 shrink-0">
-          <ThemeSwitcher />
-          <button
-            onClick={toggleMute}
-            title={muted ? 'Unmute sounds' : 'Mute sounds'}
-            className="relative text-retro-dim hover:text-retro-text active:scale-95 transition-colors
-              p-2 rounded border border-retro-border bg-retro-card
-              before:content-[''] before:absolute before:-inset-1.5"
-          >
-            {muted ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Unmute">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                <line x1="23" y1="9" x2="17" y2="15"/>
-                <line x1="17" y1="9" x2="23" y2="15"/>
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Mute">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-              </svg>
-            )}
-          </button>
-          <AudioSettingsButton />
+          <SettingsButton />
         </div>
       </div>
     </header>

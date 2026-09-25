@@ -7,6 +7,8 @@ import {
 } from './social'
 import { syncStatsOnBoot } from './statsSync'
 import { THEMES, applyTheme, getStoredTheme } from './theme'
+import { FONTS, applyFont, getStoredFont } from './font'
+import { applyStoredDisplayPrefs } from './displayPrefs'
 
 const AuthContext = createContext(null)
 
@@ -39,6 +41,9 @@ export function AuthProvider({ children }) {
 
   // Boot: kick anonymous sign-in (if needed) and track auth state.
   useEffect(() => {
+    // Local look-and-feel prefs (CRT, motion, text size) live outside the
+    // index.html pre-JS snippet, so re-apply the stored set on every boot.
+    applyStoredDisplayPrefs()
     const unsub = onUser(setUser)
     authReady().finally(() => setBooted(true))
     return unsub
@@ -77,6 +82,9 @@ export function AuthProvider({ children }) {
         // DOM + localStorage, so this can't loop back into another setProfile write.
         if (p?.theme && THEMES.some(t => t.id === p.theme) && p.theme !== getStoredTheme()) {
           applyTheme(p.theme)
+        }
+        if (p?.fontFamily && FONTS.some(font => font.id === p.fontFamily) && p.fontFamily !== getStoredFont()) {
+          applyFont(p.fontFamily)
         }
       })
       unsubPresence = setupPresence(uid)

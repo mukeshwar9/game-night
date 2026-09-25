@@ -50,7 +50,8 @@ import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
 import { Link, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import VideoCallSettingsButton, { VideoCallShell } from '../components/VideoCallLayout';
+import { VideoCallShell } from '../components/VideoCallLayout';
+import SettingsButton from '../components/SettingsButton'
 import TronDemo from './TronDemo';
 import SumoDemo from './SumoDemo';
 import WavelengthDemo from './WavelengthDemo';
@@ -2343,7 +2344,7 @@ function LocalPlayPage({ routeType }) {
     <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-end gap-3">
-          <VideoCallSettingsButton />
+          <SettingsButton />
           <span className="text-xs text-retro-p2 bg-retro-tint-p2 border border-retro-p2/60 rounded px-2 py-1 font-mono">
             PASS & PLAY
           </span>
@@ -2455,7 +2456,7 @@ function DemoHub() {
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {/* Header */}
         <div className="flex items-center justify-end gap-3">
-          <VideoCallSettingsButton />
+          <SettingsButton />
           <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">
             Demo
           </span>

@@ -4,7 +4,7 @@ import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
 import Skeleton from '../components/loading/Skeleton'
 import BottomSheet from '../components/BottomSheet'
-import ThemeSwitcher from '../components/ThemeSwitcher'
+import SettingsButton from '../components/SettingsButton'
 import PlaygroundWorld from '../components/PlaygroundWorld'
 import { useAuth } from '../lib/AuthContext'
 import { getStats } from '../lib/profile'
@@ -12,7 +12,6 @@ import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { subscribeFriends, subscribeProfile } from '../lib/social'
 import { fetchFriendsLeaderboard, rankEntries } from '../lib/leaderboard'
-import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
 // Fullscreen hub: PlaygroundWorld fills the viewport, this page owns only the
@@ -24,8 +23,6 @@ export default function Playground() {
   const { profile, uid } = useAuth()
   const stats = useMemo(() => getStats(), [])
   const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
-  const [muted, setMuted] = useState(() => sounds.isMuted())
-  const toggleMute = () => setMuted(sounds.toggle())
   const [openPanel, setOpenPanel] = useState(null) // null | 'stats' | 'friends'
   const closePanel = () => setOpenPanel(null)
 
@@ -88,29 +85,9 @@ export default function Playground() {
         </div>
       </div>
 
-      {/* HUD — top-right: mute + theme (copied from NavBar) */}
-      <div className="absolute top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))] z-30 flex items-center gap-2">
-        <ThemeSwitcher />
-        <button
-          onClick={toggleMute}
-          title={muted ? 'Unmute sounds' : 'Mute sounds'}
-          className="relative min-h-11 min-w-11 flex items-center justify-center text-retro-dim hover:text-retro-text active:scale-95 transition-colors
-            rounded border border-retro-border bg-retro-surface/80"
-        >
-          {muted ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Unmute">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-              <line x1="23" y1="9" x2="17" y2="15"/>
-              <line x1="17" y1="9" x2="23" y2="15"/>
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Mute">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-            </svg>
-          )}
-        </button>
+      {/* HUD — top-right: global settings */}
+      <div className="absolute top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))] z-30 flex items-center gap-2 rounded border border-retro-border bg-retro-surface/80">
+        <SettingsButton className="min-h-11 min-w-11 flex items-center justify-center" />
       </div>
 
       {openPanel === 'stats' && (
