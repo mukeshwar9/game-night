@@ -41,10 +41,10 @@ describe('suggestGames', () => {
     for (const type of types) expect(wordTypes.has(type)).toBe(true)
   })
 
-  it('never suggests party (nPlayer) games', () => {
+  it('never suggests party (nPlayer) games other than the races', () => {
     for (const entry of GAME_TYPES) {
       const suggestions = suggestGames(entry.type, { count: 10 })
-      expect(suggestions.some(t => t.nPlayer)).toBe(false)
+      expect(suggestions.some(t => t.nPlayer && !t.race)).toBe(false)
     }
   })
 

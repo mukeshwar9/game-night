@@ -5,7 +5,8 @@ import { GAME_TYPES } from './games'
 // current game (its variants, or its base + sibling variants if current is
 // itself a variant) → same-category picks → any other category, all in
 // registry order for determinism. Party (nPlayer) games are never suggested
-// — GameStatus only renders for 2P rooms.
+// — GameStatus only renders for 2P rooms — except the N-player races
+// (`race: true`), which a 2P room can switch into and play 1v1.
 export function suggestGames(currentType, { count = 3 } = {}) {
   const current = GAME_TYPES.find(t => t.type === currentType)
   const baseType = current?.variantOf || currentType
@@ -16,7 +17,7 @@ export function suggestGames(currentType, { count = 3 } = {}) {
   const take = (list) => {
     for (const t of list) {
       if (picked.length >= count) return
-      if (seen.has(t.type) || t.nPlayer) continue
+      if (seen.has(t.type) || (t.nPlayer && !t.race)) continue
       seen.add(t.type)
       picked.push(t)
     }

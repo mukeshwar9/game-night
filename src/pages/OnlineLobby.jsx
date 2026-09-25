@@ -37,7 +37,8 @@ export default function OnlineLobby() {
     try {
       const result = await claimPublicRoom({ gameId: room.gameId, playerId: getPlayerId(), playerName: name, playerAvatar: avatar })
       if (!result.ok) { toast('ROOM NO LONGER AVAILABLE — PICK ANOTHER'); setRooms(current => current.filter(item => item.gameId !== room.gameId)); return }
-      sessionStorage.setItem(`game-${room.gameId}`, JSON.stringify({ symbol: 'O', name }))
+      // Race rooms seat by uid (no X/O symbol to remember).
+      if (!result.party) sessionStorage.setItem(`game-${room.gameId}`, JSON.stringify({ symbol: 'O', name }))
       recordRoom({ id: room.gameId, gameType: result.gameType })
       navigate(`/game/${room.gameId}`)
     } catch { toast.error("COULDN'T JOIN ROOM — TRY AGAIN") } finally { setJoinBusy(null) }
@@ -47,7 +48,7 @@ export default function OnlineLobby() {
     const gameId = generateGameId()
     await createPublicRoom({ gameId, gameType: createType, playerId: getPlayerId(), playerName: name, playerAvatar: avatar })
     recordPlay(createType, 'multi')
-    sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name }))
+    if (!getGameConfig(createType)?.nPlayer) sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name }))
     recordRoom({ id: gameId, gameType: createType })
     navigate(`/game/${gameId}`)
   }, () => toast.error("COULDN'T CREATE ROOM — TRY AGAIN"))
