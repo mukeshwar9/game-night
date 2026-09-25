@@ -15,6 +15,7 @@ import {
   shouldReveal,
 } from '../lib/anagramsLogic'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from '../lib/decks/anagrams'
+import { isFamilySafe } from '../lib/wordDenylist'
 
 const VALID_WORDS = new Set(ANAGRAM_VALID_WORDS)
 
@@ -122,8 +123,9 @@ function RevealWords({ game, round, myKey }) {
   const myWords = wordsFrom(round?.[`found${myKey}`])
   const opWords = wordsFrom(round?.[`found${opKey}`])
   const found = new Set(myWords)
+  // The game picks these words itself, so they must be family-safe.
   const missed = getSolutions(round?.rack, ANAGRAM_VALID_WORDS)
-    .filter(word => !found.has(word))
+    .filter(word => !found.has(word) && isFamilySafe(word))
     .sort((a, b) => scoreWord(b) - scoreWord(a) || b.length - a.length || a.localeCompare(b))
     .slice(0, 5)
   return (

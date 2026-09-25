@@ -1,6 +1,7 @@
 // Pure rules for Anagrams Race. No React, Firebase, or browser APIs.
 
 import { hashString, seededShuffle } from './fibbageLogic'
+import { isBannedWord, isFamilySafe } from './wordDenylist'
 
 export const RACK_SIZE = 7
 export const ROUND_MS = 90_000
@@ -66,11 +67,14 @@ function rackKey(rack) {
   return lettersOf(rack).sort().join('')
 }
 
+// Every valid word buildable from the rack. Banned words (slurs, vulgarity)
+// are never solutions, even if a stale word list still carries one.
 export function getSolutions(rack, validWords) {
   const seen = new Set()
   return [...wordSet(validWords)]
     .filter(word => {
       if (seen.has(word) || word.length < MIN_WORD_LENGTH || word.length > RACK_SIZE) return false
+      if (isBannedWord(word)) return false
       if (!canBuildWord(word, rack)) return false
       seen.add(word)
       return true
@@ -78,8 +82,11 @@ export function getSolutions(rack, validWords) {
     .sort((a, b) => b.length - a.length || a.localeCompare(b))
 }
 
+// Rack roots are served by the game itself, so they must be family-safe (a
+// homograph root would be both shown and the round's bingo).
 export function seededRack({ rackWords, validWords, seed, used = [] }) {
   const candidates = [...wordSet(rackWords)].filter(word => word.length === RACK_SIZE)
+    .filter(isFamilySafe)
     .filter(word => getSolutions(word, validWords).length >= MIN_SOLUTION_COUNT)
   if (!candidates.length) return []
 
@@ -96,6 +103,7 @@ export function applyFoundWord(found, word, rack, validWords, at = Date.now()) {
     normalized.length < MIN_WORD_LENGTH ||
     normalized.length > RACK_SIZE ||
     current[normalized] ||
+    isBannedWord(normalized) ||
     !canBuildWord(normalized, rack) ||
     !wordSet(validWords).has(normalized)
   ) return null

@@ -24,6 +24,8 @@
 // not a hidden "answer" the way a Fibbage prompt's truth is, so the residual
 // leak here is lower-stakes — but the same accepted-casual-leak tier applies.
 
+import { createDictionary } from './wordhuntLogic'
+
 let _promise = null
 
 export function loadDictionary() {
@@ -33,12 +35,9 @@ export function loadDictionary() {
         if (!res.ok) throw new Error(`wordhunt dictionary fetch failed: ${res.status}`)
         return res.text()
       })
-      .then((text) => {
-        const words = new Set(text.split('\n').filter(Boolean))
-        return {
-          has: (word) => words.has(String(word ?? '').trim().toLowerCase()),
-        }
-      })
+      // Resolves to { has(word), hasPrefix(prefix), size }. `has` never
+      // accepts a banned word, even from a stale cached copy of the asset.
+      .then((text) => createDictionary(text.split('\n')))
       .catch((err) => {
         _promise = null
         throw err

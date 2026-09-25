@@ -8,6 +8,7 @@
 // (findPath). Scoring follows the classic Boggle table (scoreWord/scoreWords).
 
 import { seededShuffle } from './fibbageLogic'
+import { isBannedWord } from './wordDenylist'
 
 export const GRID_SIZE = 4
 export const CELL_COUNT = 16
@@ -54,6 +55,47 @@ export function neighborsOf(index) {
 // is compared or stored.
 export function canonicalize(word) {
   return String(word ?? '').trim().toLowerCase()
+}
+
+// Builds the lookup the page uses from the dictionary asset's lines
+// (public/wordhunt-dict.txt). Pure — no fetch; wordhuntDictionary.js calls it.
+//
+// Content safety (G-01): the shipped file is scrubbed of banned words
+// (scripts/clean-wordhunt-dict.mjs), and `has` rejects banned words again at
+// lookup time as a guard, so a stale service-worker copy of the old file can
+// never accept a slur. (Guarding per lookup costs microseconds; filtering all
+// 125k words up front cost ~0.5 s on desktop.) Homographs (tit, ass…) stay
+// findable — only lists the game shows on its own filter with isFamilySafe.
+//
+// `hasPrefix` (binary search over the sorted list) lets solveGrid prune.
+export function createDictionary(lines) {
+  const list = []
+  for (const line of lines || []) {
+    const word = canonicalize(line)
+    if (word) list.push(word)
+  }
+  let sorted = true
+  for (let i = 1; i < list.length; i++) {
+    if (list[i - 1] > list[i]) { sorted = false; break }
+  }
+  if (!sorted) list.sort()
+  const set = new Set(list)
+  const has = (word) => {
+    const w = canonicalize(word)
+    return set.has(w) && !isBannedWord(w)
+  }
+  const hasPrefix = (prefix) => {
+    const p = canonicalize(prefix)
+    let lo = 0
+    let hi = list.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (list[mid] < p) lo = mid + 1
+      else hi = mid
+    }
+    return lo < list.length && list[lo].startsWith(p)
+  }
+  return { has, hasPrefix, size: set.size }
 }
 
 // Deterministic 16-char grid string from a single integer seed: same seed =>

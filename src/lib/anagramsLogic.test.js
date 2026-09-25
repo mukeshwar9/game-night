@@ -5,6 +5,7 @@ import {
   getSolutions, normalizeWord, scoreFound, scoreWord, seededRack, shouldReveal,
 } from './anagramsLogic'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from './decks/anagrams'
+import { isBannedWord, isFamilySafe } from './wordDenylist'
 
 describe('anagramsLogic', () => {
   it('normalizes to lowercase ASCII letters', () => {
@@ -86,5 +87,19 @@ describe('anagramsLogic', () => {
     }
     expect(getMatchWinner({ X: 2, O: 0 })).toBe('X')
     expect(getMatchWinner({ X: 1, O: 1 })).toBe(null)
+  })
+
+  it('never accepts or serves a banned word, even from a stale word list', () => {
+    const rack = ['A', 'R', 'S', 'E', 'T', 'N', 'O']
+    const stale = [...ANAGRAM_VALID_WORDS, 'arse', 'arses']
+    expect(applyFoundWord({}, 'arse', rack, stale, 1)).toBe(null)
+    expect(getSolutions(rack, stale)).not.toContain('arse')
+    expect(ANAGRAM_VALID_WORDS.filter(isBannedWord)).toEqual([])
+  })
+
+  it('only serves family-safe rack roots', () => {
+    expect(ANAGRAM_RACK_WORDS.filter(word => !isFamilySafe(word))).toEqual([])
+    const unsafeOnly = seededRack({ rackWords: ['rapists'], validWords: ['rapists', 'pits', 'tips'], seed: 'x' })
+    expect(unsafeOnly).toEqual([])
   })
 })

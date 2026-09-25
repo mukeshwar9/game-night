@@ -3,7 +3,7 @@ import { seededShuffle } from './fibbageLogic'
 import {
   BOGGLE_DICE, GRID_SIZE, CELL_COUNT,
   generateGrid, rowColOf, indexOf, neighborsOf,
-  canonicalize, findPath, scoreWord, scoreWords,
+  canonicalize, findPath, scoreWord, scoreWords, createDictionary,
 } from './wordhuntLogic'
 
 // NOTE: this file must never import wordhuntDictionary.js (the lazy loader
@@ -195,5 +195,48 @@ describe('canonicalize', () => {
   it('handles undefined/null', () => {
     expect(canonicalize(undefined)).toBe('')
     expect(canonicalize(null)).toBe('')
+  })
+})
+
+describe('createDictionary — content safety (G-01)', () => {
+  const G01 = [
+    'nigger', 'niggers', 'cunt', 'cunts', 'fuck', 'fucks', 'fucked', 'fucker',
+    'fuckers', 'fucking', 'fuckup', 'motherfucker',
+  ]
+
+  it('regression G-01: slurs and vulgar words (and inflections) are never valid, even if listed', () => {
+    const dict = createDictionary(['cat', ...G01, 'dog'])
+    for (const word of G01) {
+      expect(dict.has(word), word).toBe(false)
+      expect(dict.has(word.toUpperCase()), word).toBe(false)
+    }
+    expect(dict.has('cat')).toBe(true)
+    expect(dict.has('DOG')).toBe(true)
+  })
+
+  it('keeps homographs findable (only missed-word displays hide them)', () => {
+    const dict = createDictionary(['tit', 'ass', 'cock', 'screw'])
+    for (const word of ['tit', 'ass', 'cock', 'screw']) expect(dict.has(word), word).toBe(true)
+  })
+
+  it('canonicalizes lines, drops blanks and answers prefix queries on unsorted input', () => {
+    const dict = createDictionary(['Dog\r', '', '  cat ', 'catalog'])
+    expect(dict.size).toBe(3)
+    expect(dict.has('cat')).toBe(true)
+    expect(dict.hasPrefix('cata')).toBe(true)
+    expect(dict.hasPrefix('do')).toBe(true)
+    expect(dict.hasPrefix('dox')).toBe(false)
+    expect(dict.hasPrefix('zz')).toBe(false)
+  })
+
+  it('regression G-01: the shipped dictionary file contains no banned word', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { isBannedWord } = await import('./wordDenylist')
+    const text = readFileSync(new URL('../../public/wordhunt-dict.txt', import.meta.url), 'utf8')
+    const raw = text.split('\n').filter(Boolean)
+    expect(raw.filter(isBannedWord)).toEqual([])
+    const dict = createDictionary(raw)
+    for (const word of G01) expect(dict.has(word), word).toBe(false)
+    expect(dict.has('planet')).toBe(true)
   })
 })
