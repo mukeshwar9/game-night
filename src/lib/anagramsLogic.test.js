@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  MATCH_TARGET, MIN_SOLUTION_COUNT, REVEAL_MS, ROUND_MS,
+  MATCH_TARGET, MIN_SOLUTION_COUNT, MISSED_SHOWN, RACK_HISTORY, RACK_SIZE, REVEAL_MS, ROUND_MS,
   applyFoundWord, canBuildWord, compareRound, getMatchWinner,
-  getSolutions, normalizeWord, resolveRound, scoreFound, scoreWord, seededRack, shouldReveal,
-  validFound,
+  getSolutions, missedWords, normalizeWord, rememberRack, resolveRound, scoreFound, scoreWord,
+  seededRack, shouldReveal, validFound,
 } from './anagramsLogic'
+import { isCommonWord } from './commonWords'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from './decks/anagrams'
 import { isBannedWord, isFamilySafe } from './wordDenylist'
 
@@ -162,5 +163,67 @@ describe('resolveRound', () => {
   it('accepts a Set of valid words', () => {
     const next = resolveRound(game({ foundX: { plane: { at: 1 } } }), 1000, new Set(ANAGRAM_VALID_WORDS))
     expect(next.round.result.scoreX).toBe(4)
+  })
+})
+
+describe('rack deck', () => {
+  it('ships at least 60 common, family-safe 7-letter racks with distinct letters', () => {
+    expect(ANAGRAM_RACK_WORDS.length).toBeGreaterThanOrEqual(60)
+    const keys = new Set()
+    for (const rack of ANAGRAM_RACK_WORDS) {
+      expect(rack, rack).toHaveLength(RACK_SIZE)
+      expect(isCommonWord(rack), rack).toBe(true)
+      expect(isFamilySafe(rack), rack).toBe(true)
+      keys.add([...rack].sort().join(''))
+    }
+    expect(keys.size).toBe(ANAGRAM_RACK_WORDS.length)
+  })
+
+  it('gives every rack at least 12 everyday family-safe solutions', () => {
+    for (const rack of ANAGRAM_RACK_WORDS) {
+      const common = getSolutions(rack, ANAGRAM_VALID_WORDS).filter(w => isCommonWord(w) && isFamilySafe(w))
+      expect(common.length, rack).toBeGreaterThanOrEqual(12)
+    }
+  })
+
+  it('keeps recent racks out across rounds and matches (bounded history)', () => {
+    let used = []
+    const seen = new Set()
+    for (let round = 0; round < RACK_HISTORY; round++) {
+      const rack = seededRack({ rackWords: ANAGRAM_RACK_WORDS, validWords: ANAGRAM_VALID_WORDS, seed: `room:${round}`, used })
+      const key = [...rack].sort().join('').toLowerCase()
+      expect(seen.has(key), key).toBe(false)
+      seen.add(key)
+      used = rememberRack(used, rack)
+    }
+    expect(rememberRack(used, ['A', 'B', 'C', 'D', 'E', 'F', 'G'])).toHaveLength(RACK_HISTORY)
+  })
+
+  it('reads a history Firebase returned as a numeric-keyed object', () => {
+    expect(rememberRack({ 1: 'bcd', 0: 'abc' }, ['X', 'Y', 'Z'])).toEqual(['abc', 'bcd', 'xyz'])
+    const rack = seededRack({ rackWords: ['planets', 'another'], validWords: ANAGRAM_VALID_WORDS, seed: 's', used: { 0: 'aelnpst' } })
+    expect([...rack].sort().join('')).toBe('AEHNORT')
+  })
+})
+
+describe('missedWords', () => {
+  const rack = ['P', 'L', 'A', 'N', 'E', 'T', 'S']
+
+  it('regression: leads with everyday words, not obscure top scorers', () => {
+    const missed = missedWords(rack, ANAGRAM_VALID_WORDS, {})
+    expect(missed).toHaveLength(MISSED_SHOWN)
+    for (const word of missed) expect(isCommonWord(word), word).toBe(true)
+    for (const obscure of ['platens', 'latens', 'palets']) expect(missed).not.toContain(obscure)
+  })
+
+  it('skips words the player found (object or list)', () => {
+    const first = missedWords(rack, ANAGRAM_VALID_WORDS, {})
+    expect(missedWords(rack, ANAGRAM_VALID_WORDS, { [first[0]]: { at: 1 } })).not.toContain(first[0])
+    expect(missedWords(rack, ANAGRAM_VALID_WORDS, [first[0]])).not.toContain(first[0])
+  })
+
+  it('never lists a word that is not family-safe', () => {
+    const missed = missedWords(['T', 'H', 'E', 'R', 'A', 'P', 'Y'], ANAGRAM_VALID_WORDS, {}, 500)
+    expect(missed.filter(w => !isFamilySafe(w))).toEqual([])
   })
 })

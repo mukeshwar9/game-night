@@ -10,12 +10,11 @@ import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
-  applyFoundWord, canBuildWord, compareRound, getMatchWinner, getSolutions,
-  MATCH_TARGET, normalizeWord, resolveRound, ROUND_MS, scoreFound, scoreWord,
+  applyFoundWord, canBuildWord, compareRound, getMatchWinner,
+  MATCH_TARGET, missedWords, normalizeWord, rememberRack, resolveRound, ROUND_MS, scoreFound, scoreWord,
   seededRack, shouldReveal, validFound,
 } from '../lib/anagramsLogic'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from '../lib/decks/anagrams'
-import { isFamilySafe } from '../lib/wordDenylist'
 
 const VALID_WORDS = new Set(ANAGRAM_VALID_WORDS)
 
@@ -38,10 +37,6 @@ function wordsFrom(found) {
 
 function formatSeconds(ms) {
   return Math.max(0, Math.ceil(ms / 1000))
-}
-
-function rackKey(rack) {
-  return [...(rack || [])].sort().join('')
 }
 
 function feedbackText(kind, points) {
@@ -132,12 +127,8 @@ function RevealWords({ game, round, myKey }) {
   const opFound = checkedFound(round, opKey)
   const myWords = wordsFrom(myFound)
   const opWords = wordsFrom(opFound)
-  const found = new Set(myWords)
-  // The game picks these words itself, so they must be family-safe.
-  const missed = getSolutions(round?.rack, ANAGRAM_VALID_WORDS)
-    .filter(word => !found.has(word) && isFamilySafe(word))
-    .sort((a, b) => scoreWord(b) - scoreWord(a) || b.length - a.length || a.localeCompare(b))
-    .slice(0, 5)
+  // Family-safe, everyday words first (missedWords) — the game picks these.
+  const missed = missedWords(round?.rack, ANAGRAM_VALID_WORDS, myWords)
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
@@ -146,11 +137,11 @@ function RevealWords({ game, round, myKey }) {
       </div>
       <section className="rounded border border-retro-cta/50 bg-retro-tint-cta/30 p-3">
         <h3 className="font-pixel text-[9px] tracking-widest text-retro-cta">WORDS YOU MISSED</h3>
-        <p className="mt-1 font-mono text-[10px] text-retro-dim">Top solutions from this rack, shown after reveal.</p>
+        <p className="mt-1 font-mono text-[10px] text-retro-dim">Everyday words from this rack you didn&apos;t find.</p>
         <p className="mt-2 font-pixel text-xs uppercase tracking-wider text-retro-text">
           {missed.length ? missed.map((word, index) => (
             <span key={word} className="mr-2 inline-block">{index + 1}. {word} <span className="text-retro-win">+{scoreWord(word)}</span></span>
-          )) : 'YOU FOUND EVERY CURATED WORD'}
+          )) : 'NONE — YOU FOUND THEM ALL'}
         </p>
       </section>
     </div>
@@ -220,7 +211,7 @@ export default function AnagramsGame({
           startedAt, endsAt: startedAt + ROUND_MS,
           foundX: {}, foundO: {}, doneX: false, doneO: false,
           result: null, revealEndsAt: null,
-          usedRacks: [...usedRacks, rackKey(nextRack)],
+          usedRacks: rememberRack(usedRacks, nextRack),
         },
       }
     }).catch(() => {

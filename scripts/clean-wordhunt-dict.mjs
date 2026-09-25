@@ -3,8 +3,9 @@
 // Removes every word `isBannedWord` rejects (slurs and unambiguous vulgarity,
 // see src/lib/wordDenylist.js) from public/wordhunt-dict.txt, keeping the file
 // format: one lowercase word per line, sorted as before, trailing newline.
-// `loadDictionary()` filters again at load time as a guard, so a stale cached
-// copy of the old file can never serve a banned word either.
+// The dictionary lookup (createDictionary in src/lib/wordhuntLogic.js) rejects
+// banned words again as a guard, so a stale cached copy of the old file can
+// never accept one either.
 //
 // Run: node scripts/clean-wordhunt-dict.mjs
 import { readFileSync, writeFileSync } from 'node:fs'

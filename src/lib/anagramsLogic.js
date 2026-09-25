@@ -2,6 +2,7 @@
 
 import { hashString, seededShuffle } from './fibbageLogic'
 import { isBannedWord, isFamilySafe } from './wordDenylist'
+import { topFamiliar } from './commonWords'
 
 export const RACK_SIZE = 7
 export const ROUND_MS = 90_000
@@ -10,6 +11,11 @@ export const MATCH_TARGET = 2
 export const MIN_SOLUTION_COUNT = 12
 // How long the reveal stays up before the next rack (see resolveRound).
 export const REVEAL_MS = 4_000
+// Racks remembered per room (sorted-letter keys) so recent racks don't
+// repeat across rounds and matches; older ones rotate back in.
+export const RACK_HISTORY = 60
+// How many "words you missed" the reveal lists.
+export const MISSED_SHOWN = 5
 
 const POINTS_BY_LENGTH = { 3: 1, 4: 2, 5: 4, 6: 7, 7: 11 }
 
@@ -22,23 +28,46 @@ function lettersOf(value) {
   return normalizeWord(value).split('')
 }
 
+// Normalized word sets are cached per list object: the deck's word list is
+// a module constant, and re-normalizing ~4k words on every rack check made
+// seededRack take seconds.
+const WORD_SET_CACHE = new WeakMap()
+
 function wordSet(words) {
-  if (words instanceof Set) return new Set([...words].map(normalizeWord))
-  return new Set((words || []).map(normalizeWord).filter(Boolean))
+  const cacheable = words && typeof words === 'object'
+  if (cacheable && WORD_SET_CACHE.has(words)) return WORD_SET_CACHE.get(words)
+  const set = words instanceof Set
+    ? new Set([...words].map(normalizeWord))
+    : new Set((words || []).map(normalizeWord).filter(Boolean))
+  if (cacheable) WORD_SET_CACHE.set(words, set)
+  return set
+}
+
+function letterCounts(letters) {
+  const counts = new Array(26).fill(0)
+  for (const letter of letters) {
+    const i = letter.charCodeAt(0) - 97
+    if (i >= 0 && i < 26) counts[i] += 1
+  }
+  return counts
+}
+
+// True when `word` (already normalized) fits in the rack's letter counts.
+function fitsCounts(word, counts) {
+  const left = counts.slice()
+  for (let k = 0; k < word.length; k++) {
+    const i = word.charCodeAt(k) - 97
+    if (!(left[i] > 0)) return false
+    left[i] -= 1
+  }
+  return true
 }
 
 export function canBuildWord(word, rack) {
   const target = normalizeWord(word)
   const rackLetters = lettersOf(rack)
   if (!target || target.length > rackLetters.length) return false
-  const available = new Map()
-  for (const letter of rackLetters) available.set(letter, (available.get(letter) || 0) + 1)
-  for (const letter of target) {
-    const count = available.get(letter) || 0
-    if (!count) return false
-    available.set(letter, count - 1)
-  }
-  return true
+  return fitsCounts(target, letterCounts(rackLetters))
 }
 
 export function scoreWord(word) {
@@ -65,6 +94,15 @@ export function compareRound(foundX, foundO) {
   return { winner, scoreX, scoreO, wordsX, wordsO }
 }
 
+// Firebase returns a stored list as an array or a numeric-keyed object; map
+// by numeric key order (never Object.values) and drop gaps.
+function listOf(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter(Boolean)
+  if (typeof raw !== 'object') return []
+  return Object.keys(raw).filter(k => /^\d+$/.test(k)).sort((a, b) => a - b).map(k => raw[k]).filter(Boolean)
+}
+
 function rackKey(rack) {
   return lettersOf(rack).sort().join('')
 }
@@ -72,29 +110,33 @@ function rackKey(rack) {
 // Every valid word buildable from the rack. Banned words (slurs, vulgarity)
 // are never solutions, even if a stale word list still carries one.
 export function getSolutions(rack, validWords) {
-  const seen = new Set()
-  return [...wordSet(validWords)]
-    .filter(word => {
-      if (seen.has(word) || word.length < MIN_WORD_LENGTH || word.length > RACK_SIZE) return false
-      if (isBannedWord(word)) return false
-      if (!canBuildWord(word, rack)) return false
-      seen.add(word)
-      return true
-    })
-    .sort((a, b) => b.length - a.length || a.localeCompare(b))
+  const rackLetters = lettersOf(rack)
+  const counts = letterCounts(rackLetters)
+  const out = []
+  for (const word of wordSet(validWords)) {
+    if (word.length < MIN_WORD_LENGTH || word.length > RACK_SIZE || word.length > rackLetters.length) continue
+    if (!fitsCounts(word, counts) || isBannedWord(word)) continue
+    out.push(word)
+  }
+  return out.sort((a, b) => b.length - a.length || a.localeCompare(b))
 }
 
 // Rack roots are served by the game itself, so they must be family-safe (a
 // homograph root would be both shown and the round's bingo).
+// Picks a rack for `seed`: a family-safe 7-letter root with at least
+// MIN_SOLUTION_COUNT solutions, preferring one whose letters are not in
+// `used` (sorted-letter keys kept across rounds and matches). Solution counts
+// are checked lazily in seeded order, so only the racks tried are solved.
 export function seededRack({ rackWords, validWords, seed, used = [] }) {
   const candidates = [...wordSet(rackWords)].filter(word => word.length === RACK_SIZE)
     .filter(isFamilySafe)
-    .filter(word => getSolutions(word, validWords).length >= MIN_SOLUTION_COUNT)
   if (!candidates.length) return []
 
-  const usedKeys = new Set((used || []).map(value => rackKey(value)))
+  const usedKeys = new Set(listOf(used).map(value => rackKey(value)))
   const ordered = seededShuffle(candidates, hashString(String(seed ?? '')))
-  const chosen = ordered.find(word => !usedKeys.has(rackKey(word))) || ordered[0]
+  const enough = word => getSolutions(word, validWords).length >= MIN_SOLUTION_COUNT
+  const chosen = ordered.find(word => !usedKeys.has(rackKey(word)) && enough(word)) || ordered.find(enough)
+  if (!chosen) return []
   return seededShuffle(chosen.toUpperCase().split(''), hashString(`${seed}:rack`))
 }
 
@@ -164,4 +206,19 @@ export function resolveRound(current, now, validWords) {
     proposal: null,
     lastActivityAt: now,
   }
+}
+
+// Appends this rack to the room's no-repeat history, keeping the last
+// RACK_HISTORY keys so the list stays bounded and old racks rotate back.
+export function rememberRack(used, rack) {
+  return [...listOf(used), rackKey(rack)].slice(-RACK_HISTORY)
+}
+
+// "Words you missed": rack solutions this player did not find, family-safe
+// only, everyday words first (then by points) — not the top scorers, which
+// were dominated by words like platens/latens.
+export function missedWords(rack, validWords, found, limit = MISSED_SHOWN) {
+  const have = new Set((Array.isArray(found) ? found : Object.keys(found || {})).map(normalizeWord))
+  const missed = getSolutions(rack, validWords).filter(word => !have.has(word))
+  return topFamiliar(missed, { limit, score: scoreWord })
 }
