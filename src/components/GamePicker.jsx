@@ -35,7 +35,7 @@ function readPickerState() {
   }
 }
 
-export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, excludeType, loadingType, layout = 'compact', initialType }) {
+export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, excludeType, loadingType, layout = 'compact', initialType, crossFamily = false }) {
   const isFull = layout === 'full'
   const defaultCat = isFull ? 'all' : ((excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id)
   const persisted = isFull ? readPickerState() : null
@@ -79,13 +79,16 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const handleToggleFav = (type) => { toggleFavorite(type); setFavVersion(favVersion + 1) }
 
   // In-room switching (excludeType set) is restricted to the current seat
-  // family: party rooms key players by uid, 2P rooms by 'X'/'O', and a
-  // cross-family switch would leave every client seatless (see the
-  // family-mismatch guard in Game.jsx). Home passes no excludeType — show all.
+  // family: party rooms key players by uid, 2P rooms by 'X'/'O'. The one
+  // exception is game-night mode (`crossFamily`, from RoomSwitchContext): a
+  // party room may drop into a 2P game — two players sit, the rest queue for
+  // winner stays — and switch back, with the room reseating everyone (see
+  // nightSwitchSeating in src/lib/nightLogic.js). Home passes no excludeType —
+  // show all.
   const excludeCfg = excludeType ? getGameConfig(excludeType) : null
+  const wrongFamily = (t) => !!excludeCfg && !crossFamily && !!t.nPlayer !== !!excludeCfg.nPlayer
   const isHidden = (t) =>
-    t.type === excludeType || t.variantOf ||
-    (excludeCfg && !!t.nPlayer !== !!excludeCfg.nPlayer)
+    t.type === excludeType || t.variantOf || wrongFamily(t)
   const counts = {}
   for (const t of GAME_TYPES) {
     if (isHidden(t)) continue
@@ -172,7 +175,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   )
 
   const searchResults = isFull && query.trim()
-    ? searchGames(query, { excludePredicate: (t) => t.type === excludeType || (excludeCfg && !!t.nPlayer !== !!excludeCfg.nPlayer) }).filter(passesFilters)
+    ? searchGames(query, { excludePredicate: (t) => t.type === excludeType || wrongFamily(t) }).filter(passesFilters)
     : []
 
   // M-85: one bordered-card treatment for every "nothing here" moment in

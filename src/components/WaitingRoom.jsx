@@ -8,6 +8,8 @@ import InviteFriendModal from './InviteFriendModal'
 import PixelDots from './loading/PixelDots'
 import Avatar from './Avatar'
 import GameSwitcher from './GameSwitcher'
+import TimerScalePicker from './TimerScalePicker'
+import { amHost } from '../lib/night'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 
@@ -222,6 +224,10 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           )}
         </div>
       )}
+
+      {/* Room timer scale (host picks NORMAL / RELAXED / OFF; everyone
+          sees it). A room preference: it survives switches and rematches. */}
+      <TimerScalePicker gameId={gameId} game={game} canEdit={amHost(game)} />
 
       {/* Pong match-length selector (creator only) */}
       {gameType === 'pong' && (
