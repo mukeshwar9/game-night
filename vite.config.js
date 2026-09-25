@@ -31,6 +31,11 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // The app ships as one JS chunk (~2.2 MB) — above Workbox's 2 MiB
+        // default, which fails the build and would drop the bundle from the
+        // offline precache. Splitting game pages into lazy chunks is the real
+        // fix; until then allow up to 3 MiB.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
