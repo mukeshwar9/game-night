@@ -742,9 +742,9 @@ export const GAME_TYPES = [
   },
   {
     type: 'pong', label: 'PONG',
-    desc: 'first to five points', Icon: PongIcon,
+    desc: 'power-ups, multi-ball & modes', Icon: PongIcon,
     badge: 'PG', maxWidth: 'max-w-md',
-    category: 'reflex',
+    category: 'reflex', hidePlayerCards: true,
     durationMin: 5, tags: ['frantic', 'skill'], solo: true,
     custom: true, realtime: true,
   },
@@ -1410,7 +1410,7 @@ const FIELD_NULLS = {
   diceRolls: null, diceRollIndex: null,
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
   bluffRound: null,
-  pongScoreX: null, pongScoreO: null, signaling: null, matchLength: null,
+  pongScoreX: null, pongScoreO: null, pongMode: null, signaling: null, matchLength: null,
   arrowsRound: null, arrowsLevel: null, arrowsCleared: null,
   arrowsLivesX: null, arrowsLivesO: null,
   arrowsTrapSeen: null, arrowsLastBlocked: null, arrowsSeen: null,
@@ -1510,8 +1510,13 @@ export function freshGameState(gameType, previous = null) {
     // currentTurn omitted (null) — Pong has no turns, so Game.jsx's move-sound
     // detection stays silent and the page drives its own audio.
     // matchLength: rounds needed to win the match (default 3 = best-of-5).
+    // pongMode: rule set from pongLogic's MODES. Both are the host's lobby
+    // picks, so a rematch (previous = this room) keeps them.
+    const keep = previous?.gameType === 'pong' ? previous : null
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      pongScoreX: 0, pongScoreO: 0, matchLength: 3 }
+      pongScoreX: 0, pongScoreO: 0,
+      matchLength: keep?.matchLength ?? 3,
+      pongMode: keep?.pongMode ?? 'classic' }
   }
   if (gameType === 'snake') {
     // currentTurn omitted (null) — Snake is real-time with no turns.

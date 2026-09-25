@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { ref, update } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { getGameConfig, usesFirstMover, firstMoverUpdates, resolveGoesFirst } from '../lib/games'
+import { MODES as PONG_MODES, MULTIPLAYER_MODES as PONG_MODE_IDS, getMode as getPongMode } from '../lib/pongLogic'
 import QrCode from './QrCode'
 import InviteFriendModal from './InviteFriendModal'
 import PixelDots from './loading/PixelDots'
@@ -20,6 +21,8 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
   const [matchLengthBusy, setMatchLengthBusy] = useState(false)
   const [shareBusy, runShare] = useBusy()
   const [startBusy, runStart] = useBusy()
+  const [pongModeBusy, runPongMode] = useBusy()
+  const [pendingPongMode, setPendingPongMode] = useState(null)
 
   // Lobby (challenge-created) rooms get a game picker + generalized START
   // that works for any game type; legacy/link-created rooms (no `lobby`
@@ -37,6 +40,16 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
 
   const isPongHost = gameType === 'pong' && mySymbol === 'X'
   const matchLength = game?.matchLength ?? 3
+  const pongMode = getPongMode(game?.pongMode).id
+
+  const setPongMode = (id) => {
+    if (id === pongMode) return
+    setPendingPongMode(id)
+    runPongMode(
+      () => update(ref(db, `games/${gameId}`), { pongMode: id }),
+      () => toast.error("COULDN'T SET THE MODE — TRY AGAIN"),
+    ).finally(() => setPendingPongMode(null))
+  }
 
   const setMatchLength = async (n) => {
     setMatchLengthBusy(true)
@@ -219,6 +232,35 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
             </button>
           ) : (
             <p className="font-pixel text-[7px] text-retro-dim/70">WAITING FOR A PLAYER TO START</p>
+          )}
+        </div>
+      )}
+
+      {/* Pong mode selector (creator only) */}
+      {gameType === 'pong' && (
+        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-2 text-center">
+          <p className="font-pixel text-[9px] text-retro-dim">MODE</p>
+          <div className="grid grid-cols-2 gap-2">
+            {PONG_MODE_IDS.map(id => (
+              <button
+                key={id}
+                disabled={!isPongHost || pongModeBusy}
+                onClick={() => setPongMode(id)}
+                className={cn(
+                  'min-h-11 px-2 py-1.5 font-pixel rounded border-2 transition-all active:scale-95',
+                  pongMode === id
+                    ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
+                    : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
+                  (!isPongHost || pongModeBusy) && 'opacity-60 cursor-not-allowed',
+                )}
+              >
+                <span className="block text-[10px]">{pendingPongMode === id ? 'SETTING…' : PONG_MODES[id].label}</span>
+                <span className="block mt-1 text-[6px] leading-snug opacity-80">{PONG_MODES[id].blurb}</span>
+              </button>
+            ))}
+          </div>
+          {!isPongHost && (
+            <p className="font-pixel text-[7px] text-retro-dim/70">HOST PICKS THE MODE</p>
           )}
         </div>
       )}

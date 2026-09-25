@@ -1103,6 +1103,8 @@ export default function Game() {
     // A new match still starts with a fresh word. Preserve prior indexes as a
     // room-level deck history, matching Word Race's non-repeat promise.
     if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
+    // Pong: a new match keeps the host's lobby picks (mode, match length).
+    if (game.gameType === 'pong') Object.assign(fresh, { matchLength: game.matchLength ?? 3, pongMode: game.pongMode ?? 'classic' })
     try {
       await update(ref(db, `games/${gameId}`), {
         ...fresh,

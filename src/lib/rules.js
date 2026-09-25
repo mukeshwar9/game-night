@@ -80,11 +80,13 @@ export const GAME_RULES = {
   pong: {
     objective: 'Send the ball past your opponent’s paddle to score.',
     howToPlay: [
-      'Move your paddle with ↑/↓, W/S, or by dragging on the court.',
-      'The ball speeds up each rally — where it strikes your paddle sets the return angle.',
+      'Drag anywhere to move your paddle (it chases your finger), or use ↑/↓ · W/S — ←/→ · A/D when the court is upright.',
+      'Where the ball strikes your paddle sets the return angle; moving the paddle as you hit curves the ball. Every rally hit speeds it up.',
+      'Knock the ball through lettered power-ups: + BIG PADDLE, - SHRINK RAY (opponent), S SLOW-MO, T TURBO, M MULTI-BALL, W GOAL WALL (blocks one goal).',
+      'Modes: CLASSIC (first to 7), CHAOS (more power-ups plus moving bumpers), PURE (no power-ups), BLITZ (60-second clock, a tie goes to sudden death).',
       'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
     ],
-    win: 'First to 5 points takes the round; first to 3 rounds wins the match.',
+    win: 'Win the round by the mode’s rule (first to 7, or most points when the BLITZ clock ends); the host picks how many rounds win the match.',
   },
 
   snake: {
