@@ -1415,6 +1415,7 @@ const FIELD_NULLS = {
   wordhuntWordsX: null, wordhuntWordsO: null,
   wordhuntScoreX: null, wordhuntScoreO: null,
   wordhuntDoneX: null, wordhuntDoneO: null,
+  wordhuntReadyX: null, wordhuntReadyO: null,
   diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceLast: null,
   diceRolls: null, diceRollIndex: null,
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
