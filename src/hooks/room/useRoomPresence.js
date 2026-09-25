@@ -101,7 +101,12 @@ export default function useRoomPresence({ gameId, kind, seat, uid, name }) {
         })
         return
       }
-      update(baseRef, { [`conns/${key}`]: null, online: false }).catch(() => {})
+      // Two writes, not one: deleting a conn is always allowed, but rules v1
+      // only lets the seat's CURRENT holder clear `online` — after a
+      // winner-stays rotation that is someone else, and an atomic write would
+      // be refused whole, leaving this conn behind (seat online forever).
+      dbSet(connRef(key), null).catch(() => {})
+      update(baseRef, { online: false }).catch(() => {})
     }
   }, [gameId, kind, seat, uid, name])
 }
