@@ -9,7 +9,9 @@ import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
 
 export { assertFails, assertSucceeds } from '@firebase/rules-unit-testing'
 
-const RULES_PATH = fileURLToPath(new URL('../../database.rules.json', import.meta.url))
+// RULES_PATH lets you try a candidate rules file without replacing the
+// checked-in one (e.g. while other people's emulators load database.rules.json).
+const RULES_PATH = process.env.RULES_PATH || fileURLToPath(new URL('../../database.rules.json', import.meta.url))
 
 // emulators:exec exports FIREBASE_DATABASE_EMULATOR_HOST; fall back to the
 // port pinned in firebase.json so a manually started emulator works too.
@@ -59,4 +61,24 @@ export function gameNode({ x = 'alice', o = null, visibility, status = 'waiting'
   if (o) node.players.O = { name: 'Bob', joinedAt: 2, playerId: o }
   if (visibility) node.visibility = visibility
   return node
+}
+
+// A party room (uid-keyed seats) in the shape useCreateGame writes, with
+// `uids` seated in join order.
+export function partyNode({ uids = ['alice'], gameType = 'herd', status = 'waiting', extra = {} } = {}) {
+  const players = {}
+  uids.forEach((uid, i) => {
+    players[uid] = { name: uid[0].toUpperCase() + uid.slice(1), joinedAt: i + 1, playerId: uid, online: true }
+  })
+  return { gameType, status, scores: {}, createdAt: 1, lastActivityAt: 1, players, ...extra }
+}
+
+// Every rules file shares one emulator namespace: set up once, clear between
+// tests, clean up at the end.
+export function rulesEnvFor({ beforeAll, afterEach, afterAll }) {
+  const holder = { env: null }
+  beforeAll(async () => { holder.env = await setupRulesEnv() })
+  afterEach(async () => { await holder.env.clearDatabase() })
+  afterAll(async () => { await holder.env?.cleanup() })
+  return holder
 }

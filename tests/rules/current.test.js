@@ -1,7 +1,8 @@
-// Characterisation tests: they pin down what database.rules.json does TODAY,
-// good and bad, so rules v1 can change it deliberately. Every assertion marked
-// `SECURITY GAP (report 5.6)` asserts behaviour that should be denied; rules v1
-// flips those to assertFails. Everything else is behaviour to keep.
+// The original characterisation suite for database.rules.json. Every test
+// named `closed gap (report 5.6)` used to assert a hole that rules v1 now
+// denies; the rest is behaviour that has to keep working. Rules v1's own
+// cases (room membership, seats, spectators, rounds, social, telemetry) live
+// in the other files in this folder.
 import { afterAll, afterEach, beforeAll, describe, it } from 'vitest'
 import { assertFails, assertSucceeds, dbAs, gameNode, seed, setupRulesEnv } from './helpers.js'
 
@@ -84,37 +85,31 @@ describe('games — private rooms (visibility absent)', () => {
     await assertSucceeds(dbAs(testEnv, BOB).ref('games/g1').update({ 'board/0': 'O', currentTurn: 'X' }))
   })
 
-  it('SECURITY GAP (report 5.6): a stranger can overwrite the board of a room they are not seated in', async () => {
+  it('closed gap (report 5.6): a stranger cannot overwrite the board of a room they are not seated in', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB, status: 'playing' }))
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref('games/g1').update({ 'board/4': 'O', currentTurn: 'X' }))
+    await assertFails(dbAs(testEnv, MALLORY).ref('games/g1').update({ 'board/4': 'O', currentTurn: 'X' }))
   })
 
-  it('SECURITY GAP (report 5.6): a stranger can declare a winner and set scores', async () => {
+  it('closed gap (report 5.6): a stranger cannot declare a winner or set scores', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB, status: 'playing' }))
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref('games/g1').update({ status: 'finished', winner: 'O', 'scores/O': 99 }))
+    await assertFails(dbAs(testEnv, MALLORY).ref('games/g1').update({ status: 'finished', winner: 'O', 'scores/O': 99 }))
   })
 
-  it('SECURITY GAP (report 5.6): a stranger can delete a seat, then re-claim it as themselves', async () => {
+  it('closed gap (report 5.6): a stranger cannot delete a seat, nor re-claim a taken one as themselves', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB, status: 'playing' }))
     const mallory = dbAs(testEnv, MALLORY)
-    // SECURITY GAP (report 5.6): currently allowed — playerId validation does not run on deletes
-    await assertSucceeds(mallory.ref('games/g1/players/O').remove())
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(mallory.ref('games/g1/players/O').set({ name: 'Mallory', joinedAt: 3, playerId: MALLORY }))
+    await assertFails(mallory.ref('games/g1/players/O').remove())
+    await assertFails(mallory.ref('games/g1/players/O').set({ name: 'Mallory', joinedAt: 3, playerId: MALLORY }))
   })
 
-  it('SECURITY GAP (report 5.6): a stranger can rename a seated player', async () => {
+  it('closed gap (report 5.6): a stranger cannot rename a seated player', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB }))
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref('games/g1/players/X/name').set('pwned'))
+    await assertFails(dbAs(testEnv, MALLORY).ref('games/g1/players/X/name').set('pwned'))
   })
 
-  it('SECURITY GAP (report 5.6): a stranger can delete the whole room', async () => {
+  it('closed gap (report 5.6): a stranger cannot delete the whole room', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB }))
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref('games/g1').remove())
+    await assertFails(dbAs(testEnv, MALLORY).ref('games/g1').remove())
   })
 
   it('denies anyone, even the creator, turning a private room public', async () => {
@@ -151,16 +146,14 @@ describe('games — public rooms', () => {
     await assertSucceeds(dbAs(testEnv, BOB).ref('games/g1').update({ 'board/0': 'O', currentTurn: 'X' }))
   })
 
-  it('SECURITY GAP (report 5.6): a seated player can write any winner/scores, even outside play', async () => {
+  it('closed gap (report 5.6): a seated player cannot declare a winner outside play or jump the score', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB, visibility: 'public', status: 'waiting' }))
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, BOB).ref('games/g1').update({ status: 'finished', winner: 'O', 'scores/O': 1000 }))
+    await assertFails(dbAs(testEnv, BOB).ref('games/g1').update({ status: 'finished', winner: 'O', 'scores/O': 1000 }))
   })
 
-  it('SECURITY GAP (report 5.6): a seated player can delete the opponent’s seat', async () => {
+  it('closed gap (report 5.6): a seated player cannot delete the opponent’s seat', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB, visibility: 'public', status: 'playing' }))
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, ALICE).ref('games/g1/players/O').remove())
+    await assertFails(dbAs(testEnv, ALICE).ref('games/g1/players/O').remove())
   })
 })
 
@@ -183,12 +176,10 @@ describe('games — chatLog', () => {
     await assertFails(dbAs(testEnv, BOB).ref('games/g1/chatLog/m1').set(msg(BOB, 'x'.repeat(81))))
   })
 
-  it('SECURITY GAP (report 5.6): a stranger can post into a private room and delete others’ messages', async () => {
+  it('closed gap (report 5.6): a stranger outside the room cannot post into a private room or delete others’ messages', async () => {
     await seed(testEnv, 'games/g1', { ...gameNode({ x: ALICE, o: BOB }), chatLog: { m1: msg(BOB) } })
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref('games/g1/chatLog/m2').set(msg(MALLORY, 'spam')))
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref('games/g1/chatLog/m1').remove())
+    await assertFails(dbAs(testEnv, MALLORY).ref('games/g1/chatLog/m2').set(msg(MALLORY, 'spam')))
+    await assertFails(dbAs(testEnv, MALLORY).ref('games/g1/chatLog/m1').remove())
   })
 
   it('denies a stranger posting into a public room', async () => {
@@ -264,12 +255,10 @@ describe('users', () => {
     await assertFails(dbAs(testEnv, null).ref(`users/${ALICE}`).get())
   })
 
-  it('SECURITY GAP (report 5.6): any signed-in user can read another user’s friend code, online and lastSeen', async () => {
+  it('closed gap (report 5.6): other users cannot read someone’s friend code, online or lastSeen', async () => {
     await seed(testEnv, `users/${ALICE}`, profile)
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref(`users/${ALICE}/code`).get())
-    // SECURITY GAP (report 5.6): currently allowed
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref(`users/${ALICE}/lastSeen`).get())
+    await assertFails(dbAs(testEnv, MALLORY).ref(`users/${ALICE}/code`).get())
+    await assertFails(dbAs(testEnv, MALLORY).ref(`users/${ALICE}/lastSeen`).get())
   })
 })
 
@@ -298,19 +287,20 @@ describe('friends', () => {
     await assertFails(dbAs(testEnv, MALLORY).ref(`friends/${ALICE}`).get())
   })
 
-  it('lets either side of a pair write the edge; denies a third party', async () => {
+  it('lets either side of a pair write the edge once a request is pending; denies a third party', async () => {
+    await seed(testEnv, `friendRequests/${ALICE}/${BOB}`, { name: 'Bob', at: 1 })
     await assertSucceeds(dbAs(testEnv, ALICE).ref(`friends/${ALICE}/${BOB}`).set({ since: 1 }))
     await assertSucceeds(dbAs(testEnv, ALICE).ref(`friends/${BOB}/${ALICE}`).set({ since: 1 }))
     await assertFails(dbAs(testEnv, MALLORY).ref(`friends/${ALICE}/${BOB}`).set({ since: 1 }))
   })
 
   it('requires `since`', async () => {
+    await seed(testEnv, `friendRequests/${ALICE}/${BOB}`, { name: 'Bob', at: 1 })
     await assertFails(dbAs(testEnv, ALICE).ref(`friends/${ALICE}/${BOB}`).set({ at: 1 }))
   })
 
-  it('SECURITY GAP (report 5.6): anyone can add themselves to a user’s friend list without a request', async () => {
-    // SECURITY GAP (report 5.6): currently allowed — no pending friendRequest is required
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref(`friends/${ALICE}/${MALLORY}`).set({ since: 1 }))
+  it('closed gap (report 5.6): nobody can add themselves to a user’s friend list without a request', async () => {
+    await assertFails(dbAs(testEnv, MALLORY).ref(`friends/${ALICE}/${MALLORY}`).set({ since: 1 }))
   })
 })
 
@@ -363,23 +353,19 @@ describe('plays', () => {
     await assertFails(dbAs(testEnv, null).ref('plays/tictactoe/online').set(6))
   })
 
-  it('SECURITY GAP (report 5.6): any signed-in user can set a counter to any number', async () => {
+  it('closed gap (report 5.6): a counter only ever goes up by one', async () => {
     await seed(testEnv, 'plays/tictactoe/online', 4)
-    // SECURITY GAP (report 5.6): currently allowed — not increment-only
-    await assertSucceeds(dbAs(testEnv, MALLORY).ref('plays/tictactoe/online').set(-1000))
+    await assertFails(dbAs(testEnv, MALLORY).ref('plays/tictactoe/online').set(-1000))
   })
 })
 
 describe('leaderboard', () => {
   const entry = { name: 'Alice', wins: 3, games: 5, updatedAt: 1 }
 
-  it('lets a user write only their own entry', async () => {
-    await assertSucceeds(dbAs(testEnv, ALICE).ref(`leaderboard/${ALICE}`).set(entry))
+  // The creditMatchResults Cloud Function (admin SDK) is the only writer.
+  it('is server-written only: no client writes any entry, even their own', async () => {
+    await assertFails(dbAs(testEnv, ALICE).ref(`leaderboard/${ALICE}`).set(entry))
     await assertFails(dbAs(testEnv, MALLORY).ref(`leaderboard/${ALICE}`).set(entry))
-  })
-
-  it('requires name, wins and games', async () => {
-    await assertFails(dbAs(testEnv, ALICE).ref(`leaderboard/${ALICE}`).set({ name: 'Alice', wins: 3 }))
   })
 
   it('is readable by signed-in users', async () => {
@@ -387,10 +373,9 @@ describe('leaderboard', () => {
     await assertSucceeds(dbAs(testEnv, MALLORY).ref('leaderboard').get())
   })
 
-  it('SECURITY GAP (report 5.6): a user can post any win count', async () => {
+  it('closed gap (report 5.6): a user cannot post any win count', async () => {
     await seed(testEnv, `leaderboard/${ALICE}`, entry)
-    // SECURITY GAP (report 5.6): currently allowed — not increment-only
-    await assertSucceeds(dbAs(testEnv, ALICE).ref(`leaderboard/${ALICE}`).set({ ...entry, wins: 1e9, games: 1e9 }))
+    await assertFails(dbAs(testEnv, ALICE).ref(`leaderboard/${ALICE}`).set({ ...entry, wins: 1e9, games: 1e9 }))
   })
 })
 
@@ -400,14 +385,20 @@ describe('feedback', () => {
     status: 'open', createdAt: 1, updatedAt: 1,
   })
 
+  // writeFeedback's one multi-path update: the item plus the cooldown stamp.
+  const file = (uid, id, item) => dbAs(testEnv, uid).ref().update({
+    [`feedback/${id}`]: item,
+    [`users/${uid}/lastFeedbackAt`]: { '.sv': 'timestamp' },
+  })
+
   it('lets a user file feedback as themselves only', async () => {
-    await assertSucceeds(dbAs(testEnv, ALICE).ref('feedback/f1').set(report(ALICE)))
-    await assertFails(dbAs(testEnv, MALLORY).ref('feedback/f2').set(report(ALICE)))
+    await assertSucceeds(file(ALICE, 'f1', report(ALICE)))
+    await assertFails(file(MALLORY, 'f2', report(ALICE)))
   })
 
   it('rejects messages under 10 characters and unknown types', async () => {
-    await assertFails(dbAs(testEnv, ALICE).ref('feedback/f1').set({ ...report(ALICE), message: 'short' }))
-    await assertFails(dbAs(testEnv, ALICE).ref('feedback/f1').set({ ...report(ALICE), type: 'rant' }))
+    await assertFails(file(ALICE, 'f1', { ...report(ALICE), message: 'short' }))
+    await assertFails(file(ALICE, 'f1', { ...report(ALICE), type: 'rant' }))
   })
 
   it('denies non-admins reading or editing feedback, even their own', async () => {
@@ -426,8 +417,8 @@ describe('feedback', () => {
 
 describe('unlisted top-level paths', () => {
   it('denies reads and writes everywhere else', async () => {
-    await assertFails(dbAs(testEnv, ALICE).ref('errors/e1').set({ message: 'x' }))
-    await assertFails(dbAs(testEnv, ALICE).ref('errors').get())
+    await assertFails(dbAs(testEnv, ALICE).ref('nope/e1').set({ message: 'x' }))
+    await assertFails(dbAs(testEnv, ALICE).ref('results').get())
     await assertFails(dbAs(testEnv, ALICE).ref('/').get())
   })
 })

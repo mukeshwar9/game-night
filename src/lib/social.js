@@ -3,6 +3,13 @@
 // (getUid()/getPlayerId()). Pure helpers (friend-code gen/validation) are
 // unit-tested in social.test.js; the rest are thin DB wrappers reusing the
 // transaction / multi-path-update / onValue patterns from Game.jsx.
+//
+// A profile is split three ways by who may read it (database.rules.json):
+//   users/{uid}     private — friend code, stats, matches, admin, theme…; owner only
+//   profiles/{uid}  public  — { displayName, nameLower, avatar, updatedAt }; any signed-in user
+//   presence/{uid}  { online, lastSeen }; the owner and their friends
+// ensureProfile mirrors the public half on every boot, so accounts created
+// before the split migrate the first time they open the app.
 
 import {
   ref, get, set, update, onValue, runTransaction, push, onDisconnect,
@@ -41,6 +48,23 @@ export function isValidFriendCode(code) {
 }
 
 // ---- Profile ----
+// The public half of a profile (profiles/{uid}) — exactly the fields the rules
+// accept there.
+export function publicProfile(p, now = Date.now()) {
+  const displayName = String(p?.displayName || '').trim().slice(0, 40)
+  if (!displayName) return null
+  const out = { displayName, nameLower: displayName.toLowerCase(), updatedAt: now }
+  if (typeof p?.avatar === 'string' && p.avatar) out.avatar = p.avatar.slice(0, 200)
+  return out
+}
+
+// What callers of subscribeProfile see for someone else: the public profile
+// plus online/lastSeen when their presence is readable (friends only).
+export function mergeFriendProfile(pub, presence) {
+  if (!pub && !presence) return null
+  return { ...(pub || {}), online: presence?.online === true, lastSeen: presence?.lastSeen ?? null }
+}
+
 export function guestName(uid) {
   return `Guest-${String(uid || '').slice(0, 4).toUpperCase() || 'XXXX'}`
 }
@@ -111,6 +135,7 @@ export async function ensureProfile() {
     }
     await update(userRef, patch)
     const merged = { ...p, ...patch }
+    mirrorPublic(uid, merged)
     mirrorLocal(merged)
     return merged
   }
@@ -140,8 +165,18 @@ export async function ensureProfile() {
     return merged
   })
   const saved = snapshot?.val() || profile
+  mirrorPublic(uid, saved)
   mirrorLocal(saved)
   return saved
+}
+
+// Publish the public half (profiles/{uid}). Best effort and never rejects: a
+// failure must not block boot — the private profile is already saved, and the
+// next boot retries.
+async function mirrorPublic(uid, p) {
+  const pub = publicProfile(p)
+  if (!pub) return
+  try { await set(ref(db, `profiles/${uid}`), pub) } catch { /* retried next boot */ }
 }
 
 // Save a name chosen outside the Profile page (the invite screen). Mirrors to
@@ -168,17 +203,31 @@ export async function setProfile({ displayName, avatar, theme, fontFamily } = {}
   if (typeof theme === 'string' && theme) patch.theme = theme
   if (typeof fontFamily === 'string' && fontFamily) patch.fontFamily = fontFamily
   await update(ref(db, `users/${uid}`), patch)
+  if (patch.displayName || patch.avatar) {
+    const snap = await get(ref(db, `users/${uid}`))
+    await mirrorPublic(uid, snap.val())
+  }
   mirrorLocal({ displayName: patch.displayName, avatar: patch.avatar })
 }
 
+// Your own profile is the full private node; anyone else's is their public
+// profile plus, for friends, their presence.
 export function subscribeProfile(uid, cb) {
   if (!db || !uid) { cb(null); return () => {} }
-  return onValue(ref(db, `users/${uid}`), snap => cb(snap.val()))
+  if (uid === getUid()) return onValue(ref(db, `users/${uid}`), snap => cb(snap.val()))
+  let pub = null
+  let presence = null
+  let pubLoaded = false
+  const emit = () => { if (pubLoaded) cb(mergeFriendProfile(pub, presence)) }
+  const unsubPub = onValue(ref(db, `profiles/${uid}`), snap => { pub = snap.val(); pubLoaded = true; emit() }, () => { pubLoaded = true; emit() })
+  // Not a friend (yet): the read is denied and they simply show as offline.
+  const unsubPresence = onValue(ref(db, `presence/${uid}`), snap => { presence = snap.val(); emit() }, () => { presence = null; emit() })
+  return () => { unsubPub(); unsubPresence() }
 }
 
 export async function getProfile(uid) {
   if (!db || !uid) return null
-  const snap = await get(ref(db, `users/${uid}`))
+  const snap = await get(ref(db, uid === getUid() ? `users/${uid}` : `profiles/${uid}`))
   return snap.val()
 }
 
@@ -318,12 +367,13 @@ export function subscribeInvites(cb) {
 }
 
 // ---- Presence ----
-// Mark users/{uid}/online true while connected, false on disconnect. Mirrors the
-// per-game presence pattern in Game.jsx. Returns an unsubscribe.
+// Mark presence/{uid}/online true while connected, false on disconnect (only
+// the player and their friends can read it). Mirrors the per-game presence
+// pattern in Game.jsx. Returns an unsubscribe.
 export function setupPresence(uid) {
   if (!db || !uid) return () => {}
-  const statusRef = ref(db, `users/${uid}/online`)
-  const seenRef = ref(db, `users/${uid}/lastSeen`)
+  const statusRef = ref(db, `presence/${uid}/online`)
+  const seenRef = ref(db, `presence/${uid}/lastSeen`)
   return onValue(ref(db, '.info/connected'), snap => {
     if (!snap.val()) return
     onDisconnect(statusRef).set(false)

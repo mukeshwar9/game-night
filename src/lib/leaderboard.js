@@ -1,9 +1,9 @@
-// Friends-scoped leaderboard (F-33 v1). One-shot fetch of users/{uid}/stats for
-// me + friends — no live subscription, matching the fetchContinueRooms pattern
-// in continueRooms.js. Profile info (name/avatar/online) is already loaded by
-// the caller (Friends.jsx via subscribeProfile/useAuth) — this module only
-// touches stats and returns them unranked/unmerged. rankEntries is pure and
-// exported separately for unit testing.
+// Friends-scoped leaderboard (F-33 v1). One-shot fetch of my stats and my
+// friends' public leaderboard rows — no live subscription, matching the
+// fetchContinueRooms pattern in continueRooms.js. Profile info (name/avatar/
+// online) is already loaded by the caller (Friends.jsx via subscribeProfile/
+// useAuth) — this module only touches stats and returns them unranked/
+// unmerged. rankEntries is pure and exported separately for unit testing.
 
 import { ref, get } from 'firebase/database'
 import { db } from './firebase'
@@ -36,25 +36,31 @@ export function rankEntries(entries) {
 }
 
 // One-shot fetch of { uid, wins, losses, games } for me + the given friend
-// uids. A uid with no stats node (never finished a synced match) comes back
-// as zeroes rather than being dropped, so it still ranks (last, via
-// rankEntries' tiebreaks). Self falls back to local getStats() when the
-// remote mirror is missing — e.g. a guest whose matches never synced.
+// uids. Your own row comes from your private users/{uid}/stats mirror (falling
+// back to local getStats() when it never synced, e.g. a guest); a friend's
+// comes from their public leaderboard/{uid} row (users/{uid} is owner-only) —
+// only a server-credited row (`verified: true`, written by the
+// creditMatchResults function); legacy client-written rows are ignored. A uid
+// with no row comes back as zeroes rather than being dropped, so it still
+// ranks (last, via rankEntries' tiebreaks).
 export async function fetchFriendsLeaderboard(friendUids = []) {
   const me = getUid()
   const uids = [...new Set([me, ...friendUids].filter(Boolean))]
   if (!db || !uids.length) return []
 
-  const results = await Promise.allSettled(uids.map(uid => get(ref(db, `users/${uid}/stats`))))
+  const results = await Promise.allSettled(uids.map(uid => get(ref(db, uid === me ? `users/${uid}/stats` : `leaderboard/${uid}`))))
   return uids.map((uid, i) => {
     const res = results[i]
     let stats = res.status === 'fulfilled' && res.value.exists() ? res.value.val() : null
+    if (uid !== me && stats?.verified !== true) stats = null
     if (!stats && uid === me) stats = getStats()
+    const wins = stats?.wins || 0
+    const games = stats?.games || 0
     return {
       uid,
-      wins: stats?.wins || 0,
-      losses: stats?.losses || 0,
-      games: stats?.games || 0,
+      wins,
+      losses: stats?.losses ?? Math.max(0, games - wins),
+      games,
     }
   })
 }
