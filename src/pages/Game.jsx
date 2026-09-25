@@ -1058,7 +1058,9 @@ export default function Game() {
     const fresh = freshGameState(game.gameType, game)
     // Word Race keeps its used answer indexes across rematches so PLAY AGAIN
     // cannot hand out the same puzzle repeatedly within a room.
-    if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
+    if (game.gameType === 'wordrace' && game.round?.used) {
+      fresh.round = { used: game.round.used, roundNum: (game.round.roundNum || 1) + 1 }
+    }
     try {
       if (game.gameType === 'wordcoop') {
         // eslint-disable-next-line react-hooks/purity -- applyPlayAgain runs only from propose/acceptProposal (button handlers), never during render
@@ -1112,6 +1114,20 @@ export default function Game() {
     // A new match still starts with a fresh word. Preserve prior indexes as a
     // room-level deck history, matching Word Race's non-repeat promise.
     if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
+    // Anagrams and Word Co-op keep their room-level no-repeat history across
+    // matches too (a New Match used to reset it and replay recent racks/words).
+    if (game.gameType === 'anagrams' && game.round?.usedRacks) {
+      fresh.round = { phase: 'ready', roundNum: 1, usedRacks: game.round.usedRacks }
+    }
+    if (game.gameType === 'wordcoop') {
+      fresh.round = buildWordCoopRoundStart({
+        answerList: getAnswerList(),
+        previousRound: game.round,
+        seed: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        starter,
+      })
+      fresh.currentTurn = starter
+    }
     try {
       await update(ref(db, `games/${gameId}`), {
         ...fresh,
