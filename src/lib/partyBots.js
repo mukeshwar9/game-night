@@ -10,7 +10,7 @@
 // Personas are `{ skill, acuity, boldness }`, each a float in 0..1, generated once
 // per bot and passed back into the per-decision functions by the caller.
 
-import { seededShuffle, hashString } from './fibbageLogic'
+import { seededShuffle, hashString, isTruthLike, sameOption } from './fibbageLogic'
 import { clampGuess } from './wavelengthLogic'
 import { matchKey } from './textMatchLogic'
 import { SHAPES, HUMANOIDS, TONES, makeAvatar } from './avatars'
@@ -33,8 +33,6 @@ const lerp = (a, b, t) => a + (b - a) * t
 function gaussianNoise(stdDev, rng) {
   return (rng() + rng() + rng() - 1.5) * stdDev
 }
-
-const norm = (s) => String(s ?? '').trim().toLowerCase()
 
 function pickRandom(arr, rng) {
   return arr[Math.floor(rng() * arr.length)]
@@ -139,8 +137,8 @@ export function pickBotGuessFromClue(pair, clueWord, persona, rng = Math.random)
 
 // fact = { prompt, answer, decoys: [...] }
 export function pickBotLie(fact, usedDecoys, persona, rng = Math.random) {
-  const answerNorm = norm(fact.answer)
-  const eligible = (fact.decoys || []).filter(d => norm(d) !== answerNorm)
+  // Same rule human lies face: nothing that is really the truth (fibbageLogic.isTruthLike).
+  const eligible = (fact.decoys || []).filter(d => !isTruthLike(d, fact.answer))
   if (!eligible.length) return ''
   const used = usedDecoys instanceof Set ? usedDecoys : new Set(usedDecoys || [])
   const fresh = eligible.filter(d => !used.has(d))
@@ -150,10 +148,10 @@ export function pickBotLie(fact, usedDecoys, persona, rng = Math.random) {
 
 // options = [{ id, text }] (the shape produced by fibbageLogic's buildOptions)
 export function pickBotVote(options, answer, myLieText, persona, rng = Math.random) {
-  const answerNorm = norm(answer)
-  const myLieNorm = norm(myLieText)
-  const eligible = (options || []).filter(o => norm(o.text) !== myLieNorm)
-  const truthOption = eligible.find(o => norm(o.text) === answerNorm)
+  // Loose matching (fibbageLogic.sameOption): a merged duplicate of my own lie
+  // may carry another author's spelling.
+  const eligible = (options || []).filter(o => !myLieText || !sameOption(o.text, myLieText))
+  const truthOption = eligible.find(o => sameOption(o.text, answer))
   const truthProb = lerp(0.3, 0.6, persona.skill)
   if (truthOption && rng() < truthProb) return truthOption.id
   const distractors = eligible.filter(o => o.id !== truthOption?.id)

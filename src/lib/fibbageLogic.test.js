@@ -13,6 +13,10 @@ import {
   allLied,
   allRevealed,
   factIndexFor,
+  optionKey,
+  sameOption,
+  isTruthLike,
+  validateLie,
 } from './fibbageLogic'
 import { FIBBAGE_FACTS } from './decks/fibbage'
 
@@ -390,5 +394,97 @@ describe('factIndexFor', () => {
     expect(factIndexFor(-5, 1, N)).toBeGreaterThanOrEqual(0)
     expect(factIndexFor('x', 1, N)).toBeLessThan(N)
     expect(factIndexFor(3, 1, 0)).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Truth-bypass + casing tell (lie validation and loose option matching)
+// ---------------------------------------------------------------------------
+describe('isTruthLike', () => {
+  it('regression: punctuation/casing variants of the truth are the truth', () => {
+    expect(isTruthLike('Scotland.', 'Scotland')).toBe(true)
+    expect(isTruthLike('SCOTLAND!', 'Scotland')).toBe(true)
+  })
+
+  it('treats a leading article or plural as the same answer', () => {
+    expect(isTruthLike('Pringles can', 'a Pringles can')).toBe(true)
+    expect(isTruthLike('guinea pigs', 'guinea pig')).toBe(true)
+  })
+
+  it('treats one typo in a longer answer as the truth', () => {
+    expect(isTruthLike('Scotlnd', 'Scotland')).toBe(true)
+    expect(isTruthLike('flamboyanse', 'flamboyance')).toBe(true)
+  })
+
+  it('keeps short answers exact so a real lie one letter off is allowed', () => {
+    expect(isTruthLike('hat', 'cat')).toBe(false)
+    expect(isTruthLike('14', '13')).toBe(false)
+  })
+
+  it('treats the same number written as a word or digits as the truth', () => {
+    expect(isTruthLike('3', 'three')).toBe(true)
+    expect(isTruthLike('Three.', '3')).toBe(true)
+    expect(isTruthLike('4', 'three')).toBe(false)
+  })
+
+  it('does not flag a genuinely different lie', () => {
+    expect(isTruthLike('Ireland', 'Scotland')).toBe(false)
+    expect(isTruthLike('a cookie jar', 'a Pringles can')).toBe(false)
+  })
+})
+
+describe('validateLie', () => {
+  it('accepts a normal lie (trimmed)', () => {
+    expect(validateLie('  Ireland ', 'Scotland')).toEqual({ ok: true, text: 'Ireland' })
+  })
+
+  it('regression: rejects "Scotland." and "SCOTLAND!" when the truth is Scotland', () => {
+    expect(validateLie('Scotland.', 'Scotland').ok).toBe(false)
+    expect(validateLie('SCOTLAND!', 'Scotland')).toEqual({ ok: false, error: "THAT'S THE TRUTH — LIE HARDER" })
+  })
+
+  it('rejects empty, symbol-only and over-long lies', () => {
+    expect(validateLie('   ', 'x').error).toBe('TYPE YOUR LIE')
+    expect(validateLie('!!!', 'x').error).toBe('USE LETTERS OR NUMBERS')
+    expect(validateLie('a'.repeat(61), 'x').error).toBe('TOO LONG')
+  })
+
+  it('rejects banned words', () => {
+    expect(validateLie('a big shit', 'snow')).toEqual({ ok: false, error: 'KEEP IT CLEAN' })
+  })
+})
+
+describe('optionKey / sameOption', () => {
+  it('regression: "a pringles can" and "Pringles can" are the same option', () => {
+    expect(sameOption('a pringles can', 'Pringles can')).toBe(true)
+    expect(optionKey('A Pringles Can.')).toBe(optionKey('pringles can'))
+  })
+
+  it('never matches empty text', () => {
+    expect(sameOption('', '')).toBe(false)
+    expect(sameOption('!!', '??')).toBe(false)
+  })
+})
+
+describe('buildOptions / attributeOptions with loose matching', () => {
+  it('regression: drops truth variants from the ballot ("SCOTLAND!" / "Scotlnd")', () => {
+    const opts = buildOptions('Scotland', ['SCOTLAND!', 'Scotlnd', 'Ireland'], 9)
+    expect(opts.map(o => o.text).sort()).toEqual(['Ireland', 'Scotland'])
+  })
+
+  it('merges lies that differ only by article/case/punctuation and credits every author', () => {
+    const opts = buildOptions('a Pringles can', ['a cookie jar', 'Cookie jar!', 'his golf bag'], 4)
+    expect(opts).toHaveLength(3) // truth + cookie jar + golf bag
+    const rich = attributeOptions(opts, 'a Pringles can', { p1: 'a cookie jar', p2: 'Cookie jar!', p3: 'his golf bag' })
+    const jar = rich.find(o => sameOption(o.text, 'cookie jar'))
+    expect(jar.by.sort()).toEqual(['p1', 'p2'])
+  })
+
+  it('gives no credit to a truth-like lie that slipped onto an old ballot', () => {
+    // A ballot built by an older client could still carry "Scotlnd".
+    const legacy = [{ id: 'opt-0', text: 'Scotland' }, { id: 'opt-1', text: 'Scotlnd' }]
+    const rich = attributeOptions(legacy, 'Scotland', { p1: 'Scotlnd' })
+    expect(rich.find(o => o.id === 'opt-0').by).toBeNull()
+    expect(rich.find(o => o.id === 'opt-1').by).toEqual([])
   })
 })

@@ -13,10 +13,14 @@ import {
   allVoted,
   allRevealed,
   factIndexFor,
+  validateLie,
+  sameOption,
+  LIE_MAX_LENGTH,
 } from '../lib/fibbageLogic'
 import { isCoordinator } from '../lib/coordinator'
 import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
 import GameSwitcher from '../components/GameSwitcher'
+import WordFeedback from '../components/WordFeedback'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
@@ -90,6 +94,7 @@ export default function FibbageGame({
   const [now, setNow] = useState(() => Date.now())
   const [lieInput, setLieInput] = useState('')
   const [inputError, setInputError] = useState('')
+  const [inputErrorId, setInputErrorId] = useState(0)
   const [localLie, setLocalLie] = useState(false)   // I committed this round
   const [localVote, setLocalVote] = useState(null)  // optionId I picked locally
   const [submitting, setSubmitting] = useState(false)
@@ -149,9 +154,8 @@ export default function FibbageGame({
       if (round.phase === 'reveal') {
         // Did I find the truth? (truth is identified by matching the deck answer —
         // the ballot carries no truth marker.)
-        const answerNorm = fact.answer.trim().toLowerCase()
         const myVote = round.votes[mySeat]
-        const truthOpt = round.options.find(o => o.text.trim().toLowerCase() === answerNorm)
+        const truthOpt = round.options.find(o => sameOption(o.text, fact.answer))
         const iFoundTruth = myVote && truthOpt && myVote === truthOpt.id
         if (iFoundTruth) sounds.win()
         else if (isPlayer) sounds.miss()
@@ -290,12 +294,11 @@ export default function FibbageGame({
   // ---- Submit my lie (commit hash now; plaintext stays local until reveal) ------
   const handleSubmitLie = useCallback(async () => {
     if (!isPlayer || iCommitted || submitting) return
-    const text = lieInput.trim()
-    if (!text) { setInputError('TYPE YOUR LIE'); return }
-    if (text.toLowerCase() === fact.answer.trim().toLowerCase()) {
-      setInputError("THAT'S THE TRUTH — LIE HARDER")
-      return
-    }
+    // Rejects the truth in disguise ("SCOTLAND!", "Scotlnd", "3" for "three"),
+    // symbol-only and banned lies — see fibbageLogic.validateLie.
+    const check = validateLie(lieInput, fact.answer)
+    if (!check.ok) { setInputError(check.error); setInputErrorId(n => n + 1); return }
+    const text = check.text
     setInputError('')
     setSubmitting(true)
     try {
@@ -321,11 +324,11 @@ export default function FibbageGame({
   const handleVote = useCallback(async (optionId) => {
     if (!isPlayer || iVoted) return
     // Cannot vote for your own lie. The ballot carries no authorship, so this is
-    // checked locally against my own secret text (which only I know).
+    // checked locally against my own secret text (which only I know) — loosely,
+    // since a duplicate lie may have merged under another author's spelling.
     const opt = round.options.find(o => o.id === optionId)
-    const myLieNorm = mySecret?.text ? mySecret.text.trim().toLowerCase() : null
-    if (opt && myLieNorm && opt.text.trim().toLowerCase() === myLieNorm) {
-      setInputError("CAN'T VOTE FOR YOUR OWN LIE"); return
+    if (opt && mySecret?.text && sameOption(opt.text, mySecret.text)) {
+      setInputError("CAN'T VOTE FOR YOUR OWN LIE"); setInputErrorId(n => n + 1); return
     }
     setInputError('')
     setLocalVote(optionId)
@@ -490,13 +493,15 @@ export default function FibbageGame({
   // -------------------------------------------------------------------------
   const promptDisplay = fact.prompt.replace(
     '___',
-    round.phase === 'reveal' ? `「${fact.answer}」` : '_____',
+    round.phase === 'reveal' ? `「${fact.answer.toUpperCase()}」` : '_____',
   )
 
   const committedCount = Object.keys(round.lies).length
   const votedCount = Object.keys(round.votes).length
-  const myLieNorm = mySecret?.text ? mySecret.text.trim().toLowerCase() : null
-  const answerNorm = fact.answer.trim().toLowerCase()
+  // Every option renders upper-cased: the truth keeps the deck's casing in the
+  // data while lies are typed with auto-capitalisation off, so mixed case
+  // would point straight at the truth.
+  const optionLabel = text => String(text ?? '').toUpperCase()
 
   // Reveal-time answer key: recovered client-side from the (now public) reveals,
   // excluding any that failed commitment verification.
@@ -530,16 +535,17 @@ export default function FibbageGame({
               <input
                 type="text"
                 value={lieInput}
-                maxLength={60}
+                maxLength={LIE_MAX_LENGTH}
+                aria-label="Your fake answer"
                 onChange={e => { setLieInput(e.target.value); setInputError('') }}
                 onKeyDown={e => e.key === 'Enter' && handleSubmitLie()}
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
                 placeholder="YOUR FAKE ANSWER"
-                className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-[11px] text-center rounded px-3 py-2.5 focus:outline-none focus:border-retro-p1 disabled:opacity-40"
+                className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-[11px] text-center uppercase rounded px-3 py-2.5 focus:outline-none focus:border-retro-p1 disabled:opacity-40"
               />
-              {inputError && <p className="font-pixel text-[9px] text-retro-p2 text-center">{inputError}</p>}
+              <WordFeedback message={inputError} tone="bad" id={inputErrorId} />
               <button
                 onClick={handleSubmitLie}
                 disabled={submitting}
@@ -563,7 +569,7 @@ export default function FibbageGame({
       {round.phase === 'voting' && (
         <div className="space-y-2">
           {round.options.map(opt => {
-            const isMine = !!myLieNorm && opt.text.trim().toLowerCase() === myLieNorm
+            const isMine = !!mySecret?.text && sameOption(opt.text, mySecret.text)
             const picked = (localVote ?? round.votes[mySeat]) === opt.id
             return (
               <button
@@ -579,11 +585,11 @@ export default function FibbageGame({
                   isMine && 'cursor-not-allowed',
                 )}
               >
-                {opt.text}{isMine ? '  (YOUR LIE)' : ''}
+                {optionLabel(opt.text)}{isMine ? '  (YOUR LIE)' : ''}
               </button>
             )
           })}
-          {inputError && <p className="font-pixel text-[9px] text-retro-p2 text-center">{inputError}</p>}
+          <WordFeedback message={inputError} tone="bad" id={inputErrorId} />
           <p className="font-pixel text-[9px] text-retro-dim text-center pt-1">
             {iVoted ? `VOTED ✓ — ${votedCount}/${seats.length} IN` : isPlayer ? 'PICK THE TRUTH' : 'SPECTATING'}
           </p>
@@ -606,7 +612,7 @@ export default function FibbageGame({
               )}
               <div className="space-y-1.5">
                 {richOptions.map(opt => {
-                  const isTruth = opt.by === null || opt.text.trim().toLowerCase() === answerNorm
+                  const isTruth = opt.by === null || sameOption(opt.text, fact.answer)
                   const authors = isTruth ? [] : (Array.isArray(opt.by) ? opt.by : (opt.by == null ? [] : [opt.by]))
                   const voters = Object.entries(round.votes)
                     .filter(([, oid]) => oid === opt.id)
@@ -622,7 +628,7 @@ export default function FibbageGame({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-mono text-[12px]">
-                          {opt.text}{isTruth ? '  ✓ TRUTH' : ''}
+                          {optionLabel(opt.text)}{isTruth ? '  ✓ TRUTH' : ''}
                         </span>
                         <span className="font-pixel text-[8px] text-retro-dim shrink-0">
                           {voters.length} VOTE{voters.length === 1 ? '' : 'S'}
