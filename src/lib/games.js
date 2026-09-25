@@ -595,7 +595,7 @@ export const GAME_TYPES = [
     badge: 'HW', maxWidth: 'max-w-sm',
     category: 'word',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true, matchTarget: 3,
+    custom: true, matchTarget: 3, hidePlayerCards: true,
   },
   {
     type: 'dotsandboxes', label: 'DOTS & BOXES',
