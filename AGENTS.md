@@ -54,7 +54,7 @@ presence:
 proposal: { action: 'playAgain'|'newMatch'|'switch', gameType, by, declined } — rematch/switch consent handshake; absent when none pending; cleared (null) by every apply/reset write
 ```
 
-Hangwoman has no `board`/`currentTurn`; it stores a `round` sub-node instead (`setter`, `phase`, `wrongCount`, `wordLength`, `commitment`, `guesses`, `reveal`, `result` — see `src/pages/HangmanGame.jsx`). The word never touches Firebase until reveal: the setter keeps it in sessionStorage and publishes a salted SHA-256 commitment (`src/lib/commit.js`); the guesser's client verifies the reveal against the commitment and all recorded answers.
+Hangwoman has no `board`/`currentTurn`; it stores a `round` sub-node instead (`setter`, `phase`, `wrongCount`, `wordLength`, `commitment`, `guesses`, `reveal`, `result`, `turns`, `wordRule`, `verified` — see `src/pages/HangmanGame.jsx` and `docs/HANGMAN.md`). The room-level `hangwomanAnyWord` house rule is deliberately kept out of `FIELD_NULLS`. The word never touches Firebase until reveal: the setter keeps it in sessionStorage and publishes a salted SHA-256 commitment (`src/lib/commit.js`); the guesser's client verifies the reveal against the commitment and all recorded answers.
 
 **Dots and Boxes** default is `dotsandboxes` (`board: string[84]`, `boxes: string[36]`, clinch 19). Compact mode `dotsandboxes4` is 4×4 (`board: string[40]`, `boxes: string[16]`, clinch 9). Horizontal edges on 6×6: 0–41 `row*6+col`; vertical 42–83 `42+row*7+col`. `currentTurn` does **not** flip when a move completes ≥1 box (extra turn). The round ends on majority or a full-board draw (18–18 / 8–8). There is no `winningLine`.
 
@@ -105,6 +105,15 @@ invites/{uid}/{inviteId}:         { gameId, gameType, fromUid, fromName, fromAva
 ### Theming
 
 All colors flow through CSS custom properties (`--c-*`) defined in `src/index.css`, with a `[data-theme="…"]` block per `THEMES` entry (`:root` holds MIDNIGHT's tokens as the cascade fallback; the app defaults to `matcha`). Registry + switching live in `src/lib/theme.js` (`THEMES`, `applyTheme`, `getStoredTheme`); `ThemeSwitcher` sits next to every mute button. Full conventions (hex-hardcoding ban, Tailwind semantic tokens, adding a theme, cursor exception): `.claude/rules/theming-rules.md`.
+
+### Word games: shared building blocks
+
+Word and party-word pages share these — use them instead of re-implementing:
+- `useGameKeys` (`src/hooks/useGameKeys.js`) for physical keys — never a raw `window` keydown listener (the room chat shares the page; see `src/lib/keyGuard.js`).
+- `src/lib/wordDenylist.js` for every word list: `isBannedWord` (never accept/serve/show) and `isFamilySafe` (required for anything a game serves or displays on its own).
+- `src/lib/textMatchLogic.js` (`matchKey`, `isCloseMatch`) for free-text answers — plurals, spacing, articles and typos.
+- `useServerClock` + `RoundTimer`, `WordFeedback`, `MatchScoreRail` (with registry `matchTarget`; set `hidePlayerCards` when the page renders the rail). Registry `coop: true` exempts a game from the CLAIM WIN banner and win/loss stats.
+- Firebase `update()` rejects a patch holding both a path and its ancestor (`round` + `round/setter`); fold nested first-mover keys with `withFirstMover()` (`src/lib/games.js`).
 
 ### Async-action busy convention
 
