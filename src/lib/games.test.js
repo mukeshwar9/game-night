@@ -70,7 +70,7 @@ describe('first mover', () => {
   it('writes the right Firebase patch for each family', () => {
     expect(firstMoverUpdates('tictactoe', 'O')).toEqual({ currentTurn: 'O' })
     expect(firstMoverUpdates('hangwoman', 'O')).toEqual({ 'round/setter': 'O' })
-    expect(firstMoverUpdates('twotruths', 'X')).toEqual({ 'round/setter': 'X' })
+    expect(firstMoverUpdates('twotruths', 'X')).toEqual({})
     expect(firstMoverUpdates('bluff', 'O')).toEqual({ 'bluffRound/turn': 'O' })
     expect(firstMoverUpdates('pong', 'O')).toEqual({})
   })

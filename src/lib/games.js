@@ -1158,7 +1158,9 @@ export const GAME_TYPES = [
     badge: 'TT', maxWidth: 'max-w-sm',
     category: 'word',
     durationMin: 3, tags: ['quick', 'thinky'],
-    custom: true, matchTarget: 3,
+    // simultaneous: both players write and guess every round, so there is no
+    // first mover to pick; the page renders MatchScoreRail itself.
+    custom: true, simultaneous: true, hidePlayerCards: true, matchTarget: 3,
   },
   {
     type: 'bluff', label: 'BLUFF BATTLE',
@@ -1352,7 +1354,7 @@ export function resolveGoesFirst(goesFirst) {
 
 export function firstMoverUpdates(gameType, symbol) {
   if (!usesFirstMover(gameType)) return {}
-  if (gameType === 'hangwoman' || gameType === 'twotruths') {
+  if (gameType === 'hangwoman') {
     return { 'round/setter': symbol }
   }
   if (gameType === 'bluff') {
@@ -1713,7 +1715,7 @@ export function freshGameState(gameType, previous = null) {
   }
   if (gameType === 'twotruths') {
     return { ...FIELD_NULLS, board: null, currentTurn: null, boxes: null,
-      round: { setter: 'X', phase: 'writing' } }
+      round: { phase: 'writing', roundNum: 1 } }
   }
   if (gameType === 'bluff') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
