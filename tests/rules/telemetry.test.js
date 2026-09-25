@@ -2,6 +2,8 @@
 // chat reports), the server-owned leaderboard, and race-room lobby listings.
 import { afterAll, afterEach, beforeAll, describe, it } from 'vitest'
 import { assertFails, assertSucceeds, dbAs, partyNode, seed, rulesEnvFor } from './helpers.js'
+import { playsDailyPath } from '../../src/lib/analytics.js'
+import { buildErrorReport, buildIdFromUrl, dayKey, routeKey, shortUserAgent, MSG_MAX, STACK_MAX } from '../../src/lib/telemetry.js'
 
 const T = rulesEnvFor({ beforeAll, afterEach, afterAll })
 const as = (uid) => dbAs(T.env, uid)
@@ -24,6 +26,37 @@ describe('plays and playsDaily', () => {
     await put('users/boss', { displayName: 'Boss', admin: true })
     await assertFails(as('alice').ref('playsDaily').get())
     await assertSucceeds(as('boss').ref('playsDaily').get())
+  })
+})
+
+// The exact writes the app makes: analytics.js bump() is set(ref, increment(1))
+// on plays/{type}/{mode} and playsDailyPath(...); telemetry.js sendToFirebase
+// is set(push(errors/{dayKey(at)}), buildErrorReport({...})).
+describe('the app’s own counter and error-report writes', () => {
+  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36'
+
+  it('accepts recordPlay / recordRoundEnd for every mode and counter', async () => {
+    for (const mode of ['multi', 'solo', 'local']) {
+      await assertSucceeds(as('alice').ref(`plays/chainreaction4/${mode}`).set(increment))
+      for (const counter of ['started', 'finished', 'abandoned']) {
+        const path = playsDailyPath(dayKey(), 'chainreaction4', mode, counter)
+        await assertSucceeds(as('alice').ref(path).set(increment))
+        await assertSucceeds(as('bob').ref(path).set(increment))
+      }
+    }
+  })
+
+  it('accepts a full-size report built by buildErrorReport', async () => {
+    const at = Date.now()
+    const report = buildErrorReport({
+      msg: 'x'.repeat(MSG_MAX + 50), stack: 'y'.repeat(STACK_MAX + 50), kind: 'rejection', at, uid: 'alice',
+      route: routeKey('/game/ABC123'), gameType: 'chainreaction4',
+      build: buildIdFromUrl('https://game-night.web.app/assets/index-BCgFD2Nx.js'), ua: shortUserAgent(UA),
+    })
+    const ref = as('alice').ref(`errors/${dayKey(at)}`).push()
+    await assertSucceeds(ref.set(report))
+    const bare = buildErrorReport({ msg: 'boom', kind: 'error', at, uid: 'alice', route: routeKey('/'), build: buildIdFromUrl('http://127.0.0.1:5190/src/lib/telemetry.js'), ua: shortUserAgent('') })
+    await assertSucceeds(as('alice').ref(`errors/${dayKey(at)}`).push().set(bare))
   })
 })
 
