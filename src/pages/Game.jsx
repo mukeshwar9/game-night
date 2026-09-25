@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ref, onValue, update, get, push, runTransaction, onDisconnect, remove, set as dbSet } from 'firebase/database'
 import { db, configError } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig, lobbySwitchOverrides, firstMoverUpdates } from '../lib/games'
+import { freshGameState, getGameConfig, lobbySwitchOverrides, withFirstMover } from '../lib/games'
 import { getAnswerList } from '../lib/dictionary'
 import { buildWordCoopRoundStart } from '../lib/wordcoopLogic'
 import { getPlayerId } from '../lib/playerId'
@@ -1086,13 +1086,12 @@ export default function Game() {
         return
       }
       await update(ref(db, `games/${gameId}`), {
-        ...fresh,
+        ...withFirstMover(fresh, game.gameType, starter),
         status: 'playing',
         winner: null,
         winningLine: null,
         proposal: null,
         starter,
-        ...firstMoverUpdates(game.gameType, starter),
         // eslint-disable-next-line react-hooks/purity -- applyPlayAgain runs only from propose/acceptProposal (button handlers), never during render
         lastActivityAt: Date.now(),
       })
@@ -1130,7 +1129,7 @@ export default function Game() {
     }
     try {
       await update(ref(db, `games/${gameId}`), {
-        ...fresh,
+        ...withFirstMover(fresh, game.gameType, starter),
         status: 'playing',
         winner: null,
         winningLine: null,
@@ -1138,7 +1137,6 @@ export default function Game() {
         'scores/O': 0,
         proposal: null,
         starter,
-        ...firstMoverUpdates(game.gameType, starter),
         lastActivityAt: Date.now(),
       })
     } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }

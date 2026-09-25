@@ -1366,6 +1366,28 @@ export function firstMoverUpdates(gameType, symbol) {
   return { currentTurn: symbol }
 }
 
+// Merges firstMoverUpdates into a freshGameState() patch. Firebase update()
+// rejects a patch holding both `round` and `round/setter` ("ancestor of
+// another path"), which made NEW MATCH / PLAY AGAIN fail outright for
+// Hangwoman and Bluff; nested first-mover paths are folded into the parent
+// object the fresh state already carries.
+export function withFirstMover(fresh, gameType, symbol) {
+  const out = { ...fresh }
+  for (const [path, value] of Object.entries(firstMoverUpdates(gameType, symbol))) {
+    const [head, ...rest] = path.split('/')
+    if (!rest.length || !(head in out)) { out[path] = value; continue }
+    const base = out[head] && typeof out[head] === 'object' ? { ...out[head] } : {}
+    let node = base
+    rest.slice(0, -1).forEach(key => {
+      node[key] = node[key] && typeof node[key] === 'object' ? { ...node[key] } : {}
+      node = node[key]
+    })
+    node[rest[rest.length - 1]] = value
+    out[head] = base
+  }
+  return out
+}
+
 export const GAME_CATEGORIES = [
   { id: 'board',     label: 'BOARD',  full: 'BOARD GAMES' },
   { id: 'reflex',    label: 'REFLEX', full: 'REFLEX & SKILL' },

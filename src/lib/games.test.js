@@ -7,12 +7,12 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: () => null, setItem: () => {} }
 }
 
-let isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState, supportsLocalPlay
+let isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay
 let lobbySwitchOverrides, buildChallengeRoom
 
 beforeAll(async () => {
   ;({
-    isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState, supportsLocalPlay,
+    isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay,
     lobbySwitchOverrides, buildChallengeRoom,
   } = await import('./games'))
 })
@@ -54,6 +54,17 @@ describe('first mover', () => {
     expect(resolveGoesFirst('O')).toBe('O')
     expect(resolveGoesFirst(undefined)).toBe('X')
     expect(['X', 'O']).toContain(resolveGoesFirst('random'))
+  })
+
+  it('folds nested first-mover paths into the fresh state (regression: NEW MATCH failed with "ancestor of another path")', () => {
+    const hw = withFirstMover(freshGameState('hangwoman'), 'hangwoman', 'O')
+    expect(hw.round.setter).toBe('O')
+    expect(Object.keys(hw).some(k => k.startsWith('round/'))).toBe(false)
+    const bluff = withFirstMover(freshGameState('bluff'), 'bluff', 'O')
+    expect(bluff.bluffRound.turn).toBe('O')
+    expect(Object.keys(bluff).some(k => k.includes('/'))).toBe(false)
+    expect(withFirstMover(freshGameState('tictactoe'), 'tictactoe', 'O').currentTurn).toBe('O')
+    expect(withFirstMover({ round: null }, 'hangwoman', 'X').round).toEqual({ setter: 'X' })
   })
 
   it('writes the right Firebase patch for each family', () => {
