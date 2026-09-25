@@ -37,3 +37,6 @@ playwright-report/
 blob-report/
 playwright/.cache/
 dev-dist/
+
+# Firebase CLI deploy cache (regenerated on every deploy).
+.firebase/
