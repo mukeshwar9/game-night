@@ -66,7 +66,8 @@ describe('isValidChatMessage', () => {
   })
 
   it('rejects missing text', () => {
-    const { text, ...rest } = base
+    const rest = { ...base }
+    delete rest.text
     expect(isValidChatMessage(rest)).toBe(false)
   })
 
@@ -90,7 +91,8 @@ describe('isValidChatMessage', () => {
   })
 
   it('rejects missing by', () => {
-    const { by, ...rest } = base
+    const rest = { ...base }
+    delete rest.by
     expect(isValidChatMessage(rest)).toBe(false)
   })
 
