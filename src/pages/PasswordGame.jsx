@@ -6,17 +6,18 @@ import { sounds } from '../lib/sounds'
 import useBusy from '../hooks/useBusy'
 import useServerClock from '../hooks/useServerClock'
 import RoundTimer from '../components/RoundTimer'
+import WordFeedback from '../components/WordFeedback'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import GameSwitcher from '../components/GameSwitcher'
 import PasswordCard, { PasswordMatchResult } from '../components/PasswordCard'
 import { PASSWORD_DECK } from '../lib/decks/password'
 import {
-  CLUE_MS, INTRO_MS, MAX_CLUES, MAX_ROUNDS, PARTNER_OFFLINE_MS, guessSecondsForClueNumber,
+  CLUE_MS, INTRO_MS, MAX_CLUES, MAX_ROUNDS, MAX_TEAM_SCORE, PARTNER_OFFLINE_MS, guessSecondsForClueNumber,
 } from '../lib/passwordLogic'
 import {
   advanceAfterReveal, applyClue, applyClueTimeout, applyGuess, applyGuessTimeout, bestRound,
-  canEndForAbsence, createInitialRound, endMatchEarly, normalizeText, pickWordForRound, startCluePhase, teamScoreOf,
-  teamScoresFor, toList, validateClue,
+  canEndForAbsence, createInitialRound, endMatchEarly, isCorrectGuess, nextRoles, normalizeText,
+  pickWordForRound, starRating, startCluePhase, teamScoreOf, teamScoresFor, toList, validateClue,
 } from '../lib/passwordLogic'
 
 const TIMED_PHASES = new Set(['intro', 'clue', 'guess', 'reveal'])
@@ -44,9 +45,12 @@ export default function PasswordGame({
   gameId, game, mySymbol, opponentOnline, onSwitchGame, onNewMatch, proposal,
 }) {
   const [input, setInput] = useState('')
-  const [error, setError] = useState('')
+  // One feedback line for clue/guess results: why a clue was rejected, a
+  // missed guess, or a submission that lost the race to the clock.
+  const [feedback, setFeedback] = useState({ message: '', tone: 'info', id: 0 })
   const [busy, runBusy] = useBusy()
   const [ending, runEnding] = useBusy()
+  const [startingNewMatch, runNewMatch] = useBusy()
   const inputRef = useRef(null)
   const previousPhase = useRef(null)
   const deadlineAttempt = useRef('')
@@ -145,6 +149,10 @@ export default function PasswordGame({
   }, [opponentOnline, isSpectator, matchFinished, serverNow])
   const partnerAway = canEndForAbsence(offlineSince, now)
 
+  const say = useCallback((message, tone = 'info') => {
+    setFeedback(prev => ({ message, tone, id: prev.id + 1 }))
+  }, [])
+
   const endMatch = useCallback(() => runEnding(async () => {
     const result = await runTransaction(ref(db, `games/${gameId}`), current => {
       if (!current || current.status !== 'playing') return
@@ -171,7 +179,7 @@ export default function PasswordGame({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- clears local entry when Firebase phase/round advances
     setInput('')
-    setError('')
+    setFeedback(prev => ({ message: '', tone: 'info', id: prev.id }))
     if ((phase === 'clue' && isClueGiver) || (phase === 'guess' && isGuesser)) {
       const timer = setTimeout(() => inputRef.current?.focus(), 0)
       return () => clearTimeout(timer)
@@ -180,8 +188,8 @@ export default function PasswordGame({
 
   const submitClue = useCallback(async () => {
     const check = validateClue({ clue: input, word, previousClues: clues })
-    if (!check.valid) { setError(check.reason); return }
-    setError('')
+    if (!check.valid) { say(check.reason, 'bad'); return }
+    say('')
     await runBusy(async () => {
       const result = await runTransaction(ref(db, `games/${gameId}`), current => {
         const currentRound = current?.round
@@ -191,17 +199,19 @@ export default function PasswordGame({
         if (!nextRound) return
         return { ...current, round: nextRound, lastActivityAt: at }
       })
-      if (!result.committed) throw new Error('clue rejected')
+      // Not committed = the round moved on first (the clue clock burned the
+      // last slot, or the match ended) — not a connection problem.
+      if (!result.committed) { say('TOO LATE — THE CLUE CLOCK RAN OUT', 'info'); return }
       setInput('')
       sounds.move(mySymbol)
     }, () => toast.error('CLUE FAILED — CHECK CONNECTION'))
-  }, [clues, gameId, input, mySymbol, runBusy, serverNow, word])
+  }, [clues, gameId, input, mySymbol, runBusy, say, serverNow, word])
 
   const submitGuess = useCallback(async () => {
     const trimmed = input.trim()
-    if (!trimmed) { setError('ENTER A GUESS'); return }
-    if (trimmed.length > 24) { setError('GUESS MUST BE 24 CHARACTERS OR LESS'); return }
-    setError('')
+    if (!trimmed) { say('ENTER A GUESS', 'bad'); return }
+    if (trimmed.length > 24) { say('GUESS MUST BE 24 CHARACTERS OR LESS', 'bad'); return }
+    say('')
     await runBusy(async () => {
       const result = await runTransaction(ref(db, `games/${gameId}`), current => {
         const currentRound = current?.round
@@ -213,11 +223,19 @@ export default function PasswordGame({
         // both seats mirror so every client (and the shared UI) agrees.
         return { ...current, round: nextRound, scores: teamScoresFor(nextRound.teamScore), lastActivityAt: at }
       })
-      if (!result.committed) throw new Error('guess rejected')
+      // Not committed = the guess clock expired first; the slot already
+      // counts as a timed-out miss.
+      if (!result.committed) { say('TOO LATE — THE GUESS CLOCK RAN OUT', 'info'); return }
       setInput('')
       sounds.move(mySymbol)
+      if (!isCorrectGuess(trimmed, word)) say(`NOT “${trimmed.toUpperCase()}” — WAIT FOR THE NEXT CLUE`, 'bad')
     }, () => toast.error('GUESS FAILED — CHECK CONNECTION'))
-  }, [gameId, input, mySymbol, runBusy, serverNow, word])
+  }, [gameId, input, mySymbol, runBusy, say, serverNow, word])
+
+  const startNewMatch = useCallback(() => runNewMatch(
+    async () => { await onNewMatch?.() },
+    () => toast.error('NEW MATCH FAILED — CHECK CONNECTION'),
+  ), [onNewMatch, runNewMatch])
 
   const submit = phase === 'clue' ? submitClue : submitGuess
   const canSubmit = phase === 'clue' ? isClueGiver : isGuesser
@@ -226,12 +244,39 @@ export default function PasswordGame({
   const clockLabel = phase === 'clue'
     ? `CLUE ${Math.min(MAX_CLUES, clues.length + 1)} OF ${MAX_CLUES}`
     : `GUESS ${clues.length} OF ${MAX_CLUES}`
+  const roundNum = round?.roundNum || 1
+  const nameOf = symbol => (game?.players?.[symbol]?.name || symbol || '').toUpperCase()
+  const upcoming = round ? nextRoles(round.clueGiver) : null
+  const nextLine = roundNum >= MAX_ROUNDS
+    ? 'FINAL ROUND · RESULTS NEXT'
+    : !upcoming ? ''
+      : isSpectator ? `NEXT: ${nameOf(upcoming.clueGiver)} GIVES CLUES`
+        : mySymbol === upcoming.guesser ? 'NEXT: YOU GUESS' : 'NEXT: YOU GIVE CLUES'
+  const lastClue = clues[clues.length - 1]
+
+  // Screen-reader status: one polite line that changes once per phase/slot,
+  // instead of the whole card being re-announced every phase.
+  let announcement = ''
+  if (phase === 'intro') {
+    announcement = `Round ${roundNum} of ${MAX_ROUNDS}. ${isClueGiver ? `You give clues. The password is ${word}.` : isGuesser ? 'You guess.' : ''}`
+  } else if (phase === 'clue') {
+    announcement = isClueGiver ? `Send clue ${clues.length + 1}.` : `Waiting for clue ${clues.length + 1}.`
+  } else if (phase === 'guess') {
+    const clueText = lastClue?.text ? `Clue ${clues.length}: ${lastClue.text}.` : ''
+    announcement = isGuesser ? `${clueText} Your guess.` : `${clueText} Waiting for the guess.`
+  } else if (phase === 'reveal') {
+    const points = round?.lastDelta?.points
+    announcement = `The password was ${word}. ${points ? `Plus ${points} team points.` : 'No points.'} ${nextLine}`
+  }
 
   if (matchFinished) {
     const history = toList(round?.history).map(entry => ({ ...entry, word: PASSWORD_DECK[Number(entry.wordIndex)]?.word || '' }))
     const best = bestRound(history)
     return (
-      <div className="space-y-5 py-4 max-w-sm mx-auto" aria-live="polite">
+      <div className="space-y-5 py-4 max-w-sm mx-auto">
+        <p className="sr-only" role="status" aria-live="polite">
+          {`Match over. Team score ${teamScore} of ${MAX_TEAM_SCORE}. ${starRating(teamScore)} stars.`}
+        </p>
         <div className="text-center space-y-1">
           <p className="font-pixel text-[10px] text-retro-dim tracking-widest">PASSWORD · CO-OP RESULT</p>
           <p className="font-mono text-[9px] text-retro-dim">YOU PLAY AS A TEAM — EVERY POINT COUNTS FOR BOTH OF YOU</p>
@@ -249,7 +294,7 @@ export default function PasswordGame({
               finished match would reopen with a stale team total. NEW MATCH
               resets via applyNewMatch. */}
           {!proposal && onNewMatch && (
-            <ActionButton onClick={onNewMatch}>NEW MATCH</ActionButton>
+            <ActionButton busy={startingNewMatch} busyLabel="STARTING…" onClick={startNewMatch}>NEW MATCH</ActionButton>
           )}
         </div>
         {!proposal && onSwitchGame && <GameSwitcher currentType="password" onSwitch={onSwitchGame} />}
@@ -266,13 +311,14 @@ export default function PasswordGame({
         canSeeSecret={!!isClueGiver}
         clues={clues}
         guesses={guesses}
-        roundNum={round?.roundNum || 1}
+        roundNum={roundNum}
         teamScore={teamScore}
         players={game?.players}
         mySymbol={mySymbol}
         clueGiver={round?.clueGiver}
         guesser={round?.guesser}
       />
+      <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
 
       {isSpectator && <p className="font-pixel text-[9px] text-retro-dim text-center">SPECTATING · SECRET LOCKED UNTIL REVEAL</p>}
       {!isSpectator && !opponentOnline && !partnerAway && (
@@ -309,33 +355,40 @@ export default function PasswordGame({
               id="password-entry"
               ref={inputRef}
               value={input}
-              onChange={event => { setInput(event.target.value); setError('') }}
+              onChange={event => { setInput(event.target.value); if (feedback.message) say('') }}
               maxLength={phase === 'clue' ? 16 : 24}
               autoComplete="off"
-              spellCheck="false"
-              aria-describedby={error ? 'password-entry-error' : undefined}
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              enterKeyHint="send"
+              aria-describedby="password-entry-feedback"
               placeholder={phase === 'clue' ? 'TYPE ONE-WORD CLUE…' : 'TYPE YOUR GUESS…'}
               className="min-h-11 min-w-0 flex-1 bg-retro-card border-2 border-retro-border text-retro-text font-mono text-sm rounded px-3 focus:outline-none focus:border-retro-p1 transition-colors placeholder:text-retro-dim/60"
             />
-            <ActionButton type="submit" busy={busy}>{phase === 'clue' ? 'SEND CLUE' : 'GUESS'}</ActionButton>
+            <ActionButton type="submit" busy={busy} busyLabel={phase === 'clue' ? 'SENDING…' : 'CHECKING…'}>
+              {phase === 'clue' ? 'SEND CLUE' : 'GUESS'}
+            </ActionButton>
           </div>
-          {error && <p id="password-entry-error" role="alert" className="font-pixel text-[9px] text-retro-danger">{error}</p>}
-          {phase === 'clue' && <p className="font-mono text-[9px] text-retro-dim">ONE WORD · MAX 16 CHARACTERS · {MAX_CLUES - clues.length} CLUES LEFT</p>}
+          {phase === 'clue' && <p className="font-mono text-[9px] text-retro-dim">ONE WORD · 3–16 LETTERS · {MAX_CLUES - clues.length} CLUES LEFT</p>}
         </form>
+      )}
+      {!isSpectator && (
+        <div id="password-entry-feedback">
+          <WordFeedback message={feedback.message} tone={feedback.tone} id={feedback.id} />
+        </div>
       )}
 
       {phase === 'intro' && <p className="font-pixel text-[10px] text-retro-cta text-center arcade-blink">REVEALING ROLES…</p>}
       {phase === 'reveal' && (
-        <div className="text-center space-y-1" aria-live="polite">
+        <div className="text-center space-y-1">
           {round?.lastDelta?.points ? (
             <p className="font-pixel text-base text-retro-win text-glow-win">+{round.lastDelta.points} TEAM POINTS</p>
           ) : <p className="font-pixel text-[10px] text-retro-dim">NO POINTS THIS ROUND</p>}
           {solvedWith && normalizeText(solvedWith) !== normalizeText(word) && (
             <p className="font-mono text-[10px] text-retro-dim">ACCEPTED “{solvedWith.toUpperCase()}” — CLOSE ENOUGH</p>
           )}
-          <p className="font-mono text-[10px] text-retro-dim">
-            {(round?.roundNum || 1) >= MAX_ROUNDS ? 'FINAL ROUND · RESULTS NEXT' : 'NEXT ROUND SWAPS CLUE-GIVER'}
-          </p>
+          <p className="font-pixel text-[10px] text-retro-cta">{nextLine}</p>
         </div>
       )}
 

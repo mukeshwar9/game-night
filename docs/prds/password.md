@@ -10,19 +10,20 @@
 | Label / badge | `PASSWORD` / `PW` |
 | Category | `word` |
 | Players | 2 |
-| Integration | **C** — custom 1v1 page |
+| Integration | **C** — custom 2-player co-op page (registry: `custom`, `coop`, `hidePlayerCards`, `solo: false`) |
 | Network | RTDB only |
 | Effort | **M** |
 | Priority | P2 — small 2-player word game with strong replay value |
 
 ## Goals
 
-- Add a true 2-player Password-style game.
+- Add a true 2-player Password-style game where both players want every clue to land.
 - Keep rules simple enough for quick mobile play.
 - Make it look polished and game-show-like, not like a form.
 - Avoid complicated phrases; deck should be common single words only.
 - Avoid repeated words within a match, and avoid the same first words after replay/new match.
 - Reuse platform room, invite, presence, rematch, switch-game, sound, and score conventions.
+- Pace matches for phones: every phase is on a server-corrected clock, and a stalled or absent partner can never freeze the room.
 
 ## Non-goals for v1
 
@@ -365,15 +366,18 @@ Input area:
 - Primary button label:
   - `SEND CLUE`
   - `GUESS`
-- Invalid clue shows inline chip below input, e.g. `CLUE CAN'T USE PASSWORD`.
-- Buttons follow `useBusy()` convention.
+- Invalid clue shows its reason on the shared `WordFeedback` line (e.g. `CLUE SHARES TOO MUCH OF THE PASSWORD`); a missed guess shows `NOT "X" — WAIT FOR THE NEXT CLUE`.
+- A submission that loses the race to the clock (transaction not committed) says `TOO LATE — THE CLUE/GUESS CLOCK RAN OUT` on that line; only real write errors toast `… FAILED — CHECK CONNECTION`.
+- Input: `autoComplete/autoCorrect/autoCapitalize="off"`, `spellCheck={false}`, `enterKeyHint="send"` so phone keyboards don't rewrite clues or guesses.
+- Buttons follow `useBusy()` convention: SEND CLUE → SENDING…, GUESS → CHECKING…, NEW MATCH → STARTING…, END MATCH → ENDING….
 
 Reveal:
 
 - Big word flip.
 - `+5` / `+3` points burst near winner score.
 - If no guess: `NO POINTS` with muted shake.
-- Next role preview: `NEXT: YOU GUESS`.
+- Next role preview: `NEXT: YOU GUESS` / `NEXT: YOU GIVE CLUES` (spectators: `NEXT: <NAME> GIVES CLUES`; after round 12: `FINAL ROUND · RESULTS NEXT`).
+- A close guess that was accepted is noted: `ACCEPTED "ELEPHNT" — CLOSE ENOUGH`.
 
 End screen (co-op result):
 
@@ -397,7 +401,8 @@ End screen (co-op result):
 - All state uses text, not color only.
 - Inputs have labels/aria labels.
 - Focus moves to active input when phase changes.
-- Correct/wrong feedback announced as text.
+- Correct/wrong feedback announced as text via `WordFeedback`.
+- Screen readers get one polite status line that changes once per phase/slot (round and role, "Clue 2: orbit. Your guess.", "The password was planet. Plus 4 team points."). The card itself is not a live region, so it is not re-announced every phase.
 - Clocks use the shared `RoundTimer` (bar + m:ss + a text "HURRY!" state, screen-reader announcements only at 30/10/5 s).
 
 ## Rules modal copy

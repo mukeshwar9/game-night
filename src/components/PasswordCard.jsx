@@ -60,7 +60,7 @@ export default function PasswordCard({
         : reveal ? 'ROUND REVEAL' : 'MATCH OVER'
 
   return (
-    <div className="space-y-3" aria-live="polite">
+    <div className="space-y-3">
       <TeamRail teamScore={teamScore} roundNum={roundNum} />
       <div className="flex items-center justify-between gap-2">
         <span className={cn(
@@ -142,7 +142,7 @@ export function PasswordMatchResult({ teamScore = 0, history = [], best, players
           {STAR_THRESHOLDS.map((threshold, index) => `${'★'.repeat(index + 1)} ${threshold}`).join(' · ')}
         </p>
         {endedEarly && (
-          <p className="mt-2 font-mono text-[9px] text-retro-dim">ENDED EARLY AFTER ROUND {history.length} OF {MAX_ROUNDS}</p>
+          <p className="mt-2 font-mono text-[9px] text-retro-dim">ENDED EARLY · {history.length} OF {MAX_ROUNDS} ROUNDS PLAYED</p>
         )}
       </div>
 
