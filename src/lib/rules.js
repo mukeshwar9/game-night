@@ -384,23 +384,23 @@ export const GAME_RULES = {
   },
 
   wavelength: {
-    objective: 'Team guessing — read your clue-giver’s mind to land near the hidden target on a spectrum.',
+    objective: 'Team guessing — read the clue-giver’s mind to land near a hidden target on a spectrum.',
     howToPlay: [
-      '3–8 players. Each round one player is the clue-giver and sees a hidden target on a 0–100 dial between two opposites.',
-      'The clue-giver gives one word or phrase that hints where the target sits.',
-      'Everyone else moves the dial to where they think the target is.',
+      '3–8 players. Each round one player is the clue-giver and sees a hidden target on a 0–100 dial between two opposites. Nobody else can see it.',
+      'The clue-giver has 90 seconds to give a one-word clue that points at the target — no numbers, and not either word on the dial.',
+      'Everyone else has 60 seconds to move the dial to where they think the target is.',
     ],
-    win: 'The closer your guess to the hidden target, the more points you score (bullseye = 50). The role rotates each round.',
+    win: 'Guessers score up to 50 for landing close to the target (bullseye = 50); the clue-giver scores the average of their guessers’ scores. The role rotates each round. First to 200 wins — if several players pass 200 in the same round, the highest score wins, and an exact tie is shared.',
   },
 
   fibbage: {
     objective: 'Fool others with fake answers while finding the real one.',
     howToPlay: [
       '3–8 players. Everyone sees a trivia prompt with a missing answer.',
-      'Secretly write a believable fake answer (a lie).',
-      'All lies are shuffled in with the truth — then everyone votes for the answer they think is real.',
+      'You have 60 seconds to write a believable fake answer (a lie). Lies that are really the truth — a different spelling, a typo, the same number — are refused.',
+      'All lies are shuffled in with the truth and shown in capitals. You have 45 seconds to vote for the answer you think is real.',
     ],
-    win: 'Score for finding the truth, and for every player your lie fools. Most points wins.',
+    win: 'Score 1,000 for finding the truth and 500 for every player your lie fools. The answers stay up for 10 seconds, then the next prompt starts. First to 5,000 wins; if several players pass it in the same round, the highest score wins, and an exact tie is shared.',
   },
 
   arrows: {
@@ -573,11 +573,12 @@ export const GAME_RULES = {
   spyfair: {
     objective: 'Find the spy in your midst — or, as the spy, survive without being caught.',
     howToPlay: [
-      '3–8 players. Everyone shares a secret location and a role — except one random player, the spy, who knows neither.',
-      'Players ask each other questions to expose who doesn’t know the location, without giving it away to the spy.',
+      '3–8 players. Everyone shares a secret location and a role — except the spy, who knows neither. Everyone takes a turn as spy before anyone is spy twice.',
+      'Ask each other questions (out loud or in chat) to expose who doesn’t know the location, without giving it away. Anyone can open the list of possible locations.',
+      'Once, during questioning or the vote, the spy may guess the location: a right guess wins the round for the spy, a wrong guess loses it.',
       'When time runs out, everyone votes on who they think is the spy.',
     ],
-    win: 'The group wins if a clear majority votes for the actual spy. Otherwise the spy wins. First to 3 round wins takes the match.',
+    win: 'The player with the most votes is accused. If that’s the spy, everyone else scores a point; if it’s someone else — or there’s a tie for most votes — the spy scores. First to 3 round wins takes the match.',
   },
 
   sketch: {
