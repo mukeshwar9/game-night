@@ -17,6 +17,7 @@ import {
   submitOrderOf,
   isBannedAnswer,
   resolveHerdRound,
+  armAnswerDeadline,
   seededShuffle,
 } from '../lib/herdLogic'
 import { commit as makeCommit, verifyReveal } from '../lib/commit'
@@ -145,6 +146,7 @@ export default function HerdGame({
   const [resettingMatch, runNewMatch] = useBusy()
   const [sharing, runShare] = useBusy()
 
+  const armFor = useRef(null)           // roundKey the answer deadline was armed for
   const flipFor = useRef(null)          // roundKey the answering → reveal flip was attempted for
   const revealSentFor = useRef(null)    // roundKey my reveal was published for
   const scoreFor = useRef(null)         // roundKey scoring was attempted for
@@ -159,6 +161,21 @@ export default function HerdGame({
   const iAnswered = !!myCommit
   const committedCount = Object.keys(round?.answers || {}).length
   const timeUp = !!round?.endsAt && now >= round.endsAt
+
+  // ---- COORDINATOR: arm the answer deadline with server time ------------------
+  // Rounds may start with endsAt: null so no client's local clock sets the
+  // deadline; the coordinator stamps serverNow() + ANSWER_MS once. Rounds that
+  // already carry an endsAt (older starts, advance()) are left as they are.
+  useEffect(() => {
+    if (!amCoordinator || !playing || !round || round.phase !== 'answering' || round.endsAt != null) return
+    if (armFor.current === roundKey) return
+    armFor.current = roundKey
+    const expected = round.promptIndex
+    runTransaction(ref(db, `games/${gameId}/round`), cr => {
+      if (!cr) return cr
+      return armAnswerDeadline(cr, expected, serverNow())
+    }).catch(() => { armFor.current = null })
+  }, [amCoordinator, playing, round?.phase, round?.endsAt, roundKey, gameId, serverNow]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- COORDINATOR: answering → reveal once everyone locked in or time ran out --
   useEffect(() => {
@@ -476,7 +493,11 @@ export default function HerdGame({
       {/* ---- ANSWERING PHASE ---- */}
       {round.phase === 'answering' && (
         <div className="space-y-3">
-          <RoundTimer endsAt={round.endsAt} now={now} totalMs={ANSWER_MS} label="ANSWER TIME" />
+          {round.endsAt != null ? (
+            <RoundTimer endsAt={round.endsAt} now={now} totalMs={ANSWER_MS} label="ANSWER TIME" />
+          ) : (
+            <p className="font-pixel text-[9px] text-retro-dim text-center">STARTING THE CLOCK…</p>
+          )}
           {isPlayer && !iAnswered && !timeUp ? (
             <div className="space-y-2">
               <input

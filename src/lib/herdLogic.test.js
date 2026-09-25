@@ -21,6 +21,7 @@ import {
   REVEAL_ADVANCE_MS,
   pickHerdBotAnswer,
   HERD_BOT_FALLBACK,
+  armAnswerDeadline,
   seededShuffle,
 } from './herdLogic'
 import { commit, verifyReveal } from './commit'
@@ -442,5 +443,26 @@ describe('solo bots — per-prompt answer banks', () => {
 
   it('falls back to a generic pool when a bank is missing', () => {
     expect(HERD_BOT_FALLBACK).toContain(pickHerdBotAnswer(undefined, () => 0.5))
+  })
+})
+
+describe('armAnswerDeadline — server-time answer clock', () => {
+  const fresh = { phase: 'answering', promptIndex: 3, deckSeed: 7, endsAt: null }
+
+  it('arms a null deadline once with server time + ANSWER_MS', () => {
+    expect(armAnswerDeadline(fresh, 3, 1000)).toEqual({ ...fresh, endsAt: 1000 + ANSWER_MS })
+    const { endsAt, ...noKey } = fresh // Firebase drops null keys: absent counts as unarmed
+    expect(endsAt).toBeNull()
+    expect(armAnswerDeadline(noKey, 3, 1000).endsAt).toBe(1000 + ANSWER_MS)
+  })
+
+  it('never overwrites a deadline that is already set (old rounds included)', () => {
+    expect(armAnswerDeadline({ ...fresh, endsAt: 5 }, 3, 1000)).toBeUndefined()
+  })
+
+  it('aborts for another prompt, the reveal phase or a missing round', () => {
+    expect(armAnswerDeadline(fresh, 4, 1000)).toBeUndefined()
+    expect(armAnswerDeadline({ ...fresh, phase: 'reveal' }, 3, 1000)).toBeUndefined()
+    expect(armAnswerDeadline(null, 3, 1000)).toBeUndefined()
   })
 })

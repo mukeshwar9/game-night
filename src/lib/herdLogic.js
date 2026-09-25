@@ -307,3 +307,17 @@ export function pickHerdBotAnswer(bank, rng = Math.random) {
   }
   return list[list.length - 1]
 }
+
+// ---------------------------------------------------------------------------
+// armAnswerDeadline — a round can start with endsAt: null (the registry no
+// longer stamps the host's local clock); the coordinator arms it once with the
+// server-corrected time. Transaction body: returns the updated round, or
+// undefined (abort) when there is nothing to do — wrong phase, a different
+// prompt, or a deadline already set (including older rounds that shipped one).
+// ---------------------------------------------------------------------------
+export function armAnswerDeadline(round, expectedPromptIndex, serverNowMs, answerMs = ANSWER_MS) {
+  if (!round || round.phase !== 'answering') return undefined
+  if (round.promptIndex !== expectedPromptIndex) return undefined
+  if (round.endsAt != null) return undefined
+  return { ...round, endsAt: serverNowMs + answerMs }
+}
