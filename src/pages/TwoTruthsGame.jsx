@@ -5,6 +5,9 @@ import { commit, verifyReveal } from '../lib/commit'
 import GameSwitcher from '../components/GameSwitcher'
 import SpectatorCard from '../components/SpectatorCard'
 import PixelDots from '../components/loading/PixelDots'
+import MatchScoreRail from '../components/MatchScoreRail'
+import RoundTimer from '../components/RoundTimer'
+import WordFeedback from '../components/WordFeedback'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
@@ -17,7 +20,7 @@ import {
   DEFAULT_MATCH_TARGET, otherSymbol, validateEntry, lieSecret, secretStorageKey, buildStoredSecret,
   parseStoredSecret, normalizeRound, toFirebaseRound, anchorRound, lockEntry, lockGuess, submitReveal,
   canEndWriting, canEndGuessing, canForfeitOpponentReveal, revealKey, verifyRoundReveals,
-  settleRevealedGame, settleStalledGame, advanceGame,
+  settleRevealedGame, settleStalledGame, advanceGame, autoAdvanceAt,
 } from '../lib/twoTruthsLogic'
 
 const SETTLE_RETRY_MS = 3000
@@ -37,17 +40,14 @@ function secondsLeft(since, deadlineMs, now) {
   return Math.max(0, Math.ceil((since + deadlineMs - now) / 1000))
 }
 
-function formatClock(secs) {
-  const m = Math.floor(secs / 60)
-  return `${m}:${String(secs % 60).padStart(2, '0')}`
-}
-
 // --- Writer: three statements, mark the lie ---
 function StatementWriter({ onLock, busy }) {
   const [statements, setStatements] = useState(['', '', ''])
   const [lieIndex, setLieIndex] = useState(null)
   const [error, setError] = useState('')
+  const [errorId, setErrorId] = useState(0)
   const submitRef = useRef(null)
+  const fieldRefs = useRef([])
 
   const setStatement = (i, val) => {
     setStatements(prev => prev.map((s, idx) => (idx === i ? val.slice(0, MAX_LEN) : s)))
@@ -63,10 +63,25 @@ function StatementWriter({ onLock, busy }) {
     }, 300)
   }
 
+  // Enter moves to the next statement (enterKeyHint="next"); on the last
+  // one it closes the keyboard and brings LOCK IT IN into view.
+  const handleFieldKeyDown = (i, e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent?.isComposing) return
+    e.preventDefault()
+    const next = fieldRefs.current[i + 1]
+    if (next) next.focus()
+    else {
+      e.currentTarget.blur()
+      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  }
+
   const handleSubmit = () => {
     const v = validateEntry(statements, lieIndex)
     if (!v.ok) {
       setError(v.error)
+      setErrorId(n => n + 1)
+      if (v.index != null) fieldRefs.current[v.index]?.focus()
       return
     }
     onLock(v.statements, v.lieIndex)
@@ -89,11 +104,15 @@ function StatementWriter({ onLock, busy }) {
           return (
             <div key={i} className="space-y-1.5">
               <textarea
+                ref={el => { fieldRefs.current[i] = el }}
                 value={s}
                 onChange={e => setStatement(i, e.target.value)}
                 onFocus={handleFieldFocus}
+                onKeyDown={e => handleFieldKeyDown(i, e)}
                 maxLength={MAX_LEN}
                 rows={2}
+                autoCapitalize="sentences"
+                enterKeyHint={i < 2 ? 'next' : 'done'}
                 placeholder={`STATEMENT ${i + 1}`}
                 aria-label={`Statement ${i + 1}`}
                 className={cn(
@@ -121,9 +140,7 @@ function StatementWriter({ onLock, busy }) {
         })}
       </div>
 
-      {error && (
-        <p role="alert" className="font-pixel text-[10px] text-retro-p2 text-center">{error}</p>
-      )}
+      <WordFeedback message={error} tone="bad" id={errorId} />
 
       <button
         type="button"
@@ -158,6 +175,7 @@ function StatementList({ statements, lieIndex = null, picked = null, pickedLabel
             type="button"
             onClick={() => canPick && onPick(i)}
             disabled={!canPick}
+            aria-pressed={canPick ? isPicked : undefined}
             className={cn(
               'w-full min-h-11 text-left rounded border-2 px-3 py-3 transition-all',
               'font-mono text-xs leading-relaxed flex items-start gap-2',
@@ -188,6 +206,37 @@ function StatementList({ statements, lieIndex = null, picked = null, pickedLabel
           </button>
         )
       })}
+    </div>
+  )
+}
+
+// --- Guess: tap selects, LOCK GUESS commits (mis-tap safe) ---
+function GuessPicker({ statements, oppName, onLock, busy }) {
+  const [selected, setSelected] = useState(null)
+  return (
+    <div className="space-y-3">
+      <p className="font-pixel text-[9px] text-center text-retro-cta text-glow-cta">
+        WHICH OF {oppName}&apos;S IS THE LIE?
+      </p>
+      <StatementList
+        statements={statements}
+        picked={selected}
+        pickedLabel="SELECTED"
+        onPick={busy ? null : i => setSelected(prev => (prev === i ? null : i))}
+      />
+      <button
+        type="button"
+        onClick={() => selected != null && onLock(selected)}
+        disabled={selected == null || busy}
+        className={cn(
+          'w-full py-3 font-pixel text-[10px] rounded border-2 transition-all active:scale-95',
+          selected == null || busy
+            ? 'border-retro-border text-retro-border cursor-not-allowed'
+            : 'border-retro-cta text-retro-cta hover:shadow-neon-cta hover:bg-retro-tint-cta',
+        )}
+      >
+        {busy ? 'LOCKING…' : selected == null ? 'TAP THE LIE' : `LOCK GUESS #${selected + 1}`}
+      </button>
     </div>
   )
 }
@@ -287,8 +336,9 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
     })
   }, [isPlaying, me, phase, reveals, entries, roundNum, round, gameId, serverNow, matchTarget, settleRetry])
 
-  // Round-end sound (the match-end fanfare is Game.jsx's job).
-  const soundedRound = useRef(null)
+  // Round-end sound (the match-end fanfare is Game.jsx's job). Seeded with
+  // the round on screen at mount so a reload doesn't replay it.
+  const soundedRound = useRef(phase === 'done' ? `${roundNum}|${round.doneAt}` : null)
   useEffect(() => {
     if (phase !== 'done' || !result || !me || !isPlaying) return
     const key = `${roundNum}|${round.doneAt}`
@@ -349,14 +399,33 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
     await runTransaction(gameRef(), current => advanceGame(current, roundNum, serverNow()) ?? undefined)
   }, () => toast.error("COULDN'T START THE NEXT ROUND — CHECK CONNECTION"))
 
+  // Auto-advance AUTO_ADVANCE_MS after the round is scored. Paused while a
+  // rematch/switch proposal is pending (advancing clears it). The transaction
+  // is round-number guarded, so both clients firing advances once.
+  const advanceAt = isPlaying && me && !proposal ? autoAdvanceAt(round) : null
+  const advanceRef = useRef(null)
+  useEffect(() => { advanceRef.current = handleNextRound })
+  useEffect(() => {
+    if (advanceAt == null) return undefined
+    const id = setTimeout(() => advanceRef.current?.(), Math.max(0, advanceAt - serverNow()))
+    return () => clearTimeout(id)
+  }, [advanceAt, serverNow])
+
   // --- Pieces ---
+  const presence = {
+    X: me === 'X' ? true : me ? opponentOnline !== false : game.presence?.X?.online !== false,
+    O: me === 'O' ? true : me ? opponentOnline !== false : game.presence?.O?.online !== false,
+  }
   const header = (
-    <div className="text-center space-y-1">
-      <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-wider">
-        TWO TRUTHS &amp; A LIE
-      </p>
-      <p className="font-pixel text-[8px] text-retro-dim">ROUND {roundNum} · FIRST TO {matchTarget}</p>
-    </div>
+    <MatchScoreRail
+      game={game}
+      mySymbol={me}
+      isSpectator={isSpectator}
+      matchTarget={matchTarget}
+      title="TWO TRUTHS"
+      roundLabel={isFinished ? 'MATCH OVER' : `ROUND ${roundNum}`}
+      presence={presence}
+    />
   )
 
   const sideOutcome = (sym) => {
@@ -451,11 +520,11 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
     return (
       <div className="space-y-6 text-center">
         {isSpectator && <SpectatorCard game={game} />}
+        {header}
         <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
         <p className={cn('font-pixel text-base', iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
           {headline}
         </p>
-        <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
         {phase === 'done' && result && (
           <div className="space-y-3 text-left">
             <p className="font-pixel text-[9px] text-retro-dim text-center">FINAL ROUND</p>
@@ -502,15 +571,15 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
 
   // --- Writing: both players write at the same time ---
   if (phase === 'writing') {
-    const writeLeft = secondsLeft(round.startedAt, WRITING_DEADLINE_MS, now)
-    const timeLine = writeLeft != null && (
-      <p className="font-mono text-[10px] text-retro-dim text-center tabular-nums">WRITING TIME {formatClock(writeLeft)}</p>
+    const writeEndsAt = round.startedAt != null ? round.startedAt + WRITING_DEADLINE_MS : null
+    const timeLine = (label) => (
+      <RoundTimer endsAt={writeEndsAt} now={now} totalMs={WRITING_DEADLINE_MS} label={label} lowMs={30_000} />
     )
     if (me && !myEntry) {
       return (
         <div className="space-y-4">
           {header}
-          {timeLine}
+          {timeLine('WRITING TIME')}
           <StatementWriter key={`write-${roundNum}`} onLock={handleLock} busy={locking} />
           <p className="font-pixel text-[9px] text-retro-dim text-center">
             {entries[opp] ? `${nameOf(opp)} HAS LOCKED IN ✓` : `${nameOf(opp)} IS WRITING…`}
@@ -523,6 +592,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
       return (
         <div className="space-y-4">
           {header}
+          {!canEnd && timeLine('CAN END ROUND IN')}
           <div className="text-center space-y-3">
             <div className="flex justify-center"><PixelDots tone="p1" size="lg" glow /></div>
             <p className="font-pixel text-[10px] text-retro-p1 text-glow-p1 leading-relaxed">
@@ -531,10 +601,8 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
             {opponentOnline === false && (
               <p className="font-pixel text-[9px] text-retro-dim">({nameOf(opp)} IS OFFLINE)</p>
             )}
-            {canEnd ? (
+            {canEnd && (
               <EndRoundButton onClick={handleEndStalled} busy={ending} label="END ROUND — +1 TO YOU" />
-            ) : writeLeft != null && (
-              <p className="font-mono text-[9px] text-retro-dim">CAN END IN {writeLeft}s</p>
             )}
           </div>
           <div className="space-y-2">
@@ -548,7 +616,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
       <div className="space-y-4">
         <SpectatorCard game={game} />
         {header}
-        {timeLine}
+        {timeLine('WRITING TIME')}
         <div className="text-center space-y-2 py-4">
           <div className="flex justify-center"><PixelDots tone="p1" size="lg" glow /></div>
           <p className="font-pixel text-[10px] text-retro-p1 text-glow-p1">BOTH PLAYERS ARE WRITING…</p>
@@ -564,41 +632,40 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
 
   // --- Guessing: both guess the other's lie at the same time ---
   if (phase === 'guessing') {
-    const guessLeft = secondsLeft(round.guessStartedAt, GUESSING_DEADLINE_MS, now)
-    const timeLine = guessLeft != null && (
-      <p className="font-mono text-[10px] text-retro-dim text-center tabular-nums">GUESSING TIME {formatClock(guessLeft)}</p>
+    const guessEndsAt = round.guessStartedAt != null ? round.guessStartedAt + GUESSING_DEADLINE_MS : null
+    const timeLine = (label) => (
+      <RoundTimer endsAt={guessEndsAt} now={now} totalMs={GUESSING_DEADLINE_MS} label={label} />
     )
     if (me) {
       const myGuess = guesses[me]
-      const canPick = myGuess == null && !guessing
       const canEnd = canEndGuessing(round, me, now)
       return (
         <div className="space-y-4">
           {header}
-          {timeLine}
-          <p className={cn(
-            'font-pixel text-[9px] text-center',
-            myGuess == null ? 'text-retro-cta text-glow-cta arcade-blink' : 'text-retro-dim',
-          )}>
-            {myGuess == null ? `WHICH OF ${nameOf(opp)}'S IS THE LIE?` : `GUESS LOCKED — WAITING FOR ${nameOf(opp)}…`}
-          </p>
-          <StatementList
-            statements={entries[opp].statements}
-            picked={myGuess}
-            pickedLabel="YOUR PICK"
-            onPick={canPick ? handleGuess : null}
-          />
-          {myGuess != null && (
-            <div className="text-center space-y-2">
-              {opponentOnline === false && (
-                <p className="font-pixel text-[9px] text-retro-dim">({nameOf(opp)} IS OFFLINE)</p>
-              )}
-              {canEnd ? (
-                <EndRoundButton onClick={handleEndStalled} busy={ending} label="END ROUND — +1 TO YOU" />
-              ) : guessLeft != null && guesses[opp] == null && (
-                <p className="font-mono text-[9px] text-retro-dim">CAN END IN {guessLeft}s</p>
-              )}
-            </div>
+          {!canEnd && timeLine(myGuess == null ? 'GUESSING TIME' : 'CAN END ROUND IN')}
+          {myGuess == null ? (
+            <GuessPicker
+              key={`guess-${roundNum}`}
+              statements={entries[opp].statements}
+              oppName={nameOf(opp)}
+              onLock={handleGuess}
+              busy={guessing}
+            />
+          ) : (
+            <>
+              <p className="font-pixel text-[9px] text-center text-retro-dim">
+                GUESS LOCKED — WAITING FOR {nameOf(opp)}…
+              </p>
+              <StatementList statements={entries[opp].statements} picked={myGuess} pickedLabel="YOUR PICK" />
+              <div className="text-center space-y-2">
+                {opponentOnline === false && (
+                  <p className="font-pixel text-[9px] text-retro-dim">({nameOf(opp)} IS OFFLINE)</p>
+                )}
+                {canEnd && (
+                  <EndRoundButton onClick={handleEndStalled} busy={ending} label="END ROUND — +1 TO YOU" />
+                )}
+              </div>
+            </>
           )}
           <div className="space-y-2">
             <p className="font-pixel text-[9px] text-retro-dim">YOUR STATEMENTS</p>
@@ -611,11 +678,11 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
       <div className="space-y-4">
         <SpectatorCard game={game} />
         {header}
-        {timeLine}
+        {timeLine('GUESSING TIME')}
         {['X', 'O'].map(sym => (
           <div key={sym} className="space-y-2">
             <p className={cn('font-pixel text-[9px] tracking-wider', sym === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
-              {nameOf(sym)}'S STATEMENTS · {guesses[otherSymbol(sym)] != null ? `${nameOf(otherSymbol(sym))} HAS GUESSED ✓` : `${nameOf(otherSymbol(sym))} IS THINKING…`}
+              {`${nameOf(sym)}'S STATEMENTS · ${nameOf(otherSymbol(sym))} ${guesses[otherSymbol(sym)] != null ? 'HAS GUESSED ✓' : 'IS THINKING…'}`}
             </p>
             <StatementList statements={entries[sym].statements} />
           </div>
@@ -681,6 +748,11 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
           >
             {advancing ? 'STARTING…' : 'NEXT ROUND'}
           </button>
+          {advanceAt != null && !advancing && (
+            <p className="font-mono text-[9px] text-retro-dim tabular-nums">
+              NEXT ROUND STARTS IN {Math.max(0, Math.ceil((advanceAt - now) / 1000))}s
+            </p>
+          )}
           {onSwitchGame && !proposal && (
             <GameSwitcher currentType="twotruths" onSwitch={onSwitchGame} />
           )}

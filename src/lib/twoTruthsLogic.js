@@ -35,6 +35,9 @@ export const GUESSING_DEADLINE_MS = 60_000
 // Honest clients reveal automatically within a second of the last guess;
 // past this the player who revealed may forfeit the missing reveal.
 export const REVEAL_DEADLINE_MS = 20_000
+// After a round is scored, either player's client starts the next one after
+// this long (NEXT ROUND skips the wait).
+export const AUTO_ADVANCE_MS = 8_000
 
 export const SYMBOLS = ['X', 'O']
 export const PHASES = ['writing', 'guessing', 'revealing', 'done']
@@ -466,6 +469,11 @@ export function settleStalledGame(game, symbol, { now, matchTarget = DEFAULT_MAT
   if (!game || game.status !== 'playing') return null
   const done = endStalledRound(normalizeRound(game.round), symbol, now, deadlines)
   return done ? settledGame(game, done, matchTarget) : null
+}
+
+/** Server time the scored round auto-advances at, or null. */
+export function autoAdvanceAt(round, delayMs = AUTO_ADVANCE_MS) {
+  return round.phase === 'done' && round.doneAt != null ? round.doneAt + delayMs : null
 }
 
 /**

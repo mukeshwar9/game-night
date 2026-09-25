@@ -9,7 +9,7 @@ import {
   normalizeRound, toFirebaseRound, freshRound, anchorRound, lockEntry, lockGuess, submitReveal,
   canEndWriting, canEndGuessing, canForfeitOpponentReveal, revealKey, verifyRoundReveals,
   judgeRound, finishRevealedRound, endStalledRound, applyRoundScores,
-  settleRevealedGame, settleStalledGame, advanceGame,
+  settleRevealedGame, settleStalledGame, advanceGame, AUTO_ADVANCE_MS, autoAdvanceAt,
 } from './twoTruthsLogic'
 
 const GOOD = ['I have been to Peru', 'I can juggle five balls', 'I once met a famous chef']
@@ -518,5 +518,17 @@ describe('game transactions', () => {
     expect(next.proposal).toBeNull()
     expect(advanceGame(next, 2, 778)).toBeNull() // second NEXT ROUND is a no-op
     expect(advanceGame({ ...game, status: 'finished' }, 2, 1)).toBeNull()
+  })
+})
+
+describe('autoAdvanceAt', () => {
+  it('is 8 s after the round was scored', () => {
+    expect(AUTO_ADVANCE_MS).toBe(8_000)
+    const done = { ...normalizeRound({}), phase: 'done', doneAt: 1000 }
+    expect(autoAdvanceAt(done)).toBe(1000 + AUTO_ADVANCE_MS)
+  })
+
+  it('is null before the round is scored', () => {
+    expect(autoAdvanceAt(normalizeRound({ startedAt: 5 }))).toBeNull()
   })
 })
