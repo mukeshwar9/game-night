@@ -202,7 +202,7 @@ export default function WordRaceDemo() {
             guesses={myGuesses}
             currentGuess={playing && !myDone ? typed : ''}
             reveal={reveal}
-            label={`YOU · ${names.X.name}`}
+            label={names.X.name === 'YOU' ? 'YOU' : `YOU · ${names.X.name}`}
             solved={myDone?.solved}
           />
         </div>
