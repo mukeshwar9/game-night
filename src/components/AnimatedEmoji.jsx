@@ -1,5 +1,6 @@
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useState } from 'react'
+import useMotionPref from '../hooks/useMotionPref'
 
 const NOTO_EMOJI_URL = 'https://fonts.gstatic.com/s/e/notoemoji/latest'
 
@@ -11,7 +12,8 @@ function codepointPath(glyph) {
 
 export default function AnimatedEmoji({ glyph, className = '' }) {
   const [unavailable, setUnavailable] = useState(false)
-  const reduceMotion = useReducedMotion()
+  // In-app motion setting first (framer's useReducedMotion only sees the OS).
+  const { reduced: reduceMotion } = useMotionPref()
 
   if (unavailable) {
     return <span className={`inline-flex items-center justify-center text-6xl ${className}`}>{glyph}</span>

@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
+import { joinLabel } from '../lib/a11yLabels'
 
 // One 10×10 grid, reused for both views:
 //  - YOUR WATERS: fleetCells set → ships visible; incoming shots land here.
@@ -107,7 +108,15 @@ export default function BattleshipBoard({
                 onClick={() => !disabled && onCell?.(cell)}
                 onMouseEnter={() => onHoverCell?.(cell)}
                 disabled={disabled}
-                aria-label={`${'ABCDEFGHIJ'[r]}${c + 1}`}
+                data-testid={`bs-cell-${'ABCDEFGHIJ'[r]}${c + 1}`}
+                aria-label={joinLabel(
+                  // Battleship's own convention: row letter + column number.
+                  `${'ABCDEFGHIJ'[r]}${c + 1}`,
+                  isSunk ? 'sunk' : isHit ? 'hit' : result === 'miss' ? 'miss' : isShip ? 'your ship' : 'open',
+                  isHit && isShip && 'your ship',
+                  inPreview && !result && (previewValid ? 'placement fits' : 'placement blocked'),
+                  isLast && 'last shot',
+                )}
                 style={isLast && isHit ? { animation: 'place-pop 0.2s ease-out' } : undefined}
                 className={cn(
                   'aspect-square flex items-center justify-center font-pixel text-[10px] sm:text-xs select-none transition-colors',

@@ -1,9 +1,12 @@
 import { cn } from '@/lib/utils'
+import { cellLabel } from '../lib/a11yLabels'
 
 export default function Cell({ value, index, onClick, isWinning, disabled, isLastMove, row, col }) {
   const isEmpty = !value
-  const position = row != null && col != null ? `Row ${row + 1}, column ${col + 1}` : `Cell ${index + 1}`
-  const ariaLabel = isEmpty ? `${position}, empty` : `${position}, ${value}`
+  const ariaLabel = cellLabel({
+    row, col, index, occupant: value,
+    extra: [isWinning && 'winning line', !isWinning && isLastMove && 'last move'],
+  })
 
   return (
     <button

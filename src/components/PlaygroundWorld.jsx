@@ -12,6 +12,7 @@ import { sounds } from '../lib/sounds'
 import { todayKey, getDailyNumber, getStreak, readBest } from '../lib/daily'
 import { EMOTES_PRIMARY } from '../lib/emotes'
 import { cn } from '@/lib/utils'
+import useMotionPref from '../hooks/useMotionPref'
 
 const STEP_SOUND_INTERVAL_MS = 250 // ~4/sec footstep throttle
 const EMOTE_KEYS = EMOTES_PRIMARY.slice(0, 4) // bound to number keys 1-4
@@ -92,14 +93,11 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
     if (controlsEnabled) viewportRef.current?.focus()
   }, [controlsEnabled])
 
-  // Reduced-motion preference: camera snaps to target instead of lerping.
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const update = () => { reducedMotionRef.current = mq.matches }
-    update()
-    mq.addEventListener?.('change', update)
-    return () => mq.removeEventListener?.('change', update)
-  }, [])
+  // Reduced-motion preference (Settings → Look & feel, falling back to the
+  // OS query): camera snaps to target instead of lerping. Mirrored into a ref
+  // for the rAF loop.
+  const { reduced: reducedMotion } = useMotionPref()
+  useEffect(() => { reducedMotionRef.current = reducedMotion }, [reducedMotion])
 
   // Viewport size → px-per-world-unit scale + the world layer's pixel dimensions.
   useEffect(() => {
@@ -292,7 +290,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
           <p
             key={d.id}
             aria-hidden="true"
-            className="absolute font-pixel text-[7px] text-retro-dim/60 tracking-widest text-center pointer-events-none"
+            className="absolute font-pixel text-[7px] text-retro-dim tracking-widest text-center pointer-events-none"
             style={{ left: `${(d.x / WORLD_W) * 100}%`, top: `${(d.y / WORLD_H) * 100}%`, transform: 'translate(-50%, -50%)' }}
           >
             {d.label}

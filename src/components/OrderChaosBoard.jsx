@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { OC_SIZE } from '../lib/orderChaosLogic'
+import { cellLabel } from '../lib/a11yLabels'
 
 export default function OrderChaosBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null }) {
   const [selectedLetter, setSelectedLetter] = useState('X')
@@ -17,7 +18,11 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
     cells.push(
       <button
         key={i}
-        aria-label={`oc-cell-${row}-${col}`}
+        data-testid={`oc-cell-${row}-${col}`}
+        aria-label={cellLabel({
+          row, col, occupant: letter,
+          extra: [isWin && 'winning line', !isWin && i === lastMove && 'last move'],
+        })}
         disabled={!isClickable}
         onClick={() => isClickable && onMove({ index: i, letter: selectedLetter })}
         className={cn(
@@ -78,7 +83,8 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
               ? 'border-retro-p1 text-retro-p1 shadow-neon-p1'
               : 'border-retro-p2 text-retro-p2 shadow-neon-p2',
           )}
-          aria-label={`armed letter ${selectedLetter}`}
+          role="img"
+          aria-label={`Armed letter ${selectedLetter}`}
         >
           {selectedLetter}
         </div>
@@ -89,7 +95,9 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
         {['X', 'O'].map(l => (
           <button
             key={l}
-            aria-label={`pick-letter-${l}`}
+            data-testid={`pick-letter-${l}`}
+            aria-label={`Place ${l}`}
+            aria-pressed={selectedLetter === l}
             disabled={disabled}
             onClick={() => !disabled && setSelectedLetter(l)}
             className={cn(

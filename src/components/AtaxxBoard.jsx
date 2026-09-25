@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { AX_COLS, legalAtaxxMoves } from '../lib/ataxxLogic'
 import { useSelectMove } from '../lib/interact'
 import { cn } from '@/lib/utils'
+import { cellLabel } from '../lib/a11yLabels'
 
 // ATAXX — 7x7. Clone (distance 1) or jump (distance 2) then convert
 // neighbors. The board owns the select-then-move flow: first tap selects an
@@ -38,7 +39,15 @@ export default function AtaxxBoard({
             return (
               <button
                 key={i}
-                aria-label={`ataxx-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                data-testid={`ataxx-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                aria-label={cellLabel({
+                  row: r, col: c, occupant: cell,
+                  extra: [
+                    isSelected && 'selected',
+                    isTarget && `${targetKind} here`,
+                    i === lastMove && 'last move',
+                  ],
+                })}
                 disabled={disabled}
                 onClick={() => !disabled && tap(i)}
                 className={cn(

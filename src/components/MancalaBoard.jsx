@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { countLabel, joinLabel } from '../lib/a11yLabels'
 
 // Mancala board — horizontal Kalah layout, two rows of 6 pits + a store on
 // each end. Seat-aware: `mySymbol` decides which row/store is "mine" (bottom
@@ -22,12 +23,19 @@ function SeedCluster({ count }) {
   )
 }
 
-function Pit({ index, count, interactive, accentRing, onPit, hop }) {
+// Screen-reader name: whose pit, its 1–6 position in sowing order, seeds.
+function pitLabel(index, count, ownerName) {
+  const n = index < 6 ? index + 1 : index - 6
+  return joinLabel(`${ownerName} pit ${n}`, countLabel(count, 'seed'))
+}
+
+function Pit({ index, count, interactive, accentRing, onPit, hop, ownerName }) {
   return (
     <button
       onClick={() => interactive && onPit?.(index)}
       disabled={!interactive}
-      aria-label={`pit ${index}`}
+      data-testid={`pit ${index}`}
+      aria-label={pitLabel(index, count, ownerName)}
       className={cn(
         'aspect-[5/6] min-h-9 rounded-lg border-2 flex items-center justify-center transition-all duration-150 relative',
         'bg-retro-deep',
@@ -42,13 +50,14 @@ function Pit({ index, count, interactive, accentRing, onPit, hop }) {
   )
 }
 
-function Store({ count, label }) {
+function Store({ count, label, ownerName }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="w-10 sm:w-12 flex-1 rounded-xl border-2 border-retro-border bg-retro-deep flex items-center justify-center py-3">
+      <span className="sr-only">{ownerName} store, {countLabel(count, 'seed')}</span>
+      <div aria-hidden="true" className="w-10 sm:w-12 flex-1 rounded-xl border-2 border-retro-border bg-retro-deep flex items-center justify-center py-3">
         <span className="font-pixel text-sm text-retro-cta">{count}</span>
       </div>
-      <span className="font-pixel text-[6px] text-retro-dim">{label}</span>
+      <span aria-hidden="true" className="font-pixel text-[6px] text-retro-dim">{label}</span>
     </div>
   )
 }
@@ -131,6 +140,9 @@ export default function MancalaBoard({
   const topLabel = spectator ? 'O' : 'RIVAL'
   const bottomTag = bottomIsX ? 'X' : 'O'
   const topTag = bottomIsX ? 'O' : 'X'
+  // Owner words for screen-reader names ("Your pit 3", "Rival store").
+  const bottomOwner = spectator ? 'X' : 'Your'
+  const topOwner = spectator ? 'O' : 'Rival'
 
   return (
     <div className="relative w-full max-w-md mx-auto">
@@ -140,7 +152,7 @@ export default function MancalaBoard({
         </p>
       )}
       <div className="flex items-stretch gap-1.5 w-full">
-        <Store count={pits[topStorePit] ?? 0} label={topLabel} />
+        <Store count={pits[topStorePit] ?? 0} label={topLabel} ownerName={topOwner} />
         <div className="flex-1 grid grid-rows-[auto_auto_auto] gap-1">
           {/* Rival row — reversed so sowing reads counterclockwise */}
           <div className="grid grid-cols-6 gap-1">
@@ -152,6 +164,7 @@ export default function MancalaBoard({
                 interactive={false}
                 onPit={handlePit}
                 hop={hopIndex === i}
+                ownerName={topOwner}
               />
             ))}
           </div>
@@ -169,13 +182,14 @@ export default function MancalaBoard({
                   accentRing={ring}
                   onPit={handlePit}
                   hop={hopIndex === i}
+                  ownerName={bottomOwner}
                 />
               )
             })}
           </div>
           <p className="font-pixel text-[6px] text-retro-dim text-center tracking-widest">{bottomLabel} · {bottomTag}</p>
         </div>
-        <Store count={pits[bottomStorePit] ?? 0} label={bottomLabel} />
+        <Store count={pits[bottomStorePit] ?? 0} label={bottomLabel} ownerName={bottomOwner} />
       </div>
     </div>
   )

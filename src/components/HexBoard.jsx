@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { HEX_SIZE } from '../lib/hexLogic'
+import { cellLabel, columnLetter } from '../lib/a11yLabels'
 
 const HEX_CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
 const CELL_W = 26
@@ -44,6 +45,10 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
             theme alpha generally) — the goal IS the ruleset, so it gets the
             semantic tint tokens, not a wash. Arrows point inward, the way
             each side travels. */}
+        <p className="sr-only">
+          X connects the left and right edges, columns A to {columnLetter(HEX_SIZE - 1)}.
+          O connects the top and bottom edges, rows 1 to {HEX_SIZE}.
+        </p>
         <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-9 rounded-l bg-retro-tint-p1 border-r-2 border-retro-p1/60 flex items-center justify-start pl-1 flex-col gap-1">
           <span className="font-pixel text-[9px] text-retro-p1 text-glow-p1">X</span>
           <span className="font-pixel text-[8px] text-retro-p1">▶</span>
@@ -91,7 +96,11 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
                       return (
                         <button
                           key={i}
-                          aria-label={`hex-cell-${row}-${col}`}
+                          data-testid={`hex-cell-${row}-${col}`}
+                          aria-label={cellLabel({
+                            row, col, occupant: cell, letters: true,
+                            extra: [isWinning && 'winning line', isLast && 'last move'],
+                          })}
                           disabled={!isClickable}
                           onClick={() => isClickable && onMove(i)}
                           className={cn(

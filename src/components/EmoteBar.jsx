@@ -6,6 +6,7 @@ import { CHAT_MAX_LENGTH } from '../lib/chat'
 import { cn } from '@/lib/utils'
 import { getPlayerId } from '../lib/playerId'
 import { getQuickEmotes, normalizeEmoteUsage, recordEmoteUsage } from '../lib/emoteUsage'
+import useMotionPref from '../hooks/useMotionPref'
 
 const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 transition-colors'
 const EMOTE_TAP_PROPS = {
@@ -15,8 +16,10 @@ const EMOTE_TAP_PROPS = {
 }
 
 function AnimatedEmoteButton({ children, className, ...props }) {
+  // Reduced motion (Settings or OS): no tap wobble / hover grow.
+  const { reduced } = useMotionPref()
   return (
-    <motion.button {...props} {...EMOTE_TAP_PROPS} className={className}>
+    <motion.button {...props} {...(reduced ? null : EMOTE_TAP_PROPS)} className={className}>
       {children}
     </motion.button>
   )

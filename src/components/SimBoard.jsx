@@ -1,5 +1,8 @@
 import { SIM_DOT_POS, SIM_EDGES, SIM_EDGE_COUNT } from '../lib/simLogic'
 import { cn } from '@/lib/utils'
+import { joinLabel } from '../lib/a11yLabels'
+
+const dotName = (d) => String.fromCharCode(65 + d)
 
 // SIM — 6 dots on a circle, 15 edges. Edge i renders as the straight line
 // between its two endpoint dots. Colors are 100%-theme-driven via --c-*:
@@ -25,7 +28,7 @@ export default function SimBoard({ board, onMove, disabled, winningLine = [], la
       )}>
         {/* Board geometry: SVG viewBox 0 0 100 100, preserveAspectRatio keeps
             the circle circular. Lines carry the stroke, dots sit on top. */}
-        <svg viewBox="0 0 100 100" className="w-full h-auto block">
+        <svg viewBox="0 0 100 100" className="w-full h-auto block" aria-hidden="true">
           {/* Unclaimed edges first (dim), then claimed edges on top */}
           {SIM_EDGES.map(([a, b], i) => board[i] ? null : (
             <line
@@ -70,14 +73,20 @@ export default function SimBoard({ board, onMove, disabled, winningLine = [], la
         {/* Tap targets: one 40px-ish button per edge midpoint (15 total).
             Claimed/unavailable edges render disabled. */}
         <div className="absolute inset-0">
-          {SIM_EDGES.map((_, i) => {
+          {SIM_EDGES.map(([a, b], i) => {
             const mid = midpoint(i)
             const claimed = !!board[i]
             const clickable = !disabled && !claimed
             return (
               <button
                 key={`tap-${i}`}
-                aria-label={`edge-${i}`}
+                data-testid={`edge-${i}`}
+                aria-label={joinLabel(
+                  `Line ${dotName(a)} to ${dotName(b)}`,
+                  claimed ? `claimed by ${board[i]}` : 'open',
+                  winningLine.includes(i) && 'losing triangle',
+                  i === lastMove && 'last move',
+                )}
                 disabled={!clickable}
                 onClick={() => clickable && onMove(i)}
                 className={cn(
@@ -96,7 +105,7 @@ export default function SimBoard({ board, onMove, disabled, winningLine = [], la
       {/* lastMove hint: ring the midpoint of the newest claim (M-47 parity) */}
       {lastMove != null && lastMove >= 0 && lastMove < SIM_EDGE_COUNT && (
         <p className="mt-2 text-center font-pixel text-[8px] text-retro-dim">
-          LAST: {String.fromCharCode(65 + SIM_EDGES[lastMove][0])}–{String.fromCharCode(65 + SIM_EDGES[lastMove][1])}
+          LAST: {dotName(SIM_EDGES[lastMove][0])}–{dotName(SIM_EDGES[lastMove][1])}
         </p>
       )}
     </div>

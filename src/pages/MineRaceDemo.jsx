@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  CELL_COUNT, MINES, SAFE_CELLS,
+  COLS, CELL_COUNT, MINES, SAFE_CELLS,
   generateBoard, floodReveal, chordTargets, isComplete, countRevealed,
 } from '../lib/minesweeperLogic'
+import { mineCellLabel } from '../lib/a11yLabels'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
@@ -163,7 +164,19 @@ export default function MineRaceDemo() {
                 onPointerDown={e => handlePointerDown(e, cell)}
                 onPointerUp={cancelPress}
                 onPointerLeave={cancelPress}
-                aria-label={`cell ${cell}`}
+                data-testid={`cell ${cell}`}
+                aria-label={mineCellLabel({
+                  row: Math.floor(cell / COLS), col: cell % COLS,
+                  revealed: isRevealed, flagged: isFlag && !isRevealed, count,
+                  mine: showMine, fatal: fatalCell === cell,
+                })}
+                onKeyDown={e => {
+                  // Keyboard flag: F toggles the flag on the focused cell.
+                  if (e.key !== 'f' && e.key !== 'F') return
+                  if (e.metaKey || e.ctrlKey || e.altKey) return
+                  e.preventDefault()
+                  toggleFlag(cell)
+                }}
                 className={cn(
                   'aspect-square flex items-center justify-center rounded-[2px] font-pixel text-[9px] select-none transition-colors',
                   isRevealed
@@ -208,6 +221,7 @@ export default function MineRaceDemo() {
           <div className="flex justify-center gap-2">
             <button
               onClick={() => setMode(m => (m === 'reveal' ? 'flag' : 'reveal'))}
+              aria-pressed={mode === 'flag'}
               className={cn(
                 'px-4 py-1.5 font-pixel text-[9px] rounded border-2 transition-all active:scale-95',
                 mode === 'flag'
@@ -225,7 +239,7 @@ export default function MineRaceDemo() {
             </button>
           </div>
           <p className="font-mono text-[10px] text-retro-dim text-center leading-relaxed">
-            TAP REVEAL · LONG-PRESS / RIGHT-CLICK FLAG<br />
+            TAP REVEAL · LONG-PRESS / RIGHT-CLICK / F KEY FLAG<br />
             TAP A SATISFIED NUMBER TO CHORD · {flaggedMines}/{flags.size} FLAGS CORRECT
           </p>
         </>

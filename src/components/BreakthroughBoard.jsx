@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { BT_COLS, legalMoves } from '../lib/breakthroughLogic'
 import { useSelectMove } from '../lib/interact'
 import { cn } from '@/lib/utils'
+import { cellLabel } from '../lib/a11yLabels'
 
 // BREAKTHROUGH — 8x8 pawn race. X (bottom, moving up) vs O (top, moving
 // down). Straight advances into empty squares, diagonal captures. The board
@@ -26,8 +27,10 @@ export default function BreakthroughBoard({
         disabled && 'opacity-60 saturate-50',
       )}>
         {/* Goal rails: X wants row 0 (top), O wants the last row (bottom) */}
-        <div aria-hidden="true" className="flex items-center justify-center gap-2 pb-1">
-          <span className="font-pixel text-[8px] text-retro-p1 text-glow-p1">▲ X GOAL</span>
+        <div className="flex items-center justify-center gap-2 pb-1">
+          <span className="font-pixel text-[8px] text-retro-p1 text-glow-p1">
+            <span aria-hidden="true">▲ </span>X GOAL<span className="sr-only">: top row</span>
+          </span>
         </div>
         <div
           className="grid gap-1 sm:gap-1.5"
@@ -44,7 +47,15 @@ export default function BreakthroughBoard({
             return (
               <button
                 key={i}
-                aria-label={`bt-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                data-testid={`bt-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                aria-label={cellLabel({
+                  row: r, col: c, occupant: cell && `${cell} pawn`,
+                  extra: [
+                    isSelected && 'selected',
+                    isCapture ? 'capture here' : isPlayable && 'move here',
+                    i === lastMove && 'last move',
+                  ],
+                })}
                 disabled={disabled}
                 onClick={() => !disabled && tap(i)}
                 className={cn(
@@ -74,8 +85,10 @@ export default function BreakthroughBoard({
             )
           })}
         </div>
-        <div aria-hidden="true" className="flex items-center justify-center gap-2 pt-1">
-          <span className="font-pixel text-[8px] text-retro-p2 text-glow-p2">▼ O GOAL</span>
+        <div className="flex items-center justify-center gap-2 pt-1">
+          <span className="font-pixel text-[8px] text-retro-p2 text-glow-p2">
+            <span aria-hidden="true">▼ </span>O GOAL<span className="sr-only">: bottom row</span>
+          </span>
         </div>
       </div>
     </div>

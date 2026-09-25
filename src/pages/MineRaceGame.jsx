@@ -7,9 +7,10 @@ import SpectatorCard from '../components/SpectatorCard'
 import Avatar from '../components/Avatar'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import {
-  CELL_COUNT, MINES, SAFE_CELLS,
+  COLS, CELL_COUNT, MINES, SAFE_CELLS,
   generateBoard, floodReveal, chordTargets, isComplete, countRevealed,
 } from '../lib/minesweeperLogic'
+import { mineCellLabel } from '../lib/a11yLabels'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
@@ -380,7 +381,20 @@ export default function MineRaceGame({
       <button
         key={i}
         disabled={!canAct}
-        aria-label={`cell ${i}`}
+        data-testid={`cell ${i}`}
+        aria-label={mineCellLabel({
+          row: Math.floor(i / COLS), col: i % COLS,
+          revealed: isRevealed, flagged: isFlagged, count: n,
+          mine: !!showMine, fatal: isFatal,
+        })}
+        onKeyDown={(e) => {
+          // Keyboard flag: F toggles the flag on the focused cell (Enter /
+          // Space already reveal via the native button click).
+          if (e.key !== 'f' && e.key !== 'F') return
+          if (e.metaKey || e.ctrlKey || e.altKey) return
+          e.preventDefault()
+          if (canAct) toggleFlag(i)
+        }}
         className={cn(
           'aspect-square flex items-center justify-center rounded-[2px] border font-pixel text-[10px] leading-none select-none',
           !isRevealed && !showMine && 'bg-retro-card border-retro-border cursor-pointer active:bg-retro-surface',
@@ -485,7 +499,7 @@ export default function MineRaceGame({
           <p className="font-pixel text-[9px] text-retro-cta">MINE RACE · {MINES} MINES · {SAFE_CELLS} SAFE CELLS</p>
           <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left mx-auto w-fit">
             <p>● IDENTICAL SEEDED MINEFIELD · FIRST TO CLEAR WINS</p>
-            <p>● TAP REVEAL · HOLD / RIGHT-CLICK FLAG · TAP A NUMBER TO CHORD</p>
+            <p>● TAP REVEAL · HOLD / RIGHT-CLICK / F KEY FLAG · TAP A NUMBER TO CHORD</p>
             <p>● HIT A MINE AND YOUR OPPONENT WINS INSTANTLY</p>
           </div>
           <button
@@ -563,6 +577,7 @@ export default function MineRaceGame({
         <button
           onClick={() => setMode(m => (m === 'reveal' ? 'flag' : 'reveal'))}
           disabled={!canAct}
+          aria-pressed={mode === 'flag'}
           className={cn(
             'px-3 py-2 min-h-11 font-pixel text-[9px] rounded border active:scale-95 disabled:opacity-50',
             mode === 'flag'
@@ -573,7 +588,7 @@ export default function MineRaceGame({
           {mode === 'flag' ? '🚩 FLAG MODE' : '⛏ REVEAL MODE'}
         </button>
         <span className="font-pixel text-[8px] text-retro-dim tabular-nums">
-          🚩 {flags.size} · HOLD TO FLAG · TAP № TO CHORD
+          🚩 {flags.size} · HOLD OR F TO FLAG · TAP № TO CHORD
         </span>
       </div>
 

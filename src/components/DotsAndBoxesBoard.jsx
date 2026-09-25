@@ -1,6 +1,18 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { hEdgeIndex, vEdgeIndex, DB_SIZE } from '../lib/dotsAndBoxesLogic'
+import { joinLabel } from '../lib/a11yLabels'
+
+// Screen-reader name for an edge, in dot coordinates (1-based, top-left).
+function edgeLabel(kind, row, col, owner, isLast) {
+  return joinLabel(
+    kind === 'h'
+      ? `Horizontal line, dot row ${row + 1}, dots ${col + 1} to ${col + 2}`
+      : `Vertical line, dot column ${col + 1}, dots ${row + 1} to ${row + 2}`,
+    owner ? `drawn by ${owner}` : 'open',
+    isLast && 'last move',
+  )
+}
 
 export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, currentTurn, lastMove = null, size = DB_SIZE }) {
   const [hoveredEdge, setHoveredEdge] = useState(null)
@@ -36,7 +48,8 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       cells.push(
         <div key={i} className="relative flex items-center justify-center">
           <button
-            aria-label={`edge-h-${row}-${col}`}
+            data-testid={`edge-h-${row}-${col}`}
+            aria-label={edgeLabel('h', row, col, owner, edgeIdx === lastMove)}
             disabled={!!owner || disabled}
             onClick={() => !owner && !disabled && onMove(edgeIdx)}
             onMouseEnter={() => setHoveredEdge(edgeIdx)}
@@ -70,7 +83,8 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       cells.push(
         <div key={i} className="relative flex items-center justify-center">
           <button
-            aria-label={`edge-v-${row}-${col}`}
+            data-testid={`edge-v-${row}-${col}`}
+            aria-label={edgeLabel('v', row, col, owner, edgeIdx === lastMove)}
             disabled={!!owner || disabled}
             onClick={() => !owner && !disabled && onMove(edgeIdx)}
             onMouseEnter={() => setHoveredEdge(edgeIdx)}
@@ -94,12 +108,16 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       )
     } else {
       // Box cell: odd row, odd col
-      const boxIdx = ((gr - 1) / 2) * size + (gc - 1) / 2
+      const boxRow = (gr - 1) / 2
+      const boxCol = (gc - 1) / 2
+      const boxIdx = boxRow * size + boxCol
       const owner = boxes ? boxes[boxIdx] : ''
 
       cells.push(
         <div
           key={i}
+          role={owner ? 'img' : undefined}
+          aria-label={owner ? `Box, row ${boxRow + 1}, column ${boxCol + 1}, ${owner}` : undefined}
           className={cn(
             'flex items-center justify-center rounded-sm',
             owner === 'X' ? 'bg-retro-p1/15' : owner === 'O' ? 'bg-retro-p2/15' : '',

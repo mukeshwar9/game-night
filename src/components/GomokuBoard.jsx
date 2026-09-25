@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { GOMOKU_SIZE } from '../lib/gomokuLogic'
+import { cellLabel } from '../lib/a11yLabels'
 
 // Minimum per-cell width (px) — keeps tap targets >=38px by letting the
 // board scroll horizontally edge-to-edge instead of crushing cells to fit.
@@ -33,7 +34,11 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
               return (
                 <button
                   key={i}
-                  aria-label={`gomoku-cell-${row}-${col}`}
+                  data-testid={`gomoku-cell-${row}-${col}`}
+                  aria-label={cellLabel({
+                    row, col, occupant: cell, letters: true,
+                    extra: [isWinning && 'winning line', !isWinning && i === lastMove && 'last move'],
+                  })}
                   disabled={!isClickable}
                   onClick={() => isClickable && onMove(i)}
                   className={cn(

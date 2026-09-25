@@ -7,6 +7,8 @@ import {
   ARROWS_HEAD_LEN,
   ARROWS_HEAD_SPREAD,
 } from '../lib/arrowsLogic'
+import { directionLabel, joinLabel } from '../lib/a11yLabels'
+import { isReducedMotion } from '../hooks/useMotionPref'
 
 const GRID_STEP = 20
 const DOT_RADIUS = 1.35
@@ -57,10 +59,6 @@ export default function ArrowsBoard({
     return s
   })
   const prevClearedRef = useRef(cleared)
-  const [reducedMotion] = useState(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return false
-    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
-  })
 
   const flowOut = (index) => {
     const group = groupRefs.current[index]
@@ -69,7 +67,9 @@ export default function ArrowsBoard({
     if (!arrow?.points || arrow.points.length < 2) return
     const { dx, dy } = exitVector(arrow.points)
 
-    if (reducedMotion) {
+    // In-app motion setting (falls back to the OS query), read per flow so a
+    // mid-round toggle applies to the next cleared arrow.
+    if (isReducedMotion()) {
       setHidden((prev) => new Set(prev).add(index))
       return
     }
@@ -93,7 +93,7 @@ export default function ArrowsBoard({
       if (c && prev[i] !== c) flowOut(i)
     })
     prevClearedRef.current = cleared
-    // flowOut closes over level/reducedMotion; both are stable for this round.
+    // flowOut closes over level, which is stable for this round.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleared])
 
@@ -133,7 +133,9 @@ export default function ArrowsBoard({
 
   return (
     <div className="w-full bg-retro-card border-2 border-retro-border rounded overflow-hidden shadow-[inset_0_1px_0_rgb(var(--c-text)/0.04)]">
-      <svg viewBox={level.viewBox.join(' ')} className="block w-full h-auto" role="img" aria-label={`${level.label} arrows board`}>
+      {/* role="group", not "img": an img role makes every child presentational,
+          which hid the tappable arrow buttons from screen readers. */}
+      <svg viewBox={level.viewBox.join(' ')} className="block w-full h-auto" role="group" aria-label={`${level.label} arrows board`}>
         <rect x={vx} y={vy} width={vw} height={vh} fill="rgb(var(--c-surface))" />
         <g aria-hidden="true">{dots}</g>
 
@@ -148,13 +150,14 @@ export default function ArrowsBoard({
             const isCleared = !!cleared[i]
             const isTrap = !!arrow.blocked && !isCleared
             const trapRevealed = isTrap && revealTraps
-            const { tip } = exitVector(points)
+            const { tip, dx, dy } = exitVector(points)
             const tappable = interactive && !isCleared
-            const label = isCleared
-              ? `Arrow ${i + 1} cleared by ${cleared[i]}`
-              : trapRevealed
-                ? `Arrow ${i + 1} trap`
-                : `Arrow ${i + 1}`
+            const direction = directionLabel(dx, dy)
+            const label = joinLabel(
+              `Arrow ${i + 1}`,
+              direction && `points ${direction}`,
+              isCleared ? `cleared by ${cleared[i]}` : trapRevealed && 'trap',
+            )
             const fireTap = (e) => {
               if (e) e.preventDefault()
               onTap(i)
