@@ -5,6 +5,7 @@ import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import { RealtimeOverlay } from '../lib/realtime/realtimeStatus'
+import { showRealtimeOverlay } from '../lib/realtime/connectionLogic'
 import SnakeArena from '../components/SnakeArena'
 import TouchCoachmark from '../components/TouchCoachmark'
 import { useSnakeControls } from '../hooks/useSnakeControls'
@@ -52,6 +53,8 @@ export default function SnakeGame({
 }) {
   const isHost = mySymbol === 'X'
   const isSpectator = !mySymbol
+  // Public-lobby rooms go relay-only when TURN is configured (rtc.js).
+  const isPublic = game.visibility === 'public'
   const arenaRef = useRef(null)
   const { getDir } = useSnakeControls(arenaRef, !isSpectator && game.status === 'playing')
   // M-49: independent pre-round display window for the coachmark, driven off
@@ -123,9 +126,10 @@ export default function SnakeGame({
     }
   }, [])
 
-  const { status: conn, statusRef: connRef, retryKey, retry, send } = useRealtimePeer({
+  const { status: conn, statusRef: connRef, retry, send } = useRealtimePeer({
     gameId,
     mySymbol,
+    isPublic,
     enabled: !isSpectator && game.status === 'playing',
     onMessage,
   })
@@ -151,7 +155,7 @@ export default function SnakeGame({
   // Reset round-guard on (re)start
   useEffect(() => {
     if (!isSpectator && game.status === 'playing') finishedRef.current = false
-  }, [isSpectator, game.status, retryKey])
+  }, [isSpectator, game.status])
 
   // --- Host: authoritative simulation loop ---
   useEffect(() => {
@@ -175,8 +179,11 @@ export default function SnakeGame({
 
     const loop = () => {
       timer = setTimeout(loop, TICK_MS)
+      // Link down (F-47): the sim is frozen here — no ticks, no scoring —
+      // and queued guest turns are dropped so none land stale on resume.
       if (connRef.current !== 'connected') {
         startAt = Date.now() + COUNTDOWN_MS
+        guestQueueRef.current = []
         renderSim(0)
         return
       }
@@ -239,7 +246,7 @@ export default function SnakeGame({
     }
     timer = setTimeout(loop, TICK_MS)
     return () => clearTimeout(timer)
-  }, [gameId, isHost, isSpectator, game.status, retryKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gameId, isHost, isSpectator, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Guest: render from snapshots, send direction inputs ---
   useEffect(() => {
@@ -319,7 +326,7 @@ export default function SnakeGame({
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [gameId, isHost, isSpectator, game.status, retryKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gameId, isHost, isSpectator, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const matchWinner = (game.scores?.X || 0) >= 3 ? 'X' : (game.scores?.O || 0) >= 3 ? 'O' : null
 
@@ -363,7 +370,10 @@ export default function SnakeGame({
 
   // --- Playing --- (SWITCH GAME is hidden while live — M-76 — replaced by a
   // dedicated FORFEIT ROUND action below, which only concedes this round.)
-  const overlay = <RealtimeOverlay conn={conn} countdown={render.countdown} retry={retry} />
+  const overlayCountdown = render.countdown
+  const overlay = showRealtimeOverlay(conn, overlayCountdown)
+    ? <RealtimeOverlay conn={conn} countdown={overlayCountdown} retry={retry} gameId={gameId} mySymbol={mySymbol} opponentOnline={opponentOnline} />
+    : null
 
   return (
     <div className="space-y-3 [@media(max-height:420px)]:space-y-1.5">

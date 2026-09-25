@@ -38,7 +38,12 @@ export function useAirhockeyControls(tableRef, mySymbol, enabled = true) {
       }
     }
     let dragging = false
-    const down = (e) => { dragging = true; el.setPointerCapture?.(e.pointerId); targetRef.current = toCourt(e) }
+    // Overlay buttons inside the table (RETRY / WAIT / CLAIM WIN) keep their
+    // clicks — pointer capture would retarget the click to the table.
+    const down = (e) => {
+      if (e.target?.closest?.('button, a, input')) return
+      dragging = true; el.setPointerCapture?.(e.pointerId); targetRef.current = toCourt(e)
+    }
     const move = (e) => { if (dragging) targetRef.current = toCourt(e) }
     const up = () => { dragging = false }
     el.addEventListener('pointerdown', down)

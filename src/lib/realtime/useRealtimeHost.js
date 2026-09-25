@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { useRealtimePeer } from './useRealtimePeer'
+import {
+  createDelayLine, delaySteps, hostInputDelayMs, isInputStale, latestInput, mergeTapInput, STALE_INPUT_MS,
+} from './netLogic'
 
 // useRealtimeHost — host-authoritative simulation loop for a 2-player real-time
 // game. X (the room creator) is the host; the host runs the one true sim and
@@ -37,24 +40,36 @@ import { useRealtimePeer } from './useRealtimePeer'
 // `finishRound(winner)` runs once (page owns the runTransaction patch — it
 // knows which per-game score keys to stamp).
 //
-// Returns `{ status, retry, retryKey, isHost: true }` so the page can render
-// the connecting / countdown / failed overlay via `RealtimeOverlay` and switch
-// to its spectator + finished views.
+// Pause/resume (F-47): the sim only steps while the peer is 'connected'. On
+// 'reconnecting'/'failed' the loop freezes on the current sim view (no
+// scoring against a dropped player), clears the guest's input and the host
+// input delay line, and on reconnect runs the COUNTDOWN again before
+// resuming the same sim — a reconnect never rebuilds the round.
+//
+// Fairness (opt-in, rAF driver only): with `equalizeHostInput: true` the
+// host's own input goes through a delay line of ≈ RTT/2 (capped) so it
+// reaches the sim no sooner than the guest's does — see netLogic.js for the
+// measurement and the rationale. Tick-driven games skip it (tick quantisation
+// dwarfs one network hop). Off by default so existing pages are unchanged.
+//
+// Returns `{ status, statusRef, retry, retryKey, isHost: true }` so the page can render
+// the connecting / countdown / reconnecting / failed overlay via
+// `RealtimeOverlay` and switch to its spectator + finished views.
 
 const DEFAULT_COUNTDOWN = 2000
 
-// Guest input is expired if no `{t:'i'}` message has arrived for this long —
-// only when consumeGuestInput is false (a latched, non-tap payload like
-// Space Duel's {turn,thrust,fire} or Pac-Mac's direction). Without this, a
-// stalled/dropped data channel leaves the last continuous input (e.g.
+// Guest input is expired after STALE_INPUT_MS (netLogic.js) with no `{t:'i'}`
+// message — only when consumeGuestInput is false (a latched, non-tap payload
+// like Space Duel's {turn,thrust,fire} or Air Hockey's target). Without this,
+// a stalled/dropped data channel leaves the last continuous input (e.g.
 // "turning left, thrusting") applied forever — the ship keeps moving with no
 // guest actually driving it. consumeGuestInput:true games (Sumo's tap-count)
 // already self-clear every step, so they never hit this path.
-const STALE_INPUT_MS = 250
 
 export function useRealtimeHost(opts) {
   const {
     gameId, mySymbol, enabled,
+    isPublic = false,                         // public-lobby room → relay-only ICE when TURN is configured
     driver,                                   // 'rAF' | 'tick'
     COUNTDOWN_MS = DEFAULT_COUNTDOWN,
     tickMs,                                    // REQUIRED when driver==='tick'
@@ -63,6 +78,9 @@ export function useRealtimeHost(opts) {
     tickSim,                                   // (state, inputs) => { state, events }      (tick)
     readHostInput,                             // (sim) => local input for X
     consumeGuestInput = false,                  // clear guest input after each step so edge-triggered taps are consumed once
+    equalizeHostInput = false,                  // rAF: delay the host's own input by ≈ RTT/2 (fairness, netLogic.js)
+    mergeHostInput,                             // (a, b) => merged — host delay line shrink; default: sum taps (consume) / latest wins
+    holdHostInput,                              // (last) => input — host delay line growth; default: repeat last (latched) / null (consume)
     onEvent,                                   // (event, sim) => void  (sfx + firebase; page-owned)
     snapshotMs = 33,                            // rAF: snapshot throttle; tick: ignored
     buildView,                                  // (sim) => view   — pushed to setRender per frame/tick
@@ -92,6 +110,7 @@ export function useRealtimeHost(opts) {
     cbRef.current = {
       createState, stepSim, tickSim, readHostInput, onEvent,
       buildView, buildSnapshot, getWinner, finishRound, setRender, initialRender,
+      mergeHostInput, holdHostInput,
     }
   })
 
@@ -117,7 +136,8 @@ export function useRealtimeHost(opts) {
     // 's' never arrives on the host; 'e' is what we emit, not receive.
   }, [])
 
-  const peer = useRealtimePeer({ gameId, mySymbol, enabled, onMessage })
+  const peer = useRealtimePeer({ gameId, mySymbol, enabled, isPublic, onMessage })
+  const { getRtt } = peer
   const sendRef = useRef(peer.send)
   useEffect(() => { sendRef.current = peer.send }, [peer.send])
   const peerSend = (obj) => sendRef.current(obj)
@@ -129,7 +149,7 @@ export function useRealtimeHost(opts) {
       guestInputRef.current = null
       guestInputAtRef.current = 0
     }
-  }, [enabled, peer.retryKey])
+  }, [enabled])
 
   // The loop effect depends ONLY on connection/identity values, so it (and the
   // createState() below) runs exactly once per connection lifecycle — never per
@@ -139,32 +159,53 @@ export function useRealtimeHost(opts) {
     simRef.current = cbRef.current.createState()
     finishedRef.current = false
 
+    // Once the sim has stepped, pauses (reconnecting, the resume countdown)
+    // freeze on its current view instead of snapping back to initialRender.
+    let started = false
+    const pausedView = (c, countdown) => (started
+      ? { ...c.buildView(simRef.current), countdown }
+      : countdown ? { ...c.initialRender, countdown } : c.initialRender)
+
     if (driver === 'rAF') {
       const DT = 1 / 120
       let raf, last = performance.now(), acc = 0, lastSnap = 0, startAt = 0
+      // Page hooks read through cbRef (inline lambdas must not restart the loop).
+      const hostDelay = createDelayLine({
+        merge: (a, b) => (cbRef.current.mergeHostInput || (consumeGuestInput ? mergeTapInput : latestInput))(a, b),
+        hold: (last) => (cbRef.current.holdHostInput
+          ? cbRef.current.holdHostInput(last)
+          : consumeGuestInput ? null : last),
+      })
 
       const loop = (now) => {
         raf = requestAnimationFrame(loop)
         const c = cbRef.current
         if (peer.statusRef.current !== 'connected') {
-          last = now; startAt = now + COUNTDOWN_MS
-          c.setRender(c.initialRender)
+          last = now; startAt = now + COUNTDOWN_MS; acc = 0
+          hostDelay.reset()
+          guestInputRef.current = null
+          c.setRender(pausedView(c, 0))
           return
         }
         if (now < startAt) {
           last = now
-          c.setRender({ ...c.initialRender, countdown: Math.ceil((startAt - now) / 1000) })
+          c.setRender(pausedView(c, Math.ceil((startAt - now) / 1000)))
           return
         }
         let dt = (now - last) / 1000; last = now
         if (dt > 0.1) dt = 0.1
         acc += dt
-        if (!consumeGuestInput && guestInputRef.current && now - guestInputAtRef.current > STALE_INPUT_MS) {
+        if (!consumeGuestInput && guestInputRef.current && isInputStale(guestInputAtRef.current, now, STALE_INPUT_MS)) {
           guestInputRef.current = null
         }
+        const hostDelaySteps = equalizeHostInput ? delaySteps(hostInputDelayMs(getRtt()), DT) : 0
         const events = []
         while (acc >= DT) {
-          const inputs = { X: c.readHostInput(simRef.current), O: guestInputRef.current }
+          started = true
+          const inputs = {
+            X: hostDelay.push(c.readHostInput(simRef.current), hostDelaySteps),
+            O: guestInputRef.current,
+          }
           if (consumeGuestInput) guestInputRef.current = null
           const res = c.stepSim(simRef.current, inputs, DT)
           simRef.current = res.state
@@ -203,16 +244,18 @@ export function useRealtimeHost(opts) {
         const c = cbRef.current
         if (peer.statusRef.current !== 'connected') {
           startAt = Date.now() + COUNTDOWN_MS
-          c.setRender(c.initialRender)
+          guestInputRef.current = null
+          c.setRender(pausedView(c, 0))
           return
         }
         if (Date.now() < startAt) {
-          c.setRender({ ...c.initialRender, countdown: Math.ceil((startAt - Date.now()) / 1000) })
+          c.setRender(pausedView(c, Math.ceil((startAt - Date.now()) / 1000)))
           return
         }
-        if (!consumeGuestInput && guestInputRef.current && performance.now() - guestInputAtRef.current > STALE_INPUT_MS) {
+        if (!consumeGuestInput && guestInputRef.current && isInputStale(guestInputAtRef.current, performance.now(), STALE_INPUT_MS)) {
           guestInputRef.current = null
         }
+        started = true
         const inputs = { X: c.readHostInput(simRef.current), O: guestInputRef.current }
         if (consumeGuestInput) guestInputRef.current = null
         const res = c.tickSim(simRef.current, inputs)
@@ -241,8 +284,8 @@ export function useRealtimeHost(opts) {
     }
 
     throw new Error(`useRealtimeHost: unknown driver "${driver}"`)
-  }, [gameId, mySymbol, enabled, peer.retryKey, peer.statusRef, driver, tickMs,
-      COUNTDOWN_MS, consumeGuestInput, snapshotMs])
+  }, [gameId, mySymbol, enabled, peer.statusRef, getRtt, driver, tickMs,
+      COUNTDOWN_MS, consumeGuestInput, snapshotMs, equalizeHostInput])
 
   return { status: peer.status, statusRef: peer.statusRef, retry: peer.retry, retryKey: peer.retryKey, isHost: true }
 }

@@ -6,24 +6,34 @@ import { createPeer } from './rtc'
 // duplicate the connection/retry/message-dispatch boilerplate that
 // PongGame originally inlined.
 //
-// The hook owns: the peer object, retry counter, and status state. The
-// page owns: what each incoming message means (via onMessage) and how to
-// render — those are game-specific and stay in the page.
+// The hook owns: the peer object and status state. The page owns: what each
+// incoming message means (via onMessage) and how to render — those are
+// game-specific and stay in the page.
+//
+// Reconnects don't need to remount the page's loops: rtc.js swaps the
+// underlying RTCPeerConnection in place (new signaling attempt), so a sim can
+// survive — freeze while status !== 'connected', resume after the countdown.
+// useRealtimeHost/useRealtimeGuest work that way. `retryKey` (bumps on each
+// local retry()) is kept for pages that still restart their own loops on it
+// (Pong); new code should not depend on it.
 //
 // @param {object} opts
 // @param {string} opts.gameId
 // @param {'X'|'O'} opts.mySymbol   X = host (offerer), O = guest (answerer)
 // @param {boolean} opts.enabled    gate the connection (e.g. !isSpectator && status==='playing')
+// @param {boolean} [opts.isPublic] public-lobby room → relay-only ICE when TURN is configured
 // @param {(msg:any)=>void} opts.onMessage  called with each decoded JSON frame
-// @param {(s:'connecting'|'connected'|'failed'|'closed')=>void} [opts.onStatus]
-// @returns {{ status, statusRef, retryKey, retry, send }}
-//   status: 'idle'|'connecting'|'connected'|'failed'|'closed'
+// @param {(s:string)=>void} [opts.onStatus]
+// @returns {{ status, statusRef, retryKey, retry, send, getRtt }}
+//   status: 'idle'|'connecting'|'connected'|'reconnecting'|'failed'
+//     ('reconnecting' = the link was up and dropped, or a new attempt started
+//     after it was up — gameplay must pause; see connectionLogic.js)
 //   statusRef: ref mirroring status for use inside rAF/interval loops
-//   retryKey: number that bumps on each retry() — include in effect deps
-//     so host/guest loops restart on reconnect
-//   retry(): re-establish the connection (bumps retryKey)
+//   retryKey: legacy counter, bumps on each local retry()
+//   retry(): start a new signaling attempt (works from either side)
 //   send(obj): no-op if the channel isn't open
-export function useRealtimePeer({ gameId, mySymbol, enabled, onMessage, onStatus }) {
+//   getRtt(): smoothed round-trip ms (host side; null until measured)
+export function useRealtimePeer({ gameId, mySymbol, enabled, isPublic = false, onMessage, onStatus }) {
   // peerStatus is only meaningful when enabled; when disabled we surface 'idle'
   // via the derived `status` below (avoids a synchronous setState in the effect).
   const [peerStatus, setPeerStatus] = useState('connecting')
@@ -46,6 +56,7 @@ export function useRealtimePeer({ gameId, mySymbol, enabled, onMessage, onStatus
     const peer = createPeer({
       gameId,
       mySymbol,
+      isPublic,
       onStatus: (s) => {
         statusRef.current = s
         setPeerStatus(s)
@@ -55,17 +66,18 @@ export function useRealtimePeer({ gameId, mySymbol, enabled, onMessage, onStatus
     })
     peerRef.current = peer
     return () => { peer.close(); peerRef.current = null }
-  }, [gameId, mySymbol, enabled, retryKey])
+  }, [gameId, mySymbol, enabled, isPublic])
 
   const send = useCallback((obj) => {
     peerRef.current?.send(obj)
   }, [])
 
   const retry = useCallback(() => {
-    statusRef.current = 'connecting'
-    setPeerStatus('connecting')
+    peerRef.current?.retry()
     setRetryKey(n => n + 1)
   }, [])
 
-  return { status, statusRef, retryKey, retry, send }
+  const getRtt = useCallback(() => peerRef.current?.getRtt() ?? null, [])
+
+  return { status, statusRef, retryKey, retry, send, getRtt }
 }

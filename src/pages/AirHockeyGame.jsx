@@ -9,6 +9,7 @@ import { useAirhockeyControls } from '../hooks/useAirhockeyControls'
 import { useRealtimeHost } from '../lib/realtime/useRealtimeHost'
 import { useRealtimeGuest } from '../lib/realtime/useRealtimeGuest'
 import { RealtimeOverlay } from '../lib/realtime/realtimeStatus'
+import { showRealtimeOverlay } from '../lib/realtime/connectionLogic'
 import {
   createState, step, getWinner, clampMalletTarget,
   COURT_W, COURT_H, PUCK_R, WIN_SCORE,
@@ -59,6 +60,8 @@ export default function AirHockeyGame({
 }) {
   const isHost = mySymbol === 'X'
   const isSpectator = !mySymbol
+  // Public-lobby rooms go relay-only when TURN is configured (rtc.js).
+  const isPublic = game.visibility === 'public'
   const playing = !isSpectator && game.status === 'playing'
   const tableRef = useRef(null)
   const { getInput } = useAirhockeyControls(tableRef, mySymbol || 'X', playing)
@@ -149,8 +152,9 @@ export default function AirHockeyGame({
   }, [])
 
   const hostConn = useRealtimeHost({
-    gameId, mySymbol, enabled: isHost && playing,
+    gameId, mySymbol, isPublic, enabled: isHost && playing,
     driver: 'rAF',
+    equalizeHostInput: true,   // host input delayed ≈ RTT/2 so neither seat has a latency edge
     createState,
     stepSim: step,
     readHostInput,
@@ -195,7 +199,7 @@ export default function AirHockeyGame({
   }, [getInput])
 
   const guestConn = useRealtimeGuest({
-    gameId, mySymbol, enabled: !isSpectator && !isHost && playing,
+    gameId, mySymbol, isPublic, enabled: !isSpectator && !isHost && playing,
     tick: guestTick,
     setRender, initialRender,
     sfxMap: {
@@ -271,7 +275,10 @@ export default function AirHockeyGame({
 
   // --- Playing --- (SWITCH GAME is hidden while live, replaced by a
   // dedicated FORFEIT ROUND action below, which only concedes this round.)
-  const overlay = <RealtimeOverlay conn={conn.status} countdown={isHost ? render.countdown : guestCountdown} retry={conn.retry} />
+  const overlayCountdown = isHost ? render.countdown : guestCountdown
+  const overlay = showRealtimeOverlay(conn.status, overlayCountdown)
+    ? <RealtimeOverlay conn={conn.status} countdown={overlayCountdown} retry={conn.retry} gameId={gameId} mySymbol={mySymbol} opponentOnline={opponentOnline} />
+    : null
 
   return (
     <div className="space-y-3 [@media(max-height:420px)]:space-y-1.5">
