@@ -14,7 +14,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-const BUDGET_GZIP_BYTES = 600 * 1024
+const BUDGET_GZIP_BYTES = 320 * 1024
 
 const dist = resolve(process.argv[2] ?? 'dist')
 const html = readFileSync(join(dist, 'index.html'), 'utf8')
