@@ -104,7 +104,7 @@ invites/{uid}/{inviteId}:         { gameId, gameType, fromUid, fromName, fromAva
 
 ### Theming
 
-All colors flow through CSS custom properties (`--c-*`) defined in `src/index.css`, with `[data-theme="…"]` blocks per theme (phosphor, amber, synthwave, grid, mono; default "midnight" in `:root`). Registry + switching live in `src/lib/theme.js` (`THEMES`, `applyTheme`, `getStoredTheme`); `ThemeSwitcher` sits next to every mute button. Full conventions (hex-hardcoding ban, Tailwind semantic tokens, adding a theme, cursor exception): `.claude/rules/theming-rules.md`.
+All colors flow through CSS custom properties (`--c-*`) defined in `src/index.css`, with a `[data-theme="…"]` block per `THEMES` entry (`:root` holds MIDNIGHT's tokens as the cascade fallback; the app defaults to `matcha`). Registry + switching live in `src/lib/theme.js` (`THEMES`, `applyTheme`, `getStoredTheme`); `ThemeSwitcher` sits next to every mute button. Full conventions (hex-hardcoding ban, Tailwind semantic tokens, adding a theme, cursor exception): `.claude/rules/theming-rules.md`.
 
 ### Async-action busy convention
 
