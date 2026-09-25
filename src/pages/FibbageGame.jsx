@@ -12,6 +12,7 @@ import {
   allLied,
   allVoted,
   allRevealed,
+  factIndexFor,
 } from '../lib/fibbageLogic'
 import { isCoordinator } from '../lib/coordinator'
 import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
@@ -32,10 +33,12 @@ const REVEAL_MS = 20_000
 // sessionStorage key for the player's secret lie ({ text, salt, subKey }) per round.
 // The plaintext + salt never touch Firebase until the reveal phase — matching the
 // commit-reveal pattern in src/lib/commit.js (Bluff / TwoTruths / Wavelength).
-const lieKey = (gameId, promptIndex) => `fibbage-lie-${gameId}-${promptIndex}`
+// Keyed by the match's deckSeed too, so a new match's round 0 never picks up
+// the previous match's round-0 lie.
+const lieKey = (gameId, round) => `fibbage-lie-${gameId}-${round?.deckSeed ?? 'x'}-${round?.promptIndex ?? 0}`
 
-function readSecret(gameId, promptIndex) {
-  try { return JSON.parse(sessionStorage.getItem(lieKey(gameId, promptIndex)) || 'null') } catch { return null }
+function readSecret(gameId, round) {
+  try { return JSON.parse(sessionStorage.getItem(lieKey(gameId, round)) || 'null') } catch { return null }
 }
 
 function normalizeRound(raw) {
@@ -43,6 +46,7 @@ function normalizeRound(raw) {
   return {
     phase: raw.phase ?? 'lying',
     promptIndex: raw.promptIndex ?? 0,
+    deckSeed: raw.deckSeed ?? null,       // per-match prompt shuffle (G-02); null on legacy rounds
     lies: normalizeMap(raw.lies),         // { [playerId]: { hash } } — commitment only
     subs: normalizeMap(raw.subs),         // { [randomKey]: text } — anonymised ballot pool
     options: Array.isArray(raw.options) ? raw.options : (raw.options ? Object.values(raw.options) : []),
@@ -80,7 +84,7 @@ export default function FibbageGame({
   // host disconnect hands off to whichever seat is next instead of freezing the match.
   const amCoordinator = isPlayer && isCoordinator(mySeat, seats, players)
 
-  const fact = round ? FIBBAGE_FACTS[round.promptIndex % FIBBAGE_FACTS.length] : null
+  const fact = round ? FIBBAGE_FACTS[factIndexFor(round.promptIndex, round.deckSeed, FIBBAGE_FACTS.length)] : null
 
   const [clockOffset, setClockOffset] = useState(0)
   const [now, setNow] = useState(() => Date.now())
@@ -92,10 +96,12 @@ export default function FibbageGame({
   const [sharing, runShare] = useBusy()
   // My own secret — only ever known to me. Used to guard against voting for my own
   // lie and to publish my reveal; the DB never sees it until the reveal phase.
-  const [mySecret, setMySecret] = useState(() => (round ? readSecret(gameId, round.promptIndex) : null))
+  const [mySecret, setMySecret] = useState(() => (round ? readSecret(gameId, round) : null))
 
   const prevPhase = useRef(round?.phase)
-  const prevPromptIndex = useRef(round?.promptIndex)
+  // `${deckSeed}:${promptIndex}` — changes on every new round, including the
+  // first round of a new match (promptIndex restarts at 0 with a new seed).
+  const prevRoundKey = useRef(round ? `${round.deckSeed}:${round.promptIndex}` : null)
   const subPublished = useRef(false)
   const revealPublished = useRef(false)
   const scoringStarted = useRef(false)
@@ -117,22 +123,23 @@ export default function FibbageGame({
   const serverNow = now + clockOffset
 
   // Reset per-round local state when the prompt advances.
+  const roundKey = round ? `${round.deckSeed}:${round.promptIndex}` : null
   useEffect(() => {
     if (!round) return
-    if (round.promptIndex !== prevPromptIndex.current) {
+    if (roundKey !== prevRoundKey.current) {
       setLieInput('')
       setInputError('')
       setLocalLie(false)
       setLocalVote(null)
-      setMySecret(readSecret(gameId, round.promptIndex))
+      setMySecret(readSecret(gameId, round))
       subPublished.current = false
       revealPublished.current = false
       scoringStarted.current = false
       advancingToVoting.current = false
       advancingToReveal.current = false
-      prevPromptIndex.current = round.promptIndex
+      prevRoundKey.current = roundKey
     }
-  }, [round?.promptIndex]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roundKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Phase-change sounds.
   useEffect(() => {
@@ -164,7 +171,7 @@ export default function FibbageGame({
     if (!isPlayer || !round || round.phase !== 'lying') return
     if (!allLied(seats, round.lies)) return
     if (subPublished.current) return
-    const secret = readSecret(gameId, round.promptIndex)
+    const secret = readSecret(gameId, round)
     if (!secret || !secret.text || !secret.subKey) return
     subPublished.current = true
     update(ref(db, `games/${gameId}/round/subs`), { [secret.subKey]: secret.text })
@@ -194,7 +201,7 @@ export default function FibbageGame({
     if (texts.length < committedIds.length && !deadlinePassed) return // wait for every anonymous submission
     if (advancingToVoting.current) return
     advancingToVoting.current = true
-    const seed = hashString(`${gameId}:${round.promptIndex}`)
+    const seed = hashString(`${gameId}:${round.deckSeed ?? ''}:${round.promptIndex}`)
     const options = buildOptions(fact.answer, texts, seed)
     runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.phase !== 'lying') return current // already advanced
@@ -222,7 +229,7 @@ export default function FibbageGame({
   useEffect(() => {
     if (!isPlayer || !round || round.phase !== 'reveal') return
     if (round.reveals[mySeat] != null || revealPublished.current) return
-    const secret = readSecret(gameId, round.promptIndex)
+    const secret = readSecret(gameId, round)
     if (!secret || secret.text == null || secret.salt == null) return
     revealPublished.current = true
     update(ref(db, `games/${gameId}/round/reveals`), { [mySeat]: { text: secret.text, salt: secret.salt } })
@@ -297,7 +304,7 @@ export default function FibbageGame({
       // without leaking authorship (it is not derived from the playerId).
       const subKey = `${(crypto.randomUUID?.() || Math.random().toString(36).slice(2))}${Date.now().toString(36)}`
       const secret = { text, salt, subKey }
-      sessionStorage.setItem(lieKey(gameId, round.promptIndex), JSON.stringify(secret))
+      sessionStorage.setItem(lieKey(gameId, round), JSON.stringify(secret))
       setMySecret(secret)
       setLocalLie(true)
       sounds.move('X')
@@ -335,12 +342,14 @@ export default function FibbageGame({
   // scored — otherwise a stray/racy click could skip a round before it's tallied) --
   const handleNextPrompt = useCallback(async () => {
     if (!isPlayer || !round || round.phase !== 'reveal' || !round.scored) return
-    const nextIndex = (round.promptIndex + 1) % FIBBAGE_FACTS.length
+    // promptIndex counts rounds (no wrap): factIndexFor maps it through this
+    // match's shuffled order, reshuffling after each full pass of the deck.
+    const nextIndex = round.promptIndex + 1
     const matchOver = Object.values(game.scores || {}).some(s => s >= MATCH_WIN_SCORE)
-    sessionStorage.removeItem(lieKey(gameId, round.promptIndex))
+    sessionStorage.removeItem(lieKey(gameId, round))
     try {
       await update(ref(db, `games/${gameId}`), {
-        round: { phase: 'lying', promptIndex: nextIndex },
+        round: { phase: 'lying', promptIndex: nextIndex, deckSeed: round.deckSeed ?? null },
         status: matchOver ? 'finished' : 'playing',
         proposal: null,
       })

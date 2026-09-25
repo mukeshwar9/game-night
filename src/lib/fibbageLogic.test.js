@@ -12,6 +12,7 @@ import {
   allVoted,
   allLied,
   allRevealed,
+  factIndexFor,
 } from './fibbageLogic'
 import { FIBBAGE_FACTS } from './decks/fibbage'
 
@@ -346,5 +347,48 @@ describe('allRevealed', () => {
 
   it('false for empty eligible list', () => {
     expect(allRevealed([], {})).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// factIndexFor — per-match prompt order (G-02)
+// ---------------------------------------------------------------------------
+describe('factIndexFor', () => {
+  const N = 30
+
+  it('regression: two matches with different seeds do not both open on facts #0–4', () => {
+    const firstFive = seed => [0, 1, 2, 3, 4].map(i => factIndexFor(i, seed, N))
+    expect(firstFive(12345)).not.toEqual([0, 1, 2, 3, 4])
+    expect(firstFive(12345)).not.toEqual(firstFive(987654))
+  })
+
+  it('visits every fact exactly once per pass', () => {
+    const pass = Array.from({ length: N }, (_, i) => factIndexFor(i, 42, N))
+    expect(new Set(pass).size).toBe(N)
+    expect(Math.min(...pass)).toBe(0)
+    expect(Math.max(...pass)).toBe(N - 1)
+  })
+
+  it('reshuffles on the next pass instead of replaying the same order', () => {
+    const pass1 = Array.from({ length: N }, (_, i) => factIndexFor(i, 42, N))
+    const pass2 = Array.from({ length: N }, (_, i) => factIndexFor(N + i, 42, N))
+    expect(new Set(pass2).size).toBe(N)
+    expect(pass2).not.toEqual(pass1)
+  })
+
+  it('is deterministic for a seed, so every client shows the same fact', () => {
+    for (let i = 0; i < 10; i++) expect(factIndexFor(i, 777, N)).toBe(factIndexFor(i, 777, N))
+  })
+
+  it('keeps the legacy sequential order for rounds without a seed', () => {
+    expect(factIndexFor(0, undefined, N)).toBe(0)
+    expect(factIndexFor(3, null, N)).toBe(3)
+    expect(factIndexFor(N + 2, null, N)).toBe(2)
+  })
+
+  it('stays in range for odd input', () => {
+    expect(factIndexFor(-5, 1, N)).toBeGreaterThanOrEqual(0)
+    expect(factIndexFor('x', 1, N)).toBeLessThan(N)
+    expect(factIndexFor(3, 1, 0)).toBe(0)
   })
 })

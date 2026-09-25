@@ -2,7 +2,8 @@
 //
 // Round shape on Firebase (under games/{gameId}/round):
 //   { phase:'lying'|'voting'|'reveal',
-//     promptIndex: number,
+//     promptIndex: number,                      // rounds played this match (0, 1, 2…)
+//     deckSeed: number,                         // per-match shuffle → factIndexFor()
 //     lies:    { [playerId]: { hash } },        // salted SHA-256 commitment ONLY
 //     subs:    { [randomKey]: text },           // anonymised plaintext lies used
 //                                               // to build the ballot — deleted the
@@ -80,6 +81,23 @@ export function seededShuffle(arr, seed) {
     ;[out[i], out[j]] = [out[j], out[i]]
   }
   return out
+}
+
+// Which deck fact a round shows (G-02). Every match since the fix stores a
+// random `round.deckSeed`: prompts then follow a per-match shuffled order, so
+// matches stop replaying the deck's first few facts, and each further full pass
+// through the deck gets its own shuffle. Rounds without a seed (rooms from
+// before the fix) keep the legacy sequential order.
+export function factIndexFor(promptIndex, deckSeed, deckSize) {
+  const n = Math.floor(Number(deckSize) || 0)
+  if (n <= 0) return 0
+  const i = Math.max(0, Math.floor(Number(promptIndex) || 0))
+  const seedNum = deckSeed == null || deckSeed === '' ? NaN : Number(deckSeed)
+  if (!Number.isFinite(seedNum)) return i % n
+  const pass = Math.floor(i / n)
+  const seed = pass === 0 ? seedNum >>> 0 : hashString(`${seedNum}:${pass}`)
+  const order = seededShuffle(Array.from({ length: n }, (_, k) => k), seed)
+  return order[i % n]
 }
 
 // Normalize an "object that might be a Firebase numeric-keyed object or absent"
