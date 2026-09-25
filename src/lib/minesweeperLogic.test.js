@@ -6,6 +6,8 @@ import {
   floodReveal, chordTargets,
   countRevealed, isComplete,
 } from './minesweeperLogic'
+import { isMinesDone, minesRaceEntry, minesRaceDecided, minesRow } from './minesweeperLogic'
+import { rankRace } from './raceLogic'
 
 // ── fixture helpers ─────────────────────────────────────────────────────────
 
@@ -318,5 +320,46 @@ describe('isComplete boundary', () => {
     const arr = Array.from({ length: SAFE_CELLS }, (_, i) => i)
     expect(isComplete(arr)).toBe(true)
     expect(isComplete([...arr, 0])).toBe(true) // dupe collapses back to 122
+  })
+})
+
+describe('mine race hooks', () => {
+  it('done = cleared or detonated', () => {
+    expect(isMinesDone({ done: true })).toBe(true)
+    expect(isMinesDone({ dead: true })).toBe(true)
+    expect(isMinesDone({ revealed: 50 })).toBe(false)
+    expect(isMinesDone(null)).toBe(false)
+  })
+
+  it('tiers: cleared (fastest first) > still sweeping > detonated', () => {
+    const { order } = rankRace([
+      { id: 'boomBig', ...minesRaceEntry({ dead: true, revealed: 120 }) },
+      { id: 'sweep', ...minesRaceEntry({ revealed: 40 }) },
+      { id: 'slowClear', ...minesRaceEntry({ done: true, doneAt: 9000 }) },
+      { id: 'fastClear', ...minesRaceEntry({ done: true, doneAt: 5000 }) },
+      { id: 'ghost', ...minesRaceEntry(null) },
+    ])
+    expect(order).toEqual(['fastClear', 'slowClear', 'sweep', 'boomBig', 'ghost'])
+  })
+
+  it('2P: a detonation hands the other racer the win', () => {
+    const { ranks } = rankRace([
+      { id: 'a', ...minesRaceEntry({ dead: true, revealed: 100 }) },
+      { id: 'b', ...minesRaceEntry({ revealed: 10 }) },
+    ])
+    expect(ranks).toEqual({ b: 1, a: 2 })
+  })
+
+  it('decided once at most one racer is still sweeping', () => {
+    expect(minesRaceDecided({ a: { dead: true }, b: { revealed: 5 } }, ['a', 'b'])).toBe(true)
+    expect(minesRaceDecided({ a: { done: true }, b: {}, c: {} }, ['a', 'b', 'c'])).toBe(false)
+    expect(minesRaceDecided({ a: { done: true }, b: { dead: true }, c: {} }, ['a', 'b', 'c'])).toBe(true)
+    expect(minesRaceDecided({}, ['a'])).toBe(false)
+  })
+
+  it('row shows cells cleared and state', () => {
+    expect(minesRow({ revealed: 61 })).toMatchObject({ primary: `61/${SAFE_CELLS}`, status: 'racing' })
+    expect(minesRow({ dead: true, revealed: 3 })).toMatchObject({ secondary: 'BOOM', status: 'out' })
+    expect(minesRow({ done: true })).toMatchObject({ primary: `${SAFE_CELLS}/${SAFE_CELLS}`, status: 'done', progress: 1 })
   })
 })

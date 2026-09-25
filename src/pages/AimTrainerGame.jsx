@@ -1,354 +1,117 @@
 import { useEffect, useRef, useState } from 'react'
-import { ref, update, runTransaction, increment, onValue } from 'firebase/database'
+import { ref, update } from 'firebase/database'
 import { db } from '../lib/firebase'
-import GameSwitcher from '../components/GameSwitcher'
-import GameStatus from '../components/GameStatus'
-import SpectatorCard from '../components/SpectatorCard'
-import OfflineNotice from '../components/loading/OfflineNotice'
+import RaceShell from '../components/RaceShell'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import {
+  AIM_GAME_MS, AIM_RADIUS_PX,
+  targetAt, normalizeAimStats, applyHit, applyMiss, currentTargetIndex,
+  aimRaceEntry, aimRow,
+} from '../lib/aimLogic'
 
-const RADIUS   = 24
-const MIN_DIST = RADIUS * 2 + 8 // px gap between target centers so they never overlap or touch edges
-const GAME_MS  = 30_000
-const LEAD_MS  = 3_000
+// Aim Trainer — N-player race (2–8). Everyone shoots the same seeded target
+// sequence for 30 seconds; a tap on empty arena costs a point. Highest net
+// score wins; room flow in RaceShell.
 
-function ResultsPanel({ scoreX, scoreO, hitsX, hitsO, friendlyX, friendlyO, mySymbol, players }) {
-  const winner = scoreX > scoreO ? 'X' : scoreX < scoreO ? 'O' : null
-  const diff   = Math.abs(scoreX - scoreO)
+const RACE = {
+  type: 'aim',
+  title: 'AIM TRAINER',
+  sameWhat: 'TARGETS',
+  rules: [
+    'HIT EACH TARGET AS IT APPEARS · 30s',
+    'EVERYONE GETS THE SAME TARGETS',
+    'MISS = −1 PT · HIGHEST SCORE WINS',
+  ],
+  baseMs: AIM_GAME_MS,
+  scaled: false,
+  entry: aimRaceEntry,
+  isDone: () => false, // time-boxed: the round ends at the deadline
+  row: (stats) => aimRow(stats),
+}
+
+function AimRacer({ round, myStats, statsPath, now }) {
+  const [stats, setStats] = useState(() => normalizeAimStats(myStats))
+  const statsRef = useRef(stats)
+  const live = round.endsAt == null || now < round.endsAt
+
+  const push = (next) => {
+    statsRef.current = next
+    setStats(next)
+    update(ref(db, statsPath), next).catch(() => toast.error('SCORE SYNC FAILED — CHECK CONNECTION'))
+  }
+
+  // Register as present (0 pts) so a racer who never lands a hit still ranks
+  // instead of reading as a no-show DNF.
+  useEffect(() => {
+    if (!myStats) update(ref(db, statsPath), statsRef.current).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per round (the Racer is keyed by round id)
+  }, [])
+
+  const target = targetAt(round.seed, currentTargetIndex(stats))
+
+  const handleHit = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!live) return
+    sounds.hit(statsRef.current.hits)
+    push(applyHit(statsRef.current))
+  }
+
+  const handleMiss = (e) => {
+    e.preventDefault()
+    if (!live) return
+    sounds.miss()
+    push(applyMiss(statsRef.current))
+  }
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        {['X', 'O'].map(sym => {
-          const score  = sym === 'X' ? scoreX    : scoreO
-          const hits   = sym === 'X' ? hitsX     : hitsO
-          const ff     = sym === 'X' ? friendlyX : friendlyO
-          const col    = sym === 'X' ? 'text-retro-p1' : 'text-retro-p2'
-          const border = mySymbol === sym
-            ? (sym === 'X' ? 'border-retro-p1/60' : 'border-retro-p2/60')
-            : 'border-retro-border'
-          return (
-            <div key={sym} className={cn('bg-retro-card border rounded p-3 text-center space-y-1', border)}>
-              <p className={cn('font-pixel text-[8px]', col)}>
-                {players?.[sym]?.name?.toUpperCase() ?? sym}
-              </p>
-              <p className={cn('font-pixel text-xl', winner === sym ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
-                {score}
-              </p>
-              <p className="font-pixel text-[8px] text-retro-dim">net pts</p>
-              <div className="font-pixel text-[8px] space-y-0.5 pt-1">
-                <p><span className="text-retro-dim">HITS </span><span className="text-retro-cta">{hits}</span></p>
-                <p>
-                  <span className="text-retro-dim">FF   </span>
-                  <span className={ff > 0 ? 'text-retro-p2' : 'text-retro-cta'}>{ff}</span>
-                </p>
-              </div>
-            </div>
-          )
-        })}
+    <div className="space-y-2">
+      <div
+        onPointerDown={handleMiss}
+        className={cn(
+          'relative w-full h-[min(16rem,52vh)] rounded-xl border-2 overflow-hidden select-none',
+          live ? 'bg-retro-surface border-retro-border cursor-crosshair' : 'bg-retro-surface/60 border-retro-border/50',
+        )}
+        style={{ touchAction: 'manipulation' }}
+      >
+        {live && (
+          <button
+            onPointerDown={handleHit}
+            onKeyDown={e => {
+              if (e.repeat) return
+              if (e.code === 'Space' || e.code === 'Enter') handleHit(e)
+            }}
+            style={{
+              position: 'absolute',
+              left: `${target.xPct * 100}%`,
+              top: `${target.yPct * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              width: AIM_RADIUS_PX * 2,
+              height: AIM_RADIUS_PX * 2,
+            }}
+            className="rounded-full bg-retro-p1 shadow-neon-p1 hover:brightness-110 active:scale-90 transition-transform duration-75 flex items-center justify-center"
+            aria-label={`Target ${stats.hits + 1}`}
+          >
+            <span className="font-pixel text-[10px] text-retro-bg leading-none select-none" aria-hidden="true">●</span>
+          </button>
+        )}
+        {!live && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="font-pixel text-[10px] text-retro-dim arcade-blink">TIME!</p>
+          </div>
+        )}
       </div>
-      {winner ? (
-        <p className="font-pixel text-[8px] text-retro-dim text-center">
-          {players?.[winner]?.name?.toUpperCase() ?? winner} SCORED{' '}
-          <span className="text-retro-win">{diff} MORE POINT{diff !== 1 ? 'S' : ''}</span>
-        </p>
-      ) : (
-        <p className="font-pixel text-[8px] text-retro-dim text-center">EQUAL SCORE — DRAW!</p>
-      )}
+      <div className="flex justify-center gap-6 font-pixel text-[9px] text-retro-dim">
+        <span>SCORE <span className="text-retro-win">{stats.score}</span></span>
+        <span>HITS <span className="text-retro-p1">{stats.hits}</span></span>
+        <span>MISS <span className="text-retro-p2">{stats.misses}</span></span>
+      </div>
     </div>
   )
 }
 
-export default function AimTrainerGame({
-  gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onPlayAgain, onNewMatch, proposal,
-}) {
-  const myKey = mySymbol === 'X' ? 'X' : 'O'
-  const opKey = myKey === 'X' ? 'O' : 'X'
-
-  const [now, setNow]         = useState(() => Date.now())
-  const [clockOffset, setClockOffset] = useState(0)
-  const containerRef      = useRef(null)
-  const hasSpawnedRef     = useRef(false)
-
-  // Corrected clock — every deadline comparison runs through this offset so
-  // a device with a skewed local clock doesn't see a wrong countdown/timer.
-  useEffect(() => {
-    const offRef = ref(db, '.info/serverTimeOffset')
-    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
-    return () => unsub()
-  }, [])
-  const serverNow = now + clockOffset
-
-  const endTime    = game.aimEndTime ?? null
-  const isCountdown = !!endTime && serverNow < endTime - GAME_MS
-  const isActive    = !!endTime && serverNow >= endTime - GAME_MS && serverNow < endTime
-  const countdownSec = isCountdown ? Math.ceil((endTime - GAME_MS - serverNow) / 1000) : 0
-  const timeLeft    = isActive    ? Math.ceil((endTime - serverNow) / 1000) : 0
-
-  const myTarget = game[`aimTarget${myKey}`] ?? null
-  const opTarget = game[`aimTarget${opKey}`] ?? null
-  const myScore  = game[`aimScore${myKey}`]  ?? 0
-  const opScore  = game[`aimScore${opKey}`]  ?? 0
-
-  const tryFinish = async () => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished') return
-        const sx = current.aimScoreX ?? 0
-        const so = current.aimScoreO ?? 0
-        const winner = sx > so ? 'X' : sx < so ? 'O' : 'draw'
-        const scores = { ...(current.scores || {}) }
-        if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
-        return { ...current, winner, status: 'finished', scores }
-      })
-    } catch { /* other client resolved */ }
-  }
-
-  // Rejection-samples a position, retrying a few times if it lands within
-  // MIN_DIST of `avoid` (the other player's current target) so the two
-  // targets can never overlap or sit edge-to-edge.
-  const randomPos = (avoid) => {
-    const el = containerRef.current
-    if (!el) return null
-    const { width, height } = el.getBoundingClientRect()
-    if (!width || !height) return null
-    const avoidPx = avoid ? { x: avoid.xPct * width, y: avoid.yPct * height } : null
-    let pos = null
-    for (let attempt = 0; attempt < 12; attempt++) {
-      const xPct = (RADIUS + Math.random() * (width  - 2 * RADIUS)) / width
-      const yPct = (RADIUS + Math.random() * (height - 2 * RADIUS)) / height
-      pos = { xPct, yPct }
-      if (!avoidPx) break
-      const dx = xPct * width - avoidPx.x
-      const dy = yPct * height - avoidPx.y
-      if (Math.hypot(dx, dy) >= MIN_DIST) break
-    }
-    return pos
-  }
-
-  // Retries once on failure so a single dropped write doesn't leave the
-  // whole 30s round with no target to shoot; if both attempts fail, resets
-  // hasSpawnedRef so the ticker's next tick tries again instead of the
-  // arena staying blank for the rest of the round.
-  const spawnTarget = async () => {
-    const pos = randomPos(game[`aimTarget${opKey}`] ?? null)
-    if (!pos) return
-    const write = () => update(ref(db, `games/${gameId}`), { [`aimTarget${myKey}`]: pos })
-    try {
-      await write()
-    } catch {
-      try {
-        await write()
-      } catch {
-        hasSpawnedRef.current = false
-        toast.error('TARGET SPAWN FAILED — RETRYING')
-      }
-    }
-  }
-
-  // Ticker: drives countdown display, first-target spawn, and game-over detection
-  useEffect(() => {
-    if (!endTime) return
-    hasSpawnedRef.current = false
-    const id = setInterval(() => {
-      const t = Date.now() + clockOffset
-      if (!hasSpawnedRef.current && mySymbol && t >= endTime - GAME_MS) {
-        hasSpawnedRef.current = true
-        spawnTarget()
-      }
-      if (t >= endTime) { clearInterval(id); tryFinish() }
-      else setNow(Date.now())
-    }, 100)
-    return () => clearInterval(id)
-  }, [endTime, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleStartClick = async () => {
-    if (endTime) return
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.aimEndTime) return
-        return { ...current, aimEndTime: Date.now() + LEAD_MS + GAME_MS }
-      })
-    } catch { toast.error('START FAILED — CHECK CONNECTION') }
-  }
-
-  const handleOwnTargetClick = async (e) => {
-    e.stopPropagation()
-    if (!isActive || !mySymbol) return
-    sounds.hit(game[`aimHits${myKey}`] ?? 0)
-    const pos = randomPos(opTarget)
-    if (!pos) return
-    try {
-      await update(ref(db, `games/${gameId}`), {
-        [`aimTarget${myKey}`]: pos,
-        [`aimScore${myKey}`]: increment(1),
-        [`aimHits${myKey}`]:  increment(1),
-      })
-    } catch { /* ignore */ }
-  }
-
-  const handleOpponentTargetClick = async (e) => {
-    e.stopPropagation()
-    if (!isActive || !mySymbol) return
-    sounds.miss()
-    try {
-      await update(ref(db, `games/${gameId}`), {
-        [`aimScore${myKey}`]:    increment(-1),
-        [`aimFriendly${myKey}`]: increment(1),
-      })
-    } catch { /* ignore */ }
-  }
-
-  // Render a positioned target button. Position is expressed as a % of the
-  // container (not measured pixels) so this never needs to read containerRef
-  // during render — the click handlers still measure it, but only on click.
-  const renderTarget = (target, sym) => {
-    if (!target) return null
-    const isOwn = sym === myKey
-    const handler = isOwn ? handleOwnTargetClick : handleOpponentTargetClick
-    return (
-      <button
-        onPointerDown={e => { e.preventDefault(); handler(e) }}
-        style={{
-          position:  'absolute',
-          left:      `${target.xPct * 100}%`,
-          top:       `${target.yPct * 100}%`,
-          transform: 'translate(-50%, -50%)',
-          width:     RADIUS * 2,
-          height:    RADIUS * 2,
-        }}
-        className={cn(
-          'rounded-full active:scale-90 transition-transform duration-75',
-          'flex items-center justify-center',
-          sym === 'X'
-            ? 'bg-retro-p1 shadow-neon-p1 hover:brightness-110'
-            : 'bg-retro-p2 shadow-neon-p2 hover:brightness-110',
-        )}
-        aria-label={isOwn ? 'your target' : "opponent's target"}
-      >
-        {/* Glyph on top of color so whose target this is doesn't rely on
-            color alone — a friendly-fire miss should be readable without
-            distinguishing red from... a slightly different red. */}
-        <span className="font-pixel text-[10px] text-retro-bg leading-none select-none">
-          {sym}
-        </span>
-      </button>
-    )
-  }
-
-  const matchWinner = (game.scores?.X || 0) >= 3 ? 'X' : (game.scores?.O || 0) >= 3 ? 'O' : null
-
-  if (game.status === 'finished') {
-    return (
-      <div className="space-y-4">
-        <ResultsPanel
-          scoreX={game.aimScoreX ?? 0}   scoreO={game.aimScoreO ?? 0}
-          hitsX={game.aimHitsX ?? 0}     hitsO={game.aimHitsO ?? 0}
-          friendlyX={game.aimFriendlyX ?? 0} friendlyO={game.aimFriendlyO ?? 0}
-          mySymbol={mySymbol} players={game.players}
-        />
-        <GameStatus
-          status={game.status} winner={game.winner} mySymbol={mySymbol}
-          scores={game.scores} players={game.players} gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
-          onNewMatch={matchWinner && !proposal ? onNewMatch : null}
-          onSwitchGame={!proposal ? onSwitchGame : null}
-        />
-      </div>
-    )
-  }
-
-  if (!mySymbol) {
-    return (
-      <div className="space-y-4">
-        <SpectatorCard game={game} statusOverride={!endTime ? 'WAITING TO START' : undefined} />
-        {endTime && (
-          <div className="bg-retro-card border border-retro-border rounded p-3 text-center">
-            <div className="flex justify-around font-pixel text-[8px]">
-              <span className="text-retro-p1">X: {game.aimScoreX ?? 0}</span>
-              <span className="text-retro-p2">O: {game.aimScoreO ?? 0}</span>
-            </div>
-            <p className="font-pixel text-[7px] text-retro-dim/70 mt-1">THIS ROUND</p>
-          </div>
-        )}
-        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      {/* Score + timer header */}
-      {endTime && (
-        <div className="flex items-center justify-between px-1">
-          <span className="font-pixel text-[9px] text-retro-p1">
-            {game.players?.X?.name?.toUpperCase() ?? 'X'} {myKey === 'X' ? myScore : opScore}
-          </span>
-          <span className={cn('font-pixel text-2xl tabular-nums',
-            isCountdown ? 'text-retro-dim' :
-            isActive    ? 'text-retro-win text-glow-win' : 'text-retro-dim'
-          )}>
-            {isCountdown ? countdownSec : timeLeft}
-          </span>
-          <span className="font-pixel text-[9px] text-retro-p2">
-            {myKey === 'O' ? myScore : opScore} {game.players?.O?.name?.toUpperCase() ?? 'O'}
-          </span>
-        </div>
-      )}
-
-      {/* Game area */}
-      <div
-        ref={containerRef}
-        className={cn(
-          'relative w-full h-[min(16rem,52vh)] rounded-xl border-2 overflow-hidden select-none',
-          isActive    ? 'bg-retro-surface border-retro-border cursor-crosshair' :
-          isCountdown ? 'bg-retro-surface/60 border-retro-border/50 cursor-default' :
-                        'bg-retro-surface border-retro-border cursor-default',
-        )}
-      >
-        {!endTime && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            <p className="font-pixel text-sm text-retro-dim">AIM TRAINER</p>
-            <p className="font-pixel text-[8px] text-retro-dim text-center leading-loose">
-              SHOOT YOUR COLOR · MISS = −1 PT · 30s
-            </p>
-            <button
-              onClick={handleStartClick}
-              className="px-6 py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
-            >
-              START
-            </button>
-          </div>
-        )}
-
-        {isCountdown && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <p className="font-pixel text-6xl text-retro-win text-glow-win">{countdownSec}</p>
-            <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
-          </div>
-        )}
-
-        {isActive && (
-          <>
-            {renderTarget(myTarget, myKey)}
-            {renderTarget(opTarget, opKey)}
-          </>
-        )}
-      </div>
-
-      {/* Live stats */}
-      {isActive && (
-        <div className="flex justify-center gap-6 font-pixel text-[8px] text-retro-dim">
-          <span>HITS <span className="text-retro-p1">{game[`aimHits${myKey}`] ?? 0}</span></span>
-          <span>FF <span className="text-retro-p2">{game[`aimFriendly${myKey}`] ?? 0}</span></span>
-        </div>
-      )}
-
-      {!opponentOnline && mySymbol && <OfflineNotice label="OPPONENT" />}
-      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
-    </div>
-  )
+export default function AimTrainerGame(props) {
+  return <RaceShell {...props} race={RACE} Racer={AimRacer} />
 }

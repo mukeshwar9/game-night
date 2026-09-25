@@ -1,33 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ref, update, runTransaction, onValue } from 'firebase/database'
+import { ref, update } from 'firebase/database'
 import { db } from '../lib/firebase'
-import GameSwitcher from '../components/GameSwitcher'
-import GameStatus from '../components/GameStatus'
-import SpectatorCard from '../components/SpectatorCard'
-import Avatar from '../components/Avatar'
-import OfflineNotice from '../components/loading/OfflineNotice'
+import { getServerNow } from '../hooks/useServerClock'
+import RaceShell from '../components/RaceShell'
 import {
-  COLS, CELL_COUNT, MINES, SAFE_CELLS,
+  COLS, CELL_COUNT, MINES, SAFE_CELLS, MINES_RACE_MS,
   generateBoard, floodReveal, chordTargets, isComplete, countRevealed,
+  isMinesDone, minesRaceEntry, minesRaceDecided, minesRow,
 } from '../lib/minesweeperLogic'
 import { mineCellLabel } from '../lib/a11yLabels'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
-import useBusy from '@/hooks/useBusy'
-import { toast } from 'sonner'
 
-// Seeded-race page — architecture mirrors WordHuntGame/TypingGame:
-// READY → shared minesStartedAt → 3s countdown → race on identical boards.
+// Mine Race — N-player race (2–8) on one identical seeded minefield.
+// Cleared racers rank by clear time, then racers still sweeping by cells
+// cleared, then detonated racers — a mine drops you below everyone who
+// didn't hit one. Room flow in RaceShell.
 // ANTI-LEAK: only revealed COUNTS go to Firebase; positions stay client-side
-// (derived from minesSeed) with a sessionStorage copy for reload recovery.
+// (derived from the round seed) with a sessionStorage copy for reload recovery.
 
-const COUNTDOWN_MS = 3000
 const LONG_PRESS_MS = 450
 const SYNC_DEBOUNCE_MS = 150
-const MATCH_WINS = 3
-// Two idle/stuck players would otherwise leave a round open forever (no move
-// ever completes it). 5 minutes from minesStartedAt, anchored to server time.
-const ROUND_MS = 5 * 60 * 1000
 
 // Classic 1–8 palette mapped to theme tokens (never hardcoded blue/green/red).
 const NUM_COLORS = {
@@ -41,214 +34,144 @@ const NUM_COLORS = {
   8: 'text-retro-dim',
 }
 
-function RaceBar({ label, val, max, textClass, barClass }) {
-  const pct = max > 0 ? Math.min(100, Math.round((val / max) * 100)) : 0
-  return (
-    <div className="flex items-center gap-2">
-      <span className={cn('font-pixel text-[8px] w-16 truncate', textClass)}>{label}</span>
-      <div className="flex-1 h-2 bg-retro-surface rounded-full overflow-hidden">
-        <div className={cn('h-full rounded-full transition-all duration-200', barClass)} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="font-pixel text-[8px] text-retro-dim w-10 text-right tabular-nums">{val}/{max}</span>
-    </div>
-  )
+const RACE = {
+  type: 'minesweeper',
+  title: 'MINE RACE',
+  sameWhat: 'MINEFIELD',
+  rules: [
+    `IDENTICAL SEEDED MINEFIELD · ${MINES} MINES · ${SAFE_CELLS} SAFE CELLS`,
+    'TAP REVEAL · HOLD / RIGHT-CLICK / F KEY FLAG · TAP A NUMBER TO CHORD',
+    'FASTEST CLEAR WINS · HIT A MINE AND YOU’RE OUT',
+  ],
+  baseMs: MINES_RACE_MS,
+  scaled: true,
+  entry: minesRaceEntry,
+  isDone: isMinesDone,
+  decided: minesRaceDecided,
+  row: (stats) => minesRow(stats),
 }
 
-function GhostRow({ name, avatarId, val, dead }) {
-  return (
-    <div className="flex items-center gap-2 bg-retro-card border border-retro-border rounded px-2 py-1.5">
-      <Avatar id={avatarId} size={20} />
-      <span className="font-pixel text-[8px] text-retro-p2 truncate flex-1">{name}</span>
-      {dead ? (
-        <span className="font-pixel text-[9px] text-retro-danger">💀 BOOM</span>
-      ) : (
-        <>
-          <div className="w-24 h-2 bg-retro-deep rounded-full overflow-hidden">
-            <div
-              className="h-full bg-retro-p2 transition-all duration-300"
-              style={{ width: `${Math.min(100, Math.round((val / SAFE_CELLS) * 100))}%` }}
-            />
-          </div>
-          <span className="font-pixel text-[8px] text-retro-dim w-10 text-right tabular-nums">{val}/{SAFE_CELLS}</span>
-        </>
-      )}
-    </div>
-  )
-}
+const storageKey = (gameId, roundId) => `minerace-revealed-${gameId}-${roundId}`
 
-function ResultsPanel({ game, mySymbol }) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {['X', 'O'].map(sym => {
-        const count = game[`minesRevealed${sym}`] ?? 0
-        const dead = game[`minesDead${sym}`] ?? false
-        const done = game[`minesDone${sym}`] ?? false
-        const isWin = game.winner === sym
-        const col = sym === 'X' ? 'text-retro-p1' : 'text-retro-p2'
-        const border = mySymbol === sym
-          ? (sym === 'X' ? 'border-retro-p1/60' : 'border-retro-p2/60')
-          : 'border-retro-border'
-        return (
-          <div key={sym} className={cn('bg-retro-card border rounded p-3 text-center space-y-1', border)}>
-            <p className={cn('font-pixel text-[8px]', col)}>
-              {game.players?.[sym]?.name?.toUpperCase() ?? sym}
-            </p>
-            <p className={cn('font-pixel text-2xl tabular-nums', isWin ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
-              {count}
-            </p>
-            <p className="font-pixel text-[8px] text-retro-dim">/ {SAFE_CELLS} CLEARED</p>
-            <p className={cn(
-              'font-pixel text-[8px]',
-              isWin ? 'text-retro-win' : dead ? 'text-retro-danger' : 'text-retro-cta',
-            )}>
-              {isWin ? '★ WINNER' : dead ? '✖ DETONATED' : done ? '✓ CLEARED' : '—'}
-            </p>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-export default function MineRaceGame({
-  gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onPlayAgain, onNewMatch, proposal,
-}) {
-  const myKey = mySymbol === 'X' ? 'X' : 'O'
-  const opKey = myKey === 'X' ? 'O' : 'X'
-
-  const seed = game.minesSeed ?? null
-  const startedAt = game.minesStartedAt ?? null
-
-  // The identical board both players sweep — derived purely from the seed.
-  const board = useMemo(() => (seed != null ? generateBoard(seed) : null), [seed])
-
-  // Own revealed set: client-only. Restored from sessionStorage on reload,
-  // validated against the CURRENT board's mines (a stale round's cells that
-  // are now mines get dropped).
-  const [revealed, setRevealed] = useState(() => {
-    const opening = board ? new Set(board.opening) : new Set()
-    if (!board || !mySymbol) return opening
-    try {
-      const raw = JSON.parse(sessionStorage.getItem(`minerace-revealed-${gameId}-${mySymbol}`) || 'null')
-      if (Array.isArray(raw)) {
-        for (const i of raw) {
-          if (Number.isInteger(i) && i >= 0 && i < CELL_COUNT && !board.mines[i]) opening.add(i)
-        }
+// Own revealed set: client-only. Restored from sessionStorage on reload,
+// validated against this round's mines.
+function loadRevealed(gameId, roundId, board) {
+  const opening = board ? new Set(board.opening) : new Set()
+  if (!board) return opening
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(storageKey(gameId, roundId)) || 'null')
+    if (Array.isArray(raw)) {
+      for (const i of raw) {
+        if (Number.isInteger(i) && i >= 0 && i < CELL_COUNT && !board.mines[i]) opening.add(i)
       }
-    } catch { /* private mode */ }
-    return opening
-  })
+    }
+  } catch { /* private mode */ }
+  return opening
+}
+
+function MineCell({ i, board, revealed, flags, fatalCell, showMines, canAct, onTap, onFlag, onPressStart, onPressEnd, longPressFiredRef }) {
+  const isRevealed = revealed.has(i)
+  const isFlagged = flags.has(i)
+  const isFatal = fatalCell === i
+  const mine = board?.mines?.[i]
+  const showMine = mine && showMines
+  const n = isRevealed ? (board?.counts?.[i] ?? 0) : 0
+  return (
+    <button
+      disabled={!canAct}
+      data-testid={`cell ${i}`}
+      aria-label={mineCellLabel({
+        row: Math.floor(i / COLS), col: i % COLS,
+        revealed: isRevealed, flagged: isFlagged, count: n,
+        mine: !!showMine, fatal: isFatal,
+      })}
+      onKeyDown={(e) => {
+        // Keyboard flag: F toggles the flag on the focused cell (Enter /
+        // Space already reveal via the native button click).
+        if (e.key !== 'f' && e.key !== 'F') return
+        if (e.metaKey || e.ctrlKey || e.altKey) return
+        e.preventDefault()
+        if (canAct) onFlag(i)
+      }}
+      className={cn(
+        'aspect-square flex items-center justify-center rounded-[2px] border font-pixel text-[10px] leading-none select-none',
+        !isRevealed && !showMine && 'bg-retro-card border-retro-border cursor-pointer active:bg-retro-surface',
+        !isRevealed && showMine && 'bg-retro-deep border-transparent',
+        isFatal && 'bg-retro-danger border-retro-danger ring-1 ring-retro-danger',
+        isRevealed && n === 0 && !showMine && 'bg-retro-deep border-transparent',
+        isRevealed && n > 0 && cn('bg-retro-surface border-transparent', NUM_COLORS[n]),
+      )}
+      onClick={() => onTap?.(i)}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        // Android fires both the long-press timer path AND a native
+        // contextmenu event for the same press — skip the redundant toggle.
+        if (longPressFiredRef?.current) return
+        if (canAct) onFlag(i)
+      }}
+      onPointerDown={(e) => onPressStart?.(e, i)}
+      onPointerUp={onPressEnd}
+      onPointerLeave={onPressEnd}
+      onPointerCancel={onPressEnd}
+    >
+      {showMine ? (isFatal ? '💥' : '💣') : isFlagged ? '🚩' : isRevealed && n > 0 ? n : ''}
+    </button>
+  )
+}
+
+function Grid({ children, interactive }) {
+  // Break out of the page's p-4 gutter on phones and keep a ~38px tap-target
+  // floor; too-narrow screens scroll the grid instead of cramming cells.
+  return (
+    <div className="relative -mx-4 sm:mx-0">
+      <div className="overflow-x-auto">
+        <div
+          className={cn('grid gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border select-none mx-auto', !interactive && 'pointer-events-none')}
+          style={{ touchAction: 'manipulation', gridTemplateColumns: 'repeat(12, minmax(38px, 1fr))', maxWidth: '32rem' }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MinesRacer({ gameId, round, myStats, statsPath }) {
+  const seed = round.seed
+  const board = useMemo(() => (seed != null ? generateBoard(seed) : null), [seed])
+  const [revealed, setRevealed] = useState(() => loadRevealed(gameId, round.id, board))
   const [flags, setFlags] = useState(() => new Set()) // local-only player aid
   const [mode, setMode] = useState('reveal') // 'reveal' | 'flag' fallback
   const [fatalCell, setFatalCell] = useState(null)
-  const [dead, setDead] = useState(false)
-  const [done, setDone] = useState(false)
-  const [now, setNow] = useState(() => Date.now())
-  const [clockOffset, setClockOffset] = useState(0)
-  const [readying, runReady] = useBusy()
+  const dead = !!myStats?.dead || fatalCell != null
+  const done = !!myStats?.done || (!dead && isComplete(revealed))
+  const canAct = !dead && !done
 
   const revealedRef = useRef(revealed)
   const flagsRef = useRef(flags)
+  const endedRef = useRef(!!myStats?.dead || !!myStats?.done)
   const syncTimerRef = useRef(null)
-  const prevSeedRef = useRef(seed)
   const pressTimerRef = useRef(null)
   const longPressFiredRef = useRef(false)
-  const roundTimeoutFiredRef = useRef(false)
 
-  // New round (new seed via PLAY AGAIN / NEW MATCH / SWITCH-back): reset to the
-  // fresh opening. Reload mid-round keeps state (same seed → no reset here;
-  // restore happened in the useState initializer). Reset during render (the
-  // documented derive-from-prop-change pattern) so state never lags a seed flip.
-  if (prevSeedRef.current !== seed) {
-    prevSeedRef.current = seed
-    if (board) {
-      const opening = new Set(board.opening)
-      setRevealed(opening)
-      setFlags(new Set())
-      setFatalCell(null)
-      setDead(false)
-      setDone(false)
-    }
-  }
-
-  // Companion reset for the round-timeout ref (a ref mutation can't happen in
-  // the render-phase block above — refs aren't render-safe there).
-  useEffect(() => {
-    roundTimeoutFiredRef.current = false
-  }, [seed])
-
-  // Corrected clock — every deadline comparison runs through this offset
-  // (mirrors TriviaGame.jsx) so minesStartedAt/round-timeout compare against
-  // server time, not each device's possibly-skewed local clock.
-  useEffect(() => {
-    const offRef = ref(db, '.info/serverTimeOffset')
-    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
-    return () => unsub()
-  }, [])
-  const serverNow = now + clockOffset
-
-  const isCountdown = !!startedAt && serverNow < startedAt + COUNTDOWN_MS
-  const isRacing = !!startedAt && serverNow >= startedAt + COUNTDOWN_MS && game.status !== 'finished'
-  const countdownSec = isCountdown ? Math.ceil((startedAt + COUNTDOWN_MS - serverNow) / 1000) : 0
-  const canAct = isRacing && !dead && !done
-
-  const myCount = countRevealed(revealed)
-  const opCount = game[`minesRevealed${opKey}`] ?? 0
-  const opDead = game[`minesDead${opKey}`] ?? false
-  const opDone = game[`minesDone${opKey}`] ?? false
-  const showMines = fatalCell != null || game.status === 'finished'
-
-  // Ticker drives the countdown display (mirrors TypingGame).
-  useEffect(() => {
-    if (!startedAt || game.status === 'finished') return
-    const id = setInterval(() => setNow(Date.now()), 100)
-    return () => clearInterval(id)
-  }, [startedAt, game.status])
-
-  // Persist own revealed positions locally (reload recovery). Never Firebase.
-  useEffect(() => {
-    if (!mySymbol || seed == null) return
-    try {
-      sessionStorage.setItem(`minerace-revealed-${gameId}-${mySymbol}`, JSON.stringify([...revealed]))
-    } catch { /* private mode */ }
-  }, [revealed, gameId, mySymbol, seed])
-
-  // Mirror state into the refs the async callbacks (long-press timer, reveal
-  // chains) read — refs are only touched here and inside handlers, never render.
   useEffect(() => { revealedRef.current = revealed }, [revealed])
   useEffect(() => { flagsRef.current = flags }, [flags])
+  useEffect(() => () => { clearTimeout(pressTimerRef.current); clearTimeout(syncTimerRef.current) }, [])
 
-  useEffect(() => () => clearTimeout(pressTimerRef.current), [])
+  // Persist own revealed positions locally (reload recovery + final board). Never Firebase.
+  useEffect(() => {
+    try { sessionStorage.setItem(storageKey(gameId, round.id), JSON.stringify([...revealed])) } catch { /* private mode */ }
+  }, [revealed, gameId, round.id])
 
-  // ── Firebase ────────────────────────────────────────────────────────────
-
-  const handleReady = () => {
-    if (startedAt) return
-    runReady(async () => {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.minesStartedAt) return
-        return { ...current, minesStartedAt: Date.now() + clockOffset }
-      })
-    }, () => toast.error('START FAILED — CHECK CONNECTION'))
-  }
-
-  // First end-event transaction wins — photo-finish boom+clear resolves by
-  // whichever lands first (PRD serialization rule).
-  const resolveEnd = async (winnerSym) => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished') return
-        const scores = { ...(current.scores || {}) }
-        scores[winnerSym] = (scores[winnerSym] || 0) + 1
-        return { ...current, winner: winnerSym, status: 'finished', scores }
-      })
-    } catch { /* other client resolved it */ }
-  }
+  // Register as present with the opening's count.
+  useEffect(() => {
+    if (!myStats) update(ref(db, statsPath), { revealed: countRevealed(revealedRef.current) }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per round (the Racer is keyed by round id)
+  }, [])
 
   const flushSync = (count) => {
     clearTimeout(syncTimerRef.current)
-    update(ref(db, `games/${gameId}`), { [`minesRevealed${myKey}`]: count }).catch(() => {})
+    update(ref(db, statsPath), { revealed: count }).catch(() => {})
   }
 
   const scheduleSync = (count) => {
@@ -257,75 +180,36 @@ export default function MineRaceGame({
   }
 
   const handleDeath = (cell) => {
-    if (dead || done) return
-    setDead(true)
+    if (endedRef.current) return
+    endedRef.current = true
     setFatalCell(cell)
     sounds.bust()
-    flushSync(countRevealed(revealedRef.current))
-    update(ref(db, `games/${gameId}`), { [`minesDead${myKey}`]: true }).catch(() => {})
-    resolveEnd(opKey)
+    clearTimeout(syncTimerRef.current)
+    update(ref(db, statsPath), { revealed: countRevealed(revealedRef.current), dead: true }).catch(() => {})
   }
 
   const handleComplete = () => {
-    if (done || dead) return
-    setDone(true)
+    if (endedRef.current) return
+    endedRef.current = true
     sounds.win()
-    flushSync(SAFE_CELLS)
-    update(ref(db, `games/${gameId}`), { [`minesDone${myKey}`]: true }).catch(() => {})
-    resolveEnd(myKey)
+    clearTimeout(syncTimerRef.current)
+    update(ref(db, statsPath), { revealed: SAFE_CELLS, done: true, doneAt: getServerNow() }).catch(() => {})
   }
 
-  // The opponent's minesDead write and their resolveEnd() transaction land as
-  // two separate Firebase writes — there's a real window where opDead is true
-  // but status is still 'playing'. Their detonation already decided the round
-  // (I win), so resolve it from here too the instant I see it, rather than
-  // showing a banner that tells me to keep clearing cells I no longer need to.
-  useEffect(() => {
-    if (opDead && !dead && !done && game.status !== 'finished') {
-      resolveEnd(myKey)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveEnd is recreated every render; it's idempotent (guards on status==='finished') so re-running it isn't a correctness issue
-  }, [opDead, dead, done, game.status, myKey])
-
-  // Round timer: two idle players would otherwise leave the round open
-  // forever (no move ever completes it). Either client can run this — the
-  // transaction's status==='finished' guard makes it safe for both to try.
-  useEffect(() => {
-    if (!isRacing || !startedAt || roundTimeoutFiredRef.current) return
-    const deadline = startedAt + COUNTDOWN_MS + ROUND_MS
-    const msLeft = deadline - serverNow
-    if (msLeft > 0) return
-    roundTimeoutFiredRef.current = true
-    runTransaction(ref(db, `games/${gameId}`), current => {
-      if (!current || current.status === 'finished') return
-      const cX = current.minesRevealedX ?? 0
-      const cO = current.minesRevealedO ?? 0
-      const winner = cX > cO ? 'X' : cX < cO ? 'O' : 'draw'
-      const scores = { ...(current.scores || {}) }
-      if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
-      return { ...current, winner, status: 'finished', scores }
-    }).catch(() => { /* other client resolved it */ })
-  }, [isRacing, startedAt, serverNow, gameId])
-
-  // ── play ────────────────────────────────────────────────────────────────
-
   const applyReveal = (cells) => {
-    if (!board) return
+    if (!board || endedRef.current) return
     const { mines, counts } = board
     const fatal = cells.find(c => mines[c])
-    if (fatal != null) {
-      handleDeath(fatal)
-      return
-    }
+    if (fatal != null) { handleDeath(fatal); return }
     let next = revealedRef.current
     for (const c of cells) next = floodReveal(counts, mines, next, c)
     const gained = next.size - revealedRef.current.size
     if (gained === 0) return
     revealedRef.current = next
     setRevealed(next)
-    scheduleSync(next.size)
     if (gained > 1) sounds.hit(Math.min(gained + 1, 10))
     if (isComplete(next)) handleComplete()
+    else scheduleSync(next.size)
   }
 
   const toggleFlag = (cell) => {
@@ -339,14 +223,8 @@ export default function MineRaceGame({
 
   const handleTap = (cell) => {
     if (!canAct || !board) return
-    if (longPressFiredRef.current) {
-      longPressFiredRef.current = false
-      return
-    }
-    if (mode === 'flag') {
-      toggleFlag(cell)
-      return
-    }
+    if (longPressFiredRef.current) { longPressFiredRef.current = false; return }
+    if (mode === 'flag') { toggleFlag(cell); return }
     if (flagsRef.current.has(cell)) return
     if (revealedRef.current.has(cell)) {
       const targets = chordTargets(board.counts, revealedRef.current, flagsRef.current, cell)
@@ -357,7 +235,7 @@ export default function MineRaceGame({
   }
 
   // Long-press flags on touch; mouse uses right-click instead.
-  const handlePointerDown = (e, cell) => {
+  const handlePressStart = (e, cell) => {
     if (e.pointerType === 'mouse' || !canAct) return
     longPressFiredRef.current = false
     clearTimeout(pressTimerRef.current)
@@ -370,209 +248,36 @@ export default function MineRaceGame({
 
   const cancelPress = () => clearTimeout(pressTimerRef.current)
 
-  const renderCell = (i) => {
-    const isRevealed = revealed.has(i)
-    const isFlagged = flags.has(i)
-    const isFatal = fatalCell === i
-    const mine = board?.mines?.[i]
-    const showMine = mine && showMines
-    const n = isRevealed ? (board?.counts?.[i] ?? 0) : 0
-    return (
-      <button
-        key={i}
-        disabled={!canAct}
-        data-testid={`cell ${i}`}
-        aria-label={mineCellLabel({
-          row: Math.floor(i / COLS), col: i % COLS,
-          revealed: isRevealed, flagged: isFlagged, count: n,
-          mine: !!showMine, fatal: isFatal,
-        })}
-        onKeyDown={(e) => {
-          // Keyboard flag: F toggles the flag on the focused cell (Enter /
-          // Space already reveal via the native button click).
-          if (e.key !== 'f' && e.key !== 'F') return
-          if (e.metaKey || e.ctrlKey || e.altKey) return
-          e.preventDefault()
-          if (canAct) toggleFlag(i)
-        }}
-        className={cn(
-          'aspect-square flex items-center justify-center rounded-[2px] border font-pixel text-[10px] leading-none select-none',
-          !isRevealed && !showMine && 'bg-retro-card border-retro-border cursor-pointer active:bg-retro-surface',
-          !isRevealed && showMine && 'bg-retro-deep border-transparent',
-          isFatal && 'bg-retro-danger border-retro-danger ring-1 ring-retro-danger',
-          isRevealed && n === 0 && !showMine && 'bg-retro-deep border-transparent',
-          isRevealed && n > 0 && cn('bg-retro-surface border-transparent', NUM_COLORS[n]),
-        )}
-        onClick={() => handleTap(i)}
-        onContextMenu={(e) => {
-          e.preventDefault()
-          // Android fires both the long-press timer path (below) AND a native
-          // contextmenu event for the same press — without this guard both
-          // handlers call toggleFlag and cancel each other out (flag never
-          // sticks). Skip the redundant toggle when the long-press already
-          // handled it; handleTap still owns resetting the ref on the
-          // trailing click.
-          if (longPressFiredRef.current) return
-          if (canAct) toggleFlag(i)
-        }}
-        onPointerDown={(e) => handlePointerDown(e, i)}
-        onPointerUp={cancelPress}
-        onPointerLeave={cancelPress}
-        onPointerCancel={cancelPress}
-      >
-        {showMine ? (isFatal ? '💥' : '💣') : isFlagged ? '🚩' : isRevealed && n > 0 ? n : ''}
-      </button>
-    )
-  }
-
-  const matchWinner = (game.scores?.X || 0) >= MATCH_WINS ? 'X' : (game.scores?.O || 0) >= MATCH_WINS ? 'O' : null
-  const oppName = game.players?.[opKey]?.name?.toUpperCase() ?? opKey
-  const myName = game.players?.[myKey]?.name?.toUpperCase() ?? myKey
-
-  // ── render: finished ────────────────────────────────────────────────────
-
-  if (game.status === 'finished') {
-    return (
-      <div className="space-y-4">
-        {board && (
-          <div className="space-y-1">
-            <p className="font-pixel text-[8px] text-retro-dim text-center">FINAL MINEFIELD</p>
-            {/* Break out of the page's p-4 gutter on phones and enforce a
-                ~38-40px min cell (M-?) — was ~34px and cramped for taps. On
-                screens too narrow to fit 12×38px, the grid scrolls horizontally
-                rather than shrinking cells below the tap-target floor. */}
-            <div className="relative -mx-4 sm:mx-0">
-              <div className="overflow-x-auto">
-                <div
-                  className="grid gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border mx-auto pointer-events-none"
-                  style={{ gridTemplateColumns: 'repeat(12, minmax(38px, 1fr))', maxWidth: '32rem' }}
-                >
-                  {Array.from({ length: CELL_COUNT }, (_, i) => renderCell(i))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        <ResultsPanel game={game} mySymbol={mySymbol} />
-        <GameStatus
-          status={game.status} winner={game.winner} mySymbol={mySymbol}
-          scores={game.scores} players={game.players} gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
-          onNewMatch={matchWinner && !proposal ? onNewMatch : null}
-          onSwitchGame={!proposal ? onSwitchGame : null}
-        />
-      </div>
-    )
-  }
-
-  // ── render: spectator (progress bars only — boards would leak via a second tab) ─
-
-  if (!mySymbol) {
-    return (
-      <div className="space-y-4">
-        <SpectatorCard game={game} statusOverride={!startedAt ? 'WAITING TO START' : undefined} />
-        {startedAt && (
-          <div className="bg-retro-card border border-retro-border rounded p-3 space-y-2">
-            <RaceBar
-              label={game.players?.X?.name?.toUpperCase() ?? 'X'}
-              val={game.minesRevealedX ?? 0} max={SAFE_CELLS}
-              textClass="text-retro-p1" barClass="bg-retro-p1"
-            />
-            <RaceBar
-              label={game.players?.O?.name?.toUpperCase() ?? 'O'}
-              val={game.minesRevealedO ?? 0} max={SAFE_CELLS}
-              textClass="text-retro-p2" barClass="bg-retro-p2"
-            />
-          </div>
-        )}
-        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
-      </div>
-    )
-  }
-
-  // ── render: waiting to start ────────────────────────────────────────────
-
-  if (!startedAt) {
-    return (
-      <div className="space-y-4">
-        <div className="bg-retro-card border border-retro-border rounded p-6 text-center space-y-4">
-          <p className="font-pixel text-[9px] text-retro-cta">MINE RACE · {MINES} MINES · {SAFE_CELLS} SAFE CELLS</p>
-          <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left mx-auto w-fit">
-            <p>● IDENTICAL SEEDED MINEFIELD · FIRST TO CLEAR WINS</p>
-            <p>● TAP REVEAL · HOLD / RIGHT-CLICK / F KEY FLAG · TAP A NUMBER TO CHORD</p>
-            <p>● HIT A MINE AND YOUR OPPONENT WINS INSTANTLY</p>
-          </div>
-          <button
-            onClick={handleReady}
-            disabled={readying}
-            className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
-          >
-            {readying ? 'STARTING…' : 'READY'}
-          </button>
-        </div>
-        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
-      </div>
-    )
-  }
-
-  // ── render: countdown ───────────────────────────────────────────────────
-
-  if (isCountdown) {
-    return (
-      <div className="space-y-4">
-        <div className="bg-retro-card border border-retro-border rounded p-8 text-center space-y-3">
-          <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
-          <p className="font-pixel text-7xl text-retro-win text-glow-win">{countdownSec}</p>
-          <p className="font-pixel text-[8px] text-retro-dim">SWEEP FAST</p>
-        </div>
-      </div>
-    )
-  }
-
-  // ── render: racing ──────────────────────────────────────────────────────
-
   return (
     <div className="space-y-2">
-      {/* Progress: me + opponent ghost */}
-      <div className="max-w-md mx-auto space-y-1.5">
-        <RaceBar
-          label={myName} val={myCount} max={SAFE_CELLS}
-          textClass="text-retro-p1" barClass="bg-retro-p1"
-        />
-        <GhostRow name={oppName} avatarId={game.players?.[opKey]?.avatar} val={opCount} dead={opDead} />
-      </div>
-
-      {/* Board — break out of the page's p-4 gutter on phones so cells clear a
-          ~38-40px tap-target floor instead of shrinking to fit; too-narrow
-          screens scroll the grid horizontally instead of cramming cells. */}
-      <div className="relative -mx-4 sm:mx-0">
-        <div className="overflow-x-auto">
-          <div
-            className="grid gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border select-none mx-auto"
-            style={{ touchAction: 'manipulation', gridTemplateColumns: 'repeat(12, minmax(38px, 1fr))', maxWidth: '32rem' }}
-          >
-            {board && Array.from({ length: CELL_COUNT }, (_, i) => renderCell(i))}
-          </div>
-        </div>
-
-        {/* End-state overlays (pre-transaction grace window) */}
-        {fatalCell != null && (
+      <div className="relative">
+        <Grid interactive>
+          {board && Array.from({ length: CELL_COUNT }, (_, i) => (
+            <MineCell
+              key={i} i={i} board={board} revealed={revealed} flags={flags}
+              fatalCell={fatalCell} showMines={fatalCell != null} canAct={canAct}
+              onTap={handleTap} onFlag={toggleFlag}
+              onPressStart={handlePressStart} onPressEnd={cancelPress}
+              longPressFiredRef={longPressFiredRef}
+            />
+          ))}
+        </Grid>
+        {dead && (
           <div className="absolute inset-0 flex items-center justify-center bg-retro-bg/80 rounded">
             <p className="font-pixel text-[10px] text-retro-danger text-glow-danger bg-retro-card border border-retro-danger/60 rounded px-4 py-3 text-center">
-              💥 YOU HIT A MINE<br />{oppName} WINS
+              💥 YOU HIT A MINE<br />YOU&apos;RE OUT — {countRevealed(revealed)}/{SAFE_CELLS}
             </p>
           </div>
         )}
-        {fatalCell == null && done && game.status !== 'finished' && (
+        {!dead && done && (
           <div className="absolute inset-0 flex items-center justify-center bg-retro-bg/80 rounded">
             <p className="font-pixel text-[10px] text-retro-win text-glow-win bg-retro-card border border-retro-win/60 rounded px-4 py-3 text-center">
-              ✓ ALL {SAFE_CELLS} CLEARED<br />WRAPPING UP…
+              ✓ ALL {SAFE_CELLS} CLEARED
             </p>
           </div>
         )}
       </div>
 
-      {/* Controls */}
       <div className="flex items-center justify-center gap-2 max-w-md mx-auto">
         <button
           onClick={() => setMode(m => (m === 'reveal' ? 'flag' : 'reveal'))}
@@ -591,19 +296,28 @@ export default function MineRaceGame({
           🚩 {flags.size} · HOLD OR F TO FLAG · TAP № TO CHORD
         </span>
       </div>
-
-      {/* Race status lines */}
-      <div className="min-h-[16px] text-center">
-        {opDead && game.status !== 'finished' && (
-          <p className="font-pixel text-[9px] text-retro-win arcade-blink">💥 {oppName} DETONATED — YOU WIN!</p>
-        )}
-        {opDone && !opDead && game.status !== 'finished' && (
-          <p className="font-pixel text-[9px] text-retro-p2 arcade-blink">{oppName} CLEARED IT — TOO SLOW!</p>
-        )}
-      </div>
-
-      {!opponentOnline && <OfflineNotice label="OPPONENT" />}
-      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
     </div>
   )
+}
+
+// The finished round's minefield: my own sweep plus every mine.
+function MinesFinal({ gameId, round }) {
+  const seed = round?.seed ?? null
+  const board = useMemo(() => (seed != null ? generateBoard(seed) : null), [seed])
+  const [revealed] = useState(() => loadRevealed(gameId, round?.id, board))
+  if (!board) return null
+  return (
+    <div className="space-y-1">
+      <p className="font-pixel text-[8px] text-retro-dim text-center">FINAL MINEFIELD</p>
+      <Grid interactive={false}>
+        {Array.from({ length: CELL_COUNT }, (_, i) => (
+          <MineCell key={i} i={i} board={board} revealed={revealed} flags={new Set()} fatalCell={null} showMines canAct={false} />
+        ))}
+      </Grid>
+    </div>
+  )
+}
+
+export default function MineRaceGame(props) {
+  return <RaceShell {...props} race={RACE} Racer={MinesRacer} Final={MinesFinal} />
 }

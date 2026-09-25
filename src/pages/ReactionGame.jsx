@@ -1,344 +1,205 @@
 import { useEffect, useRef, useState } from 'react'
-import { ref, update, runTransaction } from 'firebase/database'
+import { ref, update } from 'firebase/database'
 import { db } from '../lib/firebase'
-import GameSwitcher from '../components/GameSwitcher'
-import GameStatus from '../components/GameStatus'
-import SpectatorCard from '../components/SpectatorCard'
-import OfflineNotice from '../components/loading/OfflineNotice'
+import { getServerNow } from '../hooks/useServerClock'
+import RaceShell from '../components/RaceShell'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
-  ROUNDS,
-  normalizeReactionTimes,
-  avgReactionTime,
-  fastestReactionTime,
-  getReactionWinner,
-  formatMs,
+  ROUNDS, REACTION_RACE_MS,
+  avgReactionTime, fastestReactionTime, formatMs, seededDelayMs,
+  reactionTimesOf, isReactionDone, reactionRaceEntry, reactionLiveKey, reactionRow,
 } from '../lib/reactionLogic'
 
-const MIN_DELAY_MS = 1500
-const MAX_DELAY_MS = 4000
+// Reaction Time — N-player race (2–8). Every racer plays ROUNDS tap-rounds
+// at their own pace; the waits before GREEN are seeded from the round, so
+// everyone gets the same waits. Lowest average wins; room flow in RaceShell.
 
-// Static per-symbol class maps — Tailwind's scanner can't see dynamically
-// composed class names like `border-${col}/60`, so every class variant must
-// appear as a literal string somewhere in source.
-const RESULT_CARD_STYLE = {
-  X: { name: 'text-retro-p1', border: 'border-retro-p1/60' },
-  O: { name: 'text-retro-p2', border: 'border-retro-p2/60' },
+const RACE = {
+  type: 'reaction',
+  title: 'REACTION TIME',
+  sameWhat: 'WAITS',
+  rules: [
+    `${ROUNDS} ROUNDS · TAP THE MOMENT IT TURNS GREEN`,
+    'EVERYONE GETS THE SAME WAITS',
+    'LOWEST AVERAGE WINS · TOO EARLY = RETRY',
+  ],
+  baseMs: REACTION_RACE_MS,
+  scaled: true,
+  entry: reactionRaceEntry,
+  isDone: isReactionDone,
+  liveKey: reactionLiveKey,
+  row: (stats) => reactionRow(stats),
 }
 
-function ResultsPanel({ timesX, timesO, mySymbol, players }) {
-  const avgX = avgReactionTime(timesX)
-  const avgO = avgReactionTime(timesO)
-  const fastX = fastestReactionTime(timesX)
-  const fastO = fastestReactionTime(timesO)
-  const winner = getReactionWinner(timesX, timesO)
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          { sym: 'X', a: avgX, f: fastX },
-          { sym: 'O', a: avgO, f: fastO },
-        ].map(({ sym, a, f }) => (
-          <div key={sym} className={cn(
-            'bg-retro-card border rounded p-3 text-center space-y-1',
-            mySymbol === sym ? RESULT_CARD_STYLE[sym].border : 'border-retro-border',
-          )}>
-            <p className={cn('font-pixel text-[8px]', RESULT_CARD_STYLE[sym].name)}>
-              {players?.[sym]?.name?.toUpperCase() ?? sym}
-            </p>
-            <p className={cn('font-pixel text-xl', winner === sym ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
-              {formatMs(a)}
-            </p>
-            <p className="font-pixel text-[8px] text-retro-dim">avg</p>
-            <p className="font-pixel text-[9px] text-retro-cta">
-              {formatMs(f)} <span className="text-retro-dim text-[7px]">best</span>
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1">
-        <div className="grid grid-cols-3 font-pixel text-[7px] text-retro-dim pb-1 border-b border-retro-border">
-          <span className="text-retro-p1">{players?.X?.name?.toUpperCase() ?? 'X'}</span>
-          <span className="text-center">RND</span>
-          <span className="text-right text-retro-p2">{players?.O?.name?.toUpperCase() ?? 'O'}</span>
-        </div>
-        {Array.from({ length: Math.max(timesX.length, timesO.length) }, (_, i) => {
-          const tx = timesX[i]
-          const to = timesO[i]
-          return (
-            <div key={i} className="grid grid-cols-3 font-pixel text-[8px]">
-              <span className={tx != null && to != null && tx < to ? 'text-retro-win' : 'text-retro-text'}>{formatMs(tx)}</span>
-              <span className="text-center text-retro-dim">{i + 1}</span>
-              <span className={cn('text-right', tx != null && to != null && to < tx ? 'text-retro-win' : 'text-retro-text')}>{formatMs(to)}</span>
-            </div>
-          )
-        })}
-      </div>
-
-      {winner && winner !== 'draw' ? (
-        <p className="font-pixel text-[8px] text-retro-dim text-center">
-          {players?.[winner]?.name?.toUpperCase() ?? winner} WAS{' '}
-          <span className="text-retro-win">{Math.abs(avgX - avgO)}ms</span> FASTER ON AVERAGE
-        </p>
-      ) : (
-        <p className="font-pixel text-[8px] text-retro-dim text-center">SAME AVERAGE — DRAW!</p>
-      )}
-    </div>
-  )
+const AREA_COLOR = {
+  start:      'bg-retro-surface border-retro-border/60',
+  waiting:    'bg-retro-surface border-retro-border/60',
+  ready:      'bg-retro-win/20 border-retro-win shadow-neon-win',
+  too_early:  'bg-retro-p2/15 border-retro-p2/60',
+  result:     'bg-retro-card border-retro-border',
+  submitted:  'bg-retro-surface border-retro-border/40',
 }
 
-export default function ReactionGame({
-  gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onPlayAgain, onNewMatch, proposal,
-}) {
-  const myKey = mySymbol === 'X' ? 'X' : 'O'
-  const opKey = myKey === 'X' ? 'O' : 'X'
-  const myTimes = normalizeReactionTimes(game[`reactionTimes${myKey}`])
-  const opTimes = normalizeReactionTimes(game[`reactionTimes${opKey}`])
-
-  const [phase, setPhase] = useState(() => (myTimes.length === ROUNDS ? 'submitted' : 'start'))
-  const [times, setTimes] = useState(() => (myTimes.length === ROUNDS ? myTimes : []))
+function ReactionRacer({ round, myStats, statsPath, done }) {
+  const [times, setTimes] = useState(() => reactionTimesOf(myStats))
+  const [phase, setPhase] = useState(() => (done ? 'submitted' : 'start'))
   const [lastTime, setLastTime] = useState(null)
   const roundStartRef = useRef(null)
   const timerRef = useRef(null)
-  const prevMyLen = useRef(myTimes.length)
-  const prevOpLen = useRef(opTimes.length)
+  const attemptRef = useRef(0) // false starts on the current tap-round
 
-  // Clear any pending round timer on unmount
   useEffect(() => () => clearTimeout(timerRef.current), [])
 
-  const tryFinish = async () => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished') return
-        const tx = normalizeReactionTimes(current.reactionTimesX)
-        const to = normalizeReactionTimes(current.reactionTimesO)
-        if (tx.length < ROUNDS || to.length < ROUNDS) return
-        const winner = getReactionWinner(tx, to)
-        const scores = { ...(current.scores || {}) }
-        if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
-        return { ...current, winner, status: 'finished', scores }
-      })
-    } catch { /* other client resolved — ignore */ }
-  }
-
-  // When both players done → resolve
-  useEffect(() => {
-    const ml = myTimes.length
-    const ol = opTimes.length
-    if (ml === ROUNDS && ol === ROUNDS &&
-        (prevMyLen.current < ROUNDS || prevOpLen.current < ROUNDS)) {
-      tryFinish()
-    }
-    prevMyLen.current = ml
-    prevOpLen.current = ol
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tryFinish is recreated every render; the prevMyLen/prevOpLen refs already dedupe repeat calls
-  }, [myTimes.length, opTimes.length])
-
-  const startRound = () => {
+  const startRound = (count) => {
     setPhase('waiting')
-    const delay = MIN_DELAY_MS + Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS)
+    const delay = seededDelayMs(round.seed, count, attemptRef.current)
     timerRef.current = setTimeout(() => {
       setPhase('ready')
       roundStartRef.current = performance.now()
-      sounds.go()  // audio + haptic cue on green
+      sounds.go()
     }, delay)
   }
 
   // Captured on onPointerDown (not onClick) so the recorded time doesn't pay
-  // the touch→click event-synthesis latency every other custom keypad in this
-  // codebase already avoids (M-50).
+  // the touch→click event-synthesis latency (M-50).
   const handleTap = async () => {
-    if (!mySymbol || game.status !== 'playing' || phase === 'submitted') return
-
+    if (phase === 'submitted') return
     switch (phase) {
       case 'start':
-        startRound()
+      case 'result':
+        startRound(times.length)
+        break
+      case 'too_early':
+        startRound(times.length)
         break
       case 'waiting':
         clearTimeout(timerRef.current)
+        attemptRef.current += 1
         setPhase('too_early')
         break
       case 'ready': {
         const rt = Math.round(performance.now() - roundStartRef.current)
+        attemptRef.current = 0
         setLastTime(rt)
-        sounds.move(myKey)
-        const newTimes = [...times, rt]
-        setTimes(newTimes)
-        if (newTimes.length === ROUNDS) {
-          try {
-            await update(ref(db, `games/${gameId}`), { [`reactionTimes${myKey}`]: newTimes })
-            setPhase('submitted')
-          } catch {
-            // Write failed — revert so the player can re-tap the final round instead of soft-locking
-            setTimes(times)
-            setPhase('result')
-            toast.error('SUBMIT FAILED — TAP TO RETRY')
-          }
-        } else {
+        sounds.move('X')
+        const prev = times
+        const next = [...times, rt]
+        const finished = next.length >= ROUNDS
+        setTimes(next)
+        setPhase(finished ? 'submitted' : 'result')
+        try {
+          await update(ref(db, statsPath), {
+            times: next,
+            done: finished,
+            doneAt: finished ? getServerNow() : null,
+          })
+        } catch {
+          // Write failed — revert so the player can re-tap this round instead
+          // of soft-locking on a result nobody else can see.
+          setTimes(prev)
           setPhase('result')
+          toast.error('SUBMIT FAILED — TAP TO RETRY')
         }
         break
       }
-      case 'result':
-        startRound()
-        break
-      case 'too_early':
-        startRound()
-        break
     }
   }
 
-  const matchWinner = (game.scores?.X || 0) >= 3 ? 'X' : (game.scores?.O || 0) >= 3 ? 'O' : null
-
-  if (game.status === 'finished') {
-    const timesX = normalizeReactionTimes(game.reactionTimesX)
-    const timesO = normalizeReactionTimes(game.reactionTimesO)
+  if (phase === 'submitted') {
     return (
-      <div className="space-y-4">
-        <ResultsPanel timesX={timesX} timesO={timesO} mySymbol={mySymbol} players={game.players} />
-        <GameStatus
-          status={game.status}
-          winner={game.winner}
-          mySymbol={mySymbol}
-          scores={game.scores}
-          players={game.players}
-          gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
-          onNewMatch={matchWinner && !proposal ? onNewMatch : null}
-          onSwitchGame={!proposal ? onSwitchGame : null}
-        />
-      </div>
-    )
-  }
-
-  if (!mySymbol) {
-    const roundsX = normalizeReactionTimes(game.reactionTimesX).length
-    const roundsO = normalizeReactionTimes(game.reactionTimesO).length
-    return (
-      <div className="space-y-4">
-        <SpectatorCard game={game} />
-        <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-1">
-          <p className="font-pixel text-[8px] text-retro-p1">
-            X: {roundsX}/{ROUNDS} rounds
-          </p>
-          <p className="font-pixel text-[8px] text-retro-p2">
-            O: {roundsO}/{ROUNDS} rounds
-          </p>
+      <div className="w-full rounded-xl border-2 min-h-[160px] flex flex-col items-center justify-center gap-2 px-4 bg-retro-surface border-retro-border/40">
+        <p className="font-pixel text-[10px] text-retro-win text-glow-win">ALL DONE!</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+          {times.map((t, i) => (
+            <p key={i} className="font-pixel text-[8px]">
+              <span className="text-retro-dim">R{i + 1} </span>
+              <span className="text-retro-text">{t}ms</span>
+            </p>
+          ))}
         </div>
-        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
+        <p className="font-pixel text-[9px] text-retro-cta">
+          AVG {formatMs(avgReactionTime(times))} · BEST {formatMs(fastestReactionTime(times))}
+        </p>
       </div>
     )
-  }
-
-  const areaColor = {
-    start:      'bg-retro-surface border-retro-border/60',
-    waiting:    'bg-retro-surface border-retro-border/60',
-    ready:      'bg-retro-win/20 border-retro-win shadow-neon-win',
-    too_early:  'bg-retro-p2/15 border-retro-p2/60',
-    result:     'bg-retro-card border-retro-border',
-    submitted:  'bg-retro-surface border-retro-border/40',
   }
 
   return (
-    <div className="space-y-4">
-      {/* Big clickable game area */}
-      <button
-        onPointerDown={e => { e.preventDefault(); handleTap() }}
-        onKeyDown={e => {
-          // Keyboard-equivalent activation (Space/Enter) — the area is
-          // otherwise pointer-only, which locks keyboard users out entirely.
-          if (e.repeat) return
-          if (e.code === 'Space' || e.code === 'Enter') {
-            e.preventDefault()
-            handleTap()
-          }
-        }}
-        disabled={phase === 'submitted'}
-        className={cn(
-          'w-full rounded-xl border-2 transition-colors duration-75 select-none',
-          'min-h-[210px] flex flex-col items-center justify-center gap-3',
-          areaColor[phase] ?? areaColor.start,
-          phase !== 'submitted' && 'active:scale-[0.99] cursor-pointer',
-          phase === 'submitted' && 'cursor-default',
-        )}
-      >
-        {phase === 'submitted' ? (
-          <div className="text-center space-y-2 px-4">
-            <p className="font-pixel text-[10px] text-retro-win text-glow-win">ALL DONE!</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-              {times.map((t, i) => (
-                <p key={i} className="font-pixel text-[8px]">
-                  <span className="text-retro-dim">R{i + 1} </span>
-                  <span className="text-retro-text">{t}ms</span>
-                </p>
-              ))}
-            </div>
-            <p className="font-pixel text-[9px] text-retro-cta">
-              AVG {formatMs(avgReactionTime(times))} · BEST {formatMs(fastestReactionTime(times))}
-            </p>
-            <p className="font-pixel text-[8px] text-retro-dim arcade-blink">
-              WAITING FOR OPPONENT {opTimes.length}/{ROUNDS}
-            </p>
-          </div>
-        ) : (
-          <>
-            <p className={cn(
-              'font-pixel text-center leading-none',
-              phase === 'ready'     && 'text-3xl text-retro-win text-glow-win',
-              phase === 'result'    && 'text-2xl text-retro-cta text-glow-cta',
-              phase === 'too_early' && 'text-xl text-retro-p2',
-              (phase === 'start' || phase === 'waiting') && 'text-base text-retro-dim',
-            )}>
-              {phase === 'ready'     ? 'CLICK!'        :
-               phase === 'too_early' ? 'TOO EARLY!'    :
-               phase === 'result'    ? `${lastTime}ms` :
-               phase === 'waiting'   ? 'WAIT...'       :
-               'TAP TO START'}
-            </p>
-            <p className={cn(
-              'font-pixel text-[9px]',
-              phase === 'too_early' ? 'text-retro-p2' : 'text-retro-dim arcade-blink',
-            )}>
-              {phase === 'waiting'   ? "DON'T CLICK YET"              :
-               phase === 'too_early' ? 'TAP TO TRY AGAIN'             :
-               phase === 'result'    ? `ROUND ${times.length}/${ROUNDS} — TAP FOR NEXT` :
-               phase === 'start'     ? `${ROUNDS} ROUNDS · FASTEST AVG WINS`  :
-               ''}
-            </p>
-          </>
-        )}
-      </button>
+    <button
+      onPointerDown={e => { e.preventDefault(); handleTap() }}
+      onKeyDown={e => {
+        // Keyboard-equivalent activation (Space/Enter) — the area is
+        // otherwise pointer-only, which locks keyboard users out entirely.
+        if (e.repeat) return
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault()
+          handleTap()
+        }
+      }}
+      aria-label={phase === 'ready' ? 'Tap now' : phase === 'waiting' ? 'Wait for green' : 'Tap to start the next round'}
+      className={cn(
+        'w-full rounded-xl border-2 transition-colors duration-75 select-none',
+        'min-h-[210px] flex flex-col items-center justify-center gap-3 active:scale-[0.99] cursor-pointer',
+        AREA_COLOR[phase] ?? AREA_COLOR.start,
+      )}
+    >
+      <p className={cn(
+        'font-pixel text-center leading-none',
+        phase === 'ready'     && 'text-3xl text-retro-win text-glow-win',
+        phase === 'result'    && 'text-2xl text-retro-cta text-glow-cta',
+        phase === 'too_early' && 'text-xl text-retro-p2',
+        (phase === 'start' || phase === 'waiting') && 'text-base text-retro-dim',
+      )}>
+        {phase === 'ready'     ? 'CLICK!'        :
+         phase === 'too_early' ? 'TOO EARLY!'    :
+         phase === 'result'    ? `${lastTime}ms` :
+         phase === 'waiting'   ? 'WAIT...'       :
+         'TAP TO START'}
+      </p>
+      <p className={cn(
+        'font-pixel text-[9px]',
+        phase === 'too_early' ? 'text-retro-p2' : 'text-retro-dim arcade-blink',
+      )}>
+        {phase === 'waiting'   ? "DON'T CLICK YET"  :
+         phase === 'too_early' ? 'TAP TO TRY AGAIN' :
+         phase === 'result'    ? `ROUND ${times.length}/${ROUNDS} — TAP FOR NEXT` :
+         phase === 'start'     ? `ROUND ${times.length + 1}/${ROUNDS} · FASTEST AVG WINS` :
+         ''}
+      </p>
+    </button>
+  )
+}
 
-      {/* Progress — you vs opponent */}
-      <div className="space-y-1.5">
-        {[
-          { label: 'YOU', count: times.length, col: 'bg-retro-cta border-retro-cta' },
-          { label: 'OPP', count: opTimes.length, col: 'bg-retro-p2/60 border-retro-p2/60' },
-        ].map(({ label, count, col }) => (
-          <div key={label} className="flex items-center gap-2 font-pixel text-[8px]">
-            <span className="text-retro-dim w-6">{label}</span>
-            <div className="flex gap-1 flex-1">
-              {Array.from({ length: ROUNDS }, (_, i) => (
-                <div key={i} className={cn(
-                  'flex-1 h-2 rounded-sm border',
-                  i < count ? col : 'bg-retro-surface border-retro-border',
-                )} />
-              ))}
-            </div>
-            <span className={cn('w-6 text-right', count === ROUNDS ? 'text-retro-win' : 'text-retro-dim')}>
-              {count}/{ROUNDS}
-            </span>
-          </div>
-        ))}
+// Round-by-round breakdown under the final ranking.
+function ReactionFinal({ round, result, players }) {
+  if (!round || !result?.order?.length) return null
+  const rows = result.order.map(id => ({ id, times: reactionTimesOf(round.stats?.[id]) }))
+  const best = Array.from({ length: ROUNDS }, (_, i) => {
+    const vals = rows.map(r => r.times[i]).filter(v => v != null)
+    return vals.length ? Math.min(...vals) : null
+  })
+  return (
+    <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1 overflow-x-auto">
+      <div className="grid grid-cols-[minmax(0,1fr)_repeat(4,3rem)] gap-x-1 font-pixel text-[7px] text-retro-dim pb-1 border-b border-retro-border">
+        <span>RACER</span>
+        {best.map((_, i) => <span key={i} className="text-right">R{i + 1}</span>)}
       </div>
-
-      {!opponentOnline && <OfflineNotice label="OPPONENT" />}
-      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
+      {rows.map(r => (
+        <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_repeat(4,3rem)] gap-x-1 font-pixel text-[8px]">
+          <span className="truncate text-retro-text">{(players?.[r.id]?.name || 'PLAYER').toUpperCase()}</span>
+          {best.map((b, i) => (
+            <span key={i} className={cn('text-right tabular-nums', r.times[i] != null && r.times[i] === b ? 'text-retro-win' : 'text-retro-text')}>
+              {r.times[i] != null ? r.times[i] : '—'}
+            </span>
+          ))}
+        </div>
+      ))}
     </div>
   )
+}
+
+export default function ReactionGame(props) {
+  return <RaceShell {...props} race={RACE} Racer={ReactionRacer} Final={ReactionFinal} />
 }

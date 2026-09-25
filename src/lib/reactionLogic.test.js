@@ -6,6 +6,10 @@ import {
   getReactionWinner,
   formatMs,
 } from './reactionLogic'
+import {
+  ROUNDS, MIN_DELAY_MS, MAX_DELAY_MS,
+  seededDelayMs, reactionTimesOf, isReactionDone, reactionRaceEntry, reactionLiveKey, reactionRow,
+} from './reactionLogic'
 
 describe('normalizeReactionTimes', () => {
   it('returns [] for absent/null data', () => {
@@ -71,5 +75,54 @@ describe('formatMs', () => {
   it('renders the value with an ms suffix', () => {
     expect(formatMs(250)).toBe('250ms')
     expect(formatMs(0)).toBe('0ms')
+  })
+})
+
+describe('normalizeReactionTimes (by key)', () => {
+  it('keeps key order even when the object is out of order', () => {
+    expect(normalizeReactionTimes({ 1: 250, 0: 300 })).toEqual([300, 250])
+  })
+})
+
+describe('seededDelayMs', () => {
+  it('is the same wait for every racer and within bounds', () => {
+    for (let i = 0; i < 50; i++) {
+      const d = seededDelayMs(777, i)
+      expect(d).toBe(seededDelayMs(777, i))
+      expect(d).toBeGreaterThanOrEqual(MIN_DELAY_MS)
+      expect(d).toBeLessThanOrEqual(MAX_DELAY_MS)
+    }
+  })
+
+  it('a false-start retry gets a different wait', () => {
+    const waits = new Set([0, 1, 2, 3].map(a => seededDelayMs(777, 0, a)))
+    expect(waits.size).toBeGreaterThan(1)
+  })
+})
+
+describe('reaction race hooks', () => {
+  const done = { times: [300, 200, 250, 250] }
+
+  it('done after every round; capped at ROUNDS', () => {
+    expect(isReactionDone(done)).toBe(true)
+    expect(isReactionDone({ times: [1, 2] })).toBe(false)
+    expect(reactionTimesOf({ times: [1, 2, 3, 4, 5] })).toHaveLength(ROUNDS)
+  })
+
+  it('ranks by lowest average; unfinished DNF', () => {
+    expect(reactionRaceEntry(done)).toEqual({ sortKey: [250], score: 250 })
+    expect(reactionRaceEntry({ times: [100] })).toEqual({ sortKey: null, score: null })
+    expect(reactionRaceEntry(null).sortKey).toBeNull()
+  })
+
+  it('live key: finishers first, then by rounds done', () => {
+    expect(reactionLiveKey(done)).toEqual([0, 250])
+    expect(reactionLiveKey({ times: [100, 100] })).toEqual([1, -2])
+    expect(reactionLiveKey(null)).toBeNull()
+  })
+
+  it('row shows average, best and progress', () => {
+    expect(reactionRow(done)).toMatchObject({ primary: '250ms', secondary: 'BEST 200ms', progress: 1, status: 'done' })
+    expect(reactionRow(null)).toMatchObject({ primary: '—', progress: 0, status: 'idle' })
   })
 })

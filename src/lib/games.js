@@ -159,21 +159,6 @@ const PairsBoard = lazyWithRetry(() => import('../components/PairsBoard'))
 const MancalaBoard = lazyWithRetry(() => import('../components/MancalaBoard'))
 const HexBoard = lazyWithRetry(() => import('../components/HexBoard'))
 
-const PASSAGES = [
-  "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. A wizard's job is to vex chumps quickly in fog.",
-  "To be yourself in a world that is constantly trying to make you something else is the greatest accomplishment. Never stop being who you are.",
-  "Success is not final, failure is not fatal. It is the courage to continue that counts. Keep moving forward and never give up on your dreams.",
-  "The only way to do great work is to love what you do. If you have not found it yet, keep looking. Do not settle for less than what makes you happy.",
-  "In the middle of every difficulty lies opportunity. Those who dare to fail greatly can achieve greatly. Believe in yourself and your abilities.",
-  "Typing fast requires practice, focus, and the right technique. Keep your fingers on the home row, stay relaxed, and let your muscle memory do the work.",
-  "The best time to plant a tree was twenty years ago. The second best time is now. Start today and your future self will thank you for the effort.",
-  "We are what we repeatedly do. Excellence, then, is not an act but a habit. Small daily improvements over time lead to remarkable results.",
-  "All great things are simple, and many can be expressed in single words such as freedom, justice, honor, duty, mercy, and hope. These words guide us.",
-  "Life is what happens when you are busy making other plans. Enjoy the little things, for one day you may look back and realize they were the big things.",
-  "It does not matter how slowly you go as long as you do not stop. Perseverance and patience are the keys to mastering any skill worth having.",
-  "The secret of getting ahead is getting started. Break your tasks into small steps and tackle one at a time. Progress, not perfection, is the goal.",
-]
-
 // generateNumber moved to numberMemoryLogic.js (single tested source).
 
 function dotsAndBoxesMove(size) {
@@ -706,7 +691,8 @@ export const GAME_TYPES = [
     badge: 'RT', maxWidth: 'max-w-xs',
     category: 'reflex',
     durationMin: 1, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
+    // N-player race (raceLogic.js / RaceShell): a party room of 2–8 racers.
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/ReactionGame')),
   },
   {
@@ -715,21 +701,17 @@ export const GAME_TYPES = [
     badge: 'AT', maxWidth: 'max-w-xs',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/AimTrainerGame')),
   },
   {
     type: 'typing', label: 'TYPING RACE',
-    desc: "outtype your opponent's ghost", Icon: TypingIcon,
+    desc: 'outtype the whole room', Icon: TypingIcon,
     badge: 'TR', maxWidth: 'max-w-sm',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/TypingGame')),
-    // M-52: TypingGame renders its own progress bars (names + live WPM
-    // progress) right above the passage — Game.jsx's generic PlayerCard grid
-    // would just duplicate it and eat vertical space the keyboard needs.
-    hidePlayerCards: true,
   },
   {
     type: 'math', label: 'MENTAL MATH',
@@ -737,12 +719,8 @@ export const GAME_TYPES = [
     badge: 'MM', maxWidth: 'max-w-xs',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/MathGame')),
-    // M-26: MathGame renders its own ScoreBar (names + live score) right
-    // above the question — Game.jsx's generic PlayerCard grid would just
-    // duplicate it and eat vertical space the NumberPad needs.
-    hidePlayerCards: true,
   },
   {
     type: 'arrows', label: 'ARROWS PUZZLE',
@@ -1127,7 +1105,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-08-21',
     durationMin: 3, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/MineRaceGame')),
   },
   {
@@ -1594,6 +1572,9 @@ const FIELD_NULLS = {
   minesRevealedX: null, minesRevealedO: null,
   minesDeadX: null, minesDeadO: null,
   minesDoneX: null, minesDoneO: null,
+  // N-player races (raceLogic.js): the last round's ranking. The live round
+  // itself sits in `round`.
+  raceResult: null,
   herdCow: null,
   chatLog: null,
   // emote currently leaks across game switches — clear it too.
@@ -1654,9 +1635,6 @@ export function freshGameState(gameType, previous = null) {
       chimpDoneX: false, chimpDoneO: false,
       chimpRoundStartedAt: Date.now() }
   }
-  if (gameType === 'reaction') {
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
-  }
   if (gameType === 'pong') {
     // currentTurn omitted (null) — Pong has no turns, so Game.jsx's move-sound
     // detection stays silent and the page drives its own audio.
@@ -1692,25 +1670,6 @@ export function freshGameState(gameType, previous = null) {
   if (gameType === 'pacmac') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       pacmacScoreX: 0, pacmacScoreO: 0 }
-  }
-  if (gameType === 'aim') {
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      aimScoreX: 0, aimScoreO: 0, aimHitsX: 0, aimHitsO: 0, aimFriendlyX: 0, aimFriendlyO: 0 }
-  }
-  if (gameType === 'typing') {
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      typingPassage: PASSAGES[Math.floor(Math.random() * PASSAGES.length)],
-      typingProgressX: 0, typingProgressO: 0 }
-  }
-  if (gameType === 'math') {
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      mathSeed: generateSeed(),
-      mathQIndexX: 0, mathQIndexO: 0, // per-player progression through the same seeded sequence
-      mathScoreX: 0, mathScoreO: 0,
-      mathStreakX: 0, mathStreakO: 0,
-      mathCorrectX: 0, mathCorrectO: 0,
-      mathWrongX: 0, mathWrongO: 0,
-    }
   }
   if (gameType === 'numbermemory') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
@@ -1876,15 +1835,6 @@ export function freshGameState(gameType, previous = null) {
           usedRacks: previousRound.usedRacks || [],
         }
         : null }
-  }
-  if (gameType === 'minesweeper') {
-    // minesStartedAt is written by MineRaceGame once both players are ready
-    // (same flow as typingStartedAt). Revealed positions never touch Firebase.
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      minesSeed: generateSeed(),
-      minesRevealedX: 0, minesRevealedO: 0,
-      minesDeadX: false, minesDeadO: false,
-      minesDoneX: false, minesDoneO: false }
   }
   if (gameType === 'pairs') {
     return { ...FIELD_NULLS, boxes: null, round: null, currentTurn: 'X',

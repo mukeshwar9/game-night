@@ -169,40 +169,42 @@ export const GAME_RULES = {
   },
 
   reaction: {
-    objective: 'React faster than your opponent across four rounds.',
+    objective: 'React faster than everyone else across four rounds (2–8 players).',
     howToPlay: [
       'Wait for the screen to turn green — don’t jump early.',
       'Tap the instant it changes; your reaction time is recorded.',
-      'Play four rounds.',
+      'Play four rounds. Everyone gets the same random waits, so nobody gets an easier start.',
     ],
-    win: 'The lower average reaction time across the rounds wins.',
+    win: 'Lowest average reaction time wins the round. First to 3 round wins takes the match.',
   },
 
   aim: {
-    objective: 'Pop 30 targets as fast and accurately as you can.',
+    objective: 'Hit as many targets as you can in 30 seconds (2–8 players).',
     howToPlay: [
-      'Targets appear one at a time — click each as quickly as possible.',
-      'Both players race through the same set of 30 targets.',
+      'Targets appear one at a time — tap each as quickly as possible.',
+      'Everyone races through the same sequence of targets.',
+      'A tap on empty arena costs a point, so don’t spray.',
     ],
-    win: 'Best combination of speed and accuracy wins the duel.',
+    win: 'Highest score when the 30 seconds run out wins the round. First to 3 round wins takes the match.',
   },
 
   typing: {
-    objective: 'Type the passage faster than your opponent’s ghost.',
+    objective: 'Type the passage faster and more accurately than everyone else (2–8 players).',
     howToPlay: [
-      'Both players type the same passage as quickly and accurately as possible.',
-      'Your opponent’s progress shows as a live ghost you’re racing.',
+      'Everyone types the same passage as quickly and accurately as possible.',
+      'Everyone’s progress shows live in the results table as you race.',
+      'Anyone still typing when the time limit hits is marked DNF.',
     ],
-    win: 'Highest words-per-minute (adjusted for accuracy) wins.',
+    win: 'Highest effective WPM (speed × accuracy) wins the round. First to 3 round wins takes the match.',
   },
 
   math: {
-    objective: 'Solve as many problems as you can in a two-minute blitz.',
+    objective: 'Solve as many problems as you can in a two-minute blitz (2–8 players).',
     howToPlay: [
-      'Answer arithmetic questions one after another.',
-      'Correct answers build your score and streak; both players get the same questions.',
+      'Answer arithmetic questions one after another at your own pace.',
+      'Everyone gets the same questions. Correct answers build your score and streak.',
     ],
-    win: 'Highest score when the two-minute clock runs out wins.',
+    win: 'Highest score when the two-minute clock runs out wins the round. First to 3 round wins takes the match.',
   },
 
   visualmemory: {
@@ -339,14 +341,15 @@ export const GAME_RULES = {
   },
 
   minesweeper: {
-    objective: 'Clear the identical seeded minefield faster than your opponent.',
+    objective: 'Clear the identical seeded minefield faster than everyone else (2–8 players).',
     howToPlay: [
-      'Both players sweep the SAME 12×12 board with 22 hidden mines, simultaneously.',
+      'Everyone sweeps the SAME 12×12 board with 22 hidden mines, simultaneously.',
       'Tap to reveal a cell; numbers show adjacent mines; zeros flood-fill.',
-      'Long-press (or toggle FLAG mode) to mark suspected mines — flags are private.',
+      'Long-press, press F on the focused cell, or toggle FLAG mode to mark suspected mines — flags are private.',
       'Tap a satisfied number to chord-reveal its remaining neighbors.',
+      'Hit a mine and you’re out of the round, ranked below everyone still sweeping.',
     ],
-    win: 'Reveal all 122 safe cells first — or win instantly when your opponent hits a mine.',
+    win: 'Fastest to reveal all 122 safe cells wins the round. First to 3 round wins takes the match.',
   },
 
   herd: {
