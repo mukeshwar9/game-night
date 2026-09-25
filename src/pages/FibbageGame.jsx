@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { ref, onValue, update, runTransaction } from 'firebase/database'
+import { useEffect, useRef, useState } from 'react'
+import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
@@ -15,12 +15,21 @@ import {
   factIndexFor,
   validateLie,
   sameOption,
+  allReady,
+  matchWinners,
   LIE_MAX_LENGTH,
+  FIBBAGE_WIN_SCORE,
+  FIBBAGE_LIE_MS,
+  FIBBAGE_VOTE_MS,
+  FIBBAGE_REVEAL_WAIT_MS,
+  FIBBAGE_REVEAL_ADVANCE_MS,
 } from '../lib/fibbageLogic'
 import { isCoordinator } from '../lib/coordinator'
 import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
 import GameSwitcher from '../components/GameSwitcher'
 import WordFeedback from '../components/WordFeedback'
+import RoundTimer from '../components/RoundTimer'
+import useServerClock from '@/hooks/useServerClock'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
@@ -29,10 +38,15 @@ import { toast } from 'sonner'
 
 const MIN_PLAYERS = 3    // needed in the lobby to START a match
 const MIN_ACTIVE = 2     // needed mid-match to keep a round moving; below this we pause
-const MATCH_WIN_SCORE = 5000
-const LIE_MS = 60_000
-const VOTE_MS = 45_000
-const REVEAL_MS = 20_000
+// Match end: checked after each reveal — the highest score at or past
+// MATCH_WIN_SCORE wins, exact ties are co-champions (fibbageLogic.matchWinners).
+const MATCH_WIN_SCORE = FIBBAGE_WIN_SCORE
+const LIE_MS = FIBBAGE_LIE_MS
+const VOTE_MS = FIBBAGE_VOTE_MS
+const REVEAL_MS = FIBBAGE_REVEAL_WAIT_MS
+// After the lie clock runs out, committed players publish their anonymous lie;
+// the coordinator waits this long for them before building the ballot.
+const SUB_GRACE_MS = 3_000
 
 // sessionStorage key for the player's secret lie ({ text, salt, subKey }) per round.
 // The plaintext + salt never touch Firebase until the reveal phase — matching the
@@ -58,6 +72,13 @@ function normalizeRound(raw) {
     reveals: normalizeMap(raw.reveals),   // { [playerId]: { text, salt } } — reveal phase only
     cheats: normalizeMap(raw.cheats),     // { [playerId]: true } — failed verification
     scored: !!raw.scored,
+    // Server-time deadlines. These were missing here before, so every
+    // `round.*Deadline` check read undefined and an AFK seat stalled the round.
+    lieDeadline: raw.lieDeadline ?? null,
+    voteDeadline: raw.voteDeadline ?? null,
+    revealDeadline: raw.revealDeadline ?? null,
+    advanceAt: raw.advanceAt ?? null,     // scored reveal auto-advances at this time
+    ready: normalizeMap(raw.ready),       // { [playerId]: true } — pressed READY on the reveal
   }
 }
 
@@ -90,8 +111,6 @@ export default function FibbageGame({
 
   const fact = round ? FIBBAGE_FACTS[factIndexFor(round.promptIndex, round.deckSeed, FIBBAGE_FACTS.length)] : null
 
-  const [clockOffset, setClockOffset] = useState(0)
-  const [now, setNow] = useState(() => Date.now())
   const [lieInput, setLieInput] = useState('')
   const [inputError, setInputError] = useState('')
   const [inputErrorId, setInputErrorId] = useState(0)
@@ -99,6 +118,8 @@ export default function FibbageGame({
   const [localVote, setLocalVote] = useState(null)  // optionId I picked locally
   const [submitting, setSubmitting] = useState(false)
   const [sharing, runShare] = useBusy()
+  const [readying, runReady] = useBusy()
+  const [advancing, runAdvance] = useBusy()
   // My own secret — only ever known to me. Used to guard against voting for my own
   // lie and to publish my reveal; the DB never sees it until the reveal phase.
   const [mySecret, setMySecret] = useState(() => (round ? readSecret(gameId, round) : null))
@@ -107,25 +128,20 @@ export default function FibbageGame({
   // `${deckSeed}:${promptIndex}` — changes on every new round, including the
   // first round of a new match (promptIndex restarts at 0 with a new seed).
   const prevRoundKey = useRef(round ? `${round.deckSeed}:${round.promptIndex}` : null)
+  const prevLieKey = useRef(round ? lieKey(gameId, round) : null)
+  const advancingRound = useRef(null)
   const subPublished = useRef(false)
   const revealPublished = useRef(false)
   const scoringStarted = useRef(false)
   const advancingToVoting = useRef(false)
   const advancingToReveal = useRef(false)
 
-  // Corrected clock — every deadline comparison runs through this offset, matching
-  // the serverTimeOffset pattern used elsewhere (see TriviaGame.jsx).
-  useEffect(() => {
-    const offRef = ref(db, '.info/serverTimeOffset')
-    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
-    return () => unsub()
-  }, [])
-  useEffect(() => {
-    if (!round || game.status !== 'playing') return
-    const id = setInterval(() => setNow(Date.now()), 500)
-    return () => clearInterval(id)
-  }, [round?.phase, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
-  const serverNow = now + clockOffset
+  // Server-corrected clock: `serverNow` (re-rendered every tick) drives deadline
+  // checks and countdowns; `readServerNow()` stamps deadlines inside writes.
+  const { now: serverNow, serverNow: readServerNow } = useServerClock({
+    tickMs: 500,
+    ticking: !!round && game.status === 'playing',
+  })
 
   // Reset per-round local state when the prompt advances.
   const roundKey = round ? `${round.deckSeed}:${round.promptIndex}` : null
@@ -137,6 +153,9 @@ export default function FibbageGame({
       setLocalLie(false)
       setLocalVote(null)
       setMySecret(readSecret(gameId, round))
+      // The previous round's lie has been revealed and scored — drop it.
+      if (prevLieKey.current) { try { sessionStorage.removeItem(prevLieKey.current) } catch { /* ignore */ } }
+      prevLieKey.current = lieKey(gameId, round)
       subPublished.current = false
       revealPublished.current = false
       scoringStarted.current = false
@@ -168,12 +187,14 @@ export default function FibbageGame({
   const iCommitted = localLie || (round && round.lies[mySeat] != null)
   const iVoted = localVote != null || (round && round.votes[mySeat] != null)
 
-  // ---- PLAYER: once everyone has committed, publish my plaintext lie into the
-  // anonymous ballot pool (random key → no authorship in the DB). The host builds
-  // the ballot from this pool and then deletes it. ------------------------------
+  // ---- PLAYER: once everyone has committed — or the lie clock ran out — publish
+  // my plaintext lie into the anonymous ballot pool (random key → no authorship in
+  // the DB; everyone publishes at the same moment, so timing doesn't tell). The
+  // coordinator builds the ballot from this pool and then deletes it. ------------
+  const lieClockOut = !!round && round.lieDeadline != null && serverNow >= round.lieDeadline
   useEffect(() => {
     if (!isPlayer || !round || round.phase !== 'lying') return
-    if (!allLied(seats, round.lies)) return
+    if (!allLied(seats, round.lies) && !lieClockOut) return
     if (subPublished.current) return
     const secret = readSecret(gameId, round)
     if (!secret || !secret.text || !secret.subKey) return
@@ -181,14 +202,14 @@ export default function FibbageGame({
     update(ref(db, `games/${gameId}/round/subs`), { [secret.subKey]: secret.text })
       .catch(() => { subPublished.current = false })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlayer, round?.phase, round?.lies, gameId])
+  }, [isPlayer, round?.phase, round?.lies, lieClockOut, gameId])
 
   // ---- COORDINATOR: seed the lying-phase deadline as soon as the round enters
   // 'lying' with none set (fresh round). Anchored server time, not client-local. --
   useEffect(() => {
     if (!amCoordinator || !round || round.phase !== 'lying' || round.lieDeadline) return
-    update(ref(db, `games/${gameId}/round`), { lieDeadline: Date.now() + clockOffset + LIE_MS }).catch(() => {})
-  }, [amCoordinator, round?.phase, round?.lieDeadline, gameId, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
+    update(ref(db, `games/${gameId}/round`), { lieDeadline: readServerNow() + LIE_MS }).catch(() => {})
+  }, [amCoordinator, round?.phase, round?.lieDeadline, gameId, readServerNow]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- COORDINATOR: lying → voting once everyone committed AND all anonymous lies
   // are in — OR the lie deadline has passed, in which case we build the ballot from
@@ -202,14 +223,17 @@ export default function FibbageGame({
     if (!allLied(seats, round.lies) && !deadlinePassed) return
     const committedIds = Object.keys(round.lies)
     const texts = Object.values(round.subs)
-    if (texts.length < committedIds.length && !deadlinePassed) return // wait for every anonymous submission
+    // Wait for every anonymous submission; past the deadline, give committed
+    // players a short grace to publish before building the ballot without them.
+    const graceOver = deadlinePassed && serverNow >= round.lieDeadline + SUB_GRACE_MS
+    if (texts.length < committedIds.length && !graceOver) return
     if (advancingToVoting.current) return
     advancingToVoting.current = true
     const seed = hashString(`${gameId}:${round.deckSeed ?? ''}:${round.promptIndex}`)
     const options = buildOptions(fact.answer, texts, seed)
     runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.phase !== 'lying') return current // already advanced
-      return { ...current, phase: 'voting', options, subs: null, voteDeadline: Date.now() + clockOffset + VOTE_MS }
+      return { ...current, phase: 'voting', options, subs: null, voteDeadline: readServerNow() + VOTE_MS }
     }).catch(() => { advancingToVoting.current = false })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amCoordinator, round?.phase, round?.lies, round?.subs, round?.lieDeadline, serverNow, paused, gameId])
@@ -224,9 +248,9 @@ export default function FibbageGame({
     advancingToReveal.current = true
     runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.phase !== 'voting') return current // already advanced
-      return { ...current, phase: 'reveal', revealDeadline: Date.now() + clockOffset + REVEAL_MS }
+      return { ...current, phase: 'reveal', revealDeadline: readServerNow() + REVEAL_MS }
     }).catch(() => { advancingToReveal.current = false })
-  }, [amCoordinator, round?.phase, round?.votes, round?.voteDeadline, serverNow, paused, gameId, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [amCoordinator, round?.phase, round?.votes, round?.voteDeadline, serverNow, paused, gameId, readServerNow]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- PLAYER: publish my author→lie reveal — ONLY now, at the reveal phase. This
   // is the first (and only) time the DB learns who wrote which lie. ---------------
@@ -280,6 +304,9 @@ export default function FibbageGame({
               ...current.round,
               scored: true,
               cheats: Object.keys(cheats).length ? cheats : null,
+              // Everyone gets a fixed look at the answers, then the round moves on.
+              advanceAt: readServerNow() + FIBBAGE_REVEAL_ADVANCE_MS,
+              ready: null,
             },
           }
         })
@@ -292,7 +319,7 @@ export default function FibbageGame({
   }, [amCoordinator, round?.phase, round?.reveals, round?.scored, round?.revealDeadline, serverNow, gameId])
 
   // ---- Submit my lie (commit hash now; plaintext stays local until reveal) ------
-  const handleSubmitLie = useCallback(async () => {
+  const handleSubmitLie = async () => {
     if (!isPlayer || iCommitted || submitting) return
     // Rejects the truth in disguise ("SCOTLAND!", "Scotlnd", "3" for "three"),
     // symbol-only and banned lies — see fibbageLogic.validateLie.
@@ -318,10 +345,10 @@ export default function FibbageGame({
     } finally {
       setSubmitting(false)
     }
-  }, [isPlayer, iCommitted, submitting, lieInput, fact, gameId, round, mySeat])
+  }
 
   // ---- Cast my vote (BUG 1 fix: write an object of children, not a bare string) -
-  const handleVote = useCallback(async (optionId) => {
+  const handleVote = async (optionId) => {
     if (!isPlayer || iVoted) return
     // Cannot vote for your own lie. The ballot carries no authorship, so this is
     // checked locally against my own secret text (which only I know) — loosely,
@@ -339,25 +366,65 @@ export default function FibbageGame({
       setLocalVote(null)
       setInputError('VOTE FAILED — RETRY')
     }
-  }, [isPlayer, iVoted, round, gameId, mySeat, mySecret])
+  }
 
-  // ---- Next prompt (any player can advance, but only once the round has actually
-  // scored — otherwise a stray/racy click could skip a round before it's tallied) --
-  const handleNextPrompt = useCallback(async () => {
-    if (!isPlayer || !round || round.phase !== 'reveal' || !round.scored) return
-    // promptIndex counts rounds (no wrap): factIndexFor maps it through this
-    // match's shuffled order, reshuffling after each full pass of the deck.
-    const nextIndex = round.promptIndex + 1
-    const matchOver = Object.values(game.scores || {}).some(s => s >= MATCH_WIN_SCORE)
-    sessionStorage.removeItem(lieKey(gameId, round))
-    try {
-      await update(ref(db, `games/${gameId}`), {
-        round: { phase: 'lying', promptIndex: nextIndex, deckSeed: round.deckSeed ?? null },
-        status: matchOver ? 'finished' : 'playing',
+  // ---- Advance past a scored reveal: next prompt, or match over. A transaction
+  // pinned to this round (promptIndex + deckSeed) so the coordinator's timer and a
+  // NEXT press can't double-advance. Match end: highest score at or past
+  // MATCH_WIN_SCORE wins; an exact tie is shared (never seat order). --------------
+  const advanceRound = async () => {
+    if (!round || round.phase !== 'reveal' || !round.scored) return
+    const fromIndex = round.promptIndex
+    const fromSeed = round.deckSeed ?? null
+    await runTransaction(ref(db, `games/${gameId}`), current => {
+      const r = current?.round
+      if (!r || r.phase !== 'reveal' || !r.scored) return // already advanced
+      if ((r.promptIndex ?? 0) !== fromIndex || (r.deckSeed ?? null) !== fromSeed) return
+      const winners = matchWinners(current.scores, seatOrder(current.players || {}), MATCH_WIN_SCORE)
+      if (winners.length > 0) {
+        return {
+          ...current,
+          status: 'finished',
+          winner: winners.length === 1 ? winners[0] : null,
+          proposal: null,
+        }
+      }
+      // promptIndex counts rounds (no wrap): factIndexFor maps it through this
+      // match's shuffled order, reshuffling after each full pass of the deck.
+      return {
+        ...current,
+        round: { phase: 'lying', promptIndex: fromIndex + 1, deckSeed: fromSeed },
         proposal: null,
-      })
-    } catch { /* ignore */ }
-  }, [isPlayer, round, game.scores, gameId])
+      }
+    })
+  }
+
+  // ---- COORDINATOR: the scored reveal auto-advances once FIBBAGE_REVEAL_ADVANCE_MS
+  // has passed (or everyone pressed READY), so no single player can cut the
+  // reveal short or hold the table hostage. ---------------------------------------
+  useEffect(() => {
+    if (!amCoordinator || !round || round.phase !== 'reveal' || !round.scored || paused) return
+    if (round.advanceAt == null) {
+      // Round scored by an older client with no timer — start one now.
+      update(ref(db, `games/${gameId}/round`), { advanceAt: readServerNow() + FIBBAGE_REVEAL_ADVANCE_MS }).catch(() => {})
+      return
+    }
+    if (serverNow < round.advanceAt && !allReady(seats, round.ready)) return
+    if (advancingRound.current === roundKey) return
+    advancingRound.current = roundKey
+    advanceRound().catch(() => { advancingRound.current = null })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amCoordinator, round?.phase, round?.scored, round?.advanceAt, round?.ready, serverNow, paused, roundKey, gameId])
+
+  const handleReady = () => runReady(
+    () => update(ref(db, `games/${gameId}/round/ready`), { [mySeat]: true }),
+    () => toast.error('READY FAILED — CHECK CONNECTION'),
+  )
+
+  const handleNext = () => runAdvance(
+    advanceRound,
+    () => toast.error('NEXT ROUND FAILED — CHECK CONNECTION'),
+  )
 
   // -------------------------------------------------------------------------
   // WAITING / START screen (status !== 'playing')
@@ -367,7 +434,16 @@ export default function FibbageGame({
     const ranked = seatOrder(players || {})
       .map(id => ({ id, name: players[id]?.name || id, score: scores[id] || 0 }))
       .sort((a, b) => b.score - a.score)
-    const champ = ranked[0]
+    // Champions: highest score at or past the target; exact ties share the title.
+    const champIds = matchWinners(scores, seatOrder(players || {}), MATCH_WIN_SCORE)
+    const champs = champIds.length > 0
+      ? champIds.map(id => ranked.find(p => p.id === id))
+      : (ranked[0] ? [ranked[0]] : [])
+    const champ = champs[0]
+    const iWon = champs.some(p => p.id === mySeat)
+    const champHeadline = champs.length > 1
+      ? (iWon ? 'YOU SHARE THE WIN!' : `${champs.map(p => p.name.toUpperCase()).join(' & ')} TIE`)
+      : (iWon ? 'YOU WIN!' : `${(champ?.name || '').toUpperCase()} WINS`)
 
     return (
       <div className="space-y-5 text-center">
@@ -375,8 +451,11 @@ export default function FibbageGame({
           <div className="space-y-1">
             <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
             <p className="font-pixel text-base text-retro-cta text-glow-cta">
-              {champ.id === mySeat ? 'YOU WIN!' : `${champ.name.toUpperCase()} WINS`}
+              {champHeadline}
             </p>
+            {champs.length > 1 && (
+              <p className="font-pixel text-[9px] text-retro-dim">EXACT TIE — CO-CHAMPIONS</p>
+            )}
           </div>
         )}
 
@@ -444,9 +523,7 @@ export default function FibbageGame({
               onClick={() => runShare(async () => {
                 const ok = await shareResult({
                   gameLabel: 'FIBBAGE',
-                  headline: champ?.id === mySeat
-                    ? 'YOU WIN!'
-                    : `${(champ?.name || '').toUpperCase()} WINS`,
+                  headline: champHeadline,
                   sub: 'Fibbage · Game Night',
                   accentVar: '--c-cta',
                   url: window.location.href,
@@ -514,6 +591,9 @@ export default function FibbageGame({
     ? attributeOptions(round.options, fact.answer, verifiedLies)
     : round.options
   const cheaterNames = Object.keys(round.cheats).map(pid => players[pid]?.name || pid)
+  const iReady = !!round.ready[mySeat]
+  const readyCount = seats.filter(id => round.ready[id]).length
+  const everyoneReady = allReady(seats, round.ready)
 
   return (
     <div className="space-y-4">
@@ -559,6 +639,7 @@ export default function FibbageGame({
               {isPlayer ? 'LIE LOCKED ✓' : 'SPECTATING'}
             </p>
           )}
+          <RoundTimer endsAt={round.lieDeadline} now={serverNow} totalMs={LIE_MS} label="LIE TIME" />
           <p className="font-pixel text-[9px] text-retro-dim text-center">
             {committedCount}/{seats.length} LIED…
           </p>
@@ -590,6 +671,7 @@ export default function FibbageGame({
             )
           })}
           <WordFeedback message={inputError} tone="bad" id={inputErrorId} />
+          <RoundTimer endsAt={round.voteDeadline} now={serverNow} totalMs={VOTE_MS} label="VOTE TIME" />
           <p className="font-pixel text-[9px] text-retro-dim text-center pt-1">
             {iVoted ? `VOTED ✓ — ${votedCount}/${seats.length} IN` : isPlayer ? 'PICK THE TRUTH' : 'SPECTATING'}
           </p>
@@ -665,12 +747,29 @@ export default function FibbageGame({
                   ))}
               </div>
 
-              {isPlayer && (
+              <RoundTimer
+                endsAt={round.advanceAt}
+                now={serverNow}
+                totalMs={FIBBAGE_REVEAL_ADVANCE_MS}
+                label="NEXT ROUND IN"
+                lowMs={3000}
+              />
+              {isPlayer && (amCoordinator || everyoneReady) && (
                 <button
-                  onClick={handleNextPrompt}
-                  className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+                  onClick={handleNext}
+                  disabled={advancing}
+                  className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-40"
                 >
-                  NEXT PROMPT
+                  {advancing ? 'STARTING…' : 'NEXT PROMPT'}
+                </button>
+              )}
+              {isPlayer && !amCoordinator && !everyoneReady && (
+                <button
+                  onClick={handleReady}
+                  disabled={iReady || readying}
+                  className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-60"
+                >
+                  {iReady ? `READY ✓ ${readyCount}/${seats.length}` : readying ? 'SENDING…' : 'READY'}
                 </button>
               )}
             </>

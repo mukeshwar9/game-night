@@ -17,6 +17,9 @@ import {
   sameOption,
   isTruthLike,
   validateLie,
+  allReady,
+  matchWinners,
+  FIBBAGE_WIN_SCORE,
 } from './fibbageLogic'
 import { FIBBAGE_FACTS } from './decks/fibbage'
 
@@ -486,5 +489,40 @@ describe('buildOptions / attributeOptions with loose matching', () => {
     const rich = attributeOptions(legacy, 'Scotland', { p1: 'Scotlnd' })
     expect(rich.find(o => o.id === 'opt-0').by).toBeNull()
     expect(rich.find(o => o.id === 'opt-1').by).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// allReady / matchWinners — reveal pacing and match-end ties
+// ---------------------------------------------------------------------------
+describe('allReady', () => {
+  it('is true only when every eligible player is ready', () => {
+    expect(allReady(['a', 'b'], { a: true, b: true })).toBe(true)
+    expect(allReady(['a', 'b'], { a: true })).toBe(false)
+    expect(allReady(['a', 'b'], null)).toBe(false)
+  })
+
+  it('is false for an empty table', () => {
+    expect(allReady([], { a: true })).toBe(false)
+  })
+})
+
+describe('matchWinners', () => {
+  const ids = ['p1', 'p2', 'p3']
+
+  it('returns nobody below the target', () => {
+    expect(matchWinners({ p1: 4500 }, ids)).toEqual([])
+  })
+
+  it('regression: highest score wins when several cross together — not seat order', () => {
+    expect(matchWinners({ p1: 5000, p2: 6500, p3: 5500 }, ids)).toEqual(['p2'])
+  })
+
+  it('exact tie at the top makes co-champions', () => {
+    expect(matchWinners({ p1: 6000, p2: 6000, p3: 5000 }, ids)).toEqual(['p1', 'p2'])
+  })
+
+  it('uses FIBBAGE_WIN_SCORE by default', () => {
+    expect(matchWinners({ p3: FIBBAGE_WIN_SCORE }, ids)).toEqual(['p3'])
   })
 })

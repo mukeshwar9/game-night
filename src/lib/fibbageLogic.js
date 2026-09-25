@@ -42,6 +42,13 @@ export const POINTS_FOR_TRUTH = 1000
 export const POINTS_PER_FOOL = 500
 export const LIE_MAX_LENGTH = 60
 
+// Pacing — starting values, tune in playtests.
+export const FIBBAGE_WIN_SCORE = 5000          // first to this ends the match (checked after each reveal)
+export const FIBBAGE_LIE_MS = 60_000           // time to write a lie
+export const FIBBAGE_VOTE_MS = 45_000          // time to vote
+export const FIBBAGE_REVEAL_WAIT_MS = 20_000   // max wait for authors to publish reveals before scoring
+export const FIBBAGE_REVEAL_ADVANCE_MS = 10_000 // scored reveal stays up this long, then the next round starts
+
 // ---------------------------------------------------------------------------
 // Answer matching — one loose key for "is this the same option?" so casing,
 // punctuation, a leading article or a plural never splits or leaks an option.
@@ -263,4 +270,24 @@ export function allLied(eligibleIds, lies) {
 export function allRevealed(eligibleIds, reveals) {
   const r = reveals || {}
   return eligibleIds.length > 0 && eligibleIds.every(id => r[id] != null)
+}
+
+// True once every eligible player pressed READY on the reveal screen — the
+// round may then advance before FIBBAGE_REVEAL_ADVANCE_MS runs out.
+export function allReady(eligibleIds, ready) {
+  const r = ready || {}
+  return eligibleIds.length > 0 && eligibleIds.every(id => !!r[id])
+}
+
+/**
+ * Match champions. Nobody until someone reaches `target`; then the highest
+ * score among `ids` wins and an exact tie at the top is shared (co-champions)
+ * — never decided by seat order. Returns ids in `ids` order.
+ */
+export function matchWinners(scores, ids, target = FIBBAGE_WIN_SCORE) {
+  const list = ids || []
+  const score = id => Number(scores?.[id]) || 0
+  const top = list.reduce((max, id) => Math.max(max, score(id)), -Infinity)
+  if (!(top >= target)) return []
+  return list.filter(id => score(id) === top)
 }
