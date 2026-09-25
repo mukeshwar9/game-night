@@ -3,6 +3,7 @@ import {
   HERD_TARGET,
   ANSWER_MS,
   normalizeAnswer,
+  displaySpelling,
   groupAnswers,
   scoreGroups,
   nextCow,
@@ -14,37 +15,68 @@ import {
 import { HERD_PROMPTS } from './decks/herd'
 
 describe('normalizeAnswer', () => {
-  it('lowercases, trims and collapses whitespace', () => {
-    expect(normalizeAnswer('  Pepperoni   Pizza ')).toBe('pepperoni pizza')
+  it('ignores case, surrounding and repeated whitespace', () => {
+    expect(normalizeAnswer('  Pepperoni   Pizza ')).toBe(normalizeAnswer('pepperoni pizza'))
   })
-  it('strips punctuation', () => {
-    expect(normalizeAnswer('Mac & Cheese!')).toBe('mac cheese')
-    expect(normalizeAnswer("kid's")).toBe('kids')
+  it('ignores punctuation', () => {
+    expect(normalizeAnswer('Pepperoni!')).toBe(normalizeAnswer('pepperoni'))
+    expect(normalizeAnswer("kid's")).toBe(normalizeAnswer('kids'))
   })
-  it('folds a naive plural (tacos == taco)', () => {
+  it('folds regular plurals, including short stems (cats == cat, dogs == dog)', () => {
     expect(normalizeAnswer('tacos')).toBe(normalizeAnswer('taco'))
+    expect(normalizeAnswer('cats')).toBe(normalizeAnswer('cat'))
+    expect(normalizeAnswer('dogs')).toBe(normalizeAnswer('dog'))
+    expect(normalizeAnswer('cows')).toBe(normalizeAnswer('cow'))
+    expect(normalizeAnswer('keys')).toBe(normalizeAnswer('key'))
+    expect(normalizeAnswer('pies')).toBe(normalizeAnswer('pie'))
   })
-  it('does not fold words ending in ss', () => {
-    expect(normalizeAnswer('chess')).toBe('chess')
-    expect(normalizeAnswer('class')).toBe('class')
-    expect(normalizeAnswer('bus')).toBe('bus')
+  it('folds -ies, -oes and -es plurals', () => {
+    expect(normalizeAnswer('cherries')).toBe(normalizeAnswer('cherry'))
+    expect(normalizeAnswer('Strawberries')).toBe(normalizeAnswer('strawberry'))
+    expect(normalizeAnswer('tomatoes')).toBe(normalizeAnswer('tomato'))
+    expect(normalizeAnswer('potatoes')).toBe(normalizeAnswer('potato'))
+    expect(normalizeAnswer('glasses')).toBe(normalizeAnswer('glass'))
+    expect(normalizeAnswer('boxes')).toBe(normalizeAnswer('box'))
+    expect(normalizeAnswer('sandwiches')).toBe(normalizeAnswer('sandwich'))
   })
-  it('does not fold when the stem would be under 4 chars', () => {
+  it('does not strip the s from singular words ending in s', () => {
+    expect(normalizeAnswer('chess')).not.toBe(normalizeAnswer('ches'))
     expect(normalizeAnswer('bus')).toBe('bus')
     expect(normalizeAnswer('lens')).toBe('lens')
-    expect(normalizeAnswer('pies')).toBe('pies') // stem 'pie' is 3
+    expect(normalizeAnswer('class')).toBe('class')
   })
-  it('keeps the s when the stem has no vowel (rhythms)', () => {
-    expect(normalizeAnswer('rhythms')).toBe('rhythms')
+  it('folds a leading article, & vs and, spaces and hyphens', () => {
+    expect(normalizeAnswer('a dog')).toBe(normalizeAnswer('dog'))
+    expect(normalizeAnswer('The Beach')).toBe(normalizeAnswer('beach'))
+    expect(normalizeAnswer('mac & cheese')).toBe(normalizeAnswer('mac and cheese'))
+    expect(normalizeAnswer('hot dog')).toBe(normalizeAnswer('hotdog'))
+    expect(normalizeAnswer('ice-cream')).toBe(normalizeAnswer('ice cream'))
   })
-  it('leaves short words alone', () => {
-    expect(normalizeAnswer('cats')).toBe('cats') // stem 'cat' is 3
-    expect(normalizeAnswer('dog')).toBe('dog')
+  it('folds accents', () => {
+    expect(normalizeAnswer('Jalapeño')).toBe(normalizeAnswer('jalapeno'))
+    expect(normalizeAnswer('café')).toBe(normalizeAnswer('cafe'))
+  })
+  it('keeps genuinely different answers apart', () => {
+    expect(normalizeAnswer('cat')).not.toBe(normalizeAnswer('car'))
+    expect(normalizeAnswer('apple')).not.toBe(normalizeAnswer('cherry'))
   })
   it('handles null/undefined/blank', () => {
     expect(normalizeAnswer(null)).toBe('')
     expect(normalizeAnswer(undefined)).toBe('')
     expect(normalizeAnswer('   ')).toBe('')
+  })
+})
+
+describe('displaySpelling', () => {
+  it('picks the most common raw spelling, case-insensitively', () => {
+    expect(displaySpelling(['cherry', 'Cherries', 'cherries'])).toBe('Cherries')
+  })
+  it('breaks a tie by submission order', () => {
+    expect(displaySpelling(['Strawberry', 'strawberries'])).toBe('Strawberry')
+    expect(displaySpelling(['strawberries', 'Strawberry'])).toBe('strawberries')
+  })
+  it('trims and collapses whitespace in what it shows', () => {
+    expect(displaySpelling(['  ice   cream '])).toBe('ice cream')
   })
 })
 
@@ -54,7 +86,7 @@ describe('groupAnswers', () => {
   it('groups exact matches on the normalized form', () => {
     const groups = g({ a: 'Pepperoni!', b: 'pepperoni', c: 'Mushroom' })
     expect(groups).toHaveLength(2)
-    expect(groups[0].norm).toBe('pepperoni')
+    expect(groups[0].norm).toBe(normalizeAnswer('pepperoni'))
     expect(groups[0].members).toEqual(['a', 'b'])
     expect(groups[1].members).toEqual(['c'])
   })
@@ -78,6 +110,33 @@ describe('groupAnswers', () => {
   it('handles null/undefined input', () => {
     expect(g(null)).toEqual([])
     expect(g(undefined)).toEqual([])
+  })
+
+  it('regression: plural/singular answers group and the majority scores', () => {
+    // Previously five singletons and 0 points although four players agreed.
+    const answers = { p1: 'Strawberry', p2: 'strawberries', p3: 'Cherries', p4: 'cherry', p5: 'apple' }
+    const groups = g(answers, ['p1', 'p2', 'p3', 'p4', 'p5'])
+    expect(groups.map(x => x.members.length)).toEqual([2, 2, 1])
+    expect(scoreGroups(groups).pointUids.sort()).toEqual(['p1', 'p2', 'p3', 'p4'])
+    expect(nextCow(groups, null, Object.keys(answers))).toEqual({ cow: 'p5', transferred: true })
+  })
+
+  it('regression: the reveal shows a raw spelling, never the normalized key', () => {
+    const groups = g(
+      { p1: 'Strawberry', p2: 'strawberries', p3: 'Cherries', p4: 'cherry', p5: 'Mac & Cheese', p6: 'mac and cheese', p7: 'mac & cheese' },
+      ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'],
+    )
+    const byMember = Object.fromEntries(groups.map(x => [x.members[0], x.display]))
+    expect(byMember.p1).toBe('Strawberry') // tie → first submitted
+    expect(byMember.p3).toBe('Cherries')
+    expect(byMember.p5).toBe('Mac & Cheese') // "mac & cheese" ×2 beats "mac and cheese" ×1
+    for (const x of groups) expect(x.display).not.toBe(x.norm)
+  })
+
+  it('without a submit order, display ties fall back to key order', () => {
+    const groups = g({ a: 'Dogs', b: 'dog' })
+    expect(groups).toHaveLength(1)
+    expect(groups[0].display).toBe('Dogs')
   })
 })
 

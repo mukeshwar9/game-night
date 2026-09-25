@@ -440,7 +440,7 @@ export default function HerdGame({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className={cn('font-mono text-[12px] truncate', isWinning && 'text-retro-win')}>
-                          {grp.norm}
+                          {grp.display}
                         </span>
                         {isWinning && (
                           <span className="font-pixel text-[8px] text-retro-win shrink-0">+1 EACH</span>

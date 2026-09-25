@@ -21,6 +21,7 @@
 // singleton while everyone else grouped. The Cow holder cannot win the match.
 
 import { seededShuffle } from './fibbageLogic'
+import { matchKey } from './textMatchLogic'
 
 // Points needed to win the match — but never while holding the Cow.
 export const HERD_TARGET = 8
@@ -31,49 +32,71 @@ export const ANSWER_MS = 45000
 export { seededShuffle }
 
 // ---------------------------------------------------------------------------
-// normalizeAnswer — the plural-folding normalizer every client groups with.
-// Deterministic by construction: same input → same output everywhere.
+// normalizeAnswer — the grouping key every client groups with. Delegates to the
+// shared textMatchLogic.matchKey so answers players would call "the same" land
+// in one group: case, accents, punctuation, a leading article, "&" → "and",
+// spaces/hyphens and English plurals (dogs, cherries, tomatoes, glasses) all
+// fold. Deterministic by construction: same input → same key everywhere.
+// The key is for comparison only — never display it (see groupAnswers.display).
 // ---------------------------------------------------------------------------
-
-// Lowercase → trim → strip punctuation → collapse whitespace → naive plural
-// fold: drop ONE trailing 's' only when ALL guards pass:
-//   1. the word does not end in 'ss'      ('chess', 'class', 'bus' stay whole —
-//                                          a min-stem/vowel guard alone CANNOT
-//                                          save 'chess': 'ches' is 4 chars with
-//                                          a vowel, so the ss-guard is required)
-//   2. the stem is at least 4 chars       ('bus'→'bu', 'lens'→'len' rejected)
-//   3. the stem contains a vowel          ('rhythms' keeps its s)
-// So 'tacos' == 'taco' but 'chess' != 'ches'. Exact heuristic is unit-tested
-// and easy to tune (see docs/prds/herd-mind.md).
 export function normalizeAnswer(answer) {
-  let s = String(answer ?? '').toLowerCase().trim()
-  s = s.replace(/[^\p{L}\p{N}\s]/gu, '') // strip punctuation (keep letters/digits/spaces)
-  s = s.replace(/\s+/g, ' ').trim() // collapse whitespace runs
-  if (s.endsWith('s') && !s.endsWith('ss')) {
-    const stem = s.slice(0, -1)
-    if (stem.length >= 4 && /[aeiou]/.test(stem)) s = stem
+  return matchKey(answer)
+}
+
+// How a raw answer counts as "the same spelling" when picking what to display:
+// trimmed, whitespace collapsed, case-insensitive.
+function spellingKey(text) {
+  return String(text ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+// The spelling to show for a group: the most common raw spelling among its
+// answers; ties go to the spelling submitted first. `texts` is in submission
+// order.
+export function displaySpelling(texts) {
+  const counts = new Map()
+  const firstSeen = new Map()
+  texts.forEach((t, i) => {
+    const k = spellingKey(t)
+    if (!k) return
+    counts.set(k, (counts.get(k) || 0) + 1)
+    if (!firstSeen.has(k)) firstSeen.set(k, { i, text: String(t).trim().replace(/\s+/g, ' ') })
+  })
+  let best = null
+  for (const [k, n] of counts) {
+    const cand = { n, ...firstSeen.get(k) }
+    if (!best || cand.n > best.n || (cand.n === best.n && cand.i < best.i)) best = cand
   }
-  return s
+  return best ? best.text : ''
 }
 
 // ---------------------------------------------------------------------------
-// groupAnswers — exact-match grouping on the normalized form.
+// groupAnswers — exact-match grouping on the normalized key.
 // answers: { [uid]: text }. Blank/whitespace answers are non-answers: excluded
 // from grouping AND from cow logic (empty ≠ singleton).
-// Returns [{ norm, members: [uid] }] sorted biggest-first; equal sizes break
-// ties alphabetically by norm so EVERY client derives an identical order.
+// submitOrder (optional): uids in the order they answered — decides which
+// spelling a group displays on a tie. Uids not listed follow in key order.
+// Returns [{ norm, display, members: [uid] }] sorted biggest-first; equal sizes
+// break ties alphabetically by norm so EVERY client derives an identical order.
 // Members are sorted lexicographically for the same reason.
 // ---------------------------------------------------------------------------
-export function groupAnswers(answers) {
+export function groupAnswers(answers, submitOrder = null) {
+  const entries = Object.entries(answers || {})
+  if (Array.isArray(submitOrder) && submitOrder.length) {
+    const rank = new Map(submitOrder.map((uid, i) => [uid, i]))
+    const at = uid => (rank.has(uid) ? rank.get(uid) : submitOrder.length)
+    entries.sort((a, b) => at(a[0]) - at(b[0]))
+  }
   const byNorm = new Map()
-  for (const [uid, text] of Object.entries(answers || {})) {
+  for (const [uid, text] of entries) {
     const norm = normalizeAnswer(text)
     if (!norm) continue // non-answer
-    if (!byNorm.has(norm)) byNorm.set(norm, [])
-    byNorm.get(norm).push(uid)
+    if (!byNorm.has(norm)) byNorm.set(norm, { members: [], texts: [] })
+    const g = byNorm.get(norm)
+    g.members.push(uid)
+    g.texts.push(text)
   }
   return [...byNorm.entries()]
-    .map(([norm, members]) => ({ norm, members: members.sort() }))
+    .map(([norm, g]) => ({ norm, display: displaySpelling(g.texts), members: g.members.sort() }))
     .sort((a, b) => (b.members.length - a.members.length) || a.norm.localeCompare(b.norm))
 }
 

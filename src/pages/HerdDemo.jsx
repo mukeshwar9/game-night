@@ -296,7 +296,7 @@ export default function HerdDemo() {
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-pixel text-[11px] text-retro-text truncate">{g.norm.toUpperCase()}</span>
+                      <span className="font-pixel text-[11px] text-retro-text truncate">{g.display.toUpperCase()}</span>
                       <span className="flex items-center gap-2 shrink-0">
                         {isWinner && (
                           <span className="font-pixel text-[8px] text-retro-win">+1 EACH</span>
