@@ -11,7 +11,7 @@ import {
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
-  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, BlockadeIcon, PairsIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, WordRaceIcon, BlockadeIcon, PairsIcon,
   WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
@@ -65,6 +65,7 @@ import HerdDemo from './HerdDemo';
 import ArrowsDemo from './ArrowsDemo';
 import HangmanDemo from './HangmanDemo';
 import WordDuelDemo from './WordDuelDemo';
+import WordRaceDemo from './WordRaceDemo';
 
 function generateNumberLocal(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
@@ -2015,6 +2016,7 @@ const DEMOS = [
   // Solo / hangwoman
   { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
   { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: WordDuelDemo     },
+  { type: 'wordrace',     short: 'WORD\nRACE',    Icon: WordRaceIcon,     Component: WordRaceDemo     },
   { type: 'wordhunt',     short: 'WORD\nHUNT',    Icon: WordHuntIcon,     Component: WordHuntDemo     },
   // Party cards (2+ players only)
   { type: 'twotruths',    short: 'TWO\nTRUTHS',   Icon: TwoTruthsIcon,    Component: () => <PartyGameCard type="twotruths" />   },

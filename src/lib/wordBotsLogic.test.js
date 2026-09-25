@@ -4,10 +4,12 @@ import {
   isConsistent, filterCandidates, rankCandidates, enumerateWordleCandidates,
   wordleTopK, pickWordleGuess, playWordleBoard, wordleThinkMs, pickCpuSecret,
   botRowTimes, botRowsShown, botDoneState, playerDoneState, tallyWins, matchWinner,
+  landBotGuesses, advanceBotRace,
   HANGMAN_CPU_WORDS, HANGMAN_LETTER_ORDER, HANGMAN_THINK_MS,
   pickKeeperWord, hangmanPattern, hangmanCandidates, pickHangmanGuess, hangmanThinkMs,
 } from './wordBotsLogic'
 import { markGuess, MAX_GUESSES } from './wordduelLogic'
+import { applyGuessForPlayer, FINISH_GRACE_MS } from './wordraceLogic'
 import { getAnswerList, has, isAnswerWord } from './dictionary'
 import { isFamilySafe } from './wordDenylist'
 import { createDictionary } from './wordhuntLogic'
@@ -209,6 +211,65 @@ describe('timed bot boards and match tally', () => {
     expect(matchWinner({ X: 3, O: 1 }, 3)).toBe('X')
     expect(matchWinner({ X: 1, O: 2 }, 2)).toBe('O')
     expect(matchWinner({ X: 2, O: 2 }, 3)).toBeNull()
+  })
+})
+
+describe('Word Race bot clock', () => {
+  const answer = 'light'
+  const baseRound = () => ({
+    phase: 'playing', roundNum: 1, answer, startedAt: 1000,
+    guessesX: [], guessesO: [], doneX: null, doneO: null, result: null, used: [0],
+  })
+  const game = (round, scores = { X: 0, O: 0 }) => ({ status: 'playing', scores, round })
+  const rows = [
+    { word: 'crane', thinkMs: 4000 },
+    { word: 'moist', thinkMs: 8000 },
+    { word: 'light', thinkMs: 9000 },
+  ]
+
+  it('lands bot rows on the round clock, graded against the pinned answer', () => {
+    const r1 = landBotGuesses(baseRound(), { rows, answer, now: 1000 + 5000 })
+    expect(r1.guessesO).toHaveLength(1)
+    expect(r1.guessesO[0]).toMatchObject({ word: 'crane', marks: markGuess('crane', answer), at: 5000 })
+    const r3 = landBotGuesses(r1, { rows, answer, now: 1000 + 21000 })
+    expect(r3.guessesO).toHaveLength(3)
+    expect(r3.doneO).toEqual({ solved: true, guesses: 3, at: 22000 })
+  })
+
+  it('returns the same round when no row is due', () => {
+    const round = baseRound()
+    expect(landBotGuesses(round, { rows, answer, now: 1000 })).toBe(round)
+    const g = game(round)
+    expect(advanceBotRace(g, { rows, now: 1000 })).toBe(g)
+  })
+
+  it('a bot row due after the grace clock never lands — the bot times out', () => {
+    let round = applyGuessForPlayer(baseRound(), 'X', 'light', answer, 2000)
+    expect(round.doneX.solved).toBe(true)
+    const slow = [{ word: 'crane', thinkMs: 4000 }, { word: 'light', thinkMs: FINISH_GRACE_MS + 5000 }]
+    round = landBotGuesses(round, { rows: slow, answer, now: 999_999 })
+    expect(round.guessesO).toHaveLength(1)
+    const next = advanceBotRace(game(round), { rows: slow, now: 2000 + FINISH_GRACE_MS })
+    expect(next.round.phase).toBe('reveal')
+    expect(next.round.result).toEqual({ winner: 'X', reason: 'solved' })
+    expect(next.round.doneO.timedOut).toBe(true)
+    expect(next.scores).toEqual({ X: 1, O: 0 })
+  })
+
+  it('ranks both finished boards with the race rules (fewer guesses first)', () => {
+    let round = applyGuessForPlayer(baseRound(), 'X', 'moist', answer, 3000)
+    round = applyGuessForPlayer(round, 'X', 'light', answer, 30_000)
+    const next = advanceBotRace(game(round), { rows, now: 1000 + 21000 })
+    expect(next.round.result.winner).toBe('X')
+    expect(next.scores.X).toBe(1)
+  })
+
+  it('finishes the match at the target', () => {
+    const round = applyGuessForPlayer(baseRound(), 'X', 'light', answer, 2000)
+    const done = { ...round, doneO: { solved: false, guesses: 6, at: 3000 } }
+    const next = advanceBotRace(game(done, { X: 2, O: 1 }), { rows: [], now: 4000, matchTarget: 3 })
+    expect(next.status).toBe('finished')
+    expect(next.winner).toBe('X')
   })
 })
 

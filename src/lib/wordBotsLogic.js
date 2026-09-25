@@ -8,6 +8,7 @@
 // The numbers are starting values to tune in play.
 
 import { markGuess, WORD_LENGTH, MAX_GUESSES } from './wordduelLogic'
+import { applyGuessForPlayer, getGraceEndsAt, normalizeGuesses, resolveRaceRound } from './wordraceLogic'
 import { isFamilySafe } from './wordDenylist'
 
 // ── Wordle solver (Word Duel / Word Race CPU) ────────────────────────────────
@@ -32,9 +33,10 @@ export const WORDLE_BOT_RECALL = 0.2
 // when the setter chose a word outside the answer list). ~0.1 s at worst.
 export const WORDLE_ENUM_BUDGET = 200_000
 
-// Simulated seconds a human-ish CPU spends on a Wordle row (row 0 is the
-// opener). Starting values: a whole solve lands around 30–60 s.
-export const WORDLE_THINK_MS = { opener: [3_000, 6_000], row: [6_000, 13_000] }
+// Simulated time a human-ish CPU spends on a Wordle row (row 0 is the
+// opener). Starting values: a 4-guess solve lands around 45 s, a 5-guess one
+// around a minute — a person's pace, so Word Race's 30 s grace stays fair.
+export const WORDLE_THINK_MS = { opener: [4_000, 8_000], row: [9_000, 18_000] }
 
 function lower(word) {
   return String(word ?? '').trim().toLowerCase()
@@ -293,6 +295,42 @@ export function matchWinner(scores, target) {
   if ((scores?.X || 0) >= target) return 'X'
   if ((scores?.O || 0) >= target) return 'O'
   return null
+}
+
+/**
+ * Word Race: land the bot's precomputed rows whose time has come on the
+ * round clock (row i lands at startedAt + its running think time). A row
+ * that would land after the grace clock started by the first finished board
+ * never lands — the round resolves as a timeout first, as it would for a
+ * slow human. Pure; returns the round unchanged when nothing lands.
+ */
+export function landBotGuesses(round, { rows = [], player = 'O', answer, now } = {}) {
+  if (!round || round.phase !== 'playing' || !answer) return round
+  const startedAt = Number(round.startedAt) || 0
+  const times = botRowTimes(rows)
+  let next = round
+  for (let i = normalizeGuesses(round[`guesses${player}`]).length; i < rows.length; i++) {
+    const at = startedAt + times[i]
+    const graceEnds = getGraceEndsAt(next)
+    if (at > now || (graceEnds && at > graceEnds)) break
+    const applied = applyGuessForPlayer(next, player, rows[i].word, answer, at)
+    if (!applied) break
+    next = applied
+  }
+  return next
+}
+
+/**
+ * One tick of a local Word Race game against the bot: land due bot rows,
+ * then resolve the round (both done, or grace over) with wordraceLogic's
+ * own rules. Returns the same object when nothing changed.
+ */
+export function advanceBotRace(game, { rows = [], now, matchTarget } = {}) {
+  const round = game?.round
+  if (!game || game.status !== 'playing' || round?.phase !== 'playing') return game
+  const landed = landBotGuesses(round, { rows, answer: round.answer, now })
+  const next = landed === round ? game : { ...game, round: landed }
+  return resolveRaceRound(next, now, matchTarget ? { matchTarget } : undefined) || next
 }
 
 // ── Hangwoman CPU ────────────────────────────────────────────────────────────
