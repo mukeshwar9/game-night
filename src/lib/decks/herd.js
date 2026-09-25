@@ -232,7 +232,7 @@ export const HERD_ANSWER_BANKS = {
   'Name a food you can make without cooking.': ['sandwich', 'salad', 'cereal', 'smoothie', 'toast', 'fruit salad'],
   'Name a drink that stains clothes.': ['coffee', 'red wine', 'grape juice', 'tea', 'soda', 'tomato juice'],
   'Name a food named after a place.': ['hamburger', 'french fries', 'buffalo wings', 'swiss cheese', 'frankfurter', 'brussels sprouts'],
-  'Name a topping people put on toast.': ['jam', 'avocado', 'honey', 'nutella', 'cinnamon sugar', 'marmalade'],
+  'Name a topping people put on toast.': ['butter', 'jam', 'peanut butter', 'avocado', 'honey', 'nutella'],
   'Name a food you would find at a county fair.': ['corn dog', 'cotton candy', 'funnel cake', 'fried dough', 'caramel apple', 'lemonade'],
   'Name a fruit with no peel to remove.': ['apple', 'grapes', 'strawberry', 'blueberries', 'cherry', 'pear'],
 
@@ -331,7 +331,7 @@ export const HERD_ANSWER_BANKS = {
   // Nature & weather
   'Name a type of storm.': ['thunderstorm', 'hurricane', 'snowstorm', 'tornado', 'blizzard', 'hailstorm'],
   'Name a kind of tree.': ['oak', 'pine', 'maple', 'palm', 'birch', 'willow'],
-  'Name something that melts.': ['ice', 'snow', 'ice cream', 'chocolate', 'cheese', 'candle'],
+  'Name something that melts.': ['ice', 'snow', 'ice cream', 'chocolate', 'butter', 'candle'],
   'Name something that grows on a vine.': ['grapes', 'tomatoes', 'pumpkin', 'cucumber', 'ivy', 'watermelon'],
   'Name a flower people give as gifts.': ['rose', 'tulip', 'lily', 'sunflower', 'daisy', 'carnation'],
   'Name something with thorns.': ['rose', 'cactus', 'blackberry bush', 'bush', 'thistle', 'pineapple'],
