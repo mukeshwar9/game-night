@@ -21,14 +21,44 @@ import {
   roundDeltas,
   matchWinners,
   WAVELENGTH_WIN_SCORE,
+  WAVELENGTH_RECENT_MAX,
+  normalizeIndexList,
+  pushRecentSpectrum,
+  pickSpectrumIndex,
 } from './wavelengthLogic'
+import { matchKey } from './textMatchLogic'
 
 // ---------------------------------------------------------------------------
 // deck
 // ---------------------------------------------------------------------------
 describe('WAVELENGTH_PAIRS deck', () => {
-  it('has at least 30 pairs', () => {
-    expect(WAVELENGTH_PAIRS.length).toBeGreaterThanOrEqual(30)
+  it('has at least 60 pairs', () => {
+    expect(WAVELENGTH_PAIRS.length).toBeGreaterThanOrEqual(60)
+  })
+
+  it('has no duplicate pairs (either orientation)', () => {
+    const keys = WAVELENGTH_PAIRS.map(p => [matchKey(p.left), matchKey(p.right)].sort().join('|'))
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('never uses the same word for both ends', () => {
+    for (const p of WAVELENGTH_PAIRS) expect(matchKey(p.left)).not.toBe(matchKey(p.right))
+  })
+
+  it('every bot clue is itself a legal clue for its pair (one word, no digits, no dial word)', () => {
+    for (const p of WAVELENGTH_PAIRS) {
+      for (const c of p.clueBank) {
+        expect(validateClue(c.word, p), `${p.left}/${p.right}: ${c.word}`).toEqual({ ok: true, clue: c.word })
+      }
+    }
+  })
+
+  it('every clue bank spans the dial (something near each end)', () => {
+    for (const p of WAVELENGTH_PAIRS) {
+      const positions = p.clueBank.map(c => c.pos)
+      expect(Math.min(...positions), `${p.left}`).toBeLessThanOrEqual(30)
+      expect(Math.max(...positions), `${p.right}`).toBeGreaterThanOrEqual(70)
+    }
   })
 
   it('every pair has non-empty left and right', () => {
@@ -506,5 +536,54 @@ describe('matchWinners', () => {
 
   it('defaults to the Wavelength target', () => {
     expect(matchWinners({ p1: WAVELENGTH_WIN_SCORE }, ids)).toEqual(['p1'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Cross-match repeats: room-level recent spectrums
+// ---------------------------------------------------------------------------
+describe('normalizeIndexList / pushRecentSpectrum', () => {
+  it('reads arrays and Firebase numeric-keyed objects in index order', () => {
+    expect(normalizeIndexList([3, 1])).toEqual([3, 1])
+    expect(normalizeIndexList({ 1: 5, 0: 2 })).toEqual([2, 5])
+    expect(normalizeIndexList(null)).toEqual([])
+  })
+
+  it('appends, de-duplicates and keeps only the newest entries', () => {
+    expect(pushRecentSpectrum([1, 2], 3)).toEqual([1, 2, 3])
+    expect(pushRecentSpectrum([1, 2, 3], 1)).toEqual([2, 3, 1])
+    const long = Array.from({ length: WAVELENGTH_RECENT_MAX }, (_, i) => i)
+    const out = pushRecentSpectrum(long, 99)
+    expect(out).toHaveLength(WAVELENGTH_RECENT_MAX)
+    expect(out[out.length - 1]).toBe(99)
+    expect(out[0]).toBe(1)
+  })
+})
+
+describe('pickSpectrumIndex', () => {
+  it('regression: avoids pairs played recently in this room, not just this match', () => {
+    const recent = Array.from({ length: 30 }, (_, i) => i)
+    for (let i = 0; i < 200; i++) {
+      const idx = pickSpectrumIndex({ used: [], recent, current: 40 })
+      expect(recent).not.toContain(idx)
+      expect(idx).not.toBe(40)
+    }
+  })
+
+  it('falls back to "unused this match" when everything is recent', () => {
+    const all = Array.from({ length: WAVELENGTH_PAIR_COUNT }, (_, i) => i)
+    const used = [0, 1, 2]
+    for (let i = 0; i < 100; i++) {
+      const idx = pickSpectrumIndex({ used, recent: all, current: 5 })
+      expect(used).not.toContain(idx)
+      expect(idx).not.toBe(5)
+    }
+  })
+
+  it('falls back to anything but the current pair when the whole deck was used', () => {
+    const all = Array.from({ length: WAVELENGTH_PAIR_COUNT }, (_, i) => i)
+    for (let i = 0; i < 50; i++) {
+      expect(pickSpectrumIndex({ used: all, recent: all, current: 7 })).not.toBe(7)
+    }
   })
 })

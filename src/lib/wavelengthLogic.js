@@ -48,6 +48,49 @@ export function nextSpectrumIndex(usedIndices = [], currentIndex = -1) {
   return available[Math.floor(Math.random() * available.length)]
 }
 
+// Room-level memory of recently played spectrums (`games/$id/wavelengthRecent`,
+// oldest first) so back-to-back matches in one room don't replay the same pairs.
+export const WAVELENGTH_RECENT_MAX = 40
+
+// Firebase returns a list as an array or a numeric-keyed object (and drops it
+// when empty) — read it back as numbers in index order.
+export function normalizeIndexList(raw) {
+  if (!raw) return []
+  const values = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'object'
+      ? Object.keys(raw).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b)).map(k => raw[k])
+      : []
+  return values.map(Number).filter(Number.isInteger)
+}
+
+// Append a played spectrum to the room's recent list, keeping the newest
+// WAVELENGTH_RECENT_MAX.
+export function pushRecentSpectrum(recent, index, max = WAVELENGTH_RECENT_MAX) {
+  if (!Number.isInteger(index)) return normalizeIndexList(recent).slice(-max)
+  return [...normalizeIndexList(recent).filter(i => i !== index), index].slice(-max)
+}
+
+// Next spectrum: prefer a pair not used this match (`used`) and not played
+// recently in this room (`recent`); then just not used this match; then
+// anything but the current one.
+export function pickSpectrumIndex({ used = [], recent = [], current = -1, rng = Math.random } = {}) {
+  if (WAVELENGTH_PAIR_COUNT <= 1) return 0
+  const usedSet = new Set(normalizeIndexList(used))
+  const recentSet = new Set(normalizeIndexList(recent))
+  const pools = [
+    i => i !== current && !usedSet.has(i) && !recentSet.has(i),
+    i => i !== current && !usedSet.has(i),
+    i => i !== current,
+  ]
+  for (const ok of pools) {
+    const pool = []
+    for (let i = 0; i < WAVELENGTH_PAIR_COUNT; i++) if (ok(i)) pool.push(i)
+    if (pool.length) return pool[Math.floor(rng() * pool.length)]
+  }
+  return 0
+}
+
 // Hidden target somewhere comfortably inside the dial (8–92) so it's always
 // reachable from either side.
 export function randomTarget() {

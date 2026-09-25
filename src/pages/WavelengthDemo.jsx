@@ -5,7 +5,7 @@ import PixelDots from '../components/loading/PixelDots'
 import { generateBotRoster, pickBotClue, pickBotGuessFromClue } from '../lib/partyBots'
 import {
   getSpectrumPair,
-  randomSpectrumIndex,
+  pickSpectrumIndex,
   randomTarget,
   clampGuess,
   seatOrder,
@@ -82,6 +82,7 @@ const initialGameState = {
   scores: {},
   clueGiver: null,
   spectrumIndex: 0,
+  usedSpectrums: [], // pairs already played this match — no repeats until the deck runs out
   target: null,
   clueWord: '',
   guesses: {},
@@ -105,7 +106,7 @@ function gameReducer(state, action) {
         order,
         scores,
         clueGiver,
-        spectrumIndex: randomSpectrumIndex(),
+        spectrumIndex: pickSpectrumIndex(),
         // The human clue-giver sees the target before writing the clue, as in
         // multiplayer (the clue-giver's client rolls it when the clue phase
         // starts); a bot clue-giver's target isn't known until BOT_CLUE_READY.
@@ -164,7 +165,8 @@ function gameReducer(state, action) {
         ...state,
         scores,
         clueGiver,
-        spectrumIndex: randomSpectrumIndex(state.spectrumIndex),
+        spectrumIndex: pickSpectrumIndex({ used: [...state.usedSpectrums, state.spectrumIndex], current: state.spectrumIndex }),
+        usedSpectrums: [...state.usedSpectrums, state.spectrumIndex],
         target: clueGiver === 'human' ? randomTarget() : null,
         clueWord: '',
         guesses: {},

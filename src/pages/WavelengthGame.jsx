@@ -4,7 +4,9 @@ import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
   getSpectrumPair,
-  nextSpectrumIndex,
+  pickSpectrumIndex,
+  pushRecentSpectrum,
+  normalizeIndexList,
   parseStoredTarget,
   storedOrNewTarget,
   clampGuess,
@@ -66,7 +68,7 @@ function normalizeRound(raw) {
     guesses: normalizeGuesses(raw.guesses),
     reveal: raw.reveal ?? null,
     phaseStartedAt: raw.phaseStartedAt ?? null,
-    usedSpectrums: Array.isArray(raw.usedSpectrums) ? raw.usedSpectrums : [],
+    usedSpectrums: normalizeIndexList(raw.usedSpectrums),
     cheatDetected: !!raw.cheatDetected,
   }
 }
@@ -354,13 +356,13 @@ export default function WavelengthGame({
       const r = current?.round
       if (!r || r.phase !== 'clue' || !r.phaseStartedAt) return
       if (serverNow() - r.phaseStartedAt < CLUE_DEADLINE_MS) return
-      const usedSpectrums = Array.isArray(r.usedSpectrums) ? r.usedSpectrums : []
+      const usedSpectrums = normalizeIndexList(r.usedSpectrums)
       return {
         ...current,
         round: {
           clueGiver: nextClueGiver(current.players, r.clueGiver),
           phase: 'clue',
-          spectrumIndex: nextSpectrumIndex(usedSpectrums, r.spectrumIndex),
+          spectrumIndex: pickSpectrumIndex({ used: usedSpectrums, recent: current.wavelengthRecent, current: r.spectrumIndex }),
           usedSpectrums: [...usedSpectrums, r.spectrumIndex],
           clue: '',
           commitment: null,
@@ -425,25 +427,30 @@ export default function WavelengthGame({
         // Several players can cross WIN_SCORE in the same round: the highest
         // score wins and an exact tie is shared — never seat order. `winner`
         // is only written for a sole winner; co-winners are derived from scores.
+        // Room-level memory of played pairs (outside `round`, so it survives
+        // NEW MATCH) — the next pick avoids them across matches in this room.
+        const wavelengthRecent = pushRecentSpectrum(current.wavelengthRecent, r.spectrumIndex)
         const winners = r.cheatDetected ? [] : matchWinners(scores, liveOrder, WIN_SCORE)
         if (winners.length > 0) {
           return {
             ...current,
             scores,
+            wavelengthRecent,
             status: 'finished',
             winner: winners.length === 1 ? winners[0] : null,
             proposal: null,
           }
         }
-        const usedSpectrums = Array.isArray(r.usedSpectrums) ? r.usedSpectrums : []
+        const usedSpectrums = normalizeIndexList(r.usedSpectrums)
         return {
           ...current,
           scores,
+          wavelengthRecent,
           proposal: null,
           round: {
             clueGiver: nextClueGiver(livePlayers, r.clueGiver),
             phase: 'clue',
-            spectrumIndex: nextSpectrumIndex(usedSpectrums, r.spectrumIndex),
+            spectrumIndex: pickSpectrumIndex({ used: usedSpectrums, recent: wavelengthRecent, current: r.spectrumIndex }),
             usedSpectrums: [...usedSpectrums, r.spectrumIndex],
             clue: '',
             commitment: null,
@@ -464,11 +471,11 @@ export default function WavelengthGame({
   const handleRestartLostRound = async () => {
     if (!isClueGiver) return
     try {
-      const usedSpectrums = round.usedSpectrums || []
+      const usedSpectrums = normalizeIndexList(round.usedSpectrums)
       await update(ref(db, `games/${gameId}/round`), {
         clueGiver: nextClueGiver(players, round.clueGiver),
         phase: 'clue',
-        spectrumIndex: nextSpectrumIndex(usedSpectrums, round.spectrumIndex),
+        spectrumIndex: pickSpectrumIndex({ used: usedSpectrums, recent: game.wavelengthRecent, current: round.spectrumIndex }),
         usedSpectrums: [...usedSpectrums, round.spectrumIndex],
         clue: '',
         commitment: null,
@@ -816,11 +823,11 @@ export default function WavelengthGame({
           <button
             onClick={async () => {
               try {
-                const usedSpectrums = round.usedSpectrums || []
+                const usedSpectrums = normalizeIndexList(round.usedSpectrums)
                 await update(ref(db, `games/${gameId}/round`), {
                   clueGiver: nextClueGiver(players, round.clueGiver),
                   phase: 'clue',
-                  spectrumIndex: nextSpectrumIndex(usedSpectrums, round.spectrumIndex),
+                  spectrumIndex: pickSpectrumIndex({ used: usedSpectrums, recent: game.wavelengthRecent, current: round.spectrumIndex }),
                   usedSpectrums: [...usedSpectrums, round.spectrumIndex],
                   clue: '',
                   commitment: null,
