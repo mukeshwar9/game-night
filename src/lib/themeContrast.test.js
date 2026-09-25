@@ -8,6 +8,7 @@ const themes = parseThemes(cssText)
 const EXPECTED_THEME_IDS = [
   'midnight', 'phosphor', 'amber', 'synthwave', 'grid', 'mono', 'virtualboy', 'paper',
   'c64', 'blueprint', 'sakura', 'matcha', 'matcha-strawberry', 'matcha-blueberry',
+  'cotton-candy', 'arctic-frost',
 ]
 
 const TINTS = ['tint-p1', 'tint-p2', 'tint-p3', 'tint-p4', 'tint-cta', 'tint-danger']

@@ -797,6 +797,101 @@
   --c-kam7:     220 140 60;
 }
 
+/* Cotton Candy — fairground pastel pink with deep candy accents. X is
+   blue-raspberry and O caramel (the blue/orange pair colour-blind players
+   separate best); the magenta CTA sits apart from both. */
+[data-theme="cotton-candy"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --c-bg:       251 233 242;
+  --c-surface:  253 241 247;
+  --c-card:     255 250 253;
+  --c-border:   226 189 210;
+  --c-text:     58 33 64;
+  --c-dim:      115 84 121;
+  --c-p1:       29 104 163;
+  --c-p2:       153 81 9;
+  --c-p3:       106 63 176;
+  --c-p4:       15 112 112;
+  --c-cta:      186 34 118;
+  --c-win:      26 114 69;
+  --c-danger:   179 38 30;
+  --c-tint-p1:  220 235 247;
+  --c-tint-p2:  247 230 210;
+  --c-tint-p3:  235 224 247;
+  --c-tint-p4:  214 240 238;
+  --c-tint-cta: 250 220 236;
+  --c-tint-danger: 248 220 218;
+  --c-structure:207 162 189;
+  --c-deep:     243 219 232;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      224 122 58;
+  --c-av2:      154 106 208;
+  --c-av3:      42 163 154;
+  --c-av4:      154 106 74;
+  /* Kamisado — candy-shop hues on a pale pink ground */
+  --c-kam0:     154 106 74;
+  --c-kam1:     90 168 106;
+  --c-kam2:     208 90 90;
+  --c-kam3:     224 176 64;
+  --c-kam4:     224 122 176;
+  --c-kam5:     154 122 216;
+  --c-kam6:     90 144 216;
+  --c-kam7:     224 144 74;
+}
+
+/* Arctic Frost — cool ice-blue daylight with an aurora-violet CTA. X is
+   glacier blue and O ember orange, the cool counterpart to PAPERWHITE. */
+[data-theme="arctic-frost"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --c-bg:       229 237 244;
+  --c-surface:  237 243 248;
+  --c-card:     248 251 253;
+  --c-border:   179 197 214;
+  --c-text:     27 42 58;
+  --c-dim:      79 99 120;
+  --c-p1:       21 96 184;
+  --c-p2:       163 76 9;
+  --c-p3:       184 24 90;
+  --c-p4:       15 112 104;
+  --c-cta:      106 42 208;
+  --c-win:      20 116 57;
+  --c-danger:   180 28 28;
+  --c-tint-p1:  217 230 246;
+  --c-tint-p2:  245 228 212;
+  --c-tint-p3:  246 220 230;
+  --c-tint-p4:  212 236 234;
+  --c-tint-cta: 230 220 248;
+  --c-tint-danger: 246 218 218;
+  --c-structure:151 173 193;
+  --c-deep:     217 228 238;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      224 122 58;
+  --c-av2:      138 106 216;
+  --c-av3:      42 154 154;
+  --c-av4:      138 106 80;
+  /* Kamisado — clear jewel tones on an ice-blue ground */
+  --c-kam0:     138 106 80;
+  --c-kam1:     74 154 106;
+  --c-kam2:     200 80 80;
+  --c-kam3:     216 168 56;
+  --c-kam4:     208 112 168;
+  --c-kam5:     138 112 208;
+  --c-kam6:     74 128 200;
+  --c-kam7:     216 136 64;
+}
+
 /* Sticky header height (NavBar padding + min-h-9 row) so in-page sticky
    chrome (GamePicker filters) can sit flush under it. */
 :root {

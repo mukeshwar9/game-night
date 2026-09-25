@@ -13,6 +13,8 @@ export const THEMES = [
   { id: 'matcha',     label: 'MATCHA' },
   { id: 'matcha-strawberry', label: 'MATCHA STRAWBERRY' },
   { id: 'matcha-blueberry',  label: 'MATCHA BLUEBERRY' },
+  { id: 'cotton-candy',      label: 'COTTON CANDY' },
+  { id: 'arctic-frost',      label: 'ARCTIC FROST' },
 ]
 
 const STORAGE_KEY = 'retro-theme'
