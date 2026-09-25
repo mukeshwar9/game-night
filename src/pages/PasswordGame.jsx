@@ -15,7 +15,7 @@ import {
 } from '../lib/passwordLogic'
 import {
   advanceAfterReveal, applyClue, applyClueTimeout, applyGuess, applyGuessTimeout, bestRound,
-  canEndForAbsence, createInitialRound, endMatchEarly, normalizeText, pickWord, startCluePhase, teamScoreOf,
+  canEndForAbsence, createInitialRound, endMatchEarly, normalizeText, pickWordForRound, startCluePhase, teamScoreOf,
   teamScoresFor, toList, validateClue,
 } from '../lib/passwordLogic'
 
@@ -72,7 +72,7 @@ export default function PasswordGame({
     runTransaction(ref(db, `games/${gameId}`), current => {
       if (!current || current.status !== 'playing' || current.round) return
       const seed = matchSeed()
-      const wordIndex = pickWord(PASSWORD_DECK, seed, [])
+      const wordIndex = pickWordForRound(PASSWORD_DECK, seed, [], 1)
       const starter = current.starter === 'O' ? 'O' : 'X'
       return {
         ...current,

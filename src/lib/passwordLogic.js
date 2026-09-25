@@ -278,6 +278,29 @@ export function pickWord(deck, seed, used = []) {
   return pool[0]
 }
 
+// Difficulty curve: rounds 1–4 draw tier-1 words, 5–8 tier 2, 9–12 tier 3.
+export const ROUNDS_PER_TIER = 4
+
+export function tierForRound(roundNum) {
+  const n = Math.max(1, Math.floor(Number(roundNum) || 1))
+  return Math.min(3, Math.ceil(n / ROUNDS_PER_TIER))
+}
+
+/** Seeded, no-repeat word pick for a round, from that round's tier. Falls
+ * back to any unused word when the tier is exhausted, then to the whole deck
+ * (so it never fails). Returns a deck index, or -1 for an empty deck. */
+export function pickWordForRound(deck, seed, used = [], roundNum = 1) {
+  if (!Array.isArray(deck) || deck.length === 0) return -1
+  const usedSet = new Set(toList(used).map(Number))
+  const tier = tierForRound(roundNum)
+  const all = deck.map((_, index) => index)
+  const unused = all.filter(index => !usedSet.has(index))
+  const inTier = unused.filter(index => Number(deck[index]?.tier) === tier)
+  const pool = inTier.length ? inTier : unused.length ? unused : all
+  const random = seededRandom(`${seed ?? ''}:${roundNum}`)
+  return pool[Math.floor(random() * pool.length)]
+}
+
 export function createInitialRound({ starter = 'X', seed, wordIndex, wordLength = null }) {
   const clueGiver = starter === 'O' ? 'O' : 'X'
   return {
@@ -448,12 +471,13 @@ export function advanceAfterReveal(round, scores = {}, deck, now = Date.now()) {
   const winner = getMatchWinner(team, round.roundNum)
   if (winner) return { winner, status: 'finished', scores: team, round: { ...round, teamScore, phase: 'finished', endsAt: null } }
   const used = toList(round.used)
-  const index = pickWord(deck, round.matchSeed, used)
+  const roundNum = round.roundNum + 1
+  const index = pickWordForRound(deck, round.matchSeed, used, roundNum)
   const roles = nextRoles(round.clueGiver)
   const next = {
     ...round,
     phase: 'intro',
-    roundNum: round.roundNum + 1,
+    roundNum,
     clueGiver: roles.clueGiver,
     guesser: roles.guesser,
     used: [...used, index],

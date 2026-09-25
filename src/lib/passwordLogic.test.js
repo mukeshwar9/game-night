@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { PASSWORD_DECK } from './decks/password'
+import { matchKey } from './textMatchLogic'
+import { isFamilySafe } from './wordDenylist'
 import {
   CLUE_MS, CLUE_POINTS, CLUE_SECONDS, GUESS_SECONDS, MAX_CLUES, PARTNER_OFFLINE_MS, MAX_ROUNDS, MAX_TEAM_SCORE, STAR_THRESHOLDS, TARGET_SCORE,
   advanceAfterReveal, applyClue, applyClueTimeout, applyGuess, applyGuessTimeout, bestRound,
   canEndForAbsence, createInitialRound, endMatchEarly, startCluePhase,
   SPELLING_VARIANTS, TYPO_MIN_LENGTH,
   getMatchWinner, guessSecondsForClueNumber, inflectionsOf, isCorrectGuess, nextRoles, normalizeText,
-  pickWord, scoreForClueNumber, starRating, teamScoreOf, teamScoresFor, toList, validateClue,
+  pickWord, pickWordForRound, scoreForClueNumber, starRating, tierForRound, teamScoreOf, teamScoresFor, toList, validateClue,
 } from './passwordLogic'
 
 const deck = [{ word: 'planet', tier: 1 }, { word: 'chair', tier: 1 }, { word: 'secret', tier: 3 }]
@@ -45,10 +47,58 @@ function playMatch({ starter = 'X', solveOn = 1 } = {}) {
 describe('passwordLogic', () => {
   it('ships a large unique common-word deck', () => {
     const words = PASSWORD_DECK.map(entry => entry.word)
-    expect(words.length).toBeGreaterThanOrEqual(250)
-    expect(words.length).toBeLessThanOrEqual(400)
+    expect(words.length).toBeGreaterThanOrEqual(400)
     expect(new Set(words).size).toBe(words.length)
+    // No plural/singular or spacing near-duplicates either.
+    expect(new Set(words.map(matchKey)).size).toBe(words.length)
     expect(PASSWORD_DECK.every(entry => [1, 2, 3].includes(entry.tier))).toBe(true)
+    expect(words.every(word => /^[a-z]+$/.test(word))).toBe(true)
+    for (const tier of [1, 2, 3]) {
+      expect(PASSWORD_DECK.filter(entry => entry.tier === tier).length).toBeGreaterThanOrEqual(100)
+    }
+  })
+
+  it('serves only family-safe words', () => {
+    expect(PASSWORD_DECK.filter(entry => !isFamilySafe(entry.word)).map(entry => entry.word)).toEqual([])
+  })
+
+  it('keeps abstract filler out of the deck (regression: usual/enough/beyond/admit)', () => {
+    const words = new Set(PASSWORD_DECK.map(entry => entry.word))
+    for (const word of ['usual', 'enough', 'beyond', 'admit', 'certain', 'possible', 'together']) {
+      expect(words.has(word)).toBe(false)
+    }
+  })
+
+  it('maps rounds to an easy-to-hard tier curve', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(tierForRound)).toEqual([1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
+    expect(tierForRound(0)).toBe(1)
+    expect(tierForRound(99)).toBe(3)
+  })
+
+  it('picks seeded, unused words from the round tier', () => {
+    const a = pickWordForRound(PASSWORD_DECK, 'seed-a', [], 6)
+    expect(PASSWORD_DECK[a].tier).toBe(2)
+    expect(pickWordForRound(PASSWORD_DECK, 'seed-a', [], 6)).toBe(a)
+    expect(pickWordForRound(PASSWORD_DECK, 'seed-a', [a], 6)).not.toBe(a)
+    const seeds = new Set(['a', 'b', 'c', 'd', 'e', 'f'].map(seed => pickWordForRound(PASSWORD_DECK, seed, [], 1)))
+    expect(seeds.size).toBeGreaterThan(1)
+    // Falls back to other tiers, then to the whole deck, rather than failing.
+    const small = [{ word: 'apple', tier: 1 }, { word: 'eclipse', tier: 3 }]
+    expect(pickWordForRound(small, 's', [], 5)).toBeGreaterThanOrEqual(0)
+    expect(pickWordForRound(small, 's', [0, 1], 1)).toBeGreaterThanOrEqual(0)
+    expect(pickWordForRound([], 's', [], 1)).toBe(-1)
+  })
+
+  it('deals a full match of 12 different words, easy to hard', () => {
+    let round = createInitialRound({ starter: 'X', seed: 'curve', wordIndex: pickWordForRound(PASSWORD_DECK, 'curve', [], 1), wordLength: 5 })
+    const dealt = [round.wordIndex]
+    for (let n = 1; n < MAX_ROUNDS; n += 1) {
+      round = advanceAfterReveal({ ...round, phase: 'reveal' }, {}, PASSWORD_DECK, n).round
+      dealt.push(round.wordIndex)
+    }
+    expect(new Set(dealt).size).toBe(MAX_ROUNDS)
+    expect(dealt.map(index => PASSWORD_DECK[index].tier)).toEqual([1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
+    expect(round.used).toEqual(dealt)
   })
 
   it('normalizes punctuation, case, and whitespace', () => {

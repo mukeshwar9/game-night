@@ -95,18 +95,16 @@ The change is contained in `passwordLogic.js`: credit only `lastDelta.player` (i
 
 File: `src/lib/decks/password.js`
 
-- 250–400 common words.
-- Single words only.
-- No proper nouns.
-- No obscure vocabulary.
-- No plural/singular near-duplicates where possible.
-- No offensive/slur words.
-- Mix tiers for difficulty:
-  - tier 1: concrete easy nouns (`apple`, `chair`, `river`)
-  - tier 2: common but less visual words (`doctor`, `winter`, `music`)
-  - tier 3: abstract/common challenge words (`brave`, `secret`, `balance`)
-- Secret word draw uses seeded shuffle + `used` list.
-- New match/replay uses new `matchSeed`, so first words change instead of repeating.
+- 400+ common words (546 at the 2026-09 review pass), tested minimum 400 with at least 100 per tier.
+- Single words only, letters a–z; no proper nouns, no obscure vocabulary.
+- No duplicates, including plural/singular and spacing near-duplicates (`matchKey`), tested.
+- Every entry passes `isFamilySafe` (tested) — the game serves these words itself.
+- Mostly concrete things a partner can clue in one word. Tiers:
+  - tier 1: easy, concrete, everyday (`apple`, `chair`, `penguin`)
+  - tier 2: medium — less everyday things, places, jobs, events (`lighthouse`, `dentist`, `picnic`)
+  - tier 3: harder but still clue-able — rarer objects, science, a few clue-able ideas (`eclipse`, `hourglass`, `secret`). Abstract filler (*usual, enough, beyond, admit*) was cut: it was hard to clue.
+- **Difficulty curve:** `tierForRound` maps rounds 1–4 to tier 1, 5–8 to tier 2, 9–12 to tier 3; `pickWordForRound(deck, seed, used, roundNum)` draws a seeded, unused word from that tier (falling back to any unused word, then the whole deck).
+- New match/replay uses a new `matchSeed`, so first words change instead of repeating; `used` prevents repeats within a match.
 
 Deck entry shape:
 
@@ -188,7 +186,9 @@ export function validateClue({ clue, word, previousClues })
 export function isCorrectGuess(guess, word)
 export function scoreForClueNumber(clueNumber)
 export function nextRoles(currentClueGiver)
-export function pickWord(deck, seed, used)
+export function pickWord(deck, seed, used)         // untiered, kept for compatibility
+export function tierForRound(roundNum)
+export function pickWordForRound(deck, seed, used, roundNum)
 export function createInitialRound({ starter, seed, wordIndex })
 export function applyClue(round, clue, now)
 export function applyGuess(round, guess, word, now)
@@ -410,7 +410,7 @@ Rules text lives in `src/lib/rules.js` (orchestrator-owned); it must describe th
 - Game.jsx's generic CLAIM WIN banner is wrong for a co-op game; the registry entry should carry `coop: true` so it is never shown. If a `finished` status arrives from elsewhere, the page shows the co-op result regardless of `winner`.
 - Clue-giver submits invalid clue: local error, no Firebase write.
 - Two clients advance reveal at same time: transaction guards phase/round number.
-- Deck exhausted: allow reuse only after all words used; with 250+ words this should not happen in v1.
+- Deck exhausted: a tier falls back to any unused word, then reuse; with 100+ words per tier and 4 rounds per tier this does not happen.
 - Existing rooms created before deploy: if `round` missing, game initializes defensively.
 - Spectators: can see public clue/guess history and reveal; during active clue phase, spectators should not see secret word unless using public `wordIndex` via devtools. UI must hide it.
 
