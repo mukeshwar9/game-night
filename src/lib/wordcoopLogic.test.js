@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  MAX_GUESSES, applySharedGuess, buildWordCoopRoundStart, canSubmitGuess,
-  collectUsedAnswers, createNextRound, getRoundOutcome, nextTurn, pickAnswer,
+  MAX_GUESSES, PARTNER_OFFLINE_SOLO_MS, applySharedGuess, buildWordCoopRoundStart, canSubmitGuess,
+  collectUsedAnswers, createNextRound, getRoundOutcome, isSoloMode, nextTurn, normalizeCoopStats,
+  pickAnswer, sanitizeDraft, updateCoopStats,
 } from './wordcoopLogic'
 
 const round = (overrides = {}) => createNextRound({ seed: 'seed', starter: 'X', answerIndex: 0, ...overrides })
@@ -72,5 +73,57 @@ describe('wordcoopLogic', () => {
     expect(next.used).toEqual([0, 1])
     expect(next.answerIndex).not.toBe(0)
     expect(next.answerIndex).not.toBe(1)
+  })
+
+  it('regression: an offline partner no longer freezes the board — solo play takes their turn', () => {
+    const r = round() // X to play
+    expect(canSubmitGuess(r, 'O')).toBe(false)
+    expect(canSubmitGuess(r, 'O', { solo: true })).toBe(true)
+    const next = applySharedGuess(r, { player: 'O', guess: 'hello', answer: 'crane', at: 1, solo: true })
+    expect(next.guesses[0].by).toBe('O')
+    expect(next.currentTurn).toBe('X')
+    // Still solo on the partner's next turn.
+    expect(applySharedGuess(next, { player: 'O', guess: 'crane', answer: 'crane', at: 2, solo: true }).result.outcome).toBe('win')
+  })
+
+  it('switches to solo only after the partner has been offline long enough', () => {
+    expect(isSoloMode({ partnerOnline: false, offlineSince: 1000, now: 1000 + PARTNER_OFFLINE_SOLO_MS - 1 })).toBe(false)
+    expect(isSoloMode({ partnerOnline: false, offlineSince: 1000, now: 1000 + PARTNER_OFFLINE_SOLO_MS })).toBe(true)
+    expect(isSoloMode({ partnerOnline: true, offlineSince: 1000, now: 1e9 })).toBe(false)
+    expect(isSoloMode({ partnerOnline: undefined, offlineSince: 1000, now: 1e9 })).toBe(false)
+  })
+
+  it('tracks current streak, best streak and losses', () => {
+    let stats = updateCoopStats(null, 'win')
+    stats = updateCoopStats(stats, 'win')
+    expect(stats).toEqual({ streak: 2, bestStreak: 2, wins: 2, losses: 0 })
+    stats = updateCoopStats(stats, 'loss')
+    expect(stats).toEqual({ streak: 0, bestStreak: 2, wins: 2, losses: 1 })
+    stats = updateCoopStats(stats, 'win')
+    expect(stats).toEqual({ streak: 1, bestStreak: 2, wins: 3, losses: 1 })
+    expect(normalizeCoopStats({ streak: '3', losses: -1 })).toEqual({ streak: 3, bestStreak: 0, wins: 0, losses: 0 })
+  })
+
+  it('records the result into the round stats', () => {
+    const won = applySharedGuess(round({ stats: { streak: 2, bestStreak: 4 } }), { player: 'X', guess: 'crane', answer: 'crane' })
+    expect(won.stats).toMatchObject({ streak: 3, bestStreak: 4, wins: 1 })
+    let lost = round({ stats: { streak: 2, bestStreak: 4 } })
+    for (let i = 0; i < MAX_GUESSES; i++) lost = applySharedGuess(lost, { player: i % 2 ? 'O' : 'X', guess: 'hello', answer: 'crane' })
+    expect(lost.stats).toMatchObject({ streak: 0, bestStreak: 4, losses: 1 })
+  })
+
+  it('carries stats into the next round for Play Again and New Match', () => {
+    const prev = { answerIndex: 1, used: [0], stats: { streak: 3, bestStreak: 5, wins: 7, losses: 2 } }
+    const next = buildWordCoopRoundStart({ answerList: ['apple', 'crane', 'plant'], previousRound: prev, seed: 's', starter: 'X' })
+    expect(next.stats).toEqual(prev.stats)
+    expect(createNextRound({ previousRound: prev, seed: 's', answerIndex: 2 }).stats).toEqual(prev.stats)
+    expect(createNextRound({ seed: 's', answerIndex: 2 }).stats).toBeUndefined()
+  })
+
+  it('clears the locked draft and sanitizes partner drafts', () => {
+    const next = applySharedGuess(round({ draftX: 'HELL' }), { player: 'X', guess: 'hello', answer: 'crane' })
+    expect(next.draftX).toBeNull()
+    expect(sanitizeDraft('ab1c<d>ef')).toBe('ABCDE')
+    expect(sanitizeDraft(null)).toBe('')
   })
 })
