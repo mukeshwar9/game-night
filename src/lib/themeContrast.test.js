@@ -127,12 +127,15 @@ describe('ground scheme', () => {
   const black = [0, 0, 0]
 
   for (const id of EXPECTED_THEME_IDS.filter(id => id !== 'midnight')) {
-    it(`${id} declares the color-scheme and CRT overlay its ground needs`, () => {
+    it(`${id} declares the color-scheme, CRT overlay and glow strength its ground needs`, () => {
       const t = themes[id]
       const lightGround = contrastRatio(t.bg, black) > contrastRatio(t.text, black)
       const body = blocks[id]
       expect(/color-scheme:\s*light\s*;/.test(body), `${id} color-scheme: light`).toBe(lightGround)
       expect(/--crt-overlay:\s*none\s*;/.test(body), `${id} --crt-overlay: none`).toBe(lightGround)
+      const glow = body.match(/--glow:\s*([\d.]+)\s*;/)
+      if (lightGround) expect(Number(glow?.[1]), `${id} --glow below 1`).toBeLessThan(1)
+      else expect(glow, `${id} keeps the default --glow`).toBeNull()
     })
   }
 })
