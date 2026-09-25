@@ -1356,6 +1356,11 @@ export function firstMoverUpdates(gameType, symbol) {
   if (gameType === 'bluff') {
     return { 'bluffRound/turn': symbol }
   }
+  if (gameType === 'password') {
+    // Password's first clue-giver is `starter` (PasswordGame reads it when it
+    // deals the first round); writing currentTurn here was silently ignored.
+    return { starter: symbol }
+  }
   return { currentTurn: symbol }
 }
 
