@@ -5,8 +5,9 @@ import { commit as makeCommit } from '../lib/commit'
 import {
   markGuess, compareResults, getDoneState,
   isValidGuess, getKeyboardState, MAX_GUESSES, WORD_LENGTH, MATCH_WINS,
-  verifyTranscript,
+  verifyOpponentRound, verifyGradedBoard, decideDuelRound,
 } from '../lib/wordduelLogic'
+import { verifyReveal } from '../lib/commit'
 import { sounds } from '../lib/sounds'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
@@ -490,6 +491,10 @@ export default function WordDuelGame({
   }, [gameId])
 
   // ──── Reveal Phase: verify ────
+  // My guesses were graded by the opponent with THEIR word, and theirs by me
+  // with MY word — so their reveal is checked against my board, and my word
+  // against theirs. The round is decided from the verified boards, not the
+  // recorded done states.
   useEffect(() => {
     if (phase !== 'reveal' || !reveal || verifiedRef.current) return
     const oppReveal = reveal[opponentSymbol]
@@ -497,30 +502,37 @@ export default function WordDuelGame({
 
     verifiedRef.current = true
     ;(async () => {
-      const oppResult = await verifyTranscript(oppCommit, oppReveal, oppGuesses)
-      const myWord = getStoredWord(gameId, mySymbol)
-      let myOk = true
-      if (myWord && commits[mySymbol]) {
-        const myResult = await verifyTranscript(commits[mySymbol], { word: myWord.word, salt: myWord.salt }, [])
-        myOk = myResult.ok
-      }
+      const oppCheck = await verifyOpponentRound({ oppCommit, oppReveal, myGuesses, myDone })
+      if (oppCheck.pending) { verifiedRef.current = false; return }
 
-      if (!oppResult.ok || !myOk) {
+      const myWord = getStoredWord(gameId, mySymbol)
+      let ownCheck = { ok: true }
+      let myCommitOk = true
+      if (myWord && commits[mySymbol]) {
+        myCommitOk = await verifyReveal(commits[mySymbol], myWord.word, myWord.salt)
+        if (myCommitOk) ownCheck = verifyGradedBoard({ word: myWord.word, guesses: oppGuesses, done: oppDone })
+      }
+      if (ownCheck.pending) { verifiedRef.current = false; return }
+
+      if (!oppCheck.ok || !ownCheck.ok || !myCommitOk) {
         setCheatDetected(true)
-        setVerifyStatus({ ok: false, reason: !oppResult.ok ? oppResult.reason : 'own_commit_mismatch' })
-        const winner = !oppResult.ok ? mySymbol : opponentSymbol
+        const reason = !oppCheck.ok ? oppCheck.reason : !myCommitOk ? 'own_commit_mismatch' : ownCheck.reason
+        setVerifyStatus({ ok: false, reason })
+        // My own word failing its commitment is on me; anything else means the
+        // opponent's grading or board was tampered with.
+        const winner = myCommitOk ? mySymbol : opponentSymbol
         await writeRoundResult(winner, 'cheat')
         return
       }
 
       setVerifyStatus({ ok: true })
-      // compareResults is seat-positional (doneX, doneO) — passing
-      // (myDone, oppDone) mirrors the verdict on O's client and races X's
-      // correct write 50/50.
+      const myVerified = oppCheck.done
+      const oppVerified = ownCheck.done || oppDone
+      // Seat-positional: (X, O).
       const winner = mySymbol === 'X'
-        ? compareResults(myDone, oppDone)
-        : compareResults(oppDone, myDone)
-      setLocalResult(winner)
+        ? decideDuelRound(myVerified, oppVerified)
+        : decideDuelRound(oppVerified, myVerified)
+      setLocalResult(winner ? { winner, reason: 'solved' } : null)
       if (winner) {
         sounds[winner === 'draw' ? 'draw' : winner === mySymbol ? 'win' : 'lose']?.()
       }
@@ -528,7 +540,7 @@ export default function WordDuelGame({
         await writeRoundResult(winner || 'draw', 'solved')
       }
     })()
-  }, [phase, reveal, oppCommit, oppGuesses, mySymbol, opponentSymbol, gameId, myDone, oppDone, commits, result, writeRoundResult])
+  }, [phase, reveal, oppCommit, oppGuesses, myGuesses, mySymbol, opponentSymbol, gameId, myDone, oppDone, commits, result, writeRoundResult])
 
   // ──── Handle keypress ────
   const handleKey = useCallback((key) => {

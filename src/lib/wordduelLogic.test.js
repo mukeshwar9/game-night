@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { markGuess, compareResults, isSolved, isDone, getDoneState, isValidGuess, getKeyboardState, MAX_GUESSES, verifyTranscript } from './wordduelLogic'
 import { commit } from './commit'
+import {
+  normalizeGuessList, guessProblem, secretWordProblem, getGradedDoneState, gradeGuesses,
+  applyGrading, applyDuelGuess, getFinishGraceEndsAt, applyFinishTimeout,
+  verifyGradedBoard, verifyOpponentRound, decideDuelRound, DUEL_FINISH_GRACE_MS,
+} from './wordduelLogic'
 
 describe('markGuess', () => {
   it('all green for exact match', () => {
@@ -302,5 +307,197 @@ describe('verifyTranscript', () => {
     const { hash, salt } = await commit('ABYSM')
     const result = await verifyTranscript(hash, { word: 'ABYSM', salt }, [])
     expect(result.ok).toBe(true)
+  })
+})
+
+// Build a board the way the live game does: the guesser writes {word, at},
+// the OTHER seat grades it with its own secret word.
+const board = (words, secret, { gradeCount = words.length, at0 = 1000 } = {}) =>
+  words.map((word, i) => ({
+    word,
+    at: at0 + i * 1000,
+    ...(i < gradeCount ? { marks: markGuess(word, secret) } : {}),
+  }))
+
+describe('verifyOpponentRound — regression: honest rounds were flagged as cheating', () => {
+  it('an honest round verifies ok on both clients', async () => {
+    const x = await commit('CRANE')
+    const o = await commit('SLATE')
+    // X guesses at O's word (graded by O with SLATE); O guesses at X's word.
+    const guessesX = board(['PLATE', 'SLATE'], 'SLATE')
+    const guessesO = board(['TRACE', 'BRAKE', 'CRANE'], 'CRANE')
+    const doneX = getGradedDoneState(guessesX)
+    const doneO = getGradedDoneState(guessesO)
+
+    // X's client verifies O's reveal against X's guesses.
+    const onX = await verifyOpponentRound({ oppCommit: o.hash, oppReveal: { word: 'SLATE', salt: o.salt }, myGuesses: guessesX, myDone: doneX })
+    // O's client verifies X's reveal against O's guesses.
+    const onO = await verifyOpponentRound({ oppCommit: x.hash, oppReveal: { word: 'CRANE', salt: x.salt }, myGuesses: guessesO, myDone: doneO })
+    expect(onX).toMatchObject({ ok: true, done: { solved: true, guesses: 2 } })
+    expect(onO).toMatchObject({ ok: true, done: { solved: true, guesses: 3 } })
+    expect(decideDuelRound(onX.done, onO.done)).toBe('X')
+
+    // The old call re-marked the opponent's guesses (at MY word) with THEIR
+    // word — the exact false positive this replaces.
+    const old = await verifyTranscript(o.hash, { word: 'SLATE', salt: o.salt }, guessesO)
+    expect(old.ok).toBe(false)
+    expect(old.reason).toBe('marks_mismatch')
+  })
+
+  it('flags a grader who wrote wrong marks', async () => {
+    const o = await commit('SLATE')
+    const guessesX = [{ word: 'PLATE', marks: 'BBBBB', at: 1 }]
+    const res = await verifyOpponentRound({ oppCommit: o.hash, oppReveal: { word: 'SLATE', salt: o.salt }, myGuesses: guessesX, myDone: null })
+    expect(res).toMatchObject({ ok: false, reason: 'marks_mismatch' })
+  })
+
+  it('flags a reveal that does not match the commitment', async () => {
+    const o = await commit('SLATE')
+    const res = await verifyOpponentRound({ oppCommit: o.hash, oppReveal: { word: 'PLATE', salt: o.salt }, myGuesses: [], myDone: null })
+    expect(res).toMatchObject({ ok: false, reason: 'commit_mismatch' })
+  })
+
+  it('grades still-pending guesses from the verified word instead of flagging them', async () => {
+    const o = await commit('SLATE')
+    const guessesX = board(['PLATE', 'SLATE'], 'SLATE', { gradeCount: 1 })
+    const res = await verifyOpponentRound({ oppCommit: o.hash, oppReveal: { word: 'SLATE', salt: o.salt }, myGuesses: guessesX, myDone: null })
+    expect(res).toMatchObject({ ok: true, done: { solved: true, guesses: 2, at: 2000 } })
+  })
+
+  it('reports an unfinished board as pending, not cheating', () => {
+    const res = verifyGradedBoard({ word: 'SLATE', guesses: board(['PLATE'], 'SLATE'), done: null })
+    expect(res).toMatchObject({ ok: false, pending: true })
+  })
+
+  it('the verified done state overrides a wrong recorded one', () => {
+    const guesses = board(['PLATE', 'CRATE', 'SLATE'], 'SLATE')
+    const res = verifyGradedBoard({ word: 'SLATE', guesses, done: { solved: false, guesses: guesses.length, at: 1 } })
+    expect(res.ok).toBe(true)
+    expect(res.done.solved).toBe(true)
+  })
+})
+
+describe('getGradedDoneState — regression: a 6th-guess solve was recorded as a fail', () => {
+  const five = ['PLATE', 'CRATE', 'GRATE', 'IRATE', 'ELATE']
+  it('is not done while the 6th guess is still ungraded', () => {
+    expect(getGradedDoneState(board([...five, 'SLATE'], 'SLATE', { gradeCount: 5 }))).toBeNull()
+  })
+  it('counts a 6th-guess solve as solved once graded', () => {
+    expect(getGradedDoneState(board([...five, 'SLATE'], 'SLATE'))).toEqual({ solved: true, guesses: 6, at: 6000 })
+  })
+  it('fails after 6 graded misses, stamped with the 6th guess time', () => {
+    expect(getGradedDoneState(board([...five, 'BLAME'], 'SLATE'))).toEqual({ solved: false, guesses: 6, at: 6000 })
+  })
+  it('stamps speed from the solving guess, not later guesses', () => {
+    const g = board(['PLATE', 'SLATE', 'CRATE'], 'SLATE')
+    expect(getGradedDoneState(g)).toEqual({ solved: true, guesses: 2, at: 2000 })
+  })
+})
+
+describe('applyGrading', () => {
+  const round = (over = {}) => ({ phase: 'guessing', ...over })
+  it('writes the marks and the guesser done in one update', () => {
+    const r = round({ guessesO: board(['TRACE', 'CRANE'], 'CRANE', { gradeCount: 0 }) })
+    const next = applyGrading(r, { guesser: 'O', word: 'CRANE', now: 50_000 })
+    expect(next.guessesO.map(g => g.marks)).toEqual([markGuess('TRACE', 'CRANE'), 'GGGGG'])
+    expect(next.doneO).toEqual({ solved: true, guesses: 2, at: 2000, gradedAt: 50_000 })
+    expect(next.firstDoneAt).toBe(50_000)
+  })
+  it('grades without writing done while the board is still open', () => {
+    const next = applyGrading(round({ guessesO: board(['TRACE'], 'CRANE', { gradeCount: 0 }) }), { guesser: 'O', word: 'CRANE', now: 1 })
+    expect(next.guessesO[0].marks).toBeTruthy()
+    expect(next.doneO).toBeUndefined()
+  })
+  it('keeps the first finisher time when the second board finishes', () => {
+    const r = round({ firstDoneAt: 10, doneX: { solved: true, guesses: 1, at: 5 }, guessesO: board(['CRANE'], 'CRANE', { gradeCount: 0 }) })
+    expect(applyGrading(r, { guesser: 'O', word: 'CRANE', now: 99 }).firstDoneAt).toBe(10)
+  })
+  it('is a no-op when nothing is pending, and outside guessing', () => {
+    expect(applyGrading(round({ guessesO: board(['TRACE'], 'CRANE') }), { guesser: 'O', word: 'CRANE', now: 1 })).toBeNull()
+    expect(applyGrading({ phase: 'reveal', guessesO: board(['TRACE'], 'CRANE', { gradeCount: 0 }) }, { guesser: 'O', word: 'CRANE', now: 1 })).toBeNull()
+  })
+  it('reads sparse Firebase objects by key', () => {
+    const r = round({ guessesO: { 0: { word: 'TRACE', at: 1 }, 1: { word: 'CRANE', at: 2 } } })
+    expect(applyGrading(r, { guesser: 'O', word: 'CRANE', now: 3 }).doneO.guesses).toBe(2)
+  })
+})
+
+describe('applyDuelGuess', () => {
+  const round = (over = {}) => ({ phase: 'guessing', ...over })
+  it('appends a valid guess', () => {
+    expect(applyDuelGuess(round(), { player: 'X', word: 'crane', at: 5 }).guessesX).toEqual([{ word: 'CRANE', at: 5 }])
+  })
+  it('caps a board at six guesses', () => {
+    const six = board(['PLATE', 'CRATE', 'GRATE', 'IRATE', 'ELATE', 'BLAME'], 'SLATE', { gradeCount: 0 })
+    expect(applyDuelGuess(round({ guessesX: six }), { player: 'X', word: 'SLATE', at: 1 })).toBeNull()
+  })
+  it('refuses guesses after a solve, after done, and invalid words', () => {
+    expect(applyDuelGuess(round({ guessesX: board(['SLATE'], 'SLATE') }), { player: 'X', word: 'PLATE', at: 1 })).toBeNull()
+    expect(applyDuelGuess(round({ doneX: { solved: false } }), { player: 'X', word: 'PLATE', at: 1 })).toBeNull()
+    expect(applyDuelGuess(round(), { player: 'X', word: 'XYZZY', at: 1 })).toBeNull()
+    expect(applyDuelGuess(round(), { player: 'X', word: 'CRAN', at: 1 })).toBeNull()
+  })
+})
+
+describe('guess and secret word problems', () => {
+  it('explains why a guess is rejected', () => {
+    expect(guessProblem('CRAN')).toBe('TOO SHORT')
+    expect(guessProblem('XYZZY')).toBe('NOT IN WORD LIST')
+    expect(guessProblem('CRANE')).toBeNull()
+  })
+  it('rejects banned setter words', () => {
+    expect(secretWordProblem('SHITS')).toMatch(/NOT ALLOWED/)
+    expect(secretWordProblem('CRANE')).toBeNull()
+  })
+})
+
+describe('finish grace timeout', () => {
+  const base = (over = {}) => ({
+    phase: 'guessing', firstDoneAt: 1000,
+    doneX: { solved: true, guesses: 3, at: 900, gradedAt: 1000 },
+    guessesO: board(['TRACE', 'BRAKE'], 'CRANE'),
+    ...over,
+  })
+  it('starts when the first board finishes', () => {
+    expect(getFinishGraceEndsAt(base())).toBe(1000 + DUEL_FINISH_GRACE_MS)
+    expect(getFinishGraceEndsAt({ phase: 'guessing' })).toBeNull()
+  })
+  it('cannot be called before it runs out', () => {
+    expect(applyFinishTimeout(base(), { claimer: 'X', word: 'CRANE', now: 1000 + DUEL_FINISH_GRACE_MS - 1 })).toBeNull()
+  })
+  it('ends the other board as a timed-out fail', () => {
+    const next = applyFinishTimeout(base(), { claimer: 'X', word: 'CRANE', now: 1000 + DUEL_FINISH_GRACE_MS })
+    expect(next.doneO).toMatchObject({ solved: false, guesses: 2, timedOut: true })
+    expect(decideDuelRound(next.doneX, next.doneO)).toBe('X')
+  })
+  it('grades a pending last-second solve instead of timing it out', () => {
+    const r = base({ guessesO: board(['TRACE', 'CRANE'], 'CRANE', { gradeCount: 1 }) })
+    const next = applyFinishTimeout(r, { claimer: 'X', word: 'CRANE', now: 1000 + DUEL_FINISH_GRACE_MS })
+    expect(next.doneO).toMatchObject({ solved: true, guesses: 2 })
+    expect(next.doneO.timedOut).toBeUndefined()
+  })
+  it('only the finished player can call time', () => {
+    expect(applyFinishTimeout(base(), { claimer: 'O', word: 'SLATE', now: 1e12 })).toBeNull()
+  })
+  it('a timed-out board verifies as an unsolved fail', () => {
+    const next = applyFinishTimeout(base(), { claimer: 'X', word: 'CRANE', now: 1e6 })
+    expect(verifyGradedBoard({ word: 'CRANE', guesses: next.guessesO, done: next.doneO })).toMatchObject({ ok: true, done: { solved: false, timedOut: true } })
+  })
+})
+
+describe('normalizeGuessList', () => {
+  it('keeps positions for sparse objects', () => {
+    expect(normalizeGuessList({ 1: { word: 'B' } })).toEqual([null, { word: 'B' }])
+    expect(normalizeGuessList(null)).toEqual([])
+  })
+})
+
+describe('gradeGuesses', () => {
+  it('marks only ungraded guesses and reports the done state', () => {
+    const res = gradeGuesses([{ word: 'TRACE', marks: 'BYYBG', at: 1 }, { word: 'CRANE', at: 2 }], 'CRANE')
+    expect(res.changed).toBe(true)
+    expect(res.guesses[0].marks).toBe('BYYBG')
+    expect(res.guesses[1].marks).toBe('GGGGG')
+    expect(res.done).toEqual({ solved: true, guesses: 2, at: 2 })
   })
 })

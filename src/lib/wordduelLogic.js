@@ -1,5 +1,6 @@
 import { commit, verifyReveal } from './commit'
 import { has } from './dictionary'
+import { isBannedWord } from './wordDenylist'
 
 export const MAX_GUESSES = 6
 export const WORD_LENGTH = 5
@@ -175,4 +176,195 @@ export function getKeyboardState(guesses) {
     }
   }
   return state
+}
+
+// ── Round flow helpers (multiplayer) ─────────────────────────────────────────
+//
+// Each seat's guesses are graded by the OTHER seat's client, the only one that
+// knows the secret word it is guessing. So in a verified round:
+//   - my guesses were marked with the opponent's word, and
+//   - the opponent's guesses were marked with my word.
+// Everything below keeps those two directions straight.
+
+// Once one side has finished its board, the other side has this long before
+// the finished player can call time (the unfinished board counts as a fail).
+export const DUEL_FINISH_GRACE_MS = 90_000
+
+// Guesses by index. Firebase returns an array or a numeric-keyed object; map
+// by explicit key so a sparse read never shifts a guess to the wrong row.
+export function normalizeGuessList(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.map(g => g ?? null)
+  const arr = []
+  Object.entries(raw).forEach(([k, v]) => {
+    const i = parseInt(k, 10)
+    if (Number.isInteger(i) && i >= 0) arr[i] = v ?? null
+  })
+  for (let i = 0; i < arr.length; i++) if (arr[i] === undefined) arr[i] = null
+  return arr
+}
+
+// Why a typed guess can't be played, or null when it can.
+export function guessProblem(word) {
+  const w = String(word ?? '').trim()
+  if (w.length < WORD_LENGTH) return 'TOO SHORT'
+  if (!isValidGuess(w)) return 'NOT IN WORD LIST'
+  if (isBannedWord(w)) return 'NOT ALLOWED'
+  return null
+}
+
+// Why a secret word can't be set, or null when it can. Setters may pick any
+// valid word except banned ones (slurs / vulgarity are never shown).
+export function secretWordProblem(word) {
+  const w = String(word ?? '').trim()
+  if (w.length < WORD_LENGTH) return 'TOO SHORT'
+  if (!isValidGuess(w)) return 'NOT IN WORD LIST'
+  if (isBannedWord(w)) return 'NOT ALLOWED — PICK ANOTHER WORD'
+  return null
+}
+
+export function isAllowedSecret(word) {
+  return secretWordProblem(word) === null
+}
+
+// The done state a board has reached from its graded guesses, or null while
+// it is still in play (or a counted guess is still waiting for its marks).
+// Speed is the solving guess's own `at`, never the time it was graded, so a
+// slow grader cannot change who was faster.
+export function getGradedDoneState(guesses) {
+  const list = guesses || []
+  const limit = Math.min(list.length, MAX_GUESSES)
+  for (let i = 0; i < limit; i++) {
+    const g = list[i]
+    if (!g || !g.marks) return null
+    if (g.marks === 'GGGGG') return { solved: true, guesses: i + 1, at: Number(g.at) || 0 }
+  }
+  if (limit === MAX_GUESSES) {
+    return { solved: false, guesses: MAX_GUESSES, at: Number(list[MAX_GUESSES - 1]?.at) || 0 }
+  }
+  return null
+}
+
+// Mark every ungraded guess with the grader's secret word.
+export function gradeGuesses(guesses, word) {
+  let changed = false
+  const next = (guesses || []).map(g => {
+    if (!g || !g.word || g.marks) return g
+    const marks = markGuess(g.word, word)
+    if (!marks) return g
+    changed = true
+    return { ...g, marks }
+  })
+  return { guesses: next, changed, done: getGradedDoneState(next) }
+}
+
+// Transaction body for the grader: mark `guesser`'s pending guesses with the
+// grader's word and, when that finishes the board (solved, or 6 graded
+// guesses), write done{guesser} in the same write — so done never lands
+// before the final grade and a 6th-guess solve is never recorded as a fail.
+// Returns the next round, or null when there is nothing to write.
+export function applyGrading(round, { guesser, word, now }) {
+  if (!round || round.phase !== 'guessing' || round.result) return null
+  if (guesser !== 'X' && guesser !== 'O') return null
+  if (!word || String(word).length !== WORD_LENGTH) return null
+  const key = `guesses${guesser}`
+  const doneKey = `done${guesser}`
+  const { guesses, changed, done } = gradeGuesses(normalizeGuessList(round[key]), word)
+  const writeDone = !!done && !round[doneKey]
+  if (!changed && !writeDone) return null
+  const next = { ...round, [key]: guesses }
+  if (writeDone) {
+    next[doneKey] = { ...done, gradedAt: now }
+    if (!round.firstDoneAt) next.firstDoneAt = now
+  }
+  return next
+}
+
+// Transaction body for a guess. Caps a board at MAX_GUESSES and refuses
+// guesses after a solve, after done, or outside the guessing phase.
+export function applyDuelGuess(round, { player, word, at }) {
+  if (!round || round.phase !== 'guessing' || round.result) return null
+  if (player !== 'X' && player !== 'O') return null
+  const w = String(word ?? '').trim().toUpperCase()
+  if (guessProblem(w)) return null
+  if (round[`done${player}`]) return null
+  const list = normalizeGuessList(round[`guesses${player}`])
+  if (list.length >= MAX_GUESSES) return null
+  if (list.some(g => g?.marks === 'GGGGG')) return null
+  return { ...round, [`guesses${player}`]: [...list, { word: w, at }] }
+}
+
+// When the finish-grace clock (started by the first finished board) runs out.
+export function getFinishGraceEndsAt(round, graceMs = DUEL_FINISH_GRACE_MS) {
+  if (!round || round.phase !== 'guessing' || round.result) return null
+  if (!!round.doneX === !!round.doneO) return null
+  const first = round.firstDoneAt || round.doneX?.gradedAt || round.doneO?.gradedAt
+  return first ? first + graceMs : null
+}
+
+// Transaction body for "time's up": the finished `claimer` ends the other
+// board. The claimer grades any pending guesses first (it holds the word), so
+// a last-second solve still counts; otherwise the other board is recorded as
+// an unsolved, timed-out fail.
+export function applyFinishTimeout(round, { claimer, word, now, graceMs = DUEL_FINISH_GRACE_MS }) {
+  if (claimer !== 'X' && claimer !== 'O') return null
+  const endsAt = getFinishGraceEndsAt(round, graceMs)
+  if (!endsAt || now < endsAt) return null
+  const other = claimer === 'X' ? 'O' : 'X'
+  if (!round[`done${claimer}`] || round[`done${other}`]) return null
+  const graded = word ? applyGrading(round, { guesser: other, word, now }) : null
+  const base = graded || round
+  if (base[`done${other}`]) return base
+  const list = normalizeGuessList(base[`guesses${other}`])
+  if (list.some(g => g && g.word && !g.marks)) return null // cannot grade without the word
+  return {
+    ...base,
+    [`done${other}`]: { solved: false, guesses: list.length, at: now, gradedAt: now, timedOut: true },
+  }
+}
+
+// Re-check one board against the revealed word that graded it. Recorded marks
+// must equal what the word produces (a mismatch means the grader lied);
+// guesses still waiting for marks are graded here from the verified word, so
+// a pending mark never reads as cheating. Returns the verified done state,
+// which decides the round instead of the recorded one.
+export function verifyGradedBoard({ word, guesses, done }) {
+  const upper = String(word ?? '').toUpperCase()
+  if (upper.length !== WORD_LENGTH) return { ok: false, reason: 'missing_data' }
+  const list = normalizeGuessList(guesses)
+  const counted = done?.timedOut ? list.slice(0, Math.max(0, Number(done.guesses) || 0)) : list
+  const filled = []
+  for (const g of counted) {
+    if (!g || !g.word) { filled.push(g); continue }
+    const expected = markGuess(g.word, upper)
+    if (!expected) return { ok: false, reason: 'invalid_guess' }
+    if (g.marks && g.marks !== expected) {
+      return { ok: false, reason: 'marks_mismatch', detail: { guess: g.word, got: g.marks, expected } }
+    }
+    filled.push({ ...g, marks: expected })
+  }
+  let verified = getGradedDoneState(filled)
+  if (!verified && done?.timedOut) {
+    verified = { solved: false, guesses: counted.length, at: Number(done.at) || 0, timedOut: true }
+  }
+  if (!verified) return { ok: false, pending: true, reason: 'board_not_finished' }
+  return { ok: true, done: verified }
+}
+
+// Verify the opponent's reveal (THEIR word) against MY guesses, which the
+// opponent graded with that word. (Checking their word against their own
+// guesses — at my word — flagged honest rounds as cheating.)
+export async function verifyOpponentRound({ oppCommit, oppReveal, myGuesses, myDone }) {
+  if (!oppCommit || !oppReveal?.word || !oppReveal?.salt) return { ok: false, reason: 'missing_data' }
+  const word = String(oppReveal.word).toUpperCase()
+  const commitOk = await verifyReveal(oppCommit, oppReveal.word, oppReveal.salt)
+  if (!commitOk) return { ok: false, reason: 'commit_mismatch' }
+  if (!isValidGuess(word)) return { ok: false, reason: 'not_valid_word' }
+  if (isBannedWord(word)) return { ok: false, reason: 'banned_word' }
+  return verifyGradedBoard({ word, guesses: myGuesses, done: myDone })
+}
+
+// The round winner from both verified boards (seat-positional).
+export function decideDuelRound(verifiedX, verifiedO) {
+  return compareResults(verifiedX, verifiedO)
 }
