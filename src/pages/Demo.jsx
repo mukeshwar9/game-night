@@ -2,11 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import SimonBoard from '../components/SimonBoard';
 import GameStatus from '../components/GameStatus';
 import PlayerCard from '../components/PlayerCard';
-import HangmanGallows from '../components/HangmanGallows';
-import WordDisplay from '../components/WordDisplay';
-import LetterKeyboard from '../components/LetterKeyboard';
 import TypingKeyboard from '../components/TypingKeyboard';
-import WordSetter from '../components/WordSetter';
 import ChimpBoard from '../components/ChimpBoard';
 import VisualMemoryBoard from '../components/VisualMemoryBoard';
 import LoadingLine from '../components/loading/LoadingLine';
@@ -32,7 +28,6 @@ import { sounds } from '../lib/sounds';
 import NumberPad from '../components/NumberPad';
 import { generateQuestion, QUESTION_MS } from '../lib/mathLogic';
 import { normalizeBoard } from '../lib/gameLogic';
-import { applyGuess, isWordGuessed, countWrong, MAX_WRONG, wordStructure } from '../lib/hangmanLogic';
 import { markGuess, isValidGuess, getKeyboardState, MAX_GUESSES as WD_MAX_GUESSES, WORD_LENGTH as WD_WORD_LENGTH } from '../lib/wordduelLogic';
 import {
   generateGrid, findPath, scoreWord, scoreWords, canonicalize,
@@ -69,6 +64,7 @@ import ArtilleryDemo from './ArtilleryDemo';
 import TriviaDemo from './TriviaDemo';
 import HerdDemo from './HerdDemo';
 import ArrowsDemo from './ArrowsDemo';
+import HangmanDemo from './HangmanDemo';
 
 function generateNumberLocal(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)
@@ -241,86 +237,6 @@ function PartyGameCard({ type }) {
 }
 
 // ─── Game demos ──────────────────────────────────────────────────────────────
-
-function HangmanDemo() {
-  const [phase, setPhase] = useState('setting')
-  const [word, setWord] = useState('')
-  const [hint, setHint] = useState('')
-  const [guesses, setGuesses] = useState({})
-  const [result, setResult] = useState(null)
-  const [wrongCount, setWrongCount] = useState(0)
-  const [stepperCount, setStepperCount] = useState(0)
-
-  const handleWordSet = (w, h) => {
-    setWord(w); setHint(h || ''); setGuesses({}); setWrongCount(0); setResult(null); setPhase('guessing')
-  }
-
-  const handleGuess = (letter) => {
-    if (phase !== 'guessing' || letter in guesses) return
-    const positions = applyGuess(word, letter)
-    const guessVal = positions.length > 0 ? positions : false
-    const newGuesses = { ...guesses, [letter]: guessVal }
-    const newWrong = countWrong(newGuesses)
-    setGuesses(newGuesses); setWrongCount(newWrong)
-    if (isWordGuessed(word, newGuesses)) { setResult('guessed'); setPhase('reveal') }
-    else if (newWrong >= MAX_WRONG) { setResult('hanged'); setPhase('reveal') }
-  }
-
-  const reset = () => {
-    setPhase('setting'); setWord(''); setHint(''); setGuesses({}); setWrongCount(0); setResult(null)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <p className="font-pixel text-[10px] text-retro-border text-center">GALLOWS PREVIEW</p>
-        <HangmanGallows wrongCount={stepperCount} />
-        <div className="flex justify-center gap-2">
-          <button onClick={() => setStepperCount(c => Math.max(0, c - 1))}
-            className="px-3 py-1 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95">–</button>
-          <span className="font-pixel text-[10px] text-retro-dim self-center">{stepperCount}/{MAX_WRONG}</span>
-          <button onClick={() => setStepperCount(c => Math.min(MAX_WRONG, c + 1))}
-            className="px-3 py-1 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95">+</button>
-        </div>
-      </div>
-      <div className="border-t border-retro-border pt-4 space-y-4">
-        <p className="font-pixel text-[10px] text-retro-border text-center">LIVE DEMO — ENTER WORD, THEN GUESS</p>
-        {phase === 'setting' && <WordSetter onWordSet={handleWordSet} />}
-        {(phase === 'guessing' || phase === 'reveal') && (
-          <>
-            <HangmanGallows wrongCount={wrongCount} />
-            <WordDisplay
-              wordStructure={wordStructure(word)}
-              hint={hint}
-              guesses={guesses}
-              revealedWord={phase === 'reveal' ? word : null}
-            />
-            <div className="text-center space-y-1">
-              {phase === 'reveal' ? (
-                <>
-                  <p className={cn('font-pixel text-xs', result === 'guessed' ? 'text-retro-p1' : 'text-retro-p2')}>
-                    {result === 'guessed' ? 'WORD GUESSED!' : 'HANGED!'}
-                  </p>
-                  <p className="font-mono text-[10px] text-retro-dim">
-                    Word: <span className="text-retro-cta">{word}</span>
-                  </p>
-                  <button onClick={reset}
-                    className="mt-2 px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
-                    PLAY AGAIN
-                  </button>
-                </>
-              ) : (
-                <p className="font-pixel text-[10px] text-retro-cta arcade-blink">GUESS A LETTER</p>
-              )}
-              <p className="font-mono text-[10px] text-retro-dim">{wrongCount}/{MAX_WRONG} wrong</p>
-            </div>
-            {phase === 'guessing' && <LetterKeyboard guesses={guesses} onGuess={handleGuess} disabled={false} />}
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
 
 const WD_KB_ROWS = [
   ['Q','W','E','R','T','Y','U','I','O','P'],
