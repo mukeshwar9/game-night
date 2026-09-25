@@ -10,6 +10,8 @@ const EXPECTED_THEME_IDS = [
   'c64', 'blueprint', 'sakura', 'matcha',
 ]
 
+const TINTS = ['tint-p1', 'tint-p2', 'tint-p3', 'tint-p4', 'tint-cta', 'tint-danger']
+
 const REQUIRED_KEYS = [
   'bg', 'surface', 'card', 'border', 'text', 'dim', 'p1', 'p2', 'cta', 'win',
   'danger', 'tint-p1', 'tint-p2', 'tint-cta', 'tint-danger', 'structure', 'deep', 'skin',
@@ -61,12 +63,40 @@ describe('per-theme contrast floors (regression guards, 2026-08 audit)', () => {
         expect(contrastRatio(t.text, t.bg)).toBeGreaterThanOrEqual(7)
       })
 
-      it('dim vs bg >= 4', () => {
-        expect(contrastRatio(t.dim, t.bg)).toBeGreaterThanOrEqual(4)
+      const expectFloor = (fg, grounds, floor) => {
+        for (const g of grounds) {
+          const ratio = contrastRatio(t[fg], t[g])
+          expect(ratio, `${fg} on ${g} = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(floor)
+        }
+      }
+
+      it('text vs every surface and tint >= 4.5', () => {
+        expectFloor('text', ['surface', 'card', 'deep', ...TINTS], 4.5)
       })
 
-      it('danger vs bg >= 4.5', () => {
-        expect(contrastRatio(t.danger, t.bg)).toBeGreaterThanOrEqual(4.5)
+      it('dim vs bg/surface/card/deep >= 4.5', () => {
+        expectFloor('dim', ['bg', 'surface', 'card', 'deep'], 4.5)
+      })
+
+      it('danger vs bg/surface/card >= 4.5', () => {
+        expectFloor('danger', ['bg', 'surface', 'card'], 4.5)
+      })
+
+      // Accents double as text (player labels, CTA copy) and as the fill
+      // behind text-retro-bg, so both uses reduce to accent-vs-bg.
+      it('p1/p2/cta/win vs bg >= 4.5', () => {
+        for (const k of ['p1', 'p2', 'cta', 'win']) expectFloor(k, ['bg'], 4.5)
+      })
+
+      // WCAG 1.4.11 non-text contrast: pieces and markers on raised grounds.
+      it('player/cta/win accents vs every ground >= 3', () => {
+        for (const k of ['p1', 'p2', 'p3', 'p4', 'cta', 'win']) {
+          expectFloor(k, ['bg', 'surface', 'card', 'deep'], 3)
+        }
+      })
+
+      it('each accent vs its own tint >= 3', () => {
+        for (const k of ['p1', 'p2', 'p3', 'p4', 'cta', 'danger']) expectFloor(k, [`tint-${k}`], 3)
       })
 
       it('p1 vs p2 separable (contrast >= 2 OR hueGap >= 40 OR saturationGap >= 0.5)', () => {
