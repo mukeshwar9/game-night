@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
