@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import useMotionPref from '../hooks/useMotionPref'
+import MotionPrefProvider from './MotionPrefProvider'
 
 const NOTO_EMOJI_URL = 'https://fonts.gstatic.com/s/e/notoemoji/latest'
 
@@ -20,15 +21,17 @@ export default function AnimatedEmoji({ glyph, className = '' }) {
   }
 
   return (
-    <motion.img
-      src={`${NOTO_EMOJI_URL}/${codepointPath(glyph)}/${reduceMotion ? '512.webp' : '512.gif'}`}
-      alt={glyph}
-      className={className}
-      draggable={false}
-      initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
-      animate={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: [0.7, 1.12, 1] }}
-      transition={{ duration: 0.45, ease: 'easeOut' }}
-      onError={() => setUnavailable(true)}
-    />
+    <MotionPrefProvider>
+      <motion.img
+        src={`${NOTO_EMOJI_URL}/${codepointPath(glyph)}/${reduceMotion ? '512.webp' : '512.gif'}`}
+        alt={glyph}
+        className={className}
+        draggable={false}
+        initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
+        animate={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: [0.7, 1.12, 1] }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        onError={() => setUnavailable(true)}
+      />
+    </MotionPrefProvider>
   )
 }

@@ -2,7 +2,6 @@
 // shares it via the Web Share API (file share), falling back to a PNG download.
 // No backend — the card is drawn client-side from live CSS theme vars.
 
-import QRCode from 'qrcode'
 import { toast } from 'sonner'
 import { getFont, getStoredFont } from './font'
 
@@ -79,6 +78,8 @@ async function drawCard({ brand, gameLabel, headline, sub, accentVar, url }) {
   // scannable QR — turns a shared screenshot into a joinable invite.
   if (url) {
     try {
+      // qrcode (~23 KB) loads only when a card is actually shared.
+      const { default: QRCode } = await import('qrcode')
       const qrUrl = await QRCode.toDataURL(url, {
         margin: 1,
         width: 240,

@@ -7,6 +7,9 @@ import useMotionPref from '../hooks/useMotionPref'
 //   setting 'reduced' → 'always' (skip transform/layout animation)
 //   setting 'full'    → 'never'  (animate even if the OS asks to reduce)
 //   no setting        → 'user'   (framer reads the OS query itself)
+// Mounted inside the framer-motion components themselves (EmoteBar,
+// AnimatedEmoji), which load lazily — not at the app root, where importing
+// MotionConfig would pull framer-motion (~120 KB) into the entry chunk.
 export default function MotionPrefProvider({ children }) {
   const { setting } = useMotionPref()
   const reducedMotion = setting === 'reduced' ? 'always' : setting === 'full' ? 'never' : 'user'

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import QRCode from 'qrcode'
 import Skeleton from './loading/Skeleton'
 import { cn } from '@/lib/utils'
 
@@ -8,7 +7,10 @@ export default function QrCode({ value, size = 160, className = '' }) {
   const [src, setSrc] = useState('')
   useEffect(() => {
     let active = true
-    QRCode.toDataURL(value, { margin: 1, width: size, color: { dark: '#0a0a14', light: '#ffffff' } })
+    // qrcode (~23 KB) loads on first use, not with the room page. A failed
+    // chunk load lands in the same QR UNAVAILABLE state as a render error.
+    import('qrcode')
+      .then(({ default: QRCode }) => QRCode.toDataURL(value, { margin: 1, width: size, color: { dark: '#0a0a14', light: '#ffffff' } }))
       .then(url => { if (active) { setSrc(url); setStatus('ready') } })
       .catch(() => { if (active) setStatus('error') })
     return () => { active = false }
