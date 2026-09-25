@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  MATCH_TARGET, MIN_SOLUTION_COUNT, MISSED_SHOWN, RACK_HISTORY, RACK_SIZE, REVEAL_MS, ROUND_MS,
+  COUNTDOWN_MS, MATCH_TARGET, MIN_SOLUTION_COUNT, MISSED_SHOWN, RACK_HISTORY, RACK_SIZE, REVEAL_MS, ROUND_MS,
   applyFoundWord, canBuildWord, compareRound, getMatchWinner,
-  getSolutions, missedWords, normalizeWord, rememberRack, resolveRound, scoreFound, scoreWord,
-  seededRack, shouldReveal, validFound,
+  getSolutions, missedWords, normalizeWord, rememberRack, resolveRound, roundStartDue, scoreFound, scoreWord,
+  seededRack, shouldReveal, startRound, validFound,
 } from './anagramsLogic'
 import { isCommonWord } from './commonWords'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from './decks/anagrams'
@@ -225,5 +225,64 @@ describe('missedWords', () => {
   it('never lists a word that is not family-safe', () => {
     const missed = missedWords(['T', 'H', 'E', 'R', 'A', 'P', 'Y'], ANAGRAM_VALID_WORDS, {}, 500)
     expect(missed.filter(w => !isFamilySafe(w))).toEqual([])
+  })
+})
+
+describe('compareRound tie-break reason', () => {
+  it('says whether points or word count decided the round', () => {
+    expect(compareRound({ planets: {} }, { plane: {} }).decidedBy).toBe('points')
+    expect(compareRound({ plane: {} }, { pet: {}, net: {}, pan: {}, tan: {} })).toMatchObject({ winner: 'O', decidedBy: 'words' })
+    expect(compareRound({ plane: {} }, { plate: {} }).decidedBy).toBe('draw')
+  })
+})
+
+describe('resolveRound after the match was ended elsewhere', () => {
+  it('regression: never reopens a game finished by CLAIM WIN', () => {
+    const claimed = {
+      status: 'finished', winner: 'X', scores: { X: 1, O: 0 },
+      round: { phase: 'playing', rack: ['P', 'L', 'A', 'N', 'E', 'T', 'S'], endsAt: 1000, foundO: { plane: { at: 1 } } },
+    }
+    expect(resolveRound(claimed, 5000, ANAGRAM_VALID_WORDS)).toBeUndefined()
+  })
+})
+
+describe('startRound — countdown and auto-advance', () => {
+  const deck = { rackWords: ANAGRAM_RACK_WORDS, validWords: ANAGRAM_VALID_WORDS, gameId: 'g1' }
+  const reveal = (extra = {}) => ({
+    status: 'playing', scores: { X: 1, O: 0 },
+    round: { phase: 'reveal', roundNum: 1, revealEndsAt: 10_000, usedRacks: ['aelnpst'], ...extra },
+  })
+
+  it('deals the first rack with a 3-2-1 before input opens', () => {
+    const next = startRound({ status: 'playing', scores: { X: 0, O: 0 } }, { ...deck, now: 1_000 })
+    expect(next.round).toMatchObject({ phase: 'playing', roundNum: 1, startedAt: 1_000 + COUNTDOWN_MS })
+    expect(next.round.endsAt).toBe(next.round.startedAt + ROUND_MS)
+    expect(next.round.rack).toHaveLength(RACK_SIZE)
+    expect(next.round.usedRacks).toHaveLength(1)
+  })
+
+  it("starts from Game.jsx's ready round, keeping its history and round number", () => {
+    const next = startRound({ status: 'playing', round: { phase: 'ready', roundNum: 1, usedRacks: ['abc'] } }, { ...deck, now: 1 })
+    expect(next.round.roundNum).toBe(1)
+    expect(next.round.usedRacks[0]).toBe('abc')
+  })
+
+  it('auto-advances once the reveal has been up REVEAL_MS', () => {
+    expect(REVEAL_MS).toBeGreaterThanOrEqual(4_000)
+    expect(startRound(reveal(), { ...deck, now: 9_999 })).toBeUndefined()
+    const next = startRound(reveal(), { ...deck, now: 10_000 })
+    expect(next.round).toMatchObject({ phase: 'playing', roundNum: 2 })
+    expect(next.round.usedRacks[0]).toBe('aelnpst')
+    expect([...next.round.rack].sort().join('').toLowerCase()).not.toBe('aelnpst')
+  })
+
+  it('never advances past a finished match, a mid-rack round, or a pending proposal', () => {
+    expect(startRound(reveal(), { ...deck, now: 20_000 })).toBeDefined()
+    expect(startRound({ ...reveal(), scores: { X: MATCH_TARGET, O: 0 } }, { ...deck, now: 20_000 })).toBeUndefined()
+    expect(startRound({ ...reveal(), status: 'finished' }, { ...deck, now: 20_000 })).toBeUndefined()
+    expect(startRound(reveal({ phase: 'playing' }), { ...deck, now: 20_000 })).toBeUndefined()
+    expect(roundStartDue({ ...reveal(), proposal: { action: 'switch', by: 'X' } }, 20_000)).toBe(false)
+    expect(roundStartDue({ ...reveal(), proposal: { action: 'switch', by: 'X', declined: true } }, 20_000)).toBe(true)
+    expect(startRound(null, { ...deck, now: 1 })).toBeUndefined()
   })
 })

@@ -9,8 +9,12 @@ export const ROUND_MS = 90_000
 export const MIN_WORD_LENGTH = 3
 export const MATCH_TARGET = 2
 export const MIN_SOLUTION_COUNT = 12
-// How long the reveal stays up before the next rack (see resolveRound).
-export const REVEAL_MS = 4_000
+// 3-2-1 before each rack: the round's startedAt is this far in the future and
+// no word counts before it.
+export const COUNTDOWN_MS = 3_000
+// How long the reveal stays up before the next rack starts on its own
+// (startRound); starting value — long enough to read the missed words.
+export const REVEAL_MS = 6_000
 // Racks remembered per room (sorted-letter keys) so recent racks don't
 // repeat across rounds and matches; older ones rotate back in.
 export const RACK_HISTORY = 60
@@ -91,7 +95,9 @@ export function compareRound(foundX, foundO) {
     : scoreO > scoreX || (scoreX === scoreO && wordsO > wordsX)
       ? 'O'
       : 'draw'
-  return { winner, scoreX, scoreO, wordsX, wordsO }
+  // Why: 'points', 'words' (tied on points, more words won) or 'draw'.
+  const decidedBy = winner === 'draw' ? 'draw' : scoreX !== scoreO ? 'points' : 'words'
+  return { winner, decidedBy, scoreX, scoreO, wordsX, wordsO }
 }
 
 // Firebase returns a stored list as an array or a numeric-keyed object; map
@@ -187,7 +193,8 @@ export function validFound(found, rack, validWords) {
 // players' words before scoring, awards the round, and ends the match at
 // MATCH_TARGET. `now` is server-corrected time.
 export function resolveRound(current, now, validWords) {
-  if (!current?.round || !shouldReveal(current.round, now)) return undefined
+  // A finished match (e.g. the platform's CLAIM WIN) is never reopened.
+  if (!current?.round || current.status === 'finished' || !shouldReveal(current.round, now)) return undefined
   const { rack } = current.round
   const valid = validWords instanceof Set ? validWords : wordSet(validWords)
   const result = compareRound(
@@ -221,4 +228,44 @@ export function missedWords(rack, validWords, found, limit = MISSED_SHOWN) {
   const have = new Set((Array.isArray(found) ? found : Object.keys(found || {})).map(normalizeWord))
   const missed = getSolutions(rack, validWords).filter(word => !have.has(word))
   return topFamiliar(missed, { limit, score: scoreWord })
+}
+
+// When the rack should start: from the 'ready' round Game.jsx writes (first
+// rack, new match), or automatically once the reveal has been up REVEAL_MS
+// and the match is not over. A pending proposal (e.g. someone asked to
+// switch games) holds the reveal until it is answered. Either seated client
+// may run it.
+export function roundStartDue(game, now) {
+  if (!game || game.status !== 'playing') return false
+  const round = game.round
+  if (!round || round.phase === 'ready') return true
+  if (round.phase !== 'reveal' || getMatchWinner(game.scores)) return false
+  if (game.proposal && !game.proposal.declined) return false
+  return Number(now) >= Number(round.revealEndsAt || 0)
+}
+
+// Transaction updater that deals the next rack (moved from AnagramsGame.jsx):
+// a fresh seeded rack not in the room's history, a COUNTDOWN_MS 3-2-1
+// (startedAt in the future), then ROUND_MS to play. Aborts (undefined)
+// unless roundStartDue.
+export function startRound(current, { now, gameId = '', rackWords, validWords }) {
+  if (!roundStartDue(current, now)) return undefined
+  const prev = current.round
+  const roundNum = !prev ? 1 : prev.phase === 'ready' ? (prev.roundNum || 1) : (prev.roundNum || 1) + 1
+  const usedRacks = listOf(prev?.usedRacks)
+  const seed = `${gameId}:${current.createdAt || ''}:${current.scores?.X || 0}:${current.scores?.O || 0}:${roundNum}:${now}`
+  const rack = seededRack({ rackWords, validWords, seed, used: usedRacks })
+  if (!rack.length) return undefined
+  const startedAt = now + COUNTDOWN_MS
+  return {
+    ...current,
+    round: {
+      phase: 'playing', roundNum, seed, rack,
+      startedAt, endsAt: startedAt + ROUND_MS,
+      foundX: {}, foundO: {}, doneX: false, doneO: false,
+      result: null, revealEndsAt: null,
+      usedRacks: rememberRack(usedRacks, rack),
+    },
+    lastActivityAt: now,
+  }
 }
