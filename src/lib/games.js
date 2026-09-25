@@ -1246,12 +1246,15 @@ export const GAME_TYPES = [
   },
   {
     type: 'password', label: 'PASSWORD',
-    desc: 'give clues, guess the word', Icon: PasswordIcon,
+    desc: 'clue the word for your partner', Icon: PasswordIcon,
     badge: 'PW', maxWidth: 'max-w-sm',
     category: 'word',
     addedAt: '2026-09-18',
-    durationMin: 6, tags: ['quick', 'thinky'], solo: true,
-    custom: true,
+    // Co-op since the D1 decision: partners share one team score over 12
+    // rounds, so there is no opponent to claim a win from. solo: false —
+    // there is no bot clue-giver, so VS AI would dead-end.
+    durationMin: 12, tags: ['thinky'], solo: false,
+    custom: true, coop: true, hidePlayerCards: true,
   },
   {
     type: 'anagrams', label: 'ANAGRAMS',

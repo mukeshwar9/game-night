@@ -525,13 +525,19 @@ export default function Game() {
       // audio and skips match history.
       const arrowsOver = game.gameType === 'arrows' && !!getArrowsMatchEnd(game)
       const isMatch = game.gameType === 'password' || sx >= matchTarget || so >= matchTarget || arrowsOver
-      if (w === 'draw') sounds.draw()
+      // Co-op finishes (Password's team score) have no winner or loser: play
+      // the match fanfare, skip the DRAW overlay and keep them out of W/L stats.
+      const coopFinish = !!getGameConfig(game.gameType).coop
+      if (coopFinish) sounds.matchWin()
+      else if (w === 'draw') sounds.draw()
       else if (w === mySymbol.current) (isMatch ? sounds.matchWin() : sounds.win())
       else if (mySymbol.current) sounds.lose()
-      setWinEffectWinner(w)
-      setWinEffectIntensity(isMatch ? 'match' : 'round')
-      setShowWinEffect(true)
-      if (isMatch && mySymbol.current) {
+      if (!coopFinish) {
+        setWinEffectWinner(w)
+        setWinEffectIntensity(isMatch ? 'match' : 'round')
+        setShowWinEffect(true)
+      }
+      if (isMatch && mySymbol.current && !coopFinish) {
         const opSym = mySymbol.current === 'X' ? 'O' : 'X'
         recordMatch({
           gameType: game.gameType,
