@@ -6,6 +6,11 @@ export const FONTS = [
   { id: 'share-tech', label: 'SHARE TECH MONO', family: 'Share Tech Mono', description: 'Sci-fi cabinet' },
   { id: 'oxanium', label: 'OXANIUM', family: 'Oxanium', description: 'Modern arcade' },
   { id: 'audiowide', label: 'AUDIOWIDE', family: 'Audiowide', description: '80s display' },
+  { id: 'fredoka', label: 'FREDOKA', family: 'Fredoka', description: 'Party rounded' },
+  { id: 'russo', label: 'RUSSO ONE', family: 'Russo One', description: 'Sports bold' },
+  { id: 'patrick-hand', label: 'PATRICK HAND', family: 'Patrick Hand', description: 'Pen and paper' },
+  { id: 'jersey', label: 'JERSEY 10', family: 'Jersey 10', description: 'Scoreboard pixel' },
+  { id: 'tilt-neon', label: 'TILT NEON', family: 'Tilt Neon', description: 'Neon sign' },
 ]
 
 const STORAGE_KEY = 'retro-font'

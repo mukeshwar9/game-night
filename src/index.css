@@ -131,6 +131,11 @@
 @font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/oxanium-regular.ttf') format('truetype'); size-adjust: 127%; }
 @font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/oxanium-bold.ttf') format('truetype'); size-adjust: 127%; }
 @font-face { font-family: 'Audiowide'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/audiowide-latin.ttf') format('truetype'); size-adjust: 125%; }
+@font-face { font-family: 'Fredoka'; font-style: normal; font-weight: 300 700; font-display: swap; src: url('/fonts/fredoka-latin.woff2') format('woff2'); size-adjust: 127%; }
+@font-face { font-family: 'Russo One'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/russo-one-latin.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Patrick Hand'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/patrick-hand-latin.woff2') format('woff2'); size-adjust: 132%; }
+@font-face { font-family: 'Jersey 10'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/jersey-10-latin.woff2') format('woff2'); size-adjust: 163%; }
+@font-face { font-family: 'Tilt Neon'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-neon-latin.woff2') format('woff2'); size-adjust: 126%; }
 
 :root { --font-pixel: 'Press Start 2P'; }
 [data-font='silkscreen'] { --font-pixel: 'Silkscreen'; }
@@ -139,6 +144,11 @@
 [data-font='share-tech'] { --font-pixel: 'Share Tech Mono'; }
 [data-font='oxanium'] { --font-pixel: 'Oxanium'; }
 [data-font='audiowide'] { --font-pixel: 'Audiowide'; }
+[data-font='fredoka'] { --font-pixel: 'Fredoka'; }
+[data-font='russo'] { --font-pixel: 'Russo One'; }
+[data-font='patrick-hand'] { --font-pixel: 'Patrick Hand'; }
+[data-font='jersey'] { --font-pixel: 'Jersey 10'; }
+[data-font='tilt-neon'] { --font-pixel: 'Tilt Neon'; }
 
 /* shadcn/ui CSS variables — retro palette */
 @layer base {
