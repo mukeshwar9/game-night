@@ -134,7 +134,6 @@ import {
   getPairsWinner,
 } from './pairsLogic'
 import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
-import { ANSWER_MS as HERD_ANSWER_MS } from './herdLogic'
 import MancalaBoard from '../components/MancalaBoard'
 import {
   INITIAL_PITS,
@@ -1055,7 +1054,9 @@ export const GAME_TYPES = [
         promptIndex: 0,
         deckSeed: Math.floor(Math.random() * 2147483647),
         answers: null,
-        endsAt: Date.now() + HERD_ANSWER_MS,
+        // Armed by the page's coordinator with server time (a host's local
+        // clock here skewed every other player's countdown).
+        endsAt: null,
       },
     }),
   },
