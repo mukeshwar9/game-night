@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { isTextEntryTarget } from '../lib/keyGuard'
 
 const ROWS = [
   ['Q','W','E','R','T','Y','U','I','O','P'],
@@ -15,6 +16,9 @@ export default function TypingKeyboard({ onKey, disabled = false }) {
   useEffect(() => {
     if (disabled) return
     const handler = (e) => {
+      // Keys typed into the room chat (or any other text field) are not race
+      // input — and must keep their Backspace/Space defaults.
+      if (isTextEntryTarget(e.target) || e.isComposing) return
       if (e.key === 'Backspace') {
         e.preventDefault()
         onKey(e.ctrlKey || e.metaKey ? 'WORD_BACKSPACE' : 'BACKSPACE')
