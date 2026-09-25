@@ -5,7 +5,7 @@ import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
 import {
   seatOrder, hashString, seededShuffle, buildOptions, attributeOptions, scoreRound,
   allLied, allVoted, POINTS_FOR_TRUTH, POINTS_PER_FOOL,
-  validateLie, sameOption, LIE_MAX_LENGTH,
+  validateLie, sameOption, matchWinners, LIE_MAX_LENGTH, FIBBAGE_WIN_SCORE,
 } from '../lib/fibbageLogic'
 import { generateBotRoster, pickBotLie, pickBotVote } from '../lib/partyBots'
 import { getPlayerId } from '../lib/playerId'
@@ -20,10 +20,15 @@ import { cn } from '@/lib/utils'
 const MIN_BOTS = 2
 const MAX_BOTS = 7
 const DEFAULT_BOT_COUNT = 3
-// Kept in sync with FibbageGame.jsx
-const MATCH_WIN_SCORE = 5000
+// Same target and tie rule as FibbageGame.jsx (highest score wins, exact ties shared).
+const MATCH_WIN_SCORE = FIBBAGE_WIN_SCORE
 
 const allFactIndices = () => FIBBAGE_FACTS.map((_, i) => i)
+
+// Everyone tied for the top score at match end (usually one).
+function champions(players, scores) {
+  return matchWinners(scores, seatOrder(players), MATCH_WIN_SCORE)
+}
 
 // Seat-ordered scoreboard rows, richer than seatOrder() alone (adds avatar/score).
 function rankPlayers(players, scores) {
@@ -196,8 +201,7 @@ export default function FibbageDemo() {
       if (humanFoundTruth) sounds.win()
       else sounds.miss()
     } else if (state.phase === 'matchover') {
-      const champ = rankPlayers(state.players, state.scores)[0]
-      if (champ?.id === 'human') sounds.matchWin()
+      if (champions(state.players, state.scores).includes('human')) sounds.matchWin()
       else sounds.lose()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- reads current state on the render where phase actually changed; re-running on every state field would refire past sounds
@@ -291,15 +295,22 @@ export default function FibbageDemo() {
   // -------------------------------------------------------------------------
   if (state.phase === 'matchover') {
     const ranked = rankPlayers(state.players, state.scores)
-    const champ = ranked[0]
-    const iWon = champ?.id === 'human'
+    const champIds = champions(state.players, state.scores)
+    const iWon = champIds.includes('human')
+    const nameOf = id => ranked.find(p => p.id === id)?.name || 'BOT'
+    const headline = champIds.length > 1
+      ? (iWon ? 'YOU SHARE THE WIN!' : `${champIds.map(nameOf).join(' & ')} TIE`)
+      : (iWon ? 'YOU WIN!' : `${nameOf(champIds[0] ?? ranked[0]?.id)} WINS`)
     return (
       <div className="space-y-5 text-center py-2">
         <div className="space-y-1">
           <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
           <p className="font-pixel text-base text-retro-cta text-glow-cta">
-            {iWon ? 'YOU WIN!' : `${champ?.name || 'BOT'} WINS`}
+            {headline}
           </p>
+          {champIds.length > 1 && (
+            <p className="font-pixel text-[9px] text-retro-dim">EXACT TIE — CO-CHAMPIONS</p>
+          )}
         </div>
 
         <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">
