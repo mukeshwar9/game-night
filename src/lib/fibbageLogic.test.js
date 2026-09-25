@@ -12,7 +12,19 @@ import {
   allVoted,
   allLied,
   allRevealed,
+  seededRng,
+  MATCH_PROMPTS,
+  FINAL_MULTIPLIER,
+  drawPromptOrder,
+  promptOrderOf,
+  promptMultiplier,
+  applyMultiplier,
+  nextPromptRound,
+  phaseDeadline,
+  pendingLiars,
+  matchChampions,
 } from './fibbageLogic'
+import { markSeen } from './seenHistory'
 import { FIBBAGE_FACTS } from './decks/fibbage'
 
 // ---------------------------------------------------------------------------
@@ -346,5 +358,130 @@ describe('allRevealed', () => {
 
   it('false for empty eligible list', () => {
     expect(allRevealed([], {})).toBe(false)
+  })
+})
+
+describe('seededRng', () => {
+  it('is deterministic per seed and in [0, 1)', () => {
+    const a = seededRng(7)
+    const b = seededRng(7)
+    for (let i = 0; i < 20; i++) {
+      const x = a()
+      expect(x).toBe(b())
+      expect(x).toBeGreaterThanOrEqual(0)
+      expect(x).toBeLessThan(1)
+    }
+  })
+})
+
+describe('drawPromptOrder (seeded per-match shuffle + per-room seen history)', () => {
+  const N = FIBBAGE_FACTS.length
+
+  it('draws MATCH_PROMPTS distinct prompts, deterministic per seed', () => {
+    const a = drawPromptOrder(N, 1234)
+    expect(a).toHaveLength(MATCH_PROMPTS)
+    expect(new Set(a).size).toBe(MATCH_PROMPTS)
+    expect(drawPromptOrder(N, 1234)).toEqual(a)
+  })
+
+  it('does not always open on prompt 0 (the old fixed-order bug)', () => {
+    const openers = new Set()
+    for (let seed = 1; seed <= 30; seed++) openers.add(drawPromptOrder(N, seed)[0])
+    expect(openers.size).toBeGreaterThan(5)
+  })
+
+  it('avoids the room\'s seen prompts until the deck runs out', () => {
+    let seen = {}
+    const used = new Set()
+    for (let m = 0; m < Math.floor(N / MATCH_PROMPTS); m++) {
+      const order = drawPromptOrder(N, 50 + m, seen)
+      for (const i of order) {
+        expect(used.has(i)).toBe(false)
+        used.add(i)
+      }
+      seen = markSeen(seen, order)
+    }
+  })
+
+  it('still draws a full distinct match when every prompt was seen', () => {
+    const seen = {}
+    for (let i = 0; i < N; i++) seen[i] = i + 1
+    const order = drawPromptOrder(N, 3, seen)
+    expect(new Set(order).size).toBe(MATCH_PROMPTS)
+  })
+
+  it('handles tiny decks', () => {
+    expect(drawPromptOrder(3, 1)).toHaveLength(3)
+    expect(drawPromptOrder(0, 1)).toEqual([])
+  })
+})
+
+describe('promptOrderOf', () => {
+  it('reads Firebase numeric-keyed objects by key and drops junk', () => {
+    expect(promptOrderOf({ order: { 1: 9, 0: 4 } })).toEqual([4, 9])
+    expect(promptOrderOf({ order: [1, 'x', 999] }, 27)).toEqual([1])
+    expect(promptOrderOf(null)).toEqual([])
+  })
+})
+
+describe('final-prompt catch-up', () => {
+  it('doubles only the last prompt', () => {
+    expect(promptMultiplier(0)).toBe(1)
+    expect(promptMultiplier(MATCH_PROMPTS - 1)).toBe(FINAL_MULTIPLIER)
+    expect(promptMultiplier(2, 3)).toBe(2)
+    expect(FINAL_MULTIPLIER).toBe(2)
+  })
+  it('applyMultiplier scales every delta', () => {
+    expect(applyMultiplier({ a: 1000, b: 500 }, 2)).toEqual({ a: 2000, b: 1000 })
+    expect(applyMultiplier({ a: 1000 }, 1)).toEqual({ a: 1000 })
+    expect(applyMultiplier(null, 2)).toEqual({})
+  })
+})
+
+describe('nextPromptRound', () => {
+  const round = { phase: 'reveal', deckSeed: 5, order: [7, 3, 11], num: 0, promptIndex: 7 }
+  it('steps to the next prompt of the stored order', () => {
+    expect(nextPromptRound(round, 27, 1000)).toEqual({
+      round: { phase: 'lying', deckSeed: 5, order: [7, 3, 11], num: 1, promptIndex: 3, lieStartedAt: 1000 },
+    })
+  })
+  it('finishes after the last prompt', () => {
+    expect(nextPromptRound({ ...round, num: 2, promptIndex: 11 }, 27, 1000)).toEqual({ finished: true })
+  })
+  it('hands a legacy round (no order) back to the coordinator for a fresh draw', () => {
+    expect(nextPromptRound({ phase: 'reveal', promptIndex: 4 }, 27, 1000)).toEqual({ round: { phase: 'lying' } })
+  })
+})
+
+describe('phaseDeadline', () => {
+  it('scales from the phase start', () => {
+    expect(phaseDeadline(1000, null, 60000, 1)).toBe(61000)
+    expect(phaseDeadline(1000, null, 60000, 2)).toBe(121000)
+    expect(phaseDeadline(1000, null, 60000, undefined)).toBe(61000)
+  })
+  it('converts a legacy absolute 1× deadline', () => {
+    expect(phaseDeadline(null, 61000, 60000, 1)).toBe(61000)
+    expect(phaseDeadline(null, 61000, 60000, 2)).toBe(121000)
+  })
+  it('is null with timers off or nothing stamped', () => {
+    expect(phaseDeadline(1000, 61000, 60000, 0)).toBeNull()
+    expect(phaseDeadline(null, null, 60000, 1)).toBeNull()
+  })
+})
+
+describe('pendingLiars', () => {
+  it('waits only on players who committed a lie', () => {
+    expect(pendingLiars({ a: { hash: 'x' }, b: { hash: 'y' } }, { a: { text: 't', salt: 's' } })).toEqual(['b'])
+    expect(pendingLiars({}, {})).toEqual([])
+  })
+})
+
+describe('matchChampions', () => {
+  it('returns every player tied on the top score', () => {
+    expect(matchChampions({ a: 3000, b: 3000, c: 1000 }, ['a', 'b', 'c'])).toEqual(['a', 'b'])
+    expect(matchChampions({ a: 500 }, ['a', 'b'])).toEqual(['a'])
+  })
+  it('is empty when nobody scored', () => {
+    expect(matchChampions({}, ['a', 'b'])).toEqual([])
   })
 })

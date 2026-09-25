@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { ref, onValue, update, runTransaction } from 'firebase/database'
+import { useEffect, useRef, useState } from 'react'
+import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
-import { commit, verifyReveal } from '../lib/commit'
 import {
   seatOrder,
   hashString,
@@ -11,44 +10,67 @@ import {
   normalizeMap,
   allLied,
   allVoted,
-  allRevealed,
+  MATCH_PROMPTS,
+  SUB_GRACE_MS,
+  drawPromptOrder,
+  promptOrderOf,
+  promptMultiplier,
+  applyMultiplier,
+  nextPromptRound,
+  phaseDeadline,
+  pendingLiars,
+  matchChampions,
 } from '../lib/fibbageLogic'
-import { isCoordinator } from '../lib/coordinator'
+import { roomCoordinator } from '../lib/coordinator'
+import { markSeen } from '../lib/seenHistory'
+import { normalizeList } from '../lib/normalize'
+import { normalizeTimerScale, scaledMs, timersOff } from '../lib/timerScale'
+import { formatClock } from '../lib/format'
 import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
+import useServerClock, { getServerNow } from '../hooks/useServerClock'
+import useCommitReveal, { clearSecret, secretKey } from '../hooks/useCommitReveal'
+import RoundEndPanel from '../components/RoundEndPanel'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
-import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
 
 const MIN_PLAYERS = 3    // needed in the lobby to START a match
 const MIN_ACTIVE = 2     // needed mid-match to keep a round moving; below this we pause
-const MATCH_WIN_SCORE = 5000
 const LIE_MS = 60_000
 const VOTE_MS = 45_000
+// Grace for publishing author reveals — liveness, not a player-facing timer, so
+// the room timer scale does not stretch it.
 const REVEAL_MS = 20_000
 
-// sessionStorage key for the player's secret lie ({ text, salt, subKey }) per round.
-// The plaintext + salt never touch Firebase until the reveal phase — matching the
-// commit-reveal pattern in src/lib/commit.js (Bluff / TwoTruths / Wavelength).
-const lieKey = (gameId, promptIndex) => `fibbage-lie-${gameId}-${promptIndex}`
-
-function readSecret(gameId, promptIndex) {
-  try { return JSON.parse(sessionStorage.getItem(lieKey(gameId, promptIndex)) || 'null') } catch { return null }
-}
+// sessionStorage secret for the player's lie ({ text, subKey, salt, hash }) per
+// prompt: `fibbage-lie-${gameId}-${promptIndex}` (useCommitReveal). The plaintext
+// + salt never touch Firebase until the reveal phase — matching the commit-reveal
+// pattern in src/lib/commit.js (Bluff / TwoTruths / Wavelength).
+const SECRET_KEY = 'fibbage-lie'
 
 function normalizeRound(raw) {
   if (!raw) return null
   return {
     phase: raw.phase ?? 'lying',
     promptIndex: raw.promptIndex ?? 0,
+    num: raw.num ?? null,                 // 0-based position in `order` (null on legacy rounds)
+    order: raw.order ?? null,             // this match's deck indices
+    deckSeed: raw.deckSeed ?? null,
     lies: normalizeMap(raw.lies),         // { [playerId]: { hash } } — commitment only
     subs: normalizeMap(raw.subs),         // { [randomKey]: text } — anonymised ballot pool
-    options: Array.isArray(raw.options) ? raw.options : (raw.options ? Object.values(raw.options) : []),
+    options: normalizeList(raw.options),  // [{ id, text }] — read by key, never Object.values
     votes: normalizeMap(raw.votes),       // { [playerId]: optionId }
     reveals: normalizeMap(raw.reveals),   // { [playerId]: { text, salt } } — reveal phase only
     cheats: normalizeMap(raw.cheats),     // { [playerId]: true } — failed verification
+    deltas: normalizeMap(raw.deltas),     // { [playerId]: points } — this prompt's scores
+    lieStartedAt: raw.lieStartedAt ?? null,
+    voteStartedAt: raw.voteStartedAt ?? null,
+    lieDeadline: raw.lieDeadline ?? null,     // legacy absolute 1× deadlines
+    voteDeadline: raw.voteDeadline ?? null,
+    closedAt: raw.closedAt ?? null,
+    revealDeadline: raw.revealDeadline ?? null,
     scored: !!raw.scored,
   }
 }
@@ -62,12 +84,13 @@ function activeSeats(players) {
 }
 
 export default function FibbageGame({
-  gameId, game, mySeat, players, isHost,
+  gameId, game, mySeat, players,
   onStart, onSwitchGame, onNewMatch, proposal,
 }) {
   const round = normalizeRound(game.round)
+  const allSeats = seatOrder(players || {})
   const seats = activeSeats(players || {})
-  const playerCount = Object.keys(players || {}).length
+  const playerCount = allSeats.length
   const enough = playerCount >= MIN_PLAYERS
   // Mid-match, a round can only progress with at least MIN_ACTIVE seats actually
   // online — below that, no fixed host to blame: pause and wait rather than spin.
@@ -75,64 +98,84 @@ export default function FibbageGame({
 
   const scores = game.scores || {}
   const isPlayer = !!mySeat && !!players?.[mySeat]
-  // Deterministic host-fallback: the coordinator is the lowest-uid ONLINE seat, not
-  // the fixed `isHost`. Every phase transition below is gated on this instead, so a
-  // host disconnect hands off to whichever seat is next instead of freezing the match.
-  const amCoordinator = isPlayer && isCoordinator(mySeat, seats, players)
+  const nameOf = (id) => players?.[id]?.name || id || ''
+  // Online-aware coordinator (src/lib/coordinator.js roomCoordinator): the
+  // room host (or a TRANSFER HOST pick, game.hostUid) while connected, else
+  // the next online seat by join time. Every phase
+  // transition (and START) is gated on this instead of the fixed `isHost`, so a
+  // host disconnect hands off instead of freezing the match.
+  const coordinatorId = roomCoordinator(players, game.hostUid ?? null)
+  const amCoordinator = isPlayer && coordinatorId === mySeat
 
-  const fact = round ? FIBBAGE_FACTS[round.promptIndex % FIBBAGE_FACTS.length] : null
+  const timerScale = normalizeTimerScale(game.timerScale)
+  const noTimer = timersOff(game.timerScale)
 
-  const [clockOffset, setClockOffset] = useState(0)
-  const [now, setNow] = useState(() => Date.now())
+  // A fresh match (or a legacy round with no order) waits for the coordinator
+  // to draw this match's prompt order before anyone sees a prompt.
+  const deckSize = FIBBAGE_FACTS.length
+  const order = round ? promptOrderOf(round, deckSize) : []
+  const needsOrder = !!round && order.length === 0 && round.phase === 'lying' &&
+    Object.keys(round.lies).length === 0
+  const total = order.length || MATCH_PROMPTS
+  const num = round?.num ?? 0
+  const isFinal = order.length > 0 && promptMultiplier(num, order.length) > 1
+
+  const fact = round && !needsOrder ? FIBBAGE_FACTS[round.promptIndex % deckSize] : null
+
+  const secret = useCommitReveal(gameId, SECRET_KEY, round ? round.promptIndex : undefined)
+  // Only trust a stored secret that matches this round's commitment — the same
+  // deck index can come round again in a later match.
+  const myHash = round?.lies?.[mySeat]?.hash
+  const mySecret = secret.secret && (!myHash || secret.secret.hash === myHash) ? secret.secret : null
+  const { now: serverNow } = useServerClock(game.status === 'playing' && round ? 500 : 0)
+
   const [lieInput, setLieInput] = useState('')
   const [inputError, setInputError] = useState('')
   const [localLie, setLocalLie] = useState(false)   // I committed this round
   const [localVote, setLocalVote] = useState(null)  // optionId I picked locally
-  const [submitting, setSubmitting] = useState(false)
-  const [sharing, runShare] = useBusy()
-  // My own secret — only ever known to me. Used to guard against voting for my own
-  // lie and to publish my reveal; the DB never sees it until the reveal phase.
-  const [mySecret, setMySecret] = useState(() => (round ? readSecret(gameId, round.promptIndex) : null))
+  const [submitting, runSubmit] = useBusy()
+  const [starting, runStart] = useBusy()
+  const [closing, runClose] = useBusy()
+
+  // Reset per-round local state when the prompt advances (render-phase derive).
+  const roundId = round ? `${round.num ?? 'x'}-${round.promptIndex}` : null
+  const [prevRoundId, setPrevRoundId] = useState(roundId)
+  if (prevRoundId !== roundId) {
+    setPrevRoundId(roundId)
+    setLieInput('')
+    setInputError('')
+    setLocalLie(false)
+    setLocalVote(null)
+  }
 
   const prevPhase = useRef(round?.phase)
-  const prevPromptIndex = useRef(round?.promptIndex)
   const subPublished = useRef(false)
   const revealPublished = useRef(false)
   const scoringStarted = useRef(false)
   const advancingToVoting = useRef(false)
   const advancingToReveal = useRef(false)
-
-  // Corrected clock — every deadline comparison runs through this offset, matching
-  // the serverTimeOffset pattern used elsewhere (see TriviaGame.jsx).
+  const closingLies = useRef(false)
+  const drawing = useRef(false)
+  const stampingLie = useRef(false)
+  const lastRoundId = useRef(roundId)
+  const lastPromptIndex = useRef(round?.promptIndex ?? null)
   useEffect(() => {
-    const offRef = ref(db, '.info/serverTimeOffset')
-    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
-    return () => unsub()
-  }, [])
-  useEffect(() => {
-    if (!round || game.status !== 'playing') return
-    const id = setInterval(() => setNow(Date.now()), 500)
-    return () => clearInterval(id)
-  }, [round?.phase, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
-  const serverNow = now + clockOffset
-
-  // Reset per-round local state when the prompt advances.
-  useEffect(() => {
-    if (!round) return
-    if (round.promptIndex !== prevPromptIndex.current) {
-      setLieInput('')
-      setInputError('')
-      setLocalLie(false)
-      setLocalVote(null)
-      setMySecret(readSecret(gameId, round.promptIndex))
-      subPublished.current = false
-      revealPublished.current = false
-      scoringStarted.current = false
-      advancingToVoting.current = false
-      advancingToReveal.current = false
-      prevPromptIndex.current = round.promptIndex
+    if (lastRoundId.current === roundId) return
+    // The previous prompt's secret is spent once the round moves on.
+    const prevIndex = lastPromptIndex.current
+    if (prevIndex != null && prevIndex !== round?.promptIndex) {
+      clearSecret(secretKey(SECRET_KEY, gameId, prevIndex))
     }
-  }, [round?.promptIndex]) // eslint-disable-line react-hooks/exhaustive-deps
+    lastPromptIndex.current = round?.promptIndex ?? null
+    lastRoundId.current = roundId
+    subPublished.current = false
+    revealPublished.current = false
+    scoringStarted.current = false
+    advancingToVoting.current = false
+    advancingToReveal.current = false
+    closingLies.current = false
+    stampingLie.current = false
+  }, [roundId, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Phase-change sounds.
   useEffect(() => {
@@ -157,104 +200,164 @@ export default function FibbageGame({
   const iCommitted = localLie || (round && round.lies[mySeat] != null)
   const iVoted = localVote != null || (round && round.votes[mySeat] != null)
 
-  // ---- PLAYER: once everyone has committed, publish my plaintext lie into the
-  // anonymous ballot pool (random key → no authorship in the DB). The host builds
-  // the ballot from this pool and then deletes it. ------------------------------
+  const lieDeadline = round ? phaseDeadline(round.lieStartedAt, round.lieDeadline, LIE_MS, timerScale) : null
+  const voteDeadline = round ? phaseDeadline(round.voteStartedAt, round.voteDeadline, VOTE_MS, timerScale) : null
+  const lieWindow = scaledMs(LIE_MS, timerScale)
+  const voteWindow = scaledMs(VOTE_MS, timerScale)
+  const lyingClosed = !!round && round.phase === 'lying' &&
+    (round.closedAt != null || (lieDeadline != null && serverNow >= lieDeadline))
+  // Everyone drops their anonymous ballot submission once all lies are in, or
+  // once lying has been closed early (deadline / coordinator).
+  const collecting = !!round && round.phase === 'lying' &&
+    (allLied(seats, round.lies) || round.closedAt != null)
+
+  // ---- COORDINATOR: draw this match's prompt order once (seeded; avoids the
+  // room's seen/fibbage history), in the same transaction that records it as
+  // seen and stamps the first lying phase. -------------------------------------
   useEffect(() => {
-    if (!isPlayer || !round || round.phase !== 'lying') return
-    if (!allLied(seats, round.lies)) return
+    if (!amCoordinator || !needsOrder || game.status !== 'playing' || paused) return
+    if (drawing.current) return
+    drawing.current = true
+    const fallbackSeed = Math.floor(Math.random() * 2147483647)
+    runTransaction(ref(db, `games/${gameId}`), current => {
+      if (!current || !current.round) return current
+      const r = current.round
+      if ((r.phase ?? 'lying') !== 'lying' || promptOrderOf(r, deckSize).length) return
+      if (r.lies && Object.keys(r.lies).length) return
+      const deckSeed = r.deckSeed ?? fallbackSeed
+      const drawn = drawPromptOrder(deckSize, deckSeed, current.seen?.fibbage)
+      return {
+        ...current,
+        round: {
+          phase: 'lying', deckSeed, order: drawn, num: 0, promptIndex: drawn[0],
+          lieStartedAt: getServerNow(),
+        },
+        seen: { ...(current.seen || {}), fibbage: markSeen(current.seen?.fibbage, drawn) },
+      }
+    }).catch(() => {}).finally(() => { drawing.current = false })
+  }, [amCoordinator, needsOrder, game.status, paused, gameId, serverNow]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- COORDINATOR: a round with an order but no lying start stamp (legacy /
+  // interrupted write) gets one, so its deadline can run. ----------------------
+  useEffect(() => {
+    if (!amCoordinator || !round || round.phase !== 'lying' || needsOrder) return
+    if (round.lieStartedAt != null || round.lieDeadline != null || stampingLie.current) return
+    stampingLie.current = true
+    update(ref(db, `games/${gameId}/round`), { lieStartedAt: getServerNow() })
+      .catch(() => { stampingLie.current = false })
+  }, [amCoordinator, round?.phase, round?.lieStartedAt, round?.lieDeadline, needsOrder, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- PLAYER: once lies are being collected, publish my plaintext lie into the
+  // anonymous ballot pool (random key → no authorship in the DB). The
+  // coordinator builds the ballot from this pool and then deletes it. ----------
+  useEffect(() => {
+    if (!isPlayer || !collecting) return
     if (subPublished.current) return
-    const secret = readSecret(gameId, round.promptIndex)
-    if (!secret || !secret.text || !secret.subKey) return
+    const stored = secret.read()
+    if (!stored || !stored.text || !stored.subKey) return
+    if (round.lies[mySeat]?.hash !== stored.hash) return // not committed (yet) this round
     subPublished.current = true
-    update(ref(db, `games/${gameId}/round/subs`), { [secret.subKey]: secret.text })
+    update(ref(db, `games/${gameId}/round/subs`), { [stored.subKey]: stored.text })
       .catch(() => { subPublished.current = false })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlayer, round?.phase, round?.lies, gameId])
+  }, [isPlayer, collecting, round?.lies, gameId, mySeat]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- COORDINATOR: seed the lying-phase deadline as soon as the round enters
-  // 'lying' with none set (fresh round). Anchored server time, not client-local. --
-  useEffect(() => {
-    if (!amCoordinator || !round || round.phase !== 'lying' || round.lieDeadline) return
-    update(ref(db, `games/${gameId}/round`), { lieDeadline: Date.now() + clockOffset + LIE_MS }).catch(() => {})
-  }, [amCoordinator, round?.phase, round?.lieDeadline, gameId, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Close lying early: freezes new lies and tells everyone to drop their ballot
+  // submission. Idempotent (only the first close stamps closedAt).
+  const closeLying = (promptIndex) => runTransaction(ref(db, `games/${gameId}/round`), cur => {
+    if (!cur) return cur
+    if (cur.phase !== 'lying' || cur.promptIndex !== promptIndex || cur.closedAt != null) return
+    return { ...cur, closedAt: getServerNow() }
+  })
 
-  // ---- COORDINATOR: lying → voting once everyone committed AND all anonymous lies
-  // are in — OR the lie deadline has passed, in which case we build the ballot from
-  // whatever lies actually arrived rather than waiting on a seat that will never
-  // respond. Builds the shuffled, author-less, truth-unmarked ballot and deletes the
-  // submission pool. Idempotent guard (advancingToVoting) + a stale-phase re-check
-  // inside the write keeps this single-writer even during a coordinator handover. ---
+  // ---- COORDINATOR: the lie deadline passed → close lying. ---------------------
   useEffect(() => {
-    if (!amCoordinator || !round || round.phase !== 'lying' || paused) return
-    const deadlinePassed = round.lieDeadline != null && serverNow >= round.lieDeadline
-    if (!allLied(seats, round.lies) && !deadlinePassed) return
+    if (!amCoordinator || !round || round.phase !== 'lying' || paused || needsOrder) return
+    if (round.closedAt != null || lieDeadline == null || serverNow < lieDeadline) return
+    if (closingLies.current) return
+    closingLies.current = true
+    closeLying(round.promptIndex).catch(() => { closingLies.current = false })
+  }, [amCoordinator, round?.phase, round?.closedAt, lieDeadline, serverNow, paused, needsOrder, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- COORDINATOR: lying → voting once every committed lie's anonymous
+  // submission is in — or SUB_GRACE_MS after an early close, in which case the
+  // ballot uses whatever arrived instead of waiting on a seat that will never
+  // respond. Builds the shuffled, author-less, truth-unmarked ballot and deletes
+  // the submission pool. Idempotent guard + a stale-phase re-check inside the
+  // write keeps this single-writer even during a coordinator handover. ---------
+  useEffect(() => {
+    if (!amCoordinator || !round || round.phase !== 'lying' || paused || !fact) return
+    if (!collecting) return
     const committedIds = Object.keys(round.lies)
     const texts = Object.values(round.subs)
-    if (texts.length < committedIds.length && !deadlinePassed) return // wait for every anonymous submission
+    const graceOver = round.closedAt != null && serverNow >= round.closedAt + SUB_GRACE_MS
+    if (texts.length < committedIds.length && !graceOver) return // wait for every anonymous submission
     if (advancingToVoting.current) return
     advancingToVoting.current = true
     const seed = hashString(`${gameId}:${round.promptIndex}`)
     const options = buildOptions(fact.answer, texts, seed)
     runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.phase !== 'lying') return current // already advanced
-      return { ...current, phase: 'voting', options, subs: null, voteDeadline: Date.now() + clockOffset + VOTE_MS }
+      return { ...current, phase: 'voting', options, subs: null, voteStartedAt: getServerNow() }
     }).catch(() => { advancingToVoting.current = false })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amCoordinator, round?.phase, round?.lies, round?.subs, round?.lieDeadline, serverNow, paused, gameId])
+  }, [amCoordinator, round?.phase, round?.lies, round?.subs, round?.closedAt, collecting, serverNow, paused, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- COORDINATOR: voting → reveal (phase flip only) once everyone has voted, or
-  // the vote deadline has passed. Scoring waits for reveals (see below). -----------
+  // voting → reveal (phase flip only; scoring waits for author reveals).
+  const closeVoting = (promptIndex) => runTransaction(ref(db, `games/${gameId}/round`), current => {
+    if (!current) return current
+    if (current.phase !== 'voting' || current.promptIndex !== promptIndex) return // already advanced
+    return { ...current, phase: 'reveal', revealDeadline: getServerNow() + REVEAL_MS }
+  })
+
+  // ---- COORDINATOR: voting → reveal once everyone has voted, or the vote
+  // deadline has passed. -------------------------------------------------------
   useEffect(() => {
     if (!amCoordinator || !round || round.phase !== 'voting' || paused) return
-    const deadlinePassed = round.voteDeadline != null && serverNow >= round.voteDeadline
+    const deadlinePassed = voteDeadline != null && serverNow >= voteDeadline
     if (!allVoted(seats, round.votes) && !deadlinePassed) return
     if (advancingToReveal.current) return
     advancingToReveal.current = true
-    runTransaction(ref(db, `games/${gameId}/round`), current => {
-      if (!current || current.phase !== 'voting') return current // already advanced
-      return { ...current, phase: 'reveal', revealDeadline: Date.now() + clockOffset + REVEAL_MS }
-    }).catch(() => { advancingToReveal.current = false })
-  }, [amCoordinator, round?.phase, round?.votes, round?.voteDeadline, serverNow, paused, gameId, clockOffset]) // eslint-disable-line react-hooks/exhaustive-deps
+    closeVoting(round.promptIndex).catch(() => { advancingToReveal.current = false })
+  }, [amCoordinator, round?.phase, round?.votes, voteDeadline, serverNow, paused, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- PLAYER: publish my author→lie reveal — ONLY now, at the reveal phase. This
   // is the first (and only) time the DB learns who wrote which lie. ---------------
   useEffect(() => {
     if (!isPlayer || !round || round.phase !== 'reveal') return
     if (round.reveals[mySeat] != null || revealPublished.current) return
-    const secret = readSecret(gameId, round.promptIndex)
-    if (!secret || secret.text == null || secret.salt == null) return
+    const stored = secret.read()
+    if (!stored || stored.text == null || stored.salt == null) return
+    if (round.lies[mySeat]?.hash !== stored.hash) return // no lie committed this round
     revealPublished.current = true
-    update(ref(db, `games/${gameId}/round/reveals`), { [mySeat]: { text: secret.text, salt: secret.salt } })
+    update(ref(db, `games/${gameId}/round/reveals`), { [mySeat]: { text: stored.text, salt: stored.salt } })
       .catch(() => { revealPublished.current = false })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlayer, round?.phase, round?.reveals, gameId, mySeat])
+  }, [isPlayer, round?.phase, round?.reveals, round?.lies, gameId, mySeat]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- COORDINATOR: once all reveals are in — or the reveal deadline has passed —
-  // verify each against its commitment, recover the answer key, and apply scores
-  // once (idempotent via round.scored). A seat that never reveals (dropped offline
-  // mid-transition) simply earns no authorship credit; it doesn't block scoring. ---
+  // ---- COORDINATOR: once every liar has revealed — or the reveal grace has
+  // passed — verify each against its commitment, recover the answer key, and
+  // apply scores once (idempotent via round.scored). The final prompt scores
+  // double. A liar who never reveals (dropped offline mid-transition) simply
+  // earns no authorship credit; it doesn't block scoring. ---------------------
   useEffect(() => {
-    if (!amCoordinator || !round || round.phase !== 'reveal' || round.scored) return
+    if (!amCoordinator || !round || round.phase !== 'reveal' || round.scored || !fact) return
     const deadlinePassed = round.revealDeadline != null && serverNow >= round.revealDeadline
-    if (!allRevealed(seats, round.reveals) && !deadlinePassed) return
+    if (pendingLiars(round.lies, round.reveals).length > 0 && !deadlinePassed) return
     if (scoringStarted.current) return
     scoringStarted.current = true
 
     const run = async () => {
-      const verifiedLies = {}
-      const cheats = {}
-      for (const [pid, val] of Object.entries(round.reveals)) {
-        const hash = round.lies[pid]?.hash
-        const { text, salt } = val || {}
-        if (hash == null || text == null || salt == null) continue
-        const ok = await verifyReveal(hash, text, salt)
-        if (ok) verifiedLies[pid] = text
-        else cheats[pid] = true
-      }
-      const rich = attributeOptions(round.options, fact.answer, verifiedLies)
-      const deltas = scoreRound(rich, round.votes)
       try {
+        const verifiedLies = {}
+        const cheats = {}
+        for (const [pid, val] of Object.entries(round.reveals)) {
+          const hash = round.lies[pid]?.hash
+          const { text, salt } = val || {}
+          if (hash == null || text == null || salt == null) continue
+          const ok = await secret.verify(hash, text, salt)
+          if (ok) verifiedLies[pid] = text
+          else cheats[pid] = true
+        }
+        const rich = attributeOptions(round.options, fact.answer, verifiedLies)
+        const deltas = applyMultiplier(scoreRound(rich, round.votes), isFinal ? promptMultiplier(num, order.length) : 1)
         await runTransaction(ref(db, `games/${gameId}`), current => {
           if (!current || !current.round) return current
           if (current.round.phase !== 'reveal' || current.round.scored) return // already resolved
@@ -268,6 +371,7 @@ export default function FibbageGame({
             round: {
               ...current.round,
               scored: true,
+              deltas: Object.keys(deltas).length ? deltas : null,
               cheats: Object.keys(cheats).length ? cheats : null,
             },
           }
@@ -277,12 +381,11 @@ export default function FibbageGame({
       }
     }
     run()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amCoordinator, round?.phase, round?.reveals, round?.scored, round?.revealDeadline, serverNow, gameId])
+  }, [amCoordinator, round?.phase, round?.reveals, round?.scored, round?.revealDeadline, serverNow, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Submit my lie (commit hash now; plaintext stays local until reveal) ------
-  const handleSubmitLie = useCallback(async () => {
-    if (!isPlayer || iCommitted || submitting) return
+  const handleSubmitLie = () => {
+    if (!isPlayer || iCommitted || submitting || !fact || lyingClosed) return
     const text = lieInput.trim()
     if (!text) { setInputError('TYPE YOUR LIE'); return }
     if (text.toLowerCase() === fact.answer.trim().toLowerCase()) {
@@ -290,28 +393,23 @@ export default function FibbageGame({
       return
     }
     setInputError('')
-    setSubmitting(true)
-    try {
-      const { hash, salt } = await commit(text)
+    runSubmit(async () => {
       // Stable random key so the anonymous ballot submission survives a reload
       // without leaking authorship (it is not derived from the playerId).
       const subKey = `${(crypto.randomUUID?.() || Math.random().toString(36).slice(2))}${Date.now().toString(36)}`
-      const secret = { text, salt, subKey }
-      sessionStorage.setItem(lieKey(gameId, round.promptIndex), JSON.stringify(secret))
-      setMySecret(secret)
+      const { hash } = await secret.commit(text, { text, subKey })
       setLocalLie(true)
       sounds.move('X')
       await update(ref(db, `games/${gameId}/round/lies`), { [mySeat]: { hash } })
-    } catch {
+    }, () => {
       setLocalLie(false)
       setInputError('SUBMIT FAILED — RETRY')
-    } finally {
-      setSubmitting(false)
-    }
-  }, [isPlayer, iCommitted, submitting, lieInput, fact, gameId, round, mySeat])
+      toast.error('LIE FAILED — CHECK CONNECTION')
+    })
+  }
 
   // ---- Cast my vote (BUG 1 fix: write an object of children, not a bare string) -
-  const handleVote = useCallback(async (optionId) => {
+  const handleVote = async (optionId) => {
     if (!isPlayer || iVoted) return
     // Cannot vote for your own lie. The ballot carries no authorship, so this is
     // checked locally against my own secret text (which only I know).
@@ -329,137 +427,127 @@ export default function FibbageGame({
       setLocalVote(null)
       setInputError('VOTE FAILED — RETRY')
     }
-  }, [isPlayer, iVoted, round, gameId, mySeat, mySecret])
+  }
 
-  // ---- Next prompt (any player can advance, but only once the round has actually
-  // scored — otherwise a stray/racy click could skip a round before it's tallied) --
-  const handleNextPrompt = useCallback(async () => {
+  // ---- Next prompt (any player, but only once the round has actually scored —
+  // otherwise a stray/racy click could skip a round before it's tallied). A
+  // transaction pinned to this prompt, so simultaneous taps advance once. ------
+  const handleNextPrompt = async () => {
     if (!isPlayer || !round || round.phase !== 'reveal' || !round.scored) return
-    const nextIndex = (round.promptIndex + 1) % FIBBAGE_FACTS.length
-    const matchOver = Object.values(game.scores || {}).some(s => s >= MATCH_WIN_SCORE)
-    sessionStorage.removeItem(lieKey(gameId, round.promptIndex))
-    try {
-      await update(ref(db, `games/${gameId}`), {
-        round: { phase: 'lying', promptIndex: nextIndex },
-        status: matchOver ? 'finished' : 'playing',
-        proposal: null,
-      })
-    } catch { /* ignore */ }
-  }, [isPlayer, round, game.scores, gameId])
+    const fromIndex = round.promptIndex
+    const fromNum = round.num
+    await runTransaction(ref(db, `games/${gameId}`), current => {
+      if (!current || !current.round) return current
+      const r = current.round
+      if (r.phase !== 'reveal' || !r.scored || r.promptIndex !== fromIndex || (r.num ?? null) !== fromNum) return
+      const next = nextPromptRound(r, deckSize, getServerNow())
+      return next.finished
+        ? { ...current, status: 'finished', proposal: null }
+        : { ...current, round: next.round, proposal: null }
+    })
+    secret.clear()
+  }
 
   // -------------------------------------------------------------------------
-  // WAITING / START screen (status !== 'playing')
+  // WAITING / START / MATCH-OVER screen (status !== 'playing')
   // -------------------------------------------------------------------------
   if (game.status !== 'playing') {
     const matchOver = game.status === 'finished'
-    const ranked = seatOrder(players || {})
-      .map(id => ({ id, name: players[id]?.name || id, score: scores[id] || 0 }))
+    const ranked = allSeats
+      .map(id => ({ id, name: nameOf(id), score: scores[id] || 0 }))
       .sort((a, b) => b.score - a.score)
-    const champ = ranked[0]
+    const champs = matchChampions(scores, allSeats)
+    const headline = champs.length === 0
+      ? 'NOBODY SCORED'
+      : champs.includes(mySeat)
+        ? 'YOU WIN!'
+        : `${champs.map(id => nameOf(id).toUpperCase()).join(' & ')} WINS`
 
     return (
       <div className="space-y-5 text-center">
-        {matchOver && champ && (
-          <div className="space-y-1">
-            <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
-            <p className="font-pixel text-base text-retro-cta text-glow-cta">
-              {champ.id === mySeat ? 'YOU WIN!' : `${champ.name.toUpperCase()} WINS`}
-            </p>
-          </div>
-        )}
-
         <div className="space-y-2">
           <p className="font-pixel text-sm text-retro-p1 text-glow-p1">FIBBAGE</p>
           <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
-            Invent a fake answer. Fool the others.<br />Find the real one for big points.
+            Invent a fake answer. Fool the others.<br />Find the real one for big points.<br />
+            {MATCH_PROMPTS} prompts — the last one scores double.
           </p>
         </div>
 
-        {/* Lobby / scoreboard */}
-        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">
-          <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
-            PLAYERS ({playerCount})
-          </p>
-          {ranked.length === 0 && (
-            <p className="font-mono text-[11px] text-retro-dim arcade-blink">WAITING…</p>
-          )}
-          {ranked.map(p => (
-            <div key={p.id} className="flex items-center justify-between font-mono text-[11px]">
-              <span className={cn(
-                'truncate',
-                p.id === mySeat ? 'text-retro-p1' : 'text-retro-text',
-                players[p.id]?.online === false && 'opacity-40',
-              )}>
-                {p.name}{p.id === mySeat ? ' (YOU)' : ''}
-              </span>
-              {matchOver && <span className="text-retro-dim ml-2">{p.score}</span>}
+        {matchOver ? (
+          <RoundEndPanel
+            caption="MATCH OVER"
+            headline={headline}
+            sub={champs.length > 1 && (
+              <p className="font-pixel text-[9px] text-retro-dim">SHARED VICTORY</p>
+            )}
+            scores={{
+              title: 'FINAL SCORES',
+              rows: ranked.map(p => ({
+                id: p.id, name: p.name, score: p.score, you: p.id === mySeat,
+                muted: players[p.id]?.online === false, win: champs.includes(p.id),
+              })),
+            }}
+            actions={isPlayer ? [
+              !proposal && onNewMatch && {
+                key: 'new', label: 'NEW MATCH', busyLabel: 'STARTING…', onClick: onNewMatch,
+              },
+            ] : []}
+            share={isPlayer && champs.length > 0 ? {
+              gameLabel: 'FIBBAGE',
+              headline: champs.includes(mySeat) ? 'YOU WIN!' : `${nameOf(champs[0]).toUpperCase()} WINS`,
+              sub: 'Fibbage · Game Night',
+            } : null}
+          />
+        ) : (
+          <>
+            {/* Lobby */}
+            <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">
+              <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
+                PLAYERS ({playerCount})
+              </p>
+              {ranked.length === 0 && (
+                <p className="font-mono text-[11px] text-retro-dim arcade-blink">WAITING…</p>
+              )}
+              {ranked.map(p => (
+                <div key={p.id} className="flex items-center justify-between font-mono text-[11px]">
+                  <span className={cn(
+                    'truncate',
+                    p.id === mySeat ? 'text-retro-p1' : 'text-retro-text',
+                    players[p.id]?.online === false && 'opacity-40',
+                  )}>
+                    {p.name}{p.id === mySeat ? ' (YOU)' : ''}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {!enough && (
-          <p className="font-pixel text-[10px] text-retro-p2 arcade-blink leading-relaxed">
-            NEED {MIN_PLAYERS}+ PLAYERS<br />
-            ({Math.max(0, MIN_PLAYERS - playerCount)} MORE TO START)
-          </p>
-        )}
+            {!enough && (
+              <p className="font-pixel text-[10px] text-retro-p2 arcade-blink leading-relaxed">
+                NEED {MIN_PLAYERS}+ PLAYERS<br />
+                ({Math.max(0, MIN_PLAYERS - playerCount)} MORE TO START)
+              </p>
+            )}
 
-        {isHost && enough && !matchOver && (
-          <button
-            onClick={onStart}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
-          >
-            START ROUND
-          </button>
-        )}
-        {!isHost && enough && !matchOver && (
-          <p className="font-pixel text-[10px] text-retro-dim arcade-blink">
-            WAITING FOR HOST TO START…
-          </p>
-        )}
-
-        {matchOver && isPlayer && champ && (
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {!proposal && onNewMatch && (
+            {amCoordinator && enough && (
               <button
-                onClick={onNewMatch}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+                onClick={() => runStart(() => onStart())}
+                disabled={starting}
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
               >
-                NEW MATCH
+                {starting ? 'STARTING…' : 'START ROUND'}
               </button>
             )}
-            <button
-              onClick={() => runShare(async () => {
-                const ok = await shareResult({
-                  gameLabel: 'FIBBAGE',
-                  headline: champ?.id === mySeat
-                    ? 'YOU WIN!'
-                    : `${(champ?.name || '').toUpperCase()} WINS`,
-                  sub: 'Fibbage · Game Night',
-                  accentVar: '--c-cta',
-                  url: window.location.href,
-                })
-                if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
-              })}
-              disabled={sharing}
-              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
-            >
-              {sharing ? 'BUILDING…' : 'SHARE'}
-            </button>
-          </div>
+            {!amCoordinator && enough && (
+              <p className="font-pixel text-[10px] text-retro-dim arcade-blink">
+                WAITING FOR {coordinatorId ? nameOf(coordinatorId).toUpperCase() : 'HOST'} TO START…
+              </p>
+            )}
+          </>
         )}
 
         {isPlayer && onSwitchGame && !proposal && (
           <GameSwitcher currentType="fibbage" onSwitch={onSwitchGame} />
         )}
-      </div>
-    )
-  }
-
-  if (!round || !fact) {
-    return (
-      <div className="text-center py-8 font-pixel text-[10px] text-retro-dim arcade-blink">
-        STARTING ROUND…
       </div>
     )
   }
@@ -476,6 +564,14 @@ export default function FibbageGame({
     )
   }
 
+  if (!round || !fact) {
+    return (
+      <div className="text-center py-8 font-pixel text-[10px] text-retro-dim arcade-blink">
+        STARTING ROUND…
+      </div>
+    )
+  }
+
   // -------------------------------------------------------------------------
   // Shared header: prompt with blank
   // -------------------------------------------------------------------------
@@ -488,6 +584,7 @@ export default function FibbageGame({
   const votedCount = Object.keys(round.votes).length
   const myLieNorm = mySecret?.text ? mySecret.text.trim().toLowerCase() : null
   const answerNorm = fact.answer.trim().toLowerCase()
+  const coordName = (nameOf(coordinatorId) || 'HOST').toUpperCase()
 
   // Reveal-time answer key: recovered client-side from the (now public) reveals,
   // excluding any that failed commitment verification.
@@ -499,15 +596,60 @@ export default function FibbageGame({
   const richOptions = round.phase === 'reveal'
     ? attributeOptions(round.options, fact.answer, verifiedLies)
     : round.options
-  const cheaterNames = Object.keys(round.cheats).map(pid => players[pid]?.name || pid)
+  const cheaterNames = Object.keys(round.cheats).map(nameOf)
+
+  const phaseDeadlineMs = round.phase === 'lying' ? lieDeadline : round.phase === 'voting' ? voteDeadline : null
+  const phaseWindow = round.phase === 'lying' ? lieWindow : voteWindow
+  const remainingMs = phaseDeadlineMs != null && round.closedAt == null
+    ? Math.max(0, phaseDeadlineMs - serverNow)
+    : null
+
+  const timerBar = (round.phase === 'lying' || round.phase === 'voting') && (
+    remainingMs != null && phaseWindow ? (
+      <div className="space-y-1">
+        <div className="h-1.5 bg-retro-surface rounded-full overflow-hidden">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all duration-500',
+              remainingMs > 10000 ? 'bg-retro-win' : 'bg-retro-danger',
+            )}
+            style={{ width: `${Math.min(100, Math.round((remainingMs / phaseWindow) * 100))}%` }}
+          />
+        </div>
+        <p className="font-pixel text-[8px] text-retro-dim text-right tabular-nums">{formatClock(remainingMs)}</p>
+      </div>
+    ) : noTimer && round.closedAt == null && (
+      <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">
+        NO TIMER · {amCoordinator ? 'YOU CLOSE' : `${coordName} CLOSES`} THIS PHASE
+      </p>
+    )
+  )
+
+  const closeButton = (label, busyLabel, action) => (
+    <button
+      onClick={() => runClose(action, () => toast.error('CLOSE FAILED — CHECK CONNECTION'))}
+      disabled={closing}
+      className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-50"
+    >
+      {closing ? busyLabel : label}
+    </button>
+  )
 
   return (
     <div className="space-y-4">
+      {timerBar}
+
       {/* Prompt */}
       <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
         <p className="font-pixel text-[8px] text-retro-dim tracking-widest text-center">
+          {order.length > 0 && `PROMPT ${num + 1}/${total} · `}
           {round.phase === 'lying' ? 'INVENT A LIE' : round.phase === 'voting' ? 'WHICH IS TRUE?' : 'THE TRUTH'}
         </p>
+        {isFinal && (
+          <p className="font-pixel text-[9px] text-retro-p2 text-glow-p2 text-center tracking-widest">
+            ★ FINAL PROMPT · DOUBLE POINTS ★
+          </p>
+        )}
         <p className="font-mono text-[13px] text-retro-text leading-relaxed text-center">
           {promptDisplay}
         </p>
@@ -516,7 +658,7 @@ export default function FibbageGame({
       {/* ---- LYING PHASE ---- */}
       {round.phase === 'lying' && (
         <div className="space-y-3">
-          {isPlayer && !iCommitted ? (
+          {isPlayer && !iCommitted && !lyingClosed ? (
             <div className="space-y-2">
               <input
                 type="text"
@@ -541,12 +683,14 @@ export default function FibbageGame({
             </div>
           ) : (
             <p className="font-pixel text-[10px] text-retro-win text-glow-win text-center arcade-blink">
-              {isPlayer ? 'LIE LOCKED ✓' : 'SPECTATING'}
+              {!isPlayer ? 'SPECTATING' : iCommitted ? 'LIE LOCKED ✓' : "TIME'S UP — BUILDING THE BALLOT"}
             </p>
           )}
           <p className="font-pixel text-[9px] text-retro-dim text-center">
             {committedCount}/{seats.length} LIED…
           </p>
+          {noTimer && amCoordinator && round.closedAt == null && committedCount > 0 &&
+            closeButton('CLOSE LIES', 'CLOSING…', () => closeLying(round.promptIndex))}
         </div>
       )}
 
@@ -578,6 +722,8 @@ export default function FibbageGame({
           <p className="font-pixel text-[9px] text-retro-dim text-center pt-1">
             {iVoted ? `VOTED ✓ — ${votedCount}/${seats.length} IN` : isPlayer ? 'PICK THE TRUTH' : 'SPECTATING'}
           </p>
+          {noTimer && amCoordinator && votedCount > 0 &&
+            closeButton('CLOSE VOTING', 'CLOSING…', () => closeVoting(round.promptIndex))}
         </div>
       )}
 
@@ -601,8 +747,8 @@ export default function FibbageGame({
                   const authors = isTruth ? [] : (Array.isArray(opt.by) ? opt.by : (opt.by == null ? [] : [opt.by]))
                   const voters = Object.entries(round.votes)
                     .filter(([, oid]) => oid === opt.id)
-                    .map(([vid]) => players[vid]?.name || vid)
-                  const authorNames = authors.map(a => players[a]?.name || a)
+                    .map(([vid]) => nameOf(vid))
+                  const authorNames = authors.map(nameOf)
                   return (
                     <div
                       key={opt.id}
@@ -634,30 +780,27 @@ export default function FibbageGame({
                 })}
               </div>
 
-              {/* Scoreboard */}
-              <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1">
-                <p className="font-pixel text-[9px] text-retro-dim tracking-widest text-center">SCORES</p>
-                {seatOrder(players || {})
-                  .map(id => ({ id, name: players[id]?.name || id, score: scores[id] || 0 }))
-                  .sort((a, b) => b.score - a.score)
-                  .map(p => (
-                    <div key={p.id} className="flex items-center justify-between font-mono text-[11px]">
-                      <span className={p.id === mySeat ? 'text-retro-p1' : 'text-retro-text'}>
-                        {p.name}{p.id === mySeat ? ' (YOU)' : ''}
-                      </span>
-                      <span className="text-retro-cta">{p.score}</span>
-                    </div>
-                  ))}
-              </div>
-
-              {isPlayer && (
-                <button
-                  onClick={handleNextPrompt}
-                  className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
-                >
-                  NEXT PROMPT
-                </button>
-              )}
+              <RoundEndPanel
+                scores={{
+                  title: isFinal ? 'SCORES · FINAL PROMPT ×2' : 'SCORES',
+                  rows: allSeats
+                    .map(id => ({ id, name: nameOf(id), score: scores[id] || 0 }))
+                    .sort((a, b) => b.score - a.score)
+                    .map(p => ({
+                      ...p,
+                      you: p.id === mySeat,
+                      delta: round.deltas[p.id] ?? (Object.keys(round.deltas).length ? 0 : null),
+                    })),
+                }}
+                actions={isPlayer ? [{
+                  key: 'next',
+                  label: order.length > 0 && num + 1 >= order.length ? 'SEE FINAL RESULTS' : 'NEXT PROMPT',
+                  busyLabel: 'DEALING…',
+                  variant: 'next',
+                  onClick: handleNextPrompt,
+                  errorMsg: 'NEXT PROMPT FAILED — CHECK CONNECTION',
+                }] : []}
+              />
             </>
           )}
         </div>

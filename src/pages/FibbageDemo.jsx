@@ -3,8 +3,9 @@ import PartyBotSetup from '../components/PartyBotSetup'
 import Avatar from '../components/Avatar'
 import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
 import {
-  seatOrder, hashString, seededShuffle, buildOptions, attributeOptions, scoreRound,
+  seatOrder, hashString, buildOptions, attributeOptions, scoreRound,
   allLied, allVoted, POINTS_FOR_TRUTH, POINTS_PER_FOOL,
+  MATCH_PROMPTS, drawPromptOrder, promptMultiplier, applyMultiplier,
 } from '../lib/fibbageLogic'
 import { generateBotRoster, pickBotLie, pickBotVote } from '../lib/partyBots'
 import { getPlayerId } from '../lib/playerId'
@@ -19,12 +20,8 @@ import { cn } from '@/lib/utils'
 const MIN_BOTS = 2
 const MAX_BOTS = 7
 const DEFAULT_BOT_COUNT = 3
-// Kept in sync with FibbageGame.jsx
-const MATCH_WIN_SCORE = 5000
 
 const norm = (s) => String(s ?? '').trim().toLowerCase()
-
-const allFactIndices = () => FIBBAGE_FACTS.map((_, i) => i)
 
 // Seat-ordered scoreboard rows, richer than seatOrder() alone (adds avatar/score).
 function rankPlayers(players, scores) {
@@ -40,8 +37,7 @@ const initialState = {
   round: 0,
   roster: [],       // bots only, [{id, name, avatar, persona}]
   players: {},       // synthetic seatOrder map: { human: {...}, 'bot-1': {...}, ... }
-  promptQueue: [],   // shuffled FIBBAGE_FACTS indices
-  queueGen: 0,       // reshuffle generation, used to derive the next queue's seed
+  promptQueue: [],   // this match's FIBBAGE_FACTS indices (drawPromptOrder, same as live)
   queuePos: 0,
   promptIndex: 0,
   lies: {},          // { [playerId]: text } — plaintext, local-only, no commit-reveal
@@ -71,8 +67,12 @@ function advanceIfAllVoted(state) {
   if (!allVoted(seatIds, state.votes)) return state
   const fact = FIBBAGE_FACTS[state.promptIndex % FIBBAGE_FACTS.length]
   // No commit-reveal in solo mode — `state.lies` IS the verified author->lie map.
+  // Same match rules as the live game: the final prompt scores double.
   const richOptions = attributeOptions(state.options, fact.answer, state.lies)
-  const roundDeltas = scoreRound(richOptions, state.votes)
+  const roundDeltas = applyMultiplier(
+    scoreRound(richOptions, state.votes),
+    promptMultiplier(state.queuePos, state.promptQueue.length),
+  )
   const scores = { ...state.scores }
   for (const [id, pts] of Object.entries(roundDeltas)) scores[id] = (scores[id] || 0) + pts
   return { ...state, richOptions, roundDeltas, scores, phase: 'reveal' }
@@ -90,7 +90,7 @@ function reducer(state, action) {
       roster.forEach((bot, i) => {
         players[bot.id] = { playerId: bot.id, joinedAt: i + 1, name: bot.name, avatar: bot.avatar }
       })
-      const promptQueue = seededShuffle(allFactIndices(), hashString(`${seed}-queue-0`))
+      const promptQueue = drawPromptOrder(FIBBAGE_FACTS.length, hashString(`${seed}-queue-0`))
       const scores = {}
       Object.keys(players).forEach(id => { scores[id] = 0 })
       return {
@@ -134,23 +134,14 @@ function reducer(state, action) {
 
     case 'NEXT_ROUND': {
       if (state.phase !== 'reveal') return state
-      const matchOver = Object.values(state.scores).some(s => s >= MATCH_WIN_SCORE)
-      if (matchOver) return { ...state, phase: 'matchover' }
-      let { promptQueue, queuePos, queueGen } = state
-      let nextPos = queuePos + 1
-      if (nextPos >= promptQueue.length) {
-        queueGen += 1
-        promptQueue = seededShuffle(allFactIndices(), hashString(`${state.matchSeed}-queue-${queueGen}`))
-        nextPos = 0
-      }
+      const nextPos = state.queuePos + 1
+      if (nextPos >= state.promptQueue.length) return { ...state, phase: 'matchover' }
       return {
         ...state,
         phase: 'lying',
         round: state.round + 1,
-        promptQueue,
         queuePos: nextPos,
-        queueGen,
-        promptIndex: promptQueue[nextPos],
+        promptIndex: state.promptQueue[nextPos],
         lies: {},
         usedDecoys: [],
         myLieText: null,
@@ -338,11 +329,19 @@ export default function FibbageDemo() {
   const iCommitted = state.lies.human != null
   const iVoted = state.votes.human != null
   const myLieNorm = state.myLieText ? norm(state.myLieText) : null
-  const matchWillEnd = Object.values(state.scores).some(s => s >= MATCH_WIN_SCORE)
+  const matchWillEnd = state.queuePos + 1 >= state.promptQueue.length
+  const isFinal = promptMultiplier(state.queuePos, state.promptQueue.length) > 1
 
   return (
     <div className="space-y-4">
-      <p className="text-center font-pixel text-[8px] text-retro-dim">ROUND {state.round}</p>
+      <p className="text-center font-pixel text-[8px] text-retro-dim">
+        PROMPT {state.queuePos + 1}/{state.promptQueue.length || MATCH_PROMPTS}
+      </p>
+      {isFinal && (
+        <p className="font-pixel text-[9px] text-retro-p2 text-glow-p2 text-center tracking-widest">
+          ★ FINAL PROMPT · DOUBLE POINTS ★
+        </p>
+      )}
 
       {/* Prompt */}
       <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
@@ -388,7 +387,7 @@ export default function FibbageDemo() {
             {committedCount}/{seatIds.length} LIED…
           </p>
           <p className="font-pixel text-[7px] text-retro-dim text-center">
-            TRUTH +{POINTS_FOR_TRUTH} · PER FOOL +{POINTS_PER_FOOL}
+            TRUTH +{POINTS_FOR_TRUTH * (isFinal ? 2 : 1)} · PER FOOL +{POINTS_PER_FOOL * (isFinal ? 2 : 1)}
           </p>
         </div>
       )}
