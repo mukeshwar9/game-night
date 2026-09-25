@@ -2,15 +2,19 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import PartyBotSetup from '../components/PartyBotSetup'
 import Avatar from '../components/Avatar'
 import PixelDots from '../components/loading/PixelDots'
-import { generateBotRoster, pickBotClue, pickBotGuess } from '../lib/partyBots'
+import { generateBotRoster, pickBotClue, pickBotGuessFromClue } from '../lib/partyBots'
 import {
   getSpectrumPair,
   randomSpectrumIndex,
   randomTarget,
   clampGuess,
-  scoreGuess,
   seatOrder,
   nextClueGiver,
+  validateClue,
+  roundDeltas,
+  matchWinners,
+  WAVELENGTH_WIN_SCORE,
+  WAVELENGTH_CLUE_MAX_LENGTH,
 } from '../lib/wavelengthLogic'
 import { sounds } from '../lib/sounds'
 import { getPlayerId } from '../lib/playerId'
@@ -24,7 +28,7 @@ import { cn } from '@/lib/utils'
 const MIN_BOTS = 2
 const MAX_BOTS = 7
 const DEFAULT_BOTS = 3
-const WIN_SCORE = 200 // kept in sync with WavelengthGame.jsx
+const WIN_SCORE = WAVELENGTH_WIN_SCORE // same target and tie rule as multiplayer
 
 // -----------------------------------------------------------------------------
 // Local helpers
@@ -83,7 +87,7 @@ const initialGameState = {
   guesses: {},
   usedClueWords: {}, // { [spectrumIndex]: string[] } — reset per match, kept across its rounds
   lastDelta: null, // { [playerId]: pointsGained } — this round's earned points, for the reveal highlight
-  winner: null,
+  winners: [], // everyone tied for the top score once the match ends (usually one)
   round: 0,
 }
 
@@ -136,23 +140,24 @@ function gameReducer(state, action) {
       const guesserIds = state.order.filter(id => id !== state.clueGiver)
       const allGuessed = guesserIds.every(id => guesses[id] != null)
       if (!allGuessed) return { ...state, guesses }
-      const lastDelta = {}
-      guesserIds.forEach(id => { lastDelta[id] = scoreGuess(guesses[id], state.target) })
+      // Same rule as multiplayer: guessers score by closeness, the clue-giver
+      // scores the rounded mean of the guessers' scores.
+      const lastDelta = roundDeltas({ guesses, target: state.target, clueGiver: state.clueGiver, seatIds: state.order })
       return { ...state, guesses, phase: 'reveal', lastDelta }
     }
 
-    // Mirrors WavelengthGame.jsx's handleNextRound exactly: the clue-giver earns
-    // nothing from their own round (only guessers are folded into `scores`
-    // here), and the win check happens on advance, not at reveal time.
+    // Mirrors WavelengthGame.jsx's handleNextRound: this round's deltas (the
+    // clue-giver's team-average share included) fold into `scores`, and the
+    // win check happens on advance — highest score wins, exact ties share it.
     case 'NEXT_ROUND': {
       if (state.phase !== 'reveal') return state
       const scores = { ...state.scores }
       Object.entries(state.lastDelta || {}).forEach(([id, pts]) => {
         scores[id] = (scores[id] || 0) + pts
       })
-      const winner = state.order.find(id => (scores[id] || 0) >= WIN_SCORE)
-      if (winner) {
-        return { ...state, scores, phase: 'matchover', winner }
+      const winners = matchWinners(scores, state.order, WIN_SCORE)
+      if (winners.length > 0) {
+        return { ...state, scores, phase: 'matchover', winners }
       }
       const clueGiver = nextClueGiver(state.players, state.clueGiver)
       return {
@@ -304,8 +309,8 @@ export default function WavelengthDemo() {
     prevPhase.current = gameState.phase
   }, [gameState.phase])
 
-  // Sound cue: the human's own round result on reveal (silent when the human
-  // was the clue-giver — they don't earn round points, same as multiplayer).
+  // Sound cue: the human's own round result on reveal (as clue-giver, that's
+  // the team-average share — same as multiplayer).
   useEffect(() => {
     if (gameState.phase !== 'reveal') return
     const mine = gameState.lastDelta?.human
@@ -336,18 +341,20 @@ export default function WavelengthDemo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rosterById/usedClueWords are read once when the timer is armed; re-arming only on phase/clueGiver/spectrumIndex change is intentional
   }, [gameState.phase, gameState.clueGiver, gameState.spectrumIndex])
 
-  // Bot guessers: staggered dispatches. A stale timer that fires after the
-  // round has already moved on is a harmless no-op — SUBMIT_GUESS's phase
-  // guard rejects it.
+  // Bot guessers: staggered dispatches. They read the CLUE (and where that
+  // word sits on this spectrum), never the hidden target — a clue they don't
+  // know gets a wide guess. A stale timer that fires after the round has
+  // already moved on is a harmless no-op — SUBMIT_GUESS's phase guard rejects it.
   useEffect(() => {
     if (gameState.phase !== 'guessing') return
+    const pair = getSpectrumPair(gameState.spectrumIndex)
     const botGuesserIds = gameState.order.filter(id => id !== gameState.clueGiver && id !== 'human')
     const timers = botGuesserIds.map((id, i) => setTimeout(() => {
       const persona = rosterById[id]?.persona
-      dispatch({ type: 'SUBMIT_GUESS', playerId: id, guess: pickBotGuess(gameState.target, persona) })
+      dispatch({ type: 'SUBMIT_GUESS', playerId: id, guess: pickBotGuessFromClue(pair, gameState.clueWord, persona) })
     }, 600 + i * 450 + Math.random() * 300))
     return () => timers.forEach(clearTimeout)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- target/clueGiver/order are the values current when guessing opened; re-arming only on phase/round change is intentional
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clueWord/spectrum/clueGiver/order are the values current when guessing opened; re-arming only on phase/round change is intentional
   }, [gameState.phase, gameState.round])
 
   const handleStart = () => {
@@ -358,12 +365,10 @@ export default function WavelengthDemo() {
 
   const handleSubmitClue = () => {
     if (gameState.phase !== 'clue' || gameState.clueGiver !== 'human') return
-    const clue = clueInput.trim()
-    if (!clue) { setClueError('TYPE A CLUE'); return }
-    if (/\s/.test(clue)) { setClueError('ONE WORD ONLY'); return }
-    if (clue.length > 24) { setClueError('TOO LONG'); return }
+    const check = validateClue(clueInput, getSpectrumPair(gameState.spectrumIndex))
+    if (!check.ok) { setClueError(check.error); return }
     sounds.move('X')
-    dispatch({ type: 'SUBMIT_HUMAN_CLUE', clueWord: clue.toUpperCase() })
+    dispatch({ type: 'SUBMIT_HUMAN_CLUE', clueWord: check.clue })
   }
 
   const handleSubmitGuess = () => {
@@ -405,14 +410,21 @@ export default function WavelengthDemo() {
   // Match over
   // ---------------------------------------------------------------------------
   if (gameState.phase === 'matchover') {
-    const iWon = gameState.winner === 'human'
-    const winnerName = (gameState.players[gameState.winner]?.name || '???').toUpperCase()
+    const winners = gameState.winners
+    const iWon = winners.includes('human')
+    const nameOf = id => (gameState.players[id]?.name || '???').toUpperCase()
+    const headline = winners.length > 1
+      ? (iWon ? 'YOU SHARE THE WIN!' : `${winners.map(nameOf).join(' & ')} TIE`)
+      : (iWon ? 'YOU WIN!' : `${nameOf(winners[0])} WINS`)
     return (
       <div className="space-y-4 text-center">
         <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
         <p className={cn('font-pixel text-base', iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
-          {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
+          {headline}
         </p>
+        {winners.length > 1 && (
+          <p className="font-pixel text-[9px] text-retro-dim">EXACT TIE — SHARED VICTORY</p>
+        )}
         <Scoreboard players={gameState.players} scores={gameState.scores} mySeat="human" clueGiver={null} />
         <button
           onClick={handlePlayAgain}
@@ -443,6 +455,11 @@ export default function WavelengthDemo() {
     ? layoutMarkers(guesserIds.map(id => ({ id, guess: gameState.guesses[id] })).filter(m => m.guess != null))
     : []
   const revealMaxLevel = revealMarkers.reduce((m, entry) => Math.max(m, entry.level), 0)
+  // Bots only "understand" this pair's clue-bank words (they read the clue,
+  // not the target) — offer those as one-tap suggestions to a human clue-giver.
+  const botWords = isClueGiver
+    ? (pair.clueBank || []).filter(c => validateClue(c.word, pair).ok).map(c => c.word)
+    : []
 
   return (
     <div className="space-y-4">
@@ -474,12 +491,31 @@ export default function WavelengthDemo() {
             <p className="font-pixel text-[9px] text-retro-cta text-center">THE TARGET IS SET — GIVE A CLUE</p>
             <Dial value={50} onChange={() => {}} disabled pair={pair} target={visibleTarget} />
             <p className="font-pixel text-[8px] text-retro-dim text-center leading-relaxed">
-              GIVE A ONE-WORD CLUE THAT POINTS{'\n'}WHERE YOU WANT THEM TO GUESS
+              GIVE A ONE-WORD CLUE THAT POINTS{'\n'}YOUR TEAM TO THE ★ — YOU SCORE THEIR AVERAGE
             </p>
+            {botWords.length > 0 && (
+              <div className="space-y-1">
+                <p className="font-pixel text-[7px] text-retro-dim text-center leading-relaxed">
+                  BOTS ONLY KNOW THESE WORDS — ANYTHING ELSE AND THEY GUESS WILDLY
+                </p>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {botWords.map(word => (
+                    <button
+                      key={word}
+                      type="button"
+                      onClick={() => { setClueInput(word); setClueError('') }}
+                      className="min-h-8 px-2 py-1 font-pixel text-[8px] border border-retro-border text-retro-text rounded hover:border-retro-cta hover:text-retro-cta active:scale-95"
+                    >
+                      {word}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <input
               type="text"
               value={clueInput}
-              maxLength={24}
+              maxLength={WAVELENGTH_CLUE_MAX_LENGTH}
               onChange={e => { setClueInput(e.target.value); setClueError('') }}
               onKeyDown={e => e.key === 'Enter' && handleSubmitClue()}
               autoCorrect="off"

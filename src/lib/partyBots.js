@@ -12,6 +12,7 @@
 
 import { seededShuffle, hashString } from './fibbageLogic'
 import { clampGuess } from './wavelengthLogic'
+import { matchKey } from './textMatchLogic'
 import { SHAPES, HUMANOIDS, TONES, makeAvatar } from './avatars'
 import { SPYFAIR_LOCATIONS } from './decks/spyfair'
 import {
@@ -108,9 +109,28 @@ export function pickBotClue(pair, usedWords, persona, rng = Math.random) {
   return { word: entry.word, target: clampGuess(entry.pos + gaussianNoise(4, rng)) }
 }
 
+// Legacy: guesses around the TRUE target. Solo play no longer uses it (bots
+// must not see the target — see pickBotGuessFromClue); kept for callers/tests.
 export function pickBotGuess(target, persona, rng = Math.random) {
   const stdDev = lerp(25, 4, persona.skill)
   return clampGuess(target + gaussianNoise(stdDev, rng))
+}
+
+// Spread (gaussianNoise stdDev argument) for a bot reading a clue it knows,
+// from a clumsy bot (skill 0) to a sharp one (skill 1), and for a clue it
+// doesn't know at all.
+export const BOT_CLUE_READ_SPREAD = { clumsy: 30, sharp: 8, unknown: 80 }
+
+// A bot guesser reads the CLUE, never the hidden target: if the clue is one of
+// the pair's clueBank words it aims at that word's position (noisier for less
+// skilled bots); a word it doesn't know gets a wide guess around the middle.
+export function pickBotGuessFromClue(pair, clueWord, persona, rng = Math.random) {
+  const key = matchKey(clueWord)
+  const entry = key ? (pair?.clueBank || []).find(e => matchKey(e.word) === key) : null
+  if (!entry) return clampGuess(50 + gaussianNoise(BOT_CLUE_READ_SPREAD.unknown, rng))
+  const skill = persona?.skill ?? 0.5
+  const spread = lerp(BOT_CLUE_READ_SPREAD.clumsy, BOT_CLUE_READ_SPREAD.sharp, skill)
+  return clampGuess(entry.pos + gaussianNoise(spread, rng))
 }
 
 // ---------------------------------------------------------------------------

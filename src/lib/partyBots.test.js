@@ -3,6 +3,7 @@ import {
   generateBotRoster,
   pickBotClue,
   pickBotGuess,
+  pickBotGuessFromClue,
   pickBotLie,
   pickBotVote,
   pickSpyfairLocation,
@@ -159,6 +160,44 @@ describe('pickBotGuess', () => {
 // ---------------------------------------------------------------------------
 // FIBBAGE
 // ---------------------------------------------------------------------------
+describe('pickBotGuessFromClue', () => {
+  const pair = { left: 'COLD', right: 'HOT', clueBank: [{ word: 'ICEBERG', pos: 4 }, { word: 'SAUNA', pos: 88 }] }
+  const sharp = { skill: 1, acuity: 0.5, boldness: 0.5 }
+
+  it('regression: aims at the clue word\'s position, not the hidden target', () => {
+    // Target far from the clue's meaning — a bot that reads the target would
+    // land near 20; a bot reading "SAUNA" lands near 88.
+    const rng = mulberry32(7)
+    const guesses = Array.from({ length: 200 }, () => pickBotGuessFromClue(pair, 'sauna', sharp, rng))
+    const mean = guesses.reduce((a, b) => a + b, 0) / guesses.length
+    expect(Math.abs(mean - 88)).toBeLessThan(4)
+  })
+
+  it('matches the clue loosely (case, punctuation)', () => {
+    const rng = mulberry32(3)
+    const g = pickBotGuessFromClue(pair, ' Iceberg! ', sharp, rng)
+    expect(g).toBeLessThan(20)
+  })
+
+  it('guesses widely around the middle for a word it does not know', () => {
+    const rng = mulberry32(11)
+    const guesses = Array.from({ length: 300 }, () => pickBotGuessFromClue(pair, 'volcano', sharp, rng))
+    const mean = guesses.reduce((a, b) => a + b, 0) / guesses.length
+    expect(Math.abs(mean - 50)).toBeLessThan(8)
+    expect(Math.max(...guesses) - Math.min(...guesses)).toBeGreaterThan(40)
+  })
+
+  it('always returns an in-range integer', () => {
+    const rng = mulberry32(5)
+    for (let i = 0; i < 200; i++) {
+      const g = pickBotGuessFromClue(pair, i % 2 ? 'sauna' : 'zzz', { skill: 0 }, rng)
+      expect(Number.isInteger(g)).toBe(true)
+      expect(g).toBeGreaterThanOrEqual(0)
+      expect(g).toBeLessThanOrEqual(100)
+    }
+  })
+})
+
 describe('pickBotLie', () => {
   const persona = { skill: 0.5, acuity: 0.5, boldness: 0.5 }
 

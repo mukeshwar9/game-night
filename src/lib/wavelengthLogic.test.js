@@ -16,6 +16,11 @@ import {
   seatOrder,
   onlineGuessers,
   nextClueGiver,
+  validateClue,
+  clueGiverScore,
+  roundDeltas,
+  matchWinners,
+  WAVELENGTH_WIN_SCORE,
 } from './wavelengthLogic'
 
 // ---------------------------------------------------------------------------
@@ -383,5 +388,123 @@ describe('nextClueGiver', () => {
 
   it('returns null when there are no players', () => {
     expect(nextClueGiver({}, 'p1')).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// validateClue
+// ---------------------------------------------------------------------------
+describe('validateClue', () => {
+  const hotCold = { left: 'COLD', right: 'HOT' }
+
+  it('accepts a single word and upper-cases it', () => {
+    expect(validateClue('  sauna ', hotCold)).toEqual({ ok: true, clue: 'SAUNA' })
+  })
+
+  it('accepts a hyphenated word', () => {
+    expect(validateClue('ice-cream', hotCold).ok).toBe(true)
+  })
+
+  it('rejects empty, multi-word and over-long clues', () => {
+    expect(validateClue('   ', hotCold)).toEqual({ ok: false, error: 'TYPE A CLUE' })
+    expect(validateClue('hot tub', hotCold)).toEqual({ ok: false, error: 'ONE WORD ONLY' })
+    expect(validateClue('a'.repeat(25), hotCold)).toEqual({ ok: false, error: 'TOO LONG' })
+  })
+
+  it('regression: digits are rejected ("73" pointed straight at the number)', () => {
+    expect(validateClue('73', hotCold)).toEqual({ ok: false, error: 'NO NUMBERS' })
+    expect(validateClue('room4', hotCold).error).toBe('NO NUMBERS')
+  })
+
+  it('regression: the pole words are rejected, in any case or inflection', () => {
+    for (const clue of ['HOT', 'hot', 'Cold!', 'colds', 'hotter', 'coldest']) {
+      expect(validateClue(clue, hotCold)).toEqual({ ok: false, error: "CAN'T USE THE DIAL WORDS" })
+    }
+  })
+
+  it('rejects any word of a multi-word or hyphenated pole', () => {
+    const pair = { left: 'LAZY', right: 'HARD-WORKING' }
+    expect(validateClue('hardworking', pair).ok).toBe(false)
+    expect(validateClue('working', pair).ok).toBe(false)
+    expect(validateClue('laziest', pair).ok).toBe(false)
+    expect(validateClue('sloth', pair).ok).toBe(true)
+  })
+
+  it('rejects banned words', () => {
+    expect(validateClue('shit', hotCold)).toEqual({ ok: false, error: 'PICK ANOTHER WORD' })
+  })
+
+  it('rejects punctuation-only input', () => {
+    expect(validateClue('!!!', hotCold).ok).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// clueGiverScore / roundDeltas
+// ---------------------------------------------------------------------------
+describe('clueGiverScore', () => {
+  it('is the rounded mean of the guessers\' scores', () => {
+    expect(clueGiverScore([50, 40, 25])).toBe(38) // 38.33
+    expect(clueGiverScore([10, 11])).toBe(11)     // 10.5 rounds up
+    expect(clueGiverScore({ a: 20, b: 30 })).toBe(25)
+  })
+
+  it('is 0 when nobody guessed', () => {
+    expect(clueGiverScore([])).toBe(0)
+    expect(clueGiverScore(null)).toBe(0)
+  })
+})
+
+describe('roundDeltas', () => {
+  const seatIds = ['giver', 'a', 'b', 'c']
+
+  it('regression: the clue-giver scores the guessers\' mean (they used to score nothing)', () => {
+    const deltas = roundDeltas({ guesses: { a: 50, b: 60 }, target: 50, clueGiver: 'giver', seatIds })
+    expect(deltas.a).toBe(scoreGuess(50, 50))
+    expect(deltas.b).toBe(scoreGuess(60, 50))
+    expect(deltas.giver).toBe(Math.round((deltas.a + deltas.b) / 2))
+  })
+
+  it('skips guessers who never guessed and averages only real guesses', () => {
+    const deltas = roundDeltas({ guesses: { a: 50 }, target: 50, clueGiver: 'giver', seatIds })
+    expect(deltas).toEqual({ a: 50, giver: 50 })
+  })
+
+  it('gives the clue-giver nothing when no guess landed', () => {
+    expect(roundDeltas({ guesses: {}, target: 50, clueGiver: 'giver', seatIds })).toEqual({})
+  })
+
+  it('ignores guesses from players no longer seated', () => {
+    const deltas = roundDeltas({ guesses: { a: 50, ghost: 50 }, target: 50, clueGiver: 'giver', seatIds })
+    expect(deltas).not.toHaveProperty('ghost')
+  })
+
+  it('does not credit a clue-giver who left the room', () => {
+    const deltas = roundDeltas({ guesses: { a: 50 }, target: 50, clueGiver: 'gone', seatIds })
+    expect(deltas).toEqual({ a: 50 })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// matchWinners
+// ---------------------------------------------------------------------------
+describe('matchWinners', () => {
+  const ids = ['p1', 'p2', 'p3']
+
+  it('returns nobody below the target', () => {
+    expect(matchWinners({ p1: 199, p2: 150 }, ids, 200)).toEqual([])
+  })
+
+  it('regression: the highest score wins when several cross together — not seat order', () => {
+    // p1 sits first but p2 finished higher.
+    expect(matchWinners({ p1: 205, p2: 230, p3: 100 }, ids, 200)).toEqual(['p2'])
+  })
+
+  it('shares the win on an exact tie at the top', () => {
+    expect(matchWinners({ p1: 210, p2: 210, p3: 209 }, ids, 200)).toEqual(['p1', 'p2'])
+  })
+
+  it('defaults to the Wavelength target', () => {
+    expect(matchWinners({ p1: WAVELENGTH_WIN_SCORE }, ids)).toEqual(['p1'])
   })
 })
