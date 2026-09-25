@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SKETCH_WORDS } from './decks/sketch'
 import { matchKey } from './textMatchLogic'
+import { isFamilySafe } from './wordDenylist'
 
 describe('SKETCH_WORDS', () => {
   it('has a larger balanced deck', () => {
@@ -9,7 +10,7 @@ describe('SKETCH_WORDS', () => {
       return acc
     }, {})
 
-    expect(SKETCH_WORDS.length).toBeGreaterThanOrEqual(350)
+    expect(SKETCH_WORDS.length).toBeGreaterThanOrEqual(390)
     expect(counts[1]).toBeGreaterThanOrEqual(120)
     expect(counts[2]).toBeGreaterThanOrEqual(120)
     expect(counts[3]).toBeGreaterThanOrEqual(100)
@@ -31,6 +32,26 @@ describe('SKETCH_WORDS', () => {
       const keys = [entry.word, ...entry.alts].map(matchKey)
       expect(keys.every(Boolean), entry.word).toBe(true)
       expect(new Set(keys).size, entry.word).toBe(keys.length)
+    }
+  })
+
+  it('every word and alt is family-safe', () => {
+    for (const entry of SKETCH_WORDS) {
+      for (const form of [entry.word, ...(entry.alts || [])]) {
+        const words = form.toLowerCase().split(/[^a-z]+/).filter(Boolean)
+        expect(words.every(isFamilySafe), form).toBe(true)
+      }
+    }
+  })
+
+  it('regression: invented compounds are pruned from the deck', () => {
+    const words = new Set(SKETCH_WORDS.map(entry => entry.word))
+    for (const invented of [
+      'message bottle', 'planet ring', 'king crown', 'queen crown', 'dog bath',
+      'volcano ash', 'broken robot', 'lion mane', 'snail trail', 'whale spout',
+      'octopus arms', 'bee swarm', 'leaf pile', 'rain puddle', 'popcorn bucket',
+    ]) {
+      expect(words.has(invented), invented).toBe(false)
     }
   })
 })

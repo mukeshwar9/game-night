@@ -49,6 +49,14 @@ export const SOLO_GUESSER_BASE_PTS = 50   // 2-player (exactly 1 guesser) varian
 export const SOLO_GUESSER_BONUS_MAX = 50
 export const SOLO_ARTIST_DIVISOR = 2
 
+// Harder words pay more — every delta of the round (guessers and artist) is
+// scaled by the chosen word's tier, so EASY is no longer always the right pick.
+export const TIER_MULTIPLIERS = { 1: 1, 2: 1.2, 3: 1.5 }
+
+export function tierMultiplier(tier) {
+  return TIER_MULTIPLIERS[tier] ?? 1
+}
+
 // ---- normalize(str) -> string -----------------------------------------------
 // lowercase, trim, collapse internal whitespace to single spaces, then STRIP
 // (delete, not replace-with-space) any character that isn't a Unicode letter,
@@ -199,7 +207,7 @@ export function participantGuessers(order, artist) {
   return (order || []).filter(id => id !== artist)
 }
 
-// ---- roundDeltas({ guesserIds, correct, artistId, endsAt }) -> { [uid]: pts } --
+// ---- roundDeltas({ guesserIds, correct, artistId, endsAt, multiplier }) -> { [uid]: pts } --
 // Branches on guesserIds.length:
 //   0 guessers: {} (shouldn't happen; defensive)
 //   1 guesser (2-player variant): if they didn't guess, {} (0/0). Otherwise
@@ -211,8 +219,17 @@ export function participantGuessers(order, artist) {
 //     max(GUESSER_FLOOR_PTS, GUESSER_BASE_PTS - i*GUESSER_STEP_PTS) by rank i
 //     (0-indexed); artist gets ARTIST_PTS_PER_CORRECT * (number who guessed
 //     correctly). If nobody guessed correctly, {} (artist also gets 0).
+// Every delta is then scaled by `multiplier` (the word's tierMultiplier;
+// default 1) and rounded.
 // Missing keys in the returned object mean "+0" — caller merges additively.
-export function roundDeltas({ guesserIds, correct, artistId, endsAt }) {
+export function roundDeltas({ guesserIds, correct, artistId, endsAt, multiplier = 1 }) {
+  const deltas = baseRoundDeltas({ guesserIds, correct, artistId, endsAt })
+  if (multiplier === 1) return deltas
+  for (const id of Object.keys(deltas)) deltas[id] = Math.round(deltas[id] * multiplier)
+  return deltas
+}
+
+function baseRoundDeltas({ guesserIds, correct, artistId, endsAt }) {
   const deltas = {}
   const n = guesserIds.length
   if (n === 0) return deltas
@@ -307,4 +324,11 @@ export function isBannedGuess(text) {
   const norm = normalizeText(text)
   if (!norm) return false
   return norm.split(' ').some(isBannedWord) || isBannedWord(norm.replace(/ /g, ''))
+}
+
+/** The deck entry a round is drawing, from its public options + derived word. */
+export function entryForWord(deckWords, options, word) {
+  if (word == null) return null
+  const idx = (options || []).find(i => deckWords[i]?.word === word)
+  return idx == null ? null : deckWords[idx]
 }
