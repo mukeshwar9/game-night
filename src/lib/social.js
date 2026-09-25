@@ -45,9 +45,23 @@ export function guestName(uid) {
   return `Guest-${String(uid || '').slice(0, 4).toUpperCase() || 'XXXX'}`
 }
 
+// Placeholder names (`Guest-AB12`) that nobody chose. The invite screen asks
+// for a real name while the stored one still looks like this.
+export function isGuestStyleName(name) {
+  return !name || /^Guest-[0-9A-Z]{4}$/i.test(String(name).trim())
+}
+
+function localName() {
+  try { return localStorage.getItem('playerName') || '' } catch { return '' }
+}
+
+// Never downgrades a chosen local name to a placeholder: a profile read that
+// started before the player typed their name must not overwrite it.
 function mirrorLocal({ displayName, avatar } = {}) {
   try {
-    if (displayName) localStorage.setItem('playerName', displayName)
+    if (displayName && !(isGuestStyleName(displayName) && !isGuestStyleName(localName()))) {
+      localStorage.setItem('playerName', displayName)
+    }
     if (avatar) localStorage.setItem('playerAvatar', avatar)
   } catch { /* quota — ignore */ }
 }
@@ -79,17 +93,20 @@ export async function ensureProfile() {
 
   // Google account name wins over a guest-style placeholder — without this an
   // upgraded (linked) account keeps showing Guest-XXXX forever, since the
-  // stored profile never adopts auth.currentUser.displayName.
+  // stored profile never adopts auth.currentUser.displayName. A name typed on
+  // this device (the invite screen, an older client that only kept it in
+  // localStorage) wins next, so a placeholder never overwrites a chosen name.
   const googleName = auth?.currentUser?.displayName?.trim() || ''
-  const isGuestStyle = (name) => !name || /^Guest-[0-9A-Z]{4}$/i.test(String(name).trim())
+  const chosenLocal = isGuestStyleName(localName()) ? '' : localName().trim()
 
   if (snap.exists()) {
     const p = snap.val()
     const patch = { isAnonymous: anon, updatedAt: Date.now() }
     if (!p.code) patch.code = await allocateCode(uid)
     if (!p.avatar) patch.avatar = defaultAvatarForId(uid)
-    if (googleName && isGuestStyle(p.displayName)) {
-      patch.displayName = googleName.slice(0, 20)
+    const betterName = googleName || chosenLocal
+    if (betterName && isGuestStyleName(p.displayName)) {
+      patch.displayName = betterName.slice(0, 20)
       patch.nameLower = patch.displayName.toLowerCase()
     }
     await update(userRef, patch)
@@ -98,7 +115,7 @@ export async function ensureProfile() {
     return merged
   }
 
-  const displayName = googleName || localStorage.getItem('playerName') || guestName(uid)
+  const displayName = googleName || chosenLocal || guestName(uid)
   const avatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(uid)
   const code = await allocateCode(uid)
   const profile = {
@@ -110,9 +127,31 @@ export async function ensureProfile() {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   }
-  await set(userRef, profile)
-  mirrorLocal(profile)
-  return profile
+  // A transaction, not a blind set: the invite screen can save a typed name
+  // (saveDisplayName) while this first-boot create is still allocating a code,
+  // and that name must survive — fields already on the node win.
+  const { snapshot } = await runTransaction(userRef, cur => {
+    if (!cur) return profile
+    const merged = { ...profile, ...cur }
+    if (isGuestStyleName(cur.displayName) && !isGuestStyleName(displayName)) {
+      merged.displayName = displayName
+      merged.nameLower = profile.nameLower
+    }
+    return merged
+  })
+  const saved = snapshot?.val() || profile
+  mirrorLocal(saved)
+  return saved
+}
+
+// Save a name chosen outside the Profile page (the invite screen). Mirrors to
+// localStorage first so this room join reads it synchronously, then persists
+// it to users/{uid} so ensureProfile never swaps it back for Guest-XXXX.
+export async function saveDisplayName(name) {
+  const trimmed = String(name || '').trim().slice(0, 20)
+  if (!trimmed) return
+  try { localStorage.setItem('playerName', trimmed) } catch { /* quota — ignore */ }
+  await setProfile({ displayName: trimmed })
 }
 
 export async function setProfile({ displayName, avatar, theme, fontFamily } = {}) {
@@ -234,21 +273,48 @@ export async function inviteFriendToGame(friendUid, { gameId, gameType } = {}) {
   })
 }
 
+// "Invite all online friends": one invite per uid, written as a single
+// multi-path update so the whole batch lands (or fails) together.
+export async function inviteFriendsToGame(friendUids, { gameId, gameType } = {}) {
+  const me = getUid()
+  const uids = [...new Set((friendUids || []).filter(Boolean))].filter(uid => uid !== me)
+  if (!db || !me || !gameId || uids.length === 0) return 0
+  const myProfile = await getProfile(me)
+  const invite = {
+    gameId,
+    gameType: gameType || null,
+    fromUid: me,
+    fromName: myProfile?.displayName || guestName(me),
+    fromAvatar: myProfile?.avatar || defaultAvatarForId(me),
+    at: Date.now(),
+  }
+  const updates = {}
+  for (const uid of uids) updates[`invites/${uid}/${push(ref(db, `invites/${uid}`)).key}`] = invite
+  await update(ref(db), updates)
+  return uids.length
+}
+
 export async function dismissInvite(inviteId) {
   const me = getUid()
   if (!db || !me || !inviteId) return
   await set(ref(db, `invites/${me}/${inviteId}`), null)
 }
 
+// Rooms expire after 24 h of inactivity, so an older invite only leads to
+// GAME NOT FOUND — hide it (the cleanup function deletes it server-side).
+export const INVITE_TTL_MS = 24 * 60 * 60 * 1000
+
+export function freshInvites(val, now = Date.now()) {
+  return Object.entries(val || {})
+    .map(([id, inv]) => ({ id, ...inv }))
+    .filter(inv => typeof inv.at === 'number' && inv.at >= now - INVITE_TTL_MS)
+    .sort((a, b) => (b.at || 0) - (a.at || 0))
+}
+
 export function subscribeInvites(cb) {
   const me = getUid()
   if (!db || !me) { cb([]); return () => {} }
-  return onValue(ref(db, `invites/${me}`), snap => {
-    const val = snap.val() || {}
-    cb(Object.entries(val)
-      .map(([id, inv]) => ({ id, ...inv }))
-      .sort((a, b) => (b.at || 0) - (a.at || 0)))
-  })
+  return onValue(ref(db, `invites/${me}`), snap => cb(freshInvites(snap.val())))
 }
 
 // ---- Presence ----

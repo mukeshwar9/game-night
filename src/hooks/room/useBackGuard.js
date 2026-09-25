@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ref, update } from 'firebase/database'
+import { db } from '../../lib/firebase'
 import { getGameConfig } from '../../lib/games'
 import { getPlayerId } from '../../lib/playerId'
 
@@ -41,8 +43,18 @@ export default function useBackGuard({ game, gameId, mySeat }) {
   }, [isActivePlay, gameId])
 
   const cancelLeaveMatch = () => setShowLeaveConfirm(false)
+  // LEAVE tells the opponent straight away instead of letting them sit out the
+  // 120 s abandon window: a `leftAt` marker on this player's OWN presence seat
+  // (never the opponent's, never the result) that also drops every connection
+  // of the seat, so their CLAIM WIN transaction sees the seat offline. The
+  // marker clears if this player reopens the room (useRoomPresence). Party
+  // rooms need nothing extra — unmounting marks the seat offline and the
+  // coordinator hands over.
   const confirmLeaveMatch = () => {
     setShowLeaveConfirm(false)
+    if (db && isActivePlay && mySeat && !getGameConfig(game.gameType).nPlayer) {
+      update(ref(db, `games/${gameId}/presence/${mySeat}`), { leftAt: Date.now(), online: false, conns: null }).catch(() => {})
+    }
     navigate('/')
   }
   const handleHomeLinkClick = (e) => {

@@ -5,6 +5,8 @@ import { getGameConfig } from '../../lib/games'
 import { getPlayerId } from '../../lib/playerId'
 import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../../lib/chat'
 import { sounds } from '../../lib/sounds'
+import { isMuted } from '../../lib/mute'
+import { moderateText } from '../../lib/moderationLogic'
 
 // Emoji reactions and free-text chat for a room: sends them (rate-limited,
 // floated optimistically for the sender) and floats newly received ones.
@@ -27,7 +29,11 @@ export default function useFloats({ game, gameId, mySymbol }) {
   // 1.5s of the same glyph from the same sender) bumps the existing float's
   // combo count and re-arms its removal timer.
   const pushEmote = (e) => {
-    const name = game?.players?.[e.by]?.name ?? ''
+    // Locally muted senders (mute.js) float nothing. `e.by` is a 2P seat
+    // symbol or a uid (party seats and spectators).
+    const byUid = game?.players?.[e.by]?.playerId ?? e.by
+    if (e.by !== mySymbol.current && byUid !== getPlayerId() && isMuted(byUid)) return
+    const name = game?.players?.[e.by]?.name ?? (typeof e.name === 'string' ? moderateText(e.name.slice(0, 20)).text : '')
     const now = Date.now()
     if (document.visibilityState === 'visible' && now >= emoteSoundReadyAt.current) {
       emoteSoundReadyAt.current = now + 140
@@ -49,7 +55,7 @@ export default function useFloats({ game, gameId, mySymbol }) {
       const id = ++emoteIdRef.current
       const dx = Math.round((Math.random() * 2 - 1) * 24)
       const rot = Math.round((Math.random() * 2 - 1) * 10)
-      const float = { id, glyph: e.glyph, by: e.by, name, count: 1, dx, rot, at: now }
+      const float = { id, glyph: e.glyph, by: e.by, name, count: 1, dx, rot, at: now, spectator: !!e.spectator }
       const t = setTimeout(() => {
         setFloats(f => f.filter(fl => fl.id !== id))
         emoteTimeouts.current.delete(id)
@@ -63,7 +69,8 @@ export default function useFloats({ game, gameId, mySymbol }) {
   // fresh float (no combo/count merging), same 2s removal timing.
   const pushChatFloat = (msg) => {
     const id = ++emoteIdRef.current
-    const float = { id, kind: 'chat', text: msg.text, name: msg.name, seat: msg.seat ?? null, count: 1, at: Date.now() }
+    // Masked on display too, for older clients that sent unmasked text.
+    const float = { id, kind: 'chat', text: moderateText(msg.text || '').text, name: moderateText(msg.name || '').text, seat: msg.seat ?? null, count: 1, at: Date.now() }
     const t = setTimeout(() => {
       setFloats(f => f.filter(fl => fl.id !== id))
       emoteTimeouts.current.delete(id)
@@ -122,28 +129,36 @@ export default function useFloats({ game, gameId, mySymbol }) {
     if (!newest || newest.ts <= prevChatTs.current) return
     prevChatTs.current = newest.ts
     if (newest.by === getPlayerId()) return
+    if (isMuted(newest.by)) return
     if (!isValidChatMessage(newest)) return
     pushChatFloat(newest)
     sounds.emote()
   }, [hasGame, chatLog])
 
   const sendEmote = async (glyph) => {
-    // Party rooms never assign X/O seats (mySymbol stays null) — identify by
-    // uid there so reactions work; players[].name lookup in pushEmote is
-    // uid-keyed in nPlayer rooms. 2P spectators stay muted as before.
-    const sender = mySymbol.current
-      || (getGameConfig(game?.gameType)?.nPlayer ? getPlayerId() : null)
-    if (!sender) return false
+    // Seated 2P players send as their seat (X/O); everyone else — party
+    // seats (uid-keyed players) and spectators of either room family — as
+    // their uid. Spectators aren't in `players`, so their emote carries its
+    // own name and a `spectator` flag (floated centre-stage, not on a side).
+    const uid = getPlayerId()
+    const sender = mySymbol.current || uid
+    const party = !!getGameConfig(game?.gameType)?.nPlayer
+    const spectator = party ? !game?.players?.[uid] : !mySymbol.current
     const now = Date.now()
     if (now < emoteReadyAt.current) return false
     emoteReadyAt.current = now + 600
     setEmoteCooldown(true)
     setTimeout(() => setEmoteCooldown(false), 600)
 
+    const emote = { by: sender, glyph, ts: now }
+    if (spectator) {
+      emote.spectator = true
+      emote.name = (localStorage.getItem('playerName') || 'WATCHER').slice(0, 20)
+    }
     prevEmoteTs.current = now
-    pushEmote({ by: sender, glyph, ts: now })
+    pushEmote(emote)
     try {
-      await update(ref(db, `games/${gameId}`), { emote: { by: sender, glyph, ts: now } })
+      await update(ref(db, `games/${gameId}`), { emote })
     } catch { /* ignore */ }
     return true
   }

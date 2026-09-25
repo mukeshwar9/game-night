@@ -78,4 +78,25 @@ describe('buildSwitchUpdates', () => {
     expect(Object.keys(u.players)).toEqual(['u1', 'u2'])
     expect(u.players.u2).toEqual({ name: 'GUEST', playerId: 'u2', joinedAt: 2, online: true, avatar: 'fox' })
   })
+
+  it('carries 2P presence into the party seats instead of marking everyone online', () => {
+    const u = buildSwitchUpdates({ ...room, presence: { X: { online: true }, O: { online: false } } }, 'trivia')
+    expect(u.players.u1.online).toBe(true)
+    expect(u.players.u2.online).toBe(false)
+    expect(u.players.u2.conns).toBeUndefined()
+  })
+
+  it('keeps party seats\' connections and offline state across a party switch', () => {
+    const party = {
+      gameType: 'trivia',
+      status: 'finished',
+      players: {
+        u1: { name: 'A', playerId: 'u1', joinedAt: 1, online: false, conns: { c1: 5 } },
+        u2: { name: 'B', playerId: 'u2', joinedAt: 2, online: false, offlineAt: 9 },
+      },
+    }
+    const u = buildSwitchUpdates(party, 'herd')
+    expect(u.players.u1).toMatchObject({ online: true, conns: { c1: 5 } })
+    expect(u.players.u2).toMatchObject({ online: false, offlineAt: 9 })
+  })
 })

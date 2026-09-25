@@ -1,4 +1,5 @@
 import { freshGameState, getGameConfig } from '../../lib/games'
+import { isSeatOnline } from '../../lib/presenceLogic'
 
 // Seated players in join order (joinedAt, then uid so identical timestamps
 // still sort deterministically) — works for both the X/O and the uid-keyed
@@ -25,9 +26,12 @@ export function buildSwitchUpdates(game, newType) {
     lastActivityAt: Date.now(),
   }
   if (newCfg.nPlayer) {
+    // By the players node's shape, not the game type: a room whose type
+    // became a party game can still be seated X/O (useRoomSession migrates it).
+    const fromParty = !game.players?.X && !game.players?.O
     const players = {}
     for (const s of seats) {
-      players[s.playerId] = { name: s.name, playerId: s.playerId, joinedAt: s.joinedAt, online: true, avatar: s.avatar ?? null }
+      players[s.playerId] = { name: s.name, playerId: s.playerId, joinedAt: s.joinedAt, avatar: s.avatar ?? null, ...partyPresence(game, s.playerId, fromParty) }
     }
     return { ...base, players, scores: {}, status: 'waiting' }
   }
@@ -35,6 +39,25 @@ export function buildSwitchUpdates(game, newType) {
   if (seats[0]) players.X = { name: seats[0].name, playerId: seats[0].playerId, joinedAt: seats[0].joinedAt, avatar: seats[0].avatar ?? null }
   if (seats[1]) players.O = { name: seats[1].name, playerId: seats[1].playerId, joinedAt: seats[1].joinedAt, avatar: seats[1].avatar ?? null }
   return { ...base, players, scores: { X: 0, O: 0 }, status: seats.length >= 2 ? 'playing' : 'waiting' }
+}
+
+// A party seat's presence across a switch. Party → party keeps it as is: the
+// per-connection entries (and their onDisconnects) live at this same path,
+// so a player who is offline stays offline instead of being marked online by
+// the switch. 2P → party carries over the seat's derived online state from
+// `presence/{X|O}` but not its conns (their onDisconnects are registered at
+// the old path) — connected clients re-register under the new seat.
+function partyPresence(game, uid, fromParty) {
+  if (fromParty) {
+    const p = game.players?.[uid] || {}
+    return {
+      online: isSeatOnline(p),
+      ...(p.conns ? { conns: p.conns } : {}),
+      ...(typeof p.offlineAt === 'number' ? { offlineAt: p.offlineAt } : {}),
+    }
+  }
+  const seat = game.players?.X?.playerId === uid ? 'X' : game.players?.O?.playerId === uid ? 'O' : null
+  return { online: seat ? isSeatOnline(game.presence?.[seat]) : true }
 }
 
 // GAMEPLAY-02: rematch starter. The loser of the previous round opens the

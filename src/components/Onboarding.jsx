@@ -11,6 +11,7 @@ import { UPGRADE_ERRORS } from '../lib/auth'
 import { configError } from '../lib/firebase'
 import { markOnboarded } from '../lib/onboarding'
 import { sounds } from '../lib/sounds'
+import { NAME_REJECT_MESSAGES, sanitizeDisplayName } from '../lib/moderationLogic'
 
 export default function Onboarding({ onDone }) {
   const { uid, user, profile, isAnonymous, upgrade } = useAuth()
@@ -59,7 +60,11 @@ export default function Onboarding({ onDone }) {
     if (busy) return
     setBusy(true)
     const id = uid || getPlayerId()
-    const finalName = name.trim().slice(0, 20) || `Guest-${String(id).slice(0, 4).toUpperCase()}`
+    // Moderated like every other name entry (moderationLogic.js); an empty
+    // field still falls back to the Guest-XXXX placeholder.
+    const cleaned = sanitizeDisplayName(name)
+    if (cleaned.reason === 'denied') { setBusy(false); toast.error(NAME_REJECT_MESSAGES.denied); return }
+    const finalName = cleaned.name || `Guest-${String(id).slice(0, 4).toUpperCase()}`
     // Write localStorage first — onboarding is committed even if the DB write fails.
     try { localStorage.setItem('playerName', finalName) } catch { /* quota */ }
     const finalAvatar = canonicalAvatar(selectedAvatar)

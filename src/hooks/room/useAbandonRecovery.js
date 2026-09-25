@@ -3,13 +3,16 @@ import { ref, runTransaction } from 'firebase/database'
 import { toast } from 'sonner'
 import { db } from '../../lib/firebase'
 import { getGameConfig } from '../../lib/games'
+import { isSeatOnline } from '../../lib/presenceLogic'
 
 // Abandoned-opponent recovery (F-23) — after 120s of CONTINUOUS opponent
 // offline time in a standard 2P turn-based round, offer claim-win / invite
 // / go-home instead of leaving the board interactive forever. Restarts the
 // window (not cumulative) on any presence flap, and clears on every
 // status/gameType change (round end, rematch, switch) so it never fires stale.
-export default function useAbandonRecovery({ game, gameId, mySymbol, opponentOnline }) {
+// An opponent who tapped LEAVE (`opponentLeft`, a `leftAt` marker on their
+// presence) gets no grace window — the banner shows straight away.
+export default function useAbandonRecovery({ game, gameId, mySymbol, opponentOnline, opponentLeft = false }) {
   const [showAbandonBanner, setShowAbandonBanner] = useState(false)
   const [claimingWin, setClaimingWin] = useState(false)
   const abandonTimerRef = useRef(null)
@@ -32,6 +35,10 @@ export default function useAbandonRecovery({ game, gameId, mySymbol, opponentOnl
     const opSym = mySymbol.current === 'X' ? 'O' : 'X'
     if (!game.players?.[opSym]) return
     if (opponentOnline) return
+    if (opponentLeft) {
+      setShowAbandonBanner(true)
+      return
+    }
 
     // Custom real-time games (Pong/Sumo/Pac-Mac) use a shorter window: a
     // vanished peer freezes the round outright, and without this banner the
@@ -44,7 +51,7 @@ export default function useAbandonRecovery({ game, gameId, mySymbol, opponentOnl
     // restart this 120s window on every move/turn flip, not just on the
     // gameType/status/presence transitions that should actually reset it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.gameType, game?.status, opponentOnline, hasPlayerX, hasPlayerO])
+  }, [game?.gameType, game?.status, opponentOnline, opponentLeft, hasPlayerX, hasPlayerO])
 
   // F-23 claim-win — same finish shape as a normal round win (winner + score
   // bump on the standard `games/{id}` node), so the existing win-effect/
@@ -59,8 +66,11 @@ export default function useAbandonRecovery({ game, gameId, mySymbol, opponentOnl
     try {
       const { committed } = await runTransaction(ref(db, `games/${gameId}`), cur => {
         if (!cur || cur.status !== 'playing') return
+        // Per-connection presence: offline only once every one of the
+        // opponent's connections is gone (a closed second tab or a late
+        // onDisconnect leaves the legacy flag false while they're present).
         const presenceOp = cur.presence?.[opSym]
-        const stillOffline = presenceOp && presenceOp.online === false
+        const stillOffline = !!presenceOp && !isSeatOnline(presenceOp)
         if (!stillOffline) return
         return {
           ...cur,
