@@ -5,7 +5,7 @@ import {
   wordleTopK, pickWordleGuess, playWordleBoard, wordleThinkMs, pickCpuSecret,
   botRowTimes, botRowsShown, botDoneState, playerDoneState, tallyWins, matchWinner,
   landBotGuesses, advanceBotRace,
-  findWeight, planBotFinds, botFindsBy, FIND_GAP_MS, FIND_MS_PER_LETTER, ANAGRAMS_FIND_GAP_MS,
+  findWeight, planBotFinds, botFindsBy, botFoundMap, FIND_GAP_MS, FIND_MS_PER_LETTER, ANAGRAMS_FIND_GAP_MS,
   HANGMAN_CPU_WORDS, HANGMAN_LETTER_ORDER, HANGMAN_THINK_MS,
   pickKeeperWord, hangmanPattern, hangmanCandidates, pickHangmanGuess, hangmanThinkMs,
 } from './wordBotsLogic'
@@ -404,6 +404,12 @@ describe('word-finding bot (Word Hunt / Anagrams)', () => {
     const plan = [{ word: 'cat', at: 3000 }, { word: 'dog', at: 7000 }]
     expect(botFindsBy(plan, 5000)).toEqual(['cat'])
     expect(botFindsBy(plan, 7000)).toEqual(['cat', 'dog'])
+  })
+
+  it('botFoundMap stores landed finds with absolute times and points', () => {
+    const plan = [{ word: 'cat', at: 3000 }, { word: 'coats', at: 9000 }]
+    expect(botFoundMap(plan, { startedAt: 100, elapsedMs: 5000, score: w => w.length })).toEqual({ cat: { at: 3100, points: 3 } })
+    expect(Object.keys(botFoundMap(plan))).toEqual(['cat', 'coats'])
   })
 
   it('scores in a human range on real Word Hunt grids, scaled to the grid (not a random number)', async () => {

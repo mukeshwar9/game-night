@@ -507,3 +507,14 @@ export function planBotFinds(solutions = [], {
 export function botFindsBy(plan = [], elapsedMs = 0) {
   return plan.filter(f => f.at <= elapsedMs).map(f => f.word)
 }
+
+/**
+ * The bot's finds as a found map { word: { at, points } } (the shape Anagrams
+ * rounds store), counting only finds within `elapsedMs`; `at` is absolute
+ * (startedAt + the find's offset).
+ */
+export function botFoundMap(plan = [], { startedAt = 0, elapsedMs = Infinity, score = () => 0 } = {}) {
+  const out = {}
+  for (const f of plan) if (f.at <= elapsedMs) out[f.word] = { at: startedAt + f.at, points: score(f.word) }
+  return out
+}
