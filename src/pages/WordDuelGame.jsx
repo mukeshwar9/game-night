@@ -609,6 +609,9 @@ export default function WordDuelGame({
         scores={game.scores}
         players={game.players}
         gameType={game.gameType}
+        matchTarget={MATCH_TARGET}
+        matchOver
+        matchWinnerOverride={game.winner ?? null}
         onNewMatch={!proposal ? onNewMatch : null}
         onSwitchGame={!proposal ? onSwitchGame : null}
       />
