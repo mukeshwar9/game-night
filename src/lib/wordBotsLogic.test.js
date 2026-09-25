@@ -5,6 +5,7 @@ import {
   wordleTopK, pickWordleGuess, playWordleBoard, wordleThinkMs, pickCpuSecret,
   botRowTimes, botRowsShown, botDoneState, playerDoneState, tallyWins, matchWinner,
   landBotGuesses, advanceBotRace,
+  findWeight, planBotFinds, botFindsBy, FIND_GAP_MS, FIND_MS_PER_LETTER, ANAGRAMS_FIND_GAP_MS,
   HANGMAN_CPU_WORDS, HANGMAN_LETTER_ORDER, HANGMAN_THINK_MS,
   pickKeeperWord, hangmanPattern, hangmanCandidates, pickHangmanGuess, hangmanThinkMs,
 } from './wordBotsLogic'
@@ -12,7 +13,11 @@ import { markGuess, MAX_GUESSES } from './wordduelLogic'
 import { applyGuessForPlayer, FINISH_GRACE_MS } from './wordraceLogic'
 import { getAnswerList, has, isAnswerWord } from './dictionary'
 import { isFamilySafe } from './wordDenylist'
-import { createDictionary } from './wordhuntLogic'
+import {
+  createDictionary, generateGrid, ensurePlayableGrid, solveGrid, scoreWords, ROUND_MS as HUNT_MS,
+} from './wordhuntLogic'
+import { getSolutions, seededRack, scoreFound, ROUND_MS as ANAGRAMS_MS } from './anagramsLogic'
+import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from './decks/anagrams'
 import {
   applyGuess, isWordGuessed, countWrong, MAX_WRONG, validateSetterWord, hintRevealsWord, WORD_RULE_DICTIONARY,
 } from './hangmanLogic'
@@ -366,5 +371,74 @@ describe('Hangwoman CPU guesser', () => {
     const rate = won / words.length
     expect(rate).toBeGreaterThan(0.6)
     expect(rate).toBeLessThan(0.97)
+  }, 60_000)
+})
+
+describe('word-finding bot (Word Hunt / Anagrams)', () => {
+  it('finds short everyday words more readily than long or obscure ones', () => {
+    expect(findWeight('cat')).toBeGreaterThan(findWeight('planets'))
+    expect(findWeight('cat')).toBeGreaterThan(findWeight('tae'))
+    expect(findWeight('at')).toBe(0)
+  })
+
+  it('plans unique, legal finds in time order inside the round', () => {
+    const solutions = ['cat', 'act', 'tac', 'cats', 'scat', 'casts']
+    const plan = planBotFinds([...solutions, 'CAT'], { durationMs: 60_000, recall: 1, random: seeded(8) })
+    const words = plan.map(f => f.word)
+    expect(new Set(words).size).toBe(words.length)
+    for (const w of words) expect(solutions).toContain(w)
+    for (let i = 1; i < plan.length; i++) expect(plan[i].at).toBeGreaterThan(plan[i - 1].at)
+    for (const f of plan) expect(f.at).toBeLessThan(60_000)
+  })
+
+  it('takes a human-sized gap per word and stops at the buzzer', () => {
+    const plan = planBotFinds(['cat', 'dog'], { durationMs: 60_000, recall: 1, weight: () => 1, random: () => 0 })
+    expect(plan.map(f => f.at)).toEqual([
+      FIND_GAP_MS[0] + 3 * FIND_MS_PER_LETTER,
+      2 * (FIND_GAP_MS[0] + 3 * FIND_MS_PER_LETTER),
+    ])
+    expect(planBotFinds(['cat', 'dog'], { durationMs: 1000, recall: 1, weight: () => 1, random: () => 0 })).toEqual([])
+  })
+
+  it('botFindsBy shows only the finds that have landed', () => {
+    const plan = [{ word: 'cat', at: 3000 }, { word: 'dog', at: 7000 }]
+    expect(botFindsBy(plan, 5000)).toEqual(['cat'])
+    expect(botFindsBy(plan, 7000)).toEqual(['cat', 'dog'])
+  })
+
+  it('scores in a human range on real Word Hunt grids, scaled to the grid (not a random number)', async () => {
+    const { readFileSync } = await import('node:fs')
+    const dict = createDictionary(readFileSync(new URL('../../public/wordhunt-dict.txt', import.meta.url), 'utf8').split('\n'))
+    const random = seeded(31)
+    const scores = []
+    for (let i = 0; i < 30; i++) {
+      const grid = ensurePlayableGrid(generateGrid(1000 + i), dict, { random })
+      const solutions = solveGrid(grid, dict)
+      const plan = planBotFinds(solutions, { durationMs: HUNT_MS, random })
+      for (const f of plan) expect(solutions).toContain(f.word)
+      const score = scoreWords(plan.map(f => f.word))
+      expect(score).toBeLessThan(scoreWords(solutions) * 0.5)
+      scores.push(score)
+    }
+    scores.sort((a, b) => a - b)
+    const median = scores[Math.floor(scores.length / 2)]
+    expect(median).toBeGreaterThanOrEqual(8)
+    expect(median).toBeLessThanOrEqual(30)
+  }, 60_000)
+
+  it('plays Anagrams racks at a human pace', () => {
+    const random = seeded(12)
+    const scores = []
+    for (let i = 0; i < 30; i++) {
+      const rack = seededRack({ rackWords: ANAGRAM_RACK_WORDS, validWords: ANAGRAM_VALID_WORDS, seed: `bot-${i}` })
+      const solutions = getSolutions(rack, ANAGRAM_VALID_WORDS)
+      const plan = planBotFinds(solutions, { durationMs: ANAGRAMS_MS, gapMs: ANAGRAMS_FIND_GAP_MS, random })
+      for (const f of plan) expect(solutions).toContain(f.word)
+      scores.push(scoreFound(plan.map(f => f.word)))
+    }
+    scores.sort((a, b) => a - b)
+    const median = scores[Math.floor(scores.length / 2)]
+    expect(median).toBeGreaterThanOrEqual(12)
+    expect(median).toBeLessThanOrEqual(35)
   }, 60_000)
 })

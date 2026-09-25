@@ -10,6 +10,7 @@
 import { markGuess, WORD_LENGTH, MAX_GUESSES } from './wordduelLogic'
 import { applyGuessForPlayer, getGraceEndsAt, normalizeGuesses, resolveRaceRound } from './wordraceLogic'
 import { isFamilySafe } from './wordDenylist'
+import { isCommonWord } from './commonWords'
 
 // ── Wordle solver (Word Duel / Word Race CPU) ────────────────────────────────
 
@@ -447,4 +448,62 @@ export function pickHangmanGuess({
 export function hangmanThinkMs(random = Math.random) {
   const [lo, hi] = HANGMAN_THINK_MS
   return Math.round(lo + random() * (hi - lo))
+}
+
+// ── Word-finding bot (Word Hunt / Anagrams) ──────────────────────────────────
+//
+// A person racing a clock finds the short everyday words first and rarely
+// the long or obscure ones. The bot "spots" each solution with probability
+// FIND_RECALL × familiarity × length weight, then enters what it spotted,
+// easiest first, one word every few seconds — so its haul scales with the
+// board (a rich grid gives it more) but stays in a human range.
+
+// Base chance a spotted-able word is found at all. Starting value.
+export const FIND_RECALL = 0.4
+// Uncommon words (not in commonWords) are found this much less often.
+export const FIND_UNCOMMON = 0.2
+// Relative chance by word length (longer = harder to see); 8+ uses the last.
+export const FIND_LENGTH_WEIGHT = { 3: 1, 4: 0.9, 5: 0.6, 6: 0.4, 7: 0.3, 8: 0.15 }
+// Time to spot and enter one word: a base gap plus a per-letter cost.
+export const FIND_GAP_MS = [2_000, 5_500]
+export const FIND_MS_PER_LETTER = 300
+// Anagrams words are built by tapping tiles, so each find takes longer.
+export const ANAGRAMS_FIND_GAP_MS = [3_000, 7_000]
+
+/** How likely the bot is to find `word` in a round (0..1, before FIND_RECALL). */
+export function findWeight(word) {
+  const w = lower(word)
+  const len = Math.min(8, w.length)
+  return (FIND_LENGTH_WEIGHT[len] ?? 0) * (isCommonWord(w) ? 1 : FIND_UNCOMMON)
+}
+
+/**
+ * The bot's finds for one round: [{ word, at }] with `at` in ms from the
+ * round start, ascending, all before `durationMs`. `solutions` are the words
+ * really on the board (solveGrid / getSolutions), so every find is legal.
+ */
+export function planBotFinds(solutions = [], {
+  durationMs, recall = FIND_RECALL, weight = findWeight, random = Math.random,
+  gapMs = FIND_GAP_MS, msPerLetter = FIND_MS_PER_LETTER,
+} = {}) {
+  const spotted = []
+  for (const word of new Set(solutions.map(lower))) {
+    const p = recall * weight(word)
+    if (p > 0 && random() < p) spotted.push({ word, ease: p * (0.5 + random()) })
+  }
+  spotted.sort((a, b) => b.ease - a.ease || a.word.localeCompare(b.word))
+  const plan = []
+  let t = 0
+  for (const { word } of spotted) {
+    const [lo, hi] = gapMs
+    t += Math.round(lo + random() * (hi - lo) + word.length * msPerLetter)
+    if (t >= durationMs) break
+    plan.push({ word, at: t })
+  }
+  return plan
+}
+
+/** The bot's finds that have landed `elapsedMs` into the round. */
+export function botFindsBy(plan = [], elapsedMs = 0) {
+  return plan.filter(f => f.at <= elapsedMs).map(f => f.word)
 }
