@@ -9,6 +9,7 @@
 
 import { seededShuffle } from './fibbageLogic'
 import { isBannedWord } from './wordDenylist'
+import { topFamiliar } from './commonWords'
 
 export const GRID_SIZE = 4
 export const CELL_COUNT = 16
@@ -322,4 +323,16 @@ export function wordhuntReadyUpdate(current, { symbol = null, now, dict, random 
     wordhuntGrid: ensurePlayableGrid(current.wordhuntGrid, dict, { random }),
     wordhuntStartedAt: now,
   }
+}
+
+// How many words the end screen's "TOP MISSED" list shows.
+export const TOP_MISSED_COUNT = 10
+
+// End-of-round "TOP MISSED": words on the grid that nobody found, family-safe
+// only (a homograph may be found, never suggested), most familiar first, then
+// by points. `found` is a list of word lists (one per player).
+export function topMissedWords(grid, dict, found = [], limit = TOP_MISSED_COUNT) {
+  const seen = new Set(found.flat().map(canonicalize))
+  const missed = solveGrid(grid, dict).filter(w => !seen.has(w))
+  return topFamiliar(missed, { limit, score: scoreWord })
 }

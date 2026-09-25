@@ -7,6 +7,7 @@ import {
   normalizeWordList, nextWordIndex, verifyWords, compareHunt, finishHuntRound,
   roundDeadline, COUNTDOWN_MS, ROUND_MS,
   solveGrid, ensurePlayableGrid, wordhuntReadyUpdate, MIN_GRID_WORDS,
+  topMissedWords, TOP_MISSED_COUNT,
 } from './wordhuntLogic'
 
 // NOTE: this file must never import wordhuntDictionary.js (the lazy loader
@@ -450,5 +451,26 @@ describe('wordhuntReadyUpdate — both players ready before the clock starts', (
     expect(wordhuntReadyUpdate(lobby({ status: 'finished' }), { ...opts, symbol: 'X' })).toBeUndefined()
     expect(wordhuntReadyUpdate(lobby({ wordhuntReadyX: true }), { ...opts, symbol: 'X' })).toBeUndefined()
     expect(wordhuntReadyUpdate(null, { ...opts, symbol: 'X' })).toBeUndefined()
+  })
+})
+
+describe('topMissedWords', () => {
+  it('lists words nobody found, most familiar first', () => {
+    // tog is a dictionary word but not an everyday one, so it ranks last.
+    expect(topMissedWords(HUNT_GRID, HUNT_DICT, [['cat'], ['DOG']])).toEqual(['cats', 'cog', 'dot', 'god', 'tog'])
+  })
+
+  it('never suggests a word that is not family-safe, though it stays findable', () => {
+    const grid = buildGrid({ 0: 't', 1: 'i', 2: 't', 4: 'p', 5: 'e', 6: 't' })
+    const dict = createDictionary(['tit', 'pet', 'pit'])
+    expect(solveGrid(grid, dict)).toContain('tit')
+    expect(topMissedWords(grid, dict, [])).not.toContain('tit')
+  })
+
+  it('caps the list', async () => {
+    const dict = await loadRealDict()
+    const grid = generateGrid(11)
+    expect(topMissedWords(grid, dict, [])).toHaveLength(TOP_MISSED_COUNT)
+    expect(topMissedWords(grid, dict, [], 3)).toHaveLength(3)
   })
 })
