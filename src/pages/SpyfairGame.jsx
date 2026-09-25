@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ref, runTransaction } from 'firebase/database'
+import { ref, runTransaction, set } from 'firebase/database'
 import { db } from '../lib/firebase'
-import { commit, verifyReveal } from '../lib/commit'
+import { seal, openWithPrivate, openWithKey, staleRecipients } from '../lib/sealed'
+import useSealKey from '../hooks/useSealKey'
 import { isRoomCoordinator } from '../lib/coordinator'
 import {
-  seatOrder, normalizeVotes, resolveVote, scoreRound, matchWinners, allOnlineVoted,
-  pickLocationIndex, assignRoles, privatesFromRoles, findSpy, recoverLocationIndex,
-  SPYFAIR_MIN_PLAYERS, SPYFAIR_QUESTION_SECONDS, SPYFAIR_SEEN_KEY,
+  seatOrder, normalizeVotes, tallyVotes, resolveVote, scoreRound, matchWinners, allOnlineVoted,
+  pickLocationIndex, assignRoles, spyfairPayload, parseSpyfairPayload, readSpyfairDeal, legacyOpened,
+  sealAad, SPYFAIR_MIN_PLAYERS, SPYFAIR_QUESTION_SECONDS, SPYFAIR_SEEN_KEY,
 } from '../lib/spyfairLogic'
+import { normalizeList } from '../lib/normalize'
 import { markSeen, normalizeSeen } from '../lib/seenHistory'
 import { scaledMs, timersOff } from '../lib/timerScale'
 import { formatClockSecs } from '../lib/format'
@@ -20,73 +22,102 @@ import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
 
-// Rules (dealing, tally, scoring, match winner) live in src/lib/spyfairLogic.js,
-// shared with SpyfairDemo.jsx so the demo can't drift from the live room.
+// Rules (dealing, tally, scoring, match winner, sealed payloads) live in
+// src/lib/spyfairLogic.js, shared with SpyfairDemo.jsx so the demo can't drift
+// from the live room.
 
 // -----------------------------------------------------------------------------
-// INFO-LEAK MODEL — read before touching the round shape.
+// HIDDEN-ROLE MODEL — read before touching the round shape.
 //
-// A fully cheat-proof Spyfair is IMPOSSIBLE in this architecture: every field under
-// `games/$id` is world-readable (database.rules.json grants read:true), the host is
-// itself one of the players (so it inherently knows the whole assignment), and there
-// is no trusted dealer. Per-child Firebase read rules can't help either — they would
-// break the whole-node `onValue` listener every screen relies on.
+// Every field under `games/$id` is world-readable, so neither the spy's
+// identity nor the location is ever written in plaintext during a round. The
+// dealer (the coordinator who taps START / NEXT ROUND) seals one entry per
+// participant to that player's published key (src/lib/sealed.js, keys at
+// `games/$id/sealKeys/{uid}` via useSealKey): 'SPY' for the spy,
+// 'LOC:<index>|<role>' for everyone else, padded to one length so ciphertext
+// size gives nothing away. A client can open only its own entry; spectators
+// and players who sat the round out can open none.
 //
-// So we do the best PARTIAL mitigation to stop CASUAL / spectator leakage:
-//   * No top-level plaintext `round.spy` or `round.locationIndex` DURING the round.
-//     The spy's identity is published only at the `result` phase.
-//   * The location is COMMITTED at deal time (salted SHA-256 in `round.locationCommitment`,
-//     matching src/lib/commit.js) and only its index + salt are revealed at `result`,
-//     where the result screen verifies the reveal against the commitment. The salt is
-//     held in the host's sessionStorage and never hits the DB until result.
+// Round flow: reveal (peek) → questioning → vote → tally → result. At TALLY
+// the votes are locked and every participant publishes its entry's AES key
+// (`round.openKeys/{uid}`; the dealer publishes all of them too, so the
+// reveal works if a player has dropped). Every client then opens and verifies
+// the entries (AES-GCM rejects a forged key or plaintext); the coordinator
+// scores from what they say and writes `spy` / `locationIndex` at RESULT.
+// Contradicting entries (a dealer who sealed two spies or two locations) are
+// flagged UNVERIFIED on the result screen.
 //
-// WHAT STILL LEAKS (and why a server would be required to fix it):
-//   * `round.private` MUST carry each player's own role — and, for non-spies, the shared
-//     location — so they can actually play. That whole map is world-readable, so a
-//     determined player/spectator can read another player's entry to learn the location,
-//     and can spot the `role:'SPY'` entry to unmask the spy. Hiding this needs either a
-//     trusted server that authenticates each client and streams only their own role, or
-//     end-to-end per-player encryption with a key exchange — neither of which exists in a
-//     serverless, world-readable-node app. We only raise the bar past reading one obvious
-//     top-level field.
+// Remaining trust limits (no server to enforce them):
+//   * The DEALING client chose the deal, so it knows the spy and the location.
+//     The honest client never shows it, but a dealer with devtools could read
+//     its own sessionStorage/memory.
+//   * A player who reopens the room in a new tab gets a fresh key; the dealer
+//     re-seals their entry, but if the dealer also lost its tab they can't see
+//     their card until the next round.
 // -----------------------------------------------------------------------------
 
-// Dealer-only sessionStorage: the committed location's { locationIndex, salt, hash }
-// for the current round, so it can be revealed + verified at the result phase.
-// `hash` ties the secret to the round it belongs to — a dealer whose deal lost
-// the start/next-round transaction must not reveal its stale secret later.
-const locKey = (gameId) => `spyfair-loc-${gameId}`
+// Dealer-only sessionStorage: this round's deal + per-entry reveal keys.
+const dealKey = (gameId) => `spyfair-deal-${gameId}`
 
-function readLocSecret(gameId, commitment) {
-  let secret = null
-  try { secret = JSON.parse(sessionStorage.getItem(locKey(gameId)) || 'null') } catch { /* ignore */ }
-  if (!secret || secret.locationIndex == null) return null
-  if (secret.hash && secret.hash !== commitment) return null
-  return secret
+function readDealSecret(gameId, roundId) {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(dealKey(gameId)) || 'null')
+    return v && v.roundId === roundId ? v : null
+  } catch {
+    return null
+  }
 }
 
-// Deal a fresh round: pick the spy + location (avoiding the room's recently seen
-// locations and the previous round's), hand out private roles, and COMMIT the
-// location. Stores the reveal secret in the dealer's sessionStorage. Returns the
-// round object to write to Firebase — note it contains NO plaintext spy/locationIndex.
-async function dealRound(gameId, order, seen, excludeLocationIndex = null) {
-  const locationIndex = pickLocationIndex(seen, excludeLocationIndex)
-  const { spyId, roles } = assignRoles(order.map(p => p.playerId), locationIndex)
-  const { hash, salt } = await commit(String(locationIndex))
-  try { sessionStorage.setItem(locKey(gameId), JSON.stringify({ locationIndex, salt, hash })) } catch { /* ignore */ }
+function writeDealSecret(gameId, value) {
+  try { sessionStorage.setItem(dealKey(gameId), JSON.stringify(value)) } catch { /* private mode */ }
+}
+
+function newRoundId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(8))
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+// Deal a sealed round to `participants` (seated, online, key published): pick
+// the location (avoiding the room's recently seen ones and the previous
+// round's) and the spy, and seal each role to its player. The deal and the
+// reveal keys stay in the dealer's sessionStorage.
+async function dealRound({ gameId, participants, sealKeys, seen, prevLocationIndex = null }) {
+  const id = newRoundId()
+  const locationIndex = pickLocationIndex(seen, prevLocationIndex)
+  const { spyId, roles } = assignRoles(participants, locationIndex)
+  const deal = { spyId, roles, locationIndex }
+  const sealed = {}
+  const keys = {}
+  for (const uid of participants) {
+    const { box, key } = await seal(sealKeys[uid], spyfairPayload(uid, deal), sealAad(id, uid))
+    sealed[uid] = box
+    keys[uid] = key
+  }
+  writeDealSecret(gameId, { roundId: id, ...deal, keys })
   return {
+    id,
     phase: 'reveal',
-    // Hidden until the result phase — see the INFO-LEAK MODEL note above.
+    participants,
+    sealed,
+    // Filled in at the result — see the HIDDEN-ROLE MODEL note above.
     spy: null,
     locationIndex: null,
-    locationSalt: null,
-    locationCommitment: hash,
-    timerEnds: null,
-    votes: null,
     spyWon: null,
     accused: null,
-    private: privatesFromRoles(roles, spyId, locationIndex),
+    consistent: null,
+    void: null,
+    timerEnds: null,
+    votes: null,
+    openKeys: null,
   }
+}
+
+// Firebase strips empty maps: `openKeys` reads back undefined until the first write.
+function normalizeKeyMap(raw) {
+  if (!raw || typeof raw !== 'object') return {}
+  const out = {}
+  for (const [k, v] of Object.entries(raw)) if (typeof v === 'string' && v) out[k] = v
+  return out
 }
 
 export default function SpyfairGame({
@@ -98,7 +129,6 @@ export default function SpyfairGame({
   const seats = useMemo(() => seatOrder(players), [players])
   const seatIds = useMemo(() => seats.map(p => p.playerId), [seats])
   const playerCount = seats.length
-  const enoughPlayers = playerCount >= SPYFAIR_MIN_PLAYERS
   // Deterministic host-fallback: the coordinator is the first ONLINE seat in join order, not
   // the fixed `isHost` — so a host disconnect hands transitions off instead of
   // freezing the match. Every write below that used to be `isHost`-gated is now
@@ -108,26 +138,154 @@ export default function SpyfairGame({
   // Room timer scale (lobby option): 1 default, 2 relaxed, 0 = no questioning
   // clock — the coordinator calls the vote by hand.
   const noTimer = timersOff(game.timerScale)
+  const isOnline = (id) => players?.[id]?.online !== false
 
   const myPlayer = players?.[mySeat] || null
   const amSpectator = !myPlayer
-  // My role/location come from my OWN private entry — the only thing I'm meant to see
-  // during the round. Spy identity is not exposed via a top-level field until result.
-  const myPrivate = round.private?.[mySeat] || null
-  const amSpy = myPrivate?.role === 'SPY'
-  // The location is only revealed (top-level) at the result phase; during the round a
-  // non-spy reads it from their own private entry (`myPrivate.location`).
-  const revealedLocation = round.locationIndex != null ? SPYFAIR_LOCATIONS[round.locationIndex] : null
+
+  // Rounds dealt before sealing shipped carry plaintext `round.private` —
+  // still readable here so an in-flight round finishes after an update.
+  const legacy = !round.sealed && !!round.private
+  const participants = useMemo(
+    () => (legacy ? Object.keys(round.private || {}) : normalizeList(round.participants)),
+    [legacy, round.private, round.participants],
+  )
+  const amParticipant = participants.includes(mySeat)
+  const participantSeats = seats.filter(p => participants.includes(p.playerId))
+
+  const { pair, sealKeys, supported: sealSupported } = useSealKey(gameId, myPlayer ? mySeat : null, game.sealKeys)
+  const readyIds = seatIds.filter(id => isOnline(id) && sealKeys[id])
+  const canDeal = readyIds.length >= SPYFAIR_MIN_PLAYERS
+
+  // ---------------------------------------------------------------------------
+  // My sealed entry: am I the spy, and if not, where are we and who am I?
+  // ---------------------------------------------------------------------------
+  const myBox = round.sealed?.[mySeat] || null
+  const [mine, setMine] = useState(null) // { ct, parsed, key, failed }
+  useEffect(() => {
+    if (!pair || !myBox || !round.id) return
+    if (mine?.ct === myBox.ct) return
+    let alive = true
+    openWithPrivate(pair.privJwk, pair.pub, myBox, sealAad(round.id, mySeat)).then(res => {
+      if (!alive) return
+      const parsed = res ? parseSpyfairPayload(res.plaintext) : null
+      setMine({ ct: myBox.ct, parsed, key: res?.key || null, failed: !parsed })
+    })
+    return () => { alive = false }
+  }, [pair, myBox, round.id, mySeat, mine])
+  const legacyMine = legacy ? (legacyOpened(round.private)[mySeat] ?? null) : null
+  const myEntry = legacy
+    ? (legacyMine ? { parsed: legacyMine } : null)
+    : (myBox && mine?.ct === myBox.ct ? mine : null)
+  const myCard = myEntry?.parsed || null
+  const amSpy = !!myCard?.spy
+  const myLocation = myCard && !myCard.spy ? SPYFAIR_LOCATIONS[myCard.locationIndex] : null
+  const myRole = myCard && !myCard.spy ? myCard.role : null
+  // Participant whose entry is missing or sealed to an old key (new tab): the
+  // dealer re-seals it; until then there's nothing to show.
+  const myCardPending = amParticipant && !myCard
+
+  // ---------------------------------------------------------------------------
+  // Entries opened by published reveal keys at TALLY. Each open is verified by
+  // AES-GCM, so a forged key or entry reads as unopened.
+  // ---------------------------------------------------------------------------
+  const openKeys = useMemo(() => normalizeKeyMap(round.openKeys), [round.openKeys])
+  const [openedMap, setOpenedMap] = useState({}) // { [uid]: { sig, parsed } }
+  const openSig = participants.map(uid => `${uid}:${openKeys[uid] || ''}:${round.sealed?.[uid]?.ct || ''}`).join('|')
+  useEffect(() => {
+    if (!round.id || legacy) return
+    const todo = participants.filter(uid => {
+      const sig = `${openKeys[uid] || ''}:${round.sealed?.[uid]?.ct || ''}`
+      return openKeys[uid] && round.sealed?.[uid] && openedMap[uid]?.sig !== sig
+    })
+    if (todo.length === 0) return
+    let alive = true
+    Promise.all(todo.map(async uid => {
+      const sig = `${openKeys[uid]}:${round.sealed[uid].ct}`
+      const text = await openWithKey(openKeys[uid], round.sealed[uid], sealAad(round.id, uid))
+      return [uid, { sig, parsed: parseSpyfairPayload(text) }]
+    })).then(entries => {
+      if (alive) setOpenedMap(prev => ({ ...prev, ...Object.fromEntries(entries) }))
+    })
+    return () => { alive = false }
+    // openSig captures every input that matters; the objects change identity per snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSig, round.id, legacy])
+  const opened = useMemo(() => {
+    if (legacy) return legacyOpened(round.private)
+    const out = {}
+    for (const uid of participants) {
+      const sig = `${openKeys[uid] || ''}:${round.sealed?.[uid]?.ct || ''}`
+      if (openedMap[uid]?.sig === sig) out[uid] = openedMap[uid].parsed
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openedMap, openSig, legacy, round.private])
+  const dealView = readSpyfairDeal(opened, participants)
+
+  // ---------------------------------------------------------------------------
+  // Dealer: re-seal to a participant whose published key changed (new tab).
+  // ---------------------------------------------------------------------------
+  const dealSecret = round.id ? readDealSecret(gameId, round.id) : null
+  const amDealer = !!dealSecret
+  const needReseal = amDealer && (phase === 'reveal' || phase === 'questioning' || phase === 'vote')
+    ? staleRecipients(participants, sealKeys, round.sealed).join(',')
+    : ''
+  const resealing = useRef(null)
+  useEffect(() => {
+    if (!needReseal || !round.id) return
+    const secret = readDealSecret(gameId, round.id)
+    if (!secret) return
+    const job = `${round.id}:${needReseal}`
+    if (resealing.current === job) return
+    resealing.current = job
+    const roundId = round.id
+    ;(async () => {
+      const patch = {}
+      const keys = { ...(secret.keys || {}) }
+      for (const uid of needReseal.split(',')) {
+        const { box, key } = await seal(sealKeys[uid], spyfairPayload(uid, secret), sealAad(roundId, uid))
+        patch[uid] = box
+        keys[uid] = key
+      }
+      writeDealSecret(gameId, { ...secret, keys })
+      await runTransaction(ref(db, `games/${gameId}/round`), cur => {
+        if (!cur) return cur
+        if (cur.id !== roundId) return
+        return { ...cur, sealed: { ...(cur.sealed || {}), ...patch } }
+      })
+    })().catch(() => { resealing.current = null })
+  }, [needReseal, round.id, sealKeys, gameId])
+
+  // ---------------------------------------------------------------------------
+  // Reveal keys: at TALLY every participant publishes its own entry's key, and
+  // the dealer publishes every key it holds.
+  // ---------------------------------------------------------------------------
+  const publishKey = phase === 'tally' && !legacy
+    ? participants.filter(uid => !openKeys[uid]).join(',')
+    : ''
+  const myKey = myEntry?.key || null
+  useEffect(() => {
+    if (!publishKey || !round.id) return
+    const wanted = publishKey.split(',')
+    const writes = {}
+    if (myKey && wanted.includes(mySeat)) writes[mySeat] = myKey
+    const secret = readDealSecret(gameId, round.id)
+    if (secret?.keys) for (const uid of wanted) if (secret.keys[uid]) writes[uid] = secret.keys[uid]
+    for (const [uid, key] of Object.entries(writes)) {
+      set(ref(db, `games/${gameId}/round/openKeys/${uid}`), key).catch(() => {})
+    }
+  }, [publishKey, round.id, myKey, mySeat, gameId])
 
   const votes = normalizeVotes(round.votes)
   const myVote = votes[mySeat] || null
   const votesCast = Object.keys(votes).length
-  // Required voters = the ONLINE seats only: a player who disconnects mid-vote stays in
-  // `players` with online:false and can never vote, so waiting on every seat would stall
-  // the round forever. Degenerate-case guard: never auto-resolve on fewer than 2 total
-  // votes, so a lone survivor of a mass presence blip can't decide the round alone —
-  // the coordinator's manual RESOLVE VOTE NOW button covers that case deliberately.
-  const everyOnlineVoted = allOnlineVoted(seats, votes)
+  // Required voters = the ONLINE participants only: a player who disconnects mid-vote
+  // stays in `players` with online:false and can never vote, so waiting on every seat
+  // would stall the round forever. Degenerate-case guard: never auto-resolve on fewer
+  // than 2 total votes, so a lone survivor of a mass presence blip can't decide the
+  // round alone — the coordinator's manual RESOLVE VOTE NOW button covers that case.
+  const everyOnlineVoted = allOnlineVoted(participantSeats, votes)
 
   const scores = game.scores || {}
   // Co-winners: everyone who has crossed the match target, not just the earliest
@@ -140,11 +298,10 @@ export default function SpyfairGame({
   // enforced/displayed by all, so every comparison runs on server time. Ticks
   // only while the countdown is on screen.
   const { now } = useServerClock(phase === 'questioning' ? 500 : 0)
-  const [starting, runStart] = useBusy()
   const [dealing, runDeal] = useBusy()
   const [advancing, runAdvance] = useBusy()
   const [resolving, runResolve] = useBusy()
-  const [locVerify, setLocVerify] = useState(null) // result-phase: true/false/null(unknown)
+  const [voiding, runVoid] = useBusy()
 
   const prevPhase = useRef(phase)
   const resolvedRef = useRef(null)
@@ -155,7 +312,7 @@ export default function SpyfairGame({
   }, [phase])
 
   // --- Coordinator: when the questioning timer expires, advance to the vote phase.
-  // `now` ticks for every client (see the interval above), so every client agrees
+  // `now` ticks for every client (see useServerClock above), so every client agrees
   // the deadline has passed — only the coordinator actually writes the transition,
   // and the write re-checks phase so a coordinator handover mid-flight is safe. ---
   useEffect(() => {
@@ -171,50 +328,48 @@ export default function SpyfairGame({
     if (phase !== 'vote') resolvedRef.current = null
   }, [phase])
 
-  // --- Verify the revealed location against its commitment (result phase) ---
-  useEffect(() => {
-    let alive = true
-    const check = async () => {
-      const canVerify = phase === 'result' &&
-        round.locationCommitment != null && round.locationSalt != null && round.locationIndex != null
-      if (!canVerify) { if (alive) setLocVerify(null); return }
-      try {
-        const ok = await verifyReveal(round.locationCommitment, String(round.locationIndex), round.locationSalt)
-        if (alive) setLocVerify(ok)
-      } catch { if (alive) setLocVerify(null) }
-    }
-    check()
-    return () => { alive = false }
-  }, [phase, round.locationCommitment, round.locationSalt, round.locationIndex])
-
   // --- Sounds on result ---
   useEffect(() => {
-    if (phase === 'result' && prevPhase.current !== 'result') {
+    if (phase === 'result' && prevPhase.current !== 'result' && !round.void) {
       const spyWon = round.spyWon
-      if (amSpy) (spyWon ? sounds.win : sounds.lose)()
-      else if (!amSpectator) (spyWon ? sounds.lose : sounds.win)()
+      if (round.spy === mySeat) (spyWon ? sounds.win : sounds.lose)()
+      else if (amParticipant) (spyWon ? sounds.lose : sounds.win)()
     }
     prevPhase.current = phase
-  }, [phase, round.spyWon, amSpy, amSpectator])
+  }, [phase, round.spyWon, round.spy, round.void, mySeat, amParticipant])
 
   // -------------------------------------------------------------------------
   // Coordinator actions — gated on `amCoordinator` (the first ONLINE seat by join order),
   // not the fixed `isHost`, so a host disconnect hands these off instead of
   // freezing the match. See the `amCoordinator` comment above for the invariant.
   // -------------------------------------------------------------------------
-  const startRound = () => runStart(async () => {
-    if (!amCoordinator || !enoughPlayers) return
+  const startRound = (isNext) => runDeal(async () => {
+    if (!amCoordinator) return
+    if (!pair || !canDeal) { toast.error('WAITING FOR PLAYERS TO CONNECT'); return }
     try {
-      const round = await dealRound(gameId, seatOrder(players), game.seen?.[SPYFAIR_SEEN_KEY])
-      // Transaction, not a blind update: during a coordinator handover two
-      // clients can both tap START — only the first deal lands.
-      const { committed } = await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'playing') return
-        return { ...current, status: 'playing', winner: null, round, proposal: null, lastActivityAt: Date.now() }
+      const next = await dealRound({
+        gameId,
+        participants: readyIds,
+        sealKeys,
+        seen: game.seen?.[SPYFAIR_SEEN_KEY],
+        prevLocationIndex: isNext ? (round.locationIndex ?? null) : null,
       })
-      if (committed) onStart?.()
+      const prevId = round.id || null
+      // Transaction, not a blind update: during a coordinator handover two
+      // clients can both tap START / NEXT ROUND — only the first deal lands.
+      const { committed } = await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current) return current
+        if (isNext) {
+          if (current.status !== 'playing' || current.round?.phase !== 'result') return
+          if ((current.round?.id || null) !== prevId) return
+          return { ...current, round: next, proposal: null, lastActivityAt: Date.now() }
+        }
+        if (current.status === 'playing') return
+        return { ...current, status: 'playing', winner: null, round: next, proposal: null, lastActivityAt: Date.now() }
+      })
+      if (committed && !isNext) onStart?.()
     } catch {
-      toast.error('START FAILED — CHECK CONNECTION')
+      toast.error(isNext ? 'NEXT ROUND FAILED — CHECK CONNECTION' : 'START FAILED — CHECK CONNECTION')
     }
   })
 
@@ -237,42 +392,14 @@ export default function SpyfairGame({
     }).catch(() => toast.error('CALL FAILED — CHECK CONNECTION'))
   })
 
-  async function resolveRound() {
-    // Reveal the committed location now (result phase). Prefer the dealer's stored
-    // secret so it can be verified against the commitment; if this client isn't the
-    // dealer (coordinator handover) or lost it (reload), fall back to recovering the
-    // index from a non-spy private entry so the result screen still shows the
-    // correct location (verification is then skipped).
-    const secret = readLocSecret(gameId, round.locationCommitment)
+  // Vote → tally: lock the votes and record the most-accused (null on a tie);
+  // the roles are unsealed next and the round scored once they are known.
+  async function lockVotes() {
     try {
-      // One transaction re-reads the round and bails unless it is still in the
-      // vote, so a handover mid-resolve can never score the round twice.
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        const r = current?.round
-        if (!r || r.phase !== 'vote') return // already resolved by someone else
-        // Spy identity is not a top-level field during the round — recover it from the
-        // private map (the role === 'SPY' entry) and only now publish it at result.
-        const spyId = findSpy(r.private)
-        const { accused, spyWon } = resolveVote(normalizeVotes(r.votes), spyId)
-        const liveIds = seatOrder(current.players).map(p => p.playerId)
-        const liveScores = scoreRound(current.scores, liveIds, spyId, spyWon)
-        const someoneWonMatch = matchWinners(liveIds, liveScores).length > 0
-
-        const own = secret && (!secret.hash || secret.hash === r.locationCommitment) ? secret : null
-        const locationIndex = own?.locationIndex ?? recoverLocationIndex(r.private)
-        const locationSalt = own?.salt ?? null
-        const seen = locationIndex == null
-          ? current.seen
-          : { ...(current.seen || {}), [SPYFAIR_SEEN_KEY]: markSeen(normalizeSeen(current.seen?.[SPYFAIR_SEEN_KEY]), [locationIndex]) }
-
-        return {
-          ...current,
-          round: { ...r, phase: 'result', spyWon, accused, spy: spyId, locationIndex, locationSalt },
-          scores: liveScores,
-          seen,
-          lastActivityAt: Date.now(),
-          ...(someoneWonMatch ? { status: 'finished' } : {}),
-        }
+      await runTransaction(ref(db, `games/${gameId}/round`), current => {
+        if (!current || current.phase !== 'vote') return // already resolved by someone else
+        const { top, tied } = tallyVotes(normalizeVotes(current.votes))
+        return { ...current, phase: 'tally', accused: tied ? null : top }
       })
     } catch {
       toast.error('VOTE FAILED — CHECK CONNECTION')
@@ -282,47 +409,73 @@ export default function SpyfairGame({
   // Manual fallback for the coordinator: tally whatever votes are in RIGHT NOW. Covers
   // flapping presence (a gone player still reading online:true) where the auto-resolve
   // never fires. Idempotent vs the auto path: the resolvedRef check-and-set is
-  // synchronous (no await before it), and resolveRound itself re-reads the round and
+  // synchronous (no await before it), and lockVotes itself re-reads the round and
   // bails unless phase is still 'vote' — same guards the auto-resolve effect relies on.
   const forceResolveVote = () => runResolve(async () => {
     if (!amCoordinator || phase !== 'vote' || votesCast === 0) return
     if (resolvedRef.current === 'vote') return
     resolvedRef.current = 'vote'
-    await resolveRound()
+    await lockVotes()
   })
 
-  const nextRound = () => runDeal(async () => {
-    if (!amCoordinator) return
-    try {
-      const round = await dealRound(gameId, seatOrder(players), game.seen?.[SPYFAIR_SEEN_KEY], game.round?.locationIndex ?? null)
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.round?.phase !== 'result' || current.status === 'finished') return
-        return { ...current, round, proposal: null, lastActivityAt: Date.now() }
-      })
-    } catch {
-      toast.error('NEXT ROUND FAILED — CHECK CONNECTION')
-    }
-  })
-
-  // -------------------------------------------------------------------------
-  // Player actions
-  // -------------------------------------------------------------------------
-  async function castVote(accusedId) {
-    if (amSpectator || phase !== 'vote' || myVote) return
-    sounds.move(amSpy ? 'O' : 'X')
-    await runTransaction(ref(db, `games/${gameId}/round/votes/${mySeat}`), cur => (cur ? undefined : accusedId))
-      .catch(() => toast.error('VOTE FAILED — CHECK CONNECTION'))
-  }
-
-  // --- Coordinator: once every ONLINE player has voted (min 2 votes), resolve. ---
+  // --- Coordinator: once every ONLINE participant has voted (min 2 votes), lock. ---
   // Also fires when the last non-voter drops offline mid-vote, un-sticking the round.
   useEffect(() => {
     if (!amCoordinator || phase !== 'vote' || !everyOnlineVoted) return
     if (resolvedRef.current === 'vote') return
     resolvedRef.current = 'vote'
-    resolveRound()
+    lockVotes()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amCoordinator, phase, everyOnlineVoted])
+
+  // --- Coordinator: tally → result, once the unsealed entries name the spy and
+  // the location. One transaction re-checks round id + phase, so a handover
+  // mid-resolve can never score the round twice. ---
+  const scoreReady = phase === 'tally' && dealView.complete
+  useEffect(() => {
+    if (!amCoordinator || !scoreReady) return
+    const { spyId, locationIndex, consistent } = dealView
+    const roundId = round.id || null
+    runTransaction(ref(db, `games/${gameId}`), current => {
+      const r = current?.round
+      if (!r || (r.id || null) !== roundId || r.phase !== 'tally') return
+      const parts = r.private && !r.sealed ? Object.keys(r.private) : normalizeList(r.participants)
+      const { spyWon } = resolveVote(normalizeVotes(r.votes), spyId)
+      const nextScores = scoreRound(current.scores, parts, spyId, spyWon)
+      const over = matchWinners(seatOrder(current.players).map(p => p.playerId), nextScores).length > 0
+      const seen = { ...(current.seen || {}), [SPYFAIR_SEEN_KEY]: markSeen(normalizeSeen(current.seen?.[SPYFAIR_SEEN_KEY]), [locationIndex]) }
+      return {
+        ...current,
+        scores: nextScores,
+        seen,
+        round: { ...r, phase: 'result', spy: spyId, locationIndex, spyWon, consistent },
+        lastActivityAt: Date.now(),
+        ...(over ? { status: 'finished' } : {}),
+      }
+    }).catch(() => toast.error('SCORING FAILED — CHECK CONNECTION'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amCoordinator, scoreReady])
+
+  // Escape hatch: two or more entries can't be unsealed (those players AND the
+  // dealer all left) — end the round with no score instead of waiting forever.
+  const voidRound = () => runVoid(async () => {
+    if (!amCoordinator) return
+    const roundId = round.id || null
+    await runTransaction(ref(db, `games/${gameId}/round`), cur => {
+      if (!cur || (cur.id || null) !== roundId || cur.phase !== 'tally') return
+      return { ...cur, phase: 'result', void: true, spyWon: null, consistent: null }
+    })
+  }, () => toast.error('END ROUND FAILED — CHECK CONNECTION'))
+
+  // -------------------------------------------------------------------------
+  // Player actions
+  // -------------------------------------------------------------------------
+  async function castVote(accusedId) {
+    if (!amParticipant || phase !== 'vote' || myVote) return
+    sounds.move(amSpy ? 'O' : 'X')
+    await runTransaction(ref(db, `games/${gameId}/round/votes/${mySeat}`), cur => (cur ? undefined : accusedId))
+      .catch(() => toast.error('VOTE FAILED — CHECK CONNECTION'))
+  }
 
   // -------------------------------------------------------------------------
   // Render: waiting lobby (status not playing, no live result to show)
@@ -345,21 +498,22 @@ export default function SpyfairGame({
             PLAYERS ({playerCount})
           </p>
           <ul className="space-y-1">
-            {seats.map((p, i) => (
-              <li key={p.playerId} className="flex items-center justify-between font-mono text-[11px]">
-                <span className={cn(
-                  p.playerId === mySeat ? 'text-retro-p1 text-glow-p1' : 'text-retro-text',
-                )}>
-                  {i + 1}. {p.name || 'PLAYER'}{p.playerId === mySeat ? ' (YOU)' : ''}
-                </span>
-                <span className={cn(
-                  'font-pixel text-[8px]',
-                  p.online ? 'text-retro-win text-glow-win' : 'text-retro-dim',
-                )}>
-                  {p.online ? 'ONLINE' : 'OFF'}
-                </span>
-              </li>
-            ))}
+            {seats.map((p, i) => {
+              // READY = online with a published sealing key (can be dealt a card).
+              const ready = isOnline(p.playerId) && !!sealKeys[p.playerId]
+              return (
+                <li key={p.playerId} className="flex items-center justify-between font-mono text-[11px]">
+                  <span className={cn(
+                    p.playerId === mySeat ? 'text-retro-p1 text-glow-p1' : 'text-retro-text',
+                  )}>
+                    {i + 1}. {p.name || 'PLAYER'}{p.playerId === mySeat ? ' (YOU)' : ''}
+                  </span>
+                  <span className={cn('font-pixel text-[8px]', ready ? 'text-retro-win text-glow-win' : 'text-retro-dim')}>
+                    {!isOnline(p.playerId) ? 'OFF' : ready ? 'READY' : 'JOINING…'}
+                  </span>
+                </li>
+              )
+            })}
             {playerCount === 0 && (
               <li className="font-mono text-[11px] text-retro-dim">No players yet…</li>
             )}
@@ -368,23 +522,31 @@ export default function SpyfairGame({
 
         {amCoordinator ? (
           <div className="text-center space-y-2">
-            {enoughPlayers ? (
+            {canDeal ? (
               <button
-                onClick={startRound}
-                disabled={starting}
+                onClick={() => startRound(false)}
+                disabled={dealing}
                 className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
               >
-                {starting ? 'DEALING…' : 'START ROUND'}
+                {dealing ? 'DEALING…' : 'START ROUND'}
               </button>
             ) : (
               <p className="font-pixel text-[10px] text-retro-dim arcade-blink">
-                NEED {SPYFAIR_MIN_PLAYERS - playerCount} MORE PLAYER{SPYFAIR_MIN_PLAYERS - playerCount === 1 ? '' : 'S'}
+                {playerCount < SPYFAIR_MIN_PLAYERS
+                  ? `NEED ${SPYFAIR_MIN_PLAYERS - playerCount} MORE PLAYER${SPYFAIR_MIN_PLAYERS - playerCount === 1 ? '' : 'S'}`
+                  : 'WAITING FOR PLAYERS TO CONNECT…'}
               </p>
             )}
           </div>
         ) : (
           <p className="text-center font-pixel text-[10px] text-retro-dim arcade-blink">
-            {enoughPlayers ? 'WAITING TO START…' : `WAITING FOR PLAYERS (${playerCount}/${SPYFAIR_MIN_PLAYERS})`}
+            {playerCount >= SPYFAIR_MIN_PLAYERS ? 'WAITING TO START…' : `WAITING FOR PLAYERS (${playerCount}/${SPYFAIR_MIN_PLAYERS})`}
+          </p>
+        )}
+
+        {!sealSupported && (
+          <p className="text-center font-pixel text-[9px] text-retro-p2 leading-relaxed">
+            THIS BROWSER CAN&apos;T SEAL SECRET CARDS — OPEN THE GAME OVER HTTPS
           </p>
         )}
 
@@ -447,7 +609,7 @@ export default function SpyfairGame({
       {/* phase ticker */}
       <div className="flex items-center justify-center gap-2 font-pixel text-[8px] tracking-widest">
         {['reveal', 'questioning', 'vote', 'result'].map(p => (
-          <span key={p} className={cn(p === phase ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
+          <span key={p} className={cn(p === (phase === 'tally' ? 'vote' : phase) ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
             {p === 'questioning' ? 'ASK' : p.toUpperCase()}
           </span>
         ))}
@@ -458,8 +620,15 @@ export default function SpyfairGame({
         <div className="space-y-4">
           {amSpectator ? (
             <p className="text-center font-pixel text-[10px] text-retro-dim py-6">SPECTATING — SECRETS HIDDEN</p>
+          ) : !amParticipant ? (
+            <p className="text-center font-pixel text-[10px] text-retro-dim py-6 leading-relaxed">
+              SITTING OUT THIS ROUND — YOU&apos;LL BE DEALT IN NEXT ROUND
+            </p>
           ) : (
-            <div className="bg-retro-card border-2 border-retro-border rounded p-5 text-center space-y-3 min-h-[140px] flex flex-col items-center justify-center">
+            <div
+              data-testid="spyfair-card"
+              className="bg-retro-card border-2 border-retro-border rounded p-5 text-center space-y-3 min-h-[140px] flex flex-col items-center justify-center"
+            >
               {!secretRevealed ? (
                 <button
                   onClick={() => { setSecretRevealed(true); sounds.hit() }}
@@ -467,6 +636,12 @@ export default function SpyfairGame({
                 >
                   TAP TO SEE YOUR SECRET
                 </button>
+              ) : myCardPending ? (
+                <p className="font-pixel text-[9px] text-retro-dim leading-relaxed arcade-blink">
+                  {mine?.failed || (round.sealed && !myBox)
+                    ? 'YOUR CARD WAS SEALED TO ANOTHER TAB — WAITING FOR THE DEALER TO RESEAL IT…'
+                    : 'UNSEALING YOUR CARD…'}
+                </p>
               ) : amSpy ? (
                 <>
                   <p className="font-pixel text-[9px] text-retro-p2 tracking-widest">YOU ARE THE</p>
@@ -479,9 +654,9 @@ export default function SpyfairGame({
               ) : (
                 <>
                   <p className="font-pixel text-[9px] text-retro-dim tracking-widest">LOCATION</p>
-                  <p className="font-pixel text-lg text-retro-cta text-glow-cta">{myPrivate?.location}</p>
+                  <p className="font-pixel text-lg text-retro-cta text-glow-cta">{myLocation?.name}</p>
                   <p className="font-mono text-[11px] text-retro-p1 text-glow-p1">
-                    Your role: {myPrivate?.role || '—'}
+                    Your role: {myRole || '—'}
                   </p>
                   <p className="font-mono text-[9px] text-retro-dim">Don&apos;t say the location out loud!</p>
                 </>
@@ -528,14 +703,14 @@ export default function SpyfairGame({
             </p>
           </div>
 
-          {!amSpectator && (
+          {amParticipant && myCard && (
             <div className="bg-retro-surface border border-retro-border/60 rounded p-3 text-center">
               {amSpy ? (
                 <p className="font-pixel text-[9px] text-retro-p2 text-glow-p2">YOU ARE THE SPY — STAY HIDDEN</p>
               ) : (
                 <p className="font-mono text-[10px] text-retro-dim">
-                  <span className="text-retro-cta">{myPrivate?.location}</span> ·{' '}
-                  <span className="text-retro-p1">{myPrivate?.role}</span>
+                  <span className="text-retro-cta">{myLocation?.name}</span> ·{' '}
+                  <span className="text-retro-p1">{myRole}</span>
                 </p>
               )}
             </div>
@@ -561,11 +736,13 @@ export default function SpyfairGame({
           <p className="text-center font-pixel text-[10px] text-retro-cta text-glow-cta">
             WHO IS THE SPY?
           </p>
-          {amSpectator ? (
-            <p className="text-center font-pixel text-[10px] text-retro-dim py-4">SPECTATING</p>
+          {!amParticipant ? (
+            <p className="text-center font-pixel text-[10px] text-retro-dim py-4">
+              {amSpectator ? 'SPECTATING' : 'SITTING OUT THIS ROUND'}
+            </p>
           ) : (
             <div className="space-y-2">
-              {seats.map(p => {
+              {participantSeats.map(p => {
                 const isMe = p.playerId === mySeat
                 const picked = myVote === p.playerId
                 const hasVoted = !!votes[p.playerId]
@@ -592,7 +769,7 @@ export default function SpyfairGame({
             </div>
           )}
           <p className="text-center font-pixel text-[9px] text-retro-dim">
-            {votesCast}/{playerCount} VOTED
+            {votesCast}/{participants.length} VOTED
           </p>
           {/* Coordinator escape hatch: presence can flap, leaving the auto-resolve
               waiting on a seat that will never vote — tally the votes cast so far. */}
@@ -611,48 +788,79 @@ export default function SpyfairGame({
         </div>
       )}
 
+      {/* TALLY: votes locked; every client unseals the roles */}
+      {phase === 'tally' && (
+        <div className="space-y-3 text-center">
+          <p className="font-pixel text-[10px] text-retro-cta text-glow-cta arcade-blink">UNSEALING THE ROLES…</p>
+          <p className="font-mono text-[10px] text-retro-dim">
+            {Object.keys(opened).length}/{participants.length} cards opened
+          </p>
+          {/* Two or more cards can't be opened when those players AND the
+              dealer have all left — end the round unscored rather than hang. */}
+          {amCoordinator && !dealView.complete && (
+            <div className="space-y-1.5">
+              <button
+                onClick={voidRound}
+                disabled={voiding}
+                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
+              >
+                {voiding ? 'ENDING…' : 'END ROUND — NO SCORE'}
+              </button>
+              <p className="font-mono text-[9px] text-retro-dim">Use this if players who left hold the missing cards</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* RESULT */}
       {phase === 'result' && (
         <div className="space-y-4 text-center">
           {(() => {
             const spyPlayer = seats.find(p => p.playerId === round.spy)
             const accusedPlayer = seats.find(p => p.playerId === round.accused)
+            const revealedLocation = round.locationIndex != null ? SPYFAIR_LOCATIONS[round.locationIndex] : null
             const spyWon = round.spyWon
             return (
               <>
-                <p className={cn(
-                  'font-pixel text-base',
-                  spyWon ? 'text-retro-p2 text-glow-p2' : 'text-retro-win text-glow-win',
-                )}>
-                  {spyWon ? 'SPY ESCAPES!' : 'SPY CAUGHT!'}
-                </p>
-                <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
-                  <p className="font-mono text-[11px] text-retro-dim">
-                    The spy was <span className="text-retro-p2 text-glow-p2">{spyPlayer?.name || '???'}</span>
+                {round.void ? (
+                  <p className="font-pixel text-base text-retro-dim">ROUND VOID — NO SCORE</p>
+                ) : (
+                  <p className={cn(
+                    'font-pixel text-base',
+                    spyWon ? 'text-retro-p2 text-glow-p2' : 'text-retro-win text-glow-win',
+                  )}>
+                    {spyWon ? 'SPY ESCAPES!' : 'SPY CAUGHT!'}
                   </p>
-                  <p className="font-mono text-[11px] text-retro-dim">
-                    The location was <span className="text-retro-cta text-glow-cta">{revealedLocation?.name || '???'}</span>
-                    {locVerify === false && (
-                      <span className="text-retro-p2 font-pixel text-[8px]"> ⚠ UNVERIFIED</span>
+                )}
+                {!round.void && (
+                  <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
+                    <p className="font-mono text-[11px] text-retro-dim">
+                      The spy was <span className="text-retro-p2 text-glow-p2">{spyPlayer?.name || '???'}</span>
+                    </p>
+                    <p className="font-mono text-[11px] text-retro-dim">
+                      The location was <span className="text-retro-cta text-glow-cta">{revealedLocation?.name || '???'}</span>
+                      {round.consistent === false && (
+                        <span className="text-retro-p2 font-pixel text-[8px]"> ⚠ UNVERIFIED</span>
+                      )}
+                    </p>
+                    {accusedPlayer && (
+                      <p className="font-mono text-[10px] text-retro-dim">
+                        Most accused: {accusedPlayer.name || '???'}
+                      </p>
                     )}
-                  </p>
-                  {accusedPlayer && (
-                    <p className="font-mono text-[10px] text-retro-dim">
-                      Most accused: {accusedPlayer.name || '???'}
-                    </p>
-                  )}
-                  {amSpy && (
-                    <p className="font-pixel text-[9px] text-retro-p2">
-                      {spyWon ? 'YOU GOT AWAY WITH IT' : 'YOU WERE EXPOSED'}
-                    </p>
-                  )}
-                </div>
+                    {round.spy === mySeat && (
+                      <p className="font-pixel text-[9px] text-retro-p2">
+                        {spyWon ? 'YOU GOT AWAY WITH IT' : 'YOU WERE EXPOSED'}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <ScoreBoard seats={seats} scores={scores} mySeat={mySeat} spyId={round.spy} />
 
                 {amCoordinator && !proposal && (
                   <button
-                    onClick={nextRound}
+                    onClick={() => startRound(true)}
                     disabled={dealing}
                     className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-40"
                   >

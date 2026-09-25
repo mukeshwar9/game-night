@@ -3,7 +3,9 @@ import {
   seatOrder, normalizeVotes, tallyVotes, resolveVote, scoreRound, matchWinners,
   allOnlineVoted, pickLocationIndex, assignRoles, privatesFromRoles, findSpy,
   recoverLocationIndex, SPYFAIR_MATCH_WINS,
+  spyfairPayload, parseSpyfairPayload, readSpyfairDeal, legacyOpened, sealAad, SPYFAIR_PAYLOAD_SPY,
 } from './spyfairLogic'
+import { seal, openWithPrivate, openWithKey, generateSealKeyPair } from './sealed'
 import { SPYFAIR_LOCATIONS } from './decks/spyfair'
 import { markSeen } from './seenHistory'
 
@@ -144,5 +146,73 @@ describe('assignRoles / privatesFromRoles / findSpy', () => {
     expect(assignRoles([], 0)).toEqual({ spyId: null, roles: {} })
     expect(findSpy({})).toBeNull()
     expect(recoverLocationIndex({})).toBeNull()
+  })
+})
+
+describe('sealed payloads', () => {
+  const deal = { spyId: 's', locationIndex: 3, roles: { a: 'Pilot', b: 'Mechanic', s: null } }
+
+  it('the spy learns only that they are the spy', () => {
+    expect(spyfairPayload('s', deal)).toBe(SPYFAIR_PAYLOAD_SPY)
+    expect(parseSpyfairPayload(spyfairPayload('s', deal))).toEqual({ spy: true })
+  })
+
+  it('everyone else gets the location and their role', () => {
+    expect(parseSpyfairPayload(spyfairPayload('a', deal))).toEqual({ spy: false, locationIndex: 3, role: 'Pilot' })
+  })
+
+  it('rejects malformed or out-of-deck payloads', () => {
+    for (const bad of [null, '', 'LOC:', 'LOC:x|Pilot', `LOC:${SPYFAIR_LOCATIONS.length}|Pilot`, 'LOC:-1|Pilot', 'spy']) {
+      expect(parseSpyfairPayload(bad)).toBeNull()
+    }
+  })
+
+  it('every payload fits one padding bucket, so ciphertexts are the same length', async () => {
+    const { pub, privJwk } = await generateSealKeyPair()
+    const longest = SPYFAIR_LOCATIONS.reduce((m, l, i) => {
+      const role = [...l.roles].sort((x, y) => y.length - x.length)[0]
+      const text = spyfairPayload('a', { spyId: 's', locationIndex: i, roles: { a: role } })
+      return text.length > m.length ? text : m
+    }, '')
+    const spyBox = (await seal(pub, SPYFAIR_PAYLOAD_SPY, sealAad('r1', 's'))).box
+    const longBox = (await seal(pub, longest, sealAad('r1', 'a'))).box
+    expect(spyBox.ct.length).toBe(longBox.ct.length)
+    const opened = await openWithPrivate(privJwk, pub, longBox, sealAad('r1', 'a'))
+    expect(parseSpyfairPayload(opened.plaintext)?.spy).toBe(false)
+    // Bound to its seat: the same box won't open as someone else's entry.
+    expect(await openWithKey(opened.key, longBox, sealAad('r1', 'b'))).toBeNull()
+  })
+})
+
+describe('readSpyfairDeal', () => {
+  const locA = { spy: false, locationIndex: 5, role: 'Pilot' }
+
+  it('finds the spy and the location once every entry is open', () => {
+    expect(readSpyfairDeal({ a: locA, b: locA, s: { spy: true } }, ['a', 'b', 's']))
+      .toEqual({ spyId: 's', locationIndex: 5, consistent: true, complete: true })
+  })
+
+  it('names the spy by elimination when only their entry is missing', () => {
+    expect(readSpyfairDeal({ a: locA, b: locA }, ['a', 'b', 's'])).toMatchObject({ spyId: 's', complete: true })
+  })
+
+  it('is incomplete while two entries are missing', () => {
+    expect(readSpyfairDeal({ a: locA }, ['a', 'b', 's']).complete).toBe(false)
+  })
+
+  it('flags a tampered deal (two spies or two locations)', () => {
+    expect(readSpyfairDeal({ a: { spy: true }, s: { spy: true }, b: locA }, ['a', 'b', 's']).consistent).toBe(false)
+    expect(readSpyfairDeal({ a: locA, b: { ...locA, locationIndex: 6 }, s: { spy: true } }, ['a', 'b', 's']).consistent).toBe(false)
+  })
+
+  it('ignores entries that failed to open', () => {
+    expect(readSpyfairDeal({ a: null, b: locA, s: { spy: true } }, ['a', 'b', 's'])).toMatchObject({ spyId: 's', complete: true })
+  })
+})
+
+describe('legacyOpened', () => {
+  it('reads the pre-sealing plaintext private map', () => {
+    const privates = privatesFromRoles({ a: 'Pilot', s: null }, 's', 0)
+    expect(legacyOpened(privates)).toEqual({ a: { spy: false, locationIndex: 0, role: 'Pilot' }, s: { spy: true } })
   })
 })

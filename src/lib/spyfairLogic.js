@@ -154,9 +154,91 @@ export function assignRoles(ids, locationIndex, rng = Math.random) {
   return { spyId, roles }
 }
 
+// ---------------------------------------------------------------------------
+// Sealed deal (live room). Each participant's role is sealed to their own key
+// (src/lib/sealed.js) as one of these plaintexts; sealed.js pads them to one
+// length, so ciphertext size can't pick out the spy.
+// ---------------------------------------------------------------------------
+export const SPYFAIR_PAYLOAD_SPY = 'SPY'
+const LOC_PREFIX = 'LOC:'
+
+/** AAD binding a sealed entry to its round and seat (no replay across either). */
+export const sealAad = (roundId, uid) => `spyfair|${roundId}|${uid}`
+
+/** The plaintext sealed to `uid`: 'SPY', or `LOC:<index>|<role>`. */
+export function spyfairPayload(uid, deal) {
+  if (uid === deal?.spyId) return SPYFAIR_PAYLOAD_SPY
+  return `${LOC_PREFIX}${deal?.locationIndex}|${deal?.roles?.[uid] || 'Local'}`
+}
+
 /**
- * The live room's per-player private map: each player sees only their own
- * `{ role, location }` — the spy gets role 'SPY' and no location.
+ * @returns {{ spy: true } | { spy: false, locationIndex: number, role: string } | null}
+ *   null for anything malformed (or a location index outside the deck).
+ */
+export function parseSpyfairPayload(text) {
+  if (text === SPYFAIR_PAYLOAD_SPY) return { spy: true }
+  if (typeof text !== 'string' || !text.startsWith(LOC_PREFIX)) return null
+  const body = text.slice(LOC_PREFIX.length)
+  const bar = body.indexOf('|')
+  if (bar === -1) return null
+  const locationIndex = Number(body.slice(0, bar))
+  if (!Number.isInteger(locationIndex) || locationIndex < 0 || locationIndex >= SPYFAIR_LOCATIONS.length) return null
+  return { spy: false, locationIndex, role: body.slice(bar + 1) || 'Local' }
+}
+
+/**
+ * Read the deal back from opened entries (`{ [uid]: parsed payload | null }`)
+ * at the reveal. The spy is the entry that says SPY — or, if exactly one
+ * participant's entry couldn't be opened (their key never got published) and
+ * every opened entry is a location, that participant by elimination.
+ * `consistent` is false when entries contradict each other (two spies, two
+ * locations): a dealer that tampered with the deal.
+ *
+ * @returns {{ spyId: string|null, locationIndex: number|null, consistent: boolean, complete: boolean }}
+ */
+export function readSpyfairDeal(opened, participants = []) {
+  let spyId = null
+  let locationIndex = null
+  let consistent = true
+  const openedIds = []
+  for (const [id, p] of Object.entries(opened || {})) {
+    if (!p) continue
+    openedIds.push(id)
+    if (p.spy) {
+      if (spyId && spyId !== id) consistent = false
+      spyId = spyId || id
+    } else {
+      if (locationIndex != null && locationIndex !== p.locationIndex) consistent = false
+      locationIndex = locationIndex ?? p.locationIndex
+    }
+  }
+  if (!spyId) {
+    const unopened = (participants || []).filter(id => !openedIds.includes(id))
+    if (unopened.length === 1) spyId = unopened[0]
+  }
+  return { spyId, locationIndex, consistent, complete: spyId != null && locationIndex != null }
+}
+
+/**
+ * Rounds dealt before sealing kept each role in plaintext `round.private`
+ * ({ role: 'SPY'|<role>, location: <name> }). Map them to parsed payloads so
+ * a round already in progress when this ships still plays out.
+ */
+export function legacyOpened(privates) {
+  const out = {}
+  for (const [uid, v] of Object.entries(privates || {})) {
+    if (!v) continue
+    if (v.role === 'SPY') { out[uid] = { spy: true }; continue }
+    const locationIndex = SPYFAIR_LOCATIONS.findIndex(l => l.name === v.location)
+    out[uid] = locationIndex >= 0 ? { spy: false, locationIndex, role: v.role || 'Local' } : null
+  }
+  return out
+}
+
+/**
+ * The pre-sealing round shape (plaintext `round.private`): each player's
+ * `{ role, location }`, the spy with role 'SPY' and no location. Kept for
+ * tests and legacy reads; the live room now seals these instead.
  */
 export function privatesFromRoles(roles, spyId, locationIndex) {
   const loc = SPYFAIR_LOCATIONS[locationIndex] || SPYFAIR_LOCATIONS[0]
