@@ -103,8 +103,8 @@ export default function PasswordCard({
             )}>
               <span className="font-pixel text-[9px]">{index + 1}</span>
               <span className="min-w-0 truncate font-mono text-xs">
-                {clue?.text || '· · ·'}
-                {(guess?.text || guess?.timeout) && (
+                {clue?.timeout ? 'NO CLUE · TIME' : clue?.text || '· · ·'}
+                {(guess?.text || (guess?.timeout && !guess?.noClue)) && (
                   <span className="ml-2 text-[10px] text-retro-dim">{guess.text || 'TIME OUT'}</span>
                 )}
               </span>

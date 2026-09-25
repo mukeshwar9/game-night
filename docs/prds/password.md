@@ -51,13 +51,14 @@
 1. **Reveal to clue-giver (2 s)**
    - Secret word appears only to clue-giver.
    - Guesser sees locked word card with blanks/count.
-2. **Clue turn**
-   - Clue-giver enters one clue.
+2. **Clue turn (`CLUE_SECONDS = 45` clue clock)**
+   - Clue-giver enters one clue before the clue clock runs out.
+   - If the clock expires, that clue slot is **burned as a miss** (a blank timed-out clue plus a timed-out guess), exactly like a timed-out guess: the next clue is worth one step less, and burning the 5th slot reveals the word with 0 points. A stalling or disconnected clue-giver can never freeze the room.
    - Clue must be 1 word, max 16 chars.
    - Clue cannot contain secret word, and secret word cannot contain clue.
    - Clue cannot repeat a previous clue this round.
-3. **Guess turn**
-   - Guesser sees clue history and enters one guess.
+3. **Guess turn (30/30/25/25/20 s guess clock by clue number)**
+   - Guesser sees clue history and enters one guess; a timeout counts as a miss.
    - Guess max 24 chars.
    - Correct guess ends round and awards points.
    - Wrong guess advances to next clue, up to `MAX_CLUES = 5`.
@@ -159,7 +160,7 @@ Notes:
 
 - `wordIndex` is public, so secret can be derived by inspecting Firebase. For v1, this is acceptable under bundle-leak/honest-client trust tier.
 - If stronger casual secrecy is desired, use commit-reveal like Hangwoman/Sketch: store `commitment` during clue/guess phases and reveal `wordIndex` only in reveal. This adds complexity but not real protection from bundled deck inspection. Prefer public `wordIndex` v1.
-- `endsAt` supports small phase transitions/animations, not strict timers for clue/guess. No turn timer in v1.
+- `endsAt` is the deadline of the current phase (intro, clue clock, guess clock, reveal). Every deadline is written and read in **server-corrected time** (`useServerClock`: `serverNow()` in transactions, `now` for rendering) so phones with skewed clocks agree on the windows. Rounds dealt before the clue clock existed (phase `clue`, no `endsAt`) get one armed on the next tick.
 
 ## Logic module
 
@@ -276,9 +277,9 @@ First seated client that sees `status === 'playing' && !round` runs transaction:
 3. Pick first word index from deck.
 4. Set round phase `intro`, roles, used `[wordIndex]`, blank pattern, `endsAt`.
 
-### Intro to clue
+### Deadlines (intro → clue, clue clock, guess clock, reveal)
 
-After intro deadline, either client may transaction phase to `clue` if still `intro`.
+After any deadline, either client may run the transition in a transaction that re-checks `phase` and `endsAt` (so only one write lands): `startCluePhase` (intro → clue, arms the clue clock), `applyClueTimeout` (burns a clue slot), `applyGuessTimeout` (timed-out miss, re-arms the clue clock) or `advanceAfterReveal`.
 
 ### Submit clue
 
@@ -389,7 +390,7 @@ End screen (co-op result):
 - Inputs have labels/aria labels.
 - Focus moves to active input when phase changes.
 - Correct/wrong feedback announced as text.
-- No fast timer pressure in v1; readable for casual play.
+- Clocks use the shared `RoundTimer` (bar + m:ss + a text "HURRY!" state, screen-reader announcements only at 30/10/5 s).
 
 ## Rules modal copy
 
@@ -397,7 +398,8 @@ Rules text lives in `src/lib/rules.js` (orchestrator-owned); it must describe th
 
 ## Edge cases
 
-- Player disconnects mid-round: show existing offline notice; allow game to continue when they return.
+- Partner disconnects: show the offline notice with a countdown; the clocks keep running (clue slots and guesses time out), so the room never freezes. After `PARTNER_OFFLINE_MS = 30 s` offline, the online player gets **END MATCH**, which finishes the match now (`endMatchEarly`: `status: 'finished'`, `winner: 'draw'`, `round.endedEarly: true`) with the team score banked so far; the result screen notes how many rounds were played. If the partner returns first, play simply continues.
+- Game.jsx's generic CLAIM WIN banner is wrong for a co-op game; the registry entry should carry `coop: true` so it is never shown. If a `finished` status arrives from elsewhere, the page shows the co-op result regardless of `winner`.
 - Clue-giver submits invalid clue: local error, no Firebase write.
 - Two clients advance reveal at same time: transaction guards phase/round number.
 - Deck exhausted: allow reuse only after all words used; with 250+ words this should not happen in v1.

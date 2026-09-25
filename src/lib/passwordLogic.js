@@ -22,6 +22,14 @@ export const REVEAL_MS = 5000
 // Guess clock per clue number (1-indexed): the first two guesses get 30s,
 // the next two 25s, the last 20s. Guessing gets tenser as clues run out.
 export const GUESS_SECONDS = [30, 30, 25, 25, 20]
+// Clue clock: the clue-giver has this long to send each clue. Expiry burns
+// that clue slot as a miss (like a timed-out guess), so a stalling or
+// disconnected clue-giver can never freeze the room. Starting value.
+export const CLUE_SECONDS = 45
+export const CLUE_MS = CLUE_SECONDS * 1000
+// How long the partner must be offline before the online player is offered
+// END MATCH (finishing with the current team score). Starting value.
+export const PARTNER_OFFLINE_MS = 30_000
 
 export function guessSecondsForClueNumber(clueNumber) {
   const n = Number(clueNumber)
@@ -173,9 +181,58 @@ function resolveRound(round, { points = 0, clueNumber = 0, guesses, now }) {
   }
 }
 
+/** Intro deadline reached: open the clue phase with the clue clock armed.
+ * Null when the intro is not over (or the round already moved on). */
+export function startCluePhase(round, now = Date.now()) {
+  if (!round || round.phase !== 'intro') return null
+  if (round.endsAt && now < round.endsAt) return null
+  return { ...round, phase: 'clue', endsAt: now + CLUE_MS }
+}
+
+// A clue slot left to expire: burns it as a miss (a blank timed-out clue plus
+// a timed-out guess, so the next clue scores one step less) and re-arms the
+// clue clock — or reveals the word when that was the last slot. Null when the
+// timeout does not apply (wrong phase, stale clock, already moved).
+export function applyClueTimeout(round, now = Date.now()) {
+  const clues = toList(round?.clues)
+  if (!round || round.phase !== 'clue' || clues.length >= MAX_CLUES) return null
+  if (!round.endsAt || now <= round.endsAt) return null
+  const nextClues = [...clues, { text: '', at: now, timeout: true }]
+  const nextGuesses = [...toList(round.guesses), { text: '', at: now, correct: false, timeout: true, noClue: true }]
+  if (nextClues.length >= MAX_CLUES) return resolveRound({ ...round, clues: nextClues }, { guesses: nextGuesses, now })
+  return {
+    ...round,
+    clues: nextClues,
+    guesses: nextGuesses,
+    lastDelta: null,
+    endsAt: now + CLUE_MS,
+  }
+}
+
+/** True once the partner has been offline for PARTNER_OFFLINE_MS. */
+export function canEndForAbsence(offlineSince, now = Date.now()) {
+  return Number.isFinite(offlineSince) && offlineSince != null && now - offlineSince >= PARTNER_OFFLINE_MS
+}
+
+/** END MATCH while the partner is away: finish now with the team score
+ * banked so far (rounds already revealed stay in the recap). Co-op, so the
+ * result is a 'draw', like a full match. Null once the match is over. */
+export function endMatchEarly(round, scores = {}) {
+  if (!round || round.phase === 'finished') return null
+  const teamScore = teamScoreOf(round, scores)
+  return {
+    winner: 'draw',
+    status: 'finished',
+    scores: teamScoresFor(teamScore),
+    round: { ...round, teamScore, phase: 'finished', endsAt: null, endedEarly: true },
+  }
+}
+
 export function applyClue(round, clue, now = Date.now()) {
   const clues = toList(round?.clues)
   if (!round || round.phase !== 'clue' || clues.length >= MAX_CLUES) return null
+  // Late clues lose the race to the clock — the timeout owns the slot.
+  if (round.endsAt && now > round.endsAt) return null
   const check = validateClue({ clue, word: round.word ?? '', previousClues: clues })
   if (!check.valid) return null
   const clueNumber = clues.length + 1
@@ -205,12 +262,13 @@ export function applyGuess(round, guess, word, now = Date.now()) {
     phase: 'clue',
     guesses: nextGuesses,
     lastDelta: null,
-    endsAt: null,
+    endsAt: now + CLUE_MS,
   }
 }
 
 // A guess slot left to expire: records a timed-out miss and hands play back
-// to the clue giver (or to reveal when the last clue is spent). Returns null
+// to the clue giver with the clue clock armed (or to reveal when the last
+// clue is spent). Returns null
 // when the timeout does not apply (wrong phase, stale clock, already moved).
 export function applyGuessTimeout(round, now = Date.now()) {
   const clueNumber = toList(round?.clues).length
@@ -223,7 +281,7 @@ export function applyGuessTimeout(round, now = Date.now()) {
     phase: 'clue',
     guesses: nextGuesses,
     lastDelta: null,
-    endsAt: null,
+    endsAt: now + CLUE_MS,
   }
 }
 

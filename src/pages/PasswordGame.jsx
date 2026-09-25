@@ -4,21 +4,28 @@ import { toast } from 'sonner'
 import { db } from '../lib/firebase'
 import { sounds } from '../lib/sounds'
 import useBusy from '../hooks/useBusy'
+import useServerClock from '../hooks/useServerClock'
+import RoundTimer from '../components/RoundTimer'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import GameSwitcher from '../components/GameSwitcher'
 import PasswordCard, { PasswordMatchResult } from '../components/PasswordCard'
 import { PASSWORD_DECK } from '../lib/decks/password'
-import { INTRO_MS, MAX_CLUES, MAX_ROUNDS, guessSecondsForClueNumber } from '../lib/passwordLogic'
 import {
-  advanceAfterReveal, applyClue, applyGuess, applyGuessTimeout, bestRound, createInitialRound,
-  pickWord, teamScoreOf, teamScoresFor, toList, validateClue,
+  CLUE_MS, INTRO_MS, MAX_CLUES, MAX_ROUNDS, PARTNER_OFFLINE_MS, guessSecondsForClueNumber,
 } from '../lib/passwordLogic'
+import {
+  advanceAfterReveal, applyClue, applyClueTimeout, applyGuess, applyGuessTimeout, bestRound,
+  canEndForAbsence, createInitialRound, endMatchEarly, pickWord, startCluePhase, teamScoreOf,
+  teamScoresFor, toList, validateClue,
+} from '../lib/passwordLogic'
+
+const TIMED_PHASES = new Set(['intro', 'clue', 'guess', 'reveal'])
 
 function matchSeed() {
   try { return crypto.randomUUID() } catch { return `${Date.now()}-${Math.random()}` }
 }
 
-function ActionButton({ children, busy, onClick, disabled = false, secondary = false, type = 'button' }) {
+function ActionButton({ children, busy, busyLabel = 'SENDING…', onClick, disabled = false, secondary = false, type = 'button' }) {
   return (
     <button
       type={type}
@@ -28,7 +35,7 @@ function ActionButton({ children, busy, onClick, disabled = false, secondary = f
         ? 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50'
         : 'min-h-11 px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50'}
     >
-      {busy ? 'SENDING…' : children}
+      {busy ? busyLabel : children}
     </button>
   )
 }
@@ -39,9 +46,11 @@ export default function PasswordGame({
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
   const [busy, runBusy] = useBusy()
+  const [ending, runEnding] = useBusy()
   const inputRef = useRef(null)
   const previousPhase = useRef(null)
-  const [clock, setClock] = useState(() => Date.now())
+  const deadlineAttempt = useRef('')
+  const [offlineSince, setOfflineSince] = useState(null)
 
   const round = game?.round || null
   const phase = round?.phase || 'starting'
@@ -53,6 +62,9 @@ export default function PasswordGame({
   const isGuesser = mySymbol && mySymbol === round?.guesser
   const isSpectator = !mySymbol
   const matchFinished = game?.status === 'finished'
+  // Every deadline is server-corrected: `now` for rendering, `serverNow()`
+  // for anything written to Firebase, so phones with skewed clocks agree.
+  const { now, serverNow } = useServerClock({ tickMs: 250, ticking: !!round && !matchFinished })
 
   // First seated client initializes the shared round after the second seat joins.
   useEffect(() => {
@@ -73,45 +85,75 @@ export default function PasswordGame({
             wordIndex,
             wordLength: PASSWORD_DECK[wordIndex]?.word.length,
           }),
-          endsAt: Date.now() + INTRO_MS,
+          endsAt: serverNow() + INTRO_MS,
         },
-        lastActivityAt: Date.now(),
+        lastActivityAt: serverNow(),
       }
     }).catch(() => {})
-  }, [game, gameId, mySymbol])
+  }, [game, gameId, mySymbol, serverNow])
 
-  // Small local ticker drives intro/guess/reveal deadlines. Transaction guards
-  // make simultaneous transitions safe when both clients hit the deadline.
+  // Deadlines for every phase — intro, the clue clock, the guess clock and
+  // the reveal. Either client may fire the transition; the transaction
+  // re-checks phase + endsAt so only one write lands. One attempt per
+  // deadline, retried on the next tick only if it did not commit.
   useEffect(() => {
-    if (phase !== 'intro' && phase !== 'guess' && phase !== 'reveal') return
-    const timer = setInterval(() => setClock(Date.now()), 250)
-    return () => clearInterval(timer)
-  }, [phase])
-
-  useEffect(() => {
-    if (!round?.endsAt || clock < round.endsAt || (phase !== 'intro' && phase !== 'guess' && phase !== 'reveal')) return
+    if (matchFinished || !round || !TIMED_PHASES.has(phase)) return
+    // Rounds dealt before the clue clock existed sit in 'clue' with no
+    // deadline; arm one so a stalled clue-giver can never freeze the room.
+    const legacyClue = phase === 'clue' && !round.endsAt
+    if (!legacyClue && (!round.endsAt || now < round.endsAt)) return
+    const key = `${round.roundNum}-${phase}-${round.endsAt}-${clues.length}`
+    if (deadlineAttempt.current === key) return
+    deadlineAttempt.current = key
     runTransaction(ref(db, `games/${gameId}`), current => {
       const currentRound = current?.round
-      if (!current || current.status !== 'playing' || !currentRound || currentRound.phase !== phase || currentRound.endsAt !== round.endsAt) return
-      if (phase === 'intro') {
-        return { ...current, round: { ...currentRound, phase: 'clue', endsAt: null }, lastActivityAt: Date.now() }
+      if (!current || current.status !== 'playing' || !currentRound || currentRound.phase !== phase) return
+      if ((currentRound.endsAt ?? null) !== (round.endsAt ?? null)) return
+      const at = serverNow()
+      let patch = null
+      if (legacyClue) {
+        patch = { round: { ...currentRound, endsAt: at + CLUE_MS } }
+      } else if (phase === 'intro') {
+        const next = startCluePhase(currentRound, at)
+        if (next) patch = { round: next }
+      } else if (phase === 'clue') {
+        const next = applyClueTimeout(currentRound, at)
+        if (next) patch = { round: next }
+      } else if (phase === 'guess') {
+        const next = applyGuessTimeout(currentRound, at)
+        if (next) patch = { round: next }
+      } else {
+        const advanced = advanceAfterReveal(currentRound, current.scores, PASSWORD_DECK, at)
+        if (advanced) patch = { ...advanced, winner: advanced.winner || null, proposal: null }
       }
-      if (phase === 'guess') {
-        const timedOut = applyGuessTimeout(currentRound, Date.now())
-        if (!timedOut) return
-        return { ...current, round: timedOut, lastActivityAt: Date.now() }
-      }
-      const advanced = advanceAfterReveal(currentRound, current.scores || { X: 0, O: 0 }, PASSWORD_DECK, Date.now())
-      if (!advanced) return
-      return {
-        ...current,
-        ...advanced,
-        winner: advanced.winner || null,
-        proposal: null,
-        lastActivityAt: Date.now(),
-      }
-    }).catch(() => {})
-  }, [clock, phase, round?.endsAt, gameId])
+      if (!patch) return
+      return { ...current, ...patch, lastActivityAt: at }
+    }).then(result => {
+      if (!result.committed && deadlineAttempt.current === key) deadlineAttempt.current = ''
+    }).catch(() => {
+      if (deadlineAttempt.current === key) deadlineAttempt.current = ''
+    })
+  }, [now, phase, round, clues.length, gameId, matchFinished, serverNow])
+
+  // Partner presence: after PARTNER_OFFLINE_MS away, the online player may end
+  // the match with the team score banked so far. The clocks keep running
+  // meanwhile, so the room never freezes even if nobody presses it.
+  useEffect(() => {
+    const watching = !isSpectator && !matchFinished && opponentOnline === false
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- tracks when the partner's presence flag went false
+    setOfflineSince(prev => (watching ? prev ?? serverNow() : null))
+  }, [opponentOnline, isSpectator, matchFinished, serverNow])
+  const partnerAway = canEndForAbsence(offlineSince, now)
+
+  const endMatch = useCallback(() => runEnding(async () => {
+    const result = await runTransaction(ref(db, `games/${gameId}`), current => {
+      if (!current || current.status !== 'playing') return
+      const ended = endMatchEarly(current.round, current.scores)
+      if (!ended) return
+      return { ...current, ...ended, proposal: null, lastActivityAt: serverNow() }
+    })
+    if (!result.committed) toast('THE MATCH HAS ALREADY ENDED')
+  }, () => toast.error('END MATCH FAILED — CHECK CONNECTION')), [gameId, runEnding, serverNow])
 
   useEffect(() => {
     if (!round || previousPhase.current === phase) return
@@ -144,15 +186,16 @@ export default function PasswordGame({
       const result = await runTransaction(ref(db, `games/${gameId}`), current => {
         const currentRound = current?.round
         if (!current || current.status !== 'playing' || !currentRound || currentRound.phase !== 'clue' || currentRound.clueGiver !== mySymbol) return
-        const nextRound = applyClue({ ...currentRound, word }, input, Date.now())
+        const at = serverNow()
+        const nextRound = applyClue({ ...currentRound, word }, input, at)
         if (!nextRound) return
-        return { ...current, round: nextRound, lastActivityAt: Date.now() }
+        return { ...current, round: nextRound, lastActivityAt: at }
       })
       if (!result.committed) throw new Error('clue rejected')
       setInput('')
       sounds.move(mySymbol)
     }, () => toast.error('CLUE FAILED — CHECK CONNECTION'))
-  }, [clues, gameId, input, mySymbol, runBusy, word])
+  }, [clues, gameId, input, mySymbol, runBusy, serverNow, word])
 
   const submitGuess = useCallback(async () => {
     const trimmed = input.trim()
@@ -163,24 +206,25 @@ export default function PasswordGame({
       const result = await runTransaction(ref(db, `games/${gameId}`), current => {
         const currentRound = current?.round
         if (!current || current.status !== 'playing' || !currentRound || currentRound.phase !== 'guess' || currentRound.guesser !== mySymbol) return
-        const nextRound = applyGuess(currentRound, trimmed, word, Date.now())
+        const at = serverNow()
+        const nextRound = applyGuess(currentRound, trimmed, word, at)
         if (!nextRound) return
         // Co-op: a solved round's points go to the shared team total, which
         // both seats mirror so every client (and the shared UI) agrees.
-        return { ...current, round: nextRound, scores: teamScoresFor(nextRound.teamScore), lastActivityAt: Date.now() }
+        return { ...current, round: nextRound, scores: teamScoresFor(nextRound.teamScore), lastActivityAt: at }
       })
       if (!result.committed) throw new Error('guess rejected')
       setInput('')
       sounds.move(mySymbol)
     }, () => toast.error('GUESS FAILED — CHECK CONNECTION'))
-  }, [gameId, input, mySymbol, runBusy, word])
+  }, [gameId, input, mySymbol, runBusy, serverNow, word])
 
   const submit = phase === 'clue' ? submitClue : submitGuess
   const canSubmit = phase === 'clue' ? isClueGiver : isGuesser
-  const guessNum = clues.length || 0
-  const guessAllowance = guessSecondsForClueNumber(Math.max(1, guessNum))
-  const guessMsLeft = phase === 'guess' && round?.endsAt ? Math.max(0, round.endsAt - clock) : null
-  const guessSecsLeft = guessMsLeft == null ? null : Math.ceil(guessMsLeft / 1000)
+  const clockTotalMs = phase === 'clue' ? CLUE_MS : guessSecondsForClueNumber(Math.max(1, clues.length)) * 1000
+  const clockLabel = phase === 'clue'
+    ? `CLUE ${Math.min(MAX_CLUES, clues.length + 1)} OF ${MAX_CLUES}`
+    : `GUESS ${clues.length} OF ${MAX_CLUES}`
 
   if (matchFinished) {
     const history = toList(round?.history).map(entry => ({ ...entry, word: PASSWORD_DECK[Number(entry.wordIndex)]?.word || '' }))
@@ -230,12 +274,28 @@ export default function PasswordGame({
       />
 
       {isSpectator && <p className="font-pixel text-[9px] text-retro-dim text-center">SPECTATING · SECRET LOCKED UNTIL REVEAL</p>}
-      {!isSpectator && !opponentOnline && <OfflineNotice label="OPPONENT" />}
+      {!isSpectator && !opponentOnline && !partnerAway && (
+        <div className="space-y-1 text-center">
+          <OfflineNotice label="PARTNER" />
+          {offlineSince != null && (
+            <p className="font-mono text-[9px] text-retro-dim">
+              IF THEY DON&apos;T RETURN, YOU CAN END THE MATCH IN {Math.max(0, Math.ceil((offlineSince + PARTNER_OFFLINE_MS - now) / 1000))}S
+            </p>
+          )}
+        </div>
+      )}
+      {!isSpectator && partnerAway && (
+        <div className="rounded border border-retro-danger/50 bg-retro-tint-danger p-3 text-center space-y-2">
+          <p className="font-pixel text-[9px] text-retro-danger">PARTNER OFFLINE {Math.floor((now - offlineSince) / 1000)}S</p>
+          <p className="font-mono text-[10px] text-retro-dim">
+            THE CLOCKS KEEP RUNNING WHILE THEY ARE AWAY. WAIT FOR THEM, OR END THE MATCH NOW WITH YOUR TEAM SCORE OF {teamScore}.
+          </p>
+          <ActionButton busy={ending} busyLabel="ENDING…" onClick={endMatch}>END MATCH</ActionButton>
+        </div>
+      )}
 
-      {phase === 'guess' && guessSecsLeft != null && (
-        <p className={`text-center font-pixel text-[10px] tabular-nums ${guessSecsLeft <= 10 ? 'text-retro-danger arcade-blink' : 'text-retro-cta'}`} aria-live="off">
-          GUESS {guessNum} · {guessAllowance}S · {guessSecsLeft}S LEFT
-        </p>
+      {(phase === 'clue' || phase === 'guess') && round?.endsAt && (
+        <RoundTimer endsAt={round.endsAt} now={now} totalMs={clockTotalMs} label={clockLabel} />
       )}
 
       {canSubmit && (phase === 'clue' || phase === 'guess') && (

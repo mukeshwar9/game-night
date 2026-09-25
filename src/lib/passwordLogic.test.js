@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { PASSWORD_DECK } from './decks/password'
 import {
-  CLUE_POINTS, GUESS_SECONDS, MAX_CLUES, MAX_ROUNDS, MAX_TEAM_SCORE, STAR_THRESHOLDS, TARGET_SCORE,
-  advanceAfterReveal, applyClue, applyGuess, applyGuessTimeout, bestRound, createInitialRound,
+  CLUE_MS, CLUE_POINTS, CLUE_SECONDS, GUESS_SECONDS, MAX_CLUES, PARTNER_OFFLINE_MS, MAX_ROUNDS, MAX_TEAM_SCORE, STAR_THRESHOLDS, TARGET_SCORE,
+  advanceAfterReveal, applyClue, applyClueTimeout, applyGuess, applyGuessTimeout, bestRound,
+  canEndForAbsence, createInitialRound, endMatchEarly, startCluePhase,
   getMatchWinner, guessSecondsForClueNumber, isCorrectGuess, nextRoles, normalizeText,
   pickWord, scoreForClueNumber, starRating, teamScoreOf, teamScoresFor, toList, validateClue,
 } from './passwordLogic'
@@ -216,8 +217,65 @@ describe('passwordLogic', () => {
     expect(timedOut.phase).toBe('clue')
     expect(timedOut.guesses).toHaveLength(1)
     expect(timedOut.guesses[0]).toMatchObject({ correct: false, timeout: true })
-    expect(timedOut.endsAt).toBeNull()
+    expect(timedOut.endsAt).toBe(guessing.endsAt + 1 + CLUE_MS)
     expect(applyGuessTimeout(guessing, guessing.endsAt)).toBeNull()
+  })
+
+  it('arms a 45 s clue clock when the intro ends and after every miss', () => {
+    expect(CLUE_SECONDS).toBe(45)
+    const intro = { ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 6 }), endsAt: 2000 }
+    expect(startCluePhase(intro, 1999)).toBeNull()
+    const clue = startCluePhase(intro, 2000)
+    expect(clue).toMatchObject({ phase: 'clue', endsAt: 2000 + CLUE_MS })
+    expect(startCluePhase(clue, 99999)).toBeNull()
+    const guessing = applyClue({ ...clue, word: 'planet' }, 'orbit', 3000)
+    const missed = applyGuess(guessing, 'moon', 'planet', 4000)
+    expect(missed).toMatchObject({ phase: 'clue', endsAt: 4000 + CLUE_MS })
+  })
+
+  it('burns a clue slot as a miss when the clue clock expires (regression: a stalled clue-giver froze the room)', () => {
+    const clue = startCluePhase({ ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 6 }), endsAt: 0 }, 0)
+    expect(applyClueTimeout(clue, clue.endsAt)).toBeNull()
+    const burned = applyClueTimeout(clue, clue.endsAt + 1)
+    expect(burned.phase).toBe('clue')
+    expect(burned.clues).toEqual([{ text: '', at: clue.endsAt + 1, timeout: true }])
+    expect(burned.guesses).toHaveLength(1)
+    expect(burned.guesses[0]).toMatchObject({ correct: false, timeout: true })
+    expect(burned.endsAt).toBe(clue.endsAt + 1 + CLUE_MS)
+    // The next real clue is clue 2, worth 4 points.
+    const guessing = applyClue({ ...burned, word: 'planet' }, 'orbit', burned.endsAt - 1)
+    const solved = applyGuess(guessing, 'planet', 'planet', burned.endsAt)
+    expect(solved.lastDelta).toEqual({ player: 'O', points: 4, clueNumber: 2 })
+  })
+
+  it('reveals with no points when the clue clock burns the last slot', () => {
+    let round = startCluePhase({ ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 3, wordLength: 6 }), endsAt: 0 }, 0)
+    for (let i = 0; i < MAX_CLUES; i += 1) round = applyClueTimeout(round, round.endsAt + 1)
+    expect(round.phase).toBe('reveal')
+    expect(round.clues).toHaveLength(MAX_CLUES)
+    expect(round.guesses).toHaveLength(MAX_CLUES)
+    expect(round.teamScore).toBe(0)
+    expect(round.history).toEqual([{ roundNum: 1, wordIndex: 3, clueGiver: 'X', guesser: 'O', points: 0, clueNumber: 0 }])
+  })
+
+  it('rejects a clue sent after the clue clock ran out', () => {
+    const clue = startCluePhase({ ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 6 }), endsAt: 0 }, 0)
+    expect(applyClue({ ...clue, word: 'planet' }, 'orbit', clue.endsAt + 1)).toBeNull()
+    expect(applyClue({ ...clue, word: 'planet' }, 'orbit', clue.endsAt)).not.toBeNull()
+  })
+
+  it('offers END MATCH only after the partner is away 30 s, and ends with the team score', () => {
+    expect(PARTNER_OFFLINE_MS).toBe(30_000)
+    expect(canEndForAbsence(null, 50_000)).toBe(false)
+    expect(canEndForAbsence(1000, 1000 + PARTNER_OFFLINE_MS - 1)).toBe(false)
+    expect(canEndForAbsence(1000, 1000 + PARTNER_OFFLINE_MS)).toBe(true)
+    const reveal = playRound(createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 6 }), 'planet', { solveOn: 3 })
+    const next = advanceAfterReveal(reveal, {}, deck, 100).round
+    const ended = endMatchEarly(next, { X: 3, O: 3 })
+    expect(ended).toMatchObject({ winner: 'draw', status: 'finished', scores: { X: 3, O: 3 } })
+    expect(ended.round).toMatchObject({ phase: 'finished', endedEarly: true, teamScore: 3, endsAt: null })
+    expect(ended.round.history).toHaveLength(1)
+    expect(endMatchEarly(ended.round)).toBeNull()
   })
 
   it('a timeout on the last clue goes to reveal', () => {
