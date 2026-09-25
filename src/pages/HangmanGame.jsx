@@ -7,7 +7,7 @@ import {
   PENDING, pendingLetters, canQueueGuess, gradePending,
   PRESENCE_GRACE_MS, SETTING_DEADLINE_MS, GRADING_STALL_MS, GUESSER_IDLE_MS,
   otherSymbol, getRoundClaim, revealRoundWinner, canAdvanceReveal, autoAdvanceAt,
-  buildNextRound, getHangwomanMatchWinner, isSuddenDeath, roundNumber, WORD_RULE_ANY, WORD_RULE_DICTIONARY, wordRuleFor, validateSetterWord,
+  buildNextRound, isSuddenDeath, roundNumber, WORD_RULE_ANY, WORD_RULE_DICTIONARY, wordRuleFor, validateSetterWord,
 } from '../lib/hangmanLogic'
 import { getGameConfig } from '../lib/games'
 import { loadDictionary } from '../lib/wordhuntDictionary'
@@ -20,6 +20,8 @@ import WordDisplay from '../components/WordDisplay'
 import LetterKeyboard from '../components/LetterKeyboard'
 import WordSetter from '../components/WordSetter'
 import RoundTimer from '../components/RoundTimer'
+import MatchScoreRail from '../components/MatchScoreRail'
+import WordFeedback from '../components/WordFeedback'
 import WinEffect from '../components/WinEffect'
 import RoseFall from '../components/RoseFall'
 import Gravestone from '../components/Gravestone'
@@ -257,11 +259,13 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  // First to `target` with equal setter turns (see getHangwomanMatchWinner).
-  const matchWinner = getHangwomanMatchWinner({ X: scoreX, O: scoreO }, round.turns, target)
+  // The match is over whenever the room says so — our own equal-turns rule
+  // (getHangwomanMatchWinner, written by buildNextRound) or the platform's
+  // CLAIM WIN after an opponent abandons. game.winner names the winner.
+  const matchOver = game.status === 'finished'
+  const matchWinner = matchOver ? (game.winner ?? null) : null
   const suddenDeath = isSuddenDeath({ X: scoreX, O: scoreO }, target)
-  const matchLabel = `FIRST TO ${target} · EQUAL TURNS`
-  const roundLabel = suddenDeath ? `ROUND ${roundNumber(round.turns)} · SUDDEN DEATH` : `ROUND ${roundNumber(round.turns)}`
+  const railTitle = suddenDeath ? 'SUDDEN DEATH' : `ROUND ${roundNumber(round.turns)}`
 
   const [flash, setFlash] = useState(false)
   // Local verification results, keyed by the commitment they belong to so a
@@ -279,7 +283,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   const prevWrongDrop = useRef(wrongCount)
 
   // Server-corrected clock for every deadline below.
-  const { now, serverNow } = useServerClock({ tickMs: 500, ticking: !matchWinner })
+  const { now, serverNow } = useServerClock({ tickMs: 500, ticking: !matchOver })
 
   // When the opponent went offline (server time). Set from a timeout so the
   // effect body never sets state synchronously; the claim grace counts from it.
@@ -316,12 +320,12 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   // the no-word deadline has a fixed, server-corrected reference point.
   // Guarded by a transaction so only one client's write sticks.
   useEffect(() => {
-    if (phase !== 'setting' || matchWinner || round.settingStartedAt) return
+    if (phase !== 'setting' || matchOver || round.settingStartedAt) return
     runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.phase !== 'setting' || current.settingStartedAt) return
       return { ...current, settingStartedAt: serverNow() }
     }).catch(() => toast.error('ROUND CLOCK NOT SAVED — CHECK CONNECTION'))
-  }, [phase, matchWinner, round.settingStartedAt, gameId, serverNow])
+  }, [phase, matchOver, round.settingStartedAt, gameId, serverNow])
 
   // --- Setter: grade the pending guess ---
   // gradePending() grades in a fixed order and stops once the round is
@@ -329,7 +333,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   // A transaction guarded on phase + commitment, so a grade can never land in
   // a round that a claim or reset has already replaced.
   useEffect(() => {
-    if (!isSetter || phase !== 'guessing') return
+    if (!isSetter || phase !== 'guessing' || matchOver) return
 
     const stored = readStoredWord(gameId)
     if (!stored) return
@@ -365,7 +369,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     })
 
     return () => unsub()
-  }, [isSetter, phase, gameId, serverNow])
+  }, [isSetter, phase, matchOver, gameId, serverNow])
 
   // --- Guesser: verify the reveal ---
   // Re-hash the word, re-check every recorded answer and re-derive the result,
@@ -512,7 +516,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   // (a double tap, a key repeat or an older client).
   const [sendingGuess, runGuess] = useBusy()
   const handleGuess = useCallback((letter) => {
-    if (phase !== 'guessing' || !isGuesser) return
+    if (phase !== 'guessing' || !isGuesser || matchOver) return
     if (!canQueueGuess(guesses, letter)) return
     runGuess(async () => {
       await runTransaction(ref(db, `games/${gameId}/round`), current => {
@@ -526,7 +530,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         }
       })
     }, () => toast.error('GUESS NOT SENT — CHECK CONNECTION'))
-  }, [phase, isGuesser, guesses, gameId, serverNow, runGuess])
+  }, [phase, isGuesser, matchOver, guesses, gameId, serverNow, runGuess])
 
   // --- Next round (either player) ---
   // Transaction-guarded on the reveal still being the one on screen, scored
@@ -553,7 +557,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   // Auto-advance AUTO_ADVANCE_MS after a verified reveal (never after a cheat,
   // so the evidence stays readable). Every player's client may fire it.
   const autoAt = autoAdvanceAt(round)
-  const autoDue = !isSpectator && autoAt != null && now >= autoAt
+  const autoDue = !isSpectator && !matchOver && autoAt != null && now >= autoAt
   useEffect(() => {
     if (autoDue) advanceRound()
   // advanceRound changes identity every render; fire once per due reveal.
@@ -561,8 +565,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   }, [autoDue])
 
   // --- Claim a stalled round (+1 to the side that isn't stalling) ---
-  const myClaim = mySide ? getRoundClaim(round, mySide, { now, opponentOfflineSince: offlineSince }) : null
-  const theirClaim = mySide
+  const myClaim = mySide && !matchOver ? getRoundClaim(round, mySide, { now, opponentOfflineSince: offlineSince }) : null
+  const theirClaim = mySide && !matchOver
     ? getRoundClaim(round, mySide === 'setter' ? 'guesser' : 'setter', { now })
     : null
   const [claiming, runClaim] = useBusy()
@@ -602,7 +606,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
   // Binding verdict written by the guesser's client: setter (and spectators)
   // see the forfeit screen; guesser sees evidence + NEXT ROUND button.
-  if (roundCheatDetected && phase === 'reveal') {
+  if (!matchOver && roundCheatDetected && phase === 'reveal') {
     if (!isGuesser) {
       return <CheatForfeitScreen onNextRound={isSetter ? advanceRound : null} advancing={advancing} />
     }
@@ -610,27 +614,51 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   }
   // Local detection only (brief race window before the Firebase write
   // propagates, or the write failed): NEXT ROUND still awards the guesser.
-  if (cheatDetected && phase === 'reveal') {
+  if (!matchOver && cheatDetected && phase === 'reveal') {
     return <CheatScreen evidence={cheatEvidence} onNextRound={advanceRound} advancing={advancing} />
   }
 
   const opponentLabel = isSetter ? 'GUESSER' : 'WORD-KEEPER'
+  const nameOf = (symbol) => game.players?.[symbol]?.name || symbol
+
+  // Names, match score, first-to-N pips and OFFLINE markers (replaces the
+  // platform's player cards). Its centre reads ROUND n / EQUAL TURNS /
+  // FIRST TO 3.
+  const rail = (
+    <MatchScoreRail
+      game={game}
+      mySymbol={mySymbol}
+      isSpectator={isSpectator}
+      matchTarget={target}
+      title={matchOver ? null : railTitle}
+      roundLabel="EQUAL TURNS"
+      presence={{
+        X: game.presence?.X?.online !== false,
+        O: game.presence?.O?.online !== false,
+      }}
+    />
+  )
 
   // --- Match over ---
-  if (matchWinner) {
-    const iWon = matchWinner === mySymbol
-    const winnerName = game.players?.[matchWinner]?.name || matchWinner
+  if (matchOver) {
+    const iWon = !!matchWinner && matchWinner === mySymbol
+    const headline = !matchWinner ? 'MATCH OVER' : iWon ? 'YOU WIN!' : `${nameOf(matchWinner)} WINS`
     return (
       <div className="space-y-6 text-center">
+        {rail}
         {showWinEffect && (
           <WinEffect winner={winEffectFor} onDone={() => setShowWinEffect(false)} />
         )}
         <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
-        <p className={cn(
-          'font-pixel text-base',
-          iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim',
-        )}>
-          {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
+        <p
+          role="status"
+          aria-live="polite"
+          className={cn(
+            'font-pixel text-base',
+            iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim',
+          )}
+        >
+          {headline}
         </p>
         <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
         {!isSpectator && !proposal && onNewMatch && (
@@ -655,17 +683,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     />
   )
 
-  const matchCaption = (
-    <p className="text-center font-pixel text-[8px] text-retro-dim tracking-widest">
-      {roundLabel} · {matchLabel}
-    </p>
-  )
-
   // --- Setting phase ---
   if (phase === 'setting') {
     return (
       <div className="space-y-4">
-        {matchCaption}
+        {rail}
         {showWinEffect && (
           <WinEffect winner={winEffectFor} onDone={() => setShowWinEffect(false)} />
         )}
@@ -726,6 +748,22 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     : isSetter && canAdvanceReveal(round, 'setter', { guesserGone: opponentGone })
   const autoLeftS = autoAt != null ? Math.max(0, Math.ceil((autoAt - now) / 1000)) : null
 
+  // Result of the last graded guess, announced politely to screen readers.
+  const lastGuess = round.lastGuess?.letter ? round.lastGuess : null
+  const lastHits = Number(lastGuess?.hits) || 0
+  const guessFeedback = lastGuess
+    ? lastHits > 0
+      ? `${lastGuess.letter} IS IN THE WORD${lastHits > 1 ? ` × ${lastHits}` : ''}`
+      : `${lastGuess.letter} IS NOT IN THE WORD · ${wrongCount}/${MAX_WRONG} WRONG`
+    : ''
+  const roundEndAnnouncement = !isReveal
+    ? ''
+    : roundResult === 'guessed'
+      ? `Round over. Word guessed: ${revealedWord}. Point to ${nameOf(guesser)}.`
+      : roundResult === 'hanged'
+        ? `Round over. Hanged. The word was ${revealedWord}. Point to ${nameOf(setter)}.`
+        : ''
+
   const revealActions = isReveal && !isSpectator && (
     <div className="space-y-2">
       {canAdvanceNow ? (
@@ -748,7 +786,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
   return (
     <div className="space-y-4">
-      {matchCaption}
+      {rail}
       {showWinEffect && (
         <WinEffect winner={winEffectFor} onDone={() => setShowWinEffect(false)} />
       )}
@@ -767,6 +805,14 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
           revealedWord={revealedWord}
         />
       )}
+
+      {/* Last guess result + round end, for everyone (aria-live) */}
+      <WordFeedback
+        message={guessFeedback}
+        tone={lastGuess ? (lastHits > 0 ? 'ok' : 'bad') : 'info'}
+        id={lastGuess?.letter}
+      />
+      <p className="sr-only" role="status" aria-live="polite">{roundEndAnnouncement}</p>
 
       {/* Phase status */}
       <div className="text-center space-y-1">
