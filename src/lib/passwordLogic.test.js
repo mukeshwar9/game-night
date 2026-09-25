@@ -4,18 +4,19 @@ import {
   CLUE_MS, CLUE_POINTS, CLUE_SECONDS, GUESS_SECONDS, MAX_CLUES, PARTNER_OFFLINE_MS, MAX_ROUNDS, MAX_TEAM_SCORE, STAR_THRESHOLDS, TARGET_SCORE,
   advanceAfterReveal, applyClue, applyClueTimeout, applyGuess, applyGuessTimeout, bestRound,
   canEndForAbsence, createInitialRound, endMatchEarly, startCluePhase,
-  getMatchWinner, guessSecondsForClueNumber, isCorrectGuess, nextRoles, normalizeText,
+  getMatchWinner, guessSecondsForClueNumber, inflectionsOf, isCorrectGuess, nextRoles, normalizeText,
   pickWord, scoreForClueNumber, starRating, teamScoreOf, teamScoresFor, toList, validateClue,
 } from './passwordLogic'
 
 const deck = [{ word: 'planet', tier: 1 }, { word: 'chair', tier: 1 }, { word: 'secret', tier: 3 }]
+const HINTS = ['orbit', 'space', 'moon', 'star', 'comet']
 
 // Plays one round from its clue phase: misses `misses` clues, then solves on
 // the next one (or never, when solveOn is null). Returns the reveal round.
 function playRound(round, word, { solveOn = 1 } = {}) {
   let current = { ...round, phase: 'clue' }
   for (let clue = 1; clue <= MAX_CLUES; clue += 1) {
-    current = applyClue({ ...current, word }, `hint${clue}x`, clue * 10)
+    current = applyClue({ ...current, word }, HINTS[clue - 1], clue * 10)
     const solved = solveOn != null && clue === solveOn
     current = applyGuess(current, solved ? word : 'nope', word, clue * 10 + 1)
     if (current.phase === 'reveal') return current
@@ -60,6 +61,88 @@ describe('passwordLogic', () => {
     expect(validateClue({ clue: 'plan', word: 'planet' }).valid).toBe(false)
     expect(validateClue({ clue: 'planet', word: 'planet' }).valid).toBe(false)
     expect(validateClue({ clue: 'galaxy', word: 'planet', previousClues: ['Galaxy'] }).valid).toBe(false)
+  })
+
+  describe('clue rules', () => {
+    const ok = (clue, word) => validateClue({ clue, word })
+    const reason = (clue, word) => validateClue({ clue, word }).reason
+
+    it('rejects clues under 3 letters (regression: ap/pl/le spelled out APPLE)', () => {
+      for (const clue of ['a', 'ap', 'pl', 'le']) expect(reason(clue, 'apple')).toBe('CLUE MUST BE AT LEAST 3 LETTERS')
+    })
+
+    it('rejects digits, spaces, hyphens, blanks and over-long clues', () => {
+      expect(reason('5', 'apple')).toBe('LETTERS ONLY — NO NUMBERS')
+      expect(reason('r2d2', 'robot')).toBe('LETTERS ONLY — NO NUMBERS')
+      expect(reason('ice-cream', 'apple')).toBe('ONE WORD ONLY — NO SPACES OR HYPHENS')
+      expect(reason('fruit tree', 'apple')).toBe('ONE WORD ONLY — NO SPACES OR HYPHENS')
+      expect(reason('   ', 'apple')).toBe('CLUE CANNOT BE BLANK')
+      expect(reason('!!!', 'apple')).toBe('USE LETTERS A–Z')
+      expect(reason('abcdefghijklmnopq', 'apple')).toBe('CLUE MUST BE 16 LETTERS OR LESS')
+      expect(ok('Café', 'apple')).toEqual({ valid: true, value: 'cafe' })
+    })
+
+    it('rejects banned clues', () => {
+      expect(reason('bullshit', 'apple')).toBe('THAT CLUE IS NOT ALLOWED')
+    })
+
+    it('rejects the password itself, its plurals and its inflections', () => {
+      expect(reason('PLANET!', 'planet')).toBe('CLUE CANNOT BE THE PASSWORD')
+      expect(reason('apples', 'apple')).toBe('CLUE CANNOT BE THE PASSWORD')
+      expect(reason('glass', 'glasses')).toBe('CLUE CANNOT BE THE PASSWORD')
+      expect(reason('baking', 'bake')).toBe('NO FORMS OF THE PASSWORD (PLURALS, -ING, -ED…)')
+      expect(reason('happier', 'happy')).toBe('NO FORMS OF THE PASSWORD (PLURALS, -ING, -ED…)')
+      expect(reason('running', 'run')).toBe('NO FORMS OF THE PASSWORD (PLURALS, -ING, -ED…)')
+      expect(reason('paint', 'painter')).toBe('NO FORMS OF THE PASSWORD (PLURALS, -ING, -ED…)')
+    })
+
+    it('rejects the password reversed (regression: elppa was accepted)', () => {
+      expect(reason('elppa', 'apple')).toBe('NO SPELLING THE PASSWORD BACKWARDS')
+      expect(reason('tenalp', 'planet')).toBe('NO SPELLING THE PASSWORD BACKWARDS')
+    })
+
+    it('rejects anything within one edit inside the word (regression: appel was accepted)', () => {
+      expect(reason('appel', 'apple')).toBe('TOO CLOSE TO THE PASSWORD')
+      expect(reason('aple', 'apple')).toBe('TOO CLOSE TO THE PASSWORD')
+      expect(reason('ample', 'apple')).toBe('TOO CLOSE TO THE PASSWORD')
+      expect(reason('plamet', 'planet')).toBe('TOO CLOSE TO THE PASSWORD')
+    })
+
+    it('rejects a clue sharing a 5+ letter stem', () => {
+      expect(reason('plane', 'planet')).toBe('CLUE SHARES TOO MUCH OF THE PASSWORD')
+      expect(reason('mounting', 'mountain')).toBe('CLUE SHARES TOO MUCH OF THE PASSWORD')
+      expect(reason('birthmark', 'birthday')).toBe('CLUE SHARES TOO MUCH OF THE PASSWORD')
+    })
+
+    it('rejects parts of the password and clues containing it', () => {
+      expect(reason('snow', 'snowman')).toBe('CLUE CANNOT BE PART OF THE PASSWORD')
+      expect(reason('man', 'snowman')).toBe('CLUE CANNOT BE PART OF THE PASSWORD')
+      expect(reason('ear', 'heart')).toBe('CLUE CANNOT BE PART OF THE PASSWORD')
+      expect(reason('lemonade', 'lemon')).toBe('CLUE CANNOT CONTAIN THE PASSWORD')
+      expect(reason('catch', 'cat')).toBe('CLUE CANNOT CONTAIN THE PASSWORD')
+    })
+
+    it('allows innocent overlaps the old substring check blocked (regression)', () => {
+      expect(ok('car', 'care')).toEqual({ valid: true, value: 'car' })
+      expect(ok('center', 'enter').valid).toBe(true)
+      expect(ok('growl', 'grow').valid).toBe(true)
+      expect(ok('ideal', 'idea').valid).toBe(true)
+      expect(ok('orbit', 'planet').valid).toBe(true)
+      expect(ok('newton', 'apple').valid).toBe(true)
+    })
+
+    it('treats a plural of an earlier clue as a repeat', () => {
+      expect(validateClue({ clue: 'galaxies', word: 'planet', previousClues: [{ text: 'galaxy' }] }).reason).toBe('CLUE ALREADY USED')
+      expect(validateClue({ clue: 'orbit', word: 'planet', previousClues: [{ text: '', timeout: true }] }).valid).toBe(true)
+    })
+
+    it('lists inflected forms with e-drop, y→i and doubled consonants', () => {
+      expect([...inflectionsOf('bake')]).toEqual(expect.arrayContaining(['bakes', 'baked', 'baker', 'baking']))
+      expect([...inflectionsOf('stop')]).toEqual(expect.arrayContaining(['stops', 'stopped', 'stopping']))
+      expect([...inflectionsOf('happy')]).toEqual(expect.arrayContaining(['happier', 'happiest', 'happily']))
+      expect(inflectionsOf('car').has('care')).toBe(false)
+      expect(inflectionsOf('grow').has('growl')).toBe(false)
+    })
   })
 
   it('maps clue number to 5-to-1 scoring', () => {
@@ -180,7 +263,7 @@ describe('passwordLogic', () => {
   it('ends after five misses and advances with a fresh non-repeating word', () => {
     let round = { ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 6 }), phase: 'clue', word: 'planet' }
     for (let i = 0; i < MAX_CLUES; i += 1) {
-      round = applyClue(round, `hint${i}`, i) 
+      round = applyClue(round, HINTS[i], i)
       round = applyGuess(round, 'nope', 'planet', i)
     }
     expect(round.phase).toBe('reveal')
@@ -281,7 +364,7 @@ describe('passwordLogic', () => {
   it('a timeout on the last clue goes to reveal', () => {
     let round = { ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 6 }), phase: 'clue', word: 'planet' }
     for (let i = 0; i < MAX_CLUES - 1; i += 1) {
-      round = applyClue(round, `hint${i}`, i)
+      round = applyClue(round, HINTS[i], i)
       round = applyGuess(round, 'nope', 'planet', i)
     }
     round = applyClue(round, 'last', 50)

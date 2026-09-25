@@ -29,7 +29,7 @@
 - No 4-player team mode.
 - No voice chat.
 - No custom decks.
-- No clue legality AI/NLP beyond simple exact/substring checks.
+- No clue legality AI/NLP beyond the spelling rules below (translations such as *manzana* for *apple* stay an honour-system rule).
 - No asynchronous/pass-and-play mode.
 - No dictionary-wide semantic validation.
 
@@ -54,9 +54,9 @@
 2. **Clue turn (`CLUE_SECONDS = 45` clue clock)**
    - Clue-giver enters one clue before the clue clock runs out.
    - If the clock expires, that clue slot is **burned as a miss** (a blank timed-out clue plus a timed-out guess), exactly like a timed-out guess: the next clue is worth one step less, and burning the 5th slot reveals the word with 0 points. A stalling or disconnected clue-giver can never freeze the room.
-   - Clue must be 1 word, max 16 chars.
-   - Clue cannot contain secret word, and secret word cannot contain clue.
-   - Clue cannot repeat a previous clue this round.
+   - Clue must be 1 word of 3–16 letters: no digits, spaces or hyphens, and not a banned word (`isBannedWord`).
+   - Clue cannot give the password away — see [Clue rules](#clue-rules).
+   - Clue cannot repeat a previous clue this round (plurals count as repeats).
 3. **Guess turn (30/30/25/25/20 s guess clock by clue number)**
    - Guesser sees clue history and enters one guess; a timeout counts as a miss.
    - Guess max 24 chars.
@@ -195,16 +195,23 @@ export function advanceAfterReveal(round, scores, deck, now)
 export function getMatchWinner(scores, roundNum)
 ```
 
-Validation details:
+#### Clue rules
 
-- `normalizeText`: lowercase, trim, collapse whitespace, strip punctuation for comparisons.
-- Clue must become exactly one token after normalization.
-- Clue invalid if normalized clue equals normalized word.
-- Clue invalid if word includes clue or clue includes word and both are length >= 3.
-  - Example: secret `snowman`, clue `snow` invalid.
-  - Example: secret `cat`, clue `catch` invalid.
-- Repeated clue invalid by normalized comparison.
-- Guess correct if normalized guess equals normalized word.
+Clues are normalized with `textMatchLogic.normalizeText` (case, accents, punctuation) and must be one token of `MIN_CLUE_LENGTH = 3` to `MAX_CLUE_LENGTH = 16` letters a–z. A clue is rejected, with a reason shown under the input, when it:
+
+| Rule | Rejected examples | Reason text |
+|---|---|---|
+| is under 3 letters | `a`, `ap`, `pl`, `le` for *apple* | CLUE MUST BE AT LEAST 3 LETTERS |
+| has digits | `5`, `r2d2` | LETTERS ONLY — NO NUMBERS |
+| is banned (`isBannedWord`) | slurs, vulgarity | THAT CLUE IS NOT ALLOWED |
+| is the password or a plural of it (`matchKey`) | `planet`, `apples`, `glass` for *glasses* | CLUE CANNOT BE THE PASSWORD |
+| is an inflection of it, or it of the clue (`inflectionsOf`: -s/-es, -ed, -ing, -er, -est, -ly, e-drop, y→i, doubled consonant) | `baking` for *bake*, `happier` for *happy*, `running` for *run* | NO FORMS OF THE PASSWORD… |
+| is the password reversed | `elppa`, `tenalp` | NO SPELLING THE PASSWORD BACKWARDS |
+| is part of the password, or contains it | `snow`/`man` for *snowman*, `ear` for *heart*, `lemonade` for *lemon* | CLUE CANNOT BE PART OF / CONTAIN THE PASSWORD |
+| shares a `SHARED_STEM_LENGTH = 5`+ letter stem (common prefix) | `plane` for *planet*, `mounting` for *mountain*, `birthmark` for *birthday* | CLUE SHARES TOO MUCH OF THE PASSWORD |
+| is within one edit (substitution, inner insert/delete, or a swap of two neighbouring letters) | `ample`, `aple`, `appel` for *apple* | TOO CLOSE TO THE PASSWORD |
+
+**Innocent overlaps stay allowed.** When the clue and password differ only by one letter at the very start or end, they are almost always different real words, so the containment and one-edit rules skip them: `car` for *care*, `center` for *enter*, `growl` for *grow*, `ideal` for *idea* are all valid (the old substring check wrongly blocked them). The plural, inflection and stem rules still apply (`plane` for *planet* is rejected by the stem rule).
 
 Unit tests:
 

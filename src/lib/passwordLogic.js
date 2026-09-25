@@ -1,3 +1,6 @@
+import { editDistance, matchKey, normalizeText as normalizeMatchText } from './textMatchLogic'
+import { isBannedWord } from './wordDenylist'
+
 // Co-op scoring (captain decision D1, 2026-09-26 — reversible). The approved
 // option was "the clue-giver scores like the guesser": both players earn the
 // same points every round. In a two-player game that is one shared team score
@@ -45,19 +48,114 @@ export function normalizeText(text) {
     .replace(/\s+/g, ' ')
 }
 
-export function validateClue({ clue, word, previousClues = [] }) {
-  const normalizedClue = normalizeText(clue)
-  const normalizedWord = normalizeText(word)
-  if (!normalizedClue) return { valid: false, reason: 'CLUE CANNOT BE BLANK' }
-  if (normalizedClue.split(' ').length !== 1) return { valid: false, reason: 'CLUE MUST BE ONE WORD' }
-  if (normalizedClue.length > 16) return { valid: false, reason: 'CLUE MUST BE 16 CHARACTERS OR LESS' }
-  if (normalizedClue === normalizedWord) return { valid: false, reason: 'CLUE CANNOT USE THE PASSWORD' }
-  if (normalizedClue.length >= 3 && normalizedWord.length >= 3 &&
-    (normalizedWord.includes(normalizedClue) || normalizedClue.includes(normalizedWord))) {
-    return { valid: false, reason: 'CLUE CANNOT CONTAIN THE PASSWORD' }
+// ── Clue rules ────────────────────────────────────────────────────────────
+// A clue is one word of 3–16 letters (no digits, spaces or hyphens) that is
+// not banned and does not give the password away. "Gives it away" means:
+//   - it IS the password, a plural of it, or an inflection of it
+//     (apples/apple, glass/glasses, baking/bake, happier/happy, running/run);
+//   - it is the password spelled backwards (elppa);
+//   - it shares a 5+ letter stem — a common prefix — with it (plane/planet,
+//     mounting/mountain, birthmark/birthday);
+//   - one contains the other (snow/snowman, plan/planet, ear/heart), unless
+//     they differ only by one letter at the very start or end — that is
+//     almost always a different real word (car/care, center/enter,
+//     growl/grow, ideal/idea), so it stays allowed;
+//   - it is within one edit of the password — one substitution, one letter
+//     added or dropped inside the word, or two neighbouring letters swapped
+//     (ample, aple, appel for apple) — with the same start/end exception.
+// Foreign-language translations (manzana) can't be detected without a
+// dictionary and stay an honour-system rule.
+export const MIN_CLUE_LENGTH = 3
+export const MAX_CLUE_LENGTH = 16
+export const SHARED_STEM_LENGTH = 5
+
+const VOWELS = new Set(['a', 'e', 'i', 'o', 'u'])
+
+/** Inflected forms of a lowercase base word: plurals, -ed/-ing/-er/-est
+ * (with e-drop, y→i and a doubled final consonant: stop → stopped). */
+export function inflectionsOf(base) {
+  const w = String(base ?? '')
+  const forms = new Set()
+  if (w.length < 2) return forms
+  const last = w[w.length - 1]
+  const prev = w[w.length - 2]
+  const add = (stem, suffixes) => suffixes.forEach(suffix => forms.add(stem + suffix))
+  add(w, ['s', 'ly'])
+  if (/(s|x|z|ch|sh|o)$/.test(w)) add(w, ['es'])
+  if (last === 'y' && !VOWELS.has(prev)) {
+    add(w.slice(0, -1), ['ies', 'ied', 'ier', 'iers', 'iest', 'ily', 'iness'])
+    add(w, ['ing'])
+  } else if (last === 'e') {
+    add(w, ['d', 'r', 'rs', 'st'])
+    add(w.slice(0, -1), ['ing', 'ings'])
+  } else {
+    add(w, ['ed', 'ing', 'ings', 'er', 'ers', 'est', 'ness'])
+    const cvc = w.length >= 3 && !VOWELS.has(last) && !'wxy'.includes(last) && VOWELS.has(prev) && !VOWELS.has(w[w.length - 3])
+    if (cvc) add(w + last, ['ed', 'ing', 'er', 'ers', 'est'])
   }
-  if (previousClues.some(item => normalizeText(item?.text ?? item) === normalizedClue)) {
-    return { valid: false, reason: 'CLUE ALREADY USED' }
+  return forms
+}
+
+function isInflectionPair(a, b) {
+  return inflectionsOf(a).has(b) || inflectionsOf(b).has(a)
+}
+
+function commonPrefixLength(a, b) {
+  let n = 0
+  while (n < a.length && n < b.length && a[n] === b[n]) n += 1
+  return n
+}
+
+// One word is the other plus a single letter at the very start or end
+// (car/care, enter/center): usually a different real word, so allowed.
+function differsOnlyAtEdge(a, b) {
+  const [short, long] = a.length < b.length ? [a, b] : [b, a]
+  if (long.length - short.length !== 1) return false
+  return long.slice(1) === short || long.slice(0, -1) === short
+}
+
+// Within one edit: Levenshtein ≤ 1, or two neighbouring letters swapped.
+function isOneEditOrSwap(a, b) {
+  if (editDistance(a, b, 1) <= 1) return true
+  if (a.length !== b.length) return false
+  const diffs = []
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) diffs.push(i)
+  return diffs.length === 2 && diffs[1] === diffs[0] + 1 && a[diffs[0]] === b[diffs[1]] && a[diffs[1]] === b[diffs[0]]
+}
+
+function reject(reason) {
+  return { valid: false, reason }
+}
+
+export function validateClue({ clue, word, previousClues = [] }) {
+  const raw = String(clue ?? '').trim()
+  const normalizedClue = normalizeMatchText(raw)
+  const normalizedWord = normalizeMatchText(word).replace(/ /g, '')
+  if (!raw) return reject('CLUE CANNOT BE BLANK')
+  if (!normalizedClue) return reject('USE LETTERS A–Z')
+  if (normalizedClue.includes(' ')) return reject('ONE WORD ONLY — NO SPACES OR HYPHENS')
+  if (/[0-9]/.test(normalizedClue)) return reject('LETTERS ONLY — NO NUMBERS')
+  if (normalizedClue.length > MAX_CLUE_LENGTH) return reject(`CLUE MUST BE ${MAX_CLUE_LENGTH} LETTERS OR LESS`)
+  if (normalizedClue.length < MIN_CLUE_LENGTH) return reject(`CLUE MUST BE AT LEAST ${MIN_CLUE_LENGTH} LETTERS`)
+  if (isBannedWord(normalizedClue)) return reject('THAT CLUE IS NOT ALLOWED')
+  if (normalizedWord) {
+    const c = normalizedClue
+    const w = normalizedWord
+    if (c === w || matchKey(c) === matchKey(w)) return reject('CLUE CANNOT BE THE PASSWORD')
+    if (isInflectionPair(c, w)) return reject('NO FORMS OF THE PASSWORD (PLURALS, -ING, -ED…)')
+    if (c === [...w].reverse().join('')) return reject('NO SPELLING THE PASSWORD BACKWARDS')
+    const edge = differsOnlyAtEdge(c, w)
+    if (!edge && w.includes(c)) return reject('CLUE CANNOT BE PART OF THE PASSWORD')
+    if (!edge && c.includes(w)) return reject('CLUE CANNOT CONTAIN THE PASSWORD')
+    if (commonPrefixLength(c, w) >= SHARED_STEM_LENGTH) return reject('CLUE SHARES TOO MUCH OF THE PASSWORD')
+    if (!edge && isOneEditOrSwap(c, w)) return reject('TOO CLOSE TO THE PASSWORD')
+  }
+  const key = matchKey(normalizedClue)
+  if (toList(previousClues).some(item => {
+    const text = item?.text ?? item
+    return typeof text === 'string' && text && matchKey(text) === key
+  })) {
+    return reject('CLUE ALREADY USED')
   }
   return { valid: true, value: normalizedClue }
 }
