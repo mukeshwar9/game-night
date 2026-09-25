@@ -13,6 +13,7 @@ export default function ChimpBoard({
   // Answer mode (round over): every number shown, the tile that lost it marked.
   reveal = false, missCell = null,
   spectating = false,
+  solo = false, // single-player run: no opponent progress
 }) {
   const layout = normalizeChimpLayout(chimpLayout)
   const progress = myProgress ?? 0
@@ -59,9 +60,11 @@ export default function ChimpBoard({
           <span className={myDone ? 'text-retro-win' : ''}>
             {spectating ? 'X' : 'ME'} {progress}/{level}{myDone ? ' ✓' : ''}
           </span>
-          <span className={opDone ? 'text-retro-win' : ''}>
-            {spectating ? 'O' : 'OP'} {opProgress ?? 0}/{level}{opDone ? ' ✓' : ''}
-          </span>
+          {!solo && (
+            <span className={opDone ? 'text-retro-win' : ''}>
+              {spectating ? 'O' : 'OP'} {opProgress ?? 0}/{level}{opDone ? ' ✓' : ''}
+            </span>
+          )}
         </div>
       </div>
 

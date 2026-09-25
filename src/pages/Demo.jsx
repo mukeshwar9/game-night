@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import SimonBoard from '../components/SimonBoard';
 import GameStatus from '../components/GameStatus';
 import PlayerCard from '../components/PlayerCard';
 import HangmanGallows from '../components/HangmanGallows';
@@ -7,9 +6,8 @@ import WordDisplay from '../components/WordDisplay';
 import LetterKeyboard from '../components/LetterKeyboard';
 import TypingKeyboard from '../components/TypingKeyboard';
 import WordSetter from '../components/WordSetter';
-import ChimpBoard from '../components/ChimpBoard';
-import VisualMemoryBoard from '../components/VisualMemoryBoard';
 import LoadingLine from '../components/loading/LoadingLine';
+import { SimonSolo, VisualMemorySolo, ChimpSolo, NumberMemorySolo } from './MemorySoloDemos';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
@@ -41,9 +39,6 @@ import {
 import { loadDictionary } from '../lib/wordhuntDictionary'
 import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
-import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
-import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
-import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
 import { getGameConfig, freshGameState, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { recordPlay } from '../lib/analytics'
 import CategoryTabs from '../components/CategoryTabs';
@@ -70,11 +65,6 @@ import TriviaDemo from './TriviaDemo';
 import HerdDemo from './HerdDemo';
 import ArrowsDemo from './ArrowsDemo';
 
-function generateNumberLocal(level) {
-  let n = String(Math.floor(Math.random() * 9) + 1)
-  for (let i = 1; i < level; i++) n += String(Math.floor(Math.random() * 10))
-  return n
-}
 
 // ─── Generic bot harness ──────────────────────────────────────────────────────
 
@@ -877,325 +867,6 @@ function WordHuntDemo() {
             ))}
           </ul>
         )}
-      </div>
-    </div>
-  )
-}
-
-function SimonDemo() {
-  const [seq, setSeq] = useState([])
-  const [progress, setProgress] = useState(0)
-  const [miss, setMiss] = useState(null)
-  const [currentTurn, setCurrentTurn] = useState('X')
-  const [status, setStatus] = useState('playing')
-  const [winner, setWinner] = useState(null)
-
-  const handleMove = (padIndex) => {
-    if (status !== 'playing') return
-    const r = applySimonMove({ simonSequence: seq, simonProgress: progress }, padIndex, currentTurn)
-    if (!r) return
-    if (r.result) { setMiss(r.updates.simonMiss ?? null); setWinner(r.result.winner); setStatus('finished'); return }
-    const { simonSequence, simonProgress, currentTurn: next } = r.updates
-    if (simonSequence !== undefined) setSeq(normalizeSimonSequence(simonSequence))
-    if (simonProgress !== undefined) setProgress(simonProgress)
-    if (next !== undefined) setCurrentTurn(next)
-  }
-
-  const reset = () => {
-    setSeq([]); setProgress(0); setMiss(null); setCurrentTurn('X'); setStatus('playing'); setWinner(null)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
-        <PlayerCard name="Alice" symbol="X" isActive={status === 'playing' && currentTurn === 'X'} isMe />
-        <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
-      </div>
-      <SimonBoard onMove={handleMove} disabled={status !== 'playing'} simonSequence={seq} simonProgress={progress}
-        simonMiss={miss} finished={status === 'finished'} currentTurn={currentTurn} />
-      <div className="text-center space-y-2">
-        {status === 'finished' && (
-          <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
-            {winner} WINS!
-          </p>
-        )}
-        <button onClick={reset}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
-          RESET
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function ChimpDemo() {
-  const [layout, setLayout] = useState(() => generateChimpLayout(CHIMP_START_LEVEL))
-  const [level, setLevel] = useState(CHIMP_START_LEVEL)
-  const [progX, setProgX] = useState(0)
-  const [progO, setProgO] = useState(0)
-  const [doneX, setDoneX] = useState(false)
-  const [doneO, setDoneO] = useState(false)
-  const [seat, setSeat] = useState('X')
-  const [status, setStatus] = useState('playing')
-  const [winner, setWinner] = useState(null)
-  const [miss, setMiss] = useState(null)
-
-  const advance = (nx, no) => {
-    if (nx && no) {
-      const nl = level + 1
-      setLevel(nl); setLayout(generateChimpLayout(nl))
-      setProgX(0); setProgO(0); setDoneX(false); setDoneO(false); setSeat('X')
-    }
-  }
-
-  const handleMove = (cellIndex) => {
-    if (status !== 'playing') return
-    const prog = seat === 'X' ? progX : progO
-    const done = seat === 'X' ? doneX : doneO
-    if (done) return
-    const expected = normalizeChimpLayout(layout)[prog]
-    if (expected !== cellIndex) { setMiss(cellIndex); setWinner(seat === 'X' ? 'O' : 'X'); setStatus('finished'); return }
-    const np = prog + 1
-    if (np === level) {
-      const nx = seat === 'X' ? true : doneX
-      const no = seat === 'O' ? true : doneO
-      if (seat === 'X') { setProgX(np); setDoneX(true) } else { setProgO(np); setDoneO(true) }
-      advance(nx, no)
-    } else {
-      if (seat === 'X') setProgX(np); else setProgO(np)
-    }
-  }
-
-  const reset = () => {
-    setLayout(generateChimpLayout(CHIMP_START_LEVEL)); setLevel(CHIMP_START_LEVEL)
-    setProgX(0); setProgO(0); setDoneX(false); setDoneO(false)
-    setSeat('X'); setStatus('playing'); setWinner(null); setMiss(null)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
-        <PlayerCard name="Alice" symbol="X" isActive={seat === 'X' && !doneX && status === 'playing'} isMe={seat === 'X'} />
-        <PlayerCard name="Bob" symbol="O" isActive={seat === 'O' && !doneO && status === 'playing'} isMe={seat === 'O'} />
-      </div>
-      <ChimpBoard onMove={handleMove} disabled={status !== 'playing' || (seat === 'X' ? doneX : doneO)}
-        chimpLayout={layout} myProgress={seat === 'X' ? progX : progO} opProgress={seat === 'X' ? progO : progX}
-        myDone={seat === 'X' ? doneX : doneO} opDone={seat === 'X' ? doneO : doneX} chimpLevel={level}
-        reveal={status === 'finished'} missCell={miss} />
-      <div className="text-center space-y-2">
-        {status === 'finished' && (
-          <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
-            {winner} WINS!
-          </p>
-        )}
-        {status === 'playing' && !(seat === 'X' ? doneX : doneO) && (
-          <button onClick={() => setSeat(s => s === 'X' ? 'O' : 'X')}
-            className="px-4 py-2 font-pixel text-[8px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95">
-            PASS TO {seat === 'X' ? 'BOB' : 'ALICE'}
-          </button>
-        )}
-        <button onClick={reset}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
-          RESET
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function NumberMemoryDemo() {
-  const [level, setLevel] = useState(1)
-  const [number, setNumber] = useState(() => generateNumberLocal(1))
-  const [phase, setPhase] = useState('showing')
-  const [countdown, setCountdown] = useState(null)
-  const [inputX, setInputX] = useState('')
-  const [inputO, setInputO] = useState('')
-  const [answerX, setAnswerX] = useState(null)
-  const [answerO, setAnswerO] = useState(null)
-  const [status, setStatus] = useState('playing')
-  const [winner, setWinner] = useState(null)
-
-  useEffect(() => {
-    if (phase !== 'showing') return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- countdown was left at null by the previous round's finish; must show 3 immediately, not wait for the first 100ms tick
-    setCountdown(3)
-    let rem = 3000
-    const iv = setInterval(() => {
-      rem -= 100
-      setCountdown(Math.ceil(rem / 1000))
-      if (rem <= 0) { clearInterval(iv); setCountdown(null); setPhase('recall') }
-    }, 100)
-    return () => clearInterval(iv)
-  }, [phase])
-
-  const resolve = (ax, ao) => {
-    const xCorrect = ax === number
-    const oCorrect = ao === number
-    if (xCorrect && oCorrect) {
-      const nl = level + 1
-      setLevel(nl); setNumber(generateNumberLocal(nl))
-      setPhase('showing'); setAnswerX(null); setAnswerO(null); setInputX(''); setInputO('')
-    } else {
-      setWinner(!xCorrect ? 'O' : 'X'); setStatus('finished')
-    }
-  }
-
-  const submitX = () => {
-    const ax = inputX.trim()
-    if (!ax || answerX !== null) return
-    setAnswerX(ax)
-    if (answerO !== null) resolve(ax, answerO)
-  }
-
-  const submitO = () => {
-    const ao = inputO.trim()
-    if (!ao || answerO !== null) return
-    setAnswerO(ao)
-    if (answerX !== null) resolve(answerX, ao)
-  }
-
-  const reset = () => {
-    setLevel(1); setNumber(generateNumberLocal(1)); setPhase('showing')
-    setAnswerX(null); setAnswerO(null); setInputX(''); setInputO('')
-    setStatus('playing'); setWinner(null)
-  }
-
-  if (status === 'finished') {
-    return (
-      <div className="space-y-3 text-center">
-        <p className="font-pixel text-[8px] text-retro-dim">THE NUMBER WAS</p>
-        <p className="font-pixel text-xl text-retro-cta text-glow-cta tracking-widest">{number}</p>
-        <p className="font-pixel text-[8px]">
-          <span className="text-retro-dim">X: </span>
-          <span className={answerX === number ? 'text-retro-win' : 'text-retro-p2'}>{answerX ?? '—'}</span>
-          <span className="text-retro-dim mx-3">·</span>
-          <span className="text-retro-dim">O: </span>
-          <span className={answerO === number ? 'text-retro-win' : 'text-retro-p2'}>{answerO ?? '—'}</span>
-        </p>
-        <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
-          {winner} WINS!
-        </p>
-        <button onClick={reset}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
-          RESET
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between font-pixel text-[9px]">
-        <span className="text-retro-cta text-glow-cta">{level} DIGIT{level > 1 ? 'S' : ''}</span>
-        <span className="text-retro-dim">LEVEL {level}</span>
-      </div>
-
-      {phase === 'showing' && (
-        <div className="bg-retro-surface border border-retro-border rounded p-6 text-center space-y-3">
-          <p className="font-pixel text-[8px] text-retro-dim">MEMORIZE THIS NUMBER</p>
-          <p className="font-pixel text-2xl text-retro-cta text-glow-cta tracking-widest">{number}</p>
-          {countdown != null && (
-            <p className="font-pixel text-[9px] text-retro-p2 arcade-blink">{countdown}s</p>
-          )}
-        </div>
-      )}
-
-      {phase === 'recall' && (
-        <div className="space-y-2">
-          <p className="font-pixel text-[9px] text-retro-dim text-center">WHAT WAS THE NUMBER?</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-retro-card border border-retro-p1/40 rounded p-2 space-y-2">
-              <p className="font-pixel text-[8px] text-retro-p1 text-center">ALICE</p>
-              {answerX !== null ? (
-                <p className="font-pixel text-[8px] text-retro-win text-center py-1">SUBMITTED ✓</p>
-              ) : (
-                <>
-                  <input type="text" inputMode="numeric" maxLength={level + 2} value={inputX}
-                    onChange={e => setInputX(e.target.value.replace(/\D/g, ''))}
-                    onKeyDown={e => e.key === 'Enter' && submitX()}
-                    autoFocus
-                    className="w-full bg-retro-surface border border-retro-border text-retro-text font-pixel text-xs tracking-[0.2em] text-center rounded px-2 py-1 focus:outline-none focus:border-retro-p1"
-                    placeholder={'?'.repeat(level)} />
-                  <button onClick={submitX}
-                    className="w-full py-1 bg-retro-p1/20 border border-retro-p1/60 text-retro-p1 font-pixel text-[8px] rounded hover:bg-retro-p1/30 active:scale-95">
-                    SUBMIT
-                  </button>
-                </>
-              )}
-            </div>
-            <div className="bg-retro-card border border-retro-p2/40 rounded p-2 space-y-2">
-              <p className="font-pixel text-[8px] text-retro-p2 text-center">BOB</p>
-              {answerO !== null ? (
-                <p className="font-pixel text-[8px] text-retro-win text-center py-1">SUBMITTED ✓</p>
-              ) : (
-                <>
-                  <input type="text" inputMode="numeric" maxLength={level + 2} value={inputO}
-                    onChange={e => setInputO(e.target.value.replace(/\D/g, ''))}
-                    onKeyDown={e => e.key === 'Enter' && submitO()}
-                    className="w-full bg-retro-surface border border-retro-border text-retro-text font-pixel text-xs tracking-[0.2em] text-center rounded px-2 py-1 focus:outline-none focus:border-retro-p2"
-                    placeholder={'?'.repeat(level)} />
-                  <button onClick={submitO}
-                    className="w-full py-1 bg-retro-p2/20 border border-retro-p2/60 text-retro-p2 font-pixel text-[8px] rounded hover:bg-retro-p2/30 active:scale-95">
-                    SUBMIT
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function VisualMemoryDemo() {
-  const [pattern, setPattern] = useState(() => generateVmPattern(VM_START_LEVEL))
-  const [clicked, setClicked] = useState([])
-  const [level, setLevel] = useState(VM_START_LEVEL)
-  const [clears, setClears] = useState(0)
-  const [miss, setMiss] = useState(null)
-  const [currentTurn, setCurrentTurn] = useState('X')
-  const [status, setStatus] = useState('playing')
-  const [winner, setWinner] = useState(null)
-
-  const handleMove = (cellIndex) => {
-    if (status !== 'playing') return
-    const r = applyVmMove({ vmPattern: pattern, vmClicked: clicked, vmLevel: level, vmClears: clears }, cellIndex, currentTurn)
-    if (!r) return
-    if (r.result) { setMiss(r.updates.vmMiss ?? null); setWinner(r.result.winner); setStatus('finished'); return }
-    const { vmLevel, vmClears, vmPattern, vmClicked, currentTurn: next } = r.updates
-    if (vmLevel !== undefined) setLevel(vmLevel)
-    if (vmClears !== undefined) setClears(vmClears)
-    if (vmPattern !== undefined) setPattern(normalizeVmArray(vmPattern))
-    if (Object.prototype.hasOwnProperty.call(r.updates, 'vmClicked')) setClicked(normalizeVmArray(vmClicked))
-    if (next !== undefined) setCurrentTurn(next)
-  }
-
-  const reset = () => {
-    setPattern(generateVmPattern(VM_START_LEVEL)); setClicked([])
-    setLevel(VM_START_LEVEL); setClears(0); setMiss(null)
-    setCurrentTurn('X'); setStatus('playing'); setWinner(null)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
-        <PlayerCard name="Alice" symbol="X" isActive={status === 'playing' && currentTurn === 'X'} isMe />
-        <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
-      </div>
-      <VisualMemoryBoard onMove={handleMove} disabled={status !== 'playing'}
-        vmPattern={pattern} vmClicked={clicked} vmLevel={level}
-        vmMiss={miss} finished={status === 'finished'} currentTurn={currentTurn} mySymbol={currentTurn} />
-      <div className="text-center space-y-2">
-        {status === 'finished' && (
-          <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
-            {winner} WINS!
-          </p>
-        )}
-        <button onClick={reset}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
-          RESET
-        </button>
       </div>
     </div>
   )
@@ -2315,11 +1986,11 @@ const DEMOS = [
   { type: 'pacmac',       short: 'PAC\nMAC',      Icon: PacmacIcon,       Component: PacmacDemo       },
   { type: 'minesweeper',  short: 'MINE\nRACE',    Icon: MinesIcon,        Component: MineRaceDemo     },
   { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsDemo        },
-  // Memory hot-seat
-  { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonDemo        },
-  { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemoryDemo },
-  { type: 'visualmemory', short: 'VIS\nMEMORY',   Icon: VisualMemoryIcon, Component: VisualMemoryDemo },
-  { type: 'chimp',        short: 'CHIMP\nTEST',   Icon: ChimpIcon,        Component: ChimpDemo        },
+  // Memory — single-player runs (grow until you slip, beat your best)
+  { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonSolo,        solo: true },
+  { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemorySolo, solo: true },
+  { type: 'visualmemory', short: 'VIS\nMEMORY',   Icon: VisualMemoryIcon, Component: VisualMemorySolo, solo: true },
+  { type: 'chimp',        short: 'CHIMP\nTEST',   Icon: ChimpIcon,        Component: ChimpSolo,        solo: true },
   // Solo / hangwoman
   { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
   { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: WordDuelDemo     },
@@ -2475,7 +2146,7 @@ function DemoHub() {
         <div className="space-y-2">
           <CategoryTabs categories={demoCategories} active={activeCat} onSelect={setActiveCat} />
           <div className="grid grid-cols-4 gap-2">
-            {shown.map(({ type, short, Icon }) => (
+            {shown.map(({ type, short, Icon, solo }) => (
               <button
                 key={type}
                 onClick={() => setSelected(type)}
@@ -2488,7 +2159,7 @@ function DemoHub() {
               >
                 <Icon />
                 <span className="font-pixel text-[7px] text-center leading-tight whitespace-pre-line">{short}</span>
-                <span className="font-pixel text-[6px] text-retro-dim/70">{type in PARTY_BLURB ? '2+ PLAYERS' : 'VS CPU'}</span>
+                <span className="font-pixel text-[6px] text-retro-dim/70">{type in PARTY_BLURB ? '2+ PLAYERS' : solo ? 'SOLO' : 'VS CPU'}</span>
               </button>
             ))}
           </div>
@@ -2497,7 +2168,7 @@ function DemoHub() {
         {/* Active demo — key forces fresh mount on game switch */}
         <div key={selected} className="border border-retro-border rounded p-4 bg-retro-card">
           <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider mb-4">
-            {active.short.replace('\n', ' ')} DEMO
+            {active.short.replace('\n', ' ')} {active.solo ? 'SOLO RUN' : 'DEMO'}
           </p>
           <active.Component />
         </div>

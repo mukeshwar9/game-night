@@ -29,6 +29,9 @@ const TURN_DEADLINE_MS = 30000 // idle-opponent forfeit window, armed once the f
 export default function SimonBoard({
   onMove, disabled, simonSequence, simonProgress, simonMiss = null, finished = false,
   currentTurn = null, mySymbol,
+  // What the label says while the board is disabled mid-game (solo uses it for the
+  // pause between rounds; duels leave the opponent wording).
+  waitingLabel = null,
 }) {
   const { gameId } = useParams() // present under /game/:gameId; undefined in demo/solo — writes below no-op there
   useTurnDeadlineEnforcer(gameId, 'simon', 'simonDeadline')
@@ -142,14 +145,14 @@ export default function SimonBoard({
 
   const label =
     showAnswer   ? (missAt >= 0 ? 'WRONG PAD — HERE IS THE SEQUENCE' : 'ROUND OVER') :
-    !isMyTurn    ? (isSpectator && (currentTurn === 'X' || currentTurn === 'O') ? `${currentTurn} IS RECALLING` : 'OPPONENT’S TURN') :
+    !isMyTurn    ? (waitingLabel ?? (isSpectator && (currentTurn === 'X' || currentTurn === 'O') ? `${currentTurn} IS RECALLING` : 'OPPONENT’S TURN')) :
     watching     ? 'WATCH CAREFULLY' :
     needsRecall  ? `REPEAT FROM MEMORY · ${progress}/${seq.length}` :
     'ADD A NEW PAD'
 
   const labelClass =
     showAnswer  ? 'text-retro-text' :
-    !isMyTurn   ? 'text-retro-dim' :
+    !isMyTurn   ? (waitingLabel ? 'text-retro-win text-glow-win' : 'text-retro-dim') :
     watching    ? 'text-retro-cta text-glow-cta arcade-blink' :
     needsRecall ? 'text-retro-win text-glow-win' :
     'text-retro-cta text-glow-cta arcade-blink'
