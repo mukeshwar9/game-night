@@ -5,6 +5,7 @@ import {
   normalizeGuessList, guessProblem, secretWordProblem, getGradedDoneState, gradeGuesses,
   applyGrading, applyDuelGuess, getFinishGraceEndsAt, applyFinishTimeout,
   verifyGradedBoard, verifyOpponentRound, decideDuelRound, DUEL_FINISH_GRACE_MS,
+  applySelfDone, nextDuelRound,
 } from './wordduelLogic'
 
 describe('markGuess', () => {
@@ -499,5 +500,21 @@ describe('gradeGuesses', () => {
     expect(res.guesses[0].marks).toBe('BYYBG')
     expect(res.guesses[1].marks).toBe('GGGGG')
     expect(res.done).toEqual({ solved: true, guesses: 2, at: 2 })
+  })
+})
+
+describe('applySelfDone', () => {
+  it('records done from graded marks only', () => {
+    const graded = { phase: 'guessing', guessesX: board(['PLATE', 'SLATE'], 'SLATE') }
+    expect(applySelfDone(graded, { player: 'X', now: 7 }).doneX).toEqual({ solved: true, guesses: 2, at: 2000, gradedAt: 7 })
+    const pending = { phase: 'guessing', guessesX: board(['PLATE', 'SLATE'], 'SLATE', { gradeCount: 1 }) }
+    expect(applySelfDone(pending, { player: 'X', now: 7 })).toBeNull()
+  })
+})
+
+describe('nextDuelRound', () => {
+  it('increments the round number so both clients see a new round', () => {
+    expect(nextDuelRound({ phase: 'reveal', roundNum: 2 })).toEqual({ phase: 'setting', roundNum: 3 })
+    expect(nextDuelRound({ phase: 'reveal' })).toEqual({ phase: 'setting', roundNum: 2 })
   })
 })

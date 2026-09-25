@@ -1,11 +1,11 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
-import { ref, update, onValue, runTransaction, set } from 'firebase/database'
+import { ref, update, onValue, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit as makeCommit } from '../lib/commit'
 import {
-  markGuess, compareResults, getDoneState,
-  isValidGuess, getKeyboardState, MAX_GUESSES, WORD_LENGTH, MATCH_WINS,
+  compareResults, isValidGuess, getKeyboardState, MAX_GUESSES, WORD_LENGTH, MATCH_WINS,
   verifyOpponentRound, verifyGradedBoard, decideDuelRound,
+  applyGrading, applyDuelGuess, applySelfDone, nextDuelRound, normalizeGuessList,
 } from '../lib/wordduelLogic'
 import { verifyReveal } from '../lib/commit'
 import { sounds } from '../lib/sounds'
@@ -52,16 +52,7 @@ const KB_ROWS = [
   ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
 ]
 
-function normalizeGuesses(raw) {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw
-  // Firebase may return numeric-keyed objects
-  const arr = []
-  for (const k of Object.keys(raw).sort((a, b) => Number(a) - Number(b))) {
-    arr.push(raw[k])
-  }
-  return arr
-}
+const normalizeGuesses = normalizeGuessList
 
 // Mini ghost tile showing only the mark color
 function GhostTile({ mark }) {
@@ -240,16 +231,25 @@ export default function WordDuelGame({
   const [clockOffset, setClockOffset] = useState(0)
   const [nowTs, setNowTs] = useState(() => Date.now())
 
-  const processedGuesses = useRef(new Set())
+  // Per-round client state. The page is not remounted between rounds
+  // (Game.jsx keys it on gameType), so everything below is reset whenever the
+  // round identity (roundNum, or a return to the setting phase) changes — on
+  // BOTH clients, not just the one that pressed NEXT ROUND.
   const verifiedRef = useRef(false)
-  const scoredRef = useRef(false)
   const gradingRef = useRef(false)
+  const selfDoneRef = useRef(false)
+  const roundKeyRef = useRef('')
+  const [gradeRetry, setGradeRetry] = useState(0)
 
   const [sharing, runShare] = useBusy()
+  const [guessBusy, runGuess] = useBusy()
+  const [actionBusy, runAction] = useBusy()
 
   // Derived from game
   const round = useMemo(() => game?.round || {}, [game])
   const phase = round.phase || 'setting'
+  const roundNum = Number(round.roundNum) || 1
+  const roundKey = `${roundNum}:${phase === 'setting' ? 'setting' : 'live'}`
   const opponentSymbol = mySymbol === 'X' ? 'O' : 'X'
   const isSpectator = !mySymbol
 
@@ -263,8 +263,13 @@ export default function WordDuelGame({
   const oppDone = round['done' + opponentSymbol]
   const startedAt = round.startedAt
 
-  const stored = getStoredWord(gameId, mySymbol)
   const myCommit = commits[mySymbol]
+  // A word stored for an earlier round (or another device's commit) must never
+  // grade or reveal this round: the stored hash has to match my commit.
+  const stored = useMemo(() => {
+    const raw = getStoredWord(gameId, mySymbol)
+    return raw && (!raw.hash || raw.hash === myCommit) ? raw : null
+  }, [gameId, mySymbol, myCommit])
   const oppCommit = commits[opponentSymbol]
   const allScores = (game?.scores) || { X: 0, O: 0 }
 
@@ -274,6 +279,25 @@ export default function WordDuelGame({
   const matchWinner = allScores.X >= MATCH_WINS ? 'X' : allScores.O >= MATCH_WINS ? 'O' : null
 
   const keyboardState = getKeyboardState(myGuesses)
+
+  const [trackedRoundKey, setTrackedRoundKey] = useState(roundKey)
+  if (trackedRoundKey !== roundKey) {
+    setTrackedRoundKey(roundKey)
+    setCheatDetected(false)
+    setVerifyStatus(null)
+    setLocalResult(null)
+    setCurrentGuess('')
+    if (phase === 'setting') {
+      setSettingWord('')
+      setSettingError('')
+    }
+  }
+  useEffect(() => {
+    roundKeyRef.current = roundKey
+    verifiedRef.current = false
+    gradingRef.current = false
+    selfDoneRef.current = false
+  }, [roundKey])
 
   // Corrected clock — every deadline comparison below runs through this offset.
   useEffect(() => {
@@ -317,7 +341,7 @@ export default function WordDuelGame({
           scores: newScores,
           status: matchOver ? 'finished' : current.status,
           winner: matchOver ? mySymbol : current.winner,
-          round: { phase: 'reveal', result: { winner: mySymbol, reason: 'stall' } },
+          round: { phase: 'reveal', roundNum: r.roundNum || 1, result: { winner: mySymbol, reason: 'stall' } },
         }
       })
     } catch { toast.error('CLAIM FAILED — CHECK CONNECTION') }
@@ -368,7 +392,7 @@ export default function WordDuelGame({
     setLockingWord(true)
     try {
       const { hash, salt } = await makeCommit(word)
-      setStoredWord(gameId, mySymbol, { word, salt })
+      setStoredWord(gameId, mySymbol, { word, salt, hash })
       await update(ref(db, `games/${gameId}/round/commits`), {
         [mySymbol]: hash,
       })
@@ -386,57 +410,52 @@ export default function WordDuelGame({
     }
   }, [phase, bothCommitted, isSpectator, gameId, startedAt, clockOffset])
 
-  // ──── Grading: listen for opponent guesses and fill marks ────
+  // ──── Grading ────
+  // Only my client knows my word, so it grades the opponent's guesses. Marks
+  // and (when they finish the board) the opponent's done state are written in
+  // ONE transaction, so done never lands before the final grade and a
+  // 6th-guess solve is never recorded as a fail.
+  const oppNeedsGrading = oppGuesses.some(g => g && g.word && !g.marks)
   useEffect(() => {
-    if (isSpectator || phase !== 'guessing' || !stored) return
-    if (gradingRef.current) return
-
-    const ungraded = oppGuesses.filter((g, i) => g && g.word && !g.marks && !processedGuesses.current.has(i))
-    if (!ungraded.length) return
-
+    if (isSpectator || phase !== 'guessing' || !stored || !myCommit) return
+    if (!oppNeedsGrading || gradingRef.current) return
     gradingRef.current = true
     const word = stored.word
-    // NOTE: indexOf-by-reference is correct here — Firebase entries are
-    // distinct objects, so identical guess words never collide.
-    ungraded.forEach(async (g) => {
-      const idx = oppGuesses.indexOf(g)
-      if (idx < 0 || processedGuesses.current.has(idx)) return
-      const marks = markGuess(g.word, word)
-      try {
-        if (marks) {
-          // marks is a plain string ("GYBBB") — update() requires an object and
-          // throws on a string payload, silently killing grading; set() is the
-          // correct primitive for a leaf write.
-          await set(ref(db, `games/${gameId}/round/guesses${opponentSymbol}/${idx}/marks`), marks)
-        }
-        // Mark processed only after the write lands — a failed set() stays
-        // retryable instead of sitting pending until the stall claim.
-        processedGuesses.current.add(idx)
-      } finally {
-        gradingRef.current = false
-      }
-    })
-  }, [oppGuesses, stored, phase, isSpectator, gameId, opponentSymbol])
-
-  // Check if player is done and write done{X/O}
-  useEffect(() => {
-    if (isSpectator || phase !== 'guessing' || myDone) return
-    const doneState = getDoneState(myGuesses)
-    if (doneState && !scoredRef.current) {
-      scoredRef.current = true
-      update(ref(db, `games/${gameId}/round/done${mySymbol}`), {
-        solved: doneState.solved,
-        guesses: doneState.guesses,
-        at: Date.now() + clockOffset,
-      }).catch(() => { scoredRef.current = false })
+    const key = roundKeyRef.current
+    const release = (delay) => {
+      if (roundKeyRef.current !== key) return
+      gradingRef.current = false
+      // Re-check afterwards: a guess that landed while this write was in
+      // flight would otherwise wait for the next unrelated change.
+      setTimeout(() => { if (roundKeyRef.current === key) setGradeRetry(n => n + 1) }, delay)
     }
-  }, [myGuesses, myDone, phase, isSpectator, gameId, mySymbol, clockOffset])
+    runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.commits?.[mySymbol] !== myCommit) return
+      return applyGrading(current, { guesser: opponentSymbol, word, now: Date.now() + clockOffset }) ?? undefined
+    }).then(() => release(0), () => release(1500))
+  }, [oppNeedsGrading, stored, myCommit, phase, isSpectator, gameId, mySymbol, opponentSymbol, clockOffset, gradeRetry])
+
+  // Fallback for a grader on an older client (marks without done): record my
+  // own done from graded marks only — the same value the grader would write.
+  const myBoardFinished = !myDone && myGuesses.some(g => g?.marks === 'GGGGG') ||
+    (!myDone && myGuesses.length >= MAX_GUESSES && myGuesses.slice(0, MAX_GUESSES).every(g => g?.marks))
+  useEffect(() => {
+    if (isSpectator || phase !== 'guessing' || !myBoardFinished || selfDoneRef.current) return
+    selfDoneRef.current = true
+    const id = setTimeout(() => {
+      runTransaction(ref(db, `games/${gameId}/round`), current => {
+        if (!current) return
+        return applySelfDone(current, { player: mySymbol, now: Date.now() + clockOffset }) ?? undefined
+      }).catch(() => { selfDoneRef.current = false })
+    }, 2000)
+    return () => { clearTimeout(id); selfDoneRef.current = false }
+  }, [myBoardFinished, phase, isSpectator, gameId, mySymbol, clockOffset])
 
   // Auto-advance to reveal when both done
   useEffect(() => {
     if (isSpectator || phase !== 'guessing') return
     if (bothDone && !bothRevealed) {
-      const myReveal = getStoredWord(gameId, mySymbol)
+      const myReveal = stored ? { word: stored.word, salt: stored.salt } : null
       if (!myReveal) {
         // Secret lost (cleared storage / different browser) — the result needs
         // only done states, so resolve straight to reveal instead of stalling
@@ -466,15 +485,18 @@ export default function WordDuelGame({
         ['reveal/' + mySymbol]: myReveal,
       }).catch(() => {})
     }
-  }, [bothDone, bothRevealed, phase, isSpectator, gameId, mySymbol])
+  }, [bothDone, bothRevealed, phase, isSpectator, gameId, mySymbol, stored])
 
   // Write the round result (+ bump the winner's score, ending the match at
   // MATCH_WINS) via a transaction guarded on `round.result` so two clients
   // racing to resolve the same round can't double-score.
-  const writeRoundResult = useCallback(async (winner, reason) => {
+  const writeRoundResult = useCallback(async (winner, reason, forRound) => {
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round || current.round.result) return
+        // A verification that finishes after the room moved on must not
+        // write into the next round.
+        if (current.round.phase !== 'reveal' || (Number(current.round.roundNum) || 1) !== forRound) return
         const next = { ...current, round: { ...current.round, result: { winner, reason } } }
         if (winner === 'X' || winner === 'O') {
           const newScores = { ...(current.scores || { X: 0, O: 0 }) }
@@ -501,11 +523,12 @@ export default function WordDuelGame({
     if (!oppReveal || !oppCommit) return
 
     verifiedRef.current = true
+    const key = roundKeyRef.current
     ;(async () => {
       const oppCheck = await verifyOpponentRound({ oppCommit, oppReveal, myGuesses, myDone })
       if (oppCheck.pending) { verifiedRef.current = false; return }
 
-      const myWord = getStoredWord(gameId, mySymbol)
+      const myWord = stored
       let ownCheck = { ok: true }
       let myCommitOk = true
       if (myWord && commits[mySymbol]) {
@@ -513,6 +536,7 @@ export default function WordDuelGame({
         if (myCommitOk) ownCheck = verifyGradedBoard({ word: myWord.word, guesses: oppGuesses, done: oppDone })
       }
       if (ownCheck.pending) { verifiedRef.current = false; return }
+      if (roundKeyRef.current !== key) return
 
       if (!oppCheck.ok || !ownCheck.ok || !myCommitOk) {
         setCheatDetected(true)
@@ -521,10 +545,12 @@ export default function WordDuelGame({
         // My own word failing its commitment is on me; anything else means the
         // opponent's grading or board was tampered with.
         const winner = myCommitOk ? mySymbol : opponentSymbol
-        await writeRoundResult(winner, 'cheat')
+        if (roundKeyRef.current !== key) return
+        await writeRoundResult(winner, 'cheat', roundNum)
         return
       }
 
+      if (roundKeyRef.current !== key) return
       setVerifyStatus({ ok: true })
       const myVerified = oppCheck.done
       const oppVerified = ownCheck.done || oppDone
@@ -537,14 +563,28 @@ export default function WordDuelGame({
         sounds[winner === 'draw' ? 'draw' : winner === mySymbol ? 'win' : 'lose']?.()
       }
       if (!result) {
-        await writeRoundResult(winner || 'draw', 'solved')
+        await writeRoundResult(winner || 'draw', 'solved', roundNum)
       }
     })()
-  }, [phase, reveal, oppCommit, oppGuesses, myGuesses, mySymbol, opponentSymbol, gameId, myDone, oppDone, commits, result, writeRoundResult])
+  }, [phase, reveal, oppCommit, oppGuesses, myGuesses, mySymbol, opponentSymbol, myDone, oppDone, commits, result, writeRoundResult, roundNum, stored])
 
   // ──── Handle keypress ────
+  const boardFull = myGuesses.length >= MAX_GUESSES || myGuesses.some(g => g?.marks === 'GGGGG')
+  const submitGuess = useCallback((word) => runGuess(async () => {
+    const res = await runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current) return
+      return applyDuelGuess(current, { player: mySymbol, word, at: Date.now() + clockOffset }) ?? undefined
+    })
+    if (res.committed) {
+      sounds.move?.(mySymbol)
+      setCurrentGuess('')
+    }
+  }, () => toast.error('GUESS FAILED — CHECK CONNECTION')), [runGuess, gameId, mySymbol, clockOffset])
+
   const handleKey = useCallback((key) => {
-    if (myDone || phase !== 'guessing' || isSpectator) return
+    if (myDone || phase !== 'guessing' || isSpectator || guessBusy) return
+    // Six guesses (or a solve) end the board — never write a 7th.
+    if (boardFull) return
 
     if (key === 'ENTER') {
       const word = currentGuess.toUpperCase()
@@ -553,19 +593,13 @@ export default function WordDuelGame({
         sounds.miss?.()
         return
       }
-      sounds.move?.(mySymbol)
-      const idx = myGuesses.length
-      update(ref(db, `games/${gameId}/round/guesses${mySymbol}/${idx}`), {
-        word,
-        at: Date.now() + clockOffset,
-      }).catch(() => {})
-      setCurrentGuess('')
+      submitGuess(word)
     } else if (key === 'BACK') {
       setCurrentGuess(prev => prev.slice(0, -1))
     } else if (currentGuess.length < WORD_LENGTH) {
       setCurrentGuess(prev => prev + key.toUpperCase())
     }
-  }, [currentGuess, myDone, phase, isSpectator, mySymbol, gameId, myGuesses.length, clockOffset])
+  }, [currentGuess, myDone, phase, isSpectator, guessBusy, boardFull, submitGuess])
 
   const handleSettingKey = useCallback((key) => {
     if (phase !== 'setting' || !!myCommit) return
@@ -612,17 +646,18 @@ export default function WordDuelGame({
     return () => window.removeEventListener('keydown', handler)
   }, [handleKey, phase, myDone, isSpectator])
 
-  const resetRound = useCallback(() => {
-    setStoredWord(gameId, mySymbol, null)
-    processedGuesses.current = new Set()
-    gradingRef.current = false
-    scoredRef.current = false
-    verifiedRef.current = false
-    setCheatDetected(false)
-    setVerifyStatus(null)
-    setLocalResult(null)
-    setCurrentGuess('')
-  }, [gameId, mySymbol])
+  // Either player may start the next round; the transaction lets exactly one
+  // click through and bumps roundNum, which resets both clients.
+  const handleNextRound = () => runAction(async () => {
+    await runTransaction(ref(db, `games/${gameId}`), current => {
+      const r = current?.round
+      if (!current || current.status !== 'playing' || !r || r.phase !== 'reveal' || !r.result) return
+      return { ...current, round: nextDuelRound(r), lastActivityAt: Date.now() + clockOffset }
+    })
+  }, () => toast.error('NEXT ROUND FAILED — CHECK CONNECTION'))
+  const handleNewMatch = () => runAction(async () => {
+    await onNewMatch?.()
+  }, () => toast.error('NEW MATCH FAILED — CHECK CONNECTION'))
 
   // ── RENDER ──
   if (!game || !gameId) return null
@@ -769,7 +804,7 @@ export default function WordDuelGame({
 
         {/* Keyboard */}
         <div className="mt-1 w-full">
-          <Keyboard keyState={keyboardState} onKey={handleKey} disabled={!!myDone} />
+          <Keyboard keyState={keyboardState} onKey={handleKey} disabled={!!myDone || boardFull || guessBusy} />
         </div>
 
         {/* Current input preview */}
@@ -810,7 +845,7 @@ export default function WordDuelGame({
   const finalResult = result || localResult
   const finalWinner = finalResult?.winner
   const reason = finalResult?.reason
-  const myRevealWord = getStoredWord(gameId, mySymbol)
+  const myRevealWord = stored
 
   const shareHeadline = matchWinner
     ? (matchWinner === mySymbol ? 'MATCH WON!' : `${game.players[matchWinner]?.name || matchWinner} WINS THE MATCH`)
@@ -941,48 +976,31 @@ export default function WordDuelGame({
         {!matchWinner && !proposal && (
           <button
             className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs
-              rounded hover:shadow-neon-cta transition-all active:scale-95"
-            onClick={() => {
-              resetRound()
-              update(ref(db, `games/${gameId}/round`), {
-                phase: 'setting',
-                commits: null,
-                startedAt: null,
-                settingStartedAt: null,
-                guessesX: null,
-                guessesO: null,
-                doneX: null,
-                doneO: null,
-                reveal: null,
-                result: null,
-              }).catch(() => {})
-            }}
+              rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            onClick={handleNextRound}
+            disabled={actionBusy}
           >
-            NEXT ROUND
+            {actionBusy ? 'STARTING…' : 'NEXT ROUND'}
           </button>
         )}
         {onNewMatch && !proposal && !matchWinner && (
           <button
             className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs
-              rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95"
-            onClick={() => {
-              resetRound()
-              onNewMatch()
-            }}
+              rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+            onClick={handleNewMatch}
+            disabled={actionBusy}
           >
-            NEW MATCH
+            {actionBusy ? 'ASKING…' : 'NEW MATCH'}
           </button>
         )}
         {matchWinner && onNewMatch && !proposal && (
           <button
             className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs
-              rounded hover:shadow-neon-cta transition-all active:scale-95"
-            onClick={() => {
-              resetRound()
-              onNewMatch()
-            }}
+              rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            onClick={handleNewMatch}
+            disabled={actionBusy}
           >
-            NEW MATCH
+            {actionBusy ? 'ASKING…' : 'NEW MATCH'}
           </button>
         )}
       </div>

@@ -208,8 +208,8 @@ export function normalizeGuessList(raw) {
 export function guessProblem(word) {
   const w = String(word ?? '').trim()
   if (w.length < WORD_LENGTH) return 'TOO SHORT'
-  if (!isValidGuess(w)) return 'NOT IN WORD LIST'
   if (isBannedWord(w)) return 'NOT ALLOWED'
+  if (!isValidGuess(w)) return 'NOT IN WORD LIST'
   return null
 }
 
@@ -218,8 +218,8 @@ export function guessProblem(word) {
 export function secretWordProblem(word) {
   const w = String(word ?? '').trim()
   if (w.length < WORD_LENGTH) return 'TOO SHORT'
-  if (!isValidGuess(w)) return 'NOT IN WORD LIST'
   if (isBannedWord(w)) return 'NOT ALLOWED — PICK ANOTHER WORD'
+  if (!isValidGuess(w)) return 'NOT IN WORD LIST'
   return null
 }
 
@@ -367,4 +367,24 @@ export async function verifyOpponentRound({ oppCommit, oppReveal, myGuesses, myD
 // The round winner from both verified boards (seat-positional).
 export function decideDuelRound(verifiedX, verifiedO) {
   return compareResults(verifiedX, verifiedO)
+}
+
+// Fallback for a grader on an older client that writes marks but not done:
+// the guesser may record its own done — derived only from graded marks, so it
+// is identical to what the grader would write and never lands before grading.
+export function applySelfDone(round, { player, now }) {
+  if (!round || round.phase !== 'guessing' || round.result) return null
+  if (player !== 'X' && player !== 'O') return null
+  if (round[`done${player}`]) return null
+  const done = getGradedDoneState(normalizeGuessList(round[`guesses${player}`]))
+  if (!done) return null
+  const next = { ...round, [`done${player}`]: { ...done, gradedAt: now } }
+  if (!round.firstDoneAt) next.firstDoneAt = now
+  return next
+}
+
+// The next round's stub. `roundNum` identifies the round, so both clients
+// reset their per-round state when it changes (the page is not remounted).
+export function nextDuelRound(round) {
+  return { phase: 'setting', roundNum: (Number(round?.roundNum) || 1) + 1 }
 }
