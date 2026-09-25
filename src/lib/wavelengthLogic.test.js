@@ -14,7 +14,21 @@ import {
   seatOrder,
   onlineGuessers,
   nextClueGiver,
+  nextOnlineClueGiver,
+  normalizeUsedSpectrums,
+  freshRound,
+  firstRound,
+  rotateRound,
+  roundDeltas,
+  addScores,
+  findClincher,
+  advanceAfterReveal,
+  skipRound,
+  beginMatch,
+  WAVELENGTH_WIN_SCORE,
+  WAVELENGTH_SEEN_KEY,
 } from './wavelengthLogic'
+import { markSeen } from './seenHistory'
 
 // ---------------------------------------------------------------------------
 // deck
@@ -331,5 +345,169 @@ describe('nextClueGiver', () => {
 
   it('returns null when there are no players', () => {
     expect(nextClueGiver({}, 'p1')).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// room seen history + shared round flow (live room and demo)
+// ---------------------------------------------------------------------------
+const allIdx = () => Array.from({ length: WAVELENGTH_PAIR_COUNT }, (_, i) => i)
+const three = {
+  a: { playerId: 'a', joinedAt: 1 },
+  b: { playerId: 'b', joinedAt: 2 },
+  c: { playerId: 'c', joinedAt: 3 },
+}
+
+describe('nextSpectrumIndex with room seen history', () => {
+  it('avoids spectra the room saw in earlier matches', () => {
+    const seen = markSeen({}, allIdx().filter(i => i !== 9))
+    for (let t = 0; t < 20; t++) expect(nextSpectrumIndex([], -1, seen)).toBe(9)
+  })
+
+  it('still never repeats within the match once the room history is exhausted', () => {
+    const seen = markSeen({}, allIdx())
+    const used = [0, 1, 2]
+    for (let t = 0; t < 50; t++) {
+      const i = nextSpectrumIndex(used, 3, seen)
+      expect(used).not.toContain(i)
+      expect(i).not.toBe(3)
+    }
+  })
+
+  it('is deterministic for a given rng', () => {
+    const rng = () => 0.42
+    expect(nextSpectrumIndex([1], 2, { 5: 1 }, rng)).toBe(nextSpectrumIndex([1], 2, { 5: 1 }, rng))
+  })
+})
+
+describe('normalizeUsedSpectrums', () => {
+  it('reads arrays and numeric-keyed objects by key', () => {
+    expect(normalizeUsedSpectrums([4, 7])).toEqual([4, 7])
+    expect(normalizeUsedSpectrums({ 1: 7, 0: 4 })).toEqual([4, 7])
+    expect(normalizeUsedSpectrums(undefined)).toEqual([])
+  })
+})
+
+describe('firstRound / rotateRound', () => {
+  it('starts with the first seat on a spectrum the room has not seen', () => {
+    const seen = markSeen({}, allIdx().filter(i => i !== 11))
+    const { round, seen: next } = firstRound(three, seen)
+    expect(round).toEqual(freshRound({ clueGiver: 'a', spectrumIndex: 11 }))
+    expect(next[11]).toBeGreaterThan(0)
+  })
+
+  it('rotates the clue-giver and records the used spectrum', () => {
+    const { round } = rotateRound(three, { clueGiver: 'c', spectrumIndex: 3, usedSpectrums: [1] }, {})
+    expect(round.clueGiver).toBe('a')
+    expect(round.usedSpectrums).toEqual([1, 3])
+    expect([1, 3]).not.toContain(round.spectrumIndex)
+    expect(round.phase).toBe('clue')
+  })
+})
+
+describe('roundDeltas / addScores / findClincher', () => {
+  it('scores only guessers who locked in', () => {
+    expect(roundDeltas({ b: 50, c: null }, ['b', 'c'], 50)).toEqual({ b: 50 })
+  })
+
+  it('adds deltas without mutating', () => {
+    const scores = { b: 10 }
+    expect(addScores(scores, { b: 5, c: 1 })).toEqual({ b: 15, c: 1 })
+    expect(scores).toEqual({ b: 10 })
+  })
+
+  it('finds the first seat past the win score', () => {
+    expect(findClincher(['a', 'b'], { b: WAVELENGTH_WIN_SCORE })).toBe('b')
+    expect(findClincher(['a', 'b'], { b: WAVELENGTH_WIN_SCORE - 1 })).toBeNull()
+  })
+})
+
+describe('advanceAfterReveal', () => {
+  const revealed = (over = {}) => ({
+    status: 'playing',
+    players: three,
+    scores: {},
+    round: {
+      clueGiver: 'a', phase: 'reveal', spectrumIndex: 2, usedSpectrums: [],
+      guesses: { b: 50, c: 0 }, reveal: { target: 50, salt: 's' }, commitment: 'h',
+      ...over,
+    },
+  })
+
+  it('scores guessers (never the clue-giver), rotates and records the spectrum', () => {
+    const next = advanceAfterReveal(revealed())
+    expect(next.scores).toEqual({ b: 50, c: 0 })
+    expect(next.round.clueGiver).toBe('b')
+    expect(next.round.usedSpectrums).toEqual([2])
+    expect(next.seen[WAVELENGTH_SEEN_KEY][next.round.spectrumIndex]).toBeGreaterThan(0)
+  })
+
+  it('voids the round when the clue-giver cheated', () => {
+    const next = advanceAfterReveal(revealed({ cheatDetected: true }))
+    expect(next.scores).toEqual({})
+    expect(next.status).toBe('playing')
+  })
+
+  it('ends the match when a guesser clinches', () => {
+    const g = revealed()
+    g.scores = { b: WAVELENGTH_WIN_SCORE - 10 }
+    const next = advanceAfterReveal(g)
+    expect(next).toMatchObject({ status: 'finished', winner: 'b' })
+  })
+
+  it('is a no-op once the round has already advanced', () => {
+    expect(advanceAfterReveal(revealed({ phase: 'clue' }))).toBeNull()
+    expect(advanceAfterReveal({ round: null })).toBeNull()
+  })
+})
+
+describe('skipRound', () => {
+  it('passes the clue on without scoring and keeps other seen history', () => {
+    const game = { players: three, scores: { b: 3 }, seen: { spyfair: { 1: 1 } }, round: { clueGiver: 'b', phase: 'clue', spectrumIndex: 4 } }
+    const next = skipRound(game)
+    expect(next.scores).toEqual({ b: 3 })
+    expect(next.round.clueGiver).toBe('c')
+    expect(next.seen.spyfair).toEqual({ 1: 1 })
+    expect(next.round.spectrumIndex).not.toBe(4)
+  })
+})
+
+describe('beginMatch', () => {
+  it('starts a lobby with enough players', () => {
+    const next = beginMatch({ status: 'waiting', players: three, scores: {} }, 123)
+    expect(next).toMatchObject({ status: 'playing', winner: null, lastActivityAt: 123 })
+    expect(next.round.clueGiver).toBe('a')
+  })
+
+  it('refuses a running match (double START during a host handover) or a short lobby', () => {
+    expect(beginMatch({ status: 'playing', players: three }, 1)).toBeNull()
+    expect(beginMatch({ status: 'finished', players: three }, 1)).toBeNull()
+    expect(beginMatch({ status: 'waiting', players: { a: three.a } }, 1)).toBeNull()
+  })
+})
+
+describe('nextOnlineClueGiver', () => {
+  const room = {
+    a: { playerId: 'a', joinedAt: 1, online: false }, // host left
+    b: { playerId: 'b', joinedAt: 2, online: true },
+    c: { playerId: 'c', joinedAt: 3 },
+  }
+
+  it('starts from the first online seat', () => {
+    expect(nextOnlineClueGiver(room, null)).toBe('b')
+  })
+
+  it('passes over offline seats when rotating', () => {
+    expect(nextOnlineClueGiver(room, 'c')).toBe('b')
+    expect(nextOnlineClueGiver(room, 'b')).toBe('c')
+  })
+
+  it('falls back to plain rotation when nobody else is online', () => {
+    const dark = { a: { playerId: 'a', joinedAt: 1, online: false }, b: { playerId: 'b', joinedAt: 2, online: true } }
+    expect(nextOnlineClueGiver(dark, 'b')).toBe('a')
+  })
+
+  it('the first round goes to the first online seat', () => {
+    expect(firstRound(room).round.clueGiver).toBe('b')
   })
 })

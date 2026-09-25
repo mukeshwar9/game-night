@@ -1,18 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ref, update, get, runTransaction } from 'firebase/database'
+import { ref, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
-import { isCoordinator } from '../lib/coordinator'
+import { isRoomCoordinator } from '../lib/coordinator'
+import {
+  seatOrder, normalizeVotes, resolveVote, scoreRound, matchWinners, allOnlineVoted,
+  pickLocationIndex, assignRoles, privatesFromRoles, findSpy, recoverLocationIndex,
+  SPYFAIR_MIN_PLAYERS, SPYFAIR_QUESTION_SECONDS, SPYFAIR_SEEN_KEY,
+} from '../lib/spyfairLogic'
+import { markSeen, normalizeSeen } from '../lib/seenHistory'
+import { scaledMs, timersOff } from '../lib/timerScale'
+import { formatClockSecs } from '../lib/format'
+import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import GameSwitcher from '../components/GameSwitcher'
+import RoundEndPanel from '../components/RoundEndPanel'
 import { sounds } from '../lib/sounds'
-import { shareResult } from '../lib/shareCard'
 import { SPYFAIR_LOCATIONS } from '../lib/decks/spyfair'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
 
-const QUESTION_SECONDS = 240 // 4 minutes of out-of-band questioning
-const MATCH_WINS = 3
+// Rules (dealing, tally, scoring, match winner) live in src/lib/spyfairLogic.js,
+// shared with SpyfairDemo.jsx so the demo can't drift from the live room.
 
 // -----------------------------------------------------------------------------
 // INFO-LEAK MODEL — read before touching the round shape.
@@ -42,40 +51,29 @@ const MATCH_WINS = 3
 //     top-level field.
 // -----------------------------------------------------------------------------
 
-// Host-only sessionStorage: the committed location's { locationIndex, salt } for the
-// current round, so it can be revealed + verified at the result phase.
+// Dealer-only sessionStorage: the committed location's { locationIndex, salt, hash }
+// for the current round, so it can be revealed + verified at the result phase.
+// `hash` ties the secret to the round it belongs to — a dealer whose deal lost
+// the start/next-round transaction must not reveal its stale secret later.
 const locKey = (gameId) => `spyfair-loc-${gameId}`
 
-// Recover the spy's playerId from the per-player private map (role === 'SPY').
-// Used at result time so we never need a top-level `spy` field during the round.
-function findSpy(privates) {
-  for (const [pid, v] of Object.entries(privates || {})) {
-    if (v && v.role === 'SPY') return pid
-  }
-  return null
+function readLocSecret(gameId, commitment) {
+  let secret = null
+  try { secret = JSON.parse(sessionStorage.getItem(locKey(gameId)) || 'null') } catch { /* ignore */ }
+  if (!secret || secret.locationIndex == null) return null
+  if (secret.hash && secret.hash !== commitment) return null
+  return secret
 }
 
-// Deal a fresh round: pick the spy + location, hand out private roles, and COMMIT the
-// location. Stores the reveal secret in the host's sessionStorage. Returns the round
-// object to write to Firebase — note it contains NO plaintext spy/locationIndex.
-async function dealRound(gameId, order, excludeLocationIndex = null) {
-  const spy = order[Math.floor(Math.random() * order.length)]
-  // Exclude the previous round's location so back-to-back rounds don't repeat it.
-  const pool = SPYFAIR_LOCATIONS
-    .map((_, i) => i)
-    .filter(i => i !== excludeLocationIndex)
-  const candidates = pool.length > 0 ? pool : SPYFAIR_LOCATIONS.map((_, i) => i)
-  const locationIndex = candidates[Math.floor(Math.random() * candidates.length)]
-  const loc = SPYFAIR_LOCATIONS[locationIndex]
-  const roleBag = [...loc.roles].sort(() => Math.random() - 0.5)
-  const privates = {}
-  let r = 0
-  for (const p of order) {
-    if (p.playerId === spy.playerId) privates[p.playerId] = { role: 'SPY', location: '' }
-    else { privates[p.playerId] = { role: roleBag[r % roleBag.length] || 'Local', location: loc.name }; r++ }
-  }
+// Deal a fresh round: pick the spy + location (avoiding the room's recently seen
+// locations and the previous round's), hand out private roles, and COMMIT the
+// location. Stores the reveal secret in the dealer's sessionStorage. Returns the
+// round object to write to Firebase — note it contains NO plaintext spy/locationIndex.
+async function dealRound(gameId, order, seen, excludeLocationIndex = null) {
+  const locationIndex = pickLocationIndex(seen, excludeLocationIndex)
+  const { spyId, roles } = assignRoles(order.map(p => p.playerId), locationIndex)
   const { hash, salt } = await commit(String(locationIndex))
-  try { sessionStorage.setItem(locKey(gameId), JSON.stringify({ locationIndex, salt })) } catch { /* ignore */ }
+  try { sessionStorage.setItem(locKey(gameId), JSON.stringify({ locationIndex, salt, hash })) } catch { /* ignore */ }
   return {
     phase: 'reveal',
     // Hidden until the result phase — see the INFO-LEAK MODEL note above.
@@ -87,43 +85,8 @@ async function dealRound(gameId, order, excludeLocationIndex = null) {
     votes: null,
     spyWon: null,
     accused: null,
-    private: privates,
+    private: privatesFromRoles(roles, spyId, locationIndex),
   }
-}
-
-// Seat order is stable: sort players by joinedAt, then playerId as tiebreak.
-function seatOrder(players) {
-  return Object.values(players || {})
-    .filter(Boolean)
-    .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0) || String(a.playerId).localeCompare(String(b.playerId)))
-}
-
-function normalizeVotes(raw) {
-  if (!raw || typeof raw !== 'object') return {}
-  return raw
-}
-
-// Tally votes -> the accused playerId with the most votes (null if tie / none).
-function tallyVotes(votes) {
-  const counts = {}
-  for (const accused of Object.values(votes)) {
-    if (!accused) continue
-    counts[accused] = (counts[accused] || 0) + 1
-  }
-  let top = null
-  let topCount = 0
-  let tied = false
-  for (const [pid, n] of Object.entries(counts)) {
-    if (n > topCount) { top = pid; topCount = n; tied = false }
-    else if (n === topCount) { tied = true }
-  }
-  return { top, topCount, tied }
-}
-
-function fmtClock(secs) {
-  const m = Math.floor(secs / 60)
-  const s = secs % 60
-  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 export default function SpyfairGame({
@@ -135,13 +98,16 @@ export default function SpyfairGame({
   const seats = useMemo(() => seatOrder(players), [players])
   const seatIds = useMemo(() => seats.map(p => p.playerId), [seats])
   const playerCount = seats.length
-  const enoughPlayers = playerCount >= 3
-  // Deterministic host-fallback: the coordinator is the lowest-uid ONLINE seat, not
+  const enoughPlayers = playerCount >= SPYFAIR_MIN_PLAYERS
+  // Deterministic host-fallback: the coordinator is the first ONLINE seat in join order, not
   // the fixed `isHost` — so a host disconnect hands transitions off instead of
   // freezing the match. Every write below that used to be `isHost`-gated is now
   // gated on this, and each write itself re-checks phase inside a transaction so a
   // handover mid-transition stays single-writer/idempotent.
-  const amCoordinator = !!mySeat && !!players?.[mySeat] && isCoordinator(mySeat, seatIds, players)
+  const amCoordinator = isRoomCoordinator(mySeat, players, game.hostUid)
+  // Room timer scale (lobby option): 1 default, 2 relaxed, 0 = no questioning
+  // clock — the coordinator calls the vote by hand.
+  const noTimer = timersOff(game.timerScale)
 
   const myPlayer = players?.[mySeat] || null
   const amSpectator = !myPlayer
@@ -160,32 +126,28 @@ export default function SpyfairGame({
   // `players` with online:false and can never vote, so waiting on every seat would stall
   // the round forever. Degenerate-case guard: never auto-resolve on fewer than 2 total
   // votes, so a lone survivor of a mass presence blip can't decide the round alone —
-  // the host's manual RESOLVE VOTE NOW button covers that case deliberately.
-  const onlineSeats = seats.filter(p => p.online !== false)
-  const allOnlineVoted = onlineSeats.length > 0 &&
-    onlineSeats.every(p => votes[p.playerId]) &&
-    votesCast >= 2
+  // the coordinator's manual RESOLVE VOTE NOW button covers that case deliberately.
+  const everyOnlineVoted = allOnlineVoted(seats, votes)
 
   const scores = game.scores || {}
-  // Co-winners: everyone who has crossed MATCH_WINS, not just the earliest joiner —
-  // a round that pushes two players over the line at once is a shared victory.
-  const winners = seats.filter(p => (scores[p.playerId] || 0) >= MATCH_WINS)
+  // Co-winners: everyone who has crossed the match target, not just the earliest
+  // joiner — a round that pushes two players over the line at once is a shared victory.
+  const winnerIds = matchWinners(seatIds, scores)
+  const winners = seats.filter(p => winnerIds.includes(p.playerId))
 
   const [secretRevealed, setSecretRevealed] = useState(false)
-  const [now, setNow] = useState(() => Date.now())
-  const [busy, setBusy] = useState(false)
+  // Server-corrected clock: the questioning deadline is written by one client and
+  // enforced/displayed by all, so every comparison runs on server time. Ticks
+  // only while the countdown is on screen.
+  const { now } = useServerClock(phase === 'questioning' ? 500 : 0)
+  const [starting, runStart] = useBusy()
+  const [dealing, runDeal] = useBusy()
+  const [advancing, runAdvance] = useBusy()
+  const [resolving, runResolve] = useBusy()
   const [locVerify, setLocVerify] = useState(null) // result-phase: true/false/null(unknown)
-  const [sharing, runShare] = useBusy()
 
   const prevPhase = useRef(phase)
   const resolvedRef = useRef(null)
-
-  // --- Live clock for the questioning countdown ---
-  useEffect(() => {
-    if (phase !== 'questioning') return
-    const id = setInterval(() => setNow(Date.now()), 500)
-    return () => clearInterval(id)
-  }, [phase])
 
   // Reset the peek-to-reveal flap whenever a new round begins.
   useEffect(() => {
@@ -236,95 +198,85 @@ export default function SpyfairGame({
   }, [phase, round.spyWon, amSpy, amSpectator])
 
   // -------------------------------------------------------------------------
-  // Coordinator actions — gated on `amCoordinator` (the lowest-uid ONLINE seat),
+  // Coordinator actions — gated on `amCoordinator` (the first ONLINE seat by join order),
   // not the fixed `isHost`, so a host disconnect hands these off instead of
   // freezing the match. See the `amCoordinator` comment above for the invariant.
   // -------------------------------------------------------------------------
-  async function startRound() {
-    if (!amCoordinator || !enoughPlayers || busy) return
-    setBusy(true)
+  const startRound = () => runStart(async () => {
+    if (!amCoordinator || !enoughPlayers) return
     try {
-      const round = await dealRound(gameId, seatOrder(players))
-      await update(ref(db, `games/${gameId}`), {
-        status: 'playing',
-        winner: null,
-        round,
-        proposal: null,
+      const round = await dealRound(gameId, seatOrder(players), game.seen?.[SPYFAIR_SEEN_KEY])
+      // Transaction, not a blind update: during a coordinator handover two
+      // clients can both tap START — only the first deal lands.
+      const { committed } = await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || current.status === 'playing') return
+        return { ...current, status: 'playing', winner: null, round, proposal: null, lastActivityAt: Date.now() }
       })
-      onStart?.()
-    } catch { /* ignore */ } finally {
-      setBusy(false)
+      if (committed) onStart?.()
+    } catch {
+      toast.error('START FAILED — CHECK CONNECTION')
     }
-  }
+  })
 
-  async function beginQuestioning() {
+  const beginQuestioning = () => runAdvance(async () => {
     if (!amCoordinator) return
+    const questionMs = scaledMs(SPYFAIR_QUESTION_SECONDS * 1000, game.timerScale)
     await runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.phase !== 'reveal') return current
-      return { ...current, phase: 'questioning', timerEnds: Date.now() + QUESTION_SECONDS * 1000 }
-    }).catch(() => {})
-  }
+      // Timers off: no deadline — the coordinator calls the vote by hand.
+      const timerEnds = questionMs == null ? null : getServerNow() + questionMs
+      return { ...current, phase: 'questioning', timerEnds }
+    }).catch(() => toast.error('START FAILED — CHECK CONNECTION'))
+  })
 
-  async function callVote() {
+  const callVote = () => runAdvance(async () => {
     if (!amCoordinator) return
     await runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.phase !== 'questioning') return current
       return { ...current, phase: 'vote' }
-    }).catch(() => {})
-  }
+    }).catch(() => toast.error('CALL FAILED — CHECK CONNECTION'))
+  })
 
   async function resolveRound() {
+    // Reveal the committed location now (result phase). Prefer the dealer's stored
+    // secret so it can be verified against the commitment; if this client isn't the
+    // dealer (coordinator handover) or lost it (reload), fall back to recovering the
+    // index from a non-spy private entry so the result screen still shows the
+    // correct location (verification is then skipped).
+    const secret = readLocSecret(gameId, round.locationCommitment)
     try {
-      const snap = await get(ref(db, `games/${gameId}/round`))
-      const r = snap.val() || {}
-      if (r.phase !== 'vote') return // already resolved by someone else
-      const v = normalizeVotes(r.votes)
-      const { top, tied } = tallyVotes(v)
-      // Spy identity is not a top-level field during the round — recover it from the
-      // private map (the role === 'SPY' entry) and only now publish it at result.
-      const spyId = findSpy(r.private)
-      // Spy is caught only if the group lands a clear majority on the spy.
-      const spyCaught = !tied && top === spyId
-      const spyWon = !spyCaught
+      // One transaction re-reads the round and bails unless it is still in the
+      // vote, so a handover mid-resolve can never score the round twice.
+      await runTransaction(ref(db, `games/${gameId}`), current => {
+        const r = current?.round
+        if (!r || r.phase !== 'vote') return // already resolved by someone else
+        // Spy identity is not a top-level field during the round — recover it from the
+        // private map (the role === 'SPY' entry) and only now publish it at result.
+        const spyId = findSpy(r.private)
+        const { accused, spyWon } = resolveVote(normalizeVotes(r.votes), spyId)
+        const liveIds = seatOrder(current.players).map(p => p.playerId)
+        const liveScores = scoreRound(current.scores, liveIds, spyId, spyWon)
+        const someoneWonMatch = matchWinners(liveIds, liveScores).length > 0
 
-      const liveScores = { ...(game.scores || {}) }
-      if (spyWon) {
-        if (spyId) liveScores[spyId] = (liveScores[spyId] || 0) + 1
-      } else {
-        // Every non-spy player earns a point for the catch.
-        for (const p of seatOrder(players)) {
-          if (p.playerId === spyId) continue
-          liveScores[p.playerId] = (liveScores[p.playerId] || 0) + 1
+        const own = secret && (!secret.hash || secret.hash === r.locationCommitment) ? secret : null
+        const locationIndex = own?.locationIndex ?? recoverLocationIndex(r.private)
+        const locationSalt = own?.salt ?? null
+        const seen = locationIndex == null
+          ? current.seen
+          : { ...(current.seen || {}), [SPYFAIR_SEEN_KEY]: markSeen(normalizeSeen(current.seen?.[SPYFAIR_SEEN_KEY]), [locationIndex]) }
+
+        return {
+          ...current,
+          round: { ...r, phase: 'result', spyWon, accused, spy: spyId, locationIndex, locationSalt },
+          scores: liveScores,
+          seen,
+          lastActivityAt: Date.now(),
+          ...(someoneWonMatch ? { status: 'finished' } : {}),
         }
-      }
-
-      const someoneWonMatch = Object.values(liveScores).some(s => s >= MATCH_WINS)
-
-      // Reveal the committed location now (result phase). Prefer the host's stored
-      // secret so it can be verified against the commitment; if the host lost it (e.g.
-      // reload), fall back to recovering the index from a non-spy private entry so the
-      // result screen still shows the correct location (verification is then skipped).
-      let secret = null
-      try { secret = JSON.parse(sessionStorage.getItem(locKey(gameId)) || 'null') } catch { /* ignore */ }
-      let locationIndex = secret?.locationIndex
-      const locationSalt = secret?.salt ?? null
-      if (locationIndex == null) {
-        const someLoc = Object.values(r.private || {}).map(x => x?.location).find(Boolean)
-        const idx = SPYFAIR_LOCATIONS.findIndex(l => l.name === someLoc)
-        locationIndex = idx >= 0 ? idx : null
-      }
-
-      await update(ref(db, `games/${gameId}`), {
-        'round/phase': 'result',
-        'round/spyWon': spyWon,
-        'round/accused': top || null,
-        'round/spy': spyId,
-        'round/locationIndex': locationIndex,
-        'round/locationSalt': locationSalt,
-        scores: liveScores,
-        ...(someoneWonMatch ? { status: 'finished' } : {}),
       })
-    } catch { /* ignore */ }
+    } catch {
+      toast.error('VOTE FAILED — CHECK CONNECTION')
+    }
   }
 
   // Manual fallback for the coordinator: tally whatever votes are in RIGHT NOW. Covers
@@ -332,23 +284,25 @@ export default function SpyfairGame({
   // never fires. Idempotent vs the auto path: the resolvedRef check-and-set is
   // synchronous (no await before it), and resolveRound itself re-reads the round and
   // bails unless phase is still 'vote' — same guards the auto-resolve effect relies on.
-  async function forceResolveVote() {
+  const forceResolveVote = () => runResolve(async () => {
     if (!amCoordinator || phase !== 'vote' || votesCast === 0) return
     if (resolvedRef.current === 'vote') return
     resolvedRef.current = 'vote'
     await resolveRound()
-  }
+  })
 
-  async function nextRound() {
-    if (!amCoordinator || busy) return
-    setBusy(true)
+  const nextRound = () => runDeal(async () => {
+    if (!amCoordinator) return
     try {
-      const round = await dealRound(gameId, seatOrder(players), game.round?.locationIndex ?? null)
-      await update(ref(db, `games/${gameId}`), { round, proposal: null })
-    } catch { /* ignore */ } finally {
-      setBusy(false)
+      const round = await dealRound(gameId, seatOrder(players), game.seen?.[SPYFAIR_SEEN_KEY], game.round?.locationIndex ?? null)
+      await runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || current.round?.phase !== 'result' || current.status === 'finished') return
+        return { ...current, round, proposal: null, lastActivityAt: Date.now() }
+      })
+    } catch {
+      toast.error('NEXT ROUND FAILED — CHECK CONNECTION')
     }
-  }
+  })
 
   // -------------------------------------------------------------------------
   // Player actions
@@ -356,18 +310,19 @@ export default function SpyfairGame({
   async function castVote(accusedId) {
     if (amSpectator || phase !== 'vote' || myVote) return
     sounds.move(amSpy ? 'O' : 'X')
-    await update(ref(db, `games/${gameId}/round/votes`), { [mySeat]: accusedId }).catch(() => {})
+    await runTransaction(ref(db, `games/${gameId}/round/votes/${mySeat}`), cur => (cur ? undefined : accusedId))
+      .catch(() => toast.error('VOTE FAILED — CHECK CONNECTION'))
   }
 
   // --- Coordinator: once every ONLINE player has voted (min 2 votes), resolve. ---
   // Also fires when the last non-voter drops offline mid-vote, un-sticking the round.
   useEffect(() => {
-    if (!amCoordinator || phase !== 'vote' || !allOnlineVoted) return
+    if (!amCoordinator || phase !== 'vote' || !everyOnlineVoted) return
     if (resolvedRef.current === 'vote') return
     resolvedRef.current = 'vote'
     resolveRound()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amCoordinator, phase, allOnlineVoted])
+  }, [amCoordinator, phase, everyOnlineVoted])
 
   // -------------------------------------------------------------------------
   // Render: waiting lobby (status not playing, no live result to show)
@@ -416,20 +371,20 @@ export default function SpyfairGame({
             {enoughPlayers ? (
               <button
                 onClick={startRound}
-                disabled={busy}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                disabled={starting}
+                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
               >
-                START ROUND
+                {starting ? 'DEALING…' : 'START ROUND'}
               </button>
             ) : (
               <p className="font-pixel text-[10px] text-retro-dim arcade-blink">
-                NEED {3 - playerCount} MORE PLAYER{3 - playerCount === 1 ? '' : 'S'}
+                NEED {SPYFAIR_MIN_PLAYERS - playerCount} MORE PLAYER{SPYFAIR_MIN_PLAYERS - playerCount === 1 ? '' : 'S'}
               </p>
             )}
           </div>
         ) : (
           <p className="text-center font-pixel text-[10px] text-retro-dim arcade-blink">
-            {enoughPlayers ? 'WAITING TO START…' : `WAITING FOR PLAYERS (${playerCount}/3)`}
+            {enoughPlayers ? 'WAITING TO START…' : `WAITING FOR PLAYERS (${playerCount}/${SPYFAIR_MIN_PLAYERS})`}
           </p>
         )}
 
@@ -449,44 +404,34 @@ export default function SpyfairGame({
       : winners.length > 1
         ? `${winnerNames.join(' & ')} WIN`
         : `${winnerNames[0]} WINS`
+    const ranked = [...seats].sort((a, b) => (scores[b.playerId] || 0) - (scores[a.playerId] || 0))
     return (
-      <div className="space-y-5 text-center">
-        <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
-        <p className={cn('font-pixel text-base', iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
-          {headline}
-        </p>
-        {winners.length > 1 && (
-          <p className="font-pixel text-[9px] text-retro-dim">SHARED VICTORY</p>
-        )}
-        <ScoreBoard seats={seats} scores={scores} mySeat={mySeat} spyId={round.spy} />
-        {!amSpectator && (
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {!proposal && onNewMatch && (
-              <button
-                onClick={onNewMatch}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
-              >
-                NEW MATCH
-              </button>
-            )}
-            <button
-              onClick={() => runShare(async () => {
-                const ok = await shareResult({
-                  gameLabel: 'SPYFAIR',
-                  headline,
-                  sub: 'Spyfair · Game Night',
-                  accentVar: '--c-cta',
-                  url: window.location.href,
-                })
-                if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
-              })}
-              disabled={sharing}
-              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
-            >
-              {sharing ? 'BUILDING…' : 'SHARE'}
-            </button>
-          </div>
-        )}
+      <div className="space-y-5">
+        <RoundEndPanel
+          caption="MATCH OVER"
+          headline={headline}
+          sub={winners.length > 1 && (
+            <p className="font-pixel text-[9px] text-retro-dim">SHARED VICTORY</p>
+          )}
+          scores={{
+            title: 'SCORES',
+            rows: ranked.map(p => ({
+              id: p.playerId,
+              name: p.name || 'PLAYER',
+              score: scores[p.playerId] || 0,
+              you: p.playerId === mySeat,
+              marker: p.playerId === round.spy ? '🕵' : null,
+              muted: p.online === false,
+              win: winnerIds.includes(p.playerId),
+            })),
+          }}
+          actions={!amSpectator ? [
+            !proposal && onNewMatch && {
+              key: 'new', label: 'NEW MATCH', busyLabel: 'STARTING…', onClick: onNewMatch,
+            },
+          ] : []}
+          share={!amSpectator ? { gameLabel: 'SPYFAIR', headline, sub: 'Spyfair · Game Night' } : null}
+        />
         {!proposal && onSwitchGame && <GameSwitcher currentType="spyfair" onSwitch={onSwitchGame} />}
       </div>
     )
@@ -502,7 +447,7 @@ export default function SpyfairGame({
       {/* phase ticker */}
       <div className="flex items-center justify-center gap-2 font-pixel text-[8px] tracking-widest">
         {['reveal', 'questioning', 'vote', 'result'].map(p => (
-          <span key={p} className={cn(p === phase ? 'text-retro-cta text-glow-cta' : 'text-retro-dim/50')}>
+          <span key={p} className={cn(p === phase ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
             {p === 'questioning' ? 'ASK' : p.toUpperCase()}
           </span>
         ))}
@@ -548,9 +493,10 @@ export default function SpyfairGame({
             <div className="text-center">
               <button
                 onClick={beginQuestioning}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95"
+                disabled={advancing}
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
               >
-                START QUESTIONING
+                {advancing ? 'STARTING…' : 'START QUESTIONING'}
               </button>
             </div>
           ) : (
@@ -566,14 +512,19 @@ export default function SpyfairGame({
         <div className="space-y-4">
           <div className="bg-retro-card border border-retro-border rounded p-5 text-center space-y-2">
             <p className="font-pixel text-[8px] text-retro-dim tracking-widest">QUESTIONING</p>
-            <p className={cn(
-              'font-pixel text-2xl tracking-widest',
-              secsLeft <= 30 ? 'text-retro-p2 text-glow-p2 arcade-blink' : 'text-retro-cta text-glow-cta',
-            )}>
-              {fmtClock(secsLeft)}
-            </p>
+            {round.timerEnds ? (
+              <p className={cn(
+                'font-pixel text-2xl tracking-widest',
+                secsLeft <= 30 ? 'text-retro-p2 text-glow-p2 arcade-blink' : 'text-retro-cta text-glow-cta',
+              )}>
+                {formatClockSecs(secsLeft)}
+              </p>
+            ) : (
+              <p className="font-pixel text-sm tracking-widest text-retro-cta text-glow-cta">NO TIMER</p>
+            )}
             <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
               Ask each other questions out loud. Spot the spy.
+              {noTimer && !round.timerEnds && ' Timers are off — the vote starts when it is called.'}
             </p>
           </div>
 
@@ -594,9 +545,10 @@ export default function SpyfairGame({
             <div className="text-center">
               <button
                 onClick={callVote}
-                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95"
+                disabled={advancing}
+                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
               >
-                CALL THE VOTE NOW
+                {advancing ? 'CALLING…' : 'CALL THE VOTE NOW'}
               </button>
             </div>
           )}
@@ -648,9 +600,10 @@ export default function SpyfairGame({
             <div className="text-center space-y-1.5">
               <button
                 onClick={forceResolveVote}
-                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95"
+                disabled={resolving}
+                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
               >
-                RESOLVE VOTE NOW
+                {resolving ? 'RESOLVING…' : 'RESOLVE VOTE NOW'}
               </button>
               <p className="font-mono text-[9px] text-retro-dim">Tallies the votes cast so far</p>
             </div>
@@ -700,10 +653,10 @@ export default function SpyfairGame({
                 {amCoordinator && !proposal && (
                   <button
                     onClick={nextRound}
-                    disabled={busy}
+                    disabled={dealing}
                     className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-40"
                   >
-                    NEXT ROUND
+                    {dealing ? 'DEALING…' : 'NEXT ROUND'}
                   </button>
                 )}
                 {!amCoordinator && !proposal && (

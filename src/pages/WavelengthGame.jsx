@@ -1,33 +1,41 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ref, update, onValue, runTransaction } from 'firebase/database'
+import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
   getSpectrumPair,
-  nextSpectrumIndex,
   randomTarget,
   clampGuess,
-  scoreGuess,
   normalizeGuesses,
+  normalizeUsedSpectrums,
   seatOrder,
   onlineGuessers,
-  nextClueGiver,
+  roundDeltas,
+  advanceAfterReveal,
+  skipRound,
+  beginMatch,
+  WAVELENGTH_MIN_PLAYERS,
+  WAVELENGTH_CLUE_MS,
+  WAVELENGTH_GUESS_MS,
 } from '../lib/wavelengthLogic'
+import { isRoomCoordinator } from '../lib/coordinator'
+import { scaledMs, timersOff } from '../lib/timerScale'
+import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import GameSwitcher from '../components/GameSwitcher'
+import RoundEndPanel from '../components/RoundEndPanel'
 import PixelDots from '../components/loading/PixelDots'
 import { sounds } from '../lib/sounds'
-import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import useBusy from '@/hooks/useBusy'
 
-const MIN_PLAYERS = 3
-const WIN_SCORE = 200 // first to this many points clinches the match
-// An AFK clue-giver or guesser would otherwise stall the round forever — these
-// back per-phase deadlines (anchored via `round.phaseStartedAt` + the
-// server-time offset, same pattern as TriviaGame's question clock).
-const CLUE_DEADLINE_MS = 90000
-const GUESS_DEADLINE_MS = 60000
+// Rules (scoring, win target, spectrum rotation + room seen history) live in
+// src/lib/wavelengthLogic.js, shared with WavelengthDemo.jsx. An AFK clue-giver
+// or guesser would otherwise stall the round forever — the per-phase deadlines
+// (WAVELENGTH_CLUE_MS / WAVELENGTH_GUESS_MS, scaled by the room's timerScale)
+// are anchored via `round.phaseStartedAt` + the server-time offset, same
+// pattern as TriviaGame's question clock. Timer scale 0 turns them off; the
+// coordinator / clue-giver then advance by hand.
 
 // sessionStorage key for the clue-giver's hidden {target, salt}
 const targetKey = (gameId, spectrumIndex) => `wavelength-target-${gameId}-${spectrumIndex}`
@@ -43,7 +51,7 @@ function normalizeRound(raw) {
     guesses: normalizeGuesses(raw.guesses),
     reveal: raw.reveal ?? null,
     phaseStartedAt: raw.phaseStartedAt ?? null,
-    usedSpectrums: Array.isArray(raw.usedSpectrums) ? raw.usedSpectrums : [],
+    usedSpectrums: normalizeUsedSpectrums(raw.usedSpectrums),
     cheatDetected: !!raw.cheatDetected,
   }
 }
@@ -137,12 +145,19 @@ function Scoreboard({ players, scores, mySeat, clueGiver, highlight }) {
 }
 
 export default function WavelengthGame({
-  gameId, game, mySeat, players, isHost, onStart,
+  gameId, game, mySeat, players,
   onSwitchGame, onNewMatch, proposal,
 }) {
   const order = useMemo(() => seatOrder(players), [players])
   const playerCount = order.length
   const round = normalizeRound(game.round)
+  const amSeated = !!mySeat && !!players?.[mySeat]
+  // Online-aware host: START (and the timers-off manual skip) belong to the
+  // first online seat in join order, so a creator who closed the tab can't freeze the lobby.
+  const amCoordinator = isRoomCoordinator(mySeat, players, game.hostUid)
+  const clueMs = scaledMs(WAVELENGTH_CLUE_MS, game.timerScale)
+  const guessMs = scaledMs(WAVELENGTH_GUESS_MS, game.timerScale)
+  const noTimer = timersOff(game.timerScale)
 
   const isClueGiver = round?.clueGiver === mySeat
   const myGuess = round?.guesses?.[mySeat]
@@ -154,35 +169,26 @@ export default function WavelengthGame({
   const [dialValue, setDialValue] = useState(50)
   const [submittingGuess, setSubmittingGuess] = useState(false)
   const [lastDelta, setLastDelta] = useState(null) // {playerId: pointsGained} after a reveal
-  const [sharing, runShare] = useBusy()
-  const [clockOffset, setClockOffset] = useState(0)
-  const [nowTs, setNowTs] = useState(() => Date.now())
+  const [starting, runStart] = useBusy()
+  const [skipping, runSkip] = useBusy()
+  const [revealing, runReveal] = useBusy()
 
   const revealResolved = useRef(null)
   const prevPhase = useRef(round?.phase)
   const prevSpectrum = useRef(round?.spectrumIndex)
 
-  // Corrected clock — every deadline comparison below runs through this offset.
-  useEffect(() => {
-    const offRef = ref(db, '.info/serverTimeOffset')
-    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
-    return () => unsub()
-  }, [])
-  const serverNow = nowTs + clockOffset
-
-  // Ticker drives the clue/guess deadline countdowns.
-  useEffect(() => {
-    if (round?.phase !== 'clue' && round?.phase !== 'guessing') return
-    const id = setInterval(() => setNowTs(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [round?.phase])
+  // Server-corrected clock — every deadline comparison below runs on it. Ticks
+  // once a second while a clue/guess deadline can expire.
+  const timedPhase = !noTimer && (round?.phase === 'clue' || round?.phase === 'guessing')
+  const { now: serverNow } = useServerClock(timedPhase ? 1000 : 0)
 
   // Anchor the phase-start time so every client agrees on when the clock
-  // began (first client to notice writes it).
+  // began (first client to notice writes it). Timers off: no clock to anchor.
   useEffect(() => {
+    if (noTimer) return
     if ((round?.phase !== 'clue' && round?.phase !== 'guessing') || round?.phaseStartedAt) return
-    update(ref(db, `games/${gameId}/round`), { phaseStartedAt: Date.now() + clockOffset }).catch(() => {})
-  }, [round?.phase, round?.phaseStartedAt, gameId, clockOffset])
+    update(ref(db, `games/${gameId}/round`), { phaseStartedAt: getServerNow() }).catch(() => {})
+  }, [round?.phase, round?.phaseStartedAt, gameId, noTimer])
 
   // Reset local input when the round advances to a new spectrum.
   useEffect(() => {
@@ -257,8 +263,8 @@ export default function WavelengthGame({
   // never auto-reveal into an empty room.
   const guesserIds = order.filter(id => id !== round?.clueGiver)
   const requiredGuesserIds = onlineGuessers(players, round?.clueGiver)
-  const guessDeadlineExpired = round?.phase === 'guessing' && !!round.phaseStartedAt &&
-    (serverNow - round.phaseStartedAt >= GUESS_DEADLINE_MS)
+  const guessDeadlineExpired = round?.phase === 'guessing' && !!round.phaseStartedAt && guessMs != null &&
+    (serverNow - round.phaseStartedAt >= guessMs)
   // Past the deadline, stop waiting on stragglers — their guess (if it never
   // lands) simply isn't counted when scores are computed.
   const allGuessed =
@@ -266,23 +272,37 @@ export default function WavelengthGame({
     requiredGuesserIds.length > 0 &&
     (requiredGuesserIds.every(id => round.guesses[id] != null) || guessDeadlineExpired)
 
-  const clueDeadlineExpired = round?.phase === 'clue' && !!round.phaseStartedAt &&
-    (serverNow - round.phaseStartedAt >= CLUE_DEADLINE_MS)
+  const clueDeadlineExpired = round?.phase === 'clue' && !!round.phaseStartedAt && clueMs != null &&
+    (serverNow - round.phaseStartedAt >= clueMs)
 
-  // --- Clue-giver: once everyone has guessed (or the deadline lapsed), reveal
-  // target + salt ---
-  useEffect(() => {
-    if (!isClueGiver || !allGuessed) return
-    if (round.phase !== 'guessing') return
-    const stored = sessionStorage.getItem(targetKey(gameId, round.spectrumIndex))
+  // --- Clue-giver: publish target + salt (guessing -> reveal). Guarded on the
+  // phase and spectrum inside a transaction so a repeat call is a no-op. ---
+  const revealTarget = async () => {
+    const spectrumIndex = round?.spectrumIndex
+    const stored = sessionStorage.getItem(targetKey(gameId, spectrumIndex))
     if (!stored) return
     let parsed
     try { parsed = JSON.parse(stored) } catch { return }
-    update(ref(db, `games/${gameId}/round`), {
-      phase: 'reveal',
-      reveal: { target: parsed.target, salt: parsed.salt },
-    }).catch(() => {})
+    await runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.phase !== 'guessing' || current.spectrumIndex !== spectrumIndex) return
+      return { ...current, phase: 'reveal', reveal: { target: parsed.target, salt: parsed.salt } }
+    })
+  }
+
+  // --- Clue-giver: once everyone has guessed (or the deadline lapsed), reveal ---
+  useEffect(() => {
+    if (!isClueGiver || !allGuessed) return
+    if (round.phase !== 'guessing') return
+    revealTarget().catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClueGiver, allGuessed, round?.phase, round?.spectrumIndex, gameId])
+
+  // --- Seated players: skip the round without scoring (clue passes on, fresh
+  // spectrum), guarded inside the transaction by `stillStuck`. ---
+  const skipIf = (stillStuck) => runTransaction(ref(db, `games/${gameId}`), current => {
+    if (!current?.round || !stillStuck(current)) return
+    return skipRound(current)
+  })
 
   // --- Anyone: an AFK clue-giver who never submits a clue would otherwise
   // stall the round forever — auto-skip to the next seat once the clue
@@ -290,28 +310,15 @@ export default function WavelengthGame({
   // transaction), guarded by a fresh re-check of the deadline inside the
   // transaction so a race between clients can't double-skip.
   useEffect(() => {
-    if (!clueDeadlineExpired) return
-    runTransaction(ref(db, `games/${gameId}`), current => {
-      const r = current?.round
-      if (!r || r.phase !== 'clue' || !r.phaseStartedAt) return
-      if (Date.now() + clockOffset - r.phaseStartedAt < CLUE_DEADLINE_MS) return
-      const usedSpectrums = Array.isArray(r.usedSpectrums) ? r.usedSpectrums : []
-      return {
-        ...current,
-        round: {
-          clueGiver: nextClueGiver(current.players, r.clueGiver),
-          phase: 'clue',
-          spectrumIndex: nextSpectrumIndex(usedSpectrums, r.spectrumIndex),
-          usedSpectrums: [...usedSpectrums, r.spectrumIndex],
-          clue: '',
-          commitment: null,
-          guesses: null,
-          reveal: null,
-          phaseStartedAt: null,
-        },
-      }
+    if (!clueDeadlineExpired || !amSeated) return
+    skipIf(current => {
+      const r = current.round
+      const ms = scaledMs(WAVELENGTH_CLUE_MS, current.timerScale)
+      return r.phase === 'clue' && !!r.phaseStartedAt && ms != null &&
+        getServerNow() - r.phaseStartedAt >= ms
     }).catch(() => {})
-  }, [clueDeadlineExpired, gameId, clockOffset])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clueDeadlineExpired, amSeated, gameId])
 
   // --- Everyone: on reveal, verify the commitment then score each guesser ---
   useEffect(() => {
@@ -329,11 +336,7 @@ export default function WavelengthGame({
         update(ref(db, `games/${gameId}/round`), { cheatDetected: true }).catch(() => {})
         return
       }
-      const delta = {}
-      for (const id of guesserIds) {
-        const g = round.guesses[id]
-        if (g != null) delta[id] = scoreGuess(g, target)
-      }
+      const delta = roundDeltas(round.guesses, guesserIds, target)
       setLastDelta(delta)
       const mine = delta[mySeat]
       if (mine != null) {
@@ -349,46 +352,9 @@ export default function WavelengthGame({
   const handleNextRound = async () => {
     if (round?.phase !== 'reveal' || !round.reveal) return
     try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current) return current
-        const r = current.round
-        if (!r || r.phase !== 'reveal' || !r.reveal) return // already advanced
-        const target = r.reveal.target
-        const guesses = normalizeGuesses(r.guesses)
-        const scores = { ...(current.scores || {}) }
-        const livePlayers = current.players || {}
-        const liveOrder = seatOrder(livePlayers)
-        // A cheating clue-giver (commitment didn't match the revealed target)
-        // voids the round — nobody scores, but play still moves on.
-        if (!r.cheatDetected) {
-          for (const id of liveOrder) {
-            if (id === r.clueGiver) continue
-            const g = guesses[id]
-            if (g != null) scores[id] = (scores[id] || 0) + scoreGuess(g, target)
-          }
-        }
-        const clinch = !r.cheatDetected && liveOrder.find(id => (scores[id] || 0) >= WIN_SCORE)
-        if (clinch) {
-          return { ...current, scores, status: 'finished', winner: clinch, proposal: null }
-        }
-        const usedSpectrums = Array.isArray(r.usedSpectrums) ? r.usedSpectrums : []
-        return {
-          ...current,
-          scores,
-          proposal: null,
-          round: {
-            clueGiver: nextClueGiver(livePlayers, r.clueGiver),
-            phase: 'clue',
-            spectrumIndex: nextSpectrumIndex(usedSpectrums, r.spectrumIndex),
-            usedSpectrums: [...usedSpectrums, r.spectrumIndex],
-            clue: '',
-            commitment: null,
-            guesses: null,
-            reveal: null,
-            phaseStartedAt: null,
-          },
-        }
-      })
+      // advanceAfterReveal returns null once someone else already advanced —
+      // returning undefined aborts the transaction without a write.
+      await runTransaction(ref(db, `games/${gameId}`), current => advanceAfterReveal(current) ?? undefined)
     } catch {
       toast.error('NEXT ROUND FAILED — CHECK CONNECTION')
     }
@@ -397,30 +363,52 @@ export default function WavelengthGame({
   // --- Clue-giver: hidden target lost (new tab wiped sessionStorage), so the
   // reveal can never fire — restart the round with no scoring, rotating the
   // clue to the next seat (same write as the offline skip hatch). ---
-  const handleRestartLostRound = async () => {
+  const handleRestartLostRound = () => runSkip(async () => {
     if (!isClueGiver) return
+    const stuckGiver = round.clueGiver
     try {
-      const usedSpectrums = round.usedSpectrums || []
-      await update(ref(db, `games/${gameId}/round`), {
-        clueGiver: nextClueGiver(players, round.clueGiver),
-        phase: 'clue',
-        spectrumIndex: nextSpectrumIndex(usedSpectrums, round.spectrumIndex),
-        usedSpectrums: [...usedSpectrums, round.spectrumIndex],
-        clue: '',
-        commitment: null,
-        guesses: null,
-        reveal: null,
-        phaseStartedAt: null,
-        cheatDetected: null,
-      })
+      await skipIf(current => current.round.phase === 'guessing' && current.round.clueGiver === stuckGiver)
     } catch { toast.error('RESTART FAILED — CHECK CONNECTION') }
-  }
+  })
+
+  // --- Seated players: the clue-giver dropped during clue or guessing. ---
+  const handleSkipOfflineClueGiver = () => runSkip(async () => {
+    const stuckGiver = round.clueGiver
+    try {
+      await skipIf(current => current.round.phase !== 'reveal' && current.round.clueGiver === stuckGiver &&
+        current.players?.[stuckGiver]?.online === false)
+    } catch { toast.error('SKIP FAILED — CHECK CONNECTION') }
+  })
+
+  // --- Timers off: the coordinator passes a stalled clue on by hand. ---
+  const handleSkipClue = () => runSkip(async () => {
+    const stuckGiver = round.clueGiver
+    try {
+      await skipIf(current => current.round.phase === 'clue' && current.round.clueGiver === stuckGiver)
+    } catch { toast.error('SKIP FAILED — CHECK CONNECTION') }
+  })
+
+  // --- Timers off: the clue-giver reveals once at least one guess is in. ---
+  const handleRevealNow = () => runReveal(async () => {
+    try { await revealTarget() } catch { toast.error('REVEAL FAILED — CHECK CONNECTION') }
+  })
+
+  // --- Coordinator: lobby -> first round. The page deals the round itself
+  // (spectrum from the room's seen history) in one transaction, so two clients
+  // that both think they're the coordinator during a handover start it once. ---
+  const handleStart = () => runStart(async () => {
+    try {
+      await runTransaction(ref(db, `games/${gameId}`), current => beginMatch(current, Date.now()) ?? undefined)
+    } catch { toast.error('START FAILED — CHECK CONNECTION') }
+  })
 
   // -------------------------------------------------------------------------
   // Waiting / lobby — not enough players, or host hasn't started.
   // -------------------------------------------------------------------------
-  if (game.status !== 'playing') {
-    const enough = playerCount >= MIN_PLAYERS
+  // (A finished match falls through to the MATCH OVER screen below — it used to
+  // land here and offer START GAME on top of the old scores.)
+  if (game.status !== 'playing' && game.status !== 'finished') {
+    const enough = playerCount >= WAVELENGTH_MIN_PLAYERS
     return (
       <div className="space-y-4 text-center">
         <p className="font-pixel text-sm text-retro-cta text-glow-cta">WAVELENGTH</p>
@@ -448,21 +436,21 @@ export default function WavelengthGame({
 
         {!enough && (
           <p className="font-pixel text-[9px] text-retro-p2 arcade-blink leading-relaxed">
-            NEED {MIN_PLAYERS - playerCount} MORE{'\n'}PLAYER{MIN_PLAYERS - playerCount === 1 ? '' : 'S'} TO START
+            NEED {WAVELENGTH_MIN_PLAYERS - playerCount} MORE{'\n'}PLAYER{WAVELENGTH_MIN_PLAYERS - playerCount === 1 ? '' : 'S'} TO START
           </p>
         )}
 
-        {isHost ? (
+        {amCoordinator ? (
           <button
-            onClick={onStart}
-            disabled={!enough}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-default"
+            onClick={handleStart}
+            disabled={!enough || starting}
+            className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-default"
           >
-            START GAME
+            {starting ? 'STARTING…' : 'START GAME'}
           </button>
         ) : (
           <p className="font-pixel text-[9px] text-retro-dim arcade-blink">
-            WAITING FOR HOST TO START…
+            WAITING TO START…
           </p>
         )}
 
@@ -478,39 +466,29 @@ export default function WavelengthGame({
     const winnerId = game.winner
     const iWon = winnerId === mySeat
     const winnerName = (players[winnerId]?.name || winnerId || '???').toUpperCase()
+    const headline = iWon ? 'YOU WIN!' : `${winnerName} WINS`
+    const ranked = order
+      .map(id => ({ id, name: (players[id]?.name || '???').toUpperCase(), score: game.scores?.[id] || 0 }))
+      .sort((a, b) => b.score - a.score)
     return (
-      <div className="space-y-4 text-center">
-        <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
-        <p className={cn('font-pixel text-base', iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
-          {iWon ? 'YOU WIN!' : `${winnerName} WINS`}
-        </p>
-        <Scoreboard players={players} scores={game.scores} mySeat={mySeat} clueGiver={null} />
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {!proposal && onNewMatch && (
-            <button
-              onClick={onNewMatch}
-              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
-            >
-              NEW MATCH
-            </button>
-          )}
-          <button
-            onClick={() => runShare(async () => {
-              const ok = await shareResult({
-                gameLabel: 'WAVELENGTH',
-                headline: iWon ? 'YOU WIN!' : `${winnerName} WINS`,
-                sub: 'Wavelength · Game Night',
-                accentVar: '--c-cta',
-                url: window.location.href,
-              })
-              if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
-            })}
-            disabled={sharing}
-            className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
-          >
-            {sharing ? 'BUILDING…' : 'SHARE'}
-          </button>
-        </div>
+      <div className="space-y-4">
+        <RoundEndPanel
+          caption="MATCH OVER"
+          headline={headline}
+          scores={{
+            title: 'FINAL SCORES',
+            rows: ranked.map(p => ({
+              id: p.id, name: p.name, score: p.score, you: p.id === mySeat,
+              muted: players[p.id]?.online === false, win: p.id === winnerId,
+            })),
+          }}
+          actions={amSeated ? [
+            !proposal && onNewMatch && {
+              key: 'new', label: 'NEW MATCH', busyLabel: 'STARTING…', onClick: onNewMatch,
+            },
+          ] : []}
+          share={amSeated ? { gameLabel: 'WAVELENGTH', headline, sub: 'Wavelength · Game Night' } : null}
+        />
         {!proposal && onSwitchGame && <GameSwitcher currentType="wavelength" onSwitch={onSwitchGame} />}
       </div>
     )
@@ -697,41 +675,53 @@ export default function WavelengthGame({
           </p>
           <button
             onClick={handleRestartLostRound}
-            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+            disabled={skipping}
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
           >
-            RESTART ROUND
+            {skipping ? 'RESTARTING…' : 'RESTART ROUND'}
           </button>
         </div>
       )}
 
       {/* Offline / abandoned clue-giver escape hatch.
           If the clue-giver dropped during clue or guessing, anyone can skip them. */}
-      {!isReveal && round.clueGiver && players[round.clueGiver] && !players[round.clueGiver].online && (
+      {amSeated && !isReveal && round.clueGiver && players[round.clueGiver] && players[round.clueGiver].online === false && (
         <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3">
           <p className="font-pixel text-[9px] text-retro-p2">
             CLUE-GIVER IS OFFLINE
           </p>
           <button
-            onClick={async () => {
-              try {
-                const usedSpectrums = round.usedSpectrums || []
-                await update(ref(db, `games/${gameId}/round`), {
-                  clueGiver: nextClueGiver(players, round.clueGiver),
-                  phase: 'clue',
-                  spectrumIndex: nextSpectrumIndex(usedSpectrums, round.spectrumIndex),
-                  usedSpectrums: [...usedSpectrums, round.spectrumIndex],
-                  clue: '',
-                  commitment: null,
-                  guesses: null,
-                  reveal: null,
-                  phaseStartedAt: null,
-                  cheatDetected: null,
-                })
-              } catch { toast.error('SKIP FAILED — CHECK CONNECTION') }
-            }}
-            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95"
+            onClick={handleSkipOfflineClueGiver}
+            disabled={skipping}
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
           >
-            SKIP CLUE-GIVER
+            {skipping ? 'SKIPPING…' : 'SKIP CLUE-GIVER'}
+          </button>
+        </div>
+      )}
+
+      {/* Timers off (room timer scale 0): no deadline will move a stalled
+          round on, so the coordinator / clue-giver get manual controls. */}
+      {noTimer && amCoordinator && !isClueGiver && round.phase === 'clue' && players[round.clueGiver]?.online !== false && (
+        <div className="text-center">
+          <button
+            onClick={handleSkipClue}
+            disabled={skipping}
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {skipping ? 'SKIPPING…' : 'SKIP THIS CLUE'}
+          </button>
+        </div>
+      )}
+      {noTimer && isClueGiver && round.phase === 'guessing' && !secretLost &&
+        guesserIds.some(id => round.guesses[id] != null) && !allGuessed && (
+        <div className="text-center">
+          <button
+            onClick={handleRevealNow}
+            disabled={revealing}
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {revealing ? 'REVEALING…' : 'REVEAL NOW'}
           </button>
         </div>
       )}

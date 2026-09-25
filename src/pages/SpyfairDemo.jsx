@@ -8,25 +8,32 @@ import { SPYFAIR_LOCATIONS } from '../lib/decks/spyfair'
 import { SPY_REPLY_STYLES } from '../lib/decks/spyfairChat'
 import {
   generateBotRoster,
-  pickSpyfairLocation,
-  assignSpyfairRoles,
   generateBotStatement,
   generateQuestionPrompt,
   pickBotSpyVote,
   renderSpyReply,
-  tallySpyfairVotes,
 } from '../lib/partyBots'
+import {
+  assignRoles,
+  matchWinners,
+  pickLocationIndex,
+  resolveVote,
+  scoreRound,
+} from '../lib/spyfairLogic'
+import { markSeen } from '../lib/seenHistory'
 import { cn } from '@/lib/utils'
 
 // Solo SPYFAIR: 1 human + N bots, fully local — no Firebase, no commit-reveal (the
 // deck ships in the bundle either way, so there is no info-leak surface to defend
 // here). Mirrors SpyfairGame.jsx's phase machine and round scoring but replaces
 // every other-seat action (questioning chatter, votes) with partyBots.js decisions.
+// Dealing, the vote tally, round scoring and the match target come from
+// src/lib/spyfairLogic.js — the same module the live room uses — so the rules
+// can't drift. Only the pacing differs: a shorter questioning clock, because the
+// bots chatter on a timer instead of a real conversation.
 
 const HUMAN_ID = 'human'
 const DEFAULT_BOT_COUNT = 3
-// Kept in sync with SpyfairGame.jsx — first to this many round-points wins the match.
-const MATCH_WINS = 3
 const QUESTION_MS = 75 * 1000
 
 function readOwnIdentity() {
@@ -51,19 +58,13 @@ function allParticipantIds(state) {
   return [...state.roster.map(b => b.id), HUMAN_ID]
 }
 
-// Round scoring — mirrors resolveRound() in SpyfairGame.jsx: spy caught (strict
-// plurality landed on the spy, tie => NOT caught) means every non-spy scores;
-// otherwise the spy alone scores.
+// Round scoring — the shared spyfairLogic rules the live room's resolveRound()
+// uses: spy caught (strict plurality on the spy, tie => NOT caught) means every
+// non-spy scores; otherwise the spy alone scores.
 function finalizeRound(state, spyWon) {
-  const scores = { ...state.scores }
-  if (spyWon) {
-    scores[state.spyId] = (scores[state.spyId] || 0) + 1
-  } else {
-    for (const id of allParticipantIds(state)) {
-      if (id !== state.spyId) scores[id] = (scores[id] || 0) + 1
-    }
-  }
-  const matchWinnerId = allParticipantIds(state).find(id => (scores[id] || 0) >= MATCH_WINS) || null
+  const ids = allParticipantIds(state)
+  const scores = scoreRound(state.scores, ids, state.spyId, spyWon)
+  const matchWinnerId = matchWinners(ids, scores)[0] || null
   return { scores, matchWinnerId }
 }
 
@@ -97,6 +98,9 @@ function makeInitialState() {
     round: 1,
     prevLocationIndex: -1,
     locationIndex: null,
+    // Locations dealt this session (seenHistory map), kept across PLAY AGAIN the
+    // way the live room keeps `seen/spyfair` across matches.
+    seen: {},
     spyId: null,
     roles: {},
     scores: {},
@@ -130,6 +134,7 @@ function reducer(state, action) {
         scores: {},
         matchWinnerId: null,
         prevLocationIndex: action.locationIndex,
+        seen: markSeen(state.seen, [action.locationIndex]),
       }
 
     case 'PEEK_SECRET':
@@ -201,16 +206,14 @@ function reducer(state, action) {
       const votes = { ...state.votes, [action.voterId]: action.accusedId }
       const total = state.roster.length + 1
       if (Object.keys(votes).length < total) return { ...state, votes }
-      const { top, tied } = tallySpyfairVotes(votes)
-      const spyCaught = !tied && top === state.spyId
-      const spyWon = !spyCaught
+      const { accused, spyWon } = resolveVote(votes, state.spyId)
       const { scores, matchWinnerId } = finalizeRound(state, spyWon)
       return {
         ...state,
         votes,
         phase: matchWinnerId ? 'matchover' : 'result',
         resultOutcome: spyWon ? 'escaped' : 'caught',
-        accusedId: top,
+        accusedId: accused,
         scores,
         matchWinnerId,
       }
@@ -218,7 +221,13 @@ function reducer(state, action) {
 
     case 'NEXT_ROUND':
       return state.phase === 'result'
-        ? { ...state, ...dealRoundFields(action), round: state.round + 1, prevLocationIndex: action.locationIndex }
+        ? {
+          ...state,
+          ...dealRoundFields(action),
+          round: state.round + 1,
+          prevLocationIndex: action.locationIndex,
+          seen: markSeen(state.seen, [action.locationIndex]),
+        }
         : state
 
     case 'PLAY_AGAIN':
@@ -379,8 +388,8 @@ export default function SpyfairDemo() {
 
   const handleStart = () => {
     const allIds = [...state.roster.map(b => b.id), HUMAN_ID]
-    const locationIndex = pickSpyfairLocation(state.prevLocationIndex)
-    const { spyId, roles } = assignSpyfairRoles(allIds, locationIndex)
+    const locationIndex = pickLocationIndex(state.seen, state.prevLocationIndex)
+    const { spyId, roles } = assignRoles(allIds, locationIndex)
     dispatch({ type: 'START_MATCH', locationIndex, spyId, roles })
   }
 
@@ -415,8 +424,8 @@ export default function SpyfairDemo() {
 
   const handleNextRound = () => {
     const allIds = [...state.roster.map(b => b.id), HUMAN_ID]
-    const locationIndex = pickSpyfairLocation(state.locationIndex)
-    const { spyId, roles } = assignSpyfairRoles(allIds, locationIndex)
+    const locationIndex = pickLocationIndex(state.seen, state.locationIndex)
+    const { spyId, roles } = assignRoles(allIds, locationIndex)
     dispatch({ type: 'NEXT_ROUND', locationIndex, spyId, roles })
   }
 
@@ -446,7 +455,7 @@ export default function SpyfairDemo() {
       {state.phase !== 'setup' && state.phase !== 'matchover' && (
         <div className="flex items-center justify-center gap-2 font-pixel text-[8px] tracking-widest">
           {['reveal', 'questioning', 'vote', 'result'].map(p => (
-            <span key={p} className={cn(p === state.phase ? 'text-retro-cta text-glow-cta' : 'text-retro-dim/50')}>
+            <span key={p} className={cn(p === state.phase ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
               {p === 'questioning' ? 'ASK' : p.toUpperCase()}
             </span>
           ))}

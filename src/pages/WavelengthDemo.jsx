@@ -5,13 +5,16 @@ import PixelDots from '../components/loading/PixelDots'
 import { generateBotRoster, pickBotClue, pickBotGuess } from '../lib/partyBots'
 import {
   getSpectrumPair,
-  randomSpectrumIndex,
+  nextSpectrumIndex,
   randomTarget,
   clampGuess,
-  scoreGuess,
   seatOrder,
   nextClueGiver,
+  roundDeltas,
+  addScores,
+  findClincher,
 } from '../lib/wavelengthLogic'
+import { markSeen } from '../lib/seenHistory'
 import { sounds } from '../lib/sounds'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
@@ -20,11 +23,13 @@ import { cn } from '@/lib/utils'
 // Solo/bot WAVELENGTH — human + 2-7 bots, fully local (useReducer), no Firebase,
 // no commit-reveal (there's no other real player to cheat against, so the
 // hidden target just lives in reducer state until the reveal phase renders it).
+// Scoring, the win target and the spectrum rotation come from
+// src/lib/wavelengthLogic.js — the same helpers the live room uses — so the demo
+// can't drift from the real game.
 
 const MIN_BOTS = 2
 const MAX_BOTS = 7
 const DEFAULT_BOTS = 3
-const WIN_SCORE = 200 // kept in sync with WavelengthGame.jsx
 
 // -----------------------------------------------------------------------------
 // Local helpers
@@ -78,6 +83,8 @@ const initialGameState = {
   scores: {},
   clueGiver: null,
   spectrumIndex: 0,
+  usedSpectrums: [], // this match's spectra, like the live round's usedSpectrums
+  seen: {}, // seenHistory map for the whole session, like the room's seen/wavelength
   target: null,
   clueWord: '',
   guesses: {},
@@ -94,6 +101,7 @@ function gameReducer(state, action) {
       const scores = {}
       order.forEach(id => { scores[id] = 0 })
       const clueGiver = order[0]
+      const spectrumIndex = nextSpectrumIndex([], -1, state.seen)
       return {
         ...initialGameState,
         phase: 'clue',
@@ -101,7 +109,8 @@ function gameReducer(state, action) {
         order,
         scores,
         clueGiver,
-        spectrumIndex: randomSpectrumIndex(),
+        spectrumIndex,
+        seen: markSeen(state.seen, [spectrumIndex]),
         // The human clue-giver sees the target immediately (mirrors the
         // multiplayer clue-giver view of the dial); a bot clue-giver's target
         // isn't known until its BOT_CLUE_READY dispatch.
@@ -136,30 +145,33 @@ function gameReducer(state, action) {
       const guesserIds = state.order.filter(id => id !== state.clueGiver)
       const allGuessed = guesserIds.every(id => guesses[id] != null)
       if (!allGuessed) return { ...state, guesses }
-      const lastDelta = {}
-      guesserIds.forEach(id => { lastDelta[id] = scoreGuess(guesses[id], state.target) })
+      const lastDelta = roundDeltas(guesses, guesserIds, state.target)
       return { ...state, guesses, phase: 'reveal', lastDelta }
     }
 
-    // Mirrors WavelengthGame.jsx's handleNextRound exactly: the clue-giver earns
+    // Same rules as the live room's advanceAfterReveal: the clue-giver earns
     // nothing from their own round (only guessers are folded into `scores`
     // here), and the win check happens on advance, not at reveal time.
     case 'NEXT_ROUND': {
       if (state.phase !== 'reveal') return state
-      const scores = { ...state.scores }
-      Object.entries(state.lastDelta || {}).forEach(([id, pts]) => {
-        scores[id] = (scores[id] || 0) + pts
-      })
-      const winner = state.order.find(id => (scores[id] || 0) >= WIN_SCORE)
+      const scores = addScores(state.scores, state.lastDelta)
+      const winner = findClincher(state.order, scores)
       if (winner) {
         return { ...state, scores, phase: 'matchover', winner }
       }
       const clueGiver = nextClueGiver(state.players, state.clueGiver)
+      const usedSpectrums = [...state.usedSpectrums, state.spectrumIndex]
+      const spectrumIndex = nextSpectrumIndex(usedSpectrums, state.spectrumIndex, state.seen)
       return {
         ...state,
+        // Back to the clue phase — without this the demo sat on the reveal
+        // screen forever after round 1 (the live room's freshRound resets it).
+        phase: 'clue',
         scores,
         clueGiver,
-        spectrumIndex: randomSpectrumIndex(state.spectrumIndex),
+        spectrumIndex,
+        usedSpectrums,
+        seen: markSeen(state.seen, [spectrumIndex]),
         target: clueGiver === 'human' ? randomTarget() : null,
         clueWord: '',
         guesses: {},
@@ -169,7 +181,8 @@ function gameReducer(state, action) {
     }
 
     case 'RESET_TO_SETUP':
-      return { ...initialGameState }
+      // Keep the session's seen history so the next match gets fresh spectra.
+      return { ...initialGameState, seen: state.seen }
 
     default:
       return state
