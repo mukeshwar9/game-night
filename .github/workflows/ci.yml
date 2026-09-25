@@ -47,6 +47,10 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      # Cloud Functions: bundle the shared src/lib logic and run its tests.
+      - name: Functions tests
+        run: npm --prefix functions ci && npm --prefix functions test
+
   emulator-tests:
     name: Rules + end-to-end tests (Firebase emulators)
     runs-on: ubuntu-latest

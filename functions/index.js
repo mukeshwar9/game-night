@@ -5,6 +5,9 @@ const { getDatabase } = require('firebase-admin/database');
 
 initializeApp();
 
+// Server-authoritative match results -> leaderboard (see results.js, README.md).
+exports.creditMatchResults = require('./results').creditMatchResults;
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Query page size and a per-run ceiling, so a backlog (e.g. the first run after
 // this is deployed) is worked off over a few days instead of timing out.
@@ -53,6 +56,11 @@ async function deleteKeys(ref, keys) {
 //    not the whole games tree.
 //  - public matchmaking listings that expired or whose room is gone/started.
 //  - game invites older than 24 hours, or pointing at a room deleted this run.
+//  - the results/ record (match epochs, see results.js) of every room deleted
+//    this run.
+//  - leaderboard rows the server did not write (no `verified: true`): the old
+//    client-written mirror, whose numbers nobody checked. Clients can no longer
+//    write leaderboard/, so after the first run this finds nothing.
 exports.cleanupStaleGames = onSchedule({ schedule: 'every 24 hours', timeoutSeconds: 540 }, async () => {
   const db = getDatabase();
   const now = Date.now();
@@ -70,6 +78,16 @@ exports.cleanupStaleGames = onSchedule({ schedule: 'every 24 hours', timeoutSeco
   });
   const deletedGames = new Set([...idle, ...legacy]);
   await deleteKeys(gamesRef, [...deletedGames]);
+  await deleteKeys(db.ref('results'), [...deletedGames]);
+
+  // Rows lacking `verified` (or with it false) sort first under
+  // orderByChild('verified'), so this reads only the unverified ones.
+  const leaderboardRef = db.ref('leaderboard');
+  const unverified = await collectKeys(leaderboardRef, 'verified', false, {
+    includeMissing: true,
+    pick: row => row.verified !== true,
+  });
+  await deleteKeys(leaderboardRef, unverified);
 
   // Listings are few (the lobby shows at most 100), so read them all and check
   // each one's room status directly.
@@ -111,5 +129,5 @@ exports.cleanupStaleGames = onSchedule({ schedule: 'every 24 hours', timeoutSeco
   }
   await deleteKeys(invitesRef, invitePaths);
 
-  logger.info(`Deleted ${deletedGames.size} stale games, ${listingKeys.length} public listings, ${invitePaths.length} invites`);
+  logger.info(`Deleted ${deletedGames.size} stale games, ${listingKeys.length} public listings, ${invitePaths.length} invites, ${unverified.length} unverified leaderboard rows`);
 });

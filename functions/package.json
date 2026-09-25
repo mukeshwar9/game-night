@@ -1,10 +1,21 @@
 {
   "name": "functions",
   "private": true,
-  "engines": { "node": "22" },
+  "engines": {
+    "node": "22"
+  },
   "main": "index.js",
   "dependencies": {
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "gcp-build": "",
+    "test": "node build.js && node --test test/core.test.js",
+    "test:emulator": "node build.js && node test/run-emulator-test.js"
   }
 }

@@ -1,0 +1,2 @@
+# esbuild output (npm run build; firebase.json runs it before every deploy).
+lib/
