@@ -284,3 +284,26 @@ export function resolveHerdRound({
     winners: getMatchWinners(newScores, next.cow, target),
   }
 }
+
+// ---------------------------------------------------------------------------
+// Solo bots — each bot answers from the prompt's answer bank
+// (HERD_ANSWER_BANKS in decks/herd.js, most obvious answer first). Weights by
+// bank position: the obvious answer dominates so herds form, while the tail
+// still turns up often enough for singletons and the Pink Cow to happen.
+// ---------------------------------------------------------------------------
+export const HERD_BOT_WEIGHTS = [6, 3, 2, 1] // positions past the end weigh 1
+
+// Used only if a prompt ever ships without a bank.
+export const HERD_BOT_FALLBACK = ['pizza', 'dog', 'coffee', 'music']
+
+export function pickHerdBotAnswer(bank, rng = Math.random) {
+  const list = Array.isArray(bank) && bank.length > 0 ? bank : HERD_BOT_FALLBACK
+  const weights = list.map((_, i) => HERD_BOT_WEIGHTS[Math.min(i, HERD_BOT_WEIGHTS.length - 1)])
+  const total = weights.reduce((a, b) => a + b, 0)
+  let r = rng() * total
+  for (let i = 0; i < list.length; i++) {
+    r -= weights[i]
+    if (r < 0) return list[i]
+  }
+  return list[list.length - 1]
+}

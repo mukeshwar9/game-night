@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   HERD_TARGET, ANSWER_MS,
   normalizeAnswer, groupAnswers, scoreGroups, nextCow, getMatchWinners,
-  seededShuffle, allAnswered, isBannedAnswer,
+  seededShuffle, allAnswered, isBannedAnswer, pickHerdBotAnswer,
 } from '../lib/herdLogic'
-import { HERD_PROMPTS } from '../lib/decks/herd'
+import { HERD_PROMPTS, HERD_ANSWER_BANKS } from '../lib/decks/herd'
 import { sounds } from '../lib/sounds'
 import WordFeedback from '../components/WordFeedback'
 import { cn } from '@/lib/utils'
@@ -21,12 +21,6 @@ const ME = 'me'
 const SEATS = [{ id: ME, name: 'YOU' }, ...BOTS]
 const ELIGIBLE = SEATS.map(s => s.id)
 const NAME = Object.fromEntries(SEATS.map(s => [s.id, s.name]))
-
-// Fixed generic pool — bots converge on 3 round-favored entries so herds form.
-const BOT_POOL = [
-  'pizza', 'coffee', 'dog', 'cat', 'sleep', 'phone', 'money', 'music',
-  'chocolate', 'beach', 'netflix', 'gym', 'beer', 'chess', 'travel', 'napping',
-]
 
 const randSeed = () => Math.floor(Math.random() * 2147483647)
 const zeroScores = () => Object.fromEntries(ELIGIBLE.map(id => [id, 0]))
@@ -84,20 +78,13 @@ export default function HerdDemo() {
     if (!resolvedRef.current && allAnswered(ELIGIBLE, answersRef.current)) resolve()
   }, [resolve])
 
-  // Bots converge: 60% one of the 3 round-favored pool entries (rotated by
-  // promptIndex), else uniform — staggered 1–6s submissions.
+  // Bots answer from this prompt's answer bank, weighted toward the obvious
+  // answer (pickHerdBotAnswer) — staggered 1–6s submissions.
   const scheduleBots = useCallback((roundIdx) => {
     clearBotTimers()
-    const off = ((roundIdx % BOT_POOL.length) + BOT_POOL.length) % BOT_POOL.length
-    const top3 = [
-      BOT_POOL[off],
-      BOT_POOL[(off + 1) % BOT_POOL.length],
-      BOT_POOL[(off + 2) % BOT_POOL.length],
-    ]
+    const bank = HERD_ANSWER_BANKS[deck[roundIdx % deck.length]]
     for (const bot of BOTS) {
-      const answer = Math.random() < 0.6
-        ? top3[Math.floor(Math.random() * top3.length)]
-        : BOT_POOL[Math.floor(Math.random() * BOT_POOL.length)]
+      const answer = pickHerdBotAnswer(bank)
       const t = setTimeout(() => {
         if (resolvedRef.current) return
         answersRef.current = { ...answersRef.current, [bot.id]: answer }
@@ -106,7 +93,7 @@ export default function HerdDemo() {
       }, 1000 + Math.random() * 5000)
       timersRef.current.push(t)
     }
-  }, [maybeResolve])
+  }, [maybeResolve, deck])
 
   // Per-round clock + bot submissions. Auto-resolves early once everyone is in.
   useEffect(() => {

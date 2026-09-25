@@ -19,10 +19,13 @@ import {
   resolveHerdRound,
   REVEAL_GRACE_MS,
   REVEAL_ADVANCE_MS,
+  pickHerdBotAnswer,
+  HERD_BOT_FALLBACK,
   seededShuffle,
 } from './herdLogic'
 import { commit, verifyReveal } from './commit'
-import { HERD_PROMPTS } from './decks/herd'
+import { HERD_PROMPTS, HERD_ANSWER_BANKS } from './decks/herd'
+import { isFamilySafe } from './wordDenylist'
 
 describe('normalizeAnswer', () => {
   it('ignores case, surrounding and repeated whitespace', () => {
@@ -393,5 +396,51 @@ describe('resolveHerdRound', () => {
     })
     expect(res.groups.map(g => g.norm)).toEqual(['pizza'])
     expect(res.scores).toEqual({ p3: 1 })
+  })
+})
+
+describe('solo bots — per-prompt answer banks', () => {
+  it('every prompt has a bank of 4–8 distinct answers', () => {
+    for (const prompt of HERD_PROMPTS) {
+      const bank = HERD_ANSWER_BANKS[prompt]
+      expect(Array.isArray(bank), prompt).toBe(true)
+      expect(bank.length, prompt).toBeGreaterThanOrEqual(4)
+      expect(bank.length, prompt).toBeLessThanOrEqual(8)
+      const keys = bank.map(normalizeAnswer)
+      expect(new Set(keys).size, prompt).toBe(keys.length)
+      expect(keys.every(Boolean), prompt).toBe(true)
+    }
+    expect(Object.keys(HERD_ANSWER_BANKS).every(p => HERD_PROMPTS.includes(p))).toBe(true)
+  })
+
+  it('every bank answer is family-safe', () => {
+    for (const bank of Object.values(HERD_ANSWER_BANKS)) {
+      for (const answer of bank) {
+        const words = answer.toLowerCase().split(/[^a-z]+/).filter(Boolean)
+        expect(words.every(isFamilySafe), answer).toBe(true)
+        expect(isBannedAnswer(answer), answer).toBe(false)
+      }
+    }
+  })
+
+  it('bots answer from the prompt\'s bank, weighted toward the obvious answer', () => {
+    const bank = HERD_ANSWER_BANKS['Name a pizza topping.']
+    expect(pickHerdBotAnswer(bank, () => 0)).toBe(bank[0])
+    expect(pickHerdBotAnswer(bank, () => 0.9999)).toBe(bank[bank.length - 1])
+    let seed = 1
+    const rng = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646 }
+    const counts = {}
+    for (let i = 0; i < 2000; i++) {
+      const a = pickHerdBotAnswer(bank, rng)
+      expect(bank).toContain(a)
+      counts[a] = (counts[a] || 0) + 1
+    }
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
+    expect(top).toBe(bank[0])
+    expect(Object.keys(counts).length).toBe(bank.length) // the tail still shows up
+  })
+
+  it('falls back to a generic pool when a bank is missing', () => {
+    expect(HERD_BOT_FALLBACK).toContain(pickHerdBotAnswer(undefined, () => 0.5))
   })
 })
