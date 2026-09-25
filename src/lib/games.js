@@ -1214,7 +1214,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-04',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true, matchTarget: 3,
+    custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
   },
   {
     type: 'wordcoop', label: 'WORD CO-OP',
@@ -1234,7 +1234,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true, matchTarget: 3,
+    custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
   },
   {
     type: 'wordhunt', label: 'WORD HUNT',
