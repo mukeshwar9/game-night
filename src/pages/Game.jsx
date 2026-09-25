@@ -1052,6 +1052,7 @@ export default function Game() {
     if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
     try {
       if (game.gameType === 'wordcoop') {
+        // eslint-disable-next-line react-hooks/purity -- applyPlayAgain runs only from propose/acceptProposal (button handlers), never during render
         const seed = `${Date.now()}-${Math.random().toString(36).slice(2)}`
         const round = buildWordCoopRoundStart({
           answerList: getAnswerList(),
@@ -1068,6 +1069,7 @@ export default function Game() {
           starter,
           currentTurn: starter,
           round,
+          // eslint-disable-next-line react-hooks/purity -- applyPlayAgain runs only from propose/acceptProposal (button handlers), never during render
           lastActivityAt: Date.now(),
         })
         return
@@ -1080,6 +1082,7 @@ export default function Game() {
         proposal: null,
         starter,
         ...firstMoverUpdates(game.gameType, starter),
+        // eslint-disable-next-line react-hooks/purity -- applyPlayAgain runs only from propose/acceptProposal (button handlers), never during render
         lastActivityAt: Date.now(),
       })
     } catch { toast.error('PLAY AGAIN FAILED — CHECK CONNECTION') }
