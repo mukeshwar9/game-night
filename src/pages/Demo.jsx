@@ -39,7 +39,7 @@ import useBusy from '../hooks/useBusy'
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
-import { getGameConfig, freshGameState, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
+import { getGameConfig, freshGameState, GAME_CATEGORIES, supportsLocalPlay, PASSAGES } from '../lib/games'
 import { recordPlay } from '../lib/analytics'
 import CategoryTabs from '../components/CategoryTabs';
 import { pickBotMove } from '../lib/demoBots';
@@ -1050,24 +1050,15 @@ function ReactionDemo() {
   )
 }
 
-// A few of the room game's passages (games.js keeps its list private); one
-// is picked at random for each race.
-const DEMO_PASSAGES = [
-  "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. A wizard's job is to vex chumps quickly in fog.",
-  "Success is not final, failure is not fatal. It is the courage to continue that counts. Keep moving forward and never give up on your dreams.",
-  "Typing fast requires practice, focus, and the right technique. Keep your fingers on the home row, stay relaxed, and let your muscle memory do the work.",
-  "The best time to plant a tree was twenty years ago. The second best time is now. Start today and your future self will thank you for the effort.",
-  "We are what we repeatedly do. Excellence, then, is not an act but a habit. Small daily improvements over time lead to remarkable results.",
-  "It does not matter how slowly you go as long as you do not stop. Perseverance and patience are the keys to mastering any skill worth having.",
-]
 const BOT_WPM = 55
 
-// Scored like the room game: WPM and accuracy from correctly typed
-// characters (typingLogic), ranked by accuracy-weighted effective WPM.
+// Scored like the room game: a random passage from its list, WPM and
+// accuracy from correctly typed characters (typingLogic), ranked by
+// accuracy-weighted effective WPM.
 // The bot types cleanly at BOT_WPM; finishing first doesn't end your race.
 function TypingDemo() {
   const [phase, setPhase]             = useState('idle')
-  const [passage, setPassage]         = useState(DEMO_PASSAGES[0])
+  const [passage, setPassage]         = useState(PASSAGES[0])
   const [countdownSec, setCDown]      = useState(3)
   const [typed, setTyped]             = useState('')
   const [botProgress, setBotProgress] = useState(0)
@@ -1102,7 +1093,7 @@ function TypingDemo() {
   }, [phase, passage])
 
   const start = () => {
-    setPassage(DEMO_PASSAGES[Math.floor(Math.random() * DEMO_PASSAGES.length)])
+    setPassage(PASSAGES[Math.floor(Math.random() * PASSAGES.length)])
     setPhase('countdown')
   }
 
