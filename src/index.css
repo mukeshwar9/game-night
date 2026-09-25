@@ -138,7 +138,7 @@
 
 /* shadcn/ui CSS variables — retro palette */
 @layer base {
-  :root {
+  [data-theme="midnight"], :root {
     --background: 240 20% 4%;
     --foreground: 240 20% 90%;
     --card: 240 18% 8%;

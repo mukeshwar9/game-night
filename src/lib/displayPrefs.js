@@ -13,6 +13,7 @@ const CRT_KEY = 'retro-crt'
 const MOTION_KEY = 'retro-motion'
 const TEXT_SIZE_KEY = 'retro-textsize'
 const WIN_FX_KEY = 'retro-winfx'
+const THEME_PREVIEW_KEY = 'retro-themepreview'
 
 function read(key) {
   try { return localStorage.getItem(key) } catch { return null }
@@ -75,6 +76,16 @@ export function applyWinFx(on) {
   write(WIN_FX_KEY, on ? 'on' : 'off')
 }
 
+// Settings → Theme "PREVIEW" toggle: shows the mini game screen beside the
+// theme picker. Off by default so the sheet stays compact.
+export function getThemePreview() {
+  return read(THEME_PREVIEW_KEY) === 'on'
+}
+
+export function applyThemePreview(on) {
+  write(THEME_PREVIEW_KEY, on ? 'on' : 'off')
+}
+
 export function applyStoredDisplayPrefs() {
   applyCrt(getStoredCrt())
   applyMotion(getStoredMotion())
@@ -86,4 +97,5 @@ export function resetDisplayPrefs() {
   applyMotion(getDefaultMotion())
   applyTextSize('m')
   applyWinFx(true)
+  applyThemePreview(false)
 }
