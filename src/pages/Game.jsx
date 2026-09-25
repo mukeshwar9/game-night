@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ref, onValue, update, get, push, runTransaction, onDisconnect, remove, set as dbSet } from 'firebase/database'
-import { db, configError } from '../lib/firebase'
+import { ref, update, set as dbSet } from 'firebase/database'
+import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
 import { freshGameState, getGameConfig, lobbySwitchOverrides, firstMoverUpdates } from '../lib/games'
-import { getAnswerList } from '../lib/dictionary'
-import { buildWordCoopRoundStart } from '../lib/wordcoopLogic'
+import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
@@ -17,62 +16,32 @@ import WaitingRoom from '../components/WaitingRoom'
 import InviteFriendModal from '../components/InviteFriendModal'
 import WinEffect from '../components/WinEffect'
 import OfflineNotice from '../components/loading/OfflineNotice'
-import HangmanGame from './HangmanGame'
-import NumberMemoryGame from './NumberMemoryGame'
-import ChimpGame from './ChimpGame'
-import ReactionGame from './ReactionGame'
-import AimTrainerGame from './AimTrainerGame'
-import TypingGame from './TypingGame'
-import MathGame from './MathGame'
-import ArrowsGame from './ArrowsGame'
-import TwoTruthsGame from './TwoTruthsGame'
-import BluffBattleGame from './BluffBattleGame'
-import PongGame from './PongGame'
-import SnakeGame from './SnakeGame'
-import TronGame from './TronGame'
-import SumoGame from './SumoGame'
-import SpaceduelGame from './SpaceduelGame'
-import PacmacGame from './PacmacGame'
-import AirHockeyGame from './AirHockeyGame'
-import PaintGame from './PaintGame'
-import WordDuelGame from './WordDuelGame'
-import WordCoopGame from './WordCoopGame'
-import PasswordGame from './PasswordGame'
-import WordRaceGame from './WordRaceGame'
-import WordHuntGame from './WordHuntGame'
-import AnagramsGame from './AnagramsGame'
-import MineRaceGame from './MineRaceGame'
-import BattleshipGame from './BattleshipGame'
-import CheckersGame from './CheckersGame'
-import ArtilleryGame from './ArtilleryGame'
-import WavelengthGame from './WavelengthGame'
-import FibbageGame from './FibbageGame'
-import HerdGame from './HerdGame'
-import TriviaGame from './TriviaGame'
-import SpyfairGame from './SpyfairGame'
-import SketchGame from './SketchGame'
-import ChainReaction4Game from './ChainReaction4Game'
 import ProposalBanner from '../components/ProposalBanner'
 import GameSwitcher from '../components/GameSwitcher'
-import EmoteBar from '../components/EmoteBar'
-import AnimatedEmoji from '../components/AnimatedEmoji'
 import SettingsButton from '../components/SettingsButton'
 import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
-import { sanitizeChatText, isValidChatMessage, normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../lib/chat'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { VideoCallReactionDock, VideoCallShell } from '../components/VideoCallLayout'
 import RulesModal, { RulesButton } from '../components/RulesModal'
-import {
-  commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
-} from '../lib/diceLogic'
+import useRoomSession from '../hooks/room/useRoomSession'
+import useProposal from '../hooks/room/useProposal'
+import useAbandonRecovery from '../hooks/room/useAbandonRecovery'
+import useBackGuard from '../hooks/room/useBackGuard'
+import useFloats from '../hooks/room/useFloats'
+import useRoomEffect from '../hooks/room/useRoomEffect'
+import { buildSwitchUpdates, nextStarter, playersToSeatList } from '../hooks/room/roomUpdates'
 import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../lib/anagramsLogic'
 import { TARGET_SCORE as PASSWORD_TARGET } from '../lib/passwordLogic'
 import { ARROWS_MATCH_TARGET, getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
 
-const GAME_TTL_MS = 24 * 60 * 60 * 1000
+// The reaction bar and animated emoji pull in framer-motion (~120 KB). Load
+// them only when a room first shows the bar or floats a reaction, not with
+// the room page itself.
+const EmoteBar = lazyWithRetry(() => import('../components/EmoteBar'))
+const AnimatedEmoji = lazyWithRetry(() => import('../components/AnimatedEmoji'))
 
 // Real-time games where one round decides the match (page-level `matchWinner`
 // already uses scores ≥ 1; the parent's matchTarget must agree so the
@@ -84,41 +53,19 @@ const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
 // score that keeps changing even while a modal hides the board.
 const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'pacmac', 'airhockey', 'paint'])
 
+// Round wins needed to take the match (shared by the win effect and the
+// round-end CTAs, which must agree).
+function matchTargetFor(game) {
+  return game.gameType === 'password' ? PASSWORD_TARGET : game.gameType === 'pong' ? (game.matchLength ?? 3)
+    : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
+    : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
+    : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
+}
+
 function toArray(val) {
   if (!val) return []
   if (Array.isArray(val)) return val
   return Object.values(val)
-}
-
-function playersToSeatList(players) {
-  return Object.values(players || {})
-    .filter(p => p && p.playerId)
-    .map(p => ({ name: p.name, playerId: p.playerId, joinedAt: p.joinedAt || 0, avatar: p.avatar ?? null }))
-    .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0) || String(a.playerId).localeCompare(String(b.playerId)))
-}
-
-function buildSwitchUpdates(game, newType) {
-  const newCfg = getGameConfig(newType)
-  const seats = playersToSeatList(game.players)
-  const base = {
-    gameType: newType,
-    ...freshGameState(newType),
-    winner: null,
-    winningLine: null,
-    proposal: null,
-    lastActivityAt: Date.now(),
-  }
-  if (newCfg.nPlayer) {
-    const players = {}
-    for (const s of seats) {
-      players[s.playerId] = { name: s.name, playerId: s.playerId, joinedAt: s.joinedAt, online: true, avatar: s.avatar ?? null }
-    }
-    return { ...base, players, scores: {}, status: 'waiting' }
-  }
-  const players = {}
-  if (seats[0]) players.X = { name: seats[0].name, playerId: seats[0].playerId, joinedAt: seats[0].joinedAt, avatar: seats[0].avatar ?? null }
-  if (seats[1]) players.O = { name: seats[1].name, playerId: seats[1].playerId, joinedAt: seats[1].joinedAt, avatar: seats[1].avatar ?? null }
-  return { ...base, players, scores: { X: 0, O: 0 }, status: seats.length >= 2 ? 'playing' : 'waiting' }
 }
 
 // M-64: after ~8s on a stalled room-join, surface a "still connecting" hint
@@ -145,6 +92,12 @@ function LoadingScreen() {
       )}
     </div>
   )
+}
+
+// Suspense fallback while a game's page or board chunk downloads (machine
+// work, so the same PixelDots line as the room's own loading screen).
+function GameAreaFallback() {
+  return <LoadingLine className="py-12" />
 }
 
 // Floating emoji reactions — one per sender/glyph/burst, positioned on the
@@ -181,7 +134,9 @@ function EmoteFloats({ floats }) {
                 {isQuickChat(f.glyph) ? (
                   <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
                 ) : (
-                  <AnimatedEmoji glyph={f.glyph} className="w-20 h-20 object-contain" />
+                  <Suspense fallback={<span className="w-20 h-20" aria-hidden="true" />}>
+                    <AnimatedEmoji glyph={f.glyph} className="w-20 h-20 object-contain" />
+                  </Suspense>
                 )}
                 {f.count > 1 && (
                   <span
@@ -241,262 +196,46 @@ function LeaveMatchConfirm({ onConfirm, onCancel }) {
 export default function Game() {
   const { gameId } = useParams()
   const navigate = useNavigate()
-  const [game, setGame] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [errorGameType, setErrorGameType] = useState(null)
+  const {
+    game, loading, error, errorGameType, needName, joinWithName, opponentOnline, mySeat, mySymbol,
+  } = useRoomSession(gameId)
   const [creatingRoom, setCreatingRoom] = useState(false)
-  const [opponentOnline, setOpponentOnline] = useState(true)
   const [showWinEffect, setShowWinEffect] = useState(false)
   const [winEffectWinner, setWinEffectWinner] = useState(null)
   const [winEffectIntensity, setWinEffectIntensity] = useState('round')
-  const [floats, setFloats] = useState([])
-  const prevEmoteTs = useRef(0)
-  const emoteInit = useRef(false)
-  const emoteIdRef = useRef(0)
-  const emoteTimeouts = useRef(new Map())
-  const emoteReadyAt = useRef(0)
-  const emoteSoundReadyAt = useRef(0)
-  const [emoteCooldown, setEmoteCooldown] = useState(false)
-  const prevChatTs = useRef(0)
-  const chatInit = useRef(false)
-  const chatReadyAt = useRef(0)
-  const [chatCooldown, setChatCooldown] = useState(false)
   const [showRules, setShowRules] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
-  const [showAbandonBanner, setShowAbandonBanner] = useState(false)
-  const [claimingWin, setClaimingWin] = useState(false)
-  const [needName, setNeedName] = useState(false)
-  const [nameVersion, setNameVersion] = useState(0)
   const [nameInput, setNameInput] = useState('')
   const [nameError, setNameError] = useState('')
-  // mySymbol (ref) is the source of truth read inside effects/handlers/async
-  // callbacks; mySeat (state) mirrors it for reads during render, since a ref
-  // read during render isn't guaranteed to reflect the latest value. Every
-  // write goes through assignSeat() to keep the two in lockstep. All writes
-  // happen synchronously within the init() async flow in the effect below,
-  // before that same flow's first setGame — so a render can never observe
-  // `game` populated while `mySeat` is still stale.
-  const mySymbol = useRef(null)
-  const [mySeat, setMySeat] = useState(null)
-  const assignSeat = (s) => { mySymbol.current = s; setMySeat(s) }
   const prevStatus = useRef(null)
   const prevTurn = useRef(null)
   const prevFilledCount = useRef(0)
   const prevDiceLast = useRef(null)
   const prevDiceTurnScore = useRef(0)
   const prevDiceRollIndex = useRef(0)
-  const prevBlockadeMoves = useRef(0)
-  const diceSeedARef = useRef(null) // X's local seedA (sessionStorage-backed)
-  const prevProposal = useRef(null)
-  const nPlayerCleanup = useRef(null)
+  const prevMoveCount = useRef(0)
   const moveInFlight = useRef(false)
   const blockedMoveFeedbackAt = useRef(0)
-  const spectatorToastShown = useRef(false)
-  const abandonTimerRef = useRef(null)
   // Lobby liveliness (waiting-room chat/switch/join cues) bookkeeping.
   const mySwitchedTo = useRef(null)
   const lobbyLivelinessInit = useRef(false)
   const prevLobbyGameType = useRef(null)
   const prevLobbyHasOpponent = useRef(false)
 
-  // Firebase init: join room, set up listeners, set up presence
-  useEffect(() => {
-    if (configError || !db) {
-      // configError/db are module-level constants set once at import time
-      // (see src/lib/firebase.js) — this is a one-time sync of that static
-      // condition into state on mount, not a reactive cascade.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setError(configError || 'Firebase is not configured.')
-      setLoading(false)
-      return
-    }
-
-    const playerName = localStorage.getItem('playerName')
-    if (!playerName) {
-      setNeedName(true)
-      setLoading(false)
-      return
-    }
-    const playerAvatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
-
-    const gameRef = ref(db, `games/${gameId}`)
-    const publicListingRef = ref(db, `matchmaking/${gameId}`)
-    let cancelled = false
-    let unsubGame = null
-    let unsubPresence = null
-    let unsubOpPresence = null
-
-    const init = async () => {
-      let snap
-      try { snap = await get(gameRef) }
-      catch {
-        if (!cancelled) { setError('CONNECTION ERROR. CHECK YOUR NETWORK.'); setLoading(false) }
-        return
-      }
-
-      if (cancelled) return
-
-      if (!snap.exists()) {
-        setError('GAME NOT FOUND — CODE MAY BE WRONG OR GAME HAS EXPIRED.')
-        setLoading(false)
-        return
-      }
-
-      const data = snap.val()
-
-      if (data.visibility === 'public' && (data.status !== 'waiting' || data.players?.O)) remove(publicListingRef).catch(() => {})
-
-      const lastActive = data.lastActivityAt ?? data.createdAt
-      if (lastActive && Date.now() - lastActive > GAME_TTL_MS) {
-        setErrorGameType(data.gameType || null)
-        setError('THIS GAME HAS EXPIRED. CREATE A NEW ONE!')
-        setLoading(false)
-        return
-      }
-
-      const cfgData = getGameConfig(data.gameType)
-      if (cfgData.nPlayer) {
-        const myId = getPlayerId()
-        let amPlayer = !!data.players?.[myId]
-        if (amPlayer) {
-          try { await update(ref(db, `games/${gameId}/players/${myId}`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
-        } else if (data.status === 'waiting' && Object.keys(data.players || {}).length < (cfgData.maxPlayers || 8)) {
-          try {
-            const { committed } = await runTransaction(
-              ref(db, `games/${gameId}/players/${myId}`),
-              cur => { if (cur) return; return { name: playerName, joinedAt: Date.now(), playerId: myId, online: true, avatar: playerAvatar } }
-            )
-            amPlayer = committed
-          } catch { amPlayer = false }
-        }
-        if (cancelled) return
-        setLoading(false)
-        if (amPlayer) recordRoom({ id: gameId, gameType: data.gameType })
-        unsubGame = onValue(gameRef, snap => { if (!cancelled && snap.exists()) setGame(snap.val()) })
-        if (amPlayer) {
-          const presRef = ref(db, `games/${gameId}/players/${myId}/online`)
-          unsubPresence = onValue(ref(db, '.info/connected'), snap => {
-            if (cancelled || !snap.val()) return
-            onDisconnect(presRef).set(false)
-            dbSet(presRef, true)
-          })
-          nPlayerCleanup.current = myId
-        }
-        return
-      }
-
-      const stored = sessionStorage.getItem(`game-${gameId}`)
-
-      if (stored && JSON.parse(stored).symbol) {
-        // 1. Valid sessionStorage record
-        assignSeat(JSON.parse(stored).symbol)
-      } else {
-        // 2. Try playerId reclaim
-        const myId = getPlayerId()
-        if (data.players?.X?.playerId === myId) {
-          assignSeat('X')
-          sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
-          try { await update(ref(db, `games/${gameId}/players/X`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
-        } else if (data.players?.O?.playerId === myId) {
-          assignSeat('O')
-          sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
-          try { await update(ref(db, `games/${gameId}/players/O`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
-        } else if (!data.players?.O) {
-          // 3. Claim O slot via transaction
-          try {
-            const { committed } = await runTransaction(
-              ref(db, `games/${gameId}/players/O`),
-              current => {
-                if (current !== null) return
-                return { name: playerName, joinedAt: Date.now(), playerId: getPlayerId(), avatar: playerAvatar }
-              }
-            )
-            if (committed) {
-              assignSeat('O')
-              sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
-              // Lobby rooms (challenge-created, `lobby: true`) stay 'waiting'
-              // when the second seat fills — either player picks the game and
-              // taps START from WaitingRoom instead of auto-playing.
-              const joinUpdates = data.lobby
-                ? { lastActivityAt: Date.now() }
-                : { status: 'playing' }
-              if (!data.lobby && data.gameType === 'hangwoman') {
-                joinUpdates['round/setter'] = 'X'
-                joinUpdates['round/phase'] = 'setting'
-                joinUpdates['round/wrongCount'] = 0
-              }
-              await update(gameRef, joinUpdates)
-              if (data.visibility === 'public') remove(publicListingRef).catch(() => {})
-            } else {
-              assignSeat(null)
-              sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: null }))
-              // We lost the race for O — someone else's write committed first.
-              // Mark the generic full-room notice as already shown so it doesn't
-              // also fire once `game` reflects both seats filled.
-              spectatorToastShown.current = true
-              toast("SEAT TAKEN — YOU'RE SPECTATING")
-            }
-          } catch { assignSeat(null) }
-        } else {
-          // 4. Spectator
-          assignSeat(null)
-        }
-      }
-
-      if (cancelled) return
-      setLoading(false)
-      if (mySymbol.current) recordRoom({ id: gameId, gameType: data.gameType })
-
-      unsubGame = onValue(gameRef, snap => {
-        if (!cancelled && snap.exists()) setGame(snap.val())
-      })
-
-      // Presence — players only, not spectators
-      if (mySymbol.current) {
-        const presRef = ref(db, `games/${gameId}/presence/${mySymbol.current}`)
-
-        unsubPresence = onValue(ref(db, '.info/connected'), snap => {
-          if (cancelled || !snap.val()) return
-          onDisconnect(presRef).set({ online: false })
-          dbSet(presRef, { online: true })
-        })
-
-        const opSym = mySymbol.current === 'X' ? 'O' : 'X'
-        unsubOpPresence = onValue(ref(db, `games/${gameId}/presence/${opSym}`), snap => {
-          if (cancelled) return
-          const d = snap.val()
-          setOpponentOnline(!d || d.online !== false)
-        })
-      }
-    }
-
-    init()
-
-    return () => {
-      cancelled = true
-      if (unsubGame) unsubGame()
-      if (unsubPresence) unsubPresence()
-      if (unsubOpPresence) unsubOpPresence()
-      // Mark offline on clean unmount (tab navigation)
-      if (nPlayerCleanup.current && db) {
-        const presRef = ref(db, `games/${gameId}/players/${nPlayerCleanup.current}/online`)
-        onDisconnect(presRef).cancel().catch(() => {})
-        dbSet(presRef, false).catch(() => {})
-      } else if (mySymbol.current && db) {
-        const presRef = ref(db, `games/${gameId}/presence/${mySymbol.current}`)
-        onDisconnect(presRef).cancel().catch(() => {})
-        dbSet(presRef, { online: false }).catch(() => {})
-      }
-    }
-  }, [gameId, nameVersion])
+  const { floats, sendEmote, sendChat, emoteCooldown, chatCooldown } = useFloats({ game, gameId, mySymbol })
+  const { showAbandonBanner, claimingWin, claimAbandonedWin } =
+    useAbandonRecovery({ game, gameId, mySymbol, opponentOnline })
+  const { showLeaveConfirm, cancelLeaveMatch, confirmLeaveMatch, handleHomeLinkClick } =
+    useBackGuard({ game, gameId, mySeat })
+  // Per-game background protocols (registry `roomEffect`, e.g. Pig's seed).
+  useRoomEffect({ game, gameId, mySymbol })
 
   // Sounds + win effect — react to game state changes
   useEffect(() => {
     if (!game) return
+    const cfg = getGameConfig(game.gameType)
 
-    if (getGameConfig(game.gameType).nPlayer) {
+    if (cfg.nPlayer) {
       prevStatus.current = game.status
       return
     }
@@ -509,10 +248,7 @@ export default function Game() {
       const w = game.winner
       const sx = game.scores?.X || 0
       const so = game.scores?.O || 0
-      const matchTarget = game.gameType === 'password' ? PASSWORD_TARGET : game.gameType === 'pong' ? (game.matchLength ?? 3)
-        : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
-        : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
-        : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
+      const matchTarget = matchTargetFor(game)
       // Arrows also ends the match on final-round completion (leader wins,
       // level scores draw) — without this a 1–0 / 1–1 finish plays round-end
       // audio and skips match history.
@@ -536,14 +272,12 @@ export default function Game() {
       }
     }
 
-    const cfg = getGameConfig(game.gameType)
     // Count non-empty cells; `!== ''` (not truthiness) so numeric ids/heights
     // of 0 (quarto piece 0, santorini level 1 ground) still count as filled.
     const filledCount = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize).filter(v => v !== '').length : 0
 
     if (cfg.applyMove) {
-      const isPigType = cfg.type === 'dice' || cfg.type === 'dice-big'
-      if (isPigType) {
+      if (cfg.rollFace) {
         // Pig is boardless (filledCount always 0): detect an opponent action
         // by tracking the die roll index + turn score, and verify the roll
         // face against the deterministic seed (anti-cheat, see diceLogic.js).
@@ -562,19 +296,19 @@ export default function Game() {
         // Verify a deterministic roll (only meaningful once diceSeed is set).
         if (rolled && game.diceSeed && game.diceLast != null) {
           const idx = (game.diceRollIndex ?? 0) - 1
-          const verify = cfg.type === 'dice-big'
-            ? rollFacePairAsync(game.diceSeed, idx).then(expected => JSON.stringify(expected) !== JSON.stringify(game.diceLast))
-            : rollFaceAsync(game.diceSeed, idx).then(expected => expected !== game.diceLast)
+          // JSON compare covers both a single face and PIG BIG's pair.
+          const verify = cfg.rollFace(game.diceSeed, idx)
+            .then(expected => JSON.stringify(expected) !== JSON.stringify(game.diceLast))
           verify.then(mismatch => {
             if (mismatch) toast.error('ROLL MISMATCH — TAMPERING SUSPECTED')
           }).catch(() => {})
         }
-      } else if (cfg.type === 'blockade') {
-        // Blockade: pawn moves never touch `board` (only wall placements do),
-        // so filledCount can't detect them — track blockadeMoves instead.
+      } else if (cfg.moveCountKey) {
+        // Moves that don't always touch `board` (Blockade's pawn moves), so
+        // filledCount can't detect them — track the registry's counter instead.
         if (
           game.status === 'playing' &&
-          (game.blockadeMoves ?? 0) > prevBlockadeMoves.current &&
+          (game[cfg.moveCountKey] ?? 0) > prevMoveCount.current &&
           prevTurn.current &&
           prevTurn.current !== mySymbol.current
         ) {
@@ -609,153 +343,13 @@ export default function Game() {
     prevDiceLast.current = game.diceLast ?? null
     prevDiceTurnScore.current = game.diceTurnScore ?? 0
     prevDiceRollIndex.current = game.diceRollIndex ?? 0
-    prevBlockadeMoves.current = game.blockadeMoves ?? 0
-  }, [game])
-
-  // Proposal effect — sound + declined toast
-  useEffect(() => {
-    if (!game) return
-    const proposal = game.proposal ?? null
-
-    // Opponent newly proposed — play join sound
-    if (
-      proposal &&
-      !proposal.declined &&
-      proposal.by !== mySymbol.current &&
-      mySymbol.current &&
-      !prevProposal.current
-    ) {
-      sounds.join()
-    }
-
-    // Opponent declined my proposal (guard: only on the transition to declined)
-    if (
-      proposal &&
-      proposal.declined &&
-      proposal.by === mySymbol.current &&
-      !prevProposal.current?.declined
-    ) {
-      const opSym = mySymbol.current === 'X' ? 'O' : 'X'
-      const opName = (game.players?.[opSym]?.name || opSym).toUpperCase()
-      toast.error(`${opName} DECLINED`)
-      update(ref(db, `games/${gameId}`), { proposal: null }).catch(() => {})
-    }
-
-    prevProposal.current = proposal
-  }, [game, gameId])
-
-  // Push a reaction onto the floats array — appends a new float, or (within
-  // 1.5s of the same glyph from the same sender) bumps the existing float's
-  // combo count and re-arms its removal timer.
-  const pushEmote = (e) => {
-    const name = game?.players?.[e.by]?.name ?? ''
-    const now = Date.now()
-    if (document.visibilityState === 'visible' && now >= emoteSoundReadyAt.current) {
-      emoteSoundReadyAt.current = now + 140
-      sounds.reaction(e.glyph, { volume: (e.by === mySymbol.current || e.by === getPlayerId()) ? 0.7 : 1 })
-    }
-    setFloats(prev => {
-      const last = prev[prev.length - 1]
-      const now = Date.now()
-      if (last && last.glyph === e.glyph && last.by === e.by && now - last.at < 1500) {
-        const existing = emoteTimeouts.current.get(last.id)
-        if (existing) clearTimeout(existing)
-        const t = setTimeout(() => {
-          setFloats(f => f.filter(fl => fl.id !== last.id))
-          emoteTimeouts.current.delete(last.id)
-        }, 2000)
-        emoteTimeouts.current.set(last.id, t)
-        return prev.map(fl => (fl.id === last.id ? { ...fl, count: fl.count + 1, at: now } : fl))
-      }
-      const id = ++emoteIdRef.current
-      const dx = Math.round((Math.random() * 2 - 1) * 24)
-      const rot = Math.round((Math.random() * 2 - 1) * 10)
-      const float = { id, glyph: e.glyph, by: e.by, name, count: 1, dx, rot, at: now }
-      const t = setTimeout(() => {
-        setFloats(f => f.filter(fl => fl.id !== id))
-        emoteTimeouts.current.delete(id)
-      }, 2000)
-      emoteTimeouts.current.set(id, t)
-      return [...prev, float]
-    })
-  }
-
-  // Push a chat message onto the floats array — unlike pushEmote, always a
-  // fresh float (no combo/count merging), same 2s removal timing.
-  const pushChatFloat = (msg) => {
-    const id = ++emoteIdRef.current
-    const float = { id, kind: 'chat', text: msg.text, name: msg.name, seat: msg.seat ?? null, count: 1, at: Date.now() }
-    const t = setTimeout(() => {
-      setFloats(f => f.filter(fl => fl.id !== id))
-      emoteTimeouts.current.delete(id)
-    }, 2000)
-    emoteTimeouts.current.set(id, t)
-    setFloats(prev => [...prev, float])
-  }
-
-  // Clear any pending float-removal timers on unmount
-  useEffect(() => {
-    const timeouts = emoteTimeouts.current
-    return () => {
-      timeouts.forEach(t => clearTimeout(t))
-      timeouts.clear()
-    }
-  }, [])
-
-  // Emote channel — float a newly-received reaction (skip the stale one present on join)
-  useEffect(() => {
-    if (!game) return // don't latch the init guard before the first snapshot
-    const e = game.emote
-    if (!emoteInit.current) {
-      emoteInit.current = true
-      prevEmoteTs.current = e?.ts || 0
-      return
-    }
-    if (!e || !e.ts || e.ts === prevEmoteTs.current) return
-    prevEmoteTs.current = e.ts
-    pushEmote(e)
-    // game?.emote and pushEmote are deliberately omitted: this effect only
-    // needs to fire when a NEW emote lands (ts changes) — by the time it
-    // runs, `e`/`pushEmote` are already the values from that same render, so
-    // omitting them causes no staleness. Depending on the whole `game?.emote`
-    // object would refire on every unrelated Firebase snapshot instead.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.emote?.ts])
-
-  // Chat channel — float the newest free-text message (skip whatever was
-  // already in the log on join, and our own — already floated optimistically
-  // by sendChat).
-  useEffect(() => {
-    if (!game) return // don't latch the init guard before the first snapshot
-    const entries = normalizeChatLog(game.chatLog)
-    const newest = entries[entries.length - 1]?.[1]
-    if (!chatInit.current) {
-      chatInit.current = true
-      prevChatTs.current = newest?.ts || 0
-      return
-    }
-    if (!newest || newest.ts <= prevChatTs.current) return
-    prevChatTs.current = newest.ts
-    if (newest.by === getPlayerId()) return
-    if (!isValidChatMessage(newest)) return
-    pushChatFloat(newest)
-    sounds.emote()
-  }, [game?.chatLog])
+    prevMoveCount.current = cfg.moveCountKey ? (game[cfg.moveCountKey] ?? 0) : 0
+  }, [game, mySymbol])
 
   // A fresh snapshot means React state has caught up with the last write —
   // safe to accept the next move (see moveInFlight in handleMove).
   useEffect(() => {
     moveInFlight.current = false
-  }, [game])
-
-  // One-time spectator notice — fires only once, when a full 2-seat room
-  // resolves us to a spectator (never for the never-seated-but-empty-room case).
-  useEffect(() => {
-    if (!game || spectatorToastShown.current) return
-    if (!mySymbol.current && game.players?.X && game.players?.O) {
-      spectatorToastShown.current = true
-      toast("ROOM'S FULL — YOU'RE SPECTATING")
-    }
   }, [game])
 
   // Lobby liveliness — while a challenge-created lobby room (`game.lobby`)
@@ -794,147 +388,7 @@ export default function Game() {
       sounds.join()
     }
     prevLobbyHasOpponent.current = hasOpponent
-  }, [game])
-
-  // Abandoned-opponent recovery (F-23) — after 120s of CONTINUOUS opponent
-  // offline time in a standard 2P turn-based round, offer claim-win / invite
-  // / go-home instead of leaving the board interactive forever. Restarts the
-  // window (not cumulative) on any presence flap, and clears on every
-  // status/gameType change (round end, rematch, switch) so it never fires stale.
-  const hasPlayerX = !!game?.players?.X
-  const hasPlayerO = !!game?.players?.O
-  useEffect(() => {
-    if (abandonTimerRef.current) { clearTimeout(abandonTimerRef.current); abandonTimerRef.current = null }
-    // Reset is intentionally synchronous and unconditional here — it must
-    // clear on every dep change (round end, rematch, switch) before the
-    // guards below decide whether to re-arm the timer, so a stale banner
-    // never lingers into a new round.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setShowAbandonBanner(false)
-
-    if (!game || !mySymbol.current) return
-    const gcfg = getGameConfig(game.gameType)
-    if (gcfg.nPlayer) return
-    if (game.status !== 'playing') return
-    const opSym = mySymbol.current === 'X' ? 'O' : 'X'
-    if (!game.players?.[opSym]) return
-    if (opponentOnline) return
-
-    // Custom real-time games (Pong/Sumo/Pac-Mac) use a shorter window: a
-    // vanished peer freezes the round outright, and without this banner the
-    // guest's only exit is self-forfeit — which rewards the vanished player.
-    abandonTimerRef.current = setTimeout(() => setShowAbandonBanner(true), gcfg.custom ? 60_000 : 120_000)
-    return () => {
-      if (abandonTimerRef.current) { clearTimeout(abandonTimerRef.current); abandonTimerRef.current = null }
-    }
-    // `game` is deliberately omitted — depending on the whole object would
-    // restart this 120s window on every move/turn flip, not just on the
-    // gameType/status/presence transitions that should actually reset it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.gameType, game?.status, opponentOnline, hasPlayerX, hasPlayerO])
-
-  // Pig anti-cheat: coin-flipping protocol to establish a shared deterministic
-  // roll seed (see src/lib/diceLogic.js). X commits seedA, O contributes seedB,
-  // X reveals seedA, both derive diceSeed. Runs for both Pig variants.
-  const coinFlipStarted = useRef(false)
-  useEffect(() => {
-    if (!game || (game.gameType !== 'dice' && game.gameType !== 'dice-big') || game.status !== 'playing') return
-    if (!mySymbol.current) return
-    const sym = mySymbol.current
-    const SK = `pig-seedA-${gameId}`
-
-    // Reset the one-shot gate when the protocol state has been fully cleared
-    // (e.g. a "play again" reset) so the coin flip can run again.
-    if (!game.diceSeedCommitX && !game.diceSeedB && !game.diceSeedRevealX && !game.diceSeed) {
-      coinFlipStarted.current = false
-    }
-
-    ;(async () => {
-      const gameRef = ref(db, `games/${gameId}`)
-      // Step 1 — X commits seedA (once both seats are present).
-      if (sym === 'X' && !game.diceSeedCommitX && game.players?.O && !coinFlipStarted.current) {
-        coinFlipStarted.current = true
-        const seedA = generateSeedHex()
-        try { sessionStorage.setItem(SK, seedA) } catch { /* private mode */ }
-        diceSeedARef.current = seedA
-        const hash = await commitSeed(seedA)
-        await update(gameRef, { diceSeedCommitX: hash }).catch(() => {})
-        return
-      }
-      // Step 2 — O contributes seedB once the commit is on the wire.
-      if (sym === 'O' && game.diceSeedCommitX && !game.diceSeedB && !coinFlipStarted.current) {
-        coinFlipStarted.current = true
-        const seedB = generateSeedHex()
-        await update(gameRef, { diceSeedB: seedB }).catch(() => {})
-        return
-      }
-      // Step 3 — X reveals seedA once O has contributed.
-      if (sym === 'X' && game.diceSeedCommitX && game.diceSeedB && !game.diceSeedRevealX) {
-        let seedA = ''
-        try { seedA = sessionStorage.getItem(SK) || '' } catch { /* */ }
-        if (!seedA) seedA = diceSeedARef.current || ''
-        if (seedA) {
-          // Verify our local seedA still matches the published commit; if a
-          // same-tab reload wiped sessionStorage we cannot soundly reveal.
-          const hash = await commitSeed(seedA)
-          if (hash !== game.diceSeedCommitX) return
-          await update(gameRef, { diceSeedRevealX: seedA }).catch(() => {})
-        }
-        return
-      }
-      // Step 4 — host (X) derives and publishes diceSeed once both halves exist.
-      if (sym === 'X' && game.diceSeedRevealX && game.diceSeedB && !game.diceSeed) {
-        const seed = await deriveSeed(game.diceSeedRevealX, game.diceSeedB)
-        await update(gameRef, { diceSeed: seed }).catch(() => {})
-        return
-      }
-    })()
-  }, [game, gameId])
-
-  // M-22: is this client a seated player in a currently-live round? Covers
-  // both game families — 2P `mySeat` and n-player uid-keyed `players`.
-  // Spectators are never guarded (nothing of theirs to lose).
-  const isActivePlay = !!game && game.status === 'playing' && (
-    getGameConfig(game.gameType).nPlayer
-      ? !!game.players?.[getPlayerId()]
-      : !!mySeat
-  )
-
-  // M-22: guard the browser back gesture / iOS edge-swipe during an active
-  // match instead of silently ejecting the seated player. Pushes one history
-  // marker for the whole "playing" window; overlays (Rules/Invite/Switcher)
-  // push their own marker on top via useModalHistory, so a back-gesture while
-  // one is open just closes that overlay (its own listener fires unconditionally)
-  // — this listener only reacts once ITS marker is the one actually consumed,
-  // i.e. it lets the topmost pushed state win. On a genuine pop past our
-  // marker we can't veto the browser's already-applied history change, so we
-  // re-push the marker (undoing the URL/entry effect) and surface the confirm
-  // instead; confirming does a normal client-side navigate('/') rather than
-  // trying to replay the exact number of back-steps.
-  useEffect(() => {
-    if (!isActivePlay) return
-    window.history.pushState({ matchGuard: true }, '')
-
-    const onPopState = (e) => {
-      if (e.state && (e.state.matchGuard || e.state.modalHistory)) return
-      window.history.pushState({ matchGuard: true }, '')
-      setShowLeaveConfirm(true)
-    }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
-  }, [isActivePlay, gameId])
-
-  const cancelLeaveMatch = () => setShowLeaveConfirm(false)
-  const confirmLeaveMatch = () => {
-    setShowLeaveConfirm(false)
-    navigate('/')
-  }
-  const handleHomeLinkClick = (e) => {
-    if (isActivePlay) {
-      e.preventDefault()
-      setShowLeaveConfirm(true)
-    }
-  }
+  }, [game, mySymbol])
 
   // M-15: a blocked tap (not your turn / round not live) otherwise resolves
   // silently on touch, which has no hover state to pre-sense a disabled
@@ -956,10 +410,10 @@ export default function Game() {
 
     const cfg = getGameConfig(game.gameType)
     if (cfg.custom) return
-    // Pig: the deterministic roll seed must be established before any roll so
-    // no client can fall back to insecure Math.random(). Banks are seedless.
-    const isPig = (t) => t === 'dice' || t === 'dice-big'
-    if (isPig(cfg.type) && colOrIndex === 'roll' && !game.diceSeed) return
+    // Seeded dice (Pig): the deterministic roll seed must be established
+    // before any roll so no client can fall back to insecure Math.random().
+    // Banks are seedless.
+    if (cfg.rollFace && colOrIndex === 'roll' && !game.diceSeed) return
     const board = normalizeBoard(game.board, cfg.boardSize)
     const index = cfg.getMoveIndex(board, colOrIndex)
     if (index === -1) return
@@ -968,12 +422,10 @@ export default function Game() {
     // seed so applyDiceMove can stay synchronous (the demo/bot harness calls
     // it without a face, falling back to Math.random which is fine vs a bot).
     let movePayload = colOrIndex
-    if (isPig(cfg.type)) {
+    if (cfg.rollFace) {
       let face
       if (colOrIndex === 'roll' && game.diceSeed) {
-        face = cfg.type === 'dice-big'
-          ? await rollFacePairAsync(game.diceSeed, game.diceRollIndex ?? 0)
-          : await rollFaceAsync(game.diceSeed, game.diceRollIndex ?? 0)
+        face = await cfg.rollFace(game.diceSeed, game.diceRollIndex ?? 0)
       }
       movePayload = { action: colOrIndex, face }
     }
@@ -1005,7 +457,7 @@ export default function Game() {
     // Firebase echo, so a fast second tap could recompute from the pre-tap board.
     moveInFlight.current = true
 
-    const isBustMove = isPig(cfg.type) && (Array.isArray(updates.diceLast) ? updates.diceLast[0] === 1 && updates.diceLast[1] === 1 : updates.diceLast === 1)
+    const isBustMove = !!cfg.rollFace && (Array.isArray(updates.diceLast) ? updates.diceLast[0] === 1 && updates.diceLast[1] === 1 : updates.diceLast === 1)
     if (isBustMove) {
       sounds.bust()
     } else {
@@ -1027,19 +479,6 @@ export default function Game() {
     finally { moveInFlight.current = false }
   }
 
-  // GAMEPLAY-02: rematch starter. The loser of the previous round opens the
-  // next one (catch-up house rule); on a draw, alternate from the previous
-  // starter. `starter` is persisted on the room so draw-alternation stays
-  // correct across consecutive rematches — without it, freshGameState would
-  // hand the creator (X) the first move in every single game, a compounding
-  // edge in games with a proven first-move advantage (C4, TTT, Gomoku, Hex).
-  const nextStarter = (prev) => {
-    const lastStarter = prev?.starter === 'O' ? 'O' : 'X'
-    if (prev?.winner === 'X') return 'O'
-    if (prev?.winner === 'O') return 'X'
-    return lastStarter === 'X' ? 'O' : 'X'
-  }
-
   // Apply functions (called directly when no second player / opponent offline)
   const applyPlayAgain = async () => {
     // Arrows: a decided/final match must start over, never advance into a
@@ -1053,6 +492,12 @@ export default function Game() {
     try {
       if (game.gameType === 'wordcoop') {
         const seed = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+        // The Wordle answer list is ~100 KB: load it only when a co-op round
+        // actually starts, never as part of the room page.
+        const [{ getAnswerList }, { buildWordCoopRoundStart }] = await Promise.all([
+          importWithRetry(() => import('../lib/dictionary')),
+          importWithRetry(() => import('../lib/wordcoopLogic')),
+        ])
         const round = buildWordCoopRoundStart({
           answerList: getAnswerList(),
           previousRound: game.round,
@@ -1085,7 +530,9 @@ export default function Game() {
     } catch { toast.error('PLAY AGAIN FAILED — CHECK CONNECTION') }
   }
 
-  const applyNewMatch = async () => {
+  // A hoisted declaration: applyPlayAgain above calls it (Arrows' finished
+  // match), and the React compiler rejects the forward reference to a const.
+  async function applyNewMatch() {
     const starter = nextStarter(game)
     const fresh = freshGameState(game.gameType)
     // Arrows: keep the seen-level rotation across matches so rematches feel
@@ -1127,7 +574,7 @@ export default function Game() {
       localStorage.removeItem(`wordduel-word-${gameId}-O`)
     } catch { /* private mode — ignore */ }
     // Suppresses the lobby-liveliness "opponent switched" toast for a switch
-    // this client itself initiated (see the liveliness effect below).
+    // this client itself initiated (see the liveliness effect above).
     mySwitchedTo.current = newType
     const updates = buildSwitchUpdates(game, newType)
     try {
@@ -1135,6 +582,10 @@ export default function Game() {
       recordPlay(newType, 'multi')
     } catch { toast.error('SWITCH FAILED — CHECK CONNECTION') }
   }
+
+  const { propose, acceptProposal, declineProposal, cancelProposal } = useProposal({
+    game, gameId, mySymbol, opponentOnline, applyPlayAgain, applyNewMatch, applySwitchGame,
+  })
 
   // --- N-player (party game) actions ---
   const handleNStart = async () => {
@@ -1155,70 +606,6 @@ export default function Game() {
         status: 'waiting', winner: null, scores: {}, proposal: null, lastActivityAt: Date.now(),
       })
     } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
-  }
-
-  // Propose or apply directly (if solo / opponent offline)
-  const propose = async (action, gameType = null) => {
-    if (!game || !mySymbol.current) return
-    if (!game.players?.O || opponentOnline === false) {
-      if (action === 'playAgain') return applyPlayAgain()
-      if (action === 'newMatch') return applyNewMatch()
-      if (action === 'switch') return applySwitchGame(gameType)
-    }
-    try {
-      await update(ref(db, `games/${gameId}`), {
-        proposal: { action, gameType, by: mySymbol.current, declined: false },
-      })
-    } catch { toast.error('PROPOSAL FAILED — CHECK CONNECTION') }
-  }
-
-  const acceptProposal = async () => {
-    if (!game?.proposal) return
-    const { action, gameType: gt } = game.proposal
-    if (action === 'playAgain') return applyPlayAgain()
-    if (action === 'newMatch') return applyNewMatch()
-    if (action === 'switch') return applySwitchGame(gt)
-  }
-
-  const declineProposal = async () => {
-    try {
-      await update(ref(db, `games/${gameId}`), { 'proposal/declined': true })
-    } catch { toast.error('DECLINE FAILED — CHECK CONNECTION') }
-  }
-
-  const cancelProposal = async () => {
-    try {
-      await update(ref(db, `games/${gameId}`), { proposal: null })
-    } catch { toast.error('CANCEL FAILED — CHECK CONNECTION') }
-  }
-
-  // F-23 claim-win — same finish shape as a normal round win (winner + score
-  // bump on the standard `games/{id}` node), so the existing win-effect/
-  // recordMatch machinery fires on both clients unmodified. Wrapped in a
-  // transaction that re-reads status/presence server-side so a last-second
-  // reconnect-and-move from the opponent can't be clobbered.
-  const claimAbandonedWin = async () => {
-    if (!game || !mySymbol.current || claimingWin) return
-    const mySym = mySymbol.current
-    const opSym = mySym === 'X' ? 'O' : 'X'
-    setClaimingWin(true)
-    try {
-      const { committed } = await runTransaction(ref(db, `games/${gameId}`), cur => {
-        if (!cur || cur.status !== 'playing') return
-        const presenceOp = cur.presence?.[opSym]
-        const stillOffline = presenceOp && presenceOp.online === false
-        if (!stillOffline) return
-        return {
-          ...cur,
-          winner: mySym,
-          status: 'finished',
-          scores: { ...(cur.scores || {}), [mySym]: (cur.scores?.[mySym] || 0) + 1 },
-          lastActivityAt: Date.now(),
-        }
-      })
-      if (!committed) toast.error("COULDN'T CLAIM — OPPONENT MAY BE BACK")
-    } catch { toast.error('CLAIM FAILED — CHECK CONNECTION') }
-    finally { setClaimingWin(false) }
   }
 
   // Create a fresh room of the given type (used by dead-end error screens and
@@ -1266,68 +653,12 @@ export default function Game() {
     }
   }
 
-  const sendEmote = async (glyph) => {
-    // Party rooms never assign X/O seats (mySymbol stays null) — identify by
-    // uid there so reactions work; players[].name lookup in pushEmote is
-    // uid-keyed in nPlayer rooms. 2P spectators stay muted as before.
-    const sender = mySymbol.current
-      || (getGameConfig(game?.gameType)?.nPlayer ? getPlayerId() : null)
-    if (!sender) return false
-    // sendEmote only ever runs from an onClick handler, never during render;
-    // the compiler's static analysis can't see that, hence the disable.
-    // eslint-disable-next-line react-hooks/purity
-    const now = Date.now()
-    if (now < emoteReadyAt.current) return false
-    emoteReadyAt.current = now + 600
-    setEmoteCooldown(true)
-    setTimeout(() => setEmoteCooldown(false), 600)
-
-    prevEmoteTs.current = now
-    pushEmote({ by: sender, glyph, ts: now })
-    try {
-      await update(ref(db, `games/${gameId}`), { emote: { by: sender, glyph, ts: now } })
-    } catch { /* ignore */ }
-    return true
-  }
-
-  // Free-text chat — sanitize, rate-limit (2s), float our own message
-  // optimistically, append via a push id, and prune the log back to cap.
-  const sendChat = async (raw) => {
-    const text = sanitizeChatText(raw)
-    if (!text) return false
-    const now = Date.now()
-    if (now < chatReadyAt.current) return false
-    chatReadyAt.current = now + 2000
-    setChatCooldown(true)
-    setTimeout(() => setChatCooldown(false), 2000)
-
-    const msg = {
-      by: getPlayerId(),
-      name: localStorage.getItem('playerName') || 'PLAYER',
-      text,
-      ts: now,
-      ...(mySymbol.current ? { seat: mySymbol.current } : {}),
-    }
-    prevChatTs.current = now
-    pushChatFloat(msg)
-    const k = push(ref(db, `games/${gameId}/chatLog`)).key
-    const updates = { [k]: msg }
-    for (const key of chatKeysToPrune(normalizeChatLog(game?.chatLog), CHAT_LOG_CAP - 1)) updates[key] = null
-    try {
-      await update(ref(db, `games/${gameId}/chatLog`), updates)
-    } catch { return false }
-    return true
-  }
-
   // Feature A — name prompt for invited players
   if (needName) {
     const handleNameSubmit = () => {
       const trimmed = nameInput.trim()
       if (!trimmed) { setNameError('ENTER YOUR NAME FIRST'); return }
-      localStorage.setItem('playerName', trimmed)
-      setNeedName(false)
-      setLoading(true)
-      setNameVersion(v => v + 1)
+      joinWithName(trimmed)
     }
 
     return (
@@ -1462,26 +793,14 @@ export default function Game() {
             </div>
           </div>
 
-          {game.gameType === 'wavelength' ? (
-            <WavelengthGame {...nProps} />
-          ) : game.gameType === 'fibbage' ? (
-            <FibbageGame {...nProps} />
-          ) : game.gameType === 'herd' ? (
-            <HerdGame {...nProps} />
-          ) : game.gameType === 'trivia' ? (
-            <TriviaGame {...nProps} />
-          ) : game.gameType === 'sketch' ? (
-            <SketchGame {...nProps} />
-          ) : game.gameType === 'chainreaction4' ? (
-            <ChainReaction4Game {...nProps} />
-          ) : (
-            <SpyfairGame {...nProps} />
-          )}
+          <Suspense fallback={<GameAreaFallback />}>
+            <cfg.Page {...nProps} />
+          </Suspense>
 
           <ChatLog chatLog={game.chatLog} myUid={myUid} />
 
           {amSeated && game.status !== 'waiting' && (
-            <VideoCallReactionDock><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></VideoCallReactionDock>
+            <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></Suspense></VideoCallReactionDock>
           )}
         </div>
         {showInvite && (
@@ -1503,10 +822,7 @@ export default function Game() {
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  const matchTarget = game.gameType === 'password' ? PASSWORD_TARGET : game.gameType === 'pong' ? (game.matchLength ?? 3)
-    : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
-    : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
-    : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
+  const matchTarget = matchTargetFor(game)
   const matchWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
 
   // Presence: show dot for players — green for me, live status for opponent
@@ -1562,7 +878,7 @@ export default function Game() {
         // M-46: Chain Reaction's 8-row board is the tallest non-realtime
         // board — tighten the vertical rhythm so board+status still fit a
         // 667px viewport (iPhone SE) without pushing status off-screen.
-        game.gameType === 'chainreaction' ? 'space-y-2' : 'space-y-4',
+        cfg.compactLayout ? 'space-y-2' : 'space-y-4',
         cfg.maxWidth,
         isRealtimeCustom && '[@media(max-height:420px)]:space-y-1.5',
       )} key={game.gameType}>
@@ -1694,8 +1010,8 @@ export default function Game() {
         {game.status === 'waiting' ? (
           <WaitingRoom gameId={gameId} gameType={game.gameType} game={game} mySymbol={mySeat} onSwitch={applySwitchGame} opponentOnline={opponentOnline} />
         ) : isCustom ? (
-          game.gameType === 'reaction' ? (
-            <ReactionGame
+          <Suspense fallback={<GameAreaFallback />}>
+            <cfg.Page
               gameId={gameId}
               game={game}
               mySymbol={mySeat}
@@ -1705,311 +1021,19 @@ export default function Game() {
               onNewMatch={activeProposal ? null : () => propose('newMatch')}
               proposal={activeProposal}
             />
-          ) : game.gameType === 'aim' ? (
-            <AimTrainerGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'typing' ? (
-            <TypingGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'math' ? (
-            <MathGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'arrows' ? (
-            <ArrowsGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'minesweeper' ? (
-            <MineRaceGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'battleship' ? (
-            <BattleshipGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'checkers' ? (
-            <CheckersGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'artillery' ? (
-            <ArtilleryGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-            />
-          ) : game.gameType === 'numbermemory' ? (
-            <NumberMemoryGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'chimp' ? (
-            <ChimpGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'twotruths' ? (
-            <TwoTruthsGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'bluff' ? (
-            <BluffBattleGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'pong' ? (
-            <PongGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'snake' ? (
-            <SnakeGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'tron' ? (
-            <TronGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'sumo' ? (
-            <SumoGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'spaceduel' ? (
-            <SpaceduelGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'pacmac' ? (
-            <PacmacGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'airhockey' ? (
-            <AirHockeyGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'paint' ? (
-            <PaintGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'wordduel' ? (
-            <WordDuelGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'wordcoop' ? (
-            <WordCoopGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'wordrace' ? (
-            <WordRaceGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'wordhunt' ? (
-            <WordHuntGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'password' ? (
-            <PasswordGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : game.gameType === 'anagrams' ? (
-            <AnagramsGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          ) : (
-            <HangmanGame
-              gameId={gameId}
-              game={game}
-              mySymbol={mySeat}
-              opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
-              proposal={activeProposal}
-            />
-          )
+          </Suspense>
         ) : (
-          <>
+          <Suspense fallback={<GameAreaFallback />}>
             <cfg.BoardComponent
               board={board}
               onMove={handleMove}
-              disabled={!canMove || ((cfg.type === 'dice' || cfg.type === 'dice-big') && !game.diceSeed)}
+              disabled={!canMove || (!!cfg.rollFace && !game.diceSeed)}
               winningLine={winningLine}
               currentTurn={game.currentTurn}
               lastMove={game.lastMove ?? null}
               mySymbol={mySeat}
               {...(cfg.boardProps ? cfg.boardProps(game) : {})}
-              {...(cfg.type === 'dice' || cfg.type === 'dice-big' ? { diceSeedPending: !game.diceSeed } : {})}
+              {...(cfg.rollFace ? { diceSeedPending: !game.diceSeed } : {})}
             />
             <GameStatus
               status={game.status}
@@ -2033,7 +1057,7 @@ export default function Game() {
                 SEE WHERE YOU RANK →
               </Link>
             )}
-          </>
+          </Suspense>
         )}
 
         {!isCustom && isSpectator && (game.status === 'playing' || game.status === 'finished') && (
@@ -2056,7 +1080,7 @@ export default function Game() {
             nobody to react to yet). Shown to a seated player once an
             opponent has joined, or to a spectator watching a live game. */}
         {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
-          <VideoCallReactionDock><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></VideoCallReactionDock>
+          <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></Suspense></VideoCallReactionDock>
         )}
       </div>
       {showInvite && (

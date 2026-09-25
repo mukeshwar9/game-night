@@ -1,17 +1,9 @@
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
-import Games from './pages/Games';
-import Game from './pages/Game';
-import Demo from './pages/Demo';
-import DailyGame from './pages/DailyGame';
-import Profile from './pages/Profile';
-import Friends from './pages/Friends';
-import Leaderboard from './pages/Leaderboard';
-import Playground from './pages/Playground';
-import Notes from './pages/Notes';
-import EmojiLab from './pages/EmojiLab';
 import NotFound from './pages/NotFound';
+import PixelDots from './components/loading/PixelDots';
+import { lazyWithRetry } from './lib/lazyWithRetry';
 import { Toaster } from './components/ui/sonner';
 import UpdatePrompt from './components/UpdatePrompt';
 import ConnectionBanner from './components/ConnectionBanner';
@@ -20,8 +12,32 @@ import BottomTabBar from './components/BottomTabBar';
 import NavBar, { HomeInterceptProvider, TAB_BAR_ROUTES } from './components/NavBar';
 import { AuthProvider } from './lib/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
-import OnlineLobby from './pages/OnlineLobby';
 import { VideoCallLayoutProvider } from './components/VideoCallLayout';
+
+// Home (the landing page) and NotFound stay in the entry chunk; every other
+// route downloads on first visit. lazyWithRetry reloads once if a chunk from
+// an older deploy has been deleted.
+const Games = lazyWithRetry(() => import('./pages/Games'));
+const OnlineLobby = lazyWithRetry(() => import('./pages/OnlineLobby'));
+const Game = lazyWithRetry(() => import('./pages/Game'));
+const Demo = lazyWithRetry(() => import('./pages/Demo'));
+const DailyGame = lazyWithRetry(() => import('./pages/DailyGame'));
+const Profile = lazyWithRetry(() => import('./pages/Profile'));
+const Friends = lazyWithRetry(() => import('./pages/Friends'));
+const Notes = lazyWithRetry(() => import('./pages/Notes'));
+const EmojiLab = lazyWithRetry(() => import('./pages/EmojiLab'));
+const Leaderboard = lazyWithRetry(() => import('./pages/Leaderboard'));
+const Playground = lazyWithRetry(() => import('./pages/Playground'));
+
+// Shown while a route's chunk downloads — the same PixelDots as the boot
+// splash (ConnectingSplash in AuthContext), minus its INSERT COIN line.
+function RouteFallback() {
+  return (
+    <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center">
+      <PixelDots size="lg" glow />
+    </div>
+  );
+}
 
 // M-61 + M-84: reset scroll and replay a short fade on every route change.
 // `key={pathname}` remounts the wrapper so the CSS animation (index.css
@@ -43,23 +59,25 @@ function AppRoutes() {
         {/* Bottom padding clears the fixed tab bar so page content (including
             bottom-of-page CTAs like Home's install prompt) never sits under it. */}
         <div className={showTabBar ? 'pb-[var(--app-tabbar-h)]' : undefined}>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/games" element={<Games />} />
-            <Route path="/online" element={<OnlineLobby />} />
-            <Route path="/game/:gameId" element={<Game />} />
-            <Route path="/demo" element={<Demo />} />
-            <Route path="/solo/:type" element={<Demo />} />
-            <Route path="/local/:type" element={<Demo mode="local" />} />
-            <Route path="/daily" element={<DailyGame />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/friends" element={<Friends />} />
-            <Route path="/notes" element={<Notes />} />
-            <Route path="/emoji-lab" element={<EmojiLab />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/playground" element={<Playground />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/games" element={<Games />} />
+              <Route path="/online" element={<OnlineLobby />} />
+              <Route path="/game/:gameId" element={<Game />} />
+              <Route path="/demo" element={<Demo />} />
+              <Route path="/solo/:type" element={<Demo />} />
+              <Route path="/local/:type" element={<Demo mode="local" />} />
+              <Route path="/daily" element={<DailyGame />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/friends" element={<Friends />} />
+              <Route path="/notes" element={<Notes />} />
+              <Route path="/emoji-lab" element={<EmojiLab />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/playground" element={<Playground />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </div>
       </div>
       {showTabBar && <BottomTabBar />}
