@@ -37,6 +37,18 @@ describe('parseThemes', () => {
       }
     }
   })
+
+  // A key missing from a theme block silently inherits MIDNIGHT's value via
+  // the cascade (e.g. dark 4P tints on a light theme), so every theme must
+  // redefine every token the default does.
+  it('every theme redefines every --c-* key the default theme defines', () => {
+    const defaultKeys = Object.keys(themes.midnight)
+    for (const id of EXPECTED_THEME_IDS) {
+      for (const key of defaultKeys) {
+        expect(themes[id][key], `${id}.${key}`).toBeDefined()
+      }
+    }
+  })
 })
 
 
