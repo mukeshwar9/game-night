@@ -20,7 +20,8 @@ export function applySimonMove(game, padIndex, symbol) {
   if (progress < seq.length) {
     // Replay phase — verify correct pad
     if (padIndex !== seq[progress]) {
-      return { updates: { simonDeadline: null }, result: { winner: opponent } }
+      // simonMiss lets every client show the wrong press against the real sequence.
+      return { updates: { simonDeadline: null, simonMiss: padIndex }, result: { winner: opponent } }
     }
     return { updates: { simonProgress: progress + 1 }, result: null }
   }

@@ -670,7 +670,12 @@ export const GAME_TYPES = [
     boardProps: (game) => ({
       simonSequence: normalizeSimonSequence(game.simonSequence),
       simonProgress: game.simonProgress ?? 0,
+      simonMiss: game.simonMiss ?? null,
+      finished: game.status === 'finished',
     }),
+    // SimonBoard plays each pad's own tone on tap; the generic move blip on top
+    // of it made every press sound twice.
+    quietMoves: true,
   },
   {
     type: 'chimp', label: 'CHIMP TEST',
@@ -1383,7 +1388,7 @@ const FIELD_NULLS = {
   passNote: null,
   lastFrom: null, lastTo: null,
   sosLines: null,
-  simonSequence: null, simonProgress: null,
+  simonSequence: null, simonProgress: null, simonMiss: null,
   simonDeadline: null, vmDeadline: null,
   chimpLevel: null, chimpLayout: null,
   chimpProgressX: null, chimpProgressO: null,

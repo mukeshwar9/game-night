@@ -40,6 +40,7 @@ describe('applySimonMove — replay phase', () => {
     const r = applySimonMove(game, 2, 'O')
     expect(r.result).toEqual({ winner: 'X' })
     expect(r.updates.simonDeadline).toBeNull()
+    expect(r.updates.simonMiss).toBe(2)
   })
 
   it('correct mid-sequence press advances progress', () => {

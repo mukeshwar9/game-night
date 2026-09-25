@@ -1008,7 +1008,7 @@ export default function Game() {
     const isBustMove = isPig(cfg.type) && (Array.isArray(updates.diceLast) ? updates.diceLast[0] === 1 && updates.diceLast[1] === 1 : updates.diceLast === 1)
     if (isBustMove) {
       sounds.bust()
-    } else {
+    } else if (!cfg.quietMoves) {
       sounds.move(mySymbol.current)
     }
 

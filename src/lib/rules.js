@@ -143,9 +143,10 @@ export const GAME_RULES = {
     objective: 'Out-memorize your opponent in a back-and-forth sequence duel.',
     howToPlay: [
       'Watch the pattern of lit pads, then tap them back in the exact order.',
+      'Missed part of it? WATCH AGAIN replays it once per turn, and your recall timer restarts after the replay.',
       'Repeat the sequence correctly, then add one new pad to pass it back.',
     ],
-    win: 'Tap a wrong pad and you lose. The last player to recall the growing sequence wins.',
+    win: 'Tap a wrong pad and you lose — the full sequence is then shown with the missed step marked. The last player to recall the growing sequence wins.',
   },
 
   chimp: {

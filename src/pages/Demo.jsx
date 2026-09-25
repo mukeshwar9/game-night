@@ -885,6 +885,7 @@ function WordHuntDemo() {
 function SimonDemo() {
   const [seq, setSeq] = useState([])
   const [progress, setProgress] = useState(0)
+  const [miss, setMiss] = useState(null)
   const [currentTurn, setCurrentTurn] = useState('X')
   const [status, setStatus] = useState('playing')
   const [winner, setWinner] = useState(null)
@@ -893,7 +894,7 @@ function SimonDemo() {
     if (status !== 'playing') return
     const r = applySimonMove({ simonSequence: seq, simonProgress: progress }, padIndex, currentTurn)
     if (!r) return
-    if (r.result) { setWinner(r.result.winner); setStatus('finished'); return }
+    if (r.result) { setMiss(r.updates.simonMiss ?? null); setWinner(r.result.winner); setStatus('finished'); return }
     const { simonSequence, simonProgress, currentTurn: next } = r.updates
     if (simonSequence !== undefined) setSeq(normalizeSimonSequence(simonSequence))
     if (simonProgress !== undefined) setProgress(simonProgress)
@@ -901,7 +902,7 @@ function SimonDemo() {
   }
 
   const reset = () => {
-    setSeq([]); setProgress(0); setCurrentTurn('X'); setStatus('playing'); setWinner(null)
+    setSeq([]); setProgress(0); setMiss(null); setCurrentTurn('X'); setStatus('playing'); setWinner(null)
   }
 
   return (
@@ -910,7 +911,8 @@ function SimonDemo() {
         <PlayerCard name="Alice" symbol="X" isActive={status === 'playing' && currentTurn === 'X'} isMe />
         <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
       </div>
-      <SimonBoard onMove={handleMove} disabled={status !== 'playing'} simonSequence={seq} simonProgress={progress} />
+      <SimonBoard onMove={handleMove} disabled={status !== 'playing'} simonSequence={seq} simonProgress={progress}
+        simonMiss={miss} finished={status === 'finished'} currentTurn={currentTurn} />
       <div className="text-center space-y-2">
         {status === 'finished' && (
           <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
