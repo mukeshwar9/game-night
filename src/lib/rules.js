@@ -584,6 +584,28 @@ export const GAME_RULES = {
     win: 'The group wins if a clear majority votes for the actual spy. Otherwise the spy wins. First to 3 round wins takes the match.',
   },
 
+  headsup: {
+    objective: 'Guess as many words as you can while your friends act them out — then act for them.',
+    howToPlay: [
+      '3–8 players, made for a video call. Each turn one player is the guesser; their screen shows only a timer and GOT IT / PASS.',
+      'Everyone else sees the word on their own screen and acts it out or describes it — without saying the word.',
+      'Tap GOT IT when the guesser says it, or PASS to skip to the next word. Anyone can tap.',
+      'A turn lasts 60 seconds (the room’s timer setting can double it or turn it off). The host picks the category before the match.',
+    ],
+    win: 'The guesser scores a point for every word they get. Everyone guesses twice in a group of 3–4, once in a bigger group — most points wins, ties share the win.',
+  },
+
+  chameleon: {
+    objective: 'Give a clue that proves you know the secret word without giving it away — or, as the Chameleon, bluff your way through.',
+    howToPlay: [
+      '3–8 players. Everyone sees the same topic card of 16 words. All but one player also see which word is secret; that one player is the Chameleon.',
+      'In turn, each player types one short clue related to the secret word. Too obvious and the Chameleon learns the word; too vague and you look like the Chameleon.',
+      'Then everyone votes for who they think the Chameleon is.',
+      'If the Chameleon is caught, they get one guess at the secret word to steal the round.',
+    ],
+    win: 'Chameleon not caught (or a tied vote): Chameleon +2. Caught but guesses the word: Chameleon +1. Caught and wrong: everyone else +2. First to 5 points wins.',
+  },
+
   sketch: {
     objective: 'One player draws a secret word while everyone else races to guess it in chat.',
     howToPlay: [

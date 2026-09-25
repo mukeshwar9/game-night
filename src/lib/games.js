@@ -13,6 +13,7 @@ import {
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
+  HeadsUpIcon, ChameleonIcon,
 } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
@@ -1299,6 +1300,28 @@ export const GAME_TYPES = [
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/SpyfairGame')),
     // no startRound — SpyfairGame drives its own round start
+  },
+  {
+    type: 'headsup', label: 'HEADS UP',
+    desc: 'act it out on the call', Icon: HeadsUpIcon,
+    badge: 'HU', maxWidth: 'max-w-sm',
+    category: 'party',
+    addedAt: '2026-09-26',
+    durationMin: 10, tags: ['party'],
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/HeadsUpGame')),
+    // no startRound — HeadsUpGame deals its own sealed turns
+  },
+  {
+    type: 'chameleon', label: 'CHAMELEON',
+    desc: 'blend in, or spot who can’t', Icon: ChameleonIcon,
+    badge: 'CM', maxWidth: 'max-w-sm',
+    category: 'party',
+    addedAt: '2026-09-26',
+    durationMin: 12, tags: ['thinky', 'party'],
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/ChameleonGame')),
+    // no startRound — ChameleonGame deals its own sealed rounds
   },
   {
     type: 'wordduel', label: 'WORD DUEL',

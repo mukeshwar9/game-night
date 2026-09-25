@@ -839,3 +839,33 @@ export function YavalathIcon() {
     </svg>
   )
 }
+export function HeadsUpIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* prompt card held up on the forehead */}
+      <rect x="6" y="1.5" width="12" height="8" rx="1" fill="currentColor" />
+      {/* head */}
+      <circle cx="12" cy="15.5" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="10" cy="15" r="0.9" fill="currentColor" />
+      <circle cx="14" cy="15" r="0.9" fill="currentColor" />
+      <path d="M10 18 Q12 19.3 14 18" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function ChameleonIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* body + head */}
+      <path d="M3 12 Q5 7 11 7 Q17 7 19 11 L21.5 12.5 L19 13.5 Q17 16 12 16 L7 16 Q4 16 3 12 Z" fill="currentColor" opacity="0.85" />
+      {/* eye */}
+      <circle cx="17" cy="10.5" r="1.3" fill="currentColor" />
+      {/* curled tail */}
+      <path d="M4 14 Q1.5 18 5 20 Q8 21 8 18.5 Q8 17 6.5 17.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      {/* legs */}
+      <line x1="9" y1="16" x2="8" y2="19" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <line x1="15" y1="15.5" x2="16" y2="19" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
