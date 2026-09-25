@@ -23,7 +23,7 @@ Adds a new game to the platform. The room/invite/Firebase/presence layer is enti
    Add an icon component there; it's referenced from the registry entry's `Icon`.
 
 4. **Registry entry — `src/lib/games.js`.**
-   Add one entry to `GAME_TYPES` with `boardSize`, `getMoveIndex`, `getWinner` (or the hooks below), `BoardComponent`, `badge`, `maxWidth`, `desc`, `Icon`. `freshGameState()` derives the initial Firebase state automatically from this entry — you don't hand-write initial state anywhere else. The home-screen grid and the end-of-game "SWITCH GAME" picker both render from the registry via `GamePicker`; no UI file needs a per-game change.
+   Add one entry to `GAME_TYPES` with `boardSize`, `getMoveIndex`, `getWinner` (or the hooks below), `BoardComponent`, `badge`, `maxWidth`, `desc`, `Icon`. `freshGameState()` derives the initial Firebase state automatically from this entry — you don't hand-write initial state anywhere else. Boards and custom pages are lazy chunks: `const XBoard = lazyWithRetry(() => import('../components/XBoard'))`, and a custom game adds `Page: lazyWithRetry(() => import('../pages/XGame'))` (never import them eagerly — the entry bundle has a CI budget). Also add HOW TO PLAY text in `src/lib/rules.js`, a rule plus rules test for every room key the game writes, and an e2e spec for multi-client flows (see `.claude/rules/adding-a-game-rules.md`). The home-screen grid and the end-of-game "SWITCH GAME" picker both render from the registry via `GamePicker`; no UI file needs a per-game change.
 
 ## `applyMove` / `boardProps` hooks — when the standard shape doesn't fit
 

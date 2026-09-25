@@ -6,60 +6,106 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 
 ## Games
 
-**30 games** across five categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo`.
+**64 games** (72 counting modes) across six categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo` with EASY / NORMAL / HARD bots for the board games. This list is generated from the `GAME_TYPES` registry (`src/lib/games.js`), which is the source of truth.
 
-### Board (10)
-- **Tic Tac Toe** — the classic 3×3
-- **Ultimate Tic Tac Toe** — nine boards in a 3×3 grid; your move dictates which board your rival plays next; win three boards in a row *(selectable as a mode when starting Tic Tac Toe)*
-- **Connect Four** — 6×7 drop-a-disc
-- **Connect Four Pop Out** — drop *or* pop one of your own bottom discs so the column slides down; a pop can complete a line for either player *(selectable as a mode when starting Connect Four)*
-- **Dots & Boxes** — 6×6 by default (first to 19 clinches); 4×4 classic mode via +MODES ([design notes](README-dots-and-boxes.md))
-- **SOS** — 7×7; place an S or an O anywhere; each S-O-S line scores and grants another move
-- **Gomoku** — five in a row on 15×15
-- **Reversi** — 8×8 capture-and-flip with forced passes and big late-game swings
-- **Order & Chaos** — asymmetric 6×6: Order wants any five-in-a-row, Chaos wants a full board without one
-- **Pig** — push-your-luck dice; bank or roll, a 1 wipes your turn; first to 100
+### Board games (24)
+- **Tic Tac Toe** — three in a row wins — modes: Ultimate TTT, TTT 4×4
+- **Sim** — color an edge, don't close a triangle
+- **Chomp** — eat the bar, dodge the poison
+- **Breakthrough** — race a pawn to the far row
+- **Ataxx** — clone, jump, convert the neighborhood
+- **Kamisado** — your landing picks their tower
+- **Onitama** — the way of the master — your card becomes their move
+- **Quarto** — place the piece you are given, give the next
+- **Santorini** — climb the island, build their grave
+- **Lines Of Action** — move as far as the line is crowded, unite all
+- **Yavalath** — four in a row wins — three in a row loses
+- **Connect Four** — four in a row wins — modes: C4 Five, C4 Pop Out
+- **Dots & Boxes** — claim the most boxes — modes: Dots & Boxes 4×4
+- **SOS** — spell the most S-O-S
+- **Gomoku** — five in a row wins — modes: Gomoku Swap
+- **Reversi** — flip the board your way
+- **Chain Reaction** — trigger chain explosions — modes: Chain Reaction 6×8
+- **Chain Reaction 4P** — 2–4 player chain explosions *(2–4 players)*
+- **Blockade** — race across, wall them off
+- **Order & Chaos** — order builds, chaos blocks
+- **Hex** — connect your two edges
+- **Battleship** — sink the hidden fleet
+- **Mancala** — sow & capture
+- **Checkers** — jumps forced, kings crown
 
-### Reflex & skill (10)
-- **Reaction Time** — four wait-for-green rounds, lowest milliseconds wins
-- **Aim Trainer** — race to click targets
-- **Typing Race** — same passage, live ghost cursor, effective WPM (speed × accuracy) wins
-- **Mental Math** — 2-minute blitz with speed scoring, ⚡ power questions, and 🔥 streak multipliers
-- **Arrows Puzzle** — shared-board tap duel: clear snake arrows, avoid the trap, best of 3 rounds (easy → medium → hard) ([review & backlog](docs/README-ARROWS-REVIEW.md))
-- **Pong** — real-time paddle duel over WebRTC
-- **Snake Battle** — two snakes, one arena, real-time
-- **Tron** — light-cycle trails, one collision decides it
-- **Sumo Arena** — shove the other blob off a shrinking platform
-- **Space Duel** — asteroids-style ship combat with HP and cooldowns
+### Reflex & skill (15)
+- **Reaction Time** — fastest reflexes win *(2–8 players)*
+- **Aim Trainer** — click targets fast *(2–8 players)*
+- **Typing Race** — outtype the whole room *(2–8 players)*
+- **Mental Math** — solve fastest under pressure *(2–8 players)*
+- **Arrows Puzzle** — race to clear the arrows
+- **Pong** — first to five points
+- **Snake Battle** — outlast the other snake
+- **Tron** — don't crash first
+- **Sumo Arena** — shove them off the ledge
+- **Space Duel** — blast your rival's ship
+- **Paint Turf** — claim more turf than they do
+- **Pac Mac** — eat more pellets than they do
+- **Mine Race** — clear the same minefield faster *(2–8 players)*
+- **Air Hockey** — flick the puck, score 7
+- **Artillery** — angle, power, bracket
 
-### Memory (4)
-- **Simon** — the pad sequence flashes once, replay it from memory, then extend it
-- **Chimp Test** — numbered squares flash then hide; click them in order as the count climbs
-- **Number Memory** — memorize a number that grows a digit per level
-- **Visual Memory** — reproduce a flashed tile pattern
+### Memory (5)
+- **Simon** — repeat the growing pattern
+- **Chimp Test** — recall numbered tiles fast
+- **Number Memory** — memorize the growing number
+- **Visual Memory** — remember the lit tiles
+- **Pairs** — match the hidden pairs
 
-### Word & bluff (3)
-- **Hangwoman** — hidden-word game; a salted SHA-256 commit–reveal scheme keeps the word secret with no server, and a cheating word-keeper is detected *and forfeits the round* ([design](docs/HANGMAN.md))
-- **Two Truths & a Lie** — fool the guesser or catch the lie (commit–reveal keeps the lie index secret)
-- **Bluff Battle** — liar's dice with cryptographically committed rolls
+### Word games (8)
+- **Hangwoman** — guess the hidden word
+- **Two Truths** — spot the lie
+- **Word Duel** — race to guess the word
+- **Word Co-Op** — solve one word together
+- **Word Race** — solve the same word first
+- **Word Hunt** — race to find the most words
+- **Password** — give clues, guess the word
+- **Anagrams** — race to find words
 
-### Party · 3–8 players (3)
-- **Wavelength** — read the clue-giver's mind on a hidden spectrum
-- **Fibbage** — invent fake answers, vote for the truth, score for fooling the room
-- **Spyfair** — everyone knows the location except the spy; find them before the vote
+### Dice & bluff (2)
+- **Pig** — push your luck, bank often — modes: Pig Big
+- **Bluff Battle** — outroll the liar
+
+### Party · 2–8 players (10)
+- **Herd Mind** — match the majority answer *(3–8 players)*
+- **Trivia Blitz** — fast answers score more *(2–8 players)*
+- **Wavelength** — guess the hidden target *(3–8 players)*
+- **Fibbage** — bluff a believable answer *(3–8 players)*
+- **Spyfair** — find the spy among you *(3–8 players)*
+- **Heads Up** — act it out on the call *(3–8 players)*
+- **Chameleon** — blend in, or spot who can’t *(3–8 players)*
+- **Sketch** — draw & guess the word *(2–8 players)*
+- **Code Words** — team clues, hidden agents *(4–8 players)*
+- **Just One** — co-op clues, duplicates cancel *(3–8 players)*
 
 ### Daily
 - **`/daily`** — a date-seeded solo puzzle, same board for everyone, personal best tracked locally
 
 ## How it works
 
-1. Enter your name and pick a game — games with variants (Tic Tac Toe, Connect Four) first ask which mode you want
-2. Share the room link (or the 6-character code) with a friend
-3. They open it and play — moves sync in real time via Firebase
-4. **PLAY AGAIN / NEW MATCH / SWITCH GAME** are propose-and-accept: the opponent gets an ACCEPT/DECLINE banner (applies instantly if they're offline). Switching keeps players, presence, and the room code
-5. Extra visitors become spectators; party games seat 3–8 players with a host-driven START
+1. Pick a game — games with modes (Tic Tac Toe, Connect Four, Gomoku, …) first ask which mode you want
+2. Share the room link (or the 6-character code); invited friends see the game, the host and the seats left, type a name once, and join in one tap
+3. Moves sync in real time via Firebase; a move shows as pending until the server acknowledges it, and taps while offline are refused instead of landing later
+4. **PLAY AGAIN / NEW MATCH / SWITCH GAME** are propose-and-accept in two-player rooms (they apply instantly if the opponent is offline); party rooms follow the host. Switching keeps players, presence and the room code
+5. Extra visitors spectate (and can react); latecomers to a party room are seated automatically at the next lobby, and a spectator gets a seat offer when a two-player seat frees up
 
 Standard games play first-to-3-rounds; Pong has a configurable match length; the arena games (Tron / Sumo / Space Duel) are single-round.
+
+### Game-night mode
+
+A room remembers the whole evening:
+
+- **Night scoreboard** — standings survive game switches and NEW MATCH (3/2/1/0 points per placement, 1 each for a draw), with SHARE RECAP (MVP, most wins, closest game) and START A NEW NIGHT.
+- **Party room → two-player game** — tonight's top two sit down, everyone else queues, and the loser swaps out for the next in line after each match (winner stays).
+- **Host controls** — kick, lock the room, transfer host; the host role passes to the next online player if the host drops.
+- **Timer scale** — NORMAL / RELAXED ×2 / OFF for every timed party game; with timers off the host advances manually.
+- **Fresh content** — Trivia, Fibbage, Spyfair, Wavelength and Sketch avoid repeating content within a room across matches.
 
 ## Choose who goes first (planned)
 
@@ -83,173 +129,182 @@ An optional **PLAYING ON A VIDEO CALL** layout setting adds a portrait 9:16 spac
 - **Personal preference:** the setting stays on the player's device in `localStorage`. Changing it affects only that device and never changes the opponent's layout, game rules, timer, or networking.
 - **Validation:** test with a real floating call window in portrait and landscape, including the on-screen keyboard. Disabling the mode restores the normal layout.
 
-## Public online matchmaking (planned)
+## Public online lobby
 
-The next multiplayer slice is a public **PLAY ONLINE** lobby for finding an opponent without sharing a link first.
-
-- Firebase-authenticated guests and Google-linked players can create or join public rooms; Google login remains optional. Linking a new Google account preserves the guest uid and makes its server-backed profile available across devices. Signing into an existing Google account uses that account's identity without merging guest data; local stats remain device-local.
-- A live waiting list groups available rooms by game and shows the host display name/avatar, with one-tap JOIN actions. Players can also see rooms waiting for other games. JOIN must revalidate that the room is public, waiting, unexpired, hosted by an online opponent, and has an open seat. If the seat is taken or the room is no longer eligible, return the player to the lobby with an explanation instead of making them a spectator.
-- V1 covers all existing two-player games; party games remain invite-only until their multi-seat queue flow is designed.
-- Public rooms build on the existing Firebase `games/{gameId}` room model, with transactional seat claims that enforce public-room eligibility. A lightweight `matchmaking/{gameId}` index advertises only eligible waiting rooms; the room is authoritative if the index is stale.
-- The existing share-link and friend-invite flow remains available as **PLAY WITH FRIENDS**.
-
-Before public discovery ships:
-
-- **Permissions:** replace the current broad authenticated room-write access with explicit permissions for creation, seat claims, and participant actions. Define index rules so hosts can advertise only their own eligible rooms and unrelated users cannot alter or delete listings or games.
-- **Listing lifecycle:** register disconnect cleanup before advertising, remove the listing on host cancellation or a successful join, and define an expiry timestamp that lobby readers filter against. Assign responsibility for deleting expired entries and reconciling a successful seat claim whose index cleanup failed.
-- **Reconnects:** revalidate the room before republishing after a host reconnects; occupied, cancelled, or expired rooms must not reappear automatically.
+**PLAY ONLINE** (`/online`) lists public rooms waiting for an opponent, grouped by game, with the host's name and avatar and one-tap JOIN. It covers the two-player games plus the N-player races (a public race room is a 1v1 until more join); other party games stay invite-only. `matchmaking/{gameId}` is only an index — JOIN revalidates the room (public, waiting, host online, seat open) and returns the player to the lobby with an explanation if it is no longer eligible. Listings register disconnect cleanup, expire, are removed on join or cancel, and are republished when the host reconnects to a room that is still eligible. **PLAY WITH FRIENDS** (share link and friend invites) is unchanged.
 
 ## Identity & social
 
-Every visitor is signed in **anonymously** with Firebase Auth on boot — a real uid with zero login UI, keeping the "no account needed" promise. Optionally **upgrade to Google** (one tap) to make your profile permanent and cross-device; the uid is preserved so your avatar, friends, and stats carry over.
+Every visitor is signed in **anonymously** with Firebase Auth on boot — a real uid with zero login UI, keeping the "no account needed" promise. Optionally **upgrade to Google** (one tap) to make your profile permanent and cross-device; the uid is preserved so your avatar, friends and stats carry over.
 
-- **Profiles** — display name + one of 19 pixel-art avatars (`/profile`)
+- **Profiles** — display name + one of 19 pixel-art avatars (`/profile`); names are moderated
 - **Friend codes** — a unique 6-character code (unambiguous alphabet); add friends by code, accept/decline requests (`/friends`)
-- **Game invites** — invite an online friend into your room from the waiting screen; they get a JOIN card on their home page
-- **Presence** — online/offline dots for friends and opponents, powered by `onDisconnect`
+- **Game invites** — invite one friend or every online friend into your room; invites expire after a day
+- **Presence** — online/offline for friends and opponents, tracked per connection so a second tab never marks you offline
+- **Chat safety** — chat masks denied words, and every message has MUTE (local) and REPORT (goes to the feedback inbox)
+- **Leaderboard** — server-verified: a Cloud Function credits finished matches and re-checks board-game winners (see `functions/README.md`)
 - **Local stats** — lifetime W/L, streaks, per-game and head-to-head records in `localStorage`
 
 ## Architecture
 
-There is **no backend server**. Firebase Realtime Database holds every room at `games/{gameId}`; security rules are the entire trust boundary.
+Firebase Realtime Database holds every room at `games/{gameId}`; security rules are the trust boundary, and two Cloud Functions (room cleanup, verified results) run server-side.
 
-- **Turn-based games** are pure registry entries (`src/lib/games.js` → `GAME_TYPES`): board size, move validation, win detection, board component. `Game.jsx` has no per-game branches. Non-standard turn shapes (extra turns, letters, dice) use the `applyMove`/`boardProps` hooks; variants declare `variantOf` to appear in the pre-game mode chooser instead of the main grid.
-- **Hidden information** never touches the database in plaintext: the secret stays in the owner's `sessionStorage` and only a salted SHA-256 commitment is published (`src/lib/commit.js`); clients verify the reveal. Hangwoman, Two Truths, Bluff Battle, Wavelength, and Spyfair's location all use this.
-- **Party games** use an N-player room model: `players` keyed by uid, host-driven start, per-player scores, and phase state machines with disconnect-safe progression (offline players don't stall reveals or votes).
-- **Real-time games** (Pong, Snake, Tron, Sumo, Space Duel) run peer-to-peer: Firebase is only the WebRTC signaling channel; gameplay frames travel over an unreliable/unordered `RTCDataChannel`. The host (X) runs the authoritative simulation and streams ~30 Hz snapshots; the guest predicts its own input locally. Pure sims live in `src/lib/*Logic.js` (unit-tested, no DOM/network); transient network blips get a recovery grace window before failing. Public STUN only — no TURN, so ~5–10% of peers behind symmetric NATs see a CONNECTION FAILED / RETRY state.
+- **Turn-based games** are registry entries (`src/lib/games.js` → `GAME_TYPES`): board size, move validation, win detection, a lazily loaded board component. Non-standard turn shapes use the `applyMove`/`boardProps` hooks; variants declare `variantOf` to appear in the mode chooser. Custom games declare a lazy `Page` that `Game.jsx` renders from the registry.
+- **Room shell** — `src/pages/Game.jsx` plus hooks in `src/hooks/room/` (session and seat claims, per-connection presence, proposal handshake, abandon recovery, back guard, floats, Pig's seed protocol). The match-end rule lives in `src/lib/matchRules.js`, shared with the results function.
+- **Code-split** — every route except Home, every game page and board, the Wordle dictionary, framer-motion and qrcode load on demand; `lazyWithRetry` reloads once when an old tab asks for a chunk a newer deploy removed. CI enforces an entry-bundle budget.
+- **Hidden information** never sits in the room in plaintext. Two primitives: salted SHA-256 commit–reveal (`src/lib/commit.js`: Hangwoman, Two Truths, Bluff Battle, Wavelength, Herd Mind, Code Words) and per-player sealing (`src/lib/sealed.js`, Web Crypto ECDH + AES-GCM: Spyfair, Chameleon, Heads Up, Code Words, Just One), where each player publishes a public key and the dealer encrypts one entry per recipient.
+- **Party games** use an N-player room model: `players` keyed by uid, an online-aware coordinator (`src/lib/coordinator.js`) that hands host duties to the next online player, per-player scores, and phase machines whose steps are transactions. The five races (`race: true`) share `raceLogic.js` and `RaceShell`.
+- **Real-time games** (Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Paint, Pac Mac) run peer-to-peer: Firebase is only the WebRTC signaling channel. Each connection attempt has an id, so RETRY works from either side and after reloads; a heartbeat pauses play while a peer is away and offers WAIT / CLAIM WIN when they're gone; the host can equalize its own input delay to half the RTT. Public STUN by default; set `VITE_TURN_URLS` / `VITE_TURN_USERNAME` / `VITE_TURN_CREDENTIAL` to add TURN, and public rooms then relay so strangers never see each other's IP.
+- **Telemetry (in-house)** — errors go to `errors/{day}` (deduped, capped), started/finished/abandoned counts to `playsDaily/{day}`; admins see both at `/notes`.
 
 ## Features
 
-- **Six switchable themes** (Midnight Arcade, Phosphor, Amber CRT, Synthwave, The Grid, 1-Bit Mono) — all colors flow through CSS variables; a theme is one CSS block + one registry entry
-- **Retro CRT look** — Press Start 2P, neon glows, scanlines, pixel-art cursors, themed caret
+- **Sixteen switchable themes** — all colors flow through CSS variables; a theme is one CSS block + one registry entry
+- **Settings panel** — theme, arcade font, CRT overlay, reduced motion (also applied to framer-motion and JS animations), text size, win celebrations
 - **8-bit audio + haptics** — Web Audio API sound engine (no audio files), mobile vibration, shared mute toggle
-- **Shareable result cards** — themed pixel-art canvas cards via the native share sheet, PNG fallback
-- **Emote reactions** — 🔥 😂 😭 😎 👏 💀 float over the room for both players
-- **Rules overlays** — every game card and in-game header has a HOW TO PLAY modal (`src/lib/rules.js`)
-- **Seat reclaim** — your auth uid is stamped into your seat; closing a tab and reopening the link reclaims it
-- **Idle/disconnect resilience** — offline opponents unlock instant rematch/switch; idle opponents in memory duels can be claimed against after a timeout; dropped party players don't stall rounds
+- **Shareable cards** — themed result cards and an end-of-night recap via the native share sheet; invite links unfurl as a large preview card
+- **Emote reactions and stickers** — float over the room for players and spectators
+- **Rules overlays** — every game has a HOW TO PLAY modal (`src/lib/rules.js`)
+- **Accessibility** — every board names its cells by position and contents for screen readers, a live region announces turns and results, Reversi discs carry a letter, Mine Race is fully keyboard-playable
+- **Resilience** — seat reclaim by uid, pending-move confirmation, a banner when the server is unreachable, LEAVE lets the opponent claim at once, dropped players never stall party rounds
 - **PWA** — installable, offline home screen, UPDATE READY banner instead of mid-game auto-reload
-- **Mobile-tuned** — safe-area insets, fast taps, responsive boards, reduced-motion support
-- **Solo practice** — `/demo` runs local vs-AI versions of the board games and skill games with no Firebase
+- **Solo practice** — `/demo` runs local vs-AI versions with difficulty levels, no Firebase needed
 
 ## Security
 
-`database.rules.json` is deployed as the sole trust boundary:
+`database.rules.json` is the trust boundary (see its tests in `tests/rules/`):
 
-- All game reads/writes require **auth** (anonymous counts — no login friction)
-- A seat's `playerId` is **immutable and self-only** (`newData === auth.uid`) — seats can't be hijacked or spoofed
-- Profiles are readable only by signed-in users; friend lists/requests/invites only by their owner; **invites can only be sent by actual friends** and must carry the sender's real uid
-- Friend codes can be claimed once, never overwritten
+- All reads/writes require **auth** (anonymous counts — no login friction).
+- Only room members write a room. Non-members may create a room as its host, claim a free seat for themselves (not in a locked room or after a kick), write their own spectator presence, and chat or react as themselves.
+- Seats can only be claimed by their own uid or handed to someone already in the room (game-night reseating); unchanged children always validate, so members' whole-room transactions keep working.
+- Public profiles (`profiles/{uid}`: name, avatar) are readable by signed-in users; friend codes, stats and admin flags in `users/{uid}` are owner-only; presence is visible to friends only.
+- Friend lists, requests and invites are owner-only; **invites can only be sent by actual friends**; friend codes are claimed once.
+- Counters are increment-only, error reports create-only with size caps, feedback has a 30 s cooldown, and the leaderboard is written only by the results function.
+- **App Check** is wired: set `VITE_APPCHECK_SITE_KEY` (reCAPTCHA Enterprise; steps in `src/lib/firebase.js`) and enforce it in the Firebase console once its metrics look clean.
+- Deploy rules, functions and hosting together.
 
-Deploy rules with `firebase deploy --only database`, and enable **App Check** in the Firebase console for abuse resistance.
-
-**Known trust limits** (inherent to serverless + world-readable rooms, documented in code): a determined devtools user can read Spyfair roles from the room node, look up Fibbage answers in the bundled deck, or read memory-game answer arrays. Fine between friends; a leaderboard would need server-authoritative writes (Cloud Function) first.
+**Known trust limits** (serverless, world-readable rooms; details in the rules tests): members can still write any board state (only winner, scores and seats are guarded, and the results function re-checks board games), members of a party room can remove other party seats, and any member can prune chat. Also: the client that deals a sealed game (Heads Up, Chameleon, Spyfair, Code Words, Just One) knows the whole deal; a determined devtools user can look up Fibbage answers in the bundled deck or read memory-game answer arrays; custom and real-time game results are trusted by the results function, and wins can be farmed against a second anonymous account. Fine between friends.
 
 ## Tech stack
 
 | | |
 |---|---|
-| Frontend | React 19 + Vite 8 |
+| Frontend | React 19 + Vite 8 (code-split, PWA via vite-plugin-pwa/Workbox) |
 | Styling | Tailwind CSS v3 + shadcn utilities |
 | Routing | React Router v7 |
-| Data / auth | Firebase Realtime Database + Firebase Auth (anonymous → Google link) |
-| Real-time games | Native WebRTC (`RTCPeerConnection`), RTDB signaling |
-| Tests | Vitest — 28 suites over the pure game/commit/social logic |
+| Data / auth | Firebase Realtime Database + Firebase Auth (anonymous → Google link), App Check |
+| Server | Cloud Functions for Firebase (Node 22): room cleanup, verified results |
+| Real-time games | Native WebRTC (`RTCPeerConnection`), RTDB signaling, optional TURN |
+| Tests | Vitest (pure logic), rules tests and Playwright end-to-end tests on the Firebase emulators, node:test for functions |
+| Types | `tsc` over `src/lib` (`npm run typecheck`, opt-in `// @ts-check`) |
 | Toasts | Sonner |
-| PWA | vite-plugin-pwa (Workbox) |
-| Hosting | Firebase Hosting |
+| Hosting | Firebase Hosting, deployed from GitHub Actions |
 
 ## Local development
 
 ```bash
-# 1. Install dependencies
 npm install
 
-# 2. Set up Firebase config
-cp .env.local.example .env.local
-# Fill in your Firebase project values in .env.local
+# Option A — local emulators (no Firebase project needed, disposable data)
+npm run emulators          # Auth + Realtime Database emulators (needs Java 21)
+npm run dev:emu            # app against the emulators → http://localhost:5173
 
-# 3. Start dev server
+# Option B — your own Firebase project
+cp .env.local.example .env.local   # fill in your project's web config
 npm run dev
-# → http://localhost:5173
 ```
 
-### Firebase setup (one-time)
+`npm run dev:emu` uses `.env.emulator` (a `demo-` project id), so it can never touch a live database.
+
+### Firebase setup (one-time, for a real project)
 
 1. Create a project at [console.firebase.google.com](https://console.firebase.google.com)
 2. Enable **Realtime Database** (Build → Realtime Database → Create database)
-3. Enable **Authentication** and turn on the **Anonymous** and **Google** sign-in providers — without Anonymous, sign-in and the friends system won't work
+3. Enable **Authentication** and turn on the **Anonymous** and **Google** sign-in providers
 4. Register a web app (Project Settings → Your apps → `</>`) and copy the config into `.env.local`
 5. Deploy the security rules: `firebase deploy --only database`
-6. (Recommended) enable **App Check**
+6. (Recommended) set up **App Check** with reCAPTCHA Enterprise and put the site key in `VITE_APPCHECK_SITE_KEY`
 
-Note for manual multiplayer testing: same-browser tabs share the auth uid, so the second player needs a private/incognito window or another browser.
+Manual multiplayer testing: same-browser tabs share the auth uid, so use a private window or another browser for the second player — or run the end-to-end tests, which give each player its own browser context.
 
 ## Commands
 
 ```bash
-npm run dev       # dev server with HMR
-npm run build     # production build → dist/
-npm run preview   # serve dist/ locally
-npm run lint      # ESLint
-npm test          # Vitest — 28 suites covering every game's pure logic + commit-reveal + social helpers
+npm run dev        # dev server with HMR
+npm run dev:emu    # dev server against the local emulators
+npm run build      # production build → dist/
+npm run preview    # serve dist/ locally
+npm run lint       # ESLint
+npm run typecheck  # tsc over src/lib
+npm test           # Vitest — pure logic, decks, helpers
+npm run test:rules # security rules tests on the Database emulator
+npm run test:e2e   # Playwright end-to-end tests on the emulators (npm run test:e2e -- tests/e2e/<spec>.js)
+npm --prefix functions test   # Cloud Functions tests
 ```
 
 ## Deploy
 
+GitHub Actions (`.github/workflows/`) run lint, typecheck, unit tests, build, the entry-bundle budget, a dependency audit, the functions tests, and the rules + end-to-end suites on every pull request. `deploy.yml` publishes a preview channel per pull request and the live site on every push to `main` — once these repository secrets exist:
+
+- `FIREBASE_SERVICE_ACCOUNT_GAME_NIGHT_91464` (`firebase init hosting:github` creates it)
+- `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_DATABASE_URL`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID` (plus optional `VITE_APPCHECK_SITE_KEY` and `VITE_TURN_*`)
+
+Preview-channel domains must be added to Firebase Auth's authorized domains for Google sign-in to work there. Rules and functions are deployed by hand:
+
 ```bash
-npm install -g firebase-tools
-firebase login
-npm run build
-firebase deploy --only hosting           # hosting only
-firebase deploy --only hosting,database  # hosting + security rules
+firebase deploy --only database     # security rules — deploy together with the app that needs them
+firebase deploy --only functions    # room cleanup + verified results (Blaze plan; builds the bundle first)
+firebase deploy --only hosting      # manual hosting deploy, if not using the workflow
 ```
 
-The `functions/` directory contains a scheduled Cloud Function that deletes rooms inactive for 24h (requires the Blaze plan): `firebase deploy --only functions`.
+Hosting sends immutable caching for hashed assets, `no-cache` for `index.html`/`sw.js`, security headers and a report-only CSP (`firebase.json`); missing files return 404.
 
 ## Adding a new game
 
 The room/invite/presence layer is game-agnostic. A standard board game is:
 
 1. A logic file in `src/lib/` exporting `getWinner(board)` + move helpers, with a `.test.js`
-2. A board component in `src/components/`
-3. An icon in `src/components/GameIcons.jsx`
-4. One `GAME_TYPES` entry in `src/lib/games.js` — this alone drives the home grid, the SWITCH GAME picker, `freshGameState()`, and everything `Game.jsx` renders
+2. A board component in `src/components/`, registered as a lazy `BoardComponent` (`lazyWithRetry`)
+3. An icon in `src/components/GameIcons.jsx` and HOW TO PLAY text in `src/lib/rules.js`
+4. One `GAME_TYPES` entry in `src/lib/games.js` — this drives the catalogue, the switcher, `freshGameState()` and the room shell
 
-Non-standard turn shapes supply `applyMove()` (full control of the Firebase patch — extra turns, captures, letters) and `boardProps()` (extra props for the board). Variants add `variantOf: '<baseType>'` + `variantLabel`/`variantBlurb` to appear in the pre-game mode chooser instead of the grid. Bespoke flows (`custom: true`) get their own page dispatched from `Game.jsx`; party games add `nPlayer: true, minPlayers, maxPlayers`. Real-time games build on `src/lib/realtime/` (`useRealtimeHost`/`useRealtimeGuest` + a pure sim).
-
-Sounds, presence, score tracking, switching, rules modals, and the win effect work automatically for any game type.
+Non-standard turn shapes supply `applyMove()` and `boardProps()`. Variants add `variantOf`. Bespoke flows (`custom: true`) add a lazy `Page`; party games add `nPlayer: true, minPlayers, maxPlayers`; races add `race: true` and build on `RaceShell`. New room keys go in `FIELD_NULLS` (unless they must survive switches) and in `database.rules.json` with a rules test. Full walkthrough: the `add-a-game` skill.
 
 ## Project structure
 
 ```
 src/
   lib/
-    games.js                 # THE registry (GAME_TYPES) + freshGameState()
+    games.js                 # THE registry (GAME_TYPES) + freshGameState() + FIELD_NULLS
     *Logic.js (+ .test.js)   # pure per-game logic — no DOM, no network
-    commit.js                # salted SHA-256 commit–reveal primitive
-    auth.js / AuthContext.jsx# anonymous boot + Google upgrade (same uid)
-    social.js                # profiles, friend codes, requests, invites, presence
-    realtime/                # WebRTC transport + host/guest sync hooks
-    decks/                   # party-game content decks
-    theme.js / sounds.js / shareCard.js / rules.js / profile.js
-  components/                # boards, GamePicker, VariantChooser, Avatar, WinEffect, …
-  pages/                     # Home, Game (all rooms), Demo, Daily, Profile, Friends,
-                             # + one page per custom game (Hangman, Pong, Fibbage, …)
-  hooks/                     # input controls per real-time game, PWA install
-functions/                   # scheduled room cleanup (Blaze)
+    matchRules.js            # match-end rule shared with the results function
+    commit.js / sealed.js    # commit–reveal and per-player sealing primitives
+    coordinator.js / teams.js / raceLogic.js / nightLogic.js
+    auth.js / AuthContext.jsx / social.js / profile.js
+    telemetry.js / analytics.js / feedback.js / moderationLogic.js
+    realtime/                # WebRTC transport, connection/attempt logic, host/guest hooks
+    decks/                   # party-game content decks (tested for size and shape)
+  components/                # boards, RaceShell, Night*, HostControls, InviteJoinScreen, …
+  pages/                     # Home, Game (all rooms), Demo (+ demos/), Daily, Profile, Friends, Notes,
+                             # + one page per custom game
+  hooks/                     # room/ (room shell hooks), useServerClock, useCommitReveal, useSealKey, controls
+functions/                   # Cloud Functions: room cleanup, verified results (see functions/README.md)
+tests/rules/ · tests/e2e/    # rules tests and Playwright end-to-end tests (emulators)
 database.rules.json          # the security boundary — deploy after every change
 ```
 
 ## Improvement backlog
 
-Ranked by player impact. Status as of 2026-09-19 (unit tests green: 155 files / 3483 tests). Most of the August review's top-10 items are already fixed; these are what remains. Arrows Puzzle review: [docs/README-ARROWS-REVIEW.md](docs/README-ARROWS-REVIEW.md).
+Status as of 2026-09-26, after the overall-improvements pass (security rules v1, code-splitting, game-night mode, N-player races, four new party games, sealed secrets, verified leaderboard, CI, emulator tests). Arrows Puzzle review: [docs/README-ARROWS-REVIEW.md](docs/README-ARROWS-REVIEW.md).
 
-### Finish / ship
+### Closed by that pass
 
-1. **Notes (feedback) feature is uncommitted** — `src/pages/Notes.jsx`, `src/lib/feedback.js`, the `/notes` route + tab, and the `feedback` rules block. Works, but nothing in the app sets `users/{uid}/admin` (only the rules reference it) — set it once from the Firebase console or add a script. Add `feedback.test.js` for the `normalize*` helpers, then commit.
-2. **Herd Mind still leaks answers** — `HerdGame.jsx` writes plaintext to `round/answers` the moment a player submits, before the window closes for everyone else. The commit-reveal imports (`makeCommit`, `verifyReveal`, `allCommitted`) are already there but unused; finish wiring the same salted commit-reveal pattern Hangwoman/Wavelength/Bluff/Word Duel use.
-3. **Word Hunt dictionary is unfiltered** — `public/wordhunt-dict.txt` still contains playable slurs/profanity. One denylist pass at asset-prep time, no logic change.
+- Notes/feedback is linked from Settings, has an admin view (notes, reports, errors, play counts) and tests.
+- Herd Mind answers are commit-reveal; Spyfair roles are sealed.
+- Lint is at zero errors and gated in CI with typecheck, tests, build, a bundle budget and an audit.
+- The single 2 MB bundle is code-split (entry ~262 KB gzip; LCP 5.3 s → 4.2 s on a local mobile Lighthouse run).
+- Real-time host advantage: opt-in host input delay (Sumo, Space Duel, Air Hockey, Paint); TURN is configurable.
+- End-to-end and rules tests run on the Firebase emulators; `Game.jsx` is split into room hooks.
 
 ### Arrows Puzzle (review 2026-09-19)
 
@@ -265,34 +320,19 @@ Full write-up: [docs/README-ARROWS-REVIEW.md](docs/README-ARROWS-REVIEW.md). Sug
 11. **ARROWS-H — Accessibility polish** — Prefer `pointerdown` + `touch-action: manipulation`; announce clears/lives to screen readers; enlarge life glyphs slightly.
 12. **ARROWS-I — Hard-tier balance** — Hard is mostly density (16 arrows, still one trap). Try more traps on hard, or fewer clearable arrows with messier routing so exit-direction reading matters more than raw click speed.
 
-### Correctness
+### Still open
 
-13. **Lint has 19 errors** — one impure call during render in `DailyGame.jsx`, the rest unused imports/vars (six of them in `HerdGame.jsx`, cleared by item 2). Add `npm run lint` to the pre-push gate / CI so it can't drift again.
-14. **Reversi auto-pass** now exists in `games.js` — verify the double-blocked case (neither player can move) ends the round rather than passing forever.
-
-### Performance
-
-15. **Single ~1.7 MB JS bundle** — no `React.lazy` anywhere in `App.jsx`/`Game.jsx`, no `manualChunks`; every game page loads eagerly. Lazy-load per game page (via the `GAME_TYPES` registry or route level) to cut first load substantially for cold mobile visits.
-
-### Platform themes (open since the August review)
-
-16. **Host latency advantage** in Pong / Air Hockey / Space Duel — no input-delay compensation. Options: host delays its own input by half RTT, or lag-compensated hit detection.
-17. **Mixed-game leaderboard** — wins in Pong and Tic Tac Toe rank equally. Split by game or category.
-18. **`--c-dim` contrast** — still fails AA body-text contrast on `card` surfaces in several themes. Extend the existing theme contrast regression tests to cover `dim` on `card`, then raise the token per theme.
-19. **No TURN server** — roughly 5–10% of P2P connections fail behind symmetric NATs. Add a free-tier TURN provider or accept the failure rate.
-
-### Hygiene
-
-20. **No end-to-end tests** — a Playwright smoke test (create room, join from a second context, play one Tic Tac Toe move) would catch multiplayer regressions unit tests never see.
-21. **`Game.jsx` is ~1,900 lines** — extract the lobby, status, and proposal-handshake logic into hooks.
-22. **Unreviewed layer** — `src/hooks/`, the sound layer, `src/components/loading/`, and `EmoteBar.jsx` have never been audited. Run the `review-a-game` checklist on the reflex games (Arrows covered in [docs/README-ARROWS-REVIEW.md](docs/README-ARROWS-REVIEW.md)).
-
-Suggested order: 4, 5, 6 (Arrows A→B→C), then 1, 2, 3, 15, 13.
+1. **Word Hunt dictionary is unfiltered** (G-01) — `public/wordhunt-dict.txt` still contains slurs. A filter script, filtered list and runtime check are prepared for the word-games work, together with a Wordle answer-list cleanup and 120 Anagrams racks.
+2. **Word, memory, Pong and Pac-Man follow-ups** — solo demos for Word Race / Password / Anagrams (the catalogue offers PRACTICE VS AI but no demo exists), screen-reader labels and the motion setting for the memory boards, server-clock deadlines in Simon / Visual Memory / Chimp, and the Pong / Pac-Man reconnect overlay, input expiry and host prediction (a ready diff exists).
+3. **Fonts** — ship the arcade fonts as WOFF2 (−70% bytes) and precache them for offline play.
+4. **Mixed-game leaderboard** — wins in Pong and Tic Tac Toe still rank equally; split by game or category now that results are server-side.
+5. **Sign-in iframe on mobile** — the Firebase SDK loads Google's gapi and auth iframe at boot on mobile browsers; a lazy popup resolver would remove it but relies on an internal SDK flag.
+6. **TURN provider** — pick one and set the `VITE_TURN_*` secrets.
 
 ## Roadmap
 
-- **Leaderboards + cross-device stats** — the biggest open opportunity: persist skill-game scores (reaction ms, WPM, chimp level, daily results) to `users/{uid}`, add global + friends boards. Blocked on server-authoritative score writes (Cloud Function) so scores aren't forgeable
-- **Realtime polish** — TURN fallback for symmetric NATs, guest-side forfeit when the host drops mid-round, live spectator state for the arena games, softer host advantage
-- **More depth** — pie/swap openings for first-player-advantage games, Reversi misère mode, power-ups for the arena games
-- **Party QoL** — host migration when the host leaves, bigger content decks
-- **Chat / pass-and-play** — long-tail candidates
+- **Skill leaderboards** — per-game boards for reaction ms, WPM, chimp level and daily results, credited by the results function
+- **Catalogue pruning** — use the started/finished/abandoned counts in `/notes` to decide which games to merge or retire
+- **More team and co-op games** on the `teams.js` and sealing primitives
+- **Realtime polish** — live spectator state for the arena games, power-ups
+- **Pass-and-play** — long-tail candidate
