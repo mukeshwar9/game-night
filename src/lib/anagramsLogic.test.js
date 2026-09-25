@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  MATCH_TARGET, MIN_SOLUTION_COUNT, ROUND_MS,
+  MATCH_TARGET, MIN_SOLUTION_COUNT, REVEAL_MS, ROUND_MS,
   applyFoundWord, canBuildWord, compareRound, getMatchWinner,
-  getSolutions, normalizeWord, scoreFound, scoreWord, seededRack, shouldReveal,
+  getSolutions, normalizeWord, resolveRound, scoreFound, scoreWord, seededRack, shouldReveal,
+  validFound,
 } from './anagramsLogic'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from './decks/anagrams'
 import { isBannedWord, isFamilySafe } from './wordDenylist'
@@ -101,5 +102,65 @@ describe('anagramsLogic', () => {
     expect(ANAGRAM_RACK_WORDS.filter(word => !isFamilySafe(word))).toEqual([])
     const unsafeOnly = seededRack({ rackWords: ['rapists'], validWords: ['rapists', 'pits', 'tips'], seed: 'x' })
     expect(unsafeOnly).toEqual([])
+  })
+
+})
+
+describe('resolveRound', () => {
+  const rack = ['P', 'L', 'A', 'N', 'E', 'T', 'S']
+  const game = (round, scores = { X: 0, O: 0 }) => ({
+    status: 'playing', scores,
+    round: { phase: 'playing', rack, endsAt: 1000, doneX: false, doneO: false, foundX: {}, foundO: {}, ...round },
+  })
+
+  it('aborts until the round should reveal', () => {
+    expect(resolveRound(game({}), 999, ANAGRAM_VALID_WORDS)).toBeUndefined()
+    expect(resolveRound(null, 5000, ANAGRAM_VALID_WORDS)).toBeUndefined()
+    expect(resolveRound(game({ phase: 'reveal' }), 5000, ANAGRAM_VALID_WORDS)).toBeUndefined()
+  })
+
+  it('awards the round, stamps the reveal and keeps the match open below the target', () => {
+    const next = resolveRound(game({ foundX: { plane: { at: 1 } }, foundO: { pet: { at: 1 } } }), 1000, ANAGRAM_VALID_WORDS)
+    expect(next.round).toMatchObject({ phase: 'reveal', revealEndsAt: 1000 + REVEAL_MS })
+    expect(next.round.result).toMatchObject({ winner: 'X', scoreX: 4, scoreO: 1 })
+    expect(next.scores).toEqual({ X: 1, O: 0 })
+    expect(next).toMatchObject({ status: 'playing', winner: null, proposal: null })
+  })
+
+  it('ends the match at MATCH_TARGET', () => {
+    const next = resolveRound(game({ foundO: { plane: { at: 1 } } }, { X: 0, O: MATCH_TARGET - 1 }), 1000, ANAGRAM_VALID_WORDS)
+    expect(next).toMatchObject({ status: 'finished', winner: 'O' })
+    expect(next.scores.O).toBe(MATCH_TARGET)
+  })
+
+  it('draws on equal points and equal word counts', () => {
+    const next = resolveRound(game({ foundX: { plane: { at: 1 } }, foundO: { plate: { at: 2 } } }), 1000, ANAGRAM_VALID_WORDS)
+    expect(next.round.result.winner).toBe('draw')
+    expect(next.scores).toEqual({ X: 0, O: 0 })
+  })
+
+  it('regression: forged found keys score 0 (zzzzzzz, off-rack, non-words, bad keys)', () => {
+    const forged = {
+      zzzzzzz: { at: 1, points: 16 },
+      planets: { at: 2, points: 16 }, // legal bingo
+      quartzy: { at: 3 }, // real word, not on the rack
+      plnts: { at: 4 }, // on the rack, not a word
+      PLANE: { at: 5 }, // non-canonical key
+      ab: { at: 6 }, // too short
+      pet: true, // malformed value
+    }
+    expect(Object.keys(validFound(forged, rack, ANAGRAM_VALID_WORDS))).toEqual(['planets'])
+    const next = resolveRound(game({ foundX: forged, foundO: { plane: { at: 1 }, plate: { at: 2 }, slate: { at: 3 }, least: { at: 4 } } }), 1000, ANAGRAM_VALID_WORDS)
+    expect(next.round.result).toMatchObject({ scoreX: 16, wordsX: 1, scoreO: 16, wordsO: 4, winner: 'O' })
+  })
+
+  it('regression: a round of only forged words loses to one honest word', () => {
+    const next = resolveRound(game({ foundX: { zzzzzzz: { at: 1 } }, foundO: { pet: { at: 1 } } }), 1000, ANAGRAM_VALID_WORDS)
+    expect(next.round.result).toMatchObject({ winner: 'O', scoreX: 0, scoreO: 1 })
+  })
+
+  it('accepts a Set of valid words', () => {
+    const next = resolveRound(game({ foundX: { plane: { at: 1 } } }), 1000, new Set(ANAGRAM_VALID_WORDS))
+    expect(next.round.result.scoreX).toBe(4)
   })
 })

@@ -10,6 +10,7 @@ import OfflineNotice from '../components/loading/OfflineNotice'
 import {
   COUNTDOWN_MS, ROUND_MS, MATCH_WINS, MIN_WORD_LENGTH,
   findPath, scoreWord, scoreWords, canonicalize, neighborsOf,
+  normalizeWordList, nextWordIndex, verifyWords, compareHunt, finishHuntRound, roundDeadline,
 } from '../lib/wordhuntLogic'
 import { loadDictionary } from '../lib/wordhuntDictionary'
 import { sounds } from '../lib/sounds'
@@ -24,20 +25,6 @@ function pad2(n) { return String(n).padStart(2, '0') }
 function fmtTime(ms) {
   const s = Math.ceil(ms / 1000)
   return `${Math.floor(s / 60)}:${pad2(s % 60)}`
-}
-
-// Firebase may return numeric-keyed objects instead of arrays for append-only
-// lists (same normalization every custom page applies to its own list —
-// mirrors WordDuelGame.jsx's local normalizeGuesses, adapted for a flat
-// string[] instead of an array of {word, marks} objects).
-function normalizeWordList(raw) {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw.filter(w => w != null)
-  const arr = []
-  for (const k of Object.keys(raw).sort((a, b) => Number(a) - Number(b))) {
-    if (raw[k] != null) arr.push(raw[k])
-  }
-  return arr
 }
 
 function displayLetter(letter) {
@@ -317,8 +304,15 @@ function WordList({ words, emptyHint }) {
   )
 }
 
-function ResultsPanel({ scoreX, scoreO, players, winner }) {
+const DECIDED_BY_COPY = {
+  words: 'TIED ON POINTS — MORE WORDS WINS',
+  longest: 'TIED ON POINTS AND WORDS — LONGEST WORD WINS',
+  draw: 'TIED ON POINTS, WORDS AND LONGEST WORD — DRAW',
+}
+
+function ResultsPanel({ scoreX, scoreO, players, winner, decidedBy }) {
   return (
+    <div className="space-y-2">
     <div className="grid grid-cols-2 gap-2">
       {['X', 'O'].map(sym => {
         const score = sym === 'X' ? scoreX : scoreO
@@ -335,6 +329,10 @@ function ResultsPanel({ scoreX, scoreO, players, winner }) {
           </div>
         )
       })}
+    </div>
+    {DECIDED_BY_COPY[decidedBy] && (
+      <p className="font-pixel text-[8px] text-retro-dim text-center">{DECIDED_BY_COPY[decidedBy]}</p>
+    )}
     </div>
   )
 }
@@ -440,6 +438,10 @@ export default function WordHuntGame({
   if (myWordsRef.current === null) myWordsRef.current = myWords
   const foundWordsRef = useRef(null)
   if (foundWordsRef.current === null) foundWordsRef.current = new Set(myWords.map(canonicalize))
+  // Next free slot in wordhuntWords{me}: only ever increases, so a failed
+  // write's gap is never reused and a later write is never overwritten.
+  const nextIndexRef = useRef(null)
+  if (nextIndexRef.current === null) nextIndexRef.current = nextWordIndex(game[`wordhuntWords${myKey}`])
 
   const prevGridRef = useRef(grid)
   const doneRef = useRef(false)
@@ -492,6 +494,7 @@ export default function WordHuntGame({
       prevGridRef.current = grid
       myWordsRef.current = []
       foundWordsRef.current = new Set()
+      nextIndexRef.current = 0
       setMyWords([])
       setMyScore(0)
       setLastResult(null)
@@ -503,42 +506,8 @@ export default function WordHuntGame({
   const isPlaying = !!startedAt && serverNow >= startedAt + COUNTDOWN_MS
     && serverNow < startedAt + COUNTDOWN_MS + ROUND_MS && game.status !== 'finished'
   const countdownSec = isCountdown ? Math.ceil((startedAt + COUNTDOWN_MS - serverNow) / 1000) : 0
-  const deadline = startedAt ? startedAt + COUNTDOWN_MS + ROUND_MS : null
+  const deadline = roundDeadline(startedAt)
   const timeLeftMs = deadline ? Math.max(0, deadline - serverNow) : ROUND_MS
-
-  const tryFinishGame = async () => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished') return
-        const startedAtC = current.wordhuntStartedAt
-        if (!startedAtC || Date.now() + clockOffset < startedAtC + COUNTDOWN_MS + ROUND_MS) return // not over yet
-        let sX = current.wordhuntScoreX ?? 0
-        let sO = current.wordhuntScoreO ?? 0
-        // Scores are otherwise purely self-reported: recompute from the stored
-        // word lists (dict + grid path check, deduped) when the dictionary is
-        // loaded, and persist the corrected totals alongside the verdict.
-        if (dict) {
-          const verifiedScore = (raw) => {
-            const seen = new Set()
-            let total = 0
-            for (const w of normalizeWordList(raw)) {
-              const word = canonicalize(w)
-              if (!word || seen.has(word)) continue
-              seen.add(word)
-              if (dict.has(word) && findPath(grid, word)) total += scoreWord(word)
-            }
-            return total
-          }
-          sX = verifiedScore(current.wordhuntWordsX)
-          sO = verifiedScore(current.wordhuntWordsO)
-        }
-        const winner = sX > sO ? 'X' : sX < sO ? 'O' : 'draw'
-        const scores = { ...(current.scores || {}) }
-        if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
-        return { ...current, wordhuntScoreX: sX, wordhuntScoreO: sO, winner, status: 'finished', scores }
-      })
-    } catch { /* another client already resolved it — fine */ }
-  }
 
   // Ticker: drives countdown/timer display and per-client deadline crossing.
   useEffect(() => {
@@ -546,15 +515,36 @@ export default function WordHuntGame({
     const id = setInterval(() => {
       const n = Date.now()
       setNow(n)
-      if (mySymbol && n + clockOffset >= startedAt + COUNTDOWN_MS + ROUND_MS && !doneRef.current) {
+      if (mySymbol && n + clockOffset >= roundDeadline(startedAt) && !doneRef.current) {
         doneRef.current = true
         update(ref(db, `games/${gameId}`), { [`wordhuntDone${myKey}`]: true }).catch(() => {})
-        tryFinishGame()
       }
     }, 100)
     return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tryFinishGame is recreated every render; adding it would tear down and restart this interval on every tick
   }, [startedAt, game.status, mySymbol, gameId, myKey, clockOffset])
+
+  // Round end: once the deadline passes, a seated client whose dictionary is
+  // loaded re-verifies both word lists and writes the verdict
+  // (finishHuntRound). A client still loading the dictionary never finishes
+  // on self-reported scores — it waits; this re-runs when `dict` arrives.
+  const pastDeadline = !!deadline && serverNow >= deadline
+  const finishingRef = useRef(null)
+  const [finishRetry, setFinishRetry] = useState(0)
+  useEffect(() => {
+    if (!mySymbol || !dict || !pastDeadline || game.status === 'finished') return
+    if (finishingRef.current === startedAt) return
+    finishingRef.current = startedAt
+    // Aborted or failed: let a later tick retry (unless the round got
+    // finished meanwhile — then the effect bails on game.status).
+    const retryLater = () => setTimeout(() => {
+      if (finishingRef.current !== startedAt) return
+      finishingRef.current = null
+      setFinishRetry(n => n + 1)
+    }, 2_000)
+    runTransaction(ref(db, `games/${gameId}`), current => finishHuntRound(current, { now: Date.now() + clockOffset, dict }))
+      .then(res => { if (!res.committed) retryLater() })
+      .catch(retryLater)
+  }, [mySymbol, dict, pastDeadline, game.status, startedAt, gameId, clockOffset, finishRetry])
 
   const handleReady = () => {
     if (!mySymbol || game.wordhuntStartedAt) return
@@ -591,7 +581,9 @@ export default function WordHuntGame({
       return
     }
 
-    // Valid new word — optimistic local update, then best-effort persist.
+    // Valid new word — optimistic local update, then persist. A failed write
+    // is surfaced and rolled back so the score on screen never exceeds the
+    // verified final score.
     foundWordsRef.current.add(word)
     const newWords = [...myWordsRef.current, word]
     myWordsRef.current = newWords
@@ -602,11 +594,21 @@ export default function WordHuntGame({
     setLastResult({ kind: 'valid', path, amount: pts, id: ++resultIdRef.current })
     sounds.hit(newWords.length)
 
-    const idx = newWords.length - 1
+    const idx = nextIndexRef.current
+    nextIndexRef.current += 1
+    const roundGrid = grid
     update(ref(db, `games/${gameId}`), {
       [`wordhuntWords${myKey}/${idx}`]: word,
       [`wordhuntScore${myKey}`]: newScore,
-    }).catch(() => {})
+    }).catch(() => {
+      if (prevGridRef.current !== roundGrid) return // round already moved on
+      foundWordsRef.current.delete(word)
+      const reverted = myWordsRef.current.filter(w => w !== word)
+      myWordsRef.current = reverted
+      setMyWords(reverted)
+      setMyScore(scoreWords(reverted))
+      toast.error(`${word.toUpperCase()} NOT SAVED — CHECK CONNECTION`)
+    })
   }, [dict, isPlaying, myDone, grid, gameId, myKey])
 
   const matchWinner = (game.scores?.X || 0) >= MATCH_WINS ? 'X' : (game.scores?.O || 0) >= MATCH_WINS ? 'O' : null
@@ -644,17 +646,23 @@ export default function WordHuntGame({
     if (!dict) return dictLoader
     const xWords = normalizeWordList(game.wordhuntWordsX)
     const oWords = normalizeWordList(game.wordhuntWordsO)
-    const scoreX = game.wordhuntScoreX ?? 0
-    const scoreO = game.wordhuntScoreO ?? 0
-    const verify = (words) => words.filter(w => !(dict.has(w) && findPath(grid, w)))
-    const mismatchesX = verify(xWords)
-    const mismatchesO = verify(oWords)
+    // Recomputed here too: a CLAIM WIN mid-round finishes without the verdict
+    // transaction, and self-reported totals are never shown as final.
+    const verifiedX = verifyWords(xWords, grid, dict)
+    const verifiedO = verifyWords(oWords, grid, dict)
+    const verdict = compareHunt(verifiedX.words, verifiedO.words)
+    const scoreX = verdict.scoreX
+    const scoreO = verdict.scoreO
+    const mismatchesX = verifiedX.rejected
+    const mismatchesO = verifiedO.rejected
+    // Only explain the tie-break when the stored verdict is the computed one.
+    const decidedBy = game.winner === verdict.winner ? verdict.decidedBy : null
     const viewerKey = mySymbol === 'O' ? 'O' : 'X'
     const otherKey = viewerKey === 'X' ? 'O' : 'X'
 
     return (
       <div className="space-y-4">
-        <ResultsPanel scoreX={scoreX} scoreO={scoreO} players={game.players} winner={game.winner} />
+        <ResultsPanel scoreX={scoreX} scoreO={scoreO} players={game.players} winner={game.winner} decidedBy={decidedBy} />
         <EndPanels
           myWords={viewerKey === 'X' ? xWords : oWords}
           oppWords={viewerKey === 'X' ? oWords : xWords}
@@ -702,7 +710,8 @@ export default function WordHuntGame({
           <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left mx-auto w-fit">
             <p>● SAME GRID FOR BOTH · TRACE ADJACENT TILES</p>
             <p>✎ ≥3 LETTERS · NO REUSING A TILE · Qu COUNTS AS 2</p>
-            <p>⏱ 80-SECOND HUNT · HIGHEST SCORE WINS</p>
+            <p>⏱ 80-SECOND HUNT · MOST POINTS WINS</p>
+            <p>= TIES: MORE WORDS, THEN LONGEST WORD</p>
           </div>
           <button
             onClick={handleReady}

@@ -11,8 +11,8 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   applyFoundWord, canBuildWord, compareRound, getMatchWinner, getSolutions,
-  MATCH_TARGET, normalizeWord, ROUND_MS, scoreFound, scoreWord, seededRack,
-  shouldReveal,
+  MATCH_TARGET, normalizeWord, resolveRound, ROUND_MS, scoreFound, scoreWord,
+  seededRack, shouldReveal, validFound,
 } from '../lib/anagramsLogic'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from '../lib/decks/anagrams'
 import { isFamilySafe } from '../lib/wordDenylist'
@@ -22,6 +22,12 @@ const VALID_WORDS = new Set(ANAGRAM_VALID_WORDS)
 function normalizeFound(raw) {
   if (!raw || typeof raw !== 'object') return {}
   return Object.fromEntries(Object.entries(raw).filter(([, value]) => value && typeof value === 'object'))
+}
+
+// Only words that are legal on this round's rack — found keys are written by
+// clients, so a forged key is never shown or counted (resolveRound agrees).
+function checkedFound(round, key) {
+  return validFound(normalizeFound(round?.[`found${key}`]), round?.rack, VALID_WORDS)
 }
 
 function wordsFrom(found) {
@@ -62,8 +68,10 @@ function shuffled(values) {
 
 function ScoreRail({ game, myKey, round }) {
   const opKey = myKey === 'X' ? 'O' : 'X'
-  const myRoundScore = scoreFound(round?.[`found${myKey}`])
-  const opRoundScore = scoreFound(round?.[`found${opKey}`])
+  const myFound = checkedFound(round, myKey)
+  const opFound = checkedFound(round, opKey)
+  const myRoundScore = scoreFound(myFound)
+  const opRoundScore = scoreFound(opFound)
   const myMatch = game.scores?.[myKey] || 0
   const opMatch = game.scores?.[opKey] || 0
   const myName = game.players?.[myKey]?.name?.toUpperCase() || 'YOU'
@@ -74,12 +82,12 @@ function ScoreRail({ game, myKey, round }) {
         <div>
           <p className="font-pixel text-[8px] tracking-widest text-retro-p1">YOU · {myName}</p>
           <p className="mt-1 font-pixel text-2xl leading-none text-retro-cta">{myMatch}<span className="px-1 text-sm text-retro-dim">/</span>{MATCH_TARGET}</p>
-          <p className="mt-1 font-mono text-[10px] text-retro-win">{myRoundScore} POINTS · {wordsFrom(round?.[`found${myKey}`]).length} WORDS</p>
+          <p className="mt-1 font-mono text-[10px] text-retro-win">{myRoundScore} POINTS · {wordsFrom(myFound).length} WORDS</p>
         </div>
         <div className="text-right">
           <p className="font-pixel text-[8px] tracking-widest text-retro-p2">THEM · {opName}</p>
           <p className="mt-1 font-pixel text-2xl leading-none text-retro-p2">{opMatch}<span className="px-1 text-sm text-retro-dim">/</span>{MATCH_TARGET}</p>
-          <p className="mt-1 font-mono text-[10px] text-retro-dim">{opRoundScore} POINTS · {wordsFrom(round?.[`found${opKey}`]).length} WORDS</p>
+          <p className="mt-1 font-mono text-[10px] text-retro-dim">{opRoundScore} POINTS · {wordsFrom(opFound).length} WORDS</p>
         </div>
       </div>
       <div className="mt-3 flex h-1.5 gap-1 rounded bg-retro-deep" aria-label={`Match score ${myMatch} to ${opMatch}`}>
@@ -120,8 +128,10 @@ function FoundWords({ words, title = 'YOUR WORDS' }) {
 
 function RevealWords({ game, round, myKey }) {
   const opKey = myKey === 'X' ? 'O' : 'X'
-  const myWords = wordsFrom(round?.[`found${myKey}`])
-  const opWords = wordsFrom(round?.[`found${opKey}`])
+  const myFound = checkedFound(round, myKey)
+  const opFound = checkedFound(round, opKey)
+  const myWords = wordsFrom(myFound)
+  const opWords = wordsFrom(opFound)
   const found = new Set(myWords)
   // The game picks these words itself, so they must be family-safe.
   const missed = getSolutions(round?.rack, ANAGRAM_VALID_WORDS)
@@ -131,8 +141,8 @@ function RevealWords({ game, round, myKey }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <FoundWords words={myWords} title={`${game.players?.[myKey]?.name?.toUpperCase() || 'YOU'} · ${scoreFound(round?.[`found${myKey}`])}`} />
-        <FoundWords words={opWords} title={`${game.players?.[opKey]?.name?.toUpperCase() || 'OPPONENT'} · ${scoreFound(round?.[`found${opKey}`])}`} />
+        <FoundWords words={myWords} title={`${game.players?.[myKey]?.name?.toUpperCase() || 'YOU'} · ${scoreFound(myFound)}`} />
+        <FoundWords words={opWords} title={`${game.players?.[opKey]?.name?.toUpperCase() || 'OPPONENT'} · ${scoreFound(opFound)}`} />
       </div>
       <section className="rounded border border-retro-cta/50 bg-retro-tint-cta/30 p-3">
         <h3 className="font-pixel text-[9px] tracking-widest text-retro-cta">WORDS YOU MISSED</h3>
@@ -221,7 +231,7 @@ export default function AnagramsGame({
 
   useEffect(() => {
     if (!round || round.phase !== 'playing' || !shouldReveal(round, serverNow)) return
-    runTransaction(ref(db, `games/${gameId}`), current => resolveRound(current, clockOffset))
+    runTransaction(ref(db, `games/${gameId}`), current => resolveRound(current, Date.now() + clockOffset, VALID_WORDS))
       .catch(() => {})
   }, [gameId, round?.phase, round?.endsAt, round?.doneX, round?.doneO, serverNow, clockOffset])
 
@@ -348,7 +358,7 @@ export default function AnagramsGame({
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current?.round || current.round.phase !== 'playing') return
         const nextRound = { ...current.round, [`done${myKey}`]: true }
-        if (shouldReveal(nextRound, Date.now() + clockOffset)) return resolveRound({ ...current, round: nextRound }, clockOffset)
+        if (shouldReveal(nextRound, Date.now() + clockOffset)) return resolveRound({ ...current, round: nextRound }, Date.now() + clockOffset, VALID_WORDS)
         return { ...current, round: nextRound }
       })
     }, () => toast.error('DONE FAILED — CHECK CONNECTION'))
@@ -393,7 +403,7 @@ export default function AnagramsGame({
   }
 
   if (round.phase === 'reveal') {
-    const result = round.result || compareRound(round.foundX, round.foundO)
+    const result = round.result || compareRound(checkedFound(round, 'X'), checkedFound(round, 'O'))
     const matchWinner = getMatchWinner(game.scores)
     const winnerName = result.winner === 'draw' ? 'DRAW' : result.winner === myKey ? 'YOU WIN' : `${game.players?.[result.winner]?.name?.toUpperCase() || 'OPPONENT'} WINS`
     return (
@@ -488,7 +498,7 @@ export default function AnagramsGame({
 
       <FoundWords words={ownWords} />
       <div className="flex items-center justify-between rounded border border-retro-border bg-retro-deep/50 px-3 py-2 font-pixel text-[9px] text-retro-dim">
-        <span>OPPONENT · {wordsFrom(round?.[`found${opKey}`]).length} WORDS · {scoreFound(round?.[`found${opKey}`])} POINTS</span>
+        <span>OPPONENT · {wordsFrom(checkedFound(round, opKey)).length} WORDS · {scoreFound(checkedFound(round, opKey))} POINTS</span>
         {round?.[`done${opKey}`] && <span className="text-retro-p2">DONE</span>}
       </div>
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
@@ -497,19 +507,3 @@ export default function AnagramsGame({
   )
 }
 
-function resolveRound(current, clockOffset) {
-  if (!current?.round || !shouldReveal(current.round, Date.now() + clockOffset)) return
-  const result = compareRound(current.round.foundX, current.round.foundO)
-  const scores = { X: current.scores?.X || 0, O: current.scores?.O || 0 }
-  if (result.winner !== 'draw') scores[result.winner] += 1
-  const matchWinner = getMatchWinner(scores)
-  return {
-    ...current,
-    round: { ...current.round, phase: 'reveal', result, revealEndsAt: Date.now() + clockOffset + 4_000 },
-    scores,
-    winner: matchWinner,
-    status: matchWinner ? 'finished' : 'playing',
-    proposal: null,
-    lastActivityAt: Date.now(),
-  }
-}

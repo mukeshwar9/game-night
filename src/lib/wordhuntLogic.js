@@ -165,3 +165,98 @@ export function scoreWord(word) {
 export function scoreWords(words) {
   return (words || []).reduce((sum, w) => sum + scoreWord(w), 0)
 }
+
+// ── round resolution (moved from WordHuntGame.jsx) ──────────────────────
+
+// Firebase returns an append-only list as a real array or a numeric-keyed
+// object depending on sparsity (a failed write leaves a gap). Map by explicit
+// numeric key order — never Object.values — and drop gaps.
+export function normalizeWordList(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter(w => w != null && w !== '')
+  return Object.keys(raw)
+    .filter(k => /^\d+$/.test(k))
+    .sort((a, b) => Number(a) - Number(b))
+    .map(k => raw[k])
+    .filter(w => w != null && w !== '')
+}
+
+// The next free slot in a stored word list: one past the highest numeric key
+// (not the count), so a gap left by a failed write is never overwritten.
+export function nextWordIndex(raw) {
+  if (!raw) return 0
+  if (Array.isArray(raw)) return raw.length
+  let max = -1
+  for (const k of Object.keys(raw)) if (/^\d+$/.test(k)) max = Math.max(max, Number(k))
+  return max + 1
+}
+
+// Re-verifies a stored word list against the dictionary and the grid:
+// canonical, deduped, >= MIN_WORD_LENGTH, in the dictionary (which never
+// accepts a banned word) and traceable. `rejected` holds everything else.
+// Scores are never trusted from the client — this is the only tally.
+export function verifyWords(raw, grid, dict) {
+  const seen = new Set()
+  const words = []
+  const rejected = []
+  for (const entry of normalizeWordList(raw)) {
+    const word = canonicalize(entry)
+    if (!word || seen.has(word)) continue
+    seen.add(word)
+    if (word.length >= MIN_WORD_LENGTH && dict?.has(word) && findPath(grid, word)) words.push(word)
+    else rejected.push(word)
+  }
+  return { words, rejected, score: scoreWords(words) }
+}
+
+export function longestWordLength(words) {
+  return (words || []).reduce((max, w) => Math.max(max, canonicalize(w).length), 0)
+}
+
+// Round verdict from two verified word lists: most points wins; equal points
+// go to more words, then the longer longest word; otherwise a draw.
+// `decidedBy` ∈ 'points' | 'words' | 'longest' | 'draw' drives the end copy.
+export function compareHunt(wordsX, wordsO) {
+  const scoreX = scoreWords(wordsX)
+  const scoreO = scoreWords(wordsO)
+  const countX = (wordsX || []).length
+  const countO = (wordsO || []).length
+  const longestX = longestWordLength(wordsX)
+  const longestO = longestWordLength(wordsO)
+  let winner = 'draw'
+  let decidedBy = 'draw'
+  if (scoreX !== scoreO) { winner = scoreX > scoreO ? 'X' : 'O'; decidedBy = 'points' }
+  else if (countX !== countO) { winner = countX > countO ? 'X' : 'O'; decidedBy = 'words' }
+  else if (longestX !== longestO) { winner = longestX > longestO ? 'X' : 'O'; decidedBy = 'longest' }
+  return { winner, decidedBy, scoreX, scoreO, countX, countO, longestX, longestO }
+}
+
+// When the round's hunting window closes (server time).
+export function roundDeadline(startedAt) {
+  return startedAt ? startedAt + COUNTDOWN_MS + ROUND_MS : null
+}
+
+// Transaction updater for the end of a round, safe for either client to run
+// once the deadline has passed. Returns undefined (abort) until then, once the
+// game is already finished, or while this client's dictionary is not loaded —
+// self-reported scores are never trusted, so a client without the dictionary
+// waits for the other client (or for its own load) instead of finishing.
+export function finishHuntRound(current, { now, dict }) {
+  if (!current || current.status === 'finished' || !dict) return undefined
+  const deadline = roundDeadline(current.wordhuntStartedAt)
+  if (!deadline || now < deadline) return undefined
+  const grid = current.wordhuntGrid ?? ''
+  const x = verifyWords(current.wordhuntWordsX, grid, dict)
+  const o = verifyWords(current.wordhuntWordsO, grid, dict)
+  const verdict = compareHunt(x.words, o.words)
+  const scores = { ...(current.scores || {}) }
+  if (verdict.winner !== 'draw') scores[verdict.winner] = (scores[verdict.winner] || 0) + 1
+  return {
+    ...current,
+    wordhuntScoreX: verdict.scoreX,
+    wordhuntScoreO: verdict.scoreO,
+    winner: verdict.winner,
+    status: 'finished',
+    scores,
+  }
+}

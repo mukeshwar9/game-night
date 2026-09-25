@@ -4,6 +4,8 @@ import {
   BOGGLE_DICE, GRID_SIZE, CELL_COUNT,
   generateGrid, rowColOf, indexOf, neighborsOf,
   canonicalize, findPath, scoreWord, scoreWords, createDictionary,
+  normalizeWordList, nextWordIndex, verifyWords, compareHunt, finishHuntRound,
+  roundDeadline, COUNTDOWN_MS, ROUND_MS,
 } from './wordhuntLogic'
 
 // NOTE: this file must never import wordhuntDictionary.js (the lazy loader
@@ -238,5 +240,96 @@ describe('createDictionary — content safety (G-01)', () => {
     const dict = createDictionary(raw)
     for (const word of G01) expect(dict.has(word), word).toBe(false)
     expect(dict.has('planet')).toBe(true)
+  })
+})
+
+// Row 0: C A T S · row 1: D O G x — cat/cats/dog/god/cog/dot/tog traceable,
+// "act" is a word but not traceable (C and T are not adjacent).
+const HUNT_GRID = 'catsdogxxxxxxxxx'
+const HUNT_DICT = createDictionary(['cat', 'cats', 'dog', 'god', 'cog', 'act', 'dot', 'tog', 'plane'])
+
+describe('normalizeWordList / nextWordIndex', () => {
+  it('orders numeric keys numerically and drops gaps', () => {
+    expect(normalizeWordList({ 10: 'c', 2: 'b', 0: 'a' })).toEqual(['a', 'b', 'c'])
+    expect(normalizeWordList(['a', null, 'b'])).toEqual(['a', 'b'])
+    expect(normalizeWordList(null)).toEqual([])
+  })
+
+  it('never reuses a slot left by a failed write', () => {
+    expect(nextWordIndex(null)).toBe(0)
+    expect(nextWordIndex(['a', 'b'])).toBe(2)
+    expect(nextWordIndex({ 0: 'a', 2: 'c' })).toBe(3)
+  })
+})
+
+describe('verifyWords', () => {
+  it('keeps canonical, deduped, dictionary, traceable words only', () => {
+    const out = verifyWords(['cat', 'CAT', 'act', 'zzz', 'at', 'dog', null], HUNT_GRID, HUNT_DICT)
+    expect(out.words).toEqual(['cat', 'dog'])
+    expect(out.rejected).toEqual(['act', 'zzz', 'at'])
+    expect(out.score).toBe(2)
+  })
+
+  it('verifies nothing without a dictionary', () => {
+    expect(verifyWords(['cat'], HUNT_GRID, null).words).toEqual([])
+  })
+})
+
+describe('compareHunt', () => {
+  it('most points wins', () => {
+    expect(compareHunt(['plane'], ['cat'])).toMatchObject({ winner: 'X', decidedBy: 'points', scoreX: 2, scoreO: 1 })
+  })
+
+  it('equal points: more words wins', () => {
+    expect(compareHunt(['plane'], ['cat', 'dog'])).toMatchObject({ winner: 'O', decidedBy: 'words', scoreX: 2, scoreO: 2 })
+  })
+
+  it('equal points and words: longest word wins', () => {
+    expect(compareHunt(['cats', 'dog'], ['cat', 'dog'])).toMatchObject({ winner: 'X', decidedBy: 'longest', longestX: 4, longestO: 3 })
+  })
+
+  it('otherwise a draw', () => {
+    expect(compareHunt(['cat'], ['dog'])).toMatchObject({ winner: 'draw', decidedBy: 'draw' })
+    expect(compareHunt([], [])).toMatchObject({ winner: 'draw', decidedBy: 'draw' })
+  })
+})
+
+describe('finishHuntRound', () => {
+  const startedAt = 1_000
+  const end = roundDeadline(startedAt)
+  const game = (extra = {}) => ({
+    status: 'playing', scores: { X: 1, O: 0 }, wordhuntGrid: HUNT_GRID, wordhuntStartedAt: startedAt,
+    wordhuntWordsX: ['cat'], wordhuntWordsO: ['cats', 'dog'], ...extra,
+  })
+
+  it('computes the deadline from the start stamp', () => {
+    expect(end).toBe(startedAt + COUNTDOWN_MS + ROUND_MS)
+    expect(roundDeadline(null)).toBe(null)
+  })
+
+  it('aborts before the deadline, once finished, or without a dictionary', () => {
+    expect(finishHuntRound(game(), { now: end - 1, dict: HUNT_DICT })).toBeUndefined()
+    expect(finishHuntRound(game({ status: 'finished' }), { now: end, dict: HUNT_DICT })).toBeUndefined()
+    expect(finishHuntRound(game(), { now: end, dict: null })).toBeUndefined()
+    expect(finishHuntRound(null, { now: end, dict: HUNT_DICT })).toBeUndefined()
+  })
+
+  it('awards the round from verified words', () => {
+    const next = finishHuntRound(game(), { now: end, dict: HUNT_DICT })
+    expect(next).toMatchObject({ status: 'finished', winner: 'O', wordhuntScoreX: 1, wordhuntScoreO: 2 })
+    expect(next.scores).toEqual({ X: 1, O: 1 })
+  })
+
+  it('regression: self-reported scores and forged words are never trusted', () => {
+    const next = finishHuntRound(game({
+      wordhuntScoreX: 99, wordhuntWordsX: ['act', 'zzzzzzzz', 'cat', 'cat'], wordhuntWordsO: ['dog'],
+    }), { now: end, dict: HUNT_DICT })
+    expect(next).toMatchObject({ wordhuntScoreX: 1, wordhuntScoreO: 1, winner: 'draw' })
+    expect(next.scores).toEqual({ X: 1, O: 0 })
+  })
+
+  it('breaks equal points by word count', () => {
+    const next = finishHuntRound(game({ wordhuntWordsX: ['cat', 'dog'], wordhuntWordsO: ['cats'] }), { now: end, dict: HUNT_DICT })
+    expect(next.winner).toBe('X')
   })
 })

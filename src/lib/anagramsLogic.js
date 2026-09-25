@@ -8,6 +8,8 @@ export const ROUND_MS = 90_000
 export const MIN_WORD_LENGTH = 3
 export const MATCH_TARGET = 2
 export const MIN_SOLUTION_COUNT = 12
+// How long the reveal stays up before the next rack (see resolveRound).
+export const REVEAL_MS = 4_000
 
 const POINTS_BY_LENGTH = { 3: 1, 4: 2, 5: 4, 6: 7, 7: 11 }
 
@@ -119,4 +121,47 @@ export function getMatchWinner(scores) {
   if ((scores?.X || 0) >= MATCH_TARGET) return 'X'
   if ((scores?.O || 0) >= MATCH_TARGET) return 'O'
   return null
+}
+
+// Keeps only the found words that are really legal on this rack: canonical
+// key, 3–7 letters, buildable from the rack, in the valid word list and not
+// banned. Found keys are written by clients, so a devtools write of
+// `foundX/zzzzzzz` must score 0 — this is re-run when the round resolves.
+export function validFound(found, rack, validWords) {
+  const valid = validWords instanceof Set ? validWords : wordSet(validWords)
+  const out = {}
+  for (const [key, value] of Object.entries(found || {})) {
+    if (!value || typeof value !== 'object') continue
+    const word = normalizeWord(key)
+    if (word !== key || word.length < MIN_WORD_LENGTH || word.length > RACK_SIZE) continue
+    if (isBannedWord(word) || !canBuildWord(word, rack) || !valid.has(word)) continue
+    out[word] = value
+  }
+  return out
+}
+
+// Transaction updater that closes a round (moved from AnagramsGame.jsx).
+// Returns undefined (abort) until the round should reveal. Re-validates both
+// players' words before scoring, awards the round, and ends the match at
+// MATCH_TARGET. `now` is server-corrected time.
+export function resolveRound(current, now, validWords) {
+  if (!current?.round || !shouldReveal(current.round, now)) return undefined
+  const { rack } = current.round
+  const valid = validWords instanceof Set ? validWords : wordSet(validWords)
+  const result = compareRound(
+    validFound(current.round.foundX, rack, valid),
+    validFound(current.round.foundO, rack, valid),
+  )
+  const scores = { X: current.scores?.X || 0, O: current.scores?.O || 0 }
+  if (result.winner !== 'draw') scores[result.winner] += 1
+  const matchWinner = getMatchWinner(scores)
+  return {
+    ...current,
+    round: { ...current.round, phase: 'reveal', result, revealEndsAt: now + REVEAL_MS },
+    scores,
+    winner: matchWinner,
+    status: matchWinner ? 'finished' : 'playing',
+    proposal: null,
+    lastActivityAt: now,
+  }
 }
