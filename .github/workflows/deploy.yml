@@ -63,6 +63,11 @@ jobs:
       VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
       VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
       VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+      # Optional; empty when the secret is not set (App Check / TURN stay off).
+      VITE_APPCHECK_SITE_KEY: ${{ secrets.VITE_APPCHECK_SITE_KEY }}
+      VITE_TURN_URLS: ${{ secrets.VITE_TURN_URLS }}
+      VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
+      VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -101,6 +106,11 @@ jobs:
       VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
       VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
       VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+      # Optional; empty when the secret is not set (App Check / TURN stay off).
+      VITE_APPCHECK_SITE_KEY: ${{ secrets.VITE_APPCHECK_SITE_KEY }}
+      VITE_TURN_URLS: ${{ secrets.VITE_TURN_URLS }}
+      VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
+      VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
     steps:
       - uses: actions/checkout@v4
 
