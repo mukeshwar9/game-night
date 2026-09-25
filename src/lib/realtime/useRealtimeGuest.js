@@ -77,6 +77,9 @@ export function useRealtimeGuest(opts) {
 
   useEffect(() => {
     if (!enabled) return
+    // A new round (or retry) must not repaint the previous round's final
+    // snapshot while waiting for the host's first one.
+    snapRef.current = null
     let raf, last = performance.now(), lastInput = 0
     // Pending outgoing payload, accumulated via mergeInput() across every
     // tick() call since the last send — reset per connection lifecycle, same
