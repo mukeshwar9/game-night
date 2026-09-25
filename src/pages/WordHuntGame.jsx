@@ -242,12 +242,22 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
   // Input closed mid-drag (round over) — drop the trace.
   useEffect(() => { if (disabled) cancelDragRef.current() }, [disabled])
 
+  const staleTypedRef = useRef(false)
+  const typedInputRef = useRef(null)
+  const markTypedStale = () => {
+    staleTypedRef.current = true
+    if (document.activeElement === typedInputRef.current) typedInputRef.current?.select()
+  }
+
   const submitTyped = () => {
     if (disabled || !typedWord) return
     dragPathAtSubmitRef.current = []
     const kind = onSubmit(typedWord)
-    // Keep a rejected word in the box so it can be fixed.
+    // Keep a rejected word in the box so it can be fixed — but the next
+    // letter typed starts a fresh word (Backspace edits the kept one), so
+    // fast typists don't glue words together.
     if (kind === 'valid' || kind === 'duplicate') setTypedWord('')
+    else markTypedStale()
   }
 
   // Physical keyboard without focusing the box. useGameKeys ignores keys
@@ -260,11 +270,14 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
     }
     if (e.key === 'Backspace' || e.key === 'Escape') {
       if (!typedWord) return false
+      staleTypedRef.current = false
       setTypedWord(w => (e.key === 'Escape' ? '' : w.slice(0, -1)))
       return true
     }
     if (/^[a-zA-Z]$/.test(e.key)) {
-      setTypedWord(w => (w.length < MAX_TYPED ? w + e.key.toUpperCase() : w))
+      const fresh = staleTypedRef.current
+      staleTypedRef.current = false
+      setTypedWord(w => (fresh ? e.key.toUpperCase() : w.length < MAX_TYPED ? w + e.key.toUpperCase() : w))
       return true
     }
     return false
@@ -319,8 +332,9 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
       >
         <input
           type="text"
+          ref={typedInputRef}
           value={typedWord}
-          onChange={(e) => setTypedWord(e.target.value.replace(/[^a-z]/gi, '').toUpperCase().slice(0, MAX_TYPED))}
+          onChange={(e) => { staleTypedRef.current = false; setTypedWord(e.target.value.replace(/[^a-z]/gi, '').toUpperCase().slice(0, MAX_TYPED)) }}
           disabled={disabled}
           inputMode="text"
           autoCapitalize="characters"

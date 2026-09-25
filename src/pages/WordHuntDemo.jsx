@@ -273,10 +273,19 @@ export default function WordHuntDemo() {
     }
   }, [dragging])
 
+  const staleTypedRef = useRef(false)
+  const typedInputRef = useRef(null)
+  const markTypedStale = () => {
+    staleTypedRef.current = true
+    if (document.activeElement === typedInputRef.current) typedInputRef.current?.select()
+  }
+
   const submitTyped = () => {
     if (!typed) return
     const kind = submit(typed)
+    // A rejected word stays visible; the next letter starts a fresh word.
     if (kind === 'valid' || kind === 'duplicate') setTyped('')
+    else markTypedStale()
   }
 
   // Physical keyboard without focusing the box: useGameKeys ignores keys
@@ -290,11 +299,14 @@ export default function WordHuntDemo() {
     }
     if (e.key === 'Backspace' || e.key === 'Escape') {
       if (!typed) return false
+      staleTypedRef.current = false
       setTyped(w => (e.key === 'Escape' ? '' : w.slice(0, -1)))
       return true
     }
     if (/^[a-zA-Z]$/.test(e.key)) {
-      setTyped(w => (w.length < MAX_TYPED ? w + e.key.toUpperCase() : w))
+      const fresh = staleTypedRef.current
+      staleTypedRef.current = false
+      setTyped(w => (fresh ? e.key.toUpperCase() : w.length < MAX_TYPED ? w + e.key.toUpperCase() : w))
       return true
     }
     return false
@@ -471,8 +483,9 @@ export default function WordHuntDemo() {
       <form className="mx-auto max-w-xs flex gap-2" onSubmit={(e) => { e.preventDefault(); submitTyped() }}>
         <input
           type="text"
+          ref={typedInputRef}
           value={typed}
-          onChange={(e) => setTyped(e.target.value.replace(/[^a-z]/gi, '').toUpperCase().slice(0, MAX_TYPED))}
+          onChange={(e) => { staleTypedRef.current = false; setTyped(e.target.value.replace(/[^a-z]/gi, '').toUpperCase().slice(0, MAX_TYPED)) }}
           inputMode="text"
           autoCapitalize="characters"
           autoCorrect="off"
