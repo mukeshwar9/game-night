@@ -13,7 +13,8 @@
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "emulators": "firebase emulators:start --only auth,database --project demo-game-night",
     "test:rules": "node scripts/with-emulators.mjs database npx vitest run --config vitest.rules.config.js",
-    "test:e2e": "node scripts/with-emulators.mjs auth,database npx playwright test"
+    "test:e2e": "node scripts/with-emulators.mjs auth,database npx playwright test",
+    "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

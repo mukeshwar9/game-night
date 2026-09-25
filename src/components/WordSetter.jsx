@@ -51,7 +51,7 @@ export default function WordSetter({ onWordSet, loading = false }) {
           className={cn(
             'w-full bg-retro-card border-2 rounded px-4 py-3',
             'font-pixel text-sm text-retro-p1 tracking-widest text-center',
-            'placeholder-retro-border focus:outline-none transition-colors',
+            'placeholder-retro-dim focus:outline-none transition-colors',
             error ? 'border-retro-p2' : 'border-retro-border focus:border-retro-p1',
           )}
         />
@@ -77,7 +77,7 @@ export default function WordSetter({ onWordSet, loading = false }) {
           className={cn(
             'w-full bg-retro-card border rounded px-4 py-2',
             'font-mono text-xs text-retro-dim tracking-wide text-center',
-            'placeholder-retro-border/60 focus:outline-none transition-colors',
+            'placeholder-retro-dim focus:outline-none transition-colors',
             'border-retro-border/50 focus:border-retro-border',
           )}
         />

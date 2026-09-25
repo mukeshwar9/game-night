@@ -156,7 +156,7 @@ export default function Onboarding({ onDone }) {
               value={name}
               onChange={e => { setNameInput(e.target.value); setNameTouched(true) }}
               maxLength={20}
-              className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest placeholder-retro-border rounded px-4 py-3 focus:outline-none focus:border-retro-p1 transition-colors"
+              className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest placeholder-retro-dim rounded px-4 py-3 focus:outline-none focus:border-retro-p1 transition-colors"
             />
           </div>
 

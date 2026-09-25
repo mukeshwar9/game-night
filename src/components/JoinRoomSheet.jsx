@@ -18,7 +18,7 @@ export default function JoinRoomSheet({ code, onChange, onJoin, onClose }) {
           maxLength={6}
           placeholder="ABC123"
           className="mt-1 w-full min-h-12 bg-retro-card border-2 border-retro-border text-retro-p1
-            font-mono text-base tracking-[0.3em] placeholder-retro-border rounded px-3 py-2
+            font-mono text-base tracking-[0.3em] placeholder-retro-dim rounded px-3 py-2
             focus:outline-none focus:border-retro-p1 transition-colors"
         />
       </label>

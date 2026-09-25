@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Firebase CLI deploy cache (per-machine file hashes)
+.firebase/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -38,6 +41,4 @@ blob-report/
 playwright/.cache/
 dev-dist/
 
-# Firebase CLI deploy cache (regenerated on every deploy).
-.firebase/
 dist-e2e/

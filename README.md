@@ -240,6 +240,7 @@ npm test           # Vitest — pure logic, decks, helpers
 npm run test:rules # security rules tests on the Database emulator
 npm run test:e2e   # Playwright end-to-end tests on the emulators (npm run test:e2e -- tests/e2e/<spec>.js)
 npm --prefix functions test   # Cloud Functions tests
+npm run deploy     # guarded manual deploy (see Deploy)
 ```
 
 ## Deploy
@@ -252,9 +253,8 @@ GitHub Actions (`.github/workflows/`) run lint, typecheck, unit tests, build, th
 Preview-channel domains must be added to Firebase Auth's authorized domains for Google sign-in to work there. Rules and functions are deployed by hand:
 
 ```bash
-firebase deploy --only database     # security rules — deploy together with the app that needs them
-firebase deploy --only functions    # room cleanup + verified results (Blaze plan; builds the bundle first)
-firebase deploy --only hosting      # manual hosting deploy, if not using the workflow
+npm run deploy -- --only hosting,database   # guarded manual deploy: refuses a dirty tree or a build without the Firebase config
+firebase deploy --only functions            # room cleanup + verified results (Blaze plan; builds the bundle first)
 ```
 
 Hosting sends immutable caching for hashed assets, `no-cache` for `index.html`/`sw.js`, security headers and a report-only CSP (`firebase.json`); missing files return 404.

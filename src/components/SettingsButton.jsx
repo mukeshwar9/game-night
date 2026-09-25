@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import BottomSheet from './BottomSheet'
+import ThemePreview from './ThemePreview'
 import { VideoCallSettingsPanel } from './VideoCallLayout'
 import { FONTS, applyFont, getStoredFont } from '../lib/font'
 import { THEMES, applyTheme, getStoredTheme } from '../lib/theme'
 import {
-  TEXT_SIZES, applyCrt, applyMotion, applyTextSize, applyWinFx,
-  getStoredCrt, getStoredMotion, getStoredTextSize, getWinFx, resetDisplayPrefs,
+  TEXT_SIZES, applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx,
+  getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
 } from '../lib/displayPrefs'
 import { setProfile } from '../lib/social'
 import { sounds } from '../lib/sounds'
@@ -35,6 +36,31 @@ export default function SettingsButton({ className = '' }) {
   const [textSize, setTextSize] = useState(getStoredTextSize)
   const [winFx, setWinFx] = useState(getWinFx)
   const [resetArmed, setResetArmed] = useState(false)
+  const [showPreview, setShowPreview] = useState(getThemePreview)
+  const themeListRef = useRef(null)
+  // Hover/focus preview: null means "show the committed choice". Only mouse
+  // hover and keyboard focus set it — on touch a tap commits straight away.
+  const [hoverTheme, setHoverTheme] = useState(null)
+  const [hoverFont, setHoverFont] = useState(null)
+  const previewTheme = hoverTheme ?? theme
+  const previewFont = hoverFont ?? font
+  const peek = (setter, id) => ({
+    onPointerEnter: e => { if (e.pointerType === 'mouse') setter(id) },
+    onFocus: e => { if (e.currentTarget.matches(':focus-visible')) setter(id) },
+  })
+  const clearPeek = setter => ({
+    onPointerLeave: () => setter(null),
+    onBlur: e => { if (!e.currentTarget.contains(e.relatedTarget)) setter(null) },
+  })
+
+  // The theme list is a fixed-height scroll box, so bring the committed
+  // theme into view whenever the sheet opens.
+  useEffect(() => {
+    const list = themeListRef.current
+    const selected = list?.querySelector('[aria-pressed="true"]')
+    if (!list || !selected) return
+    list.scrollTop = selected.offsetTop - (list.clientHeight - selected.offsetHeight) / 2
+  }, [open])
 
   const selectTheme = (id) => {
     applyTheme(id)
@@ -56,6 +82,7 @@ export default function SettingsButton({ className = '' }) {
   const selectMotion = (mode) => { applyMotion(mode); setMotion(mode === 'reduced' ? 'reduced' : 'full') }
   const selectTextSize = (id) => setTextSize(applyTextSize(id))
   const selectWinFx = (on) => { applyWinFx(on); setWinFx(on) }
+  const selectShowPreview = (on) => { applyThemePreview(on); setShowPreview(on) }
 
   const resetAll = () => {
     if (!resetArmed) {
@@ -77,6 +104,7 @@ export default function SettingsButton({ className = '' }) {
     setMotion(getStoredMotion())
     setTextSize('m')
     setWinFx(true)
+    setShowPreview(false)
     setProfile({ theme: 'matcha', fontFamily: 'press-start' }).catch(() => {})
   }
 
@@ -98,42 +126,72 @@ export default function SettingsButton({ className = '' }) {
       </svg>
     </button>
 
-    {open && <BottomSheet onClose={() => setOpen(false)} ariaLabel="Settings" className="bg-retro-card space-y-5">
+    {open && <BottomSheet onClose={() => setOpen(false)} ariaLabel="Settings" className={`bg-retro-card space-y-5 ${showPreview ? 'md:max-w-3xl' : ''}`}>
       <div className="flex items-center justify-between">
         <SectionTitle>SETTINGS</SectionTitle>
         <button type="button" onClick={() => setOpen(false)} className="font-pixel text-[10px] text-retro-dim hover:text-retro-text p-2 -m-2">CLOSE</button>
       </div>
 
       <section className="space-y-2">
-        <SectionTitle>THEME</SectionTitle>
-        <div className="grid grid-cols-2 gap-2">
-          {THEMES.map(option => <button
-            key={option.id}
-            type="button"
-            onClick={() => selectTheme(option.id)}
-            className={`flex min-h-10 items-center gap-2 rounded border px-2 text-left font-pixel text-[8px] transition-colors ${theme === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
-          >
-            <ThemeSwatches id={option.id} />
-            <span className="truncate">{option.label}</span>
-          </button>)}
+        <div className="flex items-center justify-between gap-3">
+          <SectionTitle>THEME</SectionTitle>
+          <label className="flex items-center gap-2 font-pixel text-[8px] text-retro-dim tracking-widest">
+            <span>PREVIEW</span>
+            <input type="checkbox" checked={showPreview} onChange={e => selectShowPreview(e.target.checked)} aria-label="Show theme preview" className="h-5 w-5 accent-retro-cta" />
+          </label>
         </div>
-      </section>
+        <div className={showPreview ? 'space-y-3 md:grid md:grid-cols-[240px_1fr] md:gap-5 md:space-y-0' : ''}>
+          {showPreview && <div>
+            <div className="md:sticky md:top-0">
+              <ThemePreview
+                theme={previewTheme}
+                font={previewFont}
+                caption={hoverTheme || hoverFont ? 'PREVIEW' : 'CURRENT'}
+              />
+              <p className="mt-1 font-mono text-[10px] text-retro-dim truncate">
+                {THEMES.find(option => option.id === previewTheme)?.label} · {FONTS.find(option => option.id === previewFont)?.label}
+              </p>
+            </div>
+          </div>}
+          <div className="space-y-5">
+            <div
+              ref={themeListRef}
+              className="relative grid max-h-52 grid-cols-2 gap-2 overflow-y-auto overscroll-contain rounded border border-retro-border p-2 md:max-h-72"
+              {...clearPeek(setHoverTheme)}
+            >
+              {THEMES.map(option => <button
+                key={option.id}
+                type="button"
+                aria-pressed={theme === option.id}
+                onClick={() => selectTheme(option.id)}
+                {...peek(setHoverTheme, option.id)}
+                className={`flex min-h-10 items-center gap-2 rounded border px-2 text-left font-pixel text-[8px] transition-colors ${theme === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
+              >
+                <ThemeSwatches id={option.id} />
+                <span className="truncate">{option.label}</span>
+              </button>)}
+            </div>
 
-      <section className="space-y-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <SectionTitle>FONT FAMILY</SectionTitle>
-          <span className="font-mono text-[10px] text-retro-dim">{FONTS.find(option => option.id === font)?.label}</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {FONTS.map(option => <button
-            key={option.id}
-            type="button"
-            onClick={() => selectFont(option.id)}
-            className={`min-h-14 rounded border px-2 py-2 text-left transition-colors ${font === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
-          >
-            <span className="block truncate text-[11px]" style={{ fontFamily: `'${option.family}'` }}>{option.label}</span>
-            <span className="mt-1 block truncate font-mono text-[9px] opacity-70">{option.description}</span>
-          </button>)}
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <SectionTitle>FONT FAMILY</SectionTitle>
+                <span className="font-mono text-[10px] text-retro-dim">{FONTS.find(option => option.id === font)?.label}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2" {...clearPeek(setHoverFont)}>
+                {FONTS.map(option => <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={font === option.id}
+                  onClick={() => selectFont(option.id)}
+                  {...peek(setHoverFont, option.id)}
+                  className={`min-h-14 rounded border px-2 py-2 text-left transition-colors ${font === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
+                >
+                  <span className="block truncate text-[11px]" style={{ fontFamily: `'${option.family}'` }}>{option.label}</span>
+                  <span className="mt-1 block truncate font-mono text-[9px] opacity-70">{option.description}</span>
+                </button>)}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

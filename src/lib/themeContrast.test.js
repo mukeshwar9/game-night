@@ -120,19 +120,36 @@ describe('per-theme contrast floors (regression guards, 2026-08 audit)', () => {
 })
 
 describe('ground scheme', () => {
+  const clean = cssText.replace(/\/\*[\s\S]*?\*\//g, '')
+
+  // A theme scoped to a wrapper (settings preview, picker swatches) must not
+  // inherit the page's scheme: dark blocks rely on this reset instead of
+  // restating it, and it has to precede every theme block so they win.
+  it('resets the dark-ground defaults on every [data-theme] element before the theme blocks', () => {
+    const reset = clean.match(/\[data-theme\]\s*\{([^{}]*)\}/)
+    expect(reset, '[data-theme] { ... } block').not.toBeNull()
+    expect(reset[1]).toMatch(/color-scheme:\s*dark\s*;/)
+    expect(reset[1]).toMatch(/--crt-overlay:\s*block\s*;/)
+    expect(reset[1]).toMatch(/--glow:\s*1\s*;/)
+    expect(reset.index).toBeLessThan(clean.search(/\[data-theme="[\w-]+"\]\s*\{/))
+  })
+
   const blocks = Object.fromEntries(
-    [...cssText.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\[data-theme="([\w-]+)"\]\s*\{([^{}]*)\}/g)]
+    [...clean.matchAll(/\[data-theme="([\w-]+)"\]\s*\{([^{}]*)\}/g)]
       .map(([, id, body]) => [id, body]),
   )
   const black = [0, 0, 0]
 
   for (const id of EXPECTED_THEME_IDS.filter(id => id !== 'midnight')) {
-    it(`${id} declares the color-scheme and CRT overlay its ground needs`, () => {
+    it(`${id} declares the color-scheme, CRT overlay and glow strength its ground needs`, () => {
       const t = themes[id]
       const lightGround = contrastRatio(t.bg, black) > contrastRatio(t.text, black)
       const body = blocks[id]
       expect(/color-scheme:\s*light\s*;/.test(body), `${id} color-scheme: light`).toBe(lightGround)
       expect(/--crt-overlay:\s*none\s*;/.test(body), `${id} --crt-overlay: none`).toBe(lightGround)
+      const glow = body.match(/--glow:\s*([\d.]+)\s*;/)
+      if (lightGround) expect(Number(glow?.[1]), `${id} --glow below 1`).toBeLessThan(1)
+      else expect(glow, `${id} keeps the default --glow`).toBeNull()
     })
   }
 })

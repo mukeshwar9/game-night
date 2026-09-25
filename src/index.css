@@ -24,7 +24,7 @@
   padding: .75rem;
   font: 7px/1.5 var(--font-pixel), ui-monospace, monospace;
   text-align: center;
-  text-shadow: 0 0 8px rgb(var(--c-p2));
+  text-shadow: 0 0 8px rgb(var(--c-p2) / var(--glow, 1));
 }
 .video-call-reaction-dock .video-call-preview { grid-column: 2; }
 @media (max-width: 430px) {
@@ -138,7 +138,7 @@
 
 /* shadcn/ui CSS variables — retro palette */
 @layer base {
-  :root {
+  [data-theme="midnight"], :root {
     --background: 240 20% 4%;
     --foreground: 240 20% 90%;
     --card: 240 18% 8%;
@@ -161,12 +161,16 @@
     --radius: 0.25rem;
 
     /* ── Retro theme tokens (MIDNIGHT ARCADE — the cascade fallback) ── */
-    /* Ground scheme. Dark grounds keep native controls/scrollbars dark and
-       show the CRT overlay (body::before/::after). A light-ground theme sets
-       color-scheme: light and --crt-overlay: none in its own block: scanlines
-       and the heavy edge vignette read as muddy film on a pale ground. */
+    /* Ground scheme. Dark grounds keep native controls/scrollbars dark, show
+       the CRT overlay (body::before/::after) and run neon glows at full
+       strength. A light-ground theme sets color-scheme: light, --crt-overlay:
+       none and --glow: 0.3 in its own block: scanlines, the heavy edge
+       vignette and full-strength glows read as muddy film and smudged text
+       on a pale ground. --glow scales every shadow-neon-*, text-glow-* and
+       shadow-glow-dot utility (tailwind.config.js). */
     color-scheme: dark;
     --crt-overlay: block;
+    --glow: 1;
     --c-bg:       8 8 16;       /* #080810 */
     --c-surface:  15 15 26;     /* #0f0f1a */
     --c-card:     19 19 40;     /* #131328 */
@@ -214,6 +218,18 @@
 }
 
 /* ── Theme overrides ── */
+
+/* Ground-scheme defaults for every themed element, not just <html>. Theme
+   blocks match any element carrying data-theme (the settings preview and
+   the picker swatches scope a theme to a wrapper), and dark theme blocks
+   don't restate these three, so without this a dark theme nested in a
+   light page would inherit the page's light scheme and 0.3 glow. Light
+   theme blocks come later with the same specificity and override it. */
+[data-theme] {
+  color-scheme: dark;
+  --crt-overlay: block;
+  --glow: 1;
+}
 
 [data-theme="phosphor"] {
   --c-bg:       3 15 3;
@@ -482,6 +498,7 @@
 [data-theme="paper"] {
   color-scheme: light;
   --crt-overlay: none;
+  --glow:       0.3;
   --c-bg:       242 240 233;
   --c-surface:  250 248 242;
   --c-card:     255 255 252;
@@ -658,6 +675,7 @@
 [data-theme="matcha"] {
   color-scheme: light;
   --crt-overlay: none;
+  --glow:       0.3;
   --c-bg:       238 240 226;
   --c-surface:  246 248 236;
   --c-card:     252 253 246;
@@ -707,6 +725,7 @@
 [data-theme="matcha-strawberry"] {
   color-scheme: light;
   --crt-overlay: none;
+  --glow:       0.3;
   --c-bg:       226 236 212;
   --c-surface:  234 242 222;
   --c-card:     245 249 238;
@@ -755,6 +774,7 @@
 [data-theme="matcha-blueberry"] {
   color-scheme: light;
   --crt-overlay: none;
+  --glow:       0.3;
   --c-bg:       222 234 214;
   --c-surface:  231 240 224;
   --c-card:     243 248 238;
@@ -803,6 +823,7 @@
 [data-theme="cotton-candy"] {
   color-scheme: light;
   --crt-overlay: none;
+  --glow:       0.3;
   --c-bg:       251 233 242;
   --c-surface:  253 241 247;
   --c-card:     255 250 253;
@@ -850,6 +871,7 @@
 [data-theme="arctic-frost"] {
   color-scheme: light;
   --crt-overlay: none;
+  --glow:       0.3;
   --c-bg:       229 237 244;
   --c-surface:  237 243 248;
   --c-card:     248 251 253;
