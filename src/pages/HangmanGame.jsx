@@ -189,7 +189,7 @@ function ClaimPanel({ claim, now, opponentLabel, onClaim, claiming }) {
           endsAt={claim.at}
           now={now}
           totalMs={CLAIM_WINDOW_MS[claim.reason]}
-          label={claim.reason === 'offline' ? `${opponentLabel} OFFLINE · CLAIM IN` : 'CAN CLAIM ROUND IN'}
+          label={claim.reason === 'offline' ? `${opponentLabel} OFFLINE` : 'CAN CLAIM ROUND IN'}
           lowMs={0}
         />
       )}
@@ -897,14 +897,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         </div>
       )}
 
-      {/* Opponent offline notice (before the grace runs out) */}
-      {!isReveal && !isSpectator && !opponentOnline && !opponentGone && (
-        <p className="text-center font-pixel text-[10px] text-retro-dim">
-          {opponentLabel} IS OFFLINE…
-        </p>
-      )}
-
-      {/* Stall claims: +1 to the side that isn't stalling */}
+      {/* Stall claims: +1 to the side that isn't stalling. An offline
+          opponent shows here as a grace countdown, then CLAIM ROUND. */}
       {!isReveal && claimPanel}
       {!isReveal && isGuesser && (
         <StallWarning claim={theirClaim} now={now} label="GUESS WITHIN" />
