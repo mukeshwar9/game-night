@@ -938,6 +938,7 @@ function ChimpDemo() {
   const [seat, setSeat] = useState('X')
   const [status, setStatus] = useState('playing')
   const [winner, setWinner] = useState(null)
+  const [miss, setMiss] = useState(null)
 
   const advance = (nx, no) => {
     if (nx && no) {
@@ -953,7 +954,7 @@ function ChimpDemo() {
     const done = seat === 'X' ? doneX : doneO
     if (done) return
     const expected = normalizeChimpLayout(layout)[prog]
-    if (expected !== cellIndex) { setWinner(seat === 'X' ? 'O' : 'X'); setStatus('finished'); return }
+    if (expected !== cellIndex) { setMiss(cellIndex); setWinner(seat === 'X' ? 'O' : 'X'); setStatus('finished'); return }
     const np = prog + 1
     if (np === level) {
       const nx = seat === 'X' ? true : doneX
@@ -968,7 +969,7 @@ function ChimpDemo() {
   const reset = () => {
     setLayout(generateChimpLayout(CHIMP_START_LEVEL)); setLevel(CHIMP_START_LEVEL)
     setProgX(0); setProgO(0); setDoneX(false); setDoneO(false)
-    setSeat('X'); setStatus('playing'); setWinner(null)
+    setSeat('X'); setStatus('playing'); setWinner(null); setMiss(null)
   }
 
   return (
@@ -979,7 +980,8 @@ function ChimpDemo() {
       </div>
       <ChimpBoard onMove={handleMove} disabled={status !== 'playing' || (seat === 'X' ? doneX : doneO)}
         chimpLayout={layout} myProgress={seat === 'X' ? progX : progO} opProgress={seat === 'X' ? progO : progX}
-        myDone={seat === 'X' ? doneX : doneO} opDone={seat === 'X' ? doneO : doneX} chimpLevel={level} />
+        myDone={seat === 'X' ? doneX : doneO} opDone={seat === 'X' ? doneO : doneX} chimpLevel={level}
+        reveal={status === 'finished'} missCell={miss} />
       <div className="text-center space-y-2">
         {status === 'finished' && (
           <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>

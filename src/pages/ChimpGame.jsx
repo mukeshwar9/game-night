@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
+import { serverNow } from '../lib/serverClock'
 import {
   normalizeChimpLayout, CHIMP_START_LEVEL,
   evaluateChimpTap, buildChimpAdvance,
@@ -27,13 +28,28 @@ export default function ChimpGame({
   const layout = normalizeChimpLayout(game.chimpLayout)
   const level   = game.chimpLevel ?? CHIMP_START_LEVEL
 
-  const myKey  = mySymbol === 'X' ? 'X' : 'O'
+  // Spectators follow X's board (labelled X/O rather than ME/OP).
+  const myKey  = mySymbol === 'O' ? 'O' : 'X'
   const opKey  = myKey === 'X' ? 'O' : 'X'
 
   const myProgress = game[`chimpProgress${myKey}`] ?? 0
   const opProgress = game[`chimpProgress${opKey}`] ?? 0
   const myDone     = game[`chimpDone${myKey}`]     ?? false
   const opDone     = game[`chimpDone${opKey}`]     ?? false
+
+  // Start round 1's memorize clock when the room actually starts playing (join, lobby
+  // START, play again), not when it was created — otherwise the numbers had already
+  // expired for both players by the time O joined. First client to see it wins.
+  useEffect(() => {
+    if (game.status !== 'playing' || game.chimpRoundStartedAt != null) return
+    runTransaction(ref(db, `games/${gameId}/chimpRoundStartedAt`), cur => cur ?? serverNow()).catch(() => {})
+  }, [gameId, game.status, game.chimpRoundStartedAt])
+
+  // Taps land faster than the Firebase echo re-renders myProgress, so the next tap
+  // would be judged against stale progress and count as a mis-tap. Track the last
+  // progress this client sent, per round.
+  const roundSig = `${level}:${layout.join(',')}`
+  const sentRef = useRef({ sig: null, progress: 0, busy: false })
 
   const prevDoneX = useRef(game.chimpDoneX ?? false)
   const prevDoneO = useRef(game.chimpDoneO ?? false)
@@ -116,7 +132,7 @@ export default function ChimpGame({
     try {
       await update(ref(db, `games/${gameId}`), {
         ...buildChimpAdvance(currentLevel),
-        chimpRoundStartedAt: Date.now(),
+        chimpRoundStartedAt: serverNow(),
       })
     } catch {
       // The round patch failed to land after the level CAS succeeded — revert
@@ -143,12 +159,15 @@ export default function ChimpGame({
   }, [game.chimpDoneX, game.chimpDoneO])
 
   const handleCellClick = async (cellIndex) => {
-    if (!mySymbol || myDone || game.status !== 'playing') return
+    if (sentRef.current.sig !== roundSig) sentRef.current = { sig: roundSig, progress: 0, busy: false }
+    if (!mySymbol || myDone || game.status !== 'playing' || sentRef.current.busy) return
 
-    const tap = evaluateChimpTap({ layout, progress: myProgress, level, cellIndex })
+    const progress = Math.max(myProgress, sentRef.current.progress)
+    const tap = evaluateChimpTap({ layout, progress, level, cellIndex })
     if (!tap.valid) return
 
     if (!tap.correct) {
+      sentRef.current.busy = true
       sounds.lose()
       try {
         // Atomic CAS on winner (mirrors claimIdleRound): if both players
@@ -165,11 +184,14 @@ export default function ChimpGame({
         await update(ref(db, `games/${gameId}`), {
           status: 'finished',
           [`scores/${opKey}`]: (game.scores?.[opKey] || 0) + 1,
+          chimpMiss: { by: myKey, cell: cellIndex },
         })
       } catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
+      finally { sentRef.current.busy = false }
       return
     }
 
+    sentRef.current.progress = tap.newProgress
     sounds.move(mySymbol)
 
     if (tap.done) {
@@ -190,8 +212,26 @@ export default function ChimpGame({
   const matchWinner = (game.scores?.X || 0) >= 3 ? 'X' : (game.scores?.O || 0) >= 3 ? 'O' : null
 
   if (game.status === 'finished') {
+    const miss = game.chimpMiss ?? null
     return (
       <div className="space-y-4">
+        {layout.length > 0 && (
+          <ChimpBoard
+            key={`reveal-${level}-${layout.join(',')}`}
+            onMove={() => {}}
+            disabled
+            reveal
+            // Show the board of whoever missed (their progress and wrong tile).
+            missCell={miss?.cell ?? null}
+            chimpLayout={layout}
+            myProgress={game[`chimpProgress${miss?.by ?? myKey}`] ?? 0}
+            opProgress={game[`chimpProgress${(miss?.by ?? myKey) === 'X' ? 'O' : 'X'}`] ?? 0}
+            myDone={false}
+            opDone={false}
+            chimpLevel={level}
+            spectating={!mySymbol || (miss != null && miss.by !== myKey)}
+          />
+        )}
         <GameStatus
           status={game.status}
           winner={game.winner}
@@ -224,6 +264,7 @@ export default function ChimpGame({
         opDone={opDone}
         chimpLevel={level}
         roundStartedAt={game.chimpRoundStartedAt ?? null}
+        spectating={!mySymbol}
       />
       {!opponentOnline && mySymbol && <OfflineNotice label="OPPONENT" />}
       {showClaimHint && (

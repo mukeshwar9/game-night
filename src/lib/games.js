@@ -1393,7 +1393,7 @@ const FIELD_NULLS = {
   chimpLevel: null, chimpLayout: null,
   chimpProgressX: null, chimpProgressO: null,
   chimpDoneX: null, chimpDoneO: null,
-  chimpRoundStartedAt: null,
+  chimpRoundStartedAt: null, chimpMiss: null,
   vmLevel: null, vmPattern: null, vmClicked: null, vmClears: null, vmMiss: null,
   numRound: null,
   reactionTimesX: null, reactionTimesO: null,
@@ -1513,7 +1513,9 @@ export function freshGameState(gameType, previous = null) {
       chimpLayout: generateChimpLayout(CHIMP_START_LEVEL),
       chimpProgressX: 0, chimpProgressO: 0,
       chimpDoneX: false, chimpDoneO: false,
-      chimpRoundStartedAt: Date.now() }
+      // Stamped (server time) by the first client that sees the room playing — a
+      // creation-time stamp had already expired round 1 by the time O joined.
+      chimpRoundStartedAt: null, chimpMiss: null }
   }
   if (gameType === 'reaction') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }

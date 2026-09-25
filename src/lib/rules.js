@@ -152,11 +152,11 @@ export const GAME_RULES = {
   chimp: {
     objective: 'Remember the positions of numbered tiles and tap them in order.',
     howToPlay: [
-      'Numbers briefly appear on a 5×5 grid, then hide.',
+      'Numbers appear on a 5×5 grid; they hide when the timer bar runs out or when you tap 1.',
       'Tap the cells in ascending numeric order from memory.',
-      'Clear a level and the next one adds another number.',
+      'Both players race the same layout at once. When you both clear it, the next level adds another number.',
     ],
-    win: 'One wrong tap ends your run — outlast your opponent to win.',
+    win: 'One wrong tap ends your run — the board then shows where every number was. Outlast your opponent to win.',
   },
 
   numbermemory: {
