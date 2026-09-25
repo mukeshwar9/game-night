@@ -1031,6 +1031,25 @@ body::before {
 }
 .pong-ball-pulse { animation: pong-ball-pulse 0.6s ease-in-out infinite; }
 
+/* Pong juice — hit sparks, callout pop, pulsing goal-line shield */
+.pong-particle { animation: pixel-burst 0.45s ease-out forwards; }
+@keyframes pong-callout {
+  0%   { transform: scale(0.6); opacity: 0; }
+  15%  { transform: scale(1.15); opacity: 1; }
+  30%  { transform: scale(1); }
+  80%  { opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.pong-callout { animation: pong-callout 0.95s ease-out forwards; }
+@keyframes pong-shield {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.pong-shield { animation: pong-shield 0.8s ease-in-out infinite; }
+/* Reduced motion: callouts still carry information (power-up names), so show them static. */
+[data-motion="reduced"] .pong-callout { animation: none; }
+@media (prefers-reduced-motion: reduce) { .pong-callout { animation: none; } }
+
 @keyframes win-flash {
   0%   { opacity: 0; }
   12%  { opacity: 0.14; }
