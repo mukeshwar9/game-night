@@ -7,7 +7,7 @@ import {
   PENDING, pendingLetters, canQueueGuess, gradePending,
   PRESENCE_GRACE_MS, SETTING_DEADLINE_MS, GRADING_STALL_MS, GUESSER_IDLE_MS,
   otherSymbol, getRoundClaim, revealRoundWinner, canAdvanceReveal, autoAdvanceAt,
-  buildNextRound, WORD_RULE_ANY, WORD_RULE_DICTIONARY, wordRuleFor, validateSetterWord,
+  buildNextRound, getHangwomanMatchWinner, isSuddenDeath, roundNumber, WORD_RULE_ANY, WORD_RULE_DICTIONARY, wordRuleFor, validateSetterWord,
 } from '../lib/hangmanLogic'
 import { getGameConfig } from '../lib/games'
 import { loadDictionary } from '../lib/wordhuntDictionary'
@@ -257,7 +257,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  const matchWinner = scoreX >= target ? 'X' : scoreO >= target ? 'O' : null
+  // First to `target` with equal setter turns (see getHangwomanMatchWinner).
+  const matchWinner = getHangwomanMatchWinner({ X: scoreX, O: scoreO }, round.turns, target)
+  const suddenDeath = isSuddenDeath({ X: scoreX, O: scoreO }, target)
+  const matchLabel = `FIRST TO ${target} · EQUAL TURNS`
+  const roundLabel = suddenDeath ? `ROUND ${roundNumber(round.turns)} · SUDDEN DEATH` : `ROUND ${roundNumber(round.turns)}`
 
   const [flash, setFlash] = useState(false)
   // Local verification results, keyed by the commitment they belong to so a
@@ -651,10 +655,17 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     />
   )
 
+  const matchCaption = (
+    <p className="text-center font-pixel text-[8px] text-retro-dim tracking-widest">
+      {roundLabel} · {matchLabel}
+    </p>
+  )
+
   // --- Setting phase ---
   if (phase === 'setting') {
     return (
       <div className="space-y-4">
+        {matchCaption}
         {showWinEffect && (
           <WinEffect winner={winEffectFor} onDone={() => setShowWinEffect(false)} />
         )}
@@ -737,6 +748,7 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
   return (
     <div className="space-y-4">
+      {matchCaption}
       {showWinEffect && (
         <WinEffect winner={winEffectFor} onDone={() => setShowWinEffect(false)} />
       )}

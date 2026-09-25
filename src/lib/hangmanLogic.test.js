@@ -28,6 +28,10 @@ import {
   wordRuleFor,
   validateSetterWord,
   hintRevealsWord,
+  normalizeTurns,
+  getHangwomanMatchWinner,
+  isSuddenDeath,
+  roundNumber,
 } from './hangmanLogic'
 
 describe('validateWord', () => {
@@ -458,9 +462,9 @@ describe('autoAdvanceAt', () => {
 
 describe('buildNextRound', () => {
   it('scores the round winner and hands the word to the other player', () => {
-    const next = buildNextRound({ scores: { X: 1, O: 0 }, round: { setter: 'X', phase: 'reveal' } }, 'O')
+    const next = buildNextRound({ scores: { X: 1, O: 0 }, round: { setter: 'X', phase: 'reveal', turns: { X: 1, O: 1 } } }, 'O')
     expect(next.scores).toEqual({ X: 1, O: 1 })
-    expect(next.round).toMatchObject({ setter: 'O', phase: 'setting', wrongCount: 0 })
+    expect(next.round).toEqual({ setter: 'O', phase: 'setting', wrongCount: 0, turns: { X: 2, O: 1 } })
     expect(next.proposal).toBeNull()
     expect(next.status).toBeUndefined()
   })
@@ -552,5 +556,71 @@ describe('hintRevealsWord', () => {
   it('accepts an empty hint', () => {
     expect(hintRevealsWord('', 'JAZZ')).toBe(false)
     expect(hintRevealsWord(null, 'JAZZ')).toBe(false)
+  })
+})
+
+describe('getHangwomanMatchWinner (first to 3, equal setter turns)', () => {
+  it('reads sparse turn counts', () => {
+    expect(normalizeTurns(undefined)).toEqual({ X: 0, O: 0 })
+    expect(normalizeTurns({ X: 2 })).toEqual({ X: 2, O: 0 })
+  })
+
+  it('ends at 3 when both players have set the same number of rounds', () => {
+    expect(getHangwomanMatchWinner({ X: 3, O: 1 }, { X: 2, O: 2 })).toBe('X')
+    expect(getHangwomanMatchWinner({ X: 2, O: 3 }, { X: 3, O: 3 })).toBe('O')
+  })
+
+  it('ends early when the trailing player cannot catch up in their owed setter turn', () => {
+    // X set rounds 1 and 3, O set round 2: 3–0 can't be caught in one round.
+    expect(getHangwomanMatchWinner({ X: 3, O: 0 }, { X: 2, O: 1 })).toBe('X')
+    expect(getHangwomanMatchWinner({ X: 3, O: 1 }, { X: 3, O: 2 })).toBe('X')
+  })
+
+  it('regression: the first setter no longer wins 3–2 before the other player sets round 6', () => {
+    expect(getHangwomanMatchWinner({ X: 3, O: 2 }, { X: 3, O: 2 })).toBeNull()
+  })
+
+  it('goes to sudden death on a tie after equal turns', () => {
+    expect(getHangwomanMatchWinner({ X: 3, O: 3 }, { X: 3, O: 3 })).toBeNull()
+    expect(isSuddenDeath({ X: 3, O: 3 })).toBe(true)
+    // Mid-pair: one ahead, other still owed a setter turn.
+    expect(getHangwomanMatchWinner({ X: 4, O: 3 }, { X: 4, O: 3 })).toBeNull()
+    expect(isSuddenDeath({ X: 4, O: 3 })).toBe(true)
+    // First lead after equal turns wins.
+    expect(getHangwomanMatchWinner({ X: 4, O: 3 }, { X: 4, O: 4 })).toBe('X')
+  })
+
+  it('never ends below the target', () => {
+    expect(getHangwomanMatchWinner({ X: 2, O: 0 }, { X: 1, O: 1 })).toBeNull()
+    expect(isSuddenDeath({ X: 2, O: 2 })).toBe(false)
+  })
+
+  it('honours another target', () => {
+    expect(getHangwomanMatchWinner({ X: 2, O: 0 }, { X: 1, O: 1 }, 2)).toBe('X')
+  })
+
+  it('numbers rounds from the turns taken', () => {
+    expect(roundNumber(undefined)).toBe(1)
+    expect(roundNumber({ X: 3, O: 2 })).toBe(6)
+  })
+
+  it('plays out a whole match through buildNextRound: O sets first, 3–2 goes to round 6', () => {
+    let game = { scores: { X: 0, O: 0 }, round: { setter: 'O', phase: 'reveal' } }
+    // Round winners in order: O sets rounds 1/3/5, X sets 2/4/6.
+    for (const w of ['O', 'X', 'O', 'X', 'O']) {
+      const next = buildNextRound(game, w)
+      game = { ...game, ...next }
+    }
+    expect(game.scores).toEqual({ X: 2, O: 3 })
+    expect(game.round.turns).toEqual({ X: 2, O: 3 })
+    expect(game.status).toBeUndefined()
+    expect(game.round.setter).toBe('X')
+    const last = buildNextRound(game, 'X')
+    expect(last.scores).toEqual({ X: 3, O: 3 })
+    expect(last.status).toBeUndefined()
+    const sd1 = buildNextRound({ ...game, ...last }, 'O')
+    expect(sd1.status).toBeUndefined()
+    const sd2 = buildNextRound({ ...game, ...last, ...sd1 }, 'O')
+    expect(sd2).toMatchObject({ status: 'finished', winner: 'O', scores: { X: 3, O: 5 } })
   })
 })

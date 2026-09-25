@@ -261,19 +261,59 @@ export function autoAdvanceAt(round) {
   return at === null ? null : at + AUTO_ADVANCE_MS
 }
 
+// --- Match: first to `target`, equal setter turns ---------------------------
+//
+// Setting alternates, so a plain first-to-3 gave the first setter rounds 1, 3
+// and 5 — a real edge when setters win most rounds. The match now ends only
+// when a player has `target` round wins AND both players have set the same
+// number of rounds, or when the trailing player can no longer catch up in the
+// setter turn(s) still owed to them. A tie at that point is sudden death: the
+// first player ahead after an equal number of setter turns wins.
+// `round.turns` = { X, O } counts the rounds each player has set.
+
+/** { X, O } setter turns taken, from Firebase's sparse node (absent = 0). */
+export function normalizeTurns(raw) {
+  return { X: Number(raw?.X) || 0, O: Number(raw?.O) || 0 }
+}
+
+/** The match winner under the equal-turns rule, or null while play continues. */
+export function getHangwomanMatchWinner(scores, turns, target = 3) {
+  const x = Number(scores?.X) || 0
+  const o = Number(scores?.O) || 0
+  if (x === o || Math.max(x, o) < target) return null
+  const leader = x > o ? 'X' : 'O'
+  const t = normalizeTurns(turns)
+  // Each owed setter turn is one more round, worth at most one point.
+  const owed = Math.abs(t.X - t.O)
+  return Math.abs(x - o) > owed ? leader : null
+}
+
+/** Sudden death: both players have reached the target, so the next lead after equal turns wins. */
+export function isSuddenDeath(scores, target = 3) {
+  return Math.min(Number(scores?.X) || 0, Number(scores?.O) || 0) >= target
+}
+
+/** 1-based number of the round being played. */
+export function roundNumber(turns) {
+  const t = normalizeTurns(turns)
+  return t.X + t.O + 1
+}
+
 // The game-node patch that ends the current round: score `roundWinner`
-// ('X' | 'O', or null for no score), hand the word to the other player and
-// finish the match when someone reaches `target`.
+// ('X' | 'O', or null for no score), count the setter's turn, hand the word to
+// the other player and finish the match under getHangwomanMatchWinner().
 export function buildNextRound(game, roundWinner, { target = 3 } = {}) {
   const setter = roundSetter(game?.round)
   const scores = { X: Number(game?.scores?.X) || 0, O: Number(game?.scores?.O) || 0 }
   if (roundWinner === 'X' || roundWinner === 'O') scores[roundWinner] += 1
+  const turns = normalizeTurns(game?.round?.turns)
+  turns[setter] += 1
   const next = {
     scores,
-    round: { setter: otherSymbol(setter), phase: 'setting', wrongCount: 0 },
+    round: { setter: otherSymbol(setter), phase: 'setting', wrongCount: 0, turns },
     proposal: null,
   }
-  const winner = scores.X >= target ? 'X' : scores.O >= target ? 'O' : null
+  const winner = getHangwomanMatchWinner(scores, turns, target)
   if (winner) {
     next.status = 'finished'
     next.winner = winner
