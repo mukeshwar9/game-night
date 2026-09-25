@@ -1,0 +1,38 @@
+[
+  {
+    "name": "01-landing",
+    "path": ".lavish/axi/01-landing.png",
+    "caption": "Landing — coin screen. Review context: the shell around 67 games is in good shape; this pass focused on what the games themselves do.",
+    "url": "http://localhost:5173/"
+  },
+  {
+    "name": "02-reversi-color-only",
+    "path": ".lavish/axi/02-reversi-color-only.png",
+    "caption": "Finding R6 — Reversi is the last color-only board: bare pink/cyan discs with no glyph. Checkers fixed the identical problem with side letters (GAMEPLAY-04); Reversi should adopt the same treatment.",
+    "url": "http://localhost:5173/solo/reversi"
+  },
+  {
+    "name": "03-checkers-glyph-pattern",
+    "path": ".lavish/axi/03-checkers-glyph-pattern.png",
+    "caption": "The reference pattern — Checkers prints the side letter on every piece, men and kings. Reversi needs this exact class of fix for colorblind players.",
+    "url": "http://localhost:5173/solo/checkers"
+  },
+  {
+    "name": "04-practice-hub",
+    "path": ".lavish/axi/04-practice-hub.png",
+    "caption": "Finding R7 (new) — the quick-wins branch renamed this header to \"PRACTICE · VS CPU\" with a catalog cross-link, but main still ships the bare \"Demo\" header: the branch was only partially merged. Tile VS CPU tags (F-40) did land. Also visible: volume findings R4/R5 — Fibbage draws from a 27-fact deck and Trivia from 60 questions, both below the ~100 burn bar.",
+    "url": "http://localhost:5173/demo"
+  },
+  {
+    "name": "05-daily",
+    "path": ".lavish/axi/05-daily.png",
+    "caption": "Stats context — recordMatch is still 2P-only, so party/nPlayer wins (Chain Reaction 4P, Herd, Trivia, Fibbage, Spyfair, Sketch) never reach users/{uid}/stats or the friends leaderboard. Extending recordMatch is the cheapest retention win left.",
+    "url": "http://localhost:5173/daily"
+  },
+  {
+    "name": "06-home-catalog",
+    "path": ".lavish/axi/06-home-catalog.png",
+    "caption": "Hygiene — the catalog is at 67 registry entries while backlog.md still shows Arrows work in-flight and UX-IMPROVEMENTS.md lists F-39..F-46 as Open though shipped. Docs lag the code by a full game wave.",
+    "url": "http://localhost:5173/"
+  }
+]

@@ -31,14 +31,24 @@
   },
   {
     "name": "06-mancala-flash",
-    "path": ".lavish/quick-wins-ux/06-mancala-flash.png",
-    "caption": "F-44 — Mancala's extra turn (seeds land in your own store) gets the same flash treatment.",
-    "url": "http://localhost:5174/solo/mancala"
+    "caption": "F-44 — Mancala extra-turn beat: the rival lands seeds in its own store and the full-screen RIVAL GOES AGAIN flash fires."
   },
   {
     "name": "07-end-screen-share",
     "path": ".lavish/quick-wins-ux/07-end-screen-share.png",
     "caption": "F-46 — end screens now follow the same checklist: PLAY AGAIN · SHARE · TRY NEXT · SWITCH GAME.",
     "url": "http://localhost:5174/local/tictactoe"
+  },
+  {
+    "name": "08-dev-launcher",
+    "path": ".lavish/quick-wins-ux/08-dev-launcher.png",
+    "caption": "F-51 — with the emulators mode on, an ordinary tab becomes the launcher: open P1–P8 or a spectator, each as its own player.",
+    "url": "http://localhost:5175/"
+  },
+  {
+    "name": "09-dev-badge",
+    "path": ".lavish/quick-wins-ux/09-dev-badge.png",
+    "caption": "F-51 — a slot tab shows the persistent DEV P1 badge: slot, uid, and emulator connection (EMU-DOWN here because the emulators were not running for the capture).",
+    "url": "http://localhost:5175/?devPlayer=p1"
   }
 ]

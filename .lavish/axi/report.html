@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Night — Full-Platform Review (Sep 22, 2026 · axi)</title>
+<style>
+  @font-face {
+    font-family: 'Press Start 2P';
+    src: url('../fonts/press-start-2p-latin.woff2') format('woff2');
+    font-weight: 400; font-style: normal;
+  }
+  :root {
+    --bg:#080810; --surface:#0f0f1a; --card:#131328; --border:#2a2a50;
+    --text:#e0e0ff; --dim:#9a9ac4; --p1:#00e5ff; --p2:#ff4081;
+    --cta:#ffe600; --win:#39ff14; --danger:#ff2d2d;
+    --tint-cta:#1a1500; --tint-p1:#001a2e; --tint-p2:#2e0018; --tint-win:#0a1f00;
+    --font:"Press Start 2P", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--mono); min-height:100vh }
+  body:before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.08;
+    background:repeating-linear-gradient(0deg,transparent 0 3px,#000 3px 4px) }
+  .page { max-width:1080px; margin:auto; padding:40px 24px 80px; position:relative }
+  h1 { font-family:var(--font); color:var(--cta); font-size:18px; line-height:1.7; letter-spacing:2px;
+       text-shadow:0 0 10px #ffe60088; margin:0 0 8px }
+  .sub { color:var(--dim); font-size:13px; line-height:1.8; max-width:780px; margin:0 0 34px }
+  h2 { font-family:var(--font); color:var(--p1); font-size:12px; letter-spacing:1px;
+       margin:44px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--border) }
+  .finding { background:var(--surface); border:2px solid var(--border); border-radius:6px;
+             padding:18px; margin:18px 0 }
+  .finding:hover { border-color:var(--p1); box-shadow:0 0 16px #00e5ff22 }
+  .finding-head { display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; margin-bottom:10px }
+  .tag { color:var(--cta); background:var(--tint-cta); border:1px solid var(--cta);
+         padding:4px 8px; font-size:11px; border-radius:3px }
+  .finding-title { font-family:var(--font); font-size:10px; line-height:1.7 }
+  ul { margin:8px 0 0; padding-left:18px; line-height:1.8; font-size:13px }
+  li { margin:6px 0 }
+  code { color:var(--cta); background:var(--tint-cta); padding:2px 7px; border-radius:3px;
+         border:1px solid #332b00; font-size:11.5px }
+  .file { color:var(--p1); font-size:11.5px }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; margin:10px 0 }
+  th { font-family:var(--font); font-size:8px; color:var(--dim); letter-spacing:1px; text-align:left;
+       border-bottom:1px solid var(--border); padding:10px }
+  td { border-bottom:1px solid #1a1a33; padding:9px 10px; line-height:1.7 }
+  .chip { display:inline-block; font-family:var(--font); font-size:8px; padding:4px 7px;
+          border-radius:3px; white-space:nowrap }
+  .crit { color:var(--danger); background:#2e0808; border:1px solid var(--danger) }
+  .high { color:var(--p2); background:var(--tint-p2); border:1px solid var(--p2) }
+  .med  { color:var(--cta); background:var(--tint-cta); border:1px solid var(--cta) }
+  .good { color:var(--win); background:var(--tint-win); border:1px solid var(--win) }
+  .statgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin:20px 0 }
+  .stat { background:var(--surface); border:2px solid var(--border); border-radius:6px; padding:16px }
+  .stat .n { font-family:var(--font); color:var(--win); font-size:15px; display:block; margin-bottom:10px }
+  .stat .l { color:var(--dim); font-size:11px; line-height:1.7 }
+  .box { background:#0a1a2e; border-left:4px solid var(--p1); border-radius:4px;
+         padding:14px 18px; font-size:13px; line-height:1.8; margin:18px 0 }
+  figure { margin:16px 0; background:var(--card); border:1px solid var(--border); border-radius:6px; padding:12px }
+  figure img { display:block; width:100%; max-width:390px; border:1px solid var(--border); border-radius:4px; image-rendering:auto }
+  figcaption { color:var(--dim); font-size:11.5px; line-height:1.8; margin-top:10px }
+  .footer { margin-top:50px; color:var(--dim); font-size:11px; border-top:1px solid var(--border); padding-top:16px }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>FULL-PLATFORM REVIEW — SEP 22, 2026</h1>
+  <p class="sub">
+    Read-only pass over the whole platform (67 registry entries): game-logic checklist, hidden-info
+    handling, real-time transport, Firebase rules, UX-audit status, hygiene. No code was changed.
+    Evidence screenshots below were captured from the live dev server at
+    <code>localhost:5173</code>. The most important discovery is not in any game —
+    <b>a finished branch that was never merged</b>.
+  </p>
+
+  <div class="statgrid">
+    <div class="stat"><span class="n">67</span><span class="l">registry entries<br>(~26 custom/realtime)</span></div>
+    <div class="stat"><span class="n">3,512</span><span class="l">tests passing<br>157 files</span></div>
+    <div class="stat"><span class="n">23</span><span class="l">lint errors<br>28 warnings</span></div>
+    <div class="stat"><span class="n">15</span><span class="l">git worktrees<br>checked out</span></div>
+  </div>
+
+  <h2>R1 · THE QUICK-WINS BRANCH WAS NEVER MERGED</h2>
+  <div class="finding">
+    <div class="finding-head"><span class="tag">quick-wins-ux</span>
+      <span class="chip crit">TOP FINDING</span><span class="chip crit">PROCESS</span></div>
+    <p style="font-size:13px;line-height:1.8">
+      Branch <code>quick-wins-ux</code> (worktree <span class="file">../games-platform-quickwins</span>,
+      7 commits, 44 files, +943/−135) carries a report that says “ready to bring into the main folder
+      with <code>git merge quick-wins-ux</code>”. It was never merged. Verified absent on main:
+    </p>
+    <ul>
+      <li><b>MomentFlash</b> for extra-turn / hit-again moments (F-44) — <span class="file">GameStatus.jsx</span> still has only the inline GO AGAIN text.</li>
+      <li><b>START HERE rail</b> (F-45) — zero hits in src.</li>
+      <li><b>Waiting-room anticipation copy</b> (F-42, <code>waitingCopy</code>) — zero hits.</li>
+      <li><b>ShareResultButton</b> on six game end screens (F-46) — Word Race, Anagrams, Word Co-op, Password, Chain Reaction 4P have no share import.</li>
+      <li><b>F-41 header</b> — demo hub still says bare <code>Demo</code>, not “PRACTICE · VS CPU”. (F-40’s VS CPU tile tags did land.)</li>
+    </ul>
+    <p style="font-size:13px;line-height:1.8">
+      Meanwhile ~15 worktrees exist across <span class="file">.treehouse/</span>,
+      <span class="file">.claude/worktrees/</span> and <span class="file">Dev/personal/</span>, and
+      <span class="file">.claude/worktrees/fix-all-games</span> ships inside the repo — so <b>every
+      test suite and lint run executes twice</b> and half the lint errors live in that copy.
+      Merge or abandon each branch, then delete the in-repo worktree.
+    </p>
+    <figure>
+      <img src="04-practice-hub.png" alt="Demo hub with bare Demo header">
+      <figcaption>Evidence — the hub header on main is still “Demo”: the F-41 rename exists only on the unmerged branch.</figcaption>
+    </figure>
+  </div>
+
+  <h2>R2 · REAL-TIME GAMES KEEP SCORING THROUGH A DROPPED PEER (F-47)</h2>
+  <div class="finding">
+    <div class="finding-head"><span class="tag">F-47</span>
+      <span class="chip crit">HIGH · AFFECTS MATCH OUTCOMES</span></div>
+    <p style="font-size:13px;line-height:1.8">
+      <span class="file">src/lib/realtime/rtc.js</span> status contract is
+      <code>connecting|connected|failed|closed</code> — there is no <code>reconnecting</code>. During the
+      5s ICE-disconnect grace the peer still reports <code>connected</code>, so Pong/Snake/Tron hosts keep
+      simulating and can score against a vanished opponent using the last cached input. An intentional
+      <code>closed</code> also falls into the “SIGNAL LOST — RECONNECTING” overlay forever. Your own F-47
+      plan documents all of this; it is written but unimplemented. <b>Ship it first.</b>
+    </p>
+  </div>
+
+  <h2>R3 · PARTY GAMES BUILD ZERO STATS</h2>
+  <div class="finding">
+    <div class="finding-head"><span class="tag">recordMatch</span><span class="chip high">MEDIUM</span></div>
+    <p style="font-size:13px;line-height:1.8">
+      <span class="file">src/lib/profile.js</span> — <code>recordMatch</code> is still 2P-only. Wins in
+      Chain Reaction 4P, Herd Mind, Trivia, Fibbage, Spyfair and Sketch never reach
+      <code>users/{uid}/stats</code> or the friends leaderboard (F-33 v1). Extend it: member of winning
+      side / last survivor. Cheapest retention win left.
+    </p>
+    <figure>
+      <img src="05-daily.png" alt="Daily page">
+      <figcaption>Stats context — the per-user mirror and leaderboard exist; party wins are the hole in the data.</figcaption>
+    </figure>
+  </div>
+
+  <h2>R4 · WORD RACE LEAKS ITS ANSWER MID-ROUND</h2>
+  <div class="finding">
+    <div class="finding-head"><span class="tag">hidden-info</span><span class="chip high">HIGH</span></div>
+    <p style="font-size:13px;line-height:1.8">
+      <span class="file">src/pages/WordRaceGame.jsx</span> (~line 148) publishes
+      <code>round.answerIndex</code> into the room node at round start. The answers array is a public
+      bundle and <code>games/$id</code> is readable by any authenticated user — devtools shows the current
+      answer before reveal. Fix: publish only the seed; both clients already run the same deterministic
+      <code>pickAnswer</code>. Same class (lower stakes): Password publishes <code>wordIndex</code>;
+      Fibbage publishes <code>promptIndex</code> into a 27-fact deck.
+    </p>
+  </div>
+
+  <h2>R5 · DECKS BELOW THE BURN BAR</h2>
+  <div class="finding">
+    <div class="finding-head"><span class="tag">content volume</span><span class="chip med">MEDIUM</span></div>
+    <ul>
+      <li><b>Fibbage:</b> 27 facts — a repeat group exhausts it in one sitting, and prompts repeat every 27 rounds.</li>
+      <li><b>Trivia:</b> 60 questions vs the audit’s own ~100 threshold.</li>
+      <li><b>Dictionary (Anagrams):</b> <span class="file">src/lib/dictionary.js</span> is unfiltered and directly scoreable — contains profanity and non-English obscenities (e.g. <code>paska</code>, <code>sluts</code>). Needs a denylist pass, not more content.</li>
+    </ul>
+  </div>
+
+  <h2>R6 · REVERSI IS THE LAST COLOR-ONLY BOARD</h2>
+  <div class="finding">
+    <div class="finding-head"><span class="tag">accessibility</span><span class="chip med">MEDIUM</span></div>
+    <p style="font-size:13px;line-height:1.8">
+      <span class="file">src/components/ReversiBoard.jsx</span> renders bare colored discs — no glyph, no
+      shape. Checkers fixed the identical problem by printing the side letter on every piece
+      (GAMEPLAY-04 comment). Adopt the same treatment. Everything else we spot-checked
+      (Checkers, Mancala, SOS, Word Co-op) uses real buttons with aria labels — good.
+    </p>
+    <figure>
+      <img src="02-reversi-color-only.png" alt="Reversi board with color-only discs">
+      <figcaption>The gap — pink vs cyan discs only.</figcaption>
+    </figure>
+    <figure>
+      <img src="03-checkers-glyph-pattern.png" alt="Checkers board with side letters">
+      <figcaption>The reference pattern — side letter on every piece, men and kings.</figcaption>
+    </figure>
+  </div>
+
+  <h2>R7 · BREAKTHROUGH TEST GAP</h2>
+  <div class="finding">
+    <div class="finding-head"><span class="tag">test coverage</span><span class="chip med">LOW</span></div>
+    <p style="font-size:13px;line-height:1.8">
+      <span class="file">src/lib/breakthroughLogic.js</span> — the no-legal-move loss is checked only
+      after a move; a side stuck with zero legal moves at the start of its own turn has no test pinning
+      the behavior. The code comment argues the position is unreachable — fine, but pin it with a unit
+      test so refactors can’t silently change it.
+    </p>
+  </div>
+
+  <h2>R8 · DOCS LAG THE CODE BY A FULL GAME WAVE</h2>
+  <div class="finding">
+    <div class="finding-head"><span class="tag">docs drift</span><span class="chip med">QUICK WIN</span></div>
+    <ul>
+      <li><span class="file">backlog.md</span>: Arrows ARROWS-A/B/C listed in-flight — all three shipped (commit <code>fd0634b</code>: match closure, trap tell, feel pass).</li>
+      <li><span class="file">UX-IMPROVEMENTS.md</span>: F-39/F-40/F-43/F-46 marked Open but implemented on main; the rest of that branch’s items are Open-unmerged. The doc can’t tell you what’s live.</li>
+      <li><span class="file">AGENTS.md</span>: data-model section still describes the 5-game era (tictactoe/connectfour/hangwoman/dotsandboxes/sos).</li>
+    </ul>
+    <figure>
+      <img src="06-home-catalog.png" alt="Home catalog">
+      <figcaption>67 entries on screen; the docs describe a smaller, older platform.</figcaption>
+    </figure>
+  </div>
+
+  <h2>R9 · LINT GATE IS RED</h2>
+  <div class="finding">
+    <div class="finding-head"><span class="tag">hygiene</span><span class="chip med">QUICK WIN</span></div>
+    <ul>
+      <li><span class="file">.tmp-audit-solo.js</span>, <span class="file">.tmp-friend-test.mjs</span> — no-undef errors; delete.</li>
+      <li><span class="file">HerdGame.jsx</span> — dead commit-reveal imports (<code>makeCommit</code>/<code>verifyReveal</code> unused): half-removed path worth a second look.</li>
+      <li><span class="file">chat.test.js</span> unused vars; new <code>react-hooks/purity</code> errors on <code>Date.now()</code> in handler closures in Game.jsx / DailyGame.jsx — tune or relocate.</li>
+    </ul>
+  </div>
+
+  <h2>WHAT IS GENUINELY STRONG</h2>
+  <div class="box">
+    <ul>
+      <li>3,512 unit tests, all green — deterministic seeded rounds and transaction-convergence patterns are well covered.</li>
+      <li>Commit-reveal now protects 10 hidden-info pages; Fibbage’s author-less, truth-unmarked ballot is excellent.</li>
+      <li><code>FIELD_NULLS</code> covers every new game’s keys — checked arrows, cr4, kamisado, onitama, quarto, santorini.</li>
+      <li>Checkers’ no-legal-move loss is correctly turn-scoped (a blocked side not on turn does not end the game).</li>
+      <li>Claim-win (F-23), mid-game invites (F-26), app-level invite toasts, transaction-guarded seat claims.</li>
+    </ul>
+  </div>
+
+  <h2>SUGGESTED SEQUENCE</h2>
+  <table>
+    <tr><th>#</th><th>Action</th><th>Finding</th></tr>
+    <tr><td>1</td><td>Merge or explicitly abandon <code>quick-wins-ux</code>; clean the worktree pile</td><td>R1</td></tr>
+    <tr><td>2</td><td>Implement F-47 reconnecting-pause per the written plan</td><td>R2</td></tr>
+    <tr><td>3</td><td>Seed-derive Word Race answers (and Password / Fibbage indices)</td><td>R4</td></tr>
+    <tr><td>4</td><td>Dictionary denylist pass</td><td>R5</td></tr>
+    <tr><td>5</td><td>Extend recordMatch to party games</td><td>R3</td></tr>
+    <tr><td>6</td><td>Reversi side-letter glyph</td><td>R6</td></tr>
+    <tr><td>7</td><td>Hygiene sweep (tmp files, Herd imports, lint, docs)</td><td>R7–R9</td></tr>
+  </table>
+
+  <figure>
+    <img src="01-landing.png" alt="Landing screen">
+    <figcaption>Where all of this lands — the coin screen is in good shape; this pass focused on what the games themselves do.</figcaption>
+  </figure>
+
+  <div class="footer">
+    Read-only review · no code changed · evidence captured from localhost:5173 on Sep 22, 2026 · shots in <code>.lavish/axi/</code>
+  </div>
+
+</div>
+</body>
+</html>

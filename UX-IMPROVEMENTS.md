@@ -2,11 +2,11 @@
 
 A comprehensive UX audit of the platform, performed July 2026 when the catalog stood at **31 registry entries / 29 selectable games** (2 variants hidden behind "+MODES") across 5 categories: board (9), reflex (9), memory (4), word (4), party (3). The platform launched with 3–4 games; the shell around the games has not evolved with the catalog. This document records every finding with enough context to implement each fix independently.
 
-**Scope:** UX only — information architecture, discoverability, navigation, flows, consistency, engagement, mobile. Not code quality, performance, or visual design.
+**Original audit scope:** UX only — information architecture, discoverability, navigation, flows, consistency, engagement, mobile. The appended adversarial game review adds game correctness, content, and accessibility findings.
 
 **Format per finding:** Severity (Critical/High/Medium/Low) · Priority (Quick Win / Medium Effort / Long-Term), where it occurs (with file pointers), why it hurts, the recommended fix, and expected impact.
 
-**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented; a second round landed the full quick-wins sweep — F-04, F-12, F-15, F-21, F-24, F-25, F-28, F-30, F-31, F-35, F-36, F-37; a third round landed F-10, F-22, and F-23; a fourth round landed F-09, F-27, F-32, and F-34; a fifth round closed the remainder — F-02, F-03, F-13, F-14, F-17, F-18, F-29, F-33 (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. **Every actionable finding in this audit is now implemented**; F-16 is accepted as-is and F-19 remains a watch item. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
+**Implementation status (July 2026):** all 8 Critical/High findings — F-01, F-05, F-06, F-07, F-08, F-11, F-20, F-26 — are ✅ implemented; a second round landed the full quick-wins sweep — F-04, F-12, F-15, F-21, F-24, F-25, F-28, F-30, F-31, F-35, F-36, F-37; a third round landed F-10, F-22, and F-23; a fourth round landed F-09, F-27, F-32, and F-34; a fifth round closed the remainder — F-02, F-03, F-13, F-14, F-17, F-18, F-29, F-33 (see per-finding Status lines and the updated index below). F-38 was resolved as a side effect of F-01. **Every actionable finding in the original UX audit is now implemented**; F-16 is accepted as-is and F-19 remains a watch item. The appended adversarial game findings have separate statuses below. File pointers and line numbers in the finding bodies describe the *pre-fix* code.
 
 ---
 
@@ -984,3 +984,83 @@ Stop condition for item 1: a reconnecting player sees a clear saved-round state,
 Testing is opt-in, emulator-only, and anonymous. Emulator data is disposable; this plan includes no production account migration or rule relaxation. Document emulator prerequisites and startup commands alongside the MCP walkthrough. Resetting emulator data requires resetting the associated test sessions so cached identities and seats do not masquerade as valid room membership.
 
 Completion requires ordinary same-browser tabs to act as separate authenticated players through real room and game flows, with evidence from both two-player and party tests. Documentation, mock identities, or passing pure-logic tests alone do not meet this condition.
+
+## Adversarial game review — current codebase
+
+Static review covered all 67 game types in `src/lib/games.js`, their game-specific logic/pages/boards, and current content banks. Chromium smoke checks loaded all 67 `/solo/:type` routes without a visible error screen. This was route/render coverage, not a full playthrough of every game.
+
+### Findings
+
+#### G-01 · High — Word Hunt dictionary contains slurs and profanity
+
+**Where:** `public/wordhunt-dict.txt`; `src/lib/wordhuntDictionary.js:37-40`.
+
+**Player impact:** The dictionary accepts entries such as `nigger`, `cunt`, and `fuck` without a denylist. These words can be found during play and shown to both players.
+
+**Fix:** Apply and maintain a profanity/slur denylist during dictionary preparation; add tests that representative banned entries cannot be accepted.
+
+**Status: Open.**
+
+#### G-02 · Medium — Fibbage repeats prompts in fixed order
+
+**Where:** `src/pages/FibbageGame.jsx:338-343`; `src/lib/decks/fibbage.js`.
+
+**Player impact:** Every next round increments `promptIndex` by one and wraps through the 27-entry deck. Regular groups can memorize truths by sequence, and prompts repeat after one deck rotation.
+
+**Fix:** Select prompts using a per-match shuffled order and persist that order or seed in round state so all clients agree. Expand the deck separately; shuffling does not solve low content volume by itself.
+
+**Status: Open.**
+
+#### G-03 · Low — Trivia Blitz has only 60 questions
+
+**Where:** `src/lib/decks/trivia.js:1`; `src/lib/triviaLogic.js:20`.
+
+**Player impact:** A 10-question match consumes one-sixth of the current deck. Repeat groups will encounter recurring questions after relatively few matches. The deck describes itself as a starter set.
+
+**Fix:** Expand toward the deck's stated 200-question target and add a test that enforces a minimum content count.
+
+**Status: Open.**
+
+#### G-04 · Medium — Several board positions are not conveyed to screen readers
+
+**Where:** `src/components/ReversiBoard.jsx:40`; `src/components/GomokuBoard.jsx:36`; `src/components/HexBoard.jsx`; `src/components/OrderChaosBoard.jsx`; `src/components/ConnectFourBoard.jsx:60-69,114-129`.
+
+**Player impact:** Reversi labels announce only coordinates. Gomoku, Hex, and Order & Chaos use generic `aria-label`s that replace the visible X/O cell content. Connect Four hides its cell grid from assistive technology and exposes column actions without exposing the board's disc arrangement. Screen-reader players cannot reliably follow the game state.
+
+**Fix:** Expose each cell's coordinates and occupant/state in its accessible name or a synchronized board description. For Connect Four, provide an accessible board representation in addition to column controls. Verify with a screen reader.
+
+**Status: Open.**
+
+#### G-05 · Low — Reversi distinguishes pieces by color alone
+
+**Where:** `src/components/ReversiBoard.jsx:60-63`.
+
+**Player impact:** X and O discs are plain circles distinguished only by theme color, leaving no second visual cue for color-vision-deficient players.
+
+**Fix:** Add a visible symbol, letter, or shape distinction to each disc; check all themes after the change.
+
+**Status: Open.**
+
+### Verification and limits
+
+- `npm test`: passed — 157 test files, 3,513 tests.
+- `npm run build`: passed.
+- `npm run lint`: failed with 23 errors and 28 warnings, including findings in game files and nested worktrees. Fix or triage lint separately; lint output does not establish a gameplay failure by itself.
+- Browser: Chromium rendered all 67 `/solo/:type` routes without a visible error screen. This does not prove every control, round transition, or animation works.
+- Multiplayer: not verified. No Firebase configuration was available, so realtime sync, auth, disconnect recovery, and cross-device/WebRTC behavior remain untested.
+
+
+## Anagrams Race — remaining improvements
+
+Added by Luna model · 2026-09-24 10:06 IST.
+
+These items remain pending after the first implementation pass:
+
+- **Dictionary fairness:** curate obscure entries; define plural, proper-noun, abbreviation, and offensive-word policy; version the accepted dictionary.
+- **Reveal explanation:** show player names, match score, word counts, and the exact tie-break reason when applicable.
+- **Accessibility and mobile:** add keyboard focus visibility and screen-reader announcements for accepted words, points, timer end, opponent finish, and reconnecting.
+- **Automated multiplayer tests:** cover duplicate Enter, delayed submission, deadline submission, both players finishing, refresh, disconnect, reconnect, and same-round recovery.
+- **Manual recovery verification:** test two browser profiles with refresh, background tabs, network loss, and reconnection. Confirm no duplicate rack or lost words.
+- **Firebase deployment verification:** deploy and verify the matchmaking/database rules in the target Firebase project.
+
+**Status:** code changes are partially implemented; these validation and follow-up items remain open.

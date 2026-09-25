@@ -14,6 +14,18 @@ async function newPage() {
   })
   await context.route(/(googleapis\.com|firebaseio\.com|firebasedatabase\.app)/, route => route.abort())
   const page = await context.newPage()
+  // Fresh clone has no .env.local — hide the config banner + toast so the
+  // screenshots show the features, not the environment warning. Init script
+  // re-injects the style after every navigation.
+  await context.addInitScript(() => {
+    const style = document.createElement('style')
+    style.textContent = `
+      [role="status"][class*="top-16"] { display: none !important; }
+      [data-sonner-toast] { display: none !important; }
+    `
+    const add = () => document.head.appendChild(style)
+    document.head ? add() : document.addEventListener('DOMContentLoaded', add)
+  })
   return { context, page, base: BASE }
 }
 
@@ -93,8 +105,13 @@ async function shot(pg, name, caption) {
   await page.getByLabel('pit 3').waitFor({ timeout: 20000 })
   await page.waitForTimeout(800)
   await page.getByLabel('pit 3').click()
-  await page.waitForTimeout(280)
-  await shot(page, '06-mancala-flash', 'F-44 — Mancala\'s extra turn (seeds land in your own store) gets the same flash treatment.')
+  await page.evaluate(() => document.fonts.ready)
+  // My sow hands the turn over; the bot replies after 700ms and its seeds
+  // land in its own store — the 'RIVAL GOES AGAIN' flash fires right then.
+  await page.waitForTimeout(950)
+  await page.screenshot({ path: `${OUT}/06-mancala-flash.png` })
+  shots.push({ name: '06-mancala-flash', caption: 'F-44 — Mancala extra-turn beat: the rival lands seeds in its own store and the full-screen RIVAL GOES AGAIN flash fires.' })
+  console.log('shot 06-mancala-flash')
   await context.close()
 }
 
@@ -118,6 +135,8 @@ async function shot(pg, name, caption) {
   await page.waitForTimeout(700)
   const shareBtn = page.getByRole('button', { name: 'SHARE', exact: true })
   if (await shareBtn.count()) {
+    await shareBtn.evaluate(el => el.scrollIntoView({ block: 'center' }))
+    await page.waitForTimeout(500)
     await shot(page, '07-end-screen-share', 'F-46 — end screens now follow the same checklist: PLAY AGAIN · SHARE · TRY NEXT · SWITCH GAME.')
   } else {
     console.log('share button not found on end screen')

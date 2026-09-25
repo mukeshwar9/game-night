@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lavish — Retro Arcade Font Gallery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Oxanium:wght@400;600;700&family=Pixelify+Sans:wght@400;600;700&family=Press+Start+2P&family=Share+Tech+Mono&family=Silkscreen:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    @font-face {
+      font-family: 'Press Start 2P Local';
+      src: url('../fonts/press-start-2p-latin.woff2') format('woff2');
+      font-display: swap;
+    }
+    :root {
+      --bg: rgb(8 8 16);
+      --surface: rgb(15 15 26);
+      --card: rgb(19 19 40);
+      --border: rgb(30 30 58);
+      --text: rgb(224 224 255);
+      --dim: rgb(122 122 186);
+      --p1: rgb(0 229 255);
+      --p2: rgb(255 64 129);
+      --cta: rgb(255 230 0);
+      --win: rgb(57 255 20);
+      --deep: rgb(12 12 32);
+      --pixel: 'Press Start 2P Local', 'Press Start 2P', monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 0%, rgb(0 229 255 / .08), transparent 34rem),
+        radial-gradient(circle at 85% 15%, rgb(255 64 129 / .07), transparent 30rem),
+        var(--bg);
+      font-family: 'Share Tech Mono', ui-monospace, monospace;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .18;
+      background: repeating-linear-gradient(0deg, transparent 0 3px, rgb(0 0 0 / .28) 3px 4px);
+      z-index: 5;
+    }
+    main { width: min(1480px, 100%); margin: 0 auto; padding: 42px 28px 64px; position: relative; z-index: 1; }
+    .eyebrow { color: var(--p1); font: 11px var(--pixel); letter-spacing: .16em; text-shadow: 0 0 12px rgb(0 229 255 / .7); }
+    h1 { margin: 14px 0 10px; color: var(--cta); font: clamp(24px, 4vw, 52px) var(--pixel); line-height: 1.25; letter-spacing: .04em; text-shadow: 0 0 10px rgb(255 230 0 / .8), 0 0 28px rgb(255 230 0 / .35); }
+    .intro { max-width: 780px; margin: 0; color: var(--dim); font: 18px/1.45 'Share Tech Mono', monospace; }
+    .decision { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 32px 0 18px; padding: 14px 16px; border: 1px solid var(--border); background: rgb(19 19 40 / .72); }
+    .decision strong { color: var(--text); font: 12px var(--pixel); }
+    .decision span { color: var(--dim); font-size: 16px; }
+    .status { color: var(--cta); font: 12px var(--pixel); white-space: nowrap; }
+    .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .option { min-width: 0; overflow: hidden; border: 1px solid var(--border); background: linear-gradient(145deg, rgb(19 19 40 / .98), rgb(12 12 32 / .98)); box-shadow: 0 12px 34px rgb(0 0 0 / .2); transition: border-color .18s, transform .18s, box-shadow .18s; }
+    .option:has(input:checked) { border-color: var(--cta); box-shadow: 0 0 0 1px var(--cta), 0 0 24px rgb(255 230 0 / .16); transform: translateY(-2px); }
+    .option-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 15px 16px 12px; border-bottom: 1px solid var(--border); }
+    .option-name { color: var(--text); font: 14px var(--pixel); line-height: 1.5; }
+    .option-number { color: var(--dim); font: 11px 'Share Tech Mono', monospace; }
+    .vibe { padding: 5px 16px 12px; color: var(--dim); font: 16px 'Share Tech Mono', monospace; }
+    .mock { margin: 0 12px 14px; padding: 14px; border: 1px solid var(--border); background: var(--deep); }
+    .mock-top { display: flex; justify-content: space-between; gap: 8px; color: var(--dim); font-size: 13px; letter-spacing: .08em; }
+    .mock-title { margin: 18px 0 14px; color: var(--cta); font-size: 23px; letter-spacing: .06em; text-shadow: 0 0 8px rgb(255 230 0 / .6); }
+    .mock-score { display: flex; justify-content: space-between; margin-bottom: 10px; color: var(--dim); font-size: 16px; }
+    .mock-score b:first-child { color: var(--p1); }
+    .mock-score b:last-child { color: var(--p2); }
+    .board { display: grid; grid-template-columns: repeat(3, 1fr); aspect-ratio: 1; max-width: 210px; margin: 0 auto; border: 2px solid rgb(42 42 80); background: rgb(42 42 80); gap: 2px; }
+    .cell { display: grid; place-items: center; background: var(--card); color: var(--dim); font-size: clamp(18px, 4vw, 32px); }
+    .cell.x { color: var(--p1); text-shadow: 0 0 9px rgb(0 229 255 / .8); }
+    .cell.o { color: var(--p2); text-shadow: 0 0 9px rgb(255 64 129 / .8); }
+    .mock-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; color: var(--dim); font-size: 13px; }
+    .mock-button { padding: 7px 8px; border: 1px solid rgb(255 230 0 / .65); color: var(--cta); font-size: 12px; }
+    .choice { display: flex; align-items: center; gap: 9px; min-height: 48px; padding: 11px 16px; border-top: 1px solid var(--border); color: var(--text); font: 13px 'Share Tech Mono', monospace; cursor: pointer; }
+    .choice input { width: 17px; height: 17px; accent-color: var(--cta); }
+    .choice em { margin-left: auto; color: var(--dim); font-style: normal; font-size: 14px; }
+    .press { font-family: var(--pixel); }
+    .silkscreen { font-family: 'Silkscreen', monospace; }
+    .pixelify { font-family: 'Pixelify Sans', sans-serif; }
+    .vt323 { font-family: 'VT323', monospace; }
+    .tech { font-family: 'Share Tech Mono', monospace; }
+    .oxanium { font-family: 'Oxanium', sans-serif; }
+    .audiowide { font-family: 'Audiowide', sans-serif; }
+    .notes { margin-top: 28px; padding: 18px; border-left: 3px solid var(--p1); background: rgb(0 229 255 / .05); color: var(--dim); font: 16px/1.5 'Share Tech Mono', monospace; }
+    .notes b { color: var(--p1); }
+    @media (max-width: 1050px) { .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 650px) { main { padding: 28px 14px 44px; } .gallery { grid-template-columns: 1fr; } .decision { align-items: flex-start; flex-direction: column; } .status { white-space: normal; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">LAVISH // FONT DIRECTION REVIEW</div>
+    <h1>CHOOSE YOUR ARCADE VOICE</h1>
+    <p class="intro">Same game screen. Same neon palette. Only font family changes, so typography impact stays easy to compare.</p>
+
+    <div class="decision">
+      <div><strong>DECISION</strong><br><span>Which family should replace the current Press Start 2P treatment?</span></div>
+      <div class="status" id="selectionStatus">NO FONT SELECTED</div>
+    </div>
+
+    <form id="fontChoice" data-lavish-question="font-family-choice">
+      <section class="gallery" aria-label="Retro arcade font options">
+        <article class="option">
+          <div class="option-head"><div class="option-name press">PRESS START 2P</div><div class="option-number">01 / CURRENT</div></div>
+          <div class="vibe">Pure 8-bit. Maximum retro signal.</div>
+          <div class="mock press"><div class="mock-top"><span>LAVISH</span><span>DUEL 03</span></div><div class="mock-title">TIC TAC TOE</div><div class="mock-score"><b>X 09</b><b>O 07</b></div><div class="board"><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div></div><div class="mock-bottom"><span>YOUR TURN</span><span class="mock-button">REMATCH</span></div></div>
+          <label class="choice"><input type="radio" name="font" value="Press Start 2P"><span>Choose Press Start 2P</span><em>pixel</em></label>
+        </article>
+
+        <article class="option">
+          <div class="option-head"><div class="option-name silkscreen">SILKSCREEN</div><div class="option-number">02</div></div>
+          <div class="vibe">Clean pixel. Best balance for UI.</div>
+          <div class="mock silkscreen"><div class="mock-top"><span>LAVISH</span><span>DUEL 03</span></div><div class="mock-title">TIC TAC TOE</div><div class="mock-score"><b>X 09</b><b>O 07</b></div><div class="board"><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div></div><div class="mock-bottom"><span>YOUR TURN</span><span class="mock-button">REMATCH</span></div></div>
+          <label class="choice"><input type="radio" name="font" value="Silkscreen"><span>Choose Silkscreen</span><em>pixel</em></label>
+        </article>
+
+        <article class="option">
+          <div class="option-head"><div class="option-name pixelify">PIXELIFY SANS</div><div class="option-number">03</div></div>
+          <div class="vibe">Friendly modern pixel. Easy reading.</div>
+          <div class="mock pixelify"><div class="mock-top"><span>LAVISH</span><span>DUEL 03</span></div><div class="mock-title">TIC TAC TOE</div><div class="mock-score"><b>X 09</b><b>O 07</b></div><div class="board"><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div></div><div class="mock-bottom"><span>YOUR TURN</span><span class="mock-button">REMATCH</span></div></div>
+          <label class="choice"><input type="radio" name="font" value="Pixelify Sans"><span>Choose Pixelify Sans</span><em>pixel</em></label>
+        </article>
+
+        <article class="option">
+          <div class="option-head"><div class="option-name vt323">VT323</div><div class="option-number">04</div></div>
+          <div class="vibe">CRT terminal. Narrow, nostalgic, readable.</div>
+          <div class="mock vt323"><div class="mock-top"><span>LAVISH</span><span>DUEL 03</span></div><div class="mock-title">TIC TAC TOE</div><div class="mock-score"><b>X 09</b><b>O 07</b></div><div class="board"><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div></div><div class="mock-bottom"><span>YOUR TURN</span><span class="mock-button">REMATCH</span></div></div>
+          <label class="choice"><input type="radio" name="font" value="VT323"><span>Choose VT323</span><em>CRT</em></label>
+        </article>
+
+        <article class="option">
+          <div class="option-head"><div class="option-name tech">SHARE TECH MONO</div><div class="option-number">05</div></div>
+          <div class="vibe">Sharp sci-fi cabinet. Strong utility.</div>
+          <div class="mock tech"><div class="mock-top"><span>LAVISH</span><span>DUEL 03</span></div><div class="mock-title">TIC TAC TOE</div><div class="mock-score"><b>X 09</b><b>O 07</b></div><div class="board"><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div></div><div class="mock-bottom"><span>YOUR TURN</span><span class="mock-button">REMATCH</span></div></div>
+          <label class="choice"><input type="radio" name="font" value="Share Tech Mono"><span>Choose Share Tech Mono</span><em>mono</em></label>
+        </article>
+
+        <article class="option">
+          <div class="option-head"><div class="option-name oxanium">OXANIUM</div><div class="option-number">06</div></div>
+          <div class="vibe">Modern sci-fi arcade. More polished.</div>
+          <div class="mock oxanium"><div class="mock-top"><span>LAVISH</span><span>DUEL 03</span></div><div class="mock-title">TIC TAC TOE</div><div class="mock-score"><b>X 09</b><b>O 07</b></div><div class="board"><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div></div><div class="mock-bottom"><span>YOUR TURN</span><span class="mock-button">REMATCH</span></div></div>
+          <label class="choice"><input type="radio" name="font" value="Oxanium"><span>Choose Oxanium</span><em>sci-fi</em></label>
+        </article>
+
+        <article class="option">
+          <div class="option-head"><div class="option-name audiowide">AUDIOWIDE</div><div class="option-number">07</div></div>
+          <div class="vibe">80s cabinet logo. Best for display text.</div>
+          <div class="mock audiowide"><div class="mock-top"><span>LAVISH</span><span>DUEL 03</span></div><div class="mock-title">TIC TAC TOE</div><div class="mock-score"><b>X 09</b><b>O 07</b></div><div class="board"><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div><div class="cell"></div><div class="cell o">O</div><div class="cell"></div><div class="cell x">X</div></div><div class="mock-bottom"><span>YOUR TURN</span><span class="mock-button">REMATCH</span></div></div><label class="choice"><input type="radio" name="font" value="Audiowide"><span>Choose Audiowide</span><em>logo</em></label>
+        </article>
+      </section>
+      <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+        <button type="submit" style="cursor:pointer;border:1px solid var(--cta);background:rgb(255 230 0 / .1);color:var(--cta);padding:13px 18px;font:12px var(--pixel);">QUEUE FONT CHOICE</button>
+      </div>
+    </form>
+
+    <div class="notes"><b>Recommendation:</b> Silkscreen gives Lavish a clear retro identity without making small labels difficult to read. Keep Press Start 2P for an intentionally hardcore 8-bit direction. Use Audiowide only for logo or hero text.</div>
+  </main>
+  <script>
+    const status = document.getElementById('selectionStatus');
+    const form = document.getElementById('fontChoice');
+    form.addEventListener('change', () => {
+      const selected = new FormData(form).get('font');
+      status.textContent = selected ? selected.toUpperCase() + ' SELECTED' : 'NO FONT SELECTED';
+    });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const choice = new FormData(form).get('font');
+      if (!choice) { status.textContent = 'SELECT A FONT FIRST'; return; }
+      if (window.lavish?.queuePrompt) {
+        window.lavish.queuePrompt('Use the selected retro arcade font family for the Lavish game UI: ' + choice + '.', {
+          tag: 'font-choice',
+          text: 'Selected font: ' + choice,
+          element: form,
+          data: { question: 'font-family-choice', answer: choice }
+        });
+        status.textContent = 'CHOICE QUEUED: ' + choice.toUpperCase();
+      } else {
+        status.textContent = 'SELECTED: ' + choice.toUpperCase();
+      }
+    });
+  </script>
+</body>
+</html>
