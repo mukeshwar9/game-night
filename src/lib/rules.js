@@ -589,7 +589,8 @@ export const GAME_RULES = {
     howToPlay: [
       'Tap any two face-down cards to flip them.',
       'Match the pair and you claim it — plus you immediately go again.',
-      'Miss, and both cards stay face-up until your opponent\'s first tap of their turn, then it flips to them.',
+      'Every face has its own colour and its own picture, so a pair is easy to spot once you have seen both cards.',
+      'Miss, and both cards stay face-up for a moment, then flip back down and the turn passes to your opponent.',
     ],
     win: 'Claim 10 of the 18 pairs to win instantly. If the board fills first, whoever claimed more pairs wins — 9–9 is a draw.',
   },

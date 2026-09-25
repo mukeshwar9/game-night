@@ -1276,7 +1276,9 @@ export const GAME_TYPES = [
           board: applied.board,
           pairsFlipped: applied.flipped,
           currentTurn: applied.turnStays ? symbol : (symbol === 'X' ? 'O' : 'X'),
-          extraTurn: applied.turnStays ? true : null,
+          // GO AGAIN! is for a match only — a first flip also keeps the turn, but that
+          // is just the middle of a turn, not a bonus one.
+          extraTurn: applied.matched ? true : null,
         },
         result: getPairsWinner(applied.board),
       }
