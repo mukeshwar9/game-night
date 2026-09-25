@@ -7,9 +7,10 @@ import {
   PENDING, pendingLetters, canQueueGuess, gradePending,
   PRESENCE_GRACE_MS, SETTING_DEADLINE_MS, GRADING_STALL_MS, GUESSER_IDLE_MS,
   otherSymbol, getRoundClaim, revealRoundWinner, canAdvanceReveal, autoAdvanceAt,
-  buildNextRound,
+  buildNextRound, WORD_RULE_ANY, WORD_RULE_DICTIONARY, wordRuleFor, validateSetterWord,
 } from '../lib/hangmanLogic'
 import { getGameConfig } from '../lib/games'
+import { loadDictionary } from '../lib/wordhuntDictionary'
 import useBusy from '../hooks/useBusy'
 import useServerClock from '../hooks/useServerClock'
 import { toast } from 'sonner'
@@ -30,6 +31,18 @@ import { cn } from '@/lib/utils'
 // A claim countdown for a time-based stall only appears in its last 30 s, so
 // the timer doesn't nag during normal play.
 const CLAIM_WARNING_MS = 30_000
+// How long the guesser's reveal check waits for the word list before skipping
+// the dictionary part of the check (never a false cheat on a slow network).
+const REVEAL_DICTIONARY_WAIT_MS = 4_000
+
+// Dictionary for the reveal check: the loaded list, or null if it can't be had
+// in time.
+function dictionaryForCheck() {
+  return Promise.race([
+    loadDictionary().catch(() => null),
+    new Promise(resolve => setTimeout(() => resolve(null), REVEAL_DICTIONARY_WAIT_MS)),
+  ])
+}
 
 const CLAIM_WINDOW_MS = {
   'no-word': SETTING_DEADLINE_MS,
@@ -95,6 +108,9 @@ function CheatScreen({ evidence, onNextRound, advancing }) {
           <p><span className="text-retro-p2">HASH OK:</span> {String(evidence?.commitOk)}</p>
           <p><span className="text-retro-p2">ANSWERS OK:</span> {String(evidence?.consistencyOk)}</p>
           <p><span className="text-retro-p2">RESULT OK:</span> {String(evidence?.resultOk)}</p>
+          {evidence?.ruleOk === false && (
+            <p><span className="text-retro-p2">WORD RULE OK:</span> false</p>
+          )}
         </div>
       )}
       {onNextRound && (
@@ -189,6 +205,39 @@ function StallWarning({ claim, now, label }) {
   )
 }
 
+// The ANY WORD house rule, stored room-wide at games/{id}/hangwomanAnyWord so
+// it carries across rounds and matches. Both players see it and either may
+// flip it while a word is being chosen; spectators just see the setting.
+function AnyWordToggle({ anyWord, onToggle, busy }) {
+  return (
+    <div className="text-center space-y-1">
+      {onToggle ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={busy}
+          aria-pressed={anyWord}
+          className={cn(
+            'px-3 py-1.5 font-pixel text-[9px] rounded border transition-all active:scale-95 disabled:opacity-50',
+            anyWord
+              ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
+              : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text',
+          )}
+        >
+          {busy ? 'SAVING…' : `HOUSE RULE · ANY WORD: ${anyWord ? 'ON' : 'OFF'}`}
+        </button>
+      ) : (
+        <p className="font-pixel text-[9px] text-retro-dim">HOUSE RULE · ANY WORD: {anyWord ? 'ON' : 'OFF'}</p>
+      )}
+      <p className="font-mono text-[10px] text-retro-dim">
+        {anyWord
+          ? 'Names, phrases and in-jokes allowed (3–30 letters).'
+          : 'One dictionary word, 4+ letters.'}
+      </p>
+    </div>
+  )
+}
+
 export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, onSwitchGame, onNewMatch, proposal }) {
   const round = game.round || {}
   const guesses = normalizeGuesses(round.guesses)
@@ -198,6 +247,8 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   const guesser = otherSymbol(setter)
   const roundCheatDetected = round.cheatDetected ?? false
   const target = getGameConfig('hangwoman').matchTarget || 3
+  const anyWord = !!game.hangwomanAnyWord
+  const wordRule = wordRuleFor(anyWord)
 
   const isSetter = mySymbol === setter
   const isGuesser = mySymbol != null && mySymbol !== setter
@@ -236,6 +287,26 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
   }, [opponentOnline, isSpectator, serverNow])
   const offlineSince = opponentOnline ? null : opponentOfflineSince
   const opponentGone = offlineSince != null && now - offlineSince >= PRESENCE_GRACE_MS
+
+  // Word list for the default word rule, loaded while the word-keeper is
+  // choosing. Load errors surface in WordSetter with a RETRY.
+  const [dictionary, setDictionary] = useState(null)
+  const [dictionaryError, setDictionaryError] = useState(false)
+  const [dictionaryAttempt, setDictionaryAttempt] = useState(0)
+  const needDictionary = isSetter && phase === 'setting' && wordRule === WORD_RULE_DICTIONARY &&
+    !dictionary && !dictionaryError
+  useEffect(() => {
+    if (!needDictionary) return
+    let cancelled = false
+    loadDictionary()
+      .then(d => { if (!cancelled) setDictionary(d) })
+      .catch(() => { if (!cancelled) setDictionaryError(true) })
+    return () => { cancelled = true }
+  }, [needDictionary, dictionaryAttempt])
+  const retryDictionary = useCallback(() => {
+    setDictionaryError(false)
+    setDictionaryAttempt(n => n + 1)
+  }, [])
 
   // Anchor `round/settingStartedAt` the moment a round enters 'setting', so
   // the no-word deadline has a fixed, server-corrected reference point.
@@ -306,15 +377,27 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
     const { word, salt } = round.reveal
     const recorded = guesses
     const claimedResult = round.result
+    const lockedRule = round.wordRule ?? null
 
-    verifyReveal(commitment, word, salt).then((commitOk) => {
+    Promise.all([
+      verifyReveal(commitment, word, salt),
+      lockedRule === WORD_RULE_DICTIONARY ? dictionaryForCheck() : Promise.resolve(null),
+    ]).then(([commitOk, checkDictionary]) => {
       const consistencyOk = verifyRoundConsistency(word, recorded)
       // Re-derive the outcome so a dishonest setter cannot win by writing
       // result:'hanged' after the word was actually fully guessed.
       const resultOk = deriveRoundResult(word, recorded) === claimedResult
-      const ok = commitOk && consistencyOk && resultOk
+      // The word must follow the rule it was locked under (a modified client
+      // could skip the setter-side check). Skipped for rounds from older
+      // clients, and for the dictionary part when the list can't be loaded.
+      let ruleOk = true
+      if (lockedRule === WORD_RULE_DICTIONARY || lockedRule === WORD_RULE_ANY) {
+        const check = validateSetterWord(word, { rule: lockedRule, dictionary: checkDictionary })
+        ruleOk = check.ok || check.reason === 'loading'
+      }
+      const ok = commitOk && consistencyOk && resultOk && ruleOk
       if (!ok) {
-        setCheatEvidence({ commitment, revealed: word, salt, commitOk, consistencyOk, resultOk })
+        setCheatEvidence({ commitment, revealed: word, salt, commitOk, consistencyOk, resultOk, ruleOk })
       }
       setVerifiedFor(commitment)
       runTransaction(ref(db, `games/${gameId}/round`), current => {
@@ -367,17 +450,25 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
 
   // --- Lock the word ---
   // Transaction-guarded on the round still waiting for this player's word, so
-  // a word can't be locked into a round a claim has already ended.
+  // a word can't be locked into a round a claim has already ended, and on the
+  // house rule not having been tightened since the word was checked. The rule
+  // it was checked under is recorded so the guesser can verify it at reveal.
   const [lockingWord, runLock] = useBusy()
   const handleWordSet = useCallback((word, hint) => {
+    const checkedRule = wordRule
     runLock(async () => {
       const { hash, salt } = await commit(word)
       sessionStorage.setItem(`hangwoman-word-${gameId}`, JSON.stringify({ word, salt, commitment: hash }))
-      const res = await runTransaction(ref(db, `games/${gameId}/round`), current => {
+      let ruleChanged = false
+      const res = await runTransaction(ref(db, `games/${gameId}`), node => {
+        const current = node?.round
         if (!current || current.phase !== 'setting') return
         if ((current.setter === 'O' ? 'O' : 'X') !== mySymbol) return
-        return {
+        ruleChanged = checkedRule === WORD_RULE_ANY && wordRuleFor(node.hangwomanAnyWord) !== WORD_RULE_ANY
+        if (ruleChanged) return
+        return { ...node, round: {
           ...current,
+          wordRule: checkedRule,
           phase: 'guessing',
           wordStructure: wordStructure(word),
           hint: hint || null,
@@ -391,11 +482,26 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
           gradedAt: null,
           lastGuess: null,
           guessingStartedAt: serverNow(),
-        }
+        } }
       })
-      if (!res.committed) toast.error('ROUND ALREADY ENDED — WORD NOT LOCKED')
+      if (!res.committed) {
+        toast.error(ruleChanged
+          ? 'ANY WORD WAS TURNED OFF — CHECK YOUR WORD AGAIN'
+          : 'ROUND ALREADY ENDED — WORD NOT LOCKED')
+      }
     }, () => toast.error('WORD NOT LOCKED — CHECK CONNECTION'))
-  }, [gameId, mySymbol, serverNow, runLock])
+  }, [gameId, mySymbol, serverNow, wordRule, runLock])
+
+  // --- ANY WORD house rule (either player, while a word is being chosen) ---
+  const [savingRule, runRule] = useBusy()
+  const handleToggleAnyWord = useCallback(() => {
+    runRule(async () => {
+      await runTransaction(ref(db, `games/${gameId}`), node => {
+        if (!node?.round || node.round.phase !== 'setting' || node.status === 'finished') return
+        return { ...node, hangwomanAnyWord: !node.hangwomanAnyWord }
+      })
+    }, () => toast.error('HOUSE RULE NOT SAVED — CHECK CONNECTION'))
+  }, [gameId, runRule])
 
   // One pending guess at a time: the keyboard is disabled while a guess waits
   // for the word-keeper, and the transaction refuses a second pending letter
@@ -552,10 +658,22 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
         {showWinEffect && (
           <WinEffect winner={winEffectFor} onDone={() => setShowWinEffect(false)} />
         )}
+        <AnyWordToggle
+          anyWord={anyWord}
+          onToggle={isSpectator ? null : handleToggleAnyWord}
+          busy={savingRule}
+        />
         {isSetter ? (
           <>
             <StallWarning claim={theirClaim} now={now} label="LOCK A WORD WITHIN" />
-            <WordSetter onWordSet={handleWordSet} loading={lockingWord} />
+            <WordSetter
+              onWordSet={handleWordSet}
+              loading={lockingWord}
+              rule={wordRule}
+              dictionary={dictionary}
+              dictionaryError={dictionaryError}
+              onRetryDictionary={retryDictionary}
+            />
           </>
         ) : (
           <div className="text-center space-y-3 py-6">

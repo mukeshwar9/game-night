@@ -23,6 +23,11 @@ import {
   canAdvanceReveal,
   autoAdvanceAt,
   buildNextRound,
+  WORD_RULE_DICTIONARY,
+  WORD_RULE_ANY,
+  wordRuleFor,
+  validateSetterWord,
+  hintRevealsWord,
 } from './hangmanLogic'
 
 describe('validateWord', () => {
@@ -464,5 +469,88 @@ describe('buildNextRound', () => {
     const next = buildNextRound({ scores: { X: 1, O: 2 }, round: { setter: 'O' } }, null)
     expect(next.scores).toEqual({ X: 1, O: 2 })
     expect(next.round.setter).toBe('X')
+  })
+})
+
+describe('validateSetterWord', () => {
+  const dictionary = { has: (w) => ['jazz', 'cat', 'platform', 'banana'].includes(String(w).toLowerCase()) }
+  const dict = (raw) => validateSetterWord(raw, { rule: WORD_RULE_DICTIONARY, dictionary })
+  const any = (raw) => validateSetterWord(raw, { rule: WORD_RULE_ANY })
+
+  it('maps the house-rule flag to a rule', () => {
+    expect(wordRuleFor(true)).toBe(WORD_RULE_ANY)
+    expect(wordRuleFor(false)).toBe(WORD_RULE_DICTIONARY)
+    expect(wordRuleFor(undefined)).toBe(WORD_RULE_DICTIONARY)
+  })
+
+  it('accepts a dictionary word of 4+ letters, uppercased', () => {
+    expect(dict('platform')).toEqual({ ok: true, word: 'PLATFORM' })
+    expect(dict(' Jazz ')).toEqual({ ok: true, word: 'JAZZ' })
+  })
+
+  it('regression: gibberish like QXZ and ZZZZ is refused by default', () => {
+    expect(dict('QXZ')).toMatchObject({ ok: false, reason: 'short' })
+    expect(dict('ZZZZ')).toMatchObject({ ok: false, reason: 'dictionary' })
+  })
+
+  it('refuses dictionary words under 4 letters', () => {
+    expect(dict('cat')).toMatchObject({ ok: false, reason: 'short', message: 'AT LEAST 4 LETTERS' })
+  })
+
+  it('refuses phrases by default and explains the house rule', () => {
+    const r = dict('ICE CREAM')
+    expect(r).toMatchObject({ ok: false, reason: 'phrase' })
+    expect(r.message).toMatch(/ANY WORD/)
+  })
+
+  it('refuses non-letters', () => {
+    expect(dict('H3LLO')).toMatchObject({ ok: false, reason: 'letters' })
+    expect(any('ICE-CREAM')).toMatchObject({ ok: false, reason: 'letters' })
+    expect(dict('')).toMatchObject({ ok: false, reason: 'empty' })
+  })
+
+  it('reports loading while the dictionary is not ready', () => {
+    expect(validateSetterWord('PLATFORM', { rule: WORD_RULE_DICTIONARY, dictionary: null }))
+      .toMatchObject({ ok: false, reason: 'loading' })
+  })
+
+  it('refuses banned words under both rules', () => {
+    const banned = { has: () => true }
+    expect(validateSetterWord('SHITS', { rule: WORD_RULE_DICTIONARY, dictionary: banned }))
+      .toMatchObject({ ok: false, reason: 'banned' })
+    expect(any('BIG SHIT')).toMatchObject({ ok: false, reason: 'banned' })
+    expect(any('FU CK')).toMatchObject({ ok: false, reason: 'banned' })
+  })
+
+  it('ANY WORD keeps the old free-form rules: 3–30 letters and phrases', () => {
+    expect(any('QXZ')).toEqual({ ok: true, word: 'QXZ' })
+    expect(any('  ice   cream ')).toEqual({ ok: true, word: 'ICE CREAM' })
+    expect(any('AB')).toMatchObject({ ok: false, reason: 'short', message: 'AT LEAST 3 LETTERS' })
+    expect(any('ABCDEFGHIJ ABCDEFGHIJ ABCDEFGHIJK')).toMatchObject({ ok: false, reason: 'long' })
+  })
+})
+
+describe('hintRevealsWord', () => {
+  it('flags a hint containing the word, case-insensitively', () => {
+    expect(hintRevealsWord('all that jazz', 'JAZZ')).toBe(true)
+    expect(hintRevealsWord('Jazzy music', 'JAZZ')).toBe(true)
+    expect(hintRevealsWord('a music genre', 'JAZZ')).toBe(false)
+  })
+
+  it('flags a hint containing any word of a phrase', () => {
+    expect(hintRevealsWord('cold cream', 'ICE CREAM')).toBe(true)
+    expect(hintRevealsWord('icecream!', 'ICE CREAM')).toBe(true)
+    expect(hintRevealsWord('Ice-Cream', 'ICE CREAM')).toBe(true)
+    expect(hintRevealsWord('frozen dessert', 'ICE CREAM')).toBe(false)
+  })
+
+  it('lets a hint repeat short function words from a phrase', () => {
+    expect(hintRevealsWord('the best film', 'THE GODFATHER')).toBe(false)
+    expect(hintRevealsWord('a film', 'A FEW GOOD MEN')).toBe(false)
+  })
+
+  it('accepts an empty hint', () => {
+    expect(hintRevealsWord('', 'JAZZ')).toBe(false)
+    expect(hintRevealsWord(null, 'JAZZ')).toBe(false)
   })
 })

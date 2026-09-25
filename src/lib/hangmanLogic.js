@@ -1,3 +1,5 @@
+import { isBannedWord } from './wordDenylist'
+
 export const MAX_WRONG = 6
 
 export function validateWord(raw) {
@@ -277,4 +279,81 @@ export function buildNextRound(game, roundWinner, { target = 3 } = {}) {
     next.winner = winner
   }
   return next
+}
+
+// --- Setter word rules (captain decision D3(a), reversible) -----------------
+//
+// Default: one dictionary word (public/wordhunt-dict.txt), 4+ letters.
+// House rule "ANY WORD" (games/{id}/hangwomanAnyWord): the old free-form rule,
+// 3–30 letters with phrases allowed. Banned words (wordDenylist.js) are
+// refused under both rules, and the optional hint may not give the word away.
+
+export const WORD_RULE_DICTIONARY = 'dictionary'
+export const WORD_RULE_ANY = 'any'
+export const MIN_DICTIONARY_LETTERS = 4
+export const MIN_ANY_WORD_LETTERS = 3
+export const MAX_WORD_LETTERS = 30
+
+/** The word rule for a room: 'any' when the ANY WORD house rule is on. */
+export function wordRuleFor(anyWord) {
+  return anyWord ? WORD_RULE_ANY : WORD_RULE_DICTIONARY
+}
+
+function reject(reason, message) {
+  return { ok: false, reason, message }
+}
+
+// Check a setter's word against `rule` ('dictionary' | 'any').
+// `dictionary` is { has(word) } (loadDictionary()); null while it loads.
+// Returns { ok: true, word } (uppercased, single-spaced) or
+// { ok: false, reason, message } with a message fit for the setter's screen.
+export function validateSetterWord(raw, { rule = WORD_RULE_DICTIONARY, dictionary = null } = {}) {
+  const up = String(raw ?? '').toUpperCase().replace(/\s+/g, ' ').trim()
+  if (!up) return reject('empty', 'TYPE A WORD')
+  const any = rule === WORD_RULE_ANY
+  if (!/^[A-Z ]+$/.test(up)) {
+    return reject('letters', any ? 'LETTERS A–Z AND SPACES ONLY' : 'LETTERS A–Z ONLY')
+  }
+  const words = up.split(' ')
+  if (!any && words.length > 1) {
+    return reject('phrase', 'ONE WORD ONLY — TURN ON ANY WORD FOR PHRASES')
+  }
+  const letters = up.replace(/ /g, '').length
+  const min = any ? MIN_ANY_WORD_LETTERS : MIN_DICTIONARY_LETTERS
+  if (letters < min) return reject('short', `AT LEAST ${min} LETTERS`)
+  if (letters > MAX_WORD_LETTERS) return reject('long', `AT MOST ${MAX_WORD_LETTERS} LETTERS`)
+  if (words.some(w => isBannedWord(w)) || isBannedWord(up.replace(/ /g, ''))) {
+    return reject('banned', "THAT WORD ISN'T ALLOWED")
+  }
+  if (!any) {
+    if (!dictionary) return reject('loading', 'LOADING WORDS…')
+    if (!dictionary.has(up)) {
+      return reject('dictionary', 'NOT IN THE WORD LIST — TURN ON ANY WORD TO ALLOW IT')
+    }
+  }
+  return { ok: true, word: up }
+}
+
+// Short function words a hint may repeat from a phrase ("THE", "AND"…).
+const HINT_STOPWORDS = new Set([
+  'THE', 'AND', 'FOR', 'NOR', 'BUT', 'YET', 'ARE', 'WAS', 'WITH', 'FROM',
+  'INTO', 'ONTO', 'THAT', 'THIS', 'THAN', 'YOUR', 'OUR', 'HIS', 'HER', 'ITS',
+])
+
+// Does `hint` give the word away? True when the hint contains the whole word
+// (case-insensitive, ignoring spaces/punctuation for a phrase), or any 3+
+// letter word of a phrase other than a short function word.
+export function hintRevealsWord(hint, word) {
+  const tokens = String(hint ?? '').toUpperCase().split(/[^A-Z]+/).filter(Boolean)
+  if (!tokens.length) return false
+  const answer = String(word ?? '').toUpperCase().replace(/[^A-Z ]/g, '').trim()
+  if (!answer) return false
+  const joined = answer.replace(/ /g, '')
+  if (tokens.some(t => t.includes(joined))) return true
+  const parts = answer.split(/ +/)
+  if (parts.length > 1) {
+    if (tokens.join('').includes(joined)) return true
+    return parts.some(p => p.length >= 3 && !HINT_STOPWORDS.has(p) && tokens.some(t => t.includes(p)))
+  }
+  return false
 }
