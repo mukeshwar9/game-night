@@ -3,13 +3,13 @@ import { isBannedWord, isFamilySafe, familySafeOnly, wordForms } from './wordDen
 
 describe('isBannedWord', () => {
   it('bans the G-01 examples and their inflections', () => {
-    for (const w of ['nigger', 'niggers', 'cunt', 'cunts', 'fuck', 'fucking', 'motherfucking', 'faggot', 'faggots', 'kike', 'spics', 'retarded', 'whores', 'bitches', 'dildo']) {
+    for (const w of ['nigger', 'niggers', 'cunt', 'cunts', 'fuck', 'fucking', 'motherfucking', 'faggot', 'faggots', 'kike', 'spics', 'whores', 'whorehouse', 'bitches', 'dildo']) {
       expect(isBannedWord(w), w).toBe(true)
     }
   })
 
   it('does not ban innocent words that merely share letters', () => {
-    for (const w of ['spice', 'japan', 'japes', 'cocktail', 'assassin', 'class', 'scrap', 'button', 'shiver', 'dickens', 'titan', 'bass', 'grape', 'therapist', 'niggle']) {
+    for (const w of ['spice', 'spicy', 'spiced', 'japan', 'japes', 'cocktail', 'assassin', 'class', 'scrap', 'button', 'shiver', 'dickens', 'titan', 'bass', 'brass', 'grape', 'therapist', 'niggle', 'niggard', 'snigger', 'mishit', 'beanery', 'chink', 'dyke', 'retarding']) {
       expect(isBannedWord(w), w).toBe(false)
     }
   })
@@ -21,13 +21,13 @@ describe('isBannedWord', () => {
 
 describe('isFamilySafe', () => {
   it('rejects banned, sensitive and homograph words', () => {
-    for (const w of ['nigger', 'bitch', 'dicks', 'boobs', 'dildo', 'negro', 'rapes', 'tits', 'cocks']) {
+    for (const w of ['nigger', 'bitch', 'dicks', 'boobs', 'dildo', 'negro', 'rapes', 'tits', 'cocks', 'retarded', 'chink', 'dyke']) {
       expect(isFamilySafe(w), w).toBe(false)
     }
   })
 
   it('keeps ordinary words', () => {
-    for (const w of ['apple', 'crane', 'planet', 'teacher', 'glass', 'passes', 'titan', 'scrape']) {
+    for (const w of ['apple', 'crane', 'planet', 'teacher', 'glass', 'passes', 'titan', 'scrape', 'brass', 'spicy', 'death', 'crack', 'screw', 'strip', 'balls', 'knobs', 'slave', 'drunk', 'kills', 'idiot', 'weeds']) {
       expect(isFamilySafe(w), w).toBe(true)
     }
   })

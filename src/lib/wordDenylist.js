@@ -12,46 +12,53 @@
 // and "slurring" are caught by listing the root once.
 
 const SLURS = [
-  'nigger', 'nigga', 'nigra', 'faggot', 'fag', 'faggy', 'dyke', 'kike', 'kyke',
-  'spic', 'spick', 'chink', 'gook', 'wetback', 'raghead', 'towelhead', 'tranny',
-  'retard', 'wop', 'dago', 'honky', 'paki', 'squaw', 'darky', 'darkie', 'darkey',
+  'nigger', 'nigga', 'nigra', 'faggot', 'fag', 'faggy', 'kike', 'kyke',
+  'spic', 'spick', 'gook', 'wetback', 'raghead', 'towelhead', 'tranny',
+  'wop', 'dago', 'honky', 'paki', 'squaw', 'darky', 'darkie', 'darkey',
   'beaner', 'redskin', 'spaz', 'jap', 'coolie', 'golliwog', 'sambo', 'shemale',
 ]
 
 const VULGAR = [
   'fuck', 'shit', 'cunt', 'twat', 'wank', 'wanker', 'jizz', 'dildo', 'blowjob',
-  'whore', 'slut', 'bitch', 'bastard', 'pussy', 'arse', 'asshole', 'arsehole',
+  'whore', 'whorehouse', 'whoredom', 'whoreson', 'slut', 'bitch', 'bastard', 'pussy', 'arse', 'asshole', 'arsehole',
   'piss', 'turd', 'smegma', 'queef', 'skank', 'titty', 'tittie', 'porn', 'porno',
   'cumshot', 'bollock', 'bollocks', 'schlong', 'motherfucker', 'bullshit',
-  'dickhead', 'jerkoff', 'handjob', 'rimjob', 'milf', 'hooters',
+  'horseshit', 'shithead', 'dickhead', 'jerkoff', 'handjob', 'rimjob', 'milf', 'hooters',
 ]
 
-// Allowed as a found word, never served or displayed.
+// Allowed as a found word, never served or displayed. Slurs that are also
+// ordinary words (chink = a gap, dyke = an embankment, retard = to slow)
+// live here rather than in SLURS.
 const SENSITIVE = [
   'negro', 'negress', 'rape', 'raped', 'rapes', 'rapist', 'nazi', 'lynch',
-  'lynching', 'jihad', 'gypsy', 'gyp', 'coon', 'boob', 'boobs', 'crap', 'damn',
-  'goddamn', 'fart', 'horny', 'kinky', 'semen', 'sperm', 'penis', 'vagina',
-  'anal', 'anus', 'sodomy', 'sodomize', 'hooker', 'pimp', 'orgy', 'orgasm',
-  'erotic', 'sexy', 'sex', 'nude', 'nudes', 'naked', 'stripper', 'viagra',
-  'condom', 'heroin', 'cocaine', 'meth', 'suicide', 'incest', 'pedophile',
-  'molest', 'slave', 'slaves', 'massacre', 'genocide', 'bomber', 'terror',
-  'terrorist', 'hitler', 'kkk', 'kill', 'killer', 'murder', 'corpse', 'dead',
-  'death', 'drunk', 'booze', 'weed', 'bong', 'bongs', 'crack', 'gringo',
-  'loins', 'lust', 'lusty', 'harlot', 'hussy', 'tramp', 'wench', 'gay', 'gays',
-  'lesbian', 'queer', 'homo', 'transvestite', 'midget', 'spastic', 'moron',
-  'idiot', 'imbecile', 'cretin', 'lame', 'bimbo',
+  'lynching', 'gypsy', 'gyp', 'coon', 'chink', 'dyke', 'retard', 'retarded',
+  'boob', 'boobs', 'crap', 'craps', 'damn', 'goddamn', 'fart', 'horny', 'kinky',
+  'semen', 'sperm', 'penis', 'vagina', 'anal', 'anus', 'sodomy', 'sodomize',
+  'hooker', 'pimp', 'orgy', 'orgasm', 'erotic', 'sexy', 'sex', 'nude', 'nudes',
+  'naked', 'stripper', 'viagra', 'condom', 'heroin', 'cocaine', 'meth',
+  'suicide', 'incest', 'pedophile', 'molest', 'genocide', 'terrorist', 'hitler',
+  'kkk', 'bong', 'bongs', 'gringo', 'harlot', 'hussy', 'wench', 'queer', 'homo',
+  'transvestite', 'midget', 'spastic', 'imbecile', 'bimbo',
 ]
 
 const HOMOGRAPHS = [
   'tit', 'tits', 'ass', 'asses', 'cock', 'cocks', 'dick', 'dicks', 'prick',
-  'balls', 'screw', 'screwed', 'shag', 'bugger', 'boner', 'dong', 'knob',
-  'knockers', 'poon', 'hump', 'cum', 'jugs', 'muff', 'nob', 'pecker', 'wang',
-  'willy', 'beaver', 'booty', 'butt', 'butts', 'bum', 'bums', 'tosser', 'sod',
-  'snatch', 'pubes', 'pubic', 'bra', 'bras', 'thong', 'undies', 'strip',
+  'shag', 'bugger', 'boner', 'dong', 'knockers', 'poon', 'cum', 'muff', 'nob',
+  'pecker', 'wang', 'willy', 'booty', 'butt', 'butts', 'tosser', 'pubes',
+  'pubic', 'bra', 'bras', 'thong', 'undies',
 ]
 
-// Roots too offensive to allow inside any longer word.
-const CONTAINS = ['fuck', 'cunt', 'nigger', 'nigga', 'faggot', 'shit', 'whore', 'dildo']
+// Roots too offensive to allow inside any longer word (no innocent English
+// word contains them — unlike "nigger" in "snigger" or "shit" in "mishit").
+const CONTAINS = ['fuck', 'cunt', 'faggot', 'dildo']
+
+// Innocent words that inflection matching would otherwise catch
+// ("spicy" → "spic", "beanery" → "beaner").
+const ALLOW = new Set([
+  'spice', 'spices', 'spiced', 'spicer', 'spicers', 'spicy', 'spicier',
+  'spiciest', 'spicily', 'spicing', 'beanery', 'beaneries', 'niggard',
+  'niggards', 'niggardly', 'snigger', 'sniggers', 'sniggered', 'sniggering',
+])
 
 const SLUR_SET = new Set(SLURS)
 const VULGAR_SET = new Set(VULGAR)
@@ -65,6 +72,8 @@ export function wordForms(word) {
   const w = String(word ?? '').toLowerCase().replace(/[^a-z]/g, '')
   const forms = new Set([w])
   for (const suf of SUFFIXES) {
+    // "-ss" words are not "-s" plurals ("brass" is not "bras" + s).
+    if ((suf === 's' || suf === 'es') && w.endsWith('ss')) continue
     if (w.length > suf.length + 1 && w.endsWith(suf)) {
       const stem = w.slice(0, -suf.length)
       // Short stems only via a plain "-s" ("fags" → "fag"), so "japes" never
@@ -86,7 +95,7 @@ function hitsSet(word, set) {
 /** Slurs and unambiguous vulgarity: never accept, serve or show. */
 export function isBannedWord(word) {
   const w = String(word ?? '').toLowerCase()
-  if (!w) return false
+  if (!w || ALLOW.has(w)) return false
   if (CONTAINS.some(root => w.includes(root))) return true
   return hitsSet(w, SLUR_SET) || hitsSet(w, VULGAR_SET)
 }
@@ -95,7 +104,7 @@ export function isBannedWord(word) {
  * decks, "missed words"). Stricter than `isBannedWord`. */
 export function isFamilySafe(word) {
   const w = String(word ?? '').toLowerCase()
-  if (!w) return true
+  if (!w || ALLOW.has(w)) return true
   if (isBannedWord(w)) return false
   return !hitsSet(w, SENSITIVE_SET) && !hitsSet(w, HOMOGRAPH_SET)
 }
