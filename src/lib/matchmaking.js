@@ -2,7 +2,7 @@ import { get, limitToLast, onDisconnect, onValue, orderByChild, query, ref, remo
 import { db } from './firebase'
 import { freshGameState, getGameConfig, GAME_TYPES } from './games'
 import { isSeatOnline } from './presenceLogic'
-import { applyPartyJoin, partyJoinPlan } from './roomLogic'
+import { partyJoinPlan } from './roomLogic'
 export const PUBLIC_ROOM_TTL_MS = 24 * 60 * 60 * 1000
 // Public lobby: base 2P games plus the N-player races (`race: true`), which
 // list as a 1v1 while their host waits alone; other party games stay
@@ -75,17 +75,16 @@ export async function claimPublicRoom({ gameId, playerId, playerName, playerAvat
   const expiresAt = game.createdAt ? game.createdAt + PUBLIC_ROOM_TTL_MS : 0
   const cfg = getGameConfig(game.gameType)
   if (cfg?.nPlayer) {
-    // Race room: joining takes a uid-keyed seat through the party seat
-    // transaction (roomLogic.partyJoinPlan); the room stays in its ready-up
+    // Race room: joining takes a uid-keyed seat (roomLogic.partyJoinPlan
+    // capacity check, then a create-once write of players/{uid}); the room stays in its ready-up
     // lobby. The listing is a 1v1 offer, so it goes once the seat is taken.
     const host = listingHost(game)
     if (game.players?.[playerId]) return host?.uid === playerId ? { ok: false, reason: 'owner' } : { ok: true, gameType: game.gameType, party: true }
     if (game.visibility !== 'public' || game.status !== 'waiting' || !isPublicGameType(game.gameType) || !host?.online || Date.now() >= expiresAt) return { ok: false, reason: 'unavailable' }
+    if (partyJoinPlan({ players: game.players, myId: playerId, status: game.status, maxPlayers: cfg.maxPlayers || 8 }).action !== 'join') return { ok: false, reason: 'full' }
+    // Only this player's own seat is written (create-once), never the node.
     const seat = { name: playerName, joinedAt: Date.now(), playerId, online: true, avatar: playerAvatar }
-    const result = await runTransaction(ref(db, `games/${gameId}/players`), cur => {
-      const plan = partyJoinPlan({ players: cur, myId: playerId, status: 'waiting', maxPlayers: cfg.maxPlayers || 8 })
-      return applyPartyJoin(cur, plan, seat) ?? undefined
-    })
+    const result = await runTransaction(ref(db, `games/${gameId}/players/${playerId}`), cur => (cur ? undefined : seat))
     if (!result.committed) return { ok: false, reason: 'full' }
     await update(gameRef, { lastActivityAt: Date.now() })
     await removePublicListing(gameId).catch(() => {})

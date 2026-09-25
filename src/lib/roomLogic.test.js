@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  activePartySeats, applyPartyJoin, inviteSummary, isMyTurn, openSeat, partyJoinPlan,
+  activePartySeats, applyPartyJoin, ghostsToSweep, inviteSummary, isMyTurn, openSeat, partyJoinPlan,
   pickRoomHost, roomAnnouncement, seatedIds, spectatorCount,
 } from './roomLogic'
 
@@ -52,31 +52,48 @@ describe('partyJoinPlan', () => {
     expect(partyJoinPlan({ players, myId: 'me', status: 'waiting', maxPlayers: 8 })).toEqual({ action: 'join' })
   })
 
-  it('spectates a room full of present players', () => {
-    const players = { a: seat('a', 1), b: seat('b', 2) }
+  it('spectates a full room — ghosts included, until a member sweeps them', () => {
+    const players = { a: seat('a', 1), g: seat('g', 2, { online: false, offlineAt: NOW - 300_000 }) }
     expect(partyJoinPlan({ players, myId: 'me', status: 'waiting', maxPlayers: 2, now: NOW })).toEqual({ action: 'spectate' })
   })
 
-  it('does not count a long-gone ghost toward the cap: evicts the oldest one', () => {
-    const players = {
-      a: seat('a', 1),
-      g1: seat('g1', 2, { online: false, offlineAt: NOW - 120_000 }),
-      g2: seat('g2', 3, { online: false, offlineAt: NOW - 300_000 }),
-    }
-    expect(partyJoinPlan({ players, myId: 'me', status: 'waiting', maxPlayers: 3, now: NOW })).toEqual({ action: 'join', evict: 'g2' })
+  it('ignores malformed entries when counting', () => {
+    const players = { a: seat('a', 1), junk: { online: false } }
+    expect(partyJoinPlan({ players, myId: 'me', status: 'waiting', maxPlayers: 2 })).toEqual({ action: 'join' })
+  })
+})
+
+describe('ghostsToSweep', () => {
+  const full = {
+    a: seat('a', 1),
+    g1: seat('g1', 2, { online: false, offlineAt: NOW - 120_000 }),
+    g2: seat('g2', 3, { online: false, offlineAt: NOW - 300_000 }),
+    fresh: seat('fresh', 4, { online: false, offlineAt: NOW - 5_000 }),
+  }
+
+  it('frees only as many places as the waiting players need, longest-gone first', () => {
+    expect(ghostsToSweep({ players: full, status: 'waiting', maxPlayers: 4, waiting: 1, now: NOW })).toEqual(['g2'])
+    expect(ghostsToSweep({ players: full, status: 'waiting', maxPlayers: 4, waiting: 3, now: NOW })).toEqual(['g2', 'g1'])
   })
 
-  it('keeps a seat that only just dropped (reload / locked phone)', () => {
-    const players = { a: seat('a', 1), b: seat('b', 2, { online: false, offlineAt: NOW - 5_000 }) }
-    expect(partyJoinPlan({ players, myId: 'me', status: 'waiting', maxPlayers: 2, now: NOW })).toEqual({ action: 'spectate' })
+  it('never sweeps a seat that only just dropped, or an online one', () => {
+    const swept = ghostsToSweep({ players: full, status: 'waiting', maxPlayers: 4, waiting: 5, now: NOW })
+    expect(swept).not.toContain('fresh')
+    expect(swept).not.toContain('a')
+  })
+
+  it('does nothing mid-round, with nobody waiting, or with room to spare', () => {
+    expect(ghostsToSweep({ players: full, status: 'playing', maxPlayers: 4, waiting: 1, now: NOW })).toEqual([])
+    expect(ghostsToSweep({ players: full, status: 'waiting', maxPlayers: 4, waiting: 0, now: NOW })).toEqual([])
+    expect(ghostsToSweep({ players: full, status: 'waiting', maxPlayers: 8, waiting: 1, now: NOW })).toEqual([])
   })
 })
 
 describe('applyPartyJoin', () => {
-  it('adds my seat and removes the evicted ghost', () => {
-    const players = { a: seat('a', 1), g: seat('g', 2, { online: false }) }
+  it('adds my seat', () => {
+    const players = { a: seat('a', 1) }
     const mine = seat('me', 9)
-    expect(applyPartyJoin(players, { action: 'join', evict: 'g' }, mine)).toEqual({ a: players.a, me: mine })
+    expect(applyPartyJoin(players, { action: 'join' }, mine)).toEqual({ a: players.a, me: mine })
   })
 
   it('returns null unless the plan is a join', () => {

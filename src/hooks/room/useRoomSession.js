@@ -8,8 +8,8 @@ import { defaultAvatarForId } from '../../lib/avatars'
 import { recordRoom } from '../../lib/profile'
 import { guestName, isGuestStyleName, saveDisplayName } from '../../lib/social'
 import { isListableRoom, listingHost, removePublicListing, republishPublicRoom } from '../../lib/matchmaking'
-import { isSeatOnline, seatLeft } from '../../lib/presenceLogic'
-import { applyPartyJoin, inviteSummary, openSeat, partyJoinPlan } from '../../lib/roomLogic'
+import { isGhost, isSeatOnline, seatLeft } from '../../lib/presenceLogic'
+import { ghostsToSweep, inviteSummary, openSeat, partyJoinPlan, pickRoomHost, seatedIds, spectatorCount } from '../../lib/roomLogic'
 import { canTakeSeat, normalizeQueue } from '../../lib/nightLogic'
 import useDbConnected from '../useDbConnected'
 import useRoomPresence from './useRoomPresence'
@@ -162,7 +162,7 @@ export default function useRoomSession(gameId) {
         if (amPlayer) {
           try { await update(ref(db, `games/${gameId}/players/${myId}`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
         } else if (data.status === 'waiting' && canTakeSeat(data, myId)) {
-          amPlayer = await joinPartySeat(gameId, cfgData, { name: playerName, avatar: playerAvatar })
+          amPlayer = await joinPartySeat(gameId, data, cfgData, { name: playerName, avatar: playerAvatar })
         }
         if (cancelled) return
         setLoading(false)
@@ -286,7 +286,7 @@ export default function useRoomSession(gameId) {
 
   // Party latecomers — seated whenever the room is back in its lobby (after a
   // NEW MATCH or a switch), not only when they first opened the link; also
-  // retried when a place frees up (a seat drops past its grace window).
+  // retried when a place frees up (a member sweeps out a ghost seat).
   const playersNode = game?.players
   const partySeatCount = party ? Object.keys(playersNode || {}).length : 0
   // Game night's LOCK ROOM / KICK (nightLogic.canTakeSeat) bar it.
@@ -296,13 +296,13 @@ export default function useRoomSession(gameId) {
     if (!partyLobbyOpen || partyJoining.current || !cfg) return
     const plan = partyJoinPlan({ players: playersNode, myId, status: 'waiting', maxPlayers: cfg.maxPlayers || 8 })
     if (plan.action !== 'join') {
-      // Full for now — an offline seat may pass its grace window without the
-      // seat count changing, so look again in a while.
+      // Full for now — waiting here as a spectator is what prompts the host's
+      // ghost sweep below; look again in a while regardless.
       const t = setTimeout(() => setSeatRecheck(n => n + 1), 15_000)
       return () => clearTimeout(t)
     }
     partyJoining.current = true
-    joinPartySeat(gameId, cfg, { name: readName() || guestName(myId), avatar: readAvatar() })
+    joinPartySeat(gameId, latestGame.current, cfg, { name: readName() || guestName(myId), avatar: readAvatar() })
       .then(joined => {
         if (!joined) return
         recordRoom({ id: gameId, gameType: game.gameType })
@@ -313,6 +313,28 @@ export default function useRoomSession(gameId) {
     // every snapshot (chat, presence) while waiting.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partyLobbyOpen, partySeatCount, gameId, seatRecheck])
+
+  // Ghost sweep — members only, and only the room host so one client writes:
+  // while the lobby is full and spectators are waiting, remove seats that
+  // have been offline past the grace window (roomLogic.ghostsToSweep). Each
+  // removal is a transaction on that one seat that re-checks it is still a
+  // ghost on the server, so a player reconnecting at that moment keeps it.
+  const amSweeper = partySeated && game?.status === 'waiting' && pickRoomHost(playersNode, game?.hostUid) === myId
+  const waitingCount = amSweeper ? spectatorCount(game?.spectators, seatedIds(playersNode)) : 0
+  const [sweepTick, setSweepTick] = useState(0)
+  useEffect(() => {
+    if (!amSweeper || !cfg || waitingCount === 0) return
+    const ghosts = ghostsToSweep({ players: playersNode, status: 'waiting', maxPlayers: cfg.maxPlayers || 8, waiting: waitingCount })
+    // Nobody past the grace window yet — check again once someone may be.
+    const t = setTimeout(() => setSweepTick(n => n + 1), 15_000)
+    for (const uid of ghosts) {
+      runTransaction(ref(db, `games/${gameId}/players/${uid}`), cur => (
+        cur && cur.playerId && isGhost(cur, Date.now()) ? null : undefined
+      )).catch(() => {})
+    }
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amSweeper, waitingCount, partySeatCount, gameId, sweepTick])
 
   // One-time spectator notice — fires only once, when a full 2-seat room
   // resolves us to a spectator (never for the never-seated-but-empty-room case).
@@ -389,17 +411,23 @@ export default function useRoomSession(gameId) {
   }
 }
 
-// Party seat claim: a transaction on the players node so capacity (online
-// seats only — see roomLogic.partyJoinPlan) and any ghost eviction are
-// decided against the server's copy. Only called while the room is waiting.
-async function joinPartySeat(gameId, cfg, { name, avatar }) {
+// Party seat claim. Capacity, lock and kick are checked against `room` (the
+// latest read of games/{id}); the write touches only this player's own seat —
+// a create-once transaction on players/{myId}, which rules can hold to
+// `playerId === auth.uid` — never anyone else's. `joinedAt` is set here once;
+// a returning player's seat is reclaimed as is.
+async function joinPartySeat(gameId, room, cfg, { name, avatar }) {
   const myId = getPlayerId()
+  if (!room || room.status !== 'waiting' || !canTakeSeat(room, myId)) return false
+  const plan = partyJoinPlan({ players: room.players, myId, status: room.status, maxPlayers: cfg.maxPlayers || 8 })
+  if (plan.action === 'reclaim') return true
+  if (plan.action !== 'join') return false
   const seat = { name, joinedAt: Date.now(), playerId: myId, online: true, avatar }
   try {
-    const { committed, snapshot } = await runTransaction(ref(db, `games/${gameId}/players`), cur => {
-      const plan = partyJoinPlan({ players: cur, myId, status: 'waiting', maxPlayers: cfg.maxPlayers || 8 })
-      return applyPartyJoin(cur, plan, seat) ?? undefined
-    })
-    return committed || !!snapshot?.val()?.[myId]
+    const { committed, snapshot } = await runTransaction(
+      ref(db, `games/${gameId}/players/${myId}`),
+      cur => (cur ? undefined : seat),
+    )
+    return committed || !!snapshot?.val()
   } catch { return false }
 }

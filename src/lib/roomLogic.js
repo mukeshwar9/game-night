@@ -36,29 +36,41 @@ export function activePartySeats(players, now = Date.now()) {
 }
 
 // Can `myId` take a party seat? Only while the room is in its lobby
-// (`waiting`); a returning player always reclaims their own seat. When every
-// place is taken but some are ghosts, the longest-gone ghost gives up its
-// place so the cap is never exceeded.
-//   → { action: 'reclaim' | 'join' | 'spectate', evict?: uid }
-export function partyJoinPlan({ players, myId, status, maxPlayers = PARTY_DEFAULT_MAX, now = Date.now() }) {
+// (`waiting`) and below `maxPlayers`; a returning player always reclaims
+// their own seat. A joiner only ever writes their OWN seat
+// (`players/{myId}`), so a full room stays full until a member sweeps out
+// its ghosts (ghostsToSweep).
+//   → { action: 'reclaim' | 'join' | 'spectate' }
+export function partyJoinPlan({ players, myId, status, maxPlayers = PARTY_DEFAULT_MAX }) {
   if (players?.[myId]) return { action: 'reclaim' }
   if (status !== 'waiting') return { action: 'spectate' }
-  const seats = Object.entries(players || {}).filter(([, p]) => p && typeof p === 'object' && p.playerId)
-  if (seats.length < maxPlayers) return { action: 'join' }
-  const ghosts = seats
-    .filter(([, p]) => isGhost(p, now))
-    .sort(([, a], [, b]) => (a.offlineAt ?? 0) - (b.offlineAt ?? 0) || (a.joinedAt || 0) - (b.joinedAt || 0))
-  if (activePartySeats(players, now).length >= maxPlayers || ghosts.length === 0) return { action: 'spectate' }
-  return { action: 'join', evict: ghosts[0][0] }
+  const seats = Object.values(players || {}).filter(p => p && typeof p === 'object' && p.playerId)
+  return { action: seats.length < maxPlayers ? 'join' : 'spectate' }
 }
 
-// The players node after `myId` joins per `plan` (null = no change).
+// The players node after `myId` joins per `plan` (null = no change). Kept for
+// callers that model a whole-node write; the room itself writes only
+// `players/{myId}`.
 export function applyPartyJoin(players, plan, mySeat) {
   if (plan?.action !== 'join') return null
-  const next = { ...(players || {}) }
-  if (plan.evict) delete next[plan.evict]
-  next[mySeat.playerId] = mySeat
-  return next
+  return { ...(players || {}), [mySeat.playerId]: mySeat }
+}
+
+// Ghost sweep, run by a seated member (the room host) while the lobby is
+// full and people are waiting to get in: the seats to remove, longest-gone
+// first — offline past the grace window (isGhost), so they no longer hold a
+// place. Only as many as the waiting players need. A swept player who comes
+// back joins again like any latecomer.
+export function ghostsToSweep({ players, status, maxPlayers = PARTY_DEFAULT_MAX, waiting = 0, now = Date.now() }) {
+  if (status !== 'waiting' || waiting <= 0) return []
+  const seats = Object.entries(players || {}).filter(([, p]) => p && typeof p === 'object' && p.playerId)
+  const need = seats.length + waiting - maxPlayers
+  if (need <= 0) return []
+  return seats
+    .filter(([, p]) => isGhost(p, now))
+    .sort(([, a], [, b]) => (a.offlineAt ?? 0) - (b.offlineAt ?? 0) || (a.joinedAt || 0) - (b.joinedAt || 0))
+    .slice(0, need)
+    .map(([id]) => id)
 }
 
 // Who is in the room and how many places are left — for the invite screen.
