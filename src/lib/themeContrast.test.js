@@ -120,8 +120,22 @@ describe('per-theme contrast floors (regression guards, 2026-08 audit)', () => {
 })
 
 describe('ground scheme', () => {
+  const clean = cssText.replace(/\/\*[\s\S]*?\*\//g, '')
+
+  // A theme scoped to a wrapper (settings preview, picker swatches) must not
+  // inherit the page's scheme: dark blocks rely on this reset instead of
+  // restating it, and it has to precede every theme block so they win.
+  it('resets the dark-ground defaults on every [data-theme] element before the theme blocks', () => {
+    const reset = clean.match(/\[data-theme\]\s*\{([^{}]*)\}/)
+    expect(reset, '[data-theme] { ... } block').not.toBeNull()
+    expect(reset[1]).toMatch(/color-scheme:\s*dark\s*;/)
+    expect(reset[1]).toMatch(/--crt-overlay:\s*block\s*;/)
+    expect(reset[1]).toMatch(/--glow:\s*1\s*;/)
+    expect(reset.index).toBeLessThan(clean.search(/\[data-theme="[\w-]+"\]\s*\{/))
+  })
+
   const blocks = Object.fromEntries(
-    [...cssText.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\[data-theme="([\w-]+)"\]\s*\{([^{}]*)\}/g)]
+    [...clean.matchAll(/\[data-theme="([\w-]+)"\]\s*\{([^{}]*)\}/g)]
       .map(([, id, body]) => [id, body]),
   )
   const black = [0, 0, 0]

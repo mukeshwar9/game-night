@@ -219,6 +219,18 @@
 
 /* ── Theme overrides ── */
 
+/* Ground-scheme defaults for every themed element, not just <html>. Theme
+   blocks match any element carrying data-theme (the settings preview and
+   the picker swatches scope a theme to a wrapper), and dark theme blocks
+   don't restate these three, so without this a dark theme nested in a
+   light page would inherit the page's light scheme and 0.3 glow. Light
+   theme blocks come later with the same specificity and override it. */
+[data-theme] {
+  color-scheme: dark;
+  --crt-overlay: block;
+  --glow: 1;
+}
+
 [data-theme="phosphor"] {
   --c-bg:       3 15 3;
   --c-surface:  6 24 6;
