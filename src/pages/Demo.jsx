@@ -1131,6 +1131,7 @@ const DEMOS = [
   { type: 'connectfourpop', short: 'C4 POP\nOUT', Icon: ConnectFourIcon,  Component: () => <BotBoardDemo type="connectfourpop" /> },
   { type: 'dice-big',     short: 'PIG\nBIG',      Icon: DiceIcon,         Component: () => <BotBoardDemo type="dice-big" />     },
   { type: 'gomoku',       short: 'GOMOKU',        Icon: GomokuIcon,       Component: () => <BotBoardDemo type="gomoku" />       },
+  { type: 'gomokuswap',   short: 'GOMOKU\nSWAP',  Icon: GomokuIcon,       Component: () => <BotBoardDemo type="gomokuswap" />   },
   { type: 'reversi',      short: 'REVERSI',       Icon: ReversiIcon,      Component: () => <BotBoardDemo type="reversi" />      },
   { type: 'orderchaos',   short: 'ORDER &\nCHAOS',Icon: OrderChaosIcon,   Component: () => <BotBoardDemo type="orderchaos" />   },
   { type: 'sos',          short: 'SOS',           Icon: SosIcon,          Component: () => <BotBoardDemo type="sos" />          },

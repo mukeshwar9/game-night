@@ -1,12 +1,18 @@
 import { cn } from '@/lib/utils'
-import { GOMOKU_SIZE } from '../lib/gomokuLogic'
+import { GOMOKU_SIZE, SWAP_ACTION, canGomokuSwap } from '../lib/gomokuLogic'
 import { cellLabel } from '../lib/a11yLabels'
 
 // Minimum per-cell width (px) — keeps tap targets >=38px by letting the
 // board scroll horizontally edge-to-edge instead of crushing cells to fit.
 const GOMOKU_CELL_MIN = 38
 
-export default function GomokuBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null }) {
+export default function GomokuBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null, swapRule = false, pieSwap = false }) {
+  // Swap (pie) rule (GOMOKU SWAP only): on move 2 the player to move may take
+  // the opening stone.
+  const stones = board.filter(Boolean)
+  const swapOpen = swapRule && canGomokuSwap(board, currentTurn, pieSwap)
+  const opener = currentTurn === 'X' ? 'O' : 'X'
+  const justSwapped = swapRule && pieSwap && stones.length === 1
   return (
     <div className="w-full max-w-sm mx-auto">
       <div
@@ -83,6 +89,30 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
           className="pointer-events-none absolute inset-y-0 right-0 w-5 rounded-r bg-gradient-to-l from-retro-surface to-transparent"
         />
       </div>
+      {swapOpen && !disabled && (
+        <div className="mt-2 flex flex-col items-center gap-1.5">
+          <button
+            onClick={() => onMove({ action: SWAP_ACTION })}
+            aria-label={`Swap: take ${opener}'s opening stone`}
+            className={cn(
+              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition-all active:scale-95',
+              'border-retro-cta text-retro-cta bg-retro-tint-cta hover:shadow-neon-cta',
+            )}
+          >
+            SWAP
+          </button>
+          <p className="font-mono text-[11px] text-retro-dim text-center leading-snug">
+            Take {opener}&apos;s opening stone as yours — or just place a stone.
+          </p>
+        </div>
+      )}
+      {((swapOpen && disabled) || justSwapped) && (
+        <p role="status" className="mt-2 text-center font-pixel text-[9px] tracking-widest text-retro-dim">
+          {justSwapped
+            ? `${stones[0]} SWAPPED — THE OPENING STONE IS NOW ${stones[0]}'S`
+            : `${currentTurn} MAY SWAP INSTEAD OF MOVING`}
+        </p>
+      )}
     </div>
   )
 }

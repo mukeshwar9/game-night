@@ -37,4 +37,57 @@ export function getGomokuWinner(board) {
   return null;
 }
 
-export const getMoveIndex = (board, i) => (board[i] ? -1 : i);
+// ---------------------------------------------------------------------------
+// Swap (pie) rule — the GOMOKU SWAP variant. Freestyle Gomoku is a proven,
+// human-executable first-player win, so after the very first stone the second
+// player may SWAP instead of placing: the opening stone becomes theirs, in
+// place (the board is symmetric, so no reflection is needed), and the turn
+// passes back to the opener. One swap per round: the room's `pieSwap` flag
+// blocks a swap-back, and every placement clears it.
+// ---------------------------------------------------------------------------
+export const SWAP_ACTION = 'swap'
+export const isSwapMove = move => move?.action === SWAP_ACTION
+
+// Index of the only stone on the board, or -1 unless exactly one exists.
+function loneStone(board) {
+  let found = -1
+  for (let i = 0; i < GOMOKU_CELL_COUNT; i++) {
+    if (!board[i]) continue
+    if (found !== -1) return -1
+    found = i
+  }
+  return found
+}
+
+// Legal only on the second move of a round: exactly one stone, owned by the
+// opponent of `symbol`, and no swap yet this round.
+export function canGomokuSwap(board, symbol, swapped = false) {
+  if (swapped || (symbol !== 'X' && symbol !== 'O')) return false
+  const i = loneStone(board)
+  return i !== -1 && board[i] !== symbol
+}
+
+// One GOMOKU SWAP turn: a placement (cell index) or a swap ({ action: 'swap' }).
+// Returns null when illegal, else { board, index, swapped, result } — index is
+// the cell that changed, swapped is true only for a swap, result is
+// getGomokuWinner's verdict (always null after a swap).
+export function applyGomokuMove(board, move, symbol, swapped = false) {
+  if (isSwapMove(move)) {
+    if (!canGomokuSwap(board, symbol, swapped)) return null
+    const index = loneStone(board)
+    const next = [...board]
+    next[index] = symbol
+    return { board: next, index, swapped: true, result: null }
+  }
+  if (!Number.isInteger(move) || move < 0 || move >= GOMOKU_CELL_COUNT || board[move]) return null
+  const next = [...board]
+  next[move] = symbol
+  return { board: next, index: move, swapped: false, result: getGomokuWinner(next) }
+}
+
+// A swap resolves to the stone it takes over (-1 when there is no lone stone);
+// ownership and once-per-round checks live in applyGomokuMove.
+export const getMoveIndex = (board, i) => {
+  if (isSwapMove(i)) return loneStone(board)
+  return board[i] ? -1 : i
+};

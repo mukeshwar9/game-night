@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { HEX_SIZE } from '../lib/hexLogic'
+import { HEX_SIZE, SWAP_ACTION, canHexSwap } from '../lib/hexLogic'
 import { cellLabel, columnLetter } from '../lib/a11yLabels'
 
 const HEX_CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
@@ -10,8 +10,13 @@ const ROW_OVERLAP = CELL_H * 0.25
 const BOARD_W = CELL_W * HEX_SIZE + (CELL_W / 2) * (HEX_SIZE - 1)
 const BOARD_H = CELL_H + (HEX_SIZE - 1) * (CELL_H - ROW_OVERLAP)
 
-export default function HexBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null }) {
+export default function HexBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null, swapRule = false, pieSwap = false }) {
   const showHint = board.every(c => !c)
+  // Swap (pie) rule: on move 2 the player to move may take the opening stone.
+  const stones = board.filter(Boolean)
+  const swapOpen = swapRule && canHexSwap(board, currentTurn, pieSwap)
+  const opener = currentTurn === 'X' ? 'O' : 'X'
+  const justSwapped = swapRule && pieSwap && stones.length === 1
   const wrapperRef = useRef(null)
   const [scale, setScale] = useState(1)
 
@@ -155,6 +160,30 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
           </div>
         </div>
       </div>
+      {swapOpen && !disabled && (
+        <div className="mt-2 flex flex-col items-center gap-1.5">
+          <button
+            onClick={() => onMove({ action: SWAP_ACTION })}
+            aria-label={`Swap: take ${opener}'s opening stone, mirrored onto your edges`}
+            className={cn(
+              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition-all active:scale-95',
+              'border-retro-cta text-retro-cta bg-retro-tint-cta hover:shadow-neon-cta',
+            )}
+          >
+            SWAP
+          </button>
+          <p className="font-mono text-[11px] text-retro-dim text-center leading-snug">
+            Take {opener}&apos;s opening stone as yours (mirrored onto your edges) — or just place a stone.
+          </p>
+        </div>
+      )}
+      {((swapOpen && disabled) || justSwapped) && (
+        <p role="status" className="mt-2 text-center font-pixel text-[9px] tracking-widest text-retro-dim">
+          {justSwapped
+            ? `${stones[0]} SWAPPED — THE OPENING STONE IS NOW ${stones[0]}'S`
+            : `${currentTurn} MAY SWAP INSTEAD OF MOVING`}
+        </p>
+      )}
       {showHint && (
         <p className={cn(
           'mt-2 text-center font-pixel text-[9px] tracking-widest',

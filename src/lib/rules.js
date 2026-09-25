@@ -223,6 +223,16 @@ export const GAME_RULES = {
     win: 'Line up five (or more) in a row — horizontally, vertically, or diagonally — to win.',
   },
 
+  gomokuswap: {
+    objective: 'Be the first to get five of your stones in a row — with a swap rule that keeps the opening fair.',
+    howToPlay: [
+      'Take turns placing a stone on any empty point of the 15×15 board.',
+      'Right after the very first stone, the other player may tap SWAP instead of placing: that stone becomes theirs and the opener moves again.',
+      'So open with a stone you would be equally happy to keep or to give away.',
+    ],
+    win: 'Line up five (or more) in a row — horizontally, vertically, or diagonally — to win.',
+  },
+
   reversi: {
     objective: 'Finish with more discs of your color on the 8×8 board.',
     howToPlay: [
@@ -323,6 +333,7 @@ export const GAME_RULES = {
       'Take turns placing one stone on any empty cell of the 11×11 rhombus.',
       'X must connect the LEFT and RIGHT edges; O must connect the TOP and BOTTOM.',
       'Stones never move or get captured — every stone stays forever.',
+      'Swap rule: right after the first stone, the other player may tap SWAP instead of placing — the opening stone becomes theirs, mirrored onto their own edges, and the opener moves again.',
     ],
     win: 'First chain linking your two edges wins. Draws are mathematically impossible.',
   },

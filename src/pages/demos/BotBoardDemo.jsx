@@ -1,10 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
+import { cn } from '@/lib/utils'
 import GameStatus from '../../components/GameStatus'
 import PlayerCard from '../../components/PlayerCard'
 import { sounds } from '../../lib/sounds'
 import { normalizeBoard } from '../../lib/gameLogic'
 import { getGameConfig, freshGameState } from '../../lib/games'
-import { pickBotMove } from '../../lib/demoBots'
+import { pickBotMove, botDifficulties, DEFAULT_BOT_DIFFICULTY } from '../../lib/demoBots'
+import { recordRoundEnd } from '../../lib/analytics'
+
+// ─── Bot difficulty (remembered per game) ─────────────────────────────────────
+
+const difficultyKey = type => `bot-difficulty-${type}`
+
+function readDifficulty(type, levels) {
+  try {
+    const stored = localStorage.getItem(difficultyKey(type))
+    return levels.includes(stored) ? stored : DEFAULT_BOT_DIFFICULTY
+  } catch {
+    return DEFAULT_BOT_DIFFICULTY
+  }
+}
 
 // ─── Generic bot harness ──────────────────────────────────────────────────────
 
@@ -17,6 +32,13 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
   })
   const [game, setGame] = useState(makeInit)
   const timerRef = useRef(null)
+  // Only the levels this game's bot actually distinguishes (demoBots.js).
+  const levels = isLocal ? [] : botDifficulties(type)
+  const [difficulty, setDifficulty] = useState(() => readDifficulty(type, levels))
+  const chooseDifficulty = (level) => {
+    setDifficulty(level)
+    try { localStorage.setItem(difficultyKey(type), level) } catch { /* private mode */ }
+  }
 
   // Apply a move the same way Game.jsx handleMove does; returns next game or null if illegal.
   const applyOne = (g, payload, symbol) => {
@@ -80,9 +102,11 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
       if (game.winner === 'draw') sounds.draw()
       else if (isLocal || game.winner === 'X') sounds.win()
       else sounds.lose()
+      // Once per finished game: this only fires on the playing → finished edge.
+      recordRoundEnd(type, isLocal ? 'local' : 'solo', 'finished')
     }
     prevStatus.current = game.status
-  }, [game.status, game.winner, isLocal])
+  }, [game.status, game.winner, isLocal, type])
 
   // Bot turn driver — re-runs whenever game changes; handles extra-turns/passes/dice streaks
   // because it simply fires again while it's still O's turn. Skipped entirely
@@ -93,14 +117,14 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
     timerRef.current = setTimeout(() => {
       setGame(g => {
         if (g.status !== 'playing' || g.currentTurn !== 'O') return g
-        const move = pickBotMove(type, g, 'O')
+        const move = pickBotMove(type, g, 'O', difficulty)
         if (move === null || move === undefined) return g
         return applyOne(g, move, 'O') || g
       })
     }, 600)
     return () => clearTimeout(timerRef.current)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game, type])
+  }, [game, type, difficulty])
 
   const reset = () => { clearTimeout(timerRef.current); setGame(makeInit()) }
 
@@ -109,6 +133,26 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
 
   return (
     <div className="space-y-4">
+      {levels.length > 1 && (
+        <div role="group" aria-label="CPU difficulty" className="flex items-center justify-center gap-1.5">
+          <span className="font-pixel text-[8px] text-retro-dim tracking-widest mr-1">CPU</span>
+          {levels.map(level => (
+            <button
+              key={level}
+              onClick={() => chooseDifficulty(level)}
+              aria-pressed={difficulty === level}
+              className={cn(
+                'px-3 py-1 font-pixel text-[8px] uppercase rounded border-2 transition-all active:scale-95',
+                difficulty === level
+                  ? 'border-retro-cta text-retro-cta shadow-neon-cta'
+                  : 'border-retro-border text-retro-dim hover:border-retro-p1/50',
+              )}
+            >
+              {level}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         {isLocal ? (
           <>

@@ -88,7 +88,7 @@ import {
   generateVmPattern,
   applyVmMove,
 } from './visualMemoryLogic'
-import { getGomokuWinner, GOMOKU_CELL_COUNT } from './gomokuLogic'
+import { getGomokuWinner, GOMOKU_CELL_COUNT, applyGomokuMove, getMoveIndex as getGomokuMoveIndex } from './gomokuLogic'
 import { REVERSI_SIZE, reversiInitialBoard, applyReversiMove, hasAnyMove, getReversiWinner } from './reversiLogic'
 import { OC_CELL_COUNT, applyOrderChaosMove, getOrderChaosWinner } from './orderChaosLogic'
 import { CR_CELL_COUNT, CR_CELL_COUNT_CLASSIC, CR_COLS, CR_ROWS, CR_COLS_CLASSIC, CR_ROWS_CLASSIC, CR_SYMBOLS_4, applyChainReactionMove } from './chainReactionLogic'
@@ -123,7 +123,7 @@ import {
 } from './checkersLogic'
 import { getTicTacToe4Winner } from './tictactoe4Logic'
 import { applyDiceBigMove } from './diceLogic'
-import { getHexWinner, HEX_CELL_COUNT } from './hexLogic'
+import { getHexWinner, HEX_CELL_COUNT, applyHexMove, getMoveIndex as getHexMoveIndex } from './hexLogic'
 import { generateNumber } from './numberMemoryLogic'
 
 // Board and page components load on demand: the registry sits in the entry
@@ -846,10 +846,42 @@ export const GAME_TYPES = [
     badge: 'GO', maxWidth: 'max-w-md',
     category: 'board',
     durationMin: 8, tags: ['thinky'], solo: true,
+    classicLabel: 'FREESTYLE',
+    classicBlurb: 'Five in a row on 15×15. No opening rule — the first stone is a real edge.',
     boardSize: GOMOKU_CELL_COUNT,
     getMoveIndex: (board, i) => (board[i] ? -1 : i),
     getWinner: getGomokuWinner,
     BoardComponent: GomokuBoard,
+  },
+  {
+    type: 'gomokuswap', label: 'GOMOKU SWAP',
+    desc: 'five in a row, swap rule', Icon: GomokuIcon,
+    badge: 'GS', maxWidth: 'max-w-md',
+    category: 'board', addedAt: '2026-09-26',
+    durationMin: 8, tags: ['thinky'], solo: true,
+    variantOf: 'gomoku', variantLabel: 'SWAP',
+    variantBlurb: 'After the first stone, the other player may take it as their own instead of moving — so the opener has to play fair.',
+    boardSize: GOMOKU_CELL_COUNT,
+    // Swap (pie) rule: on move 2 the board may emit { action: 'swap' }.
+    // `pieSwap` marks the round's one swap as spent; every placement clears
+    // it (gomokuLogic.js).
+    getMoveIndex: getGomokuMoveIndex,
+    getWinner: getGomokuWinner,
+    BoardComponent: GomokuBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const moved = applyGomokuMove(board, move, symbol, !!game.pieSwap)
+      if (!moved) return null
+      return {
+        updates: {
+          board: moved.board,
+          currentTurn: symbol === 'X' ? 'O' : 'X',
+          lastMove: moved.index,
+          pieSwap: moved.swapped ? true : null,
+        },
+        result: moved.result,
+      }
+    },
+    boardProps: (game) => ({ swapRule: true, pieSwap: !!game.pieSwap }),
   },
   {
     type: 'reversi', label: 'REVERSI',
@@ -1065,9 +1097,26 @@ export const GAME_TYPES = [
     addedAt: '2026-08-21',
     durationMin: 8, tags: ['thinky'], solo: true,
     boardSize: HEX_CELL_COUNT,
-    getMoveIndex: (board, i) => (board[i] ? -1 : i),
+    // Swap (pie) rule is standard: after the opening stone the second player
+    // may emit { action: 'swap' } instead of a cell. `pieSwap` marks the
+    // round's one swap as spent; every placement clears it (hexLogic.js).
+    getMoveIndex: getHexMoveIndex,
     getWinner: getHexWinner,
     BoardComponent: HexBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const moved = applyHexMove(board, move, symbol, !!game.pieSwap)
+      if (!moved) return null
+      return {
+        updates: {
+          board: moved.board,
+          currentTurn: symbol === 'X' ? 'O' : 'X',
+          lastMove: moved.index,
+          pieSwap: moved.swapped ? true : null,
+        },
+        result: moved.result,
+      }
+    },
+    boardProps: (game) => ({ swapRule: true, pieSwap: !!game.pieSwap }),
   },
   {
     type: 'minesweeper', label: 'MINE RACE',
@@ -1429,7 +1478,7 @@ export const getPlayerTag = (cfg) =>
 // games clears the previous game's keys from Firebase.
 const FIELD_NULLS = {
   uWon: null, uActiveBoard: null,
-  passNote: null,
+  passNote: null, pieSwap: null,
   lastFrom: null, lastTo: null,
   sosLines: null,
   simonSequence: null, simonProgress: null,
