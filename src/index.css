@@ -1331,31 +1331,32 @@ body::before {
 }
 
 /* ── Pairs cards ──
-   Face colours are a dedicated palette, deliberately NOT themed: like a real deck,
+   Face colours are a dedicated palette, deliberately NOT themed (hence --pair-*,
+   not --c-*, which every theme must redefine): like a real deck,
    a card face reads the same on every theme. Each face also has its own silhouette
    (src/lib/pairsFaces.js), so colour is never the only cue. Every colour keeps at
-   least 5:1 contrast with --c-pair-ink, which draws the sprite on top of it
+   least 5:1 contrast with --pair-ink, which draws the sprite on top of it
    (enforced by src/lib/pairsFaces.test.js). The card back stays on theme tokens. */
 :root {
-  --c-pair-ink:      24 20 34;
-  --c-pair-heart:    240 84 96;
-  --c-pair-mushroom: 255 138 106;
-  --c-pair-robot:    255 160 56;
-  --c-pair-crown:    236 192 40;
-  --c-pair-star:     248 232 92;
-  --c-pair-bolt:     196 232 64;
-  --c-pair-frog:     104 208 96;
-  --c-pair-dino:     56 196 150;
-  --c-pair-fish:     64 210 222;
-  --c-pair-moon:     158 208 255;
-  --c-pair-ufo:      100 160 255;
-  --c-pair-alien:    154 150 255;
-  --c-pair-wizard:   186 128 248;
-  --c-pair-invader:  240 104 208;
-  --c-pair-cat:      255 170 200;
-  --c-pair-ninja:    150 162 186;
-  --c-pair-skull:    220 188 140;
-  --c-pair-ghost:    234 236 246;
+  --pair-ink:      24 20 34;
+  --pair-heart:    240 84 96;
+  --pair-mushroom: 255 138 106;
+  --pair-robot:    255 160 56;
+  --pair-crown:    236 192 40;
+  --pair-star:     248 232 92;
+  --pair-bolt:     196 232 64;
+  --pair-frog:     104 208 96;
+  --pair-dino:     56 196 150;
+  --pair-fish:     64 210 222;
+  --pair-moon:     158 208 255;
+  --pair-ufo:      100 160 255;
+  --pair-alien:    154 150 255;
+  --pair-wizard:   186 128 248;
+  --pair-invader:  240 104 208;
+  --pair-cat:      255 170 200;
+  --pair-ninja:    150 162 186;
+  --pair-skull:    220 188 140;
+  --pair-ghost:    234 236 246;
 }
 
 .pairs-card-back {
@@ -1369,8 +1370,8 @@ body::before {
   box-shadow: inset 0 0 0 2px rgb(var(--c-card)), inset 0 0 0 3px rgb(var(--c-cta) / 0.3);
 }
 .pairs-card-face {
-  border: 2px solid rgb(var(--c-pair-ink));
-  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.35), inset 0 -3px 0 rgb(var(--c-pair-ink) / 0.18);
+  border: 2px solid rgb(var(--pair-ink));
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.35), inset 0 -3px 0 rgb(var(--pair-ink) / 0.18);
 }
 /* A claimed pair settles back: same identity, quieter, so the live cards stand out. */
 .pairs-card-face.is-claimed { filter: saturate(0.8); opacity: 0.85; }

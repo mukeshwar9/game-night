@@ -51,7 +51,7 @@ function FaceSprite({ face }) {
     >
       {grid.flatMap((row, y) =>
         row.split('').map((ch, x) => (ch === '#'
-          ? <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill: 'rgb(var(--c-pair-ink))' }} />
+          ? <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill: 'rgb(var(--pair-ink))' }} />
           : null)),
       )}
     </svg>

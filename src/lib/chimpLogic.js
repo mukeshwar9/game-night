@@ -1,3 +1,8 @@
+// Trust model: chimpLayout sits in the room node in the clear for the whole round —
+// the same honest-client tier as Pairs' deck (see pairsLogic.js). ChimpBoard hides
+// the numbers after the memorize window, which stops casual peeking, not a player
+// reading the database.
+
 export const CHIMP_GRID = 25  // 5×5
 export const CHIMP_START_LEVEL = 4
 

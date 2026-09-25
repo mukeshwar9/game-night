@@ -2,10 +2,10 @@
 // silhouette (the creature glyph from avatarSprites.js), so two faces never look alike
 // even to a colour-blind player — the silhouette is the primary cue, colour the fast one.
 //
-// Colours are a dedicated, theme-independent palette (`--c-pair-{face}` in
+// Colours are a dedicated, theme-independent palette (`--pair-{face}` in
 // src/index.css, one `:root` block outside the theme overrides) because physical-card
 // faces should read the same on every theme; the card back, borders and owner marks
-// stay on the theme tokens. The sprite is drawn in `--c-pair-ink` on top of the face
+// stay on the theme tokens. The sprite is drawn in `--pair-ink` on top of the face
 // colour, so every entry below must stay light enough for dark ink to read on it.
 
 import { CREATURE_GLYPHS } from './avatarSprites'
@@ -35,7 +35,7 @@ export const PAIRS_FACE_NAMES = {
 
 // CSS colour expression for a face's card colour (opacity optional).
 export function pairsFaceColor(face, alpha) {
-  const v = `var(--c-pair-${PAIRS_FACES.includes(face) ? face : 'ghost'})`
+  const v = `var(--pair-${PAIRS_FACES.includes(face) ? face : 'ghost'})`
   return alpha === undefined ? `rgb(${v})` : `rgb(${v} / ${alpha})`
 }
 

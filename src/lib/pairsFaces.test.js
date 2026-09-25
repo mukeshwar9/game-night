@@ -8,7 +8,7 @@ import {
 // The palette lives in src/index.css; parse it so the test guards the real values.
 const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8')
 function token(name) {
-  const m = css.match(new RegExp(`--c-${name}:\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*;`))
+  const m = css.match(new RegExp(`--${name}:\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*;`))
   return m ? m.slice(1, 4).map(Number) : null
 }
 function luminance([r, g, b]) {
@@ -49,9 +49,9 @@ describe('pairs card faces', () => {
   })
 
   it('pairsFaceColor emits a CSS var expression, falling back for unknown faces', () => {
-    expect(pairsFaceColor('frog')).toBe('rgb(var(--c-pair-frog))')
-    expect(pairsFaceColor('frog', 0.5)).toBe('rgb(var(--c-pair-frog) / 0.5)')
-    expect(pairsFaceColor('nope')).toBe('rgb(var(--c-pair-ghost))')
+    expect(pairsFaceColor('frog')).toBe('rgb(var(--pair-frog))')
+    expect(pairsFaceColor('frog', 0.5)).toBe('rgb(var(--pair-frog) / 0.5)')
+    expect(pairsFaceColor('nope')).toBe('rgb(var(--pair-ghost))')
   })
 
   it('pairsCellPosition is 1-based row/column', () => {

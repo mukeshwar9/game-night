@@ -1,5 +1,9 @@
 // Pure logic for Number Memory — number generation and round-outcome rules.
 // No DOM/Firebase/React; see NumberMemoryGame.jsx for the Firebase wiring.
+//
+// Trust model: numRound.number sits in the room node in the clear through recall — the
+// same honest-client tier as Pairs' deck (see pairsLogic.js). Hiding it after the
+// reveal stops casual peeking, not a player reading the database.
 
 export function generateNumber(level) {
   let n = String(Math.floor(Math.random() * 9) + 1)

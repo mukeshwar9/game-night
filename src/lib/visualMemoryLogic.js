@@ -1,3 +1,8 @@
+// Trust model: the pattern (vmPattern) sits in the room node in the clear, readable by
+// any signed-in client for the whole turn — the same honest-client tier as Pairs'
+// deck (see pairsLogic.js). The reveal timing and the no-replay-on-reload guard in
+// VisualMemoryBoard stop casual peeking, not a player reading the database.
+
 export const VM_START_LEVEL = 3
 // Largest grid the board ever draws (8×8). Kept for callers that need an upper bound.
 export const VM_MAX_SIDE = 8
