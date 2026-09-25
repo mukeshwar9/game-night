@@ -19,7 +19,7 @@
         },
         "chatLog": {
           "$msgId": {
-            ".validate": "newData.val() === null || (newData.hasChildren(['by','name','text','ts']) && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 80 && newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('by').val() === auth.uid && newData.child('ts').isNumber())"
+            ".validate": "newData.val() === null || (data.exists() && newData.child('by').val() === data.child('by').val() && newData.child('name').val() === data.child('name').val() && newData.child('text').val() === data.child('text').val() && newData.child('ts').val() === data.child('ts').val()) || (newData.hasChildren(['by','name','text','ts']) && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 80 && newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('by').val() === auth.uid && newData.child('ts').isNumber())"
           }
         },
         "visibility": {
