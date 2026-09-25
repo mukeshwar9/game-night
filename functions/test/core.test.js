@@ -100,7 +100,7 @@ describe('verifyRound', () => {
   })
 })
 
-describe('match rules (mirror of Game.jsx)', () => {
+describe('match rules (shared src/lib/matchRules.js)', () => {
   test('targets and match end', () => {
     assert.equal(core.matchTargetFor({ gameType: 'tictactoe' }), 3)
     assert.equal(core.matchTargetFor({ gameType: 'tron' }), 1)

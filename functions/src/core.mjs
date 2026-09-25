@@ -13,8 +13,8 @@
 //  - Every round finish is checked (verifyRound) and recorded once under its
 //    signature, so a replayed finish (status flipped back and forth with the
 //    same board and scores) is a no-op.
-//  - The finish that decides the match (isMatchOver, the same rule Game.jsx
-//    uses to call recordMatch) closes the epoch and queues ONE credit in
+//  - The finish that decides the match (isMatchOver: src/lib/matchRules.js,
+//    shared with Game.jsx's recordMatch) closes the epoch and queues ONE credit in
 //    `matches/{epoch}`. The Firebase layer applies queued credits to
 //    leaderboard/{uid}; each row remembers its last few match keys, so a
 //    retried or concurrent application never counts twice (applyCredit).
@@ -29,8 +29,9 @@ import { getReversiWinner, REVERSI_SIZE } from '../../src/lib/reversiLogic'
 import { getOrderChaosWinner, OC_CELL_COUNT } from '../../src/lib/orderChaosLogic'
 import { matchWinner2P } from '../../src/lib/nightLogic'
 import { isSeatOnline } from '../../src/lib/presenceLogic'
-import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../../src/lib/anagramsLogic'
-import { ARROWS_MATCH_TARGET, getArrowsMatchEnd } from '../../src/lib/arrowsLogic'
+import { isMatchFinish } from '../../src/lib/matchRules'
+
+export { matchTargetFor } from '../../src/lib/matchRules'
 
 // How many recent match keys a leaderboard row keeps for idempotency. A
 // credit is applied within seconds of the finish, so a handful is plenty.
@@ -75,29 +76,16 @@ export const VERIFIERS = {
 // 2P games with no winner/loser (both players share the result).
 const COOP_GAMES = new Set(['wordcoop'])
 
-// Mirrors Game.jsx's matchTargetFor/SINGLE_ROUND_GAMES: the round wins that
-// take the match. Keep in step with Game.jsx (see README "Keeping in sync").
-const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
-
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
 const other = (sym) => (sym === 'X' ? 'O' : 'X')
 const isSide = (v) => v === 'X' || v === 'O'
 
-export function matchTargetFor(room) {
-  const t = room?.gameType
-  if (t === 'pong') return num(room.matchLength) || 3
-  if (t === 'anagrams') return ANAGRAMS_MATCH_TARGET
-  if (t === 'arrows') return ARROWS_MATCH_TARGET
-  return SINGLE_ROUND_GAMES.has(t) ? 1 : 3
-}
-
-/** True when this finished room ends the match (Game.jsx's `isMatch`). */
+/**
+ * True when this finished room ends the match — src/lib/matchRules.js, the
+ * same rule Game.jsx records the match (and the night scoreboard) on.
+ */
 export function isMatchOver(room) {
-  if (!room || room.status !== 'finished') return false
-  if (room.gameType === 'password') return true
-  if (room.gameType === 'arrows' && getArrowsMatchEnd(room)) return true
-  const target = matchTargetFor(room)
-  return num(room.scores?.X) >= target || num(room.scores?.O) >= target
+  return !!room && room.status === 'finished' && isMatchFinish(room)
 }
 
 /** The match result: 'X' | 'O' | 'draw' (same rule as the night scoreboard). */

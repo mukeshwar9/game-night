@@ -46,9 +46,9 @@ import NightPanel from '../components/NightPanel'
 import { RoomSwitchContext } from '../lib/roomSwitchContext'
 import { recordNightMatch, nightSwitchUpdates, hostUidOf } from '../lib/night'
 import { rotateWinnerStays } from '../lib/nightLogic'
-import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../lib/anagramsLogic'
-import { TARGET_SCORE as PASSWORD_TARGET } from '../lib/passwordLogic'
-import { ARROWS_MATCH_TARGET, getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
+import { getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
+// Match-end rule, shared with the results Cloud Function (functions/).
+import { matchTargetFor, isMatchFinish } from '../lib/matchRules'
 
 // The reaction bar and animated emoji pull in framer-motion (~120 KB). Load
 // them only when a room first shows the bar or floats a reaction, not with
@@ -56,24 +56,10 @@ import { ARROWS_MATCH_TARGET, getArrowsMatchEnd, pickLevelId, normalizeArrowsSee
 const EmoteBar = lazyWithRetry(() => import('../components/EmoteBar'))
 const AnimatedEmoji = lazyWithRetry(() => import('../components/AnimatedEmoji'))
 
-// Real-time games where one round decides the match (page-level `matchWinner`
-// already uses scores ≥ 1; the parent's matchTarget must agree so the
-// "New Match" button supersedes "Play Again" once the round resolves).
-const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
-
 // Real-time custom arenas (M-05/M-24) — physics-driven games with their own
 // dedicated page component, square/wide viewport-hungry courts, and a live
 // score that keeps changing even while a modal hides the board.
 const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'pacmac', 'airhockey', 'paint'])
-
-// Round wins needed to take the match (shared by the win effect and the
-// round-end CTAs, which must agree).
-function matchTargetFor(game) {
-  return game.gameType === 'password' ? PASSWORD_TARGET : game.gameType === 'pong' ? (game.matchLength ?? 3)
-    : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
-    : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
-    : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
-}
 
 function toArray(val) {
   if (!val) return []
@@ -297,14 +283,9 @@ export default function Game() {
         const outcome = loser && !isSeatOnline(game.presence?.[loser]) ? 'abandoned' : 'finished'
         recordRoundEnd(game.gameType, 'multi', outcome)
       }
-      const sx = game.scores?.X || 0
-      const so = game.scores?.O || 0
-      const matchTarget = matchTargetFor(game)
-      // Arrows also ends the match on final-round completion (leader wins,
-      // level scores draw) — without this a 1–0 / 1–1 finish plays round-end
-      // audio and skips match history.
-      const arrowsOver = game.gameType === 'arrows' && !!getArrowsMatchEnd(game)
-      const isMatch = game.gameType === 'password' || sx >= matchTarget || so >= matchTarget || arrowsOver
+      // Round wins reached the target (or Password / Arrows' final round) —
+      // the same rule the results function credits the leaderboard on.
+      const isMatch = isMatchFinish(game)
       if (w === 'draw') sounds.draw()
       else if (w === mySymbol.current) (isMatch ? sounds.matchWin() : sounds.win())
       else if (mySymbol.current) sounds.lose()

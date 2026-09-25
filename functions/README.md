@@ -16,7 +16,7 @@ The trigger reads the room each time its `status` changes, and all the decisions
    - Board games in `VERIFIERS` (Tic Tac Toe and 4×4, Connect Four and Connect 5, Gomoku and Gomoku Swap, Hex, Sim, Reversi, Order & Chaos) recompute the winner from the stored board. They use the same `src/lib/*Logic.js` functions the app plays with. The placement games also check stone counts, that `lastMove` is the finishing stone on the winning line, and gravity for Connect Four.
    - If the board contradicts the claimed winner, the round is **rejected** and the whole match is tainted.
    - If the board shows no result and the loser's seat is offline or has left, the round counts as a forfeit (the CLAIM WIN path). If the loser is online, the round is not counted.
-3. **The finish that decides the match** closes the epoch. It uses the same rule as `Game.jsx`'s `isMatch`. For board games, the winner must also have enough verified rounds in the epoch to account for their score, so a score written straight to 3 does not count.
+3. **The finish that decides the match** closes the epoch. It uses `src/lib/matchRules.js`, the same module `Game.jsx` uses to decide when to record the match. For board games, the winner must also have enough verified rounds in the epoch to account for their score, so a score written straight to 3 does not count.
 4. An accepted match is queued in `results/{gameId}/matches/{epoch}`. Then each seat's `leaderboard/{uid}` row is updated in a transaction, with wins, games, streak and bestStreak. Each row keeps its last 16 match keys, so a retried or concurrent run never counts a match twice.
    - Both seats must have a profile (`profiles/{uid}` or `users/{uid}`). Otherwise the match is marked rejected and nobody is credited.
    - Name and avatar come from `profiles/{uid}`, then `users/{uid}`, then the seat.
@@ -66,5 +66,5 @@ It needs the Firebase CLI and Java, and it never touches a real project.
 
 ## Keeping in sync with the app
 
-- **`matchTargetFor` / `isMatchOver`** in `src/core.mjs` mirror `Game.jsx`'s `matchTargetFor` and `isMatch`. Change them together, or better, move them to a shared `src/lib` module (see the report's handoffs).
+- **When a match ends** comes from `src/lib/matchRules.js` (`matchTargetFor`, `isMatchFinish`), imported by both `Game.jsx` and `src/core.mjs`. Nothing needs mirroring, but a change there changes leaderboard crediting too, so rebuild and redeploy the functions along with the app.
 - **`VERIFIERS`** lists games by type. A new board game is credited on trust until it is added there, together with the flags that describe it.
