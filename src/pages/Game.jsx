@@ -1348,7 +1348,7 @@ export default function Game() {
             onKeyDown={e => e.key === 'Enter' && handleNameSubmit()}
             maxLength={20}
             aria-label="Your name"
-            className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest placeholder-retro-border rounded px-4 py-3 focus:outline-none focus:border-retro-p1 transition-colors"
+            className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest placeholder-retro-dim rounded px-4 py-3 focus:outline-none focus:border-retro-p1 transition-colors"
           />
           {nameError && (
             <p className="font-pixel text-[10px] text-retro-p2">{nameError}</p>

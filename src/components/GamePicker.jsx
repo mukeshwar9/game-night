@@ -188,7 +188,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
         onChange={e => setQuery(e.target.value)}
         placeholder={showSlashHint ? 'SEARCH GAMES… ( / )' : 'SEARCH GAMES…'}
         className="w-full min-h-11 bg-retro-card border-2 border-retro-border text-retro-text
-          font-pixel text-xs tracking-widest placeholder-retro-border rounded pl-4 pr-11 py-3
+          font-pixel text-xs tracking-widest placeholder-retro-dim rounded pl-4 pr-11 py-3
           focus:outline-none focus:border-retro-p1 transition-colors"
       />
       {query && (

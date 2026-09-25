@@ -176,7 +176,7 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
               placeholder="SAY SOMETHING…"
               aria-label="Chat message"
               className="flex-1 min-w-0 min-h-11 bg-retro-card border-2 border-retro-border text-retro-text
-                font-pixel text-xs placeholder-retro-border placeholder:text-[10px] placeholder:tracking-normal rounded px-3 py-2
+                font-pixel text-xs placeholder-retro-dim placeholder:text-[10px] placeholder:tracking-normal rounded px-3 py-2
                 focus:outline-none focus:border-retro-p1 tracking-widest transition-colors"
             />
             <button

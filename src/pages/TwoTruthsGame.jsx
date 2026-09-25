@@ -122,7 +122,7 @@ function StatementSetter({ onLock, loading }) {
                 className={cn(
                   'w-full bg-retro-card border-2 rounded px-3 py-2 resize-none',
                   'font-mono text-xs text-retro-text leading-relaxed',
-                  'placeholder-retro-border focus:outline-none transition-colors',
+                  'placeholder-retro-dim focus:outline-none transition-colors',
                   isLie ? 'border-retro-p2 focus:border-retro-p2' : 'border-retro-border focus:border-retro-p1',
                 )}
               />
