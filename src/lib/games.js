@@ -1245,7 +1245,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-11',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true, matchTarget: 3,
+    custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
   },
   {
     type: 'password', label: 'PASSWORD',
