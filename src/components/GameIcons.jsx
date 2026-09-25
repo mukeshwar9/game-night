@@ -839,6 +839,7 @@ export function YavalathIcon() {
     </svg>
   )
 }
+
 export function HeadsUpIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

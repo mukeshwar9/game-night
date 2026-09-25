@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ref, update, set as dbSet } from 'firebase/database'
+import { ref, update, set as dbSet, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
 import { freshGameState, getGameConfig, lobbySwitchOverrides, firstMoverUpdates } from '../lib/games'
@@ -8,7 +8,9 @@ import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom, recordMatch } from '../lib/profile'
-import { recordPlay } from '../lib/analytics'
+import { recordPlay, recordRoundEnd } from '../lib/analytics'
+import { setTelemetryContext } from '../lib/telemetry'
+import { isSeatOnline } from '../lib/presenceLogic'
 import LoadingLine from '@/components/loading/LoadingLine'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
@@ -26,13 +28,24 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { VideoCallReactionDock, VideoCallShell } from '../components/VideoCallLayout'
 import RulesModal, { RulesButton } from '../components/RulesModal'
+import LiveAnnouncer from '../components/LiveAnnouncer'
+import InviteJoinScreen from '../components/InviteJoinScreen'
+import WatchingChip from '../components/WatchingChip'
+import SeatOffer from '../components/SeatOffer'
+import { isMyTurn, roomAnnouncement, seatedIds, spectatorCount } from '../lib/roomLogic'
 import useRoomSession from '../hooks/room/useRoomSession'
 import useProposal from '../hooks/room/useProposal'
 import useAbandonRecovery from '../hooks/room/useAbandonRecovery'
 import useBackGuard from '../hooks/room/useBackGuard'
 import useFloats from '../hooks/room/useFloats'
 import useRoomEffect from '../hooks/room/useRoomEffect'
-import { buildSwitchUpdates, nextStarter, playersToSeatList } from '../hooks/room/roomUpdates'
+import useTurnTitle from '../hooks/room/useTurnTitle'
+import { buildSwitchUpdates, nextStarter } from '../hooks/room/roomUpdates'
+// Game-night mode: night scoreboard, winner-stays seating, host controls.
+import NightPanel from '../components/NightPanel'
+import { RoomSwitchContext } from '../lib/roomSwitchContext'
+import { recordNightMatch, nightSwitchUpdates, hostUidOf } from '../lib/night'
+import { rotateWinnerStays } from '../lib/nightLogic'
 import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../lib/anagramsLogic'
 import { TARGET_SCORE as PASSWORD_TARGET } from '../lib/passwordLogic'
 import { ARROWS_MATCH_TARGET, getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
@@ -116,7 +129,8 @@ function EmoteFloats({ floats }) {
             'absolute flex flex-col items-center gap-1',
             f.kind === 'chat'
               ? (f.seat === 'X' ? 'left-[16%]' : f.seat === 'O' ? 'right-[16%]' : 'left-1/2 -translate-x-1/2')
-              : (f.by === 'X' ? 'left-[16%]' : 'right-[16%]')
+              : f.spectator ? 'left-1/2 -translate-x-1/2'
+                : (f.by === 'X' ? 'left-[16%]' : 'right-[16%]')
           )}
           style={{ animation: 'emote-float 2s ease-out forwards' }}
         >
@@ -151,7 +165,7 @@ function EmoteFloats({ floats }) {
               {f.name && (
                 <span className={cn(
                   'font-pixel text-[8px]',
-                  f.by === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
+                  f.spectator ? 'text-retro-dim' : f.by === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
                 )}>
                   {f.name}
                 </span>
@@ -197,7 +211,8 @@ export default function Game() {
   const { gameId } = useParams()
   const navigate = useNavigate()
   const {
-    game, loading, error, errorGameType, needName, joinWithName, opponentOnline, mySeat, mySymbol,
+    game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft,
+    mySeat, mySymbol, connected, seatOffer, takeSeat,
   } = useRoomSession(gameId)
   const [creatingRoom, setCreatingRoom] = useState(false)
   const [showWinEffect, setShowWinEffect] = useState(false)
@@ -205,8 +220,6 @@ export default function Game() {
   const [winEffectIntensity, setWinEffectIntensity] = useState('round')
   const [showRules, setShowRules] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
-  const [nameInput, setNameInput] = useState('')
-  const [nameError, setNameError] = useState('')
   const prevStatus = useRef(null)
   const prevTurn = useRef(null)
   const prevFilledCount = useRef(0)
@@ -214,7 +227,12 @@ export default function Game() {
   const prevDiceTurnScore = useRef(0)
   const prevDiceRollIndex = useRef(0)
   const prevMoveCount = useRef(0)
-  const moveInFlight = useRef(false)
+  // F-48: the one unacknowledged board move (its token, 0 = none). A ref for
+  // re-entry protection inside handleMove, mirrored to state for rendering.
+  const pendingMoveRef = useRef(0)
+  const moveTokenRef = useRef(0)
+  const [movePending, setMovePending] = useState(false)
+  const [moveSlow, setMoveSlow] = useState(false)
   const blockedMoveFeedbackAt = useRef(0)
   // Lobby liveliness (waiting-room chat/switch/join cues) bookkeeping.
   const mySwitchedTo = useRef(null)
@@ -223,19 +241,44 @@ export default function Game() {
   const prevLobbyHasOpponent = useRef(false)
 
   const { floats, sendEmote, sendChat, emoteCooldown, chatCooldown } = useFloats({ game, gameId, mySymbol })
+  // Error reports (telemetry.js) carry the current gameType.
+  useEffect(() => {
+    setTelemetryContext({ gameType: game?.gameType ?? null })
+    return () => setTelemetryContext({})
+  }, [game?.gameType])
   const { showAbandonBanner, claimingWin, claimAbandonedWin } =
-    useAbandonRecovery({ game, gameId, mySymbol, opponentOnline })
+    useAbandonRecovery({ game, gameId, mySymbol, opponentOnline, opponentLeft })
   const { showLeaveConfirm, cancelLeaveMatch, confirmLeaveMatch, handleHomeLinkClick } =
     useBackGuard({ game, gameId, mySeat })
   // Per-game background protocols (registry `roomEffect`, e.g. Pig's seed).
   useRoomEffect({ game, gameId, mySymbol })
 
+  // Turn/result line for screen readers (<LiveAnnouncer>) and the background
+  // tab title — 2P rooms speak for the seat, party rooms for the uid.
+  const isPartyRoom = !!(game && getGameConfig(game.gameType).nPlayer)
+  const turnMe = isPartyRoom ? getPlayerId() : mySeat
+  const announcement = roomAnnouncement(game, { me: turnMe, party: isPartyRoom })
+  useTurnTitle(isMyTurn(game, turnMe))
+
   // Sounds + win effect — react to game state changes
   useEffect(() => {
     if (!game) return
+    // F-48: while this client's own move is unacknowledged the snapshot is
+    // only its optimistic local echo — hold the finish sound, win effect and
+    // match record (and the prev* bookkeeping) until the write settles; the
+    // effect re-runs then, or sees the rolled-back state if it was rejected.
+    if (movePending) return
     const cfg = getGameConfig(game.gameType)
 
     if (cfg.nPlayer) {
+      // Game night: count the finished party match (idempotent — see night.js).
+      if (prevStatus.current === 'playing' && game.status === 'finished') recordNightMatch(gameId, game.gameType)
+      // Play counters (analytics.js): the room's host/coordinator records each
+      // finished party round, once. (Pages that end rounds in page-local
+      // phases instead of status 'finished' record their own.)
+      if (prevStatus.current === 'playing' && game.status === 'finished' && hostUidOf(game) === getPlayerId()) {
+        recordRoundEnd(game.gameType, 'multi', 'finished')
+      }
       prevStatus.current = game.status
       return
     }
@@ -246,6 +289,14 @@ export default function Game() {
 
     if (prevStatus.current === 'playing' && game.status === 'finished') {
       const w = game.winner
+      // Play counters (analytics.js): one client records each round — the
+      // winner's (X on a draw). A finish while the loser is offline is an
+      // abandonment, which is exactly the CLAIM WIN / LEAVE path.
+      if (mySymbol.current && mySymbol.current === (w === 'draw' ? 'X' : w)) {
+        const loser = w === 'X' ? 'O' : w === 'O' ? 'X' : null
+        const outcome = loser && !isSeatOnline(game.presence?.[loser]) ? 'abandoned' : 'finished'
+        recordRoundEnd(game.gameType, 'multi', outcome)
+      }
       const sx = game.scores?.X || 0
       const so = game.scores?.O || 0
       const matchTarget = matchTargetFor(game)
@@ -260,6 +311,9 @@ export default function Game() {
       setWinEffectWinner(w)
       setWinEffectIntensity(isMatch ? 'match' : 'round')
       setShowWinEffect(true)
+      // Game night: count the decided match into tonight's standings
+      // (idempotent across every client that sees the finish — see night.js).
+      if (isMatch) recordNightMatch(gameId, game.gameType)
       if (isMatch && mySymbol.current) {
         const opSym = mySymbol.current === 'X' ? 'O' : 'X'
         recordMatch({
@@ -344,13 +398,7 @@ export default function Game() {
     prevDiceTurnScore.current = game.diceTurnScore ?? 0
     prevDiceRollIndex.current = game.diceRollIndex ?? 0
     prevMoveCount.current = cfg.moveCountKey ? (game[cfg.moveCountKey] ?? 0) : 0
-  }, [game, mySymbol])
-
-  // A fresh snapshot means React state has caught up with the last write —
-  // safe to accept the next move (see moveInFlight in handleMove).
-  useEffect(() => {
-    moveInFlight.current = false
-  }, [game])
+  }, [game, mySymbol, gameId, movePending])
 
   // Lobby liveliness — while a challenge-created lobby room (`game.lobby`)
   // sits in 'waiting', surface cues for activity that would otherwise happen
@@ -402,14 +450,26 @@ export default function Game() {
     navigator.vibrate?.(30)
   }
 
+  // F-48: a move is PENDING from the tap until Firebase acknowledges the write.
+  // The board shows the optimistic local echo straight away, but the move
+  // sound, the win effect and the round-end buttons wait for the ack; no
+  // second move is accepted meanwhile (extra-turn games included), and a
+  // stale promise can never release a newer move (token check). Offline taps
+  // are refused instead of queued — a queued write could land later on a
+  // reset or switched game.
   const handleMove = async (colOrIndex) => {
     if (!game || !mySymbol.current) return
-    if (moveInFlight.current) return // a write is pending — ignore rapid re-taps
+    if (pendingMoveRef.current) return // a write is pending — ignore rapid re-taps
     if (game.status !== 'playing') { blockedMoveFeedback(); return }
     if (game.currentTurn !== mySymbol.current) { blockedMoveFeedback(); return }
 
     const cfg = getGameConfig(game.gameType)
     if (cfg.custom) return
+    if (connected === false) {
+      toast.error("YOU'RE OFFLINE — MOVE NOT SENT")
+      navigator.vibrate?.(30)
+      return
+    }
     // Seeded dice (Pig): the deterministic roll seed must be established
     // before any roll so no client can fall back to insecure Math.random().
     // Banks are seedless.
@@ -418,65 +478,83 @@ export default function Game() {
     const index = cfg.getMoveIndex(board, colOrIndex)
     if (index === -1) return
 
-    // For Pig, precompute the deterministic die face (async) from the shared
-    // seed so applyDiceMove can stay synchronous (the demo/bot harness calls
-    // it without a face, falling back to Math.random which is fine vs a bot).
-    let movePayload = colOrIndex
-    if (cfg.rollFace) {
-      let face
-      if (colOrIndex === 'roll' && game.diceSeed) {
-        face = await cfg.rollFace(game.diceSeed, game.diceRollIndex ?? 0)
+    // Acquire before any async preparation (Pig's roll face) so a fast second
+    // tap can't compute from the pre-tap board.
+    const token = ++moveTokenRef.current
+    pendingMoveRef.current = token
+    const release = () => {
+      if (pendingMoveRef.current !== token) return
+      pendingMoveRef.current = 0
+      setMovePending(false)
+      setMoveSlow(false)
+    }
+
+    try {
+      // For Pig, precompute the deterministic die face (async) from the shared
+      // seed so applyDiceMove can stay synchronous (the demo/bot harness calls
+      // it without a face, falling back to Math.random which is fine vs a bot).
+      let movePayload = colOrIndex
+      if (cfg.rollFace) {
+        let face
+        if (colOrIndex === 'roll' && game.diceSeed) {
+          face = await cfg.rollFace(game.diceSeed, game.diceRollIndex ?? 0)
+        }
+        movePayload = { action: colOrIndex, face }
       }
-      movePayload = { action: colOrIndex, face }
-    }
 
-    let updates, result
-    if (cfg.applyMove) {
-      const applied = cfg.applyMove({ board, game, index, move: movePayload, symbol: mySymbol.current })
-      // Rejected by the game's own rules (non-flanking Reversi cell, illegal
-      // pop, …) — give the same feedback as any other blocked tap instead of
-      // silently swallowing it.
-      if (!applied) { blockedMoveFeedback(); return }
-      updates = applied.updates
-      result = applied.result
-    } else {
-      const newBoard = [...board]
-      newBoard[index] = mySymbol.current
-      result = cfg.getWinner(newBoard)
-      updates = { board: newBoard, currentTurn: mySymbol.current === 'X' ? 'O' : 'X' }
-    }
-
-    // M-47: persist the cell/edge just played so boards can render a lasting
-    // marker after the placement animation ends. Board-array games only —
-    // boardless games (dice/simon/visualmemory) have no cell grid to mark.
-    // A hook that already set its own lastMove wins.
-    if (cfg.boardSize > 0 && updates.lastMove === undefined) updates.lastMove = index
-
-    // Block re-entry until the write settles or the next snapshot lands — the
-    // turn guard above reads React state, which lags the synchronous local
-    // Firebase echo, so a fast second tap could recompute from the pre-tap board.
-    moveInFlight.current = true
-
-    const isBustMove = !!cfg.rollFace && (Array.isArray(updates.diceLast) ? updates.diceLast[0] === 1 && updates.diceLast[1] === 1 : updates.diceLast === 1)
-    if (isBustMove) {
-      sounds.bust()
-    } else {
-      sounds.move(mySymbol.current)
-    }
-
-    if (result) {
-      updates.winner = result.winner
-      updates.status = 'finished'
-      if (result.line?.length) updates.winningLine = result.line
-      if (result.winner !== 'draw') {
-        updates[`scores/${result.winner}`] = (game.scores?.[result.winner] || 0) + 1
+      let updates, result
+      if (cfg.applyMove) {
+        const applied = cfg.applyMove({ board, game, index, move: movePayload, symbol: mySymbol.current })
+        // Rejected by the game's own rules (non-flanking Reversi cell, illegal
+        // pop, …) — give the same feedback as any other blocked tap instead of
+        // silently swallowing it.
+        if (!applied) { release(); blockedMoveFeedback(); return }
+        updates = applied.updates
+        result = applied.result
+      } else {
+        const newBoard = [...board]
+        newBoard[index] = mySymbol.current
+        result = cfg.getWinner(newBoard)
+        updates = { board: newBoard, currentTurn: mySymbol.current === 'X' ? 'O' : 'X' }
       }
-    }
 
-    updates.lastActivityAt = Date.now()
-    try { await update(ref(db, `games/${gameId}`), updates) }
-    catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
-    finally { moveInFlight.current = false }
+      // M-47: persist the cell/edge just played so boards can render a lasting
+      // marker after the placement animation ends. Board-array games only —
+      // boardless games (dice/simon/visualmemory) have no cell grid to mark.
+      // A hook that already set its own lastMove wins.
+      if (cfg.boardSize > 0 && updates.lastMove === undefined) updates.lastMove = index
+
+      const isBustMove = !!cfg.rollFace && (Array.isArray(updates.diceLast) ? updates.diceLast[0] === 1 && updates.diceLast[1] === 1 : updates.diceLast === 1)
+
+      if (result) {
+        updates.winner = result.winner
+        updates.status = 'finished'
+        if (result.line?.length) updates.winningLine = result.line
+        if (result.winner !== 'draw') {
+          updates[`scores/${result.winner}`] = (game.scores?.[result.winner] || 0) + 1
+        }
+      }
+
+      updates.lastActivityAt = Date.now()
+      setMovePending(true)
+      // A slow ack gets a visible "SAVING MOVE…" line (the sound alone would
+      // otherwise just be missing).
+      const slowTimer = setTimeout(() => { if (pendingMoveRef.current === token) setMoveSlow(true) }, 1200)
+      try {
+        await update(ref(db, `games/${gameId}`), updates)
+        if (isBustMove) sounds.bust()
+        else sounds.move(mySymbol.current)
+      } catch {
+        // Firebase rolls the optimistic echo back to the server's state.
+        toast.error('MOVE NOT SAVED — CHECK CONNECTION')
+      } finally {
+        clearTimeout(slowTimer)
+        release()
+      }
+    } catch {
+      release()
+      toast.error('MOVE FAILED — TRY AGAIN')
+    }
   }
 
   // Apply functions (called directly when no second player / opponent offline)
@@ -558,6 +636,9 @@ export default function Game() {
         proposal: null,
         starter,
         ...firstMoverUpdates(game.gameType, starter),
+        // Game night: winner stays — the loser swaps out for the next player
+        // in the room's queue (no-op when nobody is waiting).
+        ...rotateWinnerStays(game, Date.now()),
         lastActivityAt: Date.now(),
       })
     } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
@@ -576,7 +657,8 @@ export default function Game() {
     // Suppresses the lobby-liveliness "opponent switched" toast for a switch
     // this client itself initiated (see the liveliness effect above).
     mySwitchedTo.current = newType
-    const updates = buildSwitchUpdates(game, newType)
+    // Game night: party <-> 2P switches reseat the room (winner stays).
+    const updates = nightSwitchUpdates(game, newType, buildSwitchUpdates(game, newType))
     try {
       await update(ref(db, `games/${gameId}`), game.status === 'waiting' ? lobbySwitchOverrides(updates) : updates)
       recordPlay(newType, 'multi')
@@ -588,13 +670,20 @@ export default function Game() {
   })
 
   // --- N-player (party game) actions ---
+  // START for party games with a registry `startRound`. A transaction that
+  // only starts a room that isn't already playing, so two clients who both
+  // believe they're the host during a handover can't double-start (the round
+  // is built from the server's copy of the room). startRound gets the room
+  // too, for its timer scale and presence.
   const handleNStart = async () => {
     const cfg = getGameConfig(game.gameType)
-    const sr = cfg.startRound ? cfg.startRound(game.players || {}) : null
-    if (!sr) return // spyfair drives its own start
+    if (!cfg.startRound) return // spyfair & co. drive their own start
     try {
-      await update(ref(db, `games/${gameId}`), {
-        status: 'playing', winner: null, ...sr, proposal: null, lastActivityAt: Date.now(),
+      await runTransaction(ref(db, `games/${gameId}`), cur => {
+        if (!cur || cur.status === 'playing' || cur.gameType !== game.gameType) return
+        const sr = cfg.startRound(cur.players || {}, cur)
+        if (!sr) return
+        return { ...cur, status: 'playing', winner: null, ...sr, proposal: null, lastActivityAt: Date.now() }
       })
     } catch { toast.error('START FAILED — CHECK CONNECTION') }
   }
@@ -653,42 +742,16 @@ export default function Game() {
     }
   }
 
-  // Feature A — name prompt for invited players
+  // Invite screen — game, host, places left, and a name that sticks
+  // (useRoomSession decides when; InviteJoinScreen renders it).
   if (needName) {
-    const handleNameSubmit = () => {
-      const trimmed = nameInput.trim()
-      if (!trimmed) { setNameError('ENTER YOUR NAME FIRST'); return }
-      joinWithName(trimmed)
-    }
-
     return (
-      <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="w-full max-w-sm space-y-6 text-center">
-          <h2 className="font-pixel text-sm text-retro-cta text-glow-cta">YOU&apos;RE INVITED!</h2>
-          <p className="font-mono text-xs text-retro-dim">
-            ROOM <span className="text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
-          </p>
-          <input
-            type="text"
-            placeholder="PLAYER ONE"
-            value={nameInput}
-            onChange={e => { setNameInput(e.target.value); setNameError('') }}
-            onKeyDown={e => e.key === 'Enter' && handleNameSubmit()}
-            maxLength={20}
-            aria-label="Your name"
-            className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest placeholder-retro-border rounded px-4 py-3 focus:outline-none focus:border-retro-p1 transition-colors"
-          />
-          {nameError && (
-            <p className="font-pixel text-[10px] text-retro-p2">{nameError}</p>
-          )}
-          <button
-            onClick={handleNameSubmit}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
-          >
-            JOIN GAME
-          </button>
-        </div>
-      </div>
+      <InviteJoinScreen
+        gameId={gameId}
+        invite={invite}
+        currentName={localStorage.getItem('playerName') || ''}
+        onJoin={joinWithName}
+      />
     )
   }
 
@@ -745,9 +808,11 @@ export default function Game() {
   if (cfg.nPlayer) {
     const myUid = getPlayerId()
     const nplayers = game.players || {}
-    const seatList = playersToSeatList(nplayers)
-    const isHost = seatList[0]?.playerId === myUid
+    // Game night: the host override (`hostUid`, TRANSFER HOST) wins while that
+    // player is here and online; otherwise the first online seat in join order.
+    const isHost = hostUidOf(game) === myUid
     const amSeated = !!nplayers[myUid]
+    const watching = spectatorCount(game.spectators, seatedIds(nplayers))
     const nProps = {
       gameId, game, mySeat: myUid, players: nplayers, isHost,
       onStart: handleNStart,
@@ -756,6 +821,7 @@ export default function Game() {
       proposal: null,
     }
     return (
+      <RoomSwitchContext.Provider value={true}>
       <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
         {showLeaveConfirm && (
           <LeaveMatchConfirm onConfirm={confirmLeaveMatch} onCancel={cancelLeaveMatch} />
@@ -764,6 +830,7 @@ export default function Game() {
           <RulesModal gameType={game.gameType} onClose={() => setShowRules(false)} />
         )}
         {floats.length > 0 && <EmoteFloats floats={floats} />}
+        <LiveAnnouncer message={announcement} />
         <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
           <div className="game-header flex items-start justify-between gap-2">
             <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">← HOME</Link>
@@ -789,6 +856,7 @@ export default function Game() {
               {cfg.badge && (
                 <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
               )}
+              <WatchingChip count={watching} />
               <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
             </div>
           </div>
@@ -797,22 +865,28 @@ export default function Game() {
             <cfg.Page {...nProps} />
           </Suspense>
 
+          {/* Game night: kicked notice, lobby timers, tonight's scoreboard, host controls */}
+          <NightPanel game={game} gameId={gameId} nPlayer />
+
           <ChatLog chatLog={game.chatLog} myUid={myUid} />
 
-          {amSeated && game.status !== 'waiting' && (
+          {/* Seated players and spectators alike can react once a round is on. */}
+          {game.status !== 'waiting' && (
             <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></Suspense></VideoCallReactionDock>
           )}
         </div>
         {showInvite && (
-          <InviteFriendModal gameId={gameId} gameType={game.gameType} onClose={() => setShowInvite(false)} />
+          <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={seatedIds(nplayers)} onClose={() => setShowInvite(false)} />
         )}
       </div></VideoCallShell>
+      </RoomSwitchContext.Provider>
     )
   }
 
   const board = isCustom ? [] : normalizeBoard(game.board, cfg.boardSize)
   const winningLine = toArray(game.winningLine)
   const isSpectator = !mySeat
+  const watching = spectatorCount(game.spectators, seatedIds(game.players))
   const opSym = mySeat === 'X' ? 'O' : 'X'
   const canMove = !isSpectator && game.status === 'playing' && game.currentTurn === mySeat
   // M-05/M-24: physics-driven arenas with their own dedicated page and a
@@ -841,6 +915,8 @@ export default function Game() {
   const reservesStickyBar = !isCustom && game.status === 'finished'
 
   return (
+    // Game night: a 2P game a party room switched into may switch back to party games.
+    <RoomSwitchContext.Provider value={!!game.partyRoom}>
     <VideoCallShell><div className={cn(
       'min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]',
       // M-05: on short/landscape viewports, real-time arenas need every
@@ -872,6 +948,7 @@ export default function Game() {
       )}
 
       {floats.length > 0 && <EmoteFloats floats={floats} />}
+      <LiveAnnouncer message={announcement} />
 
       <div className={cn(
         'w-full',
@@ -918,6 +995,7 @@ export default function Game() {
             {cfg.badge && (
               <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
             )}
+            <WatchingChip count={watching} />
             <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
           </div>
         </div>
@@ -961,7 +1039,7 @@ export default function Game() {
         {!isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
           <div className="border-2 border-retro-p2/50 bg-retro-card rounded p-3 text-center space-y-2">
             <p className="font-pixel text-[10px] text-retro-p2 leading-relaxed">
-              OPPONENT&apos;S BEEN GONE A WHILE
+              {opponentLeft ? 'OPPONENT LEFT THE MATCH' : 'OPPONENT\'S BEEN GONE A WHILE'}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               <button
@@ -1006,6 +1084,9 @@ export default function Game() {
           </div>
         )}
 
+        {/* A 2P seat freed up in the lobby — offer it to a spectator. */}
+        {seatOffer && <SeatOffer onTakeSeat={takeSeat} />}
+
         {/* Game area */}
         {game.status === 'waiting' ? (
           <WaitingRoom gameId={gameId} gameType={game.gameType} game={game} mySymbol={mySeat} onSwitch={applySwitchGame} opponentOnline={opponentOnline} />
@@ -1027,7 +1108,7 @@ export default function Game() {
             <cfg.BoardComponent
               board={board}
               onMove={handleMove}
-              disabled={!canMove || (!!cfg.rollFace && !game.diceSeed)}
+              disabled={!canMove || movePending || (!!cfg.rollFace && !game.diceSeed)}
               winningLine={winningLine}
               currentTurn={game.currentTurn}
               lastMove={game.lastMove ?? null}
@@ -1045,10 +1126,16 @@ export default function Game() {
               gameType={game.gameType}
               extraTurn={!!game.extraTurn}
               passNote={game.passNote ?? null}
-              onPlayAgain={game.status === 'finished' && !isSpectator && !matchWinner && !activeProposal ? () => propose('playAgain') : null}
-              onNewMatch={matchWinner && !isSpectator && !activeProposal ? () => propose('newMatch') : null}
-              onSwitchGame={!isSpectator && !activeProposal ? (t) => propose('switch', t) : null}
+              onPlayAgain={game.status === 'finished' && !isSpectator && !matchWinner && !activeProposal && !movePending ? () => propose('playAgain') : null}
+              onNewMatch={matchWinner && !isSpectator && !activeProposal && !movePending ? () => propose('newMatch') : null}
+              onSwitchGame={!isSpectator && !activeProposal && !movePending ? (t) => propose('switch', t) : null}
             />
+            {/* F-48: an unacknowledged move, once it's taking a while. */}
+            {movePending && (moveSlow || connected === false) && (
+              <p role="status" className="text-center font-pixel text-[9px] text-retro-dim tracking-wider">
+                {connected === false ? 'MOVE PENDING — WAITING FOR CONNECTION' : 'SAVING MOVE…'}
+              </p>
+            )}
             {game.status === 'finished' && (
               <Link
                 to="/leaderboard"
@@ -1059,6 +1146,9 @@ export default function Game() {
             )}
           </Suspense>
         )}
+
+        {/* Game night: winner-stays line, kicked notice, tonight's scoreboard between games, host controls */}
+        <NightPanel game={game} gameId={gameId} nPlayer={false} />
 
         {!isCustom && isSpectator && (game.status === 'playing' || game.status === 'finished') && (
           <div className="flex flex-col items-center gap-2">
@@ -1084,8 +1174,9 @@ export default function Game() {
         )}
       </div>
       {showInvite && (
-        <InviteFriendModal gameId={gameId} gameType={game.gameType} onClose={() => setShowInvite(false)} />
+        <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={seatedIds(game.players)} onClose={() => setShowInvite(false)} />
       )}
     </div></VideoCallShell>
+    </RoomSwitchContext.Provider>
   )
 }

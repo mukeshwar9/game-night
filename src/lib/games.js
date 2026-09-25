@@ -114,6 +114,7 @@ import {
   getPairsWinner,
 } from './pairsLogic'
 import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
+import { scaledMs } from './timerScale'
 import { ANSWER_MS as HERD_ANSWER_MS } from './herdLogic'
 import {
   INITIAL_PITS,
@@ -1401,9 +1402,14 @@ export const GAME_TYPES = [
     durationMin: 10, tags: ['thinky'],
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/SketchGame')),
-    startRound: (players) => {
-      const order = seatOrderSketch(players)
+    // `game` (the room) is passed by Game.jsx's START: offline seats are left
+    // out of the drawing order, and the first choose window follows the
+    // room's timer scale (null = timers off, the coordinator advances).
+    startRound: (players, game) => {
+      const online = Object.fromEntries(Object.entries(players || {}).filter(([, p]) => p?.online !== false))
+      const order = seatOrderSketch(Object.keys(online).length ? online : players)
       const startedAt = Date.now()
+      const chooseMs = scaledMs(SKETCH_CHOOSE_MS, game?.timerScale)
       return {
         round: {
           phase: 'choosing',
@@ -1412,7 +1418,7 @@ export const GAME_TYPES = [
           order,
           used: [],
           matchSeed: `${startedAt}:${Math.random().toString(36).slice(2)}`,
-          endsAt: startedAt + SKETCH_CHOOSE_MS,
+          endsAt: chooseMs == null ? null : startedAt + chooseMs,
         },
       }
     },
@@ -1538,6 +1544,7 @@ const FIELD_NULLS = {
   diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceLast: null,
   diceRolls: null, diceRollIndex: null,
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
+  diceSeedCommitter: null, diceSeedResets: null, // Pig seed-loss recovery (pigSeedProtocol.js)
   bluffRound: null,
   pongScoreX: null, pongScoreO: null, signaling: null, matchLength: null,
   arrowsRound: null, arrowsLevel: null, arrowsCleared: null,
@@ -1594,6 +1601,13 @@ const FIELD_NULLS = {
   quartoUnplaced: null, quartoPending: null,
   // Santorini worker positions (heights live in `board`).
   santoriniWorkers: null,
+  // Game-night mode (src/lib/nightLogic.js): the finished match already
+  // counted into `night`, and players the host removed for this match. Both
+  // reset with every fresh round/match/switch. Room-level night keys —
+  // `night`, `queue`, `partyRoom`, `hostUid`, `locked`, `timerScale` — are
+  // deliberately NOT here: they survive switches and NEW MATCH.
+  nightMark: null,
+  kicked: null,
 }
 
 export function freshGameState(gameType, previous = null) {
@@ -1705,7 +1719,8 @@ export function freshGameState(gameType, previous = null) {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: 'X',
       diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null,
       diceRolls: [], diceRollIndex: 0,
-      diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null }
+      diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
+      diceSeedCommitter: null, diceSeedResets: null }
   }
   if (gameType === 'battleship') {
     // currentTurn null — the page drives its own shot sounds (hangwoman
