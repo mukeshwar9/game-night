@@ -1,13 +1,14 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
-import { ref, update, onValue, runTransaction } from 'firebase/database'
+import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
-import { commit as makeCommit } from '../lib/commit'
+import { commit as makeCommit, verifyReveal } from '../lib/commit'
 import {
-  compareResults, isValidGuess, getKeyboardState, MAX_GUESSES, WORD_LENGTH, MATCH_WINS,
+  compareResults, getKeyboardState, MAX_GUESSES, WORD_LENGTH, MATCH_WINS,
   verifyOpponentRound, verifyGradedBoard, decideDuelRound,
   applyGrading, applyDuelGuess, applySelfDone, nextDuelRound, normalizeGuessList,
+  guessProblem, secretWordProblem, getFinishGraceEndsAt, applyFinishTimeout,
+  DUEL_FINISH_GRACE_MS,
 } from '../lib/wordduelLogic'
-import { verifyReveal } from '../lib/commit'
 import { sounds } from '../lib/sounds'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
@@ -17,17 +18,23 @@ import { shareResult } from '@/lib/shareCard'
 import PixelDots from '@/components/loading/PixelDots'
 import OfflineNotice from '@/components/loading/OfflineNotice'
 import useBusy from '@/hooks/useBusy'
+import useServerClock from '@/hooks/useServerClock'
 import MarkTile from '@/components/MarkTile'
 import WordKeyboard from '@/components/WordKeyboard'
+import RoundTimer from '@/components/RoundTimer'
+import WordFeedback from '@/components/WordFeedback'
+import MatchScoreRail from '@/components/MatchScoreRail'
 import { toast } from 'sonner'
 
 const STORAGE_PREFIX = 'wordduel-word-'
 // A setter who never commits, or an opponent whose tab closed leaving a guess
 // ungraded forever, would otherwise stall the round indefinitely — grace
 // periods below back a claim/skip escape hatch (pattern: BattleshipGame's
-// REVEAL_GRACE_MS / SHOT_GRACE_MS).
+// REVEAL_GRACE_MS / SHOT_GRACE_MS). Once one board is finished, the other
+// side gets DUEL_FINISH_GRACE_MS (wordduelLogic) before time is called.
 const SETTING_DEADLINE_MS = 120000
 const GRADE_GRACE_MS = 60000
+const MATCH_TARGET = getGameConfig('wordduel')?.matchTarget || MATCH_WINS
 
 function storageKey(gameId, symbol) {
   return `${STORAGE_PREFIX}${gameId}-${symbol}`
@@ -50,6 +57,8 @@ function setStoredWord(gameId, symbol, data) {
 
 const normalizeGuesses = normalizeGuessList
 
+// `ghostMode` shows marks only (glyph tiles, no letters): the opponent's board
+// while you play, and both boards for spectators until the reveal.
 function GameBoard({ guesses, ghostMode, label }) {
   const rows = []
   for (let r = 0; r < MAX_GUESSES; r++) {
@@ -74,7 +83,7 @@ function GameBoard({ guesses, ghostMode, label }) {
 // Word input for setting phase
 function WordInput({ value }) {
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-2" aria-label={`Your word: ${value || 'empty'}`}>
       <div className="flex gap-1.5">
         {Array.from({ length: WORD_LENGTH }).map((_, i) => (
           <div
@@ -108,20 +117,62 @@ function ShareButton({ onClick, busy }) {
   )
 }
 
+function ClaimBox({ message, onClick, busy, label = 'CLAIM ROUND' }) {
+  return (
+    <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3 mt-1">
+      <p className="text-xs text-retro-dim">{message}</p>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={busy}
+        className="min-h-11 px-6 py-2.5 border-2 border-retro-p2 text-retro-p2 font-bold text-xs uppercase rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+      >
+        {busy ? 'CLAIMING…' : label}
+      </button>
+    </div>
+  )
+}
+
+// Why the round ended the way it did, from the result + done states.
+function resultExplanation({ result, mySymbol, doneMine, doneOpp }) {
+  if (!result) return null
+  const iWon = result.winner === mySymbol
+  if (result.reason === 'stall') {
+    if (result.stall === 'setting') {
+      return iWon
+        ? 'Your opponent never locked in a word, so the round is yours.'
+        : "You didn't lock in a word in time, so the round went to your opponent."
+    }
+    return iWon
+      ? "Your opponent's game stopped grading your guesses, so the round is yours."
+      : "Your game couldn't grade your opponent's guesses in time, so the round went to them."
+  }
+  if (result.reason === 'cheat') {
+    return iWon
+      ? "Your opponent's word or grading didn't check out — you win by forfeit."
+      : 'Your board failed verification — round forfeited.'
+  }
+  if (doneOpp?.timedOut) return iWon ? 'Your opponent ran out of time.' : 'Time ran out.'
+  if (doneMine?.timedOut) return 'You ran out of time.'
+  if (result.winner === 'draw') return doneMine?.solved ? 'Same guesses, same time.' : 'Neither word was cracked.'
+  if (doneMine?.solved && doneOpp?.solved && doneMine.guesses === doneOpp.guesses) {
+    return iWon ? 'Same number of guesses — you were faster.' : 'Same number of guesses — they were faster.'
+  }
+  return null
+}
+
 export default function WordDuelGame({
   gameId, game, mySymbol, opponentOnline, onSwitchGame, onNewMatch, proposal,
 }) {
   // ── ALL HOOKS FIRST ──
 
   const [settingWord, setSettingWord] = useState('')
-  const [settingError, setSettingError] = useState('')
-  const [lockingWord, setLockingWord] = useState(false)
+  const [settingFeedback, setSettingFeedback] = useState(null)
   const [currentGuess, setCurrentGuess] = useState('')
+  const [guessFeedback, setGuessFeedback] = useState(null)
   const [cheatDetected, setCheatDetected] = useState(false)
   const [verifyStatus, setVerifyStatus] = useState(null)
   const [localResult, setLocalResult] = useState(null)
-  const [clockOffset, setClockOffset] = useState(0)
-  const [nowTs, setNowTs] = useState(() => Date.now())
 
   // Per-round client state. The page is not remounted between rounds
   // (Game.jsx keys it on gameType), so everything below is reset whenever the
@@ -130,10 +181,12 @@ export default function WordDuelGame({
   const verifiedRef = useRef(false)
   const gradingRef = useRef(false)
   const selfDoneRef = useRef(false)
+  const autoTimeoutRef = useRef(false)
   const roundKeyRef = useRef('')
   const [gradeRetry, setGradeRetry] = useState(0)
 
   const [sharing, runShare] = useBusy()
+  const [locking, runLock] = useBusy()
   const [guessBusy, runGuess] = useBusy()
   const [actionBusy, runAction] = useBusy()
 
@@ -144,6 +197,7 @@ export default function WordDuelGame({
   const roundKey = `${roundNum}:${phase === 'setting' ? 'setting' : 'live'}`
   const opponentSymbol = mySymbol === 'X' ? 'O' : 'X'
   const isSpectator = !mySymbol
+  const matchOver = game?.status === 'finished'
 
   const commits = useMemo(() => round.commits || {}, [round])
   const reveal = useMemo(() => round.reveal || {}, [round])
@@ -168,7 +222,7 @@ export default function WordDuelGame({
   const bothCommitted = myCommit && oppCommit
   const bothRevealed = reveal.X && reveal.O
   const bothDone = myDone && oppDone
-  const matchWinner = allScores.X >= MATCH_WINS ? 'X' : allScores.O >= MATCH_WINS ? 'O' : null
+  const matchWinner = allScores.X >= MATCH_TARGET ? 'X' : allScores.O >= MATCH_TARGET ? 'O' : null
 
   const keyboardState = getKeyboardState(myGuesses)
 
@@ -179,9 +233,10 @@ export default function WordDuelGame({
     setVerifyStatus(null)
     setLocalResult(null)
     setCurrentGuess('')
+    setGuessFeedback(null)
     if (phase === 'setting') {
       setSettingWord('')
-      setSettingError('')
+      setSettingFeedback(null)
     }
   }
   useEffect(() => {
@@ -189,118 +244,107 @@ export default function WordDuelGame({
     verifiedRef.current = false
     gradingRef.current = false
     selfDoneRef.current = false
+    autoTimeoutRef.current = false
   }, [roundKey])
 
-  // Corrected clock — every deadline comparison below runs through this offset.
-  useEffect(() => {
-    const offRef = ref(db, '.info/serverTimeOffset')
-    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
-    return () => unsub()
-  }, [])
-  const serverNow = nowTs + clockOffset
-
-  // Ticker drives the stall-deadline countdowns while a round is in progress.
-  useEffect(() => {
-    if (phase !== 'setting' && phase !== 'guessing') return
-    const id = setInterval(() => setNowTs(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [phase])
+  // Server-corrected clock: `now` for rendering countdowns, `serverNow()` for
+  // stamps written to Firebase and deadline checks inside transactions.
+  const { now, serverNow } = useServerClock({
+    tickMs: 500,
+    ticking: !matchOver && (phase === 'setting' || phase === 'guessing'),
+  })
 
   // Setting-phase deadline: anchor the phase start so every client agrees on
   // when the 120s clock began (first client to notice writes it).
   useEffect(() => {
-    if (isSpectator || phase !== 'setting' || round.settingStartedAt) return
-    update(ref(db, `games/${gameId}/round`), { settingStartedAt: Date.now() + clockOffset }).catch(() => {})
-  }, [isSpectator, phase, round.settingStartedAt, gameId, clockOffset])
+    if (isSpectator || matchOver || phase !== 'setting' || round.settingStartedAt) return
+    update(ref(db, `games/${gameId}/round`), { settingStartedAt: serverNow() }).catch(() => {})
+  }, [isSpectator, matchOver, phase, round.settingStartedAt, gameId, serverNow])
 
+  const settingEndsAt = round.settingStartedAt ? round.settingStartedAt + SETTING_DEADLINE_MS : null
   const settingStalled = !isSpectator && phase === 'setting' && !!myCommit && !oppCommit &&
-    !!round.settingStartedAt && (serverNow - round.settingStartedAt >= SETTING_DEADLINE_MS)
+    !!settingEndsAt && now >= settingEndsAt
 
-  const handleClaimSettingStall = useCallback(async () => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || !current.round) return
-        const r = current.round
-        if (r.phase !== 'setting' || r.result) return
-        const commits = r.commits || {}
-        if (!commits[mySymbol] || commits[opponentSymbol]) return
-        if (!r.settingStartedAt || Date.now() + clockOffset - r.settingStartedAt < SETTING_DEADLINE_MS) return
-        const newScores = { ...(current.scores || { X: 0, O: 0 }) }
-        newScores[mySymbol] = (newScores[mySymbol] || 0) + 1
-        const matchOver = newScores[mySymbol] >= MATCH_WINS
-        return {
-          ...current,
-          scores: newScores,
-          status: matchOver ? 'finished' : current.status,
-          winner: matchOver ? mySymbol : current.winner,
-          round: { phase: 'reveal', roundNum: r.roundNum || 1, result: { winner: mySymbol, reason: 'stall' } },
-        }
-      })
-    } catch { toast.error('CLAIM FAILED — CHECK CONNECTION') }
-  }, [gameId, mySymbol, opponentSymbol, clockOffset])
+  const handleClaimSettingStall = () => runAction(async () => {
+    await runTransaction(ref(db, `games/${gameId}`), current => {
+      if (!current || !current.round || current.status !== 'playing') return
+      const r = current.round
+      if (r.phase !== 'setting' || r.result) return
+      const commits = r.commits || {}
+      if (!commits[mySymbol] || commits[opponentSymbol]) return
+      if (!r.settingStartedAt || serverNow() - r.settingStartedAt < SETTING_DEADLINE_MS) return
+      const newScores = { ...(current.scores || { X: 0, O: 0 }) }
+      newScores[mySymbol] = (newScores[mySymbol] || 0) + 1
+      const over = newScores[mySymbol] >= MATCH_TARGET
+      return {
+        ...current,
+        scores: newScores,
+        status: over ? 'finished' : current.status,
+        winner: over ? mySymbol : current.winner ?? null,
+        round: { phase: 'reveal', roundNum: r.roundNum || 1, result: { winner: mySymbol, reason: 'stall', stall: 'setting' } },
+      }
+    })
+  }, () => toast.error('CLAIM FAILED — CHECK CONNECTION'))
 
   // Grading stall: my own guesses can only be graded by the opponent's client
   // (it alone holds their secret word). If their tab closed, the guess sits
   // ungraded forever — let me claim the round after a grace period instead.
   const myPendingGuess = myGuesses.find(g => g && g.word && !g.marks)
   const gradeStalled = !isSpectator && phase === 'guessing' && !myDone &&
-    !!myPendingGuess?.at && (serverNow - myPendingGuess.at >= GRADE_GRACE_MS)
+    !!myPendingGuess?.at && (now - myPendingGuess.at >= GRADE_GRACE_MS)
 
-  const handleClaimGradeStall = useCallback(async () => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || !current.round) return
-        const r = current.round
-        if (r.phase !== 'guessing' || r.result) return
-        const mine = normalizeGuesses(r[`guesses${mySymbol}`])
-        const pending = mine.find(g => g && g.word && !g.marks)
-        if (!pending || !pending.at || Date.now() + clockOffset - pending.at < GRADE_GRACE_MS) return
-        const newScores = { ...(current.scores || { X: 0, O: 0 }) }
-        newScores[mySymbol] = (newScores[mySymbol] || 0) + 1
-        const matchOver = newScores[mySymbol] >= MATCH_WINS
-        return {
-          ...current,
-          scores: newScores,
-          status: matchOver ? 'finished' : current.status,
-          winner: matchOver ? mySymbol : current.winner,
-          round: { ...r, phase: 'reveal', result: { winner: mySymbol, reason: 'stall' } },
-        }
-      })
-    } catch { toast.error('CLAIM FAILED — CHECK CONNECTION') }
-  }, [gameId, mySymbol, clockOffset])
+  const handleClaimGradeStall = () => runAction(async () => {
+    await runTransaction(ref(db, `games/${gameId}`), current => {
+      if (!current || !current.round || current.status !== 'playing') return
+      const r = current.round
+      if (r.phase !== 'guessing' || r.result) return
+      const mine = normalizeGuesses(r[`guesses${mySymbol}`])
+      const pending = mine.find(g => g && g.word && !g.marks)
+      if (!pending || !pending.at || serverNow() - pending.at < GRADE_GRACE_MS) return
+      const newScores = { ...(current.scores || { X: 0, O: 0 }) }
+      newScores[mySymbol] = (newScores[mySymbol] || 0) + 1
+      const over = newScores[mySymbol] >= MATCH_TARGET
+      return {
+        ...current,
+        scores: newScores,
+        status: over ? 'finished' : current.status,
+        winner: over ? mySymbol : current.winner ?? null,
+        round: { ...r, phase: 'reveal', result: { winner: mySymbol, reason: 'stall', stall: 'grading' } },
+      }
+    })
+  }, () => toast.error('CLAIM FAILED — CHECK CONNECTION'))
 
   // ── Setting Phase: commit word ──
-  const handleSetWord = useCallback(async () => {
+  const handleSetWord = () => {
     const word = settingWord.toUpperCase()
-    if (word.length !== WORD_LENGTH) {
-      setSettingError('Word must be 5 letters')
+    const problem = secretWordProblem(word)
+    if (problem) {
+      sounds.miss?.()
+      setSettingFeedback(prev => ({ message: problem, id: (prev?.id || 0) + 1 }))
       return
     }
-    if (!isValidGuess(word)) {
-      setSettingError('Not in word list')
-      return
-    }
-    setSettingError('')
-    setLockingWord(true)
-    try {
+    setSettingFeedback(null)
+    runLock(async () => {
       const { hash, salt } = await makeCommit(word)
       setStoredWord(gameId, mySymbol, { word, salt, hash })
       await update(ref(db, `games/${gameId}/round/commits`), {
         [mySymbol]: hash,
       })
-    } catch { setSettingError('Failed to lock in. Try again.') }
-    setLockingWord(false)
-  }, [settingWord, gameId, mySymbol])
+    }, () => {
+      setSettingFeedback(prev => ({ message: 'COULD NOT LOCK IN — TRY AGAIN', id: (prev?.id || 0) + 1 }))
+      toast.error('LOCK IN FAILED — CHECK CONNECTION')
+    })
+  }
 
   // When both commits land, advance to guessing
   useEffect(() => {
-    if (!isSpectator && phase === 'setting' && bothCommitted) {
+    if (!isSpectator && !matchOver && phase === 'setting' && bothCommitted) {
       update(ref(db, `games/${gameId}/round`), {
         phase: 'guessing',
-        startedAt: startedAt || Date.now() + clockOffset,
+        startedAt: startedAt || serverNow(),
       }).catch(() => {})
     }
-  }, [phase, bothCommitted, isSpectator, gameId, startedAt, clockOffset])
+  }, [phase, bothCommitted, isSpectator, matchOver, gameId, startedAt, serverNow])
 
   // ──── Grading ────
   // Only my client knows my word, so it grades the opponent's guesses. Marks
@@ -323,9 +367,9 @@ export default function WordDuelGame({
     }
     runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.commits?.[mySymbol] !== myCommit) return
-      return applyGrading(current, { guesser: opponentSymbol, word, now: Date.now() + clockOffset }) ?? undefined
+      return applyGrading(current, { guesser: opponentSymbol, word, now: serverNow() }) ?? undefined
     }).then(() => release(0), () => release(1500))
-  }, [oppNeedsGrading, stored, myCommit, phase, isSpectator, gameId, mySymbol, opponentSymbol, clockOffset, gradeRetry])
+  }, [oppNeedsGrading, stored, myCommit, phase, isSpectator, gameId, mySymbol, opponentSymbol, serverNow, gradeRetry])
 
   // Fallback for a grader on an older client (marks without done): record my
   // own done from graded marks only — the same value the grader would write.
@@ -337,15 +381,36 @@ export default function WordDuelGame({
     const id = setTimeout(() => {
       runTransaction(ref(db, `games/${gameId}/round`), current => {
         if (!current) return
-        return applySelfDone(current, { player: mySymbol, now: Date.now() + clockOffset }) ?? undefined
+        return applySelfDone(current, { player: mySymbol, now: serverNow() }) ?? undefined
       }).catch(() => { selfDoneRef.current = false })
     }, 2000)
     return () => { clearTimeout(id); selfDoneRef.current = false }
-  }, [myBoardFinished, phase, isSpectator, gameId, mySymbol, clockOffset])
+  }, [myBoardFinished, phase, isSpectator, gameId, mySymbol, serverNow])
+
+  // ──── Finish grace: once one board is done, the other has a visible clock.
+  // At expiry the finished player's client calls time (auto, with a button as
+  // a fallback). It grades any pending guess first, so a last-second solve
+  // still counts; otherwise the unfinished board is recorded as a fail.
+  const graceEndsAt = phase === 'guessing' ? getFinishGraceEndsAt(round) : null
+  const graceExpired = !!graceEndsAt && now >= graceEndsAt
+  const canCallTime = !isSpectator && !matchOver && phase === 'guessing' && !!myDone && !oppDone && graceExpired
+
+  const handleCallTime = useCallback(() => runAction(async () => {
+    await runTransaction(ref(db, `games/${gameId}/round`), current => {
+      if (!current || current.commits?.[mySymbol] !== myCommit) return
+      return applyFinishTimeout(current, { claimer: mySymbol, word: stored?.word, now: serverNow() }) ?? undefined
+    })
+  }, () => toast.error('CLAIM FAILED — CHECK CONNECTION')), [runAction, gameId, mySymbol, myCommit, stored, serverNow])
+
+  useEffect(() => {
+    if (!canCallTime || autoTimeoutRef.current) return
+    autoTimeoutRef.current = true
+    handleCallTime()
+  }, [canCallTime, handleCallTime])
 
   // Auto-advance to reveal when both done
   useEffect(() => {
-    if (isSpectator || phase !== 'guessing') return
+    if (isSpectator || matchOver || phase !== 'guessing') return
     if (bothDone && !bothRevealed) {
       const myReveal = stored ? { word: stored.word, salt: stored.salt } : null
       if (!myReveal) {
@@ -354,16 +419,16 @@ export default function WordDuelGame({
         // with both done but bothRevealed false forever.
         runTransaction(ref(db, `games/${gameId}`), current => {
           const r = current?.round
-          if (!current || !r || r.phase !== 'guessing' || r.result) return
+          if (!current || current.status !== 'playing' || !r || r.phase !== 'guessing' || r.result) return
           if (!(r.doneX && r.doneO)) return
           const winner = compareResults(r.doneX, r.doneO)
           if (!winner) return
-          const next = { ...current, round: { ...r, phase: 'reveal', result: { winner, reason: 'solved' } }, lastActivityAt: Date.now() }
+          const next = { ...current, round: { ...r, phase: 'reveal', result: { winner, reason: 'solved' } }, lastActivityAt: serverNow() }
           if (winner !== 'draw') {
             const scores = { ...(current.scores || { X: 0, O: 0 }) }
-            scores[winner] += 1
+            scores[winner] = (scores[winner] || 0) + 1
             next.scores = scores
-            if (scores[winner] >= MATCH_WINS) {
+            if (scores[winner] >= MATCH_TARGET) {
               next.status = 'finished'
               next.winner = winner
             }
@@ -377,15 +442,15 @@ export default function WordDuelGame({
         ['reveal/' + mySymbol]: myReveal,
       }).catch(() => {})
     }
-  }, [bothDone, bothRevealed, phase, isSpectator, gameId, mySymbol, stored])
+  }, [bothDone, bothRevealed, phase, isSpectator, matchOver, gameId, mySymbol, stored, serverNow])
 
   // Write the round result (+ bump the winner's score, ending the match at
-  // MATCH_WINS) via a transaction guarded on `round.result` so two clients
-  // racing to resolve the same round can't double-score.
+  // the registry's matchTarget) via a transaction guarded on `round.result` so
+  // two clients racing to resolve the same round can't double-score.
   const writeRoundResult = useCallback(async (winner, reason, forRound) => {
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || !current.round || current.round.result) return
+        if (!current || !current.round || current.round.result || current.status !== 'playing') return
         // A verification that finishes after the room moved on must not
         // write into the next round.
         if (current.round.phase !== 'reveal' || (Number(current.round.roundNum) || 1) !== forRound) return
@@ -394,14 +459,14 @@ export default function WordDuelGame({
           const newScores = { ...(current.scores || { X: 0, O: 0 }) }
           newScores[winner] = (newScores[winner] || 0) + 1
           next.scores = newScores
-          if (newScores[winner] >= MATCH_WINS) {
+          if (newScores[winner] >= MATCH_TARGET) {
             next.status = 'finished'
             next.winner = winner
           }
         }
         return next
       })
-    } catch { /* another client will retry / resolve */ }
+    } catch { /* the other client resolves the same round */ }
   }, [gameId])
 
   // ──── Reveal Phase: verify ────
@@ -410,7 +475,7 @@ export default function WordDuelGame({
   // against theirs. The round is decided from the verified boards, not the
   // recorded done states.
   useEffect(() => {
-    if (phase !== 'reveal' || !reveal || verifiedRef.current) return
+    if (phase !== 'reveal' || !reveal || verifiedRef.current || matchOver) return
     const oppReveal = reveal[opponentSymbol]
     if (!oppReveal || !oppCommit) return
 
@@ -437,12 +502,10 @@ export default function WordDuelGame({
         // My own word failing its commitment is on me; anything else means the
         // opponent's grading or board was tampered with.
         const winner = myCommitOk ? mySymbol : opponentSymbol
-        if (roundKeyRef.current !== key) return
         await writeRoundResult(winner, 'cheat', roundNum)
         return
       }
 
-      if (roundKeyRef.current !== key) return
       setVerifyStatus({ ok: true })
       const myVerified = oppCheck.done
       const oppVerified = ownCheck.done || oppDone
@@ -451,58 +514,74 @@ export default function WordDuelGame({
         ? decideDuelRound(myVerified, oppVerified)
         : decideDuelRound(oppVerified, myVerified)
       setLocalResult(winner ? { winner, reason: 'solved' } : null)
-      if (winner) {
-        sounds[winner === 'draw' ? 'draw' : winner === mySymbol ? 'win' : 'lose']?.()
-      }
       if (!result) {
         await writeRoundResult(winner || 'draw', 'solved', roundNum)
       }
     })()
-  }, [phase, reveal, oppCommit, oppGuesses, myGuesses, mySymbol, opponentSymbol, myDone, oppDone, commits, result, writeRoundResult, roundNum, stored])
+  }, [phase, reveal, oppCommit, oppGuesses, myGuesses, mySymbol, opponentSymbol, myDone, oppDone, commits, result, writeRoundResult, roundNum, stored, matchOver])
+
+  // Round-result sound, once per round, from the written result. The match-
+  // deciding round flips status to 'finished' and Game.jsx plays the match
+  // fanfare — don't double it here.
+  const resultSig = result ? `${roundNum}:${result.winner}:${result.reason}` : ''
+  const playedResultRef = useRef(resultSig)
+  useEffect(() => {
+    if (!resultSig || playedResultRef.current === resultSig) return
+    playedResultRef.current = resultSig
+    if (isSpectator || matchOver) return
+    const w = result.winner
+    sounds[w === 'draw' ? 'draw' : w === mySymbol ? 'win' : 'lose']?.()
+  }, [resultSig, result, isSpectator, matchOver, mySymbol])
 
   // ──── Handle keypress ────
   const boardFull = myGuesses.length >= MAX_GUESSES || myGuesses.some(g => g?.marks === 'GGGGG')
   const submitGuess = useCallback((word) => runGuess(async () => {
     const res = await runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current) return
-      return applyDuelGuess(current, { player: mySymbol, word, at: Date.now() + clockOffset }) ?? undefined
+      return applyDuelGuess(current, { player: mySymbol, word, at: serverNow() }) ?? undefined
     })
     if (res.committed) {
       sounds.move?.(mySymbol)
       setCurrentGuess('')
     }
-  }, () => toast.error('GUESS FAILED — CHECK CONNECTION')), [runGuess, gameId, mySymbol, clockOffset])
+  }, () => toast.error('GUESS FAILED — CHECK CONNECTION')), [runGuess, gameId, mySymbol, serverNow])
 
   const handleKey = useCallback((key) => {
-    if (myDone || phase !== 'guessing' || isSpectator || guessBusy) return
+    if (matchOver || myDone || phase !== 'guessing' || isSpectator || guessBusy) return
     // Six guesses (or a solve) end the board — never write a 7th.
     if (boardFull) return
 
     if (key === 'ENTER') {
       const word = currentGuess.toUpperCase()
-      if (word.length !== WORD_LENGTH) return
-      if (!isValidGuess(word)) {
+      const problem = guessProblem(word)
+      if (problem) {
         sounds.miss?.()
+        setGuessFeedback(prev => ({ message: problem, id: (prev?.id || 0) + 1 }))
         return
       }
+      setGuessFeedback(null)
       submitGuess(word)
     } else if (key === 'BACK') {
       setCurrentGuess(prev => prev.slice(0, -1))
+      setGuessFeedback(null)
     } else if (currentGuess.length < WORD_LENGTH) {
       setCurrentGuess(prev => prev + key.toUpperCase())
+      setGuessFeedback(null)
     }
-  }, [currentGuess, myDone, phase, isSpectator, guessBusy, boardFull, submitGuess])
+  }, [currentGuess, matchOver, myDone, phase, isSpectator, guessBusy, boardFull, submitGuess])
 
-  const handleSettingKey = useCallback((key) => {
-    if (phase !== 'setting' || !!myCommit) return
+  const handleSettingKey = (key) => {
+    if (matchOver || phase !== 'setting' || !!myCommit || locking) return
     if (key === 'ENTER') {
       handleSetWord()
     } else if (key === 'BACK') {
       setSettingWord(prev => prev.slice(0, -1))
+      setSettingFeedback(null)
     } else if (settingWord.length < WORD_LENGTH && /^[A-Z]$/.test(key)) {
       setSettingWord(prev => prev + key)
+      setSettingFeedback(null)
     }
-  }, [settingWord, phase, myCommit, handleSetWord])
+  }
 
   // Either player may start the next round; the transaction lets exactly one
   // click through and bumps roundNum, which resets both clients.
@@ -510,7 +589,7 @@ export default function WordDuelGame({
     await runTransaction(ref(db, `games/${gameId}`), current => {
       const r = current?.round
       if (!current || current.status !== 'playing' || !r || r.phase !== 'reveal' || !r.result) return
-      return { ...current, round: nextDuelRound(r), lastActivityAt: Date.now() + clockOffset }
+      return { ...current, round: nextDuelRound(r), lastActivityAt: serverNow() }
     })
   }, () => toast.error('NEXT ROUND FAILED — CHECK CONNECTION'))
   const handleNewMatch = () => runAction(async () => {
@@ -520,7 +599,8 @@ export default function WordDuelGame({
   // ── RENDER ──
   if (!game || !gameId) return null
 
-  if (game.status === 'finished') {
+  // Match over — also when the platform's CLAIM WIN ended it mid-round.
+  if (matchOver) {
     return (
       <GameStatus
         status={game.status}
@@ -535,26 +615,50 @@ export default function WordDuelGame({
     )
   }
 
+  const presence = isSpectator
+    ? { X: game.presence?.X?.online, O: game.presence?.O?.online }
+    : { [mySymbol]: true, [opponentSymbol]: opponentOnline !== false }
+  const rail = (
+    <div className="w-full">
+      <MatchScoreRail
+        game={game}
+        mySymbol={mySymbol}
+        isSpectator={isSpectator}
+        matchTarget={MATCH_TARGET}
+        title="WORD DUEL"
+        roundLabel={`ROUND ${roundNum}`}
+        presence={presence}
+      />
+    </div>
+  )
+
   if (isSpectator) {
+    const revealed = phase === 'reveal'
     return (
-      <div className="flex flex-col items-center gap-4 py-8">
-        <h2 className="text-lg font-bold text-retro-text">SPECTATING</h2>
-        <p className="text-sm text-retro-dim">Watching the duel…</p>
-        {phase === 'guessing' && (
-          <div className="flex gap-8 mt-2">
-            <div>
-              <p className="text-xs text-retro-dim mb-2 text-center uppercase tracking-wider">X GUESSES</p>
-              <GameBoard guesses={normalizeGuesses(round.guessesX)} ghostMode={false} />
-            </div>
-            <div>
-              <p className="text-xs text-retro-dim mb-2 text-center uppercase tracking-wider">O GUESSES</p>
-              <GameBoard guesses={normalizeGuesses(round.guessesO)} ghostMode={false} />
-            </div>
+      <div className="flex flex-col items-center gap-4 py-4 max-w-md mx-auto">
+        {rail}
+        <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
+          {phase === 'setting' ? 'PLAYERS ARE PICKING WORDS…' : revealed ? 'ROUND OVER' : 'SPECTATING · LETTERS HIDDEN UNTIL REVEAL'}
+        </p>
+        {phase !== 'setting' && (
+          <div className="flex gap-6 mt-2">
+            {['X', 'O'].map(sym => (
+              <div key={sym}>
+                <p className="text-xs text-retro-dim mb-2 text-center uppercase tracking-wider">
+                  {game.players?.[sym]?.name || sym}
+                </p>
+                <GameBoard
+                  guesses={normalizeGuesses(round[`guesses${sym}`])}
+                  ghostMode={!revealed}
+                  label={`${sym} board`}
+                />
+              </div>
+            ))}
           </div>
         )}
-        {reveal.X && reveal.O && (
-          <div className="text-sm text-retro-cta mt-4">
-            X: {reveal.X.word} &nbsp;|&nbsp; O: {reveal.O.word}
+        {revealed && (reveal.X || reveal.O) && (
+          <div className="text-sm text-retro-cta mt-2">
+            X: {reveal.X?.word || '?????'} &nbsp;|&nbsp; O: {reveal.O?.word || '?????'}
           </div>
         )}
       </div>
@@ -563,20 +667,34 @@ export default function WordDuelGame({
 
   // Setting phase
   if (phase === 'setting') {
+    const copy = bothCommitted ? ' Both players are ready!'
+      : myCommit ? ' Waiting for your opponent to pick theirs…'
+      : oppCommit ? ' Your opponent has locked in a word.'
+      : ' Enter your word below.'
     return (
-      <div className="flex flex-col items-center gap-6 py-8 max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-5 py-4 max-w-md mx-auto">
+        {rail}
         <div className="text-center">
           <h2 className="text-lg font-bold text-retro-text mb-1">PICK A WORD</h2>
           <p className="text-xs text-retro-dim">
-            Choose a 5-letter word for your opponent to crack.
-            {oppCommit ? ' Both players are ready!' : myCommit ? ' Waiting for opponent…' : ' Enter your word below.'}
+            Choose a 5-letter word for your opponent to crack.{copy}
           </p>
         </div>
+
+        {settingEndsAt && !bothCommitted && (
+          <RoundTimer
+            className="w-full"
+            endsAt={settingEndsAt}
+            now={now}
+            totalMs={SETTING_DEADLINE_MS}
+            label={myCommit ? 'OPPONENT HAS' : 'LOCK IN WITHIN'}
+          />
+        )}
 
         {!myCommit ? (
           <>
             <WordInput value={settingWord} />
-            {settingError && <p className="text-xs text-retro-cta">{settingError}</p>}
+            <WordFeedback message={settingFeedback?.message} tone="bad" id={settingFeedback?.id} />
             <button
               className={cn(
                 'px-6 py-2 rounded font-bold text-sm uppercase cursor-pointer',
@@ -584,12 +702,12 @@ export default function WordDuelGame({
                 'disabled:opacity-50 disabled:cursor-default',
               )}
               onClick={handleSetWord}
-              disabled={lockingWord || settingWord.length !== WORD_LENGTH}
+              disabled={locking || settingWord.length !== WORD_LENGTH}
             >
-              {lockingWord ? 'LOCKING…' : 'LOCK IN'}
+              {locking ? 'LOCKING…' : 'LOCK IN'}
             </button>
             <div className="w-full">
-              <WordKeyboard keyState={{}} onKey={handleSettingKey} disabled={lockingWord} enterLabel="Lock in word" />
+              <WordKeyboard keyState={{}} onKey={handleSettingKey} disabled={locking} enterLabel="Lock in word" />
             </div>
           </>
         ) : (
@@ -602,17 +720,11 @@ export default function WordDuelGame({
               {oppCommit ? 'STARTING…' : 'WAITING FOR OPPONENT…'}
             </p>
             {settingStalled && (
-              <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3 mt-2">
-                <p className="text-xs text-retro-dim">
-                  OPPONENT NEVER LOCKED A WORD
-                </p>
-                <button
-                  onClick={handleClaimSettingStall}
-                  className="min-h-11 px-6 py-2.5 border-2 border-retro-p2 text-retro-p2 font-bold text-xs uppercase rounded hover:shadow-neon-p2 transition-all active:scale-95"
-                >
-                  CLAIM ROUND
-                </button>
-              </div>
+              <ClaimBox
+                message="OPPONENT NEVER LOCKED A WORD"
+                onClick={handleClaimSettingStall}
+                busy={actionBusy}
+              />
             )}
           </div>
         )}
@@ -622,23 +734,30 @@ export default function WordDuelGame({
 
   // Guessing phase
   if (phase === 'guessing') {
+    const iSolved = myDone?.solved
     return (
       <div className="flex flex-col items-center gap-2 py-2 max-w-md mx-auto">
-        {/* Header: scores */}
-        <div className="flex items-center gap-4 text-xs text-retro-dim">
-          <span className={cn(mySymbol === 'X' ? 'text-retro-p1' : '')}>
-            {game.players.X?.name || 'X'}: {allScores.X}
-          </span>
-          <span className="text-retro-border">vs</span>
-          <span className={cn(mySymbol === 'O' ? 'text-retro-p2' : '')}>
-            {game.players.O?.name || 'O'}: {allScores.O}
-          </span>
-        </div>
+        {rail}
 
-        {myDone && (
-          <p className="text-xs text-retro-cta arcade-blink">
-            WAITING FOR OPPONENT TO FINISH…
-          </p>
+        {myDone && !oppDone && (
+          <div className="w-full space-y-1 text-center">
+            <p className="text-xs text-retro-cta" aria-live="polite">
+              {iSolved ? `SOLVED IN ${myDone.guesses} — ` : 'OUT OF GUESSES — '}WAITING FOR OPPONENT
+            </p>
+            {graceEndsAt && (
+              <RoundTimer endsAt={graceEndsAt} now={now} totalMs={DUEL_FINISH_GRACE_MS} label="OPPONENT HAS" />
+            )}
+          </div>
+        )}
+        {!myDone && oppDone && (
+          <div className="w-full space-y-1 text-center">
+            <p className="text-xs text-retro-p2" aria-live="polite">
+              {oppDone.solved ? `OPPONENT SOLVED IN ${oppDone.guesses} — ` : 'OPPONENT IS OUT — '}FINISH BEFORE TIME RUNS OUT
+            </p>
+            {graceEndsAt && (
+              <RoundTimer endsAt={graceEndsAt} now={now} totalMs={DUEL_FINISH_GRACE_MS} label="TIME LEFT" />
+            )}
+          </div>
         )}
 
         {/* My guesses board */}
@@ -648,52 +767,43 @@ export default function WordDuelGame({
             <GameBoard
               guesses={[
                 ...myGuesses,
-                ...(currentGuess ? [{ word: currentGuess.padEnd(WORD_LENGTH, ' ') }] : []),
+                ...(currentGuess && !boardFull ? [{ word: currentGuess.padEnd(WORD_LENGTH, ' ') }] : []),
               ]}
               ghostMode={false}
+              label="Your board"
             />
           </div>
-          {/* Opponent ghost */}
+          {/* Opponent ghost: marks only — the letters stay hidden */}
           <div>
             <p className="text-xs text-retro-dim mb-1 text-center uppercase tracking-wider">OPPONENT</p>
             <GameBoard guesses={oppGuesses} ghostMode label="Opponent board" />
           </div>
         </div>
 
-        {/* Keyboard */}
-        <div className="mt-1 w-full">
-          <WordKeyboard keyState={keyboardState} onKey={handleKey} disabled={!!myDone || boardFull || guessBusy} />
-        </div>
+        <WordFeedback message={guessFeedback?.message} tone="bad" id={guessFeedback?.id} />
 
-        {/* Current input preview */}
-        <div className="flex gap-1">
-          {Array.from({ length: WORD_LENGTH }).map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                'w-7 h-7 flex items-center justify-center rounded text-sm font-bold uppercase border',
-                'border-retro-border bg-retro-card text-retro-dim',
-              )}
-            >
-              {currentGuess[i] || ''}
-            </div>
-          ))}
+        {/* Keyboard */}
+        <div className="w-full">
+          <WordKeyboard keyState={keyboardState} onKey={handleKey} disabled={!!myDone || boardFull || guessBusy} />
         </div>
 
         {!opponentOnline && !myDone && <OfflineNotice label="OPPONENT" className="mt-1" />}
 
+        {canCallTime && (
+          <ClaimBox
+            message="TIME'S UP FOR YOUR OPPONENT"
+            onClick={handleCallTime}
+            busy={actionBusy}
+            label={iSolved ? 'CLAIM ROUND' : 'END ROUND'}
+          />
+        )}
+
         {gradeStalled && (
-          <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3 mt-1">
-            <p className="text-xs text-retro-dim">
-              OPPONENT HASN&apos;T GRADED YOUR GUESS
-            </p>
-            <button
-              onClick={handleClaimGradeStall}
-              className="min-h-11 px-6 py-2.5 border-2 border-retro-p2 text-retro-p2 font-bold text-xs uppercase rounded hover:shadow-neon-p2 transition-all active:scale-95"
-            >
-              CLAIM ROUND
-            </button>
-          </div>
+          <ClaimBox
+            message="OPPONENT HASN'T GRADED YOUR GUESS"
+            onClick={handleClaimGradeStall}
+            busy={actionBusy}
+          />
         )}
       </div>
     )
@@ -703,11 +813,13 @@ export default function WordDuelGame({
   const finalResult = result || localResult
   const finalWinner = finalResult?.winner
   const reason = finalResult?.reason
-  const myRevealWord = stored
+  const cheat = cheatDetected || reason === 'cheat'
+  const explanation = resultExplanation({ result: finalResult, mySymbol, doneMine: myDone, doneOpp: oppDone })
+  const myRevealWord = stored || reveal[mySymbol] || null
 
   const shareHeadline = matchWinner
     ? (matchWinner === mySymbol ? 'MATCH WON!' : `${game.players[matchWinner]?.name || matchWinner} WINS THE MATCH`)
-    : cheatDetected ? 'CHEAT DETECTED'
+    : cheat ? 'CHEAT DETECTED'
     : finalWinner === mySymbol ? 'YOU WIN!'
     : finalWinner === 'draw' ? "IT'S A DRAW"
     : finalWinner ? `${game.players[finalWinner]?.name || finalWinner} WINS`
@@ -726,105 +838,67 @@ export default function WordDuelGame({
     if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
   })
 
-  return (
-    <div className="flex flex-col items-center gap-6 py-6 max-w-md mx-auto">
-      {/* Scores */}
-      <div className="flex items-center gap-4 text-sm">
-        <span className={cn('font-bold', mySymbol === 'X' ? 'text-retro-p1' : '')}>
-          {game.players.X?.name || 'X'}: {allScores.X}
-        </span>
-        <span className="text-retro-border">vs</span>
-        <span className={cn('font-bold', mySymbol === 'O' ? 'text-retro-p2' : '')}>
-          {game.players.O?.name || 'O'}: {allScores.O}
-        </span>
-      </div>
+  // Each column: one seat's secret word over the board that was guessing it
+  // (the OTHER seat's guesses), with how that guesser did.
+  const columns = ['X', 'O'].map(owner => {
+    const guesser = owner === 'X' ? 'O' : 'X'
+    const isMine = owner === mySymbol
+    return {
+      owner,
+      word: (isMine ? myRevealWord?.word : reveal[owner]?.word) || '',
+      guesses: guesser === mySymbol ? myGuesses : oppGuesses,
+      done: guesser === mySymbol ? myDone : oppDone,
+      guesserLabel: guesser === mySymbol ? 'you' : 'opponent',
+    }
+  })
 
-      {/* Match over? */}
-      {matchWinner && (
-        <div className="text-center">
-          <h2 className={cn(
-            'text-2xl font-bold mb-1',
-            matchWinner === mySymbol ? 'text-retro-win text-glow-cta' : 'text-retro-dim',
-          )}>
-            {matchWinner === mySymbol ? 'MATCH WON!' : 'MATCH OVER'}
-          </h2>
-          <p className="text-xs text-retro-dim">
-            {matchWinner === mySymbol ? 'You win the match!' : `${game.players[matchWinner]?.name || matchWinner} wins the match!`}
-          </p>
-        </div>
-      )}
+  return (
+    <div className="flex flex-col items-center gap-5 py-4 max-w-md mx-auto">
+      {rail}
 
       {/* Round result */}
-      {!matchWinner && (
-        <div className="text-center">
-          <h2 className={cn(
-            'text-xl font-bold',
-            cheatDetected ? 'text-retro-cta' :
-            finalWinner === mySymbol ? 'text-retro-win' :
-            finalWinner === 'draw' ? 'text-retro-text' :
-            'text-retro-dim',
-          )}>
-            {cheatDetected ? 'CHEAT DETECTED' :
-             finalWinner === mySymbol ? 'YOU WIN!' :
-             finalWinner === 'draw' ? "IT'S A DRAW" :
-             finalWinner ? 'YOU LOST' : 'ROUND OVER'}
-          </h2>
-          {reason === 'cheat' && (
-            <p className="text-xs text-retro-cta mt-1">Opponent&apos;s word was tampered with — you win by forfeit.</p>
-          )}
-        </div>
-      )}
-
-      {/* Two revealed words side by side */}
-      <div className="flex gap-4">
-        <div className="text-center">
-          <p className="text-xs text-retro-dim mb-1 uppercase tracking-wider">{game.players.X?.name || 'X'}&apos;S WORD</p>
-          <div className="flex gap-1">
-            {Array.from({ length: WORD_LENGTH }).map((_, i) => (
-              <div
-                key={i}
-                className="w-8 h-8 flex items-center justify-center rounded text-lg font-bold uppercase border border-retro-border bg-retro-card text-retro-text"
-              >
-                {(mySymbol === 'X' ? myRevealWord?.word?.[i] : reveal.X?.word?.[i]) || '?'}
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-retro-dim mt-1">
-            {mySymbol === 'X' ? (myDone?.solved ? `${myDone.guesses}/6` : 'failed') : (oppDone?.solved ? `${oppDone.guesses}/6` : 'failed')}
-          </p>
-        </div>
-        <div className="text-center">
-          <p className="text-xs text-retro-dim mb-1 uppercase tracking-wider">{game.players.O?.name || 'O'}&apos;S WORD</p>
-          <div className="flex gap-1">
-            {Array.from({ length: WORD_LENGTH }).map((_, i) => (
-              <div
-                key={i}
-                className="w-8 h-8 flex items-center justify-center rounded text-lg font-bold uppercase border border-retro-border bg-retro-card text-retro-text"
-              >
-                {(mySymbol === 'O' ? myRevealWord?.word?.[i] : reveal.O?.word?.[i]) || '?'}
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-retro-dim mt-1">
-            {mySymbol === 'O' ? (myDone?.solved ? `${myDone.guesses}/6` : 'failed') : (oppDone?.solved ? `${oppDone.guesses}/6` : 'failed')}
-          </p>
-        </div>
+      <div className="text-center" aria-live="polite">
+        <h2 className={cn(
+          'text-xl font-bold',
+          cheat ? 'text-retro-cta' :
+          finalWinner === mySymbol ? 'text-retro-win' :
+          finalWinner === 'draw' ? 'text-retro-text' :
+          'text-retro-dim',
+        )}>
+          {cheat ? 'CHEAT DETECTED' :
+           finalWinner === mySymbol ? 'YOU WIN!' :
+           finalWinner === 'draw' ? "IT'S A DRAW" :
+           finalWinner ? 'YOU LOST' : 'CHECKING…'}
+        </h2>
+        {explanation && <p className="text-xs text-retro-dim mt-1 max-w-xs">{explanation}</p>}
       </div>
 
-      {/* Both boards */}
       <div className="flex gap-4">
-        <div>
-          <GameBoard guesses={myGuesses} ghostMode={false} />
-        </div>
-        <div>
-          <GameBoard guesses={oppGuesses} ghostMode={false} />
-        </div>
+        {columns.map(col => (
+          <div key={col.owner} className="flex flex-col items-center gap-2">
+            <p className="text-xs text-retro-dim uppercase tracking-wider">{game.players?.[col.owner]?.name || col.owner}&apos;S WORD</p>
+            <div className="flex gap-1 justify-center" aria-label={`Word: ${col.word || 'hidden'}`}>
+              {Array.from({ length: WORD_LENGTH }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-8 h-8 flex items-center justify-center rounded text-lg font-bold uppercase border border-retro-border bg-retro-card text-retro-text"
+                >
+                  {col.word[i] || '?'}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-retro-dim">
+              {col.guesserLabel}: {col.done?.solved ? `${col.done.guesses}/${MAX_GUESSES}` : col.done?.timedOut ? 'out of time' : col.done ? 'failed' : '—'}
+            </p>
+            <GameBoard guesses={col.guesses} ghostMode={false} label={`${col.guesserLabel} guessing ${col.owner}'s word`} />
+          </div>
+        ))}
       </div>
 
       {/* Verification */}
       {verifyStatus && (
         <p className={cn('text-xs', verifyStatus.ok ? 'text-retro-win' : 'text-retro-cta')}>
-          {verifyStatus.ok ? 'Transcript verified' : `Verification issue: ${verifyStatus.reason}`}
+          {verifyStatus.ok ? '✓ Both words verified' : `Verification issue: ${verifyStatus.reason}`}
         </p>
       )}
 
@@ -836,25 +910,19 @@ export default function WordDuelGame({
             className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs
               rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
             onClick={handleNextRound}
-            disabled={actionBusy}
+            disabled={actionBusy || !result}
           >
             {actionBusy ? 'STARTING…' : 'NEXT ROUND'}
           </button>
         )}
-        {onNewMatch && !proposal && !matchWinner && (
+        {onNewMatch && !proposal && (
           <button
-            className="px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs
-              rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
-            onClick={handleNewMatch}
-            disabled={actionBusy}
-          >
-            {actionBusy ? 'ASKING…' : 'NEW MATCH'}
-          </button>
-        )}
-        {matchWinner && onNewMatch && !proposal && (
-          <button
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs
-              rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            className={cn(
+              'px-6 py-2.5 font-pixel text-xs rounded transition-all active:scale-95 disabled:opacity-50',
+              matchWinner
+                ? 'bg-retro-cta text-retro-bg hover:shadow-neon-cta'
+                : 'border-2 border-retro-border text-retro-text hover:border-retro-p1/50 hover:text-retro-p1',
+            )}
             onClick={handleNewMatch}
             disabled={actionBusy}
           >
