@@ -208,11 +208,11 @@ export const GAME_RULES = {
   visualmemory: {
     objective: 'Memorize and reproduce a pattern of lit tiles.',
     howToPlay: [
-      'Tiles flash on a 4×4 grid, then go dark.',
-      'Tap every tile that was lit, from memory.',
-      'Each cleared level adds more tiles to remember.',
+      'Tiles light up for a moment (watch the bar drain), then go dark.',
+      'Tap every tile that was lit, from memory, in any order.',
+      'You and your opponent take turns on the same level; once you both clear it, the next level adds a tile. The grid grows from 4×4 up to 8×8 as the patterns get longer.',
     ],
-    win: 'Reproduce patterns longer than your opponent to win.',
+    win: 'Tap a tile that was not lit and you lose the round — the board then shows the real pattern.',
   },
 
   gomoku: {

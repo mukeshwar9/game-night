@@ -1148,17 +1148,20 @@ function VisualMemoryDemo() {
   const [pattern, setPattern] = useState(() => generateVmPattern(VM_START_LEVEL))
   const [clicked, setClicked] = useState([])
   const [level, setLevel] = useState(VM_START_LEVEL)
+  const [clears, setClears] = useState(0)
+  const [miss, setMiss] = useState(null)
   const [currentTurn, setCurrentTurn] = useState('X')
   const [status, setStatus] = useState('playing')
   const [winner, setWinner] = useState(null)
 
   const handleMove = (cellIndex) => {
     if (status !== 'playing') return
-    const r = applyVmMove({ vmPattern: pattern, vmClicked: clicked, vmLevel: level }, cellIndex, currentTurn)
+    const r = applyVmMove({ vmPattern: pattern, vmClicked: clicked, vmLevel: level, vmClears: clears }, cellIndex, currentTurn)
     if (!r) return
-    if (r.result) { setWinner(r.result.winner); setStatus('finished'); return }
-    const { vmLevel, vmPattern, vmClicked, currentTurn: next } = r.updates
+    if (r.result) { setMiss(r.updates.vmMiss ?? null); setWinner(r.result.winner); setStatus('finished'); return }
+    const { vmLevel, vmClears, vmPattern, vmClicked, currentTurn: next } = r.updates
     if (vmLevel !== undefined) setLevel(vmLevel)
+    if (vmClears !== undefined) setClears(vmClears)
     if (vmPattern !== undefined) setPattern(normalizeVmArray(vmPattern))
     if (Object.prototype.hasOwnProperty.call(r.updates, 'vmClicked')) setClicked(normalizeVmArray(vmClicked))
     if (next !== undefined) setCurrentTurn(next)
@@ -1166,7 +1169,8 @@ function VisualMemoryDemo() {
 
   const reset = () => {
     setPattern(generateVmPattern(VM_START_LEVEL)); setClicked([])
-    setLevel(VM_START_LEVEL); setCurrentTurn('X'); setStatus('playing'); setWinner(null)
+    setLevel(VM_START_LEVEL); setClears(0); setMiss(null)
+    setCurrentTurn('X'); setStatus('playing'); setWinner(null)
   }
 
   return (
@@ -1176,7 +1180,8 @@ function VisualMemoryDemo() {
         <PlayerCard name="Bob" symbol="O" isActive={status === 'playing' && currentTurn === 'O'} isMe={false} />
       </div>
       <VisualMemoryBoard onMove={handleMove} disabled={status !== 'playing'}
-        vmPattern={pattern} vmClicked={clicked} vmLevel={level} />
+        vmPattern={pattern} vmClicked={clicked} vmLevel={level}
+        vmMiss={miss} finished={status === 'finished'} currentTurn={currentTurn} mySymbol={currentTurn} />
       <div className="text-center space-y-2">
         {status === 'finished' && (
           <p className={cn('font-pixel text-[10px]', winner === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>

@@ -816,6 +816,8 @@ export const GAME_TYPES = [
       vmPattern: normalizeVmArray(game.vmPattern),
       vmClicked: normalizeVmArray(game.vmClicked),
       vmLevel: game.vmLevel ?? VM_START_LEVEL,
+      vmMiss: game.vmMiss ?? null,
+      finished: game.status === 'finished',
     }),
   },
   {
@@ -1387,7 +1389,7 @@ const FIELD_NULLS = {
   chimpProgressX: null, chimpProgressO: null,
   chimpDoneX: null, chimpDoneO: null,
   chimpRoundStartedAt: null,
-  vmLevel: null, vmPattern: null, vmClicked: null,
+  vmLevel: null, vmPattern: null, vmClicked: null, vmClears: null, vmMiss: null,
   numRound: null,
   reactionTimesX: null, reactionTimesO: null,
   aimTimesX: null, aimTimesO: null, aimMissesX: null, aimMissesO: null,
