@@ -11,21 +11,20 @@ import { cn } from '@/lib/utils'
 // Global top-50-by-wins leaderboard, backed by the leaderboard/ node. Rows are
 // written only by the creditMatchResults Cloud Function (functions/results.js),
 // which re-checks every finished 2P match before counting it — clients cannot
-// write here (database.rules.json). Rows without `verified: true` are left
-// over from the old client-written mirror: they are skipped here and purged
-// by the daily cleanup function. One-shot fetch, no live subscription:
-// consistent with the friends-scoped leaderboard pattern in
-// leaderboard.js/Friends.jsx. RTDB returns ascending order for a
-// `.indexOn`/orderByChild query, so we reverse client-side.
+// write here (database.rules.json). Rows left over from the old
+// client-written mirror are kept in the database but never shown: the query
+// orders by `verifiedWins`, which only server-written rows have (a missing
+// child sorts lowest, so limitToLast never reaches them while there are 50
+// verified rows), and the `verified` filter drops any that slip in below.
+// One-shot fetch, no live subscription: consistent with the friends-scoped
+// leaderboard pattern in leaderboard.js/Friends.jsx. RTDB returns ascending
+// order for a `.indexOn`/orderByChild query, so we reverse client-side.
 //
 // Friend-gated names (F-33 follow-up): names are already world-readable at
 // users/{uid} and mirrored here so friends' rows can render them, but a
 // non-friend/non-self row blurs the name — display-level privacy only, see
 // the plan doc for the accepted caveat.
 const SHOWN = 50
-// Over-fetch so unverified legacy rows (until the cleanup purges them) can't
-// crowd verified players out of the top 50.
-const FETCHED = 100
 
 export default function Leaderboard() {
   const { uid } = useAuth()
@@ -39,7 +38,7 @@ export default function Leaderboard() {
     ;(async () => {
       try {
         const [lbSnap, friendsSnap] = await Promise.all([
-          get(query(ref(db, 'leaderboard'), orderByChild('wins'), limitToLast(FETCHED))),
+          get(query(ref(db, 'leaderboard'), orderByChild('verifiedWins'), limitToLast(SHOWN))),
           uid ? get(ref(db, `friends/${uid}`)) : Promise.resolve(null),
         ])
         if (cancelled) return
@@ -48,7 +47,6 @@ export default function Leaderboard() {
           .filter(([, row]) => row?.verified === true)
           .map(([rowUid, row]) => ({ uid: rowUid, ...row }))
           .sort((a, b) => (b.wins || 0) - (a.wins || 0) || (a.games || 0) - (b.games || 0))
-          .slice(0, SHOWN)
         setEntries(list)
         const friendsVal = friendsSnap?.exists() ? friendsSnap.val() : {}
         setFriendUids(new Set(Object.keys(friendsVal)))

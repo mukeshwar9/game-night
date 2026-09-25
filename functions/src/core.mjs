@@ -352,6 +352,10 @@ function recentList(raw) {
  * leaderboard/{uid}. Returns undefined (abort: nothing to do) when this match
  * key was already applied. Rows not written by the server (`verified !== true`
  * — the old client-written mirror) start from zero.
+ *
+ * `verifiedWins` repeats `wins` on purpose: it is the leaderboard's sort key.
+ * Legacy rows never have it, so they sort below every server-written row and
+ * can't crowd them out of a top-N query even while they are kept.
  * @param {object|null} row
  * @param {{ key: string, outcome: 'win'|'loss'|'draw', name?: string|null, avatar?: string|null, now: number }} credit
  */
@@ -361,10 +365,12 @@ export function applyCredit(row, { key, outcome, name, avatar, now }) {
   if (recent.includes(key)) return undefined
   const won = outcome === 'win'
   const streak = won ? num(base?.streak) + 1 : 0
+  const wins = num(base?.wins) + (won ? 1 : 0)
   return {
     name: clip(name, 24) || clip(base?.name, 24) || 'PLAYER',
     avatar: clip(avatar, 32) || base?.avatar || null,
-    wins: num(base?.wins) + (won ? 1 : 0),
+    wins,
+    verifiedWins: wins,
     games: num(base?.games) + 1,
     streak,
     bestStreak: Math.max(num(base?.bestStreak), streak),

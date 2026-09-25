@@ -220,13 +220,13 @@ describe('leaderboard rows', () => {
   test('credits once per match key and tracks streaks', () => {
     let row = core.applyCredit(null, credit('k1', 'win'))
     assert.deepEqual(
-      { wins: row.wins, games: row.games, streak: row.streak, bestStreak: row.bestStreak, verified: row.verified },
-      { wins: 1, games: 1, streak: 1, bestStreak: 1, verified: true },
+      { wins: row.wins, verifiedWins: row.verifiedWins, games: row.games, streak: row.streak, bestStreak: row.bestStreak, verified: row.verified },
+      { wins: 1, verifiedWins: 1, games: 1, streak: 1, bestStreak: 1, verified: true },
     )
     assert.equal(core.applyCredit(row, credit('k1', 'win')), undefined)
     row = core.applyCredit(row, credit('k2', 'win'))
     row = core.applyCredit(row, credit('k3', 'loss'))
-    assert.deepEqual([row.wins, row.games, row.streak, row.bestStreak], [2, 3, 0, 2])
+    assert.deepEqual([row.wins, row.verifiedWins, row.games, row.streak, row.bestStreak], [2, 2, 3, 0, 2])
   })
 
   test('client-written legacy rows start from zero', () => {

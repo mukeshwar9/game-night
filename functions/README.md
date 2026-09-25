@@ -4,7 +4,7 @@ Two functions, both in `index.js`. Cloud Functions need the **Blaze (pay-as-you-
 
 | Function | Trigger | What it does |
 |---|---|---|
-| `cleanupStaleGames` | Every 24 h | Deletes rooms idle for a day, stale public listings and old invites, the `results/` record of every deleted room, and any `leaderboard/` row the server did not write (no `verified: true`). |
+| `cleanupStaleGames` | Every 24 h | Deletes rooms idle for a day, stale public listings and old invites, and the `results/` record of every deleted room. It never deletes leaderboard rows. |
 | `creditMatchResults` (`results.js`) | Every write to `games/{gameId}/status` | Credits finished 2-player matches to `leaderboard/{uid}`, once per match, after re-checking the result. This is the only writer of `leaderboard/`. |
 
 ## How a result is credited
@@ -17,7 +17,9 @@ The trigger reads the room each time its `status` changes, and all the decisions
    - If the board contradicts the claimed winner, the round is **rejected** and the whole match is tainted.
    - If the board shows no result and the loser's seat is offline or has left, the round counts as a forfeit (the CLAIM WIN path). If the loser is online, the round is not counted.
 3. **The finish that decides the match** closes the epoch. It uses `src/lib/matchRules.js`, the same module `Game.jsx` uses to decide when to record the match. For board games, the winner must also have enough verified rounds in the epoch to account for their score, so a score written straight to 3 does not count.
-4. An accepted match is queued in `results/{gameId}/matches/{epoch}`. Then each seat's `leaderboard/{uid}` row is updated in a transaction, with wins, games, streak and bestStreak. Each row keeps its last 16 match keys, so a retried or concurrent run never counts a match twice.
+4. An accepted match is queued in `results/{gameId}/matches/{epoch}`. Then each seat's `leaderboard/{uid}` row is updated in a transaction, with wins, games, streak and bestStreak.
+   - Each row keeps its last 16 match keys, so a retried or concurrent run never counts a match twice.
+   - Each row also gets `verified: true` and `verifiedWins`, a copy of `wins` that the Leaderboard page sorts on (see *Legacy leaderboard rows*).
    - Both seats must have a profile (`profiles/{uid}` or `users/{uid}`). Otherwise the match is marked rejected and nobody is credited.
    - Name and avatar come from `profiles/{uid}`, then `users/{uid}`, then the seat.
 
@@ -44,7 +46,26 @@ The core imports app code from `../src/lib`, but `firebase deploy` uploads only 
 firebase deploy --only functions,database
 ```
 
-Deploy the functions together with `database.rules.json`, because the rules are what stop clients writing `leaderboard/`. Clients from before this change still try to write it; the rules reject those writes quietly, since the client swallows the error. The first daily cleanup then removes the unverified legacy rows. Until then, the Leaderboard page hides them.
+Deploy the functions together with `database.rules.json`, because the rules are what stop clients writing `leaderboard/`. Clients from before this change still try to write it; the rules reject those writes quietly, since the client swallows the error.
+
+## Legacy leaderboard rows (kept, hidden, opt-in delete)
+
+Rows written by the old client mirror (no `verified: true`) are **not deleted by anything automatic**. Instead they stay hidden:
+
+- The Leaderboard page queries `orderByChild('verifiedWins')` (indexed in `database.rules.json`). Only server-written rows have `verifiedWins`, and a missing child sorts lowest, so legacy rows can't crowd the top 50.
+- The page also filters out rows that lack `verified: true`.
+- A legacy player's row is replaced by a verified one, starting from zero, the first time they are credited a match.
+
+Deleting the leftovers is the project owner's call. `scripts/purge-legacy-leaderboard.js` does it on purpose. It is a dry run unless you pass `--yes`, and it uses Application Default Credentials (`gcloud auth application-default login`):
+
+```bash
+# list what would go
+node functions/scripts/purge-legacy-leaderboard.js --database-url https://<project>-default-rtdb.firebaseio.com
+# delete it
+node functions/scripts/purge-legacy-leaderboard.js --database-url https://<project>-default-rtdb.firebaseio.com --yes
+```
+
+The emulator test runs the script too, both as a dry run and with `--yes`.
 
 ## Tests
 
@@ -60,7 +81,8 @@ The emulator test writes Tic Tac Toe rooms the way `Game.jsx` does. It checks th
 - a second match in the same room is counted;
 - a forged winner and a jumped score are refused;
 - a seat without a profile gets nothing;
-- a legacy client-written row restarts from zero.
+- a legacy client-written row restarts from zero;
+- legacy rows stay out of the top-N query, and the opt-in purge script's dry run and `--yes` both work.
 
 It needs the Firebase CLI and Java, and it never touches a real project.
 

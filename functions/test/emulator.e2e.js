@@ -5,6 +5,8 @@
 // in one update per round), with the admin SDK.
 const { test, before, after } = require('node:test')
 const assert = require('node:assert/strict')
+const path = require('node:path')
+const { execFileSync } = require('node:child_process')
 const { initializeApp, deleteApp } = require('firebase-admin/app')
 const { getDatabase } = require('firebase-admin/database')
 
@@ -12,7 +14,8 @@ const PROJECT = 'demo-game-night'
 const host = process.env.FIREBASE_DATABASE_EMULATOR_HOST
 if (!host) throw new Error('Run via `npm run test:emulator` (needs the database emulator).')
 
-const app = initializeApp({ projectId: PROJECT, databaseURL: `http://${host}?ns=${PROJECT}-default-rtdb` }, 'e2e')
+const DATABASE_URL = `http://${host}?ns=${PROJECT}-default-rtdb`
+const app = initializeApp({ projectId: PROJECT, databaseURL: DATABASE_URL }, 'e2e')
 const db = getDatabase(app)
 
 const E = ''
@@ -167,4 +170,20 @@ test('a seat without a profile gets no row, and legacy rows restart from zero', 
   await matchOf('ROOM5', 1)
   const d = await row('dave')
   assert.deepEqual([d.wins, d.games, d.bestStreak, d.verified], [1, 1, 1, true])
+})
+
+test('legacy rows stay hidden from the top-N query and go only via the opt-in purge', async () => {
+  // A legacy row with more wins than anyone verified.
+  await db.ref('leaderboard/eve').set({ name: 'EVE', wins: 50, games: 50 })
+  // The Leaderboard page's query: legacy rows lack verifiedWins and sort lowest.
+  const top = (await db.ref('leaderboard').orderByChild('verifiedWins').limitToLast(3).get()).val()
+  assert.deepEqual(Object.keys(top).sort(), ['alice', 'bob', 'dave'])
+
+  const script = path.join(__dirname, '..', 'scripts', 'purge-legacy-leaderboard.js')
+  const run = (...extra) => execFileSync(process.execPath, [script, '--database-url', DATABASE_URL, ...extra], { encoding: 'utf8' })
+  assert.match(run(), /Dry run: nothing deleted/)
+  assert.notEqual(await row('eve'), null)
+  assert.match(run('--yes'), /Deleted 1 rows/)
+  assert.equal(await row('eve'), null)
+  assert.equal((await row('alice')).verified, true)
 })

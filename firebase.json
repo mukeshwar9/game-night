@@ -84,6 +84,7 @@
       "*.local",
       "src",
       "test",
+      "scripts",
       "build.js"
     ]
   },
