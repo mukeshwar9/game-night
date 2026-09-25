@@ -13,6 +13,16 @@ import {
   hasPendingGuess,
   canQueueGuess,
   gradePending,
+  AUTO_ADVANCE_MS,
+  PRESENCE_GRACE_MS,
+  SETTING_DEADLINE_MS,
+  GRADING_STALL_MS,
+  GUESSER_IDLE_MS,
+  getRoundClaim,
+  revealRoundWinner,
+  canAdvanceReveal,
+  autoAdvanceAt,
+  buildNextRound,
 } from './hangmanLogic'
 
 describe('validateWord', () => {
@@ -325,5 +335,134 @@ describe('gradePending', () => {
     expect(r.graded).toEqual([])
     expect(r.discarded).toEqual(['Q'])
     expect(r.lastGuess).toBeNull()
+  })
+})
+
+describe('getRoundClaim', () => {
+  const T = 1_000_000
+
+  it('lets the guesser claim once the word-keeper misses the setting deadline', () => {
+    const round = { phase: 'setting', setter: 'X', settingStartedAt: T }
+    expect(getRoundClaim(round, 'guesser', { now: T + 1000 })).toEqual({
+      reason: 'no-word', at: T + SETTING_DEADLINE_MS, ready: false,
+    })
+    expect(getRoundClaim(round, 'guesser', { now: T + SETTING_DEADLINE_MS }).ready).toBe(true)
+    expect(getRoundClaim(round, 'setter', { now: T + SETTING_DEADLINE_MS })).toBeNull()
+  })
+
+  it('lets the guesser claim a guess left ungraded for the stall window', () => {
+    const round = { phase: 'guessing', guesses: { A: PENDING }, pendingAt: T, guessingStartedAt: T - 5000 }
+    const early = getRoundClaim(round, 'guesser', { now: T + GRADING_STALL_MS - 1 })
+    expect(early).toEqual({ reason: 'grading', at: T + GRADING_STALL_MS, ready: false })
+    expect(getRoundClaim(round, 'guesser', { now: T + GRADING_STALL_MS }).ready).toBe(true)
+    // The setter has nothing to claim while a guess is waiting on them.
+    expect(getRoundClaim(round, 'setter', { now: T + 10 * GUESSER_IDLE_MS })).toBeNull()
+  })
+
+  it('lets the setter claim when the guesser stops guessing, counted from the last grade', () => {
+    const round = { phase: 'guessing', guesses: { A: [0] }, guessingStartedAt: T, gradedAt: T + 30_000 }
+    const claim = getRoundClaim(round, 'setter', { now: T + GUESSER_IDLE_MS })
+    expect(claim).toEqual({ reason: 'idle', at: T + 30_000 + GUESSER_IDLE_MS, ready: false })
+    expect(getRoundClaim(round, 'setter', { now: T + 30_000 + GUESSER_IDLE_MS }).ready).toBe(true)
+    expect(getRoundClaim(round, 'guesser', { now: T + 10 * GUESSER_IDLE_MS })).toBeNull()
+  })
+
+  it('counts guesser idleness from the start of guessing before any grade', () => {
+    const round = { phase: 'guessing', guessingStartedAt: T }
+    expect(getRoundClaim(round, 'setter', { now: T + GUESSER_IDLE_MS }).ready).toBe(true)
+  })
+
+  it('offers a disconnect claim only after the presence grace', () => {
+    const round = { phase: 'guessing', guesses: {}, guessingStartedAt: T }
+    const off = T + 1000
+    const during = getRoundClaim(round, 'guesser', { now: off + PRESENCE_GRACE_MS - 1, opponentOfflineSince: off })
+    expect(during).toEqual({ reason: 'offline', at: off + PRESENCE_GRACE_MS, ready: false })
+    expect(getRoundClaim(round, 'guesser', { now: off + PRESENCE_GRACE_MS, opponentOfflineSince: off }).ready).toBe(true)
+    expect(getRoundClaim(round, 'setter', { now: off + PRESENCE_GRACE_MS, opponentOfflineSince: off }).reason).toBe('offline')
+  })
+
+  it('lets the guesser claim when the word-keeper drops during setting', () => {
+    const round = { phase: 'setting', settingStartedAt: T }
+    const claim = getRoundClaim(round, 'guesser', { now: T + PRESENCE_GRACE_MS + 1, opponentOfflineSince: T })
+    expect(claim.reason).toBe('offline')
+    expect(claim.ready).toBe(true)
+  })
+
+  it('never lets the word-keeper claim before locking a word', () => {
+    const round = { phase: 'setting', settingStartedAt: T }
+    expect(getRoundClaim(round, 'setter', { now: T + 10 * SETTING_DEADLINE_MS, opponentOfflineSince: T })).toBeNull()
+  })
+
+  it('has nothing to claim in the reveal or for spectators', () => {
+    expect(getRoundClaim({ phase: 'reveal', revealAt: T }, 'guesser', { now: T * 2 })).toBeNull()
+    expect(getRoundClaim({ phase: 'guessing', guessingStartedAt: T }, null, { now: T * 2 })).toBeNull()
+  })
+
+  it('treats a legacy round with no anchors as unclaimable (except offline)', () => {
+    expect(getRoundClaim({ phase: 'guessing' }, 'setter', { now: T })).toBeNull()
+    expect(getRoundClaim({ phase: 'guessing', guesses: { A: PENDING } }, 'guesser', { now: T })).toBeNull()
+  })
+})
+
+describe('revealRoundWinner', () => {
+  it('awards a guessed word to the guesser and a hanging to the setter', () => {
+    expect(revealRoundWinner({ setter: 'X', result: 'guessed' })).toBe('O')
+    expect(revealRoundWinner({ setter: 'X', result: 'hanged' })).toBe('X')
+    expect(revealRoundWinner({ setter: 'O', result: 'hanged' })).toBe('O')
+  })
+
+  it('awards a cheat to the guesser whatever the written result', () => {
+    expect(revealRoundWinner({ setter: 'X', result: 'hanged', cheatDetected: true })).toBe('O')
+    expect(revealRoundWinner({ setter: 'X', result: 'hanged' }, { cheat: true })).toBe('O')
+  })
+
+  it('returns null without a result', () => {
+    expect(revealRoundWinner({ setter: 'X' })).toBeNull()
+  })
+})
+
+describe('canAdvanceReveal', () => {
+  it('lets the guesser advance any reveal', () => {
+    expect(canAdvanceReveal({ phase: 'reveal' }, 'guesser')).toBe(true)
+  })
+
+  it('lets the word-keeper advance once the reveal is verified, flagged, or the guesser left', () => {
+    expect(canAdvanceReveal({ phase: 'reveal' }, 'setter')).toBe(false)
+    expect(canAdvanceReveal({ phase: 'reveal', verified: true }, 'setter')).toBe(true)
+    expect(canAdvanceReveal({ phase: 'reveal', cheatDetected: true }, 'setter')).toBe(true)
+    expect(canAdvanceReveal({ phase: 'reveal' }, 'setter', { guesserGone: true })).toBe(true)
+  })
+
+  it('never advances outside the reveal or for spectators', () => {
+    expect(canAdvanceReveal({ phase: 'guessing' }, 'guesser')).toBe(false)
+    expect(canAdvanceReveal({ phase: 'reveal', verified: true }, null)).toBe(false)
+  })
+})
+
+describe('autoAdvanceAt', () => {
+  it('is AUTO_ADVANCE_MS after a verified reveal', () => {
+    expect(autoAdvanceAt({ phase: 'reveal', verified: true, revealAt: 5000 })).toBe(5000 + AUTO_ADVANCE_MS)
+  })
+
+  it('waits for verification and never auto-advances a cheat', () => {
+    expect(autoAdvanceAt({ phase: 'reveal', revealAt: 5000 })).toBeNull()
+    expect(autoAdvanceAt({ phase: 'reveal', verified: true, cheatDetected: true, revealAt: 5000 })).toBeNull()
+    expect(autoAdvanceAt({ phase: 'reveal', verified: true })).toBeNull()
+  })
+})
+
+describe('buildNextRound', () => {
+  it('scores the round winner and hands the word to the other player', () => {
+    const next = buildNextRound({ scores: { X: 1, O: 0 }, round: { setter: 'X', phase: 'reveal' } }, 'O')
+    expect(next.scores).toEqual({ X: 1, O: 1 })
+    expect(next.round).toMatchObject({ setter: 'O', phase: 'setting', wrongCount: 0 })
+    expect(next.proposal).toBeNull()
+    expect(next.status).toBeUndefined()
+  })
+
+  it('can end a round with no score', () => {
+    const next = buildNextRound({ scores: { X: 1, O: 2 }, round: { setter: 'O' } }, null)
+    expect(next.scores).toEqual({ X: 1, O: 2 })
+    expect(next.round.setter).toBe('X')
   })
 })

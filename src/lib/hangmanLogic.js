@@ -144,3 +144,137 @@ export function gradePending(word, guesses) {
   }
   return { guesses: out, graded, discarded, wrongCount: countWrong(out), result, lastGuess }
 }
+
+// --- Advancing, stalls and claims ------------------------------------------
+//
+// Timers are server-corrected milliseconds (useServerClock). Values are
+// starting points to playtest.
+
+/** The round advances on its own this long after the reveal. */
+export const AUTO_ADVANCE_MS = 8_000
+/** An opponent must be offline this long before a disconnect claim appears. */
+export const PRESENCE_GRACE_MS = 10_000
+/** The word-keeper never locks a word: the guesser may claim the round. */
+export const SETTING_DEADLINE_MS = 120_000
+/** A guess waits this long ungraded: the guesser may claim the round. */
+export const GRADING_STALL_MS = 60_000
+/** No new guess for this long: the word-keeper may claim the round. */
+export const GUESSER_IDLE_MS = 60_000
+
+export function otherSymbol(symbol) {
+  return symbol === 'X' ? 'O' : 'X'
+}
+
+function roundSetter(round) {
+  return round?.setter === 'O' ? 'O' : 'X'
+}
+
+function stamp(value) {
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+function earliest(...values) {
+  const set = values.filter(v => v !== null)
+  return set.length ? Math.min(...set) : null
+}
+
+function latest(...values) {
+  const set = values.filter(v => v !== null)
+  return set.length ? Math.max(...set) : null
+}
+
+// The claim `side` ('setter' | 'guesser') could make on this round because
+// the other side is stalling. Stalls award the point to the side that isn't
+// stalling:
+//   - guesser: no word locked SETTING_DEADLINE_MS after setting began, or a
+//     guess ungraded for GRADING_STALL_MS;
+//   - setter: no new guess for GUESSER_IDLE_MS (counted from the start of
+//     guessing or the last grade, never while a guess is pending);
+//   - either: the opponent offline for PRESENCE_GRACE_MS (pass the moment
+//     they went offline as `opponentOfflineSince`).
+// Returns null when there is nothing to claim, else
+// { reason: 'no-word'|'grading'|'idle'|'offline', at, ready }.
+export function getRoundClaim(round, side, { now, opponentOfflineSince = null } = {}) {
+  const phase = round?.phase || 'setting'
+  if (phase !== 'setting' && phase !== 'guessing') return null
+  if (side !== 'setter' && side !== 'guesser') return null
+  const guesses = round?.guesses || {}
+  const pending = hasPendingGuess(guesses)
+
+  let timeAt = null
+  let timeReason = null
+  if (side === 'guesser') {
+    if (phase === 'setting') {
+      const start = stamp(round?.settingStartedAt)
+      timeAt = start === null ? null : start + SETTING_DEADLINE_MS
+      timeReason = 'no-word'
+    } else if (pending) {
+      const start = stamp(round?.pendingAt)
+      timeAt = start === null ? null : start + GRADING_STALL_MS
+      timeReason = 'grading'
+    }
+  } else if (phase === 'guessing' && !pending) {
+    const start = latest(stamp(round?.guessingStartedAt), stamp(round?.gradedAt))
+    timeAt = start === null ? null : start + GUESSER_IDLE_MS
+    timeReason = 'idle'
+  }
+
+  // The word-keeper has nothing to claim while they still owe a word.
+  const offlineApplies = !(side === 'setter' && phase === 'setting')
+  const off = offlineApplies ? stamp(opponentOfflineSince) : null
+  const offAt = off === null ? null : off + PRESENCE_GRACE_MS
+
+  const at = earliest(timeAt, offAt)
+  if (at === null) return null
+  const reason = offAt !== null && (timeAt === null || offAt < timeAt) ? 'offline' : timeReason
+  return { reason, at, ready: Number(now) >= at }
+}
+
+/** Who wins a revealed round: the guesser on a guess or a cheat, else the setter. */
+export function revealRoundWinner(round, { cheat = false } = {}) {
+  const setter = roundSetter(round)
+  if (cheat || round?.cheatDetected) return otherSymbol(setter)
+  if (round?.result === 'guessed') return otherSymbol(setter)
+  if (round?.result === 'hanged') return setter
+  return null
+}
+
+// May `side` start the next round from the reveal? The guesser always may
+// (their client checks the reveal first). The word-keeper may once the
+// guesser's client has verified the reveal or flagged a cheat, or when the
+// guesser has gone offline — so a losing or absent guesser can't withhold
+// the point.
+export function canAdvanceReveal(round, side, { guesserGone = false } = {}) {
+  if (round?.phase !== 'reveal') return false
+  if (side === 'guesser') return true
+  if (side !== 'setter') return false
+  return !!(round.verified || round.cheatDetected || guesserGone)
+}
+
+/** When the reveal auto-advances (null while unverified, or after a cheat). */
+export function autoAdvanceAt(round) {
+  if (round?.phase !== 'reveal' || round.cheatDetected || !round.verified) return null
+  const at = stamp(round.revealAt)
+  return at === null ? null : at + AUTO_ADVANCE_MS
+}
+
+// The game-node patch that ends the current round: score `roundWinner`
+// ('X' | 'O', or null for no score), hand the word to the other player and
+// finish the match when someone reaches `target`.
+export function buildNextRound(game, roundWinner, { target = 3 } = {}) {
+  const setter = roundSetter(game?.round)
+  const scores = { X: Number(game?.scores?.X) || 0, O: Number(game?.scores?.O) || 0 }
+  if (roundWinner === 'X' || roundWinner === 'O') scores[roundWinner] += 1
+  const next = {
+    scores,
+    round: { setter: otherSymbol(setter), phase: 'setting', wrongCount: 0 },
+    proposal: null,
+  }
+  const winner = scores.X >= target ? 'X' : scores.O >= target ? 'O' : null
+  if (winner) {
+    next.status = 'finished'
+    next.winner = winner
+  }
+  return next
+}
