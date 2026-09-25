@@ -13,8 +13,8 @@ const MARK_COPY = {
 }
 
 function tileClasses(mark, ghost) {
-  if (mark === 'G') return 'bg-retro-win border-retro-win text-white'
-  if (mark === 'Y') return 'bg-retro-cta border-retro-cta text-white'
+  if (mark === 'G') return 'bg-retro-win border-retro-win text-retro-bg'
+  if (mark === 'Y') return 'bg-retro-cta border-retro-cta text-retro-bg'
   if (mark === 'B') return 'bg-retro-dim border-retro-dim text-retro-bg'
   return ghost ? 'bg-retro-deep border-retro-border text-retro-dim' : 'bg-retro-card border-retro-border text-retro-text'
 }
@@ -115,8 +115,8 @@ export function WordRaceKeyboard({ keyState = {}, onKey, disabled = false }) {
                 aria-label={`${letter}${state ? `, ${MARK_COPY[state]}` : ''}`}
                 className={cn(
                   'min-h-11 flex-1 min-w-0 rounded font-bold text-xs sm:text-sm transition-colors disabled:opacity-30',
-                  state === 'G' && 'bg-retro-win text-white',
-                  state === 'Y' && 'bg-retro-cta text-white',
+                  state === 'G' && 'bg-retro-win text-retro-bg',
+                  state === 'Y' && 'bg-retro-cta text-retro-bg',
                   state === 'B' && 'bg-retro-dim text-retro-bg',
                   !state && 'bg-retro-structure text-retro-text hover:bg-retro-border',
                 )}

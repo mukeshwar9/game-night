@@ -55,7 +55,7 @@ function Tile({ letter, state }) {
         'text-sm sm:text-base transition-colors duration-150',
         state === 'idle' && 'bg-retro-card border-retro-border text-retro-text',
         state === 'path' && 'bg-retro-tint-cta border-retro-cta text-retro-cta',
-        state === 'valid' && 'bg-retro-win border-retro-win text-white',
+        state === 'valid' && 'bg-retro-win border-retro-win text-retro-bg',
         state === 'duplicate' && 'bg-retro-tint-cta border-retro-cta text-retro-cta',
         state === 'invalid' && 'bg-retro-tint-p2 border-retro-p2 text-retro-p2',
       )}

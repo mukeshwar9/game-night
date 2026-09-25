@@ -89,8 +89,7 @@ function GameTile({ letter, mark, pending }) {
         'text-base sm:text-2xl font-bold border-2 uppercase select-none',
         'transition-colors duration-300',
         colorClass,
-        letter && mark === 'G' ? 'text-white' :
-        letter && mark === 'Y' ? 'text-white' :
+        letter && mark ? 'text-retro-bg' :
         letter ? 'text-retro-text' : '',
         pending && 'arcade-blink border-retro-cta',
       )}
@@ -147,9 +146,9 @@ function Keyboard({ keyState, onKey, disabled }) {
           {row.map(letter => {
             const state = keyState[letter]
             const bg =
-              state === 'G' ? 'bg-retro-win text-white' :
-              state === 'Y' ? 'bg-[rgb(var(--c-cta))] text-white' :
-              state === 'B' ? 'bg-retro-dim text-retro-dim' :
+              state === 'G' ? 'bg-retro-win text-retro-bg' :
+              state === 'Y' ? 'bg-[rgb(var(--c-cta))] text-retro-bg' :
+              state === 'B' ? 'bg-retro-dim text-retro-bg' :
               'bg-retro-structure text-retro-text'
             return (
               <button
@@ -199,7 +198,7 @@ function WordInput({ value }) {
             className={cn(
               'w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded',
               'text-xl sm:text-2xl font-bold border-2 uppercase',
-              value[i] ? 'bg-retro-cta text-white border-retro-cta' : 'bg-retro-card border-retro-border',
+              value[i] ? 'bg-retro-cta text-retro-bg border-retro-cta' : 'bg-retro-card border-retro-border',
               'transition-colors duration-150',
             )}
           >
@@ -676,7 +675,7 @@ export default function WordDuelGame({
             <button
               className={cn(
                 'px-6 py-2 rounded font-bold text-sm uppercase cursor-pointer',
-                'bg-retro-cta text-white shadow-neon-cta hover:opacity-90 transition-opacity',
+                'bg-retro-cta text-retro-bg shadow-neon-cta hover:opacity-90 transition-opacity',
                 'disabled:opacity-50 disabled:cursor-default',
               )}
               onClick={handleSetWord}

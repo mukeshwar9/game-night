@@ -191,7 +191,7 @@ export default function SimonBoard({ onMove, disabled, simonSequence, simonProgr
                 'aspect-square rounded-xl border-2 transition-all duration-100 active:scale-95',
                 'flex items-center justify-center',
                 lit
-                  ? cn(p.active, 'scale-105 ring-2 ring-white/40')
+                  ? cn(p.active, 'scale-105 ring-2 ring-retro-text/40')
                   : cn(p.dim, canClick ? 'hover:opacity-90 cursor-pointer' : 'cursor-default opacity-60'),
               )}
             >

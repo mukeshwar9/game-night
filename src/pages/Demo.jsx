@@ -428,7 +428,7 @@ function WordDuelDemo() {
                     'text-xl font-bold border-2 uppercase select-none',
                     'transition-colors duration-300',
                     colorClass,
-                    letter && mark === 'G' ? 'text-white' : letter && mark === 'Y' ? 'text-white' : letter ? 'text-retro-text' : '',
+                    letter && mark ? 'text-retro-bg' : letter ? 'text-retro-text' : '',
                   )}>
                     {letter || ''}
                   </div>
@@ -455,7 +455,7 @@ function WordDuelDemo() {
             )}
             {row.map(l => {
               const s = kbState[l]
-              const bg = s === 'G' ? 'bg-retro-win text-white' : s === 'Y' ? 'bg-[rgb(var(--c-cta))] text-white' : s === 'B' ? 'bg-retro-dim text-retro-dim' : 'bg-retro-structure text-retro-text'
+              const bg = s === 'G' ? 'bg-retro-win text-retro-bg' : s === 'Y' ? 'bg-[rgb(var(--c-cta))] text-retro-bg' : s === 'B' ? 'bg-retro-dim text-retro-bg' : 'bg-retro-structure text-retro-text'
               return (
                 <button key={l} className={cn('px-1.5 py-2 rounded text-xs font-bold uppercase hover:opacity-80 disabled:opacity-30', bg)}
                   onClick={() => handleKey(l)} disabled={done}
@@ -480,7 +480,7 @@ function WordDuelDemo() {
       {/* Done? Show result + restart */}
       {done && !roundResult && (
         <button
-          className="mt-3 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-cta text-white hover:opacity-90"
+          className="mt-3 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-cta text-retro-bg hover:opacity-90"
           onClick={() => {
             setRoundResult(solved ? (guesses.length < botGuesses ? 'win' : guesses.length === botGuesses ? 'draw' : 'lose') : 'lose')
             if (solved) {
@@ -498,7 +498,7 @@ function WordDuelDemo() {
 
       {roundResult && (
         <button
-          className="mt-2 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-cta text-white hover:opacity-90"
+          className="mt-2 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-cta text-retro-bg hover:opacity-90"
           onClick={() => {
             const common = ['ABOUT', 'ABOVE', 'ADULT', 'AFTER', 'AGAIN', 'AGREE', 'ALONE', 'AMONG', 'ANGEL', 'ANGRY',
               'BEACH', 'BEGAN', 'BEING', 'BLACK', 'BLOOD', 'BOARD', 'BRAIN', 'BREAK', 'BRING', 'BROWN',
@@ -766,7 +766,7 @@ function WordHuntDemo() {
           <span>BOT: {bot}</span>
         </div>
         <button
-          className="mt-2 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-cta text-white hover:opacity-90"
+          className="mt-2 px-4 py-1.5 rounded text-xs font-bold uppercase bg-retro-cta text-retro-bg hover:opacity-90"
           onClick={reset}
         >
           PLAY AGAIN
@@ -838,7 +838,7 @@ function WordHuntDemo() {
                   'text-sm sm:text-base transition-colors duration-150',
                   state === 'idle' && 'bg-retro-card border-retro-border text-retro-text',
                   state === 'path' && 'bg-retro-tint-cta border-retro-cta text-retro-cta',
-                  state === 'valid' && 'bg-retro-win border-retro-win text-white',
+                  state === 'valid' && 'bg-retro-win border-retro-win text-retro-bg',
                   state === 'duplicate' && 'bg-retro-tint-cta border-retro-cta text-retro-cta',
                   state === 'invalid' && 'bg-retro-tint-p2 border-retro-p2 text-retro-p2',
                 )}
