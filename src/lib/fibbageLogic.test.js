@@ -22,13 +22,46 @@ import {
   FIBBAGE_WIN_SCORE,
 } from './fibbageLogic'
 import { FIBBAGE_FACTS } from './decks/fibbage'
+import { isBannedWord } from './wordDenylist'
 
 // ---------------------------------------------------------------------------
 // deck sanity
 // ---------------------------------------------------------------------------
 describe('FIBBAGE_FACTS deck', () => {
-  it('has at least 25 entries', () => {
-    expect(FIBBAGE_FACTS.length).toBeGreaterThanOrEqual(25)
+  it('has at least 60 entries', () => {
+    expect(FIBBAGE_FACTS.length).toBeGreaterThanOrEqual(60)
+  })
+
+  it('has no duplicate prompts', () => {
+    const keys = FIBBAGE_FACTS.map(f => optionKey(f.prompt))
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('every prompt has exactly one blank', () => {
+    for (const f of FIBBAGE_FACTS) {
+      expect(f.prompt.split('___').length - 1).toBe(1)
+    }
+  })
+
+  it('regression: the "elephant is the only mammal that can\'t jump" myth is gone', () => {
+    expect(FIBBAGE_FACTS.some(f => /only mammal that cannot jump|can't jump/i.test(f.prompt))).toBe(false)
+  })
+
+  it('answers are short and have letters or digits', () => {
+    for (const f of FIBBAGE_FACTS) {
+      expect(optionKey(f.answer).length).toBeGreaterThan(0)
+      expect(f.answer.length).toBeLessThanOrEqual(24)
+    }
+  })
+
+  it('no shipped prompt, answer or decoy contains a banned word', () => {
+    for (const f of FIBBAGE_FACTS) {
+      for (const text of [f.prompt, f.answer, ...f.decoys]) {
+        for (const word of text.toLowerCase().split(/[^a-z]+/).filter(Boolean)) {
+          expect(isBannedWord(word)).toBe(false)
+        }
+      }
+    }
   })
 
   it('every entry has a prompt with a blank and a non-empty answer', () => {
@@ -67,6 +100,22 @@ describe('decoys', () => {
       for (const d of f.decoys) {
         expect(d.toLowerCase()).not.toBe(answerLower)
       }
+    }
+  })
+
+  it('no decoy is truth-like (bots must pass the same lie check as players)', () => {
+    for (const f of FIBBAGE_FACTS) {
+      for (const d of f.decoys) {
+        expect(isTruthLike(d, f.answer), `${f.answer} / ${d}`).toBe(false)
+        expect(validateLie(d, f.answer).ok, `${f.answer} / ${d}`).toBe(true)
+      }
+    }
+  })
+
+  it('decoys are distinct options within a fact', () => {
+    for (const f of FIBBAGE_FACTS) {
+      const keys = f.decoys.map(optionKey)
+      expect(new Set(keys).size).toBe(keys.length)
     }
   })
 
