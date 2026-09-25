@@ -8,6 +8,7 @@ export default defineConfig([
   globalIgnores([
     'dist/**',
     'dev-dist/**',
+    'dist-e2e/**',
     // Captain's HTML review pages (hand-written, not app code).
     '.lavish/**',
     'playwright-report/**',

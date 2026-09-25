@@ -6,7 +6,13 @@ import { defineConfig, devices } from '@playwright/test'
 // a Vite dev server in `--mode emulator` (.env.emulator), so no test can ever
 // reach the live project. tests/e2e/global-setup.js fails fast when the
 // emulators are not running.
+//
+// E2E_PREVIEW=1 serves a production build (still --mode emulator) instead of
+// the dev server: closer to what players run, immune to hot reloads from
+// concurrent edits, and fast enough to expose timing races the dev server
+// hides. CI uses it.
 const PORT = 5190
+const PREVIEW = process.env.E2E_PREVIEW === '1'
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -24,9 +30,11 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: `npx vite --mode emulator --port ${PORT} --strictPort`,
+    command: PREVIEW
+      ? `npx vite build --mode emulator --outDir dist-e2e --emptyOutDir && npx vite preview --outDir dist-e2e --port ${PORT} --strictPort`
+      : `npx vite --mode emulator --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: PREVIEW ? 300_000 : 120_000,
   },
 })

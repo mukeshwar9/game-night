@@ -40,3 +40,4 @@ dev-dist/
 
 # Firebase CLI deploy cache (regenerated on every deploy).
 .firebase/
+dist-e2e/

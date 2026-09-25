@@ -87,8 +87,10 @@ jobs:
       - name: Security rules tests
         run: npm run test:rules
 
-      - name: End-to-end tests
+      - name: End-to-end tests (production build)
         run: npm run test:e2e
+        env:
+          E2E_PREVIEW: '1'
 
       - name: Upload Playwright traces
         if: failure()

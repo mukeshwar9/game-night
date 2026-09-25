@@ -8,6 +8,7 @@ import { getPlayerId } from '../lib/playerId'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
 import { toast } from 'sonner'
+import { waitForModalHistory } from './useModalHistory'
 
 const getPlayerName = (profile) => profile?.displayName || localStorage.getItem('playerName') || ''
 
@@ -55,6 +56,9 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
         sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
       }
       recordRoom({ id: gameId, gameType })
+      // The picker sheet that started this may still be consuming its
+      // history marker; navigating before that lands would be undone by it.
+      await waitForModalHistory()
       navigate(`/game/${gameId}`)
     } catch {
       toast.error('CONNECTION ERROR. TRY AGAIN.')
