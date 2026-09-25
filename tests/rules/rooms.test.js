@@ -119,33 +119,51 @@ describe('2P seats', () => {
 })
 
 describe('party seats', () => {
-  const players = (uids, extra = {}) => partyNode({ uids }).players && { ...partyNode({ uids }).players, ...extra }
+  const players = (uids, extra = {}) => ({ ...partyNode({ uids }).players, ...extra })
+  const joinSeat = (uid) => ({ name: uid, joinedAt: 9, playerId: uid, online: true, avatar: 'kid.p1' })
 
-  it('lets a latecomer join the lobby with a whole-players write that adds their seat', async () => {
+  it('lets a latecomer create their own seat in the lobby, once', async () => {
     await put('games/g1', partyNode({ uids: [ALICE, BOB] }))
-    await assertSucceeds(as(CAROL).ref('games/g1/players').set(players([ALICE, BOB], { [CAROL]: seat(CAROL, { online: true }) })))
+    await assertSucceeds(as(CAROL).ref('games/g1/players/carol').set(joinSeat(CAROL)))
+    await assertSucceeds(as(CAROL).ref('games/g1/players/carol').update({ name: 'Caz', avatar: 'kid.p2' }))
   })
 
-  it('lets a joiner drop a ghost seat in the same write (the cap is not expressible in rules)', async () => {
+  it('denies a non-member any write to the players node as a whole, even one adding their own seat', async () => {
     await put('games/g1', partyNode({ uids: [ALICE, BOB] }))
-    const next = players([ALICE], { [CAROL]: seat(CAROL, { online: true }) })
-    await assertSucceeds(as(CAROL).ref('games/g1/players').set(next))
+    await assertFails(as(CAROL).ref('games/g1/players').set(players([ALICE, BOB], { [CAROL]: joinSeat(CAROL) })))
+    await assertFails(as(CAROL).ref('games/g1/players').set(players([ALICE], { [CAROL]: joinSeat(CAROL) })))
   })
 
   it('denies joining mid-round, a locked room, when kicked, or as someone else', async () => {
     await put('games/g1', partyNode({ uids: [ALICE, BOB], status: 'playing' }))
-    await assertFails(as(CAROL).ref('games/g1/players').set(players([ALICE, BOB], { [CAROL]: seat(CAROL) })))
+    await assertFails(as(CAROL).ref('games/g1/players/carol').set(joinSeat(CAROL)))
     await put('games/g2', partyNode({ uids: [ALICE, BOB], extra: { locked: true } }))
-    await assertFails(as(CAROL).ref('games/g2/players').set(players([ALICE, BOB], { [CAROL]: seat(CAROL) })))
+    await assertFails(as(CAROL).ref('games/g2/players/carol').set(joinSeat(CAROL)))
     await put('games/g3', partyNode({ uids: [ALICE, BOB], extra: { kicked: { [CAROL]: true } } }))
-    await assertFails(as(CAROL).ref('games/g3/players').set(players([ALICE, BOB], { [CAROL]: seat(CAROL) })))
+    await assertFails(as(CAROL).ref('games/g3/players/carol').set(joinSeat(CAROL)))
     await put('games/g4', partyNode({ uids: [ALICE, BOB] }))
-    await assertFails(as(MALLORY).ref('games/g4/players').set(players([ALICE, BOB], { [CAROL]: seat(CAROL) })))
+    await assertFails(as(MALLORY).ref('games/g4/players/carol').set(joinSeat(CAROL)))
+    await assertFails(as(MALLORY).ref('games/g4/players/mallory').set(joinSeat(CAROL)))
+  })
+
+  it('denies a non-member evicting or editing someone else’s seat', async () => {
+    await put('games/g1', partyNode({ uids: [ALICE, BOB] }))
+    await assertFails(as(CAROL).ref('games/g1/players/bob').remove())
+    await assertFails(as(CAROL).ref('games/g1/players/bob/online').set(false))
   })
 
   it('denies a stranger slipping a uid seat into a 2P room', async () => {
     await put('games/g1', gameNode({ x: ALICE }))
+    await assertFails(as(CAROL).ref('games/g1/players/carol').set(joinSeat(CAROL)))
     await assertFails(as(CAROL).ref('games/g1/players').set({ X: seat(ALICE), [CAROL]: seat(CAROL) }))
+  })
+
+  // RTDB never validates a delete and can't enumerate uid children, so the
+  // "only an offline ghost, only in the lobby" rule for the sweep stays in
+  // the client; what the rules guarantee is that only members can do it.
+  it('lets a seated member sweep another seat (a ghost) from the lobby', async () => {
+    await put('games/g1', partyNode({ uids: [ALICE, BOB] }))
+    await assertSucceeds(as(ALICE).ref('games/g1/players/bob').remove())
   })
 
   it('denies a seat keyed by one uid holding another', async () => {

@@ -7,7 +7,7 @@ import { buildSwitchUpdates } from '../../src/hooks/room/roomUpdates.js'
 import { freshGameState, firstMoverUpdates, lobbySwitchOverrides } from '../../src/lib/games.js'
 import { kickPatch, nightSwitchSeating, roomHostUid, rotateWinnerStays } from '../../src/lib/nightLogic.js'
 import { finishRaceRound, startRaceRound, toggleRaceReady } from '../../src/lib/raceLogic.js'
-import { applyPartyJoin, partyJoinPlan } from '../../src/lib/roomLogic.js'
+import { partyJoinPlan } from '../../src/lib/roomLogic.js'
 
 const T = rulesEnvFor({ beforeAll, afterEach, afterAll })
 const as = (uid) => dbAs(T.env, uid)
@@ -108,12 +108,14 @@ describe('winner stays and kicks', () => {
 })
 
 describe('party lobby joins', () => {
-  it('accepts the exact players transaction joinPartySeat writes', async () => {
+  // joinPartySeat: a create-once transaction on players/{uid}, after the
+  // client's lobby/capacity pre-check (partyJoinPlan).
+  it('accepts the seat joinPartySeat creates', async () => {
     const room = partyNode({ uids: ['alice', 'bob'] })
     await put('games/g1', room)
     const seat = { name: 'Carol', joinedAt: 9, playerId: 'carol', online: true, avatar: 'kid.p1' }
-    const plan = partyJoinPlan({ players: room.players, myId: 'carol', status: 'waiting', maxPlayers: 8 })
-    await assertSucceeds(as('carol').ref('games/g1/players').set(applyPartyJoin(room.players, plan, seat)))
+    if (partyJoinPlan({ players: room.players, myId: 'carol', status: 'waiting', maxPlayers: 8 }).action !== 'join') throw new Error('plan refused')
+    await assertSucceeds(as('carol').ref('games/g1/players/carol').transaction(cur => (cur ? undefined : seat)))
   })
 })
 

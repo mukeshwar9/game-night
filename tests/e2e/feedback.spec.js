@@ -86,7 +86,9 @@ test('uncaught errors and rejections are reported, once each', async ({ browser 
     .map(r => r.kind)
     .sort(), { timeout: 15_000 }).toEqual(['error', 'rejection'])
   const report = Object.values(await readDb(`errors/${day}`)).find(r => r.msg === probe)
-  expect(report).toMatchObject({ route: '/', build: 'dev' })
+  // 'dev' on the dev server, the entry chunk's hash on a production build.
+  expect(report.route).toBe('/')
+  expect(report.build).toMatch(/^[\w-]{1,20}$/)
   expect(report.uid).toBeTruthy()
   expect(report.ua).toMatch(/Chrome/)
   await player.context.close()
