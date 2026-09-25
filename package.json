@@ -12,8 +12,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "emulators": "firebase emulators:start --only auth,database --project demo-game-night",
-    "test:rules": "firebase emulators:exec --only database --project demo-game-night \"vitest run --config vitest.rules.config.js\"",
-    "test:e2e": "firebase emulators:exec --only auth,database --project demo-game-night \"playwright test\""
+    "test:rules": "node scripts/with-emulators.mjs database npx vitest run --config vitest.rules.config.js",
+    "test:e2e": "node scripts/with-emulators.mjs auth,database npx playwright test"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
