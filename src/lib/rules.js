@@ -606,6 +606,29 @@ export const GAME_RULES = {
     win: 'Chameleon not caught (or a tied vote): Chameleon +2. Caught but guesses the word: Chameleon +1. Caught and wrong: everyone else +2. First to 5 points wins.',
   },
 
+  codewords: {
+    objective: 'Lead your team to all of its secret agents on a 5×5 grid of words before the other team finds theirs — and never touch the assassin.',
+    howToPlay: [
+      '4–8 players in two teams, ▲ ALPHA and ● BRAVO. Each team has one spymaster (★) who sees the secret key; spymasters rotate every board. The host can shuffle teams or move players in the lobby.',
+      'On your turn your spymaster gives a ONE-word clue and a number — how many cards it points to. The clue can’t be (or contain) a word on the board.',
+      'Guessers tap a card to point at it (teammates see who is pointing where), then tap it again — or GUESS — to lock it in. You get up to number + 1 guesses.',
+      'Your own agent: keep guessing. A bystander or the other team’s agent ends your turn. After at least one guess you may END TURN.',
+      'Every revealed card is checked against a commitment published before play, so nobody can change the key mid-game.',
+    ],
+    win: 'A team wins the moment all of its agents are uncovered (the starting team has 9, the other 8) — even if the rivals uncover the last one. Touch the assassin and your team loses on the spot.',
+  },
+
+  justone: {
+    objective: 'Work together to get the guesser to say as many mystery words as possible, one clue each.',
+    howToPlay: [
+      '3–8 players, all on one team. Each card, one player is the guesser (it rotates); everyone else sees the mystery word.',
+      'Each clue-giver secretly writes ONE one-word clue. Clues stay hidden until everyone is in.',
+      'Identical or near-identical clues cancel each other out — case, plurals and simple word endings don’t count as different. A clue that is the mystery word is removed too.',
+      'The guesser sees only the surviving clues and gets one guess — or can pass.',
+    ],
+    win: 'Co-op: 13 cards, one team score. A right guess scores 1, a pass scores 0, and a wrong guess also throws away the next card (on the last card it costs a point instead). 13 is perfect.',
+  },
+
   sketch: {
     objective: 'One player draws a secret word while everyone else races to guess it in chat.',
     howToPlay: [

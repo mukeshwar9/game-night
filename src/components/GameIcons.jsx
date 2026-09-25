@@ -869,3 +869,30 @@ export function ChameleonIcon() {
   )
 }
 
+export function CodeWordsIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* 3×3 word cards: two claimed, one assassin, the rest face-down */}
+      {[2, 9, 16].map(x => [3, 10, 17].map(y => (
+        <rect key={`${x}-${y}`} x={x} y={y} width="6" height="4.5" rx="0.5"
+          stroke="currentColor" strokeWidth="1" opacity="0.45" />
+      )))}
+      <rect x="2" y="3" width="6" height="4.5" rx="0.5" fill="currentColor" />
+      <rect x="9" y="10" width="6" height="4.5" rx="0.5" fill="currentColor" opacity="0.75" />
+      <path d="M17 17.5 L21 21 M21 17.5 L17 21" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function JustOneIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* two matching clue cards cancel; one survives */}
+      <rect x="1.5" y="3" width="9" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" opacity="0.5" />
+      <rect x="13.5" y="3" width="9" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" opacity="0.5" />
+      <line x1="1" y1="9.5" x2="23" y2="2.5" stroke="currentColor" strokeWidth="1.2" opacity="0.7" />
+      <rect x="6" y="13" width="12" height="8" rx="1" fill="currentColor" />
+      <path d="M11 15.5 L12.5 14.5 L12.5 19.5" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: 'rgb(var(--c-bg))' }} />
+    </svg>
+  )
+}

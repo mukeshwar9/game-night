@@ -15,6 +15,7 @@ import {
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
 } from '../components/GameIcons'
+import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
@@ -1437,6 +1438,28 @@ export const GAME_TYPES = [
         },
       }
     },
+  },
+  {
+    type: 'codewords', label: 'CODE WORDS',
+    desc: 'team clues, hidden agents', Icon: CodeWordsIcon,
+    badge: 'CW', maxWidth: 'max-w-lg',
+    category: 'party',
+    addedAt: '2026-09-26',
+    durationMin: 15, tags: ['thinky', 'party'], solo: false,
+    custom: true, nPlayer: true, minPlayers: 4, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/CodeWordsGame')),
+    // no startRound — CodeWordsGame deals its own boards (teams + sealed key)
+  },
+  {
+    type: 'justone', label: 'JUST ONE',
+    desc: 'co-op clues, duplicates cancel', Icon: JustOneIcon,
+    badge: 'J1', maxWidth: 'max-w-sm',
+    category: 'party',
+    addedAt: '2026-09-26',
+    durationMin: 15, tags: ['thinky', 'party'], solo: false,
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/JustOneGame')),
+    // no startRound — JustOneGame deals its own sealed cards
   },
 ]
 
