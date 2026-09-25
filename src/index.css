@@ -110,7 +110,11 @@
 .video-call-layout-preview-video-bottom-right { right: 8px; bottom: 8px; }
 
 /* Self-hosted arcade font families. The selected family flows through
-   --font-pixel, which powers Tailwind's font-pixel utility everywhere. */
+   --font-pixel, which powers Tailwind's font-pixel utility everywhere.
+   Every text-[Npx] in the UI was sized for Press Start 2P, whose capitals
+   fill 0.875em; most faces' capitals fill ~0.7em and would render 20-36%
+   smaller at the same class. Each other face's size-adjust is 0.875 divided
+   by its own cap height (the H glyph), so every choice reads at one size. */
 @font-face {
   font-family: 'Press Start 2P';
   font-style: normal;
@@ -118,15 +122,15 @@
   font-display: swap;
   src: url('/fonts/press-start-2p-latin.woff2') format('woff2');
 }
-@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/silkscreen-regular.ttf') format('truetype'); }
-@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/silkscreen-bold.ttf') format('truetype'); }
-@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/pixelify-sans-regular.ttf') format('truetype'); }
-@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/pixelify-sans-bold.ttf') format('truetype'); }
-@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/vt323.ttf') format('truetype'); }
-@font-face { font-family: 'Share Tech Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/share-tech-mono.ttf') format('truetype'); }
-@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/oxanium-regular.ttf') format('truetype'); }
-@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/oxanium-bold.ttf') format('truetype'); }
-@font-face { font-family: 'Audiowide'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/audiowide-latin.ttf') format('truetype'); }
+@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/silkscreen-regular.ttf') format('truetype'); size-adjust: 140%; }
+@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/silkscreen-bold.ttf') format('truetype'); size-adjust: 140%; }
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/pixelify-sans-regular.ttf') format('truetype'); size-adjust: 139%; }
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/pixelify-sans-bold.ttf') format('truetype'); size-adjust: 137%; }
+@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/vt323.ttf') format('truetype'); size-adjust: 156%; }
+@font-face { font-family: 'Share Tech Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/share-tech-mono.ttf') format('truetype'); size-adjust: 125%; }
+@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/oxanium-regular.ttf') format('truetype'); size-adjust: 127%; }
+@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/oxanium-bold.ttf') format('truetype'); size-adjust: 127%; }
+@font-face { font-family: 'Audiowide'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/audiowide-latin.ttf') format('truetype'); size-adjust: 125%; }
 
 :root { --font-pixel: 'Press Start 2P'; }
 [data-font='silkscreen'] { --font-pixel: 'Silkscreen'; }
