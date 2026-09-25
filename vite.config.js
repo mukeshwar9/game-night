@@ -3,12 +3,36 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Vite writes the entry <script> and its ~18 <link rel="modulepreload">s
+// before the stylesheet. The stylesheet is the only render-blocking request
+// (the pre-JS splash needs it), so on a slow connection it queued behind the
+// scripts and delayed first paint. Move it to the front of the injected tags.
+function stylesheetFirst() {
+  return {
+    name: 'stylesheet-first',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        const css = html.match(/\s*<link rel="stylesheet"[^>]*>/g)
+        const firstScript = html.search(/<script type="module"/)
+        if (!css || firstScript < 0) return html
+        let out = html
+        for (const tag of css) out = out.replace(tag, '')
+        const at = out.search(/<script type="module"/)
+        return out.slice(0, at) + css.map(t => t.trim()).join('\n    ') + '\n    ' + out.slice(at)
+      },
+    },
+  }
+}
+
 export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
   plugins: [
     react(),
+    stylesheetFirst(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
