@@ -260,3 +260,66 @@ export function finishHuntRound(current, { now, dict }) {
     scores,
   }
 }
+
+// ── solver, grid floor and fair start ───────────────────────────────────
+
+// A grid must hold at least this many dictionary words before a round starts
+// (the worst random grid had 7; median ~89). Starting value — tune in play.
+export const MIN_GRID_WORDS = 25
+// Re-roll budget per start; the best grid seen is used if none reaches the
+// floor (never observed in 500 sampled grids, but bounded regardless).
+export const MAX_GRID_REROLLS = 40
+
+const NEIGHBORS = Array.from({ length: CELL_COUNT }, (_, i) => neighborsOf(i))
+
+// Every dictionary word traceable on the grid (>= MIN_WORD_LENGTH, Qu tile
+// spells "qu"), longest first then A–Z. `dict` needs `has` and `hasPrefix`
+// (createDictionary provides both); prefix pruning keeps this to a few ms.
+export function solveGrid(grid, dict) {
+  if (!dict?.has || !dict?.hasPrefix || typeof grid !== 'string' || grid.length !== CELL_COUNT) return []
+  const found = new Set()
+  const visited = new Array(CELL_COUNT).fill(false)
+  const walk = (index, prefix) => {
+    const word = prefix + (grid[index] === 'q' ? 'qu' : grid[index])
+    if (!dict.hasPrefix(word)) return
+    if (word.length >= MIN_WORD_LENGTH && dict.has(word)) found.add(word)
+    visited[index] = true
+    for (const next of NEIGHBORS[index]) if (!visited[next]) walk(next, word)
+    visited[index] = false
+  }
+  for (let i = 0; i < CELL_COUNT; i++) walk(i, '')
+  return [...found].sort((a, b) => b.length - a.length || a.localeCompare(b))
+}
+
+// Keeps `grid` if it clears the floor, otherwise re-rolls fresh seeded grids
+// until one does (or the budget runs out — then the best one seen).
+export function ensurePlayableGrid(grid, dict, {
+  minWords = MIN_GRID_WORDS, maxTries = MAX_GRID_REROLLS, random = Math.random,
+} = {}) {
+  let best = grid
+  let bestCount = solveGrid(grid, dict).length
+  for (let tries = 0; bestCount < minWords && tries < maxTries; tries++) {
+    const candidate = generateGrid(Math.floor(random() * 2_147_483_647))
+    const count = solveGrid(candidate, dict).length
+    if (count > bestCount) { best = candidate; bestCount = count }
+  }
+  return best
+}
+
+// Transaction updater for the pre-round lobby. `symbol` (optional) marks that
+// seat READY (`wordhuntReady{X|O}`); a seat only presses READY once its own
+// dictionary has loaded. When both seats are ready, the client running this
+// (it must have `dict`) lifts the grid to the word floor and stamps
+// `wordhuntStartedAt` — the grid written here is the one both players get.
+// Aborts (undefined) once started or finished, and when nothing changes.
+export function wordhuntReadyUpdate(current, { symbol = null, now, dict, random = Math.random }) {
+  if (!current || current.status === 'finished' || current.wordhuntStartedAt) return undefined
+  const next = symbol ? { ...current, [`wordhuntReady${symbol}`]: true } : { ...current }
+  const bothReady = !!next.wordhuntReadyX && !!next.wordhuntReadyO
+  if (!bothReady || !dict) return symbol && !current[`wordhuntReady${symbol}`] ? next : undefined
+  return {
+    ...next,
+    wordhuntGrid: ensurePlayableGrid(current.wordhuntGrid, dict, { random }),
+    wordhuntStartedAt: now,
+  }
+}

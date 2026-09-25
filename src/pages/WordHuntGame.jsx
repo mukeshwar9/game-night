@@ -11,6 +11,7 @@ import {
   COUNTDOWN_MS, ROUND_MS, MATCH_WINS, MIN_WORD_LENGTH,
   findPath, scoreWord, scoreWords, canonicalize, neighborsOf,
   normalizeWordList, nextWordIndex, verifyWords, compareHunt, finishHuntRound, roundDeadline,
+  wordhuntReadyUpdate,
 } from '../lib/wordhuntLogic'
 import { loadDictionary } from '../lib/wordhuntDictionary'
 import { sounds } from '../lib/sounds'
@@ -546,15 +547,34 @@ export default function WordHuntGame({
       .catch(retryLater)
   }, [mySymbol, dict, pastDeadline, game.status, startedAt, gameId, clockOffset, finishRetry])
 
+  // Fair start: the clock starts only once BOTH seats pressed READY, and a
+  // seat can only press READY after its own dictionary has loaded. The
+  // transaction that sees both flags lifts the grid to the word floor and
+  // stamps wordhuntStartedAt (wordhuntReadyUpdate).
+  const myReady = !!game[`wordhuntReady${myKey}`]
+  const oppReady = !!game[`wordhuntReady${opKey}`]
+  const bothReady = !!game.wordhuntReadyX && !!game.wordhuntReadyO
+
   const handleReady = () => {
-    if (!mySymbol || game.wordhuntStartedAt) return
+    if (!mySymbol || !dict || startedAt || myReady) return
     runReady(async () => {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.wordhuntStartedAt) return
-        return { ...current, wordhuntStartedAt: Date.now() + clockOffset }
-      })
-    }, () => toast.error('START FAILED — CHECK CONNECTION'))
+      await runTransaction(ref(db, `games/${gameId}`), current =>
+        wordhuntReadyUpdate(current, { symbol: myKey, now: Date.now() + clockOffset, dict }))
+    }, () => toast.error('READY FAILED — CHECK CONNECTION'))
   }
+
+  // Fallback start: both flags set but no start stamp yet (e.g. the second
+  // READY's client dropped mid-transaction) — any seated client with its
+  // dictionary loaded starts the round.
+  const startingRef = useRef(null)
+  useEffect(() => {
+    if (!mySymbol || !dict || startedAt || !bothReady || game.status === 'finished') return
+    if (startingRef.current === grid) return
+    startingRef.current = grid
+    runTransaction(ref(db, `games/${gameId}`), current =>
+      wordhuntReadyUpdate(current, { now: Date.now() + clockOffset, dict }))
+      .catch(() => { startingRef.current = null })
+  }, [mySymbol, dict, startedAt, bothReady, game.status, grid, gameId, clockOffset])
 
   const handleSubmit = useCallback((rawWord) => {
     if (!dict || !isPlaying || myDone) return
@@ -703,6 +723,7 @@ export default function WordHuntGame({
   // ── render: waiting to start ──────────────────────────────────────
 
   if (!startedAt) {
+    const oppLobbyName = game.players?.[opKey]?.name?.toUpperCase() ?? 'OPPONENT'
     return (
       <div className="space-y-4">
         <div className="bg-retro-card border border-retro-border rounded p-6 text-center space-y-4">
@@ -715,11 +736,16 @@ export default function WordHuntGame({
           </div>
           <button
             onClick={handleReady}
-            disabled={readying || !dict}
+            disabled={readying || !dict || myReady}
             className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
           >
-            {!dict ? 'LOADING DICTIONARY…' : readying ? 'STARTING…' : 'READY'}
+            {!dict ? 'LOADING WORDS…' : readying ? 'READYING…' : myReady ? 'READY ✓' : 'READY'}
           </button>
+          <p className="font-pixel text-[8px] text-retro-dim" role="status" aria-live="polite">
+            {myReady
+              ? (oppReady ? 'BOTH READY — STARTING…' : `WAITING FOR ${oppLobbyName} TO PRESS READY…`)
+              : oppReady ? `${oppLobbyName} IS READY` : 'THE CLOCK STARTS WHEN BOTH PLAYERS ARE READY'}
+          </p>
           {!dict && dictError && (
             <>
               <p className="font-pixel text-[9px] text-retro-p2">COULDN&apos;T LOAD WORD LIST</p>

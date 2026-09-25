@@ -6,6 +6,7 @@ import {
   canonicalize, findPath, scoreWord, scoreWords, createDictionary,
   normalizeWordList, nextWordIndex, verifyWords, compareHunt, finishHuntRound,
   roundDeadline, COUNTDOWN_MS, ROUND_MS,
+  solveGrid, ensurePlayableGrid, wordhuntReadyUpdate, MIN_GRID_WORDS,
 } from './wordhuntLogic'
 
 // NOTE: this file must never import wordhuntDictionary.js (the lazy loader
@@ -331,5 +332,123 @@ describe('finishHuntRound', () => {
   it('breaks equal points by word count', () => {
     const next = finishHuntRound(game({ wordhuntWordsX: ['cat', 'dog'], wordhuntWordsO: ['cats'] }), { now: end, dict: HUNT_DICT })
     expect(next.winner).toBe('X')
+  })
+})
+
+// The real shipped dictionary, read from disk (no fetch), shared by the
+// solver/grid-floor tests below.
+let realDict = null
+async function loadRealDict() {
+  if (!realDict) {
+    const { readFileSync } = await import('node:fs')
+    realDict = createDictionary(readFileSync(new URL('../../public/wordhunt-dict.txt', import.meta.url), 'utf8').split('\n'))
+  }
+  return realDict
+}
+
+// Deterministic Math.random stand-in for re-roll tests.
+function seededRandom(seed) {
+  let x = seed >>> 0
+  return () => {
+    x = (x * 1664525 + 1013904223) >>> 0
+    return x / 4_294_967_296
+  }
+}
+
+describe('solveGrid', () => {
+  it('finds every traceable dictionary word, longest first', () => {
+    expect(solveGrid(HUNT_GRID, HUNT_DICT)).toEqual(['cats', 'cat', 'cog', 'dog', 'dot', 'god', 'tog'])
+  })
+
+  it('returns [] without a usable dictionary or grid', () => {
+    expect(solveGrid(HUNT_GRID, null)).toEqual([])
+    expect(solveGrid(HUNT_GRID, { has: () => true })).toEqual([])
+    expect(solveGrid('abc', HUNT_DICT)).toEqual([])
+  })
+
+  it('spells the Qu tile as "qu"', () => {
+    const grid = buildGrid({ 0: 'q', 1: 'i', 2: 't' })
+    expect(solveGrid(grid, createDictionary(['quit', 'qit']))).toEqual(['quit'])
+  })
+
+  it('agrees with findPath and the dictionary on real grids', async () => {
+    const dict = await loadRealDict()
+    for (const seed of [1, 2, 3]) {
+      const grid = generateGrid(seed)
+      const words = solveGrid(grid, dict)
+      expect(words.length).toBeGreaterThan(0)
+      for (const w of words) {
+        expect(dict.has(w), w).toBe(true)
+        expect(findPath(grid, w), w).not.toBeNull()
+      }
+    }
+  })
+})
+
+describe('grid floor', () => {
+  const WORST = 'ecttzbrhhdmyxnsr' // 7 words in the review's 500-grid sample
+
+  it('regression: a starved grid is re-rolled up to the word floor', async () => {
+    const dict = await loadRealDict()
+    expect(solveGrid(WORST, dict).length).toBeLessThan(MIN_GRID_WORDS)
+    const lifted = ensurePlayableGrid(WORST, dict, { random: seededRandom(7) })
+    expect(lifted).not.toBe(WORST)
+    expect(lifted).toHaveLength(16)
+    expect(solveGrid(lifted, dict).length).toBeGreaterThanOrEqual(MIN_GRID_WORDS)
+  })
+
+  it('keeps a grid that already clears the floor', () => {
+    const rich = createDictionary(['cat', 'cats', 'dog'])
+    expect(ensurePlayableGrid(HUNT_GRID, rich, { minWords: 3, random: () => { throw new Error('no re-roll') } })).toBe(HUNT_GRID)
+  })
+
+  it('stops after the re-roll budget and keeps the best grid seen', () => {
+    const grid = ensurePlayableGrid(HUNT_GRID, HUNT_DICT, { minWords: 1_000, maxTries: 3, random: seededRandom(1) })
+    expect(grid).toHaveLength(16)
+  })
+})
+
+describe('wordhuntReadyUpdate — both players ready before the clock starts', () => {
+  const lobby = (extra = {}) => ({ status: 'playing', wordhuntGrid: HUNT_GRID, ...extra })
+  const rich = createDictionary(['cat', 'cats', 'dog'])
+  const opts = { now: 5_000, dict: rich, random: seededRandom(3) }
+
+  it('regression: one READY no longer starts both clocks', () => {
+    const next = wordhuntReadyUpdate(lobby(), { ...opts, symbol: 'X' })
+    expect(next.wordhuntReadyX).toBe(true)
+    expect(next.wordhuntStartedAt).toBeUndefined()
+  })
+
+  it('starts when the second seat readies, lifting the grid to the floor', () => {
+    const next = wordhuntReadyUpdate(lobby({ wordhuntReadyX: true }), { ...opts, symbol: 'O' })
+    expect(next).toMatchObject({ wordhuntReadyX: true, wordhuntReadyO: true, wordhuntStartedAt: 5_000 })
+    expect(next.wordhuntGrid).toHaveLength(16)
+  })
+
+  it('writes the lifted grid, not the lobby grid, when the lobby grid is starved', async () => {
+    const dict = await loadRealDict()
+    const starved = 'ecttzbrhhdmyxnsr'
+    const next = wordhuntReadyUpdate(lobby({ wordhuntGrid: starved, wordhuntReadyX: true }), { ...opts, dict, symbol: 'O' })
+    expect(next.wordhuntStartedAt).toBe(5_000)
+    expect(next.wordhuntGrid).not.toBe(starved)
+    expect(solveGrid(next.wordhuntGrid, dict).length).toBeGreaterThanOrEqual(MIN_GRID_WORDS)
+  })
+
+  it('either client can start once both flags are set (no seat)', () => {
+    expect(wordhuntReadyUpdate(lobby({ wordhuntReadyX: true, wordhuntReadyO: true }), opts).wordhuntStartedAt).toBe(5_000)
+  })
+
+  it('never starts without a dictionary on the running client', () => {
+    const next = wordhuntReadyUpdate(lobby({ wordhuntReadyX: true }), { ...opts, dict: null, symbol: 'O' })
+    expect(next).toMatchObject({ wordhuntReadyO: true })
+    expect(next.wordhuntStartedAt).toBeUndefined()
+    expect(wordhuntReadyUpdate(lobby({ wordhuntReadyX: true, wordhuntReadyO: true }), { ...opts, dict: null })).toBeUndefined()
+  })
+
+  it('aborts once started, finished, or when nothing changes', () => {
+    expect(wordhuntReadyUpdate(lobby({ wordhuntStartedAt: 1 }), { ...opts, symbol: 'X' })).toBeUndefined()
+    expect(wordhuntReadyUpdate(lobby({ status: 'finished' }), { ...opts, symbol: 'X' })).toBeUndefined()
+    expect(wordhuntReadyUpdate(lobby({ wordhuntReadyX: true }), { ...opts, symbol: 'X' })).toBeUndefined()
+    expect(wordhuntReadyUpdate(null, { ...opts, symbol: 'X' })).toBeUndefined()
   })
 })
