@@ -149,7 +149,7 @@ import HexBoard from '../components/HexBoard'
 import { getHexWinner, HEX_CELL_COUNT } from './hexLogic'
 import { generateNumber } from './numberMemoryLogic'
 
-const PASSAGES = [
+export const PASSAGES = [
   "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. A wizard's job is to vex chumps quickly in fog.",
   "To be yourself in a world that is constantly trying to make you something else is the greatest accomplishment. Never stop being who you are.",
   "Success is not final, failure is not fatal. It is the courage to continue that counts. Keep moving forward and never give up on your dreams.",
