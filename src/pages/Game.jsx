@@ -68,7 +68,6 @@ import RulesModal, { RulesButton } from '../components/RulesModal'
 import {
   commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
 } from '../lib/diceLogic'
-import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../lib/anagramsLogic'
 import { TARGET_SCORE as PASSWORD_TARGET } from '../lib/passwordLogic'
 import { ARROWS_MATCH_TARGET, getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
 
@@ -78,6 +77,17 @@ const GAME_TTL_MS = 24 * 60 * 60 * 1000
 // already uses scores ≥ 1; the parent's matchTarget must agree so the
 // "New Match" button supersedes "Play Again" once the round resolves).
 const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
+
+// Round wins needed to take the match. Registry `matchTarget` is the single
+// source for games that set it; Pong's is a per-room setting.
+function matchTargetFor(game) {
+  if (game.gameType === 'password') return PASSWORD_TARGET
+  if (game.gameType === 'pong') return game.matchLength ?? 3
+  if (game.gameType === 'arrows') return ARROWS_MATCH_TARGET
+  const cfg = getGameConfig(game.gameType)
+  if (cfg.matchTarget) return cfg.matchTarget
+  return SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
+}
 
 // Real-time custom arenas (M-05/M-24) — physics-driven games with their own
 // dedicated page component, square/wide viewport-hungry courts, and a live
@@ -509,10 +519,7 @@ export default function Game() {
       const w = game.winner
       const sx = game.scores?.X || 0
       const so = game.scores?.O || 0
-      const matchTarget = game.gameType === 'password' ? PASSWORD_TARGET : game.gameType === 'pong' ? (game.matchLength ?? 3)
-        : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
-        : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
-        : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
+      const matchTarget = matchTargetFor(game)
       // Arrows also ends the match on final-round completion (leader wins,
       // level scores draw) — without this a 1–0 / 1–1 finish plays round-end
       // audio and skips match history.
@@ -1508,10 +1515,7 @@ export default function Game() {
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  const matchTarget = game.gameType === 'password' ? PASSWORD_TARGET : game.gameType === 'pong' ? (game.matchLength ?? 3)
-    : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
-    : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
-    : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
+  const matchTarget = matchTargetFor(game)
   const matchWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
 
   // Presence: show dot for players — green for me, live status for opponent

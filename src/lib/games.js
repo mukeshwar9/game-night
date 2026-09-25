@@ -595,7 +595,7 @@ export const GAME_TYPES = [
     badge: 'HW', maxWidth: 'max-w-sm',
     category: 'word',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true,
+    custom: true, matchTarget: 3,
   },
   {
     type: 'dotsandboxes', label: 'DOTS & BOXES',
@@ -1158,7 +1158,7 @@ export const GAME_TYPES = [
     badge: 'TT', maxWidth: 'max-w-sm',
     category: 'word',
     durationMin: 3, tags: ['quick', 'thinky'],
-    custom: true,
+    custom: true, matchTarget: 3,
   },
   {
     type: 'bluff', label: 'BLUFF BATTLE',
@@ -1209,7 +1209,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-04',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, matchTarget: 3,
   },
   {
     type: 'wordcoop', label: 'WORD CO-OP',
@@ -1229,7 +1229,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, matchTarget: 3,
   },
   {
     type: 'wordhunt', label: 'WORD HUNT',
@@ -1238,7 +1238,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-11',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, matchTarget: 3,
   },
   {
     type: 'password', label: 'PASSWORD',
@@ -1256,7 +1256,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true, hidePlayerCards: true,
+    custom: true, simultaneous: true, hidePlayerCards: true, matchTarget: 2,
   },
   {
     type: 'pairs', label: 'PAIRS',
