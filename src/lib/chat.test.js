@@ -49,6 +49,17 @@ describe('sanitizeChatText', () => {
     expect(sanitizeChatText({ text: 'hi' })).toBe('')
     expect(sanitizeChatText(['hi'])).toBe('')
   })
+
+  it('masks denied words before the message is sent', () => {
+    expect(sanitizeChatText('  gg   you   sh1t ')).toBe('gg you •••')
+    expect(sanitizeChatText('cocktail party')).toBe('cocktail party')
+  })
+
+  it('masks a denied word that straddles the length cap instead of leaking its start', () => {
+    const text = sanitizeChatText('a'.repeat(CHAT_MAX_LENGTH - 3) + ' fucking')
+    expect(text).not.toMatch(/fu/)
+    expect(text.length).toBeLessThanOrEqual(CHAT_MAX_LENGTH)
+  })
 })
 
 // ---------------------------------------------------------------------------

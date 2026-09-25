@@ -11,12 +11,16 @@ import { setProfile } from '../lib/social'
 import { getStats, getMatches } from '../lib/profile'
 import { getGameConfig } from '../lib/games'
 import { UPGRADE_ERRORS } from '../lib/auth'
+import { NAME_REJECT_MESSAGES, mutedList, sanitizeDisplayName } from '../lib/moderationLogic'
+import { unmute, useMutedMap } from '../lib/mute'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 
 export default function Profile() {
   const { profile, isAnonymous, upgrade, signOutToGuest, user } = useAuth()
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
+  const [nameError, setNameError] = useState('')
+  const muted = mutedList(useMutedMap())
   const [busy, setBusy] = useState(false)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [nameBusy, runNameSave] = useBusy()
@@ -43,10 +47,14 @@ export default function Profile() {
   const dirty = nameEdit !== null && nameEdit.trim() && nameEdit.trim() !== profile?.displayName
 
   const saveName = () => runNameSave(async () => {
-    const trimmed = nameValue.trim()
-    if (!trimmed) return
-    await setProfile({ displayName: trimmed })
+    const { name, reason } = sanitizeDisplayName(nameValue)
+    if (!name) {
+      setNameError(NAME_REJECT_MESSAGES[reason])
+      return
+    }
+    await setProfile({ displayName: name })
     setNameEdit(null)
+    setNameError('')
     toast.success('NAME SAVED!')
   }, () => toast.error("COULDN'T SAVE YOUR NAME — TRY AGAIN."))
 
@@ -158,10 +166,13 @@ export default function Profile() {
           <div className="flex gap-2">
             <input
               value={nameValue}
-              onChange={e => setNameEdit(e.target.value)}
+              onChange={e => { setNameEdit(e.target.value); setNameError('') }}
               onKeyDown={e => e.key === 'Enter' && dirty && !nameBusy && saveName()}
               maxLength={20}
               placeholder="your name"
+              aria-label="Display name"
+              aria-invalid={!!nameError}
+              aria-describedby={nameError ? 'profile-name-error' : undefined}
               className="flex-1 bg-retro-card border border-retro-border rounded px-3 py-2 font-mono text-sm
                 text-retro-text placeholder:text-retro-dim focus:outline-none focus:border-retro-p1"
             />
@@ -174,6 +185,9 @@ export default function Profile() {
               {nameBusy ? 'SAVING…' : 'SAVE'}
             </button>
           </div>
+          {nameError && (
+            <p id="profile-name-error" role="alert" className="font-pixel text-[9px] text-retro-p2 leading-relaxed">{nameError}</p>
+          )}
         </div>
 
         {/* Avatar picker */}
@@ -220,6 +234,33 @@ export default function Profile() {
           <Link to="/friends" className="inline-block font-pixel text-[10px] text-retro-cta hover:text-glow-cta transition-all">
             MANAGE FRIENDS →
           </Link>
+        </div>
+
+        {/* Muted players — local to this device (lib/mute.js) */}
+        <div id="muted" className="space-y-2 scroll-mt-20">
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">MUTED PLAYERS</label>
+          {muted.length === 0 ? (
+            <EmptyState>NOBODY MUTED. TAP A NAME IN ROOM CHAT TO MUTE.</EmptyState>
+          ) : (
+            <div className="space-y-2">
+              {muted.map(m => (
+                <div key={m.uid} className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-2.5">
+                  <p className="flex-1 min-w-0 font-mono text-sm text-retro-text truncate">{m.name || 'Player'}</p>
+                  <button
+                    type="button"
+                    onClick={() => unmute(m.uid)}
+                    className="min-h-11 px-4 border border-retro-border text-retro-dim font-pixel text-[10px] rounded
+                      hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
+                  >
+                    UNMUTE
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
+            Muted players&apos; chat is hidden on this device only. They aren&apos;t told.
+          </p>
         </div>
 
         {/* Account */}

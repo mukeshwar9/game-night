@@ -1,6 +1,8 @@
 // Pure helpers for free-text room chat. No Firebase, no React — unit-tested
 // in chat.test.js.
 
+import { moderateText } from './moderationLogic'
+
 // Keep validation for legacy sticker messages without coupling chat to the
 // removed sticker upload/packs feature.
 const STICKER_MAX_DATA_URL_LENGTH = 60_000
@@ -28,12 +30,17 @@ export const CHAT_LOG_CAP = 30
 
 // ---------------------------------------------------------------------------
 // sanitizeChatText — trims, collapses internal whitespace runs (including
-// tabs/newlines) to a single space, and clamps to CHAT_MAX_LENGTH. Any
+// tabs/newlines) to a single space, masks denied words (moderationLogic's
+// moderateText), and clamps to CHAT_MAX_LENGTH. This is the one path every
+// outgoing message takes, so masking happens before anything is sent. Any
 // non-string input (null, undefined, number, object, ...) becomes ''.
 // ---------------------------------------------------------------------------
 export function sanitizeChatText(raw) {
   if (typeof raw !== 'string') return ''
-  return raw.trim().replace(/\s+/g, ' ').slice(0, CHAT_MAX_LENGTH)
+  // Moderate a little past the cap so a denied word cut by the clamp is still
+  // recognized whole, without scanning arbitrarily long pastes.
+  const collapsed = raw.trim().replace(/\s+/g, ' ').slice(0, CHAT_MAX_LENGTH * 2)
+  return moderateText(collapsed).text.slice(0, CHAT_MAX_LENGTH).trimEnd()
 }
 
 // ---------------------------------------------------------------------------

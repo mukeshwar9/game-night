@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import BottomSheet from './BottomSheet'
 import { VideoCallSettingsPanel } from './VideoCallLayout'
 import { FONTS, applyFont, getStoredFont } from '../lib/font'
@@ -185,6 +186,26 @@ export default function SettingsButton({ className = '' }) {
       <section className="space-y-3 border-t border-retro-border pt-4">
         <SectionTitle>VIDEO LAYOUT</SectionTitle>
         <VideoCallSettingsPanel embedded />
+      </section>
+
+      <section className="space-y-3 border-t border-retro-border pt-4">
+        <SectionTitle>HELP</SectionTitle>
+        <Link
+          to="/notes"
+          onClick={() => setOpen(false)}
+          className="flex min-h-11 items-center justify-between rounded border border-retro-border px-3 font-pixel text-[9px] tracking-widest text-retro-text hover:border-retro-p1 transition-colors"
+        >
+          <span>SEND FEEDBACK</span>
+          <span className="text-retro-dim" aria-hidden="true">→</span>
+        </Link>
+        <Link
+          to="/profile"
+          onClick={() => setOpen(false)}
+          className="flex min-h-11 items-center justify-between rounded border border-retro-border px-3 font-pixel text-[9px] tracking-widest text-retro-text hover:border-retro-p1 transition-colors"
+        >
+          <span>MUTED PLAYERS</span>
+          <span className="text-retro-dim" aria-hidden="true">→</span>
+        </Link>
       </section>
 
       <section className="border-t border-retro-border pt-4">
