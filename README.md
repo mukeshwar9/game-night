@@ -302,7 +302,7 @@ Status as of 2026-09-26, after the overall-improvements pass (security rules v1,
 - Notes/feedback is linked from Settings, has an admin view (notes, reports, errors, play counts) and tests.
 - Herd Mind answers are commit-reveal; Spyfair roles are sealed.
 - Lint is at zero errors and gated in CI with typecheck, tests, build, a bundle budget and an audit.
-- The single 2 MB bundle is code-split (entry ~262 KB gzip; LCP 5.3 s → 4.2 s on a local mobile Lighthouse run).
+- The single 2 MB bundle is code-split (entry ~265 KB gzip; LCP 5.3 s → 4.1 s and time to interactive 4.9 s → 3.8 s on a local mobile Lighthouse run).
 - Real-time host advantage: opt-in host input delay (Sumo, Space Duel, Air Hockey, Paint); TURN is configurable.
 - End-to-end and rules tests run on the Firebase emulators; `Game.jsx` is split into room hooks.
 
