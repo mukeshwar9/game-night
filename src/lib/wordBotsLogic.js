@@ -245,6 +245,56 @@ export function pickCpuSecret(answerList = [], { random = Math.random, used = []
   return pickFrom(fresh.length ? fresh : safe, random)
 }
 
+// ── Timed bot boards and match tally (Word Duel / Word Race demos) ─────────
+
+/** Round-clock time (ms) at which each bot row lands: the running sum of thinkMs. */
+export function botRowTimes(rows = []) {
+  let t = 0
+  return rows.map(r => (t += Math.max(0, Number(r?.thinkMs) || 0)))
+}
+
+/** How many bot rows have landed `elapsedMs` into the round. */
+export function botRowsShown(rows = [], elapsedMs = 0) {
+  return botRowTimes(rows).filter(t => t <= elapsedMs).length
+}
+
+/** The bot board's done state { solved, guesses, at } — `at` is its simulated finish time. */
+export function botDoneState(rows = []) {
+  if (!rows.length) return null
+  const times = botRowTimes(rows)
+  return {
+    solved: rows[rows.length - 1].marks === 'G'.repeat(WORD_LENGTH),
+    guesses: rows.length,
+    at: times[times.length - 1],
+  }
+}
+
+/**
+ * A human board's done state from its graded guesses ({ word, marks, at },
+ * `at` = ms since the round started), or null while still in play.
+ */
+export function playerDoneState(guesses = []) {
+  const list = guesses.filter(Boolean)
+  const solvedAt = list.findIndex(g => g.marks === 'G'.repeat(WORD_LENGTH))
+  if (solvedAt >= 0) return { solved: true, guesses: solvedAt + 1, at: list[solvedAt].at }
+  if (list.length >= MAX_GUESSES) return { solved: false, guesses: list.length, at: list[list.length - 1].at }
+  return null
+}
+
+/** Round wins per side from a list of round winners ('X' | 'O' | 'draw'). */
+export function tallyWins(winners = []) {
+  const scores = { X: 0, O: 0 }
+  for (const w of winners) if (w === 'X' || w === 'O') scores[w] += 1
+  return scores
+}
+
+/** 'X' | 'O' once a side reaches `target` round wins, else null. */
+export function matchWinner(scores, target) {
+  if ((scores?.X || 0) >= target) return 'X'
+  if ((scores?.O || 0) >= target) return 'O'
+  return null
+}
+
 // ── Hangwoman CPU ────────────────────────────────────────────────────────────
 
 // The CPU word-keeper's words: common, family-safe, 4–9 letters, each in the

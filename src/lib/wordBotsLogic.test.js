@@ -3,6 +3,7 @@ import {
   WORDLE_OPENERS, WORDLE_THINK_MS,
   isConsistent, filterCandidates, rankCandidates, enumerateWordleCandidates,
   wordleTopK, pickWordleGuess, playWordleBoard, wordleThinkMs, pickCpuSecret,
+  botRowTimes, botRowsShown, botDoneState, playerDoneState, tallyWins, matchWinner,
   HANGMAN_CPU_WORDS, HANGMAN_LETTER_ORDER, HANGMAN_THINK_MS,
   pickKeeperWord, hangmanPattern, hangmanCandidates, pickHangmanGuess, hangmanThinkMs,
 } from './wordBotsLogic'
@@ -169,6 +170,45 @@ describe('pickCpuSecret', () => {
 
   it('never serves a word that is not family-safe', () => {
     expect(pickCpuSecret(['boobs', 'plant'], { random: () => 0 })).toBe('plant')
+  })
+})
+
+describe('timed bot boards and match tally', () => {
+  const rows = [
+    { word: 'crane', marks: 'BYBBB', thinkMs: 4000 },
+    { word: 'moist', marks: 'BBYBG', thinkMs: 8000 },
+    { word: 'light', marks: 'GGGGG', thinkMs: 9000 },
+  ]
+
+  it('lands each bot row at the running sum of its think times', () => {
+    expect(botRowTimes(rows)).toEqual([4000, 12000, 21000])
+    expect(botRowsShown(rows, 0)).toBe(0)
+    expect(botRowsShown(rows, 12000)).toBe(2)
+    expect(botRowsShown(rows, 60000)).toBe(3)
+  })
+
+  it('reports the bot finish at its simulated time', () => {
+    expect(botDoneState(rows)).toEqual({ solved: true, guesses: 3, at: 21000 })
+    expect(botDoneState([])).toBeNull()
+    const failed = Array.from({ length: MAX_GUESSES }, () => ({ word: 'crane', marks: 'BBBBB', thinkMs: 1000 }))
+    expect(botDoneState(failed)).toEqual({ solved: false, guesses: MAX_GUESSES, at: MAX_GUESSES * 1000 })
+  })
+
+  it('a human board is done on a solve or a full board, timed by the deciding guess', () => {
+    expect(playerDoneState([{ word: 'CRANE', marks: 'BBBBB', at: 5000 }])).toBeNull()
+    expect(playerDoneState([
+      { word: 'CRANE', marks: 'BBBBB', at: 5000 },
+      { word: 'LIGHT', marks: 'GGGGG', at: 20000 },
+    ])).toEqual({ solved: true, guesses: 2, at: 20000 })
+    const full = Array.from({ length: MAX_GUESSES }, (_, i) => ({ word: 'CRANE', marks: 'BBBBB', at: i * 1000 }))
+    expect(playerDoneState(full)).toEqual({ solved: false, guesses: MAX_GUESSES, at: 5000 })
+  })
+
+  it('tallies round wins and ignores draws', () => {
+    expect(tallyWins(['X', 'draw', 'O', 'X'])).toEqual({ X: 2, O: 1 })
+    expect(matchWinner({ X: 3, O: 1 }, 3)).toBe('X')
+    expect(matchWinner({ X: 1, O: 2 }, 2)).toBe('O')
+    expect(matchWinner({ X: 2, O: 2 }, 3)).toBeNull()
   })
 })
 
