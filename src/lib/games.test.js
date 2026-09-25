@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { readFileSync } from 'node:fs'
 
 // games.js pulls in board components that touch `localStorage` at module
 // load time (src/lib/sounds.js) — stub it before the dynamic import since
@@ -215,5 +216,17 @@ describe('buildChallengeRoom', () => {
   it('honors a gameType override', () => {
     const room = buildChallengeRoom({ name: 'A', avatar: 'a1', playerId: 'p1', gameType: 'sos' })
     expect(room.gameType).toBe('sos')
+  })
+})
+
+describe('solo flag honesty', () => {
+  // The VS AI / VS CPU row opens /solo/<type>; a registry type that claims
+  // solo without a DEMOS entry dead-ends on "NO SOLO DEMO" (review rank 9).
+  it('every solo:true game has a solo demo entry', () => {
+    const demo = readFileSync(new URL('../pages/Demo.jsx', import.meta.url), 'utf8')
+    const block = demo.slice(demo.indexOf('const DEMOS = ['))
+    const demoTypes = new Set([...block.slice(0, block.indexOf('\n]')).matchAll(/type: '([^']+)'/g)].map(m => m[1]))
+    const missing = GAME_TYPES.filter(t => t.solo === true && !demoTypes.has(t.type)).map(t => t.type)
+    expect(missing).toEqual([])
   })
 })
