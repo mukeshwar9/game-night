@@ -1169,7 +1169,7 @@ export default function Game() {
   // --- N-player (party game) actions ---
   const handleNStart = async () => {
     const cfg = getGameConfig(game.gameType)
-    const sr = cfg.startRound ? cfg.startRound(game.players || {}) : null
+    const sr = cfg.startRound ? cfg.startRound(game.players || {}, game) : null
     if (!sr) return // spyfair drives its own start
     try {
       await update(ref(db, `games/${gameId}`), {

@@ -123,7 +123,7 @@ import {
 } from './blockadeLogic'
 import { applyDiceMove } from './diceLogic'
 import DiceBoard from '../components/DiceBoard'
-import { seatOrder as seatOrderWL, randomSpectrumIndex } from './wavelengthLogic'
+import { seatOrder as seatOrderWL, pickSpectrumIndex } from './wavelengthLogic'
 import PairsBoard from '../components/PairsBoard'
 import {
   PAIRS_CELL_COUNT,
@@ -1178,11 +1178,13 @@ export const GAME_TYPES = [
     category: 'party',
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
-    startRound: (players) => ({
+    // The room's recent pairs (wavelengthRecent, kept across matches) are
+    // skipped so a new match doesn't reopen on a pair the group just played.
+    startRound: (players, game) => ({
       round: {
         clueGiver: seatOrderWL(players)[0] ?? null,
         phase: 'clue',
-        spectrumIndex: randomSpectrumIndex(),
+        spectrumIndex: pickSpectrumIndex({ recent: game?.wavelengthRecent }),
         clue: '', commitment: null, guesses: null, reveal: null,
       },
     }),
