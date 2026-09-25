@@ -532,11 +532,9 @@ export default function Game() {
       else if (w === 'draw') sounds.draw()
       else if (w === mySymbol.current) (isMatch ? sounds.matchWin() : sounds.win())
       else if (mySymbol.current) sounds.lose()
-      if (!coopFinish) {
-        setWinEffectWinner(w)
-        setWinEffectIntensity(isMatch ? 'match' : 'round')
-        setShowWinEffect(true)
-      }
+      setWinEffectWinner(w)
+      setWinEffectIntensity(isMatch ? 'match' : 'round')
+      setShowWinEffect(!coopFinish)
       if (isMatch && mySymbol.current && !coopFinish) {
         const opSym = mySymbol.current === 'X' ? 'O' : 'X'
         recordMatch({
