@@ -1,4 +1,4 @@
-import { editDistance, matchKey, normalizeText as normalizeMatchText } from './textMatchLogic'
+import { editDistance, isCloseMatch, matchKey, normalizeText as normalizeMatchText } from './textMatchLogic'
 import { isBannedWord } from './wordDenylist'
 
 // Co-op scoring (captain decision D1, 2026-09-26 — reversible). The approved
@@ -141,7 +141,7 @@ export function validateClue({ clue, word, previousClues = [] }) {
   if (normalizedWord) {
     const c = normalizedClue
     const w = normalizedWord
-    if (c === w || matchKey(c) === matchKey(w)) return reject('CLUE CANNOT BE THE PASSWORD')
+    if (c === w || spellingKey(c) === spellingKey(w)) return reject('CLUE CANNOT BE THE PASSWORD')
     if (isInflectionPair(c, w)) return reject('NO FORMS OF THE PASSWORD (PLURALS, -ING, -ED…)')
     if (c === [...w].reverse().join('')) return reject('NO SPELLING THE PASSWORD BACKWARDS')
     const edge = differsOnlyAtEdge(c, w)
@@ -160,8 +160,49 @@ export function validateClue({ clue, word, previousClues = [] }) {
   return { valid: true, value: normalizedClue }
 }
 
+// ── Guess matching ────────────────────────────────────────────────────────
+// Guesses are typed on a phone under a 20–30 s clock, so a right answer must
+// not miss on spelling: plurals, spacing/hyphens and a leading article fold
+// away (`matchKey`: apples/apple, birth day/birthday, glass/glasses), US/UK
+// spellings are one word (theatre/theater), and passwords of TYPO_MIN_LENGTH+
+// letters forgive one typo (elephnt, elpehant). Short passwords stay exact so
+// "aple" never scores for APPLE and "car" never for CARE.
+export const TYPO_MIN_LENGTH = 6
+
+// US/UK (and common alternate) spellings; the first of each pair is the
+// canonical form both fold to.
+export const SPELLING_VARIANTS = [
+  ['theater', 'theatre'], ['color', 'colour'], ['gray', 'grey'], ['center', 'centre'],
+  ['favorite', 'favourite'], ['organize', 'organise'], ['honor', 'honour'], ['neighbor', 'neighbour'],
+  ['flavor', 'flavour'], ['harbor', 'harbour'], ['humor', 'humour'], ['labor', 'labour'],
+  ['meter', 'metre'], ['liter', 'litre'], ['fiber', 'fibre'], ['jewelry', 'jewellery'],
+  ['pajamas', 'pyjamas'], ['donut', 'doughnut'], ['tire', 'tyre'], ['aluminum', 'aluminium'],
+  ['mustache', 'moustache'], ['cozy', 'cosy'], ['plow', 'plough'], ['airplane', 'aeroplane'],
+  ['catalog', 'catalogue'], ['defense', 'defence'], ['license', 'licence'], ['traveler', 'traveller'],
+  ['realize', 'realise'], ['apologize', 'apologise'], ['analyze', 'analyse'], ['yogurt', 'yoghurt'],
+  ['mom', 'mum'], ['ax', 'axe'], ['program', 'programme'], ['sulfur', 'sulphur'],
+  ['armor', 'armour'], ['behavior', 'behaviour'], ['odor', 'odour'], ['rumor', 'rumour'],
+  ['vapor', 'vapour'], ['kilometer', 'kilometre'], ['skeptic', 'sceptic'], ['gauge', 'gage'],
+]
+
+const SPELLING_CANON = new Map()
+for (const [canonical, ...variants] of SPELLING_VARIANTS) {
+  for (const variant of variants) SPELLING_CANON.set(matchKey(variant), matchKey(canonical))
+}
+
+/** `matchKey` with US/UK spellings folded to one form. */
+export function spellingKey(text) {
+  const key = matchKey(text)
+  return SPELLING_CANON.get(key) ?? key
+}
+
 export function isCorrectGuess(guess, word) {
-  return normalizeText(guess) === normalizeText(word)
+  const g = spellingKey(guess)
+  const a = spellingKey(word)
+  if (!g || !a) return false
+  if (isCloseMatch(g, a, { typoMinLength: TYPO_MIN_LENGTH })) return true
+  // One swapped pair of neighbouring letters is also a single typo.
+  return a.length >= TYPO_MIN_LENGTH && isOneEditOrSwap(g, a)
 }
 
 export function scoreForClueNumber(clueNumber) {

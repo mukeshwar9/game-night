@@ -15,7 +15,7 @@ import {
 } from '../lib/passwordLogic'
 import {
   advanceAfterReveal, applyClue, applyClueTimeout, applyGuess, applyGuessTimeout, bestRound,
-  canEndForAbsence, createInitialRound, endMatchEarly, pickWord, startCluePhase, teamScoreOf,
+  canEndForAbsence, createInitialRound, endMatchEarly, normalizeText, pickWord, startCluePhase, teamScoreOf,
   teamScoresFor, toList, validateClue,
 } from '../lib/passwordLogic'
 
@@ -221,6 +221,7 @@ export default function PasswordGame({
 
   const submit = phase === 'clue' ? submitClue : submitGuess
   const canSubmit = phase === 'clue' ? isClueGiver : isGuesser
+  const solvedWith = guesses.find(guess => guess?.correct)?.text || ''
   const clockTotalMs = phase === 'clue' ? CLUE_MS : guessSecondsForClueNumber(Math.max(1, clues.length)) * 1000
   const clockLabel = phase === 'clue'
     ? `CLUE ${Math.min(MAX_CLUES, clues.length + 1)} OF ${MAX_CLUES}`
@@ -329,6 +330,9 @@ export default function PasswordGame({
           {round?.lastDelta?.points ? (
             <p className="font-pixel text-base text-retro-win text-glow-win">+{round.lastDelta.points} TEAM POINTS</p>
           ) : <p className="font-pixel text-[10px] text-retro-dim">NO POINTS THIS ROUND</p>}
+          {solvedWith && normalizeText(solvedWith) !== normalizeText(word) && (
+            <p className="font-mono text-[10px] text-retro-dim">ACCEPTED “{solvedWith.toUpperCase()}” — CLOSE ENOUGH</p>
+          )}
           <p className="font-mono text-[10px] text-retro-dim">
             {(round?.roundNum || 1) >= MAX_ROUNDS ? 'FINAL ROUND · RESULTS NEXT' : 'NEXT ROUND SWAPS CLUE-GIVER'}
           </p>

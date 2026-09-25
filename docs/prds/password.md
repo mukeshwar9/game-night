@@ -60,6 +60,7 @@
 3. **Guess turn (30/30/25/25/20 s guess clock by clue number)**
    - Guesser sees clue history and enters one guess; a timeout counts as a miss.
    - Guess max 24 chars.
+   - Guesses are lenient (`isCorrectGuess`): plurals, spacing/hyphens and a leading article fold away (`matchKey`: *apples*/apple, *birth day*/birthday, *glass*/glasses); US/UK spellings match (`SPELLING_VARIANTS`: theatre/theater, colour/color, grey/gray, centre/center, favourite/favorite, organise/organize, doughnut/donut…); passwords of `TYPO_MIN_LENGTH = 6`+ letters forgive one typo — one edit or one swapped pair of neighbouring letters (*elephnt*, *elpehant*). Shorter passwords stay exact (*aple* misses APPLE). The reveal notes when a close guess was accepted.
    - Correct guess ends round and awards points.
    - Wrong guess advances to next clue, up to `MAX_CLUES = 5`.
 4. **Round reveal (5 s)**

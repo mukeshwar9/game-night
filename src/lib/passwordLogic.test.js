@@ -4,6 +4,7 @@ import {
   CLUE_MS, CLUE_POINTS, CLUE_SECONDS, GUESS_SECONDS, MAX_CLUES, PARTNER_OFFLINE_MS, MAX_ROUNDS, MAX_TEAM_SCORE, STAR_THRESHOLDS, TARGET_SCORE,
   advanceAfterReveal, applyClue, applyClueTimeout, applyGuess, applyGuessTimeout, bestRound,
   canEndForAbsence, createInitialRound, endMatchEarly, startCluePhase,
+  SPELLING_VARIANTS, TYPO_MIN_LENGTH,
   getMatchWinner, guessSecondsForClueNumber, inflectionsOf, isCorrectGuess, nextRoles, normalizeText,
   pickWord, scoreForClueNumber, starRating, teamScoreOf, teamScoresFor, toList, validateClue,
 } from './passwordLogic'
@@ -55,6 +56,56 @@ describe('passwordLogic', () => {
     expect(isCorrectGuess(' PLANET! ', 'planet')).toBe(true)
   })
 
+  describe('lenient guesses (regression: apples/theatre/glass all missed)', () => {
+    it('accepts plurals and singulars', () => {
+      expect(isCorrectGuess('apples', 'apple')).toBe(true)
+      expect(isCorrectGuess('glass', 'glasses')).toBe(true)
+      expect(isCorrectGuess('tomatoes', 'tomato')).toBe(true)
+    })
+
+    it('accepts US/UK spellings both ways', () => {
+      expect(isCorrectGuess('theatre', 'theater')).toBe(true)
+      expect(isCorrectGuess('theater', 'theatre')).toBe(true)
+      expect(isCorrectGuess('colour', 'color')).toBe(true)
+      expect(isCorrectGuess('grey', 'gray')).toBe(true)
+      expect(isCorrectGuess('centre', 'center')).toBe(true)
+      expect(isCorrectGuess('favourite', 'favorite')).toBe(true)
+      expect(isCorrectGuess('organise', 'organize')).toBe(true)
+      expect(isCorrectGuess('doughnuts', 'donut')).toBe(true)
+      expect(SPELLING_VARIANTS.length).toBeGreaterThanOrEqual(20)
+    })
+
+    it('accepts spacing, hyphen and article variants', () => {
+      expect(isCorrectGuess('birth day', 'birthday')).toBe(true)
+      expect(isCorrectGuess('snow-man', 'snowman')).toBe(true)
+      expect(isCorrectGuess('the rainbow', 'rainbow')).toBe(true)
+    })
+
+    it('forgives one typo only for passwords of 6+ letters', () => {
+      expect(TYPO_MIN_LENGTH).toBe(6)
+      expect(isCorrectGuess('elephnt', 'elephant')).toBe(true)
+      expect(isCorrectGuess('elpehant', 'elephant')).toBe(true)
+      expect(isCorrectGuess('aple', 'apple')).toBe(false)
+      expect(isCorrectGuess('car', 'care')).toBe(false)
+      expect(isCorrectGuess('elepant', 'elephant')).toBe(true)
+      expect(isCorrectGuess('elepnt', 'elephant')).toBe(false)
+    })
+
+    it('still rejects blanks and different words', () => {
+      expect(isCorrectGuess('', 'apple')).toBe(false)
+      expect(isCorrectGuess('banana', 'apple')).toBe(false)
+    })
+
+    it('scores a lenient guess like an exact one', () => {
+      const round = { ...createInitialRound({ starter: 'X', seed: 's', wordIndex: 0, wordLength: 8 }), phase: 'clue' }
+      const guessing = applyClue({ ...round, word: 'elephant' }, 'trunk', 10)
+      const solved = applyGuess(guessing, 'Elephnt', 'elephant', 20)
+      expect(solved.phase).toBe('reveal')
+      expect(solved.lastDelta).toEqual({ player: 'O', points: 5, clueNumber: 1 })
+      expect(solved.guesses[0]).toMatchObject({ text: 'elephnt', correct: true })
+    })
+  })
+
   it('validates one-word clues and rejects leaks or repeats', () => {
     expect(validateClue({ clue: 'galaxy', word: 'planet' }).valid).toBe(true)
     expect(validateClue({ clue: 'two words', word: 'planet' }).valid).toBe(false)
@@ -90,6 +141,8 @@ describe('passwordLogic', () => {
       expect(reason('PLANET!', 'planet')).toBe('CLUE CANNOT BE THE PASSWORD')
       expect(reason('apples', 'apple')).toBe('CLUE CANNOT BE THE PASSWORD')
       expect(reason('glass', 'glasses')).toBe('CLUE CANNOT BE THE PASSWORD')
+      expect(reason('doughnut', 'donut')).toBe('CLUE CANNOT BE THE PASSWORD')
+      expect(reason('colour', 'color')).toBe('CLUE CANNOT BE THE PASSWORD')
       expect(reason('baking', 'bake')).toBe('NO FORMS OF THE PASSWORD (PLURALS, -ING, -ED…)')
       expect(reason('happier', 'happy')).toBe('NO FORMS OF THE PASSWORD (PLURALS, -ING, -ED…)')
       expect(reason('running', 'run')).toBe('NO FORMS OF THE PASSWORD (PLURALS, -ING, -ED…)')
