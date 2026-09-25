@@ -1,3 +1,4 @@
+// @ts-check
 // Shared moderation denylist: slurs, strong profanity and explicit sexual terms
 // that should never be shown to other players — for chat/display-name
 // moderation, and reusable by any word list that wants the same bar. Pure

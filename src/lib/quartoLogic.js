@@ -1,3 +1,4 @@
+// @ts-check
 // Quarto (Bruno Faidutti, 1991 — Mensa Select) — pure logic, no DOM/Firebase/React.
 // 4×4 board, 16 SHARED pieces. Each piece is a 4-bit id (0–15); bit k encodes
 // attribute k: bit0 tall/short, bit1 round/square, bit2 hollow/solid,

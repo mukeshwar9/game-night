@@ -1,3 +1,4 @@
+// @ts-check
 // Arrows Puzzle — pure game logic. No DOM, no Firebase, no React.
 //
 // State is a shared board of "arrow" polylines. `applyTap` is the single move

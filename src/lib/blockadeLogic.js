@@ -1,3 +1,4 @@
+// @ts-check
 // Pure game logic for Blockade — a 9x9 pawn-race + wall-blocking abstract strategy game.
 // No DOM, no network. See docs/prds/blockade.md for the full design rationale.
 

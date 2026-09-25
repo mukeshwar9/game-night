@@ -1,3 +1,4 @@
+// @ts-check
 // Onitama (Shimada & Hoppe, 2014) — pure logic, no DOM/Firebase/React.
 // 5×5 board. Each player: 1 master (k) + 4 pupils (p), lined up on their home
 // row. Five movement cards are dealt from the 16-card base deck: 2 to X, 2 to

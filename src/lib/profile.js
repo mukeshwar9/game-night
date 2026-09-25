@@ -1,3 +1,4 @@
+// @ts-check
 // No-login local profile: lifetime stats, head-to-head (keyed by opponent uid,
 // falling back to name for legacy/unauthenticated entries), and a recent-rooms
 // list — all in localStorage so they work with zero backend/auth. Signed-in

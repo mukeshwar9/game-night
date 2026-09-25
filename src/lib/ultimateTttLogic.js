@@ -1,3 +1,4 @@
+// @ts-check
 // Ultimate Tic-Tac-Toe — a 3×3 grid of nine 3×3 tic-tac-toe boards.
 //
 //   board:        string[81] — index = miniBoard*9 + cell (both in reading order 0..8)

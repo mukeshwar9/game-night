@@ -1,3 +1,4 @@
+// @ts-check
 import { GAME_TYPES, GAME_CATEGORIES } from './games'
 
 const categoryLabelFor = (categoryId) => {
@@ -18,6 +19,10 @@ const haystackFor = (t) => {
 // Case-insensitive substring search over GAME_TYPES. Variant entries (e.g.
 // ULTIMATE TTT) are included as standalone results so searching their name
 // or blurb surfaces them even though they're normally hidden from the grid.
+/**
+ * @param {string} query
+ * @param {{ excludePredicate?: (type: any) => boolean }} [options]
+ */
 export function searchGames(query, { excludePredicate } = {}) {
   const q = (query || '').trim().toLowerCase()
   if (!q) return []

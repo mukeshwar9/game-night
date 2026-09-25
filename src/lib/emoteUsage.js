@@ -1,3 +1,4 @@
+// @ts-check
 const MAX_TRACKED_EMOTES = 40
 
 export function normalizeEmoteUsage(raw) {
@@ -5,10 +6,10 @@ export function normalizeEmoteUsage(raw) {
   return Object.fromEntries(
     Object.entries(raw)
       .filter(([glyph, value]) => glyph && value && typeof value === 'object')
-      .map(([glyph, value]) => [glyph, {
+      .map(([glyph, value]) => /** @type {[string, { count: number, lastUsed: number }]} */ ([glyph, {
         count: Number.isFinite(value.count) ? Math.max(0, Math.floor(value.count)) : 0,
         lastUsed: Number.isFinite(value.lastUsed) ? Math.max(0, value.lastUsed) : 0,
-      }])
+      }]))
       .filter(([, value]) => value.count > 0),
   )
 }

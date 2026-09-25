@@ -1,3 +1,4 @@
+// @ts-check
 // Breakthrough (Dan Troyka, 2000) — pure logic, no DOM/Firebase/React.
 // Winner of the 2001 8x8 Game Design Competition. Each player starts with two
 // full rows of pawns; a pawn moves one square straight or diagonally forward

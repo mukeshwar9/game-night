@@ -1,3 +1,4 @@
+// @ts-check
 const DEFAULT_COLS = 7;
 const DEFAULT_ROWS = 6;
 const DEFAULT_WIN = 4;

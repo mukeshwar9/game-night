@@ -1,3 +1,4 @@
+// @ts-check
 import { sha256hex } from './sha256'
 
 export async function commit(secret) {

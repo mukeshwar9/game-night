@@ -1,3 +1,4 @@
+// @ts-check
 import { GAME_TYPES } from './games'
 
 const STORAGE_KEY = 'gn-favs'

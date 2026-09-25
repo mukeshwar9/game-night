@@ -1,3 +1,4 @@
+// @ts-check
 // Ataxx (Infection, 1988/1990) — pure logic, no DOM/Firebase/React.
 // 7x7 grid. Each player starts with one piece in opposite corners (repo
 // convention: X bottom-left, O top-right). On your turn, pick one of your

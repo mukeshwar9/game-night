@@ -1,3 +1,4 @@
+// @ts-check
 export const TTT4_SIZE = 4
 export const TTT4_CELL_COUNT = 16
 export const TTT4_WIN_LINES = [

@@ -1,3 +1,4 @@
+// @ts-check
 // Yavalath (Cameron Browne, 2007) — pure logic, no DOM/Firebase/React.
 // Played on a hexagonal board of 61 hexes (radius 4: rows of 5,6,7,8,9,8,7,6,5).
 // Players alternate placing stones. FOUR or more in a row WINS. THREE in a

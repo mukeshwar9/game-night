@@ -1,3 +1,4 @@
+// @ts-check
 // Retro pixel-art avatar registry. Composite format: '{shape}.{tone}' (e.g. 'ghost.p2').
 // Bare legacy keys ('ghost') stay valid forever — parseAvatar resolves them to their
 // classic tone. Keep SHAPES in sync with GLYPHS in src/components/Avatar.jsx.

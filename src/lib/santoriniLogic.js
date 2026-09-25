@@ -1,3 +1,4 @@
+// @ts-check
 // Santorini (Hamilton, 2004/2016) — pure logic, no DOM/Firebase/React.
 // 5×5 board. Each player owns 2 workers. A turn: MOVE one worker one square
 // (orthogonal or diagonal), then BUILD one level on any square orthogonal or

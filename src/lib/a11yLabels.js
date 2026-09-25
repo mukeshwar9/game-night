@@ -1,3 +1,4 @@
+// @ts-check
 // Accessible names for board cells, pure (no DOM/React). Every *Board.jsx
 // builds its cell `aria-label` here so a screen reader hears
 // "Row 3, column 4, X, last move" instead of a test ID like
@@ -29,6 +30,9 @@ export function coordLabel({ row, col, letters = false }) {
   return letters ? `${columnLetter(col)}${row + 1}` : `Row ${row + 1}, column ${col + 1}`
 }
 
+/**
+ * @param {{ row: number, col: number, index?: number, occupant?: string, extra?: any, letters?: boolean, empty?: string }} cell
+ */
 export function cellLabel({ row, col, index, occupant, extra, letters = false, empty = 'empty' }) {
   const position = row != null && col != null
     ? coordLabel({ row, col, letters })

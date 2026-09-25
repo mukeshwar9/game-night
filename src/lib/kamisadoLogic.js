@@ -1,3 +1,4 @@
+// @ts-check
 // Kamisado (Peter Burley, 2008) — pure logic, no DOM/Firebase/React.
 // 8x8 board where every square has one of 8 colors. Each player owns 8 towers
 // (one per color). Towers move any number of squares straight or diagonally

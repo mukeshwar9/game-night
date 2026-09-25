@@ -1,3 +1,4 @@
+// @ts-check
 // SHA-256 that works without crypto.subtle (HTTP / Tailscale IPs / some
 // webviews). Prefers Web Crypto when the page is a secure context.
 

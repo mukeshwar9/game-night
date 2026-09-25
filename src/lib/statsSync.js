@@ -1,3 +1,4 @@
+// @ts-check
 // One-time per-session reconciliation between localStorage stats (gn-stats,
 // see profile.js) and the Firebase mirror at users/{uid}/stats. Ongoing sync
 // after boot happens for free: recordMatch() mirrors every subsequent match.

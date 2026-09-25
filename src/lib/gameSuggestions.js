@@ -1,3 +1,4 @@
+// @ts-check
 import { GAME_TYPES } from './games'
 
 // End-of-game cross-sell for GameStatus. Priority: variant relatives of the

@@ -1,3 +1,4 @@
+// @ts-check
 import { lazy } from 'react'
 
 // Code-split chunks carry content hashes, and every deploy deletes the old

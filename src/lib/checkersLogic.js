@@ -1,3 +1,4 @@
+// @ts-check
 export const CELL_COUNT = 64;
 
 const SIZE = 8;

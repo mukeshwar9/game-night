@@ -1,3 +1,4 @@
+// @ts-check
 // Chain Reaction — pure game logic
 // Default board: 8 columns × 10 rows = 80 cells, row-major.
 // Classic variant: 6×8 = 48 cells.
@@ -144,7 +145,7 @@ function checkWinner(board, crMoves) {
  *   - winner = last standing (once ALL survivors have placed at least once)
  * The 2P game stays on applyChainReactionMove — untouched.
  *
- * @returns {{ updates, result } | null}
+ * @returns {{ updates, result, justEliminated: string[] } | null}
  */
 export function applyChainReaction4Move({
   board, game, index, symbol,

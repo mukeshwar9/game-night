@@ -1,3 +1,4 @@
+// @ts-check
 // Lines of Action (Claude Soucie, ~1969; Spiel des Jahres recommended) —
 // pure logic, no DOM/Firebase/React. 8×8 board; each side owns 12 checkers
 // on the two home rows (corners empty). A move travels EXACTLY as many

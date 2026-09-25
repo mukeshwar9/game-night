@@ -1,3 +1,4 @@
+// @ts-check
 // "Continue playing" — enrich the local gn-rooms list (raw room codes) with live
 // status pulled from Firebase, so Home can show a rich resume row instead of a
 // bare code. Pure helpers (deriveChip/getOpponent) take game+identity and are

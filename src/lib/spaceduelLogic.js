@@ -1,3 +1,4 @@
+// @ts-check
 // Pure Space Duel simulation — no DOM, no network, no React. Deterministic and
 // unit-testable. The arena is a normalized 1×1 box: x ∈ [0,1] left→right,
 // y ∈ [0,1] top→bottom. Two ships duel: X (red, starts left, heading 0 = +x)
