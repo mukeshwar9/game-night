@@ -35,6 +35,7 @@ export function applySimonMove(game, padIndex, symbol) {
       simonProgress: 0,
       currentTurn: opponent,
       simonDeadline: null,
+      simonReplayUsed: null, // the next player gets their own WATCH AGAIN
     },
     result: null,
   }

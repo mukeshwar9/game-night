@@ -672,6 +672,8 @@ export const GAME_TYPES = [
       simonProgress: game.simonProgress ?? 0,
       simonMiss: game.simonMiss ?? null,
       finished: game.status === 'finished',
+      simonDeadline: game.simonDeadline ?? null,
+      simonReplayUsed: !!game.simonReplayUsed,
     }),
     // SimonBoard plays each pad's own tone on tap; the generic move blip on top
     // of it made every press sound twice.
@@ -823,6 +825,7 @@ export const GAME_TYPES = [
       vmLevel: game.vmLevel ?? VM_START_LEVEL,
       vmMiss: game.vmMiss ?? null,
       finished: game.status === 'finished',
+      vmDeadline: game.vmDeadline ?? null,
     }),
   },
   {
@@ -1388,7 +1391,7 @@ const FIELD_NULLS = {
   passNote: null,
   lastFrom: null, lastTo: null,
   sosLines: null,
-  simonSequence: null, simonProgress: null, simonMiss: null,
+  simonSequence: null, simonProgress: null, simonMiss: null, simonReplayUsed: null,
   simonDeadline: null, vmDeadline: null,
   chimpLevel: null, chimpLayout: null,
   chimpProgressX: null, chimpProgressO: null,

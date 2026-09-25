@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { ref, runTransaction } from 'firebase/database'
 import { cn } from '@/lib/utils'
 import { db } from '../lib/firebase'
+import { sounds } from '../lib/sounds'
 import { serverNow } from '../lib/serverClock'
 import useTurnDeadlineEnforcer from '../hooks/useTurnDeadlineEnforcer'
 import { PAIRS_SIZE, PAIRS_TOTAL_PAIRS } from '../lib/pairsLogic'
@@ -110,6 +111,7 @@ export default function PairsBoard({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot celebration keyed on the board transition itself
     setPopCells(fresh)
     setAnnouncement(`${board[fresh[0]]} matched the ${pairsFaceName(deck[fresh[0]])} pair`)
+    sounds.join() // rising two-note chime: a match sounds different from a plain flip
     const t = setTimeout(() => setPopCells([]), MATCH_POP_MS)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on board content (boardKey), not array identity
@@ -119,6 +121,7 @@ export default function PairsBoard({
     const [a, b] = flippedList
     // eslint-disable-next-line react-hooks/set-state-in-effect -- announce the mismatch once per new pair
     setAnnouncement(`No match: ${pairsFaceName(deck[a])} and ${pairsFaceName(deck[b])}`)
+    sounds.wall() // short dull knock for a miss
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the mismatch pair itself
   }, [mismatchKey])
 

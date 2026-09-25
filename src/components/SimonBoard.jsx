@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { ref, runTransaction } from 'firebase/database'
+import { ref, runTransaction, set } from 'firebase/database'
 import { cn } from '@/lib/utils'
 import { sounds } from '../lib/sounds'
 import { db } from '../lib/firebase'
@@ -32,6 +32,9 @@ export default function SimonBoard({
   // What the label says while the board is disabled mid-game (solo uses it for the
   // pause between rounds; duels leave the opponent wording).
   waitingLabel = null,
+  // Room state that survives a reload: a live deadline means this turn's flash already
+  // played, and simonReplayUsed means WATCH AGAIN is spent.
+  simonDeadline = null, simonReplayUsed = false,
 }) {
   const { gameId } = useParams() // present under /game/:gameId; undefined in demo/solo — writes below no-op there
   useTurnDeadlineEnforcer(gameId, 'simon', 'simonDeadline')
@@ -97,6 +100,12 @@ export default function SimonBoard({
     }
     if (watchedKeyRef.current === seqKey) return // already flashed this exact sequence this turn
     watchedKeyRef.current = seqKey
+    if (simonDeadline != null) {
+      // Remounted (e.g. a reload) after this turn's flash already ran: reloading must
+      // not buy a fresh look, or a free WATCH AGAIN if it was already spent.
+      setReplayAvailable(!simonReplayUsed)
+      return
+    }
     setReplayAvailable(true)
     runFlash()
     return () => {
@@ -134,6 +143,7 @@ export default function SimonBoard({
   const handleReplay = () => {
     if (!replayAvailable || watching || !needsRecall || !isMyTurn) return
     setReplayAvailable(false)
+    if (gameId) set(ref(db, `games/${gameId}/simonReplayUsed`), true).catch(() => {})
     runFlash(true)
   }
 

@@ -27,6 +27,9 @@ function Check() {
 export default function VisualMemoryBoard({
   onMove, disabled, vmPattern, vmClicked, vmLevel, vmMiss = null, finished = false,
   currentTurn = null, mySymbol = null,
+  // A live deadline means this turn's reveal already ran (it is armed when the reveal
+  // ends), so a remount — e.g. a reload — must not show the pattern again.
+  vmDeadline = null,
 }) {
   const { gameId } = useParams() // present under /game/:gameId; undefined in demo/solo — writes below no-op there
   useTurnDeadlineEnforcer(gameId, 'visualmemory', 'vmDeadline')
@@ -69,6 +72,12 @@ export default function VisualMemoryBoard({
       setShowPattern(false)
       revealEndsRef.current = null
       if (shownKeyRef.current !== patternKey) { shownKeyRef.current = patternKey; armDeadline() }
+      return
+    }
+    if (shownKeyRef.current !== patternKey && vmDeadline != null) {
+      shownKeyRef.current = patternKey
+      revealEndsRef.current = null
+      setShowPattern(false)
       return
     }
     if (shownKeyRef.current !== patternKey) {
