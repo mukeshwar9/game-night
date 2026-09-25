@@ -12,19 +12,12 @@ import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
-
-const MATCH_WINS = 3
-const MAX_LEN = 80
-// Storyteller never locks in their 3 statements — anchored to a
-// server-corrected timestamp (see clockOffset below) so the guesser can end
-// a dead round without depending on presence alone.
-const WRITING_DEADLINE_MS = 180_000
-
-function normalizeStatements(raw) {
-  if (!raw) return ['', '', '']
-  if (Array.isArray(raw)) return [raw[0] ?? '', raw[1] ?? '', raw[2] ?? '']
-  return [raw[0] ?? '', raw[1] ?? '', raw[2] ?? '']
-}
+import {
+  MAX_STATEMENT_LENGTH as MAX_LEN, WRITING_DEADLINE_MS, DEFAULT_MATCH_TARGET,
+  normalizeStatements, validateEntry, lieSecret, secretStorageKey,
+  buildStoredSecret, parseStoredSecret, storytellerRoundWinner, getMatchWinner,
+} from '../lib/twoTruthsLogic'
+import { getGameConfig } from '../lib/games'
 
 function CheatScreen({ evidence, onSkip }) {
   return (
@@ -84,16 +77,12 @@ function StatementSetter({ onLock, loading }) {
   }
 
   const handleSubmit = () => {
-    const trimmed = statements.map(s => s.trim())
-    if (trimmed.some(s => !s)) {
-      setError('FILL ALL 3 STATEMENTS')
+    const v = validateEntry(statements, lieIndex)
+    if (!v.ok) {
+      setError(v.error)
       return
     }
-    if (lieIndex === null) {
-      setError('PICK WHICH ONE IS THE LIE')
-      return
-    }
-    onLock(trimmed, lieIndex)
+    onLock(v.statements, v.lieIndex)
   }
 
   return (
@@ -177,7 +166,8 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  const matchWinner = scoreX >= MATCH_WINS ? 'X' : scoreO >= MATCH_WINS ? 'O' : null
+  const matchTarget = getGameConfig('twotruths').matchTarget || DEFAULT_MATCH_TARGET
+  const matchWinner = getMatchWinner(game.scores, matchTarget)
 
   const [locking, setLocking] = useState(false)
   const [cheatDetected, setCheatDetected] = useState(false)
@@ -225,16 +215,16 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   useEffect(() => {
     if (!isSetter || phase !== 'guessing') return
 
-    const stored = sessionStorage.getItem(`twotruths-${gameId}`)
-    if (!stored) return
-    const { lieIndex, salt } = JSON.parse(stored)
+    const secret = parseStoredSecret(sessionStorage.getItem(secretStorageKey(gameId)), round.commitment)
+    if (!secret) return
+    const { lieIndex, salt } = secret
 
     const guessRef = ref(db, `games/${gameId}/round/guess`)
     const unsub = onValue(guessRef, async (snap) => {
       const g = snap.val()
       if (g == null) return
 
-      const commitOk = await verifyReveal(round.commitment, String(lieIndex), salt)
+      const commitOk = await verifyReveal(round.commitment, lieSecret(lieIndex), salt)
       if (!commitOk) {
         setCheatDetected(true)
         setCheatEvidence({ commitment: round.commitment, revealed: lieIndex, commitOk })
@@ -259,14 +249,14 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
     verifiedCommitment.current = round.commitment
     const { lieIndex, salt } = round.reveal
 
-    verifyReveal(round.commitment, String(lieIndex), salt).then((commitOk) => {
+    verifyReveal(round.commitment, lieSecret(lieIndex), salt).then((commitOk) => {
       if (!commitOk) {
         setCheatDetected(true)
         setCheatEvidence({ commitment: round.commitment, revealed: lieIndex, commitOk })
         return
       }
       if (isSpectator) return
-      const roundWinner = guess === lieIndex ? guesser : setter
+      const roundWinner = storytellerRoundWinner({ setter, guess, lieIndex })
       setWinEffectFor(roundWinner)
       setShowWinEffect(true)
       if (roundWinner === mySymbol) sounds.win()
@@ -278,8 +268,8 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   const handleLock = useCallback(async (stmts, lieIndex) => {
     setLocking(true)
     try {
-      const { hash, salt } = await commit(String(lieIndex))
-      sessionStorage.setItem(`twotruths-${gameId}`, JSON.stringify({ lieIndex, salt }))
+      const { hash, salt } = await commit(lieSecret(lieIndex))
+      sessionStorage.setItem(secretStorageKey(gameId), JSON.stringify(buildStoredSecret({ commitment: hash, lieIndex, salt })))
       await update(ref(db, `games/${gameId}`), {
         'round/phase': 'guessing',
         'round/statements': stmts,
@@ -308,17 +298,16 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   // same reveal twice.
   const handleNextRound = useCallback(async () => {
     if (isSpectator) return
-    sessionStorage.removeItem(`twotruths-${gameId}`)
+    sessionStorage.removeItem(secretStorageKey(gameId))
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || current.round?.phase !== 'reveal') return
         const r = current.round
         const curSetter = r.setter || 'X'
-        const curGuesser = curSetter === 'X' ? 'O' : 'X'
-        const roundWinner = r.guess === r.reveal?.lieIndex ? curGuesser : curSetter
+        const roundWinner = storytellerRoundWinner({ setter: curSetter, guess: r.guess, lieIndex: r.reveal?.lieIndex })
         const newScores = { X: current.scores?.X || 0, O: current.scores?.O || 0 }
         newScores[roundWinner] = (newScores[roundWinner] || 0) + 1
-        const newMatchWinner = newScores.X >= MATCH_WINS ? 'X' : newScores.O >= MATCH_WINS ? 'O' : null
+        const newMatchWinner = getMatchWinner(newScores, matchTarget)
         const next = {
           ...current,
           scores: newScores,
@@ -332,7 +321,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
         return next
       })
     } catch { /* ignore */ }
-  }, [isSpectator, gameId])
+  }, [isSpectator, gameId, matchTarget])
 
   // Stuck-round escape hatch: the storyteller's lie index lives only in
   // sessionStorage, so if it's gone (new tab) the reveal can never land — reset
@@ -363,7 +352,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   // a live reveal.
   const handleCheatSkip = useCallback(async () => {
     if (isSpectator) return
-    sessionStorage.removeItem(`twotruths-${gameId}`)
+    sessionStorage.removeItem(secretStorageKey(gameId))
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round || current.round.phase !== 'reveal') return
@@ -480,7 +469,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
   // --- Guessing / Reveal phases ---
   const isReveal = phase === 'reveal'
   const setterMissingSecret = isSetter && phase === 'guessing' &&
-    !sessionStorage.getItem(`twotruths-${gameId}`)
+    !parseStoredSecret(sessionStorage.getItem(secretStorageKey(gameId)), round.commitment)
 
   return (
     <div className="space-y-4">
