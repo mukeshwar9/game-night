@@ -1191,7 +1191,9 @@ export const GAME_TYPES = [
     category: 'party',
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
-    startRound: () => ({ round: { phase: 'lying', promptIndex: 0 } }),
+    // deckSeed fixes a per-match shuffled prompt order every client agrees on
+    // (G-02: a fixed 0,1,2… order replayed the same facts every match).
+    startRound: () => ({ round: { phase: 'lying', promptIndex: 0, deckSeed: Math.floor(Math.random() * 2147483647) } }),
   },
   {
     type: 'spyfair', label: 'SPYFAIR',
