@@ -13,18 +13,8 @@ import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
-
-const KEY_ROWS = [
-  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
-]
-
-const MARK_INFO = {
-  G: { label: 'correct spot', icon: '✓', className: 'bg-retro-win border-retro-win text-retro-bg' },
-  Y: { label: 'wrong spot', icon: '•', className: 'bg-retro-cta border-retro-cta text-retro-bg' },
-  B: { label: 'not in word', icon: '×', className: 'bg-retro-dim border-retro-dim text-retro-bg' },
-}
+import MarkTile from '../components/MarkTile'
+import WordKeyboard from '../components/WordKeyboard'
 
 function SeatBadge({ symbol, player, small = false, online }) {
   const avatar = player?.avatar
@@ -49,28 +39,6 @@ function SeatBadge({ symbol, player, small = false, online }) {
         )}
       </div>
       <span className={cn('font-mono truncate', small ? 'text-[8px]' : 'text-[10px]')}>{player?.name || symbol}</span>
-    </div>
-  )
-}
-
-function MarkTile({ letter = '', mark = '', pending = false, index }) {
-  const info = mark ? MARK_INFO[mark] : null
-  const label = letter
-    ? `${letter}, ${info?.label || 'pending'}`
-    : 'empty tile'
-  return (
-    <div
-      className={cn(
-        'wordcoop-tile w-full aspect-square flex flex-col items-center justify-center rounded border-2',
-        'font-pixel text-lg sm:text-2xl leading-none uppercase select-none',
-        info?.className || 'bg-retro-card border-retro-border text-retro-text',
-        pending && 'border-retro-cta shadow-neon-cta',
-      )}
-      style={mark ? { animationDelay: `${index * 70}ms` } : undefined}
-      aria-label={label}
-    >
-      <span>{letter}</span>
-      {info && <span className="font-mono text-[9px] leading-none mt-0.5" aria-hidden="true">{info.icon}</span>}
     </div>
   )
 }
@@ -108,62 +76,18 @@ function SharedBoard({ guesses, currentGuess, currentPlayer, players, activeRow 
             {Array.from({ length: WORD_LENGTH }).map((__, col) => (
               <div key={col} role="gridcell">
                 <MarkTile
+                  size="fluid"
+                  className={cn('wordcoop-tile font-pixel', pending?.pending && pending?.word?.[col]?.trim() && 'shadow-neon-cta')}
+                  style={pending?.marks?.[col] ? { animationDelay: `${col * 70}ms` } : undefined}
                   letter={pending?.word?.[col] === ' ' ? '' : pending?.word?.[col]}
-                  mark={pending?.marks?.[col]}
+                  mark={pending?.marks?.[col] || null}
                   pending={pending?.pending}
-                  index={col}
                 />
               </div>
             ))}
           </div>
         )
       })}
-    </div>
-  )
-}
-
-function Keyboard({ keyState, onKey, disabled }) {
-  return (
-    <div className="flex flex-col gap-1.5 w-full" aria-label="On-screen keyboard">
-      {KEY_ROWS.map((row, rowIndex) => (
-        <div key={rowIndex} className="flex gap-1 w-full">
-          {rowIndex === 2 && (
-            <button
-              type="button"
-              onClick={() => onKey('ENTER')}
-              disabled={disabled}
-              aria-label="Lock guess"
-              className="flex-[1.55] min-w-0 h-11 rounded border border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] disabled:opacity-30"
-            >↵</button>
-          )}
-          {row.map(letter => {
-            const info = keyState[letter] ? MARK_INFO[keyState[letter]] : null
-            return (
-              <button
-                type="button"
-                key={letter}
-                onClick={() => onKey(letter)}
-                disabled={disabled}
-                aria-label={`${letter}${info ? `, ${info.label}` : ''}`}
-                className={cn(
-                  'flex-1 min-w-0 h-11 rounded border font-pixel text-xs sm:text-sm transition-colors',
-                  info?.className || 'border-retro-structure bg-retro-structure text-retro-text',
-                  'hover:opacity-80 disabled:opacity-30 disabled:cursor-default',
-                )}
-              >{letter}</button>
-            )
-          })}
-          {rowIndex === 2 && (
-            <button
-              type="button"
-              onClick={() => onKey('BACK')}
-              disabled={disabled}
-              aria-label="Delete last letter"
-              className="flex-[1.55] min-w-0 h-11 rounded border border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-sm disabled:opacity-30"
-            >⌫</button>
-          )}
-        </div>
-      ))}
     </div>
   )
 }
@@ -306,17 +230,6 @@ export default function WordCoopGame({
     if (/^[A-Z]$/.test(key) && currentGuess.length < WORD_LENGTH) setCurrentGuess(value => value + key)
   }, [canAct, currentGuess.length, submitGuess, submitting])
 
-  useEffect(() => {
-    const handler = event => {
-      if (event.ctrlKey || event.metaKey || event.altKey || !canAct) return
-      if (event.key === 'Enter') { event.preventDefault(); onKey('ENTER') }
-      else if (event.key === 'Backspace') { event.preventDefault(); onKey('BACK') }
-      else if (/^[a-zA-Z]$/.test(event.key)) { event.preventDefault(); onKey(event.key.toUpperCase()) }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [canAct, onKey])
-
   const status = isSpectator
     ? 'SPECTATING'
     : result?.outcome === 'win'
@@ -402,6 +315,11 @@ export default function WordCoopGame({
             value={currentGuess}
             onChange={event => setCurrentGuess(event.target.value.replace(/[^a-z]/gi, '').toUpperCase().slice(0, WORD_LENGTH))}
             aria-label="Current shared guess"
+            onKeyDown={event => {
+              // The sr-only input keeps the phone keyboard up; physical Enter
+              // typed into it locks the guess (useGameKeys skips text fields).
+              if (event.key === 'Enter' && !event.repeat) { event.preventDefault(); submitGuess() }
+            }}
             autoComplete="off"
             autoCapitalize="characters"
             spellCheck="false"
@@ -416,7 +334,7 @@ export default function WordCoopGame({
               className="min-h-11 px-4 rounded border-2 border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider hover:bg-retro-tint-cta disabled:opacity-40"
             >{submitting ? 'LOCKING…' : 'LOCK GUESS'}</button>
           </div>
-          <Keyboard keyState={keyState} onKey={onKey} disabled={!canAct || submitting} />
+          <WordKeyboard keyState={keyState} onKey={onKey} disabled={!canAct || submitting} enterLabel="Lock guess" />
           {!canAct && opponentOnline === false && <p className="font-pixel text-[9px] text-retro-p2">PARTNER MUST RECONNECT TO PLAY</p>}
         </>
       )}

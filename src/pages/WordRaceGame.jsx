@@ -25,9 +25,9 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   WordRaceBoard,
-  WordRaceKeyboard,
   WordRaceMeter,
 } from '../components/WordRaceBoards'
+import WordKeyboard from '../components/WordKeyboard'
 
 const ANSWERS = getAnswerList()
 
@@ -293,24 +293,6 @@ export default function WordRaceGame({
     }
   }, [currentGuess.length, guessBusy, isSpectator, myDone, phase, submitGuess])
 
-  useEffect(() => {
-    if (isSpectator || phase !== 'playing' || myDone) return undefined
-    const handler = event => {
-      if (event.ctrlKey || event.metaKey || event.altKey) return
-      if (event.key === 'Enter') {
-        event.preventDefault()
-        handleKey('ENTER')
-      } else if (event.key === 'Backspace') {
-        event.preventDefault()
-        handleKey('BACK')
-      } else if (/^[a-zA-Z]$/.test(event.key)) {
-        handleKey(event.key.toUpperCase())
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [handleKey, isSpectator, myDone, phase])
-
   const handleAction = (action) => runAction(async () => action(), () => toast.error('ACTION FAILED — CHECK CONNECTION'))
 
   // Idle-opponent hatch: rounds have no deadline and shouldReveal stays false
@@ -393,7 +375,7 @@ export default function WordRaceGame({
                 <button type="button" onClick={submitGuess} disabled={guessBusy || currentGuess.length !== WORD_LENGTH} className="min-h-11 px-4 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] disabled:opacity-40">{guessBusy ? 'SENDING…' : 'GUESS'}</button>
               </div>
               <p className="h-4 text-center font-pixel text-[9px] text-retro-cta" role="status">{feedback}</p>
-              <WordRaceKeyboard keyState={keyboardState} onKey={handleKey} disabled={guessBusy} />
+              <WordKeyboard keyState={keyboardState} onKey={handleKey} disabled={guessBusy} />
             </>
           )}
           {isSpectator && <p className="text-center font-pixel text-[9px] text-retro-dim">SPECTATING · LETTERS HIDDEN UNTIL REVEAL</p>}

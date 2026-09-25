@@ -1,29 +1,10 @@
 import { cn } from '@/lib/utils'
-
-const KEYBOARD_ROWS = [
-  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
-]
+import MarkTile from './MarkTile'
 
 const MARK_COPY = {
   G: 'correct',
   Y: 'misplaced',
   B: 'absent',
-}
-
-function tileClasses(mark, ghost) {
-  if (mark === 'G') return 'bg-retro-win border-retro-win text-retro-bg'
-  if (mark === 'Y') return 'bg-retro-cta border-retro-cta text-retro-bg'
-  if (mark === 'B') return 'bg-retro-dim border-retro-dim text-retro-bg'
-  return ghost ? 'bg-retro-deep border-retro-border text-retro-dim' : 'bg-retro-card border-retro-border text-retro-text'
-}
-
-function markLabel(mark) {
-  if (mark === 'G') return '✓'
-  if (mark === 'Y') return '•'
-  if (mark === 'B') return '×'
-  return ''
 }
 
 function rowLabel(guesses, row, ghost, reveal) {
@@ -52,23 +33,17 @@ export function WordRaceBoard({ guesses = [], currentGuess = '', ghost = false, 
         aria-label={rowLabel(guesses, row, ghost, reveal)}
       >
         {Array.from({ length: 5 }, (_, col) => {
-          const mark = reveal || !ghost ? marks[col] : marks[col]
+          const mark = marks[col] || null
           const letter = ghost && !reveal ? '' : word[col] || ''
-          const pending = isPreview && letter
           return (
-            <div
+            <MarkTile
               key={`${row}-${col}-${word}-${marks}`}
-              aria-label={`${ghost ? 'opponent' : 'your'} row ${row + 1} column ${col + 1}${letter ? ` ${letter}` : ' empty'}${mark ? `, ${MARK_COPY[mark]}` : ''}`}
-              className={cn(
-                'flex items-center justify-center rounded border-2 uppercase select-none font-bold',
-                compact ? 'w-6 h-6 text-[9px] border' : 'w-10 h-10 sm:w-12 sm:h-12 text-base sm:text-xl',
-                tileClasses(mark, ghost),
-                pending && 'border-retro-cta text-retro-text',
-                guess?.marks && 'word-race-flip',
-              )}
-            >
-              {ghost && !reveal ? markLabel(mark) : letter}
-            </div>
+              size={compact ? 'sm' : 'lg'}
+              letter={letter}
+              mark={mark}
+              pending={!!isPreview}
+              className={cn(ghost && !mark && 'bg-retro-deep', guess?.marks && 'word-race-flip')}
+            />
           )
         })}
       </div>,
@@ -87,54 +62,6 @@ export function WordRaceBoard({ guesses = [], currentGuess = '', ghost = false, 
         {rows}
       </div>
     </section>
-  )
-}
-
-export function WordRaceKeyboard({ keyState = {}, onKey, disabled = false }) {
-  return (
-    <div className="flex w-full max-w-md flex-col gap-1.5 mx-auto" aria-label="On-screen keyboard">
-      {KEYBOARD_ROWS.map((row, rowIndex) => (
-        <div key={rowIndex} className="flex gap-1 w-full">
-          {rowIndex === 2 && (
-            <button
-              type="button"
-              onClick={() => onKey('BACK')}
-              disabled={disabled}
-              aria-label="Backspace"
-              className="min-h-11 flex-[1.5] rounded bg-retro-structure text-retro-text font-bold text-xs disabled:opacity-30"
-            >⌫</button>
-          )}
-          {row.map(letter => {
-            const state = keyState[letter]
-            return (
-              <button
-                key={letter}
-                type="button"
-                onClick={() => onKey(letter)}
-                disabled={disabled}
-                aria-label={`${letter}${state ? `, ${MARK_COPY[state]}` : ''}`}
-                className={cn(
-                  'min-h-11 flex-1 min-w-0 rounded font-bold text-xs sm:text-sm transition-colors disabled:opacity-30',
-                  state === 'G' && 'bg-retro-win text-retro-bg',
-                  state === 'Y' && 'bg-retro-cta text-retro-bg',
-                  state === 'B' && 'bg-retro-dim text-retro-bg',
-                  !state && 'bg-retro-structure text-retro-text hover:bg-retro-border',
-                )}
-              >{letter}</button>
-            )
-          })}
-          {rowIndex === 2 && (
-            <button
-              type="button"
-              onClick={() => onKey('ENTER')}
-              disabled={disabled}
-              aria-label="Submit guess"
-              className="min-h-11 flex-[1.5] rounded bg-retro-structure text-retro-text font-bold text-xs disabled:opacity-30"
-            >↵</button>
-          )}
-        </div>
-      ))}
-    </div>
   )
 }
 

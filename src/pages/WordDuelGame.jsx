@@ -17,6 +17,8 @@ import { shareResult } from '@/lib/shareCard'
 import PixelDots from '@/components/loading/PixelDots'
 import OfflineNotice from '@/components/loading/OfflineNotice'
 import useBusy from '@/hooks/useBusy'
+import MarkTile from '@/components/MarkTile'
+import WordKeyboard from '@/components/WordKeyboard'
 import { toast } from 'sonner'
 
 const STORAGE_PREFIX = 'wordduel-word-'
@@ -46,137 +48,27 @@ function setStoredWord(gameId, symbol, data) {
   }
 }
 
-const KB_ROWS = [
-  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
-]
-
 const normalizeGuesses = normalizeGuessList
 
-// Mini ghost tile showing only the mark color
-function GhostTile({ mark }) {
-  const colorClass =
-    mark === 'G' ? 'bg-retro-win' :
-    mark === 'Y' ? 'bg-[rgb(var(--c-cta))]' :
-    mark === 'B' ? 'bg-retro-dim' :
-    'bg-retro-structure'
-  return (
-    <div className={cn('w-3 h-3 rounded-sm border border-retro-dim/30 transition-colors duration-300', colorClass)} />
-  )
-}
-
-// Full game tile with letter + color
-function GameTile({ letter, mark, pending }) {
-  const colorClass =
-    !mark ? 'bg-retro-card border-retro-border' :
-    mark === 'G' ? 'bg-retro-win border-retro-win' :
-    mark === 'Y' ? 'bg-[rgb(var(--c-cta))] border-[rgb(var(--c-cta))]' :
-    'bg-retro-dim border-retro-dim'
-
-  return (
-    <div
-      className={cn(
-        'w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center rounded',
-        'text-base sm:text-2xl font-bold border-2 uppercase select-none',
-        'transition-colors duration-300',
-        colorClass,
-        letter && mark ? 'text-retro-bg' :
-        letter ? 'text-retro-text' : '',
-        pending && 'arcade-blink border-retro-cta',
-      )}
-    >
-      {letter || ''}
-    </div>
-  )
-}
-
-function GameBoard({ guesses, compact, ghostMode }) {
+function GameBoard({ guesses, ghostMode, label }) {
   const rows = []
   for (let r = 0; r < MAX_GUESSES; r++) {
     const g = guesses[r]
     const cells = []
     for (let c = 0; c < WORD_LENGTH; c++) {
-      const letter = g && g.word ? g.word[c] : null
+      const letter = g && g.word ? g.word[c] : ''
       const mark = g && g.marks ? g.marks[c] : null
-      if (ghostMode) {
-        cells.push(<GhostTile key={c} mark={mark} />)
-      } else {
-        cells.push(
-          <GameTile key={c} letter={letter} mark={mark} pending={g && !g.marks} />
-        )
-      }
+      cells.push(ghostMode
+        ? <MarkTile key={c} size="xs" mark={mark} label={mark ? undefined : g ? 'not checked yet' : 'empty'} />
+        : <MarkTile key={c} size="md" letter={letter} mark={mark} pending={!!g && !g.marks} />)
     }
     rows.push(
-      <div key={r} className={cn('flex', compact ? 'gap-0.5' : 'gap-1')}>
+      <div key={r} className={cn('flex', ghostMode ? 'gap-0.5' : 'gap-1')}>
         {cells}
       </div>
     )
   }
-  return <div className="flex flex-col gap-1">{rows}</div>
-}
-
-function Keyboard({ keyState, onKey, disabled }) {
-  return (
-    <div className="flex flex-col gap-1.5 w-full max-w-md mx-auto">
-      {KB_ROWS.map((row, ri) => (
-        <div key={ri} className="flex gap-1 w-full">
-          {ri === 2 && (
-            <button
-              className={cn(
-                'relative before:content-[\'\'] before:absolute before:inset-y-0 before:-left-0.5 before:-right-0.5',
-                'flex-[1.5] min-w-0 h-11 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
-                'bg-retro-structure text-retro-text hover:bg-retro-border transition-colors',
-                'disabled:opacity-30 disabled:cursor-default',
-              )}
-              onClick={() => onKey('ENTER')}
-              disabled={disabled}
-            >
-              ↵
-            </button>
-          )}
-          {row.map(letter => {
-            const state = keyState[letter]
-            const bg =
-              state === 'G' ? 'bg-retro-win text-retro-bg' :
-              state === 'Y' ? 'bg-[rgb(var(--c-cta))] text-retro-bg' :
-              state === 'B' ? 'bg-retro-dim text-retro-bg' :
-              'bg-retro-structure text-retro-text'
-            return (
-              <button
-                key={letter}
-                className={cn(
-                  'relative before:content-[\'\'] before:absolute before:inset-y-0 before:-left-0.5 before:-right-0.5',
-                  'flex-1 min-w-0 h-11 rounded text-xs sm:text-sm font-bold uppercase',
-                  'hover:opacity-80 transition-colors',
-                  bg,
-                  'disabled:opacity-30 disabled:cursor-default',
-                )}
-                onClick={() => onKey(letter)}
-                disabled={disabled}
-              >
-                {letter}
-              </button>
-            )
-          })}
-          {ri === 2 && (
-            <button
-              className={cn(
-                'relative before:content-[\'\'] before:absolute before:inset-y-0 before:-left-0.5 before:-right-0.5',
-                'flex-[1.5] min-w-0 h-11 rounded text-xs sm:text-sm font-bold uppercase cursor-pointer',
-                'bg-retro-structure text-retro-text hover:bg-retro-border transition-colors',
-                'disabled:opacity-30 disabled:cursor-default',
-              )}
-              onClick={() => onKey('BACK')}
-              disabled={disabled}
-            >
-              ⌫
-            </button>
-          )}
-        </div>
-      ))}
-    </div>
-  )
+  return <div className="flex flex-col gap-1" role="group" aria-label={label}>{rows}</div>
 }
 
 // Word input for setting phase
@@ -612,40 +504,6 @@ export default function WordDuelGame({
     }
   }, [settingWord, phase, myCommit, handleSetWord])
 
-  // Physical keyboard for setting phase
-  useEffect(() => {
-    if (phase !== 'setting' || !!myCommit) return
-    const handler = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        handleSettingKey('ENTER')
-      } else if (e.key === 'Backspace') {
-        handleSettingKey('BACK')
-      } else if (/^[a-zA-Z]$/.test(e.key)) {
-        handleSettingKey(e.key.toUpperCase())
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [handleSettingKey, phase, myCommit])
-  useEffect(() => {
-    if (phase !== 'guessing' || myDone || isSpectator) return
-    const handler = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        handleKey('ENTER')
-      } else if (e.key === 'Backspace') {
-        handleKey('BACK')
-      } else if (/^[a-zA-Z]$/.test(e.key)) {
-        handleKey(e.key.toUpperCase())
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [handleKey, phase, myDone, isSpectator])
-
   // Either player may start the next round; the transaction lets exactly one
   // click through and bumps roundNum, which resets both clients.
   const handleNextRound = () => runAction(async () => {
@@ -731,7 +589,7 @@ export default function WordDuelGame({
               {lockingWord ? 'LOCKING…' : 'LOCK IN'}
             </button>
             <div className="w-full">
-              <Keyboard keyState={{}} onKey={handleSettingKey} disabled={lockingWord} />
+              <WordKeyboard keyState={{}} onKey={handleSettingKey} disabled={lockingWord} enterLabel="Lock in word" />
             </div>
           </>
         ) : (
@@ -798,13 +656,13 @@ export default function WordDuelGame({
           {/* Opponent ghost */}
           <div>
             <p className="text-xs text-retro-dim mb-1 text-center uppercase tracking-wider">OPPONENT</p>
-            <GameBoard guesses={oppGuesses} compact ghostMode={true} />
+            <GameBoard guesses={oppGuesses} ghostMode label="Opponent board" />
           </div>
         </div>
 
         {/* Keyboard */}
         <div className="mt-1 w-full">
-          <Keyboard keyState={keyboardState} onKey={handleKey} disabled={!!myDone || boardFull || guessBusy} />
+          <WordKeyboard keyState={keyboardState} onKey={handleKey} disabled={!!myDone || boardFull || guessBusy} />
         </div>
 
         {/* Current input preview */}
