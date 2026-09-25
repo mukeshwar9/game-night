@@ -37,6 +37,20 @@ describe('SPYFAIR deck', () => {
     }
   })
 
+  it('regression: no dated or gendered job titles', () => {
+    // "Cocktail Waitress", "Lunch Lady", "Maintenance Man", "Cameraman"…
+    const dated = /\b(\w*(man|men)|\w*lady|\w*ladies|boy|girl|\w*waitress|\w*hostess|masseuse)\b/i
+    for (const loc of SPYFAIR_LOCATIONS) {
+      for (const role of loc.roles) {
+        expect(dated.test(role), `${loc.name}: ${role}`).toBe(false)
+      }
+    }
+  })
+
+  it('has no crusade-themed location', () => {
+    expect(SPYFAIR_LOCATIONS.some(l => /CRUSADE/.test(l.name))).toBe(false)
+  })
+
   it('contains classic Spyfall locations', () => {
     const names = SPYFAIR_LOCATIONS.map(l => l.name)
     expect(names).toContain('CASINO')
