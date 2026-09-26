@@ -11,16 +11,20 @@ export function isGuestStyleName(name) {
   return typeof name === 'string' && /^Guest-[0-9A-Z]{4}$/i.test(name.trim())
 }
 
-// Zero-width and bidi control characters render as nothing but make two names
-// that look identical compare different — strip them before anything else.
-const INVISIBLE = /[\u0000-\u001f\u007f­​-‏‪-‮⁠-⁯﻿]/g
+// Control, zero-width and bidi characters render as nothing but make two
+// names that look identical compare different — strip them before anything else.
+function isInvisible(ch) {
+  const c = ch.codePointAt(0)
+  return c < 0x20 || c === 0x7f || c === 0xad || (c >= 0x200b && c <= 0x200f) ||
+    (c >= 0x202a && c <= 0x202e) || (c >= 0x2060 && c <= 0x206f) || c === 0xfeff
+}
 
 // Returns { ok, name, error }. `name` is always the cleaned value (trimmed,
 // invisible characters removed, runs of whitespace collapsed, capped at
 // NAME_MAX code points) so the input can show exactly what will be saved.
 // `error` is a short, friendly upper-case message, or null when ok.
 export function validateName(raw) {
-  const cleaned = String(raw ?? '').replace(INVISIBLE, '').replace(/\s+/g, ' ').trim()
+  const cleaned = [...String(raw ?? '')].filter(ch => !isInvisible(ch)).join('').replace(/\s+/g, ' ').trim()
   const name = [...cleaned].slice(0, NAME_MAX).join('').trim()
   if (!name) return { ok: false, name, error: 'TYPE A NAME — OR ROLL THE DICE' }
   if ([...name].length < NAME_MIN) return { ok: false, name, error: `AT LEAST ${NAME_MIN} CHARACTERS` }
