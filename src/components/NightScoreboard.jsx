@@ -56,7 +56,7 @@ export default function NightScoreboard({ game, gameId, myUid, isHost }) {
             <Avatar id={s.avatar} size={20} />
             <span className="font-mono text-xs text-retro-text truncate flex-1 min-w-0">
               {s.name}{s.uid === myUid ? ' (YOU)' : ''}
-              {recap.mvp?.uid === s.uid && <span className="ml-1.5 font-pixel text-[7px] text-retro-win">MVP</span>}
+              {recap.mvp?.uid === s.uid && <span className="ml-1.5 font-pixel text-[8px] text-retro-win">MVP</span>}
             </span>
             <span className="font-pixel text-[8px] text-retro-dim whitespace-nowrap" title={`${s.wins} wins in ${s.played} games`}>
               {s.wins}W · {s.played}G

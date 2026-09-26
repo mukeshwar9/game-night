@@ -82,7 +82,7 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
                 <span className="font-mono text-xs text-retro-text truncate flex-1 min-w-0">
                   {m.name}{m.uid === myUid ? ' (YOU)' : ''}
                 </span>
-                <span className="font-pixel text-[7px] text-retro-dim whitespace-nowrap">
+                <span className="font-pixel text-[8px] text-retro-dim whitespace-nowrap">
                   {m.uid === hostUid ? 'HOST' : WHERE_LABEL[m.where]}
                 </span>
                 {m.uid !== myUid && (
@@ -90,14 +90,14 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
                     <button
                       onClick={() => setPending({ kind: 'host', member: m })}
                       aria-label={`Make ${m.name} host`}
-                      className="min-h-9 px-2 font-pixel text-[7px] rounded border border-retro-border text-retro-dim hover:text-retro-text hover:border-retro-p1/50 transition-all active:scale-95"
+                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-border text-retro-dim hover:text-retro-text hover:border-retro-p1/50 transition-all active:scale-95"
                     >
                       MAKE HOST
                     </button>
                     <button
                       onClick={() => setPending({ kind: 'kick', member: m })}
                       aria-label={`Remove ${m.name}`}
-                      className="min-h-9 px-2 font-pixel text-[7px] rounded border border-retro-danger/60 text-retro-danger hover:bg-retro-tint-danger transition-all active:scale-95"
+                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-danger/60 text-retro-danger hover:bg-retro-tint-danger transition-all active:scale-95"
                     >
                       KICK
                     </button>

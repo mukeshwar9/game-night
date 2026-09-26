@@ -43,7 +43,7 @@ export default function VariantChooser({ base, variants, onPick, onClose }) {
               <span className={cn('font-pixel text-[11px]', i === 0 ? 'text-retro-text' : 'text-retro-cta text-glow-cta')}>
                 {o.name}
               </span>
-              {i > 0 && <span className="font-pixel text-[7px] text-retro-cta/70 tracking-wider">NEW</span>}
+              {i > 0 && <span className="font-pixel text-[8px] text-retro-cta/70 tracking-wider">NEW</span>}
             </div>
             <p className="font-mono text-[11px] text-retro-dim mt-1 leading-snug">{o.blurb}</p>
           </button>

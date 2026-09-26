@@ -330,7 +330,7 @@ export default function WordCoopGame({
           )} aria-live="polite">{status}</span>
           <span className="font-pixel text-[8px] text-retro-dim tracking-widest">WINS {score}</span>
           <span
-            className="font-pixel text-[7px] text-retro-dim tracking-widest text-center"
+            className="font-pixel text-[8px] text-retro-dim tracking-widest text-center"
             aria-label={`Current streak ${stats.streak}, best streak ${stats.bestStreak}, losses ${stats.losses}`}
           >
             STREAK {stats.streak} · BEST {stats.bestStreak} · LOSSES {stats.losses}

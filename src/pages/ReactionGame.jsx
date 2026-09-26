@@ -182,7 +182,7 @@ function ReactionFinal({ round, result, players }) {
   })
   return (
     <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1 overflow-x-auto">
-      <div className="grid grid-cols-[minmax(0,1fr)_repeat(4,3rem)] gap-x-1 font-pixel text-[7px] text-retro-dim pb-1 border-b border-retro-border">
+      <div className="grid grid-cols-[minmax(0,1fr)_repeat(4,3rem)] gap-x-1 font-pixel text-[8px] text-retro-dim pb-1 border-b border-retro-border">
         <span>RACER</span>
         {best.map((_, i) => <span key={i} className="text-right">R{i + 1}</span>)}
       </div>

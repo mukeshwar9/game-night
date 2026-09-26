@@ -739,12 +739,12 @@ function CupReveal({ label, dice, face, accent }) {
               </span>
               {/* Non-color signal that this die counts toward the bid — glyph
                   alone (color) is unreadable for colorblind players. */}
-              {counts && <span className="font-pixel text-[6px] text-retro-cta leading-none">✓</span>}
+              {counts && <span className="font-pixel text-[8px] text-retro-cta leading-none">✓</span>}
             </span>
           )
         })}
       </div>
-      <p className="font-pixel text-[6px] text-retro-dim text-center tracking-widest">
+      <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">
         ✓ = COUNTS TOWARD BID
       </p>
     </div>

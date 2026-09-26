@@ -191,7 +191,7 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96, co
               <span className="rounded border-2 border-retro-border p-1 hover:border-retro-cta transition-all">
                 <Avatar id={makeHumanoid(shape, { ...parts, ...preset.parts, skin: parts.skin })} size={40} />
               </span>
-              <span className="font-pixel text-[7px] text-retro-dim tracking-wider">{preset.label}</span>
+              <span className="font-pixel text-[8px] text-retro-dim tracking-wider">{preset.label}</span>
             </button>
           ))}
         </div>

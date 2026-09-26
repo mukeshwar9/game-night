@@ -90,12 +90,12 @@ export default function BottomTabBar() {
                     {tab.icon}
                     {badgeCount > 0 && (
                       <span className="absolute -top-1.5 -right-2 min-w-[13px] h-[13px] px-0.5 rounded-full
-                        bg-retro-p1 text-retro-bg font-pixel text-[6px] flex items-center justify-center">
+                        bg-retro-p1 text-retro-bg font-pixel text-[8px] flex items-center justify-center">
                         {badgeCount > 9 ? '9+' : badgeCount}
                       </span>
                     )}
                   </span>
-                  <span className="font-pixel text-[7px] tracking-wide">{tab.label}</span>
+                  <span className="font-pixel text-[8px] tracking-wide">{tab.label}</span>
                 </>
               )}
             </NavLink>

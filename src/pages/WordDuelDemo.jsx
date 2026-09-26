@@ -291,7 +291,7 @@ export default function WordDuelDemo() {
             ? <Board guesses={round.cpuRows} size="sm" label="CPU board" />
             : <Board guesses={shownCpuRows} ghost label={`CPU board: ${shownCpuRows.length} of ${MAX_GUESSES} guesses used`} />}
           {!revealed && nextCpuAt && (
-            <p className="font-pixel text-[7px] text-retro-dim mt-1 text-center arcade-blink">THINKING…</p>
+            <p className="font-pixel text-[8px] text-retro-dim mt-1 text-center arcade-blink">THINKING…</p>
           )}
         </div>
       </div>

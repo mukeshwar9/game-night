@@ -42,16 +42,16 @@ export default function GameCard({ game, onTap, onOptions, loadingType, disabled
         <div className="text-center">
           <p className="font-pixel text-[10px] text-retro-text leading-relaxed">{label}</p>
           <p className="font-mono text-[10px] text-retro-dim mt-0.5 hidden sm:block">{desc}</p>
-          <p className="font-pixel text-[7px] mt-1 flex items-center justify-center gap-1.5">
+          <p className="font-pixel text-[8px] mt-1 flex items-center justify-center gap-1.5">
             <span className={game.nPlayer ? 'text-retro-p2' : 'text-retro-dim'}>{getPlayerTag(game)}</span>
             {game.durationMin != null && (
-              <span className="text-[6px] text-retro-dim">~{game.durationMin} MIN</span>
+              <span className="text-[8px] text-retro-dim">~{game.durationMin} MIN</span>
             )}
           </p>
         </div>
         {loadingType === type && <PixelDots size="sm" tone="cta" />}
         {isNew && (
-          <span className="absolute bottom-1 right-1 font-pixel text-[6px] text-retro-win tracking-wider">NEW</span>
+          <span className="absolute bottom-1 right-1 font-pixel text-[8px] text-retro-win tracking-wider">NEW</span>
         )}
       </button>
       {onToggleFav && (

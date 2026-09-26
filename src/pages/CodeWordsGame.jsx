@@ -654,14 +654,14 @@ export default function CodeWordsGame({
               )}
             >
               {known && (
-                <span className="absolute top-0 left-0.5 font-pixel text-[7px]" aria-hidden="true">{IDENTITY_GLYPH[known]}</span>
+                <span className="absolute top-0 left-0.5 font-pixel text-[8px]" aria-hidden="true">{IDENTITY_GLYPH[known]}</span>
               )}
               {badCards[i] && (
-                <span className="absolute top-0 right-0.5 font-pixel text-[7px] text-retro-danger" title="Reveal failed verification">⚠</span>
+                <span className="absolute top-0 right-0.5 font-pixel text-[8px] text-retro-danger" title="Reveal failed verification">⚠</span>
               )}
               <span className={cn(rev && 'line-through decoration-1 opacity-80')}>{word}</span>
               {pickers.length > 0 && !rev && (
-                <span className="absolute bottom-0 inset-x-0 font-pixel text-[6px] text-retro-cta truncate px-0.5" aria-hidden="true">
+                <span className="absolute bottom-0 inset-x-0 font-pixel text-[8px] text-retro-cta truncate px-0.5" aria-hidden="true">
                   {pickers.map(uid => nameOf(uid).slice(0, 3).toUpperCase()).join(' ')}
                 </span>
               )}

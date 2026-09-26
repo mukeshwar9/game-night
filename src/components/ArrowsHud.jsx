@@ -46,7 +46,7 @@ export function RaceRow({ name, sym, cleared, total, lives, isMe, status }) {
           />
         </div>
         {status
-          ? <span className="font-pixel text-[7px] text-retro-dim border border-retro-border rounded px-1 py-0.5">{status}</span>
+          ? <span className="font-pixel text-[8px] text-retro-dim border border-retro-border rounded px-1 py-0.5">{status}</span>
           : <span className="font-pixel text-[8px] text-retro-dim tabular-nums w-11 text-right">{cleared}/{total}</span>}
       </div>
     </div>

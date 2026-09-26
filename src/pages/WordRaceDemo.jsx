@@ -209,7 +209,7 @@ export default function WordRaceDemo() {
         <div className="rounded border p-3 border-retro-p2/30 bg-retro-tint-p2/10">
           <WordRaceBoard guesses={cpuGuesses} ghost reveal={reveal} compact={!reveal} label="CPU" solved={cpuDone?.solved} />
           {playing && !cpuDone && (
-            <p className="font-pixel text-[7px] text-retro-dim mt-1 arcade-blink">CPU IS THINKING…</p>
+            <p className="font-pixel text-[8px] text-retro-dim mt-1 arcade-blink">CPU IS THINKING…</p>
           )}
         </div>
       </div>

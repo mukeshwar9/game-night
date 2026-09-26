@@ -70,7 +70,7 @@ export default function RaceResults({ title, final = false, rows = [] }) {
                     <span className="font-pixel text-[8px] text-retro-cta shrink-0" title="Round wins">★{row.wins}</span>
                   )}
                   {row.online === false && (
-                    <span className="font-pixel text-[7px] text-retro-dim shrink-0">OFFLINE</span>
+                    <span className="font-pixel text-[8px] text-retro-dim shrink-0">OFFLINE</span>
                   )}
                 </div>
                 {!final && row.progress != null && (
@@ -93,7 +93,7 @@ export default function RaceResults({ title, final = false, rows = [] }) {
                   {row.primary}
                 </p>
                 {row.secondary && (
-                  <p className="font-pixel text-[7px] text-retro-dim tabular-nums">{row.secondary}</p>
+                  <p className="font-pixel text-[8px] text-retro-dim tabular-nums">{row.secondary}</p>
                 )}
               </div>
               <span className={cn('font-pixel text-[10px] w-4 text-center shrink-0', mark.className)} aria-hidden="true">

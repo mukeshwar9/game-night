@@ -321,7 +321,7 @@ export default function PacmacGame({
             <span className="text-retro-p1">X {game.pacmacScoreX ?? 0}</span>
             <span className="text-retro-p2">{game.pacmacScoreO ?? 0} O</span>
           </div>
-          <p className="font-pixel text-[7px] text-retro-dim/70 leading-relaxed">
+          <p className="font-pixel text-[8px] text-retro-dim/70 leading-relaxed">
             THIS ROUND&apos;S POINTS
           </p>
         </div>
@@ -359,7 +359,7 @@ export default function PacmacGame({
         />
         {coarse && <PacmacDpad onPress={press} disabled={!connected} />}
       </div>
-      <p className="text-center font-pixel text-[7px] leading-relaxed text-retro-dim px-2 [@media(max-height:500px)]:hidden">
+      <p className="text-center font-pixel text-[8px] leading-relaxed text-retro-dim px-2 [@media(max-height:500px)]:hidden">
         {PACMAC_RULES_LINE}
         <br />
         {coarse ? 'SWIPE OR USE THE PAD' : '↑ ↓ ← → OR WASD'} · FIRST TO {MATCH_TARGET} ROUNDS

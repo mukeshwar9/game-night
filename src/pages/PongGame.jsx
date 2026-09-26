@@ -343,7 +343,7 @@ export default function PongGame({
             <span className="text-retro-p1">X {game.pongScoreX ?? 0}</span>
             <span className="text-retro-p2">{game.pongScoreO ?? 0} O</span>
           </div>
-          <p className="font-pixel text-[7px] text-retro-dim/70 leading-relaxed">
+          <p className="font-pixel text-[8px] text-retro-dim/70 leading-relaxed">
             LIVE BALL IS PEER-TO-PEER · SCORE ONLY FOR SPECTATORS
           </p>
         </div>
@@ -361,7 +361,7 @@ export default function PongGame({
       onClick={handleForfeit}
       disabled={forfeitBusy}
       className={cn(
-        'min-h-10 px-2 font-pixel text-[7px] tracking-wide rounded border transition-colors disabled:opacity-50',
+        'min-h-10 px-2 font-pixel text-[8px] tracking-wide rounded border transition-colors disabled:opacity-50',
         forfeitArmed ? 'text-retro-danger border-retro-danger/60' : 'text-retro-dim border-retro-border hover:text-retro-danger',
       )}
     >

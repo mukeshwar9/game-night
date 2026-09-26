@@ -74,7 +74,7 @@ export default function ChatLog({ chatLog, myUid }) {
 
   return (
     <div className="border border-retro-border rounded bg-retro-card">
-      <p className="font-pixel text-[7px] text-retro-dim px-2 pt-2 tracking-widest">CHAT</p>
+      <p className="font-pixel text-[8px] text-retro-dim px-2 pt-2 tracking-widest">CHAT</p>
       <div ref={scrollRef} className="max-h-40 overflow-y-auto p-2 space-y-1">
         {visible.map(([key, msg]) => {
           const mine = msg.by === myUid
@@ -83,14 +83,14 @@ export default function ChatLog({ chatLog, myUid }) {
           return (
             <div key={key}>
               {mine ? (
-                <span className="font-pixel text-[7px] tracking-wider text-retro-p1">{name}{' '}</span>
+                <span className="font-pixel text-[8px] tracking-wider text-retro-p1">{name}{' '}</span>
               ) : (
                 <button
                   type="button"
                   onClick={() => setOpenKey(open ? null : key)}
                   aria-expanded={open}
                   aria-label={`${name} — mute or report`}
-                  className="font-pixel text-[7px] tracking-wider text-retro-dim hover:text-retro-text underline decoration-dotted underline-offset-2"
+                  className="font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text underline decoration-dotted underline-offset-2"
                 >
                   {name}
                 </button>
@@ -109,7 +109,7 @@ export default function ChatLog({ chatLog, myUid }) {
                   <button
                     type="button"
                     onClick={() => mute(msg.by, name)}
-                    className="min-h-8 px-2 rounded border border-retro-border font-pixel text-[7px] tracking-wider text-retro-dim hover:text-retro-text hover:border-retro-p1 transition-colors active:scale-95"
+                    className="min-h-8 px-2 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text hover:border-retro-p1 transition-colors active:scale-95"
                   >
                     MUTE {name}
                   </button>
@@ -117,7 +117,7 @@ export default function ChatLog({ chatLog, myUid }) {
                     type="button"
                     onClick={() => report(msg, name)}
                     disabled={reporting}
-                    className="min-h-8 px-2 rounded border border-retro-border font-pixel text-[7px] tracking-wider text-retro-p2 hover:border-retro-p2 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="min-h-8 px-2 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-p2 hover:border-retro-p2 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {reporting ? 'REPORTING…' : 'REPORT'}
                   </button>
@@ -132,13 +132,13 @@ export default function ChatLog({ chatLog, myUid }) {
       </div>
       {mutedHere.length > 0 && (
         <div className="border-t border-retro-border px-2 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="font-pixel text-[7px] text-retro-dim tracking-widest">MUTED:</span>
+          <span className="font-pixel text-[8px] text-retro-dim tracking-widest">MUTED:</span>
           {mutedHere.map(({ uid, name }) => (
             <button
               key={uid}
               type="button"
               onClick={() => unmute(uid)}
-              className="min-h-8 font-pixel text-[7px] tracking-wider text-retro-dim hover:text-retro-text"
+              className="min-h-8 font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text"
             >
               {name} · UNMUTE
             </button>

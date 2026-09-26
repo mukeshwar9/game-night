@@ -829,7 +829,7 @@ function ClueBoard({ survivors, giverView, nameOf }) {
         {shown.map(([uid, text]) => (
           <div key={uid} className="bg-retro-card border-2 border-retro-p1 rounded p-3 text-center space-y-1">
             <p className="font-pixel text-[11px] text-retro-p1 text-glow-p1 break-all">{String(text).toUpperCase()}</p>
-            <p className="font-pixel text-[7px] text-retro-dim">{nameOf(uid).toUpperCase()}</p>
+            <p className="font-pixel text-[8px] text-retro-dim">{nameOf(uid).toUpperCase()}</p>
           </div>
         ))}
       </div>

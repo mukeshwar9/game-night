@@ -103,7 +103,7 @@ export default function Playground() {
                 ].map(({ label, val, col }) => (
                   <div key={label} className="bg-retro-bg border border-retro-border rounded py-2">
                     <p className={cn('font-pixel text-base', col)}>{val}</p>
-                    <p className="font-pixel text-[7px] text-retro-dim mt-1 tracking-wider">{label}</p>
+                    <p className="font-pixel text-[8px] text-retro-dim mt-1 tracking-wider">{label}</p>
                   </div>
                 ))}
               </div>

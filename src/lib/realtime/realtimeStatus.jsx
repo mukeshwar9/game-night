@@ -79,7 +79,7 @@ export function RealtimeOverlay({ conn, countdown, retry, gameId, mySymbol, oppo
     return (
       <div role="alert" className="text-center space-y-3 px-4">
         <p className="font-pixel text-[10px] text-retro-p2 leading-relaxed">{who} DISCONNECTED</p>
-        <p className="font-pixel text-[7px] text-retro-dim leading-relaxed">
+        <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
           GAME PAUSED · WAIT FOR THEM TO RETURN<br />OR CLAIM THIS ROUND
         </p>
         <div className="flex flex-wrap justify-center gap-2">
@@ -123,7 +123,7 @@ export function RealtimeOverlay({ conn, countdown, retry, gameId, mySymbol, oppo
         <p className="font-pixel text-[9px] text-retro-p2 leading-relaxed">
           CONNECTION FAILED<br />TRY A DIFFERENT NETWORK
         </p>
-        <p className="font-pixel text-[7px] text-retro-dim">EITHER PLAYER CAN RETRY</p>
+        <p className="font-pixel text-[8px] text-retro-dim">EITHER PLAYER CAN RETRY</p>
         <RetryButton retry={retry} />
       </div>
     )
@@ -132,7 +132,7 @@ export function RealtimeOverlay({ conn, countdown, retry, gameId, mySymbol, oppo
     return (
       <div role="status" className="text-center space-y-2 px-4">
         <p className="font-pixel text-[10px] text-retro-p2">RECONNECTING…</p>
-        <p className="font-pixel text-[7px] text-retro-dim tracking-widest">GAME PAUSED</p>
+        <p className="font-pixel text-[8px] text-retro-dim tracking-widest">GAME PAUSED</p>
         <PixelDots size="sm" tone="p2" className="justify-center" />
       </div>
     )
@@ -140,7 +140,7 @@ export function RealtimeOverlay({ conn, countdown, retry, gameId, mySymbol, oppo
   if (conn !== 'connected') {
     return (
       <div className="text-center space-y-2">
-        <p className="font-pixel text-[7px] text-retro-dim tracking-widest">LINKING PLAYERS</p>
+        <p className="font-pixel text-[8px] text-retro-dim tracking-widest">LINKING PLAYERS</p>
         <PixelDots size="sm" tone="cta" className="justify-center" />
       </div>
     )

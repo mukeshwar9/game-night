@@ -350,7 +350,7 @@ function PlaysAdmin() {
         <div className="bg-retro-card border border-retro-border rounded overflow-x-auto">
           <table className="w-full font-mono text-[11px]">
             <thead>
-              <tr className="text-retro-dim font-pixel text-[7px] tracking-wider">
+              <tr className="text-retro-dim font-pixel text-[8px] tracking-wider">
                 <th scope="col" className="text-left p-2">GAME</th>
                 <th scope="col" className="text-right p-2">STARTED</th>
                 <th scope="col" className="text-right p-2">FINISHED</th>

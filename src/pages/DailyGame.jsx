@@ -176,7 +176,7 @@ export default function DailyGame() {
                 {playedToday ? 'PLAY AGAIN' : 'START'}
               </button>
               {playedToday && (
-                <p className="font-pixel text-[7px] text-retro-dim leading-relaxed">
+                <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
                   REPLAYS ARE JUST FOR FUN ·{'\n'}YOUR BEST IS ALREADY LOGGED
                 </p>
               )}
@@ -196,16 +196,16 @@ export default function DailyGame() {
                 )}>
                   {fmtTime(timeLeft)}
                 </p>
-                <p className="font-pixel text-[7px] text-retro-dim mt-0.5">TIME</p>
+                <p className="font-pixel text-[8px] text-retro-dim mt-0.5">TIME</p>
               </div>
               <div className="flex-1 grid grid-cols-2 gap-2">
                 <div className="bg-retro-card border border-retro-border rounded py-1.5 text-center">
                   <p className="font-pixel text-base text-retro-win tabular-nums">{correct}</p>
-                  <p className="font-pixel text-[7px] text-retro-dim">CORRECT</p>
+                  <p className="font-pixel text-[8px] text-retro-dim">CORRECT</p>
                 </div>
                 <div className="bg-retro-card border border-retro-border rounded py-1.5 text-center">
                   <p className="font-pixel text-base text-retro-p2 tabular-nums">{wrong}</p>
-                  <p className="font-pixel text-[7px] text-retro-dim">WRONG</p>
+                  <p className="font-pixel text-[8px] text-retro-dim">WRONG</p>
                 </div>
               </div>
             </div>
@@ -270,7 +270,7 @@ export default function DailyGame() {
 
             <div className="bg-retro-card border border-retro-border rounded p-3 text-center">
               <p className="font-pixel text-[9px] text-retro-cta text-glow-cta">COME BACK TOMORROW</p>
-              <p className="font-pixel text-[7px] text-retro-dim mt-1.5 leading-relaxed">
+              <p className="font-pixel text-[8px] text-retro-dim mt-1.5 leading-relaxed">
                 A FRESH PUZZLE DROPS EACH DAY
               </p>
             </div>
@@ -294,11 +294,11 @@ export default function DailyGame() {
               )}>
                 {currentStreak > 0 ? `🔥 ${currentStreak}` : '0'}
               </p>
-              <p className="font-pixel text-[7px] text-retro-dim mt-1">CURRENT STREAK</p>
+              <p className="font-pixel text-[8px] text-retro-dim mt-1">CURRENT STREAK</p>
             </div>
             <div>
               <p className="font-pixel text-base text-retro-win tabular-nums">{bestStreak}</p>
-              <p className="font-pixel text-[7px] text-retro-dim mt-1">BEST STREAK</p>
+              <p className="font-pixel text-[8px] text-retro-dim mt-1">BEST STREAK</p>
             </div>
           </div>
           <div className="flex justify-center gap-1.5">
@@ -312,7 +312,7 @@ export default function DailyGame() {
                   )}
                   title={day.date}
                 />
-                <p className="font-pixel text-[6px] text-retro-dim tabular-nums leading-none">
+                <p className="font-pixel text-[8px] text-retro-dim tabular-nums leading-none">
                   {day.played ? day.score : '·'}
                 </p>
               </div>

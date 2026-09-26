@@ -50,7 +50,7 @@ export default function TimerScalePicker({ gameId, game, canEdit }) {
         ))}
       </div>
       {!canEdit && (
-        <p className="font-pixel text-[7px] text-retro-dim/70">HOST PICKS THE TIMERS</p>
+        <p className="font-pixel text-[8px] text-retro-dim/70">HOST PICKS THE TIMERS</p>
       )}
     </div>
   )

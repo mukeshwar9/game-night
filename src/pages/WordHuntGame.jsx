@@ -368,7 +368,7 @@ function ScoreBar({ myScore, oppScore, myLabel, oppLabel, mySymbol }) {
   const oppBar = isX ? 'bg-retro-p2' : 'bg-retro-p1'
   return (
     <div className="bg-retro-card border border-retro-border rounded p-2 space-y-1">
-      <p className="font-pixel text-[7px] text-retro-dim text-center tracking-widest">ROUND POINTS</p>
+      <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">ROUND POINTS</p>
       <div className="flex justify-between font-pixel text-[10px]">
         <span className={myColor}>{(myLabel || mySymbol || 'X').toUpperCase()} · {myScore}</span>
         <span className={oppColor}>{oppScore} · {(oppLabel || (isX ? 'O' : 'X')).toUpperCase()}</span>

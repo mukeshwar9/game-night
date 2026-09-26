@@ -360,7 +360,7 @@ export default function SnakeGame({
             <span className="text-retro-p1">X {game.snakeScoreX ?? 0}</span>
             <span className="text-retro-p2">{game.snakeScoreO ?? 0} O</span>
           </div>
-          <p className="font-pixel text-[7px] text-retro-dim/70 leading-relaxed">
+          <p className="font-pixel text-[8px] text-retro-dim/70 leading-relaxed">
             THIS ROUND&apos;S FOOD EATEN
           </p>
         </div>
