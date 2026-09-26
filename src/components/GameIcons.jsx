@@ -936,3 +936,32 @@ export function WireCrossedIcon() {
     </svg>
   )
 }
+
+export function LanternsIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* a hanging lantern beside a fanned pair of cards */}
+      <path d="M7 2v2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M4.5 5h5l1 2.5v5l-1 2.5h-5l-1-2.5v-5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M7 8.5v3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".7" />
+      <rect x="13" y="7" width="7" height="10" rx="1" transform="rotate(8 16.5 12)" stroke="currentColor" strokeWidth="1.4" opacity=".55" />
+      <rect x="12" y="9" width="7" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M15.5 12.2l1.6 2.8h-3.2z" fill="currentColor" />
+      <path d="M6 19.5h2M7 16v3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity=".6" />
+    </svg>
+  )
+}
+
+export function DockingIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* a capsule closing on a port, with a die for the crew's rolls */}
+      <path d="M2 9h5l2 3-2 3H2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M11 12h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeDasharray="1 1.5" />
+      <path d="M22 6v12M22 9h-4v6h4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <rect x="3" y="17.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" opacity=".7" />
+      <circle cx="4.6" cy="19.1" r=".7" fill="currentColor" opacity=".7" />
+      <circle cx="6.9" cy="21.4" r=".7" fill="currentColor" opacity=".7" />
+    </svg>
+  )
+}

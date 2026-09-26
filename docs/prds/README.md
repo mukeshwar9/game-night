@@ -25,6 +25,35 @@ conventions** below — read this file first.
 | [dice-big.md](dice-big.md) | Pig Big (2 dice) | dicebluff | 2 | registry + `applyMove` (`variantOf` Pig) | RTDB + Pig seed | S/M | P2 |
 | [tictactoe4.md](tictactoe4.md) | Tic Tac Toe 4×4 | board | 2 | standard registry (`variantOf` TTT) | RTDB | S | P2 |
 
+### Co-op wave (two players, one team)
+
+From the 2026-09 co-op research (top 5: HUNCH, CONVERGE, WIRE CROSSED, LANTERNS, DOCKING).
+**LANTERNS** (`lanterns`, Hanabi-style hidden hands) and **DOCKING** (`docking`, private dice
+placed in silence) have shipped; their pages are the reference for the PRDs below. The other
+ten candidates:
+
+| PRD | Game | Inspired by | Category | Players | Integration | Network | Effort | Priority |
+|---|---|---|---|---|---|---|---|---|
+| [panel-panic.md](panel-panic.md) | Panel Panic (orders land on the wrong screen) | Spaceteam | party | 2 | custom co-op page | RTDB + coordinator | M | P2 |
+| [last-wire.md](last-wire.md) | Last Wire (deduce sorted hidden racks) | Bomb Busters | board | 2 | custom co-op page | RTDB | M | **P1** |
+| [dual-key.md](dual-key.md) | Dual Key (two secret keys, one word grid) | Codenames Duet | word | 2 | custom co-op page | RTDB | M | P2 |
+| [getaway.md](getaway.md) | Getaway (each owns directions for both pawns) | Magic Maze | reflex | 2 | custom co-op page | RTDB + server clock | M | P2 |
+| [split-sight.md](split-sight.md) | Split Sight (you see your partner's hazards) | Fireboy & Watergirl, BOKURA | board | 2 | custom co-op page | RTDB | M/L | P3 |
+| [whos-who.md](whos-who.md) | Who's Who (alike/unlike clue cards) | Similo | board | 2 | custom co-op page | RTDB | S/M | P2 |
+| [on-a-scale.md](on-a-scale.md) | On a Scale (describe a hidden number) | ito | word | 2 | custom co-op page | RTDB | S/M | P3 |
+| [split-picture.md](split-picture.md) | Split Picture (row clues vs column clues) | nonograms | board | 2 | custom co-op page | RTDB | S/M | P2 |
+| [short-order.md](short-order.md) | Short Order (split diner stations) | Overcooked | reflex | 2 | custom co-op page | RTDB + server clock | M/L | P3 |
+| [twin-path.md](twin-path.md) | Twin Path (real-time split-ability platformer) | Fireboy & Watergirl, PICO PARK | reflex | 2 | custom realtime page | WebRTC (pong stack) | L | P3 |
+
+**Co-op conventions (all ten):** registry `coop: true` plus the type in `COOP_GAMES`
+(`src/lib/matchRules.js`, kept in sync by `matchRules.test.js`) so there is no CLAIM WIN, no
+W/L stats and no leaderboard credit; all state under `round` (no `FIELD_NULLS` or rules changes);
+the page deals on first view inside a `runTransaction` and a team win adds 1 to both `scores`;
+`TeamRoundShell.jsx` supplies the team header, the pre-deal setup choices and the end-of-round
+PLAY AGAIN / NEW MATCH / SWITCH row. Rooms are world-readable, so hidden co-op information is an
+honour system: peeking only spoils your own game. Names, art, rules text and content sets are
+our own (see each PRD's IP notes).
+
 **Effort legend:** S ≈ one focused session · M ≈ 2–3 sessions · L ≈ a week of sessions.
 
 **Priority rationale:** P1 fills genre gaps (drawing = party killer app, battleship = first

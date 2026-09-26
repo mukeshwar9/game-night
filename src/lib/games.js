@@ -15,6 +15,7 @@ import {
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
 } from '../components/GameIcons'
+import { LanternsIcon, DockingIcon } from '../components/GameIcons'
 import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
 import { HunchIcon, ConvergeIcon } from '../components/GameIcons'
 import { WireCrossedIcon } from '../components/GameIcons'
@@ -1275,6 +1276,29 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/BluffBattleGame')),
   },
   {
+    type: 'lanterns', label: 'LANTERNS',
+    desc: 'see their cards, never yours', Icon: LanternsIcon,
+    badge: 'LN', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-26',
+    // Co-op (matchRules COOP_GAMES): a 20+ evening adds a team star to both
+    // seats. The page deals and scores itself; state lives under `round`.
+    durationMin: 20, tags: ['thinky'], solo: false,
+    custom: true, coop: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/LanternsGame')),
+  },
+  {
+    type: 'docking', label: 'DOCKING',
+    desc: 'roll secret dice, dock in silence', Icon: DockingIcon,
+    badge: 'DK', maxWidth: 'max-w-md',
+    category: 'dicebluff',
+    addedAt: '2026-09-26',
+    // Co-op like Lanterns: a docked capsule adds a team star to both seats.
+    durationMin: 12, tags: ['thinky', 'luck'], solo: false,
+    custom: true, coop: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/DockingGame')),
+  },
+  {
     type: 'wavelength', label: 'WAVELENGTH',
     desc: 'guess the hidden target', Icon: WavelengthIcon,
     badge: 'WL', maxWidth: 'max-w-sm',
@@ -1961,6 +1985,11 @@ export function freshGameState(gameType, previous = null) {
     // carries. NEW MATCH / switching in starts over at level 1.
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null,
       wire: nextWireBomb(previous?.wire, generateSeed()) }
+  }
+  if (gameType === 'lanterns' || gameType === 'docking') {
+    // Co-op pages deal on first view (the setup screen picks deck/approach),
+    // so a fresh state is just an empty round.
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
   }
   if (gameType === 'wordrace') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
