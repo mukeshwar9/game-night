@@ -71,7 +71,8 @@ test('three players race Reaction Time and Typing Race and see the same ranking'
     const strip = (o) => o.map(l => l.replace(' (you)', ''))
     expect(strip(orders[1])).toEqual(strip(orders[0]))
     expect(strip(orders[2])).toEqual(strip(orders[0]))
-    expect(orders[0][0]).toMatch(/^1ST /)
+    // Equal times share a place ("=1ST"), which automated taps can produce.
+    expect(orders[0][0]).toMatch(/^=?1ST /)
   })
 
   let typingUrl

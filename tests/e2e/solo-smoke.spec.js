@@ -29,8 +29,9 @@ for (const type of SOLO_TYPES) {
     page.on('pageerror', (err) => errors.push(err.message))
 
     await page.goto(`/solo/${type}`)
-    // Demo cards are titled "<SHORT> DEMO"; the fallback page says "NO SOLO DEMO".
-    await expect(page.getByText(/DEMO$/).or(page.getByText(ERROR_BOUNDARY_TEXT)).first()).toBeVisible()
+    // Demo cards are titled "<SHORT> DEMO" (or "<SHORT> SOLO RUN" for the memory
+    // solo runs); the fallback page says "NO SOLO DEMO".
+    await expect(page.getByText(/(DEMO|SOLO RUN)$/).or(page.getByText(ERROR_BOUNDARY_TEXT)).first()).toBeVisible()
 
     await expect(page.getByText(ERROR_BOUNDARY_TEXT)).toHaveCount(0)
     if (!MISSING_SOLO_DEMO.has(type)) {

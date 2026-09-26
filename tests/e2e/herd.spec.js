@@ -68,7 +68,9 @@ test('Herd Mind hides answers until the reveal, then verifies and scores them', 
     expect(round.phase).toBe('answering')
     const answers = Object.values(round.answers || {})
     expect(answers).toHaveLength(2)
-    for (const a of answers) expect(Object.keys(a)).toEqual(['commit'])
+    // { commit, at }: a salted hash plus the server lock-in time (orders the
+    // lock-in list) — never the answer text.
+    for (const a of answers) expect(Object.keys(a).sort()).toEqual(['at', 'commit'])
     expect(round.reveals ?? null).toBeNull()
     expect(JSON.stringify(round).toLowerCase()).not.toContain('pizza')
   })
@@ -78,7 +80,9 @@ test('Herd Mind hides answers until the reveal, then verifies and scores them', 
     for (const { page } of everyone) {
       await expect(page.getByText('THE HERD SAID')).toBeVisible()
       await expect(page.getByText('+1 EACH')).toBeVisible()
-      await expect(page.getByText('pizza', { exact: true })).toBeVisible()
+      // The group shows a real spelling (first locked in wins a tie), never the
+      // normalized match key.
+      await expect(page.getByText('Pizza', { exact: true })).toBeVisible()
       await expect(page.getByText('GIA MATCHED NOBODY')).toBeVisible()
     }
     const round = await readRound(request, roomUrl)

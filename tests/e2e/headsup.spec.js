@@ -12,6 +12,11 @@ async function readRoom(id) {
   const res = await fetch(`${DB}/games/${id}.json?ns=${NS}`, { headers: { Authorization: 'Bearer owner' } })
   return res.json()
 }
+// The room as JSON minus the sealed-box crypto fields (ciphertext, keys, IVs):
+// those are random base64, which a short prompt like "OWL" can appear inside
+// by chance, case-insensitively.
+const CRYPTO_KEYS = new Set(['ct', 'epk', 'iv', 'kid', 'pub'])
+const plainJson = (room) => JSON.stringify(room, (k, v) => (CRYPTO_KEYS.has(k) ? undefined : v))
 async function patchRoom(id, patch) {
   await fetch(`${DB}/games/${id}.json?ns=${NS}`, {
     method: 'PATCH', headers: { Authorization: 'Bearer owner' }, body: JSON.stringify(patch),
@@ -57,7 +62,7 @@ test('the guesser never sees the prompt; describers do; GOT IT scores', async ({
 
     // Nothing in the room node spells the prompt out, and nothing is sealed to the guesser.
     const room = await readRoom(roomId)
-    expect(JSON.stringify(room).toUpperCase()).not.toContain(prompt.toUpperCase())
+    expect(plainJson(room).toUpperCase()).not.toContain(prompt.toUpperCase())
     const hostUid = Object.values(room.players).find(p => p.name === 'Hana').playerId
     const sealedTo = Object.keys(room.round.turn.sealed)
     expect(sealedTo).toHaveLength(2)
