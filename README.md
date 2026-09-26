@@ -253,17 +253,7 @@ Ranked by player impact. Status as of 2026-09-19 (unit tests green: 155 files / 
 
 ### Arrows Puzzle (review 2026-09-19)
 
-Full write-up: [docs/README-ARROWS-REVIEW.md](docs/README-ARROWS-REVIEW.md). Suggested ship order: **A → B → C** before more levels.
-
-4. **ARROWS-A — Match closure after 3 rounds** — After easy/medium/hard, if neither side has 2 round wins, force a match draw (per PRD). Today “Play again” can fall through into another easy board while match scores keep climbing.
-5. **ARROWS-B — Trap readability** — Blocked arrows look identical until tapped. Add a soft visual tell and/or a first-match tip (“One arrow is a trap — three lives”).
-6. **ARROWS-C — Feel under lag** — Hit/miss audio fires before the tap is confirmed; play sound from the transaction result. Enlarge invisible hit pads on short/crowded snakes for phones.
-7. **ARROWS-D — Round rhythm / coaching** — Show level label (e.g. `TIGHT PACK`), a short interstitial on round start (“MEDIUM — 10 arrows · 1 trap”), and a first-match tip.
-8. **ARROWS-E — Spectator / out-of-lives HUD** — Keep the full HUD for spectators and KO’d players; dim their side and label `OUT` instead of clears-only / text-only.
-9. **ARROWS-F — Trap / content depth (v2)** — Static one-trap-per-level gets predictable. Next levers: 0–2 traps on hard, dynamic unblock, ban recently played level ids in a room.
-10. **ARROWS-G — Solo / teach mode** — Short solo practice board (same rules, no match score) so discovery doesn’t require a second player.
-11. **ARROWS-H — Accessibility polish** — Prefer `pointerdown` + `touch-action: manipulation`; announce clears/lives to screen readers; enlarge life glyphs slightly.
-12. **ARROWS-I — Hard-tier balance** — Hard is mostly density (16 arrows, still one trap). Try more traps on hard, or fewer clearable arrows with messier routing so exit-direction reading matters more than raw click speed.
+Superseded on 2026-09-26: Arrows was reworked from a shared-board tap duel with curated trap levels into a simultaneous race on identical seeded boards, where an arrow is blocked whenever another arrow sits in its exit path (see the note at the top of [docs/prds/arrows-puzzle.md](docs/prds/arrows-puzzle.md)). The ARROWS-A…I items in [docs/README-ARROWS-REVIEW.md](docs/README-ARROWS-REVIEW.md) describe the old design and are closed by the rework; match closure (A) carried over unchanged.
 
 ### Correctness
 

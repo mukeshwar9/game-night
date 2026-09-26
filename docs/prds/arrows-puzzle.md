@@ -1,5 +1,17 @@
 # PRD: Arrows Puzzle
 
+> **Superseded 2026-09-26 — race rework.** The shipped game no longer matches this PRD.
+> Arrows is now a simultaneous race: both players clear their own copy of an identical
+> board generated from `arrowsSeed` (`generateArrowsLevel` in `src/lib/arrowsLogic.js`).
+> An arrow is blocked when any other arrow sits between its head and the board edge
+> (no curated traps); a blocked tap bumps the arrow toward its blocker, turns it red and
+> costs a life. A clear arrow slithers along its own body and off the board. First to
+> clear their board wins the round; running out of 3 lives forfeits it. Best of 3
+> (easy → medium → hard), first to 2. Each board is simulated locally, so taps never
+> wait on the network; Firebase carries only progress (`arrowsGone{X|O}`,
+> `arrowsLives{X|O}`), a shared start time (`arrowsStartedAt`) and the round-end
+> transaction. The sections below describe the original shared-board design.
+
 ## Summary
 
 A shared-board 2-player reflex duel. A single SVG canvas holds a set of **snake paths**
