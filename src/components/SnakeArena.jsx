@@ -1,4 +1,4 @@
-import { forwardRef } from 'react'
+import { forwardRef, memo } from 'react'
 import { GRID } from '../lib/snakeLogic'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +11,25 @@ import { cn } from '@/lib/utils'
 // only ever snapping to whole cells. Body cells are colored by owner
 // (retro-p1 / retro-p2); food is retro-cta; dead snake bodies dim. Input is
 // captured by the parent via the forwarded ref to the arena element.
+// The static background grid (empty cells + food). The guest re-renders the
+// arena every frame while it interpolates segments, so the grid is memoised
+// on the food cell and only reconciles its GRID×GRID cells when food moves.
+const FoodGrid = memo(function FoodGrid({ foodX, foodY }) {
+  return (
+    <div
+      className="grid w-full h-full"
+      style={{ gridTemplateColumns: `repeat(${GRID}, 1fr)`, gridTemplateRows: `repeat(${GRID}, 1fr)` }}
+    >
+      {Array.from({ length: GRID * GRID }, (_, i) => {
+        const x = i % GRID
+        const y = Math.floor(i / GRID)
+        const isFood = foodX === x && foodY === y
+        return <div key={i} className={cn('w-full h-full', isFood ? 'bg-retro-cta shadow-glow-dot' : 'bg-retro-bg/40')} />
+      })}
+    </div>
+  )
+})
+
 const SnakeArena = forwardRef(function SnakeArena(
   { snakes, food, eatenX, eatenO, mySide, namesX = 'X', namesO = 'O', overlay, dim = false },
   ref,
@@ -41,17 +60,7 @@ const SnakeArena = forwardRef(function SnakeArena(
         )}
         style={{ aspectRatio: '1 / 1', cursor: 'none', width: 'min(100%, calc(100dvh - 260px))' }}
       >
-        <div
-          className="grid w-full h-full"
-          style={{ gridTemplateColumns: `repeat(${GRID}, 1fr)`, gridTemplateRows: `repeat(${GRID}, 1fr)` }}
-        >
-          {Array.from({ length: GRID * GRID }, (_, i) => {
-            const x = i % GRID
-            const y = Math.floor(i / GRID)
-            const isFood = food && food.x === x && food.y === y
-            return <div key={i} className={cn('w-full h-full', isFood ? 'bg-retro-cta shadow-glow-dot' : 'bg-retro-bg/40')} />
-          })}
-        </div>
+        <FoodGrid foodX={food?.x ?? null} foodY={food?.y ?? null} />
 
         {['X', 'O'].flatMap(side => {
           const snake = snakes?.[side]
@@ -64,10 +73,12 @@ const SnakeArena = forwardRef(function SnakeArena(
             return (
               <div
                 key={`${side}-${i}`}
-                className={cn('absolute', className)}
+                className={cn('absolute left-0 top-0', className)}
+                // One cell wide, so translating by whole multiples of its own
+                // size moves it by cells — no layout per interpolated frame.
                 style={{
                   width: `${cellSize}%`, height: `${cellSize}%`,
-                  left: `${seg.x * cellSize}%`, top: `${seg.y * cellSize}%`,
+                  transform: `translate(${seg.x * 100}%, ${seg.y * 100}%)`,
                 }}
               />
             )

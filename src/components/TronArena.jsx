@@ -1,4 +1,4 @@
-import { forwardRef, useMemo } from 'react'
+import { forwardRef, memo } from 'react'
 import { GRID } from '../lib/tronLogic'
 import { cn } from '@/lib/utils'
 
@@ -15,23 +15,52 @@ import { cn } from '@/lib/utils'
 // the top row shows a neutral VS + per-side identity dot instead of a number
 // that would sit frozen at '0 · 0' for the whole round and read as a broken
 // counter (M-77).
+// Trail cells as one string ("x,y;x,y|x,y;…", X then O). The guest builds a
+// new `cycles` object every frame while it interpolates the heads, but the
+// trails only change once per sim tick, so the grid below is memoised on this
+// key instead of on `cycles`.
+function trailKey(cycles) {
+  return ['X', 'O']
+    // Trail only — the head (index 0) is rendered separately.
+    .map(side => (cycles?.[side]?.body ?? []).slice(1).map(seg => `${seg.x},${seg.y}`).join(';'))
+    .join('|')
+}
+
+const TrailGrid = memo(function TrailGrid({ trail }) {
+  const cellMap = new Map()
+  trail.split('|').forEach((cells, i) => {
+    if (!cells) return
+    const side = i === 0 ? 'X' : 'O'
+    for (const cell of cells.split(';')) cellMap.set(cell, { side })
+  })
+  return (
+    <div
+      className="grid w-full h-full"
+      style={{ gridTemplateColumns: `repeat(${GRID}, 1fr)`, gridTemplateRows: `repeat(${GRID}, 1fr)` }}
+    >
+      {Array.from({ length: GRID * GRID }, (_, i) => {
+        const x = i % GRID
+        const y = Math.floor(i / GRID)
+        const cell = cellMap.get(`${x},${y}`)
+        // Trail cells are visually scaled up + given a color halo (M-75)
+        // so a 1-cell-wide line stays legible at phone widths — purely a
+        // render-side thickening, GRID itself is untouched.
+        const className = cell
+          ? (cell.side === 'X'
+              ? 'w-full h-full relative scale-110 bg-retro-p1 shadow-[0_0_3px_1px_rgb(var(--c-p1))]'
+              : 'w-full h-full relative scale-110 bg-retro-p2 shadow-[0_0_3px_1px_rgb(var(--c-p2))]')
+          : 'w-full h-full bg-retro-bg/40'
+        return <div key={i} className={className} />
+      })}
+    </div>
+  )
+})
+
 const TronArena = forwardRef(function TronArena(
   { cycles, mySide, namesX = 'X', namesO = 'O', overlay, dim = false },
   ref,
 ) {
   const cellSize = 100 / GRID
-  const cellMap = useMemo(() => {
-    const map = new Map()
-    for (const side of ['X', 'O']) {
-      const cycle = cycles?.[side]
-      if (!cycle) continue
-      // Trail only — the head (index 0) is rendered separately below.
-      cycle.body.slice(1).forEach(seg => {
-        map.set(`${seg.x},${seg.y}`, { side })
-      })
-    }
-    return map
-  }, [cycles])
 
   return (
     <div className="space-y-2 select-none">
@@ -60,25 +89,7 @@ const TronArena = forwardRef(function TronArena(
         )}
         style={{ aspectRatio: '1 / 1', cursor: 'none', width: 'min(100%, calc(100dvh - 260px))' }}
       >
-        <div
-          className="grid w-full h-full"
-          style={{ gridTemplateColumns: `repeat(${GRID}, 1fr)`, gridTemplateRows: `repeat(${GRID}, 1fr)` }}
-        >
-          {Array.from({ length: GRID * GRID }, (_, i) => {
-            const x = i % GRID
-            const y = Math.floor(i / GRID)
-            const cell = cellMap.get(`${x},${y}`)
-            // Trail cells are visually scaled up + given a color halo (M-75)
-            // so a 1-cell-wide line stays legible at phone widths — purely a
-            // render-side thickening, GRID itself is untouched.
-            const className = cell
-              ? (cell.side === 'X'
-                  ? 'w-full h-full relative scale-110 bg-retro-p1 shadow-[0_0_3px_1px_rgb(var(--c-p1))]'
-                  : 'w-full h-full relative scale-110 bg-retro-p2 shadow-[0_0_3px_1px_rgb(var(--c-p2))]')
-              : 'w-full h-full bg-retro-bg/40'
-            return <div key={i} className={className} />
-          })}
-        </div>
+        <TrailGrid trail={trailKey(cycles)} />
 
         {/* Heads — absolutely positioned on top of the trail grid at a
             (possibly fractional, guest-interpolated) position, colored by
@@ -94,10 +105,12 @@ const TronArena = forwardRef(function TronArena(
           return (
             <div
               key={side}
-              className={cn('absolute z-10 scale-125', className)}
+              className={cn('absolute left-0 top-0 z-10', className)}
+              // One cell wide, so translating by multiples of its own size
+              // moves it by cells — no layout per interpolated frame.
               style={{
                 width: `${cellSize}%`, height: `${cellSize}%`,
-                left: `${seg.x * cellSize}%`, top: `${seg.y * cellSize}%`,
+                transform: `translate(${seg.x * 100}%, ${seg.y * 100}%) scale(1.25)`,
               }}
             />
           )
