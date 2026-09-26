@@ -30,6 +30,24 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Modules the entry imports statically are needed before first render
+        // anyway, but the default splitter scatters the ones lazy chunks also
+        // use into ~20 tiny shared chunks, each a separate high-priority
+        // modulepreload competing with the render-blocking stylesheet. Pull
+        // them into two initial chunks: Firebase (big, changes rarely) and the
+        // rest. Lazy-only modules split as before.
+        codeSplitting: {
+          groups: [
+            { name: 'firebase', tags: ['$initial'], test: /node_modules[\\/](@firebase|firebase)[\\/]/, priority: 2 },
+            { name: 'initial', tags: ['$initial'], priority: 1 },
+          ],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     stylesheetFirst(),
