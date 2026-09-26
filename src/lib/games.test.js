@@ -98,6 +98,7 @@ describe('first mover', () => {
 
 describe('supportsLocalPlay', () => {
   const LOCAL_TYPES = [
+    'animalstack', // custom, but ships its own 2-4P LocalPage
     'tictactoe', 'ultimatettt', 'tictactoe4', 'connectfour', 'connectfour5', 'connectfourpop',
     'dotsandboxes', 'dotsandboxes4', 'sos', 'gomoku', 'gomokuswap', 'reversi', 'chainreaction', 'chainreaction6',
     'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'visualmemory', 'pairs', 'dice', 'dice-big',
@@ -105,8 +106,8 @@ describe('supportsLocalPlay', () => {
     'onitama', 'quarto', 'santorini', 'loa', 'yavalath',
   ]
 
-  it('is true for all 33 eligible registry-driven turn-based games', () => {
-    expect(LOCAL_TYPES).toHaveLength(33)
+  it('is true for all 34 eligible games (33 registry boards + Animal Stack)', () => {
+    expect(LOCAL_TYPES).toHaveLength(34)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }

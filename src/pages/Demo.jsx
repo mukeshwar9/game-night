@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArrowsIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArrowsIcon, AnimalStackIcon,
 } from '../components/GameIcons';
 import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -47,6 +47,7 @@ const MancalaDemo = lazyWithRetry(() => import('./MancalaDemo'))
 const CheckersDemo = lazyWithRetry(() => import('./CheckersDemo'))
 const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
+const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
 const TriviaDemo = lazyWithRetry(() => import('./TriviaDemo'))
 const HerdDemo = lazyWithRetry(() => import('./HerdDemo'))
 const ArrowsDemo = lazyWithRetry(() => import('./ArrowsDemo'))
@@ -104,6 +105,7 @@ const DEMOS = [
   { type: 'checkers',      short: 'CHECKERS',       Icon: CheckersIcon,       Component: CheckersDemo },
   { type: 'airhockey',     short: 'AIR\nHOCKEY',    Icon: AirHockeyIcon,      Component: AirHockeyDemo },
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
+  { type: 'animalstack',   short: 'ANIMAL\nSTACK',  Icon: AnimalStackIcon,    Component: AnimalStackDemo },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
@@ -164,11 +166,11 @@ function LocalPlayPage({ routeType }) {
             {cfg.label}
           </h1>
           <p className="font-pixel text-[9px] text-retro-dim text-center">
-            PASS & PLAY · ONE SCREEN, TAKE TURNS
+            PASS & PLAY · ONE SCREEN, TAKE TURNS{cfg.localMaxPlayers ? ` · 2-${cfg.localMaxPlayers} PLAYERS` : ''}
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>
-              <BotBoardDemo type={routeType} mode="local" />
+              {cfg.LocalPage ? <cfg.LocalPage /> : <BotBoardDemo type={routeType} mode="local" />}
             </Suspense>
           </div>
         </div>

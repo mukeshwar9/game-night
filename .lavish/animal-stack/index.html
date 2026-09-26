@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="matcha">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Animal Stack Design</title>
+<link rel="stylesheet" href="page.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-in">
+  <div class="logo"><i>#</i><span class="pix t9 cta">GAME NIGHT</span></div>
+  <div class="nav-links">
+    <a href="#rules">1 RULES</a><a href="#modes">2 MODES</a><a href="#screens">3 SCREENS</a><a href="#proto-sec">4 PLAY</a><a href="#physics">5 PHYSICS</a><a href="#online">6 ONLINE</a><a href="#feel">7 FEEL</a><a href="#plan">8 PLAN</a><a href="#decisions">9 DECIDE</a>
+  </div>
+  <div class="seg" role="group" aria-label="Theme"><button data-theme-btn="matcha" aria-pressed="true">MATCHA</button><button data-theme-btn="midnight" aria-pressed="false">MIDNIGHT</button></div>
+</div></nav>
+
+<main class="wrap">
+
+<!-- ============================================================ HERO -->
+<header class="hero" id="top">
+  <div>
+    <div class="pix t8 dim">GAME NIGHT · NEW GAME DESIGN · 2026-09-27 · DESIGN ONLY, NOT BUILT</div>
+    <h1 class="glow-cta">ANIMAL STACK</h1>
+    <p style="margin:0 0 10px;font-size:15px">Take turns dropping animals onto one wobbly tower on a tiny island. <b>Make it topple and you lose a heart.</b> Last player with hearts wins.</p>
+    <div class="chips"><span class="chip hot">1-4 PLAYERS</span><span class="chip">SOLO: BOT + CLIMB</span><span class="chip">SAME DEVICE 2-4P</span><span class="chip">ONLINE 2-4P</span><span class="chip">~6-9 MIN</span><span class="chip">PORTRAIT FIRST</span></div>
+    <p class="lede" style="margin-bottom:8px">Based on "Animal Stack" in <i>2 Player Games: Offline Games</i> (Moreno Maio), itself in the tradition of <i>Doubutsu Tower Battle</i>. The rules are generic; all art, names and sounds here are original pixel art built from Game Night's own theme tokens.</p>
+    <div class="note cta"><b class="pix t8">THE SHORT VERSION</b><ul class="tight">
+      <li><b>Physics:</b> vendor <b>planck.js</b> (Box2D port) with its six <code>Math.sin/cos</code> calls swapped for the repo's deterministic Taylor trig (the same one <code>artilleryLogic.js</code> uses). Measured: stock trig <b>differs</b> between V8 and JavaScriptCore and one stock-planck tower diverged; the patched build matched on 42 of 42 test towers.</li>
+      <li><b>Online:</b> RTDB only, no WebRTC. It uses the Artillery pattern: a seed plus an append-only list of <code>{x, rot}</code> drops, and every client replays. Each drop also writes a hashed checkpoint as a tripwire. It is an nPlayer room for 2-4 players.</li>
+      <li><b>Cost:</b> the entry bundle stays at 254.3 / 320 KB gzip. On first play the lazy chunk is about <b>60 KB gzip</b> (planck ≈46 KB). My estimate is <b>~17 dev-days</b>, in 5 phases.</li>
+      <li><b>Try it:</b> <a href="#proto-sec">section 4</a> is a <b>working prototype</b> running this exact engine.</li>
+    </ul></div>
+  </div>
+  <div style="min-width:0">
+    <div class="card" style="padding:10px">
+      <div class="pix t8 dim" style="margin-bottom:8px">THE TWELVE ANIMALS</div>
+      <div id="pieces" class="pieces" style="grid-template-columns:repeat(auto-fill,minmax(96px,1fr))"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ 1 RULES -->
+<section id="rules">
+  <h2><span class="n">1</span>CORE LOOP, RULES, MATCH</h2>
+  <p class="lede">A turn takes about 5-15 seconds: aim, drop, watch it settle. A tower ends when any animal leaves the island. The match is played over several towers.</p>
+  <div class="grid g2">
+    <div class="card">
+      <svg class="fig" viewBox="0 0 520 300" role="img" aria-labelledby="loopT">
+        <title id="loopT">Turn loop: aim, drop, settle, then either next player or topple</title>
+        <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:rgb(var(--c-dim))"/></marker></defs>
+        <g id="n-aim"><title>AIM</title><rect x="20" y="30" width="130" height="64" rx="4" style="fill:rgb(var(--c-tint-p1));stroke:rgb(var(--c-p1));stroke-width:2"/><text x="85" y="56" text-anchor="middle" class="pix" style="font-family:'Press Start 2P';font-size:11px;fill:rgb(var(--c-p1))">AIM</text><text x="85" y="78" text-anchor="middle" style="font-size:11px;fill:rgb(var(--c-text))">drag · ⟲ 15° · ≤15 s</text></g>
+        <g id="n-drop"><title>DROP</title><rect x="195" y="30" width="130" height="64" rx="4" style="fill:rgb(var(--c-tint-cta));stroke:rgb(var(--c-cta));stroke-width:2"/><text x="260" y="56" text-anchor="middle" style="font-family:'Press Start 2P';font-size:11px;fill:rgb(var(--c-cta))">DROP</text><text x="260" y="78" text-anchor="middle" style="font-size:11px;fill:rgb(var(--c-text))">released at rest</text></g>
+        <g id="n-settle"><title>SETTLE</title><rect x="370" y="30" width="130" height="64" rx="4" style="fill:rgb(var(--c-card));stroke:rgb(var(--c-border));stroke-width:2"/><text x="435" y="56" text-anchor="middle" style="font-family:'Press Start 2P';font-size:11px;fill:rgb(var(--c-text))">SETTLE</text><text x="435" y="78" text-anchor="middle" style="font-size:11px;fill:rgb(var(--c-dim))">still 0.6 s / cap 9 s</text></g>
+        <path d="M150 62H193" style="stroke:rgb(var(--c-dim));stroke-width:2" marker-end="url(#ar)"/>
+        <path d="M325 62H368" style="stroke:rgb(var(--c-dim));stroke-width:2" marker-end="url(#ar)"/>
+        <g id="n-ok"><title>STANDS: next player</title><rect x="250" y="190" width="170" height="60" rx="4" style="fill:rgb(var(--c-win)/.12);stroke:rgb(var(--c-win));stroke-width:2"/><text x="335" y="215" text-anchor="middle" style="font-family:'Press Start 2P';font-size:9px;fill:rgb(var(--c-win))">STANDS</text><text x="335" y="236" text-anchor="middle" style="font-size:11px;fill:rgb(var(--c-text))">next player · camera rises</text></g>
+        <g id="n-top"><title>TOPPLE: lose a heart</title><rect x="440" y="190" width="70" height="60" rx="4" style="fill:rgb(var(--c-danger)/.12);stroke:rgb(var(--c-danger));stroke-width:2"/><text x="475" y="215" text-anchor="middle" style="font-family:'Press Start 2P';font-size:8px;fill:rgb(var(--c-danger))">FELL</text><text x="475" y="236" text-anchor="middle" style="font-size:11px;fill:rgb(var(--c-text))">−♥</text></g>
+        <path d="M430 94L350 188" style="stroke:rgb(var(--c-win));stroke-width:2" marker-end="url(#ar)"/>
+        <path d="M455 94L472 188" style="stroke:rgb(var(--c-danger));stroke-width:2" marker-end="url(#ar)"/>
+        <path d="M250 220C120 220 85 170 85 96" style="stroke:rgb(var(--c-win));stroke-width:2;fill:none" marker-end="url(#ar)"/>
+        <path d="M475 250C475 290 30 290 30 200L30 96" style="stroke:rgb(var(--c-danger));stroke-width:2;fill:none;stroke-dasharray:5 4" marker-end="url(#ar)"/>
+        <text x="40" y="276" style="font-size:11px;fill:rgb(var(--c-danger))">new empty tower · toppler starts (if alive)</text>
+        <text x="96" y="160" style="font-size:11px;fill:rgb(var(--c-win))">same tower</text>
+      </svg>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">RULES</h3>
+      <ul class="tight">
+        <li><b>Pieces:</b> a seeded 12-bag deals the animals, so each animal appears once every 12 drops. Everyone sees the current piece and the <b>NEXT</b> one.</li>
+        <li><b>Aim:</b> the piece hovers 0.45 m above the tallest point of the tower. You can move it anywhere within ±3.2 m and rotate it in 15° steps (24 orientations).</li>
+        <li><b>Drop:</b> the piece is released with zero velocity. You cannot nudge, hold or "place" it.</li>
+        <li><b>Topple:</b> the tower topples the moment <b>any animal's centre falls below 1.2 m under the island top</b>, whoever dropped it. The player whose drop set it off loses a heart.</li>
+        <li><b>Settled:</b> a drop has settled once every body has been still (|v| &lt; 0.06 m/s, |ω| &lt; 0.1 rad/s) for 36 ticks, or after a 540-tick (9 s) cap.</li>
+        <li><b>Timer:</b> 15 s to aim when online. When it runs out, the piece auto-drops where it is. The timer is off by default on one device and does not apply in CLIMB.</li>
+      </ul>
+      <h3>MATCH LENGTH</h3>
+      <div class="tbl"><table>
+        <tr><th>PLAYERS</th><th>HEARTS</th><th>ENDS WHEN</th><th>TYPICAL</th></tr>
+        <tr><td>2 (incl. vs BOT)</td><td>♥♥♥</td><td>one player has toppled 3 towers (like first to 3 in <code>matchTargetFor</code>)</td><td>3-5 towers · ~6 min</td></tr>
+        <tr><td>3-4</td><td>♥♥</td><td>one player still has hearts</td><td>3-7 towers · ~8 min</td></tr>
+        <tr><td>CLIMB (solo)</td><td>—</td><td>first topple; score = tallest settled height</td><td>~3-5 min</td></tr>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 2 MODES -->
+<section id="modes">
+  <h2><span class="n">2</span>MODES</h2>
+  <p class="lede">There are four ways to play, and they share one engine, one renderer and one control scheme. What changes between modes is who takes the turns and where the drops are stored.</p>
+  <div class="grid g4">
+    <div class="card"><div class="pix t9 cta">VS BOT</div><p class="mono t11 dim">1P · /solo/animalstack</p><ul class="tight t12"><li>EASY / NORMAL / HARD</li><li>Monte-Carlo placement search (8 / 22 / 44 tries) with aim noise</li><li>♥♥♥ each, you drop first</li></ul></div>
+    <div class="card"><div class="pix t9 cta">CLIMB</div><p class="mono t11 dim">1P · height chase</p><ul class="tight t12"><li>One tower, no timer</li><li>Score is the tallest height in metres; a BEST line shows on the ruler</li><li>Best is stored per device via <code>soloBest.js</code></li></ul></div>
+    <div class="card"><div class="pix t9 cta">SAME DEVICE</div><p class="mono t11 dim">2-4P · /local/animalstack</p><ul class="tight t12"><li>One phone, passed between turns</li><li>A banner handles the hand-off; a tap-to-ready gate is optional</li><li>Four seat colours plus the glyphs ● ▲ ■ ◆</li></ul></div>
+    <div class="card"><div class="pix t9 cta">ONLINE ROOM</div><p class="mono t11 dim">2-4P · /game/:id</p><ul class="tight t12"><li>nPlayer lobby with uid seats</li><li>Drops go to RTDB; each client replays them deterministically</li><li>Spectators, turn timer, away auto-drop</li></ul></div>
+  </div>
+  <div class="tbl" style="margin-top:14px"><table>
+    <tr><th>MODE</th><th>TURN OWNER</th><th>DROP LOG LIVES IN</th><th>TIMER</th><th>PERSISTENCE</th><th>REUSES</th></tr>
+    <tr><td>VS BOT</td><td>you / bot</td><td>memory</td><td>off</td><td>—</td><td>Demo.jsx DEMOS entry, PixelDots "thinking"</td></tr>
+    <tr><td>CLIMB</td><td>you</td><td>memory</td><td>off</td><td>soloBest (localStorage)</td><td>soloBest.js, WinEffect</td></tr>
+    <tr><td>SAME DEVICE</td><td>seat 1…N</td><td>memory</td><td>house rule</td><td>recentPlays "same device"</td><td>/local route; new custom-page branch needed</td></tr>
+    <tr><td>ONLINE</td><td>players/{uid} in seat order</td><td><code>games/{id}/stack</code></td><td>15 s server clock</td><td>room node</td><td>nPlayer lobby, coordinator, useServerClock, CR4 away logic</td></tr>
+  </table></div>
+  <div class="note"><b>Online with up to 4 players: yes.</b> Rooms use the same nPlayer seating as Chain Reaction 4P (<code>games.js:947</code>, <code>minPlayers 2, maxPlayers 4</code>). Because the game is turn-based it never needs the 2-player-only WebRTC path (<code>realtime/rtc.js</code>, where X hosts and O answers).</div>
+</section>
+
+<!-- ============================================================ 3 SCREENS -->
+<section id="screens">
+  <h2><span class="n">3</span>SCREENS · CLICKABLE MOCKUPS (390×844)</h2>
+  <p class="lede">These use the real Game Night tokens and chrome: <code>Game.jsx</code> header, <code>PlayerCard</code> glow, <code>GameStatus</code> buttons, the sticky action bar and <code>GameOptionsSheet</code> rows. Use the step chips, or tap the highlighted buttons inside a phone. Every tower drawn here comes from the real engine run headless. The theme toggle is at the top right.</p>
+
+  <div id="flow-local" class="card" style="margin-bottom:16px">
+    <div class="pix t10" style="margin-bottom:10px">A · SAME DEVICE 2-4P</div>
+    <div class="steps"></div>
+    <div class="flow"><div class="phone-wrap"></div><div class="stepnote"></div></div>
+  </div>
+  <div id="flow-online" class="card" style="margin-bottom:16px">
+    <div class="pix t10" style="margin-bottom:10px">B · ONLINE ROOM 2-4P</div>
+    <div class="steps"></div>
+    <div class="flow"><div class="phone-wrap"></div><div class="stepnote"></div></div>
+  </div>
+  <div id="flow-solo" class="card" style="margin-bottom:16px">
+    <div class="pix t10" style="margin-bottom:10px">C · SOLO</div>
+    <div class="steps"></div>
+    <div class="flow"><div class="phone-wrap"></div><div class="stepnote"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="pix t10" style="margin-bottom:10px">D · LANDSCAPE (NOTE, NOT FIRST)</div>
+    <div class="flow" style="grid-template-columns:minmax(0,1fr)">
+      <div id="land-wrap" class="phone-wrap" style="width:760px"></div>
+      <div><ul class="tight">
+        <li>In landscape the rail moves to a left column. ROTATE sits under the left thumb and DROP is a tall button under the right thumb, and the arena gets the centre.</li>
+        <li>The camera shows the island plus the top 60% of the tower. Tall towers zoom out sooner because the view is short.</li>
+        <li>The layout switches at <code>(orientation: landscape) and (max-height: 500px)</code>. Tablets keep the portrait layout inside <code>maxWidth: max-w-md</code>.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <h3>HUD ANATOMY &amp; TOUCH</h3>
+  <div class="grid g3">
+    <div class="card"><div class="pix t8 cta">TOP</div><ul class="tight t12"><li>The Game.jsx header: ← HOME, ⚙, ?, ▦ switch, plus a new ⛶ <b>FILL</b> control</li><li>The player rail: 2-4 cards with glyph, name and hearts. The active card glows in its seat colour</li><li>The timer bar sits across the top edge of the arena and turns red under 5 s, with a tick sound</li></ul></div>
+    <div class="card"><div class="pix t8 cta">ARENA</div><ul class="tight t12"><li><b>Relative drag</b> anywhere in the arena moves the piece; your finger never covers it</li><li>A dashed drop guide in the seat colour, and the hovering piece gets a dashed outline</li><li>Height ruler every metre with a label every 5 m; NEXT preview top right; height readout top left</li></ul></div>
+    <div class="card"><div class="pix t8 cta">BOTTOM (THUMB ZONE)</div><ul class="tight t12"><li>⟲ ROTATE: 92 px wide, bottom left. Tap for 15°, hold to repeat every 140 ms after 380 ms</li><li>DROP: 128 px wide, bottom right, CTA glow. Accidental drops are unlikely because dragging never drops</li><li>Keys go through <code>useGameKeys</code>: ←/→ aim, ↑/R rotate, ↓ rotate back, Space/Enter drop</li></ul></div>
+  </div>
+  <div class="note warn"><b>About "FILL":</b> the brief mentions an immersive Fill toggle, but <b>there is none in the current code</b>. I searched <code>src/</code> and every remote branch for <code>immersive</code> and <code>FILL</code>. The closest thing is <code>PongArena</code>'s <code>fullscreen</code> prop, which the solo Pong demo uses. This design proposes a game-local ⛶ FILL that hides chat and emotes and pins the arena to the viewport, built the way Pong's is. Making it a shared chrome control would be a change to shared UI, which is out of scope here (decision D10).</div>
+</section>
+
+<!-- ============================================================ 4 PROTOTYPE -->
+<section id="proto-sec">
+  <h2><span class="n">4</span>PLAYABLE PROTOTYPE</h2>
+  <p class="lede">This is a real, touch-playable prototype of the core interaction, running the proposed engine: vendored planck.js with deterministic trig, the 12 pieces, settle and topple rules, hearts, the bot and CLIMB. It is <b>page code, not app code</b>. The ⎘ button rebuilds the whole tower from the seed and the drop log, then compares hashes.</p>
+  <div class="flow">
+    <div class="proto-frame"><span class="proto-label">PROTOTYPE · NOT THE APP</span><div id="proto"></div></div>
+    <div>
+      <div class="card"><div class="pix t8 cta">TRY</div><ul class="tight">
+        <li><b>2P / 3P / 4P</b> is pass-and-play with hearts. Topple a tower and see the round and match flow.</li>
+        <li><b>BOT</b> is the Monte-Carlo bot. You will see it "think" and then glide its piece into place.</li>
+        <li><b>CLIMB</b> is the height chase. Your best is saved in this browser.</li>
+        <li><b>⎘</b> replays every drop from scratch and shows <code>REPLAY ✓ &lt;hash&gt;</code> when the rebuilt tower matches the live one.</li>
+        <li>≋ toggles haptics. Android Chrome vibrates; iOS Safari has no <code>navigator.vibrate</code>, so it shows a note instead.</li>
+      </ul></div>
+      <div class="card" style="margin-top:12px"><div class="pix t8 cta">WHAT IT DOES NOT SHOW YET</div><ul class="tight t12"><li>Online sync (section 6 specs it), final art, and animal-specific sounds</li><li>Bot tuning. NORMAL sometimes makes odd rotation choices</li><li>Performance on low-end Android: I have only measured it on desktop (see section 5)</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 5 PHYSICS -->
+<section id="physics">
+  <h2><span class="n">5</span>PHYSICS STACKING</h2>
+  <p class="lede">A stacking game lives or dies on two things. First, contacts between many resting polygons have to be stable. Second, for online play, every phone has to reach the <b>same</b> tower. The repo already has a determinism contract (<code>artilleryLogic.js:1-10</code>: only + − × ÷, Taylor <code>detSin/detCos</code>, fixed timestep, <code>mulberry32</code>). This design keeps that contract.</p>
+
+  <h3>ENGINE OPTIONS (MEASURED)</h3>
+  <div class="tbl"><table>
+    <tr><th>OPTION</th><th>GZIP (LAZY)</th><th>STACKING QUALITY</th><th>CROSS-DEVICE DETERMINISM</th><th>BUILD EFFORT</th><th>VERDICT</th></tr>
+    <tr class="rec"><td><b>A. planck.js 1.4.2, vendored, trig patched</b></td><td>46.1 KB (named imports) · 48.0 KB full</td><td>Box2D solver: warm-starting, sequential impulses, sleeping. Proven for stacks</td><td><b>Yes (measured)</b>: 42/42 towers identical in V8 and JavaScriptCore</td><td>Low: one sed step plus a guard test</td><td><span class="tag cta">RECOMMENDED</span></td></tr>
+    <tr><td>B. Hand-rolled SAT + impulses (Artillery-style)</td><td>~8-12 KB (est.)</td><td>Risky. Stable resting stacks need contact caching, warm starting and clipping, the hardest 70% of Box2D</td><td>Yes by construction</td><td>High: +8-10 days, plus a tuning tail</td><td><span class="tag dim">FALLBACK</span></td></tr>
+    <tr><td>C. matter.js 0.20</td><td>27.6 KB</td><td>Known jitter and creep in tall stacks; soft position correction</td><td>No guarantee (native trig); would need a host-authoritative design</td><td>Low</td><td><span class="tag danger">NO</span></td></tr>
+    <tr><td>D. Stock planck + host-authoritative poses</td><td>46 KB</td><td>as A</td><td>No. Remote clients just snap to the poses the dropper writes</td><td>Medium: more writes, cheating surface</td><td><span class="tag dim">NO</span></td></tr>
+  </table></div>
+  <p class="mono t11 dim">Sizes: <code>esbuild --bundle --minify</code> of <code>planck@1.4.2</code> / <code>matter-js@0.20.0</code>, then <code>gzip -9</code>. planck is not tree-shakeable in practice (46.1 vs 48.0 KB). A vendored copy with the joints removed should come in around 30-35 KB (estimate, not measured).</p>
+
+  <h3>DETERMINISM EVIDENCE</h3>
+  <div class="grid g2">
+    <div class="card">
+      <div class="tbl"><table>
+        <tr><th>TEST</th><th>V8 (NODE)</th><th>JSC (SAFARI ENGINE)</th></tr>
+        <tr><td>hash of 4,000 native <code>Math.sin/cos</code> values</td><td><code>2590188e</code></td><td><code>4c6c44ce</code> <span class="tag danger">DIFFERS</span></td></tr>
+        <tr><td>12 seeded towers, wide random drops (53 drops): <b>stock planck</b></td><td colspan="2">seed 11: <code>1a28028c</code> vs <code>03cf0898</code> <span class="tag danger">1 TOWER DIVERGED</span></td></tr>
+        <tr class="rec"><td>same 12 towers: <b>patched planck</b></td><td colspan="2">12/12 identical <span class="tag win">MATCH</span></td></tr>
+        <tr class="rec"><td>30 towers, centred drops (151 drops): <b>patched</b></td><td colspan="2">30/30 identical <span class="tag win">MATCH</span> (stock also matched on this batch)</td></tr>
+      </table></div>
+      <p class="mono t11 dim">Harness: the same <code>engine.js</code> ran under <code>node</code> and under macOS's <code>JavaScriptCore.framework/…/Helpers/jsc</code>, which is the engine inside every iOS browser. Divergence is rare, but it is real, and a tower is a chaotic system.</p>
+    </div>
+    <div class="card">
+      <div class="pix t8 cta">THE CONTRACT</div>
+      <ul class="tight t12">
+        <li>Vendor <code>planck.mjs</code> as <code>src/lib/vendor/planck-det.js</code>. A build script rewrites its <code>Math.sin</code> / <code>Math.cos</code> (3 aliases each) to <code>detSin/detCos</code>, and a test fails if any remain. <code>Math.sqrt</code> is correctly rounded per spec; <code>Math.atan2</code> is only used in joints and <code>getAngle</code> helpers we don't call.</li>
+        <li>Move <code>detSin/detCos/mulberry32</code> out of <code>artilleryLogic.js</code> into a shared <code>detMath.js</code>, so both games use the same code.</li>
+        <li>Step at a fixed <code>1/60</code> with 8 velocity and 3 position iterations. Settle detection is counted in ticks, never wall time.</li>
+        <li><b>Canonical state:</b> after each settle, quantise to x/y 1e-4 m and angle 1e-5 rad, zero the velocities, and <b>rebuild the world</b>. Every drop starts from an identical, cache-free state, so any drift cannot build up across turns.</li>
+        <li>Rotation input is an integer 0-23 and x is an integer in centimetres. Neither goes through any float path that differs between devices.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>PIECE SET</h3>
+  <p class="lede">There are 12 animals, each built from 1-5 convex parts. The mix is 4 heavy "foundations", 4 mid, and 4 light or awkward pieces (long, pointy or leggy). Mass is density × area. Colours come from theme tokens (<code>--c-kam*</code>, <code>structure</code>, <code>cta</code>, <code>win</code>), <b>never</b> from the p1-p4 player colours, so a piece never looks like it belongs to a player.</p>
+  <div class="pieces" id="pieces-big"></div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><div class="pix t8 cta">TOPPLE DETECTION</div><p class="t12">Every tick, check whether any body's centre has <code>y &lt; −1.2</code>, which means it is off the island and in the water. The island's sides overhang, so nothing can rest partway down. The verdict is decided by the sim, not by the camera. The first tick it happens ends the drop: <code>{fell, fellTick}</code>.</p></div>
+    <div class="card"><div class="pix t8 cta">CAMERA</div><p class="t12">The view is 6.8 m wide. The camera's bottom edge follows <code>max(−2.1, hoverY + 1.4 − viewHeight)</code> with a 0.08 lerp; with reduced motion it snaps instead. The camera holds still while a drop settles. On a topple it follows the fall at 0.5× for about 0.8 s. The ruler and the CLIMB best line pan with the world.</p></div>
+    <div class="card"><div class="pix t8 cta">CONTROLS ↔ SIM</div><p class="t12">Only <code>{x (cm), r (0-23)}</code> leaves the controls. The spawn height comes from the canonical tower (tallest vertex + piece radius + 0.45 m), so every client computes the same drop point. The piece's identity is <code>pieceSequence(seed)[dropIndex]</code> and is never sent.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 6 ONLINE -->
+<section id="online">
+  <h2><span class="n">6</span>ONLINE SYNC</h2>
+  <p class="lede">This is the Artillery model (<code>ArtilleryGame.jsx</code>: seed plus an append-only shot list, every client replays) with two additions. Each drop writes a <b>checkpoint</b>, so late joiners get the tower instantly and any drift is caught. The rest reuses the <b>nPlayer</b> seat, turn and away machinery from Chain Reaction 4P.</p>
+  <div class="grid g2">
+    <div class="card">
+      <svg class="fig" viewBox="0 0 540 380" role="img" aria-labelledby="seqT"><title id="seqT">Sequence of one online drop</title>
+        <g style="font-size:11px">
+          <text x="70" y="20" text-anchor="middle" style="font-family:'Press Start 2P';font-size:8px;fill:rgb(var(--c-p1))">ACTIVE</text>
+          <text x="270" y="20" text-anchor="middle" style="font-family:'Press Start 2P';font-size:8px;fill:rgb(var(--c-cta))">RTDB</text>
+          <text x="470" y="20" text-anchor="middle" style="font-family:'Press Start 2P';font-size:8px;fill:rgb(var(--c-p2))">OTHERS</text>
+          <path d="M70 28V370M270 28V370M470 28V370" style="stroke:rgb(var(--c-border));stroke-width:2;stroke-dasharray:4 4"/>
+          <g id="s1"><title>ghost aim</title><path d="M70 50H266" style="stroke:rgb(var(--c-dim));stroke-width:1.5;stroke-dasharray:3 3" marker-end="url(#ar)"/><text x="80" y="45" style="fill:rgb(var(--c-dim))">stack/aim {x,r} ≤6 Hz</text><path d="M270 62H466" style="stroke:rgb(var(--c-dim));stroke-width:1.5;stroke-dasharray:3 3" marker-end="url(#ar)"/><text x="360" y="57" style="fill:rgb(var(--c-dim))">ghost piece</text></g>
+          <g id="s2"><title>drop transaction</title><path d="M70 100H266" style="stroke:rgb(var(--c-cta));stroke-width:2.5" marker-end="url(#ar)"/><text x="80" y="92" style="fill:rgb(var(--c-text))">txn: turn==me, n==count</text><text x="80" y="115" style="fill:rgb(var(--c-text))">+drops/{push}{x,r} · phase=settle</text></g>
+          <g id="s3"><title>everyone simulates</title><path d="M270 135H466" style="stroke:rgb(var(--c-cta));stroke-width:2.5" marker-end="url(#ar)"/><path d="M270 135H74" style="stroke:rgb(var(--c-cta));stroke-width:2.5" marker-end="url(#ar)"/>
+            <rect x="10" y="150" width="120" height="44" rx="4" style="fill:rgb(var(--c-tint-p1));stroke:rgb(var(--c-p1))"/><text x="70" y="168" text-anchor="middle" style="fill:rgb(var(--c-text))">replay from cp</text><text x="70" y="184" text-anchor="middle" style="fill:rgb(var(--c-dim))">animate 1-9 s</text>
+            <rect x="410" y="150" width="120" height="44" rx="4" style="fill:rgb(var(--c-tint-p2));stroke:rgb(var(--c-p2))"/><text x="470" y="168" text-anchor="middle" style="fill:rgb(var(--c-text))">replay from cp</text><text x="470" y="184" text-anchor="middle" style="fill:rgb(var(--c-dim))">same result</text></g>
+          <g id="s4"><title>checkpoint</title><path d="M70 225H266" style="stroke:rgb(var(--c-win));stroke-width:2.5" marker-end="url(#ar)"/><text x="80" y="218" style="fill:rgb(var(--c-text))">first finisher: txn cp.n==n−1</text><text x="80" y="242" style="fill:rgb(var(--c-text))">cp{n,hash,poses} · turn++ · deadline</text>
+            <path d="M466 260H274" style="stroke:rgb(var(--c-dim));stroke-width:1.5" marker-end="url(#ar)"/><text x="300" y="255" style="fill:rgb(var(--c-dim))">(loses CAS: no-op)</text></g>
+          <g id="s5"><title>verify</title><path d="M270 290H466" style="stroke:rgb(var(--c-win));stroke-width:2.5" marker-end="url(#ar)"/><text x="290" y="310" style="fill:rgb(var(--c-text))">own hash == cp.hash ✓</text><text x="290" y="328" style="fill:rgb(var(--c-danger))">≠ → adopt cp.poses, log desync</text></g>
+          <g id="s6"><title>topple</title><text x="10" y="360" style="fill:rgb(var(--c-danger))">fell? the same txn writes result{toppler}, hearts−1, phase=roundover</text></g>
+        </g>
+      </svg>
+    </div>
+    <div class="card">
+      <div class="pix t8 cta">DATA MODEL (ONE NODE → ONE FIELD_NULLS KEY)</div>
+<pre>games/{id}
+  gameType: 'animalstack'   status   players/{uid}{name,avatar,joinedAt,online}
+  stack: {
+    round: 2,  seed: 918273645        // new seed per tower (startRound)
+    order: [uidA, uidB, uidC]         // seat order at START (joinedAt, uid)
+    turn: 1                           // index into order
+    hearts: {uidA: 2, uidB: 1, uidC: 2}
+    drops: {pushKey: {by, n, x: 35, r: 6, auto?}}   // append-only per tower
+    cp: {n: 7, hash: '16f96ae1', poses: 'k,x,y,a;…'} // ≈ 30 B/animal
+    phase: 'aim' | 'settle' | 'roundover' | 'over'
+    aim: {x, r}                       // ghost, active seat only
+    deadline: serverMs                // useServerClock
+    result: {toppler, n}              // set on fell
+    auto: {uid: missCount}            // away auto-drops
+  }</pre>
+      <ul class="tight t12">
+        <li><b>Rules</b> (<code>database.rules.json</code> + <code>tests/rules/</code>): only <code>order[turn]</code> may append a drop, with <code>n == count</code>, <code>|x| ≤ 320</code> and <code>0 ≤ r ≤ 23</code>. Any seated player may write <code>cp</code> when <code>cp.n + 1 == n</code>. Only the active seat may write <code>aim</code>. Every <code>.validate</code> must accept unchanged data, because party pages run transactions on the whole node (<code>firebase-rules.md</code>).</li>
+        <li><b>Late join, reload or spectate:</b> read <code>cp.poses</code> and render at once. If the phase is <code>settle</code>, replay just the last drop.</li>
+        <li><b>Dropper disconnects mid-settle:</b> nothing breaks. Any client can write the checkpoint, and they all compute the same one.</li>
+        <li><b>Away player:</b> once the deadline passes, the coordinator auto-drops at the last ghost aim (or centre at 0°). Two auto-drops in a row while offline eliminates the player, following CR4's <code>skipAwayTurn</code>.</li>
+        <li><b>Cheating:</b> a client can only choose x and r, the same as tapping. Poses in <code>cp</code> are checked against every other client's replay. A forged topple verdict would be outvoted by honest clients (v2: a Cloud Function replay verifier, since the sim runs in Node).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 7 FEEL -->
+<section id="feel">
+  <h2><span class="n">7</span>FEEL · JUICE, SOUND, HAPTICS, ACCESS</h2>
+  <div class="tbl"><table>
+    <tr><th>EVENT</th><th>VISUAL</th><th>SOUND (WebAudio synth, sounds.js style)</th><th>HAPTIC*</th></tr>
+    <tr><td>Rotate</td><td>piece snaps 15° with a 1-frame squash</td><td>square 880 Hz, 30 ms tick</td><td>4 ms</td></tr>
+    <tr><td>Drop</td><td>outline drops away from the piece; guide fades</td><td>520 Hz → 390 Hz blip</td><td>10 ms</td></tr>
+    <tr><td>First contact</td><td>10 dust pixels at the contact point; last-drop glow in the seat colour</td><td>low-passed noise thud plus a triangle note, scaled by impact speed</td><td>8-22 ms by speed</td></tr>
+    <tr><td>Creak (tower sways &gt; 5°)</td><td>ruler flashes amber</td><td>short detuned saw at 110 Hz</td><td>—</td></tr>
+    <tr><td>Your turn</td><td>banner in seat colour and glyph; rail glow moves</td><td><code>sounds.go</code> two-note chirp</td><td>—</td></tr>
+    <tr><td>Timer &lt; 5 s</td><td>bar turns red</td><td>1.2 kHz tick each second</td><td>—</td></tr>
+    <tr><td>Topple</td><td>slow-mo 0.5×, shake, TOPPLE! stamp</td><td>descending 440-330-247-165</td><td>[0,60,40,120]</td></tr>
+    <tr><td>Match win / new best</td><td>WinEffect pixel burst</td><td><code>sounds.win</code> C-E-G-C</td><td>[0,40,30,70]</td></tr>
+  </table></div>
+  <div class="note warn">*<b>Haptics are currently switched off app-wide:</b> <code>vibrate()</code> in <code>src/lib/sounds.js:20-23</code> is a no-op stub ("Haptics disabled — keep audio, kill vibration"). iOS Safari has no <code>navigator.vibrate</code> at all. The table shows what Animal Stack would send if haptics were re-enabled. The prototype's ≋ toggle calls the real API so you can feel it on Android (decision D8).</div>
+
+  <h3>ACCESSIBILITY</h3>
+  <div class="grid g2">
+    <div class="card">
+      <div class="pix t8 cta">SEATS ARE COLOUR + GLYPH + NUMBER</div>
+      <div class="grid g4" style="margin-top:8px;gap:6px">
+        <div class="swatch" style="--pc:var(--c-p1)"><i>●</i>P1</div><div class="swatch" style="--pc:var(--c-p2)"><i>▲</i>P2</div><div class="swatch" style="--pc:var(--c-p3)"><i>■</i>P3</div><div class="swatch" style="--pc:var(--c-p4)"><i>◆</i>P4</div>
+      </div>
+      <p class="t12">The p1-p4 tokens already exist in every theme. In MIDNIGHT, p2 (pink) and p3 (purple) are close together for protan and deutan viewers, and matcha's p1 and p4 are both mid-dark. So colour is <b>never the only signal</b>: the glyph appears on the rail, banner, hand-off gate and results, and the hover outline is dashed. Try both themes with the toggle.</p>
+    </div>
+    <div class="card">
+      <ul class="tight t12">
+        <li><b>Reduced motion</b> (<code>html[data-motion=reduced]</code> / OS setting): turns off slow-mo, shake and particles, makes the camera cut, and makes the banner fade without a slide. Physics runs as normal.</li>
+        <li><b>Screen readers:</b> <code>LiveAnnouncer</code> reads out turn changes ("Maya's drop, 7 animals, 2.9 metres"), topples and results. The canvas has an <code>aria-label</code> summary. ROTATE and DROP are real buttons.</li>
+        <li><b>Motor:</b> the timer is off on one device. The hold-to-spin repeat is slow (140 ms). The ↓ key rotates back. DROP is never triggered by releasing a drag.</li>
+        <li><b>Text size</b> setting: the HUD uses the existing <code>text-[Npx]</code> scale, so the zoom pref applies. Canvas ruler labels are drawn at full resolution.</li>
+        <li><b>Mute</b> and the CRT toggle come from the shared SettingsButton sheet, as on every game.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 8 PLAN -->
+<section id="plan">
+  <h2><span class="n">8</span>TECH PLAN &amp; ESTIMATE</h2>
+  <div class="grid g2">
+    <div class="card">
+      <div class="pix t8 cta">FILES TO ADD</div>
+<pre>src/lib/vendor/planck-det.js        vendored planck 1.4.2 (MIT), trig → detMath
+scripts/vendor-planck.mjs           regenerate + assert no Math.sin/cos left
+src/lib/detMath.js (+test)          detSin/detCos/mulberry32 (moved from artillery)
+src/lib/animalStackLogic.js (+test) pieces, bag, startDrop/stepDrop, canon, hash,
+                                    replay, topple, hearts/turn/away helpers
+src/lib/animalStackBot.js (+test)   candidate search, 3 levels
+src/components/AnimalStackArena.jsx canvas renderer, camera, particles, FILL
+src/hooks/useStackControls.js       relative drag, rotate-repeat, useGameKeys
+src/pages/AnimalStackGame.jsx       online nPlayer page (lazy Page)
+src/pages/AnimalStackDemo.jsx       VS BOT, CLIMB, SAME DEVICE 2-4P
+tests/rules/animalStack.test.js     drop / cp / aim rules
+tests/e2e/animal-stack.spec.js      3 contexts: drop, replay, away auto-drop</pre>
+      <div class="pix t8 cta" style="margin-top:10px">FILES TO TOUCH</div>
+<pre>src/lib/games.js      GAME_TYPES entry (custom, nPlayer 2-4, solo, Page),
+                      FIELD_NULLS.stack, startRound(players)
+src/lib/rules.js      HOW TO PLAY (games.test requires one)
+src/components/GameIcons.jsx   AnimalStackIcon (24px pixel rects)
+src/pages/Demo.jsx    DEMOS entry; /local/:type branch for a custom page
+src/lib/artilleryLogic.js      import from detMath.js (no behaviour change)
+database.rules.json   games/$id/stack/*
+src/lib/sounds.js     creak/land voices (optional; sfx can live in the page)</pre>
+    </div>
+    <div class="card">
+      <div class="pix t8 cta">BUNDLE IMPACT</div>
+      <div class="kv"><b>ENTRY</b><span>+≈0.4 KB (registry entry + icon). Now <b>254.3 / 320 KB</b> gzip (<code>scripts/check-bundle-size.mjs</code>, CI-enforced). Unchanged in practice.</span>
+        <b>LAZY</b><span>planck-det ≈46 KB + game code ≈12 KB → <b>≈60 KB gzip</b> on first play. That is under Word Hunt's accepted ~250 KB chunk.</span>
+        <b>PRECACHE</b><span>none. Game chunks are runtime-cached CacheFirst (commit e013b11), so the 1,297 KiB shell precache is unchanged.</span>
+        <b>SHARED</b><span>Online and demo pages split the logic plus planck into one shared chunk, so it downloads once.</span></div>
+      <div class="pix t8 cta" style="margin-top:14px">RISKS</div>
+      <ul class="tight t12">
+        <li><b>Low-end Android CPU:</b> one tick with about 30 bodies should be fine, but I have not measured it. The bot search costs roughly 20-90 ms per candidate in Node (unwarmed), so it is spread across frames. Mitigation: a Web Worker, and cap the bot's search ticks.</li>
+        <li><b>Vendored library upkeep:</b> planck updates need the patch script re-run. Pin the version.</li>
+        <li><b>Hidden non-determinism:</b> for example iterating a <code>Map</code> built in a different order, or a newer planck adding <code>Math.*</code> calls. Mitigations: the guard test, plus a CI job that runs the replay suite under <code>jsc</code> on the macOS runner.</li>
+        <li><b>Feel tuning</b> (friction, density, spawn height) is subjective. Budget a playtest round.</li>
+        <li><b>nPlayer gaps:</b> no proposal flow, and leaderboard credit is X/O only. This is known and consistent with CR4.</li>
+        <li><b>Local mode for a custom page</b> needs a small shared routing change (<code>supportsLocalPlay</code> excludes <code>custom</code>).</li>
+      </ul>
+    </div>
+  </div>
+  <h3>PHASES (≈17 DEV-DAYS)</h3>
+  <div class="card"><div class="timeline">
+    <span class="pix t8">P0 SPIKE</span><div class="tl-bar" style="width:14%">2 d</div>
+    <span class="pix t8">P1 SOLO</span><div class="tl-bar" style="width:28%;background:rgb(var(--c-p2)/.25);border-color:rgb(var(--c-p2))">4 d</div>
+    <span class="pix t8">P2 LOCAL 2-4P</span><div class="tl-bar" style="width:18%;background:rgb(var(--c-p3)/.25);border-color:rgb(var(--c-p3))">2.5 d</div>
+    <span class="pix t8">P3 ONLINE</span><div class="tl-bar" style="width:42%;background:rgb(var(--c-p4)/.25);border-color:rgb(var(--c-p4))">5.5 d</div>
+    <span class="pix t8">P4 POLISH</span><div class="tl-bar" style="width:22%;background:rgb(var(--c-cta)/.25);border-color:rgb(var(--c-cta))">3 d</div>
+  </div>
+  <ul class="tight t12" style="margin-top:10px">
+    <li><b>P0 spike:</b> vendored planck-det, detMath, animalStackLogic with the replay and hash tests, piece tuning in a scratch page. <i>Exit:</i> 100 seeded towers hash the same in node and jsc.</li>
+    <li><b>P1 solo:</b> Arena, controls, VS BOT (3 levels), CLIMB, soloBest, sounds, icon, rules text, registry and /demo entry. Shippable on its own.</li>
+    <li><b>P2 same device:</b> setup sheet, hearts, hand-off banner and gate, results and PLAY AGAIN, /local route branch.</li>
+    <li><b>P3 online:</b> startRound, <code>stack</code> node, rules and rules tests, drop and checkpoint transactions, ghost aim, deadline and away auto-drop, spectators, e2e spec with 3 contexts.</li>
+    <li><b>P4 polish:</b> juice, FILL, landscape, reduced motion, LiveAnnouncer, and a device perf pass on real mid and low-end Android and on an iPhone.</li>
+  </ul></div>
+</section>
+
+<!-- ============================================================ 9 DECISIONS -->
+<section id="decisions">
+  <h2><span class="n">9</span>OPEN PRODUCT DECISIONS</h2>
+  <p class="lede">Each decision has my recommendation preselected. Change any you disagree with, add a note, and press <b>QUEUE ANSWER</b>; everything is sent together through Lavish. If a decision is left untouched, the recommendation stands.</p>
+  <div class="grid g2">
+    <form class="dec" data-lavish-question="D1-physics"><h3>D1 · PHYSICS ENGINE</h3>
+      <label><input type="radio" name="c" value="vendored planck.js with deterministic trig" checked><span>Vendored planck.js with the trig patch, ≈46 KB lazy<span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="hand-rolled solver"><span>Hand-rolled solver, ≈10 KB, +8-10 days, stacking risk</span></label>
+      <label><input type="radio" name="c" value="matter.js host-authoritative"><span>matter.js with host-authoritative poses</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+    <form class="dec" data-lavish-question="D2-match"><h3>D2 · MATCH FORMAT</h3>
+      <label><input type="radio" name="c" value="hearts: 3 each for 2P, 2 each for 3-4P" checked><span>Hearts: ♥♥♥ for 2P, ♥♥ for 3-4P, last one standing<span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="points: non-topplers +1, first to 3"><span>Points: everyone except the toppler +1, first to 3 (ties possible in 4P)</span></label>
+      <label><input type="radio" name="c" value="sudden death single tower"><span>Sudden death: one tower, one loser</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+    <form class="dec" data-lavish-question="D3-topple"><h3>D3 · WHAT COUNTS AS TOPPLING</h3>
+      <label><input type="radio" name="c" value="any animal leaves the island" checked><span>Any animal leaves the island, whoever dropped it<span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="only the dropped animal falling"><span>Only the animal just dropped (more forgiving)</span></label>
+      <label><input type="radio" name="c" value="tower loses more than 20% height"><span>Tower loses more than 20% of its height (hard to read)</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+    <form class="dec" data-lavish-question="D4-online-scope"><h3>D4 · ONLINE SCOPE AT LAUNCH</h3>
+      <label><input type="radio" name="c" value="2-4P invite rooms, not in public lobby yet" checked><span>2-4P invite rooms; add to the public lobby later<span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="2-4P rooms plus public matchmaking listing"><span>2-4P plus a public lobby listing (<code>matchmaking.js</code> currently lists only 2P or race games)</span></label>
+      <label><input type="radio" name="c" value="ship solo+local first, online later"><span>Ship solo and same device first (P1-P2), online in a second release</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+    <form class="dec" data-lavish-question="D5-handoff"><h3>D5 · SAME-DEVICE HAND-OFF</h3>
+      <label><input type="radio" name="c" value="banner by default, gate as house rule" checked><span>Banner by default; tap-to-ready gate as an opt-in house rule<span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="always gate"><span>Always show the PASS TO … gate</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+    <form class="dec" data-lavish-question="D6-controls"><h3>D6 · DROP CONTROL</h3>
+      <label><input type="radio" name="c" value="drag to aim + ROTATE + DROP buttons" checked><span>Drag to aim, plus ROTATE and DROP buttons<span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="drag, release to drop"><span>Drag, and release to drop (faster, but more accidental drops)</span></label>
+      <label><input type="radio" name="c" value="two-finger twist to rotate freely"><span>Two-finger twist for free rotation (breaks integer rotation, needs quantising)</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+    <form class="dec" data-lavish-question="D7-rotation"><h3>D7 · ROTATION STEP</h3>
+      <label><input type="radio" name="c" value="15 degrees (24 steps)" checked><span>15° steps (24 orientations)<span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="45 degrees (8 steps)"><span>45° steps (closer to the original's quick taps)</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+    <form class="dec" data-lavish-question="D8-haptics"><h3>D8 · HAPTICS</h3>
+      <label><input type="radio" name="c" value="re-enable vibrate behind a Settings toggle (shared change, separate task)" checked><span>Re-enable <code>vibrate()</code> behind a Settings toggle. This is a shared change, so it would be a separate task<span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="keep haptics off app-wide"><span>Keep haptics off app-wide (Animal Stack stays silent on vibrate)</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+    <form class="dec" data-lavish-question="D9-solo"><h3>D9 · SOLO CONTENT</h3>
+      <label><input type="radio" name="c" value="VS BOT 3 levels + CLIMB with local best" checked><span>VS BOT (3 levels) and CLIMB with a best score saved on the device<span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="also DAILY TOWER shared seed"><span>Also a DAILY TOWER (shared daily seed, fits <code>daily.js</code>)</span></label>
+      <label><input type="radio" name="c" value="CLIMB only"><span>CLIMB only (skip the bot, save ~1.5 days)</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+    <form class="dec" data-lavish-question="D10-fill"><h3>D10 · FILL / IMMERSIVE</h3>
+      <label><input type="radio" name="c" value="game-local FILL toggle like Pong fullscreen" checked><span>A game-local ⛶ FILL (hides chat and emotes, arena fills the viewport), like Pong's <code>fullscreen</code><span class="rtag">RECOMMENDED</span></span></label>
+      <label><input type="radio" name="c" value="shared FILL control in Game.jsx header for all games (separate task)"><span>A shared FILL control in the Game.jsx header for every game (separate shared-UI task)</span></label>
+      <label><input type="radio" name="c" value="no FILL"><span>No FILL</span></label>
+      <textarea name="why" placeholder="note (optional)"></textarea><div class="q"><button class="qbtn">QUEUE ANSWER</button><span class="qstat"></span></div></form>
+  </div>
+  <div class="q" style="margin-top:14px"><button type="button" class="qbtn" style="border-color:rgb(var(--c-cta));color:rgb(var(--c-cta))" onclick="document.querySelectorAll('form[data-lavish-question]').forEach(function(f){f.requestSubmit()})">QUEUE ALL 10 ANSWERS</button><span class="mono t11 dim">queues every decision as currently selected, then press Send to Agent</span></div>
+  <div class="note" style="margin-top:16px">Next step once these are settled: a build brief for <b>P0 + P1</b> (spike and solo). That can ship on its own and settles how the physics feels before any online work starts.</div>
+</section>
+
+</main>
+<script src="det.js"></script>
+<script src="planck-det.min.js"></script>
+<script src="engine.js"></script>
+<script src="scenes.js"></script>
+<script src="proto.js"></script>
+<script src="page.js"></script>
+<script>
+  // big piece grid in section 5 reuses the hero grid renderer
+  (function () {
+    var A = window.AnimalStack, host = document.getElementById('pieces-big')
+    host.innerHTML = A.PIECES.map(function (p, i) {
+      return '<div class="piece"><canvas data-thumb="' + i + '"></canvas><div class="pix t8">' + p.name + '</div><div class="mono t10 dim">' + p.parts.length + ' convex part' + (p.parts.length > 1 ? 's' : '') + ' · density ' + p.density + '</div><div class="mono t10 dim">mass ' + p.mass.toFixed(2) + ' · r ' + p.radius.toFixed(2) + ' m</div><span class="tag ' + (p.weight === 'HEAVY' ? 'danger' : p.weight === 'LIGHT' ? 'win' : 'dim') + '">' + p.weight + '</span></div>'
+    }).join('')
+    host.querySelectorAll('canvas').forEach(function (c) { A.thumb(c, +c.dataset.thumb) })
+  })()
+</script>
+</body>
+</html>

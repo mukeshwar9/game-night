@@ -534,6 +534,105 @@
           "revealDeadline": {
             ".validate": "newData.isNumber()"
           }
+        },
+        "stack": {
+          ".validate": "newData.hasChildren(['base','round','seed','order','hearts','turn','phase','cp'])",
+          "base": {
+            ".validate": "newData.isNumber()"
+          },
+          "seed": {
+            ".validate": "newData.isNumber()"
+          },
+          "round": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 999"
+          },
+          "turn": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+          },
+          "phase": {
+            ".validate": "newData.val() === 'aim' || newData.val() === 'settle' || newData.val() === 'roundover' || newData.val() === 'over'"
+          },
+          "order": {
+            "$i": {
+              ".validate": "$i.matches(/^[0-3]$/) && newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+            }
+          },
+          "hearts": {
+            "$i": {
+              ".validate": "$i.matches(/^[0-3]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+            }
+          },
+          "cp": {
+            ".validate": "newData.hasChildren(['n','hash','poses'])",
+            "n": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999"
+            },
+            "hash": {
+              ".validate": "newData.isString() && newData.val().length <= 16"
+            },
+            "poses": {
+              ".validate": "newData.isString() && newData.val().length <= 8000"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          },
+          "drops": {
+            "$d": {
+              ".validate": "$d.matches(/^d[0-9]{3}$/) && newData.hasChildren(['by','x','r']) && (data.exists() ? (newData.child('by').val() === data.child('by').val() && newData.child('x').val() === data.child('x').val() && newData.child('r').val() === data.child('r').val()) : (newData.child('by').val() === auth.uid || newData.child('auto').val() === true))",
+              "by": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+              },
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() >= -320 && newData.val() <= 320"
+              },
+              "r": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 23"
+              },
+              "auto": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$other": {
+                ".validate": "false"
+              }
+            }
+          },
+          "aim": {
+            "x": {
+              ".validate": "newData.isNumber() && newData.val() >= -3.2 && newData.val() <= 3.2"
+            },
+            "r": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 23"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          },
+          "result": {
+            "toppler": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+            },
+            "round": {
+              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 999"
+            },
+            "n": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          },
+          "miss": {
+            "$uid": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+            }
+          },
+          "winner": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+          },
+          "$other": {
+            ".validate": "false"
+          }
         }
       }
     },

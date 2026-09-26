@@ -11,6 +11,8 @@ export default defineConfig([
     'dist-e2e/**',
     // Captain's HTML review pages (hand-written, not app code).
     '.lavish/**',
+    // Vendored third-party code (scripts/vendor-planck.mjs regenerates it).
+    'src/lib/vendor/**',
     'playwright-report/**',
     'test-results/**',
   ]),

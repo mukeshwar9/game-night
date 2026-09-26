@@ -18,7 +18,7 @@ import {
 import { LanternsIcon, DockingIcon } from '../components/GameIcons'
 import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
 import { HunchIcon, ConvergeIcon } from '../components/GameIcons'
-import { WireCrossedIcon } from '../components/GameIcons'
+import { WireCrossedIcon, AnimalStackIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
@@ -85,6 +85,7 @@ import {
   generateChimpLayout,
 } from './chimpLogic'
 import { generateSeed } from './mathLogic'
+import { startStackMatch } from './animalStackCore'
 import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
 import { generateGrid } from './wordhuntGrid'
 import { nextWireBomb } from './wireMatchLogic'
@@ -1243,6 +1244,21 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/ArtilleryGame')),
   },
   {
+    type: 'animalstack', label: 'ANIMAL STACK',
+    desc: 'drop animals, don\'t topple the tower', Icon: AnimalStackIcon,
+    badge: 'AS', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    durationMin: 6, tags: ['skill', 'party'], solo: true,
+    // 2-4 seat uid-keyed room (lobby → START), turn-based physics replayed
+    // deterministically on every client over RTDB — see animalStackRoom.js.
+    // LocalPage: /local/animalstack is its own 2-4 player pass-and-play page.
+    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4, localMaxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/AnimalStackGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/AnimalStackDemo').then(m => ({ default: m.AnimalStackLocal }))),
+    startRound: (players) => startStackMatch(players, generateSeed()),
+  },
+  {
     type: 'wirecrossed', label: 'WIRE CROSSED',
     desc: 'one sees the bomb, one reads the manual', Icon: WireCrossedIcon,
     badge: 'WX', maxWidth: 'max-w-md',
@@ -1574,6 +1590,9 @@ export function usesFirstMover(gameType) {
 export function supportsLocalPlay(gameType) {
   const cfg = GAME_TYPES.find(t => t.type === gameType)
   if (!cfg) return false
+  // A custom game can opt in with its own pass-and-play page (`LocalPage`),
+  // rendered by Demo.jsx's local route instead of the generic board engine.
+  if (cfg.LocalPage) return true
   return !!cfg.BoardComponent && !cfg.custom && !cfg.nPlayer && !cfg.simultaneous && !cfg.realtime
 }
 
@@ -1713,6 +1732,8 @@ const FIELD_NULLS = {
   mancalaPits: null, mancalaLast: null,
   airhockeyScoreX: null, airhockeyScoreO: null,
   artillerySeed: null, artilleryShots: null,
+  // Animal Stack: the whole match (seats, hearts, drops, checkpoint) in one node.
+  stack: null,
   minesSeed: null, minesStartedAt: null,
   minesRevealedX: null, minesRevealedO: null,
   minesDeadX: null, minesDeadO: null,

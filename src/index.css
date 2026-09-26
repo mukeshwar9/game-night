@@ -1082,6 +1082,27 @@ body::before {
 [data-motion="reduced"] .pong-callout { animation: none; }
 @media (prefers-reduced-motion: reduce) { .pong-callout { animation: none; } }
 
+/* Animal Stack: turn pill slides in then fades; TOPPLE! stamp pops at a tilt.
+   Reduced motion keeps both readable and static (the pill just fades). */
+@keyframes stack-banner {
+  0%   { opacity: 0; transform: translate(-50%, -12px); }
+  12%  { opacity: 1; transform: translate(-50%, 0); }
+  75%  { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}
+.stack-banner { animation: stack-banner 1.8s ease forwards; }
+@keyframes stack-stamp {
+  from { transform: translate(-50%, -50%) rotate(-8deg) scale(1.6); opacity: 0; }
+  to   { transform: translate(-50%, -50%) rotate(-8deg) scale(1); opacity: 1; }
+}
+.stack-stamp { transform: translate(-50%, -50%) rotate(-8deg); animation: stack-stamp 0.25s ease-out both; }
+[data-motion="reduced"] .stack-banner, [data-motion="reduced"] .stack-stamp { animation: none; transform: translate(-50%, 0); }
+[data-motion="reduced"] .stack-stamp { transform: translate(-50%, -50%) rotate(-8deg); }
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="full"]) .stack-banner { animation: none; transform: translate(-50%, 0); }
+  html:not([data-motion="full"]) .stack-stamp { animation: none; }
+}
+
 @keyframes win-flash {
   0%   { opacity: 0; }
   12%  { opacity: 0.14; }

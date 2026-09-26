@@ -198,6 +198,13 @@ export const sounds = {
   draw:  ()    => { seq([[392, 0, 0.14], [392, 0.18, 0.14, 'triangle', 0.07]]); vibrate([0, 30, 40, 30]) },
   drop:  ()    => { seq([[70, 0, 0.06, 'square', 0.17], [45, 0.04, 0.32, 'sawtooth', 0.15]]); vibrate(35) },
   bell:  ()    => seq([[98, 0, 1.8, 'sine', 0.16], [196, 0, 1.4, 'sine', 0.08]]),
+  // Animal Stack: rotate tick, release blip, landing thud scaled by impact,
+  // topple sting, and the last-5-seconds timer tick.
+  stackRotate: () => { seq([[880, 0, 0.03, 'square', 0.04]]); vibrate(4) },
+  stackRelease: () => { seq([[520, 0, 0.05, 'square', 0.06], [390, 0.04, 0.06, 'square', 0.05]]); vibrate(10) },
+  stackLand: (speed = 0.5) => { seq([[140 + speed * 40, 0, 0.08, 'triangle', 0.08 + speed * 0.06], [60, 0, 0.12, 'sawtooth', 0.05 + speed * 0.06]]); vibrate(8 + Math.round(speed * 14)) },
+  stackTopple: () => { seq([[440, 0, 0.14], [330, 0.11, 0.14], [247, 0.22, 0.14], [165, 0.33, 0.2]]); vibrate([0, 60, 40, 120]) },
+  stackTick: () => { seq([[1200, 0, 0.02, 'square', 0.03]]) },
   // Soft two-note pop — default emoji reaction audio (haptics via reaction())
   emote: () => emoteAudio(),
   // Breathy descending hiss — shh reaction audio (haptics via reaction())

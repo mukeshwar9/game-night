@@ -965,3 +965,17 @@ export function DockingIcon() {
     </svg>
   )
 }
+
+export function AnimalStackIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* island, a wide animal, a tilted one on top, and a small one teetering */}
+      <path d="M2 21h20l-2.5 2h-15z" fill="currentColor" opacity=".5" />
+      <rect x="5" y="15" width="12" height="5" fill="currentColor" />
+      <rect x="17" y="16" width="3" height="3" fill="currentColor" opacity=".7" />
+      <rect x="8" y="9.5" width="8" height="4" fill="currentColor" opacity=".85" transform="rotate(-10 12 11.5)" />
+      <path d="M11 3.5h4v4h-4z" fill="currentColor" opacity=".6" transform="rotate(12 13 5.5)" />
+      <rect x="15" y="16" width="1" height="1" fill="none" stroke="currentColor" strokeWidth=".8" opacity=".4" />
+    </svg>
+  )
+}
