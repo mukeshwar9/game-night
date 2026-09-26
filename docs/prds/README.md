@@ -21,6 +21,7 @@ conventions** below — read this file first.
 | [trivia-blitz.md](trivia-blitz.md) | Trivia Blitz | party | 2–8 | custom party page | RTDB | S/M | P3 |
 | [air-hockey.md](air-hockey.md) | Air Hockey | reflex | 2 | custom realtime page | WebRTC (pong stack) | M | P3 |
 | [artillery.md](artillery.md) | Artillery | reflex | 2 | custom page | RTDB (deterministic replay) | L | P3 |
+| [archery.md](archery.md) | Archery (draw, aim, loose) | reflex | 1–4 | custom pages (2P room + 2–4 party + solo + local) | RTDB (deterministic replay) | L | P2 |
 | [connectfour5.md](connectfour5.md) | Connect Four 5 (9×7) | board | 2 | standard registry (`variantOf` C4) | RTDB | S | P2 |
 | [dice-big.md](dice-big.md) | Pig Big (2 dice) | dicebluff | 2 | registry + `applyMove` (`variantOf` Pig) | RTDB + Pig seed | S/M | P2 |
 | [tictactoe4.md](tictactoe4.md) | Tic Tac Toe 4×4 | board | 2 | standard registry (`variantOf` TTT) | RTDB | S | P2 |
