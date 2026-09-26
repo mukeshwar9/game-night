@@ -2,7 +2,7 @@ import { lazyWithRetry } from './lazyWithRetry'
 // ChimpBoard is used only from ChimpGame (custom component), not directly via registry
 import {
   TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, PulpIcon,
   TypingIcon, MathIcon,
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
@@ -715,6 +715,31 @@ export const GAME_TYPES = [
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
     custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/AimTrainerGame')),
+  },
+  {
+    type: 'pulprush', label: 'PULP RUSH',
+    desc: 'slice the produce, dodge the rot', Icon: PulpIcon,
+    badge: 'PR', maxWidth: 'max-w-sm',
+    classicLabel: 'DUEL', classicBlurb: 'Same throws for everyone. Highest score wins.',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
+    // N-player race on one shared seeded course (pulpLogic.js / RaceShell);
+    // same-device split screen + TWO-TONE co-op live on its /solo page.
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/PulpRushGame')),
+  },
+  {
+    type: 'pulpharvest', label: 'PULP HARVEST',
+    desc: 'fill one basket together', Icon: PulpIcon,
+    badge: 'PH', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    variantOf: 'pulprush', variantLabel: 'CO-OP',
+    variantBlurb: 'Same throws, one team basket, shared hearts.',
+    durationMin: 2, tags: ['quick', 'frantic'],
+    custom: true, simultaneous: true, race: true, coop: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/PulpHarvestGame')),
   },
   {
     type: 'typing', label: 'TYPING RACE',

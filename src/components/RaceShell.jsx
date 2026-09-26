@@ -39,7 +39,8 @@ import { cn } from '@/lib/utils'
 //
 // race config: { type, title, rules[], baseMs, scaled, entry(stats, round),
 //   isDone(stats), row(stats, round), liveKey?(stats, round),
-//   decided?(statsById, racers), start?(room) → { extras, seen }, clockLabel }
+//   decided?(statsById, racers), start?(room) → { extras, seen }, clockLabel,
+//   coop?: { won, lost } — round headlines for a co-op race }
 
 const TICK_MS = 250
 
@@ -219,7 +220,8 @@ export default function RaceShell({
     const champs = matchChampions(game.scores)
     if (won) (champs.includes(mySeat) ? sounds.matchWin() : sounds.win())
     else sounds.lose()
-    if (champs.length && recordedRef.current !== result.roundId) {
+    // Co-op races share the result: no W/L history (as matchRules' COOP_GAMES).
+    if (!race.coop && champs.length && recordedRef.current !== result.roundId) {
       recordedRef.current = result.roundId
       // Head-to-head history only means something with exactly one opponent.
       const others = result.order.filter(id => id !== mySeat)
@@ -352,7 +354,10 @@ export default function RaceShell({
   if (status === 'finished' && result && result.gameType === race.type) {
     const winners = result.order.filter(id => result.ranks[id] === 1 && !result.dnf[id])
     const iWon = winners.includes(mySeat)
-    const headline = matchOver
+    // Co-op races (race.coop): everyone ranks first together or nobody does.
+    const headline = race.coop
+      ? (matchOver ? 'TEAM WINS THE MATCH!' : winners.length ? race.coop.won : race.coop.lost)
+      : matchOver
       ? (champions.includes(mySeat) ? 'YOU WIN THE MATCH!' : `${champions.map(nameOf).join(' & ')} WINS THE MATCH`)
       : winners.length === 0 ? 'NO FINISHERS'
         : iWon ? (winners.length > 1 ? 'TIED FOR FIRST!' : 'YOU WIN!')

@@ -194,6 +194,29 @@ export const GAME_RULES = {
     win: 'Highest score when the 30 seconds run out wins the round. First to 3 round wins takes the match.',
   },
 
+  pulprush: {
+    objective: 'Slice more produce than everyone else in 45 seconds (2–8 players).',
+    howToPlay: [
+      'Swipe across the flying produce to slice it — a slow drag won’t cut.',
+      'Everyone gets exactly the same throws, in the same order.',
+      'Three or more in one quick swipe chain is a combo worth bonus points.',
+      'Never slice a rotten apple: it costs 5 points and stuns you for a second.',
+      'Two on one phone: open it from PLAY SOLO and pick SPLIT DUEL — sit face to face.',
+    ],
+    win: 'Highest score when the 45 seconds run out wins the round. First to 3 round wins takes the match.',
+  },
+
+  pulpharvest: {
+    objective: 'Fill one team basket together before 60 seconds are up (2–8 players, co-op).',
+    howToPlay: [
+      'Everyone slices the same throws in their own field; every point goes into the team basket.',
+      'The basket needs 60 pulp per player.',
+      'The team shares 5 hearts: any fruit that falls unsliced, or any rotten apple you slice, costs one.',
+      'Combos (3+ in one quick swipe chain) fill the basket faster.',
+    ],
+    win: 'Fill the basket before time or hearts run out and the whole team wins the round.',
+  },
+
   typing: {
     objective: 'Type the passage faster and more accurately than everyone else (2–8 players).',
     howToPlay: [

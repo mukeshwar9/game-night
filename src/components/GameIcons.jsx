@@ -183,6 +183,17 @@ export function ArrowsIcon() {
   )
 }
 
+export function PulpIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M11 6 A7 7 0 0 0 11 20 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M14 4 A7 7 0 0 1 14 18 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M3 21 L21 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2 2.5" />
+      <path d="M13 3 q1 -2 3 -2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function AimIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
