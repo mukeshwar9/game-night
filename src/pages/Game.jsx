@@ -22,6 +22,9 @@ import ProposalBanner from '../components/ProposalBanner'
 import DeadEnd, { deadEndPrimaryClass } from '../components/DeadEnd'
 import GameSwitcher from '../components/GameSwitcher'
 import SettingsButton from '../components/SettingsButton'
+import MusicToggle from '../components/MusicToggle'
+import { useMusicScene } from '../lib/music'
+import { roomMusicScene } from '../lib/musicLogic'
 import ChatLog from '../components/ChatLog'
 import { isQuickChat } from '../lib/emotes'
 import { sounds } from '../lib/sounds'
@@ -246,6 +249,9 @@ export default function Game() {
   const turnMe = isPartyRoom ? getPlayerId() : mySeat
   const announcement = roomAnnouncement(game, { me: turnMe, party: isPartyRoom })
   useTurnTitle(isMyTurn(game, turnMe))
+  // Background music follows the room: waiting loop, the game's genre loop
+  // while playing, the results loop once a round ends.
+  useMusicScene(roomMusicScene(game), game?.gameType ?? null)
 
   // Sounds + win effect — react to game state changes
   useEffect(() => {
@@ -836,6 +842,7 @@ export default function Game() {
           <div className="game-header flex items-start justify-between gap-2">
             <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">← HOME</Link>
             <div className="game-header-actions flex items-center justify-end gap-3">
+              <MusicToggle />
               <SettingsButton />
               <RulesButton onClick={() => setShowRules(true)} />
               {amSeated && game.status !== 'waiting' && (
@@ -969,6 +976,7 @@ export default function Game() {
             ← HOME
           </Link>
           <div className={cn('game-header-actions flex items-center justify-end gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>
+            <MusicToggle />
             <SettingsButton />
             <RulesButton onClick={() => setShowRules(true)} />
             {/* M-24: GameSwitcher opens its own full-screen sheet whose open

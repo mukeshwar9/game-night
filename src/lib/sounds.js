@@ -1,6 +1,6 @@
 import { getWinFx } from './displayPrefs'
+import { duckMusic, resumeAudio } from './audioContext'
 
-let _ctx = null
 let _volume = Number(localStorage.getItem('sfxVolume') ?? 1)
 let _reactionMuted = localStorage.getItem('reactionSfx') === 'off'
 let _reactionVolumeScale = 1
@@ -9,13 +9,21 @@ let _reactionPitchScale = 1
 if (!Number.isFinite(_volume)) _volume = 1
 _volume = Math.max(0, Math.min(1, _volume))
 
+// Shared with background music (audioContext.js); resumed on every cue.
 function ctx() {
-  if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)()
-  if (_ctx.state === 'suspended') _ctx.resume()
-  return _ctx
+  const c = resumeAudio()
+  if (!c) throw new Error('Web Audio unavailable')
+  return c
 }
 
 let _muted = localStorage.getItem('sfx') === 'off'
+
+// Dips background music while a cue sounds: a light dip for blips (Pong
+// walls, footsteps) so fast games don't pump, deeper for longer cues.
+function duckUnder(c, start, dur) {
+  if (_volume <= 0) return
+  duckMusic(dur < 0.1 ? 0.7 : 0.55, Math.max(0, start - c.currentTime) + dur)
+}
 
 // Haptics disabled — keep audio, kill vibration.
 function vibrate() {
@@ -26,6 +34,7 @@ function note(freq, start, dur, type = 'square', vol = 0.11) {
   if (_muted) return
   try {
     const c = ctx()
+    duckUnder(c, start, dur)
     const osc = c.createOscillator()
     const gain = c.createGain()
     osc.type = type
@@ -78,6 +87,7 @@ function noise(start, dur, vol = 0.08, freq = 1800) {
   if (_muted) return
   try {
     const c = ctx()
+    duckUnder(c, start, dur)
     const n = Math.max(1, Math.floor(c.sampleRate * dur))
     const buffer = noiseBuffer(c, n)
     const src = c.createBufferSource()
@@ -105,10 +115,12 @@ function pigFreq(streak) {
 }
 
 function winFanfare() {
+  if (!_muted && _volume > 0) duckMusic(0.3, 0.8)
   seq([[523, 0, 0.1], [659, 0.12, 0.1], [784, 0.24, 0.1], [1047, 0.36, 0.35]])
 }
 
 function matchWinFanfare() {
+  if (!_muted && _volume > 0) duckMusic(0.3, 1.2)
   seq([[523, 0, 0.1], [659, 0.12, 0.1], [784, 0.24, 0.1], [1047, 0.36, 0.16], [784, 0.54, 0.1], [1047, 0.66, 0.5, 'square', 0.13]])
 }
 

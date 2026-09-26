@@ -35,6 +35,7 @@ This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime D
 - `src/lib/games.js` — the `GAME_TYPES` registry; the single source of per-game config. Custom pages (`Page`) and boards (`BoardComponent`) are lazy (`lazyWithRetry`). See `.claude/rules/adding-a-game-rules.md`.
 - `src/pages/Game.jsx` + `src/hooks/room/` — the room shell: session/seat claims, per-connection presence, proposals, abandon recovery, floats. `src/lib/matchRules.js` is the match-end rule, shared with `functions/`.
 - Shared primitives: `commit.js` (commit–reveal), `sealed.js` + `useSealKey` (per-player encryption), `coordinator.js` (online-aware host), `timerScale.js`, `seenHistory.js`, `normalize.js`, `useServerClock`, `RoundEndPanel`, `teams.js`, `raceLogic.js` + `RaceShell`.
+- Audio: `sounds.js` (SFX) and `music.js` (procedural background music, on by default, starts on the first tap) share one context (`audioContext.js`). A page declares its music with `useMusicScene('lobby'|'wait'|'game'|'results', gameType)`; in-game tracks follow the registry `category` (or an optional `music:` field, see `musicLogic.js`).
 
 ### Data model
 

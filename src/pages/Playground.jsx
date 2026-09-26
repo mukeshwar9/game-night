@@ -5,6 +5,7 @@ import EmptyState from '../components/EmptyState'
 import Skeleton from '../components/loading/Skeleton'
 import BottomSheet from '../components/BottomSheet'
 import SettingsButton from '../components/SettingsButton'
+import MusicToggle from '../components/MusicToggle'
 import PlaygroundWorld from '../components/PlaygroundWorld'
 import { useAuth } from '../lib/AuthContext'
 import { getStats } from '../lib/profile'
@@ -87,6 +88,7 @@ export default function Playground() {
 
       {/* HUD — top-right: global settings */}
       <div className="absolute top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))] z-30 flex items-center gap-2 rounded border border-retro-border bg-retro-surface/80">
+        <MusicToggle className="min-h-11 min-w-11 flex items-center justify-center" />
         <SettingsButton className="min-h-11 min-w-11 flex items-center justify-center" />
       </div>
 

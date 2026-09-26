@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import NumberPad from '../components/NumberPad'
 import { generateQuestion } from '../lib/mathLogic'
 import { sounds } from '../lib/sounds'
+import { useMusicScene } from '../lib/music'
 import {
   todayKey, seedFromDate, readBest, writeBest, getDailyNumber, bumpStreak, readHistory,
   msUntilNextDaily, formatCountdown, localDateLabel, weekdayInitial,
@@ -49,6 +50,8 @@ export default function DailyGame() {
   const playedToday = best != null
 
   const [sharing, runShare] = useBusy()
+  // The daily sprint plays Mental Math's loop; menus keep the lobby loop.
+  useMusicScene(phase === 'playing' ? 'game' : null, 'math')
 
   const q = generateQuestion(seed, qIndex)
 

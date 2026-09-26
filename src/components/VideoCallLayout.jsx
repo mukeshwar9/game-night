@@ -11,6 +11,7 @@ import {
   readVideoCallLayout,
   writeVideoCallLayout,
 } from '../lib/videoCallLayout'
+import { setMusicBlock } from '../lib/music'
 
 const VideoCallContext = createContext(null)
 
@@ -27,6 +28,9 @@ export function VideoCallLayoutProvider({ children }) {
       window.removeEventListener('orientationchange', onResize)
     }
   }, [])
+
+  // Players on a call hear each other, not the music.
+  useEffect(() => setMusicBlock('videoCall', layout.enabled), [layout.enabled])
 
   const updateLayout = (patch) => setLayout(current => writeVideoCallLayout({ ...current, ...patch }))
   const reserve = useMemo(() => getVideoCallReserve(layout, viewport), [layout, viewport])

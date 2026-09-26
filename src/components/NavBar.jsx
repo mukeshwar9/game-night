@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import SettingsButton from './SettingsButton'
+import MusicToggle from './MusicToggle'
 import useHideOnScroll from '../hooks/useHideOnScroll'
 
 /* eslint-disable react-refresh/only-export-components */
@@ -92,6 +93,7 @@ export default function NavBar() {
         </Link>
 
         <div className="flex items-center gap-2 shrink-0">
+          <MusicToggle />
           <SettingsButton />
         </div>
       </div>

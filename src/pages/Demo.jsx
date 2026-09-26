@@ -13,6 +13,7 @@ import {
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArrowsIcon,
 } from '../components/GameIcons';
 import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
+import { useMusicScene } from '../lib/music'
 import { recordPlay } from '../lib/analytics'
 import { recordRecentPlay } from '../lib/recentPlays'
 import CategoryTabs from '../components/CategoryTabs';
@@ -147,6 +148,7 @@ const DEMOS = [
 function LocalPlayPage({ routeType }) {
   const cfg = getGameConfig(routeType)
   const playRecorded = useRef(false)
+  useMusicScene('game', routeType)
   useEffect(() => {
     if (playRecorded.current) return
     playRecorded.current = true
@@ -240,6 +242,7 @@ function DemoHub() {
   const [selected, setSelected] = useState(initialType)
   const [activeCat, setActiveCat] = useState(() => getGameConfig(initialType)?.category || 'board')
   const active = DEMOS.find(d => d.type === selected)
+  useMusicScene('game', selected)
 
   // Party cards don't start an actual solo game (2+ players only) — every
   // other selection mounts a fresh bot/skill demo, so that's the play. Landing

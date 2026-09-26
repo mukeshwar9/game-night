@@ -17,6 +17,7 @@ import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatars'
 import { getPlayerId } from '../lib/playerId'
 import { sounds } from '../lib/sounds'
+import { resetMusicDefaults, setMusicOn, setMusicVolume, syncMusic, useMusic } from '../lib/music'
 import { lazyWithRetry } from '../lib/lazyWithRetry'
 
 function ThemeSwatches({ id }) {
@@ -56,6 +57,7 @@ export default function SettingsButton({ className = '' }) {
   const [muted, setMuted] = useState(() => sounds.isMuted())
   const [reactionMuted, setReactionMuted] = useState(() => sounds.isReactionMuted())
   const [volume, setVolume] = useState(() => sounds.getVolume())
+  const music = useMusic()
   const [crt, setCrt] = useState(getStoredCrt)
   const [motion, setMotion] = useState(getStoredMotion)
   const [textSize, setTextSize] = useState(getStoredTextSize)
@@ -94,6 +96,7 @@ export default function SettingsButton({ className = '' }) {
   const selectTheme = (id) => {
     applyTheme(id)
     setTheme(id)
+    syncMusic()
     setProfile({ theme: id }).catch(() => {})
   }
 
@@ -103,7 +106,7 @@ export default function SettingsButton({ className = '' }) {
     setProfile({ fontFamily: id }).catch(() => {})
   }
 
-  const toggleMute = () => setMuted(sounds.toggle())
+  const toggleMute = () => { setMuted(sounds.toggle()); syncMusic() }
   const toggleReactionMute = () => setReactionMuted(sounds.toggleReactionMute())
   const changeVolume = (event) => setVolume(sounds.setVolume(event.target.value))
 
@@ -123,6 +126,7 @@ export default function SettingsButton({ className = '' }) {
     applyTheme('matcha')
     applyFont('press-start')
     sounds.resetAudioDefaults()
+    resetMusicDefaults()
     resetDisplayPrefs()
     setTheme('matcha')
     setFont('press-start')
@@ -260,6 +264,11 @@ export default function SettingsButton({ className = '' }) {
       </Section>
 
       <Section title="AUDIO">
+        <SwitchRow label="MUSIC" checked={music.on} onChange={setMusicOn} ariaLabel="Enable background music" />
+        <label className="block font-pixel text-[9px] text-retro-text tracking-widest">
+          <span className="mb-2 flex justify-between"><span>MUSIC VOLUME</span><span className="text-retro-dim">{Math.round(music.volume * 100)}%</span></span>
+          <input type="range" min="0" max="1" step="0.05" value={music.volume} onChange={e => setMusicVolume(e.target.value)} aria-label="Music volume" className="w-full accent-retro-cta" />
+        </label>
         <SwitchRow label="GAME SOUNDS" checked={!muted} onChange={toggleMute} ariaLabel="Enable game sounds" />
         <SwitchRow label="REACTION SOUNDS" checked={!reactionMuted} onChange={toggleReactionMute} ariaLabel="Enable reaction sounds" />
         <label className="block font-pixel text-[9px] text-retro-text tracking-widest">
