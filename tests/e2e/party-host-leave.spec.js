@@ -87,7 +87,7 @@ test('Chain Reaction 4P: the next player can start when the host leaves the lobb
   await gus.page.getByRole('button', { name: 'START MATCH' }).click()
 
   // The departed host isn't dealt a colour, so Gus (first remaining seat) moves first.
-  await expect(gus.page.getByText(/^YOUR TURN — PLACE CYAN$/)).toBeVisible()
+  await expect(gus.page.getByText(/^YOUR TURN — PLACE ● P1$/)).toBeVisible()
   await expect(gia.page.getByText(/^GUS'S TURN…$/)).toBeVisible()
 
   expectNoPageErrors(...guests)
@@ -101,7 +101,7 @@ test('Chain Reaction 4P: a player who drops on their turn is skipped', async ({ 
 
   await expect(host.page.getByText(/^PLAYERS \(3\/4\)/)).toBeVisible()
   await host.page.getByRole('button', { name: 'START MATCH' }).click()
-  await expect(host.page.getByText(/^YOUR TURN — PLACE CYAN$/)).toBeVisible()
+  await expect(host.page.getByText(/^YOUR TURN — PLACE ● P1$/)).toBeVisible()
   await expect(gus.page.getByText(/^HANA'S TURN…$/)).toBeVisible()
 
   // Hana drops before her first move: after the grace period the turn passes on.
@@ -109,12 +109,12 @@ test('Chain Reaction 4P: a player who drops on their turn is skipped', async ({ 
   await host.context.close()
 
   await expect(gus.page.getByText(/^HANA IS OFFLINE — SKIPPING IN/)).toBeVisible()
-  await expect(gus.page.getByText(/^YOUR TURN — PLACE PINK$/)).toBeVisible({ timeout: 40_000 })
+  await expect(gus.page.getByText(/^YOUR TURN — PLACE ● P2$/)).toBeVisible({ timeout: 40_000 })
   await expect(gia.page.getByText(/^GUS'S TURN…$/)).toBeVisible()
 
   // The room keeps going: Gus's move hands the turn to Gia.
   await gus.page.getByTestId('cr-cell-0-0').click()
-  await expect(gia.page.getByText(/^YOUR TURN — PLACE PURPLE$/)).toBeVisible()
+  await expect(gia.page.getByText(/^YOUR TURN — PLACE ● P3$/)).toBeVisible()
 
   expectNoPageErrors(...guests)
   for (const { context } of guests) await context.close()
