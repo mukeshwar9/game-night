@@ -341,13 +341,17 @@ export default function PaintGame({
       </p>
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
       {!proposal && (
-        <div className="text-center">
+        // Kept well clear of the play controls; only turns danger-styled once
+        // armed, so a stray tap near the controls can't read as a real forfeit.
+        <div className="text-center pt-6">
           <button
             onClick={handleForfeit}
             disabled={forfeitBusy}
             className={cn(
-              'min-h-11 px-4 font-pixel text-[9px] tracking-wide rounded transition-colors disabled:opacity-50',
-              forfeitArmed ? 'text-retro-danger' : 'text-retro-dim hover:text-retro-danger',
+              'min-h-11 px-4 font-pixel text-[9px] tracking-wide rounded border transition-colors disabled:opacity-50',
+              forfeitArmed
+                ? 'text-retro-danger border-retro-danger bg-retro-danger/10'
+                : 'text-retro-dim border-transparent hover:text-retro-danger',
             )}
           >
             {forfeitBusy ? 'FORFEITING…' : forfeitArmed ? 'TAP AGAIN TO FORFEIT' : 'FORFEIT ROUND'}

@@ -40,7 +40,7 @@ const RACE = {
   sameWhat: 'MINEFIELD',
   rules: [
     `IDENTICAL SEEDED MINEFIELD · ${MINES} MINES · ${SAFE_CELLS} SAFE CELLS`,
-    'TAP REVEAL · HOLD / RIGHT-CLICK / F KEY FLAG · TAP A NUMBER TO CHORD',
+    'TAP REVEAL · HOLD TO FLAG · TAP A NUMBER TO CHORD',
     'FASTEST CLEAR WINS · HIT A MINE AND YOU’RE OUT',
   ],
   baseMs: MINES_RACE_MS,
@@ -95,7 +95,9 @@ function MineCell({ i, board, revealed, flags, fatalCell, showMines, canAct, onT
       }}
       className={cn(
         'aspect-square flex items-center justify-center rounded-[2px] border font-pixel text-[10px] leading-none select-none',
-        !isRevealed && !showMine && 'bg-retro-card border-retro-border cursor-pointer active:bg-retro-surface',
+        // Unrevealed cells sit a clear step above the revealed floor so the
+        // field reads at a glance on a phone (card-on-card was too faint).
+        !isRevealed && !showMine && 'bg-retro-structure/60 border-retro-structure cursor-pointer active:bg-retro-surface',
         !isRevealed && showMine && 'bg-retro-deep border-transparent',
         isFatal && 'bg-retro-danger border-retro-danger ring-1 ring-retro-danger',
         isRevealed && n === 0 && !showMine && 'bg-retro-deep border-transparent',
@@ -293,7 +295,7 @@ function MinesRacer({ gameId, round, myStats, statsPath }) {
           {mode === 'flag' ? '🚩 FLAG MODE' : '⛏ REVEAL MODE'}
         </button>
         <span className="font-pixel text-[8px] text-retro-dim tabular-nums">
-          🚩 {flags.size} · HOLD OR F TO FLAG · TAP № TO CHORD
+          🚩 {flags.size} · HOLD<span className="kbd-hint"> OR F</span> TO FLAG · TAP № TO CHORD
         </span>
       </div>
     </div>

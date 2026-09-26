@@ -146,7 +146,8 @@ export default function PongArena({
         effects={view.effects} align={align} label={survival ? 'RETURNS' : 'PTS'}
       />
     )
-  const hint = portrait ? 'DRAG ANYWHERE · ← → / A D' : 'DRAG ANYWHERE · ↑ ↓ / W S'
+  // Keys only mean something with a keyboard: phones see just the gesture.
+  const hint = <>DRAG ANYWHERE<span className="kbd-hint">{portrait ? ' · ← → / A D' : ' · ↑ ↓ / W S'}</span></>
 
   return (
     <div
@@ -199,9 +200,10 @@ export default function PongArena({
       </div>
 
       {/* Bottom HUD — your side in portrait, plus the control hint */}
-      <div className="mx-auto w-full space-y-1" style={hudStyle}>
+      <div className="group mx-auto w-full space-y-1" style={hudStyle}>
         {portrait && <div>{chip(nearSide, 'left')}</div>}
-        <p className="text-center font-pixel text-[8px] text-retro-dim/80 [@media(max-height:420px)]:hidden">{hint}</p>
+        {/* Hidden while the first-run TouchCoachmark (in `footer`) says the same thing */}
+        <p className="text-center font-pixel text-[8px] text-retro-dim/80 [@media(max-height:420px)]:hidden group-has-[[data-coachmark]]:hidden">{hint}</p>
         {footer}
       </div>
     </div>

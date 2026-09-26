@@ -207,8 +207,10 @@ function ScoreBlock({ side, score, name, mine, power, out }) {
       >
         {score}
       </p>
-      <p className="mt-1 font-pixel text-[8px] tracking-widest text-retro-dim truncate">
-        {(name || side).toUpperCase()}{mine && name?.toUpperCase() !== 'YOU' ? ' · YOU' : ''}
+      {/* The name truncates on its own so the "YOU" marker never gets cut */}
+      <p className={cn('mt-1 flex min-w-0 font-pixel text-[8px] text-retro-dim', side === 'O' && 'justify-end')}>
+        <span className="truncate">{(name || side).toUpperCase()}</span>
+        {mine && name?.toUpperCase() !== 'YOU' && <span className="shrink-0 whitespace-pre"> · YOU</span>}
       </p>
       {power > 0 && (
         <p className="mt-0.5 font-pixel text-[8px] tracking-widest" style={{ color: col(token) }}>

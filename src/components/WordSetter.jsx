@@ -87,7 +87,9 @@ export default function WordSetter({
           className={cn(
             'w-full bg-retro-card border-2 rounded px-4 py-3',
             'font-pixel text-sm text-retro-p1 tracking-widest text-center',
-            'placeholder-retro-dim focus:outline-none transition-colors',
+            // Mono, unspaced placeholder so the full prompt fits a phone-width field
+            'placeholder-retro-dim placeholder:font-mono placeholder:text-xs placeholder:tracking-normal',
+            'focus:outline-none transition-colors',
             error ? 'border-retro-p2' : 'border-retro-border focus:border-retro-p1',
           )}
         />

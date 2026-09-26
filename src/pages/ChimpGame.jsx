@@ -8,7 +8,6 @@ import {
 } from '../lib/chimpLogic'
 import ChimpBoard from '../components/ChimpBoard'
 import GameStatus from '../components/GameStatus'
-import GameSwitcher from '../components/GameSwitcher'
 import SpectatorCard from '../components/SpectatorCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
@@ -281,7 +280,8 @@ export default function ChimpGame({
           {claimBusy ? 'CLAIMING…' : 'CLAIM ROUND — OPPONENT IDLE'}
         </button>
       )}
-      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
+      {/* No in-play SWITCH GAME: the room header's switch icon covers it
+          mid-match, and the end screen (GameStatus) keeps the full button. */}
     </div>
   )
 }

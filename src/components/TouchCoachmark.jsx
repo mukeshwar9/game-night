@@ -43,6 +43,9 @@ export default function TouchCoachmark({ gameKey, gesture = 'tap', text, active 
   return (
     <div
       role="status"
+      // Lets a host hide its own static control hint while this shows
+      // (e.g. PongArena's `group-has-[[data-coachmark]]:hidden`).
+      data-coachmark=""
       className={cn(
         'flex items-center justify-center gap-2 rounded border border-retro-cta/50',
         'bg-retro-tint-cta/40 px-3 py-2 font-pixel text-[10px] text-retro-cta',

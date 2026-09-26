@@ -686,8 +686,8 @@ export default function WordDuelGame({
       <div className="flex flex-col items-center gap-5 py-4 max-w-md mx-auto">
         {rail}
         <div className="text-center">
-          <h2 className="text-lg font-bold text-retro-text mb-1">PICK A WORD</h2>
-          <p className="text-xs text-retro-dim">
+          <h2 className="font-pixel text-xs text-retro-text mb-2">PICK A WORD</h2>
+          <p className="font-mono text-xs text-retro-dim">
             Choose a 5-letter word for your opponent to crack.{copy}
           </p>
         </div>
@@ -708,8 +708,8 @@ export default function WordDuelGame({
             <WordFeedback message={settingFeedback?.message} tone="bad" id={settingFeedback?.id} />
             <button
               className={cn(
-                'px-6 py-2 rounded font-bold text-sm uppercase cursor-pointer',
-                'bg-retro-cta text-retro-bg shadow-neon-cta hover:opacity-90 transition-opacity',
+                'min-h-11 px-6 py-2.5 rounded font-pixel text-[10px] cursor-pointer',
+                'bg-retro-cta text-retro-bg hover:shadow-neon-cta active:scale-95 transition-all',
                 'disabled:opacity-50 disabled:cursor-default',
               )}
               onClick={handleSetWord}
@@ -727,7 +727,7 @@ export default function WordDuelGame({
             <div className="flex justify-center">
               <PixelDots tone="cta" size="lg" />
             </div>
-            <p className="text-xs text-retro-dim mt-1">
+            <p className="font-mono text-xs text-retro-dim mt-1">
               {oppCommit ? 'STARTING…' : 'WAITING FOR OPPONENT…'}
             </p>
             {settingStalled && (

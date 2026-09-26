@@ -175,6 +175,13 @@ function ClaimPanel({ claim, now, opponentLabel, onClaim, claiming }) {
     (claim.reason === 'no-word' || claim.reason === 'offline' || claim.at - now <= CLAIM_WARNING_MS)
   if (!claim.ready && !showCountdown) return null
   const why = claim.reason === 'offline' ? `${opponentLabel} IS OFFLINE` : CLAIM_REASON_TEXT[claim.reason]
+  // While the clock still runs, the stall is ongoing rather than final.
+  const waitingWhy = {
+    offline: `${opponentLabel} IS OFFLINE`,
+    'no-word': `${opponentLabel} HASN'T SET A WORD YET`,
+    grading: 'YOUR GUESS HASN\'T BEEN CHECKED YET',
+    idle: 'THE GUESSER HAS STOPPED GUESSING',
+  }[claim.reason] || why
   return (
     <div className="text-center space-y-2 border border-retro-border rounded p-3">
       {claim.ready ? (
@@ -185,13 +192,17 @@ function ClaimPanel({ claim, now, opponentLabel, onClaim, claiming }) {
           </button>
         </>
       ) : (
-        <RoundTimer
-          endsAt={claim.at}
-          now={now}
-          totalMs={CLAIM_WINDOW_MS[claim.reason]}
-          label={claim.reason === 'offline' ? `${opponentLabel} OFFLINE` : 'CAN CLAIM ROUND IN'}
-          lowMs={0}
-        />
+        <>
+          {/* Say why first, then when — a bare "CAN CLAIM IN 1:57" read as noise */}
+          <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">{waitingWhy}</p>
+          <RoundTimer
+            endsAt={claim.at}
+            now={now}
+            totalMs={CLAIM_WINDOW_MS[claim.reason]}
+            label="YOU CAN CLAIM THE ROUND IN"
+            lowMs={0}
+          />
+        </>
       )}
     </div>
   )

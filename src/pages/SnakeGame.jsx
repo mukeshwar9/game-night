@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import useBusy from '@/hooks/useBusy'
 
-const COUNTDOWN_MS = 2000
+const COUNTDOWN_MS = 3000  // a full 3-2-1 before the first tick, on both seats
 const RENDER_DELAY_MS = 100  // guest: render slightly behind realtime so there are always two snapshots to interpolate between
 
 const playSfx = (kind) => {
@@ -398,13 +398,17 @@ export default function SnakeGame({
       <p className="text-center font-pixel text-[8px] text-retro-dim [@media(max-height:420px)]:hidden">FIRST TO {WIN_SCORE} ROUND WINS</p>
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
       {!proposal && (
-        <div className="text-center">
+        // Kept well clear of the play controls; only turns danger-styled once
+        // armed, so a stray tap near the controls can't read as a real forfeit.
+        <div className="text-center pt-6">
           <button
             onClick={handleForfeit}
             disabled={forfeitBusy}
             className={cn(
-              'min-h-11 px-4 font-pixel text-[9px] tracking-wide rounded transition-colors disabled:opacity-50',
-              forfeitArmed ? 'text-retro-danger' : 'text-retro-dim hover:text-retro-danger',
+              'min-h-11 px-4 font-pixel text-[9px] tracking-wide rounded border transition-colors disabled:opacity-50',
+              forfeitArmed
+                ? 'text-retro-danger border-retro-danger bg-retro-danger/10'
+                : 'text-retro-dim border-transparent hover:text-retro-danger',
             )}
           >
             {forfeitBusy ? 'FORFEITING…' : forfeitArmed ? 'TAP AGAIN TO FORFEIT' : 'FORFEIT ROUND'}

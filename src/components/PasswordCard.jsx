@@ -80,6 +80,9 @@ export default function PasswordCard({
         <p className="font-pixel text-[9px] tracking-[0.25em] text-retro-dim">{status}</p>
         <p className={cn(
           'mt-4 font-pixel text-2xl sm:text-3xl tracking-widest uppercase break-words',
+          // Hidden blanks stay on one row: a 7+ letter word wrapped 6+1 at 390px.
+          !showWord && 'whitespace-nowrap tracking-normal',
+          !showWord && Number(wordPattern) > 6 && 'text-xl sm:text-2xl',
           reveal ? 'text-retro-win text-glow-win' : canSeeSecret ? 'text-retro-cta text-glow-cta' : 'text-retro-p1 text-glow-p1',
         )}>
           {showWord ? (word || '—') : (wordPattern ? `_${' _'.repeat(Math.max(0, Number(wordPattern) - 1))}` : '＿ ＿ ＿')}

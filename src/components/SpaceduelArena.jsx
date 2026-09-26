@@ -267,9 +267,13 @@ const SpaceduelArena = forwardRef(function SpaceduelArena(
           </div>
           <div className="flex gap-2">
             <TouchButton
-              className="h-14 w-14 text-[10px] bg-retro-tint-cta/50 border-retro-cta/60 text-retro-cta"
+              className="h-14 w-14 text-[8px] bg-retro-tint-cta/50 border-retro-cta/60 text-retro-cta"
               ariaLabel="thrust"
-              label="THR"
+              label={(
+                <span className="flex flex-col items-center gap-1 leading-none">
+                  <span className="text-sm" aria-hidden="true">▲</span>THRUST
+                </span>
+              )}
               onDown={() => touch.setThrust(true)}
               onUp={() => touch.setThrust(false)}
             />

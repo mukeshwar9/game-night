@@ -126,14 +126,14 @@ export default function ReactionDemo() {
           phase === 'too_early' && 'text-xl text-retro-p2',
           (phase === 'start' || phase === 'waiting') && 'text-base text-retro-dim',
         )}>
-          {phase === 'ready'     ? 'CLICK!'        :
+          {phase === 'ready'     ? 'TAP!'        :
            phase === 'too_early' ? 'TOO EARLY!'    :
            phase === 'result'    ? `${lastTime}ms` :
            phase === 'waiting'   ? 'WAIT...'       :
            'TAP TO START'}
         </p>
         <p className={cn('font-pixel text-[9px]', phase === 'too_early' ? 'text-retro-p2' : 'text-retro-dim arcade-blink')}>
-          {phase === 'waiting'   ? "DON'T CLICK YET"                       :
+          {phase === 'waiting'   ? "DON'T TAP YET"                       :
            phase === 'too_early' ? 'TAP TO TRY AGAIN'                      :
            phase === 'result'    ? `ROUND ${times.length}/${DEMO_ROUNDS} — TAP FOR NEXT` :
            phase === 'start'     ? `${DEMO_ROUNDS} ROUNDS · VS BOT`        :

@@ -391,8 +391,8 @@ export default function PasswordGame({
           <p className="font-pixel text-[10px] text-retro-cta">{nextLine}</p>
         </div>
       )}
-
-      {!proposal && onSwitchGame && <GameSwitcher currentType="password" onSwitch={onSwitchGame} />}
+      {/* No in-play SWITCH GAME: the room header's switch icon covers it
+          mid-match, and the end screen keeps the full button. */}
     </div>
   )
 }

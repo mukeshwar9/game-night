@@ -175,7 +175,6 @@ export default function TriviaDemo() {
     <div className="space-y-3">
       <div className="flex items-center justify-between font-pixel text-[9px] text-retro-dim">
         <span>Q{Math.min(qNum + 1, MATCH_QUESTIONS)}/{MATCH_QUESTIONS}</span>
-        <span>SEED {seed}</span>
         <span>{answeredCount}/4 IN</span>
       </div>
 

@@ -128,7 +128,7 @@ export default function ArtilleryDemo() {
           <button
             onClick={handleFire}
             disabled={!myTurn}
-            className="w-full py-2.5 bg-retro-danger text-retro-bg font-pixel text-xs rounded hover:shadow-neon-danger active:scale-95 disabled:opacity-40"
+            className="w-full min-h-11 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
           >
             FIRE
           </button>

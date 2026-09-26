@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { ref, update, runTransaction, onValue } from 'firebase/database'
 import { db } from '../lib/firebase'
-import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
+import { cn } from '../lib/utils'
 import {
   resolveNumberMemoryRound, buildNextNumberRound, normalizeNumberRound, showMsForLevel,
 } from '../lib/numberMemoryLogic'
@@ -303,12 +303,13 @@ export default function NumberMemoryGame({
           <p className="font-pixel text-[9px] text-retro-cta text-center">
             WHAT WAS THE NUMBER?
           </p>
-          <div className="flex items-center justify-center gap-6 font-pixel text-[8px]">
+          <div className="flex items-center justify-center gap-6 font-pixel text-[8px] min-w-0">
             <span className={myAnswer != null ? 'text-retro-win' : 'text-retro-dim'}>
-              ME {myAnswer != null ? '✓' : '...'}
+              YOU — {myAnswer != null ? 'IN ✓' : 'THINKING…'}
             </span>
-            <span className={opAnswer != null ? 'text-retro-win' : 'text-retro-dim'}>
-              OP {opAnswer != null ? '✓' : '...'}
+            <span className={cn('flex min-w-0', opAnswer != null ? 'text-retro-win' : 'text-retro-dim')}>
+              <span className="truncate max-w-[8rem]">{(game.players?.[opKey]?.name || 'OPPONENT').toUpperCase()}</span>
+              <span className="shrink-0">&nbsp;— {opAnswer != null ? 'IN ✓' : 'THINKING…'}</span>
             </span>
           </div>
           <input
@@ -351,7 +352,8 @@ export default function NumberMemoryGame({
           {claimBusy ? 'CLAIMING…' : 'CLAIM ROUND — OPPONENT IDLE'}
         </button>
       )}
-      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
+      {/* No in-play SWITCH GAME: the room header's switch icon covers it
+          mid-match, and the end screen (GameStatus) keeps the full button. */}
     </div>
   )
 }

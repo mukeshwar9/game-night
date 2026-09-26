@@ -73,6 +73,7 @@ const PaintArena = forwardRef(function PaintArena(
   }
   const slowedX = isSlowed(players?.X, 1)
   const slowedO = isSlowed(players?.O, 2)
+  const sideCaption = (side) => mySide ? `${mySide === side ? 'YOUR' : 'THEIR'} TILES` : 'TILES'
 
   // Center the rendered square on the player's logical (cell-center)
   // position — matches the pct(entity - RADIUS) convention every other
@@ -98,16 +99,27 @@ const PaintArena = forwardRef(function PaintArena(
         )}
       </div>
 
-      <div className="flex items-center justify-center gap-8 font-pixel">
-        <span className={cn('text-lg tabular-nums', mySide === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p1/80')}>
-          {c.X}
-        </span>
-        <span className={cn('text-2xl tabular-nums', flashClock ? 'text-retro-p2 animate-pulse' : 'text-retro-text')}>
-          {secs}
-        </span>
-        <span className={cn('text-lg tabular-nums', mySide === 'O' ? 'text-retro-p2 text-glow-p2' : 'text-retro-p2/80')}>
-          {c.O}
-        </span>
+      {/* Tiles · clock · tiles — each number carries a caption so the three
+          figures read without having played before. */}
+      <div className="flex items-start justify-center gap-8 font-pixel">
+        <div className="flex flex-col items-center gap-1">
+          <span className={cn('text-lg tabular-nums', mySide === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p1/80')}>
+            {c.X}
+          </span>
+          <span className="text-[8px] text-retro-p1/80">{sideCaption('X')}</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <span className={cn('text-2xl tabular-nums', flashClock ? 'text-retro-p2 animate-pulse' : 'text-retro-text')}>
+            {secs}
+          </span>
+          <span className="text-[8px] text-retro-dim">SEC LEFT</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <span className={cn('text-lg tabular-nums', mySide === 'O' ? 'text-retro-p2 text-glow-p2' : 'text-retro-p2/80')}>
+            {c.O}
+          </span>
+          <span className="text-[8px] text-retro-p2/80">{sideCaption('O')}</span>
+        </div>
       </div>
 
       <div
