@@ -20,6 +20,16 @@ async function readRoom(page) {
   return res.json()
 }
 
+async function writeOwner(page, path, value) {
+  const id = new URL(page.url()).pathname.split('/').pop()
+  const res = await fetch(`http://${DB_HOST}/games/${id}/${path}.json?ns=demo-game-night-default-rtdb`, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' },
+    body: JSON.stringify(value),
+  })
+  if (!res.ok) throw new Error(`Owner write failed: ${res.status} ${await res.text()}`)
+}
+
 const strikes = (page, n) => expect(page.getByRole('img', { name: `Strikes ${n} of 3` })).toBeVisible()
 
 async function openModule(page, type) {
@@ -130,6 +140,35 @@ test('two players defuse a WIRE CROSSED bomb and swap roles', async ({ browser }
     await expect(alice.page.getByText('BOMB 2', { exact: true })).toBeVisible()
   })
 
+  expectNoPageErrors(alice, bob)
+  await alice.context.close()
+  await bob.context.close()
+})
+
+test('the bomb still explodes when the server clock slips backwards near 0:00', async ({ browser }) => {
+  test.setTimeout(45_000)
+  const alice = await newPlayer(browser)
+  const bob = await newPlayer(browser)
+
+  await onboard(alice.page, 'Alice')
+  await createRoom(alice.page, 'WIRE CROSSED')
+  await joinViaInvite(bob.page, alice.page.url(), 'Bob')
+  await alice.page.getByRole('button', { name: 'ARM THE BOMB' }).click()
+  await expect(alice.page.getByRole('timer')).toBeVisible()
+  await expect(bob.page.getByRole('timer')).toBeVisible()
+
+  await writeOwner(alice.page, 'wire/endsAt', Date.now() + 2500)
+  await alice.page.waitForTimeout(500)
+  for (const page of [alice.page, bob.page]) {
+    await page.evaluate(() => {
+      const actualNow = Date.now.bind(Date)
+      Date.now = () => actualNow() - 3000
+    })
+  }
+
+  await expect(alice.page.getByText('BOOM', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await expect(bob.page.getByText('BOOM', { exact: true })).toBeVisible({ timeout: 10_000 })
+  expect((await readRoom(alice.page)).wire.result.reason).toBe('time')
   expectNoPageErrors(alice, bob)
   await alice.context.close()
   await bob.context.close()

@@ -226,15 +226,31 @@ export default function WireCrossedGame({
   const endsAt = armed ? wire?.endsAt : null
   useEffect(() => {
     if (!endsAt || isSpectator) return undefined
-    const t = setTimeout(() => {
+    let timer
+    let active = true
+    const checkTimeout = () => {
+      if (!active) return
+      const wait = endsAt - getServerNow()
+      if (wait > 0) {
+        timer = setTimeout(checkTimeout, wait + 60)
+        return
+      }
       runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || current.gameType !== 'wirecrossed') return
         const next = applyTimeout(current.wire, getServerNow())
         if (!next) return
         return withWire(current, next)
-      }).catch(() => {})
-    }, Math.max(0, endsAt - getServerNow()) + 60)
-    return () => clearTimeout(t)
+      }).catch(() => {}).finally(() => {
+        // Offset updates can move the server-corrected clock backwards, and a
+        // transient transaction failure must not strand the bomb at 0:00.
+        if (active) timer = setTimeout(checkTimeout, 1000)
+      })
+    }
+    checkTimeout()
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
   }, [endsAt, gameId, isSpectator])
 
   // Sounds for both screens, driven by the synced node.
