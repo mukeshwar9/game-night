@@ -199,10 +199,10 @@ export default function SettingsButton({ className = '' }) {
                 aria-pressed={theme === option.id}
                 onClick={() => selectTheme(option.id)}
                 {...peek(setHoverTheme, option.id)}
-                className={`flex min-h-10 items-center gap-2 rounded border px-2 text-left font-pixel text-[8px] transition-colors ${theme === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
+                className={`flex min-h-11 items-center gap-2 rounded border px-2 py-1.5 text-left font-pixel text-[9px] transition-colors ${theme === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
               >
                 <ThemeSwatches id={option.id} />
-                <span className="truncate">{option.label}</span>
+                <span className="leading-snug">{option.label}</span>
               </button>)}
             </div>
 

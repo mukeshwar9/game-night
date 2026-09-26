@@ -27,7 +27,10 @@ import useBusy from '@/hooks/useBusy'
 // skipped once any seated player has seen them offline for
 // CR4_OFFLINE_GRACE_MS (chainReaction4Logic.skipAwayTurn, in a transaction).
 
-const SYMBOL_LABEL = { X: 'CYAN', O: 'PINK', A: 'PURPLE', B: 'ORANGE' }
+// Seat labels are theme-neutral: the four orb colors come from --c-* tokens
+// and change per theme (Matcha's "cyan" seat is green), so naming a hue lies.
+// A swatch glyph in the seat's own color carries identity instead.
+const SYMBOL_LABEL = { X: '● P1', O: '● P2', A: '● P3', B: '● P4' }
 
 function playersToSeats(players) {
   return Object.values(players || {})

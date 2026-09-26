@@ -1,11 +1,16 @@
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { GOMOKU_SIZE, SWAP_ACTION, canGomokuSwap } from '../lib/gomokuLogic'
 import { cellLabel } from '../lib/a11yLabels'
 
-// Minimum per-cell width (px) — keeps tap targets >=38px by letting the
-// board scroll horizontally edge-to-edge instead of crushing cells to fit.
-const GOMOKU_CELL_MIN = 38
-
+// Fit-to-width: the whole 15×15 board is always visible (five-in-a-row is
+// about reading long lines — a horizontally scrolling board hid half of it).
+// Cells get small on phones (~21px at 360), so placement is two-tap: the
+// first tap drops a ghost stone, a second tap on it confirms. A mouse keeps
+// single-click placement.
+const isCoarse = () => {
+  try { return window.matchMedia('(pointer: coarse)').matches } catch { return false }
+}
 export default function GomokuBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null, swapRule = false, pieSwap = false }) {
   // Swap (pie) rule (GOMOKU SWAP only): on move 2 the player to move may take
   // the opening stone.
@@ -13,22 +18,27 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
   const swapOpen = swapRule && canGomokuSwap(board, currentTurn, pieSwap)
   const opener = currentTurn === 'X' ? 'O' : 'X'
   const justSwapped = swapRule && pieSwap && stones.length === 1
+  const [twoTap] = useState(isCoarse)
+  const [pending, setPending] = useState(null)
+  const pendingLive = pending != null && !disabled && board[pending] === '' ? pending : null
+  const tap = (i) => {
+    if (!twoTap || pendingLive === i) { setPending(null); onMove(i) } else setPending(i)
+  }
   return (
     <div className="w-full max-w-sm mx-auto">
       <div
         className={cn(
           'relative bg-retro-surface border-2 border-retro-border rounded transition-all duration-200',
-          disabled && 'opacity-60 saturate-50',
+          disabled && 'board-idle',
         )}
       >
-        <div className="p-2 overflow-x-auto">
+        <div className="p-1.5">
           <div
             className="mx-auto"
             style={{
               display: 'grid',
               gridTemplateColumns: `repeat(${GOMOKU_SIZE}, minmax(0, 1fr))`,
-              gap: '2px',
-              minWidth: `${GOMOKU_SIZE * GOMOKU_CELL_MIN}px`,
+              gap: '1px',
             }}
           >
             {board.map((cell, i) => {
@@ -46,7 +56,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
                     extra: [isWinning && 'winning line', !isWinning && i === lastMove && 'last move'],
                   })}
                   disabled={!isClickable}
-                  onClick={() => isClickable && onMove(i)}
+                  onClick={() => isClickable && tap(i)}
                   className={cn(
                     'aspect-square flex items-center justify-center',
                     'border border-retro-border/50 rounded-sm',
@@ -58,6 +68,9 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
                       : 'cursor-default',
                   )}
                 >
+                  {!isOccupied && pendingLive === i && (
+                    <span className={cn('rounded-full w-[70%] h-[70%] opacity-50 ring-2 ring-retro-cta', currentTurn === 'X' ? 'bg-retro-p1' : 'bg-retro-p2')} aria-hidden="true" />
+                  )}
                   {isOccupied && (
                     <span
                       className={cn(
@@ -83,12 +96,10 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
             })}
           </div>
         </div>
-        {/* Subtle edge cue: this board scrolls horizontally on narrow viewports */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 right-0 w-5 rounded-r bg-gradient-to-l from-retro-surface to-transparent"
-        />
       </div>
+      <p className="mt-1.5 text-center font-pixel text-[8px] text-retro-dim tracking-wider" aria-live="polite">
+        {pendingLive != null ? 'TAP AGAIN TO PLACE' : '\u00a0'}
+      </p>
       {swapOpen && !disabled && (
         <div className="mt-2 flex flex-col items-center gap-1.5">
           <button
