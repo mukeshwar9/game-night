@@ -18,7 +18,6 @@ import CategoryTabs from '../components/CategoryTabs';
 import { Link, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { VideoCallShell } from '../components/VideoCallLayout';
-import SettingsButton from '../components/SettingsButton'
 import { PARTY_BLURB } from './demos/partyBlurbs';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
 
@@ -156,18 +155,12 @@ function LocalPlayPage({ routeType }) {
   return (
     <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center justify-end gap-3">
-          <SettingsButton />
-          <span className="text-xs text-retro-p2 bg-retro-tint-p2 border border-retro-p2/60 rounded px-2 py-1 font-mono">
-            PASS & PLAY
-          </span>
-        </div>
         <div className="border border-retro-border rounded p-4 bg-retro-card space-y-1">
-          <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider">
-            {cfg.label} — PASS & PLAY
-          </p>
-          <p className="font-pixel text-[8px] text-retro-dim text-center">
-            SHARE THIS SCREEN — TAKE TURNS
+          <h1 className="font-pixel text-xs text-retro-text text-center tracking-wider">
+            {cfg.label}
+          </h1>
+          <p className="font-pixel text-[9px] text-retro-dim text-center">
+            PASS & PLAY · ONE SCREEN, TAKE TURNS
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>
@@ -201,16 +194,16 @@ function SoloNotAvailable({ routeType }) {
               ? <>{cfg.label} DOESN&apos;T HAVE SOLO PLAY YET.</>
               : <>UNKNOWN GAME &quot;{String(routeType).toUpperCase()}&quot;.</>}
           </p>
-          <div className="flex justify-center gap-2 pt-1">
+          <div className="flex flex-col gap-2 pt-1">
             <Link
               to="/"
-              className="px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+              className="min-h-11 flex items-center justify-center px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
             >
               CREATE A ROOM →
             </Link>
             <Link
               to="/demo"
-              className="px-5 py-2.5 border border-retro-border text-retro-dim font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-text transition-all active:scale-95"
+              className="min-h-11 flex items-center justify-center px-5 py-2.5 border border-retro-border text-retro-dim font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-text transition-all active:scale-95"
             >
               ALL DEMOS
             </Link>
@@ -265,50 +258,65 @@ function DemoHub() {
   }
   const demoCategories = GAME_CATEGORIES.map(c => ({ ...c, count: demoCounts[c.id] || 0 })).filter(c => c.count > 0)
   const shown = DEMOS.filter(d => getGameConfig(d.type)?.category === activeCat)
+  // Board-first: a deep link (/solo/:type — the catalog's PRACTICE VS AI) is
+  // an intent to play *that* game, so the board renders at the top and the
+  // picker becomes a "more games" section below it. The bare hub keeps the
+  // picker on top but scrolls the chosen board into view on every pick.
+  const boardFirst = hasRouteType
+  const boardRef = useRef(null)
+  const pick = (type) => {
+    setSelected(type)
+    requestAnimationFrame(() => boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
+  const picker = (
+    <div className="space-y-2">
+      <CategoryTabs categories={demoCategories} active={activeCat} onSelect={setActiveCat} />
+      <div className="grid grid-cols-4 gap-2">
+        {shown.map(({ type, short, Icon, solo }) => (
+          <button
+            key={type}
+            onClick={() => pick(type)}
+            aria-pressed={selected === type}
+            className={cn(
+              'flex flex-col items-center gap-1 p-2 rounded border transition-all active:scale-95',
+              selected === type
+                ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
+                : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
+            )}
+          >
+            <Icon />
+            <span className="font-pixel text-[8px] text-center leading-tight whitespace-pre-line">{short}</span>
+            {type in PARTY_BLURB && <span className="font-pixel text-[8px] text-retro-p2">2+ PLAYERS</span>}
+            {solo && <span className="font-pixel text-[8px] text-retro-dim">SOLO</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  // Active demo — key forces fresh mount on game switch
+  const board = (
+    <div key={selected} ref={boardRef} className="scroll-mt-20 border border-retro-border rounded p-4 bg-retro-card">
+      <p className="font-pixel text-xs text-retro-text text-center tracking-wider mb-4">
+        {active.short.replace('\n', ' ')}{active.solo ? ' · SOLO RUN' : ''}
+      </p>
+      <Suspense fallback={<DemoFallback />}>
+        <active.Component />
+      </Suspense>
+    </div>
+  )
 
   return (
     <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {/* Header */}
-        <div className="flex items-center justify-end gap-3">
-          <SettingsButton />
-          <span className="text-xs text-retro-cta bg-retro-tint-cta border border-retro-cta/60 rounded px-2 py-1 font-mono">
-            Demo
-          </span>
+        <div className="flex items-baseline justify-between gap-3">
+          <h1 className="font-pixel text-sm text-retro-cta tracking-wider">PLAY SOLO</h1>
+          <span className="font-pixel text-[9px] text-retro-dim tracking-wider">VS CPU · NO WAITING</span>
         </div>
-
-        {/* Game picker */}
-        <div className="space-y-2">
-          <CategoryTabs categories={demoCategories} active={activeCat} onSelect={setActiveCat} />
-          <div className="grid grid-cols-4 gap-2">
-            {shown.map(({ type, short, Icon, solo }) => (
-              <button
-                key={type}
-                onClick={() => setSelected(type)}
-                className={cn(
-                  'flex flex-col items-center gap-1 p-2 rounded border transition-all active:scale-95',
-                  selected === type
-                    ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
-                    : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
-                )}
-              >
-                <Icon />
-                <span className="font-pixel text-[7px] text-center leading-tight whitespace-pre-line">{short}</span>
-                <span className="font-pixel text-[6px] text-retro-dim/70">{type in PARTY_BLURB ? '2+ PLAYERS' : solo ? 'SOLO' : 'VS CPU'}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Active demo — key forces fresh mount on game switch */}
-        <div key={selected} className="border border-retro-border rounded p-4 bg-retro-card">
-          <p className="font-pixel text-[10px] text-retro-dim text-center tracking-wider mb-4">
-            {active.short.replace('\n', ' ')} {active.solo ? 'SOLO RUN' : 'DEMO'}
-          </p>
-          <Suspense fallback={<DemoFallback />}>
-            <active.Component />
-          </Suspense>
-        </div>
+        {boardFirst
+          ? <>{board}<p className="font-pixel text-[9px] text-retro-dim tracking-widest pt-2">MORE SOLO GAMES</p>{picker}</>
+          : <>{picker}{board}</>}
       </div>
     </div></VideoCallShell>
   )

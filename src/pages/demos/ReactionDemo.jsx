@@ -77,7 +77,7 @@ export default function ReactionDemo() {
           ))}
         </div>
         <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1">
-          <div className="grid grid-cols-3 font-pixel text-[7px] text-retro-dim pb-1 border-b border-retro-border">
+          <div className="grid grid-cols-3 font-pixel text-[8px] text-retro-dim pb-1 border-b border-retro-border">
             <span className="text-retro-p1">YOU</span>
             <span className="text-center">RND</span>
             <span className="text-right text-retro-p2">BOT</span>

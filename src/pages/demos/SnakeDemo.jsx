@@ -82,7 +82,7 @@ export default function SnakeDemo() {
           </p>
         ) : null}
       />
-      <p className="text-center font-pixel text-[8px] text-retro-dim">FIRST TO {SNAKE_WIN} · ↑↓←→ · WASD · SWIPE</p>
+      <p className="text-center font-pixel text-[8px] text-retro-dim">FIRST TO {SNAKE_WIN}<span className="kbd-hint"> · ↑↓←→ · WASD</span><span className="touch-hint"> · SWIPE</span></p>
       {matchWinner && (
         <p className="text-center font-pixel text-[10px] text-retro-win text-glow-win">
           {matchWinner === 'X' ? '🏆 MATCH: YOU' : '🏆 MATCH: BOT'}

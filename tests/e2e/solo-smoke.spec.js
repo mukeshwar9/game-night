@@ -29,9 +29,8 @@ for (const type of SOLO_TYPES) {
     page.on('pageerror', (err) => errors.push(err.message))
 
     await page.goto(`/solo/${type}`)
-    // Demo cards are titled "<SHORT> DEMO" (or "<SHORT> SOLO RUN" for the memory
-    // solo runs); the fallback page says "NO SOLO DEMO".
-    await expect(page.getByText(/(DEMO|SOLO RUN)$/).or(page.getByText(ERROR_BOUNDARY_TEXT)).first()).toBeVisible()
+    // The solo hub is headed "PLAY SOLO"; the fallback page says "NO SOLO DEMO".
+    await expect(page.getByRole('heading', { name: 'PLAY SOLO' }).or(page.getByText('NO SOLO DEMO')).or(page.getByText(ERROR_BOUNDARY_TEXT)).first()).toBeVisible()
 
     await expect(page.getByText(ERROR_BOUNDARY_TEXT)).toHaveCount(0)
     if (!MISSING_SOLO_DEMO.has(type)) {
@@ -44,7 +43,7 @@ for (const type of SOLO_TYPES) {
 for (const type of MISSING_SOLO_DEMO) {
   test.fixme(`/solo/${type} offers a solo demo — registry has solo: true but Demo.jsx DEMOS has no entry, so PRACTICE VS AI lands on NO SOLO DEMO`, async ({ page }) => {
     await page.goto(`/solo/${type}`)
-    await expect(page.getByText(/DEMO$/).first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'PLAY SOLO' })).toBeVisible()
     await expect(page.getByText('NO SOLO DEMO')).toHaveCount(0)
   })
 }

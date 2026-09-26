@@ -23,6 +23,12 @@ function readDifficulty(type, levels) {
 
 // ─── Generic bot harness ──────────────────────────────────────────────────────
 
+// The player's own display name (mirrored to localStorage from the profile),
+// so the card reads "NOVA · YOU" rather than the doubled "You / YOU".
+function localName() {
+  try { return localStorage.getItem('playerName') || 'YOU' } catch { return 'YOU' }
+}
+
 export default function BotBoardDemo({ type, mode = 'bot' }) {
   const isLocal = mode === 'local'
   const cfg = getGameConfig(type)
@@ -161,7 +167,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
           </>
         ) : (
           <>
-            <PlayerCard name="You" symbol="X" isActive={canMove} isMe />
+            <PlayerCard name={localName()} symbol="X" isActive={canMove} isMe />
             <PlayerCard name="CPU" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
           </>
         )}
@@ -180,6 +186,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
         winner={game.winner}
         currentTurn={game.currentTurn}
         mySymbol={isLocal ? null : 'X'}
+        players={isLocal ? { X: { name: 'PLAYER 1' }, O: { name: 'PLAYER 2' } } : { X: { name: localName() }, O: { name: 'CPU' } }}
         extraTurn={!!game.extraTurn}
         onPlayAgain={game.status === 'finished' ? reset : null}
       />
