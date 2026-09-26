@@ -29,7 +29,7 @@ import { toast } from 'sonner'
 import { VideoCallReactionDock, VideoCallShell } from '../components/VideoCallLayout'
 import RulesModal, { RulesButton } from '../components/RulesModal'
 import LiveAnnouncer from '../components/LiveAnnouncer'
-import InviteJoinScreen from '../components/InviteJoinScreen'
+import Onboarding from '../components/LazyOnboarding'
 import WatchingChip from '../components/WatchingChip'
 import SeatOffer from '../components/SeatOffer'
 import { isMyTurn, roomAnnouncement, seatedIds, spectatorCount } from '../lib/roomLogic'
@@ -744,15 +744,16 @@ export default function Game() {
     }
   }
 
-  // Invite screen — game, host, places left, and a name that sticks
-  // (useRoomSession decides when; InviteJoinScreen renders it).
+  // Invite screen — useRoomSession decides when (an unseated visitor still
+  // on a placeholder name). The full first-run flow (name, then look) shows
+  // the game, host and places left, saves both to the profile, and then
+  // re-runs the join; the name is already in localStorage/profile by then,
+  // so joinWithName('') just keeps it instead of writing it twice.
   if (needName) {
     return (
-      <InviteJoinScreen
-        gameId={gameId}
-        invite={invite}
-        currentName={localStorage.getItem('playerName') || ''}
-        onJoin={joinWithName}
+      <Onboarding
+        invite={{ gameId, ...invite }}
+        onDone={() => joinWithName('')}
       />
     )
   }

@@ -16,14 +16,21 @@ export async function newPlayer(browser) {
   return { context, page, errors }
 }
 
-// First visit to `/`: the Onboarding coin screen, then the name step.
+// Onboarding's two steps: NAME (pre-filled with a suggestion) → LOOK → the
+// final button (LET'S PLAY on Home, JOIN GAME from an invite link).
+export async function completeOnboarding(page, name, finalButton) {
+  await expect(page.getByRole('heading', { name: 'WHAT SHOULD WE CALL YOU?' })).toBeVisible()
+  await page.getByRole('textbox', { name: 'Your name' }).fill(name)
+  await page.getByRole('button', { name: /^NEXT: PICK A LOOK/ }).click()
+  await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeVisible()
+  await page.getByRole('button', { name: finalButton, exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeHidden()
+}
+
+// First visit to `/`: the two-step first-run flow.
 export async function onboard(page, name) {
   await page.goto('/')
-  await page.getByRole('button', { name: 'PLAY AS GUEST' }).click()
-  await expect(page.getByRole('heading', { name: 'CHOOSE YOUR FIGHTER' })).toBeVisible()
-  await page.getByPlaceholder(/^GUEST-/).fill(name)
-  await page.getByRole('button', { name: 'START', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'CHOOSE YOUR FIGHTER' })).toBeHidden()
+  await completeOnboarding(page, name, "LET'S PLAY")
 }
 
 // Home → PLAY WITH FRIENDS → game card → INVITE FRIEND. Returns the room URL.
@@ -37,12 +44,11 @@ export async function createRoom(page, gameLabel) {
   return page.url()
 }
 
-// A brand-new visitor opening an invite link: YOU'RE INVITED! → name → JOIN GAME.
+// A brand-new visitor opening an invite link: YOU'RE INVITED! → name → look → JOIN GAME.
 export async function joinViaInvite(page, roomUrl, name) {
   await page.goto(roomUrl)
   await expect(page.getByRole('heading', { name: /YOU.RE INVITED/ })).toBeVisible()
-  await page.getByRole('textbox', { name: 'Your name' }).fill(name)
-  await page.getByRole('button', { name: 'JOIN GAME' }).click()
+  await completeOnboarding(page, name, 'JOIN GAME')
   await expect(page.getByRole('heading', { name: /YOU.RE INVITED/ })).toBeHidden()
 }
 

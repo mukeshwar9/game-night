@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  activePartySeats, applyPartyJoin, ghostsToSweep, inviteSummary, isMyTurn, openSeat, partyJoinPlan,
+  activePartySeats, applyPartyJoin, ghostsToSweep, inviteSeatsLine, inviteSummary, isMyTurn, openSeat, partyJoinPlan,
   pickRoomHost, roomAnnouncement, seatedIds, spectatorCount,
 } from './roomLogic'
 
@@ -200,5 +200,21 @@ describe('roomAnnouncement', () => {
     expect(roomAnnouncement({ status: 'playing', currentTurn: 'u1', players: party }, { me: 'u2', party: true })).toBe('Cy to move.')
     expect(roomAnnouncement({ status: 'finished', winner: 'u1', players: party }, { me: 'u2', party: true })).toBe('Cy won.')
     expect(roomAnnouncement({ status: 'finished', players: party }, { me: 'u2', party: true })).toBe('Round over.')
+  })
+})
+
+describe('inviteSeatsLine', () => {
+  it('counts 2P seats and says when the room is full', () => {
+    expect(inviteSeatsLine({ party: false, seatsLeft: 1 })).toBe('1 SEAT LEFT')
+    expect(inviteSeatsLine({ party: false, seatsLeft: 0 })).toBe("ROOM FULL — YOU'LL WATCH")
+  })
+  it('describes party rooms, including a round in progress', () => {
+    expect(inviteSeatsLine({ party: true, playerCount: 3, capacity: 8, seatsLeft: 5 })).toBe('3/8 PLAYERS · 5 SEATS LEFT')
+    expect(inviteSeatsLine({ party: true, playerCount: 8, capacity: 8, seatsLeft: 0 })).toBe("8/8 PLAYERS · FULL — YOU'LL WATCH")
+    expect(inviteSeatsLine({ party: true, playerCount: 3, capacity: 8, seatsLeft: 5, joinsNextRound: true })).toMatch(/JOIN NEXT ROUND/)
+  })
+  it('is empty without a room summary', () => {
+    expect(inviteSeatsLine(null)).toBe(null)
+    expect(inviteSeatsLine({ gameId: 'ABC123' })).toBe(null)
   })
 })

@@ -73,6 +73,19 @@ export function ghostsToSweep({ players, status, maxPlayers = PARTY_DEFAULT_MAX,
     .map(([id]) => id)
 }
 
+// The invite card's "places left" line for an inviteSummary() result.
+export function inviteSeatsLine(invite) {
+  if (!invite) return null
+  if (invite.party) {
+    if (invite.joinsNextRound) return `${invite.playerCount}/${invite.capacity} PLAYERS · ROUND IN PROGRESS — YOU'LL JOIN NEXT ROUND`
+    if (invite.seatsLeft <= 0) return `${invite.playerCount}/${invite.capacity} PLAYERS · FULL — YOU'LL WATCH`
+    return `${invite.playerCount}/${invite.capacity} PLAYERS · ${invite.seatsLeft} ${invite.seatsLeft === 1 ? 'SEAT' : 'SEATS'} LEFT`
+  }
+  if (invite.seatsLeft == null) return null
+  if (invite.seatsLeft <= 0) return "ROOM FULL — YOU'LL WATCH"
+  return `${invite.seatsLeft} ${invite.seatsLeft === 1 ? 'SEAT' : 'SEATS'} LEFT`
+}
+
 // Who is in the room and how many places are left — for the invite screen.
 export function inviteSummary(game, cfg) {
   const party = !!cfg?.nPlayer

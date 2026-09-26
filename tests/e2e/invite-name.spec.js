@@ -3,7 +3,7 @@
 // profile — it survives a reload (ensureProfile used to swap it back for
 // Guest-XXXX) and is what the opponent sees.
 import { test, expect } from '@playwright/test'
-import { createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
+import { completeOnboarding, createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
 
 const DB_URL = 'http://127.0.0.1:9000'
 const NS = 'demo-game-night-default-rtdb'
@@ -32,9 +32,8 @@ test('an invitee names themselves once and the name sticks', async ({ browser, r
     await expect(bob.page.getByText('1 SEAT LEFT')).toBeVisible()
   })
 
-  await test.step('one name, one tap', async () => {
-    await bob.page.getByRole('textbox', { name: 'Your name' }).fill('Bobby')
-    await bob.page.getByRole('button', { name: 'JOIN GAME' }).click()
+  await test.step('name, then look, then join', async () => {
+    await completeOnboarding(bob.page, 'Bobby', 'JOIN GAME')
     await expect(bob.page.getByRole('heading', { name: /YOU.RE INVITED/ })).toBeHidden()
     await expect(alice.page.getByText('Bobby', { exact: true })).toBeVisible()
   })

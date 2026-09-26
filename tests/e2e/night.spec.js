@@ -6,7 +6,7 @@
 // every client's NIGHT scoreboard shows both results. Then the loser rotates
 // out for the waiting player, and the host kicks and locks.
 import { test, expect } from '@playwright/test'
-import { createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
+import { completeOnboarding, createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
 
 // Same emulator + namespace as .env.emulator. `Bearer owner` is the RTDB
 // emulator's admin token (bypasses rules) — used only to fast-forward matches.
@@ -34,8 +34,7 @@ async function joinNamed(page, roomUrl, name) {
   const lobby = page.getByText(/^PLAYERS \(\d\)/)
   await expect(invited.or(lobby)).toBeVisible()
   if (await invited.isVisible()) {
-    await page.getByRole('textbox', { name: 'Your name' }).fill(name)
-    await page.getByRole('button', { name: 'JOIN GAME' }).click()
+    await completeOnboarding(page, name, 'JOIN GAME')
   }
   await expect(lobby).toBeVisible()
 }
@@ -168,8 +167,7 @@ test('game night: party match, switch to a 2P game with winner stays, host kick 
     const invited = dee.page.getByRole('heading', { name: /YOU.RE INVITED/ })
     await expect(invited.or(dee.page.getByTestId('night-queue'))).toBeVisible()
     if (await invited.isVisible()) {
-      await dee.page.getByRole('textbox', { name: 'Your name' }).fill('Dee')
-      await dee.page.getByRole('button', { name: 'JOIN GAME' }).click()
+      await completeOnboarding(dee.page, 'Dee', 'JOIN GAME')
     }
     await expect(dee.page.getByTestId('night-queue')).toBeVisible()
     await expect(dee.page.getByText('ROOM LOCKED · NO NEW SEATS')).toBeVisible()

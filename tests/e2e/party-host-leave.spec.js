@@ -5,7 +5,7 @@
 // a browser context drops its socket, so the emulator fires the seat's
 // onDisconnect (`players/{uid}/online: false`) exactly as a closed tab would.
 import { test, expect } from '@playwright/test'
-import { createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
+import { completeOnboarding, createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
 
 // Guests onboard with a name first, then open the invite link, so every seat
 // carries a known name whichever invite-screen variant the room shows.
@@ -16,9 +16,7 @@ async function joinNamed(page, roomUrl, name) {
   const lobby = page.getByText(/^PLAYERS \(/)
   await expect(invited.or(lobby).first()).toBeVisible()
   if (await invited.isVisible()) {
-    const nameBox = page.getByRole('textbox', { name: 'Your name' })
-    if (await nameBox.isVisible()) await nameBox.fill(name)
-    await page.getByRole('button', { name: 'JOIN GAME' }).click()
+    await completeOnboarding(page, name, 'JOIN GAME')
   }
   await expect(page.getByText(new RegExp(`^${name} \\(YOU\\)$`, 'i'))).toBeVisible()
 }

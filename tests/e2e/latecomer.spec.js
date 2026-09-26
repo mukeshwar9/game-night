@@ -2,7 +2,7 @@
 // while a round is running watches it, and is seated automatically the next
 // time the room is back in its lobby — no reload, no extra tap.
 import { test, expect } from '@playwright/test'
-import { createRoom, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
+import { completeOnboarding, createRoom, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
 
 test('a 4th player who arrives mid-round is seated at the next lobby', async ({ browser }) => {
   const host = await newPlayer(browser)
@@ -24,8 +24,7 @@ test('a 4th player who arrives mid-round is seated at the next lobby', async ({ 
     await late.page.goto(host.page.url())
     await expect(late.page.getByRole('heading', { name: /YOU.RE INVITED/ })).toBeVisible()
     await expect(late.page.getByText(/YOU'LL JOIN NEXT ROUND/)).toBeVisible()
-    await late.page.getByRole('textbox', { name: 'Your name' }).fill('Lou')
-    await late.page.getByRole('button', { name: 'JOIN GAME' }).click()
+    await completeOnboarding(late.page, 'Lou', 'JOIN GAME')
     await expect(late.page.getByRole('heading', { name: /YOU.RE INVITED/ })).toBeHidden()
     await expect(late.page.getByPlaceholder('YOUR ANSWER')).toHaveCount(0)
     await expect(host.page.getByText('1 WATCHING')).toBeVisible()

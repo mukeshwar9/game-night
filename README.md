@@ -284,7 +284,7 @@ src/
     telemetry.js / analytics.js / feedback.js / moderationLogic.js
     realtime/                # WebRTC transport, connection/attempt logic, host/guest hooks
     decks/                   # party-game content decks (tested for size and shape)
-  components/                # boards, RaceShell, Night*, HostControls, InviteJoinScreen, …
+  components/                # boards, RaceShell, Night*, HostControls, Onboarding, AvatarPicker, …
   pages/                     # Home, Game (all rooms), Demo (+ demos/), Daily, Profile, Friends, Notes,
                              # + one page per custom game
   hooks/                     # room/ (room shell hooks), useServerClock, useCommitReveal, useSealKey, controls

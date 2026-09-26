@@ -2,16 +2,18 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
-import AvatarCustomizer from '../components/AvatarCustomizer'
+import AvatarPicker from '../components/AvatarPicker'
 import AuthErrorBanner from '../components/AuthErrorBanner'
 import EmptyState from '../components/EmptyState'
-import { canonicalAvatar } from '../lib/avatars'
+import { canonicalAvatar, defaultAvatarForId } from '../lib/avatars'
+import { validateName } from '../lib/onboardingLogic'
+import { getPlayerId } from '../lib/playerId'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { getStats, getMatches } from '../lib/profile'
 import { getGameConfig } from '../lib/games'
 import { UPGRADE_ERRORS } from '../lib/auth'
-import { NAME_REJECT_MESSAGES, mutedList, sanitizeDisplayName } from '../lib/moderationLogic'
+import { mutedList } from '../lib/moderationLogic'
 import { unmute, useMutedMap } from '../lib/mute'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
@@ -19,7 +21,6 @@ import { cn } from '@/lib/utils'
 export default function Profile() {
   const { profile, isAnonymous, upgrade, signOutToGuest, user } = useAuth()
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
-  const [nameError, setNameError] = useState('')
   const muted = mutedList(useMutedMap())
   const [busy, setBusy] = useState(false)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
@@ -31,7 +32,7 @@ export default function Profile() {
   // Follows React's sanctioned "adjust state during rendering" pattern (comparing
   // against a tracked previous value in state, not an effect) — see
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-state-when-a-prop-changes
-  const savedAvatar = canonicalAvatar(profile?.avatar)
+  const savedAvatar = canonicalAvatar(profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId()))
   const [avatarDraft, setAvatarDraft] = useState(savedAvatar)
   const [avatarDraftDirty, setAvatarDraftDirty] = useState(false)
   const [prevSavedAvatar, setPrevSavedAvatar] = useState(savedAvatar)
@@ -44,17 +45,15 @@ export default function Profile() {
   }
 
   const nameValue = nameEdit ?? profile?.displayName ?? ''
-  const dirty = nameEdit !== null && nameEdit.trim() && nameEdit.trim() !== profile?.displayName
+  const nameCheck = validateName(nameValue)
+  const nameError = nameEdit !== null && !nameCheck.ok ? nameCheck.error : null
+  const dirty = nameEdit !== null && nameCheck.ok && nameCheck.name !== profile?.displayName
 
   const saveName = () => runNameSave(async () => {
-    const { name, reason } = sanitizeDisplayName(nameValue)
-    if (!name) {
-      setNameError(NAME_REJECT_MESSAGES[reason])
-      return
-    }
-    await setProfile({ displayName: name })
+    // validateName runs the shared moderation (sanitizeDisplayName) too.
+    if (!nameCheck.ok) return
+    await setProfile({ displayName: nameCheck.name })
     setNameEdit(null)
-    setNameError('')
     toast.success('NAME SAVED!')
   }, () => toast.error("COULDN'T SAVE YOUR NAME — TRY AGAIN."))
 
@@ -162,17 +161,18 @@ export default function Profile() {
 
         {/* Display name */}
         <div className="space-y-2">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">DISPLAY NAME</label>
+          <label htmlFor="profile-name" className="font-pixel text-[10px] text-retro-dim tracking-wider">DISPLAY NAME</label>
           <div className="flex gap-2">
             <input
+              id="profile-name"
+              aria-invalid={!!nameError}
+              aria-describedby={nameError ? 'profile-name-error' : undefined}
               value={nameValue}
-              onChange={e => { setNameEdit(e.target.value); setNameError('') }}
+              onChange={e => setNameEdit(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && dirty && !nameBusy && saveName()}
               maxLength={20}
               placeholder="your name"
               aria-label="Display name"
-              aria-invalid={!!nameError}
-              aria-describedby={nameError ? 'profile-name-error' : undefined}
               className="flex-1 bg-retro-card border border-retro-border rounded px-3 py-2 font-mono text-sm
                 text-retro-text placeholder:text-retro-dim focus:outline-none focus:border-retro-p1"
             />
@@ -191,10 +191,10 @@ export default function Profile() {
         </div>
 
         {/* Avatar picker */}
-        <div className="space-y-2">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">AVATAR</label>
+        <div id="look" className="space-y-2 scroll-mt-20">
+          <p className="font-pixel text-[10px] text-retro-dim tracking-wider">AVATAR</p>
           <div className={avatarBusy ? 'pointer-events-none opacity-60' : ''}>
-            <AvatarCustomizer value={avatarDraft} onChange={pickAvatar} />
+            <AvatarPicker value={avatarDraft} onChange={pickAvatar} name={profile?.displayName || localStorage.getItem('playerName') || ''} />
           </div>
           {avatarDraftDirty && (
             <button

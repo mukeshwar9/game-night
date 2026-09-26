@@ -13,7 +13,7 @@
 import { seededShuffle, hashString, isTruthLike, sameOption } from './fibbageLogic'
 import { clampGuess } from './wavelengthLogic'
 import { matchKey } from './textMatchLogic'
-import { SHAPES, HUMANOIDS, TONES, makeAvatar } from './avatars'
+import { LEGACY_CREATURES, TONES, makeAvatar } from './avatars'
 import { SPYFAIR_LOCATIONS } from './decks/spyfair'
 import {
   NON_SPY_STATEMENT_TEMPLATES,
@@ -65,7 +65,7 @@ const BOT_NAMES = [
 
 // Bots only ever wear creature avatars (never 'boy'/'girl') so they read as
 // visually distinct from human players at a glance.
-const CREATURE_SHAPES = SHAPES.filter(s => !HUMANOIDS.includes(s))
+const CREATURE_SHAPES = LEGACY_CREATURES
 
 // Deterministic for a fixed seed: every value below is derived from `seed` via
 // hashString/seededShuffle, never Math.random. `seed` may be any primitive — it's

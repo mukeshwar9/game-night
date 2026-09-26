@@ -3,7 +3,7 @@
 // and once everyone is locked in the answers are revealed, verified against
 // their commitments and scored for everyone.
 import { test, expect } from '@playwright/test'
-import { createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
+import { completeOnboarding, createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
 
 // Same emulator + namespace as .env.emulator. `Bearer owner` is the RTDB
 // emulator's admin token, so the spec can read the raw node like a snooper.
@@ -28,8 +28,7 @@ async function joinNamed(page, roomUrl, name) {
   const lobby = page.getByText(/^PLAYERS \(\d\)/)
   await expect(invited.or(lobby)).toBeVisible()
   if (await invited.isVisible()) {
-    await page.getByRole('textbox', { name: 'Your name' }).fill(name)
-    await page.getByRole('button', { name: 'JOIN GAME' }).click()
+    await completeOnboarding(page, name, 'JOIN GAME')
   }
   await expect(lobby).toBeVisible()
 }

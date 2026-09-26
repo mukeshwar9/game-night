@@ -5,13 +5,14 @@ import {
   makeAvatar, parseAvatar, canonicalAvatar, humanoidCustomizerSeed,
   isValidAvatar, defaultAvatarForId,
   isHumanoid, makeHumanoid, outfitFromTone,
+  CREATURES, LEGACY_CREATURES, randomAvatar, randomHumanoid,
   OUTFIT_PRESETS, TONE_LABEL, SKIN_LABEL, HAIR_LABEL, ACCESSORY_LABEL,
 } from './avatars'
 
 describe('SHAPES', () => {
-  it('has exactly 24 unique string keys', () => {
-    expect(SHAPES.length).toBe(24)
-    expect(new Set(SHAPES).size).toBe(24)
+  it('has exactly 31 unique string keys', () => {
+    expect(SHAPES.length).toBe(31)
+    expect(new Set(SHAPES).size).toBe(31)
     for (const key of SHAPES) expect(typeof key).toBe('string')
   })
 
@@ -29,7 +30,11 @@ describe('SHAPES', () => {
   })
 
   it('appends boy, girl, kid, punk last in order (wire format — must never reorder)', () => {
-    expect(SHAPES.slice(20)).toEqual(['boy', 'girl', 'kid', 'punk'])
+    expect(SHAPES.slice(20, 24)).toEqual(['boy', 'girl', 'kid', 'punk'])
+  })
+
+  it('appends the third-wave creatures after the humanoids (wire format — must never reorder)', () => {
+    expect(SHAPES.slice(24)).toEqual(['bunny', 'bear', 'owl', 'penguin', 'octopus', 'fox', 'rocket'])
   })
 })
 
@@ -528,5 +533,48 @@ describe('label maps', () => {
   it('ACCESSORY_LABEL covers every accessory', () => {
     for (const acc of ACCESSORIES) expect(typeof ACCESSORY_LABEL[acc]).toBe('string')
     expect(Object.keys(ACCESSORY_LABEL).length).toBe(ACCESSORIES.length)
+  })
+})
+
+describe('CREATURES / LEGACY_CREATURES', () => {
+  it('CREATURES is every non-humanoid shape', () => {
+    expect(CREATURES).toEqual(SHAPES.filter(s => !HUMANOIDS.includes(s)))
+    expect(CREATURES).toHaveLength(27)
+  })
+  it('LEGACY_CREATURES pins the pre-rework 20 (party bots draw from it)', () => {
+    expect(LEGACY_CREATURES).toHaveLength(20)
+    for (const s of LEGACY_CREATURES) expect(HUMANOIDS).not.toContain(s)
+    expect(LEGACY_CREATURES).not.toContain('bunny')
+  })
+})
+
+describe('randomAvatar / randomHumanoid', () => {
+  const seq = (...xs) => { let i = 0; return () => xs[i++ % xs.length] }
+
+  it('always returns a valid, canonical id', () => {
+    for (let i = 0; i < 300; i++) {
+      const id = randomAvatar()
+      expect(isValidAvatar(id)).toBe(true)
+      expect(canonicalAvatar(id)).toBe(id)
+    }
+  })
+  it('covers both creatures and humanoids', () => {
+    const shapes = new Set(Array.from({ length: 400 }, () => parseAvatar(randomAvatar()).shape))
+    expect(HUMANOIDS.some(h => shapes.has(h))).toBe(true)
+    expect(CREATURES.some(c => shapes.has(c))).toBe(true)
+  })
+  it('is deterministic for a fixed rand', () => {
+    expect(randomAvatar(seq(0.1, 0, 0))).toBe('invader.p1')
+    expect(randomHumanoid(seq(0))).toBe(randomHumanoid(seq(0)))
+    expect(isHumanoid(parseAvatar(randomHumanoid(seq(0.3))).shape)).toBe(true)
+  })
+  it('never returns `avoid`, even when rand repeats itself', () => {
+    const stuck = () => seq(0.1, 0, 0)
+    const same = randomAvatar(stuck())
+    const next = randomAvatar(stuck(), same)
+    expect(next).not.toBe(same)
+    expect(isValidAvatar(next)).toBe(true)
+    const human = randomHumanoid(seq(0.7))
+    expect(randomAvatar(seq(0.7), human)).not.toBe(human)
   })
 })

@@ -3,39 +3,20 @@ import Avatar from './Avatar'
 import {
   PICKER_SHAPES, TONES, SKIN_TONES, HAIR_STYLES, ACCESSORIES, OUTFIT_PRESETS,
   TONE_LABEL, SKIN_LABEL, HAIR_LABEL, ACCESSORY_LABEL,
-  humanoidCustomizerSeed, makeHumanoid,
+  humanoidCustomizerSeed, makeHumanoid, randomHumanoid,
 } from '../lib/avatars'
+import { TONE_BG, SKIN_BG } from './avatarSwatches'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
-
-// Static class maps — literal strings so Tailwind's content scan sees every class.
-const TONE_BG = {
-  p1:   'bg-retro-p1',
-  p2:   'bg-retro-p2',
-  cta:  'bg-retro-cta',
-  win:  'bg-retro-win',
-  text: 'bg-retro-text',
-  dim:  'bg-retro-dim',
-  av1:  'bg-retro-av1',
-  av2:  'bg-retro-av2',
-  av3:  'bg-retro-av3',
-  av4:  'bg-retro-av4',
-}
-
-const SKIN_BG = {
-  s1: 'bg-retro-skin1',
-  s2: 'bg-retro-skin2',
-  s3: 'bg-retro-skin3',
-  s4: 'bg-retro-skin4',
-  s5: 'bg-retro-skin5',
-}
 
 const CHIPS = ['skin', 'hair', 'cap', 'shirt', 'pants', 'shoes', 'acc']
 const CHIP_LABEL = { skin: 'SKIN', hair: 'HAIR', cap: 'CAP', shirt: 'SHIRT', pants: 'PANT', shoes: 'SHOE', acc: 'EXTRA' }
 
 const HISTORY_CAP = 20
 
-export default function AvatarCustomizer({ value, onChange, previewSize = 96, compact = false }) {
+// `hidePreview` drops the UNDO / preview / RANDOM row for hosts that draw their
+// own preview (AvatarPicker) — the body strip, part chips and presets remain.
+export default function AvatarCustomizer({ value, onChange, previewSize = 96, compact = false, hidePreview = false }) {
   const [selectedChip, setSelectedChip] = useState('cap')
   // { history, lastEmitted } as a single state value (not a ref) — this component
   // is controlled, so tracking "did the incoming value come from us" needs state
@@ -89,26 +70,8 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96, co
   }
 
   const pickRandom = () => {
-    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
-    // acc reroll is 50% none-biased — routed through `pick` (rather than an inline
-    // Math.random() ternary) so it stays a plain call to a user-defined helper.
-    const nonNoneAcc = ACCESSORIES.filter(a => a !== 'none')
-    const pickAcc = () => pick([...Array(nonNoneAcc.length).fill('none'), ...nonNoneAcc])
-    const randShape = pick(PICKER_SHAPES)
-    const randParts = {
-      cap: pick(TONES),
-      shirt: pick(TONES),
-      pants: pick(TONES),
-      shoes: pick(TONES),
-      skin: pick(SKIN_TONES),
-      hair: pick(HAIR_STYLES),
-      hairColor: pick(TONES),
-      acc: pickAcc(),
-    }
-    let next = makeHumanoid(randShape, randParts)
-    if (next === canonical) {
-      next = makeHumanoid(randShape, { ...randParts, cap: TONES[(TONES.indexOf(randParts.cap) + 1) % TONES.length] })
-    }
+    let next = randomHumanoid()
+    if (next === canonical) next = randomHumanoid()
     sounds.move('X')
     commit(next)
   }
@@ -131,7 +94,7 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96, co
   return (
     <div className="w-full max-w-[380px] mx-auto space-y-3" onKeyDown={handleKeyDown}>
       {/* Preview row: UNDO — avatar — RANDOM */}
-      <div className="flex items-center justify-center gap-3">
+      {!hidePreview && <div className="flex items-center justify-center gap-3">
         <button
           onClick={undo}
           disabled={!canUndo}
@@ -158,7 +121,7 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96, co
         >
           RANDOM
         </button>
-      </div>
+      </div>}
 
       {/* Body strip */}
       <div
@@ -186,22 +149,23 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96, co
         })}
       </div>
 
-      {/* Part chip row */}
-      <div className="flex items-center justify-center gap-x-1 overflow-x-auto no-scrollbar font-pixel text-[9px] tracking-wider">
-        {CHIPS.map((c, i) => (
-          <span key={c} className="flex items-center shrink-0">
-            {i > 0 && <span className="text-retro-dim">·</span>}
-            <button
-              onClick={() => setSelectedChip(c)}
-              aria-pressed={c === selectedChip}
-              className={cn(
-                'min-h-11 min-w-11 px-2.5 flex items-center justify-center transition-all',
-                c === selectedChip ? 'text-retro-cta text-glow-cta' : 'text-retro-dim hover:text-retro-text',
-              )}
-            >
-              {CHIP_LABEL[c]}
-            </button>
-          </span>
+      {/* Part chip row — wraps on narrow screens instead of scrolling out of view */}
+      <div role="group" aria-label="Part to edit" className="flex flex-wrap items-center justify-center gap-1.5">
+        {CHIPS.map(c => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setSelectedChip(c)}
+            aria-pressed={c === selectedChip}
+            className={cn(
+              'min-h-11 min-w-11 px-2.5 rounded border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
+              c === selectedChip
+                ? 'border-retro-cta bg-retro-tint-cta text-retro-cta'
+                : 'border-retro-border text-retro-dim hover:text-retro-text',
+            )}
+          >
+            {CHIP_LABEL[c]}
+          </button>
         ))}
       </div>
 
