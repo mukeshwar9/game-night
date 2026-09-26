@@ -40,6 +40,7 @@ import RoundEndPanel from '../components/RoundEndPanel'
 import RoundTimer from '../components/RoundTimer'
 import WordFeedback from '../components/WordFeedback'
 import GameSwitcher from '../components/GameSwitcher'
+import LobbyInviteButton from '../components/LobbyInviteButton'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
@@ -575,6 +576,7 @@ export default function FibbageGame({
                 ({Math.max(0, MIN_PLAYERS - playerCount)} MORE TO START)
               </p>
             )}
+            {!enough && <LobbyInviteButton />}
 
             {amCoordinator && enough && (
               <button

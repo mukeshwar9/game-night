@@ -26,6 +26,7 @@ import { isRoomCoordinator } from '../lib/coordinator'
 import { scaledMs, timersOff } from '../lib/timerScale'
 import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import GameSwitcher from '../components/GameSwitcher'
+import LobbyInviteButton from '../components/LobbyInviteButton'
 import RoundEndPanel from '../components/RoundEndPanel'
 import RoundTimer from '../components/RoundTimer'
 import WordFeedback from '../components/WordFeedback'
@@ -507,6 +508,7 @@ export default function WavelengthGame({
             NEED {WAVELENGTH_MIN_PLAYERS - playerCount} MORE{'\n'}PLAYER{WAVELENGTH_MIN_PLAYERS - playerCount === 1 ? '' : 'S'} TO START
           </p>
         )}
+        {!enough && <LobbyInviteButton />}
 
         {amCoordinator ? (
           <button
@@ -746,7 +748,7 @@ export default function WavelengthGame({
                     className="absolute -top-9 -translate-x-1/2 flex flex-col items-center"
                     style={{ left: `${clampGuess(g)}%` }}
                   >
-                    <span className={cn('font-pixel text-[7px]', mine ? 'text-retro-cta' : 'text-retro-dim')}>
+                    <span className={cn('font-pixel text-[8px]', mine ? 'text-retro-cta' : 'text-retro-dim')}>
                       {(players[id]?.name || '?').toUpperCase().slice(0, 4)}
                     </span>
                     <span className={cn('text-[10px]', mine ? 'text-retro-cta' : 'text-retro-p1')}>▾</span>

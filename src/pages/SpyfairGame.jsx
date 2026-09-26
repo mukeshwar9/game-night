@@ -16,6 +16,7 @@ import { scaledMs, timersOff } from '../lib/timerScale'
 import { formatClockSecs } from '../lib/format'
 import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import GameSwitcher from '../components/GameSwitcher'
+import LobbyInviteButton from '../components/LobbyInviteButton'
 import RoundEndPanel from '../components/RoundEndPanel'
 import { sounds } from '../lib/sounds'
 import { SPYFAIR_LOCATIONS } from '../lib/decks/spyfair'
@@ -614,6 +615,7 @@ export default function SpyfairGame({
             {playerCount >= SPYFAIR_MIN_PLAYERS ? 'WAITING TO START…' : `WAITING FOR PLAYERS (${playerCount}/${SPYFAIR_MIN_PLAYERS})`}
           </p>
         )}
+        {playerCount < SPYFAIR_MIN_PLAYERS && <LobbyInviteButton />}
 
         {!sealSupported && (
           <p className="text-center font-pixel text-[9px] text-retro-p2 leading-relaxed">

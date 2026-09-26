@@ -43,7 +43,12 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const [rulesType, setRulesType] = useState(null)
   const [optionsGame, setOptionsGame] = useState(() => (
     isFull && initialType
-      ? GAME_TYPES.find(t => t.type === initialType && !t.variantOf) || null
+      ? (() => {
+          // Same shape the grid passes (see renderGrid): without hasVariants a
+          // deep-linked sheet (?game=) silently hid MORE MODES.
+          const g = GAME_TYPES.find(t => t.type === initialType && !t.variantOf)
+          return g ? { ...g, hasVariants: variantsFor(g.type).length > 0 } : null
+        })()
       : null
   ))
   const [variantBase, setVariantBase] = useState(null)

@@ -8,7 +8,9 @@ import useHideOnScroll from '../hooks/useHideOnScroll'
 // Persistent Home/Daily/Friends/Profile tab bar — only on the four meta
 // routes; also the only routes where the header hides on scroll (game rooms
 // and /demo stay pinned so it doesn't fight the fixed GameStatus bar).
-export const TAB_BAR_ROUTES = ['/', '/games', '/friends', '/profile']
+// Every top-level destination keeps the tab bar so no page is a dead end
+// (daily, online lobby and leaderboard had no way back).
+export const TAB_BAR_ROUTES = ['/', '/games', '/friends', '/profile', '/daily', '/online', '/leaderboard']
 
 // Game rooms can intercept the logo tap (leave-match confirm) without
 // owning their own Home link. The ref is stable; Game registers a handler

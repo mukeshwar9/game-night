@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { configError } from '../lib/firebase'
+import { configError, db } from '../lib/firebase'
+import { ref, get } from 'firebase/database'
+import useBusy from '../hooks/useBusy'
 import { getGameConfig, GAME_TYPES } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
@@ -17,7 +19,6 @@ import { useAuth } from '../lib/AuthContext'
 import { dismissInvite } from '../lib/social'
 import { defaultAvatarForId } from '../lib/avatars'
 import { checkShouldOnboard } from '../lib/onboarding'
-import { toast } from 'sonner'
 
 const getPlayerName = (profile) => profile?.displayName || localStorage.getItem('playerName') || ''
 
@@ -25,6 +26,8 @@ export default function Home() {
   const navigate = useNavigate()
   const [joinCode, setJoinCode] = useState('')
   const [joinOpen, setJoinOpen] = useState(false)
+  const [joinError, setJoinError] = useState(null)
+  const [joinBusy, runJoin] = useBusy()
   const [recentGame, setRecentGame] = useState(null)
   const [rulesGame, setRulesGame] = useState(null)
   const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
@@ -46,9 +49,17 @@ export default function Home() {
   const joinGame = () => {
     if (!getPlayerName(profile)) { setJoinOpen(false); setShowOnboarding(true); return }
     const code = joinCode.trim().toUpperCase()
-    if (!code) { toast.error('ENTER A GAME CODE'); return }
-    setJoinOpen(false)
-    navigate(`/game/${code}`)
+    if (code.length !== 6) { setJoinError('ROOM CODES ARE 6 CHARACTERS'); return }
+    // Check the room exists before leaving the sheet, so a typo is fixed in
+    // place instead of landing on a dead-end "not found" page.
+    runJoin(async () => {
+      if (db) {
+        const snap = await get(ref(db, `games/${code}/status`))
+        if (!snap.exists()) { setJoinError('NO ROOM WITH THAT CODE — DOUBLE-CHECK IT'); return }
+      }
+      setJoinOpen(false)
+      navigate(`/game/${code}`)
+    }, () => { setJoinOpen(false); navigate(`/game/${code}`) })
   }
 
   const recentCfg = recentGame ? getGameConfig(recentGame) : null
@@ -180,8 +191,10 @@ export default function Home() {
       {joinOpen && (
         <JoinRoomSheet
           code={joinCode}
-          onChange={setJoinCode}
+          onChange={v => { setJoinCode(v); setJoinError(null) }}
           onJoin={joinGame}
+          error={joinError}
+          busy={joinBusy}
           onClose={() => setJoinOpen(false)}
         />
       )}
