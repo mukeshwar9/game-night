@@ -3,11 +3,13 @@
 import { hashString, seededShuffle } from './fibbageLogic'
 import { isBannedWord, isFamilySafe } from './wordDenylist'
 import { topFamiliar } from './commonWords'
+import { MATCH_TARGET } from './anagramsConfig'
+
+export { MATCH_TARGET }
 
 export const RACK_SIZE = 7
 export const ROUND_MS = 90_000
 export const MIN_WORD_LENGTH = 3
-export const MATCH_TARGET = 2
 export const MIN_SOLUTION_COUNT = 12
 // 3-2-1 before each rack: the round's startedAt is this far in the future and
 // no word counts before it.

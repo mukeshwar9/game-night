@@ -5,7 +5,7 @@
 // the leaderboard on exactly the finishes the clients treat as a match end —
 // so the two must never disagree. Pure: no DOM, no Firebase, no React.
 
-import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from './anagramsLogic'
+import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from './anagramsConfig'
 import { TARGET_SCORE as PASSWORD_TARGET } from './passwordLogic'
 import { ARROWS_MATCH_TARGET, getArrowsMatchEnd } from './arrowsLogic'
 
