@@ -20,6 +20,14 @@ const PARTICLE_COLOR = {
 
 const reducedMotion = () => document.documentElement.dataset.motion === 'reduced'
 
+// Moving pieces are placed with a transform instead of left/top: the court
+// re-renders every frame, and a transform change skips layout (one forced
+// layout per frame otherwise). Static pieces and the ones whose CSS animation
+// owns `transform` (serve pulse, particles) keep left/top.
+const moving = ({ left, top, width, height }) => ({
+  left: 0, top: 0, width, height, transform: `translate3d(${left}px, ${top}px, 0)`,
+})
+
 // Map a sim point (x along the paddle-to-paddle axis, y across it) to court
 // pixels. The side nearest the viewer sits at the bottom (portrait) or on
 // the left (landscape), so each player always defends "their" edge.
@@ -99,7 +107,7 @@ const PongCourt = forwardRef(function PongCourt(
       <div
         key={side}
         className={cn('absolute rounded-sm transition-[width,height] duration-150', tone, flashing && 'brightness-150')}
-        style={box(x, paddles[side], Math.max(PADDLE_W, 10 / L), eh * 2)}
+        style={moving(box(x, paddles[side], Math.max(PADDLE_W, 10 / L), eh * 2))}
       />
     )
   }
@@ -146,7 +154,7 @@ const PongCourt = forwardRef(function PongCourt(
           <div
             key={`ob-${i}`}
             className="absolute rounded-sm bg-retro-structure border border-retro-border shadow-neon-cta"
-            style={box(o.x, o.y, o.w, o.h)}
+            style={moving(box(o.x, o.y, o.w, o.h))}
           />
         ))}
 
@@ -166,7 +174,7 @@ const PongCourt = forwardRef(function PongCourt(
             <div
               key={pk.id}
               className={cn('absolute rounded-sm animate-pulse flex items-center justify-center font-pixel text-retro-bg leading-none', PICKUP_STYLE[pk.kind] || 'bg-retro-cta')}
-              style={{ ...square(pk.x, pk.y, size), fontSize: Math.max(9, size * 0.5) }}
+              style={{ ...moving(square(pk.x, pk.y, size)), fontSize: Math.max(9, size * 0.5) }}
               aria-label={PICKUP_INFO[pk.kind]?.name}
             >
               {PICKUP_INFO[pk.kind]?.glyph}
@@ -185,14 +193,14 @@ const PongCourt = forwardRef(function PongCourt(
                   key={i}
                   className={cn('absolute', ballTone)}
                   style={{
-                    ...square(b.x - b.vx * k, b.y - b.vy * k, ballSize * (0.8 - i * 0.15)),
+                    ...moving(square(b.x - b.vx * k, b.y - b.vy * k, ballSize * (0.8 - i * 0.15))),
                     opacity: 0.35 - i * 0.1,
                   }}
                 />
               ))}
               <div
                 className={cn('absolute shadow-glow-dot', ballTone, Math.abs(b.spin || 0) > 0.35 && 'rounded-sm')}
-                style={square(b.x, b.y, ballSize)}
+                style={moving(square(b.x, b.y, ballSize))}
               />
             </div>
           )

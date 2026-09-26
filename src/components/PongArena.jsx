@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import PongCourt from './PongCourt'
 import { fitCourt, getMode, isSuddenDeath } from '../lib/pongLogic'
 import { cn } from '@/lib/utils'
@@ -21,10 +21,18 @@ const EFFECT_LABELS = [
   ['shield', 'WALL', 'text-retro-p4 border-retro-p4/60'],
 ]
 
-function PlayerChip({ side, name, points, rounds, effects, me, align = 'left', label = 'PTS' }) {
+// The arena re-renders every frame, so the HUD pieces are memoised on
+// primitive props (whole seconds, counts) and only re-render when what they
+// show changes.
+const effectSeconds = (effects, side, k) => Math.max(0, Math.ceil(effects?.[side]?.[k] ?? 0))
+
+const PlayerChip = memo(function PlayerChip({
+  side, name, points, roundsWon, roundsTarget, grow, shrink, shield, me, align = 'left', label = 'PTS',
+}) {
   const col = side === 'X' ? 'text-retro-p1' : 'text-retro-p2'
   const glow = side === 'X' ? 'text-glow-p1' : 'text-glow-p2'
-  const e = effects?.[side]
+  const e = { grow, shrink, shield }
+  const rounds = roundsTarget != null ? { won: roundsWon, target: roundsTarget } : null
   return (
     <div className={cn('min-w-0 flex items-center gap-2', align === 'right' && 'flex-row-reverse text-right')}>
       <span className={cn('font-pixel text-2xl tabular-nums leading-none', col, me && glow)} aria-label={`${points} ${label}`}>
@@ -45,19 +53,31 @@ function PlayerChip({ side, name, points, rounds, effects, me, align = 'left', l
           ))}
           {EFFECT_LABELS.map(([k, text, tone]) => e?.[k] > 0 && (
             <span key={k} className={cn('font-pixel text-[8px] px-1 py-px border rounded-sm tabular-nums', tone)}>
-              {text} {Math.ceil(e[k])}
+              {text} {e[k]}
             </span>
           ))}
         </div>
       </div>
     </div>
   )
-}
+})
 
 function Status({ view, lives, best }) {
   const mode = getMode(view.mode)
-  const clock = mode.timeLimit ? Math.ceil(view.clock ?? 0) : null
-  const sudden = isSuddenDeath({ mode: view.mode, clock: view.clock, score: view.score || { X: 0, O: 0 } })
+  return (
+    <StatusView
+      mode={view.mode}
+      clock={mode.timeLimit ? Math.ceil(view.clock ?? 0) : null}
+      sudden={isSuddenDeath({ mode: view.mode, clock: view.clock, score: view.score || { X: 0, O: 0 } })}
+      lives={lives}
+      best={best}
+      rally={view.rally ?? 0}
+    />
+  )
+}
+
+const StatusView = memo(function StatusView({ mode: modeId, clock, sudden, lives, best, rally }) {
+  const mode = getMode(modeId)
   return (
     <div className="flex flex-col items-center gap-1 shrink-0 text-center">
       <span className="font-pixel text-[8px] text-retro-dim tracking-widest">{mode.label}</span>
@@ -74,12 +94,12 @@ function Status({ view, lives, best }) {
         </span>
       ) : null}
       {best != null && <span className="font-pixel text-[8px] text-retro-dim">BEST {best}</span>}
-      <span className={cn('font-pixel text-[8px] tabular-nums transition-opacity', (view.rally ?? 0) >= 3 ? 'text-retro-cta opacity-100' : 'opacity-0')}>
-        RALLY {view.rally ?? 0}
+      <span className={cn('font-pixel text-[8px] tabular-nums transition-opacity', rally >= 3 ? 'text-retro-cta opacity-100' : 'opacity-0')}>
+        RALLY {rally}
       </span>
     </div>
   )
-}
+})
 
 export default function PongArena({
   fullscreen = false, mySide, names = {}, points, rounds, view, fx, overlay, dim,
@@ -142,8 +162,11 @@ export default function PongArena({
     : (
       <PlayerChip
         side={side} name={names[side]} points={points[side]} me={mySide === side}
-        rounds={rounds ? { won: rounds[side] ?? 0, target: rounds.target } : null}
-        effects={view.effects} align={align} label={survival ? 'RETURNS' : 'PTS'}
+        roundsWon={rounds ? rounds[side] ?? 0 : null} roundsTarget={rounds ? rounds.target : null}
+        grow={effectSeconds(view.effects, side, 'grow')}
+        shrink={effectSeconds(view.effects, side, 'shrink')}
+        shield={effectSeconds(view.effects, side, 'shield')}
+        align={align} label={survival ? 'RETURNS' : 'PTS'}
       />
     )
   // Keys only mean something with a keyboard: phones see just the gesture.
