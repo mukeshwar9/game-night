@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { GAME_TYPES, GAME_CATEGORIES, getGameConfig, supportsLocalPlay } from '../lib/games'
+import { GAME_TYPES, GAME_CATEGORIES, getGameConfig, supportsLocalPlay, getNewGames } from '../lib/games'
 import { searchGames } from '../lib/gameSearch'
 import { getFavorites, toggleFavorite } from '../lib/favorites'
 import RulesModal from './RulesModal'
@@ -7,6 +7,7 @@ import CategoryTabs from './CategoryTabs'
 import VariantChooser from './VariantChooser'
 import GameOptionsSheet from './GameOptionsSheet'
 import GameCard from './GameCard'
+import NewGamesRail from './NewGamesRail'
 import EmptyState from './EmptyState'
 import { cn } from '@/lib/utils'
 
@@ -21,11 +22,14 @@ const FILTER_DEFS = [
   { key: 'solo', label: 'SOLO OK', test: (t) => t.solo === true },
 ]
 
-// M-82: activeCat/filters/query survive a round-trip to a game and back
-// (Home fully unmounts on navigation, so this can't live in useState alone).
-// Scoped to layout="full" (the Home catalog) — GameSwitcher's compact picker
-// always wants to default to the current game's category.
+// M-82: filters/query survive a round-trip to a game and back (Home fully
+// unmounts on navigation, so this can't live in useState alone). Scoped to
+// layout="full" (the Games catalog) — GameSwitcher's compact picker always
+// wants to default to the current game's category. The catalog's category
+// chips are jump links now, so the active one is not persisted.
 const PICKER_STATE_KEY = 'gn-picker-state'
+// Jump-chip targets land just under the sticky search + chip header.
+const SECTION_SCROLL_MARGIN = 'calc(var(--app-header-offset, 0px) + 7.5rem)'
 function readPickerState() {
   try {
     const raw = sessionStorage.getItem(PICKER_STATE_KEY)
@@ -39,7 +43,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const isFull = layout === 'full'
   const defaultCat = isFull ? 'all' : ((excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id)
   const persisted = isFull ? readPickerState() : null
-  const [activeCat, setActiveCat] = useState(persisted?.activeCat || defaultCat)
+  const [activeCat, setActiveCat] = useState(defaultCat)
   const [rulesType, setRulesType] = useState(null)
   const [optionsGame, setOptionsGame] = useState(() => (
     isFull && initialType
@@ -60,6 +64,9 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const [favVersion, setFavVersion] = useState(0)
   const [filters, setFilters] = useState(persisted?.filters || {})
   const searchRef = useRef(null)
+  const stickyRef = useRef(null)
+  const listTopRef = useRef(null)
+  const sectionRefs = useRef({})
   // Computed once — the " ( / )" keyboard hint is desktop-only real estate;
   // no need to re-check on resize for a hint this minor.
   const [showSlashHint] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches)
@@ -67,11 +74,11 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   useEffect(() => {
     if (!isFull) return
     try {
-      sessionStorage.setItem(PICKER_STATE_KEY, JSON.stringify({ activeCat, filters, query }))
+      sessionStorage.setItem(PICKER_STATE_KEY, JSON.stringify({ filters, query }))
     } catch {
       // sessionStorage unavailable (private mode / quota) — restoration just no-ops
     }
-  }, [isFull, activeCat, filters, query])
+  }, [isFull, filters, query])
 
   const activeFilterKeys = Object.keys(filters).filter(k => filters[k])
   const passesFilters = (t) => activeFilterKeys.every(k => FILTER_DEFS.find(f => f.key === k).test(t))
@@ -102,11 +109,22 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const totalVisible = Object.values(counts).reduce((a, b) => a + b, 0)
   const categories = GAME_CATEGORIES.map(c => ({ ...c, count: counts[c.id] || 0 })).filter(c => c.count > 0)
   const visibleFavorites = GAME_TYPES.filter(t => !isHidden(t) && favSet.has(t.type) && passesFilters(t))
-  const categoriesWithAll = isFull ? [{ id: 'all', label: 'ALL', count: totalVisible }, ...categories] : categories
   const games = GAME_TYPES.filter(t => !isHidden(t) && t.category === activeCat && passesFilters(t))
   const categorySections = categories
     .map(c => ({ ...c, games: GAME_TYPES.filter(t => !isHidden(t) && t.category === c.id && passesFilters(t)) }))
     .filter(c => c.games.length > 0)
+  // The catalog's chips jump to a section of the one long list, so they
+  // list only sections that exist under the current filters, with counts.
+  const categoriesWithAll = isFull
+    ? [
+        { id: 'all', label: 'ALL', count: categorySections.reduce((n, c) => n + c.games.length, 0) },
+        ...categorySections.map(({ games: list, ...c }) => ({ ...c, count: list.length })),
+      ]
+    : categories
+  const newGames = isFull
+    ? getNewGames(GAME_TYPES.filter(t => !isHidden(t) && passesFilters(t)))
+        .map(g => ({ ...g, hasVariants: variantsFor(g.type).length > 0 }))
+    : []
 
   useEffect(() => {
     if (!isFull) return
@@ -122,6 +140,36 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
     return () => window.removeEventListener('keydown', onKey)
   }, [isFull])
 
+  // Scroll spy for the catalog's jump chips: the active chip is the last
+  // section whose top has passed under the sticky header (ALL above the
+  // first one).
+  const isSearching = isFull && !!query.trim()
+  useEffect(() => {
+    if (!isFull || isSearching) return
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const line = (stickyRef.current?.getBoundingClientRect().bottom ?? 0) + 8
+      let current = 'all'
+      for (const [id, el] of Object.entries(sectionRefs.current)) {
+        if (el && el.getBoundingClientRect().top <= line) current = id
+      }
+      setActiveCat(prev => (prev === current ? prev : current))
+    }
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update) }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [isFull, isSearching])
+
+  const jumpTo = (id) => {
+    setActiveCat(id)
+    const el = id === 'all' ? listTopRef.current : sectionRefs.current[id]
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   // Home's catalog (layout="full"): tapping a card opens the options sheet
   // (PLAY ONLINE first, then VS AI / 2P PASS / MORE MODES / RULES) instead of
   // silently creating a live Firebase room — see CLAUDE.md's Home → play
@@ -129,6 +177,10 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   // tap-to-select behavior since there `onSelect` proposes a game-type
   // switch, not a new room, and the sheet there has no PLAY ONLINE row.
   const handleTap = (g) => (isFull ? setOptionsGame(g) : onSelect(g.type))
+
+  // GameSwitcher's in-room rows: a game with variants gets a MODES button
+  // that opens the variant pick directly (the old ⋯ sheet's only extra there).
+  const handleSwitchModes = (g) => { setVariantMode('friend'); setVariantBase(g) }
 
   // GameOptionsSheet invite/public rows. Private creation uses the existing
   // Home room flow; public play opens the matchmaking lobby for this game.
@@ -160,8 +212,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const handleRules = (type) => { setOptionsGame(null); setRulesType(type) }
 
   const gridClass = isFull
-    ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'
-    : 'grid grid-cols-2 gap-3'
+    ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2'
+    : 'grid grid-cols-2 gap-2'
 
   const renderGrid = (list) => (
     <div className={gridClass}>
@@ -170,7 +222,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           key={g.type}
           game={{ ...g, hasVariants: !g.variantOf && variantsFor(g.type).length > 0 }}
           onTap={handleTap}
-          onOptions={isFull ? undefined : setOptionsGame}
+          onModes={isFull ? undefined : handleSwitchModes}
           loadingType={loadingType}
           isFav={favSet.has(g.type)}
           onToggleFav={isFull ? handleToggleFav : undefined}
@@ -194,9 +246,10 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
         type="text"
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder={showSlashHint ? 'SEARCH GAMES… ( / )' : 'SEARCH GAMES…'}
+        placeholder={`Search ${totalVisible} games…${showSlashHint ? ' ( / )' : ''}`}
+        aria-label="Search games"
         className="w-full min-h-11 bg-retro-card border-2 border-retro-border text-retro-text
-          font-pixel text-xs tracking-widest placeholder-retro-dim rounded pl-4 pr-11 py-3
+          font-mono text-sm placeholder-retro-dim rounded pl-4 pr-11 py-2.5
           focus:outline-none focus:border-retro-p1 transition-colors"
       />
       {query && (
@@ -231,8 +284,6 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
     </button>
   ))
 
-  const isSearching = isFull && !!query.trim()
-
   // Search hides the category tabs entirely (categories don't apply to a
   // free-text result set) but filters stay reachable via their own row.
   const chipRow = isSearching ? (
@@ -243,8 +294,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
     <CategoryTabs
       categories={categoriesWithAll}
       active={activeCat}
-      onSelect={setActiveCat}
-      leading={isFull ? <>{filterChips}<div className="w-px shrink-0 self-stretch bg-retro-border" aria-hidden="true" /></> : undefined}
+      onSelect={isFull ? jumpTo : setActiveCat}
+      trailing={isFull ? <><div className="w-px shrink-0 self-stretch bg-retro-border" aria-hidden="true" />{filterChips}</> : undefined}
     />
   )
 
@@ -255,7 +306,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           top offset collapses to 0 while NavBar is hidden (useHideOnScroll)
           so this rides up flush instead of leaving a gap. */}
       {isFull ? (
-        <div className="sticky top-[var(--app-header-offset)] z-20 bg-retro-bg pt-1 pb-2 space-y-3 transition-[top] duration-200">
+        <div ref={stickyRef} className="sticky top-[var(--app-header-offset)] z-20 bg-retro-bg pt-1 pb-2 space-y-2 transition-[top] duration-200">
           {searchBlock}
           {chipRow}
         </div>
@@ -269,11 +320,12 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
         ) : (
           emptyState(`NO GAMES MATCH "${query.trim().toUpperCase()}"`)
         )
-      ) : isFull && activeCat === 'all' ? (
+      ) : isFull ? (
         visibleFavorites.length === 0 && categorySections.length === 0 ? (
           emptyState('NO GAMES MATCH THESE FILTERS')
         ) : (
-          <div className="space-y-5">
+          <div ref={listTopRef} className="space-y-5" style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}>
+            <NewGamesRail games={newGames} onTap={handleTap} loadingType={loadingType} />
             {visibleFavorites.length > 0 && (
               <div className="space-y-2">
                 <p className="font-pixel text-[9px] text-retro-p2 tracking-widest">★ FAVORITES</p>
@@ -281,10 +333,19 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
               </div>
             )}
             {categorySections.map(c => (
-              <div key={c.id} className="space-y-2">
-                <p className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</p>
+              <section
+                key={c.id}
+                ref={el => { sectionRefs.current[c.id] = el }}
+                aria-labelledby={`catalog-${c.id}`}
+                className="space-y-2"
+                style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <h2 id={`catalog-${c.id}`} className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</h2>
+                  <span className="font-mono text-[11px] text-retro-dim">{c.games.length}</span>
+                </div>
                 {renderGrid(c.games)}
-              </div>
+              </section>
             ))}
           </div>
         )

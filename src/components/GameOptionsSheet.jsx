@@ -22,7 +22,9 @@ import BottomSheet from './BottomSheet'
 
 // Module scope, not defined inside GameOptionsSheet — a component defined
 // per-render remounts at every parent render, losing focus/animation state.
-function Row({ onClick, label, blurb, tone = 'text', primary, busy, disabled, badge }) {
+// Title colour carries meaning only once: the CTA colour on the recommended
+// (primary) row, plain text on the rest — no per-row accent hues.
+function Row({ onClick, label, blurb, primary, busy, disabled, badge }) {
   return (
     <button
       onClick={onClick}
@@ -47,7 +49,7 @@ function Row({ onClick, label, blurb, tone = 'text', primary, busy, disabled, ba
       <span className="flex-1 min-w-0">
         <span className={cn(
           'font-pixel text-[11px] block',
-          tone === 'cta' ? 'text-retro-cta text-glow-cta' : tone === 'p1' ? 'text-retro-p1' : tone === 'p2' ? 'text-retro-p2' : 'text-retro-text',
+          primary ? 'text-retro-cta text-glow-cta' : 'text-retro-text',
         )}>{busy ? 'CREATING…' : label}</span>
         {blurb && <span className="font-mono text-[11px] text-retro-dim mt-0.5 leading-snug block">{blurb}</span>}
       </span>
@@ -107,7 +109,6 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
               <Row
                 onClick={() => onInvite(game)}
                 label="INVITE FRIEND"
-                tone="cta"
                 primary
                 badge="+"
                 busy={isBusy}
@@ -125,7 +126,6 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
                   <Row
                     onClick={() => onPublic(game)}
                     label="PLAY PUBLIC"
-                    tone="p1"
                     badge="◍"
                     disabled={isBusy}
                     blurb="Get matched with a waiting opponent."
@@ -135,7 +135,6 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
                   <Row
                     onClick={() => onSolo(game)}
                     label="PRACTICE VS AI"
-                    tone="p1"
                     badge="AI"
                     disabled={isBusy}
                     blurb="Play instantly against the computer."
@@ -145,7 +144,6 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
                   <Row
                     onClick={() => onLocal(game)}
                     label="SAME DEVICE"
-                    tone="p2"
                     badge="2P"
                     disabled={isBusy}
                     blurb="Hot-seat — pass the device between turns."

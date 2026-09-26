@@ -8,12 +8,12 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: () => null, setItem: () => {} }
 }
 
-let isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay
+let isNewGame, getNewGames, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay
 let lobbySwitchOverrides, buildChallengeRoom
 
 beforeAll(async () => {
   ;({
-    isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay,
+    isNewGame, getNewGames, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay,
     lobbySwitchOverrides, buildChallengeRoom,
   } = await import('./games'))
 })
@@ -31,6 +31,25 @@ describe('isNewGame', () => {
   it('is false once past the 14-day window', () => {
     const now = new Date('2026-07-11')
     expect(isNewGame({ addedAt: '2026-06-20' }, now)).toBe(false)
+  })
+})
+
+describe('getNewGames', () => {
+  const now = new Date('2026-07-11')
+  it('keeps base entries inside the window, newest first, registry order on ties', () => {
+    const entries = [
+      { type: 'a', addedAt: '2026-07-04' },
+      { type: 'b' },
+      { type: 'c', addedAt: '2026-07-10' },
+      { type: 'd', addedAt: '2026-07-04' },
+      { type: 'e', addedAt: '2026-06-01' },
+      { type: 'v', addedAt: '2026-07-10', variantOf: 'c' },
+    ]
+    expect(getNewGames(entries, now).map(e => e.type)).toEqual(['c', 'a', 'd'])
+  })
+
+  it('is empty when nothing is new', () => {
+    expect(getNewGames([{ type: 'x', addedAt: '2026-01-01' }], now)).toEqual([])
   })
 })
 

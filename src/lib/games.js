@@ -1205,6 +1205,7 @@ export const GAME_TYPES = [
     boardProps: (game) => ({
       pits: normalizePits(game.mancalaPits),
       last: game.mancalaLast ?? null,
+      players: game.players,
     }),
   },
   {
@@ -1481,6 +1482,16 @@ export const isNewGame = (entry, now = new Date()) => {
   const addedAt = new Date(entry.addedAt)
   return now.getTime() - addedAt.getTime() <= NEW_BADGE_WINDOW_MS
 }
+
+// The catalog's one NEW rail (instead of a NEW tag on every card, which a
+// batch launch turned into noise): base entries inside the window, newest
+// first, registry order breaking ties.
+export const getNewGames = (entries, now = new Date()) =>
+  entries
+    .map((entry, i) => ({ entry, i }))
+    .filter(({ entry }) => !entry.variantOf && isNewGame(entry, now))
+    .sort((a, b) => String(b.entry.addedAt).localeCompare(String(a.entry.addedAt)) || a.i - b.i)
+    .map(({ entry }) => entry)
 
 export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
 
