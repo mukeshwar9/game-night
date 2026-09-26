@@ -19,6 +19,9 @@ describe('matchTargetFor', () => {
     expect(matchTargetFor({ gameType: 'password' })).toBe(PASSWORD_TARGET)
     expect(matchTargetFor({ gameType: 'anagrams' })).toBe(ANAGRAMS_MATCH_TARGET)
     expect(matchTargetFor({ gameType: 'arrows' })).toBe(ARROWS_MATCH_TARGET)
+    expect(matchTargetFor({ gameType: 'updraft' })).toBe(2)
+    expect(isMatchFinish({ gameType: 'updraft', status: 'finished', scores: { X: 1, O: 1 } })).toBe(false)
+    expect(isMatchFinish({ gameType: 'updraft', status: 'finished', scores: { X: 2, O: 1 } })).toBe(true)
   })
 
   it("reads Pong's host-chosen match length, defaulting to 3", () => {

@@ -8,7 +8,7 @@ import {
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
-  PasswordIcon, AnagramsIcon, ArrowsIcon,
+  PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
@@ -87,6 +87,7 @@ import {
 import { generateSeed } from './mathLogic'
 import { startStackMatch } from './animalStackCore'
 import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
+import { MATCH_TARGET as UPDRAFT_MATCH_TARGET, updraftFreshState } from './updraftConfig'
 import { ARCHERY_SEATS, archeryFormat } from './archeryLogic'
 import { generateGrid } from './wordhuntGrid'
 import { nextWireBomb } from './wireMatchLogic'
@@ -747,6 +748,35 @@ export const GAME_TYPES = [
     matchTarget: 2,
     nextRound: arrowsNextRound,
     hidePlayerCards: true,
+  },
+  {
+    type: 'updraft', label: 'UPDRAFT',
+    desc: 'race up the same sky tower', Icon: UpdraftIcon,
+    badge: 'UD', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    // Ghost race (Arrows model): both seats climb one seeded tower, each
+    // simulating only its own hopper; progress rides `updraft` in Firebase.
+    durationMin: 4, tags: ['quick', 'frantic', 'skill'], solo: true,
+    classicLabel: 'VERSUS',
+    classicBlurb: 'Race your rival up the same tower. First to 400 m wins; CHAOS pickups sabotage them.',
+    custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/UpdraftGame')),
+    matchTarget: UPDRAFT_MATCH_TARGET,
+    hidePlayerCards: true,
+  },
+  {
+    type: 'updraftduo', label: 'UPDRAFT CO-OP',
+    desc: 'climb twin towers together', Icon: UpdraftIcon,
+    badge: 'UC', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    variantOf: 'updraft', variantLabel: 'CO-OP',
+    variantBlurb: 'Twin towers: your keys open your partner\'s gates. Three shared lives, both reach 300 m to win.',
+    // Co-op: both seats share the result (runs cleared credit both scores).
+    durationMin: 4, tags: ['frantic', 'skill'], solo: false,
+    custom: true, realtime: true, coop: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/UpdraftCoopGame')),
   },
   {
     type: 'pong', label: 'PONG',
@@ -1737,6 +1767,8 @@ const FIELD_NULLS = {
   pongScoreX: null, pongScoreO: null, pongMode: null, signaling: null, matchLength: null,
   arrowsRound: null, arrowsSeed: null, arrowsStartedAt: null,
   arrowsGoneX: null, arrowsGoneO: null, arrowsLivesX: null, arrowsLivesO: null,
+  // updraft / updraftduo: the whole round (seed, start, seats, hazards, keys).
+  updraft: null,
   // Retired shared-board keys: still nulled so rooms from before the race
   // rework shed them on the next reset.
   arrowsLevel: null, arrowsCleared: null,
@@ -2039,6 +2071,11 @@ export function freshGameState(gameType, previous = null) {
     const arrowFields = next ?? arrowsFreshState()
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       ...arrowFields }
+  }
+  if (gameType === 'updraft' || gameType === 'updraftduo') {
+    // A new seed every round; a versus rematch keeps the host's CHAOS/PURE pick.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      ...updraftFreshState(previous, { coop: gameType === 'updraftduo' }) }
   }
   if (gameType === 'wordcoop') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }

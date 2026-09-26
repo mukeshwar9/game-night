@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -39,6 +39,7 @@ const WavelengthDemo = lazyWithRetry(() => import('./WavelengthDemo'))
 const FibbageDemo = lazyWithRetry(() => import('./FibbageDemo'))
 const SpyfairDemo = lazyWithRetry(() => import('./SpyfairDemo'))
 const SpaceduelDemo = lazyWithRetry(() => import('./SpaceduelDemo'))
+const UpdraftDemo = lazyWithRetry(() => import('./UpdraftDemo'))
 const PaintDemo = lazyWithRetry(() => import('./PaintDemo'))
 const PacmacDemo = lazyWithRetry(() => import('./PacmacDemo'))
 const MineRaceDemo = lazyWithRetry(() => import('./MineRaceDemo'))
@@ -122,6 +123,7 @@ const DEMOS = [
   { type: 'pacmac',       short: 'PAC\nMAC',      Icon: PacmacIcon,       Component: PacmacDemo       },
   { type: 'minesweeper',  short: 'MINE\nRACE',    Icon: MinesIcon,        Component: MineRaceDemo     },
   { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsDemo        },
+  { type: 'updraft',      short: 'UPDRAFT',       Icon: UpdraftIcon,      Component: UpdraftDemo       },
   // Memory — single-player runs (grow until you slip, beat your best)
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonSolo,        solo: true },
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemorySolo, solo: true },
