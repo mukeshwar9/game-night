@@ -114,7 +114,7 @@ export default function ConvergeGame({
     if (!needsMatch) return
     runTransaction(ref(db, `games/${gameId}`), current => {
       if (!current || current.gameType !== 'converge' || current.status !== 'playing' || current.round?.phase) return
-      return { ...current, round: startMatch({ seed: newSeed(), best: current.round?.best }), lastActivityAt: Date.now() }
+      return { ...current, round: startMatch({ seed: newSeed(), best: current.round?.best }), lastActivityAt: getServerNow() }
     }).catch(() => {})
   }, [needsMatch, gameId])
 

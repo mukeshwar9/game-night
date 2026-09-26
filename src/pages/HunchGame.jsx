@@ -111,7 +111,7 @@ export default function HunchGame({
     if (!needsRun) return
     runTransaction(ref(db, `games/${gameId}`), current => {
       if (!current || current.gameType !== 'hunch' || current.status !== 'playing' || current.round?.phase) return
-      return { ...current, round: startRun({ seed: newSeed(), best: current.round?.best }), lastActivityAt: Date.now() }
+      return { ...current, round: startRun({ seed: newSeed(), best: current.round?.best }), lastActivityAt: getServerNow() }
     }).catch(() => {})
   }, [needsRun, gameId])
 
