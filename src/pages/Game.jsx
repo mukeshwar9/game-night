@@ -529,7 +529,7 @@ export default function Game() {
       try {
         await update(ref(db, `games/${gameId}`), updates)
         if (isBustMove) sounds.bust()
-        else sounds.move(mySymbol.current)
+        else if (!cfg.quietMoves) sounds.move(mySymbol.current)
       } catch {
         // Firebase rolls the optimistic echo back to the server's state.
         toast.error('MOVE NOT SAVED — CHECK CONNECTION')

@@ -148,29 +148,30 @@ export const GAME_RULES = {
     objective: 'Out-memorize your opponent in a back-and-forth sequence duel.',
     howToPlay: [
       'Watch the pattern of lit pads, then tap them back in the exact order.',
+      'Missed part of it? WATCH AGAIN replays it once per turn, and your recall timer restarts after the replay.',
       'Repeat the sequence correctly, then add one new pad to pass it back.',
     ],
-    win: 'Tap a wrong pad and you lose. The last player to recall the growing sequence wins.',
+    win: 'Tap a wrong pad and you lose — the full sequence is then shown with the missed step marked. The last player to recall the growing sequence wins.',
   },
 
   chimp: {
     objective: 'Remember the positions of numbered tiles and tap them in order.',
     howToPlay: [
-      'Numbers briefly appear on a 5×5 grid, then hide.',
+      'Numbers appear on a 5×5 grid; they hide when the timer bar runs out or when you tap 1.',
       'Tap the cells in ascending numeric order from memory.',
-      'Clear a level and the next one adds another number.',
+      'Both players race the same layout at once. When you both clear it, the next level adds another number.',
     ],
-    win: 'One wrong tap ends your run — outlast your opponent to win.',
+    win: 'One wrong tap ends your run — the board then shows where every number was. Outlast your opponent to win.',
   },
 
   numbermemory: {
     objective: 'Recall a growing sequence of digits.',
     howToPlay: [
-      'A number flashes on screen, then disappears.',
-      'Type the digits back exactly from memory.',
-      'Each correct answer adds another digit next round.',
+      'A number flashes on screen (longer numbers stay up longer), then disappears.',
+      'Both players type the digits back from memory at the same time.',
+      'If you both get it right, the next round adds another digit.',
     ],
-    win: 'Miss the sequence and you’re out — the player who remembers the longest number wins.',
+    win: 'Get it right when your opponent misses and you win. If you both miss, whoever typed more correct digits from the start wins; an exact tie replays the round with a new number of the same length.',
   },
 
   reaction: {
@@ -215,11 +216,11 @@ export const GAME_RULES = {
   visualmemory: {
     objective: 'Memorize and reproduce a pattern of lit tiles.',
     howToPlay: [
-      'Tiles flash on a 4×4 grid, then go dark.',
-      'Tap every tile that was lit, from memory.',
-      'Each cleared level adds more tiles to remember.',
+      'Tiles light up for a moment (watch the bar drain), then go dark.',
+      'Tap every tile that was lit, from memory, in any order.',
+      'You and your opponent take turns on the same level; once you both clear it, the next level adds a tile. The grid grows from 4×4 up to 8×8 as the patterns get longer.',
     ],
-    win: 'Reproduce patterns longer than your opponent to win.',
+    win: 'Tap a tile that was not lit and you lose the round — the board then shows the real pattern.',
   },
 
   gomoku: {
@@ -663,7 +664,8 @@ export const GAME_RULES = {
     howToPlay: [
       'Tap any two face-down cards to flip them.',
       'Match the pair and you claim it — plus you immediately go again.',
-      'Miss, and both cards stay face-up until your opponent\'s first tap of their turn, then it flips to them.',
+      'Every face has its own colour and its own picture, so a pair is easy to spot once you have seen both cards.',
+      'Miss, and both cards stay face-up for a moment, then flip back down and the turn passes to your opponent.',
     ],
     win: 'Claim 10 of the 18 pairs to win instantly. If the board fills first, whoever claimed more pairs wins — 9–9 is a draw.',
   },

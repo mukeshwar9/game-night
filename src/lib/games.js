@@ -665,7 +665,14 @@ export const GAME_TYPES = [
     boardProps: (game) => ({
       simonSequence: normalizeSimonSequence(game.simonSequence),
       simonProgress: game.simonProgress ?? 0,
+      simonMiss: game.simonMiss ?? null,
+      finished: game.status === 'finished',
+      simonDeadline: game.simonDeadline ?? null,
+      simonReplayUsed: !!game.simonReplayUsed,
     }),
+    // SimonBoard plays each pad's own tone on tap; the generic move blip on top
+    // of it made every press sound twice.
+    quietMoves: true,
   },
   {
     type: 'chimp', label: 'CHIMP TEST',
@@ -818,6 +825,9 @@ export const GAME_TYPES = [
       vmPattern: normalizeVmArray(game.vmPattern),
       vmClicked: normalizeVmArray(game.vmClicked),
       vmLevel: game.vmLevel ?? VM_START_LEVEL,
+      vmMiss: game.vmMiss ?? null,
+      finished: game.status === 'finished',
+      vmDeadline: game.vmDeadline ?? null,
     }),
   },
   {
@@ -1395,7 +1405,10 @@ export const GAME_TYPES = [
           board: applied.board,
           pairsFlipped: applied.flipped,
           currentTurn: applied.turnStays ? symbol : (symbol === 'X' ? 'O' : 'X'),
-          extraTurn: applied.turnStays ? true : null,
+          // GO AGAIN! is for a match only — a first flip also keeps the turn, but that
+          // is just the middle of a turn, not a bonus one.
+          extraTurn: applied.matched ? true : null,
+          pairsDeadline: null, // every flip restarts the mover's idle window
         },
         result: getPairsWinner(applied.board),
       }
@@ -1403,6 +1416,8 @@ export const GAME_TYPES = [
     boardProps: (game) => ({
       deck: normalizePairsDeck(game.pairsDeck),
       flipped: normalizePairsFlipped(game.pairsFlipped),
+      finished: game.status === 'finished',
+      pairsDeadline: game.pairsDeadline ?? null,
     }),
   },
   {
@@ -1550,13 +1565,13 @@ const FIELD_NULLS = {
   passNote: null, pieSwap: null,
   lastFrom: null, lastTo: null,
   sosLines: null,
-  simonSequence: null, simonProgress: null,
+  simonSequence: null, simonProgress: null, simonMiss: null, simonReplayUsed: null,
   simonDeadline: null, vmDeadline: null,
   chimpLevel: null, chimpLayout: null,
   chimpProgressX: null, chimpProgressO: null,
   chimpDoneX: null, chimpDoneO: null,
-  chimpRoundStartedAt: null,
-  vmLevel: null, vmPattern: null, vmClicked: null,
+  chimpRoundStartedAt: null, chimpMiss: null,
+  vmLevel: null, vmPattern: null, vmClicked: null, vmClears: null, vmMiss: null,
   numRound: null,
   reactionTimesX: null, reactionTimesO: null,
   aimTimesX: null, aimTimesO: null, aimMissesX: null, aimMissesO: null,
@@ -1611,7 +1626,7 @@ const FIELD_NULLS = {
   blockadePawnX: null, blockadePawnO: null,
   blockadeWallsX: null, blockadeWallsO: null,
   blockadeMoves: null,
-  pairsDeck: null, pairsFlipped: null,
+  pairsDeck: null, pairsFlipped: null, pairsDeadline: null,
   mancalaPits: null, mancalaLast: null,
   airhockeyScoreX: null, airhockeyScoreO: null,
   artillerySeed: null, artilleryShots: null,
@@ -1687,7 +1702,9 @@ export function freshGameState(gameType, previous = null) {
       chimpLayout: generateChimpLayout(CHIMP_START_LEVEL),
       chimpProgressX: 0, chimpProgressO: 0,
       chimpDoneX: false, chimpDoneO: false,
-      chimpRoundStartedAt: Date.now() }
+      // Stamped (server time) by the first client that sees the room playing — a
+      // creation-time stamp had already expired round 1 by the time O joined.
+      chimpRoundStartedAt: null, chimpMiss: null }
   }
   if (gameType === 'pong') {
     // currentTurn omitted (null) — Pong has no turns, so Game.jsx's move-sound

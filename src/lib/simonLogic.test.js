@@ -12,6 +12,12 @@ describe('normalizeSimonSequence', () => {
 describe('applySimonMove — append phase (empty sequence)', () => {
   const game = { simonSequence: [], simonProgress: 0 }
 
+  it('appending resets the replay allowance for the next player', () => {
+    const r = applySimonMove(game, 1, 'X')
+    expect(r.updates.simonReplayUsed).toBeNull()
+    expect(r.updates.simonDeadline).toBeNull()
+  })
+
   it('first move appends pad and flips turn to O', () => {
     const r = applySimonMove(game, 2, 'X')
     expect(r.updates.simonSequence).toEqual([2])
@@ -40,6 +46,7 @@ describe('applySimonMove — replay phase', () => {
     const r = applySimonMove(game, 2, 'O')
     expect(r.result).toEqual({ winner: 'X' })
     expect(r.updates.simonDeadline).toBeNull()
+    expect(r.updates.simonMiss).toBe(2)
   })
 
   it('correct mid-sequence press advances progress', () => {

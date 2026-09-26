@@ -1,37 +1,87 @@
 import { useEffect, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { ref, runTransaction } from 'firebase/database'
 import { cn } from '@/lib/utils'
-import Avatar from './Avatar'
-import { PAIRS_SIZE } from '../lib/pairsLogic'
+import { db } from '../lib/firebase'
+import { sounds } from '../lib/sounds'
+import { serverNow } from '../lib/serverClock'
+import useTurnDeadlineEnforcer from '../hooks/useTurnDeadlineEnforcer'
+import { PAIRS_SIZE, PAIRS_TOTAL_PAIRS } from '../lib/pairsLogic'
+import {
+  pairsFaceColor, pairsFaceGlyph, pairsFaceName, pairsCellPosition,
+} from '../lib/pairsFaces'
 
 // How long a mismatched pair stays visibly face-up before this client hides it again.
 // Purely a display timer — the underlying `flipped` state (and its legality: either
 // mismatched cell is a legal first flip for the next turn, see pairsLogic.js) is
 // unaffected, so a fast tap can still act immediately; this just guarantees a minimum
 // look for anyone who doesn't.
-const MISMATCH_REVEAL_MS = 1200
+const MISMATCH_REVEAL_MS = 1500
+// How long a freshly claimed pair plays its pop + ring burst.
+const MATCH_POP_MS = 650
+// Idle window per flip before the waiting player can claim the round, and when the
+// countdown starts showing on the board.
+const TURN_DEADLINE_MS = 45000
+const DEADLINE_WARN_MS = 10000
 
-// Small 4-pixel-diamond "card back" glyph — plain SVG, currentColor so it inherits
-// text-retro-dim and themes automatically (no hex, per CLAUDE.md).
-function CardBackGlyph() {
+// Card-back emblem: a 4-pixel diamond on a knocked-out plate, in the theme's CTA colour
+// so the back recolours with the theme (no hex, per CLAUDE.md).
+function CardBackEmblem() {
   return (
-    <svg viewBox="0 0 8 8" width="18" height="18" shapeRendering="crispEdges" aria-hidden="true">
-      <rect x="3" y="1" width="2" height="2" fill="currentColor" />
-      <rect x="1" y="3" width="2" height="2" fill="currentColor" />
-      <rect x="5" y="3" width="2" height="2" fill="currentColor" />
-      <rect x="3" y="5" width="2" height="2" fill="currentColor" />
+    <svg viewBox="0 0 10 10" className="w-[42%] h-[42%]" shapeRendering="crispEdges" aria-hidden="true">
+      <rect x="1" y="1" width="8" height="8" className="fill-retro-card" />
+      <rect x="4" y="2" width="2" height="2" className="fill-retro-cta" />
+      <rect x="2" y="4" width="2" height="2" className="fill-retro-cta" />
+      <rect x="6" y="4" width="2" height="2" className="fill-retro-cta" />
+      <rect x="4" y="6" width="2" height="2" className="fill-retro-cta" />
     </svg>
   )
 }
 
-export default function PairsBoard({ board, deck, flipped, onMove, disabled, currentTurn }) {
+// The face's pixel silhouette in card ink; 'o' cells are left open so the card colour
+// shows through as eyes/windows.
+function FaceSprite({ face }) {
+  const grid = pairsFaceGlyph(face)
+  return (
+    <svg
+      viewBox="0 0 8 8"
+      className="w-[66%] h-[66%]"
+      shapeRendering="crispEdges"
+      aria-hidden="true"
+    >
+      {grid.flatMap((row, y) =>
+        row.split('').map((ch, x) => (ch === '#'
+          ? <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill: 'rgb(var(--pair-ink))' }} />
+          : null)),
+      )}
+    </svg>
+  )
+}
+
+function cellLabel({ index, face, owner, held, mismatched }) {
+  const where = pairsCellPosition(index, PAIRS_SIZE)
+  const name = pairsFaceName(face)
+  if (owner) return `${where}: ${name}, claimed by ${owner}`
+  if (held) return `${where}: ${name}, first pick`
+  if (mismatched) return `${where}: ${name}, no match`
+  if (face) return `${where}: ${name}, unclaimed`
+  return `${where}: face down`
+}
+
+export default function PairsBoard({
+  board, deck, flipped, onMove, disabled, currentTurn, finished = false, pairsDeadline = null,
+}) {
+  const { gameId } = useParams() // present under /game/:gameId; undefined in demo/solo — deadline writes no-op there
+  useTurnDeadlineEnforcer(gameId, 'pairs', 'pairsDeadline')
   const flippedList = flipped || []
   const xPairs = board.filter(c => c === 'X').length / 2
   const oPairs = board.filter(c => c === 'O').length / 2
+  const pairsLeft = PAIRS_TOTAL_PAIRS - xPairs - oPairs
 
-  // Mismatch auto-hide timer (req 6): a leftover mismatch pair (flipped.length === 2)
-  // stays visibly face-up for a fixed window, then this client flips it back down on its
-  // own — display only, doesn't touch `flipped`/Firebase, so it can't desync clients or
-  // block the next player's move (see pairsLogic.js's contract: either mismatched cell is
+  // Mismatch auto-hide timer: a leftover mismatch pair (flipped.length === 2) stays
+  // visibly face-up for a fixed window, then this client flips it back down on its own —
+  // display only, doesn't touch `flipped`/Firebase, so it can't desync clients or block
+  // the next player's move (see pairsLogic.js's contract: either mismatched cell is
   // always a legal first flip regardless of this timer).
   const mismatchKey = flippedList.length === 2 ? flippedList.join(',') : null
   const [mismatchHidden, setMismatchHidden] = useState(false)
@@ -45,21 +95,73 @@ export default function PairsBoard({ board, deck, flipped, onMove, disabled, cur
     return () => clearTimeout(t)
   }, [mismatchKey])
 
+  // Match celebration + screen-reader announcement, both derived from board/flipped
+  // transitions so every client (mover, opponent, spectator) sees the same feedback.
+  const boardKey = board.join(',')
+  const prevBoardRef = useRef(null)
+  const [popCells, setPopCells] = useState([])
+  const [announcement, setAnnouncement] = useState('')
+  useEffect(() => {
+    const prev = prevBoardRef.current
+    prevBoardRef.current = board
+    if (!prev || prev.length !== board.length) return undefined
+    const fresh = []
+    for (let i = 0; i < board.length; i++) if (!prev[i] && board[i]) fresh.push(i)
+    if (!fresh.length) return undefined
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot celebration keyed on the board transition itself
+    setPopCells(fresh)
+    setAnnouncement(`${board[fresh[0]]} matched the ${pairsFaceName(deck[fresh[0]])} pair`)
+    sounds.join() // rising two-note chime: a match sounds different from a plain flip
+    const t = setTimeout(() => setPopCells([]), MATCH_POP_MS)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on board content (boardKey), not array identity
+  }, [boardKey])
+  useEffect(() => {
+    if (!mismatchKey) return
+    const [a, b] = flippedList
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- announce the mismatch once per new pair
+    setAnnouncement(`No match: ${pairsFaceName(deck[a])} and ${pairsFaceName(deck[b])}`)
+    sounds.wall() // short dull knock for a miss
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the mismatch pair itself
+  }, [mismatchKey])
+
+  // Arm the idle deadline on the mover's own client once it is genuinely their flip
+  // (every move clears it, see games.js), so a player who stays connected but walks
+  // away can't stall the room forever. Only the first writer wins the transaction.
+  const turnKey = `${currentTurn}|${flippedList.join(',')}|${boardKey}`
+  useEffect(() => {
+    if (!gameId || disabled || finished) return
+    runTransaction(ref(db, `games/${gameId}/pairsDeadline`), cur => cur ?? (serverNow() + TURN_DEADLINE_MS)).catch(() => {})
+  }, [gameId, disabled, finished, turnKey])
+
+  const [now, setNow] = useState(() => serverNow())
+  useEffect(() => {
+    if (!pairsDeadline || finished) return undefined
+    const t = setInterval(() => setNow(serverNow()), 500)
+    return () => clearInterval(t)
+  }, [pairsDeadline, finished])
+  const msLeft = pairsDeadline && !finished ? pairsDeadline - now : null
+  const showCountdown = msLeft !== null && msLeft <= DEADLINE_WARN_MS
+
   const cells = []
   for (let i = 0; i < board.length; i++) {
-    const row = Math.floor(i / PAIRS_SIZE)
-    const col = i % PAIRS_SIZE
     const owner = board[i]
     const claimed = owner === 'X' || owner === 'O'
     const isHeldFirstPick = flippedList.length === 1 && i === flippedList[0]
     const isLeftoverMismatch = flippedList.length === 2 && flippedList.includes(i)
     const mismatchRevealed = isLeftoverMismatch && !mismatchHidden
-    const faceUp = claimed || isHeldFirstPick || mismatchRevealed
+    // Once the round is decided, the cards nobody claimed turn over too.
+    const leftoverReveal = finished && !claimed
+    const faceUp = claimed || isHeldFirstPick || mismatchRevealed || leftoverReveal
     // Only a currently-held single first pick blocks a re-tap of itself (matches
     // applyPairsMove's contract) — a leftover mismatch cell, revealed or hidden, is
     // always tappable again as the next turn's fresh first flip.
     const isDisabled = disabled || claimed || isHeldFirstPick
-    const face = deck[i]
+    // The face is only put in the DOM while it's face-up, so inspecting a face-down card
+    // shows nothing (the deck order itself still lives in RTDB — see pairsLogic.js).
+    const face = faceUp ? deck[i] : null
+    const popping = popCells.includes(i)
+    const heldBy = isHeldFirstPick ? currentTurn : null
 
     cells.push(
       <button
@@ -68,25 +170,18 @@ export default function PairsBoard({ board, deck, flipped, onMove, disabled, cur
         disabled={isDisabled}
         onClick={() => !isDisabled && onMove(i)}
         aria-pressed={isHeldFirstPick}
-        aria-label={
-          claimed
-            ? `pairs-cell-${row}-${col}-claimed-${owner}`
-            : isHeldFirstPick
-              ? `pairs-cell-${row}-${col}-held-${face}`
-              : mismatchRevealed
-                ? `pairs-cell-${row}-${col}-mismatched-${face}`
-                : faceUp
-                  ? `pairs-cell-${row}-${col}-face-up-${face}`
-                  : `pairs-cell-${row}-${col}-face-down`
-        }
+        aria-label={cellLabel({ index: i, face, owner: claimed ? owner : null, held: isHeldFirstPick, mismatched: mismatchRevealed })}
         className={cn(
-          'relative aspect-square rounded-sm select-none',
-          !isDisabled && 'cursor-pointer',
+          'relative aspect-square rounded-md select-none transition-transform duration-150',
+          !isDisabled && 'cursor-pointer active:scale-95',
+          isHeldFirstPick && '-translate-y-1',
+          popping && 'pairs-match-pop',
+          mismatchRevealed && 'pairs-mismatch-shake',
         )}
-        style={{ perspective: '300px' }}
+        style={{ perspective: '400px' }}
       >
         <div
-          className="absolute inset-0 transition-transform duration-200"
+          className="absolute inset-0 transition-transform duration-300 ease-out"
           style={{
             transformStyle: 'preserve-3d',
             transform: faceUp ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -94,64 +189,89 @@ export default function PairsBoard({ board, deck, flipped, onMove, disabled, cur
         >
           {/* Back — face-down card */}
           <div
-            className="absolute inset-0 flex items-center justify-center rounded-sm bg-retro-card border border-retro-border text-retro-dim"
+            className={cn(
+              'pairs-card-back absolute inset-0 flex items-center justify-center rounded-md',
+              !isDisabled && 'hover:brightness-110',
+            )}
             style={{ backfaceVisibility: 'hidden' }}
           >
-            <CardBackGlyph />
+            <CardBackEmblem />
           </div>
 
           {/* Front — face-up / claimed card */}
           <div
             className={cn(
-              'absolute inset-0 flex items-center justify-center rounded-sm',
-              claimed
-                ? owner === 'X' ? 'bg-retro-tint-p1' : 'bg-retro-tint-p2'
-                : 'bg-retro-surface',
-              isHeldFirstPick && (currentTurn === 'X' ? 'ring-2 ring-retro-p1' : 'ring-2 ring-retro-p2'),
-              mismatchRevealed && 'animate-pulse ring-2 ring-dashed ring-retro-dim',
+              'pairs-card-face absolute inset-0 flex items-center justify-center rounded-md',
+              claimed && 'is-claimed',
+              leftoverReveal && 'opacity-60',
             )}
-            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+            style={{
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+              backgroundColor: face ? pairsFaceColor(face) : undefined,
+            }}
           >
-            {face && !claimed && (
-              <span
-                className={cn(
-                  'absolute top-0.5 left-0.5 font-pixel text-[6px]',
-                  isHeldFirstPick ? 'text-retro-dim' : 'text-retro-dim opacity-70',
-                )}
-              >
-                {isHeldFirstPick ? '?' : mismatchRevealed ? '✕' : ''}
-              </span>
-            )}
-            {face && (
-              <span className={claimed ? 'opacity-60' : 'opacity-100'}>
-                <Avatar id={`${face}.text`} size={36} />
-              </span>
-            )}
-            {claimed && (
-              <span
-                className={cn(
-                  'absolute bottom-0.5 right-0.5 font-pixel text-[8px]',
-                  owner === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2',
-                )}
-              >
-                {owner}
-              </span>
-            )}
+            {face && <FaceSprite face={face} />}
           </div>
         </div>
+
+        {/* Overlays sit outside the 3D flip so they never mirror or hide. */}
+        {heldBy && (
+          <span
+            aria-hidden="true"
+            className={cn(
+              'pointer-events-none absolute -inset-[3px] rounded-lg border-2',
+              heldBy === 'X' ? 'border-retro-p1 shadow-neon-p1' : 'border-retro-p2 shadow-neon-p2',
+            )}
+          />
+        )}
+        {mismatchRevealed && (
+          <>
+            <span aria-hidden="true" className="pointer-events-none absolute -inset-[3px] rounded-lg border-2 border-dashed border-retro-danger" />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-retro-danger font-pixel text-[8px] leading-none text-retro-bg"
+            >
+              ✕
+            </span>
+          </>
+        )}
+        {claimed && (
+          <>
+            <span
+              aria-hidden="true"
+              className={cn(
+                'pointer-events-none absolute inset-0 rounded-md border-2',
+                owner === 'X' ? 'border-retro-p1' : 'border-retro-p2',
+              )}
+            />
+            <span
+              aria-hidden="true"
+              className={cn(
+                'pointer-events-none absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-sm px-0.5 font-pixel text-[8px] leading-none text-retro-bg',
+                owner === 'X' ? 'bg-retro-p1' : 'bg-retro-p2',
+              )}
+            >
+              {owner}
+            </span>
+          </>
+        )}
+        {popping && (
+          <span aria-hidden="true" className="pairs-match-ring pointer-events-none absolute inset-0 rounded-lg border-2 border-retro-win" />
+        )}
       </button>
     )
   }
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="bg-retro-surface border-2 border-retro-border rounded p-2 sm:p-3">
+      <div className="bg-retro-surface border-2 border-retro-border rounded p-2.5 sm:p-3">
         <div
           className="w-full"
           style={{
             display: 'grid',
             gridTemplateColumns: `repeat(${PAIRS_SIZE}, minmax(0, 1fr))`,
-            gap: '3px',
+            gap: '6px',
             touchAction: 'manipulation',
           }}
         >
@@ -165,6 +285,15 @@ export default function PairsBoard({ board, deck, flipped, onMove, disabled, cur
         <span className="text-retro-dim">—</span>
         <span className="text-retro-p2 text-glow-p2">{oPairs} O</span>
       </div>
+      <p className="mt-1 text-center font-pixel text-[8px] text-retro-dim">
+        {pairsLeft} {pairsLeft === 1 ? 'PAIR' : 'PAIRS'} LEFT
+      </p>
+      {showCountdown && (
+        <p className="mt-1 text-center font-pixel text-[9px] text-retro-danger" role="timer">
+          {disabled ? `${currentTurn} MUST FLIP` : 'FLIP A CARD'} — {Math.max(0, Math.ceil(msLeft / 1000))}s
+        </p>
+      )}
+      <p className="sr-only" aria-live="polite">{announcement}</p>
     </div>
   )
 }

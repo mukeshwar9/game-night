@@ -1,3 +1,8 @@
+// Trust model: simonSequence sits in the room node in the clear for the whole game —
+// the same honest-client tier as Pairs' deck (see pairsLogic.js). SimonBoard hides
+// the pad colours outside the flash, which stops casual peeking, not a player
+// reading the database.
+
 export const SIMON_PADS = 4
 
 export function normalizeSimonSequence(raw) {
@@ -20,7 +25,8 @@ export function applySimonMove(game, padIndex, symbol) {
   if (progress < seq.length) {
     // Replay phase — verify correct pad
     if (padIndex !== seq[progress]) {
-      return { updates: { simonDeadline: null }, result: { winner: opponent } }
+      // simonMiss lets every client show the wrong press against the real sequence.
+      return { updates: { simonDeadline: null, simonMiss: padIndex }, result: { winner: opponent } }
     }
     return { updates: { simonProgress: progress + 1 }, result: null }
   }
@@ -34,6 +40,7 @@ export function applySimonMove(game, padIndex, symbol) {
       simonProgress: 0,
       currentTurn: opponent,
       simonDeadline: null,
+      simonReplayUsed: null, // the next player gets their own WATCH AGAIN
     },
     result: null,
   }

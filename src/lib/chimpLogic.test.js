@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   normalizeChimpLayout, evaluateChimpTap, buildChimpAdvance,
-  generateChimpLayout, CHIMP_GRID, CHIMP_START_LEVEL,
+  generateChimpLayout, chimpMemorizeMs, CHIMP_GRID, CHIMP_START_LEVEL,
 } from './chimpLogic'
 
 describe('normalizeChimpLayout', () => {
@@ -99,5 +99,24 @@ describe('buildChimpAdvance', () => {
   it('generates a fresh layout with unique cells', () => {
     const patch = buildChimpAdvance(6)
     expect(new Set(patch.chimpLayout).size).toBe(patch.chimpLayout.length)
+  })
+})
+
+describe('level ceiling', () => {
+  it('generateChimpLayout never asks for more cells than the grid holds', () => {
+    const layout = generateChimpLayout(CHIMP_GRID + 3)
+    expect(layout).toHaveLength(CHIMP_GRID)
+    expect(new Set(layout).size).toBe(CHIMP_GRID)
+  })
+
+  it('buildChimpAdvance stops at a full grid', () => {
+    const patch = buildChimpAdvance(CHIMP_GRID)
+    expect(patch.chimpLevel).toBe(CHIMP_GRID)
+    expect(patch.chimpLayout).toHaveLength(CHIMP_GRID)
+  })
+
+  it('memorize window grows with the level', () => {
+    expect(chimpMemorizeMs(CHIMP_START_LEVEL)).toBe(5000)
+    expect(chimpMemorizeMs(10)).toBeGreaterThan(chimpMemorizeMs(5))
   })
 })

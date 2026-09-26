@@ -8,14 +8,10 @@ import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
-import { generateNumber, resolveNumberMemoryRound } from '../lib/numberMemoryLogic'
-
-// Reveal window scales with digit count so harder (longer) numbers get more
-// time to memorize instead of the same flash as a 1-digit number. Level 1
-// (the starting difficulty) still works out to the original ~3s.
-const SHOW_MS_BASE      = 2000
-const SHOW_MS_PER_DIGIT = 1000
-function showMsForLevel(level) { return SHOW_MS_BASE + SHOW_MS_PER_DIGIT * level }
+import {
+  resolveNumberMemoryRound, buildNextNumberRound, normalizeNumberRound, showMsForLevel,
+} from '../lib/numberMemoryLogic'
+import { BigNumber, MarkedAnswer } from '../components/NumberMemoryParts'
 
 // Opponent-idle claim: presence only catches real disconnects, so an opponent
 // who is online but walked away would leave me waiting forever. After I submit
@@ -23,23 +19,11 @@ function showMsForLevel(level) { return SHOW_MS_BASE + SHOW_MS_PER_DIGIT * level
 const CLAIM_IDLE_MS = 45000
 const CLAIM_HINT_MS = 30000  // show the countdown hint this far in
 
-function normalizeRound(raw) {
-  if (!raw) return { phase: 'showing', level: 1, number: '1', answerX: null, answerO: null, showUntil: null }
-  return {
-    phase: raw.phase ?? 'showing',
-    level: raw.level ?? 1,
-    number: raw.number ?? '1',
-    answerX: raw.answerX ?? null,
-    answerO: raw.answerO ?? null,
-    showUntil: raw.showUntil ?? null,
-  }
-}
-
 export default function NumberMemoryGame({
   gameId, game, mySymbol, opponentOnline,
   onSwitchGame, onPlayAgain, onNewMatch, proposal,
 }) {
-  const round = normalizeRound(game.numRound)
+  const round = normalizeNumberRound(game.numRound)
   const myKey = mySymbol === 'X' ? 'X' : 'O'
   const opKey = myKey === 'X' ? 'O' : 'X'
   const myAnswer = round[`answer${myKey}`]
@@ -55,7 +39,8 @@ export default function NumberMemoryGame({
   const prevLevel = useRef(round.level)
   const prevAnswerX = useRef(round.answerX)
   const prevAnswerO = useRef(round.answerO)
-  const claimingRef = useRef(false)  // prevents double-click on claim button
+  const [claimBusy, runClaim] = useBusy()
+  const inputRef = useRef(null)
 
   const hasSubmitted = localSubmitted || myAnswer != null
 
@@ -129,52 +114,17 @@ export default function NumberMemoryGame({
 
     const outcome = resolveNumberMemoryRound({ answerX: r.answerX, answerO: r.answerO, number: r.number })
 
-    if (outcome.type === 'advance') {
-      // Both correct: advance to the next level.
-      // CAS on numRound/level deduplicates concurrent calls from both clients.
-      const currentLevel = r.level
-      let claimed = false
+    if (outcome.type === 'advance' || outcome.type === 'replay') {
+      // Both correct (next level) or a fair tie (both wrong, same correct prefix —
+      // replay the level). The whole next round replaces numRound in ONE transaction,
+      // which also dedupes the two clients racing here: the loser sees the round has
+      // moved on and aborts. showUntil is left absent and re-armed by the CAS effect
+      // once phase 'showing' lands.
+      const expectedLevel = r.level ?? 1
       try {
-        await runTransaction(ref(db, `games/${gameId}/numRound/level`), lvl => {
-          if ((lvl ?? 1) !== currentLevel) return  // abort — already advanced
-          claimed = true
-          return currentLevel + 1
-        })
-      } catch { return }
-      if (!claimed) return
-      const newLevel = currentLevel + 1
-      try {
-        await update(ref(db, `games/${gameId}/numRound`), {
-          phase: 'showing',
-          level: newLevel,
-          number: generateNumber(newLevel),
-          answerX: null,  // Firebase deletes null-valued keys → normalizeRound treats absent as null ✓
-          answerO: null,
-          showUntil: null, // re-armed by the CAS effect once phase === 'showing' lands
-        })
-      } catch { /* level was already advanced; ignore */ }
-    } else if (outcome.type === 'replay') {
-      // Both wrong with an equal correct-prefix — a fair tie. Replay the same
-      // level rather than crediting either player. CAS on phase deduplicates
-      // concurrent calls from both clients.
-      let claimed = false
-      try {
-        await runTransaction(ref(db, `games/${gameId}/numRound/phase`), phase => {
-          if (phase !== 'recall') return  // abort — already resolved
-          claimed = true
-          return 'showing'
-        })
-      } catch { return }
-      if (!claimed) return
-      try {
-        await update(ref(db, `games/${gameId}/numRound`), {
-          number: generateNumber(r.level),
-          answerX: null,
-          answerO: null,
-          showUntil: null,
-        })
-      } catch { /* already advanced; ignore */ }
-      toast('TIE — SAME PREFIX LENGTH, REPLAYING THE ROUND')
+        await runTransaction(ref(db, `games/${gameId}/numRound`), cur =>
+          buildNextNumberRound(cur, outcome, expectedLevel) ?? undefined)
+      } catch { toast.error('ROUND ADVANCE FAILED — CHECK CONNECTION') }
     } else {
       // Exactly one correct, or both wrong with a clearly longer correct prefix.
       // CAS on winner deduplicates concurrent resolution attempts.
@@ -245,28 +195,29 @@ export default function NumberMemoryGame({
   //   1. Narrow CAS on `winner` only — `players` is never in scope of this ref.
   //   2. Targeted update() for status + scores (same pattern as handleCellClick).
   // claimingRef prevents a second in-flight call while the first is pending.
-  const claimIdleRound = async () => {
-    if (claimingRef.current) return
-    claimingRef.current = true
-    try {
-      // Local pre-condition re-check before any network call
-      const r = game.numRound ?? {}
-      if (game.status !== 'playing' || r[`answer${myKey}`] == null || r[`answer${opKey}`] != null) return
-      // Atomic CAS: only write winner if the slot is still empty
-      let claimed = false
-      await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
-        if (currentWinner != null) return  // abort — already resolved
-        claimed = true
-        return myKey
-      })
-      if (!claimed) return  // opponent answered at the same instant — no-op
-      await update(ref(db, `games/${gameId}`), {
-        status: 'finished',
-        [`scores/${myKey}`]: (game.scores?.[myKey] || 0) + 1,
-      })
-    } catch { toast.error('CLAIM FAILED — CHECK CONNECTION') }
-    finally { claimingRef.current = false }
-  }
+  const claimIdleRound = () => runClaim(async () => {
+    // Local pre-condition re-check before any network call
+    const r = game.numRound ?? {}
+    if (game.status !== 'playing' || r[`answer${myKey}`] == null || r[`answer${opKey}`] != null) return
+    // Atomic CAS: only write winner if the slot is still empty
+    let claimed = false
+    await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
+      if (currentWinner != null) return  // abort — already resolved
+      claimed = true
+      return myKey
+    })
+    if (!claimed) return  // opponent answered at the same instant — no-op
+    await update(ref(db, `games/${gameId}`), {
+      status: 'finished',
+      [`scores/${myKey}`]: (game.scores?.[myKey] || 0) + 1,
+    })
+  }, () => toast.error('CLAIM FAILED — CHECK CONNECTION'))
+
+  // Put the cursor in the answer box as soon as recall starts, so phones open the
+  // number pad without an extra tap.
+  useEffect(() => {
+    if (round.phase === 'recall' && mySymbol && !hasSubmitted) inputRef.current?.focus()
+  }, [round.phase, round.level, mySymbol, hasSubmitted])
 
   const handleSubmit = () => runSubmit(async () => {
     if (!mySymbol || hasSubmitted) return
@@ -291,9 +242,15 @@ export default function NumberMemoryGame({
     return (
       <div className="space-y-4">
         {round.number && (
-          <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2 text-center">
+          <div className="bg-retro-card border border-retro-border rounded p-4 space-y-3 text-center">
             <p className="font-pixel text-[8px] text-retro-dim">THE NUMBER WAS</p>
-            <p className="font-pixel text-lg text-retro-p1 text-glow-p1 tracking-widest">{round.number}</p>
+            <BigNumber number={round.number} className="text-retro-p1 text-glow-p1" />
+            {(round.answerX != null || round.answerO != null) && (
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-left font-pixel text-[10px] leading-relaxed">
+                <span className="text-retro-p1">X</span><MarkedAnswer answer={round.answerX} number={round.number} />
+                <span className="text-retro-p2">O</span><MarkedAnswer answer={round.answerO} number={round.number} />
+              </div>
+            )}
           </div>
         )}
         <GameStatus
@@ -322,11 +279,12 @@ export default function NumberMemoryGame({
       </div>
 
       {round.phase === 'showing' && (
-        <div className="bg-retro-card border border-retro-border rounded p-6 text-center space-y-3">
+        <div className="bg-retro-card border border-retro-border rounded p-4 sm:p-6 text-center space-y-3">
+          {round.tie && (
+            <p className="font-pixel text-[8px] text-retro-p2">TIE — SAME CORRECT DIGITS. NEW NUMBER, SAME LENGTH</p>
+          )}
           <p className="font-pixel text-[8px] text-retro-dim">MEMORIZE THIS NUMBER</p>
-          <p className="font-pixel text-2xl text-retro-cta text-glow-cta tracking-widest">
-            {round.number}
-          </p>
+          <BigNumber number={round.number} className="text-retro-cta text-glow-cta" />
           {countdown != null && (
             <p className="font-pixel text-[9px] text-retro-p2 arcade-blink">{countdown}s</p>
           )}
@@ -354,8 +312,11 @@ export default function NumberMemoryGame({
             </span>
           </div>
           <input
+            ref={inputRef}
             type="text"
             inputMode="numeric"
+            autoComplete="off"
+            aria-label="Your answer"
             maxLength={round.level + 2}
             value={guessInput}
             disabled={hasSubmitted || !mySymbol}
@@ -384,9 +345,10 @@ export default function NumberMemoryGame({
       {claimReady && (
         <button
           onClick={claimIdleRound}
-          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95"
+          disabled={claimBusy}
+          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50 disabled:cursor-default"
         >
-          CLAIM ROUND — OPPONENT IDLE
+          {claimBusy ? 'CLAIMING…' : 'CLAIM ROUND — OPPONENT IDLE'}
         </button>
       )}
       {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
