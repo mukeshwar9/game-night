@@ -16,10 +16,6 @@ import {
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArrowsIcon,
 } from '../components/GameIcons';
-import PongCourt from '../components/PongCourt';
-import { usePongControls } from '../hooks/usePongControls';
-import { createState as createPongState, step as pongStep, computeAI as pongAI, getWinner as pongWinner, WIN_SCORE as PONG_WIN } from '../lib/pongLogic';
-import { sounds } from '../lib/sounds';
 import { applySimonMove, normalizeSimonSequence } from '../lib/simonLogic';
 import { normalizeChimpLayout, generateChimpLayout, CHIMP_START_LEVEL } from '../lib/chimpLogic';
 import { applyVmMove, normalizeVmArray, generateVmPattern, VM_START_LEVEL } from '../lib/visualMemoryLogic';
@@ -42,6 +38,7 @@ const TypingDemo = lazyWithRetry(() => import('./demos/TypingDemo'))
 const AimTrainerDemo = lazyWithRetry(() => import('./demos/AimTrainerDemo'))
 const MathDemo = lazyWithRetry(() => import('./demos/MathDemo'))
 const SnakeDemo = lazyWithRetry(() => import('./demos/SnakeDemo'))
+const PongDemo = lazyWithRetry(() => import('./PongDemo'))
 const TronDemo = lazyWithRetry(() => import('./TronDemo'))
 const SumoDemo = lazyWithRetry(() => import('./SumoDemo'))
 const WavelengthDemo = lazyWithRetry(() => import('./WavelengthDemo'))
@@ -388,90 +385,6 @@ function VisualMemoryDemo() {
 }
 
 // ─── Demo registry ────────────────────────────────────────────────────────────
-
-// ─── Pong demo (you vs a reaction-handicapped AI, fully local) ──────────────────
-
-const PONG_DT = 1 / 120
-
-function PongDemo() {
-  const courtRef = useRef(null)
-  const simRef = useRef(null)
-  if (simRef.current === null) simRef.current = createPongState()
-  const [view, setView] = useState({ ball: { x: 0.5, y: 0.5 }, paddles: { X: 0.5, O: 0.5 }, scoreX: 0, scoreO: 0, serving: false, pickups: [], effects: null, ballMod: null })
-  const [winner, setWinner] = useState(null)
-  const { getDir } = usePongControls(courtRef, !winner)
-
-  useEffect(() => {
-    if (winner) return
-    let raf, last = performance.now(), acc = 0, aiDir = 0, aiAt = 0
-    const loop = (now) => {
-      raf = requestAnimationFrame(loop)
-      let dt = (now - last) / 1000; last = now
-      if (dt > 0.1) dt = 0.1
-      acc += dt
-      // ~110ms reaction lag + a wider deadzone keep the AI beatable.
-      if (now - aiAt > 110) { aiAt = now; aiDir = pongAI(simRef.current, 'O', { deadzone: 0.08 }) }
-      const inputs = { X: getDir(simRef.current.paddles.X), O: aiDir }
-      const events = []
-      while (acc >= PONG_DT) {
-        const r = pongStep(simRef.current, inputs, PONG_DT)
-        simRef.current = r.state
-        if (r.events.length) events.push(...r.events)
-        acc -= PONG_DT
-      }
-      for (const e of events) {
-        if (e.type === 'paddle') sounds.hit()
-        else if (e.type === 'wall') sounds.wall?.()
-        else if (e.type === 'score') sounds.go()
-        else if (e.type === 'pickup') sounds.join?.()
-      }
-      setView({
-        ball: simRef.current.ball, paddles: simRef.current.paddles,
-        scoreX: simRef.current.score.X, scoreO: simRef.current.score.O,
-        serving: simRef.current.serveIn > 0,
-        pickups: simRef.current.pickups || [],
-        effects: simRef.current.effects || null,
-        ballMod: simRef.current.ballMod || null,
-      })
-      const w = pongWinner(simRef.current.score)
-      if (w) { setWinner(w); cancelAnimationFrame(raf) }
-    }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [winner]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const reset = () => {
-    simRef.current = createPongState()
-    setView({ ball: { x: 0.5, y: 0.5 }, paddles: { X: 0.5, O: 0.5 }, scoreX: 0, scoreO: 0, serving: false, pickups: [], effects: null, ballMod: null })
-    setWinner(null)
-  }
-
-  return (
-    <div className="space-y-3">
-      <PongCourt
-        ref={courtRef}
-        ball={view.ball} paddles={view.paddles}
-        scoreX={view.scoreX} scoreO={view.scoreO}
-        mySide="X" namesX="YOU" namesO="BOT"
-        serving={view.serving}
-        pickups={view.pickups}
-        effects={view.effects}
-        ballMod={view.ballMod}
-        overlay={winner ? (
-          <p className="font-pixel text-base text-retro-cta text-glow-cta">{winner === 'X' ? 'YOU WIN!' : 'BOT WINS'}</p>
-        ) : null}
-      />
-      <p className="text-center font-pixel text-[8px] text-retro-dim">FIRST TO {PONG_WIN} · ↑/↓ · W/S · DRAG</p>
-      {winner && (
-        <div className="flex justify-center">
-          <button onClick={reset} className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
-            PLAY AGAIN
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
 
 const DEMOS = [
   // vs-AI board games

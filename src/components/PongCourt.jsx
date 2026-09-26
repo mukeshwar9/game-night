@@ -1,131 +1,248 @@
-import { forwardRef } from 'react'
-import { PADDLE_H, PADDLE_W, PADDLE_INSET, BALL_R, GROW_MULT, SHRINK_MULT, PICKUP_SIZE } from '../lib/pongLogic'
+import { forwardRef, useEffect, useRef } from 'react'
+import {
+  PADDLE_W, PADDLE_INSET, BALL_R, PICKUP_SIZE, PICKUP_INFO, paddleHalf, obstaclesAt,
+} from '../lib/pongLogic'
 import { cn } from '@/lib/utils'
 
-const pct = (n) => `${n * 100}%`
-
-const PICKUP_COLORS = {
+const PICKUP_STYLE = {
   grow: 'bg-retro-win shadow-neon-win',
-  shrink: 'bg-retro-p2 shadow-neon-p2',
+  shrink: 'bg-retro-danger shadow-neon-danger',
   slow: 'bg-retro-cta shadow-neon-cta',
+  fast: 'bg-retro-p3 shadow-neon-p3',
+  multi: 'bg-retro-text',
+  shield: 'bg-retro-p4 shadow-neon-p4',
 }
 
-// Presentational Pong court. All positions are normalized (0..1) in the pure
-// sim's coordinate space and mapped to CSS percentages, so the court themes
-// like every other board (no canvas, no getComputedStyle). Input is captured
-// by the parent via the forwarded ref to the court element.
+const PARTICLE_COLOR = {
+  X: 'bg-retro-p1', O: 'bg-retro-p2', win: 'bg-retro-win', cta: 'bg-retro-cta',
+  danger: 'bg-retro-danger', text: 'bg-retro-text',
+}
+
+const reducedMotion = () => document.documentElement.dataset.motion === 'reduced'
+
+// Map a sim point (x along the paddle-to-paddle axis, y across it) to court
+// pixels. The side nearest the viewer sits at the bottom (portrait) or on
+// the left (landscape), so each player always defends "their" edge.
+function projector(orientation, nearSide, W, H) {
+  if (orientation === 'portrait') {
+    return nearSide === 'O'
+      ? (x, y) => ({ left: (1 - y) * W, top: x * H })
+      : (x, y) => ({ left: y * W, top: (1 - x) * H })
+  }
+  return nearSide === 'O'
+    ? (x, y) => ({ left: (1 - x) * W, top: y * H })
+    : (x, y) => ({ left: x * W, top: y * H })
+}
+
+// Presentational Pong court. Everything is absolutely positioned in pixels
+// from the pure sim's normalized coordinates (no canvas), so it themes like
+// every other board through the --c-* tokens. Input is captured by the parent
+// via the forwarded ref to the court element.
 const PongCourt = forwardRef(function PongCourt(
-  { ball, paddles, scoreX, scoreO, mySide, namesX = 'X', namesO = 'O', overlay, dim = false, serving = false, pickups = [], effects, ballMod },
+  { view, orientation = 'landscape', nearSide = 'X', width, height, fx, overlay, dim = false },
   ref,
 ) {
-  const effHeight = (side) => {
-    let h = PADDLE_H
-    if (effects?.[side]?.grow > 0) h *= GROW_MULT
-    if (effects?.[side]?.shrink > 0) h *= SHRINK_MULT
-    return h
-  }
-  const hX = effHeight('X')
-  const hO = effHeight('O')
-  return (
-    <div className="space-y-2 select-none">
-      {/* Score */}
-      <div className="flex items-center justify-center gap-8 font-pixel">
-        <span className={cn('text-2xl tabular-nums', mySide === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p1/80')}>
-          {scoreX}
-        </span>
-        <span className="text-[8px] text-retro-dim tracking-widest">PONG</span>
-        <span className={cn('text-2xl tabular-nums', mySide === 'O' ? 'text-retro-p2 text-glow-p2' : 'text-retro-p2/80')}>
-          {scoreO}
-        </span>
-      </div>
+  const W = width
+  const H = height
+  const portrait = orientation === 'portrait'
+  const L = portrait ? H : W               // along-axis pixels (goal to goal)
+  const C = portrait ? W : H               // cross-axis pixels
+  const at = projector(orientation, nearSide, W, H)
+  const unit = Math.sqrt(L * C)            // visual scale for square things
 
-      {/* Court — width is capped by both the container AND the viewport
-          height (min() against a 100dvh-derived budget, scaled by the 3:2
-          aspect ratio) so short/landscape phones still see the whole court
-          instead of it overflowing. */}
+  // A rectangle centred on sim (x, y), `a` long along the axis and `c` across it.
+  const box = (x, y, a, c) => {
+    const p = at(x, y)
+    const w = portrait ? c * C : a * L
+    const h = portrait ? a * L : c * C
+    return { left: p.left - w / 2, top: p.top - h / 2, width: w, height: h }
+  }
+  const square = (x, y, size) => {
+    const p = at(x, y)
+    return { left: p.left - size / 2, top: p.top - size / 2, width: size, height: size }
+  }
+
+  // Screen shake — Web Animations on the court box, skipped for reduced motion.
+  const shakeRef = useRef(null)
+  const shake = fx?.shake?.n ?? 0
+  const shakeMag = fx?.shake?.mag ?? 0
+  useEffect(() => {
+    if (!shake || !shakeRef.current || reducedMotion()) return
+    const m = shakeMag
+    shakeRef.current.animate?.([
+      { transform: 'translate(0, 0)' },
+      { transform: `translate(${-m}px, ${m * 0.6}px)` },
+      { transform: `translate(${m * 0.8}px, ${-m * 0.4}px)` },
+      { transform: `translate(${-m * 0.4}px, ${-m * 0.6}px)` },
+      { transform: 'translate(0, 0)' },
+    ], { duration: 260, easing: 'ease-out' })
+  }, [shake, shakeMag])
+
+  if (!W || !H) return <div ref={ref} className="w-full h-full" />
+
+  const { balls = [], paddles, pickups = [], effects, ballMod, time = 0, mode, serving } = view
+  const ballSize = Math.max(8, 2 * BALL_R * C * 1.25)
+  const ballTone = ballMod?.fast > 0 ? 'bg-retro-p3' : ballMod?.slow > 0 ? 'bg-retro-cta' : 'bg-retro-text'
+  const obstacles = obstaclesAt(time, mode)
+
+  const paddle = (side) => {
+    const x = side === 'X' ? PADDLE_INSET : 1 - PADDLE_INSET
+    const eh = paddleHalf(effects, side)
+    const e = effects?.[side]
+    const tone = e?.grow > 0
+      ? 'bg-retro-win shadow-neon-win'
+      : e?.shrink > 0
+        ? 'bg-retro-dim'
+        : side === 'X' ? 'bg-retro-p1 shadow-neon-p1' : 'bg-retro-p2 shadow-neon-p2'
+    const flashing = fx?.hit?.side === side
+    return (
+      <div
+        key={side}
+        className={cn('absolute rounded-sm transition-[width,height] duration-150', tone, flashing && 'brightness-150')}
+        style={box(x, paddles[side], Math.max(PADDLE_W, 10 / L), eh * 2)}
+      />
+    )
+  }
+
+  const shield = (side) => effects?.[side]?.shield > 0 && (
+    <div
+      key={`sh-${side}`}
+      className="absolute bg-retro-p4 shadow-neon-p4 pong-shield"
+      style={box(side === 'X' ? 0.004 : 0.996, 0.5, 6 / L, 1)}
+    />
+  )
+
+  return (
+    <div ref={shakeRef} className="relative" style={{ width: W, height: H }}>
       <div
         ref={ref}
         className={cn(
-          'relative mx-auto rounded-lg border-2 border-retro-border bg-retro-surface overflow-hidden touch-none',
+          'absolute inset-0 rounded-lg border-2 bg-retro-surface overflow-hidden touch-none select-none transition-colors duration-300',
+          fx?.flash === 'X' ? 'border-retro-p1' : fx?.flash === 'O' ? 'border-retro-p2' : 'border-retro-border',
           dim && 'opacity-60',
         )}
-        style={{ aspectRatio: '3 / 2', cursor: 'none', width: 'min(100%, calc((100dvh - 260px) * 1.5))' }}
+        style={{ cursor: 'none' }}
       >
-        {/* Centre net */}
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-0 border-l-2 border-dashed border-retro-border/60" />
+        {/* Goal-line glow on the side that just scored */}
+        {fx?.flash && (
+          <div className={cn('absolute inset-0 pointer-events-none opacity-10', fx.flash === 'X' ? 'bg-retro-p1' : 'bg-retro-p2')} />
+        )}
 
-        {/* X paddle (left) */}
+        {/* Centre net + centre circle */}
         <div
-          className={cn('absolute rounded-sm', effects?.X?.grow > 0 ? 'bg-retro-win shadow-neon-win' : effects?.X?.shrink > 0 ? 'bg-retro-dim' : 'bg-retro-p1 shadow-neon-p1')}
-          style={{
-            left: pct(PADDLE_INSET - PADDLE_W / 2),
-            top: pct(paddles.X - hX / 2),
-            width: pct(PADDLE_W),
-            height: pct(hX),
-          }}
+          className={cn('absolute border-dashed border-retro-border/70', portrait ? 'inset-x-0 border-t-2' : 'inset-y-0 border-l-2')}
+          style={portrait ? { top: H / 2 - 1 } : { left: W / 2 - 1 }}
         />
-        {/* O paddle (right) */}
         <div
-          className={cn('absolute rounded-sm', effects?.O?.grow > 0 ? 'bg-retro-win shadow-neon-win' : effects?.O?.shrink > 0 ? 'bg-retro-dim' : 'bg-retro-p2 shadow-neon-p2')}
-          style={{
-            left: pct(1 - PADDLE_INSET - PADDLE_W / 2),
-            top: pct(paddles.O - hO / 2),
-            width: pct(PADDLE_W),
-            height: pct(hO),
-          }}
+          className="absolute rounded-full border-2 border-retro-border/40"
+          style={square(0.5, 0.5, C * 0.28)}
         />
 
-        {/* Power-up pickups — width driven by the % (of court width) sim
-            value, aspect-ratio:1 + a self-relative translate keeps them
-            visually square regardless of the court's 3:2 box, and centers
-            on (pk.x, pk.y) without needing a height% (which would render as
-            an ellipse — height% is relative to court height, not width). */}
-        {pickups.map((pk) => (
+        {shield('X')}
+        {shield('O')}
+
+        {/* CHAOS bumpers */}
+        {obstacles.map((o, i) => (
           <div
-            key={pk.id}
-            className={cn('absolute rounded-sm animate-pulse', PICKUP_COLORS[pk.kind] || 'bg-retro-cta')}
-            style={{
-              left: pct(pk.x),
-              top: pct(pk.y),
-              width: pct(PICKUP_SIZE),
-              aspectRatio: '1',
-              transform: 'translate(-50%, -50%)',
-            }}
+            key={`ob-${i}`}
+            className="absolute rounded-sm bg-retro-structure border border-retro-border shadow-neon-cta"
+            style={box(o.x, o.y, o.w, o.h)}
           />
         ))}
-        {/* Ball — a square, classic Pong style. Pulses while held at centre during a serve delay.
-            Tinted cta when the slow power-up is active. Same width%/aspect-ratio:1 trick as the
-            pickups above so it renders as a true square, not an ellipse. */}
-        <div
-          className={cn(
-            'absolute shadow-glow-dot',
-            serving && 'pong-ball-pulse',
-            ballMod?.slow > 0 ? 'bg-retro-cta' : 'bg-retro-text',
-          )}
-          style={{
-            left: pct(ball.x),
-            top: pct(ball.y),
-            width: pct(BALL_R * 2),
-            aspectRatio: '1',
-            transform: 'translate(-50%, -50%)',
-          }}
-        />
+
+        {paddle('X')}
+        {mode !== 'survival' && paddle('O')}
+        {mode === 'survival' && (
+          <div
+            className="absolute bg-retro-p2/60"
+            style={box(0.997, 0.5, 6 / L, 1)}
+          />
+        )}
+
+        {/* Power-up pickups — lettered so they never rely on colour alone */}
+        {pickups.map((pk) => {
+          const size = PICKUP_SIZE * unit * 1.35
+          return (
+            <div
+              key={pk.id}
+              className={cn('absolute rounded-sm animate-pulse flex items-center justify-center font-pixel text-retro-bg leading-none', PICKUP_STYLE[pk.kind] || 'bg-retro-cta')}
+              style={{ ...square(pk.x, pk.y, size), fontSize: Math.max(9, size * 0.5) }}
+              aria-label={PICKUP_INFO[pk.kind]?.name}
+            >
+              {PICKUP_INFO[pk.kind]?.glyph}
+            </div>
+          )
+        })}
+
+        {/* Balls with a short motion trail along their velocity */}
+        {balls.map((b) => {
+          const sp = Math.hypot(b.vx || 0, b.vy || 0)
+          const trail = sp > 0.5 ? [0.012, 0.024, 0.036] : []
+          return (
+            <div key={b.id}>
+              {trail.map((k, i) => (
+                <div
+                  key={i}
+                  className={cn('absolute', ballTone)}
+                  style={{
+                    ...square(b.x - b.vx * k, b.y - b.vy * k, ballSize * (0.8 - i * 0.15)),
+                    opacity: 0.35 - i * 0.1,
+                  }}
+                />
+              ))}
+              <div
+                className={cn('absolute shadow-glow-dot', ballTone, Math.abs(b.spin || 0) > 0.35 && 'rounded-sm')}
+                style={square(b.x, b.y, ballSize)}
+              />
+            </div>
+          )
+        })}
+        {serving && balls.length === 0 && (
+          <div className="absolute bg-retro-text pong-ball-pulse" style={square(0.5, 0.5, ballSize)} />
+        )}
+
+        {/* Hit particles */}
+        {fx?.particles?.map((p) => {
+          const pos = at(p.x, p.y)
+          return (
+            <div
+              key={p.id}
+              className={cn('absolute pong-particle', PARTICLE_COLOR[p.color] || 'bg-retro-text')}
+              style={{
+                left: pos.left - p.size / 2, top: pos.top - p.size / 2, width: p.size, height: p.size,
+                '--tx': `${p.dx}px`, '--ty': `${p.dy}px`,
+              }}
+            />
+          )
+        })}
+
+        {/* Callout (power-up names, rally milestones, points) */}
+        {fx?.callout && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <p
+              key={fx.callout.id}
+              className={cn(
+                'pong-callout font-pixel text-center px-2',
+                portrait ? 'text-base' : 'text-lg',
+                fx.callout.tone === 'X' ? 'text-retro-p1 text-glow-p1'
+                  : fx.callout.tone === 'O' ? 'text-retro-p2 text-glow-p2'
+                    : fx.callout.tone === 'danger' ? 'text-retro-danger text-glow-danger'
+                      : 'text-retro-cta text-glow-cta',
+              )}
+            >
+              {fx.callout.text}
+            </p>
+          </div>
+        )}
 
         {overlay && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-bg/70 backdrop-blur-[1px]">
+          // `empty:hidden` — RealtimeOverlay stays mounted (it remembers
+          // whether the link ever connected) but renders nothing mid-rally.
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-bg/75 backdrop-blur-[1px] p-4 text-center empty:hidden">
             {overlay}
           </div>
         )}
       </div>
-
-      {/* Player labels */}
-      <div className="flex items-center justify-between px-1 font-pixel text-[8px]">
-        <span className="text-retro-p1">{namesX?.toUpperCase()}{mySide === 'X' ? ' (YOU)' : ''}</span>
-        <span className="text-retro-p2">{namesO?.toUpperCase()}{mySide === 'O' ? ' (YOU)' : ''}</span>
-      </div>
-      <p className="text-center font-pixel text-[10px] text-retro-dim leading-relaxed">
-        ↑ / ↓ · W / S · DRAG THE COURT ON TOUCH
-      </p>
     </div>
   )
 })
