@@ -939,6 +939,10 @@
   --app-tabbar-h: calc(3.75rem + env(safe-area-inset-bottom));
 }
 html.header-hidden { --app-header-offset: 0px; }
+/* Keep focus- and scrollIntoView-driven scrolling clear of the fixed bottom
+   tab bar, so a focused button (onboarding's LET'S PLAY) never lands under it
+   where a tap would hit a tab instead. */
+html:has(nav[aria-label="Primary"]) { scroll-padding-bottom: var(--app-tabbar-h); }
 
 /* ── Pixel cursors — static white pixel-art (cursors can't read CSS vars) ── */
 :root {
