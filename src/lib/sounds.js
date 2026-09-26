@@ -52,15 +52,34 @@ function seq(notes) {
   } catch { /* ignore */ }
 }
 
+// Decaying noise buffers, cached per length: filling one with random samples
+// was the top JS cost in Pong/Pac-Man profiles (a wall or paddle hit plays one
+// every few frames). A few takes per length are rotated so repeats don't
+// sound identical.
+const NOISE_TAKES = 4
+const _noise = new Map()
+
+function noiseBuffer(c, n) {
+  let entry = _noise.get(n)
+  if (!entry) { entry = { takes: [], next: 0 }; _noise.set(n, entry) }
+  const i = entry.next
+  entry.next = (i + 1) % NOISE_TAKES
+  if (!entry.takes[i]) {
+    const buffer = c.createBuffer(1, n, c.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let k = 0; k < n; k++) data[k] = (Math.random() * 2 - 1) * (1 - k / n)
+    entry.takes[i] = buffer
+  }
+  return entry.takes[i]
+}
+
 // Short decaying noise burst — dice rattle / crash texture.
 function noise(start, dur, vol = 0.08, freq = 1800) {
   if (_muted) return
   try {
     const c = ctx()
     const n = Math.max(1, Math.floor(c.sampleRate * dur))
-    const buffer = c.createBuffer(1, n, c.sampleRate)
-    const data = buffer.getChannelData(0)
-    for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / n)
+    const buffer = noiseBuffer(c, n)
     const src = c.createBufferSource()
     const filter = c.createBiquadFilter()
     const gain = c.createGain()
