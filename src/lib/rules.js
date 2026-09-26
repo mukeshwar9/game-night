@@ -546,6 +546,28 @@ export const GAME_RULES = {
     win: 'Guess the word before all six rows are used. You both win or lose together.',
   },
 
+  hunch: {
+    objective: 'Together, without talking, play every card in both hands onto one pile in rising order.',
+    howToPlay: [
+      'Level 1 deals each of you one card from 1 to 100, level 2 two cards, and so on up to level 12. You see only your own cards; your partner sees only how many you hold.',
+      'No talking and no typing. When you sense your lowest card is next, tap PLAY. There are no turns: timing is the whole game.',
+      'If a card lands while either of you still holds a lower one, you lose a life and those lower cards are thrown out. Taps that cross within a split second count as played together.',
+      'Short on nerve? Both hold STEADY and you each throw out your lowest card, face up. Clearing some levels earns a life or a STEADY.',
+    ],
+    win: 'Clear level 12 before your three lives run out. You win or lose together; the room keeps your best level.',
+  },
+
+  converge: {
+    objective: 'Reach the same word at the same time, starting from two random words.',
+    howToPlay: [
+      'On each step you both lock in a word at once; neither of you sees the other word until both are in.',
+      'Step 1: type any word you like. After that, type a word that links the two words just revealed — PIZZA and MOON might lead to CHEESE.',
+      'Keep bridging the latest pair until you both type the same word. Plurals and capitals do not matter, and no word can be used twice in a chain.',
+      'You can take back a locked word until your partner locks theirs.',
+    ],
+    win: 'Converge in 1–2 steps for ★★★, 3–4 for ★★, 5–8 for ★. After 8 steps the chain is lost. A match is 5 chains, 15 stars at most.',
+  },
+
   password: {
     objective: 'Work as a team: give one-word clues so your partner guesses the secret password, then swap roles. Every point counts for both of you.',
     howToPlay: [

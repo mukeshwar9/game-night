@@ -16,6 +16,7 @@ import {
   HeadsUpIcon, ChameleonIcon,
 } from '../components/GameIcons'
 import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
+import { HunchIcon, ConvergeIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
@@ -1343,6 +1344,18 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/WordCoopGame')),
   },
   {
+    type: 'converge', label: 'CONVERGE',
+    desc: 'type the same word together', Icon: ConvergeIcon,
+    badge: 'CV', maxWidth: 'max-w-md',
+    category: 'word',
+    addedAt: '2026-09-26',
+    // Co-op: both lock a word at once until the two words match. Stars and
+    // the chain history live in `round` (ConvergeGame); scores count chains.
+    durationMin: 6, tags: ['quick'], solo: false,
+    custom: true, simultaneous: true, coop: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/ConvergeGame')),
+  },
+  {
     type: 'wordrace', label: 'WORD RACE',
     desc: 'solve the same word first', Icon: WordRaceIcon,
     badge: 'WR', maxWidth: 'max-w-4xl',
@@ -1384,6 +1397,18 @@ export const GAME_TYPES = [
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
     custom: true, simultaneous: true, hidePlayerCards: true, matchTarget: 2,
     Page: lazyWithRetry(() => import('../pages/AnagramsGame')),
+  },
+  {
+    type: 'hunch', label: 'HUNCH',
+    desc: 'play cards in order, no talking', Icon: HunchIcon,
+    badge: 'HN', maxWidth: 'max-w-md',
+    category: 'board',
+    addedAt: '2026-09-26',
+    // Co-op and silent: `quiet` hides typed chat (emotes stay). The run —
+    // hands, pile, lives — lives in `round` (HunchGame); scores count levels.
+    durationMin: 8, tags: ['thinky'], solo: false,
+    custom: true, simultaneous: true, coop: true, quiet: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/HunchGame')),
   },
   {
     type: 'pairs', label: 'PAIRS',
@@ -1891,6 +1916,14 @@ export function freshGameState(gameType, previous = null) {
   }
   if (gameType === 'wordcoop') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
+  }
+  if (gameType === 'hunch' || gameType === 'converge') {
+    // The page deals the run on first sight of a round without a phase.
+    // PLAY AGAIN (which passes the room) keeps the best result so far; NEW
+    // MATCH and a switch start from nothing.
+    const best = previous?.gameType === gameType ? Number(previous.round?.best) || 0 : 0
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
+      round: best ? { best } : null }
   }
   if (gameType === 'wordrace') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,

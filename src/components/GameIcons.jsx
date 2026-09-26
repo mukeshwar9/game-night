@@ -497,6 +497,31 @@ export function WordCoopIcon() {
   )
 }
 
+export function HunchIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* a rising pile: three cards stepping up, the top one in play */}
+      <rect x="2" y="10" width="7" height="11" rx="1" stroke="currentColor" strokeWidth="1.3" opacity="0.5" />
+      <rect x="8.5" y="6.5" width="7" height="11" rx="1" stroke="currentColor" strokeWidth="1.3" opacity="0.75" />
+      <rect x="15" y="3" width="7" height="11" rx="1" fill="currentColor" />
+      <path d="M4 7 L7 4 L10 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+    </svg>
+  )
+}
+
+export function ConvergeIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* two word chains stepping toward one shared word */}
+      <path d="M3 3 L8 8 L6 13 L12 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.65" />
+      <path d="M21 3 L16 8 L18 13 L12 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="3" cy="3" r="1.4" fill="currentColor" opacity="0.65" />
+      <circle cx="21" cy="3" r="1.4" fill="currentColor" />
+      <circle cx="12" cy="20" r="2.5" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function PasswordIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
