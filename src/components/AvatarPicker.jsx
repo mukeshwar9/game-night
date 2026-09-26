@@ -4,7 +4,7 @@ import AvatarCustomizer from './AvatarCustomizer'
 import { TONE_BG } from './avatarSwatches'
 import {
   CREATURES, TONES, TONE_LABEL,
-  canonicalAvatar, isHumanoid, makeAvatar, parseAvatar, randomAvatar,
+  canonicalAvatar, humanoidCustomizerSeed, isHumanoid, makeAvatar, makeHumanoid, parseAvatar, randomAvatar,
 } from '../lib/avatars'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -55,6 +55,16 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
     if (!parsed.parts) commit(makeAvatar(parsed.shape, tone))
   }
 
+  // Opening PEOPLE with a critter selected swaps in the builder's seed person,
+  // so the preview always shows what the open tab is editing.
+  const selectTab = (id) => {
+    setTab(id)
+    if (id === 'people' && !parsed.parts) {
+      const seed = humanoidCustomizerSeed(current)
+      commit(makeHumanoid(seed.shape, seed.parts))
+    }
+  }
+
   const tabs = [
     { id: 'critters', label: 'CRITTERS' },
     { id: 'people', label: 'PEOPLE' },
@@ -63,7 +73,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
     e.preventDefault()
     const next = tab === 'critters' ? 'people' : 'critters'
-    setTab(next)
+    selectTab(next)
     document.getElementById(`${tabsId}-${next}-tab`)?.focus()
   }
 
@@ -113,7 +123,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
             aria-selected={tab === t.id}
             aria-controls={`${tabsId}-${t.id}-panel`}
             tabIndex={tab === t.id ? 0 : -1}
-            onClick={() => setTab(t.id)}
+            onClick={() => selectTab(t.id)}
             onKeyDown={onTabKey}
             className={cn(
               'min-h-11 rounded font-pixel text-[10px] tracking-widest transition-all',

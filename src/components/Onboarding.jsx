@@ -52,7 +52,10 @@ export default function Onboarding({ onDone, invite = null }) {
   const selectedAvatar = canonicalAvatar(avatar || profile?.avatar || defaultAvatarForId(uid || getPlayerId()))
 
   // Move focus to the new step's heading so screen readers announce it.
-  useEffect(() => { headingRef.current?.focus() }, [step])
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    headingRef.current?.focus({ preventScroll: true })
+  }, [step])
 
   const setName = (v) => { setNameInput(v); setShowError(false) }
 
@@ -104,6 +107,7 @@ export default function Onboarding({ onDone, invite = null }) {
       console.warn('Profile save failed (proceeding):', e?.message)
     }
     sounds.win()
+    window.scrollTo(0, 0)
     onDone?.({ name: finalName, avatar: finalAvatar })
   }, (e) => {
     console.error('Onboarding finish failed:', e)
