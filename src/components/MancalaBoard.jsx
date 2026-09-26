@@ -17,7 +17,7 @@ function SeedCluster({ count }) {
         <span key={i} className="w-1 h-1 rounded-full bg-retro-text opacity-80" />
       ))}
       {count > 6 && (
-        <span className="absolute -top-1 -right-1 font-pixel text-[7px] text-retro-dim">{count}</span>
+        <span className="absolute -top-1 -right-1 font-pixel text-[8px] text-retro-dim">{count}</span>
       )}
     </div>
   )
@@ -57,7 +57,7 @@ function Store({ count, label, ownerName }) {
       <div aria-hidden="true" className="w-10 sm:w-12 flex-1 rounded-xl border-2 border-retro-border bg-retro-deep flex items-center justify-center py-3">
         <span className="font-pixel text-sm text-retro-cta">{count}</span>
       </div>
-      <span aria-hidden="true" className="font-pixel text-[6px] text-retro-dim">{label}</span>
+      <span aria-hidden="true" className="font-pixel text-[8px] text-retro-dim">{label}</span>
     </div>
   )
 }
@@ -168,7 +168,7 @@ export default function MancalaBoard({
               />
             ))}
           </div>
-          <p className="font-pixel text-[6px] text-retro-dim text-center tracking-widest">{topLabel} · {topTag}</p>
+          <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">{topLabel} · {topTag}</p>
           {/* Mine row */}
           <div className="grid grid-cols-6 gap-1">
             {BOTTOM_ROW.map(i => {
@@ -187,7 +187,7 @@ export default function MancalaBoard({
               )
             })}
           </div>
-          <p className="font-pixel text-[6px] text-retro-dim text-center tracking-widest">{bottomLabel} · {bottomTag}</p>
+          <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">{bottomLabel} · {bottomTag}</p>
         </div>
         <Store count={pits[bottomStorePit] ?? 0} label={bottomLabel} ownerName={bottomOwner} />
       </div>

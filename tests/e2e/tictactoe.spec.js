@@ -27,7 +27,7 @@ test('two players create, join and finish a Tic Tac Toe room', async ({ browser 
     await expect(alice.page.getByText('Bob', { exact: true })).toBeVisible()
     await expect(bob.page.getByText('Alice', { exact: true })).toBeVisible()
     await expect(alice.page.getByText('YOUR TURN')).toBeVisible()
-    await expect(bob.page.getByText("OPPONENT'S TURN")).toBeVisible()
+    await expect(bob.page.getByText("ALICE'S TURN")).toBeVisible()
   })
 
   // X wins down the middle column: X(2,2) O(1,1) X(1,2) O(1,3) X(3,2).
@@ -49,7 +49,7 @@ test('two players create, join and finish a Tic Tac Toe room', async ({ browser 
 
   await test.step('the win reaches both players', async () => {
     await expect(alice.page.getByText('YOU WIN!')).toBeVisible()
-    await expect(bob.page.getByText('GAME OVER')).toBeVisible()
+    await expect(bob.page.getByText('ALICE WINS!')).toBeVisible()
   })
 
   expectNoPageErrors(alice, bob)

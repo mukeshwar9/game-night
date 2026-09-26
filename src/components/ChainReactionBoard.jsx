@@ -39,7 +39,7 @@ function OrbDots({ count, symbol, nearCritical }) {
       {count >= 4 && (
         <span
           className={cn(
-            'absolute bottom-0 right-0 font-pixel text-[7px] leading-none px-[2px] rounded-sm',
+            'absolute bottom-0 right-0 font-pixel text-[8px] leading-none px-[2px] rounded-sm',
             crSymbolColor(symbol).text,
           )}
           style={{ background: 'rgb(var(--c-surface) / 0.85)' }}
@@ -192,7 +192,7 @@ export default function ChainReactionBoard({
       <div
         className={cn(
           'border-2 border-retro-border rounded p-1 sm:p-1.5 transition-all duration-200',
-          disabled && 'opacity-60 saturate-50',
+          disabled && 'board-idle',
         )}
         style={{
           background: 'radial-gradient(circle at 50% 40%, rgb(var(--c-structure) / 0.18), rgb(var(--c-surface)) 70%)',

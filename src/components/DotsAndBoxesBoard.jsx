@@ -144,7 +144,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       <div
         className={cn(
           'bg-retro-surface border-2 border-retro-border rounded p-[18px] transition-all duration-200',
-          disabled && 'opacity-60 saturate-50',
+          disabled && 'board-idle',
         )}
       >
         <div

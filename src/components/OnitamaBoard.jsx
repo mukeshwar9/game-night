@@ -87,7 +87,7 @@ export default function OnitamaBoard({
     <div className="w-full max-w-[400px] sm:max-w-[440px] mx-auto">
       <div className={cn(
         'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
-        disabled && 'opacity-60 saturate-50',
+        disabled && 'board-idle',
       )}>
         {/* Opponent's hand (face-up, as in real Onitama) + spare */}
         <div className="flex items-center justify-center gap-2 pb-1.5">
@@ -95,7 +95,7 @@ export default function OnitamaBoard({
             <CardView key={k} k={k} active={false} />
           ))}
           <span className="sr-only">O cards: {handO.map(cardName).join(', ') || 'none'}.</span>
-          <span className="font-pixel text-[7px] text-retro-dim ml-1">
+          <span className="font-pixel text-[8px] text-retro-dim ml-1">
             SPARE: {spare != null ? cardName(spare) : '—'}
           </span>
         </div>

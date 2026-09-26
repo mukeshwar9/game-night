@@ -24,7 +24,7 @@ export default function SimBoard({ board, onMove, disabled, winningLine = [], la
     <div className="w-full max-w-[340px] sm:max-w-[400px] mx-auto">
       <div className={cn(
         'relative bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
-        disabled && 'opacity-60 saturate-50',
+        disabled && 'board-idle',
       )}>
         {/* Board geometry: SVG viewBox 0 0 100 100, preserveAspectRatio keeps
             the circle circular. Lines carry the stroke, dots sit on top. */}

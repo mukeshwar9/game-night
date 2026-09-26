@@ -84,7 +84,7 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
         <div
           className={cn(
             'bg-retro-surface border-2 border-retro-border rounded p-3 transition-all duration-200',
-            disabled && 'opacity-60 saturate-50',
+            disabled && 'board-idle',
           )}
         >
           <div className="relative w-full">
@@ -135,7 +135,7 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
 
         {/* Persistent armed-letter badge, anchored to the board's corner */}
         <div
-          className="absolute -top-2 -right-2 w-7 h-7 flex items-center justify-center rounded-full border-2 border-retro-cta bg-retro-card font-pixel text-[11px] text-retro-cta shadow-neon-cta"
+          className="absolute -top-3 right-2 w-7 h-7 flex items-center justify-center rounded-full border-2 border-retro-cta bg-retro-card font-pixel text-[11px] text-retro-cta shadow-neon-cta"
           role="img"
           aria-label={`Armed letter ${selectedLetter}`}
         >

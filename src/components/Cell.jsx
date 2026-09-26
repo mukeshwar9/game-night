@@ -26,7 +26,7 @@ export default function Cell({ value, index, onClick, isWinning, disabled, isLas
         isEmpty && !disabled
           ? 'hover:bg-retro-surface hover:border-retro-p1/40 cursor-pointer active:scale-95'
           : 'cursor-default',
-        disabled && 'opacity-60 saturate-50',
+        disabled && 'board-idle',
         value === 'X' && 'text-retro-p1 text-glow-p1',
         value === 'O' && 'text-retro-p2 text-glow-p2',
       )}

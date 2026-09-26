@@ -56,7 +56,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
       <div
         className={cn(
           'bg-retro-surface border-2 border-retro-border rounded p-2 sm:p-2.5 transition-all duration-200',
-          disabled && 'opacity-60 saturate-50',
+          disabled && 'board-idle',
         )}
       >
         {/* G-04: the disc grid is readable (one labelled image per cell, in

@@ -13,7 +13,7 @@ test('tapping LEAVE lets the opponent claim the win at once', async ({ browser }
     await createRoom(alice.page, 'TIC TAC TOE')
     await joinViaInvite(bob.page, alice.page.url(), 'Bob')
     await expect(alice.page.getByText('YOUR TURN')).toBeVisible()
-    await expect(bob.page.getByText("OPPONENT'S TURN")).toBeVisible()
+    await expect(bob.page.getByText("ALICE'S TURN")).toBeVisible()
   })
 
   await test.step('Bob leaves through the HOME confirm', async () => {

@@ -57,7 +57,7 @@ export default function QuartoBoard({
     <div className="w-full max-w-[380px] sm:max-w-[420px] mx-auto">
       <div className={cn(
         'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
-        disabled && 'opacity-60 saturate-50',
+        disabled && 'board-idle',
       )}>
         {/* Stage strip */}
         <div className="flex items-center justify-center gap-2 pb-1.5">

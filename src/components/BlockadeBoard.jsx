@@ -227,7 +227,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
         className={cn(
           'bg-retro-surface border-2 rounded p-3 transition-all duration-200',
           mode === 'wall' && !disabled ? 'border-retro-cta' : 'border-retro-border',
-          disabled && 'opacity-60 saturate-50',
+          disabled && 'board-idle',
         )}
       >
         <div

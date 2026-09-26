@@ -51,7 +51,7 @@ export default function YavalathBoard({
     <div className="w-full max-w-[400px] sm:max-w-[440px] mx-auto">
       <div className={cn(
         'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
-        disabled && 'opacity-60 saturate-50',
+        disabled && 'board-idle',
       )}>
         <div className="flex flex-col items-center gap-0.5">
           {YV_ROW_LENGTHS.map((len, row) => (

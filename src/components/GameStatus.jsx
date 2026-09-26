@@ -204,16 +204,20 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
               ? 'text-retro-text'
               : iWon
                 ? 'text-retro-cta text-glow-cta'
-                : 'text-retro-dim',
+                : winner === 'X' ? 'text-retro-p1' : 'text-retro-p2',
           )}
           style={{ animation: 'modal-pop 0.28s ease-out both' }}
         >
           {/* Order & Chaos: both players place both letters, so "X WINS" reads
-              as "the X letters won" — name the role instead of the seat. */}
-          {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : mySymbol ? 'GAME OVER'
+              as "the X letters won" — name the role instead of the seat.
+              Everyone else sees the winner's name, never a bare "GAME OVER". */}
+          {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!'
             : gameType === 'orderchaos' ? (winner === 'X' ? 'ORDER WINS!' : 'CHAOS WINS!')
-              : `${winner} WINS!`}
+              : `${(players?.[winner]?.name || winner).toUpperCase()} WINS!`}
         </p>
+        {!isDraw && !iWon && mySymbol && (
+          <p className="font-pixel text-[9px] text-retro-dim tracking-widest -mt-2">YOU LOSE THIS ROUND · {scoreX}–{scoreO}</p>
+        )}
         {renderHeadToHead()}
         {renderTryNext()}
         {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
@@ -263,23 +267,19 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
         </p>
       )
     }
-    if (mySymbol == null) {
-      return (
-        <p className="text-center font-pixel text-[10px] tracking-wider">
-          <span className={cn(
-            'arcade-blink',
-            currentTurn === 'X' ? 'text-retro-p1' : 'text-retro-p2',
-          )}>
-            {currentTurn}&apos;S TURN
-          </span>
-        </p>
-      )
-    }
+    // Steady, high-contrast turn pill — never a hard on/off blink (half the
+    // time at 15% opacity was unreadable and fails WCAG 2.2.2).
+    const turnName = (players?.[currentTurn]?.name || currentTurn || '').toUpperCase()
+    const mine = mySymbol != null && currentTurn === mySymbol
     return (
-      <p className="text-center font-pixel text-[10px] tracking-wider">
-        {currentTurn === mySymbol
-          ? <span className="text-retro-cta text-glow-cta arcade-blink">YOUR TURN</span>
-          : <span className="text-retro-dim">OPPONENT&apos;S TURN</span>}
+      <p className="text-center">
+        <span className={cn(
+          'turn-pill inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-pixel text-[10px] tracking-wider',
+          mine ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border bg-retro-card text-retro-text',
+        )}>
+          <span aria-hidden="true" className={cn('turn-pill-dot h-2 w-2 rounded-full', currentTurn === 'X' ? 'bg-retro-p1' : 'bg-retro-p2')} />
+          {mine ? 'YOUR TURN' : mySymbol == null ? `${turnName}'S TURN` : `${turnName ? turnName + "'S" : "OPPONENT'S"} TURN`}
+        </span>
       </p>
     )
   }

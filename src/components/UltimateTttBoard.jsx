@@ -26,7 +26,7 @@ export default function UltimateTttBoard({
       <div
         className={cn(
           'grid grid-cols-3 gap-1 sm:gap-1.5 bg-retro-border/40 p-1 sm:p-1.5 rounded transition-all duration-200',
-          disabled && 'opacity-60 saturate-50',
+          disabled && 'board-idle',
         )}
       >
         {Array.from({ length: 9 }, (_, m) => {
@@ -83,7 +83,7 @@ export default function UltimateTttBoard({
                   {decided === 'D' ? (
                     <div className="relative w-full h-full flex items-center justify-center">
                       <div className="absolute inset-2 border-t-2 border-retro-dim rotate-12" aria-hidden="true" />
-                      <span className="relative font-pixel text-[7px] sm:text-[8px] text-retro-dim tracking-wide bg-retro-bg/70 px-1 rounded-sm">
+                      <span className="relative font-pixel text-[8px] sm:text-[8px] text-retro-dim tracking-wide bg-retro-bg/70 px-1 rounded-sm">
                         DRAW
                       </span>
                     </div>

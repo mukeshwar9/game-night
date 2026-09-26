@@ -115,8 +115,8 @@ export default function DiceBoard({
           {overflow && <span className="font-pixel text-[8px] text-retro-dim">…</span>}
           {isBig ? shown.map((pair, i) => (
             <div key={i} className="flex gap-0.5">
-              <div className="w-5 h-5 rounded border border-retro-border bg-retro-surface flex items-center justify-center font-pixel text-[7px] text-retro-cta">{Array.isArray(pair) ? pair[0] : pair}</div>
-              <div className="w-5 h-5 rounded border border-retro-border bg-retro-surface flex items-center justify-center font-pixel text-[7px] text-retro-cta">{Array.isArray(pair) ? pair[1] : ''}</div>
+              <div className="w-5 h-5 rounded border border-retro-border bg-retro-surface flex items-center justify-center font-pixel text-[8px] text-retro-cta">{Array.isArray(pair) ? pair[0] : pair}</div>
+              <div className="w-5 h-5 rounded border border-retro-border bg-retro-surface flex items-center justify-center font-pixel text-[8px] text-retro-cta">{Array.isArray(pair) ? pair[1] : ''}</div>
             </div>
           )) : shown.map((v, i) => (
             <MiniDie key={i} value={v} />

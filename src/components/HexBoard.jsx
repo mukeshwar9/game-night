@@ -42,7 +42,7 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
       <div
         className={cn(
           'relative bg-retro-bg border-2 border-retro-border rounded transition-all duration-200',
-          disabled && 'opacity-60 saturate-50',
+          disabled && 'board-idle',
         )}
       >
         {/* GAMEPLAY-03: solid tinted goal rails + direction arrows. The old

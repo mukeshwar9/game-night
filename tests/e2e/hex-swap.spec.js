@@ -18,7 +18,7 @@ test('the second Hex player swaps the opening stone and both screens flip it', a
     await createRoom(alice.page, 'HEX')
     await joinViaInvite(bob.page, alice.page.url(), 'Bob')
     await expect(alice.page.getByText('YOUR TURN')).toBeVisible()
-    await expect(bob.page.getByText("OPPONENT'S TURN")).toBeVisible()
+    await expect(bob.page.getByText("ALICE'S TURN")).toBeVisible()
   })
 
   await test.step('nobody can swap before the first stone', async () => {

@@ -43,6 +43,7 @@
     margin: -.25rem;
   }
   .game-header-meta { display: none; }
+  .game-room-meta { display: block !important; }
 
     .video-call-reaction-dock {
       display: block;
@@ -1254,11 +1255,19 @@ body::before {
 }
 
 /* "INSERT COIN" classic arcade blink */
+/* Soft emphasis pulse — never drops below 60% opacity, so the text stays
+   readable in every frame (the old 0.8s hard on/off blink sat at 15% half
+   the time). Reduced motion turns it off entirely. */
 @keyframes arcade-blink {
-  0%, 49%   { opacity: 1; }
-  50%, 100% { opacity: 0.15; }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
 }
-.arcade-blink { animation: arcade-blink 0.8s steps(1) infinite; }
+.arcade-blink { animation: arcade-blink 1.6s ease-in-out infinite; }
+@keyframes turn-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.5); opacity: .55; }
+}
+.turn-pill-dot { animation: turn-dot-pulse 1.4s ease-in-out infinite; }
 
 /* Waiting dots hop one pixel at a time — discrete frames, no tween */
 @keyframes pixel-dot-hop {
@@ -1444,3 +1453,23 @@ body::before {
   }
   :root:not([data-motion="full"]) body::after { display: none; }
 }
+
+/* Room meta line only exists for the mobile header (see Game.jsx). */
+.game-room-meta { display: none; }
+
+/* Not-your-turn / finished boards: keep every piece's player color (X/O,
+   stones, discs stay identifiable for the loser and for spectators) and only
+   soften the board a touch. The turn pill carries "whose turn" instead. */
+.board-idle { opacity: .92; }
+
+/* Input hints follow the input device: keyboard legends on fine pointers,
+   touch instructions on phones — never both stacked on one line. */
+.touch-hint { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .kbd-hint { display: none !important; }
+  .touch-hint { display: inline; }
+}
+
+/* Horizontal chip/emoji rows that scroll without a visible scrollbar. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

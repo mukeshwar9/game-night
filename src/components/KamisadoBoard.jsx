@@ -48,7 +48,7 @@ export default function KamisadoBoard({
     <div className="w-full max-w-[360px] sm:max-w-[420px] mx-auto">
       <div className={cn(
         'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
-        disabled && 'opacity-60 saturate-50',
+        disabled && 'board-idle',
       )}>
         {/* Forced-color strip — the whole point of the game, always visible */}
         <div className="flex items-center justify-center gap-2 pb-1.5">

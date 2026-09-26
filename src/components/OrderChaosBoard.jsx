@@ -60,7 +60,7 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
         <div
           className={cn(
             'bg-retro-surface border-2 border-retro-border rounded p-3 transition-all duration-200',
-            disabled && 'opacity-60 saturate-50',
+            disabled && 'board-idle',
           )}
         >
           <div
@@ -78,7 +78,7 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
         {/* Persistent armed-letter badge, anchored to the board's corner */}
         <div
           className={cn(
-            'absolute -top-2 -right-2 w-7 h-7 flex items-center justify-center rounded-full border-2 bg-retro-card font-pixel text-[11px]',
+            'absolute -top-3 right-2 w-7 h-7 flex items-center justify-center rounded-full border-2 bg-retro-card font-pixel text-[11px]',
             selectedLetter === 'X'
               ? 'border-retro-p1 text-retro-p1 shadow-neon-p1'
               : 'border-retro-p2 text-retro-p2 shadow-neon-p2',

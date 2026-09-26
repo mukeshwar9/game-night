@@ -23,7 +23,7 @@ export default function AtaxxBoard({
     <div className="w-full max-w-[360px] sm:max-w-[420px] mx-auto">
       <div className={cn(
         'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
-        disabled && 'opacity-60 saturate-50',
+        disabled && 'board-idle',
       )}>
         <div
           className="grid gap-1 sm:gap-1.5"
