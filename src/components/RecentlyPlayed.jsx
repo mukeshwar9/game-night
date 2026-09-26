@@ -32,7 +32,7 @@ export default function RecentlyPlayed({ onSelect, loadingType }) {
             const cfg = getGameConfig(type)
             const Icon = cfg?.Icon
             const isLoading = loadingType === type
-            const sub = [modeLabel(mode), formatAgo(ts, now)].filter(Boolean).join(' · ')
+            const ago = formatAgo(ts, now)
             return (
               <button
                 key={type}
@@ -50,7 +50,10 @@ export default function RecentlyPlayed({ onSelect, loadingType }) {
                   {Icon && <Icon />}
                 </span>
                 <span className="font-pixel text-[9px] text-retro-text leading-snug line-clamp-2">{cfg?.label}</span>
-                <span className="font-mono text-[10px] text-retro-dim truncate max-w-full mt-auto">{sub}</span>
+                <span className="font-mono text-[10px] leading-tight text-retro-dim max-w-full mt-auto">
+                  <span className="block truncate">{modeLabel(mode)}</span>
+                  {ago && <span className="block truncate">{ago}</span>}
+                </span>
               </button>
             )
           })}

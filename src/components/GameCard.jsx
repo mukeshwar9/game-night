@@ -32,7 +32,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
         className={cn(
           'w-full h-full min-h-14 flex items-center gap-2.5 pl-2.5 py-2 text-left border rounded',
           'transition-all active:scale-[0.98]',
-          onToggleFav ? 'pr-7' : showModes ? 'pr-14' : 'pr-2.5',
+          onToggleFav ? 'pr-9' : showModes ? 'pr-14' : 'pr-2.5',
           isLoading
             ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
             : 'border-retro-border bg-retro-card hover:border-retro-cta/50',
@@ -49,7 +49,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           {Icon && <Icon />}
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block font-pixel text-[9px] text-retro-text leading-snug line-clamp-2">{label}</span>
+          <span className="block font-pixel text-[9px] text-retro-text leading-snug line-clamp-2 [overflow-wrap:anywhere]">{label}</span>
           {isLoading ? (
             <span className="block mt-1"><PixelDots size="sm" tone="cta" /></span>
           ) : (
