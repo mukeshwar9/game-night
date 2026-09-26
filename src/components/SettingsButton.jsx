@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import Avatar from './Avatar'
 import BottomSheet from './BottomSheet'
+import PixelDots from './loading/PixelDots'
 import ThemePreview from './ThemePreview'
 import { VideoCallSettingsPanel } from './VideoCallLayout'
 import { FONTS, applyFont, getStoredFont } from '../lib/font'
@@ -9,6 +11,9 @@ import {
   getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
 } from '../lib/displayPrefs'
 import { setProfile } from '../lib/social'
+import { useAuth } from '../lib/AuthContext'
+import { defaultAvatarForId } from '../lib/avatars'
+import { getPlayerId } from '../lib/playerId'
 import { sounds } from '../lib/sounds'
 
 function ThemeSwatches({ id }) {
@@ -18,6 +23,9 @@ function ThemeSwatches({ id }) {
     <span style={{ width: 6, height: 6, background: 'rgb(var(--c-cta))', borderRadius: 1 }} />
   </span>
 }
+
+// The name/avatar editor carries the whole avatar picker — load it on demand.
+const IdentityEditor = lazy(() => import('./IdentityEditor'))
 
 function SectionTitle({ children }) {
   return <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">{children}</p>
@@ -35,6 +43,10 @@ export default function SettingsButton({ className = '' }) {
   const [textSize, setTextSize] = useState(getStoredTextSize)
   const [winFx, setWinFx] = useState(getWinFx)
   const [resetArmed, setResetArmed] = useState(false)
+  const [editingMe, setEditingMe] = useState(false)
+  const { profile } = useAuth()
+  const myName = profile?.displayName || localStorage.getItem('playerName') || ''
+  const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
   const [showPreview, setShowPreview] = useState(getThemePreview)
   const themeListRef = useRef(null)
   // Hover/focus preview: null means "show the committed choice". Only mouse
@@ -110,7 +122,7 @@ export default function SettingsButton({ className = '' }) {
   return <>
     <button
       type="button"
-      onClick={() => setOpen(true)}
+      onClick={() => { setEditingMe(false); setOpen(true) }}
       title="Settings"
       aria-label="Settings"
       className={`relative text-retro-dim hover:text-retro-text active:scale-95 transition-colors p-2 rounded ${className}`}
@@ -130,6 +142,27 @@ export default function SettingsButton({ className = '' }) {
         <SectionTitle>SETTINGS</SectionTitle>
         <button type="button" onClick={() => setOpen(false)} className="font-pixel text-[10px] text-retro-dim hover:text-retro-text p-2 -m-2">CLOSE</button>
       </div>
+
+      <section className="space-y-2" aria-label="Your name and avatar">
+        <SectionTitle>YOU</SectionTitle>
+        {editingMe ? (
+          <Suspense fallback={<div className="py-8 flex justify-center"><PixelDots /></div>}>
+            <IdentityEditor name={myName} avatar={myAvatar} onDone={() => setEditingMe(false)} />
+          </Suspense>
+        ) : (
+          <div className="flex items-center gap-3 bg-retro-surface border border-retro-border rounded p-2.5">
+            <Avatar id={myAvatar} size={40} />
+            <p className="min-w-0 flex-1 font-pixel text-xs text-retro-text truncate">{myName || 'NO NAME YET'}</p>
+            <button
+              type="button"
+              onClick={() => setEditingMe(true)}
+              className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
+            >
+              EDIT NAME &amp; LOOK
+            </button>
+          </div>
+        )}
+      </section>
 
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-3">

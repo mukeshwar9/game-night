@@ -8,7 +8,7 @@ import { defaultAvatarForId } from '../lib/avatars'
 import { checkShouldOnboard } from '../lib/onboarding'
 import useCreateGame from '../hooks/useCreateGame'
 import GamePicker from '../components/GamePicker'
-import Onboarding from '../components/Onboarding'
+import Onboarding from '../components/LazyOnboarding'
 
 export default function Games() {
   const [searchParams] = useSearchParams()

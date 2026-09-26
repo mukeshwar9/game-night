@@ -65,6 +65,8 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { VideoCallReactionDock, VideoCallShell } from '../components/VideoCallLayout'
 import RulesModal, { RulesButton } from '../components/RulesModal'
+import Onboarding from '../components/LazyOnboarding'
+import { checkShouldOnboard } from '../lib/onboarding'
 import {
   commitSeed, deriveSeed, generateSeedHex, rollFaceAsync, rollFacePairAsync,
 } from '../lib/diceLogic'
@@ -269,8 +271,6 @@ export default function Game() {
   const [claimingWin, setClaimingWin] = useState(false)
   const [needName, setNeedName] = useState(false)
   const [nameVersion, setNameVersion] = useState(0)
-  const [nameInput, setNameInput] = useState('')
-  const [nameError, setNameError] = useState('')
   // mySymbol (ref) is the source of truth read inside effects/handlers/async
   // callbacks; mySeat (state) mirrors it for reads during render, since a ref
   // read during render isn't guaranteed to reflect the latest value. Every
@@ -314,7 +314,7 @@ export default function Game() {
     }
 
     const playerName = localStorage.getItem('playerName')
-    if (!playerName) {
+    if (!playerName || checkShouldOnboard()) {
       setNeedName(true)
       setLoading(false)
       return
@@ -1322,45 +1322,14 @@ export default function Game() {
     return true
   }
 
-  // Feature A — name prompt for invited players
+  // Feature A — invited players without a name get the full first-run flow
+  // (name, then avatar) and land straight back in the room.
   if (needName) {
-    const handleNameSubmit = () => {
-      const trimmed = nameInput.trim()
-      if (!trimmed) { setNameError('ENTER YOUR NAME FIRST'); return }
-      localStorage.setItem('playerName', trimmed)
-      setNeedName(false)
-      setLoading(true)
-      setNameVersion(v => v + 1)
-    }
-
     return (
-      <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="w-full max-w-sm space-y-6 text-center">
-          <h2 className="font-pixel text-sm text-retro-cta text-glow-cta">YOU&apos;RE INVITED!</h2>
-          <p className="font-mono text-xs text-retro-dim">
-            ROOM <span className="text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
-          </p>
-          <input
-            type="text"
-            placeholder="PLAYER ONE"
-            value={nameInput}
-            onChange={e => { setNameInput(e.target.value); setNameError('') }}
-            onKeyDown={e => e.key === 'Enter' && handleNameSubmit()}
-            maxLength={20}
-            aria-label="Your name"
-            className="w-full bg-retro-card border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest placeholder-retro-dim rounded px-4 py-3 focus:outline-none focus:border-retro-p1 transition-colors"
-          />
-          {nameError && (
-            <p className="font-pixel text-[10px] text-retro-p2">{nameError}</p>
-          )}
-          <button
-            onClick={handleNameSubmit}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
-          >
-            JOIN GAME
-          </button>
-        </div>
-      </div>
+      <Onboarding
+        invite={{ gameId }}
+        onDone={() => { setNeedName(false); setLoading(true); setNameVersion(v => v + 1) }}
+      />
     )
   }
 

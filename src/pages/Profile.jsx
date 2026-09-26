@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
-import AvatarCustomizer from '../components/AvatarCustomizer'
+import AvatarPicker from '../components/AvatarPicker'
 import AuthErrorBanner from '../components/AuthErrorBanner'
 import EmptyState from '../components/EmptyState'
-import { canonicalAvatar } from '../lib/avatars'
+import { canonicalAvatar, defaultAvatarForId } from '../lib/avatars'
+import { validateName } from '../lib/onboardingLogic'
+import { getPlayerId } from '../lib/playerId'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { getStats, getMatches } from '../lib/profile'
@@ -27,7 +29,7 @@ export default function Profile() {
   // Follows React's sanctioned "adjust state during rendering" pattern (comparing
   // against a tracked previous value in state, not an effect) — see
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-state-when-a-prop-changes
-  const savedAvatar = canonicalAvatar(profile?.avatar)
+  const savedAvatar = canonicalAvatar(profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId()))
   const [avatarDraft, setAvatarDraft] = useState(savedAvatar)
   const [avatarDraftDirty, setAvatarDraftDirty] = useState(false)
   const [prevSavedAvatar, setPrevSavedAvatar] = useState(savedAvatar)
@@ -40,12 +42,13 @@ export default function Profile() {
   }
 
   const nameValue = nameEdit ?? profile?.displayName ?? ''
-  const dirty = nameEdit !== null && nameEdit.trim() && nameEdit.trim() !== profile?.displayName
+  const nameCheck = validateName(nameValue)
+  const nameError = nameEdit !== null && !nameCheck.ok ? nameCheck.error : null
+  const dirty = nameEdit !== null && nameCheck.ok && nameCheck.name !== profile?.displayName
 
   const saveName = () => runNameSave(async () => {
-    const trimmed = nameValue.trim()
-    if (!trimmed) return
-    await setProfile({ displayName: trimmed })
+    if (!nameCheck.ok) return
+    await setProfile({ displayName: nameCheck.name })
     setNameEdit(null)
     toast.success('NAME SAVED!')
   }, () => toast.error("COULDN'T SAVE YOUR NAME — TRY AGAIN."))
@@ -154,9 +157,12 @@ export default function Profile() {
 
         {/* Display name */}
         <div className="space-y-2">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">DISPLAY NAME</label>
+          <label htmlFor="profile-name" className="font-pixel text-[10px] text-retro-dim tracking-wider">DISPLAY NAME</label>
           <div className="flex gap-2">
             <input
+              id="profile-name"
+              aria-invalid={!!nameError}
+              aria-describedby={nameError ? 'profile-name-error' : undefined}
               value={nameValue}
               onChange={e => setNameEdit(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && dirty && !nameBusy && saveName()}
@@ -174,13 +180,14 @@ export default function Profile() {
               {nameBusy ? 'SAVING…' : 'SAVE'}
             </button>
           </div>
+          {nameError && <p id="profile-name-error" role="alert" className="font-pixel text-[9px] text-retro-p2">{nameError}</p>}
         </div>
 
         {/* Avatar picker */}
-        <div className="space-y-2">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">AVATAR</label>
+        <div id="look" className="space-y-2 scroll-mt-20">
+          <p className="font-pixel text-[10px] text-retro-dim tracking-wider">AVATAR</p>
           <div className={avatarBusy ? 'pointer-events-none opacity-60' : ''}>
-            <AvatarCustomizer value={avatarDraft} onChange={pickAvatar} />
+            <AvatarPicker value={avatarDraft} onChange={pickAvatar} name={profile?.displayName || localStorage.getItem('playerName') || ''} />
           </div>
           {avatarDraftDirty && (
             <button
