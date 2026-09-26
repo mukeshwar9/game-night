@@ -27,3 +27,17 @@ describe('shouldShowOnboarding', () => {
     expect(shouldShowOnboarding({ onboarded: null, playerName: '', roomsCount: 0 })).toBe(true)
   })
 })
+
+describe('shouldShowOnboarding — placeholder names', () => {
+  it('treats a Guest-XXXX placeholder as no name chosen yet', () => {
+    expect(shouldShowOnboarding({ onboarded: null, playerName: 'Guest-7F3A', roomsCount: 0 })).toBe(true)
+  })
+
+  it('still skips a placeholder-named visitor who finished onboarding', () => {
+    expect(shouldShowOnboarding({ onboarded: '1', playerName: 'Guest-7F3A', roomsCount: 0 })).toBe(false)
+  })
+
+  it('still skips a placeholder-named visitor with rooms (played before the flag existed)', () => {
+    expect(shouldShowOnboarding({ onboarded: null, playerName: 'Guest-7F3A', roomsCount: 1 })).toBe(false)
+  })
+})

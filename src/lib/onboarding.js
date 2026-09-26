@@ -2,12 +2,15 @@
 // wrapper reads localStorage + local rooms so Home can call it in a state
 // initializer without touching async code.
 import { getRooms } from './profile'
+import { isGuestStyleName } from './onboardingLogic'
 
 // Pure predicate — show the onboarding iff the visitor is genuinely new.
-// Returns false as soon as any "been here before" signal is present.
+// Returns false as soon as any "been here before" signal is present. A
+// Guest-XXXX name doesn't count: ensureProfile() writes that placeholder on the
+// first boot, before the visitor has chosen anything.
 export function shouldShowOnboarding({ onboarded, playerName, roomsCount }) {
   if (onboarded) return false
-  if (playerName) return false
+  if (playerName && !isGuestStyleName(playerName)) return false
   if (roomsCount > 0) return false
   return true
 }

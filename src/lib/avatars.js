@@ -22,6 +22,9 @@ export const SHAPES = [
   'ninja', 'crown', 'dino', 'heart',
   'frog', 'star', 'mushroom', 'bolt', 'moon', 'fish', 'sword', 'slime',
   'boy', 'girl', 'kid', 'punk',
+  // Third wave (first-run picker rework) — appended after the humanoids because
+  // the order above is wire format and must never change.
+  'bunny', 'bear', 'owl', 'penguin', 'octopus', 'fox', 'rocket',
 ]
 
 export const TONES = ['p1', 'p2', 'cta', 'win', 'text', 'dim', 'av1', 'av2', 'av3', 'av4']
@@ -33,6 +36,7 @@ export const CLASSIC_TONES = {
   ufo: 'cta', wizard: 'p1', ninja: 'text', crown: 'cta', dino: 'win', heart: 'p2',
   frog: 'win', star: 'cta', mushroom: 'p2', bolt: 'cta', moon: 'text', fish: 'p1', sword: 'dim', slime: 'win',
   boy: 'p1', girl: 'p2', kid: 'win', punk: 'cta',
+  bunny: 'text', bear: 'av4', owl: 'av2', penguin: 'p1', octopus: 'p2', fox: 'av1', rocket: 'cta',
 }
 
 // Humanoid avatars — the only shapes offered by the picker (creature shapes above
@@ -41,6 +45,12 @@ export const CLASSIC_TONES = {
 export const HUMANOIDS = ['boy', 'girl', 'kid', 'punk']
 export const PARTS = ['cap', 'shirt', 'pants', 'shoes']
 export const PICKER_SHAPES = HUMANOIDS
+
+// Every single-colour creature shape, in SHAPES order — the avatar picker's
+// CRITTERS grid. LEGACY_CREATURES is the pre-rework set of 20; party bots draw
+// from it so seeded bot looks never shift when a new creature is added.
+export const CREATURES = SHAPES.filter(s => !HUMANOIDS.includes(s))
+export const LEGACY_CREATURES = SHAPES.slice(0, 20)
 
 // v2 vocabularies. Hair color reuses TONES.
 export const SKIN_TONES = ['s1', 's2', 's3', 's4', 's5']
@@ -207,6 +217,35 @@ export function defaultAvatarForId(id) {
     acc: 'none',
   }
   return makeHumanoid(shape, parts)
+}
+
+// Random look for the picker's SHUFFLE button — half the time a creature in a
+// random tone, otherwise a fully random humanoid. `rand` is injectable so tests
+// can pin the output; `avoid` re-rolls once if the result equals it, so a shuffle
+// always visibly changes something.
+export function randomHumanoid(rand = Math.random) {
+  const pick = (arr) => arr[Math.floor(rand() * arr.length)]
+  // Accessories are 50% 'none' — a full outfit reads busier than most people want.
+  const nonNoneAcc = ACCESSORIES.filter(a => a !== 'none')
+  const accPool = [...Array(nonNoneAcc.length).fill('none'), ...nonNoneAcc]
+  return makeHumanoid(pick(PICKER_SHAPES), {
+    cap: pick(TONES), shirt: pick(TONES), pants: pick(TONES), shoes: pick(TONES),
+    skin: pick(SKIN_TONES), hair: pick(HAIR_STYLES), hairColor: pick(TONES), acc: pick(accPool),
+  })
+}
+
+export function randomAvatar(rand = Math.random, avoid = null) {
+  const roll = () => rand() < 0.5
+    ? makeAvatar(CREATURES[Math.floor(rand() * CREATURES.length)], TONES[Math.floor(rand() * TONES.length)])
+    : randomHumanoid(rand)
+  const first = roll()
+  if (avoid == null || first !== canonicalAvatar(avoid)) return first
+  const second = roll()
+  if (second !== first) return second
+  // Two identical rolls in a row: step the tone/shirt deterministically instead.
+  const { shape, tone, parts } = parseAvatar(first)
+  const next = TONES[(TONES.indexOf(tone) + 1) % TONES.length]
+  return parts ? makeHumanoid(shape, { ...parts, shirt: next }) : makeAvatar(shape, next)
 }
 
 // Curated outfit combos for the customizer's preset strip. Shape-agnostic — applying
