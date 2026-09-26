@@ -795,7 +795,7 @@ export const GAME_TYPES = [
   },
   {
     type: 'pacmac', label: 'PAC MAC',
-    desc: 'eat more pellets than they do', Icon: PacmacIcon,
+    desc: 'maze duel: out-eat them, then eat them', Icon: PacmacIcon,
     badge: 'PM', maxWidth: 'max-w-md',
     category: 'reflex',
     addedAt: '2026-08-14',

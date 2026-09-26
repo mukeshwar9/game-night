@@ -67,14 +67,16 @@ export const GAME_RULES = {
   },
 
   pacmac: {
-    objective: 'Eat more pellets than your rival in a shared maze while dodging ghosts.',
+    objective: 'Out-eat your rival in one shared maze while three ghosts hunt you both.',
     howToPlay: [
-      'Steer your muncher with arrow keys, WASD, or swipe — reverse is allowed.',
-      'Pellets are shared: whoever bites first gets the points. Power pellets frighten ghosts.',
-      'A ghost hit stuns you and sends you home; eating a frightened ghost scores a bonus.',
+      'Steer with the on-screen pad, a swipe anywhere on the maze, the arrow keys or WASD. A turn you press early waits for the next junction.',
+      'Pellets are shared: whoever bites first gets the points (10, power pellets 50).',
+      'A power pellet turns the ghosts blue and powers you up for 6 seconds: eat ghosts for 100 / 200 / 300, or bump your rival to gobble them for 200.',
+      'When your rival is powered, the maze flashes RUN! — keep away until it wears off.',
+      'Caught by a ghost? You respawn at your corner two seconds later, briefly shielded.',
       'Play is real time over a direct peer-to-peer link, so both players must stay connected.',
     ],
-    win: 'Highest score when the maze is empty or the 90-second clock hits zero wins the round. A tie is a draw. First to 3 rounds wins the match.',
+    win: 'Most points when the maze is cleared or the 90-second clock runs out wins the round. A tie is a draw. First to 3 rounds wins the match.',
   },
 
   pong: {
