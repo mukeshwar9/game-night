@@ -23,16 +23,54 @@ import {
   phaseDeadline,
   pendingLiars,
   matchChampions,
+  optionKey,
+  sameOption,
+  isTruthLike,
+  validateLie,
+  allReady,
 } from './fibbageLogic'
 import { markSeen } from './seenHistory'
 import { FIBBAGE_FACTS } from './decks/fibbage'
+import { isBannedWord } from './wordDenylist'
 
 // ---------------------------------------------------------------------------
 // deck sanity
 // ---------------------------------------------------------------------------
 describe('FIBBAGE_FACTS deck', () => {
-  it('has at least 25 entries', () => {
-    expect(FIBBAGE_FACTS.length).toBeGreaterThanOrEqual(25)
+  it('has at least 60 entries', () => {
+    expect(FIBBAGE_FACTS.length).toBeGreaterThanOrEqual(60)
+  })
+
+  it('has no duplicate prompts', () => {
+    const keys = FIBBAGE_FACTS.map(f => optionKey(f.prompt))
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('every prompt has exactly one blank', () => {
+    for (const f of FIBBAGE_FACTS) {
+      expect(f.prompt.split('___').length - 1).toBe(1)
+    }
+  })
+
+  it('regression: the "elephant is the only mammal that can\'t jump" myth is gone', () => {
+    expect(FIBBAGE_FACTS.some(f => /only mammal that cannot jump|can't jump/i.test(f.prompt))).toBe(false)
+  })
+
+  it('answers are short and have letters or digits', () => {
+    for (const f of FIBBAGE_FACTS) {
+      expect(optionKey(f.answer).length).toBeGreaterThan(0)
+      expect(f.answer.length).toBeLessThanOrEqual(24)
+    }
+  })
+
+  it('no shipped prompt, answer or decoy contains a banned word', () => {
+    for (const f of FIBBAGE_FACTS) {
+      for (const text of [f.prompt, f.answer, ...f.decoys]) {
+        for (const word of text.toLowerCase().split(/[^a-z]+/).filter(Boolean)) {
+          expect(isBannedWord(word)).toBe(false)
+        }
+      }
+    }
   })
 
   it('every entry has a prompt with a blank and a non-empty answer', () => {
@@ -71,6 +109,22 @@ describe('decoys', () => {
       for (const d of f.decoys) {
         expect(d.toLowerCase()).not.toBe(answerLower)
       }
+    }
+  })
+
+  it('no decoy is truth-like (bots must pass the same lie check as players)', () => {
+    for (const f of FIBBAGE_FACTS) {
+      for (const d of f.decoys) {
+        expect(isTruthLike(d, f.answer), `${f.answer} / ${d}`).toBe(false)
+        expect(validateLie(d, f.answer).ok, `${f.answer} / ${d}`).toBe(true)
+      }
+    }
+  })
+
+  it('decoys are distinct options within a fact', () => {
+    for (const f of FIBBAGE_FACTS) {
+      const keys = f.decoys.map(optionKey)
+      expect(new Set(keys).size).toBe(keys.length)
     }
   })
 
@@ -483,5 +537,112 @@ describe('matchChampions', () => {
   })
   it('is empty when nobody scored', () => {
     expect(matchChampions({}, ['a', 'b'])).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Truth-bypass + casing tell (lie validation and loose option matching)
+// ---------------------------------------------------------------------------
+describe('isTruthLike', () => {
+  it('regression: punctuation/casing variants of the truth are the truth', () => {
+    expect(isTruthLike('Scotland.', 'Scotland')).toBe(true)
+    expect(isTruthLike('SCOTLAND!', 'Scotland')).toBe(true)
+  })
+
+  it('treats a leading article or plural as the same answer', () => {
+    expect(isTruthLike('Pringles can', 'a Pringles can')).toBe(true)
+    expect(isTruthLike('guinea pigs', 'guinea pig')).toBe(true)
+  })
+
+  it('treats one typo in a longer answer as the truth', () => {
+    expect(isTruthLike('Scotlnd', 'Scotland')).toBe(true)
+    expect(isTruthLike('flamboyanse', 'flamboyance')).toBe(true)
+  })
+
+  it('keeps short answers exact so a real lie one letter off is allowed', () => {
+    expect(isTruthLike('hat', 'cat')).toBe(false)
+    expect(isTruthLike('14', '13')).toBe(false)
+  })
+
+  it('treats the same number written as a word or digits as the truth', () => {
+    expect(isTruthLike('3', 'three')).toBe(true)
+    expect(isTruthLike('Three.', '3')).toBe(true)
+    expect(isTruthLike('4', 'three')).toBe(false)
+  })
+
+  it('does not flag a genuinely different lie', () => {
+    expect(isTruthLike('Ireland', 'Scotland')).toBe(false)
+    expect(isTruthLike('a cookie jar', 'a Pringles can')).toBe(false)
+  })
+})
+
+describe('validateLie', () => {
+  it('accepts a normal lie (trimmed)', () => {
+    expect(validateLie('  Ireland ', 'Scotland')).toEqual({ ok: true, text: 'Ireland' })
+  })
+
+  it('regression: rejects "Scotland." and "SCOTLAND!" when the truth is Scotland', () => {
+    expect(validateLie('Scotland.', 'Scotland').ok).toBe(false)
+    expect(validateLie('SCOTLAND!', 'Scotland')).toEqual({ ok: false, error: "THAT'S THE TRUTH — LIE HARDER" })
+  })
+
+  it('rejects empty, symbol-only and over-long lies', () => {
+    expect(validateLie('   ', 'x').error).toBe('TYPE YOUR LIE')
+    expect(validateLie('!!!', 'x').error).toBe('USE LETTERS OR NUMBERS')
+    expect(validateLie('a'.repeat(61), 'x').error).toBe('TOO LONG')
+  })
+
+  it('rejects banned words', () => {
+    expect(validateLie('a big shit', 'snow')).toEqual({ ok: false, error: 'KEEP IT CLEAN' })
+  })
+})
+
+describe('optionKey / sameOption', () => {
+  it('regression: "a pringles can" and "Pringles can" are the same option', () => {
+    expect(sameOption('a pringles can', 'Pringles can')).toBe(true)
+    expect(optionKey('A Pringles Can.')).toBe(optionKey('pringles can'))
+  })
+
+  it('never matches empty text', () => {
+    expect(sameOption('', '')).toBe(false)
+    expect(sameOption('!!', '??')).toBe(false)
+  })
+})
+
+describe('buildOptions / attributeOptions with loose matching', () => {
+  it('regression: drops truth variants from the ballot ("SCOTLAND!" / "Scotlnd")', () => {
+    const opts = buildOptions('Scotland', ['SCOTLAND!', 'Scotlnd', 'Ireland'], 9)
+    expect(opts.map(o => o.text).sort()).toEqual(['Ireland', 'Scotland'])
+  })
+
+  it('merges lies that differ only by article/case/punctuation and credits every author', () => {
+    const opts = buildOptions('a Pringles can', ['a cookie jar', 'Cookie jar!', 'his golf bag'], 4)
+    expect(opts).toHaveLength(3) // truth + cookie jar + golf bag
+    const rich = attributeOptions(opts, 'a Pringles can', { p1: 'a cookie jar', p2: 'Cookie jar!', p3: 'his golf bag' })
+    const jar = rich.find(o => sameOption(o.text, 'cookie jar'))
+    expect(jar.by.sort()).toEqual(['p1', 'p2'])
+  })
+
+  it('gives no credit to a truth-like lie that slipped onto an old ballot', () => {
+    // A ballot built by an older client could still carry "Scotlnd".
+    const legacy = [{ id: 'opt-0', text: 'Scotland' }, { id: 'opt-1', text: 'Scotlnd' }]
+    const rich = attributeOptions(legacy, 'Scotland', { p1: 'Scotlnd' })
+    expect(rich.find(o => o.id === 'opt-0').by).toBeNull()
+    expect(rich.find(o => o.id === 'opt-1').by).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// allReady — reveal pacing
+// ---------------------------------------------------------------------------
+describe('allReady', () => {
+  it('is true only when every eligible player is ready', () => {
+    expect(allReady(['a', 'b'], { a: true, b: true })).toBe(true)
+    expect(allReady(['a', 'b'], { a: true })).toBe(false)
+    expect(allReady(['a', 'b'], null)).toBe(false)
+  })
+
+  it('is false for an empty table', () => {
+    expect(allReady([], { a: true })).toBe(false)
   })
 })

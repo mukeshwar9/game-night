@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   HERD_TARGET, ANSWER_MS,
   normalizeAnswer, resolveHerdRound,
-  seededShuffle, allAnswered,
+  seededShuffle, allAnswered, isBannedAnswer, pickHerdBotAnswer,
 } from '../lib/herdLogic'
-import { HERD_PROMPTS } from '../lib/decks/herd'
+import { HERD_PROMPTS, HERD_ANSWER_BANKS } from '../lib/decks/herd'
 import { sounds } from '../lib/sounds'
+import WordFeedback from '../components/WordFeedback'
 import { cn } from '@/lib/utils'
 
 // Solo HERD MIND vs four crowd-pleasing bots. Fully local — no Firebase.
@@ -21,12 +22,6 @@ const SEATS = [{ id: ME, name: 'YOU' }, ...BOTS]
 const ELIGIBLE = SEATS.map(s => s.id)
 const NAME = Object.fromEntries(SEATS.map(s => [s.id, s.name]))
 
-// Fixed generic pool — bots converge on 3 round-favored entries so herds form.
-const BOT_POOL = [
-  'pizza', 'coffee', 'dog', 'cat', 'sleep', 'phone', 'money', 'music',
-  'chocolate', 'beach', 'netflix', 'gym', 'beer', 'chess', 'travel', 'napping',
-]
-
 const randSeed = () => Math.floor(Math.random() * 2147483647)
 const zeroScores = () => Object.fromEntries(ELIGIBLE.map(id => [id, 0]))
 
@@ -40,7 +35,8 @@ export default function HerdDemo() {
   const [scores, setScores] = useState(zeroScores)
   const [cow, setCow] = useState(null)
   const [reveal, setReveal] = useState(null) // { groups, pointUids, transferred }
-  const [matchWinner, setMatchWinner] = useState(null)
+  const [matchWinners, setMatchWinners] = useState([])
+  const [inputError, setInputError] = useState('')
   const [remaining, setRemaining] = useState(ANSWER_MS)
 
   const answersRef = useRef({})
@@ -61,10 +57,13 @@ export default function HerdDemo() {
     const all = answersRef.current
     // Same round resolution as the live game (herdLogic.resolveHerdRound).
     const texts = {}
-    for (const id of ELIGIBLE) if (normalizeAnswer(all[id] ?? '')) texts[id] = all[id]
+    // Insertion order = submit order, so a display-spelling tie goes to the first answer.
+    for (const [id, text] of Object.entries(all)) {
+      if (ELIGIBLE.includes(id) && normalizeAnswer(text ?? '')) texts[id] = text
+    }
     const {
-      groups, pointUids, cow: nextCowUid, transferred, newScores: nextScores, winner,
-    } = resolveHerdRound({ texts, scores: scoresRef.current, herdCow: cowRef.current, seatIds: ELIGIBLE })
+      groups, pointUids, cow: nextCowUid, transferred, scores: nextScores, winners,
+    } = resolveHerdRound({ texts, scores: scoresRef.current, cow: cowRef.current, seatIds: ELIGIBLE })
     scoresRef.current = nextScores
     cowRef.current = nextCowUid
     setScores(nextScores)
@@ -75,27 +74,20 @@ export default function HerdDemo() {
     if (pointUids.includes(ME)) sounds.win()
     else sounds.miss()
     if (transferred && nextCowUid === ME) sounds.bust()
-    setMatchWinner(winner)
+    setMatchWinners(winners)
   }, [])
 
   const maybeResolve = useCallback(() => {
     if (!resolvedRef.current && allAnswered(ELIGIBLE, answersRef.current)) resolve()
   }, [resolve])
 
-  // Bots converge: 60% one of the 3 round-favored pool entries (rotated by
-  // promptIndex), else uniform — staggered 1–6s submissions.
+  // Bots answer from this prompt's answer bank, weighted toward the obvious
+  // answer (pickHerdBotAnswer) — staggered 1–6s submissions.
   const scheduleBots = useCallback((roundIdx) => {
     clearBotTimers()
-    const off = ((roundIdx % BOT_POOL.length) + BOT_POOL.length) % BOT_POOL.length
-    const top3 = [
-      BOT_POOL[off],
-      BOT_POOL[(off + 1) % BOT_POOL.length],
-      BOT_POOL[(off + 2) % BOT_POOL.length],
-    ]
+    const bank = HERD_ANSWER_BANKS[deck[roundIdx % deck.length]]
     for (const bot of BOTS) {
-      const answer = Math.random() < 0.6
-        ? top3[Math.floor(Math.random() * top3.length)]
-        : BOT_POOL[Math.floor(Math.random() * BOT_POOL.length)]
+      const answer = pickHerdBotAnswer(bank)
       const t = setTimeout(() => {
         if (resolvedRef.current) return
         answersRef.current = { ...answersRef.current, [bot.id]: answer }
@@ -104,7 +96,7 @@ export default function HerdDemo() {
       }, 1000 + Math.random() * 5000)
       timersRef.current.push(t)
     }
-  }, [maybeResolve])
+  }, [maybeResolve, deck])
 
   // Per-round clock + bot submissions. Auto-resolves early once everyone is in.
   useEffect(() => {
@@ -129,6 +121,8 @@ export default function HerdDemo() {
   const submit = () => {
     const text = input.trim()
     if (!text || resolvedRef.current || myAnswered) return
+    if (isBannedAnswer(text)) { setInputError('NOT ALLOWED — TRY ANOTHER ANSWER'); return }
+    setInputError('')
     answersRef.current = { ...answersRef.current, [ME]: text }
     setAnswers(answersRef.current)
     sounds.move('X')
@@ -154,7 +148,7 @@ export default function HerdDemo() {
     cowRef.current = null
     setScores(zeroScores())
     setCow(null)
-    setMatchWinner(null)
+    setMatchWinners([])
     setDeckSeed(randSeed())
     startRound(0)
   }
@@ -195,13 +189,18 @@ export default function HerdDemo() {
     </div>
   )
 
+  const matchOver = matchWinners.length > 0
+
   if (phase === 'winner') {
-    const iWon = matchWinner === ME
+    const iWon = matchWinners.includes(ME)
+    const names = matchWinners.map(id => NAME[id]).join(' & ')
     return (
       <div className="space-y-4">
         <div className="text-center space-y-2 py-6">
           <p className={cn('font-pixel text-lg', iWon ? 'text-retro-win text-glow-win' : 'text-retro-p2')}>
-            {iWon ? '🎉 YOU WIN!' : `🐄 ${NAME[matchWinner]} WINS!`}
+            {iWon
+              ? (matchWinners.length > 1 ? `🎉 YOU TIE FOR THE WIN! (${names})` : '🎉 YOU WIN!')
+              : matchWinners.length > 1 ? `🐄 ${names} TIE!` : `🐄 ${names} WINS!`}
           </p>
           <p className="font-mono text-[10px] text-retro-dim">
             {iWon ? 'THE HERD SPOKE WITH YOUR VOICE' : 'THE HERD MIND WAS NOT WITH YOU'}
@@ -251,9 +250,14 @@ export default function HerdDemo() {
               <div className="flex gap-2">
                 <input
                   value={input}
-                  onChange={e => setInput(e.target.value)}
+                  onChange={e => { setInput(e.target.value); setInputError('') }}
                   onKeyDown={e => { if (e.key === 'Enter') submit() }}
                   maxLength={40}
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  enterKeyHint="send"
+                  aria-label="Your answer"
                   placeholder="TYPE YOUR ANSWER…"
                   className="flex-1 min-w-0 bg-retro-deep border border-retro-border rounded px-2 py-1.5 font-mono text-[12px] text-retro-text placeholder:text-retro-dim focus:border-retro-cta focus:outline-none"
                 />
@@ -270,6 +274,7 @@ export default function HerdDemo() {
                 LOCKED IN — WAITING FOR THE HERD…
               </p>
             )}
+            <WordFeedback message={inputError} tone="bad" />
 
             <p className="font-mono text-[9px] text-retro-dim text-center leading-relaxed">
               {myAnswered
@@ -296,7 +301,7 @@ export default function HerdDemo() {
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-pixel text-[11px] text-retro-text truncate">{g.norm.toUpperCase()}</span>
+                      <span className="font-pixel text-[11px] text-retro-text truncate">{g.display.toUpperCase()}</span>
                       <span className="flex items-center gap-2 shrink-0">
                         {isWinner && (
                           <span className="font-pixel text-[8px] text-retro-win">+1 EACH</span>
@@ -335,15 +340,15 @@ export default function HerdDemo() {
 
               <div className="flex justify-center pt-1">
                 <button
-                  onClick={matchWinner != null ? () => setPhase('winner') : nextRound}
+                  onClick={matchOver ? () => setPhase('winner') : nextRound}
                   className={cn(
                     'px-5 py-2 font-pixel text-[10px] border rounded hover:shadow-neon-win active:scale-95',
-                    matchWinner != null
+                    matchOver
                       ? 'border-retro-cta text-retro-cta hover:shadow-neon-cta'
                       : 'border-retro-win text-retro-win',
                   )}
                 >
-                  {matchWinner != null ? 'FINAL RESULTS' : 'NEXT PROMPT'}
+                  {matchOver ? 'FINAL RESULTS' : 'NEXT PROMPT'}
                 </button>
               </div>
             </div>

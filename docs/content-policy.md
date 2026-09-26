@@ -5,11 +5,11 @@
 This policy covers:
 
 - the **party decks** in `src/lib/decks/` (Spyfair, Wavelength and the other party decks);
-- the **moderation denylist** in `src/lib/wordDenylist.js`.
+- the **moderation denylist** in `src/lib/moderationDenylist.js`.
 
 Word-game dictionaries are out of scope here. Word Hunt, the Wordle lists and Anagrams are owned separately.
 
-## Moderation denylist (`src/lib/wordDenylist.js`)
+## Moderation denylist (`src/lib/moderationDenylist.js`)
 
 The denylist is a pure module that exports:
 

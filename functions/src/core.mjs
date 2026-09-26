@@ -29,7 +29,7 @@ import { getReversiWinner, REVERSI_SIZE } from '../../src/lib/reversiLogic'
 import { getOrderChaosWinner, OC_CELL_COUNT } from '../../src/lib/orderChaosLogic'
 import { matchWinner2P } from '../../src/lib/nightLogic'
 import { isSeatOnline } from '../../src/lib/presenceLogic'
-import { isMatchFinish } from '../../src/lib/matchRules'
+import { isMatchFinish, isCoopGame } from '../../src/lib/matchRules'
 
 export { matchTargetFor } from '../../src/lib/matchRules'
 
@@ -73,9 +73,6 @@ export const VERIFIERS = {
   orderchaos: { size: OC_CELL_COUNT, winner: getOrderChaosWinner },
 }
 
-// 2P games with no winner/loser (both players share the result).
-const COOP_GAMES = new Set(['wordcoop'])
-
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
 const other = (sym) => (sym === 'X' ? 'O' : 'X')
 const isSide = (v) => v === 'X' || v === 'O'
@@ -96,7 +93,7 @@ export const matchOutcome = (room) => matchWinner2P(room)
  * seated players (party rooms are keyed by uid, not X/O, and are skipped).
  */
 export function twoPlayerSeats(room) {
-  if (!room || COOP_GAMES.has(room.gameType)) return null
+  if (!room || isCoopGame(room.gameType)) return null
   const x = room.players?.X?.playerId
   const o = room.players?.O?.playerId
   if (typeof x !== 'string' || typeof o !== 'string' || !x || !o || x === o) return null

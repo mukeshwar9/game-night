@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { JUST_ONE_WORDS } from './justone'
-import { isDenied } from '../wordDenylist'
+import { isDenied } from '../moderationDenylist'
 
 describe('JUST_ONE_WORDS deck', () => {
   it('has at least 300 words', () => {

@@ -459,6 +459,9 @@
           "cowMoved": {
             ".validate": "((newData.parent().parent().child('gameType').val() !== 'herd') || (newData.isBoolean()))"
           },
+          "spyGuess": {
+            ".validate": "((newData.parent().parent().child('gameType').val() !== 'spyfair') || (newData.hasChildren(['by','index']) && newData.child('by').isString() && newData.child('by').val().length <= 128 && newData.child('index').isNumber() && newData.child('index').val() >= 0 && newData.child('index').val() <= 999 && (data.exists() ? (newData.child('by').val() === data.child('by').val() && newData.child('index').val() === data.child('index').val()) : newData.child('by').val() === auth.uid)))"
+          },
           "openKeys": {
             "$uid": {
               ".validate": "((newData.parent().parent().parent().child('gameType').val() !== 'spyfair' && newData.parent().parent().parent().child('gameType').val() !== 'chameleon') || ((newData.isString() && newData.val().length <= 200 && (!data.exists() || newData.val() === data.val()))))"

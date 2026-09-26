@@ -8,6 +8,8 @@ import {
   randomSpectrumIndex,
   nextSpectrumIndex,
   randomTarget,
+  parseStoredTarget,
+  storedOrNewTarget,
   clampGuess,
   scoreGuess,
   normalizeGuesses,
@@ -19,23 +21,53 @@ import {
   freshRound,
   firstRound,
   rotateRound,
-  roundDeltas,
   addScores,
-  findClincher,
   advanceAfterReveal,
   skipRound,
   beginMatch,
+  validateClue,
+  clueGiverScore,
+  roundDeltas,
+  matchWinners,
   WAVELENGTH_WIN_SCORE,
   WAVELENGTH_SEEN_KEY,
+  normalizeIndexList,
+  pickSpectrumIndex,
 } from './wavelengthLogic'
 import { markSeen } from './seenHistory'
+import { matchKey } from './textMatchLogic'
 
 // ---------------------------------------------------------------------------
 // deck
 // ---------------------------------------------------------------------------
 describe('WAVELENGTH_PAIRS deck', () => {
-  it('has at least 30 pairs', () => {
-    expect(WAVELENGTH_PAIRS.length).toBeGreaterThanOrEqual(30)
+  it('has at least 60 pairs', () => {
+    expect(WAVELENGTH_PAIRS.length).toBeGreaterThanOrEqual(60)
+  })
+
+  it('has no duplicate pairs (either orientation)', () => {
+    const keys = WAVELENGTH_PAIRS.map(p => [matchKey(p.left), matchKey(p.right)].sort().join('|'))
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('never uses the same word for both ends', () => {
+    for (const p of WAVELENGTH_PAIRS) expect(matchKey(p.left)).not.toBe(matchKey(p.right))
+  })
+
+  it('every bot clue is itself a legal clue for its pair (one word, no digits, no dial word)', () => {
+    for (const p of WAVELENGTH_PAIRS) {
+      for (const c of p.clueBank) {
+        expect(validateClue(c.word, p), `${p.left}/${p.right}: ${c.word}`).toEqual({ ok: true, clue: c.word })
+      }
+    }
+  })
+
+  it('every clue bank spans the dial (something near each end)', () => {
+    for (const p of WAVELENGTH_PAIRS) {
+      const positions = p.clueBank.map(c => c.pos)
+      expect(Math.min(...positions), `${p.left}`).toBeLessThanOrEqual(30)
+      expect(Math.max(...positions), `${p.right}`).toBeGreaterThanOrEqual(70)
+    }
   })
 
   it('every pair has non-empty left and right', () => {
@@ -153,6 +185,56 @@ describe('randomTarget', () => {
       expect(t).toBeGreaterThanOrEqual(8)
       expect(t).toBeLessThanOrEqual(92)
       expect(Number.isInteger(t)).toBe(true)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// parseStoredTarget / storedOrNewTarget — the clue-giver's hidden target
+// ---------------------------------------------------------------------------
+describe('parseStoredTarget', () => {
+  it('reads a committed entry', () => {
+    const raw = JSON.stringify({ target: 37, salt: 'ab', hash: 'cd' })
+    expect(parseStoredTarget(raw)).toEqual({ target: 37, salt: 'ab', hash: 'cd' })
+  })
+
+  it('reads an uncommitted entry (target only)', () => {
+    expect(parseStoredTarget(JSON.stringify({ target: 12 }))).toEqual({ target: 12, salt: null, hash: null })
+  })
+
+  it('returns null for missing, corrupt or out-of-range entries', () => {
+    expect(parseStoredTarget(null)).toBeNull()
+    expect(parseStoredTarget('')).toBeNull()
+    expect(parseStoredTarget('{nope')).toBeNull()
+    expect(parseStoredTarget(JSON.stringify({ target: 'x' }))).toBeNull()
+    expect(parseStoredTarget(JSON.stringify({ target: 140 }))).toBeNull()
+    expect(parseStoredTarget(JSON.stringify({ target: 4.5 }))).toBeNull()
+  })
+})
+
+describe('storedOrNewTarget', () => {
+  it('regression: the target exists before the clue — rolled at clue phase, not at submit', () => {
+    // Old flow rolled the target inside handleSubmitClue, so the clue carried no
+    // information. The clue phase now rolls (fresh) and later calls reuse it.
+    const first = storedOrNewTarget(null, () => 61)
+    expect(first).toEqual({ target: 61, salt: null, hash: null, fresh: true })
+    const stored = JSON.stringify({ target: first.target })
+    const again = storedOrNewTarget(stored, () => 5)
+    expect(again.target).toBe(61)
+    expect(again.fresh).toBe(false)
+  })
+
+  it('keeps the committed salt/hash across a reload', () => {
+    const raw = JSON.stringify({ target: 44, salt: 's', hash: 'h' })
+    expect(storedOrNewTarget(raw, () => 9)).toEqual({ target: 44, salt: 's', hash: 'h', fresh: false })
+  })
+
+  it('rolls a fresh in-range target when storage is empty', () => {
+    for (let i = 0; i < 50; i++) {
+      const t = storedOrNewTarget(null)
+      expect(t.fresh).toBe(true)
+      expect(t.target).toBeGreaterThanOrEqual(8)
+      expect(t.target).toBeLessThanOrEqual(92)
     }
   })
 })
@@ -405,20 +487,16 @@ describe('firstRound / rotateRound', () => {
   })
 })
 
-describe('roundDeltas / addScores / findClincher', () => {
+describe('addScores', () => {
   it('scores only guessers who locked in', () => {
-    expect(roundDeltas({ b: 50, c: null }, ['b', 'c'], 50)).toEqual({ b: 50 })
+    expect(roundDeltas({ guesses: { b: 50, c: null }, target: 50, clueGiver: 'a', seatIds: ['a', 'b', 'c'] }))
+      .toEqual({ b: 50, a: 50 })
   })
 
   it('adds deltas without mutating', () => {
     const scores = { b: 10 }
     expect(addScores(scores, { b: 5, c: 1 })).toEqual({ b: 15, c: 1 })
     expect(scores).toEqual({ b: 10 })
-  })
-
-  it('finds the first seat past the win score', () => {
-    expect(findClincher(['a', 'b'], { b: WAVELENGTH_WIN_SCORE })).toBe('b')
-    expect(findClincher(['a', 'b'], { b: WAVELENGTH_WIN_SCORE - 1 })).toBeNull()
   })
 })
 
@@ -434,9 +512,9 @@ describe('advanceAfterReveal', () => {
     },
   })
 
-  it('scores guessers (never the clue-giver), rotates and records the spectrum', () => {
+  it('scores guessers by closeness and the clue-giver their mean, rotates and records the spectrum', () => {
     const next = advanceAfterReveal(revealed())
-    expect(next.scores).toEqual({ b: 50, c: 0 })
+    expect(next.scores).toEqual({ a: 25, b: 50, c: 0 })
     expect(next.round.clueGiver).toBe('b')
     expect(next.round.usedSpectrums).toEqual([2])
     expect(next.seen[WAVELENGTH_SEEN_KEY][next.round.spectrumIndex]).toBeGreaterThan(0)
@@ -453,6 +531,22 @@ describe('advanceAfterReveal', () => {
     g.scores = { b: WAVELENGTH_WIN_SCORE - 10 }
     const next = advanceAfterReveal(g)
     expect(next).toMatchObject({ status: 'finished', winner: 'b' })
+  })
+
+  it('regression: the highest score wins when several cross together, not seat order', () => {
+    const g = revealed()
+    g.scores = { a: WAVELENGTH_WIN_SCORE - 1, b: WAVELENGTH_WIN_SCORE - 10 }
+    // a (seat 1) reaches 224, b reaches 240.
+    expect(advanceAfterReveal(g)).toMatchObject({ status: 'finished', winner: 'b' })
+  })
+
+  it('shares an exact tie at the top — no sole winner is written', () => {
+    const g = revealed({ guesses: { b: 50, c: 50 } })
+    g.scores = { b: WAVELENGTH_WIN_SCORE, c: WAVELENGTH_WIN_SCORE }
+    const next = advanceAfterReveal(g)
+    expect(next.status).toBe('finished')
+    expect(next.winner).toBeNull()
+    expect(matchWinners(next.scores, ['a', 'b', 'c'])).toEqual(['b', 'c'])
   })
 
   it('is a no-op once the round has already advanced', () => {
@@ -509,5 +603,167 @@ describe('nextOnlineClueGiver', () => {
 
   it('the first round goes to the first online seat', () => {
     expect(firstRound(room).round.clueGiver).toBe('b')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// validateClue
+// ---------------------------------------------------------------------------
+describe('validateClue', () => {
+  const hotCold = { left: 'COLD', right: 'HOT' }
+
+  it('accepts a single word and upper-cases it', () => {
+    expect(validateClue('  sauna ', hotCold)).toEqual({ ok: true, clue: 'SAUNA' })
+  })
+
+  it('accepts a hyphenated word', () => {
+    expect(validateClue('ice-cream', hotCold).ok).toBe(true)
+  })
+
+  it('rejects empty, multi-word and over-long clues', () => {
+    expect(validateClue('   ', hotCold)).toEqual({ ok: false, error: 'TYPE A CLUE' })
+    expect(validateClue('hot tub', hotCold)).toEqual({ ok: false, error: 'ONE WORD ONLY' })
+    expect(validateClue('a'.repeat(25), hotCold)).toEqual({ ok: false, error: 'TOO LONG' })
+  })
+
+  it('regression: digits are rejected ("73" pointed straight at the number)', () => {
+    expect(validateClue('73', hotCold)).toEqual({ ok: false, error: 'NO NUMBERS' })
+    expect(validateClue('room4', hotCold).error).toBe('NO NUMBERS')
+  })
+
+  it('regression: the pole words are rejected, in any case or inflection', () => {
+    for (const clue of ['HOT', 'hot', 'Cold!', 'colds', 'hotter', 'coldest']) {
+      expect(validateClue(clue, hotCold)).toEqual({ ok: false, error: "CAN'T USE THE DIAL WORDS" })
+    }
+  })
+
+  it('rejects any word of a multi-word or hyphenated pole', () => {
+    const pair = { left: 'LAZY', right: 'HARD-WORKING' }
+    expect(validateClue('hardworking', pair).ok).toBe(false)
+    expect(validateClue('working', pair).ok).toBe(false)
+    expect(validateClue('laziest', pair).ok).toBe(false)
+    expect(validateClue('sloth', pair).ok).toBe(true)
+  })
+
+  it('rejects banned words', () => {
+    expect(validateClue('shit', hotCold)).toEqual({ ok: false, error: 'PICK ANOTHER WORD' })
+  })
+
+  it('rejects punctuation-only input', () => {
+    expect(validateClue('!!!', hotCold).ok).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// clueGiverScore / roundDeltas
+// ---------------------------------------------------------------------------
+describe('clueGiverScore', () => {
+  it('is the rounded mean of the guessers\' scores', () => {
+    expect(clueGiverScore([50, 40, 25])).toBe(38) // 38.33
+    expect(clueGiverScore([10, 11])).toBe(11)     // 10.5 rounds up
+    expect(clueGiverScore({ a: 20, b: 30 })).toBe(25)
+  })
+
+  it('is 0 when nobody guessed', () => {
+    expect(clueGiverScore([])).toBe(0)
+    expect(clueGiverScore(null)).toBe(0)
+  })
+})
+
+describe('roundDeltas', () => {
+  const seatIds = ['giver', 'a', 'b', 'c']
+
+  it('regression: the clue-giver scores the guessers\' mean (they used to score nothing)', () => {
+    const deltas = roundDeltas({ guesses: { a: 50, b: 60 }, target: 50, clueGiver: 'giver', seatIds })
+    expect(deltas.a).toBe(scoreGuess(50, 50))
+    expect(deltas.b).toBe(scoreGuess(60, 50))
+    expect(deltas.giver).toBe(Math.round((deltas.a + deltas.b) / 2))
+  })
+
+  it('skips guessers who never guessed and averages only real guesses', () => {
+    const deltas = roundDeltas({ guesses: { a: 50 }, target: 50, clueGiver: 'giver', seatIds })
+    expect(deltas).toEqual({ a: 50, giver: 50 })
+  })
+
+  it('gives the clue-giver nothing when no guess landed', () => {
+    expect(roundDeltas({ guesses: {}, target: 50, clueGiver: 'giver', seatIds })).toEqual({})
+  })
+
+  it('ignores guesses from players no longer seated', () => {
+    const deltas = roundDeltas({ guesses: { a: 50, ghost: 50 }, target: 50, clueGiver: 'giver', seatIds })
+    expect(deltas).not.toHaveProperty('ghost')
+  })
+
+  it('does not credit a clue-giver who left the room', () => {
+    const deltas = roundDeltas({ guesses: { a: 50 }, target: 50, clueGiver: 'gone', seatIds })
+    expect(deltas).toEqual({ a: 50 })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// matchWinners
+// ---------------------------------------------------------------------------
+describe('matchWinners', () => {
+  const ids = ['p1', 'p2', 'p3']
+
+  it('returns nobody below the target', () => {
+    expect(matchWinners({ p1: 199, p2: 150 }, ids, 200)).toEqual([])
+  })
+
+  it('regression: the highest score wins when several cross together — not seat order', () => {
+    // p1 sits first but p2 finished higher.
+    expect(matchWinners({ p1: 205, p2: 230, p3: 100 }, ids, 200)).toEqual(['p2'])
+  })
+
+  it('shares the win on an exact tie at the top', () => {
+    expect(matchWinners({ p1: 210, p2: 210, p3: 209 }, ids, 200)).toEqual(['p1', 'p2'])
+  })
+
+  it('defaults to the Wavelength target', () => {
+    expect(matchWinners({ p1: WAVELENGTH_WIN_SCORE }, ids)).toEqual(['p1'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Cross-match repeats: room seen history + optional recent list
+// ---------------------------------------------------------------------------
+describe('normalizeIndexList', () => {
+  it('reads arrays and Firebase numeric-keyed objects in index order', () => {
+    expect(normalizeIndexList([3, 1])).toEqual([3, 1])
+    expect(normalizeIndexList({ 1: 5, 0: 2 })).toEqual([2, 5])
+    expect(normalizeIndexList(null)).toEqual([])
+  })
+})
+
+describe('pickSpectrumIndex', () => {
+  it('regression: avoids pairs played recently in this room, not just this match', () => {
+    const recent = Array.from({ length: 30 }, (_, i) => i)
+    for (let i = 0; i < 200; i++) {
+      const idx = pickSpectrumIndex({ used: [], recent, current: 40 })
+      expect(recent).not.toContain(idx)
+      expect(idx).not.toBe(40)
+    }
+  })
+
+  it('falls back to "unused this match" when everything is recent', () => {
+    const all = Array.from({ length: WAVELENGTH_PAIR_COUNT }, (_, i) => i)
+    const used = [0, 1, 2]
+    for (let i = 0; i < 100; i++) {
+      const idx = pickSpectrumIndex({ used, recent: all, current: 5 })
+      expect(used).not.toContain(idx)
+      expect(idx).not.toBe(5)
+    }
+  })
+
+  it('falls back to anything but the current pair when the whole deck was used', () => {
+    const all = Array.from({ length: WAVELENGTH_PAIR_COUNT }, (_, i) => i)
+    for (let i = 0; i < 50; i++) {
+      expect(pickSpectrumIndex({ used: all, recent: all, current: 7 })).not.toBe(7)
+    }
+  })
+
+  it('regression: a new match opens on a pair the room has not seen', () => {
+    const seen = markSeen({}, Array.from({ length: WAVELENGTH_PAIR_COUNT }, (_, i) => i).filter(i => i !== 17))
+    for (let i = 0; i < 20; i++) expect(pickSpectrumIndex({ seen })).toBe(17)
   })
 })

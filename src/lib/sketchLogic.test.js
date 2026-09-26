@@ -17,8 +17,18 @@ import {
   deriveWord,
   pickRoundOptions,
   scoringWindow,
+  acceptedKeys,
+  isAcceptedGuess,
+  isNearMiss,
+  acceptHashes,
+  guessMatchesAccept,
+  isBannedGuess,
+  TIER_MULTIPLIERS,
+  tierMultiplier,
+  entryForWord,
 } from './sketchLogic'
 import { markSeen } from './seenHistory'
+import { SKETCH_WORDS } from './decks/sketch'
 
 // ---------------------------------------------------------------------------
 // normalize
@@ -225,6 +235,7 @@ describe('nextRoundState', () => {
     expect(result.round.matchSeed).toBe('seed1')
     expect(result.round.options).toBeNull()
     expect(result.round.commitment).toBeNull()
+    expect(result.round.accept).toBeNull()
     expect(result.round.wordPattern).toBe('')
     expect(result.round.scored).toBe(false)
   })
@@ -418,5 +429,128 @@ describe('scoringWindow + roundDeltas drawMs', () => {
     const halfway = { g1: { at: endsAt - drawMs / 2 } }
     const deltas = roundDeltas({ guesserIds: ['g1'], correct: halfway, artistId: 'artist', endsAt, drawMs })
     expect(deltas.g1).toBe(75)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Guess matching — plural/space/hyphen folding, listed alts, near misses
+// ---------------------------------------------------------------------------
+describe('guess matching', () => {
+  const deckEntry = word => {
+    const entry = SKETCH_WORDS.find(e => e.word === word)
+    if (!entry) throw new Error(`deck is missing "${word}"`)
+    return entry
+  }
+
+  it('regression: plural, spacing and hyphen variants are accepted', () => {
+    // Previously exact-match only: all of these were wrong answers.
+    expect(normalize('cats')).not.toBe(normalize('cat'))
+    expect(isAcceptedGuess('cats', deckEntry('cat'))).toBe(true)
+    expect(isAcceptedGuess('icecream', deckEntry('ice cream'))).toBe(true)
+    expect(isAcceptedGuess('Ice-Cream', deckEntry('ice cream'))).toBe(true)
+    expect(isAcceptedGuess('yo yo', deckEntry('yo-yo'))).toBe(true)
+    expect(isAcceptedGuess('yoyo', deckEntry('yo-yo'))).toBe(true)
+    expect(isAcceptedGuess('glass', deckEntry('glasses'))).toBe(true)
+    expect(isAcceptedGuess('the cat', deckEntry('cat'))).toBe(true)
+  })
+
+  it('regression: the core noun of a phrase is accepted via alts', () => {
+    const bath = deckEntry('taking a bath')
+    expect(isAcceptedGuess('bath', bath)).toBe(true)
+    expect(isAcceptedGuess('bathing', bath)).toBe(true)
+    expect(isAcceptedGuess('Taking a bath!', bath)).toBe(true)
+    expect(acceptedKeys(bath)).toContain('bath')
+  })
+
+  it('wrong answers stay wrong', () => {
+    expect(isAcceptedGuess('dog', deckEntry('cat'))).toBe(false)
+    expect(isAcceptedGuess('car', deckEntry('cat'))).toBe(false)
+    expect(isAcceptedGuess('', deckEntry('cat'))).toBe(false)
+    expect(isAcceptedGuess('shower', deckEntry('taking a bath'))).toBe(false)
+  })
+
+  it('near misses: one edit from an accepted form, never for accepted or far guesses', () => {
+    expect(isNearMiss('elephent', deckEntry('elephant'))).toBe(true)
+    expect(isNearMiss('bathe', deckEntry('taking a bath'))).toBe(true)
+    expect(isNearMiss('umbrela', deckEntry('umbrella'))).toBe(true)
+    expect(isNearMiss('cats', deckEntry('cat'))).toBe(false) // accepted, not "close"
+    expect(isNearMiss('giraffe', deckEntry('elephant'))).toBe(false)
+    // short keys (< CLOSE_MIN_KEY_LENGTH) only match exactly — "car" is not "close" to "cat"
+    expect(isNearMiss('car', deckEntry('cat'))).toBe(false)
+  })
+
+  it('hashed accept set matches exactly the accepted keys', async () => {
+    const entry = deckEntry('taking a bath')
+    const { salt } = await commit(normalize(entry.word))
+    const accept = await acceptHashes(entry, salt)
+    expect(accept).toHaveLength(acceptedKeys(entry).length)
+    expect(await guessMatchesAccept('bath', accept, salt)).toBe(true)
+    expect(await guessMatchesAccept('Taking-a-Bath', accept, salt)).toBe(true)
+    expect(await guessMatchesAccept('shower', accept, salt)).toBe(false)
+    expect(await guessMatchesAccept('bath', accept, 'wrong-salt')).toBe(false)
+    expect(await guessMatchesAccept('bath', null, salt)).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tier multiplier — harder words pay more
+// ---------------------------------------------------------------------------
+describe('tier multiplier', () => {
+  it('EASY ×1, MEDIUM ×1.2, HARD ×1.5; unknown tiers ×1', () => {
+    expect(TIER_MULTIPLIERS).toEqual({ 1: 1, 2: 1.2, 3: 1.5 })
+    expect(tierMultiplier(1)).toBe(1)
+    expect(tierMultiplier(2)).toBe(1.2)
+    expect(tierMultiplier(3)).toBe(1.5)
+    expect(tierMultiplier(undefined)).toBe(1)
+  })
+
+  it('regression: a HARD word scores more than an EASY one for the same solves', () => {
+    const correct = { g1: { at: 1000 }, g2: { at: 2000 }, g3: { at: 3000 } }
+    const args = { guesserIds: ['g1', 'g2', 'g3'], correct, artistId: 'artist', endsAt: 9999 }
+    const easy = roundDeltas({ ...args, multiplier: tierMultiplier(1) })
+    const hard = roundDeltas({ ...args, multiplier: tierMultiplier(3) })
+    expect(easy).toEqual({ g1: 100, g2: 90, g3: 80, artist: 75 })
+    expect(hard).toEqual({ g1: 150, g2: 135, g3: 120, artist: 113 })
+    const medium = roundDeltas({ ...args, multiplier: tierMultiplier(2) })
+    expect(medium).toEqual({ g1: 120, g2: 108, g3: 96, artist: 90 })
+  })
+
+  it('scales the 2-player variant too, and omitting it keeps ×1', () => {
+    const endsAt = 100000
+    const correct = { g1: { at: endsAt - DRAW_MS } } // instant solve: 100 pts, artist 50
+    const base = roundDeltas({ guesserIds: ['g1'], correct, artistId: 'artist', endsAt })
+    expect(base).toEqual({ g1: 100, artist: 50 })
+    expect(roundDeltas({ guesserIds: ['g1'], correct, artistId: 'artist', endsAt, multiplier: 1.5 }))
+      .toEqual({ g1: 150, artist: 75 })
+  })
+
+  it('entryForWord finds the drawn entry among the public options', () => {
+    const deck = [{ word: 'cat', tier: 1 }, { word: 'dragon', tier: 2 }, { word: 'narwhal', tier: 3 }]
+    expect(entryForWord(deck, [0, 1, 2], 'narwhal')).toEqual({ word: 'narwhal', tier: 3 })
+    expect(entryForWord(deck, [0, 1], 'narwhal')).toBeNull()
+    expect(entryForWord(deck, [0, 1, 2], null)).toBeNull()
+  })
+})
+
+describe('isBannedGuess', () => {
+  it('keeps slurs and vulgarity out of the public chat', () => {
+    expect(isBannedGuess('shit')).toBe(true)
+    expect(isBannedGuess('what the fuck')).toBe(true)
+    expect(isBannedGuess('f-u-c-k')).toBe(true)
+  })
+  it('allows ordinary guesses', () => {
+    expect(isBannedGuess('scuba diver')).toBe(false)
+    expect(isBannedGuess('cat')).toBe(false)
+    expect(isBannedGuess('')).toBe(false)
+  })
+})
+
+describe('roundDeltas drawMs + multiplier together', () => {
+  it('scales a relaxed-clock solo solve by the tier multiplier', () => {
+    const drawMs = DRAW_MS * 2
+    const endsAt = 1_000_000
+    const halfway = { g1: { at: endsAt - drawMs / 2 } }
+    const deltas = roundDeltas({ guesserIds: ['g1'], correct: halfway, artistId: 'artist', endsAt, drawMs, multiplier: 1.5 })
+    expect(deltas).toEqual({ g1: 113, artist: 56 })
   })
 })

@@ -19,8 +19,22 @@ import { ARROWS_MATCH_TARGET, getArrowsMatchEnd } from './arrowsLogic'
 // "New Match" button supersedes "Play Again" once the round resolves).
 export const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
 
+// 2P co-op games: both seats share the result, so there is no winner/loser —
+// no DRAW overlay or win effect, no W/L stats, no night standings, no
+// leaderboard credit, and partners never CLAIM WIN from each other. Mirrors
+// the registry's `coop: true` flags (src/lib/games.js; matchRules.test.js
+// keeps the two in sync — the registry itself can't be bundled into functions/).
+export const COOP_GAMES = new Set(['wordcoop', 'password'])
+
 /**
- * Round wins (Password: points) needed to take the match.
+ * @param {string | undefined} gameType
+ * @returns {boolean}
+ */
+export const isCoopGame = (gameType) => COOP_GAMES.has(gameType ?? '')
+
+/**
+ * Round wins (Password: points) needed to take the match. Registry
+ * `matchTarget` values must agree (matchRules.test.js checks them).
  * @param {MatchRoom} game
  * @returns {number}
  */

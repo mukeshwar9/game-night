@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { CODE_WORDS } from './codewords'
-import { isDenied } from '../wordDenylist'
+import { isDenied } from '../moderationDenylist'
 
 describe('CODE_WORDS deck', () => {
   it('has at least 400 words', () => {

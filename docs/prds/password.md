@@ -1,6 +1,8 @@
-# PRD — Password Duel
+# PRD — Password (co-op)
 
-**One-liner:** 2-player word clue game — one player gives short clues, the other guesses the secret word. Roles swap every round; first to the target score wins.
+**One-liner:** 2-player co-op word clue game — one player gives short clues, the other guesses the secret word. Roles swap every round; both players share one team score over a fixed 12 rounds and finish with a star rating.
+
+> **Scoring model — captain decision D1 (2026-09-26, reversible).** Password was a head-to-head duel (only the guesser scored, first to 15). The review found two structural problems: the first guesser won 60–80% of matches (they reach 15 a guessing turn earlier), and the clue-giver had no reason to give good clues (a useless clue denied the opponent points). The approved fix was "the clue-giver scores like the guesser". In a two-player game that means both players earn the same points every round, so a competitive 1v1 under that rule **always ties**. Password is therefore played as a **team**: every round's points go to one shared team total, the match is a fixed 12 rounds (6 guessing turns each), and the result is a star rating, not a winner. See [Scoring](#scoring) and [Reverting to 1v1](#reverting-to-1v1).
 
 | | |
 |---|---|
@@ -8,26 +10,27 @@
 | Label / badge | `PASSWORD` / `PW` |
 | Category | `word` |
 | Players | 2 |
-| Integration | **C** — custom 1v1 page |
+| Integration | **C** — custom 2-player co-op page (registry: `custom`, `coop`, `hidePlayerCards`, `solo: false`) |
 | Network | RTDB only |
 | Effort | **M** |
 | Priority | P2 — small 2-player word game with strong replay value |
 
 ## Goals
 
-- Add a true 2-player Password-style game.
+- Add a true 2-player Password-style game where both players want every clue to land.
 - Keep rules simple enough for quick mobile play.
 - Make it look polished and game-show-like, not like a form.
 - Avoid complicated phrases; deck should be common single words only.
 - Avoid repeated words within a match, and avoid the same first words after replay/new match.
 - Reuse platform room, invite, presence, rematch, switch-game, sound, and score conventions.
+- Pace matches for phones: every phase is on a server-corrected clock, and a stalled or absent partner can never freeze the room.
 
 ## Non-goals for v1
 
 - No 4-player team mode.
 - No voice chat.
 - No custom decks.
-- No clue legality AI/NLP beyond simple exact/substring checks.
+- No clue legality AI/NLP beyond the spelling rules below (translations such as *manzana* for *apple* stay an honour-system rule).
 - No asynchronous/pass-and-play mode.
 - No dictionary-wide semantic validation.
 
@@ -35,12 +38,13 @@
 
 ### Match
 
-- Two players: X and O.
+- Two players: X and O, playing as one team.
 - Players alternate roles each round:
   - **Clue-giver** sees secret word.
   - **Guesser** does not see secret word and submits guesses.
-- First player to `TARGET_SCORE = 15` wins the match.
-- If neither player reaches target after `MAX_ROUNDS = 12`, higher score wins; equal score is a draw.
+- The first clue-giver is `starter` (the waiting-room first-player choice, written by `firstMoverUpdates`); roles alternate from there.
+- A match is always `MAX_ROUNDS = 12` rounds, so each player guesses exactly 6 times. There is no early finish.
+- At the end the match is written `status: 'finished'`, `winner: 'draw'` (co-op: nobody loses) and the end screen shows the team score out of `MAX_TEAM_SCORE = 60`, a star rating, the best round and a round-by-round recap.
 - New match creates a new match seed and clears used words.
 
 ### Round
@@ -48,14 +52,16 @@
 1. **Reveal to clue-giver (2 s)**
    - Secret word appears only to clue-giver.
    - Guesser sees locked word card with blanks/count.
-2. **Clue turn**
-   - Clue-giver enters one clue.
-   - Clue must be 1 word, max 16 chars.
-   - Clue cannot contain secret word, and secret word cannot contain clue.
-   - Clue cannot repeat a previous clue this round.
-3. **Guess turn**
-   - Guesser sees clue history and enters one guess.
+2. **Clue turn (`CLUE_SECONDS = 45` clue clock)**
+   - Clue-giver enters one clue before the clue clock runs out.
+   - If the clock expires, that clue slot is **burned as a miss** (a blank timed-out clue plus a timed-out guess), exactly like a timed-out guess: the next clue is worth one step less, and burning the 5th slot reveals the word with 0 points. A stalling or disconnected clue-giver can never freeze the room.
+   - Clue must be 1 word of 3–16 letters: no digits, spaces or hyphens, and not a banned word (`isBannedWord`).
+   - Clue cannot give the password away — see [Clue rules](#clue-rules).
+   - Clue cannot repeat a previous clue this round (plurals count as repeats).
+3. **Guess turn (30/30/25/25/20 s guess clock by clue number)**
+   - Guesser sees clue history and enters one guess; a timeout counts as a miss.
    - Guess max 24 chars.
+   - Guesses are lenient (`isCorrectGuess`): plurals, spacing/hyphens and a leading article fold away (`matchKey`: *apples*/apple, *birth day*/birthday, *glass*/glasses); US/UK spellings match (`SPELLING_VARIANTS`: theatre/theater, colour/color, grey/gray, centre/center, favourite/favorite, organise/organize, doughnut/donut…); passwords of `TYPO_MIN_LENGTH = 6`+ letters forgive one typo — one edit or one swapped pair of neighbouring letters (*elephnt*, *elpehant*). Shorter passwords stay exact (*aple* misses APPLE). The reveal notes when a close guess was accepted.
    - Correct guess ends round and awards points.
    - Wrong guess advances to next clue, up to `MAX_CLUES = 5`.
 4. **Round reveal (5 s)**
@@ -75,29 +81,31 @@ Points depend on how quickly word was guessed:
 | 4 | 2 |
 | 5 | 1 |
 
-- Correct guess: guesser gets points.
-- Clue-giver gets no points in v1.
+- Correct guess: the points go to the **team total** (`round.teamScore`). Both seats mirror it (`scores/X === scores/O === teamScore`) so shared UI and history never show the partners as rivals.
 - No correct guess after 5 clues: 0 points.
-- This keeps incentives simple: clue-giver helps opponent, but role alternates and total skill is clue quality + guessing.
+- Maximum: 12 rounds × 5 = `MAX_TEAM_SCORE = 60`.
+- Star rating (`STAR_THRESHOLDS`, starting values to playtest): ★ at 20, ★★ at 30, ★★★ at 40.
 
-Optional post-v1 scoring variant: clue-giver also gets half the points when guesser succeeds, encouraging helpful clues in casual play. Do not include in v1 unless playtesting feels adversarial.
+Why co-op: with "clue-giver scores like the guesser", every point either player earns is also earned by the other, so head-to-head scores are always equal. Rather than ship a duel that can only draw, the game embraces the shared score. This removes the sabotage incentive entirely (a bad clue now costs you too) and removes the first-guesser edge (there is no race).
+
+#### Reverting to 1v1
+
+The change is contained in `passwordLogic.js`: credit only `lastDelta.player` (instead of the team total) when a round resolves, restore a first-to target in `getMatchWinner`, and only check it after even rounds so both players get equal guessing turns (the first-guesser fix from the review). `PasswordCard`'s team rail and `PasswordMatchResult` would go back to a split scoreboard.
 
 ## Word deck
 
 File: `src/lib/decks/password.js`
 
-- 250–400 common words.
-- Single words only.
-- No proper nouns.
-- No obscure vocabulary.
-- No plural/singular near-duplicates where possible.
-- No offensive/slur words.
-- Mix tiers for difficulty:
-  - tier 1: concrete easy nouns (`apple`, `chair`, `river`)
-  - tier 2: common but less visual words (`doctor`, `winter`, `music`)
-  - tier 3: abstract/common challenge words (`brave`, `secret`, `balance`)
-- Secret word draw uses seeded shuffle + `used` list.
-- New match/replay uses new `matchSeed`, so first words change instead of repeating.
+- 400+ common words (546 at the 2026-09 review pass), tested minimum 400 with at least 100 per tier.
+- Single words only, letters a–z; no proper nouns, no obscure vocabulary.
+- No duplicates, including plural/singular and spacing near-duplicates (`matchKey`), tested.
+- Every entry passes `isFamilySafe` (tested) — the game serves these words itself.
+- Mostly concrete things a partner can clue in one word. Tiers:
+  - tier 1: easy, concrete, everyday (`apple`, `chair`, `penguin`)
+  - tier 2: medium — less everyday things, places, jobs, events (`lighthouse`, `dentist`, `picnic`)
+  - tier 3: harder but still clue-able — rarer objects, science, a few clue-able ideas (`eclipse`, `hourglass`, `secret`). Abstract filler (*usual, enough, beyond, admit*) was cut: it was hard to clue.
+- **Difficulty curve:** `tierForRound` maps rounds 1–4 to tier 1, 5–8 to tier 2, 9–12 to tier 3; `pickWordForRound(deck, seed, used, roundNum)` draws a seeded, unused word from that tier (falling back to any unused word, then the whole deck).
+- New match/replay uses a new `matchSeed`, so first words change instead of repeating; `used` prevents repeats within a match.
 
 Deck entry shape:
 
@@ -128,23 +136,31 @@ round: {
     { text: string, at: number, correct: boolean }
   ],
   lastDelta: {
-    player: 'X' | 'O',
+    player: 'X' | 'O',          // the guesser who solved it
     points: number,
     clueNumber: number,
   } | null,
+  teamScore: number,            // co-op team total, source of truth
+  history: [                    // one entry per resolved round (match recap)
+    { roundNum, wordIndex, clueGiver, guesser, points, clueNumber }  // clueNumber 0 = missed
+  ],
+  endedEarly: boolean,          // set by END MATCH (partner offline)
   endsAt: epochMs,
 }
 
-scores: { X: number, O: number }
-winner: 'X' | 'O' | 'draw' | null
+scores: { X: teamScore, O: teamScore }   // both seats mirror the team total
+winner: 'draw' | null                    // co-op: a finished match is always 'draw'
 status: 'waiting' | 'playing' | 'finished'
+starter: 'X' | 'O'                       // first clue-giver (waiting-room choice)
 ```
+
+`history` is append-only and Firebase deletes empty arrays, so it is read through `toList()` (explicit-key normalizer), like `clues`, `guesses` and `used`.
 
 Notes:
 
 - `wordIndex` is public, so secret can be derived by inspecting Firebase. For v1, this is acceptable under bundle-leak/honest-client trust tier.
 - If stronger casual secrecy is desired, use commit-reveal like Hangwoman/Sketch: store `commitment` during clue/guess phases and reveal `wordIndex` only in reveal. This adds complexity but not real protection from bundled deck inspection. Prefer public `wordIndex` v1.
-- `endsAt` supports small phase transitions/animations, not strict timers for clue/guess. No turn timer in v1.
+- `endsAt` is the deadline of the current phase (intro, clue clock, guess clock, reveal). Every deadline is written and read in **server-corrected time** (`useServerClock`: `serverNow()` in transactions, `now` for rendering) so phones with skewed clocks agree on the windows. Rounds dealt before the clue clock existed (phase `clue`, no `endsAt`) get one armed on the next tick.
 
 ## Logic module
 
@@ -153,17 +169,27 @@ File: `src/lib/passwordLogic.js`
 Pure exports:
 
 ```js
-export const TARGET_SCORE = 15
 export const MAX_ROUNDS = 12
 export const MAX_CLUES = 5
 export const CLUE_POINTS = [5, 4, 3, 2, 1]
+export const MAX_TEAM_SCORE = 60
+export const TARGET_SCORE = MAX_TEAM_SCORE   // kept for Game.jsx; never ends a match
+export const STAR_THRESHOLDS = [20, 30, 40]
+
+export function starRating(teamScore)
+export function teamScoresFor(teamScore)     // { X: t, O: t }
+export function teamScoreOf(round, scores)
+export function bestRound(history)
+export function toList(raw)
 
 export function normalizeText(text)
 export function validateClue({ clue, word, previousClues })
 export function isCorrectGuess(guess, word)
 export function scoreForClueNumber(clueNumber)
 export function nextRoles(currentClueGiver)
-export function pickWord(deck, seed, used)
+export function pickWord(deck, seed, used)         // untiered, kept for compatibility
+export function tierForRound(roundNum)
+export function pickWordForRound(deck, seed, used, roundNum)
 export function createInitialRound({ starter, seed, wordIndex })
 export function applyClue(round, clue, now)
 export function applyGuess(round, guess, word, now)
@@ -171,16 +197,23 @@ export function advanceAfterReveal(round, scores, deck, now)
 export function getMatchWinner(scores, roundNum)
 ```
 
-Validation details:
+#### Clue rules
 
-- `normalizeText`: lowercase, trim, collapse whitespace, strip punctuation for comparisons.
-- Clue must become exactly one token after normalization.
-- Clue invalid if normalized clue equals normalized word.
-- Clue invalid if word includes clue or clue includes word and both are length >= 3.
-  - Example: secret `snowman`, clue `snow` invalid.
-  - Example: secret `cat`, clue `catch` invalid.
-- Repeated clue invalid by normalized comparison.
-- Guess correct if normalized guess equals normalized word.
+Clues are normalized with `textMatchLogic.normalizeText` (case, accents, punctuation) and must be one token of `MIN_CLUE_LENGTH = 3` to `MAX_CLUE_LENGTH = 16` letters a–z. A clue is rejected, with a reason shown under the input, when it:
+
+| Rule | Rejected examples | Reason text |
+|---|---|---|
+| is under 3 letters | `a`, `ap`, `pl`, `le` for *apple* | CLUE MUST BE AT LEAST 3 LETTERS |
+| has digits | `5`, `r2d2` | LETTERS ONLY — NO NUMBERS |
+| is banned (`isBannedWord`) | slurs, vulgarity | THAT CLUE IS NOT ALLOWED |
+| is the password or a plural of it (`matchKey`) | `planet`, `apples`, `glass` for *glasses* | CLUE CANNOT BE THE PASSWORD |
+| is an inflection of it, or it of the clue (`inflectionsOf`: -s/-es, -ed, -ing, -er, -est, -ly, e-drop, y→i, doubled consonant) | `baking` for *bake*, `happier` for *happy*, `running` for *run* | NO FORMS OF THE PASSWORD… |
+| is the password reversed | `elppa`, `tenalp` | NO SPELLING THE PASSWORD BACKWARDS |
+| is part of the password, or contains it | `snow`/`man` for *snowman*, `ear` for *heart*, `lemonade` for *lemon* | CLUE CANNOT BE PART OF / CONTAIN THE PASSWORD |
+| shares a `SHARED_STEM_LENGTH = 5`+ letter stem (common prefix) | `plane` for *planet*, `mounting` for *mountain*, `birthmark` for *birthday* | CLUE SHARES TOO MUCH OF THE PASSWORD |
+| is within one edit (substitution, inner insert/delete, or a swap of two neighbouring letters) | `ample`, `aple`, `appel` for *apple* | TOO CLOSE TO THE PASSWORD |
+
+**Innocent overlaps stay allowed.** When the clue and password differ only by one letter at the very start or end, they are almost always different real words, so the containment and one-edit rules skip them: `car` for *care*, `center` for *enter*, `growl` for *grow*, `ideal` for *idea* are all valid (the old substring check wrongly blocked them). The plural, inflection and stem rules still apply (`plane` for *planet* is rejected by the stem rule).
 
 Unit tests:
 
@@ -253,9 +286,9 @@ First seated client that sees `status === 'playing' && !round` runs transaction:
 3. Pick first word index from deck.
 4. Set round phase `intro`, roles, used `[wordIndex]`, blank pattern, `endsAt`.
 
-### Intro to clue
+### Deadlines (intro → clue, clue clock, guess clock, reveal)
 
-After intro deadline, either client may transaction phase to `clue` if still `intro`.
+After any deadline, either client may run the transition in a transaction that re-checks `phase` and `endsAt` (so only one write lands): `startCluePhase` (intro → clue, arms the clue clock), `applyClueTimeout` (burns a clue slot), `applyGuessTimeout` (timed-out miss, re-arms the clue clock) or `advanceAfterReveal`.
 
 ### Submit clue
 
@@ -287,9 +320,8 @@ Guesser only:
 
 After reveal deadline, either client runs transaction:
 
-1. Check winner via `TARGET_SCORE` or `MAX_ROUNDS`.
-2. If winner: set `status: 'finished'`, `winner`, clear proposal.
-3. Else: create next round with swapped roles, next word from seeded deck excluding `used`.
+1. If `roundNum >= MAX_ROUNDS`: set `status: 'finished'`, `winner: 'draw'`, both seat scores = team total, clear proposal.
+2. Else: create next round with swapped roles, next word from seeded deck excluding `used`, carrying `teamScore` and `history`.
 
 ## UX and visual direction
 
@@ -306,7 +338,7 @@ User explicitly wants it to look nice. Treat v1 visual polish as acceptance, not
 
 Top:
 
-- Compact score rail: `YOU 7` vs `THEM 5`, target marker `15`.
+- Team rail: `TEAM SCORE 23 / 60`, stars earned so far, next star threshold.
 - Role pill: `YOU GIVE CLUE` / `YOU GUESS`.
 - Round indicator: `ROUND 4/12`.
 
@@ -334,21 +366,25 @@ Input area:
 - Primary button label:
   - `SEND CLUE`
   - `GUESS`
-- Invalid clue shows inline chip below input, e.g. `CLUE CAN'T USE PASSWORD`.
-- Buttons follow `useBusy()` convention.
+- Invalid clue shows its reason on the shared `WordFeedback` line (e.g. `CLUE SHARES TOO MUCH OF THE PASSWORD`); a missed guess shows `NOT "X" — WAIT FOR THE NEXT CLUE`.
+- A submission that loses the race to the clock (transaction not committed) says `TOO LATE — THE CLUE/GUESS CLOCK RAN OUT` on that line; only real write errors toast `… FAILED — CHECK CONNECTION`.
+- Input: `autoComplete/autoCorrect/autoCapitalize="off"`, `spellCheck={false}`, `enterKeyHint="send"` so phone keyboards don't rewrite clues or guesses.
+- Buttons follow `useBusy()` convention: SEND CLUE → SENDING…, GUESS → CHECKING…, NEW MATCH → STARTING…, END MATCH → ENDING….
 
 Reveal:
 
 - Big word flip.
 - `+5` / `+3` points burst near winner score.
 - If no guess: `NO POINTS` with muted shake.
-- Next role preview: `NEXT: YOU GUESS`.
+- Next role preview: `NEXT: YOU GUESS` / `NEXT: YOU GIVE CLUES` (spectators: `NEXT: <NAME> GIVES CLUES`; after round 12: `FINAL ROUND · RESULTS NEXT`).
+- A close guess that was accepted is noted: `ACCEPTED "ELEPHNT" — CLOSE ENOUGH`.
 
-End screen:
+End screen (co-op result):
 
-- Reuse custom-game end style.
-- Show final score as big split scoreboard.
-- CTA buttons: `PLAY AGAIN`, `NEW MATCH`, `SWITCH GAME` depending shared custom conventions.
+- Team score out of 60 with the star rating and the thresholds (★ 20 · ★★ 30 · ★★★ 40).
+- Best round (word, points, clue number, who gave → who guessed).
+- Round-by-round recap: word, clue-giver → guesser, `+N · CLUE n` or `MISSED`.
+- CTA buttons: `NEW MATCH`, `SWITCH GAME` (no PLAY AGAIN — it preserves scores).
 
 ### Animation/sound
 
@@ -365,33 +401,21 @@ End screen:
 - All state uses text, not color only.
 - Inputs have labels/aria labels.
 - Focus moves to active input when phase changes.
-- Correct/wrong feedback announced as text.
-- No fast timer pressure in v1; readable for casual play.
+- Correct/wrong feedback announced as text via `WordFeedback`.
+- Screen readers get one polite status line that changes once per phase/slot (round and role, "Clue 2: orbit. Your guess.", "The password was planet. Plus 4 team points."). The card itself is not a live region, so it is not re-announced every phase.
+- Clocks use the shared `RoundTimer` (bar + m:ss + a text "HURRY!" state, screen-reader announcements only at 30/10/5 s).
 
 ## Rules modal copy
 
-Objective:
-
-> Give clues that help your opponent guess the password. Then swap roles and try to score more when you guess.
-
-How to play:
-
-- One player sees the secret password.
-- They send one-word clues.
-- The other player guesses after each clue.
-- Earlier guesses score more points.
-- Roles swap every round.
-
-To win:
-
-> First to 15 points wins. If nobody reaches 15 after 12 rounds, high score wins.
+Rules text lives in `src/lib/rules.js` (orchestrator-owned); it must describe the co-op model: one team score, 12 rounds with roles alternating, 5/4/3/2/1 points by clue number, the clue and guess clocks, and the star thresholds.
 
 ## Edge cases
 
-- Player disconnects mid-round: show existing offline notice; allow game to continue when they return.
+- Partner disconnects: show the offline notice with a countdown; the clocks keep running (clue slots and guesses time out), so the room never freezes. After `PARTNER_OFFLINE_MS = 30 s` offline, the online player gets **END MATCH**, which finishes the match now (`endMatchEarly`: `status: 'finished'`, `winner: 'draw'`, `round.endedEarly: true`) with the team score banked so far; the result screen notes how many rounds were played. If the partner returns first, play simply continues.
+- Game.jsx's generic CLAIM WIN banner is wrong for a co-op game; the registry entry should carry `coop: true` so it is never shown. If a `finished` status arrives from elsewhere, the page shows the co-op result regardless of `winner`.
 - Clue-giver submits invalid clue: local error, no Firebase write.
 - Two clients advance reveal at same time: transaction guards phase/round number.
-- Deck exhausted: allow reuse only after all words used; with 250+ words this should not happen in v1.
+- Deck exhausted: a tier falls back to any unused word, then reuse; with 100+ words per tier and 4 rounds per tier this does not happen.
 - Existing rooms created before deploy: if `round` missing, game initializes defensively.
 - Spectators: can see public clue/guess history and reveal; during active clue phase, spectators should not see secret word unless using public `wordIndex` via devtools. UI must hide it.
 
@@ -404,10 +428,10 @@ Use two browser profiles/incognito.
 3. X submits valid clue; O receives clue.
 4. O wrong guess; phase returns to clue.
 5. X attempts invalid clue using secret word; blocked locally.
-6. O guesses correctly on clue 2; O gains 4 points.
+6. O guesses correctly on clue 2; the team score goes up by 4 on both screens.
 7. Reveal shows secret and score delta.
 8. Next round swaps roles.
-9. Continue until target score; match finishes with correct winner.
+9. Continue through round 12; the match finishes with the team score, stars, best round and recap on both clients (same numbers on both).
 10. Play again/new match uses different first word.
 11. Switch away and back clears stale Password state.
 12. Mobile viewport: card, ladder, input remain visible and attractive.
@@ -428,8 +452,8 @@ Use two browser profiles/incognito.
 - Supports exactly two seated players.
 - Roles alternate every round.
 - Clues are one word and cannot include secret word.
-- Correct guesses score 5–1 by clue number.
-- Match ends at 15 points or after 12 rounds.
+- Correct guesses score 5–1 by clue number, for the team.
+- Match always lasts 12 rounds (6 guessing turns each) and finishes as a co-op `draw` with a star rating.
 - New match/play again does not repeat same initial word due deterministic static seed.
 - UI has polished game-show card, score rail, clue ladder, and reveal animation.
 - No new Firebase top-level keys remain uncleared when switching games.

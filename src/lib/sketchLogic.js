@@ -9,6 +9,7 @@
 //     matchSeed:   number | string,      // changes every new match so first options don't repeat
 //     options:     [number, number, number] | null,  // 3 deck indices; null until artist publishes
 //     commitment:  { hash, salt } | null,             // set when artist picks a word
+//     accept:      [sha256(matchKey(variant) + salt)] | null, // every accepted guess form
 //     wordPattern: string,               // e.g. "5" or "3 3"; '' until artist picks
 //     endsAt:      epoch-ms | null,      // current phase's deadline; null = timers off (timerScale 0)
 //     drawStartedAt: epoch-ms,           // server time the artist locked a word (scoring window)
@@ -31,6 +32,9 @@ export { seatOrder, hashString, seededShuffle } from './fibbageLogic'
 import { seededShuffle } from './fibbageLogic'
 import { verifyReveal } from './commit'
 import { avoidList } from './seenHistory'
+import { sha256hex } from './sha256'
+import { matchKey, normalizeText, editDistance, isCloseMatch } from './textMatchLogic'
+import { isBannedWord } from './wordDenylist'
 
 // ---- Tunable constants -----------------------------------------------------
 export const CHOOSE_MS = 15000
@@ -50,6 +54,14 @@ export const SOLO_ARTIST_DIVISOR = 2
 
 // Room seen-history key: `games/{id}/seen/sketch` (deck indices offered).
 export const SKETCH_SEEN_KEY = 'sketch'
+
+// Harder words pay more — every delta of the round (guessers and artist) is
+// scaled by the chosen word's tier, so EASY is no longer always the right pick.
+export const TIER_MULTIPLIERS = { 1: 1, 2: 1.2, 3: 1.5 }
+
+export function tierMultiplier(tier) {
+  return TIER_MULTIPLIERS[tier] ?? 1
+}
 
 // ---- normalize(str) -> string -----------------------------------------------
 // lowercase, trim, collapse internal whitespace to single spaces, then STRIP
@@ -183,6 +195,7 @@ export function nextRoundState(round) {
       matchSeed,
       options: null,
       commitment: null,
+      accept: null,
       wordPattern: '',
       strokes: null,
       fills: null,
@@ -211,7 +224,7 @@ export function participantGuessers(order, artist) {
   return (order || []).filter(id => id !== artist)
 }
 
-// ---- roundDeltas({ guesserIds, correct, artistId, endsAt }) -> { [uid]: pts } --
+// ---- roundDeltas({ guesserIds, correct, artistId, endsAt, drawMs, multiplier }) -> { [uid]: pts } --
 // Branches on guesserIds.length:
 //   0 guessers: {} (shouldn't happen; defensive)
 //   1 guesser (2-player variant): if they didn't guess, {} (0/0). Otherwise
@@ -223,8 +236,17 @@ export function participantGuessers(order, artist) {
 //     max(GUESSER_FLOOR_PTS, GUESSER_BASE_PTS - i*GUESSER_STEP_PTS) by rank i
 //     (0-indexed); artist gets ARTIST_PTS_PER_CORRECT * (number who guessed
 //     correctly). If nobody guessed correctly, {} (artist also gets 0).
+// Every delta is then scaled by `multiplier` (the word's tierMultiplier;
+// default 1) and rounded.
 // Missing keys in the returned object mean "+0" — caller merges additively.
-export function roundDeltas({ guesserIds, correct, artistId, endsAt, drawMs = DRAW_MS }) {
+export function roundDeltas({ guesserIds, correct, artistId, endsAt, drawMs = DRAW_MS, multiplier = 1 }) {
+  const deltas = baseRoundDeltas({ guesserIds, correct, artistId, endsAt, drawMs })
+  if (multiplier === 1) return deltas
+  for (const id of Object.keys(deltas)) deltas[id] = Math.round(deltas[id] * multiplier)
+  return deltas
+}
+
+function baseRoundDeltas({ guesserIds, correct, artistId, endsAt, drawMs }) {
   const deltas = {}
   const n = guesserIds.length
   if (n === 0) return deltas
@@ -274,4 +296,68 @@ export async function deriveWord(deckWords, options, commitment) {
     if (await verifyReveal(commitment.hash, normalize(word), commitment.salt)) return word
   }
   return null
+}
+
+// ---- Guess matching -----------------------------------------------------------
+// A guess is right when its matchKey (textMatchLogic: case, accents,
+// punctuation, a leading article, plurals, spaces/hyphens and "&" all fold)
+// equals the key of the word or of one of its listed `alts`
+// ("taking a bath" also takes "bath"/"bathing"). The word is hidden behind a
+// hash, so at pick time the artist publishes one salted hash per accepted key
+// (`accept`) and guessers compare the hash of their own guess's key.
+//
+// Near misses — one edit from an accepted form (keys of CLOSE_MIN_KEY_LENGTH+
+// letters), or textMatchLogic.isCloseMatch — earn a private "CLOSE!" hint and
+// never go to the public chat, so one player's "cats" no longer hands everyone
+// else "cat".
+export const CLOSE_MIN_KEY_LENGTH = 4
+
+/** Every word form a round accepts: the word plus its alts, as match keys. */
+export function acceptedKeys(entry) {
+  const forms = [entry?.word, ...(Array.isArray(entry?.alts) ? entry.alts : [])]
+  return [...new Set(forms.map(f => matchKey(f)).filter(Boolean))]
+}
+
+/** Plain-text check (the artist's side, tests, demos). */
+export function isAcceptedGuess(guess, entry) {
+  const key = matchKey(guess)
+  return !!key && acceptedKeys(entry).includes(key)
+}
+
+/** Wrong, but close enough for a private hint. */
+export function isNearMiss(guess, entry) {
+  const key = matchKey(guess)
+  if (!key || isAcceptedGuess(guess, entry)) return false
+  const forms = [entry?.word, ...(Array.isArray(entry?.alts) ? entry.alts : [])].filter(Boolean)
+  return forms.some(form => {
+    if (isCloseMatch(guess, form)) return true
+    const formKey = matchKey(form)
+    return formKey.length >= CLOSE_MIN_KEY_LENGTH && editDistance(key, formKey, 1) <= 1
+  })
+}
+
+/** Salted hashes of every accepted key — published by the artist at pick time. */
+export async function acceptHashes(entry, salt) {
+  return Promise.all(acceptedKeys(entry).map(key => sha256hex(key + salt)))
+}
+
+/** Guesser's side: does this guess's key hash into the published set? */
+export async function guessMatchesAccept(guess, accept, salt) {
+  const key = matchKey(guess)
+  if (!key || !Array.isArray(accept) || accept.length === 0 || salt == null) return false
+  return accept.includes(await sha256hex(key + salt))
+}
+
+/** Slurs and unambiguous vulgarity never reach the public guess chat. */
+export function isBannedGuess(text) {
+  const norm = normalizeText(text)
+  if (!norm) return false
+  return norm.split(' ').some(isBannedWord) || isBannedWord(norm.replace(/ /g, ''))
+}
+
+/** The deck entry a round is drawing, from its public options + derived word. */
+export function entryForWord(deckWords, options, word) {
+  if (word == null) return null
+  const idx = (options || []).find(i => deckWords[i]?.word === word)
+  return idx == null ? null : deckWords[idx]
 }

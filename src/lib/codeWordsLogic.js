@@ -26,7 +26,7 @@ import {
   TEAM_IDS, otherTeam, teamMembers, normalizeTeams, balanceTeams, pickRoleHolders, teamsReady,
 } from './teams'
 import { isSingleWord, normalizeWord, overlapsWord } from './wordMatch'
-import { isDenied } from './wordDenylist'
+import { isDenied } from './moderationDenylist'
 
 export const CW_MIN_PLAYERS = 4
 export const CW_MAX_PLAYERS = 8

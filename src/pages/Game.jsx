@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ref, update, set as dbSet, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig, lobbySwitchOverrides, firstMoverUpdates } from '../lib/games'
+import { freshGameState, getGameConfig, lobbySwitchOverrides, withFirstMover } from '../lib/games'
 import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatars'
@@ -48,7 +48,7 @@ import { recordNightMatch, nightSwitchUpdates, hostUidOf } from '../lib/night'
 import { rotateWinnerStays } from '../lib/nightLogic'
 import { getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
 // Match-end rule, shared with the results Cloud Function (functions/).
-import { matchTargetFor, isMatchFinish } from '../lib/matchRules'
+import { matchTargetFor, isMatchFinish, isCoopGame } from '../lib/matchRules'
 
 // The reaction bar and animated emoji pull in framer-motion (~120 KB). Load
 // them only when a room first shows the bar or floats a reaction, not with
@@ -286,16 +286,21 @@ export default function Game() {
       // Round wins reached the target (or Password / Arrows' final round) —
       // the same rule the results function credits the leaderboard on.
       const isMatch = isMatchFinish(game)
-      if (w === 'draw') sounds.draw()
+      // Co-op finishes (Word Co-op, Password's team score) have no winner or
+      // loser: play the match fanfare, skip the DRAW overlay and keep them
+      // out of W/L stats and the night standings.
+      const coopFinish = isCoopGame(game.gameType)
+      if (coopFinish) sounds.matchWin()
+      else if (w === 'draw') sounds.draw()
       else if (w === mySymbol.current) (isMatch ? sounds.matchWin() : sounds.win())
       else if (mySymbol.current) sounds.lose()
       setWinEffectWinner(w)
       setWinEffectIntensity(isMatch ? 'match' : 'round')
-      setShowWinEffect(true)
+      setShowWinEffect(!coopFinish)
       // Game night: count the decided match into tonight's standings
       // (idempotent across every client that sees the finish — see night.js).
-      if (isMatch) recordNightMatch(gameId, game.gameType)
-      if (isMatch && mySymbol.current) {
+      if (isMatch && !coopFinish) recordNightMatch(gameId, game.gameType)
+      if (isMatch && mySymbol.current && !coopFinish) {
         const opSym = mySymbol.current === 'X' ? 'O' : 'X'
         recordMatch({
           gameType: game.gameType,
@@ -547,7 +552,9 @@ export default function Game() {
     const fresh = freshGameState(game.gameType, game)
     // Word Race keeps its used answer indexes across rematches so PLAY AGAIN
     // cannot hand out the same puzzle repeatedly within a room.
-    if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
+    if (game.gameType === 'wordrace' && game.round?.used) {
+      fresh.round = { used: game.round.used, roundNum: (game.round.roundNum || 1) + 1 }
+    }
     try {
       if (game.gameType === 'wordcoop') {
         const seed = `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -577,13 +584,12 @@ export default function Game() {
         return
       }
       await update(ref(db, `games/${gameId}`), {
-        ...fresh,
+        ...withFirstMover(fresh, game.gameType, starter),
         status: 'playing',
         winner: null,
         winningLine: null,
         proposal: null,
         starter,
-        ...firstMoverUpdates(game.gameType, starter),
         lastActivityAt: Date.now(),
       })
     } catch { toast.error('PLAY AGAIN FAILED — CHECK CONNECTION') }
@@ -606,9 +612,32 @@ export default function Game() {
     // A new match still starts with a fresh word. Preserve prior indexes as a
     // room-level deck history, matching Word Race's non-repeat promise.
     if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
+    // Anagrams and Word Co-op keep their room-level no-repeat history across
+    // matches too (a New Match used to reset it and replay recent racks/words).
+    if (game.gameType === 'anagrams' && game.round?.usedRacks) {
+      fresh.round = { phase: 'ready', roundNum: 1, usedRacks: game.round.usedRacks }
+    }
+    if (game.gameType === 'wordcoop') {
+      // Lazy, as in applyPlayAgain: the answer list is ~100 KB.
+      let words
+      try {
+        words = await Promise.all([
+          importWithRetry(() => import('../lib/dictionary')),
+          importWithRetry(() => import('../lib/wordcoopLogic')),
+        ])
+      } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION'); return }
+      const [{ getAnswerList }, { buildWordCoopRoundStart }] = words
+      fresh.round = buildWordCoopRoundStart({
+        answerList: getAnswerList(),
+        previousRound: game.round,
+        seed: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        starter,
+      })
+      fresh.currentTurn = starter
+    }
     try {
       await update(ref(db, `games/${gameId}`), {
-        ...fresh,
+        ...withFirstMover(fresh, game.gameType, starter),
         status: 'playing',
         winner: null,
         winningLine: null,
@@ -616,7 +645,6 @@ export default function Game() {
         'scores/O': 0,
         proposal: null,
         starter,
-        ...firstMoverUpdates(game.gameType, starter),
         // Game night: winner stays — the loser swaps out for the next player
         // in the room's queue (no-op when nobody is waiting).
         ...rotateWinnerStays(game, Date.now()),

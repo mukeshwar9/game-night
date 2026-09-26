@@ -100,13 +100,14 @@ export const GAME_RULES = {
   },
 
   hangwoman: {
-    objective: 'As the guesser, uncover the hidden word before you run out of guesses.',
+    objective: 'As the guesser, uncover the hidden word before six wrong letters hang her.',
     howToPlay: [
-      'One player secretly sets a word; the word is never sent to the server until the reveal.',
-      'The other player guesses letters one at a time.',
-      'Each wrong letter adds to the miss count — too many and the round is lost.',
+      'Players take turns as word-keeper. The keeper secretly locks in one real word of 4+ letters, plus an optional hint that may not contain the word. The ANY WORD house rule allows names and phrases of 3–30 letters. The word never reaches the server until the reveal.',
+      'The guesser picks one letter at a time and waits for it to be checked. Six wrong letters and she hangs.',
+      'After the reveal either player can start the next round; it also starts on its own after 8 seconds.',
+      'Stalling loses the round: no word within 2 minutes, a guess left unchecked for 60 seconds, 60 seconds without a guess, or 10 seconds offline lets the other player claim it.',
     ],
-    win: 'Reveal every letter of the word to win. Run out of guesses and the setter wins the round.',
+    win: 'Guess the word to win the round; if she hangs, the word-keeper wins it. First to 3 round wins takes the match once both players have set the same number of words. A tie after equal turns goes to sudden death.',
   },
 
   dotsandboxes: {
@@ -355,12 +356,13 @@ export const GAME_RULES = {
   herd: {
     objective: 'Answer like the majority — and avoid becoming the odd one out.',
     howToPlay: [
-      '3–8 players. Each round everyone secretly answers the same prompt (45s).',
-      'Answers are grouped by matching text: every member of the biggest group(s) scores a point.',
-      'If exactly one player matched nobody, they are stuck with the Pink Cow.',
-      'The Cow holder cannot win — shed it before you reach 8 points.',
+      '3–8 players. Each round everyone secretly answers the same prompt before the timer runs out (45s; the room\'s timer setting can stretch it or turn it off). Answers stay hidden until the reveal.',
+      'Answers that mean the same thing group together — plurals, spacing, hyphens, "a"/"the" and "&"/"and" don\'t matter (cherries = cherry, hot-dog = hot dog).',
+      'Every member of the biggest group(s) scores a point. If nobody matched, nobody scores.',
+      'If exactly one player matched nobody, they are stuck with the Pink Cow. The Cow holder cannot win — shed it before you reach 8 points.',
+      'With timers on, the reveal moves on by itself after 10 seconds — or tap NEXT PROMPT NOW.',
     ],
-    win: 'First player to 8 points while NOT holding the Pink Cow wins the match.',
+    win: 'The match ends when a player without the Pink Cow reaches 8 points. Highest score wins; players tied on the top score share the win.',
   },
 
   trivia: {
@@ -375,12 +377,13 @@ export const GAME_RULES = {
   },
 
   twotruths: {
-    objective: 'As the guesser, spot which of three statements is the lie.',
+    objective: 'Catch your opponent’s lie more often than they catch yours.',
     howToPlay: [
-      'One player writes two true statements and one lie about themselves.',
-      'The other player reads all three and picks the one they think is false.',
+      'Every round both players secretly write three statements about themselves — two truths and one lie — and mark the lie (3 minutes).',
+      'Then both read the other’s statements and lock in a guess at the lie (1 minute). Tap to select, then LOCK GUESS.',
+      'Both lies are revealed together. Catching your opponent’s lie scores 1 point. If a revealed lie doesn’t match what was locked in, that player’s catch doesn’t count and the other player gets the point.',
     ],
-    win: 'Guess the lie correctly to win the round; get fooled and the writer wins.',
+    win: 'First to 3 points with the lead wins. Tied at 3 or more? Keep playing rounds until someone leads.',
   },
 
   bluff: {
@@ -394,23 +397,25 @@ export const GAME_RULES = {
   },
 
   wavelength: {
-    objective: 'Team guessing — read your clue-giver’s mind to land near the hidden target on a spectrum.',
+    objective: 'Team guessing — read the clue-giver’s mind to land near a hidden target on a spectrum.',
     howToPlay: [
-      '3–8 players. Each round one player is the clue-giver and sees a hidden target on a 0–100 dial between two opposites.',
-      'The clue-giver gives one word or phrase that hints where the target sits.',
-      'Everyone else moves the dial to where they think the target is.',
+      '3–8 players. Each round one player is the clue-giver and sees a hidden target on a 0–100 dial between two opposites. Nobody else can see it.',
+      'The clue-giver has 90 seconds to give a one-word clue that points at the target — no numbers, and not either word on the dial.',
+      'Everyone else has 60 seconds to move the dial to where they think the target is. The room timer setting stretches or turns off these clocks.',
+      'A clue-giver who runs out of time or leaves is skipped — the clue passes to the next player on a fresh pair. Pairs don’t repeat in a room until the deck runs out.',
     ],
-    win: 'The closer your guess to the hidden target, the more points you score (bullseye = 50). The role rotates each round.',
+    win: 'Guessers score up to 50 for landing close to the target (bullseye = 50); the clue-giver scores the average of their guessers’ scores. The role rotates each round. First to 200 wins — if several players pass 200 in the same round, the highest score wins, and an exact tie is shared.',
   },
 
   fibbage: {
     objective: 'Fool others with fake answers while finding the real one.',
     howToPlay: [
       '3–8 players. Everyone sees a trivia prompt with a missing answer.',
-      'Secretly write a believable fake answer (a lie).',
-      'All lies are shuffled in with the truth — then everyone votes for the answer they think is real.',
+      'You have 60 seconds to write a believable fake answer (a lie). Lies that are really the truth — a different spelling, a typo, the same number — are refused.',
+      'All lies are shuffled in with the truth and shown in capitals. You have 45 seconds to vote for the answer you think is real.',
+      'The answers stay up for 10 seconds (or until everyone is READY), then the next prompt starts. The room timer setting stretches or turns off these clocks.',
     ],
-    win: 'Score for finding the truth, and for every player your lie fools. Most points wins.',
+    win: 'Score 1,000 for finding the truth and 500 for every player your lie fools. A match is 5 prompts and the last one scores double. Highest total wins; an exact tie is shared.',
   },
 
   arrows: {
@@ -515,13 +520,14 @@ export const GAME_RULES = {
   },
 
   wordduel: {
-    objective: 'Solve a hidden 5-letter word in fewer guesses than your opponent, Wordle-style.',
+    objective: "Crack your opponent's secret 5-letter word in fewer guesses than they need to crack yours.",
     howToPlay: [
-      'Both players race to guess the same secret word at the same time.',
-      'Each guess is marked green (right letter, right spot), yellow (right letter, wrong spot), or gray (not in the word).',
-      'You get up to 6 guesses; the word itself is never sent until both players finish, verified against a commitment made at round start so no one can peek.',
+      'Each player picks a secret 5-letter word. Only a salted commitment is shared, so nobody can peek or swap words.',
+      'You guess at the same time — you at their word, they at yours. Green: right letter, right spot. Yellow: right letter, wrong spot. Gray: not in the word.',
+      'You get up to 6 guesses. Once one player finishes, the other has 90 seconds to finish too.',
+      'At the end both words are revealed and every mark is checked against them.',
     ],
-    win: 'Solve it in fewer guesses than your opponent to win. Equal guess counts — faster solver wins. Both fail to solve it: draw. First to 3 round wins takes the match.',
+    win: 'Solve in fewer guesses than your opponent to win the round; on equal guesses the faster solve wins. Both fail: draw. First to 3 round wins takes the match.',
   },
 
   wordcoop: {
@@ -530,19 +536,20 @@ export const GAME_RULES = {
       'You and your partner share one board and take turns entering guesses.',
       'Green means right letter and spot. Yellow means the letter is elsewhere. Gray means it is absent.',
       'Your partner sees every clue, so talk through each row and plan the next guess together.',
+      'If your partner is offline for 20 seconds you can keep playing solo. Your streak, best streak and losses carry over between words.',
     ],
     win: 'Guess the word before all six rows are used. You both win or lose together.',
   },
 
   password: {
-    objective: 'Give clues that help your opponent guess the password, then swap roles and score more when you guess.',
+    objective: 'Work as a team: give one-word clues so your partner guesses the secret password, then swap roles. Every point counts for both of you.',
     howToPlay: [
-      'One player sees the secret password. The other player sees only its length.',
-      'The clue-giver sends one-word clues. The guesser submits one guess after each clue.',
-      'Earlier correct guesses score more: 5 points, then 4, 3, 2, or 1.',
-      'Each guess is timed: 30 seconds for the first two guesses, 25 for the next two, then 20. A timeout counts as a miss.',
+      'One player sees the secret password; the other sees only its length. Roles swap every round for 12 rounds, so you each guess 6 times.',
+      'The clue-giver has 45 seconds for each one-word clue (3+ letters, no numbers, nothing that spells or reshapes the password). A clue that runs out of time is lost as a miss.',
+      'The guesser gets one guess per clue: 30 seconds for the first two, 25 for the next two, then 20. Plurals, US/UK spellings and one typo in longer words still count.',
+      'Guessing on clue 1, 2, 3, 4 or 5 adds 5, 4, 3, 2 or 1 points to your team score.',
     ],
-    win: 'First to 15 points wins. If nobody reaches 15 after 12 rounds, the higher score wins; equal scores draw.',
+    win: 'After 12 rounds your team score (out of 60) earns stars: ★ 20, ★★ 30, ★★★ 40. If your partner is offline for 30 seconds, you can end the match early with the score so far.',
   },
 
   wordrace: {
@@ -550,7 +557,8 @@ export const GAME_RULES = {
     howToPlay: [
       'Both players get the same word and can guess at the same time.',
       'Green means right letter and spot, yellow means right letter in another spot, and gray means absent.',
-      'You get up to 6 guesses. Opponent letters stay hidden during play; their mark progress remains visible.',
+      'You get up to 6 guesses. During play you only see how many rows your opponent has used, the greens in their best row, and whether they solved.',
+      'After the first solve the other player has 30 seconds to finish (60 seconds after a fail). The next round starts by itself a few seconds after the reveal.',
     ],
     win: 'Solve when your opponent fails, use fewer guesses, or solve faster on an equal guess count. Both misses draw. First to 3 round wins takes the match.',
   },
@@ -558,17 +566,18 @@ export const GAME_RULES = {
   wordhunt: {
     objective: 'Trace more valid words than your opponent on a shared 4×4 letter grid before time runs out.',
     howToPlay: [
-      'Both players get the identical grid and 80 seconds.',
-      'Drag across adjacent tiles (including diagonals) to spell a word, or type it and press Enter.',
+      'Both players press READY; the 80-second clock starts once both are ready, on the same grid.',
+      'Drag across adjacent tiles (including diagonals) to spell a word — drag back onto the previous tile to undo — or type it in the box and press Enter.',
       'Words must be 3+ letters and can’t reuse a tile in the same word. The Qu tile counts as two letters.',
-      'Both players can score the same word — there’s no penalty for overlapping finds.',
+      'Both players can score the same word — there’s no penalty for overlapping finds. After the round you see the best words nobody found.',
     ],
-    win: 'Longer words score more (3–4 letters = 1 point, up to 11 for 8+). Highest total score when time runs out wins; equal scores draw. First to 3 round wins takes the match.',
+    win: 'Longer words score more (3–4 letters = 1 point, up to 11 for 8+). Most points when time runs out wins; equal points go to whoever found more words, then the longer longest word; otherwise a draw. First to 3 round wins takes the match.',
   },
 
   anagrams: {
-    objective: 'Find more words than your opponent from the same seven-letter rack.',
+    objective: 'Score more points than your opponent from the same seven-letter rack.',
     howToPlay: [
+      'Each rack opens after a 3-2-1 countdown; the next rack deals itself a few seconds after the reveal.',
       'Tap tiles or type letters with your keyboard to build a word from the rack.',
       'Press ENTER to submit. Each word scores once per player.',
       'Scoring: 3 letters = 1, 4 = 2, 5 = 4, 6 = 7, 7 = 11 points; all 7 letters earns +5 bingo.',
@@ -580,11 +589,12 @@ export const GAME_RULES = {
   spyfair: {
     objective: 'Find the spy in your midst — or, as the spy, survive without being caught.',
     howToPlay: [
-      '3–8 players. Everyone shares a secret location and a role — except one random player, the spy, who knows neither.',
-      'Players ask each other questions to expose who doesn’t know the location, without giving it away to the spy.',
+      '3–8 players. Everyone shares a secret location and a role — except the spy, who knows neither. The spy changes every round: nobody is spy twice in a row, and players who haven’t been spy yet are the likeliest pick.',
+      'Ask each other questions (out loud or in chat) to expose who doesn’t know the location, without giving it away. Anyone can open the list of possible locations.',
+      'Once, during questioning or the vote, the spy may reveal themselves and guess the location — that ends the round: a right guess wins it for the spy, a wrong guess loses it.',
       'When time runs out, everyone votes on who they think is the spy.',
     ],
-    win: 'The group wins if a clear majority votes for the actual spy. Otherwise the spy wins. First to 3 round wins takes the match.',
+    win: 'The player with the most votes is accused. If that’s the spy, everyone else scores a point; if it’s someone else — or there’s a tie for most votes — the spy scores. First to 3 round wins takes the match.',
   },
 
   headsup: {
@@ -635,12 +645,13 @@ export const GAME_RULES = {
   sketch: {
     objective: 'One player draws a secret word while everyone else races to guess it in chat.',
     howToPlay: [
-      '2–8 players. Each round, one player is the artist and picks a secret word from 3 options.',
-      'The artist draws it on the shared canvas.',
-      'Everyone else types guesses — the word length is shown as blanks.',
+      '2–8 players. Each round, one player is the artist and picks a secret word from 3 options: EASY, MEDIUM or HARD.',
+      'The artist draws it on the shared canvas — no letters or numbers in the drawing.',
+      'Everyone else types guesses — the word length is shown as blanks. Plurals, spacing and hyphens don\'t matter, and some words also accept a short form ("bath" for "taking a bath").',
+      'A near miss shows you a private CLOSE! hint and stays out of the chat.',
       'Guessing correctly locks you in early and reveals the word to you — keep it secret from the others still guessing.',
     ],
-    win: 'Guessers score by how fast they guess correctly; the artist scores per correct guesser. Everyone draws twice (three times in a 2-player match) — most total points wins, ties share the win.',
+    win: 'Guessers score by how fast they guess correctly; the artist scores per correct guesser. MEDIUM words pay ×1.2 and HARD words ×1.5. Everyone draws twice (three times in a 2-player match) — most total points wins, ties share the win.',
   },
 
   pairs: {

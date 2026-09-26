@@ -131,18 +131,21 @@ function shuffle(arr, rng) {
 }
 
 /**
- * Deal roles: one random spy, and every other id a role from the location
- * (roles repeat only if there are more players than roles).
+ * Deal roles: one spy (`forcedSpyId` when given and seated — see pickSpy —
+ * else random), and every other id a role from the location (roles repeat
+ * only if there are more players than roles).
  *
  * @returns {{ spyId: string|null, roles: Record<string, string|null> }} —
  *   the spy's role is null.
  */
-export function assignRoles(ids, locationIndex, rng = Math.random) {
+export function assignRoles(ids, locationIndex, rng = Math.random, forcedSpyId = null) {
   const list = [...(ids || [])]
   if (list.length === 0) return { spyId: null, roles: {} }
   const loc = SPYFAIR_LOCATIONS[locationIndex] || SPYFAIR_LOCATIONS[0]
   const spyIdx = Math.floor(rng() * list.length)
-  const spyId = list[Math.min(spyIdx, list.length - 1)]
+  const spyId = forcedSpyId != null && list.includes(forcedSpyId)
+    ? forcedSpyId
+    : list[Math.min(spyIdx, list.length - 1)]
   const rolePool = shuffle(loc.roles, rng)
   const roles = {}
   let r = 0
@@ -152,6 +155,90 @@ export function assignRoles(ids, locationIndex, rng = Math.random) {
     r++
   }
   return { spyId, roles }
+}
+
+// ---------------------------------------------------------------------------
+// Spy rotation. The room remembers who has been spy this cycle
+// (`games/{id}/spyfairRotation: { spied: [uid…], last: uid }`, written only at
+// the RESULT, when that round's spy is public anyway). A strict bag ("everyone
+// once before anyone twice") would make the last spy of every cycle a
+// certainty anyone could work out from earlier results, so the rotation is
+// weighted instead: nobody is spy twice in a row (3+ players), and a player
+// who hasn't been spy this cycle is SPYFAIR_FRESH_SPY_WEIGHT× as likely as
+// one who has. The spy is never a sure thing.
+// ---------------------------------------------------------------------------
+export const SPYFAIR_FRESH_SPY_WEIGHT = 3
+
+// Firebase returns a list as an array or a numeric-keyed object (and drops it
+// when empty) — read it back as a plain array in index order.
+export function normalizeSpied(raw) {
+  if (!raw || typeof raw !== 'object') return []
+  if (Array.isArray(raw)) return raw.filter(v => typeof v === 'string' && v)
+  return Object.keys(raw)
+    .filter(k => /^\d+$/.test(k))
+    .sort((a, b) => Number(a) - Number(b))
+    .map(k => raw[k])
+    .filter(v => typeof v === 'string' && v)
+}
+
+/**
+ * Pick this round's spy from `ids` given the room rotation
+ * (`{ spied, last }`). Weighted — see the note above.
+ */
+export function pickSpy(ids, rotation, rng = Math.random) {
+  const list = [...new Set((ids || []).filter(Boolean))]
+  if (list.length === 0) return null
+  const last = rotation?.last ?? null
+  const spied = normalizeSpied(rotation?.spied).filter(id => list.includes(id))
+  const eligible = list.length >= 3 ? list.filter(id => id !== last) : list
+  const anyFresh = eligible.some(id => !spied.includes(id))
+  const weights = eligible.map(id => (anyFresh && !spied.includes(id) ? SPYFAIR_FRESH_SPY_WEIGHT : 1))
+  const total = weights.reduce((a, b) => a + b, 0)
+  let roll = rng() * total
+  for (let i = 0; i < eligible.length; i++) {
+    roll -= weights[i]
+    if (roll < 0) return eligible[i]
+  }
+  return eligible[eligible.length - 1]
+}
+
+/**
+ * The rotation after `spyId`'s round (call once the spy is public). The cycle
+ * restarts once every seated id has been spy.
+ */
+export function recordSpy(rotation, ids, spyId) {
+  const list = (ids || []).filter(Boolean)
+  const spied = normalizeSpied(rotation?.spied).filter(id => list.includes(id))
+  if (!spyId) return { spied, last: rotation?.last ?? null }
+  const next = spied.includes(spyId) ? spied : [...spied, spyId]
+  const full = list.length > 0 && list.every(id => next.includes(id))
+  return { spied: full ? [] : next, last: spyId }
+}
+
+// ---------------------------------------------------------------------------
+// The spy's location guess. Once per round, during questioning or the vote,
+// the spy may name the location: right wins the round for the spy, wrong
+// loses it (every non-spy scores). Guessing ends the round at once — the spy
+// has declared themselves, which is exactly what the rules announce.
+// ---------------------------------------------------------------------------
+
+/** Normalize `round.spyGuess` ({ by, index }) or null when absent/malformed. */
+export function normalizeSpyGuess(raw) {
+  if (!raw || typeof raw !== 'object' || typeof raw.by !== 'string' || !raw.by) return null
+  const index = Number(raw.index)
+  if (!Number.isInteger(index) || index < 0 || index >= SPYFAIR_LOCATIONS.length) return null
+  return { by: raw.by, index }
+}
+
+/**
+ * Resolve a round that ended on a spy guess. A guess by anyone other than the
+ * real spy is invalid (only a tampered client can send one) → `valid: false`.
+ */
+export function resolveSpyGuess(guess, spyId, locationIndex) {
+  const g = normalizeSpyGuess(guess)
+  if (!g || !spyId || g.by !== spyId || locationIndex == null) return { valid: false, spyWon: null, outcome: null }
+  const spyWon = g.index === locationIndex
+  return { valid: true, spyWon, outcome: spyWon ? 'guessed' : 'wrongGuess' }
 }
 
 // ---------------------------------------------------------------------------

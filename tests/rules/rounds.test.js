@@ -122,6 +122,15 @@ describe('Spyfair and Chameleon', () => {
     await assertFails(as('bob').ref('games/g1/round/votes/carol').set('bob'))
   })
 
+  it('lets the spy lock one location guess, only as themselves, never changed', async () => {
+    await put(room('spyfair', r({ phase: 'questioning' })))
+    await assertFails(as('bob').ref('games/g1/round/spyGuess').set({ by: 'carol', index: 3 }))
+    await assertFails(as('bob').ref('games/g1/round/spyGuess').set({ by: 'bob', index: 'x' }))
+    await assertSucceeds(as('bob').ref('games/g1/round/spyGuess').set({ by: 'bob', index: 3 }))
+    await assertFails(as('bob').ref('games/g1/round/spyGuess').set({ by: 'bob', index: 4 }))
+    await assertSucceeds(as('carol').ref('games/g1/round/phase').set('tally'))
+  })
+
   it('publishes each reveal key once (player or dealer), never swapped', async () => {
     await put(room('chameleon', r({ phase: 'reveal', openKeys: { bob: 'K'.repeat(44) } })))
     await assertSucceeds(as('alice').ref('games/g1/round/openKeys/carol').set('K'.repeat(44)))

@@ -116,6 +116,7 @@ describe('match rules (shared src/lib/matchRules.js)', () => {
     assert.equal(core.twoPlayerSeats(tttRoom({ players: players('same', 'same') })), null)
     assert.equal(core.twoPlayerSeats({ players: { uidA: { playerId: 'uidA' } } }), null)
     assert.equal(core.twoPlayerSeats(tttRoom({ gameType: 'wordcoop' })), null)
+    assert.equal(core.twoPlayerSeats(tttRoom({ gameType: 'password' })), null)
   })
 })
 

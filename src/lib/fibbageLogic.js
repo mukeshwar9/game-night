@@ -3,6 +3,7 @@
 // Round shape on Firebase (under games/{gameId}/round):
 //   { phase:'lying'|'voting'|'reveal',
 //     promptIndex: number,                      // deck index = order[num]
+//     deckSeed: number,                         // per-match seed for drawPromptOrder
 //     num: number, order: [deckIndex],          // match position + drawn order (see
 //                                               // "Match structure" below)
 //     lieStartedAt / voteStartedAt: epoch-ms,   // phase starts; deadlines derive from
@@ -10,6 +11,9 @@
 //     closedAt: epoch-ms,                       // lying closed early (deadline/manual):
 //                                               // everyone drops their ballot sub now
 //     revealDeadline: epoch-ms,                 // fixed grace for author reveals
+//     advanceAt: epoch-ms,                      // scored reveal auto-advances then
+//                                               // (absent when the room runs untimed)
+//     ready:   { [playerId]: true },            // pressed READY on the scored reveal
 //     lies:    { [playerId]: { hash } },        // salted SHA-256 commitment ONLY
 //     subs:    { [randomKey]: text },           // anonymised plaintext lies used
 //                                               // to build the ballot — deleted the
@@ -46,11 +50,78 @@
 import { pickFresh } from './seenHistory'
 import { scaledMs } from './timerScale'
 import { normalizeList } from './normalize'
+import { matchKey, normalizeText, isSameAnswer, isCloseMatch } from './textMatchLogic'
+import { isBannedWord } from './wordDenylist'
 
 export const POINTS_FOR_TRUTH = 1000
 export const POINTS_PER_FOOL = 500
+export const LIE_MAX_LENGTH = 60
 
-const norm = (s) => String(s ?? '').trim().toLowerCase()
+// Pacing at 1× — the room timerScale (src/lib/timerScale.js) stretches the
+// player-facing ones (lie, vote, reveal advance). Starting values, tune in playtests.
+export const FIBBAGE_LIE_MS = 60_000           // time to write a lie
+export const FIBBAGE_VOTE_MS = 45_000          // time to vote
+export const FIBBAGE_REVEAL_WAIT_MS = 20_000   // max wait for authors to publish reveals before scoring (liveness, unscaled)
+export const FIBBAGE_REVEAL_ADVANCE_MS = 10_000 // scored reveal stays up this long, then the next round starts
+
+// ---------------------------------------------------------------------------
+// Answer matching — one loose key for "is this the same option?" so casing,
+// punctuation, a leading article or a plural never splits or leaks an option.
+// ---------------------------------------------------------------------------
+
+// Comparison key for a ballot option ("A Pringles can." → "pringlescan").
+export function optionKey(text) {
+  return matchKey(text)
+}
+
+// Same ballot option? ("a pringles can" vs "Pringles can" → true)
+export function sameOption(a, b) {
+  const k = optionKey(a)
+  return k.length > 0 && k === optionKey(b)
+}
+
+const NUMBER_WORDS = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30,
+  forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100,
+}
+
+// "13", "1,000", "thirteen" → the number; anything else → null.
+function numberValue(text) {
+  const raw = String(text ?? '').trim().replace(/[.!?]+$/, '')
+  if (/^\d[\d,]*(\.\d+)?$/.test(raw)) return Number(raw.replace(/,/g, ''))
+  const words = normalizeText(raw).split(' ').filter(Boolean)
+  if (words.length === 1 && words[0] in NUMBER_WORDS) return NUMBER_WORDS[words[0]]
+  return null
+}
+
+/**
+ * Is this "lie" really the truth? Same answer under the loose key ("SCOTLAND!",
+ * "the guinea pigs"), one typo away from a longer answer ("Scotlnd"), or the
+ * same number written differently ("3" for "three"). Such lies are rejected
+ * at submit, dropped from the ballot and never earn credit.
+ */
+export function isTruthLike(lie, answer) {
+  if (isSameAnswer(lie, answer) || isCloseMatch(lie, answer)) return true
+  const a = numberValue(answer)
+  return a != null && numberValue(lie) === a
+}
+
+/**
+ * Validate a player's lie before it is committed. Returns `{ ok: true, text }`
+ * (trimmed) or `{ ok: false, error }` with an on-screen reason.
+ */
+export function validateLie(raw, answer) {
+  const text = String(raw ?? '').trim()
+  if (!text) return { ok: false, error: 'TYPE YOUR LIE' }
+  if (text.length > LIE_MAX_LENGTH) return { ok: false, error: 'TOO LONG' }
+  if (!optionKey(text)) return { ok: false, error: 'USE LETTERS OR NUMBERS' }
+  const words = normalizeText(text).split(' ').filter(Boolean)
+  if (isBannedWord(optionKey(text)) || words.some(isBannedWord)) return { ok: false, error: 'KEEP IT CLEAN' }
+  if (isTruthLike(text, answer)) return { ok: false, error: "THAT'S THE TRUTH — LIE HARDER" }
+  return { ok: true, text }
+}
 
 // Seat order is derived from joinedAt (earliest first), tie-broken by playerId
 // for a stable, deterministic order across all clients.
@@ -117,16 +188,17 @@ export function normalizeMap(raw) {
 // Ids are positional (`opt-N`) AFTER the shuffle, so the id encodes only a random
 // ballot position and never who wrote the option or whether it's the truth.
 //
-// Duplicate lies (case-insensitive) collapse to a single option; a lie equal to the
-// truth is dropped (its author earns no credit and it must not duplicate the truth).
+// Duplicate lies (same optionKey: case, punctuation, leading article, plurals)
+// collapse to a single option; a truth-like lie (isTruthLike) is dropped — its
+// author earns no credit and it must not sit beside the truth as a near-copy.
 // Authorship + truth are recovered separately at reveal time via attributeOptions().
+// UIs render every option upper-cased so the deck's casing can't mark the truth.
 export function buildOptions(answer, texts, seed) {
-  const truthNorm = norm(answer)
-  const seen = new Set([truthNorm])
+  const seen = new Set([optionKey(answer)])
   const items = [String(answer).trim()] // truth is one of the items; the shuffle hides it
   for (const t of texts || []) {
-    const k = norm(t)
-    if (!k || seen.has(k)) continue
+    const k = optionKey(t)
+    if (!k || seen.has(k) || isTruthLike(t, answer)) continue
     seen.add(k)
     items.push(String(t).trim())
   }
@@ -138,20 +210,20 @@ export function buildOptions(answer, texts, seed) {
 // `revealedLies` ({ [playerId]: text }), returns rich options
 //   [{ id, text, by }]
 // where the truth option has `by: null` and each lie option has `by: [playerId, …]`.
-// This is the shape scoreRound() consumes. Matching is by normalized text, so merged
-// duplicate lies credit every author and a lie that equals the truth earns nobody.
+// This is the shape scoreRound() consumes. Matching is by optionKey, so merged
+// duplicate lies credit every author and a truth-like lie earns nobody.
 export function attributeOptions(options, answer, revealedLies) {
-  const truthNorm = norm(answer)
+  const truthKey = optionKey(answer)
   const authorsByText = new Map()
   for (const [pid, text] of Object.entries(revealedLies || {})) {
-    const k = norm(text)
-    if (!k || k === truthNorm) continue // a lie equal to the truth earns no credit
+    const k = optionKey(text)
+    if (!k || isTruthLike(text, answer)) continue // a lie that is really the truth earns no credit
     if (!authorsByText.has(k)) authorsByText.set(k, [])
     authorsByText.get(k).push(pid)
   }
   return (options || []).map(o => {
-    const k = norm(o.text)
-    if (k === truthNorm) return { ...o, by: null }
+    const k = optionKey(o.text)
+    if (k === truthKey) return { ...o, by: null }
     return { ...o, by: authorsByText.get(k) || [] }
   })
 }
@@ -202,6 +274,13 @@ export function allLied(eligibleIds, lies) {
 export function allRevealed(eligibleIds, reveals) {
   const r = reveals || {}
   return eligibleIds.length > 0 && eligibleIds.every(id => r[id] != null)
+}
+
+// True once every eligible player pressed READY on the reveal screen — the
+// round may then advance before FIBBAGE_REVEAL_ADVANCE_MS runs out.
+export function allReady(eligibleIds, ready) {
+  const r = ready || {}
+  return eligibleIds.length > 0 && eligibleIds.every(id => !!r[id])
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,14 @@
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
+
+// "TYPE OR TAP" only where a physical keyboard is likely (a fine pointer);
+// touch-only devices are told to tap.
+function useFinePointer() {
+  const [fine] = useState(() => {
+    try { return !!window.matchMedia?.('(pointer: fine)').matches } catch { return false }
+  })
+  return fine
+}
 
 function LetterTile({ letter, selected, disabled, onClick, label }) {
   return (
@@ -26,6 +36,7 @@ function LetterTile({ letter, selected, disabled, onClick, label }) {
 export default function AnagramTiles({
   rack, selectedIndexes, onPick, onRemove, onShuffle, disabled,
 }) {
+  const finePointer = useFinePointer()
   const selected = new Set(selectedIndexes)
   return (
     <div className="space-y-3" aria-label="Anagram letter rack">
@@ -43,7 +54,7 @@ export default function AnagramTiles({
               {rack[index]}
             </button>
           )) : (
-            <span className="font-pixel text-[9px] tracking-widest text-retro-dim">TYPE OR TAP LETTERS</span>
+            <span className="font-pixel text-[9px] tracking-widest text-retro-dim">{finePointer ? 'TYPE OR TAP LETTERS' : 'TAP LETTERS'}</span>
           )}
         </div>
       </div>

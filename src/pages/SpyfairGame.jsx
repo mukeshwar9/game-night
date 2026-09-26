@@ -7,7 +7,8 @@ import { isRoomCoordinator } from '../lib/coordinator'
 import {
   seatOrder, normalizeVotes, tallyVotes, resolveVote, scoreRound, matchWinners, allOnlineVoted,
   pickLocationIndex, assignRoles, spyfairPayload, parseSpyfairPayload, readSpyfairDeal, legacyOpened,
-  sealAad, SPYFAIR_MIN_PLAYERS, SPYFAIR_QUESTION_SECONDS, SPYFAIR_SEEN_KEY,
+  sealAad, pickSpy, recordSpy, normalizeSpyGuess, resolveSpyGuess,
+  SPYFAIR_MIN_PLAYERS, SPYFAIR_QUESTION_SECONDS, SPYFAIR_SEEN_KEY,
 } from '../lib/spyfairLogic'
 import { normalizeList } from '../lib/normalize'
 import { markSeen, normalizeSeen } from '../lib/seenHistory'
@@ -47,6 +48,18 @@ import { toast } from 'sonner'
 // Contradicting entries (a dealer who sealed two spies or two locations) are
 // flagged UNVERIFIED on the result screen.
 //
+// SPY GUESS: once, during questioning or the vote, the spy may name the
+// location. The guess writes `round.spyGuess: { by, index }` and publishes the
+// spy's OWN reveal key in the same transaction, then jumps straight to TALLY —
+// declaring yourself to guess is what the rules announce, and the published
+// key lets every client prove `by` really opened a SPY card. A guess from
+// anyone else (a tampered client) voids the round at scoring.
+//
+// SPY ROTATION: `games/$id/spyfairRotation: { spied, last }` (room-level, kept
+// across NEW MATCH) is written only at RESULT, when that round's spy is public
+// anyway. The pick is weighted rather than a strict bag (see pickSpy in
+// spyfairLogic.js), so earlier results never make the current spy certain.
+//
 // Remaining trust limits (no server to enforce them):
 //   * The DEALING client chose the deal, so it knows the spy and the location.
 //     The honest client never shows it, but a dealer with devtools could read
@@ -79,12 +92,12 @@ function newRoundId() {
 
 // Deal a sealed round to `participants` (seated, online, key published): pick
 // the location (avoiding the room's recently seen ones and the previous
-// round's) and the spy, and seal each role to its player. The deal and the
+// round's) and the spy (from the room's rotation), and seal each role to its player. The deal and the
 // reveal keys stay in the dealer's sessionStorage.
-async function dealRound({ gameId, participants, sealKeys, seen, prevLocationIndex = null }) {
+async function dealRound({ gameId, participants, sealKeys, seen, rotation, prevLocationIndex = null }) {
   const id = newRoundId()
   const locationIndex = pickLocationIndex(seen, prevLocationIndex)
-  const { spyId, roles } = assignRoles(participants, locationIndex)
+  const { spyId, roles } = assignRoles(participants, locationIndex, Math.random, pickSpy(participants, rotation))
   const deal = { spyId, roles, locationIndex }
   const sealed = {}
   const keys = {}
@@ -104,6 +117,8 @@ async function dealRound({ gameId, participants, sealKeys, seen, prevLocationInd
     locationIndex: null,
     spyWon: null,
     accused: null,
+    spyGuess: null,   // the spy's one location guess { by, index }
+    outcome: null,    // result: 'caught' | 'escaped' | 'guessed' | 'wrongGuess'
     consistent: null,
     void: null,
     timerEnds: null,
@@ -302,13 +317,20 @@ export default function SpyfairGame({
   const [advancing, runAdvance] = useBusy()
   const [resolving, runResolve] = useBusy()
   const [voiding, runVoid] = useBusy()
+  const [guessing, runGuess] = useBusy()
+  const [showLocations, setShowLocations] = useState(false)
+  const [guessPick, setGuessPick] = useState(null) // spy's selected location index
 
   const prevPhase = useRef(phase)
   const resolvedRef = useRef(null)
 
-  // Reset the peek-to-reveal flap whenever a new round begins.
+  // Reset the peek-to-reveal flap (and the spy's pending guess pick) whenever a
+  // new round begins.
   useEffect(() => {
-    if (phase === 'reveal' && prevPhase.current !== 'reveal') setSecretRevealed(false)
+    if (phase === 'reveal' && prevPhase.current !== 'reveal') {
+      setSecretRevealed(false)
+      setGuessPick(null)
+    }
   }, [phase])
 
   // --- Coordinator: when the questioning timer expires, advance to the vote phase.
@@ -352,6 +374,7 @@ export default function SpyfairGame({
         participants: readyIds,
         sealKeys,
         seen: game.seen?.[SPYFAIR_SEEN_KEY],
+        rotation: game.spyfairRotation,
         prevLocationIndex: isNext ? (round.locationIndex ?? null) : null,
       })
       const prevId = round.id || null
@@ -440,15 +463,35 @@ export default function SpyfairGame({
       const r = current?.round
       if (!r || (r.id || null) !== roundId || r.phase !== 'tally') return
       const parts = r.private && !r.sealed ? Object.keys(r.private) : normalizeList(r.participants)
-      const { spyWon } = resolveVote(normalizeVotes(r.votes), spyId)
+      const seatIdsNow = seatOrder(current.players).map(p => p.playerId)
+      let spyWon
+      let outcome
+      let accused = r.accused ?? null
+      if (normalizeSpyGuess(r.spyGuess)) {
+        // The round ended on the spy's location guess.
+        const g = resolveSpyGuess(r.spyGuess, spyId, locationIndex)
+        if (!g.valid) {
+          // Only a tampered client can guess without holding the SPY card: no score.
+          return { ...current, round: { ...r, phase: 'result', void: true, spyWon: null, consistent }, lastActivityAt: Date.now() }
+        }
+        spyWon = g.spyWon
+        outcome = g.outcome
+        accused = null
+      } else {
+        const v = resolveVote(normalizeVotes(r.votes), spyId)
+        spyWon = v.spyWon
+        outcome = spyWon ? 'escaped' : 'caught'
+      }
       const nextScores = scoreRound(current.scores, parts, spyId, spyWon)
-      const over = matchWinners(seatOrder(current.players).map(p => p.playerId), nextScores).length > 0
+      const over = matchWinners(seatIdsNow, nextScores).length > 0
       const seen = { ...(current.seen || {}), [SPYFAIR_SEEN_KEY]: markSeen(normalizeSeen(current.seen?.[SPYFAIR_SEEN_KEY]), [locationIndex]) }
       return {
         ...current,
         scores: nextScores,
         seen,
-        round: { ...r, phase: 'result', spy: spyId, locationIndex, spyWon, consistent },
+        // The spy is public from here on — safe to roll the rotation.
+        spyfairRotation: recordSpy(current.spyfairRotation, seatIdsNow, spyId),
+        round: { ...r, phase: 'result', spy: spyId, locationIndex, spyWon, outcome, accused, consistent },
         lastActivityAt: Date.now(),
         ...(over ? { status: 'finished' } : {}),
       }
@@ -477,6 +520,33 @@ export default function SpyfairGame({
       .catch(() => toast.error('VOTE FAILED — CHECK CONNECTION'))
   }
 
+  // --- Spy: one location guess, during questioning or the vote. One transaction
+  // re-checks round + phase + no earlier guess, records the guess, publishes the
+  // spy's own reveal key (the proof they hold the SPY card) and moves to TALLY,
+  // where every card is unsealed and the coordinator scores the guess. ---
+  const spyGuess = normalizeSpyGuess(round.spyGuess)
+  const canGuess = !legacy && amSpy && !!myKey && (phase === 'questioning' || phase === 'vote') && !spyGuess
+  const handleSpyGuess = () => runGuess(async () => {
+    if (!canGuess || guessPick == null) return
+    const index = guessPick
+    const roundId = round.id || null
+    const key = myKey
+    const { committed } = await runTransaction(ref(db, `games/${gameId}/round`), cur => {
+      if (!cur || (cur.id || null) !== roundId) return
+      if (cur.phase !== 'questioning' && cur.phase !== 'vote') return
+      if (cur.spyGuess) return
+      return {
+        ...cur,
+        phase: 'tally',
+        spyGuess: { by: mySeat, index },
+        accused: null,
+        openKeys: { ...(cur.openKeys || {}), [mySeat]: key },
+      }
+    })
+    if (!committed) toast.error('TOO LATE — THE ROUND HAS MOVED ON')
+    else sounds.move('O')
+  }, () => toast.error('GUESS FAILED — CHECK CONNECTION'))
+
   // -------------------------------------------------------------------------
   // Render: waiting lobby (status not playing, no live result to show)
   // -------------------------------------------------------------------------
@@ -489,7 +559,8 @@ export default function SpyfairGame({
           <p className="font-pixel text-xs text-retro-cta text-glow-cta tracking-widest">SPYFAIR</p>
           <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
             One of you is the SPY. Everyone else shares a secret location.
-            Ask questions, find the spy — the spy survives by blending in.
+            Ask questions and vote out the spy — the spy wins by blending in,
+            or by naming the location.
           </p>
         </div>
 
@@ -647,8 +718,9 @@ export default function SpyfairGame({
                   <p className="font-pixel text-[9px] text-retro-p2 tracking-widest">YOU ARE THE</p>
                   <p className="font-pixel text-xl text-retro-p2 text-glow-p2">SPY</p>
                   <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
-                    You don&apos;t know the location. Blend in, deflect, and try to
-                    figure out where everyone is — or just survive the vote.
+                    You don&apos;t know the location. Blend in and survive the vote —
+                    or work it out and guess it from the location list. One guess:
+                    right wins you the round, wrong loses it.
                   </p>
                 </>
               ) : (
@@ -698,7 +770,7 @@ export default function SpyfairGame({
               <p className="font-pixel text-sm tracking-widest text-retro-cta text-glow-cta">NO TIMER</p>
             )}
             <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
-              Ask each other questions out loud. Spot the spy.
+              Ask each other questions — out loud or in the chat. Spot the spy.
               {noTimer && !round.timerEnds && ' Timers are off — the vote starts when it is called.'}
             </p>
           </div>
@@ -735,6 +807,9 @@ export default function SpyfairGame({
         <div className="space-y-3">
           <p className="text-center font-pixel text-[10px] text-retro-cta text-glow-cta">
             WHO IS THE SPY?
+          </p>
+          <p className="text-center font-mono text-[10px] text-retro-dim">
+            Most votes is accused. A tie for most votes lets the spy escape.
           </p>
           {!amParticipant ? (
             <p className="text-center font-pixel text-[10px] text-retro-dim py-4">
@@ -788,9 +863,72 @@ export default function SpyfairGame({
         </div>
       )}
 
-      {/* TALLY: votes locked; every client unseals the roles */}
+      {/* LOCATION LIST: everyone's reference; the spy's one guess lives here too */}
+      {(phase === 'reveal' || phase === 'questioning' || phase === 'vote') && (
+        <div className="bg-retro-surface border border-retro-border/60 rounded p-3 space-y-2">
+          <button
+            onClick={() => setShowLocations(v => !v)}
+            aria-expanded={showLocations}
+            className="w-full min-h-11 font-pixel text-[9px] text-retro-dim hover:text-retro-text tracking-widest transition-colors"
+          >
+            {/* Same label for everyone — a spy-only hint here would show on a glance at their screen. */}
+            {showLocations ? '▾ HIDE LOCATIONS' : `▸ ALL ${SPYFAIR_LOCATIONS.length} LOCATIONS`}
+          </button>
+          {showLocations && (
+            <>
+              {canGuess && (
+                <p className="font-mono text-[10px] text-retro-p2 text-center leading-relaxed">
+                  Spy: pick a location and lock it in. One guess — right wins
+                  the round, wrong loses it.
+                </p>
+              )}
+              <ul className="grid grid-cols-2 gap-1.5" aria-label="Possible locations">
+                {SPYFAIR_LOCATIONS.map((loc, i) => (
+                  <li key={loc.name}>
+                    {canGuess ? (
+                      <button
+                        onClick={() => setGuessPick(i)}
+                        aria-pressed={guessPick === i}
+                        className={cn(
+                          'w-full min-h-9 px-2 py-1.5 rounded border font-mono text-[9px] transition-all active:scale-95',
+                          guessPick === i
+                            ? 'border-retro-p2 text-retro-p2 bg-retro-tint-p2'
+                            : 'border-retro-border text-retro-text hover:border-retro-p2/60',
+                        )}
+                      >
+                        {loc.name}
+                      </button>
+                    ) : (
+                      <span className="block px-2 py-1.5 rounded border border-retro-border/40 font-mono text-[9px] text-retro-dim">
+                        {loc.name}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {canGuess && guessPick != null && (
+                <button
+                  onClick={handleSpyGuess}
+                  disabled={guessing}
+                  className="w-full min-h-11 px-4 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
+                >
+                  {guessing ? 'GUESSING…' : `LOCK GUESS: ${SPYFAIR_LOCATIONS[guessPick]?.name}`}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* TALLY: votes locked (or the spy guessed); every client unseals the roles */}
       {phase === 'tally' && (
         <div className="space-y-3 text-center">
+          {spyGuess && (
+            <p className="font-mono text-[11px] text-retro-p2">
+              {seats.find(p => p.playerId === spyGuess.by)?.name || 'A PLAYER'} claims to be the spy and guessed{' '}
+              <span className="text-retro-cta">{SPYFAIR_LOCATIONS[spyGuess.index]?.name}</span>
+            </p>
+          )}
           <p className="font-pixel text-[10px] text-retro-cta text-glow-cta arcade-blink">UNSEALING THE ROLES…</p>
           <p className="font-mono text-[10px] text-retro-dim">
             {Object.keys(opened).length}/{participants.length} cards opened
@@ -820,6 +958,10 @@ export default function SpyfairGame({
             const accusedPlayer = seats.find(p => p.playerId === round.accused)
             const revealedLocation = round.locationIndex != null ? SPYFAIR_LOCATIONS[round.locationIndex] : null
             const spyWon = round.spyWon
+            const guessedName = spyGuess ? SPYFAIR_LOCATIONS[spyGuess.index]?.name : null
+            const headline = round.outcome === 'guessed' ? 'SPY NAMED THE LOCATION!'
+              : round.outcome === 'wrongGuess' ? 'SPY GUESSED WRONG!'
+                : spyWon ? 'SPY ESCAPES!' : 'SPY CAUGHT!'
             return (
               <>
                 {round.void ? (
@@ -829,7 +971,7 @@ export default function SpyfairGame({
                     'font-pixel text-base',
                     spyWon ? 'text-retro-p2 text-glow-p2' : 'text-retro-win text-glow-win',
                   )}>
-                    {spyWon ? 'SPY ESCAPES!' : 'SPY CAUGHT!'}
+                    {headline}
                   </p>
                 )}
                 {!round.void && (
@@ -843,14 +985,26 @@ export default function SpyfairGame({
                         <span className="text-retro-p2 font-pixel text-[8px]"> ⚠ UNVERIFIED</span>
                       )}
                     </p>
+                    {guessedName && (
+                      <p className="font-mono text-[10px] text-retro-dim">
+                        The spy guessed: {guessedName}
+                      </p>
+                    )}
                     {accusedPlayer && (
                       <p className="font-mono text-[10px] text-retro-dim">
-                        Most accused: {accusedPlayer.name || '???'}
+                        Most votes: {accusedPlayer.name || '???'}
+                      </p>
+                    )}
+                    {round.outcome === 'escaped' && !accusedPlayer && (
+                      <p className="font-mono text-[10px] text-retro-dim">
+                        Tie for most votes — nobody accused
                       </p>
                     )}
                     {round.spy === mySeat && (
                       <p className="font-pixel text-[9px] text-retro-p2">
-                        {spyWon ? 'YOU GOT AWAY WITH IT' : 'YOU WERE EXPOSED'}
+                        {round.outcome === 'guessed' ? 'YOU NAMED IT'
+                          : round.outcome === 'wrongGuess' ? 'WRONG GUESS'
+                            : spyWon ? 'YOU GOT AWAY WITH IT' : 'YOU WERE EXPOSED'}
                       </p>
                     )}
                   </div>

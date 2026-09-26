@@ -6,6 +6,7 @@ import {
   seatOrder, hashString, buildOptions, attributeOptions, scoreRound,
   allLied, allVoted, POINTS_FOR_TRUTH, POINTS_PER_FOOL,
   MATCH_PROMPTS, drawPromptOrder, promptMultiplier, applyMultiplier,
+  validateLie, sameOption, matchChampions, LIE_MAX_LENGTH,
 } from '../lib/fibbageLogic'
 import { generateBotRoster, pickBotLie, pickBotVote } from '../lib/partyBots'
 import { getPlayerId } from '../lib/playerId'
@@ -21,7 +22,11 @@ const MIN_BOTS = 2
 const MAX_BOTS = 7
 const DEFAULT_BOT_COUNT = 3
 
-const norm = (s) => String(s ?? '').trim().toLowerCase()
+// Everyone tied for the top score at match end — same shared-win rule as
+// FibbageGame.jsx (fibbageLogic.matchChampions; empty when nobody scored).
+function champions(players, scores) {
+  return matchChampions(scores, seatOrder(players))
+}
 
 // Seat-ordered scoreboard rows, richer than seatOrder() alone (adds avatar/score).
 function rankPlayers(players, scores) {
@@ -188,8 +193,7 @@ export default function FibbageDemo() {
       if (humanFoundTruth) sounds.win()
       else sounds.miss()
     } else if (state.phase === 'matchover') {
-      const champ = rankPlayers(state.players, state.scores)[0]
-      if (champ?.id === 'human') sounds.matchWin()
+      if (champions(state.players, state.scores).includes('human')) sounds.matchWin()
       else sounds.lose()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- reads current state on the render where phase actually changed; re-running on every state field would refire past sounds
@@ -241,18 +245,17 @@ export default function FibbageDemo() {
   const handleSubmitLie = () => {
     if (state.phase !== 'lying' || state.lies.human != null) return
     const fact = FIBBAGE_FACTS[state.promptIndex % FIBBAGE_FACTS.length]
-    const text = lieInput.trim()
-    if (!text) { setInputError('TYPE YOUR LIE'); return }
-    if (norm(text) === norm(fact.answer)) { setInputError("THAT'S THE TRUTH — LIE HARDER"); return }
+    const check = validateLie(lieInput, fact.answer)
+    if (!check.ok) { setInputError(check.error); return }
     setInputError('')
     sounds.move('X')
-    dispatch({ type: 'HUMAN_LIE', text })
+    dispatch({ type: 'HUMAN_LIE', text: check.text })
   }
 
   const handleVote = (optionId) => {
     if (state.phase !== 'voting' || state.votes.human != null) return
     const opt = (state.options || []).find(o => o.id === optionId)
-    if (opt && state.myLieText && norm(opt.text) === norm(state.myLieText)) return
+    if (opt && state.myLieText && sameOption(opt.text, state.myLieText)) return
     sounds.move('O')
     dispatch({ type: 'HUMAN_VOTE', optionId })
   }
@@ -284,15 +287,24 @@ export default function FibbageDemo() {
   // -------------------------------------------------------------------------
   if (state.phase === 'matchover') {
     const ranked = rankPlayers(state.players, state.scores)
-    const champ = ranked[0]
-    const iWon = champ?.id === 'human'
+    const champIds = champions(state.players, state.scores)
+    const iWon = champIds.includes('human')
+    const nameOf = id => ranked.find(p => p.id === id)?.name || 'BOT'
+    const headline = champIds.length === 0
+      ? 'NOBODY SCORED'
+      : champIds.length > 1
+        ? (iWon ? 'YOU SHARE THE WIN!' : `${champIds.map(nameOf).join(' & ')} TIE`)
+        : (iWon ? 'YOU WIN!' : `${nameOf(champIds[0])} WINS`)
     return (
       <div className="space-y-5 text-center py-2">
         <div className="space-y-1">
           <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
           <p className="font-pixel text-base text-retro-cta text-glow-cta">
-            {iWon ? 'YOU WIN!' : `${champ?.name || 'BOT'} WINS`}
+            {headline}
           </p>
+          {champIds.length > 1 && (
+            <p className="font-pixel text-[9px] text-retro-dim">EXACT TIE — CO-CHAMPIONS</p>
+          )}
         </div>
 
         <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">
@@ -322,13 +334,14 @@ export default function FibbageDemo() {
   // LYING / VOTING / REVEAL
   // -------------------------------------------------------------------------
   const fact = FIBBAGE_FACTS[state.promptIndex % FIBBAGE_FACTS.length]
-  const promptDisplay = fact.prompt.replace('___', state.phase === 'reveal' ? `「${fact.answer}」` : '_____')
+  const promptDisplay = fact.prompt.replace('___', state.phase === 'reveal' ? `「${fact.answer.toUpperCase()}」` : '_____')
   const seatIds = seatOrder(state.players)
   const committedCount = Object.keys(state.lies).length
   const votedCount = Object.keys(state.votes).length
   const iCommitted = state.lies.human != null
   const iVoted = state.votes.human != null
-  const myLieNorm = state.myLieText ? norm(state.myLieText) : null
+  // Options render upper-cased (as in multiplayer) so casing can't mark the truth.
+  const optionLabel = text => String(text ?? '').toUpperCase()
   const matchWillEnd = state.queuePos + 1 >= state.promptQueue.length
   const isFinal = promptMultiplier(state.queuePos, state.promptQueue.length) > 1
 
@@ -361,14 +374,14 @@ export default function FibbageDemo() {
               <input
                 type="text"
                 value={lieInput}
-                maxLength={60}
+                maxLength={LIE_MAX_LENGTH}
                 onChange={e => { setLieInput(e.target.value); setInputError('') }}
                 onKeyDown={e => e.key === 'Enter' && handleSubmitLie()}
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
                 placeholder="YOUR FAKE ANSWER"
-                className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-[11px] text-center rounded px-3 py-2.5 focus:outline-none focus:border-retro-p1"
+                className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-[11px] text-center uppercase rounded px-3 py-2.5 focus:outline-none focus:border-retro-p1"
               />
               {inputError && <p className="font-pixel text-[9px] text-retro-p2 text-center">{inputError}</p>}
               <button
@@ -396,7 +409,7 @@ export default function FibbageDemo() {
       {state.phase === 'voting' && (
         <div className="space-y-2">
           {(state.options || []).map(opt => {
-            const isMine = !!myLieNorm && norm(opt.text) === myLieNorm
+            const isMine = !!state.myLieText && sameOption(opt.text, state.myLieText)
             const picked = state.votes.human === opt.id
             return (
               <button
@@ -412,7 +425,7 @@ export default function FibbageDemo() {
                   isMine && 'cursor-not-allowed',
                 )}
               >
-                {opt.text}{isMine ? '  (YOUR LIE)' : ''}
+                {optionLabel(opt.text)}{isMine ? '  (YOUR LIE)' : ''}
               </button>
             )
           })}
@@ -443,7 +456,7 @@ export default function FibbageDemo() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-[12px]">
-                      {opt.text}{isTruth ? '  ✓ TRUTH' : ''}
+                      {optionLabel(opt.text)}{isTruth ? '  ✓ TRUTH' : ''}
                     </span>
                     <span className="font-pixel text-[8px] text-retro-dim shrink-0">
                       {voters.length} VOTE{voters.length === 1 ? '' : 'S'}

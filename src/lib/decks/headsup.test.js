@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { HEADSUP_PROMPTS, HEADSUP_CATEGORIES } from './headsup'
-import { isDenied } from '../wordDenylist'
+import { isDenied } from '../moderationDenylist'
 
 describe('HEADS UP deck', () => {
   it('has at least 300 prompts across at least 6 categories', () => {

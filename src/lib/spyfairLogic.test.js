@@ -4,6 +4,7 @@ import {
   allOnlineVoted, pickLocationIndex, assignRoles, privatesFromRoles, findSpy,
   recoverLocationIndex, SPYFAIR_MATCH_WINS,
   spyfairPayload, parseSpyfairPayload, readSpyfairDeal, legacyOpened, sealAad, SPYFAIR_PAYLOAD_SPY,
+  pickSpy, recordSpy, normalizeSpied, normalizeSpyGuess, resolveSpyGuess, SPYFAIR_FRESH_SPY_WEIGHT,
 } from './spyfairLogic'
 import { seal, openWithPrivate, openWithKey, generateSealKeyPair } from './sealed'
 import { SPYFAIR_LOCATIONS } from './decks/spyfair'
@@ -214,5 +215,73 @@ describe('legacyOpened', () => {
   it('reads the pre-sealing plaintext private map', () => {
     const privates = privatesFromRoles({ a: 'Pilot', s: null }, 's', 0)
     expect(legacyOpened(privates)).toEqual({ a: { spy: false, locationIndex: 0, role: 'Pilot' }, s: { spy: true } })
+  })
+})
+
+describe('spy rotation', () => {
+  const ids = ['a', 'b', 'c']
+
+  it('normalizes sparse / absent Firebase lists', () => {
+    expect(normalizeSpied(undefined)).toEqual([])
+    expect(normalizeSpied({ 1: 'b', 0: 'a' })).toEqual(['a', 'b'])
+    expect(normalizeSpied(['a', null, 'c'])).toEqual(['a', 'c'])
+  })
+
+  it('never picks the last spy twice in a row (3+ players)', () => {
+    for (let i = 0; i < 50; i++) {
+      expect(pickSpy(ids, { spied: ['a'], last: 'a' }, () => i / 50)).not.toBe('a')
+    }
+  })
+
+  it('favors players who have not been spy this cycle, without making anyone certain', () => {
+    // After a and b this cycle (b last): c is fresh, a is not → c weight 3, a weight 1.
+    const rotation = { spied: ['a', 'b'], last: 'b' }
+    const total = SPYFAIR_FRESH_SPY_WEIGHT + 1
+    expect(pickSpy(ids, rotation, () => 0)).toBe('a')
+    expect(pickSpy(ids, rotation, () => (1 / total) + 0.01)).toBe('c')
+    expect(pickSpy(ids, rotation, () => 0.999)).toBe('c')
+    const picks = new Set()
+    for (let i = 0; i < 40; i++) picks.add(pickSpy(ids, rotation, () => i / 40))
+    expect(picks).toEqual(new Set(['a', 'c']))
+  })
+
+  it('ignores players who left and lets newcomers in', () => {
+    expect(['b', 'd']).toContain(pickSpy(['b', 'd', 'e'], { spied: ['gone'], last: 'e' }, Math.random))
+  })
+
+  it('records the spy and restarts the cycle once everyone has been spy', () => {
+    let rot = recordSpy(undefined, ids, 'a')
+    expect(rot).toEqual({ spied: ['a'], last: 'a' })
+    rot = recordSpy(rot, ids, 'b')
+    expect(rot).toEqual({ spied: ['a', 'b'], last: 'b' })
+    rot = recordSpy(rot, ids, 'c')
+    expect(rot).toEqual({ spied: [], last: 'c' })
+    expect(recordSpy(rot, ids, null)).toEqual({ spied: [], last: 'c' })
+  })
+
+  it('assignRoles honours a rotation-picked spy', () => {
+    const { spyId, roles } = assignRoles(ids, 0, rngOf(0), 'c')
+    expect(spyId).toBe('c')
+    expect(roles.c).toBeNull()
+    expect(roles.a).toBeTruthy()
+  })
+})
+
+describe('spy location guess', () => {
+  it('normalizes the stored guess', () => {
+    expect(normalizeSpyGuess(null)).toBeNull()
+    expect(normalizeSpyGuess({ by: 'a', index: '3' })).toEqual({ by: 'a', index: 3 })
+    expect(normalizeSpyGuess({ by: 'a', index: SPYFAIR_LOCATIONS.length })).toBeNull()
+    expect(normalizeSpyGuess({ index: 1 })).toBeNull()
+  })
+
+  it('a right guess wins for the spy, a wrong one loses', () => {
+    expect(resolveSpyGuess({ by: 's', index: 4 }, 's', 4)).toEqual({ valid: true, spyWon: true, outcome: 'guessed' })
+    expect(resolveSpyGuess({ by: 's', index: 5 }, 's', 4)).toEqual({ valid: true, spyWon: false, outcome: 'wrongGuess' })
+  })
+
+  it('rejects a guess made by someone other than the spy', () => {
+    expect(resolveSpyGuess({ by: 'x', index: 4 }, 's', 4).valid).toBe(false)
+    expect(resolveSpyGuess({ by: 's', index: 4 }, null, 4).valid).toBe(false)
   })
 })

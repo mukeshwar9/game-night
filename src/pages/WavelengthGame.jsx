@@ -4,25 +4,31 @@ import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
   getSpectrumPair,
-  randomTarget,
+  parseStoredTarget,
+  storedOrNewTarget,
   clampGuess,
   normalizeGuesses,
   normalizeUsedSpectrums,
   seatOrder,
   onlineGuessers,
+  validateClue,
   roundDeltas,
+  matchWinners,
   advanceAfterReveal,
   skipRound,
   beginMatch,
   WAVELENGTH_MIN_PLAYERS,
   WAVELENGTH_CLUE_MS,
   WAVELENGTH_GUESS_MS,
+  WAVELENGTH_CLUE_MAX_LENGTH,
 } from '../lib/wavelengthLogic'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { scaledMs, timersOff } from '../lib/timerScale'
 import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import GameSwitcher from '../components/GameSwitcher'
 import RoundEndPanel from '../components/RoundEndPanel'
+import RoundTimer from '../components/RoundTimer'
+import WordFeedback from '../components/WordFeedback'
 import PixelDots from '../components/loading/PixelDots'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -37,8 +43,19 @@ import useBusy from '@/hooks/useBusy'
 // pattern as TriviaGame's question clock. Timer scale 0 turns them off; the
 // coordinator / clue-giver then advance by hand.
 
-// sessionStorage key for the clue-giver's hidden {target, salt}
+// sessionStorage key for the clue-giver's hidden {target, salt, hash}. The
+// target is rolled when the round enters the clue phase (so the clue-giver
+// sees it while writing the clue), committed on submit, and removed once it
+// has been revealed so a later round on the same spectrum can't reuse it.
 const targetKey = (gameId, spectrumIndex) => `wavelength-target-${gameId}-${spectrumIndex}`
+
+function readStoredTarget(key) {
+  try { return parseStoredTarget(sessionStorage.getItem(key)) } catch { return null }
+}
+
+function writeStoredTarget(key, value) {
+  try { sessionStorage.setItem(key, JSON.stringify(value)); return true } catch { return false }
+}
 
 function normalizeRound(raw) {
   if (!raw) return null
@@ -165,22 +182,28 @@ export default function WavelengthGame({
 
   const [clueInput, setClueInput] = useState('')
   const [clueError, setClueError] = useState('')
+  const [clueErrorId, setClueErrorId] = useState(0)
   const [committing, setCommitting] = useState(false)
   const [dialValue, setDialValue] = useState(50)
   const [submittingGuess, setSubmittingGuess] = useState(false)
   const [lastDelta, setLastDelta] = useState(null) // {playerId: pointsGained} after a reveal
+  // Clue-giver only: this round's hidden target ({ target, salt, hash }). Mirrors
+  // sessionStorage; also the fallback when storage is unavailable.
+  const [myTarget, setMyTarget] = useState(null)
+  const myTargetRef = useRef(null)
   const [starting, runStart] = useBusy()
   const [skipping, runSkip] = useBusy()
   const [revealing, runReveal] = useBusy()
+  const [advancing, runAdvance] = useBusy()
 
   const revealResolved = useRef(null)
   const prevPhase = useRef(round?.phase)
   const prevSpectrum = useRef(round?.spectrumIndex)
 
-  // Server-corrected clock — every deadline comparison below runs on it. Ticks
-  // once a second while a clue/guess deadline can expire.
-  const timedPhase = !noTimer && (round?.phase === 'clue' || round?.phase === 'guessing')
-  const { now: serverNow } = useServerClock(timedPhase ? 1000 : 0)
+  // Server-corrected clock — every deadline comparison and the on-screen
+  // countdown run on it. Ticks only while a clue/guess deadline can expire.
+  const timedPhase = !noTimer && game.status === 'playing' && (round?.phase === 'clue' || round?.phase === 'guessing')
+  const { now: serverNow } = useServerClock({ tickMs: 500, ticking: timedPhase })
 
   // Anchor the phase-start time so every client agrees on when the clock
   // began (first client to notice writes it). Timers off: no clock to anchor.
@@ -201,6 +224,43 @@ export default function WavelengthGame({
     }
   }, [round?.spectrumIndex])
 
+  // --- Clue-giver: roll the hidden target as soon as the round enters the clue
+  // phase, so they can see it on their dial while writing the clue. Reuses the
+  // stored target on reload; commits it (salted hash) in the background so the
+  // submit is a single write. Guessers never see it before the reveal. ---
+  useEffect(() => {
+    if (!isClueGiver || round?.phase !== 'clue') return
+    const spectrumIndex = round.spectrumIndex
+    const key = targetKey(gameId, spectrumIndex)
+    const fallback = myTargetRef.current?.spectrumIndex === spectrumIndex ? myTargetRef.current : null
+    const t = storedOrNewTarget(readStoredTarget(key) ?? fallback)
+    if (t.fresh) writeStoredTarget(key, { target: t.target })
+    const show = entry => {
+      myTargetRef.current = { ...entry, spectrumIndex }
+      setMyTarget(myTargetRef.current)
+    }
+    show({ target: t.target, salt: t.salt, hash: t.hash })
+    if (t.salt && t.hash) return
+    let alive = true
+    commit(String(t.target)).then(({ hash, salt }) => {
+      const current = readStoredTarget(key)
+      // Another tab/effect run already committed a target for this round: keep it.
+      if (current && current.hash) { if (alive) show(current); return }
+      const entry = { target: t.target, salt, hash }
+      writeStoredTarget(key, entry)
+      if (alive) show(entry)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [isClueGiver, round?.phase, round?.spectrumIndex, gameId])
+
+  // --- Clue-giver: once the target is revealed it is public — drop it from
+  // storage so a later round on the same spectrum rolls a new one. ---
+  useEffect(() => {
+    if (!isClueGiver || round?.phase !== 'reveal' || !round.reveal) return
+    try { sessionStorage.removeItem(targetKey(gameId, round.spectrumIndex)) } catch { /* ignore */ }
+    if (myTargetRef.current?.spectrumIndex === round.spectrumIndex) myTargetRef.current = null
+  }, [isClueGiver, round?.phase, round?.reveal, round?.spectrumIndex, gameId])
+
   // Sound cue when the round transitions to guessing (clue is in).
   useEffect(() => {
     if (round?.phase === 'guessing' && prevPhase.current !== 'guessing') {
@@ -209,25 +269,32 @@ export default function WavelengthGame({
     prevPhase.current = round?.phase
   }, [round?.phase])
 
-  // --- Clue-giver: commit a hidden target, then publish the one-word clue ---
+  // --- Clue-giver: publish the one-word clue (house rules: validateClue) with
+  // the commitment to the target they have been looking at since the clue
+  // phase began ---
   const handleSubmitClue = async () => {
     if (!isClueGiver || committing) return
-    const clue = clueInput.trim()
-    if (!clue) { setClueError('TYPE A CLUE'); return }
-    if (/\s/.test(clue)) { setClueError('ONE WORD ONLY'); return }
-    if (clue.length > 24) { setClueError('TOO LONG'); return }
+    const rejectClue = msg => { setClueError(msg); setClueErrorId(n => n + 1) }
+    const check = validateClue(clueInput, getSpectrumPair(round.spectrumIndex))
+    if (!check.ok) { rejectClue(check.error); return }
+    const clue = check.clue
+    const key = targetKey(gameId, round.spectrumIndex)
+    const fallback = myTargetRef.current?.spectrumIndex === round.spectrumIndex ? myTargetRef.current : null
+    let entry = readStoredTarget(key) ?? (fallback && { target: fallback.target, salt: fallback.salt, hash: fallback.hash })
+    if (!entry) { rejectClue('TARGET NOT READY — TRY AGAIN'); return }
 
     setCommitting(true)
     try {
-      const target = randomTarget()
-      const { hash, salt } = await commit(String(target))
-      sessionStorage.setItem(
-        targetKey(gameId, round.spectrumIndex),
-        JSON.stringify({ target, salt }),
-      )
+      if (!entry.salt || !entry.hash) {
+        const { hash, salt } = await commit(String(entry.target))
+        entry = { target: entry.target, salt, hash }
+        writeStoredTarget(key, entry)
+        myTargetRef.current = { ...entry, spectrumIndex: round.spectrumIndex }
+        setMyTarget(myTargetRef.current)
+      }
       await update(ref(db, `games/${gameId}/round`), {
-        commitment: hash,
-        clue: clue.toUpperCase(),
+        commitment: entry.hash,
+        clue,
         phase: 'guessing',
         phaseStartedAt: null,
       })
@@ -279,10 +346,9 @@ export default function WavelengthGame({
   // phase and spectrum inside a transaction so a repeat call is a no-op. ---
   const revealTarget = async () => {
     const spectrumIndex = round?.spectrumIndex
-    const stored = sessionStorage.getItem(targetKey(gameId, spectrumIndex))
-    if (!stored) return
-    let parsed
-    try { parsed = JSON.parse(stored) } catch { return }
+    const fallback = myTargetRef.current?.spectrumIndex === spectrumIndex ? myTargetRef.current : null
+    const parsed = readStoredTarget(targetKey(gameId, spectrumIndex)) ?? fallback
+    if (!parsed || parsed.salt == null) return
     await runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.phase !== 'guessing' || current.spectrumIndex !== spectrumIndex) return
       return { ...current, phase: 'reveal', reveal: { target: parsed.target, salt: parsed.salt } }
@@ -336,7 +402,9 @@ export default function WavelengthGame({
         update(ref(db, `games/${gameId}/round`), { cheatDetected: true }).catch(() => {})
         return
       }
-      const delta = roundDeltas(round.guesses, guesserIds, target)
+      // Same rule advanceAfterReveal applies: guessers score by closeness, the
+      // clue-giver scores the rounded mean of those scores.
+      const delta = roundDeltas({ guesses: round.guesses, target, clueGiver: round.clueGiver, seatIds: order })
       setLastDelta(delta)
       const mine = delta[mySeat]
       if (mine != null) {
@@ -413,7 +481,7 @@ export default function WavelengthGame({
       <div className="space-y-4 text-center">
         <p className="font-pixel text-sm text-retro-cta text-glow-cta">WAVELENGTH</p>
         <p className="font-pixel text-[9px] text-retro-dim leading-relaxed">
-          ONE PLAYER GIVES A CLUE.{'\n'}EVERYONE ELSE GUESSES{'\n'}WHERE ON THE DIAL IT LANDS.
+          THE CLUE-GIVER SEES A HIDDEN TARGET{'\n'}AND GIVES A ONE-WORD CLUE.{'\n'}EVERYONE ELSE GUESSES WHERE IT IS.
         </p>
 
         <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
@@ -463,10 +531,16 @@ export default function WavelengthGame({
   // Match over.
   // -------------------------------------------------------------------------
   if (game.status === 'finished') {
-    const winnerId = game.winner
-    const iWon = winnerId === mySeat
-    const winnerName = (players[winnerId]?.name || winnerId || '???').toUpperCase()
-    const headline = iWon ? 'YOU WIN!' : `${winnerName} WINS`
+    // Winners come from the final scores (highest score at or past the target;
+    // exact ties shared — `winner` is only written for a sole winner). Older
+    // rooms only stored `winner` — fall back to it.
+    const derived = matchWinners(game.scores, order)
+    const winnerIds = derived.length > 0 ? derived : (game.winner ? [game.winner] : [])
+    const iWon = winnerIds.includes(mySeat)
+    const nameOf = id => (players[id]?.name || id || '???').toUpperCase()
+    const headline = winnerIds.length > 1
+      ? (iWon ? 'YOU SHARE THE WIN!' : `${winnerIds.map(nameOf).join(' & ')} TIE`)
+      : (iWon ? 'YOU WIN!' : `${nameOf(winnerIds[0])} WINS`)
     const ranked = order
       .map(id => ({ id, name: (players[id]?.name || '???').toUpperCase(), score: game.scores?.[id] || 0 }))
       .sort((a, b) => b.score - a.score)
@@ -479,7 +553,7 @@ export default function WavelengthGame({
             title: 'FINAL SCORES',
             rows: ranked.map(p => ({
               id: p.id, name: p.name, score: p.score, you: p.id === mySeat,
-              muted: players[p.id]?.online === false, win: p.id === winnerId,
+              muted: players[p.id]?.online === false, win: winnerIds.includes(p.id),
             })),
           }}
           actions={amSeated ? [
@@ -513,7 +587,13 @@ export default function WavelengthGame({
   // sessionStorage, so the reveal effect above can never fire and the round
   // would stall with everyone online. Only the giver's own client can detect it.
   const secretLost = isClueGiver && round.phase === 'guessing' &&
-    !sessionStorage.getItem(targetKey(gameId, round.spectrumIndex))
+    !readStoredTarget(targetKey(gameId, round.spectrumIndex)) &&
+    !(myTarget?.spectrumIndex === round.spectrumIndex && myTarget.salt)
+  // What the clue-giver sees on their own dial (never rendered for guessers).
+  const myVisibleTarget = isClueGiver && myTarget?.spectrumIndex === round.spectrumIndex
+    ? myTarget.target
+    : null
+  const phaseMs = round.phase === 'clue' ? clueMs : guessMs
 
   return (
     <div className="space-y-4">
@@ -537,21 +617,39 @@ export default function WavelengthGame({
         )}
       </div>
 
+      {/* Phase countdown — the deadline every client enforces (none when the
+          room's timers are off) */}
+      {(round.phase === 'clue' || round.phase === 'guessing') && round.phaseStartedAt && phaseMs != null && (
+        <RoundTimer
+          endsAt={round.phaseStartedAt + phaseMs}
+          now={serverNow}
+          totalMs={phaseMs}
+          label={round.phase === 'clue' ? 'CLUE TIME' : 'GUESS TIME'}
+        />
+      )}
+
       {/* CLUE PHASE -------------------------------------------------------- */}
       {round.phase === 'clue' && (
         isClueGiver ? (
           <div className="bg-retro-card border border-retro-border rounded p-4 space-y-3">
-            <p className="font-pixel text-[9px] text-retro-cta text-center">
-              A SECRET TARGET WILL BE PLACED ON THIS DIAL
+            <p className="font-pixel text-[9px] text-retro-cta text-center leading-relaxed">
+              ★ IS THE TARGET — ONLY YOU CAN SEE IT
             </p>
-            <Dial value={50} onChange={() => {}} disabled pair={pair} />
+            <Dial
+              value={myVisibleTarget ?? 50}
+              onChange={() => {}}
+              disabled
+              pair={pair}
+              target={myVisibleTarget}
+            />
             <p className="font-pixel text-[8px] text-retro-dim text-center leading-relaxed">
-              GIVE A ONE-WORD CLUE THAT POINTS{'\n'}WHERE YOU WANT THEM TO GUESS
+              GIVE A ONE-WORD CLUE THAT POINTS{'\n'}YOUR TEAM TO THE ★ — NO NUMBERS,{'\n'}NO DIAL WORDS. YOU SCORE THEIR AVERAGE.
             </p>
             <input
               type="text"
               value={clueInput}
-              maxLength={24}
+              maxLength={WAVELENGTH_CLUE_MAX_LENGTH}
+              aria-label="Your one-word clue"
               onChange={e => { setClueInput(e.target.value); setClueError('') }}
               onKeyDown={e => e.key === 'Enter' && handleSubmitClue()}
               autoCorrect="off"
@@ -560,7 +658,7 @@ export default function WavelengthGame({
               placeholder="ONE WORD…"
               className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-xs tracking-widest text-center rounded px-3 py-2 focus:outline-none focus:border-retro-p1 uppercase"
             />
-            {clueError && <p className="font-pixel text-[8px] text-retro-p2 text-center">{clueError}</p>}
+            <WordFeedback message={clueError} tone="bad" id={clueErrorId} />
             <button
               onClick={handleSubmitClue}
               disabled={committing}
@@ -585,10 +683,11 @@ export default function WavelengthGame({
       {round.phase === 'guessing' && (
         <div className="bg-retro-card border border-retro-border rounded p-4 space-y-3">
           <Dial
-            value={isClueGiver ? 50 : dialValue}
+            value={isClueGiver ? (myVisibleTarget ?? 50) : dialValue}
             onChange={setDialValue}
             disabled={isClueGiver || hasGuessed}
             pair={pair}
+            target={isClueGiver ? myVisibleTarget : null}
           />
           {isClueGiver ? (
             <p className="font-pixel text-[9px] text-retro-dim text-center leading-relaxed">
@@ -604,7 +703,7 @@ export default function WavelengthGame({
               disabled={submittingGuess}
               className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
             >
-              LOCK GUESS
+              {submittingGuess ? 'LOCKING…' : 'LOCK GUESS'}
             </button>
           )}
           <div className="flex flex-wrap justify-center gap-x-3 gap-y-0.5 font-pixel text-[8px]">
@@ -656,11 +755,17 @@ export default function WavelengthGame({
               })}
             </div>
           </div>
+          {!round.cheatDetected && round.clueGiver && lastDelta?.[round.clueGiver] != null && (
+            <p className="font-pixel text-[8px] text-retro-dim text-center">
+              {isClueGiver ? 'YOU' : clueGiverName} SCORED THE TEAM AVERAGE: +{lastDelta[round.clueGiver]}
+            </p>
+          )}
           <button
-            onClick={handleNextRound}
-            className="w-full py-2 mt-2 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+            onClick={() => runAdvance(handleNextRound)}
+            disabled={advancing}
+            className="w-full py-2 mt-2 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-40"
           >
-            NEXT ROUND
+            {advancing ? 'ADVANCING…' : 'NEXT ROUND'}
           </button>
         </div>
       )}

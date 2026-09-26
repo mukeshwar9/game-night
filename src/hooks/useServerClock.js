@@ -18,7 +18,7 @@ const listeners = new Set()
 
 function subscribe(listener) {
   listeners.add(listener)
-  if (!unsubscribe) {
+  if (!unsubscribe && db) {
     unsubscribe = onValue(ref(db, '.info/serverTimeOffset'), snap => {
       offset = snap.val() ?? 0
       listeners.forEach(l => l())
@@ -46,21 +46,28 @@ export function getServerOffset() {
 }
 
 /**
- * @param {number} [tickMs=0] - re-render every `tickMs` while > 0 (drive a
- *   countdown); 0/falsy = no ticking (pass 0 while no timed phase is active).
- * @returns {{ now: number, offset: number }} `now` is server-corrected ms as
- *   of the last tick (or mount); `offset` is the live server offset. For a
- *   fresh reading inside a handler use `getServerNow()`.
+ * Two call shapes are accepted:
+ *   useServerClock(tickMs)                  — tick every `tickMs` while > 0;
+ *                                             0/falsy = no ticking
+ *   useServerClock({ tickMs = 250, ticking = true })
+ *
+ * @returns {{ now: number, offset: number, serverNow: () => number }} `now` is
+ *   server-corrected ms as of the last tick (or mount), for rendering;
+ *   `offset` is the live server offset; `serverNow()` is a fresh reading for
+ *   event handlers and transactions (same as `getServerNow()`).
  */
-export default function useServerClock(tickMs = 0) {
+export default function useServerClock(arg = 0) {
+  const { tickMs, ticking } = typeof arg === 'object' && arg !== null
+    ? { tickMs: arg.tickMs ?? 250, ticking: arg.ticking ?? true }
+    : { tickMs: arg, ticking: Boolean(arg) }
   const liveOffset = useSyncExternalStore(subscribe, getOffset, getOffset)
   const [localNow, setLocalNow] = useState(() => Date.now())
 
   useEffect(() => {
-    if (!tickMs) return
+    if (!ticking || !tickMs) return undefined
     const id = setInterval(() => setLocalNow(Date.now()), tickMs)
     return () => clearInterval(id)
-  }, [tickMs])
+  }, [tickMs, ticking])
 
-  return { now: localNow + liveOffset, offset: liveOffset }
+  return { now: localNow + liveOffset, offset: liveOffset, serverNow: getServerNow }
 }

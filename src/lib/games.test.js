@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { readFileSync } from 'node:fs'
 
 // games.js pulls in board components that touch `localStorage` at module
 // load time (src/lib/sounds.js) — stub it before the dynamic import since
@@ -7,12 +8,12 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: () => null, setItem: () => {} }
 }
 
-let isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState, supportsLocalPlay
+let isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay
 let lobbySwitchOverrides, buildChallengeRoom
 
 beforeAll(async () => {
   ;({
-    isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, GAME_TYPES, freshGameState, supportsLocalPlay,
+    isNewGame, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay,
     lobbySwitchOverrides, buildChallengeRoom,
   } = await import('./games'))
 })
@@ -56,10 +57,21 @@ describe('first mover', () => {
     expect(['X', 'O']).toContain(resolveGoesFirst('random'))
   })
 
+  it('folds nested first-mover paths into the fresh state (regression: NEW MATCH failed with "ancestor of another path")', () => {
+    const hw = withFirstMover(freshGameState('hangwoman'), 'hangwoman', 'O')
+    expect(hw.round.setter).toBe('O')
+    expect(Object.keys(hw).some(k => k.startsWith('round/'))).toBe(false)
+    const bluff = withFirstMover(freshGameState('bluff'), 'bluff', 'O')
+    expect(bluff.bluffRound.turn).toBe('O')
+    expect(Object.keys(bluff).some(k => k.includes('/'))).toBe(false)
+    expect(withFirstMover(freshGameState('tictactoe'), 'tictactoe', 'O').currentTurn).toBe('O')
+    expect(withFirstMover({ round: null }, 'hangwoman', 'X').round).toEqual({ setter: 'X' })
+  })
+
   it('writes the right Firebase patch for each family', () => {
     expect(firstMoverUpdates('tictactoe', 'O')).toEqual({ currentTurn: 'O' })
     expect(firstMoverUpdates('hangwoman', 'O')).toEqual({ 'round/setter': 'O' })
-    expect(firstMoverUpdates('twotruths', 'X')).toEqual({ 'round/setter': 'X' })
+    expect(firstMoverUpdates('twotruths', 'X')).toEqual({})
     expect(firstMoverUpdates('bluff', 'O')).toEqual({ 'bluffRound/turn': 'O' })
     expect(firstMoverUpdates('pong', 'O')).toEqual({})
   })
@@ -204,5 +216,17 @@ describe('buildChallengeRoom', () => {
   it('honors a gameType override', () => {
     const room = buildChallengeRoom({ name: 'A', avatar: 'a1', playerId: 'p1', gameType: 'sos' })
     expect(room.gameType).toBe('sos')
+  })
+})
+
+describe('solo flag honesty', () => {
+  // The VS AI / VS CPU row opens /solo/<type>; a registry type that claims
+  // solo without a DEMOS entry dead-ends on "NO SOLO DEMO" (review rank 9).
+  it('every solo:true game has a solo demo entry', () => {
+    const demo = readFileSync(new URL('../pages/Demo.jsx', import.meta.url), 'utf8')
+    const block = demo.slice(demo.indexOf('const DEMOS = ['))
+    const demoTypes = new Set([...block.slice(0, block.indexOf('\n]')).matchAll(/type: '([^']+)'/g)].map(m => m[1]))
+    const missing = GAME_TYPES.filter(t => t.solo === true && !demoTypes.has(t.type)).map(t => t.type)
+    expect(missing).toEqual([])
   })
 })

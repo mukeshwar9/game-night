@@ -1,79 +1,49 @@
 import { describe, it, expect } from 'vitest'
-import { DENYLIST, isDenied, normalizeForDenylist } from './wordDenylist'
+import { isBannedWord, isFamilySafe, familySafeOnly, wordForms } from './wordDenylist'
 
-describe('DENYLIST', () => {
-  it('is a non-trivial set of normalized lowercase a-z entries', () => {
-    expect(DENYLIST).toBeInstanceOf(Set)
-    expect(DENYLIST.size).toBeGreaterThan(200)
-    for (const word of DENYLIST) {
-      expect(word, word).toMatch(/^[a-z]+$/)
-      expect(normalizeForDenylist(word)).toBe(word)
+describe('isBannedWord', () => {
+  it('bans the G-01 examples and their inflections', () => {
+    for (const w of ['nigger', 'niggers', 'cunt', 'cunts', 'fuck', 'fucking', 'motherfucking', 'faggot', 'faggots', 'kike', 'spics', 'whores', 'whorehouse', 'bitches', 'dildo']) {
+      expect(isBannedWord(w), w).toBe(true)
     }
   })
 
-  it('covers the entries flagged by the G-01 review', () => {
-    for (const word of ['cunt', 'fuck', 'slut', 'whore']) expect(DENYLIST.has(word), word).toBe(true)
-  })
-
-  it('lists inflections explicitly', () => {
-    for (const word of ['fucking', 'fucked', 'sluts', 'whores', 'raped', 'rapist', 'faggots', 'niggers']) {
-      expect(DENYLIST.has(word), word).toBe(true)
+  it('does not ban innocent words that merely share letters', () => {
+    for (const w of ['spice', 'spicy', 'spiced', 'japan', 'japes', 'cocktail', 'assassin', 'class', 'scrap', 'button', 'shiver', 'dickens', 'titan', 'bass', 'brass', 'grape', 'therapist', 'niggle', 'niggard', 'snigger', 'mishit', 'beanery', 'chink', 'dyke', 'retarding']) {
+      expect(isBannedWord(w), w).toBe(false)
     }
   })
-})
 
-describe('normalizeForDenylist', () => {
-  it('lowercases, strips accents and non-letters', () => {
-    expect(normalizeForDenylist('  Crème-Brûlée! ')).toBe('cremebrulee')
-    expect(normalizeForDenylist(null)).toBe('')
-    expect(normalizeForDenylist(42)).toBe('')
+  it('does not ban homographs outright (players may find them)', () => {
+    for (const w of ['tit', 'ass', 'cock', 'dick', 'balls']) expect(isBannedWord(w), w).toBe(false)
   })
 })
 
-describe('isDenied', () => {
-  it('matches regardless of case, whitespace and punctuation', () => {
-    expect(isDenied('FUCK')).toBe(true)
-    expect(isDenied(' Whore ')).toBe(true)
-    expect(isDenied('f.u.c.k')).toBe(true)
-    expect(isDenied('s-l-u-t')).toBe(true)
-    expect(isDenied('Faggot!')).toBe(true)
+describe('isFamilySafe', () => {
+  it('rejects banned, sensitive and homograph words', () => {
+    for (const w of ['nigger', 'bitch', 'dicks', 'boobs', 'dildo', 'negro', 'rapes', 'tits', 'cocks', 'retarded', 'chink', 'dyke']) {
+      expect(isFamilySafe(w), w).toBe(false)
+    }
   })
 
-  it('matches accented and look-alike spellings', () => {
-    expect(isDenied('sh1t')).toBe(true)
-    expect(isDenied('b!tch')).toBe(true)
-    expect(isDenied('a$$hole')).toBe(true)
-    expect(isDenied('n1gger')).toBe(true)
-    expect(isDenied('cünt')).toBe(true)
-    expect(isDenied('wh0re')).toBe(true)
+  it('keeps ordinary words', () => {
+    for (const w of ['butter', 'peanut', 'butterfly', 'buttes', 'heroines', 'shaggy', 'titter', 'assessed', 'assesses', 'brassy', 'brasses', 'dicker']) {
+      expect(isFamilySafe(w), w).toBe(true)
+    }
+    for (const w of ['apple', 'crane', 'planet', 'teacher', 'glass', 'passes', 'titan', 'scrape', 'brass', 'spicy', 'death', 'crack', 'screw', 'strip', 'balls', 'knobs', 'slave', 'drunk', 'kills', 'idiot', 'weeds']) {
+      expect(isFamilySafe(w), w).toBe(true)
+    }
   })
 
-  it('matches stretched letters', () => {
-    expect(isDenied('fuuuuuck')).toBe(true)
-    expect(isDenied('shiiiit')).toBe(true)
-    expect(isDenied('cooooon')).toBe(true)
+  it('filters a list', () => {
+    expect(familySafeOnly(['apple', 'boobs', 'crane', 'dicks'])).toEqual(['apple', 'crane'])
   })
+})
 
-  it('does not flag innocent words that merely contain or resemble a denied term', () => {
-    const innocent = [
-      'scunthorpe', 'therapist', 'grape', 'drape', 'cocktail', 'peacock', 'cockpit', 'cocky',
-      'spice', 'spicy', 'spiced', 'japan', 'jape', 'japes', 'japed', 'dickens', 'assassin', 'class',
-      'bass', 'passage', 'shiitake', 'analysis', 'button', 'hancock', 'con', 'cocoon', 'raccoon',
-      'tit', 'title', 'poof', 'nigh', 'sextet', 'essex', 'cumin', 'document', 'scrap', 'crap', 'hell',
-    ]
-    for (const word of innocent) expect(isDenied(word), word).toBe(false)
-  })
-
-  it('is whole-word only (callers tokenize sentences themselves)', () => {
-    expect(isDenied('what the fuck')).toBe(false)
-    expect(isDenied('fuck')).toBe(true)
-  })
-
-  it('handles empty and non-string input', () => {
-    expect(isDenied('')).toBe(false)
-    expect(isDenied(null)).toBe(false)
-    expect(isDenied(undefined)).toBe(false)
-    expect(isDenied(12345)).toBe(false)
-    expect(isDenied('!!!')).toBe(false)
+describe('wordForms', () => {
+  it('includes the word and plausible roots', () => {
+    expect(wordForms('slurring')).toContain('slur')
+    expect(wordForms('cherries')).toContain('cherry')
+    expect(wordForms('dogs')).toContain('dog')
   })
 })

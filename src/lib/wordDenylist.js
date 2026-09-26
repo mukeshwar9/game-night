@@ -1,116 +1,121 @@
-// @ts-check
-// Shared moderation denylist: slurs, strong profanity and explicit sexual terms
-// that should never be shown to other players — for chat/display-name
-// moderation, and reusable by any word list that wants the same bar. Pure
-// module — no DOM, Firebase or React. Not wired into any game yet.
+// Content policy for every word list in the app — pure, no DOM/React.
 //
-// Matching is exact on whole words after normalization (see `isDenied`), never
-// substring: "therapist", "cocktail", "spicy", "grape" and "Scunthorpe" all
-// pass. Every inflection that should be blocked is therefore listed explicitly
-// below; there is deliberately no suffix stripping, because a generic
-// "-ed/-y/-s" rule turns "spiced", "spicy" and "japes" into false positives.
-// Callers moderating free text split it into words themselves.
-//
-// Scope and policy: docs/content-policy.md.
+// Two levels (captain decision D2(a), 2026-09-26 — reversible here):
+//   - BANNED: slurs and unambiguous vulgarity. Never accepted anywhere: not as
+//     a found word (Word Hunt, Anagrams), not as a setter word (Hangwoman,
+//     Word Duel), never served or shown.
+//   - Not family-safe: BANNED plus sensitive words and innocent homographs
+//     (tit, ass, cock). Players may still *find* a homograph in Word Hunt, but
+//     the game never *serves* one (answer lists, racks, decks) or shows it in
+//     a "words you missed" list.
+// Checks cover simple inflections (plural, -ed, -ing, -er, -y) so "slurs"
+// and "slurring" are caught by listing the root once.
 
 const SLURS = [
-  // Racial and ethnic
-  'nigger', 'niggers', 'nigga', 'niggas', 'niggaz', 'niggah', 'nigguh', 'nigra', 'nigras',
-  'negro', 'negroes', 'coon', 'coons', 'jigaboo', 'jigaboos', 'sambo', 'sambos',
-  'pickaninny', 'pickaninnies', 'darkie', 'darkies', 'darky',
-  'kike', 'kikes', 'kyke', 'hymie', 'hymies', 'yid', 'yids', 'heeb', 'heebs', 'sheeny', 'sheenies',
-  'spic', 'spics', 'spick', 'spicks', 'spik', 'beaner', 'beaners', 'wetback', 'wetbacks',
-  'chink', 'chinks', 'chinky', 'chinaman', 'chinamen', 'gook', 'gooks', 'jap', 'japs', 'zipperhead',
-  'paki', 'pakis', 'raghead', 'ragheads', 'towelhead', 'towelheads', 'sandnigger',
-  'wog', 'wogs', 'golliwog', 'golliwogs', 'gollywog', 'dago', 'dagos', 'dagoes', 'wop', 'wops',
-  'polack', 'polacks', 'kraut', 'krauts', 'honky', 'honkie', 'honkies',
-  'redskin', 'redskins', 'squaw', 'squaws', 'injun', 'injuns', 'halfbreed', 'halfbreeds',
-  'coolie', 'coolies', 'abo', 'abos', 'boong', 'boongs', 'gyp', 'gyps', 'gypped', 'gypping',
-  // Homophobic and transphobic
-  'fag', 'fags', 'faggot', 'faggots', 'fagot', 'fagots', 'faggy', 'dyke', 'dykes',
-  'lesbo', 'lesbos', 'lezzie', 'lezzies', 'lezzy', 'lezza', 'homo', 'homos',
-  'poofter', 'poofters', 'poove', 'pooves', 'tranny', 'trannies', 'shemale', 'shemales',
-  // Ableist
-  'retard', 'retards', 'retarded', 'tard', 'tards', 'spaz', 'spazz', 'spazzes', 'spastic', 'spastics',
-  'mong', 'mongs', 'mongoloid', 'mongoloids', 'midget', 'midgets',
-  // Misogynist
-  'slut', 'sluts', 'slutty', 'whore', 'whores', 'whorish', 'skank', 'skanks', 'skanky',
-  'bitch', 'bitches', 'bitchy', 'bitching', 'bitched', 'cunt', 'cunts', 'twat', 'twats',
+  'nigger', 'nigga', 'nigra', 'faggot', 'fag', 'faggy', 'kike', 'kyke',
+  'spic', 'spick', 'gook', 'wetback', 'raghead', 'towelhead', 'tranny',
+  'wop', 'dago', 'honky', 'paki', 'squaw', 'darky', 'darkie', 'darkey',
+  'beaner', 'redskin', 'spaz', 'jap', 'coolie', 'golliwog', 'sambo', 'shemale',
 ]
 
-const PROFANITY = [
-  'fuck', 'fucks', 'fucked', 'fucker', 'fuckers', 'fucking', 'fuckin', 'fuckup', 'fuckups',
-  'fuckoff', 'fuckface', 'fuckhead', 'fuckheads', 'fuckwit', 'fuckwits',
-  'motherfucker', 'motherfuckers', 'motherfucking', 'mofo', 'mofos',
-  'fuk', 'fuks', 'fukk', 'fcuk', 'phuck', 'phuk',
-  'shit', 'shits', 'shitty', 'shitted', 'shitting', 'shite', 'shites', 'shithead', 'shitheads',
-  'shithole', 'shitholes', 'bullshit', 'horseshit', 'dipshit', 'dipshits', 'apeshit', 'batshit',
-  'asshole', 'assholes', 'arsehole', 'arseholes', 'asshat', 'asshats',
-  'cocksucker', 'cocksuckers', 'dickhead', 'dickheads',
-  'wank', 'wanks', 'wanked', 'wanker', 'wankers', 'wanking', 'bollock', 'bollocks',
-  'bastard', 'bastards', 'piss', 'pissed', 'pisses', 'pissing', 'pisser', 'pisshead',
-  'goddamn', 'goddamned', 'goddam',
+const VULGAR = [
+  'fuck', 'shit', 'cunt', 'twat', 'wank', 'wanker', 'jizz', 'dildo', 'blowjob',
+  'whore', 'whorehouse', 'whoredom', 'whoreson', 'slut', 'bitch', 'bastard', 'pussy', 'arse', 'asshole', 'arsehole',
+  'piss', 'turd', 'smegma', 'queef', 'skank', 'titty', 'tittie', 'porn', 'porno',
+  'cumshot', 'bollock', 'bollocks', 'schlong', 'motherfucker', 'bullshit',
+  'horseshit', 'shithead', 'dickhead', 'jerkoff', 'handjob', 'rimjob', 'milf', 'hooters',
 ]
 
-const SEXUAL = [
-  'cock', 'cocks', 'dick', 'dicks', 'pussy', 'pussies', 'tits', 'titty', 'titties', 'tittie',
-  'dildo', 'dildos', 'dildoes', 'blowjob', 'blowjobs', 'handjob', 'handjobs', 'rimjob',
-  'cum', 'cums', 'cumming', 'cummed', 'cumshot', 'jizz', 'jizzed', 'jism', 'jisms', 'jissom', 'gism', 'spooge',
-  'porn', 'porns', 'porno', 'pornos', 'porny', 'milf', 'milfs',
-  'clit', 'clits', 'schlong', 'schlongs', 'bukkake', 'gangbang', 'gangbangs',
-  'felch', 'felching', 'queef', 'queefs', 'poontang', 'punani',
-  'rape', 'rapes', 'raped', 'raping', 'rapist', 'rapists', 'raper', 'rapers',
-  'pedo', 'pedos', 'paedo', 'paedos', 'pedophile', 'pedophiles', 'paedophile', 'paedophiles',
+// Allowed as a found word, never served or displayed. Slurs that are also
+// ordinary words (chink = a gap, dyke = an embankment, retard = to slow)
+// live here rather than in SLURS.
+const SENSITIVE = [
+  'negro', 'negress', 'rape', 'raped', 'rapes', 'rapist', 'nazi', 'lynch',
+  'lynching', 'gypsy', 'gyp', 'coon', 'chink', 'dyke', 'retard', 'retarded',
+  'boob', 'boobs', 'crap', 'craps', 'damn', 'goddamn', 'fart', 'horny', 'kinky',
+  'semen', 'sperm', 'penis', 'vagina', 'anal', 'anus', 'sodomy', 'sodomize',
+  'hooker', 'pimp', 'orgy', 'orgasm', 'erotic', 'sexy', 'sex', 'nude', 'nudes',
+  'naked', 'stripper', 'viagra', 'condom', 'heroin', 'cocaine', 'meth',
+  'suicide', 'incest', 'pedophile', 'molest', 'genocide', 'terrorist', 'hitler',
+  'kkk', 'bong', 'bongs', 'gringo', 'harlot', 'hussy', 'wench', 'queer', 'homo',
+  'transvestite', 'midget', 'spastic', 'imbecile', 'bimbo',
 ]
 
-export const DENYLIST = new Set([...SLURS, ...PROFANITY, ...SEXUAL])
+const HOMOGRAPHS = [
+  'tit', 'tits', 'ass', 'asses', 'cock', 'cocks', 'dick', 'dicks', 'prick',
+  'shag', 'bugger', 'boner', 'dong', 'knockers', 'poon', 'cum', 'muff', 'nob',
+  'pecker', 'wang', 'willy', 'booty', 'butt', 'butts', 'tosser', 'pubes',
+  'pubic', 'bra', 'bras', 'thong', 'undies',
+]
 
-// Common look-alike substitutions ("sh1t", "b!tch", "a$$hole").
-const LEET = { 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', 8: 'b', '@': 'a', $: 's', '!': 'i', '|': 'l' }
+// Roots too offensive to allow inside any longer word (no innocent English
+// word contains them — unlike "nigger" in "snigger" or "shit" in "mishit").
+const CONTAINS = ['fuck', 'cunt', 'faggot', 'dildo']
 
-function lettersOnly(text) {
-  return text.replace(/[^a-z]/g, '')
-}
+// Innocent words that inflection matching would otherwise catch
+// ("spicy" → "spic", "beanery" → "beaner").
+const ALLOW = new Set([
+  'spice', 'spices', 'spiced', 'spicer', 'spicers', 'spicy', 'spicier',
+  'spiciest', 'spicily', 'spicing', 'beanery', 'beaneries', 'niggard',
+  'niggards', 'niggardly', 'snigger', 'sniggers', 'sniggered', 'sniggering',
+  'butter', 'butters', 'buttered', 'buttering', 'buttery', 'butterfly',
+  'butterflies', 'buttercup', 'buttercups', 'butte', 'buttes', 'heroine',
+  'heroines', 'shaggy', 'shaggier', 'shaggiest', 'titter', 'titters',
+  'tittered', 'tittering', 'dicker', 'dickers', 'dickered', 'dickering',
+  'crape', 'crapes', 'craped', 'craping', 'cocker', 'cockers', 'brasier',
+])
 
-function fold(word) {
-  return String(word ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-}
+const SLUR_SET = new Set(SLURS)
+const VULGAR_SET = new Set(VULGAR)
+const SENSITIVE_SET = new Set(SENSITIVE)
+const HOMOGRAPH_SET = new Set(HOMOGRAPHS)
 
-// Lowercase, strip accents, drop anything that isn't a-z. Exported so callers
-// that key their own lists (e.g. a future name filter) normalize identically.
-export function normalizeForDenylist(word) {
-  return lettersOnly(fold(word))
-}
+const SUFFIXES = ['s', 'es', 'ed', 'd', 'er', 'ers', 'ing', 'ings', 'y', 'ies', 'ier', 'iest', 'ish', 'gy', 'ot', 'ots']
 
-// Candidate spellings to test: as typed, with look-alike characters decoded (a
-// "1" can stand for i or l), and with stretched letters ("fuuuuck") squeezed.
-// Only runs of 3+ are squeezed — English words have no tripled letters, so this
-// can't turn a real word into a denied one, while doubled letters ("coon" vs
-// "con") are left alone.
-function candidates(word) {
-  const lower = fold(word)
-  const decoded = [...lower].map(ch => LEET[ch] ?? ch).join('')
-  const decodedL = [...lower].map(ch => (ch === '1' ? 'l' : LEET[ch] ?? ch)).join('')
-  const out = new Set()
-  for (const raw of [lower, decoded, decodedL]) {
-    const letters = lettersOnly(raw)
-    if (!letters) continue
-    out.add(letters)
-    out.add(letters.replace(/([a-z])\1{2,}/g, '$1'))
-    out.add(letters.replace(/([a-z])\1{2,}/g, '$1$1'))
+/** The word plus the roots it may inflect from (dogs → dog, slurring → slurr/slur). */
+export function wordForms(word) {
+  const w = String(word ?? '').toLowerCase().replace(/[^a-z]/g, '')
+  const forms = new Set([w])
+  for (const suf of SUFFIXES) {
+    // "-ss" words are not "-s" plurals ("brass" is not "bras" + s).
+    if ((suf === 's' || suf === 'es') && w.endsWith('ss')) continue
+    if (w.length > suf.length + 1 && w.endsWith(suf)) {
+      const stem = w.slice(0, -suf.length)
+      // Short stems only via a plain "-s" ("fags" → "fag"), so "japes" never
+      // reduces to a three-letter slur.
+      if (stem.length < 4 && suf !== 's') continue
+      forms.add(stem)
+      if (suf === 'ies' || suf === 'ier' || suf === 'iest') forms.add(stem + 'y')
+      // doubled consonant before -ing/-ed/-er ("slurring" → "slur"), but not
+      // "-ss" stems, which are base words ("assessed" is not "asses" + d)
+      if (stem.length > 2 && !stem.endsWith('ss') && stem[stem.length - 1] === stem[stem.length - 2]) forms.add(stem.slice(0, -1))
+    }
   }
-  return out
+  return [...forms].filter(Boolean)
 }
 
-// True when `word` is a denylisted term (case-, accent-, punctuation-,
-// look-alike- and stretched-letter-insensitive). Whole-word only.
-export function isDenied(word) {
-  // Fast path for the common case (plain lowercase dictionary words): nothing
-  // to decode or squeeze, so an exact lookup is the whole answer.
-  const lower = String(word ?? '').toLowerCase()
-  if (/^[a-z]+$/.test(lower) && !/([a-z])\1\1/.test(lower)) return DENYLIST.has(lower)
-  for (const candidate of candidates(word)) {
-    if (DENYLIST.has(candidate)) return true
-  }
-  return false
+function hitsSet(word, set) {
+  return wordForms(word).some(f => set.has(f))
+}
+
+/** Slurs and unambiguous vulgarity: never accept, serve or show. */
+export function isBannedWord(word) {
+  const w = String(word ?? '').toLowerCase()
+  if (!w || ALLOW.has(w)) return false
+  if (CONTAINS.some(root => w.includes(root))) return true
+  return hitsSet(w, SLUR_SET) || hitsSet(w, VULGAR_SET)
+}
+
+/** Safe for the game to serve or display on its own (answer lists, racks,
+ * decks, "missed words"). Stricter than `isBannedWord`. */
+export function isFamilySafe(word) {
+  const w = String(word ?? '').toLowerCase()
+  if (!w || ALLOW.has(w)) return true
+  if (isBannedWord(w)) return false
+  return !hitsSet(w, SENSITIVE_SET) && !hitsSet(w, HOMOGRAPH_SET)
+}
+
+/** Filter helper for word lists: keeps only words `isFamilySafe` allows. */
+export function familySafeOnly(words) {
+  return words.filter(isFamilySafe)
 }

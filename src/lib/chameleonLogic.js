@@ -10,7 +10,7 @@
 // derived from a seed other clients could reproduce.
 import { CHAMELEON_CARDS } from './decks/chameleon'
 import { avoidList, normalizeSeen } from './seenHistory'
-import { isDenied } from './wordDenylist'
+import { isDenied } from './moderationDenylist'
 
 export const CHAMELEON_MIN_PLAYERS = 3
 export const CHAMELEON_MAX_PLAYERS = 8

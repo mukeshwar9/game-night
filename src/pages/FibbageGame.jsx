@@ -20,16 +20,25 @@ import {
   phaseDeadline,
   pendingLiars,
   matchChampions,
+  validateLie,
+  sameOption,
+  allReady,
+  LIE_MAX_LENGTH,
+  FIBBAGE_LIE_MS,
+  FIBBAGE_VOTE_MS,
+  FIBBAGE_REVEAL_WAIT_MS,
+  FIBBAGE_REVEAL_ADVANCE_MS,
 } from '../lib/fibbageLogic'
 import { roomCoordinator } from '../lib/coordinator'
 import { markSeen } from '../lib/seenHistory'
 import { normalizeList } from '../lib/normalize'
 import { normalizeTimerScale, scaledMs, timersOff } from '../lib/timerScale'
-import { formatClock } from '../lib/format'
 import { FIBBAGE_FACTS } from '../lib/decks/fibbage'
 import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import useCommitReveal, { clearSecret, secretKey } from '../hooks/useCommitReveal'
 import RoundEndPanel from '../components/RoundEndPanel'
+import RoundTimer from '../components/RoundTimer'
+import WordFeedback from '../components/WordFeedback'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -38,11 +47,14 @@ import { toast } from 'sonner'
 
 const MIN_PLAYERS = 3    // needed in the lobby to START a match
 const MIN_ACTIVE = 2     // needed mid-match to keep a round moving; below this we pause
-const LIE_MS = 60_000
-const VOTE_MS = 45_000
+const LIE_MS = FIBBAGE_LIE_MS
+const VOTE_MS = FIBBAGE_VOTE_MS
 // Grace for publishing author reveals — liveness, not a player-facing timer, so
 // the room timer scale does not stretch it.
-const REVEAL_MS = 20_000
+const REVEAL_MS = FIBBAGE_REVEAL_WAIT_MS
+// A scored reveal stays up this long (× the room timer scale), then the next
+// prompt starts on its own — nobody can cut it short or hold the table.
+const ADVANCE_MS = FIBBAGE_REVEAL_ADVANCE_MS
 
 // sessionStorage secret for the player's lie ({ text, subKey, salt, hash }) per
 // prompt: `fibbage-lie-${gameId}-${promptIndex}` (useCommitReveal). The plaintext
@@ -71,6 +83,8 @@ function normalizeRound(raw) {
     voteDeadline: raw.voteDeadline ?? null,
     closedAt: raw.closedAt ?? null,
     revealDeadline: raw.revealDeadline ?? null,
+    advanceAt: raw.advanceAt ?? null,     // scored reveal auto-advances at this time
+    ready: normalizeMap(raw.ready),       // { [playerId]: true } — pressed READY on the reveal
     scored: !!raw.scored,
   }
 }
@@ -131,11 +145,13 @@ export default function FibbageGame({
 
   const [lieInput, setLieInput] = useState('')
   const [inputError, setInputError] = useState('')
+  const [inputErrorId, setInputErrorId] = useState(0) // restarts the feedback shake
   const [localLie, setLocalLie] = useState(false)   // I committed this round
   const [localVote, setLocalVote] = useState(null)  // optionId I picked locally
   const [submitting, runSubmit] = useBusy()
   const [starting, runStart] = useBusy()
   const [closing, runClose] = useBusy()
+  const [readying, runReady] = useBusy()
 
   // Reset per-round local state when the prompt advances (render-phase derive).
   const roundId = round ? `${round.num ?? 'x'}-${round.promptIndex}` : null
@@ -156,6 +172,7 @@ export default function FibbageGame({
   const advancingToReveal = useRef(false)
   const closingLies = useRef(false)
   const drawing = useRef(false)
+  const advancingRound = useRef(null)
   const stampingLie = useRef(false)
   const lastRoundId = useRef(roundId)
   const lastPromptIndex = useRef(round?.promptIndex ?? null)
@@ -185,9 +202,8 @@ export default function FibbageGame({
       if (round.phase === 'reveal') {
         // Did I find the truth? (truth is identified by matching the deck answer —
         // the ballot carries no truth marker.)
-        const answerNorm = fact.answer.trim().toLowerCase()
         const myVote = round.votes[mySeat]
-        const truthOpt = round.options.find(o => o.text.trim().toLowerCase() === answerNorm)
+        const truthOpt = round.options.find(o => sameOption(o.text, fact.answer))
         const iFoundTruth = myVote && truthOpt && myVote === truthOpt.id
         if (iFoundTruth) sounds.win()
         else if (isPlayer) sounds.miss()
@@ -204,6 +220,7 @@ export default function FibbageGame({
   const voteDeadline = round ? phaseDeadline(round.voteStartedAt, round.voteDeadline, VOTE_MS, timerScale) : null
   const lieWindow = scaledMs(LIE_MS, timerScale)
   const voteWindow = scaledMs(VOTE_MS, timerScale)
+  const advanceWindow = scaledMs(ADVANCE_MS, timerScale) // null when the room runs untimed
   const lyingClosed = !!round && round.phase === 'lying' &&
     (round.closedAt != null || (lieDeadline != null && serverNow >= lieDeadline))
   // Everyone drops their anonymous ballot submission once all lies are in, or
@@ -293,7 +310,9 @@ export default function FibbageGame({
     if (texts.length < committedIds.length && !graceOver) return // wait for every anonymous submission
     if (advancingToVoting.current) return
     advancingToVoting.current = true
-    const seed = hashString(`${gameId}:${round.promptIndex}`)
+    // Seeded per match too, so the same fact in a later match doesn't put the
+    // truth back in the same ballot slot.
+    const seed = hashString(`${gameId}:${round.deckSeed ?? ''}:${round.num ?? ''}:${round.promptIndex}`)
     const options = buildOptions(fact.answer, texts, seed)
     runTransaction(ref(db, `games/${gameId}/round`), current => {
       if (!current || current.phase !== 'lying') return current // already advanced
@@ -373,6 +392,9 @@ export default function FibbageGame({
               scored: true,
               deltas: Object.keys(deltas).length ? deltas : null,
               cheats: Object.keys(cheats).length ? cheats : null,
+              // Everyone gets a fixed look at the answers, then the round moves on.
+              advanceAt: advanceWindow != null ? getServerNow() + advanceWindow : null,
+              ready: null,
             },
           }
         })
@@ -386,12 +408,11 @@ export default function FibbageGame({
   // ---- Submit my lie (commit hash now; plaintext stays local until reveal) ------
   const handleSubmitLie = () => {
     if (!isPlayer || iCommitted || submitting || !fact || lyingClosed) return
-    const text = lieInput.trim()
-    if (!text) { setInputError('TYPE YOUR LIE'); return }
-    if (text.toLowerCase() === fact.answer.trim().toLowerCase()) {
-      setInputError("THAT'S THE TRUTH — LIE HARDER")
-      return
-    }
+    // Rejects the truth in disguise ("SCOTLAND!", "Scotlnd", "3" for "three"),
+    // symbol-only and banned lies — see fibbageLogic.validateLie.
+    const check = validateLie(lieInput, fact.answer)
+    if (!check.ok) { setInputError(check.error); setInputErrorId(n => n + 1); return }
+    const text = check.text
     setInputError('')
     runSubmit(async () => {
       // Stable random key so the anonymous ballot submission survives a reload
@@ -412,11 +433,11 @@ export default function FibbageGame({
   const handleVote = async (optionId) => {
     if (!isPlayer || iVoted) return
     // Cannot vote for your own lie. The ballot carries no authorship, so this is
-    // checked locally against my own secret text (which only I know).
+    // checked locally against my own secret text (which only I know) — loosely,
+    // since a duplicate lie may have merged under another author's spelling.
     const opt = round.options.find(o => o.id === optionId)
-    const myLieNorm = mySecret?.text ? mySecret.text.trim().toLowerCase() : null
-    if (opt && myLieNorm && opt.text.trim().toLowerCase() === myLieNorm) {
-      setInputError("CAN'T VOTE FOR YOUR OWN LIE"); return
+    if (opt && mySecret?.text && sameOption(opt.text, mySecret.text)) {
+      setInputError("CAN'T VOTE FOR YOUR OWN LIE"); setInputErrorId(n => n + 1); return
     }
     setInputError('')
     setLocalVote(optionId)
@@ -426,13 +447,15 @@ export default function FibbageGame({
     } catch {
       setLocalVote(null)
       setInputError('VOTE FAILED — RETRY')
+      setInputErrorId(n => n + 1)
     }
   }
 
-  // ---- Next prompt (any player, but only once the round has actually scored —
-  // otherwise a stray/racy click could skip a round before it's tallied). A
-  // transaction pinned to this prompt, so simultaneous taps advance once. ------
-  const handleNextPrompt = async () => {
+  // ---- Advance past a scored reveal: next prompt, or match over. Only once the
+  // round has actually scored (a stray/racy click can't skip an untallied
+  // round), and a transaction pinned to this prompt, so the coordinator's timer
+  // and a NEXT press advance once. -----------------------------------------------
+  const advanceRound = async () => {
     if (!isPlayer || !round || round.phase !== 'reveal' || !round.scored) return
     const fromIndex = round.promptIndex
     const fromNum = round.num
@@ -448,6 +471,29 @@ export default function FibbageGame({
     secret.clear()
   }
 
+  // ---- COORDINATOR: the scored reveal auto-advances once its timer runs out —
+  // or as soon as every online seat pressed READY (the only way on when the
+  // room runs untimed, besides the coordinator's NEXT). --------------------------
+  const everyoneReady = !!round && allReady(seats, round.ready)
+  useEffect(() => {
+    if (!amCoordinator || !round || round.phase !== 'reveal' || !round.scored || paused) return
+    if (round.advanceAt == null && advanceWindow != null) {
+      // Scored by an older client with no timer — start one now.
+      update(ref(db, `games/${gameId}/round`), { advanceAt: getServerNow() + advanceWindow }).catch(() => {})
+      return
+    }
+    const timeUp = round.advanceAt != null && serverNow >= round.advanceAt
+    if (!timeUp && !everyoneReady) return
+    if (advancingRound.current === roundId) return
+    advancingRound.current = roundId
+    advanceRound().catch(() => { advancingRound.current = null })
+  }, [amCoordinator, round?.phase, round?.scored, round?.advanceAt, everyoneReady, advanceWindow, serverNow, paused, roundId, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleReady = () => runReady(
+    () => update(ref(db, `games/${gameId}/round/ready`), { [mySeat]: true }),
+    () => toast.error('READY FAILED — CHECK CONNECTION'),
+  )
+
   // -------------------------------------------------------------------------
   // WAITING / START / MATCH-OVER screen (status !== 'playing')
   // -------------------------------------------------------------------------
@@ -457,11 +503,13 @@ export default function FibbageGame({
       .map(id => ({ id, name: nameOf(id), score: scores[id] || 0 }))
       .sort((a, b) => b.score - a.score)
     const champs = matchChampions(scores, allSeats)
+    // Exact ties at the top share the win — never decided by seat order.
+    const iWon = champs.includes(mySeat)
     const headline = champs.length === 0
       ? 'NOBODY SCORED'
-      : champs.includes(mySeat)
-        ? 'YOU WIN!'
-        : `${champs.map(id => nameOf(id).toUpperCase()).join(' & ')} WINS`
+      : champs.length > 1
+        ? (iWon ? 'YOU SHARE THE WIN!' : `${champs.map(id => nameOf(id).toUpperCase()).join(' & ')} TIE`)
+        : (iWon ? 'YOU WIN!' : `${nameOf(champs[0]).toUpperCase()} WINS`)
 
     return (
       <div className="space-y-5 text-center">
@@ -478,7 +526,7 @@ export default function FibbageGame({
             caption="MATCH OVER"
             headline={headline}
             sub={champs.length > 1 && (
-              <p className="font-pixel text-[9px] text-retro-dim">SHARED VICTORY</p>
+              <p className="font-pixel text-[9px] text-retro-dim">EXACT TIE — CO-CHAMPIONS</p>
             )}
             scores={{
               title: 'FINAL SCORES',
@@ -494,7 +542,7 @@ export default function FibbageGame({
             ] : []}
             share={isPlayer && champs.length > 0 ? {
               gameLabel: 'FIBBAGE',
-              headline: champs.includes(mySeat) ? 'YOU WIN!' : `${nameOf(champs[0]).toUpperCase()} WINS`,
+              headline,
               sub: 'Fibbage · Game Night',
             } : null}
           />
@@ -577,13 +625,15 @@ export default function FibbageGame({
   // -------------------------------------------------------------------------
   const promptDisplay = fact.prompt.replace(
     '___',
-    round.phase === 'reveal' ? `「${fact.answer}」` : '_____',
+    round.phase === 'reveal' ? `「${fact.answer.toUpperCase()}」` : '_____',
   )
 
   const committedCount = Object.keys(round.lies).length
   const votedCount = Object.keys(round.votes).length
-  const myLieNorm = mySecret?.text ? mySecret.text.trim().toLowerCase() : null
-  const answerNorm = fact.answer.trim().toLowerCase()
+  // Every option renders upper-cased: the truth keeps the deck's casing in the
+  // data while lies are typed with auto-capitalisation off, so mixed case
+  // would point straight at the truth.
+  const optionLabel = text => String(text ?? '').toUpperCase()
   const coordName = (nameOf(coordinatorId) || 'HOST').toUpperCase()
 
   // Reveal-time answer key: recovered client-side from the (now public) reveals,
@@ -597,27 +647,20 @@ export default function FibbageGame({
     ? attributeOptions(round.options, fact.answer, verifiedLies)
     : round.options
   const cheaterNames = Object.keys(round.cheats).map(nameOf)
+  const iReady = !!round.ready[mySeat]
+  const readyCount = seats.filter(id => round.ready[id]).length
 
-  const phaseDeadlineMs = round.phase === 'lying' ? lieDeadline : round.phase === 'voting' ? voteDeadline : null
-  const phaseWindow = round.phase === 'lying' ? lieWindow : voteWindow
-  const remainingMs = phaseDeadlineMs != null && round.closedAt == null
-    ? Math.max(0, phaseDeadlineMs - serverNow)
-    : null
-
+  const phaseDeadlineMs = round.closedAt != null
+    ? null
+    : round.phase === 'lying' ? lieDeadline : round.phase === 'voting' ? voteDeadline : null
   const timerBar = (round.phase === 'lying' || round.phase === 'voting') && (
-    remainingMs != null && phaseWindow ? (
-      <div className="space-y-1">
-        <div className="h-1.5 bg-retro-surface rounded-full overflow-hidden">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all duration-500',
-              remainingMs > 10000 ? 'bg-retro-win' : 'bg-retro-danger',
-            )}
-            style={{ width: `${Math.min(100, Math.round((remainingMs / phaseWindow) * 100))}%` }}
-          />
-        </div>
-        <p className="font-pixel text-[8px] text-retro-dim text-right tabular-nums">{formatClock(remainingMs)}</p>
-      </div>
+    phaseDeadlineMs != null ? (
+      <RoundTimer
+        endsAt={phaseDeadlineMs}
+        now={serverNow}
+        totalMs={round.phase === 'lying' ? lieWindow : voteWindow}
+        label={round.phase === 'lying' ? 'LIE TIME' : 'VOTE TIME'}
+      />
     ) : noTimer && round.closedAt == null && (
       <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">
         NO TIMER · {amCoordinator ? 'YOU CLOSE' : `${coordName} CLOSES`} THIS PHASE
@@ -663,16 +706,17 @@ export default function FibbageGame({
               <input
                 type="text"
                 value={lieInput}
-                maxLength={60}
+                maxLength={LIE_MAX_LENGTH}
+                aria-label="Your fake answer"
                 onChange={e => { setLieInput(e.target.value); setInputError('') }}
                 onKeyDown={e => e.key === 'Enter' && handleSubmitLie()}
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
                 placeholder="YOUR FAKE ANSWER"
-                className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-[11px] text-center rounded px-3 py-2.5 focus:outline-none focus:border-retro-p1 disabled:opacity-40"
+                className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-[11px] text-center uppercase rounded px-3 py-2.5 focus:outline-none focus:border-retro-p1 disabled:opacity-40"
               />
-              {inputError && <p className="font-pixel text-[9px] text-retro-p2 text-center">{inputError}</p>}
+              <WordFeedback message={inputError} tone="bad" id={inputErrorId} />
               <button
                 onClick={handleSubmitLie}
                 disabled={submitting}
@@ -698,7 +742,7 @@ export default function FibbageGame({
       {round.phase === 'voting' && (
         <div className="space-y-2">
           {round.options.map(opt => {
-            const isMine = !!myLieNorm && opt.text.trim().toLowerCase() === myLieNorm
+            const isMine = !!mySecret?.text && sameOption(opt.text, mySecret.text)
             const picked = (localVote ?? round.votes[mySeat]) === opt.id
             return (
               <button
@@ -714,11 +758,11 @@ export default function FibbageGame({
                   isMine && 'cursor-not-allowed',
                 )}
               >
-                {opt.text}{isMine ? '  (YOUR LIE)' : ''}
+                {optionLabel(opt.text)}{isMine ? '  (YOUR LIE)' : ''}
               </button>
             )
           })}
-          {inputError && <p className="font-pixel text-[9px] text-retro-p2 text-center">{inputError}</p>}
+          <WordFeedback message={inputError} tone="bad" id={inputErrorId} />
           <p className="font-pixel text-[9px] text-retro-dim text-center pt-1">
             {iVoted ? `VOTED ✓ — ${votedCount}/${seats.length} IN` : isPlayer ? 'PICK THE TRUTH' : 'SPECTATING'}
           </p>
@@ -743,7 +787,7 @@ export default function FibbageGame({
               )}
               <div className="space-y-1.5">
                 {richOptions.map(opt => {
-                  const isTruth = opt.by === null || opt.text.trim().toLowerCase() === answerNorm
+                  const isTruth = opt.by === null || sameOption(opt.text, fact.answer)
                   const authors = isTruth ? [] : (Array.isArray(opt.by) ? opt.by : (opt.by == null ? [] : [opt.by]))
                   const voters = Object.entries(round.votes)
                     .filter(([, oid]) => oid === opt.id)
@@ -759,7 +803,7 @@ export default function FibbageGame({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-mono text-[12px]">
-                          {opt.text}{isTruth ? '  ✓ TRUTH' : ''}
+                          {optionLabel(opt.text)}{isTruth ? '  ✓ TRUTH' : ''}
                         </span>
                         <span className="font-pixel text-[8px] text-retro-dim shrink-0">
                           {voters.length} VOTE{voters.length === 1 ? '' : 'S'}
@@ -792,15 +836,32 @@ export default function FibbageGame({
                       delta: round.deltas[p.id] ?? (Object.keys(round.deltas).length ? 0 : null),
                     })),
                 }}
-                actions={isPlayer ? [{
+                actions={!isPlayer ? [] : (amCoordinator || everyoneReady) ? [{
                   key: 'next',
                   label: order.length > 0 && num + 1 >= order.length ? 'SEE FINAL RESULTS' : 'NEXT PROMPT',
                   busyLabel: 'DEALING…',
                   variant: 'next',
-                  onClick: handleNextPrompt,
+                  onClick: advanceRound,
                   errorMsg: 'NEXT PROMPT FAILED — CHECK CONNECTION',
                 }] : []}
-              />
+              >
+                <RoundTimer
+                  endsAt={round.advanceAt}
+                  now={serverNow}
+                  totalMs={advanceWindow}
+                  label={order.length > 0 && num + 1 >= order.length ? 'RESULTS IN' : 'NEXT PROMPT IN'}
+                  lowMs={3000}
+                />
+                {isPlayer && !amCoordinator && !everyoneReady && (
+                  <button
+                    onClick={handleReady}
+                    disabled={iReady || readying}
+                    className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-60"
+                  >
+                    {iReady ? `READY ✓ ${readyCount}/${seats.length}` : readying ? 'SENDING…' : 'READY'}
+                  </button>
+                )}
+              </RoundEndPanel>
             </>
           )}
         </div>

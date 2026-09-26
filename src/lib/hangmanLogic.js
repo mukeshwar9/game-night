@@ -1,3 +1,5 @@
+import { isBannedWord } from './wordDenylist'
+
 export const MAX_WRONG = 6
 
 export function validateWord(raw) {
@@ -72,4 +74,326 @@ export function deriveRoundResult(word, guesses) {
   if (isWordGuessed(word, normalized)) return 'guessed'
   if (countWrong(normalized) >= MAX_WRONG) return 'hanged'
   return null
+}
+
+// --- One pending guess at a time -------------------------------------------
+//
+// The guesser writes `guesses/{L} = 'pending'` and the word-keeper's client
+// grades it. Letting several guesses queue up while the keeper's phone slept
+// let a guesser tap all 26 letters and win after 20+ misses, because the whole
+// batch was graded at once with "guessed" taking priority over "hanged".
+// Now only one guess may be pending, and any leftover queue (from an older
+// client) is graded in a fixed order that stops the moment the round is
+// decided.
+
+export const PENDING = 'pending'
+
+/** Letters still waiting for the word-keeper, in the order they are graded. */
+export function pendingLetters(guesses) {
+  return Object.keys(guesses || {})
+    .filter(letter => guesses[letter] === PENDING)
+    .sort()
+}
+
+export function hasPendingGuess(guesses) {
+  return pendingLetters(guesses).length > 0
+}
+
+/** True when the guesser may send `letter` now: a new A–Z letter and nothing pending. */
+export function canQueueGuess(guesses, letter) {
+  if (!/^[A-Z]$/.test(String(letter ?? ''))) return false
+  const g = guesses || {}
+  if (g[letter] !== undefined && g[letter] !== null) return false
+  return !hasPendingGuess(g)
+}
+
+function roundOutcome(word, guesses) {
+  if (isWordGuessed(word, guesses)) return 'guessed'
+  if (countWrong(guesses) >= MAX_WRONG) return 'hanged'
+  return null
+}
+
+// Grade every pending guess against `word`, one letter at a time in
+// pendingLetters() order, and stop as soon as the round is decided: six misses
+// hang her even if a later queued letter would have completed the word.
+// Pending letters left after that are discarded (removed from `guesses`).
+//
+// Returns { guesses, graded, discarded, wrongCount, result, lastGuess } where
+// `guesses` is the full record to write back, `result` is
+// 'guessed' | 'hanged' | null and `lastGuess` is { letter, hits } for the last
+// graded letter (null when nothing was graded).
+export function gradePending(word, guesses) {
+  const out = {}
+  for (const [letter, val] of Object.entries(guesses || {})) {
+    if (val === null || val === undefined) continue
+    out[letter] = normalizePositions(val)
+  }
+  const graded = []
+  const discarded = []
+  let lastGuess = null
+  let result = roundOutcome(word, out)
+  for (const letter of pendingLetters(out)) {
+    if (result) {
+      delete out[letter]
+      discarded.push(letter)
+      continue
+    }
+    const positions = applyGuess(word, letter)
+    out[letter] = positions.length > 0 ? positions : false
+    graded.push(letter)
+    lastGuess = { letter, hits: positions.length }
+    result = roundOutcome(word, out)
+  }
+  return { guesses: out, graded, discarded, wrongCount: countWrong(out), result, lastGuess }
+}
+
+// --- Advancing, stalls and claims ------------------------------------------
+//
+// Timers are server-corrected milliseconds (useServerClock). Values are
+// starting points to playtest.
+
+/** The round advances on its own this long after the reveal. */
+export const AUTO_ADVANCE_MS = 8_000
+/** An opponent must be offline this long before a disconnect claim appears. */
+export const PRESENCE_GRACE_MS = 10_000
+/** The word-keeper never locks a word: the guesser may claim the round. */
+export const SETTING_DEADLINE_MS = 120_000
+/** A guess waits this long ungraded: the guesser may claim the round. */
+export const GRADING_STALL_MS = 60_000
+/** No new guess for this long: the word-keeper may claim the round. */
+export const GUESSER_IDLE_MS = 60_000
+
+export function otherSymbol(symbol) {
+  return symbol === 'X' ? 'O' : 'X'
+}
+
+function roundSetter(round) {
+  return round?.setter === 'O' ? 'O' : 'X'
+}
+
+function stamp(value) {
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+function earliest(...values) {
+  const set = values.filter(v => v !== null)
+  return set.length ? Math.min(...set) : null
+}
+
+function latest(...values) {
+  const set = values.filter(v => v !== null)
+  return set.length ? Math.max(...set) : null
+}
+
+// The claim `side` ('setter' | 'guesser') could make on this round because
+// the other side is stalling. Stalls award the point to the side that isn't
+// stalling:
+//   - guesser: no word locked SETTING_DEADLINE_MS after setting began, or a
+//     guess ungraded for GRADING_STALL_MS;
+//   - setter: no new guess for GUESSER_IDLE_MS (counted from the start of
+//     guessing or the last grade, never while a guess is pending);
+//   - either: the opponent offline for PRESENCE_GRACE_MS (pass the moment
+//     they went offline as `opponentOfflineSince`).
+// Returns null when there is nothing to claim, else
+// { reason: 'no-word'|'grading'|'idle'|'offline', at, ready }.
+export function getRoundClaim(round, side, { now, opponentOfflineSince = null } = {}) {
+  const phase = round?.phase || 'setting'
+  if (phase !== 'setting' && phase !== 'guessing') return null
+  if (side !== 'setter' && side !== 'guesser') return null
+  const guesses = round?.guesses || {}
+  const pending = hasPendingGuess(guesses)
+
+  let timeAt = null
+  let timeReason = null
+  if (side === 'guesser') {
+    if (phase === 'setting') {
+      const start = stamp(round?.settingStartedAt)
+      timeAt = start === null ? null : start + SETTING_DEADLINE_MS
+      timeReason = 'no-word'
+    } else if (pending) {
+      const start = stamp(round?.pendingAt)
+      timeAt = start === null ? null : start + GRADING_STALL_MS
+      timeReason = 'grading'
+    }
+  } else if (phase === 'guessing' && !pending) {
+    const start = latest(stamp(round?.guessingStartedAt), stamp(round?.gradedAt))
+    timeAt = start === null ? null : start + GUESSER_IDLE_MS
+    timeReason = 'idle'
+  }
+
+  // The word-keeper has nothing to claim while they still owe a word.
+  const offlineApplies = !(side === 'setter' && phase === 'setting')
+  const off = offlineApplies ? stamp(opponentOfflineSince) : null
+  const offAt = off === null ? null : off + PRESENCE_GRACE_MS
+
+  const at = earliest(timeAt, offAt)
+  if (at === null) return null
+  const reason = offAt !== null && (timeAt === null || offAt < timeAt) ? 'offline' : timeReason
+  return { reason, at, ready: Number(now) >= at }
+}
+
+/** Who wins a revealed round: the guesser on a guess or a cheat, else the setter. */
+export function revealRoundWinner(round, { cheat = false } = {}) {
+  const setter = roundSetter(round)
+  if (cheat || round?.cheatDetected) return otherSymbol(setter)
+  if (round?.result === 'guessed') return otherSymbol(setter)
+  if (round?.result === 'hanged') return setter
+  return null
+}
+
+// May `side` start the next round from the reveal? The guesser always may
+// (their client checks the reveal first). The word-keeper may once the
+// guesser's client has verified the reveal or flagged a cheat, or when the
+// guesser has gone offline — so a losing or absent guesser can't withhold
+// the point.
+export function canAdvanceReveal(round, side, { guesserGone = false } = {}) {
+  if (round?.phase !== 'reveal') return false
+  if (side === 'guesser') return true
+  if (side !== 'setter') return false
+  return !!(round.verified || round.cheatDetected || guesserGone)
+}
+
+/** When the reveal auto-advances (null while unverified, or after a cheat). */
+export function autoAdvanceAt(round) {
+  if (round?.phase !== 'reveal' || round.cheatDetected || !round.verified) return null
+  const at = stamp(round.revealAt)
+  return at === null ? null : at + AUTO_ADVANCE_MS
+}
+
+// --- Match: first to `target`, equal setter turns ---------------------------
+//
+// Setting alternates, so a plain first-to-3 gave the first setter rounds 1, 3
+// and 5 — a real edge when setters win most rounds. The match now ends only
+// when a player has `target` round wins AND both players have set the same
+// number of rounds, or when the trailing player can no longer catch up in the
+// setter turn(s) still owed to them. A tie at that point is sudden death: the
+// first player ahead after an equal number of setter turns wins.
+// `round.turns` = { X, O } counts the rounds each player has set.
+
+/** { X, O } setter turns taken, from Firebase's sparse node (absent = 0). */
+export function normalizeTurns(raw) {
+  return { X: Number(raw?.X) || 0, O: Number(raw?.O) || 0 }
+}
+
+/** The match winner under the equal-turns rule, or null while play continues. */
+export function getHangwomanMatchWinner(scores, turns, target = 3) {
+  const x = Number(scores?.X) || 0
+  const o = Number(scores?.O) || 0
+  if (x === o || Math.max(x, o) < target) return null
+  const leader = x > o ? 'X' : 'O'
+  const t = normalizeTurns(turns)
+  // Each owed setter turn is one more round, worth at most one point.
+  const owed = Math.abs(t.X - t.O)
+  return Math.abs(x - o) > owed ? leader : null
+}
+
+/** Sudden death: both players have reached the target, so the next lead after equal turns wins. */
+export function isSuddenDeath(scores, target = 3) {
+  return Math.min(Number(scores?.X) || 0, Number(scores?.O) || 0) >= target
+}
+
+/** 1-based number of the round being played. */
+export function roundNumber(turns) {
+  const t = normalizeTurns(turns)
+  return t.X + t.O + 1
+}
+
+// The game-node patch that ends the current round: score `roundWinner`
+// ('X' | 'O', or null for no score), count the setter's turn, hand the word to
+// the other player and finish the match under getHangwomanMatchWinner().
+export function buildNextRound(game, roundWinner, { target = 3 } = {}) {
+  const setter = roundSetter(game?.round)
+  const scores = { X: Number(game?.scores?.X) || 0, O: Number(game?.scores?.O) || 0 }
+  if (roundWinner === 'X' || roundWinner === 'O') scores[roundWinner] += 1
+  const turns = normalizeTurns(game?.round?.turns)
+  turns[setter] += 1
+  const next = {
+    scores,
+    round: { setter: otherSymbol(setter), phase: 'setting', wrongCount: 0, turns },
+    proposal: null,
+  }
+  const winner = getHangwomanMatchWinner(scores, turns, target)
+  if (winner) {
+    next.status = 'finished'
+    next.winner = winner
+  }
+  return next
+}
+
+// --- Setter word rules (captain decision D3(a), reversible) -----------------
+//
+// Default: one dictionary word (public/wordhunt-dict.txt), 4+ letters.
+// House rule "ANY WORD" (games/{id}/hangwomanAnyWord): the old free-form rule,
+// 3–30 letters with phrases allowed. Banned words (wordDenylist.js) are
+// refused under both rules, and the optional hint may not give the word away.
+
+export const WORD_RULE_DICTIONARY = 'dictionary'
+export const WORD_RULE_ANY = 'any'
+export const MIN_DICTIONARY_LETTERS = 4
+export const MIN_ANY_WORD_LETTERS = 3
+export const MAX_WORD_LETTERS = 30
+
+/** The word rule for a room: 'any' when the ANY WORD house rule is on. */
+export function wordRuleFor(anyWord) {
+  return anyWord ? WORD_RULE_ANY : WORD_RULE_DICTIONARY
+}
+
+function reject(reason, message) {
+  return { ok: false, reason, message }
+}
+
+// Check a setter's word against `rule` ('dictionary' | 'any').
+// `dictionary` is { has(word) } (loadDictionary()); null while it loads.
+// Returns { ok: true, word } (uppercased, single-spaced) or
+// { ok: false, reason, message } with a message fit for the setter's screen.
+export function validateSetterWord(raw, { rule = WORD_RULE_DICTIONARY, dictionary = null } = {}) {
+  const up = String(raw ?? '').toUpperCase().replace(/\s+/g, ' ').trim()
+  if (!up) return reject('empty', 'TYPE A WORD')
+  const any = rule === WORD_RULE_ANY
+  if (!/^[A-Z ]+$/.test(up)) {
+    return reject('letters', any ? 'LETTERS A–Z AND SPACES ONLY' : 'LETTERS A–Z ONLY')
+  }
+  const words = up.split(' ')
+  if (!any && words.length > 1) {
+    return reject('phrase', 'ONE WORD ONLY — TURN ON ANY WORD FOR PHRASES')
+  }
+  const letters = up.replace(/ /g, '').length
+  const min = any ? MIN_ANY_WORD_LETTERS : MIN_DICTIONARY_LETTERS
+  if (letters < min) return reject('short', `AT LEAST ${min} LETTERS`)
+  if (letters > MAX_WORD_LETTERS) return reject('long', `AT MOST ${MAX_WORD_LETTERS} LETTERS`)
+  if (words.some(w => isBannedWord(w)) || isBannedWord(up.replace(/ /g, ''))) {
+    return reject('banned', "THAT WORD ISN'T ALLOWED")
+  }
+  if (!any) {
+    if (!dictionary) return reject('loading', 'LOADING WORDS…')
+    if (!dictionary.has(up)) {
+      return reject('dictionary', 'NOT IN THE WORD LIST — TURN ON ANY WORD TO ALLOW IT')
+    }
+  }
+  return { ok: true, word: up }
+}
+
+// Short function words a hint may repeat from a phrase ("THE", "AND"…).
+const HINT_STOPWORDS = new Set([
+  'THE', 'AND', 'FOR', 'NOR', 'BUT', 'YET', 'ARE', 'WAS', 'WITH', 'FROM',
+  'INTO', 'ONTO', 'THAT', 'THIS', 'THAN', 'YOUR', 'OUR', 'HIS', 'HER', 'ITS',
+])
+
+// Does `hint` give the word away? True when the hint contains the whole word
+// (case-insensitive, ignoring spaces/punctuation for a phrase), or any 3+
+// letter word of a phrase other than a short function word.
+export function hintRevealsWord(hint, word) {
+  const tokens = String(hint ?? '').toUpperCase().split(/[^A-Z]+/).filter(Boolean)
+  if (!tokens.length) return false
+  const answer = String(word ?? '').toUpperCase().replace(/[^A-Z ]/g, '').trim()
+  if (!answer) return false
+  const joined = answer.replace(/ /g, '')
+  if (tokens.some(t => t.includes(joined))) return true
+  const parts = answer.split(/ +/)
+  if (parts.length > 1) {
+    if (tokens.join('').includes(joined)) return true
+    return parts.some(p => p.length >= 3 && !HINT_STOPWORDS.has(p) && tokens.some(t => t.includes(p)))
+  }
+  return false
 }

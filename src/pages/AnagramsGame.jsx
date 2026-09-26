@@ -3,24 +3,39 @@ import { onValue, ref, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import AnagramTiles from '../components/AnagramTiles'
 import GameSwitcher from '../components/GameSwitcher'
+import MatchScoreRail from '../components/MatchScoreRail'
+import RoundTimer from '../components/RoundTimer'
+import WordFeedback from '../components/WordFeedback'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import PixelDots from '../components/loading/PixelDots'
 import useBusy from '../hooks/useBusy'
+import useGameKeys from '../hooks/useGameKeys'
+import useServerClock from '../hooks/useServerClock'
+import { getGameConfig } from '../lib/games'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
-  applyFoundWord, canBuildWord, compareRound, getMatchWinner, getSolutions,
-  MATCH_TARGET, normalizeWord, ROUND_MS, scoreFound, scoreWord, seededRack,
-  shouldReveal,
+  applyFoundWord, canBuildWord, compareRound, MATCH_TARGET, MIN_WORD_LENGTH, missedWords,
+  normalizeWord, RACK_SIZE, resolveRound, ROUND_MS, roundStartDue, scoreFound, scoreWord,
+  shouldReveal, startRound, validFound,
 } from '../lib/anagramsLogic'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from '../lib/decks/anagrams'
 
 const VALID_WORDS = new Set(ANAGRAM_VALID_WORDS)
+// While a round-start/resolve transaction is due, retry it this often (a
+// transaction another client already ran simply aborts).
+const RETRY_MS = 2_000
 
 function normalizeFound(raw) {
   if (!raw || typeof raw !== 'object') return {}
   return Object.fromEntries(Object.entries(raw).filter(([, value]) => value && typeof value === 'object'))
+}
+
+// Only words that are legal on this round's rack — found keys are written by
+// clients, so a forged key is never shown or counted (resolveRound agrees).
+function checkedFound(round, key) {
+  return validFound(normalizeFound(round?.[`found${key}`]), round?.rack, VALID_WORDS)
 }
 
 function wordsFrom(found) {
@@ -29,21 +44,21 @@ function wordsFrom(found) {
     .map(([word]) => word)
 }
 
-function formatSeconds(ms) {
-  return Math.max(0, Math.ceil(ms / 1000))
-}
-
-function rackKey(rack) {
-  return [...(rack || [])].sort().join('')
-}
-
-function feedbackText(kind, points) {
-  if (kind === 'valid') return 'WORD FOUND · +' + points
-  if (kind === 'duplicate') return 'ALREADY FOUND'
-  if (kind === 'letters') return 'USE ONLY RACK LETTERS'
-  if (kind === 'short') return 'WORD MUST BE 3+ LETTERS'
-  if (kind === 'closed') return 'ROUND CLOSED — WORD NOT SCORED'
-  return 'NOT A WORD'
+// Submission outcome → the reason line (WordFeedback).
+function feedbackFor(feedback) {
+  if (!feedback) return { message: '', tone: 'info' }
+  const word = String(feedback.word ?? '').toUpperCase()
+  const withWord = (reason) => (word ? `${word} — ${reason}` : reason)
+  switch (feedback.kind) {
+    case 'valid':
+      return { message: `${word} · +${feedback.points} POINT${feedback.points === 1 ? '' : 'S'}`, tone: 'ok' }
+    case 'duplicate': return { message: withWord('ALREADY FOUND'), tone: 'info' }
+    case 'letters': return { message: withWord('USE ONLY RACK LETTERS'), tone: 'bad' }
+    case 'short': return { message: withWord(`TOO SHORT — ${MIN_WORD_LENGTH}+ LETTERS`), tone: 'bad' }
+    case 'early': return { message: 'WAIT FOR GO', tone: 'bad' }
+    case 'closed': return { message: withWord("TIME'S UP — NOT SCORED"), tone: 'bad' }
+    default: return { message: withWord('NOT A WORD'), tone: 'bad' }
+  }
 }
 
 function sameIndexes(a, b) {
@@ -59,37 +74,26 @@ function shuffled(values) {
   return result
 }
 
-function ScoreRail({ game, myKey, round }) {
-  const opKey = myKey === 'X' ? 'O' : 'X'
-  const myRoundScore = scoreFound(round?.[`found${myKey}`])
-  const opRoundScore = scoreFound(round?.[`found${opKey}`])
-  const myMatch = game.scores?.[myKey] || 0
-  const opMatch = game.scores?.[opKey] || 0
-  const myName = game.players?.[myKey]?.name?.toUpperCase() || 'YOU'
-  const opName = game.players?.[opKey]?.name?.toUpperCase() || 'OPPONENT'
+const nameOf = (game, sym) => game.players?.[sym]?.name?.toUpperCase() || sym
+
+// This rack's points and word counts for both seats, labelled so they are
+// never confused with the match score on the rail above.
+function RoundPoints({ game, round, myKey, isSpectator }) {
+  const order = isSpectator ? ['X', 'O'] : [myKey, myKey === 'X' ? 'O' : 'X']
   return (
-    <div className="rounded border border-retro-border bg-retro-card p-3 shadow-[3px_3px_0_rgb(var(--c-deep)/0.7)]">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-pixel text-[8px] tracking-widest text-retro-p1">YOU · {myName}</p>
-          <p className="mt-1 font-pixel text-2xl leading-none text-retro-cta">{myMatch}<span className="px-1 text-sm text-retro-dim">/</span>{MATCH_TARGET}</p>
-          <p className="mt-1 font-mono text-[10px] text-retro-win">{myRoundScore} POINTS · {wordsFrom(round?.[`found${myKey}`]).length} WORDS</p>
-        </div>
-        <div className="text-right">
-          <p className="font-pixel text-[8px] tracking-widest text-retro-p2">THEM · {opName}</p>
-          <p className="mt-1 font-pixel text-2xl leading-none text-retro-p2">{opMatch}<span className="px-1 text-sm text-retro-dim">/</span>{MATCH_TARGET}</p>
-          <p className="mt-1 font-mono text-[10px] text-retro-dim">{opRoundScore} POINTS · {wordsFrom(round?.[`found${opKey}`]).length} WORDS</p>
-        </div>
-      </div>
-      <div className="mt-3 flex h-1.5 gap-1 rounded bg-retro-deep" aria-label={`Match score ${myMatch} to ${opMatch}`}>
-        {Array.from({ length: MATCH_TARGET }, (_, index) => (
-          <span key={index} className={cn('h-full flex-1 rounded-sm', index < myMatch ? 'bg-retro-p1' : 'bg-retro-structure/50')} />
-        ))}
-        <span className="w-px bg-retro-bg" />
-        {Array.from({ length: MATCH_TARGET }, (_, index) => (
-          <span key={index} className={cn('h-full flex-1 rounded-sm', index < opMatch ? 'bg-retro-p2' : 'bg-retro-structure/50')} />
-        ))}
-      </div>
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded border border-retro-border bg-retro-deep/50 px-3 py-2 font-pixel text-[9px]">
+      <span className="text-retro-dim">RACK POINTS</span>
+      {order.map(sym => {
+        const found = checkedFound(round, sym)
+        const words = Object.keys(found).length
+        const label = isSpectator ? nameOf(game, sym) : sym === myKey ? 'YOU' : 'THEM'
+        return (
+          <span key={sym} className={sym === 'X' ? 'text-retro-p1' : 'text-retro-p2'}>
+            {label} {scoreFound(found)} · {words} WORD{words === 1 ? '' : 'S'}
+            {round?.[`done${sym}`] && <span className="text-retro-dim"> · DONE</span>}
+          </span>
+        )
+      })}
     </div>
   )
 }
@@ -117,28 +121,69 @@ function FoundWords({ words, title = 'YOUR WORDS' }) {
   )
 }
 
-function RevealWords({ game, round, myKey }) {
+// The reveal headline: who won the rack, both players' points and word
+// counts, the match score, and the tie-break reason when word count decided.
+function RoundSummary({ game, round, myKey, isSpectator, matchTarget, nextInSec, paused }) {
+  const stored = round.result
+  const result = stored || compareRound(checkedFound(round, 'X'), checkedFound(round, 'O'))
+  const decidedBy = result.decidedBy
+    ?? (result.winner === 'draw' ? 'draw' : result.scoreX !== result.scoreO ? 'points' : 'words')
+  const headline = result.winner === 'draw'
+    ? 'RACK DRAWN'
+    : !isSpectator && result.winner === myKey ? 'YOU WIN THE RACK' : `${nameOf(game, result.winner)} WINS THE RACK`
+  const tone = result.winner === 'draw'
+    ? 'text-retro-text'
+    : !isSpectator && result.winner === myKey ? 'text-retro-win text-glow-win' : 'text-retro-p2 text-glow-p2'
+  const line = (sym) => {
+    const points = sym === 'X' ? result.scoreX : result.scoreO
+    const words = sym === 'X' ? result.wordsX : result.wordsO
+    return `${nameOf(game, sym)}: ${points} POINT${points === 1 ? '' : 'S'} · ${words} WORD${words === 1 ? '' : 'S'}`
+  }
+  return (
+    <section className="modal-pop rounded border-2 border-retro-cta bg-retro-card p-5 text-center shadow-neon-cta" role="status" aria-live="polite">
+      <p className="font-pixel text-[9px] tracking-[0.25em] text-retro-dim">RACK {round.roundNum || 1} RESULT</p>
+      <h2 className={cn('mt-2 font-pixel text-lg tracking-widest', tone)}>{headline}</h2>
+      <p className="mt-3 font-mono text-sm text-retro-p1">{line('X')}</p>
+      <p className="font-mono text-sm text-retro-p2">{line('O')}</p>
+      {decidedBy === 'words' && (
+        <p className="mt-2 font-pixel text-[9px] text-retro-cta">TIED ON POINTS — MORE WORDS WINS</p>
+      )}
+      {decidedBy === 'draw' && (
+        <p className="mt-2 font-pixel text-[9px] text-retro-dim">SAME POINTS AND SAME WORD COUNT</p>
+      )}
+      <p className="mt-3 font-pixel text-[9px] text-retro-dim">
+        MATCH {nameOf(game, 'X')} {game.scores?.X || 0} – {game.scores?.O || 0} {nameOf(game, 'O')} · FIRST TO {matchTarget}
+      </p>
+      {nextInSec != null && (
+        <p className="mt-2 font-pixel text-[9px] text-retro-cta">
+          {paused ? 'NEXT RACK WAITS FOR THE OPEN REQUEST' : `NEXT RACK IN ${nextInSec}…`}
+        </p>
+      )}
+    </section>
+  )
+}
+
+function RevealWords({ game, round, myKey, isSpectator }) {
   const opKey = myKey === 'X' ? 'O' : 'X'
-  const myWords = wordsFrom(round?.[`found${myKey}`])
-  const opWords = wordsFrom(round?.[`found${opKey}`])
-  const found = new Set(myWords)
-  const missed = getSolutions(round?.rack, ANAGRAM_VALID_WORDS)
-    .filter(word => !found.has(word))
-    .sort((a, b) => scoreWord(b) - scoreWord(a) || b.length - a.length || a.localeCompare(b))
-    .slice(0, 5)
+  const myFound = checkedFound(round, myKey)
+  const opFound = checkedFound(round, opKey)
+  const myWords = wordsFrom(myFound)
+  const opWords = wordsFrom(opFound)
+  // Family-safe, everyday words first (missedWords) — the game picks these.
+  const missed = missedWords(round?.rack, ANAGRAM_VALID_WORDS, isSpectator ? [...myWords, ...opWords] : myWords)
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <FoundWords words={myWords} title={`${game.players?.[myKey]?.name?.toUpperCase() || 'YOU'} · ${scoreFound(round?.[`found${myKey}`])}`} />
-        <FoundWords words={opWords} title={`${game.players?.[opKey]?.name?.toUpperCase() || 'OPPONENT'} · ${scoreFound(round?.[`found${opKey}`])}`} />
+        <FoundWords words={myWords} title={`${nameOf(game, myKey)} · ${scoreFound(myFound)}`} />
+        <FoundWords words={opWords} title={`${nameOf(game, opKey)} · ${scoreFound(opFound)}`} />
       </div>
       <section className="rounded border border-retro-cta/50 bg-retro-tint-cta/30 p-3">
-        <h3 className="font-pixel text-[9px] tracking-widest text-retro-cta">WORDS YOU MISSED</h3>
-        <p className="mt-1 font-mono text-[10px] text-retro-dim">Top solutions from this rack, shown after reveal.</p>
+        <h3 className="font-pixel text-[9px] tracking-widest text-retro-cta">{isSpectator ? 'WORDS NOBODY FOUND' : 'WORDS YOU MISSED'}</h3>
+        <p className="mt-1 font-mono text-[10px] text-retro-dim">Everyday words from this rack{isSpectator ? '' : ' you didn’t find'}.</p>
         <p className="mt-2 font-pixel text-xs uppercase tracking-wider text-retro-text">
           {missed.length ? missed.map((word, index) => (
             <span key={word} className="mr-2 inline-block">{index + 1}. {word} <span className="text-retro-win">+{scoreWord(word)}</span></span>
-          )) : 'YOU FOUND EVERY CURATED WORD'}
+          )) : 'NONE — EVERY WORD WAS FOUND'}
         </p>
       </section>
     </div>
@@ -147,14 +192,18 @@ function RevealWords({ game, round, myKey }) {
 
 export default function AnagramsGame({
   gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onPlayAgain, onNewMatch, proposal,
+  onSwitchGame, onNewMatch, proposal,
 }) {
   const myKey = mySymbol === 'O' ? 'O' : 'X'
   const opKey = myKey === 'X' ? 'O' : 'X'
+  const isSpectator = !mySymbol
   const round = game.round || null
-  const [clockOffset, setClockOffset] = useState(0)
+  const phase = round?.phase
+  const matchOver = game.status === 'finished'
+  const matchTarget = getGameConfig('anagrams').matchTarget || MATCH_TARGET
+
+  const { now: serverNow, serverNow: getServerNow } = useServerClock({ tickMs: 250 })
   const [connected, setConnected] = useState(true)
-  const [now, setNow] = useState(() => Date.now())
   const [rack, setRack] = useState(() => round?.rack || [])
   const [selectedIndexes, setSelectedIndexes] = useState([])
   const [feedback, setFeedback] = useState(null)
@@ -163,65 +212,41 @@ export default function AnagramsGame({
   const [actionBusy, runAction] = useBusy()
   const selectedRef = useRef(selectedIndexes)
 
-  useEffect(() => {
-    const offsetRef = ref(db, '.info/serverTimeOffset')
-    return onValue(offsetRef, snap => setClockOffset(snap.val() || 0))
-  }, [])
-
   useEffect(() => onValue(ref(db, '.info/connected'), snap => setConnected(snap.val() === true)), [])
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 250)
-    return () => clearInterval(timer)
-  }, [])
-
-  const serverNow = now + clockOffset
   const foundKey = `found${myKey}`
   const myDone = !!round?.[`done${myKey}`]
-  const isPlaying = connected && round?.phase === 'playing' && serverNow < (round.endsAt || 0) && game.status === 'playing'
-  const timeLeft = round ? Math.max(0, round.endsAt - serverNow) : ROUND_MS
+  const startsAt = round?.startedAt || 0
+  const inCountdown = !matchOver && phase === 'playing' && serverNow < startsAt
+  const isPlaying = connected && !matchOver && game.status === 'playing' && phase === 'playing'
+    && serverNow >= startsAt && serverNow < (round.endsAt || 0)
   const currentWord = selectedIndexes.map(index => rack[index]).join('').toLowerCase()
   const ownWords = useMemo(() => wordsFrom(round?.[foundKey]), [round, foundKey])
+  const retryTick = Math.floor(serverNow / RETRY_MS)
 
-  // First seated client creates round. Ready rounds come from parent rematch
-  // flow and preserve used rack keys across best-of-3 play-again rounds.
+  // Deal the next rack: the first one (or after NEW MATCH's 'ready' round),
+  // and automatically REVEAL_MS after each reveal while the match is open.
+  // Either seated client runs it; the loser of the race aborts.
+  const startDue = connected && !isSpectator && roundStartDue(game, serverNow)
   useEffect(() => {
-    if (!connected || !mySymbol || game.status !== 'playing' || (round && round.phase !== 'ready')) return
+    if (!startDue) return undefined
     let cancelled = false
-    runTransaction(ref(db, `games/${gameId}`), current => {
-      if (!current || current.status !== 'playing') return
-      if (current.round?.phase === 'playing' || current.round?.phase === 'reveal') return
-      const roundNum = current.round?.roundNum || 1
-      const usedRacks = current.round?.usedRacks || []
-      const seed = `${gameId}:${current.createdAt || ''}:${current.scores?.X || 0}:${current.scores?.O || 0}:${roundNum}:${current.lastActivityAt || Date.now()}`
-      const nextRack = seededRack({
-        rackWords: ANAGRAM_RACK_WORDS,
-        validWords: ANAGRAM_VALID_WORDS,
-        seed,
-        used: usedRacks,
-      })
-      const startedAt = Date.now() + clockOffset
-      return {
-        ...current,
-        round: {
-          phase: 'playing', roundNum, seed, rack: nextRack,
-          startedAt, endsAt: startedAt + ROUND_MS,
-          foundX: {}, foundO: {}, doneX: false, doneO: false,
-          result: null, revealEndsAt: null,
-          usedRacks: [...usedRacks, rackKey(nextRack)],
-        },
-      }
-    }).catch(() => {
-      if (!cancelled) toast.error('ROUND START FAILED — CHECK CONNECTION')
+    runTransaction(ref(db, `games/${gameId}`), current => startRound(current, {
+      now: getServerNow(), gameId, rackWords: ANAGRAM_RACK_WORDS, validWords: ANAGRAM_VALID_WORDS,
+    })).catch(() => {
+      if (!cancelled) toast.error('NEXT RACK FAILED — CHECK CONNECTION')
     })
     return () => { cancelled = true }
-  }, [connected, gameId, game.status, mySymbol, round?.phase, clockOffset])
+  }, [startDue, retryTick, gameId, getServerNow])
 
+  // Close the rack at the deadline or when both are done (re-validating every
+  // word — resolveRound). Retried while due; aborts once someone resolved it.
+  const revealDue = connected && !isSpectator && !matchOver && phase === 'playing' && shouldReveal(round, serverNow)
   useEffect(() => {
-    if (!round || round.phase !== 'playing' || !shouldReveal(round, serverNow)) return
-    runTransaction(ref(db, `games/${gameId}`), current => resolveRound(current, clockOffset))
-      .catch(() => {})
-  }, [gameId, round?.phase, round?.endsAt, round?.doneX, round?.doneO, serverNow, clockOffset])
+    if (!revealDue) return
+    runTransaction(ref(db, `games/${gameId}`), current => resolveRound(current, getServerNow(), VALID_WORDS))
+      .catch(() => { /* retried on the next RETRY_MS tick while still due */ })
+  }, [revealDue, retryTick, gameId, getServerNow])
 
   useEffect(() => {
     selectedRef.current = selectedIndexes
@@ -239,8 +264,8 @@ export default function AnagramsGame({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round?.seed])
 
-  const setMessage = useCallback((kind, points = null) => {
-    setFeedback({ kind, points, id: Date.now() })
+  const setMessage = useCallback((kind, word = '', points = null) => {
+    setFeedback({ kind, word, points, id: Date.now() })
   }, [])
 
   const pickLetter = useCallback((index) => {
@@ -258,95 +283,105 @@ export default function AnagramsGame({
     setSelectedIndexes(next)
   }, [])
 
-  const submitWord = useCallback((rawWord = currentWord) => {
+  const submitWord = (rawWord = currentWord) => {
     const word = normalizeWord(rawWord)
     if (!isPlaying || myDone || submitting || !word) return
     const submittedIndexes = [...selectedRef.current]
-    const localFound = normalizeFound(round?.[foundKey])
-    if (localFound[word]) {
-      setMessage('duplicate')
+    if (normalizeFound(round?.[foundKey])[word]) {
+      setMessage('duplicate', word)
       return
     }
     if (!canBuildWord(word, round?.rack)) {
       sounds.miss()
-      setMessage('letters')
+      setMessage('letters', word)
       return
     }
-    if (word.length < 3) {
+    if (word.length < MIN_WORD_LENGTH) {
       sounds.miss()
-      setMessage('short')
+      setMessage('short', word)
       return
     }
-    if (word.length > 7 || !VALID_WORDS.has(word)) {
+    if (word.length > RACK_SIZE || !VALID_WORDS.has(word)) {
       sounds.miss()
-      setMessage('invalid')
+      setMessage('notword', word)
       return
     }
 
     runSubmit(async () => {
+      // Each abort names its real reason (the old code reported every abort
+      // as "ROUND CLOSED", even a duplicate while the round was still open).
       let outcome = 'closed'
       const result = await runTransaction(ref(db, `games/${gameId}/round`), current => {
-        if (!current || current.phase !== 'playing' || current[`done${myKey}`] || Date.now() + clockOffset >= current.endsAt) return
-        const nextFound = applyFoundWord(current[foundKey], word, current.rack, ANAGRAM_VALID_WORDS, Date.now() + clockOffset)
-        if (!nextFound) return
+        const at = getServerNow()
+        if (!current || current.phase !== 'playing' || current[`done${myKey}`] || at >= current.endsAt) {
+          outcome = 'closed'
+          return undefined
+        }
+        if (at < (current.startedAt || 0)) {
+          outcome = 'early'
+          return undefined
+        }
+        if (normalizeFound(current[foundKey])[word]) {
+          outcome = 'duplicate'
+          return undefined
+        }
+        const nextFound = applyFoundWord(current[foundKey], word, current.rack, ANAGRAM_VALID_WORDS, at)
+        if (!nextFound) {
+          outcome = 'notword'
+          return undefined
+        }
         outcome = 'valid'
         return { ...current, [foundKey]: nextFound }
       })
       if (!result.committed || outcome !== 'valid') {
-        setMessage(outcome === 'closed' ? 'closed' : 'invalid')
+        if (outcome !== 'duplicate') sounds.miss()
+        setMessage(outcome === 'valid' ? 'closed' : outcome, word)
         return
       }
-      const nextCount = ownWords.length + 1
-      setMessage('valid', scoreWord(word))
-      sounds.hit(nextCount)
+      setMessage('valid', word, scoreWord(word))
+      sounds.hit(ownWords.length + 1)
       if (sameIndexes(selectedRef.current, submittedIndexes)) {
         selectedRef.current = []
         setSelectedIndexes([])
       }
     }, () => toast.error('WORD SUBMIT FAILED — CHECK CONNECTION'))
-  }, [clockOffset, currentWord, foundKey, gameId, isPlaying, myDone, myKey, ownWords.length, round, setMessage, submitting])
+  }
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.ctrlKey || event.metaKey || event.altKey || !isPlaying || myDone) return
-      const target = event.target
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return
-      if (event.key === 'Enter') {
-        event.preventDefault()
-        submitWord()
-        return
-      }
-      if (event.key === 'Backspace') {
-        event.preventDefault()
-        const next = selectedRef.current.slice(0, -1)
-        selectedRef.current = next
-        setSelectedIndexes(next)
-        return
-      }
-      if (!/^[a-zA-Z]$/.test(event.key)) return
-      const letter = event.key.toUpperCase()
-      const used = new Set(selectedRef.current)
-      const index = rack.findIndex((value, candidate) => value === letter && !used.has(candidate))
-      if (index < 0) {
-        event.preventDefault()
-        setMessage('letters')
-        return
-      }
-      event.preventDefault()
-      pickLetter(index)
+  // Physical keyboard; useGameKeys skips the room chat and Cmd/Ctrl/Alt.
+  useGameKeys((event) => {
+    if (event.key === 'Enter') {
+      if (!selectedRef.current.length) return false
+      submitWord()
+      return true
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isPlaying, myDone, pickLetter, rack, setMessage, submitWord])
+    if (event.key === 'Backspace') {
+      if (!selectedRef.current.length) return false
+      const next = selectedRef.current.slice(0, -1)
+      selectedRef.current = next
+      setSelectedIndexes(next)
+      return true
+    }
+    if (!/^[a-zA-Z]$/.test(event.key)) return false
+    const letter = event.key.toUpperCase()
+    const used = new Set(selectedRef.current)
+    const index = rack.findIndex((value, candidate) => value === letter && !used.has(candidate))
+    if (index < 0) {
+      setMessage('letters', currentWord + letter.toLowerCase())
+      return true
+    }
+    pickLetter(index)
+    return true
+  }, { enabled: isPlaying && !myDone })
 
   const finishEarly = () => {
     if (!isPlaying || myDone) return
     setFeedback(null)
     runDone(async () => {
       await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current?.round || current.round.phase !== 'playing') return
+        if (!current?.round || current.status !== 'playing' || current.round.phase !== 'playing') return undefined
         const nextRound = { ...current.round, [`done${myKey}`]: true }
-        if (shouldReveal(nextRound, Date.now() + clockOffset)) return resolveRound({ ...current, round: nextRound }, clockOffset)
+        const now = getServerNow()
+        if (shouldReveal(nextRound, now)) return resolveRound({ ...current, round: nextRound }, now, VALID_WORDS)
         return { ...current, round: nextRound }
       })
     }, () => toast.error('DONE FAILED — CHECK CONNECTION'))
@@ -357,19 +392,75 @@ export default function AnagramsGame({
     runAction(async () => action(), () => toast.error('ACTION FAILED — CHECK CONNECTION'))
   }
 
-  if (!round || (round.phase === 'ready' && !round.rack)) {
+  const presence = isSpectator
+    ? { X: game.presence?.X?.online, O: game.presence?.O?.online }
+    : { [myKey]: true, [opKey]: opponentOnline !== false }
+  const rail = (
+    <MatchScoreRail
+      game={game}
+      mySymbol={mySymbol}
+      isSpectator={isSpectator}
+      matchTarget={matchTarget}
+      title="ANAGRAMS"
+      roundLabel={round?.roundNum ? `RACK ${round.roundNum}` : undefined}
+      presence={presence}
+    />
+  )
+  const switcher = !proposal && onSwitchGame && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />
+
+  // ── match over: the last rack's reveal, or CLAIM WIN ending it mid-rack ──
+  if (matchOver) {
+    const winner = game.winner
+    const headline = !winner || winner === 'draw'
+      ? 'MATCH DRAWN'
+      : !isSpectator && winner === myKey ? 'YOU WIN THE MATCH' : `${nameOf(game, winner)} WINS THE MATCH`
     return (
-      <div className="rounded border border-retro-border bg-retro-card p-6 text-center">
-        <PixelDots tone="cta" size="lg" glow />
-        <p className="mt-3 font-pixel text-[9px] tracking-widest text-retro-dim">BUILDING FAIR RACK…</p>
+      <div className="space-y-3">
+        {rail}
+        <section className="rounded border-2 border-retro-cta bg-retro-card p-5 text-center shadow-neon-cta" role="status">
+          <p className="font-pixel text-[9px] tracking-[0.25em] text-retro-dim">MATCH OVER</p>
+          <h2 className={cn('mt-2 font-pixel text-lg tracking-widest', !isSpectator && winner === myKey ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
+            {headline}
+          </h2>
+          {phase !== 'reveal' && (
+            <p className="mt-2 font-pixel text-[9px] text-retro-dim">THE MATCH ENDED BEFORE THIS RACK WAS SCORED</p>
+          )}
+        </section>
+        {phase === 'reveal' && (
+          <>
+            <RoundSummary game={game} round={round} myKey={myKey} isSpectator={isSpectator} matchTarget={matchTarget} />
+            <RevealWords game={game} round={round} myKey={isSpectator ? 'X' : myKey} isSpectator={isSpectator} />
+          </>
+        )}
+        {!isSpectator && !opponentOnline && <OfflineNotice label="OPPONENT" />}
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
+          {!isSpectator && onNewMatch && (
+            <button type="button" onClick={() => runMatchAction(onNewMatch)} disabled={actionBusy || !!proposal} className="min-h-11 rounded bg-retro-cta px-5 py-3 font-pixel text-[10px] text-retro-bg shadow-neon-cta transition-all active:scale-95 disabled:opacity-50">
+              {actionBusy ? 'ASKING…' : 'NEW MATCH'}
+            </button>
+          )}
+          {switcher}
+        </div>
       </div>
     )
   }
 
-  if (!connected && round.phase === 'playing') {
+  if (!round || (phase === 'ready' && !round.rack)) {
+    return (
+      <div className="space-y-3">
+        {rail}
+        <div className="rounded border border-retro-border bg-retro-card p-6 text-center">
+          <PixelDots tone="cta" size="lg" glow />
+          <p className="mt-3 font-pixel text-[9px] tracking-widest text-retro-dim">DEALING A FAIR RACK…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!connected && phase === 'playing') {
     return (
       <div className="space-y-3 text-center">
-        <ScoreRail game={game} myKey={myKey} round={round} />
+        {rail}
         <div className="rounded border border-retro-p2/60 bg-retro-card p-6">
           <p className="font-pixel text-[10px] tracking-widest text-retro-p2">RECONNECTING…</p>
           <p className="mt-2 font-mono text-[10px] text-retro-dim">ROUND STATE SAVED · TIMER CONTINUES</p>
@@ -378,80 +469,71 @@ export default function AnagramsGame({
     )
   }
 
-  if (round.phase === 'playing' && !isPlaying) {
+  if (phase === 'reveal') {
+    const nextInSec = round.revealEndsAt ? Math.max(0, Math.ceil((round.revealEndsAt - serverNow) / 1000)) : null
+    const paused = !!game.proposal && !game.proposal.declined
+    return (
+      <div className="space-y-3">
+        {rail}
+        <RoundSummary
+          game={game} round={round} myKey={myKey} isSpectator={isSpectator}
+          matchTarget={matchTarget} nextInSec={nextInSec} paused={paused}
+        />
+        <RevealWords game={game} round={round} myKey={isSpectator ? 'X' : myKey} isSpectator={isSpectator} />
+        {!isSpectator && !opponentOnline && <OfflineNotice label="OPPONENT" />}
+        <div className="flex flex-wrap justify-center gap-2 pt-2">{switcher}</div>
+      </div>
+    )
+  }
+
+  if (inCountdown) {
+    const secs = Math.max(1, Math.ceil((startsAt - serverNow) / 1000))
+    return (
+      <div className="space-y-3">
+        {rail}
+        <div className="rounded border border-retro-border bg-retro-card p-8 text-center space-y-3" role="status" aria-live="polite">
+          <p className="font-pixel text-[9px] text-retro-dim arcade-blink">RACK {round.roundNum || 1} · GET READY</p>
+          <p className="font-pixel text-7xl text-retro-win text-glow-win" aria-label={`${secs}`}>{secs}</p>
+          <p className="font-pixel text-[8px] text-retro-dim">{ROUND_MS / 1000} SECONDS · 7 LETTERS</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'playing' && !isPlaying) {
     return (
       <div className="space-y-3 text-center">
-        <ScoreRail game={game} myKey={myKey} round={round} />
+        {rail}
         <div className="rounded border border-retro-border bg-retro-card p-6">
           <PixelDots tone="cta" size="lg" glow />
-          <p className="mt-3 font-pixel text-[9px] tracking-widest text-retro-dim">TALLYING SCORES…</p>
+          <p className="mt-3 font-pixel text-[9px] tracking-widest text-retro-dim">CHECKING WORDS…</p>
         </div>
       </div>
     )
   }
 
-  if (round.phase === 'reveal') {
-    const result = round.result || compareRound(round.foundX, round.foundO)
-    const matchWinner = getMatchWinner(game.scores)
-    const winnerName = result.winner === 'draw' ? 'DRAW' : result.winner === myKey ? 'YOU WIN' : `${game.players?.[result.winner]?.name?.toUpperCase() || 'OPPONENT'} WINS`
+  if (isSpectator) {
     return (
       <div className="space-y-3">
-        <ScoreRail game={game} myKey={myKey} round={round} />
-        <section className="modal-pop rounded border-2 border-retro-cta bg-retro-card p-5 text-center shadow-neon-cta">
-          <p className="font-pixel text-[9px] tracking-[0.25em] text-retro-dim">ROUND {round.roundNum} REVEAL</p>
-          <h2 className={cn('mt-2 font-pixel text-xl tracking-widest', result.winner === 'draw' ? 'text-retro-text' : result.winner === myKey ? 'text-retro-win text-glow-win' : 'text-retro-p2 text-glow-p2')}>
-            {winnerName}
-          </h2>
-          <p className="mt-2 font-mono text-lg text-retro-text">X: {result.scoreX} POINTS · {result.wordsX} WORDS vs O: {result.scoreO} POINTS · {result.wordsO} WORDS</p>
-          {matchWinner && <p className="mt-3 font-pixel text-[10px] text-retro-cta">MATCH WON BY {game.players?.[matchWinner]?.name?.toUpperCase() || matchWinner}</p>}
-        </section>
-        <RevealWords game={game} round={round} myKey={myKey} />
-        {!opponentOnline && <OfflineNotice label="OPPONENT" />}
-        <div className="flex flex-wrap justify-center gap-2 pt-2">
-          {!matchWinner && onPlayAgain && (
-            <button type="button" onClick={() => runMatchAction(onPlayAgain)} disabled={actionBusy || !!proposal} className="min-h-11 rounded bg-retro-cta px-5 py-3 font-pixel text-[10px] text-retro-bg shadow-neon-cta transition-all active:scale-95 disabled:opacity-50">
-              {actionBusy ? 'STARTING…' : 'NEXT RACK'}
-            </button>
-          )}
-          {matchWinner && onNewMatch && (
-            <button type="button" onClick={() => runMatchAction(onNewMatch)} disabled={actionBusy || !!proposal} className="min-h-11 rounded bg-retro-cta px-5 py-3 font-pixel text-[10px] text-retro-bg shadow-neon-cta transition-all active:scale-95 disabled:opacity-50">
-              {actionBusy ? 'STARTING…' : 'NEW MATCH'}
-            </button>
-          )}
-          {!proposal && onSwitchGame && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
-        </div>
-      </div>
-    )
-  }
-
-  if (!mySymbol) {
-    return (
-      <div className="space-y-3">
-        <ScoreRail game={game} myKey="X" round={round} />
+        {rail}
+        <RoundTimer endsAt={round.endsAt} now={serverNow} totalMs={ROUND_MS} label={`RACK ${round.roundNum || 1}`} />
+        <RoundPoints game={game} round={round} myKey="X" isSpectator />
         <div className="rounded border border-retro-border bg-retro-card p-4 text-center">
           <p className="font-pixel text-[10px] tracking-widest text-retro-dim">SPECTATING · WORDS HIDDEN UNTIL REVEAL</p>
         </div>
-        {!proposal && onSwitchGame && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
+        {switcher}
       </div>
     )
   }
 
-  const seconds = formatSeconds(timeLeft)
-  const timerPct = Math.max(0, Math.min(100, (timeLeft / ROUND_MS) * 100))
-  const feedbackClass = feedback?.kind === 'valid' ? 'text-retro-win' : feedback?.kind === 'duplicate' ? 'text-retro-cta' : 'text-retro-p2'
+  const shownFeedback = myDone
+    ? { message: 'DONE — WAITING FOR OPPONENT OR TIMER', tone: 'info' }
+    : feedbackFor(feedback)
 
   return (
     <div className="space-y-3">
-      <ScoreRail game={game} myKey={myKey} round={round} />
-      <div className="rounded border border-retro-border bg-retro-card p-2" aria-label={`${seconds} seconds remaining`}>
-        <div className="flex items-center justify-between font-pixel text-[10px]">
-          <span className={cn('tabular-nums', seconds <= 10 && 'text-retro-p2 text-glow-p2 arcade-blink')}>{seconds}s</span>
-          <span className="text-retro-dim">RACK {round.roundNum} · {ROUND_MS / 1000}s</span>
-        </div>
-        <div className="mt-2 h-2 overflow-hidden rounded bg-retro-deep">
-          <div className={cn('h-full rounded bg-retro-cta transition-[width] duration-300', seconds <= 10 && 'bg-retro-p2')} style={{ width: `${timerPct}%` }} />
-        </div>
-      </div>
+      {rail}
+      <RoundTimer endsAt={round.endsAt} now={serverNow} totalMs={ROUND_MS} label={`RACK ${round.roundNum || 1}`} />
 
       <div className="rounded border-2 border-retro-cta/60 bg-retro-card p-3 shadow-[3px_3px_0_rgb(var(--c-deep)/0.75)]">
         <div className="mb-3 flex items-center justify-between">
@@ -479,35 +561,18 @@ export default function AnagramsGame({
             {doneBusy ? 'SENDING…' : 'FINISH EARLY'}
           </button>
         </div>
-        <p aria-live="polite" className={cn('mt-3 min-h-4 text-center font-pixel text-[10px] tracking-widest', feedbackClass)} key={feedback?.id}>
-          {myDone ? 'WAITING FOR OPPONENT OR TIMER' : feedback ? feedbackText(feedback.kind, feedback.points) : 'TYPE · TAP · ENTER'}
-        </p>
+        <WordFeedback
+          className="mt-3"
+          message={shownFeedback.message}
+          tone={shownFeedback.tone}
+          id={myDone ? 'done' : feedback?.id}
+        />
       </div>
 
+      <RoundPoints game={game} round={round} myKey={myKey} isSpectator={false} />
       <FoundWords words={ownWords} />
-      <div className="flex items-center justify-between rounded border border-retro-border bg-retro-deep/50 px-3 py-2 font-pixel text-[9px] text-retro-dim">
-        <span>OPPONENT · {wordsFrom(round?.[`found${opKey}`]).length} WORDS · {scoreFound(round?.[`found${opKey}`])} POINTS</span>
-        {round?.[`done${opKey}`] && <span className="text-retro-p2">DONE</span>}
-      </div>
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
-      {!proposal && onSwitchGame && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
+      {switcher}
     </div>
   )
-}
-
-function resolveRound(current, clockOffset) {
-  if (!current?.round || !shouldReveal(current.round, Date.now() + clockOffset)) return
-  const result = compareRound(current.round.foundX, current.round.foundO)
-  const scores = { X: current.scores?.X || 0, O: current.scores?.O || 0 }
-  if (result.winner !== 'draw') scores[result.winner] += 1
-  const matchWinner = getMatchWinner(scores)
-  return {
-    ...current,
-    round: { ...current.round, phase: 'reveal', result, revealEndsAt: Date.now() + clockOffset + 4_000 },
-    scores,
-    winner: matchWinner,
-    status: matchWinner ? 'finished' : 'playing',
-    proposal: null,
-    lastActivityAt: Date.now(),
-  }
 }

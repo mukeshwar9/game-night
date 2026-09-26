@@ -7,42 +7,51 @@ import SpectatorCard from '../components/SpectatorCard'
 import LoadingLine from '../components/loading/LoadingLine'
 import PixelDots from '../components/loading/PixelDots'
 import OfflineNotice from '../components/loading/OfflineNotice'
+import MatchScoreRail from '../components/MatchScoreRail'
+import RoundTimer from '../components/RoundTimer'
+import WordFeedback from '../components/WordFeedback'
 import {
   COUNTDOWN_MS, ROUND_MS, MATCH_WINS, MIN_WORD_LENGTH,
   findPath, scoreWord, scoreWords, canonicalize, neighborsOf,
+  normalizeWordList, nextWordIndex, verifyWords, compareHunt, finishHuntRound, roundDeadline,
+  wordhuntReadyUpdate, solveGrid, topMissedWords,
 } from '../lib/wordhuntLogic'
 import { loadDictionary } from '../lib/wordhuntDictionary'
+import { getGameConfig } from '../lib/games'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
+import useGameKeys from '@/hooks/useGameKeys'
 import { toast } from 'sonner'
 
 // ── small helpers ────────────────────────────────────────────────────
 
-function pad2(n) { return String(n).padStart(2, '0') }
-
-function fmtTime(ms) {
-  const s = Math.ceil(ms / 1000)
-  return `${Math.floor(s / 60)}:${pad2(s % 60)}`
-}
-
-// Firebase may return numeric-keyed objects instead of arrays for append-only
-// lists (same normalization every custom page applies to its own list —
-// mirrors WordDuelGame.jsx's local normalizeGuesses, adapted for a flat
-// string[] instead of an array of {word, marks} objects).
-function normalizeWordList(raw) {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw.filter(w => w != null)
-  const arr = []
-  for (const k of Object.keys(raw).sort((a, b) => Number(a) - Number(b))) {
-    if (raw[k] != null) arr.push(raw[k])
-  }
-  return arr
-}
-
 function displayLetter(letter) {
   return letter === 'q' ? 'Qu' : String(letter ?? '').toUpperCase()
 }
+
+// Longest a typed word can be (the grid's 16 tiles, Qu counting twice).
+const MAX_TYPED = 17
+
+// Submission outcomes → the reason line under the grid (WordFeedback).
+const REJECT_REASON = {
+  short: `TOO SHORT — ${MIN_WORD_LENGTH}+ LETTERS`,
+  notword: 'NOT A WORD',
+  notconnected: 'NOT CONNECTED',
+  duplicate: 'ALREADY FOUND',
+}
+
+function feedbackFor(result) {
+  if (!result) return { message: '', tone: 'info' }
+  const word = String(result.word ?? '').toUpperCase()
+  if (result.kind === 'valid') {
+    return { message: `${word} · +${result.amount} POINT${result.amount === 1 ? '' : 'S'}`, tone: 'ok' }
+  }
+  const reason = REJECT_REASON[result.kind] || 'NOT A WORD'
+  return { message: word ? `${word} — ${reason}` : reason, tone: result.kind === 'duplicate' ? 'info' : 'bad' }
+}
+
+const isRejection = (kind) => kind === 'short' || kind === 'notword' || kind === 'notconnected'
 
 // ── sub-components ───────────────────────────────────────────────────
 
@@ -52,7 +61,7 @@ function Tile({ letter, state }) {
     <div
       className={cn(
         'w-full h-full flex items-center justify-center rounded border font-pixel select-none',
-        'text-sm sm:text-base transition-colors duration-150',
+        'text-2xl sm:text-3xl transition-colors duration-150',
         state === 'idle' && 'bg-retro-card border-retro-border text-retro-text',
         state === 'path' && 'bg-retro-tint-cta border-retro-cta text-retro-cta',
         state === 'valid' && 'bg-retro-win border-retro-win text-retro-bg',
@@ -96,15 +105,16 @@ function ScorePop({ amount }) {
   )
 }
 
-// Owns the pointer-drag trace + the physical-keyboard type+Enter fallback.
+// Owns the pointer-drag trace, the typed-word input and the reason line.
 // Container-level elementFromPoint hit-testing (not per-tile pointer capture)
 // — see spec §5.2 for why per-tile onPointerEnter alone doesn't work on
 // mobile (pointerdown implicitly captures the pointer to its origin tile).
+// `onSubmit(word)` returns the outcome kind ('valid', 'duplicate', 'short',
+// 'notword', 'notconnected') or null when input is closed.
 function WordGrid({ grid, disabled, onSubmit, lastResult }) {
   const [path, setPath] = useState([])
   const [dragging, setDragging] = useState(false)
   const [typedWord, setTypedWord] = useState('')
-  const [inputShake, setInputShake] = useState(null) // 'duplicate' | 'invalid' | null
   const [revealCount, setRevealCount] = useState(0)
   const [scorePop, setScorePop] = useState(null)
 
@@ -116,8 +126,8 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
   const shakeTimerRef = useRef(null)
   const popTimerRef = useRef(null)
 
-  // Drive the tile-flash-in-sequence sweep (valid) or the amber/red shake
-  // (duplicate/invalid) whenever the parent reports a new submission result.
+  // Drive the tile-flash-in-sequence sweep (valid) or the amber/red flash
+  // (duplicate/rejected) whenever the parent reports a new submission result.
   useEffect(() => {
     revealTimersRef.current.forEach(clearTimeout)
     revealTimersRef.current = []
@@ -142,20 +152,15 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
       clearTimerRef.current = setTimeout(() => {
         if (!draggingRef.current) { setPath([]); setRevealCount(0) }
       }, sweepPath.length * 40 + 550)
-    } else if (lastResult.kind === 'duplicate' || lastResult.kind === 'invalid') {
-      if (dragPathAtSubmitRef.current.length) {
-        setPath(dragPathAtSubmitRef.current)
-      } else {
-        // Typed submission: clear any stale path from a prior valid find
-        // immediately — its clear-timer was cancelled above, and cellState
-        // would otherwise repaint those already-scored tiles in this
-        // result's duplicate/invalid color.
-        if (!draggingRef.current) { setPath([]); setRevealCount(0) }
-        setInputShake(lastResult.kind)
+    } else {
+      // Dragged submissions flash their own path; typed ones clear any stale
+      // path from a prior valid find (its clear-timer was cancelled above).
+      if (!draggingRef.current) {
+        setPath(dragPathAtSubmitRef.current.length ? dragPathAtSubmitRef.current : [])
+        setRevealCount(0)
       }
       shakeTimerRef.current = setTimeout(() => {
         if (!draggingRef.current) setPath([])
-        setInputShake(null)
       }, 400)
     }
   }, [lastResult])
@@ -183,10 +188,17 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
     const cellEl = el?.closest?.('[data-cell-index]')
     if (!cellEl) return
     const idx = Number(cellEl.dataset.cellIndex)
-    const last = pathRef.current[pathRef.current.length - 1]
-    if (idx === last || pathRef.current.includes(idx)) return
-    if (!neighborsOf(last).includes(idx)) return
-    pathRef.current = [...pathRef.current, idx]
+    const current = pathRef.current
+    const last = current[current.length - 1]
+    if (idx === last) return
+    // Backtrack: dragging back onto the previous tile drops the last one.
+    if (current.length >= 2 && idx === current[current.length - 2]) {
+      pathRef.current = current.slice(0, -1)
+      setPath(pathRef.current)
+      return
+    }
+    if (current.includes(idx) || !neighborsOf(last).includes(idx)) return
+    pathRef.current = [...current, idx]
     setPath(pathRef.current)
   }
 
@@ -195,37 +207,81 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
     draggingRef.current = false
     setDragging(false)
     const finalPath = pathRef.current
+    pathRef.current = []
     if (finalPath.length > 0) {
       dragPathAtSubmitRef.current = finalPath
       onSubmit(rawWordFromPath(finalPath))
     }
   }
 
-  // Physical-keyboard type+Enter fallback — mirrors WordDuelGame.jsx's exact
-  // window-level keydown pattern (ctrlKey/metaKey/altKey bail-out, Enter to
-  // submit, Backspace to trim, single letters appended uppercase).
+  // The browser took the gesture (scroll, system UI) — drop the trace.
+  const cancelDrag = () => {
+    if (!draggingRef.current) return
+    draggingRef.current = false
+    pathRef.current = []
+    setDragging(false)
+    setPath([])
+  }
+
+  // Releasing anywhere — even outside the grid — ends the drag; a cancelled
+  // pointer drops it. Latest handlers are read through refs.
+  const endDragRef = useRef(endDrag)
+  const cancelDragRef = useRef(cancelDrag)
+  useEffect(() => { endDragRef.current = endDrag; cancelDragRef.current = cancelDrag })
   useEffect(() => {
-    if (disabled) return
-    const handler = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        setTypedWord(w => {
-          if (w.length > 0) {
-            dragPathAtSubmitRef.current = []
-            onSubmit(w)
-          }
-          return ''
-        })
-      } else if (e.key === 'Backspace') {
-        setTypedWord(w => w.slice(0, -1))
-      } else if (/^[a-zA-Z]$/.test(e.key)) {
-        setTypedWord(w => (w.length < 20 ? w + e.key.toUpperCase() : w))
-      }
+    if (!dragging) return undefined
+    const up = () => endDragRef.current()
+    const cancel = () => cancelDragRef.current()
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', cancel)
+    return () => {
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', cancel)
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [disabled, onSubmit])
+  }, [dragging])
+  // Input closed mid-drag (round over) — drop the trace.
+  useEffect(() => { if (disabled) cancelDragRef.current() }, [disabled])
+
+  const staleTypedRef = useRef(false)
+  const typedInputRef = useRef(null)
+  const markTypedStale = () => {
+    staleTypedRef.current = true
+    if (document.activeElement === typedInputRef.current) typedInputRef.current?.select()
+  }
+
+  const submitTyped = () => {
+    if (disabled || !typedWord) return
+    dragPathAtSubmitRef.current = []
+    const kind = onSubmit(typedWord)
+    // Keep a rejected word in the box so it can be fixed — but the next
+    // letter typed starts a fresh word (Backspace edits the kept one), so
+    // fast typists don't glue words together.
+    if (kind === 'valid' || kind === 'duplicate') setTypedWord('')
+    else markTypedStale()
+  }
+
+  // Physical keyboard without focusing the box. useGameKeys ignores keys
+  // typed into text fields — the room chat and this box's own input.
+  useGameKeys((e) => {
+    if (e.key === 'Enter') {
+      if (!typedWord) return false
+      submitTyped()
+      return true
+    }
+    if (e.key === 'Backspace' || e.key === 'Escape') {
+      if (!typedWord) return false
+      staleTypedRef.current = false
+      setTypedWord(w => (e.key === 'Escape' ? '' : w.slice(0, -1)))
+      return true
+    }
+    if (/^[a-zA-Z]$/.test(e.key)) {
+      const fresh = staleTypedRef.current
+      staleTypedRef.current = false
+      setTypedWord(w => (fresh ? e.key.toUpperCase() : w.length < MAX_TYPED ? w + e.key.toUpperCase() : w))
+      return true
+    }
+    return false
+  }, { enabled: !disabled })
 
   const cellState = (index) => {
     const pos = path.indexOf(index)
@@ -233,17 +289,26 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
     if (dragging) return 'path'
     if (lastResult?.kind === 'valid') return pos < revealCount ? 'valid' : 'path'
     if (lastResult?.kind === 'duplicate') return 'duplicate'
-    if (lastResult?.kind === 'invalid') return 'invalid'
+    if (isRejection(lastResult?.kind)) return 'invalid'
     return 'path'
   }
 
+  const preview = dragging ? rawWordFromPath(path).toUpperCase() : ''
+  const feedback = feedbackFor(lastResult)
+
   return (
     <div className="space-y-2">
+      {/* Live preview of the word being traced */}
+      <p aria-hidden="true" className="h-7 text-center font-pixel text-lg tracking-[0.2em] text-retro-cta truncate">
+        {preview}
+      </p>
       <div
         className="relative grid grid-cols-4 gap-2 max-w-xs mx-auto touch-none select-none"
         style={{ touchAction: 'none' }}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
+        onPointerCancel={cancelDrag}
+        onLostPointerCapture={endDrag}
       >
         {Array.from({ length: 16 }, (_, i) => (
           <div
@@ -258,19 +323,37 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
         {scorePop && <ScorePop key={scorePop.id} amount={scorePop.amount} />}
       </div>
 
-      {/* Type + Enter fallback — always rendered, tap-reachable on mobile too */}
-      <div
-        className={cn(
-          'mx-auto max-w-xs rounded border px-3 py-2 text-center transition-colors',
-          inputShake === 'duplicate' && 'border-retro-cta bg-retro-tint-cta',
-          inputShake === 'invalid' && 'border-retro-p2 bg-retro-tint-p2',
-          !inputShake && 'border-retro-border bg-retro-card',
-        )}
+      <WordFeedback message={feedback.message} tone={feedback.tone} id={lastResult?.id} />
+
+      {/* Typed entry — a real input so touch users get their keyboard */}
+      <form
+        className="mx-auto max-w-xs flex gap-2"
+        onSubmit={(e) => { e.preventDefault(); submitTyped() }}
       >
-        <span className="font-pixel text-xs tracking-widest text-retro-text">
-          {typedWord || <span className="opacity-30">TYPE A WORD…</span>}
-        </span>
-      </div>
+        <input
+          type="text"
+          ref={typedInputRef}
+          value={typedWord}
+          onChange={(e) => { staleTypedRef.current = false; setTypedWord(e.target.value.replace(/[^a-z]/gi, '').toUpperCase().slice(0, MAX_TYPED)) }}
+          disabled={disabled}
+          inputMode="text"
+          autoCapitalize="characters"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          enterKeyHint="done"
+          aria-label="Type a word"
+          placeholder="OR TYPE A WORD…"
+          className="min-w-0 flex-1 min-h-11 rounded border border-retro-border bg-retro-card px-3 font-pixel text-xs tracking-widest text-retro-text placeholder:text-retro-dim focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={disabled || !typedWord}
+          className="min-h-11 rounded bg-retro-cta px-3 font-pixel text-[9px] text-retro-bg active:scale-95 disabled:opacity-50"
+        >
+          ENTER
+        </button>
+      </form>
     </div>
   )
 }
@@ -285,6 +368,7 @@ function ScoreBar({ myScore, oppScore, myLabel, oppLabel, mySymbol }) {
   const oppBar = isX ? 'bg-retro-p2' : 'bg-retro-p1'
   return (
     <div className="bg-retro-card border border-retro-border rounded p-2 space-y-1">
+      <p className="font-pixel text-[7px] text-retro-dim text-center tracking-widest">ROUND POINTS</p>
       <div className="flex justify-between font-pixel text-[10px]">
         <span className={myColor}>{(myLabel || mySymbol || 'X').toUpperCase()} · {myScore}</span>
         <span className={oppColor}>{oppScore} · {(oppLabel || (isX ? 'O' : 'X')).toUpperCase()}</span>
@@ -317,8 +401,15 @@ function WordList({ words, emptyHint }) {
   )
 }
 
-function ResultsPanel({ scoreX, scoreO, players, winner }) {
+const DECIDED_BY_COPY = {
+  words: 'TIED ON POINTS — MORE WORDS WINS',
+  longest: 'TIED ON POINTS AND WORDS — LONGEST WORD WINS',
+  draw: 'TIED ON POINTS, WORDS AND LONGEST WORD — DRAW',
+}
+
+function ResultsPanel({ scoreX, scoreO, players, winner, decidedBy }) {
   return (
+    <div className="space-y-2">
     <div className="grid grid-cols-2 gap-2">
       {['X', 'O'].map(sym => {
         const score = sym === 'X' ? scoreX : scoreO
@@ -331,10 +422,14 @@ function ResultsPanel({ scoreX, scoreO, players, winner }) {
             <p className={cn('font-pixel text-3xl tabular-nums', isWin ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
               {score}
             </p>
-            <p className="font-pixel text-[8px] text-retro-dim">POINTS</p>
+            <p className="font-pixel text-[8px] text-retro-dim">ROUND POINTS</p>
           </div>
         )
       })}
+    </div>
+    {DECIDED_BY_COPY[decidedBy] && (
+      <p className="font-pixel text-[8px] text-retro-dim text-center">{DECIDED_BY_COPY[decidedBy]}</p>
+    )}
     </div>
   )
 }
@@ -412,6 +507,27 @@ function EndPanels({ myWords, oppWords, myKey, oppKey, players, myMismatches, op
   )
 }
 
+// End-screen "TOP MISSED": everyday words on this grid that nobody found.
+function TopMissed({ words, total }) {
+  return (
+    <section className="rounded border border-retro-cta/50 bg-retro-tint-cta/30 p-3" aria-label="Top missed words">
+      <h3 className="font-pixel text-[9px] tracking-widest text-retro-cta">TOP MISSED</h3>
+      <p className="mt-1 font-mono text-[10px] text-retro-dim">Words nobody found · {total} on this grid</p>
+      {words.length ? (
+        <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+          {words.map(w => (
+            <li key={w} className="font-pixel text-xs uppercase tracking-wider text-retro-text">
+              {w} <span className="text-retro-win">+{scoreWord(w)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 font-pixel text-[9px] text-retro-text">NOTHING LEFT — EVERY WORD WAS FOUND</p>
+      )}
+    </section>
+  )
+}
+
 // ── main component ───────────────────────────────────────────────────
 
 export default function WordHuntGame({
@@ -440,6 +556,10 @@ export default function WordHuntGame({
   if (myWordsRef.current === null) myWordsRef.current = myWords
   const foundWordsRef = useRef(null)
   if (foundWordsRef.current === null) foundWordsRef.current = new Set(myWords.map(canonicalize))
+  // Next free slot in wordhuntWords{me}: only ever increases, so a failed
+  // write's gap is never reused and a later write is never overwritten.
+  const nextIndexRef = useRef(null)
+  if (nextIndexRef.current === null) nextIndexRef.current = nextWordIndex(game[`wordhuntWords${myKey}`])
 
   const prevGridRef = useRef(grid)
   const doneRef = useRef(false)
@@ -492,6 +612,7 @@ export default function WordHuntGame({
       prevGridRef.current = grid
       myWordsRef.current = []
       foundWordsRef.current = new Set()
+      nextIndexRef.current = 0
       setMyWords([])
       setMyScore(0)
       setLastResult(null)
@@ -503,42 +624,7 @@ export default function WordHuntGame({
   const isPlaying = !!startedAt && serverNow >= startedAt + COUNTDOWN_MS
     && serverNow < startedAt + COUNTDOWN_MS + ROUND_MS && game.status !== 'finished'
   const countdownSec = isCountdown ? Math.ceil((startedAt + COUNTDOWN_MS - serverNow) / 1000) : 0
-  const deadline = startedAt ? startedAt + COUNTDOWN_MS + ROUND_MS : null
-  const timeLeftMs = deadline ? Math.max(0, deadline - serverNow) : ROUND_MS
-
-  const tryFinishGame = async () => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished') return
-        const startedAtC = current.wordhuntStartedAt
-        if (!startedAtC || Date.now() + clockOffset < startedAtC + COUNTDOWN_MS + ROUND_MS) return // not over yet
-        let sX = current.wordhuntScoreX ?? 0
-        let sO = current.wordhuntScoreO ?? 0
-        // Scores are otherwise purely self-reported: recompute from the stored
-        // word lists (dict + grid path check, deduped) when the dictionary is
-        // loaded, and persist the corrected totals alongside the verdict.
-        if (dict) {
-          const verifiedScore = (raw) => {
-            const seen = new Set()
-            let total = 0
-            for (const w of normalizeWordList(raw)) {
-              const word = canonicalize(w)
-              if (!word || seen.has(word)) continue
-              seen.add(word)
-              if (dict.has(word) && findPath(grid, word)) total += scoreWord(word)
-            }
-            return total
-          }
-          sX = verifiedScore(current.wordhuntWordsX)
-          sO = verifiedScore(current.wordhuntWordsO)
-        }
-        const winner = sX > sO ? 'X' : sX < sO ? 'O' : 'draw'
-        const scores = { ...(current.scores || {}) }
-        if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
-        return { ...current, wordhuntScoreX: sX, wordhuntScoreO: sO, winner, status: 'finished', scores }
-      })
-    } catch { /* another client already resolved it — fine */ }
-  }
+  const deadline = roundDeadline(startedAt)
 
   // Ticker: drives countdown/timer display and per-client deadline crossing.
   useEffect(() => {
@@ -546,52 +632,85 @@ export default function WordHuntGame({
     const id = setInterval(() => {
       const n = Date.now()
       setNow(n)
-      if (mySymbol && n + clockOffset >= startedAt + COUNTDOWN_MS + ROUND_MS && !doneRef.current) {
+      if (mySymbol && n + clockOffset >= roundDeadline(startedAt) && !doneRef.current) {
         doneRef.current = true
         update(ref(db, `games/${gameId}`), { [`wordhuntDone${myKey}`]: true }).catch(() => {})
-        tryFinishGame()
       }
     }, 100)
     return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tryFinishGame is recreated every render; adding it would tear down and restart this interval on every tick
   }, [startedAt, game.status, mySymbol, gameId, myKey, clockOffset])
 
+  // Round end: once the deadline passes, a seated client whose dictionary is
+  // loaded re-verifies both word lists and writes the verdict
+  // (finishHuntRound). A client still loading the dictionary never finishes
+  // on self-reported scores — it waits; this re-runs when `dict` arrives.
+  const pastDeadline = !!deadline && serverNow >= deadline
+  const finishingRef = useRef(null)
+  const [finishRetry, setFinishRetry] = useState(0)
+  useEffect(() => {
+    if (!mySymbol || !dict || !pastDeadline || game.status === 'finished') return
+    if (finishingRef.current === startedAt) return
+    finishingRef.current = startedAt
+    // Aborted or failed: let a later tick retry (unless the round got
+    // finished meanwhile — then the effect bails on game.status).
+    const retryLater = () => setTimeout(() => {
+      if (finishingRef.current !== startedAt) return
+      finishingRef.current = null
+      setFinishRetry(n => n + 1)
+    }, 2_000)
+    runTransaction(ref(db, `games/${gameId}`), current => finishHuntRound(current, { now: Date.now() + clockOffset, dict }))
+      .then(res => { if (!res.committed) retryLater() })
+      .catch(retryLater)
+  }, [mySymbol, dict, pastDeadline, game.status, startedAt, gameId, clockOffset, finishRetry])
+
+  // Fair start: the clock starts only once BOTH seats pressed READY, and a
+  // seat can only press READY after its own dictionary has loaded. The
+  // transaction that sees both flags lifts the grid to the word floor and
+  // stamps wordhuntStartedAt (wordhuntReadyUpdate).
+  const myReady = !!game[`wordhuntReady${myKey}`]
+  const oppReady = !!game[`wordhuntReady${opKey}`]
+  const bothReady = !!game.wordhuntReadyX && !!game.wordhuntReadyO
+
   const handleReady = () => {
-    if (!mySymbol || game.wordhuntStartedAt) return
+    if (!mySymbol || !dict || startedAt || myReady) return
     runReady(async () => {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.wordhuntStartedAt) return
-        return { ...current, wordhuntStartedAt: Date.now() + clockOffset }
-      })
-    }, () => toast.error('START FAILED — CHECK CONNECTION'))
+      await runTransaction(ref(db, `games/${gameId}`), current =>
+        wordhuntReadyUpdate(current, { symbol: myKey, now: Date.now() + clockOffset, dict }))
+    }, () => toast.error('READY FAILED — CHECK CONNECTION'))
   }
 
+  // Fallback start: both flags set but no start stamp yet (e.g. the second
+  // READY's client dropped mid-transaction) — any seated client with its
+  // dictionary loaded starts the round.
+  const startingRef = useRef(null)
+  useEffect(() => {
+    if (!mySymbol || !dict || startedAt || !bothReady || game.status === 'finished') return
+    if (startingRef.current === grid) return
+    startingRef.current = grid
+    runTransaction(ref(db, `games/${gameId}`), current =>
+      wordhuntReadyUpdate(current, { now: Date.now() + clockOffset, dict }))
+      .catch(() => { startingRef.current = null })
+  }, [mySymbol, dict, startedAt, bothReady, game.status, grid, gameId, clockOffset])
+
+  // Returns the outcome kind so the typed box knows whether to clear.
   const handleSubmit = useCallback((rawWord) => {
-    if (!dict || !isPlaying || myDone) return
+    if (!dict || !isPlaying || myDone) return null
     const word = canonicalize(rawWord)
+    const reject = (kind) => {
+      if (kind !== 'duplicate') sounds.miss()
+      setLastResult({ kind, word, path: null, id: ++resultIdRef.current })
+      return kind
+    }
 
-    if (word.length < MIN_WORD_LENGTH) {
-      sounds.miss()
-      setLastResult({ kind: 'invalid', path: null, id: ++resultIdRef.current })
-      return
-    }
-    if (foundWordsRef.current.has(word)) {
-      setLastResult({ kind: 'duplicate', path: null, id: ++resultIdRef.current })
-      return
-    }
-    if (!dict.has(word)) {
-      sounds.miss()
-      setLastResult({ kind: 'invalid', path: null, id: ++resultIdRef.current })
-      return
-    }
+    if (word.length < MIN_WORD_LENGTH) return reject('short')
+    if (foundWordsRef.current.has(word)) return reject('duplicate')
+    if (!dict.has(word)) return reject('notword')
     const path = findPath(grid, word)
-    if (!path) {
-      sounds.miss()
-      setLastResult({ kind: 'invalid', path: null, id: ++resultIdRef.current })
-      return
-    }
+    if (!path) return reject('notconnected')
 
-    // Valid new word — optimistic local update, then best-effort persist.
+    // Valid new word — optimistic local update, then persist. A failed write
+    // is surfaced and rolled back so the score on screen never exceeds the
+    // verified final score.
     foundWordsRef.current.add(word)
     const newWords = [...myWordsRef.current, word]
     myWordsRef.current = newWords
@@ -599,17 +718,43 @@ export default function WordHuntGame({
     setMyWords(newWords)
     setMyScore(newScore)
     const pts = scoreWord(word)
-    setLastResult({ kind: 'valid', path, amount: pts, id: ++resultIdRef.current })
+    setLastResult({ kind: 'valid', word, path, amount: pts, id: ++resultIdRef.current })
     sounds.hit(newWords.length)
 
-    const idx = newWords.length - 1
+    const idx = nextIndexRef.current
+    nextIndexRef.current += 1
+    const roundGrid = grid
     update(ref(db, `games/${gameId}`), {
       [`wordhuntWords${myKey}/${idx}`]: word,
       [`wordhuntScore${myKey}`]: newScore,
-    }).catch(() => {})
+    }).catch(() => {
+      if (prevGridRef.current !== roundGrid) return // round already moved on
+      foundWordsRef.current.delete(word)
+      const reverted = myWordsRef.current.filter(w => w !== word)
+      myWordsRef.current = reverted
+      setMyWords(reverted)
+      setMyScore(scoreWords(reverted))
+      toast.error(`${word.toUpperCase()} NOT SAVED — CHECK CONNECTION`)
+    })
+    return 'valid'
   }, [dict, isPlaying, myDone, grid, gameId, myKey])
 
-  const matchWinner = (game.scores?.X || 0) >= MATCH_WINS ? 'X' : (game.scores?.O || 0) >= MATCH_WINS ? 'O' : null
+  const matchTarget = getGameConfig('wordhunt').matchTarget || MATCH_WINS
+  const matchWinner = (game.scores?.X || 0) >= matchTarget ? 'X' : (game.scores?.O || 0) >= matchTarget ? 'O' : null
+  const isSpectator = !mySymbol
+  const presence = isSpectator
+    ? { X: game.presence?.X?.online, O: game.presence?.O?.online }
+    : { [myKey]: true, [opKey]: opponentOnline !== false }
+  const rail = (
+    <MatchScoreRail
+      game={game}
+      mySymbol={mySymbol}
+      isSpectator={isSpectator}
+      matchTarget={matchTarget}
+      title="WORD HUNT"
+      presence={presence}
+    />
+  )
 
   // Dictionary-load status block, reused wherever a screen needs `dict` to be
   // ready (word verification at the end screen). Deliberately NOT a blanket
@@ -619,7 +764,7 @@ export default function WordHuntGame({
   // via serverNow) kept running underneath. Now those screens render
   // regardless; only the actions that truly need `dict` are gated on it.
   const dictLoader = (
-    <div className="min-h-screen bg-retro-bg flex items-center justify-center">
+    <div className="flex items-center justify-center py-4">
       <div className="flex flex-col items-center">
         <LoadingLine />
         {dictError && (
@@ -640,21 +785,55 @@ export default function WordHuntGame({
 
   // ── render: finished ──────────────────────────────────────────────
 
+  // Round or match over — the verdict transaction, or the platform's CLAIM
+  // WIN ending it mid-round. Input stops; match state comes from game.scores.
+  const statusBlock = (
+    <GameStatus
+      status={game.status} winner={game.winner} mySymbol={mySymbol}
+      scores={game.scores} players={game.players} gameType={game.gameType}
+      matchTarget={matchTarget}
+      onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
+      onNewMatch={matchWinner && !proposal ? onNewMatch : null}
+      onSwitchGame={!proposal ? onSwitchGame : null}
+    />
+  )
+
+  if (game.status === 'finished' && !dict) {
+    return (
+      <div className="space-y-4">
+        {rail}
+        <div className="rounded border border-retro-border bg-retro-card p-4 text-center space-y-2">
+          <p className="font-pixel text-[9px] text-retro-dim">CHECKING WORDS…</p>
+          {dictLoader}
+        </div>
+        {statusBlock}
+      </div>
+    )
+  }
+
   if (game.status === 'finished') {
-    if (!dict) return dictLoader
     const xWords = normalizeWordList(game.wordhuntWordsX)
     const oWords = normalizeWordList(game.wordhuntWordsO)
-    const scoreX = game.wordhuntScoreX ?? 0
-    const scoreO = game.wordhuntScoreO ?? 0
-    const verify = (words) => words.filter(w => !(dict.has(w) && findPath(grid, w)))
-    const mismatchesX = verify(xWords)
-    const mismatchesO = verify(oWords)
+    // Recomputed here too: a CLAIM WIN mid-round finishes without the verdict
+    // transaction, and self-reported totals are never shown as final.
+    const verifiedX = verifyWords(xWords, grid, dict)
+    const verifiedO = verifyWords(oWords, grid, dict)
+    const verdict = compareHunt(verifiedX.words, verifiedO.words)
+    const scoreX = verdict.scoreX
+    const scoreO = verdict.scoreO
+    const mismatchesX = verifiedX.rejected
+    const mismatchesO = verifiedO.rejected
+    // Only explain the tie-break when the stored verdict is the computed one.
+    const decidedBy = game.winner === verdict.winner ? verdict.decidedBy : null
     const viewerKey = mySymbol === 'O' ? 'O' : 'X'
     const otherKey = viewerKey === 'X' ? 'O' : 'X'
+    const missed = topMissedWords(grid, dict, [verifiedX.words, verifiedO.words])
+    const gridTotal = solveGrid(grid, dict).length
 
     return (
       <div className="space-y-4">
-        <ResultsPanel scoreX={scoreX} scoreO={scoreO} players={game.players} winner={game.winner} />
+        {rail}
+        <ResultsPanel scoreX={scoreX} scoreO={scoreO} players={game.players} winner={game.winner} decidedBy={decidedBy} />
         <EndPanels
           myWords={viewerKey === 'X' ? xWords : oWords}
           oppWords={viewerKey === 'X' ? oWords : xWords}
@@ -664,13 +843,8 @@ export default function WordHuntGame({
           myMismatches={viewerKey === 'X' ? mismatchesX : mismatchesO}
           oppMismatches={viewerKey === 'X' ? mismatchesO : mismatchesX}
         />
-        <GameStatus
-          status={game.status} winner={game.winner} mySymbol={mySymbol}
-          scores={game.scores} players={game.players} gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
-          onNewMatch={matchWinner && !proposal ? onNewMatch : null}
-          onSwitchGame={!proposal ? onSwitchGame : null}
-        />
+        <TopMissed words={missed} total={gridTotal} />
+        {statusBlock}
       </div>
     )
   }
@@ -680,7 +854,9 @@ export default function WordHuntGame({
   if (!mySymbol) {
     return (
       <div className="space-y-4">
+        {rail}
         <SpectatorCard game={game} statusOverride={!startedAt ? 'WAITING TO START' : undefined} />
+        {isPlaying && <RoundTimer endsAt={deadline} now={serverNow} totalMs={ROUND_MS} />}
         {isPlaying && (
           <ScoreBar
             myScore={game.wordhuntScoreX ?? 0} oppScore={game.wordhuntScoreO ?? 0}
@@ -695,22 +871,30 @@ export default function WordHuntGame({
   // ── render: waiting to start ──────────────────────────────────────
 
   if (!startedAt) {
+    const oppLobbyName = game.players?.[opKey]?.name?.toUpperCase() ?? 'OPPONENT'
     return (
       <div className="space-y-4">
+        {rail}
         <div className="bg-retro-card border border-retro-border rounded p-6 text-center space-y-4">
           <p className="font-pixel text-[9px] text-retro-cta">WORD HUNT</p>
           <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left mx-auto w-fit">
             <p>● SAME GRID FOR BOTH · TRACE ADJACENT TILES</p>
             <p>✎ ≥3 LETTERS · NO REUSING A TILE · Qu COUNTS AS 2</p>
-            <p>⏱ 80-SECOND HUNT · HIGHEST SCORE WINS</p>
+            <p>⏱ 80-SECOND HUNT · MOST POINTS WINS</p>
+            <p>= TIES: MORE WORDS, THEN LONGEST WORD</p>
           </div>
           <button
             onClick={handleReady}
-            disabled={readying || !dict}
+            disabled={readying || !dict || myReady}
             className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
           >
-            {!dict ? 'LOADING DICTIONARY…' : readying ? 'STARTING…' : 'READY'}
+            {!dict ? 'LOADING WORDS…' : readying ? 'READYING…' : myReady ? 'READY ✓' : 'READY'}
           </button>
+          <p className="font-pixel text-[8px] text-retro-dim" role="status" aria-live="polite">
+            {myReady
+              ? (oppReady ? 'BOTH READY — STARTING…' : `WAITING FOR ${oppLobbyName} TO PRESS READY…`)
+              : oppReady ? `${oppLobbyName} IS READY` : 'THE CLOCK STARTS WHEN BOTH PLAYERS ARE READY'}
+          </p>
           {!dict && dictError && (
             <>
               <p className="font-pixel text-[9px] text-retro-p2">COULDN&apos;T LOAD WORD LIST</p>
@@ -734,6 +918,7 @@ export default function WordHuntGame({
   if (isCountdown) {
     return (
       <div className="space-y-4">
+        {rail}
         <div className="bg-retro-card border border-retro-border rounded p-8 text-center space-y-3">
           <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
           <p className="font-pixel text-7xl text-retro-win text-glow-win">{countdownSec}</p>
@@ -752,25 +937,13 @@ export default function WordHuntGame({
 
     return (
       <div className="space-y-3">
-        {/* Header: time + scores */}
-        <div className="flex items-center gap-2">
-          <div className="bg-retro-card border border-retro-border rounded px-3 py-1.5 text-center min-w-[4rem]">
-            <p className={cn(
-              'font-pixel text-[18px] tabular-nums leading-none',
-              timeLeftMs < 10_000 ? 'text-retro-p2 text-glow-p2 arcade-blink' : 'text-retro-win',
-            )}>
-              {fmtTime(timeLeftMs)}
-            </p>
-            <p className="font-pixel text-[7px] text-retro-dim mt-0.5">TIME LEFT</p>
-          </div>
-          <div className="flex-1">
-            <ScoreBar
-              myScore={myScore} oppScore={oppScore}
-              myLabel={game.players?.[myKey]?.name} oppLabel={game.players?.[opKey]?.name}
-              mySymbol={myKey}
-            />
-          </div>
-        </div>
+        {rail}
+        <RoundTimer endsAt={deadline} now={serverNow} totalMs={ROUND_MS} />
+        <ScoreBar
+          myScore={myScore} oppScore={oppScore}
+          myLabel={game.players?.[myKey]?.name} oppLabel={game.players?.[opKey]?.name}
+          mySymbol={myKey}
+        />
 
         <p className="font-pixel text-[8px] text-retro-dim text-center">
           {oppName} · {oppWordsCount} WORD{oppWordsCount === 1 ? '' : 'S'} FOUND
@@ -818,11 +991,14 @@ export default function WordHuntGame({
 
   return (
     <div className="space-y-4">
+      {rail}
       <div className="bg-retro-card border border-retro-border rounded p-6 text-center space-y-3">
         <div className="flex justify-center">
           <PixelDots tone="cta" size="lg" glow />
         </div>
-        <p className="font-pixel text-[9px] text-retro-dim arcade-blink">TALLYING SCORES…</p>
+        <p className="font-pixel text-[9px] text-retro-dim arcade-blink">
+          {dict || !mySymbol ? 'CHECKING WORDS…' : 'LOADING WORDS TO CHECK SCORES…'}
+        </p>
       </div>
     </div>
   )

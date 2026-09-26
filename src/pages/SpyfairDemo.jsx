@@ -17,6 +17,8 @@ import {
   assignRoles,
   matchWinners,
   pickLocationIndex,
+  pickSpy,
+  recordSpy,
   resolveVote,
   scoreRound,
 } from '../lib/spyfairLogic'
@@ -58,14 +60,36 @@ function allParticipantIds(state) {
   return [...state.roster.map(b => b.id), HUMAN_ID]
 }
 
-// Round scoring — the shared spyfairLogic rules the live room's resolveRound()
-// uses: spy caught (strict plurality on the spy, tie => NOT caught) means every
-// non-spy scores; otherwise the spy alone scores.
+// Round scoring — the shared spyfairLogic rules the live room uses: spy caught
+// (most votes landed on the spy; a tie for most accuses nobody) or a wrong spy
+// guess means every non-spy scores; an escape or a right guess scores the spy
+// alone. Everyone who reaches the match target on the same round shares the win.
 function finalizeRound(state, spyWon) {
   const ids = allParticipantIds(state)
   const scores = scoreRound(state.scores, ids, state.spyId, spyWon)
-  const matchWinnerId = matchWinners(ids, scores)[0] || null
-  return { scores, matchWinnerId }
+  const matchWinnerIds = matchWinners(ids, scores)
+  return { scores, matchWinnerId: matchWinnerIds[0] ?? null, matchWinnerIds }
+}
+
+// Deal the next round with the same helpers as multiplayer: the weighted spy
+// rotation (nobody twice in a row; players who haven't been spy are favored)
+// and the seen-history location picker.
+function dealDemoRound(state) {
+  const allIds = allParticipantIds(state)
+  const nextSpy = pickSpy(allIds, state.spyRotation)
+  const locationIndex = pickLocationIndex(state.seen, state.prevLocationIndex)
+  const { spyId, roles } = assignRoles(allIds, locationIndex, Math.random, nextSpy)
+  return { locationIndex, spyId, roles }
+}
+
+// Round-to-round memory folded in whenever a round is dealt (solo has no
+// spectators, so there's nothing to hide by waiting for the result).
+function rotationAfterDeal(state, { spyId, locationIndex }) {
+  return {
+    spyRotation: recordSpy(state.spyRotation, allParticipantIds(state), spyId),
+    prevLocationIndex: locationIndex,
+    seen: markSeen(state.seen, [locationIndex]),
+  }
 }
 
 // Shared "deal a fresh round" fields — used by both the very first round (from
@@ -85,6 +109,7 @@ function dealRoundFields({ locationIndex, spyId, roles }) {
     lastRoleWordSeen: '',
     accusedId: null,
     resultOutcome: null,
+    guessedIndex: null,
     locationGuessOpen: false,
   }
 }
@@ -96,7 +121,8 @@ function makeInitialState() {
     botCount,
     roster: generateBotRoster(botCount, Date.now()),
     round: 1,
-    prevLocationIndex: -1,
+    spyRotation: { spied: [], last: null }, // kept across PLAY AGAIN
+    prevLocationIndex: null,                // kept across PLAY AGAIN
     locationIndex: null,
     // Locations dealt this session (seenHistory map), kept across PLAY AGAIN the
     // way the live room keeps `seen/spyfair` across matches.
@@ -105,6 +131,7 @@ function makeInitialState() {
     roles: {},
     scores: {},
     matchWinnerId: null,
+    matchWinnerIds: [],
     secretRevealed: false,
     feed: [],
     timerEndsAt: null,
@@ -130,11 +157,11 @@ function reducer(state, action) {
       return {
         ...state,
         ...dealRoundFields(action),
+        ...rotationAfterDeal(state, action),
         round: 1,
         scores: {},
         matchWinnerId: null,
-        prevLocationIndex: action.locationIndex,
-        seen: markSeen(state.seen, [action.locationIndex]),
+        matchWinnerIds: [],
       }
 
     case 'PEEK_SECRET':
@@ -178,27 +205,29 @@ function reducer(state, action) {
         : state
 
     case 'OPEN_LOCATION_GUESS':
-      return state.phase === 'questioning' ? { ...state, locationGuessOpen: true } : state
+      return state.phase === 'questioning' || state.phase === 'vote' ? { ...state, locationGuessOpen: true } : state
 
     case 'CLOSE_LOCATION_GUESS':
       return { ...state, locationGuessOpen: false }
 
+    // One guess, during questioning or the vote — same rule as multiplayer:
+    // right wins the round for the spy, wrong loses it.
     case 'LOCATION_GUESS_RESULT': {
-      if (state.phase !== 'questioning') return state
-      if (action.correct) {
-        const { scores, matchWinnerId } = finalizeRound(state, true)
-        return {
-          ...state,
-          phase: matchWinnerId ? 'matchover' : 'result',
-          resultOutcome: 'guessed',
-          accusedId: null,
-          scores,
-          matchWinnerId,
-          locationGuessOpen: false,
-        }
+      if (state.phase !== 'questioning' && state.phase !== 'vote') return state
+      const { scores, matchWinnerId, matchWinnerIds } = finalizeRound(state, action.correct)
+      return {
+        ...state,
+        phase: matchWinnerId ? 'matchover' : 'result',
+        resultOutcome: action.correct ? 'guessed' : 'wrongGuess',
+        guessedIndex: action.index,
+        accusedId: null,
+        scores,
+        matchWinnerId,
+        matchWinnerIds,
+        paused: false,
+        pendingAsk: null,
+        locationGuessOpen: false,
       }
-      // Failed gamble: forfeits the rest of questioning, straight to vote.
-      return { ...state, phase: 'vote', votes: {}, paused: false, pendingAsk: null, locationGuessOpen: false }
     }
 
     case 'CAST_VOTE': {
@@ -207,7 +236,7 @@ function reducer(state, action) {
       const total = state.roster.length + 1
       if (Object.keys(votes).length < total) return { ...state, votes }
       const { accused, spyWon } = resolveVote(votes, state.spyId)
-      const { scores, matchWinnerId } = finalizeRound(state, spyWon)
+      const { scores, matchWinnerId, matchWinnerIds } = finalizeRound(state, spyWon)
       return {
         ...state,
         votes,
@@ -216,18 +245,13 @@ function reducer(state, action) {
         accusedId: accused,
         scores,
         matchWinnerId,
+        matchWinnerIds,
       }
     }
 
     case 'NEXT_ROUND':
       return state.phase === 'result'
-        ? {
-          ...state,
-          ...dealRoundFields(action),
-          round: state.round + 1,
-          prevLocationIndex: action.locationIndex,
-          seen: markSeen(state.seen, [action.locationIndex]),
-        }
+        ? { ...state, ...dealRoundFields(action), ...rotationAfterDeal(state, action), round: state.round + 1 }
         : state
 
     case 'PLAY_AGAIN':
@@ -240,12 +264,12 @@ function reducer(state, action) {
         phase: 'setup',
         roster: action.roster,
         round: 1,
-        prevLocationIndex: -1,
         locationIndex: null,
         spyId: null,
         roles: {},
         scores: {},
         matchWinnerId: null,
+        matchWinnerIds: [],
         secretRevealed: false,
         feed: [],
         timerEndsAt: null,
@@ -368,15 +392,15 @@ export default function SpyfairDemo() {
   // --- Result/matchover stingers ---
   useEffect(() => {
     if (state.phase === 'result' && prevPhaseRef.current !== 'result') {
-      const spyWon = state.resultOutcome !== 'caught'
+      const spyWon = state.resultOutcome === 'escaped' || state.resultOutcome === 'guessed'
       if (amSpy) (spyWon ? sounds.win : sounds.lose)()
       else (spyWon ? sounds.lose : sounds.win)()
     }
     if (state.phase === 'matchover' && prevPhaseRef.current !== 'matchover') {
-      (state.matchWinnerId === HUMAN_ID ? sounds.matchWin : sounds.lose)()
+      ((state.matchWinnerIds || []).includes(HUMAN_ID) ? sounds.matchWin : sounds.lose)()
     }
     prevPhaseRef.current = state.phase
-  }, [state.phase, state.resultOutcome, state.matchWinnerId, amSpy])
+  }, [state.phase, state.resultOutcome, state.matchWinnerIds, amSpy])
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -387,10 +411,7 @@ export default function SpyfairDemo() {
   }
 
   const handleStart = () => {
-    const allIds = [...state.roster.map(b => b.id), HUMAN_ID]
-    const locationIndex = pickLocationIndex(state.seen, state.prevLocationIndex)
-    const { spyId, roles } = assignRoles(allIds, locationIndex)
-    dispatch({ type: 'START_MATCH', locationIndex, spyId, roles })
+    dispatch({ type: 'START_MATCH', ...dealDemoRound(state) })
   }
 
   const handlePeek = () => { dispatch({ type: 'PEEK_SECRET' }); sounds.hit() }
@@ -406,7 +427,7 @@ export default function SpyfairDemo() {
 
   const handleGuessLocation = (index) => {
     const correct = index === state.locationIndex
-    dispatch({ type: 'LOCATION_GUESS_RESULT', correct })
+    dispatch({ type: 'LOCATION_GUESS_RESULT', correct, index })
     if (correct) sounds.hit()
     else sounds.miss()
   }
@@ -423,10 +444,7 @@ export default function SpyfairDemo() {
   }
 
   const handleNextRound = () => {
-    const allIds = [...state.roster.map(b => b.id), HUMAN_ID]
-    const locationIndex = pickLocationIndex(state.seen, state.locationIndex)
-    const { spyId, roles } = assignRoles(allIds, locationIndex)
-    dispatch({ type: 'NEXT_ROUND', locationIndex, spyId, roles })
+    dispatch({ type: 'NEXT_ROUND', ...dealDemoRound(state) })
   }
 
   const handlePlayAgain = () => {
@@ -478,8 +496,8 @@ export default function SpyfairDemo() {
                 <p className="font-pixel text-[9px] text-retro-p2 tracking-widest">YOU ARE THE</p>
                 <p className="font-pixel text-xl text-retro-p2 text-glow-p2">SPY</p>
                 <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
-                  You don&apos;t know the location. Blend in, deflect, and listen for
-                  a role to steal a guess — or just survive the vote.
+                  You don&apos;t know the location. Blend in and survive the vote — or
+                  listen for clues and guess it. One guess: right wins the round, wrong loses it.
                 </p>
               </>
             ) : (
@@ -562,38 +580,13 @@ export default function SpyfairDemo() {
           )}
 
           {amSpy && (
-            <div className="text-center">
-              <button
-                onClick={handleOpenLocationGuess}
-                disabled={state.paused}
-                className="px-4 py-2 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
-              >
-                GUESS THE LOCATION
-              </button>
-            </div>
-          )}
-
-          {state.locationGuessOpen && (
-            <div className="bg-retro-card border-2 border-retro-cta rounded p-3 space-y-2">
-              <p className="font-pixel text-[9px] text-retro-cta text-center">WHERE ARE THEY?</p>
-              <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
-                {SPYFAIR_LOCATIONS.map((loc, i) => (
-                  <button
-                    key={loc.name}
-                    onClick={() => handleGuessLocation(i)}
-                    className="px-2 py-1.5 border border-retro-border rounded font-mono text-[9px] text-retro-text hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
-                  >
-                    {loc.name}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={handleCloseLocationGuess}
-                className="w-full px-3 py-1.5 font-pixel text-[9px] text-retro-dim hover:text-retro-text transition-all"
-              >
-                CANCEL
-              </button>
-            </div>
+            <LocationGuess
+              open={state.locationGuessOpen}
+              disabled={state.paused}
+              onOpen={handleOpenLocationGuess}
+              onClose={handleCloseLocationGuess}
+              onGuess={handleGuessLocation}
+            />
           )}
 
           <div className="text-center">
@@ -644,6 +637,17 @@ export default function SpyfairDemo() {
           <p className="text-center font-pixel text-[9px] text-retro-dim">
             {Object.keys(state.votes).length}/{state.roster.length + 1} VOTED
           </p>
+          <p className="text-center font-mono text-[10px] text-retro-dim">
+            Most votes is accused. A tie for most votes lets the spy escape.
+          </p>
+          {amSpy && (
+            <LocationGuess
+              open={state.locationGuessOpen}
+              onOpen={handleOpenLocationGuess}
+              onClose={handleCloseLocationGuess}
+              onGuess={handleGuessLocation}
+            />
+          )}
         </div>
       )}
 
@@ -660,13 +664,53 @@ export default function SpyfairDemo() {
   )
 }
 
+// The spy's one location guess — available during questioning and the vote.
+function LocationGuess({ open, disabled = false, onOpen, onClose, onGuess }) {
+  if (!open) {
+    return (
+      <div className="text-center">
+        <button
+          onClick={onOpen}
+          disabled={disabled}
+          className="px-4 py-2 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+        >
+          GUESS THE LOCATION
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="bg-retro-card border-2 border-retro-cta rounded p-3 space-y-2">
+      <p className="font-pixel text-[9px] text-retro-cta text-center">WHERE ARE THEY? ONE GUESS — WRONG LOSES THE ROUND</p>
+      <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
+        {SPYFAIR_LOCATIONS.map((loc, i) => (
+          <button
+            key={loc.name}
+            onClick={() => onGuess(i)}
+            className="px-2 py-1.5 border border-retro-border rounded font-mono text-[9px] text-retro-text hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
+          >
+            {loc.name}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={onClose}
+        className="w-full px-3 py-1.5 font-pixel text-[9px] text-retro-dim hover:text-retro-text transition-all"
+      >
+        CANCEL
+      </button>
+    </div>
+  )
+}
+
 function ResultPanel({ state, participants, onNextRound }) {
   const spy = participants[state.spyId]
   const accused = state.accusedId ? participants[state.accusedId] : null
-  const spyWon = state.resultOutcome !== 'caught'
-  const outcomeLabel = state.resultOutcome === 'guessed'
-    ? 'SPY GUESSED THE LOCATION'
-    : spyWon ? 'SPY ESCAPES!' : 'SPY CAUGHT!'
+  const spyWon = state.resultOutcome === 'escaped' || state.resultOutcome === 'guessed'
+  const outcomeLabel = state.resultOutcome === 'guessed' ? 'SPY NAMED THE LOCATION!'
+    : state.resultOutcome === 'wrongGuess' ? 'SPY GUESSED WRONG!'
+      : spyWon ? 'SPY ESCAPES!' : 'SPY CAUGHT!'
+  const guessedName = state.guessedIndex != null ? SPYFAIR_LOCATIONS[state.guessedIndex]?.name : null
   const locationName = state.locationIndex != null ? SPYFAIR_LOCATIONS[state.locationIndex].name : '???'
   const voteEntries = Object.entries(state.votes)
 
@@ -682,8 +726,14 @@ function ResultPanel({ state, participants, onNextRound }) {
         <p className="font-mono text-[11px] text-retro-dim">
           The location was <span className="text-retro-cta text-glow-cta">{locationName}</span>
         </p>
+        {(state.resultOutcome === 'guessed' || state.resultOutcome === 'wrongGuess') && guessedName && (
+          <p className="font-mono text-[10px] text-retro-dim">The spy guessed: {guessedName}</p>
+        )}
         {accused && (
-          <p className="font-mono text-[10px] text-retro-dim">Most accused: {accused.name}</p>
+          <p className="font-mono text-[10px] text-retro-dim">Most votes: {accused.name}</p>
+        )}
+        {state.resultOutcome === 'escaped' && !accused && (
+          <p className="font-mono text-[10px] text-retro-dim">Tie for most votes — nobody accused</p>
         )}
         {state.spyId === HUMAN_ID && (
           <p className="font-pixel text-[9px] text-retro-p2">
@@ -717,14 +767,19 @@ function ResultPanel({ state, participants, onNextRound }) {
 }
 
 function MatchOverPanel({ state, participants, onPlayAgain }) {
-  const iWon = state.matchWinnerId === HUMAN_ID
-  const winner = participants[state.matchWinnerId]
+  const winnerIds = state.matchWinnerIds?.length ? state.matchWinnerIds : [state.matchWinnerId].filter(Boolean)
+  const iWon = winnerIds.includes(HUMAN_ID)
+  const names = winnerIds.map(id => participants[id]?.name || 'PLAYER')
+  const headline = iWon ? 'YOU WIN!' : winnerIds.length > 1 ? `${names.join(' & ')} WIN` : `${names[0] || 'PLAYER'} WINS`
   return (
     <div className="space-y-5 text-center">
       <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
       <p className={cn('font-pixel text-base', iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
-        {iWon ? 'YOU WIN!' : `${winner?.name || 'PLAYER'} WINS`}
+        {headline}
       </p>
+      {winnerIds.length > 1 && (
+        <p className="font-pixel text-[9px] text-retro-dim">SHARED VICTORY</p>
+      )}
       <ScoreRow state={state} participants={participants} />
       <button
         onClick={onPlayAgain}

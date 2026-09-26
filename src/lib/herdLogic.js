@@ -5,19 +5,25 @@
 //   { phase: 'answering' | 'reveal',
 //     promptIndex: number,          // index into seededShuffle(HERD_PROMPTS, deckSeed)
 //     deckSeed: number,             // set once at match start; same order on every client
-//     answers: { [uid]: { commit } },// salted SHA-256 commitment — the plaintext is
-//                                   // tab-local (sessionStorage) until the reveal.
-//                                   // Legacy rounds may hold a plaintext string.
+//     answers: { [uid]: { commit, at } },// salted SHA-256 commitment + lock-in time
+//                                   // (server clock). The plaintext is tab-local
+//                                   // (sessionStorage) until the reveal. Legacy
+//                                   // rounds may hold a plaintext string.
 //     reveals: { [uid]: { text, salt } }, // published by each player ONLY once
 //                                   // phase === 'reveal' (never during answering)
-//     startedAt: epoch-ms,          // answering start (server-corrected clock)
+//     startedAt: epoch-ms,          // answering start (server clock). Rounds start
+//                                   // with it unset; the coordinator arms it once
+//                                   // (armAnswerDeadline) — never a client's Date.now()
 //     endsAt: epoch-ms,             // answering deadline as written (legacy / display);
 //                                   // the live deadline is answerDeadline(round, timerScale)
 //     revealAt: epoch-ms,           // when the reveal opened; scoring waits for every
 //                                   // committed reveal or REVEAL_GRACE_MS after this
 //     tally: { [uid]: text },       // the verified answers that were scored
 //     cheats: { [uid]: true },      // reveal failed commitment verification
-//     scored: true }                // scores + cow applied once, idempotently
+//     scored: true,                 // scores + cow applied once, idempotently
+//     cowTo, cowMoved,              // Pink Cow outcome of this round
+//     nextAt: epoch-ms,             // auto-advance time (scaled REVEAL_ADVANCE_MS; unset when timers are off)
+//     winners: [uid] }              // set on the round that ends the match
 //
 // Top-level keys on games/{gameId}:
 //   scores/{uid}: number            // 1 point per winning-group member per round
@@ -31,6 +37,8 @@
 
 import { seededShuffle } from './fibbageLogic'
 import { scaledMs } from './timerScale'
+import { matchKey, normalizeText } from './textMatchLogic'
+import { isBannedWord } from './wordDenylist'
 
 // Points needed to win the match — but never while holding the Cow.
 export const HERD_TARGET = 8
@@ -38,52 +46,77 @@ export const HERD_TARGET = 8
 // Answering phase length (ms), measured on the server-corrected clock.
 export const ANSWER_MS = 45000
 
+// How long a scored reveal stays up before the next prompt starts on its own.
+export const REVEAL_ADVANCE_MS = 10000
+
 export { seededShuffle }
 
 // ---------------------------------------------------------------------------
-// normalizeAnswer — the plural-folding normalizer every client groups with.
-// Deterministic by construction: same input → same output everywhere.
+// normalizeAnswer — the grouping key every client groups with. Delegates to the
+// shared textMatchLogic.matchKey so answers players would call "the same" land
+// in one group: case, accents, punctuation, a leading article, "&" → "and",
+// spaces/hyphens and English plurals (dogs, cherries, tomatoes, glasses) all
+// fold. Deterministic by construction: same input → same key everywhere.
+// The key is for comparison only — never display it (see groupAnswers.display).
 // ---------------------------------------------------------------------------
-
-// Lowercase → trim → strip punctuation → collapse whitespace → naive plural
-// fold: drop ONE trailing 's' only when ALL guards pass:
-//   1. the word does not end in 'ss'      ('chess', 'class', 'bus' stay whole —
-//                                          a min-stem/vowel guard alone CANNOT
-//                                          save 'chess': 'ches' is 4 chars with
-//                                          a vowel, so the ss-guard is required)
-//   2. the stem is at least 4 chars       ('bus'→'bu', 'lens'→'len' rejected)
-//   3. the stem contains a vowel          ('rhythms' keeps its s)
-// So 'tacos' == 'taco' but 'chess' != 'ches'. Exact heuristic is unit-tested
-// and easy to tune (see docs/prds/herd-mind.md).
 export function normalizeAnswer(answer) {
-  let s = String(answer ?? '').toLowerCase().trim()
-  s = s.replace(/[^\p{L}\p{N}\s]/gu, '') // strip punctuation (keep letters/digits/spaces)
-  s = s.replace(/\s+/g, ' ').trim() // collapse whitespace runs
-  if (s.endsWith('s') && !s.endsWith('ss')) {
-    const stem = s.slice(0, -1)
-    if (stem.length >= 4 && /[aeiou]/.test(stem)) s = stem
+  return matchKey(answer)
+}
+
+// How a raw answer counts as "the same spelling" when picking what to display:
+// trimmed, whitespace collapsed, case-insensitive.
+function spellingKey(text) {
+  return String(text ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+// The spelling to show for a group: the most common raw spelling among its
+// answers; ties go to the spelling submitted first. `texts` is in submission
+// order.
+export function displaySpelling(texts) {
+  const counts = new Map()
+  const firstSeen = new Map()
+  texts.forEach((t, i) => {
+    const k = spellingKey(t)
+    if (!k) return
+    counts.set(k, (counts.get(k) || 0) + 1)
+    if (!firstSeen.has(k)) firstSeen.set(k, { i, text: String(t).trim().replace(/\s+/g, ' ') })
+  })
+  let best = null
+  for (const [k, n] of counts) {
+    const cand = { n, ...firstSeen.get(k) }
+    if (!best || cand.n > best.n || (cand.n === best.n && cand.i < best.i)) best = cand
   }
-  return s
+  return best ? best.text : ''
 }
 
 // ---------------------------------------------------------------------------
-// groupAnswers — exact-match grouping on the normalized form.
+// groupAnswers — exact-match grouping on the normalized key.
 // answers: { [uid]: text }. Blank/whitespace answers are non-answers: excluded
 // from grouping AND from cow logic (empty ≠ singleton).
-// Returns [{ norm, members: [uid] }] sorted biggest-first; equal sizes break
-// ties alphabetically by norm so EVERY client derives an identical order.
+// submitOrder (optional): uids in the order they answered — decides which
+// spelling a group displays on a tie. Uids not listed follow in key order.
+// Returns [{ norm, display, members: [uid] }] sorted biggest-first; equal sizes
+// break ties alphabetically by norm so EVERY client derives an identical order.
 // Members are sorted lexicographically for the same reason.
 // ---------------------------------------------------------------------------
-export function groupAnswers(answers) {
+export function groupAnswers(answers, submitOrder = null) {
+  const entries = Object.entries(answers || {})
+  if (Array.isArray(submitOrder) && submitOrder.length) {
+    const rank = new Map(submitOrder.map((uid, i) => [uid, i]))
+    const at = uid => (rank.has(uid) ? rank.get(uid) : submitOrder.length)
+    entries.sort((a, b) => at(a[0]) - at(b[0]))
+  }
   const byNorm = new Map()
-  for (const [uid, text] of Object.entries(answers || {})) {
+  for (const [uid, text] of entries) {
     const norm = normalizeAnswer(text)
     if (!norm) continue // non-answer
-    if (!byNorm.has(norm)) byNorm.set(norm, [])
-    byNorm.get(norm).push(uid)
+    if (!byNorm.has(norm)) byNorm.set(norm, { members: [], texts: [] })
+    const g = byNorm.get(norm)
+    g.members.push(uid)
+    g.texts.push(text)
   }
   return [...byNorm.entries()]
-    .map(([norm, members]) => ({ norm, members: members.sort() }))
+    .map(([norm, g]) => ({ norm, display: displaySpelling(g.texts), members: g.members.sort() }))
     .sort((a, b) => (b.members.length - a.members.length) || a.norm.localeCompare(b.norm))
 }
 
@@ -130,18 +163,25 @@ export function nextCow(groups, currentCow = null, answeredUids = []) {
 }
 
 // ---------------------------------------------------------------------------
-// getMatchWinner — first player to reach `target` points WHILE NOT holding the
-// Cow. Reaching 8 WITH the Cow blocks: play continues until they shed it.
-// Iterates Object key order (stable insertion order; the host applies the win
-// once via the standard finish flow, so ordering ambiguity never matters).
-// Returns the winner uid or null.
+// getMatchWinners — the match ends once any player WITHOUT the Cow reaches
+// `target`. Among those, the highest score wins; players level on that score
+// are co-winners. Seat order and key order never decide it. Reaching the
+// target WITH the Cow blocks: play continues until they shed it.
+// Returns winner uids sorted lexicographically ([] while nobody has won).
 // ---------------------------------------------------------------------------
+export function getMatchWinners(scoresByUid, cowUid = null, target = HERD_TARGET) {
+  const eligible = Object.entries(scoresByUid || {})
+    .filter(([uid, score]) => uid !== cowUid && (score || 0) >= target)
+  if (eligible.length === 0) return []
+  const top = Math.max(...eligible.map(([, score]) => score || 0))
+  return eligible.filter(([, score]) => (score || 0) === top).map(([uid]) => uid).sort()
+}
+
+// Single-winner form kept for existing callers: the highest-scoring eligible
+// player, or null. On an exact tie it returns the first co-winner by uid —
+// use getMatchWinners when co-winners matter.
 export function getMatchWinner(scoresByUid, cowUid = null, target = HERD_TARGET) {
-  for (const [uid, score] of Object.entries(scoresByUid || {})) {
-    if (uid === cowUid) continue // can't win with the Cow
-    if ((score || 0) >= target) return uid
-  }
-  return null
+  return getMatchWinners(scoresByUid, cowUid, target)[0] ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +204,7 @@ export function allAnswered(eligibleIds, answers) {
 
 // ---------------------------------------------------------------------------
 // Commit-reveal (anti-peek): during 'answering' clients publish only
-// answers/{uid} = { commit } — a salted SHA-256 of the answer, so a player
+// answers/{uid} = { commit, at } — a salted SHA-256 of the answer, so a player
 // watching network traffic learns nothing until the phase flips. At reveal,
 // each client publishes its own { text, salt } to reveals/{uid}; scoring runs
 // after a short grace so slow/tab-closed players simply count as non-answers.
@@ -241,21 +281,6 @@ export function scoredTexts(round) {
   return out
 }
 
-// One round's outcome from the verified texts: points to the biggest group(s)
-// (only for uids still seated), the Cow matrix, and the match winner.
-export function resolveHerdRound({ texts, scores, herdCow = null, seatIds }) {
-  const groups = groupAnswers(texts)
-  const { pointUids } = scoreGroups(groups)
-  const answeredUids = Object.keys(texts || {})
-  const { cow, transferred } = nextCow(groups, herdCow, answeredUids)
-  const seated = new Set(seatIds || [])
-  const newScores = { ...(scores || {}) }
-  for (const uid of pointUids) {
-    if (seated.has(uid)) newScores[uid] = (newScores[uid] || 0) + 1
-  }
-  return { groups, pointUids, cow, transferred, newScores, winner: getMatchWinner(newScores, cow) }
-}
-
 // True once every eligible seat holds a commitment ({ commit }) — or a legacy
 // plaintext string, so rounds written before commit-reveal still resolve.
 export function allCommitted(eligibleIds, answers) {
@@ -264,17 +289,94 @@ export function allCommitted(eligibleIds, answers) {
     eligibleIds.every(id => !!a[id] && (!!a[id].commit || typeof a[id] === 'string'))
 }
 
-// Derive the scorable text per uid from reveals + verification results. Only
-// uids whose reveal VERIFIED against their commitment (verifiedUids — the
-// async sha check lives in the caller via commit.verifyReveal) contribute,
-// and blanks are dropped like any other non-answer.
-export function collectRevealedTexts(reveals, verifiedUids) {
-  const ok = verifiedUids instanceof Set ? verifiedUids : new Set(verifiedUids || [])
-  const out = {}
-  for (const [uid, rev] of Object.entries(reveals || {})) {
-    if (!ok.has(uid)) continue
-    const text = String(rev?.text ?? '').trim()
-    if (text) out[uid] = text
+// Uids in the order they locked in: answers/{uid}.at ascending (missing
+// stamps last), uid as the tie-break so every client agrees.
+export function submitOrderOf(answers) {
+  const stamp = a => (a && typeof a === 'object' && Number.isFinite(a.at) ? a.at : Infinity)
+  return Object.entries(answers || {})
+    .sort(([ua, a], [ub, b]) => {
+      const d = stamp(a) - stamp(b)
+      return (Number.isNaN(d) ? 0 : d) || ua.localeCompare(ub)
+    })
+    .map(([uid]) => uid)
+}
+
+// Slurs and unambiguous vulgarity are refused as answers — checked per word
+// and on the whole answer with spaces removed ("f u c k").
+export function isBannedAnswer(text) {
+  const norm = normalizeText(text)
+  if (!norm) return false
+  return norm.split(' ').some(isBannedWord) || isBannedWord(norm.replace(/ /g, ''))
+}
+
+// ---------------------------------------------------------------------------
+// resolveHerdRound — one round's whole outcome, as the coordinator writes it.
+// texts: { [uid]: verified answer text }; banned answers count as non-answers.
+// Only seated uids (seatIds) score. Returns
+//   { groups, pointUids, cow, transferred, scores, winners }.
+// ---------------------------------------------------------------------------
+export function resolveHerdRound({
+  texts, submitOrder = null, scores = {}, cow = null, seatIds = null, target = HERD_TARGET,
+}) {
+  const clean = {}
+  for (const [uid, text] of Object.entries(texts || {})) {
+    if (!isBannedAnswer(text)) clean[uid] = text
   }
-  return out
+  const groups = groupAnswers(clean, submitOrder)
+  const { pointUids } = scoreGroups(groups)
+  const answeredUids = groups.flatMap(g => g.members)
+  const next = nextCow(groups, cow ?? null, answeredUids)
+  const seated = seatIds ? new Set(seatIds) : null
+  const newScores = { ...(scores || {}) }
+  for (const uid of pointUids) {
+    if (!seated || seated.has(uid)) newScores[uid] = (newScores[uid] || 0) + 1
+  }
+  return {
+    groups,
+    pointUids,
+    cow: next.cow,
+    transferred: next.transferred,
+    scores: newScores,
+    winners: getMatchWinners(newScores, next.cow, target),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Solo bots — each bot answers from the prompt's answer bank
+// (HERD_ANSWER_BANKS in decks/herd.js, most obvious answer first). Weights by
+// bank position: the obvious answer dominates so herds form, while the tail
+// still turns up often enough for singletons and the Pink Cow to happen.
+// ---------------------------------------------------------------------------
+export const HERD_BOT_WEIGHTS = [6, 3, 2, 1] // positions past the end weigh 1
+
+// Used only if a prompt ever ships without a bank.
+export const HERD_BOT_FALLBACK = ['pizza', 'dog', 'coffee', 'music']
+
+export function pickHerdBotAnswer(bank, rng = Math.random) {
+  const list = Array.isArray(bank) && bank.length > 0 ? bank : HERD_BOT_FALLBACK
+  const weights = list.map((_, i) => HERD_BOT_WEIGHTS[Math.min(i, HERD_BOT_WEIGHTS.length - 1)])
+  const total = weights.reduce((a, b) => a + b, 0)
+  let r = rng() * total
+  for (let i = 0; i < list.length; i++) {
+    r -= weights[i]
+    if (r < 0) return list[i]
+  }
+  return list[list.length - 1]
+}
+
+// ---------------------------------------------------------------------------
+// armAnswerDeadline — rounds start with no clock (the registry's startRound
+// can't read server time, and a host's local Date.now() skewed every other
+// player's countdown); the coordinator arms it once with the server-corrected
+// time: startedAt = now, endsAt = now + answerMs (the room-scaled window, or
+// null when timers are off — then only startedAt is stamped). Transaction
+// body: returns the updated round, or undefined (abort) when there is nothing
+// to do — wrong phase, a different prompt, or a clock already set (including
+// older rounds that shipped an endsAt).
+// ---------------------------------------------------------------------------
+export function armAnswerDeadline(round, expectedPromptIndex, serverNowMs, answerMs = ANSWER_MS) {
+  if (!round || round.phase !== 'answering') return undefined
+  if ((round.promptIndex ?? 0) !== expectedPromptIndex) return undefined
+  if (round.startedAt != null || round.endsAt != null) return undefined
+  return { ...round, startedAt: serverNowMs, endsAt: answerMs == null ? null : serverNowMs + answerMs }
 }

@@ -1,17 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
 import TypingKeyboard from '../../components/TypingKeyboard'
 import { cn } from '@/lib/utils'
+import { PASSAGES, countCorrectChars, computeWpm, computeAccuracy, computeEffWpm } from '../../lib/typingLogic'
 
-const DEMO_PASSAGE = "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How quickly daft jumping zebras vex."
 const BOT_WPM = 55
 
+// Scored like the room game: a random passage from its list, WPM and
+// accuracy from correctly typed characters (typingLogic), ranked by
+// accuracy-weighted effective WPM.
+// The bot types cleanly at BOT_WPM; finishing first doesn't end your race.
 export default function TypingDemo() {
   const [phase, setPhase]             = useState('idle')
+  const [passage, setPassage]         = useState(PASSAGES[0])
   const [countdownSec, setCDown]      = useState(3)
   const [typed, setTyped]             = useState('')
   const [botProgress, setBotProgress] = useState(0)
-  const [playerWpm, setPlayerWpm]     = useState(null)
-  const [playerAcc, setPlayerAcc]     = useState(null)
+  const [player, setPlayer]           = useState(null) // { wpm, acc, eff }
   const startTimeRef   = useRef(null)
   const finishedRef    = useRef(false)
   const botIntervalRef = useRef(null)
@@ -28,21 +32,23 @@ export default function TypingDemo() {
     return () => clearInterval(id)
   }, [phase])
 
-  // Bot at BOT_WPM chars/min (types correctly); detects its own finish inline
+  // Bot at BOT_WPM (5 chars per word), typing every character correctly
   useEffect(() => {
     if (phase !== 'racing') return
     const msPerChar = Math.round(60_000 / (BOT_WPM * 5))
     let progress = 0
     botIntervalRef.current = setInterval(() => {
-      progress = Math.min(progress + 1, DEMO_PASSAGE.length)
+      progress = Math.min(progress + 1, passage.length)
       setBotProgress(progress)
-      if (progress >= DEMO_PASSAGE.length) {
-        clearInterval(botIntervalRef.current)
-        setPhase('done')
-      }
+      if (progress >= passage.length) clearInterval(botIntervalRef.current)
     }, msPerChar)
     return () => clearInterval(botIntervalRef.current)
-  }, [phase])
+  }, [phase, passage])
+
+  const start = () => {
+    setPassage(PASSAGES[Math.floor(Math.random() * PASSAGES.length)])
+    setPhase('countdown')
+  }
 
   const handleKey = (char) => {
     if (phase !== 'racing' || finishedRef.current) return
@@ -55,22 +61,17 @@ export default function TypingDemo() {
       newTyped = lastSpace === -1 ? '' : typed.slice(0, lastSpace + 1)
       if (newTyped.length === typed.length) newTyped = typed.slice(0, -1)
     } else {
-      if (typed.length >= DEMO_PASSAGE.length) return
+      if (typed.length >= passage.length) return
       newTyped = typed + char
     }
     setTyped(newTyped)
-    if (newTyped.length === DEMO_PASSAGE.length) {
+    if (newTyped.length === passage.length) {
       finishedRef.current = true
       clearInterval(botIntervalRef.current)
-      const elapsed = Date.now() - startTimeRef.current
-      const wpm = Math.max(1, Math.round((DEMO_PASSAGE.length / 5) / (elapsed / 60_000)))
-      let matches = 0
-      for (let i = 0; i < newTyped.length; i++) {
-        if (newTyped[i] === DEMO_PASSAGE[i]) matches++
-      }
-      const acc = Math.round((matches / DEMO_PASSAGE.length) * 100)
-      setPlayerWpm(wpm)
-      setPlayerAcc(acc)
+      const correct = countCorrectChars(newTyped, passage)
+      const wpm = computeWpm(correct, Date.now() - startTimeRef.current)
+      const acc = computeAccuracy(correct, passage.length)
+      setPlayer({ wpm, acc, eff: computeEffWpm(wpm, acc) })
       setPhase('done')
     }
   }
@@ -79,41 +80,35 @@ export default function TypingDemo() {
     clearInterval(botIntervalRef.current)
     setPhase('idle'); setCDown(3)
     setTyped(''); setBotProgress(0)
-    setPlayerWpm(null); setPlayerAcc(null)
+    setPlayer(null)
     finishedRef.current = false
   }
 
   if (phase === 'done') {
-    const youFinished = playerWpm != null
-    const botAcc = 100
-    const botEffWpm = Math.round(BOT_WPM * botAcc / 100)
-    const playerEffWpm = youFinished ? Math.round(playerWpm * (playerAcc ?? 100) / 100) : 0
-    const youWon = youFinished && playerEffWpm > botEffWpm
+    const botEff = computeEffWpm(BOT_WPM, 100)
+    const outcome = player.eff > botEff ? 'win' : player.eff < botEff ? 'lose' : 'draw'
     return (
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: 'YOU', wpm: playerWpm, acc: playerAcc, eff: youFinished ? playerEffWpm : null, col: 'retro-p1', won: youWon },
-            { label: 'BOT', wpm: BOT_WPM,  acc: botAcc,    eff: botEffWpm,                          col: 'retro-p2', won: !youWon },
+            { label: 'YOU', ...player, col: 'retro-p1', won: outcome === 'win' },
+            { label: 'BOT', wpm: BOT_WPM, acc: 100, eff: botEff, col: 'retro-p2', won: outcome === 'lose' },
           ].map(({ label, wpm, acc, eff, col, won }) => (
             <div key={label} className={`bg-retro-card border border-${col}/50 rounded p-3 text-center space-y-1`}>
               <p className={`font-pixel text-[8px] text-${col}`}>{label}</p>
-              {wpm != null ? (
-                <>
-                  <p className={cn('font-pixel text-xl tabular-nums', won ? 'text-retro-win text-glow-win' : 'text-retro-text')}>{wpm}</p>
-                  <p className="font-pixel text-[8px] text-retro-dim">WPM</p>
-                  {acc != null && <p className="font-pixel text-[8px] text-retro-cta">{acc}% ACC</p>}
-                  {eff != null && <p className="font-pixel text-[8px] text-retro-dim">{eff} EFF</p>}
-                </>
-              ) : (
-                <p className="font-pixel text-lg text-retro-dim">DNF</p>
-              )}
+              <p className={cn('font-pixel text-xl tabular-nums', won ? 'text-retro-win text-glow-win' : 'text-retro-text')}>{wpm}</p>
+              <p className="font-pixel text-[8px] text-retro-dim">WPM</p>
+              <p className="font-pixel text-[8px] text-retro-cta">{acc}% ACC</p>
+              <p className="font-pixel text-[8px] text-retro-dim">{eff} EFF</p>
             </div>
           ))}
         </div>
         <p className="font-pixel text-[8px] text-retro-dim text-center">
-          {youWon ? <span className="text-retro-win">YOU WIN!</span> : youFinished ? <span className="text-retro-p2">BOT WINS!</span> : <span className="text-retro-p2">BOT FINISHED FIRST!</span>}
+          {outcome === 'win' ? <span className="text-retro-win">YOU WIN!</span>
+            : outcome === 'draw' ? <span className="text-retro-text">DRAW!</span>
+            : <span className="text-retro-p2">BOT WINS!</span>}
         </p>
+        <p className="font-mono text-[10px] text-retro-dim text-center">WPM counts correct characters only · EFF = WPM × accuracy</p>
         <button onClick={reset}
           className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
           PLAY AGAIN
@@ -123,6 +118,7 @@ export default function TypingDemo() {
   }
 
   const isRacing = phase === 'racing'
+  const botDone = botProgress >= passage.length
   return (
     <div className="space-y-3">
       {phase !== 'idle' && (
@@ -131,7 +127,7 @@ export default function TypingDemo() {
             { label: 'YOU', val: typed.length,  color: 'text-retro-p1' },
             { label: 'BOT', val: botProgress, color: 'text-retro-p2' },
           ].map(({ label, val, color }) => {
-            const pct = Math.round((val / DEMO_PASSAGE.length) * 100)
+            const pct = Math.round((val / passage.length) * 100)
             return (
               <div key={label} className="flex items-center gap-2">
                 <span className={cn('font-pixel text-[8px] w-8', color)}>{label}</span>
@@ -143,6 +139,11 @@ export default function TypingDemo() {
               </div>
             )
           })}
+          {isRacing && botDone && (
+            <p className="font-pixel text-[8px] text-retro-p2 text-center" aria-live="polite">
+              BOT FINISHED AT {BOT_WPM} WPM — FINISH YOURS, ACCURACY COUNTS
+            </p>
+          )}
         </div>
       )}
 
@@ -150,7 +151,7 @@ export default function TypingDemo() {
         {phase === 'idle' && (
           <div className="flex flex-col items-center gap-3 py-2">
             <p className="font-pixel text-[9px] text-retro-dim text-center">BEAT THE BOT · ERRORS HIGHLIGHTED · ⌫ CORRECTS</p>
-            <button onClick={() => setPhase('countdown')}
+            <button onClick={start}
               className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
               START
             </button>
@@ -162,14 +163,14 @@ export default function TypingDemo() {
             <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
           </div>
         )}
-        {(isRacing || phase === 'done') && (
+        {isRacing && (
           <p>
-            {DEMO_PASSAGE.split('').map((char, i) => {
+            {passage.split('').map((char, i) => {
               const isTyped   = i < typed.length
-              const isCorrect = isTyped && typed[i] === DEMO_PASSAGE[i]
+              const isCorrect = isTyped && typed[i] === passage[i]
               const isWrong   = isTyped && !isCorrect
-              const isCursor  = isRacing && i === typed.length
-              const isGhost   = isRacing && botProgress > 0 && i === botProgress && i !== typed.length
+              const isCursor  = i === typed.length
+              const isGhost   = botProgress > 0 && i === botProgress && i !== typed.length
               return (
                 <span key={i} className={cn(
                   isCorrect ? 'text-retro-text' :

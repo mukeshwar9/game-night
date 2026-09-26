@@ -10,8 +10,9 @@
 // Personas are `{ skill, acuity, boldness }`, each a float in 0..1, generated once
 // per bot and passed back into the per-decision functions by the caller.
 
-import { seededShuffle, hashString } from './fibbageLogic'
+import { seededShuffle, hashString, isTruthLike, sameOption } from './fibbageLogic'
 import { clampGuess } from './wavelengthLogic'
+import { matchKey } from './textMatchLogic'
 import { SHAPES, HUMANOIDS, TONES, makeAvatar } from './avatars'
 import { SPYFAIR_LOCATIONS } from './decks/spyfair'
 import {
@@ -32,8 +33,6 @@ const lerp = (a, b, t) => a + (b - a) * t
 function gaussianNoise(stdDev, rng) {
   return (rng() + rng() + rng() - 1.5) * stdDev
 }
-
-const norm = (s) => String(s ?? '').trim().toLowerCase()
 
 function pickRandom(arr, rng) {
   return arr[Math.floor(rng() * arr.length)]
@@ -108,9 +107,28 @@ export function pickBotClue(pair, usedWords, persona, rng = Math.random) {
   return { word: entry.word, target: clampGuess(entry.pos + gaussianNoise(4, rng)) }
 }
 
+// Legacy: guesses around the TRUE target. Solo play no longer uses it (bots
+// must not see the target — see pickBotGuessFromClue); kept for callers/tests.
 export function pickBotGuess(target, persona, rng = Math.random) {
   const stdDev = lerp(25, 4, persona.skill)
   return clampGuess(target + gaussianNoise(stdDev, rng))
+}
+
+// Spread (gaussianNoise stdDev argument) for a bot reading a clue it knows,
+// from a clumsy bot (skill 0) to a sharp one (skill 1), and for a clue it
+// doesn't know at all.
+export const BOT_CLUE_READ_SPREAD = { clumsy: 30, sharp: 8, unknown: 80 }
+
+// A bot guesser reads the CLUE, never the hidden target: if the clue is one of
+// the pair's clueBank words it aims at that word's position (noisier for less
+// skilled bots); a word it doesn't know gets a wide guess around the middle.
+export function pickBotGuessFromClue(pair, clueWord, persona, rng = Math.random) {
+  const key = matchKey(clueWord)
+  const entry = key ? (pair?.clueBank || []).find(e => matchKey(e.word) === key) : null
+  if (!entry) return clampGuess(50 + gaussianNoise(BOT_CLUE_READ_SPREAD.unknown, rng))
+  const skill = persona?.skill ?? 0.5
+  const spread = lerp(BOT_CLUE_READ_SPREAD.clumsy, BOT_CLUE_READ_SPREAD.sharp, skill)
+  return clampGuess(entry.pos + gaussianNoise(spread, rng))
 }
 
 // ---------------------------------------------------------------------------
@@ -119,8 +137,8 @@ export function pickBotGuess(target, persona, rng = Math.random) {
 
 // fact = { prompt, answer, decoys: [...] }
 export function pickBotLie(fact, usedDecoys, persona, rng = Math.random) {
-  const answerNorm = norm(fact.answer)
-  const eligible = (fact.decoys || []).filter(d => norm(d) !== answerNorm)
+  // Same rule human lies face: nothing that is really the truth (fibbageLogic.isTruthLike).
+  const eligible = (fact.decoys || []).filter(d => !isTruthLike(d, fact.answer))
   if (!eligible.length) return ''
   const used = usedDecoys instanceof Set ? usedDecoys : new Set(usedDecoys || [])
   const fresh = eligible.filter(d => !used.has(d))
@@ -130,10 +148,10 @@ export function pickBotLie(fact, usedDecoys, persona, rng = Math.random) {
 
 // options = [{ id, text }] (the shape produced by fibbageLogic's buildOptions)
 export function pickBotVote(options, answer, myLieText, persona, rng = Math.random) {
-  const answerNorm = norm(answer)
-  const myLieNorm = norm(myLieText)
-  const eligible = (options || []).filter(o => norm(o.text) !== myLieNorm)
-  const truthOption = eligible.find(o => norm(o.text) === answerNorm)
+  // Loose matching (fibbageLogic.sameOption): a merged duplicate of my own lie
+  // may carry another author's spelling.
+  const eligible = (options || []).filter(o => !myLieText || !sameOption(o.text, myLieText))
+  const truthOption = eligible.find(o => sameOption(o.text, answer))
   const truthProb = lerp(0.3, 0.6, persona.skill)
   if (truthOption && rng() < truthProb) return truthOption.id
   const distractors = eligible.filter(o => o.id !== truthOption?.id)
@@ -153,12 +171,85 @@ export function pickSpyfairLocation(prevIndex, rng = Math.random) {
   return idx
 }
 
-export function assignSpyfairRoles(rosterIds, locationIndex, rng = Math.random) {
+// Spyfair round-to-round memory, shared by multiplayer (stored on the room as
+// `spyfairRotation: { spied, recent }`) and the solo demo. Pure helpers below.
+
+// A location is not dealt again until this many other rounds have passed.
+export const SPYFAIR_RECENT_LOCATIONS = 5
+
+// Firebase returns a list as an array or a numeric-keyed object (and drops it
+// when empty) — read it back as a plain array in index order.
+export function normalizeIdList(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter(v => v != null)
+  if (typeof raw !== 'object') return []
+  return Object.keys(raw)
+    .filter(k => /^\d+$/.test(k))
+    .sort((a, b) => Number(a) - Number(b))
+    .map(k => raw[k])
+    .filter(v => v != null)
+}
+
+// Rotation bag: everyone at the table is spy once before anyone repeats.
+// `spied` lists who has been spy this cycle; players who left are ignored and
+// newcomers are simply eligible. When the bag is empty a new cycle starts —
+// skipping `lastSpy` so nobody is spy twice in a row across the boundary.
+// Returns { spyId, spied } (the updated list to store).
+export function pickSpyFromRotation(seatIds, spied, lastSpy = null, rng = Math.random) {
+  const seats = [...new Set((seatIds || []).filter(Boolean))]
+  if (!seats.length) return { spyId: null, spied: [] }
+  let done = normalizeIdList(spied).filter(id => seats.includes(id))
+  let eligible = seats.filter(id => !done.includes(id))
+  if (!eligible.length) {
+    done = []
+    eligible = seats.length > 1 ? seats.filter(id => id !== lastSpy) : seats
+  }
+  const spyId = eligible[Math.floor(rng() * eligible.length)]
+  return { spyId, spied: [...done, spyId] }
+}
+
+// Update the rotation bag once a round's spy is public (the result phase —
+// storing it at deal time would expose the spy in world-readable room data).
+// Mirrors pickSpyFromRotation: a spy drawn after the bag emptied starts a new
+// cycle; otherwise the spy is added to this cycle's list.
+export function recordSpy(spied, seatIds, spyId) {
+  if (!spyId) return normalizeIdList(spied)
+  const seats = [...new Set((seatIds || []).filter(Boolean))]
+  const done = normalizeIdList(spied).filter(id => seats.includes(id))
+  if (done.includes(spyId) || (seats.length > 0 && seats.every(id => done.includes(id)))) return [spyId]
+  return [...done, spyId]
+}
+
+// Pick a location not dealt in the last SPYFAIR_RECENT_LOCATIONS rounds
+// (`recent`, oldest first). Falls back to "anything but the latest" if the
+// deck is too small to honour the window.
+export function pickFreshLocation(recent, rng = Math.random, count = SPYFAIR_LOCATIONS.length) {
+  if (count <= 1) return 0
+  const recentList = normalizeIdList(recent).map(Number)
+  const avoid = new Set(recentList.slice(-SPYFAIR_RECENT_LOCATIONS))
+  let pool = []
+  for (let i = 0; i < count; i++) if (!avoid.has(i)) pool.push(i)
+  if (!pool.length) {
+    const last = recentList[recentList.length - 1]
+    for (let i = 0; i < count; i++) if (i !== last) pool.push(i)
+  }
+  return pool[Math.floor(rng() * pool.length)]
+}
+
+// Append a dealt location to the recent list, keeping only the window we need.
+export function pushRecentLocation(recent, index) {
+  return [...normalizeIdList(recent).map(Number), index].slice(-SPYFAIR_RECENT_LOCATIONS)
+}
+
+// `spyId` (optional) — the spy chosen by pickSpyFromRotation; omitted, a
+// random seat is the spy (legacy behaviour).
+export function assignSpyfairRoles(rosterIds, locationIndex, rng = Math.random, spyId = null) {
   const ids = [...(rosterIds || [])]
   if (!ids.length) return { spyId: null, roles: {} }
   const loc = SPYFAIR_LOCATIONS[locationIndex]
-  const spyIdx = Math.floor(rng() * ids.length)
-  const spyId = ids[spyIdx]
+  const forced = spyId != null && ids.includes(spyId) ? ids.indexOf(spyId) : -1
+  const spyIdx = forced >= 0 ? forced : Math.floor(rng() * ids.length)
+  spyId = ids[spyIdx]
   const nonSpies = ids.filter((_, i) => i !== spyIdx)
   const rolePool = shuffleWithRng(loc.roles, rng)
   const roles = { [spyId]: null }

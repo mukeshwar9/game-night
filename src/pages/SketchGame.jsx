@@ -21,6 +21,12 @@ import {
   roundDeltas,
   deriveWord,
   SKETCH_SEEN_KEY,
+  acceptHashes,
+  guessMatchesAccept,
+  isNearMiss,
+  isBannedGuess,
+  tierMultiplier,
+  entryForWord,
 } from '../lib/sketchLogic'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { markSeen, normalizeSeen } from '../lib/seenHistory'
@@ -33,6 +39,7 @@ import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
 import RoundEndPanel from '../components/RoundEndPanel'
 import PixelDots from '../components/loading/PixelDots'
+import WordFeedback from '../components/WordFeedback'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
@@ -56,6 +63,7 @@ function normalizeRound(raw) {
     matchSeed: raw.matchSeed ?? '',
     options: raw.options ? normalizeList(raw.options) : null,
     commitment: raw.commitment ?? null,
+    accept: raw.accept ? normalizeList(raw.accept) : null,
     wordPattern: raw.wordPattern ?? '',
     // null = no deadline (room timer scale 0) — never treat it as "already expired".
     endsAt: raw.endsAt ?? null,
@@ -84,6 +92,17 @@ function renderBlanks(pattern) {
 }
 
 const TIER_LABELS = { 1: 'EASY', 2: 'MEDIUM', 3: 'HARD' }
+
+// "×1.5" for tiers that pay extra, '' for ×1.
+function multiplierLabel(tier) {
+  const m = tierMultiplier(tier)
+  return m === 1 ? '' : `×${m}`
+}
+
+// Touch devices: don't autofocus the guess box — the keyboard would cover the canvas.
+function isCoarsePointer() {
+  try { return window.matchMedia('(pointer: coarse)').matches } catch { return false }
+}
 
 // ---------------------------------------------------------------------------
 // Scoreboard — every seated player, sorted by score desc.
@@ -171,6 +190,9 @@ export default function SketchGame({
   // epoch-ms when THIS client first observed the artist go offline mid-drawing.
   const [artistOfflineSince, setArtistOfflineSince] = useState(null)
   const [pickingIdx, setPickingIdx] = useState(null)  // word option this client last clicked (busy-label only)
+  // Private guess feedback ("CLOSE!"), keyed by round so a new round starts blank.
+  const [guessFb, setGuessFb] = useState({ key: null, message: '', tone: 'info', id: 0 })
+  const [coarsePointer] = useState(isCoarsePointer)
 
   // House convention: every button firing an async Firebase write / navigator.share
   // goes through useBusy — synchronous re-entry guard + disabled/gerund UI state.
@@ -238,6 +260,9 @@ export default function SketchGame({
     pickedRef.current = true
     try {
       const { hash, salt } = await commit(normalize(entry.word))
+      // One salted hash per accepted form (word + alts, plural/space-folded) so
+      // guessers can be matched leniently without the word in the clear.
+      const accept = await acceptHashes(entry, salt)
       const pattern = wordPattern(entry.word)
       const drawStartedAt = now()
       const drawPhaseEndsAt = drawMs == null ? null : drawStartedAt + drawMs
@@ -248,7 +273,7 @@ export default function SketchGame({
         return {
           ...current,
           round: {
-            ...cr, commitment: { hash, salt }, wordPattern: pattern, phase: 'drawing', endsAt: drawPhaseEndsAt,
+            ...cr, commitment: { hash, salt }, accept, wordPattern: pattern, phase: 'drawing', endsAt: drawPhaseEndsAt,
             // Speed-bonus window for scoring (see sketchLogic.scoringWindow):
             // the scaled clock, or the base DRAW_MS when timers are off.
             drawStartedAt, drawMs: drawMs ?? DRAW_MS,
@@ -261,9 +286,10 @@ export default function SketchGame({
     }
   }, [mySeat, gameId, now, drawMs])
 
-  // ---- Guesser: submit a guess — correct locks in via commit verification --
+  // ---- Guesser: submit a guess — correct locks in via hash match -----------
   // Throttled client-side (min 500ms between guesses) so a fast-tapping/scripted
-  // client can't spam unthrottled writes into the shared chat feed.
+  // client can't spam unthrottled writes into the shared chat feed. A near miss
+  // gets a private CLOSE! hint and never reaches the public chat.
   const handleSubmitGuess = useCallback(async () => {
     const r = roundRef.current
     if (!r || r.phase !== 'drawing') return
@@ -273,24 +299,44 @@ export default function SketchGame({
     const raw = guessInput.trim().slice(0, MAX_GUESS_LEN)
     if (!raw) return
     const submittedDraftVersion = draftVersionRef.current
+    const clearDraft = () => setGuessInput(current => draftVersionRef.current === submittedDraftVersion ? '' : current)
+    const say = (message, tone) => setGuessFb(f => ({ key: roundKey, message, tone, id: f.id + 1 }))
     lastGuessAtRef.current = nowTs
+    if (isBannedGuess(raw)) {
+      say('NOT ALLOWED IN CHAT — TRY ANOTHER GUESS', 'bad')
+      clearDraft()
+      return
+    }
     try {
-      const isCorrect = r.commitment
-        ? await verifyReveal(r.commitment.hash, normalize(raw), r.commitment.salt)
-        : false
+      let isCorrect = false
+      if (r.commitment) {
+        isCorrect = r.accept?.length
+          ? await guessMatchesAccept(raw, r.accept, r.commitment.salt)
+          // rounds picked before accept-hashes existed: exact normalized match
+          : await verifyReveal(r.commitment.hash, normalize(raw), r.commitment.salt)
+      }
       if (isCorrect) {
         correctSentRef.current = true
         await update(ref(db, `games/${gameId}/round/correct`), { [mySeat]: { at: serverTimestamp() } })
-      } else {
-        await push(ref(db, `games/${gameId}/round/chat`), { uid: mySeat, text: raw })
+        sounds.win()
+        clearDraft()
+        return
       }
-      if (isCorrect) sounds.win()
-      setGuessInput(current => draftVersionRef.current === submittedDraftVersion ? '' : current)
+      const word = derivedWord ?? (r.commitment ? await deriveWord(SKETCH_WORDS, r.options, r.commitment) : null)
+      const entry = entryForWord(SKETCH_WORDS, r.options, word)
+      if (entry && isNearMiss(raw, entry)) {
+        say(`CLOSE! "${raw.toUpperCase()}" IS NEARLY IT — ONLY YOU SEE THIS`, 'info')
+        clearDraft()
+        return
+      }
+      await push(ref(db, `games/${gameId}/round/chat`), { uid: mySeat, text: raw })
+      say('', 'info')
+      clearDraft()
     } catch {
       correctSentRef.current = false
       toast.error('GUESS FAILED — CHECK CONNECTION')
     }
-  }, [mySeat, guessInput, gameId])
+  }, [mySeat, guessInput, gameId, roundKey, derivedWord])
 
   // ---- Host: void the round and rotate the artist (choosing stalled) ------
   const handleSkipChoosing = useCallback(async () => {
@@ -315,6 +361,13 @@ export default function SketchGame({
     hostActionInFlightRef.current = true
     const revealEndsAt = now() + REVEAL_MS
     try {
+      // The word's tier sets the score multiplier. Every client can derive the
+      // word from the public options + commitment (see deriveWord), so the
+      // coordinator does it here rather than publishing the tier.
+      const snap = roundRef.current
+      const commitHash = snap?.commitment?.hash ?? null
+      const word = commitHash ? await deriveWord(SKETCH_WORDS, snap.options, snap.commitment) : null
+      const multiplier = tierMultiplier(entryForWord(SKETCH_WORDS, snap?.options, word)?.tier)
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round) return current
         const r = current.round
@@ -325,6 +378,8 @@ export default function SketchGame({
           correct: r.correct || {},
           artistId: r.artist,
           ...scoringWindow(r),
+          // only trust the derived tier for the word it was derived from
+          multiplier: r.commitment?.hash === commitHash ? multiplier : 1,
         })
         const newScores = { ...(current.scores || {}) }
         for (const [id, pts] of Object.entries(deltas)) newScores[id] = (newScores[id] || 0) + pts
@@ -522,7 +577,8 @@ export default function SketchGame({
           <p className="font-mono text-[10px] text-retro-text leading-relaxed">
             2 players: guesser earns 50–100 by speed; artist earns half.<br />
             3+ players: guessers earn 100, 90, 80… down to 50 by order; artist earns +25 per solve.<br />
-            Word difficulty changes the choice, not the score.
+            Harder words pay more: MEDIUM ×{tierMultiplier(2)}, HARD ×{tierMultiplier(3)} for guessers and artist.<br />
+            Draw it, don&apos;t write it: no letters or numbers.
           </p>
         </div>
 
@@ -608,12 +664,14 @@ export default function SketchGame({
   const showArtistOfflineSkip = amCoordinator && round.phase === 'drawing' && artistOfflineMs >= ARTIST_OFFLINE_DRAWING_MS
 
   const revealGuesserIds = participantGuessers(round.order, round.artist)
+  const roundEntry = entryForWord(SKETCH_WORDS, round.options, derivedWord)
   const revealDeltas = round.phase === 'reveal'
     ? roundDeltas({
       guesserIds: revealGuesserIds,
       correct: round.correct,
       artistId: round.artist,
       ...scoringWindow(round, drawEndsAt),
+      multiplier: tierMultiplier(roundEntry?.tier),
     })
     : null
 
@@ -650,7 +708,10 @@ export default function SketchGame({
                     {picking && pickingIdx === idx ? 'LOCKING IN…' : (
                       <span className="flex items-center justify-between gap-3">
                         <span>{(SKETCH_WORDS[idx]?.word || '').toUpperCase()}</span>
-                        <span className="text-[8px] text-retro-dim">{TIER_LABELS[SKETCH_WORDS[idx]?.tier] || 'WORD'}</span>
+                        <span className="text-[8px] text-retro-dim">
+                          {TIER_LABELS[SKETCH_WORDS[idx]?.tier] || 'WORD'}
+                          {multiplierLabel(SKETCH_WORDS[idx]?.tier) && ` ${multiplierLabel(SKETCH_WORDS[idx]?.tier)}`}
+                        </span>
                       </span>
                     )}
                   </button>
@@ -690,9 +751,14 @@ export default function SketchGame({
                 <p className="font-pixel text-[9px] text-retro-win arcade-blink">✓ YOU GOT IT — WAITING…</p>
               </>
             ) : isArtist ? (
-              <p className="font-pixel text-base text-retro-cta text-glow-cta tracking-widest">
-                {derivedWord ? derivedWord.toUpperCase() : '…'}
-              </p>
+              <>
+                <p className="font-pixel text-base text-retro-cta text-glow-cta tracking-widest">
+                  {derivedWord ? derivedWord.toUpperCase() : '…'}
+                </p>
+                <p className="font-pixel text-[8px] text-retro-dim tracking-wider">
+                  DRAW IT, DON&apos;T WRITE IT — NO LETTERS OR NUMBERS
+                </p>
+              </>
             ) : (
               <p className="font-pixel text-base text-retro-text tracking-[0.3em]">{renderBlanks(round.wordPattern)}</p>
             )}
@@ -701,27 +767,39 @@ export default function SketchGame({
           <CountdownBar endsAt={round.endsAt} totalMs={round.drawMs ?? DRAW_MS} now={nowMs} />
 
           {isPlayer && !isArtist && !haveIGuessedCorrectly && (
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                value={guessInput}
-                onChange={e => {
-                  draftVersionRef.current += 1
-                  setGuessInput(e.target.value)
-                }}
-                onKeyDown={e => e.key === 'Enter' && runGuess(handleSubmitGuess)}
-                autoFocus
-                maxLength={MAX_GUESS_LEN}
-                placeholder="TYPE YOUR GUESS…"
-                className="flex-1 bg-retro-surface border-2 border-retro-border text-retro-text font-mono text-[12px] rounded px-3 py-2 focus:outline-none focus:border-retro-p1"
+            <div className="space-y-1">
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={guessInput}
+                  onChange={e => {
+                    draftVersionRef.current += 1
+                    setGuessInput(e.target.value)
+                  }}
+                  onKeyDown={e => e.key === 'Enter' && runGuess(handleSubmitGuess)}
+                  autoFocus={!coarsePointer}
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  enterKeyHint="send"
+                  aria-label="Your guess"
+                  maxLength={MAX_GUESS_LEN}
+                  placeholder="TYPE YOUR GUESS…"
+                  className="flex-1 bg-retro-surface border-2 border-retro-border text-retro-text font-mono text-[12px] rounded px-3 py-2 focus:outline-none focus:border-retro-p1"
+                />
+                <button
+                  onClick={() => runGuess(handleSubmitGuess)}
+                  disabled={guessing || !guessInput.trim()}
+                  className="px-4 py-2 min-w-[4.5rem] bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+                >
+                  {guessing ? 'GUESSING…' : 'GO'}
+                </button>
+              </div>
+              <WordFeedback
+                message={guessFb.key === roundKey ? guessFb.message : ''}
+                tone={guessFb.tone}
+                id={guessFb.id}
               />
-              <button
-                onClick={() => runGuess(handleSubmitGuess)}
-                disabled={guessing || !guessInput.trim()}
-                className="px-4 py-2 min-w-[4.5rem] bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
-              >
-                {guessing ? 'GUESSING…' : 'GO'}
-              </button>
             </div>
           )}
 
@@ -785,6 +863,11 @@ export default function SketchGame({
           <p className="font-pixel text-lg text-retro-win text-glow-win text-center tracking-widest">
             {derivedWord ? derivedWord.toUpperCase() : '…'}
           </p>
+          {roundEntry && multiplierLabel(roundEntry.tier) && (
+            <p className="font-pixel text-[8px] text-retro-dim text-center tracking-wider">
+              {TIER_LABELS[roundEntry.tier]} WORD · POINTS {multiplierLabel(roundEntry.tier)}
+            </p>
+          )}
           {!round.scored ? (
             <p className="font-pixel text-[10px] text-retro-cta text-glow-cta text-center arcade-blink py-2">TALLYING…</p>
           ) : null}

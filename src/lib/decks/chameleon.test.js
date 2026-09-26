@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { CHAMELEON_CARDS } from './chameleon'
-import { isDenied } from '../wordDenylist'
+import { isDenied } from '../moderationDenylist'
 
 describe('CHAMELEON deck', () => {
   it('has at least 40 topic cards', () => {

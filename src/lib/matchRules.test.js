@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { matchTargetFor, isMatchFinish, SINGLE_ROUND_GAMES } from './matchRules'
+import { matchTargetFor, isMatchFinish, isCoopGame, COOP_GAMES, SINGLE_ROUND_GAMES } from './matchRules'
+import { GAME_TYPES } from './games'
 import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from './anagramsLogic'
 import { TARGET_SCORE as PASSWORD_TARGET } from './passwordLogic'
 import { ARROWS_MATCH_TARGET, ARROWS_MAX_ROUNDS } from './arrowsLogic'
@@ -45,5 +46,21 @@ describe('isMatchFinish', () => {
     expect(isMatchFinish({ gameType: 'arrows', status: 'finished', arrowsRound: 0, scores: { X: 1, O: 0 } })).toBe(false)
     expect(isMatchFinish({ gameType: 'arrows', status: 'finished', arrowsRound: last, scores: { X: 1, O: 1 } })).toBe(true)
     expect(isMatchFinish({ gameType: 'arrows', status: 'finished', scores: { X: ARROWS_MATCH_TARGET, O: 0 } })).toBe(true)
+  })
+})
+
+describe('registry agreement', () => {
+  it('matches every registry matchTarget', () => {
+    for (const cfg of GAME_TYPES) {
+      if (cfg.matchTarget) expect(matchTargetFor({ gameType: cfg.type }), cfg.type).toBe(cfg.matchTarget)
+    }
+  })
+
+  it('lists exactly the registry co-op games', () => {
+    const registryCoop = GAME_TYPES.filter(cfg => cfg.coop).map(cfg => cfg.type).sort()
+    expect([...COOP_GAMES].sort()).toEqual(registryCoop)
+    expect(isCoopGame('password')).toBe(true)
+    expect(isCoopGame('tictactoe')).toBe(false)
+    expect(isCoopGame(undefined)).toBe(false)
   })
 })

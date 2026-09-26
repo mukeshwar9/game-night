@@ -3,6 +3,7 @@ import {
   generateBotRoster,
   pickBotClue,
   pickBotGuess,
+  pickBotGuessFromClue,
   pickBotLie,
   pickBotVote,
   pickSpyfairLocation,
@@ -12,6 +13,12 @@ import {
   pickBotSpyVote,
   renderSpyReply,
   tallySpyfairVotes,
+  normalizeIdList,
+  pickSpyFromRotation,
+  pickFreshLocation,
+  pushRecentLocation,
+  recordSpy,
+  SPYFAIR_RECENT_LOCATIONS,
 } from './partyBots'
 import { isValidAvatar, HUMANOIDS, SHAPES } from './avatars'
 import { SPYFAIR_LOCATIONS } from './decks/spyfair'
@@ -159,6 +166,44 @@ describe('pickBotGuess', () => {
 // ---------------------------------------------------------------------------
 // FIBBAGE
 // ---------------------------------------------------------------------------
+describe('pickBotGuessFromClue', () => {
+  const pair = { left: 'COLD', right: 'HOT', clueBank: [{ word: 'ICEBERG', pos: 4 }, { word: 'SAUNA', pos: 88 }] }
+  const sharp = { skill: 1, acuity: 0.5, boldness: 0.5 }
+
+  it('regression: aims at the clue word\'s position, not the hidden target', () => {
+    // Target far from the clue's meaning — a bot that reads the target would
+    // land near 20; a bot reading "SAUNA" lands near 88.
+    const rng = mulberry32(7)
+    const guesses = Array.from({ length: 200 }, () => pickBotGuessFromClue(pair, 'sauna', sharp, rng))
+    const mean = guesses.reduce((a, b) => a + b, 0) / guesses.length
+    expect(Math.abs(mean - 88)).toBeLessThan(4)
+  })
+
+  it('matches the clue loosely (case, punctuation)', () => {
+    const rng = mulberry32(3)
+    const g = pickBotGuessFromClue(pair, ' Iceberg! ', sharp, rng)
+    expect(g).toBeLessThan(20)
+  })
+
+  it('guesses widely around the middle for a word it does not know', () => {
+    const rng = mulberry32(11)
+    const guesses = Array.from({ length: 300 }, () => pickBotGuessFromClue(pair, 'volcano', sharp, rng))
+    const mean = guesses.reduce((a, b) => a + b, 0) / guesses.length
+    expect(Math.abs(mean - 50)).toBeLessThan(8)
+    expect(Math.max(...guesses) - Math.min(...guesses)).toBeGreaterThan(40)
+  })
+
+  it('always returns an in-range integer', () => {
+    const rng = mulberry32(5)
+    for (let i = 0; i < 200; i++) {
+      const g = pickBotGuessFromClue(pair, i % 2 ? 'sauna' : 'zzz', { skill: 0 }, rng)
+      expect(Number.isInteger(g)).toBe(true)
+      expect(g).toBeGreaterThanOrEqual(0)
+      expect(g).toBeLessThanOrEqual(100)
+    }
+  })
+})
+
 describe('pickBotLie', () => {
   const persona = { skill: 0.5, acuity: 0.5, boldness: 0.5 }
 
@@ -377,5 +422,143 @@ describe('tallySpyfairVotes', () => {
 
   it('handles empty votes', () => {
     expect(tallySpyfairVotes({})).toEqual({ top: null, topCount: 0, tied: false })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Spyfair rotation bag + recent-location window
+// ---------------------------------------------------------------------------
+describe('normalizeIdList', () => {
+  it('reads arrays, numeric-keyed objects (in index order) and empties', () => {
+    expect(normalizeIdList(['a', 'b'])).toEqual(['a', 'b'])
+    expect(normalizeIdList({ 1: 'b', 0: 'a', 10: 'c' })).toEqual(['a', 'b', 'c'])
+    expect(normalizeIdList(null)).toEqual([])
+    expect(normalizeIdList(undefined)).toEqual([])
+  })
+})
+
+describe('pickSpyFromRotation', () => {
+  const seats = ['p1', 'p2', 'p3', 'p4', 'p5']
+
+  it('regression: everyone is spy once before anyone repeats', () => {
+    // Random picks left someone never spy across 5 rounds 96% of the time at 5 players.
+    const rng = mulberry32(21)
+    let spied = []
+    let last = null
+    const picks = []
+    for (let round = 0; round < seats.length; round++) {
+      const res = pickSpyFromRotation(seats, spied, last, rng)
+      picks.push(res.spyId)
+      spied = res.spied
+      last = res.spyId
+    }
+    expect([...picks].sort()).toEqual([...seats].sort())
+  })
+
+  it('starts a new cycle after everyone has been spy, never repeating the last spy back-to-back', () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const res = pickSpyFromRotation(seats, seats, 'p3', mulberry32(seed))
+      expect(res.spyId).not.toBe('p3')
+      expect(res.spied).toEqual([res.spyId])
+    }
+  })
+
+  it('lets a newcomer in and ignores players who left', () => {
+    const res = pickSpyFromRotation(['p1', 'p2', 'new'], ['p1', 'p2', 'gone'], 'p2', mulberry32(1))
+    expect(res.spyId).toBe('new')
+    expect(res.spied).toEqual(['p1', 'p2', 'new'])
+  })
+
+  it('reads a Firebase-shaped (object) bag', () => {
+    const res = pickSpyFromRotation(['a', 'b'], { 0: 'a' }, 'a', mulberry32(2))
+    expect(res.spyId).toBe('b')
+  })
+
+  it('handles a single seat and an empty table', () => {
+    expect(pickSpyFromRotation(['solo'], ['solo'], 'solo', mulberry32(3)).spyId).toBe('solo')
+    expect(pickSpyFromRotation([], [], null, mulberry32(3))).toEqual({ spyId: null, spied: [] })
+  })
+})
+
+describe('pickFreshLocation / pushRecentLocation', () => {
+  it('regression: never deals a location used in the last 5 rounds', () => {
+    const recent = [3, 7, 11, 2, 9]
+    for (let seed = 0; seed < 200; seed++) {
+      expect(recent).not.toContain(pickFreshLocation(recent, mulberry32(seed)))
+    }
+  })
+
+  it('only looks at the last SPYFAIR_RECENT_LOCATIONS entries', () => {
+    const recent = [0, 1, 2, 3, 4, 5, 6]
+    const seen = new Set()
+    for (let seed = 0; seed < 400; seed++) seen.add(pickFreshLocation(recent, mulberry32(seed)))
+    expect(seen.has(0)).toBe(true) // dropped out of the window
+    for (const i of recent.slice(-SPYFAIR_RECENT_LOCATIONS)) expect(seen.has(i)).toBe(false)
+  })
+
+  it('falls back to anything but the latest when the deck is smaller than the window', () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const idx = pickFreshLocation([0, 1, 2], mulberry32(seed), 3)
+      expect(idx).not.toBe(2)
+    }
+  })
+
+  it('stays in range', () => {
+    for (let seed = 0; seed < 100; seed++) {
+      const idx = pickFreshLocation([], mulberry32(seed))
+      expect(idx).toBeGreaterThanOrEqual(0)
+      expect(idx).toBeLessThan(SPYFAIR_LOCATIONS.length)
+    }
+  })
+
+  it('pushRecentLocation keeps only the window', () => {
+    expect(pushRecentLocation([1, 2, 3, 4, 5], 6)).toEqual([2, 3, 4, 5, 6])
+    expect(pushRecentLocation(null, 4)).toEqual([4])
+    expect(pushRecentLocation({ 0: 8 }, 4)).toEqual([8, 4])
+  })
+})
+
+describe('assignSpyfairRoles with a chosen spy', () => {
+  it('uses the spy it is given', () => {
+    const { spyId, roles } = assignSpyfairRoles(['a', 'b', 'c'], 0, mulberry32(4), 'c')
+    expect(spyId).toBe('c')
+    expect(roles.c).toBeNull()
+    expect(roles.a).toBeTruthy()
+  })
+
+  it('falls back to a random spy for an unknown id', () => {
+    const { spyId } = assignSpyfairRoles(['a', 'b'], 0, mulberry32(4), 'ghost')
+    expect(['a', 'b']).toContain(spyId)
+  })
+})
+
+describe('recordSpy (multiplayer: bag updated only once the spy is public)', () => {
+  const seats = ['a', 'b', 'c']
+
+  it('adds the spy to this cycle', () => {
+    expect(recordSpy(['a'], seats, 'b')).toEqual(['a', 'b'])
+  })
+
+  it('starts a new cycle when the bag was already full', () => {
+    expect(recordSpy(['a', 'b', 'c'], seats, 'a')).toEqual(['a'])
+  })
+
+  it('drops players who left and reads Firebase-shaped lists', () => {
+    expect(recordSpy({ 0: 'gone', 1: 'a' }, seats, 'c')).toEqual(['a', 'c'])
+  })
+
+  it('agrees with pickSpyFromRotation over many rounds (everyone once per cycle)', () => {
+    const rng = mulberry32(99)
+    let spied = []
+    const picks = []
+    for (let round = 0; round < 9; round++) {
+      const list = normalizeIdList(spied)
+      const { spyId } = pickSpyFromRotation(seats, spied, list[list.length - 1] ?? null, rng)
+      picks.push(spyId)
+      spied = recordSpy(spied, seats, spyId)
+    }
+    for (let cycle = 0; cycle < 3; cycle++) {
+      expect(picks.slice(cycle * 3, cycle * 3 + 3).sort()).toEqual(seats)
+    }
   })
 })

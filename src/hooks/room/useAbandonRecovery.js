@@ -30,7 +30,9 @@ export default function useAbandonRecovery({ game, gameId, mySymbol, opponentOnl
 
     if (!game || !mySymbol.current) return
     const gcfg = getGameConfig(game.gameType)
-    if (gcfg.nPlayer) return
+    // Co-op partners never claim a win from each other; the co-op page lets
+    // the online partner keep playing instead.
+    if (gcfg.nPlayer || gcfg.coop) return
     if (game.status !== 'playing') return
     const opSym = mySymbol.current === 'X' ? 'O' : 'X'
     if (!game.players?.[opSym]) return

@@ -1,22 +1,22 @@
 // Pure moderation helpers for text other players will see: chat messages,
 // display names, and the local mute list. No DOM, Firebase or React —
 // unit-tested in moderationLogic.test.js. The storage-backed mute list lives
-// in mute.js; the word list itself is wordDenylist.js.
+// in mute.js; the word list itself is moderationDenylist.js.
 //
-// Matching reuses wordDenylist's whole-word policy (see isDenied): a word is
+// Matching reuses moderationDenylist's whole-word policy (see isDenied): a word is
 // masked only when it IS a denied term, never because it contains one, so
 // "Scunthorpe", "cocktail" and "therapist" pass. On top of that, a run of
 // single characters spelled out with spaces or dots ("f u c k", "f.u.c.k")
 // is joined and checked as one word.
 
-import { DENYLIST, isDenied } from './wordDenylist'
+import { DENYLIST, isDenied } from './moderationDenylist'
 
 export const MASK = '•••'
 export const DISPLAY_NAME_MAX = 20
 // Oldest mutes are dropped past this so localStorage can't grow unbounded.
 export const MUTED_CAP = 200
 
-// A "word" is a run of letters, digits and the look-alike symbols wordDenylist
+// A "word" is a run of letters, digits and the look-alike symbols moderationDenylist
 // decodes (sh1t, b!tch, a$$hole); anything else separates words.
 const WORD_RE = /[\p{L}\p{N}@$!|]+/gu
 // Separators allowed between the letters of a spelled-out word.

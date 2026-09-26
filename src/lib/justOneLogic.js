@@ -23,7 +23,7 @@ import { pickFresh } from './seenHistory'
 import { normalizeList } from './normalize'
 import { nextInRotation } from './teams'
 import { isSingleWord, normalizeWord, overlapsWord, sameFamily, stemWord } from './wordMatch'
-import { isDenied } from './wordDenylist'
+import { isDenied } from './moderationDenylist'
 
 export const JO_MIN_PLAYERS = 3
 export const JO_MAX_PLAYERS = 8

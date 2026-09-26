@@ -104,7 +104,7 @@ import {
 } from './blockadeLogic'
 import { applyDiceMove, rollFaceAsync, rollFacePairAsync } from './diceLogic'
 import { runPigSeedProtocol } from '../hooks/room/pigSeedProtocol'
-import { seatOrder as seatOrderWL, randomSpectrumIndex } from './wavelengthLogic'
+import { seatOrder as seatOrderWL, pickSpectrumIndex } from './wavelengthLogic'
 import {
   PAIRS_CELL_COUNT,
   generatePairsDeck,
@@ -115,7 +115,6 @@ import {
 } from './pairsLogic'
 import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
 import { scaledMs } from './timerScale'
-import { ANSWER_MS as HERD_ANSWER_MS } from './herdLogic'
 import {
   INITIAL_PITS,
   normalizePits,
@@ -590,7 +589,7 @@ export const GAME_TYPES = [
     badge: 'HW', maxWidth: 'max-w-sm',
     category: 'word',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true,
+    custom: true, matchTarget: 3, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/HangmanGame')),
   },
   {
@@ -1124,7 +1123,9 @@ export const GAME_TYPES = [
         promptIndex: 0,
         deckSeed: Math.floor(Math.random() * 2147483647),
         answers: null,
-        endsAt: Date.now() + HERD_ANSWER_MS,
+        // Armed by the page's coordinator with server time (a host's local
+        // clock here skewed every other player's countdown).
+        endsAt: null,
       },
     }),
   },
@@ -1232,7 +1233,9 @@ export const GAME_TYPES = [
     badge: 'TT', maxWidth: 'max-w-sm',
     category: 'word',
     durationMin: 3, tags: ['quick', 'thinky'],
-    custom: true,
+    // simultaneous: both players write and guess every round, so there is no
+    // first mover to pick; the page renders MatchScoreRail itself.
+    custom: true, simultaneous: true, hidePlayerCards: true, matchTarget: 3,
     Page: lazyWithRetry(() => import('../pages/TwoTruthsGame')),
   },
   {
@@ -1252,11 +1255,13 @@ export const GAME_TYPES = [
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/WavelengthGame')),
-    startRound: (players) => ({
+    // The room's seen history (seen/wavelength, kept across matches) is
+    // skipped so a new match doesn't reopen on a pair the group just played.
+    startRound: (players, game) => ({
       round: {
         clueGiver: seatOrderWL(players)[0] ?? null,
         phase: 'clue',
-        spectrumIndex: randomSpectrumIndex(),
+        spectrumIndex: pickSpectrumIndex({ seen: game?.seen?.wavelength }),
         clue: '', commitment: null, guesses: null, reveal: null,
       },
     }),
@@ -1269,7 +1274,9 @@ export const GAME_TYPES = [
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/FibbageGame')),
-    startRound: () => ({ round: { phase: 'lying', promptIndex: 0 } }),
+    // deckSeed fixes a per-match shuffled prompt order every client agrees on
+    // (G-02: a fixed 0,1,2… order replayed the same facts every match).
+    startRound: () => ({ round: { phase: 'lying', promptIndex: 0, deckSeed: Math.floor(Math.random() * 2147483647) } }),
   },
   {
     type: 'spyfair', label: 'SPYFAIR',
@@ -1310,7 +1317,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-04',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/WordDuelGame')),
   },
   {
@@ -1320,7 +1327,9 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 4, tags: ['quick', 'thinky'], solo: false,
-    custom: true, hidePlayerCards: true,
+    // coop: partners never "claim a win" from each other (Game.jsx skips the
+    // abandoned-opponent banner); the page lets the online partner play on.
+    custom: true, hidePlayerCards: true, coop: true,
     Page: lazyWithRetry(() => import('../pages/WordCoopGame')),
   },
   {
@@ -1330,7 +1339,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/WordRaceGame')),
   },
   {
@@ -1340,17 +1349,20 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-11',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/WordHuntGame')),
   },
   {
     type: 'password', label: 'PASSWORD',
-    desc: 'give clues, guess the word', Icon: PasswordIcon,
+    desc: 'clue the word for your partner', Icon: PasswordIcon,
     badge: 'PW', maxWidth: 'max-w-sm',
     category: 'word',
     addedAt: '2026-09-18',
-    durationMin: 6, tags: ['quick', 'thinky'], solo: true,
-    custom: true,
+    // Co-op since the D1 decision: partners share one team score over 12
+    // rounds, so there is no opponent to claim a win from. solo: false —
+    // there is no bot clue-giver, so VS AI would dead-end.
+    durationMin: 12, tags: ['thinky'], solo: false,
+    custom: true, coop: true, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/PasswordGame')),
   },
   {
@@ -1360,7 +1372,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
-    custom: true, simultaneous: true, hidePlayerCards: true,
+    custom: true, simultaneous: true, hidePlayerCards: true, matchTarget: 2,
     Page: lazyWithRetry(() => import('../pages/AnagramsGame')),
   },
   {
@@ -1483,13 +1495,40 @@ export function resolveGoesFirst(goesFirst) {
 
 export function firstMoverUpdates(gameType, symbol) {
   if (!usesFirstMover(gameType)) return {}
-  if (gameType === 'hangwoman' || gameType === 'twotruths') {
+  if (gameType === 'hangwoman') {
     return { 'round/setter': symbol }
   }
   if (gameType === 'bluff') {
     return { 'bluffRound/turn': symbol }
   }
+  if (gameType === 'password') {
+    // Password's first clue-giver is `starter` (PasswordGame reads it when it
+    // deals the first round); writing currentTurn here was silently ignored.
+    return { starter: symbol }
+  }
   return { currentTurn: symbol }
+}
+
+// Merges firstMoverUpdates into a freshGameState() patch. Firebase update()
+// rejects a patch holding both `round` and `round/setter` ("ancestor of
+// another path"), which made NEW MATCH / PLAY AGAIN fail outright for
+// Hangwoman and Bluff; nested first-mover paths are folded into the parent
+// object the fresh state already carries.
+export function withFirstMover(fresh, gameType, symbol) {
+  const out = { ...fresh }
+  for (const [path, value] of Object.entries(firstMoverUpdates(gameType, symbol))) {
+    const [head, ...rest] = path.split('/')
+    if (!rest.length || !(head in out)) { out[path] = value; continue }
+    const base = out[head] && typeof out[head] === 'object' ? { ...out[head] } : {}
+    let node = base
+    rest.slice(0, -1).forEach(key => {
+      node[key] = node[key] && typeof node[key] === 'object' ? { ...node[key] } : {}
+      node = node[key]
+    })
+    node[rest[rest.length - 1]] = value
+    out[head] = base
+  }
+  return out
 }
 
 export const GAME_CATEGORIES = [
@@ -1541,6 +1580,7 @@ const FIELD_NULLS = {
   wordhuntWordsX: null, wordhuntWordsO: null,
   wordhuntScoreX: null, wordhuntScoreO: null,
   wordhuntDoneX: null, wordhuntDoneO: null,
+  wordhuntReadyX: null, wordhuntReadyO: null,
   diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceLast: null,
   diceRolls: null, diceRollIndex: null,
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
@@ -1806,7 +1846,7 @@ export function freshGameState(gameType, previous = null) {
   }
   if (gameType === 'twotruths') {
     return { ...FIELD_NULLS, board: null, currentTurn: null, boxes: null,
-      round: { setter: 'X', phase: 'writing' } }
+      round: { phase: 'writing', roundNum: 1 } }
   }
   if (gameType === 'bluff') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
