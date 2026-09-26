@@ -14,6 +14,7 @@ import {
 } from '../components/GameIcons';
 import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { recordPlay } from '../lib/analytics'
+import { recordRecentPlay } from '../lib/recentPlays'
 import CategoryTabs from '../components/CategoryTabs';
 import { Link, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -150,6 +151,7 @@ function LocalPlayPage({ routeType }) {
     if (playRecorded.current) return
     playRecorded.current = true
     recordPlay(routeType, 'local')
+    recordRecentPlay(routeType, 'local')
   }, [routeType])
 
   return (
@@ -248,7 +250,7 @@ function DemoHub() {
   const playRecorded = useRef(hasRouteType)
   useEffect(() => {
     if (!playRecorded.current) { playRecorded.current = true; return }
-    if (!(selected in PARTY_BLURB)) recordPlay(selected, 'solo')
+    if (!(selected in PARTY_BLURB)) { recordPlay(selected, 'solo'); recordRecentPlay(selected, 'solo') }
   }, [selected])
 
   const demoCounts = {}

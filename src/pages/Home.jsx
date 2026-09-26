@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { configError, db } from '../lib/firebase'
 import { ref, get } from 'firebase/database'
 import useBusy from '../hooks/useBusy'
-import { getGameConfig, GAME_TYPES } from '../lib/games'
+import { getGameConfig, GAME_TYPES, supportsLocalPlay } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import useCreateGame from '../hooks/useCreateGame'
@@ -21,6 +21,27 @@ import { defaultAvatarForId } from '../lib/avatars'
 import { checkShouldOnboard } from '../lib/onboarding'
 
 const getPlayerName = (profile) => profile?.displayName || localStorage.getItem('playerName') || ''
+const GAME_COUNT = GAME_TYPES.filter(t => !t.variantOf).length
+
+// Home's secondary rows (daily puzzle, find an opponent, all games): title,
+// one plain line, one explicit action on the right. Same shape as DailyTile.
+function ActionRow({ to, title, detail, action }) {
+  return (
+    <Link
+      to={to}
+      className="group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
+        hover:border-retro-cta/50 transition-colors active:scale-[0.99]"
+    >
+      <span className="flex-1 min-w-0">
+        <span className="block font-pixel text-[10px] text-retro-text tracking-wider">{title}</span>
+        <span className="block font-mono text-[11px] text-retro-dim mt-1 truncate">{detail}</span>
+      </span>
+      <span className="shrink-0 min-h-11 min-w-[76px] px-3 flex items-center justify-center border border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider rounded group-hover:bg-retro-tint-cta transition-colors">
+        {action}
+      </span>
+    </Link>
+  )
+}
 
 export default function Home() {
   const navigate = useNavigate()
@@ -60,6 +81,17 @@ export default function Home() {
       setJoinOpen(false)
       navigate(`/game/${code}`)
     }, () => { setJoinOpen(false); navigate(`/game/${code}`) })
+  }
+
+  const playerName = getPlayerName(profile)
+
+  // JUMP BACK IN resumes a solo or pass-and-play game directly; an online
+  // game (or one whose mode is gone) opens the options sheet as before.
+  const handleRecentSelect = (type, mode) => {
+    const cfg = getGameConfig(type)
+    if (mode === 'solo' && cfg?.solo) navigate('/solo/' + type)
+    else if (mode === 'local' && supportsLocalPlay(type)) navigate('/local/' + type)
+    else setRecentGame(type)
   }
 
   const recentCfg = recentGame ? getGameConfig(recentGame) : null
@@ -121,7 +153,9 @@ export default function Home() {
         )}
 
         <section className="max-w-md mx-auto w-full text-center pt-2">
-          <p className="font-pixel text-[10px] text-retro-cta tracking-[0.2em]">GAME NIGHT</p>
+          <p className="font-pixel text-[10px] text-retro-cta tracking-[0.2em] truncate">
+            {playerName ? `WELCOME BACK, ${playerName.toUpperCase()}` : 'GAME NIGHT'}
+          </p>
           <h1 className="font-pixel text-xl sm:text-2xl text-retro-text text-glow-cta mt-2 tracking-wider">
             READY FOR ANOTHER ROUND?
           </h1>
@@ -135,20 +169,17 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-2 mt-2">
             <Link
               to="/demo"
-              className="min-h-11 flex items-center justify-center border border-retro-border bg-retro-card text-retro-p1 font-pixel text-[9px] tracking-wider rounded hover:border-retro-p1/60 hover:bg-retro-tint-p1 transition-all"
+              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition-all active:scale-[0.98]"
             >
               PLAY SOLO
             </Link>
             <button
               onClick={() => setJoinOpen(true)}
-              className="min-h-11 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition-all"
+              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition-all active:scale-[0.98]"
             >
               JOIN ROOM
             </button>
           </div>
-          <Link to="/online" className="inline-block mt-3 font-pixel text-[9px] text-retro-dim hover:text-retro-cta transition-colors">
-            FIND AN OPPONENT ↗
-          </Link>
         </section>
 
         <section className="max-w-md mx-auto w-full">
@@ -156,20 +187,14 @@ export default function Home() {
         </section>
 
         <section className="max-w-md mx-auto w-full">
-          <RecentlyPlayed onSelect={type => setRecentGame(type)} loadingType={loading} />
+          <RecentlyPlayed onSelect={handleRecentSelect} loadingType={loading} />
         </section>
 
-        <section className="max-w-md mx-auto w-full space-y-2">
-          <p className="font-pixel text-[10px] text-retro-dim tracking-wider">A LITTLE EXTRA</p>
-          <div className="flex gap-2">
-            <DailyTile />
-            <Link
-              to="/games"
-              className="flex-1 min-w-0 min-h-11 flex items-center justify-center bg-retro-card border-2 border-retro-border rounded px-3 py-3 text-retro-dim font-pixel text-[9px] tracking-wider hover:border-retro-cta/50 hover:text-retro-cta transition-colors"
-            >
-              EXPLORE GAMES ↗
-            </Link>
-          </div>
+        <section className="max-w-md mx-auto w-full space-y-2" aria-labelledby="home-today">
+          <h2 id="home-today" className="font-pixel text-[10px] text-retro-dim tracking-wider">TODAY</h2>
+          <DailyTile />
+          <ActionRow to="/online" title="FIND AN OPPONENT" detail="Join a public room or open one" action="BROWSE" />
+          <ActionRow to="/games" title="ALL GAMES" detail={`${GAME_COUNT} games to explore`} action="VIEW" />
         </section>
 
         {canInstall && (
