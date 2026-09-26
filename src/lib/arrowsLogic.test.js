@@ -1,316 +1,331 @@
 import { describe, it, expect } from 'vitest'
 import {
-  parsePathD,
-  getLevel,
-  isArrowBlocked,
-  getClearableCount,
-  countClears,
-  normalizeCleared,
-  exitVector,
-  roundedPathD,
-  applyTap,
-  getArrowsWinner,
-  arrowsNextRound,
-  arrowsFreshState,
+  seededRng,
+  randomArrowsSeed,
+  tierForRound,
+  generateArrowsLevel,
+  occupancy,
+  arrowAtCell,
+  exitCheck,
+  applyArrowTap,
+  countGone,
+  isBoardCleared,
+  freeArrows,
+  normalizeGone,
+  arrowsRoundWinner,
   arrowsMatchWinner,
   isFinalArrowsRound,
   getArrowsMatchEnd,
-  pickLevelId,
-  normalizeArrowsSeen,
-  recordArrowsSeen,
+  arrowsNextRound,
+  arrowsFreshState,
+  cellCenter,
+  slicePolyline,
+  leavePose,
+  exitVector,
+  roundedPathD,
+  ARROWS_DIRS,
   ARROWS_LIVES,
+  ARROWS_TIERS,
+  ARROWS_TIER_SPECS,
 } from './arrowsLogic'
-import { ARROWS_LEVELS, ARROWS_TIERS, levelIdsForTier } from './levels/arrows'
 
-// ── Level validation helpers ───────────────────────────────────────────────
+// A hand-built 4×3 board (index: cells tail → head, heading):
+//   0: (0,0)→(1,0) right — blocked by arrow 2 one empty cell ahead
+//   1: (2,1)→(1,1) left  — free (row 1 is empty to its left)
+//   2: (3,2)→(3,1)→(3,0) up — free (its head is on the top edge)
+const TINY = {
+  cols: 4,
+  rows: 3,
+  arrows: [
+    { cells: [[0, 0], [1, 0]], dir: 1 },
+    { cells: [[2, 1], [1, 1]], dir: 3 },
+    { cells: [[3, 2], [3, 1], [3, 0]], dir: 0 },
+  ],
+}
+const none = () => [false, false, false]
 
-// Segment intersection for axis-aligned polylines. Returns true when two
-// segments overlap by length > 0 (collinear) or cross at a point strictly
-// interior to both. A single shared endpoint — the corner touches the mockup's
-// "tight pack" relies on — is NOT a violation.
-function segOverlap(a, b) {
-  const [p1, p2] = a
-  const [q1, q2] = b
-  const aVert = p1[0] === p2[0]
-  const bVert = q1[0] === q2[0]
-  const aHoriz = p1[1] === p2[1]
-  const bHoriz = q1[1] === q2[1]
-
-  if (aVert && bVert && p1[0] === q1[0]) {
-    const alo = Math.min(p1[1], p2[1]); const ahi = Math.max(p1[1], p2[1])
-    const blo = Math.min(q1[1], q2[1]); const bhi = Math.max(q1[1], q2[1])
-    return Math.max(alo, blo) < Math.min(ahi, bhi)
+// Greedy solve: keep clearing any free arrow. Because clearing only frees
+// cells, a board is solvable iff greedy clears it.
+function greedySolve(level) {
+  let gone = level.arrows.map(() => false)
+  for (;;) {
+    const free = freeArrows(level, gone)
+    if (free.length === 0) break
+    gone = applyArrowTap(level, gone, ARROWS_LIVES, free[0]).gone
   }
-  if (aHoriz && bHoriz && p1[1] === q1[1]) {
-    const alo = Math.min(p1[0], p2[0]); const ahi = Math.max(p1[0], p2[0])
-    const blo = Math.min(q1[0], q2[0]); const bhi = Math.max(q1[0], q2[0])
-    return Math.max(alo, blo) < Math.min(ahi, bhi)
-  }
-
-  const vert = aVert ? a : bVert ? b : null
-  const horiz = aHoriz ? a : bHoriz ? b : null
-  if (vert && horiz) {
-    const vx = vert[0][0]
-    const vlo = Math.min(vert[0][1], vert[1][1]); const vhi = Math.max(vert[0][1], vert[1][1])
-    const hy = horiz[0][1]
-    const hlo = Math.min(horiz[0][0], horiz[1][0]); const hhi = Math.max(horiz[0][0], horiz[1][0])
-    return vx > hlo && vx < hhi && hy > vlo && hy < vhi
-  }
-
-  // Diagonals (only hard1 #16 has one) are isolated from every other arrow.
-  return false
+  return gone
 }
 
-function segmentsOf(pts) {
-  const segs = []
-  for (let i = 0; i < pts.length - 1; i++) segs.push([pts[i], pts[i + 1]])
-  return segs
-}
-
-function assertLevelValid(level) {
-  const [minX, minY, width, height] = level.viewBox
-  const maxX = minX + width
-  const maxY = minY + height
-  const allSegs = level.arrows.map((arrow) => segmentsOf(parsePathD(arrow.d)))
-
-  level.arrows.forEach((arrow, ai) => {
-    const pts = parsePathD(arrow.d)
-    expect(pts.length, `${level.id} arrow ${ai} needs >= 2 points`).toBeGreaterThanOrEqual(2)
-    for (const [x, y] of pts) {
-      expect(x, `${level.id} arrow ${ai} x within viewBox`).toBeGreaterThanOrEqual(minX)
-      expect(x, `${level.id} arrow ${ai} x within viewBox`).toBeLessThanOrEqual(maxX)
-      expect(y, `${level.id} arrow ${ai} y within viewBox`).toBeGreaterThanOrEqual(minY)
-      expect(y, `${level.id} arrow ${ai} y within viewBox`).toBeLessThanOrEqual(maxY)
+describe('seededRng', () => {
+  it('is deterministic per seed and stays in [0, 1)', () => {
+    const a = seededRng(42)
+    const b = seededRng(42)
+    for (let i = 0; i < 50; i += 1) {
+      const v = a()
+      expect(v).toBe(b())
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThan(1)
     }
+    expect(seededRng(1)()).not.toBe(seededRng(2)())
   })
 
-  for (let i = 0; i < allSegs.length; i++) {
-    for (let j = i + 1; j < allSegs.length; j++) {
-      for (const sa of allSegs[i]) {
-        for (const sb of allSegs[j]) {
-          if (segOverlap(sa, sb)) {
-            throw new Error(`${level.id}: arrows ${i} and ${j} overlap`)
-          }
+  it('randomArrowsSeed gives a positive integer', () => {
+    expect(randomArrowsSeed(() => 0)).toBe(1)
+    const s = randomArrowsSeed()
+    expect(Number.isInteger(s)).toBe(true)
+    expect(s).toBeGreaterThan(0)
+  })
+})
+
+describe('tierForRound', () => {
+  it('maps rounds to easy → medium → hard and clamps', () => {
+    expect(tierForRound(0)).toBe('easy')
+    expect(tierForRound(1)).toBe('medium')
+    expect(tierForRound(2)).toBe('hard')
+    expect(tierForRound(9)).toBe('hard')
+    expect(tierForRound(undefined)).toBe('easy')
+  })
+})
+
+describe('generateArrowsLevel', () => {
+  it('is deterministic for a seed + tier', () => {
+    expect(generateArrowsLevel(1234, 'medium')).toEqual(generateArrowsLevel(1234, 'medium'))
+    expect(generateArrowsLevel(1234, 'medium')).not.toEqual(generateArrowsLevel(1235, 'medium'))
+  })
+
+  it('falls back to easy for an unknown tier', () => {
+    const level = generateArrowsLevel(7, 'nope')
+    expect(level.tier).toBe('easy')
+    expect(level.cols).toBe(ARROWS_TIER_SPECS.easy.cols)
+  })
+
+  for (const tier of ARROWS_TIERS) {
+    it(`${tier}: 80 seeds are well-formed, dense, puzzling and always solvable`, () => {
+      const spec = ARROWS_TIER_SPECS[tier]
+      for (let s = 1; s <= 80; s += 1) {
+        const level = generateArrowsLevel(s * 7919, tier)
+        expect(level.cols).toBe(spec.cols)
+        expect(level.rows).toBe(spec.rows)
+        const seen = new Set()
+        let cells = 0
+        for (const arrow of level.arrows) {
+          expect(arrow.cells.length).toBeGreaterThanOrEqual(2)
+          expect(arrow.cells.length).toBeLessThanOrEqual(spec.maxLen)
+          arrow.cells.forEach(([x, y], k) => {
+            expect(x >= 0 && x < spec.cols && y >= 0 && y < spec.rows).toBe(true)
+            const key = `${x},${y}`
+            expect(seen.has(key)).toBe(false)
+            seen.add(key)
+            if (k > 0) {
+              const [px, py] = arrow.cells[k - 1]
+              expect(Math.abs(px - x) + Math.abs(py - y)).toBe(1)
+            }
+          })
+          // Heading is the last step.
+          const [a, b] = arrow.cells.slice(-2)
+          expect([b[0] - a[0], b[1] - a[1]]).toEqual(ARROWS_DIRS[arrow.dir])
+          cells += arrow.cells.length
         }
+        expect(cells / (spec.cols * spec.rows)).toBeGreaterThan(0.6)
+        expect(isBoardCleared(level, greedySolve(level))).toBe(true)
+        // Not a free-for-all: some arrows must start blocked.
+        const free0 = freeArrows(level, level.arrows.map(() => false)).length
+        expect(free0).toBeGreaterThan(0)
+        expect(free0).toBeLessThan(level.arrows.length)
       }
-    }
+    }, 20000)
   }
-}
 
-describe('arrows levels', () => {
-  it('has 15 levels across three tiers', () => {
-    expect(Object.keys(ARROWS_LEVELS).length).toBe(15)
-    expect(ARROWS_TIERS).toEqual(['easy', 'medium', 'hard'])
-    for (const tier of ARROWS_TIERS) {
-      expect(levelIdsForTier(tier).length, `${tier} should have 5 levels`).toBe(5)
+  it('boards grow with the tier', () => {
+    const avg = (tier) => {
+      let n = 0
+      for (let s = 1; s <= 40; s += 1) n += generateArrowsLevel(s, tier).arrows.length
+      return n / 40
     }
-  })
-
-  it('every level has the right arrow count and exactly one blocked arrow', () => {
-    for (const [id, level] of Object.entries(ARROWS_LEVELS)) {
-      const count = level.arrows.length
-      if (level.tier === 'easy') expect(count, id).toBe(5)
-      if (level.tier === 'medium') expect(count, id).toBe(10)
-      if (level.tier === 'hard') expect(count, id).toBe(16)
-      const blocked = level.arrows.filter((a) => a.blocked).length
-      expect(blocked, `${id} blocked count`).toBe(1)
-    }
-  })
-
-  it('no two arrows in any level overlap', () => {
-    for (const level of Object.values(ARROWS_LEVELS)) assertLevelValid(level)
+    expect(avg('medium')).toBeGreaterThan(avg('easy'))
+    expect(avg('hard')).toBeGreaterThan(avg('medium'))
   })
 })
 
-describe('parsePathD', () => {
-  it('parses an M/L polyline into points', () => {
-    expect(parsePathD('M50 40 L50 100 L70 100 L70 140')).toEqual([
-      [50, 40], [50, 100], [70, 100], [70, 140],
-    ])
+describe('board queries', () => {
+  it('occupancy and arrowAtCell map cells to remaining arrows', () => {
+    const occ = occupancy(TINY, none())
+    expect(occ[0]).toBe(0)
+    expect(occ[1 * 4 + 2]).toBe(1)
+    expect(occ[2 * 4 + 0]).toBe(-1)
+    expect(arrowAtCell(TINY, none(), 3, 1)).toBe(2)
+    expect(arrowAtCell(TINY, [false, false, true], 3, 1)).toBe(-1)
+    expect(arrowAtCell(TINY, none(), -1, 0)).toBe(-1)
+    expect(arrowAtCell(TINY, none(), 4, 0)).toBe(-1)
   })
 
-  it('returns [] for empty input', () => {
-    expect(parsePathD('')).toEqual([])
+  it('exitCheck reports the blocker and the empty gap before it', () => {
+    expect(exitCheck(TINY, none(), 0)).toEqual({ free: false, blocker: 2, gap: 1 })
+    expect(exitCheck(TINY, none(), 1)).toEqual({ free: true, blocker: -1, gap: 1 })
+    expect(exitCheck(TINY, none(), 2)).toEqual({ free: true, blocker: -1, gap: 0 })
+    // Clearing the blocker opens the path.
+    expect(exitCheck(TINY, [false, false, true], 0)).toEqual({ free: true, blocker: -1, gap: 2 })
   })
-})
 
-describe('getLevel', () => {
-  it('attaches parsed points and falls back to easy1 on unknown id', () => {
-    const level = getLevel('medium1')
-    expect(level.arrows[0].points).toEqual([[40, 40], [40, 140], [80, 140], [80, 100], [60, 100], [60, 60], [40, 60]])
-    expect(getLevel('nope').id).toBe('easy1')
-  })
-})
-
-describe('isArrowBlocked / getClearableCount / countClears', () => {
-  const level = getLevel('easy1')
-  it('reads the static blocked flag', () => {
-    expect(isArrowBlocked(level, 0)).toBe(false)
-    expect(isArrowBlocked(level, 1)).toBe(true)
-  })
-  it('counts clearable arrows (total minus blocked)', () => {
-    expect(getClearableCount(level)).toBe(4)
-  })
-  it('counts clears per player', () => {
-    expect(countClears(['X', 'O', '', 'X', 'O'])).toEqual({ X: 2, O: 2 })
+  it('freeArrows lists open arrows only', () => {
+    expect(freeArrows(TINY, none())).toEqual([1, 2])
+    expect(freeArrows(TINY, [false, false, true])).toEqual([0, 1])
   })
 })
 
-describe('normalizeCleared', () => {
-  it('normalizes sparse objects and filters junk', () => {
-    expect(normalizeCleared({ 0: 'X', 2: 'O', 3: 'junk' }, 4)).toEqual(['X', '', 'O', ''])
-    expect(normalizeCleared(null, 3)).toEqual(['', '', ''])
-    expect(normalizeCleared(['X', 'O'], 3)).toEqual(['X', 'O', ''])
+describe('applyArrowTap', () => {
+  it('clears a free arrow without touching lives', () => {
+    const r = applyArrowTap(TINY, none(), 3, 2)
+    expect(r.result).toBe('cleared')
+    expect(r.gone).toEqual([false, false, true])
+    expect(r.lives).toBe(3)
+  })
+
+  it('a blocked tap costs a life and leaves the board alone', () => {
+    const gone = none()
+    const r = applyArrowTap(TINY, gone, 3, 0)
+    expect(r).toMatchObject({ result: 'blocked', lives: 2, blocker: 2, gap: 1 })
+    expect(r.gone).toBe(gone)
+  })
+
+  it('is a no-op for bad index, gone arrow, or no lives', () => {
+    expect(applyArrowTap(TINY, none(), 3, -1)).toBeNull()
+    expect(applyArrowTap(TINY, none(), 3, 3)).toBeNull()
+    expect(applyArrowTap(TINY, [false, false, true], 3, 2)).toBeNull()
+    expect(applyArrowTap(TINY, none(), 0, 2)).toBeNull()
+    expect(applyArrowTap(null, none(), 3, 0)).toBeNull()
+  })
+
+  it('does not mutate the input', () => {
+    const gone = none()
+    applyArrowTap(TINY, gone, 3, 1)
+    expect(gone).toEqual(none())
   })
 })
 
-describe('exitVector', () => {
-  it('returns the unit direction of the last segment', () => {
-    expect(exitVector([[0, 0], [0, 10]])).toEqual({ dx: 0, dy: 1, tip: [0, 10] })
-    expect(exitVector([[0, 0], [10, 0]])).toEqual({ dx: 1, dy: 0, tip: [10, 0] })
+describe('progress helpers', () => {
+  it('countGone / isBoardCleared', () => {
+    expect(countGone([true, false, true])).toBe(2)
+    expect(isBoardCleared(TINY, [true, true, false])).toBe(false)
+    expect(isBoardCleared(TINY, [true, true, true])).toBe(true)
+  })
+
+  it('normalizeGone maps by explicit key and tolerates junk', () => {
+    expect(normalizeGone(null, 3)).toEqual([false, false, false])
+    expect(normalizeGone({ 2: true }, 3)).toEqual([false, false, true])
+    expect(normalizeGone({ 0: true, 9: true, x: true, 1: false }, 3)).toEqual([true, false, false])
+    // Firebase may hand back a sparse array for dense numeric keys.
+    expect(normalizeGone([true, undefined, true], 3)).toEqual([true, false, true])
+    expect(normalizeGone('nope', 2)).toEqual([false, false])
   })
 })
 
-describe('roundedPathD', () => {
-  it('returns a straight line for two points', () => {
-    expect(roundedPathD([[0, 0], [10, 0]])).toBe('M0 0 L10 0')
+describe('arrowsRoundWinner', () => {
+  const base = { total: 10, clearedX: 3, clearedO: 4, livesX: 3, livesO: 3 }
+  it('is null mid-race', () => expect(arrowsRoundWinner(base)).toBeNull())
+  it('first to clear wins', () => {
+    expect(arrowsRoundWinner({ ...base, clearedX: 10 })).toBe('X')
+    expect(arrowsRoundWinner({ ...base, clearedO: 10 })).toBe('O')
   })
-  it('rounds an interior corner with a quadratic', () => {
-    const d = roundedPathD([[0, 0], [10, 0], [10, 10]])
-    expect(d.startsWith('M0 0')).toBe(true)
-    expect(d).toContain('Q10 0')
+  it('running out of lives forfeits', () => {
+    expect(arrowsRoundWinner({ ...base, livesX: 0 })).toBe('O')
+    expect(arrowsRoundWinner({ ...base, livesO: 0 })).toBe('X')
   })
-  it('insets the tip when requested', () => {
-    const d = roundedPathD([[0, 0], [0, 20]], 8, 4.2)
-    expect(d).toBe('M0 0 L0 15.8')
+  it('a clear on the last life still counts', () => {
+    expect(arrowsRoundWinner({ ...base, clearedX: 10, livesO: 0, livesX: 0 })).toBe('X')
   })
-})
-
-describe('applyTap', () => {
-  const level = getLevel('easy1') // 5 arrows: index 0 valid, index 1 blocked, 4 clearable
-  const lives = { X: ARROWS_LIVES, O: ARROWS_LIVES }
-
-  it('clears a valid arrow without changing lives', () => {
-    const res = applyTap(level, ['', '', '', '', ''], lives, 0, 'X')
-    expect(res.tap).toEqual({ index: 0, by: 'X', result: 'cleared' })
-    expect(res.cleared[0]).toBe('X')
-    expect(res.lives).toEqual(lives)
-  })
-
-  it('costs a life on a blocked arrow and keeps it uncleared', () => {
-    const res = applyTap(level, ['', '', '', '', ''], lives, 1, 'X')
-    expect(res.tap).toEqual({ index: 1, by: 'X', result: 'blocked' })
-    expect(res.cleared[1]).toBe('')
-    expect(res.lives.X).toBe(2)
-  })
-
-  it('rejects a cleared arrow, out-of-lives taps, and bad indices', () => {
-    expect(applyTap(level, ['X', '', '', '', ''], lives, 0, 'O')).toBeNull()
-    expect(applyTap(level, ['', '', '', '', ''], { X: 0, O: 3 }, 0, 'X')).toBeNull()
-    expect(applyTap(level, ['', '', '', '', ''], lives, -1, 'X')).toBeNull()
-    expect(applyTap(level, ['', '', '', '', ''], lives, 99, 'X')).toBeNull()
+  it('both out: more clears wins, level is a draw', () => {
+    expect(arrowsRoundWinner({ ...base, livesX: 0, livesO: 0 })).toBe('O')
+    expect(arrowsRoundWinner({ ...base, clearedX: 4, livesX: 0, livesO: 0 })).toBe('draw')
   })
 })
 
-describe('getArrowsWinner', () => {
-  const level = getLevel('easy1') // 4 clearable
-
-  it('is null while clearable arrows remain and players have lives', () => {
-    expect(getArrowsWinner(level, ['X', '', '', '', ''], 3, 3)).toBeNull()
-  })
-
-  it('awards the player with more clears when the board is exhausted', () => {
-    expect(getArrowsWinner(level, ['X', '', 'X', 'X', 'X'], 3, 3)).toBe('X')
-  })
-
-  it('draws on equal clears', () => {
-    expect(getArrowsWinner(level, ['X', '', 'X', 'O', 'O'], 3, 3)).toBe('draw')
-  })
-
-  it('resolves when both players are out of lives', () => {
-    expect(getArrowsWinner(level, ['X', '', '', '', 'O'], 0, 0)).toBe('draw')
-  })
-})
-
-describe('arrowsNextRound', () => {
-  it('advances easy → medium → hard and then ends', () => {
-    const r1 = arrowsNextRound({ arrowsRound: 0 })
-    expect(r1.arrowsRound).toBe(1)
-    expect(levelIdsForTier('medium')).toContain(r1.arrowsLevel)
-    expect(r1.arrowsCleared).toBeNull()
-    expect(r1.arrowsLivesX).toBe(ARROWS_LIVES)
-
-    const r2 = arrowsNextRound({ arrowsRound: 1 })
-    expect(r2.arrowsRound).toBe(2)
-    expect(levelIdsForTier('hard')).toContain(r2.arrowsLevel)
-
-    expect(arrowsNextRound({ arrowsRound: 2 })).toBeNull()
-  })
-
-  it('refuses to advance past a decided match', () => {
-    expect(arrowsNextRound({ arrowsRound: 0, scores: { X: 2, O: 0 } })).toBeNull()
-    expect(arrowsNextRound({ arrowsRound: 1, scores: { X: 0, O: 2 } })).toBeNull()
-  })
-
-  it('resets trap flags and tracks seen levels', () => {
-    const r1 = arrowsNextRound({ arrowsRound: 0, arrowsLevel: 'easy1', arrowsSeen: { easy1: true } })
-    expect(r1.arrowsTrapSeen).toBeNull()
-    expect(r1.arrowsLastBlocked).toBeNull()
-    expect(r1.arrowsSeen.easy1).toBe(true)
-    expect(r1.arrowsSeen[r1.arrowsLevel]).toBe(true)
-  })
-})
-
-describe('arrows match end', () => {
-  it('reads first-to-2 from scores', () => {
-    expect(arrowsMatchWinner({ X: 2, O: 0 })).toBe('X')
+describe('match flow', () => {
+  it('arrowsMatchWinner: first to 2', () => {
+    expect(arrowsMatchWinner({ X: 2, O: 1 })).toBe('X')
     expect(arrowsMatchWinner({ X: 0, O: 2 })).toBe('O')
     expect(arrowsMatchWinner({ X: 1, O: 1 })).toBeNull()
+    expect(arrowsMatchWinner(undefined)).toBeNull()
   })
 
-  it('ends the match after the final round finishes', () => {
+  it('getArrowsMatchEnd closes after the final round', () => {
     expect(isFinalArrowsRound({ arrowsRound: 2 })).toBe(true)
     expect(isFinalArrowsRound({ arrowsRound: 1 })).toBe(false)
-    // Leader takes a non-level finish; level scores draw.
+    expect(getArrowsMatchEnd({ arrowsRound: 1, status: 'finished', scores: { X: 1, O: 0 } })).toBeNull()
     expect(getArrowsMatchEnd({ arrowsRound: 2, status: 'finished', scores: { X: 1, O: 0 } })).toBe('X')
     expect(getArrowsMatchEnd({ arrowsRound: 2, status: 'finished', scores: { X: 1, O: 1 } })).toBe('draw')
-    expect(getArrowsMatchEnd({ arrowsRound: 2, status: 'playing', scores: { X: 1, O: 0 } })).toBeNull()
-    expect(getArrowsMatchEnd({ arrowsRound: 1, status: 'finished', scores: { X: 1, O: 0 } })).toBeNull()
+    expect(getArrowsMatchEnd({ arrowsRound: 2, status: 'playing', scores: { X: 1, O: 1 } })).toBeNull()
+    expect(getArrowsMatchEnd({ arrowsRound: 0, status: 'finished', scores: { O: 2 } })).toBe('O')
+  })
+
+  it('arrowsFreshState starts round 0 with a seed and full lives', () => {
+    const s = arrowsFreshState(() => 0.5)
+    expect(s).toMatchObject({
+      arrowsRound: 0,
+      arrowsStartedAt: null,
+      arrowsGoneX: null,
+      arrowsGoneO: null,
+      arrowsLivesX: ARROWS_LIVES,
+      arrowsLivesO: ARROWS_LIVES,
+    })
+    expect(s.arrowsSeed).toBeGreaterThan(0)
+  })
+
+  it('arrowsNextRound advances and resets the race', () => {
+    const next = arrowsNextRound({ arrowsRound: 0, scores: { X: 1 }, arrowsGoneX: { 1: true } })
+    expect(next.arrowsRound).toBe(1)
+    expect(next.arrowsGoneX).toBeNull()
+    expect(next.arrowsStartedAt).toBeNull()
+    expect(next.arrowsLivesX).toBe(ARROWS_LIVES)
+  })
+
+  it('arrowsNextRound returns null once the match is over', () => {
+    expect(arrowsNextRound({ arrowsRound: 2, scores: { X: 1, O: 1 } })).toBeNull()
+    expect(arrowsNextRound({ arrowsRound: 1, scores: { X: 2 } })).toBeNull()
   })
 })
 
-describe('arrows level rotation', () => {
-  it('avoids excluded ids until the pool is exhausted', () => {
-    const ids = levelIdsForTier('easy')
-    expect(pickLevelId('easy', () => 0, ids.slice(1))).toBe(ids[0])
-    // All banned → pool resets instead of null.
-    expect(ids).toContain(pickLevelId('easy', () => 0, ids))
-    expect(pickLevelId('nope')).toBeNull()
+describe('geometry', () => {
+  it('cellCenter', () => {
+    expect(cellCenter([2, 3], 10)).toEqual([25, 35])
   })
 
-  it('normalizes and caps the seen map', () => {
-    expect(normalizeArrowsSeen(null)).toEqual({})
-    expect(normalizeArrowsSeen({ a: true, b: 0 })).toEqual({ a: true })
-    const capped = recordArrowsSeen({ k1: true, k2: true, k3: true, k4: true, k5: true, k6: true }, ['k7'])
-    expect(Object.keys(capped)).toHaveLength(6)
-    expect(capped.k7).toBe(true)
+  it('slicePolyline cuts by arc length across corners', () => {
+    const pts = [[0, 0], [10, 0], [10, 10]]
+    expect(slicePolyline(pts, 0, 20)).toEqual([[0, 0], [10, 0], [10, 10]])
+    expect(slicePolyline(pts, 5, 15)).toEqual([[5, 0], [10, 0], [10, 5]])
+    // Boundaries exactly on a corner never duplicate the corner point.
+    expect(slicePolyline(pts, 10, 20)).toEqual([[10, 0], [10, 10]])
+    expect(slicePolyline(pts, 0, 10)).toEqual([[0, 0], [10, 0]])
   })
 
-  it('fresh state avoids seen levels', () => {
-    const ids = levelIdsForTier('easy')
-    const fresh = arrowsFreshState(Object.fromEntries(ids.slice(0, 4).map((id) => [id, true])), () => 0)
-    expect(fresh.arrowsLevel).toBe(ids[4])
+  it('leavePose rests on the cells and slithers along the body', () => {
+    const arrow = { cells: [[0, 1], [0, 0], [1, 0]], dir: 1 }
+    expect(leavePose(arrow, 10, 0)).toEqual([[5, 15], [5, 5], [15, 5]])
+    // Half a cell in: the tail has moved up the first leg, the head right
+    // (the old head cell stays as a collinear waypoint).
+    expect(leavePose(arrow, 10, 5)).toEqual([[5, 10], [5, 5], [15, 5], [20, 5]])
+    // Past the body length the whole snake is straight on its heading.
+    const far = leavePose(arrow, 10, 30)
+    expect(far).toEqual([[25, 5], [45, 5]])
   })
-})
 
-describe('exitVector guard', () => {
-  it('never crashes on short input', () => {
+  it('leavePose keeps the body length constant', () => {
+    const arrow = { cells: [[0, 2], [0, 1], [1, 1], [1, 0]], dir: 0 }
+    const len = (pts) => pts.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0)
+    for (const t of [0, 3, 10, 17, 40]) expect(len(leavePose(arrow, 10, t))).toBeCloseTo(30)
+  })
+
+  it('exitVector handles short input', () => {
     expect(exitVector([])).toEqual({ dx: 0, dy: 0, tip: [0, 0] })
     expect(exitVector([[3, 4]])).toEqual({ dx: 0, dy: 0, tip: [3, 4] })
+    expect(exitVector([[0, 0], [0, -5]])).toEqual({ dx: 0, dy: -1, tip: [0, -5] })
   })
 
-  it('flags stale level ids', () => {
-    expect(getLevel('nope').fallback).toBe(true)
-    expect(getLevel('easy1').fallback).toBe(false)
+  it('roundedPathD rounds corners and insets the tip', () => {
+    expect(roundedPathD([[0, 0]], 3)).toBe('')
+    expect(roundedPathD([[0, 0], [10, 0]], 3)).toBe('M0 0 L10 0')
+    expect(roundedPathD([[0, 0], [10, 0]], 3, 2)).toBe('M0 0 L8 0')
+    expect(roundedPathD([[0, 0], [10, 0], [10, 10]], 3)).toBe('M0 0 L7 0 Q10 0 10 3 L10 10')
   })
 })

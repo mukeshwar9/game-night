@@ -70,7 +70,7 @@ import {
 } from '../lib/diceLogic'
 import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from '../lib/anagramsLogic'
 import { TARGET_SCORE as PASSWORD_TARGET } from '../lib/passwordLogic'
-import { ARROWS_MATCH_TARGET, getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
+import { ARROWS_MATCH_TARGET, getArrowsMatchEnd } from '../lib/arrowsLogic'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -1091,15 +1091,6 @@ export default function Game() {
   const applyNewMatch = async () => {
     const starter = nextStarter(game)
     const fresh = freshGameState(game.gameType)
-    // Arrows: keep the seen-level rotation across matches so rematches feel
-    // fresh — re-pick when the fresh draw repeats a recently played level.
-    if (game.gameType === 'arrows') {
-      const seen = normalizeArrowsSeen(game.arrowsSeen)
-      if (seen[fresh.arrowsLevel]) {
-        fresh.arrowsLevel = pickLevelId('easy', Math.random, Object.keys(seen))
-      }
-      fresh.arrowsSeen = recordArrowsSeen(seen, [fresh.arrowsLevel])
-    }
     // A new match still starts with a fresh word. Preserve prior indexes as a
     // room-level deck history, matching Word Race's non-repeat promise.
     if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }
