@@ -46,6 +46,12 @@ ten candidates:
 | [short-order.md](short-order.md) | Short Order (split diner stations) | Overcooked | reflex | 2 | custom co-op page | RTDB + server clock | M/L | P3 |
 | [twin-path.md](twin-path.md) | Twin Path (real-time split-ability platformer) | Fireboy & Watergirl, PICO PARK | reflex | 2 | custom realtime page | WebRTC (pong stack) | L | P3 |
 
+### Expansions of shipped games
+
+| PRD | Game | Category | Players | Integration | Network | Effort | Priority |
+|---|---|---|---|---|---|---|---|
+| [wire-crossed-levels.md](wire-crossed-levels.md) | Wire Crossed: 15-level ladder, new modules, 0:00 timer bug | reflex (co-op) | 2 (3–4 later) | custom co-op page | RTDB | L (timer fix S) | **P1** fix · P2 ladder |
+
 **Co-op conventions (all ten):** registry `coop: true` plus the type in `COOP_GAMES`
 (`src/lib/matchRules.js`, kept in sync by `matchRules.test.js`) so there is no CLAIM WIN, no
 W/L stats and no leaderboard credit; all state under `round` (no `FIELD_NULLS` or rules changes);
