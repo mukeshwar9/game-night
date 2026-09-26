@@ -95,7 +95,8 @@ function EmotePicker({ onPick, onClose }) {
   )
 }
 
-export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, textCooldown }) {
+// `quiet` (silent games, e.g. HUNCH): emotes only — no quick-chat phrases.
+export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, textCooldown, quiet = false }) {
   const [showPicker, setShowPicker] = useState(false)
   const [text, setText] = useState('')
   const [usageKey] = useState(() => `emoteUsage:${getPlayerId()}`)
@@ -156,7 +157,7 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
             </div>
           </div>
         </div>
-        <div className="relative">
+        {!quiet && <div className="relative">
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex w-max mx-auto gap-1.5 px-1">
               {QUICK_CHAT.map(t => (
@@ -174,7 +175,7 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
             </div>
           </div>
           <div className="pointer-events-none absolute right-0 inset-y-0 w-6 bg-gradient-to-l from-retro-bg to-transparent" aria-hidden="true" />
-        </div>
+        </div>}
         {onSendText && (
           <form onSubmit={handleSubmitText} className="flex gap-2 w-full px-1">
             <input

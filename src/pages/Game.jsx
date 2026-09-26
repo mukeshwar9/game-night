@@ -1181,14 +1181,15 @@ export default function Game() {
           </div>
         )}
 
-        {/* Free-text chat log — visible to spectators too; self-hides when empty */}
-        <ChatLog chatLog={game.chatLog} myUid={getPlayerId()} />
+        {/* Free-text chat log — visible to spectators too; self-hides when empty.
+            Silent games (registry `quiet`, e.g. HUNCH) hide typed chat; emotes stay. */}
+        {!cfg.quiet && <ChatLog chatLog={game.chatLog} myUid={getPlayerId()} />}
 
         {/* Emote / reaction bar — hidden while waiting for an opponent (M-XX:
             nobody to react to yet). Shown to a seated player once an
             opponent has joined, or to a spectator watching a live game. */}
         {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
-          <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></Suspense></VideoCallReactionDock>
+          <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={cfg.quiet ? undefined : sendChat} textCooldown={chatCooldown} quiet={!!cfg.quiet} /></Suspense></VideoCallReactionDock>
         )}
       </div>
       {showInvite && (
