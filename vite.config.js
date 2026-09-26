@@ -26,6 +26,35 @@ function stylesheetFirst() {
   }
 }
 
+// The service worker precaches the app shell only: the entry, its CSS and
+// every route page in App.jsx (plus first-run onboarding), each with its
+// static-import closure. Per-game pages, boards and decks (~2.4 MB across
+// ~180 chunks) are cached at runtime the first time they load instead of all
+// being downloaded in the background on the first visit and after every
+// deploy. Filled in generateBundle, read by workbox's manifestTransforms.
+const SHELL_CHUNKS = /^(index|Games|OnlineLobby|Game|Demo|DailyGame|Profile|Friends|Notes|EmojiLab|Leaderboard|Playground|Onboarding)$/
+const shellFiles = new Set()
+
+function collectShell() {
+  return {
+    name: 'collect-shell',
+    apply: 'build',
+    generateBundle(_, bundle) {
+      shellFiles.clear()
+      const visit = (file) => {
+        const chunk = bundle[file]
+        if (!chunk || chunk.type !== 'chunk' || shellFiles.has(file)) return
+        shellFiles.add(file)
+        chunk.viteMetadata?.importedCss?.forEach(css => shellFiles.add(css))
+        chunk.imports.forEach(visit)
+      }
+      for (const [file, chunk] of Object.entries(bundle)) {
+        if (chunk.type === 'chunk' && (chunk.isEntry || SHELL_CHUNKS.test(chunk.name))) visit(file)
+      }
+    },
+  }
+}
+
 export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
@@ -51,6 +80,7 @@ export default defineConfig({
   plugins: [
     react(),
     stylesheetFirst(),
+    collectShell(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
@@ -76,7 +106,23 @@ export default defineConfig({
         // No Firebase runtime rule: RTDB/Auth traffic is live and has its own
         // offline handling; caching it here only stored opaque responses with
         // no expiry.
+        manifestTransforms: [
+          async (entries) => ({
+            manifest: entries.filter(e => !/^assets\/.+\.(js|css)$/.test(e.url) || shellFiles.has(e.url)),
+            warnings: [],
+          }),
+        ],
         runtimeCaching: [
+          {
+            // Everything under /assets/ is content-hashed, so a cached copy
+            // never goes stale; a game opened once keeps working offline.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/assets/') && /\.(js|css)$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'assets',
+              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 60 },
+            },
+          },
           {
             // Word Hunt's ~1MB dictionary lives in public/ (not the JS module
             // graph — see src/lib/wordhuntDictionary.js) and isn't precached:
