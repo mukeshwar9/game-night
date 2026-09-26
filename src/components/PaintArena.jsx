@@ -150,9 +150,9 @@ const PaintArena = forwardRef(function PaintArena(
       </div>
 
       <div className="flex items-center justify-between px-1 font-pixel text-[8px]">
-        <span className="text-retro-p1">{namesX?.toUpperCase()}{mySide === 'X' ? ' (YOU)' : ''}</span>
+        <span className="text-retro-p1">{namesX?.toUpperCase()}{mySide === 'X' && namesX?.toUpperCase() !== 'YOU' ? ' (YOU)' : ''}</span>
         <span className="text-retro-dim">↑ ↓ ← → · WASD · SWIPE</span>
-        <span className="text-retro-p2">{namesO?.toUpperCase()}{mySide === 'O' ? ' (YOU)' : ''}</span>
+        <span className="text-retro-p2">{namesO?.toUpperCase()}{mySide === 'O' && namesO?.toUpperCase() !== 'YOU' ? ' (YOU)' : ''}</span>
       </div>
     </div>
   )

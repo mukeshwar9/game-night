@@ -134,7 +134,7 @@ export default function ArtilleryDemo() {
           </button>
           <p className="font-mono text-[10px] text-retro-dim text-center leading-relaxed">
             BRACKET THE TARGET · WIND PUSHES YOUR SHELL<br />
-            ARROWS AIM · SPACE FIRES · SELF-SPLASH IS REAL
+            <span className="kbd-hint">ARROWS AIM · SPACE FIRES · </span>SELF-SPLASH IS REAL
           </p>
         </>
       )}

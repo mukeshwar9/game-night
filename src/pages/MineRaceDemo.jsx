@@ -239,7 +239,7 @@ export default function MineRaceDemo() {
             </button>
           </div>
           <p className="font-mono text-[10px] text-retro-dim text-center leading-relaxed">
-            TAP REVEAL · LONG-PRESS / RIGHT-CLICK / F KEY FLAG<br />
+            TAP REVEAL · LONG-PRESS<span className="kbd-hint"> / RIGHT-CLICK / F KEY</span> TO FLAG<br />
             TAP A SATISFIED NUMBER TO CHORD · {flaggedMines}/{flags.size} FLAGS CORRECT
           </p>
         </>

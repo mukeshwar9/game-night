@@ -111,11 +111,11 @@ const TronArena = forwardRef(function TronArena(
       </div>
 
       <div className="flex items-center justify-between px-1 font-pixel text-[8px]">
-        <span className="text-retro-p1">{namesX?.toUpperCase()}{mySide === 'X' ? ' (YOU)' : ''}</span>
-        <span className="text-retro-p2">{namesO?.toUpperCase()}{mySide === 'O' ? ' (YOU)' : ''}</span>
+        <span className="text-retro-p1">{namesX?.toUpperCase()}{mySide === 'X' && namesX?.toUpperCase() !== 'YOU' ? ' (YOU)' : ''}</span>
+        <span className="text-retro-p2">{namesO?.toUpperCase()}{mySide === 'O' && namesO?.toUpperCase() !== 'YOU' ? ' (YOU)' : ''}</span>
       </div>
       <p className="text-center font-pixel text-[10px] text-retro-dim leading-relaxed">
-        ARROWS / WASD · SWIPE OR HOLD + DRAG ON TOUCH
+        <span className="kbd-hint">ARROWS / WASD TO STEER</span><span className="touch-hint">SWIPE, OR HOLD + DRAG, TO STEER</span>
       </p>
     </div>
   )

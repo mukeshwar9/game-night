@@ -51,7 +51,6 @@ export default function TronDemo() {
 
   return (
     <div className="space-y-3">
-      <p className="text-center font-pixel text-[10px] text-retro-cta text-glow-cta">TRON · DEMO</p>
       <TronArena
         ref={arenaRef}
         cycles={view.cycles}
@@ -72,7 +71,7 @@ export default function TronDemo() {
           </div>
         ) : null}
       />
-      <p className="text-center font-pixel text-[8px] text-retro-dim">VS COMPUTER · ↑↓←→ · WASD · SWIPE</p>
+      <p className="text-center font-pixel text-[8px] text-retro-dim">VS COMPUTER<span className="kbd-hint"> · ↑↓←→ · WASD</span></p>
     </div>
   )
 }

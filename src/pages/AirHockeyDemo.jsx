@@ -186,7 +186,7 @@ export default function AirHockeyDemo() {
           </div>
           <p className="font-mono text-[10px] text-retro-dim text-center leading-relaxed">
             DRAG YOUR MALLET · DEFEND THE BOTTOM GOAL<br />
-            ARROWS / WASD ALSO WORK
+            <span className="kbd-hint">ARROWS / WASD ALSO WORK</span>
           </p>
         </>
       )}

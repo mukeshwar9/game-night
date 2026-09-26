@@ -69,16 +69,16 @@ const SumoArena = forwardRef(function SumoArena(
     <div className="space-y-2 select-none">
       <div className="flex items-center justify-center gap-8 font-pixel">
         <span className={cn('text-[8px] tracking-widest', mySide === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p1/80')}>
-          {namesX?.toUpperCase()}{mySide === 'X' ? ' (YOU)' : ''}
+          {namesX?.toUpperCase()}{mySide === 'X' && namesX?.toUpperCase() !== 'YOU' ? ' (YOU)' : ''}
         </span>
         <span className="flex flex-col items-center">
           <span className="text-[8px] text-retro-dim tracking-widest">SUMO</span>
-          <span className={cn('text-[7px] tracking-widest', shrinking ? 'text-retro-danger' : 'text-retro-dim')}>
+          <span className={cn('text-[8px] tracking-widest', shrinking ? 'text-retro-danger' : 'text-retro-dim')}>
             {fmtTime(t)}
           </span>
         </span>
         <span className={cn('text-[8px] tracking-widest', mySide === 'O' ? 'text-retro-p2 text-glow-p2' : 'text-retro-p2/80')}>
-          {namesO?.toUpperCase()}{mySide === 'O' ? ' (YOU)' : ''}
+          {namesO?.toUpperCase()}{mySide === 'O' && namesO?.toUpperCase() !== 'YOU' ? ' (YOU)' : ''}
         </span>
       </div>
 
@@ -130,7 +130,7 @@ const SumoArena = forwardRef(function SumoArena(
         )}
       </div>
       <p className="text-center font-pixel text-[10px] text-retro-dim leading-relaxed">
-        SPACE / ENTER · TAP PUSH BELOW ON TOUCH
+        <span className="kbd-hint">SPACE / ENTER TO PUSH</span><span className="touch-hint">TAP PUSH BELOW</span>
       </p>
     </div>
   )

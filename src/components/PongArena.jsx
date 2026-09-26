@@ -44,7 +44,7 @@ function PlayerChip({ side, name, points, rounds, effects, me, align = 'left', l
             />
           ))}
           {EFFECT_LABELS.map(([k, text, tone]) => e?.[k] > 0 && (
-            <span key={k} className={cn('font-pixel text-[6px] px-1 py-px border rounded-sm tabular-nums', tone)}>
+            <span key={k} className={cn('font-pixel text-[8px] px-1 py-px border rounded-sm tabular-nums', tone)}>
               {text} {Math.ceil(e[k])}
             </span>
           ))}
@@ -60,7 +60,7 @@ function Status({ view, lives, best }) {
   const sudden = isSuddenDeath({ mode: view.mode, clock: view.clock, score: view.score || { X: 0, O: 0 } })
   return (
     <div className="flex flex-col items-center gap-1 shrink-0 text-center">
-      <span className="font-pixel text-[7px] text-retro-dim tracking-widest">{mode.label}</span>
+      <span className="font-pixel text-[8px] text-retro-dim tracking-widest">{mode.label}</span>
       {clock != null && (
         <span className={cn('font-pixel text-sm tabular-nums', sudden || clock <= 10 ? 'text-retro-danger text-glow-danger' : 'text-retro-text')}>
           {sudden ? 'SUDDEN DEATH' : `${Math.floor(clock / 60)}:${String(clock % 60).padStart(2, '0')}`}
@@ -73,8 +73,8 @@ function Status({ view, lives, best }) {
           ))}
         </span>
       ) : null}
-      {best != null && <span className="font-pixel text-[6px] text-retro-dim">BEST {best}</span>}
-      <span className={cn('font-pixel text-[7px] tabular-nums transition-opacity', (view.rally ?? 0) >= 3 ? 'text-retro-cta opacity-100' : 'opacity-0')}>
+      {best != null && <span className="font-pixel text-[8px] text-retro-dim">BEST {best}</span>}
+      <span className={cn('font-pixel text-[8px] tabular-nums transition-opacity', (view.rally ?? 0) >= 3 ? 'text-retro-cta opacity-100' : 'opacity-0')}>
         RALLY {view.rally ?? 0}
       </span>
     </div>
@@ -201,7 +201,7 @@ export default function PongArena({
       {/* Bottom HUD — your side in portrait, plus the control hint */}
       <div className="mx-auto w-full space-y-1" style={hudStyle}>
         {portrait && <div>{chip(nearSide, 'left')}</div>}
-        <p className="text-center font-pixel text-[7px] text-retro-dim/80 [@media(max-height:420px)]:hidden">{hint}</p>
+        <p className="text-center font-pixel text-[8px] text-retro-dim/80 [@media(max-height:420px)]:hidden">{hint}</p>
         {footer}
       </div>
     </div>

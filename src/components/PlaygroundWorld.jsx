@@ -290,7 +290,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
           <p
             key={d.id}
             aria-hidden="true"
-            className="absolute font-pixel text-[7px] text-retro-dim tracking-widest text-center pointer-events-none"
+            className="absolute font-pixel text-[8px] text-retro-dim tracking-widest text-center pointer-events-none"
             style={{ left: `${(d.x / WORLD_W) * 100}%`, top: `${(d.y / WORLD_H) * 100}%`, transform: 'translate(-50%, -50%)' }}
           >
             {d.label}
@@ -341,7 +341,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
               >
                 {Icon && <Icon />}
               </div>
-              <p className="font-pixel text-[6px] text-retro-dim text-center leading-tight">
+              <p className="font-pixel text-[8px] text-retro-dim text-center leading-tight">
                 {cfg.badge || cfg.label}
               </p>
             </div>
@@ -443,7 +443,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
 
       {/* HUD — fixed to the viewport, unaffected by the camera pan */}
       <p className="absolute top-[max(0.5rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-20 font-pixel text-[8px] text-retro-dim bg-retro-surface/80 px-2 py-1 rounded whitespace-nowrap">
-        ARROWS · WASD · SHIFT SPRINT · DRAG · 1-4 EMOTE
+        <span className="kbd-hint">ARROWS · WASD · SHIFT SPRINT · DRAG · 1-4 EMOTE</span><span className="touch-hint">DRAG TO WALK · TAP AN EMOTE</span>
       </p>
 
       <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] z-20 px-2 py-1 rounded bg-retro-surface border border-retro-border font-pixel text-[8px] text-retro-win">
@@ -501,7 +501,7 @@ function NpcSpeechBubble({ display, onPlay }) {
 
   return (
     <div
-      className="absolute z-10 bg-retro-surface border border-retro-border rounded p-2 font-pixel text-[7px] text-retro-text max-w-[9rem]"
+      className="absolute z-10 bg-retro-surface border border-retro-border rounded p-2 font-pixel text-[8px] text-retro-text max-w-[9rem]"
       style={style}
     >
       <p>{nearNpcLine}</p>
@@ -518,7 +518,7 @@ function DailyBubble({ style, onPlay }) {
 
   return (
     <div
-      className="absolute z-10 bg-retro-surface border border-retro-border rounded p-2 font-pixel text-[7px] text-retro-text space-y-1 max-w-[9rem]"
+      className="absolute z-10 bg-retro-surface border border-retro-border rounded p-2 font-pixel text-[8px] text-retro-text space-y-1 max-w-[9rem]"
       style={style}
     >
       <p>DAILY #{dailyNum}</p>

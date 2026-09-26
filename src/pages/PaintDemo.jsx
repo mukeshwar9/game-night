@@ -76,7 +76,6 @@ export default function PaintDemo() {
 
   return (
     <div className="space-y-3">
-      <p className="text-center font-pixel text-[10px] text-retro-cta text-glow-cta">PAINT TURF · DEMO</p>
       <PaintArena
         ref={arenaRef}
         grid={view.grid}
@@ -97,7 +96,7 @@ export default function PaintDemo() {
           </div>
         ) : null}
       />
-      <p className="text-center font-pixel text-[8px] text-retro-dim">VS COMPUTER · ↑↓←→ · WASD · SWIPE</p>
+      <p className="text-center font-pixel text-[8px] text-retro-dim">VS COMPUTER<span className="kbd-hint"> · ↑↓←→ · WASD</span></p>
     </div>
   )
 }

@@ -86,7 +86,6 @@ export default function SpaceduelDemo() {
 
   return (
     <div className="space-y-3">
-      <p className="text-center font-pixel text-[10px] text-retro-cta text-glow-cta">SPACE DUEL · DEMO</p>
 
       <SpaceduelArena
         ref={arenaRef}
@@ -132,7 +131,7 @@ export default function SpaceduelDemo() {
       />
 
       <p className="text-center font-pixel text-[8px] text-retro-dim">
-        {timeLeft}s LEFT · A/D ROTATE · W THRUST · SPACE FIRE
+        {timeLeft}s LEFT<span className="kbd-hint"> · A/D ROTATE · W THRUST · SPACE FIRE</span>
       </p>
     </div>
   )

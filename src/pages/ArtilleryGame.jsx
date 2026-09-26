@@ -223,7 +223,7 @@ export default function ArtilleryGame({
             FIRE
           </button>
           <p className="font-mono text-[10px] text-retro-dim text-center">
-            ARROWS AIM · SPACE/ENTER FIRES · LAST TRAIL SHOWS AS DOTS
+            <span className="kbd-hint">ARROWS AIM · SPACE/ENTER FIRES · </span>LAST TRAIL SHOWS AS DOTS
           </p>
         </>
       )}

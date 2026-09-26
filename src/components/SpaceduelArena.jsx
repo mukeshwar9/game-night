@@ -287,7 +287,7 @@ const SpaceduelArena = forwardRef(function SpaceduelArena(
         <span className="text-retro-p2">{namesO?.toUpperCase()}{mySide === 'O' ? ' (YOU)' : ''}</span>
       </div>
       <p className="text-center font-pixel text-[10px] text-retro-dim leading-relaxed">
-        A/D ROTATE · W THRUST · SPACE FIRE · TOUCH: BUTTONS BELOW
+        <span className="kbd-hint">A/D ROTATE · W THRUST · SPACE FIRE</span><span className="touch-hint">ROTATE ◀ ▶ · THRUST · FIRE — BUTTONS BELOW</span>
       </p>
     </div>
   )

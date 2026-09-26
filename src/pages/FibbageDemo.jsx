@@ -399,7 +399,7 @@ export default function FibbageDemo() {
           <p className="font-pixel text-[9px] text-retro-dim text-center">
             {committedCount}/{seatIds.length} LIED…
           </p>
-          <p className="font-pixel text-[7px] text-retro-dim text-center">
+          <p className="font-pixel text-[8px] text-retro-dim text-center">
             TRUTH +{POINTS_FOR_TRUTH * (isFinal ? 2 : 1)} · PER FOOL +{POINTS_PER_FOOL * (isFinal ? 2 : 1)}
           </p>
         </div>

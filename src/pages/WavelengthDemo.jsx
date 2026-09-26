@@ -475,7 +475,6 @@ export default function WavelengthDemo() {
 
   return (
     <div className="space-y-4">
-      <p className="text-center font-pixel text-[10px] text-retro-cta text-glow-cta">WAVELENGTH · SOLO</p>
 
       <Scoreboard
         players={gameState.players}
@@ -507,7 +506,7 @@ export default function WavelengthDemo() {
             </p>
             {botWords.length > 0 && (
               <div className="space-y-1">
-                <p className="font-pixel text-[7px] text-retro-dim text-center leading-relaxed">
+                <p className="font-pixel text-[8px] text-retro-dim text-center leading-relaxed">
                   BOTS ONLY KNOW THESE WORDS — ANYTHING ELSE AND THEY GUESS WILDLY
                 </p>
                 <div className="flex flex-wrap justify-center gap-1.5">
@@ -611,7 +610,7 @@ export default function WavelengthDemo() {
                     className="absolute -translate-x-1/2 flex flex-col items-center"
                     style={{ left: `${clampGuess(guess)}%`, top: `-${36 + level * 15}px` }}
                   >
-                    <span className={cn('font-pixel text-[7px] whitespace-nowrap', mine ? 'text-retro-cta' : 'text-retro-dim')}>
+                    <span className={cn('font-pixel text-[8px] whitespace-nowrap', mine ? 'text-retro-cta' : 'text-retro-dim')}>
                       {(p?.name || '?').toUpperCase().slice(0, 4)}
                     </span>
                     <span className={cn('text-[10px]', mine ? 'text-retro-cta' : 'text-retro-p1')}>▾</span>

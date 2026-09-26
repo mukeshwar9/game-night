@@ -44,7 +44,7 @@ function Choice({ active, onClick, children, sub }) {
       )}
     >
       <span className="block">{children}</span>
-      {sub && <span className="block mt-1 text-[6px] leading-snug opacity-80">{sub}</span>}
+      {sub && <span className="block mt-1 text-[8px] leading-snug opacity-80">{sub}</span>}
     </button>
   )
 }
@@ -81,7 +81,7 @@ function Setup({ setup, setSetup, best, onPlay }) {
       {mode.powerups && (
         <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
           {(mode.kinds || Object.keys(PICKUP_INFO)).map(k => (
-            <span key={k} className="font-pixel text-[6px] text-retro-dim">
+            <span key={k} className="font-pixel text-[8px] text-retro-dim">
               <span className="text-retro-text">{PICKUP_INFO[k].glyph}</span> {PICKUP_INFO[k].name}
             </span>
           ))}
@@ -93,8 +93,8 @@ function Setup({ setup, setSetup, best, onPlay }) {
       >
         PLAY FULL SCREEN
       </button>
-      <p className="font-pixel text-[7px] text-retro-dim/80 text-center leading-relaxed">
-        DRAG ANYWHERE TO MOVE · KEYS WORK TOO · FLICK THE PADDLE AS YOU HIT TO CURVE THE BALL
+      <p className="font-pixel text-[8px] text-retro-dim/80 text-center leading-relaxed">
+        DRAG ANYWHERE TO MOVE<span className="kbd-hint"> · KEYS WORK TOO</span> · FLICK THE PADDLE AS YOU HIT TO CURVE THE BALL
       </p>
     </div>
   )

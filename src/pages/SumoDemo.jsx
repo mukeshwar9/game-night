@@ -63,7 +63,6 @@ export default function SumoDemo() {
 
   return (
     <div className="space-y-3">
-      <p className="text-center font-pixel text-[10px] text-retro-cta text-glow-cta">SUMO ARENA · DEMO</p>
       <SumoArena
         ref={arenaRef}
         blobs={view.blobs}

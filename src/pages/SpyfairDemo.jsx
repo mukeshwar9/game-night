@@ -455,7 +455,6 @@ export default function SpyfairDemo() {
 
   return (
     <div className="space-y-4">
-      <p className="text-center font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">SPYFAIR · SOLO</p>
 
       {state.phase === 'setup' && (
         <PartyBotSetup
@@ -552,7 +551,7 @@ export default function SpyfairDemo() {
                     'max-w-[78%] rounded px-2 py-1 font-mono text-[10px] leading-snug',
                     isMe ? 'bg-retro-tint-p1 text-retro-p1' : 'bg-retro-card text-retro-text',
                   )}>
-                    <p className="font-pixel text-[6px] text-retro-dim mb-0.5 tracking-wider">{p.name}</p>
+                    <p className="font-pixel text-[8px] text-retro-dim mb-0.5 tracking-wider">{p.name}</p>
                     {entry.text}
                   </div>
                 </div>

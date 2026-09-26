@@ -207,11 +207,11 @@ function ScoreBlock({ side, score, name, mine, power, out }) {
       >
         {score}
       </p>
-      <p className="mt-1 font-pixel text-[7px] tracking-widest text-retro-dim truncate">
+      <p className="mt-1 font-pixel text-[8px] tracking-widest text-retro-dim truncate">
         {(name || side).toUpperCase()}{mine && name?.toUpperCase() !== 'YOU' ? ' · YOU' : ''}
       </p>
       {power > 0 && (
-        <p className="mt-0.5 font-pixel text-[7px] tracking-widest" style={{ color: col(token) }}>
+        <p className="mt-0.5 font-pixel text-[8px] tracking-widest" style={{ color: col(token) }}>
           POWER {Math.ceil(power)}
         </p>
       )}
@@ -256,7 +256,7 @@ const PacmacArena = forwardRef(function PacmacArena(
               style={{ width: `${((START_PELLETS - left) / START_PELLETS) * 100}%` }}
             />
           </div>
-          <p className="mt-1 font-pixel text-[7px] tracking-widest text-retro-dim">{left} LEFT</p>
+          <p className="mt-1 font-pixel text-[8px] tracking-widest text-retro-dim">{left} LEFT</p>
         </div>
         <ScoreBlock side="O" score={scoreO} name={namesO} mine={mySide === 'O'} power={players?.O?.power} out={players?.O?.out > 0} />
       </div>
