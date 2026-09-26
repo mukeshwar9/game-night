@@ -27,7 +27,9 @@ export function ColorTag({ color, className }) {
 }
 
 function WiresPanel({ module, wire, index, onAction, disabled, busy }) {
-  const [selected, setSelected] = useState(null)
+  const [picked, setSelected] = useState(null)
+  // A wire that just got cut (a strike) drops out of the selection.
+  const selected = picked != null && !isCut(wire, index, picked) ? picked : null
   const wires = module.device.wires
   const cut = (w) => onAction({ mod: index, kind: 'cut', wire: w })
   return (
@@ -71,7 +73,7 @@ function WiresPanel({ module, wire, index, onAction, disabled, busy }) {
       </div>
       <button
         type="button"
-        disabled={disabled || busy || selected == null || isCut(wire, index, selected)}
+        disabled={disabled || busy || selected == null}
         onClick={() => cut(selected)}
         className="w-full min-h-11 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-wider hover:shadow-neon-cta disabled:opacity-40"
       >

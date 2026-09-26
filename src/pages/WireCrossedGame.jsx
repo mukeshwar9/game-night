@@ -63,12 +63,15 @@ function StrikeLights({ strikes }) {
   return (
     <div className="flex items-center gap-1.5" role="img" aria-label={`Strikes ${strikes} of ${MAX_STRIKES}`}>
       {Array.from({ length: MAX_STRIKES }).map((_, i) => (
+        // Strikes use the fixed alarm red (a wire colour, not a theme token)
+        // so they read as danger in every theme; the ✖ carries it too.
         <span
           key={i}
           className={cn(
             'w-6 h-6 rounded-full border-2 flex items-center justify-center font-pixel text-[9px]',
-            i < strikes ? 'border-retro-p1 bg-retro-tint-p1 text-retro-p1 shadow-neon-p1' : 'border-retro-border text-retro-dim',
+            i < strikes ? 'border-retro-border' : 'border-retro-border text-retro-dim',
           )}
+          style={i < strikes ? { background: 'rgb(var(--wire-red))', color: 'rgb(var(--wire-white))' } : undefined}
         >{i < strikes ? '✖' : ''}</span>
       ))}
     </div>
@@ -85,9 +88,10 @@ function BombStrip({ bomb, wire, now }) {
         <span
           className={cn(
             'font-pixel text-3xl tracking-widest tabular-nums',
-            urgent ? 'text-retro-p1 text-glow-p1' : 'text-retro-cta text-glow-cta',
+            !urgent && 'text-retro-cta text-glow-cta',
             left != null && left <= 10_000 && 'arcade-blink',
           )}
+          style={urgent ? { color: 'rgb(var(--wire-red))' } : undefined}
           role="timer"
           aria-label={wire?.endsAt ? `Time left ${text}` : `Time elapsed ${text}`}
         >{text}</span>
@@ -121,7 +125,7 @@ function LastAction({ wire, bomb, players }) {
   return (
     <p className="w-full text-center font-mono text-[10px] text-retro-dim" aria-live="polite">
       <span className="text-retro-text">{who}</span> · {mod ? `${MODULE_NAMES[mod.type]}: ` : ''}{last.text}{' '}
-      <span className={last.ok ? 'text-retro-win' : 'text-retro-p1'}>{last.ok ? '✓' : `✖ STRIKE −${STRIKE_PENALTY_MS / 1000}s`}</span>
+      <span className={last.ok ? 'text-retro-win' : undefined} style={last.ok ? undefined : { color: 'rgb(var(--wire-red))' }}>{last.ok ? '✓' : `✖ STRIKE −${STRIKE_PENALTY_MS / 1000}s`}</span>
     </p>
   )
 }
@@ -145,7 +149,7 @@ function PingBar({ onPing, disabled }) {
   )
 }
 
-function ResultCard({ wire, score }) {
+function ResultCard({ wire }) {
   const result = wire.result
   const stats = normalizeWireStats(wire.stats)
   const defused = result?.outcome === 'defused'
@@ -164,7 +168,7 @@ function ResultCard({ wire, score }) {
           : `${reason || 'The bomb went off'}.`}
       </p>
       <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
-        TEAM ★ {score} · STREAK {stats.streak} · BEST {stats.best} · BOOMS {stats.booms}
+        STREAK {stats.streak} · BEST {stats.best} · BOOMS {stats.booms}
       </p>
       <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
         {defused ? 'NEXT BOMB IS ONE LEVEL HARDER.' : 'NEXT BOMB STAYS AT THIS LEVEL.'} ROLES SWAP.
@@ -438,7 +442,7 @@ export default function WireCrossedGame({
 
       {phase === 'over' && (
         <>
-          <ResultCard wire={wire} score={score} />
+          <ResultCard wire={wire} />
           {!proposal && !isSpectator && (
             <div className="w-full flex flex-wrap justify-center gap-2">
               <button
