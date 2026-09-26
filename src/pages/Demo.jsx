@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArrowsIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArrowsIcon, MinigolfIcon,
 } from '../components/GameIcons';
 import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { recordPlay } from '../lib/analytics'
@@ -46,6 +46,7 @@ const MancalaDemo = lazyWithRetry(() => import('./MancalaDemo'))
 const CheckersDemo = lazyWithRetry(() => import('./CheckersDemo'))
 const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
+const MinigolfLocal = lazyWithRetry(() => import('./MinigolfLocal'))
 const TriviaDemo = lazyWithRetry(() => import('./TriviaDemo'))
 const HerdDemo = lazyWithRetry(() => import('./HerdDemo'))
 const ArrowsDemo = lazyWithRetry(() => import('./ArrowsDemo'))
@@ -103,6 +104,7 @@ const DEMOS = [
   { type: 'checkers',      short: 'CHECKERS',       Icon: CheckersIcon,       Component: CheckersDemo },
   { type: 'airhockey',     short: 'AIR\nHOCKEY',    Icon: AirHockeyIcon,      Component: AirHockeyDemo },
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
+  { type: 'minigolf',      short: 'MINI-\nGOLF',    Icon: MinigolfIcon,       Component: () => <MinigolfLocal mode="solo" /> },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
@@ -154,6 +156,9 @@ function LocalPlayPage({ routeType }) {
     recordRecentPlay(routeType, 'local')
   }, [routeType])
 
+  // A game with its own offline page (registry LocalPage) renders that
+  // instead of the generic bot-board engine.
+  const Local = cfg.LocalPage
   return (
     <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
@@ -166,7 +171,7 @@ function LocalPlayPage({ routeType }) {
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>
-              <BotBoardDemo type={routeType} mode="local" />
+              {Local ? <Local mode="local" /> : <BotBoardDemo type={routeType} mode="local" />}
             </Suspense>
           </div>
         </div>

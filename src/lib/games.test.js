@@ -103,10 +103,12 @@ describe('supportsLocalPlay', () => {
     'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'visualmemory', 'pairs', 'dice', 'dice-big',
     'sim', 'chomp', 'breakthrough', 'ataxx', 'kamisado',
     'onitama', 'quarto', 'santorini', 'loa', 'yavalath',
+    // custom, but ships its own offline page (registry LocalPage)
+    'minigolf',
   ]
 
-  it('is true for all 33 eligible registry-driven turn-based games', () => {
-    expect(LOCAL_TYPES).toHaveLength(33)
+  it('is true for all 34 eligible games', () => {
+    expect(LOCAL_TYPES).toHaveLength(34)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }
@@ -128,6 +130,10 @@ describe('supportsLocalPlay', () => {
 
   it('is false for nPlayer games', () => {
     expect(supportsLocalPlay('herd')).toBe(false)
+  })
+
+  it('is true for a custom nPlayer game with its own LocalPage', () => {
+    expect(supportsLocalPlay('minigolf')).toBe(true)
   })
 
   it('is false for an unknown type', () => {

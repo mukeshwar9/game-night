@@ -164,6 +164,17 @@ export const sounds = {
   },
   // Short blip when the Pong ball bounces off a wall
   wall:  ()    => { seq([[300, 0, 0.04, 'square', 0.09]]); vibrate(5) },
+  // Minigolf: the putt (pitch rises with power), bumper boing, splash,
+  // portal sweep, lip-out rattle and the cup drop (longer run for a better score)
+  putt:  (power = 0.5) => { seq([[220 + power * 380, 0, 0.05, 'square', 0.1]]); vibrate(8) },
+  boing: ()    => { seq([[520, 0, 0.05, 'triangle', 0.12], [780, 0.05, 0.06, 'triangle', 0.1]]); vibrate(12) },
+  splash: ()   => { try { noise(ctx().currentTime, 0.25, 0.07, 900) } catch { /* audio unavailable */ } seq([[180, 0, 0.08, 'sawtooth', 0.07]]); vibrate(120) },
+  warp:  ()    => { seq([[400, 0, 0.05, 'sine', 0.1], [700, 0.05, 0.05, 'sine', 0.1], [1100, 0.1, 0.08, 'sine', 0.1]]); vibrate([0, 10, 30, 10]) },
+  rattle: ()   => { seq([[900, 0, 0.03, 'square', 0.07], [700, 0.05, 0.03, 'square', 0.07]]); vibrate([0, 15, 20, 15]) },
+  cup:   (good = false) => {
+    seq([[160, 0, 0.08, 'sine', 0.14], ...[523, 659, 784, 1047].slice(0, good ? 4 : 2).map((f, i) => [f, 0.12 + i * 0.08, 0.09, 'square', 0.08])])
+    vibrate([0, 30, 40, 60])
+  },
   // Tiny soft footstep tick — Playground world movement, throttled by the caller
   step:  ()    => { seq([[1500, 0, 0.02, 'square', 0.06]]); vibrate(0) },
   // Punchy low thump — Playground ball kick, distinct from wall()'s bright blip

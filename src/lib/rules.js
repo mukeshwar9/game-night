@@ -324,6 +324,18 @@ export const GAME_RULES = {
     win: 'First to 7 goals wins.',
   },
 
+  minigolf: {
+    objective: 'Sink the ball on every hole in the fewest total strokes.',
+    howToPlay: [
+      'Press anywhere on the course and pull back — the ball goes the opposite way. Longer pull, harder putt. Drag back to the start to cancel.',
+      'Each player plays the hole out before the next tees off; best score on a hole tees off first on the next.',
+      'Banks off walls, bumpers kick, sand slows you, slopes roll you back, windmills and sliders keep moving. Water costs +1 and puts you back.',
+      '6 strokes per hole — not in by then and the ball is picked up for a 7.',
+      'Solo: PAR RUN (beat par, earn stars) or VS BOT. Pass & play for 2–4 on one phone, or an online room for 2–4.',
+    ],
+    win: 'Lowest total over the course wins. A shared lowest total is a tie.',
+  },
+
   artillery: {
     objective: 'Bracket the rival tank with angle and power, then blow it up.',
     howToPlay: [

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { HOLES } from './minigolfCourses'
-import { ANGLE_STEPS, MAX_SPEED, pointInPoly, quantizeShot, shotVelocity, simulateShot } from './minigolfPhysics'
+import { ANGLE_STEPS, MAX_SPEED, aimRayLength, pointInPoly, quantizeShot, shotVelocity, simulateShot } from './minigolfPhysics'
 import { mulberry32 } from './detMath'
 
 const byId = (id) => HOLES.find(h => h.id === id)
@@ -124,5 +124,12 @@ describe('simulateShot', () => {
     const r = simulateShot(h, tee(h), { a: DOWN, p: 300, k: 0 })
     expect(r.events.some(e => e[1] === 'wall')).toBe(true)
     expect(r.y).toBeGreaterThan(300)
+  })
+
+  it('aimRayLength stops the assist line at the first wall', () => {
+    const h = byId('straight')
+    // From the tee straight up: the top wall is at y=40, so 510-40-6 = 464.
+    expect(aimRayLength(h, 180, 510, 0, -1, 1000)).toBeCloseTo(464, 6)
+    expect(aimRayLength(h, 180, 510, 0, -1, 100)).toBe(100)
   })
 })

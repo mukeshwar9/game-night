@@ -18,7 +18,7 @@ import {
 import { LanternsIcon, DockingIcon } from '../components/GameIcons'
 import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
 import { HunchIcon, ConvergeIcon } from '../components/GameIcons'
-import { WireCrossedIcon } from '../components/GameIcons'
+import { WireCrossedIcon, MinigolfIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
@@ -1243,6 +1243,34 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/ArtilleryGame')),
   },
   {
+    type: 'minigolf', label: 'MINIGOLF',
+    desc: 'pull, putt, sink it', Icon: MinigolfIcon,
+    badge: 'MG', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    durationMin: 10, tags: ['skill', 'party'], solo: true,
+    // Turn-based putting for 2–4 on the uid-keyed room model (lobby → host
+    // START, like Chain Reaction 4P). The room stores only each stroke's
+    // integer inputs; every client replays them through the deterministic sim
+    // (minigolfLogic.replayCourse), so there is no turn pointer to keep in sync.
+    // Solo (PAR RUN / VS BOT) and pass-and-play 2–4 run the same replay
+    // offline via LocalPage — see supportsLocalPlay.
+    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/MinigolfGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/MinigolfLocal')),
+    startRound: (players) => {
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, 4)
+      if (seats.length < 2) return null
+      return {
+        golfOrder: seats.map(p => p.playerId),
+        golfShots: null, golfSkip: null, golfAway: null,
+      }
+    },
+  },
+  {
     type: 'wirecrossed', label: 'WIRE CROSSED',
     desc: 'one sees the bomb, one reads the manual', Icon: WireCrossedIcon,
     badge: 'WX', maxWidth: 'max-w-md',
@@ -1574,6 +1602,9 @@ export function usesFirstMover(gameType) {
 export function supportsLocalPlay(gameType) {
   const cfg = GAME_TYPES.find(t => t.type === gameType)
   if (!cfg) return false
+  // A game with its own offline page (registry `LocalPage`, e.g. Minigolf's
+  // 2–4 player pass-and-play) opts in regardless of its room family.
+  if (cfg.LocalPage) return true
   return !!cfg.BoardComponent && !cfg.custom && !cfg.nPlayer && !cfg.simultaneous && !cfg.realtime
 }
 
@@ -1713,6 +1744,9 @@ const FIELD_NULLS = {
   mancalaPits: null, mancalaLast: null,
   airhockeyScoreX: null, airhockeyScoreO: null,
   artillerySeed: null, artilleryShots: null,
+  // Minigolf per-match inputs (minigolfLogic.replayCourse). The lobby picks
+  // golfCourse / golfClock are room-level house rules and stay out of here.
+  golfOrder: null, golfShots: null, golfSkip: null, golfAway: null,
   minesSeed: null, minesStartedAt: null,
   minesRevealedX: null, minesRevealedO: null,
   minesDeadX: null, minesDeadO: null,

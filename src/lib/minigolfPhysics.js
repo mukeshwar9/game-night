@@ -270,3 +270,22 @@ export function simulateShot(hole, from, shot, opts = {}) {
   if (water) return { x: from.x, y: from.y, holed: false, water: true, oob: false, steps, path, events }
   return { x: b.x, y: b.y, holed, water: false, oob: false, steps, path, events }
 }
+
+/**
+ * Distance from (x, y) along the unit direction (dx, dy) to the first static
+ * wall, minus the ball radius — the "aim line to the first wall" assist.
+ * @param {any} hole @param {number} x @param {number} y
+ * @param {number} dx @param {number} dy @param {number} max
+ */
+export function aimRayLength(hole, x, y, dx, dy, max) {
+  let best = max
+  for (const [x1, y1, x2, y2] of holeSegments(hole)) {
+    const sx = x2 - x1, sy = y2 - y1
+    const den = dx * sy - dy * sx
+    if (Math.abs(den) < 1e-9) continue
+    const t = ((x1 - x) * sy - (y1 - y) * sx) / den
+    const u = ((x1 - x) * dy - (y1 - y) * dx) / den
+    if (t > 0 && u >= 0 && u <= 1 && t - BALL_R < best) best = t - BALL_R
+  }
+  return Math.max(0, best)
+}

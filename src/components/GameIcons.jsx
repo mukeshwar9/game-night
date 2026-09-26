@@ -716,6 +716,18 @@ export function ArtilleryIcon() {
   )
 }
 
+export function MinigolfIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* flag in the cup, ball on the green */}
+      <line x1="14" y1="4" x2="14" y2="17" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M14 4 L20 6.5 L14 9 Z" fill="currentColor" />
+      <ellipse cx="14" cy="18.5" rx="5" ry="1.8" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="5.5" cy="17" r="2.2" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function SketchIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
