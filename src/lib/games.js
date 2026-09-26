@@ -17,6 +17,7 @@ import {
 } from '../components/GameIcons'
 import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
 import { HunchIcon, ConvergeIcon } from '../components/GameIcons'
+import { WireCrossedIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
@@ -85,6 +86,7 @@ import {
 import { generateSeed } from './mathLogic'
 import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
 import { generateGrid } from './wordhuntGrid'
+import { nextWireBomb } from './wireMatchLogic'
 import {
   VM_START_LEVEL,
   normalizeVmArray,
@@ -1240,6 +1242,19 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/ArtilleryGame')),
   },
   {
+    type: 'wirecrossed', label: 'WIRE CROSSED',
+    desc: 'one sees the bomb, one reads the manual', Icon: WireCrossedIcon,
+    badge: 'WX', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-09-26',
+    // Co-op: Tech and Handbook defuse together (both scores +1 per bomb);
+    // roles swap every bomb via the rotating starter (firstMoverUpdates).
+    // solo: false — the manual and the device are useless alone.
+    durationMin: 4, tags: ['frantic', 'thinky'], solo: false,
+    custom: true, coop: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/WireCrossedGame')),
+  },
+  {
     type: 'twotruths', label: 'TWO TRUTHS',
     desc: 'spot the lie', Icon: TwoTruthsIcon,
     badge: 'TT', maxWidth: 'max-w-sm',
@@ -1557,6 +1572,10 @@ export function firstMoverUpdates(gameType, symbol) {
     // deals the first round); writing currentTurn here was silently ignored.
     return { starter: symbol }
   }
+  if (gameType === 'wirecrossed') {
+    // The starter is this bomb's Tech; nextStarter alternates it every bomb.
+    return { 'wire/tech': symbol }
+  }
   return { currentTurn: symbol }
 }
 
@@ -1637,6 +1656,7 @@ const FIELD_NULLS = {
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
   diceSeedCommitter: null, diceSeedResets: null, // Pig seed-loss recovery (pigSeedProtocol.js)
   bluffRound: null,
+  wire: null, // wirecrossed
   pongScoreX: null, pongScoreO: null, pongMode: null, signaling: null, matchLength: null,
   arrowsRound: null, arrowsSeed: null, arrowsStartedAt: null,
   arrowsGoneX: null, arrowsGoneO: null, arrowsLivesX: null, arrowsLivesO: null,
@@ -1935,6 +1955,12 @@ export function freshGameState(gameType, previous = null) {
     const best = previous?.gameType === gameType ? Number(previous.round?.best) || 0 : 0
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
       round: best ? { best } : null }
+  }
+  if (gameType === 'wirecrossed') {
+    // PLAY AGAIN passes the finished bomb: the level climbs and the streak
+    // carries. NEW MATCH / switching in starts over at level 1.
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null,
+      wire: nextWireBomb(previous?.wire, generateSeed()) }
   }
   if (gameType === 'wordrace') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,

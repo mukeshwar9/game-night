@@ -271,6 +271,35 @@
         "diceSeedResets": {
           ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000 && (newData.val() === data.val() || newData.val() === data.val() + 1 || !data.exists() && newData.val() === 1))"
         },
+        "wire": {
+          "seed": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 64"
+          },
+          "tech": {
+            ".validate": "newData.val() === 'X' || newData.val() === 'O'"
+          },
+          "phase": {
+            ".validate": "newData.val() === 'ready' || newData.val() === 'armed' || newData.val() === 'over'"
+          },
+          "strikes": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+          },
+          "ping": {
+            ".validate": "newData.hasChildren(['by', 'p', 'at'])",
+            "by": {
+              ".validate": "newData.val() === 'X' || newData.val() === 'O'"
+            },
+            "p": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 10"
+            },
+            "at": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          }
+        },
         "round": {
           "stats": {
             "$roundId": {
