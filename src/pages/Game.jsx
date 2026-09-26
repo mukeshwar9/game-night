@@ -46,7 +46,7 @@ import NightPanel from '../components/NightPanel'
 import { RoomSwitchContext } from '../lib/roomSwitchContext'
 import { recordNightMatch, nightSwitchUpdates, hostUidOf } from '../lib/night'
 import { rotateWinnerStays } from '../lib/nightLogic'
-import { getArrowsMatchEnd, pickLevelId, normalizeArrowsSeen, recordArrowsSeen } from '../lib/arrowsLogic'
+import { getArrowsMatchEnd } from '../lib/arrowsLogic'
 // Match-end rule, shared with the results Cloud Function (functions/).
 import { matchTargetFor, isMatchFinish, isCoopGame } from '../lib/matchRules'
 
@@ -600,15 +600,6 @@ export default function Game() {
   async function applyNewMatch() {
     const starter = nextStarter(game)
     const fresh = freshGameState(game.gameType)
-    // Arrows: keep the seen-level rotation across matches so rematches feel
-    // fresh — re-pick when the fresh draw repeats a recently played level.
-    if (game.gameType === 'arrows') {
-      const seen = normalizeArrowsSeen(game.arrowsSeen)
-      if (seen[fresh.arrowsLevel]) {
-        fresh.arrowsLevel = pickLevelId('easy', Math.random, Object.keys(seen))
-      }
-      fresh.arrowsSeen = recordArrowsSeen(seen, [fresh.arrowsLevel])
-    }
     // A new match still starts with a fresh word. Preserve prior indexes as a
     // room-level deck history, matching Word Race's non-repeat promise.
     if (game.gameType === 'wordrace' && game.round?.used) fresh.round = { used: game.round.used }

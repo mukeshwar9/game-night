@@ -1162,34 +1162,43 @@ body::before {
   100% { transform: scale(1); opacity: 1; }
 }
 
-@keyframes arrows-shake {
-  0%, 100% { transform: translate(0, 0); }
-  20%      { transform: translate(-3px, 0); }
-  40%      { transform: translate(3px, 0); }
-  60%      { transform: translate(-2px, 0); }
-  80%      { transform: translate(2px, 0); }
-}
-.arrows-group.blocked-shake { animation: arrows-shake 0.38s ease; }
-.arrows-group.blocked-shake .ar-path,
-.arrows-group.blocked-shake .ar-head {
-  stroke: rgb(var(--c-danger)) !important;
-}
-
-/* Raced tap: opponent cleared the arrow first. Brief amber steal flash. */
-@keyframes arrows-steal {
+/* Arrows: a blocked tap tints the arrow red, flashes the arrow that blocks
+   it, and rings the board. The bump itself (a slide toward the blocker and
+   back) is driven frame-by-frame in ArrowsBoard.jsx. */
+.arrows-arrow .ar-body { stroke: rgb(var(--c-text)); }
+.arrows-arrow .ar-head { fill: rgb(var(--c-text)); stroke: none; }
+.arrows-arrow.is-error .ar-body { stroke: rgb(var(--c-danger)); }
+.arrows-arrow.is-error .ar-head { fill: rgb(var(--c-danger)); }
+@keyframes arrows-blocker {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  30%, 70% { opacity: 0.35; }
 }
-.arrows-group.stolen-flash .ar-path,
-.arrows-group.stolen-flash .ar-head {
-  stroke: rgb(var(--c-cta)) !important;
-  animation: arrows-steal 0.45s ease;
+.arrows-arrow.is-blocker .ar-body { stroke: rgb(var(--c-cta)); }
+.arrows-arrow.is-blocker .ar-head { fill: rgb(var(--c-cta)); }
+.arrows-arrow.is-blocker { animation: arrows-blocker 0.62s ease; }
+@keyframes arrows-board-error {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgb(var(--c-danger) / 0); }
+  35%      { box-shadow: inset 0 0 0 2px rgb(var(--c-danger) / 0.75), 0 0 18px rgb(var(--c-danger) / 0.25); }
 }
-
-/* Press feedback: tapped arrow swells briefly (audio is not the only signal). */
-.arrows-group:active .ar-path,
-.arrows-group:active .ar-head {
-  stroke-width: 3.25;
+.arrows-stage.is-error { animation: arrows-board-error 0.5s ease; }
+@keyframes arrows-board-shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-3px); }
+  50%      { transform: translateX(3px); }
+  75%      { transform: translateX(-2px); }
+}
+.arrows-stage.is-error .arrows-svg { animation: arrows-board-shake 0.28s ease; }
+.ar-hit { outline: none; }
+.ar-hit:focus-visible { stroke: rgb(var(--c-cta) / 0.3); }
+/* Reduced motion (in-app setting, else the OS query): drop the flash, ring
+   and shake; the red / CTA colour cues stay. */
+[data-motion="reduced"] .arrows-arrow.is-blocker,
+[data-motion="reduced"] .arrows-stage.is-error,
+[data-motion="reduced"] .arrows-stage.is-error .arrows-svg { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .arrows-arrow.is-blocker,
+  :root:not([data-motion="full"]) .arrows-stage.is-error,
+  :root:not([data-motion="full"]) .arrows-stage.is-error .arrows-svg { animation: none; }
 }
 
 /* Pig: a bust (rolling a 1) shakes the die briefly */

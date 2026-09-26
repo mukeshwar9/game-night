@@ -1,132 +1,107 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ArrowsBoard from '../components/ArrowsBoard'
+import { RaceRow } from '../components/ArrowsHud'
 import {
-  getLevel,
-  applyTap,
-  getArrowsWinner,
-  getClearableCount,
-  pickLevelId,
+  generateArrowsLevel,
+  applyArrowTap,
+  freeArrows,
+  countGone,
+  arrowsRoundWinner,
+  randomArrowsSeed,
   ARROWS_LIVES,
+  ARROWS_TIERS,
 } from '../lib/arrowsLogic'
-import { ARROWS_TIERS } from '../lib/levels/arrows'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
-const BOT_MS = 1100
-
-function freshBoard(tier, rng = Math.random) {
-  const id = pickLevelId(tier, rng)
-  const level = getLevel(id)
-  return {
-    level,
-    cleared: Array(level.arrows.length).fill(''),
-    lives: { X: ARROWS_LIVES, O: ARROWS_LIVES },
-    trapSeen: false,
-  }
-}
+// Practice race: you and a bot clear identical copies of the same board.
+// The bot works on its own copy (never yours), clearing one open arrow per
+// beat and occasionally fumbling a blocked one, exactly like a live rival.
+const BOT_MS = { easy: 1700, medium: 1500, hard: 1300 }
+const BOT_FUMBLE = 0.08
 
 export default function ArrowsDemo() {
   const [tier, setTier] = useState('easy')
-  const [board, setBoard] = useState(() => freshBoard('easy'))
-  const [shakeSignal, setShakeSignal] = useState(null)
-  const [winner, setWinner] = useState(null)
-  const botTimer = useRef(null)
-  const stateRef = useRef(board)
-  useEffect(() => { stateRef.current = board })
+  const [seed, setSeed] = useState(() => randomArrowsSeed())
+  const level = useMemo(() => generateArrowsLevel(seed, tier), [seed, tier])
+  const total = level.arrows.length
+  const [gone, setGone] = useState(() => Array(total).fill(false))
+  const [lives, setLives] = useState(ARROWS_LIVES)
+  const [bot, setBot] = useState({ gone: Array(total).fill(false), lives: ARROWS_LIVES })
+  const [feedback, setFeedback] = useState(null)
+  const streak = useRef(0)
+
+  const winner = arrowsRoundWinner({
+    total,
+    clearedX: countGone(gone),
+    clearedO: countGone(bot.gone),
+    livesX: lives,
+    livesO: bot.lives,
+  })
 
   const reset = (nextTier = tier) => {
-    clearTimeout(botTimer.current)
-    setWinner(null)
-    setShakeSignal(null)
-    setBoard(freshBoard(nextTier))
+    const nextSeed = randomArrowsSeed()
+    const n = generateArrowsLevel(nextSeed, nextTier).arrows.length
+    setTier(nextTier)
+    setSeed(nextSeed)
+    setGone(Array(n).fill(false))
+    setLives(ARROWS_LIVES)
+    setBot({ gone: Array(n).fill(false), lives: ARROWS_LIVES })
+    setFeedback(null)
+    streak.current = 0
   }
 
-  useEffect(() => () => clearTimeout(botTimer.current), [])
-
-  // Practice rival: taps a random arrow ~every second (usually clearable,
-  // sometimes the trap) so the board feels like the live race.
+  // Bot beat: one tap on its own board.
   useEffect(() => {
     if (winner) return
-    botTimer.current = setTimeout(() => {
-      const s = stateRef.current
-      const open = s.cleared
-        .map((c, i) => (c ? -1 : i))
-        .filter((i) => i >= 0)
-      if (open.length === 0) return
-      const clearable = open.filter((i) => !s.level.arrows[i].blocked)
-      const pickBot = clearable.length > 0 && Math.random() > 0.15
-        ? clearable[Math.floor(Math.random() * clearable.length)]
-        : open[Math.floor(Math.random() * open.length)]
-      setBoard((prev) => {
-        const applied = applyTap(prev.level, prev.cleared, prev.lives, pickBot, 'O')
-        if (!applied) return prev
-        const w = getArrowsWinner(prev.level, applied.cleared, applied.lives.X, applied.lives.O)
-        if (w) {
-          setWinner(w)
-          if (w === 'draw') sounds.draw()
-          else if (w === 'X') sounds.win()
-          else sounds.lose()
-        } else if (applied.tap.result === 'blocked') {
-          setShakeSignal({ index: pickBot, key: Date.now() })
-          sounds.miss()
-        } else {
-          sounds.hit()
-        }
-        return {
-          ...prev,
-          cleared: applied.cleared,
-          lives: applied.lives,
-          trapSeen: prev.trapSeen || applied.tap.result === 'blocked',
-        }
+    const t = setTimeout(() => {
+      setBot((prev) => {
+        const open = freeArrows(level, prev.gone)
+        if (open.length === 0) return prev
+        const fumble = Math.random() < BOT_FUMBLE
+        const blocked = prev.gone.map((g, i) => (!g && !open.includes(i) ? i : -1)).filter((i) => i >= 0)
+        const pick = fumble && blocked.length
+          ? blocked[Math.floor(Math.random() * blocked.length)]
+          : open[Math.floor(Math.random() * open.length)]
+        const applied = applyArrowTap(level, prev.gone, prev.lives, pick)
+        return applied ? { gone: applied.gone, lives: applied.lives } : prev
       })
-    }, BOT_MS)
-    return () => clearTimeout(botTimer.current)
-  }, [board.cleared, winner])
+    }, BOT_MS[tier])
+    return () => clearTimeout(t)
+  }, [bot, winner, level, tier])
+
+  useEffect(() => {
+    if (!winner) return
+    if (winner === 'X') sounds.win()
+    else if (winner === 'draw') sounds.draw()
+    else sounds.lose()
+  }, [winner])
 
   const handleTap = (index) => {
     if (winner) return
-    const s = stateRef.current
-    if (s.cleared[index]) return
-    if (s.lives.X <= 0) return
-    const applied = applyTap(s.level, s.cleared, s.lives, index, 'X')
+    const applied = applyArrowTap(level, gone, lives, index)
     if (!applied) return
-    const w = getArrowsWinner(s.level, applied.cleared, applied.lives.X, applied.lives.O)
-    if (applied.tap.result === 'blocked') {
-      setShakeSignal({ index, key: Date.now() })
-      sounds.miss()
-    } else {
-      sounds.hit()
+    if (applied.result === 'blocked') {
+      streak.current = 0
+      setLives(applied.lives)
+      setFeedback({ index, blocker: applied.blocker, gap: applied.gap, key: Date.now() })
+      sounds.buzz()
+      return
     }
-    if (w) {
-      setWinner(w)
-      if (w === 'draw') sounds.draw()
-      else if (w === 'X') sounds.win()
-      else sounds.lose()
-    }
-    setBoard({
-      ...s,
-      cleared: applied.cleared,
-      lives: applied.lives,
-      trapSeen: s.trapSeen || applied.tap.result === 'blocked',
-    })
+    setGone(applied.gone)
+    sounds.hit(Math.min(streak.current, 8))
+    streak.current += 1
   }
-
-  const youClears = board.cleared.filter((c) => c === 'X').length
-  const botClears = board.cleared.filter((c) => c === 'O').length
-  const clearable = getClearableCount(board.level)
 
   return (
     <div className="space-y-3">
-      <p className="text-center font-pixel text-[9px] text-retro-dim tracking-wider">
-        PRACTICE — {board.level.label} · {clearable} ARROWS · 1 TRAP
-      </p>
       <div className="flex justify-center gap-2">
         {ARROWS_TIERS.map((t) => (
           <button
             key={t}
-            onClick={() => { setTier(t); reset(t) }}
+            onClick={() => reset(t)}
             className={cn(
-              'px-3 py-1.5 font-pixel text-[9px] rounded border transition-all active:scale-95',
+              'px-3 py-2 font-pixel text-[9px] rounded border transition-all active:scale-95',
               tier === t
                 ? 'border-retro-cta text-retro-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-cta/50',
@@ -136,43 +111,39 @@ export default function ArrowsDemo() {
           </button>
         ))}
       </div>
-      {!board.trapSeen && !winner && (
-        <p className="text-center font-pixel text-[8px] text-retro-cta border border-retro-cta/40 rounded px-2 py-1.5">
-          ONE ARROW IS A TRAP — THREE LIVES
-        </p>
-      )}
-      <div className="flex justify-around font-pixel text-base">
-        <span className="text-retro-p1">YOU {youClears}</span>
-        <span className="text-retro-p2">{botClears} BOT</span>
+      <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed">
+        TAP AN ARROW WITH A CLEAR PATH — IT SLIDES OFF. BLOCKED TAPS COST A LIFE.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <RaceRow name="YOU" sym="X" isMe cleared={countGone(gone)} total={total} lives={lives} />
+        <RaceRow name="BOT" sym="O" cleared={countGone(bot.gone)} total={total} lives={bot.lives} />
       </div>
-      {winner ? (
-        <div className="text-center space-y-2">
-          <p className={cn(
-            'font-pixel text-sm',
-            winner === 'X' ? 'text-retro-win text-glow-win' : winner === 'draw' ? 'text-retro-text' : 'text-retro-dim',
-          )}>
-            {winner === 'X' ? 'YOU CLEAR MORE!' : winner === 'draw' ? 'DRAW!' : 'BOT WINS'}
-          </p>
-          <button
-            onClick={() => reset()}
-            className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
-          >
-            PLAY AGAIN
-          </button>
-        </div>
-      ) : (
+      <div className="relative">
         <ArrowsBoard
-          level={board.level}
-          cleared={board.cleared}
+          key={`${seed}-${tier}`}
+          level={level}
+          gone={gone}
           onTap={handleTap}
-          interactive={board.lives.X > 0}
-          shakeSignal={shakeSignal}
-          revealTraps={board.trapSeen}
+          interactive={!winner}
+          feedback={feedback}
         />
-      )}
-      {board.lives.X <= 0 && !winner && (
-        <p className="text-center font-pixel text-[9px] text-retro-danger">OUT OF LIVES — WATCHING BOT</p>
-      )}
+        {winner && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-retro-bg/80 rounded-lg">
+            <p className={cn(
+              'font-pixel text-sm',
+              winner === 'X' ? 'text-retro-win text-glow-win' : 'text-retro-dim',
+            )}>
+              {winner === 'X' ? 'BOARD CLEAR!' : lives <= 0 ? 'OUT OF LIVES' : winner === 'draw' ? 'DRAW' : 'BOT CLEARED FIRST'}
+            </p>
+            <button
+              onClick={() => reset()}
+              className="px-5 py-2.5 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta active:scale-95"
+            >
+              NEW BOARD
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

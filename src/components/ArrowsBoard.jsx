@@ -1,218 +1,284 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  ARROWS_DIR_NAMES,
+  cellCenter,
   exitVector,
+  leavePose,
+  occupancy,
   roundedPathD,
-  ARROWS_CORNER_RADIUS,
-  ARROWS_TIP_INSET,
-  ARROWS_HEAD_LEN,
-  ARROWS_HEAD_SPREAD,
 } from '../lib/arrowsLogic'
-import { directionLabel, joinLabel } from '../lib/a11yLabels'
+import { cn } from '@/lib/utils'
 import { isReducedMotion } from '../hooks/useMotionPref'
 
-const GRID_STEP = 20
-const DOT_RADIUS = 1.35
-const FLOW_MS = 480
-const FLOW_DIST = 520
-// Wide invisible pad so short stubs and crowded hard boards stay fair on phones.
-const HIT_WIDTH = 18
-const HEAD_HIT_R = 11
+// Board units: one grid cell = CELL units. Stroke and head sizes are fractions
+// of a cell so every tier reads the same at any pixel size.
+const CELL = 10
+const PAD = 2
+const STROKE = 2.1
+const CORNER = 3.2
+const HEAD_LEN = 4.4
+const HEAD_HALF = 2.9
+const TIP_AHEAD = 1.6
+const BODY_INSET = 2
+// Leave animation: the snake slithers along its own body then straight off
+// the board at a constant speed, after a very short ease-in.
+const MS_PER_CELL = 34
+const ACCEL_MS = 70
+// Blocked tap: slide toward the blocker (capped) and spring back.
+const BUMP_OVERSHOOT = 0.3
+const BUMP_MAX_CELLS = 4
+const BUMP_OUT_MS_PER_CELL = 38
+const BUMP_BACK_MS = 220
+const ERROR_MS = 620
+// Taps landing just outside an arrow's cell still count if they are this close
+// (in cells) to one of its cell centres — thumbs are wider than lines.
+const TAP_SLOP = 0.8
 
-// The mockup's buildArrowHead: an outline triangle (closed path, fill none) at
-// the arrow's tip, pointing along the exit vector.
-function arrowHeadD(points) {
+function headD(points) {
   const { dx, dy, tip } = exitVector(points)
-  const [tx, ty] = tip
-  const bx = tx - dx * ARROWS_HEAD_LEN
-  const by = ty - dy * ARROWS_HEAD_LEN
-  const px = -dy
-  const py = dx
-  const x1 = bx + px * ARROWS_HEAD_SPREAD
-  const y1 = by + py * ARROWS_HEAD_SPREAD
-  const x2 = bx - px * ARROWS_HEAD_SPREAD
-  const y2 = by - py * ARROWS_HEAD_SPREAD
-  return `M${x1} ${y1} L${tx} ${ty} L${x2} ${y2} Z`
+  const tx = tip[0] + dx * TIP_AHEAD
+  const ty = tip[1] + dy * TIP_AHEAD
+  const bx = tx - dx * HEAD_LEN
+  const by = ty - dy * HEAD_LEN
+  const f = (n) => Math.round(n * 100) / 100
+  return `M${f(tx)} ${f(ty)} L${f(bx - dy * HEAD_HALF)} ${f(by + dx * HEAD_HALF)} L${f(bx + dy * HEAD_HALF)} ${f(by - dx * HEAD_HALF)} Z`
 }
 
-const strokeFor = (cleared) => {
-  if (cleared === 'X') return 'rgb(var(--c-p1))'
-  if (cleared === 'O') return 'rgb(var(--c-p2))'
-  return 'rgb(var(--c-text))'
+// The body stops short of the tip so its round cap hides under the head.
+function bodyD(points) {
+  return roundedPathD(points, CORNER, BODY_INSET)
 }
 
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
+const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
+
+function leaveTravel(elapsed) {
+  const v = CELL / MS_PER_CELL
+  if (elapsed < ACCEL_MS) return (v * elapsed * elapsed) / (2 * ACCEL_MS)
+  return v * (elapsed - ACCEL_MS / 2)
+}
+
+function bumpTravel(elapsed, gap) {
+  const dist = Math.min(gap + BUMP_OVERSHOOT, BUMP_MAX_CELLS) * CELL
+  const outMs = Math.max(90, (dist / CELL) * BUMP_OUT_MS_PER_CELL)
+  if (elapsed < outMs) return { travel: dist * easeOutCubic(elapsed / outMs), done: false }
+  const back = elapsed - outMs
+  if (back < BUMP_BACK_MS) return { travel: dist * (1 - easeInOutQuad(back / BUMP_BACK_MS)), done: false }
+  return { travel: 0, done: true }
+}
+
+// `gone`: bool per arrow. An arrow flipping to gone slides off the board;
+// arrows already gone on mount are simply absent (reloads never replay).
+// `feedback`: { index, blocker, gap, key } for a blocked tap — bump + red.
 export default function ArrowsBoard({
   level,
-  cleared,
+  gone,
   onTap,
-  interactive,
-  shakeSignal,
-  stolenSignal,
-  revealTraps = false,
+  interactive = false,
+  feedback = null,
+  compact = false,
+  label,
 }) {
+  const svgRef = useRef(null)
+  const stageRef = useRef(null)
+  const bodyRefs = useRef([])
+  const headRefs = useRef([])
   const groupRefs = useRef([])
-  // Arrows that have already flown out. Cleared arrows that haven't finished
-  // animating stay mounted so the flow-out can play. Initialised from any
-  // already-cleared arrows so a reload/spectator join never replays flows.
-  const [hidden, setHidden] = useState(() => {
-    const s = new Set()
-    cleared.forEach((c, i) => { if (c) s.add(i) })
-    return s
-  })
-  const prevClearedRef = useRef(cleared)
+  const anims = useRef(new Map())
+  const rafRef = useRef(0)
+  const prevGone = useRef(gone)
+  const [hidden, setHidden] = useState(() => new Set(gone.flatMap((g, i) => (g ? [i] : []))))
 
-  const flowOut = (index) => {
-    const group = groupRefs.current[index]
-    if (!group) return
-    const arrow = level.arrows[index]
-    if (!arrow?.points || arrow.points.length < 2) return
-    const { dx, dy } = exitVector(arrow.points)
+  const width = level.cols * CELL
+  const height = level.rows * CELL
+  const bounds = { minX: -CELL, minY: -CELL, maxX: width + CELL, maxY: height + CELL }
 
-    // In-app motion setting (falls back to the OS query), read per flow so a
-    // mid-round toggle applies to the next cleared arrow.
-    if (isReducedMotion()) {
-      setHidden((prev) => new Set(prev).add(index))
-      return
-    }
-
-    const start = performance.now()
-    const frame = (now) => {
-      const t = Math.min(1, (now - start) / FLOW_MS)
-      const ease = 1 - Math.pow(1 - t, 3)
-      group.setAttribute('transform', `translate(${dx * FLOW_DIST * ease} ${dy * FLOW_DIST * ease})`)
-      group.style.opacity = String(1 - t * 0.9)
-      if (t < 1) requestAnimationFrame(frame)
-      else setHidden((prev) => new Set(prev).add(index))
-    }
-    requestAnimationFrame(frame)
+  const drawPose = (index, travel) => {
+    const pose = leavePose(level.arrows[index], CELL, travel)
+    bodyRefs.current[index]?.setAttribute('d', bodyD(pose))
+    headRefs.current[index]?.setAttribute('d', headD(pose))
+    return pose
   }
 
-  // Animate newly-cleared arrows out along their exit axis.
+  const tick = (now) => {
+    const finished = []
+    for (const [index, anim] of anims.current) {
+      const elapsed = now - anim.start
+      if (anim.type === 'leave') {
+        const pose = drawPose(index, leaveTravel(elapsed))
+        const [tx, ty] = pose[0] ?? [0, 0]
+        if (tx < bounds.minX - CELL || tx > bounds.maxX + CELL || ty < bounds.minY - CELL || ty > bounds.maxY + CELL) {
+          finished.push(index)
+        }
+      } else {
+        const { travel, done } = bumpTravel(elapsed, anim.gap)
+        drawPose(index, travel)
+        if (done) finished.push(index)
+      }
+    }
+    const left = finished.filter((i) => anims.current.get(i)?.type === 'leave')
+    for (const i of finished) anims.current.delete(i)
+    if (left.length) setHidden((prev) => new Set([...prev, ...left]))
+    rafRef.current = anims.current.size ? requestAnimationFrame(tick) : 0
+  }
+
+  const startAnim = (index, anim) => {
+    anims.current.set(index, { ...anim, start: performance.now() })
+    if (!rafRef.current) rafRef.current = requestAnimationFrame(tick)
+  }
+
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
+
+  // Newly-gone arrows slide out along their heading.
   useEffect(() => {
-    const prev = prevClearedRef.current
-    cleared.forEach((c, i) => {
-      if (c && prev[i] !== c) flowOut(i)
-    })
-    prevClearedRef.current = cleared
-    // flowOut closes over level, which is stable for this round.
+    const prev = prevGone.current
+    prevGone.current = gone
+    const fresh = []
+    gone.forEach((g, i) => { if (g && !prev[i]) fresh.push(i) })
+    if (fresh.length === 0) return
+    // In-app motion setting (falls back to the OS query), read per change so a
+    // mid-round toggle applies to the next cleared arrow.
+    if (isReducedMotion()) {
+      // Reduced motion: the gone prop flip removes the arrow outright.
+      setHidden((p) => new Set([...p, ...fresh]))
+      return
+    }
+    // A leave supersedes any bump still playing on the same arrow.
+    for (const i of fresh) startAnim(i, { type: 'leave' })
+    // startAnim/tick close over level, which is fixed for a mounted board.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cleared])
+  }, [gone])
 
-  // Blocked tap — briefly shake + redden the tapped arrow. Fires for local
-  // taps and remote opponent taps (via arrowsLastBlocked) alike.
+  // Blocked tap: red arrow, flashing blocker, ringed board, and a bump that
+  // shows exactly where the path is cut.
   useEffect(() => {
-    if (!shakeSignal) return
-    const group = groupRefs.current[shakeSignal.index]
-    if (!group) return
-    group.classList.remove('blocked-shake')
-    // Force a reflow so the animation restarts on a rapid second blocked tap.
-    void group.getBoundingClientRect()
-    group.classList.add('blocked-shake')
-    const t = setTimeout(() => group.classList.remove('blocked-shake'), 400)
+    if (!feedback) return
+    const { index, blocker, gap } = feedback
+    const group = groupRefs.current[index]
+    const blockerGroup = groupRefs.current[blocker]
+    const stage = stageRef.current
+    const restart = (el, cls) => {
+      if (!el) return
+      el.classList.remove(cls)
+      void el.getBoundingClientRect()
+      el.classList.add(cls)
+    }
+    restart(group, 'is-error')
+    restart(blockerGroup, 'is-blocker')
+    restart(stage, 'is-error')
+    if (!isReducedMotion() && !anims.current.has(index)) startAnim(index, { type: 'bump', gap })
+    const t = setTimeout(() => {
+      group?.classList.remove('is-error')
+      blockerGroup?.classList.remove('is-blocker')
+      stage?.classList.remove('is-error')
+    }, ERROR_MS)
     return () => clearTimeout(t)
-  }, [shakeSignal])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedback])
 
-  // Raced tap — the arrow cleared under us. Brief amber steal flash.
-  useEffect(() => {
-    if (!stolenSignal) return
-    const group = groupRefs.current[stolenSignal.index]
-    if (!group) return
-    group.classList.remove('stolen-flash')
-    void group.getBoundingClientRect()
-    group.classList.add('stolen-flash')
-    const t = setTimeout(() => group.classList.remove('stolen-flash'), 450)
-    return () => clearTimeout(t)
-  }, [stolenSignal])
+  const handlePointerDown = (e) => {
+    if (!interactive || !onTap) return
+    const svg = svgRef.current
+    const ctm = svg?.getScreenCTM()
+    if (!ctm) return
+    const pt = svg.createSVGPoint()
+    pt.x = e.clientX
+    pt.y = e.clientY
+    const { x, y } = pt.matrixTransform(ctm.inverse())
+    const occ = occupancy(level, gone)
+    const cx = Math.floor(x / CELL)
+    const cy = Math.floor(y / CELL)
+    let best = -1
+    let bestDist = TAP_SLOP * CELL
+    for (let yy = cy - 1; yy <= cy + 1; yy += 1) {
+      for (let xx = cx - 1; xx <= cx + 1; xx += 1) {
+        if (xx < 0 || xx >= level.cols || yy < 0 || yy >= level.rows) continue
+        const owner = occ[yy * level.cols + xx]
+        if (owner === -1) continue
+        const [mx, my] = cellCenter([xx, yy], CELL)
+        const dist = Math.hypot(mx - x, my - y)
+        const inside = xx === cx && yy === cy
+        if (inside || dist < bestDist) {
+          best = owner
+          bestDist = inside ? -1 : dist
+        }
+      }
+    }
+    if (best >= 0) {
+      e.preventDefault()
+      onTap(best)
+    }
+  }
 
-  const [vx, vy, vw, vh] = level.viewBox
   const dots = []
-  for (let x = vx + GRID_STEP / 2; x < vx + vw; x += GRID_STEP) {
-    for (let y = vy + GRID_STEP / 2; y < vy + vh; y += GRID_STEP) {
-      dots.push(<circle key={`${x}-${y}`} cx={x} cy={y} r={DOT_RADIUS} fill="rgb(var(--c-structure))" opacity="0.34" />)
+  for (let y = 0; y < level.rows; y += 1) {
+    for (let x = 0; x < level.cols; x += 1) {
+      const [px, py] = cellCenter([x, y], CELL)
+      dots.push(<circle key={`${x}-${y}`} cx={px} cy={py} r={compact ? 0.9 : 0.75} />)
     }
   }
 
   return (
-    <div className="w-full bg-retro-card border-2 border-retro-border rounded overflow-hidden shadow-[inset_0_1px_0_rgb(var(--c-text)/0.04)]">
-      {/* role="group", not "img": an img role makes every child presentational,
-          which hid the tappable arrow buttons from screen readers. */}
-      <svg viewBox={level.viewBox.join(' ')} className="block w-full h-auto" role="group" aria-label={`${level.label} arrows board`}>
-        <rect x={vx} y={vy} width={vw} height={vh} fill="rgb(var(--c-surface))" />
-        <g aria-hidden="true">{dots}</g>
-
-        <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <div
+      ref={stageRef}
+      className={cn(
+        'arrows-stage w-full bg-retro-surface border-2 border-retro-border rounded-lg overflow-hidden',
+        compact && 'border',
+      )}
+    >
+      <svg
+        ref={svgRef}
+        viewBox={`${-PAD} ${-PAD} ${width + PAD * 2} ${height + PAD * 2}`}
+        className="arrows-svg block w-full h-auto select-none"
+        style={{ touchAction: 'manipulation' }}
+        role="group"
+        aria-label={label ?? `Arrows board, ${level.arrows.length - hidden.size} arrows left`}
+        onPointerDown={handlePointerDown}
+      >
+        <g aria-hidden="true" style={{ fill: 'rgb(var(--c-structure))', opacity: 0.45 }}>{dots}</g>
+        <g strokeLinecap="round" strokeLinejoin="round">
           {level.arrows.map((arrow, i) => {
             if (hidden.has(i)) return null
-            const points = arrow.points
-            if (!points || points.length < 2) return null
-            const d = roundedPathD(points, ARROWS_CORNER_RADIUS, ARROWS_TIP_INSET)
-            const head = arrowHeadD(points)
-            const stroke = strokeFor(cleared[i])
-            const isCleared = !!cleared[i]
-            const isTrap = !!arrow.blocked && !isCleared
-            const trapRevealed = isTrap && revealTraps
-            const { tip, dx, dy } = exitVector(points)
-            const tappable = interactive && !isCleared
-            const direction = directionLabel(dx, dy)
-            const label = joinLabel(
-              `Arrow ${i + 1}`,
-              direction && `points ${direction}`,
-              isCleared ? `cleared by ${cleared[i]}` : trapRevealed && 'trap',
-            )
-            const fireTap = (e) => {
-              if (e) e.preventDefault()
-              onTap(i)
-            }
+            const pose = leavePose(arrow, CELL, 0)
+            const cells = arrow.cells.map((c) => cellCenter(c, CELL))
+            const hitD = `M${cells.map((p) => p.join(' ')).join(' L')}`
+            const leaving = !!gone[i]
             return (
-              <g key={i} ref={(el) => { groupRefs.current[i] = el }} className="arrows-group">
-                {tappable && (
-                  <>
-                    <path
-                      d={d}
-                      fill="none"
-                      stroke="transparent"
-                      strokeWidth={HIT_WIDTH}
-                      style={{ cursor: 'var(--cursor-hand)', pointerEvents: 'stroke', touchAction: 'manipulation' }}
-                      onPointerDown={fireTap}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fireTap(e) }}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={label}
-                    />
-                    <circle
-                      cx={tip[0]}
-                      cy={tip[1]}
-                      r={HEAD_HIT_R}
-                      fill="transparent"
-                      style={{ cursor: 'var(--cursor-hand)', pointerEvents: 'all', touchAction: 'manipulation' }}
-                      onPointerDown={fireTap}
-                    />
-                  </>
-                )}
+              <g key={i} ref={(el) => { groupRefs.current[i] = el }} className="arrows-arrow">
                 <path
-                  className="ar-path"
-                  d={d}
-                  strokeWidth={2.25}
-                  strokeDasharray={trapRevealed ? '5 4' : undefined}
-                  style={{ stroke: trapRevealed ? 'rgb(var(--c-danger))' : stroke, pointerEvents: 'none', opacity: trapRevealed ? 0.9 : 1 }}
+                  ref={(el) => { bodyRefs.current[i] = el }}
+                  className="ar-body"
+                  d={bodyD(pose)}
+                  fill="none"
+                  strokeWidth={STROKE}
+                  style={{ pointerEvents: 'none' }}
                 />
                 <path
+                  ref={(el) => { headRefs.current[i] = el }}
                   className="ar-head"
-                  d={head}
-                  strokeWidth={2.25}
-                  style={{ stroke: trapRevealed ? 'rgb(var(--c-danger))' : stroke, pointerEvents: 'none' }}
+                  d={headD(pose)}
+                  style={{ pointerEvents: 'none' }}
                 />
-                {trapRevealed && (
-                  <text
-                    x={tip[0]}
-                    y={tip[1] - ARROWS_HEAD_LEN - 3}
-                    textAnchor="middle"
-                    fontSize="8"
-                    fill="rgb(var(--c-danger))"
-                    stroke="none"
-                    aria-hidden="true"
-                  >
-                    ×
-                  </text>
+                {interactive && !leaving && (
+                  <path
+                    className="ar-hit"
+                    d={hitD}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={CELL * 0.9}
+                    strokeLinecap="square"
+                    strokeLinejoin="miter"
+                    style={{ pointerEvents: 'none' }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Arrow ${i + 1}, ${arrow.cells.length} long, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onTap?.(i)
+                      }
+                    }}
+                  />
                 )}
               </g>
             )
@@ -222,3 +288,4 @@ export default function ArrowsBoard({
     </div>
   )
 }
+

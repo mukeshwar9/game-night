@@ -82,7 +82,7 @@ import {
   generateChimpLayout,
 } from './chimpLogic'
 import { generateSeed } from './mathLogic'
-import { arrowsFreshState, arrowsNextRound, normalizeArrowsSeen } from './arrowsLogic'
+import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
 import { generateGrid } from './wordhuntGrid'
 import {
   VM_START_LEVEL,
@@ -732,7 +732,7 @@ export const GAME_TYPES = [
   {
     type: 'arrows', label: 'ARROWS PUZZLE',
     desc: 'race to clear the arrows', Icon: ArrowsIcon,
-    badge: 'AR', maxWidth: 'max-w-xs',
+    badge: 'AR', maxWidth: 'max-w-sm',
     category: 'reflex',
     addedAt: '2026-09-19',
     durationMin: 4, tags: ['quick', 'skill'],
@@ -1602,8 +1602,11 @@ const FIELD_NULLS = {
   diceSeedCommitter: null, diceSeedResets: null, // Pig seed-loss recovery (pigSeedProtocol.js)
   bluffRound: null,
   pongScoreX: null, pongScoreO: null, pongMode: null, signaling: null, matchLength: null,
-  arrowsRound: null, arrowsLevel: null, arrowsCleared: null,
-  arrowsLivesX: null, arrowsLivesO: null,
+  arrowsRound: null, arrowsSeed: null, arrowsStartedAt: null,
+  arrowsGoneX: null, arrowsGoneO: null, arrowsLivesX: null, arrowsLivesO: null,
+  // Retired shared-board keys: still nulled so rooms from before the race
+  // rework shed them on the next reset.
+  arrowsLevel: null, arrowsCleared: null,
   arrowsTrapSeen: null, arrowsLastBlocked: null, arrowsSeen: null,
   snakeScoreX: null, snakeScoreO: null,
   tronScoreX: null, tronScoreO: null,
@@ -1879,11 +1882,10 @@ export function freshGameState(gameType, previous = null) {
       round: { phase: 'setting' } }
   }
   if (gameType === 'arrows') {
-    const seen = normalizeArrowsSeen(previous?.arrowsSeen)
     // A decided/final match must never advance into a 4th round: fall back to
     // a fresh round-0 board (scores are zeroed separately by applyNewMatch).
     const next = previous ? arrowsNextRound(previous) : null
-    const arrowFields = next ?? arrowsFreshState(seen)
+    const arrowFields = next ?? arrowsFreshState()
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       ...arrowFields }
   }

@@ -424,14 +424,14 @@ export const GAME_RULES = {
   },
 
   arrows: {
-    objective: 'Clear more arrows than your rival across a 3-round face-off.',
+    objective: 'Race your rival to clear the same arrow board first.',
     howToPlay: [
-      'Both players share one board of snake-like arrows and tap any uncleared arrow at the same time.',
-      'A clear arrow slides off the board in your color — green for X, purple for O.',
-      'A blocked arrow is a trap: tapping it shakes red and costs a life, and it never clears.',
-      'You have 3 lives per round — at 0 lives you can only watch.',
+      'You and your rival each get an identical board of snake-shaped arrows and play at the same time.',
+      'Tap an arrow to send it sliding off the board along the way its head points.',
+      'It only leaves if nothing is in its path — tap a blocked arrow and it bumps, flashes red and costs a life.',
+      'Clear the arrows that are in the way first. You have 3 lives per round.',
     ],
-    win: 'Whoever clears more arrows wins the round. Win 2 of the 3 rounds (easy, medium, hard) to take the match; a drawn round scores for no one.',
+    win: 'First to clear their whole board wins the round; running out of lives loses it. Boards get bigger each round (easy, medium, hard) — win 2 of the 3 to take the match.',
   },
 
   tron: {
