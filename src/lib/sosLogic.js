@@ -1,3 +1,4 @@
+// @ts-check
 export const SOS_SIZE = 7
 export const SOS_CELL_COUNT = 49
 

@@ -10,7 +10,9 @@
 //     options:     [number, number, number] | null,  // 3 deck indices; null until artist publishes
 //     commitment:  { hash, salt } | null,             // set when artist picks a word
 //     wordPattern: string,               // e.g. "5" or "3 3"; '' until artist picks
-//     endsAt:      epoch-ms,             // current phase's deadline
+//     endsAt:      epoch-ms | null,      // current phase's deadline; null = timers off (timerScale 0)
+//     drawStartedAt: epoch-ms,           // server time the artist locked a word (scoring window)
+//     drawMs:      number,               // that drawing phase's length after the room's timer scale
 //     strokes:     { [pushId]: { c, w, p } },         // artist-only writes
 //     chat:        { [pushId]: { uid, text } },       // wrong guesses only
 //     correct:     { [uid]: { at } },                 // uid's own write, once
@@ -28,6 +30,7 @@
 export { seatOrder, hashString, seededShuffle } from './fibbageLogic'
 import { seededShuffle } from './fibbageLogic'
 import { verifyReveal } from './commit'
+import { avoidList } from './seenHistory'
 
 // ---- Tunable constants -----------------------------------------------------
 export const CHOOSE_MS = 15000
@@ -44,6 +47,9 @@ export const GUESSER_FLOOR_PTS = 50
 export const SOLO_GUESSER_BASE_PTS = 50   // 2-player (exactly 1 guesser) variant
 export const SOLO_GUESSER_BONUS_MAX = 50
 export const SOLO_ARTIST_DIVISOR = 2
+
+// Room seen-history key: `games/{id}/seen/sketch` (deck indices offered).
+export const SKETCH_SEEN_KEY = 'sketch'
 
 // ---- normalize(str) -> string -----------------------------------------------
 // lowercase, trim, collapse internal whitespace to single spaces, then STRIP
@@ -117,6 +123,17 @@ export function pickOptions(deck, seed, used = []) {
     if (pick != null) { chosen.push(pick); chosenSet.add(pick) }
   })
   return chosen
+}
+
+// ---- pickRoundOptions(deck, seed, used, seen) -> [i, j, k] ------------------
+// pickOptions, but also steering clear of words this ROOM was offered in
+// earlier matches (`seen`, a seenHistory map). Once fewer than 3 never-offered
+// words remain, only the most recently offered half is avoided, so the deck
+// cycles instead of repeating last match's words. Deterministic from `seed`
+// and the (shared) room state, so every client computes the same options.
+export function pickRoundOptions(deck, seed, used = [], seen = null) {
+  const avoid = avoidList(deck.length, seen, 3, used)
+  return pickOptions(deck, seed, [...used, ...avoid])
 }
 
 // ---- nextArtist(order, artist) -> uid ---------------------------------------
@@ -207,7 +224,7 @@ export function participantGuessers(order, artist) {
 //     (0-indexed); artist gets ARTIST_PTS_PER_CORRECT * (number who guessed
 //     correctly). If nobody guessed correctly, {} (artist also gets 0).
 // Missing keys in the returned object mean "+0" — caller merges additively.
-export function roundDeltas({ guesserIds, correct, artistId, endsAt }) {
+export function roundDeltas({ guesserIds, correct, artistId, endsAt, drawMs = DRAW_MS }) {
   const deltas = {}
   const n = guesserIds.length
   if (n === 0) return deltas
@@ -215,7 +232,7 @@ export function roundDeltas({ guesserIds, correct, artistId, endsAt }) {
     const uid = guesserIds[0]
     const c = correct?.[uid]
     if (!c) return deltas
-    const ratio = Math.max(0, Math.min(1, (endsAt - c.at) / DRAW_MS))
+    const ratio = Math.max(0, Math.min(1, (endsAt - c.at) / (drawMs > 0 ? drawMs : DRAW_MS)))
     const guesserPts = SOLO_GUESSER_BASE_PTS + Math.round(SOLO_GUESSER_BONUS_MAX * ratio)
     deltas[uid] = guesserPts
     deltas[artistId] = (deltas[artistId] || 0) + Math.floor(guesserPts / SOLO_ARTIST_DIVISOR)
@@ -230,6 +247,18 @@ export function roundDeltas({ guesserIds, correct, artistId, endsAt }) {
   })
   deltas[artistId] = (deltas[artistId] || 0) + ARTIST_PTS_PER_CORRECT * ranked.length
   return deltas
+}
+
+// ---- scoringWindow(round, fallbackEndsAt) -> { endsAt, drawMs } ------------
+// The drawing phase's speed-bonus window for roundDeltas. Rounds locked after
+// the timer-scale change carry `drawStartedAt` + `drawMs` (so a relaxed room's
+// bonus decays over its longer clock, and a timers-off room over the base
+// DRAW_MS); older rounds fall back to the drawing deadline itself.
+export function scoringWindow(round, fallbackEndsAt = null) {
+  if (Number.isFinite(round?.drawStartedAt) && round?.drawMs > 0) {
+    return { endsAt: round.drawStartedAt + round.drawMs, drawMs: round.drawMs }
+  }
+  return { endsAt: fallbackEndsAt ?? round?.endsAt ?? 0, drawMs: DRAW_MS }
 }
 
 // ---- deriveWord(deckWords, options, commitment) -> Promise<string | null> ---

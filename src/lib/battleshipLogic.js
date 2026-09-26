@@ -1,3 +1,4 @@
+// @ts-check
 // battleshipLogic.js — pure core for BATTLESHIP, the platform's first
 // hidden-information game. No Firebase, no React.
 //

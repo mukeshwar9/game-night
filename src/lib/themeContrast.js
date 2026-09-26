@@ -1,3 +1,4 @@
+// @ts-check
 // Pure helpers for auditing theme color contrast/separability. No DOM, no
 // Firebase, no React — parses the --c-* custom-property triplets straight
 // out of src/index.css's raw text so the regression test (themeContrast.

@@ -1,3 +1,4 @@
+// @ts-check
 // Pure Paint Turf simulation — no DOM, no network, no React. Deterministic
 // and unit-testable. The arena is a 20×20 grid of cells (0 neutral / 1 X /
 // 2 O). Players move continuously across it; the cell a mover VACATES turns
@@ -92,7 +93,7 @@ export function createState(opts = {}) {
  * winner, so "wherever you are at the buzzer" still counts.
  *
  * @param {object} state  previous state
- * @param {{X?: 'up'|'down'|'left'|'right', O?: same}} inputs  direction
+ * @param {{X?: 'up'|'down'|'left'|'right', O?: 'up'|'down'|'left'|'right'}} inputs  direction
  *   CHANGES only (matches Tron/Snake) — omit/null keeps the current heading.
  * @param {number} dt  seconds (fixed timestep recommended)
  * @returns {{ state: object, events: Array<{type:string, by?:string, index?:number, from?:string}> }}

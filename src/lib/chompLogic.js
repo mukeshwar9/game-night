@@ -1,3 +1,4 @@
+// @ts-check
 // Chomp (David Gale) — pure logic, no DOM/Firebase/React.
 // A rectangular chocolate bar. On your turn you pick a square and "eat" it
 // plus every square below and to the right of it. The TOP-LEFT square is

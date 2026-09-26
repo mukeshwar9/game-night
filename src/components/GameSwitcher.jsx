@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useContext, useState } from 'react'
 import { toast } from 'sonner'
 import GamePicker from './GamePicker'
 import BottomSheet from './BottomSheet'
+import { RoomSwitchContext } from '../lib/roomSwitchContext'
 
 // Grid-of-squares glyph for the header trigger — reads as "browse / pick another
 // game" and pairs with the grid layout of the picker it opens. Styled via
@@ -23,6 +24,9 @@ function GridIcon() {
 // at any point during play. Both open the same picker modal.
 export default function GameSwitcher({ currentType, onSwitch, variant = 'button' }) {
   const [open, setOpen] = useState(false)
+  // Game-night mode: a party room (or a party room playing a 2P game) may
+  // also switch across seat families — see RoomSwitchContext.
+  const crossFamily = useContext(RoomSwitchContext)
   const [switching, setSwitching] = useState(null) // gameType being switched to, or null
 
   const pick = async (type) => {
@@ -78,7 +82,7 @@ export default function GameSwitcher({ currentType, onSwitch, variant = 'button'
               ✕
             </button>
           </div>
-          <GamePicker onSelect={pick} excludeType={currentType} loadingType={switching} />
+          <GamePicker onSelect={pick} excludeType={currentType} loadingType={switching} crossFamily={crossFamily} />
         </BottomSheet>
       )}
     </>

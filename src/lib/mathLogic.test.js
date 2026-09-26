@@ -7,6 +7,9 @@ import {
   GAME_MS,
   QUESTION_MS,
 } from './mathLogic'
+import {
+  speedPtsFor, scoreMathAnswer, advanceMathQuestion, normalizeMathStats, mathRaceEntry, mathRow,
+} from './mathLogic'
 
 describe('generateQuestion determinism', () => {
   it('returns the same question for the same seed and index across many calls', () => {
@@ -125,5 +128,65 @@ describe('generateSeed', () => {
 describe('GAME_MS', () => {
   it('is a sane positive duration', () => {
     expect(GAME_MS).toBeGreaterThan(0)
+  })
+})
+
+describe('speedPtsFor', () => {
+  it('5 for an instant answer, 1 at the buzzer', () => {
+    expect(speedPtsFor(0, 8000)).toBe(5)
+    expect(speedPtsFor(8000, 8000)).toBe(1)
+    expect(speedPtsFor(99_999, 8000)).toBe(1)
+  })
+})
+
+describe('scoreMathAnswer', () => {
+  const seed = 4242
+  const q0 = generateQuestion(seed, 0)
+
+  it('a correct answer advances and scores speed points', () => {
+    const { correct, pts, stats } = scoreMathAnswer(null, { seed, answer: String(q0.answer), elapsed: 0 })
+    expect(correct).toBe(true)
+    expect(pts).toBe(5)
+    expect(stats).toEqual({ q: 1, score: 5, streak: 1, correct: 1, wrong: 0 })
+  })
+
+  it('a 3-streak doubles the next correct answer', () => {
+    const q3 = generateQuestion(seed, 3)
+    const { pts } = scoreMathAnswer({ q: 3, score: 0, streak: 3, correct: 3, wrong: 0 }, { seed, answer: String(q3.answer), elapsed: 0 })
+    expect(pts).toBe(5 * (q3.isPower ? 2 : 1) * 2)
+  })
+
+  it('a wrong answer costs a point (floored at 0), resets the streak, keeps q', () => {
+    const { correct, stats } = scoreMathAnswer({ q: 0, score: 3, streak: 2, correct: 2, wrong: 0 }, { seed, answer: String(q0.answer + 1), elapsed: 0 })
+    expect(correct).toBe(false)
+    expect(stats).toEqual({ q: 0, score: 2, streak: 0, correct: 2, wrong: 1 })
+    expect(scoreMathAnswer(null, { seed, answer: String(q0.answer + 1), elapsed: 0 }).stats.score).toBe(0)
+  })
+
+  it('power questions double the reward', () => {
+    const q5 = generateQuestion(seed, 5)
+    expect(q5.isPower).toBe(true)
+    const { pts } = scoreMathAnswer({ q: 5 }, { seed, answer: String(q5.answer), elapsed: 0 })
+    expect(pts).toBe(10)
+  })
+
+  it('advanceMathQuestion only moves past the given index', () => {
+    expect(advanceMathQuestion({ q: 2 }, 2).q).toBe(3)
+    expect(advanceMathQuestion({ q: 3 }, 2).q).toBe(3)
+  })
+
+  it('normalizeMathStats floors junk to zeros', () => {
+    expect(normalizeMathStats({ q: '2', score: -4, streak: 'x' })).toEqual({ q: 2, score: 0, streak: 0, correct: 0, wrong: 0 })
+  })
+})
+
+describe('math race hooks', () => {
+  it('ranks by points; no stats = DNF', () => {
+    expect(mathRaceEntry({ score: 12 })).toEqual({ sortKey: [-12], score: 12 })
+    expect(mathRaceEntry(null).sortKey).toBeNull()
+  })
+
+  it('row shows points and tallies', () => {
+    expect(mathRow({ score: 7, correct: 3, wrong: 1, q: 4 })).toMatchObject({ primary: '7 PTS', secondary: '3✓ 1✗', detail: 'Q5' })
   })
 })

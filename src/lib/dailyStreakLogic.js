@@ -1,3 +1,4 @@
+// @ts-check
 // Pure streak/history math for the daily challenge. No DOM/React/Firebase —
 // operates entirely on a `history` map of { 'YYYY-MM-DD': score } and plain
 // date strings. Date arithmetic is done via Date.UTC on split y/m/d

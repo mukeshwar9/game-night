@@ -6,6 +6,8 @@ import { CHAT_MAX_LENGTH } from '../lib/chat'
 import { cn } from '@/lib/utils'
 import { getPlayerId } from '../lib/playerId'
 import { getQuickEmotes, normalizeEmoteUsage, recordEmoteUsage } from '../lib/emoteUsage'
+import useMotionPref from '../hooks/useMotionPref'
+import MotionPrefProvider from './MotionPrefProvider'
 
 const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 transition-colors'
 const EMOTE_TAP_PROPS = {
@@ -15,8 +17,10 @@ const EMOTE_TAP_PROPS = {
 }
 
 function AnimatedEmoteButton({ children, className, ...props }) {
+  // Reduced motion (Settings or OS): no tap wobble / hover grow.
+  const { reduced } = useMotionPref()
   return (
-    <motion.button {...props} {...EMOTE_TAP_PROPS} className={className}>
+    <motion.button {...props} {...(reduced ? null : EMOTE_TAP_PROPS)} className={className}>
       {children}
     </motion.button>
   )
@@ -112,8 +116,10 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
     const ok = await onSendText(text)
     if (ok) setText('')
   }
+  // MotionPrefProvider renders no DOM; it points framer-motion's own
+  // reduced-motion handling at the Settings choice for the bar and picker.
   return (
-    <>
+    <MotionPrefProvider>
       <div className="flex flex-col items-center gap-1.5 pt-1">
         {Object.keys(usage).length > 0 && (
           <p className="font-pixel text-[7px] text-retro-dim tracking-widest">YOUR REACTIONS</p>
@@ -196,6 +202,6 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
       {showPicker && (
         <EmotePicker onPick={handleEmote} onClose={() => setShowPicker(false)} />
       )}
-    </>
+    </MotionPrefProvider>
   )
 }

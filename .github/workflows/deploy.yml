@@ -1,0 +1,140 @@
+name: Deploy (Firebase Hosting)
+
+# PRs get a preview channel (URL posted as a PR comment, expires after 7 days);
+# pushes to main deploy the live site. Hosting only: database rules and
+# functions are still deployed by hand (`firebase deploy --only database` /
+# `--only functions`).
+#
+# Needs the repository secret FIREBASE_SERVICE_ACCOUNT_GAME_NIGHT_91464 (create
+# it with `firebase init hosting:github`, or a service-account JSON key with the
+# Firebase Hosting Admin role) plus the VITE_FIREBASE_* web-app config secrets.
+# Without the service-account secret every deploy job is skipped, not failed —
+# forks and fresh clones stay green.
+#
+# Note: preview-channel domains (game-night-91464--pr<N>-….web.app) are not
+# Firebase Auth "authorized domains", so Google sign-in fails there unless you
+# add them; anonymous play works.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Check deploy credentials
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GAME_NIGHT_91464 }}
+        run: |
+          if [ -n "$SERVICE_ACCOUNT" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy skipped::FIREBASE_SERVICE_ACCOUNT_GAME_NIGHT_91464 is not set (or this is a fork PR); skipping Firebase Hosting deploy."
+          fi
+
+  preview:
+    name: Preview channel
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    concurrency:
+      group: deploy-preview-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    # Firebase web-app config baked into the bundle by `vite build`.
+    env:
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+      # Optional; empty when the secret is not set (App Check / TURN stay off).
+      VITE_APPCHECK_SITE_KEY: ${{ secrets.VITE_APPCHECK_SITE_KEY }}
+      VITE_TURN_URLS: ${{ secrets.VITE_TURN_URLS }}
+      VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
+      VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GAME_NIGHT_91464 }}
+          projectId: game-night-91464
+          expires: 7d
+
+  live:
+    name: Live site
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: deploy-live
+      cancel-in-progress: false
+    # Firebase web-app config baked into the bundle by `vite build`.
+    env:
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+      # Optional; empty when the secret is not set (App Check / TURN stay off).
+      VITE_APPCHECK_SITE_KEY: ${{ secrets.VITE_APPCHECK_SITE_KEY }}
+      VITE_TURN_URLS: ${{ secrets.VITE_TURN_URLS }}
+      VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
+      VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # CI runs in a separate workflow; re-run the fast gates so a red main
+      # never reaches players.
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Entry bundle size budget
+        run: node scripts/check-bundle-size.mjs
+
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GAME_NIGHT_91464 }}
+          projectId: game-night-91464
+          channelId: live

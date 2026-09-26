@@ -1,5 +1,6 @@
 import { CHOMP_COLS, POISON_INDEX } from '../lib/chompLogic'
 import { cn } from '@/lib/utils'
+import { cellLabel } from '../lib/a11yLabels'
 
 // CHOMP — 6x5 chocolate bar. The top-left square is poisoned. Eat a square
 // and everything below-right of it disappears. Pure rendering: the board
@@ -26,7 +27,12 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
             return (
               <button
                 key={i}
-                aria-label={`chomp-cell-${r}-${c}${isPoison ? '-poison' : ''}`}
+                data-testid={`chomp-cell-${r}-${c}${isPoison ? '-poison' : ''}`}
+                aria-label={cellLabel({
+                  row: r, col: c,
+                  occupant: eaten ? 'eaten' : isPoison ? 'poison square' : 'chocolate',
+                  extra: !eaten && i === lastMove && 'last move',
+                })}
                 disabled={!clickable}
                 onClick={() => clickable && onMove(i)}
                 className={cn(

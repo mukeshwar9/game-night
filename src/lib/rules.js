@@ -169,40 +169,42 @@ export const GAME_RULES = {
   },
 
   reaction: {
-    objective: 'React faster than your opponent across four rounds.',
+    objective: 'React faster than everyone else across four rounds (2–8 players).',
     howToPlay: [
       'Wait for the screen to turn green — don’t jump early.',
       'Tap the instant it changes; your reaction time is recorded.',
-      'Play four rounds.',
+      'Play four rounds. Everyone gets the same random waits, so nobody gets an easier start.',
     ],
-    win: 'The lower average reaction time across the rounds wins.',
+    win: 'Lowest average reaction time wins the round. First to 3 round wins takes the match.',
   },
 
   aim: {
-    objective: 'Pop 30 targets as fast and accurately as you can.',
+    objective: 'Hit as many targets as you can in 30 seconds (2–8 players).',
     howToPlay: [
-      'Targets appear one at a time — click each as quickly as possible.',
-      'Both players race through the same set of 30 targets.',
+      'Targets appear one at a time — tap each as quickly as possible.',
+      'Everyone races through the same sequence of targets.',
+      'A tap on empty arena costs a point, so don’t spray.',
     ],
-    win: 'Best combination of speed and accuracy wins the duel.',
+    win: 'Highest score when the 30 seconds run out wins the round. First to 3 round wins takes the match.',
   },
 
   typing: {
-    objective: 'Type the passage faster than your opponent’s ghost.',
+    objective: 'Type the passage faster and more accurately than everyone else (2–8 players).',
     howToPlay: [
-      'Both players type the same passage as quickly and accurately as possible.',
-      'Your opponent’s progress shows as a live ghost you’re racing.',
+      'Everyone types the same passage as quickly and accurately as possible.',
+      'Everyone’s progress shows live in the results table as you race.',
+      'Anyone still typing when the time limit hits is marked DNF.',
     ],
-    win: 'Highest words-per-minute (adjusted for accuracy) wins.',
+    win: 'Highest effective WPM (speed × accuracy) wins the round. First to 3 round wins takes the match.',
   },
 
   math: {
-    objective: 'Solve as many problems as you can in a two-minute blitz.',
+    objective: 'Solve as many problems as you can in a two-minute blitz (2–8 players).',
     howToPlay: [
-      'Answer arithmetic questions one after another.',
-      'Correct answers build your score and streak; both players get the same questions.',
+      'Answer arithmetic questions one after another at your own pace.',
+      'Everyone gets the same questions. Correct answers build your score and streak.',
     ],
-    win: 'Highest score when the two-minute clock runs out wins.',
+    win: 'Highest score when the two-minute clock runs out wins the round. First to 3 round wins takes the match.',
   },
 
   visualmemory: {
@@ -219,6 +221,16 @@ export const GAME_RULES = {
     objective: 'Be the first to get five of your stones in a row.',
     howToPlay: [
       'Take turns placing a stone on any empty point of the 15×15 board.',
+    ],
+    win: 'Line up five (or more) in a row — horizontally, vertically, or diagonally — to win.',
+  },
+
+  gomokuswap: {
+    objective: 'Be the first to get five of your stones in a row — with a swap rule that keeps the opening fair.',
+    howToPlay: [
+      'Take turns placing a stone on any empty point of the 15×15 board.',
+      'Right after the very first stone, the other player may tap SWAP instead of placing: that stone becomes theirs and the opener moves again.',
+      'So open with a stone you would be equally happy to keep or to give away.',
     ],
     win: 'Line up five (or more) in a row — horizontally, vertically, or diagonally — to win.',
   },
@@ -323,19 +335,21 @@ export const GAME_RULES = {
       'Take turns placing one stone on any empty cell of the 11×11 rhombus.',
       'X must connect the LEFT and RIGHT edges; O must connect the TOP and BOTTOM.',
       'Stones never move or get captured — every stone stays forever.',
+      'Swap rule: right after the first stone, the other player may tap SWAP instead of placing — the opening stone becomes theirs, mirrored onto their own edges, and the opener moves again.',
     ],
     win: 'First chain linking your two edges wins. Draws are mathematically impossible.',
   },
 
   minesweeper: {
-    objective: 'Clear the identical seeded minefield faster than your opponent.',
+    objective: 'Clear the identical seeded minefield faster than everyone else (2–8 players).',
     howToPlay: [
-      'Both players sweep the SAME 12×12 board with 22 hidden mines, simultaneously.',
+      'Everyone sweeps the SAME 12×12 board with 22 hidden mines, simultaneously.',
       'Tap to reveal a cell; numbers show adjacent mines; zeros flood-fill.',
-      'Long-press (or toggle FLAG mode) to mark suspected mines — flags are private.',
+      'Long-press, press F on the focused cell, or toggle FLAG mode to mark suspected mines — flags are private.',
       'Tap a satisfied number to chord-reveal its remaining neighbors.',
+      'Hit a mine and you’re out of the round, ranked below everyone still sweeping.',
     ],
-    win: 'Reveal all 122 safe cells first — or win instantly when your opponent hits a mine.',
+    win: 'Fastest to reveal all 122 safe cells wins the round. First to 3 round wins takes the match.',
   },
 
   herd: {
@@ -571,6 +585,51 @@ export const GAME_RULES = {
       'When time runs out, everyone votes on who they think is the spy.',
     ],
     win: 'The group wins if a clear majority votes for the actual spy. Otherwise the spy wins. First to 3 round wins takes the match.',
+  },
+
+  headsup: {
+    objective: 'Guess as many words as you can while your friends act them out — then act for them.',
+    howToPlay: [
+      '3–8 players, made for a video call. Each turn one player is the guesser; their screen shows only a timer and GOT IT / PASS.',
+      'Everyone else sees the word on their own screen and acts it out or describes it — without saying the word.',
+      'Tap GOT IT when the guesser says it, or PASS to skip to the next word. Anyone can tap.',
+      'A turn lasts 60 seconds (the room’s timer setting can double it or turn it off). The host picks the category before the match.',
+    ],
+    win: 'The guesser scores a point for every word they get. Everyone guesses twice in a group of 3–4, once in a bigger group — most points wins, ties share the win.',
+  },
+
+  chameleon: {
+    objective: 'Give a clue that proves you know the secret word without giving it away — or, as the Chameleon, bluff your way through.',
+    howToPlay: [
+      '3–8 players. Everyone sees the same topic card of 16 words. All but one player also see which word is secret; that one player is the Chameleon.',
+      'In turn, each player types one short clue related to the secret word. Too obvious and the Chameleon learns the word; too vague and you look like the Chameleon.',
+      'Then everyone votes for who they think the Chameleon is.',
+      'If the Chameleon is caught, they get one guess at the secret word to steal the round.',
+    ],
+    win: 'Chameleon not caught (or a tied vote): Chameleon +2. Caught but guesses the word: Chameleon +1. Caught and wrong: everyone else +2. First to 5 points wins.',
+  },
+
+  codewords: {
+    objective: 'Lead your team to all of its secret agents on a 5×5 grid of words before the other team finds theirs — and never touch the assassin.',
+    howToPlay: [
+      '4–8 players in two teams, ▲ ALPHA and ● BRAVO. Each team has one spymaster (★) who sees the secret key; spymasters rotate every board. The host can shuffle teams or move players in the lobby.',
+      'On your turn your spymaster gives a ONE-word clue and a number — how many cards it points to. The clue can’t be (or contain) a word on the board.',
+      'Guessers tap a card to point at it (teammates see who is pointing where), then tap it again — or GUESS — to lock it in. You get up to number + 1 guesses.',
+      'Your own agent: keep guessing. A bystander or the other team’s agent ends your turn. After at least one guess you may END TURN.',
+      'Every revealed card is checked against a commitment published before play, so nobody can change the key mid-game.',
+    ],
+    win: 'A team wins the moment all of its agents are uncovered (the starting team has 9, the other 8) — even if the rivals uncover the last one. Touch the assassin and your team loses on the spot.',
+  },
+
+  justone: {
+    objective: 'Work together to get the guesser to say as many mystery words as possible, one clue each.',
+    howToPlay: [
+      '3–8 players, all on one team. Each card, one player is the guesser (it rotates); everyone else sees the mystery word.',
+      'Each clue-giver secretly writes ONE one-word clue. Clues stay hidden until everyone is in.',
+      'Identical or near-identical clues cancel each other out — case, plurals and simple word endings don’t count as different. A clue that is the mystery word is removed too.',
+      'The guesser sees only the surviving clues and gets one guess — or can pass.',
+    ],
+    win: 'Co-op: 13 cards, one team score. A right guess scores 1, a pass scores 0, and a wrong guess also throws away the next card (on the last card it costs a point instead). 13 is perfect.',
   },
 
   sketch: {

@@ -5,6 +5,11 @@ import {
   neighbors,
   getHexWinner,
   getMoveIndex,
+  SWAP_ACTION,
+  isSwapMove,
+  hexMirror,
+  canHexSwap,
+  applyHexMove,
 } from './hexLogic'
 
 const emptyBoard = () => Array(HEX_CELL_COUNT).fill('')
@@ -265,5 +270,108 @@ describe('getMoveIndex', () => {
     const board = emptyBoard()
     board[60] = 'X'
     expect(getMoveIndex(board, 60)).toBe(-1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Swap (pie) rule
+// ---------------------------------------------------------------------------
+describe('swap rule', () => {
+  const SWAP = { action: SWAP_ACTION }
+  const opening = (row, col, symbol = 'X') => {
+    const board = emptyBoard()
+    board[idx(row, col)] = symbol
+    return board
+  }
+
+  it('recognises only the swap payload', () => {
+    expect(isSwapMove(SWAP)).toBe(true)
+    expect(isSwapMove(5)).toBe(false)
+    expect(isSwapMove(null)).toBe(false)
+    expect(isSwapMove({ action: 'drop' })).toBe(false)
+  })
+
+  it('hexMirror transposes (r, c) → (c, r) and is its own inverse', () => {
+    expect(hexMirror(idx(2, 7))).toBe(idx(7, 2))
+    expect(hexMirror(idx(5, 5))).toBe(idx(5, 5))
+    for (let i = 0; i < HEX_CELL_COUNT; i++) expect(hexMirror(hexMirror(i))).toBe(i)
+  })
+
+  it('is legal only on move 2, for the player who did not open', () => {
+    expect(canHexSwap(emptyBoard(), 'O')).toBe(false) // move 1: nothing to take
+    expect(canHexSwap(opening(3, 4), 'O')).toBe(true)
+    expect(canHexSwap(opening(3, 4), 'X')).toBe(false) // can't take your own stone
+    expect(canHexSwap(opening(3, 4, 'O'), 'X')).toBe(true) // O opened (first-mover chooser)
+    const two = opening(3, 4)
+    two[idx(6, 6)] = 'O'
+    expect(canHexSwap(two, 'O')).toBe(false) // move 3+: too late
+    expect(canHexSwap(opening(3, 4), 'O', true)).toBe(false) // already swapped this round
+    expect(canHexSwap(opening(3, 4), null)).toBe(false) // spectators never swap
+  })
+
+  it('flips ownership onto the mirrored cell and hands the stone to the swapper', () => {
+    const res = applyHexMove(opening(2, 7), SWAP, 'O')
+    expect(res.swapped).toBe(true)
+    expect(res.index).toBe(idx(7, 2))
+    expect(res.board[idx(7, 2)]).toBe('O')
+    expect(res.board[idx(2, 7)]).toBe('')
+    expect(res.board.filter(Boolean)).toEqual(['O'])
+    expect(res.result).toBeNull()
+  })
+
+  it('a diagonal opening stays put and just changes owner', () => {
+    const res = applyHexMove(opening(5, 5), SWAP, 'O')
+    expect(res.index).toBe(idx(5, 5))
+    expect(res.board[idx(5, 5)]).toBe('O')
+  })
+
+  it('rejects illegal swaps and a swap-back', () => {
+    expect(applyHexMove(emptyBoard(), SWAP, 'O')).toBeNull()
+    expect(applyHexMove(opening(1, 1), SWAP, 'X')).toBeNull()
+    const swapped = applyHexMove(opening(1, 8), SWAP, 'O')
+    // X now faces a lone O stone — but the round's swap is spent.
+    expect(applyHexMove(swapped.board, SWAP, 'X', true)).toBeNull()
+  })
+
+  it('placements are validated and clear the swap flag', () => {
+    const res = applyHexMove(opening(3, 3), idx(4, 4), 'O')
+    expect(res.swapped).toBe(false)
+    expect(res.index).toBe(idx(4, 4))
+    expect(res.board[idx(4, 4)]).toBe('O')
+    expect(applyHexMove(opening(3, 3), idx(3, 3), 'O')).toBeNull() // occupied
+    expect(applyHexMove(emptyBoard(), -1, 'X')).toBeNull()
+    expect(applyHexMove(emptyBoard(), HEX_CELL_COUNT, 'X')).toBeNull()
+    expect(applyHexMove(emptyBoard(), 'x', 'X')).toBeNull()
+  })
+
+  it('win detection is unaffected: the swapped stone counts for its new owner', () => {
+    // X opens at (0,3); O swaps → O owns (3,0). O then builds column 0 downward
+    // except row 3, and the mirrored stone completes the top-bottom chain.
+    let board = applyHexMove(opening(0, 3), SWAP, 'O').board
+    for (let r = 0; r < HEX_SIZE; r++) {
+      if (r === 3) continue
+      const res = applyHexMove(board, idx(r, 0), 'O')
+      board = res.board
+      if (r < HEX_SIZE - 1) expect(res.result).toBeNull()
+      else {
+        expect(res.result.winner).toBe('O')
+        expect(res.result.line).toContain(idx(3, 0))
+      }
+    }
+  })
+
+  it('a placement that completes a chain reports the winner', () => {
+    const board = emptyBoard()
+    for (let c = 0; c < HEX_SIZE - 1; c++) board[idx(4, c)] = 'X'
+    const res = applyHexMove(board, idx(4, HEX_SIZE - 1), 'X')
+    expect(res.result.winner).toBe('X')
+  })
+
+  it('getMoveIndex resolves a swap to the lone stone, else -1', () => {
+    expect(getMoveIndex(opening(2, 6), SWAP)).toBe(idx(2, 6))
+    expect(getMoveIndex(emptyBoard(), SWAP)).toBe(-1)
+    const two = opening(2, 6)
+    two[0] = 'O'
+    expect(getMoveIndex(two, SWAP)).toBe(-1)
   })
 })

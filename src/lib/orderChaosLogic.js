@@ -1,3 +1,4 @@
+// @ts-check
 export const OC_SIZE = 6
 export const OC_CELL_COUNT = 36
 export const OC_RUN = 5

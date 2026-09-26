@@ -4,6 +4,7 @@ import {
   moveTargets, buildTargetsAfter,
 } from '../lib/santoriniLogic'
 import { cn } from '@/lib/utils'
+import { cellLabel } from '../lib/a11yLabels'
 
 // SANTORINI — 5×5 island. The board owns the three-beat interaction:
 // 1) tap one of your workers (or it auto-selects if only one can move),
@@ -104,7 +105,20 @@ export default function SantoriniBoard({
             return (
               <button
                 key={i}
-                aria-label={`st-cell-${r}-${c}-h${h}`}
+                data-testid={`st-cell-${r}-${c}-h${h}`}
+                aria-label={cellLabel({
+                  row: r, col: c,
+                  occupant: owner && `${owner} worker`,
+                  empty: 'no worker',
+                  extra: [
+                    domed ? `level ${level}, domed` : `level ${level}`,
+                    isSel && 'selected',
+                    isDest && 'moving here',
+                    isMoveOpt && stage === 'move' && 'move here',
+                    isBuildOpt && stage === 'build' && 'build here',
+                    i === lastMove && 'last move',
+                  ],
+                })}
                 disabled={disabled}
                 onClick={() => tap(i)}
                 className={cn(
@@ -127,7 +141,7 @@ export default function SantoriniBoard({
                     <span key={k} className="h-1 rounded-sm bg-retro-border/70" />
                   ))}
                   {domed && (
-                    <span className="h-1.5 rounded-sm bg-retro-dim/80" aria-label="dome" />
+                    <span className="h-1.5 rounded-sm bg-retro-dim/80" />
                   )}
                 </span>
                 {/* Worker chip */}

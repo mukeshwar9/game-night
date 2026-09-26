@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
+import { cellLabel, countLabel, joinLabel } from '../lib/a11yLabels'
+
 export default function ConnectFourBoard({ board, onMove, disabled, winningLine = [], currentTurn, popMode = false, lastMove = null, cols = 7, rows = 6 }) {
   const [hoveredCol, setHoveredCol] = useState(null)
 
@@ -57,17 +59,30 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
           disabled && 'opacity-60 saturate-50',
         )}
       >
-        <div className="grid gap-1 sm:gap-1.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }} role="grid">
+        {/* G-04: the disc grid is readable (one labelled image per cell, in
+            reading order) while the column buttons below stay the only tab
+            stops — browse mode walks the board, Tab drops discs. */}
+        <div
+          className="grid gap-1 sm:gap-1.5"
+          style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+          role="group"
+          aria-label={`Board, ${rows} rows by ${cols} columns, top row first`}
+        >
           {board.map((cell, i) => {
             const col = i % cols
+            const row = Math.floor(i / cols)
             const colFull = !!board[col]
             const isHovered = hoveredCol === col && !disabled && !colFull
+            const isWinning = winningLine.includes(i)
             return (
               <div
                 key={i}
-                role="gridcell"
-                aria-hidden="true"
-                tabIndex={-1}
+                role="img"
+                data-testid={`c4-cell-${row}-${col}`}
+                aria-label={cellLabel({
+                  row, col, occupant: cell,
+                  extra: [isWinning && 'winning line', !isWinning && i === lastMove && 'last move'],
+                })}
                 onClick={() => !colFull && emit(col, 'drop')}
                 onMouseEnter={() => setHoveredCol(col)}
                 onMouseLeave={() => setHoveredCol(null)}
@@ -101,7 +116,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                     )}
                     style={{ animation: 'disc-drop 0.3s cubic-bezier(0.34,1.15,0.64,1)' }}
                   >
-                    <span className="font-pixel text-[10px] sm:text-xs text-retro-bg/80 select-none">{cell}</span>
+                    <span aria-hidden="true" className="font-pixel text-[10px] sm:text-xs text-retro-bg/80 select-none">{cell}</span>
                   </span>
                 )}
               </div>
@@ -115,6 +130,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
           {Array.from({ length: cols }, (_, col) => {
             const colFull = !!board[col]
             const filled = board.reduce((n, c, j) => (j % cols === col && c ? n + 1 : n), 0)
+            const top = filled > 0 ? board[(rows - filled) * cols + col] : null
             const clickable = !disabled && !colFull
             return (
               <button
@@ -123,11 +139,12 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                 onMouseEnter={() => setHoveredCol(col)}
                 onMouseLeave={() => setHoveredCol(null)}
                 disabled={!clickable}
-                aria-label={
-                  colFull
-                    ? `Column ${col + 1}, full`
-                    : `Column ${col + 1}, ${filled} disc${filled === 1 ? '' : 's'}, drop here`
-                }
+                aria-label={joinLabel(
+                  `Column ${col + 1}`,
+                  colFull ? 'full' : countLabel(filled, 'disc'),
+                  top && `top ${top}`,
+                  !colFull && 'drop here',
+                )}
                 className={cn(
                   'h-2 sm:h-2.5 rounded-full transition-all',
                   clickable ? 'bg-retro-border/60 hover:bg-retro-cta/60 cursor-pointer' : 'bg-retro-border/20 cursor-default',

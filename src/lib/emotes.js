@@ -1,3 +1,4 @@
+// @ts-check
 // Reaction emoji registry — single source for UI lists and sound coverage tests.
 
 function unique(list) {

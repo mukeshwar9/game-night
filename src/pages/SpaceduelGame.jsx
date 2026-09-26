@@ -10,6 +10,7 @@ import { useSpaceduelControls } from '../hooks/useSpaceduelControls'
 import { useRealtimeHost } from '../lib/realtime/useRealtimeHost'
 import { useRealtimeGuest } from '../lib/realtime/useRealtimeGuest'
 import { RealtimeOverlay } from '../lib/realtime/realtimeStatus'
+import { showRealtimeOverlay } from '../lib/realtime/connectionLogic'
 import {
   createState, step, getWinner,
   ROT_SPEED, THRUST, FRICTION, MAX_SPEED, SHIP_R, SHIP_MAX_HP,
@@ -73,6 +74,8 @@ export default function SpaceduelGame({
 }) {
   const isHost = mySymbol === 'X'
   const isSpectator = !mySymbol
+  // Public-lobby rooms go relay-only when TURN is configured (rtc.js).
+  const isPublic = game.visibility === 'public'
   const arenaRef = useRef(null)
   const { getInput, touch } = useSpaceduelControls(arenaRef, !isSpectator && game.status === 'playing')
   // M-49: independent pre-round display window for the coachmark, driven off
@@ -194,12 +197,18 @@ export default function SpaceduelGame({
   }, [])
 
   const hostConn = useRealtimeHost({
-    gameId, mySymbol, enabled: isHost && game.status === 'playing',
+    gameId, mySymbol, isPublic, enabled: isHost && game.status === 'playing',
     driver: 'rAF',
+    equalizeHostInput: true,   // host input delayed ≈ RTT/2 so neither seat has a latency edge
     createState,
     stepSim: step,
     readHostInput,
     consumeGuestInput: false,
+    // The host's own input runs through an RTT/2 delay line (fairness, see
+    // netLogic.js). `fire` is a one-read edge: OR it when the line shrinks and
+    // never repeat it while the line grows, so every press fires exactly once.
+    mergeHostInput: (a, b) => (b ? { ...b, fire: a?.fire || b.fire ? 1 : 0 } : a),
+    holdHostInput: (last) => (last ? { ...last, fire: 0 } : null),
     onEvent,
     snapshotMs: 33,
     buildView,
@@ -289,7 +298,7 @@ export default function SpaceduelGame({
   }, [getInput])
 
   const guestConn = useRealtimeGuest({
-    gameId, mySymbol, enabled: !isSpectator && !isHost && game.status === 'playing',
+    gameId, mySymbol, isPublic, enabled: !isSpectator && !isHost && game.status === 'playing',
     tick: guestTick,
     setRender, initialRender,
     sfxMap: { fire: () => sounds.hit(), hit: () => sounds.hit(), kill: () => sounds.miss() },
@@ -372,7 +381,10 @@ export default function SpaceduelGame({
 
   // --- Playing --- (SWITCH GAME is hidden while live — M-76 — replaced by a
   // dedicated FORFEIT ROUND action below, which only concedes this round.)
-  const overlay = <RealtimeOverlay conn={conn.status} countdown={isHost ? render.countdown : guestCountdown} retry={conn.retry} />
+  const overlayCountdown = isHost ? render.countdown : guestCountdown
+  const overlay = showRealtimeOverlay(conn.status, overlayCountdown)
+    ? <RealtimeOverlay conn={conn.status} countdown={overlayCountdown} retry={conn.retry} gameId={gameId} mySymbol={mySymbol} opponentOnline={opponentOnline} />
+    : null
 
   return (
     <div className="space-y-3 [@media(max-height:420px)]:space-y-1.5">

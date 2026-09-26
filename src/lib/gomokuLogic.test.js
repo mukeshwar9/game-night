@@ -5,6 +5,10 @@ import {
   GOMOKU_WIN_RUN,
   getGomokuWinner,
   getMoveIndex,
+  SWAP_ACTION,
+  isSwapMove,
+  canGomokuSwap,
+  applyGomokuMove,
 } from './gomokuLogic'
 
 const emptyBoard = () => Array(GOMOKU_CELL_COUNT).fill('')
@@ -154,5 +158,74 @@ describe('getMoveIndex', () => {
 
   it('handles index 0', () => {
     expect(getMoveIndex(emptyBoard(), 0)).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Swap (pie) rule — GOMOKU SWAP variant
+// ---------------------------------------------------------------------------
+describe('swap rule', () => {
+  const SWAP = { action: SWAP_ACTION }
+  const opening = (row, col, symbol = 'X') => {
+    const board = emptyBoard()
+    board[idx(row, col)] = symbol
+    return board
+  }
+
+  it('recognises only the swap payload', () => {
+    expect(isSwapMove(SWAP)).toBe(true)
+    expect(isSwapMove(0)).toBe(false)
+    expect(isSwapMove(undefined)).toBe(false)
+  })
+
+  it('is legal only on move 2, for the player who did not open', () => {
+    expect(canGomokuSwap(emptyBoard(), 'O')).toBe(false)
+    expect(canGomokuSwap(opening(7, 7), 'O')).toBe(true)
+    expect(canGomokuSwap(opening(7, 7), 'X')).toBe(false)
+    expect(canGomokuSwap(opening(7, 7, 'O'), 'X')).toBe(true)
+    const two = opening(7, 7)
+    two[idx(7, 8)] = 'O'
+    expect(canGomokuSwap(two, 'O')).toBe(false)
+    expect(canGomokuSwap(opening(7, 7), 'O', true)).toBe(false)
+    expect(canGomokuSwap(opening(7, 7), null)).toBe(false)
+  })
+
+  it('flips the opening stone to the swapper in place', () => {
+    const res = applyGomokuMove(opening(7, 7), SWAP, 'O')
+    expect(res).toEqual({
+      board: opening(7, 7, 'O'),
+      index: idx(7, 7),
+      swapped: true,
+      result: null,
+    })
+  })
+
+  it('rejects illegal swaps and a swap-back', () => {
+    expect(applyGomokuMove(emptyBoard(), SWAP, 'O')).toBeNull()
+    expect(applyGomokuMove(opening(7, 7), SWAP, 'X')).toBeNull()
+    const swapped = applyGomokuMove(opening(7, 7), SWAP, 'O')
+    expect(applyGomokuMove(swapped.board, SWAP, 'X', true)).toBeNull()
+  })
+
+  it('placements are validated and clear the swap flag', () => {
+    const res = applyGomokuMove(opening(7, 7), idx(7, 8), 'O')
+    expect(res.swapped).toBe(false)
+    expect(res.board[idx(7, 8)]).toBe('O')
+    expect(applyGomokuMove(opening(7, 7), idx(7, 7), 'O')).toBeNull()
+    expect(applyGomokuMove(emptyBoard(), -1, 'X')).toBeNull()
+    expect(applyGomokuMove(emptyBoard(), GOMOKU_CELL_COUNT, 'X')).toBeNull()
+  })
+
+  it('win detection is unaffected: the swapped stone counts for its new owner', () => {
+    let board = applyGomokuMove(opening(7, 7), SWAP, 'O').board
+    for (const c of [8, 9, 10]) board = applyGomokuMove(board, idx(7, c), 'O').board
+    const res = applyGomokuMove(board, idx(7, 11), 'O')
+    expect(res.result.winner).toBe('O')
+    expect(res.result.line).toEqual([idx(7, 7), idx(7, 8), idx(7, 9), idx(7, 10), idx(7, 11)])
+  })
+
+  it('getMoveIndex resolves a swap to the lone stone, else -1', () => {
+    expect(getMoveIndex(opening(3, 4), SWAP)).toBe(idx(3, 4))
+    expect(getMoveIndex(emptyBoard(), SWAP)).toBe(-1)
   })
 })

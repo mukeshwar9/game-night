@@ -15,7 +15,10 @@ import {
   participantGuessers,
   roundDeltas,
   deriveWord,
+  pickRoundOptions,
+  scoringWindow,
 } from './sketchLogic'
+import { markSeen } from './seenHistory'
 
 // ---------------------------------------------------------------------------
 // normalize
@@ -362,5 +365,58 @@ describe('deriveWord', () => {
     const { hash, salt } = await commit(normalize('elephant'))
     const word = await deriveWord(deck, [0, 1, 2], { hash, salt })
     expect(word).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// room seen history + timer scale
+// ---------------------------------------------------------------------------
+describe('pickRoundOptions', () => {
+  const deck = Array.from({ length: 30 }, (_, i) => ({ word: `w${i}`, tier: (i % 3) + 1 }))
+
+  it('never offers a word this room was offered in an earlier match while fresh ones remain', () => {
+    const seen = markSeen({}, Array.from({ length: 24 }, (_, i) => i))
+    const picks = pickRoundOptions(deck, 99, [], seen)
+    expect(picks).toHaveLength(3)
+    for (const i of picks) expect(i).toBeGreaterThanOrEqual(24)
+  })
+
+  it('still honours this match\'s used list', () => {
+    const picks = pickRoundOptions(deck, 5, [0, 1, 2, 3, 4, 5], {})
+    for (const i of picks) expect(i).toBeGreaterThan(5)
+  })
+
+  it('once the room has seen (nearly) everything, avoids the most recent half', () => {
+    const seen = markSeen({}, Array.from({ length: 30 }, (_, i) => i)) // 29 newest
+    const picks = pickRoundOptions(deck, 11, [], seen)
+    for (const i of picks) expect(i).toBeLessThan(15)
+  })
+
+  it('is deterministic for the same seed and room state', () => {
+    const seen = markSeen({}, [3, 7])
+    expect(pickRoundOptions(deck, 42, [1], seen)).toEqual(pickRoundOptions(deck, 42, [1], seen))
+  })
+
+  it('matches pickOptions exactly for a room with no history', () => {
+    expect(pickRoundOptions(deck, 42, [1], null)).toEqual(pickOptions(deck, 42, [1]))
+  })
+})
+
+describe('scoringWindow + roundDeltas drawMs', () => {
+  it('uses drawStartedAt + drawMs when present (relaxed or timers-off rounds)', () => {
+    expect(scoringWindow({ drawStartedAt: 1000, drawMs: 150000, endsAt: null })).toEqual({ endsAt: 151000, drawMs: 150000 })
+  })
+
+  it('falls back to the drawing deadline for older rounds', () => {
+    expect(scoringWindow({ endsAt: 5000 })).toEqual({ endsAt: 5000, drawMs: DRAW_MS })
+    expect(scoringWindow({ endsAt: 9 }, 5000)).toEqual({ endsAt: 5000, drawMs: DRAW_MS })
+  })
+
+  it('a relaxed room\'s speed bonus decays over its longer clock', () => {
+    const drawMs = DRAW_MS * 2
+    const endsAt = 1_000_000
+    const halfway = { g1: { at: endsAt - drawMs / 2 } }
+    const deltas = roundDeltas({ guesserIds: ['g1'], correct: halfway, artistId: 'artist', endsAt, drawMs })
+    expect(deltas.g1).toBe(75)
   })
 })

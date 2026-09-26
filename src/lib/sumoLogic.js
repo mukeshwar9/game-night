@@ -1,3 +1,4 @@
+// @ts-check
 // Pure Sumo Arena simulation — no DOM, no network, no React. Deterministic and
 // unit-testable. The arena is a normalized 1×1 box (x ∈ [0,1], y ∈ [0,1]) with
 // a circular platform centred at (0.5, 0.5). Two blobs (X red, O blue) ram each

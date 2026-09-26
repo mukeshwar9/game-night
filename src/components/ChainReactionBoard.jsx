@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils'
 import { CR_COLS, CR_ROWS, criticalMass, decodeCell, applyPlacement } from '../lib/chainReactionLogic'
 import { sounds } from '../lib/sounds'
 import { crSymbolColor } from './crColors'
+import { cellLabel, countLabel } from '../lib/a11yLabels'
+import { isReducedMotion } from '../hooks/useMotionPref'
 
 // Small orb dots rendered inside each cell
 function OrbDots({ count, symbol, nearCritical }) {
@@ -81,11 +83,15 @@ export default function ChainReactionBoard({
     timersRef.current.forEach(t => clearTimeout(t))
     timersRef.current = []
 
-    const shouldReplay =
+    const isNewMove =
       lastMoveIndex != null &&
       crLastMove?.by &&
       prevBoard != null &&
       prevBoard.join(',') !== board.join(',')
+    // Reduced motion (Settings or OS): skip the staged wave replay and land
+    // straight on the settled board. Read at call time so a mid-game toggle
+    // applies from the next move on.
+    const shouldReplay = isNewMove && !isReducedMotion()
 
     if (shouldReplay) {
       const moverSymbol = crLastMove.by
@@ -161,6 +167,7 @@ export default function ChainReactionBoard({
       }, (animSteps.length + 1) * 140)
       timersRef.current.push(finalT)
     } else {
+      if (isNewMove) sounds.drop()
       setDisplayBoard(board)
       setExplodingSet(new Set())
       setIsReplaying(false)
@@ -207,7 +214,15 @@ export default function ChainReactionBoard({
             return (
               <button
                 key={i}
-                aria-label={`cr-cell-${row}-${col}`}
+                data-testid={`cr-cell-${row}-${col}`}
+                aria-label={cellLabel({
+                  row, col,
+                  occupant: owner && count > 0 && `${owner}, ${countLabel(count, 'orb')}`,
+                  extra: [
+                    `explodes at ${cm}`,
+                    !isReplaying && i === lastMoveIndex && 'last move',
+                  ],
+                })}
                 disabled={!isLegal}
                 onClick={() => isLegal && onMove(i)}
                 className={cn(

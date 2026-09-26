@@ -4,14 +4,18 @@ import { toast } from 'sonner'
 import Avatar from './Avatar'
 import Skeleton from './loading/Skeleton'
 import BottomSheet from './BottomSheet'
-import { subscribeFriends, subscribeProfile, inviteFriendToGame } from '../lib/social'
+import useBusy from '../hooks/useBusy'
+import { subscribeFriends, subscribeProfile, inviteFriendToGame, inviteFriendsToGame } from '../lib/social'
 
 // Modal to invite a friend into the current room. Lists friends (online first)
-// with a one-tap INVITE that pushes a game invite to their account.
-export default function InviteFriendModal({ gameId, gameType, onClose }) {
+// with a one-tap INVITE that pushes a game invite to their account, plus
+// INVITE ALL ONLINE for every online friend who isn't already in the room
+// (`excludeUids` — the room's seated players) and hasn't been invited yet.
+export default function InviteFriendModal({ gameId, gameType, onClose, excludeUids = [] }) {
   const [friendUids, setFriendUids] = useState(null)
   const [profiles, setProfiles] = useState({})
   const [inviteState, setInviteState] = useState({}) // uid -> 'sending' | 'sent' (absent = idle)
+  const [allBusy, runInviteAll] = useBusy()
 
   useEffect(() => subscribeFriends(list => setFriendUids(list.map(f => f.uid))), [])
 
@@ -35,6 +39,21 @@ export default function InviteFriendModal({ gameId, gameType, onClose }) {
   }
 
   const sorted = [...(friendUids || [])].sort((a, b) => (profiles[b]?.online ? 1 : 0) - (profiles[a]?.online ? 1 : 0))
+  const inRoom = new Set(excludeUids)
+  const invitable = sorted.filter(uid => profiles[uid]?.online && !inRoom.has(uid) && !inviteState[uid])
+
+  const inviteAll = () => runInviteAll(async () => {
+    const uids = invitable
+    setInviteState(prev => ({ ...prev, ...Object.fromEntries(uids.map(uid => [uid, 'sending'])) }))
+    try {
+      const n = await inviteFriendsToGame(uids, { gameId, gameType })
+      setInviteState(prev => ({ ...prev, ...Object.fromEntries(uids.map(uid => [uid, 'sent'])) }))
+      toast.success(`INVITED ${n} ${n === 1 ? 'FRIEND' : 'FRIENDS'}!`)
+    } catch (err) {
+      setInviteState(prev => { const next = { ...prev }; for (const uid of uids) delete next[uid]; return next })
+      throw err
+    }
+  }, () => toast.error("COULDN'T SEND INVITES — TRY AGAIN"))
 
   return (
     <BottomSheet onClose={onClose} ariaLabel="Invite a friend" className="bg-retro-card space-y-3">
@@ -62,6 +81,16 @@ export default function InviteFriendModal({ gameId, gameType, onClose }) {
         </div>
       ) : (
         <div className="space-y-2">
+          {(invitable.length > 0 || allBusy) && (
+            <button
+              onClick={inviteAll}
+              disabled={allBusy}
+              className="w-full min-h-11 px-3 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] rounded
+                hover:bg-retro-tint-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-default"
+            >
+              {allBusy ? 'INVITING…' : `INVITE ALL ONLINE (${invitable.length})`}
+            </button>
+          )}
           {sorted.map(uid => {
             const p = profiles[uid]
             const state = inviteState[uid]
@@ -72,14 +101,18 @@ export default function InviteFriendModal({ gameId, gameType, onClose }) {
                   <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-retro-bg ${p?.online ? 'bg-retro-win' : 'bg-retro-dim'}`} />
                 </div>
                 <span className="flex-1 font-mono text-sm text-retro-text truncate">{p?.displayName || '…'}</span>
-                <button
-                  onClick={() => invite(uid, p?.displayName)}
-                  disabled={state === 'sending' || state === 'sent'}
-                  className="min-h-11 px-3 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded
-                    hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-default"
-                >
-                  {state === 'sending' ? 'SENDING…' : state === 'sent' ? 'SENT' : 'INVITE'}
-                </button>
+                {inRoom.has(uid) ? (
+                  <span className="min-h-11 px-3 flex items-center font-pixel text-[9px] text-retro-dim">IN ROOM</span>
+                ) : (
+                  <button
+                    onClick={() => invite(uid, p?.displayName)}
+                    disabled={state === 'sending' || state === 'sent'}
+                    className="min-h-11 px-3 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded
+                      hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-default"
+                  >
+                    {state === 'sending' ? 'SENDING…' : state === 'sent' ? 'SENT' : 'INVITE'}
+                  </button>
+                )}
               </div>
             )
           })}

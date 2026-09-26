@@ -1,3 +1,4 @@
+// @ts-check
 // artilleryLogic.js — deterministic Scorched-Earth duel core.
 //
 // DETERMINISM CONTRACT (docs/prds/artillery.md): every client replays the

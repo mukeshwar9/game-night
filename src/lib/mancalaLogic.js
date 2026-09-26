@@ -1,3 +1,4 @@
+// @ts-check
 // mancalaLogic.js — pure Kalah(6,4) core. No Firebase, no React.
 //
 // Slot map (14 slots):

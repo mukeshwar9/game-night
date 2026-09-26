@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { cellLabel } from "../lib/a11yLabels";
 
 // One 8×8 checkers grid. Purely presentational — the page owns selection state.
 // Cell encoding mirrors checkersLogic: '' | 'x' | 'X' | 'o' | 'O'
@@ -53,7 +54,20 @@ export default function CheckersBoard({
             key={cell}
             onClick={() => handle(cell)}
             disabled={!clickable}
-            aria-label={`${r}${c}${isKing ? " king" : p ? "" : " empty"}`}
+            data-testid={`checkers-cell-${r}-${c}`}
+            aria-label={cellLabel({
+              row: r,
+              col: c,
+              occupant: p && `${p.toUpperCase()} ${isKing ? "king" : "man"}`,
+              extra: [
+                isSelected && "selected",
+                isTarget && "move here",
+                isHop && "jump path",
+                cell === lastFrom && "last move from",
+                cell === lastTo && "last move to",
+                cell === flashCell && "capture required",
+              ],
+            })}
             className={cn(
               "aspect-square rounded-[3px] flex items-center justify-center relative transition-colors",
               dark ? "bg-retro-deep" : "bg-retro-surface",

@@ -10,6 +10,7 @@ import { useSumoControls } from '../hooks/useSumoControls'
 import { useRealtimeHost } from '../lib/realtime/useRealtimeHost'
 import { useRealtimeGuest } from '../lib/realtime/useRealtimeGuest'
 import { RealtimeOverlay } from '../lib/realtime/realtimeStatus'
+import { showRealtimeOverlay } from '../lib/realtime/connectionLogic'
 import {
   createState, step, getWinner,
   PUSH_IMPULSE, FRICTION, MAX_SPEED, START_RADIUS,
@@ -70,6 +71,8 @@ export default function SumoGame({
 }) {
   const isHost = mySymbol === 'X'
   const isSpectator = !mySymbol
+  // Public-lobby rooms go relay-only when TURN is configured (rtc.js).
+  const isPublic = game.visibility === 'public'
   const playing = !isSpectator && game.status === 'playing'
   // M-49: independent pre-round display window for the coachmark, driven off
   // the game-status transition rather than render.countdown (which the guest
@@ -162,8 +165,9 @@ export default function SumoGame({
   const readHostInput = useCallback(() => ({ press: getTap() }), [getTap])
 
   const host = useRealtimeHost({
-    gameId, mySymbol, enabled: isHost && playing,
+    gameId, mySymbol, isPublic, enabled: isHost && playing,
     driver: 'rAF',
+    equalizeHostInput: true,   // host input delayed ≈ RTT/2 so neither seat has a latency edge
     createState,
     stepSim: step,
     readHostInput,
@@ -228,7 +232,7 @@ export default function SumoGame({
   }, [mySymbol, getTap])
 
   const guest = useRealtimeGuest({
-    gameId, mySymbol, enabled: !isHost && playing,
+    gameId, mySymbol, isPublic, enabled: !isHost && playing,
     tick,
     setRender,
     initialRender: INITIAL_VIEW,
@@ -290,7 +294,10 @@ export default function SumoGame({
 
   // --- Playing --- (SWITCH GAME is hidden while live — M-76 — replaced by a
   // dedicated FORFEIT ROUND action below, which only concedes this round.)
-  const overlay = <RealtimeOverlay conn={conn} countdown={isHost ? render.countdown : guestCountdown} retry={retry} />
+  const overlayCountdown = isHost ? render.countdown : guestCountdown
+  const overlay = showRealtimeOverlay(conn, overlayCountdown)
+    ? <RealtimeOverlay conn={conn} countdown={overlayCountdown} retry={retry} gameId={gameId} mySymbol={mySymbol} opponentOnline={opponentOnline} />
+    : null
 
   return (
     <div className="space-y-3 [@media(max-height:420px)]:space-y-1.5">

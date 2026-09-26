@@ -1,26 +1,38 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { ref, onValue, update, runTransaction } from 'firebase/database'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import {
   HERD_TARGET,
   ANSWER_MS,
+  REVEAL_GRACE_MS,
   groupAnswers,
   scoreGroups,
-  nextCow,
-  getMatchWinner,
   seatOrder,
-  allAnswered,
+  allCommitted,
+  isCommitted,
+  pendingReveals,
+  answerDeadline,
+  verifyHerdReveals,
+  scoredTexts,
+  resolveHerdRound,
   seededShuffle,
 } from '../lib/herdLogic'
+import { roomCoordinator } from '../lib/coordinator'
+import { normalizeTimerScale, scaledMs, timersOff } from '../lib/timerScale'
+import { formatClock } from '../lib/format'
 import { HERD_PROMPTS } from '../lib/decks/herd'
+import useServerClock, { getServerNow } from '../hooks/useServerClock'
+import useCommitReveal, { clearSecret, secretKey } from '../hooks/useCommitReveal'
+import RoundEndPanel from '../components/RoundEndPanel'
 import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
-import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
 
 const MIN_PLAYERS = 3
+// sessionStorage prefix for my { text, salt, hash } — see useCommitReveal.
+const SECRET_KEY = 'herd-answer'
 
 function normalizeRound(raw) {
   if (!raw) return null
@@ -28,8 +40,11 @@ function normalizeRound(raw) {
     phase: raw.phase ?? 'answering',
     promptIndex: raw.promptIndex ?? 0,
     deckSeed: raw.deckSeed ?? 1,
-    answers: raw.answers ?? {},
-    reveals: raw.reveals ?? {},
+    answers: raw.answers ?? {},     // { [uid]: { commit } } — or a legacy plaintext string
+    reveals: raw.reveals ?? {},     // { [uid]: { text, salt } } — reveal phase only
+    tally: raw.tally ?? null,       // { [uid]: text } — verified answers that were scored
+    cheats: raw.cheats ?? {},       // { [uid]: true } — reveal failed verification
+    startedAt: raw.startedAt ?? null,
     revealAt: raw.revealAt ?? null,
     endsAt: raw.endsAt ?? null,
     scored: !!raw.scored,
@@ -46,18 +61,35 @@ function activeSeats(players) {
   return online.length >= MIN_PLAYERS ? online : all
 }
 
+const roundIdOf = (round) => (round ? `${round.deckSeed}-${round.promptIndex}` : null)
+
 export default function HerdGame({
-  gameId, game, mySeat, players, isHost,
+  gameId, game, mySeat, players,
   onStart, onSwitchGame, onNewMatch, proposal,
 }) {
   const round = normalizeRound(game.round)
+  const allSeats = seatOrder(players || {})
   const seats = activeSeats(players || {})
-  const playerCount = Object.keys(players || {}).length
+  const playerCount = allSeats.length
   const enough = seats.length >= MIN_PLAYERS
 
   const scores = game.scores || {}
   const herdCow = game.herdCow ?? null
   const isPlayer = !!mySeat && !!players?.[mySeat]
+  const nameOf = (id) => players?.[id]?.name || id || ''
+
+  // Online-aware coordinator (src/lib/coordinator.js roomCoordinator): the
+  // room host (or a TRANSFER HOST pick, game.hostUid) while connected, else
+  // the next online seat by join time. Drives START and
+  // answering → reveal → scored, so a departed host no longer freezes the room.
+  // Every write re-checks phase inside its transaction, so a handover
+  // mid-flight stays single-writer.
+  const coordinatorId = roomCoordinator(players, game.hostUid ?? null)
+  const amCoordinator = isPlayer && coordinatorId === mySeat
+
+  const timerScale = normalizeTimerScale(game.timerScale)
+  const noTimer = timersOff(game.timerScale)
+  const windowMs = scaledMs(ANSWER_MS, timerScale)
 
   const prompts = useMemo(
     () => (round ? seededShuffle(HERD_PROMPTS, round.deckSeed) : null),
@@ -67,179 +99,192 @@ export default function HerdGame({
     ? prompts[round.promptIndex % prompts.length]
     : null
 
+  const roundId = roundIdOf(round)
+  const secret = useCommitReveal(gameId, SECRET_KEY, roundId ?? undefined)
+  const { now: serverNow } = useServerClock(game.status === 'playing' && round ? 500 : 0)
+
   const [answerInput, setAnswerInput] = useState('')
   const [inputError, setInputError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [sharing, runShare] = useBusy()
-  const [now, setNow] = useState(() => Date.now())
-  const [clockOffset, setClockOffset] = useState(0)
+  const [submitting, runSubmit] = useBusy()
+  const [starting, runStart] = useBusy()
+  const [closing, runClose] = useBusy()
 
-  const prevPhase = useRef(round?.phase)
-  const prevPromptIndex = useRef(round?.promptIndex)
+  // Reset per-round input when the prompt advances (render-phase derive).
+  const [prevRoundId, setPrevRoundId] = useState(roundId)
+  if (prevRoundId !== roundId) {
+    setPrevRoundId(roundId)
+    setAnswerInput('')
+    setInputError('')
+  }
+
   const advancing = useRef(false)
   const scoring = useRef(false)
-
-  // Corrected clock — every deadline comparison runs through this offset.
+  const revealPublished = useRef(false)
+  const lastRoundId = useRef(roundId)
   useEffect(() => {
-    const offRef = ref(db, '.info/serverTimeOffset')
-    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
-    return () => unsub()
-  }, [])
-  const serverNow = now + clockOffset
+    if (lastRoundId.current === roundId) return
+    // The old round's secret is spent once the prompt moves on.
+    if (lastRoundId.current) clearSecret(secretKey(SECRET_KEY, gameId, lastRoundId.current))
+    lastRoundId.current = roundId
+    advancing.current = false
+    scoring.current = false
+    revealPublished.current = false
+  }, [roundId, gameId])
 
-  // Reset per-round local state when the prompt advances.
+  // Result sounds — once per round, when the tally lands (not at mount).
+  const soundKey = useRef(null)
   useEffect(() => {
     if (!round) return
-    if (round.promptIndex !== prevPromptIndex.current) {
-      setAnswerInput('')
-      setInputError('')
-      advancing.current = false
-      scoring.current = false
-      prevPromptIndex.current = round.promptIndex
+    const key = `${roundId}:${round.phase}:${round.scored}`
+    if (key === soundKey.current) return
+    const first = soundKey.current == null
+    soundKey.current = key
+    if (first || round.phase !== 'reveal' || !round.scored) return
+    if (round.cowMoved && round.cowTo === mySeat) sounds.bust()
+    else if (isPlayer) {
+      const iScored = scoreGroups(groupAnswers(scoredTexts(round))).pointUids.includes(mySeat)
+      if (iScored) sounds.win()
+      else sounds.miss()
     }
-  }, [round?.promptIndex]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roundId, round?.phase, round?.scored]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Ticker drives the countdown display.
-  useEffect(() => {
-    if (!round || round.phase !== 'answering' || game.status !== 'playing') return
-    const id = setInterval(() => setNow(Date.now()), 500)
-    return () => clearInterval(id)
-  }, [round?.phase, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Phase-change sounds.
-  useEffect(() => {
-    if (!round || !prompt) return
-    if (round.phase !== prevPhase.current) {
-      if (round.phase === 'reveal') {
-        if (round.cowMoved && round.cowTo === mySeat) sounds.bust()
-        else if (isPlayer && round.scored) {
-          const iScored = scoreGroups(groupAnswers(round.answers)).pointUids.includes(mySeat)
-          if (iScored) sounds.win()
-          else sounds.miss()
-        }
-      }
-      prevPhase.current = round.phase
-    }
-  }, [round?.phase]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const myAnswer = isPlayer ? String(round?.answers?.[mySeat] ?? '').trim() : ''
-  const iAnswered = myAnswer !== ''
-  const answeredCount = Object.values(round?.answers || {})
-    .filter(a => String(a ?? '').trim() !== '').length
-  const remainingMs = round?.endsAt ? Math.max(0, round.endsAt - serverNow) : null
+  const myEntry = isPlayer ? round?.answers?.[mySeat] : null
+  const iAnswered = isCommitted(myEntry)
+  const answeredCount = Object.values(round?.answers || {}).filter(isCommitted).length
+  const deadline = round ? answerDeadline(round, timerScale) : null
+  const remainingMs = deadline != null ? Math.max(0, deadline - serverNow) : null
   const timeUp = remainingMs != null && remainingMs <= 0
 
-  // ---- HOST: answering → reveal + score + Cow, one idempotent transaction ----
+  // answering → reveal (phase flip only; answers stay commitments). Guarded on
+  // phase + prompt inside the transaction so it can only fire once per round.
+  const closeAnswers = (promptIndex) => runTransaction(ref(db, `games/${gameId}/round`), cur => {
+    if (!cur) return cur
+    if (cur.phase !== 'answering' || (cur.promptIndex ?? 0) !== promptIndex) return
+    return { ...cur, phase: 'reveal', revealAt: getServerNow(), scored: false }
+  })
+
+  // ---- COORDINATOR: close answering once everyone is locked in or time is up.
   useEffect(() => {
-    if (!isHost || !round || round.phase !== 'answering' || game.status !== 'playing') return
-    if (!allAnswered(seats, round.answers) && !timeUp) return
+    if (!amCoordinator || !round || round.phase !== 'answering' || game.status !== 'playing') return
+    if (!allCommitted(seats, round.answers) && !timeUp) return
     if (advancing.current) return
     advancing.current = true
+    closeAnswers(round.promptIndex).catch(() => { advancing.current = false })
+  }, [amCoordinator, round?.phase, round?.answers, timeUp, gameId, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ---- PLAYER: publish my { text, salt } — ONLY now that answering is closed.
+  // A player whose tab lost the secret (new tab) can't reveal and simply counts
+  // as a non-answer once the grace runs out.
+  useEffect(() => {
+    if (!isPlayer || !round || round.phase !== 'reveal' || round.scored) return
+    const mine = round.answers[mySeat]
+    if (!mine || typeof mine !== 'object' || !mine.commit) return
+    if (round.reveals[mySeat] != null || revealPublished.current) return
+    const stored = secret.read()
+    if (!stored || stored.text == null || stored.salt == null || stored.hash !== mine.commit) return
+    revealPublished.current = true
+    update(ref(db, `games/${gameId}/round/reveals`), { [mySeat]: { text: stored.text, salt: stored.salt } })
+      .catch(() => { revealPublished.current = false })
+  }, [isPlayer, round?.phase, round?.scored, round?.reveals, round?.answers, gameId, mySeat]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- COORDINATOR: once every committed player has revealed (or the grace is
+  // over), verify each reveal against its commitment, then score + move the Cow
+  // in one idempotent transaction. Unverified/missing reveals are non-answers.
+  useEffect(() => {
+    if (!amCoordinator || !round || round.phase !== 'reveal' || round.scored) return
+    if (game.status !== 'playing') return
+    const waiting = pendingReveals(round.answers, round.reveals)
+    const graceOver = round.revealAt == null || serverNow >= round.revealAt + REVEAL_GRACE_MS
+    if (waiting.length > 0 && !graceOver) return
+    if (scoring.current) return
+    scoring.current = true
+    const promptIndex = round.promptIndex
     const run = async () => {
       try {
+        const { tally, cheats } = await verifyHerdReveals(round.answers, round.reveals, secret.verify)
         await runTransaction(ref(db, `games/${gameId}`), current => {
           if (!current || !current.round) return current
-          if (current.round.phase !== 'answering') return // someone else advanced
-          const cur = normalizeRound(current.round)
-          const groups = groupAnswers(cur.answers)
-          const { pointUids } = scoreGroups(groups)
-          const answeredUids = Object.entries(cur.answers)
-            .filter(([, t]) => String(t ?? '').trim() !== '')
-            .map(([uid]) => uid)
-          const { cow, transferred } = nextCow(groups, current.herdCow ?? null, answeredUids)
-          const seatSet = new Set(
-            Object.values(current.players || {}).filter(Boolean).map(p => p.playerId),
-          )
-          const newScores = { ...(current.scores || {}) }
-          for (const uid of pointUids) {
-            if (seatSet.has(uid)) newScores[uid] = (newScores[uid] || 0) + 1
-          }
-          const winner = getMatchWinner(newScores, cow)
+          const cur = current.round
+          if (cur.phase !== 'reveal' || cur.scored || (cur.promptIndex ?? 0) !== promptIndex) return
+          const seatIds = Object.values(current.players || {}).filter(Boolean).map(p => p.playerId)
+          const out = resolveHerdRound({
+            texts: tally, scores: current.scores, herdCow: current.herdCow ?? null, seatIds,
+          })
           return {
             ...current,
-            scores: newScores,
-            herdCow: cow,
-            status: winner ? 'finished' : 'playing',
+            scores: out.newScores,
+            herdCow: out.cow,
+            status: out.winner ? 'finished' : 'playing',
             round: {
-              ...current.round,
-              phase: 'reveal',
+              ...cur,
               scored: true,
-              cowTo: cow,
-              cowMoved: transferred,
+              tally,
+              cheats: Object.keys(cheats).length ? cheats : null,
+              cowTo: out.cow,
+              cowMoved: out.transferred,
             },
           }
         })
       } catch {
-        advancing.current = false // allow a retry on transient failure
+        scoring.current = false // allow a retry on transient failure
       }
     }
     run()
-  }, [isHost, round?.phase, round?.answers, timeUp, gameId, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [amCoordinator, round?.phase, round?.scored, round?.reveals, serverNow, gameId, game.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- Submit my answer (plaintext by design — the target is other heads) ----
-  const handleSubmitAnswer = useCallback(async () => {
-    if (!isPlayer || iAnswered || submitting || !prompt) return
+  // ---- Lock in my answer: commit the hash now; the plaintext stays in this tab.
+  const handleSubmitAnswer = () => {
+    if (!isPlayer || iAnswered || submitting || !prompt || round?.phase !== 'answering') return
     const text = answerInput.trim()
     if (!text) { setInputError('TYPE AN ANSWER'); return }
+    if (timeUp) { setInputError("TIME'S UP"); return }
     setInputError('')
-    setSubmitting(true)
-    try {
+    runSubmit(async () => {
+      const { hash } = await secret.commit(text, { text })
       sounds.move('X')
-      await update(ref(db, `games/${gameId}/round/answers`), { [mySeat]: text })
-    } catch {
+      await update(ref(db, `games/${gameId}/round/answers`), { [mySeat]: { commit: hash } })
+    }, () => {
       setInputError('SUBMIT FAILED — RETRY')
-    } finally {
-      setSubmitting(false)
-    }
-  }, [isPlayer, iAnswered, submitting, answerInput, prompt, gameId, mySeat])
+      toast.error('ANSWER FAILED — CHECK CONNECTION')
+    })
+  }
 
-  // ---- Next prompt (any player can advance after the reveal) -----------------
-  const handleNextPrompt = useCallback(async () => {
+  // ---- Next prompt (any player, once the round is scored). Transactional so
+  // two players tapping together advance exactly once.
+  const handleNextPrompt = async () => {
     if (!isPlayer || !round || !round.scored) return
-    try {
-      await update(ref(db, `games/${gameId}`), {
+    const from = round.promptIndex
+    const startedAt = getServerNow()
+    const ms = scaledMs(ANSWER_MS, game.timerScale)
+    await runTransaction(ref(db, `games/${gameId}`), current => {
+      if (!current || !current.round) return current
+      if ((current.round.promptIndex ?? 0) !== from || !current.round.scored) return
+      return {
+        ...current,
         round: {
           phase: 'answering',
-          promptIndex: round.promptIndex + 1,
-          deckSeed: round.deckSeed,
-          answers: null,
-          endsAt: Date.now() + clockOffset + ANSWER_MS,
-          scored: null,
-          cowTo: null,
-          cowMoved: null,
+          promptIndex: from + 1,
+          deckSeed: current.round.deckSeed ?? 1,
+          startedAt,
+          endsAt: ms == null ? null : startedAt + ms,
         },
         proposal: null,
-      })
-    } catch { /* ignore */ }
-  }, [isPlayer, round, gameId, clockOffset])
+      }
+    })
+  }
 
   // -------------------------------------------------------------------------
-  // WAITING / START screen (status !== 'playing')
+  // WAITING / START / MATCH-OVER screen (status !== 'playing')
   // -------------------------------------------------------------------------
   if (game.status !== 'playing') {
     const matchOver = game.status === 'finished'
-    const ranked = seatOrder(players || {})
-      .map(id => ({ id, name: players[id]?.name || id, score: scores[id] || 0 }))
+    const ranked = allSeats
+      .map(id => ({ id, name: nameOf(id), score: scores[id] || 0 }))
       .sort((a, b) => b.score - a.score)
     const champ = ranked.find(p => p.id !== herdCow) || ranked[0]
 
     return (
       <div className="space-y-5 text-center">
-        {matchOver && champ && (
-          <div className="space-y-1">
-            <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
-            <p className="font-pixel text-base text-retro-cta text-glow-cta">
-              {champ.id === mySeat ? 'YOU WIN!' : `${champ.name.toUpperCase()} WINS`}
-            </p>
-            {herdCow && (
-              <p className="font-pixel text-[9px] text-retro-dim">
-                🐄 {(players[herdCow]?.name || herdCow).toUpperCase()} ENDED WITH THE COW
-              </p>
-            )}
-          </div>
-        )}
-
         <div className="space-y-2">
           <p className="font-pixel text-sm text-retro-p1 text-glow-p1">HERD MIND</p>
           <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
@@ -247,78 +292,78 @@ export default function HerdGame({
           </p>
         </div>
 
-        {/* Lobby / scoreboard */}
-        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">
-          <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
-            PLAYERS ({playerCount}) · FIRST TO {HERD_TARGET}
-          </p>
-          {ranked.length === 0 && (
-            <p className="font-mono text-[11px] text-retro-dim arcade-blink">WAITING…</p>
-          )}
-          {ranked.map(p => (
-            <div key={p.id} className="flex items-center justify-between font-mono text-[11px]">
-              <span className={cn(
-                'truncate',
-                p.id === mySeat ? 'text-retro-p1' : 'text-retro-text',
-                players[p.id]?.online === false && 'opacity-40',
-              )}>
-                {p.id === herdCow && '🐄 '}{p.name}{p.id === mySeat ? ' (YOU)' : ''}
-              </span>
-              {matchOver && <span className="text-retro-dim ml-2">{p.score}</span>}
+        {matchOver && champ ? (
+          <RoundEndPanel
+            caption="MATCH OVER"
+            headline={champ.id === mySeat ? 'YOU WIN!' : `${champ.name.toUpperCase()} WINS`}
+            sub={herdCow && (
+              <p className="font-pixel text-[9px] text-retro-dim">
+                🐄 {nameOf(herdCow).toUpperCase()} ENDED WITH THE COW
+              </p>
+            )}
+            scores={{
+              title: `FINAL SCORES · FIRST TO ${HERD_TARGET}`,
+              rows: ranked.map(p => ({
+                id: p.id, name: p.name, score: p.score, you: p.id === mySeat,
+                marker: p.id === herdCow ? '🐄' : null, muted: players[p.id]?.online === false,
+              })),
+            }}
+            actions={isPlayer ? [
+              !proposal && onNewMatch && {
+                key: 'new', label: 'NEW MATCH', busyLabel: 'STARTING…', onClick: onNewMatch,
+              },
+            ] : []}
+            share={isPlayer ? {
+              gameLabel: 'HERD MIND',
+              headline: champ.id === mySeat ? 'YOU WIN!' : `${champ.name.toUpperCase()} WINS`,
+              sub: 'Herd Mind · Game Night',
+            } : null}
+          />
+        ) : (
+          <>
+            {/* Lobby */}
+            <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">
+              <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
+                PLAYERS ({playerCount}) · FIRST TO {HERD_TARGET}
+              </p>
+              {ranked.length === 0 && (
+                <p className="font-mono text-[11px] text-retro-dim arcade-blink">WAITING…</p>
+              )}
+              {ranked.map(p => (
+                <div key={p.id} className="flex items-center justify-between font-mono text-[11px]">
+                  <span className={cn(
+                    'truncate',
+                    p.id === mySeat ? 'text-retro-p1' : 'text-retro-text',
+                    players[p.id]?.online === false && 'opacity-40',
+                  )}>
+                    {p.id === herdCow && '🐄 '}{p.name}{p.id === mySeat ? ' (YOU)' : ''}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {!enough && (
-          <p className="font-pixel text-[10px] text-retro-p2 arcade-blink leading-relaxed">
-            NEED {MIN_PLAYERS}+ PLAYERS<br />
-            ({Math.max(0, MIN_PLAYERS - playerCount)} MORE TO START)
-          </p>
-        )}
+            {!enough && (
+              <p className="font-pixel text-[10px] text-retro-p2 arcade-blink leading-relaxed">
+                NEED {MIN_PLAYERS}+ PLAYERS<br />
+                ({Math.max(0, MIN_PLAYERS - playerCount)} MORE TO START)
+              </p>
+            )}
 
-        {isHost && enough && !matchOver && (
-          <button
-            onClick={onStart}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
-          >
-            START ROUND
-          </button>
-        )}
-        {!isHost && enough && !matchOver && (
-          <p className="font-pixel text-[10px] text-retro-dim arcade-blink">
-            WAITING FOR HOST TO START…
-          </p>
-        )}
-
-        {matchOver && isPlayer && champ && (
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {!proposal && onNewMatch && (
+            {amCoordinator && enough && (
               <button
-                onClick={onNewMatch}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+                onClick={() => runStart(() => onStart())}
+                disabled={starting}
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
               >
-                NEW MATCH
+                {starting ? 'STARTING…' : 'START ROUND'}
               </button>
             )}
-            <button
-              onClick={() => runShare(async () => {
-                const ok = await shareResult({
-                  gameLabel: 'HERD MIND',
-                  headline: champ?.id === mySeat
-                    ? 'YOU WIN!'
-                    : `${(champ?.name || '').toUpperCase()} WINS`,
-                  sub: 'Herd Mind · Game Night',
-                  accentVar: '--c-cta',
-                  url: window.location.href,
-                })
-                if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
-              })}
-              disabled={sharing}
-              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
-            >
-              {sharing ? 'BUILDING…' : 'SHARE'}
-            </button>
-          </div>
+            {!amCoordinator && enough && (
+              <p className="font-pixel text-[10px] text-retro-dim arcade-blink">
+                WAITING FOR {coordinatorId ? nameOf(coordinatorId).toUpperCase() : 'HOST'} TO START…
+              </p>
+            )}
+          </>
         )}
 
         {isPlayer && onSwitchGame && !proposal && (
@@ -339,11 +384,18 @@ export default function HerdGame({
   // -------------------------------------------------------------------------
   // Shared header: the prompt
   // -------------------------------------------------------------------------
-  const groups = round.phase === 'reveal' ? groupAnswers(round.answers) : []
-  const { pointUids } = round.phase === 'reveal' ? scoreGroups(groups) : { pointUids: [] }
+  const texts = round.phase === 'reveal' && round.scored ? scoredTexts(round) : {}
+  const groups = round.phase === 'reveal' && round.scored ? groupAnswers(texts) : []
+  const { pointUids } = scoreGroups(groups)
   const maxGroupSize = groups[0]?.members.length ?? 0
   const blockedRider = Object.entries(scores)
     .find(([uid, s]) => s >= HERD_TARGET && uid === herdCow)
+  const committedCount = Object.values(round.answers).filter(a => a && typeof a === 'object' && a.commit).length
+  const revealedCount = Object.keys(round.reveals).filter(uid => round.answers[uid]?.commit).length
+  const cheaterNames = Object.keys(round.cheats).map(nameOf)
+  const silentNames = round.scored
+    ? Object.keys(round.answers).filter(uid => !texts[uid] && !round.cheats[uid]).map(nameOf)
+    : []
 
   return (
     <div className="space-y-4">
@@ -360,16 +412,23 @@ export default function HerdGame({
       {/* ---- ANSWERING PHASE ---- */}
       {round.phase === 'answering' && (
         <div className="space-y-3">
-          {remainingMs != null && (
-            <div className="h-1.5 bg-retro-surface rounded-full overflow-hidden">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-all duration-500',
-                  remainingMs > 10000 ? 'bg-retro-win' : 'bg-retro-danger',
-                )}
-                style={{ width: `${Math.min(100, Math.round((remainingMs / ANSWER_MS) * 100))}%` }}
-              />
+          {remainingMs != null && windowMs ? (
+            <div className="space-y-1">
+              <div className="h-1.5 bg-retro-surface rounded-full overflow-hidden">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all duration-500',
+                    remainingMs > 10000 ? 'bg-retro-win' : 'bg-retro-danger',
+                  )}
+                  style={{ width: `${Math.min(100, Math.round((remainingMs / windowMs) * 100))}%` }}
+                />
+              </div>
+              <p className="font-pixel text-[8px] text-retro-dim text-right tabular-nums">{formatClock(remainingMs)}</p>
             </div>
+          ) : noTimer && (
+            <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">
+              NO TIMER · {amCoordinator ? 'YOU CLOSE' : `${(nameOf(coordinatorId) || 'HOST').toUpperCase()} CLOSES`} ANSWERS
+            </p>
           )}
           {isPlayer && !iAnswered ? (
             <div className="space-y-2">
@@ -397,12 +456,24 @@ export default function HerdGame({
             </div>
           ) : (
             <p className="font-pixel text-[10px] text-retro-win text-glow-win text-center arcade-blink">
-              {isPlayer ? 'LOCKED IN ✓' : 'SPECTATING'}
+              {isPlayer ? 'LOCKED IN ✓ — HIDDEN UNTIL THE REVEAL' : 'SPECTATING'}
             </p>
           )}
           <p className="font-pixel text-[9px] text-retro-dim text-center">
             {answeredCount}/{seats.length} ANSWERED…
           </p>
+          {noTimer && amCoordinator && answeredCount > 0 && (
+            <button
+              onClick={() => runClose(
+                () => closeAnswers(round.promptIndex),
+                () => toast.error('CLOSE FAILED — CHECK CONNECTION'),
+              )}
+              disabled={closing}
+              className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {closing ? 'CLOSING…' : 'CLOSE ANSWERS'}
+            </button>
+          )}
         </div>
       )}
 
@@ -410,9 +481,16 @@ export default function HerdGame({
       {round.phase === 'reveal' && (
         <div className="space-y-3">
           {!round.scored ? (
-            <p className="font-pixel text-[10px] text-retro-cta text-glow-cta text-center arcade-blink py-4">
-              TALLYING…
-            </p>
+            <div className="text-center py-4 space-y-1">
+              <p className="font-pixel text-[10px] text-retro-cta text-glow-cta arcade-blink">
+                REVEALING…
+              </p>
+              {committedCount > 0 && (
+                <p className="font-pixel text-[8px] text-retro-dim">
+                  {revealedCount}/{committedCount} ANSWERS IN
+                </p>
+              )}
+            </div>
           ) : (
             <>
               {/* Pink Cow moment */}
@@ -420,10 +498,16 @@ export default function HerdGame({
                 <div className="border-2 border-retro-p2 rounded p-3 text-center space-y-1 bg-retro-tint-p2/30">
                   <p className="font-pixel text-[11px] text-retro-p2 text-glow-p2">🐄 THE PINK COW</p>
                   <p className="font-mono text-[11px] text-retro-text">
-                    {(players[round.cowTo]?.name || round.cowTo).toUpperCase()} MATCHED NOBODY
+                    {nameOf(round.cowTo).toUpperCase()} MATCHED NOBODY
                   </p>
                   <p className="font-pixel text-[8px] text-retro-dim">THE COW IS THEIRS UNTIL SOMEONE ELSE IS</p>
                 </div>
+              )}
+
+              {cheaterNames.length > 0 && (
+                <p className="font-pixel text-[9px] text-retro-p2 text-center">
+                  ⚠ ANSWER FAILED VERIFICATION: {cheaterNames.join(', ').toUpperCase()}
+                </p>
               )}
 
               {/* Groups, biggest first */}
@@ -447,7 +531,7 @@ export default function HerdGame({
                         )}
                       </div>
                       <p className="font-pixel text-[8px] text-retro-dim mt-0.5">
-                        ×{grp.members.length} · {grp.members.map(m => players[m]?.name || m).join(', ').toUpperCase()}
+                        ×{grp.members.length} · {grp.members.map(nameOf).join(', ').toUpperCase()}
                       </p>
                     </div>
                   )
@@ -457,51 +541,43 @@ export default function HerdGame({
                     NO ANSWERS TO GROUP
                   </p>
                 )}
+                {silentNames.length > 0 && (
+                  <p className="font-pixel text-[8px] text-retro-dim text-center">
+                    NO ANSWER REVEALED: {silentNames.join(', ').toUpperCase()}
+                  </p>
+                )}
               </div>
 
-              {pointUids.length === 0 && round.scored && (
+              {pointUids.length === 0 && (
                 <p className="font-pixel text-[9px] text-retro-dim text-center">NOBODY MATCHED — NO POINTS</p>
               )}
 
               {/* Blocked-win callout */}
               {blockedRider && (
                 <p className="font-pixel text-[9px] text-retro-p2 text-center" style={{ animation: 'blink-text 0.6s step-end infinite' }}>
-                  🐄 {(players[blockedRider[0]]?.name || blockedRider[0]).toUpperCase()} HAS {HERD_TARGET} — CAN&apos;T WIN WITH THE COW!
+                  🐄 {nameOf(blockedRider[0]).toUpperCase()} HAS {HERD_TARGET} — CAN&apos;T WIN WITH THE COW!
                 </p>
               )}
 
-              {/* Scoreboard rail */}
-              <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1">
-                <p className="font-pixel text-[9px] text-retro-dim tracking-widest text-center">
-                  SCORES · FIRST TO {HERD_TARGET}
-                </p>
-                {seatOrder(players || {})
-                  .map(id => ({ id, name: players[id]?.name || id, score: scores[id] || 0 }))
-                  .sort((a, b) => b.score - a.score)
-                  .map(p => (
-                    <div key={p.id} className="flex items-center justify-between font-mono text-[11px]">
-                      <span className={cn(
-                        'truncate',
-                        p.id === mySeat ? 'text-retro-p1' : 'text-retro-text',
-                        p.id === herdCow && 'opacity-70',
-                      )}>
-                        {p.id === herdCow && '🐄 '}{p.name}{p.id === mySeat ? ' (YOU)' : ''}
-                      </span>
-                      <span className={cn('ml-2', p.score >= HERD_TARGET && p.id !== herdCow ? 'text-retro-win' : 'text-retro-cta')}>
-                        {p.score}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-
-              {isPlayer && (
-                <button
-                  onClick={handleNextPrompt}
-                  className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
-                >
-                  NEXT PROMPT
-                </button>
-              )}
+              <RoundEndPanel
+                scores={{
+                  title: `SCORES · FIRST TO ${HERD_TARGET}`,
+                  rows: allSeats
+                    .map(id => ({ id, name: nameOf(id), score: scores[id] || 0 }))
+                    .sort((a, b) => b.score - a.score)
+                    .map(p => ({
+                      ...p,
+                      you: p.id === mySeat,
+                      marker: p.id === herdCow ? '🐄' : null,
+                      muted: p.id === herdCow,
+                      win: p.score >= HERD_TARGET && p.id !== herdCow,
+                    })),
+                }}
+                actions={isPlayer ? [{
+                  key: 'next', label: 'NEXT PROMPT', busyLabel: 'DEALING…', variant: 'next',
+                  onClick: handleNextPrompt, errorMsg: 'NEXT PROMPT FAILED — CHECK CONNECTION',
+                }] : []}
+              />
             </>
           )}
         </div>

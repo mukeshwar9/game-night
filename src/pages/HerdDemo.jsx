@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   HERD_TARGET, ANSWER_MS,
-  normalizeAnswer, groupAnswers, scoreGroups, nextCow, getMatchWinner,
+  normalizeAnswer, resolveHerdRound,
   seededShuffle, allAnswered,
 } from '../lib/herdLogic'
 import { HERD_PROMPTS } from '../lib/decks/herd'
@@ -59,12 +59,12 @@ export default function HerdDemo() {
     resolvedRef.current = true
     clearBotTimers()
     const all = answersRef.current
-    const groups = groupAnswers(all)
-    const { pointUids } = scoreGroups(groups)
-    const answeredUids = ELIGIBLE.filter(id => normalizeAnswer(all[id] ?? ''))
-    const { cow: nextCowUid, transferred } = nextCow(groups, cowRef.current, answeredUids)
-    const nextScores = { ...scoresRef.current }
-    for (const uid of pointUids) nextScores[uid] = (nextScores[uid] || 0) + 1
+    // Same round resolution as the live game (herdLogic.resolveHerdRound).
+    const texts = {}
+    for (const id of ELIGIBLE) if (normalizeAnswer(all[id] ?? '')) texts[id] = all[id]
+    const {
+      groups, pointUids, cow: nextCowUid, transferred, newScores: nextScores, winner,
+    } = resolveHerdRound({ texts, scores: scoresRef.current, herdCow: cowRef.current, seatIds: ELIGIBLE })
     scoresRef.current = nextScores
     cowRef.current = nextCowUid
     setScores(nextScores)
@@ -75,7 +75,7 @@ export default function HerdDemo() {
     if (pointUids.includes(ME)) sounds.win()
     else sounds.miss()
     if (transferred && nextCowUid === ME) sounds.bust()
-    setMatchWinner(getMatchWinner(nextScores, nextCowUid, HERD_TARGET))
+    setMatchWinner(winner)
   }, [])
 
   const maybeResolve = useCallback(() => {

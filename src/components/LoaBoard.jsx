@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { LOA_SIZE, loaMoves } from '../lib/loaLogic'
 import { useSelectMove } from '../lib/interact'
 import { cn } from '@/lib/utils'
+import { cellLabel } from '../lib/a11yLabels'
 
 // LINES OF ACTION — 8×8. A checker moves EXACTLY as many squares as there
 // are pieces on its line (own pieces jumpable, enemies not); land on an
@@ -48,7 +49,15 @@ export default function LoaBoard({
             return (
               <button
                 key={i}
-                aria-label={`loa-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                data-testid={`loa-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                aria-label={cellLabel({
+                  row: r, col: c, occupant: cell && `${cell} checker`,
+                  extra: [
+                    isSelected && 'selected',
+                    isCapture ? 'capture here' : isTarget && 'move here',
+                    i === lastMove && 'last move',
+                  ],
+                })}
                 disabled={disabled}
                 onClick={() => !disabled && tap(i)}
                 className={cn(

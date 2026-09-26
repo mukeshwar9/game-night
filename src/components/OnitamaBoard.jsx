@@ -4,6 +4,7 @@ import {
   legalOnMoves, ownerOf, isMaster,
 } from '../lib/onitamaLogic'
 import { cn } from '@/lib/utils'
+import { cellLabel } from '../lib/a11yLabels'
 
 // ONITAMA — 5×5 dojo. The board owns the whole interaction: pick one of your
 // two cards (highlighted moves preview on the grid), then tap a highlighted
@@ -93,6 +94,7 @@ export default function OnitamaBoard({
           {handO.map(k => (
             <CardView key={k} k={k} active={false} />
           ))}
+          <span className="sr-only">O cards: {handO.map(cardName).join(', ') || 'none'}.</span>
           <span className="font-pixel text-[7px] text-retro-dim ml-1">
             SPARE: {spare != null ? cardName(spare) : '—'}
           </span>
@@ -111,7 +113,17 @@ export default function OnitamaBoard({
             return (
               <button
                 key={i}
-                aria-label={`on-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                data-testid={`on-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                aria-label={cellLabel({
+                  row: r, col: c,
+                  occupant: cell && `${owner} ${isMaster(cell) ? 'master' : 'student'}`,
+                  extra: [
+                    i === 22 && 'X temple',
+                    i === 2 && 'O temple',
+                    isTarget && 'move here',
+                    i === lastMove && 'last move',
+                  ],
+                })}
                 disabled={disabled}
                 onClick={() => !disabled && tap(i)}
                 className={cn(
@@ -159,7 +171,8 @@ export default function OnitamaBoard({
                 card === k ? 'border-retro-cta bg-retro-tint-cta/20' : 'border-retro-border/50',
               )}
               aria-pressed={card === k}
-              aria-label={`onitama-card-${cardName(k)}`}
+              data-testid={`onitama-card-${cardName(k)}`}
+              aria-label={`${cardName(k)} card${selectable.has(k) ? '' : ', no legal moves'}`}
             >
               <CardView k={k} active={card === k} />
               <span className={cn(

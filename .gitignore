@@ -32,3 +32,13 @@ dist-ssr
 .windsurf/
 .claude/skills/
 .tmp-*
+
+# Test and emulator output (Playwright, Firebase emulators, PWA dev build).
+# Emulator logs (firebase-debug.log, database-debug.log, …) are covered by *.log.
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+dev-dist/
+
+dist-e2e/

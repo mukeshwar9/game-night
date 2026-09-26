@@ -1,3 +1,4 @@
+// @ts-check
 export const REVERSI_SIZE = 64
 export const REVERSI_DIM = 8
 

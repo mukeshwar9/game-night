@@ -36,6 +36,11 @@ import { useRealtimePeer } from './useRealtimePeer'
 // is `(pending, next) => next`, i.e. the previous plain replace behavior —
 // every other game is unaffected.
 //
+// Pause (F-47): while the peer isn't 'connected' (reconnecting / failed) and a
+// snapshot has already arrived, the loop skips `tick` entirely — the view
+// freezes on the last frame (matching the host's frozen sim) and no input is
+// sent or accumulated, so nothing stale lands on the host after reconnecting.
+//
 // `sfxMap` is `{ [kind]: (by?) => void }` — applied to incoming `{t:'e', k, by?}`
 // frames; `by` (the event's originating side, 'X'|'O') is passed through when
 // the host included one, `undefined` otherwise — existing sfxMap callbacks
@@ -44,6 +49,7 @@ import { useRealtimePeer } from './useRealtimePeer'
 export function useRealtimeGuest(opts) {
   const {
     gameId, mySymbol, enabled,
+    isPublic = false,                            // public-lobby room → relay-only ICE when TURN is configured
     tick,                                       // (snap, ageSec, dt) => { view, input } | null
     setRender, initialRender,
     sfxMap = {},
@@ -70,7 +76,7 @@ export function useRealtimeGuest(opts) {
     else if (msg.t === 'e') cbRef.current.sfxMap[msg.k]?.(msg.by)
   }, [])
 
-  const peer = useRealtimePeer({ gameId, mySymbol, enabled, onMessage })
+  const peer = useRealtimePeer({ gameId, mySymbol, enabled, isPublic, onMessage })
   const sendRef = useRef(peer.send)
   useEffect(() => { sendRef.current = peer.send }, [peer.send])
   const peerSend = (obj) => sendRef.current(obj)
@@ -88,6 +94,7 @@ export function useRealtimeGuest(opts) {
       const dt = Math.min((now - last) / 1000, 0.1); last = now
       const snap = snapRef.current
       if (!snap) { c.setRender(c.initialRender); return }
+      if (peer.statusRef.current !== 'connected') { pending = null; return }
       const age = (now - snapAtRef.current) / 1000
       const res = c.tick(snap, age, dt)
       if (!res) { c.setRender(c.initialRender); return }
@@ -104,7 +111,7 @@ export function useRealtimeGuest(opts) {
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [gameId, mySymbol, enabled, peer.retryKey, INPUT_MS])
+  }, [gameId, mySymbol, enabled, peer.statusRef, INPUT_MS])
 
   return { status: peer.status, statusRef: peer.statusRef, retry: peer.retry, retryKey: peer.retryKey, isHost: false }
 }

@@ -10,7 +10,17 @@ import {
   seatOrder,
   allAnswered,
   seededShuffle,
+  REVEAL_GRACE_MS,
+  allCommitted,
+  collectRevealedTexts,
+  isCommitted,
+  pendingReveals,
+  answerDeadline,
+  verifyHerdReveals,
+  scoredTexts,
+  resolveHerdRound,
 } from './herdLogic'
+import { commit, verifyReveal } from './commit'
 import { HERD_PROMPTS } from './decks/herd'
 
 describe('normalizeAnswer', () => {
@@ -223,5 +233,139 @@ describe('deck + constants sanity', () => {
   })
   it('answering window is 45s', () => {
     expect(ANSWER_MS).toBe(45000)
+  })
+})
+
+describe('commit-reveal helpers', () => {
+  it('isCommitted accepts commit objects and legacy non-blank strings only', () => {
+    expect(isCommitted({ commit: 'abc' })).toBe(true)
+    expect(isCommitted('pizza')).toBe(true)
+    expect(isCommitted('   ')).toBe(false)
+    expect(isCommitted({})).toBe(false)
+    expect(isCommitted(null)).toBe(false)
+  })
+
+  it('allCommitted waits for every eligible seat', () => {
+    expect(allCommitted(['a', 'b'], { a: { commit: 'h' } })).toBe(false)
+    expect(allCommitted(['a', 'b'], { a: { commit: 'h' }, b: 'legacy' })).toBe(true)
+    expect(allCommitted([], {})).toBe(false)
+  })
+
+  it('pendingReveals lists committed players with no reveal yet (legacy strings never pend)', () => {
+    const answers = { a: { commit: 'h1' }, b: { commit: 'h2' }, c: 'legacy' }
+    expect(pendingReveals(answers, { a: { text: 'x', salt: 's' } })).toEqual(['b'])
+    expect(pendingReveals(answers, null).sort()).toEqual(['a', 'b'])
+    expect(pendingReveals(null, null)).toEqual([])
+  })
+
+  it('collectRevealedTexts keeps only verified, non-blank reveals', () => {
+    const reveals = { a: { text: ' Pizza ' }, b: { text: 'x' }, c: { text: '  ' } }
+    expect(collectRevealedTexts(reveals, new Set(['a', 'c']))).toEqual({ a: 'Pizza' })
+  })
+
+  it('reveal grace is a short fixed window', () => {
+    expect(REVEAL_GRACE_MS).toBeGreaterThan(0)
+    expect(REVEAL_GRACE_MS).toBeLessThan(ANSWER_MS)
+  })
+})
+
+describe('answerDeadline', () => {
+  it('uses startedAt + the scaled window', () => {
+    expect(answerDeadline({ startedAt: 1000 }, 1)).toBe(1000 + ANSWER_MS)
+    expect(answerDeadline({ startedAt: 1000 }, 2)).toBe(1000 + 2 * ANSWER_MS)
+    expect(answerDeadline({ startedAt: 1000 }, undefined)).toBe(1000 + ANSWER_MS)
+  })
+  it('converts a legacy 1× endsAt back to its start before scaling', () => {
+    const endsAt = 5000 + ANSWER_MS
+    expect(answerDeadline({ endsAt }, 1)).toBe(endsAt)
+    expect(answerDeadline({ endsAt }, 2)).toBe(5000 + 2 * ANSWER_MS)
+  })
+  it('prefers startedAt over endsAt', () => {
+    expect(answerDeadline({ startedAt: 0, endsAt: 999999 }, 2)).toBe(2 * ANSWER_MS)
+  })
+  it('is null when timers are off or nothing is stamped', () => {
+    expect(answerDeadline({ startedAt: 1000 }, 0)).toBeNull()
+    expect(answerDeadline({}, 1)).toBeNull()
+    expect(answerDeadline(null, 1)).toBeNull()
+  })
+})
+
+describe('verifyHerdReveals', () => {
+  it('scores verified reveals, flags mismatches, and skips players who never revealed', async () => {
+    const a = await commit('Pizza')
+    const b = await commit('tacos')
+    const c = await commit('sushi')
+    const answers = {
+      a: { commit: a.hash },
+      b: { commit: b.hash },
+      c: { commit: c.hash },     // never reveals
+      d: 'legacy plaintext',     // pre-commit-reveal client
+    }
+    const reveals = {
+      a: { text: 'Pizza', salt: a.salt },
+      b: { text: 'burgers', salt: b.salt }, // lies about the committed answer
+    }
+    const { tally, cheats } = await verifyHerdReveals(answers, reveals, verifyReveal)
+    expect(tally).toEqual({ a: 'Pizza', d: 'legacy plaintext' })
+    expect(cheats).toEqual({ b: true })
+  })
+
+  it('ignores reveals from players who never committed', async () => {
+    const verify = async () => true
+    const { tally } = await verifyHerdReveals({}, { x: { text: 'pizza', salt: 's' } }, verify)
+    expect(tally).toEqual({})
+  })
+
+  it('drops blank verified reveals as non-answers', async () => {
+    const verify = async () => true
+    const { tally, cheats } = await verifyHerdReveals(
+      { a: { commit: 'h' } }, { a: { text: '   ', salt: 's' } }, verify,
+    )
+    expect(tally).toEqual({})
+    expect(cheats).toEqual({})
+  })
+})
+
+describe('scoredTexts', () => {
+  it('prefers the stored tally', () => {
+    expect(scoredTexts({ tally: { a: 'x' }, answers: { a: { commit: 'h' } } })).toEqual({ a: 'x' })
+  })
+  it('falls back to legacy plaintext answers and ignores commitments', () => {
+    expect(scoredTexts({ answers: { a: 'pizza', b: { commit: 'h' }, c: ' ' } })).toEqual({ a: 'pizza' })
+    expect(scoredTexts(null)).toEqual({})
+  })
+})
+
+describe('resolveHerdRound', () => {
+  it('scores the biggest group, moves the Cow to the sole singleton, and only credits seated uids', () => {
+    const out = resolveHerdRound({
+      texts: { a: 'pizza', b: 'Pizzas', c: 'sushi', gone: 'pizza' },
+      scores: { a: 1 },
+      herdCow: null,
+      seatIds: ['a', 'b', 'c'],
+    })
+    expect(out.pointUids.sort()).toEqual(['a', 'b', 'gone'])
+    expect(out.newScores).toEqual({ a: 2, b: 1 })
+    expect(out.cow).toBe('c')
+    expect(out.transferred).toBe(true)
+    expect(out.winner).toBeNull()
+  })
+
+  it('declares a winner who reaches the target without the Cow', () => {
+    const out = resolveHerdRound({
+      texts: { a: 'cat', b: 'cat', c: 'dog' },
+      scores: { a: HERD_TARGET - 1, b: 0, c: 0 },
+      herdCow: 'b',
+      seatIds: ['a', 'b', 'c'],
+    })
+    expect(out.cow).toBe('c')
+    expect(out.winner).toBe('a')
+  })
+
+  it('an empty tally scores nobody and keeps the Cow', () => {
+    const out = resolveHerdRound({ texts: {}, scores: {}, herdCow: 'a', seatIds: ['a', 'b'] })
+    expect(out.pointUids).toEqual([])
+    expect(out.cow).toBe('a')
+    expect(out.transferred).toBe(false)
   })
 })

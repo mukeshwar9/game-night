@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { joinLabel } from '../lib/a11yLabels'
 
 // Ultimate Tic-Tac-Toe board: a 3×3 grid of nine 3×3 miniboards.
 // `winningLine` holds META miniboard indices (0..8) once the game is won.
@@ -55,7 +56,13 @@ export default function UltimateTttBoard({
                       key={c}
                       onClick={() => playable && onMove(i)}
                       disabled={!playable}
-                      aria-label={`Board ${m + 1}, cell ${c + 1}, ${v || 'empty'}`}
+                      aria-label={joinLabel(
+                        `Board ${m + 1}, cell ${c + 1}`,
+                        v || 'empty',
+                        decided === 'D' ? 'board drawn' : decided && `board won by ${decided}`,
+                        !decided && targeted && 'play here',
+                        i === lastMove && 'last move',
+                      )}
                       className={cn(
                         'aspect-square rounded-[2px] flex items-center justify-center',
                         'font-pixel text-[10px] sm:text-sm select-none transition-colors',

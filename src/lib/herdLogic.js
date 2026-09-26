@@ -5,9 +5,18 @@
 //   { phase: 'answering' | 'reveal',
 //     promptIndex: number,          // index into seededShuffle(HERD_PROMPTS, deckSeed)
 //     deckSeed: number,             // set once at match start; same order on every client
-//   answers: { [uid]: { commit } },// salted SHA-256 commitment — plaintext is
-//                                   // tab-local until reveal (reveals/{uid})
-//     endsAt: epoch-ms,             // answering deadline (server-corrected clock)
+//     answers: { [uid]: { commit } },// salted SHA-256 commitment — the plaintext is
+//                                   // tab-local (sessionStorage) until the reveal.
+//                                   // Legacy rounds may hold a plaintext string.
+//     reveals: { [uid]: { text, salt } }, // published by each player ONLY once
+//                                   // phase === 'reveal' (never during answering)
+//     startedAt: epoch-ms,          // answering start (server-corrected clock)
+//     endsAt: epoch-ms,             // answering deadline as written (legacy / display);
+//                                   // the live deadline is answerDeadline(round, timerScale)
+//     revealAt: epoch-ms,           // when the reveal opened; scoring waits for every
+//                                   // committed reveal or REVEAL_GRACE_MS after this
+//     tally: { [uid]: text },       // the verified answers that were scored
+//     cheats: { [uid]: true },      // reveal failed commitment verification
 //     scored: true }                // scores + cow applied once, idempotently
 //
 // Top-level keys on games/{gameId}:
@@ -21,6 +30,7 @@
 // singleton while everyone else grouped. The Cow holder cannot win the match.
 
 import { seededShuffle } from './fibbageLogic'
+import { scaledMs } from './timerScale'
 
 // Points needed to win the match — but never while holding the Cow.
 export const HERD_TARGET = 8
@@ -161,7 +171,90 @@ export function allAnswered(eligibleIds, answers) {
 // ---------------------------------------------------------------------------
 
 // How long after the reveal opens clients may still publish their plaintext.
+// A liveness grace, not a player-facing timer, so the room timer scale does
+// not stretch it.
 export const REVEAL_GRACE_MS = 4000
+
+// True for an entry that counts as "locked in": a { commit } object, or a
+// legacy plaintext string from a round written before commit-reveal.
+export function isCommitted(entry) {
+  return !!entry && (typeof entry === 'string' ? entry.trim() !== '' : !!entry.commit)
+}
+
+// Uids that committed (object form) but have not yet published a reveal —
+// the set the scoring step waits on until REVEAL_GRACE_MS runs out. Legacy
+// plaintext answers never need a reveal.
+export function pendingReveals(answers, reveals) {
+  const r = reveals || {}
+  return Object.entries(answers || {})
+    .filter(([uid, a]) => a && typeof a === 'object' && a.commit && r[uid] == null)
+    .map(([uid]) => uid)
+}
+
+// Answering deadline under the room timer scale (src/lib/timerScale.js).
+// `startedAt` (written since timer scale existed) wins; a round that only has
+// `endsAt` was stamped at 1× by the registry's startRound, so its start is
+// endsAt − baseMs. Returns null when timers are off or nothing is stamped.
+export function answerDeadline(round, timerScale, baseMs = ANSWER_MS) {
+  const ms = scaledMs(baseMs, timerScale)
+  if (ms == null || !round) return null
+  if (round.startedAt != null) return round.startedAt + ms
+  if (round.endsAt != null) return round.endsAt - baseMs + ms
+  return null
+}
+
+// Verify every published reveal against its commitment and return the texts
+// that may be scored. `verify(hash, text, salt) → Promise<boolean>` is
+// injected (commit.verifyReveal in the page) so this stays pure/testable.
+//   tally:  { [uid]: text } — verified, non-blank answers (plus legacy
+//           plaintext answers, which have nothing to verify)
+//   cheats: { [uid]: true } — a reveal that did NOT match its commitment
+// Committed players with no reveal are simply absent: a non-answer.
+export async function verifyHerdReveals(answers, reveals, verify) {
+  const tally = {}
+  const cheats = {}
+  for (const [uid, entry] of Object.entries(answers || {})) {
+    if (typeof entry === 'string') {
+      const text = entry.trim()
+      if (text) tally[uid] = text
+      continue
+    }
+    if (!entry?.commit) continue
+    const rev = reveals?.[uid]
+    if (!rev || rev.text == null || rev.salt == null) continue
+    const ok = await verify(entry.commit, String(rev.text), String(rev.salt))
+    if (!ok) { cheats[uid] = true; continue }
+    const text = String(rev.text).trim()
+    if (text) tally[uid] = text
+  }
+  return { tally, cheats }
+}
+
+// The texts a scored round was grouped on: the stored tally, or — for rounds
+// scored before commit-reveal — the legacy plaintext answers themselves.
+export function scoredTexts(round) {
+  if (round?.tally) return round.tally
+  const out = {}
+  for (const [uid, a] of Object.entries(round?.answers || {})) {
+    if (typeof a === 'string' && a.trim()) out[uid] = a.trim()
+  }
+  return out
+}
+
+// One round's outcome from the verified texts: points to the biggest group(s)
+// (only for uids still seated), the Cow matrix, and the match winner.
+export function resolveHerdRound({ texts, scores, herdCow = null, seatIds }) {
+  const groups = groupAnswers(texts)
+  const { pointUids } = scoreGroups(groups)
+  const answeredUids = Object.keys(texts || {})
+  const { cow, transferred } = nextCow(groups, herdCow, answeredUids)
+  const seated = new Set(seatIds || [])
+  const newScores = { ...(scores || {}) }
+  for (const uid of pointUids) {
+    if (seated.has(uid)) newScores[uid] = (newScores[uid] || 0) + 1
+  }
+  return { groups, pointUids, cow, transferred, newScores, winner: getMatchWinner(newScores, cow) }
+}
 
 // True once every eligible seat holds a commitment ({ commit }) — or a legacy
 // plaintext string, so rounds written before commit-reveal still resolve.

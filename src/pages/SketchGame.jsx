@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ref, update, push, runTransaction, onValue, serverTimestamp } from 'firebase/database'
+import { ref, update, push, runTransaction, serverTimestamp } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
@@ -12,22 +12,28 @@ import {
   ARTIST_OFFLINE_DRAWING_MS,
   normalize,
   wordPattern,
-  pickOptions,
+  pickRoundOptions,
+  scoringWindow,
   cyclesFor,
   nextRoundState,
   activeGuessers,
   participantGuessers,
   roundDeltas,
   deriveWord,
+  SKETCH_SEEN_KEY,
 } from '../lib/sketchLogic'
-import { isCoordinator } from '../lib/coordinator'
+import { isRoomCoordinator } from '../lib/coordinator'
+import { markSeen, normalizeSeen } from '../lib/seenHistory'
+import { scaledMs, timersOff } from '../lib/timerScale'
+import { normalizeList } from '../lib/normalize'
+import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import { SKETCH_WORDS } from '../lib/decks/sketch'
 import SketchCanvas from '../components/SketchCanvas'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
+import RoundEndPanel from '../components/RoundEndPanel'
 import PixelDots from '../components/loading/PixelDots'
 import { sounds } from '../lib/sounds'
-import { shareResult } from '../lib/shareCard'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
@@ -37,39 +43,35 @@ const MAX_GUESS_LEN = 40
 const MIN_GUESS_INTERVAL_MS = 500
 const MAX_CHAT_FEED = 60 // cap how much of the guess feed we render
 
-// ---------------------------------------------------------------------------
-// useServerNow — .info/serverTimeOffset corrected clock, ticking every 250ms
-// so countdown UIs re-render. now() itself is cheap/pure between ticks.
-// ---------------------------------------------------------------------------
-function useServerNow() {
-  const offsetRef = useRef(0)
-  const [, setTick] = useState(0)
-  useEffect(() => {
-    const offRef = ref(db, '.info/serverTimeOffset')
-    const unsub = onValue(offRef, snap => { offsetRef.current = snap.val() || 0 })
-    const interval = setInterval(() => setTick(t => (t + 1) % 1e6), 250)
-    return () => { unsub(); clearInterval(interval) }
-  }, [])
-  return useCallback(() => Date.now() + offsetRef.current, [])
-}
-
+// Firebase may hand the round's lists back as numeric-keyed objects — read them
+// by key (normalizeList), never Object.values, so order can't shift.
 function normalizeRound(raw) {
   if (!raw) return null
   return {
     phase: raw.phase ?? 'choosing',
     cycle: raw.cycle ?? 1,
     artist: raw.artist ?? null,
-    order: Array.isArray(raw.order) ? raw.order : (raw.order ? Object.values(raw.order) : []),
-    used: Array.isArray(raw.used) ? raw.used : (raw.used ? Object.values(raw.used) : []),
+    order: normalizeList(raw.order),
+    used: normalizeList(raw.used),
     matchSeed: raw.matchSeed ?? '',
-    options: Array.isArray(raw.options) ? raw.options : (raw.options ? Object.values(raw.options) : null),
+    options: raw.options ? normalizeList(raw.options) : null,
     commitment: raw.commitment ?? null,
     wordPattern: raw.wordPattern ?? '',
-    endsAt: raw.endsAt ?? 0,
+    // null = no deadline (room timer scale 0) — never treat it as "already expired".
+    endsAt: raw.endsAt ?? null,
+    drawStartedAt: raw.drawStartedAt ?? null,
+    drawMs: raw.drawMs ?? null,
     chat: raw.chat ?? {},
     correct: raw.correct ?? {},
     scored: !!raw.scored,
   }
+}
+
+// A raw round from inside a transaction with its lists read by key, so the
+// pure helpers (nextRoundState's spreads, indexOf) always get real arrays.
+function withLists(r) {
+  const n = normalizeRound(r)
+  return { ...r, order: n.order, used: n.used, options: n.options }
 }
 
 // Public wordPattern string (e.g. "5" or "3 3") -> underscore blanks.
@@ -112,7 +114,10 @@ function Scoreboard({ players, scores, mySeat, highlight }) {
 // CountdownBar — thin retro progress bar + seconds-remaining readout.
 // ---------------------------------------------------------------------------
 function CountdownBar({ endsAt, totalMs, now }) {
-  const remaining = Math.max(0, (endsAt || 0) - now)
+  if (endsAt == null) {
+    return <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">NO TIMER</p>
+  }
+  const remaining = Math.max(0, endsAt - now)
   const pct = totalMs > 0 ? Math.max(0, Math.min(100, (remaining / totalMs) * 100)) : 0
   const seconds = Math.ceil(remaining / 1000)
   return (
@@ -126,11 +131,20 @@ function CountdownBar({ endsAt, totalMs, now }) {
 }
 
 export default function SketchGame({
-  gameId, game, mySeat, players, isHost,
+  gameId, game, mySeat, players,
   onStart, onSwitchGame, onNewMatch, proposal,
 }) {
-  const now = useServerNow()
-  const nowMs = now()
+  // Server-corrected clock, ticking every 250ms so countdown UIs re-render;
+  // `now()` is a fresh server-time reading for handlers and transactions.
+  const { now: nowMs } = useServerClock(250)
+  const now = getServerNow
+  // Room timer scale (lobby option): choosing/drawing clocks stretch 2× when
+  // relaxed and disappear at 0 (the coordinator then ends rounds by hand). The
+  // 6 s reveal is a display pause, not a deadline on anyone, so it stays fixed.
+  const chooseMs = scaledMs(CHOOSE_MS, game.timerScale)
+  const drawMs = scaledMs(DRAW_MS, game.timerScale)
+  const noTimer = timersOff(game.timerScale)
+  const deadlineAfter = (ms) => (ms == null ? null : now() + ms)
 
   const round = normalizeRound(game.round)
   const roundKey = round ? `${round.cycle}:${round.artist}` : null
@@ -139,12 +153,12 @@ export default function SketchGame({
   const participantGuesserIds = round ? participantGuessers(round.order, round.artist) : []
   const activeGuesserIds = round ? activeGuessers(players || {}, round.order, round.artist) : []
   const haveIGuessedCorrectly = !!round?.correct?.[mySeat]
-  // Deterministic host-fallback: the coordinator is the lowest-uid ONLINE seat, not
+  // Deterministic host-fallback: the coordinator is the first ONLINE seat in join order, not
   // the fixed `isHost` — so a host disconnect hands phase-advance duty off instead
   // of freezing the match. Every `isHost`-gated auto-advance/skip below now gates
   // on this; each write re-checks phase inside its transaction, so a coordinator
   // handover mid-transition stays single-writer/idempotent.
-  const amCoordinator = isPlayer && isCoordinator(mySeat, seatOrder(players || {}), players)
+  const amCoordinator = isRoomCoordinator(mySeat, players, game.hostUid)
 
   const [guessInput, setGuessInput] = useState('')
   const [derivedWord, setDerivedWord] = useState(null)
@@ -165,8 +179,7 @@ export default function SketchGame({
   const [guessing, runGuess] = useBusy()                 // drawing: guess submit
   const [skippingChoosing, runSkipChoosing] = useBusy()   // choosing: SKIP ROUND
   const [skippingDrawing, runSkipDrawing] = useBusy()     // drawing: SKIP ROUND (artist offline)
-  const [resettingMatch, runNewMatch] = useBusy()         // finished: NEW MATCH
-  const [sharing, runShare] = useBusy()                   // finished: SHARE
+  const [endingRound, runEndRound] = useBusy()           // drawing, timers off: END ROUND
 
   const pickedRef = useRef(false)                    // this client already picked/auto-picked this round
   const correctSentRef = useRef(false)                // this client already published its own correct guess
@@ -197,15 +210,23 @@ export default function SketchGame({
     if (optionsPublishAttemptRef.current === roundKey) return
     optionsPublishAttemptRef.current = roundKey
     const seed = hashString(`${gameId}:${r.matchSeed || 'legacy'}:${roundKey}`)
-    const picks = pickOptions(SKETCH_WORDS, seed, r.used)
-    const publishEndsAt = now() + CHOOSE_MS
+    const publishEndsAt = deadlineAfter(chooseMs)
     runTransaction(ref(db, `games/${gameId}`), current => {
       if (!current || !current.round) return current
       const cr = current.round
       if (cr.phase !== 'choosing' || cr.artist !== mySeat || cr.options) return // stale/already published
-      return { ...current, round: { ...cr, options: picks, endsAt: publishEndsAt } }
+      // Options avoid this match's `used` AND the room's seen history (earlier
+      // matches), computed from the live node so the pick and the history
+      // update land together. The offered words join the room history.
+      const roomSeen = normalizeSeen(current.seen?.[SKETCH_SEEN_KEY])
+      const picks = pickRoundOptions(SKETCH_WORDS, seed, normalizeRound(cr).used, roomSeen)
+      return {
+        ...current,
+        round: { ...cr, options: picks, endsAt: publishEndsAt },
+        seen: { ...(current.seen || {}), [SKETCH_SEEN_KEY]: markSeen(roomSeen, picks) },
+      }
     }).catch(() => { optionsPublishAttemptRef.current = null })
-  }, [roundKey, mySeat, gameId, now])
+  }, [roundKey, mySeat, gameId, now, chooseMs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Artist: pick a word (manual click OR auto-pick at 0) ---------------
   const handlePickWord = useCallback(async (deckIndex) => {
@@ -218,21 +239,27 @@ export default function SketchGame({
     try {
       const { hash, salt } = await commit(normalize(entry.word))
       const pattern = wordPattern(entry.word)
-      const drawPhaseEndsAt = now() + DRAW_MS
+      const drawStartedAt = now()
+      const drawPhaseEndsAt = drawMs == null ? null : drawStartedAt + drawMs
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round) return current
         const cr = current.round
         if (cr.phase !== 'choosing' || cr.artist !== mySeat) return // stale — a new artist has since taken over
         return {
           ...current,
-          round: { ...cr, commitment: { hash, salt }, wordPattern: pattern, phase: 'drawing', endsAt: drawPhaseEndsAt },
+          round: {
+            ...cr, commitment: { hash, salt }, wordPattern: pattern, phase: 'drawing', endsAt: drawPhaseEndsAt,
+            // Speed-bonus window for scoring (see sketchLogic.scoringWindow):
+            // the scaled clock, or the base DRAW_MS when timers are off.
+            drawStartedAt, drawMs: drawMs ?? DRAW_MS,
+          },
         }
       })
     } catch {
       pickedRef.current = false
       toast.error('PICK FAILED — CHECK CONNECTION')
     }
-  }, [mySeat, gameId, now])
+  }, [mySeat, gameId, now, drawMs])
 
   // ---- Guesser: submit a guess — correct locks in via commit verification --
   // Throttled client-side (min 500ms between guesses) so a fast-tapping/scripted
@@ -267,20 +294,20 @@ export default function SketchGame({
 
   // ---- Host: void the round and rotate the artist (choosing stalled) ------
   const handleSkipChoosing = useCallback(async () => {
-    const nextEndsAt = now() + CHOOSE_MS
+    const nextEndsAt = deadlineAfter(chooseMs)
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'choosing') return // already resolved
-        const result = nextRoundState(r)
+        const result = nextRoundState(withLists(r))
         if (result.finished) return { ...current, status: 'finished', proposal: null }
         return { ...current, proposal: null, round: { ...result.round, endsAt: nextEndsAt } }
       })
     } catch {
       toast.error('SKIP FAILED — CHECK CONNECTION')
     }
-  }, [gameId, now])
+  }, [gameId, now, chooseMs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Host: drawing -> reveal, scoring atomically in the same transaction -
   const advanceDrawingToReveal = useCallback(async () => {
@@ -292,12 +319,12 @@ export default function SketchGame({
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'drawing') return // already advanced
-        const liveGuesserIds = participantGuessers(r.order || [], r.artist)
+        const liveGuesserIds = participantGuessers(normalizeRound(r).order, r.artist)
         const deltas = roundDeltas({
           guesserIds: liveGuesserIds,
           correct: r.correct || {},
           artistId: r.artist,
-          endsAt: r.endsAt,
+          ...scoringWindow(r),
         })
         const newScores = { ...(current.scores || {}) }
         for (const [id, pts] of Object.entries(deltas)) newScores[id] = (newScores[id] || 0) + pts
@@ -318,13 +345,13 @@ export default function SketchGame({
   const advanceRevealToNext = useCallback(async (expectedEndsAt) => {
     if (hostActionInFlightRef.current) return
     hostActionInFlightRef.current = true
-    const nextEndsAt = now() + CHOOSE_MS
+    const nextEndsAt = deadlineAfter(chooseMs)
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'reveal' || r.endsAt !== expectedEndsAt) return // already advanced / stale
-        const result = nextRoundState(r)
+        const result = nextRoundState(withLists(r))
         if (result.finished) return { ...current, status: 'finished', proposal: null }
         return { ...current, proposal: null, round: { ...result.round, endsAt: nextEndsAt } }
       })
@@ -333,7 +360,7 @@ export default function SketchGame({
     } finally {
       hostActionInFlightRef.current = false
     }
-  }, [gameId, now])
+  }, [gameId, now, chooseMs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Reset per-round local state when a NEW round begins ----------------
   useEffect(() => {
@@ -405,7 +432,7 @@ export default function SketchGame({
   useEffect(() => {
     if (!round || round.phase !== 'choosing' || round.artist !== mySeat) return
     if (!round.options || pickedRef.current) return
-    if (nowMs < (round.endsAt || 0)) return
+    if (round.endsAt == null || nowMs < round.endsAt) return
     handlePickWord(round.options[0])
   }, [round?.phase, round?.artist, optionsKey, round?.endsAt, mySeat, nowMs, handlePickWord]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -439,14 +466,14 @@ export default function SketchGame({
   useEffect(() => {
     if (!amCoordinator || !round || round.phase !== 'drawing') return
     const allCorrect = activeGuesserIds.length > 0 && activeGuesserIds.every(id => round.correct?.[id])
-    const timedOut = nowMs >= (round.endsAt || 0)
+    const timedOut = round.endsAt != null && nowMs >= round.endsAt
     if (allCorrect || timedOut) advanceDrawingToReveal()
   }, [amCoordinator, round?.phase, round?.endsAt, round?.correct, activeGuesserIds.join(','), nowMs, advanceDrawingToReveal]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Coordinator: reveal -> next round, automatically, on timeout --------------
   useEffect(() => {
     if (!amCoordinator || !round || round.phase !== 'reveal') return
-    if (nowMs < (round.endsAt || 0)) return
+    if (round.endsAt != null && nowMs < round.endsAt) return
     advanceRevealToNext(round.endsAt)
   }, [amCoordinator, round?.phase, round?.endsAt, nowMs, advanceRevealToNext]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -520,7 +547,7 @@ export default function SketchGame({
           </p>
         )}
 
-        {isHost && enough && !matchOver && (
+        {amCoordinator && enough && !matchOver && (
           <button
             onClick={() => runStart(onStart)}
             disabled={starting}
@@ -529,38 +556,23 @@ export default function SketchGame({
             {starting ? 'STARTING…' : 'START ROUND'}
           </button>
         )}
-        {!isHost && enough && !matchOver && (
-          <p className="font-pixel text-[10px] text-retro-dim arcade-blink">WAITING FOR HOST TO START…</p>
+        {!amCoordinator && enough && !matchOver && (
+          <p className="font-pixel text-[10px] text-retro-dim arcade-blink">WAITING TO START…</p>
         )}
 
         {matchOver && isPlayer && (
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {!proposal && onNewMatch && (
-              <button
-                onClick={() => runNewMatch(onNewMatch)}
-                disabled={resettingMatch}
-                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
-              >
-                {resettingMatch ? 'RESETTING…' : 'NEW MATCH'}
-              </button>
-            )}
-            <button
-              onClick={() => runShare(async () => {
-                const ok = await shareResult({
-                  gameLabel: 'SKETCH',
-                  headline: iWon ? 'YOU WIN!' : winners.length > 1 ? `${winners.length}-WAY TIE` : `${winnerNames[0]} WINS`,
-                  sub: 'Sketch · Game Night',
-                  accentVar: '--c-cta',
-                  url: window.location.href,
-                })
-                if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
-              })}
-              disabled={sharing}
-              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
-            >
-              {sharing ? 'BUILDING…' : 'SHARE'}
-            </button>
-          </div>
+          <RoundEndPanel
+            actions={[
+              !proposal && onNewMatch && {
+                key: 'new', label: 'NEW MATCH', busyLabel: 'RESETTING…', onClick: onNewMatch,
+              },
+            ]}
+            share={{
+              gameLabel: 'SKETCH',
+              headline: iWon ? 'YOU WIN!' : winners.length > 1 ? `${winners.length}-WAY TIE` : `${winnerNames[0]} WINS`,
+              sub: 'Sketch · Game Night',
+            }}
+          />
         )}
 
         {isPlayer && onSwitchGame && !proposal && <GameSwitcher currentType="sketch" onSwitch={onSwitchGame} />}
@@ -584,7 +596,14 @@ export default function SketchGame({
   // -------------------------------------------------------------------------
   const artistName = (players[round.artist]?.name || '???').toUpperCase()
   const totalCycles = cyclesFor(round.order.length)
-  const showChoosingSkip = amCoordinator && round.phase === 'choosing' && nowMs >= (round.endsAt || 0) + SKIP_CHOOSING_GRACE_MS
+  // Timers off: no auto-pick will ever fire, so the coordinator may pass a
+  // stalled artist on as soon as the options are up.
+  const showChoosingSkip = amCoordinator && round.phase === 'choosing' && (
+    round.endsAt != null
+      ? nowMs >= round.endsAt + SKIP_CHOOSING_GRACE_MS
+      : noTimer && !isArtist && !!round.options
+  )
+  const showEndRound = noTimer && amCoordinator && round.phase === 'drawing' && round.endsAt == null
   const artistOfflineMs = artistOfflineSince != null ? nowMs - artistOfflineSince : 0
   const showArtistOfflineSkip = amCoordinator && round.phase === 'drawing' && artistOfflineMs >= ARTIST_OFFLINE_DRAWING_MS
 
@@ -594,7 +613,7 @@ export default function SketchGame({
       guesserIds: revealGuesserIds,
       correct: round.correct,
       artistId: round.artist,
-      endsAt: drawEndsAt ?? round.endsAt,
+      ...scoringWindow(round, drawEndsAt),
     })
     : null
 
@@ -617,7 +636,7 @@ export default function SketchGame({
           <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
             {isArtist ? 'PICK A WORD' : `${artistName} IS CHOOSING A WORD…`}
           </p>
-          <CountdownBar endsAt={round.endsAt} totalMs={CHOOSE_MS} now={nowMs} />
+          <CountdownBar endsAt={round.endsAt} totalMs={chooseMs ?? CHOOSE_MS} now={nowMs} />
           {isArtist ? (
             round.options ? (
               <div className="space-y-2">
@@ -679,7 +698,7 @@ export default function SketchGame({
             )}
           </div>
 
-          <CountdownBar endsAt={round.endsAt} totalMs={DRAW_MS} now={nowMs} />
+          <CountdownBar endsAt={round.endsAt} totalMs={round.drawMs ?? DRAW_MS} now={nowMs} />
 
           {isPlayer && !isArtist && !haveIGuessedCorrectly && (
             <div className="flex gap-1.5">
@@ -731,6 +750,18 @@ export default function SketchGame({
               </p>
             ))}
           </div>
+
+          {showEndRound && (
+            <div className="text-center">
+              <button
+                onClick={() => runEndRound(() => advanceDrawingToReveal())}
+                disabled={endingRound}
+                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {endingRound ? 'ENDING…' : 'END ROUND'}
+              </button>
+            </div>
+          )}
 
           {showArtistOfflineSkip && (
             <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3">

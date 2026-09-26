@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest'
-import { pickBotMove } from './demoBots'
+import { describe, it, expect, vi, beforeAll } from 'vitest'
+import {
+  pickBotMove, botDifficulties, legalBotMoves, normalizeDifficulty,
+  BOT_DIFFICULTIES, DEFAULT_BOT_DIFFICULTY,
+} from './demoBots'
+import { normalizeBoard } from './gameLogic'
 import { legalMoves } from './reversiLogic'
 import { CR_CELL_COUNT, CR_COLS } from './chainReactionLogic'
 import { DB_EDGE_COUNT, DB_BOX_COUNT, edgesOfBox } from './dotsAndBoxesLogic'
@@ -510,5 +514,279 @@ describe('pickBotMove — unknown type', () => {
     expect(pickBotMove('chess', {}, 'O')).toBeNull()
     expect(pickBotMove('', {}, 'O')).toBeNull()
     expect(pickBotMove(undefined, {}, 'O')).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Difficulty levels, swap (pie) rule decisions, and full-game playouts
+// ---------------------------------------------------------------------------
+
+// Deterministic Math.random for the seeded simulations (mulberry32).
+function seededRandom(seed) {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function withSeed(seed, fn) {
+  const spy = vi.spyOn(Math, 'random').mockImplementation(seededRandom(seed))
+  try { return fn() } finally { spy.mockRestore() }
+}
+
+// Every type BotBoardDemo drives (Demo.jsx) except Pairs, a memory game whose
+// bot is out of scope.
+const BOT_BOARD_TYPES = [
+  'tictactoe', 'tictactoe4', 'ultimatettt', 'connectfour', 'connectfour5', 'connectfourpop',
+  'dice', 'dice-big', 'gomoku', 'gomokuswap', 'reversi', 'orderchaos', 'sos', 'dotsandboxes',
+  'dotsandboxes4', 'chainreaction', 'chainreaction6', 'blockade', 'hex', 'sim', 'chomp',
+  'breakthrough', 'ataxx', 'kamisado', 'onitama', 'quarto', 'santorini', 'loa', 'yavalath',
+]
+
+// games.js pulls in board components that touch `localStorage` at module
+// load time — stub it before the dynamic import (see games.test.js).
+if (typeof globalThis.localStorage === 'undefined') {
+  globalThis.localStorage = { getItem: () => null, setItem: () => {} }
+}
+let registry
+beforeAll(async () => {
+  registry = await import('./games')
+})
+
+// Apply one move exactly like BotBoardDemo.applyOne / Game.jsx handleMove.
+function applyOne(cfg, g, payload, symbol) {
+  const board = cfg.boardSize ? normalizeBoard(g.board, cfg.boardSize) : (g.board || [])
+  const index = cfg.getMoveIndex ? cfg.getMoveIndex(board, payload) : 0
+  if (cfg.boardSize && index === -1) return null
+  let updates, result
+  if (cfg.applyMove) {
+    const applied = cfg.applyMove({ board, game: g, index, move: payload, symbol })
+    if (!applied) return null
+    updates = applied.updates
+    result = applied.result
+  } else {
+    const nb = [...board]
+    nb[index] = symbol
+    result = cfg.getWinner(nb)
+    updates = { board: nb, currentTurn: symbol === 'X' ? 'O' : 'X' }
+  }
+  const next = { ...g, ...updates }
+  if (result) {
+    next.winner = result.winner
+    next.status = 'finished'
+  }
+  return next
+}
+
+// Plays bots against each other through the real registry rules. Throws on
+// any illegal bot move; returns the final game (or where a bot passed).
+function playOut(type, levels, maxPlies = 400) {
+  const cfg = registry.getGameConfig(type)
+  // getGameConfig falls back to the first registry entry for unknown types.
+  if (cfg.type !== type) throw new Error(`${type} is not in the registry`)
+  let g = { ...registry.freshGameState(type), status: 'playing', winner: null, currentTurn: 'X' }
+  for (let ply = 0; ply < maxPlies && g.status === 'playing'; ply++) {
+    const sym = g.currentTurn
+    const move = pickBotMove(type, g, sym, levels[sym])
+    if (move === null || move === undefined) return { game: g, stuck: true }
+    const next = applyOne(cfg, g, move, sym)
+    if (!next) throw new Error(`${type}: ${levels[sym]} ${sym} played illegal ${JSON.stringify(move)}`)
+    g = next
+  }
+  return { game: g, stuck: false }
+}
+
+describe('difficulty levels', () => {
+  it('normalizes unknown levels to normal', () => {
+    expect(normalizeDifficulty('easy')).toBe('easy')
+    expect(normalizeDifficulty('hard')).toBe('hard')
+    expect(normalizeDifficulty('insane')).toBe(DEFAULT_BOT_DIFFICULTY)
+    expect(normalizeDifficulty(undefined)).toBe('normal')
+    expect(BOT_DIFFICULTIES).toEqual(['easy', 'normal', 'hard'])
+  })
+
+  it('lists only the levels a game distinguishes', () => {
+    expect(botDifficulties('tictactoe')).toEqual(['easy', 'normal', 'hard'])
+    expect(botDifficulties('hex')).toEqual(['easy', 'normal', 'hard'])
+    expect(botDifficulties('gomokuswap')).toEqual(['easy', 'normal', 'hard'])
+    expect(botDifficulties('breakthrough')).toEqual(['easy', 'normal'])
+    expect(botDifficulties('pairs')).toEqual(['normal'])
+    for (const type of BOT_BOARD_TYPES) expect(botDifficulties(type), type).toContain('easy')
+  })
+
+  it('omitted difficulty is exactly normal (same moves for the same random stream)', () => {
+    const positions = [
+      ['tictactoe', { board: ['X', '', '', '', 'O', '', '', '', ''] }],
+      ['connectfour', { board: place(emptyBoard(42), [38, 31], 'X') }],
+      ['gomoku', { board: place(emptyBoard(225), [112, 113], 'X') }],
+      ['reversi', { board: (() => { const b = emptyBoard(64); b[27] = 'O'; b[28] = 'X'; b[35] = 'X'; b[36] = 'O'; return b })() }],
+      ['hex', { board: place(emptyBoard(121), [3], 'X') }],
+    ]
+    for (const [type, game] of positions) {
+      for (const seed of [1, 2, 3]) {
+        const implicit = withSeed(seed, () => pickBotMove(type, game, 'O'))
+        const explicit = withSeed(seed, () => pickBotMove(type, game, 'O', 'normal'))
+        expect(explicit, type).toEqual(implicit)
+      }
+    }
+  })
+
+  it('easy plays a random legal move most turns', () => {
+    // Center is normal's fixed reply on an empty 3×3; easy mostly isn't.
+    let offCenter = 0
+    withSeed(7, () => {
+      for (let k = 0; k < 100; k++) {
+        const m = pickBotMove('tictactoe', boardGame(emptyBoard(9)), 'O', 'easy')
+        expect(m).toBeGreaterThanOrEqual(0)
+        expect(m).toBeLessThan(9)
+        if (m !== 4) offCenter++
+      }
+    })
+    expect(offCenter).toBeGreaterThan(40)
+    expect(offCenter).toBeLessThan(90)
+  })
+
+  it('legalBotMoves returns null for types without an easy mode', () => {
+    expect(legalBotMoves('pairs', { board: [] }, 'O')).toBeNull()
+    expect(legalBotMoves('chess', { board: [] }, 'O')).toBeNull()
+  })
+})
+
+describe('easy / normal / hard never crash and always move legally', () => {
+  for (const type of BOT_BOARD_TYPES) {
+    it(`${type}: easy vs easy plays a full legal game`, () => {
+      withSeed(11, () => {
+        const { game } = playOut(type, { X: 'easy', O: 'easy' })
+        expect(['playing', 'finished']).toContain(game.status)
+      })
+    })
+  }
+
+  for (const type of BOT_BOARD_TYPES.filter(t => botDifficulties(t).includes('hard'))) {
+    it(`${type}: hard vs easy moves legally`, () => {
+      withSeed(5, () => {
+        const { game } = playOut(type, { X: 'hard', O: 'easy' }, 40)
+        expect(['playing', 'finished']).toContain(game.status)
+      })
+    })
+  }
+})
+
+describe('hard beats easy (seeded simulations)', () => {
+  // Alternate seats so neither level keeps the first-move edge.
+  function tally(type, games, maxPlies) {
+    let hard = 0
+    let easy = 0
+    for (let k = 0; k < games; k++) {
+      const hardSeat = k % 2 === 0 ? 'O' : 'X'
+      const levels = hardSeat === 'X' ? { X: 'hard', O: 'easy' } : { X: 'easy', O: 'hard' }
+      const { game } = withSeed(1000 + k, () => playOut(type, levels, maxPlies))
+      if (game.winner === hardSeat) hard++
+      else if (game.winner && game.winner !== 'draw') easy++
+    }
+    return { hard, easy }
+  }
+
+  it('tictactoe: hard never loses and wins most games', () => {
+    const { hard, easy } = tally('tictactoe', 30)
+    expect(easy).toBe(0)
+    expect(hard).toBeGreaterThanOrEqual(20)
+  })
+
+  it('connectfour: hard wins every game', () => {
+    const { hard } = tally('connectfour', 4)
+    expect(hard).toBe(4)
+  })
+
+  it('gomoku: hard wins every game', () => {
+    const { hard } = tally('gomoku', 10)
+    expect(hard).toBe(10)
+  })
+
+  it('hex (swap rule on): hard wins every game', () => {
+    const { hard } = tally('hex', 6)
+    expect(hard).toBe(6)
+  })
+})
+
+describe('swap (pie) rule decisions', () => {
+  const SWAP = { action: 'swap' }
+  const hexAt = (row, col) => place(emptyBoard(121), [row * 11 + col], 'X')
+  const gomokuAt = (row, col) => place(emptyBoard(225), [row * 15 + col], 'X')
+
+  it('hex: normal and hard swap a central opening', () => {
+    for (const level of ['normal', 'hard']) {
+      expect(pickBotMove('hex', boardGame(hexAt(5, 5)), 'O', level)).toEqual(SWAP)
+      expect(pickBotMove('hex', boardGame(hexAt(3, 7)), 'O', level)).toEqual(SWAP)
+    }
+  })
+
+  it('hex: an edge opening is not worth swapping', () => {
+    for (const level of ['normal', 'hard']) {
+      const move = pickBotMove('hex', boardGame(hexAt(0, 4)), 'O', level)
+      expect(Number.isInteger(move)).toBe(true)
+      expect(move).not.toBe(4)
+    }
+  })
+
+  it('hex: never swaps twice in a round', () => {
+    const board = place(emptyBoard(121), [60], 'O')
+    for (const level of ['easy', 'normal', 'hard']) {
+      for (let k = 0; k < 20; k++) {
+        expect(pickBotMove('hex', boardGame(board, { pieSwap: true }), 'X', level)).not.toEqual(SWAP)
+      }
+    }
+  })
+
+  it('hex: hard opens on the second ring so the swap is not a gift', () => {
+    const move = pickBotMove('hex', boardGame(emptyBoard(121)), 'X', 'hard')
+    const r = Math.floor(move / 11)
+    const c = move % 11
+    expect(Math.min(r, c, 10 - r, 10 - c)).toBe(1)
+  })
+
+  it('gomokuswap: swaps a central opening, ignores an edge one', () => {
+    for (const level of ['normal', 'hard']) {
+      expect(pickBotMove('gomokuswap', boardGame(gomokuAt(7, 7)), 'O', level)).toEqual(SWAP)
+      const move = pickBotMove('gomokuswap', boardGame(gomokuAt(0, 0)), 'O', level)
+      expect(Number.isInteger(move)).toBe(true)
+    }
+  })
+
+  it('gomokuswap: opens off-centre; classic gomoku never swaps', () => {
+    const open = pickBotMove('gomokuswap', boardGame(emptyBoard(225)), 'X', 'normal')
+    const d = Math.max(Math.abs(Math.floor(open / 15) - 7), Math.abs((open % 15) - 7))
+    expect([5, 6]).toContain(d)
+    for (const level of ['easy', 'normal', 'hard']) {
+      for (let k = 0; k < 20; k++) {
+        expect(pickBotMove('gomoku', boardGame(gomokuAt(7, 7)), 'O', level)).not.toEqual(SWAP)
+      }
+    }
+  })
+})
+
+describe('pig difficulty', () => {
+  const pig = (my, opp, turn) => ({ diceScoreO: my, diceScoreX: opp, diceTurnScore: turn })
+
+  it('every level banks a winning turn', () => {
+    for (const level of ['easy', 'normal', 'hard']) {
+      expect(pickBotMove('dice', pig(90, 0, 10), 'O', level)).toBe('bank')
+    }
+  })
+
+  it('hard rolls for the win once the race is on (keep pace, end race)', () => {
+    expect(pickBotMove('dice', pig(40, 75, 45), 'O', 'hard')).toBe('roll')
+    expect(pickBotMove('dice', pig(40, 75, 45), 'O', 'normal')).toBe('bank')
+    expect(pickBotMove('dice', pig(40, 40, 21), 'O', 'hard')).toBe('bank')
+    expect(pickBotMove('dice', pig(40, 40, 15), 'O', 'hard')).toBe('roll')
+  })
+
+  it('easy always rolls an empty turn and banks by 25', () => {
+    expect(pickBotMove('dice', pig(0, 0, 0), 'O', 'easy')).toBe('roll')
+    expect(pickBotMove('dice', pig(0, 0, 25), 'O', 'easy')).toBe('bank')
   })
 })

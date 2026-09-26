@@ -100,3 +100,74 @@ export function generateQuestion(seed, index) {
 
   return { text, answer, isPower }
 }
+
+// ── Scoring (shared by the live race and its tests) ───────────────────────
+
+/** Speed points for an answer `elapsed` ms into a `questionMs` window: 5 for
+ * an instant answer down to a 1-point floor at the buzzer. */
+export function speedPtsFor(elapsed, questionMs) {
+  return Math.max(1, Math.ceil(5 * Math.max(0, (questionMs - elapsed) / questionMs)))
+}
+
+/** A 3-answer streak doubles the next correct answer. */
+export const STREAK_FOR_DOUBLE = 3
+
+/**
+ * Apply one submitted answer to a racer's stats
+ * `{ q, score, streak, correct, wrong }`. A correct answer advances `q` and
+ * scores speed × power(2 on power questions) × streak multiplier; a wrong one
+ * costs 1 point (2 on a power question), floors at 0, resets the streak and
+ * leaves `q` for the caller to advance after the feedback beat.
+ *
+ * @returns {{ stats: object, correct: boolean, pts: number }}
+ */
+export function scoreMathAnswer(stats, { seed, answer, elapsed }) {
+  const s = normalizeMathStats(stats)
+  const q = generateQuestion(seed, s.q)
+  const correct = Number.parseInt(answer, 10) === q.answer
+  if (correct) {
+    const mult = s.streak >= STREAK_FOR_DOUBLE ? 2 : 1
+    const pts = speedPtsFor(elapsed, questionMsForIndex(s.q)) * (q.isPower ? 2 : 1) * mult
+    return {
+      correct, pts,
+      stats: { ...s, q: s.q + 1, score: s.score + pts, streak: s.streak + 1, correct: s.correct + 1 },
+    }
+  }
+  const penalty = q.isPower ? 2 : 1
+  return {
+    correct, pts: 0,
+    stats: { ...s, score: Math.max(0, s.score - penalty), streak: 0, wrong: s.wrong + 1 },
+  }
+}
+
+/** Advance past question `fromIndex` (wrong-answer beat or timeout); no-op if already past. */
+export function advanceMathQuestion(stats, fromIndex) {
+  const s = normalizeMathStats(stats)
+  return s.q === fromIndex ? { ...s, q: fromIndex + 1 } : s
+}
+
+export function normalizeMathStats(raw) {
+  const n = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.floor(Number(v))) : 0)
+  return { q: n(raw?.q), score: n(raw?.score), streak: n(raw?.streak), correct: n(raw?.correct), wrong: n(raw?.wrong) }
+}
+
+// ── N-player race hooks (see raceLogic.js) ────────────────────────────────
+
+/** Ranking entry: highest points wins; a racer with no stats at all (never
+ * showed up) is a DNF. */
+export function mathRaceEntry(stats) {
+  if (!stats) return { sortKey: null, score: null }
+  const s = normalizeMathStats(stats)
+  return { sortKey: [-s.score], score: s.score }
+}
+
+export function mathRow(stats) {
+  const s = normalizeMathStats(stats)
+  return {
+    primary: `${s.score} PTS`,
+    secondary: `${s.correct}✓ ${s.wrong}✗`,
+    progress: null,
+    status: stats ? 'racing' : 'idle',
+    detail: `Q${s.q + 1}`,
+  }
+}

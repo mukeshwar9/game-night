@@ -1330,13 +1330,18 @@ body::before {
   100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
 }
 
-/* Respect users who ask for less motion: kill animations + the scanline overlay */
+/* Respect users who ask for less motion: kill animations + the scanline overlay.
+   Scoped off when Settings → Look & feel forces full motion (lib/displayPrefs.js
+   sets data-motion="full"), so the explicit in-app choice beats the OS default.
+   Before JS runs (no data-motion yet) the OS preference still applies. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  :root:not([data-motion="full"]) *,
+  :root:not([data-motion="full"]) *::before,
+  :root:not([data-motion="full"]) *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
-  body::after { display: none; }
+  :root:not([data-motion="full"]) body::after { display: none; }
 }

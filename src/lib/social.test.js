@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   randomFriendCode, normalizeFriendCode, isValidFriendCode,
-  CODE_ALPHABET, CODE_LENGTH,
+  CODE_ALPHABET, CODE_LENGTH, isGuestStyleName, freshInvites, INVITE_TTL_MS, guestName,
+  publicProfile, mergeFriendProfile,
 } from './social'
 
 describe('friend codes', () => {
@@ -55,5 +56,59 @@ describe('friend codes', () => {
     for (let i = 0; i < 50; i++) {
       expect(isValidFriendCode(normalizeFriendCode(randomFriendCode()))).toBe(true)
     }
+  })
+})
+
+describe('isGuestStyleName', () => {
+  it('flags empty and placeholder names', () => {
+    expect(isGuestStyleName('')).toBe(true)
+    expect(isGuestStyleName(null)).toBe(true)
+    expect(isGuestStyleName('Guest-AB12')).toBe(true)
+    expect(isGuestStyleName(' guest-ab12 ')).toBe(true)
+    expect(isGuestStyleName(guestName('xyz9abcdef'))).toBe(true)
+  })
+
+  it('accepts chosen names, including ones that merely start with Guest', () => {
+    expect(isGuestStyleName('Alice')).toBe(false)
+    expect(isGuestStyleName('Guest-ABCDE')).toBe(false)
+    expect(isGuestStyleName('Guesty')).toBe(false)
+  })
+})
+
+describe('freshInvites', () => {
+  const now = 1_000_000_000
+  it('drops invites older than 24 h and ones without a timestamp, newest first', () => {
+    const val = {
+      a: { gameId: 'A', at: now - 1000 },
+      b: { gameId: 'B', at: now - INVITE_TTL_MS - 1 },
+      c: { gameId: 'C', at: now - 10 },
+      d: { gameId: 'D' },
+      e: { gameId: 'E', at: now - INVITE_TTL_MS },
+    }
+    expect(freshInvites(val, now).map(i => i.id)).toEqual(['c', 'a', 'e'])
+  })
+
+  it('handles an empty node', () => {
+    expect(freshInvites(null, now)).toEqual([])
+  })
+})
+
+describe('profile split', () => {
+  it('publicProfile keeps only the public fields, trimmed and capped', () => {
+    const p = { displayName: '  Ada  ', avatar: 'kid.p1', code: 'ABC234', stats: { wins: 3 }, online: true }
+    expect(publicProfile(p, 5)).toEqual({ displayName: 'Ada', nameLower: 'ada', avatar: 'kid.p1', updatedAt: 5 })
+    expect(publicProfile({ displayName: 'x'.repeat(60) }, 5).displayName).toHaveLength(40)
+  })
+
+  it('publicProfile has nothing to publish without a name', () => {
+    expect(publicProfile(null)).toBeNull()
+    expect(publicProfile({ displayName: '   ', avatar: 'kid.p1' })).toBeNull()
+  })
+
+  it('mergeFriendProfile adds presence, and reads a missing presence as offline', () => {
+    const pub = { displayName: 'Ada', avatar: 'kid.p1' }
+    expect(mergeFriendProfile(pub, { online: true, lastSeen: 9 })).toEqual({ ...pub, online: true, lastSeen: 9 })
+    expect(mergeFriendProfile(pub, null)).toEqual({ ...pub, online: false, lastSeen: null })
+    expect(mergeFriendProfile(null, null)).toBeNull()
   })
 })

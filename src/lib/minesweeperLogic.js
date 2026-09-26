@@ -159,3 +159,50 @@ export function generateBoard(seed) {
   const mines = Array(CELL_COUNT).fill(false)
   return { mines, counts: Array(CELL_COUNT).fill(0), opening: [] }
 }
+
+// ── N-player race hooks (see raceLogic.js) ────────────────────────────────
+// Stats per racer: { revealed, dead?, done?, doneAt? } — COUNTS only; revealed
+// positions never leave the racer's client.
+
+// Base DNF cutoff for a live race (scaled by the room's timer setting). Two
+// idle/stuck players would otherwise leave a round open forever.
+export const MINES_RACE_MS = 5 * 60 * 1000
+
+export function isMinesDone(stats) {
+  return !!stats?.done || !!stats?.dead
+}
+
+/**
+ * Ranking tiers: cleared racers first (fastest clear wins), then racers still
+ * sweeping at the end (most cells), then detonated racers (most cells). A
+ * mine therefore always drops you below everyone who didn't hit one — the 2P
+ * "hit a mine and your opponent wins" rule, generalised. No stats = DNF.
+ */
+export function minesRaceEntry(stats) {
+  if (!stats) return { sortKey: null, score: null }
+  const revealed = Math.max(0, Number(stats.revealed) || 0)
+  if (stats.done) return { sortKey: [0, Number(stats.doneAt) || 0], score: SAFE_CELLS }
+  if (stats.dead) return { sortKey: [2, -revealed], score: revealed }
+  return { sortKey: [1, -revealed], score: revealed }
+}
+
+/**
+ * The ranking can no longer change once at most one racer is still sweeping:
+ * that racer already sits below every clear and above every detonation.
+ */
+export function minesRaceDecided(statsById, racers) {
+  const list = racers || []
+  if (list.length < 2) return false
+  return list.filter(id => !isMinesDone(statsById?.[id])).length <= 1
+}
+
+export function minesRow(stats) {
+  const revealed = Math.max(0, Number(stats?.revealed) || 0)
+  return {
+    primary: `${stats?.done ? SAFE_CELLS : revealed}/${SAFE_CELLS}`,
+    secondary: stats?.done ? 'CLEARED' : stats?.dead ? 'BOOM' : '',
+    progress: stats?.done ? 1 : revealed / SAFE_CELLS,
+    status: stats?.done ? 'done' : stats?.dead ? 'out' : stats ? 'racing' : 'idle',
+    detail: stats?.done ? '✓' : stats?.dead ? '💥' : `${Math.round((revealed / SAFE_CELLS) * 100)}%`,
+  }
+}

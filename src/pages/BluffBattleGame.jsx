@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
+import { normalizeList } from '../lib/normalize'
 import {
   DICE_PER_PLAYER,
   FACES,
@@ -37,16 +38,14 @@ function normalizeRound(raw) {
   }
 }
 
+// Append-only lists read by numeric key (never Object.values — see
+// .claude/rules/firebase-rules.md).
 function toBids(raw) {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw
-  return Object.values(raw)
+  return normalizeList(raw)
 }
 
 function toDice(raw) {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw
-  return Object.values(raw).map(Number)
+  return normalizeList(raw).map(Number)
 }
 
 function Die({ value, accent }) {

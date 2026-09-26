@@ -1,3 +1,4 @@
+// @ts-check
 // Pure Snake Battle simulation — no DOM, no network, no React. Deterministic
 // movement (food spawn uses RNG, but the host is authoritative so the guest
 // never simulates). Two snakes duel on a GRID×GRID arena; the last snake

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { YV_ROW_LENGTHS, YV_CELLS, yvIndexOf, normalizeYvBoard } from '../lib/yavalathLogic'
 import { cn } from '@/lib/utils'
+import { cellLabel } from '../lib/a11yLabels'
 
 // YAVALATH — 61-hex hexagon. FOUR in a row wins, THREE in a row LOSES.
 // Placement game (Hex-style): taps report the cell index. Pointy-top hexes
@@ -64,7 +65,15 @@ export default function YavalathBoard({
                 return (
                   <button
                     key={col}
-                    aria-label={`yv-hex-${row}-${col}${v ? `-${v}` : ''}`}
+                    data-testid={`yv-hex-${row}-${col}${v ? `-${v}` : ''}`}
+                    aria-label={cellLabel({
+                      row, col, occupant: v,
+                      extra: [
+                        !v && isSuicide && 'makes three, loses',
+                        isWin && 'winning line',
+                        !isWin && isLast && 'last move',
+                      ],
+                    })}
                     disabled={disabled}
                     onClick={() => !disabled && onMove(cell)}
                     className={cn(

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { QRT_SIZE, giveOptions } from '../lib/quartoLogic'
 import { cn } from '@/lib/utils'
+import { cellLabel, quartoPieceLabel } from '../lib/a11yLabels'
 
 // Attribute glyph for a piece id: bit0 tall/short, bit1 round/square,
 // bit2 hollow/solid, bit3 light/dark. Declared outside render (React
@@ -70,6 +71,7 @@ export default function QuartoBoard({
           {pending != null && (
             <span className="inline-flex items-center justify-center w-8 h-8 rounded border-2 border-retro-cta bg-retro-tint-cta/20">
               <Piece v={pending} small />
+              <span className="sr-only">Piece to place: {quartoPieceLabel(pending)}</span>
             </span>
           )}
         </div>
@@ -84,7 +86,12 @@ export default function QuartoBoard({
             return (
               <button
                 key={i}
-                aria-label={`qrt-cell-${i}${cell !== '' ? `-${cell}` : ''}`}
+                data-testid={`qrt-cell-${i}${cell !== '' ? `-${cell}` : ''}`}
+                aria-label={cellLabel({
+                  row: Math.floor(i / QRT_SIZE), col: i % QRT_SIZE,
+                  occupant: quartoPieceLabel(cell),
+                  extra: [isPlacing && 'chosen', isLast && 'last move'],
+                })}
                 disabled={disabled}
                 onClick={() => tapPlace(i)}
                 className={cn(
@@ -125,7 +132,8 @@ export default function QuartoBoard({
                   pendingCell != null && 'cursor-pointer hover:brightness-125 active:scale-95',
                   'border-retro-border/60 bg-retro-card hover:border-retro-cta',
                 )}
-                aria-label={`qrt-give-${v}`}
+                data-testid={`qrt-give-${v}`}
+                aria-label={`Give ${quartoPieceLabel(v)}`}
               >
                 <Piece v={v} small />
               </button>

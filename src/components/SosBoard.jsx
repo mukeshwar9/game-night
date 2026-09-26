@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { SOS_SIZE } from '../lib/sosLogic'
+import { cellLabel } from '../lib/a11yLabels'
 
 export default function SosBoard({ board, onMove, disabled, currentTurn, sosLines, lastMove = null }) {
   const [selectedLetter, setSelectedLetter] = useState('S')
@@ -38,7 +39,14 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
     cells.push(
       <button
         key={i}
-        aria-label={`sos-cell-${row}-${col}`}
+        data-testid={`sos-cell-${row}-${col}`}
+        aria-label={cellLabel({
+          row, col, occupant: letter,
+          extra: [
+            scoredByX && scoredByO ? 'in SOS by X and O' : scoredByX ? 'in SOS by X' : scoredByO && 'in SOS by O',
+            i === lastMove && 'last move',
+          ],
+        })}
         disabled={!isClickable}
         onClick={() => isClickable && onMove({ index: i, letter: selectedLetter })}
         className={cn(
@@ -128,7 +136,8 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
         {/* Persistent armed-letter badge, anchored to the board's corner */}
         <div
           className="absolute -top-2 -right-2 w-7 h-7 flex items-center justify-center rounded-full border-2 border-retro-cta bg-retro-card font-pixel text-[11px] text-retro-cta shadow-neon-cta"
-          aria-label={`armed letter ${selectedLetter}`}
+          role="img"
+          aria-label={`Armed letter ${selectedLetter}`}
         >
           {selectedLetter}
         </div>
@@ -139,7 +148,9 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
         {['S', 'O'].map(letter => (
           <button
             key={letter}
-            aria-label={`pick-letter-${letter}`}
+            data-testid={`pick-letter-${letter}`}
+            aria-label={`Place ${letter}`}
+            aria-pressed={selectedLetter === letter}
             disabled={disabled}
             onClick={() => !disabled && setSelectedLetter(letter)}
             className={cn(

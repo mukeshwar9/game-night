@@ -1,11 +1,5 @@
-import Board from '../components/Board'
-import ConnectFourBoard from '../components/ConnectFourBoard'
-import DotsAndBoxesBoard from '../components/DotsAndBoxesBoard'
-import SosBoard from '../components/SosBoard'
-import SimonBoard from '../components/SimonBoard'
+import { lazyWithRetry } from './lazyWithRetry'
 // ChimpBoard is used only from ChimpGame (custom component), not directly via registry
-import VisualMemoryBoard from '../components/VisualMemoryBoard'
-import BlockadeBoard from '../components/BlockadeBoard'
 import {
   TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon,
@@ -19,60 +13,51 @@ import {
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
+  HeadsUpIcon, ChameleonIcon,
 } from '../components/GameIcons'
+import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
   SIM_EDGE_COUNT, getSimWinner, getMoveIndex as simMoveIndex,
 } from './simLogic'
-import SimBoard from '../components/SimBoard'
 import {
   CHOMP_CELL_COUNT, applyChompMove, getChompWinner,
 } from './chompLogic'
-import ChompBoard from '../components/ChompBoard'
 import {
   BT_CELL_COUNT, INITIAL_BREAKTHROUGH,
   applyBreakthroughMove, getBreakthroughWinner,
 } from './breakthroughLogic'
-import BreakthroughBoard from '../components/BreakthroughBoard'
 import {
   AX_CELL_COUNT, INITIAL_ATAXX,
   applyAtaxxMove, getAtaxxWinner,
 } from './ataxxLogic'
-import AtaxxBoard from '../components/AtaxxBoard'
 import {
   KM_CELL_COUNT, INITIAL_KAMISADO, INITIAL_KAMISADO_TOWERS,
   applyKamisadoMove,
 } from './kamisadoLogic'
-import KamisadoBoard from '../components/KamisadoBoard'
 import {
   ON_CELL_COUNT, INITIAL_ONITAMA, dealCards,
   applyOnitamaMove, normalizeOnBoard,
 } from './onitamaLogic'
-import OnitamaBoard from '../components/OnitamaBoard'
 import {
   QRT_CELL_COUNT, applyQuartoMove, dealQuarto,
   normalizeQuartoBoard,
 } from './quartoLogic'
-import QuartoBoard from '../components/QuartoBoard'
 import {
   ST_CELL_COUNT, INITIAL_SANTORINI,
   applyStMove, normalizeStBoard, normalizeStWorkers,
 } from './santoriniLogic'
-import SantoriniBoard from '../components/SantoriniBoard'
 import {
   LOA_CELL_COUNT, INITIAL_LOA,
   applyLoaMove, normalizeLoaBoard,
 } from './loaLogic'
-import LoaBoard from '../components/LoaBoard'
 import {
   YV_CELL_COUNT, applyYavalathMove, normalizeYvBoard,
 } from './yavalathLogic'
-import YavalathBoard from '../components/YavalathBoard'
 import {
   UT_CELL_COUNT, UT_BOARD_COUNT, applyUltimateMove, getUltimateWinner, normalizeUWon,
 } from './ultimateTttLogic'
-import UltimateTttBoard from '../components/UltimateTttBoard'
 import { applyConnectFourPopMove, bottomIndex } from './connectFourPopLogic'
 import {
   DB_EDGE_COUNT,
@@ -105,14 +90,10 @@ import {
   generateVmPattern,
   applyVmMove,
 } from './visualMemoryLogic'
-import { getGomokuWinner, GOMOKU_CELL_COUNT } from './gomokuLogic'
-import GomokuBoard from '../components/GomokuBoard'
+import { getGomokuWinner, GOMOKU_CELL_COUNT, applyGomokuMove, getMoveIndex as getGomokuMoveIndex } from './gomokuLogic'
 import { REVERSI_SIZE, reversiInitialBoard, applyReversiMove, hasAnyMove, getReversiWinner } from './reversiLogic'
-import ReversiBoard from '../components/ReversiBoard'
 import { OC_CELL_COUNT, applyOrderChaosMove, getOrderChaosWinner } from './orderChaosLogic'
-import OrderChaosBoard from '../components/OrderChaosBoard'
 import { CR_CELL_COUNT, CR_CELL_COUNT_CLASSIC, CR_COLS, CR_ROWS, CR_COLS_CLASSIC, CR_ROWS_CLASSIC, CR_SYMBOLS_4, applyChainReactionMove } from './chainReactionLogic'
-import ChainReactionBoard from '../components/ChainReactionBoard'
 import {
   BK_CELL_COUNT,
   BK_WALL_SLOT_COUNT,
@@ -121,10 +102,9 @@ import {
   BK_START_O,
   applyBlockadeMove,
 } from './blockadeLogic'
-import { applyDiceMove } from './diceLogic'
-import DiceBoard from '../components/DiceBoard'
+import { applyDiceMove, rollFaceAsync, rollFacePairAsync } from './diceLogic'
+import { runPigSeedProtocol } from '../hooks/room/pigSeedProtocol'
 import { seatOrder as seatOrderWL, randomSpectrumIndex } from './wavelengthLogic'
-import PairsBoard from '../components/PairsBoard'
 import {
   PAIRS_CELL_COUNT,
   generatePairsDeck,
@@ -134,8 +114,8 @@ import {
   getPairsWinner,
 } from './pairsLogic'
 import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
+import { scaledMs } from './timerScale'
 import { ANSWER_MS as HERD_ANSWER_MS } from './herdLogic'
-import MancalaBoard from '../components/MancalaBoard'
 import {
   INITIAL_PITS,
   normalizePits,
@@ -146,24 +126,39 @@ import {
 } from './checkersLogic'
 import { getTicTacToe4Winner } from './tictactoe4Logic'
 import { applyDiceBigMove } from './diceLogic'
-import HexBoard from '../components/HexBoard'
-import { getHexWinner, HEX_CELL_COUNT } from './hexLogic'
+import { getHexWinner, HEX_CELL_COUNT, applyHexMove, getMoveIndex as getHexMoveIndex } from './hexLogic'
 import { generateNumber } from './numberMemoryLogic'
 
-const PASSAGES = [
-  "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. A wizard's job is to vex chumps quickly in fog.",
-  "To be yourself in a world that is constantly trying to make you something else is the greatest accomplishment. Never stop being who you are.",
-  "Success is not final, failure is not fatal. It is the courage to continue that counts. Keep moving forward and never give up on your dreams.",
-  "The only way to do great work is to love what you do. If you have not found it yet, keep looking. Do not settle for less than what makes you happy.",
-  "In the middle of every difficulty lies opportunity. Those who dare to fail greatly can achieve greatly. Believe in yourself and your abilities.",
-  "Typing fast requires practice, focus, and the right technique. Keep your fingers on the home row, stay relaxed, and let your muscle memory do the work.",
-  "The best time to plant a tree was twenty years ago. The second best time is now. Start today and your future self will thank you for the effort.",
-  "We are what we repeatedly do. Excellence, then, is not an act but a habit. Small daily improvements over time lead to remarkable results.",
-  "All great things are simple, and many can be expressed in single words such as freedom, justice, honor, duty, mercy, and hope. These words guide us.",
-  "Life is what happens when you are busy making other plans. Enjoy the little things, for one day you may look back and realize they were the big things.",
-  "It does not matter how slowly you go as long as you do not stop. Perseverance and patience are the keys to mastering any skill worth having.",
-  "The secret of getting ahead is getting started. Break your tasks into small steps and tackle one at a time. Progress, not perfection, is the goal.",
-]
+// Board and page components load on demand: the registry sits in the entry
+// chunk (Home renders the picker from it), so eager imports here would pull
+// every game's UI into the first download. lazyWithRetry reloads once when
+// a chunk from an older deploy is gone.
+const Board = lazyWithRetry(() => import('../components/Board'))
+const ConnectFourBoard = lazyWithRetry(() => import('../components/ConnectFourBoard'))
+const DotsAndBoxesBoard = lazyWithRetry(() => import('../components/DotsAndBoxesBoard'))
+const SosBoard = lazyWithRetry(() => import('../components/SosBoard'))
+const SimonBoard = lazyWithRetry(() => import('../components/SimonBoard'))
+const VisualMemoryBoard = lazyWithRetry(() => import('../components/VisualMemoryBoard'))
+const BlockadeBoard = lazyWithRetry(() => import('../components/BlockadeBoard'))
+const SimBoard = lazyWithRetry(() => import('../components/SimBoard'))
+const ChompBoard = lazyWithRetry(() => import('../components/ChompBoard'))
+const BreakthroughBoard = lazyWithRetry(() => import('../components/BreakthroughBoard'))
+const AtaxxBoard = lazyWithRetry(() => import('../components/AtaxxBoard'))
+const KamisadoBoard = lazyWithRetry(() => import('../components/KamisadoBoard'))
+const OnitamaBoard = lazyWithRetry(() => import('../components/OnitamaBoard'))
+const QuartoBoard = lazyWithRetry(() => import('../components/QuartoBoard'))
+const SantoriniBoard = lazyWithRetry(() => import('../components/SantoriniBoard'))
+const LoaBoard = lazyWithRetry(() => import('../components/LoaBoard'))
+const YavalathBoard = lazyWithRetry(() => import('../components/YavalathBoard'))
+const UltimateTttBoard = lazyWithRetry(() => import('../components/UltimateTttBoard'))
+const GomokuBoard = lazyWithRetry(() => import('../components/GomokuBoard'))
+const ReversiBoard = lazyWithRetry(() => import('../components/ReversiBoard'))
+const OrderChaosBoard = lazyWithRetry(() => import('../components/OrderChaosBoard'))
+const ChainReactionBoard = lazyWithRetry(() => import('../components/ChainReactionBoard'))
+const DiceBoard = lazyWithRetry(() => import('../components/DiceBoard'))
+const PairsBoard = lazyWithRetry(() => import('../components/PairsBoard'))
+const MancalaBoard = lazyWithRetry(() => import('../components/MancalaBoard'))
+const HexBoard = lazyWithRetry(() => import('../components/HexBoard'))
 
 // generateNumber moved to numberMemoryLogic.js (single tested source).
 
@@ -596,6 +591,7 @@ export const GAME_TYPES = [
     category: 'word',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
     custom: true,
+    Page: lazyWithRetry(() => import('../pages/HangmanGame')),
   },
   {
     type: 'dotsandboxes', label: 'DOTS & BOXES',
@@ -679,6 +675,7 @@ export const GAME_TYPES = [
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
     custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/ChimpGame')),
   },
   {
     type: 'numbermemory', label: 'NUMBER MEMORY',
@@ -687,6 +684,7 @@ export const GAME_TYPES = [
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
     custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/NumberMemoryGame')),
   },
   {
     type: 'reaction', label: 'REACTION TIME',
@@ -694,7 +692,9 @@ export const GAME_TYPES = [
     badge: 'RT', maxWidth: 'max-w-xs',
     category: 'reflex',
     durationMin: 1, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
+    // N-player race (raceLogic.js / RaceShell): a party room of 2–8 racers.
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/ReactionGame')),
   },
   {
     type: 'aim', label: 'AIM TRAINER',
@@ -702,19 +702,17 @@ export const GAME_TYPES = [
     badge: 'AT', maxWidth: 'max-w-xs',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/AimTrainerGame')),
   },
   {
     type: 'typing', label: 'TYPING RACE',
-    desc: "outtype your opponent's ghost", Icon: TypingIcon,
+    desc: 'outtype the whole room', Icon: TypingIcon,
     badge: 'TR', maxWidth: 'max-w-sm',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
-    // M-52: TypingGame renders its own progress bars (names + live WPM
-    // progress) right above the passage — Game.jsx's generic PlayerCard grid
-    // would just duplicate it and eat vertical space the keyboard needs.
-    hidePlayerCards: true,
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/TypingGame')),
   },
   {
     type: 'math', label: 'MENTAL MATH',
@@ -722,11 +720,8 @@ export const GAME_TYPES = [
     badge: 'MM', maxWidth: 'max-w-xs',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
-    // M-26: MathGame renders its own ScoreBar (names + live score) right
-    // above the question — Game.jsx's generic PlayerCard grid would just
-    // duplicate it and eat vertical space the NumberPad needs.
-    hidePlayerCards: true,
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/MathGame')),
   },
   {
     type: 'arrows', label: 'ARROWS PUZZLE',
@@ -736,6 +731,7 @@ export const GAME_TYPES = [
     addedAt: '2026-09-19',
     durationMin: 4, tags: ['quick', 'skill'],
     custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/ArrowsGame')),
     matchTarget: 2,
     nextRound: arrowsNextRound,
     hidePlayerCards: true,
@@ -747,6 +743,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     durationMin: 5, tags: ['frantic', 'skill'], solo: true,
     custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/PongGame')),
   },
   {
     type: 'snake', label: 'SNAKE BATTLE',
@@ -755,6 +752,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     durationMin: 4, tags: ['frantic', 'skill'], solo: true,
     custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/SnakeGame')),
   },
   {
     type: 'tron', label: 'TRON',
@@ -764,6 +762,7 @@ export const GAME_TYPES = [
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
     custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/TronGame')),
   },
   {
     type: 'sumo', label: 'SUMO ARENA',
@@ -773,6 +772,7 @@ export const GAME_TYPES = [
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
     custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/SumoGame')),
   },
   {
     type: 'spaceduel', label: 'SPACE DUEL',
@@ -782,6 +782,7 @@ export const GAME_TYPES = [
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
     custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/SpaceduelGame')),
   },
   {
     type: 'paint', label: 'PAINT TURF',
@@ -791,6 +792,7 @@ export const GAME_TYPES = [
     addedAt: '2026-07-11',
     durationMin: 3, tags: ['quick', 'frantic', 'skill'], solo: true,
     custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/PaintGame')),
   },
   {
     type: 'pacmac', label: 'PAC MAC',
@@ -800,6 +802,7 @@ export const GAME_TYPES = [
     addedAt: '2026-08-14',
     durationMin: 3, tags: ['frantic', 'skill'], solo: true,
     custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/PacmacGame')),
     hidePlayerCards: true,
   },
   {
@@ -824,10 +827,42 @@ export const GAME_TYPES = [
     badge: 'GO', maxWidth: 'max-w-md',
     category: 'board',
     durationMin: 8, tags: ['thinky'], solo: true,
+    classicLabel: 'FREESTYLE',
+    classicBlurb: 'Five in a row on 15×15. No opening rule — the first stone is a real edge.',
     boardSize: GOMOKU_CELL_COUNT,
     getMoveIndex: (board, i) => (board[i] ? -1 : i),
     getWinner: getGomokuWinner,
     BoardComponent: GomokuBoard,
+  },
+  {
+    type: 'gomokuswap', label: 'GOMOKU SWAP',
+    desc: 'five in a row, swap rule', Icon: GomokuIcon,
+    badge: 'GS', maxWidth: 'max-w-md',
+    category: 'board', addedAt: '2026-09-26',
+    durationMin: 8, tags: ['thinky'], solo: true,
+    variantOf: 'gomoku', variantLabel: 'SWAP',
+    variantBlurb: 'After the first stone, the other player may take it as their own instead of moving — so the opener has to play fair.',
+    boardSize: GOMOKU_CELL_COUNT,
+    // Swap (pie) rule: on move 2 the board may emit { action: 'swap' }.
+    // `pieSwap` marks the round's one swap as spent; every placement clears
+    // it (gomokuLogic.js).
+    getMoveIndex: getGomokuMoveIndex,
+    getWinner: getGomokuWinner,
+    BoardComponent: GomokuBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const moved = applyGomokuMove(board, move, symbol, !!game.pieSwap)
+      if (!moved) return null
+      return {
+        updates: {
+          board: moved.board,
+          currentTurn: symbol === 'X' ? 'O' : 'X',
+          lastMove: moved.index,
+          pieSwap: moved.swapped ? true : null,
+        },
+        result: moved.result,
+      }
+    },
+    boardProps: (game) => ({ swapRule: true, pieSwap: !!game.pieSwap }),
   },
   {
     type: 'reversi', label: 'REVERSI',
@@ -870,6 +905,9 @@ export const GAME_TYPES = [
       return index
     },
     BoardComponent: ChainReactionBoard,
+    // M-46: the tallest non-realtime board — Game.jsx tightens the vertical
+    // rhythm so board+status still fit a 667px viewport (iPhone SE).
+    compactLayout: true,
     applyMove: ({ board, game, index, symbol }) =>
       applyChainReactionMove({ board, game, index, symbol, cols: CR_COLS, rows: CR_ROWS }),
     boardProps: (game) => ({ crLastMove: game.crLastMove ?? null, cols: CR_COLS, rows: CR_ROWS }),
@@ -903,6 +941,7 @@ export const GAME_TYPES = [
     // N-player variant: rides the uid-keyed room model (lobby → host start),
     // NOT the X/O seat flow. Colors deal by join order: X O A B → p1..p4.
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/ChainReaction4Game')),
     startRound: (players) => {
       // Same seat order the lobby displays (playersToSeatList): joinedAt, then
       // uid tiebreak so identical timestamps still deal deterministically.
@@ -941,6 +980,9 @@ export const GAME_TYPES = [
       return -1
     },
     BoardComponent: BlockadeBoard,
+    // Pawn moves never touch `board` (only wall placements do), so opponent
+    // moves are detected by this counter instead of the filled-cell count.
+    moveCountKey: 'blockadeMoves',
     // Full-move applier lives in blockadeLogic (pure, tested) — includes the
     // trapped-player skip house rule the old inline copy here lacked.
     applyMove: applyBlockadeMove,
@@ -981,6 +1023,10 @@ export const GAME_TYPES = [
     boardSize: 0,
     getMoveIndex: () => 0,
     BoardComponent: DiceBoard,
+    // Rolls come from the room's shared seed (commit-reveal coin flip in
+    // roomEffect); Game.jsx gates rolls on it and verifies the opponent's.
+    rollFace: rollFaceAsync,
+    roomEffect: runPigSeedProtocol,
     applyMove: ({ game, move, symbol }) => {
       const action = typeof move === 'string' ? move : move?.action
       const face = typeof move === 'string' ? undefined : move?.face
@@ -1005,6 +1051,10 @@ export const GAME_TYPES = [
     boardSize: 0,
     getMoveIndex: () => 0,
     BoardComponent: DiceBoard,
+    // Rolls come from the room's shared seed (commit-reveal coin flip in
+    // roomEffect); Game.jsx gates rolls on it and verifies the opponent's.
+    rollFace: rollFacePairAsync,
+    roomEffect: runPigSeedProtocol,
     applyMove: ({ game, move, symbol }) => {
       const action = typeof move === 'string' ? move : move?.action
       const face = typeof move === 'string' ? undefined : move?.face
@@ -1028,9 +1078,26 @@ export const GAME_TYPES = [
     addedAt: '2026-08-21',
     durationMin: 8, tags: ['thinky'], solo: true,
     boardSize: HEX_CELL_COUNT,
-    getMoveIndex: (board, i) => (board[i] ? -1 : i),
+    // Swap (pie) rule is standard: after the opening stone the second player
+    // may emit { action: 'swap' } instead of a cell. `pieSwap` marks the
+    // round's one swap as spent; every placement clears it (hexLogic.js).
+    getMoveIndex: getHexMoveIndex,
     getWinner: getHexWinner,
     BoardComponent: HexBoard,
+    applyMove: ({ board, game, move, symbol }) => {
+      const moved = applyHexMove(board, move, symbol, !!game.pieSwap)
+      if (!moved) return null
+      return {
+        updates: {
+          board: moved.board,
+          currentTurn: symbol === 'X' ? 'O' : 'X',
+          lastMove: moved.index,
+          pieSwap: moved.swapped ? true : null,
+        },
+        result: moved.result,
+      }
+    },
+    boardProps: (game) => ({ swapRule: true, pieSwap: !!game.pieSwap }),
   },
   {
     type: 'minesweeper', label: 'MINE RACE',
@@ -1039,7 +1106,8 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-08-21',
     durationMin: 3, tags: ['quick', 'skill'], solo: true,
-    custom: true, simultaneous: true,
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/MineRaceGame')),
   },
   {
     type: 'herd', label: 'HERD MIND',
@@ -1049,6 +1117,7 @@ export const GAME_TYPES = [
     addedAt: '2026-08-21',
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/HerdGame')),
     startRound: () => ({
       round: {
         phase: 'answering',
@@ -1067,6 +1136,7 @@ export const GAME_TYPES = [
     addedAt: '2026-08-21',
     durationMin: 6, tags: ['quick', 'thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/TriviaGame')),
     startRound: () => ({
       round: {
         phase: 'question',
@@ -1088,6 +1158,7 @@ export const GAME_TYPES = [
     addedAt: '2026-08-21',
     durationMin: 8, tags: ['thinky'], solo: true,
     custom: true,
+    Page: lazyWithRetry(() => import('../pages/BattleshipGame')),
   },
   {
     type: 'mancala', label: 'MANCALA',
@@ -1133,6 +1204,7 @@ export const GAME_TYPES = [
     addedAt: '2026-08-22',
     durationMin: 8, tags: ['thinky'], solo: true,
     custom: true,
+    Page: lazyWithRetry(() => import('../pages/CheckersGame')),
   },
   {
     type: 'airhockey', label: 'AIR HOCKEY',
@@ -1142,6 +1214,7 @@ export const GAME_TYPES = [
     addedAt: '2026-08-22',
     durationMin: 5, tags: ['skill'], solo: true,
     custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/AirHockeyGame')),
   },
   {
     type: 'artillery', label: 'ARTILLERY',
@@ -1151,6 +1224,7 @@ export const GAME_TYPES = [
     addedAt: '2026-08-22',
     durationMin: 8, tags: ['skill', 'thinky'], solo: true,
     custom: true,
+    Page: lazyWithRetry(() => import('../pages/ArtilleryGame')),
   },
   {
     type: 'twotruths', label: 'TWO TRUTHS',
@@ -1159,6 +1233,7 @@ export const GAME_TYPES = [
     category: 'word',
     durationMin: 3, tags: ['quick', 'thinky'],
     custom: true,
+    Page: lazyWithRetry(() => import('../pages/TwoTruthsGame')),
   },
   {
     type: 'bluff', label: 'BLUFF BATTLE',
@@ -1167,6 +1242,7 @@ export const GAME_TYPES = [
     category: 'dicebluff',
     durationMin: 5, tags: ['luck', 'thinky'],
     custom: true,
+    Page: lazyWithRetry(() => import('../pages/BluffBattleGame')),
   },
   {
     type: 'wavelength', label: 'WAVELENGTH',
@@ -1175,6 +1251,7 @@ export const GAME_TYPES = [
     category: 'party',
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/WavelengthGame')),
     startRound: (players) => ({
       round: {
         clueGiver: seatOrderWL(players)[0] ?? null,
@@ -1191,6 +1268,7 @@ export const GAME_TYPES = [
     category: 'party',
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/FibbageGame')),
     startRound: () => ({ round: { phase: 'lying', promptIndex: 0 } }),
   },
   {
@@ -1200,7 +1278,30 @@ export const GAME_TYPES = [
     category: 'party',
     durationMin: 10, tags: ['thinky'], solo: true,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/SpyfairGame')),
     // no startRound — SpyfairGame drives its own round start
+  },
+  {
+    type: 'headsup', label: 'HEADS UP',
+    desc: 'act it out on the call', Icon: HeadsUpIcon,
+    badge: 'HU', maxWidth: 'max-w-sm',
+    category: 'party',
+    addedAt: '2026-09-26',
+    durationMin: 10, tags: ['party'],
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/HeadsUpGame')),
+    // no startRound — HeadsUpGame deals its own sealed turns
+  },
+  {
+    type: 'chameleon', label: 'CHAMELEON',
+    desc: 'blend in, or spot who can’t', Icon: ChameleonIcon,
+    badge: 'CM', maxWidth: 'max-w-sm',
+    category: 'party',
+    addedAt: '2026-09-26',
+    durationMin: 12, tags: ['thinky', 'party'],
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/ChameleonGame')),
+    // no startRound — ChameleonGame deals its own sealed rounds
   },
   {
     type: 'wordduel', label: 'WORD DUEL',
@@ -1210,6 +1311,7 @@ export const GAME_TYPES = [
     addedAt: '2026-07-04',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
     custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/WordDuelGame')),
   },
   {
     type: 'wordcoop', label: 'WORD CO-OP',
@@ -1219,6 +1321,7 @@ export const GAME_TYPES = [
     addedAt: '2026-09-18',
     durationMin: 4, tags: ['quick', 'thinky'], solo: false,
     custom: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/WordCoopGame')),
   },
   {
     type: 'wordrace', label: 'WORD RACE',
@@ -1228,6 +1331,7 @@ export const GAME_TYPES = [
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
     custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/WordRaceGame')),
   },
   {
     type: 'wordhunt', label: 'WORD HUNT',
@@ -1237,6 +1341,7 @@ export const GAME_TYPES = [
     addedAt: '2026-07-11',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
     custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/WordHuntGame')),
   },
   {
     type: 'password', label: 'PASSWORD',
@@ -1246,6 +1351,7 @@ export const GAME_TYPES = [
     addedAt: '2026-09-18',
     durationMin: 6, tags: ['quick', 'thinky'], solo: true,
     custom: true,
+    Page: lazyWithRetry(() => import('../pages/PasswordGame')),
   },
   {
     type: 'anagrams', label: 'ANAGRAMS',
@@ -1255,6 +1361,7 @@ export const GAME_TYPES = [
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
     custom: true, simultaneous: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/AnagramsGame')),
   },
   {
     type: 'pairs', label: 'PAIRS',
@@ -1294,9 +1401,15 @@ export const GAME_TYPES = [
     addedAt: '2026-07-11',
     durationMin: 10, tags: ['thinky'],
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
-    startRound: (players) => {
-      const order = seatOrderSketch(players)
+    Page: lazyWithRetry(() => import('../pages/SketchGame')),
+    // `game` (the room) is passed by Game.jsx's START: offline seats are left
+    // out of the drawing order, and the first choose window follows the
+    // room's timer scale (null = timers off, the coordinator advances).
+    startRound: (players, game) => {
+      const online = Object.fromEntries(Object.entries(players || {}).filter(([, p]) => p?.online !== false))
+      const order = seatOrderSketch(Object.keys(online).length ? online : players)
       const startedAt = Date.now()
+      const chooseMs = scaledMs(SKETCH_CHOOSE_MS, game?.timerScale)
       return {
         round: {
           phase: 'choosing',
@@ -1305,10 +1418,32 @@ export const GAME_TYPES = [
           order,
           used: [],
           matchSeed: `${startedAt}:${Math.random().toString(36).slice(2)}`,
-          endsAt: startedAt + SKETCH_CHOOSE_MS,
+          endsAt: chooseMs == null ? null : startedAt + chooseMs,
         },
       }
     },
+  },
+  {
+    type: 'codewords', label: 'CODE WORDS',
+    desc: 'team clues, hidden agents', Icon: CodeWordsIcon,
+    badge: 'CW', maxWidth: 'max-w-lg',
+    category: 'party',
+    addedAt: '2026-09-26',
+    durationMin: 15, tags: ['thinky', 'party'], solo: false,
+    custom: true, nPlayer: true, minPlayers: 4, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/CodeWordsGame')),
+    // no startRound — CodeWordsGame deals its own boards (teams + sealed key)
+  },
+  {
+    type: 'justone', label: 'JUST ONE',
+    desc: 'co-op clues, duplicates cancel', Icon: JustOneIcon,
+    badge: 'J1', maxWidth: 'max-w-sm',
+    category: 'party',
+    addedAt: '2026-09-26',
+    durationMin: 15, tags: ['thinky', 'party'], solo: false,
+    custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/JustOneGame')),
+    // no startRound — JustOneGame deals its own sealed cards
   },
 ]
 
@@ -1373,7 +1508,7 @@ export const getPlayerTag = (cfg) =>
 // games clears the previous game's keys from Firebase.
 const FIELD_NULLS = {
   uWon: null, uActiveBoard: null,
-  passNote: null,
+  passNote: null, pieSwap: null,
   lastFrom: null, lastTo: null,
   sosLines: null,
   simonSequence: null, simonProgress: null,
@@ -1409,6 +1544,7 @@ const FIELD_NULLS = {
   diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceLast: null,
   diceRolls: null, diceRollIndex: null,
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
+  diceSeedCommitter: null, diceSeedResets: null, // Pig seed-loss recovery (pigSeedProtocol.js)
   bluffRound: null,
   pongScoreX: null, pongScoreO: null, signaling: null, matchLength: null,
   arrowsRound: null, arrowsLevel: null, arrowsCleared: null,
@@ -1443,6 +1579,9 @@ const FIELD_NULLS = {
   minesRevealedX: null, minesRevealedO: null,
   minesDeadX: null, minesDeadO: null,
   minesDoneX: null, minesDoneO: null,
+  // N-player races (raceLogic.js): the last round's ranking. The live round
+  // itself sits in `round`.
+  raceResult: null,
   herdCow: null,
   chatLog: null,
   // emote currently leaks across game switches — clear it too.
@@ -1462,6 +1601,13 @@ const FIELD_NULLS = {
   quartoUnplaced: null, quartoPending: null,
   // Santorini worker positions (heights live in `board`).
   santoriniWorkers: null,
+  // Game-night mode (src/lib/nightLogic.js): the finished match already
+  // counted into `night`, and players the host removed for this match. Both
+  // reset with every fresh round/match/switch. Room-level night keys —
+  // `night`, `queue`, `partyRoom`, `hostUid`, `locked`, `timerScale` — are
+  // deliberately NOT here: they survive switches and NEW MATCH.
+  nightMark: null,
+  kicked: null,
 }
 
 export function freshGameState(gameType, previous = null) {
@@ -1503,9 +1649,6 @@ export function freshGameState(gameType, previous = null) {
       chimpDoneX: false, chimpDoneO: false,
       chimpRoundStartedAt: Date.now() }
   }
-  if (gameType === 'reaction') {
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
-  }
   if (gameType === 'pong') {
     // currentTurn omitted (null) — Pong has no turns, so Game.jsx's move-sound
     // detection stays silent and the page drives its own audio.
@@ -1542,25 +1685,6 @@ export function freshGameState(gameType, previous = null) {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       pacmacScoreX: 0, pacmacScoreO: 0 }
   }
-  if (gameType === 'aim') {
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      aimScoreX: 0, aimScoreO: 0, aimHitsX: 0, aimHitsO: 0, aimFriendlyX: 0, aimFriendlyO: 0 }
-  }
-  if (gameType === 'typing') {
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      typingPassage: PASSAGES[Math.floor(Math.random() * PASSAGES.length)],
-      typingProgressX: 0, typingProgressO: 0 }
-  }
-  if (gameType === 'math') {
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      mathSeed: generateSeed(),
-      mathQIndexX: 0, mathQIndexO: 0, // per-player progression through the same seeded sequence
-      mathScoreX: 0, mathScoreO: 0,
-      mathStreakX: 0, mathStreakO: 0,
-      mathCorrectX: 0, mathCorrectO: 0,
-      mathWrongX: 0, mathWrongO: 0,
-    }
-  }
   if (gameType === 'numbermemory') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       numRound: { phase: 'showing', level: 1, number: generateNumber(1) } }
@@ -1595,7 +1719,8 @@ export function freshGameState(gameType, previous = null) {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: 'X',
       diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null,
       diceRolls: [], diceRollIndex: 0,
-      diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null }
+      diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
+      diceSeedCommitter: null, diceSeedResets: null }
   }
   if (gameType === 'battleship') {
     // currentTurn null — the page drives its own shot sounds (hangwoman
@@ -1725,15 +1850,6 @@ export function freshGameState(gameType, previous = null) {
           usedRacks: previousRound.usedRacks || [],
         }
         : null }
-  }
-  if (gameType === 'minesweeper') {
-    // minesStartedAt is written by MineRaceGame once both players are ready
-    // (same flow as typingStartedAt). Revealed positions never touch Firebase.
-    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      minesSeed: generateSeed(),
-      minesRevealedX: 0, minesRevealedO: 0,
-      minesDeadX: false, minesDeadO: false,
-      minesDoneX: false, minesDoneO: false }
   }
   if (gameType === 'pairs') {
     return { ...FIELD_NULLS, boxes: null, round: null, currentTurn: 'X',

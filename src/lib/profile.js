@@ -1,15 +1,16 @@
+// @ts-check
 // No-login local profile: lifetime stats, head-to-head (keyed by opponent uid,
 // falling back to name for legacy/unauthenticated entries), and a recent-rooms
 // list — all in localStorage so they work with zero backend/auth. Signed-in
 // users additionally get their stats mirrored to users/{uid}/stats (see
 // mirrorStats below and statsSync.js) so they carry over across devices;
-// localStorage stays the synchronous read source.
+// localStorage stays the synchronous read source. The global leaderboard is
+// NOT fed from here: a Cloud Function credits leaderboard/{uid} from verified
+// room results (functions/results.js).
 
 import { ref, set as dbSet } from 'firebase/database'
 import { db } from './firebase'
 import { getUid } from './auth'
-import { guestName } from './social'
-import { defaultAvatarForId } from './avatars'
 
 const STATS_KEY = 'gn-stats'
 const ROOMS_KEY = 'gn-rooms'
@@ -35,26 +36,14 @@ export function setStats(s) {
 
 // Fire-and-forget mirror to Firebase — swallow errors, no-op when signed out
 // or db unavailable. Never awaited by callers; localStorage is already durable.
-// Also mirrors a denormalized leaderboard row (leaderboard/{uid}) so the global
-// Leaderboard page can query top-N by wins without opening up `users` to
-// queries (see database.rules.json). Name/avatar come from the same
-// localStorage mirror ensureProfile() (social.js) keeps in sync, falling back
-// the same way social.js does for a profile that hasn't loaded yet.
+// This is the player's own (self-reported) copy for their profile; it no
+// longer writes leaderboard/{uid}. Those rows are server-written only — the
+// creditMatchResults function re-checks each finished match before counting
+// it, and the database rules reject client writes there.
 function mirrorStats(stats) {
   const uid = getUid()
   if (!db || !uid) return
   dbSet(ref(db, `users/${uid}/stats`), stats).catch(() => {})
-
-  const name = localStorage.getItem('playerName') || guestName(uid)
-  const avatar = localStorage.getItem('playerAvatar') || defaultAvatarForId(uid)
-  dbSet(ref(db, `leaderboard/${uid}`), {
-    name,
-    avatar,
-    wins: stats.wins,
-    games: stats.games,
-    bestStreak: stats.bestStreak,
-    updatedAt: Date.now(),
-  }).catch(() => {})
 }
 
 export function getMatches() {

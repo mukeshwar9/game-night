@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import {
   KM_COLORS, KM_COLOR_VARS, KM_SIZE, KM_COLOR_NAMES,
-  kmTowerMoves,
+  kmTowerMoves, normalizeKmTowers,
 } from '../lib/kamisadoLogic'
 import { useSelectMove } from '../lib/interact'
 import { cn } from '@/lib/utils'
+import { cellLabel } from '../lib/a11yLabels'
 
 // KAMISADO — 8x8 colored board. The color you land on forces the opponent's
 // next tower. The board owns the select-then-move flow: the mover's forced
@@ -33,6 +34,15 @@ export default function KamisadoBoard({
   const autoSource = forcedColor != null && moves.length > 0 ? moves[0].from : null
   const { selected, targets, tap } = useSelectMove(moves, onMove, autoSource)
   const targetSet = new Set(targets.map(t => t.index))
+  // cell → tower colour index, for screen-reader names (a tower's identity is
+  // its home colour, which the badge itself doesn't show).
+  const towerColorAt = useMemo(() => {
+    const m = new Map()
+    const t = normalizeKmTowers(towers)
+    for (const sym of ['X', 'O']) t[sym].forEach((cell, k) => { if (cell >= 0) m.set(cell, k) })
+    return m
+  }, [towers])
+  const colorWord = (k) => KM_COLOR_NAMES[k].toLowerCase()
 
   return (
     <div className="w-full max-w-[360px] sm:max-w-[420px] mx-auto">
@@ -68,7 +78,17 @@ export default function KamisadoBoard({
             return (
               <button
                 key={i}
-                aria-label={`km-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                data-testid={`km-cell-${r}-${c}${cell ? `-${cell}` : ''}`}
+                aria-label={cellLabel({
+                  row: r, col: c,
+                  occupant: cell && (towerColorAt.has(i) ? `${cell} ${colorWord(towerColorAt.get(i))} tower` : `${cell} tower`),
+                  extra: [
+                    `${colorWord(KM_COLORS[i])} square`,
+                    isSelected && 'selected',
+                    isTarget && 'move here',
+                    i === lastMove && 'last move',
+                  ],
+                })}
                 disabled={disabled}
                 onClick={() => !disabled && tap(i)}
                 className={cn(

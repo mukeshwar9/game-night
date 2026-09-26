@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { REVERSI_DIM, legalMoves } from '../lib/reversiLogic'
+import { cellLabel } from '../lib/a11yLabels'
 
 export default function ReversiBoard({ board, onMove, disabled, currentTurn, lastMove = null }) {
   const xCount = board.filter(c => c === 'X').length
@@ -33,11 +34,17 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
           {board.map((cell, i) => {
             const isHint = hints.has(i)
             const isClickable = !disabled && isHint
+            const row = Math.floor(i / REVERSI_DIM)
+            const col = i % REVERSI_DIM
 
             return (
               <button
                 key={i}
-                aria-label={`reversi-cell-${Math.floor(i / REVERSI_DIM)}-${i % REVERSI_DIM}`}
+                data-testid={`reversi-cell-${row}-${col}`}
+                aria-label={cellLabel({
+                  row, col, occupant: cell, letters: true,
+                  extra: [isHint && 'legal move', i === lastMove && 'last move'],
+                })}
                 disabled={!isClickable}
                 onClick={() => isClickable && onMove(i)}
                 className={cn(
@@ -58,6 +65,7 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
                     key={cell}
                     className={cn(
                       'w-[80%] h-[80%] rounded-full transition-all duration-200',
+                      'items-center justify-center',
                       cell === 'X'
                         ? 'bg-retro-p1 shadow-neon-p1'
                         : 'bg-retro-p2 shadow-neon-p2',
@@ -66,8 +74,13 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
                       roundOver && finalWinner !== 'draw' && cell !== finalWinner && 'opacity-50',
                     )}
                     // re-keyed by colour so a flip re-mounts and re-pops the disc
-                    style={{ animation: 'place-pop 0.2s ease-out', display: 'inline-block' }}
-                  />
+                    style={{ animation: 'place-pop 0.2s ease-out', display: 'inline-flex' }}
+                  >
+                    {/* G-05: side letter on every disc — colour alone must not
+                        carry player identity (same glyph convention as the
+                        Gomoku/Hex stones and Checkers men). */}
+                    <span aria-hidden="true" className="font-pixel text-[9px] sm:text-[10px] text-retro-bg leading-none select-none">{cell}</span>
+                  </span>
                 ) : isHint ? (
                   <span
                     className={cn(

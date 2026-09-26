@@ -1,3 +1,4 @@
+// @ts-check
 export const DB_SIZE = 6
 export const DB_SIZE_CLASSIC = 4
 

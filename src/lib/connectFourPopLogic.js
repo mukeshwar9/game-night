@@ -1,3 +1,4 @@
+// @ts-check
 // Connect Four "Pop Out" variant. Same 6×7 board and drop rules as classic
 // Connect Four, but on your turn you may instead POP one of your own discs out
 // of the bottom of a column — every disc above it slides down one row. This

@@ -1,3 +1,4 @@
+// @ts-check
 // Pure Tron Light Cycles simulation — no DOM, no network, no React. Two
 // cycles duel on a GRID×GRID toroidal arena; trails are permanent (never
 // vacate). A cycle dies if its head lands on any occupied cell (its own

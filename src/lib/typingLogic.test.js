@@ -6,6 +6,9 @@ import {
   computeAccuracy,
   computeEffWpm,
 } from './typingLogic'
+import {
+  PASSAGES, pickPassageIndex, isTypingDone, typingRaceEntry, typingLiveKey, typingRow,
+} from './typingLogic'
 
 describe('countCorrectChars', () => {
   it('counts position-by-position matches', () => {
@@ -67,5 +70,39 @@ describe('computeEffWpm', () => {
   it('weights WPM by accuracy', () => {
     expect(computeEffWpm(50, 100)).toBe(50)
     expect(computeEffWpm(50, 80)).toBe(40)
+  })
+})
+
+describe('passages', () => {
+  it('has passages long enough to race', () => {
+    expect(PASSAGES.length).toBeGreaterThanOrEqual(12)
+    for (const p of PASSAGES) expect(p.length).toBeGreaterThan(100)
+  })
+
+  it('picks a passage the room has not seen yet', () => {
+    const seen = {}
+    for (let i = 0; i < PASSAGES.length - 1; i++) seen[i] = i + 1
+    expect(pickPassageIndex(seen, () => 0)).toBe(PASSAGES.length - 1)
+    expect(pickPassageIndex({}, () => 0.999)).toBe(PASSAGES.length - 1)
+  })
+})
+
+describe('typing race hooks', () => {
+  it('ranks finishers by eff-WPM; unfinished DNF', () => {
+    expect(typingRaceEntry({ done: true, wpm: 80, acc: 90 })).toEqual({ sortKey: [-72], score: 72 })
+    expect(typingRaceEntry({ progress: 50 })).toEqual({ sortKey: null, score: null })
+    expect(isTypingDone({ done: true })).toBe(false) // done without a wpm is not a result
+  })
+
+  it('live key: finishers first, then by progress', () => {
+    expect(typingLiveKey({ done: true, wpm: 50, acc: 100 })).toEqual([0, -50])
+    expect(typingLiveKey({ progress: 30 })).toEqual([1, -30])
+    expect(typingLiveKey(null)).toBeNull()
+  })
+
+  it('row shows progress, then result', () => {
+    expect(typingRow({ progress: 50 }, 100)).toMatchObject({ primary: '50%', progress: 0.5, status: 'racing' })
+    expect(typingRow({ done: true, wpm: 60, acc: 95 }, 100)).toMatchObject({ primary: '57 EFF', progress: 1, status: 'done' })
+    expect(typingRow(null, 0)).toMatchObject({ progress: 0, status: 'idle' })
   })
 })

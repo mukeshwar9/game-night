@@ -8,6 +8,15 @@ import {
   legalPawnMoves,
   isWallMoveLegal,
 } from '../lib/blockadeLogic'
+import { cellLabel, coordLabel, joinLabel } from '../lib/a11yLabels'
+
+// Screen-reader name for a wall groove. An 'h' slot sits below row r across
+// columns c..c+1; a 'v' slot sits right of column c across rows r..r+1.
+function wallLabel(orientation, r, c) {
+  return orientation === 'h'
+    ? `Wall below row ${r + 1}, columns ${c + 1} to ${c + 2}`
+    : `Wall right of column ${c + 1}, rows ${r + 1} to ${r + 2}`
+}
 
 export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, currentTurn, lastMove = null }) {
   const [mode, setMode] = useState('move')
@@ -98,7 +107,8 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
         >
           {isClickable && (
             <button
-              aria-label={`blockade-cell-${r}-${c}`}
+              data-testid={`blockade-cell-${r}-${c}`}
+              aria-label={`Move to ${coordLabel({ row: r, col: c })}${isGoalX ? ', X goal row' : isGoalO ? ', O goal row' : ''}`}
               onClick={() => onMove({ type: 'pawn', to: cellIndex })}
               className={cn(
                 'absolute inset-0 rounded-sm transition-all duration-100 cursor-pointer',
@@ -110,6 +120,11 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
           )}
           {pawnHere && (
             <span
+              role="img"
+              aria-label={cellLabel({
+                row: r, col: c, occupant: `${pawnHere} pawn`,
+                extra: cellIndex === lastMoveCell && 'last move',
+              })}
               // Mounts fresh each time this cell newly gains a pawn (it moved
               // here), so place-pop replays on every move without extra state.
               className={cn(
@@ -151,6 +166,8 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
     if (isOccupied) {
       inner = (
         <div
+          role="img"
+          aria-label={joinLabel(`${owner} ${wallLabel(orientation, r, c).toLowerCase()}`, isLastMoveWall && 'last move')}
           // Mounts fresh the instant this slot flips from empty to occupied,
           // so place-pop replays on every wall placement without extra state.
           className={cn(
@@ -165,7 +182,11 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
     } else if (mode === 'wall' && !disabled) {
       inner = (
         <button
-          aria-label={`blockade-wall-${orientation}-${r}-${c}`}
+          data-testid={`blockade-wall-${orientation}-${r}-${c}`}
+          aria-label={joinLabel(
+            wallLabel(orientation, r, c),
+            isPending && (isLegalPreview ? 'armed, activate again to place' : 'blocked'),
+          )}
           onClick={() => handleWallTap(slot)}
           onMouseEnter={() => setHoverSlot(slot)}
           onMouseLeave={() => setHoverSlot(null)}
@@ -220,6 +241,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
           {/* Cell layer — pointer-events-none in WALL mode is defense-in-depth so a stray
               tap can never fall through to a cell handler (cells only render <button>s in
               MOVE mode anyway). */}
+          <p className="sr-only">X races to the top row, O to the bottom row.</p>
           <div className={cn('contents', mode === 'wall' && 'pointer-events-none')}>
             {cellEls}
           </div>
@@ -232,7 +254,8 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
         {['move', 'wall'].map(m => (
           <button
             key={m}
-            aria-label={`mode-${m}`}
+            data-testid={`mode-${m}`}
+            aria-pressed={mode === m}
             disabled={disabled}
             onClick={() => handleSetMode(m)}
             className={cn(
@@ -249,7 +272,8 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
       </div>
 
       {/* Wall-count chip bar */}
-      <div className="mt-2 flex items-center justify-center gap-4 font-pixel text-[10px]">
+      <p className="sr-only">Walls left: X {walls.X}, O {walls.O}.</p>
+      <div aria-hidden="true" className="mt-2 flex items-center justify-center gap-4 font-pixel text-[10px]">
         <span className="text-retro-p1 text-glow-p1">X</span>
         <div className="flex gap-[2px]">
           {Array.from({ length: 10 }, (_, i) => (

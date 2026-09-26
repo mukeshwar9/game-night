@@ -1,3 +1,4 @@
+// @ts-check
 // Sim (Gustavus Simmons, 1969) — pure logic, no DOM/Firebase/React.
 // 6 dots, 15 possible edges. Players alternate claiming an unclaimed edge
 // (X=p1, O=p2). In any 2-coloring of K6 there is always a monochromatic

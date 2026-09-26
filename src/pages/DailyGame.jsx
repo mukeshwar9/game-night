@@ -67,8 +67,9 @@ export default function DailyGame() {
     const prevBest = readBest(date)?.best ?? -1
     if (score > prevBest) {
       writeBest(date, score)
-      // eslint-disable-next-line react-hooks/purity -- finish runs only from the countdown interval, never during render
-      setBest({ best: score, at: Date.now() })
+      // Read back the record writeBest just stamped (keeps `at` identical to
+      // storage); fall back to in-memory when localStorage is unavailable.
+      setBest(readBest(date) ?? { best: score })
       sounds.win()
     } else {
       setBest({ best: prevBest })

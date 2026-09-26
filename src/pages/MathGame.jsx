@@ -1,69 +1,47 @@
 import { useEffect, useRef, useState } from 'react'
-import { ref, runTransaction, onValue } from 'firebase/database'
+import { ref, runTransaction, update } from 'firebase/database'
 import { db } from '../lib/firebase'
-import GameSwitcher from '../components/GameSwitcher'
-import GameStatus from '../components/GameStatus'
-import SpectatorCard from '../components/SpectatorCard'
+import RaceShell from '../components/RaceShell'
 import NumberPad from '../components/NumberPad'
-import OfflineNotice from '../components/loading/OfflineNotice'
-import { generateQuestion, GAME_MS, questionMsForIndex } from '../lib/mathLogic'
+import {
+  GAME_MS, STREAK_FOR_DOUBLE,
+  generateQuestion, questionMsForIndex, speedPtsFor,
+  scoreMathAnswer, advanceMathQuestion, normalizeMathStats,
+  mathRaceEntry, mathRow,
+} from '../lib/mathLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
-// ── small helpers ────────────────────────────────────────────────────
+// Mental Math — N-player race (2–8). Everyone answers the same seeded
+// question sequence at their own pace for two minutes; speed, power
+// questions and streaks score. Highest points wins; room flow in RaceShell.
 
-function pad2(n) { return String(n).padStart(2, '0') }
-
-function fmtTime(ms) {
-  const s = Math.ceil(ms / 1000)
-  return `${Math.floor(s / 60)}:${pad2(s % 60)}`
-}
-
-function speedPtsFor(elapsed, questionMs) {
-  return Math.max(1, Math.ceil(5 * Math.max(0, (questionMs - elapsed) / questionMs)))
-}
-
-// How long the "✗ WRONG" feedback stays up before auto-advancing to my next question
+// How long the "✗ WRONG" feedback stays up before auto-advancing
 const WRONG_FEEDBACK_MS = 1000
 
-// ── sub-components ───────────────────────────────────────────────────
-
-function ScoreBar({ game, players }) {
-  const sX = game.mathScoreX ?? 0
-  const sO = game.mathScoreO ?? 0
-  const total = Math.max(sX + sO, 1)
-  const pX = (sX / total) * 100
-  return (
-    <div className="bg-retro-card border border-retro-border rounded p-2 space-y-1">
-      <div className="flex justify-between font-pixel text-[10px]">
-        <span className="text-retro-p1">
-          {players?.X?.name?.toUpperCase() ?? 'X'} · {sX}
-        </span>
-        <span className="text-retro-p2">
-          {sO} · {players?.O?.name?.toUpperCase() ?? 'O'}
-        </span>
-      </div>
-      <div className="h-2 bg-retro-deep rounded-full overflow-hidden flex">
-        {/* Slower than QuestionBar on purpose: score shifts are infrequent, large jumps — a quick per-question tick duration here would feel jarring */}
-        <div
-          className="bg-retro-p1 h-full transition-all duration-500"
-          style={{ width: `${pX}%` }}
-        />
-        <div className="bg-retro-p2 h-full flex-1" />
-      </div>
-    </div>
-  )
+const RACE = {
+  type: 'math',
+  title: 'MENTAL MATH',
+  sameWhat: 'QUESTIONS',
+  rules: [
+    'SAME QUESTIONS FOR EVERYONE · YOUR OWN PACE',
+    '⚡ POWER QUESTIONS EVERY 8 · 2× POINTS',
+    `🔥 ${STREAK_FOR_DOUBLE}-STREAK = DOUBLE NEXT CORRECT`,
+    '⏱ 2-MINUTE BLITZ · HIGHEST SCORE WINS',
+  ],
+  baseMs: GAME_MS,
+  scaled: false,
+  entry: mathRaceEntry,
+  isDone: () => false, // time-boxed: the round ends at the deadline
+  row: (stats) => mathRow(stats),
 }
 
 function QuestionBar({ qPct, critical }) {
   const pct = Math.max(0, Math.min(1, qPct))
-  // M-88: danger tier uses the dedicated --c-danger token, not retro-p2 —
-  // this bar sits directly under ScoreBar, where p2 means "Player O".
   const color = pct > 0.6 ? 'bg-retro-win' : pct > 0.3 ? 'bg-retro-cta' : 'bg-retro-danger'
   return (
     <div className="h-2.5 bg-retro-deep rounded-full overflow-hidden">
-      {/* Faster than ScoreBar on purpose: this ticks down continuously with the per-question timer and needs to track it precisely */}
       <div
         className={cn('h-full rounded-full transition-all duration-100', color, critical && 'animate-pulse')}
         style={{ width: `${pct * 100}%` }}
@@ -76,439 +54,147 @@ function SpeedDots({ pts }) {
   return (
     <div className="flex gap-1 justify-center">
       {[1, 2, 3, 4, 5].map(i => (
-        <span
-          key={i}
-          className={cn(
-            'font-pixel text-[10px]',
-            i <= pts ? 'text-retro-win' : 'text-retro-dim opacity-40',
-          )}
-        >
-          ●
-        </span>
+        <span key={i} className={cn('font-pixel text-[10px]', i <= pts ? 'text-retro-win' : 'text-retro-dim opacity-40')}>●</span>
       ))}
-      <span className="font-pixel text-[9px] text-retro-dim ml-1">
-        {pts}pt{pts !== 1 ? 's' : ''}
-      </span>
+      <span className="font-pixel text-[9px] text-retro-dim ml-1">{pts}pt{pts !== 1 ? 's' : ''}</span>
     </div>
   )
 }
 
-function ResultsPanel({ game, players }) {
-  const sX = game.mathScoreX ?? 0
-  const sO = game.mathScoreO ?? 0
-  const cX = game.mathCorrectX ?? 0
-  const cO = game.mathCorrectO ?? 0
-  const wX = game.mathWrongX ?? 0
-  const wO = game.mathWrongO ?? 0
+function MathRacer({ round, myStats, statsPath, now }) {
+  const stats = normalizeMathStats(myStats)
+  const myQ = stats.q
+  const live = round.endsAt == null || now < round.endsAt
+  const q = generateQuestion(round.seed, myQ)
+  const questionMs = questionMsForIndex(myQ)
 
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {['X', 'O'].map(sym => {
-        const score   = sym === 'X' ? sX : sO
-        const correct = sym === 'X' ? cX : cO
-        const wrong   = sym === 'X' ? wX : wO
-        const isWin   = game.winner === sym
-        const col     = sym === 'X' ? 'text-retro-p1' : 'text-retro-p2'
-        const border  = sym === 'X' ? 'border-retro-p1/60' : 'border-retro-p2/60'
-        return (
-          <div key={sym} className={cn('bg-retro-card border rounded p-3 text-center space-y-1', border)}>
-            <p className={cn('font-pixel text-[8px]', col)}>
-              {players?.[sym]?.name?.toUpperCase() ?? sym}
-            </p>
-            <p className={cn('font-pixel text-3xl tabular-nums',
-              isWin ? 'text-retro-win text-glow-win' : 'text-retro-text')}>
-              {score}
-            </p>
-            <p className="font-pixel text-[8px] text-retro-dim">POINTS</p>
-            <p className="font-pixel text-[8px] text-retro-cta">
-              {correct}✓ {wrong}✗
-            </p>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
+  const [answer, setAnswer] = useState('')
+  const [lastResult, setLastResult] = useState(null) // { correct, pts, timedOut? } | null
+  const [answered, setAnswered] = useState(false)
+  const [qElapsed, setQElapsed] = useState(0)
+  const [prevQ, setPrevQ] = useState(myQ)
 
-// ── main component ───────────────────────────────────────────────────
+  const submittingRef = useRef(false)
+  const qShownAtRef = useRef(null)
+  const timedOutRef = useRef(null)
+  const advanceTimerRef = useRef(null)
 
-export default function MathGame({
-  gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onPlayAgain, onNewMatch, proposal,
-}) {
-  const myKey = mySymbol === 'X' ? 'X' : 'O'
-  const opKey = myKey === 'X' ? 'O' : 'X'
+  // New question (mine advanced): reset the per-question UI during render —
+  // the derive-from-prop-change pattern, so the pad never lags the index.
+  if (prevQ !== myQ) {
+    setPrevQ(myQ)
+    setAnswer('')
+    setLastResult(null)
+    setAnswered(false)
+  }
 
-  const [answer, setAnswer]         = useState('')
-  const [hasAnswered, setHasAnswered] = useState(false)
-  const [lastResult, setLastResult]   = useState(null) // { correct, pts } | null
-  const [now, setNow]                 = useState(() => Date.now())
-  const [qElapsed, setQElapsed]       = useState(0)
-  const [clockOffset, setClockOffset] = useState(0)
-
-  const hasAutoAdvancedRef = useRef(null)
-  const hasFinishedRef     = useRef(false)
-  const submittingRef      = useRef(false)
-  const qShownAtRef        = useRef(null) // local clock: when MY current question appeared
-  const prevQIndexRef      = useRef(null)
-
-  const myQIndex   = game[`mathQIndex${myKey}`] ?? 0
-  const opQIndex   = game[`mathQIndex${opKey}`] ?? 0
-  const startedAt  = game.mathStartedAt ?? null
-  const endTime    = game.mathEndTime   ?? null
-  const seed       = game.mathSeed      ?? null
-
-  // Corrected clock — every deadline comparison runs through this offset
-  // (mirrors TriviaGame.jsx) so mathStartedAt/mathEndTime compare against
-  // server time, not each device's possibly-skewed local clock.
   useEffect(() => {
-    const offRef = ref(db, '.info/serverTimeOffset')
-    const unsub = onValue(offRef, snap => setClockOffset(snap.val() ?? 0))
-    return () => unsub()
+    submittingRef.current = false
+    qShownAtRef.current = Date.now()
+  }, [myQ])
+
+  useEffect(() => () => clearTimeout(advanceTimerRef.current), [])
+
+  // Register as present (0 pts) so a racer who never answers still ranks.
+  useEffect(() => {
+    if (!myStats) update(ref(db, statsPath), normalizeMathStats(null)).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per round (the Racer is keyed by round id)
   }, [])
-  const serverNow = now + clockOffset
 
-  const isCountdown  = !!startedAt && serverNow < startedAt + 3000
-  const isPlaying    = !!startedAt && serverNow >= startedAt + 3000 && game.status !== 'finished'
-  const countdownSec = isCountdown ? Math.ceil((startedAt + 3000 - serverNow) / 1000) : 0
-  const timeLeftMs   = endTime ? Math.max(0, endTime - serverNow) : GAME_MS
-  const questionMs   = questionMsForIndex(myQIndex)
-  const qPct         = Math.max(0, 1 - qElapsed / questionMs)
-  const qCritical    = isPlaying && questionMs - qElapsed <= 2000
-  const speedPts     = speedPtsFor(qElapsed, questionMs)
-
-  const myStreak  = game[`mathStreak${myKey}`] ?? 0
-  const opStreak  = game[`mathStreak${opKey}`] ?? 0
-
-  const q = seed != null ? generateQuestion(seed, myQIndex) : null
-
-  // Reset per-question state when MY question changes
-  useEffect(() => {
-    if (myQIndex !== prevQIndexRef.current) {
-      prevQIndexRef.current = myQIndex
-      setHasAnswered(false)
-      setAnswer('')
-      setLastResult(null)
-      submittingRef.current = false
-    }
-  }, [myQIndex])
-
-  // Stamp when my current question appears — on MY clock. Only my client
-  // scores my answers, so this never touches Firebase and clock skew between
-  // devices can't bias speed points.
-  useEffect(() => {
-    if (isPlaying) qShownAtRef.current = Date.now()
-  }, [isPlaying, myQIndex])
-
-  // Advance MY index past `fromIndex` (wrong answer or per-question timeout)
-  const advanceQuestion = async (fromIndex) => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished' || current.gameType !== 'math') return
-        if ((current[`mathQIndex${myKey}`] ?? 0) !== fromIndex) return
-        return {
-          ...current,
-          [`mathQIndex${myKey}`]: fromIndex + 1,
-        }
-      })
-    } catch { /* ignore */ }
+  const advance = (fromIndex) => {
+    runTransaction(ref(db, statsPath), cur => advanceMathQuestion(cur, fromIndex)).catch(() => {})
   }
 
-  const tryFinishGame = async () => {
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished') return
-        const sX = current.mathScoreX ?? 0
-        const sO = current.mathScoreO ?? 0
-        const winner = sX > sO ? 'X' : sX < sO ? 'O' : 'draw'
-        const scores = { ...(current.scores || {}) }
-        if (winner !== 'draw') scores[winner] = (scores[winner] || 0) + 1
-        return { ...current, winner, status: 'finished', scores }
-      })
-    } catch { /* other client resolved */ }
-  }
-
-  // Ticker: drives countdown display and checks timeouts
+  // Per-question clock (my own clock only: it scores my answers, so skew
+  // between devices can't bias anyone's speed points) + timeout auto-advance.
   useEffect(() => {
-    if (!startedAt || game.status === 'finished') return
+    if (!live) return
     const id = setInterval(() => {
-      const n = Date.now()
-      setNow(n)
-      setQElapsed(qShownAtRef.current != null ? n - qShownAtRef.current : 0)
-
-      // Check per-question timeout — only if I haven't already submitted an
-      // answer for this question (submittingRef is set synchronously, so it's
-      // safe to read from this stale-closure interval, unlike the hasAnswered
-      // state). Gives a silent-until-now timeout the same WRONG-panel + buzzer
-      // feedback a wrong tap gets, then auto-advances MY index (spectators skip).
-      if (isPlaying && mySymbol && !submittingRef.current && qShownAtRef.current != null) {
-        const elapsed = n - qShownAtRef.current
-        if (elapsed >= questionMsForIndex(myQIndex) && hasAutoAdvancedRef.current !== myQIndex) {
-          hasAutoAdvancedRef.current = myQIndex
-          submittingRef.current = true
-          setHasAnswered(true)
-          setLastResult({ correct: false, pts: 0, timedOut: true })
-          sounds.buzz()
-          setTimeout(() => advanceQuestion(myQIndex), WRONG_FEEDBACK_MS)
-        }
-      }
-
-      // Check game end
-      if (isPlaying && endTime && n + clockOffset >= endTime && !hasFinishedRef.current) {
-        hasFinishedRef.current = true
-        tryFinishGame()
+      const elapsed = Date.now() - (qShownAtRef.current ?? Date.now())
+      setQElapsed(elapsed)
+      if (elapsed >= questionMsForIndex(myQ) && !submittingRef.current && timedOutRef.current !== myQ) {
+        timedOutRef.current = myQ
+        submittingRef.current = true
+        setAnswered(true)
+        setLastResult({ correct: false, pts: 0, timedOut: true })
+        sounds.buzz()
+        advanceTimerRef.current = setTimeout(() => advance(myQ), WRONG_FEEDBACK_MS)
       }
     }, 100)
     return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- advanceQuestion/tryFinishGame are recreated every render; adding them would tear down and restart this interval on every tick
-  }, [startedAt, game.status, isPlaying, mySymbol, myQIndex, endTime, clockOffset])
-
-  // ── Firebase transactions ─────────────────────────────────────────
-
-  const handleStartClick = async () => {
-    if (startedAt) return
-    try {
-      await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.mathStartedAt) return
-        const t = Date.now() + clockOffset
-        return {
-          ...current,
-          mathStartedAt: t,
-          mathEndTime:   t + 3000 + GAME_MS,
-        }
-      })
-    } catch { /* ignore */ }
-  }
-
-  const handleKey = (key) => {
-    if (!isPlaying || hasAnswered) return
-    if (key === 'BACKSPACE') { setAnswer(a => a.slice(0, -1)); return }
-    if (key === 'ENTER') { handleSubmit(); return }
-    if (/^\d$/.test(key) && answer.length < 5) setAnswer(a => a + key)
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- advance only closes over statsPath, stable per round
+  }, [myQ, live])
 
   const handleSubmit = async () => {
-    if (!isPlaying || hasAnswered || !answer || submittingRef.current || !q) return
+    if (!live || answered || !answer || submittingRef.current) return
     submittingRef.current = true
-    setHasAnswered(true)
-
-    // Elapsed on MY clock, captured at submit time (transaction retries don't inflate it)
-    const submitAt = Date.now()
-    const elapsed  = submitAt - (qShownAtRef.current ?? submitAt)
-
+    setAnswered(true)
+    const elapsed = Date.now() - (qShownAtRef.current ?? Date.now())
+    let outcome = null
     try {
-      const result = await runTransaction(ref(db, `games/${gameId}`), current => {
-        if (!current || current.status === 'finished') return
-        if ((current[`mathQIndex${myKey}`] ?? 0) !== myQIndex) return  // my question already advanced
-
-        const cq      = generateQuestion(current.mathSeed, myQIndex)
-        const correct = parseInt(answer, 10) === cq.answer
-        const speed   = speedPtsFor(elapsed, questionMsForIndex(myQIndex))
-        const power   = cq.isPower ? 2 : 1
-        const streak  = current[`mathStreak${myKey}`] ?? 0
-        const mult    = streak >= 3 ? 2 : 1
-
-        if (correct) {
-          const pts = speed * power * mult
-          return {
-            ...current,
-            [`mathQIndex${myKey}`]:   myQIndex + 1,
-            [`mathScore${myKey}`]:    (current[`mathScore${myKey}`] ?? 0) + pts,
-            [`mathStreak${myKey}`]:   streak + 1,
-            [`mathCorrect${myKey}`]:  (current[`mathCorrect${myKey}`] ?? 0) + 1,
-          }
-        } else {
-          const penalty = cq.isPower ? 2 : 1
-          return {
-            ...current,
-            [`mathScore${myKey}`]:  Math.max(0, (current[`mathScore${myKey}`] ?? 0) - penalty),
-            [`mathStreak${myKey}`]: 0,
-            [`mathWrong${myKey}`]:  (current[`mathWrong${myKey}`] ?? 0) + 1,
-          }
-        }
+      const res = await runTransaction(ref(db, statsPath), cur => {
+        if (normalizeMathStats(cur).q !== myQ) return undefined // already advanced (timeout)
+        outcome = scoreMathAnswer(cur, { seed: round.seed, answer, elapsed })
+        return outcome.stats
       })
-
-      // Derive what happened from the transaction result
-      if (result.committed && result.snapshot.val()) {
-        const after = result.snapshot.val()
-        const wasCorrect = (after[`mathQIndex${myKey}`] ?? 0) > myQIndex
-        // Points come from the transaction's committed streak, not the local
-        // myStreak snapshot taken at render time — myStreak can be one step
-        // behind the write that just landed (stale-streak "+N" display bug).
-        // after[streak] is post-increment on a correct answer, so the streak
-        // tier that decided this answer's multiplier is one less than that.
-        const preAnswerStreak = wasCorrect ? (after[`mathStreak${myKey}`] ?? 1) - 1 : 0
-        const speed = speedPtsFor(elapsed, questionMsForIndex(myQIndex))
-        const power = q.isPower ? 2 : 1
-        const mult  = preAnswerStreak >= 3 ? 2 : 1
-        const pts   = wasCorrect ? speed * power * mult : 0
-        setLastResult({ correct: wasCorrect, pts })
-        if (wasCorrect) sounds.hit(after[`mathStreak${myKey}`] ?? 1)
-        else {
-          sounds.miss()
-          // brief feedback (shows the right answer), then move to my next question — no lockout
-          setTimeout(() => advanceQuestion(myQIndex), WRONG_FEEDBACK_MS)
-        }
-      } else {
-        // Aborted commit (updateFn returned undefined — e.g. the game finished
-        // mid-flight, or my question index already moved on from a concurrent
-        // auto-timeout). Re-sync local state instead of leaving the pad stuck
-        // on "CHECKING..." forever.
+      if (!res.committed || !outcome) {
         submittingRef.current = false
-        setHasAnswered(false)
-        setLastResult(null)
+        setAnswered(false)
+        return
+      }
+      setLastResult({ correct: outcome.correct, pts: outcome.pts })
+      if (outcome.correct) sounds.hit(outcome.stats.streak)
+      else {
+        sounds.miss()
+        advanceTimerRef.current = setTimeout(() => advance(myQ), WRONG_FEEDBACK_MS)
       }
     } catch {
-      // Thrown runTransaction (e.g. offline/permission-denied): revert so the
-      // pad re-enables instead of soft-locking on "CHECKING...".
+      // Thrown runTransaction (offline/permission): re-enable the pad.
       submittingRef.current = false
-      setHasAnswered(false)
+      setAnswered(false)
       setLastResult(null)
       toast.error('ANSWER FAILED — RETRY')
     }
   }
 
-  // ── render: finished ─────────────────────────────────────────────
-
-  const matchWinner = (game.scores?.X || 0) >= 3 ? 'X' : (game.scores?.O || 0) >= 3 ? 'O' : null
-
-  if (game.status === 'finished') {
-    return (
-      <div className="space-y-4">
-        <ResultsPanel game={game} players={game.players} />
-        <GameStatus
-          status={game.status} winner={game.winner} mySymbol={mySymbol}
-          scores={game.scores} players={game.players} gameType={game.gameType}
-          onPlayAgain={!matchWinner && !proposal ? onPlayAgain : null}
-          onNewMatch={matchWinner && !proposal ? onNewMatch : null}
-          onSwitchGame={!proposal ? onSwitchGame : null}
-        />
-      </div>
-    )
+  const handleKey = (key) => {
+    if (!live || answered) return
+    if (key === 'BACKSPACE') { setAnswer(a => a.slice(0, -1)); return }
+    if (key === 'ENTER') { handleSubmit(); return }
+    if (/^\d$/.test(key) && answer.length < 5) setAnswer(a => a + key)
   }
 
-  // ── render: spectator ────────────────────────────────────────────
-
-  if (!mySymbol) {
-    return (
-      <div className="space-y-4">
-        <SpectatorCard game={game} statusOverride={!startedAt ? 'WAITING TO START' : undefined} />
-        {isPlaying && (
-          <ScoreBar game={game} myKey="X" opKey="O" players={game.players} />
-        )}
-        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
-      </div>
-    )
-  }
-
-  // ── render: waiting to start ─────────────────────────────────────
-
-  if (!startedAt) {
-    return (
-      <div className="space-y-4">
-        <div className="bg-retro-card border border-retro-border rounded p-6 text-center space-y-4">
-          <p className="font-pixel text-[9px] text-retro-cta">MENTAL MATH DUEL</p>
-          <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left mx-auto w-fit">
-            <p>● SAME QUESTIONS FOR BOTH · SOLVE AT YOUR OWN PACE</p>
-            <p>⚡ POWER QUESTIONS EVERY 8 ROUNDS · 2× POINTS</p>
-            <p>🔥 3-STREAK = DOUBLE NEXT CORRECT</p>
-            <p>⏱ 2-MINUTE BLITZ · HIGHEST SCORE WINS</p>
-          </div>
-          <button
-            onClick={handleStartClick}
-            className="px-6 py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
-          >
-            START
-          </button>
-        </div>
-        {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
-      </div>
-    )
-  }
-
-  // ── render: countdown ────────────────────────────────────────────
-
-  if (isCountdown) {
-    return (
-      <div className="space-y-4">
-        <div className="bg-retro-card border border-retro-border rounded p-8 text-center space-y-3">
-          <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
-          <p className="font-pixel text-7xl text-retro-win text-glow-win">{countdownSec}</p>
-          <p className="font-pixel text-[8px] text-retro-dim">THINK FAST</p>
-        </div>
-      </div>
-    )
-  }
-
-  // ── render: playing ──────────────────────────────────────────────
-
-  const answered   = hasAnswered
-  const isCorrect  = lastResult?.correct === true
-  const isWrong    = lastResult?.correct === false
+  const qPct = Math.max(0, 1 - qElapsed / questionMs)
+  const speedPts = speedPtsFor(qElapsed, questionMs)
+  const isCorrect = lastResult?.correct === true
+  const isWrong = lastResult?.correct === false
 
   return (
     <div className="space-y-3">
-      {/* Header: time + scores */}
-      <div className="flex items-center gap-2">
-        <div className="bg-retro-card border border-retro-border rounded px-3 py-1.5 text-center min-w-[4rem]">
-          <p className={cn(
-            'font-pixel text-[18px] tabular-nums leading-none',
-            // M-88: same danger convention as QuestionBar above — dedicated
-            // token, not O's identity color.
-            timeLeftMs < 30_000 ? 'text-retro-danger text-glow-danger' : 'text-retro-win',
-          )}>
-            {fmtTime(timeLeftMs)}
-          </p>
-          <p className="font-pixel text-[7px] text-retro-dim mt-0.5">TIME LEFT</p>
-        </div>
-        <div className="flex-1">
-          <ScoreBar game={game} myKey={myKey} opKey={opKey} players={game.players} />
-        </div>
-      </div>
-
-      {/* Streak badges — fixed-height slot (M-26) so mounting/unmounting this
-          row never shifts the question card / NumberPad below it */}
       <div className="min-h-[22px] flex gap-2 justify-center flex-wrap">
-        {myStreak >= 3 && (
+        {stats.streak >= STREAK_FOR_DOUBLE && (
           <span className="font-pixel text-[9px] bg-retro-tint-cta border border-retro-cta rounded px-2 py-0.5 text-retro-cta">
-            🔥 {game.players?.[myKey]?.name?.toUpperCase() ?? myKey} ×2 STREAK
+            🔥 ×2 STREAK
           </span>
         )}
-        {opStreak >= 3 && (
-          <span className="font-pixel text-[9px] bg-retro-tint-p2 border border-retro-p2/50 rounded px-2 py-0.5 text-retro-p2">
-            🔥 {game.players?.[opKey]?.name?.toUpperCase() ?? opKey} ×2 STREAK
-          </span>
-        )}
+        <span className="font-pixel text-[9px] text-retro-dim px-2 py-0.5">{stats.score} PTS</span>
       </div>
 
-      {/* Question card */}
       <div className={cn(
         'bg-retro-surface border rounded p-4 text-center space-y-3 transition-colors',
-        q?.isPower ? 'border-retro-cta/60' : 'border-retro-border',
+        q.isPower ? 'border-retro-cta/60' : 'border-retro-border',
       )}>
-        {/* Power banner — fixed-height slot (M-26) so it never shifts the timer/pad below it */}
         <div className="min-h-[14px]">
-          {q?.isPower && (
-            <p className="font-pixel text-[9px] text-retro-cta">
-              ⚡ POWER QUESTION · 2× POINTS
-            </p>
-          )}
+          {q.isPower && <p className="font-pixel text-[9px] text-retro-cta">⚡ POWER QUESTION · 2× POINTS</p>}
         </div>
-
-        <QuestionBar qPct={qPct} critical={qCritical} />
-
+        <QuestionBar qPct={qPct} critical={questionMs - qElapsed <= 2000} />
         <div className="space-y-1">
-          <p className="font-pixel text-[9px] text-retro-dim">Q{myQIndex + 1}</p>
-          <p className="font-pixel text-3xl text-retro-text tracking-wider">
-            {q?.text ?? '…'}
-          </p>
+          <p className="font-pixel text-[9px] text-retro-dim">Q{myQ + 1}</p>
+          <p className="font-pixel text-3xl text-retro-text tracking-wider" data-testid="math-question">{q.text}</p>
           <p className="font-pixel text-[9px] text-retro-dim">= ?</p>
         </div>
-
         <SpeedDots pts={speedPts} />
 
-        {/* Answer area — every branch below shares min-h-[2.5rem] (M-26) so the
-            NumberPad never shifts as the feedback state changes */}
         {!answered && (
           <div className="bg-retro-deep border border-retro-border rounded px-4 py-2 min-h-[2.5rem] flex items-center justify-center">
             <p className="font-pixel text-2xl text-retro-text tabular-nums tracking-widest">
@@ -516,48 +202,32 @@ export default function MathGame({
             </p>
           </div>
         )}
-
         {answered && isCorrect && (
           <div className="bg-retro-tint-cta border border-retro-cta/60 rounded px-4 py-2 min-h-[2.5rem] flex items-center justify-center">
             <p className="font-pixel text-[10px] text-retro-win">✓ CORRECT +{lastResult.pts}</p>
           </div>
         )}
-
         {answered && isWrong && (
-          // M-86: this is a wrong-answer/error state (whichever player is
-          // viewing got it wrong), not a player-identity color — dedicated
-          // danger token instead of retro-p2.
           <div className="bg-retro-tint-danger border border-retro-danger/60 rounded px-4 py-2 min-h-[2.5rem] flex items-center justify-center">
             <p className="font-pixel text-[10px] text-retro-danger">
               {lastResult?.timedOut
-                ? <>⏱ TIME&apos;S UP · ANS: {q?.answer}</>
-                : <>✗ WRONG · ANS: {q?.answer} · -{q?.isPower ? 2 : 1}</>}
+                ? <>⏱ TIME&apos;S UP · ANS: {q.answer}</>
+                : <>✗ WRONG · ANS: {q.answer} · -{q.isPower ? 2 : 1}</>}
             </p>
           </div>
         )}
-
         {answered && !lastResult && (
           <div className="min-h-[2.5rem] flex items-center justify-center">
-            <p className="font-pixel text-[9px] text-retro-dim arcade-blink">
-              CHECKING...
-            </p>
+            <p className="font-pixel text-[9px] text-retro-dim arcade-blink">CHECKING...</p>
           </div>
         )}
       </div>
 
-      {/* Opponent activity */}
-      {!answered && opponentOnline && (
-        <p className="font-pixel text-[9px] text-retro-dim text-center arcade-blink">
-          {game.players?.[opKey]?.name?.toUpperCase() ?? opKey} ON Q{opQIndex + 1} ●●●
-        </p>
-      )}
-
-      {!opponentOnline && <OfflineNotice label="OPPONENT" />}
-
-      {/* Number pad */}
-      <NumberPad onKey={handleKey} disabled={answered || !isPlaying} />
-
-      {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
+      <NumberPad onKey={handleKey} disabled={answered || !live} />
     </div>
   )
+}
+
+export default function MathGame(props) {
+  return <RaceShell {...props} race={RACE} Racer={MathRacer} />
 }

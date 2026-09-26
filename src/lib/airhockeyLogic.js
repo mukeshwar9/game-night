@@ -1,3 +1,4 @@
+// @ts-check
 // airhockeyLogic.js — pure portrait air-hockey sim. No DOM, no network.
 // Mirrors pongLogic's contract: createState / step / computeAI / getWinner.
 //

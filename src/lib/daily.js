@@ -1,3 +1,4 @@
+// @ts-check
 // The date /daily shipped — anchors "DAILY #N" so the count matches history.
 const EPOCH_KEY = '2026-06-20'
 

@@ -1,3 +1,4 @@
+// @ts-check
 import { getUid } from './auth'
 
 // Player identity is the Firebase Auth uid (anonymous guest or, after upgrade, a
