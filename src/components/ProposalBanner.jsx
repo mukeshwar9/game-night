@@ -41,7 +41,7 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
   }
 
   return (
-    <div className="border-2 border-retro-cta/50 bg-retro-card rounded p-3 text-center space-y-2">
+    <div className="border-2 border-retro-cta/60 bg-retro-card rounded p-3 text-center space-y-2 shadow-[0_-6px_24px_rgb(var(--c-text)/0.18)]">
       {isProposer && (
         <>
           <PixelDots size="sm" tone="cta" className="justify-center" />

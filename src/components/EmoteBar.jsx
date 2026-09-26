@@ -120,55 +120,63 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
   // reduced-motion handling at the Settings choice for the bar and picker.
   return (
     <MotionPrefProvider>
-      <div className="flex flex-col items-center gap-1.5 pt-1">
-        {Object.keys(usage).length > 0 && (
-          <p className="font-pixel text-[7px] text-retro-dim tracking-widest">YOUR REACTIONS</p>
-        )}
-        <div className="flex justify-center gap-1.5 flex-wrap max-w-full px-2">
-          {quickEmotes.map(g => (
-            <AnimatedEmoteButton
-              key={g}
-              type="button"
-              onClick={() => handleEmote(g)}
-              disabled={cooldown}
-              aria-label={`Send ${g} reaction`}
-              className={cn(EMOTE_BTN_CLASS, cooldown && 'opacity-50')}
-            >
-              {g}
-            </AnimatedEmoteButton>
-          ))}
-          <button
-            type="button"
-            onClick={() => setShowPicker(true)}
-            aria-label="More reactions"
-            className={cn(EMOTE_BTN_CLASS, 'text-retro-dim')}
-          >
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.6" />
-              <circle cx="7.2" cy="8.2" r="1.2" fill="currentColor" />
-              <circle cx="12.8" cy="8.2" r="1.2" fill="currentColor" />
-              <path d="M7 12.2 Q10 14.2 13 12.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" />
-              <circle cx="16.2" cy="16.2" r="3.2" fill="rgb(var(--c-card))" stroke="currentColor" strokeWidth="1.2" />
-              <path d="M16.2 14.4 V18 M14.4 16.2 H18" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-          </button>
+      {/* Compact dock: one scrolling row of reactions, one of quick chat, one
+          chat input — ~150px instead of ~280px of wrapped rows under the board. */}
+      <div className="w-full max-w-sm mx-auto flex flex-col gap-1.5 pt-1">
+        <div className="relative">
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex w-max mx-auto gap-1.5 px-1">
+              {quickEmotes.map(g => (
+                <AnimatedEmoteButton
+                  key={g}
+                  type="button"
+                  onClick={() => handleEmote(g)}
+                  disabled={cooldown}
+                  aria-label={`Send ${g} reaction`}
+                  className={cn(EMOTE_BTN_CLASS, cooldown && 'opacity-50')}
+                >
+                  {g}
+                </AnimatedEmoteButton>
+              ))}
+              <button
+                type="button"
+                onClick={() => setShowPicker(true)}
+                aria-label="More reactions"
+                className={cn(EMOTE_BTN_CLASS, 'text-retro-dim')}
+              >
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.6" />
+                  <circle cx="7.2" cy="8.2" r="1.2" fill="currentColor" />
+                  <circle cx="12.8" cy="8.2" r="1.2" fill="currentColor" />
+                  <path d="M7 12.2 Q10 14.2 13 12.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+                  <circle cx="16.2" cy="16.2" r="3.2" fill="rgb(var(--c-card))" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M16.2 14.4 V18 M14.4 16.2 H18" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="flex justify-center gap-1 flex-wrap max-w-[280px]">
-          {QUICK_CHAT.map(t => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => handleChip(t)}
-              disabled={cooldown}
-              aria-label={`Send ${t}`}
-              className={cn(CHIP_BTN_CLASS, cooldown && 'opacity-50')}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="relative">
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex w-max mx-auto gap-1.5 px-1">
+              {QUICK_CHAT.map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => handleChip(t)}
+                  disabled={cooldown}
+                  aria-label={`Send ${t}`}
+                  className={cn(CHIP_BTN_CLASS, cooldown && 'opacity-50')}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="pointer-events-none absolute right-0 inset-y-0 w-6 bg-gradient-to-l from-retro-bg to-transparent" aria-hidden="true" />
         </div>
         {onSendText && (
-          <form onSubmit={handleSubmitText} className="flex gap-2 w-full max-w-[280px]">
+          <form onSubmit={handleSubmitText} className="flex gap-2 w-full px-1">
             <input
               type="text"
               value={text}
@@ -179,11 +187,11 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
-              placeholder="SAY SOMETHING…"
+              placeholder="Say something…"
               aria-label="Chat message"
               className="flex-1 min-w-0 min-h-11 bg-retro-card border-2 border-retro-border text-retro-text
-                font-pixel text-xs placeholder-retro-dim placeholder:text-[10px] placeholder:tracking-normal rounded px-3 py-2
-                focus:outline-none focus:border-retro-p1 tracking-widest transition-colors"
+                font-mono text-sm placeholder-retro-dim rounded px-3 py-2
+                focus:outline-none focus:border-retro-p1 transition-colors"
             />
             <button
               type="submit"

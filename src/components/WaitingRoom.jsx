@@ -20,6 +20,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
   const shareUrl = `${window.location.origin}/game/${gameId}`
   const label = getGameConfig(gameType)?.label
   const [showInvite, setShowInvite] = useState(false)
+  const [showQr, setShowQr] = useState(false)
   const [matchLengthBusy, setMatchLengthBusy] = useState(false)
   const [shareBusy, runShare] = useBusy()
   const [startBusy, runStart] = useBusy()
@@ -140,7 +141,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
                 <div className="w-11 h-11 rounded-full border-2 border-dashed border-retro-border flex items-center justify-center animate-pulse">
                   <span className="font-pixel text-sm text-retro-dim">?</span>
                 </div>
-                <p className="font-pixel text-[7px] text-retro-dim tracking-wider">WAITING…</p>
+                <p className="font-pixel text-[8px] text-retro-dim tracking-wider">WAITING…</p>
               </>
             )}
           </div>
@@ -155,7 +156,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           {readyToPlay ? 'READY TO PLAY' : 'WAITING FOR OPPONENT'}
         </p>
         {label && (
-          <p className="font-pixel text-[10px] text-retro-dim">· {label} ·</p>
+          <p className="font-pixel text-sm text-retro-p1 tracking-wider pt-1">{label}</p>
         )}
         <p className="font-mono text-xs text-retro-dim">
           {readyToPlay
@@ -212,7 +213,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
               {startBusy ? 'STARTING…' : 'START GAME'}
             </button>
           ) : (
-            <p className="font-pixel text-[7px] text-retro-dim/70">WAITING FOR A PLAYER TO START</p>
+            <p className="font-pixel text-[8px] text-retro-dim/70">WAITING FOR A PLAYER TO START</p>
           )}
         </div>
       )}
@@ -233,7 +234,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
               {startBusy ? 'STARTING…' : bothSeated ? 'START GAME' : 'WAITING FOR OPPONENT'}
             </button>
           ) : (
-            <p className="font-pixel text-[7px] text-retro-dim/70">WAITING FOR A PLAYER TO START</p>
+            <p className="font-pixel text-[8px] text-retro-dim/70">WAITING FOR A PLAYER TO START</p>
           )}
         </div>
       )}
@@ -260,12 +261,12 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
                 )}
               >
                 <span className="block text-[10px]">{pendingPongMode === id ? 'SETTING…' : PONG_MODES[id].label}</span>
-                <span className="block mt-1 text-[6px] leading-snug opacity-80">{PONG_MODES[id].blurb}</span>
+                <span className="block mt-1 text-[8px] leading-snug opacity-80">{PONG_MODES[id].blurb}</span>
               </button>
             ))}
           </div>
           {!isPongHost && (
-            <p className="font-pixel text-[7px] text-retro-dim/70">HOST PICKS THE MODE</p>
+            <p className="font-pixel text-[8px] text-retro-dim/70">HOST PICKS THE MODE</p>
           )}
         </div>
       )}
@@ -293,68 +294,74 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
             ))}
           </div>
           {!isPongHost && (
-            <p className="font-pixel text-[7px] text-retro-dim/70">HOST PICKS THE LENGTH</p>
+            <p className="font-pixel text-[8px] text-retro-dim/70">HOST PICKS THE LENGTH</p>
           )}
         </div>
       )}
 
-      {/* QR code */}
-      <div className="flex flex-col items-center gap-1.5">
-        <div className="bg-white p-2 rounded">
-          <QrCode value={shareUrl} size={150} />
-        </div>
-        <p className="font-pixel text-[9px] text-retro-dim">SCAN TO JOIN</p>
-      </div>
-
-      {/* Share + Copy buttons */}
-      <div className="flex gap-2">
+      {/* Share-first: on a phone the host sends a link, they don't scan their
+          own screen. One full-width primary action, the code big enough to
+          read aloud, and the QR tucked behind a toggle for same-room friends. */}
+      <div className="w-full space-y-2">
         <button
           onClick={() => runShare(shareInvite)}
           disabled={shareBusy}
-          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-            hover:shadow-neon-cta transition-all active:scale-95 shadow-neon-cta disabled:opacity-50"
+          className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-[11px] tracking-widest rounded
+            hover:shadow-neon-cta transition-all active:scale-[0.98] disabled:opacity-50"
         >
-          SHARE
+          {shareBusy ? 'SHARING…' : 'SHARE INVITE LINK'}
         </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => runShare(copyLink)}
+            disabled={shareBusy}
+            className="min-h-11 bg-retro-card border border-retro-border text-retro-text font-pixel text-[9px] tracking-wider rounded
+              hover:border-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+          >
+            COPY LINK
+          </button>
+          <button
+            onClick={() => setShowInvite(true)}
+            className="min-h-11 flex items-center justify-center gap-2 bg-retro-card border border-retro-border text-retro-text
+              font-pixel text-[9px] tracking-wider rounded hover:border-retro-p1 transition-all active:scale-95"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <line x1="19" y1="8" x2="19" y2="14" />
+              <line x1="22" y1="11" x2="16" y2="11" />
+            </svg>
+            FRIENDS
+          </button>
+        </div>
+      </div>
+
+      <div className="w-full bg-retro-card border border-retro-border rounded p-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-pixel text-[9px] text-retro-dim tracking-wider">ROOM CODE</p>
+          <p className="font-pixel text-lg text-retro-p1 tracking-[0.25em] mt-1">{gameId}</p>
+        </div>
         <button
-          onClick={() => runShare(copyLink)}
-          disabled={shareBusy}
-          className="px-4 py-2 bg-retro-card border border-retro-border text-retro-dim
-            font-pixel text-[10px] rounded hover:text-retro-text hover:border-retro-p1
-            transition-all active:scale-95 disabled:opacity-50"
+          onClick={() => setShowQr(v => !v)}
+          aria-expanded={showQr}
+          className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] tracking-wider text-retro-dim hover:text-retro-text"
         >
-          COPY
+          {showQr ? 'HIDE QR' : 'SHOW QR'}
         </button>
       </div>
-
-      {/* Invite a friend directly */}
-      <button
-        onClick={() => setShowInvite(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-retro-card border border-retro-p1/40 text-retro-p1
-          font-pixel text-[10px] rounded hover:border-retro-p1 hover:shadow-neon-p1 transition-all active:scale-95"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <line x1="19" y1="8" x2="19" y2="14" />
-          <line x1="22" y1="11" x2="16" y2="11" />
-        </svg>
-        INVITE A FRIEND
-      </button>
-
-      {/* URL row */}
-      <div className="w-full bg-retro-card border border-retro-border rounded p-3 flex items-center gap-2">
-        <p className="text-retro-dim text-xs font-mono truncate flex-1">{shareUrl}</p>
-      </div>
+      {showQr && (
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="bg-white p-2 rounded">
+            <QrCode value={shareUrl} size={150} />
+          </div>
+          <p className="font-pixel text-[9px] text-retro-dim">SCAN TO JOIN</p>
+        </div>
+      )}
 
       {showInvite && (
         <InviteFriendModal gameId={gameId} gameType={gameType} onClose={() => setShowInvite(false)} />
       )}
 
-      {/* Room code */}
-      <p className="font-pixel text-[10px] text-retro-dim">
-        CODE: <span className="text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
-      </p>
     </div>
   )
 }

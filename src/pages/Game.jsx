@@ -19,6 +19,7 @@ import InviteFriendModal from '../components/InviteFriendModal'
 import WinEffect from '../components/WinEffect'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import ProposalBanner from '../components/ProposalBanner'
+import DeadEnd, { deadEndPrimaryClass } from '../components/DeadEnd'
 import GameSwitcher from '../components/GameSwitcher'
 import SettingsButton from '../components/SettingsButton'
 import ChatLog from '../components/ChatLog'
@@ -122,7 +123,7 @@ function EmoteFloats({ floats }) {
         >
           {f.kind === 'chat' ? (
             <div className="flex flex-col items-center gap-0.5 max-w-[60vw]">
-              <span className="font-pixel text-[7px] text-retro-dim">{f.name}</span>
+              <span className="font-pixel text-[8px] text-retro-dim">{f.name}</span>
               <span className="font-pixel text-sm text-retro-cta text-glow-cta break-words">{f.text}</span>
             </div>
           ) : (
@@ -762,22 +763,19 @@ export default function Game() {
 
   if (error) {
     const errorCfg = errorGameType ? getGameConfig(errorGameType) : null
+    const notFound = /NOT FOUND/.test(error)
     return (
-      <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center gap-5 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <p className="font-pixel text-[10px] text-retro-p2 text-center max-w-xs leading-relaxed">{error}</p>
-        {errorCfg && (
-          <button
-            onClick={() => createNewRoom(errorGameType)}
-            disabled={creatingRoom}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
-          >
+      <DeadEnd
+        title={notFound ? 'ROOM NOT FOUND' : 'CAN\'T OPEN THIS ROOM'}
+        message={notFound ? `No room with code ${gameId}. The code may be mistyped, or the room has expired.` : error}
+        primary={errorCfg ? (
+          <button onClick={() => createNewRoom(errorGameType)} disabled={creatingRoom} className={deadEndPrimaryClass}>
             {creatingRoom ? 'CREATING…' : `START A NEW ${errorCfg.label} ROOM`}
           </button>
+        ) : (
+          <Link to="/games?intent=friend" className={deadEndPrimaryClass}>START A NEW ROOM</Link>
         )}
-        <Link to="/" className="font-pixel text-[10px] text-retro-p1 text-glow-p1 hover:opacity-80 transition-opacity inline-block p-3 -m-3">
-          ← BACK TO HOME
-        </Link>
-      </div>
+      />
     )
   }
 
@@ -863,6 +861,9 @@ export default function Game() {
               <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
             </div>
           </div>
+          <p className="game-room-meta font-pixel text-[9px] text-retro-dim tracking-widest text-center -mt-2">
+            {cfg.label} <span aria-hidden="true">·</span> ROOM <span className="text-retro-p1">{gameId}</span>
+          </p>
 
           <Suspense fallback={<GameAreaFallback />}>
             <cfg.Page {...nProps} />
@@ -1002,6 +1003,12 @@ export default function Game() {
             <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
           </div>
         </div>
+        {/* Mobile: the header icons crowd out the game name and room code, so
+            they get their own quiet line — you always know what you're
+            playing and which room you're in. */}
+        <p className="game-room-meta font-pixel text-[9px] text-retro-dim tracking-widest text-center -mt-2">
+          {cfg.label} <span aria-hidden="true">·</span> ROOM <span className="text-retro-p1">{gameId}</span>
+        </p>
 
         {/* Players — hidden on short/landscape real-time viewports (M-05):
             every real-time arena page already renders its own compact
@@ -1073,7 +1080,12 @@ export default function Game() {
             in this file) instead of an in-flow block, so a proposal landing
             mid-turn never reflows/shifts the board under a mid-tap finger. */}
         {activeProposal && game.status !== 'waiting' && (
-          <div className="fixed inset-x-0 top-[max(3.5rem,calc(env(safe-area-inset-top)+2.75rem))] z-40 flex justify-center px-4 pointer-events-none">
+          // Docked at the bottom (above the round-end action bar when it's
+          // showing) so it never covers the scoreboard/header at the top.
+          <div className={cn(
+            'fixed inset-x-0 z-50 flex justify-center px-4 pointer-events-none',
+            reservesStickyBar ? 'bottom-[calc(4.5rem+env(safe-area-inset-bottom))]' : 'bottom-[max(0.75rem,env(safe-area-inset-bottom))]',
+          )}>
             <div className={cn('w-full pointer-events-auto', cfg.maxWidth)}>
               <ProposalBanner
                 proposal={activeProposal}
