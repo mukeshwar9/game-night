@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import AnimatedEmoji from '../components/AnimatedEmoji'
-import SettingsButton from '../components/SettingsButton'
 import { EMOTES_PICKER_ALL, searchEmotes } from '../lib/emotes'
 import { sounds } from '../lib/sounds'
 
@@ -20,12 +19,10 @@ export default function EmojiLab() {
   return (
     <main className="min-h-screen bg-retro-bg p-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-8">
       <div className="max-w-sm mx-auto space-y-5">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors">
-            ← HOME
-          </Link>
-          <SettingsButton />
-        </div>
+        {/* Settings live in the NavBar above — no second gear here. */}
+        <Link to="/" className="inline-flex items-center min-h-11 font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors">
+          ← HOME
+        </Link>
 
         <header className="text-center space-y-2">
           <p className="font-pixel text-[11px] text-retro-cta text-glow-cta tracking-widest">EMOJI LAB</p>

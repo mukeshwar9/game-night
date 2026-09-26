@@ -6,6 +6,9 @@ import { THEMES } from '../lib/theme'
 // attribute on this wrapper re-scopes every --c-* var for its subtree only;
 // --font-pixel is set inline for the same reason. Purely decorative — the
 // picker buttons carry the accessible names — so it is aria-hidden and inert.
+// `.theme-preview` (index.css) draws a scoped copy of the CRT scanlines +
+// vignette, keyed off the same --crt-overlay token and [data-crt] toggle as
+// the real body overlay, so dark themes preview the way they will look.
 const BOARD = ['X', 'O', '', '', 'X', 'O', '', '', 'X']
 const WIN = new Set([0, 4, 8])
 const WORD = ['P', 'I', '', 'E', 'L']
@@ -17,7 +20,7 @@ export default function ThemePreview({ theme, font, caption, className = '' }) {
     aria-hidden="true"
     inert=""
     style={{ '--font-pixel': `'${getFont(font).family}'` }}
-    className={`overflow-hidden rounded border-2 border-retro-border bg-retro-bg text-retro-text ${className}`}
+    className={`theme-preview relative overflow-hidden rounded border-2 border-retro-border bg-retro-bg text-retro-text ${className}`}
   >
     <div className="flex items-center justify-between border-b border-retro-border bg-retro-surface px-2 py-1.5">
       <span className="font-pixel text-[8px] text-retro-cta text-glow-cta tracking-widest">GAME NIGHT</span>

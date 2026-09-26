@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { dateKeyFor, getDailyNumber, getStreak, bumpStreak, writeBest, readHistory } from './daily'
+import {
+  dateKeyFor, getDailyNumber, getStreak, bumpStreak, writeBest, readHistory,
+  msUntilNextDaily, formatCountdown, localDateLabel, weekdayInitial,
+} from './daily'
 
 // daily.js touches localStorage directly (no DOM needed) — stub a minimal
 // in-memory implementation per test, mirroring the gameSearch.test.js pattern.
@@ -126,5 +129,49 @@ describe('readHistory', () => {
     // getDailyNumber(EPOCH_KEY) === 1, so only "today" itself is scanned.
     writeBest('2026-06-20', 9)
     expect(readHistory(utcDate('2026-06-20'))).toEqual({ '2026-06-20': 9 })
+  })
+})
+
+describe('msUntilNextDaily', () => {
+  it('counts down to the next UTC midnight', () => {
+    expect(msUntilNextDaily(new Date('2026-09-25T18:48:00Z'))).toBe((5 * 60 + 12) * 60_000)
+  })
+
+  it('is a full day exactly at the rollover', () => {
+    expect(msUntilNextDaily(utcDate('2026-09-26'))).toBe(86_400_000)
+  })
+
+  it('crosses month and year ends', () => {
+    expect(msUntilNextDaily(new Date('2026-12-31T23:59:00Z'))).toBe(60_000)
+  })
+})
+
+describe('formatCountdown', () => {
+  it('shows hours and minutes', () => {
+    expect(formatCountdown((5 * 60 + 12) * 60_000 + 30_000)).toBe('5h 12m')
+  })
+
+  it('drops hours under an hour', () => {
+    expect(formatCountdown(12 * 60_000)).toBe('12m')
+  })
+
+  it('floors to <1m under a minute and for negatives', () => {
+    expect(formatCountdown(59_000)).toBe('<1m')
+    expect(formatCountdown(-5)).toBe('<1m')
+  })
+})
+
+describe('localDateLabel', () => {
+  it('formats weekday, day and month in caps', () => {
+    // Midday UTC is the same calendar day in every timezone within ±11h.
+    expect(localDateLabel(new Date('2026-09-26T12:00:00Z'), 'en-US')).toBe('SAT 26 SEP')
+  })
+})
+
+describe('weekdayInitial', () => {
+  it('uses the key\'s own day, independent of local timezone', () => {
+    expect(weekdayInitial('2026-09-26')).toBe('S')
+    expect(weekdayInitial('2026-09-28')).toBe('M')
+    expect(weekdayInitial('2026-09-30')).toBe('W')
   })
 })

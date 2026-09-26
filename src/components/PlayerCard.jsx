@@ -81,12 +81,15 @@ export default function PlayerCard({ name, symbol, isActive, isMe, score, online
             </span>
           )}
         </div>
-        {isMe && <p className="text-[10px] text-retro-dim font-mono mt-0.5">YOU</p>}
+        {/* Thinking dots sit under the name, not beside it: on a narrow card
+            they used to squeeze 'PLAYER 1' down to 'PLAY…'. */}
+        {(isMe || isActive) && (
+          <div className="flex items-center gap-2 mt-0.5 min-h-[15px]">
+            {isMe && <p className="text-[10px] text-retro-dim font-mono">YOU</p>}
+            {isActive && <PixelDots size="sm" tone={isX ? 'p1' : 'p2'} className="flex-shrink-0" />}
+          </div>
+        )}
       </div>
-
-      {isActive && (
-        <PixelDots size="md" tone={isX ? 'p1' : 'p2'} className="flex-shrink-0" />
-      )}
     </div>
   )
 }

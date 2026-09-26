@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- provider, hook, and shell share one context seam. */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import BottomSheet from './BottomSheet'
+import SwitchRow from './SwitchRow'
 import {
   DEFAULT_VIDEO_CALL_LAYOUT,
   VIDEO_CALL_CORNERS,
@@ -90,21 +91,12 @@ export function VideoCallSettingsPanel({ onClose, embedded = false }) {
       <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">VIDEO CALL LAYOUT</p>
       <button type="button" onClick={onClose} className="font-pixel text-[10px] text-retro-dim p-2 -m-2">CLOSE</button>
     </div>}
-    <div className="space-y-4 pt-4">
-      <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
-        <span>PLAYING ON A VIDEO CALL</span>
-        <input type="checkbox" checked={layout.enabled} onChange={e => updateLayout({ enabled: e.target.checked })} className="h-5 w-5 accent-retro-cta" />
-      </label>
-      <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
-        <span>SHOW LAYOUT OUTLINE</span>
-        <input
-          type="checkbox"
-          checked={layout.showOutline}
-          onChange={e => updateLayout({ showOutline: e.target.checked })}
-          aria-label="Show video call layout outline"
-          className="h-5 w-5 accent-retro-cta"
-        />
-      </label>
+    <div className={embedded ? 'space-y-4' : 'space-y-4 pt-4'}>
+      {embedded && <p className="font-mono text-[11px] text-retro-dim leading-relaxed">Keep part of the screen clear for a floating call window.</p>}
+      <SwitchRow label="PLAYING ON A VIDEO CALL" checked={layout.enabled} onChange={enabled => updateLayout({ enabled })} />
+      {/* The alignment/size controls only matter once the layout is on. */}
+      {layout.enabled && <>
+      <SwitchRow label="SHOW LAYOUT OUTLINE" checked={layout.showOutline} onChange={showOutline => updateLayout({ showOutline })} ariaLabel="Show video call layout outline" />
       <div className="flex items-center justify-between gap-4">
         <div><p className="font-pixel text-[9px] text-retro-text tracking-widest">WINDOW ALIGNMENT</p><p className="font-mono text-[10px] text-retro-dim mt-1">Align the portrait call space beside reactions.</p></div>
         <div className="video-call-corner-picker" aria-label="Video window corner">
@@ -123,6 +115,7 @@ export function VideoCallSettingsPanel({ onClose, embedded = false }) {
       </div>
       {cramped && <p className="border border-retro-danger/60 bg-retro-tint-danger text-retro-danger p-2 font-mono text-[10px] leading-relaxed">SPACE IS TIGHT. CHOOSE A SMALLER WINDOW OR ANOTHER CORNER.</p>}
       <p className="font-mono text-[10px] text-retro-dim leading-relaxed">Move WhatsApp or another floating call window to match the preview. Game cannot move or detect that window.</p>
+      </>}
     </div>
   </div>
 }

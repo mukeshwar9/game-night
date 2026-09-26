@@ -115,21 +115,23 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
   })
 
-  const renderTryNext = () => {
+  // One "play something else" row: the suggested games as chips, then SWITCH
+  // GAME (the full picker) as the last chip — they used to be two competing
+  // blocks. Both go through onSwitchGame, same as before.
+  const renderPlayElse = () => {
     if (!onSwitchGame) return null
     const suggestions = suggestGames(gameType)
-    if (suggestions.length === 0) return null
     return (
-      <div className="space-y-1.5">
-        <p className="font-pixel text-[8px] text-retro-dim tracking-widest">TRY NEXT</p>
-        <div className="flex flex-wrap gap-2 justify-center">
+      <div className="space-y-2">
+        <p className="font-pixel text-[9px] text-retro-dim tracking-widest">PLAY SOMETHING ELSE</p>
+        <div className="flex flex-wrap items-center justify-center gap-2 [&>div]:mt-0 [&>div>button]:min-h-11">
           {suggestions.map(g => {
             const Icon = g.Icon
             return (
               <button
                 key={g.type}
                 onClick={() => onSwitchGame(g.type)}
-                className="flex items-center gap-1.5 px-3 py-2 border border-retro-border rounded
+                className="min-h-11 flex items-center gap-1.5 px-3 py-2 border border-retro-border rounded
                   text-retro-dim hover:border-retro-cta/50 hover:text-retro-text transition-all active:scale-95"
               >
                 <div className="w-4 h-4 flex items-center justify-center shrink-0">
@@ -139,6 +141,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
               </button>
             )
           })}
+          <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />
         </div>
       </div>
     )
@@ -168,8 +171,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
           {renderHeadToHead()}
         </div>
-        {renderTryNext()}
-        {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
+        {renderPlayElse()}
         <StickyActionBar>
           {onNewMatch && (
             <RetroButton
@@ -219,8 +221,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           <p className="font-pixel text-[9px] text-retro-dim tracking-widest -mt-2">YOU LOSE THIS ROUND · {scoreX}–{scoreO}</p>
         )}
         {renderHeadToHead()}
-        {renderTryNext()}
-        {onSwitchGame && <GameSwitcher currentType={gameType} onSwitch={onSwitchGame} />}
+        {renderPlayElse()}
         <StickyActionBar>
           {onPlayAgain && (
             <RetroButton

@@ -4,6 +4,7 @@ import Avatar from './Avatar'
 import AvatarPicker, { DieIcon } from './AvatarPicker'
 import AuthErrorBanner from './AuthErrorBanner'
 import useBusy from '../hooks/useBusy'
+import { useMarkOnboardingOpen } from '../hooks/useOnboardingOpen'
 import { defaultAvatarForId, canonicalAvatar } from '../lib/avatars'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
@@ -45,6 +46,7 @@ export default function Onboarding({ onDone, invite = null }) {
   const headingRef = useRef(null)
   const firstFocus = useRef(true)
   const ids = useId()
+  useMarkOnboardingOpen()
 
   const name = nameInput ?? initialName({
     profileName: profile?.displayName,
@@ -164,8 +166,10 @@ export default function Onboarding({ onDone, invite = null }) {
                     id={`${ids}-name`}
                     type="text"
                     value={name}
+                    placeholder="Your name"
                     onChange={e => setName(e.target.value)}
-                    onFocus={e => { if (firstFocus.current) { firstFocus.current = false; e.target.select() } }}
+                    // Select the suggested name while it's untouched, so typing replaces it.
+                    onFocus={e => { if (firstFocus.current || nameInput === null) { firstFocus.current = false; e.target.select() } }}
                     onKeyDown={e => e.key === 'Enter' && next()}
                     maxLength={NAME_MAX + 8}
                     autoComplete="nickname"
@@ -174,7 +178,9 @@ export default function Onboarding({ onDone, invite = null }) {
                     aria-invalid={showError && !check.ok}
                     aria-describedby={showError && !check.ok ? errorId : hintId}
                     className={cn(
-                      'min-w-0 flex-1 bg-retro-card border-2 text-retro-text font-pixel text-xs tracking-wider placeholder-retro-dim rounded px-3 py-3 focus:outline-none transition-colors',
+                      // Mono body text (16px, so iOS doesn't zoom) reads as a real, editable
+                      // value; the pixel caps looked like a placeholder.
+                      'min-w-0 flex-1 bg-retro-card border-2 text-retro-text font-mono text-base placeholder:text-retro-dim rounded px-3 py-2.5 focus:outline-none transition-colors',
                       showError && !check.ok ? 'border-retro-p2' : 'border-retro-border focus:border-retro-p1',
                     )}
                   />

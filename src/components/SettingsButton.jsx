@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Avatar from './Avatar'
 import BottomSheet from './BottomSheet'
 import PixelDots from './loading/PixelDots'
+import SwitchRow from './SwitchRow'
 import ThemePreview from './ThemePreview'
 import { VideoCallSettingsPanel } from './VideoCallLayout'
 import { FONTS, applyFont, getStoredFont } from '../lib/font'
@@ -31,6 +32,21 @@ const IdentityEditor = lazyWithRetry(() => import('./IdentityEditor'))
 
 function SectionTitle({ children }) {
   return <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">{children}</p>
+}
+
+// A collapsible group of the settings sheet. Native <details> keeps it
+// keyboard- and screen-reader-operable with no state; the sheet is long, so
+// only THEME & FONT start open.
+function Section({ title, defaultOpen = false, children }) {
+  return (
+    <details open={defaultOpen} className="group border-t border-retro-border pt-2">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <SectionTitle>{title}</SectionTitle>
+        <span aria-hidden="true" className="font-pixel text-[10px] text-retro-dim transition-transform group-open:rotate-90">›</span>
+      </summary>
+      <div className="space-y-3 pt-2 pb-2">{children}</div>
+    </details>
+  )
 }
 
 export default function SettingsButton({ className = '' }) {
@@ -127,7 +143,7 @@ export default function SettingsButton({ className = '' }) {
       onClick={() => { setEditingMe(false); setOpen(true) }}
       title="Settings"
       aria-label="Settings"
-      className={`relative text-retro-dim hover:text-retro-text active:scale-95 transition-colors p-2 rounded ${className}`}
+      className={`relative text-retro-dim hover:text-retro-text active:scale-95 transition-colors p-3 rounded ${className}`}
     >
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <line x1="4" y1="6" x2="20" y2="6" />
@@ -166,14 +182,8 @@ export default function SettingsButton({ className = '' }) {
         )}
       </section>
 
-      <section className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <SectionTitle>THEME</SectionTitle>
-          <label className="flex items-center gap-2 font-pixel text-[8px] text-retro-dim tracking-widest">
-            <span>PREVIEW</span>
-            <input type="checkbox" checked={showPreview} onChange={e => selectShowPreview(e.target.checked)} aria-label="Show theme preview" className="h-5 w-5 accent-retro-cta" />
-          </label>
-        </div>
+      <Section title="THEME & FONT" defaultOpen>
+        <SwitchRow label="SHOW PREVIEW" checked={showPreview} onChange={selectShowPreview} ariaLabel="Show theme preview" />
         <div className={showPreview ? 'space-y-3 md:grid md:grid-cols-[240px_1fr] md:gap-5 md:space-y-0' : ''}>
           {showPreview && <div>
             <div className="md:sticky md:top-0">
@@ -227,22 +237,12 @@ export default function SettingsButton({ className = '' }) {
             </div>
           </div>
         </div>
-      </section>
+      </Section>
 
-      <section className="space-y-3 border-t border-retro-border pt-4">
-        <SectionTitle>LOOK & FEEL</SectionTitle>
-        <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
-          <span>CRT EFFECTS</span>
-          <input type="checkbox" checked={crt} onChange={e => selectCrt(e.target.checked)} aria-label="Toggle CRT scanlines and vignette" className="h-5 w-5 accent-retro-cta" />
-        </label>
-        <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
-          <span>REDUCE MOTION</span>
-          <input type="checkbox" checked={motion === 'reduced'} onChange={e => selectMotion(e.target.checked ? 'reduced' : 'full')} aria-label="Toggle reduced motion" className="h-5 w-5 accent-retro-cta" />
-        </label>
-        <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
-          <span>WIN CELEBRATIONS</span>
-          <input type="checkbox" checked={winFx} onChange={e => selectWinFx(e.target.checked)} aria-label="Toggle win confetti and fanfare" className="h-5 w-5 accent-retro-cta" />
-        </label>
+      <Section title="LOOK & FEEL">
+        <SwitchRow label="CRT EFFECTS" checked={crt} onChange={selectCrt} ariaLabel="Toggle CRT scanlines and vignette" />
+        <SwitchRow label="REDUCE MOTION" checked={motion === 'reduced'} onChange={on => selectMotion(on ? 'reduced' : 'full')} ariaLabel="Toggle reduced motion" />
+        <SwitchRow label="WIN CELEBRATIONS" checked={winFx} onChange={selectWinFx} ariaLabel="Toggle win confetti and fanfare" />
         <div className="flex items-center justify-between gap-3">
           <span className="font-pixel text-[9px] text-retro-text tracking-widest">TEXT SIZE</span>
           <div className="grid grid-cols-3 gap-2" role="group" aria-label="Text size">
@@ -257,31 +257,24 @@ export default function SettingsButton({ className = '' }) {
             </button>)}
           </div>
         </div>
-      </section>
+      </Section>
 
-      <section className="space-y-3 border-t border-retro-border pt-4">
-        <SectionTitle>AUDIO</SectionTitle>
-        <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
-          <span>GAME SOUNDS</span>
-          <input type="checkbox" checked={!muted} onChange={toggleMute} aria-label="Enable game sounds" className="h-5 w-5 accent-retro-cta" />
-        </label>
-        <label className="flex items-center justify-between gap-3 font-pixel text-[9px] text-retro-text tracking-widest">
-          <span>REACTION SOUNDS</span>
-          <input type="checkbox" checked={!reactionMuted} onChange={toggleReactionMute} aria-label="Enable reaction sounds" className="h-5 w-5 accent-retro-cta" />
-        </label>
+      <Section title="AUDIO">
+        <SwitchRow label="GAME SOUNDS" checked={!muted} onChange={toggleMute} ariaLabel="Enable game sounds" />
+        <SwitchRow label="REACTION SOUNDS" checked={!reactionMuted} onChange={toggleReactionMute} ariaLabel="Enable reaction sounds" />
         <label className="block font-pixel text-[9px] text-retro-text tracking-widest">
           <span className="mb-2 flex justify-between"><span>SFX VOLUME</span><span className="text-retro-dim">{Math.round(volume * 100)}%</span></span>
           <input type="range" min="0" max="1" step="0.05" value={volume} onChange={changeVolume} aria-label="SFX volume" className="w-full accent-retro-cta" />
         </label>
-      </section>
+      </Section>
 
-      <section className="space-y-3 border-t border-retro-border pt-4">
-        <SectionTitle>VIDEO LAYOUT</SectionTitle>
+      {/* Video layout is niche (a floating WhatsApp/Meet window over the game),
+          so it hides behind a plain-language question. */}
+      <Section title="PLAYING ON A VIDEO CALL?">
         <VideoCallSettingsPanel embedded />
-      </section>
+      </Section>
 
-      <section className="space-y-3 border-t border-retro-border pt-4">
-        <SectionTitle>HELP</SectionTitle>
+      <Section title="HELP">
         <Link
           to="/notes"
           onClick={() => setOpen(false)}
@@ -298,7 +291,7 @@ export default function SettingsButton({ className = '' }) {
           <span>MUTED PLAYERS</span>
           <span className="text-retro-dim" aria-hidden="true">→</span>
         </Link>
-      </section>
+      </Section>
 
       <section className="border-t border-retro-border pt-4">
         <button

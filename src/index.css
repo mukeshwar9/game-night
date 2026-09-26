@@ -1473,3 +1473,29 @@ body::before {
 /* Horizontal chip/emoji rows that scroll without a visible scrollbar. */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Settings theme preview: a scoped copy of the CRT scanlines + vignette
+   (body::after / body::before above). ThemePreview sets data-theme on its own
+   box, so --crt-overlay resolves to the previewed theme's value, and the
+   Settings CRT toggle ([data-crt] on <html>) hides it like the real one. */
+.theme-preview::after {
+  content: '';
+  display: var(--crt-overlay);
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.07) 2px, rgba(0, 0, 0, 0.07) 4px),
+    radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.65) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+[data-crt="off"] .theme-preview::after { display: none; }
+
+/* Sideways-scrolling rows (avatar bodies, outfit presets): fade both edges so
+   a clipped tile reads as "more this way", and keep snap stops clear of it. */
+.scroll-fade-x {
+  -webkit-mask-image: linear-gradient(to right, transparent, rgb(0 0 0) 16px, rgb(0 0 0) calc(100% - 16px), transparent);
+  mask-image: linear-gradient(to right, transparent, rgb(0 0 0) 16px, rgb(0 0 0) calc(100% - 16px), transparent);
+  padding-inline: 16px;
+  scroll-padding-inline: 16px;
+}

@@ -14,6 +14,40 @@ export function todayKey() {
   return dateKeyFor(new Date())
 }
 
+// ms until the next UTC midnight, when todayKey() — and so the puzzle — rolls over.
+export function msUntilNextDaily(now = new Date()) {
+  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
+  return next - now.getTime()
+}
+
+// Compact countdown for "new puzzle in …": '5h 12m', '12m', or '<1m'.
+/** @param {number} ms */
+export function formatCountdown(ms) {
+  const mins = Math.floor(Math.max(0, ms) / 60_000)
+  if (mins < 1) return '<1m'
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
+// The player's own calendar day ('SAT 26 SEP'). The puzzle key is UTC, which
+// east of UTC showed yesterday's date for part of the morning.
+/** @param {Date} [now] @param {string} [locale] */
+export function localDateLabel(now = new Date(), locale) {
+  const parts = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(now)
+  const get = (/** @type {string} */ type) => parts.find(p => p.type === type)?.value ?? ''
+  return `${get('weekday')} ${get('day')} ${get('month')}`.replace(/\./g, '').toUpperCase()
+}
+
+const WEEKDAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+// Weekday initial for a yyyy-mm-dd key (the key's own UTC day).
+/** @param {string} key */
+export function weekdayInitial(key) {
+  const [y, m, d] = key.split('-').map(Number)
+  return WEEKDAY_INITIALS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+}
+
 function addDays(date, delta) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + delta))
 }

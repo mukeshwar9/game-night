@@ -1154,7 +1154,7 @@ export default function Game() {
             {game.status === 'finished' && (
               <Link
                 to="/leaderboard"
-                className="block text-center font-mono text-[10px] text-retro-dim hover:text-retro-text transition-colors p-2 -m-2"
+                className="mx-auto flex min-h-11 w-fit items-center justify-center px-3 font-pixel text-[9px] tracking-widest text-retro-p1 hover:text-retro-text transition-colors"
               >
                 SEE WHERE YOU RANK →
               </Link>
@@ -1167,7 +1167,10 @@ export default function Game() {
 
         {!isCustom && isSpectator && (game.status === 'playing' || game.status === 'finished') && (
           <div className="flex flex-col items-center gap-2">
-            <p className="text-center font-pixel text-[10px] text-retro-border">SPECTATING</p>
+            {/* Spectators can react and chat (the rules allow it), so say so
+                instead of a faint SPECTATING that left the dock unexplained. */}
+            <p className="text-center font-pixel text-[10px] text-retro-dim tracking-wider">SPECTATING</p>
+            <p className="text-center font-mono text-xs text-retro-dim">Reactions and chat below reach both players.</p>
             <button
               onClick={() => createNewRoom(game.gameType)}
               disabled={creatingRoom}

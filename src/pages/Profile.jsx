@@ -35,6 +35,9 @@ export default function Profile() {
   const savedAvatar = canonicalAvatar(profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId()))
   const [avatarDraft, setAvatarDraft] = useState(savedAvatar)
   const [avatarDraftDirty, setAvatarDraftDirty] = useState(false)
+  // The picker is ~900px tall, so it stays folded behind EDIT AVATAR (a
+  // /profile#look deep link opens it straight away).
+  const [editingAvatar, setEditingAvatar] = useState(() => window.location.hash === '#look')
   const [prevSavedAvatar, setPrevSavedAvatar] = useState(savedAvatar)
   const stats = getStats()
   const matches = getMatches()
@@ -66,8 +69,16 @@ export default function Profile() {
     if (avatarDraft === savedAvatar) { setAvatarDraftDirty(false); return }
     await setProfile({ avatar: avatarDraft })
     setAvatarDraftDirty(false)
+    setEditingAvatar(false)
     toast.success('AVATAR SAVED!')
   }, () => toast.error("COULDN'T SAVE YOUR AVATAR — TRY AGAIN."))
+
+  // Closing the editor drops unsaved changes — SAVE is the only commit.
+  const closeAvatarEditor = () => {
+    setAvatarDraft(savedAvatar)
+    setAvatarDraftDirty(false)
+    setEditingAvatar(false)
+  }
 
   const handleUpgrade = async () => {
     setBusy(true)
@@ -193,6 +204,21 @@ export default function Profile() {
         {/* Avatar picker */}
         <div id="look" className="space-y-2 scroll-mt-20">
           <p className="font-pixel text-[10px] text-retro-dim tracking-wider">AVATAR</p>
+          {!editingAvatar ? (
+            <div className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-2.5">
+              <Avatar id={savedAvatar} size={40} />
+              <p className="flex-1 min-w-0 font-mono text-[11px] text-retro-dim">Pick a critter or build a person.</p>
+              <button
+                type="button"
+                onClick={() => setEditingAvatar(true)}
+                aria-expanded={false}
+                className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
+              >
+                EDIT AVATAR
+              </button>
+            </div>
+          ) : (
+          <div id="profile-avatar-editor" className="space-y-2">
           <div className={avatarBusy ? 'pointer-events-none opacity-60' : ''}>
             <AvatarPicker value={avatarDraft} onChange={pickAvatar} name={profile?.displayName || localStorage.getItem('playerName') || ''} />
           </div>
@@ -207,6 +233,19 @@ export default function Profile() {
               {avatarBusy ? 'SAVING…' : 'SAVE'}
             </button>
           )}
+          <button
+            type="button"
+            onClick={closeAvatarEditor}
+            disabled={avatarBusy}
+            aria-expanded={true}
+            aria-controls="profile-avatar-editor"
+            className="w-full max-w-[380px] mx-auto block min-h-11 border border-retro-border text-retro-dim font-pixel text-[10px] tracking-widest rounded
+              hover:text-retro-text transition-all active:scale-95 disabled:opacity-60"
+          >
+            {avatarDraftDirty ? 'CANCEL' : 'DONE'}
+          </button>
+          </div>
+          )}
         </div>
 
         {/* Friend code */}
@@ -214,7 +253,8 @@ export default function Profile() {
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">FRIEND CODE</label>
           <div className="flex items-center gap-2">
             <div className="flex-1 bg-retro-card border border-retro-border rounded px-3 py-2">
-              <span className="font-pixel text-sm text-retro-p1 text-glow-p1 tracking-[0.3em]">{profile?.code || '······'}</span>
+              {/* Plain mono, no glow: people copy these characters by eye. */}
+              <span className="font-mono text-base text-retro-p1 tracking-[0.2em]">{profile?.code || '······'}</span>
             </div>
             <button
               onClick={copyCode}

@@ -86,7 +86,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
           onClick={undo}
           disabled={!history.length}
           aria-label="Undo last change"
-          className="min-w-11 min-h-11 px-2 flex items-center justify-center font-pixel text-[9px] tracking-wider text-retro-dim hover:text-retro-text transition-all active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="min-w-11 min-h-11 px-2 flex items-center justify-center font-pixel text-[9px] tracking-wider text-retro-dim hover:text-retro-text transition-all active:scale-90 disabled:invisible"
         >
           UNDO
         </button>

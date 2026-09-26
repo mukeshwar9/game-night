@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import NumberPad from '../components/NumberPad'
 import { generateQuestion } from '../lib/mathLogic'
 import { sounds } from '../lib/sounds'
-import { todayKey, seedFromDate, readBest, writeBest, getDailyNumber, bumpStreak, readHistory } from '../lib/daily'
+import {
+  todayKey, seedFromDate, readBest, writeBest, getDailyNumber, bumpStreak, readHistory,
+  msUntilNextDaily, formatCountdown, localDateLabel, weekdayInitial,
+} from '../lib/daily'
 import { getCurrentStreak, getBestStreak, getLast7Days } from '../lib/dailyStreakLogic'
 import { shareResult } from '@/lib/shareCard'
 import { cn } from '@/lib/utils'
@@ -34,6 +37,12 @@ export default function DailyGame() {
   const [best, setBest] = useState(() => readBest(todayKey()))
   const [dayStreak, setDayStreak] = useState(0)
   const [history, setHistory] = useState(() => readHistory())
+  // Re-render twice a minute so the "new puzzle in …" countdown stays current.
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000)
+    return () => clearInterval(id)
+  }, [])
 
   const fbTimer = useRef(null)
   const correctRef = useRef(0)   // mirrors `correct` so the timer reads the final value
@@ -150,7 +159,14 @@ export default function DailyGame() {
           <h1 className="font-pixel text-lg text-retro-cta text-glow-cta leading-relaxed">
             DAILY PUZZLE
           </h1>
-          <p className="font-mono text-xs text-retro-dim tracking-widest">{date}</p>
+          {/* The player's local day, not the UTC puzzle key (which showed
+              yesterday's date east of UTC), plus when the next one lands. */}
+          <p className="font-mono text-xs text-retro-text tracking-widest">
+            {localDateLabel(now)} · #{getDailyNumber(date)}
+          </p>
+          <p className="font-mono text-[11px] text-retro-dim">
+            New puzzle in {formatCountdown(msUntilNextDaily(now))}
+          </p>
         </div>
 
         {/* INTRO */}
@@ -303,17 +319,20 @@ export default function DailyGame() {
           </div>
           <div className="flex justify-center gap-1.5">
             {last7.map(day => (
-              <div key={day.date} className="flex flex-col items-center gap-1 w-7">
+              <div key={day.date} className="flex flex-col items-center gap-1 w-8">
+                {/* Score inside played days; the weekday initial underneath. */}
                 <div
                   className={cn(
-                    'w-5 h-5 rounded-sm border',
-                    day.played ? 'bg-retro-win border-retro-win' : 'border-retro-border',
+                    'w-7 h-7 rounded-sm border flex items-center justify-center font-pixel text-[8px] tabular-nums',
+                    day.played ? 'bg-retro-win border-retro-win text-retro-bg' : 'border-retro-border',
                     day.date === date && 'ring-1 ring-retro-cta ring-offset-1 ring-offset-retro-card',
                   )}
-                  title={day.date}
-                />
-                <p className="font-pixel text-[8px] text-retro-dim tabular-nums leading-none">
-                  {day.played ? day.score : '·'}
+                  title={day.played ? `${day.date}: ${day.score}` : day.date}
+                >
+                  {day.played ? day.score : ''}
+                </div>
+                <p className={cn('font-pixel text-[8px] leading-none', day.date === date ? 'text-retro-cta' : 'text-retro-dim')}>
+                  {weekdayInitial(day.date)}
                 </p>
               </div>
             ))}

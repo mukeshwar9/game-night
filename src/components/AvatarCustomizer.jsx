@@ -95,13 +95,17 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96, co
     <div className="w-full max-w-[380px] mx-auto space-y-3" onKeyDown={handleKeyDown}>
       {/* Preview row: UNDO — avatar — RANDOM */}
       {!hidePreview && <div className="flex items-center justify-center gap-3">
+        {/* Hidden (space kept, so the preview doesn't shift) until there is
+            something to undo — a greyed-out UNDO on first open looked broken. */}
         <button
           onClick={undo}
           disabled={!canUndo}
+          aria-hidden={!canUndo}
+          tabIndex={canUndo ? undefined : -1}
           aria-label="Undo last change"
           className={cn(
-            'min-w-11 min-h-11 px-2 flex items-center justify-center font-pixel text-[9px] tracking-wider transition-all active:scale-90',
-            canUndo ? 'text-retro-dim hover:text-retro-text' : 'text-retro-dim opacity-30 cursor-not-allowed',
+            'min-w-11 min-h-11 px-2 flex items-center justify-center font-pixel text-[9px] tracking-wider text-retro-dim hover:text-retro-text transition-all active:scale-90',
+            !canUndo && 'invisible',
           )}
         >
           UNDO
@@ -127,7 +131,7 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96, co
       <div
         role="radiogroup"
         aria-label="Body"
-        className="flex items-center gap-2 overflow-x-auto snap-x snap-mandatory px-1 py-1 no-scrollbar"
+        className="scroll-fade-x flex items-center gap-2 overflow-x-auto snap-x snap-mandatory py-1 no-scrollbar"
       >
         {PICKER_SHAPES.map((s) => {
           const selected = s === shape
@@ -180,7 +184,7 @@ export default function AvatarCustomizer({ value, onChange, previewSize = 96, co
 
       {/* Preset strip */}
       {!compact && (
-        <div className="flex items-center gap-3 overflow-x-auto snap-x px-1 py-1 no-scrollbar">
+        <div className="scroll-fade-x flex items-center gap-3 overflow-x-auto snap-x py-1 no-scrollbar">
           {OUTFIT_PRESETS.map((preset) => (
             <button
               key={preset.id}

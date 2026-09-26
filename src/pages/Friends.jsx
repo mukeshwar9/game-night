@@ -4,7 +4,6 @@ import { ref, set } from 'firebase/database'
 import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
 import Skeleton from '../components/loading/Skeleton'
-import EmptyState from '../components/EmptyState'
 import { useAuth } from '../lib/AuthContext'
 import {
   normalizeFriendCode, isValidFriendCode, sendFriendRequestByCode,
@@ -197,7 +196,7 @@ export default function Friends() {
         <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
           <p className="font-pixel text-[9px] text-retro-dim tracking-wider">YOUR FRIEND CODE</p>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="flex-1 min-w-[9ch] font-pixel text-base sm:text-lg text-retro-p1 text-glow-p1 tracking-[0.25em]">{profile?.code || '······'}</span>
+            <span className="flex-1 min-w-[9ch] font-mono text-lg text-retro-p1 tracking-[0.2em]">{profile?.code || '······'}</span>
             <div className="flex gap-2 shrink-0">
               <button
                 onClick={copyCode}
@@ -215,7 +214,7 @@ export default function Friends() {
               </button>
             </div>
           </div>
-          <p className="font-mono text-[10px] text-retro-dim">Share this so friends can add you.</p>
+          <p className="font-mono text-[11px] text-retro-dim">Share this so friends can add you.</p>
         </div>
 
         {/* Add friend */}
@@ -302,7 +301,11 @@ export default function Friends() {
               ))}
             </div>
           ) : friendUids.length === 0 ? (
-            <EmptyState>NO FRIENDS YET. SHARE YOUR CODE OR ADD SOMEONE ABOVE.</EmptyState>
+            // Short pixel heading + a plain sentence: the all-caps paragraph read as shouting.
+            <div className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-2">
+              <p className="font-pixel text-[9px] text-retro-dim tracking-wider">NO FRIENDS YET</p>
+              <p className="font-mono text-xs text-retro-dim leading-relaxed">Share your code, or add a friend by theirs above.</p>
+            </div>
           ) : (
             <div className="space-y-2">
               {friendUids.map(uid => {
