@@ -14,6 +14,10 @@ export default function AirHockeyTable({
 }) {
   const pctX = v => `${(v / 1) * 100}%`
   const pctY = v => `${(v / 1.5) * 100}%`
+  // Puck and mallets move every frame. Each rides a table-sized layer moved by
+  // transform (a translate percentage of a table-sized box is a percentage of
+  // the table), which skips the per-frame layout that left/top would force.
+  const layer = (x, y) => ({ transform: `translate3d(${pctX(x)}, ${pctY(y)}, 0)` })
 
   return (
     <div
@@ -42,42 +46,41 @@ export default function AirHockeyTable({
       />
 
       {/* Puck */}
-      <div
-        className={cn(
-          'absolute rounded-full bg-retro-text transition-none',
-          flash === 'goal' && 'bg-retro-win',
-        )}
-        style={{
-          left: pctX(puck.x),
-          top: pctY(puck.y),
-          width: '7%',
-          aspectRatio: '1',
-          transform: 'translate(-50%, -50%)',
-          boxShadow: '0 0 6px rgb(var(--c-text) / 0.5)',
-        }}
-      />
+      <div className="absolute inset-0 pointer-events-none" style={layer(puck.x, puck.y)}>
+        <div
+          className={cn(
+            'absolute left-0 top-0 rounded-full bg-retro-text transition-none',
+            flash === 'goal' && 'bg-retro-win',
+          )}
+          style={{
+            width: '7%',
+            aspectRatio: '1',
+            transform: 'translate(-50%, -50%)',
+            boxShadow: '0 0 6px rgb(var(--c-text) / 0.5)',
+          }}
+        />
+      </div>
 
       {/* Mallets */}
       {['O', 'X'].map(sym => {
         const m = mallets[sym]
         return (
-          <div
-            key={sym}
-            className={cn(
-              'absolute rounded-full',
-              sym === 'X'
-                ? 'bg-retro-p1 shadow-neon-p1'
-                : 'bg-retro-p2 shadow-neon-p2',
-            )}
-            style={{
-              left: pctX(m.x),
-              top: pctY(m.y),
-              width: '12%',
-              aspectRatio: '1',
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            <div className="absolute inset-[30%] rounded-full bg-retro-bg/40" />
+          <div key={sym} className="absolute inset-0 pointer-events-none" style={layer(m.x, m.y)}>
+            <div
+              className={cn(
+                'absolute left-0 top-0 rounded-full',
+                sym === 'X'
+                  ? 'bg-retro-p1 shadow-neon-p1'
+                  : 'bg-retro-p2 shadow-neon-p2',
+              )}
+              style={{
+                width: '12%',
+                aspectRatio: '1',
+                transform: 'translate(-50%, -50%)',
+              }}
+            >
+              <div className="absolute inset-[30%] rounded-full bg-retro-bg/40" />
+            </div>
           </div>
         )
       })}

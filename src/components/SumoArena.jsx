@@ -19,36 +19,44 @@ function Wrestler({ blob, side, flash }) {
   const alive = !!blob?.alive
   const scale = alive ? (flash ? 1.15 : 1) : 0.3
   const rotate = alive ? 0 : 120
+  // Position rides an arena-sized layer moved by transform (a translate
+  // percentage of an arena-sized box is a percentage of the arena), which
+  // skips the per-frame layout left/top would force. The sprite inside keeps
+  // its own transform for the transitioned death/flash scale and rotation.
   return (
     <div
-      className="absolute"
-      style={{
-        left: pct(blob.x), top: pct(blob.y),
-        width: pct(size), height: pct(size),
-        transition: 'transform 0.5s, opacity 0.5s, filter 0.15s',
-        transform: `translate(-50%, -50%) scale(${scale}) rotate(${rotate}deg)`,
-        opacity: alive ? 1 : 0,
-        filter: flash && alive ? 'brightness(1.6)' : 'none',
-      }}
+      className="absolute inset-0 pointer-events-none"
+      style={{ transform: `translate3d(${pct(blob.x)}, ${pct(blob.y)}, 0)` }}
     >
-      {/* Head */}
-      <div className={cn('absolute rounded-sm', color, 'opacity-90')}
-        style={{ left: '28%', top: '0%', width: '44%', height: '38%' }} />
-      {/* Body — wide rounded rectangle */}
-      <div className={cn('absolute rounded-lg', color)}
-        style={{ left: '8%', top: '32%', width: '84%', height: '52%' }} />
-      {/* Left arm — extended outward (wide stance) */}
-      <div className={cn('absolute rounded-sm', color, 'opacity-80')}
-        style={{ left: '0%', top: '38%', width: '16%', height: '22%' }} />
-      {/* Right arm */}
-      <div className={cn('absolute rounded-sm', color, 'opacity-80')}
-        style={{ left: '84%', top: '38%', width: '16%', height: '22%' }} />
-      {/* Left leg — squatting */}
-      <div className={cn('absolute rounded-sm', color, 'opacity-70')}
-        style={{ left: '22%', top: '80%', width: '24%', height: '20%' }} />
-      {/* Right leg */}
-      <div className={cn('absolute rounded-sm', color, 'opacity-70')}
-        style={{ left: '54%', top: '80%', width: '24%', height: '20%' }} />
+      <div
+        className="absolute left-0 top-0"
+        style={{
+          width: pct(size), height: pct(size),
+          transition: 'transform 0.5s, opacity 0.5s, filter 0.15s',
+          transform: `translate(-50%, -50%) scale(${scale}) rotate(${rotate}deg)`,
+          opacity: alive ? 1 : 0,
+          filter: flash && alive ? 'brightness(1.6)' : 'none',
+        }}
+      >
+        {/* Head */}
+        <div className={cn('absolute rounded-sm', color, 'opacity-90')}
+          style={{ left: '28%', top: '0%', width: '44%', height: '38%' }} />
+        {/* Body — wide rounded rectangle */}
+        <div className={cn('absolute rounded-lg', color)}
+          style={{ left: '8%', top: '32%', width: '84%', height: '52%' }} />
+        {/* Left arm — extended outward (wide stance) */}
+        <div className={cn('absolute rounded-sm', color, 'opacity-80')}
+          style={{ left: '0%', top: '38%', width: '16%', height: '22%' }} />
+        {/* Right arm */}
+        <div className={cn('absolute rounded-sm', color, 'opacity-80')}
+          style={{ left: '84%', top: '38%', width: '16%', height: '22%' }} />
+        {/* Left leg — squatting */}
+        <div className={cn('absolute rounded-sm', color, 'opacity-70')}
+          style={{ left: '22%', top: '80%', width: '24%', height: '20%' }} />
+        {/* Right leg */}
+        <div className={cn('absolute rounded-sm', color, 'opacity-70')}
+          style={{ left: '54%', top: '80%', width: '24%', height: '20%' }} />
+      </div>
     </div>
   )
 }

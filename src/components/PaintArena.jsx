@@ -81,10 +81,14 @@ const PaintArena = forwardRef(function PaintArena(
   // SpaceduelArena). A 1-cell-wide square's half-size is 0.5 cell units, so
   // subtract 0.5 before converting to a percentage; without this the square
   // renders half a cell down-and-right of the player's real position.
+  // Placed with a transform rather than left/top (players move every frame and
+  // a transform skips layout): the square is one cell, so a translate of
+  // (x - 0.5) × 100% of its own width is (x - 0.5) cells.
   const playerStyle = (p) => ({
     width: `${100 / GRID_W}%`, height: `${100 / GRID_H}%`,
-    left: `${((p.x - 0.5) / GRID_W) * 100}%`, top: `${((p.y - 0.5) / GRID_H) * 100}%`,
-    transform: (p.dir === 'left' || p.dir === 'right') ? 'scaleX(1.15)' : 'scaleY(1.15)',
+    left: 0, top: 0,
+    transform: `translate(${(p.x - 0.5) * 100}%, ${(p.y - 0.5) * 100}%) `
+      + ((p.dir === 'left' || p.dir === 'right') ? 'scaleX(1.15)' : 'scaleY(1.15)'),
   })
 
   return (

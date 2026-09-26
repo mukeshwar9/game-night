@@ -3,6 +3,10 @@ import { SHIP_R, BULLET_R, ROUND_CAP_S, SHIP_MAX_HP, START_FIRE_DELAY, FIRE_COOL
 import { cn } from '@/lib/utils'
 
 const pct = (n) => `${n * 100}%`
+// Ships and bullets move every frame. Each rides an arena-sized layer moved by
+// transform (a translate percentage of an arena-sized box is a percentage of
+// the arena), which skips the per-frame layout that left/top would force.
+const layer = (x, y) => ({ transform: `translate3d(${pct(x)}, ${pct(y)}, 0)` })
 
 // ~20 fixed starfield dots (normalized positions) — the background "space".
 const STARS = [
@@ -34,30 +38,31 @@ function Ship({ ship, side, thrusting }) {
     )
   }
   return (
-    <div
-      className="absolute"
-      style={{
-        left: pct(ship.x), top: pct(ship.y),
-        width: pct(size), height: pct(size),
-        transform: 'translate(-50%, -50%) rotate(' + ship.ang + 'rad)',
-      }}
-    >
-      {/* thrust flame: small rect behind the ship (−x in the rotated frame) */}
-      {thrusting && (
-        <div
-          className="absolute rounded-sm bg-retro-cta/80 animate-pulse"
-          style={{
-            right: '78%',
-            top: '38%',
-            width: '60%',
-            height: '24%',
-          }}
-        />
-      )}
+    <div className="absolute inset-0 pointer-events-none" style={layer(ship.x, ship.y)}>
       <div
-        className={cn('absolute inset-0', color, glow)}
-        style={{ clipPath: TRAILIEN }}
-      />
+        className="absolute left-0 top-0"
+        style={{
+          width: pct(size), height: pct(size),
+          transform: 'translate(-50%, -50%) rotate(' + ship.ang + 'rad)',
+        }}
+      >
+        {/* thrust flame: small rect behind the ship (−x in the rotated frame) */}
+        {thrusting && (
+          <div
+            className="absolute rounded-sm bg-retro-cta/80 animate-pulse"
+            style={{
+              right: '78%',
+              top: '38%',
+              width: '60%',
+              height: '24%',
+            }}
+          />
+        )}
+        <div
+          className={cn('absolute inset-0', color, glow)}
+          style={{ clipPath: TRAILIEN }}
+        />
+      </div>
     </div>
   )
 }
@@ -222,17 +227,17 @@ const SpaceduelArena = forwardRef(function SpaceduelArena(
             legible at phone widths (M-75); the sim's BULLET_R still drives
             the actual hit geometry, this is visual-only. */}
         {(bullets || []).map((b, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-retro-cta"
-            style={{
-              left: pct(b.x), top: pct(b.y),
-              width: `max(10px, ${pct(BULLET_R * 2)})`,
-              height: `max(10px, ${pct(BULLET_R * 2)})`,
-              transform: 'translate(-50%, -50%)',
-              boxShadow: '0 0 6px 2px rgb(var(--c-cta)), 0 0 12px 4px rgb(var(--c-cta) / 0.45)',
-            }}
-          />
+          <div key={i} className="absolute inset-0 pointer-events-none" style={layer(b.x, b.y)}>
+            <div
+              className="absolute left-0 top-0 rounded-full bg-retro-cta"
+              style={{
+                width: `max(10px, ${pct(BULLET_R * 2)})`,
+                height: `max(10px, ${pct(BULLET_R * 2)})`,
+                transform: 'translate(-50%, -50%)',
+                boxShadow: '0 0 6px 2px rgb(var(--c-cta)), 0 0 12px 4px rgb(var(--c-cta) / 0.45)',
+              }}
+            />
+          </div>
         ))}
 
         {overlay && (
