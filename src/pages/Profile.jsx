@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
@@ -12,7 +12,7 @@ import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { getStats, getMatches } from '../lib/profile'
 import { getGameConfig } from '../lib/games'
-import { UPGRADE_ERRORS } from '../lib/auth'
+import { UPGRADE_ERRORS, preloadGoogleSignIn } from '../lib/auth'
 import { mutedList } from '../lib/moderationLogic'
 import { unmute, useMutedMap } from '../lib/mute'
 import useBusy from '../hooks/useBusy'
@@ -23,6 +23,7 @@ export default function Profile() {
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
   const muted = mutedList(useMutedMap())
   const [busy, setBusy] = useState(false)
+  useEffect(() => (isAnonymous ? preloadGoogleSignIn() : undefined), [isAnonymous])
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [nameBusy, runNameSave] = useBusy()
   const [avatarBusy, runAvatarSave] = useBusy()

@@ -197,6 +197,29 @@ export function onUser(cb) {
   return onAuthStateChanged(auth, cb)
 }
 
+// Starts the Google popup machinery (gapi + auth iframe) ahead of a tap, on
+// the browsers that need it ready for the popup to open inside the tap's user
+// activation (firebase.js DeferredPopupRedirectResolver). Call from an effect
+// on any screen showing a Google sign-in button. It waits a few seconds and
+// then for an idle moment, so it never competes with the screen's own first
+// load. Returns a cleanup.
+const PRELOAD_DELAY_MS = 3000
+
+export function preloadGoogleSignIn() {
+  const resolver = auth?._popupRedirectResolver
+  if (!resolver?.preload) return () => {}
+  let idleId = null
+  const run = () => { resolver.preload(auth).catch(() => { /* the popup retries on tap */ }) }
+  const timer = setTimeout(() => {
+    if (typeof requestIdleCallback === 'function') idleId = requestIdleCallback(run, { timeout: 2000 })
+    else run()
+  }, PRELOAD_DELAY_MS)
+  return () => {
+    clearTimeout(timer)
+    if (idleId !== null) cancelIdleCallback(idleId)
+  }
+}
+
 // Upgrade the current (anonymous) account to a permanent Google account, keeping
 // the same uid. Returns the user, null if the user cancelled the popup, or
 // undefined if a redirect was kicked off (the page is about to navigate away —

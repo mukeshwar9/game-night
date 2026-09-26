@@ -10,7 +10,7 @@ import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { GAME_TYPES, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
-import { UPGRADE_ERRORS } from '../lib/auth'
+import { UPGRADE_ERRORS, preloadGoogleSignIn } from '../lib/auth'
 import { configError } from '../lib/firebase'
 import { markOnboarded } from '../lib/onboarding'
 import { NAME_MAX, initialName, suggestName, suggestNames, validateName } from '../lib/onboardingLogic'
@@ -61,6 +61,9 @@ export default function Onboarding({ onDone, invite = null }) {
     window.scrollTo(0, 0)
     headingRef.current?.focus({ preventScroll: true })
   }, [step])
+
+  const showGoogle = !invite && isAnonymous && !configError
+  useEffect(() => (showGoogle ? preloadGoogleSignIn() : undefined), [showGoogle])
 
   const setName = (v) => { setNameInput(v); setShowError(false) }
 
@@ -228,7 +231,7 @@ export default function Onboarding({ onDone, invite = null }) {
               >
                 NEXT: PICK A LOOK →
               </button>
-              {!invite && isAnonymous && !configError && (
+              {showGoogle && (
                 <button
                   type="button"
                   onClick={handleGoogle}

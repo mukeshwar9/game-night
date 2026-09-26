@@ -1,7 +1,15 @@
 import { initializeApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import {
+  getAuth,
+  initializeAuth,
+  connectAuthEmulator,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  browserPopupRedirectResolver,
+} from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -43,6 +51,30 @@ const DATABASE_EMULATOR_PORT = 9000;
 const APPCHECK_SITE_KEY = import.meta.env.VITE_APPCHECK_SITE_KEY;
 const APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
 
+// getAuth()'s popup/redirect resolver, minus its eager start-up. On mobile and
+// Safari the stock resolver loads Google's gapi loader and the firebaseapp.com
+// auth iframe (~136 KB, 4 requests) inside auth initialisation, so the
+// anonymous sign-in the whole app waits on queues behind it. This one starts
+// only when a popup or redirect runs, or when a Google sign-in button mounts
+// and calls preload() (auth.js preloadGoogleSignIn) — early enough that the
+// popup still opens inside the tap's user activation on those browsers.
+// Relies on two SDK internals (`_shouldInitProactively`, `_initialize`);
+// if an SDK update renames them the app falls back to the stock behaviour or
+// to a lazily started iframe, never to a broken sign-in. Outside a browser
+// (Node tests) the SDK exports no resolver class, and getAuth() is used as is.
+const DeferredPopupRedirectResolver = typeof browserPopupRedirectResolver === 'function'
+  ? class extends browserPopupRedirectResolver {
+    get _shouldInitProactively() {
+      return false;
+    }
+
+    preload(auth) {
+      if (!super._shouldInitProactively || typeof this._initialize !== 'function') return Promise.resolve();
+      return this._initialize(auth);
+    }
+  }
+  : null;
+
 let db = null;
 let auth = null;
 export let configError = null;
@@ -64,7 +96,13 @@ try {
     }
   }
   db = getDatabase(app);
-  auth = getAuth(app);
+  // What getAuth() does in a browser, with the deferred resolver above.
+  auth = DeferredPopupRedirectResolver
+    ? initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
+      popupRedirectResolver: DeferredPopupRedirectResolver,
+    })
+    : getAuth(app);
   // Must run before any auth call or database read/write touches the instances.
   if (usingEmulators) {
     connectAuthEmulator(auth, `http://${EMULATOR_HOST}:${AUTH_EMULATOR_PORT}`, { disableWarnings: true });
