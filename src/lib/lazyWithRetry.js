@@ -56,7 +56,14 @@ export function importWithRetry(importer, env = browserEnv()) {
   })
 }
 
-// React.lazy with the reload-once recovery above.
+// React.lazy with the reload-once recovery above. `.preload()` starts the
+// download early (e.g. once a room's game type is known) so the later render
+// finds the module ready; a failed preload is ignored and left to the render.
+/**
+ * @param {() => Promise<{ default: import('react').ComponentType<any> }>} importer
+ */
 export function lazyWithRetry(importer) {
-  return lazy(() => importWithRetry(importer))
+  return Object.assign(lazy(() => importWithRetry(importer)), {
+    preload: () => { importer().catch(() => {}) },
+  })
 }

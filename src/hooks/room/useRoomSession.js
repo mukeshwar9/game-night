@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ref, onValue, update, get, runTransaction, remove } from 'firebase/database'
+import { ref, onValue, update, runTransaction, remove } from 'firebase/database'
 import { toast } from 'sonner'
 import { db, configError } from '../../lib/firebase'
 import { getGameConfig } from '../../lib/games'
@@ -92,11 +92,26 @@ export default function useRoomSession(gameId) {
     const publicListingRef = ref(db, `matchmaking/${gameId}`)
     let cancelled = false
     let unsubGame = null
+    // The first read comes from a listener rather than get(), and that
+    // listener stays attached until the long-lived one below takes over: the
+    // room stays synced, so that one fires from the local cache instead of
+    // downloading the whole room a second time, and the seat transactions
+    // start from the real room instead of an empty guess.
+    let unsubWarm = null
+    const dropWarm = () => { if (unsubWarm) { unsubWarm(); unsubWarm = null } }
+    const listen = () => {
+      unsubGame = onValue(gameRef, snap => { if (!cancelled && snap.exists()) setGame(snap.val()) })
+      dropWarm()
+    }
 
     const init = async () => {
       let snap
-      try { snap = await get(gameRef) }
-      catch {
+      try {
+        snap = await new Promise((resolve, reject) => {
+          unsubWarm = onValue(gameRef, resolve, reject)
+        })
+      } catch {
+        unsubWarm = null
         if (!cancelled) { setError('CONNECTION ERROR. CHECK YOUR NETWORK.'); setLoading(false) }
         return
       }
@@ -104,17 +119,24 @@ export default function useRoomSession(gameId) {
       if (cancelled) return
 
       if (!snap.exists()) {
+        dropWarm()
         setError('GAME NOT FOUND — CODE MAY BE WRONG OR GAME HAS EXPIRED.')
         setLoading(false)
         return
       }
 
       let data = snap.val()
+      // Start the game's page/board download now, alongside the seat claim,
+      // instead of after it when the room first renders.
+      const preCfg = getGameConfig(data.gameType)
+      preCfg.Page?.preload?.()
+      preCfg.BoardComponent?.preload?.()
 
       if (data.visibility === 'public' && (data.status !== 'waiting' || !listingHost(data))) remove(publicListingRef).catch(() => {})
 
       const lastActive = data.lastActivityAt ?? data.createdAt
       if (lastActive && Date.now() - lastActive > GAME_TTL_MS) {
+        dropWarm()
         setErrorGameType(data.gameType || null)
         setError('THIS GAME HAS EXPIRED. CREATE A NEW ONE!')
         setLoading(false)
@@ -132,6 +154,7 @@ export default function useRoomSession(gameId) {
       // placeholder (or no) name. Checked against the room, not just an empty
       // localStorage: ensureProfile may already have mirrored Guest-XXXX there.
       if (!alreadySeated && !nameChosen.current && isGuestStyleName(storedName)) {
+        dropWarm()
         setInvite({ gameType: data.gameType, ...inviteSummary(data, cfgData) })
         setNeedName(true)
         setLoading(false)
@@ -167,7 +190,7 @@ export default function useRoomSession(gameId) {
         if (cancelled) return
         setLoading(false)
         if (amPlayer) recordRoom({ id: gameId, gameType: data.gameType })
-        unsubGame = onValue(gameRef, snap => { if (!cancelled && snap.exists()) setGame(snap.val()) })
+        listen()
         return
       }
 
@@ -221,15 +244,14 @@ export default function useRoomSession(gameId) {
       setLoading(false)
       if (mySymbol.current) recordRoom({ id: gameId, gameType: data.gameType })
 
-      unsubGame = onValue(gameRef, snap => {
-        if (!cancelled && snap.exists()) setGame(snap.val())
-      })
+      listen()
     }
 
     init()
 
     return () => {
       cancelled = true
+      dropWarm()
       if (unsubGame) unsubGame()
     }
   }, [gameId, nameVersion])
