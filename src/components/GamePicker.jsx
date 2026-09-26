@@ -19,6 +19,7 @@ const FILTER_DEFS = [
   { key: 'quick', label: 'QUICK', test: (t) => (t.durationMin ?? Infinity) <= 3 },
   { key: 'thinky', label: 'THINKY', test: (t) => (t.tags || []).includes('thinky') },
   { key: 'solo', label: 'SOLO OK', test: (t) => t.solo === true },
+  { key: 'coop', label: 'CO-OP', test: (t) => t.coop === true },
 ]
 
 // M-82: activeCat/filters/query survive a round-trip to a game and back

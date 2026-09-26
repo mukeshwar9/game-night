@@ -95,7 +95,8 @@ function EmotePicker({ onPick, onClose }) {
   )
 }
 
-export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, textCooldown }) {
+// `quiet` (silent games, e.g. HUNCH): emotes only — no quick-chat phrases.
+export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, textCooldown, quiet = false }) {
   const [showPicker, setShowPicker] = useState(false)
   const [text, setText] = useState('')
   const [usageKey] = useState(() => `emoteUsage:${getPlayerId()}`)
@@ -153,7 +154,7 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
             </svg>
           </button>
         </div>
-        <div className="flex justify-center gap-1 flex-wrap max-w-[280px]">
+        {!quiet && <div className="flex justify-center gap-1 flex-wrap max-w-[280px]">
           {QUICK_CHAT.map(t => (
             <button
               key={t}
@@ -166,7 +167,7 @@ export default function EmoteBar({ onSend, onSendChip, cooldown, onSendText, tex
               {t}
             </button>
           ))}
-        </div>
+        </div>}
         {onSendText && (
           <form onSubmit={handleSubmitText} className="flex gap-2 w-full max-w-[280px]">
             <input
