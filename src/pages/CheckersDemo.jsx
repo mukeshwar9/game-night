@@ -161,8 +161,8 @@ export default function CheckersDemo() {
         done
           ? "text-retro-dim"
           : myTurn
-            ? "text-retro-cta text-glow-cta arcade-blink"
-            : "text-retro-dim arcade-blink",
+            ? "text-retro-cta text-glow-cta"
+            : "text-retro-dim",
       )}>
         {done ? "GAME OVER" : myTurn ? "YOUR MOVE" : "BOT THINKS…"}
       </p>

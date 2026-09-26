@@ -77,8 +77,10 @@ export default function AtaxxBoard({
             )
           })}
         </div>
-        <p className="mt-2 text-center font-pixel text-[8px] text-retro-dim tracking-wider">
-          NEAR = CLONE · FAR = JUMP · LANDING CONVERTS NEIGHBORS
+        <p className="mt-2 text-center font-mono text-xs text-retro-dim leading-snug">
+          <span className="text-retro-text">Next square:</span> clone · <span className="text-retro-text">two away:</span> jump
+          <br />
+          Landing converts every neighbour.
         </p>
       </div>
     </div>

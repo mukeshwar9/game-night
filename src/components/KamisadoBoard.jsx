@@ -50,20 +50,24 @@ export default function KamisadoBoard({
         'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
         disabled && 'board-idle',
       )}>
-        {/* Forced-color strip — the whole point of the game, always visible */}
-        <div className="flex items-center justify-center gap-2 pb-1.5">
-          <span className="font-pixel text-[8px] text-retro-dim">
-            {forcedColor == null
-              ? (forcedSymbol ? `${forcedSymbol}: ANY TOWER` : 'ANY TOWER')
-              : `${forcedSymbol ?? ''} MUST MOVE ${KM_COLOR_NAMES[forcedColor]}`}
-          </span>
+        {/* Forced-color strip — the whole point of the game, so it's a
+            readable status line (text + large swatch), not a footnote. */}
+        <div
+          role="status"
+          className="mx-auto mb-2 flex min-h-[32px] w-fit items-center justify-center gap-2 rounded border border-retro-border bg-retro-card px-3 py-1.5"
+        >
           {forcedColor != null && (
             <span
               aria-hidden="true"
-              className="w-3 h-3 rounded-sm border border-retro-border"
+              className="w-4 h-4 rounded-sm border-2 border-retro-text/70 shrink-0"
               style={{ background: `rgb(var(${KM_COLOR_VARS[forcedColor]}))` }}
             />
           )}
+          <span className="font-pixel text-[10px] text-retro-text tracking-wide">
+            {forcedColor == null
+              ? (forcedSymbol ? `${forcedSymbol}: MOVE ANY TOWER` : 'MOVE ANY TOWER')
+              : `${forcedSymbol ?? ''} MUST MOVE ${KM_COLOR_NAMES[forcedColor]}`}
+          </span>
         </div>
 
         <div
@@ -122,8 +126,8 @@ export default function KamisadoBoard({
             )
           })}
         </div>
-        <p className="mt-2 text-center font-pixel text-[8px] text-retro-dim tracking-wider">
-          LAND ON A COLOR — THEY MUST MOVE THAT TOWER
+        <p className="mt-2 text-center font-mono text-xs text-retro-dim">
+          The colour you land on is the tower they must move next.
         </p>
       </div>
     </div>

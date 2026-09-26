@@ -11,14 +11,13 @@ import {
   getCheckersWinner,
 } from '../lib/checkersLogic'
 import { sounds } from '../lib/sounds'
-import { cn } from '@/lib/utils'
 
 // CHECKERS — thin custom page: selection state + standard win machinery.
 // Board state lives in the standard `board` key (string[64]).
 
 export default function CheckersGame({
   gameId, game, mySymbol, opponentOnline,
-  onSwitchGame, onPlayAgain, proposal,
+  onPlayAgain,
 }) {
   const me = mySymbol === 'X' ? 'X' : 'O'
   const isSpectator = !mySymbol
@@ -127,13 +126,11 @@ export default function CheckersGame({
 
   return (
     <div className="space-y-4">
-      <div className="text-center">
-        {game.status === 'playing' && (
-          <p className={cn('font-pixel text-[10px] arcade-blink', myTurn ? 'text-retro-cta text-glow-cta' : 'text-retro-dim')}>
-            {myTurn ? `YOUR MOVE — ${moves.length} LEGAL` : 'RIVAL MOVES…'}
-          </p>
-        )}
-      </div>
+      {/* Turn is carried by the GameStatus pill below; this line is only a
+          quiet legal-move count on your turn (reserved height, no shift). */}
+      <p className="h-4 text-center font-mono text-xs text-retro-dim">
+        {myTurn && `${moves.length} legal ${moves.length === 1 ? 'move' : 'moves'}${moves.some(m => m.captures?.length) ? ' · capture forced' : ''}`}
+      </p>
 
       <div className="flex justify-center">
         <CheckersBoard
@@ -151,7 +148,7 @@ export default function CheckersGame({
 
       {selected != null && legalTargets.length > 0 && (
         <p className="font-pixel text-[9px] text-retro-dim text-center">
-          PICK A PULSING TARGET{legalTargets[0]?.captures?.length ? ' · JUMP!' : ''}
+          PICK A PULSING TARGET{selectedMoves.some(m => m.captures?.length) ? ' · JUMP!' : ''}
         </p>
       )}
 
@@ -160,23 +157,15 @@ export default function CheckersGame({
         winner={game.winner}
         currentTurn={game.currentTurn}
         mySymbol={me}
+        players={game.players}
+        gameType={game.gameType}
         onPlayAgain={onPlayAgain ?? null}
       />
 
       {opponentOnline === false && game.status === 'playing' && (
         <p className="font-pixel text-[8px] text-retro-dim text-center">RIVAL OFFLINE</p>
       )}
-
-      {matchControls(onSwitchGame, proposal)}
     </div>
   )
 }
 
-function matchControls(onSwitchGame, proposal) {
-  if (!onSwitchGame || proposal) return null
-  return (
-    <p className="font-pixel text-[8px] text-retro-dim text-center opacity-60">
-      SWITCH GAMES FROM THE END SCREEN
-    </p>
-  )
-}

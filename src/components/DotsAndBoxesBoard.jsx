@@ -14,6 +14,32 @@ function edgeLabel(kind, row, col, owner, isLast) {
   )
 }
 
+// The visible stroke inside an edge's (much larger, transparent) tap band:
+// open edges are a thin faint rule so the grid reads as dots + lines rather
+// than a dense checker; drawn edges are a bold bar in the owner's colour.
+function EdgeLine({ kind, owner, hovered, turn, isLast }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'absolute rounded-full transition-all duration-100 pointer-events-none',
+        kind === 'h'
+          ? cn('left-0 right-0 top-1/2 -translate-y-1/2', owner ? 'h-[6px]' : hovered ? 'h-1' : 'h-[2px]')
+          : cn('top-0 bottom-0 left-1/2 -translate-x-1/2', owner ? 'w-[6px]' : hovered ? 'w-1' : 'w-[2px]'),
+        owner === 'X'
+          ? 'bg-retro-p1 shadow-neon-p1'
+          : owner === 'O'
+            ? 'bg-retro-p2 shadow-neon-p2'
+            : hovered
+              ? (turn === 'X' ? 'bg-retro-p1/60' : 'bg-retro-p2/60')
+              : 'bg-retro-border/70',
+        // M-47: persistent marker on the most recently claimed edge
+        isLast && 'ring-2 ring-retro-cta/70',
+      )}
+    />
+  )
+}
+
 export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, currentTurn, lastMove = null, size = DB_SIZE }) {
   const [hoveredEdge, setHoveredEdge] = useState(null)
 
@@ -33,7 +59,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       // Dot
       cells.push(
         <div key={i} className="flex items-center justify-center">
-          <div className="w-2 h-2 rounded-sm bg-retro-dim" />
+          <div className="w-2.5 h-2.5 rounded-full bg-retro-text relative z-20" />
         </div>
       )
     } else if (isEvenRow && !isEvenCol) {
@@ -43,7 +69,6 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       const edgeIdx = hEdgeIndex(row, col, size)
       const owner = board[edgeIdx]
       const isHovered = hoveredEdge === edgeIdx && !disabled && !owner
-      const hoverColor = currentTurn === 'X' ? 'bg-retro-p1/40' : 'bg-retro-p2/40'
 
       cells.push(
         <div key={i} className="relative flex items-center justify-center">
@@ -56,19 +81,16 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
             onMouseLeave={() => setHoveredEdge(null)}
             className={cn(
               'absolute z-10 -top-[17px] -bottom-[17px] left-0 right-0',
-              'rounded-sm transition-all duration-100',
-              owner === 'X'
-                ? 'bg-retro-p1 shadow-neon-p1'
-                : owner === 'O'
-                  ? 'bg-retro-p2 shadow-neon-p2'
-                  : isHovered
-                    ? hoverColor
-                    : 'bg-retro-border/50',
+              'bg-transparent',
               !owner && !disabled ? 'cursor-pointer' : 'cursor-default',
-              // M-47: persistent marker on the most recently claimed edge
-              edgeIdx === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
             )}
-          />
+          >
+            {/* the tap band overhangs the 10px track by 17px each side; the
+                stroke sits back on the track itself */}
+            <span className="absolute left-0 right-0 top-[17px] bottom-[17px]">
+              <EdgeLine kind='h' owner={owner} hovered={isHovered} turn={currentTurn} isLast={edgeIdx === lastMove} />
+            </span>
+          </button>
         </div>
       )
     } else if (!isEvenRow && isEvenCol) {
@@ -78,7 +100,6 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       const edgeIdx = vEdgeIndex(row, col, size)
       const owner = board[edgeIdx]
       const isHovered = hoveredEdge === edgeIdx && !disabled && !owner
-      const hoverColor = currentTurn === 'X' ? 'bg-retro-p1/40' : 'bg-retro-p2/40'
 
       cells.push(
         <div key={i} className="relative flex items-center justify-center">
@@ -91,19 +112,16 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
             onMouseLeave={() => setHoveredEdge(null)}
             className={cn(
               'absolute z-10 top-0 bottom-0 -left-[17px] -right-[17px]',
-              'rounded-sm transition-all duration-100',
-              owner === 'X'
-                ? 'bg-retro-p1 shadow-neon-p1'
-                : owner === 'O'
-                  ? 'bg-retro-p2 shadow-neon-p2'
-                  : isHovered
-                    ? hoverColor
-                    : 'bg-retro-border/50',
+              'bg-transparent',
               !owner && !disabled ? 'cursor-pointer' : 'cursor-default',
-              // M-47: persistent marker on the most recently claimed edge
-              edgeIdx === lastMove && 'ring-2 ring-inset ring-retro-cta/70',
             )}
-          />
+          >
+            {/* the tap band overhangs the 10px track by 17px each side; the
+                stroke sits back on the track itself */}
+            <span className="absolute top-0 bottom-0 left-[17px] right-[17px]">
+              <EdgeLine kind='v' owner={owner} hovered={isHovered} turn={currentTurn} isLast={edgeIdx === lastMove} />
+            </span>
+          </button>
         </div>
       )
     } else {
@@ -120,7 +138,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
           aria-label={owner ? `Box, row ${boxRow + 1}, column ${boxCol + 1}, ${owner}` : undefined}
           className={cn(
             'flex items-center justify-center rounded-sm',
-            owner === 'X' ? 'bg-retro-p1/15' : owner === 'O' ? 'bg-retro-p2/15' : '',
+            owner === 'X' ? 'bg-retro-p1/20' : owner === 'O' ? 'bg-retro-p2/20' : '',
           )}
         >
           {owner && (

@@ -100,9 +100,15 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
         <div
           key={`cell-${cellIndex}`}
           style={{ gridRow: `${2 * r + 1} / ${2 * r + 2}`, gridColumn: `${2 * c + 1} / ${2 * c + 2}` }}
+          // Crisp squares: a solid card fill with a visible border; the 6px
+          // grooves between them read as the grid lines. Goal rows are tinted.
           className={cn(
-            'relative flex items-center justify-center',
-            isGoalX ? 'bg-retro-p1/5' : isGoalO ? 'bg-retro-p2/5' : '',
+            'relative flex items-center justify-center rounded-sm border',
+            isGoalX
+              ? 'bg-retro-tint-p1 border-retro-p1/40'
+              : isGoalO
+                ? 'bg-retro-tint-p2 border-retro-p2/40'
+                : 'bg-retro-card border-retro-border',
           )}
         >
           {isClickable && (
@@ -128,12 +134,15 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
               // Mounts fresh each time this cell newly gains a pawn (it moved
               // here), so place-pop replays on every move without extra state.
               className={cn(
-                'w-[60%] h-[60%] rounded-full',
+                'relative z-[1] w-[72%] h-[72%] rounded-full border-2 border-retro-bg flex items-center justify-center',
                 pawnHere === 'X' ? 'bg-retro-p1 shadow-neon-p1' : 'bg-retro-p2 shadow-neon-p2',
                 cellIndex === lastMoveCell && 'ring-2 ring-retro-cta/70',
               )}
               style={{ animation: 'place-pop 0.25s ease-out' }}
-            />
+            >
+              {/* side letter — colour alone must not carry identity */}
+              <span aria-hidden="true" className="font-pixel text-[10px] sm:text-xs text-retro-bg leading-none select-none">{pawnHere}</span>
+            </span>
           )}
         </div>
       )
@@ -150,9 +159,14 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
     const gridRow = orientation === 'h' ? `${2 * r + 2} / ${2 * r + 3}` : `${2 * r + 1} / ${2 * r + 4}`
     const gridColumn = orientation === 'h' ? `${2 * c + 1} / ${2 * c + 4}` : `${2 * c + 2} / ${2 * c + 3}`
     // ±19px over the 6px groove = 44px tap target on the thin axis (was ±8px = 22px).
+    // The hit band is transparent; what you see is drawn on the groove itself
+    // (`trackClasses`) so walls and previews stay crisp 6px bars.
     const hitClasses = orientation === 'h'
       ? 'absolute -top-[19px] -bottom-[19px] left-0 right-0'
       : 'absolute top-0 bottom-0 -left-[19px] -right-[19px]'
+    const trackClasses = orientation === 'h'
+      ? 'absolute left-0 right-0 top-[19px] bottom-[19px]'
+      : 'absolute top-0 bottom-0 left-[19px] right-[19px]'
 
     const isPending = pendingWallSlot === slot
     const isHovered = hoverSlot === slot
@@ -171,8 +185,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
           // Mounts fresh the instant this slot flips from empty to occupied,
           // so place-pop replays on every wall placement without extra state.
           className={cn(
-            hitClasses,
-            'pointer-events-none rounded-sm',
+            'absolute inset-0 z-[2] pointer-events-none rounded-sm',
             owner === 'X' ? 'bg-retro-p1 shadow-neon-p1' : 'bg-retro-p2 shadow-neon-p2',
             isLastMoveWall && 'ring-2 ring-retro-cta/70',
           )}
@@ -190,28 +203,33 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
           onClick={() => handleWallTap(slot)}
           onMouseEnter={() => setHoverSlot(slot)}
           onMouseLeave={() => setHoverSlot(null)}
-          className={cn(
-            hitClasses,
-            'rounded-sm transition-all duration-100',
-            isFlashing
-              // Illegal-tap rejection: a brief danger pulse instead of silently doing nothing.
-              ? 'bg-retro-danger/40 border border-retro-danger shadow-neon-danger animate-pulse cursor-not-allowed'
-              : showPreview
-                ? isLegalPreview
-                  ? isPending
-                    // Armed-for-confirm: solid player-color fill + pulsing ring, distinct from hover.
-                    ? cn(
-                        currentTurn === 'X' ? 'bg-retro-p1' : 'bg-retro-p2',
-                        'ring-2 ring-retro-cta animate-pulse shadow-neon-cta cursor-pointer',
-                      )
-                    : 'bg-retro-cta/40 border border-retro-cta shadow-neon-cta cursor-pointer'
-                  : 'bg-retro-danger/15 border border-retro-danger/50 cursor-not-allowed'
-                : 'bg-retro-border/30 hover:bg-retro-border/50 cursor-pointer',
-          )}
-        />
+          className={cn(hitClasses, 'z-[2] bg-transparent', isFlashing || (showPreview && !isLegalPreview) ? 'cursor-not-allowed' : 'cursor-pointer')}
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              trackClasses,
+              'pointer-events-none rounded-sm transition-all duration-100',
+              isFlashing
+                // Illegal-tap rejection: a brief danger pulse instead of silently doing nothing.
+                ? 'bg-retro-danger shadow-neon-danger animate-pulse'
+                : showPreview
+                  ? isLegalPreview
+                    ? isPending
+                      // Armed-for-confirm: solid player-color fill + pulsing ring, distinct from hover.
+                      ? cn(
+                          currentTurn === 'X' ? 'bg-retro-p1' : 'bg-retro-p2',
+                          'ring-2 ring-retro-cta animate-pulse shadow-neon-cta',
+                        )
+                      : 'bg-retro-cta shadow-neon-cta'
+                    : 'bg-retro-danger/50'
+                  : 'bg-retro-cta/25',
+            )}
+          />
+        </button>
       )
     } else {
-      inner = <div className={cn(hitClasses, 'pointer-events-none rounded-sm bg-retro-border/30')} />
+      inner = null
     }
 
     wallEls.push(

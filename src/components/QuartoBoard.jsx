@@ -6,21 +6,31 @@ import { cellLabel, quartoPieceLabel } from '../lib/a11yLabels'
 // Attribute glyph for a piece id: bit0 tall/short, bit1 round/square,
 // bit2 hollow/solid, bit3 light/dark. Declared outside render (React
 // Compiler rule: no components created during render).
-function Piece({ v, small }) {
+// Sizes: 'lg' on the board, 'md' on the shelf, 'sm' in the stage strip —
+// tall vs short must stay obvious at every size.
+const PIECE_SIZE = {
+  lg: { tall: 'w-6 h-10', short: 'w-8 h-5' },
+  md: { tall: 'w-4 h-7', short: 'w-6 h-4' },
+  sm: { tall: 'w-2 h-3.5', short: 'w-3 h-2' },
+}
+function Piece({ v, size = 'lg' }) {
+  const dims = PIECE_SIZE[size] ?? PIECE_SIZE.lg
   return (
     <span
       aria-hidden="true"
       className={cn(
-        'inline-block border-2',
+        'inline-block',
+        size === 'sm' ? 'border-2' : 'border-[3px]',
         (v & 2) ? 'rounded-full' : 'rounded-sm',
-        (v & 1) ? 'w-3 h-5' : 'w-4 h-3',
-        small && ((v & 1) ? 'w-2 h-3.5' : 'w-3 h-2'),
+        (v & 1) ? dims.tall : dims.short,
       )}
       style={{
-        borderColor: (v & 8) ? 'rgb(var(--c-fg))' : 'rgb(var(--c-dim))',
+        // "dark" pieces use the text channel, "light" ones the dim channel
+        // (there is no --c-fg token — it rendered both shades the same).
+        borderColor: (v & 8) ? 'rgb(var(--c-text))' : 'rgb(var(--c-dim))',
         background: !(v & 4)
           ? 'transparent'
-          : ((v & 8) ? 'rgb(var(--c-fg) / 0.7)' : 'rgb(var(--c-dim) / 0.5)'),
+          : ((v & 8) ? 'rgb(var(--c-text) / 0.75)' : 'rgb(var(--c-dim) / 0.55)'),
       }}
     />
   )
@@ -61,7 +71,7 @@ export default function QuartoBoard({
       )}>
         {/* Stage strip */}
         <div className="flex items-center justify-center gap-2 pb-1.5">
-          <span className="font-pixel text-[8px] text-retro-dim">
+          <span className="font-pixel text-[10px] text-retro-text">
             {pending != null
               ? (pendingCell == null
                 ? 'PLACE THIS PIECE — TAP A CELL'
@@ -70,7 +80,7 @@ export default function QuartoBoard({
           </span>
           {pending != null && (
             <span className="inline-flex items-center justify-center w-8 h-8 rounded border-2 border-retro-cta bg-retro-tint-cta/20">
-              <Piece v={pending} small />
+              <Piece v={pending} size="sm" />
               <span className="sr-only">Piece to place: {quartoPieceLabel(pending)}</span>
             </span>
           )}
@@ -116,17 +126,21 @@ export default function QuartoBoard({
 
         {/* Shelf: give stage */}
         <div className="pt-2">
-          <p className="text-center font-pixel text-[8px] text-retro-dim tracking-wider pb-1">
+          <p className={cn(
+            'text-center font-pixel text-[9px] tracking-wider pb-1.5',
+            pendingCell == null ? 'text-retro-dim' : 'text-retro-cta',
+          )}>
             {pendingCell == null ? 'SHELF' : 'TAP A SHELF PIECE TO HAND OVER'}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
+          {/* 44px targets, 8 per row on a phone (two rows for a full shelf) */}
+          <div className="mx-auto flex max-w-[380px] flex-wrap items-center justify-center gap-1">
             {shelf.map(v => (
               <button
                 key={v}
                 disabled={disabled || pendingCell == null}
                 onClick={() => confirm(v)}
                 className={cn(
-                  'w-9 h-9 rounded border flex items-center justify-center transition-all duration-100',
+                  'w-10 h-11 sm:w-11 rounded border flex items-center justify-center transition-all duration-100',
                   'outline-none focus-visible:ring-2 focus-visible:ring-retro-cta',
                   pendingCell == null && 'opacity-40 cursor-default',
                   pendingCell != null && 'cursor-pointer hover:brightness-125 active:scale-95',
@@ -135,11 +149,11 @@ export default function QuartoBoard({
                 data-testid={`qrt-give-${v}`}
                 aria-label={`Give ${quartoPieceLabel(v)}`}
               >
-                <Piece v={v} small />
+                <Piece v={v} size="md" />
               </button>
             ))}
             {shelf.length === 0 && (
-              <span className="font-pixel text-[8px] text-retro-dim">EMPTY</span>
+              <span className="font-pixel text-[9px] text-retro-dim">EMPTY</span>
             )}
           </div>
         </div>

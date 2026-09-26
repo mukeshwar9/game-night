@@ -6,9 +6,9 @@ const dotName = (d) => String.fromCharCode(65 + d)
 
 // SIM — 6 dots on a circle, 15 edges. Edge i renders as the straight line
 // between its two endpoint dots. Colors are 100%-theme-driven via --c-*:
-// X edges use --c-p1, O edges --c-p2, unclaimed edges --c-border at low
-// emphasis (SVG presentation attrs can't hold var(), so fill/stroke go
-// through style props — see .claude/rules/theming-rules.md).
+// X edges use --c-p1, O edges --c-p2, unclaimed edges dashed --c-dim
+// (SVG presentation attrs can't hold var(), so fill/stroke go through
+// style props — see .claude/rules/theming-rules.md).
 export default function SimBoard({ board, onMove, disabled, winningLine = [], lastMove = null }) {
   // Edge midpoint in the 0-100 coordinate space; hit areas live on an
   // overlaid button row (SVG lines are too thin to tap on phones).
@@ -35,8 +35,11 @@ export default function SimBoard({ board, onMove, disabled, winningLine = [], la
               key={`empty-${i}`}
               x1={SIM_DOT_POS[a].x} y1={SIM_DOT_POS[a].y}
               x2={SIM_DOT_POS[b].x} y2={SIM_DOT_POS[b].y}
-              style={{ stroke: 'rgb(var(--c-border))' }}
-              strokeWidth="1.2"
+              // Open edges: dashed in --c-dim (not --c-border) so every
+              // still-claimable line reads clearly against the board.
+              style={{ stroke: 'rgb(var(--c-dim))' }}
+              strokeWidth="1.4"
+              strokeDasharray="3 2"
               strokeLinecap="round"
             />
           ))}

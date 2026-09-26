@@ -6,6 +6,43 @@ import {
 import { cn } from '@/lib/utils'
 import { cellLabel } from '../lib/a11yLabels'
 
+// Mini-grid of a card's pattern from the MOVER's perspective: 5×5 with
+// center = origin, filled squares = reachable squares. `size` 'lg' is the
+// mover's own hand (the core decision — ~80px, readable on a phone); 'md'
+// is the opponent's hand and the spare.
+function CardView({ k, active, mover, size = 'md' }) {
+  const deltas = cardDeltas(k, mover)
+  const marked = new Set(deltas.map(([dr, dc]) => `${dr + 2},${dc + 2}`))
+  return (
+    <span
+      className={cn(
+        'inline-grid grid-cols-5 p-1 rounded border transition-all duration-100',
+        size === 'lg' ? 'gap-0.5' : 'gap-px',
+        active ? 'border-retro-cta bg-retro-tint-cta/20' : 'border-retro-border/50',
+      )}
+      aria-hidden="true"
+    >
+      {Array.from({ length: 25 }, (_, n) => {
+        const r = Math.floor(n / 5)
+        const c = n % 5
+        const isCenter = r === 2 && c === 2
+        const isDot = marked.has(`${r},${c}`)
+        return (
+          <span
+            key={n}
+            className={cn(
+              size === 'lg' ? 'w-3.5 h-3.5 rounded-[2px]' : 'w-2 h-2 rounded-[1px]',
+              isCenter && 'bg-retro-text',
+              !isCenter && isDot && 'bg-retro-cta',
+              !isCenter && !isDot && 'bg-retro-border/40',
+            )}
+          />
+        )
+      })}
+    </span>
+  )
+}
+
 // ONITAMA — 5×5 dojo. The board owns the whole interaction: pick one of your
 // two cards (highlighted moves preview on the grid), then tap a highlighted
 // destination to commit { from, to, card }. Squares, pieces and cards are
@@ -49,40 +86,6 @@ export default function OnitamaBoard({
     }
   }
 
-  // Mini-grid of a card's pattern from the MOVER's perspective: 5×5 with
-  // center = origin, dots = reachable squares.
-  const CardView = ({ k, active }) => {
-    const deltas = cardDeltas(k, activeMover)
-    const marked = new Set(deltas.map(([dr, dc]) => `${dr + 2},${dc + 2}`))
-    return (
-      <span
-        className={cn(
-          'inline-grid grid-cols-5 gap-px p-1 rounded border transition-all duration-100',
-          active ? 'border-retro-cta bg-retro-tint-cta/20' : 'border-retro-border/50',
-        )}
-        aria-hidden="true"
-      >
-        {Array.from({ length: 25 }, (_, n) => {
-          const r = Math.floor(n / 5)
-          const c = n % 5
-          const isCenter = r === 2 && c === 2
-          const isDot = marked.has(`${r},${c}`)
-          return (
-            <span
-              key={n}
-              className={cn(
-                'w-1.5 h-1.5 rounded-full',
-                isCenter && 'bg-retro-fg',
-                !isCenter && isDot && 'bg-retro-cta',
-                !isCenter && !isDot && 'bg-retro-border/30',
-              )}
-            />
-          )
-        })}
-      </span>
-    )
-  }
-
   return (
     <div className="w-full max-w-[400px] sm:max-w-[440px] mx-auto">
       <div className={cn(
@@ -90,13 +93,19 @@ export default function OnitamaBoard({
         disabled && 'board-idle',
       )}>
         {/* Opponent's hand (face-up, as in real Onitama) + spare */}
-        <div className="flex items-center justify-center gap-2 pb-1.5">
+        <div className="flex items-end justify-center gap-2 pb-2">
           {handO.map(k => (
-            <CardView key={k} k={k} active={false} />
+            <span key={k} className="flex flex-col items-center gap-0.5">
+              <CardView k={k} active={false} mover={activeMover} />
+              <span aria-hidden="true" className="font-pixel text-[8px] text-retro-dim">{cardName(k)}</span>
+            </span>
           ))}
           <span className="sr-only">O cards: {handO.map(cardName).join(', ') || 'none'}.</span>
-          <span className="font-pixel text-[8px] text-retro-dim ml-1">
-            SPARE: {spare != null ? cardName(spare) : '—'}
+          <span className="ml-2 flex flex-col items-center gap-0.5 border-l border-retro-border/60 pl-3">
+            {spare != null && <CardView k={spare} active={false} mover={activeMover} />}
+            <span className="font-pixel text-[8px] text-retro-dim">
+              SPARE: {spare != null ? cardName(spare) : '—'}
+            </span>
           </span>
         </div>
 
@@ -158,14 +167,14 @@ export default function OnitamaBoard({
         </div>
 
         {/* Mover's hand: pick a card, then a highlighted square */}
-        <div className="flex items-center justify-center gap-2 pt-2">
+        <div className="flex items-stretch justify-center gap-3 pt-2">
           {hand.map(k => (
             <button
               key={k}
               disabled={disabled}
               onClick={() => pickCard(k)}
               className={cn(
-                'flex items-center gap-1.5 rounded border px-1.5 py-1 transition-all duration-100',
+                'flex flex-col items-center gap-1 rounded border-2 px-2 py-1.5 transition-all duration-100',
                 'focus-visible:ring-2 focus-visible:ring-retro-cta outline-none',
                 selectable.has(k) ? 'cursor-pointer hover:brightness-125' : 'opacity-40 cursor-default',
                 card === k ? 'border-retro-cta bg-retro-tint-cta/20' : 'border-retro-border/50',
@@ -174,9 +183,9 @@ export default function OnitamaBoard({
               data-testid={`onitama-card-${cardName(k)}`}
               aria-label={`${cardName(k)} card${selectable.has(k) ? '' : ', no legal moves'}`}
             >
-              <CardView k={k} active={card === k} />
+              <CardView k={k} active={card === k} mover={activeMover} size="lg" />
               <span className={cn(
-                'font-pixel text-[8px] tracking-wider',
+                'font-pixel text-[10px] tracking-wider',
                 card === k ? 'text-retro-cta' : 'text-retro-dim',
               )}>
                 {cardName(k)}
@@ -184,8 +193,8 @@ export default function OnitamaBoard({
             </button>
           ))}
         </div>
-        <p className="mt-1.5 text-center font-pixel text-[8px] text-retro-dim tracking-wider">
-          {card == null ? 'PICK A CARD — ITS MOVES LIGHT UP' : 'TAP A LIT SQUARE · CARD PASSES TO YOUR RIVAL'}
+        <p className="mt-1.5 text-center font-mono text-xs text-retro-dim">
+          {card == null ? 'Pick a card — its moves light up.' : 'Tap a lit square. The card then passes to your rival.'}
         </p>
       </div>
     </div>

@@ -161,21 +161,22 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
           >
             {Array.from({ length: cols }, (_, col) => {
               const canPop = !disabled && bottomOf(col) === currentTurn
+              // Only your own bottom discs get a POP button; other columns keep
+              // an empty slot so the row stays aligned with the grid.
+              if (!canPop) return <div key={col} className="h-11" aria-hidden="true" />
               return (
                 <button
                   key={col}
-                  onClick={() => canPop && emit(col, 'pop')}
-                  disabled={!canPop}
+                  onClick={() => emit(col, 'pop')}
                   title="Pop your own disc out of the bottom"
                   aria-label={`Pop column ${col + 1}`}
                   className={cn(
-                    'h-11 rounded-sm border font-pixel text-[9px] leading-none flex items-center justify-center transition-all',
-                    canPop
-                      ? 'border-retro-cta/60 text-retro-cta hover:bg-retro-tint-cta active:scale-90 cursor-pointer'
-                      : 'border-retro-border/40 text-retro-border/50 cursor-default',
+                    'h-11 rounded-sm border-2 font-pixel text-[9px] sm:text-[10px] leading-none flex flex-col items-center justify-center gap-1 transition-all',
+                    'border-retro-cta text-retro-cta bg-retro-tint-cta/40 hover:bg-retro-tint-cta active:scale-90 cursor-pointer',
                   )}
                 >
-                  ▼
+                  <span>POP</span>
+                  <span aria-hidden="true">▼</span>
                 </button>
               )
             })}

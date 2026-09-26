@@ -55,14 +55,19 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
                 )}
               >
                 {eaten ? null : isPoison ? (
-                  <span className="text-retro-p2 text-glow-p2" title="POISON">☠</span>
+                  // Big skull + label on the cell itself, so the poison square
+                  // explains itself without a legend to read.
+                  <span className="flex flex-col items-center justify-center leading-none text-retro-p2 text-glow-p2" title="POISON">
+                    <span aria-hidden="true" className="text-2xl sm:text-3xl leading-none">☠</span>
+                    <span className="font-pixel text-[8px] mt-0.5">POISON</span>
+                  </span>
                 ) : null}
               </button>
             )
           })}
         </div>
-        <p className="mt-2 text-center font-pixel text-[8px] text-retro-dim tracking-wider">
-          ☠ = POISON — EAT IT AND YOU LOSE
+        <p className="mt-2 text-center font-mono text-xs text-retro-dim">
+          Whoever eats the ☠ square loses.
         </p>
       </div>
     </div>

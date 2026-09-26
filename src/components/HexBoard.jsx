@@ -9,6 +9,51 @@ const CELL_H = 30
 const ROW_OVERLAP = CELL_H * 0.25
 const BOARD_W = CELL_W * HEX_SIZE + (CELL_W / 2) * (HEX_SIZE - 1)
 const BOARD_H = CELL_H + (HEX_SIZE - 1) * (CELL_H - ROW_OVERLAP)
+// Goal edges are drawn as SVG strokes along the rhombus's real sides. X's
+// labels sit in the empty triangles beside the slanted sides, so they need no
+// extra width; O's labels need a strip above and below.
+const PAD_X = 6
+const PAD_Y = 16
+const OUTER_W = BOARD_W + 2 * PAD_X
+const OUTER_H = BOARD_H + 2 * PAD_Y
+const GAP = 3 // stroke centre's distance from the hex edge
+const SLANT = ((HEX_SIZE - 1) * CELL_W) / 2
+const EDGES = {
+  top: [PAD_X, PAD_Y - GAP, PAD_X + HEX_SIZE * CELL_W, PAD_Y - GAP],
+  bottom: [PAD_X + SLANT, PAD_Y + BOARD_H + GAP, PAD_X + SLANT + HEX_SIZE * CELL_W, PAD_Y + BOARD_H + GAP],
+  left: [PAD_X - GAP, PAD_Y + CELL_H * 0.25, PAD_X - GAP + SLANT, PAD_Y + BOARD_H - CELL_H * 0.25],
+  right: [PAD_X + HEX_SIZE * CELL_W + GAP, PAD_Y + CELL_H * 0.25, PAD_X + HEX_SIZE * CELL_W + GAP + SLANT, PAD_Y + BOARD_H - CELL_H * 0.25],
+}
+const mid = ([x1, y1, x2, y2]) => [(x1 + x2) / 2, (y1 + y2) / 2]
+
+// The four goal sides as thick strokes following the rhombus, each labelled
+// with its owner outside the board so no hex ever covers a label.
+function GoalEdges() {
+  const stroke = (side) => ({ stroke: `rgb(var(--c-${side === 'top' || side === 'bottom' ? 'p2' : 'p1'}))` })
+  const label = (side) => ({ fill: `rgb(var(--c-${side === 'top' || side === 'bottom' ? 'p2' : 'p1'}))` })
+  const [lx, ly] = mid(EDGES.left)
+  const [rx, ry] = mid(EDGES.right)
+  const [tx] = mid(EDGES.top)
+  const [bx] = mid(EDGES.bottom)
+  return (
+    <svg
+      aria-hidden="true"
+      width={OUTER_W}
+      height={OUTER_H}
+      className="absolute left-0 top-0 pointer-events-none overflow-visible"
+    >
+      {Object.entries(EDGES).map(([side, [x1, y1, x2, y2]]) => (
+        <line key={side} x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth={4} strokeLinecap="round" style={stroke(side)} />
+      ))}
+      <g className="font-pixel" fontSize={11} textAnchor="middle" dominantBaseline="central">
+        <text x={lx - 16} y={ly} style={label('left')}>X▶</text>
+        <text x={rx + 16} y={ry} style={label('right')}>◀X</text>
+        <text x={tx} y={PAD_Y - GAP - 9} style={label('top')}>O ▼</text>
+        <text x={bx} y={PAD_Y + BOARD_H + GAP + 9} style={label('bottom')}>▲ O</text>
+      </g>
+    </svg>
+  )
+}
 
 export default function HexBoard({ board, onMove, disabled, winningLine = [], currentTurn, lastMove = null, swapRule = false, pieSwap = false }) {
   const showHint = board.every(c => !c)
@@ -25,7 +70,7 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
     if (!el) return undefined
     const update = () => {
       const w = el.clientWidth
-      setScale(w > 0 ? Math.min(1, w / BOARD_W) : 1)
+      setScale(w > 0 ? Math.min(1, w / OUTER_W) : 1)
     }
     update()
     const ro = new ResizeObserver(update)
@@ -45,37 +90,23 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
           disabled && 'board-idle',
         )}
       >
-        {/* GAMEPLAY-03: solid tinted goal rails + direction arrows. The old
-            30%-alpha gradients were nearly invisible on midnight (and rely on
-            theme alpha generally) — the goal IS the ruleset, so it gets the
-            semantic tint tokens, not a wash. Arrows point inward, the way
-            each side travels. */}
+        {/* GAMEPLAY-03: the goal IS the ruleset, so each side's edges are
+            drawn in its colour along the rhombus itself (GoalEdges) rather
+            than as rectangular rails the slanted board runs under. */}
         <p className="sr-only">
           X connects the left and right edges, columns A to {columnLetter(HEX_SIZE - 1)}.
           O connects the top and bottom edges, rows 1 to {HEX_SIZE}.
         </p>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-9 rounded-l bg-retro-tint-p1 border-r-2 border-retro-p1/60 flex items-center justify-start pl-1 flex-col gap-1">
-          <span className="font-pixel text-[9px] text-retro-p1 text-glow-p1">X</span>
-          <span className="font-pixel text-[8px] text-retro-p1">▶</span>
-        </div>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-9 rounded-r bg-retro-tint-p1 border-l-2 border-retro-p1/60 flex items-center justify-end pr-1 flex-col gap-1">
-          <span className="font-pixel text-[9px] text-retro-p1 text-glow-p1">X</span>
-          <span className="font-pixel text-[8px] text-retro-p1">◀</span>
-        </div>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-9 bg-retro-tint-p2 border-b-2 border-retro-p2/60 flex items-start justify-center pt-1 gap-2">
-          <span className="font-pixel text-[9px] text-retro-p2 text-glow-p2">O ▼</span>
-        </div>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-retro-tint-p2 border-t-2 border-retro-p2/60 flex items-end justify-center pb-1 gap-2">
-          <span className="font-pixel text-[9px] text-retro-p2 text-glow-p2">▲ O</span>
-        </div>
         {/* Tight padding on phones — every horizontal pixel feeds the scale
             factor, and an 11-wide rhombus is starved for width as it is. */}
         <div className="p-1.5 sm:p-3">
           <div ref={wrapperRef} className="w-full flex justify-center">
-            <div style={{ width: `${BOARD_W * scale}px`, height: `${BOARD_H * scale}px`, position: 'relative' }}>
+            <div style={{ width: `${OUTER_W * scale}px`, height: `${OUTER_H * scale}px`, position: 'relative' }}>
               <div
                 style={{
-                  width: `${BOARD_W}px`,
+                  width: `${OUTER_W}px`,
+                  height: `${OUTER_H}px`,
+                  padding: `${PAD_Y}px ${PAD_X}px`,
                   transform: `scale(${scale})`,
                   transformOrigin: 'top left',
                   position: 'absolute',
@@ -83,6 +114,7 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
                   left: 0,
                 }}
               >
+                <GoalEdges />
                 {Array.from({ length: HEX_SIZE }, (_, row) => (
                   <div
                     key={row}

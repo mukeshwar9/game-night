@@ -57,6 +57,12 @@ function OrbDots({ count, symbol, nearCritical }) {
 // MAX_REPLAY_WAVES for drama, then jump straight to the settled board.
 const MAX_REPLAY_WAVES = 12
 
+// Seat name for the score line: X/O in 2P, P1–P4 in the 4-player roster.
+const P_LABEL = { X: 'P1', O: 'P2', A: 'P3', B: 'P4' }
+function seatName(sym, symbols) {
+  return symbols.length > 2 ? (P_LABEL[sym] ?? sym) : sym
+}
+
 export default function ChainReactionBoard({
   board, onMove, disabled, currentTurn, crLastMove,
   cols = CR_COLS, rows = CR_ROWS,
@@ -187,8 +193,14 @@ export default function ChainReactionBoard({
     }
   }
 
+  // Tall variants (6×8): cap the width by viewport height so the board and
+  // the status line below it both fit on a 667px phone.
+  const fitStyle = rows > cols
+    ? { maxWidth: `max(240px, calc((100dvh - 320px) * ${cols / rows}))` }
+    : undefined
+
   return (
-    <div className="w-full max-w-sm mx-auto">
+    <div className="w-full max-w-sm mx-auto" style={fitStyle}>
       <div
         className={cn(
           'border-2 border-retro-border rounded p-1 sm:p-1.5 transition-all duration-200',
@@ -279,14 +291,24 @@ export default function ChainReactionBoard({
         </div>
       </div>
 
-      {/* Legend — one orb count per symbol in the variant's roster */}
-      <div className="mt-1.5 flex items-center justify-center gap-3 font-pixel text-[10px]">
-        {symbols.map(sym => (
-          <span key={sym} className={crSymbolColor(sym).legend}>
-            {sym === 'X' ? 'X' : sym === 'O' ? 'O' : sym} {board.filter(c => c && c[0] === sym).length}
-          </span>
-        ))}
-        <span className="text-retro-dim">cells</span>
+      {/* Score — one chip per seat: colour swatch, seat, and a labelled cell
+          count (2P keeps X/O; the 4P roster uses the same P1–P4 names as its lobby). */}
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-pixel text-[10px]">
+        {symbols.map(sym => {
+          const n = board.filter(c => c && c[0] === sym).length
+          return (
+            <span
+              key={sym}
+              className="flex items-center gap-1.5"
+              aria-label={`${seatName(sym, symbols)}: ${countLabel(n, 'cell')}`}
+            >
+              <span aria-hidden="true" className={cn('w-2.5 h-2.5 rounded-full', crSymbolColor(sym).orb)} />
+              <span className={crSymbolColor(sym).legend}>{seatName(sym, symbols)}</span>
+              <span className="text-retro-text">{n}</span>
+              <span className="text-retro-dim">{n === 1 ? 'CELL' : 'CELLS'}</span>
+            </span>
+          )
+        })}
       </div>
     </div>
   )

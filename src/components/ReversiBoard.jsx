@@ -82,10 +82,13 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
                     <span aria-hidden="true" className="font-pixel text-[9px] sm:text-[10px] text-retro-bg leading-none select-none">{cell}</span>
                   </span>
                 ) : isHint ? (
+                  // Legal-move hint: a third-of-cell ring in the mover's colour,
+                  // big and solid enough to spot on a phone.
                   <span
+                    aria-hidden="true"
                     className={cn(
-                      'w-2 h-2 rounded-full',
-                      currentTurn === 'X' ? 'bg-retro-p1/50' : 'bg-retro-p2/50',
+                      'w-[36%] h-[36%] rounded-full border-2',
+                      currentTurn === 'X' ? 'border-retro-p1 bg-retro-p1/35' : 'border-retro-p2 bg-retro-p2/35',
                     )}
                   />
                 ) : null}

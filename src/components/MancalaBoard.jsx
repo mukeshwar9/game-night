@@ -6,7 +6,9 @@ import { countLabel, joinLabel } from '../lib/a11yLabels'
 // each end. Seat-aware: `mySymbol` decides which row/store is "mine" (bottom
 // + right) vs "rival" (top + left) so O sees their own pits at the bottom
 // too, not X's view mirrored. Spectators (mySymbol === null) get the neutral
-// X-perspective with plain X/O labels instead of YOU/RIVAL.
+// X-perspective. Row/store labels are people, not seat glyphs: YOU and the
+// opponent's name (from optional `players`, else RIVAL); spectators see both
+// names (else X/O).
 // Sow animation replays hops from `last` metadata.
 
 function SeedCluster({ count }) {
@@ -57,7 +59,7 @@ function Store({ count, label, ownerName }) {
       <div aria-hidden="true" className="w-10 sm:w-12 flex-1 rounded-xl border-2 border-retro-border bg-retro-deep flex items-center justify-center py-3">
         <span className="font-pixel text-sm text-retro-cta">{count}</span>
       </div>
-      <span aria-hidden="true" className="font-pixel text-[8px] text-retro-dim">{label}</span>
+      <span aria-hidden="true" className="font-pixel text-[9px] text-retro-text max-w-12 truncate">{label}</span>
     </div>
   )
 }
@@ -70,6 +72,7 @@ export default function MancalaBoard({
   disabled = false,
   accent = 'p1',
   mySymbol = 'X',
+  players = null,
 }) {
   // Registry (live) passes onMove; the solo /demo harness passes onPit — accept both.
   const handlePit = onPit ?? onMove
@@ -136,10 +139,9 @@ export default function MancalaBoard({
   const TOP_ROW = bottomIsX ? [12, 11, 10, 9, 8, 7] : [0, 1, 2, 3, 4, 5]
   const bottomStorePit = bottomIsX ? 6 : 13
   const topStorePit = bottomIsX ? 13 : 6
-  const bottomLabel = spectator ? 'X' : 'YOU'
-  const topLabel = spectator ? 'O' : 'RIVAL'
-  const bottomTag = bottomIsX ? 'X' : 'O'
-  const topTag = bottomIsX ? 'O' : 'X'
+  const nameOf = (sym, fallback) => (players?.[sym]?.name || fallback).toUpperCase()
+  const bottomLabel = spectator ? nameOf('X', 'X') : 'YOU'
+  const topLabel = spectator ? nameOf('O', 'O') : nameOf(bottomIsX ? 'O' : 'X', 'RIVAL')
   // Owner words for screen-reader names ("Your pit 3", "Rival store").
   const bottomOwner = spectator ? 'X' : 'Your'
   const topOwner = spectator ? 'O' : 'Rival'
@@ -168,7 +170,7 @@ export default function MancalaBoard({
               />
             ))}
           </div>
-          <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">{topLabel} · {topTag}</p>
+          <p aria-hidden="true" className="font-pixel text-[10px] text-retro-dim text-center tracking-wider truncate">▲ {topLabel}&apos;S PITS</p>
           {/* Mine row */}
           <div className="grid grid-cols-6 gap-1">
             {BOTTOM_ROW.map(i => {
@@ -187,7 +189,12 @@ export default function MancalaBoard({
               )
             })}
           </div>
-          <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">{bottomLabel} · {bottomTag}</p>
+          <p aria-hidden="true" className={cn(
+            'font-pixel text-[10px] text-center tracking-wider truncate',
+            canPlay ? (bottomIsX ? 'text-retro-p1' : 'text-retro-p2') : 'text-retro-dim',
+          )}>
+            {spectator ? `▼ ${bottomLabel}'S PITS` : '▼ YOUR PITS'}
+          </p>
         </div>
         <Store count={pits[bottomStorePit] ?? 0} label={bottomLabel} ownerName={bottomOwner} />
       </div>

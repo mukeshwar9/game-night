@@ -15,11 +15,12 @@ export default function UltimateTttBoard({
 
   return (
     <div className="w-full max-w-md mx-auto">
-      {/* Persistent free-play cue — reserved height so it never shifts layout when hidden */}
+      {/* Free-play cue — the playable miniboards themselves carry the cta outline;
+          this line only names it. Reserved height so it never shifts layout. */}
       <div className="h-4 mb-1 flex items-center justify-center">
         {!disabled && uActiveBoard === -1 && (
-          <span className="font-pixel text-[9px] sm:text-[10px] text-retro-cta animate-pulse tracking-wide">
-            ◆ PLAY ANY BOARD ◆
+          <span className="font-pixel text-[10px] text-retro-cta tracking-wide">
+            PLAY ANY OUTLINED BOARD
           </span>
         )}
       </div>
@@ -42,7 +43,10 @@ export default function UltimateTttBoard({
                 metaWin
                   ? 'border-retro-win shadow-neon-win bg-retro-win/10'
                   : active
-                    ? cn('bg-retro-card', targeted ? cn(activeRing, 'animate-pulse') : 'border-retro-border')
+                    ? (targeted
+                      ? cn('bg-retro-card', activeRing, 'animate-pulse')
+                      // Free play: every open miniboard gets a steady cta outline + tint
+                      : 'border-retro-cta bg-retro-tint-cta/40')
                     : 'border-retro-border bg-retro-surface',
               )}
             >
