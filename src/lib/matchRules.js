@@ -24,7 +24,7 @@ export const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
 // leaderboard credit, and partners never CLAIM WIN from each other. Mirrors
 // the registry's `coop: true` flags (src/lib/games.js; matchRules.test.js
 // keeps the two in sync — the registry itself can't be bundled into functions/).
-export const COOP_GAMES = new Set(['wordcoop', 'password'])
+export const COOP_GAMES = new Set(['wordcoop', 'password', 'wirecrossed'])
 
 /**
  * @param {string | undefined} gameType

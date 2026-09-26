@@ -557,6 +557,17 @@ export const GAME_RULES = {
     win: 'After 12 rounds your team score (out of 60) earns stars: ★ 20, ★★ 30, ★★★ 40. If your partner is offline for 30 seconds, you can end the match early with the score so far.',
   },
 
+  wirecrossed: {
+    objective: 'Defuse the bomb together. One of you holds the device, the other holds the only manual for it.',
+    howToPlay: [
+      'The Tech sees the bomb: a clock, strike lights and three or four modules. The Handbook sees a manual written for this exact bomb. Neither screen shows the other.',
+      'Talk it through (voice works best; the quick-phrase buttons help without it). The Handbook reads the rules, the Tech describes the device and acts.',
+      'WIRES: cut the one wire the manual picks. GLYPHS: press the four symbols in the order of the one manual column that holds all four. LEVER: tap it, or hold it and let go when the clock shows the digit for the strip colour. PIPES: steer to the flag; only the Handbook can see the walls.',
+      'A wrong move is a strike and takes 15 seconds off the clock. Roles swap on every new bomb, and each defused bomb raises the level.',
+    ],
+    win: 'Solve every module before the clock runs out or the third strike. You both win or both go boom.',
+  },
+
   wordrace: {
     objective: 'Race your opponent to solve the same hidden 5-letter word.',
     howToPlay: [

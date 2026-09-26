@@ -897,3 +897,17 @@ export function JustOneIcon() {
     </svg>
   )
 }
+
+export function WireCrossedIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* a device with two crossed wires and a clock readout */}
+      <rect x="2.5" y="5" width="19" height="15" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="6" y="2" width="12" height="3" rx="0.5" fill="currentColor" opacity="0.7" />
+      <path d="M5.5 10 C 10 10, 14 17, 18.5 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M5.5 17 C 10 17, 14 10, 18.5 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.65" />
+      <circle cx="5.5" cy="10" r="1.2" fill="currentColor" />
+      <circle cx="18.5" cy="17" r="1.2" fill="currentColor" />
+    </svg>
+  )
+}
