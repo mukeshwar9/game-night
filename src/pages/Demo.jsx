@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArrowsIcon, AnimalStackIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -47,6 +47,7 @@ const MancalaDemo = lazyWithRetry(() => import('./MancalaDemo'))
 const CheckersDemo = lazyWithRetry(() => import('./CheckersDemo'))
 const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
+const ArcheryDemo = lazyWithRetry(() => import('./ArcheryDemo'))
 const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
 const TriviaDemo = lazyWithRetry(() => import('./TriviaDemo'))
 const HerdDemo = lazyWithRetry(() => import('./HerdDemo'))
@@ -105,6 +106,7 @@ const DEMOS = [
   { type: 'checkers',      short: 'CHECKERS',       Icon: CheckersIcon,       Component: CheckersDemo },
   { type: 'airhockey',     short: 'AIR\nHOCKEY',    Icon: AirHockeyIcon,      Component: AirHockeyDemo },
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
+  { type: 'archery',       short: 'ARCHERY',         Icon: ArcheryIcon,        Component: ArcheryDemo },
   { type: 'animalstack',   short: 'ANIMAL\nSTACK',  Icon: AnimalStackIcon,    Component: AnimalStackDemo },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
