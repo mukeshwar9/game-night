@@ -55,11 +55,6 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Safety margin, not a target: the entry chunk is ~2 MB today and the
-        // default 2 MiB limit fails the build outright once it's crossed. The
-        // real fix is code-splitting + the CI size budget
-        // (scripts/check-bundle-size.mjs).
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // No Firebase runtime rule: RTDB/Auth traffic is live and has its own
         // offline handling; caching it here only stored opaque responses with
         // no expiry.

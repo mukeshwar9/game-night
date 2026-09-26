@@ -83,7 +83,7 @@ import {
 } from './chimpLogic'
 import { generateSeed } from './mathLogic'
 import { arrowsFreshState, arrowsNextRound, normalizeArrowsSeen } from './arrowsLogic'
-import { generateGrid } from './wordhuntLogic'
+import { generateGrid } from './wordhuntGrid'
 import {
   VM_START_LEVEL,
   normalizeVmArray,
