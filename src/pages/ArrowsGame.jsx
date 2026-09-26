@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
-import { ref, runTransaction } from 'firebase/database'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ref, update, runTransaction, onValue } from 'firebase/database'
 import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import ArrowsBoard from '../components/ArrowsBoard'
+import { RaceRow } from '../components/ArrowsHud'
 import {
-  getLevel,
-  normalizeCleared,
-  countClears,
-  applyTap,
-  getArrowsWinner,
-  getClearableCount,
+  generateArrowsLevel,
+  applyArrowTap,
+  normalizeGone,
+  countGone,
+  tierForRound,
+  randomArrowsSeed,
   arrowsMatchWinner,
   getArrowsMatchEnd,
   ARROWS_LIVES,
@@ -21,77 +22,20 @@ import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
-const TIER_LABEL = { easy: 'EASY', medium: 'MEDIUM', hard: 'HARD' }
-const INTRO_MS = 1200
+// Arrows race. Both players get an identical board (generated from
+// `arrowsSeed`) and clear their own copy at the same time: first to empty
+// their board takes the round, running out of lives forfeits it.
+//
+// Each player's board is simulated locally — a tap resolves and animates on
+// the same frame, so neither side waits on the network. Firebase only carries
+// progress (`arrowsGone{X|O}/{index}: true`, `arrowsLives{X|O}`) for the
+// rival's race bar, spectators and reload recovery; the round end is one
+// transaction so a photo finish resolves to whoever lands first.
 
-function Lives({ n }) {
-  return (
-    <span className="flex gap-1" aria-label={`${n} lives`}>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="w-3.5 h-3.5"
-          style={{
-            background: i < n ? 'rgb(var(--c-danger))' : 'rgb(var(--c-structure))',
-            opacity: i < n ? 1 : 0.25,
-            clipPath: 'polygon(50% 0%, 100% 35%, 82% 100%, 50% 78%, 18% 100%, 0% 35%)',
-          }}
-        />
-      ))}
-    </span>
-  )
-}
+const COUNTDOWN_MS = 3000
 
-function HudSide({ sym, name, isMe, clears, lives, score, out }) {
-  const isX = sym === 'X'
-  return (
-    <div
-      className={cn(
-        'bg-retro-card border rounded p-2.5 space-y-1',
-        isMe ? (isX ? 'border-retro-p1/60' : 'border-retro-p2/60') : 'border-retro-border',
-        out && 'opacity-60',
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className={cn('font-pixel text-[9px] truncate', isX ? 'text-retro-p1' : 'text-retro-p2')}>
-          {name?.toUpperCase() ?? sym}
-        </span>
-        <span className="flex items-center gap-1.5">
-          {out && <span className="font-pixel text-[7px] text-retro-dim border border-retro-border rounded px-1">OUT</span>}
-          <span className="font-pixel text-[9px] text-retro-dim tabular-nums">{score}</span>
-        </span>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs text-retro-text tabular-nums">{clears} <span className="text-[9px] text-retro-dim">CLR</span></span>
-        <Lives n={lives} />
-      </div>
-    </div>
-  )
-}
-
-function ArrowsResult({ clears, livesX, livesO, winner, mySymbol, players }) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {['X', 'O'].map((sym) => {
-        const cl = sym === 'X' ? clears.X : clears.O
-        const lives = sym === 'X' ? livesX : livesO
-        const col = sym === 'X' ? 'text-retro-p1' : 'text-retro-p2'
-        const border = mySymbol === sym
-          ? (sym === 'X' ? 'border-retro-p1/60' : 'border-retro-p2/60')
-          : 'border-retro-border'
-        return (
-          <div key={sym} className={cn('bg-retro-card border rounded p-3 text-center space-y-1', border, lives <= 0 && 'opacity-60')}>
-            <p className={cn('font-pixel text-[8px]', col)}>{players?.[sym]?.name?.toUpperCase() ?? sym}</p>
-            <p className={cn('font-pixel text-xl', winner === sym ? 'text-retro-win text-glow-win' : 'text-retro-text')}>{cl}</p>
-            <div className="flex items-center justify-center gap-2">
-              <span className="font-pixel text-[7px] text-retro-dim">CLEARED</span>
-              <Lives n={lives} />
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
+function playerName(game, sym) {
+  return game.players?.[sym]?.name?.toUpperCase() ?? sym
 }
 
 export default function ArrowsGame({
@@ -99,130 +43,232 @@ export default function ArrowsGame({
   onSwitchGame, onPlayAgain, onNewMatch, proposal,
 }) {
   const isSpectator = !mySymbol
-  const level = getLevel(game.arrowsLevel)
-  const cleared = normalizeCleared(game.arrowsCleared, level.arrows.length)
-  const livesX = game.arrowsLivesX ?? ARROWS_LIVES
-  const livesO = game.arrowsLivesO ?? ARROWS_LIVES
-  const myLives = mySymbol === 'X' ? livesX : livesO
-  const clears = countClears(cleared)
+  const me = mySymbol === 'O' ? 'O' : 'X'
+  const op = me === 'X' ? 'O' : 'X'
+
+  const round = game.arrowsRound ?? 0
+  const tier = tierForRound(round)
+  const seed = game.arrowsSeed ?? null
+  const startedAt = game.arrowsStartedAt ?? null
+  const level = useMemo(() => (seed != null ? generateArrowsLevel(seed, tier) : null), [seed, tier])
+  const total = level?.arrows.length ?? 0
+
+  const remoteGone = {
+    X: normalizeGone(game.arrowsGoneX, total),
+    O: normalizeGone(game.arrowsGoneO, total),
+  }
+  const remoteLives = { X: game.arrowsLivesX ?? ARROWS_LIVES, O: game.arrowsLivesO ?? ARROWS_LIVES }
+
+  // My own board is local and authoritative for me; seeded from Firebase so
+  // a reload mid-round resumes where I was.
+  const [myGone, setMyGone] = useState(() => remoteGone[me])
+  const [myLives, setMyLives] = useState(() => remoteLives[me])
+  const [feedback, setFeedback] = useState(null)
+  const [now, setNow] = useState(() => Date.now())
+  const [clockOffset, setClockOffset] = useState(0)
+  const streak = useRef(0)
+  const prevSeedRef = useRef(seed)
+  const writeErrorAt = useRef(0)
+  const wentLive = useRef(false)
+
+  // New round (new seed): reset my local board during render, the
+  // derive-from-prop-change pattern, so the board never lags a seed flip.
+  if (prevSeedRef.current !== seed) {
+    prevSeedRef.current = seed
+    setMyGone(Array(total).fill(false))
+    setMyLives(ARROWS_LIVES)
+    setFeedback(null)
+  }
+
+  useEffect(() => {
+    streak.current = 0
+    wentLive.current = false
+  }, [seed])
+
+  // Server-corrected clock so both players' countdowns end together.
+  useEffect(() => {
+    const unsub = onValue(ref(db, '.info/serverTimeOffset'), (snap) => setClockOffset(snap.val() ?? 0))
+    return () => unsub()
+  }, [])
+  const serverNow = now + clockOffset
+  const countdownEnd = startedAt != null ? startedAt + COUNTDOWN_MS : null
+  const isCountdown = countdownEnd != null && serverNow < countdownEnd
+  const isRacing = countdownEnd != null && serverNow >= countdownEnd && game.status === 'playing'
+
+  useEffect(() => {
+    if (game.status !== 'playing' || (startedAt != null && !isCountdown)) return
+    const id = setInterval(() => setNow(Date.now()), 100)
+    return () => clearInterval(id)
+  }, [game.status, startedAt, isCountdown])
+
+  useEffect(() => {
+    if (isRacing && !wentLive.current) {
+      wentLive.current = true
+      if (!isSpectator) sounds.go()
+    }
+  }, [isRacing, isSpectator])
+
+  // Auto-start: once both players are seated and online, the first client to
+  // notice stamps a shared start time (server clock) — and a seed, for a room
+  // that predates it. The transaction makes a double start a no-op.
+  const bothSeated = !!game.players?.X && !!game.players?.O
+  useEffect(() => {
+    if (isSpectator || game.status !== 'playing' || startedAt != null) return
+    if (!bothSeated || !opponentOnline) return
+    runTransaction(ref(db, `games/${gameId}`), (current) => {
+      if (!current || current.status !== 'playing' || current.arrowsStartedAt != null) return
+      return {
+        ...current,
+        arrowsSeed: current.arrowsSeed ?? randomArrowsSeed(),
+        arrowsStartedAt: Date.now() + clockOffset,
+      }
+    }).catch(() => toast.error('COULD NOT START ROUND — CHECK CONNECTION'))
+  }, [isSpectator, game.status, startedAt, bothSeated, opponentOnline, gameId, clockOffset])
+
+  // One transaction ends the round; the seed guard stops a late write from a
+  // previous round finishing the next one.
+  const resolveEnd = (winner) => {
+    runTransaction(ref(db, `games/${gameId}`), (current) => {
+      if (!current || current.status !== 'playing' || current.arrowsSeed !== seed) return
+      const scores = { ...(current.scores || {}) }
+      scores[winner] = (scores[winner] || 0) + 1
+      return { ...current, winner, status: 'finished', scores, lastActivityAt: Date.now() }
+    }).catch(() => toast.error('ROUND RESULT FAILED — CHECK CONNECTION'))
+  }
+
+  const writeProgress = (updates) => {
+    update(ref(db, `games/${gameId}`), updates).catch(() => {
+      // One toast per burst — a dropped connection would otherwise fire one
+      // per tap.
+      if (Date.now() - writeErrorAt.current > 4000) toast.error('SYNC FAILED — CHECK CONNECTION')
+      writeErrorAt.current = Date.now()
+    })
+  }
+
+  // Backstop for the rival's end-of-round: if they cleared or ran dry but
+  // their own transaction never landed, settle it from here.
+  const opCleared = countGone(remoteGone[op])
+  const opLives = remoteLives[op]
+  useEffect(() => {
+    if (isSpectator || game.status !== 'playing' || !total) return
+    if (opCleared >= total) resolveEnd(op)
+    else if (opLives <= 0) resolveEnd(me)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveEnd is idempotent (status/seed guarded)
+  }, [opCleared, opLives, total, game.status, isSpectator])
+
+  const handleTap = (index) => {
+    if (!isRacing || isSpectator || !level) return
+    const applied = applyArrowTap(level, myGone, myLives, index)
+    if (!applied) return
+    if (applied.result === 'blocked') {
+      streak.current = 0
+      setMyLives(applied.lives)
+      setFeedback({ index, blocker: applied.blocker, gap: applied.gap, key: Date.now() })
+      sounds.buzz()
+      writeProgress({ [`arrowsLives${me}`]: applied.lives, lastActivityAt: Date.now() })
+      if (applied.lives <= 0) resolveEnd(op)
+      return
+    }
+    setMyGone(applied.gone)
+    sounds.hit(Math.min(streak.current, 8))
+    streak.current += 1
+    writeProgress({ [`arrowsGone${me}/${index}`]: true, lastActivityAt: Date.now() })
+    if (countGone(applied.gone) >= total) resolveEnd(me)
+  }
+
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
-  // Target hits end the match immediately; otherwise the match ends when the
-  // final round finishes (leader wins, level scores draw) — never a 4th board.
-  const targetWinner = arrowsMatchWinner(game.scores)
-  const matchEnd = targetWinner ?? getArrowsMatchEnd(game)
+  const matchEnd = arrowsMatchWinner(game.scores) ?? getArrowsMatchEnd(game)
   const matchOver = !!matchEnd
-  const roundNum = (game.arrowsRound ?? 0) + 1
-  const clearable = getClearableCount(level)
-  const revealTraps = !!game.arrowsTrapSeen
-  const showTip = game.status === 'playing' && roundNum === 1 && !game.arrowsTrapSeen
+  const tierLabel = tier.toUpperCase()
 
-  const [shakeSignal, setShakeSignal] = useState(null)
-  const [stolenSignal, setStolenSignal] = useState(null)
-  const [showIntro, setShowIntro] = useState(true)
-  const lastBlockedAt = useRef(null)
+  const counts = isSpectator
+    ? { X: countGone(remoteGone.X), O: countGone(remoteGone.O) }
+    : { [me]: countGone(myGone), [op]: opCleared }
+  const lives = isSpectator ? remoteLives : { [me]: myLives, [op]: opLives }
 
-  // Round-start interstitial beat: brief coaching overlay per round. The reset
-  // to visible on level change is the point of the effect (same pattern as the
-  // NumberMemoryDemo countdown reset).
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intro must re-show synchronously on each new level, then dismiss on a timer
-    setShowIntro(true)
-    const t = setTimeout(() => setShowIntro(false), INTRO_MS)
-    return () => clearTimeout(t)
-  }, [game.arrowsLevel])
+  const endReason = (sym) => {
+    if (game.status !== 'finished') return null
+    if (game.winner === sym) return counts[sym] >= total ? 'CLEARED' : 'WINNER'
+    if (lives[sym] <= 0) return 'OUT'
+    return null
+  }
 
-  // Remote trap feedback: shake on the opponent's blocked taps too, so both
-  // sides see the cost — not just the tapper.
-  useEffect(() => {
-    const last = game.arrowsLastBlocked
-    if (!last || typeof last.index !== 'number') return
-    if (last.at === lastBlockedAt.current) return
-    lastBlockedAt.current = last.at
-    if (last.by === mySymbol) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Firebase echo arrives as a prop change; shaking here is the event handler
-    setShakeSignal({ index: last.index, key: last.at })
-  }, [game.arrowsLastBlocked, mySymbol])
+  const raceRows = (
+    <div className="grid grid-cols-2 gap-2">
+      {['X', 'O'].map((sym) => (
+        <RaceRow
+          key={sym}
+          sym={sym}
+          name={sym === mySymbol ? 'YOU' : playerName(game, sym)}
+          isMe={sym === mySymbol}
+          cleared={counts[sym]}
+          total={total}
+          lives={lives[sym]}
+          status={endReason(sym) ?? (lives[sym] <= 0 ? 'OUT' : null)}
+        />
+      ))}
+    </div>
+  )
+
+  const header = (
+    <div className="flex items-center justify-between font-pixel text-[9px] text-retro-dim tracking-wider">
+      <span>ROUND {round + 1}/{ARROWS_MAX_ROUNDS} · {tierLabel}</span>
+      <span className="tabular-nums">
+        <span className="text-retro-p1">{scoreX}</span> – <span className="text-retro-p2">{scoreO}</span>
+        <span className="ml-1.5">FIRST TO {ARROWS_MATCH_TARGET}</span>
+      </span>
+    </div>
+  )
+
+  const cover = (content) => (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-surface rounded-lg border-2 border-retro-border text-center px-4">
+      {content}
+    </div>
+  )
+
+  const preRace = (() => {
+    if (isCountdown) {
+      const secs = Math.max(1, Math.ceil((countdownEnd - serverNow) / 1000))
+      return cover(
+        <>
+          <p className="font-pixel text-4xl text-retro-cta text-glow-cta tabular-nums" aria-live="assertive">{secs}</p>
+          <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
+            {total} ARROWS · {tierLabel}<br />SAME BOARD FOR BOTH — FIRST TO CLEAR WINS
+          </p>
+        </>,
+      )
+    }
+    if (startedAt == null && game.status === 'playing') {
+      return cover(
+        <p className="font-pixel text-[9px] text-retro-dim leading-relaxed">
+          {!bothSeated ? 'WAITING FOR A RIVAL' : !opponentOnline && !isSpectator ? 'WAITING FOR OPPONENT TO RECONNECT' : 'GET READY…'}
+        </p>,
+      )
+    }
+    return null
+  })()
 
   const liveMsg = game.status === 'finished'
-    ? (game.winner === 'draw' ? `Round over. Draw. Clears X ${clears.X}, O ${clears.O}.`
-      : `Round over. ${game.winner} wins the round. Clears X ${clears.X}, O ${clears.O}.`)
-    : `Round ${roundNum} of ${ARROWS_MAX_ROUNDS}. Clears X ${clears.X}, O ${clears.O}. Lives X ${livesX}, O ${livesO}.`
+    ? `Round over. ${game.winner === 'draw' ? 'Draw.' : `${playerName(game, game.winner)} wins the round.`}`
+    : `Cleared X ${counts.X} of ${total}, O ${counts.O} of ${total}. Lives X ${lives.X}, O ${lives.O}.`
 
-  const handleTap = async (index) => {
-    if (!game || isSpectator) return
-    if (game.status !== 'playing') return
-    if (myLives <= 0) return
-    if (cleared[index]) return
-    const arrow = level.arrows[index]
-    if (!arrow) return
-
-    // No audio before confirmation: sound (and shake/stolen) fires only from
-    // the transaction result below, so a raced tap never plays a false clear.
-    let appliedTap = null
-    let txResult
-    const gameRef = ref(db, `games/${gameId}`)
-    try {
-      txResult = await runTransaction(gameRef, (current) => {
-        if (!current || current.status === 'finished') return
-        const lvl = getLevel(current.arrowsLevel)
-        const clr = normalizeCleared(current.arrowsCleared, lvl.arrows.length)
-        const lives = { X: current.arrowsLivesX ?? ARROWS_LIVES, O: current.arrowsLivesO ?? ARROWS_LIVES }
-        const applied = applyTap(lvl, clr, lives, index, mySymbol)
-        if (!applied) return
-        appliedTap = applied.tap
-        const updates = {
-          arrowsCleared: applied.cleared,
-          arrowsLivesX: applied.lives.X,
-          arrowsLivesO: applied.lives.O,
-          lastActivityAt: Date.now(),
-        }
-        if (applied.tap.result === 'blocked') {
-          // Teach-once trap tell: the first trap of the match reveals traps.
-          if (!current.arrowsTrapSeen) updates.arrowsTrapSeen = true
-          updates.arrowsLastBlocked = { index, by: mySymbol, at: Date.now() }
-        }
-        const winner = getArrowsWinner(lvl, applied.cleared, applied.lives.X, applied.lives.O)
-        if (winner) {
-          updates.winner = winner
-          updates.status = 'finished'
-          if (winner !== 'draw') {
-            const scores = { ...(current.scores || {}) }
-            scores[winner] = (scores[winner] || 0) + 1
-            updates.scores = scores
-          }
-        }
-        return { ...current, ...updates }
-      })
-    } catch {
-      toast.error('TAP FAILED — CHECK CONNECTION')
-      return
-    }
-    if (!txResult?.committed || !appliedTap) {
-      // Someone else cleared it first (or the round just ended): flash stolen.
-      setStolenSignal({ index, key: Date.now() })
-      sounds.miss()
-      return
-    }
-    if (appliedTap.result === 'blocked') {
-      setShakeSignal({ index, key: Date.now() })
-      sounds.miss()
-    } else {
-      sounds.hit(clears.X + clears.O)
-    }
+  if (!level) {
+    return <p className="text-center font-pixel text-[9px] text-retro-dim">GET READY…</p>
   }
 
   if (game.status === 'finished') {
+    const winnerSym = game.winner
+    const why = winnerSym === 'X' || winnerSym === 'O'
+      ? (counts[winnerSym] >= total
+        ? `${winnerSym === mySymbol ? 'YOU' : playerName(game, winnerSym)} CLEARED THE BOARD`
+        : `${(winnerSym === 'X' ? 'O' : 'X') === mySymbol ? 'YOU' : playerName(game, winnerSym === 'X' ? 'O' : 'X')} RAN OUT OF LIVES`)
+      : null
     return (
       <div className="space-y-4">
-        <ArrowsResult
-          clears={clears}
-          livesX={livesX}
-          livesO={livesO}
-          winner={game.winner}
-          mySymbol={mySymbol}
-          players={game.players}
-        />
+        {header}
+        {why && <p className="text-center font-pixel text-[9px] text-retro-cta">{why}</p>}
+        {raceRows}
         <GameStatus
           status={game.status}
           winner={game.winner}
@@ -237,104 +283,63 @@ export default function ArrowsGame({
           onNewMatch={matchOver && !proposal && !isSpectator ? onNewMatch : null}
           onSwitchGame={!proposal && !isSpectator ? onSwitchGame : null}
         />
+        <p className="sr-only" aria-live="polite">{liveMsg}</p>
       </div>
     )
   }
 
-  const hud = (
-    <div className="grid grid-cols-2 gap-2">
-      <HudSide
-        sym="X"
-        name={game.players?.X?.name}
-        isMe={mySymbol === 'X'}
-        clears={clears.X}
-        lives={livesX}
-        score={scoreX}
-        out={livesX <= 0}
-      />
-      <HudSide
-        sym="O"
-        name={game.players?.O?.name}
-        isMe={mySymbol === 'O'}
-        clears={clears.O}
-        lives={livesO}
-        score={scoreO}
-        out={livesO <= 0}
-      />
-    </div>
-  )
-
   if (isSpectator) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between font-pixel text-[9px] text-retro-dim tracking-wider">
-          <span>ROUND {roundNum}/{ARROWS_MAX_ROUNDS} · {TIER_LABEL[level.tier] ?? level.tier.toUpperCase()} — {level.label}</span>
-          <span className="tabular-nums">{scoreX} – {scoreO}</span>
+      <div className="space-y-3">
+        {header}
+        <p className="text-center font-pixel text-[8px] text-retro-dim">SPECTATING — SAME BOARD, TWO RACERS</p>
+        {raceRows}
+        <div className="relative grid grid-cols-2 gap-2">
+          {['X', 'O'].map((sym) => (
+            <div key={sym} className="space-y-1">
+              <p className={cn('font-pixel text-[8px] truncate', sym === 'X' ? 'text-retro-p1' : 'text-retro-p2')}>
+                {playerName(game, sym)}
+              </p>
+              <ArrowsBoard
+                key={`${seed}-${tier}-${sym}`}
+                level={level}
+                gone={remoteGone[sym]}
+                compact
+                label={`${playerName(game, sym)} board, ${total - countGone(remoteGone[sym])} arrows left`}
+              />
+            </div>
+          ))}
+          {preRace}
         </div>
-        <p className="text-center font-pixel text-[9px] text-retro-dim">SPECTATING · FIRST TO {ARROWS_MATCH_TARGET}</p>
-        {hud}
-        <ArrowsBoard key={game.arrowsLevel} level={level} cleared={cleared} interactive={false} revealTraps={revealTraps} shakeSignal={shakeSignal} />
         <p className="sr-only" aria-live="polite">{liveMsg}</p>
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
     )
   }
 
-  const canTap = game.status === 'playing' && myLives > 0
-
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between font-pixel text-[9px] text-retro-dim tracking-wider">
-        <span>ROUND {roundNum}/{ARROWS_MAX_ROUNDS} · {TIER_LABEL[level.tier] ?? level.tier.toUpperCase()}</span>
-        <span className="tabular-nums">{scoreX} – {scoreO}</span>
+      {header}
+      {raceRows}
+      <div className="relative">
+        <ArrowsBoard
+          key={`${seed}-${tier}`}
+          level={level}
+          gone={myGone}
+          onTap={handleTap}
+          interactive={isRacing && myLives > 0}
+          feedback={feedback}
+        />
+        {preRace}
       </div>
-      <p className="text-center font-pixel text-[8px] text-retro-dim tracking-wider">
-        {level.label} · {clearable} ARROWS · 1 TRAP · FIRST TO {ARROWS_MATCH_TARGET}
-      </p>
-      {level.fallback && (
-        <p className="text-center font-pixel text-[8px] text-retro-cta">
-          STALE BOARD SWAPPED — PLAYING FALLBACK LEVEL
-        </p>
-      )}
-
-      {showIntro && game.status === 'playing' && (
-        <div className="bg-retro-card border border-retro-cta/50 rounded p-3 text-center space-y-1">
-          <p className="font-pixel text-[10px] text-retro-cta text-glow-cta">
-            ROUND {roundNum} — {TIER_LABEL[level.tier] ?? level.tier.toUpperCase()}
-          </p>
-          <p className="font-pixel text-[8px] text-retro-dim">
-            {level.label} · {clearable} ARROWS · 1 TRAP
-          </p>
-        </div>
-      )}
-      {showTip && (
-        <p className="text-center font-pixel text-[8px] text-retro-cta border border-retro-cta/40 rounded px-2 py-1.5">
-          ONE ARROW IS A TRAP — THREE LIVES
-        </p>
-      )}
-
-      {hud}
-
-      <ArrowsBoard
-        key={game.arrowsLevel}
-        level={level}
-        cleared={cleared}
-        onTap={handleTap}
-        interactive={canTap}
-        shakeSignal={shakeSignal}
-        stolenSignal={stolenSignal}
-        revealTraps={revealTraps}
-      />
       <p className="sr-only" aria-live="polite">{liveMsg}</p>
-
-      {!canTap && game.status === 'playing' && myLives <= 0 && (
-        <p className="text-center font-pixel text-[9px] text-retro-danger tracking-wider">
-          OUT OF LIVES — SPECTATING
+      {isRacing && round === 0 && counts[me] === 0 && (
+        <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed">
+          TAP AN ARROW WHOSE PATH IS CLEAR — IT SLIDES OFF.<br />BLOCKED TAPS COST A LIFE.
         </p>
       )}
-
-      {!opponentOnline && (
-        <p className="text-center font-pixel text-[8px] text-retro-dim">OPPONENT OFFLINE</p>
+      {isRacing && !opponentOnline && (
+        <p className="text-center font-pixel text-[8px] text-retro-dim">OPPONENT OFFLINE — KEEP CLEARING</p>
       )}
     </div>
   )
