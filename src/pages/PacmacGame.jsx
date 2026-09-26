@@ -272,10 +272,13 @@ export default function PacmacGame({
       return () => clearTimeout(t)
     }
     if (guestConnectedAtRef.current == null) guestConnectedAtRef.current = performance.now()
+    // Stops once the first snapshot lands or the countdown runs out, like the
+    // other realtime pages, instead of ticking for the whole match.
     const id = setInterval(() => {
-      if (lastSnapRef.current) { setGuestCountdown(0); return }
+      if (lastSnapRef.current) { setGuestCountdown(0); clearInterval(id); return }
       const remain = guestConnectedAtRef.current + GUEST_COUNTDOWN_MS - performance.now()
       setGuestCountdown(remain > 0 ? Math.ceil(remain / 1000) : 0)
+      if (remain <= 0) clearInterval(id)
     }, 200)
     return () => clearInterval(id)
   }, [isHost, isSpectator, guestConn.status])

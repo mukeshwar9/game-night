@@ -186,6 +186,15 @@ export default function PongGame({
     // ≈ RTT/2 (capped) so it reaches the sim no sooner than the guest's does
     // (equalizeHostInput — see netLogic.js). Latched analog input.
     const hostDelay = createDelayLine()
+    // While the link is down or counting down the sim is frozen, so the frame
+    // only changes when the countdown digit does: skip the identical
+    // re-renders (up to 15 s of them while connecting).
+    let paused = null
+    const renderPaused = (countdown) => {
+      if (paused?.sim === simRef.current && paused.countdown === countdown) return
+      paused = { sim: simRef.current, countdown }
+      setRender({ view: viewOf(simRef.current, false), countdown })
+    }
 
     const loop = (now) => {
       raf = requestAnimationFrame(loop)
@@ -196,12 +205,12 @@ export default function PongGame({
         last = now; startAt = now + COUNTDOWN_MS; acc = 0
         hostDelay.reset()
         guestInputRef.current = 0
-        setRender({ view: viewOf(simRef.current, false), countdown: 0 })
+        renderPaused(0)
         return
       }
       if (now < startAt) {
         last = now
-        setRender({ view: viewOf(simRef.current, false), countdown: Math.ceil((startAt - now) / 1000) })
+        renderPaused(Math.ceil((startAt - now) / 1000))
         return
       }
 
@@ -258,6 +267,7 @@ export default function PongGame({
     snapRef.current = null
     const idle = createState({ mode: mode.id, serveIn: 1, score: { X: game.pongScoreX ?? 0, O: game.pongScoreO ?? 0 } })
     let raf, last = performance.now(), lastInput = 0
+    let waiting = null   // last pre-snapshot frame drawn — see below
     const loop = (now) => {
       raf = requestAnimationFrame(loop)
       const dt = Math.min((now - last) / 1000, 0.1); last = now
@@ -283,7 +293,12 @@ export default function PongGame({
         : 0
 
       if (!snap) {
-        setRender({ view: { ...viewOf(idle, false), paddles: { X: 0.5, O: predRef.current } }, countdown })
+        // Before the first snapshot only our own paddle and the countdown
+        // move; skip frames where neither did.
+        if (waiting?.pred !== predRef.current || waiting.countdown !== countdown) {
+          waiting = { pred: predRef.current, countdown }
+          setRender({ view: { ...viewOf(idle, false), paddles: { X: 0.5, O: predRef.current } }, countdown })
+        }
         return
       }
       const age = Math.min((now - snapAtRef.current) / 1000, 0.2)   // cap dead-reckoning

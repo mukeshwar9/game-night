@@ -161,10 +161,21 @@ export function useRealtimeHost(opts) {
 
     // Once the sim has stepped, pauses (reconnecting, the resume countdown)
     // freeze on its current view instead of snapping back to initialRender.
+    // The paused view only changes with the countdown digit (the sim is
+    // frozen), so it is cached and handed back as the same object: setRender
+    // then bails out instead of re-rendering the page every frame of a
+    // countdown or a reconnect wait.
     let started = false
-    const pausedView = (c, countdown) => (started
-      ? { ...c.buildView(simRef.current), countdown }
-      : countdown ? { ...c.initialRender, countdown } : c.initialRender)
+    let paused = null
+    const pausedView = (c, countdown) => {
+      const base = started ? simRef.current : c.initialRender
+      if (paused?.base === base && paused.countdown === countdown) return paused.view
+      const view = started
+        ? { ...c.buildView(simRef.current), countdown }
+        : countdown ? { ...c.initialRender, countdown } : c.initialRender
+      paused = { base, countdown, view }
+      return view
+    }
 
     if (driver === 'rAF') {
       const DT = 1 / 120
