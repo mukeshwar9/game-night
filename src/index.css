@@ -1444,3 +1444,13 @@ body::before {
   }
   :root:not([data-motion="full"]) body::after { display: none; }
 }
+
+/* Lanterns: the cards a clue just marked pulse twice so the receiver sees
+   which slots it touched. */
+@keyframes lanterns-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--c-cta) / 0); }
+  50%      { box-shadow: 0 0 0 3px rgb(var(--c-cta) / 0.9); }
+}
+.lanterns-flash { animation: lanterns-flash 0.7s ease-in-out 2; }
+[data-motion="reduced"] .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); }
+@media (prefers-reduced-motion: reduce) { .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); } }

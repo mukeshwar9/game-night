@@ -546,6 +546,28 @@ export const GAME_RULES = {
     win: 'Guess the word before all six rows are used. You both win or lose together.',
   },
 
+  lanterns: {
+    objective: 'Work together to light five rows of lanterns, each climbing from 1 to 5, while holding cards you can never see.',
+    howToPlay: [
+      'Each of you holds five cards facing away from you: you see your partner\'s hand, never your own. Every suit has three 1s, two each of 2, 3 and 4, and a single 5.',
+      'On your turn, do one thing. CLUE: tap a partner card and name its suit or its number; every matching card in their hand gets marked, and the rest learn what they are not. A clue costs one of 8 clue tokens.',
+      'DISCARD one of your cards to win back a clue token (not while all 8 are in hand). PLAY one of your cards onto its suit\'s row: it must be exactly the next number, or a fuse burns and the card is lost.',
+      'After a play or discard you draw a new card into the left of your hand. Finishing a row with a 5 returns a clue token. SHORT mode uses four suits (max 20) for a quicker evening.',
+    ],
+    win: 'The evening ends after three burnt fuses, a perfect table, or one last turn each once the deck runs out. Your score is the sum of the row tops. 20 of 25 (16 of 20 in SHORT) earns a team star for both of you.',
+  },
+
+  docking: {
+    objective: 'Fly a capsule into the station port together within six burns: the Commander (X) and the Engineer (O) each place secret dice on one shared console.',
+    howToPlay: [
+      'Each burn starts with talk. Plan freely, then both tap READY: you each roll four dice that only you can see. From then until the burn ends, no talking.',
+      'Take turns placing one die at a time. ATTITUDE and THRUST each need one die from both of you. Commander minus Engineer on attitude tilts the capsule (past 3 either way it spins out). The thrust total closes the distance: 4 or less holds, 5 to 8 closes 1, 9 or more closes 2.',
+      'Spare dice can clear DEBRIS (two slots a burn; the die must equal a marker\'s value), arm your own SWITCHES (exact value; each armed switch raises the docking limit by 1), bank COOLANT (a token lets any later die move by 1), or be vented.',
+      'Flying onto or past uncleared debris loses, so clear the lane before you close in. Pick CADET, PILOT or ACE for a longer approach with more debris.',
+    ],
+    win: 'Dock on the burn that closes the last distance, with the capsule level (tilt 0) and thrust at or under the docking limit. You both win or lose together; a docking earns a team star for both of you.',
+  },
+
   password: {
     objective: 'Work as a team: give one-word clues so your partner guesses the secret password, then swap roles. Every point counts for both of you.',
     howToPlay: [
