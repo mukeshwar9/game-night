@@ -122,6 +122,17 @@ function floodFillCells(strokes, sx, sy) {
   return cells
 }
 
+// Mirrors a node's children into `setMap`, at most once per frame.
+function subscribeChildren(nodeRef, setMap) {
+  const local = {}
+  let frame = 0
+  const publish = () => { frame = 0; setMap({ ...local }) }
+  const schedule = () => { if (!frame) frame = requestAnimationFrame(publish) }
+  const unAdd = onChildAdded(nodeRef, snap => { local[snap.key] = snap.val(); schedule() })
+  const unRem = onChildRemoved(nodeRef, snap => { delete local[snap.key]; schedule() })
+  return () => { unAdd(); unRem(); cancelAnimationFrame(frame) }
+}
+
 export default function SketchCanvas({ gameId, isArtist }) {
   const [strokes, setStrokes] = useState({})
   const [fills, setFills] = useState({})
@@ -135,23 +146,12 @@ export default function SketchCanvas({ gameId, isArtist }) {
   const bufferRef = useRef([]) // flat quantized ints buffered since the last flush
   const flushTimerRef = useRef(null)
 
-  // Strokes subscription
-  useEffect(() => {
-    const strokesRef = ref(db, `games/${gameId}/round/strokes`)
-    const local = {}
-    const unAdd = onChildAdded(strokesRef, snap => { local[snap.key] = snap.val(); setStrokes({ ...local }) })
-    const unRem = onChildRemoved(strokesRef, snap => { delete local[snap.key]; setStrokes({ ...local }) })
-    return () => { unAdd(); unRem() }
-  }, [gameId])
-
-  // Fills subscription
-  useEffect(() => {
-    const fillsRef = ref(db, `games/${gameId}/round/fills`)
-    const local = {}
-    const unAdd = onChildAdded(fillsRef, snap => { local[snap.key] = snap.val(); setFills({ ...local }) })
-    const unRem = onChildRemoved(fillsRef, snap => { delete local[snap.key]; setFills({ ...local }) })
-    return () => { unAdd(); unRem() }
-  }, [gameId])
+  // Strokes and fills subscriptions. Child events are coalesced into one
+  // state update per animation frame: joining mid-round fires one
+  // onChildAdded per existing segment, and copying the map on each of those
+  // was quadratic in the drawing's size.
+  useEffect(() => subscribeChildren(ref(db, `games/${gameId}/round/strokes`), setStrokes), [gameId])
+  useEffect(() => subscribeChildren(ref(db, `games/${gameId}/round/fills`), setFills), [gameId])
 
   // Stop any in-flight flush interval on unmount.
   useEffect(() => () => {
@@ -213,7 +213,9 @@ export default function SketchCanvas({ gameId, isArtist }) {
     if (!isArtist || !pointerDownRef.current) return
     if (tool === 'bucket') return
     const [x, y] = pointToQuantized(e)
-    bufferRef.current = [...bufferRef.current, x, y]
+    // In place: flush() hands the old array to push(), which serialises it
+    // synchronously, then starts a new one.
+    bufferRef.current.push(x, y)
   }, [isArtist, pointToQuantized, tool])
 
   const handlePointerEnd = useCallback(() => {
