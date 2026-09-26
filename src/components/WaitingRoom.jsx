@@ -4,6 +4,7 @@ import { ref, update } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { getGameConfig, usesFirstMover, firstMoverUpdates, resolveGoesFirst } from '../lib/games'
 import { MODES as PONG_MODES, MULTIPLAYER_MODES as PONG_MODE_IDS, getMode as getPongMode } from '../lib/pongLogic'
+import { UPDRAFT_MODES, UPDRAFT_MODE_IDS, getUpdraftMode } from '../lib/updraftConfig'
 import QrCode from './QrCode'
 import InviteFriendModal from './InviteFriendModal'
 import PixelDots from './loading/PixelDots'
@@ -44,6 +45,21 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
   const isPongHost = gameType === 'pong' && mySymbol === 'X'
   const matchLength = game?.matchLength ?? 3
   const pongMode = getPongMode(game?.pongMode).id
+
+  // UPDRAFT versus: CHAOS (default) or PURE, the creator's pick; kept in the
+  // round node so a rematch keeps it (updraftFreshState).
+  const isUpdraftHost = gameType === 'updraft' && mySymbol === 'X'
+  const updraftMode = getUpdraftMode(game?.updraft?.mode)
+  const [updraftModeBusy, runUpdraftMode] = useBusy()
+  const [pendingUpdraftMode, setPendingUpdraftMode] = useState(null)
+  const setUpdraftMode = (id) => {
+    if (id === updraftMode) return
+    setPendingUpdraftMode(id)
+    runUpdraftMode(
+      () => update(ref(db, `games/${gameId}`), { 'updraft/mode': id }),
+      () => toast.error("COULDN'T SET THE MODE — TRY AGAIN"),
+    ).finally(() => setPendingUpdraftMode(null))
+  }
 
   const setPongMode = (id) => {
     if (id === pongMode) return
@@ -266,6 +282,36 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
             ))}
           </div>
           {!isPongHost && (
+            <p className="font-pixel text-[8px] text-retro-dim/70">HOST PICKS THE MODE</p>
+          )}
+        </div>
+      )}
+
+      {/* Updraft mode selector (creator only) */}
+      {gameType === 'updraft' && (
+        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-2 text-center">
+          <p className="font-pixel text-[9px] text-retro-dim">MODE</p>
+          <div className="grid grid-cols-2 gap-2">
+            {UPDRAFT_MODE_IDS.map(id => (
+              <button
+                key={id}
+                disabled={!isUpdraftHost || updraftModeBusy}
+                onClick={() => setUpdraftMode(id)}
+                aria-pressed={updraftMode === id}
+                className={cn(
+                  'min-h-11 px-2 py-1.5 font-pixel rounded border-2 transition-all active:scale-95',
+                  updraftMode === id
+                    ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
+                    : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
+                  (!isUpdraftHost || updraftModeBusy) && 'opacity-60 cursor-not-allowed',
+                )}
+              >
+                <span className="block text-[10px]">{pendingUpdraftMode === id ? 'SETTING…' : UPDRAFT_MODES[id].label}</span>
+                <span className="block mt-1 text-[8px] leading-snug opacity-80">{UPDRAFT_MODES[id].blurb}</span>
+              </button>
+            ))}
+          </div>
+          {!isUpdraftHost && (
             <p className="font-pixel text-[8px] text-retro-dim/70">HOST PICKS THE MODE</p>
           )}
         </div>

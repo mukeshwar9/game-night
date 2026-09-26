@@ -446,6 +446,28 @@ export const GAME_RULES = {
     win: 'First to clear their whole board wins the round; running out of lives loses it. Boards get bigger each round (easy, medium, hard) — win 2 of the 3 to take the match.',
   },
 
+  updraft: {
+    objective: 'Race your rival up the same tower of platforms — first to 400 m wins.',
+    howToPlay: [
+      'Your hopper bounces on its own. Drag left or right anywhere on the tower or the band below it to steer (←/→ or A/D on a keyboard; TILT can be switched on on phones).',
+      'Fly off one side of the screen and you come back on the other. Coiled platforms launch you higher; dashed ones crumble after one bounce.',
+      'Your rival climbs an identical tower at the same time and shows as a dashed ghost, with both heights on the rail at the right.',
+      'In CHAOS mode (the host picks it in the lobby) a gold ◆ pickup sends your rival a hazard: crumbling platforms, a gust of wind or fog — each announced a second before it hits.',
+    ],
+    win: 'Reach the 400 m flag first to take the round. Fall off the bottom and your rival only has to climb past your height; if both fall, or the 2-minute clock runs out, the higher climb wins. Win 2 rounds to take the match.',
+  },
+
+  updraftduo: {
+    objective: 'Climb twin towers together and both reach the 300 m flag before time runs out.',
+    howToPlay: [
+      'You each climb your own copy of the same tower. Steer by dragging left or right; bouncing is automatic.',
+      'Every 50 m a gate blocks your way. Only your partner can open it — by grabbing the matching ⚷ key on their tower (or climbing past their own gate there). Your keys open their gates.',
+      'Call out when you are stuck: the gate label says whose key you need.',
+      'The team shares 3 lives. A fall costs one and puts you back at the last gate you passed.',
+    ],
+    win: 'You clear the run when both of you reach the flag within 3 minutes. Running out of lives or time ends the run. Cleared runs count for both of you.',
+  },
+
   tron: {
     objective: 'Outlast your opponent’s light cycle in a single deadly round.',
     howToPlay: [

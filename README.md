@@ -34,12 +34,13 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Mancala** — sow & capture
 - **Checkers** — jumps forced, kings crown
 
-### Reflex & skill (15)
+### Reflex & skill (16)
 - **Reaction Time** — fastest reflexes win *(2–8 players)*
 - **Aim Trainer** — click targets fast *(2–8 players)*
 - **Typing Race** — outtype the whole room *(2–8 players)*
 - **Mental Math** — solve fastest under pressure *(2–8 players)*
 - **Arrows Puzzle** — race to clear the arrows
+- **Updraft** — race up the same sky tower — modes: Updraft Co-op (twin towers)
 - **Pong** — first to five points
 - **Snake Battle** — outlast the other snake
 - **Tron** — don't crash first

@@ -271,6 +271,70 @@
         "diceSeedResets": {
           ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000 && (newData.val() === data.val() || newData.val() === data.val() + 1 || !data.exists() && newData.val() === 1))"
         },
+        "updraft": {
+          ".validate": "newData.parent().child('gameType').val() === 'updraft' || newData.parent().child('gameType').val() === 'updraftduo'",
+          "seed": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 2147483648"
+          },
+          "startedAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "mode": {
+            ".validate": "newData.val() === 'chaos' || newData.val() === 'pure'"
+          },
+          "lives": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+          },
+          "result": {
+            ".validate": "newData.val() === 'cleared' || newData.val() === 'failed'"
+          },
+          "haz": {
+            "$target": {
+              ".validate": "$target === 'X' || $target === 'O'",
+              "$id": {
+                ".validate": "newData.hasChildren(['k', 'at']) && (data.exists() || ($target === 'X' && auth.uid === root.child('games').child($gameId).child('players').child('O').child('playerId').val()) || ($target === 'O' && auth.uid === root.child('games').child($gameId).child('players').child('X').child('playerId').val()))",
+                "k": {
+                  ".validate": "(newData.val() === 'crumble' || newData.val() === 'gust' || newData.val() === 'fog') && (!data.exists() || newData.val() === data.val())"
+                },
+                "at": {
+                  ".validate": "newData.isNumber() && (!data.exists() || newData.val() === data.val())"
+                },
+                "$other": {
+                  ".validate": "false"
+                }
+              }
+            }
+          },
+          "keys": {
+            "$seat": {
+              ".validate": "$seat === 'X' || $seat === 'O'",
+              "$gate": {
+                ".validate": "newData.val() === true && $gate.matches(/^[1-9][0-9]?$/) && (data.exists() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
+              }
+            }
+          },
+          "$seat": {
+            ".validate": "($seat === 'X' || $seat === 'O') && newData.hasChildren(['y', 'best'])",
+            "x": {
+              ".validate": "newData.isNumber() && newData.val() >= -100 && newData.val() <= 460 && (newData.val() === data.val() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
+            },
+            "y": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000 && (newData.val() === data.val() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
+            },
+            "best": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000 && (newData.val() === data.val() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
+            },
+            "dead": {
+              ".validate": "newData.isBoolean() && (newData.val() === data.val() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
+            },
+            "top": {
+              ".validate": "newData.isBoolean() && (newData.val() === data.val() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          }
+        },
         "wire": {
           "seed": {
             ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 64"
