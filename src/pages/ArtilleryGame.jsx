@@ -50,6 +50,13 @@ export default function ArtilleryGame({
   const shotKeys = Object.keys(shots).sort()
   const windNow = windForShot(seed, shotKeys.length)
 
+  // Read through a ref by the animation below: `records` is rebuilt on every
+  // room snapshot (the shots object is new each time), and as an effect
+  // dependency any unrelated room write during the flight — chat, presence —
+  // cancelled the animation and left the shell stuck mid-air.
+  const recordsRef = useRef(records)
+  useEffect(() => { recordsRef.current = records }, [records])
+
   // Animate ONLY the newest shot when it arrives; older shots skip. The
   // shell travels progressively along its recorded path over SHELL_ANIM_MS
   // (rAF-driven, so the trail visibly flies rather than the whole path +
@@ -60,6 +67,7 @@ export default function ArtilleryGame({
     if (shotKeys.length === lastCountRef.current) return
     const isNew = shotKeys.length > lastCountRef.current
     lastCountRef.current = shotKeys.length
+    const records = recordsRef.current
     if (!isNew || !records.length) return
     const rec = records[records.length - 1]
     const totalPoints = rec.path.length
@@ -81,7 +89,7 @@ export default function ArtilleryGame({
     }
     raf = requestAnimationFrame(tick)
     return () => { cancelAnimationFrame(raf); clearTimeout(holdTimer) }
-  }, [shotKeys.length, records])
+  }, [shotKeys.length])
 
   // Winner transaction when the replay shows a death and no winner recorded.
   useEffect(() => {
