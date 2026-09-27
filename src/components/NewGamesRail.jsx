@@ -1,5 +1,6 @@
 import { getPlayerTag } from '../lib/games'
 import { cn } from '@/lib/utils'
+import { GameArt } from './GameArt'
 
 // The catalog's single NEW signal: one horizontal rail at the top of the ALL
 // view (games from getNewGames), replacing a NEW tag on every recent card —
@@ -31,7 +32,10 @@ export default function NewGamesRail({ games, onTap, loadingType }) {
                   loadingType && !isLoading && 'opacity-40',
                 )}
               >
-                <span className="w-6 h-6 flex items-center justify-center text-retro-dim" aria-hidden="true">{Icon && <Icon />}</span>
+                <span className="relative w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center text-retro-dim" aria-hidden="true">
+                  {Icon && <Icon />}
+                  <GameArt type={g.variantOf || g.type} className="absolute inset-0 w-full h-full block" />
+                </span>
                 <span className="font-pixel text-[9px] text-retro-text leading-snug line-clamp-2">{g.label}</span>
                 <span className="font-mono text-[10px] text-retro-dim mt-auto">
                   {' '}{getPlayerTag(g)}{g.durationMin != null && ` · ~${g.durationMin} min`}

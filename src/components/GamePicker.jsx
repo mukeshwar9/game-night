@@ -29,6 +29,7 @@ const FILTER_DEFS = [
 // wants to default to the current game's category. The catalog's category
 // chips are jump links now, so the active one is not persisted.
 const PICKER_STATE_KEY = 'gn-picker-state'
+const VIEW_KEY = 'gn-catalog-view'
 // Jump-chip targets land just under the sticky search + chip header.
 const SECTION_SCROLL_MARGIN = 'calc(var(--app-header-offset, 0px) + 7.5rem)'
 function readPickerState() {
@@ -64,6 +65,24 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const [query, setQuery] = useState(persisted?.query || '')
   const [favVersion, setFavVersion] = useState(0)
   const [filters, setFilters] = useState(persisted?.filters || {})
+  // Card view: detailed tiles (big art top, name bottom) or compact rows.
+  // Device-local like the other display prefs; detailed shows off the art.
+  const [view, setView] = useState(() => {
+    try {
+      const stored = localStorage.getItem(VIEW_KEY)
+      return stored === 'compact' || stored === 'mini' ? stored : 'detailed'
+    } catch {
+      return 'detailed'
+    }
+  })
+  const selectView = (next) => {
+    try {
+      localStorage.setItem(VIEW_KEY, next)
+    } catch {
+      // storage unavailable — view just doesn't persist
+    }
+    setView(next)
+  }
   const searchRef = useRef(null)
   const stickyRef = useRef(null)
   const listTopRef = useRef(null)
@@ -212,9 +231,17 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
 
   const handleRules = (type) => { setOptionsGame(null); setRulesType(type) }
 
-  const gridClass = isFull
-    ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2'
-    : 'grid grid-cols-2 gap-2'
+  // Detailed tiles only in the full catalog — the in-room switcher keeps
+  // compact rows (space is tight and the tap proposes a switch, not a sheet).
+  const detailed = isFull && view === 'detailed'
+  const mini = isFull && view === 'mini'
+  const gridClass = detailed
+    ? 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2'
+    : mini
+      ? 'flex flex-col gap-1'
+      : isFull
+      ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2'
+      : 'grid grid-cols-2 gap-2'
 
   const renderGrid = (list) => (
     <div className={gridClass}>
@@ -227,6 +254,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           loadingType={loadingType}
           isFav={favSet.has(g.type)}
           onToggleFav={isFull ? handleToggleFav : undefined}
+          layout={detailed ? 'tile' : mini ? 'mini' : 'row'}
         />
       ))}
     </div>
@@ -264,6 +292,69 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           ✕
         </button>
       )}
+    </div>
+  )
+
+  const viewTabs = isFull && (
+    <div className="flex items-center justify-between gap-2">
+      <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
+        {isSearching ? `${searchResults.length} RESULT${searchResults.length === 1 ? '' : 'S'}` : 'BROWSE'}
+      </p>
+      <div role="group" aria-label="Card view" className="shrink-0 flex min-h-11 rounded-lg border border-retro-border bg-retro-card overflow-hidden divide-x divide-retro-border">
+        <button
+          type="button"
+          onClick={() => selectView('detailed')}
+          aria-pressed={view === 'detailed'}
+          title="Detailed view"
+          aria-label="Detailed view"
+          className={cn(
+            'w-11 min-h-11 flex items-center justify-center transition-colors',
+            view === 'detailed' ? 'bg-retro-tint-cta text-retro-cta' : 'text-retro-dim hover:text-retro-text',
+          )}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <rect x="1" y="1" width="6" height="6" rx="1" />
+            <rect x="9" y="1" width="6" height="6" rx="1" />
+            <rect x="1" y="9" width="6" height="6" rx="1" />
+            <rect x="9" y="9" width="6" height="6" rx="1" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => selectView('compact')}
+          aria-pressed={view === 'compact'}
+          title="Compact view"
+          aria-label="Compact view"
+          className={cn(
+            'w-11 min-h-11 flex items-center justify-center transition-colors',
+            view === 'compact' ? 'bg-retro-tint-cta text-retro-cta' : 'text-retro-dim hover:text-retro-text',
+          )}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <line x1="2" y1="4" x2="14" y2="4" />
+            <line x1="5" y1="8" x2="11" y2="8" />
+            <line x1="2" y1="12" x2="14" y2="12" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => selectView('mini')}
+          aria-pressed={view === 'mini'}
+          title="Ultra-compact list"
+          aria-label="Ultra-compact list"
+          className={cn(
+            'w-11 min-h-11 flex items-center justify-center transition-colors',
+            view === 'mini' ? 'bg-retro-tint-cta text-retro-cta' : 'text-retro-dim hover:text-retro-text',
+          )}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <line x1="2" y1="3" x2="14" y2="3" />
+            <line x1="2" y1="6.5" x2="14" y2="6.5" />
+            <line x1="2" y1="10" x2="14" y2="10" />
+            <line x1="2" y1="13.5" x2="14" y2="13.5" />
+          </svg>
+        </button>
+      </div>
     </div>
   )
 
@@ -314,6 +405,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
       ) : (
         chipRow
       )}
+
+      {viewTabs}
 
       {isFull && query.trim() ? (
         searchResults.length > 0 ? (

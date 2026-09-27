@@ -6,6 +6,7 @@ import useBusy from '../hooks/useBusy'
 import Avatar from './Avatar'
 import Skeleton from './loading/Skeleton'
 import { cn } from '@/lib/utils'
+import { GameArt } from './GameArt'
 import { toast } from 'sonner'
 
 const TONE_CLASSES = {
@@ -36,8 +37,9 @@ function ContinueRow({ room: r, onDismissed }) {
         disabled={busy}
         className="flex-1 min-w-0 flex items-center gap-2.5 disabled:opacity-50 active:scale-[0.99] transition-transform"
       >
-        <div className="w-8 h-8 shrink-0 rounded flex items-center justify-center text-retro-dim">
+        <div className="relative w-8 h-8 shrink-0 rounded-lg overflow-hidden flex items-center justify-center text-retro-dim border border-retro-border">
           {Icon && <Icon />}
+          <GameArt type={cfg?.variantOf || r.gameType} className="absolute inset-0 w-full h-full block" />
         </div>
         <div className="flex-1 min-w-0 flex items-center gap-2">
           {r.opponent ? (

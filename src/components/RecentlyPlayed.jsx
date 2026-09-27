@@ -3,6 +3,7 @@ import { getRooms, getStats } from '../lib/profile'
 import { getGameConfig, GAME_TYPES } from '../lib/games'
 import { buildRecentPlays, getRecentPlays, formatAgo, modeLabel } from '../lib/recentPlays'
 import { cn } from '@/lib/utils'
+import { GameArt } from './GameArt'
 
 function readRecent() {
   return buildRecentPlays({
@@ -46,8 +47,9 @@ export default function RecentlyPlayed({ onSelect, loadingType }) {
                   loadingType && !isLoading && 'opacity-40',
                 )}
               >
-                <span className={cn('w-6 h-6 flex items-center justify-center', isLoading ? 'text-retro-cta' : 'text-retro-dim')} aria-hidden="true">
+                <span className={cn('relative w-6 h-6 shrink-0 rounded overflow-hidden flex items-center justify-center', isLoading ? 'text-retro-cta' : 'text-retro-dim')} aria-hidden="true">
                   {Icon && <Icon />}
+                  <GameArt type={cfg?.variantOf || type} className="absolute inset-0 w-full h-full block" />
                 </span>
                 <span className="font-pixel text-[9px] text-retro-text leading-snug line-clamp-2">{cfg?.label}</span>
                 <span className="font-mono text-[10px] leading-tight text-retro-dim max-w-full mt-auto">

@@ -1,5 +1,6 @@
 import { getGameConfig } from '../lib/games'
 import { getRules } from '../lib/rules'
+import RuleClip from './RuleClips'
 import BottomSheet from './BottomSheet'
 
 // A small "?" icon button — the trigger that opens the rules modal. Styled to
@@ -49,6 +50,9 @@ export default function RulesModal({ gameType, onClose }) {
 
       {rules ? (
         <div className="space-y-4">
+          {/* Looping silent demo above the text (RuleClip returns null for
+              games without a clip yet — no per-game branches needed). */}
+          <RuleClip type={gameType} className="w-full aspect-square rounded-xl border border-retro-border block bg-retro-card" />
           <section className="space-y-1.5">
             <p className="font-pixel text-[9px] text-retro-p1 tracking-widest">OBJECTIVE</p>
             <p className="font-mono text-[11px] leading-relaxed text-retro-text">{rules.objective}</p>

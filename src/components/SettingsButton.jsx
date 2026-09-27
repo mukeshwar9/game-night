@@ -12,6 +12,7 @@ import {
   TEXT_SIZES, applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx,
   getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
 } from '../lib/displayPrefs'
+import { ART_STYLES, applyGameArtStyle, getGameArtStyle } from '../lib/gameArtStyle'
 import { setProfile } from '../lib/social'
 import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatars'
@@ -61,6 +62,7 @@ export default function SettingsButton({ className = '' }) {
   const [crt, setCrt] = useState(getStoredCrt)
   const [motion, setMotion] = useState(getStoredMotion)
   const [textSize, setTextSize] = useState(getStoredTextSize)
+  const [artStyle, setArtStyle] = useState(getGameArtStyle)
   const [winFx, setWinFx] = useState(getWinFx)
   const [resetArmed, setResetArmed] = useState(false)
   const [editingMe, setEditingMe] = useState(false)
@@ -113,6 +115,7 @@ export default function SettingsButton({ className = '' }) {
   const selectCrt = (on) => { applyCrt(on); setCrt(on) }
   const selectMotion = (mode) => { applyMotion(mode); setMotion(mode === 'reduced' ? 'reduced' : 'full') }
   const selectTextSize = (id) => setTextSize(applyTextSize(id))
+  const selectArtStyle = (id) => setArtStyle(applyGameArtStyle(id))
   const selectWinFx = (on) => { applyWinFx(on); setWinFx(on) }
   const selectShowPreview = (on) => { applyThemePreview(on); setShowPreview(on) }
 
@@ -136,6 +139,8 @@ export default function SettingsButton({ className = '' }) {
     setCrt(true)
     setMotion(getStoredMotion())
     setTextSize('m')
+    setArtStyle('png')
+    applyGameArtStyle('png')
     setWinFx(true)
     setShowPreview(false)
     setProfile({ theme: 'matcha', fontFamily: 'press-start' }).catch(() => {})
@@ -247,6 +252,20 @@ export default function SettingsButton({ className = '' }) {
         <SwitchRow label="CRT EFFECTS" checked={crt} onChange={selectCrt} ariaLabel="Toggle CRT scanlines and vignette" />
         <SwitchRow label="REDUCE MOTION" checked={motion === 'reduced'} onChange={on => selectMotion(on ? 'reduced' : 'full')} ariaLabel="Toggle reduced motion" />
         <SwitchRow label="WIN CELEBRATIONS" checked={winFx} onChange={selectWinFx} ariaLabel="Toggle win confetti and fanfare" />
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-pixel text-[9px] text-retro-text tracking-widest">GAME ART</span>
+          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Game art style">
+            {ART_STYLES.map(option => <button
+              key={option.id}
+              type="button"
+              onClick={() => selectArtStyle(option.id)}
+              aria-pressed={artStyle === option.id}
+              className={`min-h-10 min-w-16 rounded border px-2 font-pixel text-[9px] transition-colors ${artStyle === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
+            >
+              {option.label}
+            </button>)}
+          </div>
+        </div>
         <div className="flex items-center justify-between gap-3">
           <span className="font-pixel text-[9px] text-retro-text tracking-widest">TEXT SIZE</span>
           <div className="grid grid-cols-3 gap-2" role="group" aria-label="Text size">

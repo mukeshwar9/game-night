@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { GameArt } from './GameArt'
 import { supportsLocalPlay } from '../lib/games'
 import BottomSheet from './BottomSheet'
 
@@ -82,8 +83,9 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
           of being repeated across rows. */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded border-2 border-retro-cta/50 bg-retro-tint-cta text-retro-cta flex items-center justify-center shrink-0">
+          <span className="relative w-12 h-12 rounded-xl border-2 border-retro-cta/50 overflow-hidden bg-retro-tint-cta text-retro-cta flex items-center justify-center shrink-0">
             {Icon && <Icon />}
+            <GameArt type={game.variantOf || game.type} className="absolute inset-0 w-full h-full block" />
           </span>
           <div className="min-w-0">
             <p className="font-pixel text-[11px] text-retro-text tracking-widest truncate">{game.label}</p>
