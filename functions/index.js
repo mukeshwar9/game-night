@@ -7,6 +7,7 @@ initializeApp();
 
 // Server-authoritative match results -> leaderboard (see results.js, README.md).
 exports.creditMatchResults = require('./results').creditMatchResults;
+exports.sendInvitePush = require('./push').sendInvitePush;
 const { errorsCutoffKey, isExpiredErrorDay } = require('./lib/core.cjs');
 
 const DAY_MS = 24 * 60 * 60 * 1000;

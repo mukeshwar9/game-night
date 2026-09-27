@@ -743,6 +743,23 @@
         },
         "lastFeedbackAt": {
           ".validate": "newData.val() === now"
+        },
+        "fcmTokens": {
+          "$hash": {
+            ".validate": "newData.hasChildren(['token', 'at']) && newData.child('token').isString() && newData.child('token').val().length >= 20 && newData.child('token').val().length <= 500 && newData.child('at').isNumber()",
+            "token": {
+              ".validate": "newData.isString() && newData.val().length >= 20 && newData.val().length <= 500"
+            },
+            "at": {
+              ".validate": "newData.isNumber()"
+            },
+            "ua": {
+              ".validate": "newData.isString() && newData.val().length <= 200"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          }
         }
       }
     },

@@ -16,6 +16,7 @@ import { UPGRADE_ERRORS, preloadGoogleSignIn } from '../lib/auth'
 import { mutedList } from '../lib/moderationLogic'
 import { unmute, useMutedMap } from '../lib/mute'
 import useBusy from '../hooks/useBusy'
+import PushToggle from '../components/PushToggle'
 import { cn } from '@/lib/utils'
 
 export default function Profile() {
@@ -276,6 +277,8 @@ export default function Profile() {
             MANAGE FRIENDS →
           </Link>
         </div>
+
+        <PushToggle />
 
         {/* Muted players — local to this device (lib/mute.js) */}
         <div id="muted" className="space-y-2 scroll-mt-20">
