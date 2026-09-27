@@ -8,7 +8,7 @@ import GameCard from '../components/GameCard'
 import { getGameConfig, GAME_TYPES } from '../lib/games'
 import { getRules } from '../lib/rules'
 import FilterButton, { ViewTabs } from '../components/GameFilters'
-import { passesFilters } from '../lib/gameFilters'
+import { passesFilters, sortGames } from '../lib/gameFilters'
 
 const DEMO_TYPES = ['tictactoe', 'connectfour', 'pong']
 const BOARD_TYPES = GAME_TYPES.filter(t => t.category === 'board').map(t => t.type)
@@ -86,9 +86,10 @@ function ClipCard({ type }) {
 // The grid below filters live, and the view tabs switch its layout.
 function FilterPreview() {
   const [filters, setFilters] = useState({})
+  const [sort, setSort] = useState('curated')
   const [view, setView] = useState('detailed')
   const toggle = (key) => setFilters(f => ({ ...f, [key]: !f[key] }))
-  const matches = GAME_TYPES.filter(t => !t.variantOf && passesFilters(t, filters))
+  const matches = sortGames(GAME_TYPES.filter(t => !t.variantOf && passesFilters(t, filters)), sort)
   const shown = matches.slice(0, 12)
   const gridClass = view === 'detailed'
     ? 'grid grid-cols-3 gap-2'
@@ -117,7 +118,7 @@ function FilterPreview() {
         ))}
       </div>
       <div className="flex items-center justify-between gap-2">
-        <FilterButton filters={filters} onToggle={toggle} onReset={() => setFilters({})} resultCount={matches.length} />
+        <FilterButton filters={filters} onToggle={toggle} onReset={() => { setFilters({}); setSort('curated') }} resultCount={matches.length} sort={sort} onSort={setSort} />
         <ViewTabs view={view} onSelect={setView} />
       </div>
       {matches.length === 0 ? (

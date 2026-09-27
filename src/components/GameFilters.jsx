@@ -8,7 +8,7 @@ import BottomSheet from './BottomSheet'
 import SwitchRow from './SwitchRow'
 import { cn } from '@/lib/utils'
 
-import { FILTER_DEFS, countActiveFilters } from '../lib/gameFilters'
+import { FILTER_DEFS, SORTS, countActiveFilters } from '../lib/gameFilters'
 
 export function ViewTabs({ view, onSelect }) {
   const tab = (id, active, title, label, icon) => (
@@ -59,7 +59,7 @@ export function ViewTabs({ view, onSelect }) {
   )
 }
 
-export default function FilterButton({ filters, onToggle, onReset, resultCount }) {
+export default function FilterButton({ filters, onToggle, onReset, resultCount, sort = 'curated', onSort = () => {} }) {
   const [open, setOpen] = useState(false)
   const active = countActiveFilters(filters)
   return (
@@ -94,6 +94,40 @@ export default function FilterButton({ filters, onToggle, onReset, resultCount }
             >
               ✕
             </button>
+          </div>
+          <div className="space-y-2">
+            <p className="font-pixel text-[8px] text-retro-dim tracking-[0.2em]">SORT BY</p>
+            <div className="space-y-2" role="radiogroup" aria-label="Sort games">
+              {SORTS.map(o => {
+                const selected = sort === o.id
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => onSort(o.id)}
+                    className={cn(
+                      'w-full min-h-11 flex items-center gap-3 px-3 rounded border text-left transition-all active:scale-[0.98]',
+                      selected
+                        ? 'border-retro-cta bg-retro-tint-cta'
+                        : 'border-retro-border hover:border-retro-cta/50',
+                    )}
+                  >
+                    <span aria-hidden="true" className={cn(
+                      'w-4 h-4 shrink-0 rounded-full border-2 flex items-center justify-center',
+                      selected ? 'border-retro-cta' : 'border-retro-border',
+                    )}>
+                      {selected && <span className="w-1.5 h-1.5 rounded-full bg-retro-cta" />}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className={cn('block font-pixel text-[9px] tracking-wider', selected ? 'text-retro-cta' : 'text-retro-text')}>{o.label}</span>
+                      <span className="block font-mono text-[10px] text-retro-dim mt-0.5">{o.blurb}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <div className="space-y-3">
             {FILTER_DEFS.map(f => (

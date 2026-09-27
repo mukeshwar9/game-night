@@ -16,3 +16,19 @@ export function countActiveFilters(filters) {
 export function passesFilters(game, filters) {
   return FILTER_DEFS.every(f => !filters[f.key] || f.test(game))
 }
+
+export const SORTS = [
+  { id: 'curated', label: 'CURATED', blurb: 'House order' },
+  { id: 'az', label: 'A–Z', blurb: 'Alphabetical' },
+  { id: 'quick', label: 'QUICKEST', blurb: 'Shortest first' },
+]
+
+export function isSortId(id) {
+  return SORTS.some(s => s.id === id)
+}
+
+export function sortGames(list, sort) {
+  if (sort === 'az') return [...list].sort((a, b) => a.label.localeCompare(b.label))
+  if (sort === 'quick') return [...list].sort((a, b) => (a.durationMin ?? 999) - (b.durationMin ?? 999))
+  return list
+}

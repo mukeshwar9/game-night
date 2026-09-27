@@ -10,7 +10,7 @@ import GameCard from './GameCard'
 import NewGamesRail from './NewGamesRail'
 import EmptyState from './EmptyState'
 import FilterButton, { ViewTabs } from './GameFilters'
-import { FILTER_DEFS } from '../lib/gameFilters'
+import { FILTER_DEFS, isSortId, sortGames } from '../lib/gameFilters'
 
 // Variant entries (those with `variantOf`) are hidden from the grid and surfaced
 // as a "choose mode" step when their base game is picked.
@@ -18,18 +18,20 @@ const variantsFor = (baseType) => GAME_TYPES.filter(t => t.variantOf === baseTyp
 
 // Facet definitions live in lib/gameFilters.js (shared with the
 // FILTERS sheet); the toggle state below stays session-persisted here.
-// M-82: filters/query survive a round-trip to a game and back (Home fully
-// unmounts on navigation, so this can't live in useState alone). Scoped to
-// layout="full" (the Games catalog) — GameSwitcher's compact picker always
-// wants to default to the current game's category. The catalog's category
-// chips are jump links now, so the active one is not persisted.
+// M-82: filters/query/sort survive visits (Home fully unmounts on
+// navigation, so this can't live in useState alone). Device-local
+// localStorage — a returning visitor keeps their slice of the catalog.
+// Scoped to layout="full" (the Games catalog) — GameSwitcher's compact
+// picker always wants to default to the current game's category. The
+// catalog's category chips are jump links now, so the active one is not
+// persisted.
 const PICKER_STATE_KEY = 'gn-picker-state'
 const VIEW_KEY = 'gn-catalog-view'
 // Jump-chip targets land just under the sticky search + chip header.
 const SECTION_SCROLL_MARGIN = 'calc(var(--app-header-offset, 0px) + 7.5rem)'
 function readPickerState() {
   try {
-    const raw = sessionStorage.getItem(PICKER_STATE_KEY)
+    const raw = localStorage.getItem(PICKER_STATE_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -60,6 +62,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const [query, setQuery] = useState(persisted?.query || '')
   const [favVersion, setFavVersion] = useState(0)
   const [filters, setFilters] = useState(persisted?.filters || {})
+  const [sort, setSort] = useState(persisted && isSortId(persisted.sort) ? persisted.sort : 'curated')
+  const selectSort = (id) => { if (isSortId(id)) setSort(id) }
   // Card view: detailed tiles (big art top, name bottom) or compact rows.
   // Device-local like the other display prefs; detailed shows off the art.
   const [view, setView] = useState(() => {
@@ -89,11 +93,11 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   useEffect(() => {
     if (!isFull) return
     try {
-      sessionStorage.setItem(PICKER_STATE_KEY, JSON.stringify({ filters, query }))
+      localStorage.setItem(PICKER_STATE_KEY, JSON.stringify({ filters, query, sort }))
     } catch {
-      // sessionStorage unavailable (private mode / quota) — restoration just no-ops
+      // storage unavailable (private mode / quota) — restoration just no-ops
     }
-  }, [isFull, filters, query])
+  }, [isFull, filters, query, sort])
 
   const activeFilterKeys = Object.keys(filters).filter(k => filters[k])
   const passesFilters = (t) => activeFilterKeys.every(k => FILTER_DEFS.find(f => f.key === k).test(t))
@@ -123,10 +127,10 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   }
   const totalVisible = Object.values(counts).reduce((a, b) => a + b, 0)
   const categories = GAME_CATEGORIES.map(c => ({ ...c, count: counts[c.id] || 0 })).filter(c => c.count > 0)
-  const visibleFavorites = GAME_TYPES.filter(t => !isHidden(t) && favSet.has(t.type) && passesFilters(t))
+  const visibleFavorites = sortGames(GAME_TYPES.filter(t => !isHidden(t) && favSet.has(t.type) && passesFilters(t)), sort)
   const games = GAME_TYPES.filter(t => !isHidden(t) && t.category === activeCat && passesFilters(t))
   const categorySections = categories
-    .map(c => ({ ...c, games: GAME_TYPES.filter(t => !isHidden(t) && t.category === c.id && passesFilters(t)) }))
+    .map(c => ({ ...c, games: sortGames(GAME_TYPES.filter(t => !isHidden(t) && t.category === c.id && passesFilters(t)), sort) }))
     .filter(c => c.games.length > 0)
   // The catalog's chips jump to a section of the one long list, so they
   // list only sections that exist under the current filters, with counts.
@@ -296,8 +300,10 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
       <FilterButton
         filters={filters}
         onToggle={toggleFilter}
-        onReset={() => setFilters({})}
+        onReset={() => { setFilters({}); setSort('curated') }}
         resultCount={isSearching ? searchResults.length : filterMatchCount}
+        sort={sort}
+        onSort={selectSort}
       />
       <ViewTabs view={view} onSelect={selectView} />
     </div>
