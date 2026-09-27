@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import useGameKeys from '../hooks/useGameKeys'
 
 const ROWS = [
   ['7', '8', '9'],
@@ -9,16 +9,14 @@ const ROWS = [
 ]
 
 export default function NumberPad({ onKey, disabled = false }) {
-  useEffect(() => {
-    if (disabled) return
-    const handler = (e) => {
-      if (/^\d$/.test(e.key)) { onKey(e.key); return }
-      if (e.key === 'Backspace') { e.preventDefault(); onKey('BACKSPACE'); return }
-      if (e.key === 'Enter') { e.preventDefault(); onKey('ENTER'); return }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onKey, disabled])
+  // Physical keys go through the shared guard so chat (or any text field)
+  // keeps its digits, Backspace and Enter.
+  useGameKeys((event) => {
+    if (/^\d$/.test(event.key)) { onKey(event.key); return false }
+    if (event.key === 'Backspace') { onKey('BACKSPACE'); return true }
+    if (event.key === 'Enter') { onKey('ENTER'); return true }
+    return false
+  }, { enabled: !disabled })
 
   const baseBtn = cn(
     'h-12 flex items-center justify-center font-pixel text-[12px] rounded border transition-all',

@@ -10,11 +10,18 @@ const ROWS = [
 const PUNCT_LEFT  = ["'", ',', '!']
 const PUNCT_RIGHT = ['.', '?']
 
-export default function TypingKeyboard({ onKey, disabled = false }) {
+/**
+ * QWERTY illustration. By default it is an interactive on-screen keyboard
+ * (used by the solo demo). `artwork` renders the same layout as decorative,
+ * non-focusable keys — the live race uses a real text input so the phone's
+ * own keyboard is the input control, and the illustration must never steal
+ * focus or act as the required way to type.
+ */
+export default function TypingKeyboard({ onKey, disabled = false, artwork = false }) {
   const [shifted, setShifted] = useState(false)
 
   useEffect(() => {
-    if (disabled) return
+    if (disabled || artwork) return undefined
     const handler = (e) => {
       // Keys typed into the room chat (or any other text field) are not race
       // input — and must keep their Backspace/Space defaults.
@@ -33,7 +40,7 @@ export default function TypingKeyboard({ onKey, disabled = false }) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onKey, disabled])
+  }, [onKey, disabled, artwork])
 
   const tap = (raw) => {
     if (disabled) return
@@ -55,22 +62,33 @@ export default function TypingKeyboard({ onKey, disabled = false }) {
     ? 'border-retro-border text-retro-border bg-retro-card opacity-50 cursor-not-allowed'
     : 'border-retro-border text-retro-dim bg-retro-card hover:border-retro-p1/50 hover:text-retro-text cursor-pointer'
 
-  const mkKey = (label, raw, extra = '') => (
-    <button
-      key={raw + label}
-      onPointerDown={e => { e.preventDefault(); tap(raw) }}
-      disabled={disabled}
-      className={cn(
-        baseBtn,
-        raw === 'SHIFT' && shifted
-          ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
-          : normalStyle,
-        extra,
-      )}
-    >
-      {label}
-    </button>
-  )
+  const mkKey = (label, raw, extra = '') => {
+    const visual = cn(
+      baseBtn,
+      raw === 'SHIFT' && shifted
+        ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
+        : normalStyle,
+      extra,
+    )
+    if (artwork) {
+      return (
+        <div key={raw + label} aria-hidden="true" className={cn(visual, 'cursor-default opacity-70 active:scale-100')}>
+          {label}
+        </div>
+      )
+    }
+    return (
+      <button
+        key={raw + label}
+        type="button"
+        onPointerDown={e => { e.preventDefault(); tap(raw) }}
+        disabled={disabled}
+        className={visual}
+      >
+        {label}
+      </button>
+    )
+  }
 
   return (
     <div className="space-y-1 [@media(max-height:700px)]:space-y-0.5 w-full select-none">
@@ -87,13 +105,18 @@ export default function TypingKeyboard({ onKey, disabled = false }) {
       {/* Spacebar row with flanking punctuation */}
       <div className="flex gap-1 justify-center">
         {PUNCT_LEFT.map(p => mkKey(p, p, 'w-9 flex-shrink-0'))}
-        <button
-          onPointerDown={e => { e.preventDefault(); tap('SPACE') }}
-          disabled={disabled}
-          className={cn(baseBtn, normalStyle, 'flex-1')}
-        >
-          SPACE
-        </button>
+        {artwork ? (
+          <div aria-hidden="true" className={cn(baseBtn, normalStyle, 'flex-1 cursor-default opacity-70 active:scale-100')}>SPACE</div>
+        ) : (
+          <button
+            type="button"
+            onPointerDown={e => { e.preventDefault(); tap('SPACE') }}
+            disabled={disabled}
+            className={cn(baseBtn, normalStyle, 'flex-1')}
+          >
+            SPACE
+          </button>
+        )}
         {PUNCT_RIGHT.map(p => mkKey(p, p, 'w-9 flex-shrink-0'))}
       </div>
     </div>

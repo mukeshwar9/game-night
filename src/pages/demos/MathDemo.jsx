@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
 import NumberPad from '../../components/NumberPad'
-import { generateQuestion, QUESTION_MS } from '../../lib/mathLogic'
+import {
+  DEFAULT_MATH_CONFIG, generateQuestion, questionMsForIndex, speedPtsFor,
+  scoreMathAnswer, timeoutMathQuestion, advanceMathQuestion, normalizeMathStats,
+} from '../../lib/mathLogic'
 import { cn } from '@/lib/utils'
 
 // ─── Math demo ────────────────────────────────────────────────────────────────
 
-function demoSpeedPts(elapsed) {
-  return Math.max(1, Math.ceil(5 * Math.max(0, (QUESTION_MS - elapsed) / QUESTION_MS)))
-}
-
-const DEMO_MATH_S = 60
+// Solo practice runs the live game's scorer and defaults, so the bot race
+// teaches the real rules instead of a separate demo mode.
+const DEMO_CONFIG = DEFAULT_MATH_CONFIG
+const DEMO_MATH_S = DEMO_CONFIG.durationSeconds
 
 export default function MathDemo() {
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9))
@@ -33,10 +35,12 @@ export default function MathDemo() {
   const advTimerRef     = useRef(null)
   const qTimeoutRef     = useRef(null)
   const gameEndRef      = useRef(null)
-  const streakRef       = useRef({ you: 0, bot: 0 })
+  const youStatsRef     = useRef(normalizeMathStats(null))
+  const botStatsRef     = useRef(normalizeMathStats(null))
   const qRef            = useRef(null)
 
-  const q = generateQuestion(seed, qIndex)
+  const questionMs = questionMsForIndex(qIndex, DEMO_CONFIG)
+  const q = generateQuestion(seed, qIndex, DEMO_CONFIG)
   useEffect(() => { qRef.current = q }, [q])
 
   const scheduleNextQuestion = () => {
@@ -55,35 +59,35 @@ export default function MathDemo() {
     clearTimeout(qTimeoutRef.current)
     if (phase === 'done') return
     const cq      = qRef.current
-    const correct = submitted === cq.answer
     const elapsed = Date.now() - (qStartAt ?? Date.now())
-    const speed   = demoSpeedPts(elapsed)
-    const power   = cq.isPower ? 2 : 1
-    const strk    = streakRef.current[by] >= 3 ? 2 : 1
-    const pts     = correct ? speed * power * strk : 0
-    const penalty = correct ? 0 : (cq.isPower ? 2 : 1)
-
-    if (by === 'you') {
-      setYouScore(s => Math.max(0, s + pts - penalty))
-      if (correct) {
-        setYouStreak(s => s + 1); setBotStreak(0)
-        streakRef.current = { you: streakRef.current.you + 1, bot: 0 }
-      } else {
-        setYouStreak(0)
-        streakRef.current = { ...streakRef.current, you: 0 }
-      }
-    } else {
-      setBotScore(s => Math.max(0, s + pts - penalty))
-      if (correct) {
-        setBotStreak(s => s + 1); setYouStreak(0)
-        streakRef.current = { you: 0, bot: streakRef.current.bot + 1 }
-      } else {
-        setBotStreak(0)
-        streakRef.current = { ...streakRef.current, bot: 0 }
-      }
+    const pitch = (outcome, setScore, setStreak, statsRef) => {
+      statsRef.current = outcome.stats
+      setScore(outcome.stats.score)
+      setStreak(outcome.stats.streak)
+      return { by, correct: outcome.correct, pts: outcome.pts, answer: cq.answer, explanation: cq.explanation }
     }
+    if (by === 'you') {
+      const outcome = scoreMathAnswer(youStatsRef.current, { seed, answer: submitted, elapsed, config: DEMO_CONFIG })
+      setLastResult(pitch(outcome, setYouScore, setYouStreak, youStatsRef))
+      // The non-answerer still advances so both keep the shared question stream.
+      botStatsRef.current = advanceMathQuestion(botStatsRef.current, qIndex)
+      setBotScore(botStatsRef.current.score)
+    } else {
+      const outcome = scoreMathAnswer(botStatsRef.current, { seed, answer: submitted, elapsed, config: DEMO_CONFIG })
+      setLastResult(pitch(outcome, setBotScore, setBotStreak, botStatsRef))
+      youStatsRef.current = advanceMathQuestion(youStatsRef.current, qIndex)
+      setYouScore(youStatsRef.current.score)
+    }
+    scheduleNextQuestion()
+  }
 
-    setLastResult({ by, correct, pts })
+  const resolveTimeout = () => {
+    const cq = qRef.current
+    youStatsRef.current = advanceMathQuestion(timeoutMathQuestion(youStatsRef.current, qIndex), qIndex)
+    botStatsRef.current = advanceMathQuestion(timeoutMathQuestion(botStatsRef.current, qIndex), qIndex)
+    setYouScore(youStatsRef.current.score); setYouStreak(youStatsRef.current.streak)
+    setBotScore(botStatsRef.current.score); setBotStreak(botStatsRef.current.streak)
+    setLastResult({ by: 'timeout', correct: false, pts: 0, answer: cq.answer, explanation: cq.explanation })
     scheduleNextQuestion()
   }
 
@@ -146,14 +150,13 @@ export default function MathDemo() {
       resolveQuestion('bot', correct ? cq.answer : bad)
     }, botDelay)
 
-    // 8s question timeout (skip — no points)
+    // Question timeout (skip — streak resets, score never drops)
     qTimeoutRef.current = setTimeout(() => {
       if (botLockedRef.current) return
       botLockedRef.current    = true
       playerLockedRef.current = true
-      setLastResult({ by: 'timeout', correct: false, pts: 0 })
-      scheduleNextQuestion()
-    }, QUESTION_MS)
+      resolveTimeout()
+    }, questionMs)
 
     return () => {
       clearInterval(clockId)
@@ -168,7 +171,8 @@ export default function MathDemo() {
     clearTimeout(advTimerRef.current)
     clearTimeout(qTimeoutRef.current)
     setSeed(Math.floor(Math.random() * 1e9))
-    streakRef.current           = { you: 0, bot: 0 }
+    youStatsRef.current         = normalizeMathStats(null)
+    botStatsRef.current         = normalizeMathStats(null)
     playerLockedRef.current     = false
     botLockedRef.current        = false
     setPhase('idle'); setCdSec(3)
@@ -216,7 +220,8 @@ export default function MathDemo() {
           <p>● FIRST CORRECT ANSWER WINS THE ROUND</p>
           <p>⚡ POWER QUESTIONS · 2× POINTS</p>
           <p>🔥 3 IN A ROW = DOUBLE MULTIPLIER</p>
-          <p>⏱ 60-SECOND DEMO TIMER</p>
+          <p>✗ WRONG ANSWERS RESET YOUR STREAK — SCORE NEVER DROPS</p>
+          <p>⏱ {DEMO_MATH_S}-SECOND PRACTICE · SAME SCORER AS THE RACE</p>
         </div>
         <button onClick={() => setPhase('countdown')}
           className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
@@ -235,8 +240,8 @@ export default function MathDemo() {
     )
   }
 
-  const qPct    = qStartAt ? Math.max(0, 1 - (now - qStartAt) / QUESTION_MS) : 1
-  const speedPts = demoSpeedPts(qStartAt ? now - qStartAt : 0)
+  const qPct    = qStartAt ? Math.max(0, 1 - (now - qStartAt) / questionMs) : 1
+  const speedPts = speedPtsFor(qStartAt ? now - qStartAt : 0, questionMs)
   const barColor = qPct > 0.6 ? 'bg-retro-win' : qPct > 0.3 ? 'bg-retro-cta' : 'bg-retro-p2'
   const answered = lastResult !== null
 
@@ -297,12 +302,16 @@ export default function MathDemo() {
         {answered && lastResult?.correct === false && lastResult?.by !== 'timeout' && (
           <div className="bg-retro-tint-p2 border border-retro-p2/60 rounded px-3 py-1.5">
             <p className="font-pixel text-[10px] text-retro-p2">
-              {lastResult.by === 'you' ? '✗ WRONG' : '✗ BOT WRONG'} · ANS: {q.answer}
+              {lastResult.by === 'you' ? '✗ WRONG' : '✗ BOT WRONG'} · ANS: {lastResult.answer ?? q.answer}
             </p>
+            {lastResult.explanation && <p className="font-mono text-[9px] text-retro-dim mt-0.5">{lastResult.explanation}</p>}
           </div>
         )}
         {answered && lastResult?.by === 'timeout' && (
-          <p className="font-pixel text-[9px] text-retro-dim">TIME'S UP · NEXT QUESTION...</p>
+          <div className="space-y-0.5">
+            <p className="font-pixel text-[9px] text-retro-dim">TIME&apos;S UP · ANS: {lastResult.answer ?? q.answer}</p>
+            {lastResult.explanation && <p className="font-mono text-[9px] text-retro-dim">{lastResult.explanation}</p>}
+          </div>
         )}
         {!answered && (
           <p className="font-pixel text-[8px] text-retro-dim arcade-blink">BOT IS THINKING ●●●</p>

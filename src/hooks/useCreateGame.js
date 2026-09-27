@@ -37,6 +37,7 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
           lastActivityAt: now,
           players: { [myId]: { name: playerName, joinedAt: now, playerId: myId, online: true, avatar } },
           ...freshGameState(gameType),
+          ...(['typing', 'math'].includes(gameType) ? { hostUid: myId } : {}),
         }
       } else {
         gameData = {

@@ -1,29 +1,52 @@
+// Pure deterministic Mental Math generation and scoring — no DOM/Firebase/React.
 export const GAME_MS = 120_000
+export const QUESTION_MS = 8_000
+export const STREAK_FOR_DOUBLE = 3
+export const MATH_CONFIG_VERSION = 1
+export const MATH_OPERATIONS = Object.freeze(['add', 'subtract', 'multiply', 'divide'])
+export const MATH_RANGES = Object.freeze([9, 99, 999])
+export const DEFAULT_MATH_CONFIG = Object.freeze({
+  version: MATH_CONFIG_VERSION,
+  operations: Object.freeze({ add: true, subtract: true, multiply: true, divide: false }),
+  durationSeconds: 120,
+  difficulty: 'progressive',
+  range: 99,
+})
 
-// Per-question time budgets, scaled by difficulty tier — hard-tier answers run
-// up to 3 digits (more NumberPad taps) plus harder mental math, so they get a
-// bigger window than easy single-digit questions. Both game clients derive
-// this the same way from the shared question index (never randomized), so
-// X and O always agree on how long a given question is worth.
 const QUESTION_MS_BY_LEVEL = { easy: 8_000, medium: 10_000, hard: 13_000 }
+const DIFFICULTIES = ['easy', 'progressive', 'hard']
+const DURATIONS = [60, 120, 180]
 
-export function levelForIndex(index) {
-  return index < 20 ? 'easy' : index < 40 ? 'medium' : 'hard'
+export function normalizeMathConfig(raw) {
+  const selected = MATH_OPERATIONS.filter(op => raw?.operations?.[op] === true)
+  const operations = Object.fromEntries(MATH_OPERATIONS.map(op => [op, selected.length ? selected.includes(op) : DEFAULT_MATH_CONFIG.operations[op]]))
+  return {
+    version: MATH_CONFIG_VERSION,
+    operations,
+    durationSeconds: DURATIONS.includes(Number(raw?.durationSeconds)) ? Number(raw.durationSeconds) : DEFAULT_MATH_CONFIG.durationSeconds,
+    difficulty: DIFFICULTIES.includes(raw?.difficulty) ? raw.difficulty : DEFAULT_MATH_CONFIG.difficulty,
+    range: MATH_RANGES.includes(Number(raw?.range)) ? Number(raw.range) : DEFAULT_MATH_CONFIG.range,
+  }
 }
 
-export function questionMsForIndex(index) {
-  return QUESTION_MS_BY_LEVEL[levelForIndex(index)]
+export function isValidMathConfig(raw) {
+  return !!raw && typeof raw === 'object' && !Array.isArray(raw)
+    && raw.version === MATH_CONFIG_VERSION
+    && !!raw.operations && typeof raw.operations === 'object' && !Array.isArray(raw.operations)
+    && MATH_OPERATIONS.every(op => typeof raw.operations[op] === 'boolean')
+    && MATH_OPERATIONS.some(op => raw.operations[op])
+    && Object.keys(raw.operations).every(op => MATH_OPERATIONS.includes(op))
+    && DURATIONS.includes(raw.durationSeconds)
+    && DIFFICULTIES.includes(raw.difficulty)
+    && MATH_RANGES.includes(raw.range)
+    && Object.keys(raw).every(key => ['version', 'operations', 'durationSeconds', 'difficulty', 'range'].includes(key))
 }
-
-// Flat fallback for callers that don't scale per-question (e.g. the offline
-// solo Demo) — equals the easy-tier window.
-export const QUESTION_MS = QUESTION_MS_BY_LEVEL.easy
 
 export function generateSeed() {
   return Math.floor(Math.random() * 1_000_000_000)
 }
 
-// Deterministic hash: mixes seed, question index, and a slot number
+// Deterministic hash: mixes seed, question index, and a slot number.
 function seededInt(seed, index, slot) {
   let h = ((seed | 0) + Math.imul(index, 1000003) + Math.imul(slot, 999983)) | 0
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b)
@@ -39,105 +62,197 @@ function seededChoice(arr, seed, index, slot) {
   return arr[seededInt(seed, index, slot) % arr.length]
 }
 
-export function generateQuestion(seed, index) {
-  const isPower = index % 8 === 5
-  const level   = levelForIndex(index)
-
-  let text, answer
-
-  if (level === 'easy') {
-    const type = seededChoice(['add', 'sub', 'mul'], seed, index, 0)
-    if (type === 'add') {
-      const a = seededRange(1, 9, seed, index, 1)
-      const b = seededRange(1, 9, seed, index, 2)
-      text = `${a} + ${b}`; answer = a + b
-    } else if (type === 'sub') {
-      const a = seededRange(3, 12, seed, index, 1)
-      const b = seededRange(1, a - 1, seed, index, 2)
-      text = `${a} − ${b}`; answer = a - b
-    } else {
-      const a = seededRange(2, 9, seed, index, 1)
-      const b = seededRange(2, 9, seed, index, 2)
-      text = `${a} × ${b}`; answer = a * b
-    }
-  } else if (level === 'medium') {
-    const type = seededChoice(['add2', 'sub2', 'mul2', 'pct'], seed, index, 0)
-    if (type === 'add2') {
-      const a = seededRange(11, 79, seed, index, 1)
-      const b = seededRange(11, 79, seed, index, 2)
-      text = `${a} + ${b}`; answer = a + b
-    } else if (type === 'sub2') {
-      const a = seededRange(30, 99, seed, index, 1)
-      const b = seededRange(11, 25, seed, index, 2)
-      text = `${a} − ${b}`; answer = a - b
-    } else if (type === 'mul2') {
-      const a = seededRange(3, 12, seed, index, 1)
-      const b = seededRange(11, 25, seed, index, 2)
-      text = `${a} × ${b}`; answer = a * b
-    } else {
-      const pctVariants = [[25, 4], [50, 2], [75, 4]]
-      const [pct, mult] = seededChoice(pctVariants, seed, index, 1)
-      const k    = seededRange(2, 20, seed, index, 2)
-      const base = k * mult
-      text = `${pct}% of ${base}`; answer = Math.round(base * pct / 100)
-    }
-  } else {
-    const type = seededChoice(['mul3', 'sq', 'oop'], seed, index, 0)
-    if (type === 'mul3') {
-      const a = seededRange(13, 25, seed, index, 1)
-      const b = seededRange(3,  9, seed, index, 2)
-      text = `${a} × ${b}`; answer = a * b
-    } else if (type === 'sq') {
-      const a = seededRange(6, 15, seed, index, 1)
-      text = `${a}²`; answer = a * a
-    } else {
-      const a = seededRange(2, 9, seed, index, 1)
-      const b = seededRange(2, 9, seed, index, 2)
-      const c = seededRange(2, 9, seed, index, 3)
-      text = `${a} + ${b} × ${c}`; answer = a + b * c
-    }
-  }
-
-  return { text, answer, isPower }
+export function levelForIndex(index, difficulty = 'progressive') {
+  const selected = typeof difficulty === 'object' ? normalizeMathConfig(difficulty).difficulty : difficulty
+  if (selected === 'easy' || selected === 'hard') return selected
+  return index < 20 ? 'easy' : index < 40 ? 'medium' : 'hard'
 }
 
-// ── Scoring (shared by the live race and its tests) ───────────────────────
+export function questionMsForIndex(index, configOrDifficulty = 'progressive') {
+  return QUESTION_MS_BY_LEVEL[levelForIndex(index, configOrDifficulty)]
+}
 
-/** Speed points for an answer `elapsed` ms into a `questionMs` window: 5 for
- * an instant answer down to a 1-point floor at the buzzer. */
+function rangeForQuestion(index, config, level) {
+  if (config.difficulty === 'easy') return Math.min(9, config.range)
+  if (config.difficulty === 'hard') return config.range
+  if (level === 'easy') return Math.min(9, config.range)
+  if (level === 'medium') return Math.min(99, config.range)
+  return config.range
+}
+
+function gcd(a, b) {
+  while (b) [a, b] = [b, a % b]
+  return a
+}
+
+function question({ text, answer, family, operation, explanation, isPower, level, operands }) {
+  return { text, answer, family, operation, explanation, isPower, level, operands }
+}
+
+/** Same seed + index + config yields the same integer question for every racer. */
+export function generateQuestion(seed, index, rawConfig) {
+  const config = normalizeMathConfig(rawConfig ?? DEFAULT_MATH_CONFIG)
+  const level = levelForIndex(index, config.difficulty)
+  const max = rangeForQuestion(index, config, level)
+  const isPower = index % 8 === 5
+  const operations = MATH_OPERATIONS.filter(op => config.operations[op])
+  const operation = seededChoice(operations, seed, index, 0)
+  const advanced = level !== 'easy'
+  let families
+
+  if (operation === 'add') families = advanced ? ['standard', 'double', 'missing'] : ['standard', 'double']
+  else if (operation === 'subtract') families = advanced ? ['standard', 'missing'] : ['standard']
+  else if (operation === 'multiply') {
+    families = advanced ? ['standard', 'double', 'missing'] : ['standard', 'double']
+    if (level === 'hard' && Math.floor(Math.sqrt(max)) >= 2) families.push('square')
+    if (advanced) {
+      const hasFriendlyPercent = [10, 20, 25, 50, 75].some(pct => Math.floor(max / (100 / gcd(100, pct))) >= 1)
+      if (hasFriendlyPercent) families.push('percent')
+    }
+  } else families = advanced ? ['standard', 'missing'] : ['standard']
+
+  const family = seededChoice(families, seed, index, 1)
+  let text
+  let answer
+  let explanation
+  let operands
+
+  if (operation === 'add') {
+    if (family === 'double') {
+      const a = seededRange(1, max, seed, index, 2)
+      text = `${a} + ${a}`; answer = a * 2
+      explanation = `Double ${a} to get ${answer}.`
+      operands = [a]
+    } else if (family === 'missing') {
+      const a = seededRange(1, max, seed, index, 2)
+      const b = seededRange(1, max, seed, index, 3)
+      text = `${a} + □ = ${a + b}`; answer = b
+      explanation = `${a} needs ${b} more to make ${a + b}.`
+      operands = [a, b]
+    } else {
+      const a = seededRange(1, max, seed, index, 2)
+      const b = seededRange(1, max, seed, index, 3)
+      text = `${a} + ${b}`; answer = a + b
+      explanation = `${a} plus ${b} equals ${answer}.`
+      operands = [a, b]
+    }
+  } else if (operation === 'subtract') {
+    if (family === 'missing') {
+      const result = seededRange(0, max - 1, seed, index, 2)
+      const missing = seededRange(1, max - result, seed, index, 3)
+      text = `${result + missing} − □ = ${result}`; answer = missing
+      explanation = `${result + missing} minus ${missing} leaves ${result}.`
+      operands = [result, missing]
+    } else {
+      const a = seededRange(1, max, seed, index, 2)
+      const b = seededRange(0, a, seed, index, 3)
+      text = `${a} − ${b}`; answer = a - b
+      explanation = `${a} minus ${b} equals ${answer}.`
+      operands = [a, b]
+    }
+  } else if (operation === 'multiply') {
+    if (family === 'double') {
+      const a = seededRange(1, max, seed, index, 2)
+      text = `2 × ${a}`; answer = 2 * a
+      explanation = `Two groups of ${a} make ${answer}.`
+      operands = [2, a]
+    } else if (family === 'missing') {
+      const a = seededRange(1, max, seed, index, 2)
+      const b = seededRange(1, max, seed, index, 3)
+      text = `□ × ${b} = ${a * b}`; answer = a
+      explanation = `${a} groups of ${b} make ${a * b}.`
+      operands = [a, b]
+    } else if (family === 'square') {
+      const a = seededRange(2, Math.floor(Math.sqrt(max)), seed, index, 2)
+      text = `${a}²`; answer = a * a
+      explanation = `${a} squared is ${a} × ${a}, which equals ${answer}.`
+      operands = [a]
+    } else if (family === 'percent') {
+      const percentages = [10, 20, 25, 50, 75]
+        .filter(pct => Math.floor(max / (100 / gcd(100, pct))) >= 1)
+      const pct = seededChoice(percentages, seed, index, 2)
+      const step = 100 / gcd(100, pct)
+      const base = seededRange(1, Math.floor(max / step), seed, index, 3) * step
+      text = `${pct}% of ${base}`; answer = base * pct / 100
+      explanation = `${pct}% of ${base} is ${answer}.`
+      operands = [base]
+    } else {
+      const a = seededRange(1, max, seed, index, 2)
+      const b = seededRange(1, max, seed, index, 3)
+      text = `${a} × ${b}`; answer = a * b
+      explanation = `${a} groups of ${b} make ${answer}.`
+      operands = [a, b]
+    }
+  } else if (family === 'missing') {
+    const divisor = seededRange(1, max, seed, index, 2)
+    const maxQuotient = Math.max(1, Math.floor(max / divisor))
+    const quotient = seededRange(1, maxQuotient, seed, index, 3)
+    text = `${divisor * quotient} ÷ □ = ${quotient}`; answer = divisor
+    explanation = `${divisor * quotient} divided by ${divisor} equals ${quotient}.`
+    operands = [divisor, quotient]
+  } else {
+    const divisor = seededRange(1, max, seed, index, 2)
+    const maxQuotient = Math.max(1, Math.floor(max / divisor))
+    const quotient = seededRange(1, maxQuotient, seed, index, 3)
+    text = `${divisor * quotient} ÷ ${divisor}`; answer = quotient
+    explanation = `${divisor} × ${quotient} = ${divisor * quotient}, so the quotient is ${quotient}.`
+    operands = [divisor, quotient]
+  }
+
+  return question({ text, answer, family, operation, explanation, isPower, level, operands })
+}
+
+/** Speed points: 5 for an instant answer down to a 1-point floor at the buzzer. */
 export function speedPtsFor(elapsed, questionMs) {
   return Math.max(1, Math.ceil(5 * Math.max(0, (questionMs - elapsed) / questionMs)))
 }
 
-/** A 3-answer streak doubles the next correct answer. */
-export const STREAK_FOR_DOUBLE = 3
-
 /**
- * Apply one submitted answer to a racer's stats
- * `{ q, score, streak, correct, wrong }`. A correct answer advances `q` and
- * scores speed × power(2 on power questions) × streak multiplier; a wrong one
- * costs 1 point (2 on a power question), floors at 0, resets the streak and
- * leaves `q` for the caller to advance after the feedback beat.
- *
- * @returns {{ stats: object, correct: boolean, pts: number }}
+ * Apply one submitted answer to `{ q, score, streak, correct, wrong }` stats.
+ * Wrong answers reset streak and reveal the answer, but never remove points.
  */
-export function scoreMathAnswer(stats, { seed, answer, elapsed }) {
+export function scoreMathAnswer(stats, { seed, answer, elapsed, config }) {
   const s = normalizeMathStats(stats)
-  const q = generateQuestion(seed, s.q)
-  const correct = Number.parseInt(answer, 10) === q.answer
+  const q = generateQuestion(seed, s.q, config)
+  const submitted = typeof answer === 'number'
+    ? answer
+    : typeof answer === 'string' && /^\d+$/.test(answer) ? Number(answer) : NaN
+  const correct = Number.isSafeInteger(submitted) && submitted === q.answer
   if (correct) {
-    const mult = s.streak >= STREAK_FOR_DOUBLE ? 2 : 1
-    const pts = speedPtsFor(elapsed, questionMsForIndex(s.q)) * (q.isPower ? 2 : 1) * mult
+    const speed = speedPtsFor(elapsed, questionMsForIndex(s.q, config))
+    const powerMultiplier = q.isPower ? 2 : 1
+    const streakMultiplier = s.streak >= STREAK_FOR_DOUBLE ? 2 : 1
+    const powerBonus = speed * (powerMultiplier - 1) * streakMultiplier
+    const streakBonus = speed * powerMultiplier * (streakMultiplier - 1)
+    const pts = speed * powerMultiplier * streakMultiplier
+    const streak = s.streak + 1
     return {
-      correct, pts,
-      stats: { ...s, q: s.q + 1, score: s.score + pts, streak: s.streak + 1, correct: s.correct + 1 },
+      correct, pts, speed, powerMultiplier, streakMultiplier, answer: q.answer,
+      explanation: q.explanation, family: q.family,
+      stats: {
+        ...s,
+        q: s.q + 1,
+        score: s.score + pts,
+        streak,
+        bestStreak: Math.max(s.bestStreak, streak),
+        correct: s.correct + 1,
+        speedPoints: s.speedPoints + speed,
+        powerBonus: s.powerBonus + powerBonus,
+        streakBonus: s.streakBonus + streakBonus,
+      },
     }
   }
-  const penalty = q.isPower ? 2 : 1
   return {
-    correct, pts: 0,
-    stats: { ...s, score: Math.max(0, s.score - penalty), streak: 0, wrong: s.wrong + 1 },
+    correct: false, pts: 0, answer: q.answer, explanation: q.explanation, family: q.family,
+    speed: null, powerMultiplier: q.isPower ? 2 : 1, streakMultiplier: 1,
+    stats: { ...s, streak: 0, wrong: s.wrong + 1 },
   }
+}
+
+/** Record a missed question once; the caller advances after the reveal beat. */
+export function timeoutMathQuestion(stats, fromIndex) {
+  const s = normalizeMathStats(stats)
+  return s.q === fromIndex ? { ...s, streak: 0, wrong: s.wrong + 1 } : s
 }
 
 /** Advance past question `fromIndex` (wrong-answer beat or timeout); no-op if already past. */
@@ -148,13 +263,15 @@ export function advanceMathQuestion(stats, fromIndex) {
 
 export function normalizeMathStats(raw) {
   const n = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.floor(Number(v))) : 0)
-  return { q: n(raw?.q), score: n(raw?.score), streak: n(raw?.streak), correct: n(raw?.correct), wrong: n(raw?.wrong) }
+  return {
+    q: n(raw?.q), score: n(raw?.score), streak: n(raw?.streak),
+    correct: n(raw?.correct), wrong: n(raw?.wrong), bestStreak: n(raw?.bestStreak),
+    speedPoints: n(raw?.speedPoints), powerBonus: n(raw?.powerBonus), streakBonus: n(raw?.streakBonus),
+  }
 }
 
 // ── N-player race hooks (see raceLogic.js) ────────────────────────────────
 
-/** Ranking entry: highest points wins; a racer with no stats at all (never
- * showed up) is a DNF. */
 export function mathRaceEntry(stats) {
   if (!stats) return { sortKey: null, score: null }
   const s = normalizeMathStats(stats)
