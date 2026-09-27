@@ -6,6 +6,7 @@ import PixelDots from './components/loading/PixelDots';
 import { lazyWithRetry } from './lib/lazyWithRetry';
 import { Toaster } from './components/ui/sonner';
 import UpdatePrompt from './components/UpdatePrompt';
+import useSWUpdateCheck from './hooks/useSWUpdateCheck';
 import ConnectionBanner from './components/ConnectionBanner';
 import InviteToasts from './components/InviteToasts';
 import BottomTabBar from './components/BottomTabBar';
@@ -132,6 +133,7 @@ function SlowBootNotice() {
 }
 
 export default function App() {
+  useSWUpdateCheck()
   return (
     <ErrorBoundary>
       <SlowBootNotice />
