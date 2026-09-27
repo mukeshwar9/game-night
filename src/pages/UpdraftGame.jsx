@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { push, ref } from 'firebase/database'
+import { ref, set } from 'firebase/database'
 import { toast } from 'sonner'
 import { db } from '../lib/firebase'
 import GameStatus from '../components/GameStatus'
@@ -68,7 +68,7 @@ export default function UpdraftGame({
       if (!chaos) return
       for (const e of events) {
         if (e.type === 'pickup') {
-          push(ref(db, `games/${gameId}/updraft/haz/${op}`), { k: hazardForPickup(seed, e.id), at: Date.now() })
+          set(ref(db, `games/${gameId}/updraft/haz/${op}/${e.id}`), { k: hazardForPickup(seed, e.id), at: e.id })
             .catch(() => toast.error('SYNC FAILED — CHECK CONNECTION'))
         }
       }
@@ -97,7 +97,7 @@ export default function UpdraftGame({
     onFall: () => climber.setRun({ ...climber.runRef.current, dead: true }),
   })
 
-  // Incoming hazards: each pushed id plays once, and only this round's.
+  // Incoming hazards: each pickup id plays once, and only this round's.
   const incoming = normalizeHazards(u.haz?.[me])
   useEffect(() => {
     if (!isRacing || isSpectator || !chaos) return

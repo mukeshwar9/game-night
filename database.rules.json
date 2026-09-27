@@ -7,10 +7,10 @@
       ],
       "$gameId": {
         ".read": "auth != null",
-        ".write": "auth != null && ((!data.exists() && newData.child('status').val() === 'waiting' && (newData.child('players').child('X').child('playerId').val() === auth.uid || newData.child('players').child(auth.uid).child('playerId').val() === auth.uid)) || (data.exists() && newData.exists() && (data.child('players').child('X').child('playerId').val() === auth.uid || data.child('players').child('O').child('playerId').val() === auth.uid || data.child('players').child(auth.uid).child('playerId').val() === auth.uid || data.child('queue').child(auth.uid).exists())) || (data.exists() && !newData.exists() && data.child('players').child('X').child('playerId').val() === auth.uid && !data.child('players').child('O').exists()))",
+        ".write": "auth != null && ((!data.exists() && newData.child('status').val() === 'waiting' && (newData.child('players').child('X').child('playerId').val() === auth.uid || newData.child('players').child(auth.uid).child('playerId').val() === auth.uid)) || (data.exists() && newData.exists() && (data.child('players').child('X').child('playerId').val() === auth.uid || data.child('players').child('O').child('playerId').val() === auth.uid || data.child('players').child(auth.uid).child('playerId').val() === auth.uid || data.child('queue').child(auth.uid).exists())) || (data.exists() && !newData.exists() && data.child('players').child('X').child('playerId').val() === auth.uid && !data.child('players').child('O').exists())) && (newData.child('updraft').exists() || newData.child('gameType').val() !== 'updraft' && newData.child('gameType').val() !== 'updraftduo')",
         ".validate": "(newData.hasChildren(['gameType','status']) && (!data.exists() || newData.child('visibility').val() === data.child('visibility').val()) && (!data.child('players').child('X').child('playerId').exists() || newData.child('players').child('X').child('playerId').val() === data.child('players').child('X').child('playerId').val() || data.child('players').child('X').child('playerId').val() === auth.uid || newData.child('players').child('X').child('playerId').val() === data.child('players').child('X').child('playerId').val() || newData.child('players').child('O').child('playerId').val() === data.child('players').child('X').child('playerId').val() || newData.child('players').child(data.child('players').child('X').child('playerId').val()).child('playerId').val() === data.child('players').child('X').child('playerId').val() || newData.child('queue').child(data.child('players').child('X').child('playerId').val()).exists() || (newData.child('kicked').child(data.child('players').child('X').child('playerId').val()).val() === true && (auth.uid === data.child('hostUid').val() || auth.uid === data.child('players').child('X').child('playerId').val()))) && (!data.child('players').child('O').child('playerId').exists() || newData.child('players').child('O').child('playerId').val() === data.child('players').child('O').child('playerId').val() || data.child('players').child('O').child('playerId').val() === auth.uid || newData.child('players').child('X').child('playerId').val() === data.child('players').child('O').child('playerId').val() || newData.child('players').child('O').child('playerId').val() === data.child('players').child('O').child('playerId').val() || newData.child('players').child(data.child('players').child('O').child('playerId').val()).child('playerId').val() === data.child('players').child('O').child('playerId').val() || newData.child('queue').child(data.child('players').child('O').child('playerId').val()).exists() || (newData.child('kicked').child(data.child('players').child('O').child('playerId').val()).val() === true && (auth.uid === data.child('hostUid').val() || auth.uid === data.child('players').child('X').child('playerId').val()))))",
         "gameType": {
-          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40 && (newData.val() !== 'updraft' && newData.val() !== 'updraftduo' || newData.parent().child('updraft').exists())"
         },
         "status": {
           ".validate": "newData.val() === 'waiting' || newData.val() === 'playing' || newData.val() === 'finished'"
@@ -272,27 +272,28 @@
           ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000 && (newData.val() === data.val() || newData.val() === data.val() + 1 || !data.exists() && newData.val() === 1))"
         },
         "updraft": {
-          ".validate": "newData.parent().child('gameType').val() === 'updraft' || newData.parent().child('gameType').val() === 'updraftduo'",
+          ".validate": "(newData.parent().child('gameType').val() === 'updraft' || newData.parent().child('gameType').val() === 'updraftduo') && newData.child('seed').exists() && (newData.parent().child('gameType').val() !== 'updraft' || newData.child('mode').exists()) && (newData.parent().child('gameType').val() !== 'updraftduo' || newData.child('lives').exists()) && (!data.child('X').exists() || newData.child('X').exists() || data.parent().child('status').val() === 'finished' && newData.parent().child('status').val() === 'playing') && (!data.child('O').exists() || newData.child('O').exists() || data.parent().child('status').val() === 'finished' && newData.parent().child('status').val() === 'playing') && (!data.child('startedAt').exists() || newData.child('startedAt').exists() || data.parent().child('status').val() === 'finished' && newData.parent().child('status').val() === 'playing') && (!data.child('keys').exists() || newData.child('keys').exists() || data.parent().child('status').val() === 'finished' && newData.parent().child('status').val() === 'playing') && (!data.child('haz').exists() || newData.child('haz').exists() || data.parent().child('status').val() === 'finished' && newData.parent().child('status').val() === 'playing') && (!data.child('result').exists() || newData.child('result').exists() || data.parent().child('status').val() === 'finished' && newData.parent().child('status').val() === 'playing')",
           "seed": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 2147483648"
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 2147483648 && (newData.val() === data.val() || !data.exists() && newData.parent().parent().child('status').val() === 'waiting' && auth.uid === newData.parent().parent().child('players').child('X').child('playerId').val() || data.exists() && data.parent().parent().child('status').val() === 'finished' && newData.parent().parent().child('status').val() === 'playing')"
           },
           "startedAt": {
-            ".validate": "newData.isNumber()"
+            ".validate": "newData.isNumber() && newData.val() > 0 && (newData.val() === data.val() || !data.exists() && newData.parent().parent().child('status').val() === 'playing' && newData.parent().child('seed').exists())"
           },
           "mode": {
-            ".validate": "newData.val() === 'chaos' || newData.val() === 'pure'"
+            ".validate": "newData.parent().parent().child('gameType').val() === 'updraft' && (newData.val() === 'chaos' || newData.val() === 'pure') && (newData.val() === data.val() || auth.uid === newData.parent().parent().child('players').child('X').child('playerId').val() && (newData.parent().parent().child('status').val() === 'waiting' || data.parent().parent().child('status').val() === 'finished'))"
           },
           "lives": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+            ".validate": "newData.parent().parent().child('gameType').val() === 'updraftduo' && newData.isNumber() && newData.val() >= 0 && newData.val() <= 3 && (newData.val() === data.val() || data.exists() && newData.val() === data.val() - 1 && data.parent().parent().child('status').val() === 'playing' || !data.exists() && newData.val() === 3 && newData.parent().parent().child('status').val() === 'waiting' && auth.uid === newData.parent().parent().child('players').child('X').child('playerId').val() || data.exists() && newData.val() === 3 && data.parent().parent().child('status').val() === 'finished' && newData.parent().parent().child('status').val() === 'playing')"
           },
           "result": {
-            ".validate": "newData.val() === 'cleared' || newData.val() === 'failed'"
+            ".validate": "newData.parent().parent().child('gameType').val() === 'updraftduo' && (newData.val() === 'cleared' || newData.val() === 'failed') && (newData.val() === data.val() || !data.exists() && data.parent().parent().child('status').val() === 'playing' && newData.parent().parent().child('status').val() === 'finished')"
           },
           "haz": {
+            ".validate": "(!data.child('X').exists() || newData.child('X').exists()) && (!data.child('O').exists() || newData.child('O').exists())",
             "$target": {
-              ".validate": "$target === 'X' || $target === 'O'",
+              ".validate": "($target === 'X' || $target === 'O') && (!data.child('0').exists() || newData.child('0').exists()) && (!data.child('1').exists() || newData.child('1').exists()) && (!data.child('2').exists() || newData.child('2').exists()) && (!data.child('3').exists() || newData.child('3').exists()) && (!data.child('4').exists() || newData.child('4').exists()) && (!data.child('5').exists() || newData.child('5').exists())",
               "$id": {
-                ".validate": "newData.hasChildren(['k', 'at']) && (data.exists() || ($target === 'X' && auth.uid === root.child('games').child($gameId).child('players').child('O').child('playerId').val()) || ($target === 'O' && auth.uid === root.child('games').child($gameId).child('players').child('X').child('playerId').val()))",
+                ".validate": "$id.matches(/^[0-5]$/) && newData.hasChildren(['k', 'at']) && (data.exists() || ($target === 'X' && auth.uid === root.child('games').child($gameId).child('players').child('O').child('playerId').val()) || ($target === 'O' && auth.uid === root.child('games').child($gameId).child('players').child('X').child('playerId').val()))",
                 "k": {
                   ".validate": "(newData.val() === 'crumble' || newData.val() === 'gust' || newData.val() === 'fog') && (!data.exists() || newData.val() === data.val())"
                 },
@@ -306,10 +307,11 @@
             }
           },
           "keys": {
+            ".validate": "(!data.child('X').exists() || newData.child('X').exists()) && (!data.child('O').exists() || newData.child('O').exists()) && (!data.child('X').child('1').exists() || newData.child('X').child('1').val() === true) && (!data.child('X').child('2').exists() || newData.child('X').child('2').val() === true) && (!data.child('X').child('3').exists() || newData.child('X').child('3').val() === true) && (!data.child('X').child('4').exists() || newData.child('X').child('4').val() === true) && (!data.child('X').child('5').exists() || newData.child('X').child('5').val() === true) && (!data.child('O').child('1').exists() || newData.child('O').child('1').val() === true) && (!data.child('O').child('2').exists() || newData.child('O').child('2').val() === true) && (!data.child('O').child('3').exists() || newData.child('O').child('3').val() === true) && (!data.child('O').child('4').exists() || newData.child('O').child('4').val() === true) && (!data.child('O').child('5').exists() || newData.child('O').child('5').val() === true)",
             "$seat": {
               ".validate": "$seat === 'X' || $seat === 'O'",
               "$gate": {
-                ".validate": "newData.val() === true && $gate.matches(/^[1-9][0-9]?$/) && (data.exists() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
+                ".validate": "newData.val() === true && $gate.matches(/^[1-5]$/) && root.child('games').child($gameId).child('gameType').val() === 'updraftduo' && (data.exists() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
               }
             }
           },
@@ -322,7 +324,7 @@
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000 && (newData.val() === data.val() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
             },
             "best": {
-              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000 && (newData.val() === data.val() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000 && (newData.val() === data.val() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val() && (!data.exists() || newData.val() >= data.val()))"
             },
             "dead": {
               ".validate": "newData.isBoolean() && (newData.val() === data.val() || auth.uid === root.child('games').child($gameId).child('players').child($seat).child('playerId').val())"

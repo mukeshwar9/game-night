@@ -100,6 +100,7 @@ export function useHiddenFall({ active, onFall }) {
       if (document.visibilityState === 'hidden') timer = setTimeout(() => cb.current(), HIDDEN_FALL_MS)
     }
     document.addEventListener('visibilitychange', onVis)
+    onVis()
     return () => {
       document.removeEventListener('visibilitychange', onVis)
       clearTimeout(timer)

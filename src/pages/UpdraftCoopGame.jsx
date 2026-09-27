@@ -161,7 +161,7 @@ export default function UpdraftCoopGame({
   const gates = tower.gates.map((gy, i) => ({
     y: gy,
     open: !!gateKeys[i + 1],
-    label: gateKeys[i + 1] ? `GATE ${i + 1} OPEN` : `GATE ${i + 1} · ${isSpectator ? playerName(game, otherSide) : partnerName} HAS THE KEY`,
+    label: gateKeys[i + 1] ? `GATE ${i + 1} OPEN` : `GATE ${i + 1} · NEED ${isSpectator ? playerName(game, otherSide) : partnerName}'S KEY`,
   }))
   const liveMsg = `Team heights: X ${toMetres(heights.X)} metres, O ${toMetres(heights.O)} metres. ${lives} lives left.`
 

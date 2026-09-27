@@ -498,7 +498,7 @@ export function raceOutcome(seats, { timeUp = false } = {}) {
   const { X, O } = seats
   if (X.top && !O.top) return 'X'
   if (O.top && !X.top) return 'O'
-  if (X.top && O.top) return null // the first finish transaction decides
+  if (X.top && O.top) return 'draw' // both top reports arrived before either finish transaction
   const mx = toMetres(X.best)
   const mo = toMetres(O.best)
   if ((X.dead && O.dead) || timeUp) return mx > mo ? 'X' : mo > mx ? 'O' : 'draw'

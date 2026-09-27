@@ -102,7 +102,7 @@ const UpdraftArena = forwardRef(function UpdraftArena({
   return (
     <div
       ref={ref}
-      role="img"
+      role="group"
       aria-label={label}
       className="relative w-full overflow-hidden rounded-lg border-2 border-retro-border bg-retro-deep select-none touch-none"
       style={{ aspectRatio: `${WORLD_W} / ${VIEW_H}` }}

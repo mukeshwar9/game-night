@@ -16,7 +16,7 @@ async function hideTab(page) {
   })
 }
 
-const arena = (page) => page.getByRole('img', { name: /^Updraft/ })
+const arena = (page) => page.getByRole('group', { name: /^Updraft/ })
 
 test('two players race an UPDRAFT round to a result and rematch in the host\'s mode', async ({ browser }) => {
   test.setTimeout(90_000)
@@ -80,8 +80,8 @@ test('UPDRAFT CO-OP: gates wait on the partner and a fall costs a shared life', 
   })
 
   await test.step('each sees the first gate waiting on the other', async () => {
-    await expect(alice.page.getByText('GATE 1 · BOB HAS THE KEY')).toBeVisible({ timeout: 15_000 })
-    await expect(bob.page.getByText('GATE 1 · ALICE HAS THE KEY')).toBeVisible({ timeout: 15_000 })
+    await expect(alice.page.getByText("GATE 1 · NEED BOB'S KEY")).toBeVisible({ timeout: 15_000 })
+    await expect(bob.page.getByText("GATE 1 · NEED ALICE'S KEY")).toBeVisible({ timeout: 15_000 })
     await expect(alice.page.getByLabel('3 lives', { exact: true })).toBeVisible()
   })
 

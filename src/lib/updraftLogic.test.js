@@ -298,7 +298,7 @@ describe('outcomes', () => {
   it('summit first wins', () => {
     expect(raceOutcome({ X: seat({ top: true, best: SUMMIT_Y }), O: seat({ best: 3000 }) })).toBe('X')
     expect(raceOutcome({ X: seat(), O: seat({ top: true }) })).toBe('O')
-    expect(raceOutcome({ X: seat({ top: true }), O: seat({ top: true }) })).toBe(null)
+    expect(raceOutcome({ X: seat({ top: true }), O: seat({ top: true }) })).toBe('draw')
   })
 
   it('a faller loses only once the survivor passes them', () => {
