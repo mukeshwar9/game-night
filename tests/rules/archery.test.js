@@ -22,6 +22,12 @@ describe('ARCHERY', () => {
     await assertFails(as('alice').ref('games/g1/archeryShots/0/ax').set(25))
   })
 
+  it('rejects future turn starts that delay timeout skips', async () => {
+    await put(duel())
+    await assertSucceeds(as('alice').ref('games/g1/archeryTurnStartedAt').set(Date.now()))
+    await assertFails(as('alice').ref('games/g1/archeryTurnStartedAt').set(Date.now() + 60_000))
+  })
+
   it('lets only the 2P host set the range before the first arrow', async () => {
     await put(duel())
     await assertSucceeds(as('alice').ref('games/g1/archeryFormat').set('quick'))

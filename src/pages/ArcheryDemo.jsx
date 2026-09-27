@@ -7,7 +7,7 @@ import useGameKeys from '../hooks/useGameKeys'
 import {
   ARCHERY_FORMATS, ARCHERY_SEATS, advanceArcheryShot, archeryFormat,
   arrowTurn, cpuAim, idealDrawForDistance, normalizeShots, scorecard,
-  shotResult, windForShot,
+  shotResult, windForShot, withSteadyAim,
 } from '../lib/archeryLogic'
 import { readSoloBest, recordSoloBest } from '../lib/soloBest'
 import { sounds } from '../lib/sounds'
@@ -113,6 +113,7 @@ function OfflineMatch({ setup, onExit }) {
   const isShootOff = phase === 'shootOff'
   const turn = arrowTurn(shots.length, seats, format)
   const currentDistance = isShootOff ? 70 : (ARCHERY_FORMATS[format].distances[turn.end] ?? 70)
+  const liveShotIndex = isShootOff ? shots.length + tieShots.length : shots.length
   const current = game.currentTurn
   const card = useMemo(() => scorecard(shots, seats, game.archerySeed, format), [format, game.archerySeed, seats, shots])
   const done = game.status === 'finished'
@@ -145,9 +146,13 @@ function OfflineMatch({ setup, onExit }) {
   }, [commit, handoff, setup.mode])
   const drawHook = useBowDraw(input => fireRef.current?.(input), { enabled: playerTurn, steady, mirror })
   useEffect(() => { fireRef.current = fire }, [fire])
+  const manualAim = useCallback(() => withSteadyAim({
+    ax: mirror ? -drawHook.draw.ax : drawHook.draw.ax,
+    ay: 0, dr: drawHook.draw.dr, drawMs: drawHook.draw.drawMs,
+  }, steady, (liveShotIndex % 16) * Math.PI / 8), [drawHook.draw.ax, drawHook.draw.drawMs, drawHook.draw.dr, liveShotIndex, mirror, steady])
   useGameKeys(event => {
     if ((event.code === 'Space' || event.key === 'Enter') && playerTurn) {
-      fireRef.current?.({ ax: mirror ? -drawHook.draw.ax : drawHook.draw.ax, ay: 0, dr: drawHook.draw.dr, sway: 0, drawMs: 0 })
+      fireRef.current?.(manualAim())
       return true
     }
     return false
@@ -180,7 +185,6 @@ function OfflineMatch({ setup, onExit }) {
     recordSoloBest(BEST_KEY, score)
   }, [card, done, setup.mode])
 
-  const liveShotIndex = isShootOff ? shots.length + tieShots.length : shots.length
   const windNow = windForShot(game.archerySeed, liveShotIndex, currentDistance, drawHook.draw.dr)
   const hiddenAim = setup.mode === 'cpu' && setup.level === 'robin-hood'
   const displayedAim = playerTurn && !hiddenAim ? {
@@ -231,7 +235,7 @@ function OfflineMatch({ setup, onExit }) {
               <input id="solo-aim" type="range" min="-350" max="350" step="10" value={drawHook.draw.ax} onChange={e => drawHook.setAim({ ax: Number(e.target.value) })} className="mt-1 block w-24 accent-[rgb(var(--c-cta))]" />
             </label>
           </div>
-          <button onClick={() => fire({ ax: mirror ? -drawHook.draw.ax : drawHook.draw.ax, ay: 0, dr: drawHook.draw.dr, sway: 0, drawMs: 0 })} disabled={!playerTurn} className="min-h-12 w-full rounded bg-retro-cta py-3 font-pixel text-xs text-retro-bg">LOOSE ARROW</button>
+          <button onClick={() => fire(manualAim())} disabled={!playerTurn} className="min-h-12 w-full rounded bg-retro-cta py-3 font-pixel text-xs text-retro-bg">LOOSE ARROW</button>
         </>
       )}
       {done && (

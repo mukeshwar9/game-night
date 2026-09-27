@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { steadyAim } from '../lib/archeryLogic'
+import { withSteadyAim } from '../lib/archeryLogic'
 import { sounds } from '../lib/sounds'
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n))
@@ -54,8 +54,7 @@ export default function useBowDraw(onLoose, { enabled = true, steady = true, mir
     const dr = clamp(600 + Math.round(dy / current.rect.height * 2500), 600, 1000)
     const ax = clamp(Math.round(dx / current.rect.width * 1200), -600, 600)
     const phase = (current.at % 10000) / 10000 * Math.PI * 2
-    const sway = steadyAim(drawMs, steady, phase)
-    setDraw({ active: true, dr, ax, drawMs, sway })
+    setDraw({ ...withSteadyAim({ dr, ax, drawMs }, steady, phase), active: true })
   }, [steady])
 
   const finish = useCallback((event, release) => {
@@ -67,8 +66,8 @@ export default function useBowDraw(onLoose, { enabled = true, steady = true, mir
       const drawMs = Math.max(0, Math.min(3000, performance.now() - current.at))
       const dr = clamp(600 + Math.round(dy / current.rect.height * 2500), 600, 1000)
       const ax = clamp(Math.round(dx / current.rect.width * 1200), -600, 600)
-      const sway = steadyAim(drawMs, steady, (current.at % 10000) / 10000 * Math.PI * 2)
-      looseRef.current?.({ ax: mirror ? -ax : ax, ay: 0, dr, drawMs, sway })
+      const phase = (current.at % 10000) / 10000 * Math.PI * 2
+      looseRef.current?.(withSteadyAim({ ax: mirror ? -ax : ax, ay: 0, dr, drawMs }, steady, phase))
     }
     reset()
   }, [mirror, reset, steady])

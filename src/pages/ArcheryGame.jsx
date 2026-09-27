@@ -13,7 +13,8 @@ import GameSwitcher from '../components/GameSwitcher'
 import { sounds } from '../lib/sounds'
 import {
   ARCHERY_FORMATS, ARCHERY_SEATS, ARROWS_PER_END, advanceArcheryShot,
-  archeryFormat, arrowTurn, normalizeShots, scorecard, shotResult, windForShot,
+  advanceArcheryTimeout, archeryFormat, archerySeats, arrowTurn, normalizeShots,
+  scorecard, shotResult, windForShot, withSteadyAim,
 } from '../lib/archeryLogic'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { cn } from '@/lib/utils'
@@ -46,9 +47,7 @@ export default function ArcheryGame(props) {
     return map
   }, [roster])
   const seatUids = game.archerySeatUids || derivedSeatUids
-  const seats = useMemo(() => party
-    ? ARCHERY_SEATS.filter(seat => seatUids[seat] && (players || game.players)?.[seatUids[seat]])
-    : ['X', 'O'], [game.players, party, players, seatUids])
+  const seats = useMemo(() => party ? archerySeats(seatUids) : ['X', 'O'], [party, seatUids])
   const me = party
     ? ARCHERY_SEATS.find(seat => seatUids[seat] === mySeat) ?? null
     : twoPlayerSymbol
@@ -63,6 +62,7 @@ export default function ArcheryGame(props) {
     ? { seat: game.currentTurn, end: ARCHERY_FORMATS[format].ends, arrowInEnd: 0 }
     : mainTurn
   const currentDistance = phase === 'shootOff' ? 70 : (ARCHERY_FORMATS[format].distances[turn.end] ?? 70)
+  const liveShotIndex = phase === 'shootOff' ? shots.length + tieShots.length : shots.length
   const status = game.status ?? 'waiting'
   const myTurn = status === 'playing' && !!me && game.currentTurn === me && !busy
   const isCoordinator = party ? (isHost ?? isRoomCoordinator(mySeat, players, game.hostUid)) : me === 'X'
@@ -108,9 +108,13 @@ export default function ArcheryGame(props) {
   }, [currentDistance, game.archerySeed, gameId, mainShots.length, me, myTurn, party, phase, roomRef, run, seats, shots.length, tieShots.length])
   const drawHook = useBowDraw((input) => { void fireRef.current?.(input) }, { enabled: myTurn, steady, mirror: me === 'O' })
   useEffect(() => { fireRef.current = shoot }, [shoot])
+  const manualAim = useCallback(() => withSteadyAim({
+    ax: me === 'O' ? -drawHook.draw.ax : drawHook.draw.ax,
+    ay: 0, dr: drawHook.draw.dr, drawMs: drawHook.draw.drawMs,
+  }, steady, (liveShotIndex % 16) * Math.PI / 8), [drawHook.draw.ax, drawHook.draw.drawMs, drawHook.draw.dr, liveShotIndex, me, steady])
   useGameKeys((event) => {
     if ((event.code === 'Space' || event.key === 'Enter') && myTurn) {
-      fireRef.current?.({ ax: me === 'O' ? -drawHook.draw.ax : drawHook.draw.ax, ay: 0, dr: drawHook.draw.dr, sway: 0, drawMs: 0 })
+      fireRef.current?.(manualAim())
       return true
     }
     return false
@@ -133,25 +137,8 @@ export default function ArcheryGame(props) {
       if (!current || current.status !== 'playing' || current.currentTurn !== game.currentTurn) return
       const liveStart = Number(current.archeryTurnStartedAt)
       if (!Number.isFinite(liveStart) || getServerNow() - liveStart < SHOT_CLOCK_MS) return
-      let next = current
-      if ((next.archeryPhase || 'main') === 'shootOff') {
-        const delta = advanceArcheryShot(next, { by: next.currentTurn, ax: 900, ay: 900, dr: 600, sway: 0 }, seats)
-        if (!delta) return
-        next = { ...next, ...delta }
-      } else {
-        let count = 0
-        while (count < ARROWS_PER_END && next.status === 'playing') {
-          const shotCount = normalizeShots(next.archeryShots).length
-          const slot = arrowTurn(shotCount, seats, archeryFormat(next.archeryFormat))
-          if (slot.seat !== next.currentTurn) break
-          const delta = advanceArcheryShot(next, { by: next.currentTurn, ax: 900, ay: 900, dr: 600, sway: 0 }, seats)
-          if (!delta) break
-          const sameArcher = delta.currentTurn === next.currentTurn
-          next = { ...next, ...delta }
-          count++
-          if (!sameArcher) break
-        }
-      }
+      const next = advanceArcheryTimeout(current, seats)
+      if (!next) return
       const endedAt = getServerNow()
       const result = { ...next, archeryTurnStartedAt: endedAt, lastActivityAt: endedAt }
       if (next.status === 'finished' && !party && next.winner) {
@@ -210,7 +197,6 @@ export default function ArcheryGame(props) {
   const isShootOff = phase === 'shootOff'
   const arrowNumber = isShootOff ? tieShots.length % Math.max(1, tieSeats.length) + 1 : turn.arrowInEnd + 1
   const nameTurn = names[game.currentTurn] || `PLAYER ${game.currentTurn || ''}`
-  const liveShotIndex = isShootOff ? shots.length + tieShots.length : shots.length
   const windNow = windForShot(game.archerySeed, liveShotIndex, currentDistance, drawHook.draw.dr)
   const aimPreview = myTurn ? {
     ...drawHook.draw,
@@ -256,7 +242,7 @@ export default function ArcheryGame(props) {
               <input id="archery-aim" type="range" min="-350" max="350" step="10" value={drawHook.draw.ax} disabled={!myTurn} onChange={e => drawHook.setAim({ ax: Number(e.target.value) })} className="mt-1 block w-24 accent-[rgb(var(--c-cta))]" />
             </label>
           </div>
-          <button onClick={() => shoot({ ax: me === 'O' ? -drawHook.draw.ax : drawHook.draw.ax, ay: 0, dr: drawHook.draw.dr, sway: 0, drawMs: 0 })} disabled={!myTurn || busy}
+          <button onClick={() => shoot(manualAim())} disabled={!myTurn || busy}
             className="min-h-12 w-full rounded bg-retro-cta py-3 font-pixel text-xs text-retro-bg hover:shadow-neon-cta active:scale-[0.98] disabled:opacity-40">
             {busy ? 'RELEASING…' : 'LOOSE ARROW'}
           </button>

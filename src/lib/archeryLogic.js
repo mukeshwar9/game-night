@@ -78,6 +78,10 @@ export function seatOrder(seatSymbols = {}) {
   return ARCHERY_SEATS.filter(symbol => values.includes(symbol))
 }
 
+export function archerySeats(seatUids = {}) {
+  return ARCHERY_SEATS.filter(seat => typeof seatUids?.[seat] === 'string' && seatUids[seat].length > 0)
+}
+
 export function arrowTurn(shotCount, seats, format = 'standard') {
   const order = seats.length ? seats : ARCHERY_SEATS.slice(0, 2)
   const ends = ARCHERY_FORMATS[archeryFormat(format)].ends
@@ -140,15 +144,18 @@ export function shootOffResult(shots, seats) {
 // Deterministic settle → sweet window → fatigue curve. `phase` seeds sway so
 // holding still still feels alive, while recording sway keeps replays stable.
 export function steadyAim(drawMs, assist = true, phase = 0) {
-  if (!assist) return 0
   const seconds = Math.max(0, drawMs) / 1000
   const amplitude = seconds < 0.35
     ? 12 - seconds * 24
     : seconds < 1.25
       ? 3 + Math.abs(seconds - 0.8) * 4
       : Math.min(34, 5 + (seconds - 1.25) * 12)
-  const wave = Math.sin(seconds * 9 + phase) * amplitude
-  return Math.round(wave * 0.5)
+  const naturalSway = Math.round(Math.sin(seconds * 9 + phase) * amplitude * 0.5)
+  return assist ? Math.round(naturalSway * 0.35) : naturalSway
+}
+
+export function withSteadyAim(shot, assist = true, phase = 0) {
+  return { ...shot, sway: steadyAim(shot.drawMs ?? 0, assist, phase) }
 }
 
 export function cpuAim(level, rng = Math.random, distance = 70) {
@@ -163,6 +170,28 @@ export function cpuAim(level, rng = Math.random, distance = 70) {
 export function appendShot(shots, shot) {
   const list = normalizeShots(shots)
   return [...list, shot]
+}
+
+export function advanceArcheryTimeout(game, seats) {
+  if (!game || game.status !== 'playing' || !seats.includes(game.currentTurn)) return null
+  if ((game.archeryPhase || 'main') === 'shootOff') {
+    const delta = advanceArcheryShot(game, { by: game.currentTurn, ax: 900, ay: 900, dr: 600, sway: 0 }, seats)
+    return delta ? { ...game, ...delta } : null
+  }
+
+  let next = game
+  let count = 0
+  while (count < ARROWS_PER_END && next.status === 'playing' && (next.archeryPhase || 'main') === 'main') {
+    const slot = arrowTurn(normalizeShots(next.archeryShots).length, seats, archeryFormat(next.archeryFormat))
+    if (slot.seat !== next.currentTurn) break
+    const delta = advanceArcheryShot(next, { by: next.currentTurn, ax: 900, ay: 900, dr: 600, sway: 0 }, seats)
+    if (!delta) break
+    const sameArcher = delta.currentTurn === next.currentTurn
+    next = { ...next, ...delta }
+    count++
+    if (!sameArcher || (next.archeryPhase || 'main') !== 'main') break
+  }
+  return count ? next : null
 }
 
 export function advanceArcheryShot(game, shot, seats) {

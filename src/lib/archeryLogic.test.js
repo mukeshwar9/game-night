@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  advanceArcheryShot, arrowResult, arrowTurn, cpuAim, matchResult,
-  normalizeShots, scoreArrow, scorecard, shootOffResult, steadyAim, windForShot,
+  advanceArcheryShot, advanceArcheryTimeout, archerySeats, arrowResult, arrowTurn,
+  cpuAim, matchResult, normalizeShots, scoreArrow, scorecard, shootOffResult,
+  steadyAim, windForShot, withSteadyAim,
 } from './archeryLogic'
 
 const seats = ['X', 'O']
@@ -26,6 +27,22 @@ describe('archery scoring and shot replay', () => {
 
   it('normalizes sparse Firebase shot maps without shifting indices', () => {
     expect(normalizeShots({ 0: shot('X'), 2: shot('O') })).toEqual([shot('X'), null, shot('O')])
+  })
+
+  it('keeps fixed party seats and advances a removed archer’s timed-out end as misses', () => {
+    const seatUids = { X: 'alice', O: 'bob', A: 'carol' }
+    const seats = archerySeats(seatUids)
+    const room = {
+      status: 'playing', currentTurn: 'X', archeryFormat: 'quick', archerySeed: 1,
+      archerySeatUids: seatUids, archeryShots: [],
+    }
+    const next = advanceArcheryTimeout(room, seats)
+
+    expect(seats).toEqual(['X', 'O', 'A'])
+    expect(next.currentTurn).toBe('O')
+    expect(next.archeryShots).toHaveLength(3)
+    expect(next.archeryShots.map(shot => shot.by)).toEqual(['X', 'X', 'X'])
+    expect(scorecard(next.archeryShots, seats, room.archerySeed, 'quick').X).toMatchObject({ score: 0, arrows: 3 })
   })
 
   it('keeps each archer on three arrows before rotating ends', () => {
@@ -85,10 +102,12 @@ describe('archery scoring and shot replay', () => {
     expect(game.currentTurn).toBe('X')
   })
 
-  it('bounds CPU spread and provides a deterministic STEADY AIM assist', () => {
+  it('bounds CPU spread and makes STEADY AIM reduce natural sway', () => {
     expect(cpuAim(3, () => 0.5)).toEqual({ ax: 0, ay: 0, dr: 940 })
     expect(cpuAim(1, () => 0.5, 50).dr).toBe(850)
-    expect(steadyAim(800, true, 0.5)).toBe(1)
-    expect(steadyAim(2000, false)).toBe(0)
+    expect(steadyAim(800, false, 0.5)).toBe(1)
+    expect(steadyAim(800, true, 0.5)).toBe(0)
+    expect(withSteadyAim({ ax: 0, dr: 850, drawMs: 800 }, false, 0.5).sway).toBe(1)
+    expect(withSteadyAim({ ax: 0, dr: 850, drawMs: 800 }, true, 0.5).sway).toBe(0)
   })
 })
