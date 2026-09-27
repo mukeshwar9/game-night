@@ -1,11 +1,14 @@
 // Dev-only preview (DEV-only route, never ships): game art options A/B +
 // GIF-like how-to-play clips, all on the same 3 games.
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { GameArtImg, GameArtSvg } from '../components/GameArt'
 import RuleClip from '../components/RuleClips'
 import GameCard from '../components/GameCard'
 import { getGameConfig, GAME_TYPES } from '../lib/games'
 import { getRules } from '../lib/rules'
+import FilterButton, { ViewTabs } from '../components/GameFilters'
+import { passesFilters } from '../lib/gameFilters'
 
 const DEMO_TYPES = ['tictactoe', 'connectfour', 'pong']
 const BOARD_TYPES = GAME_TYPES.filter(t => t.category === 'board').map(t => t.type)
@@ -78,6 +81,61 @@ function ClipCard({ type }) {
   )
 }
 
+// Working mock of the proposed filter redesign: categories keep their chips
+// (visual only here), facets move into the FILTERS sheet — fully functional.
+// The grid below filters live, and the view tabs switch its layout.
+function FilterPreview() {
+  const [filters, setFilters] = useState({})
+  const [view, setView] = useState('detailed')
+  const toggle = (key) => setFilters(f => ({ ...f, [key]: !f[key] }))
+  const matches = GAME_TYPES.filter(t => !t.variantOf && passesFilters(t, filters))
+  const shown = matches.slice(0, 12)
+  const gridClass = view === 'detailed'
+    ? 'grid grid-cols-3 gap-2'
+    : view === 'mini'
+      ? 'flex flex-col gap-1'
+      : 'grid grid-cols-2 gap-2'
+  return (
+    <div className="space-y-2 max-w-md">
+      <div>
+        <h2 className="font-pixel text-[9px] text-retro-cta tracking-widest">FILTERS, REDESIGNED (WORKING MOCK)</h2>
+        <p className="font-mono text-[11px] text-retro-dim mt-1">
+          Categories keep their chips. Facets move into the sheet — tap FILTERS, toggle, watch the grid.
+        </p>
+      </div>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        {['ALL 71', 'BOARD 26', 'REFLEX 18', 'MEMORY 5'].map((c, i) => (
+          <span
+            key={c}
+            aria-hidden="true"
+            className={i === 0
+              ? 'shrink-0 min-h-11 px-3.5 inline-flex items-center rounded border border-retro-cta font-pixel text-[9px] text-retro-cta bg-retro-tint-cta'
+              : 'shrink-0 min-h-11 px-3.5 inline-flex items-center rounded border border-retro-border font-pixel text-[9px] text-retro-dim'}
+          >
+            {c}
+          </span>
+        ))}
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <FilterButton filters={filters} onToggle={toggle} onReset={() => setFilters({})} resultCount={matches.length} />
+        <ViewTabs view={view} onSelect={setView} />
+      </div>
+      {matches.length === 0 ? (
+        <p className="font-pixel text-[9px] text-retro-dim border border-retro-border rounded p-4 text-center">NO GAMES MATCH THESE FILTERS</p>
+      ) : (
+        <div className={gridClass}>
+          {shown.map(g => (
+            <GameCard key={g.type} game={g} onTap={() => {}} layout={view === 'detailed' ? 'tile' : view === 'mini' ? 'mini' : 'row'} />
+          ))}
+        </div>
+      )}
+      {matches.length > shown.length && (
+        <p className="font-mono text-[11px] text-retro-dim">+ {matches.length - shown.length} more match</p>
+      )}
+    </div>
+  )
+}
+
 export default function ArtDemo() {
   return (
     <main className="min-h-screen bg-retro-bg p-4">
@@ -111,6 +169,8 @@ export default function ArtDemo() {
             ))}
           </div>
         </div>
+
+        <FilterPreview />
 
         <div className="space-y-2 max-w-md">
           <h2 className="font-pixel text-[9px] text-retro-cta tracking-widest">HOW TO ADD THE NEXT GAME</h2>

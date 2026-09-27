@@ -9,20 +9,15 @@ import GameOptionsSheet from './GameOptionsSheet'
 import GameCard from './GameCard'
 import NewGamesRail from './NewGamesRail'
 import EmptyState from './EmptyState'
-import { cn } from '@/lib/utils'
+import FilterButton, { ViewTabs } from './GameFilters'
+import { FILTER_DEFS } from '../lib/gameFilters'
 
 // Variant entries (those with `variantOf`) are hidden from the grid and surfaced
 // as a "choose mode" step when their base game is picked.
 const variantsFor = (baseType) => GAME_TYPES.filter(t => t.variantOf === baseType)
 
-// Decision-support facet chips (layout="full" only). Toggleable, AND-combined.
-const FILTER_DEFS = [
-  { key: 'quick', label: 'QUICK', test: (t) => (t.durationMin ?? Infinity) <= 3 },
-  { key: 'thinky', label: 'THINKY', test: (t) => (t.tags || []).includes('thinky') },
-  { key: 'solo', label: 'SOLO OK', test: (t) => t.solo === true },
-  { key: 'coop', label: 'CO-OP', test: (t) => t.coop === true },
-]
-
+// Facet definitions live in lib/gameFilters.js (shared with the
+// FILTERS sheet); the toggle state below stays session-persisted here.
 // M-82: filters/query survive a round-trip to a game and back (Home fully
 // unmounts on navigation, so this can't live in useState alone). Scoped to
 // layout="full" (the Games catalog) — GameSwitcher's compact picker always
@@ -295,102 +290,27 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
     </div>
   )
 
+  const filterMatchCount = GAME_TYPES.filter(t => !isHidden(t) && passesFilters(t)).length
   const viewTabs = isFull && (
     <div className="flex items-center justify-between gap-2">
-      <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
-        {isSearching ? `${searchResults.length} RESULT${searchResults.length === 1 ? '' : 'S'}` : 'BROWSE'}
-      </p>
-      <div role="group" aria-label="Card view" className="shrink-0 flex min-h-11 rounded-lg border border-retro-border bg-retro-card overflow-hidden divide-x divide-retro-border">
-        <button
-          type="button"
-          onClick={() => selectView('detailed')}
-          aria-pressed={view === 'detailed'}
-          title="Detailed view"
-          aria-label="Detailed view"
-          className={cn(
-            'w-11 min-h-11 flex items-center justify-center transition-colors',
-            view === 'detailed' ? 'bg-retro-tint-cta text-retro-cta' : 'text-retro-dim hover:text-retro-text',
-          )}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-            <rect x="1" y="1" width="6" height="6" rx="1" />
-            <rect x="9" y="1" width="6" height="6" rx="1" />
-            <rect x="1" y="9" width="6" height="6" rx="1" />
-            <rect x="9" y="9" width="6" height="6" rx="1" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={() => selectView('compact')}
-          aria-pressed={view === 'compact'}
-          title="Compact view"
-          aria-label="Compact view"
-          className={cn(
-            'w-11 min-h-11 flex items-center justify-center transition-colors',
-            view === 'compact' ? 'bg-retro-tint-cta text-retro-cta' : 'text-retro-dim hover:text-retro-text',
-          )}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <line x1="2" y1="4" x2="14" y2="4" />
-            <line x1="5" y1="8" x2="11" y2="8" />
-            <line x1="2" y1="12" x2="14" y2="12" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={() => selectView('mini')}
-          aria-pressed={view === 'mini'}
-          title="Ultra-compact list"
-          aria-label="Ultra-compact list"
-          className={cn(
-            'w-11 min-h-11 flex items-center justify-center transition-colors',
-            view === 'mini' ? 'bg-retro-tint-cta text-retro-cta' : 'text-retro-dim hover:text-retro-text',
-          )}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <line x1="2" y1="3" x2="14" y2="3" />
-            <line x1="2" y1="6.5" x2="14" y2="6.5" />
-            <line x1="2" y1="10" x2="14" y2="10" />
-            <line x1="2" y1="13.5" x2="14" y2="13.5" />
-          </svg>
-        </button>
-      </div>
+      <FilterButton
+        filters={filters}
+        onToggle={toggleFilter}
+        onReset={() => setFilters({})}
+        resultCount={isSearching ? searchResults.length : filterMatchCount}
+      />
+      <ViewTabs view={view} onSelect={selectView} />
     </div>
   )
-
-  const filterChipClass = (active) => cn(
-    'min-h-11 px-3.5 shrink-0 snap-start whitespace-nowrap inline-flex items-center justify-center rounded border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
-    active
-      ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
-      : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
-  )
-
-  const filterChips = isFull && FILTER_DEFS.map(f => (
-    <button
-      key={f.key}
-      onClick={() => toggleFilter(f.key)}
-      aria-pressed={!!filters[f.key]}
-      className={filterChipClass(!!filters[f.key])}
-    >
-      {f.label}
-    </button>
-  ))
-
-  // Search hides the category tabs entirely (categories don't apply to a
-  // free-text result set) but filters stay reachable via their own row.
-  const chipRow = isSearching ? (
-    <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-1 pb-1">
-      {filterChips}
-    </div>
-  ) : (
+  // Search hides the category tabs (they don't apply to free text) — facet
+  // filtering stays available through the FILTERS button in every mode.
+  const chipRow = isSearching ? null : (
     <CategoryTabs
       categories={categoriesWithAll}
       active={activeCat}
       onSelect={isFull ? jumpTo : setActiveCat}
-      trailing={isFull ? <><div className="w-px shrink-0 self-stretch bg-retro-border" aria-hidden="true" />{filterChips}</> : undefined}
     />
   )
-
   return (
     <div className="space-y-3">
       {/* M-42: search/filters/tabs stay reachable through the full scroll —
