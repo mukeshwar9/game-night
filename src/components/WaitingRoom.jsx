@@ -13,6 +13,7 @@ import TimerScalePicker from './TimerScalePicker'
 import { amHost } from '../lib/night'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
+import { ARCHERY_FORMATS, archeryFormat } from '../lib/archeryLogic'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
 
@@ -25,6 +26,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
   const [shareBusy, runShare] = useBusy()
   const [startBusy, runStart] = useBusy()
   const [pongModeBusy, runPongMode] = useBusy()
+  const [archeryFormatBusy, runArcheryFormat] = useBusy()
   const [pendingPongMode, setPendingPongMode] = useState(null)
 
   // Lobby (challenge-created) rooms get a game picker + generalized START
@@ -52,6 +54,13 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
       () => update(ref(db, `games/${gameId}`), { pongMode: id }),
       () => toast.error("COULDN'T SET THE MODE — TRY AGAIN"),
     ).finally(() => setPendingPongMode(null))
+  }
+
+  const setArcheryFormat = (format) => {
+    if (format === archeryFormat(game?.archeryFormat)) return
+    runArcheryFormat(async () => {
+      await update(ref(db, `games/${gameId}`), { archeryFormat: format })
+    }, () => toast.error('COULDN\'T SET RANGE FORMAT — TRY AGAIN'))
   }
 
   const setMatchLength = async (n) => {
@@ -215,6 +224,23 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           ) : (
             <p className="font-pixel text-[8px] text-retro-dim/70">WAITING FOR A PLAYER TO START</p>
           )}
+        </div>
+      )}
+
+      {gameType === 'archery' && (
+        <div className="w-full space-y-2 rounded border border-retro-border bg-retro-card p-3 text-center">
+          <p className="font-pixel text-[9px] tracking-wider text-retro-dim">RANGE FORMAT · HOST PICKS</p>
+          <div className="grid grid-cols-3 gap-2">
+            {Object.entries(ARCHERY_FORMATS).map(([id, format]) => (
+              <button key={id} type="button" disabled={mySymbol !== 'X' || archeryFormatBusy || startBusy}
+                onClick={() => setArcheryFormat(id)}
+                className={cn('min-h-11 rounded border-2 px-1 font-pixel text-[8px] transition-all',
+                  archeryFormat(game?.archeryFormat) === id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta' : 'border-retro-border bg-retro-surface text-retro-dim',
+                  (mySymbol !== 'X' || archeryFormatBusy) && 'opacity-60')}
+              >{format.label}<span className="mt-1 block text-[7px] opacity-80">{format.ends} × 3</span></button>
+            ))}
+          </div>
+          {mySymbol !== 'X' && <p className="font-pixel text-[8px] text-retro-dim/70">X PICKS THE RANGE LENGTH</p>}
         </div>
       )}
 

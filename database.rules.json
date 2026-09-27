@@ -535,6 +535,58 @@
             ".validate": "newData.isNumber()"
           }
         },
+        "archeryFormat": {
+          ".validate": "(newData.val() === 'quick' || newData.val() === 'standard' || newData.val() === 'marathon') && (newData.val() === data.val() || (newData.parent().child('status').val() === 'waiting' || newData.parent().child('status').val() === 'playing' && !newData.parent().child('archeryShots').exists()) && (newData.parent().child('hostUid').val() === auth.uid || newData.parent().child('players').child('X').child('playerId').val() === auth.uid || newData.parent().child('gameType').val() === 'archery4' && newData.parent().child('players').child(auth.uid).child('playerId').val() === auth.uid))"
+        },
+        "archerySeed": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && (newData.val() === data.val() || !data.exists() || data.parent().child('status').val() === 'finished' || data.parent().child('status').val() === 'waiting')"
+        },
+        "archeryPhase": {
+          ".validate": "newData.val() === 'main' || newData.val() === 'shootOff'"
+        },
+        "archeryTurnStartedAt": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now"
+        },
+        "archerySeatUids": {
+          "$seat": {
+            ".validate": "($seat === 'X' || $seat === 'O' || $seat === 'A' || $seat === 'B') && newData.isString() && newData.val().length >= 1 && newData.val().length <= 128 && (newData.val() === data.val() || !data.exists() && data.parent().parent().child('status').val() === 'waiting' && newData.parent().parent().child('players').child(newData.val()).child('playerId').val() === newData.val())"
+          }
+        },
+        "archeryTied": {
+          "$i": {
+            ".validate": "$i.matches(/^[0-3]$/) && (newData.val() === 'X' || newData.val() === 'O' || newData.val() === 'A' || newData.val() === 'B')"
+          }
+        },
+        "archeryShots": {
+          ".validate": "(newData.parent().child('gameType').val() === 'archery' || newData.parent().child('gameType').val() === 'archery4')",
+          "$i": {
+            ".validate": "$i.matches(/^(0|[1-9][0-9]{0,2})$/) && newData.hasChildren(['by','ax','ay','dr','sway','distance','shotIndex','wind']) && ((data.exists() && newData.child('by').val() === data.child('by').val() && newData.child('ax').val() === data.child('ax').val() && newData.child('ay').val() === data.child('ay').val() && newData.child('dr').val() === data.child('dr').val() && newData.child('sway').val() === data.child('sway').val() && newData.child('distance').val() === data.child('distance').val() && newData.child('shotIndex').val() === data.child('shotIndex').val() && newData.child('wind').val() === data.child('wind').val()) || (!data.exists() && newData.child('by').val() === data.parent().parent().child('currentTurn').val() && ((data.parent().parent().child('gameType').val() === 'archery4' && data.parent().parent().child('archerySeatUids').child(newData.child('by').val()).val() === auth.uid) || (data.parent().parent().child('gameType').val() === 'archery' && data.parent().parent().child('players').child(newData.child('by').val()).child('playerId').val() === auth.uid) || (data.parent().parent().child('archeryTurnStartedAt').val() + 30000 < now && (data.parent().parent().child('players').child('X').child('playerId').val() === auth.uid || data.parent().parent().child('players').child('O').child('playerId').val() === auth.uid || data.parent().parent().child('players').child(auth.uid).child('playerId').val() === auth.uid)))))",
+            "by": { ".validate": "newData.isString() && (newData.val() === 'X' || newData.val() === 'O' || newData.val() === 'A' || newData.val() === 'B')" },
+            "ax": { ".validate": "newData.isNumber() && newData.val() >= -1000 && newData.val() <= 1000" },
+            "ay": { ".validate": "newData.isNumber() && newData.val() >= -1000 && newData.val() <= 1000" },
+            "dr": { ".validate": "newData.isNumber() && newData.val() >= 600 && newData.val() <= 1000" },
+            "sway": { ".validate": "newData.isNumber() && newData.val() >= -40 && newData.val() <= 40" },
+            "distance": { ".validate": "newData.isNumber() && newData.val() >= 18 && newData.val() <= 70" },
+            "shotIndex": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
+            "wind": { ".validate": "newData.isNumber() && newData.val() >= -100 && newData.val() <= 100" },
+            "$other": { ".validate": "false" }
+          }
+        },
+        "archeryShootOffShots": {
+          ".validate": "(newData.parent().child('gameType').val() === 'archery' || newData.parent().child('gameType').val() === 'archery4')",
+          "$i": {
+            ".validate": "$i.matches(/^(0|[1-9][0-9]{0,2})$/) && newData.hasChildren(['by','ax','ay','dr','sway','distance','shotIndex','wind']) && newData.child('distance').val() === 70 && ((data.exists() && newData.child('by').val() === data.child('by').val() && newData.child('ax').val() === data.child('ax').val() && newData.child('ay').val() === data.child('ay').val() && newData.child('dr').val() === data.child('dr').val() && newData.child('sway').val() === data.child('sway').val() && newData.child('shotIndex').val() === data.child('shotIndex').val() && newData.child('wind').val() === data.child('wind').val()) || (!data.exists() && newData.child('by').val() === data.parent().parent().child('currentTurn').val() && ((data.parent().parent().child('gameType').val() === 'archery4' && data.parent().parent().child('archerySeatUids').child(newData.child('by').val()).val() === auth.uid) || (data.parent().parent().child('gameType').val() === 'archery' && data.parent().parent().child('players').child(newData.child('by').val()).child('playerId').val() === auth.uid) || (data.parent().parent().child('archeryTurnStartedAt').val() + 30000 < now && (data.parent().parent().child('players').child('X').child('playerId').val() === auth.uid || data.parent().parent().child('players').child('O').child('playerId').val() === auth.uid || data.parent().parent().child('players').child(auth.uid).child('playerId').val() === auth.uid)))))",
+            "by": { ".validate": "newData.isString() && (newData.val() === 'X' || newData.val() === 'O' || newData.val() === 'A' || newData.val() === 'B')" },
+            "ax": { ".validate": "newData.isNumber() && newData.val() >= -1000 && newData.val() <= 1000" },
+            "ay": { ".validate": "newData.isNumber() && newData.val() >= -1000 && newData.val() <= 1000" },
+            "dr": { ".validate": "newData.isNumber() && newData.val() >= 600 && newData.val() <= 1000" },
+            "sway": { ".validate": "newData.isNumber() && newData.val() >= -40 && newData.val() <= 40" },
+            "distance": { ".validate": "newData.isNumber() && newData.val() === 70" },
+            "shotIndex": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
+            "wind": { ".validate": "newData.isNumber() && newData.val() >= -100 && newData.val() <= 100" },
+            "$other": { ".validate": "false" }
+          }
+        },
         "stack": {
           ".validate": "newData.hasChildren(['base','round','seed','order','hearts','turn','phase','cp'])",
           "base": {
