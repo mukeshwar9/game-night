@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { cn } from '@/lib/utils'
 
@@ -61,8 +61,14 @@ const TABS = [
 ]
 
 export default function BottomTabBar() {
-  const { requestCount = 0, inviteCount = 0 } = useAuth()
+  const { requestCount = 0, inviteCount = 0, onlineFriendCount = 0 } = useAuth()
   const counts = { requestCount, inviteCount }
+  const { pathname } = useLocation()
+  // Ambient presence signal, not an action: a green dot (bottom-right) when
+  // any friend is online. Suppressed on /friends itself — you're already
+  // looking at the list. The number pill (top-right) stays reserved for
+  // actionable counts (requests/invites) only.
+  const showOnlineDot = onlineFriendCount > 0 && pathname !== '/friends'
 
   return (
     <nav
@@ -92,6 +98,15 @@ export default function BottomTabBar() {
                       <span className="absolute -top-1.5 -right-2 min-w-[13px] h-[13px] px-0.5 rounded-full
                         bg-retro-p1 text-retro-bg font-pixel text-[8px] flex items-center justify-center">
                         {badgeCount > 9 ? '9+' : badgeCount}
+                      </span>
+                    )}
+                    {tab.to === '/friends' && showOnlineDot && (
+                      <span
+                        className="absolute -bottom-1 -right-1.5 w-2.5 h-2.5 rounded-full
+                          bg-retro-win border-2 border-retro-bg"
+                        title={`${onlineFriendCount} friend${onlineFriendCount === 1 ? '' : 's'} online`}
+                      >
+                        <span className="sr-only">{onlineFriendCount} friends online</span>
                       </span>
                     )}
                   </span>

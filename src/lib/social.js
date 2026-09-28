@@ -298,6 +298,14 @@ export function subscribeFriends(cb) {
   })
 }
 
+// Presence-only read for the tab-bar online dot — cheaper than
+// subscribeProfile (no public-profile fan-out). Denied reads (non-friends)
+// emit null and simply count as offline.
+export function subscribePresence(uid, cb) {
+  if (!db || !uid) { cb(null); return () => {} }
+  return onValue(ref(db, `presence/${uid}`), snap => cb(snap.val()), () => cb(null))
+}
+
 export function subscribeRequests(cb) {
   const me = getUid()
   if (!db || !me) { cb([]); return () => {} }
