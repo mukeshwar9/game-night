@@ -29,8 +29,10 @@ export const COLOR_LETTERS = {
 }
 
 export const INDICATOR_LABELS = ['SIG', 'CLR', 'BUS', 'FRQ', 'NAV', 'AUX', 'VNT', 'TRN']
-export const MODULE_TYPES = ['wires', 'keypad', 'lever', 'maze']
-export const MODULE_NAMES = { wires: 'WIRES', keypad: 'GLYPHS', lever: 'LEVER', maze: 'PIPES' }
+export const LEGACY_MODULE_TYPES = ['wires', 'keypad', 'lever', 'maze']
+export const MODULE_TYPES = [...LEGACY_MODULE_TYPES, 'switchboard']
+export const MODULE_NAMES = { wires: 'WIRES', keypad: 'GLYPHS', lever: 'LEVER', maze: 'PIPES', switchboard: 'SWITCHES' }
+export const SWITCH_COUNT = 5
 
 export const GLYPH_COUNT = 24
 export const KEYPAD_COLUMNS = 5
@@ -361,9 +363,26 @@ function genMaze(rng, level) {
 }
 
 // ---------------------------------------------------------------------------
+// Module: SWITCHBOARD
+
+function genSwitchboard(rng) {
+  const leds = Array.from({ length: SWITCH_COUNT }, () => rng() < 0.5)
+  const invert = sample(rng, Array.from({ length: SWITCH_COUNT }, (_, i) => i), 2).sort((a, b) => a - b)
+  const inverted = new Set(invert)
+  const solution = leds.map((lit, i) => inverted.has(i) ? !lit : lit)
+  return { type: 'switchboard', device: { leds }, manual: { invert }, solution }
+}
+
+/** Correct switch states: lit LED means ON, except numbered breakers in `invert`. */
+export function solveSwitchboard(module) {
+  const inverted = new Set(module.manual.invert)
+  return module.device.leds.map((lit, i) => inverted.has(i) ? !lit : lit)
+}
+
+// ---------------------------------------------------------------------------
 // Whole bomb
 
-const GENERATORS = { wires: genWires, keypad: genKeypad, lever: genLever, maze: genMaze }
+const GENERATORS = { wires: genWires, keypad: genKeypad, lever: genLever, maze: genMaze, switchboard: genSwitchboard }
 
 export const moduleCountForLevel = (level) => (level <= 2 ? 3 : 4)
 export const bombMsForLevel = (level) => (level >= 5 ? BOMB_MS_HARD : BOMB_MS)
@@ -372,15 +391,17 @@ export const bombMsForLevel = (level) => (level >= 5 ? BOMB_MS_HARD : BOMB_MS)
  * Derive the whole bomb — device and manual — from the room seed and level.
  * Deterministic: both screens call this and must agree.
  */
-export function generateBomb(seed, level = 1) {
+export function generateBomb(seed, level = 1, generatorVersion = 2) {
   const lvl = Number.isInteger(level) && level >= 1 ? level : 1
+  const version = generatorVersion === 1 ? 1 : 2
   const rng = makeRng(`wirecrossed:${seed}`)
   const serial = makeSerial(rng)
   const indicators = makeIndicators(rng)
   const ruleset = `${pick(rng, SERIAL_LETTERS)}-${int(rng, 1, 9)}`
-  const types = sample(rng, MODULE_TYPES, moduleCountForLevel(lvl))
+  const pool = version === 1 ? LEGACY_MODULE_TYPES : MODULE_TYPES
+  const types = sample(rng, pool, moduleCountForLevel(lvl))
   const modules = types.map(type => GENERATORS[type](rng, lvl))
-  return { seed: String(seed), level: lvl, serial, indicators, ruleset, modules, durationMs: bombMsForLevel(lvl) }
+  return { seed: String(seed), level: lvl, generatorVersion: version, serial, indicators, ruleset, modules, durationMs: bombMsForLevel(lvl) }
 }
 
 // ---------------------------------------------------------------------------
@@ -540,6 +561,17 @@ function judge(module, bomb, wire, i, action) {
         text: `MOVED ${DIRS[action.dir].word}${ok ? '' : ' — PIPE WALL'}`,
       }
     }
+    case 'switchboard': {
+      if (action.kind !== 'commit' || !Array.isArray(action.states)
+        || action.states.length !== SWITCH_COUNT || !action.states.every(state => typeof state === 'boolean')) return null
+      const ok = action.states.every((state, index) => state === module.solution[index])
+      return {
+        ok,
+        solved: ok,
+        progress: { ...progress, submitted: action.states },
+        text: 'COMMITTED SWITCH PATTERN',
+      }
+    }
     default:
       return null
   }
@@ -550,7 +582,7 @@ function judge(module, bomb, wire, i, action) {
  *
  * @param {any} wire - live `wire` node
  * @param {ReturnType<typeof generateBomb>} bomb
- * @param {{ mod: number, kind: string, wire?: number, glyph?: number, clock?: string, dir?: string }} action
+ * @param {{ mod: number, kind: string, wire?: number, glyph?: number, clock?: string, dir?: string, states?: boolean[] }} action
  * @param {number} now - server time
  * @param {'X'|'O'} [by]
  * @returns {{ wire: any, ok: boolean | null } | null} null when the action is

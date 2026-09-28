@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import useGameKeys from '../../hooks/useGameKeys'
 import {
-  COLOR_LETTERS, COLOR_NAMES, DIRS, MAZE_CELLS, MAZE_SIZE, TAP_MAX_MS,
+  COLOR_LETTERS, COLOR_NAMES, DIRS, MAZE_CELLS, MAZE_SIZE, SWITCH_COUNT, TAP_MAX_MS,
   cellName, isCut, mazePos, pressedCount,
 } from '../../lib/wireLogic'
 import WireGlyph from './WireGlyph'
@@ -174,6 +174,49 @@ function LeverPanel({ module, index, onAction, disabled, clock }) {
   )
 }
 
+function SwitchboardPanel({ module, index, onAction, disabled, busy }) {
+  const [states, setStates] = useState(() => Array(SWITCH_COUNT).fill(false))
+  const toggle = (switchIndex) => setStates(current => current.map((state, i) => i === switchIndex ? !state : state))
+  return (
+    <div className="space-y-3">
+      <p className="text-center font-pixel text-[8px] text-retro-dim">LED PATTERN · DESCRIBE TO HANDBOOK</p>
+      <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Switchboard LEDs">
+        {module.device.leds.map((lit, i) => (
+          <div key={i} className="flex flex-col items-center gap-1 rounded border border-retro-border bg-retro-deep px-1 py-2">
+            <span className={cn('w-4 h-4 rounded-full border-2', lit ? 'border-retro-cta bg-retro-cta shadow-neon-cta' : 'border-retro-structure bg-retro-card')} aria-hidden="true" />
+            <span className="font-pixel text-[7px] text-retro-text">{i + 1}</span>
+            <span className="font-mono text-[8px] text-retro-dim">{lit ? 'ON' : 'OFF'}</span>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Switches">
+        {states.map((on, i) => (
+          <button
+            key={i}
+            type="button"
+            disabled={disabled || busy}
+            aria-pressed={on}
+            aria-label={`Switch ${i + 1}, ${on ? 'ON' : 'OFF'}`}
+            onClick={() => toggle(i)}
+            className={cn(
+              'min-h-14 rounded border-2 flex flex-col items-center justify-center gap-1 font-pixel text-[7px] disabled:opacity-50',
+              on ? 'border-retro-win bg-retro-tint-p1 text-retro-win' : 'border-retro-border bg-retro-card text-retro-dim',
+            )}
+          >
+            <span>{i + 1}</span><span>{on ? 'ON' : 'OFF'}</span>
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        disabled={disabled || busy}
+        onClick={() => onAction({ mod: index, kind: 'commit', states })}
+        className="w-full min-h-11 rounded bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider disabled:opacity-40"
+      >{busy ? 'CHECKING…' : 'COMMIT PATTERN'}</button>
+    </div>
+  )
+}
+
 const PAD = [
   { dir: 'N', label: '▲', area: 'col-start-2' },
   { dir: 'W', label: '◀', area: 'col-start-1 row-start-2' },
@@ -235,7 +278,7 @@ function MazeCellTech({ cell, pos, exit }) {
   )
 }
 
-const PANELS = { wires: WiresPanel, keypad: KeypadPanel, lever: LeverPanel, maze: MazePanel }
+const PANELS = { wires: WiresPanel, keypad: KeypadPanel, lever: LeverPanel, maze: MazePanel, switchboard: SwitchboardPanel }
 
 export default function WireDevice({ module, ...props }) {
   const Panel = PANELS[module.type]

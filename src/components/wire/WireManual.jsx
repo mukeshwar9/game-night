@@ -145,7 +145,27 @@ function MazeCellManual({ cell, open, device }) {
   )
 }
 
-const MANUALS = { wires: WiresManual, keypad: KeypadManual, lever: LeverManual, maze: MazeManual }
+function SwitchboardManual({ manual }) {
+  const inverted = new Set(manual.invert)
+  return (
+    <Section
+      title="SWITCHBOARD"
+      intro="Ask the Tech to read the five LEDs from left to right. A lit LED means its switch is ON; an unlit LED means OFF. Then invert the marked switch positions."
+    >
+      <ol className="space-y-2">
+        {Array.from({ length: 5 }, (_, i) => (
+          <li key={i} className="flex gap-2 font-mono text-[11px] leading-snug text-retro-text">
+            <span className="font-pixel text-[9px] text-retro-dim pt-0.5">{i + 1}.</span>
+            <span>Switch {i + 1}: {inverted.has(i) ? <b className="text-retro-cta">reverse the LED state</b> : 'match the LED state'}.</span>
+          </li>
+        ))}
+      </ol>
+      <p className="font-mono text-[11px] leading-relaxed text-retro-text">When all five switches are set, tell the Tech to <b className="text-retro-cta">COMMIT PATTERN</b>.</p>
+    </Section>
+  )
+}
+
+const MANUALS = { wires: WiresManual, keypad: KeypadManual, lever: LeverManual, maze: MazeManual, switchboard: SwitchboardManual }
 
 /**
  * @param {{ bomb: any, tab: number, onTab: (i: number) => void, solved: (i: number) => boolean }} props

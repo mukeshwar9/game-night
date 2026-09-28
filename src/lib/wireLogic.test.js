@@ -1,10 +1,11 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
   applyTimeout, applyWireAction, armWire, bombMsForLevel, cellName, clockText, describeWireAction,
   describeWireCond, formatClock, generateBomb, isOpen, makeRng, mazeDistances, mazePos,
   moduleCountForLevel, normalizeWireStats, pressedCount, solveLever, solveWires, stepCell,
   BOMB_MS, BOMB_MS_HARD, GLYPH_COUNT, KEYPAD_COLUMNS, KEYPAD_KEYS, MAX_STRIKES, MAZE_CELLS,
-  MODULE_TYPES, STRIKE_PENALTY_MS,
+  LEGACY_MODULE_TYPES, MODULE_TYPES, STRIKE_PENALTY_MS, SWITCH_COUNT, solveSwitchboard,
 } from './wireLogic'
 
 const SEEDS = Array.from({ length: 60 }, (_, i) => `seed-${i}`)
@@ -30,6 +31,7 @@ function solveAction(bomb, i, wire) {
     const sol = solveLever(m, bomb)
     return [sol.tap ? { mod: i, kind: 'tap' } : { mod: i, kind: 'release', clock: `0:${sol.digit}0` }]
   }
+  if (m.type === 'switchboard') return [{ mod: i, kind: 'commit', states: solveSwitchboard(m) }]
   // maze: walk the shortest path
   const moves = []
   let pos = mazePos(wire, i, m)
@@ -80,9 +82,33 @@ describe('generateBomb', () => {
     for (const seed of SEEDS.slice(0, 20)) {
       const easy = generateBomb(seed, 1)
       const hard = generateBomb(seed, 4)
+      const legacy = generateBomb(seed, 4, 1)
       expect(easy.modules).toHaveLength(3)
-      expect(hard.modules.map(m => m.type).sort()).toEqual([...MODULE_TYPES].sort())
+      expect(hard.modules).toHaveLength(4)
+      expect(new Set(hard.modules.map(m => m.type)).size).toBe(4)
+      expect(legacy.modules.map(m => m.type).sort()).toEqual([...LEGACY_MODULE_TYPES].sort())
       expect(new Set(easy.modules.map(m => m.type)).size).toBe(3)
+    }
+  })
+
+  it('eventually deals every v2 module while preserving legacy v1 pool', () => {
+    const seen = new Set(SEEDS.flatMap(seed => generateBomb(seed, 1).modules.map(m => m.type)))
+    expect([...seen].sort()).toEqual([...MODULE_TYPES].sort())
+  })
+
+  it('keeps seeded v1 bombs byte-for-byte compatible across all existing tiers', () => {
+    const expected = {
+      1: '4ef19bc38c02a1f6ab6605c6907831422bdfeb7165dadab67a40dd8e9dbe6a7a',
+      2: 'da4ea2627c927fa953f6a8cb5841117f213457d9103d74e8a755fa7f167284ae',
+      3: 'bf2fe7bcdc08c142342564404c762ab8eeeb487641a04683e059d2c440b8b504',
+      4: '057a2796dfdf4ade1134d842f1205d5e8034e10376f81beeb2f1efcc8b5d65af',
+      5: '63712d907575238c28626e9bca2f7063be6d2f40413d2f24eded5e59cf3b5594',
+      6: 'be3bbfb24ca455a87293a658d9cfb911ac888ed2e5c597d523bfaabfc1375ec1',
+    }
+    for (const [level, hash] of Object.entries(expected)) {
+      const { generatorVersion, ...legacyBomb } = generateBomb('compatibility-proof', Number(level), 1)
+      expect(generatorVersion).toBe(1)
+      expect(createHash('sha256').update(JSON.stringify(legacyBomb)).digest('hex')).toBe(hash)
     }
   })
 
@@ -146,7 +172,7 @@ describe('wires module', () => {
 describe('glyph keypad module', () => {
   it('shows four glyphs from exactly one manual column', () => {
     for (const seed of SEEDS) {
-      const bomb = generateBomb(seed, 4)
+      const bomb = generateBomb(seed, 4, 1)
       const m = bomb.modules.find(x => x.type === 'keypad')
       expect(m.manual.columns).toHaveLength(KEYPAD_COLUMNS)
       expect(m.device.keys).toHaveLength(KEYPAD_KEYS)
@@ -180,10 +206,24 @@ describe('lever module', () => {
   })
 })
 
+describe('switchboard module', () => {
+  it('has five visible LEDs and one deterministic target pattern', () => {
+    const modules = SEEDS.flatMap(seed => generateBomb(seed, 3).modules).filter(m => m.type === 'switchboard')
+    expect(modules.length).toBeGreaterThan(0)
+    for (const m of modules) {
+      expect(m.device.leds).toHaveLength(SWITCH_COUNT)
+      expect(m.manual.invert).toHaveLength(2)
+      expect(new Set(m.manual.invert).size).toBe(2)
+      expect(solveSwitchboard(m)).toEqual(m.solution)
+      expect(solveSwitchboard(m)).toHaveLength(SWITCH_COUNT)
+    }
+  })
+})
+
 describe('pipe maze module', () => {
   it('carves a perfect maze with a reachable exit far from the start', () => {
     for (const seed of SEEDS) {
-      const m = generateBomb(seed, 4).modules.find(x => x.type === 'maze')
+      const m = generateBomb(seed, 4, 1).modules.find(x => x.type === 'maze')
       const dist = mazeDistances(m.manual.open, m.device.start)
       expect(dist.every(d => Number.isFinite(d))).toBe(true)
       expect(dist[m.device.exit]).toBeGreaterThanOrEqual(5)
@@ -265,6 +305,20 @@ describe('applyWireAction', () => {
       expect(miss.ok).toBe(false)
       expect(applyWireAction(wire, bomb, { mod: i, kind: 'release', clock: `1:${sol.digit}${other}` }, 2000).ok).toBe(true)
     }
+  })
+
+  it('accepts the switchboard pattern, strikes wrong patterns, and rejects malformed payloads', () => {
+    const { bomb, i, seed } = bombWith('switchboard')
+    const module = bomb.modules[i]
+    const correct = solveSwitchboard(module)
+    const start = armed(seed)
+    const wrong = [...correct]
+    wrong[0] = !wrong[0]
+    const miss = applyWireAction(start, bomb, { mod: i, kind: 'commit', states: wrong }, 2000, 'X')
+    expect(miss.ok).toBe(false)
+    expect(miss.wire.strikes).toBe(1)
+    expect(applyWireAction(miss.wire, bomb, { mod: i, kind: 'commit', states: correct }, 2000, 'X').ok).toBe(true)
+    expect(applyWireAction(start, bomb, { mod: i, kind: 'commit', states: [true] }, 2000)).toBeNull()
   })
 
   it('bumps into pipe walls without moving', () => {

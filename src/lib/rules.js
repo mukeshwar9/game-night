@@ -641,9 +641,10 @@ export const GAME_RULES = {
       'The Tech sees the bomb: a clock, strike lights and three or four modules. The Handbook sees a manual written for this exact bomb. Neither screen shows the other.',
       'Talk it through (voice works best; the quick-phrase buttons help without it). The Handbook reads the rules, the Tech describes the device and acts.',
       'WIRES: cut the one wire the manual picks. GLYPHS: press the four symbols in the order of the one manual column that holds all four. LEVER: tap it, or hold it and let go when the clock shows the digit for the strip colour. PIPES: steer to the flag; only the Handbook can see the walls.',
-      'A wrong move is a strike and takes 15 seconds off the clock. Roles swap on every new bomb, and each defused bomb raises the level.',
+      'Choose Easy, Normal or Hard once before the first bomb. You defuse two bombs at that same difficulty; roles swap after Bomb 1. A wrong move is a strike and takes 15 seconds off the clock.',
+      'The Switchboard module shows five LEDs and five switches. Read each LED to your partner, follow the Handbook rule to set the switches, then commit the pattern.',
     ],
-    win: 'Solve every module before the clock runs out or the third strike. You both win or both go boom.',
+    win: 'Defuse both bombs to win together. If either bomb goes off, Bomb 2 still plays so each player gets one Tech turn, but the match is a loss.',
   },
 
   wordrace: {

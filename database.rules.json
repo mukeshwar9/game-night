@@ -339,6 +339,21 @@
           "seed": {
             ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 64"
           },
+          "generatorVersion": {
+            ".validate": "newData.val() === data.val() || newData.val() === 1 && !data.exists() || newData.val() === 2 && (data.val() === 1 || !data.exists()) && newData.parent().child('phase').val() === 'ready' && newData.parent().child('bombNo').val() === 1 && newData.parent().child('clientVersionX').val() === 2 && newData.parent().child('clientVersionO').val() === 2"
+          },
+          "clientVersionX": {
+            ".validate": "newData.val() === data.val() || newData.val() === 2 && auth.uid === root.child('games').child($gameId).child('players').child('X').child('playerId').val()"
+          },
+          "clientVersionO": {
+            ".validate": "newData.val() === data.val() || newData.val() === 2 && auth.uid === root.child('games').child($gameId).child('players').child('O').child('playerId').val()"
+          },
+          "level": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 6"
+          },
+          "difficulty": {
+            ".validate": "newData.val() === data.val() || !data.exists() && (newData.val() === 'easy' || newData.val() === 'normal' || newData.val() === 'hard') && newData.parent().child('generatorVersion').val() === 2 && newData.parent().child('phase').val() === 'ready' && newData.parent().child('bombNo').val() === 1 && auth.uid === root.child('games').child($gameId).child('players').child(newData.parent().child('tech').val()).child('playerId').val() && (newData.val() === 'easy' && newData.parent().child('level').val() === 1 || newData.val() === 'normal' && newData.parent().child('level').val() === 3 || newData.val() === 'hard' && newData.parent().child('level').val() === 5)"
+          },
           "tech": {
             ".validate": "newData.val() === 'X' || newData.val() === 'O'"
           },

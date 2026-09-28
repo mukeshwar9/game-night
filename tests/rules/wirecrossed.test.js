@@ -29,6 +29,27 @@ describe('WIRE CROSSED', () => {
     await assertSucceeds(as('alice').ref('games/g1/wire/phase').set('over'))
   })
 
+  it('requires both current seats before enabling v2 generator', async () => {
+    const v1 = bomb({ generatorVersion: 1, clientVersionX: 2, phase: 'ready' })
+    await put(room(v1))
+    await assertFails(as('alice').ref('games/g1/wire').set({ ...v1, generatorVersion: 2, level: 0 }))
+    await assertFails(as('bob').ref('games/g1/wire/clientVersionX').set(1))
+    await assertSucceeds(as('bob').ref('games/g1/wire/clientVersionO').set(2))
+    await assertSucceeds(as('alice').ref('games/g1/wire').set({
+      ...v1, clientVersionO: 2, generatorVersion: 2, level: 0,
+    }))
+  })
+
+  it('locks one difficulty selection to Tech on first ready bomb', async () => {
+    const v2 = bomb({ generatorVersion: 2, clientVersionX: 2, clientVersionO: 2, level: 0, phase: 'ready' })
+    await put(room(v2))
+    const normal = { ...v2, level: 3, difficulty: 'normal' }
+    await assertSucceeds(as('alice').ref('games/g1/wire').set(normal))
+    await assertFails(as('bob').ref('games/g1/wire').set({ ...v2, level: 5, difficulty: 'hard' }))
+    await assertFails(as('alice').ref('games/g1/wire').set({ ...normal, level: 5, difficulty: 'hard' }))
+    await assertFails(as('alice').ref('games/g1/wire').set({ ...v2, level: 3, difficulty: 'impossible' }))
+  })
+
   it('accepts a quick-phrase ping and rejects free text', async () => {
     await put(room())
     await assertSucceeds(as('bob').ref('games/g1/wire/ping').set({ by: 'O', p: 3, at: 10 }))
