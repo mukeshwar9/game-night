@@ -4,6 +4,7 @@ import PixelDots from '@/components/loading/PixelDots'
 import { authReady, onUser, upgradeWithGoogle, signOutToGuest as signOutToGuestFn } from './auth'
 import {
   ensureProfile, subscribeProfile, setupPresence, subscribeInvites, subscribeRequests,
+  subscribeFriends, subscribePresence,
 } from './social'
 import { syncStatsOnBoot } from './statsSync'
 import { THEMES, applyTheme, getStoredTheme } from './theme'
@@ -36,6 +37,7 @@ export function AuthProvider({ children }) {
   const [booted, setBooted] = useState(false)
   const [invites, setInvites] = useState([])
   const [requestCount, setRequestCount] = useState(0)
+  const [onlineFriendCount, setOnlineFriendCount] = useState(0)
   const uid = user?.uid ?? null
   const authFailToastShown = useRef(false)
 
@@ -69,6 +71,13 @@ export function AuthProvider({ children }) {
     let unsubPresence = () => {}
     let unsubInvites = () => {}
     let unsubRequests = () => {}
+    let unsubFriends = () => {}
+    let presenceUnsubs = []
+    const onlineByUid = {}
+    const recountOnline = () => {
+      if (cancelled) return
+      setOnlineFriendCount(Object.values(onlineByUid).filter(Boolean).length)
+    }
     ;(async () => {
       // Tolerate auth providers / DB rules not being set up yet — the app still
       // works as a guest (getPlayerId falls back to a local id).
@@ -90,11 +99,30 @@ export function AuthProvider({ children }) {
       unsubPresence = setupPresence(uid)
       unsubInvites = subscribeInvites(list => { if (!cancelled) setInvites(list) })
       unsubRequests = subscribeRequests(list => { if (!cancelled) setRequestCount(list.length) })
+      // Online-friends dot for the tab bar: one friends-list listener plus one
+      // tiny presence/{uid} listener per friend (cheaper than subscribeProfile —
+      // no public-profile fan-out). Denied reads count as offline.
+      unsubFriends = subscribeFriends(list => {
+        if (cancelled) return
+        presenceUnsubs.forEach(u => u())
+        presenceUnsubs = []
+        Object.keys(onlineByUid).forEach(k => delete onlineByUid[k])
+        list.forEach(({ uid: fid }) => {
+          onlineByUid[fid] = false
+          presenceUnsubs.push(subscribePresence(fid, p => {
+            if (cancelled) return
+            onlineByUid[fid] = p?.online === true
+            recountOnline()
+          }))
+        })
+        recountOnline()
+      })
     })()
     return () => {
       cancelled = true
       unsubProfile(); unsubPresence(); unsubInvites(); unsubRequests()
-      setInvites([]); setRequestCount(0)
+      unsubFriends(); presenceUnsubs.forEach(u => u()); presenceUnsubs = []
+      setInvites([]); setRequestCount(0); setOnlineFriendCount(0)
     }
   }, [uid])
 
@@ -123,6 +151,7 @@ export function AuthProvider({ children }) {
     // (InviteToasts.jsx) is otherwise only recoverable from Home's own list.
     inviteCount: invites.length,
     requestCount,
+    onlineFriendCount,
     upgrade,
     signOutToGuest,
   }

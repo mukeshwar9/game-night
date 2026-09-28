@@ -71,6 +71,14 @@ export default function Friends() {
     : null
   const leaderboardAllZero = rankedLeaderboard?.every(e => e.games === 0) ?? false
 
+  // Online-first ordering (parity with InviteFriendModal): online friends on
+  // top so the PLAY button is one scroll away, then alphabetical.
+  const sortedFriendUids = (friendUids || []).slice().sort((a, b) => {
+    const onlineDiff = (profiles[b]?.online ? 1 : 0) - (profiles[a]?.online ? 1 : 0)
+    if (onlineDiff !== 0) return onlineDiff
+    return (profiles[a]?.displayName || '').localeCompare(profiles[b]?.displayName || '')
+  })
+
   const sendRequest = async () => {
     if (sending || !codeInput) return
     const code = normalizeFriendCode(codeInput)
@@ -308,7 +316,7 @@ export default function Friends() {
             </div>
           ) : (
             <div className="space-y-2">
-              {friendUids.map(uid => {
+              {sortedFriendUids.map(uid => {
                 const p = profiles[uid]
                 const confirming = confirmRemoveUid === uid
                 return (
