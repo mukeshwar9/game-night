@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wire Crossed — all six modules preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --c-bg:238 240 226; --c-card:252 253 246; --c-deep:228 232 214; --c-border:185 195 165;
+  --c-text:45 55 35; --c-dim:95 107 81; --c-cta:139 102 18; --c-tint-cta:242 232 200;
+  --c-win:38 123 66; --c-danger:190 30 50;
+  --wire-red:222 62 62; --wire-blue:58 118 232; --wire-yellow:242 202 48;
+  --wire-white:236 236 232; --wire-black:28 28 32; --wire-green:56 178 88;
+  --px:'Press Start 2P',ui-monospace,monospace; --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box} body{margin:0;background:rgb(var(--c-bg));color:rgb(var(--c-text));font:14px/1.6 var(--mono)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px 80px}
+.px{font-family:var(--px);letter-spacing:.05em;line-height:1.7}
+h1{font-family:var(--px);font-size:clamp(16px,3vw,26px);color:rgb(var(--c-cta));line-height:1.6}
+h2{font-family:var(--px);font-size:13px;color:rgb(var(--c-cta));margin:44px 0 6px;line-height:1.7}
+.sub{color:rgb(var(--c-dim));margin:0 0 12px}
+.badge{display:inline-block;font-family:var(--px);font-size:8px;padding:4px 8px;border-radius:5px;border:2px solid;margin-right:6px;vertical-align:middle}
+.live{border-color:rgb(var(--c-win));color:rgb(var(--c-win))}
+.mock{border-color:rgb(var(--c-cta));color:rgb(var(--c-cta))}
+.lvl{border-color:rgb(var(--c-border));color:rgb(var(--c-dim))}
+.card{background:rgb(var(--c-card));border:2px solid rgb(var(--c-border));border-radius:10px;padding:16px;margin:12px 0}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;margin-top:10px}
+.phone{background:rgb(var(--c-card));border:2px solid rgb(var(--c-border));border-radius:10px;padding:12px;min-width:0}
+.phone h4{font-family:var(--px);font-size:9px;color:rgb(var(--c-dim));margin:0 0 10px;letter-spacing:.06em}
+.role{font-family:var(--px);font-size:8px;color:rgb(var(--c-cta))}
+.scr{font-family:var(--px);font-size:22px;letter-spacing:.1em;text-align:center;background:rgb(var(--c-deep));border:2px solid rgb(var(--c-border));border-radius:6px;padding:10px 4px;margin:8px 0}
+.btn{display:block;width:100%;margin-top:8px;padding:12px;border-radius:6px;border:2px solid rgb(var(--c-border));background:rgb(var(--c-deep));font-family:var(--px);font-size:9px;color:rgb(var(--c-text));cursor:default}
+.btn.hot{background:rgb(var(--c-cta));border-color:rgb(var(--c-cta));color:#fff}
+.leds{display:flex;gap:8px;justify-content:center;margin:8px 0}
+.led{width:44px;text-align:center;font-size:10px}
+.dot{width:30px;height:30px;border-radius:50%;margin:0 auto 4px;border:2px solid rgb(var(--c-border))}
+.on{background:rgb(var(--wire-yellow))}.off{background:rgb(var(--c-deep))}
+.cols5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center}
+.col{border:2px solid rgb(var(--c-border));border-radius:6px;background:rgb(var(--c-deep));padding:6px 2px;font-size:15px;font-weight:bold}
+.col small{display:block;font-size:9px;color:rgb(var(--c-dim));font-weight:normal}
+table.rules{width:100%;border-collapse:collapse;font-size:12px}
+table.rules td{border-top:1px solid rgb(var(--c-border));padding:7px 6px;vertical-align:top}
+table.rules tr:first-child td{border-top:0}
+.k{font-family:var(--px);font-size:8px;color:rgb(var(--c-dim))}
+.wire{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px}
+.bar{flex:1;height:12px;border-radius:6px;border:1px solid rgb(var(--c-border))}
+.tag{font-family:var(--px);font-size:7px;border:1.5px solid rgb(var(--c-border));border-radius:4px;padding:2px 5px;color:rgb(var(--c-dim))}
+.lamps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
+.lamp{aspect-ratio:1;border-radius:10px;border:2px solid rgb(var(--c-border));display:flex;align-items:center;justify-content:center;font-weight:bold}
+.gauge{height:18px;border:2px solid rgb(var(--c-border));border-radius:9px;background:rgb(var(--c-deep));overflow:hidden;margin:8px 0}
+.gauge i{display:block;height:100%;width:70%;background:rgb(var(--wire-red))}
+img.shot{width:100%;border:2px solid rgb(var(--c-border));border-radius:8px;background:#fff}
+.note{border-left:4px solid rgb(var(--c-cta));background:rgb(var(--c-tint-cta));padding:10px 12px;border-radius:0 8px 8px 0;margin:10px 0;font-size:13px}
+code{font-size:12px;background:rgb(var(--c-deep));border:1px solid rgb(var(--c-border));border-radius:4px;padding:0 4px}
+.talk{font-size:13px;color:rgb(var(--c-text))}
+</style></head><body><div class="wrap">
+
+<p class="px" style="font-size:9px;color:rgb(var(--c-dim));margin:26px 0 10px">WIRE CROSSED · MODULE PREVIEWS</p>
+<h1>How all six modules will look</h1>
+<p class="sub">One is live with real screenshots. Five are faithful mockups drawn from the PRD spec (<code>docs/prds/wire-crossed-levels.md</code> §4) in the app's own matcha design system — layout, wording and rules logic are as specced; final art may shift in implementation.</p>
+
+<!-- 1 SWITCHES -->
+<h2><span class="badge live">● LIVE</span> <span class="badge lvl">L6 SWITCHBOARD</span> SWITCHES</h2>
+<p class="sub talk">Tech reads five LEDs aloud → Handbook maps them to switch positions → Tech sets + COMMITs. Teaches configuration talk.</p>
+<div class="duo">
+<div class="phone"><h4><span class="role">TECH</span> · DEVICE (REAL SCREENSHOT)</h4><img class="shot" src="tech-switchboard.png"></div>
+<div class="phone"><h4><span class="role">HANDBOOK</span> · MANUAL (REAL SCREENSHOT)</h4><img class="shot" src="book-switchboard.png"></div>
+</div>
+
+<!-- 2 DIAL -->
+<h2><span class="badge mock">◇ MOCK</span> <span class="badge lvl">L8</span> DIAL</h2>
+<p class="sub talk">Tech spells the call sign → Handbook looks up its exact frequency among look-alikes → Tech dials it in and hits TX. Teaches spelling aloud under pressure.</p>
+<div class="duo">
+<div class="phone"><h4><span class="role">TECH</span> · DEVICE (MOCK)</h4>
+<p class="k">CALL SIGN</p><div class="scr">B O L D</div>
+<p class="k">FREQUENCY · 3.505 – 3.600</p><div class="scr">3 . 5 2 0</div>
+<div class="duo" style="grid-template-columns:1fr 1fr"><span class="btn">− TUNE</span><span class="btn">TUNE +</span></div>
+<span class="btn hot">TRANSMIT ▸</span></div>
+<div class="phone"><h4><span class="role">HANDBOOK</span> · MANUAL (MOCK)</h4>
+<p style="font-size:12px">Find the <b>exact</b> call sign. Spelling counts — look-alikes differ by one digit.</p>
+<table class="rules">
+<tr><td><span class="k">BOLT</span></td><td style="text-align:right"><b>3.505</b></td></tr>
+<tr><td><span class="k">BOLD</span></td><td style="text-align:right"><b>3.520</b></td></tr>
+<tr><td><span class="k">BOAT</span></td><td style="text-align:right"><b>3.535</b></td></tr>
+<tr><td><span class="k">BLOT</span></td><td style="text-align:right"><b>3.550</b></td></tr>
+<tr><td><span class="k">BLOOD</span></td><td style="text-align:right"><b>3.575</b></td></tr>
+</table>
+<p style="font-size:12px">T2: two call signs on the device — the lit indicator picks which one transmits.</p></div>
+</div>
+
+<!-- 3 VENT -->
+<h2><span class="badge mock">◇ MOCK</span> <span class="badge lvl">L10 · NEEDY</span> VENT</h2>
+<p class="sub talk">The bomb interrupts: a gauge fills every 40–50s and demands a YES/NO vent decision. Forces triage — someone must drop their module and answer. Shorter cycle at T2.</p>
+<div class="duo">
+<div class="phone"><h4><span class="role">TECH</span> · DEVICE (MOCK)</h4>
+<div class="note" style="border-color:rgb(var(--wire-red))">⚠ NEEDY — VENT GAS? Answer or strike.</div>
+<p class="k">PRESSURE</p><div class="gauge"><i></i></div>
+<div class="duo" style="grid-template-columns:1fr 1fr"><span class="btn hot">YES</span><span class="btn">NO</span></div></div>
+<div class="phone"><h4><span class="role">HANDBOOK</span> · MANUAL (MOCK)</h4>
+<p style="font-size:12px"><b>VENT GAS? → YES</b>, unless:</p>
+<table class="rules">
+<tr><td>1.</td><td>serial ends in an <b>even</b> digit → <b>NO</b>.</td></tr>
+<tr><td>2.</td><td>all five SWITCHES LEDs are off → <b>ignore it</b> (decoy hiss).</td></tr>
+</table>
+<p style="font-size:12px">Read the exception list every time — it is regenerated per bomb.</p></div>
+</div>
+
+<!-- 4 LOCKWORD -->
+<h2><span class="badge mock">◇ MOCK</span> <span class="badge lvl">L11</span> LOCKWORD</h2>
+<p class="sub talk">Tech reads each letter column aloud → Handbook crosses words off a 30-word list (exactly one fits) → Tech spins the columns to it + SUBMIT. Spelling under pressure. T2: 6 letters/column with near-anagrams.</p>
+<div class="duo">
+<div class="phone"><h4><span class="role">TECH</span> · DEVICE (MOCK)</h4>
+<div class="cols5">
+<div class="col"><small>▲▼</small>S</div><div class="col"><small>▲▼</small>T</div><div class="col"><small>▲▼</small>O</div><div class="col"><small>▲▼</small>R</div><div class="col"><small>▲▼</small>M</div>
+</div>
+<p class="k" style="margin-top:8px">COL 3 HOLDS · O / Q / A / U</p>
+<span class="btn hot">SUBMIT WORD ▸</span></div>
+<div class="phone"><h4><span class="role">HANDBOOK</span> · MANUAL (MOCK)</h4>
+<p style="font-size:12px">Exactly <b>one</b> word below can be spelled, one letter per column. Read columns back as the Tech calls them.</p>
+<table class="rules">
+<tr><td><span class="k">STORM</span> ✓</td><td><span class="k">PLANT</span></td><td><span class="k">CRANE</span></td></tr>
+<tr><td><span class="k">GHOST</span></td><td><span class="k">FLINT</span></td><td><span class="k">BRAVE</span></td></tr>
+<tr><td><span class="k">CLOUD</span></td><td><span class="k">PRISM</span></td><td><span class="k">…22 more</span></td></tr>
+</table></div>
+</div>
+
+<!-- 5 SIGNAL -->
+<h2><span class="badge mock">◇ MOCK</span> <span class="badge lvl">L14</span> SIGNAL</h2>
+<p class="sub talk">Four lamps flash a growing sequence; the Tech repeats it on mapped buttons — but the colour→button map shifts with every strike and the serial's vowels. Memory plus remap, across stages. T2: five stages.</p>
+<div class="duo">
+<div class="phone"><h4><span class="role">TECH</span> · DEVICE (MOCK)</h4>
+<p class="k">STAGE 2 / 4 · WATCH, THEN REPEAT</p>
+<div class="lamps">
+<div class="lamp" style="background:rgb(var(--wire-red));color:#fff">●</div>
+<div class="lamp" style="background:rgb(var(--c-deep))">○</div>
+<div class="lamp" style="background:rgb(var(--wire-green));color:#fff">●</div>
+<div class="lamp" style="background:rgb(var(--c-deep))">○</div>
+</div>
+<div class="duo" style="grid-template-columns:repeat(4,1fr)"><span class="btn">A</span><span class="btn">B</span><span class="btn">C</span><span class="btn">D</span></div></div>
+<div class="phone"><h4><span class="role">HANDBOOK</span> · MANUAL (MOCK)</h4>
+<p style="font-size:12px">Map each flashed <b>colour</b> to a button for this stage:</p>
+<table class="rules">
+<tr><td><span class="k">RED</span></td><td>→ <b>B</b></td><td><span class="k">BLUE</span></td><td>→ <b>D</b></td></tr>
+<tr><td><span class="k">GREEN</span></td><td>→ <b>A</b></td><td><span class="k">YELLOW</span></td><td>→ <b>C</b></td></tr>
+</table>
+<p style="font-size:12px">After every strike, shift the map <b>down one row</b>. If the serial contains a vowel, use column 2 instead.</p></div>
+</div>
+
+<!-- 6 CIRCUIT -->
+<h2><span class="badge mock">◇ MOCK</span> <span class="badge lvl">ENDLESS</span> CIRCUIT</h2>
+<p class="sub talk">The Endless-mode module (level 16+): every wire carries three attributes — LED, ★ sticker, stripe. Handbook's grid answers CUT / SKIP / CUT IF… per wire. T2 adds more shell-keyed letters. Endless = procedural budget (+2/bomb), clock floor 2:15.</p>
+<div class="duo">
+<div class="phone"><h4><span class="role">TECH</span> · DEVICE (MOCK)</h4>
+<div class="wire"><span class="k">1</span><span class="bar" style="background:rgb(var(--wire-red))"></span><span class="tag">LED●</span><span class="tag">★</span><span class="tag">YLW</span></div>
+<div class="wire"><span class="k">2</span><span class="bar" style="background:rgb(var(--wire-blue))"></span><span class="tag">LED○</span><span class="tag">☆</span><span class="tag">RED</span></div>
+<div class="wire"><span class="k">3</span><span class="bar" style="background:rgb(var(--wire-white))"></span><span class="tag">LED●</span><span class="tag">☆</span><span class="tag">GRN</span></div>
+<div class="wire"><span class="k">4</span><span class="bar" style="background:rgb(var(--wire-black))"></span><span class="tag">LED○</span><span class="tag">★</span><span class="tag">BLU</span></div>
+<span class="btn">CUT WIRE…</span></div>
+<div class="phone"><h4><span class="role">HANDBOOK</span> · MANUAL (MOCK)</h4>
+<table class="rules">
+<tr><td>1.</td><td>LED on <b>and</b> ★ → <b>CUT</b>.</td></tr>
+<tr><td>2.</td><td>LED off, no ★ → <b>SKIP</b>.</td></tr>
+<tr><td>3.</td><td>Red stripe → <b>CUT IF</b> serial ends odd, else SKIP.</td></tr>
+<tr><td>4.</td><td>Otherwise → <b>CUT the lowest-numbered</b> remaining wire.</td></tr>
+</table></div>
+</div>
+
+<div class="card" style="margin-top:28px"><p class="px" style="font-size:9px;color:rgb(var(--c-cta))">STATUS</p>
+<p style="font-size:13px;margin:6px 0 0">SWITCHES is live in the current deploy. DIAL + VENT are Phase&nbsp;1 (5–7 days), LOCKWORD + CIRCUIT + SIGNAL Phase&nbsp;2 (6–8 days), then Endless/balancing. Full spec: <code>docs/prds/wire-crossed-levels.md</code>.</p></div>
+
+</div></body></html>
