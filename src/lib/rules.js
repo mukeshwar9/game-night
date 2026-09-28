@@ -195,22 +195,25 @@ export const GAME_RULES = {
   },
 
   typing: {
-    objective: 'Type the passage faster and more accurately than everyone else (2–8 players).',
+    objective: 'Type the same quote faster and more accurately than everyone else (2–8 players).',
     howToPlay: [
-      'Everyone types the same passage as quickly and accurately as possible.',
-      'Everyone’s progress shows live in the results table as you race.',
-      'Anyone still typing when the time limit hits is marked DNF.',
+      'The host picks the quote length and whether punctuation and numbers appear.',
+      'Everyone types the exact same quote. A wrong key still counts against your accuracy even after you correct it.',
+      'Backspace is allowed; progress, net WPM and accuracy update live.',
+      'On a phone, tap the quote or the TAP TO TYPE button to open your own keyboard. On a computer, just type.',
     ],
-    win: 'Highest effective WPM (speed × accuracy) wins the round. First to 3 round wins takes the match.',
+    win: 'Highest net WPM wins; accuracy then finish time break ties. Anyone still typing at the deadline is DNF. First to 3 round wins takes the match.',
   },
 
   math: {
-    objective: 'Solve as many problems as you can in a two-minute blitz (2–8 players).',
+    objective: 'Solve as many arithmetic problems as you can before the clock runs out (2–8 players).',
     howToPlay: [
-      'Answer arithmetic questions one after another at your own pace.',
-      'Everyone gets the same questions. Correct answers build your score and streak.',
+      'The host picks the operations (+, −, × and exact ÷), the difficulty, the operand range and a 60/120/180-second clock.',
+      'Everyone gets the same question stream but answers on their own clock.',
+      'A correct answer scores speed points, doubled on a power question and doubled again while you hold a 3-answer streak.',
+      'A wrong or missed answer resets your streak and reveals the solution; your score never drops.',
     ],
-    win: 'Highest score when the two-minute clock runs out wins the round. First to 3 round wins takes the match.',
+    win: 'Highest score when the clock runs out wins the round. First to 3 round wins takes the match.',
   },
 
   visualmemory: {

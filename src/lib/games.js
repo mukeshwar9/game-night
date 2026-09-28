@@ -1711,6 +1711,7 @@ const FIELD_NULLS = {
   aimScoreX: null, aimScoreO: null,
   aimHitsX: null, aimHitsO: null,
   aimFriendlyX: null, aimFriendlyO: null,
+  typingConfig: null, mathConfig: null,
   typingPassage: null, typingStartedAt: null,
   typingFinishedAtX: null, typingFinishedAtO: null,
   typingProgressX: null, typingProgressO: null,

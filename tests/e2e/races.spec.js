@@ -94,6 +94,8 @@ test('three players race Reaction Time and Typing Race and see the same ranking'
     }))
     expect(passages[1]).toBe(passages[0])
     expect(passages[2]).toBe(passages[0])
+    // The live race types into a real field so phones get their own keyboard.
+    await Promise.all(everyone.map(({ page }) => page.getByTestId('typing-input').click()))
     await Promise.all(everyone.map(({ page }, i) =>
       page.keyboard.type(passages[0], { delay: 15 + i * 10 })))
   })
