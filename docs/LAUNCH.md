@@ -68,3 +68,14 @@ npm run symbolicate -- <build id> < stack.txt
 ## Budget
 
 The captain confirmed a Cloud Billing budget of about $25 per month with alerts on the project (the earlier note that it could not be verified from the CLI is superseded).
+
+## Error alerting
+
+The client already reports uncaught errors, rejections and boundary crashes to `errors/{UTC day}` (`telemetry.js`, admin view on `/notes`). The scheduled function `errorDigest` (`functions/errorDigest.js`, 07:00 UTC) turns yesterday's bucket into `errorDigests/{day}`: total, distinct accounts, the top ten messages with route, game and build, counts per game and per build, and whether a message is new since the previous digest. The digest is alert-worthy when there are at least 50 reports in the day (`ERROR_DIGEST_ALERT_TOTAL`) or a new message was reported three or more times.
+
+An alert always writes a Cloud Logging entry (`severity=ERROR`, `jsonPayload.alert=true`). Two ways to get told, neither configured yet:
+
+1. **Email (captain, console):** Cloud Logging, Logs-based alerting, create an alert on `resource.type="cloud_run_revision" AND jsonPayload.alert=true` (or `severity=ERROR AND textPayload:"error digest alert"`) with the captain's email as the notification channel.
+2. **Webhook:** create `functions/.env` with `ERROR_DIGEST_WEBHOOK_URL=<Slack or Discord incoming webhook>` and redeploy the functions. The alert summary is posted as `{ text, content }`.
+
+Read the raw digests in the Firebase console under `errorDigests`; symbolicate a stack with `npm run symbolicate` (see Source maps).

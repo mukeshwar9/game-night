@@ -134,3 +134,15 @@ describe('matchmaking listings for race rooms', () => {
     await assertSucceeds(as('mallory').ref('matchmaking/g1').remove())
   })
 })
+
+// Written by the errorDigest function (Admin SDK bypasses rules); clients only read.
+describe('errorDigests', () => {
+  it('is readable by admins only and never client-written', async () => {
+    await put('users/boss', { displayName: 'Boss', admin: true })
+    await put('errorDigests/2026-09-29', { day: '2026-09-29', total: 3 })
+    await assertFails(as('alice').ref('errorDigests').get())
+    await assertSucceeds(as('boss').ref('errorDigests').get())
+    await assertFails(as('boss').ref('errorDigests/2026-09-30').set({ total: 1 }))
+    await assertFails(as('alice').ref('errorDigests/2026-09-29').remove())
+  })
+})

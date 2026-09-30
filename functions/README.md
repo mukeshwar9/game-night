@@ -1,12 +1,13 @@
 # Cloud Functions
 
-Four functions, exported from `index.js`. Cloud Functions need the **Blaze (pay-as-you-go) plan**. Every function has a `maxInstances` cap (`setGlobalOptions` in `index.js`, plus one per function), so a burst of room or invite writes cannot run up the bill.
+Five functions, exported from `index.js`. Cloud Functions need the **Blaze (pay-as-you-go) plan**. Every function has a `maxInstances` cap (`setGlobalOptions` in `index.js`, plus one per function), so a burst of room or invite writes cannot run up the bill.
 
 | Function | Trigger | What it does |
 |---|---|---|
 | `cleanupStaleGames` | Every hour | Deletes rooms idle for a day, stale public listings and old invites, the `results/` record of every deleted room, and error-report buckets (`errors/{UTC day}`) older than the last 14 days. It never deletes leaderboard rows. |
 | `creditMatchResults` (`results.js`) | Every write to `games/{gameId}/status` | Credits finished 2-player matches to `leaderboard/{uid}`, once per match, after re-checking the result. This is the only writer of `leaderboard/`. |
 | `sendInvitePush` (`push.js`) | Create of `invites/{uid}/{inviteId}` | Sends the invite as a **data-only** FCM message to the recipient's `users/{uid}/fcmTokens` (the service worker draws the notification, so there is no duplicate). The link is `/game/{gameId}`. Dead tokens are removed. The client does not call anything: writing the invite is enough. |
+| `errorDigest` (`errorDigest.js`) | Every day 07:00 UTC | Summarises yesterday's `errors/{day}` bucket into `errorDigests/{day}` (total, accounts, top messages, per game and per build, and which messages are new versus the previous digest; admin-readable, kept 60 days). On an alert it writes a `logger.error` entry with `alert: true` and, if `ERROR_DIGEST_WEBHOOK_URL` is set, posts the summary there. |
 | `cleanupDeletedAccount` (`deleteAccount.js`) | Firebase Auth user deleted | Removes what an account owned: the server-only `leaderboard/{uid}` row and anything the app's "Delete my data" did not get to. |
 
 ## How a result is credited

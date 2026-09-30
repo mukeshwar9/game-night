@@ -1175,6 +1175,9 @@
         }
       }
     },
+    "errorDigests": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('admin').val() === true"
+    },
     "errors": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('admin').val() === true",
       "$day": {

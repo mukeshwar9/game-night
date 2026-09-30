@@ -15,6 +15,8 @@ exports.creditMatchResults = require('./results').creditMatchResults;
 exports.sendInvitePush = require('./push').sendInvitePush;
 // Clears a deleted account's rows, including the server-only leaderboard row.
 exports.cleanupDeletedAccount = require('./deleteAccount').cleanupDeletedAccount;
+// Daily summary of yesterday's error reports, with an alert when it looks bad.
+exports.errorDigest = require('./errorDigest').errorDigest;
 const { errorsCutoffKey, isExpiredErrorDay } = require('./lib/core.cjs');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
