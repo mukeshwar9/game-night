@@ -5,7 +5,7 @@ import {
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
-  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, PasswordIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
   WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
@@ -56,6 +56,7 @@ const ArrowsDemo = lazyWithRetry(() => import('./ArrowsDemo'))
 const HangmanDemo = lazyWithRetry(() => import('./HangmanDemo'))
 const WordDuelDemo = lazyWithRetry(() => import('./WordDuelDemo'))
 const WordRaceDemo = lazyWithRetry(() => import('./WordRaceDemo'))
+const PasswordDemo = lazyWithRetry(() => import('./PasswordDemo'))
 const WordHuntDemo = lazyWithRetry(() => import('./WordHuntDemo'))
 const AnagramsDemo = lazyWithRetry(() => import('./AnagramsDemo'))
 // Memory solo runs share one chunk.
@@ -133,6 +134,7 @@ const DEMOS = [
   { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
   { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: WordDuelDemo     },
   { type: 'wordrace',     short: 'WORD\nRACE',    Icon: WordRaceIcon,     Component: WordRaceDemo     },
+  { type: 'password',     short: 'PASS\nWORD',    Icon: PasswordIcon,     Component: PasswordDemo     },
   { type: 'wordhunt',     short: 'WORD\nHUNT',    Icon: WordHuntIcon,     Component: WordHuntDemo     },
   { type: 'anagrams',     short: 'ANA-\nGRAMS',   Icon: AnagramsIcon,     Component: AnagramsDemo     },
   // Party cards (2+ players only)
