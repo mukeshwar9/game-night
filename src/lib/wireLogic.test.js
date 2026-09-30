@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   acceptMode, applyTimeout, applyWireAction, armWire, bombMsForLevel, cancelMode, clockText,
   formatClock, generateBomb, isLegacyWire, moduleCountForLevel, normalizeWireStats, proposeMode,
-  solveWires, BOMB_MS, BOMB_MS_HARD, MAX_STRIKES, MODULES, STRIKE_PENALTY_MS,
+  solveWires, timeoutCheckDelay, BOMB_MS, BOMB_MS_HARD, MAX_STRIKES, MODULES, STRIKE_PENALTY_MS, TIMEOUT_MARGIN_MS,
 } from './wireLogic'
 import { nextWireBomb } from './wireMatchLogic'
 
@@ -273,6 +273,23 @@ describe('arming, timeout and clock', () => {
     expect(applyTimeout(wire, 999)).toBeNull()
     expect(applyTimeout(wire, 1000).result.outcome).toBe('boom')
     expect(applyTimeout({ ...wire, endsAt: null }, 1e9)).toBeNull()
+  })
+
+  // The 0:00 freeze: one timer fired at endsAt + 60 ms by a clock that had since
+  // moved backwards, saw "not due yet", and never looked again. The client keeps
+  // asking timeoutCheckDelay and only writes when it returns 0.
+  it('keeps waiting while the clock is behind the deadline, then fires', () => {
+    const wire = armWire(ready(), 0, 1000)
+    let clock = wire.endsAt - 2000
+    expect(timeoutCheckDelay(wire.endsAt, clock)).toBe(2000 + TIMEOUT_MARGIN_MS)
+    // The timer fires on schedule, but the server-corrected clock slipped back 3 s.
+    clock = wire.endsAt + TIMEOUT_MARGIN_MS - 3000
+    expect(applyTimeout(wire, clock)).toBeNull()
+    expect(timeoutCheckDelay(wire.endsAt, clock)).toBeGreaterThan(0)
+    // Time catches up: nothing left to wait for, and the boom applies.
+    clock = wire.endsAt
+    expect(timeoutCheckDelay(wire.endsAt, clock)).toBe(0)
+    expect(applyTimeout(wire, clock).result).toMatchObject({ outcome: 'boom', reason: 'time' })
   })
 
   it('formats the clock counting down, or up with timers off', () => {

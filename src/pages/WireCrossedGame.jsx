@@ -13,7 +13,7 @@ import {
   MAX_STRIKES, MODULE_NAMES, QUICK_PHRASES,
   acceptMode, applyGaugeBurst, applyTimeout, applyWireAction, armWire, cancelMode, clockText, formatClock, gaugeBurstAt, gaugeIndex,
   gaugePressure, gaugeZone, generateBomb, isBlackout, isLegacyWire, isSolved, isSwapBanner, normalizeWireStats, proposeMode, roleOf,
-  strikePenaltyOf, strikesOf, urgentMsOf,
+  strikePenaltyOf, strikesOf, timeoutCheckDelay, urgentMsOf, TIMEOUT_RETRY_MS,
 } from '../lib/wireLogic'
 import { modeSummary } from '../lib/wire/modes'
 import Avatar from '../components/Avatar'
@@ -258,9 +258,9 @@ export default function WireCrossedGame({
     let active = true
     const checkTimeout = () => {
       if (!active) return
-      const wait = endsAt - getServerNow()
+      const wait = timeoutCheckDelay(endsAt, getServerNow())
       if (wait > 0) {
-        timer = setTimeout(checkTimeout, wait + 60)
+        timer = setTimeout(checkTimeout, wait)
         return
       }
       runTransaction(ref(db, `games/${gameId}`), current => {
@@ -271,7 +271,7 @@ export default function WireCrossedGame({
       }).catch(() => {}).finally(() => {
         // Offset updates can move the server-corrected clock backwards, and a
         // transient transaction failure must not strand the bomb at 0:00.
-        if (active) timer = setTimeout(checkTimeout, 1000)
+        if (active) timer = setTimeout(checkTimeout, TIMEOUT_RETRY_MS)
       })
     }
     checkTimeout()

@@ -278,6 +278,23 @@ function finish(wire, outcome, reason, now) {
   return next
 }
 
+/** Margin added to the first timeout check, and the pause between re-checks. */
+export const TIMEOUT_MARGIN_MS = 60
+export const TIMEOUT_RETRY_MS = 1000
+
+/**
+ * How long a seated client waits before trying to write the boom: the time
+ * left plus a small margin, or 0 when the clock has run out. Callers must
+ * call it again after every attempt instead of trusting one timer: the
+ * server-corrected clock can move backwards after a reconnect, so a timer that
+ * fires "on time" may still be before `endsAt`, and a failed write has to be
+ * retried. Without the loop the bomb froze at 0:00 and never exploded.
+ */
+export function timeoutCheckDelay(endsAt, now) {
+  const wait = endsAt - now
+  return wait > 0 ? wait + TIMEOUT_MARGIN_MS : 0
+}
+
 /** The clock ran out: boom. Null when there is nothing to do. */
 export function applyTimeout(wire, now) {
   if (!wire || wire.phase !== 'armed' || !wire.endsAt || now < wire.endsAt) return null
