@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 
 import { FILTER_DEFS, SORTS, countActiveFilters } from '../lib/gameFilters'
 
-export function ViewTabs({ view, onSelect, showLarge = false }) {
+export function ViewTabs({ view, onSelect }) {
   const tab = (id, active, title, label, icon) => (
     <button
       key={id}
@@ -50,18 +50,11 @@ export function ViewTabs({ view, onSelect, showLarge = false }) {
       <line x1="2" y1="13.5" x2="14" y2="13.5" />
     </svg>
   )
-  const single = (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <rect x="1" y="1" width="14" height="9" rx="1" />
-      <line x1="1" y1="13.5" x2="15" y2="13.5" />
-    </svg>
-  )
   return (
     <div role="group" aria-label="Card view" className="shrink-0 flex min-h-11 rounded-lg border border-retro-border bg-retro-card overflow-hidden divide-x divide-retro-border">
       {tab('detailed', view === 'detailed', 'Detailed view', 'Detailed view', grid)}
       {tab('compact', view === 'compact', 'Compact view', 'Compact view', list)}
       {tab('mini', view === 'mini', 'Ultra-compact list', 'Ultra-compact list', dense)}
-      {showLarge && tab('large', view === 'large', 'Large view', 'Large view, one game per row', single)}
     </div>
   )
 }

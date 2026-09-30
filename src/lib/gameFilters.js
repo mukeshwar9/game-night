@@ -33,15 +33,10 @@ export function sortGames(list, sort) {
   return list
 }
 
-// Catalog card views. LARGE (one full-width card per row, big art) exists on
-// phone widths only; on wider screens a stored LARGE shows as DETAILED, and
-// its toggle is hidden, so desktop keeps three views.
-export const CATALOG_VIEWS = ['detailed', 'compact', 'mini', 'large']
+// Catalog card views. A stored value that is not one of these (including the
+// retired 'large') falls back to detailed.
+export const CATALOG_VIEWS = ['detailed', 'compact', 'mini']
 
 export function readCatalogView(stored) {
   return CATALOG_VIEWS.includes(stored) ? stored : 'detailed'
-}
-
-export function effectiveCatalogView(view, isPhone) {
-  return view === 'large' && !isPhone ? 'detailed' : view
 }

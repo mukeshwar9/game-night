@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useSyncExternalStore } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { GAME_TYPES, GAME_CATEGORIES, getGameConfig, supportsLocalPlay, getNewGames } from '../lib/games'
 import { searchGames } from '../lib/gameSearch'
 import { getFavorites, toggleFavorite } from '../lib/favorites'
@@ -10,7 +10,7 @@ import GameCard from './GameCard'
 import NewGamesRail from './NewGamesRail'
 import EmptyState from './EmptyState'
 import FilterButton, { ViewTabs } from './GameFilters'
-import { FILTER_DEFS, effectiveCatalogView, isSortId, readCatalogView, sortGames } from '../lib/gameFilters'
+import { FILTER_DEFS, isSortId, readCatalogView, sortGames } from '../lib/gameFilters'
 
 // Variant entries (those with `variantOf`) are hidden from the grid and surfaced
 // as a "choose mode" step when their base game is picked.
@@ -27,14 +27,6 @@ const variantsFor = (baseType) => GAME_TYPES.filter(t => t.variantOf === baseTyp
 // persisted.
 const PICKER_STATE_KEY = 'gn-picker-state'
 const VIEW_KEY = 'gn-catalog-view'
-// Phone width (below Tailwind's sm), the only width with the LARGE view.
-const PHONE_QUERY = '(max-width: 639px)'
-const subscribePhone = (notify) => {
-  const mq = window.matchMedia(PHONE_QUERY)
-  mq.addEventListener('change', notify)
-  return () => mq.removeEventListener('change', notify)
-}
-const isPhoneNow = () => window.matchMedia(PHONE_QUERY).matches
 // Jump-chip targets land just under the sticky search + chip header.
 const SECTION_SCROLL_MARGIN = 'calc(var(--app-header-offset, 0px) + 7.5rem)'
 function readPickerState() {
@@ -72,8 +64,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const [filters, setFilters] = useState(persisted?.filters || {})
   const [sort, setSort] = useState(persisted && isSortId(persisted.sort) ? persisted.sort : 'curated')
   const selectSort = (id) => { if (isSortId(id)) setSort(id) }
-  // Card view: detailed tiles (big art top, name bottom), compact rows, the
-  // mini list, or (phones only) LARGE — one full-width card per row.
+  // Card view: detailed tiles (big art top, name bottom), compact rows, or
+  // the mini list.
   // Device-local like the other display prefs; detailed shows off the art.
   const [view, setView] = useState(() => {
     try {
@@ -82,8 +74,6 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
       return 'detailed'
     }
   })
-  const isPhone = useSyncExternalStore(subscribePhone, isPhoneNow, () => false)
-  const shownView = effectiveCatalogView(view, isPhone)
   const selectView = (next) => {
     try {
       localStorage.setItem(VIEW_KEY, next)
@@ -242,13 +232,10 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
 
   // Detailed tiles only in the full catalog — the in-room switcher keeps
   // compact rows (space is tight and the tap proposes a switch, not a sheet).
-  const detailed = isFull && shownView === 'detailed'
-  const mini = isFull && shownView === 'mini'
-  const large = isFull && shownView === 'large'
-  const gridClass = large
-    ? 'grid grid-cols-1 gap-3'
-    : detailed
-    ? 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2'
+  const detailed = isFull && view === 'detailed'
+  const mini = isFull && view === 'mini'
+  const gridClass = detailed
+    ? 'grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8'
     : mini
       ? 'flex flex-col gap-1'
       : isFull
@@ -266,7 +253,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           loadingType={loadingType}
           isFav={favSet.has(g.type)}
           onToggleFav={isFull ? handleToggleFav : undefined}
-          layout={large ? 'large' : detailed ? 'tile' : mini ? 'mini' : 'row'}
+          layout={detailed ? 'tile' : mini ? 'mini' : 'row'}
         />
       ))}
     </div>
@@ -318,7 +305,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
         sort={sort}
         onSort={selectSort}
       />
-      <ViewTabs view={shownView} onSelect={selectView} showLarge={isPhone} />
+      <ViewTabs view={view} onSelect={selectView} />
     </div>
   )
   // Search hides the category tabs (they don't apply to free text) — facet
