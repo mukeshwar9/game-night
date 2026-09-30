@@ -79,6 +79,49 @@ export function normalizeChatLog(raw) {
 }
 
 // ---------------------------------------------------------------------------
+// linkifyChatText — split already-moderated chat text into plain/link segments
+// so the room chat can render clickable URLs. No DOM, no React — the page
+// maps segments to <span>/<a>. Only http(s) links become clickable (bare
+// www. hosts get an https:// href); everything else stays plain text, so a
+// javascript: or data: payload can never become an href. Trailing
+// sentence punctuation (.,!?;:)]}'\") is trimmed off the link.
+// Returns [{ kind: 'text', text } | { kind: 'link', text, href }].
+// Non-strings / '' → [].
+// ---------------------------------------------------------------------------
+const CHAT_URL_RE = /(?:https?:\/\/[^\s<>"']+|www\.[^\s<>"']+\.[^\s<>"']+)/gi
+const CHAT_URL_TRAIL_RE = /[.,!?;:)\]}'"\\]+$/
+
+export function linkifyChatText(text) {
+  if (typeof text !== 'string' || !text) return []
+  const segments = []
+  let last = 0
+  CHAT_URL_RE.lastIndex = 0
+  let m
+  while ((m = CHAT_URL_RE.exec(text)) !== null) {
+    let url = m[0]
+    // Trim trailing punctuation, but keep the matcher's cursor past only
+    // what we consumed as the link so the punctuation stays plain text.
+    const trail = url.match(CHAT_URL_TRAIL_RE)
+    if (trail) url = url.slice(0, -trail[0].length)
+    if (!url) continue
+    // Reject www. matches with no real host (e.g. "www.").
+    if (/^www\.$/i.test(url)) continue
+    const lower = url.toLowerCase()
+    const href = lower.startsWith('http://') || lower.startsWith('https://')
+      ? url
+      : `https://${url}`
+    // Extra safety: never emit a non-http(s) href.
+    if (!/^https?:\/\//i.test(href)) continue
+    if (m.index > last) segments.push({ kind: 'text', text: text.slice(last, m.index) })
+    segments.push({ kind: 'link', text: url, href })
+    last = m.index + url.length
+    CHAT_URL_RE.lastIndex = last
+  }
+  if (last < text.length) segments.push({ kind: 'text', text: text.slice(last) })
+  return segments
+}
+
+// ---------------------------------------------------------------------------
 // chatKeysToPrune — given a ts-ascending [key, msg] list (the output of
 // normalizeChatLog), return the keys of the oldest entries beyond `cap` so
 // callers can delete them and keep the log bounded. [] when already within
