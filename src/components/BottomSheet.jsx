@@ -8,7 +8,7 @@ const DRAG_CLOSE_PX = 90
 // Elements the Tab trap may cycle through; disabled/hidden ones are filtered
 // at trap time, not here.
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  'summary, a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 // Sheets never nest by design (a sheet that opens another closes itself
 // first), but a module count keeps the body scroll lock honest even if one
