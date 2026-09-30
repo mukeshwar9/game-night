@@ -168,9 +168,6 @@ function LocalPlayPage({ routeType }) {
     recordRecentPlay(routeType, 'local')
   }, [routeType])
 
-  // A game with its own offline page (registry LocalPage) renders that
-  // instead of the generic bot-board engine.
-  const Local = cfg.LocalPage
   return (
     <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
