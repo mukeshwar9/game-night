@@ -103,6 +103,37 @@ export function twoPlayerSeats(room) {
   return { x, o }
 }
 
+// ---- What the function has to read ----------------------------------------
+// creditMatchResults fires on every status write, and a room also holds chat,
+// signalling, spectators, seals and (in party rooms) every player, none of
+// which any decision here looks at. The function reads only these paths (the
+// core's inputs) instead of the whole room. Add a path here when the core
+// starts reading another room field; core.test.js checks that dropping
+// everything else changes no verdict.
+export const ROOM_PATHS = [
+  'status', 'scores', 'winner', 'board', 'lastMove', 'matchLength', 'arrowsRound',
+  'presence/X', 'presence/O', 'players/X', 'players/O',
+]
+
+/** Games whose results never reach the leaderboard: no reason to read the room. */
+export const isResultsSkipped = (gameType) => isCoopGame(gameType)
+
+/**
+ * Rebuilds the room the core sees from the values read at ROOM_PATHS
+ * (`values[path]`, null/undefined when absent).
+ */
+export function assembleRoom(gameType, values) {
+  const room = { gameType }
+  for (const path of ROOM_PATHS) {
+    const v = values[path]
+    if (v === null || v === undefined) continue
+    const [head, sub] = path.split('/')
+    if (sub) room[head] = { ...(room[head] || {}), [sub]: v }
+    else room[head] = v
+  }
+  return room
+}
+
 // ---- Hashing ---------------------------------------------------------------
 // FNV-1a, 64-bit, base36: stable short keys for round signatures and match
 // keys (safe as RTDB keys, and a match key on a public leaderboard row does

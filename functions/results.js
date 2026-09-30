@@ -68,6 +68,18 @@ async function transactResults(root, gameId, reduce) {
   return { state: snapshot.val(), note }
 }
 
+// The room as the core needs it, from a handful of small reads instead of the
+// whole node (chat, signalling, spectators, seals...). One read of gameType
+// first: co-op rooms are never credited, so they cost nothing more.
+async function readRoom(root, gameId) {
+  const base = root.child(`games/${gameId}`)
+  const gameType = (await base.child('gameType').get()).val()
+  if (typeof gameType !== 'string' || core.isResultsSkipped(gameType)) return null
+  const values = {}
+  await Promise.all(core.ROOM_PATHS.map(async (path) => { values[path] = (await base.child(path).get()).val() }))
+  return core.assembleRoom(gameType, values)
+}
+
 // Fires on every change of a room's status: 'playing' may open a new match
 // epoch, 'finished' judges the round (and closes the match when it decides
 // it). Anything else (waiting, room deleted) is ignored.
@@ -79,7 +91,7 @@ exports.creditMatchResults = onValueWritten({ ref: '/games/{gameId}/status', max
   // The root of the database instance that fired (not necessarily the
   // project's default one).
   const root = event.data.after.ref.root
-  const room = (await root.child(`games/${gameId}`).get()).val()
+  const room = await readRoom(root, gameId)
   if (!room || !core.twoPlayerSeats(room)) return
   const now = Date.now()
 

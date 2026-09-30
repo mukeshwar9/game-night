@@ -282,3 +282,47 @@ describe('error telemetry retention', () => {
     }
   })
 })
+
+
+describe('reading only the paths the core needs', () => {
+  const pathValues = (room) => Object.fromEntries(core.ROOM_PATHS.map((path) => {
+    const [head, sub] = path.split('/')
+    return [path, sub ? room[head]?.[sub] : room[head]]
+  }))
+  const noisy = (room) => ({
+    ...room,
+    chatLog: { a: { name: 'X', text: 'hi', ts: 1 } },
+    signaling: { attempt: 'x', runs: { x: { offer: 'sdp'.repeat(500) } } },
+    spectators: { s1: { name: 'S' } },
+    sealKeys: { u: 'k' },
+    players: { ...room.players, extra: { name: 'Z', playerId: 'zz' } },
+    presence: { ...room.presence, extra: { online: true } },
+  })
+
+  test('dropping every other key changes no verdict', () => {
+    for (const room of [
+      tttRoom(),
+      tttRoom({ winner: 'O', board: O_DIAG, lastMove: 8, scores: { X: 0, O: 1 } }),
+      tttRoom({ winner: 'X', board: ['X', E, E, E, E, E, E, E, E] }),
+      tttRoom({ gameType: 'pong', scores: { X: 3, O: 1 }, matchLength: 3, board: undefined }),
+      tttRoom({ gameType: 'arrows', scores: { X: 1, O: 1 }, arrowsRound: 99, board: undefined }),
+    ]) {
+      const full = noisy(room)
+      const lean = core.assembleRoom(room.gameType, pathValues(full))
+      assert.deepEqual(core.verifyRound(lean), core.verifyRound(full), room.gameType)
+      assert.equal(core.isMatchOver(lean), core.isMatchOver(full), room.gameType)
+      assert.deepEqual(core.twoPlayerSeats(lean), core.twoPlayerSeats(full))
+      assert.equal(core.roundSignature(lean), core.roundSignature(full))
+      assert.equal(core.matchOutcome(lean), core.matchOutcome(full))
+      const a = core.reduceFinish(null, lean, { now: 1 })
+      const b = core.reduceFinish(null, full, { now: 1 })
+      assert.deepEqual(a, b)
+    }
+  })
+
+  test('a room with a missing part assembles without it, and co-op games are skipped', () => {
+    assert.deepEqual(core.assembleRoom('tictactoe', { status: 'playing', scores: null }), { gameType: 'tictactoe', status: 'playing' })
+    assert.equal(core.isResultsSkipped('wirecrossed'), true)
+    assert.equal(core.isResultsSkipped('tictactoe'), false)
+  })
+})
