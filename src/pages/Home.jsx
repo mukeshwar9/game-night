@@ -21,10 +21,10 @@ import { defaultAvatarForId } from '../lib/avatars'
 import { checkShouldOnboard } from '../lib/onboarding'
 
 const getPlayerName = (profile) => profile?.displayName || localStorage.getItem('playerName') || ''
-const GAME_COUNT = GAME_TYPES.filter(t => !t.variantOf).length
 
-// Home's secondary rows (daily puzzle, find an opponent, all games): title,
-// one plain line, one explicit action on the right. Same shape as DailyTile.
+// Home's secondary rows (daily puzzle, find an opponent): title, one plain
+// line, one text action on the right. The whole row is the link, so the
+// action is a label, not a second bordered button. Same shape as DailyTile.
 function ActionRow({ to, title, detail, action }) {
   return (
     <Link
@@ -36,8 +36,8 @@ function ActionRow({ to, title, detail, action }) {
         <span className="block font-pixel text-[10px] text-retro-text tracking-wider">{title}</span>
         <span className="block font-mono text-[11px] text-retro-dim mt-1 truncate">{detail}</span>
       </span>
-      <span className="shrink-0 min-h-11 min-w-[76px] px-3 flex items-center justify-center border border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider rounded group-hover:bg-retro-tint-cta transition-colors">
-        {action}
+      <span className="shrink-0 min-h-11 pl-2 flex items-center gap-1.5 text-retro-cta font-pixel text-[9px] tracking-wider group-hover:text-glow-cta transition-colors">
+        {action} <span aria-hidden="true">→</span>
       </span>
     </Link>
   )
@@ -159,7 +159,6 @@ export default function Home() {
           <h1 className="font-pixel text-xl sm:text-2xl text-retro-text text-glow-cta mt-2 tracking-wider">
             READY FOR ANOTHER ROUND?
           </h1>
-          <p className="font-mono text-xs text-retro-dim mt-2">Pick a game. Share a link. Start playing.</p>
           <Link
             to="/games?intent=friend"
             className="mt-5 min-h-12 w-full flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-[0.98]"
@@ -190,11 +189,10 @@ export default function Home() {
           <RecentlyPlayed onSelect={handleRecentSelect} loadingType={loading} />
         </section>
 
-        <section className="max-w-md mx-auto w-full space-y-2" aria-labelledby="home-today">
-          <h2 id="home-today" className="font-pixel text-[10px] text-retro-dim tracking-wider">TODAY</h2>
+        {/* ALL GAMES lived here too, a copy of the GAMES tab one row down. */}
+        <section className="max-w-md mx-auto w-full space-y-2" aria-label="More ways to play">
           <DailyTile />
           <ActionRow to="/online" title="FIND AN OPPONENT" detail="Join a public room or open one" action="BROWSE" />
-          <ActionRow to="/games" title="ALL GAMES" detail={`${GAME_COUNT} games to explore`} action="VIEW" />
         </section>
 
         {canInstall && (

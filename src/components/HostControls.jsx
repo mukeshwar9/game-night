@@ -58,7 +58,8 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
         aria-expanded={open}
         className="w-full flex items-center justify-center gap-2 font-pixel text-[9px] text-retro-dim hover:text-retro-text transition-colors py-2"
       >
-        HOST CONTROLS {open ? '▴' : '▾'}
+        {/* ▾/▴ aren't in the pixel fonts and rendered as a stray dot. */}
+        HOST CONTROLS <span aria-hidden="true" className={cn('inline-block transition-transform', open ? '-rotate-90' : 'rotate-90')}>›</span>
       </button>
 
       {open && (

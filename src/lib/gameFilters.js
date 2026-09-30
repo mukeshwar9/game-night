@@ -32,3 +32,11 @@ export function sortGames(list, sort) {
   if (sort === 'quick') return [...list].sort((a, b) => (a.durationMin ?? 999) - (b.durationMin ?? 999))
   return list
 }
+
+// Catalog card views. A stored value that is not one of these (including the
+// retired 'large') falls back to detailed.
+export const CATALOG_VIEWS = ['detailed', 'compact', 'mini']
+
+export function readCatalogView(stored) {
+  return CATALOG_VIEWS.includes(stored) ? stored : 'detailed'
+}

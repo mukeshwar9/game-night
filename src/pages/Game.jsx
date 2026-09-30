@@ -22,7 +22,6 @@ import ProposalBanner from '../components/ProposalBanner'
 import DeadEnd, { deadEndPrimaryClass } from '../components/DeadEnd'
 import GameSwitcher from '../components/GameSwitcher'
 import SettingsButton from '../components/SettingsButton'
-import MusicToggle from '../components/MusicToggle'
 import { useMusicScene } from '../lib/music'
 import { roomMusicScene } from '../lib/musicLogic'
 import ChatLog from '../components/ChatLog'
@@ -842,7 +841,6 @@ export default function Game() {
           <div className="game-header flex items-start justify-between gap-2">
             <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">← HOME</Link>
             <div className="game-header-actions flex items-center justify-end gap-3">
-              <MusicToggle />
               <SettingsButton />
               <RulesButton onClick={() => setShowRules(true)} />
               {amSeated && game.status !== 'waiting' && (
@@ -865,7 +863,6 @@ export default function Game() {
                 <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
               )}
               <WatchingChip count={watching} />
-              <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
             </div>
           </div>
           <p className="game-room-meta font-pixel text-[9px] text-retro-dim tracking-widest text-center -mt-2">
@@ -976,7 +973,7 @@ export default function Game() {
             ← HOME
           </Link>
           <div className={cn('game-header-actions flex items-center justify-end gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>
-            <MusicToggle />
+            {/* Music lives in SETTINGS; the room header keeps only room actions. */}
             <SettingsButton />
             <RulesButton onClick={() => setShowRules(true)} />
             {/* M-24: GameSwitcher opens its own full-screen sheet whose open
@@ -991,7 +988,8 @@ export default function Game() {
                 onSwitch={(t) => (game.status === 'waiting' ? applySwitchGame(t) : propose('switch', t))}
               />
             )}
-            {!isSpectator && (
+            {/* The waiting room has its own FRIENDS invite right under SHARE. */}
+            {!isSpectator && game.status !== 'waiting' && (
               <button
                 onClick={() => setShowInvite(true)}
                 title="Invite a friend"
@@ -1008,12 +1006,11 @@ export default function Game() {
               <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
             )}
             <WatchingChip count={watching} />
-            <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
           </div>
         </div>
-        {/* Mobile: the header icons crowd out the game name and room code, so
-            they get their own quiet line — you always know what you're
-            playing and which room you're in. */}
+        {/* The game name and room code get their own quiet line at every
+            width — you always know what you're playing and which room you're
+            in, and the code is never printed twice in the header. */}
         <p className="game-room-meta font-pixel text-[9px] text-retro-dim tracking-widest text-center -mt-2">
           {cfg.label} <span aria-hidden="true">·</span> ROOM <span className="text-retro-p1">{gameId}</span>
         </p>

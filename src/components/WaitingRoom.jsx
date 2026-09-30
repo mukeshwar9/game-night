@@ -175,19 +175,21 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
         <PixelDots size="lg" tone="cta" glow />
       )}
 
-      {/* Status text + game label */}
+      {/* Status text */}
       <div className="text-center space-y-1">
         <p className="font-pixel text-xs text-retro-text">
           {readyToPlay ? 'READY TO PLAY' : 'WAITING FOR OPPONENT'}
         </p>
-        {label && (
-          <p className="font-pixel text-sm text-retro-p1 tracking-wider pt-1">{label}</p>
+        {/* The room line above already names the game (lobbies show it in
+            their GAME row), and SHARE INVITE LINK says what to do next, so a
+            plain waiting room needs no hint line. */}
+        {(readyToPlay || isLobby) && (
+          <p className="font-mono text-xs text-retro-dim">
+            {readyToPlay
+              ? (pickFirst ? 'choose who goes first, then start' : 'pick a game, then start')
+              : 'chat while you wait — pick a game anytime'}
+          </p>
         )}
-        <p className="font-mono text-xs text-retro-dim">
-          {readyToPlay
-            ? (pickFirst ? 'choose who goes first, then start' : 'pick a game, then start')
-            : isLobby ? 'chat while you wait — pick a game anytime' : 'share the link to invite a friend'}
-        </p>
       </div>
 
       {/* Lobby-only: live game picker, works pre-game with no proposal handshake */}
@@ -281,9 +283,6 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
         </div>
       )}
 
-      {/* Room timer scale (host picks NORMAL / RELAXED / OFF; everyone
-          sees it). A room preference: it survives switches and rematches. */}
-      <TimerScalePicker gameId={gameId} game={game} canEdit={amHost(game)} />
       {/* Pong mode selector (creator only) */}
       {gameType === 'pong' && (
         <div className="bg-retro-card border border-retro-border rounded p-3 space-y-2 text-center">
@@ -372,8 +371,10 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
       )}
 
       {/* Share-first: on a phone the host sends a link, they don't scan their
-          own screen. One full-width primary action, the code big enough to
-          read aloud, and the QR tucked behind a toggle for same-room friends. */}
+          own screen. One full-width primary action; under it one quiet row:
+          the code big enough to read aloud, then QR and friend invites.
+          COPY LINK was a third way to do what SHARE already does (the share
+          sheet has Copy, and without navigator.share SHARE copies). */}
       <div className="w-full space-y-2">
         <button
           onClick={() => runShare(shareInvite)}
@@ -383,18 +384,27 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
         >
           {shareBusy ? 'SHARING…' : 'SHARE INVITE LINK'}
         </button>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center gap-2 border-t border-retro-border/60 pt-3">
           <button
             onClick={() => runShare(copyLink)}
             disabled={shareBusy}
-            className="min-h-11 bg-retro-card border border-retro-border text-retro-text font-pixel text-[9px] tracking-wider rounded
-              hover:border-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+            aria-label={`Room code ${gameId}. Copy invite link`}
+            title="Copy invite link"
+            className="flex-1 min-w-0 min-h-11 text-left rounded transition-opacity hover:opacity-80 disabled:opacity-50"
           >
-            COPY LINK
+            <span className="block font-pixel text-[8px] text-retro-dim tracking-wider">ROOM CODE</span>
+            <span className="block font-pixel text-base text-retro-p1 tracking-[0.25em] mt-1">{gameId}</span>
+          </button>
+          <button
+            onClick={() => setShowQr(v => !v)}
+            aria-expanded={showQr}
+            className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] tracking-wider text-retro-dim hover:text-retro-text"
+          >
+            {showQr ? 'HIDE QR' : 'QR'}
           </button>
           <button
             onClick={() => setShowInvite(true)}
-            className="min-h-11 flex items-center justify-center gap-2 bg-retro-card border border-retro-border text-retro-text
+            className="shrink-0 min-h-11 px-3 flex items-center justify-center gap-2 border border-retro-border text-retro-text
               font-pixel text-[9px] tracking-wider rounded hover:border-retro-p1 transition-all active:scale-95"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -408,19 +418,6 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
         </div>
       </div>
 
-      <div className="w-full bg-retro-card border border-retro-border rounded p-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-pixel text-[9px] text-retro-dim tracking-wider">ROOM CODE</p>
-          <p className="font-pixel text-lg text-retro-p1 tracking-[0.25em] mt-1">{gameId}</p>
-        </div>
-        <button
-          onClick={() => setShowQr(v => !v)}
-          aria-expanded={showQr}
-          className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] tracking-wider text-retro-dim hover:text-retro-text"
-        >
-          {showQr ? 'HIDE QR' : 'SHOW QR'}
-        </button>
-      </div>
       {showQr && (
         <div className="flex flex-col items-center gap-1.5">
           <div className="bg-white p-2 rounded">
@@ -429,6 +426,11 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           <p className="font-pixel text-[9px] text-retro-dim">SCAN TO JOIN</p>
         </div>
       )}
+
+      {/* Room timer scale (host picks NORMAL / RELAXED / OFF; everyone
+          sees it). A room preference that survives switches and rematches,
+          so it sits under the invite — inviting is the job of this screen. */}
+      <TimerScalePicker gameId={gameId} game={game} canEdit={amHost(game)} />
 
       {showInvite && (
         <InviteFriendModal gameId={gameId} gameType={gameType} onClose={() => setShowInvite(false)} />

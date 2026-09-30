@@ -10,7 +10,7 @@ import GameCard from './GameCard'
 import NewGamesRail from './NewGamesRail'
 import EmptyState from './EmptyState'
 import FilterButton, { ViewTabs } from './GameFilters'
-import { FILTER_DEFS, isSortId, sortGames } from '../lib/gameFilters'
+import { FILTER_DEFS, isSortId, readCatalogView, sortGames } from '../lib/gameFilters'
 
 // Variant entries (those with `variantOf`) are hidden from the grid and surfaced
 // as a "choose mode" step when their base game is picked.
@@ -64,12 +64,12 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const [filters, setFilters] = useState(persisted?.filters || {})
   const [sort, setSort] = useState(persisted && isSortId(persisted.sort) ? persisted.sort : 'curated')
   const selectSort = (id) => { if (isSortId(id)) setSort(id) }
-  // Card view: detailed tiles (big art top, name bottom) or compact rows.
+  // Card view: detailed tiles (big art top, name bottom), compact rows, or
+  // the mini list.
   // Device-local like the other display prefs; detailed shows off the art.
   const [view, setView] = useState(() => {
     try {
-      const stored = localStorage.getItem(VIEW_KEY)
-      return stored === 'compact' || stored === 'mini' ? stored : 'detailed'
+      return readCatalogView(localStorage.getItem(VIEW_KEY))
     } catch {
       return 'detailed'
     }
@@ -235,7 +235,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const detailed = isFull && view === 'detailed'
   const mini = isFull && view === 'mini'
   const gridClass = detailed
-    ? 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2'
+    ? 'grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8'
     : mini
       ? 'flex flex-col gap-1'
       : isFull
@@ -360,10 +360,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
                 className="space-y-2"
                 style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}
               >
-                <div className="flex items-baseline justify-between gap-2">
-                  <h2 id={`catalog-${c.id}`} className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</h2>
-                  <span className="font-mono text-[11px] text-retro-dim">{c.games.length}</span>
-                </div>
+                {/* The count lives on the category chip; no second copy here. */}
+                <h2 id={`catalog-${c.id}`} className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</h2>
                 {renderGrid(c.games)}
               </section>
             ))}

@@ -363,7 +363,7 @@ export const GAME_RULES = {
   animalstack: {
     objective: 'Take turns dropping animals onto one tower — do not be the one who topples it.',
     howToPlay: [
-      'Drag anywhere on the arena to move the hovering animal; ⟲ ROTATE turns it 15° (hold to spin).',
+      'Drag anywhere on the arena to move the hovering animal; ⟲ and ⟳ turn it 15° either way (hold to spin).',
       'Press DROP to let go. Everyone sees the same animal and the NEXT one.',
       'If any animal falls off the island into the water, whoever just dropped loses a heart and a new tower starts.',
       '2 players: 3 hearts each. 3-4 players: 2 hearts each. Online you have 15 s to aim.',

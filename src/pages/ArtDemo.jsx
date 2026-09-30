@@ -1,11 +1,12 @@
-// Dev-only preview (DEV-only route, never ships): game art options A/B +
-// GIF-like how-to-play clips, all on the same 3 games.
+// Dev-only preview (DEV-only route, never ships): the pixel game-art styles +
+// GIF-like how-to-play clips.
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { GameArtImg, GameArtSvg } from '../components/GameArt'
+import { GameArtPixel } from '../components/GameArt'
 import RuleClip from '../components/RuleClips'
 import GameCard from '../components/GameCard'
 import { getGameConfig, GAME_TYPES } from '../lib/games'
+import { ART_STYLES, PIXEL_ART_SIZES } from '../lib/gameArtStyle'
 import { getRules } from '../lib/rules'
 import FilterButton, { ViewTabs } from '../components/GameFilters'
 import { passesFilters, sortGames } from '../lib/gameFilters'
@@ -14,19 +15,13 @@ const DEMO_TYPES = ['tictactoe', 'connectfour', 'pong']
 const BOARD_TYPES = GAME_TYPES.filter(t => t.category === 'board').map(t => t.type)
 const ALL_TYPES = GAME_TYPES.filter(t => !t.variantOf)
 
-const PNG_SNIPPET = `// OPTION A — image file (fixed colors, ~3 KB each). DEFAULT.
-// 1. Draw it: extend scripts/make-game-art.mjs, then
-npm run art   # → public/game-art/<type>.png
+const ART_SNIPPET = `// Pixel art — indexed PNGs on the house palette, drawn in code.
+// 1. Draw it: add a sprite per style in scripts/pixel-art/games/, then
+npm run art:pixel   # → public/game-art/pixel/<style>/<type>.png
 // 2. Register one line in src/components/GameArt.jsx:
 const ART_TYPES = new Set([… 'sos'])`
 
-const SVG_SNIPPET = `// OPTION B — soft SVG (theme-aware, zero bytes).
-// Switch anytime: Settings → LOOK & FEEL → GAME ART → SOFT.
-// 1. Add one small SVG in src/components/GameArt.jsx
-//    (viewBox 0 0 96 96, ONLY fill-retro-*/stroke-retro-* — never hex):
-function SosSoft({ className }) { /* …tint wash + thin strokes… */ }
-// 2. Register one line:
-const SOFT_ART = { … sos: SosSoft }`
+const PIXEL_STYLES = ART_STYLES.filter(s => PIXEL_ART_SIZES[s.id])
 
 const CLIP_SNIPPET = `// Real clips pipeline — ship muted looping MP4, NOT gif:
 // a 5s gif ≈ 2–5 MB · the same clip as mp4 ≈ 150 KB, pausable, themeable.
@@ -142,25 +137,22 @@ export default function ArtDemo() {
     <main className="min-h-screen bg-retro-bg p-4">
       <div className="w-full max-w-5xl mx-auto space-y-6 py-4">
         <div>
-          <p className="font-pixel text-[10px] text-retro-cta tracking-[0.2em]">ART + RULES PREVIEW · 3 GAMES</p>
-          <h1 className="font-pixel text-xl text-retro-text mt-2">PNG vs SVG · HOW-TO-PLAY CLIPS</h1>
+          <p className="font-pixel text-[10px] text-retro-cta tracking-[0.2em]">ART + RULES PREVIEW</p>
+          <h1 className="font-pixel text-xl text-retro-text mt-2">PIXEL ART · HOW-TO-PLAY CLIPS</h1>
           <p className="font-mono text-xs text-retro-dim mt-2">
-            Catalog art defaults to BOLD (PNG) — flip it live in Settings → LOOK &amp; FEEL → GAME ART
-            and watch the rows below re-theme. Same page, second half: motion for the rules sheet.
+            Catalog art defaults to PIXEL SCENE — flip it live in Settings → LOOK &amp; FEEL → GAME ART
+            and watch the catalog cards below follow. Same page, second half: motion for the rules sheet.
           </p>
         </div>
 
-        <TileRow
-          title="OPTION A — IMAGE FILES (DEFAULT) · ALL 71 GAMES"
-          blurb="Fixed bright palette, dark sticker outline. ~280 KB for the whole set."
-          render={(t) => <GameArtImg type={t} className="w-full aspect-square block" />}
-        />
-
-        <TileRow
-          title="OPTION B — SVG, SOOTHING · ALL 71 GAMES"
-          blurb="Tint washes, thin round strokes. Zero bytes, theme-aware. Flip via Settings → GAME ART."
-          render={(t) => <GameArtSvg type={t} className="w-full aspect-square block" />}
-        />
+        {PIXEL_STYLES.map(({ id, label }) => (
+          <TileRow
+            key={id}
+            title={`${label} · ALL ${ALL_TYPES.length} GAMES`}
+            blurb={`${PIXEL_ART_SIZES[id]}×${PIXEL_ART_SIZES[id]} sprite on the house palette, upscaled crisp.`}
+            render={(t) => <GameArtPixel type={t} style={id} className="w-full aspect-square block" />}
+          />
+        ))}
 
         <div className="space-y-2">
           <h2 className="font-pixel text-[9px] text-retro-cta tracking-widest">IN THE CATALOG (FOLLOWS YOUR SETTING)</h2>
@@ -176,10 +168,7 @@ export default function ArtDemo() {
         <div className="space-y-2 max-w-md">
           <h2 className="font-pixel text-[9px] text-retro-cta tracking-widest">HOW TO ADD THE NEXT GAME</h2>
           <pre className="font-mono text-[11px] leading-relaxed text-retro-text bg-retro-card border border-retro-border rounded-2xl p-4 overflow-x-auto whitespace-pre">
-            {PNG_SNIPPET}
-          </pre>
-          <pre className="font-mono text-[11px] leading-relaxed text-retro-text bg-retro-card border border-retro-border rounded-2xl p-4 overflow-x-auto whitespace-pre">
-            {SVG_SNIPPET}
+            {ART_SNIPPET}
           </pre>
         </div>
 
