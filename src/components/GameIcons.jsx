@@ -1,7 +1,7 @@
 // LINE icon rules (the 20 redrawn below; the rest follow once approved):
-// 24 grid, ink kept inside 2–22 including caps; structure is a 2px square-cap
-// line in currentColor (or retro-dim when secondary); game pieces are solid
-// shapes in the game's own colours — X retro-p1, O retro-p2, accent retro-cta.
+// 24 grid, ink kept inside 2–22 including caps; one 2px square-cap stroke in
+// currentColor and nothing else — no fills, no per-game colours — so every
+// icon takes the theme colour its caller sets. A dot is a zero-length stroke.
 // LineSvg sets the shared stroke so each icon only draws its shapes.
 function LineSvg({ children }) {
   return (
@@ -15,28 +15,19 @@ function LineSvg({ children }) {
 export function TicTacToeIcon() {
   return (
     <LineSvg>
-      <path d="M8 3V21M16 3V21M3 8H21M3 16H21" className="stroke-retro-dim" />
-      <path d="M3.5 3.5L5.5 5.5M5.5 3.5L3.5 5.5M11 11L13 13M13 11L11 13M18.5 18.5L20.5 20.5M20.5 18.5L18.5 20.5" className="stroke-retro-p1" />
-      <circle cx="19.5" cy="4.5" r="1.5" className="stroke-retro-p2" />
-      <circle cx="4.5" cy="19.5" r="1.5" className="stroke-retro-p2" />
+      <path d="M8 3V21M16 3V21M3 8H21M3 16H21" />
+      <path d="M11 11L13 13M13 11L11 13" />
+      <circle cx="19.5" cy="4.5" r="1.5" />
     </LineSvg>
   )
 }
 
 export function ConnectFourIcon() {
-  const holes = [
-    [6.5, 10.5, 'dim'], [10.2, 10.5, 'dim'], [13.8, 10.5, 'dim'], [17.5, 10.5, 'p1'],
-    [6.5, 14, 'dim'], [10.2, 14, 'p2'], [13.8, 14, 'p1'], [17.5, 14, 'p2'],
-    [6.5, 17.5, 'p2'], [10.2, 17.5, 'p1'], [13.8, 17.5, 'p2'], [17.5, 17.5, 'p2'],
-  ]
   return (
     <LineSvg>
-      <rect x="3" y="7" width="18" height="14" rx="2" />
-      {holes.map(([cx, cy, c]) => (
-        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={c === 'dim' ? 1 : 1.5} stroke="none"
-          className={c === 'dim' ? 'fill-retro-dim' : c === 'p1' ? 'fill-retro-p1' : 'fill-retro-p2'} />
-      ))}
-      <circle cx="17.5" cy="3.5" r="1.5" stroke="none" className="fill-retro-p1" />
+      <rect x="3" y="9" width="18" height="12" rx="2" />
+      {[7.5, 12, 16.5].flatMap(cx => [12.5, 17.5].map(cy => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.2" />))}
+      <circle cx="16.5" cy="4.5" r="1.2" />
     </LineSvg>
   )
 }
@@ -45,9 +36,9 @@ export function HangwomanIcon() {
   return (
     <LineSvg>
       <path d="M3 21H10M6 21V4H14V6" />
-      <circle cx="14" cy="9" r="2.2" stroke="none" className="fill-retro-p2" />
-      <path d="M14 12V16M11.5 13.5H16.5M14 16L12 19.5M14 16L16 19.5" className="stroke-retro-p2" />
-      <path d="M16 21H17M20 21H21" className="stroke-retro-dim" />
+      <circle cx="14" cy="8.5" r="2" />
+      <path d="M14 11.5V16M11.5 13.5H16.5M14 16L12 19.5M14 16L16 19.5" />
+      <path d="M16 21H17M20 21H21" />
     </LineSvg>
   )
 }
@@ -114,37 +105,26 @@ export function VisualMemoryIcon() {
   )
 }
 
-// Quarter-ring pad for Simon, from angle a0 to a1 (degrees) around (12, 12).
-function simonPad(a0, a1) {
-  const p = (r, a) => `${(12 + r * Math.cos(a * Math.PI / 180)).toFixed(2)} ${(12 + r * Math.sin(a * Math.PI / 180)).toFixed(2)}`
-  return `M${p(10, a0)}A10 10 0 0 1 ${p(10, a1)}L${p(3.5, a1)}A3.5 3.5 0 0 0 ${p(3.5, a0)}Z`
-}
-
 export function SimonIcon() {
+  // Four separate pads around the hub.
   return (
     <LineSvg>
-      <g stroke="none">
-        <path d={simonPad(185, 265)} className="fill-retro-p1" />
-        <path d={simonPad(275, 355)} className="fill-retro-danger" />
-        <path d={simonPad(5, 85)} className="fill-retro-p4" />
-        <path d={simonPad(95, 175)} className="fill-retro-cta" />
-      </g>
+      <path d="M3 10.5A7.5 7.5 0 0 1 10.5 3V7.5A3 3 0 0 0 7.5 10.5Z" />
+      <path d="M13.5 3A7.5 7.5 0 0 1 21 10.5H16.5A3 3 0 0 0 13.5 7.5Z" />
+      <path d="M21 13.5A7.5 7.5 0 0 1 13.5 21V16.5A3 3 0 0 0 16.5 13.5Z" />
+      <path d="M10.5 21A7.5 7.5 0 0 1 3 13.5H7.5A3 3 0 0 0 10.5 16.5Z" />
     </LineSvg>
   )
 }
 
 export function DotsAndBoxesIcon() {
+  // Two claimed boxes: X's top-left, O's bottom-right.
   return (
     <LineSvg>
-      <g stroke="none">
-        <rect x="5" y="5" width="6" height="6" className="fill-retro-p1" />
-        <rect x="13" y="13" width="6" height="6" className="fill-retro-p2" />
-      </g>
       <path d="M4 12V4H20M12 4V20M4 12H12M12 20H20V12" />
-      <path d="M13 12H19" className="stroke-retro-cta" />
-      <g stroke="none" fill="currentColor">
-        {[4, 12, 20].flatMap(y => [4, 12, 20].map(x => <rect key={`${x}-${y}`} x={x - 1.5} y={y - 1.5} width="3" height="3" />))}
-      </g>
+      <path d="M4 20h0M20 12h0" />
+      <path d="M6.5 6.5L9.5 9.5M9.5 6.5L6.5 9.5" />
+      <circle cx="16" cy="16" r="1.5" />
     </LineSvg>
   )
 }
@@ -203,9 +183,8 @@ export function AimIcon() {
   return (
     <LineSvg>
       <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="4.5" className="stroke-retro-cta" />
-      <path d="M12 3V6M12 18V21M3 12H6M18 12H21" />
-      <circle cx="12" cy="12" r="1.6" stroke="none" className="fill-retro-danger" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 3V6M12 18V21M3 12H6M18 12H21M12 12h0" />
     </LineSvg>
   )
 }
@@ -229,13 +208,12 @@ export function GomokuIcon() {
 export function ReversiIcon() {
   return (
     <LineSvg>
-      <rect x="3" y="3" width="18" height="18" rx="2" className="stroke-retro-dim" />
-      <g stroke="none">
-        <circle cx="8" cy="8" r="3.2" className="fill-retro-p1" />
-        <circle cx="16" cy="16" r="3.2" className="fill-retro-p1" />
-        <circle cx="16" cy="8" r="3.2" className="fill-retro-p2" />
-        <circle cx="8" cy="16" r="3.2" className="fill-retro-p2" />
-      </g>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="2.5" />
+      <circle cx="15.5" cy="15.5" r="2.5" />
+      <circle cx="15.5" cy="8.5" r="2.5" />
+      <circle cx="8.5" cy="15.5" r="2.5" />
+      <path d="M8.5 8.5h0M15.5 15.5h0" />
     </LineSvg>
   )
 }
@@ -294,10 +272,10 @@ export function WavelengthIcon() {
   return (
     <LineSvg>
       <path d="M3 15A9 9 0 0 1 21 15" />
-      <path d="M12 15L17.16 7.63A9 9 0 0 1 19.37 9.84Z" stroke="none" className="fill-retro-cta" />
+      <path d="M16.3 9.4L18 7.5" />
       <path d="M12 15L7.5 8" />
-      <circle cx="12" cy="15" r="2" stroke="none" fill="currentColor" />
-      <path d="M3 19H21" className="stroke-retro-dim" />
+      <circle cx="12" cy="15" r="1.5" />
+      <path d="M3 19H21" />
     </LineSvg>
   )
 }
@@ -318,11 +296,7 @@ export function FibbageIcon() {
 export function SpyfairIcon() {
   return (
     <LineSvg>
-      <g stroke="none">
-        <path d="M6.5 10L8 3H16L17.5 10Z" fill="currentColor" />
-        <rect x="6.9" y="7.2" width="10.2" height="2" className="fill-retro-p2" />
-        <rect x="2" y="10" width="20" height="2" fill="currentColor" />
-      </g>
+      <path d="M6.5 10L8 3.5H16L17.5 10M3 11H21" />
       <circle cx="8.5" cy="17" r="2.3" />
       <circle cx="15.5" cy="17" r="2.3" />
       <path d="M11.5 17H12.5" />
@@ -333,12 +307,9 @@ export function SpyfairIcon() {
 export function PongIcon() {
   return (
     <LineSvg>
-      <path d="M12 3V21" strokeLinecap="butt" strokeDasharray="2 2" className="stroke-retro-dim" />
-      <g stroke="none">
-        <rect x="2" y="4" width="3" height="8" fill="currentColor" />
-        <rect x="19" y="12" width="3" height="8" fill="currentColor" />
-        <rect x="14" y="7" width="3" height="3" className="fill-retro-cta" />
-      </g>
+      <path d="M12 3V21" strokeLinecap="butt" strokeDasharray="2 2" />
+      <path d="M4 5V11M20 13V19" />
+      <rect x="15" y="8" width="1" height="1" />
     </LineSvg>
   )
 }
@@ -346,12 +317,9 @@ export function PongIcon() {
 export function SnakeIcon() {
   return (
     <LineSvg>
-      <path d="M3 20H10V13H17V9" />
-      <g stroke="none">
-        <rect x="15" y="3" width="4" height="5" fill="currentColor" />
-        <rect x="17" y="4.5" width="1.5" height="1.5" className="fill-retro-card" />
-        <rect x="19" y="17" width="3" height="3" className="fill-retro-cta" />
-      </g>
+      <path d="M3 20H10V13H17V8" />
+      <rect x="15" y="3" width="4" height="4" />
+      <rect x="19" y="17" width="2" height="2" />
     </LineSvg>
   )
 }
@@ -359,12 +327,9 @@ export function SnakeIcon() {
 export function TronIcon() {
   return (
     <LineSvg>
-      <path d="M3 20H15V15" className="stroke-retro-p1" />
-      <path d="M21 4H8V7" className="stroke-retro-p2" />
-      <g stroke="none">
-        <rect x="13" y="11" width="4" height="4" className="fill-retro-p1" />
-        <rect x="6" y="7" width="4" height="4" className="fill-retro-p2" />
-      </g>
+      <path d="M3 20H15V15M21 4H8V7" />
+      <rect x="14" y="11" width="2" height="2" />
+      <rect x="7" y="8" width="2" height="2" />
     </LineSvg>
   )
 }
@@ -565,19 +530,12 @@ export function PairsIcon() {
 }
 
 export function WordHuntIcon() {
-  // 3×3 letter tiles; the found word is filled, its trail drawn through.
-  const found = new Set(['0,0', '1,1', '2,1'])
-  const cells = [0, 1, 2].flatMap(r => [0, 1, 2].map(c => [c, r]))
+  // 3×3 letter tiles, the found word traced through them.
   return (
     <LineSvg>
-      {cells.filter(([c, r]) => !found.has(`${c},${r}`)).map(([c, r]) => (
-        <rect key={`${c},${r}`} x={3 + c * 7} y={3 + r * 7} width="4" height="4" rx="1" className="stroke-retro-dim" />
-      ))}
-      <g stroke="none">
-        {cells.filter(([c, r]) => found.has(`${c},${r}`)).map(([c, r]) => (
-          <rect key={`${c},${r}`} x={2 + c * 7} y={2 + r * 7} width="6" height="6" rx="1" className="fill-retro-cta" />
-        ))}
-      </g>
+      {[0, 1, 2].flatMap(r => [0, 1, 2].map(c => (
+        <rect key={`${c},${r}`} x={3 + c * 7} y={3 + r * 7} width="4" height="4" rx="1" />
+      )))}
       <path d="M5 5L12 12H19" />
     </LineSvg>
   )
@@ -588,13 +546,10 @@ export function AnagramsIcon() {
   return (
     <LineSvg>
       <rect x="3" y="10" width="4" height="4" rx="1" />
+      <rect x="10" y="10" width="4" height="4" rx="1" />
       <rect x="17" y="10" width="4" height="4" rx="1" />
-      <rect x="9" y="9" width="6" height="6" rx="1" stroke="none" className="fill-retro-cta" />
-      <path d="M5 6V4H19V5M19 18V20H5V19" />
-      <g stroke="none" fill="currentColor">
-        <path d="M16.5 5.5H21.5L19 8Z" />
-        <path d="M2.5 18.5H7.5L5 16Z" />
-      </g>
+      <path d="M5 7V4H19V7M17.5 6L19 7.5L20.5 6" />
+      <path d="M19 17V20H5V17M3.5 18L5 16.5L6.5 18" />
     </LineSvg>
   )
 }
@@ -602,11 +557,8 @@ export function AnagramsIcon() {
 export function PacmacIcon() {
   return (
     <LineSvg>
-      <g stroke="none">
-        <path d="M11 12L18.4 6.8A9 9 0 1 0 18.4 17.2Z" className="fill-retro-cta" />
-        <circle cx="11" cy="7.5" r="1.2" fill="currentColor" />
-        <rect x="19.5" y="10.8" width="2.5" height="2.5" fill="currentColor" />
-      </g>
+      <path d="M11 12L17.55 7.41A8 8 0 1 0 17.55 16.59Z" />
+      <path d="M11 8h0M21 12h0" />
     </LineSvg>
   )
 }
@@ -653,10 +605,8 @@ export function HerdIcon() {
 export function TriviaIcon() {
   return (
     <LineSvg>
-      <rect x="3" y="3" width="18" height="13" rx="2" />
-      <path d="M7 16H12L7 21Z" stroke="none" fill="currentColor" />
-      <path d="M9.5 8V6.5H14.5V9.5H12V11" className="stroke-retro-cta" />
-      <rect x="11" y="12.5" width="2" height="2" stroke="none" className="fill-retro-cta" />
+      <path d="M8 16H5A2 2 0 0 1 3 14V5A2 2 0 0 1 5 3H19A2 2 0 0 1 21 5V14A2 2 0 0 1 19 16H12L8 20Z" />
+      <path d="M9.5 8V6.5H14.5V9.5H12V11M12 13.5h0" />
     </LineSvg>
   )
 }
@@ -664,30 +614,19 @@ export function TriviaIcon() {
 export function BattleshipIcon() {
   return (
     <LineSvg>
-      <g stroke="none" fill="currentColor">
-        <path d="M2 12H22L19 18H5Z" />
-        <rect x="8" y="8" width="7" height="4" />
-      </g>
-      <path d="M11 4V7" />
-      <path d="M3 21H5M8 21H10M13 21H15M18 21H20" className="stroke-retro-dim" />
-      <path d="M17 4L20 7M20 4L17 7" className="stroke-retro-danger" />
+      <path d="M4 13H20L17.5 17H6.5Z" />
+      <path d="M9 13V10H15V13M12 5V10" />
+      <path d="M3 21H5M8 21H10M13 21H15M18 21H20" />
+      <path d="M17 4L20 7M20 4L17 7" />
     </LineSvg>
   )
 }
 
 export function MancalaIcon() {
-  const pits = [[7.5, 9.5, true], [12, 9.5, false], [16.5, 9.5, true], [7.5, 14.5, false], [12, 14.5, true], [16.5, 14.5, true]]
   return (
     <LineSvg>
       <rect x="3" y="5" width="18" height="14" rx="4" />
-      <g stroke="none">
-        {pits.map(([cx, cy, seed]) => (
-          <g key={`${cx}-${cy}`}>
-            <circle cx={cx} cy={cy} r="2.2" className="fill-retro-dim" />
-            {seed && <circle cx={cx} cy={cy} r="1.3" className="fill-retro-cta" />}
-          </g>
-        ))}
-      </g>
+      {[7.5, 12, 16.5].flatMap(cx => [9.5, 14.5].map(cy => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.2" />))}
     </LineSvg>
   )
 }
@@ -696,11 +635,9 @@ export function CheckersIcon() {
   // A crowned double stack: "king me".
   return (
     <LineSvg>
-      <g stroke="none">
-        <path d="M5 9V4L8.5 7L12 3L15.5 7L19 4V9Z" fill="currentColor" />
-        <rect x="2" y="11" width="20" height="5" rx="2.5" className="fill-retro-p2" />
-        <rect x="2" y="17" width="20" height="5" rx="2.5" className="fill-retro-p2" />
-      </g>
+      <path d="M5 9V4L8.5 7L12 3L15.5 7L19 4V9Z" />
+      <rect x="3" y="12" width="18" height="3" rx="1.5" />
+      <rect x="3" y="18" width="18" height="3" rx="1.5" />
     </LineSvg>
   )
 }
@@ -729,12 +666,8 @@ export function ArtilleryIcon() {
 export function SketchIcon() {
   return (
     <LineSvg>
-      <path d="M14 4L20 10L9 21H3V15Z" />
-      <path d="M12.5 5.5L18.5 11.5" />
-      <g stroke="none">
-        <path d="M14 4L15.8 2.2L21.8 8.2L20 10Z" className="fill-retro-p2" />
-        <path d="M3 21V17.5L6.5 21Z" fill="currentColor" />
-      </g>
+      <path d="M14 5L19 10L9 20H4V15Z" />
+      <path d="M12.5 6.5L17.5 11.5M4 17L7 20" />
     </LineSvg>
   )
 }
