@@ -2,7 +2,7 @@ import { Suspense, useState, useRef, useEffect } from 'react';
 import LoadingLine from '../components/loading/LoadingLine';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, PulpIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, PasswordIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
@@ -30,6 +30,7 @@ const PartyGameCard = lazyWithRetry(() => import('./demos/PartyGameCard'))
 const ReactionDemo = lazyWithRetry(() => import('./demos/ReactionDemo'))
 const TypingDemo = lazyWithRetry(() => import('./demos/TypingDemo'))
 const AimTrainerDemo = lazyWithRetry(() => import('./demos/AimTrainerDemo'))
+const PulpRushDemo = lazyWithRetry(() => import('./demos/PulpRushDemo'))
 const MathDemo = lazyWithRetry(() => import('./demos/MathDemo'))
 const SnakeDemo = lazyWithRetry(() => import('./demos/SnakeDemo'))
 const PongDemo = lazyWithRetry(() => import('./PongDemo'))
@@ -115,6 +116,7 @@ const DEMOS = [
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
+  { type: 'pulprush',     short: 'PULP\nRUSH',    Icon: PulpIcon,         Component: PulpRushDemo     },
   { type: 'typing',       short: 'TYPING\nRACE',  Icon: TypingIcon,       Component: TypingDemo       },
   { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },
   { type: 'pong',         short: 'PONG',          Icon: PongIcon,         Component: PongDemo         },
