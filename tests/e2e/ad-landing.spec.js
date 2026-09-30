@@ -14,8 +14,8 @@ const readDb = async (path) => (await fetch(`${DB_ORIGIN}/${path}.json?ns=${NS}`
 test('/play/<game> lands in the game with the headline strip and is attributed', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player
-  await page.goto('/play/battleship?utm_source=TikTok&utm_medium=paid&utm_campaign=e2eplay')
-  await expect(page).toHaveURL(/\/solo\/battleship\?utm_source=TikTok&utm_medium=paid&utm_campaign=e2eplay$/)
+  await page.goto('/play/battleship?utm_source=MetaAds&utm_medium=paid&utm_campaign=e2eplay')
+  await expect(page).toHaveURL(/\/solo\/battleship\?utm_source=MetaAds&utm_medium=paid&utm_campaign=e2eplay$/)
   await expect(page.getByRole('heading', { name: 'PLAY SOLO' })).toBeVisible()
   // No onboarding gate on the way in.
   await expect(page.getByRole('heading', { name: 'WHAT SHOULD WE CALL YOU?' })).toHaveCount(0)
@@ -26,7 +26,7 @@ test('/play/<game> lands in the game with the headline strip and is attributed',
   await expect(page.getByRole('link', { name: 'PLAY WITH A FRIEND' })).toBeVisible()
   await expect(page.getByRole('button', { name: /^Row 1/ })).toHaveCount(0) // not the full picker
 
-  const base = `funnelDaily/${today()}/tiktok/e2eplay`
+  const base = `funnelDaily/${today()}/metaads/e2eplay`
   await expect.poll(() => readDb(`${base}/landed`)).toBe(1)
   await expect.poll(() => readDb(`${base}/started`)).toBe(1)
 
