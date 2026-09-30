@@ -1543,3 +1543,45 @@ body::before {
 .lanterns-flash { animation: lanterns-flash 0.7s ease-in-out 2; }
 [data-motion="reduced"] .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); }
 @media (prefers-reduced-motion: reduce) { .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); } }
+
+/* WIRE CROSSED SWITCHBOARD: a locked switch rattles when tapped. */
+@keyframes wire-rattle {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-3px); }
+  40%, 80% { transform: translateX(3px); }
+}
+.wire-rattle { animation: wire-rattle 0.3s linear 1; }
+[data-motion="reduced"] .wire-rattle { animation: none; }
+@media (prefers-reduced-motion: reduce) { .wire-rattle { animation: none; } }
+/* WIRE CROSSED BLACKOUT: the Tech's panel goes dark. Fills, glows and wire
+   colours drop to the outline colour; borders (outlines) and text (colour
+   letter tags, labels) stay legible, and every button keeps working. The
+   flicker is one short animation; reduced motion keeps only the dim state. */
+@keyframes wire-blackout-flicker {
+  0%, 100% { opacity: 1; }
+  25% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+  75% { opacity: 0.6; }
+}
+.wire-blackout {
+  --wire-red: 20 20 30;
+  --wire-blue: 20 20 30;
+  --wire-yellow: 20 20 30;
+  --wire-white: 20 20 30;
+  --wire-black: 20 20 30;
+  --wire-green: 20 20 30;
+  --c-cta: var(--c-structure);
+  --c-p1: var(--c-structure);
+  --c-p2: var(--c-structure);
+  --c-win: var(--c-structure);
+  --c-danger: var(--c-structure);
+  --c-tint-cta: var(--c-deep);
+  --c-tint-p1: var(--c-deep);
+  --c-tint-p2: var(--c-deep);
+  --c-tint-danger: var(--c-deep);
+  --c-card: var(--c-deep);
+  animation: wire-blackout-flicker 0.45s steps(4) 1;
+}
+.wire-blackout * { color: rgb(var(--c-text)); }
+[data-motion="reduced"] .wire-blackout { animation: none; }
+@media (prefers-reduced-motion: reduce) { .wire-blackout { animation: none; } }
