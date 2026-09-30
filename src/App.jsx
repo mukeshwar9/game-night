@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
@@ -18,9 +18,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { VideoCallLayoutProvider } from './components/VideoCallLayout';
 import { LEADERBOARD_ENABLED } from './lib/features';
 import { titleForPath } from './lib/routeTitle';
-import { notifyFirstScreen } from './lib/native/shell';
-import { onNavigateRequest } from './lib/native/navigation';
-import NativeUpdateGate from './components/NativeUpdateGate';
+import { onNavigateRequest, notifyFirstScreen } from './lib/native/navigation';
+import { isNative } from './lib/platform';
 
 // Home (the landing page) and NotFound stay in the entry chunk; every other
 // route downloads on first visit. lazyWithRetry reloads once if a chunk from
@@ -40,6 +39,9 @@ const ArtDemo = import.meta.env.DEV ? lazyWithRetry(() => import('./pages/ArtDem
 // Hidden for launch (features.js): no route, so the chunk is never requested.
 const Leaderboard = LEADERBOARD_ENABLED ? lazyWithRetry(() => import('./pages/Leaderboard')) : null;
 const Playground = lazyWithRetry(() => import('./pages/Playground'));
+// Store builds only: the web never downloads the minimum-version gate. The
+// chunk is bundled in the app, so a plain lazy() needs no retry.
+const NativeUpdateGate = isNative ? lazy(() => import('./components/NativeUpdateGate')) : null;
 
 // Shown while a route's chunk downloads — the same PixelDots as the boot
 // splash (ConnectingSplash in AuthContext), minus its INSERT COIN line.
@@ -163,7 +165,7 @@ export default function App() {
             <Toaster />
             <InviteToasts />
             <UpdatePrompt />
-            <NativeUpdateGate />
+            {NativeUpdateGate && <Suspense fallback={null}><NativeUpdateGate /></Suspense>}
             <ConnectionBanner />
           </HomeInterceptProvider>
         </BrowserRouter>

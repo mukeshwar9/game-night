@@ -1,6 +1,8 @@
 // @ts-check
-// Hand-off from native events (a tapped notification, an opened invite link)
-// to react-router. Those events can arrive before the router has mounted —
+// Hand-off between the app and the native shell, kept tiny because the web
+// entry imports it: native events (a tapped notification, an opened invite
+// link) ask react-router for a route, and the router tells the shell when the
+// first screen is up. Those events can arrive before the router has mounted —
 // a cold start from a notification fires its tap listener during boot — so
 // the latest request is kept until a navigator subscribes.
 
@@ -29,4 +31,14 @@ export function onNavigateRequest(fn) {
     fn(path)
   }
   return () => { listeners.delete(fn) }
+}
+
+/** @type {(value?: unknown) => void} */
+let firstScreenReady = () => {}
+/** Resolves once the first route has rendered (the native splash waits on it). */
+export const firstScreen = new Promise(resolve => { firstScreenReady = resolve })
+
+/** Called by AppRoutes on mount, which happens only after auth has settled. */
+export function notifyFirstScreen() {
+  firstScreenReady()
 }

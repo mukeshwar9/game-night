@@ -1,14 +1,14 @@
 // Runtime glue for the Capacitor shell (ios/, android/, docs/MOBILE.md):
 // splash, system bars, Android back button, background/foreground handling and
-// the iOS keyboard bar. initNativeShell() runs once from main.jsx and does
-// nothing on the web. Every @capacitor/* plugin is loaded with a dynamic
+// the iOS keyboard bar. main.jsx loads this module and runs initNativeShell()
+// only inside the shell, so the web never downloads it. Every @capacitor/* plugin is loaded with a dynamic
 // import behind `isNative`, so the web bundle never carries them. The decisions
 // live in shellLogic.js (tested); this file only talks to the platform.
 import { goOffline, goOnline } from 'firebase/database'
 import { isNative, isIOS, isAndroid, nativePlatform } from '../platform'
 import { authReady } from '../auth'
 import { db } from '../firebase'
-import { requestNavigate } from './navigation'
+import { requestNavigate, firstScreen } from './navigation'
 import { chooseBackAction, systemBarStyleForBackground } from './shellLogic'
 
 // The splash never outlives this, however slow or broken boot is.
@@ -18,16 +18,6 @@ const SPLASH_FADE_MS = 250
 const DIALOG_SELECTOR = '[role="dialog"][aria-modal="true"], dialog[open]'
 
 let started = false
-let firstScreenReady = () => {}
-const firstScreen = new Promise(resolve => { firstScreenReady = resolve })
-
-/**
- * Called once the first route has rendered (AppRoutes mounts only after auth
- * has settled); lets the native splash go. Free on the web.
- */
-export function notifyFirstScreen() {
-  firstScreenReady()
-}
 
 /** No-op on the web. Safe to call once, before the first render. */
 export function initNativeShell() {
