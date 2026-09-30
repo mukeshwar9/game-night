@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { isPushSupported, permissionState, tokenHash, tokenRecord } from './push.js'
 
 describe('push helpers', () => {
@@ -30,5 +30,44 @@ describe('push helpers', () => {
     const r = tokenRecord('fcm-token-abc-1234567890-long-enough-value', 1234)
     expect(r.token).toContain('fcm-token')
     expect(r.at).toBe(1234)
+  })
+})
+
+// The FCM worker must not share the Workbox worker's scope (/): a scope holds
+// one worker, so sharing it replaced sw.js and dropped push handling on the
+// next load. These tests run enablePush / resyncPush against stubbed browser
+// and Firebase APIs.
+describe('FCM worker registration', () => {
+  it('registers under its own scope, never /', async () => {
+    vi.resetModules()
+    const register = vi.fn().mockResolvedValue({ scope: 'x' })
+    const store = {}
+    vi.stubGlobal('navigator', { serviceWorker: { register, ready: Promise.resolve({}) }, userAgent: 'test' })
+    vi.stubGlobal('Notification', { permission: 'granted', requestPermission: vi.fn().mockResolvedValue('granted') })
+    vi.stubGlobal('PushManager', function PushManager() {})
+    vi.stubGlobal('localStorage', { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = v }, removeItem: k => { delete store[k] } })
+    vi.stubEnv('VITE_FIREBASE_VAPID_KEY', 'vapid-key')
+    vi.doMock('./firebase', () => ({ db: {} }))
+    vi.doMock('./auth', () => ({ getUid: () => 'u1' }))
+    vi.doMock('firebase/database', () => ({ ref: (_db, path) => path, set: vi.fn().mockResolvedValue(), remove: vi.fn() }))
+    vi.doMock('firebase/messaging', () => ({ getMessaging: () => ({}), getToken: vi.fn().mockResolvedValue('fcm-token-abc-1234567890-long-enough-value') }))
+    const push = await import('./push.js')
+    await push.enablePush()
+    expect(register).toHaveBeenCalledWith('/firebase-messaging-sw.js', { scope: push.FCM_SW_SCOPE })
+    expect(push.FCM_SW_SCOPE).not.toBe('/')
+    expect(store['push-enabled']).toBe('1')
+
+    register.mockClear()
+    await push.resyncPush()
+    expect(register).toHaveBeenCalledTimes(1)
+
+    register.mockClear()
+    delete store['push-enabled']
+    await push.resyncPush()
+    expect(register).not.toHaveBeenCalled()
+
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+    vi.resetModules()
   })
 })

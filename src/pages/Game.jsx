@@ -52,6 +52,7 @@ import { rotateWinnerStays } from '../lib/nightLogic'
 import { getArrowsMatchEnd } from '../lib/arrowsLogic'
 // Match-end rule, shared with the results Cloud Function (functions/).
 import { matchTargetFor, isMatchFinish, isCoopGame } from '../lib/matchRules'
+import { LEADERBOARD_ENABLED } from '../lib/features'
 
 // The reaction bar and animated emoji pull in framer-motion (~120 KB). Load
 // them only when a room first shows the bar or floats a reaction, not with
@@ -1156,7 +1157,7 @@ export default function Game() {
                 {connected === false ? 'MOVE PENDING — WAITING FOR CONNECTION' : 'SAVING MOVE…'}
               </p>
             )}
-            {game.status === 'finished' && (
+            {LEADERBOARD_ENABLED && game.status === 'finished' && (
               <Link
                 to="/leaderboard"
                 className="mx-auto flex min-h-11 w-fit items-center justify-center px-3 font-pixel text-[9px] tracking-widest text-retro-p1 hover:text-retro-text transition-colors"

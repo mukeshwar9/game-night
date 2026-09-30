@@ -16,6 +16,7 @@ import { authReady } from './lib/auth';
 import useOnboardingOpen from './hooks/useOnboardingOpen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { VideoCallLayoutProvider } from './components/VideoCallLayout';
+import { LEADERBOARD_ENABLED } from './lib/features';
 
 // Home (the landing page) and NotFound stay in the entry chunk; every other
 // route downloads on first visit. lazyWithRetry reloads once if a chunk from
@@ -31,7 +32,8 @@ const Notes = lazyWithRetry(() => import('./pages/Notes'));
 // Developer-only page: the route (and so its chunk) exists in dev builds only.
 const EmojiLab = import.meta.env.DEV ? lazyWithRetry(() => import('./pages/EmojiLab')) : null;
 const ArtDemo = import.meta.env.DEV ? lazyWithRetry(() => import('./pages/ArtDemo')) : null;
-const Leaderboard = lazyWithRetry(() => import('./pages/Leaderboard'));
+// Hidden for launch (features.js): no route, so the chunk is never requested.
+const Leaderboard = LEADERBOARD_ENABLED ? lazyWithRetry(() => import('./pages/Leaderboard')) : null;
 const Playground = lazyWithRetry(() => import('./pages/Playground'));
 
 // Shown while a route's chunk downloads — the same PixelDots as the boot
@@ -82,7 +84,7 @@ function AppRoutes() {
               <Route path="/notes" element={<Notes />} />
               {EmojiLab && <Route path="/emoji-lab" element={<EmojiLab />} />}
               {ArtDemo && <Route path="/art-demo" element={<ArtDemo />} />}
-              <Route path="/leaderboard" element={<Leaderboard />} />
+              {Leaderboard && <Route path="/leaderboard" element={<Leaderboard />} />}
               <Route path="/playground" element={<Playground />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

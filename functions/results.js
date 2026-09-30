@@ -22,7 +22,7 @@ async function publicIdentity(root, uid) {
   const p = pub.val() || {}
   return {
     member: pub.exists() || name.exists(),
-    name: p.displayName ?? p.name ?? name.val() ?? null,
+    name: core.displayNameFor(p.displayName ?? p.name ?? name.val() ?? '', '') || null,
     avatar: p.avatar ?? avatar.val() ?? null,
   }
 }
@@ -71,7 +71,7 @@ async function transactResults(root, gameId, reduce) {
 // Fires on every change of a room's status: 'playing' may open a new match
 // epoch, 'finished' judges the round (and closes the match when it decides
 // it). Anything else (waiting, room deleted) is ignored.
-exports.creditMatchResults = onValueWritten({ ref: '/games/{gameId}/status' }, async (event) => {
+exports.creditMatchResults = onValueWritten({ ref: '/games/{gameId}/status', maxInstances: 10 }, async (event) => {
   const before = event.data.before.val()
   const after = event.data.after.val()
   if (before === after || (after !== 'playing' && after !== 'finished')) return

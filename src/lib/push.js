@@ -54,22 +54,42 @@ export async function enablePush() {
   if (!key) throw new Error('no-vapid-key')
   const perm = await Notification.requestPermission()
   if (perm !== 'granted') throw new Error(`permission-${perm}`)
+  const token = await registerToken(key)
+  try { localStorage.setItem('push-enabled', '1') } catch { /* ignore */ }
+  return token
+}
+
+// The FCM worker (public/firebase-messaging-sw.js) gets its own scope. On the
+// default scope (/) it replaced the app's Workbox worker (sw.js): a scope holds
+// one worker, so enabling notifications dropped offline support and the update
+// check, and the next load put sw.js back, leaving push events with no handler.
+// This is the scope the FCM SDK itself uses by default.
+export const FCM_SW_SCOPE = '/firebase-cloud-messaging-push-scope'
+
+// Registers the FCM worker, fetches a token for it and stores it on the
+// account. Needs notification permission to already be granted.
+async function registerToken(key) {
   const { getMessaging, getToken } = await import('firebase/messaging')
-  // FCM background SW lives at /firebase-messaging-sw.js beside workbox sw.js.
-  const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js')
-    .catch(() => navigator.serviceWorker.ready)
-  const messaging = getMessaging()
-  const token = await getToken(messaging, {
-    vapidKey: key,
-    serviceWorkerRegistration: reg?.active || reg?.waiting ? reg : await navigator.serviceWorker.ready,
-  })
+  const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: FCM_SW_SCOPE })
+  const token = await getToken(getMessaging(), { vapidKey: key, serviceWorkerRegistration: reg })
   if (!token) throw new Error('no-token')
   const uid = getUid()
   if (!uid) throw new Error('no-uid')
   const hash = await tokenHash(token)
   await set(ref(db, `users/${uid}/fcmTokens/${hash}`), tokenRecord(token))
-  try { localStorage.setItem('push-enabled', '1') } catch { /* ignore */ }
   return token
+}
+
+// On boot for someone who turned notifications on: register again under the
+// new scope and rewrite the token. Covers accounts enabled before the scope
+// fix, whose stored token belongs to a registration that no longer exists.
+// Silent: never prompts, never throws.
+export async function resyncPush() {
+  try {
+    if (!isPushSupported() || !db || !vapidKey()) return
+    if (localStorage.getItem('push-enabled') !== '1' || permissionState() !== 'granted') return
+    await registerToken(vapidKey())
+  } catch { /* best effort */ }
 }
 
 export async function disablePush(token) {

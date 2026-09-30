@@ -4,6 +4,7 @@
 const { onValueWritten } = require('firebase-functions/v2/database')
 const logger = require('firebase-functions/logger')
 const { getDatabase } = require('firebase-admin/database')
+const core = require('./lib/core.cjs')
 
 let messagingCache = null
 function messaging() {
@@ -22,19 +23,24 @@ async function tokensFor(uid) {
   return out
 }
 
+// The multicast message for one invite. Data-only: the service worker
+// (public/firebase-messaging-sw.js) draws the notification. A `notification`
+// key as well makes the browser show one of its own and the worker a second.
+// The link is the app route /game/:gameId (there is no /g/ route).
+function buildInviteMessage(invite, tokens) {
+  const from = core.displayNameFor(invite.fromName, 'A friend')
+  const gameId = String(invite.gameId || '').slice(0, 40)
+  return {
+    data: { title: 'Game Night', body: `${from} invited you to play!`, url: gameId ? `/game/${gameId}` : '/', kind: 'invite' },
+    tokens: tokens.map(t => t.token),
+  }
+}
+
 async function sendInvitePush(uid, invite) {
   const tokens = await tokensFor(uid)
   if (!tokens.length) return { sent: 0, reason: 'no-tokens' }
-  const from = String(invite.fromName || 'A friend').slice(0, 40)
   const gameId = String(invite.gameId || '')
-  const message = {
-    notification: {
-      title: 'Game Night',
-      body: `${from} invited you to play!`,
-    },
-    data: { url: gameId ? `/g/${gameId}` : '/', kind: 'invite' },
-    tokens: tokens.map(t => t.token),
-  }
+  const message = buildInviteMessage(invite, tokens)
   const res = await messaging().sendEachForMulticast(message)
   // Drop tokens FCM reports dead so inbox doesn't fill with junk.
   const dead = []
@@ -52,7 +58,7 @@ async function sendInvitePush(uid, invite) {
   return { sent: res.successCount }
 }
 
-exports.sendInvitePush = onValueWritten('invites/{uid}/{inviteId}', async (event) => {
+exports.sendInvitePush = onValueWritten({ ref: 'invites/{uid}/{inviteId}', maxInstances: 10 }, async (event) => {
   const after = event.data?.after?.val()
   const before = event.data?.before?.exists()
   // Create only — updates/deletes carry no new invite.
@@ -67,4 +73,4 @@ exports.sendInvitePush = onValueWritten('invites/{uid}/{inviteId}', async (event
 })
 
 // Exported for unit test without emulator.
-exports._test = { sendInvitePush, tokensFor }
+exports._test = { sendInvitePush, tokensFor, buildInviteMessage }

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import SettingsButton from './SettingsButton'
 import MusicToggle from './MusicToggle'
 import useHideOnScroll from '../hooks/useHideOnScroll'
+import { LEADERBOARD_ENABLED } from '../lib/features'
 
 /* eslint-disable react-refresh/only-export-components */
 
@@ -11,7 +12,7 @@ import useHideOnScroll from '../hooks/useHideOnScroll'
 // and /demo stay pinned so it doesn't fight the fixed GameStatus bar).
 // Every top-level destination keeps the tab bar so no page is a dead end
 // (daily, online lobby and leaderboard had no way back).
-export const TAB_BAR_ROUTES = ['/', '/games', '/friends', '/profile', '/daily', '/online', '/leaderboard']
+export const TAB_BAR_ROUTES = ['/', '/games', '/friends', '/profile', '/daily', '/online', ...(LEADERBOARD_ENABLED ? ['/leaderboard'] : [])]
 
 // Game rooms can intercept the logo tap (leave-match confirm) without
 // owning their own Home link. The ref is stable; Game registers a handler

@@ -32,6 +32,9 @@ import { isSeatOnline } from '../../src/lib/presenceLogic'
 import { isMatchFinish, isCoopGame } from '../../src/lib/matchRules'
 
 export { matchTargetFor } from '../../src/lib/matchRules'
+// Names other players wrote are clamped and masked before the server shows or
+// stores them (leaderboard rows, push text) — same helper as the app.
+export { displayNameFor } from '../../src/lib/moderationLogic'
 
 // How many recent match keys a leaderboard row keeps for idempotency. A
 // credit is applied within seconds of the finish, so a handful is plenty.

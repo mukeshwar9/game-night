@@ -7,6 +7,7 @@ import BottomSheet from './BottomSheet'
 import useBusy from '../hooks/useBusy'
 import { subscribeFriends, subscribeProfile, inviteFriendToGame, inviteFriendsToGame } from '../lib/social'
 import { displayNameFor } from '../lib/moderationLogic'
+import { recordFunnel } from '../lib/analytics'
 
 // Modal to invite a friend into the current room. Lists friends (online first)
 // with a one-tap INVITE that pushes a game invite to their account, plus
@@ -31,6 +32,7 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
     setInviteState(prev => ({ ...prev, [uid]: 'sending' }))
     try {
       await inviteFriendToGame(uid, { gameId, gameType })
+      recordFunnel('shared')
       setInviteState(prev => ({ ...prev, [uid]: 'sent' }))
       toast.success(`INVITED ${(name || 'FRIEND').toUpperCase()}!`)
     } catch {
@@ -48,6 +50,7 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
     setInviteState(prev => ({ ...prev, ...Object.fromEntries(uids.map(uid => [uid, 'sending'])) }))
     try {
       const n = await inviteFriendsToGame(uids, { gameId, gameType })
+      recordFunnel('shared')
       setInviteState(prev => ({ ...prev, ...Object.fromEntries(uids.map(uid => [uid, 'sent'])) }))
       toast.success(`INVITED ${n} ${n === 1 ? 'FRIEND' : 'FRIENDS'}!`)
     } catch (err) {

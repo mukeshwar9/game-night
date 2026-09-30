@@ -316,23 +316,8 @@ export function subscribeRequests(cb) {
 }
 
 // ---- Game invites ----
-// Free-plan push: after RTDB write, best-effort POST to Cloudflare worker
-// (VITE_PUSH_WORKER_URL), which verifies ID token and sends FCM. Empty URL
-// = inbox-only, app still works; never blocks invite on push failure.
-async function notifyWorker(toUid, invite) {
-  const url = import.meta.env?.VITE_PUSH_WORKER_URL || ''
-  if (!url || !toUid || !invite?.gameId) return
-  try {
-    const token = await auth?.currentUser?.getIdToken?.()
-    if (!token) return
-    await fetch(`${String(url).replace(/\/$/, '')}/push-invite`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify({ toUid, invite }),
-    })
-  } catch { /* push best effort — invite already saved */ }
-}
-
+// Writing invites/{uid}/{id} is the whole client side: the sendInvitePush Cloud
+// Function (functions/push.js) fires on the create and sends the push.
 export async function inviteFriendToGame(friendUid, { gameId, gameType } = {}) {
   const me = getUid()
   if (!db || !me || !friendUid || !gameId) return
@@ -346,7 +331,6 @@ export async function inviteFriendToGame(friendUid, { gameId, gameType } = {}) {
     at: Date.now(),
   }
   await push(ref(db, `invites/${friendUid}`), invite)
-  notifyWorker(friendUid, invite)
 }
 
 // "Invite all online friends": one invite per uid, written as a single
@@ -367,7 +351,6 @@ export async function inviteFriendsToGame(friendUids, { gameId, gameType } = {})
   const updates = {}
   for (const uid of uids) updates[`invites/${uid}/${push(ref(db, `invites/${uid}`)).key}`] = invite
   await update(ref(db), updates)
-  for (const uid of uids) notifyWorker(uid, invite)
   return uids.length
 }
 

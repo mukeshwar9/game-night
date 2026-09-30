@@ -15,6 +15,7 @@ import { amHost } from '../lib/night'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 import { ARCHERY_FORMATS, archeryFormat } from '../lib/archeryLogic'
+import { recordFunnel } from '../lib/analytics'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
 
@@ -123,13 +124,14 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
       document.execCommand('copy')
       document.body.removeChild(el)
     }
+    recordFunnel('shared')
     toast.success('LINK COPIED!')
   }
 
   const shareInvite = async () => {
     const data = { title: 'Game Night', text: 'Join my Game Night room!', url: shareUrl }
     if (navigator.share) {
-      try { await navigator.share(data); return } catch { /* cancelled — ignore */ }
+      try { await navigator.share(data); recordFunnel('shared'); return } catch { /* cancelled — ignore */ }
     }
     copyLink()
   }

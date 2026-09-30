@@ -10,6 +10,8 @@ import { syncStatsOnBoot } from './statsSync'
 import { THEMES, applyTheme, getStoredTheme } from './theme'
 import { FONTS, applyFont, getStoredFont } from './font'
 import { applyStoredDisplayPrefs } from './displayPrefs'
+import { recordAttribution } from './analytics'
+import { resyncPush } from './push'
 
 const AuthContext = createContext(null)
 
@@ -81,9 +83,10 @@ export function AuthProvider({ children }) {
     ;(async () => {
       // Tolerate auth providers / DB rules not being set up yet — the app still
       // works as a guest (getPlayerId falls back to a local id).
-      try { await ensureProfile() } catch (e) { console.warn('Profile init skipped:', e?.message) }
+      try { await ensureProfile(); recordAttribution() } catch (e) { console.warn('Profile init skipped:', e?.message) }
       if (cancelled) return
       syncStatsOnBoot()
+      resyncPush()
       unsubProfile = subscribeProfile(uid, p => {
         if (cancelled) return
         setProfile(p)

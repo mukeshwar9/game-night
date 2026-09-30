@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { playsDailyPath, summarizePlays, PLAY_MODES, PLAY_COUNTERS } from './analytics'
+import { playsDailyPath, summarizePlays, PLAY_MODES, PLAY_COUNTERS, FUNNEL_STEPS, funnelUpdate, summarizeFunnel } from './analytics'
 
 describe('playsDailyPath', () => {
   it('builds the day-first counter path', () => {
@@ -47,5 +47,45 @@ describe('summarizePlays', () => {
     expect(summarizePlays(null)).toEqual([])
     expect(summarizePlays({ d: null, e: { sos: 'x', gomoku: { multi: { started: 'lots', finished: 2 } } } }))
       .toEqual([{ type: 'gomoku', started: 0, finished: 2, abandoned: 0 }])
+  })
+})
+
+describe('funnelUpdate', () => {
+  const touch = { source: 'instagram', campaign: 'launch1' }
+  it('writes the counter and the once-per-account mark in one patch', () => {
+    const patch = funnelUpdate({ day: '2026-09-30', touch, uid: 'u1', step: 'landed' })
+    expect(Object.keys(patch)).toEqual(['funnelDaily/2026-09-30/instagram/launch1/landed', 'funnelSeen/u1/landed'])
+    expect(patch['funnelSeen/u1/landed']).toBe(true)
+  })
+  it('uses a dash when there is no campaign', () => {
+    const patch = funnelUpdate({ day: '2026-09-30', touch: { source: 'direct', campaign: '' }, uid: 'u1', step: 'named' })
+    expect(Object.keys(patch)[0]).toBe('funnelDaily/2026-09-30/direct/-/named')
+  })
+  it('refuses unknown steps, bad days, bad sources and missing uid', () => {
+    expect(funnelUpdate({ day: '2026-09-30', touch, uid: 'u1', step: 'joined' })).toBeNull()
+    expect(funnelUpdate({ day: 'today', touch, uid: 'u1', step: 'landed' })).toBeNull()
+    expect(funnelUpdate({ day: '2026-09-30', touch: { source: 'A B' }, uid: 'u1', step: 'landed' })).toBeNull()
+    expect(funnelUpdate({ day: '2026-09-30', touch, uid: '', step: 'landed' })).toBeNull()
+    expect(funnelUpdate({ day: '2026-09-30', touch: null, uid: 'u1', step: 'landed' })).toBeNull()
+  })
+  it('covers the five launch funnel steps', () => {
+    expect(FUNNEL_STEPS).toEqual(['landed', 'named', 'started', 'finished', 'shared'])
+  })
+})
+
+describe('summarizeFunnel', () => {
+  it('sums days per source and campaign, most landings first', () => {
+    const rows = summarizeFunnel({
+      '2026-09-29': { instagram: { launch1: { landed: 10, named: 6, started: 4 } }, direct: { '-': { landed: 2 } } },
+      '2026-09-30': { instagram: { launch1: { landed: 5, named: 3, finished: 1, shared: 1 } } },
+    })
+    expect(rows).toEqual([
+      { source: 'instagram', campaign: 'launch1', landed: 15, named: 9, started: 4, finished: 1, shared: 1 },
+      { source: 'direct', campaign: '', landed: 2, named: 0, started: 0, finished: 0, shared: 0 },
+    ])
+  })
+  it('tolerates empty and malformed input', () => {
+    expect(summarizeFunnel(null)).toEqual([])
+    expect(summarizeFunnel({ d: null, e: { x: 'bad' } })).toEqual([])
   })
 })

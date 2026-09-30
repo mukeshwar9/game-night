@@ -18,6 +18,7 @@ import { sounds } from '../lib/sounds'
 import { inviteSeatsLine } from '../lib/roomLogic'
 import { cn } from '@/lib/utils'
 import { displayNameFor } from '../lib/moderationLogic'
+import { recordFunnel } from '../lib/analytics'
 
 // First-run flow, two steps: NAME, then LOOK. Shown to a brand-new visitor
 // on Home/Games/Online, and to someone opening an invite link (`invite` set:
@@ -108,6 +109,7 @@ export default function Onboarding({ onDone, invite = null }) {
       localStorage.setItem('playerAvatar', finalAvatar)
     } catch { /* quota */ }
     markOnboarded()
+    recordFunnel('named')
     try {
       await setProfile({ displayName: finalName, avatar: finalAvatar })
     } catch (e) {

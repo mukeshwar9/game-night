@@ -20,7 +20,7 @@ FCM HTTP v1, drops dead tokens. Stays on Spark plan.
 
 1. Profile → TURN ON on two devices, grant permission.
 2. Send invite device A → B with app B closed.
-3. System notification shows, tap opens `/g/{gameId}`.
+3. System notification shows, tap opens `/game/{gameId}`. (Superseded: invite push now runs in the `sendInvitePush` Cloud Function on the Blaze plan; the client no longer calls this worker.)
 4. `wrangler tail` shows `{ ok: true, sent: 1 }`; dead tokens cleaned on
    NOT_FOUND / INVALID_ARGUMENT.
 

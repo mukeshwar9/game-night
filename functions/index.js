@@ -1,3 +1,4 @@
+const { setGlobalOptions } = require('firebase-functions/v2');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const logger = require('firebase-functions/logger');
 const { initializeApp } = require('firebase-admin/app');
@@ -5,9 +6,15 @@ const { getDatabase } = require('firebase-admin/database');
 
 initializeApp();
 
+// Caps concurrent instances of every function, so an abusive burst of room or
+// invite writes cannot run up the bill. Each function also sets its own cap.
+setGlobalOptions({ maxInstances: 10 });
+
 // Server-authoritative match results -> leaderboard (see results.js, README.md).
 exports.creditMatchResults = require('./results').creditMatchResults;
 exports.sendInvitePush = require('./push').sendInvitePush;
+// Clears a deleted account's rows, including the server-only leaderboard row.
+exports.cleanupDeletedAccount = require('./deleteAccount').cleanupDeletedAccount;
 const { errorsCutoffKey, isExpiredErrorDay } = require('./lib/core.cjs');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -49,7 +56,7 @@ async function deleteKeys(ref, keys) {
   }
 }
 
-// Requires Blaze (pay-as-you-go) plan. Runs daily and deletes:
+// Requires Blaze (pay-as-you-go) plan. Runs hourly and deletes:
 //  - games with no activity in the last 24 hours. Keying off lastActivityAt
 //    (falling back to createdAt for older rooms that never got one) lets a
 //    recurring "crew room" survive as long as it gets played at least once a
@@ -61,7 +68,9 @@ async function deleteKeys(ref, keys) {
 //  - the results/ record (match epochs, see results.js) of every room deleted
 //    this run.
 //  - error-telemetry buckets (errors/{UTC day}) older than the last 14 days.
-exports.cleanupStaleGames = onSchedule({ schedule: 'every 24 hours', timeoutSeconds: 540 }, async () => {
+// Hourly, so it keeps up with ad-scale room creation (each run handles at most
+// MAX_PAGES x PAGE rooms per query).
+exports.cleanupStaleGames = onSchedule({ schedule: 'every 1 hours', timeoutSeconds: 540, maxInstances: 1 }, async () => {
   const db = getDatabase();
   const now = Date.now();
   const cutoff = now - DAY_MS;

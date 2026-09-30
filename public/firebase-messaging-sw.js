@@ -15,31 +15,35 @@ try {
   firebase.initializeApp()
   const messaging = firebase.messaging()
 
+  // Messages from sendInvitePush are data-only, so this is the only place a
+  // notification is drawn (a `notification` payload would be shown by the
+  // browser as well, twice). `payload.notification` is still read as a fallback
+  // for messages sent by hand from the Firebase console.
   messaging.onBackgroundMessage((payload) => {
-    const { title, body, icon } = payload.notification || {}
     const data = payload.data || {}
-    self.registration.showNotification(title || 'Game Night', {
-      body: body || 'Your turn — tap to play!',
-      icon: icon || '/pwa-192x192.png',
+    const legacy = payload.notification || {}
+    self.registration.showNotification(data.title || legacy.title || 'Game Night', {
+      body: data.body || legacy.body || 'Your turn — tap to play!',
+      icon: legacy.icon || '/pwa-192x192.png',
       badge: '/pwa-192x192.png',
+      tag: data.url || undefined,
       data: { url: data.url || '/' },
     })
   })
 
+  // This worker has its own scope, so open app windows are not controlled by
+  // it and WindowClient.navigate() may refuse them; fall back to a new window.
   self.addEventListener('notificationclick', (event) => {
     event.notification.close()
     const url = event.notification?.data?.url || '/'
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
-        for (const w of wins) {
-          if (w.url.includes(self.location.origin)) {
-            w.navigate(url)
-            return w.focus()
-          }
-        }
-        return clients.openWindow(url)
-      })
-    )
+    event.waitUntil((async () => {
+      const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const w of wins) {
+        if (!w.url.startsWith(self.location.origin)) continue
+        try { await w.focus(); await w.navigate(url); return } catch { /* not controllable */ }
+      }
+      await clients.openWindow(url)
+    })())
   })
 } catch (e) {
   // No Hosting init locally — background push disabled, app still runs.

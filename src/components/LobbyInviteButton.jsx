@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
+import { recordFunnel } from '../lib/analytics'
 
 // Party lobbies stall on "NEED 3+ PLAYERS" — put the fix right under the
 // message instead of behind the header's unlabeled invite icon.
@@ -10,9 +11,10 @@ export default function LobbyInviteButton() {
   const url = `${window.location.origin}/game/${gameId}`
   const invite = () => run(async () => {
     if (navigator.share) {
-      try { await navigator.share({ title: 'Game Night', text: 'Join my Game Night room!', url }); return } catch { /* cancelled */ }
+      try { await navigator.share({ title: 'Game Night', text: 'Join my Game Night room!', url }); recordFunnel('shared'); return } catch { /* cancelled */ }
     }
     await navigator.clipboard.writeText(url)
+    recordFunnel('shared')
     toast.success('LINK COPIED!')
   }, () => toast.error("COULDN'T SHARE — COPY THE LINK FROM THE ADDRESS BAR"))
   return (
