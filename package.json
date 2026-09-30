@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:emu": "vite --mode emulator",
     "build": "vite build",
+    "rules:media": "node scripts/rule-media.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

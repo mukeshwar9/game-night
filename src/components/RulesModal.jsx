@@ -1,6 +1,7 @@
 import { getGameConfig } from '../lib/games'
 import { getRules } from '../lib/rules'
 import BottomSheet from './BottomSheet'
+import RuleMedia from './RuleMedia'
 
 // A small "?" icon button — the trigger that opens the rules modal. Styled to
 // match the header icon buttons (mute / ThemeSwitcher) in Game.jsx. p-3.5/-m-2.5
@@ -49,6 +50,8 @@ export default function RulesModal({ gameType, onClose }) {
 
       {rules ? (
         <div className="space-y-4">
+          <RuleMedia gameType={gameType} rules={rules} />
+
           <section className="space-y-1.5">
             <p className="font-pixel text-[9px] text-retro-p1 tracking-widest">OBJECTIVE</p>
             <p className="font-mono text-[11px] leading-relaxed text-retro-text">{rules.objective}</p>
