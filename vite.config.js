@@ -137,11 +137,11 @@ export default defineConfig({
           {
             // HOW TO PLAY carousel stills (scripts/rule-media.mjs): not
             // precached, fetched when a rules sheet opens, then kept.
-            urlPattern: ({ url }) => url.pathname.includes('/rule-media/'),
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.includes('/rule-media/'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'rule-media',
-              expiration: { maxEntries: 120 },
+              expiration: { maxEntries: 512 },
             },
           },
         ],

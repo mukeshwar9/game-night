@@ -46,11 +46,13 @@ export default function RuleMedia({ gameType, rules }) {
 
   if (!media) return null
   const step = media.steps[index]
+  const still = look === 'dark' ? { ...step, ...step.dark } : step
   const caption = stepCaption(rules, step.cap)
   const go = dir => setIndex(i => stepIndex(i, count, dir))
 
   return (
     <section
+      role="region"
       aria-roledescription="carousel"
       aria-label="Step by step"
       className="space-y-2"
@@ -58,18 +60,18 @@ export default function RuleMedia({ gameType, rules }) {
       <div className="relative mx-auto w-fit max-w-full rounded border-2 border-retro-border overflow-hidden bg-retro-surface">
         <img
           key={`${look}-${index}`}
-          src={`${import.meta.env.BASE_URL}${stillPath(gameType, look, index + 1)}`}
-          width={media.w}
-          height={media.h}
+          src={`${import.meta.env.BASE_URL}${stillPath(gameType, look, index + 1)}?v=${media.assetHash ?? media.sourceHash}`}
+          width={still.w ?? media.w}
+          height={still.h ?? media.h}
           alt={caption}
           decoding="async"
           className="block max-h-[30vh] w-auto max-w-full"
         />
-        {step.box && (
+        {still.box && (
           <span
             aria-hidden="true"
             className="pointer-events-none absolute rounded-sm border-2 border-retro-cta shadow-neon-cta"
-            style={{ left: `${step.box.x}%`, top: `${step.box.y}%`, width: `${step.box.w}%`, height: `${step.box.h}%` }}
+            style={{ left: `${still.box.x}%`, top: `${still.box.y}%`, width: `${still.box.w}%`, height: `${still.box.h}%` }}
           />
         )}
       </div>

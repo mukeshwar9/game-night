@@ -3,6 +3,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import manifest from './ruleMedia.json'
 import { GAME_RULES } from './rules'
+import { mediaHash } from '../../scripts/rule-media/sourceHash.mjs'
+import { SCENES } from '../../scripts/rule-media/scenes.mjs'
 import { getRuleMedia, lookFor, stepCaption, stepIndex, stillPath } from './ruleMediaLogic'
 
 // games.js pulls in board components that touch `localStorage` at module load.
@@ -25,8 +27,18 @@ const SOURCES = {
 const entries = Object.entries(manifest.types)
 
 describe('ruleMedia manifest', () => {
-  it('covers five games', () => {
-    expect(entries.length).toBe(5)
+  it('every scripted caption references a real rule', () => {
+    for (const [type, scene] of Object.entries(SCENES)) {
+      expect(GAME_RULES[type], type).toBeTruthy()
+      for (const step of scene.steps) expect(stepCaption(GAME_RULES[type], step.cap), `${type} ${step.cap}`).toBeTruthy()
+    }
+  })
+
+  it('keeps the original five games and documents uncovered registry types', () => {
+    for (const type of Object.keys(SOURCES)) expect(getRuleMedia(type), type).toBeTruthy()
+    for (const game of GAME_TYPES) {
+      expect(Boolean(manifest.types[game.type]) !== Boolean(manifest.skipped?.[game.type]), game.type).toBe(true)
+    }
   })
 
   it('only lists types in the registry', () => {
@@ -48,8 +60,7 @@ describe('ruleMedia manifest', () => {
     for (const [type, m] of entries) {
       expect(m.steps.length, type).toBeGreaterThanOrEqual(2)
       expect(m.steps.length, type).toBeLessThanOrEqual(3)
-      for (const { box } of m.steps) {
-        if (!box) continue
+      for (const box of m.steps.flatMap(s => [s.box, s.dark?.box]).filter(Boolean)) {
         expect(box.x, type).toBeGreaterThanOrEqual(0)
         expect(box.y, type).toBeGreaterThanOrEqual(0)
         expect(box.x + box.w, type).toBeLessThanOrEqual(100.5)
@@ -61,19 +72,32 @@ describe('ruleMedia manifest', () => {
   it('has a still per step and look, each small, and the sheet stays height-capped', () => {
     for (const [type, m] of entries) {
       expect(m.h, `${type} crop height`).toBeLessThanOrEqual(340)
+      for (const step of m.steps) {
+        expect(step.h ?? m.h, type).toBeLessThanOrEqual(340)
+        expect(step.dark?.h ?? m.h, type).toBeLessThanOrEqual(340)
+      }
       for (const look of ['light', 'dark']) {
         for (let n = 1; n <= m.steps.length; n++) {
           const file = `public/${stillPath(type, look, n)}`
           expect(existsSync(file), file).toBe(true)
           expect(statSync(file).size, file).toBeLessThanOrEqual(100 * 1024)
+          const png = readFileSync(file)
+          const step = m.steps[n - 1]
+          const dimensions = look === 'dark' ? { ...step, ...step.dark } : step
+          expect(png.readUInt32BE(16), file).toBe((dimensions.w ?? m.w) * (m.dpr ?? (SOURCES[type] ? 2 : 1)))
+          expect(png.readUInt32BE(20), file).toBe((dimensions.h ?? m.h) * (m.dpr ?? (SOURCES[type] ? 2 : 1)))
         }
       }
     }
   })
 
+  it('versions each complete capture by its image bytes', () => {
+    for (const [type, m] of entries) expect(m.assetHash, type).toBe(mediaHash(`public/rule-media/${type}`))
+  })
+
   it('is fresh: a changed board or logic file means the stills need recapturing', () => {
     for (const [type, m] of entries) {
-      expect(m.sourceHash, `${type} stale — run npm run rules:media`).toBe(hashOf(SOURCES[type]))
+      expect(m.sourceHash, `${type} stale — run npm run rules:media`).toBe(hashOf(m.sources ?? SOURCES[type]))
     }
   })
 })
@@ -81,7 +105,7 @@ describe('ruleMedia manifest', () => {
 describe('ruleMediaLogic', () => {
   it('getRuleMedia is null for games without stills', () => {
     expect(getRuleMedia('connectfour')).toBeTruthy()
-    expect(getRuleMedia('pong')).toBeNull()
+    expect(getRuleMedia('unknown-type')).toBeNull()
   })
 
   it('stepIndex wraps both ways', () => {
