@@ -5,6 +5,7 @@ import {
 } from '../lib/minesweeperLogic'
 import { mineCellLabel } from '../lib/a11yLabels'
 import { sounds } from '../lib/sounds'
+import { haptic } from '../lib/haptics'
 import { cn } from '@/lib/utils'
 
 // Solo minesweeper — the MINE RACE board with no opponent. Best time per
@@ -126,7 +127,7 @@ export default function MineRaceDemo() {
     pressTimerRef.current = setTimeout(() => {
       longPressFiredRef.current = true
       toggleFlag(cell)
-      navigator.vibrate?.(20)
+      haptic(20)
     }, 450)
   }
 

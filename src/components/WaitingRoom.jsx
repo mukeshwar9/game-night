@@ -16,11 +16,12 @@ import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 import { ARCHERY_FORMATS, archeryFormat } from '../lib/archeryLogic'
 import { recordFunnel } from '../lib/analytics'
+import { shareUrl } from '../lib/platform'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
 
 export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch, opponentOnline }) {
-  const shareUrl = `${window.location.origin}/game/${gameId}`
+  const inviteUrl = shareUrl(`/game/${gameId}`)
   const label = getGameConfig(gameType)?.label
   const [showInvite, setShowInvite] = useState(false)
   const [showQr, setShowQr] = useState(false)
@@ -115,10 +116,10 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
 
   const copyLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl)
+      await navigator.clipboard.writeText(inviteUrl)
     } catch {
       const el = document.createElement('textarea')
-      el.value = shareUrl
+      el.value = inviteUrl
       document.body.appendChild(el)
       el.select()
       document.execCommand('copy')
@@ -129,7 +130,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
   }
 
   const shareInvite = async () => {
-    const data = { title: 'Game Night', text: 'Join my Game Night room!', url: shareUrl }
+    const data = { title: 'Game Night', text: 'Join my Game Night room!', url: inviteUrl }
     if (navigator.share) {
       try { await navigator.share(data); recordFunnel('shared'); return } catch { /* cancelled — ignore */ }
     }
@@ -423,7 +424,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
       {showQr && (
         <div className="flex flex-col items-center gap-1.5">
           <div className="bg-white p-2 rounded">
-            <QrCode value={shareUrl} size={150} />
+            <QrCode value={inviteUrl} size={150} />
           </div>
           <p className="font-pixel text-[9px] text-retro-dim">SCAN TO JOIN</p>
         </div>

@@ -9,6 +9,7 @@ import {
 } from '../lib/daily'
 import { getCurrentStreak, getBestStreak, getLast7Days } from '../lib/dailyStreakLogic'
 import { shareResult } from '@/lib/shareCard'
+import { shareUrl } from '@/lib/platform'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
@@ -147,7 +148,7 @@ export default function DailyGame() {
       headline: `DAILY #${getDailyNumber(date)} — ${correct} SOLVED`,
       sub: dayStreak >= 2 ? `🔥 ${dayStreak} DAY STREAK` : undefined,
       accentVar: '--c-cta',
-      url: `${window.location.origin}/daily`,
+      url: shareUrl('/daily'),
     })
     if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
   })

@@ -1,5 +1,6 @@
 import useBusy from '@/hooks/useBusy'
 import { shareResult } from '../lib/shareCard'
+import { shareCurrentUrl } from '../lib/platform'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -45,7 +46,7 @@ function ShareAction({ gameLabel, headline, sub, accentVar = '--c-cta' }) {
   return (
     <button
       onClick={() => run(async () => {
-        const ok = await shareResult({ gameLabel, headline, sub, accentVar, url: window.location.href })
+        const ok = await shareResult({ gameLabel, headline, sub, accentVar, url: shareCurrentUrl() })
         if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
       }, () => toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN"))}
       disabled={sharing}

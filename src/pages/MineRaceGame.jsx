@@ -10,6 +10,7 @@ import {
 } from '../lib/minesweeperLogic'
 import { mineCellLabel } from '../lib/a11yLabels'
 import { sounds } from '../lib/sounds'
+import { haptic } from '../lib/haptics'
 import { cn } from '@/lib/utils'
 
 // Mine Race — N-player race (2–8) on one identical seeded minefield.
@@ -243,7 +244,7 @@ function MinesRacer({ gameId, round, myStats, statsPath }) {
     pressTimerRef.current = setTimeout(() => {
       longPressFiredRef.current = true
       toggleFlag(cell)
-      navigator.vibrate?.(20)
+      haptic(20)
     }, LONG_PRESS_MS)
   }
 
