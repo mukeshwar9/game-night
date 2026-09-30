@@ -1193,6 +1193,14 @@
       ".read": false,
       ".write": false
     },
+    "config": {
+      ".read": false,
+      ".write": false,
+      "minNativeVersion": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
     "leaderboard": {
       ".read": "auth != null",
       ".indexOn": [
