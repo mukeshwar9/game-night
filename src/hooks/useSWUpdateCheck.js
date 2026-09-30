@@ -6,12 +6,16 @@
 // mid-game. When found, the new worker parks in "waiting" and the existing
 // UpdatePrompt asks — never force-reloads a live match.
 import { useEffect } from 'react'
+import { isNative } from '../lib/platform'
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000
 const MIN_GAP_MS = 5 * 60 * 1000
 
 export default function useSWUpdateCheck() {
   useEffect(() => {
+    // The native shell bundles its assets (a store update is the update path)
+    // and registers no service worker, so there is nothing to poll.
+    if (isNative) return
     if (!('serviceWorker' in navigator)) return
     let alive = true
     let last = 0

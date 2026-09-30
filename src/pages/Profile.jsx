@@ -253,7 +253,7 @@ export default function Profile() {
           <span className="flex-1 min-w-0">
             <span className="block font-pixel text-[10px] text-retro-dim tracking-wider">FRIEND CODE</span>
             {/* Plain mono, no glow: people copy these characters by eye. */}
-            <span className="block font-mono text-base text-retro-p1 tracking-[0.2em] mt-1">{profile?.code || '······'}</span>
+            <span data-selectable className="block font-mono text-base text-retro-p1 tracking-[0.2em] mt-1">{profile?.code || '······'}</span>
           </span>
           <span className="shrink-0 font-pixel text-[9px] text-retro-cta tracking-wider">FRIENDS <span aria-hidden="true">→</span></span>
         </Link>

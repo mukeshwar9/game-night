@@ -23,6 +23,32 @@ export const isNative = nativePlatform !== null
 export const isIOS = nativePlatform === 'ios'
 export const isAndroid = nativePlatform === 'android'
 
+/**
+ * True on a low-end device: little memory or few cores. Either signal alone
+ * is enough; when the browser reports neither (deviceMemory is Chromium-only)
+ * we cannot tell, so it counts as low-end.
+ * @param {{ deviceMemory?: number, hardwareConcurrency?: number } | null | undefined} nav
+ */
+export function isLowEndDevice(nav = globalThis.navigator) {
+  const mem = typeof nav?.deviceMemory === 'number' && nav.deviceMemory > 0 ? nav.deviceMemory : null
+  const cores = typeof nav?.hardwareConcurrency === 'number' && nav.hardwareConcurrency > 0 ? nav.hardwareConcurrency : null
+  if (mem === null && cores === null) return true
+  return (mem !== null && mem <= 4) || (cores !== null && cores <= 4)
+}
+
+/**
+ * devicePixelRatio to size a canvas backing store with. The web and iOS keep
+ * the real ratio; Android WebViews on weak GPUs choke on 3x+ canvases, so the
+ * shell caps it at 2 on low-end devices and 3 elsewhere. Callers keep their own
+ * `|| 1` / Math.max fallbacks: an unusable raw value is returned unchanged.
+ * @param {number} [raw]
+ * @param {{ platform?: 'ios' | 'android' | null, nav?: any }} [opts]
+ */
+export function canvasPixelRatio(raw = globalThis.devicePixelRatio, { platform = nativePlatform, nav = globalThis.navigator } = {}) {
+  if (platform !== 'android' || !(raw > 0)) return raw
+  return Math.min(raw, isLowEndDevice(nav) ? 2 : 3)
+}
+
 // The web origin every shared or invited link points at. Inside the shell the
 // page's own origin is capacitor://localhost (iOS) or https://localhost
 // (Android), which means nothing to the person receiving the link. Override

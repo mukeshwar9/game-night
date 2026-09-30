@@ -206,7 +206,7 @@ export default function Friends() {
         <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
           <p className="font-pixel text-[9px] text-retro-dim tracking-wider">YOUR FRIEND CODE</p>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="flex-1 min-w-[9ch] font-mono text-lg text-retro-p1 tracking-[0.2em]">{profile?.code || '······'}</span>
+            <span data-selectable className="flex-1 min-w-[9ch] font-mono text-lg text-retro-p1 tracking-[0.2em]">{profile?.code || '······'}</span>
             <div className="flex gap-2 shrink-0">
               <button
                 onClick={copyCode}

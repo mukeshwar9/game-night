@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { canvasPixelRatio } from '../lib/platform'
 import { ARCHERY_FORMATS, archeryFormat, arrowResult, idealDrawForDistance, normalizeShots, shotResult } from '../lib/archeryLogic'
 
 function tokenColor(canvas, token) {
@@ -33,7 +34,7 @@ export default function ArcheryRange({
     if (!canvas || !size.width || !size.height) return
     // DPR is capped at 2: a 3x backing store costs 2.25x the fill for no
     // visible gain on thin neon strokes.
-    const ratio = Math.min(2, Math.max(1, window.devicePixelRatio || 1))
+    const ratio = Math.min(2, Math.max(1, canvasPixelRatio() || 1))
     canvas.width = Math.round(size.width * ratio)
     canvas.height = Math.round(size.height * ratio)
     const layer = document.createElement('canvas')

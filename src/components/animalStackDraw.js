@@ -5,6 +5,7 @@
 import { PIECES, ISLAND } from '../lib/animalStackLogic'
 import { PIXELS, CELL } from '../lib/animalStackPixels'
 import { parseRgb, rolePalette } from './animalStackArt'
+import { canvasPixelRatio } from '../lib/platform'
 
 const TOKENS = ['bg', 'surface', 'card', 'border', 'text', 'dim', 'p1', 'p2', 'p3', 'p4', 'cta', 'win', 'danger',
   'structure', 'kam0', 'kam1', 'kam2', 'kam3', 'kam4', 'kam5', 'kam6', 'kam7']
@@ -118,7 +119,7 @@ export function viewFor(width, height, top, hoverRadius = 0.8) {
  *          particles?: [{x,y,life,c}], floats?: [{x,y,text,life,c}] }
  */
 export function drawScene(canvas, scene) {
-  const dpr = window.devicePixelRatio || 1
+  const dpr = canvasPixelRatio() || 1
   const W = canvas.clientWidth, H = canvas.clientHeight
   if (!W || !H) return
   if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
@@ -209,7 +210,7 @@ export function drawScene(canvas, scene) {
 export function drawThumb(canvas, k) {
   const px = PIXELS[PIECES[k]?.id]
   if (!px) return
-  const dpr = window.devicePixelRatio || 1
+  const dpr = canvasPixelRatio() || 1
   const W = canvas.clientWidth || 44, H = canvas.clientHeight || 34
   canvas.width = W * dpr; canvas.height = H * dpr
   const cell = Math.max(1 / dpr, Math.floor(Math.min(W / px.w, H / px.h) * dpr) / dpr)
