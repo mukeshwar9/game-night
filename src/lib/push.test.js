@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { isPushSupported, permissionState, tokenHash, tokenRecord } from './push.js'
+import { isPushSupported, permissionState, pushAvailable, tokenHash, tokenRecord } from './push.js'
 
 describe('push helpers', () => {
   it('detects support from navigator + window caps', () => {
@@ -31,6 +31,22 @@ describe('push helpers', () => {
     expect(r.token).toContain('fcm-token')
     expect(r.at).toBe(1234)
   })
+
+  it('tags native records with a platform, leaves web records as before, and refuses unknown platforms', () => {
+    const token = 'fcm-token-abc-1234567890-long-enough-value'
+    expect(tokenRecord(token, 1)).not.toHaveProperty('platform')
+    expect(tokenRecord(token, 1, 'ios').platform).toBe('ios')
+    expect(tokenRecord(token, 1, 'android').platform).toBe('android')
+    expect(tokenRecord(token, 1, 'windows')).toBe(null)
+    expect(tokenRecord(token, 1, undefined)).not.toHaveProperty('platform')
+  })
+
+  it('is available on native only when NATIVE_PUSH is on, on the web when the browser can', () => {
+    expect(pushAvailable({ native: true, nativeEnabled: false, web: true })).toBe(false)
+    expect(pushAvailable({ native: true, nativeEnabled: true, web: false })).toBe(true)
+    expect(pushAvailable({ native: false, nativeEnabled: true, web: false })).toBe(false)
+    expect(pushAvailable({ native: false, nativeEnabled: false, web: true })).toBe(true)
+  })
 })
 
 // The FCM worker must not share the Workbox worker's scope (/): a scope holds
@@ -42,6 +58,7 @@ describe('FCM worker registration', () => {
     vi.resetModules()
     const register = vi.fn().mockResolvedValue({ scope: 'x' })
     const store = {}
+    const set = vi.fn().mockResolvedValue()
     vi.stubGlobal('navigator', { serviceWorker: { register, ready: Promise.resolve({}) }, userAgent: 'test' })
     vi.stubGlobal('Notification', { permission: 'granted', requestPermission: vi.fn().mockResolvedValue('granted') })
     vi.stubGlobal('PushManager', function PushManager() {})
@@ -49,13 +66,17 @@ describe('FCM worker registration', () => {
     vi.stubEnv('VITE_FIREBASE_VAPID_KEY', 'vapid-key')
     vi.doMock('./firebase', () => ({ db: {} }))
     vi.doMock('./auth', () => ({ getUid: () => 'u1' }))
-    vi.doMock('firebase/database', () => ({ ref: (_db, path) => path, set: vi.fn().mockResolvedValue(), remove: vi.fn() }))
+    vi.doMock('firebase/database', () => ({ ref: (_db, path) => path, set, remove: vi.fn() }))
     vi.doMock('firebase/messaging', () => ({ getMessaging: () => ({}), getToken: vi.fn().mockResolvedValue('fcm-token-abc-1234567890-long-enough-value') }))
     const push = await import('./push.js')
     await push.enablePush()
     expect(register).toHaveBeenCalledWith('/firebase-messaging-sw.js', { scope: push.FCM_SW_SCOPE })
     expect(push.FCM_SW_SCOPE).not.toBe('/')
     expect(store['push-enabled']).toBe('1')
+    expect(set).toHaveBeenCalledTimes(1)
+    expect(set.mock.calls[0][0]).toMatch(/^users\/u1\/fcmTokens\/[0-9a-f]{32}$/)
+    expect(set.mock.calls[0][1]).toMatchObject({ token: 'fcm-token-abc-1234567890-long-enough-value' })
+    expect(set.mock.calls[0][1]).not.toHaveProperty('platform')
 
     register.mockClear()
     await push.resyncPush()

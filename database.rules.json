@@ -1029,6 +1029,9 @@
             "ua": {
               ".validate": "newData.isString() && newData.val().length <= 200"
             },
+            "platform": {
+              ".validate": "newData.isString() && (newData.val() === 'web' || newData.val() === 'ios' || newData.val() === 'android')"
+            },
             "$other": {
               ".validate": "false"
             }
