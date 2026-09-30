@@ -197,6 +197,17 @@ export function AimIcon() {
   )
 }
 
+export function ArcheryIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="11" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="11" cy="12" r="1" fill="currentColor" />
+      <path d="M8 4 L20 16 M17.2 13.2 L20 16 L17.2 18.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" />
+    </svg>
+  )
+}
+
 export function GomokuIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

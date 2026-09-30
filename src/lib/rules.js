@@ -195,22 +195,25 @@ export const GAME_RULES = {
   },
 
   typing: {
-    objective: 'Type the passage faster and more accurately than everyone else (2–8 players).',
+    objective: 'Type the same quote faster and more accurately than everyone else (2–8 players).',
     howToPlay: [
-      'Everyone types the same passage as quickly and accurately as possible.',
-      'Everyone’s progress shows live in the results table as you race.',
-      'Anyone still typing when the time limit hits is marked DNF.',
+      'The host picks the quote length and whether punctuation and numbers appear.',
+      'Everyone types the exact same quote. A wrong key still counts against your accuracy even after you correct it.',
+      'Backspace is allowed; progress, net WPM and accuracy update live.',
+      'On a phone, tap the quote or the TAP TO TYPE button to open your own keyboard. On a computer, just type.',
     ],
-    win: 'Highest effective WPM (speed × accuracy) wins the round. First to 3 round wins takes the match.',
+    win: 'Highest net WPM wins; accuracy then finish time break ties. Anyone still typing at the deadline is DNF. First to 3 round wins takes the match.',
   },
 
   math: {
-    objective: 'Solve as many problems as you can in a two-minute blitz (2–8 players).',
+    objective: 'Solve as many arithmetic problems as you can before the clock runs out (2–8 players).',
     howToPlay: [
-      'Answer arithmetic questions one after another at your own pace.',
-      'Everyone gets the same questions. Correct answers build your score and streak.',
+      'The host picks the operations (+, −, × and exact ÷), the difficulty, the operand range and a 60/120/180-second clock.',
+      'Everyone gets the same question stream but answers on their own clock.',
+      'A correct answer scores speed points, doubled on a power question and doubled again while you hold a 3-answer streak.',
+      'A wrong or missed answer resets your streak and reveals the solution; your score never drops.',
     ],
-    win: 'Highest score when the two-minute clock runs out wins the round. First to 3 round wins takes the match.',
+    win: 'Highest score when the clock runs out wins the round. First to 3 round wins takes the match.',
   },
 
   visualmemory: {
@@ -333,6 +336,28 @@ export const GAME_RULES = {
       'Tanks settle into craters; bracket with fine-tune buttons before you commit.',
     ],
     win: 'Reduce the rival tank to 0 HP. Both tanks dying on one shot is a draw.',
+  },
+
+  archery: {
+    objective: 'Score the highest total across four ends of three arrows, with WA 10-rings and Xs deciding ties.',
+    howToPlay: [
+      'Take three arrows in a row per end. Online, X and O alternate ends; the host picks QUICK, STANDARD, or MARATHON.',
+      'Press the bow grip and pull down to set draw length; sideways movement steers. Lift to loose, or slide back to cancel.',
+      'Draw length is power. Match the green sight band for each distance; wind and sway shift the arrow.',
+      'STEADY AIM reduces sway. A line-cutter scores the higher ring; the inner X ring breaks score ties.',
+    ],
+    win: 'Highest score wins; equal totals go to most Xs, then one-arrow 70 m shoot-offs. Closest to center wins an exact shoot-off tie.',
+  },
+
+  archery4: {
+    objective: 'Outscore 1–3 rival archers on one shared neon range.',
+    howToPlay: [
+      'The host starts a 2–4 player room and chooses QUICK, STANDARD, or MARATHON.',
+      'Each archer takes three arrows per end. Turns rotate after each three-arrow block.',
+      'Pull down from the bow grip to set power, steer sideways, and lift to loose. A 30-second shot clock skips an idle archer’s end.',
+      'The WA 10-ring scores a line-cutter high; X counts break score ties before 70 m shoot-offs.',
+    ],
+    win: 'Highest score wins; ties go to most Xs, then nearest-center shoot-off arrows at 70 m.',
   },
 
   animalstack: {

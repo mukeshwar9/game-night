@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -88,6 +88,7 @@ import { generateSeed } from './mathLogic'
 import { startStackMatch } from './animalStackCore'
 import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
 import { MATCH_TARGET as UPDRAFT_MATCH_TARGET, updraftFreshState } from './updraftConfig'
+import { ARCHERY_SEATS, archeryFormat } from './archeryLogic'
 import { generateGrid } from './wordhuntGrid'
 import { nextWireBomb } from './wireMatchLogic'
 import {
@@ -1274,6 +1275,39 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/ArtilleryGame')),
   },
   {
+    type: 'archery', label: 'ARCHERY',
+    desc: 'draw, loose, score the neon range', Icon: ArcheryIcon,
+    badge: 'AR', maxWidth: 'max-w-md',
+    category: 'reflex', addedAt: '2026-09-27',
+    durationMin: 8, tags: ['skill', 'quick'], solo: true,
+    custom: true, waitForStart: true,
+    localMaxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/ArcheryGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/ArcheryDemo').then(m => ({ default: m.ArcheryLocal }))),
+  },
+  {
+    type: 'archery4', label: 'ARCHERY RANGE 4P',
+    desc: 'pass the range around · 2–4 archers', Icon: ArcheryIcon,
+    badge: 'AR4', maxWidth: 'max-w-md',
+    category: 'reflex', addedAt: '2026-09-27',
+    durationMin: 10, tags: ['skill', 'party'],
+    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/ArcheryGame')),
+    startRound: (players, game = {}) => {
+      const ordered = Object.values(players || {}).filter(p => p?.playerId)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, 4)
+      if (ordered.length < 2) return null
+      const archerySeatUids = Object.fromEntries(ordered.map((p, i) => [ARCHERY_SEATS[i], p.playerId]))
+      return {
+        currentTurn: 'X', archerySeatUids, archerySeed: generateSeed(),
+        archeryFormat: archeryFormat(game.archeryFormat), archeryPhase: 'main',
+        archeryShots: null, archeryShootOffShots: null, archeryTied: null,
+        archeryTurnStartedAt: null,
+      }
+    },
+  },
+  {
     type: 'animalstack', label: 'ANIMAL STACK',
     desc: 'drop animals, don\'t topple the tower', Icon: AnimalStackIcon,
     badge: 'AS', maxWidth: 'max-w-md',
@@ -1707,6 +1741,7 @@ const FIELD_NULLS = {
   aimScoreX: null, aimScoreO: null,
   aimHitsX: null, aimHitsO: null,
   aimFriendlyX: null, aimFriendlyO: null,
+  typingConfig: null, mathConfig: null,
   typingPassage: null, typingStartedAt: null,
   typingFinishedAtX: null, typingFinishedAtO: null,
   typingProgressX: null, typingProgressO: null,
@@ -1764,6 +1799,9 @@ const FIELD_NULLS = {
   mancalaPits: null, mancalaLast: null,
   airhockeyScoreX: null, airhockeyScoreO: null,
   artillerySeed: null, artilleryShots: null,
+  archeryFormat: null, archerySeed: null, archeryShots: null,
+  archeryPhase: null, archeryTied: null, archeryShootOffShots: null,
+  archerySeatUids: null, archeryTurnStartedAt: null,
   // Animal Stack: the whole match (seats, hearts, drops, checkpoint) in one node.
   stack: null,
   minesSeed: null, minesStartedAt: null,
@@ -1803,6 +1841,11 @@ const FIELD_NULLS = {
 
 export function freshGameState(gameType, previous = null) {
   const cfg = getGameConfig(gameType)
+  if (gameType === 'archery4') {
+    const keep = previous?.gameType === 'archery4' ? previous : null
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null,
+      archeryFormat: archeryFormat(keep?.archeryFormat) }
+  }
   if (cfg.nPlayer) {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
   }
@@ -1995,6 +2038,14 @@ export function freshGameState(gameType, previous = null) {
     // Realtime (pong family): currentTurn null, page drives its own audio.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       airhockeyScoreX: 0, airhockeyScoreO: 0 }
+  }
+  if (gameType === 'archery') {
+    const keep = previous?.gameType === 'archery' ? previous : null
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null,
+      currentTurn: 'X', archeryFormat: archeryFormat(keep?.archeryFormat),
+      archerySeed: generateSeed(), archeryShots: null, archeryPhase: 'main',
+      archeryTied: null, archeryShootOffShots: null, archerySeatUids: null,
+      archeryTurnStartedAt: null }
   }
   if (gameType === 'artillery') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null,

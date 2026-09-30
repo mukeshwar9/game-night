@@ -38,8 +38,8 @@ import { cn } from '@/lib/utils'
 //              the match → NEW MATCH
 //
 // race config: { type, title, rules[], baseMs, scaled, entry(stats, round),
-//   isDone(stats), row(stats, round), liveKey?(stats, round),
-//   decided?(statsById, racers), start?(room) → { extras, seen }, clockLabel }
+//   isDone(stats), row(stats, round), liveKey?(stats, round), configKey?,
+//   normalizeConfig?, durationMs?(room), Config?, start?(room, seed, config) }
 
 const TICK_MS = 250
 
@@ -98,6 +98,7 @@ export default function RaceShell({
   const [readying, runReady] = useBusy()
   const [starting, runStart] = useBusy()
   const [ending, runEnd] = useBusy()
+  const [savingConfig, runConfigSave] = useBusy()
 
   const offlineRef = useRef(new Map())
   const finishTriedRef = useRef(null)
@@ -110,35 +111,63 @@ export default function RaceShell({
 
   // ── transitions ──────────────────────────────────────────────────────
 
-  const startParams = (cur, force) => {
-    const extrasSeen = race.start ? race.start(cur) : {}
-    const t = getServerNow()
+  const startContext = () => {
+    const now = getServerNow()
+    return { now, id: newRoundId(now), seed: newRaceSeed() }
+  }
+
+  const startParams = (cur, force, context) => {
+    const config = race.normalizeConfig ? race.normalizeConfig(cur?.[race.configKey]) : null
+    const extrasSeen = race.start ? race.start(cur, context.seed, config) : {}
     return {
       gameType: race.type,
       starterId: mySeat,
       force,
-      now: t,
-      id: newRoundId(t),
-      seed: newRaceSeed(),
-      durationMs: race.scaled ? scaledMs(race.baseMs, cur.timerScale) : race.baseMs,
+      now: context.now,
+      id: context.id,
+      seed: context.seed,
+      durationMs: race.durationMs
+        ? race.durationMs(cur, config)
+        : race.scaled ? scaledMs(race.baseMs, cur.timerScale) : race.baseMs,
       extras: extrasSeen?.extras ?? {},
       seen: extrasSeen?.seen ?? null,
     }
   }
 
   const startRound = async (force) => {
-    const res = await runTransaction(gameRef(), cur => startRaceRound(cur, startParams(cur, force)))
+    const context = startContext()
+    const res = await runTransaction(gameRef(), cur => startRaceRound(cur, startParams(cur, force, context)))
     return res.committed
   }
 
-  const toggleReady = () => runReady(async () => {
+  const readyAndStart = async () => {
+    const context = startContext()
     await runTransaction(gameRef(), cur => {
       const toggled = toggleRaceReady(cur, mySeat, race.type)
       if (!toggled) return undefined
       // The last ready tap starts the round in the same write.
-      return startRaceRound(toggled, startParams(toggled, false)) ?? toggled
+      return startRaceRound(toggled, startParams(toggled, false, context)) ?? toggled
     })
-  }, () => toast.error('READY FAILED — CHECK CONNECTION'))
+  }
+
+  const toggleReady = () => runReady(readyAndStart, () => toast.error('READY FAILED — CHECK CONNECTION'))
+
+  const saveConfig = (patch) => runConfigSave(async () => {
+    if (!race.configKey || !race.normalizeConfig) return
+    const res = await runTransaction(gameRef(), cur => {
+      if (cur?.gameType !== race.type || cur.status === 'playing'
+        || !isRoomCoordinator(mySeat, cur.players, cur.hostUid ?? null)) return undefined
+      // Merge a partial patch over the room's current config so rapid toggles
+      // never clobber each other before the round-trip lands.
+      const base = cur[race.configKey] ?? {}
+      const merged = { ...base, ...patch }
+      if (patch?.operations || base?.operations) {
+        merged.operations = { ...(base.operations ?? {}), ...(patch?.operations ?? {}) }
+      }
+      return { ...cur, [race.configKey]: race.normalizeConfig(merged), hostUid: mySeat }
+    })
+    if (!res.committed) throw new Error('Room no longer accepts settings')
+  }, () => toast.error('SETTINGS FAILED — CHECK CONNECTION'))
 
   const finishRound = async (roundId, force) => {
     const res = await runTransaction(gameRef(), cur => finishRaceRound(cur, {
@@ -270,6 +299,16 @@ export default function RaceShell({
   }, [game.raceResult, game.round, players, game.scores, mySeat])
 
   const nameOf = (id) => (players?.[id]?.name || 'PLAYER').toUpperCase()
+  const canEditConfig = !!race.Config && amCoordinator && status !== 'playing' && !matchOver
+  const currentConfig = race.normalizeConfig ? race.normalizeConfig(game?.[race.configKey]) : null
+  const settingsPanel = race.Config && (
+    <race.Config
+      config={currentConfig}
+      disabled={!canEditConfig}
+      busy={savingConfig}
+      onChange={saveConfig}
+    />
+  )
   const switcher = isSeated && onSwitchGame && (
     <GameSwitcher currentType={race.type} onSwitch={onSwitchGame} />
   )
@@ -294,6 +333,12 @@ export default function RaceShell({
             </span>
           )}
         </div>
+
+        {race.describeConfig && (
+          <p className="font-pixel text-[8px] text-retro-dim text-center" aria-label="Locked round settings">
+            {race.describeConfig(race.normalizeConfig?.(liveRound.raw?.[race.configKey] ?? currentConfig))} · LOCKED
+          </p>
+        )}
 
         {phase === 'countdown' && (
           <div className="bg-retro-card border border-retro-border rounded p-8 text-center space-y-3">
@@ -369,11 +414,7 @@ export default function RaceShell({
               key: 'again',
               label: iAmReady ? `READY ✓ ${readyCount}/${onlineSeats.length}` : `PLAY AGAIN${readyCount ? ` ${readyCount}/${onlineSeats.length}` : ''}`,
               busyLabel: 'READYING…',
-              onClick: () => runTransaction(gameRef(), cur => {
-                const toggled = toggleRaceReady(cur, mySeat, race.type)
-                if (!toggled) return undefined
-                return startRaceRound(toggled, startParams(toggled, false)) ?? toggled
-              }),
+              onClick: readyAndStart,
               errorMsg: 'PLAY AGAIN FAILED — CHECK CONNECTION',
             },
             canForce && readyCount > 0 && !everyoneReady && {
@@ -398,6 +439,7 @@ export default function RaceShell({
             </p>
           )}
         </RoundEndPanel>
+        {settingsPanel}
         {switcher}
       </div>
     )
@@ -407,15 +449,18 @@ export default function RaceShell({
 
   const enough = onlineSeats.length >= RACE_MIN_PLAYERS
   const noClock = timersOff(game.timerScale) && race.scaled
+  const lobbyRules = race.rulesFor ? race.rulesFor(game, currentConfig) : race.rules
   return (
     <div className="space-y-4">
       <div className="bg-retro-card border border-retro-border rounded p-5 text-center space-y-3">
         <p className="font-pixel text-[10px] text-retro-cta tracking-widest">{race.title} · {RACE_MIN_PLAYERS}–8 RACERS</p>
         <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left mx-auto w-fit leading-relaxed">
-          {race.rules.map(r => <p key={r}>● {r}</p>)}
+          {lobbyRules.map(r => <p key={r}>● {r}</p>)}
           {noClock && <p>● NO TIME LIMIT — HOST ENDS THE ROUND</p>}
         </div>
       </div>
+
+      {settingsPanel}
 
       <div className="space-y-1.5">
         <p className="font-pixel text-[9px] text-retro-dim tracking-widest">PLAYERS ({seats.length})</p>

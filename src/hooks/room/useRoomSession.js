@@ -29,11 +29,11 @@ function readStoredSeat(gameId) {
   try { return JSON.parse(sessionStorage.getItem(`game-${gameId}`) || 'null') } catch { return null }
 }
 
-// The 2P room patch once the second seat fills: non-lobby rooms start
-// straight away (Hangwoman also arms its first round); lobby rooms
-// (challenge-created, `lobby: true`) stay 'waiting' for START.
+// The 2P room patch once the second seat fills: non-lobby games start
+// straight away, while challenge lobbies and registry games with waitForStart
+// stay in WaitingRoom for first-mover/setup choices.
 function secondSeatUpdates(data) {
-  if (data.lobby) return { lastActivityAt: Date.now() }
+  if (data.lobby || getGameConfig(data.gameType)?.waitForStart) return { lastActivityAt: Date.now() }
   const updates = { status: 'playing', lastActivityAt: Date.now() }
   if (data.gameType === 'hangwoman') {
     updates['round/setter'] = 'X'

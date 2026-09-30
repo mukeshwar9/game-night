@@ -99,6 +99,7 @@ describe('first mover', () => {
 describe('supportsLocalPlay', () => {
   const LOCAL_TYPES = [
     'animalstack', // custom, but ships its own 2-4P LocalPage
+    'archery', // custom range with its own same-device LocalPage
     'tictactoe', 'ultimatettt', 'tictactoe4', 'connectfour', 'connectfour5', 'connectfourpop',
     'dotsandboxes', 'dotsandboxes4', 'sos', 'gomoku', 'gomokuswap', 'reversi', 'chainreaction', 'chainreaction6',
     'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'visualmemory', 'pairs', 'dice', 'dice-big',
@@ -106,8 +107,8 @@ describe('supportsLocalPlay', () => {
     'onitama', 'quarto', 'santorini', 'loa', 'yavalath',
   ]
 
-  it('is true for all 34 eligible games (33 registry boards + Animal Stack)', () => {
-    expect(LOCAL_TYPES).toHaveLength(34)
+  it('is true for all 35 eligible games (33 registry boards + two custom LocalPages)', () => {
+    expect(LOCAL_TYPES).toHaveLength(35)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }
@@ -135,13 +136,26 @@ describe('supportsLocalPlay', () => {
     expect(supportsLocalPlay('nonexistent')).toBe(false)
   })
 
-  it('matches the exact 22-type registry predicate', () => {
+  it('matches the exact registry predicate', () => {
     const derived = GAME_TYPES.filter(t => supportsLocalPlay(t.type)).map(t => t.type).sort()
     expect(derived).toEqual([...LOCAL_TYPES].sort())
   })
 })
 
 describe('freshGameState board sizes', () => {
+  it('initializes both Archery room modes and party seats', () => {
+    const duel = freshGameState('archery')
+    expect(duel).toMatchObject({ currentTurn: 'X', archeryFormat: 'standard', archeryPhase: 'main' })
+    expect(typeof duel.archerySeed).toBe('number')
+    const party = freshGameState('archery4')
+    expect(party).toMatchObject({ currentTurn: null, archeryFormat: 'standard' })
+    expect(GAME_TYPES.find(type => type.type === 'archery').waitForStart).toBe(true)
+    expect(GAME_TYPES.find(type => type.type === 'archery4').startRound({
+      alice: { playerId: 'alice', joinedAt: 1 }, bob: { playerId: 'bob', joinedAt: 2 },
+    }, { archeryFormat: 'quick' })).toMatchObject({
+      currentTurn: 'X', archerySeatUids: { X: 'alice', O: 'bob' }, archeryFormat: 'quick', archeryPhase: 'main',
+    })
+  })
   it('dots and boxes 6×6 vs 4×4', () => {
     const large = freshGameState('dotsandboxes')
     const compact = freshGameState('dotsandboxes4')

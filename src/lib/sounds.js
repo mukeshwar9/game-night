@@ -205,6 +205,15 @@ export const sounds = {
   stackLand: (speed = 0.5) => { seq([[140 + speed * 40, 0, 0.08, 'triangle', 0.08 + speed * 0.06], [60, 0, 0.12, 'sawtooth', 0.05 + speed * 0.06]]); vibrate(8 + Math.round(speed * 14)) },
   stackTopple: () => { seq([[440, 0, 0.14], [330, 0.11, 0.14], [247, 0.22, 0.14], [165, 0.33, 0.2]]); vibrate([0, 60, 40, 120]) },
   stackTick: () => { seq([[1200, 0, 0.02, 'square', 0.03]]) },
+  // Archery cues stay behind this switch: vibrate() is intentionally disabled
+  // platform-wide until haptics are approved globally.
+  archeryDraw: () => { seq([[520, 0, 0.035, 'sine', 0.04]]); vibrate(4) },
+  archeryLoose: () => { seq([[760, 0, 0.045, 'triangle', 0.08], [1120, 0.035, 0.06, 'sine', 0.05]]); vibrate(8) },
+  archeryHit: (score = 0) => {
+    if (score > 0) seq([[440 + score * 42, 0, 0.07, 'square', 0.1]])
+    else seq([[180, 0, 0.08, 'sawtooth', 0.08]])
+    vibrate(score > 8 ? 10 : 5)
+  },
   // Soft two-note pop — default emoji reaction audio (haptics via reaction())
   emote: () => emoteAudio(),
   // Breathy descending hiss — shh reaction audio (haptics via reaction())
