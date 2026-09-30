@@ -2,6 +2,8 @@ import { getGameConfig } from '../lib/games'
 import { getRules } from '../lib/rules'
 import RuleClip from './RuleClips'
 import BottomSheet from './BottomSheet'
+import RuleMedia from './RuleMedia'
+import { getRuleMedia } from '../lib/ruleMediaLogic'
 
 // A small "?" icon button — the trigger that opens the rules modal. Styled to
 // match the header icon buttons (mute / ThemeSwitcher) in Game.jsx. p-3.5/-m-2.5
@@ -50,9 +52,12 @@ export default function RulesModal({ gameType, onClose }) {
 
       {rules ? (
         <div className="space-y-4">
-          {/* Looping silent demo above the text (RuleClip returns null for
-              games without a clip yet — no per-game branches needed). */}
-          <RuleClip type={gameType} className="w-full aspect-square rounded-xl border border-retro-border block bg-retro-card" />
+          {/* Step carousel for games with captured stills; otherwise the looping
+              silent demo (RuleClip returns null for games without a clip). */}
+          {getRuleMedia(gameType)
+            ? <RuleMedia gameType={gameType} rules={rules} />
+            : <RuleClip type={gameType} className="w-full aspect-square rounded-xl border border-retro-border block bg-retro-card" />}
+
           <section className="space-y-1.5">
             <p className="font-pixel text-[9px] text-retro-p1 tracking-widest">OBJECTIVE</p>
             <p className="font-mono text-[11px] leading-relaxed text-retro-text">{rules.objective}</p>
