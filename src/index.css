@@ -43,7 +43,6 @@
     margin: -.25rem;
   }
   .game-header-meta { display: none; }
-  .game-room-meta { display: block !important; }
 
     .video-call-reaction-dock {
       display: block;
@@ -1063,6 +1062,21 @@ body::before {
 }
 .pong-ball-pulse { animation: pong-ball-pulse 0.6s ease-in-out infinite; }
 
+/* Minigolf — sink burst, portal pulse, drifting water */
+.minigolf-burst { animation: pixel-burst 0.6s ease-out forwards; }
+.minigolf-portal { animation: minigolf-portal 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes minigolf-portal {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+.minigolf-wave { animation: minigolf-wave 2.4s linear infinite; }
+@keyframes minigolf-wave {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+[data-motion="reduced"] .minigolf-burst { display: none; }
+
 /* Pong juice — hit sparks, callout pop, pulsing goal-line shield */
 .pong-particle { animation: pixel-burst 0.45s ease-out forwards; }
 @keyframes pong-callout {
@@ -1489,7 +1503,6 @@ body::before {
 }
 
 /* Room meta line only exists for the mobile header (see Game.jsx). */
-.game-room-meta { display: none; }
 
 /* Not-your-turn / finished boards: keep every piece's player color (X/O,
    stones, discs stay identifiable for the loser and for spectators) and only
@@ -1585,3 +1598,35 @@ body::before {
 .wire-blackout * { color: rgb(var(--c-text)); }
 [data-motion="reduced"] .wire-blackout { animation: none; }
 @media (prefers-reduced-motion: reduce) { .wire-blackout { animation: none; } }
+
+/* How-to-play rule clips (RuleClips.jsx): GIF-like looping demos — silent,
+   autoplay, infinite. Phases are encoded as keyframe percentages (no WAAPI,
+   no timers), so each clip is one SVG + zero JS. Reduced motion freezes every
+   clip into its readable end-state via .clip-still (plain GIFs can't do this;
+   the app-wide [data-motion] rule alone would park them at opacity 0). */
+.clip-anim {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-fill-mode: both;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+/* TTT: marks pop in staggered (t0..t4), strike draws, all hold, then clear. */
+@keyframes clip-t0 { 0%,3%{opacity:0;transform:scale(.4)} 7%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-t1 { 0%,15%{opacity:0;transform:scale(.4)} 19%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-t2 { 0%,28%{opacity:0;transform:scale(.4)} 32%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-t3 { 0%,41%{opacity:0;transform:scale(.4)} 45%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-t4 { 0%,54%{opacity:0;transform:scale(.4)} 58%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-strike { 0%,66%{opacity:0;transform:scaleX(.2)} 72%,90%{opacity:1;transform:scaleX(1)} 96%,100%{opacity:0;transform:scaleX(1)} }
+/* C4: discs drop from above the board staggered, win ring pings, then clear. */
+@keyframes clip-d0 { 0%,2%{opacity:0;transform:translateY(-48px)} 5%{opacity:1} 10%,90%{opacity:1;transform:translateY(0)} 96%,100%{opacity:0} }
+@keyframes clip-d1 { 0%,14%{opacity:0;transform:translateY(-48px)} 17%{opacity:1} 22%,90%{opacity:1;transform:translateY(0)} 96%,100%{opacity:0} }
+@keyframes clip-d2 { 0%,26%{opacity:0;transform:translateY(-48px)} 29%{opacity:1} 34%,90%{opacity:1;transform:translateY(0)} 96%,100%{opacity:0} }
+@keyframes clip-d3 { 0%,38%{opacity:0;transform:translateY(-48px)} 41%{opacity:1} 46%,90%{opacity:1;transform:translateY(0)} 96%,100%{opacity:0} }
+@keyframes clip-ping { 0%,56%{opacity:0;transform:scale(.6)} 62%,84%{opacity:1;transform:scale(1)} 90%,100%{opacity:0;transform:scale(1)} }
+/* Pong: seamless 4s rally loop (ends where it starts — no clear needed). */
+@keyframes clip-ball { 0%{transform:translate(0,0)} 25%{transform:translate(24px,-8px)} 50%{transform:translate(0,4px)} 75%{transform:translate(-24px,-6px)} 100%{transform:translate(0,0)} }
+@keyframes clip-paddle-l { 0%{transform:translateY(0)} 25%{transform:translateY(-7px)} 50%{transform:translateY(3px)} 75%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
+@keyframes clip-paddle-r { 0%{transform:translateY(0)} 30%{transform:translateY(5px)} 60%{transform:translateY(-4px)} 100%{transform:translateY(0)} }
+[data-motion="reduced"] .clip-still { animation: none !important; opacity: 1 !important; transform: none !important; }
+@media (prefers-reduced-motion: reduce) { .clip-still { animation: none !important; opacity: 1 !important; transform: none !important; } }

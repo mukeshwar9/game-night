@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from './Avatar'
 import BottomSheet from './BottomSheet'
@@ -12,6 +12,7 @@ import {
   TEXT_SIZES, applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx,
   getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
 } from '../lib/displayPrefs'
+import { ART_STYLES, DEFAULT_ART_STYLE, applyGameArtStyle, getGameArtStyle } from '../lib/gameArtStyle'
 import { setProfile } from '../lib/social'
 import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatars'
@@ -61,6 +62,7 @@ export default function SettingsButton({ className = '' }) {
   const [crt, setCrt] = useState(getStoredCrt)
   const [motion, setMotion] = useState(getStoredMotion)
   const [textSize, setTextSize] = useState(getStoredTextSize)
+  const [artStyle, setArtStyle] = useState(getGameArtStyle)
   const [winFx, setWinFx] = useState(getWinFx)
   const [resetArmed, setResetArmed] = useState(false)
   const [editingMe, setEditingMe] = useState(false)
@@ -84,14 +86,13 @@ export default function SettingsButton({ className = '' }) {
     onBlur: e => { if (!e.currentTarget.contains(e.relatedTarget)) setter(null) },
   })
 
-  // The theme list is a fixed-height scroll box, so bring the committed
-  // theme into view whenever the sheet opens.
-  useEffect(() => {
+  // Scroll the committed theme into view when its choices are revealed.
+  const revealThemes = (event) => {
+    if (!event.currentTarget.open) { setHoverTheme(null); return }
     const list = themeListRef.current
     const selected = list?.querySelector('[aria-pressed="true"]')
-    if (!list || !selected) return
-    list.scrollTop = selected.offsetTop - (list.clientHeight - selected.offsetHeight) / 2
-  }, [open])
+    if (list && selected) list.scrollTop = selected.offsetTop - (list.clientHeight - selected.offsetHeight) / 2
+  }
 
   const selectTheme = (id) => {
     applyTheme(id)
@@ -113,6 +114,7 @@ export default function SettingsButton({ className = '' }) {
   const selectCrt = (on) => { applyCrt(on); setCrt(on) }
   const selectMotion = (mode) => { applyMotion(mode); setMotion(mode === 'reduced' ? 'reduced' : 'full') }
   const selectTextSize = (id) => setTextSize(applyTextSize(id))
+  const selectArtStyle = (id) => setArtStyle(applyGameArtStyle(id))
   const selectWinFx = (on) => { applyWinFx(on); setWinFx(on) }
   const selectShowPreview = (on) => { applyThemePreview(on); setShowPreview(on) }
 
@@ -136,6 +138,8 @@ export default function SettingsButton({ className = '' }) {
     setCrt(true)
     setMotion(getStoredMotion())
     setTextSize('m')
+    setArtStyle(DEFAULT_ART_STYLE)
+    applyGameArtStyle(DEFAULT_ART_STYLE)
     setWinFx(true)
     setShowPreview(false)
     setProfile({ theme: 'matcha', fontFamily: 'press-start' }).catch(() => {})
@@ -166,13 +170,12 @@ export default function SettingsButton({ className = '' }) {
       </div>
 
       <section className="space-y-2" aria-label="Your name and avatar">
-        <SectionTitle>YOU</SectionTitle>
         {editingMe ? (
           <Suspense fallback={<div className="py-8 flex justify-center"><PixelDots /></div>}>
             <IdentityEditor name={myName} avatar={myAvatar} onDone={() => setEditingMe(false)} />
           </Suspense>
         ) : (
-          <div className="flex items-center gap-3 bg-retro-surface border border-retro-border rounded p-2.5">
+          <div className="flex items-center gap-3">
             <Avatar id={myAvatar} size={40} />
             <p className="min-w-0 flex-1 font-pixel text-xs text-retro-text truncate">{myName || 'NO NAME YET'}</p>
             <button
@@ -187,7 +190,6 @@ export default function SettingsButton({ className = '' }) {
       </section>
 
       <Section title="THEME & FONT" defaultOpen>
-        <SwitchRow label="SHOW PREVIEW" checked={showPreview} onChange={selectShowPreview} ariaLabel="Show theme preview" />
         <div className={showPreview ? 'space-y-3 md:grid md:grid-cols-[240px_1fr] md:gap-5 md:space-y-0' : ''}>
           {showPreview && <div>
             <div className="md:sticky md:top-0">
@@ -201,30 +203,43 @@ export default function SettingsButton({ className = '' }) {
               </p>
             </div>
           </div>}
-          <div className="space-y-5">
-            <div
-              ref={themeListRef}
-              className="relative grid max-h-52 grid-cols-2 gap-2 overflow-y-auto overscroll-contain rounded border border-retro-border p-2 md:max-h-72"
-              {...clearPeek(setHoverTheme)}
-            >
-              {THEMES.map(option => <button
-                key={option.id}
-                type="button"
-                aria-pressed={theme === option.id}
-                onClick={() => selectTheme(option.id)}
-                {...peek(setHoverTheme, option.id)}
-                className={`flex min-h-11 items-center gap-2 rounded border px-2 py-1.5 text-left font-pixel text-[9px] transition-colors ${theme === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
+          <div className="space-y-2">
+            <details className="group/theme" onToggle={revealThemes}>
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                <span className="font-pixel text-[9px] text-retro-text">THEME</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <ThemeSwatches id={theme} />
+                  <span className="font-mono text-xs text-retro-dim truncate">{THEMES.find(option => option.id === theme)?.label}</span>
+                  <span aria-hidden="true" className="text-retro-dim transition-transform group-open/theme:rotate-90">›</span>
+                </span>
+              </summary>
+              <div
+                ref={themeListRef}
+                className="relative grid max-h-52 grid-cols-2 gap-2 overflow-y-auto overscroll-contain rounded border border-retro-border p-2 md:max-h-72"
+                {...clearPeek(setHoverTheme)}
               >
-                <ThemeSwatches id={option.id} />
-                <span className="leading-snug">{option.label}</span>
-              </button>)}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <SectionTitle>FONT FAMILY</SectionTitle>
-                <span className="font-mono text-[10px] text-retro-dim">{FONTS.find(option => option.id === font)?.label}</span>
+                {THEMES.map(option => <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={theme === option.id}
+                  onClick={() => selectTheme(option.id)}
+                  {...peek(setHoverTheme, option.id)}
+                  className={`flex min-h-11 items-center gap-2 rounded border px-2 py-1.5 text-left font-pixel text-[9px] transition-colors ${theme === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
+                >
+                  <ThemeSwatches id={option.id} />
+                  <span className="leading-snug">{option.label}</span>
+                </button>)}
               </div>
+            </details>
+
+            <details className="group/font" onToggle={event => { if (!event.currentTarget.open) setHoverFont(null) }}>
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                <span className="font-pixel text-[9px] text-retro-text">FONT FAMILY</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="font-mono text-xs text-retro-dim truncate">{FONTS.find(option => option.id === font)?.label}</span>
+                  <span aria-hidden="true" className="text-retro-dim transition-transform group-open/font:rotate-90">›</span>
+                </span>
+              </summary>
               <div className="grid grid-cols-2 gap-2" {...clearPeek(setHoverFont)}>
                 {FONTS.map(option => <button
                   key={option.id}
@@ -238,7 +253,8 @@ export default function SettingsButton({ className = '' }) {
                   <span className="mt-1 block truncate font-mono text-[9px] opacity-70">{option.description}</span>
                 </button>)}
               </div>
-            </div>
+            </details>
+            <SwitchRow label="SHOW PREVIEW" checked={showPreview} onChange={selectShowPreview} ariaLabel="Show theme preview" />
           </div>
         </div>
       </Section>
@@ -247,6 +263,20 @@ export default function SettingsButton({ className = '' }) {
         <SwitchRow label="CRT EFFECTS" checked={crt} onChange={selectCrt} ariaLabel="Toggle CRT scanlines and vignette" />
         <SwitchRow label="REDUCE MOTION" checked={motion === 'reduced'} onChange={on => selectMotion(on ? 'reduced' : 'full')} ariaLabel="Toggle reduced motion" />
         <SwitchRow label="WIN CELEBRATIONS" checked={winFx} onChange={selectWinFx} ariaLabel="Toggle win confetti and fanfare" />
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-pixel text-[9px] text-retro-text tracking-widest">GAME ART</span>
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Game art style">
+            {ART_STYLES.map(option => <button
+              key={option.id}
+              type="button"
+              onClick={() => selectArtStyle(option.id)}
+              aria-pressed={artStyle === option.id}
+              className={`min-h-10 min-w-16 rounded border px-2 font-pixel text-[9px] transition-colors ${artStyle === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
+            >
+              {option.label}
+            </button>)}
+          </div>
+        </div>
         <div className="flex items-center justify-between gap-3">
           <span className="font-pixel text-[9px] text-retro-text tracking-widest">TEXT SIZE</span>
           <div className="grid grid-cols-3 gap-2" role="group" aria-label="Text size">
@@ -283,7 +313,7 @@ export default function SettingsButton({ className = '' }) {
         <VideoCallSettingsPanel embedded />
       </Section>
 
-      <Section title="HELP">
+      <Section title="HELP & RESET">
         <Link
           to="/notes"
           onClick={() => setOpen(false)}
@@ -300,9 +330,6 @@ export default function SettingsButton({ className = '' }) {
           <span>MUTED PLAYERS</span>
           <span className="text-retro-dim" aria-hidden="true">→</span>
         </Link>
-      </Section>
-
-      <section className="border-t border-retro-border pt-4">
         <button
           type="button"
           onClick={resetAll}
@@ -310,7 +337,7 @@ export default function SettingsButton({ className = '' }) {
         >
           {resetArmed ? 'SURE? TAP AGAIN TO RESET' : 'RESET ALL TO DEFAULTS'}
         </button>
-      </section>
+      </Section>
     </BottomSheet>}
   </>
 }

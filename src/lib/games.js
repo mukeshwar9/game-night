@@ -2,13 +2,13 @@ import { lazyWithRetry } from './lazyWithRetry'
 // ChimpBoard is used only from ChimpGame (custom component), not directly via registry
 import {
   TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, PulpIcon,
   TypingIcon, MathIcon,
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
-  PasswordIcon, AnagramsIcon, ArrowsIcon,
+  PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
@@ -18,7 +18,7 @@ import {
 import { LanternsIcon, DockingIcon } from '../components/GameIcons'
 import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
 import { HunchIcon, ConvergeIcon } from '../components/GameIcons'
-import { WireCrossedIcon, AnimalStackIcon } from '../components/GameIcons'
+import { WireCrossedIcon, AnimalStackIcon, MinigolfIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
@@ -87,6 +87,7 @@ import {
 import { generateSeed } from './mathLogic'
 import { startStackMatch } from './animalStackCore'
 import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
+import { MATCH_TARGET as UPDRAFT_MATCH_TARGET, updraftFreshState } from './updraftConfig'
 import { ARCHERY_SEATS, archeryFormat } from './archeryLogic'
 import { generateGrid } from './wordhuntGrid'
 import { nextWireBomb } from './wireMatchLogic'
@@ -718,6 +719,31 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/AimTrainerGame')),
   },
   {
+    type: 'pulprush', label: 'PULP RUSH',
+    desc: 'slice the produce, dodge the rot', Icon: PulpIcon,
+    badge: 'PR', maxWidth: 'max-w-sm',
+    classicLabel: 'DUEL', classicBlurb: 'Same throws for everyone. Highest score wins.',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
+    // N-player race on one shared seeded course (pulpLogic.js / RaceShell);
+    // same-device split screen + TWO-TONE co-op live on its /solo page.
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/PulpRushGame')),
+  },
+  {
+    type: 'pulpharvest', label: 'PULP HARVEST',
+    desc: 'fill one basket together', Icon: PulpIcon,
+    badge: 'PH', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    variantOf: 'pulprush', variantLabel: 'CO-OP',
+    variantBlurb: 'Same throws, one team basket, shared hearts.',
+    durationMin: 2, tags: ['quick', 'frantic'],
+    custom: true, simultaneous: true, race: true, coop: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/PulpHarvestGame')),
+  },
+  {
     type: 'typing', label: 'TYPING RACE',
     desc: 'outtype the whole room', Icon: TypingIcon,
     badge: 'TR', maxWidth: 'max-w-sm',
@@ -747,6 +773,35 @@ export const GAME_TYPES = [
     matchTarget: 2,
     nextRound: arrowsNextRound,
     hidePlayerCards: true,
+  },
+  {
+    type: 'updraft', label: 'UPDRAFT',
+    desc: 'race up the same sky tower', Icon: UpdraftIcon,
+    badge: 'UD', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    // Ghost race (Arrows model): both seats climb one seeded tower, each
+    // simulating only its own hopper; progress rides `updraft` in Firebase.
+    durationMin: 4, tags: ['quick', 'frantic', 'skill'], solo: true,
+    classicLabel: 'VERSUS',
+    classicBlurb: 'Race your rival up the same tower. First to 400 m wins; CHAOS pickups sabotage them.',
+    custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/UpdraftGame')),
+    matchTarget: UPDRAFT_MATCH_TARGET,
+    hidePlayerCards: true,
+  },
+  {
+    type: 'updraftduo', label: 'UPDRAFT CO-OP',
+    desc: 'climb twin towers together', Icon: UpdraftIcon,
+    badge: 'UC', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    variantOf: 'updraft', variantLabel: 'CO-OP',
+    variantBlurb: 'Twin towers: your keys open your partner\'s gates. Three shared lives, both reach 300 m to win.',
+    // Co-op: both seats share the result (runs cleared credit both scores).
+    durationMin: 4, tags: ['frantic', 'skill'], solo: false,
+    custom: true, realtime: true, coop: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/UpdraftCoopGame')),
   },
   {
     type: 'pong', label: 'PONG',
@@ -1278,6 +1333,34 @@ export const GAME_TYPES = [
     },
   },
   {
+    type: 'minigolf', label: 'MINIGOLF',
+    desc: 'pull, putt, sink it', Icon: MinigolfIcon,
+    badge: 'MG', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    durationMin: 10, tags: ['skill', 'party'], solo: true,
+    // Turn-based putting for 2–4 on the uid-keyed room model (lobby → host
+    // START, like Chain Reaction 4P). The room stores only each stroke's
+    // integer inputs; every client replays them through the deterministic sim
+    // (minigolfLogic.replayCourse), so there is no turn pointer to keep in sync.
+    // Solo (PAR RUN / VS BOT) and pass-and-play 2–4 run the same replay
+    // offline via LocalPage — see supportsLocalPlay.
+    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/MinigolfGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/MinigolfLocal')),
+    startRound: (players) => {
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, 4)
+      if (seats.length < 2) return null
+      return {
+        golfOrder: seats.map(p => p.playerId),
+        golfShots: null, golfSkip: null, golfAway: null,
+      }
+    },
+  },
+  {
     type: 'animalstack', label: 'ANIMAL STACK',
     desc: 'drop animals, don\'t topple the tower', Icon: AnimalStackIcon,
     badge: 'AS', maxWidth: 'max-w-md',
@@ -1738,6 +1821,8 @@ const FIELD_NULLS = {
   pongScoreX: null, pongScoreO: null, pongMode: null, signaling: null, matchLength: null,
   arrowsRound: null, arrowsSeed: null, arrowsStartedAt: null,
   arrowsGoneX: null, arrowsGoneO: null, arrowsLivesX: null, arrowsLivesO: null,
+  // updraft / updraftduo: the whole round (seed, start, seats, hazards, keys).
+  updraft: null,
   // Retired shared-board keys: still nulled so rooms from before the race
   // rework shed them on the next reset.
   arrowsLevel: null, arrowsCleared: null,
@@ -1772,6 +1857,9 @@ const FIELD_NULLS = {
   archerySeatUids: null, archeryTurnStartedAt: null,
   // Animal Stack: the whole match (seats, hearts, drops, checkpoint) in one node.
   stack: null,
+  // Minigolf per-match inputs (minigolfLogic.replayCourse). The lobby picks
+  // golfCourse / golfClock are room-level house rules and stay out of here.
+  golfOrder: null, golfShots: null, golfSkip: null, golfAway: null,
   minesSeed: null, minesStartedAt: null,
   minesRevealedX: null, minesRevealedO: null,
   minesDeadX: null, minesDeadO: null,
@@ -2041,6 +2129,11 @@ export function freshGameState(gameType, previous = null) {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
       ...arrowFields }
   }
+  if (gameType === 'updraft' || gameType === 'updraftduo') {
+    // A new seed every round; a versus rematch keeps the host's CHAOS/PURE pick.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      ...updraftFreshState(previous, { coop: gameType === 'updraftduo' }) }
+  }
   if (gameType === 'wordcoop') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
   }
@@ -2053,8 +2146,9 @@ export function freshGameState(gameType, previous = null) {
       round: best ? { best } : null }
   }
   if (gameType === 'wirecrossed') {
-    // PLAY AGAIN passes the finished bomb: the level climbs and the streak
-    // carries. NEW MATCH / switching in starts over at level 1.
+    // New rooms begin on legacy generator v1 until both seats acknowledge the
+    // updated client; v2 then asks for one difficulty and runs two role-swapped bombs.
+    // Existing v1 rooms keep their old level climb until a new match.
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null,
       wire: nextWireBomb(previous?.wire, generateSeed()) }
   }

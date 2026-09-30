@@ -61,13 +61,61 @@ describe('generateBomb without a mode (legacy)', () => {
     expect(generateBomb('x', 'hard').level).toBe(1)
   })
 
-  it('still plays: a legacy bomb is armable, solvable and uses the base penalty', () => {
+  it('still plays: an armed legacy bomb is solvable and uses the base penalty', () => {
     const bomb = generateBomb('s1', 4)
-    const legacy = { seed: 's1', level: 4, tech: 'X', phase: 'ready', strikes: 0 }
+    const legacy = { seed: 's1', level: 4, tech: 'X', phase: 'armed', armedAt: 1000, endsAt: 1000 + BOMB_MS, strikes: 0 }
     expect(isLegacyWire(legacy)).toBe(true)
-    const wire = solveAll(bomb, armWire(legacy, 1000, BOMB_MS))
+    const wire = solveAll(bomb, legacy)
     expect(wire.result).toMatchObject({ outcome: 'defused', reason: 'solved', cleared: false })
     expect(wire.run).toBeUndefined()
+  })
+})
+
+// A room written by the retired two-bomb build: generatorVersion, difficulty,
+// clientVersion acks and a level of 0, 1, 3 or 5, but no mode and no run.
+describe('nodes written by the retired two-bomb build', () => {
+  const upstream = (over = {}) => ({
+    seed: 'u1', level: 3, bombNo: 1, tech: 'X', phase: 'ready', strikes: 0,
+    generatorVersion: 2, difficulty: 'normal', clientVersionX: 2, clientVersionO: 2, ...over,
+  })
+
+  it('shows the mode picker for a ready node: not legacy, cannot be armed', () => {
+    for (const level of [0, 1, 3, 5]) {
+      const wire = upstream({ level })
+      expect(isLegacyWire(wire)).toBe(false)
+      expect(armWire(wire, 100, 5000)).toBeNull()
+    }
+  })
+
+  it('lets the players pick a mode on a ready node, dropping the old fields', () => {
+    const proposed = proposeMode(upstream({ level: 0 }), 'medium', 'X', 5)
+    const accepted = acceptMode(proposed, 'O', 'fresh')
+    expect(accepted).toMatchObject({ mode: 'medium', level: 1, phase: 'ready', run: { booms: 0, ms: 0 } })
+    expect(accepted.generatorVersion).toBeUndefined()
+    expect(accepted.difficulty).toBeUndefined()
+    expect(armWire(accepted, 100, 5000)).toMatchObject({ phase: 'armed' })
+  })
+
+  it('plays an armed node with the legacy generator at max(1, level)', () => {
+    for (const level of [0, 1, 3, 5]) {
+      const wire = upstream({ level, phase: 'armed', armedAt: 10, endsAt: 10 + BOMB_MS })
+      expect(isLegacyWire(wire)).toBe(true)
+      const bomb = generateBomb(wire.seed, wire.level, wire.mode)
+      expect(bomb).toEqual(generateBomb(wire.seed, Math.max(1, level)))
+      expect(solveAll(bomb, wire).result).toMatchObject({ outcome: 'defused' })
+    }
+  })
+
+  it('finishes an over node and the next bomb returns to the mode picker at level 1', () => {
+    for (const outcome of ['defused', 'boom']) {
+      const over = upstream({ level: 5, phase: 'over', result: { outcome, reason: 'solved' }, difficulty: 'hard' })
+      expect(isLegacyWire(over)).toBe(true)
+      const next = nextWireBomb(over, 'n1')
+      expect(next).toMatchObject({ mode: null, level: 1, phase: 'ready', bombNo: 2, tech: 'O' })
+      expect(next.generatorVersion).toBeUndefined()
+    }
+    const ready = nextWireBomb(upstream({ level: 0 }), 'n2')
+    expect(ready).toMatchObject({ mode: null, level: 1, phase: 'ready' })
   })
 })
 
@@ -212,12 +260,12 @@ describe('arming, timeout and clock', () => {
     expect(armWire(ready({ phase: 'armed' }), 100, 5000)).toBeNull()
   })
 
-  it('refuses to arm a modes-era bomb until a mode is set, but not a legacy one', () => {
+  it('refuses to arm a bomb until a mode is set', () => {
     expect(armWire(ready({ mode: null }), 100, 5000)).toBeNull()
     expect(armWire(ready({ mode: undefined }), 100, 5000)).toBeNull()
     expect(armWire(ready({ mode: 'bogus' }), 100, 5000)).toBeNull()
     const legacy = { seed: 'a', level: 5, tech: 'X', phase: 'ready', strikes: 0 }
-    expect(armWire(legacy, 100, 5000)).toMatchObject({ phase: 'armed' })
+    expect(armWire(legacy, 100, 5000)).toBeNull()
   })
 
   it('times out only an armed bomb past its deadline', () => {

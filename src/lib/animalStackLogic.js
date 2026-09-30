@@ -11,7 +11,8 @@
 //     drift survives from one drop to the next
 //   * piece identity comes from the seed (pieceSequence), never from a client
 import { World, Vec2, Polygon } from './vendor/planck-det'
-import { detCos, detSin, mulberry32 } from './detMath'
+import { mulberry32 } from './detMath'
+import { PIXELS } from './animalStackPixels'
 import { heartsFor, hashState, nextAlive, roundSeed } from './animalStackCore'
 
 export { heartsFor, hashState, nextAlive, roundSeed }
@@ -31,40 +32,24 @@ export const SPAWN_GAP = 0.45 // drop height above the tower's highest point
 export const TURN_MS = 15000 // online aim timer
 export const ISLAND = [[-2.6, 0], [2.6, 0], [2.35, -0.35], [1.9, -1.6], [-1.9, -1.6], [-2.35, -0.35]]
 
-/** Box part as a convex polygon (half-width, half-height, centre, angle). */
-function box(hw, hh, cx = 0, cy = 0, a = 0) {
-  const c = detCos(a), s = detSin(a)
-  return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => [cx + x * c - y * s, cy + x * s + y * c])
-}
-
-// Twelve animals, each a compound of convex parts (metres). `tone` is the
-// --c-* token the renderer fills it with — never a p1-p4 player colour.
-export const PIECES = [
-  { id: 'elephant', name: 'ELEPHANT', tone: 'dim', density: 1.3, weight: 'HEAVY',
-    parts: [box(0.75, 0.42, 0, 0.12), box(0.27, 0.3, 0.98, 0.28), box(0.15, 0.17, -0.46, -0.46), box(0.15, 0.17, 0.42, -0.46), box(0.08, 0.2, 1.17, -0.12)], eyes: [[1.05, 0.4]] },
-  { id: 'giraffe', name: 'GIRAFFE', tone: 'kam3', density: 0.9, weight: 'LIGHT',
-    parts: [box(0.5, 0.24, 0, 0), box(0.13, 0.55, 0.4, 0.76), box(0.24, 0.12, 0.56, 1.36), box(0.07, 0.26, -0.36, -0.48), box(0.07, 0.26, 0.36, -0.48)], eyes: [[0.62, 1.4]] },
-  { id: 'penguin', name: 'PENGUIN', tone: 'text', density: 1, weight: 'MID',
-    parts: [[[-0.32, -0.55], [0.32, -0.55], [0.42, -0.15], [0.36, 0.3], [0.18, 0.55], [-0.18, 0.55], [-0.36, 0.3], [-0.42, -0.15]]], eyes: [[0.12, 0.34], [-0.12, 0.34]] },
-  { id: 'hippo', name: 'HIPPO', tone: 'kam5', density: 1.4, weight: 'HEAVY',
-    parts: [[[-0.85, -0.35], [0.85, -0.35], [0.97, -0.08], [0.9, 0.3], [0.6, 0.42], [-0.7, 0.42], [-0.95, 0.2], [-0.95, -0.15]]], eyes: [[0.55, 0.24]] },
-  { id: 'snake', name: 'SNAKE', tone: 'kam2', density: 0.8, weight: 'LIGHT',
-    parts: [box(0.56, 0.12, -0.48, 0), box(0.52, 0.12, 0.5, 0.13, 0.26)], eyes: [[0.9, 0.26]] },
-  { id: 'turtle', name: 'TURTLE', tone: 'kam1', density: 1.2, weight: 'MID',
-    parts: [[[-0.68, 0], [0.68, 0], [0.55, 0.32], [0.2, 0.46], [-0.2, 0.46], [-0.55, 0.32]], box(0.8, 0.1, 0, -0.08), box(0.16, 0.11, 0.94, 0.02)], eyes: [[1.0, 0.06]] },
-  { id: 'frog', name: 'FROG', tone: 'win', density: 1, weight: 'MID',
-    parts: [[[-0.55, -0.3], [0.55, -0.3], [0.4, 0.3], [-0.4, 0.3]], box(0.1, 0.09, -0.24, 0.37), box(0.1, 0.09, 0.24, 0.37)], eyes: [[0.24, 0.38], [-0.24, 0.38]] },
-  { id: 'pig', name: 'PIG', tone: 'kam4', density: 1.1, weight: 'MID',
-    parts: [box(0.55, 0.34, 0, 0), box(0.09, 0.15, 0.64, 0.04), box(0.1, 0.1, -0.35, -0.43), box(0.1, 0.1, 0.35, -0.43)], eyes: [[0.36, 0.16]] },
-  { id: 'croc', name: 'CROC', tone: 'kam1', density: 1, weight: 'MID',
-    parts: [[[-1.1, -0.18], [1.1, -0.14], [1.1, 0.02], [-0.9, 0.2], [-1.1, 0.12]]], eyes: [[0.6, 0.08]] },
-  { id: 'owl', name: 'OWL', tone: 'kam0', density: 0.9, weight: 'LIGHT',
-    parts: [box(0.4, 0.5, 0, 0), [[-0.4, 0.5], [-0.14, 0.5], [-0.34, 0.74]], [[0.14, 0.5], [0.4, 0.5], [0.34, 0.74]]], eyes: [[0.16, 0.24], [-0.16, 0.24]] },
-  { id: 'rhino', name: 'RHINO', tone: 'kam6', density: 1.35, weight: 'HEAVY',
-    parts: [box(0.65, 0.38, 0, 0), box(0.22, 0.26, 0.84, -0.02), [[0.84, 0.22], [1.04, 0.18], [0.98, 0.56]]], eyes: [[0.76, 0.1]] },
-  { id: 'chick', name: 'CHICK', tone: 'cta', density: 0.7, weight: 'LIGHT',
-    parts: [[[-0.25, -0.25], [0.25, -0.25], [0.28, 0.05], [0, 0.3], [-0.28, 0.05]]], eyes: [[0.1, 0.08]] },
+// Twelve animals. Each hull is built from its pixel-art grid (animalStackPixels.js),
+// so the sprite and the physics share one silhouette. `tone` is the --c-*
+// token the renderer fills it with — never a p1-p4 player colour.
+const DEFS = [
+  { id: 'elephant', name: 'ELEPHANT', density: 1.3, weight: 'HEAVY' },
+  { id: 'giraffe', name: 'GIRAFFE', density: 0.9, weight: 'LIGHT' },
+  { id: 'penguin', name: 'PENGUIN', density: 1, weight: 'MID' },
+  { id: 'hippo', name: 'HIPPO', density: 1.4, weight: 'HEAVY' },
+  { id: 'snake', name: 'SNAKE', density: 0.8, weight: 'LIGHT' },
+  { id: 'turtle', name: 'TURTLE', density: 1.2, weight: 'MID' },
+  { id: 'frog', name: 'FROG', density: 1, weight: 'MID' },
+  { id: 'pig', name: 'PIG', density: 1.1, weight: 'MID' },
+  { id: 'croc', name: 'CROC', density: 1, weight: 'MID' },
+  { id: 'owl', name: 'OWL', density: 0.9, weight: 'LIGHT' },
+  { id: 'rhino', name: 'RHINO', density: 1.35, weight: 'HEAVY' },
+  { id: 'chick', name: 'CHICK', density: 0.7, weight: 'LIGHT' },
 ]
+export const PIECES = DEFS.map(d => ({ ...d, tone: PIXELS[d.id].tone, parts: PIXELS[d.id].parts }))
 for (const p of PIECES) {
   let r = 0
   for (const part of p.parts) for (const [x, y] of part) r = Math.max(r, Math.sqrt(x * x + y * y))

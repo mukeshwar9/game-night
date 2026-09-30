@@ -1,41 +1,54 @@
-export function TicTacToeIcon() {
+// LINE icon rules (the 20 redrawn below; the rest follow once approved):
+// 24 grid, ink kept inside 2–22 including caps; structure is a 2px square-cap
+// line in currentColor (or retro-dim when secondary); game pieces are solid
+// shapes in the game's own colours — X retro-p1, O retro-p2, accent retro-cta.
+// LineSvg sets the shared stroke so each icon only draws its shapes.
+function LineSvg({ children }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <line x1="8" y1="2" x2="8" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
-      <line x1="16" y1="2" x2="16" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
-      <line x1="2" y1="8" x2="22" y2="8" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
-      <line x1="2" y1="16" x2="22" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
+      {children}
     </svg>
   )
 }
 
-export function ConnectFourIcon() {
+export function TicTacToeIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {[3, 9, 15, 21].map(cx =>
-        [4, 12, 20].map(cy => (
-          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="2.5"
-            fill="currentColor" opacity={cy === 4 ? '1' : '0.4'} />
-        ))
-      )}
-    </svg>
+    <LineSvg>
+      <path d="M8 3V21M16 3V21M3 8H21M3 16H21" className="stroke-retro-dim" />
+      <path d="M3.5 3.5L5.5 5.5M5.5 3.5L3.5 5.5M11 11L13 13M13 11L11 13M18.5 18.5L20.5 20.5M20.5 18.5L18.5 20.5" className="stroke-retro-p1" />
+      <circle cx="19.5" cy="4.5" r="1.5" className="stroke-retro-p2" />
+      <circle cx="4.5" cy="19.5" r="1.5" className="stroke-retro-p2" />
+    </LineSvg>
+  )
+}
+
+export function ConnectFourIcon() {
+  const holes = [
+    [6.5, 10.5, 'dim'], [10.2, 10.5, 'dim'], [13.8, 10.5, 'dim'], [17.5, 10.5, 'p1'],
+    [6.5, 14, 'dim'], [10.2, 14, 'p2'], [13.8, 14, 'p1'], [17.5, 14, 'p2'],
+    [6.5, 17.5, 'p2'], [10.2, 17.5, 'p1'], [13.8, 17.5, 'p2'], [17.5, 17.5, 'p2'],
+  ]
+  return (
+    <LineSvg>
+      <rect x="3" y="7" width="18" height="14" rx="2" />
+      {holes.map(([cx, cy, c]) => (
+        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={c === 'dim' ? 1 : 1.5} stroke="none"
+          className={c === 'dim' ? 'fill-retro-dim' : c === 'p1' ? 'fill-retro-p1' : 'fill-retro-p2'} />
+      ))}
+      <circle cx="17.5" cy="3.5" r="1.5" stroke="none" className="fill-retro-p1" />
+    </LineSvg>
   )
 }
 
 export function HangwomanIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* gallows */}
-      <line x1="4" y1="22" x2="20" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-      <line x1="7" y1="22" x2="7" y2="3"  stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-      <line x1="7" y1="3"  x2="15" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-      <line x1="15" y1="3" x2="15" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-      {/* pixel figure */}
-      <rect x="13" y="6"  width="4" height="4" fill="currentColor" />
-      <rect x="14" y="10" width="2" height="3" fill="currentColor" opacity="0.7" />
-      <rect x="12" y="11" width="2" height="2" fill="currentColor" opacity="0.7" />
-      <rect x="16" y="11" width="2" height="2" fill="currentColor" opacity="0.7" />
-    </svg>
+    <LineSvg>
+      <path d="M3 21H10M6 21V4H14V6" />
+      <circle cx="14" cy="9" r="2.2" stroke="none" className="fill-retro-p2" />
+      <path d="M14 12V16M11.5 13.5H16.5M14 16L12 19.5M14 16L16 19.5" className="stroke-retro-p2" />
+      <path d="M16 21H17M20 21H21" className="stroke-retro-dim" />
+    </LineSvg>
   )
 }
 
@@ -101,35 +114,38 @@ export function VisualMemoryIcon() {
   )
 }
 
+// Quarter-ring pad for Simon, from angle a0 to a1 (degrees) around (12, 12).
+function simonPad(a0, a1) {
+  const p = (r, a) => `${(12 + r * Math.cos(a * Math.PI / 180)).toFixed(2)} ${(12 + r * Math.sin(a * Math.PI / 180)).toFixed(2)}`
+  return `M${p(10, a0)}A10 10 0 0 1 ${p(10, a1)}L${p(3.5, a1)}A3.5 3.5 0 0 0 ${p(3.5, a0)}Z`
+}
+
 export function SimonIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* 2×2 Simon pads */}
-      <rect x="2"  y="2"  width="9" height="9" rx="1.5" fill="currentColor" opacity="1"   />
-      <rect x="13" y="2"  width="9" height="9" rx="1.5" fill="currentColor" opacity="0.6" />
-      <rect x="2"  y="13" width="9" height="9" rx="1.5" fill="currentColor" opacity="0.4" />
-      <rect x="13" y="13" width="9" height="9" rx="1.5" fill="currentColor" opacity="0.2" />
-    </svg>
+    <LineSvg>
+      <g stroke="none">
+        <path d={simonPad(185, 265)} className="fill-retro-p1" />
+        <path d={simonPad(275, 355)} className="fill-retro-danger" />
+        <path d={simonPad(5, 85)} className="fill-retro-p4" />
+        <path d={simonPad(95, 175)} className="fill-retro-cta" />
+      </g>
+    </LineSvg>
   )
 }
 
 export function DotsAndBoxesIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* dots */}
-      {[4, 12, 20].map(cx =>
-        [4, 12, 20].map(cy => (
-          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.5" fill="currentColor" />
-        ))
-      )}
-      {/* partial edges */}
-      <line x1="4" y1="4" x2="12" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" opacity="0.7" />
-      <line x1="4" y1="4" x2="4" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" opacity="0.7" />
-      <line x1="4" y1="12" x2="12" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" opacity="0.7" />
-      <line x1="12" y1="4" x2="12" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" opacity="0.7" />
-      {/* filled box */}
-      <rect x="5" y="5" width="6" height="6" fill="currentColor" opacity="0.25" />
-    </svg>
+    <LineSvg>
+      <g stroke="none">
+        <rect x="5" y="5" width="6" height="6" className="fill-retro-p1" />
+        <rect x="13" y="13" width="6" height="6" className="fill-retro-p2" />
+      </g>
+      <path d="M4 12V4H20M12 4V20M4 12H12M12 20H20V12" />
+      <path d="M13 12H19" className="stroke-retro-cta" />
+      <g stroke="none" fill="currentColor">
+        {[4, 12, 20].flatMap(y => [4, 12, 20].map(x => <rect key={`${x}-${y}`} x={x - 1.5} y={y - 1.5} width="3" height="3" />))}
+      </g>
+    </LineSvg>
   )
 }
 
@@ -183,17 +199,25 @@ export function ArrowsIcon() {
   )
 }
 
-export function AimIcon() {
+export function PulpIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-      <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M11 6 A7 7 0 0 0 11 20 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M14 4 A7 7 0 0 1 14 18 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M3 21 L21 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2 2.5" />
+      <path d="M13 3 q1 -2 3 -2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
+  )
+}
+
+export function AimIcon() {
+  return (
+    <LineSvg>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" className="stroke-retro-cta" />
+      <path d="M12 3V6M12 18V21M3 12H6M18 12H21" />
+      <circle cx="12" cy="12" r="1.6" stroke="none" className="fill-retro-danger" />
+    </LineSvg>
   )
 }
 
@@ -226,13 +250,15 @@ export function GomokuIcon() {
 
 export function ReversiIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="2" width="20" height="20" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="8" cy="8" r="3" fill="currentColor" />
-      <circle cx="16" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="8" cy="16" r="3" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="16" cy="16" r="3" fill="currentColor" />
-    </svg>
+    <LineSvg>
+      <rect x="3" y="3" width="18" height="18" rx="2" className="stroke-retro-dim" />
+      <g stroke="none">
+        <circle cx="8" cy="8" r="3.2" className="fill-retro-p1" />
+        <circle cx="16" cy="16" r="3.2" className="fill-retro-p1" />
+        <circle cx="16" cy="8" r="3.2" className="fill-retro-p2" />
+        <circle cx="8" cy="16" r="3.2" className="fill-retro-p2" />
+      </g>
+    </LineSvg>
   )
 }
 
@@ -288,13 +314,13 @@ export function BluffIcon() {
 
 export function WavelengthIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* gauge arc */}
-      <path d="M3 18 A9 9 0 0 1 21 18" stroke="currentColor" strokeWidth="1.5" fill="none" />
-      {/* needle */}
-      <line x1="12" y1="18" x2="16" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="12" cy="18" r="1.8" fill="currentColor" />
-    </svg>
+    <LineSvg>
+      <path d="M3 15A9 9 0 0 1 21 15" />
+      <path d="M12 15L17.16 7.63A9 9 0 0 1 19.37 9.84Z" stroke="none" className="fill-retro-cta" />
+      <path d="M12 15L7.5 8" />
+      <circle cx="12" cy="15" r="2" stroke="none" fill="currentColor" />
+      <path d="M3 19H21" className="stroke-retro-dim" />
+    </LineSvg>
   )
 }
 
@@ -313,68 +339,55 @@ export function FibbageIcon() {
 
 export function SpyfairIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* hat brim + crown */}
-      <ellipse cx="12" cy="13" rx="10" ry="2.5" fill="currentColor" />
-      <path d="M6 13 Q7 5 12 5 Q17 5 18 13 Z" fill="currentColor" opacity="0.85" />
-      {/* glasses hint */}
-      <circle cx="9" cy="18" r="2" stroke="currentColor" strokeWidth="1.3" />
-      <circle cx="15" cy="18" r="2" stroke="currentColor" strokeWidth="1.3" />
-      <line x1="11" y1="18" x2="13" y2="18" stroke="currentColor" strokeWidth="1.3" />
-    </svg>
+    <LineSvg>
+      <g stroke="none">
+        <path d="M6.5 10L8 3H16L17.5 10Z" fill="currentColor" />
+        <rect x="6.9" y="7.2" width="10.2" height="2" className="fill-retro-p2" />
+        <rect x="2" y="10" width="20" height="2" fill="currentColor" />
+      </g>
+      <circle cx="8.5" cy="17" r="2.3" />
+      <circle cx="15.5" cy="17" r="2.3" />
+      <path d="M11.5 17H12.5" />
+    </LineSvg>
   )
 }
 
 export function PongIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* paddles */}
-      <rect x="2" y="7" width="2.5" height="10" fill="currentColor" />
-      <rect x="19.5" y="9" width="2.5" height="10" fill="currentColor" />
-      {/* ball */}
-      <rect x="11" y="11" width="3" height="3" fill="currentColor" />
-      {/* centre net */}
-      <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" opacity="0.5" />
-    </svg>
+    <LineSvg>
+      <path d="M12 3V21" strokeLinecap="butt" strokeDasharray="2 2" className="stroke-retro-dim" />
+      <g stroke="none">
+        <rect x="2" y="4" width="3" height="8" fill="currentColor" />
+        <rect x="19" y="12" width="3" height="8" fill="currentColor" />
+        <rect x="14" y="7" width="3" height="3" className="fill-retro-cta" />
+      </g>
+    </LineSvg>
   )
 }
 
 export function SnakeIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* snake body — an S-curve of pixel segments */}
-      <rect x="3"  y="4"  width="4" height="4" fill="currentColor" />
-      <rect x="7"  y="4"  width="4" height="4" fill="currentColor" opacity="0.85" />
-      <rect x="11" y="4"  width="4" height="4" fill="currentColor" opacity="0.7" />
-      <rect x="11" y="8"  width="4" height="4" fill="currentColor" opacity="0.7" />
-      <rect x="11" y="12" width="4" height="4" fill="currentColor" opacity="0.85" />
-      <rect x="7"  y="12" width="4" height="4" fill="currentColor" opacity="0.7" />
-      <rect x="7"  y="16" width="4" height="4" fill="currentColor" opacity="0.55" />
-      {/* head */}
-      <rect x="15" y="16" width="4" height="4" fill="currentColor" />
-    </svg>
+    <LineSvg>
+      <path d="M3 20H10V13H17V9" />
+      <g stroke="none">
+        <rect x="15" y="3" width="4" height="5" fill="currentColor" />
+        <rect x="17" y="4.5" width="1.5" height="1.5" className="fill-retro-card" />
+        <rect x="19" y="17" width="3" height="3" className="fill-retro-cta" />
+      </g>
+    </LineSvg>
   )
 }
 
 export function TronIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* X trail — horizontal then 90° down */}
-      <rect x="2"  y="5"  width="4" height="4" fill="currentColor" />
-      <rect x="6"  y="5"  width="4" height="4" fill="currentColor" opacity="0.85" />
-      <rect x="10" y="5"  width="4" height="4" fill="currentColor" opacity="0.7" />
-      <rect x="10" y="9"  width="4" height="4" fill="currentColor" opacity="0.55" />
-      <rect x="10" y="13" width="4" height="4" fill="currentColor" opacity="0.4" />
-      {/* O trail — vertical then 90° right (mirrored) */}
-      <rect x="22" y="19" width="0" height="0" fill="none" />
-      <rect x="14" y="15" width="4" height="4" fill="currentColor" opacity="0.4" />
-      <rect x="18" y="15" width="4" height="4" fill="currentColor" opacity="0.7" />
-      <rect x="18" y="11" width="4" height="4" fill="currentColor" opacity="0.55" />
-      <rect x="18" y="7"  width="4" height="4" fill="currentColor" opacity="0.7" />
-      {/* both heads */}
-      <rect x="14" y="17" width="4" height="2" fill="currentColor" />
-      <rect x="18" y="5"  width="4" height="2" fill="currentColor" />
-    </svg>
+    <LineSvg>
+      <path d="M3 20H15V15" className="stroke-retro-p1" />
+      <path d="M21 4H8V7" className="stroke-retro-p2" />
+      <g stroke="none">
+        <rect x="13" y="11" width="4" height="4" className="fill-retro-p1" />
+        <rect x="6" y="7" width="4" height="4" className="fill-retro-p2" />
+      </g>
+    </LineSvg>
   )
 }
 
@@ -574,44 +587,49 @@ export function PairsIcon() {
 }
 
 export function WordHuntIcon() {
+  // 3×3 letter tiles; the found word is filled, its trail drawn through.
+  const found = new Set(['0,0', '1,1', '2,1'])
+  const cells = [0, 1, 2].flatMap(r => [0, 1, 2].map(c => [c, r]))
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* 4×4 letter-tile grid, faint */}
-      {[4, 10, 16, 22].map((y) =>
-        [4, 10, 16, 22].map((x) => (
-          <rect key={`${x}-${y}`} x={x - 2} y={y - 2} width="4" height="4" rx="0.6"
-            fill="currentColor" opacity="0.18" />
-        ))
-      )}
-      {/* traced word path across five tiles */}
-      <polyline points="4,4 10,4 16,10 22,10 22,16" fill="none" stroke="currentColor"
-        strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-      <circle cx="4" cy="4" r="1.5" fill="currentColor" />
-      <circle cx="10" cy="4" r="1.5" fill="currentColor" opacity="0.85" />
-      <circle cx="16" cy="10" r="1.5" fill="currentColor" opacity="0.85" />
-      <circle cx="22" cy="10" r="1.5" fill="currentColor" opacity="0.85" />
-      <circle cx="22" cy="16" r="1.5" fill="currentColor" />
-    </svg>
+    <LineSvg>
+      {cells.filter(([c, r]) => !found.has(`${c},${r}`)).map(([c, r]) => (
+        <rect key={`${c},${r}`} x={3 + c * 7} y={3 + r * 7} width="4" height="4" rx="1" className="stroke-retro-dim" />
+      ))}
+      <g stroke="none">
+        {cells.filter(([c, r]) => found.has(`${c},${r}`)).map(([c, r]) => (
+          <rect key={`${c},${r}`} x={2 + c * 7} y={2 + r * 7} width="6" height="6" rx="1" className="fill-retro-cta" />
+        ))}
+      </g>
+      <path d="M5 5L12 12H19" />
+    </LineSvg>
   )
 }
 
 export function AnagramsIcon() {
+  // Three letter tiles; the outer two swap places.
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="3" width="8" height="8" rx="1" fill="currentColor" opacity="0.85" />
-      <rect x="14" y="3" width="8" height="8" rx="1" fill="currentColor" opacity="0.45" />
-      <rect x="8" y="13" width="8" height="8" rx="1" fill="currentColor" opacity="0.7" />
-      <path d="M10 7h4M12 5v4M16 17h-2M10 17H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-    </svg>
+    <LineSvg>
+      <rect x="3" y="10" width="4" height="4" rx="1" />
+      <rect x="17" y="10" width="4" height="4" rx="1" />
+      <rect x="9" y="9" width="6" height="6" rx="1" stroke="none" className="fill-retro-cta" />
+      <path d="M5 6V4H19V5M19 18V20H5V19" />
+      <g stroke="none" fill="currentColor">
+        <path d="M16.5 5.5H21.5L19 8Z" />
+        <path d="M2.5 18.5H7.5L5 16Z" />
+      </g>
+    </LineSvg>
   )
 }
 
 export function PacmacIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 12 L22 4 A10 10 0 1 1 22 20 Z" fill="currentColor" />
-      <rect x="20" y="11" width="2" height="2" fill="currentColor" opacity="0.7" />
-    </svg>
+    <LineSvg>
+      <g stroke="none">
+        <path d="M11 12L18.4 6.8A9 9 0 1 0 18.4 17.2Z" className="fill-retro-cta" />
+        <circle cx="11" cy="7.5" r="1.2" fill="currentColor" />
+        <rect x="19.5" y="10.8" width="2.5" height="2.5" fill="currentColor" />
+      </g>
+    </LineSvg>
   )
 }
 
@@ -656,53 +674,56 @@ export function HerdIcon() {
 
 export function TriviaIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <text x="12" y="17" textAnchor="middle" fontSize="16" fontWeight="bold"
-        fill="currentColor" fontFamily="monospace">?</text>
-      <rect x="10.5" y="19" width="3" height="3" fill="currentColor" />
-    </svg>
+    <LineSvg>
+      <rect x="3" y="3" width="18" height="13" rx="2" />
+      <path d="M7 16H12L7 21Z" stroke="none" fill="currentColor" />
+      <path d="M9.5 8V6.5H14.5V9.5H12V11" className="stroke-retro-cta" />
+      <rect x="11" y="12.5" width="2" height="2" stroke="none" className="fill-retro-cta" />
+    </LineSvg>
   )
 }
 
 export function BattleshipIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* hull */}
-      <path d="M3 15 L21 15 L18 20 L6 20 Z" fill="currentColor" />
-      <rect x="9" y="11" width="6" height="4" fill="currentColor" opacity="0.8" />
-      <rect x="11" y="7" width="2" height="4" fill="currentColor" opacity="0.6" />
-      {/* radar blips */}
-      <circle cx="5" cy="5" r="1.4" fill="currentColor" opacity="0.45" />
-      <circle cx="19" cy="4" r="1.4" fill="currentColor" opacity="0.45" />
-    </svg>
+    <LineSvg>
+      <g stroke="none" fill="currentColor">
+        <path d="M2 12H22L19 18H5Z" />
+        <rect x="8" y="8" width="7" height="4" />
+      </g>
+      <path d="M11 4V7" />
+      <path d="M3 21H5M8 21H10M13 21H15M18 21H20" className="stroke-retro-dim" />
+      <path d="M17 4L20 7M20 4L17 7" className="stroke-retro-danger" />
+    </LineSvg>
   )
 }
 
 export function MancalaIcon() {
+  const pits = [[7.5, 9.5, true], [12, 9.5, false], [16.5, 9.5, true], [7.5, 14.5, false], [12, 14.5, true], [16.5, 14.5, true]]
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="7" width="4" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
-      <rect x="18" y="7" width="4" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
-      <rect x="8" y="6" width="8" height="5" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.7" />
-      <rect x="8" y="13" width="8" height="5" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.7" />
-      <circle cx="11" cy="8.5" r="1" fill="currentColor" />
-      <circle cx="13.5" cy="15.5" r="1" fill="currentColor" />
-    </svg>
+    <LineSvg>
+      <rect x="3" y="5" width="18" height="14" rx="4" />
+      <g stroke="none">
+        {pits.map(([cx, cy, seed]) => (
+          <g key={`${cx}-${cy}`}>
+            <circle cx={cx} cy={cy} r="2.2" className="fill-retro-dim" />
+            {seed && <circle cx={cx} cy={cy} r="1.3" className="fill-retro-cta" />}
+          </g>
+        ))}
+      </g>
+    </LineSvg>
   )
 }
 
 export function CheckersIcon() {
+  // A crowned double stack: "king me".
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {[4, 12, 20].map((cy, r) =>
-        [4, 12, 20].map((cx, c) =>
-          ((r + c) % 2 === 1)
-            ? <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3" fill="currentColor"
-                opacity={r === 0 ? '1' : '0.45'} />
-            : null
-        )
-      )}
-    </svg>
+    <LineSvg>
+      <g stroke="none">
+        <path d="M5 9V4L8.5 7L12 3L15.5 7L19 4V9Z" fill="currentColor" />
+        <rect x="2" y="11" width="20" height="5" rx="2.5" className="fill-retro-p2" />
+        <rect x="2" y="17" width="20" height="5" rx="2.5" className="fill-retro-p2" />
+      </g>
+    </LineSvg>
   )
 }
 
@@ -727,15 +748,28 @@ export function ArtilleryIcon() {
   )
 }
 
-export function SketchIcon() {
+export function MinigolfIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {/* pencil */}
-      <path d="M14.5 3.5 L20.5 9.5 L9 21 L3 21 L3 15 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
-      <path d="M12.5 5.5 L18.5 11.5" stroke="currentColor" strokeWidth="1.5" />
-      {/* squiggle stroke trailing off the tip, like a drawn line */}
-      <path d="M3 21 Q1 19 2.5 17" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.6" />
+      {/* flag in the cup, ball on the green */}
+      <line x1="14" y1="4" x2="14" y2="17" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M14 4 L20 6.5 L14 9 Z" fill="currentColor" />
+      <ellipse cx="14" cy="18.5" rx="5" ry="1.8" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="5.5" cy="17" r="2.2" fill="currentColor" />
     </svg>
+  )
+}
+
+export function SketchIcon() {
+  return (
+    <LineSvg>
+      <path d="M14 4L20 10L9 21H3V15Z" />
+      <path d="M12.5 5.5L18.5 11.5" />
+      <g stroke="none">
+        <path d="M14 4L15.8 2.2L21.8 8.2L20 10Z" className="fill-retro-p2" />
+        <path d="M3 21V17.5L6.5 21Z" fill="currentColor" />
+      </g>
+    </LineSvg>
   )
 }
 
@@ -987,6 +1021,18 @@ export function AnimalStackIcon() {
       <rect x="8" y="9.5" width="8" height="4" fill="currentColor" opacity=".85" transform="rotate(-10 12 11.5)" />
       <path d="M11 3.5h4v4h-4z" fill="currentColor" opacity=".6" transform="rotate(12 13 5.5)" />
       <rect x="15" y="16" width="1" height="1" fill="none" stroke="currentColor" strokeWidth=".8" opacity=".4" />
+    </svg>
+  )
+}
+
+export function UpdraftIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="19" width="8" height="2" rx="0.5" fill="currentColor" />
+      <rect x="13" y="12" width="8" height="2" rx="0.5" fill="currentColor" />
+      <rect x="4" y="5" width="7" height="2" rx="0.5" fill="currentColor" opacity="0.6" />
+      <rect x="6" y="11" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M8.5 9 L8.5 6.5 M7 8 L8.5 6.5 L10 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

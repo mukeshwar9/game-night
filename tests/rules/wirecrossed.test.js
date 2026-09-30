@@ -29,6 +29,44 @@ describe('WIRE CROSSED', () => {
     await assertSucceeds(as('alice').ref('games/g1/wire/phase').set('over'))
   })
 
+  // The retired two-bomb build wrote these fields. No client writes them now,
+  // but rooms already in Firebase keep them and get rewritten whole.
+  it('keeps the retired generatorVersion and clientVersion rules', async () => {
+    const v1 = bomb({ generatorVersion: 1, clientVersionX: 2, phase: 'ready' })
+    await put(room(v1))
+    await assertFails(as('bob').ref('games/g1/wire/clientVersionX').set(1))
+    await assertFails(as('alice').ref('games/g1/wire/clientVersionO').set(2))
+    await assertSucceeds(as('bob').ref('games/g1/wire/clientVersionO').set(2))
+    await assertFails(as('alice').ref('games/g1/wire/generatorVersion').set(3))
+  })
+
+  it('keeps the retired difficulty rule for new writes', async () => {
+    const v2 = bomb({ generatorVersion: 2, clientVersionX: 2, clientVersionO: 2, phase: 'ready' })
+    await put(room(v2))
+    await assertFails(as('alice').ref('games/g1/wire').set({ ...v2, difficulty: 'impossible' }))
+    await assertFails(as('bob').ref('games/g1/wire').set({ ...v2, difficulty: 'easy' }))
+    await assertSucceeds(as('alice').ref('games/g1/wire').set({ ...v2, difficulty: 'easy' }))
+  })
+
+  it('lets a whole-room transaction rewrite an upstream-shaped wire node unchanged', async () => {
+    for (const [level, difficulty] of [[0, undefined], [1, 'easy'], [3, 'normal'], [5, 'hard']]) {
+      const old = room(bomb({
+        level, generatorVersion: 2, clientVersionX: 2, clientVersionO: 2, phase: 'ready',
+        ...(difficulty ? { difficulty } : {}),
+      }))
+      await put(old)
+      await assertSucceeds(as('bob').ref('games/g1').set({ ...old, chatLog: null, lastActivityAt: 9 }))
+      await assertSucceeds(as('alice').ref('games/g1').set({ ...old, lastActivityAt: 10, scores: { X: 1, O: 0 } }))
+    }
+  })
+
+  it('lets the mode picker replace an upstream-shaped node', async () => {
+    const old = room(bomb({ level: 3, generatorVersion: 2, difficulty: 'normal', clientVersionX: 2, clientVersionO: 2, phase: 'ready' }))
+    await put(old)
+    const accepted = { seed: '999', level: 1, bombNo: 1, tech: 'X', phase: 'ready', strikes: 0, mode: 'easy', run: { booms: 0, ms: 0 } }
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...old, wire: accepted, lastActivityAt: 9 }))
+  })
+
   it('accepts a quick-phrase ping and rejects free text', async () => {
     await put(room())
     await assertSucceeds(as('bob').ref('games/g1/wire/ping').set({ by: 'O', p: 3, at: 10 }))

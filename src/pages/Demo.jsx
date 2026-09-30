@@ -2,15 +2,15 @@ import { Suspense, useState, useRef, useEffect } from 'react';
 import LoadingLine from '../components/loading/LoadingLine';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, TypingIcon, MathIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, PulpIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
-  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, PasswordIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
   WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -30,6 +30,7 @@ const PartyGameCard = lazyWithRetry(() => import('./demos/PartyGameCard'))
 const ReactionDemo = lazyWithRetry(() => import('./demos/ReactionDemo'))
 const TypingDemo = lazyWithRetry(() => import('./demos/TypingDemo'))
 const AimTrainerDemo = lazyWithRetry(() => import('./demos/AimTrainerDemo'))
+const PulpRushDemo = lazyWithRetry(() => import('./demos/PulpRushDemo'))
 const MathDemo = lazyWithRetry(() => import('./demos/MathDemo'))
 const SnakeDemo = lazyWithRetry(() => import('./demos/SnakeDemo'))
 const PongDemo = lazyWithRetry(() => import('./PongDemo'))
@@ -39,6 +40,7 @@ const WavelengthDemo = lazyWithRetry(() => import('./WavelengthDemo'))
 const FibbageDemo = lazyWithRetry(() => import('./FibbageDemo'))
 const SpyfairDemo = lazyWithRetry(() => import('./SpyfairDemo'))
 const SpaceduelDemo = lazyWithRetry(() => import('./SpaceduelDemo'))
+const UpdraftDemo = lazyWithRetry(() => import('./UpdraftDemo'))
 const PaintDemo = lazyWithRetry(() => import('./PaintDemo'))
 const PacmacDemo = lazyWithRetry(() => import('./PacmacDemo'))
 const MineRaceDemo = lazyWithRetry(() => import('./MineRaceDemo'))
@@ -49,12 +51,14 @@ const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
 const ArcheryDemo = lazyWithRetry(() => import('./ArcheryDemo'))
 const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
+const MinigolfLocal = lazyWithRetry(() => import('./MinigolfLocal'))
 const TriviaDemo = lazyWithRetry(() => import('./TriviaDemo'))
 const HerdDemo = lazyWithRetry(() => import('./HerdDemo'))
 const ArrowsDemo = lazyWithRetry(() => import('./ArrowsDemo'))
 const HangmanDemo = lazyWithRetry(() => import('./HangmanDemo'))
 const WordDuelDemo = lazyWithRetry(() => import('./WordDuelDemo'))
 const WordRaceDemo = lazyWithRetry(() => import('./WordRaceDemo'))
+const PasswordDemo = lazyWithRetry(() => import('./PasswordDemo'))
 const WordHuntDemo = lazyWithRetry(() => import('./WordHuntDemo'))
 const AnagramsDemo = lazyWithRetry(() => import('./AnagramsDemo'))
 // Memory solo runs share one chunk.
@@ -108,9 +112,11 @@ const DEMOS = [
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   { type: 'archery',       short: 'ARCHERY',         Icon: ArcheryIcon,        Component: ArcheryDemo },
   { type: 'animalstack',   short: 'ANIMAL\nSTACK',  Icon: AnimalStackIcon,    Component: AnimalStackDemo },
+  { type: 'minigolf',      short: 'MINI-\nGOLF',    Icon: MinigolfIcon,       Component: () => <MinigolfLocal mode="solo" /> },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
+  { type: 'pulprush',     short: 'PULP\nRUSH',    Icon: PulpIcon,         Component: PulpRushDemo     },
   { type: 'typing',       short: 'TYPING\nRACE',  Icon: TypingIcon,       Component: TypingDemo       },
   { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },
   { type: 'pong',         short: 'PONG',          Icon: PongIcon,         Component: PongDemo         },
@@ -122,6 +128,7 @@ const DEMOS = [
   { type: 'pacmac',       short: 'PAC\nMAC',      Icon: PacmacIcon,       Component: PacmacDemo       },
   { type: 'minesweeper',  short: 'MINE\nRACE',    Icon: MinesIcon,        Component: MineRaceDemo     },
   { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsDemo        },
+  { type: 'updraft',      short: 'UPDRAFT',       Icon: UpdraftIcon,      Component: UpdraftDemo       },
   // Memory — single-player runs (grow until you slip, beat your best)
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonSolo,        solo: true },
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemorySolo, solo: true },
@@ -131,6 +138,7 @@ const DEMOS = [
   { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
   { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: WordDuelDemo     },
   { type: 'wordrace',     short: 'WORD\nRACE',    Icon: WordRaceIcon,     Component: WordRaceDemo     },
+  { type: 'password',     short: 'PASS\nWORD',    Icon: PasswordIcon,     Component: PasswordDemo     },
   { type: 'wordhunt',     short: 'WORD\nHUNT',    Icon: WordHuntIcon,     Component: WordHuntDemo     },
   { type: 'anagrams',     short: 'ANA-\nGRAMS',   Icon: AnagramsIcon,     Component: AnagramsDemo     },
   // Party cards (2+ players only)
@@ -172,7 +180,7 @@ function LocalPlayPage({ routeType }) {
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>
-              {cfg.LocalPage ? <cfg.LocalPage /> : <BotBoardDemo type={routeType} mode="local" />}
+              {cfg.LocalPage ? <cfg.LocalPage mode="local" /> : <BotBoardDemo type={routeType} mode="local" />}
             </Suspense>
           </div>
         </div>

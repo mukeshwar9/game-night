@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "dev:emu": "vite --mode emulator",
+    "art:pixel": "node scripts/pixel-art/build.mjs",
     "build": "vite build",
+    "rules:media": "node scripts/rule-media.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

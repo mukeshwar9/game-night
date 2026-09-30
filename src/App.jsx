@@ -6,6 +6,7 @@ import PixelDots from './components/loading/PixelDots';
 import { lazyWithRetry } from './lib/lazyWithRetry';
 import { Toaster } from './components/ui/sonner';
 import UpdatePrompt from './components/UpdatePrompt';
+import useSWUpdateCheck from './hooks/useSWUpdateCheck';
 import ConnectionBanner from './components/ConnectionBanner';
 import InviteToasts from './components/InviteToasts';
 import BottomTabBar from './components/BottomTabBar';
@@ -29,6 +30,7 @@ const Friends = lazyWithRetry(() => import('./pages/Friends'));
 const Notes = lazyWithRetry(() => import('./pages/Notes'));
 // Developer-only page: the route (and so its chunk) exists in dev builds only.
 const EmojiLab = import.meta.env.DEV ? lazyWithRetry(() => import('./pages/EmojiLab')) : null;
+const ArtDemo = import.meta.env.DEV ? lazyWithRetry(() => import('./pages/ArtDemo')) : null;
 const Leaderboard = lazyWithRetry(() => import('./pages/Leaderboard'));
 const Playground = lazyWithRetry(() => import('./pages/Playground'));
 
@@ -79,6 +81,7 @@ function AppRoutes() {
               <Route path="/friends" element={<Friends />} />
               <Route path="/notes" element={<Notes />} />
               {EmojiLab && <Route path="/emoji-lab" element={<EmojiLab />} />}
+              {ArtDemo && <Route path="/art-demo" element={<ArtDemo />} />}
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/playground" element={<Playground />} />
               <Route path="*" element={<NotFound />} />
@@ -130,6 +133,7 @@ function SlowBootNotice() {
 }
 
 export default function App() {
+  useSWUpdateCheck()
   return (
     <ErrorBoundary>
       <SlowBootNotice />

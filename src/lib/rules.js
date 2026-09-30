@@ -194,6 +194,29 @@ export const GAME_RULES = {
     win: 'Highest score when the 30 seconds run out wins the round. First to 3 round wins takes the match.',
   },
 
+  pulprush: {
+    objective: 'Slice more produce than everyone else in 45 seconds (2–8 players).',
+    howToPlay: [
+      'Swipe across the flying produce to slice it — a slow drag won’t cut.',
+      'Everyone gets exactly the same throws, in the same order.',
+      'Three or more in one quick swipe chain is a combo worth bonus points.',
+      'Never slice a rotten apple: it costs 5 points and stuns you for a second.',
+      'Two on one phone: open it from PLAY SOLO and pick SPLIT DUEL — sit face to face.',
+    ],
+    win: 'Highest score when the 45 seconds run out wins the round. First to 3 round wins takes the match.',
+  },
+
+  pulpharvest: {
+    objective: 'Fill one team basket together before 60 seconds are up (2–8 players, co-op).',
+    howToPlay: [
+      'Everyone slices the same throws in their own field; every point goes into the team basket.',
+      'The basket needs 60 pulp per player.',
+      'The team shares 5 hearts: any fruit that falls unsliced, or any rotten apple you slice, costs one.',
+      'Combos (3+ in one quick swipe chain) fill the basket faster.',
+    ],
+    win: 'Fill the basket before time or hearts run out and the whole team wins the round.',
+  },
+
   typing: {
     objective: 'Type the same quote faster and more accurately than everyone else (2–8 players).',
     howToPlay: [
@@ -327,6 +350,18 @@ export const GAME_RULES = {
     win: 'First to 7 goals wins.',
   },
 
+  minigolf: {
+    objective: 'Sink the ball on every hole in the fewest total strokes.',
+    howToPlay: [
+      'Press anywhere on the course and pull back — the ball goes the opposite way. Longer pull, harder putt. Drag back to the start to cancel.',
+      'Each player plays the hole out before the next tees off; best score on a hole tees off first on the next.',
+      'Banks off walls, bumpers kick, sand slows you, slopes roll you back, windmills and sliders keep moving. Water costs +1 and puts you back.',
+      '6 strokes per hole — not in by then and the ball is picked up for a 7.',
+      'Solo: PAR RUN (beat par, earn stars) or VS BOT. Pass & play for 2–4 on one phone, or an online room for 2–4.',
+    ],
+    win: 'Lowest total over the course wins. A shared lowest total is a tie.',
+  },
+
   artillery: {
     objective: 'Bracket the rival tank with angle and power, then blow it up.',
     howToPlay: [
@@ -363,7 +398,7 @@ export const GAME_RULES = {
   animalstack: {
     objective: 'Take turns dropping animals onto one tower — do not be the one who topples it.',
     howToPlay: [
-      'Drag anywhere on the arena to move the hovering animal; ⟲ ROTATE turns it 15° (hold to spin).',
+      'Drag anywhere on the arena to move the hovering animal; ⟲ and ⟳ turn it 15° either way (hold to spin).',
       'Press DROP to let go. Everyone sees the same animal and the NEXT one.',
       'If any animal falls off the island into the water, whoever just dropped loses a heart and a new tower starts.',
       '2 players: 3 hearts each. 3-4 players: 2 hearts each. Online you have 15 s to aim.',
@@ -469,6 +504,28 @@ export const GAME_RULES = {
       'Clear the arrows that are in the way first. You have 3 lives per round.',
     ],
     win: 'First to clear their whole board wins the round; running out of lives loses it. Boards get bigger each round (easy, medium, hard) — win 2 of the 3 to take the match.',
+  },
+
+  updraft: {
+    objective: 'Race your rival up the same tower of platforms — first to 400 m wins.',
+    howToPlay: [
+      'Your hopper bounces on its own. Drag left or right anywhere on the tower or the band below it to steer (←/→ or A/D on a keyboard; TILT can be switched on on phones).',
+      'Fly off one side of the screen and you come back on the other. Coiled platforms launch you higher; dashed ones crumble after one bounce.',
+      'Your rival climbs an identical tower at the same time and shows as a dashed ghost, with both heights on the rail at the right.',
+      'In CHAOS mode (the host picks it in the lobby) a gold ◆ pickup sends your rival a hazard: crumbling platforms, a gust of wind or fog — each announced a second before it hits.',
+    ],
+    win: 'Reach the 400 m flag first to take the round. Fall off the bottom and your rival only has to climb past your height; if both fall, or the 2-minute clock runs out, the higher climb wins. Win 2 rounds to take the match.',
+  },
+
+  updraftduo: {
+    objective: 'Climb twin towers together and both reach the 300 m flag before time runs out.',
+    howToPlay: [
+      'You each climb your own copy of the same tower. Steer by dragging left or right; bouncing is automatic.',
+      'Every 50 m a gate blocks your way. Only your partner can open it — by grabbing the matching ⚷ key on their tower (or climbing past their own gate there). Your keys open their gates.',
+      'Call out when you are stuck: the gate label says whose key you need.',
+      'The team shares 3 lives. A fall costs one and puts you back at the last gate you passed.',
+    ],
+    win: 'You clear the run when both of you reach the flag within 3 minutes. Running out of lives or time ends the run. Cleared runs count for both of you.',
   },
 
   tron: {

@@ -9,31 +9,29 @@ import GameOptionsSheet from './GameOptionsSheet'
 import GameCard from './GameCard'
 import NewGamesRail from './NewGamesRail'
 import EmptyState from './EmptyState'
-import { cn } from '@/lib/utils'
+import FilterButton, { ViewTabs } from './GameFilters'
+import { FILTER_DEFS, isSortId, readCatalogView, sortGames } from '../lib/gameFilters'
 
 // Variant entries (those with `variantOf`) are hidden from the grid and surfaced
 // as a "choose mode" step when their base game is picked.
 const variantsFor = (baseType) => GAME_TYPES.filter(t => t.variantOf === baseType)
 
-// Decision-support facet chips (layout="full" only). Toggleable, AND-combined.
-const FILTER_DEFS = [
-  { key: 'quick', label: 'QUICK', test: (t) => (t.durationMin ?? Infinity) <= 3 },
-  { key: 'thinky', label: 'THINKY', test: (t) => (t.tags || []).includes('thinky') },
-  { key: 'solo', label: 'SOLO OK', test: (t) => t.solo === true },
-  { key: 'coop', label: 'CO-OP', test: (t) => t.coop === true },
-]
-
-// M-82: filters/query survive a round-trip to a game and back (Home fully
-// unmounts on navigation, so this can't live in useState alone). Scoped to
-// layout="full" (the Games catalog) — GameSwitcher's compact picker always
-// wants to default to the current game's category. The catalog's category
-// chips are jump links now, so the active one is not persisted.
+// Facet definitions live in lib/gameFilters.js (shared with the
+// FILTERS sheet); the toggle state below stays session-persisted here.
+// M-82: filters/query/sort survive visits (Home fully unmounts on
+// navigation, so this can't live in useState alone). Device-local
+// localStorage — a returning visitor keeps their slice of the catalog.
+// Scoped to layout="full" (the Games catalog) — GameSwitcher's compact
+// picker always wants to default to the current game's category. The
+// catalog's category chips are jump links now, so the active one is not
+// persisted.
 const PICKER_STATE_KEY = 'gn-picker-state'
+const VIEW_KEY = 'gn-catalog-view'
 // Jump-chip targets land just under the sticky search + chip header.
 const SECTION_SCROLL_MARGIN = 'calc(var(--app-header-offset, 0px) + 7.5rem)'
 function readPickerState() {
   try {
-    const raw = sessionStorage.getItem(PICKER_STATE_KEY)
+    const raw = localStorage.getItem(PICKER_STATE_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -64,6 +62,26 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const [query, setQuery] = useState(persisted?.query || '')
   const [favVersion, setFavVersion] = useState(0)
   const [filters, setFilters] = useState(persisted?.filters || {})
+  const [sort, setSort] = useState(persisted && isSortId(persisted.sort) ? persisted.sort : 'curated')
+  const selectSort = (id) => { if (isSortId(id)) setSort(id) }
+  // Card view: detailed tiles (big art top, name bottom), compact rows, or
+  // the mini list.
+  // Device-local like the other display prefs; detailed shows off the art.
+  const [view, setView] = useState(() => {
+    try {
+      return readCatalogView(localStorage.getItem(VIEW_KEY))
+    } catch {
+      return 'detailed'
+    }
+  })
+  const selectView = (next) => {
+    try {
+      localStorage.setItem(VIEW_KEY, next)
+    } catch {
+      // storage unavailable — view just doesn't persist
+    }
+    setView(next)
+  }
   const searchRef = useRef(null)
   const stickyRef = useRef(null)
   const listTopRef = useRef(null)
@@ -75,11 +93,11 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   useEffect(() => {
     if (!isFull) return
     try {
-      sessionStorage.setItem(PICKER_STATE_KEY, JSON.stringify({ filters, query }))
+      localStorage.setItem(PICKER_STATE_KEY, JSON.stringify({ filters, query, sort }))
     } catch {
-      // sessionStorage unavailable (private mode / quota) — restoration just no-ops
+      // storage unavailable (private mode / quota) — restoration just no-ops
     }
-  }, [isFull, filters, query])
+  }, [isFull, filters, query, sort])
 
   const activeFilterKeys = Object.keys(filters).filter(k => filters[k])
   const passesFilters = (t) => activeFilterKeys.every(k => FILTER_DEFS.find(f => f.key === k).test(t))
@@ -109,10 +127,10 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   }
   const totalVisible = Object.values(counts).reduce((a, b) => a + b, 0)
   const categories = GAME_CATEGORIES.map(c => ({ ...c, count: counts[c.id] || 0 })).filter(c => c.count > 0)
-  const visibleFavorites = GAME_TYPES.filter(t => !isHidden(t) && favSet.has(t.type) && passesFilters(t))
+  const visibleFavorites = sortGames(GAME_TYPES.filter(t => !isHidden(t) && favSet.has(t.type) && passesFilters(t)), sort)
   const games = GAME_TYPES.filter(t => !isHidden(t) && t.category === activeCat && passesFilters(t))
   const categorySections = categories
-    .map(c => ({ ...c, games: GAME_TYPES.filter(t => !isHidden(t) && t.category === c.id && passesFilters(t)) }))
+    .map(c => ({ ...c, games: sortGames(GAME_TYPES.filter(t => !isHidden(t) && t.category === c.id && passesFilters(t)), sort) }))
     .filter(c => c.games.length > 0)
   // The catalog's chips jump to a section of the one long list, so they
   // list only sections that exist under the current filters, with counts.
@@ -212,9 +230,17 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
 
   const handleRules = (type) => { setOptionsGame(null); setRulesType(type) }
 
-  const gridClass = isFull
-    ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2'
-    : 'grid grid-cols-2 gap-2'
+  // Detailed tiles only in the full catalog — the in-room switcher keeps
+  // compact rows (space is tight and the tap proposes a switch, not a sheet).
+  const detailed = isFull && view === 'detailed'
+  const mini = isFull && view === 'mini'
+  const gridClass = detailed
+    ? 'grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8'
+    : mini
+      ? 'flex flex-col gap-1'
+      : isFull
+      ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2'
+      : 'grid grid-cols-2 gap-2'
 
   const renderGrid = (list) => (
     <div className={gridClass}>
@@ -227,6 +253,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           loadingType={loadingType}
           isFav={favSet.has(g.type)}
           onToggleFav={isFull ? handleToggleFav : undefined}
+          layout={detailed ? 'tile' : mini ? 'mini' : 'row'}
         />
       ))}
     </div>
@@ -267,39 +294,29 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
     </div>
   )
 
-  const filterChipClass = (active) => cn(
-    'min-h-11 px-3.5 shrink-0 snap-start whitespace-nowrap inline-flex items-center justify-center rounded border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
-    active
-      ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
-      : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
-  )
-
-  const filterChips = isFull && FILTER_DEFS.map(f => (
-    <button
-      key={f.key}
-      onClick={() => toggleFilter(f.key)}
-      aria-pressed={!!filters[f.key]}
-      className={filterChipClass(!!filters[f.key])}
-    >
-      {f.label}
-    </button>
-  ))
-
-  // Search hides the category tabs entirely (categories don't apply to a
-  // free-text result set) but filters stay reachable via their own row.
-  const chipRow = isSearching ? (
-    <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-1 pb-1">
-      {filterChips}
+  const filterMatchCount = GAME_TYPES.filter(t => !isHidden(t) && passesFilters(t)).length
+  const viewTabs = isFull && (
+    <div className="flex items-center justify-between gap-2">
+      <FilterButton
+        filters={filters}
+        onToggle={toggleFilter}
+        onReset={() => { setFilters({}); setSort('curated') }}
+        resultCount={isSearching ? searchResults.length : filterMatchCount}
+        sort={sort}
+        onSort={selectSort}
+      />
+      <ViewTabs view={view} onSelect={selectView} />
     </div>
-  ) : (
+  )
+  // Search hides the category tabs (they don't apply to free text) — facet
+  // filtering stays available through the FILTERS button in every mode.
+  const chipRow = isSearching ? null : (
     <CategoryTabs
       categories={categoriesWithAll}
       active={activeCat}
       onSelect={isFull ? jumpTo : setActiveCat}
-      trailing={isFull ? <><div className="w-px shrink-0 self-stretch bg-retro-border" aria-hidden="true" />{filterChips}</> : undefined}
     />
   )
-
   return (
     <div className="space-y-3">
       {/* M-42: search/filters/tabs stay reachable through the full scroll —
@@ -314,6 +331,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
       ) : (
         chipRow
       )}
+
+      {viewTabs}
 
       {isFull && query.trim() ? (
         searchResults.length > 0 ? (
@@ -341,10 +360,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
                 className="space-y-2"
                 style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}
               >
-                <div className="flex items-baseline justify-between gap-2">
-                  <h2 id={`catalog-${c.id}`} className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</h2>
-                  <span className="font-mono text-[11px] text-retro-dim">{c.games.length}</span>
-                </div>
+                {/* The count lives on the category chip; no second copy here. */}
+                <h2 id={`catalog-${c.id}`} className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</h2>
                 {renderGrid(c.games)}
               </section>
             ))}

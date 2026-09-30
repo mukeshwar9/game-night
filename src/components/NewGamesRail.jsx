@@ -1,5 +1,6 @@
 import { getPlayerTag } from '../lib/games'
 import { cn } from '@/lib/utils'
+import { GameArt } from './GameArt'
 
 // The catalog's single NEW signal: one horizontal rail at the top of the ALL
 // view (games from getNewGames), replacing a NEW tag on every recent card —
@@ -8,10 +9,7 @@ export default function NewGamesRail({ games, onTap, loadingType }) {
   if (games.length === 0) return null
   return (
     <section className="space-y-2" aria-labelledby="catalog-new">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 id="catalog-new" className="font-pixel text-[9px] text-retro-win tracking-widest">NEW THIS MONTH</h2>
-        <span className="font-mono text-[11px] text-retro-dim">{games.length} {games.length === 1 ? 'game' : 'games'}</span>
-      </div>
+      <h2 id="catalog-new" className="font-pixel text-[9px] text-retro-win tracking-widest">NEW THIS MONTH</h2>
       <div className="relative">
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 snap-x snap-proximity scroll-px-1">
           {games.map(g => {
@@ -31,7 +29,10 @@ export default function NewGamesRail({ games, onTap, loadingType }) {
                   loadingType && !isLoading && 'opacity-40',
                 )}
               >
-                <span className="w-6 h-6 flex items-center justify-center text-retro-dim" aria-hidden="true">{Icon && <Icon />}</span>
+                <span className="relative w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center text-retro-dim" aria-hidden="true">
+                  {Icon && <Icon />}
+                  <GameArt type={g.variantOf || g.type} className="absolute inset-0 w-full h-full block" />
+                </span>
                 <span className="font-pixel text-[9px] text-retro-text leading-snug line-clamp-2">{g.label}</span>
                 <span className="font-mono text-[10px] text-retro-dim mt-auto">
                   {' '}{getPlayerTag(g)}{g.durationMin != null && ` · ~${g.durationMin} min`}

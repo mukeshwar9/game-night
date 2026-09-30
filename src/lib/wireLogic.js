@@ -199,19 +199,24 @@ export function normalizeWireStats(raw) {
   return { defused: nonNeg(raw?.defused), booms: nonNeg(raw?.booms), records }
 }
 
-/** A bomb dealt before modes existed: no mode and no run. It plays as it always did. */
-export const isLegacyWire = (wire) => !wire?.mode && !wire?.run
+/**
+ * A bomb dealt before modes existed (or by the retired two-bomb build): no mode
+ * and no run. Once armed it plays and finishes with the legacy generator at
+ * max(1, level). One still in `ready` was never armed, so it is not legacy: it
+ * shows the mode picker like a fresh room, and accepting a mode replaces it.
+ */
+export const isLegacyWire = (wire) => !wire?.mode && !wire?.run && wire?.phase !== 'ready'
 
 /**
  * Tech arms the bomb. `durationMs` null means the room's timers are off: no
- * deadline, the clock counts up instead. A modes-era bomb cannot be armed
- * until the players have agreed a mode. With `bomb` on a "+G" level it also
- * starts the Gauge at 10% with its fill time scaled by `timerScale` (the
+ * deadline, the clock counts up instead. A bomb cannot be armed until the
+ * players have agreed a mode (a mode-less `ready` bomb shows the picker).
+ * With `bomb` on a "+G" level it also starts the Gauge at 10% with its fill time scaled by `timerScale` (the
  * unscaled time when timers are off: the Gauge always runs).
  */
 export function armWire(wire, now, durationMs, bomb = null, timerScale = undefined) {
   if (!wire || wire.phase !== 'ready') return null
-  if (!isWireMode(wire.mode) && !isLegacyWire(wire)) return null
+  if (!isWireMode(wire.mode)) return null
   const armed = {
     ...wire,
     phase: 'armed',

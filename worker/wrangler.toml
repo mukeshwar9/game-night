@@ -1,0 +1,12 @@
+name = "game-night-push"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# POST https://<worker>.workers.dev/push-invite
+# Secrets (never commit): wrangler secret put FIREBASE_SERVICE_ACCOUNT
+# (full service-account JSON), FIREBASE_PROJECT_ID, FIREBASE_DATABASE_URL.
+# ALLOWED_ORIGIN locks CORS to prod, e.g. https://game-night-91464.web.app
+[vars]
+ALLOWED_ORIGIN = "https://game-night-91464.web.app"
+FIREBASE_PROJECT_ID = "game-night-91464"
+FIREBASE_DATABASE_URL = "https://game-night-91464-default-rtdb.firebaseio.com"

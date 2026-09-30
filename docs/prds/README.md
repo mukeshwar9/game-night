@@ -21,6 +21,7 @@ conventions** below — read this file first.
 | [trivia-blitz.md](trivia-blitz.md) | Trivia Blitz | party | 2–8 | custom party page | RTDB | S/M | P3 |
 | [air-hockey.md](air-hockey.md) | Air Hockey | reflex | 2 | custom realtime page | WebRTC (pong stack) | M | P3 |
 | [artillery.md](artillery.md) | Artillery | reflex | 2 | custom page | RTDB (deterministic replay) | L | P3 |
+| [archery.md](archery.md) | Archery (draw, aim, loose) | reflex | 1–4 | custom pages (2P room + 2–4 party + solo + local) | RTDB (deterministic replay) | L | P2 |
 | [connectfour5.md](connectfour5.md) | Connect Four 5 (9×7) | board | 2 | standard registry (`variantOf` C4) | RTDB | S | P2 |
 | [dice-big.md](dice-big.md) | Pig Big (2 dice) | dicebluff | 2 | registry + `applyMove` (`variantOf` Pig) | RTDB + Pig seed | S/M | P2 |
 | [tictactoe4.md](tictactoe4.md) | Tic Tac Toe 4×4 | board | 2 | standard registry (`variantOf` TTT) | RTDB | S | P2 |
@@ -44,6 +45,12 @@ ten candidates:
 | [split-picture.md](split-picture.md) | Split Picture (row clues vs column clues) | nonograms | board | 2 | custom co-op page | RTDB | S/M | P2 |
 | [short-order.md](short-order.md) | Short Order (split diner stations) | Overcooked | reflex | 2 | custom co-op page | RTDB + server clock | M/L | P3 |
 | [twin-path.md](twin-path.md) | Twin Path (real-time split-ability platformer) | Fireboy & Watergirl, PICO PARK | reflex | 2 | custom realtime page | WebRTC (pong stack) | L | P3 |
+
+### Expansions of shipped games
+
+| PRD | Game | Category | Players | Integration | Network | Effort | Priority |
+|---|---|---|---|---|---|---|---|
+| [wire-crossed-levels.md](wire-crossed-levels.md) | Wire Crossed: 15-level ladder, new modules, 0:00 timer bug | reflex (co-op) | 2 (3–4 later) | custom co-op page | RTDB | L (timer fix S) | **P1** fix · P2 ladder |
 
 **Co-op conventions (all ten):** registry `coop: true` plus the type in `COOP_GAMES`
 (`src/lib/matchRules.js`, kept in sync by `matchRules.test.js`) so there is no CLAIM WIN, no

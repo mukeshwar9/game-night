@@ -9,6 +9,15 @@ const as = (uid) => dbAs(T.env, uid)
 const put = (path, value) => seed(T.env, path, value)
 
 describe('users (private half)', () => {
+  it('holds push tokens owner-only with shape check', async () => {
+    const tok = { token: 'fcm-token-abc-1234567890-long-enough-value', at: 1 }
+    await assertSucceeds(as('alice').ref('users/alice/fcmTokens/ab12').set(tok))
+    await assertFails(as('bob').ref('users/alice/fcmTokens/ab12').set(tok))
+    await assertFails(as('bob').ref('users/alice/fcmTokens/ab12').get())
+    await assertFails(as('alice').ref('users/alice/fcmTokens/ab12').set({ token: 'short', at: 1 }))
+    await assertFails(as('alice').ref('users/alice/fcmTokens/ab12').set({ token: tok.token }))
+  })
+
   it('is readable and writable by its owner only', async () => {
     await put('users/alice', { displayName: 'Alice', code: 'ABC234', stats: { wins: 3 } })
     await assertSucceeds(as('alice').ref('users/alice').get())

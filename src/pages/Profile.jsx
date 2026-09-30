@@ -16,6 +16,7 @@ import { UPGRADE_ERRORS, preloadGoogleSignIn } from '../lib/auth'
 import { mutedList } from '../lib/moderationLogic'
 import { unmute, useMutedMap } from '../lib/mute'
 import useBusy from '../hooks/useBusy'
+import PushToggle from '../components/PushToggle'
 import { cn } from '@/lib/utils'
 
 export default function Profile() {
@@ -117,37 +118,6 @@ export default function Profile() {
     handleSignOut()
   }
 
-  const copyCode = async () => {
-    if (!profile?.code) return
-    try {
-      await navigator.clipboard.writeText(profile.code)
-      toast.success('FRIEND CODE COPIED!')
-    } catch {
-      const el = document.createElement('textarea')
-      el.value = profile.code
-      document.body.appendChild(el)
-      el.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(el)
-      if (ok) toast.success('FRIEND CODE COPIED!')
-      else toast.error('COULD NOT COPY THE CODE — PLEASE COPY IT MANUALLY.')
-    }
-  }
-
-  const shareCode = async () => {
-    if (!profile?.code) return
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Game Night', text: `Add me on Game Night — my friend code is ${profile.code}!`, url: window.location.origin })
-        return
-      } catch (err) {
-        if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return
-        // fall through to clipboard copy
-      }
-    }
-    await copyCode()
-  }
-
   const byGame = stats?.byGame ? Object.entries(stats.byGame) : []
   const vs = stats?.vs ? Object.entries(stats.vs) : []
   const recentMatches = matches.slice(0, 10)
@@ -160,16 +130,56 @@ export default function Profile() {
 
         <AuthErrorBanner />
 
-        {/* Identity card */}
-        <div className="bg-retro-card border border-retro-border rounded p-4 flex items-center gap-4">
-          <Avatar id={profile?.avatar} size={56} />
+        {/* Identity card — also the avatar entry point, so the avatar is
+            drawn once instead of in the card and again in an AVATAR row. */}
+        <div id="look" className="bg-retro-card border border-retro-border rounded p-4 flex items-center gap-4 scroll-mt-20">
+          <Avatar id={savedAvatar} size={56} />
           <div className="min-w-0 flex-1">
             <p className="font-pixel text-xs text-retro-text truncate">{profile?.displayName || '…'}</p>
-            <p className="font-mono text-[11px] text-retro-dim mt-1">
+            <p className="font-mono text-[11px] text-retro-dim mt-1 truncate">
               {isAnonymous ? 'Guest account' : `Signed in with Google${user?.email ? ` · ${user.email}` : ''}`}
             </p>
           </div>
+          {!editingAvatar && (
+            <button
+              type="button"
+              onClick={() => setEditingAvatar(true)}
+              aria-expanded={false}
+              className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
+            >
+              EDIT AVATAR
+            </button>
+          )}
         </div>
+        {editingAvatar && (
+          <div id="profile-avatar-editor" className="space-y-2">
+          <div className={avatarBusy ? 'pointer-events-none opacity-60' : ''}>
+            <AvatarPicker value={avatarDraft} onChange={pickAvatar} name={profile?.displayName || localStorage.getItem('playerName') || ''} />
+          </div>
+          {avatarDraftDirty && (
+            <button
+              onClick={saveAvatar}
+              disabled={avatarBusy}
+              className="w-full max-w-[380px] mx-auto block py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded
+                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-60 animate-pulse"
+              style={{ animationDuration: '1.6s' }}
+            >
+              {avatarBusy ? 'SAVING…' : 'SAVE'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={closeAvatarEditor}
+            disabled={avatarBusy}
+            aria-expanded={true}
+            aria-controls="profile-avatar-editor"
+            className="w-full max-w-[380px] mx-auto block min-h-11 border border-retro-border text-retro-dim font-pixel text-[10px] tracking-widest rounded
+              hover:text-retro-text transition-all active:scale-95 disabled:opacity-60"
+          >
+            {avatarDraftDirty ? 'CANCEL' : 'DONE'}
+          </button>
+          </div>
+        )}
 
         {/* Display name */}
         <div className="space-y-2">
@@ -202,86 +212,29 @@ export default function Profile() {
           )}
         </div>
 
-        {/* Avatar picker */}
-        <div id="look" className="space-y-2 scroll-mt-20">
-          <p className="font-pixel text-[10px] text-retro-dim tracking-wider">AVATAR</p>
-          {!editingAvatar ? (
-            <div className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-2.5">
-              <Avatar id={savedAvatar} size={40} />
-              <p className="flex-1 min-w-0 font-mono text-[11px] text-retro-dim">Pick a critter or build a person.</p>
-              <button
-                type="button"
-                onClick={() => setEditingAvatar(true)}
-                aria-expanded={false}
-                className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
-              >
-                EDIT AVATAR
-              </button>
-            </div>
-          ) : (
-          <div id="profile-avatar-editor" className="space-y-2">
-          <div className={avatarBusy ? 'pointer-events-none opacity-60' : ''}>
-            <AvatarPicker value={avatarDraft} onChange={pickAvatar} name={profile?.displayName || localStorage.getItem('playerName') || ''} />
-          </div>
-          {avatarDraftDirty && (
-            <button
-              onClick={saveAvatar}
-              disabled={avatarBusy}
-              className="w-full max-w-[380px] mx-auto block py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded
-                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-60 animate-pulse"
-              style={{ animationDuration: '1.6s' }}
-            >
-              {avatarBusy ? 'SAVING…' : 'SAVE'}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={closeAvatarEditor}
-            disabled={avatarBusy}
-            aria-expanded={true}
-            aria-controls="profile-avatar-editor"
-            className="w-full max-w-[380px] mx-auto block min-h-11 border border-retro-border text-retro-dim font-pixel text-[10px] tracking-widest rounded
-              hover:text-retro-text transition-all active:scale-95 disabled:opacity-60"
-          >
-            {avatarDraftDirty ? 'CANCEL' : 'DONE'}
-          </button>
-          </div>
-          )}
-        </div>
+        {/* Friend code — read-only here. COPY / SHARE live on the Friends
+            page, which is where adding people happens. */}
+        <Link
+          to="/friends"
+          className="group flex min-h-14 items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5 hover:border-retro-cta/50 transition-colors"
+        >
+          <span className="flex-1 min-w-0">
+            <span className="block font-pixel text-[10px] text-retro-dim tracking-wider">FRIEND CODE</span>
+            {/* Plain mono, no glow: people copy these characters by eye. */}
+            <span className="block font-mono text-base text-retro-p1 tracking-[0.2em] mt-1">{profile?.code || '······'}</span>
+          </span>
+          <span className="shrink-0 font-pixel text-[9px] text-retro-cta tracking-wider">FRIENDS <span aria-hidden="true">→</span></span>
+        </Link>
 
-        {/* Friend code */}
-        <div className="space-y-2">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">FRIEND CODE</label>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 bg-retro-card border border-retro-border rounded px-3 py-2">
-              {/* Plain mono, no glow: people copy these characters by eye. */}
-              <span className="font-mono text-base text-retro-p1 tracking-[0.2em]">{profile?.code || '······'}</span>
-            </div>
-            <button
-              onClick={copyCode}
-              className="min-h-11 px-4 bg-retro-card border border-retro-border text-retro-dim font-pixel text-[10px] rounded
-                hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
-            >
-              COPY
-            </button>
-            <button
-              onClick={shareCode}
-              className="min-h-11 px-4 bg-retro-card border border-retro-border text-retro-dim font-pixel text-[10px] rounded
-                hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
-            >
-              SHARE
-            </button>
-          </div>
-          <Link to="/friends" className="inline-block font-pixel text-[10px] text-retro-cta hover:text-glow-cta transition-all">
-            MANAGE FRIENDS →
-          </Link>
-        </div>
+        <PushToggle />
 
         {/* Muted players — local to this device (lib/mute.js) */}
         <div id="muted" className="space-y-2 scroll-mt-20">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">MUTED PLAYERS</label>
           {muted.length === 0 ? (
-            <EmptyState>NOBODY MUTED. TAP A NAME IN ROOM CHAT TO MUTE.</EmptyState>
+            <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
+              Nobody. Tap a name in room chat to mute them — only this device hides their chat, and they aren&apos;t told.
+            </p>
           ) : (
             <div className="space-y-2">
               {muted.map(m => (
@@ -299,9 +252,11 @@ export default function Profile() {
               ))}
             </div>
           )}
-          <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
-            Muted players&apos; chat is hidden on this device only. They aren&apos;t told.
-          </p>
+          {muted.length > 0 && (
+            <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
+              Muted players&apos; chat is hidden on this device only. They aren&apos;t told.
+            </p>
+          )}
         </div>
 
         {/* Account */}
@@ -392,12 +347,12 @@ export default function Profile() {
           )}
         </div>
 
-        {/* Recent matches */}
+        {/* Recent matches — hidden while empty: YOUR STATS already says
+            "play a match", a second empty box said it again. */}
+        {recentMatches.length > 0 && (
         <div className="space-y-2">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">RECENT MATCHES</label>
-          {recentMatches.length === 0 ? (
-            <EmptyState>PLAY A MATCH TO SEE IT HERE</EmptyState>
-          ) : (
+          {(
             <div className="space-y-2">
               {recentMatches.map((m, i) => {
                 const Icon = m.gameType ? getGameConfig(m.gameType)?.Icon : null
@@ -420,6 +375,7 @@ export default function Profile() {
             </div>
           )}
         </div>
+        )}
       </div>
       </div>
     </div>
