@@ -21,7 +21,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
   const desc = variantOf ? (game.variantBlurb || game.desc) : game.desc
   const Icon = variantOf ? (base?.Icon || game.Icon) : game.Icon
   const artType = variantOf || type
-  // Settings → LOOK & FEEL → GAME ART (BOLD png default, SOFT svg).
+  // Settings → LOOK & FEEL → GAME ART (PIXEL SCENE default, OBJECT, CAST, ICONS).
   const isBusy = disabled ?? !!loadingType
   const isLoading = loadingType === type
   const showModes = !!onModes && game.hasVariants
@@ -30,9 +30,11 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
   // detailed view). The mono icon sits behind as fallback — art covers it
   // when the game has art (GameArt* returns null otherwise).
 
+  // On phones the grid is two tiles per row, so each tile fills its column
+  // (art stays big); from sm up it caps at 160px.
   if (layout === 'tile') {
     return (
-      <div className="relative w-full max-w-[160px] mx-auto">
+      <div className={'group relative w-full mx-auto sm:max-w-[160px]'}>
         <button
           onClick={() => onTap(game)}
           disabled={isBusy}
@@ -46,7 +48,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           )}
         >
           <span aria-hidden="true" className="relative block w-full aspect-square overflow-hidden rounded-xl bg-retro-surface">
-            <span className="absolute inset-0 flex items-center justify-center text-retro-dim [&_svg]:w-12 [&_svg]:h-12">
+            <span className={'absolute inset-0 flex items-center justify-center text-retro-text [&_svg]:w-1/2 [&_svg]:h-1/2 sm:[&_svg]:w-2/3 sm:[&_svg]:h-2/3'}>
               {Icon && <Icon />}
             </span>
             <GameArt type={artType} className="absolute inset-0 w-full h-full block" />
@@ -56,7 +58,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
               <span className="block mt-1"><PixelDots size="sm" tone="cta" /></span>
             ) : (
               <>
-                <span className="block font-pixel text-[9px] text-retro-text leading-snug line-clamp-2 min-h-[26px] [overflow-wrap:anywhere]">{label}</span>
+                <span className={'block font-pixel text-retro-text leading-snug line-clamp-2 [overflow-wrap:anywhere] text-[11px] sm:text-[9px] sm:min-h-[26px]'}>{label}</span>
                 <span className="block font-mono text-[10px] text-retro-dim mt-1 truncate">
                   <span className={game.nPlayer ? 'text-retro-p2' : undefined}>{getPlayerTag(game)}</span>
                   {game.durationMin != null && ` · ~${game.durationMin} min`}
@@ -72,8 +74,10 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
             aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
             aria-pressed={!!isFav}
             className={cn(
-              'absolute top-2 right-2 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-retro-bg/60 transition-colors',
-              isFav ? 'text-retro-p2' : 'text-retro-dim hover:text-retro-text',
+              'absolute top-2 right-2 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-retro-bg/60 transition-[color,opacity]',
+              // A heart on every tile was 71 extra marks over the art. With a
+              // pointer, an unset heart waits for hover/focus; touch keeps it.
+              isFav ? 'text-retro-p2' : 'text-retro-dim hover:text-retro-text [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
             )}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill={isFav ? 'currentColor' : 'none'}
@@ -153,7 +157,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           aria-hidden="true"
           className={cn(
             'relative w-8 h-8 shrink-0 rounded-lg overflow-hidden flex items-center justify-center border border-retro-border',
-            isLoading ? 'text-retro-cta' : 'text-retro-dim',
+            isLoading ? 'text-retro-cta' : 'text-retro-text',
           )}
         >
           {/* Mono icon underneath; the illustrated art tile covers it when

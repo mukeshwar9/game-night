@@ -24,12 +24,14 @@ const TABS = [
     to: '/games',
     end: true,
     label: 'GAMES',
+    // Its own glyph: HOME and GAMES both drew the # logo, so two of four
+    // tabs looked identical.
     icon: (
-      <svg width="18" height="18" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-        <line x1="10" y1="2" x2="10" y2="28" stroke="currentColor" strokeWidth="3" strokeLinecap="square" />
-        <line x1="20" y1="2" x2="20" y2="28" stroke="currentColor" strokeWidth="3" strokeLinecap="square" />
-        <line x1="2" y1="10" x2="28" y2="10" stroke="currentColor" strokeWidth="3" strokeLinecap="square" />
-        <line x1="2" y1="20" x2="28" y2="20" stroke="currentColor" strokeWidth="3" strokeLinecap="square" />
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
     ),
   },

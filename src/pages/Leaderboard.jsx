@@ -61,18 +61,12 @@ export default function Leaderboard() {
     <div className="min-h-screen bg-retro-bg">
       <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="w-full max-w-sm mx-auto space-y-6 pt-2">
-          <Link
-            to="/profile"
-            className="inline-flex items-center gap-1.5 min-h-11 -ml-2 px-2 font-pixel text-[10px] text-retro-dim hover:text-retro-text transition-all active:scale-95"
-          >
-            ← PROFILE
-          </Link>
-
+          {/* No ← PROFILE link: Profile never links here (Friends, rooms and
+              the playground do) and the tab bar is on this route. */}
           <div className="space-y-1.5">
             <h1 className="font-pixel text-base text-retro-cta text-glow-cta">LEADERBOARD</h1>
             <p className="font-mono text-[11px] text-retro-dim leading-snug">
-              <span className="font-pixel text-[8px] text-retro-win tracking-wider">SERVER-VERIFIED</span>
-              {' '}· 2-player matches only. Board-game wins are re-checked by the server before they count.
+              2-player wins, re-checked by the server before they count.
             </p>
           </div>
 

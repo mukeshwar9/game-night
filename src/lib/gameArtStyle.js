@@ -1,13 +1,23 @@
-// Game-art style pref: BOLD (Option A — fixed-color PNGs) or SOFT
-// (Option B — theme-aware SVGs). Local-only like the other display prefs,
-// default BOLD. useGameArtStyle() re-renders consumers (GameCard) on change.
+// Game-art style pref: three pixel-art styles (PIXEL SCENE, OBJECT, CAST —
+// scripts/pixel-art/, `npm run art:pixel`) or ICONS (the mono game icon).
+// Local-only like the other display prefs, default PIXEL SCENE; any stored id
+// not listed here (e.g. the retired 'png' BOLD and 'svg' SOFT) reads back as
+// the default. useGameArtStyle() re-renders consumers (GameCard) on change.
 import { useSyncExternalStore } from 'react'
 
 export const ART_STYLES = [
-  { id: 'png', label: 'BOLD' },
-  { id: 'svg', label: 'SOFT' },
+  { id: 'scene', label: 'PIXEL SCENE' },
+  { id: 'object', label: 'PIXEL OBJECT' },
+  { id: 'cast', label: 'PIXEL CAST' },
   { id: 'icons', label: 'ICONS' },
 ]
+
+// Pixel styles → native sprite size (public/game-art/pixel/<style>/<type>.png).
+export const PIXEL_ART_SIZES = { scene: 64, object: 32, cast: 32 }
+
+export const DEFAULT_ART_STYLE = 'scene'
+
+const STYLE_IDS = new Set(ART_STYLES.map(s => s.id))
 
 const KEY = 'retro-gameart'
 
@@ -29,14 +39,14 @@ function write(value) {
 
 export function getGameArtStyle() {
   const stored = read()
-  return stored === 'svg' || stored === 'png' || stored === 'icons' ? stored : 'png'
+  return STYLE_IDS.has(stored) ? stored : DEFAULT_ART_STYLE
 }
 
 let current = getGameArtStyle()
 const listeners = new Set()
 
 export function applyGameArtStyle(id) {
-  const next = id === 'svg' ? 'svg' : id === 'icons' ? 'icons' : 'png'
+  const next = STYLE_IDS.has(id) ? id : DEFAULT_ART_STYLE
   if (next !== current) {
     current = next
     write(next)
