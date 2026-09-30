@@ -57,7 +57,7 @@ export const PIECES = [
   { id: 'pig', name: 'PIG', tone: 'kam4', density: 1.1, weight: 'MID',
     parts: [box(0.55, 0.34, 0, 0), box(0.09, 0.15, 0.64, 0.04), box(0.1, 0.1, -0.35, -0.43), box(0.1, 0.1, 0.35, -0.43)], eyes: [[0.36, 0.16]] },
   { id: 'croc', name: 'CROC', tone: 'kam1', density: 1, weight: 'MID',
-    parts: [[[-1.1, -0.18], [1.1, -0.14], [1.1, 0.02], [-0.9, 0.2], [-1.1, 0.12]]], eyes: [[0.6, 0.08]] },
+    parts: [[[-1.1, -0.18], [1.1, -0.14], [1.1, 0.02], [-0.9, 0.2], [-1.1, 0.12]]], eyes: [[0.6, 0.01]] },
   { id: 'owl', name: 'OWL', tone: 'kam0', density: 0.9, weight: 'LIGHT',
     parts: [box(0.4, 0.5, 0, 0), [[-0.4, 0.5], [-0.14, 0.5], [-0.34, 0.74]], [[0.14, 0.5], [0.4, 0.5], [0.34, 0.74]]], eyes: [[0.16, 0.24], [-0.16, 0.24]] },
   { id: 'rhino', name: 'RHINO', tone: 'kam6', density: 1.35, weight: 'HEAVY',

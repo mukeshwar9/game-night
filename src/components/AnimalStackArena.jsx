@@ -14,7 +14,8 @@ import { cn } from '@/lib/utils'
 // fullscreen solo court.
 //
 // `fxRef` receives { burst(x, y), shake() } for landing dust and topple
-// shake; `simRef` is the live sim from useStackPlayback.
+// shake; `simRef` is the live sim from useStackPlayback. The arena adds its
+// own splashes (an animal hitting the water) and height callouts.
 const PILL_CLASS = {
   p1: 'border-retro-p1 text-retro-p1 shadow-neon-p1',
   p2: 'border-retro-p2 text-retro-p2 shadow-neon-p2',
@@ -35,7 +36,23 @@ export default function AnimalStackArena({
   useEffect(() => { live.current = { tower, top, hover, best, simRef } })
   const cam = useRef({ bottom: null })
   const particles = useRef([])
+  const floats = useRef([])
+  const splashed = useRef(new WeakSet())
   const shake = useRef(0)
+  const grown = useRef(null)
+
+  // Height callouts: "+0.6M" when a drop raises the tower, NEW BEST! the
+  // first time a CLIMB tower passes the best line. Skipped on mount so a
+  // rejoin does not replay them.
+  useEffect(() => {
+    const prev = grown.current
+    grown.current = { n: tower.length, top }
+    if (!prev || tower.length <= prev.n || getStoredMotion() === 'reduced') return
+    const last = tower[tower.length - 1]
+    const x = last ? last.x : 0
+    if (top - prev.top >= 0.05) floats.current.push({ x, y: top + 0.35, text: `+${(top - prev.top).toFixed(1)}M`, c: 'win', life: 1 })
+    if (best > 0 && top > best && prev.top <= best) floats.current.push({ x: 0, y: top + 0.9, text: 'NEW BEST!', c: 'cta', life: 1.4 })
+  }, [tower, top, best])
 
   useEffect(() => {
     if (!fxRef) return
@@ -67,6 +84,8 @@ export default function AnimalStackArena({
         else cam.current.bottom += (target.bottom - cam.current.bottom) * 0.08
         for (const p of particles.current) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 6 * dt; p.life -= dt * 1.6 }
         particles.current = particles.current.filter(p => p.life > 0)
+        for (const f of floats.current) f.life -= dt * 0.8
+        floats.current = floats.current.filter(f => f.life > 0)
         let sh = [0, 0]
         if (shake.current > 0) {
           sh = [(Math.random() - 0.5) * 4 * shake.current, (Math.random() - 0.5) * 4 * shake.current]
@@ -76,13 +95,29 @@ export default function AnimalStackArena({
         const items = sim
           ? sim.bodies.map(b => {
             const p = b.getPosition()
-            return { k: b.getUserData().k, x: p.x, y: p.y, a: b.getAngle(), outline: b === sim.dropBody && sim.outline ? sim.outline : null }
+            const v = b.getLinearVelocity()
+            // a splash the first time an animal hits the water
+            if (p.y < -0.45 && !splashed.current.has(b)) {
+              splashed.current.add(b)
+              if (!reduced) {
+                for (let i = 0; i < 14; i++) {
+                  particles.current.push({ x: p.x + (Math.random() - 0.5) * 0.6, y: -0.45, vx: (Math.random() - 0.5) * 2.4, vy: 1.5 + Math.random() * 2.5, life: 1, c: 'kam6' })
+                }
+              }
+            }
+            return {
+              k: b.getUserData().k, x: p.x, y: p.y, a: b.getAngle(),
+              speed: Math.hypot(v.x, v.y), outline: b === sim.dropBody && sim.outline ? sim.outline : null,
+            }
           })
           : (tw || [])
         const hoverDraw = hv && !sim?.falling && !(sim && !sim.done)
           ? { k: hv.k, x: hv.x, y: spawnY(tp, hv.k), a: hv.r * ROT_STEP, player: hv.player }
           : null
-        drawScene(cv, { items, hover: hoverDraw, view: { ppm: target.ppm, bottom: cam.current.bottom }, t: now, shake: sh, particles: particles.current, best: bs })
+        drawScene(cv, {
+          items, hover: hoverDraw, view: { ppm: target.ppm, bottom: cam.current.bottom }, t: now, still: reduced,
+          shake: sh, particles: particles.current, floats: floats.current, best: bs,
+        })
       }
       raf = requestAnimationFrame(loop)
     }
@@ -99,7 +134,7 @@ export default function AnimalStackArena({
     return () => window.removeEventListener('keydown', onKey)
   }, [fill])
 
-  const { arenaHandlers, rotateHandlers } = useStackControls({
+  const { arenaHandlers, rotateHandlers, rotateBackHandlers } = useStackControls({
     enabled: canAct, ppmRef,
     onAimDelta: (dx) => onAimDelta?.(dx),
     onRotate: (dir) => onRotate?.(dir),
@@ -179,18 +214,23 @@ export default function AnimalStackArena({
           {fill ? '✕' : '⛶'}
         </button>
       </div>
-      <div className="grid grid-cols-[92px_1fr_128px] gap-2">
-        <button
-          type="button"
-          disabled={!canAct}
-          aria-label="Rotate 15 degrees"
-          className="min-h-[60px] flex flex-col items-center justify-center gap-1 border-2 border-retro-border bg-retro-card text-retro-text rounded font-pixel text-[8px] transition-all active:scale-95 disabled:opacity-35 select-none"
-          style={{ touchAction: 'none' }}
-          {...rotateHandlers}
-        >
-          <span className="font-mono text-xl leading-none">⟲</span>ROTATE
-        </button>
-        <div className="flex items-center justify-center text-center border border-dashed border-retro-border rounded font-pixel text-[8px] text-retro-dim leading-relaxed px-1">
+      <div className="grid grid-cols-[104px_minmax(0,1fr)_104px] gap-2">
+        <div className="grid grid-cols-2 gap-1" role="group" aria-label="Rotate">
+          {[['⟲', 'Rotate 15 degrees counter-clockwise', rotateHandlers], ['⟳', 'Rotate 15 degrees clockwise', rotateBackHandlers]].map(([icon, label, handlers]) => (
+            <button
+              key={icon}
+              type="button"
+              disabled={!canAct}
+              aria-label={label}
+              className="min-h-[60px] flex flex-col items-center justify-center gap-1 border-2 border-retro-border bg-retro-card text-retro-text rounded font-pixel text-[7px] transition-all active:scale-95 disabled:opacity-35 select-none"
+              style={{ touchAction: 'none' }}
+              {...handlers}
+            >
+              <span className="font-mono text-xl leading-none">{icon}</span>TURN
+            </button>
+          ))}
+        </div>
+        <div className="min-w-0 flex items-center justify-center text-center border border-dashed border-retro-border rounded font-pixel text-[8px] text-retro-dim leading-relaxed px-1 break-words">
           {hint ?? (canAct ? '◀ DRAG TO AIM ▶' : '')}
         </div>
         <button

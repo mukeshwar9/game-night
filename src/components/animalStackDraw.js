@@ -3,6 +3,7 @@
 // canvas and scaled up without smoothing. Every colour comes from the --c-*
 // theme tokens, read once per theme change.
 import { PIECES, ISLAND } from '../lib/animalStackLogic'
+import { ART, hullBounds, parseRgb, pixelate, rolePalette } from './animalStackArt'
 
 const TOKENS = ['bg', 'surface', 'card', 'border', 'text', 'dim', 'p1', 'p2', 'p3', 'p4', 'cta', 'win', 'danger',
   'structure', 'kam0', 'kam1', 'kam2', 'kam3', 'kam4', 'kam5', 'kam6', 'kam7']
@@ -29,30 +30,123 @@ function polyPath(ctx, pts) {
   ctx.closePath()
 }
 
-/** Draw animal `k` centred at art-pixel (x, y), angle `a`, `s` art px per metre. */
+// ─── Sprites ─────────────────────────────────────────────────────────────────
+// Each animal is rendered once per (theme, scale) into a small pixel sprite:
+// hull filled in its tone, ART details clipped inside, then snapped to a
+// crisp palette with a one-pixel inner outline (animalStackArt.pixelate).
+// Per frame the sprite is only rotated and blitted without smoothing, which
+// keeps the chunky pixel look at any angle. Eyes are drawn live on top so
+// the animals can blink and look scared while the tower wobbles.
+const sprites = new Map()
+let spriteTheme = null
+
+function paletteFor(tone) {
+  const t = tokens()
+  return rolePalette(parseRgb(t[tone]), { bg: parseRgb(t.bg), text: parseRgb(t.text), beak: parseRgb(t.kam7), blush: parseRgb(t.kam4) })
+}
+
+function sprite(k, s) {
+  tokens()
+  if (spriteTheme !== tokTheme || sprites.size > 240) { sprites.clear(); spriteTheme = tokTheme }
+  const key = `${k}|${s.toFixed(2)}`
+  let sp = sprites.get(key)
+  if (sp) return sp
+  const def = PIECES[k]
+  const art = ART[def.id] || { details: [] }
+  const pal = paletteFor(def.tone)
+  const [minx, miny, maxx, maxy] = hullBounds(def)
+  const w = Math.ceil((maxx - minx) * s) + 2, h = Math.ceil((maxy - miny) * s) + 2
+  const ax = 1 - minx * s, ay = 1 + maxy * s
+  const c = document.createElement('canvas')
+  c.width = w; c.height = h
+  const g = c.getContext('2d', { willReadFrequently: true })
+  const rgb = (r) => `rgb(${(pal[r] || pal.base).join(' ')})`
+  g.setTransform(s, 0, 0, -s, ax, ay)
+  g.fillStyle = rgb('base')
+  for (const part of def.parts) { polyPath(g, part); g.fill() }
+  g.globalCompositeOperation = 'source-atop'
+  const used = new Set(['base'])
+  for (const d of art.details) {
+    used.add(d.r)
+    if (d.l) {
+      g.strokeStyle = rgb(d.r); g.lineWidth = d.w; g.lineCap = 'round'; g.lineJoin = 'round'
+      g.beginPath(); d.l.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke()
+      continue
+    }
+    g.fillStyle = rgb(d.r)
+    if (d.e) { g.beginPath(); g.ellipse(d.e[0], d.e[1], d.e[2], d.e[3], 0, 0, Math.PI * 2); g.fill() } else { polyPath(g, d.p); g.fill() }
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0)
+  g.globalCompositeOperation = 'source-over'
+  const img = g.getImageData(0, 0, w, h)
+  pixelate(img.data, w, h, [...used].map(r => pal[r] || pal.base), pal.dark)
+  g.putImageData(img, 0, 0)
+  sp = { c, ax, ay, pal, masks: {} }
+  sprites.set(key, sp)
+  return sp
+}
+
+/** The sprite's silhouette flat-filled with a theme token (player ring). */
+function spriteMask(sp, token) {
+  if (sp.masks[token]) return sp.masks[token]
+  const m = document.createElement('canvas')
+  m.width = sp.c.width; m.height = sp.c.height
+  const g = m.getContext('2d')
+  g.drawImage(sp.c, 0, 0)
+  g.globalCompositeOperation = 'source-in'
+  g.fillStyle = col(token); g.fillRect(0, 0, m.width, m.height)
+  sp.masks[token] = m
+  return m
+}
+
+/**
+ * Draw animal `k` centred at art-pixel (x, y), angle `a`, `s` art px per metre.
+ * opts: alpha, outline (player token for a ring), pulse (0-1 ring strength),
+ * t (ms, drives blinking), seed (per-animal blink phase), speed (m/s).
+ */
 function drawAnimal(ctx, k, x, y, a, s, opts = {}) {
   const def = PIECES[k]
   if (!def) return
-  const c = Math.cos(a), sn = Math.sin(a)
-  const tr = ([vx, vy]) => [x + (vx * c - vy * sn) * s, y - (vx * sn + vy * c) * s]
+  const sp = sprite(k, s)
+  ctx.save()
   ctx.globalAlpha = opts.alpha ?? 1
-  for (const part of def.parts) { polyPath(ctx, part.map(tr)); ctx.fillStyle = col(def.tone); ctx.fill() }
-  ctx.lineWidth = Math.max(1, s * 0.07)
-  ctx.strokeStyle = 'rgb(0 0 0 / .38)'
-  for (const part of def.parts) { polyPath(ctx, part.map(tr)); ctx.stroke() }
-  const e = Math.max(1, Math.round(s * 0.1))
-  for (const ev of def.eyes) {
-    const [px, py] = tr(ev)
-    ctx.fillStyle = 'rgb(10 10 20)'
-    ctx.fillRect(Math.round(px - e / 2), Math.round(py - e / 2), e, e)
-    if (e > 1) { ctx.fillStyle = 'rgb(255 255 255 / .9)'; ctx.fillRect(Math.round(px - e / 2), Math.round(py - e / 2), 1, 1) }
-  }
+  ctx.translate(x, y)
+  ctx.rotate(-a)
   if (opts.outline) {
-    ctx.lineWidth = Math.max(1, s * 0.09)
-    ctx.strokeStyle = col(opts.outline)
-    if (opts.dash) ctx.setLineDash(opts.dash)
-    for (const part of def.parts) { polyPath(ctx, part.map(tr)); ctx.stroke() }
-    ctx.setLineDash([])
+    const m = spriteMask(sp, opts.outline)
+    ctx.globalAlpha = (opts.alpha ?? 1) * (opts.pulse ?? 1)
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.drawImage(m, dx - sp.ax, dy - sp.ay)
+    ctx.globalAlpha = opts.alpha ?? 1
+  }
+  ctx.drawImage(sp.c, -sp.ax, -sp.ay)
+  ctx.restore()
+
+  // Eyes: pupils look the way the animal faces; a blink every few seconds;
+  // wide eyes while it is flying or sliding fast.
+  const c = Math.cos(a), sn = Math.sin(a)
+  const e = Math.max(1, Math.round(s * 0.08))
+  const scared = (opts.speed ?? 0) > 1.6
+  const big = ART[def.id]?.bigEyes || scared
+  const phase = ((opts.t ?? 0) + (opts.seed ?? 0) * 1733) % 4100
+  const blink = !scared && opts.t != null && phase < 120
+  const face = c >= 0 ? 1 : -1
+  ctx.globalAlpha = opts.alpha ?? 1
+  for (const [vx, vy] of def.eyes) {
+    const px = Math.round(x + (vx * c - vy * sn) * s), py = Math.round(y - (vx * sn + vy * c) * s)
+    const sz = big ? e + 2 : e + (e > 1 ? 1 : 0)
+    const x0 = px - Math.floor(sz / 2), y0 = py - Math.floor(sz / 2)
+    if (blink) {
+      ctx.fillStyle = `rgb(${sp.pal.pupil.join(' ')})`
+      ctx.fillRect(x0, py, sz, 1)
+      continue
+    }
+    if (big || e > 1) { ctx.fillStyle = `rgb(${sp.pal.eye.join(' ')})`; ctx.fillRect(x0, y0, sz, sz) }
+    const pe = scared ? 1 : Math.min(e, sz)
+    ctx.fillStyle = `rgb(${sp.pal.pupil.join(' ')})`
+    if (scared) { ctx.fillRect(px, py, 1, 1); continue }
+    const front = ART[def.id]?.bigEyes
+    const pxl = front ? x0 + Math.floor((sz - pe) / 2) : face > 0 ? x0 + sz - pe : x0
+    ctx.fillRect(pxl, y0 + sz - pe, pe, pe)
   }
   ctx.globalAlpha = 1
 }
@@ -66,8 +160,9 @@ export function viewFor(width, height, top, hoverRadius = 0.8) {
 }
 
 /**
- * scene: { items: [{k,x,y,a,outline?}], hover?: {k,x,y,a,player}, view: {bottom, ppm},
- *          best?: number, shake?: [dx,dy], t: ms, particles?: [{x,y,life,c}] }
+ * scene: { items: [{k,x,y,a,outline?,speed?}], hover?: {k,x,y,a,player}, view: {bottom, ppm},
+ *          best?: number, shake?: [dx,dy], t: ms, still?: bool (reduced motion),
+ *          particles?: [{x,y,life,c}], floats?: [{x,y,text,life,c}] }
  */
 export function drawScene(canvas, scene) {
   const dpr = window.devicePixelRatio || 1
@@ -120,8 +215,12 @@ export function drawScene(canvas, scene) {
     const gx = Math.round(X(h.x))
     for (let gy = Math.round(Y(h.y)); gy < Math.round(wy); gy += 4) o.fillRect(gx, gy, 1, 2)
   }
-  for (const it of scene.items) drawAnimal(o, it.k, X(it.x), Y(it.y), it.a, s, it.outline ? { outline: it.outline } : undefined)
-  if (h) drawAnimal(o, h.k, X(h.x), Y(h.y), h.a, s, { outline: PLAYER_TOKENS[h.player || 0], alpha: 0.92, dash: [2, 1] })
+  const now = scene.t || 0
+  scene.items.forEach((it, i) => drawAnimal(o, it.k, X(it.x), Y(it.y), it.a, s, { outline: it.outline, t: now, seed: i, speed: it.speed }))
+  if (h) {
+    const pulse = scene.still ? 1 : 0.65 + 0.35 * Math.sin(now / 170)
+    drawAnimal(o, h.k, X(h.x), Y(h.y), h.a, s, { outline: PLAYER_TOKENS[h.player || 0], pulse, alpha: 0.95, t: now, seed: 99 })
+  }
   for (const p of scene.particles || []) {
     o.fillStyle = col(p.c || 'text', Math.max(0, p.life))
     o.fillRect(Math.round(X(p.x)), Math.round(Y(p.y)), 1, 1)
@@ -139,6 +238,16 @@ export function drawScene(canvas, scene) {
     ctx.fillStyle = col('cta')
     ctx.fillText(`BEST ${scene.best.toFixed(1)}M`, W - 96, (Y(scene.best) - 3) * PIX)
   }
+  // floating callouts (+0.6M, NEW BEST!) rise and fade over the tower
+  ctx.textAlign = 'center'
+  for (const f of scene.floats || []) {
+    const fx = Math.max(40, Math.min(W - 40, X(f.x) * PIX)), fy = (Y(f.y) - (1 - f.life) * 10) * PIX
+    ctx.fillStyle = col('bg', Math.min(1, f.life * 2) * 0.85)
+    ctx.fillText(f.text, fx + 1, fy + 1)
+    ctx.fillStyle = col(f.c || 'text', Math.min(1, f.life * 2))
+    ctx.fillText(f.text, fx, fy)
+  }
+  ctx.textAlign = 'start'
 }
 
 /** Small pixel portrait of animal `k` (NEXT preview, icons). */
@@ -152,10 +261,8 @@ export function drawThumb(canvas, k) {
   const off = document.createElement('canvas')
   off.width = Math.ceil(W / PIX); off.height = Math.ceil(H / PIX)
   const o = off.getContext('2d')
-  let minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9
-  for (const part of def.parts) for (const [x, y] of part) {
-    minx = Math.min(minx, x); maxx = Math.max(maxx, x); miny = Math.min(miny, y); maxy = Math.max(maxy, y)
-  }
+  o.imageSmoothingEnabled = false
+  const [minx, miny, maxx, maxy] = hullBounds(def)
   const s = Math.min(off.width / ((maxx - minx) * 1.15), off.height / ((maxy - miny) * 1.15))
   drawAnimal(o, k, off.width / 2 - ((minx + maxx) / 2) * s, off.height / 2 + ((miny + maxy) / 2) * s, 0, s)
   const ctx = canvas.getContext('2d')

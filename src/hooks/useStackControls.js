@@ -4,10 +4,12 @@ import useGameKeys from './useGameKeys'
 // ANIMAL STACK touch + keyboard controls.
 //  - Relative drag anywhere on the arena moves the piece (the finger never
 //    covers it); `ppmRef` converts screen px to metres.
-//  - ROTATE: tap for one 15° step, hold to repeat every 140 ms after 380 ms.
+//  - ⟲ / ⟳: tap for one 15° step either way, hold to repeat every 140 ms
+//    after 380 ms.
 //  - DROP is its own button — releasing a drag never drops.
 //  - Keys (via useGameKeys, so chat typing is ignored): ←/→ aim, ↑/R rotate,
-//    ↓ rotate back, Space/Enter drop.
+//    ↓ rotate back, Space/Enter drop. Off-turn, Space/arrows pressed on the
+//    page body are swallowed so they do not scroll the tower away.
 export default function useStackControls({ enabled, ppmRef, onAimDelta, onRotate, onDrop }) {
   const drag = useRef(null)
   const hold = useRef(0)
@@ -36,20 +38,23 @@ export default function useStackControls({ enabled, ppmRef, onAimDelta, onRotate
     onPointerCancel: () => { drag.current = null },
   }
 
-  const rotateHandlers = {
-    onPointerDown: (e) => {
-      e.preventDefault()
-      if (!enabled) return
-      cb.current.onRotate(1)
-      stopHold()
-      const repeat = () => { cb.current.onRotate(1); hold.current = setTimeout(repeat, 140) }
-      hold.current = setTimeout(repeat, 380)
-    },
+  // ⟲ turns counter-clockwise (+1 step), ⟳ clockwise (-1 step).
+  const startRotate = (e, dir) => {
+    e.preventDefault()
+    if (!enabled) return
+    cb.current.onRotate(dir)
+    stopHold()
+    const repeat = () => { cb.current.onRotate(dir); hold.current = setTimeout(repeat, 140) }
+    hold.current = setTimeout(repeat, 380)
+  }
+  const holdEnd = {
     onPointerUp: stopHold,
     onPointerLeave: stopHold,
     onPointerCancel: stopHold,
     onContextMenu: (e) => e.preventDefault(),
   }
+  const rotateHandlers = { onPointerDown: (e) => startRotate(e, 1), ...holdEnd }
+  const rotateBackHandlers = { onPointerDown: (e) => startRotate(e, -1), ...holdEnd }
 
   useGameKeys((e) => {
     const { onAimDelta: aim, onRotate: rot, onDrop: drop } = cb.current
@@ -61,5 +66,12 @@ export default function useStackControls({ enabled, ppmRef, onAimDelta, onRotate
     return false
   }, { enabled })
 
-  return { arenaHandlers, rotateHandlers }
+  // While someone else aims (or the drop settles), a player still mashing
+  // Space/arrows would scroll the page away from the tower; swallow those
+  // keys unless focus is on a control that needs them.
+  useGameKeys((e) => (
+    (e.key === ' ' || e.key.startsWith('Arrow')) && (e.target === document.body || e.target === document.documentElement)
+  ), { enabled: !enabled })
+
+  return { arenaHandlers, rotateHandlers, rotateBackHandlers }
 }

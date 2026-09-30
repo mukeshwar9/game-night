@@ -357,8 +357,8 @@ function OfflineMatch({ setup, onExit }) {
       )}
 
       <p className="font-mono text-[10px] text-retro-dim text-center leading-relaxed">
-        DRAG TO AIM · ⟲ ROTATES 15° · DROP LETS GO<br />
-        <span className="kbd-hint">←/→ AIM · ↑/R ROTATE · SPACE DROPS · </span>ANY ANIMAL IN THE WATER = TOPPLE
+        DRAG TO AIM · ⟲ ⟳ TURN 15° · DROP LETS GO<br />
+        <span className="kbd-hint">←/→ AIM · ↑/↓ TURN · SPACE DROPS · </span>ANY ANIMAL IN THE WATER = TOPPLE
       </p>
     </div>
   )
