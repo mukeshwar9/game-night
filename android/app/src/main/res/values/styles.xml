@@ -9,14 +9,31 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
+    <!-- The activity theme once the app is up. The page paints its own theme
+         (src/index.css); this only shows where the web view does not: behind the
+         system bars on WebViews older than 140, which Capacitor's SystemBars plugin
+         pads in. Default-theme (MATCHA) ground, so that edge is not a dark band.
+         Bar icon colours follow the active theme from src/lib/native/shell.js. -->
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
 
+    <!-- Launch theme: the system splash (API 31+) or androidx compat splash
+         shows the default-theme ground with the logo tile, matching the
+         capacitor.config.ts splash colour and the first web paint. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/app_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="android:statusBarColor">@color/app_background</item>
+        <item name="android:navigationBarColor">@color/app_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>
