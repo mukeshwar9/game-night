@@ -314,11 +314,6 @@ export default function SettingsButton({ className = '' }) {
         <VideoCallSettingsPanel embedded />
       </Section>
 
-      <Section title="ABOUT & LEGAL">
-        <LegalLinks contact className="text-left" />
-        <p className="font-mono text-[11px] leading-relaxed text-retro-dim">Delete your data any time from Profile.</p>
-      </Section>
-
       <Section title="HELP & RESET">
         <Link
           to="/notes"
@@ -343,6 +338,10 @@ export default function SettingsButton({ className = '' }) {
         >
           {resetArmed ? 'SURE? TAP AGAIN TO RESET' : 'RESET ALL TO DEFAULTS'}
         </button>
+      </Section>
+      <Section title="ABOUT & LEGAL">
+        <LegalLinks contact className="text-left" />
+        <p className="font-mono text-[11px] leading-relaxed text-retro-dim">Delete your data any time from Profile.</p>
       </Section>
     </BottomSheet>}
   </>
