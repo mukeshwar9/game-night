@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useAuth } from '../lib/AuthContext'
 import { dismissInvite } from '../lib/social'
 import { getGameConfig } from '../lib/games'
+import { displayNameFor } from '../lib/moderationLogic'
 
 // Headless: surfaces new game invites as toasts from anywhere in the app.
 // Only fresh invites toast: the seen-set dedupes within a session, and the
@@ -26,7 +27,7 @@ export default function InviteToasts() {
       seen.current.add(inv.id)
       if (inv.at && Date.now() - inv.at > MAX_TOAST_AGE_MS) continue
       const label = getGameConfig(inv.gameType)?.label || inv.gameType || 'a game'
-      toast(`${inv.fromName || 'A friend'} invited you to ${label}`, {
+      toast(`${displayNameFor(inv.fromName, 'A friend')} invited you to ${label}`, {
         duration: 10000,
         action: {
           label: 'JOIN',

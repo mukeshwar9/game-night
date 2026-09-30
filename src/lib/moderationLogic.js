@@ -95,6 +95,68 @@ function isInvisible(ch) {
     || (c >= 0x2060 && c <= 0x206f) || c === 0xfeff
 }
 
+// ---------------------------------------------------------------------------
+// displayNameFor — any name another client wrote (a room seat, a listing, a
+// friend request, an invite). The client-side sanitizeDisplayName is skipped by
+// anyone writing over REST, so names are clamped and masked again on read:
+// never empty, never longer than the rules allow, denied words masked.
+// ---------------------------------------------------------------------------
+export function displayNameFor(raw, fallback = 'PLAYER') {
+  if (typeof raw !== 'string') return fallback
+  const clean = [...raw].filter(ch => !isInvisible(ch)).join('').trim().replace(/\s+/g, ' ')
+  const capped = [...clean].slice(0, DISPLAY_NAME_MAX).join('').trim()
+  if (!capped) return fallback
+  const { text, flagged } = moderateText(capped)
+  // A name that is nothing but denied words masks down to the mask alone.
+  return flagged && text.replace(new RegExp(MASK, 'g'), '').trim() === '' ? fallback : text
+}
+
+// The room as every page should see it: seat, queue and spectator names run
+// through displayNameFor, and each chat line is labelled with the name its
+// sender's seat recorded rather than the free-text `name` in the message (a
+// sender can put any name in a chat message, e.g. another player's).
+export function moderateRoomNames(game) {
+  if (!game || typeof game !== 'object') return game
+  const out = { ...game }
+  const recorded = {}
+  const mapNamed = (bucket, keyBy) => {
+    if (!bucket || typeof bucket !== 'object') return bucket
+    const next = {}
+    for (const [key, entry] of Object.entries(bucket)) {
+      if (entry && typeof entry === 'object' && typeof entry.name === 'string') {
+        const name = displayNameFor(entry.name)
+        next[key] = { ...entry, name }
+        const uid = keyBy === 'key' ? key : entry.playerId
+        if (typeof uid === 'string') recorded[uid] = name
+      } else next[key] = entry
+    }
+    return next
+  }
+  out.players = mapNamed(game.players, 'playerId')
+  out.queue = mapNamed(game.queue, 'key')
+  if (game.spectators && typeof game.spectators === 'object') {
+    out.spectators = {}
+    for (const [uid, conns] of Object.entries(game.spectators)) {
+      if (!conns || typeof conns !== 'object') { out.spectators[uid] = conns; continue }
+      out.spectators[uid] = {}
+      for (const [conn, entry] of Object.entries(conns)) {
+        if (entry && typeof entry === 'object' && typeof entry.name === 'string') {
+          const name = displayNameFor(entry.name)
+          out.spectators[uid][conn] = { ...entry, name }
+          if (!recorded[uid]) recorded[uid] = name
+        } else out.spectators[uid][conn] = entry
+      }
+    }
+  }
+  if (game.chatLog && typeof game.chatLog === 'object') {
+    out.chatLog = {}
+    for (const [id, msg] of Object.entries(game.chatLog)) {
+      out.chatLog[id] = msg && typeof msg === 'object' ? { ...msg, name: recorded[msg.by] ?? displayNameFor(msg.name) } : msg
+    }
+  }
+  return out
+}
+
 export const NAME_REJECT_MESSAGES = {
   empty: "NAME CAN'T BE EMPTY.",
   denied: 'PICK A FRIENDLIER NAME — THAT ONE ISN’T ALLOWED.',

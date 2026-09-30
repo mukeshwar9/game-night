@@ -14,6 +14,7 @@ import { canTakeSeat, normalizeQueue } from '../../lib/nightLogic'
 import useDbConnected from '../useDbConnected'
 import useRoomPresence from './useRoomPresence'
 import { buildSwitchUpdates } from './roomUpdates'
+import { moderateRoomNames } from '../../lib/moderationLogic'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -100,7 +101,7 @@ export default function useRoomSession(gameId) {
     let unsubWarm = null
     const dropWarm = () => { if (unsubWarm) { unsubWarm(); unsubWarm = null } }
     const listen = () => {
-      unsubGame = onValue(gameRef, snap => { if (!cancelled && snap.exists()) setGame(snap.val()) })
+      unsubGame = onValue(gameRef, snap => { if (!cancelled && snap.exists()) setGame(moderateRoomNames(snap.val())) })
       dropWarm()
     }
 

@@ -19,6 +19,7 @@ import { defaultAvatarForId } from '../lib/avatars'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
 import useBusy from '../hooks/useBusy'
+import { displayNameFor } from '../lib/moderationLogic'
 
 const REQUEST_ERRORS = {
   invalid: 'THAT CODE LOOKS WRONG — 6 CHARACTERS.',
@@ -263,7 +264,7 @@ export default function Friends() {
               {requests.map(r => (
                 <div key={r.uid} className="flex items-center gap-3 bg-retro-tint-cta border border-retro-cta/40 rounded p-2.5">
                   <Avatar id={r.avatar} size={36} />
-                  <span className="flex-1 font-mono text-sm text-retro-text truncate">{r.name || 'player'}</span>
+                  <span className="flex-1 font-mono text-sm text-retro-text truncate">{displayNameFor(r.name, 'player')}</span>
                   <button
                     onClick={() => onAccept(r.uid)}
                     disabled={pendingUid === r.uid}
@@ -329,7 +330,7 @@ export default function Friends() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-mono text-sm text-retro-text truncate">{p?.displayName || '…'}</p>
+                      <p className="font-mono text-sm text-retro-text truncate">{p?.displayName ? displayNameFor(p.displayName) : '…'}</p>
                       <p className="font-pixel text-[8px] text-retro-dim">{p?.online ? 'ONLINE' : 'OFFLINE'}</p>
                     </div>
                     {p?.online && (
@@ -403,7 +404,7 @@ export default function Friends() {
                       type="button"
                       onClick={onRowActivate}
                       disabled={busy}
-                      aria-label={e.isMe ? 'View your profile' : `Challenge ${e.displayName || 'friend'} to a game`}
+                      aria-label={e.isMe ? 'View your profile' : `Challenge ${displayNameFor(e.displayName, 'friend')} to a game`}
                       className={`w-full flex items-center gap-2.5 bg-retro-card border rounded p-2.5 transition-all
                         hover:border-retro-p1/50 active:scale-[0.99] disabled:opacity-60 disabled:active:scale-100
                         ${e.isMe ? 'border-retro-cta' : 'border-retro-border'}`}
@@ -413,7 +414,7 @@ export default function Friends() {
                       <div className="flex-1 min-w-0 flex items-center gap-1.5">
                         <div className="min-w-0 text-left">
                           <p className="font-mono text-sm text-retro-text truncate">
-                            {e.displayName || '…'}
+                            {e.displayName ? displayNameFor(e.displayName) : '…'}
                           </p>
                           <p className="font-mono text-[10px] text-retro-dim">{e.wins}W-{e.losses}L</p>
                         </div>

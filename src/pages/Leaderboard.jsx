@@ -7,6 +7,7 @@ import PixelDots from '../components/loading/PixelDots'
 import { db } from '../lib/firebase'
 import { useAuth } from '../lib/AuthContext'
 import { cn } from '@/lib/utils'
+import { displayNameFor } from '../lib/moderationLogic'
 
 // Global top-50-by-wins leaderboard, backed by the leaderboard/ node. Rows are
 // written only by the creditMatchResults Cloud Function (functions/results.js),
@@ -106,7 +107,7 @@ export default function Leaderboard() {
                     <div className="flex-1 min-w-0 flex items-center gap-1.5">
                       <div className="min-w-0 text-left">
                         {visible ? (
-                          <p className="font-mono text-sm text-retro-text truncate">{e.name || '…'}</p>
+                          <p className="font-mono text-sm text-retro-text truncate">{e.name ? displayNameFor(e.name) : '…'}</p>
                         ) : (
                           <p className="font-mono text-sm text-retro-text truncate blur-sm select-none pointer-events-none" aria-hidden="true">
                             PLAYER

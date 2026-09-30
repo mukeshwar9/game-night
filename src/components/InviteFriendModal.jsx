@@ -6,6 +6,7 @@ import Skeleton from './loading/Skeleton'
 import BottomSheet from './BottomSheet'
 import useBusy from '../hooks/useBusy'
 import { subscribeFriends, subscribeProfile, inviteFriendToGame, inviteFriendsToGame } from '../lib/social'
+import { displayNameFor } from '../lib/moderationLogic'
 
 // Modal to invite a friend into the current room. Lists friends (online first)
 // with a one-tap INVITE that pushes a game invite to their account, plus
@@ -100,7 +101,7 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
                   <Avatar id={p?.avatar} size={32} />
                   <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-retro-bg ${p?.online ? 'bg-retro-win' : 'bg-retro-dim'}`} />
                 </div>
-                <span className="flex-1 font-mono text-sm text-retro-text truncate">{p?.displayName || '…'}</span>
+                <span className="flex-1 font-mono text-sm text-retro-text truncate">{p?.displayName ? displayNameFor(p.displayName) : '…'}</span>
                 {inRoom.has(uid) ? (
                   <span className="min-h-11 px-3 flex items-center font-pixel text-[9px] text-retro-dim">IN ROOM</span>
                 ) : (

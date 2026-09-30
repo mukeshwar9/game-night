@@ -17,6 +17,7 @@ import { NAME_MAX, initialName, suggestName, suggestNames, validateName } from '
 import { sounds } from '../lib/sounds'
 import { inviteSeatsLine } from '../lib/roomLogic'
 import { cn } from '@/lib/utils'
+import { displayNameFor } from '../lib/moderationLogic'
 
 // First-run flow, two steps: NAME, then LOOK. Shown to a brand-new visitor
 // on Home/Games/Online, and to someone opening an invite link (`invite` set:
@@ -311,7 +312,7 @@ function InviteCard({ invite, cfg }) {
       {invite.hostName && (
         <div className="flex items-center justify-center gap-2">
           <Avatar id={invite.hostAvatar} size={28} />
-          <span className="font-mono text-xs text-retro-text truncate"><span className="text-retro-dim">HOSTED BY </span>{invite.hostName}</span>
+          <span className="font-mono text-xs text-retro-text truncate"><span className="text-retro-dim">HOSTED BY </span>{displayNameFor(invite.hostName)}</span>
         </div>
       )}
       {seats && <p className="font-pixel text-[9px] text-retro-dim tracking-wider leading-relaxed">{seats}</p>}

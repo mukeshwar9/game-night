@@ -4,6 +4,7 @@ import { freshGameState, getGameConfig, GAME_TYPES } from './games'
 import { isSeatOnline } from './presenceLogic'
 import { partyJoinPlan } from './roomLogic'
 import { fetchServerNow } from '../hooks/useServerClock'
+import { displayNameFor } from './moderationLogic'
 export const PUBLIC_ROOM_TTL_MS = 24 * 60 * 60 * 1000
 // Public lobby: base 2P games plus the N-player races (`race: true`), which
 // list as a 1v1 while their host waits alone; other party games stay
@@ -34,7 +35,7 @@ export function listingHost(game) {
 // drop out here too instead of sorting to the top of the lobby forever.
 const LISTING_SLACK_MS = 5 * 60 * 1000
 export function normalizePublicRooms(raw, now = Date.now()) {
-  return Object.entries(raw || {}).map(([gameId, room]) => ({ ...room, gameId })).filter(room => room.visibility === 'public' && isPublicGameType(room.gameType) && typeof room.hostUid === 'string' && typeof room.createdAt === 'number' && room.createdAt <= now + LISTING_SLACK_MS && typeof room.expiresAt === 'number' && room.expiresAt > now && room.expiresAt <= now + PUBLIC_ROOM_TTL_MS + LISTING_SLACK_MS && room.hostOnline !== false).sort((a, b) => a.createdAt - b.createdAt)
+  return Object.entries(raw || {}).map(([gameId, room]) => ({ ...room, gameId, hostName: displayNameFor(room?.hostName) })).filter(room => room.visibility === 'public' && isPublicGameType(room.gameType) && typeof room.hostUid === 'string' && typeof room.createdAt === 'number' && room.createdAt <= now + LISTING_SLACK_MS && typeof room.expiresAt === 'number' && room.expiresAt > now && room.expiresAt <= now + PUBLIC_ROOM_TTL_MS + LISTING_SLACK_MS && room.hostOnline !== false).sort((a, b) => a.createdAt - b.createdAt)
 }
 export function publicRoomEntry({ gameId, gameType, hostUid, hostName, hostAvatar, now = Date.now() }) {
   return { gameId, gameType, visibility: 'public', hostUid, hostName: hostName || 'PLAYER', hostAvatar: hostAvatar || null, hostOnline: true, createdAt: now, updatedAt: now, expiresAt: now + PUBLIC_ROOM_TTL_MS }
