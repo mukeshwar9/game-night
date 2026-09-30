@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:emu": "vite --mode emulator",
     "art": "node scripts/make-game-art.mjs",
+    "art:pixel": "node scripts/pixel-art/build.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

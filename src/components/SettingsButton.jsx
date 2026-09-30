@@ -12,7 +12,7 @@ import {
   TEXT_SIZES, applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx,
   getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
 } from '../lib/displayPrefs'
-import { ART_STYLES, applyGameArtStyle, getGameArtStyle } from '../lib/gameArtStyle'
+import { ART_STYLES, DEFAULT_ART_STYLE, applyGameArtStyle, getGameArtStyle } from '../lib/gameArtStyle'
 import { setProfile } from '../lib/social'
 import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatars'
@@ -139,8 +139,8 @@ export default function SettingsButton({ className = '' }) {
     setCrt(true)
     setMotion(getStoredMotion())
     setTextSize('m')
-    setArtStyle('png')
-    applyGameArtStyle('png')
+    setArtStyle(DEFAULT_ART_STYLE)
+    applyGameArtStyle(DEFAULT_ART_STYLE)
     setWinFx(true)
     setShowPreview(false)
     setProfile({ theme: 'matcha', fontFamily: 'press-start' }).catch(() => {})

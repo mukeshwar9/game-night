@@ -8,7 +8,7 @@
 // in every theme, ~3 KB each.
 // Option B: soft theme-aware SVGs below. Theming rule: NO hex in src/ — only
 // semantic fill-retro-*/stroke-retro-* tokens, tint washes, thin strokes.
-import { useGameArtStyle } from '../lib/gameArtStyle'
+import { PIXEL_ART_SIZES, useGameArtStyle } from '../lib/gameArtStyle'
 
 const ART_TYPES = new Set([
   'tictactoe', 'sim', 'chomp', 'breakthrough', 'ataxx', 'kamisado', 'onitama', 'quarto',
@@ -37,6 +37,27 @@ export function GameArtImg({ type, className }) {
       draggable={false}
       loading="lazy"
       className={className}
+    />
+  )
+}
+
+// Pixel art: 32×32 (object, cast) or 64×64 (scene) indexed PNGs drawn on a
+// fixed house palette by scripts/pixel-art/ (`npm run art:pixel`), upscaled
+// crisp with image-rendering: pixelated.
+export function GameArtPixel({ type, style = 'scene', className }) {
+  const t = resolveArt(type)
+  const size = PIXEL_ART_SIZES[style]
+  if (!ART_TYPES.has(t) || !size) return null
+  return (
+    <img
+      src={`/game-art/pixel/${style}/${t}.png`}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      loading="lazy"
+      width={size}
+      height={size}
+      className={`${className || ''} [image-rendering:pixelated]`}
     />
   )
 }
@@ -562,6 +583,7 @@ export function GameArt({ type, className }) {
   if (style === 'icons') return null
   const t = resolveArt(type)
   if (!ART_TYPES.has(t)) return null
+  if (PIXEL_ART_SIZES[style]) return <GameArtPixel type={type} style={style} className={className} />
   return style === 'svg'
     ? <GameArtSvg type={type} className={className} />
     : <GameArtImg type={type} className={className} />
