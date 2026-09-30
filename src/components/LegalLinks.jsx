@@ -10,7 +10,7 @@ export default function LegalLinks({ lead = null, contact = true, className = ''
       <a href={TERMS_URL} target="_blank" rel="noopener" className={link}>Terms</a>
       {' · '}
       <a href={PRIVACY_URL} target="_blank" rel="noopener" className={link}>Privacy</a>
-      {contact ? <>{' · '}<a href={CONTACT_URL} className={link}>Contact</a></> : null}
+      {contact && CONTACT_URL ? <>{' · '}<a href={CONTACT_URL} className={link}>Contact</a></> : null}
     </p>
   )
 }

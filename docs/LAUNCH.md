@@ -8,7 +8,7 @@ What the launch-hardening pass changed, the switches it left, and what is still 
 |---|---|---|
 | Public leaderboard | `LEADERBOARD_ENABLED` in `src/lib/features.js` | `false`: no `/leaderboard` route, tab or "SEE WHERE YOU RANK" link. The code, the `leaderboard/` rules and the `creditMatchResults` function are kept. |
 | Peer-to-peer real-time games in the public lobby | `p2p: true` on the registry entries (Pong, Snake, Tron, Sumo, Space Duel, Paint, Pac Mac, Air Hockey) | Kept out of the public lobby (`matchmaking.js`). Friends and private invite links still work. Remove the flag only when a TURN relay is in place (no TURN is configured). |
-| Support address | `CONTACT_EMAIL_TBD` in `src/lib/legal.js`, `public/privacy.html`, `public/terms.html`, `public/.well-known/security.txt` | Placeholder. Replace in all four places. |
+| Support address | `VITE_CONTACT_EMAIL` (`.env.local` and CI build env) | Empty: `/privacy` and `/terms` say "Support email coming soon", the in-app Contact link is hidden and `security.txt` points at the site. Set it to an address and rebuild: the pages, `security.txt` (tokens `%CONTACT%` and `%CONTACT_URL%`, filled by `vite.config.js`) and the app all pick it up. |
 
 ## Rules
 
@@ -29,7 +29,6 @@ The FCM worker registers under its own scope (`/firebase-cloud-messaging-push-sc
 
 ## Still open
 
-- A Cloud Billing budget with alerts could not be verified from the CLI (the Budgets API is not enabled for the CLI's project).
 - TURN is not configured.
 - `functions/` still reports moderate `npm audit` findings (transitive `uuid`).
 - The privacy policy and terms are a working draft: read them before ads run.
@@ -65,3 +64,7 @@ Point ads at `/play/<game>` (for example `/play/connectfour?utm_source=tiktok&ut
 ```
 npm run symbolicate -- <build id> < stack.txt
 ```
+
+## Budget
+
+The captain confirmed a Cloud Billing budget of about $25 per month with alerts on the project (the earlier note that it could not be verified from the CLI is superseded).

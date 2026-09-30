@@ -1,9 +1,10 @@
 import path from 'path'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import fs from 'node:fs'
 import { buildIdFromFiles } from './src/lib/sourcemapLogic.js'
+import { renderContactTokens } from './src/lib/contactLogic.js'
 
 // Vite writes the entry <script> and its ~18 <link rel="modulepreload">s
 // before the stylesheet. The stylesheet is the only render-blocking request
@@ -23,6 +24,45 @@ function stylesheetFirst() {
         for (const tag of css) out = out.replace(tag, '')
         const at = out.search(/<script type="module"/)
         return out.slice(0, at) + css.map(t => t.trim()).join('\n    ') + '\n    ' + out.slice(at)
+      },
+    },
+  }
+}
+
+// The static legal pages and security.txt live in public/ (crawlers and ad
+// reviewers read them without running the app) and carry %CONTACT% tokens for
+// the support address, VITE_CONTACT_EMAIL. Filled in at build time, and by the
+// dev/preview server for the same three URLs.
+const CONTACT_FILES = ['privacy.html', 'terms.html', '.well-known/security.txt']
+function contactEmail() {
+  let email = ''
+  let root = process.cwd()
+  let outDir = 'dist'
+  return {
+    name: 'contact-email',
+    configResolved(config) {
+      root = config.root
+      outDir = path.resolve(config.root, config.build.outDir)
+      email = loadEnv(config.mode, config.root, 'VITE_').VITE_CONTACT_EMAIL || ''
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url || '').split('?')[0].replace(/^\//, '')
+        if (!CONTACT_FILES.includes(url)) return next()
+        const file = path.join(root, 'public', url)
+        if (!fs.existsSync(file)) return next()
+        res.setHeader('Content-Type', url.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8')
+        res.end(renderContactTokens(fs.readFileSync(file, 'utf8'), email))
+      })
+    },
+    closeBundle: {
+      order: 'post',
+      sequential: true,
+      handler() {
+        for (const name of CONTACT_FILES) {
+          const file = path.join(outDir, name)
+          if (fs.existsSync(file)) fs.writeFileSync(file, renderContactTokens(fs.readFileSync(file, 'utf8'), email))
+        }
       },
     },
   }
@@ -130,6 +170,7 @@ export default defineConfig({
     react(),
     stylesheetFirst(),
     collectShell(),
+    contactEmail(),
     privateSourcemaps(),
     VitePWA({
       registerType: 'prompt',
