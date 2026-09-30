@@ -1,10 +1,9 @@
-// Game-art style pref: BOLD (Option A — fixed-color PNGs) or SOFT
-// (Option B — theme-aware SVGs). Local-only like the other display prefs,
-// default BOLD. useGameArtStyle() re-renders consumers (GameCard) on change.
+// Game-art style pref: PIXEL STICKER PNGs or theme-aware SOFT SVGs.
+// Local-only like other display prefs; defaults to PIXEL STICKER.
 import { useSyncExternalStore } from 'react'
 
 export const ART_STYLES = [
-  { id: 'png', label: 'BOLD' },
+  { id: 'png', label: 'PIXEL STICKER' },
   { id: 'svg', label: 'SOFT' },
   { id: 'icons', label: 'ICONS' },
 ]

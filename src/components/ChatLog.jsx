@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { normalizeChatLog } from '../lib/chat'
+import { linkifyChatText } from '../lib/chat'
 import { moderateText } from '../lib/moderationLogic'
 import { toggleMute, unmute, useMutedMap } from '../lib/mute'
 import { submitReport } from '../lib/feedback'
@@ -101,7 +102,21 @@ export default function ChatLog({ chatLog, myUid }) {
               ) : null}
               {msg.text ? (
                 <span className="font-mono text-[11px] text-retro-text break-words leading-snug">
-                  {moderateText(msg.text).text}
+                  {linkifyChatText(moderateText(msg.text).text).map((seg, i) =>
+                    seg.kind === 'link' ? (
+                      <a
+                        key={i}
+                        href={seg.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-retro-cta underline underline-offset-2 break-all"
+                      >
+                        {seg.text}
+                      </a>
+                    ) : (
+                      <span key={i}>{seg.text}</span>
+                    ),
+                  )}
                 </span>
               ) : null}
               {open && (

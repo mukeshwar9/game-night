@@ -6,6 +6,7 @@ import {
   isValidChatMessage,
   normalizeChatLog,
   chatKeysToPrune,
+  linkifyChatText,
 } from './chat'
 
 // ---------------------------------------------------------------------------
@@ -189,5 +190,66 @@ describe('chatKeysToPrune', () => {
   it('defaults cap to CHAT_LOG_CAP', () => {
     const entries = entriesOfLength(CHAT_LOG_CAP + 2)
     expect(chatKeysToPrune(entries)).toEqual(['k0', 'k1'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// linkifyChatText
+// ---------------------------------------------------------------------------
+describe('linkifyChatText', () => {
+  it('returns [] for empty/non-string input', () => {
+    expect(linkifyChatText('')).toEqual([])
+    expect(linkifyChatText(null)).toEqual([])
+    expect(linkifyChatText(undefined)).toEqual([])
+    expect(linkifyChatText(42)).toEqual([])
+  })
+
+  it('keeps plain text as a single text segment', () => {
+    expect(linkifyChatText('gg everyone')).toEqual([{ kind: 'text', text: 'gg everyone' }])
+  })
+
+  it('linkifies an https URL', () => {
+    expect(linkifyChatText('see https://example.com/a')).toEqual([
+      { kind: 'text', text: 'see ' },
+      { kind: 'link', text: 'https://example.com/a', href: 'https://example.com/a' },
+    ])
+  })
+
+  it('linkifies http and bare www. hosts (https href)', () => {
+    expect(linkifyChatText('try http://example.com')).toEqual([
+      { kind: 'text', text: 'try ' },
+      { kind: 'link', text: 'http://example.com', href: 'http://example.com' },
+    ])
+    expect(linkifyChatText('try www.example.com/x')).toEqual([
+      { kind: 'text', text: 'try ' },
+      { kind: 'link', text: 'www.example.com/x', href: 'https://www.example.com/x' },
+    ])
+  })
+
+  it('trims trailing sentence punctuation off the link', () => {
+    expect(linkifyChatText('see https://example.com/a.')).toEqual([
+      { kind: 'text', text: 'see ' },
+      { kind: 'link', text: 'https://example.com/a', href: 'https://example.com/a' },
+      { kind: 'text', text: '.' },
+    ])
+    expect(linkifyChatText('(https://example.com/a)')).toEqual([
+      { kind: 'text', text: '(' },
+      { kind: 'link', text: 'https://example.com/a', href: 'https://example.com/a' },
+      { kind: 'text', text: ')' },
+    ])
+  })
+
+  it('never emits a javascript:/data: href', () => {
+    expect(linkifyChatText('x javascript:alert(1) y')).toEqual([
+      { kind: 'text', text: 'x javascript:alert(1) y' },
+    ])
+  })
+
+  it('handles multiple URLs in one message', () => {
+    const segs = linkifyChatText('a https://one.com b www.two.com/c d')
+    expect(segs.filter(s => s.kind === 'link').map(s => s.href)).toEqual([
+      'https://one.com',
+      'https://www.two.com/c',
+    ])
   })
 })

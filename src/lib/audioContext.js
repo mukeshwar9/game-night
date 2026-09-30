@@ -7,8 +7,10 @@
 
 let ctx = null
 let ducker = null
+let hasUserGesture = false
 
 export function getAudioContext() {
+  if (!hasUserGesture) return null
   if (!ctx) {
     const Ctor = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)
     if (!Ctor) return null
@@ -23,6 +25,18 @@ export function resumeAudio() {
   const c = getAudioContext()
   if (c && c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => {})
   return c
+}
+
+// Create/resume only inside browser-recognized user activation. Sound cues can
+// also fire from automatic state changes, which must not create the context.
+if (typeof window !== 'undefined') {
+  const unlock = () => {
+    hasUserGesture = true
+    resumeAudio()
+  }
+  for (const type of ['pointerup', 'touchend', 'click', 'keydown']) {
+    window.addEventListener(type, unlock, { capture: true, passive: true })
+  }
 }
 
 // Only the music engine registers; sounds.js calls duckMusic() on every cue.
