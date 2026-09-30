@@ -95,3 +95,12 @@ Read the raw digests in the Firebase console under `errorDigests`; symbolicate a
 - Titles and descriptions: `index.html` has a real title and a "70+ quick games" description (the count matches the registry; `scripts/make-og-image.mjs` regenerated `public/og-image.png` with it), and each route sets its own tab title (`src/lib/routeTitle.js`, including `/solo/<game>` and `/play/<game>`).
 - `public/sitemap.xml` (home, catalogue, lobby, daily, the six headline games, privacy, terms), `robots.txt` pointing at it and hiding rooms and account pages, `favicon.ico` and a separate maskable icon (`scripts/make-icons.mjs`) in the manifest.
 - Lighthouse (mobile, local production build): accessibility 100 on `/`, `/games`, `/online`, `/solo/<game>`, `/demo`. Fixes: the matcha `--c-cta` went from `#8b6612` to `#825f0e` (4.3:1 to 4.8:1 on the header, imperceptible), category-tab counts lost their 70% opacity, the solo and lobby pages have a `main` landmark, and the lobby's game button has a matching accessible name. The "legible font sizes" finding from the live audit did not reproduce on the current build (SEO 100 everywhere).
+
+## Captain actions still open (before-ads pass)
+
+1. **App Check:** create the reCAPTCHA Enterprise key, register the app in the Firebase console, put `VITE_APPCHECK_SITE_KEY` in `.env.local` and redeploy; leave everything Unenforced for about a week, then Enforce Realtime Database (see App Check above).
+2. **iOS PWA Google sign-in:** add `https://game-night-91464.web.app/__/auth/handler` to the OAuth web client's authorised redirect URIs, then set `VITE_AUTH_SAME_ORIGIN=1` and redeploy (see In-app browsers above).
+3. **Support email:** pick the address and set `VITE_CONTACT_EMAIL`, then redeploy hosting (`/privacy`, `/terms`, `security.txt` and the app read it).
+4. **Error alerts:** create the Cloud Logging alert (email) or set `ERROR_DIGEST_WEBHOOK_URL` in `functions/.env` (see Error alerting).
+5. **Keep `sourcemaps/<build id>/`** from the machine that deploys, so live stacks can be symbolicated.
+6. **Decisions left open:** a CSP report endpoint (needs a function or third-party service), the major `firebase-admin` 14 / `firebase-functions` 7 upgrade that clears the moderate `uuid` audit findings, and TURN for the peer-to-peer games (unchanged from the launch pass).
