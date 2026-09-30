@@ -8,10 +8,11 @@ import { test, expect } from '@playwright/test'
 import { ROOM_URL, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
 import { ARENA_H, ARENA_W, buildCourse, positionAt } from '../../src/lib/pulpLogic.js'
 import { normalizeRaceRound, raceGoAt } from '../../src/lib/raceLogic.js'
+import { DB_PORT } from './emulator.js'
 
 test.describe.configure({ timeout: 180_000 })
 
-const DB_HOST = process.env.FIREBASE_DATABASE_EMULATOR_HOST || '127.0.0.1:9000'
+const DB_HOST = process.env.FIREBASE_DATABASE_EMULATOR_HOST || `127.0.0.1:${DB_PORT}`
 
 async function readRoom(page) {
   const id = new URL(page.url()).pathname.split('/').pop()

@@ -11,6 +11,8 @@ import { setProfile } from '../lib/social'
 import { GAME_TYPES, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { UPGRADE_ERRORS, preloadGoogleSignIn } from '../lib/auth'
+import { isInAppBrowser } from '../lib/uaLogic'
+import OpenInBrowserHint from './OpenInBrowserHint'
 import { configError } from '../lib/firebase'
 import { markOnboarded } from '../lib/onboarding'
 import { NAME_MAX, initialName, suggestName, suggestNames, validateName } from '../lib/onboardingLogic'
@@ -65,7 +67,10 @@ export default function Onboarding({ onDone, invite = null }) {
     headingRef.current?.focus({ preventScroll: true })
   }, [step])
 
-  const showGoogle = !invite && isAnonymous && !configError
+  const canOfferGoogle = !invite && isAnonymous && !configError
+  // Google refuses OAuth inside Instagram/TikTok/Facebook webviews: hint instead.
+  const inApp = isInAppBrowser()
+  const showGoogle = canOfferGoogle && !inApp
   useEffect(() => (showGoogle ? preloadGoogleSignIn() : undefined), [showGoogle])
 
   const setName = (v) => { setNameInput(v); setShowError(false) }
@@ -229,6 +234,7 @@ export default function Onboarding({ onDone, invite = null }) {
                 NEXT: PICK A LOOK →
               </button>
               <LegalLinks lead="By playing you agree to the" contact={false} />
+              {canOfferGoogle && inApp && <OpenInBrowserHint />}
               {showGoogle && (
                 <button
                   type="button"

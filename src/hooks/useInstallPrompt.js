@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
+import { isInAppBrowser } from '../lib/uaLogic';
 
 const isIosDevice = () =>
   typeof navigator !== 'undefined' &&
   /iPhone|iPad|iPod/.test(navigator.userAgent) &&
-  !navigator.standalone;
+  !navigator.standalone &&
+  // "Share → Add to Home Screen" does not exist inside an in-app browser.
+  !isInAppBrowser();
 
 export function useInstallPrompt() {
   const [prompt, setPrompt] = useState(null);

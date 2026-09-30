@@ -4,8 +4,9 @@
 // seeded through the emulator's REST API as the owner (rules bypassed).
 import { test, expect } from '@playwright/test'
 import { newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
-const DB = 'http://127.0.0.1:9000'
+const DB = DB_ORIGIN
 const NS = 'demo-game-night-default-rtdb'
 const OWNER = { Authorization: 'Bearer owner' }
 const today = () => new Date().toISOString().slice(0, 10)

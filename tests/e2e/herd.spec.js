@@ -4,10 +4,11 @@
 // their commitments and scored for everyone.
 import { test, expect } from '@playwright/test'
 import { completeOnboarding, createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
 // Same emulator + namespace as .env.emulator. `Bearer owner` is the RTDB
 // emulator's admin token, so the spec can read the raw node like a snooper.
-const DB_URL = 'http://127.0.0.1:9000'
+const DB_URL = DB_ORIGIN
 const NS = 'demo-game-night-default-rtdb'
 
 async function readRound(request, roomUrl) {

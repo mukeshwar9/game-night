@@ -10,10 +10,17 @@ import {
   browserSessionPersistence,
   browserPopupRedirectResolver,
 } from 'firebase/auth';
+import { resolveAuthDomain } from './authDomainLogic';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  // VITE_AUTH_SAME_ORIGIN=1 runs the Google redirect on the serving host (see
+  // authDomainLogic.js); needs its /__/auth/handler URI on the OAuth client.
+  authDomain: resolveAuthDomain(
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    typeof location === 'undefined' ? undefined : location.hostname,
+    import.meta.env.VITE_AUTH_SAME_ORIGIN === '1',
+  ),
   databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
@@ -28,8 +35,9 @@ const firebaseConfig = {
 // SDK just fails to connect.
 export const usingEmulators = import.meta.env.VITE_USE_EMULATORS === '1';
 const EMULATOR_HOST = '127.0.0.1';
-const AUTH_EMULATOR_PORT = 9099;
-const DATABASE_EMULATOR_PORT = 9000;
+// Overridable so several checkouts can run their own emulators side by side.
+const AUTH_EMULATOR_PORT = Number(import.meta.env.VITE_EMULATOR_AUTH_PORT) || 9099;
+const DATABASE_EMULATOR_PORT = Number(import.meta.env.VITE_EMULATOR_DB_PORT) || 9000;
 
 // App Check (reCAPTCHA Enterprise) attests that requests come from this app,
 // not a script replaying the public config. The client only attaches tokens;

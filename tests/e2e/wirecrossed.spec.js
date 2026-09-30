@@ -11,8 +11,9 @@ import { createRoom, expectNoPageErrors, joinViaInvite, newPlayer, onboard } fro
 import {
   COLOR_LETTERS, DIRS, MODIFIERS, MODULES, MODULE_NAMES, TAP_MAX_MS, generateBomb, isOpen, solveWires,
 } from '../../src/lib/wireLogic.js'
+import { DB_PORT } from './emulator.js'
 
-const DB_HOST = process.env.FIREBASE_DATABASE_EMULATOR_HOST || '127.0.0.1:9000'
+const DB_HOST = process.env.FIREBASE_DATABASE_EMULATOR_HOST || `127.0.0.1:${DB_PORT}`
 
 async function readRoom(page) {
   const id = new URL(page.url()).pathname.split('/').pop()

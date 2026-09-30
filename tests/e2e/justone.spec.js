@@ -4,11 +4,12 @@
 // before the result, and that the guesser rotates.
 import { test, expect } from '@playwright/test'
 import { createRoom, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
 // Reads the room straight from the Database emulator ("owner" bypasses rules).
 async function readRoom(roomUrl) {
   const id = roomUrl.split('/').pop()
-  const res = await fetch(`http://127.0.0.1:9000/games/${id}.json?ns=demo-game-night-default-rtdb`, {
+  const res = await fetch(`${DB_ORIGIN}/games/${id}.json?ns=demo-game-night-default-rtdb`, {
     headers: { Authorization: 'Bearer owner' },
   })
   return res.json()

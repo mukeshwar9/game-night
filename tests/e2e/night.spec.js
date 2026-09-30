@@ -7,10 +7,11 @@
 // out for the waiting player, and the host kicks and locks.
 import { test, expect } from '@playwright/test'
 import { completeOnboarding, createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
 // Same emulator + namespace as .env.emulator. `Bearer owner` is the RTDB
 // emulator's admin token (bypasses rules) — used only to fast-forward matches.
-const DB_URL = 'http://127.0.0.1:9000'
+const DB_URL = DB_ORIGIN
 const NS = 'demo-game-night-default-rtdb'
 const admin = { Authorization: 'Bearer owner' }
 

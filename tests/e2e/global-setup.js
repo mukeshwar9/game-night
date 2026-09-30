@@ -2,10 +2,11 @@
 // Firebase emulators are not up — otherwise every spec would sit on the
 // CONNECTING… splash until its 60 s timeout.
 import net from 'node:net'
+import { DB_PORT, AUTH_PORT } from './emulator.js'
 
 const EMULATORS = [
-  { name: 'Realtime Database', host: '127.0.0.1', port: 9000 },
-  { name: 'Auth', host: '127.0.0.1', port: 9099 },
+  { name: 'Realtime Database', host: '127.0.0.1', port: DB_PORT },
+  { name: 'Auth', host: '127.0.0.1', port: AUTH_PORT },
 ]
 
 function reachable({ host, port }) {

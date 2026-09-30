@@ -3,9 +3,10 @@
 // card, GOT IT advances the card and scores for the guesser.
 import { test, expect } from '@playwright/test'
 import { createRoom, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
 // Emulator REST access as the owner (bypasses rules) — test setup/inspection only.
-const DB = 'http://127.0.0.1:9000'
+const DB = DB_ORIGIN
 const NS = 'demo-game-night-default-rtdb'
 const roomIdOf = (url) => url.split('/game/')[1]
 async function readRoom(id) {

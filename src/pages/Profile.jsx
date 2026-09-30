@@ -17,6 +17,8 @@ import { mutedList } from '../lib/moderationLogic'
 import { unmute, useMutedMap } from '../lib/mute'
 import useBusy from '../hooks/useBusy'
 import PushToggle from '../components/PushToggle'
+import OpenInBrowserHint from '../components/OpenInBrowserHint'
+import { isInAppBrowser } from '../lib/uaLogic'
 import LegalLinks from '../components/LegalLinks'
 import { cn } from '@/lib/utils'
 
@@ -25,7 +27,8 @@ export default function Profile() {
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
   const muted = mutedList(useMutedMap())
   const [busy, setBusy] = useState(false)
-  useEffect(() => (isAnonymous ? preloadGoogleSignIn() : undefined), [isAnonymous])
+  const inApp = isInAppBrowser()
+  useEffect(() => (isAnonymous && !inApp ? preloadGoogleSignIn() : undefined), [isAnonymous, inApp])
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteBusy, runDelete] = useBusy()
@@ -274,7 +277,9 @@ export default function Profile() {
         {/* Account */}
         <div className="space-y-2">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">ACCOUNT</label>
-          {isAnonymous ? (
+          {isAnonymous && inApp ? (
+            <OpenInBrowserHint />
+          ) : isAnonymous ? (
             <button
               onClick={handleUpgrade}
               disabled={busy}

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
+import OpenInBrowserHint from './OpenInBrowserHint'
+import { isInAppBrowser } from '../lib/uaLogic'
 import { isPushSupported, permissionState, vapidKey, enablePush, disablePush } from '../lib/push'
 
 // Opt-in push toggle. Hidden when push can't work (no SW/Push support or no
@@ -26,6 +28,8 @@ export default function PushToggle() {
     return undefined
   }, [])
 
+  // Webviews cannot hold a push subscription: say so instead of failing on tap.
+  if (isInAppBrowser() && Boolean(vapidKey())) return <OpenInBrowserHint feature="Notifications" />
   if (!supported) return null
 
   const enable = () => run(async () => {

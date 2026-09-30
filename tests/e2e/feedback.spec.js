@@ -5,8 +5,9 @@
 // emulator's REST API as the owner, which bypasses the security rules.
 import { test, expect } from '@playwright/test'
 import { newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
-const DB = 'http://127.0.0.1:9000'
+const DB = DB_ORIGIN
 const NS = 'demo-game-night-default-rtdb'
 
 async function readDb(path) {

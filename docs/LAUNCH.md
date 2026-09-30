@@ -47,3 +47,9 @@ Console steps for the captain, in order:
 5. After about a week, when at least 98% of Realtime Database requests are verified (old cached clients send no token, and in-app webviews should be checked per platform), click **Enforce** for Realtime Database, and then optionally for Authentication. Add `enforceAppCheck: true` to any callable function at that point.
 
 For local dev against the real project, register a debug token under "Manage debug tokens" and set `VITE_APPCHECK_DEBUG_TOKEN`.
+
+## In-app browsers and iOS PWA sign-in
+
+`uaLogic.js` recognises the Instagram, Facebook, TikTok, Snapchat, Twitter, LINE, Pinterest and LinkedIn webviews. There, `OpenInBrowserHint` replaces the Google sign-in button (Onboarding, Profile) and the notifications toggle, and the iOS "Add to Home Screen" hint is hidden; play, rooms and chat are untouched. Android gets an "open in Chrome" intent link, everything else a copy-link button.
+
+Google sign-in in an installed iOS PWA used to lose its redirect result because the auth handler lived on `firebaseapp.com` while the app is served from `web.app`. `VITE_AUTH_SAME_ORIGIN=1` makes `authDomain` follow the serving Hosting host. It is off until the captain adds `https://game-night-91464.web.app/__/auth/handler` to the OAuth web client's authorised redirect URIs (Google Cloud console, APIs & Services, Credentials, the client Firebase created); without that step Google answers `redirect_uri_mismatch`. Then set the variable in `.env.local` and redeploy, and test the upgrade from a home-screen install.

@@ -11,7 +11,7 @@ import { defineConfig, devices } from '@playwright/test'
 // the dev server: closer to what players run, immune to hot reloads from
 // concurrent edits, and fast enough to expose timing races the dev server
 // hides. CI uses it.
-const PORT = 5190
+const PORT = Number(process.env.E2E_PORT) || 5190
 const PREVIEW = process.env.E2E_PREVIEW === '1'
 
 export default defineConfig({
