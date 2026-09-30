@@ -12,7 +12,7 @@ import {
   TEXT_SIZES, applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx,
   getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
 } from '../lib/displayPrefs'
-import { ART_STYLES, applyGameArtStyle, getGameArtStyle } from '../lib/gameArtStyle'
+import { ART_STYLES, DEFAULT_ART_STYLE, applyGameArtStyle, getGameArtStyle } from '../lib/gameArtStyle'
 import { setProfile } from '../lib/social'
 import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatars'
@@ -138,8 +138,8 @@ export default function SettingsButton({ className = '' }) {
     setCrt(true)
     setMotion(getStoredMotion())
     setTextSize('m')
-    setArtStyle('png')
-    applyGameArtStyle('png')
+    setArtStyle(DEFAULT_ART_STYLE)
+    applyGameArtStyle(DEFAULT_ART_STYLE)
     setWinFx(true)
     setShowPreview(false)
     setProfile({ theme: 'matcha', fontFamily: 'press-start' }).catch(() => {})
@@ -265,7 +265,7 @@ export default function SettingsButton({ className = '' }) {
         <SwitchRow label="WIN CELEBRATIONS" checked={winFx} onChange={selectWinFx} ariaLabel="Toggle win confetti and fanfare" />
         <div className="flex items-center justify-between gap-3">
           <span className="font-pixel text-[9px] text-retro-text tracking-widest">GAME ART</span>
-          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Game art style">
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Game art style">
             {ART_STYLES.map(option => <button
               key={option.id}
               type="button"
