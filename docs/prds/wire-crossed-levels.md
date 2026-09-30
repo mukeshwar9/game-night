@@ -1,3 +1,5 @@
+> **Superseded by [wire-crossed-modes.md](wire-crossed-modes.md).** Kept for history; the shipped design is the modes one.
+
 # WIRE CROSSED: two-bomb difficulty match + Switchboard
 
 **Decision update: 2026-09-28.** This replaces earlier 15-level-ladder proposal in this document.

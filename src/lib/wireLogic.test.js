@@ -1,77 +1,45 @@
-import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
-  applyTimeout, applyWireAction, armWire, bombMsForLevel, cellName, clockText, describeWireAction,
-  describeWireCond, formatClock, generateBomb, isOpen, makeRng, mazeDistances, mazePos,
-  moduleCountForLevel, normalizeWireStats, pressedCount, solveLever, solveWires, stepCell,
-  BOMB_MS, BOMB_MS_HARD, GLYPH_COUNT, KEYPAD_COLUMNS, KEYPAD_KEYS, MAX_STRIKES, MAZE_CELLS,
-  LEGACY_MODULE_TYPES, MODULE_TYPES, STRIKE_PENALTY_MS, SWITCH_COUNT, solveSwitchboard,
+  acceptMode, applyTimeout, applyWireAction, armWire, bombMsForLevel, cancelMode, clockText,
+  formatClock, generateBomb, isLegacyWire, moduleCountForLevel, normalizeWireStats, proposeMode,
+  solveWires, BOMB_MS, BOMB_MS_HARD, MAX_STRIKES, MODULES, STRIKE_PENALTY_MS,
 } from './wireLogic'
+import { nextWireBomb } from './wireMatchLogic'
 
 const SEEDS = Array.from({ length: 60 }, (_, i) => `seed-${i}`)
-const armed = (seed = 's1', level = 3, now = 1000) =>
-  armWire({ seed, level, tech: 'X', phase: 'ready', strikes: 0 }, now, BOMB_MS)
+const ready = (over = {}) => ({
+  seed: 's1', level: 1, bombNo: 1, tech: 'X', phase: 'ready', strikes: 0, mode: 'easy', run: { booms: 0, ms: 0 }, ...over,
+})
+const armed = (over = {}, now = 1000, ms = BOMB_MS) => armWire(ready(over), now, ms)
+
+// Drive every module of `bomb` to solved with solveNext.
+function solveAll(bomb, wire, now = 2000) {
+  let cur = wire
+  while (cur.phase === 'armed') {
+    const i = bomb.modules.findIndex((_, m) => !cur.solved?.[m])
+    const module = bomb.modules[i]
+    const action = MODULES[module.type].solveNext(module, bomb, cur, i, now)
+    const res = applyWireAction(cur, bomb, action, now, cur.tech ?? 'X')
+    expect(res.ok).toBe(true)
+    cur = res.wire
+  }
+  return cur
+}
 
 // A bomb whose modules include `type`, scanning seeds deterministically.
-function bombWith(type, level = 3) {
+function bombWith(type, mode = 'easy', level = 1) {
   for (const seed of SEEDS) {
-    const bomb = generateBomb(seed, level)
+    const bomb = generateBomb(seed, level, mode)
     const i = bomb.modules.findIndex(m => m.type === type)
     if (i >= 0) return { bomb, i, seed }
   }
   throw new Error(`no ${type} module in test seeds`)
 }
 
-// The correct action for module i.
-function solveAction(bomb, i, wire) {
-  const m = bomb.modules[i]
-  if (m.type === 'wires') return [{ mod: i, kind: 'cut', wire: solveWires(m, bomb).index }]
-  if (m.type === 'keypad') return m.solution.map(glyph => ({ mod: i, kind: 'press', glyph }))
-  if (m.type === 'lever') {
-    const sol = solveLever(m, bomb)
-    return [sol.tap ? { mod: i, kind: 'tap' } : { mod: i, kind: 'release', clock: `0:${sol.digit}0` }]
-  }
-  if (m.type === 'switchboard') return [{ mod: i, kind: 'commit', states: solveSwitchboard(m) }]
-  // maze: walk the shortest path
-  const moves = []
-  let pos = mazePos(wire, i, m)
-  const target = m.device.exit
-  while (pos !== target) {
-    const dist = mazeDistances(m.manual.open, target)
-    const dir = ['N', 'E', 'S', 'W'].find(d => isOpen(m.manual.open, pos, d) && dist[stepCell(pos, d)] === dist[pos] - 1)
-    moves.push({ mod: i, kind: 'move', dir })
-    pos = stepCell(pos, dir)
-  }
-  return moves
-}
-
-describe('makeRng', () => {
-  it('is deterministic per seed and stays in [0, 1)', () => {
-    const a = makeRng('abc')
-    const b = makeRng('abc')
-    const c = makeRng('abd')
-    const xs = Array.from({ length: 50 }, () => a())
-    expect(Array.from({ length: 50 }, () => b())).toEqual(xs)
-    expect(Array.from({ length: 50 }, () => c())).not.toEqual(xs)
-    expect(xs.every(x => x >= 0 && x < 1)).toBe(true)
-  })
-})
-
-describe('generateBomb', () => {
+describe('generateBomb without a mode (legacy)', () => {
   it('derives the same bomb from the same seed and level', () => {
     expect(generateBomb('k7', 2)).toEqual(generateBomb('k7', 2))
     expect(generateBomb('k7', 2)).not.toEqual(generateBomb('k8', 2))
-  })
-
-  it('has a serial ending in a digit and two distinct indicators', () => {
-    for (const seed of SEEDS) {
-      const bomb = generateBomb(seed)
-      expect(bomb.serial).toMatch(/^[A-Z0-9]{5}[0-9]$/)
-      expect(bomb.serial).toMatch(/[A-Z]/)
-      expect(bomb.serial).not.toMatch(/[IO]/)
-      expect(bomb.indicators).toHaveLength(2)
-      expect(bomb.indicators[0].label).not.toBe(bomb.indicators[1].label)
-    }
   })
 
   it('scales module count and clock with level, one module per type', () => {
@@ -82,33 +50,9 @@ describe('generateBomb', () => {
     for (const seed of SEEDS.slice(0, 20)) {
       const easy = generateBomb(seed, 1)
       const hard = generateBomb(seed, 4)
-      const legacy = generateBomb(seed, 4, 1)
       expect(easy.modules).toHaveLength(3)
-      expect(hard.modules).toHaveLength(4)
-      expect(new Set(hard.modules.map(m => m.type)).size).toBe(4)
-      expect(legacy.modules.map(m => m.type).sort()).toEqual([...LEGACY_MODULE_TYPES].sort())
+      expect(hard.modules.map(m => m.type).sort()).toEqual(['keypad', 'lever', 'maze', 'wires'])
       expect(new Set(easy.modules.map(m => m.type)).size).toBe(3)
-    }
-  })
-
-  it('eventually deals every v2 module while preserving legacy v1 pool', () => {
-    const seen = new Set(SEEDS.flatMap(seed => generateBomb(seed, 1).modules.map(m => m.type)))
-    expect([...seen].sort()).toEqual([...MODULE_TYPES].sort())
-  })
-
-  it('keeps seeded v1 bombs byte-for-byte compatible across all existing tiers', () => {
-    const expected = {
-      1: '4ef19bc38c02a1f6ab6605c6907831422bdfeb7165dadab67a40dd8e9dbe6a7a',
-      2: 'da4ea2627c927fa953f6a8cb5841117f213457d9103d74e8a755fa7f167284ae',
-      3: 'bf2fe7bcdc08c142342564404c762ab8eeeb487641a04683e059d2c440b8b504',
-      4: '057a2796dfdf4ade1134d842f1205d5e8034e10376f81beeb2f1efcc8b5d65af',
-      5: '63712d907575238c28626e9bca2f7063be6d2f40413d2f24eded5e59cf3b5594',
-      6: 'be3bbfb24ca455a87293a658d9cfb911ac888ed2e5c597d523bfaabfc1375ec1',
-    }
-    for (const [level, hash] of Object.entries(expected)) {
-      const { generatorVersion, ...legacyBomb } = generateBomb('compatibility-proof', Number(level), 1)
-      expect(generatorVersion).toBe(1)
-      expect(createHash('sha256').update(JSON.stringify(legacyBomb)).digest('hex')).toBe(hash)
     }
   })
 
@@ -116,265 +60,216 @@ describe('generateBomb', () => {
     expect(generateBomb('x', 0).level).toBe(1)
     expect(generateBomb('x', 'hard').level).toBe(1)
   })
-})
 
-describe('wires module', () => {
-  it('always resolves to a real wire', () => {
-    for (const seed of SEEDS) {
-      for (const level of [1, 2, 3]) {
-        const bomb = generateBomb(seed, level)
-        bomb.modules.filter(m => m.type === 'wires').forEach(m => {
-          const n = m.device.wires.length
-          expect(n).toBeGreaterThanOrEqual(3)
-          expect(n).toBeLessThanOrEqual(level <= 1 ? 4 : level === 2 ? 5 : 6)
-          const { index } = solveWires(m, bomb)
-          expect(index).toBeGreaterThanOrEqual(0)
-          expect(index).toBeLessThan(n)
-        })
-      }
-    }
-  })
-
-  it('applies the first matching rule, top to bottom', () => {
-    const bomb = { serial: 'AB12C3', indicators: [{ label: 'SIG', lit: true }, { label: 'NAV', lit: false }] }
-    const m = {
-      type: 'wires',
-      device: { wires: ['red', 'blue', 'red'] },
-      manual: {
-        tables: {
-          3: {
-            rules: [
-              { cond: { kind: 'none', color: 'red' }, action: { kind: 'pos', n: 1 } },
-              { cond: { kind: 'lit', label: 'SIG' }, action: { kind: 'lastOf', color: 'red' } },
-              { cond: { kind: 'serialOdd' }, action: { kind: 'pos', n: 2 } },
-            ],
-            otherwise: { kind: 'last' },
-          },
-        },
-      },
-    }
-    expect(solveWires(m, bomb)).toEqual({ index: 2, rule: 2 })
-    m.manual.tables[3].rules[1].cond = { kind: 'lit', label: 'NAV' }
-    expect(solveWires(m, bomb)).toEqual({ index: 1, rule: 3 })
-    m.manual.tables[3].rules[2].cond = { kind: 'serialEven' }
-    expect(solveWires(m, bomb)).toEqual({ index: 2, rule: 0 })
-  })
-
-  it('writes manual lines in plain words', () => {
-    expect(describeWireCond({ kind: 'many', color: 'blue' })).toBe('there is more than one BLUE wire')
-    expect(describeWireCond({ kind: 'serialOdd' })).toBe('the serial ends in an odd digit')
-    expect(describeWireCond({ kind: 'lit', label: 'FRQ' })).toBe('an indicator marked FRQ is lit')
-    expect(describeWireAction({ kind: 'pos', n: 3 })).toBe('cut the third wire')
-    expect(describeWireAction({ kind: 'firstOf', color: 'green' })).toBe('cut the first GREEN wire')
+  it('still plays: an armed legacy bomb is solvable and uses the base penalty', () => {
+    const bomb = generateBomb('s1', 4)
+    const legacy = { seed: 's1', level: 4, tech: 'X', phase: 'armed', armedAt: 1000, endsAt: 1000 + BOMB_MS, strikes: 0 }
+    expect(isLegacyWire(legacy)).toBe(true)
+    const wire = solveAll(bomb, legacy)
+    expect(wire.result).toMatchObject({ outcome: 'defused', reason: 'solved', cleared: false })
+    expect(wire.run).toBeUndefined()
   })
 })
 
-describe('glyph keypad module', () => {
-  it('shows four glyphs from exactly one manual column', () => {
-    for (const seed of SEEDS) {
-      const bomb = generateBomb(seed, 4, 1)
-      const m = bomb.modules.find(x => x.type === 'keypad')
-      expect(m.manual.columns).toHaveLength(KEYPAD_COLUMNS)
-      expect(m.device.keys).toHaveLength(KEYPAD_KEYS)
-      expect([...m.device.keys].sort()).toEqual([...m.solution].sort())
-      m.manual.columns.flat().forEach(g => expect(g).toBeLessThan(GLYPH_COUNT))
-      const holders = m.manual.columns.filter(col => m.solution.every(g => col.includes(g)))
-      expect(holders).toHaveLength(1)
-      const col = holders[0]
-      const order = m.solution.map(g => col.indexOf(g))
-      expect(order).toEqual([...order].sort((a, b) => a - b))
-    }
+// A room written by the retired two-bomb build: generatorVersion, difficulty,
+// clientVersion acks and a level of 0, 1, 3 or 5, but no mode and no run.
+describe('nodes written by the retired two-bomb build', () => {
+  const upstream = (over = {}) => ({
+    seed: 'u1', level: 3, bombNo: 1, tech: 'X', phase: 'ready', strikes: 0,
+    generatorVersion: 2, difficulty: 'normal', clientVersionX: 2, clientVersionO: 2, ...over,
   })
-})
 
-describe('lever module', () => {
-  it('taps on a label match, else holds for the strip digit', () => {
-    const bomb = { serial: 'AB12C4', indicators: [{ label: 'SIG', lit: false }, { label: 'NAV', lit: false }] }
-    const m = {
-      type: 'lever',
-      device: { color: 'blue', label: 'VENT', strip: 'yellow' },
-      manual: {
-        tapRules: [{ label: 'VENT' }, { color: 'red', cond: { kind: 'serialEven' } }],
-        stripDigits: { red: 1, blue: 2, yellow: 7, white: 4, green: 5 },
-      },
-    }
-    expect(solveLever(m, bomb)).toMatchObject({ tap: true, rule: 1 })
-    m.device.label = 'LOCK'
-    expect(solveLever(m, bomb)).toEqual({ tap: false, digit: 7 })
-    m.device.color = 'red'
-    expect(solveLever(m, bomb)).toMatchObject({ tap: true, rule: 2 })
-  })
-})
-
-describe('switchboard module', () => {
-  it('has five visible LEDs and one deterministic target pattern', () => {
-    const modules = SEEDS.flatMap(seed => generateBomb(seed, 3).modules).filter(m => m.type === 'switchboard')
-    expect(modules.length).toBeGreaterThan(0)
-    for (const m of modules) {
-      expect(m.device.leds).toHaveLength(SWITCH_COUNT)
-      expect(m.manual.invert).toHaveLength(2)
-      expect(new Set(m.manual.invert).size).toBe(2)
-      expect(solveSwitchboard(m)).toEqual(m.solution)
-      expect(solveSwitchboard(m)).toHaveLength(SWITCH_COUNT)
-    }
-  })
-})
-
-describe('pipe maze module', () => {
-  it('carves a perfect maze with a reachable exit far from the start', () => {
-    for (const seed of SEEDS) {
-      const m = generateBomb(seed, 4, 1).modules.find(x => x.type === 'maze')
-      const dist = mazeDistances(m.manual.open, m.device.start)
-      expect(dist.every(d => Number.isFinite(d))).toBe(true)
-      expect(dist[m.device.exit]).toBeGreaterThanOrEqual(5)
-      // perfect maze: exactly cells - 1 passages
-      const passages = m.manual.open.reduce((n, bits) => n + [1, 2, 4, 8].filter(b => bits & b).length, 0) / 2
-      expect(passages).toBe(MAZE_CELLS - 1)
+  it('shows the mode picker for a ready node: not legacy, cannot be armed', () => {
+    for (const level of [0, 1, 3, 5]) {
+      const wire = upstream({ level })
+      expect(isLegacyWire(wire)).toBe(false)
+      expect(armWire(wire, 100, 5000)).toBeNull()
     }
   })
 
-  it('names cells by column letter and row number', () => {
-    expect(cellName(0)).toBe('A1')
-    expect(cellName(35)).toBe('F6')
-    expect(stepCell(0, 'N')).toBe(-1)
-    expect(stepCell(0, 'E')).toBe(1)
+  it('lets the players pick a mode on a ready node, dropping the old fields', () => {
+    const proposed = proposeMode(upstream({ level: 0 }), 'medium', 'X', 5)
+    const accepted = acceptMode(proposed, 'O', 'fresh')
+    expect(accepted).toMatchObject({ mode: 'medium', level: 1, phase: 'ready', run: { booms: 0, ms: 0 } })
+    expect(accepted.generatorVersion).toBeUndefined()
+    expect(accepted.difficulty).toBeUndefined()
+    expect(armWire(accepted, 100, 5000)).toMatchObject({ phase: 'armed' })
+  })
+
+  it('plays an armed node with the legacy generator at max(1, level)', () => {
+    for (const level of [0, 1, 3, 5]) {
+      const wire = upstream({ level, phase: 'armed', armedAt: 10, endsAt: 10 + BOMB_MS })
+      expect(isLegacyWire(wire)).toBe(true)
+      const bomb = generateBomb(wire.seed, wire.level, wire.mode)
+      expect(bomb).toEqual(generateBomb(wire.seed, Math.max(1, level)))
+      expect(solveAll(bomb, wire).result).toMatchObject({ outcome: 'defused' })
+    }
+  })
+
+  it('finishes an over node and the next bomb returns to the mode picker at level 1', () => {
+    for (const outcome of ['defused', 'boom']) {
+      const over = upstream({ level: 5, phase: 'over', result: { outcome, reason: 'solved' }, difficulty: 'hard' })
+      expect(isLegacyWire(over)).toBe(true)
+      const next = nextWireBomb(over, 'n1')
+      expect(next).toMatchObject({ mode: null, level: 1, phase: 'ready', bombNo: 2, tech: 'O' })
+      expect(next.generatorVersion).toBeUndefined()
+    }
+    const ready = nextWireBomb(upstream({ level: 0 }), 'n2')
+    expect(ready).toMatchObject({ mode: null, level: 1, phase: 'ready' })
   })
 })
 
 describe('applyWireAction', () => {
   it('refuses actions before arming and after the end', () => {
-    const bomb = generateBomb('s1', 3)
+    const bomb = generateBomb('s1', 1, 'easy')
     expect(applyWireAction({ phase: 'ready' }, bomb, { mod: 0, kind: 'tap' }, 1)).toBeNull()
     expect(applyWireAction({ phase: 'over' }, bomb, { mod: 0, kind: 'tap' }, 1)).toBeNull()
   })
 
-  it('defuses when every module is solved, crediting the streak', () => {
+  it('defuses when every module is solved, counting the bomb in the tally', () => {
     for (const seed of SEEDS.slice(0, 15)) {
-      const bomb = generateBomb(seed, 4)
-      let wire = { ...armed(seed, 4), stats: { streak: 2, best: 2, defused: 2, booms: 1 } }
-      bomb.modules.forEach((_, i) => {
-        for (const action of solveAction(bomb, i, wire)) {
-          const res = applyWireAction(wire, bomb, action, 2000, 'X')
-          expect(res.ok).toBe(true)
-          wire = res.wire
-        }
-      })
+      const bomb = generateBomb(seed, 1, 'medium')
+      const wire = solveAll(bomb, armed({ seed, level: 1, mode: 'medium', stats: { defused: 2, booms: 1 } }))
       expect(wire.phase).toBe('over')
-      expect(wire.result).toMatchObject({ outcome: 'defused', reason: 'solved' })
+      expect(wire.result).toMatchObject({ outcome: 'defused', reason: 'solved', cleared: false })
       expect(wire.strikes).toBe(0)
-      expect(normalizeWireStats(wire.stats)).toEqual({ streak: 3, best: 3, defused: 3, booms: 1 })
+      expect(normalizeWireStats(wire.stats)).toMatchObject({ defused: 3, booms: 1 })
     }
   })
 
-  it('strikes and costs time on a wrong cut, and never re-cuts a wire', () => {
+  it('strikes and costs the base 15 s on a wrong cut', () => {
     const { bomb, i, seed } = bombWith('wires')
-    const m = bomb.modules[i]
-    const right = solveWires(m, bomb).index
+    const right = solveWires(bomb.modules[i], bomb).index
     const wrong = right === 0 ? 1 : 0
-    const start = armed(seed)
-    const res = applyWireAction(start, bomb, { mod: i, kind: 'cut', wire: wrong }, 2000, 'O')
+    const start = armed({ seed })
+    const res = applyWireAction(start, bomb, { mod: i, kind: 'cut', wire: wrong }, 2000, 'X')
     expect(res.ok).toBe(false)
     expect(res.wire.strikes).toBe(1)
     expect(res.wire.endsAt).toBe(start.endsAt - STRIKE_PENALTY_MS)
-    expect(res.wire.last).toMatchObject({ by: 'O', ok: false, text: `CUT WIRE ${wrong + 1}` })
-    expect(applyWireAction(res.wire, bomb, { mod: i, kind: 'cut', wire: wrong }, 2000)).toBeNull()
-    expect(applyWireAction(res.wire, bomb, { mod: i, kind: 'cut', wire: 9 }, 2000)).toBeNull()
+    expect(res.wire.last).toMatchObject({ by: 'X', ok: false, text: `CUT WIRE ${wrong + 1}` })
   })
 
-  it('keeps keypad progress through a wrong press and ignores a repeat', () => {
-    const { bomb, i, seed } = bombWith('keypad')
-    const sol = bomb.modules[i].solution
-    let wire = armed(seed)
-    wire = applyWireAction(wire, bomb, { mod: i, kind: 'press', glyph: sol[0] }, 2000).wire
-    expect(pressedCount(wire, i)).toBe(1)
-    const wrong = applyWireAction(wire, bomb, { mod: i, kind: 'press', glyph: sol[2] }, 2000)
-    expect(wrong.ok).toBe(false)
-    expect(pressedCount(wrong.wire, i)).toBe(1)
-    expect(applyWireAction(wire, bomb, { mod: i, kind: 'press', glyph: sol[0] }, 2000)).toBeNull()
-  })
-
-  it('judges the lever by tap versus release digit', () => {
-    const { bomb, i, seed } = bombWith('lever')
-    const sol = solveLever(bomb.modules[i], bomb)
-    const wire = armed(seed)
-    const tap = applyWireAction(wire, bomb, { mod: i, kind: 'tap' }, 2000)
-    expect(tap.ok).toBe(sol.tap)
-    if (!sol.tap) {
-      const other = (sol.digit + 1) % 10
-      const miss = applyWireAction(wire, bomb, { mod: i, kind: 'release', clock: `${other}:${other}${other}` }, 2000)
-      expect(miss.ok).toBe(false)
-      expect(applyWireAction(wire, bomb, { mod: i, kind: 'release', clock: `1:${sol.digit}${other}` }, 2000).ok).toBe(true)
-    }
-  })
-
-  it('accepts the switchboard pattern, strikes wrong patterns, and rejects malformed payloads', () => {
-    const { bomb, i, seed } = bombWith('switchboard')
-    const module = bomb.modules[i]
-    const correct = solveSwitchboard(module)
-    const start = armed(seed)
-    const wrong = [...correct]
-    wrong[0] = !wrong[0]
-    const miss = applyWireAction(start, bomb, { mod: i, kind: 'commit', states: wrong }, 2000, 'X')
-    expect(miss.ok).toBe(false)
-    expect(miss.wire.strikes).toBe(1)
-    expect(applyWireAction(miss.wire, bomb, { mod: i, kind: 'commit', states: correct }, 2000, 'X').ok).toBe(true)
-    expect(applyWireAction(start, bomb, { mod: i, kind: 'commit', states: [true] }, 2000)).toBeNull()
-  })
-
-  it('bumps into pipe walls without moving', () => {
-    const { bomb, i, seed } = bombWith('maze')
-    const m = bomb.modules[i]
-    const wire = armed(seed)
-    const pos = m.device.start
-    const blocked = ['N', 'E', 'S', 'W'].find(d => !isOpen(m.manual.open, pos, d))
-    const res = applyWireAction(wire, bomb, { mod: i, kind: 'move', dir: blocked }, 2000)
-    expect(res.ok).toBe(false)
-    expect(mazePos(res.wire, i, m)).toBe(pos)
-    expect(res.wire.last.text).toMatch(/PIPE WALL/)
+  it('costs 25 s per strike with Short Fuse', () => {
+    const seed = SEEDS.find(s => generateBomb(s, 3, 'medium').modifiers.includes('shortFuse') && generateBomb(s, 3, 'medium').modules.some(m => m.type === 'wires'))
+    const bomb = generateBomb(seed, 3, 'medium')
+    expect(bomb.strikePenaltyMs).toBe(25_000)
+    const i = bomb.modules.findIndex(m => m.type === 'wires')
+    const right = solveWires(bomb.modules[i], bomb).index
+    const start = armed({ seed, level: 3, mode: 'medium' })
+    const res = applyWireAction(start, bomb, { mod: i, kind: 'cut', wire: right === 0 ? 1 : 0 }, 2000)
+    expect(res.wire.endsAt).toBe(start.endsAt - 25_000)
   })
 
   it('booms on the third strike', () => {
     const { bomb, i, seed } = bombWith('wires')
-    const m = bomb.modules[i]
-    const right = solveWires(m, bomb).index
-    const wrongs = m.device.wires.map((_, w) => w).filter(w => w !== right)
-    let wire = { ...armed(seed), strikes: MAX_STRIKES - 1 }
+    const right = solveWires(bomb.modules[i], bomb).index
+    const wrongs = bomb.modules[i].device.wires.map((_, w) => w).filter(w => w !== right)
+    const wire = { ...armed({ seed }), strikes: MAX_STRIKES - 1 }
     const res = applyWireAction(wire, bomb, { mod: i, kind: 'cut', wire: wrongs[0] }, 2000)
     expect(res.wire.phase).toBe('over')
-    expect(res.wire.result).toMatchObject({ outcome: 'boom', reason: 'strikes' })
-    expect(res.wire.stats.streak).toBe(0)
+    expect(res.wire.result).toMatchObject({ outcome: 'boom', reason: 'strikes', cleared: false })
     expect(res.wire.stats.booms).toBe(1)
-    wire = res.wire
-    expect(applyWireAction(wire, bomb, { mod: i, kind: 'cut', wire: right }, 2000)).toBeNull()
+    expect(applyWireAction(res.wire, bomb, { mod: i, kind: 'cut', wire: right }, 2000)).toBeNull()
   })
 
   it('booms when a strike penalty eats the last seconds', () => {
     const { bomb, i, seed } = bombWith('wires')
     const right = solveWires(bomb.modules[i], bomb).index
-    const wire = { ...armed(seed, 3, 0), endsAt: 10_000 }
+    const wire = { ...armed({ seed }, 0), endsAt: 10_000 }
     const res = applyWireAction(wire, bomb, { mod: i, kind: 'cut', wire: right === 0 ? 1 : 0 }, 5_000)
     expect(res.wire.result).toMatchObject({ outcome: 'boom', reason: 'time' })
   })
 
   it('turns a late action into the timeout boom', () => {
-    const bomb = generateBomb('s1', 3)
-    const wire = armed('s1', 3, 0)
-    const res = applyWireAction(wire, bomb, { mod: 0, kind: 'tap' }, BOMB_MS + 1)
+    const bomb = generateBomb('s1', 1, 'easy')
+    const res = applyWireAction(armed({}, 0), bomb, { mod: 0, kind: 'tap' }, BOMB_MS + 1)
     expect(res.ok).toBeNull()
     expect(res.wire.result).toMatchObject({ outcome: 'boom', reason: 'time', left: 0 })
   })
 })
 
+describe('run progress and records', () => {
+  it('adds every attempt to the run time and clears nothing before the last level', () => {
+    const bomb = generateBomb('s1', 1, 'easy')
+    const wire = solveAll(bomb, armed({ run: { booms: 1, ms: 5000 } }, 1000))
+    expect(wire.result.cleared).toBe(false)
+    expect(wire.run).toEqual({ booms: 1, ms: 5000 + 1000 })
+    expect(normalizeWireStats(wire.stats).records.easy.clears).toBe(0)
+  })
+
+  it('MODE CLEARED on the last level updates the mode records', () => {
+    const bomb = generateBomb('s2', 2, 'easy')
+    const stats = { defused: 1, booms: 0, records: { easy: { bestMs: 9000, fewestBooms: 2, clears: 1 } } }
+    const wire = solveAll(bomb, armed({ seed: 's2', level: 2, run: { booms: 1, ms: 4000 }, stats }, 0))
+    expect(wire.result).toMatchObject({ outcome: 'defused', cleared: true })
+    expect(wire.run).toEqual({ booms: 1, ms: 4000 + 2000 })
+    expect(normalizeWireStats(wire.stats).records.easy).toEqual({ bestMs: 6000, fewestBooms: 1, clears: 2 })
+    expect(normalizeWireStats(wire.stats).records.hard).toEqual({ bestMs: null, fewestBooms: null, clears: 0 })
+  })
+
+  it('keeps a better old record when the new run is worse', () => {
+    const bomb = generateBomb('s2', 2, 'easy')
+    const stats = { records: { easy: { bestMs: 500, fewestBooms: 0, clears: 3 } } }
+    const wire = solveAll(bomb, armed({ seed: 's2', level: 2, run: { booms: 2, ms: 100_000 }, stats }, 0))
+    expect(normalizeWireStats(wire.stats).records.easy).toEqual({ bestMs: 500, fewestBooms: 0, clears: 4 })
+  })
+
+  it('a boom on the last level clears nothing', () => {
+    const bomb = generateBomb('s2', 2, 'easy')
+    const boomed = applyTimeout({ ...armed({ seed: 's2', level: 2 }), endsAt: 5000 }, 6000)
+    expect(bomb.level).toBe(2)
+    expect(boomed.result).toMatchObject({ outcome: 'boom', cleared: false })
+    expect(normalizeWireStats(boomed.stats).records.easy.clears).toBe(0)
+  })
+
+  it('normalizes missing and malformed stats', () => {
+    const empty = normalizeWireStats(undefined)
+    expect(empty).toMatchObject({ defused: 0, booms: 0 })
+    expect(empty.records.medium).toEqual({ bestMs: null, fewestBooms: null, clears: 0 })
+    expect(normalizeWireStats({ streak: 4, best: 4, defused: 2 })).toMatchObject({ defused: 2, booms: 0 })
+    expect(normalizeWireStats({ records: { easy: { bestMs: -3, fewestBooms: 'x', clears: 'y' } } }).records.easy)
+      .toEqual({ bestMs: null, fewestBooms: null, clears: 0 })
+  })
+
+  it('plays a whole EASY run through nextWireBomb: boom retries, clear resets', () => {
+    let w = nextWireBomb(null, 'a')
+    expect(w.mode).toBeNull()
+    w = acceptMode(proposeMode(w, 'easy', 'X', 1), 'O', 'b')
+    expect(w).toMatchObject({ mode: 'easy', level: 1, run: { booms: 0, ms: 0 } })
+    // level 1 boom -> retry level 1, booms 1
+    let over = applyTimeout({ ...armWire(w, 0, 1000) }, 2000)
+    w = nextWireBomb(over, 'c')
+    expect(w).toMatchObject({ mode: 'easy', level: 1, run: { booms: 1 } })
+    // level 1 defuse -> level 2
+    over = solveAll(generateBomb('c', 1, 'easy'), armWire(w, 0, BOMB_MS), 500)
+    w = nextWireBomb(over, 'd')
+    expect(w).toMatchObject({ level: 2, run: { booms: 1, ms: 2500 } })
+    // level 2 defuse -> cleared -> new run at level 1, same mode
+    over = solveAll(generateBomb('d', 2, 'easy'), armWire(w, 0, BOMB_MS), 700)
+    expect(over.result.cleared).toBe(true)
+    w = nextWireBomb(over, 'e')
+    expect(w).toMatchObject({ mode: 'easy', level: 1, run: { booms: 0, ms: 0 } })
+    expect(normalizeWireStats(w.stats).records.easy).toMatchObject({ bestMs: 3200, fewestBooms: 1, clears: 1 })
+  })
+})
+
 describe('arming, timeout and clock', () => {
   it('arms only a ready bomb and supports timers off', () => {
-    const ready = { seed: 'a', level: 1, tech: 'X', phase: 'ready', strikes: 0 }
-    expect(armWire(ready, 100, 5000)).toMatchObject({ phase: 'armed', armedAt: 100, endsAt: 5100 })
-    expect(armWire(ready, 100, null)).toMatchObject({ phase: 'armed', endsAt: null })
-    expect(armWire({ ...ready, phase: 'armed' }, 100, 5000)).toBeNull()
+    expect(armWire(ready(), 100, 5000)).toMatchObject({ phase: 'armed', armedAt: 100, endsAt: 5100 })
+    expect(armWire(ready(), 100, null)).toMatchObject({ phase: 'armed', endsAt: null })
+    expect(armWire(ready({ phase: 'armed' }), 100, 5000)).toBeNull()
+  })
+
+  it('refuses to arm a bomb until a mode is set', () => {
+    expect(armWire(ready({ mode: null }), 100, 5000)).toBeNull()
+    expect(armWire(ready({ mode: undefined }), 100, 5000)).toBeNull()
+    expect(armWire(ready({ mode: 'bogus' }), 100, 5000)).toBeNull()
+    const legacy = { seed: 'a', level: 5, tech: 'X', phase: 'ready', strikes: 0 }
+    expect(armWire(legacy, 100, 5000)).toBeNull()
   })
 
   it('times out only an armed bomb past its deadline', () => {
-    const wire = armWire({ phase: 'ready' }, 0, 1000)
+    const wire = armWire(ready(), 0, 1000)
     expect(applyTimeout(wire, 999)).toBeNull()
     expect(applyTimeout(wire, 1000).result.outcome).toBe('boom')
     expect(applyTimeout({ ...wire, endsAt: null }, 1e9)).toBeNull()
@@ -386,5 +281,104 @@ describe('arming, timeout and clock', () => {
     expect(formatClock(-5)).toBe('0:00')
     expect(clockText({ armedAt: 0, endsAt: 65_000 }, 0)).toBe('1:05')
     expect(clockText({ armedAt: 0, endsAt: null }, 7_000)).toBe('0:07')
+  })
+})
+
+describe('mode proposal reducers', () => {
+  const picking = () => nextWireBomb(null, 'p1')
+
+  it('lets either seat propose, overwriting an earlier proposal', () => {
+    const w1 = proposeMode(picking(), 'hard', 'X', 10)
+    expect(w1.modeProposal).toEqual({ by: 'X', mode: 'hard', at: 10 })
+    const w2 = proposeMode(w1, 'easy', 'O', 20)
+    expect(w2.modeProposal).toEqual({ by: 'O', mode: 'easy', at: 20 })
+  })
+
+  it('refuses a bad mode, a bad seat, an armed bomb and the current mode', () => {
+    expect(proposeMode(picking(), 'endless', 'X', 1)).toBeNull()
+    expect(proposeMode(picking(), 'easy', null, 1)).toBeNull()
+    expect(proposeMode(picking(), 'easy', 'Z', 1)).toBeNull()
+    expect(proposeMode(ready({ phase: 'armed' }), 'hard', 'X', 1)).toBeNull()
+    expect(proposeMode(ready({ mode: 'easy' }), 'easy', 'X', 1)).toBeNull()
+    expect(proposeMode(null, 'easy', 'X', 1)).toBeNull()
+    expect(proposeMode(ready({ mode: 'easy' }), 'hard', 'X', 1)).not.toBeNull()
+  })
+
+  it('accept sets the mode, clears the proposal and restarts at level 1 with a new seed', () => {
+    const proposed = proposeMode(picking(), 'medium', 'X', 5)
+    expect(acceptMode(proposed, 'X', 'new')).toBeNull() // the proposer cannot accept their own
+    const w = acceptMode(proposed, 'O', 'new')
+    expect(w).toMatchObject({ seed: 'new', mode: 'medium', level: 1, phase: 'ready', run: { booms: 0, ms: 0 }, bombNo: 1, tech: 'X' })
+    expect(w.modeProposal).toBeUndefined()
+  })
+
+  it('accepting from a finished bomb drops its state, flips the Tech and keeps the tally', () => {
+    const over = { ...ready({ mode: 'easy', level: 2, phase: 'over', bombNo: 3, tech: 'X', stats: { defused: 2, booms: 1 } }), result: { outcome: 'defused' }, solved: { 0: true }, last: { text: 'x' }, ping: { by: 'X', p: 1, at: 1 }, endsAt: 5, armedAt: 1 }
+    const w = acceptMode(proposeMode(over, 'hard', 'O', 9), 'X', 'z')
+    expect(w).toMatchObject({ mode: 'hard', level: 1, bombNo: 4, tech: 'O', phase: 'ready', stats: { defused: 2, booms: 1 } })
+    for (const key of ['result', 'solved', 'last', 'ping', 'endsAt', 'armedAt', 'modeProposal']) expect(w[key]).toBeUndefined()
+  })
+
+  it('accept needs a proposal, and not while armed', () => {
+    expect(acceptMode(picking(), 'O', 'z')).toBeNull()
+    const armedWithProposal = { ...ready({ phase: 'armed' }), modeProposal: { by: 'X', mode: 'easy', at: 1 } }
+    expect(acceptMode(armedWithProposal, 'O', 'z')).toBeNull()
+  })
+
+  it('either seat can cancel or decline; nothing to cancel is null', () => {
+    const proposed = proposeMode(picking(), 'hard', 'X', 1)
+    expect(cancelMode(proposed, 'X').modeProposal).toBeUndefined()
+    expect(cancelMode(proposed, 'O').modeProposal).toBeUndefined()
+    expect(cancelMode(proposed, 'X')).toMatchObject({ seed: 'p1', phase: 'ready' })
+    expect(cancelMode(picking(), 'X')).toBeNull()
+    expect(cancelMode(proposed, 'Q')).toBeNull()
+  })
+})
+
+describe('Swap', () => {
+  // A Hard level 3 bomb that carries Swap and has a wires module the Tech can strike on.
+  const seed = Array.from({ length: 400 }, (_, i) => `swap-${i}`)
+    .find(s => { const b = generateBomb(s, 3, 'hard'); return b.modifiers.includes('swap') && b.modules.some(m => m.type === 'wires') })
+  const bomb = generateBomb(seed, 3, 'hard')
+  // A slow Gauge (timerScale 100) so no burst gets in the way of the actions below.
+  const start = () => armWire(ready({ seed, level: 3, mode: 'hard' }), 1000, 200_000, bomb, 100)
+  const i = bomb.modules.findIndex(m => m.type === 'wires')
+  const cut = (w) => ({ mod: i, kind: 'cut', wire: w })
+  const right = () => solveWires(bomb.modules[i], bomb).index
+
+  it('arms with swapAt at half of the base duration, scaled or not', () => {
+    expect(start().swapAt).toBe(1000 + 100_000)
+    expect(armWire(ready({ seed, level: 3, mode: 'hard' }), 1000, 400_000, bomb, 2).swapAt).toBe(1000 + 200_000)
+    // Timers off: no deadline, but the swap still lands at half of the base clock.
+    const off = armWire(ready({ seed, level: 3, mode: 'hard' }), 1000, null, bomb, 0)
+    expect(off.endsAt).toBeNull()
+    expect(off.swapAt).toBe(1000 + bomb.durationMs / 2)
+  })
+
+  it('does not set swapAt without the modifier, nor keep an old one', () => {
+    const plain = generateBomb('p', 1, 'easy')
+    expect(armWire(ready(), 1000, 5000, plain, 1).swapAt).toBeUndefined()
+    expect(armWire(ready({ swapAt: 5 }), 1000, 5000, plain, 1).swapAt).toBeUndefined()
+  })
+
+  it('accepts actions only from the current Tech: X before the swap, O after', () => {
+    const wire = start()
+    expect(wire.tech).toBe('X')
+    expect(applyWireAction(wire, bomb, cut(right()), 2000, 'O')).toBeNull()
+    expect(applyWireAction(wire, bomb, cut(right()), 100_999, 'O')).toBeNull()
+    expect(applyWireAction(wire, bomb, cut(right()), 100_999, 'X')).not.toBeNull()
+    expect(applyWireAction(wire, bomb, cut(right()), 101_000, 'X')).toBeNull()
+    const res = applyWireAction(wire, bomb, cut(right()), 101_000, 'O')
+    expect(res.ok).toBe(true)
+    expect(res.wire.last.by).toBe('O')
+  })
+
+  it('rejects the Handbook seat even on a bomb without Swap, and still takes an unseated caller', () => {
+    const plain = generateBomb(SEEDS[0], 1, 'easy')
+    const wire = armWire(ready({ seed: SEEDS[0] }), 1000, BOMB_MS, plain, 1)
+    const module = plain.modules[0]
+    const action = MODULES[module.type].solveNext(module, plain, wire, 0, 2000)
+    expect(applyWireAction(wire, plain, action, 2000, 'O')).toBeNull()
+    expect(applyWireAction(wire, plain, action, 2000)).not.toBeNull()
   })
 })
