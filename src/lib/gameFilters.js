@@ -32,3 +32,16 @@ export function sortGames(list, sort) {
   if (sort === 'quick') return [...list].sort((a, b) => (a.durationMin ?? 999) - (b.durationMin ?? 999))
   return list
 }
+
+// Catalog card views. LARGE (one full-width card per row, big art) exists on
+// phone widths only; on wider screens a stored LARGE shows as DETAILED, and
+// its toggle is hidden, so desktop keeps three views.
+export const CATALOG_VIEWS = ['detailed', 'compact', 'mini', 'large']
+
+export function readCatalogView(stored) {
+  return CATALOG_VIEWS.includes(stored) ? stored : 'detailed'
+}
+
+export function effectiveCatalogView(view, isPhone) {
+  return view === 'large' && !isPhone ? 'detailed' : view
+}

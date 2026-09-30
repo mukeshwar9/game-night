@@ -30,9 +30,12 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
   // detailed view). The mono icon sits behind as fallback — art covers it
   // when the game has art (GameArt* returns null otherwise).
 
-  if (layout === 'tile') {
+  // LARGE (phones): the same tile at full width, one per row, so the art is
+  // big; the fallback icon and the label grow with it.
+  if (layout === 'tile' || layout === 'large') {
+    const isLarge = layout === 'large'
     return (
-      <div className="relative w-full max-w-[160px] mx-auto">
+      <div className={cn('relative w-full mx-auto', !isLarge && 'max-w-[160px]')}>
         <button
           onClick={() => onTap(game)}
           disabled={isBusy}
@@ -46,7 +49,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           )}
         >
           <span aria-hidden="true" className="relative block w-full aspect-square overflow-hidden rounded-xl bg-retro-surface">
-            <span className="absolute inset-0 flex items-center justify-center text-retro-text [&_svg]:w-24 [&_svg]:h-24">
+            <span className={cn('absolute inset-0 flex items-center justify-center text-retro-text', isLarge ? '[&_svg]:w-1/2 [&_svg]:h-1/2' : '[&_svg]:w-2/3 [&_svg]:h-2/3')}>
               {Icon && <Icon />}
             </span>
             <GameArt type={artType} className="absolute inset-0 w-full h-full block" />
@@ -56,7 +59,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
               <span className="block mt-1"><PixelDots size="sm" tone="cta" /></span>
             ) : (
               <>
-                <span className="block font-pixel text-[9px] text-retro-text leading-snug line-clamp-2 min-h-[26px] [overflow-wrap:anywhere]">{label}</span>
+                <span className={cn('block font-pixel text-retro-text leading-snug line-clamp-2 [overflow-wrap:anywhere]', isLarge ? 'text-[11px]' : 'text-[9px] min-h-[26px]')}>{label}</span>
                 <span className="block font-mono text-[10px] text-retro-dim mt-1 truncate">
                   <span className={game.nPlayer ? 'text-retro-p2' : undefined}>{getPlayerTag(game)}</span>
                   {game.durationMin != null && ` · ~${game.durationMin} min`}
