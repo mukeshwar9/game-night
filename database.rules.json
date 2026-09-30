@@ -405,9 +405,6 @@
           "clientVersionO": {
             ".validate": "newData.val() === data.val() || newData.val() === 2 && auth.uid === root.child('games').child($gameId).child('players').child('O').child('playerId').val()"
           },
-          "level": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 6"
-          },
           "difficulty": {
             ".validate": "newData.val() === data.val() || !data.exists() && (newData.val() === 'easy' || newData.val() === 'normal' || newData.val() === 'hard') && newData.parent().child('generatorVersion').val() === 2 && newData.parent().child('phase').val() === 'ready' && newData.parent().child('bombNo').val() === 1 && auth.uid === root.child('games').child($gameId).child('players').child(newData.parent().child('tech').val()).child('playerId').val() && (newData.val() === 'easy' && newData.parent().child('level').val() === 1 || newData.val() === 'normal' && newData.parent().child('level').val() === 3 || newData.val() === 'hard' && newData.parent().child('level').val() === 5)"
           },
@@ -419,6 +416,48 @@
           },
           "strikes": {
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+          },
+          "mode": {
+            ".validate": "newData.val() === 'easy' || newData.val() === 'medium' || newData.val() === 'hard'"
+          },
+          "modeProposal": {
+            ".validate": "newData.hasChildren(['by', 'mode', 'at'])",
+            "by": {
+              ".validate": "newData.val() === 'X' || newData.val() === 'O'"
+            },
+            "mode": {
+              ".validate": "newData.val() === 'easy' || newData.val() === 'medium' || newData.val() === 'hard'"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now + 3600000)"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          },
+          "level": {
+            ".validate": "newData.val() === data.val() || (newData.isNumber() && newData.val() >= 1 && newData.val() <= 3 && newData.val() % 1 === 0)"
+          },
+          "swapAt": {
+            ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now + 3600000)"
+          },
+          "gauge": {
+            ".validate": "newData.hasChildren(['base', 'at', 'vents'])",
+            "base": {
+              ".validate": "newData.isNumber()"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now + 3600000)"
+            },
+            "vents": {
+              ".validate": "newData.isNumber()"
+            },
+            "fillMs": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "$other": {
+              ".validate": "false"
+            }
           },
           "ping": {
             ".validate": "newData.hasChildren(['by', 'p', 'at'])",

@@ -1,11 +1,13 @@
 # Cloud Functions
 
-Two functions, both in `index.js`. Cloud Functions need the **Blaze (pay-as-you-go) plan**; at game-night traffic both stay well inside the free tier.
+Four functions, exported from `index.js`. Cloud Functions need the **Blaze (pay-as-you-go) plan**. Every function has a `maxInstances` cap (`setGlobalOptions` in `index.js`, plus one per function), so a burst of room or invite writes cannot run up the bill.
 
 | Function | Trigger | What it does |
 |---|---|---|
-| `cleanupStaleGames` | Every 24 h | Deletes rooms idle for a day, stale public listings and old invites, the `results/` record of every deleted room, and error-report buckets (`errors/{UTC day}`) older than the last 14 days. It never deletes leaderboard rows. |
+| `cleanupStaleGames` | Every hour | Deletes rooms idle for a day, stale public listings and old invites, the `results/` record of every deleted room, and error-report buckets (`errors/{UTC day}`) older than the last 14 days. It never deletes leaderboard rows. |
 | `creditMatchResults` (`results.js`) | Every write to `games/{gameId}/status` | Credits finished 2-player matches to `leaderboard/{uid}`, once per match, after re-checking the result. This is the only writer of `leaderboard/`. |
+| `sendInvitePush` (`push.js`) | Create of `invites/{uid}/{inviteId}` | Sends the invite as a **data-only** FCM message to the recipient's `users/{uid}/fcmTokens` (the service worker draws the notification, so there is no duplicate). The link is `/game/{gameId}`. Dead tokens are removed. The client does not call anything: writing the invite is enough. |
+| `cleanupDeletedAccount` (`deleteAccount.js`) | Firebase Auth user deleted | Removes what an account owned: the server-only `leaderboard/{uid}` row and anything the app's "Delete my data" did not get to. |
 
 ## How a result is credited
 
