@@ -10,9 +10,11 @@ import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { GAME_TYPES, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
-import { UPGRADE_ERRORS, preloadGoogleSignIn } from '../lib/auth'
+import { preloadGoogleSignIn, canSignInWithGoogle, canSignInWithApple, upgradeMessage } from '../lib/auth'
 import { isInAppBrowser } from '../lib/uaLogic'
+import { isNative } from '../lib/platform'
 import OpenInBrowserHint from './OpenInBrowserHint'
+import AppleMark from './AppleMark'
 import { configError } from '../lib/firebase'
 import { markOnboarded } from '../lib/onboarding'
 import { NAME_MAX, initialName, suggestName, suggestNames, validateName } from '../lib/onboardingLogic'
@@ -39,6 +41,7 @@ export default function Onboarding({ onDone, invite = null }) {
   const gameCount = GAME_TYPES.filter(t => !t.variantOf).length
   const [step, setStep] = useState('name')
   const [googleBusy, runGoogle] = useBusy()
+  const [appleBusy, runApple] = useBusy()
   const [saving, runSave] = useBusy()
   const [suggestion] = useState(() => suggestName())
   const [chips, setChips] = useState(() => suggestNames(3, Math.random, suggestion))
@@ -69,8 +72,11 @@ export default function Onboarding({ onDone, invite = null }) {
 
   const canOfferGoogle = !invite && isAnonymous && !configError
   // Google refuses OAuth inside Instagram/TikTok/Facebook webviews: hint instead.
-  const inApp = isInAppBrowser()
-  const showGoogle = canOfferGoogle && !inApp
+  // The store app is not one of those: it signs in through native sheets, and
+  // each provider shows only when it is available on this platform (auth.js).
+  const inApp = !isNative && isInAppBrowser()
+  const showGoogle = canOfferGoogle && !inApp && canSignInWithGoogle()
+  const showApple = canOfferGoogle && !inApp && canSignInWithApple()
   useEffect(() => (showGoogle ? preloadGoogleSignIn() : undefined), [showGoogle])
 
   const setName = (v) => { setNameInput(v); setShowError(false) }
@@ -93,18 +99,20 @@ export default function Onboarding({ onDone, invite = null }) {
     setStep('look')
   }
 
-  const handleGoogle = () => runGoogle(async () => {
-    const u = await upgrade()
+  const signIn = (provider, run) => run(async () => {
+    const u = await upgrade(provider)
     // undefined = a redirect was kicked off (mobile/standalone PWA); null = the
-    // popup was cancelled. Either way, stay put and stay silent.
+    // popup or native sheet was cancelled. Either way, stay put and stay silent.
     if (!u) return
     sounds.join()
-    // A Google name replaces an untouched default.
+    // A provider name replaces an untouched default (Apple shares none).
     setNameInput(prev => prev ?? (u.displayName ? validateName(u.displayName).name : null))
   }, (e) => {
-    console.error('Google sign-in failed:', e)
-    toast.error(UPGRADE_ERRORS[e?.code] || `SIGN-IN FAILED${e?.code ? ` (${e.code})` : ''}. PLEASE TRY AGAIN.`)
+    console.error(`${provider} sign-in failed:`, e)
+    toast.error(upgradeMessage(e, provider))
   })
+  const handleGoogle = () => signIn('google', runGoogle)
+  const handleApple = () => signIn('apple', runApple)
 
   const finish = () => runSave(async () => {
     const finalName = check.ok ? check.name : suggestion
@@ -239,10 +247,20 @@ export default function Onboarding({ onDone, invite = null }) {
                 <button
                   type="button"
                   onClick={handleGoogle}
-                  disabled={googleBusy}
+                  disabled={googleBusy || appleBusy}
                   className="w-full min-h-11 flex items-center justify-center gap-2 font-pixel text-[9px] text-retro-p1 hover:text-glow-p1 transition-all disabled:opacity-50"
                 >
                   <GoogleMark /> {googleBusy ? 'SIGNING IN…' : 'HAVE AN ACCOUNT? SIGN IN WITH GOOGLE'}
+                </button>
+              )}
+              {showApple && (
+                <button
+                  type="button"
+                  onClick={handleApple}
+                  disabled={googleBusy || appleBusy}
+                  className="w-full min-h-11 flex items-center justify-center gap-2 border border-retro-text bg-retro-text text-retro-bg rounded font-pixel text-[9px] transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <AppleMark size={13} /> {appleBusy ? 'SIGNING IN…' : showGoogle ? 'SIGN IN WITH APPLE' : 'HAVE AN ACCOUNT? SIGN IN WITH APPLE'}
                 </button>
               )}
               {!isAnonymous && user?.email && (

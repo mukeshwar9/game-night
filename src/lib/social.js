@@ -15,7 +15,7 @@ import {
   ref, get, set, update, remove, onValue, runTransaction, push, onDisconnect,
 } from 'firebase/database'
 import { db, auth } from './firebase'
-import { getUid, deleteCurrentUser } from './auth'
+import { getUid, deleteCurrentUser, prepareAccountDeletion } from './auth'
 import { deletionPatch } from './deleteAccountLogic'
 import { defaultAvatarForId } from './avatars'
 
@@ -401,6 +401,9 @@ export function setupPresence(uid) {
 export async function deleteMyData() {
   const uid = getUid()
   if (!db || !uid) throw new Error('not-signed-in')
+  // Native re-auth (Apple/Google sheet) first, so dismissing it aborts before
+  // any row is removed. No-op on the web and for guests.
+  await prepareAccountDeletion()
   const [me, friends, requests, invites] = await Promise.all([
     get(ref(db, `users/${uid}/code`)),
     get(ref(db, `friends/${uid}`)),

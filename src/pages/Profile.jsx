@@ -12,12 +12,15 @@ import { useAuth } from '../lib/AuthContext'
 import { setProfile, deleteMyData } from '../lib/social'
 import { getStats, getMatches } from '../lib/profile'
 import { getGameConfig } from '../lib/games'
-import { UPGRADE_ERRORS, preloadGoogleSignIn } from '../lib/auth'
+import { preloadGoogleSignIn, canSignInWithGoogle, canSignInWithApple, upgradeMessage } from '../lib/auth'
+import { accountStatusLine } from '../lib/nativeAuthLogic'
+import { isNative } from '../lib/platform'
 import { mutedList } from '../lib/moderationLogic'
 import { unmute, useMutedMap } from '../lib/mute'
 import useBusy from '../hooks/useBusy'
 import PushToggle from '../components/PushToggle'
 import OpenInBrowserHint from '../components/OpenInBrowserHint'
+import AppleMark from '../components/AppleMark'
 import { isInAppBrowser } from '../lib/uaLogic'
 import LegalLinks from '../components/LegalLinks'
 import { cn } from '@/lib/utils'
@@ -27,8 +30,13 @@ export default function Profile() {
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
   const muted = mutedList(useMutedMap())
   const [busy, setBusy] = useState(false)
-  const inApp = isInAppBrowser()
-  useEffect(() => (isAnonymous && !inApp ? preloadGoogleSignIn() : undefined), [isAnonymous, inApp])
+  // The store app is never an in-app browser; it signs in through native sheets.
+  const inApp = !isNative && isInAppBrowser()
+  const showGoogle = canSignInWithGoogle()
+  const showApple = canSignInWithApple()
+  useEffect(() => (isAnonymous && !inApp && showGoogle ? preloadGoogleSignIn() : undefined), [isAnonymous, inApp, showGoogle])
+  const [upgrading, runUpgrade] = useBusy()
+  const [upgradeProvider, setUpgradeProvider] = useState('google')
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteBusy, runDelete] = useBusy()
@@ -88,17 +96,17 @@ export default function Profile() {
     setEditingAvatar(false)
   }
 
-  const handleUpgrade = async () => {
-    setBusy(true)
-    try {
-      const u = await upgrade()
+  // provider: 'google' | 'apple'. null/undefined from upgrade() = the sheet or
+  // popup was dismissed (or a redirect started): stay put, stay silent.
+  const handleUpgrade = (provider) => {
+    setUpgradeProvider(provider)
+    return runUpgrade(async () => {
+      const u = await upgrade(provider)
       if (u) toast.success('SIGNED IN — YOUR PROFILE IS NOW SAVED ACROSS DEVICES!')
-    } catch (e) {
-      console.error('Google sign-in failed:', e)
-      toast.error(UPGRADE_ERRORS[e?.code] || `SIGN-IN FAILED${e?.code ? ` (${e.code})` : ''}. PLEASE TRY AGAIN.`)
-    } finally {
-      setBusy(false)
-    }
+    }, (e) => {
+      console.error(`${provider} sign-in failed:`, e)
+      toast.error(upgradeMessage(e, provider))
+    })
   }
 
   const handleSignOut = async () => {
@@ -116,7 +124,16 @@ export default function Profile() {
   // Follows the useBusy convention: DELETING…, disabled, toast on failure. On
   // success the page reloads to a fresh start, so there is no success toast.
   const handleDelete = () => runDelete(deleteMyData, (e) => {
+    // Dismissing the native re-sign-in sheet aborts before anything is removed.
+    if (e?.code === 'auth/native-cancelled') {
+      toast('DELETE CANCELLED — NOTHING WAS REMOVED.')
+      return
+    }
     console.error('Delete my data failed:', e)
+    if (e?.code === 'auth/user-mismatch') {
+      toast.error(upgradeMessage(e))
+      return
+    }
     toast.error(e?.code === 'PERMISSION_DENIED' || /permission/i.test(e?.message || '')
       ? 'COULDN\'T DELETE YET — WAIT 30 SECONDS AND TRY AGAIN.'
       : 'COULDN\'T DELETE — CHECK YOUR CONNECTION AND TRY AGAIN.')
@@ -152,7 +169,7 @@ export default function Profile() {
           <div className="min-w-0 flex-1">
             <p className="font-pixel text-xs text-retro-text truncate">{profile?.displayName || '…'}</p>
             <p className="font-mono text-[11px] text-retro-dim mt-1 truncate">
-              {isAnonymous ? 'Guest account' : `Signed in with Google${user?.email ? ` · ${user.email}` : ''}`}
+              {accountStatusLine({ isAnonymous, providerData: user?.providerData, email: user?.email })}
             </p>
           </div>
           {!editingAvatar && (
@@ -274,21 +291,38 @@ export default function Profile() {
           )}
         </div>
 
-        {/* Account */}
+        {/* Account. A guest with no sign-in method on offer (native shell while
+            the launch flags are off) has nothing to show here. */}
+        {(!isAnonymous || inApp || showGoogle || showApple) && (
         <div className="space-y-2">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">ACCOUNT</label>
           {isAnonymous && inApp ? (
             <OpenInBrowserHint />
           ) : isAnonymous ? (
-            <button
-              onClick={handleUpgrade}
-              disabled={busy}
-              className="w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/40
-                bg-retro-card text-retro-p1 font-pixel text-[10px] rounded
-                hover:border-retro-p1 hover:shadow-neon-p1 transition-all active:scale-95 disabled:opacity-50"
-            >
-              <GoogleMark /> {busy ? 'SIGNING IN…' : 'SIGN IN WITH GOOGLE'}
-            </button>
+            <div className="space-y-2">
+              {showGoogle && (
+                <button
+                  onClick={() => handleUpgrade('google')}
+                  disabled={upgrading}
+                  className="w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/40
+                    bg-retro-card text-retro-p1 font-pixel text-[10px] rounded
+                    hover:border-retro-p1 hover:shadow-neon-p1 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <GoogleMark /> {upgrading && upgradeProvider === 'google' ? 'SIGNING IN…' : 'SIGN IN WITH GOOGLE'}
+                </button>
+              )}
+              {showApple && (
+                <button
+                  onClick={() => handleUpgrade('apple')}
+                  disabled={upgrading}
+                  className="w-full py-2.5 min-h-11 flex items-center justify-center gap-2 border border-retro-text
+                    bg-retro-text text-retro-bg font-pixel text-[10px] rounded
+                    transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <AppleMark /> {upgrading && upgradeProvider === 'apple' ? 'SIGNING IN…' : 'SIGN IN WITH APPLE'}
+                </button>
+              )}
+            </div>
           ) : (
             <button
               onClick={handleSignOutClick}
@@ -308,6 +342,7 @@ export default function Profile() {
               : 'Your profile, avatar, friends & stats sync across every device you sign in on.'}
           </p>
         </div>
+        )}
 
         {/* Stats */}
         <div className="space-y-2">
