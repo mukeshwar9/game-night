@@ -24,8 +24,8 @@ export default function DailyTile() {
         <span className="block font-pixel text-[10px] text-retro-text tracking-wider">DAILY PUZZLE</span>
         <span className="block font-mono text-[11px] text-retro-dim mt-1 truncate">{detail}</span>
       </span>
-      <span className="shrink-0 min-h-11 min-w-[76px] px-3 flex items-center justify-center border border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider rounded group-hover:bg-retro-tint-cta transition-colors">
-        {played ? 'RETRY' : 'PLAY'}
+      <span className="shrink-0 min-h-11 pl-2 flex items-center gap-1.5 text-retro-cta font-pixel text-[9px] tracking-wider group-hover:text-glow-cta transition-colors">
+        {played ? 'RETRY' : 'PLAY'} <span aria-hidden="true">→</span>
       </span>
     </Link>
   )

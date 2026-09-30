@@ -152,15 +152,8 @@ export default function Onboarding({ onDone, invite = null }) {
                 WHAT SHOULD WE CALL YOU?
               </h1>
 
-              {/* Live preview — the card other players will see */}
-              <div className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-3" aria-hidden="true">
-                <Avatar id={selectedAvatar} size={44} />
-                <div className="min-w-0">
-                  <p className="font-pixel text-[8px] text-retro-dim tracking-widest">YOUR PLAYER CARD</p>
-                  <p className="font-pixel text-xs text-retro-text truncate mt-1.5">{check.name || '…'}</p>
-                </div>
-              </div>
-
+              {/* No player-card preview here: it repeated the name being typed
+                  one line below, and the look is the whole of the next step. */}
               <div className="space-y-1.5">
                 <label htmlFor={`${ids}-name`} className="sr-only">Your name</label>
                 <div className="flex gap-2">

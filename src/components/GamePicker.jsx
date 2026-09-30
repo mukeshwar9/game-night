@@ -360,10 +360,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
                 className="space-y-2"
                 style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}
               >
-                <div className="flex items-baseline justify-between gap-2">
-                  <h2 id={`catalog-${c.id}`} className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</h2>
-                  <span className="font-mono text-[11px] text-retro-dim">{c.games.length}</span>
-                </div>
+                {/* The count lives on the category chip; no second copy here. */}
+                <h2 id={`catalog-${c.id}`} className="font-pixel text-[9px] text-retro-cta tracking-widest">{c.full}</h2>
                 {renderGrid(c.games)}
               </section>
             ))}

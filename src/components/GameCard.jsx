@@ -32,7 +32,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
 
   if (layout === 'tile') {
     return (
-      <div className="relative w-full max-w-[160px] mx-auto">
+      <div className="group relative w-full max-w-[160px] mx-auto">
         <button
           onClick={() => onTap(game)}
           disabled={isBusy}
@@ -72,8 +72,10 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
             aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
             aria-pressed={!!isFav}
             className={cn(
-              'absolute top-2 right-2 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-retro-bg/60 transition-colors',
-              isFav ? 'text-retro-p2' : 'text-retro-dim hover:text-retro-text',
+              'absolute top-2 right-2 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-retro-bg/60 transition-[color,opacity]',
+              // A heart on every tile was 71 extra marks over the art. With a
+              // pointer, an unset heart waits for hover/focus; touch keeps it.
+              isFav ? 'text-retro-p2' : 'text-retro-dim hover:text-retro-text [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
             )}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill={isFav ? 'currentColor' : 'none'}

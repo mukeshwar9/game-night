@@ -122,8 +122,9 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     if (!onSwitchGame) return null
     const suggestions = suggestGames(gameType)
     return (
+      // One row: three suggestions, then the full switcher — no caption;
+      // the chips say what they do.
       <div className="space-y-2">
-        <p className="font-pixel text-[9px] text-retro-dim tracking-widest">PLAY SOMETHING ELSE</p>
         <div className="flex flex-wrap items-center justify-center gap-2 [&>div]:mt-0 [&>div>button]:min-h-11">
           {suggestions.map(g => {
             const Icon = g.Icon

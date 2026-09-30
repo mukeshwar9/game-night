@@ -43,7 +43,6 @@
     margin: -.25rem;
   }
   .game-header-meta { display: none; }
-  .game-room-meta { display: block !important; }
 
     .video-call-reaction-dock {
       display: block;
@@ -1489,7 +1488,6 @@ body::before {
 }
 
 /* Room meta line only exists for the mobile header (see Game.jsx). */
-.game-room-meta { display: none; }
 
 /* Not-your-turn / finished boards: keep every piece's player color (X/O,
    stones, discs stay identifiable for the loser and for spectators) and only

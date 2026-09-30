@@ -9,10 +9,7 @@ export default function NewGamesRail({ games, onTap, loadingType }) {
   if (games.length === 0) return null
   return (
     <section className="space-y-2" aria-labelledby="catalog-new">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 id="catalog-new" className="font-pixel text-[9px] text-retro-win tracking-widest">NEW THIS MONTH</h2>
-        <span className="font-mono text-[11px] text-retro-dim">{games.length} {games.length === 1 ? 'game' : 'games'}</span>
-      </div>
+      <h2 id="catalog-new" className="font-pixel text-[9px] text-retro-win tracking-widest">NEW THIS MONTH</h2>
       <div className="relative">
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 snap-x snap-proximity scroll-px-1">
           {games.map(g => {
