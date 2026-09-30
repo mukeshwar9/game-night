@@ -17,7 +17,9 @@ import { useMusicScene } from '../lib/music'
 import { recordPlay } from '../lib/analytics'
 import { recordRecentPlay } from '../lib/recentPlays'
 import CategoryTabs from '../components/CategoryTabs';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import HeadlineGames from '../components/HeadlineGames';
+import { isAdVisit, isHeadlineGame } from '../lib/adLanding';
 import { cn } from '@/lib/utils';
 import { VideoCallShell } from '../components/VideoCallLayout';
 import { PARTY_BLURB } from './demos/partyBlurbs';
@@ -249,6 +251,7 @@ export default function Demo({ mode }) {
 
 function DemoHub() {
   const { type: routeType } = useParams()
+  const { search, state } = useLocation()
   const hasRouteType = !!routeType && DEMOS.some(d => d.type === routeType)
   const initialType = hasRouteType ? routeType : 'tictactoe'
   const [selected, setSelected] = useState(initialType)
@@ -280,6 +283,9 @@ function DemoHub() {
   // picker becomes a "more games" section below it. The bare hub keeps the
   // picker on top but scrolls the chosen board into view on every pick.
   const boardFirst = hasRouteType
+  // Campaign traffic on a headline game sees the curated strip below the board
+  // instead of the full picker (a link still leads to every solo game).
+  const adLanding = boardFirst && isHeadlineGame(routeType) && isAdVisit(search, state)
   const boardRef = useRef(null)
   const pick = (type) => {
     setSelected(type)
@@ -331,9 +337,25 @@ function DemoHub() {
           <h1 className="font-pixel text-sm text-retro-cta tracking-wider">PLAY SOLO</h1>
           <span className="font-pixel text-[9px] text-retro-dim tracking-wider">VS CPU · NO WAITING</span>
         </div>
-        {boardFirst
-          ? <>{board}<p className="font-pixel text-[9px] text-retro-dim tracking-widest pt-2">MORE SOLO GAMES</p>{picker}</>
-          : <>{picker}{board}</>}
+        {adLanding
+          ? (
+            <>
+              {board}
+              <Link
+                to="/games?intent=friend"
+                className="min-h-12 w-full flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-[0.98]"
+              >
+                PLAY WITH A FRIEND
+              </Link>
+              <HeadlineGames heading="MORE QUICK GAMES" current={routeType} />
+              <Link to="/demo" className="block min-h-11 py-3 text-center font-pixel text-[9px] text-retro-dim tracking-widest hover:text-retro-text">
+                SEE ALL SOLO GAMES →
+              </Link>
+            </>
+          )
+          : boardFirst
+            ? <>{board}<p className="font-pixel text-[9px] text-retro-dim tracking-widest pt-2">MORE SOLO GAMES</p>{picker}</>
+            : <>{picker}{board}</>}
       </div>
     </div></VideoCallShell>
   )

@@ -12,6 +12,8 @@ import Onboarding from '../components/LazyOnboarding'
 import DailyTile from '../components/DailyTile'
 import ContinuePlaying from '../components/ContinuePlaying'
 import RecentlyPlayed from '../components/RecentlyPlayed'
+import HeadlineGames from '../components/HeadlineGames'
+import { readRecent } from '../lib/recentRail'
 import JoinRoomSheet from '../components/JoinRoomSheet'
 import GameOptionsSheet from '../components/GameOptionsSheet'
 import RulesModal from '../components/LazyRulesModal'
@@ -51,6 +53,9 @@ export default function Home() {
   const [joinBusy, runJoin] = useBusy()
   const [recentGame, setRecentGame] = useState(null)
   const [rulesGame, setRulesGame] = useState(null)
+  // Someone who has not played anything yet gets six headline games instead of
+  // a wall; the rail above takes over once they have.
+  const [firstVisit] = useState(() => readRecent().length === 0)
   const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
   const { canInstall, install, isIos } = useInstallPrompt()
   const [iosHintDismissed, setIosHintDismissed] = useState(() => !!localStorage.getItem('gn-ios-install-dismissed'))
@@ -188,6 +193,8 @@ export default function Home() {
         <section className="max-w-md mx-auto w-full">
           <RecentlyPlayed onSelect={handleRecentSelect} loadingType={loading} />
         </section>
+
+        {firstVisit && <HeadlineGames className="max-w-md mx-auto w-full" />}
 
         {/* ALL GAMES lived here too, a copy of the GAMES tab one row down. */}
         <section className="max-w-md mx-auto w-full space-y-2" aria-label="More ways to play">

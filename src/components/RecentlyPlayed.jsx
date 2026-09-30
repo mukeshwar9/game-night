@@ -1,18 +1,9 @@
 import { useState } from 'react'
-import { getRooms, getStats } from '../lib/profile'
-import { getGameConfig, GAME_TYPES } from '../lib/games'
-import { buildRecentPlays, getRecentPlays, formatAgo, modeLabel } from '../lib/recentPlays'
+import { getGameConfig } from '../lib/games'
+import { formatAgo, modeLabel } from '../lib/recentPlays'
+import { readRecent } from '../lib/recentRail'
 import { cn } from '@/lib/utils'
 import { GameArt } from './GameArt'
-
-function readRecent() {
-  return buildRecentPlays({
-    plays: getRecentPlays(),
-    rooms: getRooms(),
-    statsTypes: Object.keys(getStats()?.byGame ?? {}),
-    known: new Set(GAME_TYPES.map(t => t.type)),
-  })
-}
 
 // Home's JUMP BACK IN rail: the last games this browser played, each tagged
 // with how (vs CPU / same device / online) and when. `onSelect(type, mode)`

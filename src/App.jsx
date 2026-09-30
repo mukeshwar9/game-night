@@ -25,6 +25,7 @@ const Games = lazyWithRetry(() => import('./pages/Games'));
 const OnlineLobby = lazyWithRetry(() => import('./pages/OnlineLobby'));
 const Game = lazyWithRetry(() => import('./pages/Game'));
 const Demo = lazyWithRetry(() => import('./pages/Demo'));
+const AdLanding = lazyWithRetry(() => import('./pages/AdLanding'));
 const DailyGame = lazyWithRetry(() => import('./pages/DailyGame'));
 const Profile = lazyWithRetry(() => import('./pages/Profile'));
 const Friends = lazyWithRetry(() => import('./pages/Friends'));
@@ -77,6 +78,8 @@ function AppRoutes() {
               <Route path="/game/:gameId" element={<Game />} />
               <Route path="/demo" element={<Demo />} />
               <Route path="/solo/:type" element={<Demo />} />
+              <Route path="/play" element={<AdLanding />} />
+              <Route path="/play/:type" element={<AdLanding />} />
               <Route path="/local/:type" element={<Demo mode="local" />} />
               <Route path="/daily" element={<DailyGame />} />
               <Route path="/profile" element={<Profile />} />
