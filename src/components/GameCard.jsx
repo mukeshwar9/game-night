@@ -21,7 +21,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
   const desc = variantOf ? (game.variantBlurb || game.desc) : game.desc
   const Icon = variantOf ? (base?.Icon || game.Icon) : game.Icon
   const artType = variantOf || type
-  // Settings → LOOK & FEEL → GAME ART (BOLD png default, SOFT svg).
+  // Settings → LOOK & FEEL → GAME ART (PIXEL SCENE default, OBJECT, CAST, ICONS).
   const isBusy = disabled ?? !!loadingType
   const isLoading = loadingType === type
   const showModes = !!onModes && game.hasVariants

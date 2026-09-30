@@ -1,8 +1,8 @@
 // Game Night pixel-art house palette. Every sprite draws only from these
-// colours (src/lib/pixelArt.test.js enforces it). It extends the PIXEL STICKER
-// colours in scripts/make-game-art.mjs (ink #232733, cream #F7E9C4, coral,
-// teal…). Hex lives here, outside src/, like make-game-art.mjs: the PNGs are
-// fixed-palette binaries, identical in every theme (theming-rules.md).
+// colours (src/lib/pixelArt.test.js enforces it), built around the retired
+// PIXEL STICKER art's ink #232733, cream #F7E9C4, coral and teal. Hex lives
+// here, outside src/: the PNGs are fixed-palette binaries, identical in every
+// theme (theming-rules.md).
 export const P = {
   // neutrals
   ink: '#232733', ink2: '#3a3f52', slate: '#5b6378', gray: '#9aa0b0', cloud: '#d9dde6', white: '#ffffff',

@@ -6,7 +6,7 @@ import { Buffer } from 'node:buffer'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { inflateSync } from 'node:zlib'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ART_STYLES, DEFAULT_ART_STYLE, PIXEL_ART_SIZES, getGameArtStyle } from './gameArtStyle'
 import { renderAll, OUT } from '../../scripts/pixel-art/build.mjs'
 import { SPRITES, STYLES } from '../../scripts/pixel-art/sprites.mjs'
@@ -49,6 +49,25 @@ describe('pixel art styles', () => {
   it('defaults to PIXEL SCENE', () => {
     expect(DEFAULT_ART_STYLE).toBe('scene')
     expect(getGameArtStyle()).toBe('scene')
+  })
+
+  it('offers the three pixel styles and ICONS only', () => {
+    expect(ART_STYLES.map(s => s.id)).toEqual(['scene', 'object', 'cast', 'icons'])
+  })
+
+  it('falls back to PIXEL SCENE for a saved retired style (BOLD png, SOFT svg)', () => {
+    const store = new Map()
+    vi.stubGlobal('localStorage', { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) })
+    try {
+      for (const retired of ['png', 'svg']) {
+        store.set('retro-gameart', retired)
+        expect(getGameArtStyle()).toBe('scene')
+      }
+      store.set('retro-gameart', 'icons')
+      expect(getGameArtStyle()).toBe('icons')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('has a sprite for exactly the ART_TYPES games', () => {

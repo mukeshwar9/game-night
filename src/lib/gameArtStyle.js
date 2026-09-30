@@ -1,16 +1,14 @@
 // Game-art style pref: three pixel-art styles (PIXEL SCENE, OBJECT, CAST —
-// scripts/pixel-art/, `npm run art:pixel`), BOLD (Option A — fixed-color
-// PNGs) or SOFT (Option B — theme-aware SVGs). Local-only like the other
-// display prefs, default PIXEL SCENE. useGameArtStyle() re-renders consumers
-// (GameCard) on change.
+// scripts/pixel-art/, `npm run art:pixel`) or ICONS (the mono game icon).
+// Local-only like the other display prefs, default PIXEL SCENE; any stored id
+// not listed here (e.g. the retired 'png' BOLD and 'svg' SOFT) reads back as
+// the default. useGameArtStyle() re-renders consumers (GameCard) on change.
 import { useSyncExternalStore } from 'react'
 
 export const ART_STYLES = [
   { id: 'scene', label: 'PIXEL SCENE' },
   { id: 'object', label: 'PIXEL OBJECT' },
   { id: 'cast', label: 'PIXEL CAST' },
-  { id: 'png', label: 'BOLD' },
-  { id: 'svg', label: 'SOFT' },
   { id: 'icons', label: 'ICONS' },
 ]
 

@@ -254,7 +254,7 @@ export default function SettingsButton({ className = '' }) {
         <SwitchRow label="WIN CELEBRATIONS" checked={winFx} onChange={selectWinFx} ariaLabel="Toggle win confetti and fanfare" />
         <div className="flex items-center justify-between gap-3">
           <span className="font-pixel text-[9px] text-retro-text tracking-widest">GAME ART</span>
-          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Game art style">
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Game art style">
             {ART_STYLES.map(option => <button
               key={option.id}
               type="button"
