@@ -8,7 +8,10 @@ import useBusy from '../hooks/useBusy'
 import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import { scaledMs, timersOff } from '../lib/timerScale'
 import { generateSeed } from '../lib/mathLogic'
-import { nextWireBomb } from '../lib/wireMatchLogic'
+import {
+  didWinWireMatch, getWireDifficulty, isWireMatchComplete, levelForDifficulty,
+  nextWireBomb, registerWireClient,
+} from '../lib/wireMatchLogic'
 import {
   MAX_STRIKES, MODULE_NAMES, QUICK_PHRASES, STRIKE_PENALTY_MS,
   applyTimeout, applyWireAction, armWire, clockText, formatClock, generateBomb,
@@ -149,29 +152,73 @@ function PingBar({ onPing, disabled }) {
   )
 }
 
-function ResultCard({ wire }) {
+function DifficultyPicker({ role, busy, onChoose }) {
+  const options = [
+    { id: 'easy', label: 'EASY', level: 1, modules: 3, wires: 'UP TO 4 WIRES', clock: '3:00' },
+    { id: 'normal', label: 'NORMAL', level: 3, modules: 4, wires: 'UP TO 6 WIRES', clock: '3:00' },
+    { id: 'hard', label: 'HARD', level: 5, modules: 4, wires: 'UP TO 6 WIRES', clock: '2:30' },
+  ]
+  return (
+    <div className="w-full rounded-lg border-2 border-retro-border bg-retro-card p-4 space-y-3">
+      <p className="font-pixel text-[12px] text-retro-cta tracking-widest">CHOOSE DIFFICULTY</p>
+      <p className="font-mono text-[11px] text-retro-text">One choice for both bombs. Roles swap between bombs; settings stay the same.</p>
+      {role === 'tech' ? (
+        <div className="grid gap-2 sm:grid-cols-3" role="group" aria-label="Difficulty">
+          {options.map(option => (
+            <button
+              key={option.id}
+              type="button"
+              disabled={busy}
+              onClick={() => onChoose(option.id)}
+              className="min-h-16 rounded border-2 border-retro-border bg-retro-deep p-2 text-left hover:border-retro-cta disabled:opacity-50"
+            >
+              <span className="block font-pixel text-[9px] text-retro-cta">{option.label}</span>
+              <span className="mt-1 block font-mono text-[10px] text-retro-text">{option.modules} modules · {option.wires}</span>
+              <span className="block font-mono text-[10px] text-retro-dim">{option.clock} · 3 strikes</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="font-pixel text-[9px] text-retro-dim arcade-blink">
+          {role === 'handbook' ? 'WAITING FOR TECH TO PICK…' : 'WAITING FOR PLAYERS…'}
+        </p>
+      )}
+      {busy && <p className="font-pixel text-[8px] text-retro-dim">SETTING DIFFICULTY…</p>}
+    </div>
+  )
+}
+
+function ResultCard({ wire, legacy = false }) {
   const result = wire.result
   const stats = normalizeWireStats(wire.stats)
   const defused = result?.outcome === 'defused'
+  const matchComplete = !legacy && isWireMatchComplete(wire)
+  const matchWon = matchComplete && didWinWireMatch(wire)
+  const success = matchComplete ? matchWon : defused
   const reason = result?.reason === 'strikes' ? 'THIRD STRIKE' : result?.reason === 'time' ? 'OUT OF TIME' : null
+  const title = matchComplete ? (matchWon ? 'MATCH WON!' : 'MATCH LOST') : defused ? 'DEFUSED!' : 'BOOM'
   return (
     <div className={cn(
       'w-full rounded border-2 p-4 text-center space-y-2',
-      defused ? 'border-retro-win bg-retro-card shadow-neon-win' : 'border-retro-p1 bg-retro-tint-p1',
+      success ? 'border-retro-win bg-retro-card shadow-neon-win' : 'border-retro-p1 bg-retro-tint-p1',
     )}>
-      <p className={cn('font-pixel text-xl tracking-widest', defused ? 'text-retro-win' : 'text-retro-p1')}>
-        {defused ? 'DEFUSED!' : 'BOOM'}
+      <p className={cn('font-pixel text-xl tracking-widest', success ? 'text-retro-win' : 'text-retro-p1')}>
+        {title}
       </p>
       <p className="font-mono text-[11px] text-retro-text">
-        {defused
-          ? `Cleared with ${result.left != null ? `${formatClock(result.left)} left` : `a ${formatClock(result.took || 0)} run`} and ${strikesOf(wire)} strike${strikesOf(wire) === 1 ? '' : 's'}.`
-          : `${reason || 'The bomb went off'}.`}
+        {matchComplete
+          ? matchWon ? 'Both bombs defused. Excellent teamwork.' : `Only ${stats.defused} of 2 bombs defused. Any boom loses the match.`
+          : defused
+            ? `Cleared with ${result.left != null ? `${formatClock(result.left)} left` : `a ${formatClock(result.took || 0)} run`} and ${strikesOf(wire)} strike${strikesOf(wire) === 1 ? '' : 's'}.`
+            : `${reason || 'The bomb went off'}.`}
       </p>
       <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
-        STREAK {stats.streak} · BEST {stats.best} · BOOMS {stats.booms}
+        DEFUSED {stats.defused} · BOOMS {stats.booms} · BEST STREAK {stats.best}
       </p>
       <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
-        {defused ? 'NEXT BOMB IS ONE LEVEL HARDER.' : 'NEXT BOMB STAYS AT THIS LEVEL.'} ROLES SWAP.
+        {legacy
+          ? `${defused ? 'NEXT BOMB IS ONE LEVEL HARDER.' : 'NEXT BOMB STAYS AT THIS LEVEL.'} ROLES SWAP.`
+          : matchComplete ? 'TWO-BOMB MATCH COMPLETE.' : 'BOMB 2 USES SAME DIFFICULTY. ROLES SWAP.'}
       </p>
     </div>
   )
@@ -181,9 +228,12 @@ export default function WireCrossedGame({
   gameId, game, mySymbol, opponentOnline, onSwitchGame, onPlayAgain, onNewMatch, proposal,
 }) {
   const wire = game?.wire?.seed ? game.wire : null
+  const generatorVersion = wire?.generatorVersion === 2 ? 2 : 1
+  const difficulty = getWireDifficulty(wire)
   const bomb = useMemo(
-    () => (wire ? generateBomb(wire.seed, wire.level) : null),
-    [wire?.seed, wire?.level], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (wire && wire.level >= 1 && (generatorVersion === 1 || difficulty)
+      ? generateBomb(wire.seed, wire.level, generatorVersion) : null),
+    [wire?.seed, wire?.level, wire?.generatorVersion, difficulty], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const phase = wire?.phase || 'ready'
   const armed = phase === 'armed'
@@ -197,6 +247,8 @@ export default function WireCrossedGame({
 
   const [acting, runAct] = useBusy()
   const [arming, runArm] = useBusy()
+  const [choosingDifficulty, runChooseDifficulty] = useBusy()
+  const [nextBombBusy, runNextBomb] = useBusy()
   const [pinging, runPing] = useBusy()
   const [playAgainBusy, runPlayAgain] = useBusy()
   const [newMatchBusy, runNewMatch] = useBusy()
@@ -222,6 +274,20 @@ export default function WireCrossedGame({
     }).catch(() => {})
   }, [needsBomb, gameId])
 
+  // V2 changes the seeded module pool. Keep old open clients on the legacy
+  // generator until both seats advertise support and bomb 1 is still ready.
+  const clientVersionKey = mySymbol === 'X' ? 'clientVersionX' : 'clientVersionO'
+  const needsVersionAck = !!wire && !!mySymbol && wire[clientVersionKey] !== 2
+  useEffect(() => {
+    if (!needsVersionAck) return
+    runTransaction(ref(db, `games/${gameId}`), current => {
+      if (!current || current.gameType !== 'wirecrossed' || !current.wire?.seed) return
+      const nextWire = registerWireClient(current.wire, mySymbol)
+      if (!nextWire) return
+      return { ...current, wire: nextWire, lastActivityAt: Date.now() }
+    }).catch(() => toast.error('GAME VERSION SYNC FAILED — CHECK CONNECTION'))
+  }, [needsVersionAck, gameId, mySymbol])
+
   // The clock ran out: whichever seated client notices first writes the boom.
   const endsAt = armed ? wire?.endsAt : null
   useEffect(() => {
@@ -244,7 +310,10 @@ export default function WireCrossedGame({
     prevWire.current = wire
     if (!before || !wire || before.seed !== wire.seed) return
     if (before.phase !== 'over' && wire.phase === 'over') {
-      if (wire.result?.outcome === 'defused') sounds.win()
+      if (isWireMatchComplete(wire)) {
+        if (didWinWireMatch(wire)) sounds.matchWin()
+        else sounds.lose()
+      } else if (wire.result?.outcome === 'defused') sounds.win()
       else sounds.bust()
       return
     }
@@ -284,12 +353,28 @@ export default function WireCrossedGame({
     }, () => toast.error('ACTION FAILED — CHECK CONNECTION'))
   }, [armed, bomb, gameId, mySymbol, role, runAct])
 
+  const chooseDifficulty = (selected) => runChooseDifficulty(async () => {
+    const level = levelForDifficulty(selected)
+    if (!level || mySymbol !== tech) return
+    const seed = wire?.seed
+    const tx = await runTransaction(ref(db, `games/${gameId}`), current => {
+      const live = current?.wire
+      if (!current || current.gameType !== 'wirecrossed' || current.status !== 'playing'
+        || live?.seed !== seed || live.generatorVersion !== 2 || live.phase !== 'ready'
+        || live.bombNo !== 1 || live.difficulty || live.tech !== mySymbol) return
+      return withWire(current, { ...live, difficulty: selected, level })
+    })
+    if (!tx.committed) toast.error('DIFFICULTY ALREADY LOCKED — REFRESH ROOM')
+  }, () => toast.error('DIFFICULTY SAVE FAILED — CHECK CONNECTION'))
+
   const arm = () => runArm(async () => {
     const seed = wire?.seed
     await runTransaction(ref(db, `games/${gameId}`), current => {
       if (!current || current.gameType !== 'wirecrossed' || current.wire?.seed !== seed) return
-      const liveBomb = generateBomb(current.wire.seed, current.wire.level)
-      const next = armWire(current.wire, getServerNow(), scaledMs(liveBomb.durationMs, current.timerScale))
+      const live = current.wire
+      if (live.generatorVersion === 2 && !getWireDifficulty(live)) return
+      const liveBomb = generateBomb(live.seed, live.level, live.generatorVersion === 2 ? 2 : 1)
+      const next = armWire(live, getServerNow(), scaledMs(liveBomb.durationMs, current.timerScale))
       if (!next) return
       return withWire(current, next)
     })
@@ -306,11 +391,35 @@ export default function WireCrossedGame({
   const requestPlayAgain = () => runPlayAgain(async () => {
     if (onPlayAgain) await onPlayAgain()
   }, () => toast.error('NEXT BOMB FAILED — CHECK CONNECTION'))
+
+  const requestNextBomb = () => runNextBomb(async () => {
+    const seed = generateSeed()
+    const currentSeed = wire?.seed
+    const tx = await runTransaction(ref(db, `games/${gameId}`), current => {
+      const live = current?.wire
+      if (!current || current.gameType !== 'wirecrossed' || current.status !== 'playing'
+        || live?.seed !== currentSeed || live.generatorVersion !== 2 || live.phase !== 'over'
+        || live.bombNo !== 1 || !getWireDifficulty(live)) return
+      return withWire(current, nextWireBomb(live, seed))
+    })
+    if (!tx.committed) toast.error('NEXT BOMB ALREADY STARTED — REFRESH ROOM')
+  }, () => toast.error('NEXT BOMB FAILED — CHECK CONNECTION'))
+
   const requestNewMatch = () => runNewMatch(async () => {
     if (onNewMatch) await onNewMatch()
   }, () => toast.error('NEW MATCH FAILED — CHECK CONNECTION'))
 
-  if (!wire || !bomb) {
+  if (!wire) {
+    return <div className="py-10 text-center font-pixel text-[10px] text-retro-dim arcade-blink">WIRING THE BOMB…</div>
+  }
+  if (generatorVersion === 2 && !difficulty) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-2 max-w-md mx-auto w-full">
+        <DifficultyPicker role={role} busy={choosingDifficulty} onChoose={chooseDifficulty} />
+      </div>
+    )
+  }
+  if (!bomb) {
     return <div className="py-10 text-center font-pixel text-[10px] text-retro-dim arcade-blink">WIRING THE BOMB…</div>
   }
 
@@ -331,7 +440,11 @@ export default function WireCrossedGame({
           online={isSpectator ? undefined : (mySymbol === 'X' ? true : opponentOnline)} />
         <div className="flex flex-col items-center shrink-0">
           <span className="font-pixel text-[9px] text-retro-win tracking-widest">TEAM ★ {score}</span>
-          <span className="font-pixel text-[7px] text-retro-dim tracking-widest">BOMB {wire.bombNo || 1} · LVL {bomb.level}</span>
+          <span className="font-pixel text-[7px] text-retro-dim tracking-widest">
+            {generatorVersion === 2
+              ? `BOMB ${wire.bombNo || 1} / 2 · ${difficulty?.toUpperCase()}`
+              : `BOMB ${wire.bombNo || 1} · LVL ${bomb.level}`}
+          </span>
         </div>
         <Seat symbol="O" player={players?.O} role={tech === 'O' ? 'TECH' : 'HANDBOOK'} me={mySymbol === 'O'}
           online={isSpectator ? undefined : (mySymbol === 'O' ? true : opponentOnline)} />
@@ -357,7 +470,10 @@ export default function WireCrossedGame({
         <div className="w-full rounded-lg border-2 border-retro-border bg-retro-card p-4 space-y-3 text-center">
           <p className="font-pixel text-[12px] text-retro-cta tracking-widest">BOMB {wire.bombNo || 1}</p>
           <p className="font-mono text-[11px] text-retro-text">
-            Level {bomb.level} · {bomb.modules.length} modules · {durationText} · {MAX_STRIKES} strikes
+            {generatorVersion === 2
+              ? `${difficulty.toUpperCase()} · Bomb ${wire.bombNo} of 2 · same difficulty for both`
+              : `Level ${bomb.level}`}
+            {' · '}{bomb.modules.length} modules · {durationText} · {MAX_STRIKES} strikes
           </p>
           {role === 'tech' && (
             <p className="font-mono text-[11px] text-retro-text leading-relaxed">
@@ -442,22 +558,35 @@ export default function WireCrossedGame({
 
       {phase === 'over' && (
         <>
-          <ResultCard wire={wire} />
+          <ResultCard wire={wire} legacy={generatorVersion !== 2} />
           {!proposal && !isSpectator && (
             <div className="w-full flex flex-wrap justify-center gap-2">
-              <button
-                type="button"
-                onClick={requestPlayAgain}
-                disabled={playAgainBusy || !onPlayAgain}
-                className="min-h-11 px-4 py-2.5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] hover:shadow-neon-cta disabled:opacity-50"
-              >{playAgainBusy ? 'LOADING…' : 'NEXT BOMB'}</button>
-              <button
-                type="button"
-                onClick={requestNewMatch}
-                disabled={newMatchBusy || !onNewMatch}
-                className="min-h-11 px-4 py-2.5 rounded border-2 border-retro-border text-retro-text font-pixel text-[10px] hover:border-retro-p1/60 disabled:opacity-50"
-              >{newMatchBusy ? 'RESETTING…' : 'NEW MATCH'}</button>
-              {onSwitchGame && <GameSwitcher currentType="wirecrossed" onSwitch={onSwitchGame} />}
+              {generatorVersion === 2 && !isWireMatchComplete(wire) ? (
+                <button
+                  type="button"
+                  onClick={requestNextBomb}
+                  disabled={nextBombBusy || partnerOffline}
+                  className="min-h-11 px-4 py-2.5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] hover:shadow-neon-cta disabled:opacity-50"
+                >{nextBombBusy ? 'SETTING UP…' : partnerOffline ? 'WAITING FOR PARTNER' : 'SWAP ROLES · NEXT BOMB'}</button>
+              ) : (
+                <>
+                  {generatorVersion !== 2 && (
+                    <button
+                      type="button"
+                      onClick={requestPlayAgain}
+                      disabled={playAgainBusy || !onPlayAgain}
+                      className="min-h-11 px-4 py-2.5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] hover:shadow-neon-cta disabled:opacity-50"
+                    >{playAgainBusy ? 'LOADING…' : 'NEXT BOMB'}</button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={requestNewMatch}
+                    disabled={newMatchBusy || !onNewMatch}
+                    className="min-h-11 px-4 py-2.5 rounded border-2 border-retro-border text-retro-text font-pixel text-[10px] hover:border-retro-p1/60 disabled:opacity-50"
+                  >{newMatchBusy ? 'RESETTING…' : 'NEW MATCH'}</button>
+                  {onSwitchGame && <GameSwitcher currentType="wirecrossed" onSwitch={onSwitchGame} />}
+                </>
+              )}
             </div>
           )}
         </>

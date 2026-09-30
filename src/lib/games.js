@@ -2146,8 +2146,9 @@ export function freshGameState(gameType, previous = null) {
       round: best ? { best } : null }
   }
   if (gameType === 'wirecrossed') {
-    // PLAY AGAIN passes the finished bomb: the level climbs and the streak
-    // carries. NEW MATCH / switching in starts over at level 1.
+    // New rooms begin on legacy generator v1 until both seats acknowledge the
+    // updated client; v2 then asks for one difficulty and runs two role-swapped bombs.
+    // Existing v1 rooms keep their old level climb until a new match.
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null,
       wire: nextWireBomb(previous?.wire, generateSeed()) }
   }
