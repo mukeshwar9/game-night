@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, UpdraftIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -50,6 +50,7 @@ const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
 const ArcheryDemo = lazyWithRetry(() => import('./ArcheryDemo'))
 const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
+const MinigolfLocal = lazyWithRetry(() => import('./MinigolfLocal'))
 const TriviaDemo = lazyWithRetry(() => import('./TriviaDemo'))
 const HerdDemo = lazyWithRetry(() => import('./HerdDemo'))
 const ArrowsDemo = lazyWithRetry(() => import('./ArrowsDemo'))
@@ -110,6 +111,7 @@ const DEMOS = [
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   { type: 'archery',       short: 'ARCHERY',         Icon: ArcheryIcon,        Component: ArcheryDemo },
   { type: 'animalstack',   short: 'ANIMAL\nSTACK',  Icon: AnimalStackIcon,    Component: AnimalStackDemo },
+  { type: 'minigolf',      short: 'MINI-\nGOLF',    Icon: MinigolfIcon,       Component: () => <MinigolfLocal mode="solo" /> },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
@@ -164,6 +166,9 @@ function LocalPlayPage({ routeType }) {
     recordRecentPlay(routeType, 'local')
   }, [routeType])
 
+  // A game with its own offline page (registry LocalPage) renders that
+  // instead of the generic bot-board engine.
+  const Local = cfg.LocalPage
   return (
     <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
@@ -176,7 +181,7 @@ function LocalPlayPage({ routeType }) {
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>
-              {cfg.LocalPage ? <cfg.LocalPage /> : <BotBoardDemo type={routeType} mode="local" />}
+              {cfg.LocalPage ? <cfg.LocalPage mode="local" /> : <BotBoardDemo type={routeType} mode="local" />}
             </Suspense>
           </div>
         </div>

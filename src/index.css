@@ -1062,6 +1062,21 @@ body::before {
 }
 .pong-ball-pulse { animation: pong-ball-pulse 0.6s ease-in-out infinite; }
 
+/* Minigolf — sink burst, portal pulse, drifting water */
+.minigolf-burst { animation: pixel-burst 0.6s ease-out forwards; }
+.minigolf-portal { animation: minigolf-portal 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes minigolf-portal {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+.minigolf-wave { animation: minigolf-wave 2.4s linear infinite; }
+@keyframes minigolf-wave {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+[data-motion="reduced"] .minigolf-burst { display: none; }
+
 /* Pong juice — hit sparks, callout pop, pulsing goal-line shield */
 .pong-particle { animation: pixel-burst 0.45s ease-out forwards; }
 @keyframes pong-callout {

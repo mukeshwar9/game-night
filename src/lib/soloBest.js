@@ -12,3 +12,17 @@ export function recordSoloBest(type, score) {
   try { localStorage.setItem(key(type), String(score)) } catch { /* private mode */ }
   return true
 }
+
+// Lowest-is-best variant (Minigolf strokes). 0 / missing means no best yet.
+export function readSoloLow(key) {
+  try { return Number(localStorage.getItem(`solo-low-${key}`)) || 0 } catch { return 0 }
+}
+
+// Stores `score` if it is lower than the saved best (or there is none);
+// returns true when it did.
+export function recordSoloLow(key, score) {
+  const best = readSoloLow(key)
+  if (best && !(score < best)) return false
+  try { localStorage.setItem(`solo-low-${key}`, String(score)) } catch { /* private mode */ }
+  return true
+}
