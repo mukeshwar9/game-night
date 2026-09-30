@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { HEADLINE_GAMES, DEFAULT_LANDING_GAME, isHeadlineGame, landingPath, isAdVisit } from './adLanding'
+import { readFileSync } from 'node:fs'
 import { GAME_TYPES } from './games'
 
 describe('HEADLINE_GAMES', () => {
@@ -45,5 +46,12 @@ describe('isAdVisit', () => {
     expect(isAdVisit('')).toBe(false)
     expect(isAdVisit('?foo=bar')).toBe(false)
     expect(isAdVisit('', null)).toBe(false)
+  })
+})
+
+describe('sitemap', () => {
+  it('lists the solo page of every headline game', () => {
+    const sitemap = readFileSync(new URL('../../public/sitemap.xml', import.meta.url), 'utf8')
+    for (const { type } of HEADLINE_GAMES) expect(sitemap).toContain(`/solo/${type}</loc>`)
   })
 })

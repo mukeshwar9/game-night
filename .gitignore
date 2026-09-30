@@ -44,3 +44,4 @@ playwright/.cache/
 dev-dist/
 
 dist-e2e/
+dist-lh/

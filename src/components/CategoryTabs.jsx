@@ -53,7 +53,7 @@ export default function CategoryTabs({ categories, active, onSelect, leading, tr
             )}
           >
             {label}
-            {count != null && <>{' '}<span className="font-mono text-[10px] opacity-70 ml-1">{count}</span></>}
+            {count != null && <>{' '}<span className="font-mono text-[10px] ml-1">{count}</span></>}
           </button>
         ))}
         {trailing}

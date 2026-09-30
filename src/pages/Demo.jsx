@@ -171,7 +171,7 @@ function LocalPlayPage({ routeType }) {
   }, [routeType])
 
   return (
-    <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
+    <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="border border-retro-border rounded p-4 bg-retro-card space-y-1">
           <h1 className="font-pixel text-xs text-retro-text text-center tracking-wider">
@@ -187,7 +187,7 @@ function LocalPlayPage({ routeType }) {
           </div>
         </div>
       </div>
-    </div></VideoCallShell>
+    </main></VideoCallShell>
   )
 }
 
@@ -203,7 +203,7 @@ function SoloNotAvailable({ routeType }) {
   const cfg = getGameConfig(routeType)
   const known = cfg?.type === routeType
   return (
-    <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
+    <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="border border-retro-border rounded p-6 bg-retro-card text-center space-y-3">
           <p className="font-pixel text-[10px] text-retro-p2 text-glow-p2 tracking-wider">NO SOLO DEMO</p>
@@ -228,7 +228,7 @@ function SoloNotAvailable({ routeType }) {
           </div>
         </div>
       </div>
-    </div></VideoCallShell>
+    </main></VideoCallShell>
   )
 }
 
@@ -331,7 +331,7 @@ function DemoHub() {
   )
 
   return (
-    <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
+    <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-baseline justify-between gap-3">
           <h1 className="font-pixel text-sm text-retro-cta tracking-wider">PLAY SOLO</h1>
@@ -357,6 +357,6 @@ function DemoHub() {
             ? <>{board}<p className="font-pixel text-[9px] text-retro-dim tracking-widest pt-2">MORE SOLO GAMES</p>{picker}</>
             : <>{picker}{board}</>}
       </div>
-    </div></VideoCallShell>
+    </main></VideoCallShell>
   )
 }

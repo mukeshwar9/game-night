@@ -183,22 +183,22 @@ export default defineConfig({
     privateSourcemaps(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png'],
       manifest: {
         name: 'Game Night',
         short_name: 'Game Night',
-        description: 'Play games with friends online — no account needed',
+        description: '70+ quick games for 2–8 friends, or play the CPU. No account needed.',
         // Mirror the default theme (MATCHA): theme_color matches --c-cta and the
         // index.html theme-color meta, background_color matches --c-bg, so an
         // installed app's splash is the same light ground the app paints.
-        theme_color: '#8b6612',
+        theme_color: '#825f0e',
         background_color: '#eef0e2',
         display: 'standalone',
         start_url: '/',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: 'pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
       },

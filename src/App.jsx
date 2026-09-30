@@ -17,6 +17,7 @@ import useOnboardingOpen from './hooks/useOnboardingOpen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { VideoCallLayoutProvider } from './components/VideoCallLayout';
 import { LEADERBOARD_ENABLED } from './lib/features';
+import { titleForPath } from './lib/routeTitle';
 
 // Home (the landing page) and NotFound stay in the entry chunk; every other
 // route downloads on first visit. lazyWithRetry reloads once if a chunk from
@@ -61,6 +62,7 @@ function AppRoutes() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.title = titleForPath(pathname);
   }, [pathname]);
 
   return (
