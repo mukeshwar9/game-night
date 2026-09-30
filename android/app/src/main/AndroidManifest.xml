@@ -22,7 +22,31 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- App Links: invite links on the public web origin open the app
+                 (verified against public/.well-known/assetlinks.json). Add a
+                 <data> host for the custom domain when it is live. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="game-night-91464.web.app" />
+            </intent-filter>
+
+            <!-- Custom-scheme fallback, gamenight://game/<id> (src/lib/deepLinkLogic.js). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="@string/custom_url_scheme" />
+            </intent-filter>
+
         </activity>
+
+        <!-- Invite notifications: the white mark on transparent, so the status bar
+             does not show a white square. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher_foreground" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

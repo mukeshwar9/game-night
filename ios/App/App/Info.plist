@@ -22,6 +22,26 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.gamenight</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Custom-scheme fallback for invite links (src/lib/deepLinkLogic.js). -->
+				<string>gamenight</string>
+				<!-- Native Google sign-in: replace with REVERSED_CLIENT_ID from the real
+				     GoogleService-Info.plist (docs/MOBILE.md). -->
+				<string>com.googleusercontent.apps.REVERSED_CLIENT_ID_PLACEHOLDER</string>
+			</array>
+		</dict>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<!-- Invite pushes (@capacitor-firebase/messaging). -->
+		<string>remote-notification</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

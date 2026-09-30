@@ -3,5 +3,5 @@
     <string name="app_name">Game Night</string>
     <string name="title_activity_main">Game Night</string>
     <string name="package_name">app.gamenight</string>
-    <string name="custom_url_scheme">app.gamenight</string>
+    <string name="custom_url_scheme">gamenight</string>
 </resources>
