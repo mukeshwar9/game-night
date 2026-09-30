@@ -46,7 +46,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           )}
         >
           <span aria-hidden="true" className="relative block w-full aspect-square overflow-hidden rounded-xl bg-retro-surface">
-            <span className="absolute inset-0 flex items-center justify-center text-retro-dim [&_svg]:w-12 [&_svg]:h-12">
+            <span className="absolute inset-0 flex items-center justify-center text-retro-text [&_svg]:w-24 [&_svg]:h-24">
               {Icon && <Icon />}
             </span>
             <GameArt type={artType} className="absolute inset-0 w-full h-full block" />
@@ -153,7 +153,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           aria-hidden="true"
           className={cn(
             'relative w-8 h-8 shrink-0 rounded-lg overflow-hidden flex items-center justify-center border border-retro-border',
-            isLoading ? 'text-retro-cta' : 'text-retro-dim',
+            isLoading ? 'text-retro-cta' : 'text-retro-text',
           )}
         >
           {/* Mono icon underneath; the illustrated art tile covers it when
