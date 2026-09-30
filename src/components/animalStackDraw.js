@@ -3,7 +3,8 @@
 // canvas and scaled up without smoothing. Every colour comes from the --c-*
 // theme tokens, read once per theme change.
 import { PIECES, ISLAND } from '../lib/animalStackLogic'
-import { ART, hullBounds, parseRgb, pixelate, rolePalette } from './animalStackArt'
+import { PIXELS, CELL } from '../lib/animalStackPixels'
+import { parseRgb, rolePalette } from './animalStackArt'
 
 const TOKENS = ['bg', 'surface', 'card', 'border', 'text', 'dim', 'p1', 'p2', 'p3', 'p4', 'cta', 'win', 'danger',
   'structure', 'kam0', 'kam1', 'kam2', 'kam3', 'kam4', 'kam5', 'kam6', 'kam7']
@@ -31,12 +32,11 @@ function polyPath(ctx, pts) {
 }
 
 // ─── Sprites ─────────────────────────────────────────────────────────────────
-// Each animal is rendered once per (theme, scale) into a small pixel sprite:
-// hull filled in its tone, ART details clipped inside, then snapped to a
-// crisp palette with a one-pixel inner outline (animalStackArt.pixelate).
-// Per frame the sprite is only rotated and blitted without smoothing, which
-// keeps the chunky pixel look at any angle. Eyes are drawn live on top so
-// the animals can blink and look scared while the tower wobbles.
+// Each animal is a hand-authored pixel grid (lib/animalStackPixels.js) whose
+// silhouette is also its physics hull. The grid is painted once per
+// (theme, integer scale) with the tone's palette, then per frame only rotated
+// and blitted without smoothing, so pixels stay chunky at any angle.
+const ROLE = { B: 'base', L: 'light', S: 'shade', P: 'pale', D: 'dark', W: 'eye', K: 'pupil', O: 'beak', R: 'blush', '#': 'dark' }
 const sprites = new Map()
 let spriteTheme = null
 
@@ -45,43 +45,24 @@ function paletteFor(tone) {
   return rolePalette(parseRgb(t[tone]), { bg: parseRgb(t.bg), text: parseRgb(t.text), beak: parseRgb(t.kam7), blush: parseRgb(t.kam4) })
 }
 
-function sprite(k, s) {
+/** Sprite canvas for animal `k`, `n` device px per grid cell. */
+function sprite(k, n) {
   tokens()
-  if (spriteTheme !== tokTheme || sprites.size > 240) { sprites.clear(); spriteTheme = tokTheme }
-  const key = `${k}|${s.toFixed(2)}`
+  if (spriteTheme !== tokTheme || sprites.size > 60) { sprites.clear(); spriteTheme = tokTheme }
+  const key = `${k}|${n}`
   let sp = sprites.get(key)
   if (sp) return sp
-  const def = PIECES[k]
-  const art = ART[def.id] || { details: [] }
-  const pal = paletteFor(def.tone)
-  const [minx, miny, maxx, maxy] = hullBounds(def)
-  const w = Math.ceil((maxx - minx) * s) + 2, h = Math.ceil((maxy - miny) * s) + 2
-  const ax = 1 - minx * s, ay = 1 + maxy * s
+  const px = PIXELS[PIECES[k].id]
+  const pal = paletteFor(px.tone)
   const c = document.createElement('canvas')
-  c.width = w; c.height = h
-  const g = c.getContext('2d', { willReadFrequently: true })
-  const rgb = (r) => `rgb(${(pal[r] || pal.base).join(' ')})`
-  g.setTransform(s, 0, 0, -s, ax, ay)
-  g.fillStyle = rgb('base')
-  for (const part of def.parts) { polyPath(g, part); g.fill() }
-  g.globalCompositeOperation = 'source-atop'
-  const used = new Set(['base'])
-  for (const d of art.details) {
-    used.add(d.r)
-    if (d.l) {
-      g.strokeStyle = rgb(d.r); g.lineWidth = d.w; g.lineCap = 'round'; g.lineJoin = 'round'
-      g.beginPath(); d.l.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke()
-      continue
-    }
-    g.fillStyle = rgb(d.r)
-    if (d.e) { g.beginPath(); g.ellipse(d.e[0], d.e[1], d.e[2], d.e[3], 0, 0, Math.PI * 2); g.fill() } else { polyPath(g, d.p); g.fill() }
-  }
-  g.setTransform(1, 0, 0, 1, 0, 0)
-  g.globalCompositeOperation = 'source-over'
-  const img = g.getImageData(0, 0, w, h)
-  pixelate(img.data, w, h, [...used].map(r => pal[r] || pal.base), pal.dark)
-  g.putImageData(img, 0, 0)
-  sp = { c, ax, ay, pal, masks: {} }
+  c.width = px.w * n; c.height = px.h * n
+  const g = c.getContext('2d')
+  px.grid.forEach((row, y) => row.forEach((ch, x) => {
+    if (ch === '.') return
+    g.fillStyle = `rgb(${(pal[ROLE[ch]] || pal.base).join(' ')})`
+    g.fillRect(x * n, y * n, n, n)
+  }))
+  sp = { c, w: px.w, h: px.h, masks: {} }
   sprites.set(key, sp)
   return sp
 }
@@ -100,55 +81,27 @@ function spriteMask(sp, token) {
 }
 
 /**
- * Draw animal `k` centred at art-pixel (x, y), angle `a`, `s` art px per metre.
- * opts: alpha, outline (player token for a ring), pulse (0-1 ring strength),
- * t (ms, drives blinking), seed (per-animal blink phase), speed (m/s).
+ * Draw animal `k` centred at CSS px (x, y), angle `a`, `cell` CSS px per grid
+ * cell. `dpr` picks the integer sprite scale. opts: alpha, outline (player
+ * token for a ring), pulse (0-1 ring strength).
  */
-function drawAnimal(ctx, k, x, y, a, s, opts = {}) {
-  const def = PIECES[k]
-  if (!def) return
-  const sp = sprite(k, s)
+function drawAnimal(ctx, k, x, y, a, cell, dpr, opts = {}) {
+  if (!PIECES[k]) return
+  const n = Math.max(1, Math.round(cell * dpr))
+  const sp = sprite(k, n)
+  const dw = sp.w * cell, dh = sp.h * cell
   ctx.save()
-  ctx.globalAlpha = opts.alpha ?? 1
-  ctx.translate(x, y)
+  ctx.imageSmoothingEnabled = false
+  ctx.translate(Math.round(x * dpr) / dpr, Math.round(y * dpr) / dpr)
   ctx.rotate(-a)
   if (opts.outline) {
     const m = spriteMask(sp, opts.outline)
     ctx.globalAlpha = (opts.alpha ?? 1) * (opts.pulse ?? 1)
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.drawImage(m, dx - sp.ax, dy - sp.ay)
-    ctx.globalAlpha = opts.alpha ?? 1
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.drawImage(m, -dw / 2 + dx * cell, -dh / 2 + dy * cell, dw, dh)
   }
-  ctx.drawImage(sp.c, -sp.ax, -sp.ay)
-  ctx.restore()
-
-  // Eyes: pupils look the way the animal faces; a blink every few seconds;
-  // wide eyes while it is flying or sliding fast.
-  const c = Math.cos(a), sn = Math.sin(a)
-  const e = Math.max(1, Math.round(s * 0.08))
-  const scared = (opts.speed ?? 0) > 1.6
-  const big = ART[def.id]?.bigEyes || scared
-  const phase = ((opts.t ?? 0) + (opts.seed ?? 0) * 1733) % 4100
-  const blink = !scared && opts.t != null && phase < 120
-  const face = c >= 0 ? 1 : -1
   ctx.globalAlpha = opts.alpha ?? 1
-  for (const [vx, vy] of def.eyes) {
-    const px = Math.round(x + (vx * c - vy * sn) * s), py = Math.round(y - (vx * sn + vy * c) * s)
-    const sz = big ? e + 2 : e + (e > 1 ? 1 : 0)
-    const x0 = px - Math.floor(sz / 2), y0 = py - Math.floor(sz / 2)
-    if (blink) {
-      ctx.fillStyle = `rgb(${sp.pal.pupil.join(' ')})`
-      ctx.fillRect(x0, py, sz, 1)
-      continue
-    }
-    if (big || e > 1) { ctx.fillStyle = `rgb(${sp.pal.eye.join(' ')})`; ctx.fillRect(x0, y0, sz, sz) }
-    const pe = scared ? 1 : Math.min(e, sz)
-    ctx.fillStyle = `rgb(${sp.pal.pupil.join(' ')})`
-    if (scared) { ctx.fillRect(px, py, 1, 1); continue }
-    const front = ART[def.id]?.bigEyes
-    const pxl = front ? x0 + Math.floor((sz - pe) / 2) : face > 0 ? x0 + sz - pe : x0
-    ctx.fillRect(pxl, y0 + sz - pe, pe, pe)
-  }
-  ctx.globalAlpha = 1
+  ctx.drawImage(sp.c, -dw / 2, -dh / 2, dw, dh)
+  ctx.restore()
 }
 
 /** Camera: 6.8 m across; follow the tower so the hover piece sits near the top. */
@@ -216,11 +169,6 @@ export function drawScene(canvas, scene) {
     for (let gy = Math.round(Y(h.y)); gy < Math.round(wy); gy += 4) o.fillRect(gx, gy, 1, 2)
   }
   const now = scene.t || 0
-  scene.items.forEach((it, i) => drawAnimal(o, it.k, X(it.x), Y(it.y), it.a, s, { outline: it.outline, t: now, seed: i, speed: it.speed }))
-  if (h) {
-    const pulse = scene.still ? 1 : 0.65 + 0.35 * Math.sin(now / 170)
-    drawAnimal(o, h.k, X(h.x), Y(h.y), h.a, s, { outline: PLAYER_TOKENS[h.player || 0], pulse, alpha: 0.95, t: now, seed: 99 })
-  }
   for (const p of scene.particles || []) {
     o.fillStyle = col(p.c || 'text', Math.max(0, p.life))
     o.fillRect(Math.round(X(p.x)), Math.round(Y(p.y)), 1, 1)
@@ -231,6 +179,13 @@ export function drawScene(canvas, scene) {
   ctx.imageSmoothingEnabled = false
   ctx.drawImage(off, 0, 0, aw * PIX * dpr, ah * PIX * dpr)
   ctx.scale(dpr, dpr)
+  // animals go on at full resolution so the pixel grid stays crisp
+  const cell = view.ppm * CELL
+  for (const it of scene.items) drawAnimal(ctx, it.k, X(it.x) * PIX, Y(it.y) * PIX, it.a, cell, dpr, { outline: it.outline })
+  if (h) {
+    const pulse = scene.still ? 1 : 0.65 + 0.35 * Math.sin(now / 170)
+    drawAnimal(ctx, h.k, X(h.x) * PIX, Y(h.y) * PIX, h.a, cell, dpr, { outline: PLAYER_TOKENS[h.player || 0], pulse, alpha: 0.95 })
+  }
   ctx.font = '7px "Press Start 2P", monospace'
   ctx.fillStyle = col('dim', 0.9)
   for (let mm = Math.max(5, Math.ceil(y0 / 5) * 5); mm <= y1; mm += 5) ctx.fillText(`${mm}M`, 8, (Y(mm) + 3) * PIX)
@@ -252,20 +207,13 @@ export function drawScene(canvas, scene) {
 
 /** Small pixel portrait of animal `k` (NEXT preview, icons). */
 export function drawThumb(canvas, k) {
-  const def = PIECES[k]
-  if (!def) return
+  const px = PIXELS[PIECES[k]?.id]
+  if (!px) return
   const dpr = window.devicePixelRatio || 1
   const W = canvas.clientWidth || 44, H = canvas.clientHeight || 34
   canvas.width = W * dpr; canvas.height = H * dpr
-  const PIX = 2
-  const off = document.createElement('canvas')
-  off.width = Math.ceil(W / PIX); off.height = Math.ceil(H / PIX)
-  const o = off.getContext('2d')
-  o.imageSmoothingEnabled = false
-  const [minx, miny, maxx, maxy] = hullBounds(def)
-  const s = Math.min(off.width / ((maxx - minx) * 1.15), off.height / ((maxy - miny) * 1.15))
-  drawAnimal(o, k, off.width / 2 - ((minx + maxx) / 2) * s, off.height / 2 + ((miny + maxy) / 2) * s, 0, s)
+  const cell = Math.max(1 / dpr, Math.floor(Math.min(W / px.w, H / px.h) * dpr) / dpr)
   const ctx = canvas.getContext('2d')
-  ctx.imageSmoothingEnabled = false
-  ctx.drawImage(off, 0, 0, off.width * PIX * dpr, off.height * PIX * dpr)
+  ctx.scale(dpr, dpr)
+  drawAnimal(ctx, k, W / 2, H / 2, 0, cell, dpr)
 }
