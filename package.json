@@ -16,7 +16,8 @@
     "emulators": "firebase emulators:start --only auth,database --project demo-game-night",
     "test:rules": "node scripts/with-emulators.mjs database npx vitest run --config vitest.rules.config.js",
     "test:e2e": "node scripts/with-emulators.mjs auth,database npx playwright test",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "symbolicate": "node scripts/symbolicate.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@jridgewell/trace-mapping": "^0.3.31",
     "@playwright/test": "^1.63.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

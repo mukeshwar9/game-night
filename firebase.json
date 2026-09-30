@@ -4,7 +4,8 @@
     "ignore": [
       "firebase.json",
       "**/.DS_Store",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.map"
     ],
     "redirects": [
       { "source": "/privacy", "destination": "/privacy.html", "type": 301 },

@@ -57,3 +57,11 @@ Google sign-in in an installed iOS PWA used to lose its redirect result because 
 ## Ad landing
 
 Point ads at `/play/<game>` (for example `/play/connectfour?utm_source=tiktok&utm_medium=paid&utm_campaign=launch1`). It redirects to `/solo/<game>` with the query string intact, so `attribution.js` still records the UTM tags and click ids, and the visitor is playing against the CPU with no name prompt. The solo page then shows the curated strip (`HEADLINE_GAMES` in `src/lib/adLanding.js`: Connect Four, Dots & Boxes, Battleship, Word Duel, Trivia Blitz, Animal Stack) and a PLAY WITH A FRIEND button instead of the full picker. The same strip appears on Home for someone who has not played anything yet, and gives way to JUMP BACK IN afterwards. An unknown game in `/play/<x>` lands on Connect Four. `/solo/<headline>?utm_...` links get the same treatment.
+
+## Source maps (private)
+
+`vite build` writes hidden source maps (no `sourceMappingURL` in the bundles) and the build moves them out of `dist/` into `sourcemaps/<build id>/` (git-ignored). `firebase.json` also ignores `**/*.map`, so a map cannot reach Hosting. The build id is the `build` field of every error report, so a report finds its own maps. Keep the `sourcemaps/` folder of each release you deploy (it is per machine; copy it somewhere safe if you deploy from several). To read a minified stack from `/notes` or the daily digest:
+
+```
+npm run symbolicate -- <build id> < stack.txt
+```

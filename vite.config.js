@@ -2,6 +2,8 @@ import path from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'node:fs'
+import { buildIdFromFiles } from './src/lib/sourcemapLogic.js'
 
 // Vite writes the entry <script> and its ~18 <link rel="modulepreload">s
 // before the stylesheet. The stylesheet is the only render-blocking request
@@ -21,6 +23,52 @@ function stylesheetFirst() {
         for (const tag of css) out = out.replace(tag, '')
         const at = out.search(/<script type="module"/)
         return out.slice(0, at) + css.map(t => t.trim()).join('\n    ') + '\n    ' + out.slice(at)
+      },
+    },
+  }
+}
+
+// Source maps are for us, not for visitors: `build.sourcemap: 'hidden'` writes
+// them without a sourceMappingURL in the bundles, and this moves every .map out
+// of the deploy directory into sourcemaps/<build id>/ (git-ignored), the id
+// being the one error reports carry (src/lib/sourcemapLogic.js). Keep that
+// folder per release; scripts/symbolicate.mjs reads it. firebase.json also
+// ignores **/*.map, so a map can never reach Hosting even if this is skipped.
+function privateSourcemaps() {
+  let outDir = 'dist'
+  let root = process.cwd()
+  return {
+    name: 'private-sourcemaps',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir)
+      root = config.root
+    },
+    // After the PWA plugin has written the service worker, so nothing it emits
+    // is left behind.
+    closeBundle: {
+      order: 'post',
+      sequential: true,
+      handler() {
+        const maps = []
+        const walk = (dir) => {
+          for (const entry of fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }) : []) {
+            const full = path.join(dir, entry.name)
+            if (entry.isDirectory()) walk(full)
+            else if (entry.name.endsWith('.map')) maps.push(full)
+          }
+        }
+        walk(outDir)
+        if (!maps.length) return
+        const rels = maps.map(f => path.relative(outDir, f).split(path.sep).join('/'))
+        const buildId = buildIdFromFiles(rels) || 'unknown'
+        const target = path.join(root, 'sourcemaps', buildId)
+        fs.rmSync(target, { recursive: true, force: true })
+        maps.forEach((file, i) => {
+          const dest = path.join(target, rels[i])
+          fs.mkdirSync(path.dirname(dest), { recursive: true })
+          fs.renameSync(file, dest)
+        })
       },
     },
   }
@@ -60,6 +108,7 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, './src') },
   },
   build: {
+    sourcemap: 'hidden',
     rolldownOptions: {
       output: {
         // Modules the entry imports statically are needed before first render
@@ -81,6 +130,7 @@ export default defineConfig({
     react(),
     stylesheetFirst(),
     collectShell(),
+    privateSourcemaps(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
@@ -106,6 +156,8 @@ export default defineConfig({
         // The static legal pages (public/privacy.html, terms.html) are served by
         // Hosting via redirects; without this the worker answers /privacy and
         // /terms navigations with the app shell, which shows NOT FOUND.
+        // No public map for the worker either (nothing to symbolicate there).
+        sourcemap: false,
         navigateFallbackDenylist: [/^\/(privacy|terms)(\.html)?$/, /^\/__\//],
         // No Firebase runtime rule: RTDB/Auth traffic is live and has its own
         // offline handling; caching it here only stored opaque responses with
