@@ -30,6 +30,20 @@ The FCM worker registers under its own scope (`/firebase-cloud-messaging-push-sc
 ## Still open
 
 - A Cloud Billing budget with alerts could not be verified from the CLI (the Budgets API is not enabled for the CLI's project).
-- App Check is not enabled; TURN is not configured; the in-app-browser Google sign-in hint and the iOS auth domain are not changed.
+- TURN is not configured.
 - `functions/` still reports moderate `npm audit` findings (transitive `uuid`).
 - The privacy policy and terms are a working draft: read them before ads run.
+
+## App Check (monitor mode)
+
+`src/lib/firebase.js` calls `initializeAppCheck` with a reCAPTCHA Enterprise provider whenever `VITE_APPCHECK_SITE_KEY` is set (never against the emulators). With no key the app runs exactly as before, so shipping the code does nothing until the key exists. The Firebase SDK attaches the App Check token to Realtime Database requests and to any Cloud Functions call, so the same initialisation covers both.
+
+Console steps for the captain, in order:
+
+1. Google Cloud console, Security, reCAPTCHA Enterprise: create a website key (score-based) for `game-night-91464.web.app`, `game-night-91464.firebaseapp.com` and any custom domain. Copy the site key.
+2. Firebase console, App Check, Apps: register the web app with the reCAPTCHA Enterprise provider and that site key.
+3. Put the key in `.env.local` as `VITE_APPCHECK_SITE_KEY` (and in the CI build secrets), then build and deploy. In the network tab `exchangeRecaptchaEnterpriseToken` should return 200.
+4. Leave every product (Realtime Database, Authentication, Functions) on **Unenforced**. That is monitor mode: the console shows the verified and unverified request split, nothing is rejected.
+5. After about a week, when at least 98% of Realtime Database requests are verified (old cached clients send no token, and in-app webviews should be checked per platform), click **Enforce** for Realtime Database, and then optionally for Authentication. Add `enforceAppCheck: true` to any callable function at that point.
+
+For local dev against the real project, register a debug token under "Manage debug tokens" and set `VITE_APPCHECK_DEBUG_TOKEN`.

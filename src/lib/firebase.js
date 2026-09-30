@@ -32,7 +32,10 @@ const AUTH_EMULATOR_PORT = 9099;
 const DATABASE_EMULATOR_PORT = 9000;
 
 // App Check (reCAPTCHA Enterprise) attests that requests come from this app,
-// not a script replaying the public config. Off unless VITE_APPCHECK_SITE_KEY
+// not a script replaying the public config. The client only attaches tokens;
+// whether a missing one is rejected is a per-product switch in the console
+// (leave it on Unenforced = monitor mode until the verified rate is high).
+// Off unless VITE_APPCHECK_SITE_KEY
 // is set, and never against the emulators. To turn it on:
 //  1. Google Cloud console → Security → reCAPTCHA Enterprise: create a
 //     website key (score-based) listing the hosting domains (and any preview
