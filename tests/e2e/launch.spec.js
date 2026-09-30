@@ -30,9 +30,10 @@ test('an ad landing is attributed once and counted in the funnel', async ({ brow
   await expect.poll(() => readDb(`${base}/started`)).toBe(1)
 
   // The first touch is stored once on the account, from this first visit.
-  const users = await readDb('users')
-  const attribution = Object.values(users || {}).map(u => u.attribution).find(a => a?.campaign === 'e2elaunch')
-  expect(attribution).toBeTruthy()
+  // Written once the profile exists, which can be a beat after the counters.
+  const findAttribution = async () => Object.values((await readDb('users')) || {}).map(u => u.attribution).find(a => a?.campaign === 'e2elaunch')
+  await expect.poll(findAttribution).toBeTruthy()
+  const attribution = await findAttribution()
   expect(attribution).toMatchObject({ source: 'instagram', medium: 'paid', campaign: 'e2elaunch', click: 'fbclid', landing: '/solo/connectfour' })
 
   // A later visit from another campaign neither re-counts nor rewrites the first touch.

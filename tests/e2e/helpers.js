@@ -12,8 +12,14 @@ export async function newPlayer(browser) {
   const context = await browser.newContext()
   const page = await context.newPage()
   const errors = []
+  const cspViolations = []
   page.on('pageerror', (err) => errors.push(err))
-  return { context, page, errors }
+  // Chrome logs a blocked request as a console error; with E2E_CSP=1 the app
+  // runs under the production policy, so any of these is a real regression.
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' && /Content Security Policy/i.test(msg.text())) cspViolations.push(msg.text())
+  })
+  return { context, page, errors, cspViolations }
 }
 
 // Onboarding's two steps: NAME (pre-filled with a suggestion) → LOOK → the
@@ -53,7 +59,8 @@ export async function joinViaInvite(page, roomUrl, name) {
 }
 
 export function expectNoPageErrors(...players) {
-  for (const { errors } of players) {
+  for (const { errors, cspViolations = [] } of players) {
     expect(errors.map(e => e.message)).toEqual([])
+    expect(cspViolations).toEqual([])
   }
 }

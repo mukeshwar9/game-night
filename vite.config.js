@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import fs from 'node:fs'
 import { buildIdFromFiles } from './src/lib/sourcemapLogic.js'
 import { renderContactTokens } from './src/lib/contactLogic.js'
+import { readHostingCsp, withEmulatorOrigins } from './scripts/csp.mjs'
 
 // Vite writes the entry <script> and its ~18 <link rel="modulepreload">s
 // before the stylesheet. The stylesheet is the only render-blocking request
@@ -143,7 +144,15 @@ function collectShell() {
   }
 }
 
+// E2E_CSP=1 (with the production preview, E2E_PREVIEW=1) serves the same
+// Content-Security-Policy Hosting sends, so the e2e run fails on anything the
+// policy would block. The emulator origins are added for that run only.
+const previewHeaders = process.env.E2E_CSP === '1'
+  ? { 'Content-Security-Policy': withEmulatorOrigins(readHostingCsp().value) }
+  : undefined
+
 export default defineConfig({
+  preview: { headers: previewHeaders },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
