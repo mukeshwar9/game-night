@@ -809,7 +809,7 @@ export const GAME_TYPES = [
     badge: 'PG', maxWidth: 'max-w-md',
     category: 'reflex', hidePlayerCards: true,
     durationMin: 5, tags: ['frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/PongGame')),
   },
   {
@@ -818,7 +818,7 @@ export const GAME_TYPES = [
     badge: 'SN', maxWidth: 'max-w-md',
     category: 'reflex',
     durationMin: 4, tags: ['frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/SnakeGame')),
   },
   {
@@ -828,7 +828,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/TronGame')),
   },
   {
@@ -838,7 +838,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/SumoGame')),
   },
   {
@@ -848,7 +848,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/SpaceduelGame')),
   },
   {
@@ -858,7 +858,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-07-11',
     durationMin: 3, tags: ['quick', 'frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/PaintGame')),
   },
   {
@@ -868,7 +868,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-08-14',
     durationMin: 3, tags: ['frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/PacmacGame')),
     hidePlayerCards: true,
   },
@@ -1286,7 +1286,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-08-22',
     durationMin: 5, tags: ['skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/AirHockeyGame')),
   },
   {

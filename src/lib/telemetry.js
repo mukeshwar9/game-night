@@ -13,7 +13,7 @@
 // The helpers above the Firebase section are pure and unit-tested in
 // telemetry.test.js.
 
-import { ref, push, set, get } from 'firebase/database'
+import { ref, set, get } from 'firebase/database'
 import { db, usingEmulators } from './firebase'
 import { authReady, getUid } from './auth'
 
@@ -236,7 +236,19 @@ async function sendToFirebase({ msg, stack, kind, gameType }) {
     build: buildIdFromUrl(import.meta.url),
     ua: shortUserAgent(typeof navigator !== 'undefined' ? navigator.userAgent : ''),
   })
-  await set(push(ref(db, `errors/${dayKey(at)}`)), report)
+  await writeErrorReport(dayKey(at), uid, report)
+}
+
+// The rules key reports as `{uid}-{slot}` (slot 0-19) and are create-only, so
+// one account can hold at most 20 reports a day — the per-session cap alone is
+// client-side. A taken slot is retried on another one.
+export const ERROR_SLOTS = 20
+async function writeErrorReport(day, uid, report) {
+  const first = Math.floor(Math.random() * ERROR_SLOTS)
+  for (let i = 0; i < 3; i++) {
+    const slot = (first + i * 7) % ERROR_SLOTS
+    try { await set(ref(db, `errors/${day}/${uid}-${slot}`), report); return } catch (error) { if (i === 2) throw error }
+  }
 }
 
 let reporter = null

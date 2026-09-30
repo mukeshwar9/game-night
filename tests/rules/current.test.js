@@ -200,7 +200,7 @@ describe('games — chatLog', () => {
 describe('matchmaking', () => {
   const listing = (host, over = {}) => ({
     gameId: 'g1', gameType: 'tictactoe', visibility: 'public', hostUid: host, hostName: 'Alice',
-    createdAt: 1, updatedAt: 1, expiresAt: 2, ...over,
+    createdAt: Date.now(), updatedAt: Date.now(), expiresAt: Date.now() + 3_600_000, ...over,
   })
 
   it('lets any signed-in user read the lobby, not signed-out visitors', async () => {
@@ -233,7 +233,7 @@ describe('matchmaking', () => {
 })
 
 describe('users', () => {
-  const profile = { displayName: 'Alice', avatar: 'a', code: 'ABC234', online: true, lastSeen: 1 }
+  const profile = { displayName: 'Alice', avatar: 'a', code: 'ABC234' }
 
   it('lets a user write their own profile, not someone else’s', async () => {
     await assertSucceeds(dbAs(testEnv, ALICE).ref(`users/${ALICE}`).set(profile))
@@ -268,10 +268,16 @@ describe('codes', () => {
     await assertFails(dbAs(testEnv, MALLORY).ref('codes/XYZ789').set(ALICE))
   })
 
-  it('denies overwriting or deleting a claimed code, even by its owner', async () => {
+  it('denies overwriting a claimed code and deleting it by anyone but its owner', async () => {
     await seed(testEnv, 'codes/ABC234', ALICE)
     await assertFails(dbAs(testEnv, MALLORY).ref('codes/ABC234').set(MALLORY))
-    await assertFails(dbAs(testEnv, ALICE).ref('codes/ABC234').remove())
+    await assertFails(dbAs(testEnv, ALICE).ref('codes/ABC234').set(MALLORY))
+    await assertFails(dbAs(testEnv, MALLORY).ref('codes/ABC234').remove())
+  })
+
+  it('lets the owner release their code (delete my data)', async () => {
+    await seed(testEnv, 'codes/ABC234', ALICE)
+    await assertSucceeds(dbAs(testEnv, ALICE).ref('codes/ABC234').remove())
   })
 
   it('lets signed-in users resolve a code', async () => {

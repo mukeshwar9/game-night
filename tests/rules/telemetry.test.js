@@ -53,10 +53,9 @@ describe('the app’s own counter and error-report writes', () => {
       route: routeKey('/game/ABC123'), gameType: 'chainreaction4',
       build: buildIdFromUrl('https://game-night.web.app/assets/index-BCgFD2Nx.js'), ua: shortUserAgent(UA),
     })
-    const ref = as('alice').ref(`errors/${dayKey(at)}`).push()
-    await assertSucceeds(ref.set(report))
+    await assertSucceeds(as('alice').ref(`errors/${dayKey(at)}/alice-3`).set(report))
     const bare = buildErrorReport({ msg: 'boom', kind: 'error', at, uid: 'alice', route: routeKey('/'), build: buildIdFromUrl('http://127.0.0.1:5190/src/lib/telemetry.js'), ua: shortUserAgent('') })
-    await assertSucceeds(as('alice').ref(`errors/${dayKey(at)}`).push().set(bare))
+    await assertSucceeds(as('alice').ref(`errors/${dayKey(at)}/alice-4`).set(bare))
   })
 })
 
@@ -64,12 +63,16 @@ describe('errors', () => {
   const report = (uid, over = {}) => ({ at: Date.now(), kind: 'error', msg: 'boom', route: '/game/X', build: 'abc', ua: 'Chrome', uid, ...over })
 
   it('are create-only, capped, and stamped with the reporter', async () => {
-    await assertSucceeds(as('alice').ref(`errors/${TODAY}/e1`).set(report('alice')))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e1`).set(report('alice')))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e2`).set(report('bob')))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e3`).set(report('alice', { msg: 'x'.repeat(301) })))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e4`).set(report('alice', { extra: 1 })))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e5`).set(report('alice', { at: 1 })))
+    await assertSucceeds(as('alice').ref(`errors/${TODAY}/alice-1`).set(report('alice')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-1`).set(report('alice')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-2`).set(report('bob')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-3`).set(report('alice', { msg: 'x'.repeat(301) })))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-4`).set(report('alice', { extra: 1 })))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-5`).set(report('alice', { at: 1 })))
+    // Slots are per account: no other id, no other account's slot, at most 20 a day.
+    await assertFails(as('alice').ref(`errors/${TODAY}/e6`).set(report('alice')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/bob-1`).set(report('alice')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-20`).set(report('alice')))
   })
 
   it('are readable by admins only', async () => {
@@ -111,7 +114,7 @@ describe('leaderboard', () => {
 })
 
 describe('matchmaking listings for race rooms', () => {
-  const listing = (host) => ({ gameId: 'g1', gameType: 'reaction', visibility: 'public', hostUid: host, hostName: 'Alice', hostOnline: true, createdAt: 1, updatedAt: 1, expiresAt: 2 })
+  const listing = (host) => ({ gameId: 'g1', gameType: 'reaction', visibility: 'public', hostUid: host, hostName: 'Alice', hostOnline: true, createdAt: Date.now(), updatedAt: Date.now(), expiresAt: Date.now() + 3_600_000 })
 
   it('lets the only seated player list a public race room', async () => {
     await put('games/g1', partyNode({ uids: ['alice'], gameType: 'reaction', extra: { visibility: 'public' } }))
