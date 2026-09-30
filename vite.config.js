@@ -103,6 +103,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // The static legal pages (public/privacy.html, terms.html) are served by
+        // Hosting via redirects; without this the worker answers /privacy and
+        // /terms navigations with the app shell, which shows NOT FOUND.
+        navigateFallbackDenylist: [/^\/(privacy|terms)(\.html)?$/, /^\/__\//],
         // No Firebase runtime rule: RTDB/Auth traffic is live and has its own
         // offline handling; caching it here only stored opaque responses with
         // no expiry.

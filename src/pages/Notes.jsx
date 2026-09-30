@@ -19,6 +19,7 @@ import { fetchRecentFunnel, fetchRecentPlays, FUNNEL_STEPS, summarizeFunnel, sum
 import { getGameConfig } from '../lib/games'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
+import LegalLinks from '../components/LegalLinks'
 
 const TYPE_OPTIONS = [
   { id: 'bug', label: 'BUG' },
@@ -135,6 +136,8 @@ export default function Notes() {
           </section>
 
           {isAdmin && <AdminView />}
+
+          <LegalLinks contact />
         </div>
       </div>
     </div>

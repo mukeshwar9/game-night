@@ -1,0 +1,4 @@
+Contact: mailto:CONTACT_EMAIL_TBD
+Expires: 2027-09-30T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://game-night-91464.web.app/.well-known/security.txt

@@ -19,6 +19,7 @@ import { inviteSeatsLine } from '../lib/roomLogic'
 import { cn } from '@/lib/utils'
 import { displayNameFor } from '../lib/moderationLogic'
 import { recordFunnel } from '../lib/analytics'
+import LegalLinks from './LegalLinks'
 
 // First-run flow, two steps: NAME, then LOOK. Shown to a brand-new visitor
 // on Home/Games/Online, and to someone opening an invite link (`invite` set:
@@ -227,6 +228,7 @@ export default function Onboarding({ onDone, invite = null }) {
               >
                 NEXT: PICK A LOOK →
               </button>
+              <LegalLinks lead="By playing you agree to the" contact={false} />
               {showGoogle && (
                 <button
                   type="button"

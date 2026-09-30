@@ -20,6 +20,7 @@ import { getPlayerId } from '../lib/playerId'
 import { sounds } from '../lib/sounds'
 import { resetMusicDefaults, setMusicOn, setMusicVolume, syncMusic, useMusic } from '../lib/music'
 import { lazyWithRetry } from '../lib/lazyWithRetry'
+import LegalLinks from './LegalLinks'
 
 function ThemeSwatches({ id }) {
   return <span data-theme={id} className="inline-flex items-center gap-[3px] shrink-0" aria-hidden="true">
@@ -311,6 +312,11 @@ export default function SettingsButton({ className = '' }) {
           so it hides behind a plain-language question. */}
       <Section title="PLAYING ON A VIDEO CALL?">
         <VideoCallSettingsPanel embedded />
+      </Section>
+
+      <Section title="ABOUT & LEGAL">
+        <LegalLinks contact className="text-left" />
+        <p className="font-mono text-[11px] leading-relaxed text-retro-dim">Delete your data any time from Profile.</p>
       </Section>
 
       <Section title="HELP & RESET">

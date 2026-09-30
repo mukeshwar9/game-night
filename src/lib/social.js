@@ -12,10 +12,11 @@
 // before the split migrate the first time they open the app.
 
 import {
-  ref, get, set, update, onValue, runTransaction, push, onDisconnect,
+  ref, get, set, update, remove, onValue, runTransaction, push, onDisconnect,
 } from 'firebase/database'
 import { db, auth } from './firebase'
-import { getUid } from './auth'
+import { getUid, deleteCurrentUser } from './auth'
+import { deletionPatch } from './deleteAccountLogic'
 import { defaultAvatarForId } from './avatars'
 
 // ---- Friend codes (pure) ----
@@ -391,4 +392,33 @@ export function setupPresence(uid) {
     set(statusRef, true)
     set(seenRef, Date.now())
   })
+}
+
+// "Delete my data": removes every row the account owns, then the sign-in
+// account, then this device's Game Night state, and reloads to a clean start.
+// Rows only the server can write (the leaderboard row) are removed by the
+// cleanupDeletedAccount Cloud Function when the Auth user goes.
+export async function deleteMyData() {
+  const uid = getUid()
+  if (!db || !uid) throw new Error('not-signed-in')
+  const [me, friends, requests, invites] = await Promise.all([
+    get(ref(db, `users/${uid}/code`)),
+    get(ref(db, `friends/${uid}`)),
+    get(ref(db, `friendRequests/${uid}`)),
+    get(ref(db, `invites/${uid}`)),
+  ])
+  const patch = deletionPatch(uid, {
+    friendUids: Object.keys(friends.val() || {}),
+    requestUids: Object.keys(requests.val() || {}),
+    inviteIds: Object.keys(invites.val() || {}),
+    code: me.val(),
+  })
+  // users/{uid} last and on its own: its rule only allows the delete when no
+  // feedback was sent in the last 30 s, and a refusal there must not undo the rest.
+  await update(ref(db), patch)
+  await remove(ref(db, `users/${uid}`))
+  await deleteCurrentUser()
+  try { localStorage.clear() } catch { /* blocked */ }
+  try { sessionStorage.clear() } catch { /* blocked */ }
+  window.location.assign('/')
 }

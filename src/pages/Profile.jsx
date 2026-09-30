@@ -9,7 +9,7 @@ import { canonicalAvatar, defaultAvatarForId } from '../lib/avatars'
 import { validateName } from '../lib/onboardingLogic'
 import { getPlayerId } from '../lib/playerId'
 import { useAuth } from '../lib/AuthContext'
-import { setProfile } from '../lib/social'
+import { setProfile, deleteMyData } from '../lib/social'
 import { getStats, getMatches } from '../lib/profile'
 import { getGameConfig } from '../lib/games'
 import { UPGRADE_ERRORS, preloadGoogleSignIn } from '../lib/auth'
@@ -17,6 +17,7 @@ import { mutedList } from '../lib/moderationLogic'
 import { unmute, useMutedMap } from '../lib/mute'
 import useBusy from '../hooks/useBusy'
 import PushToggle from '../components/PushToggle'
+import LegalLinks from '../components/LegalLinks'
 import { cn } from '@/lib/utils'
 
 export default function Profile() {
@@ -26,6 +27,8 @@ export default function Profile() {
   const [busy, setBusy] = useState(false)
   useEffect(() => (isAnonymous ? preloadGoogleSignIn() : undefined), [isAnonymous])
   const [confirmSignOut, setConfirmSignOut] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteBusy, runDelete] = useBusy()
   const [nameBusy, runNameSave] = useBusy()
   const [avatarBusy, runAvatarSave] = useBusy()
   // Draft avatar edits — customizer edits this only; SAVE commits to the profile.
@@ -107,6 +110,15 @@ export default function Profile() {
 
   // Sign-out switches the session identity immediately with no way back —
   // require a second tap within a few seconds before it actually fires.
+  // Follows the useBusy convention: DELETING…, disabled, toast on failure. On
+  // success the page reloads to a fresh start, so there is no success toast.
+  const handleDelete = () => runDelete(deleteMyData, (e) => {
+    console.error('Delete my data failed:', e)
+    toast.error(e?.code === 'PERMISSION_DENIED' || /permission/i.test(e?.message || '')
+      ? 'COULDN\'T DELETE YET — WAIT 30 SECONDS AND TRY AGAIN.'
+      : 'COULDN\'T DELETE — CHECK YOUR CONNECTION AND TRY AGAIN.')
+  })
+
   const handleSignOutClick = () => {
     if (busy) return
     if (!confirmSignOut) {
@@ -376,6 +388,47 @@ export default function Profile() {
           )}
         </div>
         )}
+
+        {/* Privacy: policy links and account deletion */}
+        <div className="space-y-2 border-t border-retro-border pt-4">
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">PRIVACY</label>
+          <LegalLinks contact className="text-left" />
+          {!confirmDelete ? (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="w-full min-h-11 border border-retro-border bg-retro-card text-retro-dim font-pixel text-[10px] rounded
+                hover:text-retro-danger hover:border-retro-danger/60 transition-all active:scale-95"
+            >
+              DELETE MY DATA
+            </button>
+          ) : (
+            <div role="alertdialog" aria-labelledby="delete-title" aria-describedby="delete-body" className="space-y-3 border-2 border-retro-danger bg-retro-tint-danger rounded p-3">
+              <p id="delete-title" className="font-pixel text-[10px] text-retro-danger tracking-wider">DELETE EVERYTHING?</p>
+              <p id="delete-body" className="font-mono text-[11px] text-retro-text leading-relaxed">
+                This removes your profile, friend code, friends, invites, stats and sign-in account, and cannot be undone. Chat you already sent leaves with its room within a day.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleteBusy}
+                  className="flex-1 min-h-11 bg-retro-danger text-retro-bg font-pixel text-[10px] rounded transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {deleteBusy ? 'DELETING…' : 'YES, DELETE'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleteBusy}
+                  className="flex-1 min-h-11 border border-retro-border text-retro-text font-pixel text-[10px] rounded transition-all active:scale-95 disabled:opacity-50"
+                >
+                  CANCEL
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       </div>
     </div>

@@ -15,6 +15,8 @@ import {
   linkWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
+  deleteUser,
+  reauthenticateWithPopup,
 } from 'firebase/auth'
 import { auth } from './firebase'
 
@@ -254,6 +256,30 @@ export async function upgradeWithGoogle() {
   } catch (e) {
     // That Google account is already a Firebase user — sign into it instead.
     return await resolveUpgradeError(e)
+  }
+}
+
+// Deletes the Firebase Auth account itself (the last step of "Delete my data").
+// Deleting is a sensitive operation: an old session gets auth/requires-recent-
+// login. A Google account then signs in once more and retries. A guest cannot
+// re-authenticate, so it is signed out instead: every row is already gone, and
+// the leftover empty anonymous sign-in record holds no data. Returns
+// 'deleted' | 'signed-out'.
+export async function deleteCurrentUser() {
+  const user = auth?.currentUser
+  if (!user) return 'signed-out'
+  try {
+    await deleteUser(user)
+    return 'deleted'
+  } catch (e) {
+    if (e?.code !== 'auth/requires-recent-login') throw e
+    if (!user.isAnonymous) {
+      await reauthenticateWithPopup(user, new GoogleAuthProvider())
+      await deleteUser(user)
+      return 'deleted'
+    }
+    await signOut(auth)
+    return 'signed-out'
   }
 }
 
