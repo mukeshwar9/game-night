@@ -30,7 +30,10 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <script>
-      document.documentElement.dataset.theme = localStorage.getItem('retro-theme') || 'matcha'
+      var theme = localStorage.getItem('retro-theme')
+      // PAPERWHITE was retired; keep its players on the default.
+      if (theme === 'paper') { theme = null; localStorage.removeItem('retro-theme') }
+      document.documentElement.dataset.theme = theme || 'matcha'
       document.documentElement.dataset.font = localStorage.getItem('retro-font') || 'press-start'
     </script>
     <title>Game Night — quick games with friends, no account needed</title>
