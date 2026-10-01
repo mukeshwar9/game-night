@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import useFocusArena from '../hooks/useFocusArena'
 import PacmacArena, { PacmacDpad } from '../components/PacmacArena'
 import { usePacmacControls } from '../hooks/usePacmacControls'
 import {
@@ -27,12 +28,14 @@ function viewOf(sim, countdown = 0) {
 // round waits for a tap/key so it never runs while scrolled out of view.
 export default function PacmacDemo() {
   const zoneRef = useRef(null)
+  const rootRef = useRef(null)
   const simRef = useRef(null)
   const [view, setView] = useState(() => viewOf(createState()))
   const [phase, setPhase] = useState('ready') // ready | countdown | playing | over
   const [winner, setWinner] = useState(null)
   const [wins, setWins] = useState({ X: 0, O: 0 })
   const [coarse] = useState(isCoarsePointer)
+  useFocusArena(rootRef, phase === 'countdown' || phase === 'playing')
   const { getDir, press } = usePacmacControls(zoneRef, phase === 'playing' || phase === 'countdown')
   const wantRef = useRef(null)
 
@@ -142,7 +145,7 @@ export default function PacmacDemo() {
   }
 
   return (
-    <div className="space-y-2" style={{ '--pacmac-reserve': coarse ? '292px' : '190px' }}>
+    <div ref={rootRef} className="scroll-mt-3 space-y-2" style={{ '--pacmac-reserve': coarse ? '292px' : '190px' }}>
       <div className="flex justify-center gap-6 font-pixel text-[10px]">
         <span className={cn('text-retro-p1', wins.X >= MATCH_TARGET && 'text-glow-p1')}>YOU {wins.X}</span>
         <span className="text-retro-dim">FIRST TO {MATCH_TARGET}</span>

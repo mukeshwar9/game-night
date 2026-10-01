@@ -104,8 +104,11 @@ const UpdraftArena = forwardRef(function UpdraftArena({
       ref={ref}
       role="img"
       aria-label={label}
-      className="relative w-full overflow-hidden rounded-lg border-2 border-retro-border bg-retro-deep select-none touch-none"
-      style={{ aspectRatio: `${WORLD_W} / ${VIEW_H}` }}
+      className="relative mx-auto scroll-mt-3 overflow-hidden rounded-lg border-2 border-retro-border bg-retro-deep select-none touch-none"
+      // Tall arena: never wider than fits the screen height with the steer
+      // strip and chrome (8.5rem) below it, so the tower you climb into is
+      // not pushed under the header or off the bottom.
+      style={{ aspectRatio: `${WORLD_W} / ${VIEW_H}`, width: `min(100%, calc((100dvh - 8.5rem) * ${WORLD_W / VIEW_H}))` }}
     >
       {/* Faint rungs that scroll with the camera, so climbing reads as motion. */}
       {Array.from({ length: Math.ceil(VIEW_H / GRID) + 1 }, (_, i) => (Math.ceil(camY / GRID) + i) * GRID).map(y => (

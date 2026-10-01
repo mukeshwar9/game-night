@@ -533,6 +533,9 @@ const CLIPS = {
 
 // Variants + same-family games reuse the base clip (mirrors the art fallback).
 
+// eslint-disable-next-line react-refresh/only-export-components
+export const hasRuleClip = (type) => !!CLIPS[CLIP_ALIAS[type] || type]
+
 export default function RuleClip({ type, className }) {
   const Clip = CLIPS[CLIP_ALIAS[type] || type]
   if (!Clip) return null

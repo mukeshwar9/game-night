@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import useFocusArena from '../../hooks/useFocusArena'
 import { cn } from '@/lib/utils'
 import GameStatus from '../../components/GameStatus'
 import PlayerCard from '../../components/PlayerCard'
@@ -29,7 +30,13 @@ function localName() {
   try { return localStorage.getItem('playerName') || 'YOU' } catch { return 'YOU' }
 }
 
+// Boards plus their controls that run taller than a phone screen once the app
+// header is counted: bring them to the top of the screen on mount.
+const TALL_BOARDS = new Set(['onitama', 'blockade'])
+
 export default function BotBoardDemo({ type, mode = 'bot' }) {
+  const rootRef = useRef(null)
+  useFocusArena(rootRef, TALL_BOARDS.has(type))
   const isLocal = mode === 'local'
   const cfg = getGameConfig(type)
   const makeInit = () => ({
@@ -138,7 +145,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
   const canMove = game.status === 'playing' && (isLocal || game.currentTurn === 'X')
 
   return (
-    <div className="space-y-4">
+    <div ref={rootRef} className="scroll-mt-3 space-y-4">
       {levels.length > 1 && (
         <div role="group" aria-label="CPU difficulty" className="flex items-center justify-center gap-1.5">
           <span className="font-pixel text-[8px] text-retro-dim tracking-widest mr-1">CPU</span>
@@ -148,7 +155,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
               onClick={() => chooseDifficulty(level)}
               aria-pressed={difficulty === level}
               className={cn(
-                'px-3 py-1 font-pixel text-[8px] uppercase rounded border-2 transition-all active:scale-95',
+                'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition-all active:scale-95',
                 difficulty === level
                   ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                   : 'border-retro-border text-retro-dim hover:border-retro-p1/50',
@@ -179,6 +186,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
         winningLine={game.winningLine || []}
         currentTurn={game.currentTurn}
         lastMove={game.lastMove ?? null}
+        {...(isLocal && type === 'mancala' ? { mySymbol: game.currentTurn, accent: game.currentTurn === 'X' ? 'p1' : 'p2', hotseat: true, players: { X: { name: 'PLAYER 1' }, O: { name: 'PLAYER 2' } } } : {})}
         {...(cfg.boardProps ? cfg.boardProps(game) : {})}
       />
       <GameStatus

@@ -1,9 +1,10 @@
 import { getGameConfig } from '../lib/games'
 import { getRules } from '../lib/rules'
-import RuleClip from './RuleClips'
+import RuleClip, { hasRuleClip } from './RuleClips'
 import BottomSheet from './BottomSheet'
 import RuleMedia from './RuleMedia'
 import { getRuleMedia } from '../lib/ruleMediaLogic'
+import { quickStart } from '../lib/rulesQuickStart'
 
 // A small "?" icon button — the trigger that opens the rules modal. Styled to
 // match the header icon buttons (mute / ThemeSwitcher) in Game.jsx. p-3.5/-m-2.5
@@ -36,6 +37,9 @@ export default function RulesModal({ gameType, onClose }) {
   const cfg = getGameConfig(gameType)
   const rules = getRules(gameType)
   const title = cfg?.label || 'HOW TO PLAY'
+  const quick = rules ? quickStart(rules) : null
+  const Icon = cfg?.Icon
+  const hasVisual = !!rules && !!(getRuleMedia(gameType) || hasRuleClip(gameType))
 
   return (
     <BottomSheet onClose={onClose} ariaLabel={`${title} rules`} className="space-y-4">
@@ -58,27 +62,64 @@ export default function RulesModal({ gameType, onClose }) {
             ? <RuleMedia gameType={gameType} rules={rules} />
             : <RuleClip type={gameType} className="w-full aspect-square rounded-xl border border-retro-border block bg-retro-card" />}
 
+          {/* Games with no still or clip yet get their icon, so the sheet is not
+              all text. */}
+          {!hasVisual && Icon && (
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl border border-retro-border bg-retro-card [&_svg]:h-10 [&_svg]:w-10" aria-hidden="true">
+              <Icon />
+            </div>
+          )}
+
           <section className="space-y-1.5">
             <p className="font-pixel text-[9px] text-retro-p1 tracking-widest">OBJECTIVE</p>
             <p className="font-mono text-[11px] leading-relaxed text-retro-text">{rules.objective}</p>
           </section>
 
-          <section className="space-y-1.5">
-            <p className="font-pixel text-[9px] text-retro-dim tracking-widest">HOW TO PLAY</p>
-            <ul className="space-y-1.5">
-              {rules.howToPlay.map((step, i) => (
-                <li key={i} className="font-mono text-[11px] leading-relaxed text-retro-text flex gap-2">
-                  <span className="text-retro-p1" aria-hidden="true">›</span>
-                  <span>{step}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {quick.long && (
+            <section className="space-y-1.5">
+              <p className="font-pixel text-[9px] text-retro-cta tracking-widest">QUICK START</p>
+              <ul className="space-y-1.5">
+                {quick.bullets.map((step, i) => (
+                  <li key={i} className="font-mono text-[11px] leading-relaxed text-retro-text flex gap-2">
+                    <span className="text-retro-cta" aria-hidden="true">›</span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-          <section className="space-y-1.5">
-            <p className="font-pixel text-[9px] text-retro-win tracking-widest">TO WIN</p>
-            <p className="font-mono text-[11px] leading-relaxed text-retro-text">{rules.win}</p>
-          </section>
+          {(() => {
+            const full = (
+              <>
+                <section className="space-y-1.5">
+                  <p className="font-pixel text-[9px] text-retro-dim tracking-widest">HOW TO PLAY</p>
+                  <ul className="space-y-1.5">
+                    {rules.howToPlay.map((step, i) => (
+                      <li key={i} className="font-mono text-[11px] leading-relaxed text-retro-text flex gap-2">
+                        <span className="text-retro-p1" aria-hidden="true">›</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+
+                <section className="space-y-1.5">
+                  <p className="font-pixel text-[9px] text-retro-win tracking-widest">TO WIN</p>
+                  <p className="font-mono text-[11px] leading-relaxed text-retro-text">{rules.win}</p>
+                </section>
+              </>
+            )
+            return quick.long ? (
+              <details className="group space-y-4 border-t border-retro-border pt-2">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between font-pixel text-[10px] text-retro-dim tracking-widest [&::-webkit-details-marker]:hidden">
+                  FULL RULES
+                  <span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
+                </summary>
+                <div className="space-y-4 pt-2">{full}</div>
+              </details>
+            ) : full
+          })()}
         </div>
       ) : (
         <p className="font-mono text-[11px] leading-relaxed text-retro-dim">Rules coming soon.</p>

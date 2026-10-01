@@ -26,7 +26,7 @@ const SEC = 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text f
 
 function Toggle({ label, on, onChange }) {
   return (
-    <label className="flex items-center justify-between py-2 border-b border-retro-border/60 font-mono text-xs text-retro-text cursor-pointer">
+    <label className="flex items-center justify-between min-h-11 py-2 border-b border-retro-border/60 font-mono text-xs text-retro-text cursor-pointer">
       <span>{label}</span>
       <input type="checkbox" checked={on} onChange={e => onChange(e.target.checked)} className="w-5 h-5 accent-[rgb(var(--c-win))]" />
     </label>
@@ -231,7 +231,8 @@ function OfflineMatch({ setup, onExit }) {
     return () => clearInterval(id)
   }, [timed, turnKey])
 
-  // Bot turn: score candidates a few per frame, glide the piece over, drop.
+  // Bot turn: score candidates in short (8ms) slices so a slow phone keeps
+  // animating between them, glide the piece over, drop.
   useEffect(() => {
     if (phase !== 'aim' || !current?.bot) return
     const level = current.bot, L = BOT_LEVELS[level]
@@ -241,7 +242,7 @@ function OfflineMatch({ setup, onExit }) {
     const chunk = () => {
       if (cancelled) return
       const t0 = performance.now()
-      while (i < cands.length && performance.now() - t0 < 24) {
+      while (i < cands.length && performance.now() - t0 < 8) {
         const s = scoreCandidate(m.state, cands[i], L.cap) + Math.random() * 0.2
         if (s > bestScore) { bestScore = s; best = cands[i] }
         i++
@@ -309,7 +310,7 @@ function OfflineMatch({ setup, onExit }) {
       />
 
       {phase === 'gate' && (
-        <div className="fixed inset-0 z-50 bg-retro-bg/95 flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="fixed inset-0 z-50 bg-retro-bg/95 flex flex-col items-center justify-center gap-4 p-8 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] text-center">
           <span className={cn('text-6xl leading-none', TEXT_TOK[PLAYER_TOKENS[match.turn]])}>{PLAYER_GLYPHS[match.turn]}</span>
           <p className={cn('font-pixel text-sm', TEXT_TOK[PLAYER_TOKENS[match.turn]])}>PASS TO {current.name}</p>
           <p className="font-mono text-xs text-retro-dim">tower {top.toFixed(1)} m · {match.state.length} animals</p>

@@ -316,6 +316,7 @@ export default function NumberMemoryGame({
             ref={inputRef}
             type="text"
             inputMode="numeric"
+            enterKeyHint="go"
             autoComplete="off"
             aria-label="Your answer"
             maxLength={round.level + 2}

@@ -39,7 +39,7 @@ export default function TriviaDemo() {
 
   const [qNum, setQNum] = useState(0)
   const [phase, setPhase] = useState('question')
-  const [qStartAt, setQStartAt] = useState(null)
+  const [qStartAt, setQStartAt] = useState(() => Date.now())
   const [answers, setAnswers] = useState({})
   const [deltas, setDeltas] = useState({})
   const [scores, setScores] = useState(FRESH_SCORES)

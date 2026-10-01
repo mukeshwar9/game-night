@@ -7,9 +7,10 @@ import { LEADERBOARD_ENABLED } from '../lib/features'
 
 /* eslint-disable react-refresh/only-export-components */
 
-// Persistent Home/Daily/Friends/Profile tab bar — only on the four meta
-// routes; also the only routes where the header hides on scroll (game rooms
-// and /demo stay pinned so it doesn't fight the fixed GameStatus bar).
+// Persistent Home/Daily/Friends/Profile tab bar — only on the meta routes;
+// also the only routes where the header hides on scroll. /solo/:type and
+// /local/:type use an unpinned header (IN_GAME_PREFIXES) so it scrolls away
+// with the page; /demo stays pinned.
 // Every top-level destination keeps the tab bar so no page is a dead end
 // (daily, online lobby and leaderboard had no way back).
 export const TAB_BAR_ROUTES = ['/', '/games', '/friends', '/profile', '/daily', '/online', ...(LEADERBOARD_ENABLED ? ['/leaderboard'] : [])]
@@ -44,11 +45,15 @@ export function useHomeIntercept(handler) {
 // fullscreen (h-dvh, camera-panned world) and hosts its own back/mute/theme
 // HUD overlaid on the world — same reasoning as /game/.
 const HIDDEN_ROUTES_PREFIXES = ['/game/', '/playground']
+const IN_GAME_PREFIXES = ['/solo/', '/local/']
 
 export default function NavBar() {
   const { pathname } = useLocation()
   const interceptRef = useContext(HomeInterceptContext)
   const hidden = useHideOnScroll({ enabled: TAB_BAR_ROUTES.includes(pathname), resetKey: pathname })
+  // Solo and pass & play pages scroll the game card to the top of the screen;
+  // an unpinned header scrolls off with the page instead of covering the arena.
+  const inGame = IN_GAME_PREFIXES.some((p) => pathname.startsWith(p))
 
   // Mirror `hidden` onto <html> so sticky-chrome elsewhere (GamePicker's
   // filter/tab block) can collapse its top offset in sync via
@@ -62,7 +67,7 @@ export default function NavBar() {
 
   return (
     <header
-      className={`sticky top-0 z-30 w-full border-b border-retro-border/60 bg-retro-bg/95 backdrop-blur
+      className={`${inGame ? 'relative' : 'sticky top-0'} z-30 w-full border-b border-retro-border/60 bg-retro-bg/95 backdrop-blur
         pt-[max(0.75rem,env(safe-area-inset-top))]
         pl-[max(1rem,env(safe-area-inset-left))]
         pr-[max(1rem,env(safe-area-inset-right))]

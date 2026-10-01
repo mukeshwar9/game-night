@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import UpdraftArena from '../components/UpdraftArena'
 import { ThumbBand } from '../components/UpdraftControls'
 import TouchCoachmark from '../components/TouchCoachmark'
+import useFocusArena from '../hooks/useFocusArena'
 import { useUpdraftControls } from '../hooks/useUpdraftControls'
 import { useUpdraftHazards } from '../hooks/useUpdraftHazards'
 import { playRunSounds, useUpdraftRun } from '../hooks/useUpdraftRun'
@@ -29,6 +30,7 @@ export default function UpdraftDemo() {
   const touchRef = useRef(null)
   const racing = count <= 0
   const live = racing && !result
+  useFocusArena(arenaRef, count < COUNTDOWN_SECS)
   // A gust on the bot: a sideways drift that a timer clears.
   const botDrift = useRef(0)
   const botGust = useRef(null)

@@ -165,7 +165,7 @@ export default function SettingsButton({ className = '' }) {
       onClick={() => { setEditingMe(false); setOpen(true) }}
       title="Settings"
       aria-label="Settings"
-      className={`relative text-retro-dim hover:text-retro-text active:scale-95 transition-colors p-3 rounded ${className}`}
+      className={`relative text-retro-dim hover:text-retro-text active:scale-95 transition-colors p-3.5 rounded ${className}`}
     >
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <line x1="4" y1="6" x2="20" y2="6" />

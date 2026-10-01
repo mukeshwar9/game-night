@@ -148,7 +148,7 @@ export default function MineRaceDemo() {
         <p className="font-pixel text-[8px] text-retro-dim text-center">BEST {secs(best)}s</p>
       )}
 
-      <div className="relative mx-auto" style={{ width: 'min(100%, 26rem)' }}>
+      <div className="relative mx-auto" style={{ width: 'min(100%, 32rem)' }}>
         <div className="grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' }}>
           {Array.from({ length: CELL_COUNT }, (_, cell) => {
             const isRevealed = revealed.has(cell)
@@ -223,7 +223,7 @@ export default function MineRaceDemo() {
               onClick={() => setMode(m => (m === 'reveal' ? 'flag' : 'reveal'))}
               aria-pressed={mode === 'flag'}
               className={cn(
-                'px-4 py-1.5 font-pixel text-[9px] rounded border-2 transition-all active:scale-95',
+                'min-h-11 px-4 py-1.5 font-pixel text-[10px] rounded border-2 transition-all active:scale-95',
                 mode === 'flag'
                   ? 'border-retro-p2 text-retro-p2 shadow-neon-p2'
                   : 'border-retro-border text-retro-dim hover:border-retro-p2/50',
@@ -233,7 +233,7 @@ export default function MineRaceDemo() {
             </button>
             <button
               onClick={reset}
-              className="px-4 py-1.5 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
+              className="min-h-11 px-4 py-1.5 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
             >
               RESTART
             </button>

@@ -324,7 +324,7 @@ export default function SketchCanvas({ gameId, isArtist }) {
               aria-label="Brush tool"
               aria-pressed={tool === 'brush'}
               className={cn(
-                'px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition-all active:scale-95 flex items-center gap-1',
+                'min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition-all active:scale-95 flex items-center gap-1',
                 tool === 'brush' ? 'border-retro-cta bg-retro-cta text-retro-bg shadow-neon-cta' : 'border-retro-border text-retro-dim',
               )}
             >
@@ -336,7 +336,7 @@ export default function SketchCanvas({ gameId, isArtist }) {
               aria-label="Fill bucket tool"
               aria-pressed={tool === 'bucket'}
               className={cn(
-                'px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition-all active:scale-95 flex items-center gap-1',
+                'min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition-all active:scale-95 flex items-center gap-1',
                 tool === 'bucket' ? 'border-retro-cta bg-retro-cta text-retro-bg shadow-neon-cta' : 'border-retro-border text-retro-dim',
               )}
             >
@@ -346,7 +346,7 @@ export default function SketchCanvas({ gameId, isArtist }) {
               <span className="font-pixel text-[8px] text-retro-dim ml-1">TAP TO FILL ENCLOSED AREA</span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="grid grid-cols-8 gap-1">
             {PALETTE.map((hex, i) => (
               <button
                 key={hex}
@@ -355,7 +355,7 @@ export default function SketchCanvas({ gameId, isArtist }) {
                 aria-label={`Color swatch ${i + 1}`}
                 aria-pressed={color === i}
                 className={cn(
-                  'w-7 h-7 rounded border-2 transition-transform active:scale-90 shrink-0',
+                  'w-full h-10 rounded border-2 transition-transform active:scale-90',
                   color === i ? 'border-retro-cta shadow-neon-cta scale-110' : 'border-retro-border',
                 )}
                 style={{ backgroundColor: hex }}
@@ -373,7 +373,7 @@ export default function SketchCanvas({ gameId, isArtist }) {
                   aria-pressed={brushSize === size}
                   disabled={tool === 'bucket'}
                   className={cn(
-                    'w-8 h-8 flex items-center justify-center rounded border-2 transition-all active:scale-90',
+                    'w-11 h-11 flex items-center justify-center rounded border-2 transition-all active:scale-90',
                     brushSize === size ? 'border-retro-cta shadow-neon-cta' : 'border-retro-border',
                     tool === 'bucket' && 'opacity-40',
                   )}
@@ -389,14 +389,14 @@ export default function SketchCanvas({ gameId, isArtist }) {
               <button
                 type="button"
                 onClick={handleUndo}
-                className="px-2.5 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95"
+                className="min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95"
               >
                 UNDO
               </button>
               <button
                 type="button"
                 onClick={handleClear}
-                className="px-2.5 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95"
+                className="min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95"
               >
                 CLEAR
               </button>

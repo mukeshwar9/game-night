@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Phone type floor: the 7-9px pixel-font sizes sprinkled through the UI (turn
+   pills, timers, score labels, hints) are below the ~11pt reading guidance on
+   a handheld. On phones everything read during play is at least 10px; desktop
+   keeps the denser sizes. Declared after the utilities so it wins at equal
+   specificity. */
+@media (max-width: 640px) {
+  .text-\[7px\],
+  .text-\[8px\],
+  .text-\[9px\] {
+    font-size: 10px;
+  }
+}
+
 /* Portrait 9:16 video-call space shares the reaction row without changing game layout. */
 .video-call-reaction-dock {
   display: grid;
@@ -1649,6 +1662,12 @@ body {
   /* Faster taps + no grey tap-flash on mobile */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  /* No iOS long-press callout on images/links while playing; text inputs
+     and selectable copy opt back in below. */
+  -webkit-touch-callout: none;
+}
+input, textarea, [contenteditable] {
+  -webkit-touch-callout: default;
 }
 
 /* M-21: without this a stray downward swipe outside a real-time game's own

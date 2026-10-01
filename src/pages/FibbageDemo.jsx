@@ -375,6 +375,7 @@ export default function FibbageDemo() {
                 type="text"
                 value={lieInput}
                 maxLength={LIE_MAX_LENGTH}
+                enterKeyHint="send"
                 onChange={e => { setLieInput(e.target.value); setInputError('') }}
                 onKeyDown={e => e.key === 'Enter' && handleSubmitLie()}
                 autoCorrect="off"

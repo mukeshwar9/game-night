@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { cellLabel, countLabel, joinLabel } from '../lib/a11yLabels'
+import useTapConfirm from '../hooks/useTapConfirm'
 
 export default function ConnectFourBoard({ board, onMove, disabled, winningLine = [], currentTurn, popMode = false, lastMove = null, cols = 7, rows = 6 }) {
   const [hoveredCol, setHoveredCol] = useState(null)
+  // The 9-wide C4 FIVE board has ~30px columns: on touch a first tap marks the
+  // column (it lights up like a mouse hover) and a second tap drops the disc.
+  const confirm = useTapConfirm({ disabled, isOpen: (col) => !board[col] })
+  const aimed = cols > 7 ? confirm.pending : null
 
   // Per-cell "version" bumped only when that cell's content actually changes,
   // so a pop's downward slide re-triggers the drop animation for every disc
@@ -49,6 +54,11 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
     if (disabled) return
     onMove(popMode ? { col, action } : col)
   }
+  const drop = (col) => {
+    if (disabled) return
+    if (cols > 7) confirm.tap(col, () => emit(col, 'drop'))
+    else emit(col, 'drop')
+  }
   const bottomOf = (col) => board[(rows - 1) * cols + col]
 
   return (
@@ -72,7 +82,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
             const col = i % cols
             const row = Math.floor(i / cols)
             const colFull = !!board[col]
-            const isHovered = hoveredCol === col && !disabled && !colFull
+            const isHovered = (hoveredCol === col || aimed === col) && !disabled && !colFull
             const isWinning = winningLine.includes(i)
             return (
               <div
@@ -83,7 +93,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                   row, col, occupant: cell,
                   extra: [isWinning && 'winning line', !isWinning && i === lastMove && 'last move'],
                 })}
-                onClick={() => !colFull && emit(col, 'drop')}
+                onClick={() => !colFull && drop(col)}
                 onMouseEnter={() => setHoveredCol(col)}
                 onMouseLeave={() => setHoveredCol(null)}
                 className={cn(
@@ -135,7 +145,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
             return (
               <button
                 key={col}
-                onClick={() => clickable && emit(col, 'drop')}
+                onClick={() => clickable && drop(col)}
                 onMouseEnter={() => setHoveredCol(col)}
                 onMouseLeave={() => setHoveredCol(null)}
                 disabled={!clickable}
@@ -154,6 +164,9 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
           })}
         </div>
 
+        <p className="mt-1.5 text-center font-pixel text-[8px] text-retro-dim tracking-wider min-h-[1em]" aria-live="polite">
+          {aimed != null ? 'TAP AGAIN TO DROP' : '\u00a0'}
+        </p>
         {popMode && (
           <div
             className="grid gap-1 sm:gap-1.5 mt-1.5 pt-1.5 border-t border-retro-border/60"
