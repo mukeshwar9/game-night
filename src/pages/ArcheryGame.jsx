@@ -228,6 +228,9 @@ export default function ArcheryGame(props) {
         disabled={!myTurn}
         pointerProps={drawHook.pointerProps}
       />
+      {status === 'playing' && !isSpectator && myTurn && (
+        <p className="text-center font-mono text-[9px] text-retro-dim">DRAG FROM BOW GRIP · PULL DOWN FOR POWER · SLIDE BACK TO CANCEL</p>
+      )}
       {status === 'playing' && !isSpectator && (
         <>
           <label className="flex items-center justify-between rounded border border-retro-border bg-retro-card px-3 py-2 font-mono text-[11px] text-retro-text">
