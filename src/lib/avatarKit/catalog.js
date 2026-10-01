@@ -10,7 +10,7 @@
 // a colour list). Catalogs are APPEND-ONLY - reordering or deleting an entry changes
 // what every saved avatar looks like (catalog.test.js pins the head of each list).
 // A string is 25 characters, under every length cap (32 on the leaderboard copy,
-// 160 on invites, 200 in the rules). Legacy strings ('ghost.p2', 'kid.cta-p2-...')
+// 200 in the rules). Legacy strings ('ghost.p2', 'kid.cta-p2-...')
 // have no 'K1' prefix and keep parsing through migrate.js.
 //
 // Decoding is total: a short string, an unknown prefix version, or an out-of-range
