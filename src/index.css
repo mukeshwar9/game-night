@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Phone type floor: the 7-9px pixel-font sizes sprinkled through the UI (turn
+   pills, timers, score labels, hints) are below the ~11pt reading guidance on
+   a handheld. On phones everything read during play is at least 10px; desktop
+   keeps the denser sizes. Declared after the utilities so it wins at equal
+   specificity. */
+@media (max-width: 640px) {
+  .text-\[7px\],
+  .text-\[8px\],
+  .text-\[9px\] {
+    font-size: 10px;
+  }
+}
+
 /* Portrait 9:16 video-call space shares the reaction row without changing game layout. */
 .video-call-reaction-dock {
   display: grid;
