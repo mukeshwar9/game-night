@@ -142,9 +142,11 @@ export default function MancalaBoard({
   const TOP_ROW = bottomIsX ? [12, 11, 10, 9, 8, 7] : [0, 1, 2, 3, 4, 5]
   const bottomStorePit = bottomIsX ? 6 : 13
   const topStorePit = bottomIsX ? 13 : 6
+  // Pass & play: the store labels are short seat tags (they truncate at ~48px).
+  const seatTag = (sym) => (sym === 'O' ? 'P2' : 'P1')
   const nameOf = (sym, fallback) => (players?.[sym]?.name || fallback).toUpperCase()
-  const bottomLabel = spectator ? nameOf('X', 'X') : hotseat ? nameOf(mySymbol, 'PLAYER') : 'YOU'
-  const topLabel = spectator ? nameOf('O', 'O') : nameOf(bottomIsX ? 'O' : 'X', hotseat ? 'PLAYER' : 'RIVAL')
+  const bottomLabel = spectator ? nameOf('X', 'X') : hotseat ? seatTag(mySymbol) : 'YOU'
+  const topLabel = spectator ? nameOf('O', 'O') : hotseat ? seatTag(bottomIsX ? 'O' : 'X') : nameOf(bottomIsX ? 'O' : 'X', 'RIVAL')
   // Owner words for screen-reader names ("Your pit 3", "Rival store").
   const bottomOwner = spectator ? 'X' : 'Your'
   const topOwner = spectator ? 'O' : 'Rival'

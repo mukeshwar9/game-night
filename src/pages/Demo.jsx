@@ -334,8 +334,8 @@ function DemoHub() {
     <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-md space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-baseline justify-between gap-3">
-          <h1 className="font-pixel text-sm text-retro-cta tracking-wider">PLAY SOLO</h1>
-          <span className="font-pixel text-[9px] text-retro-dim tracking-wider">VS CPU · NO WAITING</span>
+          <h1 className="font-pixel text-sm text-retro-cta tracking-wider whitespace-nowrap">PLAY SOLO</h1>
+          <span className="min-w-0 text-right font-pixel text-[9px] text-retro-dim tracking-wider">VS CPU · NO WAITING</span>
         </div>
         {adLanding
           ? (
