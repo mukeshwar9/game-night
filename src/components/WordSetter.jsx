@@ -72,6 +72,7 @@ export default function WordSetter({
         <label htmlFor="hangwoman-word" className="sr-only">Secret word</label>
         <input
           id="hangwoman-word"
+          enterKeyHint="next"
           type="text"
           value={raw}
           onChange={handleChange}
@@ -105,6 +106,7 @@ export default function WordSetter({
         <label htmlFor="hangwoman-hint" className="sr-only">Hint (optional)</label>
         <input
           id="hangwoman-hint"
+          enterKeyHint="done"
           type="text"
           value={hint}
           onChange={e => { setHint(e.target.value); setHintError('') }}

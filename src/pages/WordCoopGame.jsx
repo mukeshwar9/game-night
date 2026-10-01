@@ -395,6 +395,7 @@ export default function WordCoopGame({
         <>
           <input
             ref={inputRef}
+            enterKeyHint="send"
             value={currentGuess}
             onChange={event => {
               setFeedback(null)

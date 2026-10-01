@@ -222,6 +222,7 @@ export default function PasswordDemo() {
                   value={input}
                   onChange={event => { setInput(event.target.value); setError('') }}
                   maxLength={isMyClueTurn ? 16 : 24}
+                  enterKeyHint="send"
                   autoComplete="off"
                   spellCheck="false"
                   placeholder={isMyClueTurn ? 'TYPE ONE-WORD CLUE…' : 'TYPE YOUR GUESS…'}

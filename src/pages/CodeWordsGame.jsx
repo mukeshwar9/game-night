@@ -678,6 +678,7 @@ export default function CodeWordsGame({
             type="text"
             value={clueText}
             maxLength={24}
+            enterKeyHint="send"
             onChange={e => { setClueText(e.target.value); setClueErr('') }}
             onKeyDown={e => e.key === 'Enter' && giveClue()}
             autoCorrect="off"
