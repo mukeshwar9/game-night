@@ -10,6 +10,7 @@ import RoundTimer from '../components/RoundTimer'
 import WordFeedback from '../components/WordFeedback'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
+import { shareCurrentUrl } from '../lib/platform'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import useServerClock from '@/hooks/useServerClock'
@@ -551,7 +552,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
                   headline,
                   sub: `${scoreX} – ${scoreO}`,
                   accentVar: '--c-cta',
-                  url: window.location.href,
+                  url: shareCurrentUrl(),
                 })
                 if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
               }, () => toast.error("COULDN'T SHARE — TRY AGAIN"))}

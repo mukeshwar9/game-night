@@ -1,4 +1,5 @@
 import { haptic } from './haptics'
+import { isNative } from './platform'
 import { getWinFx } from './displayPrefs'
 import { duckMusic, resumeAudio } from './audioContext'
 
@@ -29,7 +30,7 @@ function duckUnder(c, start, dur) {
 // Haptics go through the native shell only (src/lib/haptics.js); web
 // vibration stays off.
 function vibrate(pattern) {
-  haptic(pattern)
+  if (isNative) haptic(pattern)
 }
 
 function note(freq, start, dur, type = 'square', vol = 0.11) {
@@ -219,7 +220,7 @@ export const sounds = {
   stackTopple: () => { seq([[440, 0, 0.14], [330, 0.11, 0.14], [247, 0.22, 0.14], [165, 0.33, 0.2]]); vibrate([0, 60, 40, 120]) },
   stackTick: () => { seq([[1200, 0, 0.02, 'square', 0.03]]) },
   // Archery cues stay behind this switch: vibrate() is intentionally disabled
-  // platform-wide until haptics are approved globally.
+  // platform-wide (SFX_HAPTICS) until haptics are approved globally.
   archeryDraw: () => { seq([[520, 0, 0.035, 'sine', 0.04]]); vibrate(4) },
   archeryLoose: () => { seq([[760, 0, 0.045, 'triangle', 0.08], [1120, 0.035, 0.06, 'sine', 0.05]]); vibrate(8) },
   archeryHit: (score = 0) => {
@@ -325,7 +326,7 @@ function shhAudio() {
 
 const DEFAULT_REACTION_HAPTIC = [0, 8, 8]
 
-// Distinct navigator.vibrate patterns per emoji — audio lives in REACTION_SOUNDS.
+// Distinct haptic patterns (navigator.vibrate syntax) per emoji — audio lives in REACTION_SOUNDS.
 const REACTION_HAPTICS = {
   '🔥': [0, 5, 10, 15, 20],
   '😂': [0, 8, 50, 8, 50, 8],

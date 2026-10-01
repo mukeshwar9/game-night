@@ -76,7 +76,7 @@ export default function ChatLog({ chatLog, myUid }) {
   return (
     <div className="border border-retro-border rounded bg-retro-card">
       <p className="font-pixel text-[8px] text-retro-dim px-2 pt-2 tracking-widest">CHAT</p>
-      <div ref={scrollRef} className="max-h-40 overflow-y-auto p-2 space-y-1">
+      <div ref={scrollRef} data-selectable className="max-h-40 overflow-y-auto p-2 space-y-1">
         {visible.map(([key, msg]) => {
           const mine = msg.by === myUid
           const name = moderateText(msg.name || '').text || 'PLAYER'

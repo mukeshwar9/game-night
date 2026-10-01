@@ -15,6 +15,9 @@ export default defineConfig([
     'src/lib/vendor/**',
     'playwright-report/**',
     'test-results/**',
+    // Capacitor native projects: their public/ folders hold copies of dist/.
+    'ios/**',
+    'android/**',
   ]),
   {
     files: ['**/*.{js,jsx,mjs}'],

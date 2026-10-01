@@ -1,5 +1,5 @@
-import { Suspense, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import PixelDots from './components/loading/PixelDots';
@@ -19,6 +19,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { VideoCallLayoutProvider } from './components/VideoCallLayout';
 import { LEADERBOARD_ENABLED } from './lib/features';
 import { titleForPath } from './lib/routeTitle';
+import { onNavigateRequest, notifyFirstScreen } from './lib/native/navigation';
+import { isNative } from './lib/platform';
 
 // Home (the landing page) and NotFound stay in the entry chunk; every other
 // route downloads on first visit. lazyWithRetry reloads once if a chunk from
@@ -40,6 +42,9 @@ const ArtDemo = import.meta.env.DEV ? lazyWithRetry(() => import('./pages/ArtDem
 // Hidden for launch (features.js): no route, so the chunk is never requested.
 const Leaderboard = LEADERBOARD_ENABLED ? lazyWithRetry(() => import('./pages/Leaderboard')) : null;
 const Playground = lazyWithRetry(() => import('./pages/Playground'));
+// Store builds only: the web never downloads the minimum-version gate. The
+// chunk is bundled in the app, so a plain lazy() needs no retry.
+const NativeUpdateGate = isNative ? lazy(() => import('./components/NativeUpdateGate')) : null;
 
 // Shown while a route's chunk downloads — the same PixelDots as the boot
 // splash (ConnectingSplash in AuthContext), minus its INSERT COIN line.
@@ -67,6 +72,15 @@ function AppRoutes() {
     window.scrollTo(0, 0);
     document.title = titleForPath(pathname);
   }, [pathname]);
+
+  // AppRoutes only mounts once auth has settled: the first screen is up, so
+  // the native splash (no-op on the web) can go.
+  useEffect(() => { notifyFirstScreen(); }, []);
+
+  // Native shell: a tapped notification, an opened invite link or the Android
+  // back button asks for a route (lib/native/navigation.js). Never fires on the web.
+  const navigate = useNavigate();
+  useEffect(() => onNavigateRequest((path) => navigate(path)), [navigate]);
 
   return (
     <>
@@ -157,6 +171,7 @@ export default function App() {
             <InviteToasts />
             <PremiumHost />
             <UpdatePrompt />
+            {NativeUpdateGate && <Suspense fallback={null}><NativeUpdateGate /></Suspense>}
             <ConnectionBanner />
           </HomeInterceptProvider>
         </BrowserRouter>

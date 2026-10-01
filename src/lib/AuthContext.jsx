@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import PixelDots from '@/components/loading/PixelDots'
-import { authReady, onUser, upgradeWithGoogle, signOutToGuest as signOutToGuestFn } from './auth'
+import { authReady, onUser, upgradeWithGoogle, upgradeWithApple, signOutToGuest as signOutToGuestFn } from './auth'
 import {
   ensureProfile, subscribeProfile, setupPresence, subscribeInvites, subscribeRequests,
   subscribeFriends, subscribePresence,
@@ -155,8 +155,9 @@ export function AuthProvider({ children }) {
     }
   }, [uid])
 
-  const upgrade = async () => {
-    const u = await upgradeWithGoogle()
+  // provider: 'google' (default) or 'apple' (iOS shell only, see canSignInWithApple).
+  const upgrade = async (provider = 'google') => {
+    const u = provider === 'apple' ? await upgradeWithApple() : await upgradeWithGoogle()
     if (u) await ensureProfile()
     return u
   }

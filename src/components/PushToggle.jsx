@@ -3,14 +3,17 @@ import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
 import OpenInBrowserHint from './OpenInBrowserHint'
 import { isInAppBrowser } from '../lib/uaLogic'
-import { isPushSupported, permissionState, vapidKey, enablePush, disablePush } from '../lib/push'
+import { pushAvailable, permissionState, checkPushPermission, vapidKey, enablePush, disablePush } from '../lib/push'
+import { isNative } from '../lib/platform'
 
-// Opt-in push toggle. Hidden when push can't work (no SW/Push support or no
-// VAPID key configured). Follows useBusy convention: sync busy flag,
-// disabled state, …ING label, toast.error on failure.
+// Opt-in push toggle. Hidden when push can't work: on the web, no SW/Push
+// support or no VAPID key; in the native shell, NATIVE_PUSH off (no APNs key or
+// Firebase config yet). Follows useBusy convention: sync busy flag, disabled
+// state, …ING label, toast.error on failure.
 export default function PushToggle() {
-  const [supported] = useState(() => isPushSupported() && Boolean(vapidKey()))
-  const [perm, setPerm] = useState(() => permissionState())
+  const [supported] = useState(() => pushAvailable())
+  // The browser's permission reads synchronously; the native plugin's does not.
+  const [perm, setPerm] = useState(() => (isNative ? 'default' : permissionState()))
   const [on, setOn] = useState(() => {
     try { return localStorage.getItem('push-enabled') === '1' } catch { return false }
   })
@@ -18,6 +21,15 @@ export default function PushToggle() {
   const [busy, run] = useBusy()
 
   useEffect(() => {
+    if (isNative) {
+      if (!supported) return undefined
+      let live = true
+      const refresh = () => { checkPushPermission().then(p => { if (live) setPerm(p) }) }
+      refresh()
+      // Coming back from the phone's settings after allowing notifications.
+      document.addEventListener('visibilitychange', refresh)
+      return () => { live = false; document.removeEventListener('visibilitychange', refresh) }
+    }
     const update = () => setPerm(permissionState())
     try {
       navigator.permissions?.query({ name: 'notifications' }).then(
@@ -26,22 +38,25 @@ export default function PushToggle() {
       )
     } catch { /* ignore */ }
     return undefined
-  }, [])
+  }, [supported])
 
   // Webviews cannot hold a push subscription: say so instead of failing on tap.
-  if (isInAppBrowser() && Boolean(vapidKey())) return <OpenInBrowserHint feature="Notifications" />
+  // (The app's own shell is a webview too, but it has native push instead.)
+  if (!isNative && isInAppBrowser() && Boolean(vapidKey())) return <OpenInBrowserHint feature="Notifications" />
   if (!supported) return null
 
   const enable = () => run(async () => {
     const t = await enablePush()
     setToken(t)
     setOn(true)
-    setPerm(permissionState())
+    setPerm(await checkPushPermission())
     toast.success('NOTIFICATIONS ON!')
   }, (e) => {
     const code = e?.message || 'failed'
     if (code.includes('permission-denied') || code.includes('permission-')) {
-      toast.error('NOTIFICATIONS BLOCKED — ALLOW THEM IN BROWSER SETTINGS.')
+      toast.error(isNative
+        ? 'NOTIFICATIONS BLOCKED — ALLOW THEM IN YOUR PHONE SETTINGS.'
+        : 'NOTIFICATIONS BLOCKED — ALLOW THEM IN BROWSER SETTINGS.')
     } else if (code === 'no-vapid-key') {
       toast.error('PUSH NOT CONFIGURED YET.')
     } else {
@@ -60,7 +75,7 @@ export default function PushToggle() {
       <p className="font-pixel text-[10px] text-retro-dim tracking-wider">NOTIFICATIONS</p>
       <p className="font-mono text-[11px] text-retro-dim">
         {perm === 'denied'
-          ? 'Blocked in browser settings — re-allow to get invites and turn alerts.'
+          ? `Blocked in ${isNative ? 'phone' : 'browser'} settings — re-allow to get invites and turn alerts.`
           : on
             ? 'On — invites and turn alerts push even when app closed.'
             : 'Get invites and turn alerts even when app closed.'}

@@ -12,6 +12,7 @@ import {
 import { normalizeTimerScale } from './timerScale'
 import { isMatchOver as isRaceMatchOver } from './raceLogic'
 import { shareRecap } from './shareCard'
+import { shareUrl } from './platform'
 
 const roomRef = (gameId) => ref(db, `games/${gameId}`)
 const historyId = (now) => `${now.toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -172,6 +173,6 @@ export function shareNightRecap(game, gameId) {
     title: "TONIGHT'S RECAP",
     sub: `${recap.gamesPlayed} GAME${recap.gamesPlayed === 1 ? '' : 'S'} PLAYED`,
     rows,
-    url: gameId ? `${window.location.origin}/game/${gameId}` : undefined,
+    url: gameId ? shareUrl(`/game/${gameId}`) : undefined,
   })
 }

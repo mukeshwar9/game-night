@@ -4,6 +4,7 @@
 
 import { toast } from 'sonner'
 import { getFont, getStoredFont } from './font'
+import { resolveShareOrigin } from './platform'
 
 function themeColor(name, fallback) {
   try {
@@ -268,7 +269,7 @@ export async function shareResult({ gameLabel, headline, sub, accentVar, url }) 
   try {
     try { await document.fonts?.ready } catch { /* font fallback is fine */ }
 
-    const shareUrl = url || window.location.origin
+    const shareUrl = url || resolveShareOrigin()
     const canvas = await drawCard({ brand: 'Game Night', gameLabel, headline, sub, accentVar, url: shareUrl })
     const text = `${headline} — ${gameLabel} on Game Night. ${shareUrl}`
     return await shareCanvas(canvas, text)
@@ -285,7 +286,7 @@ export async function shareRecap({ title, sub, rows, url }) {
   try {
     try { await document.fonts?.ready } catch { /* font fallback is fine */ }
 
-    const shareUrl = url || window.location.origin
+    const shareUrl = url || resolveShareOrigin()
     const canvas = await drawRecapCard({ brand: 'Game Night', title, sub, rows, url: shareUrl })
     const lines = (rows || []).map(r => `${r.label}: ${r.value}`).join(' · ')
     const text = `${title}${sub ? ` (${sub})` : ''} — ${lines} on Game Night. ${shareUrl}`

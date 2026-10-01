@@ -19,6 +19,26 @@ describe('users (private half)', () => {
     await assertFails(as('alice').ref('users/alice/fcmTokens/ab12').set({ token: tok.token }))
   })
 
+  it('tags a push token with its platform: web, ios or android, nothing else', async () => {
+    const tok = { token: 'fcm-token-abc-1234567890-long-enough-value', at: 1 }
+    const at = (hash) => as('alice').ref(`users/alice/fcmTokens/${hash}`)
+    for (const platform of ['web', 'ios', 'android']) {
+      await assertSucceeds(at(`p-${platform}`).set({ ...tok, platform }))
+    }
+    // Records written before the field existed stay valid.
+    await assertSucceeds(at('legacy').set(tok))
+    await assertSucceeds(at('with-ua').set({ ...tok, ua: 'Mozilla/5.0', platform: 'web' }))
+    for (const bad of ['windows', 'iOS', '', 'web ']) {
+      await assertFails(at('bad').set({ ...tok, platform: bad }))
+    }
+    await assertFails(at('bad').set({ ...tok, platform: 1 }))
+    await assertFails(at('bad').set({ ...tok, platform: true }))
+    await assertFails(at('bad').set({ ...tok, platform: { os: 'ios' } }))
+    // Still owner-only, and other keys are still refused.
+    await assertFails(as('bob').ref('users/alice/fcmTokens/p-ios').set({ ...tok, platform: 'ios' }))
+    await assertFails(at('bad').set({ ...tok, platform: 'ios', extra: 1 }))
+  })
+
   it('is readable and writable by its owner only', async () => {
     await put('users/alice', { displayName: 'Alice', code: 'ABC234', stats: { wins: 3 } })
     await assertSucceeds(as('alice').ref('users/alice').get())

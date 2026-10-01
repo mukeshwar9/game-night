@@ -15,6 +15,7 @@ import GameStatus from '../components/GameStatus'
 import { cn } from '@/lib/utils'
 import { getGameConfig } from '@/lib/games'
 import { shareResult } from '@/lib/shareCard'
+import { shareCurrentUrl } from '@/lib/platform'
 import PixelDots from '@/components/loading/PixelDots'
 import OfflineNotice from '@/components/loading/OfflineNotice'
 import useBusy from '@/hooks/useBusy'
@@ -844,7 +845,7 @@ export default function WordDuelGame({
       headline: shareHeadline,
       sub: `${allScores.X} – ${allScores.O}`,
       accentVar: shareAccent,
-      url: window.location.href,
+      url: shareCurrentUrl(),
     })
     if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
   })

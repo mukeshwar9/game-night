@@ -1,5 +1,5 @@
 // Invite → push. Fires on invites/{uid}/{inviteId} create, sends FCM to
-// recipient's users/{uid}/fcmTokens, drops dead tokens (404/410).
+// recipient's users/{uid}/fcmTokens (web, iOS and Android), drops dead tokens (404/410).
 // Clients never send push directly; only this sender reads tokens.
 const { onValueWritten } = require('firebase-functions/v2/database')
 const logger = require('firebase-functions/logger')
@@ -18,30 +18,76 @@ async function tokensFor(uid) {
   const out = []
   snap.forEach(child => {
     const v = child.val() || {}
-    if (typeof v.token === 'string' && v.token.length >= 20) out.push({ hash: child.key, token: v.token })
+    if (typeof v.token === 'string' && v.token.length >= 20) {
+      // Records from before the platform field existed are web tokens.
+      out.push({ hash: child.key, token: v.token, platform: NATIVE_PLATFORMS.includes(v.platform) ? v.platform : 'web' })
+    }
   })
   return out
 }
 
-// The multicast message for one invite. Data-only: the service worker
-// (public/firebase-messaging-sw.js) draws the notification. A `notification`
-// key as well makes the browser show one of its own and the worker a second.
-// The link is the app route /game/:gameId (there is no /g/ route).
-function buildInviteMessage(invite, tokens) {
+const NATIVE_PLATFORMS = ['ios', 'android']
+// Android notification channel the app creates (src/lib/native/nativePush.js);
+// an unknown id falls back to FCM's default channel.
+const ANDROID_CHANNEL = 'invites'
+
+// The message for one token of one invite. The link is the app route
+// /game/:gameId (there is no /g/ route).
+//
+// Web tokens get a data-only message: the service worker
+// (public/firebase-messaging-sw.js) draws the notification, and a
+// `notification` key as well would make the browser show one of its own and the
+// worker a second.
+//
+// Native tokens get a `notification` block. A data-only message is a silent
+// background push on iOS that is never displayed, and on Android it never
+// reaches the tray while the app is closed. The system draws the notification
+// and a tap hands the data back to the app (src/lib/pushRouteLogic.js reads
+// `gameId` / `url`). `tag` / `thread-id` / `apns-collapse-id` keep one
+// notification per room.
+function buildInviteMessage(invite, token) {
   const from = core.displayNameFor(invite.fromName, 'A friend')
   const gameId = String(invite.gameId || '').slice(0, 40)
-  return {
-    data: { title: 'Game Night', body: `${from} invited you to play!`, url: gameId ? `/game/${gameId}` : '/', kind: 'invite' },
-    tokens: tokens.map(t => t.token),
+  const title = 'Game Night'
+  const body = `${from} invited you to play!`
+  const url = gameId ? `/game/${gameId}` : '/'
+  if (!NATIVE_PLATFORMS.includes(token.platform)) {
+    return { token: token.token, data: { title, body, url, kind: 'invite' } }
   }
+  const data = { url, kind: 'invite', ...(gameId ? { gameId } : {}) }
+  if (token.platform === 'ios') {
+    return {
+      token: token.token,
+      notification: { title, body },
+      data,
+      apns: {
+        ...(gameId ? { headers: { 'apns-collapse-id': gameId } } : {}),
+        payload: { aps: { sound: 'default', 'thread-id': gameId || 'invites' } },
+      },
+    }
+  }
+  return {
+    token: token.token,
+    notification: { title, body },
+    data,
+    android: {
+      priority: 'high',
+      notification: { channelId: ANDROID_CHANNEL, ...(gameId ? { tag: gameId } : {}) },
+    },
+  }
+}
+
+function buildInviteMessages(invite, tokens) {
+  return tokens.map(t => buildInviteMessage(invite, t))
 }
 
 async function sendInvitePush(uid, invite) {
   const tokens = await tokensFor(uid)
   if (!tokens.length) return { sent: 0, reason: 'no-tokens' }
   const gameId = String(invite.gameId || '')
-  const message = buildInviteMessage(invite, tokens)
-  const res = await messaging().sendEachForMulticast(message)
+  // One message per token (each carries its own platform payload); responses
+  // come back in the same order.
+  const res = await messaging().sendEach(buildInviteMessages(invite, tokens))
   // Drop tokens FCM reports dead so inbox doesn't fill with junk.
   const dead = []
   res.responses.forEach((r, i) => {
@@ -73,4 +119,4 @@ exports.sendInvitePush = onValueWritten({ ref: 'invites/{uid}/{inviteId}', maxIn
 })
 
 // Exported for unit test without emulator.
-exports._test = { sendInvitePush, tokensFor, buildInviteMessage }
+exports._test = { sendInvitePush, tokensFor, buildInviteMessage, buildInviteMessages }

@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
 import { inAppBrowserName, isInAppBrowser, openInBrowserUrl } from '../lib/uaLogic'
+import { isNative } from '../lib/platform'
 
 // Shown in place of a feature that cannot work inside an in-app browser
 // (Instagram, TikTok, Facebook, ...): Google sign-in, install, push. Play
@@ -8,7 +9,8 @@ import { inAppBrowserName, isInAppBrowser, openInBrowserUrl } from '../lib/uaLog
 // use it as `hint || feature`.
 export default function OpenInBrowserHint({ feature = 'Google sign-in', className = '' }) {
   const [busy, run] = useBusy()
-  if (!isInAppBrowser()) return null
+  // The store app is not an in-app browser: its sign-in uses the native sheet.
+  if (isNative || !isInAppBrowser()) return null
   const app = inAppBrowserName()
   const href = typeof location === 'undefined' ? '' : location.href
   const intent = openInBrowserUrl(href)

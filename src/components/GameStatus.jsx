@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import GameSwitcher from './GameSwitcher'
 import { getGameConfig } from '@/lib/games'
 import { shareResult } from '@/lib/shareCard'
+import { shareCurrentUrl } from '@/lib/platform'
 import { suggestGames } from '@/lib/gameSuggestions'
 import useBusy from '@/hooks/useBusy'
 import { getHeadToHead, formatHeadToHeadLabel } from '@/lib/profile'
@@ -117,7 +118,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     headline,
     sub: `${scoreX} – ${scoreO}`,
     accentVar,
-    url: window.location.href,
+    url: shareCurrentUrl(),
   })
 
   const share = (headline, accentVar) => runShare(async () => {

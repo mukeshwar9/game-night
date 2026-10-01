@@ -11,6 +11,7 @@ import {
   browserPopupRedirectResolver,
 } from 'firebase/auth';
 import { resolveAuthDomain } from './authDomainLogic';
+import { isNative } from './platform';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -93,7 +94,12 @@ export let configError = null;
 try {
   const app = initializeApp(firebaseConfig);
   // Before any other service is used, so every request carries a token.
-  if (APPCHECK_SITE_KEY && !usingEmulators) {
+  // Not in the native shell: reCAPTCHA Enterprise cannot attest the page's
+  // capacitor://localhost (iOS) / https://localhost (Android) origin, so the
+  // provider would only fail. Native attestation (App Attest / Play Integrity)
+  // is later work, see docs/MOBILE.md; until then leave App Check on
+  // "Unenforced" for the products the shell uses.
+  if (APPCHECK_SITE_KEY && !usingEmulators && !isNative) {
     if (APPCHECK_DEBUG_TOKEN) self.FIREBASE_APPCHECK_DEBUG_TOKEN = APPCHECK_DEBUG_TOKEN;
     try {
       initializeAppCheck(app, {
