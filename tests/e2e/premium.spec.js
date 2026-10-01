@@ -152,6 +152,7 @@ test('monetization off (the default): everything is open and nothing sells', asy
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'campfire')
   await expect(page.getByRole('dialog', { name: /premium item/ })).toHaveCount(0)
   await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
 
   // A premium avatar item can be picked with no paywall and no pass or pack badge.
   await page.goto('/profile#look')
