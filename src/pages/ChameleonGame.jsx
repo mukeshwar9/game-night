@@ -593,6 +593,10 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
                   placeholder="ONE WORD CLUE"
                   aria-label="Your clue"
                   autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  enterKeyHint="send"
                   className="flex-1 min-w-0 bg-retro-surface border-2 border-retro-border rounded px-3 py-2 font-mono text-sm text-retro-text focus:border-retro-cta outline-none"
                 />
                 <button

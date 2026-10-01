@@ -309,7 +309,7 @@ function OfflineMatch({ setup, onExit }) {
       />
 
       {phase === 'gate' && (
-        <div className="fixed inset-0 z-50 bg-retro-bg/95 flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="fixed inset-0 z-50 bg-retro-bg/95 flex flex-col items-center justify-center gap-4 p-8 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] text-center">
           <span className={cn('text-6xl leading-none', TEXT_TOK[PLAYER_TOKENS[match.turn]])}>{PLAYER_GLYPHS[match.turn]}</span>
           <p className={cn('font-pixel text-sm', TEXT_TOK[PLAYER_TOKENS[match.turn]])}>PASS TO {current.name}</p>
           <p className="font-mono text-xs text-retro-dim">tower {top.toFixed(1)} m · {match.state.length} animals</p>

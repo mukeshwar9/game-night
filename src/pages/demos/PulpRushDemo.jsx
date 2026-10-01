@@ -152,16 +152,16 @@ export default function PulpRushDemo() {
   }
 
   // ── two players on one phone: full-screen, face to face ────────────
-  const fieldWidth = `min(calc(100vw - 1.5rem), calc((100dvh - 7rem) / 2 / ${ARENA_H}))`
+  const fieldWidth = `min(calc(100vw - 1.5rem), calc((100dvh - 7rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 2 / ${ARENA_H}))`
   const exit = (
-    <button onClick={() => setPhase('menu')} className="px-2 py-1 border border-retro-border text-retro-dim font-pixel text-[8px] rounded active:scale-95">EXIT</button>
+    <button onClick={() => setPhase('menu')} className="min-h-10 min-w-11 px-3 border border-retro-border text-retro-dim font-pixel text-[10px] rounded active:scale-95">EXIT</button>
   )
 
   if (mode === 'duel') {
     const x = fields.X.players.X
     const o = fields.O.players.O
     return (
-      <div className="fixed inset-0 z-50 bg-retro-bg flex flex-col items-center justify-between py-2 select-none" style={{ touchAction: 'none' }}>
+      <div className="fixed inset-0 z-50 bg-retro-bg flex flex-col items-center justify-between py-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] select-none" style={{ touchAction: 'none' }}>
         <div className="rotate-180 flex flex-col items-center gap-1">
           <PlayerHud label="P2" score={o.score} tone="p2" />
           <div className="relative" style={{ width: fieldWidth }}>
@@ -189,9 +189,9 @@ export default function PulpRushDemo() {
 
   // TWO-TONE: one shared field; the half a finger lands on picks its player.
   const team = fields.team
-  const sharedWidth = `min(calc(100vw - 1.5rem), calc((100dvh - 6rem) / ${ARENA_H}))`
+  const sharedWidth = `min(calc(100vw - 1.5rem), calc((100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / ${ARENA_H}))`
   return (
-    <div className="fixed inset-0 z-50 bg-retro-bg flex flex-col items-center justify-between py-2 select-none" style={{ touchAction: 'none' }}>
+    <div className="fixed inset-0 z-50 bg-retro-bg flex flex-col items-center justify-between py-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] select-none" style={{ touchAction: 'none' }}>
       <div className="rotate-180"><PlayerHud label="P2 · PURPLE" score={team.players.O.score} tone="p2" /></div>
       <div className="relative" style={{ width: sharedWidth }}>
         <PulpField

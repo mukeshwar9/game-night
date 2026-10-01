@@ -212,7 +212,7 @@ function OfflineMatch({ setup, onExit }) {
         disabled={!playerTurn || done} pointerProps={drawHook.pointerProps}
       />
       {handoff && !done && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-retro-bg/95 p-5 text-center" role="dialog" aria-modal="true" aria-label="Hand off to next archer">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-retro-bg/95 p-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center" role="dialog" aria-modal="true" aria-label="Hand off to next archer">
           <div className="w-full max-w-sm space-y-4 rounded border border-retro-cta/60 bg-retro-card p-6 shadow-neon-cta">
             <p className="font-pixel text-xs text-retro-cta">PASS THE DEVICE</p>
             <p className={cn('font-pixel text-sm', SEAT_COLOR[seats.indexOf(handoff)] || 'text-retro-text')}>{game.names[handoff]}</p>
