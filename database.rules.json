@@ -1190,6 +1190,18 @@
       ".read": false,
       ".write": false
     },
+    "entitlements": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+    "entitlementsPublic": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
     "leaderboard": {
       ".read": "auth != null",
       ".indexOn": [

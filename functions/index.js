@@ -16,6 +16,14 @@ exports.sendInvitePush = require('./push').sendInvitePush;
 // Clears a deleted account's rows, including the server-only leaderboard row.
 exports.cleanupDeletedAccount = require('./deleteAccount').cleanupDeletedAccount;
 // Daily summary of yesterday's error reports, with an alert when it looks bad.
+// Payments (Paddle, sandbox until configured): checkout + portal links, the
+// signature-verified webhook that writes entitlements/{uid}, and the admin
+// allowlist sync. See billing.js and README.md.
+const billing = require('./billing')
+exports.createCheckout = billing.createCheckout
+exports.createPortalSession = billing.createPortalSession
+exports.paddleWebhook = billing.paddleWebhook
+exports.syncAdminAccess = billing.syncAdminAccess
 exports.errorDigest = require('./errorDigest').errorDigest;
 const { errorsCutoffKey, isExpiredErrorDay } = require('./lib/core.cjs');
 

@@ -10,6 +10,12 @@ describe('accountPaths', () => {
     }
   })
 
+  test('clears the server-only entitlements, so a deleted account leaves no purchase record', () => {
+    const paths = _test.accountPaths('u1')
+    assert.ok(paths.includes('entitlements/u1'))
+    assert.ok(paths.includes('entitlementsPublic/u1'))
+  })
+
   test('adds the friend code and the reverse friend rows when known', () => {
     const paths = _test.accountPaths('u1', { friendUids: ['a', 'b'], code: 'ABC234' })
     assert.ok(paths.includes('codes/ABC234'))

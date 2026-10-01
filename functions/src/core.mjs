@@ -437,3 +437,7 @@ export function errorsCutoffKey(now, keepDays = ERROR_RETENTION_DAYS) {
 
 /** True for a well-formed day key that sorts before the cutoff. */
 export const isExpiredErrorDay = (key, cutoffKey) => DAY_KEY.test(key) && key < cutoffKey
+
+// Prices, products and packs (src/lib/premiumCatalog.js): billing.js maps a
+// paid product back to what it unlocks with the same table the shop sells from.
+export { PRODUCTS, PACKS, PRICES, PASS_TRIAL_DAYS } from '../../src/lib/premiumCatalog'
