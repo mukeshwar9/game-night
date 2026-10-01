@@ -5,7 +5,7 @@ const { _test } = require('../deleteAccount')
 describe('accountPaths', () => {
   test('covers every node keyed by the uid, including the server-only leaderboard row', () => {
     const paths = _test.accountPaths('u1')
-    for (const node of ['leaderboard', 'users', 'profiles', 'presence', 'friends', 'friendRequests', 'invites']) {
+    for (const node of ['leaderboard', 'users', 'profiles', 'presence', 'friends', 'friendRequests', 'invites', 'blocks']) {
       assert.ok(paths.includes(`${node}/u1`), node)
     }
   })

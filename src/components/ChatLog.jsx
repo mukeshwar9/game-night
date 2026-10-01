@@ -13,9 +13,10 @@ import useBusy from '../hooks/useBusy'
 // at the bottom, auto-scrolling as new ones arrive. Null when there's nothing
 // to show yet (no empty-card flash on room load).
 //
-// Trust tools: tapping another player's name opens MUTE / REPORT for that
-// message. Muted players' messages are hidden on this device only (mute.js);
-// a footer lists muted authors present in the log with UNMUTE. Text and names
+// Trust tools: tapping another player's name opens BLOCK / REPORT for that
+// message. A blocked player's messages are hidden and they can no longer send
+// this account friend requests or invites (mute.js, synced to the account);
+// a footer lists blocked authors present in the log with UNBLOCK. Text and names
 // are masked again on display (moderateText) so messages from older clients
 // that sent unmasked text are covered too.
 export default function ChatLog({ chatLog, myUid }) {
@@ -38,7 +39,7 @@ export default function ChatLog({ chatLog, myUid }) {
     if (el) el.scrollTop = el.scrollHeight
   }, [newestKey])
 
-  // Muted authors who have messages in this log, for the UNMUTE footer.
+  // Blocked authors who have messages in this log, for the UNBLOCK footer.
   const mutedHere = []
   const seen = new Set()
   for (const [, msg] of msgs) {
@@ -53,7 +54,7 @@ export default function ChatLog({ chatLog, myUid }) {
   const mute = (uid, name) => {
     toggleMute(uid, name)
     setOpenKey(null)
-    toast(`${name} MUTED — YOU WON'T SEE THEIR CHAT.`)
+    toast(`${name} BLOCKED — NO MORE CHAT, FRIEND REQUESTS OR INVITES FROM THEM.`)
   }
 
   const report = (msg, name) => runReport(async () => {
@@ -70,7 +71,7 @@ export default function ChatLog({ chatLog, myUid }) {
     }
     if (!res.ok) throw new Error('invalid')
     setOpenKey(null)
-    toast.success('REPORTED — THANKS. YOU CAN ALSO MUTE THEM.')
+    toast.success('REPORTED — THANKS. YOU CAN ALSO BLOCK THEM.')
   }, () => toast.error("COULDN'T SEND THAT REPORT — TRY AGAIN."))
 
   return (
@@ -90,7 +91,7 @@ export default function ChatLog({ chatLog, myUid }) {
                   type="button"
                   onClick={() => setOpenKey(open ? null : key)}
                   aria-expanded={open}
-                  aria-label={`${name} — mute or report`}
+                  aria-label={`${name} — block or report`}
                   className="font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text underline decoration-dotted underline-offset-2"
                 >
                   {name}
@@ -126,7 +127,7 @@ export default function ChatLog({ chatLog, myUid }) {
                     onClick={() => mute(msg.by, name)}
                     className="min-h-8 px-2 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text hover:border-retro-p1 transition-colors active:scale-95"
                   >
-                    MUTE {name}
+                    BLOCK {name}
                   </button>
                   <button
                     type="button"
@@ -142,12 +143,12 @@ export default function ChatLog({ chatLog, myUid }) {
           )
         })}
         {visible.length === 0 && (
-          <p className="font-mono text-[10px] text-retro-dim">Only muted players have chatted.</p>
+          <p className="font-mono text-[10px] text-retro-dim">Only blocked players have chatted.</p>
         )}
       </div>
       {mutedHere.length > 0 && (
         <div className="border-t border-retro-border px-2 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="font-pixel text-[8px] text-retro-dim tracking-widest">MUTED:</span>
+          <span className="font-pixel text-[8px] text-retro-dim tracking-widest">BLOCKED:</span>
           {mutedHere.map(({ uid, name }) => (
             <button
               key={uid}
@@ -155,7 +156,7 @@ export default function ChatLog({ chatLog, myUid }) {
               onClick={() => unmute(uid)}
               className="min-h-8 font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text"
             >
-              {name} · UNMUTE
+              {name} · UNBLOCK
             </button>
           ))}
         </div>

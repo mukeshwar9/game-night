@@ -17,6 +17,7 @@ export function deletionPatch(uid, { friendUids = [], requestUids = [], inviteId
   if (typeof code === 'string' && code) patch[`codes/${code}`] = null
   patch[`profiles/${uid}`] = null
   patch[`presence/${uid}`] = null
+  patch[`blocks/${uid}`] = null
   patch[`funnelSeen/${uid}`] = null
   return patch
 }

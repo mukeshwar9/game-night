@@ -354,7 +354,7 @@ export default function SettingsButton({ className = '' }) {
           onClick={() => setOpen(false)}
           className="flex min-h-11 items-center justify-between rounded border border-retro-border px-3 font-pixel text-[9px] tracking-widest text-retro-text hover:border-retro-p1 transition-colors"
         >
-          <span>MUTED PLAYERS</span>
+          <span>BLOCKED PLAYERS</span>
           <span className="text-retro-dim" aria-hidden="true">→</span>
         </Link>
         <button

@@ -226,3 +226,15 @@ export function mutedList(map) {
     .map(([uid, entry]) => ({ uid, name: entry?.name || '', at: entry?.at || 0 }))
     .sort((a, b) => b.at - a.at)
 }
+
+// Mutes held on this device that the account's synced block list (blocks/{uid})
+// does not have yet — the ones to upload the first time the list is read, so a
+// mute made before blocks were synced is not lost.
+export function unsyncedMutes(local, remote) {
+  const have = remote || {}
+  const out = {}
+  for (const [uid, entry] of Object.entries(local || {})) {
+    if (uid && !have[uid]) out[uid] = entry
+  }
+  return out
+}

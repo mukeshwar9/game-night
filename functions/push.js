@@ -81,7 +81,17 @@ function buildInviteMessages(invite, tokens) {
   return tokens.map(t => buildInviteMessage(invite, t))
 }
 
+// True when `uid` has blocked `fromUid`. The rules already refuse such an
+// invite; this keeps a push from going out if one ever slips through (an invite
+// written before the block, a rules gap). `database` is injectable for tests.
+async function isBlocked(uid, fromUid, database = getDatabase()) {
+  if (!uid || !fromUid) return false
+  const snap = await database.ref(`blocks/${uid}/${fromUid}`).get()
+  return snap.exists()
+}
+
 async function sendInvitePush(uid, invite) {
+  if (await isBlocked(uid, invite.fromUid)) return { sent: 0, reason: 'blocked' }
   const tokens = await tokensFor(uid)
   if (!tokens.length) return { sent: 0, reason: 'no-tokens' }
   const gameId = String(invite.gameId || '')
@@ -119,4 +129,4 @@ exports.sendInvitePush = onValueWritten({ ref: 'invites/{uid}/{inviteId}', maxIn
 })
 
 // Exported for unit test without emulator.
-exports._test = { sendInvitePush, tokensFor, buildInviteMessage, buildInviteMessages }
+exports._test = { sendInvitePush, isBlocked, tokensFor, buildInviteMessage, buildInviteMessages }

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
 import Skeleton from '../components/loading/Skeleton'
 import { useAuth } from '../lib/AuthContext'
+import { blockPlayer } from '../lib/mute'
 import {
   normalizeFriendCode, isValidFriendCode, sendFriendRequestByCode,
   acceptRequest, declineRequest, removeFriend, inviteFriendToGame,
@@ -29,6 +30,23 @@ const REQUEST_ERRORS = {
   already: "YOU'RE ALREADY FRIENDS.",
 }
 
+// The actions under a friend or request row (tap the name to open them).
+function PlayerActions({ onBlock, busy }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-retro-border pt-2">
+      <button
+        type="button"
+        onClick={onBlock}
+        disabled={busy}
+        className="min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] tracking-wider text-retro-dim
+          hover:text-retro-p2 hover:border-retro-p2 transition-colors active:scale-95 disabled:opacity-50"
+      >
+        {busy ? 'BLOCKING…' : 'BLOCK'}
+      </button>
+    </div>
+  )
+}
+
 export default function Friends() {
   const navigate = useNavigate()
   const { profile, uid } = useAuth()
@@ -38,6 +56,7 @@ export default function Friends() {
   const [confirmRemoveUid, setConfirmRemoveUid] = useState(null)
   const [friendUids, setFriendUids] = useState(null)
   const [requests, setRequests] = useState([])
+  const [menuUid, setMenuUid] = useState(null)
   const [profiles, setProfiles] = useState({})
   const [leaderboard, setLeaderboard] = useState(null)
   const [challengingUid, setChallengingUid] = useState(null)
@@ -111,6 +130,18 @@ export default function Friends() {
     try {
       await declineRequest(uid)
       toast('REQUEST DECLINED.')
+    } catch {
+      toast.error('SOMETHING WENT WRONG — TRY AGAIN.')
+    } finally {
+      setPendingUid(null)
+    }
+  }
+  const onBlock = async (uid, name) => {
+    setPendingUid(uid)
+    try {
+      await blockPlayer(uid, name)
+      setMenuUid(null)
+      toast(`${displayNameFor(name, 'PLAYER').toUpperCase()} BLOCKED.`)
     } catch {
       toast.error('SOMETHING WENT WRONG — TRY AGAIN.')
     } finally {
@@ -263,9 +294,18 @@ export default function Friends() {
             <label className="font-pixel text-[10px] text-retro-cta tracking-wider">REQUESTS ({requests.length})</label>
             <div className="space-y-2">
               {requests.map(r => (
-                <div key={r.uid} className="flex items-center gap-3 bg-retro-tint-cta border border-retro-cta/40 rounded p-2.5">
+                <div key={r.uid} className="bg-retro-tint-cta border border-retro-cta/40 rounded p-2.5">
+                <div className="flex items-center gap-3">
                   <Avatar id={r.avatar} size={36} />
-                  <span className="flex-1 font-mono text-sm text-retro-text truncate">{displayNameFor(r.name, 'player')}</span>
+                  <button
+                    type="button"
+                    onClick={() => setMenuUid(menuUid === r.uid ? null : r.uid)}
+                    aria-expanded={menuUid === r.uid}
+                    aria-label={`More actions for ${displayNameFor(r.name, 'player')}`}
+                    className="flex-1 min-h-11 text-left font-mono text-sm text-retro-text truncate"
+                  >
+                    {displayNameFor(r.name, 'player')}
+                  </button>
                   <button
                     onClick={() => onAccept(r.uid)}
                     disabled={pendingUid === r.uid}
@@ -282,6 +322,8 @@ export default function Friends() {
                   >
                     ✕
                   </button>
+                </div>
+                {menuUid === r.uid && <PlayerActions onBlock={() => onBlock(r.uid, r.name)} busy={pendingUid === r.uid} />}
                 </div>
               ))}
             </div>
@@ -322,7 +364,8 @@ export default function Friends() {
                 const p = profiles[uid]
                 const confirming = confirmRemoveUid === uid
                 return (
-                  <div key={uid} className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-2.5">
+                  <div key={uid} className="bg-retro-card border border-retro-border rounded p-2.5">
+                  <div className="flex items-center gap-3">
                     <div className="relative shrink-0">
                       <Avatar id={p?.avatar} size={36} />
                       <span
@@ -330,10 +373,16 @@ export default function Friends() {
                         title={p?.online ? 'Online' : 'Offline'}
                       />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-mono text-sm text-retro-text truncate">{p?.displayName ? displayNameFor(p.displayName) : '…'}</p>
-                      <p className="font-pixel text-[8px] text-retro-dim">{p?.online ? 'ONLINE' : 'OFFLINE'}</p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMenuUid(menuUid === uid ? null : uid)}
+                      aria-expanded={menuUid === uid}
+                      aria-label={`More actions for ${p?.displayName ? displayNameFor(p.displayName) : 'friend'}`}
+                      className="flex-1 min-w-0 min-h-11 text-left"
+                    >
+                      <span className="block font-mono text-sm text-retro-text truncate">{p?.displayName ? displayNameFor(p.displayName) : '…'}</span>
+                      <span className="block font-pixel text-[8px] text-retro-dim">{p?.online ? 'ONLINE' : 'OFFLINE'}</span>
+                    </button>
                     {p?.online && (
                       <button
                         onClick={() => challengeFriend(uid, p?.displayName)}
@@ -354,6 +403,8 @@ export default function Friends() {
                     >
                       {confirming ? 'SURE?' : '✕'}
                     </button>
+                  </div>
+                  {menuUid === uid && <PlayerActions onBlock={() => onBlock(uid, p?.displayName)} busy={pendingUid === uid} />}
                   </div>
                 )
               })}

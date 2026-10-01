@@ -4,7 +4,7 @@ import { deletionPatch } from './deleteAccountLogic'
 describe('deletionPatch', () => {
   it('nulls every node keyed by the uid', () => {
     const patch = deletionPatch('u1')
-    expect(patch).toMatchObject({ 'profiles/u1': null, 'presence/u1': null, 'funnelSeen/u1': null })
+    expect(patch).toMatchObject({ 'profiles/u1': null, 'presence/u1': null, 'blocks/u1': null, 'funnelSeen/u1': null })
   })
   it('deletes friendships in both directions, requests, invites and the friend code', () => {
     const patch = deletionPatch('u1', { friendUids: ['a', 'b'], requestUids: ['c'], inviteIds: ['i1'], code: 'ABC234' })

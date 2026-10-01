@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   MASK, DISPLAY_NAME_MAX, MUTED_CAP,
   moderateText, sanitizeDisplayName, NAME_REJECT_MESSAGES, displayNameFor, moderateRoomNames,
-  parseMutedMap, toggleMutedMap, mutedList,
+  parseMutedMap, toggleMutedMap, mutedList, unsyncedMutes,
 } from './moderationLogic'
 
 describe('moderateText', () => {
@@ -184,5 +184,17 @@ describe('moderateRoomNames', () => {
     expect(input.players.O.name).toBe('shit head')
     expect(moderateRoomNames(null)).toBe(null)
     expect(moderateRoomNames({ gameType: 'x' })).toEqual({ gameType: 'x', players: undefined, queue: undefined })
+  })
+})
+
+describe('unsyncedMutes', () => {
+  it('returns the local mutes the synced list lacks', () => {
+    const local = { a: { name: 'A', at: 1 }, b: { name: 'B', at: 2 } }
+    expect(unsyncedMutes(local, { a: { name: 'A', at: 1 } })).toEqual({ b: { name: 'B', at: 2 } })
+  })
+  it('handles empty or missing maps', () => {
+    expect(unsyncedMutes({}, { a: { name: '', at: 1 } })).toEqual({})
+    expect(unsyncedMutes({ a: { name: '', at: 1 } }, null)).toEqual({ a: { name: '', at: 1 } })
+    expect(unsyncedMutes(null, null)).toEqual({})
   })
 })

@@ -1098,11 +1098,29 @@
         }
       }
     },
+    "blocks": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$blockedUid": {
+          ".validate": "$blockedUid !== $uid && newData.hasChild('at')",
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          },
+          "at": {
+            ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now + 3600000)"
+          },
+          "$other": {
+            ".validate": "false"
+          }
+        }
+      }
+    },
     "friendRequests": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$fromUid": {
-          ".write": "auth != null && $uid !== $fromUid && (auth.uid === $fromUid || (auth.uid === $uid && !newData.exists()))",
+          ".write": "auth != null && $uid !== $fromUid && ((auth.uid === $fromUid && (!newData.exists() || (!root.child('blocks').child($uid).child($fromUid).exists() && !root.child('blocks').child($fromUid).child($uid).exists()))) || (auth.uid === $uid && !newData.exists()))",
           ".validate": "newData.hasChildren(['name','at'])",
           "$other": {
             ".validate": "false"
@@ -1126,7 +1144,7 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$inviteId": {
-          ".write": "auth != null && (auth.uid === $uid || (newData.child('fromUid').val() === auth.uid && root.child('friends').child($uid).child(auth.uid).exists()))",
+          ".write": "auth != null && (auth.uid === $uid || (newData.child('fromUid').val() === auth.uid && root.child('friends').child($uid).child(auth.uid).exists() && !root.child('blocks').child($uid).child(auth.uid).exists() && !root.child('blocks').child(auth.uid).child($uid).exists()))",
           ".validate": "newData.child('fromUid').val() === auth.uid && newData.hasChild('gameId')",
           "gameId": {
             ".validate": "newData.isString() && newData.val().length <= 40"

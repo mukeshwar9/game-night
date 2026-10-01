@@ -12,6 +12,7 @@ import { FONTS, applyFont, getStoredFont } from './font'
 import { applyStoredDisplayPrefs } from './displayPrefs'
 import { recordAttribution } from './analytics'
 import { resyncPush } from './push'
+import { startBlockSync } from './mute'
 import { startEntitlements, stopEntitlements, syncAdminAccess, isUnlockedNow } from './entitlements'
 import useAccess from '../hooks/useAccess'
 import { monetizationEnabled } from './monetizationState'
@@ -101,6 +102,7 @@ export function AuthProvider({ children }) {
     let unsubInvites = () => {}
     let unsubRequests = () => {}
     let unsubFriends = () => {}
+    let unsubBlocks = () => {}
     let presenceUnsubs = []
     const onlineByUid = {}
     const recountOnline = () => {
@@ -127,6 +129,7 @@ export function AuthProvider({ children }) {
         }
       })
       unsubPresence = setupPresence(uid)
+      unsubBlocks = startBlockSync()
       unsubInvites = subscribeInvites(list => { if (!cancelled) setInvites(list) })
       unsubRequests = subscribeRequests(list => { if (!cancelled) setRequestCount(list.length) })
       // Online-friends dot for the tab bar: one friends-list listener plus one
@@ -151,7 +154,7 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true
       unsubProfile(); unsubPresence(); unsubInvites(); unsubRequests()
-      unsubFriends(); presenceUnsubs.forEach(u => u()); presenceUnsubs = []
+      unsubFriends(); unsubBlocks(); presenceUnsubs.forEach(u => u()); presenceUnsubs = []
       setInvites([]); setRequestCount(0); setOnlineFriendCount(0)
     }
   }, [uid])

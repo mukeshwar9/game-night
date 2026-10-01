@@ -254,12 +254,18 @@ export async function sendFriendRequestByCode(code) {
   const already = await get(ref(db, `friends/${me}/${found.uid}`))
   if (already.exists()) return { ok: false, error: 'already' }
   const myProfile = await getProfile(me)
-  await set(ref(db, `friendRequests/${found.uid}/${me}`), {
-    name: myProfile?.displayName || guestName(me),
-    avatar: myProfile?.avatar || defaultAvatarForId(me),
-    code: myProfile?.code || null,
-    at: Date.now(),
-  })
+  try {
+    await set(ref(db, `friendRequests/${found.uid}/${me}`), {
+      name: myProfile?.displayName || guestName(me),
+      avatar: myProfile?.avatar || defaultAvatarForId(me),
+      code: myProfile?.code || null,
+      at: Date.now(),
+    })
+  } catch (e) {
+    // The rules refuse a request across a block, either way. The sender is not
+    // told they were blocked: it looks like any other request nobody answers.
+    if (e?.code !== 'PERMISSION_DENIED' && !/permission_denied/i.test(e?.message || '')) throw e
+  }
   return { ok: true, to: found.profile?.displayName || 'player' }
 }
 
@@ -314,6 +320,40 @@ export function subscribeRequests(cb) {
     const val = snap.val() || {}
     cb(Object.entries(val).map(([uid, r]) => ({ uid, ...r })))
   })
+}
+
+// ---- Blocks ----
+// blocks/{me}/{uid} = { name, at }: the synced block list (owner-only). The
+// rules refuse friend requests and invites across a block in either direction
+// and the invite push never fires for a refused invite, so a blocked player
+// cannot reach this account through any of them. Chat hiding is local
+// (mute.js keeps a mirror of this list for synchronous reads).
+
+// Block `uid`: record it and drop the friendship and any pending requests, in
+// one multi-path update.
+export async function blockUser(uid, name = '') {
+  const me = getUid()
+  if (!db || !me || !uid || uid === me) return
+  await update(ref(db), {
+    [`blocks/${me}/${uid}`]: { name: String(name || '').slice(0, 40), at: Date.now() },
+    [`friends/${me}/${uid}`]: null,
+    [`friends/${uid}/${me}`]: null,
+    [`friendRequests/${me}/${uid}`]: null,
+    [`friendRequests/${uid}/${me}`]: null,
+  })
+}
+
+export async function unblockUser(uid) {
+  const me = getUid()
+  if (!db || !me || !uid) return
+  await set(ref(db, `blocks/${me}/${uid}`), null)
+}
+
+// cb(map) with the whole { uid: { name, at } } map, {} when empty. Returns the unsubscribe.
+export function subscribeBlocks(cb) {
+  const me = getUid()
+  if (!db || !me) { cb({}); return () => {} }
+  return onValue(ref(db, `blocks/${me}`), snap => cb(snap.val() || {}), () => cb({}))
 }
 
 // ---- Game invites ----

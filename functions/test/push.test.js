@@ -95,3 +95,19 @@ describe('buildInviteMessages', () => {
     assert.ok(msgs[2].android && msgs[2].notification)
   })
 })
+
+describe('isBlocked', () => {
+  const dbWith = (blocks) => ({ ref: (path) => ({ get: async () => ({ exists: () => blocks.includes(path) }) }) })
+
+  test('is true only when the recipient blocked the sender', async () => {
+    const db = dbWith(['blocks/bob/alice'])
+    assert.equal(await _test.isBlocked('bob', 'alice', db), true)
+    assert.equal(await _test.isBlocked('alice', 'bob', db), false)
+    assert.equal(await _test.isBlocked('bob', 'carol', db), false)
+  })
+
+  test('is false without both uids', async () => {
+    assert.equal(await _test.isBlocked('', 'alice', dbWith([])), false)
+    assert.equal(await _test.isBlocked('bob', undefined, dbWith([])), false)
+  })
+})

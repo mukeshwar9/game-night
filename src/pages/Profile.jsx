@@ -262,12 +262,12 @@ export default function Profile() {
 
         <PushToggle />
 
-        {/* Muted players — local to this device (lib/mute.js) */}
+        {/* Blocked players — synced to the account (lib/mute.js) */}
         <div id="muted" className="space-y-2 scroll-mt-20">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">MUTED PLAYERS</label>
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">BLOCKED PLAYERS</label>
           {muted.length === 0 ? (
             <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
-              Nobody. Tap a name in room chat to mute them — only this device hides their chat, and they aren&apos;t told.
+              Nobody. Tap a name in room chat to block them — they can&apos;t chat to you, send friend requests or invite you, and they aren&apos;t told.
             </p>
           ) : (
             <div className="space-y-2">
@@ -280,7 +280,7 @@ export default function Profile() {
                     className="min-h-11 px-4 border border-retro-border text-retro-dim font-pixel text-[10px] rounded
                       hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
                   >
-                    UNMUTE
+                    UNBLOCK
                   </button>
                 </div>
               ))}
@@ -288,7 +288,7 @@ export default function Profile() {
           )}
           {muted.length > 0 && (
             <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
-              Muted players&apos; chat is hidden on this device only. They aren&apos;t told.
+              Blocks follow your account to other devices. Blocked players aren&apos;t told.
             </p>
           )}
         </div>

@@ -147,3 +147,56 @@ describe('friend requests and friendships', () => {
     await assertSucceeds(as('bob').ref('invites/alice/i1').set({ gameId: 'ABC123', gameType: 'hex', fromUid: 'bob', fromName: 'Bob', fromAvatar: 'kid.p2', at: 1 }))
   })
 })
+
+describe('blocks (synced block list)', () => {
+  const blocked = { name: 'Mal', at: Date.now() }
+  const invite = (from) => ({ gameId: 'g1', gameType: 'tictactoe', fromUid: from, fromName: 'Bob', at: 1 })
+
+  it('is owner-only to read and write, with a shape check', async () => {
+    await assertSucceeds(as('alice').ref('blocks/alice/mal').set(blocked))
+    await assertSucceeds(as('alice').ref('blocks/alice').get())
+    await assertFails(as('bob').ref('blocks/alice').get())
+    await assertFails(as('bob').ref('blocks/alice/bob').set(blocked))
+    await assertFails(as('alice').ref('blocks/alice/alice').set(blocked))
+    await assertFails(as('alice').ref('blocks/alice/mal').set({ name: 'x'.repeat(41), at: 1 }))
+    await assertFails(as('alice').ref('blocks/alice/mal').set({ name: 'Mal' }))
+    await assertFails(as('alice').ref('blocks/alice/mal').set({ ...blocked, junk: 1 }))
+    await assertSucceeds(as('alice').ref('blocks/alice/mal').remove())
+  })
+
+  it('refuses a friend request from someone the recipient blocked', async () => {
+    await put('blocks/alice/mal', blocked)
+    await assertFails(as('mal').ref('friendRequests/alice/mal').set({ name: 'Mal', at: Date.now() }))
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set({ name: 'Bob', at: Date.now() }))
+  })
+
+  it('refuses a friend request to someone the sender blocked', async () => {
+    await put('blocks/mal/alice', { name: 'Alice', at: 1 })
+    await assertFails(as('mal').ref('friendRequests/alice/mal').set({ name: 'Mal', at: Date.now() }))
+  })
+
+  it('still lets the blocked sender withdraw a request and the recipient clear one', async () => {
+    await put('friendRequests/alice/mal', { name: 'Mal', at: 1 })
+    await put('blocks/alice/mal', blocked)
+    await assertSucceeds(as('alice').ref('friendRequests/alice/mal').remove())
+    await put('friendRequests/alice/mal', { name: 'Mal', at: 1 })
+    await assertSucceeds(as('mal').ref('friendRequests/alice/mal').remove())
+  })
+
+  it('refuses an invite from a blocked friend, in either direction', async () => {
+    await put('friends/alice/bob', { since: 1 })
+    await put('friends/bob/alice', { since: 1 })
+    await assertSucceeds(as('bob').ref('invites/alice/i0').set(invite('bob')))
+    await put('blocks/alice/bob', { name: 'Bob', at: 1 })
+    await assertFails(as('bob').ref('invites/alice/i1').set(invite('bob')))
+    await put('blocks/alice/bob', null)
+    await put('blocks/bob/alice', { name: 'Alice', at: 1 })
+    await assertFails(as('bob').ref('invites/alice/i2').set(invite('bob')))
+  })
+
+  it('lets the recipient dismiss an invite while a block exists', async () => {
+    await put('invites/alice/i1', invite('bob'))
+    await put('blocks/alice/bob', { name: 'Bob', at: 1 })
+    await assertSucceeds(as('alice').ref('invites/alice/i1').remove())
+  })
+})
