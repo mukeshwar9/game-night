@@ -1225,7 +1225,7 @@ export const GAME_TYPES = [
   {
     type: 'battleship', label: 'BATTLESHIP',
     desc: 'sink the hidden fleet', Icon: BattleshipIcon,
-    badge: 'BS', maxWidth: 'max-w-3xl',
+    badge: 'BS', maxWidth: 'max-w-md',
     category: 'board',
     addedAt: '2026-08-21',
     durationMin: 8, tags: ['thinky'], solo: true,
