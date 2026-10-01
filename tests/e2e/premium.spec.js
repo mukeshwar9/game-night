@@ -126,6 +126,39 @@ test('avatar picker refuses a locked item and opens the paywall', async ({ brows
   expectNoPageErrors(player)
 })
 
+test('pay region: an Indian device sees rupee prices, the switch flips to dollars and is remembered', async ({ browser }) => {
+  const india = await newPlayer(browser, { timezoneId: 'Asia/Kolkata', locale: 'en-US' })
+  const { page } = india
+  await india.context.addInitScript(() => localStorage.setItem('gn-monetization', 'on'))
+  await onboard(page, 'Rupee Buyer')
+
+  await page.goto('/pass')
+  const switcher = page.getByRole('radiogroup', { name: 'Pay in' })
+  await expect(switcher.getByRole('radio', { name: 'PAY IN ₹' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByRole('button', { name: /365 DAYS.*₹699/ })).toBeVisible()
+
+  // The purchase sheet shows the same rupee price and its own switch, before sign-in.
+  await page.getByRole('button', { name: /30 DAYS.*₹99/ }).click()
+  const sheet = page.getByRole('dialog', { name: 'Buy GAME NIGHT PASS · MONTHLY' })
+  await expect(sheet.getByText('₹99 · 30 DAYS')).toBeVisible()
+  await sheet.getByRole('radio', { name: 'PAY IN $' }).click()
+  await expect(sheet.getByText('$2.99/MO')).toBeVisible()
+  await sheet.getByRole('button', { name: 'CANCEL' }).click()
+
+  // The choice sticks on this device, over the time zone.
+  await page.reload()
+  await expect(page.getByRole('button', { name: /YEARLY.*\$19\.99\/YR/ })).toBeVisible()
+  expectNoPageErrors(india)
+
+  const elsewhere = await newPlayer(browser, { timezoneId: 'Europe/Berlin', locale: 'de-DE' })
+  await elsewhere.context.addInitScript(() => localStorage.setItem('gn-monetization', 'on'))
+  await onboard(elsewhere.page, 'Dollar Buyer')
+  await elsewhere.page.goto('/pass')
+  await expect(elsewhere.page.getByRole('radio', { name: 'PAY IN $' })).toHaveAttribute('aria-checked', 'true')
+  await expect(elsewhere.page.getByRole('button', { name: /MONTHLY.*\$2\.99\/MO/ })).toBeVisible()
+  expectNoPageErrors(elsewhere)
+})
+
 test('monetization off (the default): everything is open and nothing sells', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player

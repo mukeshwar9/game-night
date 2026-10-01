@@ -13,7 +13,7 @@
 // Registry items opt in with `premium: true` and an optional `pack` (see
 // premiumCatalog.js); an item key is `${kind}:${id}`.
 
-/** @typedef {{ status?: string, plan?: string, currentPeriodEnd?: number, subscriptionId?: string }} PassRecord */
+/** @typedef {{ status?: string, plan?: string, currentPeriodEnd?: number, subscriptionId?: string, provider?: string }} PassRecord */
 /** @typedef {{ pass?: PassRecord | null, packs?: Record<string, boolean> | null, supporter?: boolean, admin?: boolean }} Entitlements */
 /** @typedef {{ kind: string, id: string, premium?: boolean, pack?: string }} PremiumItem */
 
@@ -82,6 +82,8 @@ export function accessFor(ent, { bypass = false, now = Date.now() } = {}) {
     admin: ent?.admin === true,
     bypass,
     plan: ent?.pass?.plan ?? null,
+    /** 'razorpay' for a prepaid Pass paid in rupees; otherwise a Paddle subscription. */
+    provider: ent?.pass?.provider === 'razorpay' ? 'razorpay' : 'paddle',
     renewsAt: ent?.pass?.currentPeriodEnd ?? null,
     cancelling: ent?.pass?.status === 'canceled',
     /** @param {PremiumItem} item */

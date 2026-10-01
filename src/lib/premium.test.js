@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PACKS, PRICES, PRODUCTS, formatCents, yearlySavingsPercent } from './premiumCatalog'
+import { PACKS, PRICES, PRICES_INR, PRODUCTS, amountFor, formatCents, formatPaise, formatPrice, yearlySavingsPercent } from './premiumCatalog'
 import { accessFor, birthYearOptions, bypassActive, canViewAsPlayer, effectiveAccess, viewAsPlayerActive, hasActivePass, isUnlocked, itemKey, missingPacks, purchaseGate, unlockReason } from './premium'
 
 const NOW = 1_800_000_000_000
@@ -14,6 +14,18 @@ describe('premium catalogue', () => {
     expect(PRICES.supporter).toBe(499)
     expect(formatCents(1999)).toBe('$19.99')
     expect(yearlySavingsPercent()).toBe(44)
+  })
+
+  it('every product and pack has an INR price, formatted in rupees', () => {
+    for (const p of [...Object.values(PRODUCTS), ...PACKS]) expect(Number.isInteger(p.paise) && p.paise >= 100).toBe(true)
+    expect(PRODUCTS['pass-monthly'].paise).toBe(PRICES_INR.passMonthly)
+    expect(formatPaise(9900)).toBe('₹99')
+    expect(formatPaise(69950)).toBe('₹699.50')
+    expect(formatPrice(PRODUCTS.supporter, 'INR')).toBe('₹299')
+    expect(formatPrice(PRODUCTS.supporter, 'USD')).toBe('$4.99')
+    expect(formatPrice(PRODUCTS.supporter)).toBe('$4.99')
+    expect(amountFor(PRODUCTS.supporter, 'INR')).toBe(29900)
+    expect(yearlySavingsPercent('INR')).toBe(41)
   })
 
   it('keeps every pack between $0.99 and $2.99 and gives each a product', () => {
@@ -89,9 +101,14 @@ describe('helpers', () => {
 
   it('accessFor summarises one record', () => {
     const a = accessFor({ ...passOk, supporter: true }, { now: NOW })
-    expect(a).toMatchObject({ pass: true, supporter: true, admin: false, plan: 'monthly', cancelling: false })
+    expect(a).toMatchObject({ pass: true, supporter: true, admin: false, plan: 'monthly', cancelling: false, provider: 'paddle' })
     expect(a.isUnlocked(themed)).toBe(true)
     expect(accessFor(null, { now: NOW }).isUnlocked(themed)).toBe(false)
+  })
+
+  it('a prepaid Razorpay Pass reads as active and ending, not renewing', () => {
+    const a = accessFor({ pass: { status: 'canceled', plan: 'monthly', currentPeriodEnd: NOW + 1000, provider: 'razorpay' } }, { now: NOW })
+    expect(a).toMatchObject({ pass: true, provider: 'razorpay', cancelling: true })
   })
 
   it('missingPacks lists each unowned pack once', () => {

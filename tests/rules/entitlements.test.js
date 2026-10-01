@@ -80,3 +80,13 @@ describe('ageGate (neutral birth-year question)', () => {
     await assertFails(as('bob').ref('ageGate/bob').set({ year: 1999, extra: 1 }))
   })
 })
+
+describe('razorpayOrders', () => {
+  it('is server-only: no client can read an order or plant one to claim a payment', async () => {
+    await put('razorpayOrders/order_1', { uid: 'alice', product: 'supporter', amount: 29900, currency: 'INR', at: 1 })
+    await assertFails(as('alice').ref('razorpayOrders/order_1').get())
+    await assertFails(as('bob').ref('razorpayOrders/order_1').get())
+    await assertFails(as('bob').ref('razorpayOrders/order_2').set({ uid: 'bob', product: 'pass-yearly', amount: 100, currency: 'INR', at: 1 }))
+    await assertFails(as('alice').ref('razorpayOrders/order_1/uid').set('bob'))
+  })
+})

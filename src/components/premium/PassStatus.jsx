@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import useAccess from '../../hooks/useAccess'
-import { PRICES, formatCents } from '../../lib/premiumCatalog'
+import usePayCurrency from '../../hooks/usePayCurrency'
+import { PRODUCTS, formatPrice } from '../../lib/premiumCatalog'
 import { PassStar } from './LockBadge'
 
 const date = (ms) => new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -9,6 +10,7 @@ const date = (ms) => new Date(ms).toLocaleDateString(undefined, { year: 'numeric
 // page. Dev and admin bypass are labelled so nobody mistakes them for a purchase.
 export default function PassStatus({ linkToPass = false }) {
   const access = useAccess()
+  const currency = usePayCurrency()
   let body
   if (access.admin) body = { title: 'ADMIN ACCESS', line: 'Every premium item is unlocked for this account.' }
   else if (access.bypass) body = { title: 'DEV MODE', line: 'Every premium item is unlocked while developing.' }
@@ -19,7 +21,7 @@ export default function PassStatus({ linkToPass = false }) {
         ? `Ends ${date(access.renewsAt)}. You keep every perk until then.`
         : `${access.plan === 'yearly' ? 'Yearly' : 'Monthly'} plan, renews ${date(access.renewsAt)}.`,
     }
-  } else body = { title: 'GAME NIGHT PASS', line: `Every premium item and host perks, from ${formatCents(PRICES.passMonthly)} a month.` }
+  } else body = { title: 'GAME NIGHT PASS', line: `Every premium item and host perks, from ${formatPrice(PRODUCTS['pass-monthly'], currency)} a month.` }
   const active = access.pass || access.admin || access.bypass
   return (
     <div className={`rounded border-2 p-3 space-y-1 ${active ? 'border-retro-win bg-retro-tint-cta' : 'border-retro-cta bg-retro-card'}`}>

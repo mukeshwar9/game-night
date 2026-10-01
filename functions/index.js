@@ -24,6 +24,12 @@ exports.createCheckout = billing.createCheckout
 exports.createPortalSession = billing.createPortalSession
 exports.paddleWebhook = billing.paddleWebhook
 exports.syncAdminAccess = billing.syncAdminAccess
+// Indian buyers pay in rupees through Razorpay (test mode until configured;
+// answers 503 without its keys). See razorpay.js.
+const razorpay = require('./razorpay')
+exports.createRazorpayOrder = razorpay.createRazorpayOrder
+exports.verifyRazorpayPayment = razorpay.verifyRazorpayPayment
+exports.razorpayWebhook = razorpay.razorpayWebhook
 exports.errorDigest = require('./errorDigest').errorDigest;
 const { errorsCutoffKey, isExpiredErrorDay } = require('./lib/core.cjs');
 

@@ -1,5 +1,6 @@
 // Payments: Game Night Pass, cosmetic packs and Supporter, sold through Paddle
-// (a merchant of record). SANDBOX ONLY until PADDLE_ENV=production is set on
+// (a merchant of record) everywhere except India; Indian buyers pay in rupees
+// through Razorpay (razorpay.js), which reuses applyPlan below. SANDBOX ONLY until PADDLE_ENV=production is set on
 // purpose; every key here is a placeholder the captain fills in (README.md).
 //
 //  createCheckout       callable   signed-in Google account + age gate -> a Paddle checkout URL
@@ -147,6 +148,35 @@ function grantsFromTransaction(txn, priceToProduct) {
   return grants
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** True while a Paddle subscription (anything with a subscription id) still runs. */
+function hasLiveSubscription(pass, now = Date.now()) {
+  return !!pass && pass.provider !== 'razorpay' && !!pass.subscriptionId
+    && pass.status !== 'expired' && pass.status !== 'paused' && Number(pass.currentPeriodEnd) > now
+}
+
+/**
+ * A prepaid Pass record after buying `days` more: time left on an earlier
+ * prepaid Pass carries over. status 'canceled' means "does not renew", which the
+ * UI shows as "Ends <date>". Returns null when a Paddle subscription is live, so
+ * a prepaid purchase never overwrites (and orphans) a subscription that bills.
+ */
+function extendPrepaidPass(current, { plan, days, paymentId }, now = Date.now()) {
+  if (hasLiveSubscription(current, now)) return null
+  const carried = current?.provider === 'razorpay' && current.status !== 'expired' ? Number(current.currentPeriodEnd) || 0 : 0
+  const from = Math.max(now, carried)
+  return { status: 'canceled', plan, currentPeriodEnd: from + days * DAY_MS, provider: 'razorpay', paymentId }
+}
+
+/** A prepaid Pass record after refunding `days` of it; null when there is no prepaid Pass to shorten. */
+function shortenPrepaidPass(current, days, now = Date.now()) {
+  if (!current || current.provider !== 'razorpay' || current.status === 'expired') return null
+  const end = (Number(current.currentPeriodEnd) || 0) - days * DAY_MS
+  if (end <= now) return { ...current, status: 'expired', currentPeriodEnd: 0 }
+  return { ...current, currentPeriodEnd: end }
+}
+
 /**
  * Turns one verified Paddle event into a plan the DB layer applies:
  *   { kind:'pass', uid, pass } | { kind:'grant', uid, txnId, grants } |
@@ -185,7 +215,16 @@ async function applyPlan(db, plan, eventId, { userExists = async () => true, now
   if (plan.kind === 'ignore') return { applied: false, reason: plan.reason }
   const claim = await db.ref(`entitlementEvents/${eventId}`).transaction(cur => (cur ? undefined : now))
   if (!claim.committed) return { applied: false, reason: 'duplicate' }
+  try {
+    return await applyClaimed(db, plan, { userExists, now })
+  } catch (e) {
+    // Release only a claim this call made, so the provider's retry applies it.
+    await db.ref(`entitlementEvents/${eventId}`).remove().catch(() => {})
+    throw e
+  }
+}
 
+async function applyClaimed(db, plan, { userExists, now }) {
   if (plan.kind === 'refund') {
     const snap = await db.ref(`entitlementPurchases/${plan.txnId}`).get()
     const purchase = snap.val()
@@ -195,6 +234,14 @@ async function applyPlan(db, plan, eventId, { userExists = async () => true, now
     if (purchase.supporter) {
       updates[`entitlements/${purchase.uid}/supporter`] = null
       updates[`entitlementsPublic/${purchase.uid}/supporter`] = null
+    }
+    if (purchase.passDays) {
+      const current = (await db.ref(`entitlements/${purchase.uid}/pass`).get()).val()
+      const pass = shortenPrepaidPass(current, purchase.passDays, now)
+      if (pass) {
+        updates[`entitlements/${purchase.uid}/pass`] = pass
+        updates[`entitlementsPublic/${purchase.uid}/pass`] = pass.status !== 'expired' && pass.currentPeriodEnd > now
+      }
     }
     await db.ref().update(updates)
     return { applied: true, uid: purchase.uid }
@@ -212,7 +259,23 @@ async function applyPlan(db, plan, eventId, { userExists = async () => true, now
       updates[`entitlements/${uid}/supporter`] = true
       updates[`entitlementsPublic/${uid}/supporter`] = true
     }
-    updates[`entitlementPurchases/${plan.txnId}`] = { uid, packs: plan.grants.packs, supporter: plan.grants.supporter, at: now }
+    const purchase = { uid, packs: plan.grants.packs, supporter: plan.grants.supporter, at: now }
+    if (plan.provider) purchase.provider = plan.provider
+    if (plan.grants.pass) {
+      // A prepaid Pass (Razorpay) adds its days; refund takes the same days back.
+      const current = (await db.ref(`entitlements/${uid}/pass`).get()).val()
+      const pass = extendPrepaidPass(current, { ...plan.grants.pass, paymentId: plan.txnId }, now)
+      if (pass) {
+        updates[`entitlements/${uid}/pass`] = pass
+        updates[`entitlementsPublic/${uid}/pass`] = true
+        purchase.passDays = plan.grants.pass.days
+        purchase.plan = plan.grants.pass.plan
+      } else {
+        logger.warn('prepaid pass not applied: a subscription is live', { uid, txnId: plan.txnId })
+        purchase.passConflict = true
+      }
+    }
+    updates[`entitlementPurchases/${plan.txnId}`] = purchase
   }
   await db.ref().update(updates)
   return { applied: true, uid }
@@ -267,6 +330,13 @@ exports.createCheckout = onCall({ ...bindSecrets(PADDLE_API_KEY), maxInstances: 
   if (!product) throw new HttpsError('invalid-argument', 'Unknown product.')
   const priceId = parsePrices()[product.id]
   if (!priceId) throw new HttpsError('failed-precondition', 'This item is not on sale yet.')
+  if (product.type === 'pass') {
+    // A subscription would replace the record of a prepaid (Razorpay) Pass and lose its days.
+    const pass = (await getDatabase().ref(`entitlements/${uid}/pass`).get()).val()
+    if (pass?.provider === 'razorpay' && pass.status !== 'expired' && Number(pass.currentPeriodEnd) > Date.now()) {
+      throw new HttpsError('failed-precondition', 'has-prepaid-pass')
+    }
+  }
 
   const birth = (await getDatabase().ref(`ageGate/${uid}/year`).get()).val()
   const age = ageFromBirthYear(birth)
@@ -317,9 +387,8 @@ exports.paddleWebhook = onRequest({ ...bindSecrets(PADDLE_WEBHOOK_SECRET), maxIn
     logger.info('paddle webhook', { type: event.event_type, kind: plan.kind, ...result })
     res.status(200).send('ok')
   } catch (e) {
-    // 5xx makes Paddle retry; the event claim above is released so the retry applies.
+    // 5xx makes Paddle retry; applyPlan has released its event claim so the retry applies.
     logger.error('paddle webhook failed', { type: event.event_type, message: e?.message })
-    await getDatabase().ref(`entitlementEvents/${event.event_id}`).remove().catch(() => {})
     res.status(500).send('retry')
   }
 })
@@ -347,7 +416,10 @@ exports.PADDLE_API_KEY = PADDLE_API_KEY
 exports.bindSecrets = bindSecrets
 exports.secretValue = secretValue
 exports.cancelSubscription = cancelSubscription
+// Shared with razorpay.js, the second processor (Indian buyers).
+exports.shared = { monetizationEnabled, requireGoogleUser, ageFromBirthYear, applyPlan, hasLiveSubscription, MIN_AGE }
 exports._test = {
   monetizationEnabled, assertEnabled, paymentsSecretsEnabled, bindSecrets, secretValue, requireConfigured, paddleBase, parsePrices, invertPrices, parseAdminEmails, isAdminEmail, verifyPaddleSignature,
   ageFromBirthYear, passFromSubscription, grantsFromTransaction, planEvent, applyPlan,
+  hasLiveSubscription, extendPrepaidPass, shortenPrepaidPass,
 }

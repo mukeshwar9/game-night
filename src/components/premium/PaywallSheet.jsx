@@ -1,6 +1,7 @@
 import BottomSheet from '../BottomSheet'
 import LockBadge from './LockBadge'
-import { PRICES, formatCents, getPack } from '../../lib/premiumCatalog'
+import usePayCurrency from '../../hooks/usePayCurrency'
+import { PRODUCTS, formatPrice, getPack } from '../../lib/premiumCatalog'
 import { beginPurchase, closePaywall } from '../../lib/premiumUi'
 import { Link } from 'react-router-dom'
 
@@ -8,6 +9,7 @@ import { Link } from 'react-router-dom'
 // tapped. Two ways in — the whole Pass, or just the item's pack.
 export default function PaywallSheet({ item }) {
   const pack = getPack(item.pack ?? '')
+  const currency = usePayCurrency()
   return (
     <BottomSheet onClose={closePaywall} ariaLabel={`${item.label} is a premium item`} className="bg-retro-card space-y-4">
       <div className="text-center space-y-1">
@@ -27,10 +29,10 @@ export default function PaywallSheet({ item }) {
           className="w-full min-h-12 px-3 flex items-center justify-between gap-2 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[10px] tracking-wider active:scale-95 transition-all"
         >
           <span>GET THE PASS</span>
-          <span>{formatCents(PRICES.passMonthly)}/MO</span>
+          <span>{formatPrice(PRODUCTS['pass-monthly'], currency)}{currency === 'INR' ? '' : '/MO'}</span>
         </button>
         <p className="font-mono text-[10px] text-retro-dim text-center">
-          Unlocks every premium item, plus host perks your guests enjoy. First week free.
+          Unlocks every premium item, plus host perks your guests enjoy. {currency === 'INR' ? '30 days, no auto-renewal.' : 'First week free.'}
         </p>
         {pack && (
           <button
@@ -39,7 +41,7 @@ export default function PaywallSheet({ item }) {
             className="w-full min-h-11 px-3 flex items-center justify-between gap-2 rounded border border-retro-border bg-retro-surface text-retro-text font-pixel text-[10px] tracking-wider active:scale-95 transition-all"
           >
             <span>BUY {pack.label}</span>
-            <span>{formatCents(pack.cents)}</span>
+            <span>{formatPrice(pack, currency)}</span>
           </button>
         )}
       </div>

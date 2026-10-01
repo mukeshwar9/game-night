@@ -1,6 +1,6 @@
 # Cloud Functions
 
-Nine functions, exported from `index.js`. Cloud Functions need the **Blaze (pay-as-you-go) plan**. Every function has a `maxInstances` cap (`setGlobalOptions` in `index.js`, plus one per function), so a burst of room or invite writes cannot run up the bill.
+Twelve functions, exported from `index.js`. Cloud Functions need the **Blaze (pay-as-you-go) plan**. Every function has a `maxInstances` cap (`setGlobalOptions` in `index.js`, plus one per function), so a burst of room or invite writes cannot run up the bill.
 
 | Function | Trigger | What it does |
 |---|---|---|
@@ -11,9 +11,11 @@ Nine functions, exported from `index.js`. Cloud Functions need the **Blaze (pay-
 | `cleanupDeletedAccount` (`deleteAccount.js`) | Firebase Auth user deleted | Removes what an account owned: the server-only `leaderboard/{uid}` and `entitlements/{uid}` rows and anything the app's "Delete my data" did not get to. It first cancels the account's Game Night Pass subscription. |
 | `createCheckout`, `createPortalSession` (`billing.js`) | Callable | A Paddle checkout URL for a product (Google account and 13+ age answer required) and a link to Paddle's customer portal. |
 | `paddleWebhook` (`billing.js`) | HTTPS | Verifies the `Paddle-Signature`, applies the event once, and writes `entitlements/{uid}` (pass, packs, Supporter) and the public badge copy. |
+| `createRazorpayOrder`, `verifyRazorpayPayment` (`razorpay.js`) | Callable | For buyers paying in rupees: a Razorpay order at the catalog's INR price (same Google account and age checks), then a check of Checkout's signature and the captured payment that grants the item. |
+| `razorpayWebhook` (`razorpay.js`) | HTTPS | Verifies `X-Razorpay-Signature`; `payment.captured` / `order.paid` grant and a full `refund.processed` revokes, once per payment id, through the same `applyPlan` as Paddle. |
 | `syncAdminAccess` (`billing.js`) | Callable | Sets `entitlements/{uid}/admin` and a `premiumAdmin` claim for verified emails in `ADMIN_EMAILS`, so admins see every premium item in production. |
 
-Payments run against Paddle's sandbox unless `PADDLE_ENV=production`. Configuration (`PADDLE_PRICES`, `ADMIN_EMAILS`) is in `.env` (see `.env.example`); `PADDLE_API_KEY` and `PADDLE_WEBHOOK_SECRET` are secrets, bound only when `PAYMENTS_SECRETS=1` (without it the functions deploy with no Secret Manager and refuse payments as not configured). Full notes: `docs/MONETIZATION.md`.
+Payments run against Paddle's sandbox unless `PADDLE_ENV=production`. Configuration (`PADDLE_PRICES`, `ADMIN_EMAILS`, `RAZORPAY_KEY_ID`) is in `.env` (see `.env.example`); `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` are secrets, bound only when `PAYMENTS_SECRETS=1` (without it the functions deploy with no Secret Manager and refuse payments as not configured: Paddle with `payments-not-configured`, Razorpay with 503 `razorpay-not-configured`). Razorpay live keys are refused unless `RAZORPAY_ENV=production`. Full notes: `docs/MONETIZATION.md`.
 
 ## How a result is credited
 

@@ -13,20 +13,40 @@ Everything that sells sits behind one switch, **off by default** (`src/lib/monet
 | Premium themes, fonts, avatar items, buddies, emotes | open to everyone | gated by the entitlement check |
 | Locks, paywall, pass and pack badges, Pass strings | not shown | shown |
 | `/shop`, `/pass`, Settings and Profile shop entries | not routed, not linked | live |
-| `createCheckout`, `createPortalSession`, `paddleWebhook`, `syncAdminAccess` | refuse (`monetization-disabled`, webhook 503) | work |
+| `createCheckout`, `createPortalSession`, `paddleWebhook`, `syncAdminAccess`, `createRazorpayOrder`, `verifyRazorpayPayment`, `razorpayWebhook` | refuse (`monetization-disabled`, webhooks 503) | work (Razorpay also needs its keys, below) |
 | Admin emails, local dev bypass | not needed | apply |
 
 To go live: finish the captain steps below, set both switches, then deploy functions and hosting together. A dev server or the emulators can flip the client switch for a session with `localStorage['gn-monetization'] = 'on' | 'off'`; a production build ignores that.
 
 ## What is sold
 
-All prices live in one file, `src/lib/premiumCatalog.js` (`PRICES`, `PACKS`, `PRODUCTS`). The shop, the paywall, the checkout function and the webhook all read it.
+All prices live in one file, `src/lib/premiumCatalog.js` (`PRICES` in US cents, `PRICES_INR` in paise, `PACKS`, `PRODUCTS`). The shop, the paywall, both checkouts and both webhooks read it. Rupee prices are set for Indian purchasing power, not converted, and are GST-inclusive.
 
-| Product | Price | Notes |
-|---|---|---|
-| Game Night Pass | $2.99 a month or $19.99 a year | Unlocks every premium item. 7-day trial (set on the Paddle price). Host perks (room banner, playlists) are listed as "coming" and not built yet. |
-| Cosmetic packs | $1.99 to $2.99 | `themes-seasonal`, `themes-arcade`, `avatars-royal`, `avatars-party`, `avatars-dragon`, `emotes-pixel` |
-| Supporter | $4.99 | A badge; changes nothing else. |
+| Product | Price (Paddle, USD) | Price (Razorpay, INR) | Notes |
+|---|---|---|---|
+| Game Night Pass | $2.99 a month or $19.99 a year | ₹99 for 30 days or ₹699 for 365 days | Unlocks every premium item. In USD a subscription with a 7-day trial (set on the Paddle price); in INR a prepaid period that never renews. Host perks (room banner, playlists) are listed as "coming" and not built yet. |
+| Cosmetic packs | $1.99 to $2.99 | ₹49 (avatar, emote packs) or ₹99 (theme packs) | `themes-seasonal`, `themes-arcade`, `avatars-royal`, `avatars-party`, `avatars-dragon`, `emotes-pixel` |
+| Supporter | $4.99 | ₹299 | A badge; changes nothing else. |
+
+## Two processors: Razorpay for India, Paddle for everyone else
+
+Indian buyers pay in rupees through **Razorpay** (UPI, Indian cards, netbanking, wallets; about 2.36% all in, no setup or monthly fee). Everyone else pays in dollars through **Paddle**, the merchant of record that files foreign VAT and sales tax. The reasoning and fee comparison are in the payments research report (2026-10-01).
+
+**Who gets which.** Firebase Hosting has no geo-IP, so the device picks a default (`src/lib/payRegionLogic.js`, tests beside it): the buyer's own choice from the **PAY IN ₹ / PAY IN $** switch in the purchase sheet (remembered on the device as `gn-pay-currency`), then the device time zone (`Asia/Kolkata`), then a browser language with the `IN` region (`en-IN`, `hi-IN`, …), else dollars. The switch is always there, so a wrong guess costs nothing; every price on the shop, paywall and Pass page follows it (`usePayCurrency`). The app has no country setting on the profile; the switch is that setting.
+
+**Native apps.** Nothing changes: the shop, Pass and every checkout stay hidden inside the iOS/Android shell (`monetization.js`), so neither Paddle nor Razorpay ever opens there.
+
+**The Pass in rupees is prepaid.** Razorpay sells orders, not subscriptions, so an INR Pass is one payment for 30 or 365 days (`PREPAID_PASS_DAYS`). It is stored as `pass: { status: 'canceled', plan, currentPeriodEnd, provider: 'razorpay', paymentId }`; `canceled` means "does not renew", so the Pass page shows "Ends <date>" and offers ADD MORE TIME. Buying again stacks the days on the time left. A prepaid purchase never overwrites a live Paddle subscription (`createRazorpayOrder` refuses with `has-subscription`, and `applyPlan` skips it), and `createCheckout` refuses a Paddle Pass while a prepaid one runs (`has-prepaid-pass`). Razorpay Subscriptions (UPI AutoPay) could replace this later.
+
+**Flow** (`functions/razorpay.js`, tests in `functions/test/razorpay.test.js`):
+
+1. `createRazorpayOrder` (callable): the same Google-account and 13+ checks as Paddle, then a Razorpay order for the product's `paise` price with `notes: { uid, product }`. The order is also stored server-side at `razorpayOrders/{orderId}` (`{ uid, product, amount, currency, at }`, no client access in `database.rules.json`). Returns the order id and the public key id.
+2. The client loads `checkout.razorpay.com/v1/checkout.js` (allowed in the CSP in `firebase.json`) and opens Razorpay Checkout on the page (`payWithRazorpay` in `src/lib/entitlements.js`).
+3. `verifyRazorpayPayment` (callable): checks Checkout's signature (HMAC-SHA256 of `order_id|payment_id` with the key secret), that the order belongs to the caller, and fetches the payment: only a `captured` payment with the order's exact amount in INR is granted. An `authorized` one returns `pending` and the webhook grants it once captured.
+4. `razorpayWebhook` (HTTPS): verifies `X-Razorpay-Signature` (HMAC-SHA256 of the raw body with the webhook secret). `payment.captured` and `order.paid` grant; `refund.processed` for a **full** refund revokes (a partial refund changes nothing). The stored order record, never the payment's notes, says who bought what.
+5. Both paths call billing.js's `applyPlan`, so a rupee purchase writes exactly what the Paddle purchase writes (`entitlements/{uid}`, `entitlementsPublic/{uid}`, `entitlementPurchases/{paymentId}` with `provider: 'razorpay'`). They claim the same key, `entitlementEvents/rzp-paid-<paymentId>` (refunds: `rzp-refund-<paymentId>`), so a payment is granted once whichever arrives first, and a retried webhook does nothing. A failure after the claim releases it so the provider's retry applies.
+
+**Optional keys.** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` are read from the environment, not bound with `defineSecret`, so a project without them still deploys every function. Without them the Razorpay callables fail with `unavailable` (HTTP 503) and message `razorpay-not-configured`, the webhook answers 503, and the purchase sheet tells the buyer to switch to $. Live keys (`rzp_live_…`) are refused the same way unless `RAZORPAY_ENV=production` is set on purpose, the counterpart of `PADDLE_ENV`.
 
 ## The entitlement record
 
@@ -34,15 +54,17 @@ All prices live in one file, `src/lib/premiumCatalog.js` (`PRICES`, `PACKS`, `PR
 
 ```
 entitlements/{uid}: {
-  pass: { status, plan, currentPeriodEnd, subscriptionId, customerId },
+  pass: { status, plan, currentPeriodEnd, subscriptionId, customerId },   // Paddle subscription, or
+        // { status: 'canceled', plan, currentPeriodEnd, provider: 'razorpay', paymentId } for a prepaid INR Pass
   packs: { [packId]: true },
   supporter: true,
   admin: true,          // admin email allowlist, set by syncAdminAccess
   updatedAt
 }
 entitlementsPublic/{uid}: { pass: bool, supporter: bool }   // badge copy any signed-in user may read
-entitlementPurchases/{transactionId}                         // server-only; lets a refund take a pack back
-entitlementEvents/{eventId}                                  // server-only; makes the webhook idempotent
+entitlementPurchases/{transactionId | paymentId}             // server-only; lets a refund take a pack (or prepaid Pass days) back
+entitlementEvents/{eventId | rzp-paid-… | rzp-refund-…}      // server-only; makes the webhooks idempotent
+razorpayOrders/{orderId}: { uid, product, amount, currency, at }  // server-only; who an INR order belongs to
 ageGate/{uid}: { year, at }                                  // neutral birth-year answer, write-once, owner-only
 ```
 
@@ -95,3 +117,26 @@ To turn it on: enable the Secret Manager API on the project, run `firebase funct
 4. In Paddle, add a notification destination pointing at the deployed `paddleWebhook` URL, subscribed to `subscription.*`, `transaction.completed` and `adjustment.updated`.
 5. Deploy rules, functions and hosting together. Test a sandbox purchase with Paddle's test card, a cancel and a refund.
 6. Before going live: review the updated Terms and Privacy Policy with someone qualified, get Paddle's approval for the domain, then switch `PADDLE_ENV=production` with live keys and prices.
+
+## Razorpay: testing locally with test keys
+
+1. In the Razorpay dashboard switch to **Test Mode** and generate a test key pair (Account & Settings, API Keys). Test keys start `rzp_test_`. Test mode needs no KYC.
+2. Put them in `functions/.env.local` (read by the Functions emulator only) or `functions/.env.<project-id>` (a deployed test project); both are git-ignored. Add the launch switch:
+   ```
+   MONETIZATION_ENABLED=1
+   RAZORPAY_KEY_ID=rzp_test_…
+   RAZORPAY_KEY_SECRET=…
+   RAZORPAY_WEBHOOK_SECRET=any-string-you-also-enter-in-the-dashboard
+   ```
+3. Run the app with monetization on (`VITE_MONETIZATION_ENABLED=1`, or `localStorage['gn-monetization'] = 'on'` on a dev server) against a project whose functions have these values, open `/pass` or `/shop`, choose **PAY IN ₹** and pay with Razorpay's test UPI ID `success@razorpay` (or `failure@razorpay`) or a test card from Razorpay's docs. The item unlocks when `verifyRazorpayPayment` returns.
+4. To test the webhook against a deployed test project, add a webhook in the dashboard's Test Mode (below). Unit tests cover signatures, order creation, event planning, idempotency and grant/revoke without any keys: `npm --prefix functions test`.
+
+## Captain steps for Razorpay (India)
+
+1. **Account and KYC.** Sign up at razorpay.com as an individual or sole proprietor (PAN, bank account, address proof; no GST number is needed below ₹20 lakh a year in turnover). Activation includes a website review: the site must show the Terms (with the refund and cancellation policy), the Privacy Policy, contact details and prices. Before applying, add your **legal name and a contact address** to the Support page and Terms: Razorpay asks for them and this code does not invent them. Have the new refund wording in `public/terms.html` reviewed; it promises a full refund within 7 days for double charges, mistaken charges or an item that did not unlock.
+2. **Test first.** Generate Test Mode keys and follow "testing locally" above.
+3. **Keys on the server.** Put `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` in `functions/.env.<project-id>` (git-ignored) and deploy functions. These become plain environment variables on the function; once Razorpay is permanent, consider moving the two secrets to Secret Manager by binding them with `defineSecret` in `razorpay.js` (that makes them required for deploy).
+4. **Webhook.** In the dashboard (Account & Settings, Webhooks) add `https://<region>-<project-id>.cloudfunctions.net/razorpayWebhook` (the URL `firebase deploy` prints for `razorpayWebhook`), the same secret as `RAZORPAY_WEBHOOK_SECRET`, and the events **payment.captured**, **order.paid** and **refund.processed**. Keep payment **auto-capture** on (the default) so payments are captured right away.
+5. **International cards.** Leave them off on the Razorpay account: buyers outside India should pay through Paddle, which handles foreign VAT. The ₹ / $ switch still lets anyone choose rupees, so a foreign card in INR would simply be declined.
+6. **Go live.** After activation, generate live keys, set `RAZORPAY_ENV=production` with them, add the webhook again in Live Mode, and deploy rules, functions and hosting together (the CSP in `firebase.json` now allows Razorpay Checkout). Refunds are issued from the Razorpay dashboard; a full refund revokes the item automatically through the webhook.
+7. **GST.** Below ₹20 lakh a year in aggregate turnover no GST registration is needed. Past it, register, start charging 18% on Indian sales (the INR prices are already GST-inclusive, so the margin drops rather than the price), and file a LUT so the Paddle payouts count as zero-rated exports.

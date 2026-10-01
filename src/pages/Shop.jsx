@@ -5,7 +5,8 @@ import ThemePreview from '../components/ThemePreview'
 import LockBadge, { PassStar } from '../components/premium/LockBadge'
 import PassStatus from '../components/premium/PassStatus'
 import useAccess from '../hooks/useAccess'
-import { PACKS, PRICES, formatCents } from '../lib/premiumCatalog'
+import usePayCurrency from '../hooks/usePayCurrency'
+import { PACKS, PRODUCTS, formatPrice } from '../lib/premiumCatalog'
 import { hasPack } from '../lib/premium'
 import { premiumItems } from '../lib/premiumItems'
 import { beginPurchase, openPaywall } from '../lib/premiumUi'
@@ -51,6 +52,7 @@ function ItemGrid({ items, access }) {
 
 function PassOnlySection({ items, access }) {
   const owned = access.pass || access.admin || access.bypass
+  const currency = usePayCurrency()
   return (
     <section aria-label="Pass exclusives" className="space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -60,7 +62,7 @@ function PassOnlySection({ items, access }) {
         </div>
         {owned ? <span className="shrink-0 font-pixel text-[9px] tracking-wider text-retro-win">UNLOCKED</span> : (
           <button type="button" onClick={() => beginPurchase('pass-monthly')} className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition-all">
-            GET PASS {formatCents(PRICES.passMonthly)}/MO
+            GET PASS {formatPrice(PRODUCTS['pass-monthly'], currency)}{currency === 'INR' ? '' : '/MO'}
           </button>
         )}
       </div>
@@ -72,6 +74,7 @@ function PassOnlySection({ items, access }) {
 function PackSection({ pack, items, access }) {
   const owned = access.isUnlocked({ premium: true, pack: pack.id })
   const bought = hasPack(access.ent, pack.id)
+  const currency = usePayCurrency()
   return (
     <section aria-label={pack.label} className="space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -87,7 +90,7 @@ function PackSection({ pack, items, access }) {
             onClick={() => beginPurchase(`pack-${pack.id}`)}
             className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition-all"
           >
-            BUY {formatCents(pack.cents)}
+            BUY {formatPrice(pack, currency)}
           </button>
         )}
       </div>
@@ -98,6 +101,7 @@ function PackSection({ pack, items, access }) {
 
 export default function Shop() {
   const access = useAccess()
+  const currency = usePayCurrency()
   const [tab, setTab] = useState('theme')
   const items = premiumItems(tab)
   const packs = PACKS.filter(p => p.kind === tab).map(p => ({ pack: p, items: items.filter(i => i.pack === p.id) })).filter(g => g.items.length)
@@ -143,7 +147,7 @@ export default function Shop() {
               ? <span className="font-pixel text-[9px] tracking-wider text-retro-win">THANK YOU</span>
               : (
                 <button type="button" onClick={() => beginPurchase('supporter')} className="min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition-all">
-                  BACK US {formatCents(PRICES.supporter)}
+                  BACK US {formatPrice(PRODUCTS.supporter, currency)}
                 </button>
               )}
           </div>

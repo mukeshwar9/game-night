@@ -8,8 +8,8 @@ export const ROOM_URL = /\/game\/[A-Z0-9]{6}$/
 export const ERROR_BOUNDARY_TEXT = 'SOMETHING BROKE'
 
 // Opens a fresh player and records uncaught page errors on `player.errors`.
-export async function newPlayer(browser) {
-  const context = await browser.newContext()
+export async function newPlayer(browser, contextOptions = {}) {
+  const context = await browser.newContext(contextOptions)
   const page = await context.newPage()
   const errors = []
   const cspViolations = []

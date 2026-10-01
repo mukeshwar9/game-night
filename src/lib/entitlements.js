@@ -168,3 +168,60 @@ export async function createPortalUrl() {
   if (typeof url !== 'string') throw new Error('No portal link')
   return url
 }
+
+// ---- Razorpay (Indian buyers, INR) -------------------------------------------
+
+const RAZORPAY_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js'
+let razorpayScript = null
+
+/** Loads Razorpay Checkout once (allowed by the CSP in firebase.json). */
+function loadRazorpay() {
+  if (typeof window !== 'undefined' && window.Razorpay) return Promise.resolve(window.Razorpay)
+  if (!razorpayScript) {
+    razorpayScript = new Promise((resolve, reject) => {
+      const s = document.createElement('script')
+      s.src = RAZORPAY_SCRIPT
+      s.async = true
+      s.onload = () => (window.Razorpay ? resolve(window.Razorpay) : reject(new Error('razorpay-unavailable')))
+      s.onerror = () => { razorpayScript = null; reject(new Error('razorpay-unavailable')) }
+      document.head.appendChild(s)
+    })
+  }
+  return razorpayScript
+}
+
+/**
+ * Pays for a product in rupees: the server creates the order, Razorpay Checkout
+ * (UPI, cards, netbanking) takes the payment on this page, and the server checks
+ * the signature and grants. Resolves 'granted', or 'pending' when the payment is
+ * still being captured (the webhook grants it shortly). Rejects with
+ * 'cancelled' when the buyer closes Checkout.
+ */
+export async function payWithRazorpay(product, { label, name, email } = {}) {
+  const [Razorpay, order] = await Promise.all([
+    loadRazorpay(),
+    httpsCallable(fns(), 'createRazorpayOrder')({ product }).then(r => r.data),
+  ])
+  if (!order?.orderId || !order?.keyId) throw new Error('No order')
+  const paid = await new Promise((resolve, reject) => {
+    const checkout = new Razorpay({
+      key: order.keyId,
+      order_id: order.orderId,
+      amount: order.amount,
+      currency: order.currency,
+      name: 'Game Night',
+      description: label || product,
+      prefill: { name: name || undefined, email: email || undefined },
+      notes: { product },
+      handler: resolve,
+      modal: { ondismiss: () => reject(new Error('cancelled')), confirm_close: true },
+    })
+    checkout.open()
+  })
+  const res = await httpsCallable(fns(), 'verifyRazorpayPayment')({
+    orderId: paid.razorpay_order_id,
+    paymentId: paid.razorpay_payment_id,
+    signature: paid.razorpay_signature,
+  })
+  return res.data?.status === 'granted' ? 'granted' : 'pending'
+}
