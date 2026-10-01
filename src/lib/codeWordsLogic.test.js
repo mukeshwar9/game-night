@@ -5,7 +5,7 @@ import {
   normalizeRevealed, normalizePicks, normalizeRound, canStartBoard, buildBoard, nextBoardSetup,
   isSpymaster, spymasterIds, readyToDeal, keyHolders, spymastersNeedingSeal, applyDeal,
   validateClue, applyClue, isOnTurnGuesser, canGuess, applyGuess, canPass, endTurn,
-  remainingCards, applyReveal, boardScores, tallyWins, normalizeWins, codeWordsPlacements, rosters, sealContext, randomSeed,
+  remainingCards, applyReveal, boardScores, tallyWins, normalizeWins, codeWordsPlacements, rosters, sealContext, randomSeed, cardFontPx,
 } from './codeWordsLogic'
 import { CODE_WORDS } from './decks/codewords'
 import { overlapsWord } from './wordMatch'
@@ -362,5 +362,18 @@ describe('scoring & results', () => {
 
   it('lists rosters in seat order', () => {
     expect(rosters({ teams: TEAMS }, ['d', 'c', 'b', 'a'])).toEqual({ A: ['c', 'a'], B: ['d', 'b'] })
+  })
+})
+
+describe('cardFontPx', () => {
+  it('keeps short words at the normal size', () => {
+    expect(cardFontPx('TREE')).toBe(11)
+  })
+  it('shrinks long words so they stay on one line', () => {
+    expect(cardFontPx('MICROSCOPE')).toBeLessThan(10)
+    expect(cardFontPx('MICROSCOPE')).toBeGreaterThanOrEqual(8)
+  })
+  it('never goes below 8px', () => {
+    expect(cardFontPx('ABCDEFGHIJKLMNOPQRSTUVWXYZ')).toBe(8)
   })
 })
