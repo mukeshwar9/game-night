@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { isInAppBrowser } from '../lib/uaLogic';
+import { isNative } from '../lib/platform';
 
 const isIosDevice = () =>
   typeof navigator !== 'undefined' &&
   /iPhone|iPad|iPod/.test(navigator.userAgent) &&
   !navigator.standalone &&
+  // Already installed: this is the store app, not a browser tab.
+  !isNative &&
   // "Share → Add to Home Screen" does not exist inside an in-app browser.
   !isInAppBrowser();
 
@@ -14,6 +17,7 @@ export function useInstallPrompt() {
   const [isIos] = useState(isIosDevice);
 
   useEffect(() => {
+    if (isNative) return undefined;
     const onPrompt = e => { e.preventDefault(); setPrompt(e); };
     const onInstalled = () => { setInstalled(true); setPrompt(null); };
     window.addEventListener('beforeinstallprompt', onPrompt);
