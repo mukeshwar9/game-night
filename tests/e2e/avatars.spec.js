@@ -2,7 +2,7 @@
 // selectable), see both players' avatars drawn in a room, and confirm that avatar
 // strings saved before the redesign still render, never blank.
 import { test, expect } from '@playwright/test'
-import { createRoom, expectNoPageErrors, joinViaInvite, newPlayer } from './helpers.js'
+import { createRoom, expectNoPageErrors, newPlayer } from './helpers.js'
 import { DB_ORIGIN } from './emulator.js'
 
 const NS = 'demo-game-night-default-rtdb'
