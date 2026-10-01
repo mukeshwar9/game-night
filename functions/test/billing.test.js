@@ -212,3 +212,82 @@ describe('applyPlan', () => {
     assert.deepEqual(db.data, {})
   })
 })
+
+describe('payments not configured (no secrets bound)', () => {
+  const billing = require('../billing')
+  const google = { uid: 'alice', token: { firebase: { sign_in_provider: 'google.com' } } }
+  const withMonetization = async (fn) => {
+    const prev = process.env.MONETIZATION_ENABLED
+    process.env.MONETIZATION_ENABLED = '1'
+    try { return await fn() } finally {
+      if (prev === undefined) delete process.env.MONETIZATION_ENABLED; else process.env.MONETIZATION_ENABLED = prev
+    }
+  }
+
+  test('secret binding is opt-in through PAYMENTS_SECRETS=1', () => {
+    assert.equal(t.paymentsSecretsEnabled(undefined), false)
+    assert.equal(t.paymentsSecretsEnabled('0'), false)
+    assert.equal(t.paymentsSecretsEnabled(' 1 '), true)
+    assert.equal(billing.PADDLE_API_KEY, null)
+    assert.deepEqual(t.bindSecrets(null, null), {})
+    assert.deepEqual(t.bindSecrets(null, 'k'), { secrets: ['k'] })
+    assert.equal(t.secretValue(null), '')
+  })
+  test('the deployed functions declare no secrets', () => {
+    for (const name of ['createCheckout', 'createPortalSession', 'paddleWebhook']) {
+      const env = billing[name].__endpoint.secretEnvironmentVariables
+      assert.ok(!env || env.length === 0, name)
+    }
+    // The v1 auth trigger needs a project id to build its endpoint.
+    const prev = process.env.GCLOUD_PROJECT
+    process.env.GCLOUD_PROJECT = 'demo-test'
+    try {
+      const deletion = require('../deleteAccount').cleanupDeletedAccount.__endpoint.secretEnvironmentVariables
+      assert.ok(!deletion || deletion.length === 0)
+    } finally {
+      if (prev === undefined) delete process.env.GCLOUD_PROJECT; else process.env.GCLOUD_PROJECT = prev
+    }
+  })
+  test('callables answer failed-precondition payments-not-configured', async () => {
+    await withMonetization(async () => {
+      for (const name of ['createCheckout', 'createPortalSession']) {
+        await assert.rejects(billing[name].run({ auth: google, data: { product: 'supporter' } }),
+          (e) => e.code === 'failed-precondition' && e.message === 'payments-not-configured', name)
+      }
+    })
+  })
+  test('the webhook answers 503 payments-not-configured', async () => {
+    const res = { code: 0, body: '', status(c) { this.code = c; return this }, send(b) { this.body = b } }
+    await withMonetization(() => billing.paddleWebhook({ method: 'POST', rawBody: Buffer.from('{}'), get: () => '' }, res))
+    assert.equal(res.code, 503)
+    assert.equal(res.body, 'payments-not-configured')
+  })
+  test('cancelSubscription skips without an API key instead of calling Paddle', async () => {
+    const realFetch = global.fetch
+    let called = false
+    global.fetch = async () => { called = true; return { ok: true, json: async () => ({}) } }
+    try {
+      assert.equal(await billing.cancelSubscription('sub_1', ''), false)
+      assert.equal(called, false)
+    } finally { global.fetch = realFetch }
+  })
+})
+
+describe('payments secrets bound (PAYMENTS_SECRETS=1)', () => {
+  test('binds PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET as before', () => {
+    const path = require.resolve('../billing')
+    const saved = require.cache[path]
+    delete require.cache[path]
+    process.env.PAYMENTS_SECRETS = '1'
+    try {
+      const bound = require('../billing')
+      const keys = (fn) => (bound[fn].__endpoint.secretEnvironmentVariables || []).map(s => s.key)
+      assert.deepEqual(keys('createCheckout'), ['PADDLE_API_KEY'])
+      assert.deepEqual(keys('createPortalSession'), ['PADDLE_API_KEY'])
+      assert.deepEqual(keys('paddleWebhook'), ['PADDLE_WEBHOOK_SECRET'])
+    } finally {
+      delete process.env.PAYMENTS_SECRETS
+      require.cache[path] = saved
+    }
+  })
+})

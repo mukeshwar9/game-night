@@ -73,11 +73,24 @@ Only the owner sees themes and fonts, and emotes are plain glyphs, so those gate
 - `cleanupDeletedAccount` cancels the subscription (immediately) before clearing the account's rows.
 - `PADDLE_ENV` defaults to the sandbox. Nothing here calls the live API unless `PADDLE_ENV=production` is set on purpose.
 
+## Secret binding (`PAYMENTS_SECRETS`)
+
+Binding a secret needs Secret Manager on the project, and a deploy that binds one fails (403) without it. So the Paddle secrets are bound only when `functions/.env` has `PAYMENTS_SECRETS=1`; the Firebase CLI reads that file while it analyses the code, so the switch decides what a deploy binds.
+
+| | `PAYMENTS_SECRETS` unset (default) | `PAYMENTS_SECRETS=1` |
+|---|---|---|
+| Deploy | binds no secrets; works without Secret Manager | binds `PADDLE_API_KEY` (`createCheckout`, `createPortalSession`, `cleanupDeletedAccount`) and `PADDLE_WEBHOOK_SECRET` (`paddleWebhook`) |
+| `createCheckout`, `createPortalSession` | after the launch switch and sign-in checks, refuse with `failed-precondition` `payments-not-configured` | work |
+| `paddleWebhook` | 503 `payments-not-configured` (after the launch switch check) | verifies and applies events |
+| `cleanupDeletedAccount` | clears the account and logs that it skipped the Paddle cancel | cancels the subscription, then clears the account |
+
+To turn it on: enable the Secret Manager API on the project, run `firebase functions:secrets:set PADDLE_API_KEY` and `firebase functions:secrets:set PADDLE_WEBHOOK_SECRET`, add `PAYMENTS_SECRETS=1` to `functions/.env`, then `firebase deploy --only functions`.
+
 ## Captain steps before any real money
 
 1. Create a Paddle account (start in the sandbox). Create products and prices matching `PRODUCTS`; put the 7-day trial on the two Pass prices. Set the default payment link to `https://<your-domain>/shop`.
 2. Fill `functions/.env` from `functions/.env.example`: `PADDLE_PRICES` (product id to price id) and `ADMIN_EMAILS`.
-3. `firebase functions:secrets:set PADDLE_API_KEY` and `PADDLE_WEBHOOK_SECRET` (sandbox values first).
+3. Enable Secret Manager, `firebase functions:secrets:set PADDLE_API_KEY` and `PADDLE_WEBHOOK_SECRET` (sandbox values first), and set `PAYMENTS_SECRETS=1` (see Secret binding above).
 4. In Paddle, add a notification destination pointing at the deployed `paddleWebhook` URL, subscribed to `subscription.*`, `transaction.completed` and `adjustment.updated`.
 5. Deploy rules, functions and hosting together. Test a sandbox purchase with Paddle's test card, a cancel and a refund.
 6. Before going live: review the updated Terms and Privacy Policy with someone qualified, get Paddle's approval for the domain, then switch `PADDLE_ENV=production` with live keys and prices.

@@ -13,7 +13,7 @@ Nine functions, exported from `index.js`. Cloud Functions need the **Blaze (pay-
 | `paddleWebhook` (`billing.js`) | HTTPS | Verifies the `Paddle-Signature`, applies the event once, and writes `entitlements/{uid}` (pass, packs, Supporter) and the public badge copy. |
 | `syncAdminAccess` (`billing.js`) | Callable | Sets `entitlements/{uid}/admin` and a `premiumAdmin` claim for verified emails in `ADMIN_EMAILS`, so admins see every premium item in production. |
 
-Payments run against Paddle's sandbox unless `PADDLE_ENV=production`. Configuration (`PADDLE_PRICES`, `ADMIN_EMAILS`) is in `.env` (see `.env.example`); `PADDLE_API_KEY` and `PADDLE_WEBHOOK_SECRET` are secrets. Full notes: `docs/MONETIZATION.md`.
+Payments run against Paddle's sandbox unless `PADDLE_ENV=production`. Configuration (`PADDLE_PRICES`, `ADMIN_EMAILS`) is in `.env` (see `.env.example`); `PADDLE_API_KEY` and `PADDLE_WEBHOOK_SECRET` are secrets, bound only when `PAYMENTS_SECRETS=1` (without it the functions deploy with no Secret Manager and refuse payments as not configured). Full notes: `docs/MONETIZATION.md`.
 
 ## How a result is credited
 

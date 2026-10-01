@@ -19,8 +19,33 @@ const { getDatabase } = require('firebase-admin/database')
 const { getAuth } = require('firebase-admin/auth')
 const { PRODUCTS } = require('./lib/core.cjs')
 
-const PADDLE_API_KEY = defineSecret('PADDLE_API_KEY')
-const PADDLE_WEBHOOK_SECRET = defineSecret('PADDLE_WEBHOOK_SECRET')
+// Secret binding is opt-in: PAYMENTS_SECRETS=1 in functions/.env (read at deploy
+// time too) declares the Paddle secrets, which needs Secret Manager on the project.
+// Unset, nothing is bound, so the functions deploy on a project without Secret
+// Manager and answer "payments-not-configured" until the keys exist.
+function paymentsSecretsEnabled(raw = process.env.PAYMENTS_SECRETS) {
+  return String(raw || '').trim() === '1'
+}
+
+const SECRETS_ON = paymentsSecretsEnabled()
+const PADDLE_API_KEY = SECRETS_ON ? defineSecret('PADDLE_API_KEY') : null
+const PADDLE_WEBHOOK_SECRET = SECRETS_ON ? defineSecret('PADDLE_WEBHOOK_SECRET') : null
+
+/** `{ secrets: [...] }` for the bound ones, or {} when secret binding is off. */
+function bindSecrets(...params) {
+  const bound = params.filter(Boolean)
+  return bound.length ? { secrets: bound } : {}
+}
+
+/** A bound secret's value, or '' when it is not bound or not set. */
+function secretValue(param) {
+  return param ? param.value() || '' : ''
+}
+
+function requireConfigured(value) {
+  if (!value) throw new HttpsError('failed-precondition', 'payments-not-configured')
+  return value
+}
 
 // Launch switch, mirroring VITE_MONETIZATION_ENABLED in the client: MONETIZATION_ENABLED=1
 // turns billing on. Off (the default) every billing entry point refuses, so a stray
@@ -211,6 +236,10 @@ async function paddleFetch(path, apiKey, body) {
 
 /** Cancels a subscription immediately (account deletion). Errors are logged, not thrown. */
 async function cancelSubscription(subscriptionId, apiKey) {
+  if (!apiKey) {
+    logger.warn('payments not configured; subscription not cancelled', { subscriptionId })
+    return false
+  }
   try {
     await paddleFetch(`/subscriptions/${subscriptionId}/cancel`, apiKey, { effective_from: 'immediately' })
     return true
@@ -231,8 +260,9 @@ function requireGoogleUser(request) {
   return request.auth.uid
 }
 
-exports.createCheckout = onCall({ secrets: [PADDLE_API_KEY], maxInstances: 5 }, async (request) => {
+exports.createCheckout = onCall({ ...bindSecrets(PADDLE_API_KEY), maxInstances: 5 }, async (request) => {
   const uid = requireGoogleUser(request)
+  const apiKey = requireConfigured(secretValue(PADDLE_API_KEY))
   const product = PRODUCTS[request.data?.product]
   if (!product) throw new HttpsError('invalid-argument', 'Unknown product.')
   const priceId = parsePrices()[product.id]
@@ -243,7 +273,7 @@ exports.createCheckout = onCall({ secrets: [PADDLE_API_KEY], maxInstances: 5 }, 
   if (age === null) throw new HttpsError('failed-precondition', 'age-required')
   if (age < MIN_AGE) throw new HttpsError('permission-denied', 'under-age')
 
-  const txn = await paddleFetch('/transactions', PADDLE_API_KEY.value(), {
+  const txn = await paddleFetch('/transactions', apiKey, {
     items: [{ price_id: priceId, quantity: 1 }],
     custom_data: { uid, product: product.id },
     collection_mode: 'automatic',
@@ -253,22 +283,25 @@ exports.createCheckout = onCall({ secrets: [PADDLE_API_KEY], maxInstances: 5 }, 
   return { url }
 })
 
-exports.createPortalSession = onCall({ secrets: [PADDLE_API_KEY], maxInstances: 5 }, async (request) => {
+exports.createPortalSession = onCall({ ...bindSecrets(PADDLE_API_KEY), maxInstances: 5 }, async (request) => {
   const uid = requireGoogleUser(request)
+  const apiKey = requireConfigured(secretValue(PADDLE_API_KEY))
   const pass = (await getDatabase().ref(`entitlements/${uid}/pass`).get()).val()
   if (!pass?.customerId) throw new HttpsError('failed-precondition', 'no-subscription')
   const body = pass.subscriptionId ? { subscription_ids: [pass.subscriptionId] } : {}
-  const portal = await paddleFetch(`/customers/${pass.customerId}/portal-sessions`, PADDLE_API_KEY.value(), body)
+  const portal = await paddleFetch(`/customers/${pass.customerId}/portal-sessions`, apiKey, body)
   const url = portal?.urls?.general?.overview
   if (!url) throw new HttpsError('internal', 'No portal link was returned.')
   return { url }
 })
 
-exports.paddleWebhook = onRequest({ secrets: [PADDLE_WEBHOOK_SECRET], maxInstances: 5 }, async (req, res) => {
+exports.paddleWebhook = onRequest({ ...bindSecrets(PADDLE_WEBHOOK_SECRET), maxInstances: 5 }, async (req, res) => {
   if (!monetizationEnabled()) { res.status(503).send('monetization-disabled'); return }
+  const webhookSecret = secretValue(PADDLE_WEBHOOK_SECRET)
+  if (!webhookSecret) { res.status(503).send('payments-not-configured'); return }
   if (req.method !== 'POST') { res.status(405).send('POST only'); return }
   const raw = req.rawBody ? req.rawBody.toString('utf8') : ''
-  if (!verifyPaddleSignature(raw, req.get('Paddle-Signature'), PADDLE_WEBHOOK_SECRET.value())) {
+  if (!verifyPaddleSignature(raw, req.get('Paddle-Signature'), webhookSecret)) {
     logger.warn('paddle webhook: bad signature')
     res.status(400).send('bad signature')
     return
@@ -311,8 +344,10 @@ exports.syncAdminAccess = onCall({ maxInstances: 5 }, async (request) => {
 })
 
 exports.PADDLE_API_KEY = PADDLE_API_KEY
+exports.bindSecrets = bindSecrets
+exports.secretValue = secretValue
 exports.cancelSubscription = cancelSubscription
 exports._test = {
-  monetizationEnabled, assertEnabled, paddleBase, parsePrices, invertPrices, parseAdminEmails, isAdminEmail, verifyPaddleSignature,
+  monetizationEnabled, assertEnabled, paymentsSecretsEnabled, bindSecrets, secretValue, requireConfigured, paddleBase, parsePrices, invertPrices, parseAdminEmails, isAdminEmail, verifyPaddleSignature,
   ageFromBirthYear, passFromSubscription, grantsFromTransaction, planEvent, applyPlan,
 }

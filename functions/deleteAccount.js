@@ -6,7 +6,7 @@
 const functionsV1 = require('firebase-functions/v1')
 const logger = require('firebase-functions/logger')
 const { getDatabase } = require('firebase-admin/database')
-const { PADDLE_API_KEY, cancelSubscription } = require('./billing')
+const { PADDLE_API_KEY, bindSecrets, secretValue, cancelSubscription } = require('./billing')
 
 // Every path that belongs to `uid`, given the friend uids and friend code read
 // from the account before it is cleared. Pure, so it is unit-tested.
@@ -21,7 +21,7 @@ function accountPaths(uid, { friendUids = [], code = null } = {}) {
   return paths
 }
 
-exports.cleanupDeletedAccount = functionsV1.runWith({ maxInstances: 5, secrets: [PADDLE_API_KEY] }).auth.user().onDelete(async (user) => {
+exports.cleanupDeletedAccount = functionsV1.runWith({ maxInstances: 5, ...bindSecrets(PADDLE_API_KEY) }).auth.user().onDelete(async (user) => {
   const uid = user.uid
   const root = getDatabase().ref()
   const [friends, code, pass] = await Promise.all([
@@ -30,16 +30,18 @@ exports.cleanupDeletedAccount = functionsV1.runWith({ maxInstances: 5, secrets: 
     root.child(`entitlements/${uid}/pass`).get(),
   ])
   // A deleted account must not keep being billed: end the subscription first.
+  // Without a Paddle key (payments not configured) cancelSubscription skips it.
   const subscriptionId = pass.val()?.subscriptionId
+  let cancelledSubscription = false
   if (typeof subscriptionId === 'string' && subscriptionId && pass.val()?.status !== 'expired') {
-    await cancelSubscription(subscriptionId, PADDLE_API_KEY.value())
+    cancelledSubscription = await cancelSubscription(subscriptionId, secretValue(PADDLE_API_KEY))
   }
   const friendUids = friends.exists() ? Object.keys(friends.val() || {}) : []
   const codeValue = typeof code.val() === 'string' ? code.val() : null
   const updates = {}
   for (const path of accountPaths(uid, { friendUids, code: codeValue })) updates[path] = null
   await root.update(updates)
-  logger.info('account data removed', { uid, friends: friendUids.length, cancelledSubscription: !!subscriptionId })
+  logger.info('account data removed', { uid, friends: friendUids.length, cancelledSubscription })
 })
 
 exports._test = { accountPaths }
