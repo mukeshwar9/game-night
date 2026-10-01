@@ -26,7 +26,7 @@ export const FONTS = [
   { id: 'bungee-spice', label: 'BUNGEE SPICE', family: 'Bungee Spice', description: 'Gradient colour font' },
   { id: 'bungee-shade', label: 'BUNGEE SHADE', family: 'Bungee Shade', description: '3D shade caps' },
   { id: 'monoton', label: 'MONOTON', family: 'Monoton', description: 'Neon multiline' },
-  { id: 'tilt-warp', label: 'TILT WARP', family: 'Tilt Warp', description: 'Tilting warp', tier: 'premium' },
+  { id: 'tilt-warp', label: 'TILT WARP', family: 'Tilt Warp', description: 'Tilting warp', tier: 'premium', premium: true },
   { id: 'tilt-neon-v', label: 'TILT NEON VF', family: 'Tilt Neon VF', description: 'Tilting neon tube' },
   { id: 'bitcount', label: 'BITCOUNT PROP DOUBLE', family: 'Bitcount Prop Double', description: 'Morphing pixel' },
   { id: 'jacquard12', label: 'JACQUARD 12', family: 'Jacquard 12', description: 'Pixel blackletter' },

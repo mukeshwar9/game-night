@@ -1,5 +1,7 @@
-// `tier` marks cosmetics planned as paid ('premium') or time-limited
-// ('seasonal'). It is data only: nothing is gated yet, every theme is selectable.
+// `tier` marks cosmetics sold as 'premium' or time-limited ('seasonal'). Those
+// entries also carry `premium: true` and the `pack` that unlocks them (see
+// premiumCatalog.js); the pickers lock them through isUnlocked(). Everything
+// without the flag is free for good.
 export const THEMES = [
   { id: 'midnight',  label: 'MIDNIGHT ARCADE' },
   { id: 'phosphor',  label: 'PHOSPHOR' },
@@ -27,8 +29,8 @@ export const THEMES = [
   { id: 'holo',       label: 'HOLOFOIL' },
   { id: 'carpet',     label: 'COSMIC CARPET' },
   { id: 'radar',      label: 'P7 RADAR' },
-  { id: 'pumpkin',    label: 'PUMPKIN NIGHT', tier: 'seasonal' },
-  { id: 'campfire',   label: 'CAMPFIRE', tier: 'premium' },
+  { id: 'pumpkin',    label: 'PUMPKIN NIGHT', tier: 'seasonal', premium: true, pack: 'themes-seasonal' },
+  { id: 'campfire',   label: 'CAMPFIRE', tier: 'premium', premium: true, pack: 'themes-seasonal' },
 ]
 
 const STORAGE_KEY = 'retro-theme'
