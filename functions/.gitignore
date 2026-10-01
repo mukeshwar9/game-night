@@ -4,3 +4,5 @@ lib/
 .env
 .env.*
 !.env.example
+# Local secrets for the Functions emulator.
+.secret.local

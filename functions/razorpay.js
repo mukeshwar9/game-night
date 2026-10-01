@@ -14,17 +14,22 @@
 // payment is granted once whichever arrives first. The Pass is sold as a prepaid
 // period (PREPAID_PASS_DAYS) that does not renew.
 //
-// Keys are read from the environment, not bound with defineSecret: a missing
-// Razorpay key must not stop the other functions from deploying. Without them the
-// three endpoints answer 503 (`razorpay-not-configured`). Live keys (rzp_live_…)
-// are refused unless RAZORPAY_ENV=production is set on purpose.
+// The key id is public config (RAZORPAY_KEY_ID in functions/.env). The key secret
+// and webhook secret are Secret Manager secrets bound by the same PAYMENTS_SECRETS=1
+// switch as Paddle's (billing.js), so a deploy without Secret Manager binds nothing.
+// Without them the three endpoints answer 503 (`razorpay-not-configured`). Live keys
+// (rzp_live_…) are refused unless RAZORPAY_ENV=production is set on purpose.
 const crypto = require('node:crypto')
 const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https')
+const { defineSecret } = require('firebase-functions/params')
 const logger = require('firebase-functions/logger')
 const { getDatabase } = require('firebase-admin/database')
 const { getAuth } = require('firebase-admin/auth')
 const { PRODUCTS, PREPAID_PASS_DAYS } = require('./lib/core.cjs')
-const { shared } = require('./billing')
+const { shared, bindSecrets, secretValue } = require('./billing')
+
+const RAZORPAY_KEY_SECRET = shared.SECRETS_ON ? defineSecret('RAZORPAY_KEY_SECRET') : null
+const RAZORPAY_WEBHOOK_SECRET = shared.SECRETS_ON ? defineSecret('RAZORPAY_WEBHOOK_SECRET') : null
 
 const RAZORPAY_API = 'https://api.razorpay.com/v1'
 const ID_RE = /^[A-Za-z0-9_]{1,64}$/
@@ -32,14 +37,15 @@ const ID_RE = /^[A-Za-z0-9_]{1,64}$/
 // ---- Pure helpers -----------------------------------------------------------
 
 /**
- * Reads the Razorpay keys. `missing` lists what the given endpoint needs but
- * lacks; `ok` is true when it can run.
+ * Reads the Razorpay config: the key id and RAZORPAY_ENV from `env`, the two
+ * secrets from `secrets` (bound secret values, '' when unbound). `missing` lists
+ * what the given endpoint needs but lacks; `ok` is true when it can run.
  *   need: 'order' (key id + secret), 'verify' (key id + secret), 'webhook' (webhook secret)
  */
-function razorpayConfig(need, env = process.env) {
+function razorpayConfig(need, env = process.env, secrets = boundSecrets()) {
   const keyId = String(env.RAZORPAY_KEY_ID || '').trim()
-  const keySecret = String(env.RAZORPAY_KEY_SECRET || '').trim()
-  const webhookSecret = String(env.RAZORPAY_WEBHOOK_SECRET || '').trim()
+  const keySecret = String(secrets.keySecret || '').trim()
+  const webhookSecret = String(secrets.webhookSecret || '').trim()
   const missing = []
   if (need === 'webhook') {
     if (!webhookSecret) missing.push('RAZORPAY_WEBHOOK_SECRET')
@@ -50,6 +56,10 @@ function razorpayConfig(need, env = process.env) {
   const live = keyId.startsWith('rzp_live_')
   const liveBlocked = live && env.RAZORPAY_ENV !== 'production'
   return { ok: !missing.length && !liveBlocked, missing, liveBlocked, mode: live ? 'live' : 'test', keyId, keySecret, webhookSecret }
+}
+
+function boundSecrets() {
+  return { keySecret: secretValue(RAZORPAY_KEY_SECRET), webhookSecret: secretValue(RAZORPAY_WEBHOOK_SECRET) }
 }
 
 function hmacHex(secret, data) {
@@ -169,7 +179,7 @@ function requireConfig(need) {
   return cfg
 }
 
-exports.createRazorpayOrder = onCall({ maxInstances: 5 }, async (request) => {
+exports.createRazorpayOrder = onCall({ ...bindSecrets(RAZORPAY_KEY_SECRET), maxInstances: 5 }, async (request) => {
   const uid = shared.requireGoogleUser(request)
   const cfg = requireConfig('order')
   const now = Date.now()
@@ -191,7 +201,7 @@ exports.createRazorpayOrder = onCall({ maxInstances: 5 }, async (request) => {
   return { orderId: order.id, keyId: cfg.keyId, amount: body.amount, currency: 'INR', product: body.notes.product }
 })
 
-exports.verifyRazorpayPayment = onCall({ maxInstances: 5 }, async (request) => {
+exports.verifyRazorpayPayment = onCall({ ...bindSecrets(RAZORPAY_KEY_SECRET), maxInstances: 5 }, async (request) => {
   const uid = shared.requireGoogleUser(request)
   const cfg = requireConfig('verify')
   const { orderId, paymentId, signature } = request.data || {}
@@ -212,7 +222,7 @@ exports.verifyRazorpayPayment = onCall({ maxInstances: 5 }, async (request) => {
   return { status: 'granted' }
 })
 
-exports.razorpayWebhook = onRequest({ maxInstances: 5 }, async (req, res) => {
+exports.razorpayWebhook = onRequest({ ...bindSecrets(RAZORPAY_WEBHOOK_SECRET), maxInstances: 5 }, async (req, res) => {
   if (!shared.monetizationEnabled()) { res.status(503).send('monetization-disabled'); return }
   const cfg = razorpayConfig('webhook')
   if (!cfg.ok) { res.status(503).send('razorpay-not-configured'); return }
@@ -245,6 +255,6 @@ exports.razorpayWebhook = onRequest({ maxInstances: 5 }, async (req, res) => {
 })
 
 exports._test = {
-  razorpayConfig, verifyPaymentSignature, verifyWebhookSignature, orderRequest, grantsForProduct,
+  razorpayConfig, boundSecrets, verifyPaymentSignature, verifyWebhookSignature, orderRequest, grantsForProduct,
   planCapture, planRazorpayEvent, paidKey, refundKey,
 }

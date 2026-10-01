@@ -41,19 +41,26 @@ const hex = (secret, s) => crypto.createHmac('sha256', secret).update(s).digest(
 
 describe('razorpayConfig', () => {
   test('lists the missing keys per endpoint, so the endpoints can answer 503', () => {
-    assert.deepEqual(t.razorpayConfig('order', {}).missing, ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET'])
-    assert.equal(t.razorpayConfig('order', {}).ok, false)
-    assert.deepEqual(t.razorpayConfig('webhook', { RAZORPAY_KEY_ID: 'rzp_test_x', RAZORPAY_KEY_SECRET: 's' }).missing, ['RAZORPAY_WEBHOOK_SECRET'])
-    const cfg = t.razorpayConfig('order', { RAZORPAY_KEY_ID: ' rzp_test_abc ', RAZORPAY_KEY_SECRET: 'sec' })
+    assert.deepEqual(t.razorpayConfig('order', {}, {}).missing, ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET'])
+    assert.equal(t.razorpayConfig('order', {}, {}).ok, false)
+    assert.deepEqual(t.razorpayConfig('webhook', { RAZORPAY_KEY_ID: 'rzp_test_x' }, { keySecret: 's' }).missing, ['RAZORPAY_WEBHOOK_SECRET'])
+    const cfg = t.razorpayConfig('order', { RAZORPAY_KEY_ID: ' rzp_test_abc ' }, { keySecret: 'sec' })
     assert.equal(cfg.ok, true)
     assert.equal(cfg.mode, 'test')
     assert.equal(cfg.keyId, 'rzp_test_abc')
   })
   test('refuses live keys unless RAZORPAY_ENV=production', () => {
-    const env = { RAZORPAY_KEY_ID: 'rzp_live_abc', RAZORPAY_KEY_SECRET: 'sec' }
-    assert.equal(t.razorpayConfig('order', env).ok, false)
-    assert.equal(t.razorpayConfig('order', env).liveBlocked, true)
-    assert.equal(t.razorpayConfig('order', { ...env, RAZORPAY_ENV: 'production' }).ok, true)
+    const env = { RAZORPAY_KEY_ID: 'rzp_live_abc' }
+    const secrets = { keySecret: 'sec' }
+    assert.equal(t.razorpayConfig('order', env, secrets).ok, false)
+    assert.equal(t.razorpayConfig('order', env, secrets).liveBlocked, true)
+    assert.equal(t.razorpayConfig('order', { ...env, RAZORPAY_ENV: 'production' }, secrets).ok, true)
+  })
+  test('with secret binding off (no PAYMENTS_SECRETS) nothing is bound and the endpoints are not configured', () => {
+    assert.deepEqual(t.boundSecrets(), { keySecret: '', webhookSecret: '' })
+    const cfg = t.razorpayConfig('order', { RAZORPAY_KEY_ID: 'rzp_test_abc', RAZORPAY_KEY_SECRET: 'plain-env-is-ignored' })
+    assert.equal(cfg.ok, false)
+    assert.deepEqual(cfg.missing, ['RAZORPAY_KEY_SECRET'])
   })
 })
 
@@ -210,5 +217,30 @@ describe('prepaid pass helpers', () => {
   })
   test('shortenPrepaidPass leaves a Paddle pass alone', () => {
     assert.equal(billing.shortenPrepaidPass({ status: 'active', subscriptionId: 's', currentPeriodEnd: NOW + DAY }, 30, NOW), null)
+  })
+})
+
+describe('Razorpay secret binding follows PAYMENTS_SECRETS', () => {
+  const keys = (mod, fn) => (mod[fn].__endpoint.secretEnvironmentVariables || []).map(s => s.key)
+
+  test('unset: no Razorpay function binds a secret', () => {
+    const mod = require('../razorpay')
+    for (const fn of ['createRazorpayOrder', 'verifyRazorpayPayment', 'razorpayWebhook']) assert.deepEqual(keys(mod, fn), [], fn)
+  })
+
+  test('PAYMENTS_SECRETS=1: binds the key secret and the webhook secret', () => {
+    const paths = [require.resolve('../billing'), require.resolve('../razorpay')]
+    const saved = paths.map(p => require.cache[p])
+    paths.forEach(p => delete require.cache[p])
+    process.env.PAYMENTS_SECRETS = '1'
+    try {
+      const mod = require('../razorpay')
+      assert.deepEqual(keys(mod, 'createRazorpayOrder'), ['RAZORPAY_KEY_SECRET'])
+      assert.deepEqual(keys(mod, 'verifyRazorpayPayment'), ['RAZORPAY_KEY_SECRET'])
+      assert.deepEqual(keys(mod, 'razorpayWebhook'), ['RAZORPAY_WEBHOOK_SECRET'])
+    } finally {
+      delete process.env.PAYMENTS_SECRETS
+      paths.forEach((p, i) => { require.cache[p] = saved[i] })
+    }
   })
 })

@@ -417,7 +417,7 @@ exports.bindSecrets = bindSecrets
 exports.secretValue = secretValue
 exports.cancelSubscription = cancelSubscription
 // Shared with razorpay.js, the second processor (Indian buyers).
-exports.shared = { monetizationEnabled, requireGoogleUser, ageFromBirthYear, applyPlan, hasLiveSubscription, MIN_AGE }
+exports.shared = { SECRETS_ON, monetizationEnabled, requireGoogleUser, ageFromBirthYear, applyPlan, hasLiveSubscription, MIN_AGE }
 exports._test = {
   monetizationEnabled, assertEnabled, paymentsSecretsEnabled, bindSecrets, secretValue, requireConfigured, paddleBase, parsePrices, invertPrices, parseAdminEmails, isAdminEmail, verifyPaddleSignature,
   ageFromBirthYear, passFromSubscription, grantsFromTransaction, planEvent, applyPlan,
