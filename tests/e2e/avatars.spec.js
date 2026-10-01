@@ -43,7 +43,7 @@ test('players pick a character, a premium item is selectable, and rooms draw bot
     await page.getByRole('radio', { name: 'FULL BODY' }).click()
     await page.getByRole('button', { name: "LET'S PLAY", exact: true }).click()
     await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeHidden()
-    roomUrl = await createRoom(page, 'TIC TAC TOE')
+    roomUrl = await createRoom(page, 'CONNECT FOUR')
   })
 
   await test.step('Bob shuffles his look and joins', async () => {
