@@ -7,6 +7,7 @@ import { getApps, getApp } from 'firebase/app'
 import { db, usingEmulators } from './firebase'
 import { getUid } from './auth'
 import { accessFor, bypassActive } from './premium'
+import { monetizationEnabled } from './monetizationState'
 
 const OVERRIDE_KEY = 'gn-premium-bypass'
 
@@ -14,9 +15,9 @@ function readOverride() {
   try { return localStorage.getItem(OVERRIDE_KEY) } catch { return null }
 }
 
-/** Every premium item is open on a dev server / the emulators (see bypassActive). */
+/** Every premium item is open when monetization is off, and on a dev server / the emulators (see bypassActive). */
 export function localBypass() {
-  return bypassActive({ dev: import.meta.env.DEV, emulator: usingEmulators, override: readOverride() })
+  return bypassActive({ dev: import.meta.env.DEV, emulator: usingEmulators, override: readOverride(), monetization: monetizationEnabled() })
 }
 
 let ent = null

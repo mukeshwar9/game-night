@@ -104,13 +104,15 @@ export function missingPacks(items, ent) {
 }
 
 /**
- * Local-development bypass: every premium item is open on a dev server or the
- * emulators, never in a production build. `override` is the stored 'off' switch
+ * Bypass: with monetization switched off (monetization.js) every premium item is open
+ * to everyone. With it on, only a dev server or the emulators bypass, never a
+ * production build. `override` is the stored 'off' switch
  * used to look at the locked UI while developing; it can only ever turn the
  * bypass off, so it cannot unlock anything in production.
- * @param {{ dev?: boolean, emulator?: boolean, override?: string | null }} env
+ * @param {{ dev?: boolean, emulator?: boolean, override?: string | null, monetization?: boolean }} env
  */
-export function bypassActive({ dev = false, emulator = false, override = null } = {}) {
+export function bypassActive({ dev = false, emulator = false, override = null, monetization = true } = {}) {
+  if (!monetization) return true
   if (!dev && !emulator) return false
   return override !== 'off'
 }

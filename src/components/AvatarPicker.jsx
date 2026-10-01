@@ -11,6 +11,7 @@ import LockBadge from './premium/LockBadge'
 import useAccess from '../hooks/useAccess'
 import { openPaywall } from '../lib/premiumUi'
 import { avatarItem } from '../lib/avatarGate'
+import { monetizationEnabled } from '../lib/monetizationState'
 import { cn } from '@/lib/utils'
 
 const HISTORY_CAP = 20
@@ -25,6 +26,8 @@ const CLASSIC = { id: 'classic', label: 'CLASSIC' }
 // closes the sheet first, since sheets never nest.
 export default function AvatarPicker({ value, onChange, name = '', previewSize = 96, onLocked = openPaywall }) {
   const access = useAccess()
+  // With monetization off, paid items are plain items: no pass or pack badges either.
+  const selling = monetizationEnabled()
   const lockedItem = (key, id) => {
     const item = avatarItem(key, id)
     return item && !access.isUnlocked(item) ? item : null
@@ -165,7 +168,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
               <div role="radiogroup" aria-label={cat.label} className="grid grid-cols-4 gap-1.5">
                 {categoryOptions(cat).map(opt => {
                   const selected = baseLook[cat.field] === opt.id && isKit
-                  const badge = tierBadge(opt)
+                  const badge = selling || opt.tier === 'earn' ? tierBadge(opt) : null
                   const locked = Boolean(lockedItem(cat.field, opt.id))
                   return (
                     <button
@@ -199,6 +202,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
             {cat.colours.map(row => (
               <ColourRow
                 key={row.key}
+                selling={selling}
                 row={row}
                 selected={baseLook[row.key]}
                 onPick={(id) => setField(row.key, id)}
@@ -207,10 +211,10 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
             ))}
             {cat.field === 'pet' && <p className="font-pixel text-[8px] leading-relaxed text-retro-dim">PETS SHOW IN THE FULL-BODY VIEW.</p>}
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-pixel text-[8px] leading-relaxed text-retro-dim">
-              {[['earn', 'EARNED'], ['pass', 'PASS'], ['pack', 'PACK']].map(([tier, label]) => (
+              {(selling ? [['earn', 'EARNED'], ['pass', 'PASS'], ['pack', 'PACK']] : [['earn', 'EARNED']]).map(([tier, label]) => (
                 <span key={tier} className="inline-flex items-center gap-1"><TierIcon tier={tier} className="text-retro-cta" />{label}</span>
               ))}
-              <span>{access.bypass ? 'ALL OPEN WHILE DEVELOPING' : 'PASS AND PACK ITEMS NEED THE PASS OR THEIR PACK'}</span>
+              {selling && <span>{access.bypass ? 'ALL OPEN WHILE DEVELOPING' : 'PASS AND PACK ITEMS NEED THE PASS OR THEIR PACK'}</span>}
             </p>
           </>
         ) : (
@@ -221,14 +225,14 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
   )
 }
 
-function ColourRow({ row, selected, onPick, isLocked }) {
+function ColourRow({ row, selected, onPick, isLocked, selling }) {
   return (
     <div className="space-y-1">
       <p className="font-pixel text-[8px] tracking-widest text-retro-dim">{row.label}</p>
       <div role="radiogroup" aria-label={row.label} className="flex flex-wrap gap-x-1 gap-y-0.5">
         {colourOptions(row.key).map(c => {
           const on = c.id === selected
-          const badge = c.premium ? tierBadge(optionInfo(row.key, c.id)) : null
+          const badge = c.premium && selling ? tierBadge(optionInfo(row.key, c.id)) : null
           return (
             <button
               key={c.id}
@@ -246,7 +250,7 @@ function ColourRow({ row, selected, onPick, isLocked }) {
                 )}
                 style={{ background: swatchBackground(c.id) }}
               />
-              {c.premium && <span aria-hidden="true" className="absolute top-1 right-1 text-retro-cta">{isLocked(c.id) ? <LockBadge size={9} /> : <TierIcon tier="pass" />}</span>}
+              {c.premium && selling && <span aria-hidden="true" className="absolute top-1 right-1 text-retro-cta">{isLocked(c.id) ? <LockBadge size={9} /> : <TierIcon tier="pass" />}</span>}
             </button>
           )
         })}

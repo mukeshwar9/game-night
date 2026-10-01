@@ -61,6 +61,22 @@ describe('verifyPaddleSignature', () => {
   })
 })
 
+describe('monetization switch', () => {
+  test('is off unless explicitly 1', () => {
+    assert.equal(t.monetizationEnabled(undefined), false)
+    assert.equal(t.monetizationEnabled(''), false)
+    assert.equal(t.monetizationEnabled('true'), false)
+    assert.equal(t.monetizationEnabled('0'), false)
+    assert.equal(t.monetizationEnabled('1'), true)
+    assert.equal(t.monetizationEnabled(' 1 '), true)
+  })
+  test('billing entry points refuse while it is off and pass while it is on', () => {
+    assert.throws(() => t.assertEnabled(undefined), /monetization-disabled/)
+    assert.throws(() => t.assertEnabled('0'), /monetization-disabled/)
+    assert.doesNotThrow(() => t.assertEnabled('1'))
+  })
+})
+
 describe('config parsing', () => {
   test('uses the sandbox unless production is explicit', () => {
     assert.match(t.paddleBase(undefined), /sandbox-api/)

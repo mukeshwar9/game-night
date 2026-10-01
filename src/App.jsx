@@ -19,6 +19,10 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { VideoCallLayoutProvider } from './components/VideoCallLayout';
 import { LEADERBOARD_ENABLED } from './lib/features';
 import { titleForPath } from './lib/routeTitle';
+import { monetizationEnabled } from './lib/monetizationState';
+
+// The shop and Pass routes exist only while monetization is switched on (monetization.js).
+const SHOP_ROUTES = monetizationEnabled();
 import { onNavigateRequest, notifyFirstScreen } from './lib/native/navigation';
 import { isNative } from './lib/platform';
 
@@ -103,8 +107,8 @@ function AppRoutes() {
               <Route path="/daily" element={<DailyGame />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/friends" element={<Friends />} />
-              <Route path="/shop" element={<Shop />} />
-              <Route path="/pass" element={<Pass />} />
+              {SHOP_ROUTES && <Route path="/shop" element={<Shop />} />}
+              {SHOP_ROUTES && <Route path="/pass" element={<Pass />} />}
               <Route path="/notes" element={<Notes />} />
               {EmojiLab && <Route path="/emoji-lab" element={<EmojiLab />} />}
               {ArtDemo && <Route path="/art-demo" element={<ArtDemo />} />}

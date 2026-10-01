@@ -24,6 +24,7 @@ import AppleMark from '../components/AppleMark'
 import { isInAppBrowser } from '../lib/uaLogic'
 import LegalLinks from '../components/LegalLinks'
 import PassStatus from '../components/premium/PassStatus'
+import { monetizationEnabled } from '../lib/monetizationState'
 import { cn } from '@/lib/utils'
 
 export default function Profile() {
@@ -431,7 +432,7 @@ export default function Profile() {
         )}
 
         {/* Shop & Pass: what the account has, and the way to more looks */}
-        <div className="space-y-2 border-t border-retro-border pt-4">
+        {monetizationEnabled() && <div className="space-y-2 border-t border-retro-border pt-4">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">SHOP &amp; PASS</label>
           <PassStatus linkToPass />
           <Link
@@ -441,7 +442,7 @@ export default function Profile() {
             <span>OPEN THE SHOP</span>
             <span className="text-retro-dim" aria-hidden="true">→</span>
           </Link>
-        </div>
+        </div>}
 
         {/* Privacy: policy links and account deletion */}
         <div className="space-y-2 border-t border-retro-border pt-4">

@@ -24,6 +24,7 @@ import LegalLinks from './LegalLinks'
 import LockBadge from './premium/LockBadge'
 import useAccess from '../hooks/useAccess'
 import { openPaywall } from '../lib/premiumUi'
+import { monetizationEnabled } from '../lib/monetizationState'
 
 function ThemeSwatches({ id }) {
   return <span data-theme={id} className="inline-flex items-center gap-[3px] shrink-0" aria-hidden="true">
@@ -332,14 +333,14 @@ export default function SettingsButton({ className = '' }) {
       </Section>
 
       <Section title="HELP & RESET">
-        <Link
+        {monetizationEnabled() && <Link
           to="/shop"
           onClick={() => setOpen(false)}
           className="flex min-h-11 items-center justify-between rounded border border-retro-cta/50 px-3 font-pixel text-[9px] tracking-widest text-retro-cta hover:border-retro-cta transition-colors"
         >
           <span>SHOP &amp; PASS</span>
           <span className="text-retro-dim" aria-hidden="true">→</span>
-        </Link>
+        </Link>}
         <Link
           to="/notes"
           onClick={() => setOpen(false)}

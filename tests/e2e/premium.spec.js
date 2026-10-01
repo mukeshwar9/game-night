@@ -22,6 +22,7 @@ async function uidFor(name) {
 test('shop: bypass unlocks, locked UI asks to buy, entitlements unlock live', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player
+  await player.context.addInitScript(() => localStorage.setItem('gn-monetization', 'on'))
   await onboard(page, 'Shopper One')
   const uid = await uidFor('Shopper One')
 
@@ -76,6 +77,7 @@ test('shop: bypass unlocks, locked UI asks to buy, entitlements unlock live', as
 test('shop item taps open the paywall when the bypass is off', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player
+  await player.context.addInitScript(() => localStorage.setItem('gn-monetization', 'on'))
   await onboard(page, 'Shopper Two')
   await page.evaluate(() => localStorage.setItem('gn-premium-bypass', 'off'))
   await page.goto('/shop')
@@ -89,6 +91,7 @@ test('shop item taps open the paywall when the bypass is off', async ({ browser 
 test('settings: a premium theme is locked, opens the paywall, and applies once owned', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player
+  await player.context.addInitScript(() => localStorage.setItem('gn-monetization', 'on'))
   await onboard(page, 'Shopper Three')
   const uid = await uidFor('Shopper Three')
   await page.evaluate(() => localStorage.setItem('gn-premium-bypass', 'off'))
@@ -113,11 +116,51 @@ test('settings: a premium theme is locked, opens the paywall, and applies once o
 test('avatar picker refuses a locked item and opens the paywall', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player
+  await player.context.addInitScript(() => localStorage.setItem('gn-monetization', 'on'))
   await onboard(page, 'Shopper Four')
   await page.evaluate(() => localStorage.setItem('gn-premium-bypass', 'off'))
   await page.goto('/profile#look')
   await page.getByRole('tab', { name: 'BACKDROP' }).click()
   await page.getByRole('radio', { name: /CONFETTI.*locked/ }).click()
   await expect(page.getByRole('dialog', { name: 'CONFETTI is a premium item' })).toBeVisible()
+  expectNoPageErrors(player)
+})
+
+test('monetization off (the default): everything is open and nothing sells', async ({ browser }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+  await onboard(page, 'Free Player')
+
+  // No shop or Pass routes.
+  await page.goto('/shop')
+  await expect(page.getByText('GAME NIGHT PASS')).toHaveCount(0)
+  await expect(page.getByRole('tab', { name: 'EMOTES' })).toHaveCount(0)
+  await page.goto('/pass')
+  await expect(page.getByText('GAME NIGHT PASS')).toHaveCount(0)
+
+  // No entry points: settings has no SHOP & PASS, profile has no shop section.
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: 'Settings', exact: true })
+  await expect(sheet.getByRole('link', { name: /SHOP/ })).toHaveCount(0)
+
+  // A premium theme is unlocked for everyone: no lock, applies directly.
+  await sheet.locator('summary').filter({ hasText: /^THEME(?! &)/ }).click()
+  const campfire = sheet.getByRole('button', { name: /^CAMPFIRE/ })
+  await expect(campfire).not.toContainText('locked')
+  await campfire.click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'campfire')
+  await expect(page.getByRole('dialog', { name: /premium item/ })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  // A premium avatar item can be picked with no paywall and no pass or pack badge.
+  await page.goto('/profile#look')
+  await expect(page.getByText('SHOP & PASS')).toHaveCount(0)
+  await page.getByRole('tab', { name: 'BACKDROP' }).click()
+  const confetti = page.getByRole('radio', { name: /^CONFETTI/ })
+  await expect(confetti).not.toHaveAttribute('aria-label', /locked|PACK/)
+  await confetti.click()
+  await expect(confetti).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByRole('dialog', { name: /premium item/ })).toHaveCount(0)
   expectNoPageErrors(player)
 })

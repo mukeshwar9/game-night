@@ -22,6 +22,17 @@ const { PRODUCTS } = require('./lib/core.cjs')
 const PADDLE_API_KEY = defineSecret('PADDLE_API_KEY')
 const PADDLE_WEBHOOK_SECRET = defineSecret('PADDLE_WEBHOOK_SECRET')
 
+// Launch switch, mirroring VITE_MONETIZATION_ENABLED in the client: MONETIZATION_ENABLED=1
+// turns billing on. Off (the default) every billing entry point refuses, so a stray
+// request or webhook cannot create entitlements before Paddle is live.
+function monetizationEnabled(raw = process.env.MONETIZATION_ENABLED) {
+  return String(raw || '').trim() === '1'
+}
+
+function assertEnabled(raw) {
+  if (!monetizationEnabled(raw)) throw new HttpsError('failed-precondition', 'monetization-disabled')
+}
+
 const SIGNATURE_TOLERANCE_SEC = 300
 const MIN_AGE = 13
 
@@ -212,6 +223,7 @@ async function cancelSubscription(subscriptionId, apiKey) {
 // ---- Functions --------------------------------------------------------------
 
 function requireGoogleUser(request) {
+  assertEnabled()
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in first.')
   if (request.auth.token.firebase?.sign_in_provider === 'anonymous') {
     throw new HttpsError('failed-precondition', 'sign-in-required')
@@ -253,6 +265,7 @@ exports.createPortalSession = onCall({ secrets: [PADDLE_API_KEY], maxInstances: 
 })
 
 exports.paddleWebhook = onRequest({ secrets: [PADDLE_WEBHOOK_SECRET], maxInstances: 5 }, async (req, res) => {
+  if (!monetizationEnabled()) { res.status(503).send('monetization-disabled'); return }
   if (req.method !== 'POST') { res.status(405).send('POST only'); return }
   const raw = req.rawBody ? req.rawBody.toString('utf8') : ''
   if (!verifyPaddleSignature(raw, req.get('Paddle-Signature'), PADDLE_WEBHOOK_SECRET.value())) {
@@ -279,6 +292,7 @@ exports.paddleWebhook = onRequest({ secrets: [PADDLE_WEBHOOK_SECRET], maxInstanc
 })
 
 exports.syncAdminAccess = onCall({ maxInstances: 5 }, async (request) => {
+  assertEnabled()
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in first.')
   const { uid, token } = request.auth
   const db = getDatabase()
@@ -299,6 +313,6 @@ exports.syncAdminAccess = onCall({ maxInstances: 5 }, async (request) => {
 exports.PADDLE_API_KEY = PADDLE_API_KEY
 exports.cancelSubscription = cancelSubscription
 exports._test = {
-  paddleBase, parsePrices, invertPrices, parseAdminEmails, isAdminEmail, verifyPaddleSignature,
+  monetizationEnabled, assertEnabled, paddleBase, parsePrices, invertPrices, parseAdminEmails, isAdminEmail, verifyPaddleSignature,
   ageFromBirthYear, passFromSubscription, grantsFromTransaction, planEvent, applyPlan,
 }

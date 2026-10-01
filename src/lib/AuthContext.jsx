@@ -14,6 +14,7 @@ import { recordAttribution } from './analytics'
 import { resyncPush } from './push'
 import { startEntitlements, stopEntitlements, syncAdminAccess, isUnlockedNow } from './entitlements'
 import useAccess from '../hooks/useAccess'
+import { monetizationEnabled } from './monetizationState'
 
 const AuthContext = createContext(null)
 
@@ -57,7 +58,7 @@ export function AuthProvider({ children }) {
 
   // Purchases follow the account: watch entitlements/{uid} for as long as it is signed in.
   useEffect(() => {
-    if (uid) startEntitlements(uid)
+    if (uid && monetizationEnabled()) startEntitlements(uid)
     else stopEntitlements()
   }, [uid])
 
@@ -65,7 +66,7 @@ export function AuthProvider({ children }) {
   // The server decides (functions/billing.js); this only asks, once per sign-in.
   const permanent = !!user && !user.isAnonymous
   useEffect(() => {
-    if (uid && permanent) syncAdminAccess()
+    if (uid && permanent && monetizationEnabled()) syncAdminAccess()
   }, [uid, permanent])
 
   // A premium theme or font that is no longer unlocked (a lapsed Pass, a refund,

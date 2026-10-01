@@ -2,6 +2,22 @@
 
 The plan is in the audit's `how-game-night-makes-money.md`. This page is what the code does. Three promises hold everywhere: every game that is free stays free, nothing sold changes who wins, and there are no random paid rewards.
 
+## Launch switch
+
+Everything that sells sits behind one switch, **off by default** (`src/lib/monetization.js`, read by `monetizationEnabled()`).
+
+| | Off (launch) | On |
+|---|---|---|
+| Client | `VITE_MONETIZATION_ENABLED` unset or not `1` | `VITE_MONETIZATION_ENABLED=1` at build time |
+| Server | `MONETIZATION_ENABLED` unset or not `1` in `functions/.env` | `MONETIZATION_ENABLED=1` |
+| Premium themes, fonts, avatar items, buddies, emotes | open to everyone | gated by the entitlement check |
+| Locks, paywall, pass and pack badges, Pass strings | not shown | shown |
+| `/shop`, `/pass`, Settings and Profile shop entries | not routed, not linked | live |
+| `createCheckout`, `createPortalSession`, `paddleWebhook`, `syncAdminAccess` | refuse (`monetization-disabled`, webhook 503) | work |
+| Admin emails, local dev bypass | not needed | apply |
+
+To go live: finish the captain steps below, set both switches, then deploy functions and hosting together. A dev server or the emulators can flip the client switch for a session with `localStorage['gn-monetization'] = 'on' | 'off'`; a production build ignores that.
+
 ## What is sold
 
 All prices live in one file, `src/lib/premiumCatalog.js` (`PRICES`, `PACKS`, `PRODUCTS`). The shop, the paywall, the checkout function and the webhook all read it.
