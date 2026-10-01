@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import BattleshipBoard from '../components/BattleshipBoard'
+import BattleshipTabs from '../components/BattleshipTabs'
+import useBattleshipView from '../hooks/useBattleshipView'
+import useTapConfirm from '../hooks/useTapConfirm'
 import {
   FLEET_SPEC,
   shipCells,
@@ -58,6 +61,11 @@ export default function BattleshipDemo() {
   const done = phase === 'done'
   const playerWon = done && allSunk(botFleet ?? {}, playerShots)
   const myTurn = phase === 'battle' && turn === 'me' && !done
+  const [view, setView] = useBattleshipView({ phase, myTurn })
+  // Touch has no hover: the first tap on a cell previews the ship footprint,
+  // a second tap on the same cell places it.
+  const confirm = useTapConfirm({ disabled: phase !== 'placing' })
+  const previewCell = confirm.pending ?? hoverCell
 
   const draftCells = useMemo(() => fleetCellMap(draft), [draft])
 
@@ -69,14 +77,14 @@ export default function BattleshipDemo() {
   // Hover preview — whole-ship footprint while placing, live-updates on rotate.
   const selectedSize = selected ? FLEET_SPEC.find(s => s.ship === selected)?.size : null
   const preview = useMemo(() => {
-    if (phase !== 'placing' || !selected || hoverCell == null || selectedSize == null) return null
+    if (phase !== 'placing' || !selected || previewCell == null || selectedSize == null) return null
     const orient = draft[selected]?.orient ?? 'h'
-    const row = Math.floor(hoverCell / 10)
-    const cells = shipCells(selectedSize, orient, hoverCell)
+    const row = Math.floor(previewCell / 10)
+    const cells = shipCells(selectedSize, orient, previewCell)
       .filter(c => c >= 0 && c < 100 && (orient !== 'h' || Math.floor(c / 10) === row))
-    const valid = canPlace(draft, selected, orient, hoverCell)
+    const valid = canPlace(draft, selected, orient, previewCell)
     return { cells, valid }
-  }, [phase, selected, hoverCell, selectedSize, draft])
+  }, [phase, selected, previewCell, selectedSize, draft])
 
   // Bot driver: fires whenever it's the bot's turn.
   useEffect(() => {
@@ -196,9 +204,13 @@ export default function BattleshipDemo() {
         <p className="font-pixel text-[10px] text-retro-win text-glow-win text-center">{banner}</p>
       )}
 
-      <div className="grid sm:grid-cols-2 gap-4 justify-items-center">
+      {phase !== 'placing' && (
+        <BattleshipTabs view={view} onView={setView} targetAlert={myTurn} />
+      )}
+
+      <div className="space-y-4">
         {/* Targeting */}
-        <div className="space-y-1 w-full max-w-sm md:max-w-md">
+        <div className={cn('space-y-1 w-full', (phase === 'placing' || view !== 'target') && 'hidden')}>
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">TARGETING</p>
           <BattleshipBoard
             shots={toMap(playerShots)}
@@ -225,13 +237,13 @@ export default function BattleshipDemo() {
         </div>
 
         {/* Your waters */}
-        <div className="space-y-1 w-full max-w-sm md:max-w-md">
+        <div className={cn('space-y-1 w-full', phase !== 'placing' && view !== 'fleet' && 'hidden')}>
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">YOUR WATERS</p>
           <BattleshipBoard
             shots={toMap(botShots)}
             fleetCells={playerFleetCells}
             lastCell={botShots[botShots.length - 1]?.cell}
-            onCell={phase === 'placing' ? placeShip : undefined}
+            onCell={phase === 'placing' ? (cell) => confirm.tap(cell, () => placeShip(cell)) : undefined}
             disabled={phase !== 'placing'}
             accent="p2"
             preview={phase === 'placing' ? preview : null}

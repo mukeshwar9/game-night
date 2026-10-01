@@ -122,17 +122,16 @@ function MineCell({ i, board, revealed, flags, fatalCell, showMines, canAct, onT
 }
 
 function Grid({ children, interactive }) {
-  // Break out of the page's p-4 gutter on phones and keep a ~38px tap-target
-  // floor; too-narrow screens scroll the grid instead of cramming cells.
+  // Fit-to-width: all 12 columns always show (a panning board hid the right
+  // columns with no hint). On a phone the board breaks out of the page gutter
+  // so cells are ~28px; the dig/flag toggle below covers the small targets.
   return (
     <div className="relative -mx-4 sm:mx-0">
-      <div className="overflow-x-auto">
-        <div
-          className={cn('grid gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border select-none mx-auto', !interactive && 'pointer-events-none')}
-          style={{ touchAction: 'manipulation', gridTemplateColumns: 'repeat(12, minmax(38px, 1fr))', maxWidth: '32rem' }}
-        >
-          {children}
-        </div>
+      <div
+        className={cn('grid gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border select-none mx-auto', !interactive && 'pointer-events-none')}
+        style={{ touchAction: 'manipulation', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', maxWidth: '32rem' }}
+      >
+        {children}
       </div>
     </div>
   )

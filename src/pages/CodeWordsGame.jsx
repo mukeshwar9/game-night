@@ -11,7 +11,7 @@ import {
   seatOrder, pickBoardWords, randomSeed, deriveKey, verifyCard, verifySeed, normalizeRound, canStartBoard,
   buildBoard, nextBoardSetup, isSpymaster, spymasterIds, readyToDeal, keyHolders,
   spymastersNeedingSeal, sealContext, applyDeal, validateClue, applyClue, isOnTurnGuesser,
-  canGuess, applyGuess, canPass, endTurn, remainingCards, applyReveal, boardScores, tallyWins,
+  canGuess, applyGuess, canPass, endTurn, remainingCards, applyReveal, boardScores, tallyWins, cardFontPx,
 } from '../lib/codeWordsLogic'
 import useSealKey from '../hooks/useSealKey'
 import GameSwitcher from '../components/GameSwitcher'
@@ -643,7 +643,7 @@ export default function CodeWordsGame({
               aria-label={`${word}${rev ? `, ${IDENTITY_NAME[rev.t]}` : known ? `, key: ${IDENTITY_NAME[known]}` : ''}${mine ? ', your pick — tap again to guess' : ''}`}
               className={cn(
                 'relative min-h-12 rounded border-2 px-0.5 py-1.5 flex items-center justify-center text-center transition-all',
-                'font-mono text-[10px] sm:text-[11px] uppercase leading-tight break-all',
+                'font-mono text-[10px] sm:text-[11px] uppercase leading-tight [overflow-wrap:anywhere]',
                 rev ? FILLED[rev.t]
                   : known ? cn('bg-retro-card border-dashed', OUTLINE[known])
                     : 'bg-retro-card border-retro-border text-retro-text',
@@ -659,7 +659,8 @@ export default function CodeWordsGame({
               {badCards[i] && (
                 <span className="absolute top-0 right-0.5 font-pixel text-[8px] text-retro-danger" title="Reveal failed verification">⚠</span>
               )}
-              <span className={cn(rev && 'line-through decoration-1 opacity-80')}>{word}</span>
+              {/* shrink-to-fit: a long word stays whole instead of splitting mid-word */}
+              <span className={cn(rev && 'line-through decoration-1 opacity-80')} style={{ fontSize: `${cardFontPx(word)}px` }}>{word}</span>
               {pickers.length > 0 && !rev && (
                 <span className="absolute bottom-0 inset-x-0 font-pixel text-[8px] text-retro-cta truncate px-0.5" aria-hidden="true">
                   {pickers.map(uid => nameOf(uid).slice(0, 3).toUpperCase()).join(' ')}
@@ -677,6 +678,7 @@ export default function CodeWordsGame({
             type="text"
             value={clueText}
             maxLength={24}
+            enterKeyHint="send"
             onChange={e => { setClueText(e.target.value); setClueErr('') }}
             onKeyDown={e => e.key === 'Enter' && giveClue()}
             autoCorrect="off"

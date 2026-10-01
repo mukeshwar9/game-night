@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { HEX_SIZE, SWAP_ACTION, canHexSwap } from '../lib/hexLogic'
 import { cellLabel, columnLetter } from '../lib/a11yLabels'
+import useTapConfirm from '../hooks/useTapConfirm'
 
 const HEX_CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
 const CELL_W = 26
@@ -63,6 +64,7 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
   const opener = currentTurn === 'X' ? 'O' : 'X'
   const justSwapped = swapRule && pieSwap && stones.length === 1
   const wrapperRef = useRef(null)
+  const { pending, tap } = useTapConfirm({ disabled, isOpen: (i) => board[i] === '' })
   const [scale, setScale] = useState(1)
 
   useLayoutEffect(() => {
@@ -139,7 +141,7 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
                             extra: [isWinning && 'winning line', isLast && 'last move'],
                           })}
                           disabled={!isClickable}
-                          onClick={() => isClickable && onMove(i)}
+                          onClick={() => isClickable && tap(i, () => onMove(i))}
                           className={cn(
                             'relative shrink-0 transition-[filter] duration-100 touch-manipulation',
                             isClickable ? 'cursor-pointer hover:brightness-150 active:brightness-[1.75]' : 'cursor-default',
@@ -159,7 +161,9 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
                               inset: '1.5px',
                               background: isOccupied
                                 ? `rgb(var(--c-${cell === 'X' ? 'p1' : 'p2'}))`
-                                : 'rgb(var(--c-surface))',
+                                : pending === i
+                                  ? `rgb(var(--c-${currentTurn === 'O' ? 'p2' : 'p1'}) / 0.55)`
+                                  : 'rgb(var(--c-surface))',
                               filter: isOccupied
                                 ? `drop-shadow(0 0 ${isWinning ? 8 : 5}px rgb(var(--c-${cell === 'X' ? 'p1' : 'p2'})${isWinning ? '' : ' / 0.7'}))${isWinning ? ' brightness(1.35)' : ''}`
                                 : undefined,
@@ -216,7 +220,10 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
             : `${currentTurn} MAY SWAP INSTEAD OF MOVING`}
         </p>
       )}
-      {showHint && (
+      {pending != null && (
+        <p className="mt-2 text-center font-pixel text-[9px] tracking-widest text-retro-cta" aria-live="polite">TAP AGAIN TO PLACE</p>
+      )}
+      {showHint && pending == null && (
         <p className={cn(
           'mt-2 text-center font-pixel text-[9px] tracking-widest',
           currentTurn === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2',

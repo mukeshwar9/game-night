@@ -684,7 +684,7 @@ export const GAME_TYPES = [
   {
     type: 'chimp', label: 'CHIMP TEST',
     desc: 'recall numbered tiles fast', Icon: ChimpIcon,
-    badge: 'CT', maxWidth: 'max-w-xs',
+    badge: 'CT', maxWidth: 'max-w-sm',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
     custom: true, simultaneous: true,
@@ -712,7 +712,7 @@ export const GAME_TYPES = [
   {
     type: 'aim', label: 'AIM TRAINER',
     desc: 'click targets fast', Icon: AimIcon,
-    badge: 'AT', maxWidth: 'max-w-xs',
+    badge: 'AT', maxWidth: 'max-w-sm',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
     custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
@@ -875,7 +875,7 @@ export const GAME_TYPES = [
   {
     type: 'visualmemory', label: 'VISUAL MEMORY',
     desc: 'remember the lit tiles', Icon: VisualMemoryIcon,
-    badge: 'VM', maxWidth: 'max-w-xs',
+    badge: 'VM', maxWidth: 'max-w-sm',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
     boardSize: 0,
@@ -985,7 +985,7 @@ export const GAME_TYPES = [
   {
     type: 'chainreaction6', label: 'CHAIN REACTION 6×8',
     desc: 'compact chain reaction', Icon: ChainReactionIcon,
-    badge: 'CR6', maxWidth: 'max-w-xs',
+    badge: 'CR6', maxWidth: 'max-w-sm',
     category: 'board',
     addedAt: '2026-07-11',
     durationMin: 4, tags: ['quick', 'thinky'], solo: true,
@@ -1225,7 +1225,7 @@ export const GAME_TYPES = [
   {
     type: 'battleship', label: 'BATTLESHIP',
     desc: 'sink the hidden fleet', Icon: BattleshipIcon,
-    badge: 'BS', maxWidth: 'max-w-3xl',
+    badge: 'BS', maxWidth: 'max-w-md',
     category: 'board',
     addedAt: '2026-08-21',
     durationMin: 8, tags: ['thinky'], solo: true,

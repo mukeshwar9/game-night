@@ -301,7 +301,7 @@ export default function MinigolfLocal({ mode = 'local' }) {
       <button
         type="button"
         onClick={() => setPhase('setup')}
-        className="mt-3 w-full min-h-10 font-pixel text-[9px] text-retro-dim hover:text-retro-text"
+        className="mt-3 w-full min-h-11 font-pixel text-[9px] text-retro-dim hover:text-retro-text"
       >
         ✕ QUIT TO SETUP
       </button>

@@ -347,6 +347,13 @@ export default function PasswordGame({
 
       {canSubmit && (phase === 'clue' || phase === 'guess') && (
         <form onSubmit={event => { event.preventDefault(); submit() }} className="space-y-2">
+          {phase === 'clue' && isClueGiver && word && (
+            // The secret card scrolls off-screen once the phone keyboard opens,
+            // so repeat the word right above the field you type the clue in.
+            <p aria-hidden="true" className="text-center font-pixel text-[10px] text-retro-dim tracking-widest">
+              YOUR WORD: <span className="text-retro-cta text-glow-cta">{String(word).toUpperCase()}</span>
+            </p>
+          )}
           <label htmlFor="password-entry" className="sr-only">
             {phase === 'clue' ? 'One-word clue' : 'Guess the password'}
           </label>

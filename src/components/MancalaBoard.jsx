@@ -12,15 +12,17 @@ import { countLabel, joinLabel } from '../lib/a11yLabels'
 // Sow animation replays hops from `last` metadata.
 
 function SeedCluster({ count }) {
+  // Pips give a feel for the pile; the numeral is the exact count, which pips
+  // cannot give past a handful on a phone-sized pit.
   const dots = Math.min(count, 6)
   return (
-    <div className="relative flex flex-wrap items-center justify-center gap-[2px] w-6">
-      {Array.from({ length: dots }, (_, i) => (
-        <span key={i} className="w-1 h-1 rounded-full bg-retro-text opacity-80" />
-      ))}
-      {count > 6 && (
-        <span className="absolute -top-1 -right-1 font-pixel text-[8px] text-retro-dim">{count}</span>
-      )}
+    <div className="relative flex flex-col items-center justify-center gap-0.5 w-6">
+      <span className="font-pixel text-[10px] leading-none text-retro-text">{count}</span>
+      <div className="flex flex-wrap items-center justify-center gap-[2px] w-6 min-h-1">
+        {Array.from({ length: dots }, (_, i) => (
+          <span key={i} className="w-1 h-1 rounded-full bg-retro-text opacity-80" />
+        ))}
+      </div>
     </div>
   )
 }
@@ -73,6 +75,7 @@ export default function MancalaBoard({
   accent = 'p1',
   mySymbol = 'X',
   players = null,
+  hotseat = false, // pass-and-play: the board turns to face whoever is up
 }) {
   // Registry (live) passes onMove; the solo /demo harness passes onPit — accept both.
   const handlePit = onPit ?? onMove
@@ -139,9 +142,11 @@ export default function MancalaBoard({
   const TOP_ROW = bottomIsX ? [12, 11, 10, 9, 8, 7] : [0, 1, 2, 3, 4, 5]
   const bottomStorePit = bottomIsX ? 6 : 13
   const topStorePit = bottomIsX ? 13 : 6
+  // Pass & play: the store labels are short seat tags (they truncate at ~48px).
+  const seatTag = (sym) => (sym === 'O' ? 'P2' : 'P1')
   const nameOf = (sym, fallback) => (players?.[sym]?.name || fallback).toUpperCase()
-  const bottomLabel = spectator ? nameOf('X', 'X') : 'YOU'
-  const topLabel = spectator ? nameOf('O', 'O') : nameOf(bottomIsX ? 'O' : 'X', 'RIVAL')
+  const bottomLabel = spectator ? nameOf('X', 'X') : hotseat ? seatTag(mySymbol) : 'YOU'
+  const topLabel = spectator ? nameOf('O', 'O') : hotseat ? seatTag(bottomIsX ? 'O' : 'X') : nameOf(bottomIsX ? 'O' : 'X', 'RIVAL')
   // Owner words for screen-reader names ("Your pit 3", "Rival store").
   const bottomOwner = spectator ? 'X' : 'Your'
   const topOwner = spectator ? 'O' : 'Rival'
@@ -193,7 +198,7 @@ export default function MancalaBoard({
             'font-pixel text-[10px] text-center tracking-wider truncate',
             canPlay ? (bottomIsX ? 'text-retro-p1' : 'text-retro-p2') : 'text-retro-dim',
           )}>
-            {spectator ? `▼ ${bottomLabel}'S PITS` : '▼ YOUR PITS'}
+            {spectator || hotseat ? `▼ ${bottomLabel}'S PITS` : '▼ YOUR PITS'}
           </p>
         </div>
         <Store count={pits[bottomStorePit] ?? 0} label={bottomLabel} ownerName={bottomOwner} />

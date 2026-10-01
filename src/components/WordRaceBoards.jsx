@@ -27,7 +27,7 @@ function HiddenBoard({ guesses, label, compact }) {
         <p className={cn('font-pixel tracking-widest text-retro-p2', compact ? 'text-[8px]' : 'text-[9px]')}>{label}</p>
         {solved && <span className="font-pixel text-[8px] text-retro-win">✓ SOLVED</span>}
       </div>
-      <div className="flex flex-col gap-0.5" aria-hidden="true">
+      <div className="flex flex-col gap-0.5 max-md:hidden" aria-hidden="true">
         {Array.from({ length: MAX_GUESSES }, (_, row) => (
           <div
             key={row}

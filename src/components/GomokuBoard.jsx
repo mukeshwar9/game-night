@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { GOMOKU_SIZE, SWAP_ACTION, canGomokuSwap } from '../lib/gomokuLogic'
-import { cellLabel } from '../lib/a11yLabels'
+import { cellLabel, columnLetter } from '../lib/a11yLabels'
 
 // Fit-to-width: the whole 15×15 board is always visible (five-in-a-row is
 // about reading long lines — a horizontally scrolling board hid half of it).
@@ -98,7 +98,8 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
         </div>
       </div>
       <p className="mt-1.5 text-center font-pixel text-[8px] text-retro-dim tracking-wider" aria-live="polite">
-        {pendingLive != null ? 'TAP AGAIN TO PLACE' : '\u00a0'}
+        {/* the finger hides the ghost stone, so say where it is */}
+        {pendingLive != null ? `TAP AGAIN TO PLACE · ${columnLetter(pendingLive % GOMOKU_SIZE)}${Math.floor(pendingLive / GOMOKU_SIZE) + 1}` : '\u00a0'}
       </p>
       {swapOpen && !disabled && (
         <div className="mt-2 flex flex-col items-center gap-1.5">

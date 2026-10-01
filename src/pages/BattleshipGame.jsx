@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import BattleshipBoard from '../components/BattleshipBoard'
+import BattleshipTabs from '../components/BattleshipTabs'
+import useBattleshipView from '../hooks/useBattleshipView'
+import useTapConfirm from '../hooks/useTapConfirm'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
@@ -101,6 +104,8 @@ export default function BattleshipGame({
   const oppShots = useMemo(() => shots.filter(s => s.by === opp), [shots, opp])
   const turn = round.turn ?? 'X'
   const myTurn = phase === 'battle' && turn === me
+  const [view, setView] = useBattleshipView({ phase, myTurn })
+  const confirm = useTapConfirm({ disabled: !!secret })
   const pendingGrade = shots.some(s => !s.result && s.by !== me)
   const lastMyShot = myShots[myShots.length - 1]
   const lastOppShot = oppShots[oppShots.length - 1]
@@ -274,15 +279,17 @@ export default function BattleshipGame({
 
   // Hover preview — whole-ship footprint while placing, live-updates on rotate.
   const selectedSize = selected ? FLEET_SPEC.find(s => s.ship === selected)?.size : null
+  // Touch has no hover: the first tap previews the footprint, a second places it.
+  const previewCell = confirm.pending ?? hoverCell
   const preview = useMemo(() => {
-    if (!selected || hoverCell == null || selectedSize == null) return null
+    if (!selected || previewCell == null || selectedSize == null) return null
     const orient = draft[selected]?.orient ?? 'h'
-    const row = Math.floor(hoverCell / 10)
-    const cells = shipCells(selectedSize, orient, hoverCell)
+    const row = Math.floor(previewCell / 10)
+    const cells = shipCells(selectedSize, orient, previewCell)
       .filter(c => c >= 0 && c < 100 && (orient !== 'h' || Math.floor(c / 10) === row))
-    const valid = canPlace(draft, selected, orient, hoverCell)
+    const valid = canPlace(draft, selected, orient, previewCell)
     return { cells, valid }
-  }, [selected, hoverCell, selectedSize, draft])
+  }, [selected, previewCell, selectedSize, draft])
 
   const rotateSelected = () => {
     if (!selected) return
@@ -401,7 +408,7 @@ export default function BattleshipGame({
             RIVALS ARE DEPLOYING THEIR FLEETS…
           </p>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-4">
             {['X', 'O'].map(sym => (
               <div key={sym} className="space-y-1">
                 <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
@@ -443,7 +450,7 @@ export default function BattleshipGame({
           <BattleshipBoard
             shots={{}}
             fleetCells={myFleetCells}
-            onCell={placeShip}
+            onCell={(cell) => confirm.tap(cell, () => placeShip(cell))}
             disabled={!!secret}
             preview={secret ? null : preview}
             onHoverCell={secret ? undefined : setHoverCell}
@@ -588,8 +595,10 @@ export default function BattleshipGame({
       )}
 
       {/* Grids */}
-      <div className="grid sm:grid-cols-2 gap-4 justify-items-center">
-        <div className="space-y-1 w-full max-w-sm md:max-w-md">
+      <BattleshipTabs view={view} onView={setView} targetAlert={myTurn && !matchOver} />
+
+      <div className="space-y-4">
+        <div className={cn('space-y-1 w-full', view !== 'target' && 'hidden')}>
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
             TARGETING {myTurn && !matchOver && <span className="text-retro-cta">· YOUR SHOT</span>}
           </p>
@@ -620,7 +629,7 @@ export default function BattleshipGame({
           </div>
         </div>
 
-        <div className="space-y-1 w-full max-w-sm md:max-w-md">
+        <div className={cn('space-y-1 w-full', view !== 'fleet' && 'hidden')}>
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">YOUR WATERS</p>
           <BattleshipBoard
             shots={myWatersShots}

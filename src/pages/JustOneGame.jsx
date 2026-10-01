@@ -664,6 +664,7 @@ export default function JustOneGame({
                 type="text"
                 value={clueInput}
                 maxLength={24}
+                enterKeyHint="send"
                 onChange={e => { setClueInput(e.target.value); setClueErr('') }}
                 onKeyDown={e => e.key === 'Enter' && submitClue()}
                 autoCorrect="off"
@@ -726,6 +727,7 @@ export default function JustOneGame({
                 type="text"
                 value={guessInput}
                 maxLength={30}
+                enterKeyHint="send"
                 onChange={e => { setGuessInput(e.target.value); setGuessErr('') }}
                 onKeyDown={e => e.key === 'Enter' && submitGuess()}
                 autoCorrect="off"

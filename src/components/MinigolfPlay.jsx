@@ -7,6 +7,7 @@ import { STROKE_CAP, formatVsPar, scoreName, vsPar } from '../lib/minigolfLogic'
 import { SEAT_GLYPHS, seatColor } from '../lib/minigolfUi'
 import useGolfAim from '../hooks/useGolfAim'
 import useMotionPref from '../hooks/useMotionPref'
+import useFocusArena from '../hooks/useFocusArena'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
@@ -56,6 +57,8 @@ export default function MinigolfPlay({
 }) {
   const holes = getCourse(course).holes
   const worldRef = useRef(null)
+  const courseRef = useRef(null)
+  useFocusArena(courseRef, true)
   const landscape = useLandscapePhone()
   const { reduced } = useMotionPref()
   const [now, setNow] = useState(() => performance.now())
@@ -293,8 +296,14 @@ export default function MinigolfPlay({
 
       {/* Course */}
       <div
-        className="relative w-full mx-auto rounded overflow-hidden bg-retro-deep"
-        style={{ aspectRatio: landscape ? '600 / 360' : '360 / 600', maxHeight: landscape ? 'calc(100dvh - 7rem)' : 'calc(100dvh - 13rem)' }}
+        ref={courseRef}
+        className="relative mx-auto scroll-mt-3 rounded overflow-hidden bg-retro-deep"
+        // Width follows the height that is left on screen (the old max-height
+        // clipped the course instead of shrinking it, hiding the tee end).
+        style={{
+          aspectRatio: landscape ? '600 / 360' : '360 / 600',
+          width: landscape ? 'min(100%, calc((100dvh - 7rem) * 600 / 360))' : 'min(100%, calc((100dvh - 13rem) * 360 / 600))',
+        }}
         onPointerDown={fastForward}
       >
         <div className="absolute inset-0" style={shake ? { transform: `translate(${shake.x}px, ${shake.y}px)` } : undefined}>

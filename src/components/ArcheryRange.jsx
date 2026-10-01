@@ -13,6 +13,8 @@ export default function ArcheryRange({
 }) {
   const canvasRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
+  const layerRef = useRef(null)
+  const paintRef = useRef(null)
   const formatId = archeryFormat(format)
   const distance = currentDistance || ARCHERY_FORMATS[formatId].distances[0]
 
@@ -29,10 +31,15 @@ export default function ArcheryRange({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !size.width || !size.height) return
-    const ratio = Math.max(1, window.devicePixelRatio || 1)
+    // DPR is capped at 2: a 3x backing store costs 2.25x the fill for no
+    // visible gain on thin neon strokes.
+    const ratio = Math.min(2, Math.max(1, window.devicePixelRatio || 1))
     canvas.width = Math.round(size.width * ratio)
     canvas.height = Math.round(size.height * ratio)
-    const ctx = canvas.getContext('2d')
+    const layer = document.createElement('canvas')
+    layer.width = canvas.width
+    layer.height = canvas.height
+    const ctx = layer.getContext('2d')
     if (!ctx) return
     ctx.scale(ratio, ratio)
     const w = size.width, h = size.height
@@ -105,19 +112,6 @@ export default function ArcheryRange({
       ctx.shadowBlur = 0
     })
 
-    if (activeDraw?.active) {
-      const preview = arrowResult({
-        ax: activeDraw.ax, dr: activeDraw.dr,
-        wind: activeDraw.wind ?? 0, sway: activeDraw.sway ?? 0,
-        distance,
-      })
-      const x = cx + preview.ax / 610 * radius * 0.9
-      const y = cy + preview.ay / 610 * radius * 0.9
-      ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = cta; ctx.globalAlpha = 0.8
-      ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x + 8, y); ctx.moveTo(x, y - 8); ctx.lineTo(x, y + 8); ctx.stroke()
-      ctx.restore()
-    }
-
     // Bow grip in the lower thumb zone.
     const bowY = h * 0.84
     ctx.save(); ctx.strokeStyle = p1; ctx.lineWidth = 2; ctx.shadowColor = p1; ctx.shadowBlur = 9
@@ -131,13 +125,57 @@ export default function ArcheryRange({
     ctx.textAlign = 'center'
     ctx.fillStyle = cta
     ctx.fillText(`${distance} M · SIGHT ${idealDrawForDistance(distance)}`, cx, 18)
-  }, [activeDraw, distance, seed, shootOffShots, shots, size.height, size.width])
+    layerRef.current = { layer, ratio, cx, cy, radius, cta }
+    paintRef.current?.()
+  }, [distance, seed, shootOffShots, shots, size.height, size.width])
+
+
+  // The static range (floor, face, arrows, bow) is drawn once into `layer`
+  // above; dragging the bow only blits it and redraws the crosshair, so a draw
+  // gesture costs one drawImage per pointermove instead of a full repaint.
+  const activeDrawRef = useRef(activeDraw)
+  const distanceRef = useRef(distance)
+  useEffect(() => {
+    activeDrawRef.current = activeDraw
+    distanceRef.current = distance
+    paintRef.current?.()
+  }, [activeDraw, distance])
+
+  useEffect(() => {
+    paintRef.current = () => {
+      const canvas = canvasRef.current
+      const built = layerRef.current
+      if (!canvas || !built) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      const { layer, ratio, cx, cy, radius } = built
+      const activeDraw = activeDrawRef.current
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.drawImage(layer, 0, 0)
+      ctx.scale(ratio, ratio)
+      const cta = built.cta
+      const distance = distanceRef.current
+      if (activeDraw?.active) {
+        const preview = arrowResult({
+          ax: activeDraw.ax, dr: activeDraw.dr,
+          wind: activeDraw.wind ?? 0, sway: activeDraw.sway ?? 0,
+          distance,
+        })
+        const x = cx + preview.ax / 610 * radius * 0.9
+        const y = cy + preview.ay / 610 * radius * 0.9
+        ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = cta; ctx.globalAlpha = 0.8
+        ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x + 8, y); ctx.moveTo(x, y - 8); ctx.lineTo(x, y + 8); ctx.stroke()
+        ctx.restore()
+      }
+    }
+    return () => { paintRef.current = null }
+  }, [])
 
   return (
     <div className="relative overflow-hidden rounded border border-retro-border shadow-neon-p1">
       <canvas
         ref={canvasRef}
-        className="block h-[clamp(250px,45vh,390px)] w-full touch-none select-none"
+        className="block h-[clamp(220px,36dvh,360px)] w-full touch-none select-none"
         style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
         aria-label={`Neon archery range, ${distance} metres${disabled ? ', waiting for your turn' : ', pull down from the bow grip to draw and release to shoot'}`}
         role="img"
@@ -152,9 +190,13 @@ export default function ArcheryRange({
           <span className="font-pixel text-[8px] text-retro-cta">{activeDraw.dr} MM</span>
         </div>
       )}
-      <span className="pointer-events-none absolute bottom-2 left-0 right-0 text-center font-pixel text-[8px] text-retro-dim">
-        {disabled ? 'RANGE LOCKED · OPPONENT SHOOTS' : 'HOLD GRIP · PULL DOWN TO DRAW · LIFT TO LOOSE · PULL BACK TO CANCEL'}
-      </span>
+      {/* The draw hint lives below the range (it sat on top of the bow grip once
+          phone text got a 10px floor); only the locked state needs the overlay. */}
+      {disabled && (
+        <span className="pointer-events-none absolute bottom-2 left-0 right-0 text-center font-pixel text-[8px] text-retro-dim">
+          RANGE LOCKED · OPPONENT SHOOTS
+        </span>
+      )}
     </div>
   )
 }
