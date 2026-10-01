@@ -69,7 +69,7 @@ describe('systemBarStyleForBackground', () => {
     const m = /--c-bg:\s*([^;]+);/.exec(css.slice(at))
     return m ? m[1].trim() : null
   }
-  const LIGHT = ['paper', 'matcha', 'matcha-strawberry', 'matcha-blueberry', 'cotton-candy', 'arctic-frost']
+  const LIGHT = ['paper', 'matcha', 'matcha-strawberry', 'matcha-blueberry', 'cotton-candy', 'arctic-frost', 'cartridge', 'notebook', 'riso']
   it.each(THEMES.map(t => t.id))('%s has a background and a style', (id) => {
     const bg = bgOf(id)
     expect(parseColor(bg)).not.toBe(null)
