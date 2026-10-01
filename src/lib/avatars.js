@@ -1,5 +1,8 @@
 // @ts-check
-// Retro pixel-art avatar registry. Composite format: '{shape}.{tone}' (e.g. 'ghost.p2').
+// LEGACY avatar registry - frozen. New avatars are 'K1…' strings (src/lib/avatarKit);
+// this module still parses every old id (creatures render as the classic CLASSIC tab,
+// humanoids migrate through avatarKit/migrate.js).
+// Composite format: '{shape}.{tone}' (e.g. 'ghost.p2').
 // Bare legacy keys ('ghost') stay valid forever — parseAvatar resolves them to their
 // classic tone. Keep SHAPES in sync with GLYPHS in src/components/Avatar.jsx.
 //
@@ -166,7 +169,7 @@ export function canonicalAvatar(id) {
   return makeAvatar(shape, tone)
 }
 
-// AvatarCustomizer only edits humanoids. Legacy creature keys ('ghost.p2') and
+// The old humanoid builder only edited humanoids. Legacy creature keys ('ghost.p2') and
 // other ids without a parts map would crash on parts.cap — seed a stable humanoid
 // outfit hashed from the stored id instead.
 export function humanoidCustomizerSeed(id) {

@@ -5,7 +5,7 @@ import Avatar from '../components/Avatar'
 import AvatarPicker from '../components/AvatarPicker'
 import AuthErrorBanner from '../components/AuthErrorBanner'
 import EmptyState from '../components/EmptyState'
-import { canonicalAvatar, defaultAvatarForId } from '../lib/avatars'
+import { canonicalAvatarId as canonicalAvatar, defaultAvatarForId } from '../lib/avatarKit'
 import { validateName } from '../lib/onboardingLogic'
 import { getPlayerId } from '../lib/playerId'
 import { useAuth } from '../lib/AuthContext'
@@ -148,7 +148,7 @@ export default function Profile() {
         {/* Identity card — also the avatar entry point, so the avatar is
             drawn once instead of in the card and again in an AVATAR row. */}
         <div id="look" className="bg-retro-card border border-retro-border rounded p-4 flex items-center gap-4 scroll-mt-20">
-          <Avatar id={savedAvatar} size={56} />
+          <Avatar id={savedAvatar} size={72} view="hero" />
           <div className="min-w-0 flex-1">
             <p className="font-pixel text-xs text-retro-text truncate">{profile?.displayName || '…'}</p>
             <p className="font-mono text-[11px] text-retro-dim mt-1 truncate">

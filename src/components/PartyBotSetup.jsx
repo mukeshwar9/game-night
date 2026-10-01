@@ -1,6 +1,6 @@
 import Avatar from './Avatar'
 import { getPlayerId } from '../lib/playerId'
-import { defaultAvatarForId } from '../lib/avatars'
+import { defaultAvatarForId } from '../lib/avatarKit'
 
 // Reads the local player's display avatar the same way NavBar/Home do — the
 // localStorage mirror of `users/{uid}` set on boot (see CLAUDE.md "Player
