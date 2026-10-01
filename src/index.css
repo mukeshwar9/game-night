@@ -122,15 +122,15 @@
   font-display: swap;
   src: url('/fonts/press-start-2p-latin.woff2') format('woff2');
 }
-@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/silkscreen-regular.ttf') format('truetype'); size-adjust: 140%; }
-@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/silkscreen-bold.ttf') format('truetype'); size-adjust: 140%; }
-@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/pixelify-sans-regular.ttf') format('truetype'); size-adjust: 139%; }
-@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/pixelify-sans-bold.ttf') format('truetype'); size-adjust: 137%; }
-@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/vt323.ttf') format('truetype'); size-adjust: 156%; }
-@font-face { font-family: 'Share Tech Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/share-tech-mono.ttf') format('truetype'); size-adjust: 125%; }
-@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/oxanium-regular.ttf') format('truetype'); size-adjust: 127%; }
-@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/oxanium-bold.ttf') format('truetype'); size-adjust: 127%; }
-@font-face { font-family: 'Audiowide'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/audiowide-latin.ttf') format('truetype'); size-adjust: 125%; }
+@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/silkscreen-regular.woff2') format('woff2'); size-adjust: 140%; }
+@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/silkscreen-bold.woff2') format('woff2'); size-adjust: 140%; }
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/pixelify-sans-regular.woff2') format('woff2'); size-adjust: 139%; }
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/pixelify-sans-bold.woff2') format('woff2'); size-adjust: 137%; }
+@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/vt323.woff2') format('woff2'); size-adjust: 156%; }
+@font-face { font-family: 'Share Tech Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/share-tech-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/oxanium-regular.woff2') format('woff2'); size-adjust: 127%; }
+@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/oxanium-bold.woff2') format('woff2'); size-adjust: 127%; }
+@font-face { font-family: 'Audiowide'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/audiowide-latin.woff2') format('woff2'); size-adjust: 125%; }
 @font-face { font-family: 'Fredoka'; font-style: normal; font-weight: 300 700; font-display: swap; src: url('/fonts/fredoka-latin.woff2') format('woff2'); size-adjust: 127%; }
 @font-face { font-family: 'Russo One'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/russo-one-latin.woff2') format('woff2'); size-adjust: 125%; }
 @font-face { font-family: 'Patrick Hand'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/patrick-hand-latin.woff2') format('woff2'); size-adjust: 132%; }
@@ -138,6 +138,76 @@
 @font-face { font-family: 'Tilt Neon'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-neon-latin.woff2') format('woff2'); size-adjust: 126%; }
 
 :root { --font-pixel: 'Press Start 2P'; }
+@font-face { font-family: 'Tiny5'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tiny5.woff2') format('woff2'); size-adjust: 140%; }
+@font-face { font-family: 'Micro 5'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/micro5.woff2') format('woff2'); size-adjust: 192%; }
+@font-face { font-family: 'Handjet'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/handjet.woff2') format('woff2'); size-adjust: 135%; }
+@font-face { font-family: 'DotGothic16'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/dotgothic16.woff2') format('woff2'); size-adjust: 111%; }
+@font-face { font-family: 'Sixtyfour'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/sixtyfour.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Sixtyfour Convergence'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/sixtyfour-convergence.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Workbench'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/workbench.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Jersey 15'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/jersey15.woff2') format('woff2'); size-adjust: 158%; }
+@font-face { font-family: 'Bytesized'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bytesized.woff2') format('woff2'); size-adjust: 233%; }
+@font-face { font-family: 'Doto'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/doto.woff2') format('woff2'); size-adjust: 126%; }
+@font-face { font-family: 'Nabla'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/nabla.woff2') format('woff2'); size-adjust: 95%; }
+@font-face { font-family: 'Bungee'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Bungee Spice'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee-spice.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Bungee Shade'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee-shade.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'Monoton'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/monoton.woff2') format('woff2'); size-adjust: 108%; }
+@font-face { font-family: 'Tilt Warp'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-warp.woff2') format('woff2'); size-adjust: 129%; }
+@font-face { font-family: 'Tilt Neon VF'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-neon-v.woff2') format('woff2'); size-adjust: 127%; }
+@font-face { font-family: 'Bitcount Prop Double'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/bitcount-prop-double.woff2') format('woff2'); size-adjust: 146%; }
+@font-face { font-family: 'Jacquard 12'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/jacquard12.woff2') format('woff2'); size-adjust: 153%; }
+@font-face { font-family: 'Coral Pixels'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/coral-pixels.woff2') format('woff2'); size-adjust: 126%; }
+@font-face { font-family: 'Big Shoulders Display'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/big-shoulders.woff2') format('woff2'); size-adjust: 109%; }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/chakra-petch.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Orbitron'; font-style: normal; font-weight: 400 900; font-display: swap; src: url('/fonts/orbitron.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Pixelify Sans VF'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/pixelify-v.woff2') format('woff2'); size-adjust: 139%; }
+@font-face { font-family: 'Departure Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/departure-mono.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'Atkinson Hyperlegible Mono'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/atkinson-mono.woff2') format('woff2'); size-adjust: 131%; }
+@font-face { font-family: 'Atkinson Hyperlegible Next'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/atkinson-next.woff2') format('woff2'); size-adjust: 131%; }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/jetbrains-mono.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Space Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/space-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Geist Mono'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/geist-mono.woff2') format('woff2'); size-adjust: 123%; }
+@font-face { font-family: 'Martian Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/martian-mono.woff2') format('woff2'); size-adjust: 109%; }
+@font-face { font-family: 'Kode Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/kode-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Lexend'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/lexend.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Sometype Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/sometype-mono.woff2') format('woff2'); size-adjust: 135%; }
+@font-face { font-family: 'Tiny5'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tiny5.woff2') format('woff2'); size-adjust: 140%; }
+@font-face { font-family: 'Micro 5'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/micro5.woff2') format('woff2'); size-adjust: 192%; }
+@font-face { font-family: 'Handjet'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/handjet.woff2') format('woff2'); size-adjust: 135%; }
+@font-face { font-family: 'DotGothic16'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/dotgothic16.woff2') format('woff2'); size-adjust: 111%; }
+@font-face { font-family: 'Sixtyfour'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/sixtyfour.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Sixtyfour Convergence'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/sixtyfour-convergence.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Workbench'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/workbench.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Jersey 15'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/jersey15.woff2') format('woff2'); size-adjust: 158%; }
+@font-face { font-family: 'Bytesized'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bytesized.woff2') format('woff2'); size-adjust: 233%; }
+@font-face { font-family: 'Doto'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/doto.woff2') format('woff2'); size-adjust: 126%; }
+@font-face { font-family: 'Nabla'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/nabla.woff2') format('woff2'); size-adjust: 95%; }
+@font-face { font-family: 'Bungee'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Bungee Spice'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee-spice.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Bungee Shade'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee-shade.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'Monoton'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/monoton.woff2') format('woff2'); size-adjust: 108%; }
+@font-face { font-family: 'Tilt Warp'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-warp.woff2') format('woff2'); size-adjust: 129%; }
+@font-face { font-family: 'Tilt Neon VF'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-neon-v.woff2') format('woff2'); size-adjust: 127%; }
+@font-face { font-family: 'Bitcount Prop Double'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/bitcount-prop-double.woff2') format('woff2'); size-adjust: 146%; }
+@font-face { font-family: 'Jacquard 12'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/jacquard12.woff2') format('woff2'); size-adjust: 153%; }
+@font-face { font-family: 'Coral Pixels'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/coral-pixels.woff2') format('woff2'); size-adjust: 126%; }
+@font-face { font-family: 'Big Shoulders Display'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/big-shoulders.woff2') format('woff2'); size-adjust: 109%; }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/chakra-petch.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Orbitron'; font-style: normal; font-weight: 400 900; font-display: swap; src: url('/fonts/orbitron.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Pixelify Sans VF'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/pixelify-v.woff2') format('woff2'); size-adjust: 139%; }
+@font-face { font-family: 'Departure Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/departure-mono.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'Atkinson Hyperlegible Mono'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/atkinson-mono.woff2') format('woff2'); size-adjust: 131%; }
+@font-face { font-family: 'Atkinson Hyperlegible Next'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/atkinson-next.woff2') format('woff2'); size-adjust: 131%; }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/jetbrains-mono.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Space Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/space-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Geist Mono'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/geist-mono.woff2') format('woff2'); size-adjust: 123%; }
+@font-face { font-family: 'Martian Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/martian-mono.woff2') format('woff2'); size-adjust: 109%; }
+@font-face { font-family: 'Kode Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/kode-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Lexend'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/lexend.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Sometype Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/sometype-mono.woff2') format('woff2'); size-adjust: 135%; }
 [data-font='silkscreen'] { --font-pixel: 'Silkscreen'; }
 [data-font='pixelify'] { --font-pixel: 'Pixelify Sans'; }
 [data-font='vt323'] { --font-pixel: 'VT323'; }
@@ -149,6 +219,76 @@
 [data-font='patrick-hand'] { --font-pixel: 'Patrick Hand'; }
 [data-font='jersey'] { --font-pixel: 'Jersey 10'; }
 [data-font='tilt-neon'] { --font-pixel: 'Tilt Neon'; }
+[data-font='tiny5'] { --font-pixel: 'Tiny5'; }
+[data-font='micro5'] { --font-pixel: 'Micro 5'; }
+[data-font='handjet'] { --font-pixel: 'Handjet'; }
+[data-font='dotgothic'] { --font-pixel: 'DotGothic16'; }
+[data-font='sixtyfour'] { --font-pixel: 'Sixtyfour'; }
+[data-font='sixtyfour-c'] { --font-pixel: 'Sixtyfour Convergence'; }
+[data-font='workbench'] { --font-pixel: 'Workbench'; }
+[data-font='jersey15'] { --font-pixel: 'Jersey 15'; }
+[data-font='bytesized'] { --font-pixel: 'Bytesized'; }
+[data-font='doto'] { --font-pixel: 'Doto'; }
+[data-font='nabla'] { --font-pixel: 'Nabla'; }
+[data-font='bungee'] { --font-pixel: 'Bungee'; }
+[data-font='bungee-spice'] { --font-pixel: 'Bungee Spice'; }
+[data-font='bungee-shade'] { --font-pixel: 'Bungee Shade'; }
+[data-font='monoton'] { --font-pixel: 'Monoton'; }
+[data-font='tilt-warp'] { --font-pixel: 'Tilt Warp'; }
+[data-font='tilt-neon-v'] { --font-pixel: 'Tilt Neon VF'; }
+[data-font='bitcount'] { --font-pixel: 'Bitcount Prop Double'; }
+[data-font='jacquard12'] { --font-pixel: 'Jacquard 12'; }
+[data-font='coral-pixels'] { --font-pixel: 'Coral Pixels'; }
+[data-font='big-shoulders'] { --font-pixel: 'Big Shoulders Display'; }
+[data-font='chakra-petch'] { --font-pixel: 'Chakra Petch'; }
+[data-font='orbitron'] { --font-pixel: 'Orbitron'; }
+[data-font='pixelify-v'] { --font-pixel: 'Pixelify Sans VF'; }
+[data-font='departure'] { --font-pixel: 'Departure Mono'; }
+[data-font='atkinson-mono'] { --font-pixel: 'Atkinson Hyperlegible Mono'; }
+[data-font='atkinson-next'] { --font-pixel: 'Atkinson Hyperlegible Next'; }
+[data-font='jetbrains'] { --font-pixel: 'JetBrains Mono'; }
+[data-font='plex-mono'] { --font-pixel: 'IBM Plex Mono'; }
+[data-font='space-mono'] { --font-pixel: 'Space Mono'; }
+[data-font='geist-mono'] { --font-pixel: 'Geist Mono'; }
+[data-font='martian'] { --font-pixel: 'Martian Mono'; }
+[data-font='kode'] { --font-pixel: 'Kode Mono'; }
+[data-font='lexend'] { --font-pixel: 'Lexend'; }
+[data-font='sometype'] { --font-pixel: 'Sometype Mono'; }
+[data-font='tiny5'] { --font-pixel: 'Tiny5'; }
+[data-font='micro5'] { --font-pixel: 'Micro 5'; }
+[data-font='handjet'] { --font-pixel: 'Handjet'; }
+[data-font='dotgothic'] { --font-pixel: 'DotGothic16'; }
+[data-font='sixtyfour'] { --font-pixel: 'Sixtyfour'; }
+[data-font='sixtyfour-c'] { --font-pixel: 'Sixtyfour Convergence'; }
+[data-font='workbench'] { --font-pixel: 'Workbench'; }
+[data-font='jersey15'] { --font-pixel: 'Jersey 15'; }
+[data-font='bytesized'] { --font-pixel: 'Bytesized'; }
+[data-font='doto'] { --font-pixel: 'Doto'; }
+[data-font='nabla'] { --font-pixel: 'Nabla'; }
+[data-font='bungee'] { --font-pixel: 'Bungee'; }
+[data-font='bungee-spice'] { --font-pixel: 'Bungee Spice'; }
+[data-font='bungee-shade'] { --font-pixel: 'Bungee Shade'; }
+[data-font='monoton'] { --font-pixel: 'Monoton'; }
+[data-font='tilt-warp'] { --font-pixel: 'Tilt Warp'; }
+[data-font='tilt-neon-v'] { --font-pixel: 'Tilt Neon VF'; }
+[data-font='bitcount'] { --font-pixel: 'Bitcount Prop Double'; }
+[data-font='jacquard12'] { --font-pixel: 'Jacquard 12'; }
+[data-font='coral-pixels'] { --font-pixel: 'Coral Pixels'; }
+[data-font='big-shoulders'] { --font-pixel: 'Big Shoulders Display'; }
+[data-font='chakra-petch'] { --font-pixel: 'Chakra Petch'; }
+[data-font='orbitron'] { --font-pixel: 'Orbitron'; }
+[data-font='pixelify-v'] { --font-pixel: 'Pixelify Sans VF'; }
+[data-font='departure'] { --font-pixel: 'Departure Mono'; }
+[data-font='atkinson-mono'] { --font-pixel: 'Atkinson Hyperlegible Mono'; }
+[data-font='atkinson-next'] { --font-pixel: 'Atkinson Hyperlegible Next'; }
+[data-font='jetbrains'] { --font-pixel: 'JetBrains Mono'; }
+[data-font='plex-mono'] { --font-pixel: 'IBM Plex Mono'; }
+[data-font='space-mono'] { --font-pixel: 'Space Mono'; }
+[data-font='geist-mono'] { --font-pixel: 'Geist Mono'; }
+[data-font='martian'] { --font-pixel: 'Martian Mono'; }
+[data-font='kode'] { --font-pixel: 'Kode Mono'; }
+[data-font='lexend'] { --font-pixel: 'Lexend'; }
+[data-font='sometype'] { --font-pixel: 'Sometype Mono'; }
 
 /* shadcn/ui CSS variables — retro palette */
 @layer base {
