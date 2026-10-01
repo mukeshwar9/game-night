@@ -190,9 +190,13 @@ export default function ArcheryRange({
           <span className="font-pixel text-[8px] text-retro-cta">{activeDraw.dr} MM</span>
         </div>
       )}
-      <span className="pointer-events-none absolute bottom-2 left-0 right-0 text-center font-pixel text-[8px] text-retro-dim">
-        {disabled ? 'RANGE LOCKED · OPPONENT SHOOTS' : 'HOLD GRIP · PULL DOWN TO DRAW · LIFT TO LOOSE · PULL BACK TO CANCEL'}
-      </span>
+      {/* The draw hint lives below the range (it sat on top of the bow grip once
+          phone text got a 10px floor); only the locked state needs the overlay. */}
+      {disabled && (
+        <span className="pointer-events-none absolute bottom-2 left-0 right-0 text-center font-pixel text-[8px] text-retro-dim">
+          RANGE LOCKED · OPPONENT SHOOTS
+        </span>
+      )}
     </div>
   )
 }

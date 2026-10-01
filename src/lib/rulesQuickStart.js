@@ -3,7 +3,7 @@
 // open on three one-sentence bullets, with the full text a tap away; short
 // ones keep showing everything.
 
-export const LONG_RULES_WORDS = 120
+export const LONG_RULES_WORDS = 200
 const QUICK_STEPS = 3
 const MAX_BULLET_CHARS = 150
 
