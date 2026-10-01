@@ -7,6 +7,10 @@ import { CATEGORIES, categoryOptions, colourOptions, swatchBackground, tierBadge
 import { CREATURES, TONES, TONE_LABEL, makeAvatar, parseAvatar } from '../lib/avatars'
 import { TONE_TO_RAMP } from '../lib/avatarKit'
 import { sounds } from '../lib/sounds'
+import LockBadge from './premium/LockBadge'
+import useAccess from '../hooks/useAccess'
+import { openPaywall } from '../lib/premiumUi'
+import { avatarItem } from '../lib/avatarGate'
 import { cn } from '@/lib/utils'
 
 const HISTORY_CAP = 20
@@ -15,9 +19,16 @@ const CLASSIC = { id: 'classic', label: 'CLASSIC' }
 // The avatar editor: a big live preview with the player's name tag, a SHUFFLE die and
 // UNDO, a scrolling tab strip, and under it a grid of thumbnails of YOUR avatar wearing
 // each option (so you choose by look, not by name). Controlled: `value` is an avatar
-// id, `onChange` gets the next canonical id. Premium items are badged but selectable
-// for now.
-export default function AvatarPicker({ value, onChange, name = '', previewSize = 96 }) {
+// id, `onChange` gets the next canonical id. Pass and pack items are gated through
+// isUnlocked (premium.js): a locked one cannot be picked and calls `onLocked(item)`,
+// which opens the paywall. A picker inside a sheet passes its own `onLocked` that
+// closes the sheet first, since sheets never nest.
+export default function AvatarPicker({ value, onChange, name = '', previewSize = 96, onLocked = openPaywall }) {
+  const access = useAccess()
+  const lockedItem = (key, id) => {
+    const item = avatarItem(key, id)
+    return item && !access.isUnlocked(item) ? item : null
+  }
   const current = canonicalAvatarId(value)
   const resolved = resolveAvatar(current)
   const isKit = resolved.kind === 'kit'
@@ -48,7 +59,12 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
   // Editing a classic critter's person-less look starts from a seed person.
   const baseLook = look || decodeAvatar(defaultKitAvatar(current))
   const withField = (key, id) => encodeAvatar({ ...baseLook, [key]: id })
-  const setField = (key, id) => { sounds.move('X'); commit(withField(key, id)) }
+  const setField = (key, id) => {
+    const locked = lockedItem(key, id)
+    if (locked) { onLocked(locked); return }
+    sounds.move('X')
+    commit(withField(key, id))
+  }
 
   const tabs = [...CATEGORIES, CLASSIC]
   const onTabKey = (e) => {
@@ -150,13 +166,14 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                 {categoryOptions(cat).map(opt => {
                   const selected = baseLook[cat.field] === opt.id && isKit
                   const badge = tierBadge(opt)
+                  const locked = Boolean(lockedItem(cat.field, opt.id))
                   return (
                     <button
                       key={opt.id}
                       type="button"
                       role="radio"
                       aria-checked={selected}
-                      aria-label={badge ? `${opt.label} (${badge.text})` : opt.label}
+                      aria-label={badge ? `${opt.label} (${badge.text}${locked ? ', locked' : ''})` : opt.label}
                       onClick={() => setField(cat.field, opt.id)}
                       className={cn(
                         'relative flex flex-col items-center gap-1 p-1 rounded border-2 transition-all active:scale-95',
@@ -171,7 +188,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                           title={badge.text}
                           className="absolute top-0.5 right-0.5 min-w-4 h-4 px-0.5 rounded-sm bg-retro-bg/90 border border-retro-border text-[9px] leading-none flex items-center justify-center text-retro-cta"
                         >
-                          <TierIcon tier={opt.tier} />
+                          {locked ? <LockBadge size={9} /> : <TierIcon tier={opt.tier} />}
                         </span>
                       )}
                     </button>
@@ -185,6 +202,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                 row={row}
                 selected={baseLook[row.key]}
                 onPick={(id) => setField(row.key, id)}
+                isLocked={(id) => Boolean(lockedItem(row.key, id))}
               />
             ))}
             {cat.field === 'pet' && <p className="font-pixel text-[8px] leading-relaxed text-retro-dim">PETS SHOW IN THE FULL-BODY VIEW.</p>}
@@ -192,7 +210,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
               {[['earn', 'EARNED'], ['pass', 'PASS'], ['pack', 'PACK']].map(([tier, label]) => (
                 <span key={tier} className="inline-flex items-center gap-1"><TierIcon tier={tier} className="text-retro-cta" />{label}</span>
               ))}
-              <span>ALL OPEN TO TRY FOR NOW</span>
+              <span>{access.bypass ? 'ALL OPEN WHILE DEVELOPING' : 'PASS AND PACK ITEMS NEED THE PASS OR THEIR PACK'}</span>
             </p>
           </>
         ) : (
@@ -203,7 +221,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
   )
 }
 
-function ColourRow({ row, selected, onPick }) {
+function ColourRow({ row, selected, onPick, isLocked }) {
   return (
     <div className="space-y-1">
       <p className="font-pixel text-[8px] tracking-widest text-retro-dim">{row.label}</p>
@@ -228,7 +246,7 @@ function ColourRow({ row, selected, onPick }) {
                 )}
                 style={{ background: swatchBackground(c.id) }}
               />
-              {c.premium && <span aria-hidden="true" className="absolute top-1 right-1 text-retro-cta"><TierIcon tier="pass" /></span>}
+              {c.premium && <span aria-hidden="true" className="absolute top-1 right-1 text-retro-cta">{isLocked(c.id) ? <LockBadge size={9} /> : <TierIcon tier="pass" />}</span>}
             </button>
           )
         })}

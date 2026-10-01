@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 // Name + avatar editor for the Settings sheet (lazy-loaded from SettingsButton).
 // Edits are a draft until SAVE; saving writes the profile and the localStorage
 // mirror the synchronous Home/Game reads use.
-export default function IdentityEditor({ name: savedName, avatar: savedAvatar, onDone }) {
+export default function IdentityEditor({ name: savedName, avatar: savedAvatar, onDone, onLocked }) {
   const [name, setName] = useState(savedName)
   const [avatar, setAvatar] = useState(canonicalAvatar(savedAvatar))
   const [saving, runSave] = useBusy()
@@ -49,7 +49,7 @@ export default function IdentityEditor({ name: savedName, avatar: savedAvatar, o
           {check.ok ? 'CHANGES SHOW IN YOUR NEXT GAME' : check.error}
         </p>
       </div>
-      <AvatarPicker value={avatar} onChange={setAvatar} name={check.name} previewSize={72} />
+      <AvatarPicker value={avatar} onChange={setAvatar} name={check.name} previewSize={72} onLocked={onLocked} />
       <div className="flex gap-2">
         <button type="button" onClick={onDone} disabled={saving} className="min-h-11 px-4 border border-retro-border rounded font-pixel text-[10px] text-retro-dim hover:text-retro-text">
           CANCEL

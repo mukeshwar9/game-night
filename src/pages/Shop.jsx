@@ -19,8 +19,54 @@ const TABS = [
 
 function Preview({ item }) {
   if (item.kind === 'theme') return <ThemePreview theme={item.id} caption={item.label} className="w-full h-24" />
-  if (item.kind === 'avatar') return <div className="h-24 flex items-center justify-center"><Avatar id={item.preview} size={64} /></div>
+  if (item.kind === 'avatar') return <div className="h-24 flex items-center justify-center"><Avatar id={item.preview} size={72} view={item.view} animate /></div>
   return <div className="h-24 flex items-center justify-center text-5xl" aria-hidden="true">{item.glyph}</div>
+}
+
+function ItemGrid({ items, access }) {
+  return (
+    <ul className="grid grid-cols-2 gap-2">
+      {items.map(item => {
+        const open = access.isUnlocked(item)
+        return (
+          <li key={`${item.kind}:${item.id}`}>
+            <button
+              type="button"
+              onClick={() => (open ? null : openPaywall(item))}
+              aria-label={open ? item.label : `${item.label}, locked`}
+              className={cn('w-full rounded border bg-retro-card p-2 text-left space-y-1 transition-colors', open ? 'border-retro-border cursor-default' : 'border-retro-border hover:border-retro-cta/60 active:scale-[0.98]')}
+            >
+              <Preview item={item} />
+              <span className="flex items-center justify-between gap-1">
+                <span className="font-pixel text-[8px] tracking-wide text-retro-text truncate">{item.label}</span>
+                {!open && <LockBadge size={11} />}
+              </span>
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function PassOnlySection({ items, access }) {
+  const owned = access.pass || access.admin || access.bypass
+  return (
+    <section aria-label="Pass exclusives" className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="font-pixel text-[10px] tracking-widest text-retro-text">PASS EXCLUSIVES</h2>
+          <p className="font-mono text-[10px] text-retro-dim leading-relaxed">Only with the Game Night Pass.</p>
+        </div>
+        {owned ? <span className="shrink-0 font-pixel text-[9px] tracking-wider text-retro-win">UNLOCKED</span> : (
+          <button type="button" onClick={() => beginPurchase('pass-monthly')} className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition-all">
+            GET PASS {formatCents(PRICES.passMonthly)}/MO
+          </button>
+        )}
+      </div>
+      <ItemGrid items={items} access={access} />
+    </section>
+  )
 }
 
 function PackSection({ pack, items, access }) {
@@ -45,27 +91,7 @@ function PackSection({ pack, items, access }) {
           </button>
         )}
       </div>
-      <ul className="grid grid-cols-2 gap-2">
-        {items.map(item => {
-          const open = access.isUnlocked(item)
-          return (
-            <li key={`${item.kind}:${item.id}`}>
-              <button
-                type="button"
-                onClick={() => (open ? null : openPaywall(item))}
-                aria-label={open ? item.label : `${item.label}, locked`}
-                className={cn('w-full rounded border bg-retro-card p-2 text-left space-y-1 transition-colors', open ? 'border-retro-border cursor-default' : 'border-retro-border hover:border-retro-cta/60 active:scale-[0.98]')}
-              >
-                <Preview item={item} />
-                <span className="flex items-center justify-between gap-1">
-                  <span className="font-pixel text-[8px] tracking-wide text-retro-text truncate">{item.label}</span>
-                  {!open && <LockBadge size={11} />}
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+      <ItemGrid items={items} access={access} />
     </section>
   )
 }
@@ -75,6 +101,8 @@ export default function Shop() {
   const [tab, setTab] = useState('theme')
   const items = premiumItems(tab)
   const packs = PACKS.filter(p => p.kind === tab).map(p => ({ pack: p, items: items.filter(i => i.pack === p.id) })).filter(g => g.items.length)
+  // Items with no pack are Pass-only (premium ramps, premium fonts and themes).
+  const passOnly = items.filter(i => !i.pack)
   return (
     <main className="min-h-screen bg-retro-bg px-4 pt-4 pb-10">
       <div className="max-w-sm mx-auto space-y-4">
@@ -101,9 +129,11 @@ export default function Shop() {
         </div>
 
         <div role="tabpanel" className="space-y-5">
-          {packs.length ? packs.map(g => <PackSection key={g.pack.id} pack={g.pack} items={g.items} access={access} />) : (
+          {packs.map(g => <PackSection key={g.pack.id} pack={g.pack} items={g.items} access={access} />)}
+          {passOnly.length > 0 && <PassOnlySection items={passOnly} access={access} />}
+          {!packs.length && !passOnly.length ? (
             <p className="font-mono text-[11px] text-retro-dim text-center py-6">New {tab === 'avatar' ? 'avatar items' : `${tab}s`} are on the way.</p>
-          )}
+          ) : null}
         </div>
 
         <section aria-label="Supporter" className="rounded border border-retro-border bg-retro-card p-3 space-y-2">

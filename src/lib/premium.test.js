@@ -95,9 +95,9 @@ describe('helpers', () => {
   })
 
   it('missingPacks lists each unowned pack once', () => {
-    const items = [themed, { ...themed, id: 'b' }, { kind: 'avatar', id: 'h', premium: true, pack: 'avatars-hats' }, free]
-    expect(missingPacks(items, { packs: { 'avatars-hats': true } })).toEqual(['themes-seasonal'])
-    expect(missingPacks(items, null).sort()).toEqual(['avatars-hats', 'themes-seasonal'])
+    const items = [themed, { ...themed, id: 'b' }, { kind: 'avatar', id: 'h', premium: true, pack: 'avatars-royal' }, free]
+    expect(missingPacks(items, { packs: { 'avatars-royal': true } })).toEqual(['themes-seasonal'])
+    expect(missingPacks(items, null).sort()).toEqual(['avatars-royal', 'themes-seasonal'])
   })
 })
 

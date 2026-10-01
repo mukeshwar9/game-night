@@ -186,7 +186,7 @@ export default function SettingsButton({ className = '' }) {
       <section className="space-y-2" aria-label="Your name and avatar">
         {editingMe ? (
           <Suspense fallback={<div className="py-8 flex justify-center"><PixelDots /></div>}>
-            <IdentityEditor name={myName} avatar={myAvatar} onDone={() => setEditingMe(false)} />
+            <IdentityEditor name={myName} avatar={myAvatar} onDone={() => setEditingMe(false)} onLocked={(item) => { setOpen(false); openPaywall(item) }} />
           </Suspense>
         ) : (
           <div className="flex items-center gap-3">

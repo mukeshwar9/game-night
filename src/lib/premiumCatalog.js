@@ -42,8 +42,10 @@ export const PASS_TRIAL_DAYS = 7
 export const PACKS = [
   { id: 'themes-seasonal', kind: 'theme', label: 'SEASONAL THEMES', blurb: 'Pastel, candy and frost screens for your own device.', cents: PRICES.packTheme },
   { id: 'themes-arcade', kind: 'theme', label: 'ARCADE PRO', blurb: 'High-contrast CRT and console looks.', cents: PRICES.packTheme },
-  { id: 'avatars-hats', kind: 'avatar', label: 'HATS & GEAR', blurb: 'Hats and accessories everyone in the room sees.', cents: PRICES.packAvatar },
-  { id: 'avatars-buddies', kind: 'avatar', label: 'BUDDIES', blurb: 'Extra critters to stand in for you.', cents: PRICES.packAvatar },
+  // One per avatar-kit pack id ('royal', 'party', 'dragon' in avatarKit/catalog.js): `avatars-${kitPack}`.
+  { id: 'avatars-royal', kind: 'avatar', label: 'ROYAL PACK', blurb: 'Crowns, capes and gold finishes everyone in the room sees.', cents: PRICES.packAvatar },
+  { id: 'avatars-party', kind: 'avatar', label: 'PARTY PACK', blurb: 'Confetti and candy looks and buddies for the room.', cents: PRICES.packAvatar },
+  { id: 'avatars-dragon', kind: 'avatar', label: 'DRAGON PACK', blurb: 'A dragon buddy and scaly gear.', cents: PRICES.packAvatar },
   { id: 'emotes-pixel', kind: 'emote', label: 'PIXEL EMOTES', blurb: 'A row of party reactions for the room chat.', cents: PRICES.packEmote },
 ]
 

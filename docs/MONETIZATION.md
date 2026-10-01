@@ -9,7 +9,7 @@ All prices live in one file, `src/lib/premiumCatalog.js` (`PRICES`, `PACKS`, `PR
 | Product | Price | Notes |
 |---|---|---|
 | Game Night Pass | $2.99 a month or $19.99 a year | Unlocks every premium item. 7-day trial (set on the Paddle price). Host perks (room banner, playlists) are listed as "coming" and not built yet. |
-| Cosmetic packs | $1.99 to $2.99 | `themes-seasonal`, `themes-arcade`, `avatars-hats`, `avatars-buddies`, `emotes-pixel` |
+| Cosmetic packs | $1.99 to $2.99 | `themes-seasonal`, `themes-arcade`, `avatars-royal`, `avatars-party`, `avatars-dragon`, `emotes-pixel` |
 | Supporter | $4.99 | A badge; changes nothing else. |
 
 ## The entitlement record
@@ -38,7 +38,7 @@ A registry entry becomes premium with two fields: `premium: true` and `pack: '<P
 - In React: `const access = useAccess(); access.isUnlocked(item)` (`src/hooks/useAccess.js`).
 - Outside React: `isUnlockedNow(item)` from `src/lib/entitlements.js`.
 - A locked tap calls `openPaywall(item)` (`src/lib/premiumUi.js`); `<PremiumHost/>` in `App.jsx` renders the sheet.
-- Avatar items are listed in `PREMIUM_AVATAR_ITEMS` (`src/lib/avatars.js`) as `{ kind: 'avatar', id, label, premium: true, pack, preview }`.
+- Avatars: the kit marks each part and colour ramp with a tier (`src/lib/avatarKit/`). `src/lib/avatarGate.js` turns `pass` (Pass only) and `pack` (sold as `avatars-<kit pack>`) options into gate items with id `<field>:<option>`. `earn` items are unlocked by play, never sold, and are left open. The avatar picker refuses a locked pick and opens the paywall; SHUFFLE never rolls paid items unless asked. A look already saved keeps rendering for everyone if a Pass lapses (the picker just will not let it be re-picked).
 - Themes (`THEMES`) and fonts (`FONTS`) carry the two fields directly. The shop collects them in `src/lib/premiumItems.js`.
 - Emotes: `EMOTES_PREMIUM` in `src/lib/emotes.js` (the PIXEL EMOTES pack).
 
