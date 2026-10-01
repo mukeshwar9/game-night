@@ -1,84 +1,69 @@
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import Avatar from './Avatar'
-import AvatarCustomizer from './AvatarCustomizer'
-import { TONE_BG } from './avatarSwatches'
 import {
-  CREATURES, TONES, TONE_LABEL,
-  canonicalAvatar, humanoidCustomizerSeed, isHumanoid, makeAvatar, makeHumanoid, parseAvatar, randomAvatar,
-} from '../lib/avatars'
+  canonicalAvatarId, decodeAvatar, defaultKitAvatar, encodeAvatar, resolveAvatar, shuffleAvatar, optionInfo,
+} from '../lib/avatarKit'
+import { CATEGORIES, categoryOptions, colourOptions, swatchBackground, tierBadge } from '../lib/avatarKit/categories'
+import { CREATURES, TONES, TONE_LABEL, makeAvatar, parseAvatar } from '../lib/avatars'
+import { TONE_TO_RAMP } from '../lib/avatarKit'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
 const HISTORY_CAP = 20
+const CLASSIC = { id: 'classic', label: 'CLASSIC' }
 
-// The full avatar picker: a big live preview with the player's name tag, a
-// SHUFFLE die and UNDO, then two tabs — CRITTERS (27 single-colour creatures
-// plus a colour row) and PEOPLE (the humanoid builder). Controlled: `value` is
-// an avatar id, `onChange` gets the next canonical id.
+// The avatar editor: a big live preview with the player's name tag, a SHUFFLE die and
+// UNDO, a scrolling tab strip, and under it a grid of thumbnails of YOUR avatar wearing
+// each option (so you choose by look, not by name). Controlled: `value` is an avatar
+// id, `onChange` gets the next canonical id. Premium items are badged but selectable
+// for now.
 export default function AvatarPicker({ value, onChange, name = '', previewSize = 96 }) {
-  const current = canonicalAvatar(value)
-  const parsed = parseAvatar(current)
-  const [tab, setTab] = useState(() => (isHumanoid(parsed.shape) ? 'people' : 'critters'))
+  const current = canonicalAvatarId(value)
+  const resolved = resolveAvatar(current)
+  const isKit = resolved.kind === 'kit'
+  const look = isKit ? resolved.look : null
+  const [tab, setTab] = useState(isKit ? 'skin' : CLASSIC.id)
+  const [view, setView] = useState('bust')
   const [history, setHistory] = useState([])
   const tabsId = useId()
-
-  // Colour for the CRITTERS grid: the current creature's own tone. While a
-  // person is selected the colour row only recolours the grid (starting from
-  // their shirt) — nothing is committed until a critter is tapped.
-  const [gridTone, setGridTone] = useState(null)
-  const critterTone = parsed.parts ? (gridTone ?? parsed.parts.shirt) : parsed.tone
+  const tabRefs = useRef({})
 
   const commit = (next) => {
     if (next === current) return
     setHistory(h => [...h, current].slice(-HISTORY_CAP))
     onChange(next)
   }
-
   const undo = () => {
     if (!history.length) return
     sounds.move('O')
     onChange(history[history.length - 1])
     setHistory(h => h.slice(0, -1))
   }
-
   const shuffle = () => {
-    const next = randomAvatar(Math.random, current)
     sounds.move('X')
-    setTab(isHumanoid(parseAvatar(next).shape) ? 'people' : 'critters')
-    commit(next)
+    if (!isKit) setTab('skin')
+    commit(shuffleAvatar(Math.random, current))
   }
 
-  const pickCritter = (shape) => { sounds.move('X'); commit(makeAvatar(shape, critterTone)) }
-  const pickTone = (tone) => {
-    sounds.move('O')
-    setGridTone(tone)
-    if (!parsed.parts) commit(makeAvatar(parsed.shape, tone))
-  }
+  // Editing a classic critter's person-less look starts from a seed person.
+  const baseLook = look || decodeAvatar(defaultKitAvatar(current))
+  const withField = (key, id) => encodeAvatar({ ...baseLook, [key]: id })
+  const setField = (key, id) => { sounds.move('X'); commit(withField(key, id)) }
 
-  // Opening PEOPLE with a critter selected swaps in the builder's seed person,
-  // so the preview always shows what the open tab is editing.
-  const selectTab = (id) => {
-    setTab(id)
-    if (id === 'people' && !parsed.parts) {
-      const seed = humanoidCustomizerSeed(current)
-      commit(makeHumanoid(seed.shape, seed.parts))
-    }
-  }
-
-  const tabs = [
-    { id: 'critters', label: 'CRITTERS' },
-    { id: 'people', label: 'PEOPLE' },
-  ]
+  const tabs = [...CATEGORIES, CLASSIC]
   const onTabKey = (e) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    const i = tabs.findIndex(t => t.id === tab)
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    const n = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
     e.preventDefault()
-    const next = tab === 'critters' ? 'people' : 'critters'
-    selectTab(next)
-    document.getElementById(`${tabsId}-${next}-tab`)?.focus()
+    setTab(tabs[n].id)
+    tabRefs.current[tabs[n].id]?.focus()
   }
+
+  const cat = CATEGORIES.find(c => c.id === tab)
 
   return (
-    <div className="w-full max-w-[380px] mx-auto space-y-4">
+    <div className="w-full max-w-[380px] mx-auto space-y-3">
       {/* Live preview */}
       <div className="flex items-center justify-center gap-3">
         <button
@@ -91,8 +76,8 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
           UNDO
         </button>
         <figure className="flex flex-col items-center gap-2">
-          <div key={current} style={{ animation: 'place-pop 0.25s ease-out' }}>
-            <Avatar animate id={current} size={previewSize} />
+          <div key={`${current}${view}`} style={{ animation: 'place-pop 0.25s ease-out' }}>
+            <Avatar animate id={current} size={previewSize} view={view} />
           </div>
           <figcaption
             className="max-w-[180px] truncate font-pixel text-[10px] tracking-wider px-2 py-1 rounded border border-retro-border bg-retro-surface text-retro-text"
@@ -112,22 +97,44 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
         </button>
       </div>
 
-      {/* Tabs */}
-      <div role="tablist" aria-label="Avatar style" className="grid grid-cols-2 gap-1 p-1 rounded border border-retro-border bg-retro-surface">
+      {/* One character, two framings */}
+      {isKit && (
+        <div role="radiogroup" aria-label="Preview framing" className="grid grid-cols-2 gap-1 p-1 rounded border border-retro-border bg-retro-surface">
+          {[['bust', 'BUST'], ['hero', 'FULL BODY']].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={view === id}
+              onClick={() => setView(id)}
+              className={cn(
+                'min-h-9 rounded font-pixel text-[9px] tracking-widest transition-all',
+                view === id ? 'bg-retro-cta text-retro-bg' : 'text-retro-dim hover:text-retro-text',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Category tabs */}
+      <div role="tablist" aria-label="Avatar parts" className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none]">
         {tabs.map(t => (
           <button
             key={t.id}
+            ref={el => { tabRefs.current[t.id] = el }}
             id={`${tabsId}-${t.id}-tab`}
             type="button"
             role="tab"
             aria-selected={tab === t.id}
-            aria-controls={`${tabsId}-${t.id}-panel`}
+            aria-controls={`${tabsId}-panel`}
             tabIndex={tab === t.id ? 0 : -1}
-            onClick={() => selectTab(t.id)}
+            onClick={() => setTab(t.id)}
             onKeyDown={onTabKey}
             className={cn(
-              'min-h-11 rounded font-pixel text-[10px] tracking-widest transition-all',
-              tab === t.id ? 'bg-retro-cta text-retro-bg' : 'text-retro-dim hover:text-retro-text',
+              'shrink-0 min-h-11 px-3 rounded border font-pixel text-[9px] tracking-widest transition-all',
+              tab === t.id ? 'bg-retro-cta text-retro-bg border-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text',
             )}
           >
             {t.label}
@@ -135,58 +142,177 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
         ))}
       </div>
 
-      {tab === 'critters' ? (
-        <div id={`${tabsId}-critters-panel`} role="tabpanel" aria-labelledby={`${tabsId}-critters-tab`} className="space-y-4">
-          <div role="radiogroup" aria-label="Critter" className="grid grid-cols-6 gap-1.5">
-            {CREATURES.map(shape => {
-              const selected = !parsed.parts && parsed.shape === shape
-              return (
-                <button
-                  key={shape}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-label={shape}
-                  onClick={() => pickCritter(shape)}
-                  className={cn(
-                    'aspect-square flex items-center justify-center rounded border-2 transition-all active:scale-95',
-                    selected ? 'border-retro-cta shadow-neon-cta' : 'border-retro-border hover:border-retro-text',
-                  )}
-                >
-                  <Avatar id={makeAvatar(shape, critterTone)} size={40} className="w-full h-auto max-w-10" />
-                </button>
-              )
-            })}
-          </div>
-          <div role="radiogroup" aria-label="Colour" className="grid grid-cols-5 gap-y-1 justify-items-center">
-            {TONES.map(t => {
-              const selected = t === critterTone
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-label={TONE_LABEL[t].toLowerCase()}
-                  onClick={() => pickTone(t)}
-                  className="min-w-11 min-h-11 flex items-center justify-center"
-                >
-                  <span className={cn(
-                    'w-8 h-8 rounded-full border-2 block transition-all active:scale-90',
-                    TONE_BG[t],
-                    selected ? 'border-retro-text shadow-neon-cta scale-110' : 'border-retro-border hover:border-retro-text',
-                  )} />
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      ) : (
-        <div id={`${tabsId}-people-panel`} role="tabpanel" aria-labelledby={`${tabsId}-people-tab`}>
-          <AvatarCustomizer value={current} onChange={commit} hidePreview />
-        </div>
-      )}
+      <div id={`${tabsId}-panel`} role="tabpanel" aria-labelledby={`${tabsId}-${tab}-tab`} className="space-y-3">
+        {cat ? (
+          <>
+            {cat.field && (
+              <div role="radiogroup" aria-label={cat.label} className="grid grid-cols-4 gap-1.5">
+                {categoryOptions(cat).map(opt => {
+                  const selected = baseLook[cat.field] === opt.id && isKit
+                  const badge = tierBadge(opt)
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={badge ? `${opt.label} (${badge.text})` : opt.label}
+                      onClick={() => setField(cat.field, opt.id)}
+                      className={cn(
+                        'relative flex flex-col items-center gap-1 p-1 rounded border-2 transition-all active:scale-95',
+                        selected ? 'border-retro-cta shadow-neon-cta' : 'border-retro-border hover:border-retro-text',
+                      )}
+                    >
+                      <Avatar id={withField(cat.field, opt.id)} size={48} view={cat.thumb} />
+                      <span className="w-full truncate text-center font-pixel text-[8px] leading-tight text-retro-dim">{opt.label}</span>
+                      {badge && (
+                        <span
+                          aria-hidden="true"
+                          title={badge.text}
+                          className="absolute top-0.5 right-0.5 min-w-4 h-4 px-0.5 rounded-sm bg-retro-bg/90 border border-retro-border text-[9px] leading-none flex items-center justify-center text-retro-cta"
+                        >
+                          <TierIcon tier={opt.tier} />
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            {cat.colours.map(row => (
+              <ColourRow
+                key={row.key}
+                row={row}
+                selected={baseLook[row.key]}
+                onPick={(id) => setField(row.key, id)}
+              />
+            ))}
+            {cat.field === 'pet' && <p className="font-pixel text-[8px] leading-relaxed text-retro-dim">PETS SHOW IN THE FULL-BODY VIEW.</p>}
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-pixel text-[8px] leading-relaxed text-retro-dim">
+              {[['earn', 'EARNED'], ['pass', 'PASS'], ['pack', 'PACK']].map(([tier, label]) => (
+                <span key={tier} className="inline-flex items-center gap-1"><TierIcon tier={tier} className="text-retro-cta" />{label}</span>
+              ))}
+              <span>ALL OPEN TO TRY FOR NOW</span>
+            </p>
+          </>
+        ) : (
+          <ClassicPanel current={current} onPick={commit} />
+        )}
+      </div>
     </div>
+  )
+}
+
+function ColourRow({ row, selected, onPick }) {
+  return (
+    <div className="space-y-1">
+      <p className="font-pixel text-[8px] tracking-widest text-retro-dim">{row.label}</p>
+      <div role="radiogroup" aria-label={row.label} className="flex flex-wrap gap-x-1 gap-y-0.5">
+        {colourOptions(row.key).map(c => {
+          const on = c.id === selected
+          const badge = c.premium ? tierBadge(optionInfo(row.key, c.id)) : null
+          return (
+            <button
+              key={c.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              aria-label={badge ? `${c.label.toLowerCase()} (${badge.text.toLowerCase()})` : c.label.toLowerCase()}
+              onClick={() => onPick(c.id)}
+              className="relative min-w-11 min-h-11 flex items-center justify-center"
+            >
+              <span
+                className={cn(
+                  'w-8 h-8 rounded-full border-2 block transition-all active:scale-90',
+                  on ? 'border-retro-text shadow-neon-cta scale-110' : 'border-retro-border hover:border-retro-text',
+                )}
+                style={{ background: swatchBackground(c.id) }}
+              />
+              {c.premium && <span aria-hidden="true" className="absolute top-1 right-1 text-retro-cta"><TierIcon tier="pass" /></span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// The 27 original critters, frozen as the CLASSIC tab. They draw in the fixed avatar
+// palette, so the colour row is the same on every theme.
+function ClassicPanel({ current, onPick }) {
+  const parsed = parseAvatar(current)
+  const isCritter = !parsed.parts && CREATURES.includes(parsed.shape)
+  const [tone, setTone] = useState(isCritter ? parsed.tone : 'p1')
+  return (
+    <div className="space-y-3">
+      <div role="radiogroup" aria-label="Critter" className="grid grid-cols-6 gap-1.5">
+        {CREATURES.map(shape => {
+          const selected = isCritter && parsed.shape === shape
+          return (
+            <button
+              key={shape}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={shape}
+              onClick={() => { sounds.move('X'); onPick(makeAvatar(shape, tone)) }}
+              className={cn(
+                'aspect-square flex items-center justify-center rounded border-2 transition-all active:scale-95',
+                selected ? 'border-retro-cta shadow-neon-cta' : 'border-retro-border hover:border-retro-text',
+              )}
+            >
+              <Avatar id={makeAvatar(shape, tone)} size={48} />
+            </button>
+          )
+        })}
+      </div>
+      <div role="radiogroup" aria-label="Colour" className="grid grid-cols-5 gap-y-1 justify-items-center">
+        {TONES.map(t => {
+          const on = t === tone
+          return (
+            <button
+              key={t}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              aria-label={TONE_LABEL[t].toLowerCase()}
+              onClick={() => {
+                sounds.move('O')
+                setTone(t)
+                if (isCritter) onPick(makeAvatar(parsed.shape, t))
+              }}
+              className="min-w-11 min-h-11 flex items-center justify-center"
+            >
+              <span
+                className={cn(
+                  'w-8 h-8 rounded-full border-2 block transition-all active:scale-90',
+                  on ? 'border-retro-text shadow-neon-cta scale-110' : 'border-retro-border hover:border-retro-text',
+                )}
+                style={{ background: swatchBackground(TONE_TO_RAMP[t]) }}
+              />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// Pixel marks for the premium tiers, drawn on a 7x7 grid so they stay crisp:
+// check = earned by playing, star = Pass, gem = one-off pack.
+const TIER_PIXELS = {
+  earn: ['.......', '.....#.', '....#..', '#..#...', '.##....', '.......', '.......'],
+  pass: ['...#...', '...#...', '#######', '.#####.', '..###..', '.##.##.', '.#...#.'],
+  pack: ['.#####.', '#######', '#######', '.#####.', '..###..', '...#...', '.......'],
+}
+
+function TierIcon({ tier, className }) {
+  const rows = TIER_PIXELS[tier]
+  if (!rows) return null
+  return (
+    <svg width="9" height="9" viewBox="0 0 7 7" shapeRendering="crispEdges" aria-hidden="true" className={cn('fill-current', className)}>
+      {rows.flatMap((row, y) => row.split('').map((ch, x) => (ch === '#' ? <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" /> : null)))}
+    </svg>
   )
 }
 

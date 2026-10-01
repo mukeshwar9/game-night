@@ -5,7 +5,7 @@ import AvatarPicker, { DieIcon } from './AvatarPicker'
 import AuthErrorBanner from './AuthErrorBanner'
 import useBusy from '../hooks/useBusy'
 import { useMarkOnboardingOpen } from '../hooks/useOnboardingOpen'
-import { defaultAvatarForId, canonicalAvatar } from '../lib/avatars'
+import { defaultAvatarForId, canonicalAvatarId as canonicalAvatar } from '../lib/avatarKit'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { GAME_TYPES, getGameConfig } from '../lib/games'
@@ -263,7 +263,7 @@ export default function Onboarding({ onDone, invite = null }) {
               >
                 PICK YOUR LOOK
               </h1>
-              <p className="font-mono text-xs text-retro-dim">Tap a critter, build a person, or shuffle. You can change it any time in Settings.</p>
+              <p className="font-mono text-xs text-retro-dim">Build your character or shuffle. You can change it any time in Settings.</p>
             </div>
 
             <AvatarPicker value={selectedAvatar} onChange={setAvatar} name={check.name} previewSize={88} />

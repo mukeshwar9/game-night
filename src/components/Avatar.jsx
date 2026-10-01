@@ -1,43 +1,32 @@
-// Retro pixel-art avatars. Renders from glyph data in src/lib/avatarSprites.js, tinted
-// with theme role token(s) so they recolor with the active theme (per the
-// no-hardcoded-hex rule in CLAUDE.md). Creature shapes render an 8x8 grid; humanoid
-// shapes (boy/girl/kid/punk) render a 16x16 grid composited from layered part
-// overlays (body/hair/cap/accessory) via composeHumanoidGrid — see that module for
-// the char legend and layering order.
+// Pixel-art avatars. A string is either a kit look ('K1…', see src/lib/avatarKit) or a
+// legacy id: the four old humanoid builders migrate to a kit look on the fly, and the 27
+// classic critters keep their frozen 8x8 sprites (drawn here as SVG, in the fixed
+// avatar palette so they no longer change colour with the theme).
+//
+// Sizes snap onto the 24 / 48 / 72 / 96 ladder so every art pixel is a whole number of
+// screen pixels. `view="bust"` (head-and-shoulders) is for chips, seat cards and
+// lists; `view="hero"` is the full body with a pose, for profile and Playground.
 
-import { parseAvatar } from '../lib/avatars'
-import { CREATURE_GLYPHS, ACCESSORY_TONES, composeHumanoidGrid, glyphFor } from '../lib/avatarSprites'
+import { useLayoutEffect, useMemo, useRef } from 'react'
+import { resolveAvatar, snapSize, TONE_TO_RAMP, RAMPS } from '../lib/avatarKit'
+import { mountAvatar } from '../lib/avatarKit/canvas'
+import { parseAvatar, TONES } from '../lib/avatars'
+import { CREATURE_GLYPHS, glyphFor } from '../lib/avatarSprites'
 
-// Region char → part key for humanoid glyphs (recolored per-part via `parts`).
-const PART_CHAR = { c: 'cap', s: 'shirt', p: 'pants', b: 'shoes' }
-
-export default function Avatar({ id, size = 48, tile = true, className = '', animate = false }) {
-  const { shape, tone, parts } = parseAvatar(id)
-  const humanoid = Boolean(parts)
-  const grid = humanoid ? composeHumanoidGrid(shape, parts) : (CREATURE_GLYPHS[shape] || glyphFor(shape).grid)
+function ClassicCreature({ id, size, tile, className }) {
+  const { shape, tone } = parseAvatar(id)
+  const grid = CREATURE_GLYPHS[shape] || glyphFor(shape).grid
   const n = grid.length
+  const ramp = RAMPS[TONE_TO_RAMP[TONES.includes(tone) ? tone : 'p1']]
+  const body = ramp ? `rgb(${ramp[2].join(' ')})` : 'rgb(var(--c-text))'
   const knockout = tile ? 'rgb(var(--c-surface))' : 'rgb(var(--c-bg))'
-  const fillFor = (ch) => {
-    if (ch === 'o') return knockout
-    if (ch === 'k') {
-      if (humanoid && parts.skin) {
-        const skinN = Number(parts.skin.slice(1))
-        return `rgb(var(--c-skin-${skinN}))`
-      }
-      return 'rgb(var(--c-skin))'
-    }
-    if (ch === 'h') return `rgb(var(--c-${parts.hairColor}))`
-    if (ch === 'g' || ch === 'u') return `rgb(var(--c-${ACCESSORY_TONES[parts?.acc] || 'text'}))`
-    if (parts && PART_CHAR[ch]) return `rgb(var(--c-${parts[PART_CHAR[ch]]}))`
-    return `rgb(var(--c-${tone}))`
-  }
-  const svg = (
+  return (
     <svg
       viewBox={`0 0 ${n} ${n}`}
       width={size}
       height={size}
       shapeRendering="crispEdges"
-      className={animate && humanoid ? undefined : className}
+      className={className}
       role="img"
       aria-label={`${shape} avatar`}
     >
@@ -45,34 +34,46 @@ export default function Avatar({ id, size = 48, tile = true, className = '', ani
       {grid.flatMap((row, y) =>
         row.split('').map((ch, x) => {
           if (ch === '.') return null
-          return <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill: fillFor(ch) }} />
+          return <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill: ch === 'o' ? knockout : body }} />
         }),
       )}
-      {animate && humanoid &&
-        grid.flatMap((row, y) =>
-          row.split('').map((ch, x) => {
-            if (ch !== 'o') return null
-            const skinN = parts.skin ? Number(parts.skin.slice(1)) : 3
-            return (
-              <rect
-                key={`eyelid-${x}-${y}`}
-                x={x}
-                y={y}
-                width="1"
-                height="1"
-                className="avatar-eyelid"
-                style={{ fill: `rgb(var(--c-skin-${skinN}))` }}
-              />
-            )
-          }),
-        )}
     </svg>
   )
-  // Only wrap in a div (needed for the idle-bounce keyframes) when animate is
-  // actually requested — every other caller gets the bare <svg> it always got, so
-  // className passthrough (e.g. flex-shrink-0) keeps landing on the real flex item.
-  if (animate && humanoid) {
-    return <div className={`avatar-idle-anim ${className}`.trim()}>{svg}</div>
+}
+
+function KitCanvas({ look, size, view, tile, pose, className }) {
+  const ref = useRef(null)
+  const lookKey = JSON.stringify(look)
+  useLayoutEffect(() => {
+    const canvas = ref.current
+    if (!canvas) return undefined
+    return mountAvatar(canvas, look, { view, size, tile, pose })
+    // look is derived from lookKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookKey, view, size, tile, pose])
+  return (
+    <canvas
+      ref={ref}
+      width={size}
+      height={size}
+      className={className}
+      style={{ width: size, height: size, imageRendering: 'pixelated' }}
+      role="img"
+      aria-label="avatar"
+    />
+  )
+}
+
+export default function Avatar({ id, size = 48, tile = true, className = '', animate = false, view = 'bust', pose }) {
+  const resolved = useMemo(() => resolveAvatar(id), [id])
+  const px = snapSize(size)
+  if (resolved.kind === 'classic') {
+    return <ClassicCreature id={resolved.id} size={px} tile={tile} className={animate ? undefined : className} />
   }
-  return svg
+  const canvas = <KitCanvas look={resolved.look} size={px} view={view} tile={tile} pose={pose} className={animate ? undefined : className} />
+  // The wrapper (needed for the idle-bounce keyframes) only exists when animate is
+  // requested, so every other caller gets the bare canvas and className lands on the
+  // real flex item.
+  if (animate) return <div className={`avatar-idle-anim ${className}`.trim()}>{canvas}</div>
+  return canvas
 }
