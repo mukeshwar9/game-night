@@ -11,6 +11,7 @@ import ConnectionBanner from './components/ConnectionBanner';
 import InviteToasts from './components/InviteToasts';
 import PremiumHost from './components/premium/PremiumHost';
 import { ViewAsPlayerBadge } from './components/premium/ViewAsPlayer';
+import PaddleCheckoutHost from './components/premium/PaddleCheckoutHost';
 import BottomTabBar from './components/BottomTabBar';
 import NavBar, { HomeInterceptProvider, TAB_BAR_ROUTES } from './components/NavBar';
 import { AuthProvider } from './lib/AuthContext';
@@ -89,6 +90,7 @@ function AppRoutes() {
 
   return (
     <>
+      {SHOP_ROUTES && <PaddleCheckoutHost />}
       <NavBar />
       <div key={pathname} className="route-fade">
         {/* Bottom padding clears the fixed tab bar so page content (including

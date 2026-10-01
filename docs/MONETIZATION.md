@@ -46,7 +46,7 @@ Indian buyers pay in rupees through **Razorpay** (UPI, Indian cards, netbanking,
 4. `razorpayWebhook` (HTTPS): verifies `X-Razorpay-Signature` (HMAC-SHA256 of the raw body with the webhook secret). `payment.captured` and `order.paid` grant; `refund.processed` for a **full** refund revokes (a partial refund changes nothing). The stored order record, never the payment's notes, says who bought what.
 5. Both paths call billing.js's `applyPlan`, so a rupee purchase writes exactly what the Paddle purchase writes (`entitlements/{uid}`, `entitlementsPublic/{uid}`, `entitlementPurchases/{paymentId}` with `provider: 'razorpay'`). They claim the same key, `entitlementEvents/rzp-paid-<paymentId>` (refunds: `rzp-refund-<paymentId>`), so a payment is granted once whichever arrives first, and a retried webhook does nothing. A failure after the claim releases it so the provider's retry applies.
 
-**Optional keys.** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` are read from the environment, not bound with `defineSecret`, so a project without them still deploys every function. Without them the Razorpay callables fail with `unavailable` (HTTP 503) and message `razorpay-not-configured`, the webhook answers 503, and the purchase sheet tells the buyer to switch to $. Live keys (`rzp_live_…`) are refused the same way unless `RAZORPAY_ENV=production` is set on purpose, the counterpart of `PADDLE_ENV`.
+**Optional keys.** `RAZORPAY_KEY_ID` is public config in `functions/.env`. `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` are Secret Manager secrets bound by the same `PAYMENTS_SECRETS=1` switch as Paddle's (see Secret binding below), so a project without Secret Manager still deploys every function. Without them the Razorpay callables fail with `unavailable` (HTTP 503) and message `razorpay-not-configured`, the webhook answers 503, and the purchase sheet tells the buyer to switch to $. Live keys (`rzp_live_…`) are refused the same way unless `RAZORPAY_ENV=production` is set on purpose, the counterpart of `PADDLE_ENV`.
 
 ## The entitlement record
 
@@ -90,7 +90,10 @@ Only the owner sees themes and fonts, and emotes are plain glyphs, so those gate
 
 ## Checkout and webhook (Paddle, sandbox only)
 
-- `createCheckout` (callable): requires a Google (non-anonymous) account and an age answer of 13 or over (`ageGate`), then creates a Paddle transaction with `custom_data.uid` and returns its hosted checkout URL.
+- `createCheckout` (callable): requires a Google (non-anonymous) account and an age answer of 13 or over (`ageGate`), then creates a Paddle transaction with `custom_data.uid` and returns its checkout URL. For Paddle Billing that URL is the account's **default payment link** with `?_ptxn=<transaction id>`, so the checkout opens on our own site:
+- **The landing page** (`src/components/premium/PaddleCheckoutHost.jsx`, rules in `src/lib/paddleCheckoutLogic.js`, mounted in `App.jsx` only when monetization is on, so never in the native shell). On any route with a valid `_ptxn` it removes `_ptxn` from the URL (a reload does not reopen the checkout), loads Paddle.js from `cdn.paddle.com` (allowed by the CSP in `firebase.json`), runs `Paddle.Environment.set('sandbox')` unless production, `Paddle.Initialize` with the client-side token, and `Paddle.Checkout.open({ transactionId })`. On `checkout.completed` it closes the overlay and returns the buyer to `/pass` for a Pass or `/shop` for anything else; the live `entitlements/{uid}` subscription shows the purchase as soon as `paddleWebhook` has written it.
+- **Client config** (build time, `.env.local`): `VITE_PADDLE_CLIENT_TOKEN`, the client-side token from Paddle (Developer tools, Authentication; `test_…` in the sandbox, `live_…` in production), and `VITE_PADDLE_ENV` = `sandbox` (default) or `production`. A token from the other environment is refused, and without a token the landing shows "Checkout is not available right now". The token is public by design; never put the API key here.
+- **Default payment link:** `https://game-night-91464.web.app/shop`. The landing works on any route, but `/shop` is where a buyer who closes the checkout should be. The domain must be approved in Paddle (Checkout settings, website approval) before production.
 - `paddleWebhook` (HTTPS): verifies `Paddle-Signature` (HMAC-SHA256 over `ts:rawBody`, five-minute window), claims `entitlementEvents/{event_id}` in a transaction so a replay does nothing, then writes: `subscription.*` events to the pass; `transaction.completed` for one-time items to packs and Supporter; an approved full refund removes the pack. It will not recreate the record of a deleted account.
 - `createPortalSession` (callable): a link to Paddle's customer portal for cancelling and receipts.
 - `cleanupDeletedAccount` cancels the subscription (immediately) before clearing the account's rows.
@@ -98,36 +101,43 @@ Only the owner sees themes and fonts, and emotes are plain glyphs, so those gate
 
 ## Secret binding (`PAYMENTS_SECRETS`)
 
-Binding a secret needs Secret Manager on the project, and a deploy that binds one fails (403) without it. So the Paddle secrets are bound only when `functions/.env` has `PAYMENTS_SECRETS=1`; the Firebase CLI reads that file while it analyses the code, so the switch decides what a deploy binds.
+Binding a secret needs Secret Manager on the project, and a deploy that binds one fails (403) without it. So the payment secrets (Paddle's and Razorpay's) are bound only when `functions/.env` has `PAYMENTS_SECRETS=1`; the Firebase CLI reads that file while it analyses the code, so the switch decides what a deploy binds.
 
 | | `PAYMENTS_SECRETS` unset (default) | `PAYMENTS_SECRETS=1` |
 |---|---|---|
-| Deploy | binds no secrets; works without Secret Manager | binds `PADDLE_API_KEY` (`createCheckout`, `createPortalSession`, `cleanupDeletedAccount`) and `PADDLE_WEBHOOK_SECRET` (`paddleWebhook`) |
+| Deploy | binds no secrets; works without Secret Manager | binds `PADDLE_API_KEY` (`createCheckout`, `createPortalSession`, `cleanupDeletedAccount`), `PADDLE_WEBHOOK_SECRET` (`paddleWebhook`), `RAZORPAY_KEY_SECRET` (`createRazorpayOrder`, `verifyRazorpayPayment`) and `RAZORPAY_WEBHOOK_SECRET` (`razorpayWebhook`) |
 | `createCheckout`, `createPortalSession` | after the launch switch and sign-in checks, refuse with `failed-precondition` `payments-not-configured` | work |
 | `paddleWebhook` | 503 `payments-not-configured` (after the launch switch check) | verifies and applies events |
+| `createRazorpayOrder`, `verifyRazorpayPayment`, `razorpayWebhook` | `unavailable` (HTTP 503) `razorpay-not-configured`; the webhook answers 503 | work once `RAZORPAY_KEY_ID` is also set |
 | `cleanupDeletedAccount` | clears the account and logs that it skipped the Paddle cancel | cancels the subscription, then clears the account |
 
-To turn it on: enable the Secret Manager API on the project, run `firebase functions:secrets:set PADDLE_API_KEY` and `firebase functions:secrets:set PADDLE_WEBHOOK_SECRET`, add `PAYMENTS_SECRETS=1` to `functions/.env`, then `firebase deploy --only functions`.
+To turn it on: enable the Secret Manager API on the project, run `firebase functions:secrets:set` for each of `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET`, add `PAYMENTS_SECRETS=1` to `functions/.env`, then `firebase deploy --only functions`. All four must exist once the switch is on (a deploy that binds a missing secret fails); while one processor is not set up yet, set its secrets to a long random value (`openssl rand -hex 32`), never a guessable word, because a webhook secret anyone can guess lets them forge events.
 
 ## Captain steps before any real money
 
-1. Create a Paddle account (start in the sandbox). Create products and prices matching `PRODUCTS`; put the 7-day trial on the two Pass prices. Set the default payment link to `https://<your-domain>/shop`.
+1. Create a Paddle account (start in the sandbox). Create products and prices matching `PRODUCTS`; put the 7-day trial on the two Pass prices. Set the default payment link (Checkout, Checkout settings) to `https://game-night-91464.web.app/shop`, and create a client-side token for `VITE_PADDLE_CLIENT_TOKEN` (with `VITE_PADDLE_ENV=sandbox`) in the hosting build's `.env.local`.
 2. Fill `functions/.env` from `functions/.env.example`: `PADDLE_PRICES` (product id to price id) and `ADMIN_EMAILS`.
 3. Enable Secret Manager, `firebase functions:secrets:set PADDLE_API_KEY` and `PADDLE_WEBHOOK_SECRET` (sandbox values first), and set `PAYMENTS_SECRETS=1` (see Secret binding above).
 4. In Paddle, add a notification destination pointing at the deployed `paddleWebhook` URL, subscribed to `subscription.*`, `transaction.completed` and `adjustment.updated`.
 5. Deploy rules, functions and hosting together. Test a sandbox purchase with Paddle's test card, a cancel and a refund.
-6. Before going live: review the updated Terms and Privacy Policy with someone qualified, get Paddle's approval for the domain, then switch `PADDLE_ENV=production` with live keys and prices.
+6. Before going live: review the updated Terms and Privacy Policy with someone qualified, get Paddle's approval for the domain, then switch `PADDLE_ENV=production` with live keys and prices, and rebuild hosting with `VITE_PADDLE_ENV=production` and a `live_` client-side token.
 
 ## Razorpay: testing locally with test keys
 
 1. In the Razorpay dashboard switch to **Test Mode** and generate a test key pair (Account & Settings, API Keys). Test keys start `rzp_test_`. Test mode needs no KYC.
-2. Put them in `functions/.env.local` (read by the Functions emulator only) or `functions/.env.<project-id>` (a deployed test project); both are git-ignored. Add the launch switch:
+2. For the Functions emulator, put the config in `functions/.env.local` and the two secrets in `functions/.secret.local` (both git-ignored; the emulator reads secrets from `.secret.local` instead of Secret Manager):
    ```
+   # functions/.env.local
    MONETIZATION_ENABLED=1
+   PAYMENTS_SECRETS=1
    RAZORPAY_KEY_ID=rzp_test_…
+   # functions/.secret.local
    RAZORPAY_KEY_SECRET=…
    RAZORPAY_WEBHOOK_SECRET=any-string-you-also-enter-in-the-dashboard
+   PADDLE_API_KEY=<random, from openssl rand -hex 32, until Paddle is set up>
+   PADDLE_WEBHOOK_SECRET=<random, likewise>
    ```
+   For a deployed test project, set the secrets with `firebase functions:secrets:set` and the rest in `functions/.env.<project-id>`.
 3. Run the app with monetization on (`VITE_MONETIZATION_ENABLED=1`, or `localStorage['gn-monetization'] = 'on'` on a dev server) against a project whose functions have these values, open `/pass` or `/shop`, choose **PAY IN ₹** and pay with Razorpay's test UPI ID `success@razorpay` (or `failure@razorpay`) or a test card from Razorpay's docs. The item unlocks when `verifyRazorpayPayment` returns.
 4. To test the webhook against a deployed test project, add a webhook in the dashboard's Test Mode (below). Unit tests cover signatures, order creation, event planning, idempotency and grant/revoke without any keys: `npm --prefix functions test`.
 
@@ -135,7 +145,7 @@ To turn it on: enable the Secret Manager API on the project, run `firebase funct
 
 1. **Account and KYC.** Sign up at razorpay.com as an individual or sole proprietor (PAN, bank account, address proof; no GST number is needed below ₹20 lakh a year in turnover). Activation includes a website review: the site must show the Terms (with the refund and cancellation policy), the Privacy Policy, contact details and prices. Before applying, add your **legal name and a contact address** to the Support page and Terms: Razorpay asks for them and this code does not invent them. Have the new refund wording in `public/terms.html` reviewed; it promises a full refund within 7 days for double charges, mistaken charges or an item that did not unlock.
 2. **Test first.** Generate Test Mode keys and follow "testing locally" above.
-3. **Keys on the server.** Put `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` in `functions/.env.<project-id>` (git-ignored) and deploy functions. These become plain environment variables on the function; once Razorpay is permanent, consider moving the two secrets to Secret Manager by binding them with `defineSecret` in `razorpay.js` (that makes them required for deploy).
+3. **Keys on the server.** Put `RAZORPAY_KEY_ID` in `functions/.env`, run `firebase functions:secrets:set RAZORPAY_KEY_SECRET` and `firebase functions:secrets:set RAZORPAY_WEBHOOK_SECRET`, make sure `PAYMENTS_SECRETS=1` is set (Secret binding above), and deploy functions.
 4. **Webhook.** In the dashboard (Account & Settings, Webhooks) add `https://<region>-<project-id>.cloudfunctions.net/razorpayWebhook` (the URL `firebase deploy` prints for `razorpayWebhook`), the same secret as `RAZORPAY_WEBHOOK_SECRET`, and the events **payment.captured**, **order.paid** and **refund.processed**. Keep payment **auto-capture** on (the default) so payments are captured right away.
 5. **International cards.** Leave them off on the Razorpay account: buyers outside India should pay through Paddle, which handles foreign VAT. The ₹ / $ switch still lets anyone choose rupees, so a foreign card in INR would simply be declined.
 6. **Go live.** After activation, generate live keys, set `RAZORPAY_ENV=production` with them, add the webhook again in Live Mode, and deploy rules, functions and hosting together (the CSP in `firebase.json` now allows Razorpay Checkout). Refunds are issued from the Razorpay dashboard; a full refund revokes the item automatically through the webhook.

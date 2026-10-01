@@ -159,6 +159,37 @@ test('pay region: an Indian device sees rupee prices, the switch flips to dollar
   expectNoPageErrors(elsewhere)
 })
 
+test('paddle landing: ?_ptxn opens Paddle checkout for that transaction and returns the buyer', async ({ browser }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+  await player.context.addInitScript(() => localStorage.setItem('gn-monetization', 'on'))
+  // A stand-in for Paddle.js that records the calls and completes the checkout.
+  await page.route('https://cdn.paddle.com/paddle/v2/paddle.js', route => route.fulfill({
+    contentType: 'text/javascript',
+    body: `window.__paddle = { env: null, init: null, opened: null, closed: 0 };
+      window.Paddle = {
+        Environment: { set: (e) => { window.__paddle.env = e } },
+        Initialize: (o) => { window.__paddle.init = o.token; window.__paddle.cb = o.eventCallback },
+        Checkout: {
+          open: (o) => { window.__paddle.opened = o.transactionId; setTimeout(() => window.__paddle.cb({ name: 'checkout.completed', data: { custom_data: { product: 'pass-yearly' } } }), 50) },
+          close: () => { window.__paddle.closed++ },
+        },
+      };`,
+  }))
+  await onboard(page, 'Paddle Buyer')
+
+  await page.goto('/shop?_ptxn=txn_01h8bxpvx398a7zbawb77y0kp5')
+  await expect.poll(() => page.evaluate(() => window.__paddle?.opened)).toBe('txn_01h8bxpvx398a7zbawb77y0kp5')
+  const paddle = await page.evaluate(() => window.__paddle)
+  expect(paddle.env).toBe('sandbox')
+  expect(paddle.init).toBe('test_e2e_placeholder')
+  await expect(page.getByText('Payment received. Unlocking in a moment.')).toBeVisible()
+  // A Pass purchase returns to the Pass page, with _ptxn gone so a reload does not reopen it.
+  await expect(page).toHaveURL(/\/pass$/)
+  expect(await page.evaluate(() => window.__paddle.closed)).toBe(1)
+  expectNoPageErrors(player)
+})
+
 test('monetization off (the default): everything is open and nothing sells', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player
