@@ -320,7 +320,7 @@ function DemoHub() {
 
   // Active demo — key forces fresh mount on game switch
   const board = (
-    <div key={selected} ref={boardRef} className="scroll-mt-20 border border-retro-border rounded p-4 bg-retro-card">
+    <div key={selected} ref={boardRef} className="scroll-mt-3 border border-retro-border rounded p-4 bg-retro-card">
       <p className="font-pixel text-xs text-retro-text text-center tracking-wider mb-4">
         {active.short.replace('\n', ' ')}{active.solo ? ' · SOLO RUN' : ''}
       </p>

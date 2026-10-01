@@ -7,9 +7,9 @@ import { LEADERBOARD_ENABLED } from '../lib/features'
 
 /* eslint-disable react-refresh/only-export-components */
 
-// Persistent Home/Daily/Friends/Profile tab bar — only on the four meta
-// routes; also the only routes where the header hides on scroll (game rooms
-// and /demo stay pinned so it doesn't fight the fixed GameStatus bar).
+// Persistent Home/Daily/Friends/Profile tab bar — only on the meta routes.
+// The header hides on scroll on those and on /solo/:type and /local/:type
+// (see IN_GAME_PREFIXES); game rooms and /demo stay pinned.
 // Every top-level destination keeps the tab bar so no page is a dead end
 // (daily, online lobby and leaderboard had no way back).
 export const TAB_BAR_ROUTES = ['/', '/games', '/friends', '/profile', '/daily', '/online', ...(LEADERBOARD_ENABLED ? ['/leaderboard'] : [])]
@@ -44,11 +44,15 @@ export function useHomeIntercept(handler) {
 // fullscreen (h-dvh, camera-panned world) and hosts its own back/mute/theme
 // HUD overlaid on the world — same reasoning as /game/.
 const HIDDEN_ROUTES_PREFIXES = ['/game/', '/playground']
+const IN_GAME_PREFIXES = ['/solo/', '/local/']
 
 export default function NavBar() {
   const { pathname } = useLocation()
   const interceptRef = useContext(HomeInterceptContext)
-  const hidden = useHideOnScroll({ enabled: TAB_BAR_ROUTES.includes(pathname), resetKey: pathname })
+  // Solo and pass & play pages scroll the game card to the top of the screen;
+  // the header slides away then so the arena gets the whole height (it returns
+  // on scroll-up for theme/mute/back).
+  const hidden = useHideOnScroll({ enabled: TAB_BAR_ROUTES.includes(pathname) || IN_GAME_PREFIXES.some((p) => pathname.startsWith(p)), resetKey: pathname })
 
   // Mirror `hidden` onto <html> so sticky-chrome elsewhere (GamePicker's
   // filter/tab block) can collapse its top offset in sync via
