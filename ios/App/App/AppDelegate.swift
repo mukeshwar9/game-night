@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 import Capacitor
 
 @UIApplicationMain
@@ -7,7 +8,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Game sounds and music follow the silent switch and mix with the player's
+        // own music instead of cutting it off, like a party game should.
+        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [])
         return true
     }
 
