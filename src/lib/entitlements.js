@@ -6,14 +6,17 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/
 import { getApps, getApp } from 'firebase/app'
 import { db, usingEmulators } from './firebase'
 import { getUid } from './auth'
-import { accessFor, bypassActive } from './premium'
+import { bypassActive, canViewAsPlayer, effectiveAccess, viewAsPlayerActive } from './premium'
 import { monetizationEnabled } from './monetizationState'
 
 const OVERRIDE_KEY = 'gn-premium-bypass'
+const VIEW_AS_KEY = 'gn-view-as-player'
 
-function readOverride() {
-  try { return localStorage.getItem(OVERRIDE_KEY) } catch { return null }
+function readKey(key) {
+  try { return localStorage.getItem(key) } catch { return null }
 }
+const readOverride = () => readKey(OVERRIDE_KEY)
+const devLike = () => ({ dev: import.meta.env.DEV, emulator: usingEmulators })
 
 /** Every premium item is open when monetization is off, and on a dev server / the emulators (see bypassActive). */
 export function localBypass() {
@@ -22,13 +25,29 @@ export function localBypass() {
 
 let ent = null
 let loaded = false
-let snapshot = { ...accessFor(null, { bypass: localBypass() }), loaded: false, ent: null }
+
+// The access snapshot, with "view as regular player" applied. `canViewAsPlayer`
+// and `viewAsPlayer` describe the real account so the switch stays reachable
+// while it hides the admin/dev privileges.
+function compute() {
+  const monetization = monetizationEnabled()
+  const viewAsPlayer = viewAsPlayerActive({ stored: readKey(VIEW_AS_KEY), ent, ...devLike(), monetization })
+  return {
+    ...effectiveAccess(ent, { bypass: localBypass(), viewAsPlayer, monetization }),
+    canViewAsPlayer: monetization && canViewAsPlayer({ ent, ...devLike() }),
+    viewAsPlayer,
+    loaded,
+    ent: viewAsPlayer ? null : ent,
+  }
+}
+
+let snapshot = compute()
 const listeners = new Set()
 let stop = () => {}
 let watching = null
 
 function publish() {
-  snapshot = { ...accessFor(ent, { bypass: localBypass() }), loaded, ent }
+  snapshot = compute()
   listeners.forEach(l => l())
 }
 
@@ -74,6 +93,18 @@ export function isUnlockedNow(item) {
 
 /** Re-reads the bypass (call after changing the override, dev only). */
 export function refreshAccess() {
+  publish()
+}
+
+/**
+ * Turns "view as regular player" on or off on this device. It only hides the
+ * admin/dev privileges; an account that is not eligible ignores the stored value.
+ */
+export function setViewAsPlayer(on) {
+  try {
+    if (on) localStorage.setItem(VIEW_AS_KEY, 'on')
+    else localStorage.removeItem(VIEW_AS_KEY)
+  } catch { /* blocked storage: the switch just stays off */ }
   publish()
 }
 

@@ -10,6 +10,7 @@ import useSWUpdateCheck from './hooks/useSWUpdateCheck';
 import ConnectionBanner from './components/ConnectionBanner';
 import InviteToasts from './components/InviteToasts';
 import PremiumHost from './components/premium/PremiumHost';
+import { ViewAsPlayerBadge } from './components/premium/ViewAsPlayer';
 import BottomTabBar from './components/BottomTabBar';
 import NavBar, { HomeInterceptProvider, TAB_BAR_ROUTES } from './components/NavBar';
 import { AuthProvider } from './lib/AuthContext';
@@ -174,6 +175,7 @@ export default function App() {
             <Toaster />
             <InviteToasts />
             <PremiumHost />
+            <ViewAsPlayerBadge />
             <UpdatePrompt />
             {NativeUpdateGate && <Suspense fallback={null}><NativeUpdateGate /></Suspense>}
             <ConnectionBanner />

@@ -23,3 +23,13 @@ export function monetizationActive({ flag = false, devLike = false, override = n
   if (devLike && (override === 'on' || override === 'off')) return override === 'on'
   return flag === true
 }
+
+/**
+ * Whether the dev-only "preview monetization ON/OFF" control can show: a dev
+ * server or the emulators, never a production build (which ignores the override)
+ * and never the native shell (always off).
+ * @param {{ devLike?: boolean, native?: boolean }} env
+ */
+export function monetizationPreviewAvailable({ devLike = false, native = false } = {}) {
+  return devLike && !native
+}

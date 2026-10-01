@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { monetizationActive } from './monetization'
+import { monetizationActive, monetizationPreviewAvailable } from './monetization'
 import { bypassActive } from './premium'
 
 describe('monetizationActive', () => {
@@ -36,5 +36,18 @@ describe('bypass with the switch off', () => {
   it('is always off inside the native shell', () => {
     expect(monetizationActive({ flag: true, native: true })).toBe(false)
     expect(monetizationActive({ flag: true, devLike: true, override: 'on', native: true })).toBe(false)
+  })
+})
+
+describe('monetizationPreviewAvailable', () => {
+  it('shows only on a dev server or the emulators, never in production or the native shell', () => {
+    expect(monetizationPreviewAvailable({ devLike: true })).toBe(true)
+    expect(monetizationPreviewAvailable({ devLike: false })).toBe(false)
+    expect(monetizationPreviewAvailable({ devLike: true, native: true })).toBe(false)
+  })
+
+  it('production ignores the dev override either way', () => {
+    expect(monetizationActive({ flag: false, devLike: false, override: 'on' })).toBe(false)
+    expect(monetizationActive({ flag: true, devLike: false, override: 'off' })).toBe(true)
   })
 })

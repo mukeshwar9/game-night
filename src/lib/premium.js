@@ -137,3 +137,39 @@ export function birthYearOptions(now = new Date()) {
   for (let y = top; y >= top - 100; y--) years.push(y)
   return years
 }
+
+/**
+ * Who may use "view as regular player": an account on the admin allowlist, or a
+ * dev server / the emulators (the two places the locks are normally hidden).
+ * Eligibility reads the real record, never the view-as one, so the switch cannot
+ * hide itself or be granted by a stored value.
+ * @param {{ ent?: Entitlements | null, dev?: boolean, emulator?: boolean }} env
+ */
+export function canViewAsPlayer({ ent = null, dev = false, emulator = false } = {}) {
+  return ent?.admin === true || dev || emulator
+}
+
+/**
+ * Whether "view as regular player" is on: the stored 'on' switch, for someone
+ * eligible, while monetization is live (with it off every item is free for
+ * everyone, so a regular player sees the same as an admin). It only ever removes
+ * privileges, so a stored value on an ineligible device is simply ignored.
+ * @param {{ stored?: string | null, ent?: Entitlements | null, dev?: boolean, emulator?: boolean, monetization?: boolean }} env
+ */
+export function viewAsPlayerActive({ stored = null, ent = null, dev = false, emulator = false, monetization = true } = {}) {
+  if (!monetization || stored !== 'on') return false
+  return canViewAsPlayer({ ent, dev, emulator })
+}
+
+/**
+ * The access a viewer gets, after "view as regular player": when it is on, the
+ * dev/admin bypass and every purchase are dropped, which is what a signed-in
+ * player who never bought anything sees. Monetization off still opens
+ * everything, as it does for every player. Never adds anything.
+ * @param {Entitlements | null | undefined} ent
+ * @param {{ bypass?: boolean, viewAsPlayer?: boolean, monetization?: boolean, now?: number }} [opts]
+ */
+export function effectiveAccess(ent, { bypass = false, viewAsPlayer = false, monetization = true, now = Date.now() } = {}) {
+  if (!viewAsPlayer) return accessFor(ent, { bypass, now })
+  return accessFor(null, { bypass: !monetization, now })
+}

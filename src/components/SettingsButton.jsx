@@ -24,7 +24,8 @@ import LegalLinks from './LegalLinks'
 import LockBadge from './premium/LockBadge'
 import useAccess from '../hooks/useAccess'
 import { openPaywall } from '../lib/premiumUi'
-import { monetizationEnabled } from '../lib/monetizationState'
+import { canPreviewMonetization, monetizationEnabled } from '../lib/monetizationState'
+import { AdminToolsPanel } from './premium/ViewAsPlayer'
 
 function ThemeSwatches({ id }) {
   return <span data-theme={id} className="inline-flex items-center gap-[3px] shrink-0" aria-hidden="true">
@@ -102,6 +103,7 @@ export default function SettingsButton({ className = '' }) {
   // A premium theme or font that is not unlocked opens the paywall instead.
   // The paywall is a sheet too, and sheets never nest, so settings closes first.
   const access = useAccess()
+  const adminTools = access.canViewAsPlayer || canPreviewMonetization()
   const locked = (kind, option) => option.premium === true && !access.isUnlocked({ kind, ...option })
   const askToUnlock = (kind, option) => { setOpen(false); openPaywall({ kind, ...option }) }
 
@@ -331,6 +333,12 @@ export default function SettingsButton({ className = '' }) {
       <Section title="PLAYING ON A VIDEO CALL?">
         <VideoCallSettingsPanel embedded />
       </Section>
+
+      {adminTools && (
+        <Section title="ADMIN TOOLS">
+          <AdminToolsPanel />
+        </Section>
+      )}
 
       <Section title="HELP & RESET">
         {monetizationEnabled() && <Link
