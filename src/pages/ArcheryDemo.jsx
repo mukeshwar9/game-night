@@ -48,9 +48,9 @@ function Setup({ local, format, setFormat, onStart }) {
         <p className="relative font-pixel text-sm text-retro-p1 text-glow-p1">NEON RANGE</p>
         <p className="relative mt-2 font-mono text-[11px] leading-relaxed text-retro-dim">Three arrows per end · WA 10-ring + X · draw length is power.</p>
       </div>
-      <label className="flex items-center justify-between rounded border border-retro-border bg-retro-card px-3 py-2 font-pixel text-[8px] text-retro-dim">
+      <label className="flex items-center justify-between gap-2 rounded border border-retro-border bg-retro-card px-3 py-2 font-pixel text-[8px] text-retro-dim">
         RANGE FORMAT
-        <select value={format} onChange={e => setFormat(e.target.value)} className="min-h-10 bg-retro-deep px-2 text-retro-cta">
+        <select value={format} onChange={e => setFormat(e.target.value)} className="min-h-10 min-w-0 max-w-[62%] bg-retro-deep px-2 text-retro-cta">
           {Object.entries(ARCHERY_FORMATS).map(([id, item]) => <option key={id} value={id}>{item.label} · {item.ends} ENDS</option>)}
         </select>
       </label>

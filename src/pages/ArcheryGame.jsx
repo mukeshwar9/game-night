@@ -178,9 +178,9 @@ export default function ArcheryGame(props) {
           })}
         </div>
         {isCoordinator && (
-          <label className="flex items-center justify-between rounded border border-retro-border bg-retro-card px-3 py-2 font-pixel text-[8px] text-retro-dim">
+          <label className="flex items-center justify-between gap-2 rounded border border-retro-border bg-retro-card px-3 py-2 font-pixel text-[8px] text-retro-dim">
             RANGE FORMAT
-            <select value={format} onChange={e => setFormat(e.target.value)} disabled={busy} className="min-h-9 bg-retro-deep px-2 text-retro-cta">
+            <select value={format} onChange={e => setFormat(e.target.value)} disabled={busy} className="min-h-11 min-w-0 max-w-[62%] bg-retro-deep px-2 text-retro-cta">
               {Object.entries(ARCHERY_FORMATS).map(([id, item]) => <option key={id} value={id}>{item.label} · {item.ends} ENDS</option>)}
             </select>
           </label>
