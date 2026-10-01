@@ -19,7 +19,7 @@ import GameOptionsSheet from '../components/GameOptionsSheet'
 import RulesModal from '../components/LazyRulesModal'
 import { useAuth } from '../lib/AuthContext'
 import { dismissInvite } from '../lib/social'
-import { defaultAvatarForId } from '../lib/avatars'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { checkShouldOnboard } from '../lib/onboarding'
 
 const getPlayerName = (profile) => profile?.displayName || localStorage.getItem('playerName') || ''

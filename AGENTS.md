@@ -87,7 +87,7 @@ The creator is always X; the first person to join an open O slot becomes O; ever
 
 ### Profiles, friends & invites (social layer)
 
-A persistent social layer keyed by uid lives in `src/lib/social.js` (data) with pages `src/pages/Profile.jsx` and `src/pages/Friends.jsx`, `src/components/Avatar.jsx` (sprites; keys in `src/lib/avatars.js`) and `src/components/InviteFriendModal.jsx`. Nodes (rules in `database.rules.json`, tests in `tests/rules/`):
+A persistent social layer keyed by uid lives in `src/lib/social.js` (data) with pages `src/pages/Profile.jsx` and `src/pages/Friends.jsx`, `src/components/Avatar.jsx` (kit looks, `K1…` strings, in `src/lib/avatarKit/`; legacy ids in `src/lib/avatars.js`) and `src/components/InviteFriendModal.jsx`. Nodes (rules in `database.rules.json`, tests in `tests/rules/`):
 
 ```
 users/{uid}:        { displayName, nameLower, avatar, code, isAnonymous, stats, matches, admin, lastFeedbackAt, … }  // owner-only

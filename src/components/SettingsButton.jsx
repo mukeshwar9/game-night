@@ -15,7 +15,7 @@ import {
 import { ART_STYLES, DEFAULT_ART_STYLE, applyGameArtStyle, getGameArtStyle } from '../lib/gameArtStyle'
 import { setProfile } from '../lib/social'
 import { useAuth } from '../lib/AuthContext'
-import { defaultAvatarForId } from '../lib/avatars'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { getPlayerId } from '../lib/playerId'
 import { sounds } from '../lib/sounds'
 import { resetMusicDefaults, setMusicOn, setMusicVolume, syncMusic, useMusic } from '../lib/music'

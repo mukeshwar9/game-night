@@ -10,7 +10,7 @@ import {
 } from '../lib/fibbageLogic'
 import { generateBotRoster, pickBotLie, pickBotVote } from '../lib/partyBots'
 import { getPlayerId } from '../lib/playerId'
-import { defaultAvatarForId } from '../lib/avatars'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 

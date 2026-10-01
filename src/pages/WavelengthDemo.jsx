@@ -19,7 +19,7 @@ import {
 import { markSeen } from '../lib/seenHistory'
 import { sounds } from '../lib/sounds'
 import { getPlayerId } from '../lib/playerId'
-import { defaultAvatarForId } from '../lib/avatars'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { cn } from '@/lib/utils'
 
 // Solo/bot WAVELENGTH — human + 2-7 bots, fully local (useReducer), no Firebase,

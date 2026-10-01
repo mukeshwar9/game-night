@@ -3,7 +3,7 @@ import Avatar from '../components/Avatar'
 import PartyBotSetup from '../components/PartyBotSetup'
 import { sounds } from '../lib/sounds'
 import { getPlayerId } from '../lib/playerId'
-import { defaultAvatarForId } from '../lib/avatars'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { SPYFAIR_LOCATIONS } from '../lib/decks/spyfair'
 import { SPY_REPLY_STYLES } from '../lib/decks/spyfairChat'
 import {

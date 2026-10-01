@@ -3,6 +3,7 @@
 // can only clear requests, never forge one.
 import { afterAll, afterEach, beforeAll, describe, it } from 'vitest'
 import { assertFails, assertSucceeds, dbAs, seed, rulesEnvFor } from './helpers.js'
+import { DEFAULTS, encodeAvatar, defaultKitAvatar } from '../../src/lib/avatarKit/catalog.js'
 
 const T = rulesEnvFor({ beforeAll, afterEach, afterAll })
 const as = (uid) => dbAs(T.env, uid)
@@ -49,6 +50,30 @@ describe('profiles (public half)', () => {
     await assertFails(as('alice').ref('profiles/alice').set({ ...pub, code: 'ABC234' }))
     await assertFails(as('alice').ref('profiles/alice').set({ ...pub, displayName: '' }))
     await assertFails(as('alice').ref('profiles/alice').set({ ...pub, displayName: 'x'.repeat(41) }))
+  })
+})
+
+// Avatars are one string per player: the 'K1…' kit form (25 characters) lives in the same
+// fields the old 'shape.tone' ids did, under the same 200-character cap.
+describe('kit avatar strings', () => {
+  const kit = encodeAvatar({ ...DEFAULTS, hat: 'halo', hairColor: 'holo', frame: 'neon' })
+
+  it('is stored in the private and public profile, and survives an update', async () => {
+    await put('users/alice', { displayName: 'Alice', code: 'ABC234' })
+    await assertSucceeds(as('alice').ref('users/alice/avatar').set(kit))
+    await assertSucceeds(as('alice').ref('profiles/alice').set({ displayName: 'Alice', nameLower: 'alice', avatar: kit, updatedAt: 1 }))
+    await assertSucceeds(as('alice').ref('profiles/alice').update({ avatar: defaultKitAvatar('alice'), updatedAt: 2 }))
+  })
+
+  it('stays under the 200-character cap on profiles and invites', async () => {
+    await assertFails(as('alice').ref('profiles/alice').set({ displayName: 'Alice', nameLower: 'alice', avatar: `K1${'0'.repeat(199)}`, updatedAt: 1 }))
+    await put('friends/alice/bob', { since: 1 })
+    await assertSucceeds(as('bob').ref('invites/alice/i1').set({ gameId: 'ABC123', gameType: 'hex', fromUid: 'bob', fromName: 'Bob', fromAvatar: kit, at: 1 }))
+    await assertFails(as('bob').ref('invites/alice/i2').set({ gameId: 'ABC123', gameType: 'hex', fromUid: 'bob', fromName: 'Bob', fromAvatar: `K1${'0'.repeat(199)}`, at: 1 }))
+  })
+
+  it('is never longer than the 32 characters the leaderboard copy keeps', () => {
+    if (kit.length > 32) throw new Error(`kit avatar is ${kit.length} chars`)
   })
 })
 

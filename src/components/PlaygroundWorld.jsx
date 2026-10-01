@@ -385,7 +385,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
             }}
           >
             <div ref={(el) => { npcBobRefs.current[i] = el }} className={cn(sim.npcs[i].moving && 'pg-walk-bob')}>
-              <Avatar id={def.avatar} tile={false} size={40} animate />
+              <Avatar id={def.avatar} tile={false} size={48} view="hero" animate />
             </div>
           </div>
         ))}
@@ -401,7 +401,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
           }}
         >
           <div ref={avatarBobRef} className={cn('relative', sim.moving && 'pg-walk-bob')}>
-            <Avatar id={avatarId} tile={false} size={40} animate />
+            <Avatar id={avatarId} tile={false} size={48} view="hero" animate />
             {emote && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 pointer-events-none">
                 <div key={emote.key} className="text-lg" style={{ animation: 'emote-float 1.6s ease-out forwards' }}>
