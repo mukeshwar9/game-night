@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar'
 import Skeleton from '../components/loading/Skeleton'
 import { useAuth } from '../lib/AuthContext'
 import { blockPlayer } from '../lib/mute'
+import ReportButton from '../components/ReportButton'
 import {
   normalizeFriendCode, isValidFriendCode, sendFriendRequestByCode,
   acceptRequest, declineRequest, removeFriend, inviteFriendToGame,
@@ -31,7 +32,7 @@ const REQUEST_ERRORS = {
 }
 
 // The actions under a friend or request row (tap the name to open them).
-function PlayerActions({ onBlock, busy }) {
+function PlayerActions({ onBlock, busy, uid, name }) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-retro-border pt-2">
       <button
@@ -43,6 +44,7 @@ function PlayerActions({ onBlock, busy }) {
       >
         {busy ? 'BLOCKING…' : 'BLOCK'}
       </button>
+      <ReportButton context="profile" targetUid={uid} targetName={displayNameFor(name, 'player')} />
     </div>
   )
 }
@@ -323,7 +325,7 @@ export default function Friends() {
                     ✕
                   </button>
                 </div>
-                {menuUid === r.uid && <PlayerActions onBlock={() => onBlock(r.uid, r.name)} busy={pendingUid === r.uid} />}
+                {menuUid === r.uid && <PlayerActions onBlock={() => onBlock(r.uid, r.name)} busy={pendingUid === r.uid} uid={r.uid} name={r.name} />}
                 </div>
               ))}
             </div>
@@ -404,7 +406,7 @@ export default function Friends() {
                       {confirming ? 'SURE?' : '✕'}
                     </button>
                   </div>
-                  {menuUid === uid && <PlayerActions onBlock={() => onBlock(uid, p?.displayName)} busy={pendingUid === uid} />}
+                  {menuUid === uid && <PlayerActions onBlock={() => onBlock(uid, p?.displayName)} busy={pendingUid === uid} uid={uid} name={p?.displayName} />}
                   </div>
                 )
               })}

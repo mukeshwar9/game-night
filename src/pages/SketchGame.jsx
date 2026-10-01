@@ -35,6 +35,7 @@ import { normalizeList } from '../lib/normalize'
 import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import { SKETCH_WORDS } from '../lib/decks/sketch'
 import SketchCanvas from '../components/SketchCanvas'
+import ReportButton from '../components/ReportButton'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
 import RoundEndPanel from '../components/RoundEndPanel'
@@ -741,6 +742,11 @@ export default function SketchGame({
       {round.phase === 'drawing' && (
         <div className="space-y-3">
           <SketchCanvas gameId={gameId} isArtist={isArtist} />
+          {!isArtist && (
+            <div className="flex justify-end">
+              <ReportButton context="drawing" gameId={gameId} targetUid={round.artist} targetName={players[round.artist]?.name} label="REPORT DRAWING" />
+            </div>
+          )}
 
           <div className="text-center space-y-1">
             {haveIGuessedCorrectly ? (
@@ -860,6 +866,11 @@ export default function SketchGame({
       {round.phase === 'reveal' && (
         <div className="space-y-3">
           <SketchCanvas gameId={gameId} isArtist={false} />
+          {round.artist !== mySeat && (
+            <div className="flex justify-end">
+              <ReportButton context="drawing" gameId={gameId} targetUid={round.artist} targetName={players[round.artist]?.name} label="REPORT DRAWING" />
+            </div>
+          )}
           <p className="font-pixel text-lg text-retro-win text-glow-win text-center tracking-widest">
             {derivedWord ? derivedWord.toUpperCase() : '…'}
           </p>

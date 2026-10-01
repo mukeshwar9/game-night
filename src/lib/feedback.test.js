@@ -3,7 +3,7 @@ import {
   FEEDBACK_COOLDOWN_MS, FEEDBACK_MAX_LENGTH,
   normalizeFeedbackType, normalizeFeedbackStatus, normalizeFeedbackItem, normalizeFeedbackList,
   countFeedback, feedbackCooldownLeft, buildErrorFeedbackMessage,
-  saveFeedbackDraft, readFeedbackDraft, clearFeedbackDraft,
+  saveFeedbackDraft, readFeedbackDraft, clearFeedbackDraft, buildReport,
 } from './feedback'
 
 describe('normalizeFeedbackType / normalizeFeedbackStatus', () => {
@@ -115,5 +115,30 @@ describe('feedback drafts', () => {
   it('never pre-selects the report type in the form', () => {
     saveFeedbackDraft({ type: 'report', message: 'hello there friend' })
     expect(readFeedbackDraft()?.type).toBe('bug')
+  })
+})
+
+describe('buildReport', () => {
+  it('quotes a chat message, as before', () => {
+    expect(buildReport({ gameId: 'AB12CD', targetName: 'Bob', text: 'rude words' }))
+      .toMatchObject({ message: 'Chat report — Bob: "rude words"', page: '/game/AB12CD' })
+  })
+
+  it('names the player for a profile report, which needs no room', () => {
+    expect(buildReport({ context: 'profile', targetName: 'Bob' }))
+      .toMatchObject({ message: 'Profile report — Bob', page: '/friends' })
+  })
+
+  it('reports a drawing with its word and the room', () => {
+    expect(buildReport({ context: 'drawing', gameId: 'AB12CD', targetName: 'Bob', text: 'cat' }))
+      .toMatchObject({ message: 'Drawing report — Bob (cat)', page: '/game/AB12CD' })
+  })
+
+  it('falls back to a chat report for an unknown context and caps lengths', () => {
+    expect(buildReport({ context: 'nope', gameId: 'X', targetName: 'n'.repeat(80), text: 't'.repeat(500) }).message.startsWith('Chat report —')).toBe(true)
+    const r = buildReport({ gameId: 'X', targetName: 'n'.repeat(80), text: 't'.repeat(500) })
+    expect(r.who).toHaveLength(40)
+    expect(r.quoted).toHaveLength(200)
+    expect(r.message.length).toBeLessThanOrEqual(FEEDBACK_MAX_LENGTH)
   })
 })
