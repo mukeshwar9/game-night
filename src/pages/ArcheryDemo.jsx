@@ -202,7 +202,7 @@ function OfflineMatch({ setup, onExit }) {
         <span className="font-pixel text-[9px] text-retro-cta">{ARCHERY_FORMATS[format].label} · {ARCHERY_FORMATS[format].ends} ENDS</span>
       </div>
       <ArcheryScorecard seats={seats} card={card} names={game.names} currentTurn={current} format={ARCHERY_FORMATS[format].label} />
-      <div className="flex items-center justify-between font-pixel text-[8px]">
+      <div className="flex items-center justify-between gap-2 font-pixel text-[8px]">
         <p className={cn('min-w-0 truncate', playerTurn ? 'text-retro-cta arcade-blink' : 'text-retro-dim')}>{statusText}</p>
         <span className="shrink-0 text-retro-cta">WIND {windNow < 0 ? '←' : '→'} {Math.abs(windNow)} MM</span>
       </div>

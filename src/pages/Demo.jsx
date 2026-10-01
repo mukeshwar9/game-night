@@ -335,7 +335,7 @@ function DemoHub() {
       <div className="w-full max-w-md space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-baseline justify-between gap-3">
           <h1 className="font-pixel text-sm text-retro-cta tracking-wider whitespace-nowrap">PLAY SOLO</h1>
-          <span className="min-w-0 text-right font-pixel text-[9px] text-retro-dim tracking-wider">VS CPU · NO WAITING</span>
+          <span className="min-w-0 text-right font-pixel text-[9px] text-retro-dim tracking-wider">VS CPU<span className="max-sm:hidden"> · NO WAITING</span></span>
         </div>
         {adLanding
           ? (
