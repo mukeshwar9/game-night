@@ -127,7 +127,7 @@ function StatementWriter({ onLock, busy }) {
                 onClick={() => { setLieIndex(i); setError('') }}
                 aria-pressed={isLie}
                 className={cn(
-                  'w-full py-1.5 font-pixel text-[9px] rounded border transition-all active:scale-95',
+                  'w-full min-h-11 py-1.5 font-pixel text-[9px] rounded border transition-all active:scale-95',
                   isLie
                     ? 'border-retro-p2 text-retro-p2 bg-retro-tint-p2 shadow-neon-p2'
                     : 'border-retro-border text-retro-dim hover:border-retro-p2/50 hover:text-retro-p2',

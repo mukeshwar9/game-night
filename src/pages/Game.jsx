@@ -840,7 +840,7 @@ export default function Game() {
         <LiveAnnouncer message={announcement} />
         <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
           <div className="game-header flex items-start justify-between gap-2">
-            <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">← HOME</Link>
+            <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-flex items-center min-h-11 p-3 -m-3">← HOME</Link>
             <div className="game-header-actions flex items-center justify-end gap-3">
               <SettingsButton />
               <RulesButton onClick={() => setShowRules(true)} />
@@ -970,7 +970,7 @@ export default function Game() {
       )} key={game.gameType}>
         {/* Header */}
         <div className="game-header flex items-start justify-between gap-2">
-          <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">
+          <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-flex items-center min-h-11 p-3 -m-3">
             ← HOME
           </Link>
           <div className={cn('game-header-actions flex items-center justify-end gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>

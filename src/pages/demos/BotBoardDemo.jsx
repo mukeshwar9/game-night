@@ -155,7 +155,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
               onClick={() => chooseDifficulty(level)}
               aria-pressed={difficulty === level}
               className={cn(
-                'px-3 py-1 font-pixel text-[8px] uppercase rounded border-2 transition-all active:scale-95',
+                'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition-all active:scale-95',
                 difficulty === level
                   ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                   : 'border-retro-border text-retro-dim hover:border-retro-p1/50',

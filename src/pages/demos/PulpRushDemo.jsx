@@ -146,7 +146,7 @@ export default function PulpRushDemo() {
           <PulpField course={course} field={fields.me} t={t} clock={clock} onSwipe={(p, seg) => handleSwipe('me', p, seg)} fx={fx.me} stunned={me.stunUntil > t && t >= 0} className="w-full" />
           {counting && <Countdown n={countLabel} />}
         </div>
-        <button onClick={() => setPhase('menu')} className="w-full py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded active:scale-95">QUIT</button>
+        <button onClick={() => setPhase('menu')} className="w-full min-h-11 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded active:scale-95">QUIT</button>
       </div>
     )
   }

@@ -54,7 +54,7 @@ export default function GameSwitcher({ currentType, onSwitch, variant = 'button'
           onClick={() => setOpen(true)}
           title="Switch game"
           aria-label="Switch game"
-          className="text-retro-dim hover:text-retro-text transition-colors p-3 -m-2 rounded"
+          className="text-retro-dim hover:text-retro-text transition-colors p-3.5 -m-2 rounded"
         >
           <GridIcon />
         </button>
