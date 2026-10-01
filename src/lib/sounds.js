@@ -1,3 +1,4 @@
+import { haptic } from './haptics'
 import { getWinFx } from './displayPrefs'
 import { duckMusic, resumeAudio } from './audioContext'
 
@@ -25,9 +26,10 @@ function duckUnder(c, start, dur) {
   duckMusic(dur < 0.1 ? 0.7 : 0.55, Math.max(0, start - c.currentTime) + dur)
 }
 
-// Haptics disabled — keep audio, kill vibration.
-function vibrate() {
-  return
+// Haptics go through the native shell only (src/lib/haptics.js); web
+// vibration stays off.
+function vibrate(pattern) {
+  haptic(pattern)
 }
 
 function note(freq, start, dur, type = 'square', vol = 0.11) {

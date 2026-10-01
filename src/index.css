@@ -985,6 +985,12 @@ body {
   /* Faster taps + no grey tap-flash on mobile */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  /* No iOS long-press callout on images/links while playing; text inputs
+     and selectable copy opt back in below. */
+  -webkit-touch-callout: none;
+}
+input, textarea, [contenteditable] {
+  -webkit-touch-callout: default;
 }
 
 /* M-21: without this a stray downward swipe outside a real-time game's own

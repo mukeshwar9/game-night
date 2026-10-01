@@ -194,6 +194,9 @@ export default defineConfig({
         theme_color: '#825f0e',
         background_color: '#eef0e2',
         display: 'standalone',
+        // Every arena is laid out for portrait; only the installed app needs the
+        // lock (a browser tab rotates freely).
+        orientation: 'portrait',
         start_url: '/',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
