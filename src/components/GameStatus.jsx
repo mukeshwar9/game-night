@@ -49,14 +49,24 @@ function ShareButton({ onClick, busy, busyLabel = 'BUILDING…', locked }) {
 // sticky bottom bar independent of board height, so they're always reachable
 // without scrolling. Game.jsx adds matching bottom padding to the page.
 function StickyActionBar({ children }) {
+  // The bar is fixed, so it covers the bottom of the page. The in-flow spacer
+  // reserves its height (solo and pass & play pages have no matching page
+  // padding), and scrolling it into view keeps the result line above the bar.
+  const spacerRef = useRef(null)
+  useEffect(() => {
+    spacerRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [])
   return (
-    <div
-      className="fixed bottom-0 inset-x-0 z-40 flex justify-center gap-2 flex-wrap
-        bg-retro-bg/95 border-t border-retro-border backdrop-blur-sm
-        px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-    >
-      {children}
-    </div>
+    <>
+      <div ref={spacerRef} aria-hidden="true" className="h-[calc(4.5rem+env(safe-area-inset-bottom))]" />
+      <div
+        className="fixed bottom-0 inset-x-0 z-40 flex justify-center gap-2 flex-wrap
+          bg-retro-bg/95 border-t border-retro-border backdrop-blur-sm
+          px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      >
+        {children}
+      </div>
+    </>
   )
 }
 
