@@ -235,6 +235,18 @@ record exists. Deploy the rules before relying on it.
 - Age rating: public chat with strangers and user-generated names, chat and
   drawings put it at about 13+ (16+ if the public lobby stays unmoderated).
   Do not target children.
+- v1 is iPhone only (`TARGETED_DEVICE_FAMILY = 1`; iPads run it in
+  compatibility mode) and portrait only on both platforms. The shell has no
+  in-app purchases: `monetizationActive` returns false whenever `isNative`.
+- Terms, Privacy and Support links inside the shell point at the public https
+  pages (`legalHref`, `src/lib/legal.js`), since `capacitor://localhost` cannot
+  be opened by the system. The Support URL for App Store Connect is
+  `/support`; the Play account-deletion URL is `/privacy#delete`.
+- Before every upload run `npm run native:bump` (add `-- 1.1` for a new
+  marketing version): it raises the build number on both projects.
+- Blocking and reporting: a player's name in room chat or on the Friends page
+  opens BLOCK and REPORT (blocks sync to `blocks/{uid}`); Sketch guessers can
+  report a drawing. Mention these in the review notes.
 - Review notes: solo and bot modes let a reviewer play without a second
   device.
 - Play: internal testing, then closed testing (the 12-tester rule above),
@@ -242,9 +254,9 @@ record exists. Deploy the rules before relying on it.
 
 ## Decisions still open
 
-- Whether game audio plays with the iPhone silent switch on (Web Audio in
-  WKWebView follows it, as Safari does). Changing it is one line of native
-  code setting the AVAudioSession category to `.playback`.
+- Game audio uses the `.ambient` AVAudioSession category (`AppDelegate.swift`),
+  so it follows the silent switch and mixes with the player's own music. Use
+  `.playback` instead if sound should play with the switch on.
 - Whether invite links and share cards move to a custom domain before launch.
 - Sound-cue haptics stay off (`SFX_HAPTICS` in `src/lib/sounds.js`), as on the
   web; moves blocked by turn order and Mine Race flags already use
