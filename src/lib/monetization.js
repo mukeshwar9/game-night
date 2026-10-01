@@ -10,11 +10,16 @@
 // On a dev server or the emulators the stored 'gn-monetization' = 'on' | 'off' flips
 // it for a session (the e2e specs and screenshots use it). A production build ignores
 // that override, so it can never change what a real visitor sees.
+//
+// Inside the iOS/Android shell it is always OFF, whatever the flag says: Paddle
+// checkout breaks Apple 3.1.1 and Play Billing rules, so the apps stay free
+// until store in-app purchase exists.
 
 /**
- * @param {{ flag?: boolean, devLike?: boolean, override?: string | null }} env
+ * @param {{ flag?: boolean, devLike?: boolean, override?: string | null, native?: boolean }} env
  */
-export function monetizationActive({ flag = false, devLike = false, override = null } = {}) {
+export function monetizationActive({ flag = false, devLike = false, override = null, native = false } = {}) {
+  if (native) return false
   if (devLike && (override === 'on' || override === 'off')) return override === 'on'
   return flag === true
 }

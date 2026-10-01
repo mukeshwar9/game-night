@@ -32,4 +32,9 @@ describe('bypass with the switch off', () => {
     expect(bypassActive({ monetization: true, dev: true })).toBe(true)
     expect(bypassActive({ monetization: true, dev: true, override: 'off' })).toBe(false)
   })
+
+  it('is always off inside the native shell', () => {
+    expect(monetizationActive({ flag: true, native: true })).toBe(false)
+    expect(monetizationActive({ flag: true, devLike: true, override: 'on', native: true })).toBe(false)
+  })
 })

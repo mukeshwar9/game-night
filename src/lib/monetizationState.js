@@ -1,5 +1,6 @@
 import { usingEmulators } from './firebase'
 import { monetizationActive } from './monetization'
+import { isNative } from './platform'
 
 /** True when the shop, Pass, paywall and locks are live (see monetization.js). */
 export function monetizationEnabled() {
@@ -9,5 +10,6 @@ export function monetizationEnabled() {
     flag: import.meta.env.VITE_MONETIZATION_ENABLED === '1',
     devLike: import.meta.env.DEV || usingEmulators,
     override,
+    native: isNative,
   })
 }
