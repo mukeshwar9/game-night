@@ -179,6 +179,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
         winningLine={game.winningLine || []}
         currentTurn={game.currentTurn}
         lastMove={game.lastMove ?? null}
+        {...(isLocal && type === 'mancala' ? { mySymbol: game.currentTurn, accent: game.currentTurn === 'X' ? 'p1' : 'p2', hotseat: true, players: { X: { name: 'PLAYER 1' }, O: { name: 'PLAYER 2' } } } : {})}
         {...(cfg.boardProps ? cfg.boardProps(game) : {})}
       />
       <GameStatus
