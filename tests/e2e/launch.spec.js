@@ -69,6 +69,20 @@ test('the privacy policy and terms are static pages with a contact', async ({ br
   await player.context.close()
 })
 
+test('the support page has a contact, the FAQ and how to delete data', async ({ browser }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+  await page.goto('/support.html')
+  await expect(page).toHaveURL(/\/support\.html$/)
+  await expect(page.getByRole('heading', { name: 'Game Night support' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'How to delete your data' })).toBeVisible()
+  await expect(page.getByText('Support email coming soon').first()).toBeVisible()
+  await expect(page.getByText('%CONTACT%')).toHaveCount(0)
+  await page.goto('/privacy.html#delete')
+  await expect(page.getByRole('heading', { name: 'Delete your data' })).toBeInViewport()
+  await player.context.close()
+})
+
 test('onboarding links the terms and privacy pages', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player

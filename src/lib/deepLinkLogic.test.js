@@ -106,8 +106,8 @@ describe('pathFromAppUrl: custom scheme', () => {
 describe('pathFromAppUrl: pages that belong in the browser', () => {
   const web = (p) => pathFromAppUrl(`https://game-night-91464.web.app${p}`, ORIGINS)
 
-  it('refuses /privacy and /terms in every spelling', () => {
-    for (const p of ['/privacy', '/privacy/', '/privacy.html', '/privacy?x=1', '/privacy#top', '/Privacy', '/terms', '/terms.html', '/TERMS/', '/privacy/extra']) {
+  it('refuses /privacy, /terms and /support in every spelling', () => {
+    for (const p of ['/privacy', '/privacy/', '/privacy.html', '/privacy?x=1', '/privacy#top', '/Privacy', '/terms', '/terms.html', '/TERMS/', '/privacy/extra', '/support', '/support.html', '/Support/']) {
       expect(web(p), p).toBeNull()
     }
   })
@@ -224,7 +224,7 @@ describe('public/.well-known association files', () => {
     const firstInclude = components.findIndex(c => !c.exclude)
     expect(components.slice(firstInclude).some(c => c.exclude)).toBe(false)
     const excluded = components.filter(c => c.exclude).map(c => c['/'])
-    expect(excluded).toEqual(['/privacy*', '/terms*', '/__/*'])
+    expect(excluded).toEqual(['/privacy*', '/terms*', '/support*', '/__/*'])
   })
 
   it('routes exactly the paths the app opens in place', () => {

@@ -6,6 +6,7 @@
         "components": [
           { "/": "/privacy*", "exclude": true },
           { "/": "/terms*", "exclude": true },
+          { "/": "/support*", "exclude": true },
           { "/": "/__/*", "exclude": true },
           { "/": "/game/*" },
           { "/": "/daily" },

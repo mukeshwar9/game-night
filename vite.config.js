@@ -34,7 +34,7 @@ function stylesheetFirst() {
 // reviewers read them without running the app) and carry %CONTACT% tokens for
 // the support address, VITE_CONTACT_EMAIL. Filled in at build time, and by the
 // dev/preview server for the same three URLs.
-const CONTACT_FILES = ['privacy.html', 'terms.html', '.well-known/security.txt']
+const CONTACT_FILES = ['privacy.html', 'terms.html', 'support.html', '.well-known/security.txt']
 function contactEmail() {
   let email = ''
   let root = process.cwd()
@@ -206,13 +206,13 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // The static legal pages (public/privacy.html, terms.html) are served by
+        // The static legal pages (public/privacy.html, terms.html, support.html) are served by
         // Hosting via redirects; without this the worker answers /privacy and
         // /terms navigations with the app shell, which shows NOT FOUND. The same
         // goes for /.well-known/ (security.txt, the app-link association files).
         // No public map for the worker either (nothing to symbolicate there).
         sourcemap: false,
-        navigateFallbackDenylist: [/^\/(privacy|terms)(\.html)?$/, /^\/__\//, /^\/\.well-known\//],
+        navigateFallbackDenylist: [/^\/(privacy|terms|support)(\.html)?$/, /^\/__\//, /^\/\.well-known\//],
         // No Firebase runtime rule: RTDB/Auth traffic is live and has its own
         // offline handling; caching it here only stored opaque responses with
         // no expiry.

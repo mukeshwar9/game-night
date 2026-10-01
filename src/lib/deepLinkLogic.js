@@ -14,10 +14,10 @@
 export const CUSTOM_SCHEME = 'gamenight'
 
 // Static pages Hosting serves outside the SPA (public/privacy.html, terms.html,
-// the Firebase auth handler under /__/). They 404 inside the app router, so
+// support.html, the Firebase auth handler under /__/). They 404 inside the app router, so
 // they open in the browser instead. Keep in step with the excludes in
 // public/.well-known/apple-app-site-association (a test checks it).
-const STATIC_PREFIXES = ['/privacy', '/terms', '/__/', '/.well-known/']
+const STATIC_PREFIXES = ['/privacy', '/terms', '/support', '/__/', '/.well-known/']
 
 /**
  * The in-app path (pathname + search + hash) for an opened URL, or null when
