@@ -29,7 +29,7 @@ test('players pick a character, a premium item is selectable, and rooms draw bot
   const bob = await newPlayer(browser)
   let roomUrl
 
-  await test.step('Alice builds a look with a PASS headwear item', async () => {
+  await test.step('Alice builds a look with a premium headwear item (open while monetization is off)', async () => {
     const { page } = alice
     await page.goto('/')
     await page.getByRole('textbox', { name: 'Your name' }).fill('Alice')
@@ -37,7 +37,8 @@ test('players pick a character, a premium item is selectable, and rooms draw bot
     await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeVisible()
     await page.getByRole('tab', { name: 'HEADWEAR' }).click()
     const halo = page.getByRole('radio', { name: /^HALO/ })
-    await expect(halo).toHaveAccessibleName(/PASS ITEM/)
+    // Monetization is off by default (docs/MONETIZATION.md): paid items are plain, unbadged and open.
+    await expect(halo).not.toHaveAccessibleName(/PASS ITEM|locked/)
     await halo.click()
     await expect(halo).toBeChecked()
     await page.getByRole('radio', { name: 'FULL BODY' }).click()

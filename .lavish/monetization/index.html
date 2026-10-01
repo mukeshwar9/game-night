@@ -23,6 +23,8 @@ pre{background:#232b1c;color:#e6efd3;padding:12px;border-radius:6px;overflow:aut
 <p class="meta">Branch <code>fm/games-monetization-build-s1</code>, head <code>1d64132</code>. Not deployed. Paddle sandbox only, placeholder keys, no live charges.</p>
 <p class="lead">Game Night Pass (.99 a month or .99 a year, the host buys it), cosmetic packs (.99 to .99) and Supporter (.99). Every free game stays free, nothing sold changes who wins, and there are no random paid rewards. Premium themes, the premium font, every pass or pack avatar item and the pixel emote pack all go through one entitlement check.</p>
 
+<h2>Launch switch (added after approval of option A)</h2>
+<p class="card">Everything below sits behind <code>VITE_MONETIZATION_ENABLED</code> (client) and <code>MONETIZATION_ENABLED</code> (functions), <b>both off by default</b>. Off: every premium theme, font, avatar item, buddy and emote is open to everyone, no locks, paywall or pass badges, <code>/shop</code> and <code>/pass</code> are not routed and not linked, and the billing functions refuse. On: the gating shown here applies, with admin emails and the local dev bypass. Tested in both states (unit, functions, e2e). The screenshots were taken with the switch on.</p>
 <h2>Shop, Pass and paywall</h2>
 <div class="grid">
 <figure><img src="shop-locked-themes.png" alt="Shop themes tab"><figcaption><b>Shop, themes.</b> Pass banner, tabs, pack section with BUY price, Supporter card.</figcaption></figure>
