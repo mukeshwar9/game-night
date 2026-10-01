@@ -13,7 +13,12 @@ emulators) it signed in anonymously, ran Animal Stack at 60 fps, created a
 Connect Four room that a web browser joined and played in, reclaimed its seat
 after a relaunch, shared `https://game-night-91464.web.app/game/<id>` links,
 and dropped and restored presence when sent to the background and back.
-Android has not been run on a device or emulator yet. Sign-in with Google or
+On an Android 16 emulator (x86_64 Google APIs image, against the same local
+emulators) it signed in anonymously, ran Animal Stack, opened an invite through
+`gamenight://game/<id>`, joined a Connect Four room hosted from the web and
+exchanged moves both ways, showed the "Leave match?" prompt on the system Back
+button instead of exiting, and dropped and restored presence when sent Home and
+back. Sign-in with Google or
 Apple and push notifications are wired but switched off until the accounts
 and keys below exist.
 
@@ -50,6 +55,10 @@ cd android && ./gradlew assembleDebug   # app/build/outputs/apk/debug/app-debug.
   them. The iOS Simulator reaches the Mac's `127.0.0.1`; for an Android
   emulator or device, forward the ports first (`adb reverse tcp:9099 tcp:9099`
   and the same for the database port), since the app connects to `127.0.0.1`.
+  Debug builds carry a network security config (`android/app/src/debug`) that
+  allows cleartext HTTP to `127.0.0.1`; without it Android blocks the emulator
+  traffic and sign-in fails with `auth/network-request-failed`. Release builds
+  keep the platform default, which blocks cleartext.
 
 ## What is where
 
