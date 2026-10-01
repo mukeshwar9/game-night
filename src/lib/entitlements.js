@@ -3,7 +3,8 @@
 // start a checkout. Pure rules are in premium.js; prices in premiumCatalog.js.
 import { ref, onValue, get, set } from 'firebase/database'
 import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions'
-import { app, db, usingEmulators } from './firebase'
+import { getApps, getApp } from 'firebase/app'
+import { db, usingEmulators } from './firebase'
 import { getUid } from './auth'
 import { accessFor, bypassActive } from './premium'
 
@@ -79,9 +80,9 @@ export function refreshAccess() {
 
 let functions = null
 function fns() {
-  if (!app) throw new Error('Firebase is not configured')
+  if (!getApps().length) throw new Error('Firebase is not configured')
   if (!functions) {
-    functions = getFunctions(app)
+    functions = getFunctions(getApp())
     if (usingEmulators) connectFunctionsEmulator(functions, '127.0.0.1', Number(import.meta.env.VITE_EMULATOR_FUNCTIONS_PORT) || 5001)
   }
   return functions

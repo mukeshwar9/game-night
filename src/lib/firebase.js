@@ -88,11 +88,10 @@ const DeferredPopupRedirectResolver = typeof browserPopupRedirectResolver === 'f
 
 let db = null;
 let auth = null;
-let app = null;
 export let configError = null;
 
 try {
-  app = initializeApp(firebaseConfig);
+  const app = initializeApp(firebaseConfig);
   // Before any other service is used, so every request carries a token.
   if (APPCHECK_SITE_KEY && !usingEmulators) {
     if (APPCHECK_DEBUG_TOKEN) self.FIREBASE_APPCHECK_DEBUG_TOKEN = APPCHECK_DEBUG_TOKEN;
@@ -124,4 +123,4 @@ try {
   configError = 'Firebase is not configured. Copy .env.local.example to .env.local and fill in your Firebase project credentials.';
 }
 
-export { db, auth, app };
+export { db, auth };
