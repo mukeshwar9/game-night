@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import useFocusArena from '../hooks/useFocusArena'
 import { toast } from 'sonner'
 import HangmanGallows from '../components/HangmanGallows'
 import WordDisplay from '../components/WordDisplay'
@@ -53,6 +54,7 @@ function applyLetter(round, letter) {
 }
 
 export default function HangmanDemo() {
+  const rootRef = useRef(null)
   const [match, setMatch] = useState(freshMatch)
   const [used, setUsed] = useState([])
   const [round, setRound] = useState(() => openRound('O', []))
@@ -80,6 +82,7 @@ export default function HangmanDemo() {
 
   const cpuGuessing = round.setter === 'X' && round.phase === 'guessing'
   const youGuessing = round.setter === 'O' && round.phase === 'guessing'
+  useFocusArena(rootRef, youGuessing || cpuGuessing)
   const matchOver = match.status === 'finished'
 
   // End of a round: score it and set up the match for the next one.
@@ -154,7 +157,7 @@ export default function HangmanDemo() {
     : guesserIsYou ? 'THE CPU HAS A WORD — GUESS A LETTER' : ''
 
   return (
-    <div className="space-y-4">
+    <div ref={rootRef} className="scroll-mt-3 space-y-4">
       <MatchScoreRail
         game={game}
         mySymbol="X"

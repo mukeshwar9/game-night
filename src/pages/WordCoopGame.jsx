@@ -58,7 +58,7 @@ function OwnerChip({ guess, player, symbol, active }) {
 // partner's live draft (round/draft{X|O}) on theirs.
 function SharedBoard({ guesses, draft, draftBy, viewer, players, activeRow }) {
   return (
-    <div className="w-full space-y-1.5" role="grid" aria-label="Shared six row word board">
+    <div className="w-full max-w-[19rem] sm:max-w-none mx-auto space-y-1.5" role="grid" aria-label="Shared six row word board">
       {Array.from({ length: MAX_GUESSES }).map((_, row) => {
         const guess = guesses[row]
         const pending = row === activeRow && draft
