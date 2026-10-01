@@ -73,7 +73,7 @@ test('shop: bypass unlocks, locked UI asks to buy, entitlements unlock live', as
   expectNoPageErrors(player)
 })
 
-test('emote picker locks the pixel pack and opens the paywall', async ({ browser }) => {
+test('shop item taps open the paywall when the bypass is off', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player
   await onboard(page, 'Shopper Two')
@@ -83,5 +83,41 @@ test('emote picker locks the pixel pack and opens the paywall', async ({ browser
   await expect(page.getByRole('button', { name: 'UFO, locked' })).toBeVisible()
   await page.getByRole('button', { name: 'UFO, locked' }).click()
   await expect(page.getByRole('dialog', { name: 'UFO is a premium item' })).toBeVisible()
+  expectNoPageErrors(player)
+})
+
+test('settings: a premium theme is locked, opens the paywall, and applies once owned', async ({ browser }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+  await onboard(page, 'Shopper Three')
+  const uid = await uidFor('Shopper Three')
+  await page.evaluate(() => localStorage.setItem('gn-premium-bypass', 'off'))
+  await page.reload()
+
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: 'Settings', exact: true })
+  await sheet.locator('summary').filter({ hasText: /^THEME(?! &)/ }).click()
+  await sheet.getByRole('button', { name: /^CAMPFIRE/ }).click()
+  await expect(page.getByRole('dialog', { name: 'CAMPFIRE is a premium item' })).toBeVisible()
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'campfire')
+  await page.keyboard.press('Escape')
+
+  await writeDb(`entitlements/${uid}/packs/themes-seasonal`, true)
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await sheet.locator('summary').filter({ hasText: /^THEME(?! &)/ }).click()
+  await sheet.getByRole('button', { name: /^CAMPFIRE/ }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'campfire')
+  expectNoPageErrors(player)
+})
+
+test('avatar picker refuses a locked item and opens the paywall', async ({ browser }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+  await onboard(page, 'Shopper Four')
+  await page.evaluate(() => localStorage.setItem('gn-premium-bypass', 'off'))
+  await page.goto('/profile#look')
+  await page.getByRole('tab', { name: 'BACKDROP' }).click()
+  await page.getByRole('radio', { name: /CONFETTI.*locked/ }).click()
+  await expect(page.getByRole('dialog', { name: 'CONFETTI is a premium item' })).toBeVisible()
   expectNoPageErrors(player)
 })
