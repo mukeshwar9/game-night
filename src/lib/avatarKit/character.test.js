@@ -152,7 +152,7 @@ describe('editor categories', () => {
 
   it('badges only non-free items and swatches resolve', () => {
     expect(tierBadge({ tier: 'free' })).toBeNull()
-    expect(tierBadge({ tier: 'pass' }).glyph).toBe('★')
+    expect(tierBadge({ tier: 'pass' }).text).toBe('PASS ITEM')
     expect(tierBadge({ tier: 'pack', pack: 'royal' }).text).toMatch(/ROYAL/)
     expect(tierBadge({ tier: 'earn', note: 'Win 50 matches' }).text).toMatch(/Win 50/)
     for (const c of colourOptions('topColor')) expect(swatchBackground(c.id)).toMatch(/^(rgb|linear-gradient)\(/)

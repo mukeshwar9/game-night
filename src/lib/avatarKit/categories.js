@@ -45,9 +45,9 @@ export function colourOptions(key) {
 
 /** Badge glyph + spoken label for an option's tier ('' for free items). @param {{ tier: string, pack?: string, note?: string }} info */
 export function tierBadge(info) {
-  if (info.tier === 'pass') return { glyph: '★', text: 'PASS ITEM' }
-  if (info.tier === 'pack') return { glyph: '◆', text: PREMIUM_PACKS[/** @type {keyof typeof PREMIUM_PACKS} */ (info.pack || '')] || 'PACK ITEM' }
-  if (info.tier === 'earn') return { glyph: '✓', text: info.note ? `EARNED: ${info.note}` : 'EARNED ITEM' }
+  if (info.tier === 'pass') return { text: 'PASS ITEM' }
+  if (info.tier === 'pack') return { text: PREMIUM_PACKS[/** @type {keyof typeof PREMIUM_PACKS} */ (info.pack || '')] || 'PACK ITEM' }
+  if (info.tier === 'earn') return { text: info.note ? `EARNED: ${info.note}` : 'EARNED ITEM' }
   return null
 }
 

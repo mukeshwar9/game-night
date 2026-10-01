@@ -164,14 +164,14 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                       )}
                     >
                       <Avatar id={withField(cat.field, opt.id)} size={48} view={cat.thumb} />
-                      <span className="w-full truncate text-center font-pixel text-[7px] leading-tight text-retro-dim">{opt.label}</span>
+                      <span className="w-full truncate text-center font-pixel text-[8px] leading-tight text-retro-dim">{opt.label}</span>
                       {badge && (
                         <span
                           aria-hidden="true"
                           title={badge.text}
                           className="absolute top-0.5 right-0.5 min-w-4 h-4 px-0.5 rounded-sm bg-retro-bg/90 border border-retro-border text-[9px] leading-none flex items-center justify-center text-retro-cta"
                         >
-                          {badge.glyph}
+                          <TierIcon tier={opt.tier} />
                         </span>
                       )}
                     </button>
@@ -188,8 +188,11 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
               />
             ))}
             {cat.field === 'pet' && <p className="font-pixel text-[8px] leading-relaxed text-retro-dim">PETS SHOW IN THE FULL-BODY VIEW.</p>}
-            <p className="font-pixel text-[8px] leading-relaxed text-retro-dim">
-              ✓ EARNED · ★ PASS · ◆ PACK — ALL OPEN TO TRY FOR NOW.
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-pixel text-[8px] leading-relaxed text-retro-dim">
+              {[['earn', 'EARNED'], ['pass', 'PASS'], ['pack', 'PACK']].map(([tier, label]) => (
+                <span key={tier} className="inline-flex items-center gap-1"><TierIcon tier={tier} className="text-retro-cta" />{label}</span>
+              ))}
+              <span>ALL OPEN TO TRY FOR NOW</span>
             </p>
           </>
         ) : (
@@ -225,7 +228,7 @@ function ColourRow({ row, selected, onPick }) {
                 )}
                 style={{ background: swatchBackground(c.id) }}
               />
-              {c.premium && <span aria-hidden="true" className="absolute top-1 right-1 text-[9px] leading-none text-retro-cta">★</span>}
+              {c.premium && <span aria-hidden="true" className="absolute top-1 right-1 text-retro-cta"><TierIcon tier="pass" /></span>}
             </button>
           )
         })}
@@ -292,6 +295,24 @@ function ClassicPanel({ current, onPick }) {
         })}
       </div>
     </div>
+  )
+}
+
+// Pixel marks for the premium tiers, drawn on a 7x7 grid so they stay crisp:
+// check = earned by playing, star = Pass, gem = one-off pack.
+const TIER_PIXELS = {
+  earn: ['.......', '.....#.', '....#..', '#..#...', '.##....', '.......', '.......'],
+  pass: ['...#...', '...#...', '#######', '.#####.', '..###..', '.##.##.', '.#...#.'],
+  pack: ['.#####.', '#######', '#######', '.#####.', '..###..', '...#...', '.......'],
+}
+
+function TierIcon({ tier, className }) {
+  const rows = TIER_PIXELS[tier]
+  if (!rows) return null
+  return (
+    <svg width="9" height="9" viewBox="0 0 7 7" shapeRendering="crispEdges" aria-hidden="true" className={cn('fill-current', className)}>
+      {rows.flatMap((row, y) => row.split('').map((ch, x) => (ch === '#' ? <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" /> : null)))}
+    </svg>
   )
 }
 
