@@ -21,6 +21,9 @@ import { sounds } from '../lib/sounds'
 import { resetMusicDefaults, setMusicOn, setMusicVolume, syncMusic, useMusic } from '../lib/music'
 import { lazyWithRetry } from '../lib/lazyWithRetry'
 import LegalLinks from './LegalLinks'
+import LockBadge from './premium/LockBadge'
+import useAccess from '../hooks/useAccess'
+import { openPaywall } from '../lib/premiumUi'
 
 function ThemeSwatches({ id }) {
   return <span data-theme={id} className="inline-flex items-center gap-[3px] shrink-0" aria-hidden="true">
@@ -95,7 +98,15 @@ export default function SettingsButton({ className = '' }) {
     if (list && selected) list.scrollTop = selected.offsetTop - (list.clientHeight - selected.offsetHeight) / 2
   }
 
+  // A premium theme or font that is not unlocked opens the paywall instead.
+  // The paywall is a sheet too, and sheets never nest, so settings closes first.
+  const access = useAccess()
+  const locked = (kind, option) => option.premium === true && !access.isUnlocked({ kind, ...option })
+  const askToUnlock = (kind, option) => { setOpen(false); openPaywall({ kind, ...option }) }
+
   const selectTheme = (id) => {
+    const option = THEMES.find(t => t.id === id)
+    if (option && locked('theme', option)) { askToUnlock('theme', option); return }
     applyTheme(id)
     setTheme(id)
     syncMusic()
@@ -103,6 +114,8 @@ export default function SettingsButton({ className = '' }) {
   }
 
   const selectFont = (id) => {
+    const option = FONTS.find(f => f.id === id)
+    if (option && locked('font', option)) { askToUnlock('font', option); return }
     applyFont(id)
     setFont(id)
     setProfile({ fontFamily: id }).catch(() => {})
@@ -229,6 +242,7 @@ export default function SettingsButton({ className = '' }) {
                 >
                   <ThemeSwatches id={option.id} />
                   <span className="leading-snug">{option.label}</span>
+                  {locked('theme', option) && <><LockBadge className="ml-auto" /><span className="sr-only">locked</span></>}
                 </button>)}
               </div>
             </details>
@@ -250,7 +264,10 @@ export default function SettingsButton({ className = '' }) {
                   {...peek(setHoverFont, option.id)}
                   className={`min-h-14 rounded border px-2 py-2 text-left transition-colors ${font === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
                 >
-                  <span className="block truncate text-[11px]" style={{ fontFamily: `'${option.family}'` }}>{option.label}</span>
+                  <span className="flex items-center justify-between gap-1">
+                    <span className="block truncate text-[11px]" style={{ fontFamily: `'${option.family}'` }}>{option.label}</span>
+                    {locked('font', option) && <><LockBadge /><span className="sr-only">locked</span></>}
+                  </span>
                   <span className="mt-1 block truncate font-mono text-[9px] opacity-70">{option.description}</span>
                 </button>)}
               </div>
@@ -315,6 +332,14 @@ export default function SettingsButton({ className = '' }) {
       </Section>
 
       <Section title="HELP & RESET">
+        <Link
+          to="/shop"
+          onClick={() => setOpen(false)}
+          className="flex min-h-11 items-center justify-between rounded border border-retro-cta/50 px-3 font-pixel text-[9px] tracking-widest text-retro-cta hover:border-retro-cta transition-colors"
+        >
+          <span>SHOP &amp; PASS</span>
+          <span className="text-retro-dim" aria-hidden="true">→</span>
+        </Link>
         <Link
           to="/notes"
           onClick={() => setOpen(false)}

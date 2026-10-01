@@ -9,6 +9,7 @@ import UpdatePrompt from './components/UpdatePrompt';
 import useSWUpdateCheck from './hooks/useSWUpdateCheck';
 import ConnectionBanner from './components/ConnectionBanner';
 import InviteToasts from './components/InviteToasts';
+import PremiumHost from './components/premium/PremiumHost';
 import BottomTabBar from './components/BottomTabBar';
 import NavBar, { HomeInterceptProvider, TAB_BAR_ROUTES } from './components/NavBar';
 import { AuthProvider } from './lib/AuthContext';
@@ -30,6 +31,8 @@ const AdLanding = lazyWithRetry(() => import('./pages/AdLanding'));
 const DailyGame = lazyWithRetry(() => import('./pages/DailyGame'));
 const Profile = lazyWithRetry(() => import('./pages/Profile'));
 const Friends = lazyWithRetry(() => import('./pages/Friends'));
+const Shop = lazyWithRetry(() => import('./pages/Shop'));
+const Pass = lazyWithRetry(() => import('./pages/Pass'));
 const Notes = lazyWithRetry(() => import('./pages/Notes'));
 // Developer-only page: the route (and so its chunk) exists in dev builds only.
 const EmojiLab = import.meta.env.DEV ? lazyWithRetry(() => import('./pages/EmojiLab')) : null;
@@ -86,6 +89,8 @@ function AppRoutes() {
               <Route path="/daily" element={<DailyGame />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/friends" element={<Friends />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/pass" element={<Pass />} />
               <Route path="/notes" element={<Notes />} />
               {EmojiLab && <Route path="/emoji-lab" element={<EmojiLab />} />}
               {ArtDemo && <Route path="/art-demo" element={<ArtDemo />} />}
@@ -150,6 +155,7 @@ export default function App() {
             <VideoCallLayoutProvider><AppRoutes /></VideoCallLayoutProvider>
             <Toaster />
             <InviteToasts />
+            <PremiumHost />
             <UpdatePrompt />
             <ConnectionBanner />
           </HomeInterceptProvider>

@@ -226,7 +226,7 @@ exports.createCheckout = onCall({ secrets: [PADDLE_API_KEY], maxInstances: 5 }, 
   const priceId = parsePrices()[product.id]
   if (!priceId) throw new HttpsError('failed-precondition', 'This item is not on sale yet.')
 
-  const birth = (await getDatabase().ref(`users/${uid}/birthYear`).get()).val()
+  const birth = (await getDatabase().ref(`ageGate/${uid}/year`).get()).val()
   const age = ageFromBirthYear(birth)
   if (age === null) throw new HttpsError('failed-precondition', 'age-required')
   if (age < MIN_AGE) throw new HttpsError('permission-denied', 'under-age')

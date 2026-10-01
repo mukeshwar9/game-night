@@ -2,13 +2,21 @@ import { useEffect, useRef, useState } from 'react'
 import { THEMES, applyTheme, getStoredTheme } from '../lib/theme'
 import { setProfile } from '../lib/social'
 import { cn } from '@/lib/utils'
+import LockBadge from './premium/LockBadge'
+import useAccess from '../hooks/useAccess'
+import { openPaywall } from '../lib/premiumUi'
 
 export default function ThemeSwitcher() {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState(getStoredTheme)
   const containerRef = useRef(null)
 
+  const access = useAccess()
+  const isLocked = (t) => t.premium === true && !access.isUnlocked({ kind: 'theme', ...t })
+
   const handleSelect = (id) => {
+    const option = THEMES.find(t => t.id === id)
+    if (option && isLocked(option)) { setOpen(false); openPaywall({ kind: 'theme', ...option }); return }
     applyTheme(id)
     setSelected(id)
     setOpen(false)
@@ -52,7 +60,7 @@ export default function ThemeSwitcher() {
 
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 bg-retro-card border-2 border-retro-border rounded min-w-[140px]">
-          {THEMES.map(({ id, label }) => (
+          {THEMES.map((t) => { const { id, label } = t; return (
             <button
               key={id}
               onClick={() => handleSelect(id)}
@@ -69,8 +77,9 @@ export default function ThemeSwitcher() {
                 <span style={{ width: 5, height: 5, background: 'rgb(var(--c-cta))', borderRadius: 1 }} />
               </span>
               {selected === id ? '> ' : '  '}{label}
+              {isLocked(t) && <><LockBadge className="ml-auto" /><span className="sr-only">locked</span></>}
             </button>
-          ))}
+          )})}
         </div>
       )}
     </div>

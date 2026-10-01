@@ -1,0 +1,87 @@
+// Premium gating end to end: the local-development bypass opens everything, the
+// locked UI and paywall appear with it off, and a server-written entitlement
+// (the same record the payment webhook writes) unlocks items live. Clients can
+// never write that record; the emulator's owner token stands in for the server.
+import { test, expect } from '@playwright/test'
+import { newPlayer, onboard, expectNoPageErrors } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
+
+const NS = 'demo-game-night-default-rtdb'
+const OWNER = { Authorization: 'Bearer owner' }
+const api = (path) => `${DB_ORIGIN}/${path}.json?ns=${NS}`
+const readDb = async (path) => (await fetch(api(path), { headers: OWNER })).json()
+const writeDb = (path, value) => fetch(api(path), { method: 'PUT', headers: OWNER, body: JSON.stringify(value) })
+
+async function uidFor(name) {
+  const profiles = (await readDb('profiles')) || {}
+  const hit = Object.entries(profiles).find(([, p]) => p.displayName === name)
+  expect(hit, `profile for ${name}`).toBeTruthy()
+  return hit[0]
+}
+
+test('shop: bypass unlocks, locked UI asks to buy, entitlements unlock live', async ({ browser }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+  await onboard(page, 'Shopper One')
+  const uid = await uidFor('Shopper One')
+
+  // Local development: everything open.
+  await page.goto('/shop')
+  await expect(page.getByText('DEV MODE')).toBeVisible()
+  await page.getByRole('tab', { name: 'EMOTES' }).click()
+  await expect(page.getByRole('button', { name: 'DISCO', exact: true })).toBeVisible()
+
+  // Bypass off: the same items are locked.
+  await page.evaluate(() => localStorage.setItem('gn-premium-bypass', 'off'))
+  await page.reload()
+  await expect(page.getByText('GAME NIGHT PASS').first()).toBeVisible()
+  await page.getByRole('tab', { name: 'EMOTES' }).click()
+  await page.getByRole('button', { name: 'DISCO, locked' }).click()
+  const paywall = page.getByRole('dialog', { name: 'DISCO is a premium item' })
+  await expect(paywall.getByRole('button', { name: /GET THE PASS/ })).toBeVisible()
+
+  // A guest is asked to sign in with Google before buying.
+  await paywall.getByRole('button', { name: /BUY PIXEL EMOTES/ }).click()
+  const purchase = page.getByRole('dialog', { name: 'Buy PIXEL EMOTES' })
+  await expect(purchase.getByRole('button', { name: 'SIGN IN WITH GOOGLE' })).toBeVisible()
+  await purchase.getByRole('button', { name: 'CANCEL' }).click()
+  await expect(purchase).toBeHidden()
+
+  // The owned pack unlocks live, with no reload.
+  await writeDb(`entitlements/${uid}/packs/emotes-pixel`, true)
+  await expect(page.getByRole('button', { name: 'DISCO', exact: true })).toBeVisible()
+  await expect(page.getByText('OWNED')).toBeVisible()
+
+  // Revoked again (a refund): locked.
+  await writeDb(`entitlements/${uid}/packs/emotes-pixel`, null)
+  await expect(page.getByRole('button', { name: 'DISCO, locked' })).toBeVisible()
+
+  // An active Pass unlocks everything and says so.
+  await writeDb(`entitlements/${uid}/pass`, { status: 'active', plan: 'yearly', currentPeriodEnd: Date.now() + 86_400_000 * 30 })
+  await expect(page.getByText('PASS ACTIVE')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'DISCO', exact: true })).toBeVisible()
+
+  // A lapsed Pass locks again.
+  await writeDb(`entitlements/${uid}/pass`, { status: 'active', plan: 'yearly', currentPeriodEnd: Date.now() - 1000 })
+  await expect(page.getByRole('button', { name: 'DISCO, locked' })).toBeVisible()
+
+  // The server-set admin flag (the email allowlist) unlocks too.
+  await writeDb(`entitlements/${uid}/admin`, true)
+  await expect(page.getByText('ADMIN ACCESS')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'DISCO', exact: true })).toBeVisible()
+
+  expectNoPageErrors(player)
+})
+
+test('emote picker locks the pixel pack and opens the paywall', async ({ browser }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+  await onboard(page, 'Shopper Two')
+  await page.evaluate(() => localStorage.setItem('gn-premium-bypass', 'off'))
+  await page.goto('/shop')
+  await page.getByRole('tab', { name: 'EMOTES' }).click()
+  await expect(page.getByRole('button', { name: 'UFO, locked' })).toBeVisible()
+  await page.getByRole('button', { name: 'UFO, locked' }).click()
+  await expect(page.getByRole('dialog', { name: 'UFO is a premium item' })).toBeVisible()
+  expectNoPageErrors(player)
+})

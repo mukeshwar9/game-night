@@ -1,0 +1,12 @@
+import { useSyncExternalStore } from 'react'
+import { getPremiumUi, subscribePremiumUi } from '../../lib/premiumUi'
+import PaywallSheet from './PaywallSheet'
+import PurchaseSheet from './PurchaseSheet'
+
+// Mounted once in App: renders whichever premium overlay the store asks for.
+export default function PremiumHost() {
+  const ui = useSyncExternalStore(subscribePremiumUi, getPremiumUi, getPremiumUi)
+  if (ui.purchase) return <PurchaseSheet product={ui.purchase} />
+  if (ui.paywallItem) return <PaywallSheet item={ui.paywallItem} />
+  return null
+}

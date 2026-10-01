@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PACKS, PRICES, PRODUCTS, formatCents, yearlySavingsPercent } from './premiumCatalog'
-import { accessFor, hasActivePass, isUnlocked, itemKey, missingPacks, unlockReason } from './premium'
+import { accessFor, birthYearOptions, bypassActive, hasActivePass, isUnlocked, itemKey, missingPacks, purchaseGate, unlockReason } from './premium'
 
 const NOW = 1_800_000_000_000
 const free = { kind: 'theme', id: 'matcha' }
@@ -98,5 +98,42 @@ describe('helpers', () => {
     const items = [themed, { ...themed, id: 'b' }, { kind: 'avatar', id: 'h', premium: true, pack: 'avatars-hats' }, free]
     expect(missingPacks(items, { packs: { 'avatars-hats': true } })).toEqual(['themes-seasonal'])
     expect(missingPacks(items, null).sort()).toEqual(['avatars-hats', 'themes-seasonal'])
+  })
+})
+
+describe('bypassActive', () => {
+  it('is on for a dev server or the emulators, off in production', () => {
+    expect(bypassActive({ dev: true })).toBe(true)
+    expect(bypassActive({ emulator: true })).toBe(true)
+    expect(bypassActive({})).toBe(false)
+  })
+
+  it('can be switched off locally but never switched on', () => {
+    expect(bypassActive({ dev: true, override: 'off' })).toBe(false)
+    expect(bypassActive({ emulator: true, override: 'off' })).toBe(false)
+    expect(bypassActive({ override: 'on' })).toBe(false)
+    expect(bypassActive({ override: null })).toBe(false)
+  })
+})
+
+describe('purchaseGate', () => {
+  const now = new Date('2026-10-01T00:00:00Z')
+  it('asks guests to sign in first, then for a birth year', () => {
+    expect(purchaseGate({ isAnonymous: true, birthYear: 2000, now })).toBe('sign-in')
+    expect(purchaseGate({ isAnonymous: false, birthYear: null, now })).toBe('age')
+    expect(purchaseGate({ isAnonymous: false, birthYear: undefined, now })).toBe('age')
+  })
+
+  it('blocks under 13 and allows 13 and over', () => {
+    expect(purchaseGate({ isAnonymous: false, birthYear: 2014, now })).toBe('under-age')
+    expect(purchaseGate({ isAnonymous: false, birthYear: 2013, now })).toBe('ok')
+    expect(purchaseGate({ isAnonymous: false, birthYear: 1980, now })).toBe('ok')
+  })
+
+  it('offers a neutral descending year list', () => {
+    const years = birthYearOptions(now)
+    expect(years[0]).toBe(2026)
+    expect(years.at(-1)).toBe(1926)
+    expect(new Set(years).size).toBe(years.length)
   })
 })

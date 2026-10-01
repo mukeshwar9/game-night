@@ -56,3 +56,27 @@ describe('entitlementsPublic (badge copy)', () => {
     await assertFails(as('bob').ref('entitlementsPublic/alice').set({ pass: true }))
   })
 })
+
+describe('ageGate (neutral birth-year question)', () => {
+  it('lets the owner record a birth year once and read it back', async () => {
+    await assertSucceeds(as('alice').ref('ageGate/alice').set({ year: 1999, at: Date.now() }))
+    await assertSucceeds(as('alice').ref('ageGate/alice').get())
+  })
+
+  it('cannot be changed or deleted once recorded, so an under-13 answer sticks', async () => {
+    await put('ageGate/kid', { year: 2018, at: 1 })
+    await assertFails(as('kid').ref('ageGate/kid').set({ year: 1990, at: 2 }))
+    await assertFails(as('kid').ref('ageGate/kid/year').set(1990))
+    await assertFails(as('kid').ref('ageGate/kid').remove())
+  })
+
+  it('is private to its owner and rejects nonsense years', async () => {
+    await put('ageGate/alice', { year: 1999, at: 1 })
+    await assertFails(as('bob').ref('ageGate/alice').get())
+    await assertFails(as('bob').ref('ageGate/bob2').set({ year: 1999 }))
+    await assertFails(as('bob').ref('ageGate/bob').set({ year: 1850 }))
+    await assertFails(as('bob').ref('ageGate/bob').set({ year: 1999.5 }))
+    await assertFails(as('bob').ref('ageGate/bob').set({ year: 'old' }))
+    await assertFails(as('bob').ref('ageGate/bob').set({ year: 1999, extra: 1 }))
+  })
+})

@@ -102,3 +102,36 @@ export function missingPacks(items, ent) {
   }
   return [...ids]
 }
+
+/**
+ * Local-development bypass: every premium item is open on a dev server or the
+ * emulators, never in a production build. `override` is the stored 'off' switch
+ * used to look at the locked UI while developing; it can only ever turn the
+ * bypass off, so it cannot unlock anything in production.
+ * @param {{ dev?: boolean, emulator?: boolean, override?: string | null }} env
+ */
+export function bypassActive({ dev = false, emulator = false, override = null } = {}) {
+  if (!dev && !emulator) return false
+  return override !== 'off'
+}
+
+/**
+ * Whether a purchase can start: guests sign in with Google first, then the
+ * neutral age question, under-13s can never buy.
+ * @param {{ isAnonymous: boolean, birthYear: number | null | undefined, now?: Date }} s
+ * @returns {'sign-in' | 'age' | 'under-age' | 'ok'}
+ */
+export function purchaseGate({ isAnonymous, birthYear, now = new Date() }) {
+  if (isAnonymous) return 'sign-in'
+  if (!Number.isInteger(birthYear)) return 'age'
+  const age = now.getUTCFullYear() - /** @type {number} */ (birthYear)
+  return age < 13 ? 'under-age' : 'ok'
+}
+
+/** Birth years offered by the age question: a neutral list, oldest last, no hint. */
+export function birthYearOptions(now = new Date()) {
+  const top = now.getUTCFullYear()
+  const years = []
+  for (let y = top; y >= top - 100; y--) years.push(y)
+  return years
+}

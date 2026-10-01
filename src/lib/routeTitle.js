@@ -13,6 +13,8 @@ const STATIC = {
   '/demo': `Play solo vs the CPU — ${BRAND}`,
   '/friends': `Friends — ${BRAND}`,
   '/profile': `Settings — ${BRAND}`,
+  '/shop': `Shop — ${BRAND}`,
+  '/pass': `Game Night Pass — ${BRAND}`,
   '/notes': `Feedback — ${BRAND}`,
 }
 

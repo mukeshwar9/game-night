@@ -14,7 +14,7 @@ function accountPaths(uid, { friendUids = [], code = null } = {}) {
   const paths = [
     `leaderboard/${uid}`, `users/${uid}`, `profiles/${uid}`, `presence/${uid}`,
     `friends/${uid}`, `friendRequests/${uid}`, `invites/${uid}`,
-    `entitlements/${uid}`, `entitlementsPublic/${uid}`,
+    `entitlements/${uid}`, `entitlementsPublic/${uid}`, `ageGate/${uid}`,
   ]
   if (code) paths.push(`codes/${code}`)
   for (const friend of friendUids) paths.push(`friends/${friend}/${uid}`)

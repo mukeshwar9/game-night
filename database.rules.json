@@ -1190,6 +1190,22 @@
       ".read": false,
       ".write": false
     },
+    "ageGate": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['year'])",
+        "year": {
+          ".validate": "newData.isNumber() && newData.val() >= 1900 && newData.val() <= 2100 && newData.val() % 1 === 0"
+        },
+        "at": {
+          ".validate": "newData.isNumber() && newData.val() <= now + 3600000"
+        },
+        "$other": {
+          ".validate": "false"
+        }
+      }
+    },
     "entitlements": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

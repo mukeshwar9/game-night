@@ -12,6 +12,8 @@ import { FONTS, applyFont, getStoredFont } from './font'
 import { applyStoredDisplayPrefs } from './displayPrefs'
 import { recordAttribution } from './analytics'
 import { resyncPush } from './push'
+import { startEntitlements, stopEntitlements, syncAdminAccess, isUnlockedNow } from './entitlements'
+import useAccess from '../hooks/useAccess'
 
 const AuthContext = createContext(null)
 
@@ -53,6 +55,30 @@ export function AuthProvider({ children }) {
     return unsub
   }, [])
 
+  // Purchases follow the account: watch entitlements/{uid} for as long as it is signed in.
+  useEffect(() => {
+    if (uid) startEntitlements(uid)
+    else stopEntitlements()
+  }, [uid])
+
+  // A verified Google account on the admin allowlist unlocks every premium item.
+  // The server decides (functions/billing.js); this only asks, once per sign-in.
+  const permanent = !!user && !user.isAnonymous
+  useEffect(() => {
+    if (uid && permanent) syncAdminAccess()
+  }, [uid, permanent])
+
+  // A premium theme or font that is no longer unlocked (a lapsed Pass, a refund,
+  // a theme synced from another device) steps back to the free default.
+  const access = useAccess()
+  useEffect(() => {
+    if (!access.loaded) return
+    const theme = THEMES.find(t => t.id === getStoredTheme())
+    if (theme?.premium && !access.isUnlocked({ kind: 'theme', ...theme })) applyTheme('matcha')
+    const font = FONTS.find(f => f.id === getStoredFont())
+    if (font?.premium && !access.isUnlocked({ kind: 'font', ...font })) applyFont('press-start')
+  }, [access])
+
   // Boot-time anonymous sign-in failure is otherwise silent. Toaster only
   // mounts once `booted` flips `children` on, so this can't fire during the
   // splash — it runs on the render right after, once per session.
@@ -92,10 +118,10 @@ export function AuthProvider({ children }) {
         setProfile(p)
         // Theme follows the account across devices: applyTheme only touches
         // DOM + localStorage, so this can't loop back into another setProfile write.
-        if (p?.theme && THEMES.some(t => t.id === p.theme) && p.theme !== getStoredTheme()) {
+        if (p?.theme && THEMES.some(t => t.id === p.theme && isUnlockedNow({ kind: 'theme', ...t })) && p.theme !== getStoredTheme()) {
           applyTheme(p.theme)
         }
-        if (p?.fontFamily && FONTS.some(font => font.id === p.fontFamily) && p.fontFamily !== getStoredFont()) {
+        if (p?.fontFamily && FONTS.some(font => font.id === p.fontFamily && isUnlockedNow({ kind: 'font', ...font })) && p.fontFamily !== getStoredFont()) {
           applyFont(p.fontFamily)
         }
       })

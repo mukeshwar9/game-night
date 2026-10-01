@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import BottomSheet from './BottomSheet'
-import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, QUICK_CHAT, searchEmotes } from '../lib/emotes'
+import { EMOTES_PRIMARY, EMOTES_PICKER_FACES, EMOTES_PICKER_GESTURES, EMOTES_PREMIUM, QUICK_CHAT, searchEmotes } from '../lib/emotes'
+import LockBadge from './premium/LockBadge'
+import useAccess from '../hooks/useAccess'
+import { openPaywall } from '../lib/premiumUi'
 import { CHAT_MAX_LENGTH } from '../lib/chat'
 import { cn } from '@/lib/utils'
 import { getPlayerId } from '../lib/playerId'
@@ -41,6 +44,31 @@ function EmoteGrid({ glyphs, onPick, className }) {
           {g}
         </AnimatedEmoteButton>
       ))}
+    </div>
+  )
+}
+
+// The PIXEL EMOTES pack: an unlocked glyph sends like any other; a locked one
+// closes the picker (sheets never nest) and opens the paywall.
+function PremiumEmoteGrid({ onPick, onLocked, className }) {
+  const access = useAccess()
+  return (
+    <div className={cn('grid grid-cols-6 gap-2', className)}>
+      {EMOTES_PREMIUM.map(item => {
+        const open = access.isUnlocked(item)
+        return (
+          <AnimatedEmoteButton
+            key={item.id}
+            type="button"
+            onClick={() => (open ? onPick(item.glyph) : onLocked(item))}
+            aria-label={open ? `Send ${item.label} reaction` : `${item.label} reaction, locked`}
+            className={cn(EMOTE_BTN_CLASS, 'relative w-full aspect-square text-xl', !open && 'opacity-70')}
+          >
+            {item.glyph}
+            {!open && <LockBadge size={10} className="absolute right-0.5 bottom-0.5" />}
+          </AnimatedEmoteButton>
+        )
+      })}
     </div>
   )
 }
@@ -88,6 +116,8 @@ function EmotePicker({ onPick, onClose }) {
             <EmoteGrid glyphs={EMOTES_PICKER_FACES} onPick={pick} className="pt-1.5" />
             <p className="font-pixel text-[8px] text-retro-dim tracking-widest pt-3">GESTURES</p>
             <EmoteGrid glyphs={EMOTES_PICKER_GESTURES} onPick={pick} className="pt-1.5" />
+            <p className="font-pixel text-[8px] text-retro-dim tracking-widest pt-3">PIXEL EMOTES</p>
+            <PremiumEmoteGrid onPick={pick} onLocked={(item) => { onClose(); openPaywall(item) }} className="pt-1.5" />
           </>
         )}
       </div>

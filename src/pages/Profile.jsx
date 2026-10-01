@@ -20,6 +20,7 @@ import PushToggle from '../components/PushToggle'
 import OpenInBrowserHint from '../components/OpenInBrowserHint'
 import { isInAppBrowser } from '../lib/uaLogic'
 import LegalLinks from '../components/LegalLinks'
+import PassStatus from '../components/premium/PassStatus'
 import { cn } from '@/lib/utils'
 
 export default function Profile() {
@@ -394,6 +395,19 @@ export default function Profile() {
         </div>
         )}
 
+        {/* Shop & Pass: what the account has, and the way to more looks */}
+        <div className="space-y-2 border-t border-retro-border pt-4">
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">SHOP &amp; PASS</label>
+          <PassStatus linkToPass />
+          <Link
+            to="/shop"
+            className="flex min-h-11 items-center justify-between rounded border border-retro-cta/50 px-3 font-pixel text-[9px] tracking-widest text-retro-cta hover:border-retro-cta transition-colors"
+          >
+            <span>OPEN THE SHOP</span>
+            <span className="text-retro-dim" aria-hidden="true">→</span>
+          </Link>
+        </div>
+
         {/* Privacy: policy links and account deletion */}
         <div className="space-y-2 border-t border-retro-border pt-4">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">PRIVACY</label>
@@ -411,7 +425,7 @@ export default function Profile() {
             <div role="alertdialog" aria-labelledby="delete-title" aria-describedby="delete-body" className="space-y-3 border-2 border-retro-danger bg-retro-tint-danger rounded p-3">
               <p id="delete-title" className="font-pixel text-[10px] text-retro-danger tracking-wider">DELETE EVERYTHING?</p>
               <p id="delete-body" className="font-mono text-[11px] text-retro-text leading-relaxed">
-                This removes your profile, friend code, friends, invites, stats and sign-in account, and cannot be undone. Chat you already sent leaves with its room within a day.
+                This removes your profile, friend code, friends, invites, stats, purchases and sign-in account, cancels any Game Night Pass subscription, and cannot be undone. Chat you already sent leaves with its room within a day.
               </p>
               <div className="flex gap-2">
                 <button

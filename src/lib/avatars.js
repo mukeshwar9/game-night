@@ -18,6 +18,13 @@
 // accepted, documented degradation — the PWA updates fast and the stored string itself
 // is untouched, so the real outfit reappears once the client refreshes.
 
+// Premium avatar items (hats, gear, buddies) for the shop and the picker locks.
+// Contract: each entry is { kind: 'avatar', id, label, premium: true, pack, preview }
+// where `pack` is a PACKS id (premiumCatalog.js) and `preview` an avatar id that
+// shows the item. Free parts stay free; only entries listed here are gated.
+/** @type {{ kind: 'avatar', id: string, label: string, premium: true, pack: string, preview: string }[]} */
+export const PREMIUM_AVATAR_ITEMS = []
+
 export const SHAPES = [
   'invader', 'robot', 'ghost', 'alien', 'skull', 'cat', 'ufo', 'wizard',
   'ninja', 'crown', 'dino', 'heart',
