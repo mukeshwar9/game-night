@@ -59,6 +59,8 @@ const IDENTITY_NAME = { A: TEAM_LABEL.A, B: TEAM_LABEL.B, [NEUTRAL]: 'BYSTANDER'
 const IDENTITY_GLYPH = { A: TEAM_GLYPH.A, B: TEAM_GLYPH.B, [NEUTRAL]: '·', [ASSASSIN]: '☠' }
 
 // Token classes per identity: filled (revealed) and outlined (spymaster key).
+// The key also tints each team's cards at low alpha, so ALPHA and BRAVO read
+// apart at a glance (and in 1-BIT MONO), not by a thin dashed border alone.
 const FILLED = {
   A: 'bg-retro-tint-p1 border-retro-p1 text-retro-p1',
   B: 'bg-retro-tint-p2 border-retro-p2 text-retro-p2',
@@ -66,11 +68,12 @@ const FILLED = {
   [ASSASSIN]: 'bg-retro-tint-danger border-retro-danger text-retro-danger',
 }
 const OUTLINE = {
-  A: 'border-retro-p1 text-retro-text',
-  B: 'border-retro-p2 text-retro-text',
+  A: 'border-retro-p1 bg-retro-tint-p1/50 text-retro-text',
+  B: 'border-retro-p2 bg-retro-tint-p2/50 text-retro-text',
   [NEUTRAL]: 'border-retro-border text-retro-dim',
-  [ASSASSIN]: 'border-retro-danger text-retro-danger',
+  [ASSASSIN]: 'border-retro-danger bg-retro-tint-danger/50 text-retro-danger',
 }
+const KEY_GLYPH_TONE = { A: 'text-retro-p1', B: 'text-retro-p2', [NEUTRAL]: 'text-retro-dim', [ASSASSIN]: 'text-retro-danger' }
 const TEAM_TEXT = { A: 'text-retro-p1', B: 'text-retro-p2' }
 const TEAM_GLOW = { A: 'text-glow-p1', B: 'text-glow-p2' }
 const TEAM_BORDER = { A: 'border-retro-p1', B: 'border-retro-p2' }
@@ -654,7 +657,7 @@ export default function CodeWordsGame({
               )}
             >
               {known && (
-                <span className="absolute top-0 left-0.5 font-pixel text-[8px]" aria-hidden="true">{IDENTITY_GLYPH[known]}</span>
+                <span className={cn('absolute top-0 left-0.5 font-pixel text-[11px] leading-none', KEY_GLYPH_TONE[known])} aria-hidden="true">{IDENTITY_GLYPH[known]}</span>
               )}
               {badCards[i] && (
                 <span className="absolute top-0 right-0.5 font-pixel text-[8px] text-retro-danger" title="Reveal failed verification">⚠</span>
@@ -698,7 +701,7 @@ export default function CodeWordsGame({
                 aria-label={`${n} card${n === 1 ? '' : 's'}`}
                 onClick={() => { setClueNumber(n); setClueErr('') }}
                 className={cn(
-                  'h-10 rounded border-2 font-pixel text-[10px] transition-all active:scale-95',
+                  'h-11 rounded border-2 font-pixel text-[10px] transition-all active:scale-95',
                   clueNumber === n ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : 'border-retro-border text-retro-dim',
                 )}
               >{n}</button>
