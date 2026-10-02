@@ -11,6 +11,7 @@ import {
   generateBotStatement,
   generateQuestionPrompt,
   pickBotSpyVote,
+  spySuspicion,
   renderSpyReply,
   tallySpyfairVotes,
   normalizeIdList,
@@ -22,7 +23,7 @@ import {
 } from './partyBots'
 import { isValidAvatar, HUMANOIDS, SHAPES } from './avatars'
 import { SPYFAIR_LOCATIONS } from './decks/spyfair'
-import { SPY_REPLY_STYLES } from './decks/spyfairChat'
+import { SPY_REPLY_STYLES, SPY_STATEMENT_TEMPLATES, NON_SPY_STATEMENT_TEMPLATES } from './decks/spyfairChat'
 
 // Tiny deterministic PRNG (mulberry32) so statistical assertions are reproducible.
 // Kept local to the test file — partyBots.js itself stays rng-agnostic (callers
@@ -349,38 +350,88 @@ describe('generateQuestionPrompt', () => {
   })
 })
 
+describe('spySuspicion', () => {
+  const loc = 0
+  const role = SPYFAIR_LOCATIONS[loc].roles[0]
+  const other = SPYFAIR_LOCATIONS.findIndex((l, i) => i !== loc && !l.roles.includes(role))
+
+  it('reads only what was said: a role from this location is genuine, anything else is a tell', () => {
+    const feed = [
+      { speakerId: 'bot-1', text: 'HEY BOT-2, WHAT DO YOU ACTUALLY DO HERE?', ask: true },
+      { speakerId: 'bot-2', text: generateBotStatement({ id: 'bot-2' }, { role, isSpy: false }) },
+      { speakerId: 'bot-3', text: generateBotStatement({ id: 'bot-3' }, { role: null, isSpy: true }) },
+      { speakerId: 'human', text: renderSpyReply('gamble', { askerName: 'BOT-1', roleWord: role }) },
+      { speakerId: 'bot-4', text: renderSpyReply('vague', {}) },
+    ]
+    expect(spySuspicion(feed, loc)).toEqual({
+      'bot-2': { answers: 1, tells: 0 },
+      'bot-3': { answers: 1, tells: 1 },
+      human: { answers: 1, tells: 0 },
+      'bot-4': { answers: 1, tells: 1 },
+    })
+    // The same genuine line is a tell at a location where that role does not exist.
+    expect(spySuspicion(feed.slice(1, 2), other)['bot-2'].tells).toBe(1)
+  })
+
+  it('no spy line or spy reply names a role at any location', () => {
+    const roleless = [
+      ...SPY_STATEMENT_TEMPLATES,
+      ...SPY_REPLY_STYLES.map(s => s.render({ askerName: 'RUBY', roleWord: '' })),
+    ]
+    SPYFAIR_LOCATIONS.forEach((_, i) => {
+      const feed = roleless.map((text, n) => ({ speakerId: `p${n}`, text }))
+      for (const row of Object.values(spySuspicion(feed, i))) expect(row.tells).toBe(1)
+    })
+  })
+
+  it('every genuine line names its role', () => {
+    SPYFAIR_LOCATIONS.forEach((l, i) => {
+      for (const r of l.roles) {
+        const feed = NON_SPY_STATEMENT_TEMPLATES.map((t, n) => ({ speakerId: `p${n}`, text: t.replace('{role}', r) }))
+        for (const row of Object.values(spySuspicion(feed, i))) expect(row.tells).toBe(0)
+      }
+    })
+  })
+})
+
 describe('pickBotSpyVote', () => {
-  const rosterIds = ['bot-1', 'bot-2', 'bot-3', 'bot-4']
+  const rosterIds = ['bot-1', 'bot-2', 'bot-3', 'human']
+  const spyTalked = { 'bot-2': { answers: 2, tells: 0 }, 'bot-3': { answers: 2, tells: 2 }, human: { answers: 1, tells: 0 } }
 
   it('never accuses itself', () => {
     const rng = mulberry32(90)
     for (let i = 0; i < N; i++) {
-      expect(pickBotSpyVote('bot-1', rosterIds, 'bot-3', { acuity: 0.5 }, rng)).not.toBe('bot-1')
+      expect(pickBotSpyVote('bot-1', rosterIds, { suspicion: spyTalked }, { acuity: 0.5 }, rng)).not.toBe('bot-1')
+      expect(pickBotSpyVote('bot-1', rosterIds, { selfIsSpy: true }, { acuity: 0.5 }, rng)).not.toBe('bot-1')
     }
   })
 
-  it('when the bot itself is the spy, it votes uniformly among the others', () => {
-    const rng = mulberry32(91)
-    for (let i = 0; i < N; i++) {
-      const accused = pickBotSpyVote('bot-1', rosterIds, 'bot-1', { acuity: 0.5 }, rng)
-      expect(rosterIds).toContain(accused)
-      expect(accused).not.toBe('bot-1')
-    }
-  })
-
-  it('accuses the real spy roughly at the acuity-scaled rate', () => {
-    const spyHitRate = (acuity, seed) => {
+  it('accuses the speaker with the most tells at roughly the acuity-scaled rate', () => {
+    const hitRate = (acuity, seed) => {
       const rng = mulberry32(seed)
       let hits = 0
       for (let i = 0; i < N; i++) {
-        if (pickBotSpyVote('bot-1', rosterIds, 'bot-3', { acuity }, rng) === 'bot-3') hits++
+        if (pickBotSpyVote('bot-1', rosterIds, { suspicion: spyTalked }, { acuity }, rng) === 'bot-3') hits++
       }
       return hits / N
     }
-    expect(spyHitRate(0, 92)).toBeGreaterThan(0.25 - 0.08)
-    expect(spyHitRate(0, 92)).toBeLessThan(0.25 + 0.08)
-    expect(spyHitRate(1, 93)).toBeGreaterThan(0.75 - 0.08)
-    expect(spyHitRate(1, 93)).toBeLessThan(0.75 + 0.08)
+    // Accuse on purpose, plus a 1-in-3 share of the uniform picks.
+    expect(hitRate(0, 92)).toBeGreaterThan(0.25 + 0.75 / 3 - 0.08)
+    expect(hitRate(0, 92)).toBeLessThan(0.25 + 0.75 / 3 + 0.08)
+    expect(hitRate(1, 93)).toBeGreaterThan(0.75 + 0.25 / 3 - 0.08)
+    expect(hitRate(1, 93)).toBeLessThan(0.75 + 0.25 / 3 + 0.08)
+  })
+
+  it('cannot single out a human spy who left no tell', () => {
+    // The human is the spy but blended in; nothing in the feed points at them.
+    const rng = mulberry32(94)
+    const blended = { 'bot-2': { answers: 1, tells: 0 }, 'bot-3': { answers: 1, tells: 0 }, human: { answers: 1, tells: 0 } }
+    let human = 0
+    for (let i = 0; i < N; i++) {
+      if (pickBotSpyVote('bot-1', rosterIds, { suspicion: blended }, { acuity: 1 }, rng) === 'human') human++
+    }
+    expect(human / N).toBeGreaterThan(1 / 3 - 0.08)
+    expect(human / N).toBeLessThan(1 / 3 + 0.08)
   })
 })
 

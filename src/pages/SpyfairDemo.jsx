@@ -11,6 +11,7 @@ import {
   generateBotStatement,
   generateQuestionPrompt,
   pickBotSpyVote,
+  spySuspicion,
   renderSpyReply,
 } from '../lib/partyBots'
 import {
@@ -335,13 +336,13 @@ export default function SpyfairDemo() {
         // Human spy got put on the spot — pause the ticker for a reply choice.
         dispatch({
           type: 'ASK_HUMAN_SPY',
-          entries: [{ speakerId: speaker.id, text: question }],
+          entries: [{ speakerId: speaker.id, text: question, ask: true }],
           pendingAsk: { askerName: speaker.name, roleWord: state.lastRoleWordSeen },
         })
         return
       }
 
-      const entries = [{ speakerId: speaker.id, text: question }]
+      const entries = [{ speakerId: speaker.id, text: question, ask: true }]
       let lastRoleWordSeen
       if (targetBot) {
         const targetIsSpy = targetBot.id === state.spyId
@@ -376,8 +377,10 @@ export default function SpyfairDemo() {
   useEffect(() => {
     if (state.phase !== 'vote') return
     const allIds = allParticipantIds(state)
+    // Bots judge from the chat feed, never from state.spyId (see spySuspicion).
+    const suspicion = spySuspicion(state.feed, state.locationIndex)
     const timers = state.roster.map((bot, i) => setTimeout(() => {
-      const accusedId = pickBotSpyVote(bot.id, allIds, state.spyId, bot.persona)
+      const accusedId = pickBotSpyVote(bot.id, allIds, { selfIsSpy: bot.id === state.spyId, suspicion }, bot.persona)
       dispatch({ type: 'CAST_VOTE', voterId: bot.id, accusedId })
     }, 600 + i * 450 + Math.random() * 300))
     return () => timers.forEach(clearTimeout)

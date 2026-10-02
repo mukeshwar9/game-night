@@ -8,6 +8,7 @@ import { normalizeBoard } from '../../lib/gameLogic'
 import { getGameConfig, freshGameState } from '../../lib/games'
 import { pickBotMove, botDifficulties, observeDemoMove, DEFAULT_BOT_DIFFICULTY } from '../../lib/demoBots'
 import { recordRoundEnd } from '../../lib/analytics'
+import { readBotRecord, recordBotResult, easierLevel, formatLevelRecord, describeLevelRecord } from '../../lib/botRecordLogic'
 
 // ─── Bot difficulty (remembered per game) ─────────────────────────────────────
 
@@ -71,8 +72,16 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
   // Only the levels this game's bot actually distinguishes (demoBots.js).
   const levels = isLocal ? [] : botDifficulties(type)
   const [difficulty, setDifficulty] = useState(() => readDifficulty(type, levels))
+  // The player's W–L–D against each level, shown under the picker.
+  const [record, setRecord] = useState(() => readBotRecord(type))
+  // The level this game counts under: the easiest one picked since its first
+  // move, so switching to HARD just before winning doesn't log a HARD win.
+  const countedLevelRef = useRef(difficulty)
+  // The human always moves first, so a tap on the board starts the game.
+  const startedRef = useRef(false)
   const chooseDifficulty = (level) => {
     setDifficulty(level)
+    countedLevelRef.current = startedRef.current ? easierLevel(countedLevelRef.current, level, levels) : level
     try { localStorage.setItem(difficultyKey(type), level) } catch { /* private mode */ }
   }
 
@@ -109,6 +118,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
   }
 
   const handleHumanMove = (payload) => {
+    if (game.status === 'playing') startedRef.current = true
     setGame(g => {
       if (g.status !== 'playing') return g
       const symbol = isLocal ? g.currentTurn : 'X'
@@ -142,6 +152,10 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
       else sounds.lose()
       // Once per finished game: this only fires on the playing → finished edge.
       recordRoundEnd(type, isLocal ? 'local' : 'solo', 'finished')
+      if (!isLocal) {
+        const outcome = game.winner === 'draw' ? 'draw' : game.winner === 'X' ? 'win' : 'loss'
+        setRecord(recordBotResult(type, countedLevelRef.current, outcome))
+      }
     }
     prevStatus.current = game.status
   }, [game.status, game.winner, isLocal, type])
@@ -164,7 +178,11 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, type, difficulty])
 
-  const reset = () => { clearTimeout(timerRef.current); setGame(makeInit()); setReadyFor(null) }
+  const reset = () => {
+    clearTimeout(timerRef.current); setGame(makeInit()); setReadyFor(null)
+    countedLevelRef.current = difficulty
+    startedRef.current = false
+  }
   const gated = isLocal && !!cfg.handoffGate && game.status === 'playing' && readyFor !== game.currentTurn
   const seatName = game.currentTurn === 'O' ? 'PLAYER 2' : 'PLAYER 1'
 
@@ -181,17 +199,26 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
               key={level}
               onClick={() => chooseDifficulty(level)}
               aria-pressed={difficulty === level}
+              aria-label={`${level}, your record ${describeLevelRecord(record[level])}`}
               className={cn(
-                'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition-all active:scale-95',
+                'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition-all active:scale-95 flex flex-col items-center justify-center gap-1',
                 difficulty === level
                   ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                   : 'border-retro-border text-retro-dim hover:border-retro-p1/50',
               )}
             >
-              {level}
+              <span>{level}</span>
+              {formatLevelRecord(record[level]) && (
+                <span data-testid={`bot-record-${level}`} className="text-[7px] text-retro-dim">{formatLevelRecord(record[level])}</span>
+              )}
             </button>
           ))}
         </div>
+      )}
+      {levels.length === 1 && formatLevelRecord(record[levels[0]]) && (
+        <p data-testid={`bot-record-${levels[0]}`} className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">
+          YOU VS CPU · {formatLevelRecord(record[levels[0]])}
+        </p>
       )}
       <div className="grid grid-cols-2 gap-2">
         {isLocal ? (

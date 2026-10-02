@@ -273,22 +273,43 @@ export function renderSpyReply(styleId, context) {
   return style.render(context || {})
 }
 
-// If botId is itself the spy it has no read on who else is suspicious, so it
-// deflects uniformly. Otherwise it accuses the real spy with probability scaled
-// by its acuity persona stat; the rest of the time it picks uniformly among the
-// other non-spy candidates — which can legitimately land on the human player or
-// another innocent bot. That's the point: a wrongly-accused human is normal.
-export function pickBotSpyVote(botId, rosterIds, spyId, persona, rng = Math.random) {
+// A bot judges who the spy is from the chat feed alone, the same lines the
+// human reads; it never looks at who the spy really is. A non-spy knows the
+// location, so it knows the location's roles: an answer that names one of
+// them sounds genuine, and an answer that names none (a vague line, a dodge,
+// "I pretty much run this place") is a tell. Questions are not answers and
+// carry no tell. Returns { [speakerId]: { answers, tells } }.
+export function spySuspicion(feed, locationIndex) {
+  const roles = (SPYFAIR_LOCATIONS[locationIndex]?.roles || [])
+    .map(r => new RegExp(`\\b${r.toUpperCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`))
+  const out = {}
+  for (const entry of feed || []) {
+    if (!entry?.speakerId || entry.ask) continue
+    const text = String(entry.text || '').toUpperCase()
+    const named = roles.some(role => role.test(text))
+    const row = out[entry.speakerId] || (out[entry.speakerId] = { answers: 0, tells: 0 })
+    row.answers += 1
+    if (!named) row.tells += 1
+  }
+  return out
+}
+
+// A spy bot knows only that it is the spy, so it deflects uniformly. A non-spy
+// bot, with probability scaled by its acuity persona stat, accuses whoever
+// sounded most like the spy (`suspicion` from spySuspicion; ties broken at
+// random); the rest of the time, or when nobody has given a tell, it picks
+// uniformly among the others. A human spy who blends in (answers with a role
+// they overheard) leaves no tell, so bots can't single them out.
+export function pickBotSpyVote(botId, rosterIds, { selfIsSpy = false, suspicion = {} } = {}, persona, rng = Math.random) {
   const others = (rosterIds || []).filter(id => id !== botId)
   if (!others.length) return null
-  if (botId === spyId) return pickRandom(others, rng)
+  if (selfIsSpy) return pickRandom(others, rng)
 
-  const accuseProb = lerp(0.25, 0.75, persona.acuity)
-  if (others.includes(spyId) && rng() < accuseProb) return spyId
-
-  const nonSpyOthers = others.filter(id => id !== spyId)
-  const pool = nonSpyOthers.length ? nonSpyOthers : others
-  return pickRandom(pool, rng)
+  const score = id => suspicion[id]?.tells ?? 0
+  const top = Math.max(...others.map(score))
+  const accuseProb = lerp(0.25, 0.75, persona?.acuity ?? 0.5)
+  if (top > 0 && rng() < accuseProb) return pickRandom(others.filter(id => score(id) === top), rng)
+  return pickRandom(others, rng)
 }
 
 // votes = { [voterId]: accusedId } → strict-plurality tally. Mirrors the

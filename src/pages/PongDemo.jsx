@@ -8,6 +8,7 @@ import {
 } from '../lib/pongLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import { readBotRecord, recordBotResult, formatLevelRecord } from '../lib/botRecordLogic'
 
 // Solo Pong: pick a mode (and bot skill), then play full-screen against a
 // reaction-handicapped bot — or, in SURVIVAL, against a wall. Runs the pure
@@ -51,6 +52,9 @@ function Choice({ active, onClick, children, sub }) {
 
 function Setup({ setup, setSetup, best, onPlay }) {
   const mode = getMode(setup.mode)
+  // Your W–L against each bot level in this mode (re-read on every render, so
+  // it is fresh when a match closes).
+  const record = readBotRecord(`pong-${setup.mode}`)
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -68,7 +72,7 @@ function Setup({ setup, setSetup, best, onPlay }) {
           <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">BOT</p>
           <div className="grid grid-cols-3 gap-2">
             {Object.entries(AI_LEVELS).map(([id, lvl]) => (
-              <Choice key={id} active={setup.level === id} onClick={() => setSetup({ ...setup, level: id })}>
+              <Choice key={id} active={setup.level === id} onClick={() => setSetup({ ...setup, level: id })} sub={formatLevelRecord(record[id])}>
                 {lvl.label}
               </Choice>
             ))}
@@ -169,8 +173,11 @@ function Match({ setup, onExit, onBest }) {
         if (survival) {
           onBest(s.score.X)
           sounds.lose()
-        } else if (w === 'X') sounds.win()
-        else sounds.lose()
+        } else {
+          if (w === 'X') sounds.win()
+          else sounds.lose()
+          recordBotResult(`pong-${setup.mode}`, setup.level, w === 'X' ? 'win' : 'loss')
+        }
         setResult({ winner: w, score: s.score })
       }
     }

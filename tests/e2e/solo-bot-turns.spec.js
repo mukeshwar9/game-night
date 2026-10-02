@@ -58,3 +58,25 @@ test('solo Mancala: the bot keeps sowing after an extra turn', async ({ page }) 
   // The rival store got the extra-turn seed plus at least one more move.
   await expect(page.getByText(/^\d+ RIVAL$/)).not.toHaveText('0 RIVAL')
 })
+
+test('solo board games keep your record against each CPU level', async ({ page }) => {
+  await page.addInitScript(seedRandom, 7)
+  await page.goto('/solo/tictactoe')
+  await page.getByRole('button', { name: /^hard, your record/ }).click()
+  await expect(page.getByRole('button', { name: 'hard, your record not played yet' })).toBeVisible()
+
+  const result = page.getByText(/^(DRAW!|YOU WIN!|CPU WINS!)$/)
+  const open = page.getByRole('button', { name: /^Row \d, column \d, empty/ }).and(page.locator(':enabled'))
+  while (!(await result.isVisible())) {
+    if (await open.count()) await open.first().click()
+    await page.waitForTimeout(150)
+  }
+  // Hard tic-tac-toe never loses: the game is a draw or a CPU win.
+  const record = page.getByTestId('bot-record-hard')
+  await expect(record).toHaveText(/^0–[01](–[01])?$/)
+  await expect(page.getByRole('button', { name: /^hard, your record 0 wins, / })).toBeVisible()
+
+  // It is kept on this device across visits.
+  await page.reload()
+  await expect(page.getByTestId('bot-record-hard')).toHaveText(await record.textContent() ?? '')
+})
