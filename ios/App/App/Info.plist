@@ -6,6 +6,8 @@
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Talk to the friends in your party while you play. Audio is never recorded.</string>
 	<key>CFBundleDisplayName</key>
         <string>Game Night</string>
 	<key>CFBundleExecutable</key>

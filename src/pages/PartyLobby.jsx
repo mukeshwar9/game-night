@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
 import { GameArt } from '../components/GameArt'
 import QrCode from '../components/QrCode'
+import VoicePanel from '../components/voice/VoicePanel'
 import useBusy from '../hooks/useBusy'
 import { GAME_TYPES, getPlayerTag } from '../lib/games'
 import { effectiveCap, groupPickerForParty, partyMembers, partyPresentMembers } from '../lib/partyLogic'
@@ -84,6 +85,8 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
           </button>
         ))}
       </div>
+
+      {amMember && <VoicePanel game={game} gameId={gameId} />}
 
       {amMember && members.length < cap && (
         <div className="bg-retro-card border border-retro-border rounded p-3 space-y-3">

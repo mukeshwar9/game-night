@@ -15,3 +15,9 @@ export const NATIVE_APPLE_SIGNIN = import.meta.env?.VITE_NATIVE_APPLE_SIGNIN ===
 // Native push (FCM on Android, APNs through FCM on iOS): needs the APNs auth
 // key uploaded to Firebase and the real native Firebase config files.
 export const NATIVE_PUSH = import.meta.env?.VITE_NATIVE_PUSH === '1'
+
+// Party voice chat (Cloudflare Realtime SFU through the voiceSfu function).
+// Off until the Cloudflare app exists and the function is switched on
+// (VOICE_ENABLED=1 and the secrets in functions/.env.example); the client shows
+// no voice controls without VITE_VOICE_ENABLED=1.
+export const VOICE_ENABLED = import.meta.env?.VITE_VOICE_ENABLED === '1'

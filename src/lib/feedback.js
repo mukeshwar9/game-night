@@ -173,7 +173,7 @@ export async function submitFeedback({ type, message, page, profile } = {}) {
   return { ok: true, id }
 }
 
-export const REPORT_CONTEXTS = ['chat', 'profile', 'drawing']
+export const REPORT_CONTEXTS = ['chat', 'profile', 'drawing', 'voice']
 
 // The text and page of a report. A chat report quotes the message; a profile or
 // drawing report names the player (and the drawing's word, when given). Pure.
@@ -181,7 +181,7 @@ export function buildReport({ context = 'chat', gameId, targetName, text } = {})
   const kind = REPORT_CONTEXTS.includes(context) ? context : 'chat'
   const who = String(targetName || 'a player').slice(0, 40)
   const quoted = String(text || '').trim().slice(0, REPORT_TEXT_MAX)
-  const label = kind === 'chat' ? 'Chat' : kind === 'drawing' ? 'Drawing' : 'Profile'
+  const label = kind === 'chat' ? 'Chat' : kind === 'drawing' ? 'Drawing' : kind === 'voice' ? 'Voice' : 'Profile'
   const detail = kind === 'chat' ? `: "${quoted}"` : quoted ? ` (${quoted})` : ''
   return {
     quoted,

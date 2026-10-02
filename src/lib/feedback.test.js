@@ -134,6 +134,11 @@ describe('buildReport', () => {
       .toMatchObject({ message: 'Drawing report — Bob (cat)', page: '/game/AB12CD' })
   })
 
+  it('reports something said in voice with the reason (no audio is recorded)', () => {
+    expect(buildReport({ context: 'voice', gameId: 'AB12CD', targetName: 'Bob', text: 'hateful or abusive' }))
+      .toMatchObject({ message: 'Voice report — Bob (hateful or abusive)', page: '/game/AB12CD' })
+  })
+
   it('falls back to a chat report for an unknown context and caps lengths', () => {
     expect(buildReport({ context: 'nope', gameId: 'X', targetName: 'n'.repeat(80), text: 't'.repeat(500) }).message.startsWith('Chat report —')).toBe(true)
     const r = buildReport({ gameId: 'X', targetName: 'n'.repeat(80), text: 't'.repeat(500) })

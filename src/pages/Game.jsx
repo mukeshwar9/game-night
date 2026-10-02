@@ -39,6 +39,8 @@ import { isMyTurn, roomAnnouncement, seatedIds, spectatorCount } from '../lib/ro
 import useRoomSession, { UPDATE_NEEDED_ERROR } from '../hooks/room/useRoomSession'
 import UpdateNeeded from '../components/UpdateNeeded'
 import PartyAccessNotice from '../components/PartyAccessNotice'
+import { VoiceProvider } from '../components/voice/VoiceProvider'
+import VoicePanel from '../components/voice/VoicePanel'
 import useProposal from '../hooks/room/useProposal'
 import useAbandonRecovery from '../hooks/room/useAbandonRecovery'
 import useBackGuard from '../hooks/room/useBackGuard'
@@ -810,6 +812,9 @@ export default function Game() {
   const cfg = getGameConfig(game.gameType)
   const isCustom = !!cfg.custom
   const quietRoom = isQuietRoom(cfg, game)
+  // Party voice lives above both render branches (keyed only by gameId), so a
+  // game switch, BACK TO PARTY or a 2P reseat never drops the call.
+  const withVoice = (node) => <VoiceProvider gameId={gameId} game={game}>{node}</VoiceProvider>
 
   // Family-mismatch guard — a cross-family switch (party ⇄ 2P) reshapes the
   // players node (uid keys vs 'X'/'O'), leaving every client seatless. The
@@ -850,7 +855,7 @@ export default function Game() {
       proposal: null,
     }
     const inLobby = game.gameType === PARTY_LOBBY.type
-    return (
+    return withVoice(
       <RoomSwitchContext.Provider value={true}>
       <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
         {showLeaveConfirm && (
@@ -898,6 +903,8 @@ export default function Game() {
           <Suspense fallback={<GameAreaFallback />}>
             <cfg.Page {...nProps} />
           </Suspense>
+
+          {game.partyRoom && !inLobby && amSeated && <VoicePanel game={game} gameId={gameId} compact />}
 
           {/* Game night: kicked notice, lobby timers, tonight's scoreboard, host controls */}
           <NightPanel game={game} gameId={gameId} nPlayer onBackToParty={game.partyRoom && !inLobby ? () => applySwitchGame(PARTY_LOBBY.type) : null} />
@@ -959,7 +966,7 @@ export default function Game() {
   const doPlayAgain = partyMode ? () => applyPlayAgain() : () => propose('playAgain')
   const doNewMatch = partyMode ? () => applyNewMatch() : () => propose('newMatch')
 
-  return (
+  return withVoice(
     // Game night: a 2P game a party room switched into may switch back to party games.
     <RoomSwitchContext.Provider value={!!game.partyRoom}>
     <VideoCallShell><div className={cn(
@@ -1205,6 +1212,8 @@ export default function Game() {
             )}
           </Suspense>
         )}
+
+        {partyMode && (!isSpectator || !!game.queue?.[getPlayerId()]) && <VoicePanel game={game} gameId={gameId} compact />}
 
         {/* Game night: winner-stays line, kicked notice, tonight's scoreboard between games, host controls */}
         <NightPanel game={game} gameId={gameId} nPlayer={false} onBackToParty={partyMode ? () => applySwitchGame(PARTY_LOBBY.type) : null} />

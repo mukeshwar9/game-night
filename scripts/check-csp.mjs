@@ -26,6 +26,13 @@ else {
   }
   if (/script-src[^;]*'unsafe-(inline|eval)'/.test(csp.value)) problems.push("script-src must not allow 'unsafe-inline' or 'unsafe-eval'")
 }
+// Party voice needs the microphone on our own pages only: same-origin, never
+// an embedded frame. Camera and location stay off.
+const hosting = JSON.parse(readFileSync(resolve('firebase.json'), 'utf8')).hosting
+const permissions = (hosting.headers || []).flatMap(h => h.headers || []).find(h => h.key === 'Permissions-Policy')?.value || ''
+for (const needed of ['microphone=(self)', 'camera=()', 'geolocation=()']) {
+  if (!permissions.includes(needed)) problems.push(`Permissions-Policy lacks ${needed}`)
+}
 if (problems.length) {
   console.error(`CSP check failed:\n - ${problems.join('\n - ')}`)
   process.exit(1)
