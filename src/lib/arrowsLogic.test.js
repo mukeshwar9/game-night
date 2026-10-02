@@ -44,6 +44,8 @@ import {
   solveArrows,
   tierForGame,
   turnedDir,
+  crateMap,
+  mirrorMap,
 } from './arrowsLogic'
 
 // A hand-built 4×3 board (index: cells tail → head, heading):
@@ -843,5 +845,175 @@ describe('double arrows', () => {
         expect([b[0] - b1[0], b[1] - b1[1]]).toEqual([dx, dy])
       }
     }
+  })
+})
+
+describe('mirrors', () => {
+  // 4×4 with a '/' mirror at (2,2). Arrow 0 heads right into it and bounces
+  // up through (2,1), (2,0) and off the top edge.
+  const board = (extra = [], m = '/') => ({
+    cols: 4,
+    rows: 4,
+    mirrors: [{ x: 2, y: 2, m }],
+    arrows: [{ cells: [[0, 2], [1, 2]], dir: 1 }, ...extra],
+  })
+
+  it("'/' and '\\' turn a straight route 90°", () => {
+    const slash = board()
+    expect(arrowRoute(slash, slash.arrows[0])).toMatchObject({ cells: [10, 6, 2], finalDir: 0, dead: false })
+    const back = board([], '\\')
+    expect(arrowRoute(back, back.arrows[0])).toMatchObject({ cells: [10, 14], finalDir: 2 })
+    // Every heading through '/': up→right, right→up, down→left, left→down.
+    const up = { cols: 4, rows: 4, mirrors: [{ x: 1, y: 1, m: '/' }], arrows: [{ cells: [[1, 3], [1, 2]], dir: 0 }] }
+    expect(arrowRoute(up, up.arrows[0])).toMatchObject({ cells: [5, 6, 7], finalDir: 1 })
+    const left = { cols: 4, rows: 4, mirrors: [{ x: 1, y: 1, m: '/' }], arrows: [{ cells: [[3, 1], [2, 1]], dir: 3 }] }
+    expect(arrowRoute(left, left.arrows[0])).toMatchObject({ cells: [5, 9, 13], finalDir: 2 })
+    expect(mirrorMap(slash).get(10)).toBe('/')
+    expect(mirrorMap({ cols: 4, rows: 4, arrows: [] })).toBeNull()
+  })
+
+  it('the mirror itself never blocks; arrows on the bounced leg do', () => {
+    const blocked = board([{ cells: [[1, 0], [2, 0]], dir: 1 }])
+    expect(exitCheck(blocked, [false, false], 0)).toEqual({ free: false, blocker: 1, gap: 2 })
+    // The cell straight past the mirror is no longer on the route.
+    const past = board([{ cells: [[3, 3], [3, 2]], dir: 0 }])
+    expect(exitCheck(past, [false, false], 0).free).toBe(true)
+    // The lesson script: blocked, clear the blocker, then the bounce is open.
+    let gone = [false, false]
+    const r1 = applyArrowTap(blocked, gone, 3, 0)
+    expect(r1).toMatchObject({ result: 'blocked', blocker: 1, lives: 2 })
+    gone = applyArrowTap(blocked, gone, 3, 1).gone
+    expect(applyArrowTap(blocked, gone, 3, 0).result).toBe('cleared')
+  })
+
+  it('a hook still turns at the edge after a bounce', () => {
+    const level = { cols: 4, rows: 4, mirrors: [{ x: 2, y: 2, m: '/' }], arrows: [{ cells: [[0, 2], [1, 2]], dir: 1, turn: 1 }] }
+    // In, bounce up to the top edge at (2,0), turn clockwise: right along it.
+    expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [10, 6, 2, 3], finalDir: 1 })
+  })
+
+  it('a diagonal route that meets a mirror, or a route that loops, is dead', () => {
+    const diag = { cols: 4, rows: 4, mirrors: [{ x: 2, y: 1, m: '/' }], arrows: [{ cells: [[0, 3], [1, 2]], dir: 4 }] }
+    expect(arrowRoute(diag, diag.arrows[0]).dead).toBe(true)
+    expect(exitCheck(diag, [false], 0).free).toBe(false)
+    // Four mirrors in a ring trap a head that starts inside it: right, down,
+    // left, up and back round for ever. (Mirror paths are reversible, so a
+    // ray from outside the ring always gets out again.)
+    const ring = {
+      cols: 6,
+      rows: 6,
+      mirrors: [{ x: 1, y: 1, m: '/' }, { x: 4, y: 1, m: '\\' }, { x: 4, y: 4, m: '/' }, { x: 1, y: 4, m: '\\' }],
+      arrows: [{ cells: [[2, 1], [3, 1]], dir: 1 }],
+    }
+    expect(arrowRoute(ring, ring.arrows[0]).dead).toBe(true)
+    expect(exitCheck(ring, [false], 0)).toMatchObject({ free: false, blocker: -1 })
+    expect(solveArrows(ring).solvable).toBe(false)
+  })
+
+  it('leavePose turns at the mirror and leaves on the bounced heading', () => {
+    const level = board()
+    const arrow = level.arrows[0]
+    const far = leavePose(arrow, 10, 30, level)
+    // After 3 cells the head has turned up at (2,2) and is heading off the top.
+    expect(far[far.length - 1][0]).toBeCloseTo(25)
+    expect(far[far.length - 1][1]).toBeLessThan(15)
+    for (const t of [0, 12, 30]) expect(polylineLength(leavePose(arrow, 10, t, level))).toBeCloseTo(10)
+  })
+
+  it('the generator places mirrors off the edge, never under an arrow, and every route is live', () => {
+    for (let seed = 1; seed <= 25; seed += 1) {
+      const level = generateArrowsLevel(seed, { cols: 9, rows: 11, maxLen: 6, fill: 0.88, samples: 10, diag: 0.1, curve: 0.1, bend: 0.9, mirrors: 2 })
+      expect(level.mirrors.length).toBe(2)
+      const occ = occupancy(level, level.arrows.map(() => false))
+      for (const m of level.mirrors) {
+        expect(m.x).toBeGreaterThan(0)
+        expect(m.x).toBeLessThan(level.cols - 1)
+        expect(m.y).toBeGreaterThan(0)
+        expect(m.y).toBeLessThan(level.rows - 1)
+        expect(occ[m.y * level.cols + m.x]).toBe(-1)
+      }
+      for (const a of level.arrows) expect(arrowRoute(level, a).dead).toBe(false)
+      expect(solveArrows(level).solvable).toBe(true)
+    }
+  })
+})
+
+describe('crates', () => {
+  // 4×4 with a crate at (2,1) that needs 1 clear. Arrow 0 heads right into it.
+  const board = (k = 1) => ({
+    cols: 4,
+    rows: 4,
+    crates: [{ x: 2, y: 1, k }],
+    arrows: [
+      { cells: [[0, 1], [1, 1]], dir: 1 },
+      { cells: [[1, 3], [2, 3]], dir: 1 },
+      { cells: [[0, 2], [0, 3]], dir: 2 },
+    ],
+  })
+
+  it('blocks until that many arrows have left, then opens for good', () => {
+    const level = board()
+    expect(crateMap(level).get(6)).toBe(1)
+    expect(exitCheck(level, [false, false, false], 0)).toEqual({ free: false, blocker: -1, gap: 0, crate: 6 })
+    const r1 = applyArrowTap(level, [false, false, false], 3, 0)
+    expect(r1).toMatchObject({ result: 'blocked', blocker: -1, crate: 6, lives: 2 })
+    // Any clear counts it down.
+    const gone = applyArrowTap(level, [false, false, false], 3, 1).gone
+    expect(applyArrowTap(level, gone, 3, 0).result).toBe('cleared')
+  })
+
+  it('counts clears, not which arrows, and a crate off the route never matters', () => {
+    const level = board(2)
+    expect(exitCheck(level, [false, true, false], 0).free).toBe(false)
+    expect(exitCheck(level, [false, true, true], 0).free).toBe(true)
+    expect(exitCheck(level, [false, false, false], 1).free).toBe(true)
+  })
+
+  it('reports the gap before the crate like any blocker', () => {
+    const level = { cols: 5, rows: 1, crates: [{ x: 3, y: 0, k: 1 }], arrows: [{ cells: [[0, 0], [1, 0]], dir: 1 }] }
+    expect(exitCheck(level, [false], 0)).toMatchObject({ free: false, gap: 1, crate: 3 })
+  })
+
+  it('the generator gives crates a count that deepens the board and stays solvable', () => {
+    for (let seed = 1; seed <= 15; seed += 1) {
+      const spec = { cols: 8, rows: 10, maxLen: 6, fill: 0.86, samples: 9, diag: 0.12, curve: 0.1, bend: 0.9 }
+      const plain = generateArrowsLevel(seed, spec)
+      const level = generateArrowsLevel(seed, { ...spec, crates: 1 })
+      // The crate pass draws from its own stream: the arrows are unchanged.
+      expect(level.arrows).toEqual(plain.arrows)
+      if (!level.crates) continue
+      const occ = occupancy(level, level.arrows.map(() => false))
+      for (const c of level.crates) {
+        expect(occ[c.y * level.cols + c.x]).toBe(-1)
+        expect(c.k).toBeGreaterThan(0)
+        expect(c.k).toBeLessThan(level.arrows.length)
+      }
+      expect(solveArrows(level).solvable).toBe(true)
+      expect(solveArrows(level).layers).toBeGreaterThan(solveArrows(plain).layers)
+    }
+  })
+
+  it('clearing only ever frees: mirrors and crates keep the greedy solver exact', () => {
+    const level = generateArrowsLevel(77, { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.12, curve: 0.15, bend: 0.9, mirrors: 2, crates: 2 })
+    const n = level.arrows.length
+    let gone = Array(n).fill(false)
+    let free = new Set(freeArrows(level, gone))
+    for (const i of solveArrows(level).order) {
+      gone = [...gone]
+      gone[i] = true
+      const next = new Set(freeArrows(level, gone))
+      for (const f of free) if (f !== i) expect(next.has(f)).toBe(true)
+      free = next
+    }
+    expect(isBoardCleared(level, gone)).toBe(true)
+  })
+
+  it('levelStats counts mirrors and crates', () => {
+    const level = board()
+    expect(levelStats(level)).toMatchObject({ crates: 1, mirrors: 0, solvable: true })
+    const m = { cols: 4, rows: 4, mirrors: [{ x: 2, y: 2, m: '/' }], arrows: [{ cells: [[0, 2], [1, 2]], dir: 1 }] }
+    expect(levelStats(m)).toMatchObject({ mirrors: 1, crates: 0 })
+    // Each piece adds to the score: a mirror 3, a crate 4.
+    expect(levelStats(m).difficulty - levelStats({ ...m, mirrors: [] }).difficulty).toBe(3)
   })
 })
