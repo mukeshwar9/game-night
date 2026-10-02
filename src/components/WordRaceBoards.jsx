@@ -23,12 +23,12 @@ function rowLabel(guesses, row, who) {
 // Mid-race opponent view. Both players race the SAME word, so showing which
 // positions the leader has right would let the other side copy them — only
 // rows used, greens in their best row, and SOLVED are shown until the reveal.
-function HiddenBoard({ guesses, label, compact }) {
+function HiddenBoard({ guesses, label, compact, tone }) {
   const { rows, bestGreens, solved } = ghostSummary(guesses)
   return (
     <section className="space-y-1" aria-label={`${label}: ${rows} of ${MAX_GUESSES} guesses used, best row ${bestGreens} of ${WORD_LENGTH} correct${solved ? ', solved' : ''}`}>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-        <p className={cn('min-w-0 break-words font-pixel tracking-widest text-retro-p2', compact ? 'text-[8px]' : 'text-[9px]')}>{label}</p>
+        <p className={cn('min-w-0 break-words font-pixel tracking-widest', compact ? 'text-[8px]' : 'text-[9px]', tone)}>{label}</p>
         {solved && <span className="font-pixel text-[8px] text-retro-win">✓ SOLVED</span>}
       </div>
       <div className="flex flex-col gap-0.5" aria-hidden="true">
@@ -50,9 +50,11 @@ function HiddenBoard({ guesses, label, compact }) {
 }
 
 // A full board (letters + glyph marks). `ghost` without `reveal` renders the
-// hidden mid-race summary instead.
-export function WordRaceBoard({ guesses = [], currentGuess = '', ghost = false, reveal = false, compact = false, label, solved = false }) {
-  if (ghost && !reveal) return <HiddenBoard guesses={guesses} label={label} compact={compact} />
+// hidden mid-race summary instead. `seat` colours the label (X = p1, O = p2),
+// matching the score rail and the meter; without it your board is p1.
+export function WordRaceBoard({ guesses = [], currentGuess = '', ghost = false, reveal = false, compact = false, label, solved = false, seat }) {
+  const tone = (seat ?? (ghost ? 'O' : 'X')) === 'O' ? 'text-retro-p2' : 'text-retro-p1'
+  if (ghost && !reveal) return <HiddenBoard guesses={guesses} label={label} compact={compact} tone={tone} />
   const who = ghost ? 'opponent' : 'your'
   const rows = []
   for (let row = 0; row < MAX_GUESSES; row++) {
@@ -83,7 +85,7 @@ export function WordRaceBoard({ guesses = [], currentGuess = '', ghost = false, 
   return (
     <section className={cn('space-y-2', compact && 'space-y-1')} aria-label={label}>
       <div className="flex items-center justify-between gap-2">
-        <p className={cn('font-pixel tracking-widest', compact ? 'text-[8px]' : 'text-[9px]', ghost ? 'text-retro-p2' : 'text-retro-p1')}>
+        <p className={cn('font-pixel tracking-widest', compact ? 'text-[8px]' : 'text-[9px]', tone)}>
           {label}
         </p>
         {solved && <span className="font-pixel text-[8px] text-retro-win">✓ SOLVED</span>}

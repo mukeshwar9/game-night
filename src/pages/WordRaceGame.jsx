@@ -279,6 +279,7 @@ export default function WordRaceGame({
           ghost={isSpectator}
           reveal={reveal}
           label={isSpectator ? `X · ${nameOf('X')}` : `YOU · ${nameOf(viewSymbol)}`}
+          seat={viewSymbol}
           solved={myDone?.solved}
         />
       </div>
@@ -289,6 +290,7 @@ export default function WordRaceGame({
           reveal={reveal}
           compact={!reveal}
           label={isSpectator ? `O · ${nameOf('O')}` : `OPPONENT · ${nameOf(otherSymbol)}`}
+          seat={otherSymbol}
           solved={opponentDone?.solved}
         />
       </div>
@@ -349,6 +351,29 @@ export default function WordRaceGame({
         opponentLabel={isSpectator ? 'O' : 'OPPONENT'}
       />
 
+      {/* The round result sits above the boards so it is never below the fold. */}
+      {phase === 'reveal' && (
+        <div className="modal-pop space-y-3 rounded border-2 border-retro-cta/50 bg-retro-card p-4 text-center" aria-live="polite">
+          <p className="font-pixel text-[9px] text-retro-dim tracking-widest">ANSWER</p>
+          <p className="font-pixel text-2xl tracking-[0.35em] text-retro-cta text-glow-cta">{answer?.toUpperCase() || '?????'}</p>
+          <ResultCopy result={round.result} mySymbol={mySymbol} doneX={round.doneX} doneO={round.doneO} game={game} />
+          <p className="font-mono text-[11px] text-retro-dim">
+            {isSpectator ? 'X' : 'YOU'} {myDone?.solved ? `${myDone.guesses}/${MAX_GUESSES}` : 'MISSED'} · {isSpectator ? 'O' : 'OPPONENT'} {opponentDone?.solved ? `${opponentDone.guesses}/${MAX_GUESSES}` : 'MISSED'}
+          </p>
+          {nextRoundIn !== null && (
+            <p className="font-pixel text-[9px] text-retro-dim tracking-widest" aria-hidden="true">
+              {proposal ? 'NEXT ROUND PAUSED — ANSWER THE REQUEST' : nextRoundIn > 0 ? `NEXT ROUND IN ${nextRoundIn}…` : 'STARTING NEXT ROUND…'}
+            </p>
+          )}
+          {!isSpectator && !proposal && (
+            <div className="flex flex-wrap justify-center gap-2 pt-1">
+              {onNewMatch && <button type="button" disabled={actionBusy} onClick={() => handleAction(onNewMatch)} className="min-h-11 px-5 rounded border-2 border-retro-border text-retro-text font-pixel text-[10px] disabled:opacity-50">{actionBusy ? 'ASKING…' : 'NEW MATCH'}</button>}
+              {onSwitchGame && <GameSwitcher currentType="wordrace" onSwitch={onSwitchGame} />}
+            </div>
+          )}
+        </div>
+      )}
+
       {boards}
 
       {phase === 'playing' && (
@@ -387,27 +412,6 @@ export default function WordRaceGame({
         </div>
       )}
 
-      {phase === 'reveal' && (
-        <div className="modal-pop space-y-3 rounded border-2 border-retro-cta/50 bg-retro-card p-4 text-center" aria-live="polite">
-          <p className="font-pixel text-[9px] text-retro-dim tracking-widest">ANSWER</p>
-          <p className="font-pixel text-2xl tracking-[0.35em] text-retro-cta text-glow-cta">{answer?.toUpperCase() || '?????'}</p>
-          <ResultCopy result={round.result} mySymbol={mySymbol} doneX={round.doneX} doneO={round.doneO} game={game} />
-          <p className="font-mono text-[11px] text-retro-dim">
-            {isSpectator ? 'X' : 'YOU'} {myDone?.solved ? `${myDone.guesses}/${MAX_GUESSES}` : 'MISSED'} · {isSpectator ? 'O' : 'OPPONENT'} {opponentDone?.solved ? `${opponentDone.guesses}/${MAX_GUESSES}` : 'MISSED'}
-          </p>
-          {nextRoundIn !== null && (
-            <p className="font-pixel text-[9px] text-retro-dim tracking-widest" aria-hidden="true">
-              {proposal ? 'NEXT ROUND PAUSED — ANSWER THE REQUEST' : nextRoundIn > 0 ? `NEXT ROUND IN ${nextRoundIn}…` : 'STARTING NEXT ROUND…'}
-            </p>
-          )}
-          {!isSpectator && !proposal && (
-            <div className="flex flex-wrap justify-center gap-2 pt-1">
-              {onNewMatch && <button type="button" disabled={actionBusy} onClick={() => handleAction(onNewMatch)} className="min-h-11 px-5 rounded border-2 border-retro-border text-retro-text font-pixel text-[10px] disabled:opacity-50">{actionBusy ? 'ASKING…' : 'NEW MATCH'}</button>}
-              {onSwitchGame && <GameSwitcher currentType="wordrace" onSwitch={onSwitchGame} />}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

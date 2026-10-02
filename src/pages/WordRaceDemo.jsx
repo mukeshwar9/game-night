@@ -199,6 +199,41 @@ export default function WordRaceDemo() {
 
       <WordRaceMeter myGuesses={myGuesses} opponentGuesses={cpuGuesses} mySymbol="X" opponentLabel="CPU" timer={playing ? fmtClock(now - round.startedAt) : null} />
 
+      {/* The round result sits above the boards so it is never below the fold. */}
+      {reveal && (
+        <div className="space-y-3 rounded border-2 border-retro-cta/50 bg-retro-card p-4 text-center" aria-live="polite">
+          <p className="font-pixel text-[9px] text-retro-dim tracking-widest">ANSWER</p>
+          <p className="font-pixel text-2xl tracking-[0.35em] text-retro-cta text-glow-cta">{round.answer.toUpperCase()}</p>
+          <ResultCopy result={round.result} doneX={round.doneX} doneO={round.doneO} />
+          <p className="font-mono text-[11px] text-retro-dim">
+            YOU {myDone?.solved ? `${myDone.guesses}/${MAX_GUESSES}` : 'MISSED'} · CPU {cpuDone?.solved ? `${cpuDone.guesses}/${MAX_GUESSES}` : 'MISSED'}
+          </p>
+          {matchOver ? (
+            <div className="space-y-2">
+              <p className={cn('font-pixel text-sm', game.winner === 'X' ? 'text-retro-win text-glow-win' : 'text-retro-p2')}>
+                {game.winner === 'X' ? 'YOU WIN THE MATCH!' : 'THE CPU WINS THE MATCH'}
+              </p>
+              <button
+                type="button"
+                onClick={startMatch}
+                className="min-h-11 px-5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] hover:shadow-neon-cta active:scale-95"
+              >
+                NEW MATCH
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={nextRound}
+              className="min-h-11 px-5 rounded border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] hover:shadow-neon-p1 active:scale-95"
+            >
+              NEXT ROUND
+            </button>
+          )}
+          {chips}
+        </div>
+      )}
+
       {/* Mid-race the CPU's hidden summary sits beside your board (phone fit). */}
       <div className={cn('grid gap-2', reveal ? 'grid-cols-1 gap-3' : 'grid-cols-[auto_minmax(0,1fr)]')}>
         <div className="rounded border p-2 border-retro-p1/30 bg-retro-tint-p1/10">
@@ -250,39 +285,6 @@ export default function WordRaceDemo() {
         </div>
       )}
 
-      {reveal && (
-        <div className="space-y-3 rounded border-2 border-retro-cta/50 bg-retro-card p-4 text-center" aria-live="polite">
-          <p className="font-pixel text-[9px] text-retro-dim tracking-widest">ANSWER</p>
-          <p className="font-pixel text-2xl tracking-[0.35em] text-retro-cta text-glow-cta">{round.answer.toUpperCase()}</p>
-          <ResultCopy result={round.result} doneX={round.doneX} doneO={round.doneO} />
-          <p className="font-mono text-[11px] text-retro-dim">
-            YOU {myDone?.solved ? `${myDone.guesses}/${MAX_GUESSES}` : 'MISSED'} · CPU {cpuDone?.solved ? `${cpuDone.guesses}/${MAX_GUESSES}` : 'MISSED'}
-          </p>
-          {matchOver ? (
-            <div className="space-y-2">
-              <p className={cn('font-pixel text-sm', game.winner === 'X' ? 'text-retro-win text-glow-win' : 'text-retro-p2')}>
-                {game.winner === 'X' ? 'YOU WIN THE MATCH!' : 'THE CPU WINS THE MATCH'}
-              </p>
-              <button
-                type="button"
-                onClick={startMatch}
-                className="min-h-11 px-5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] hover:shadow-neon-cta active:scale-95"
-              >
-                NEW MATCH
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={nextRound}
-              className="min-h-11 px-5 rounded border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] hover:shadow-neon-p1 active:scale-95"
-            >
-              NEXT ROUND
-            </button>
-          )}
-          {chips}
-        </div>
-      )}
     </div>
   )
 }
