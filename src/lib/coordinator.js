@@ -14,6 +14,8 @@
 // simultaneous handover (two clients briefly agreeing on different coordinators
 // during a presence flap) is still idempotent.
 
+import { isSeatOnline } from './presenceLogic'
+
 /**
  * Pick the coordinator seat: the lowest-id seat that is currently online,
  * falling back to the lowest-id seat overall if nobody appears online (e.g.
@@ -80,9 +82,13 @@ export function roomSeats(players) {
  * @returns {string|null} null for an empty room.
  */
 export function roomCoordinator(players, hostUid = null) {
+  // Per-connection presence (isSeatOnline), the same reading roomLogic's
+  // pickRoomHost uses, so the host controls and the phase driver agree.
   const host = hostUid ? players?.[hostUid] : null
-  if (host && typeof host === 'object' && host.online !== false) return hostUid
-  return pickCoordinator(roomSeats(players), players, { ordered: true })
+  if (host && typeof host === 'object' && isSeatOnline(host)) return hostUid
+  const seats = roomSeats(players)
+  const presence = Object.fromEntries(seats.map(id => [id, isSeatOnline(players?.[id])]))
+  return pickCoordinator(seats, presence, { ordered: true })
 }
 
 /**

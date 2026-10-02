@@ -22,7 +22,7 @@
 //   locked:    true — no new seats (spectators still allowed)
 
 import { roomCoordinator } from './coordinator'
-import { isSeatOnline } from './presenceLogic'
+import { isSeatOnline, isGhost } from './presenceLogic'
 
 // Night points per placement: 1st/2nd/3rd, everyone else 0. Last place never
 // scores (a 2P loss is 0, not 2nd-place points), and an all-tied result (a
@@ -392,12 +392,16 @@ export function nightSwitchSeating(game, updates, { fromParty, toParty, now, hos
   const kicked = game?.kicked || {}
   const notKicked = (p) => !kicked[p.uid]
   if (fromParty && !toParty) {
-    const seats = Object.values(game.players || {})
+    const all = Object.values(game.players || {})
       .filter(p => p && p.playerId)
-      .map(p => ({ uid: p.playerId, name: p.name, avatar: p.avatar ?? null, joinedAt: p.joinedAt || 0 }))
+      .map(p => ({ uid: p.playerId, name: p.name, avatar: p.avatar ?? null, joinedAt: p.joinedAt || 0, here: isSeatOnline(p) && !isGhost(p, now) }))
       .sort((a, b) => a.joinedAt - b.joinedAt || a.uid.localeCompare(b.uid))
       .filter(notKicked)
-    const { seated, queued } = pickTwoSeats(seats, game.night, hostUid)
+    // Only members who are here can sit: seating someone who closed the app
+    // stalls the 2P game. Absent members wait at the back of the line.
+    const picked = pickTwoSeats(all.filter(m => m.here), game.night, hostUid)
+    const seated = picked.seated
+    const queued = [...picked.queued, ...all.filter(m => !m.here)]
     const players = {}
     if (seated[0]) players.X = seatRecord(seated[0], { seatedAt: now })
     if (seated[1]) players.O = seatRecord(seated[1], { seatedAt: now })
@@ -468,7 +472,10 @@ export function rotateWinnerStays(game, now) {
   else if (w === 'O') outSym = 'X'
   else outSym = (x.seatedAt ?? x.joinedAt ?? 0) <= (o.seatedAt ?? o.joinedAt ?? 0) ? 'X' : 'O'
   const out = game.players[outSym]
-  const next = queue[0]
+  // The next PRESENT player in line: seating someone who has gone stalls the
+  // next match. Absent ones keep their place until they are back.
+  const next = queue.find(q => memberPresent(game, q.uid, false))
+  if (!next) return {}
   return {
     [`players/${outSym}`]: seatRecord(next, { seatedAt: now }),
     [`queue/${next.uid}`]: null,
@@ -491,14 +498,53 @@ export function roomMemberIds(game, nPlayer) {
 }
 
 /**
+ * Everyone holding a place in the room, in join order (`joinedAt`, then uid):
+ * seats of either family plus the winner-stays queue.
+ * @returns {{ uid, name, avatar, joinedAt }[]}
+ */
+export function partyMembers(game, nPlayer) {
+  const out = []
+  const add = (p, uid) => {
+    if (!uid || out.some(m => m.uid === uid)) return
+    out.push({ uid, name: str(p?.name, '???'), avatar: p?.avatar ?? null, joinedAt: num(p?.joinedAt) || num(p?.at) })
+  }
+  if (nPlayer) {
+    for (const p of Object.values(game?.players || {})) if (p?.playerId) add(p, p.playerId)
+  } else {
+    for (const sym of ['X', 'O']) { const p = game?.players?.[sym]; if (p?.playerId) add(p, p.playerId) }
+  }
+  for (const q of normalizeQueue(game?.queue)) add(q, q.uid)
+  return out.sort((a, b) => a.joinedAt - b.joinedAt || a.uid.localeCompare(b.uid))
+}
+
+/**
+ * A party room's host in either seat family: the TRANSFER HOST override while
+ * that member is here (a seat with presence, or a queued member with a
+ * spectator connection); otherwise the first present member in join order
+ * across seats and queue. Falls back to the override, then the first member,
+ * when nobody looks present (presence not loaded yet). Unlike the plain 2P
+ * rule, a host who left during a 2P game hands over.
+ */
+export function partyHostUid(game, nPlayer) {
+  const members = partyMembers(game, nPlayer)
+  if (!members.length) return null
+  const override = game?.hostUid && members.some(m => m.uid === game.hostUid) ? game.hostUid : null
+  if (override && memberPresent(game, override, nPlayer)) return override
+  const here = members.find(m => memberPresent(game, m.uid, nPlayer))
+  return here?.uid ?? override ?? members[0].uid
+}
+
+/**
  * The room's host uid. Party rooms: the coordinator (coordinator.js
  * roomCoordinator — an explicit `hostUid` while that player is seated and
  * online, else the first online seat in join order), so host controls and the
- * party pages' phase driver always agree. 2P rooms: `hostUid` while that
- * player is still in the room (a seat or the queue), else the X seat.
+ * party pages' phase driver always agree. A party room playing a 2P game:
+ * partyHostUid (hands over when the host has gone). Plain 2P rooms: `hostUid`
+ * while that player is still in the room (a seat or the queue), else the X seat.
  */
 export function roomHostUid(game, nPlayer) {
   if (nPlayer) return roomCoordinator(game?.players, game?.hostUid ?? null)
+  if (game?.partyRoom) return partyHostUid(game, false)
   const override = game?.hostUid
   if (override && roomMemberIds(game, false).includes(override)) return override
   return game?.players?.X?.playerId || null
@@ -529,9 +575,10 @@ export function roomMembers(game, nPlayer) {
 }
 
 /**
- * The patch that removes `uid` from the room for this match (KICK). The
- * player is marked in `kicked` (cleared by the next fresh match) so their
- * client can't reclaim the seat.
+ * The patch that removes `uid` from the room (KICK / REMOVE). The player is
+ * marked in `kicked` (cleared by the next fresh match) so their client can't
+ * reclaim the seat; in a party room also in `removed`, which lasts for the
+ * whole party.
  *  - party seat or queue entry: removed.
  *  - 2P seat: refilled from the queue head; when X leaves with nobody queued,
  *    O moves up to X. The caller resets the board (`reset: true`) — the match
@@ -540,6 +587,9 @@ export function roomMembers(game, nPlayer) {
  */
 export function kickPatch(game, uid, nPlayer, now) {
   const updates = { [`kicked/${uid}`]: true }
+  // A party room remembers the removal for the whole party (`removed`, kept
+  // across switches and new matches); `kicked` is cleared by every fresh match.
+  if (game?.partyRoom) updates[`removed/${uid}`] = true
   if (nPlayer) {
     if (game?.players?.[uid]) updates[`players/${uid}`] = null
     if (game?.queue?.[uid]) updates[`queue/${uid}`] = null
@@ -567,5 +617,5 @@ export function kickPatch(game, uid, nPlayer, now) {
 
 /** Whether `uid` may take a new seat or queue place right now. */
 export function canTakeSeat(game, uid) {
-  return !game?.locked && !game?.kicked?.[uid]
+  return !game?.locked && !game?.kicked?.[uid] && !game?.removed?.[uid]
 }

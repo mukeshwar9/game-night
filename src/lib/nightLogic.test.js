@@ -4,8 +4,11 @@ import {
   normalizeNight, rankStandings, rankByScore, placementPoints, matchWinner2P, matchResult,
   matchSignature, pendingNightResult, addToNight, applyResultToNight, freshNight, nightRecap,
   normalizeQueue, pickTwoSeats, nightSwitchSeating, rotateWinnerStays,
-  roomMemberIds, roomHostUid, roomMembers, kickPatch, canTakeSeat, memberPresent,
+  roomMemberIds, roomHostUid, roomMembers, kickPatch, canTakeSeat, memberPresent, partyHostUid, partyMembers,
 } from './nightLogic'
+
+// spectator presence: one open connection per uid
+const here = (...uids) => Object.fromEntries(uids.map(u => [u, { k1: { name: u, at: 1 } }]))
 
 const twoP = (over = {}) => ({
   gameType: 'tictactoe',
@@ -306,7 +309,7 @@ describe('queue + seating', () => {
   })
 
   it('rotateWinnerStays swaps the loser for the queue head', () => {
-    const game = twoP({ queue: { c: { name: 'Cy', playerId: 'c', joinedAt: 3, at: 5 }, d: { name: 'Di', playerId: 'd', at: 6 } } })
+    const game = twoP({ queue: { c: { name: 'Cy', playerId: 'c', joinedAt: 3, at: 5 }, d: { name: 'Di', playerId: 'd', at: 6 } }, spectators: here('c', 'd') })
     const patch = rotateWinnerStays(game, 77)
     expect(patch['players/O']).toMatchObject({ playerId: 'c', name: 'Cy', seatedAt: 77 })
     expect(patch['queue/c']).toBeNull()
@@ -319,12 +322,42 @@ describe('queue + seating', () => {
       winner: 'draw', scores: { X: 1, O: 1 },
       players: { X: { name: 'Ann', playerId: 'a', seatedAt: 10 }, O: { name: 'Bob', playerId: 'b', seatedAt: 5 } },
       queue: { c: { name: 'Cy', playerId: 'c', at: 1 } },
+      spectators: here('c'),
     })
     expect(rotateWinnerStays(game, 20)['players/O']).toMatchObject({ playerId: 'c' })
   })
 
   it('rotateWinnerStays is a no-op without a queue', () => {
     expect(rotateWinnerStays(twoP(), 1)).toEqual({})
+  })
+
+  it('rotateWinnerStays skips queued players who have gone, and waits when nobody in line is here', () => {
+    const queue = { c: { name: 'Cy', playerId: 'c', at: 1 }, d: { name: 'Di', playerId: 'd', at: 2 } }
+    const patch = rotateWinnerStays(twoP({ queue, spectators: here('d') }), 9)
+    expect(patch['players/O']).toMatchObject({ playerId: 'd' })
+    expect(patch['queue/d']).toBeNull()
+    expect(patch['queue/c']).toBeUndefined()
+    expect(rotateWinnerStays(twoP({ queue }), 9)).toEqual({})
+  })
+
+  it('party -> 2P never seats a member who has gone; they wait at the back of the line', () => {
+    const game = party({ status: 'waiting' })
+    game.players.a = { ...game.players.a, online: false, offlineAt: 0 }
+    const out = nightSwitchSeating(game, {}, { fromParty: true, toParty: false, now: 120_000, hostUid: 'a' })
+    expect([out.players.X.playerId, out.players.O.playerId]).toEqual(['b', 'c'])
+    expect(Object.keys(out.queue)).toEqual(['a'])
+    expect(out.status).toBe('playing')
+  })
+
+  it('party -> 2P with one member here seats them alone and waits', () => {
+    const game = party({ status: 'waiting' })
+    game.players.b = { ...game.players.b, online: false, offlineAt: 0 }
+    game.players.c = { ...game.players.c, online: false, offlineAt: 0 }
+    const out = nightSwitchSeating(game, {}, { fromParty: true, toParty: false, now: 120_000 })
+    expect(out.players.X.playerId).toBe('a')
+    expect(out.players.O).toBeUndefined()
+    expect(Object.keys(out.queue)).toEqual(['b', 'c'])
+    expect(out.status).toBe('waiting')
   })
 })
 
@@ -394,5 +427,44 @@ describe('memberPresent', () => {
     expect(memberPresent(g, 'c', false)).toBe(true)
     expect(memberPresent(g, 'd', false)).toBe(false)
     expect(memberPresent(null, 'a', false)).toBe(false)
+  })
+})
+
+describe('party host across seat families', () => {
+  it('hands over while the party is in a 2P game when the host has gone', () => {
+    const g = twoP({ partyRoom: true, hostUid: 'c', queue: { c: { name: 'Cy', playerId: 'c', joinedAt: 0.5, at: 5 } } })
+    expect(roomHostUid(g, false)).toBe('a')
+    expect(roomHostUid({ ...g, spectators: here('c') }, false)).toBe('c')
+  })
+
+  it('a queued host who is here keeps the controls; first present member otherwise', () => {
+    const g = twoP({ partyRoom: true, presence: { X: { online: false } }, queue: { c: { name: 'Cy', playerId: 'c', joinedAt: 0.5, at: 5 } }, spectators: here('c') })
+    expect(partyHostUid(g, false)).toBe('c')
+    expect(partyHostUid({ ...g, spectators: {} }, false)).toBe('b')
+  })
+
+  it('falls back to the override, then the first member, when nobody looks present', () => {
+    const g = twoP({ partyRoom: true, hostUid: 'b', presence: { X: { online: false }, O: { online: false } } })
+    expect(partyHostUid(g, false)).toBe('b')
+    expect(partyHostUid({ ...g, hostUid: null }, false)).toBe('a')
+    expect(partyHostUid({ players: {} }, false)).toBeNull()
+  })
+
+  it('partyMembers lists seats and queue in join order', () => {
+    const g = twoP({ queue: { c: { name: 'Cy', playerId: 'c', joinedAt: 0.5, at: 5 }, d: { name: 'Di', playerId: 'd', at: 1.5 } } })
+    expect(partyMembers(g, false).map(m => m.uid)).toEqual(['c', 'a', 'd', 'b'])
+  })
+})
+
+describe('party removal', () => {
+  it('REMOVE in a party room is remembered for the whole party', () => {
+    const g = party({ partyRoom: true })
+    expect(kickPatch(g, 'b', true, 1).updates).toMatchObject({ 'kicked/b': true, 'removed/b': true, 'players/b': null })
+    expect(kickPatch(party(), 'b', true, 1).updates['removed/b']).toBeUndefined()
+  })
+
+  it('a removed member cannot take a seat even after kicked is cleared', () => {
+    expect(canTakeSeat({ removed: { b: true } }, 'b')).toBe(false)
+    expect(canTakeSeat({ removed: { b: true } }, 'a')).toBe(true)
   })
 })
