@@ -7,14 +7,16 @@ import { db } from '../lib/firebase'
 import { serverNow } from '../lib/serverClock'
 import useTurnDeadlineEnforcer from '../hooks/useTurnDeadlineEnforcer'
 import { SIMON_PAD_META, simonPadVar, simonPadName } from '../lib/simonPads'
+import { simonFlashTiming } from '../lib/simonLogic'
+import useGameKeys from '../hooks/useGameKeys'
 
 // Pad colours are the fixed --simon-* palette (src/lib/simonPads.js), not theme
 // tokens; each pad's glyph points at its own corner as the non-colour cue.
 const padStyle = i => ({ '--pad': simonPadVar(i) })
 const PRESS_LIGHT_MS = 180 // how long a pad stays lit after your own press
 
-const FLASH_ON_MS  = 480
-const FLASH_GAP_MS = 240
+// Keyboard: 1–4 in reading order, or Q W / A S as a 2×2 block; R replays the flash.
+const PAD_KEYS = { 1: 0, 2: 1, 3: 2, 4: 3, q: 0, w: 1, a: 2, s: 3 }
 const TURN_DEADLINE_MS = 30000 // idle-opponent forfeit window, armed once the flash ends
 
 // A true memory duel: when it's your turn to recall, the whole sequence flashes
@@ -66,10 +68,11 @@ export default function SimonBoard({
     flashDoneRef.current = false
     setWatching(true)
     setFlashIndex(-1)
-    const step = FLASH_ON_MS + FLASH_GAP_MS
+    const { on, gap } = simonFlashTiming(seq.length)
+    const step = on + gap
     seq.forEach((padIdx, i) => {
       timersRef.current.push(setTimeout(() => { setFlashIndex(i); sounds.simPad(padIdx) }, i * step))
-      timersRef.current.push(setTimeout(() => setFlashIndex(-1), i * step + FLASH_ON_MS))
+      timersRef.current.push(setTimeout(() => setFlashIndex(-1), i * step + on))
     })
     timersRef.current.push(setTimeout(() => {
       flashDoneRef.current = true
@@ -146,6 +149,15 @@ export default function SimonBoard({
     if (gameId) set(ref(db, `games/${gameId}/simonReplayUsed`), true).catch(() => {})
     runFlash(true)
   }
+
+  useGameKeys((e) => {
+    const k = e.key.toLowerCase()
+    if (k === 'r' && isMyTurn && needsRecall && !watching && replayAvailable) { handleReplay(); return true }
+    const pad = PAD_KEYS[k]
+    if (pad === undefined || !canClick) return false
+    handlePad(pad)
+    return true
+  })
 
   // Once the round is over, everyone sees the whole sequence in colour, with the
   // step that was missed marked.

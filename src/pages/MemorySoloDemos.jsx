@@ -8,6 +8,7 @@ import VisualMemoryBoard from '../components/VisualMemoryBoard'
 import ChimpBoard from '../components/ChimpBoard'
 import { BigNumber, MarkedAnswer } from '../components/NumberMemoryParts'
 import { sounds } from '../lib/sounds'
+import useGameKeys from '../hooks/useGameKeys'
 import { readSoloBest, recordSoloBest } from '../lib/soloBest'
 import { showMsForLevel } from '../lib/numberMemoryLogic'
 import {
@@ -52,6 +53,30 @@ function RunOver({ result, score, unit, isNewBest, onRestart }) {
         className="px-6 py-2.5 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
       >
         PLAY AGAIN
+      </button>
+    </div>
+  )
+}
+
+// Every run waits for a tap before its first reveal: the reveal used to start the
+// instant the page or chip loaded, while the player was still looking for the board.
+// Space or Enter also starts it.
+function StartGate({ title, how, onStart }) {
+  useGameKeys((e) => {
+    if (e.key !== ' ' && e.key !== 'Enter') return false
+    onStart()
+    return true
+  })
+  return (
+    <div className="min-h-[18rem] flex flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-retro-border bg-retro-surface p-6 text-center">
+      <p className="font-pixel text-[10px] text-retro-text">{title}</p>
+      <p className="font-pixel text-[8px] text-retro-dim leading-relaxed max-w-[17rem]">{how}</p>
+      <button
+        type="button"
+        onClick={onStart}
+        className="px-8 py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+      >
+        TAP TO START
       </button>
     </div>
   )
@@ -115,10 +140,14 @@ export function SimonSolo() {
     }
   }
   const restart = () => { const r = startSimonSolo(); setRun(r); setShown(r); reset() }
+  const [started, setStarted] = useState(false)
 
   return (
     <div className="space-y-4">
       <RunHeader scoreLabel="SCORE" score={run.score} best={best} />
+      {!started ? (
+        <StartGate title="WATCH, THEN REPEAT" how="THE PADS FLASH A SEQUENCE. TAP IT BACK IN ORDER — ONE PAD LONGER EVERY ROUND." onStart={() => setStarted(true)} />
+      ) : (
       <SimonBoard
         onMove={press}
         disabled={pausing || run.over}
@@ -128,6 +157,7 @@ export function SimonSolo() {
         finished={run.over}
         waitingLabel={pausing ? 'NICE! ONE MORE PAD…' : null}
       />
+      )}
       {run.over && (
         <RunOver result="WRONG PAD — RUN OVER" score={run.score} unit={plural(run.score, 'PAD')} isNewBest={isNewBest} onRestart={restart} />
       )}
@@ -152,11 +182,15 @@ export function VisualMemorySolo() {
   }
   const restart = () => { setRun(startVmSolo()); setFlash(null); reset() }
   const carryOn = () => { setRun(r => continueVmSolo(r)); setFlash(null) }
+  const [started, setStarted] = useState(false)
 
   return (
     <div className="space-y-4">
       <RunHeader scoreLabel="CLEARED" score={score} best={best} lives={run.lives} />
       <RunNote>{!run.over && flash}</RunNote>
+      {!started ? (
+        <StartGate title="REMEMBER THE LIT TILES" how="TILES LIGHT UP FOR A MOMENT. TAP EVERY ONE THAT WAS LIT, IN ANY ORDER. 3 LIVES." onStart={() => setStarted(true)} />
+      ) : (
       <VisualMemoryBoard
         // A fresh board per deal, so the reveal always starts clean.
         key={run.pattern.join(',')}
@@ -169,6 +203,7 @@ export function VisualMemorySolo() {
         finished={run.over || run.paused}
         mySymbol="X"
       />
+      )}
       {run.paused && !run.over && <ContinueButton lives={run.lives} onContinue={carryOn} />}
       {run.over && (
         <RunOver result={`OUT OF LIVES ON LEVEL ${run.level}`} score={score} unit={plural(score, 'LEVEL')} isNewBest={isNewBest} onRestart={restart} />
@@ -194,11 +229,15 @@ export function ChimpSolo() {
   }
   const restart = () => { setRun(startChimpSolo()); setFlash(null); reset() }
   const carryOn = () => { setRun(r => continueChimpSolo(r)); setFlash(null) }
+  const [started, setStarted] = useState(false)
 
   return (
     <div className="space-y-4">
       <RunHeader scoreLabel="NUMBERS" score={score} best={best} lives={run.lives} />
       <RunNote>{!run.over && flash}</RunNote>
+      {!started ? (
+        <StartGate title="NUMBERS, THEN BLANKS" how="REMEMBER WHERE EACH NUMBER IS. THEY HIDE WHEN YOU TAP 1 — TAP THE REST IN ORDER. 3 LIVES." onStart={() => setStarted(true)} />
+      ) : (
       <ChimpBoard
         // Remount per layout so the memorize timer restarts with each new deal.
         key={run.over ? 'over' : `${run.level}-${run.layout.join(',')}`}
@@ -212,6 +251,7 @@ export function ChimpSolo() {
         missCell={run.miss}
         solo
       />
+      )}
       {run.paused && !run.over && <ContinueButton lives={run.lives} onContinue={carryOn} />}
       {run.over && (
         <RunOver result={`OUT OF LIVES AT ${run.level} NUMBERS`} score={score} unit={plural(score, 'NUMBER')} isNewBest={isNewBest} onRestart={restart} />
@@ -228,10 +268,12 @@ export function NumberMemorySolo() {
   const score = numberSoloScore(run)
   const { best, isNewBest, finish, reset } = useRunBest('numbermemory')
   const showMs = showMsForLevel(run.level)
+  const [started, setStarted] = useState(false)
+  const [cheer, setCheer] = useState(null) // "CORRECT!" beat between levels
 
   // Memorize window, then recall.
   useEffect(() => {
-    if (run.phase !== 'showing') return undefined
+    if (!started || run.phase !== 'showing') return undefined
     const end = Date.now() + showMs
     const tick = setInterval(() => {
       const left = end - Date.now()
@@ -242,7 +284,13 @@ export function NumberMemorySolo() {
       }
     }, 100)
     return () => clearInterval(tick)
-  }, [run.phase, run.level, run.number, showMs])
+  }, [started, run.phase, run.level, run.number, showMs])
+
+  useEffect(() => {
+    if (!cheer) return undefined
+    const t = setTimeout(() => setCheer(null), 1200)
+    return () => clearTimeout(t)
+  }, [cheer])
 
   useEffect(() => {
     if (run.phase === 'recall') inputRef.current?.focus()
@@ -252,7 +300,7 @@ export function NumberMemorySolo() {
     if (run.phase !== 'recall' || !input.trim()) return
     const next = submitNumberSolo(run, input)
     if (next.over) finish(numberSoloScore(next))
-    else sounds.go()
+    else { sounds.go(); setCheer(`CORRECT! NEXT: ${next.level} DIGITS`) }
     setRun(next)
     setInput('')
   }
@@ -265,14 +313,26 @@ export function NumberMemorySolo() {
         <span className="text-retro-cta text-glow-cta">LEVEL {run.level}</span>
         <span className="text-retro-dim">{run.level} DIGIT{run.level > 1 ? 'S' : ''}</span>
       </div>
+      <p className="font-pixel text-[9px] text-center text-retro-win text-glow-win min-h-[1.5em]" aria-live="polite">{cheer}</p>
 
-      {run.phase === 'showing' && (
+      {!started && (
+        <StartGate title="HOLD THE NUMBER" how="A NUMBER FLASHES, THEN HIDES. TYPE IT BACK — ONE DIGIT LONGER EVERY LEVEL." onStart={() => setStarted(true)} />
+      )}
+
+      {started && run.phase === 'showing' && (
         <div className="bg-retro-surface border border-retro-border rounded p-4 text-center space-y-3">
           <p className="font-pixel text-[8px] text-retro-dim">MEMORIZE THIS NUMBER</p>
           <BigNumber number={run.number} className="text-retro-cta text-glow-cta" />
           <div className="h-1.5 rounded-full bg-retro-card overflow-hidden" aria-hidden="true">
             <div className="h-full bg-retro-cta" style={{ width: `${(msLeft / showMs) * 100}%` }} />
           </div>
+          <button
+            type="button"
+            onClick={() => setRun(r => (r.phase === 'showing' ? { ...r, phase: 'recall' } : r))}
+            className="w-full py-2.5 min-h-11 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[9px] rounded hover:border-retro-cta/60 active:scale-95"
+          >
+            GOT IT
+          </button>
         </div>
       )}
 

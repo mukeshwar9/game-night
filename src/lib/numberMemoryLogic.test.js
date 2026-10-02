@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   generateNumber, countMatchingPrefix, resolveNumberMemoryRound,
-  buildNextNumberRound, normalizeNumberRound, showMsForLevel, chunkDigits,
+  buildNextNumberRound, normalizeNumberRound, showMsForLevel, chunkDigits, markDigits,
 } from './numberMemoryLogic'
 
 describe('generateNumber', () => {
@@ -98,7 +98,7 @@ describe('normalizeNumberRound', () => {
 
   it('treats absent answers and showUntil as null', () => {
     expect(normalizeNumberRound({ phase: 'recall', level: 3, number: '123' }))
-      .toEqual({ phase: 'recall', level: 3, number: '123', answerX: null, answerO: null, showUntil: null, tie: false })
+      .toEqual({ phase: 'recall', level: 3, number: '123', answerX: null, answerO: null, showUntil: null, tie: false, readyX: false, readyO: false })
   })
 })
 
@@ -114,5 +114,24 @@ describe('chunkDigits', () => {
     expect(chunkDigits('12345678')).toEqual(['123', '456', '78'])
     expect(chunkDigits('7')).toEqual(['7'])
     expect(chunkDigits('')).toEqual([])
+  })
+})
+
+describe('markDigits', () => {
+  it('marks each position, so one early slip does not turn the whole answer red', () => {
+    expect(markDigits('1335', '1234').map(m => m.mark)).toEqual(['ok', 'bad', 'ok', 'bad'])
+    expect(markDigits('21345', '1234').map(m => m.mark)).toEqual(['bad', 'bad', 'ok', 'ok', 'extra'])
+    expect(markDigits('', '12')).toEqual([])
+  })
+})
+
+describe('GOT IT readiness', () => {
+  it('reads ready flags as booleans', () => {
+    expect(normalizeNumberRound({ phase: 'showing', readyX: true })).toMatchObject({ readyX: true, readyO: false })
+  })
+  it('a new round starts with nobody ready', () => {
+    const next = buildNextNumberRound({ phase: 'recall', level: 2, readyX: true, readyO: true }, { type: 'advance' }, 2, l => '9'.repeat(l))
+    expect(next.readyX).toBeUndefined()
+    expect(next.readyO).toBeUndefined()
   })
 })

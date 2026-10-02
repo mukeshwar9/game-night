@@ -52,7 +52,7 @@ export function showMsForLevel(level) {
 
 // Firebase-safe read of the `numRound` node (absent keys → defaults).
 export function normalizeNumberRound(raw) {
-  if (!raw) return { phase: 'showing', level: 1, number: '1', answerX: null, answerO: null, showUntil: null, tie: false }
+  if (!raw) return { phase: 'showing', level: 1, number: '1', answerX: null, answerO: null, showUntil: null, tie: false, readyX: false, readyO: false }
   return {
     phase: raw.phase ?? 'showing',
     level: raw.level ?? 1,
@@ -61,6 +61,10 @@ export function normalizeNumberRound(raw) {
     answerO: raw.answerO ?? null,
     showUntil: raw.showUntil ?? null,
     tie: !!raw.tie,
+    // GOT IT: a player who has memorized the number can end their reveal; the round
+    // moves to recall as soon as both have (or when showUntil passes).
+    readyX: !!raw.readyX,
+    readyO: !!raw.readyO,
   }
 }
 
@@ -89,4 +93,13 @@ export function chunkDigits(number, size = 3) {
   const out = []
   for (let i = 0; i < s.length; i += size) out.push(s.slice(i, i + size))
   return out
+}
+
+// Per-position marks for a typed answer against the number: 'ok' where the digit
+// matches the one in that position, 'bad' where it does not, 'extra' past the
+// number's end. (Prefix-only marking turned a whole answer red over one early slip.)
+export function markDigits(answer, number) {
+  const a = String(answer ?? '')
+  const n = String(number ?? '')
+  return a.split('').map((d, i) => ({ d, mark: i >= n.length ? 'extra' : d === n[i] ? 'ok' : 'bad' }))
 }
