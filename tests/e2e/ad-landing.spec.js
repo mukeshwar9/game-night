@@ -44,10 +44,10 @@ test('an unknown /play game falls back to the default headline game', async ({ b
   await player.context.close()
 })
 
-test('a plain solo link keeps the full picker', async ({ browser }) => {
+test('a plain solo link keeps the game switcher', async ({ browser }) => {
   const player = await newPlayer(browser)
   await player.page.goto('/solo/connectfour')
-  await expect(player.page.getByText('MORE SOLO GAMES')).toBeVisible()
+  await expect(player.page.getByRole('button', { name: 'SWITCH GAME' })).toBeVisible()
   await expect(player.page.getByRole('region', { name: 'Quick games' })).toHaveCount(0)
   await player.context.close()
 })

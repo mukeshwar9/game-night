@@ -12,15 +12,14 @@ import {
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, UpdraftIcon,
 } from '../components/GameIcons';
-import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
+import { getGameConfig, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
 import { recordPlay } from '../lib/analytics'
 import { recordRecentPlay } from '../lib/recentPlays'
-import CategoryTabs from '../components/CategoryTabs';
+import GamePickerSheet from '../components/GamePickerSheet';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import HeadlineGames from '../components/HeadlineGames';
 import { isAdVisit, isHeadlineGame } from '../lib/adLanding';
-import { cn } from '@/lib/utils';
 import { VideoCallShell } from '../components/VideoCallLayout';
 import { OFF_SHELF, PARTY_BLURB } from './demos/partyBlurbs';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
@@ -162,6 +161,10 @@ const DEMOS = [
   { type: 'sketch',       short: 'SKETCH',        Icon: SketchIcon,       Component: () => <PartyGameCard type="sketch" />      },
 ]
 
+// What the SWITCH GAME popup offers: the solo shelf, every demo you can
+// actually play alone. OFF_SHELF demos stay reachable by deep link only.
+const SOLO_PICKER_TYPES = DEMOS.map(d => d.type).filter(type => !OFF_SHELF.has(type))
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 // Local pass-and-play: two people share one screen/keyboard, alternating
@@ -263,7 +266,7 @@ function DemoHub() {
   const hasRouteType = !!routeType && DEMOS.some(d => d.type === routeType)
   const initialType = hasRouteType ? routeType : 'tictactoe'
   const [selected, setSelected] = useState(initialType)
-  const [activeCat, setActiveCat] = useState(() => getGameConfig(initialType)?.category || 'board')
+  const [pickerOpen, setPickerOpen] = useState(false)
   const active = DEMOS.find(d => d.type === selected)
   useMusicScene('game', selected)
 
@@ -279,51 +282,33 @@ function DemoHub() {
     if (!(selected in PARTY_BLURB)) { recordPlay(selected, 'solo'); recordRecentPlay(selected, 'solo') }
   }, [selected])
 
-  const shelf = DEMOS.filter(d => !OFF_SHELF.has(d.type))
-  const demoCounts = {}
-  for (const d of shelf) {
-    const cat = getGameConfig(d.type)?.category
-    if (cat) demoCounts[cat] = (demoCounts[cat] || 0) + 1
-  }
-  const demoCategories = GAME_CATEGORIES.map(c => ({ ...c, count: demoCounts[c.id] || 0 })).filter(c => c.count > 0)
-  const shown = shelf.filter(d => getGameConfig(d.type)?.category === activeCat)
-  // Board-first: a deep link (/solo/:type — the catalog's PRACTICE VS AI) is
-  // an intent to play *that* game, so the board renders at the top and the
-  // picker becomes a "more games" section below it. The bare hub keeps the
-  // picker on top but scrolls the chosen board into view on every pick.
-  const boardFirst = hasRouteType
-  // Campaign traffic on a headline game sees the curated strip below the board
-  // instead of the full picker (a link still leads to every solo game).
-  const adLanding = boardFirst && isHeadlineGame(routeType) && isAdVisit(search, state)
+  // Campaign traffic on a headline game (/solo/:type from an ad) sees the
+  // curated strip below the board; everyone else switches through the popup.
+  const adLanding = hasRouteType && isHeadlineGame(routeType) && isAdVisit(search, state)
   const boardRef = useRef(null)
   const pick = (type) => {
     setSelected(type)
     requestAnimationFrame(() => boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
-  const picker = (
-    <div className="space-y-2">
-      <CategoryTabs categories={demoCategories} active={activeCat} onSelect={setActiveCat} />
-      <div className="grid grid-cols-4 gap-2">
-        {shown.map(({ type, short, Icon, solo }) => (
-          <button
-            key={type}
-            onClick={() => pick(type)}
-            aria-pressed={selected === type}
-            className={cn(
-              'flex flex-col items-center gap-1 p-2 rounded border transition-all active:scale-95',
-              selected === type
-                ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
-                : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
-            )}
-          >
-            <Icon />
-            <span className="font-pixel text-[8px] text-center leading-tight whitespace-pre-line">{short}</span>
-            {solo && <span className="font-pixel text-[8px] text-retro-dim">SOLO</span>}
-          </button>
-        ))}
-      </div>
-    </div>
+  // Board-first: the game is the page. Switching lives in the shared
+  // "play another game" popup (search + categories), not an inline grid.
+  const switchButton = (
+    <button
+      type="button"
+      onClick={() => setPickerOpen(true)}
+      aria-haspopup="dialog"
+      className="shrink-0 min-h-11 px-3 inline-flex items-center gap-2 rounded border border-retro-p1 text-retro-p1 font-pixel text-[9px] tracking-wider hover:shadow-neon-p1 transition-all active:scale-95"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </svg>
+      SWITCH GAME
+    </button>
   )
 
   // Active demo — key forces fresh mount on game switch
@@ -341,9 +326,12 @@ function DemoHub() {
   return (
     <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
       <div className="w-full max-w-md space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-baseline justify-between gap-3">
-          <h1 className="font-pixel text-sm text-retro-cta tracking-wider whitespace-nowrap">PLAY SOLO</h1>
-          <span className="min-w-0 text-right font-pixel text-[9px] text-retro-dim tracking-wider">{active?.solo ? 'BEAT YOUR BEST' : 'VS CPU'}<span className="max-sm:hidden"> · NO WAITING</span></span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <h1 className="font-pixel text-sm text-retro-cta tracking-wider whitespace-nowrap">PLAY SOLO</h1>
+            <p className="font-pixel text-[9px] text-retro-dim tracking-wider">{active?.solo ? 'BEAT YOUR BEST' : 'VS CPU'}<span className="max-sm:hidden"> · NO WAITING</span></p>
+          </div>
+          {switchButton}
         </div>
         {adLanding
           ? (
@@ -361,10 +349,17 @@ function DemoHub() {
               </Link>
             </>
           )
-          : boardFirst
-            ? <>{board}<p className="font-pixel text-[9px] text-retro-dim tracking-widest pt-2">MORE SOLO GAMES</p>{picker}</>
-            : <>{picker}{board}</>}
+          : board}
       </div>
+      {pickerOpen && (
+        <GamePickerSheet
+          title="SWITCH SOLO GAME"
+          onSwitch={pick}
+          onClose={() => setPickerOpen(false)}
+          allowTypes={SOLO_PICKER_TYPES}
+          currentType={selected}
+        />
+      )}
     </main></VideoCallShell>
   )
 }

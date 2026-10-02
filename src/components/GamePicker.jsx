@@ -11,10 +11,7 @@ import NewGamesRail from './NewGamesRail'
 import EmptyState from './EmptyState'
 import FilterButton, { ViewTabs } from './GameFilters'
 import { FILTER_DEFS, isSortId, readCatalogView, sortGames } from '../lib/gameFilters'
-
-// Variant entries (those with `variantOf`) are hidden from the grid and surfaced
-// as a "choose mode" step when their base game is picked.
-const variantsFor = (baseType) => GAME_TYPES.filter(t => t.variantOf === baseType)
+import { makePickerScope } from '../lib/pickerScope'
 
 // Facet definitions live in lib/gameFilters.js (shared with the
 // FILTERS sheet); the toggle state below stays session-persisted here.
@@ -42,10 +39,23 @@ function readPickerState() {
   }
 }
 
-export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, excludeType, loadingType, layout = 'compact', initialType, crossFamily = false }) {
+// `allowTypes` (optional) limits the picker to those types — the solo hub
+// passes its playable games. `currentType` (optional) only picks the compact
+// picker's starting category when nothing is excluded.
+export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, excludeType, allowTypes, currentType, loadingType, layout = 'compact', initialType, crossFamily = false }) {
   const isFull = layout === 'full'
-  const defaultCat = isFull ? 'all' : ((excludeType && getGameConfig(excludeType)?.category) || GAME_CATEGORIES[0].id)
+  const startType = excludeType || currentType
+  const defaultCat = isFull ? 'all' : ((startType && getGameConfig(startType)?.category) || GAME_CATEGORIES[0].id)
   const persisted = isFull ? readPickerState() : null
+  // In-room switching (excludeType set) is restricted to the current seat
+  // family: party rooms key players by uid, 2P rooms by 'X'/'O'. The one
+  // exception is game-night mode (`crossFamily`, from RoomSwitchContext): a
+  // party room may drop into a 2P game — two players sit, the rest queue for
+  // winner stays — and switch back, with the room reseating everyone (see
+  // nightSwitchSeating in src/lib/nightLogic.js). Home passes no excludeType —
+  // show all. Variant entries are hidden from the grid and surfaced as a
+  // "choose mode" step when their base game is picked.
+  const { isHidden, isOffLimits, variantsFor } = makePickerScope({ excludeType, allowTypes, crossFamily })
   const [activeCat, setActiveCat] = useState(defaultCat)
   const [rulesType, setRulesType] = useState(null)
   const [optionsGame, setOptionsGame] = useState(() => (
@@ -93,7 +103,18 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const jumpLockRef = useRef(null) // { timer } while a chip tap's smooth scroll runs
   // Computed once — the " ( / )" keyboard hint is desktop-only real estate;
   // no need to re-check on resize for a hint this minor.
-  const [showSlashHint] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches)
+  const [showSlashHint] = useState(() => isFull && typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches)
+
+  // The compact picker lives in a sheet: focus its search on desktop so
+  // typing filters at once, but never on touch, where focus pops the
+  // keyboard over the list. Deferred a frame because BottomSheet focuses its
+  // own panel on mount, after this child effect runs.
+  useEffect(() => {
+    if (isFull || typeof window === 'undefined') return
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+    const id = requestAnimationFrame(() => searchRef.current?.focus({ preventScroll: true }))
+    return () => cancelAnimationFrame(id)
+  }, [isFull])
 
   useEffect(() => {
     if (!isFull) return
@@ -114,17 +135,6 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const favSet = new Set(favorites)
   const handleToggleFav = (type) => { toggleFavorite(type); setFavVersion(favVersion + 1) }
 
-  // In-room switching (excludeType set) is restricted to the current seat
-  // family: party rooms key players by uid, 2P rooms by 'X'/'O'. The one
-  // exception is game-night mode (`crossFamily`, from RoomSwitchContext): a
-  // party room may drop into a 2P game — two players sit, the rest queue for
-  // winner stays — and switch back, with the room reseating everyone (see
-  // nightSwitchSeating in src/lib/nightLogic.js). Home passes no excludeType —
-  // show all.
-  const excludeCfg = excludeType ? getGameConfig(excludeType) : null
-  const wrongFamily = (t) => !!excludeCfg && !crossFamily && !!t.nPlayer !== !!excludeCfg.nPlayer
-  const isHidden = (t) =>
-    t.type === excludeType || t.variantOf || wrongFamily(t)
   const counts = {}
   for (const t of GAME_TYPES) {
     if (isHidden(t)) continue
@@ -169,7 +179,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   // first one). A chip tap holds its own chip until that smooth scroll settles: the
   // section lands at its scroll margin, which (with the app header sliding away
   // mid-scroll) can sit just below the line, so tapping MEMORY used to light REFLEX.
-  const isSearching = isFull && !!query.trim()
+  const isSearching = !!query.trim()
   useEffect(() => {
     if (!isFull || isSearching) return
     let frame = 0
@@ -292,19 +302,20 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
     </div>
   )
 
-  const searchResults = isFull && query.trim()
-    ? searchGames(query, { excludePredicate: (t) => t.type === excludeType || wrongFamily(t) }).filter(passesFilters)
+  const searchResults = isSearching
+    ? searchGames(query, { excludePredicate: isOffLimits }).filter(passesFilters)
     : []
 
   // M-85: one bordered-card treatment for every "nothing here" moment in
   // this component, matching the Friends-page standard.
   const emptyState = (message) => <EmptyState>{message}</EmptyState>
 
-  const searchBlock = isFull && (
+  const searchBlock = (
     <div className="relative">
       <input
         ref={searchRef}
         type="text"
+        enterKeyHint="search"
         value={query}
         onChange={e => setQuery(e.target.value)}
         placeholder={`Search ${totalVisible} games…${showSlashHint ? ' ( / )' : ''}`}
@@ -362,12 +373,17 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           {chipRow}
         </div>
       ) : (
-        chipRow
+        // Compact (in a sheet): the search rides at the top of the sheet's
+        // scroll so it stays reachable below a long list.
+        <div className="sticky top-0 z-10 -mx-4 px-4 pt-1 pb-2 bg-retro-bg space-y-2">
+          {searchBlock}
+          {chipRow}
+        </div>
       )}
 
       {viewTabs}
 
-      {isFull && query.trim() ? (
+      {isSearching ? (
         searchResults.length > 0 ? (
           renderGrid(searchResults)
         ) : (

@@ -1,7 +1,5 @@
 import { useContext, useState } from 'react'
-import { toast } from 'sonner'
-import GamePicker from './GamePicker'
-import BottomSheet from './BottomSheet'
+import GamePickerSheet from './GamePickerSheet'
 import { RoomSwitchContext } from '../lib/roomSwitchContext'
 
 // Grid-of-squares glyph for the header trigger — reads as "browse / pick another
@@ -27,25 +25,6 @@ export default function GameSwitcher({ currentType, onSwitch, variant = 'button'
   // Game-night mode: a party room (or a party room playing a 2P game) may
   // also switch across seat families — see RoomSwitchContext.
   const crossFamily = useContext(RoomSwitchContext)
-  const [switching, setSwitching] = useState(null) // gameType being switched to, or null
-
-  const pick = async (type) => {
-    setSwitching(type)
-    try {
-      await onSwitch(type)
-      setOpen(false)
-    } catch {
-      toast.error('SWITCH FAILED — CHECK CONNECTION')
-    } finally {
-      setSwitching(null)
-    }
-  }
-
-  const close = () => { if (!switching) setOpen(false) }
-  // Hardware/gesture back is not cancellable like a backdrop-tap — always
-  // close on it, even mid-switch, so a second back press never falls through
-  // to the underlying route while the async switch is still in flight (M-06).
-  const closeOnBack = () => setOpen(false)
 
   return (
     <>
@@ -70,20 +49,12 @@ export default function GameSwitcher({ currentType, onSwitch, variant = 'button'
       )}
 
       {open && (
-        <BottomSheet onClose={close} onBack={closeOnBack} ariaLabel="Play another game" className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="font-pixel text-[10px] text-retro-dim tracking-widest">PLAY ANOTHER GAME</p>
-            <button
-              onClick={close}
-              disabled={!!switching}
-              aria-label="Close"
-              className="font-pixel text-[10px] text-retro-dim hover:text-retro-text transition-colors p-3 -m-2 disabled:opacity-40"
-            >
-              ✕
-            </button>
-          </div>
-          <GamePicker onSelect={pick} excludeType={currentType} loadingType={switching} crossFamily={crossFamily} />
-        </BottomSheet>
+        <GamePickerSheet
+          onSwitch={onSwitch}
+          onClose={() => setOpen(false)}
+          excludeType={currentType}
+          crossFamily={crossFamily}
+        />
       )}
     </>
   )
