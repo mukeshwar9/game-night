@@ -1975,14 +1975,32 @@ body::before {
 .ar-route { stroke: rgb(var(--c-win)); stroke-width: 0.9; stroke-dasharray: 1.2 1.6; opacity: 0.9; }
 .ar-hit { outline: none; }
 .ar-hit:focus-visible { stroke: rgb(var(--c-cta) / 0.3); }
+/* Mirrors (a fixed tile with a slanted bar) and crates (a numbered box that
+   counts down with every clear, then breaks). A crate that blocks a tap
+   flashes like a blocking arrow. */
+.ar-mirror-cell { fill: rgb(var(--c-deep)); stroke: rgb(var(--c-structure)); stroke-width: 0.5; }
+.ar-mirror-bar { stroke: rgb(var(--c-p1)); stroke-width: 1.7; stroke-linecap: round; }
+.ar-mirror-glint { stroke: rgb(var(--c-text)); stroke-width: 0.6; stroke-linecap: round; opacity: 0.8; }
+.ar-crate-box { fill: rgb(var(--c-tint-cta)); stroke: rgb(var(--c-cta)); stroke-width: 0.8; }
+.ar-crate-slat { stroke: rgb(var(--c-cta) / 0.35); stroke-width: 0.6; }
+.ar-crate-num { font-size: 4px; fill: rgb(var(--c-cta)); }
+.ar-crate-num.is-wide { font-size: 3.2px; }
+.ar-crate { transition: opacity 0.35s, transform 0.35s; transform-box: fill-box; transform-origin: center; }
+.ar-crate.is-open { opacity: 0; transform: scale(1.4); }
+.ar-crate.is-blocker { animation: arrows-blocker 0.62s ease; }
+.ar-crate.is-blocker .ar-crate-box { stroke: rgb(var(--c-danger)); }
 /* Reduced motion (in-app setting, else the OS query): drop the flash, ring
    and shake; the red / CTA colour cues stay. */
+[data-motion="reduced"] .ar-crate { transition: none; }
+[data-motion="reduced"] .ar-crate.is-blocker,
 [data-motion="reduced"] .arrows-arrow.is-blocker,
 [data-motion="reduced"] .arrows-arrow.is-hint,
 [data-motion="reduced"] .arrows-arrow.is-target,
 [data-motion="reduced"] .arrows-stage.is-error,
 [data-motion="reduced"] .arrows-stage.is-error .arrows-svg { animation: none; }
 @media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .ar-crate { transition: none; }
+  :root:not([data-motion="full"]) .ar-crate.is-blocker,
   :root:not([data-motion="full"]) .arrows-arrow.is-blocker,
   :root:not([data-motion="full"]) .arrows-arrow.is-hint,
   :root:not([data-motion="full"]) .arrows-arrow.is-target,

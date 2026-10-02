@@ -5,6 +5,7 @@ import {
   arrowPose,
   arrowRoute,
   cellCenter,
+  countGone,
   exitVector,
   isAwake,
   isBent,
@@ -142,6 +143,17 @@ function hookTipD(arrow) {
   const p = (u, v) => `${f(c[0] + dx * u + sx * v)} ${f(c[1] + dy * u + sy * v)}`
   const v = HOOK_SIDE
   return `M${p(HOOK_REACH, v + HOOK_CHEVRON)} L${p(HOOK_REACH - HOOK_HALF, v)} L${p(HOOK_REACH + HOOK_HALF, v)} Z`
+}
+
+// Mirrors: a dark tile with a slanted bar; a leaving arrow turns at its
+// centre. The bar runs corner to corner the way the mirror leans.
+const MIRROR_INSET = 2.2
+function mirrorBar({ x, y, m }) {
+  const x0 = x * CELL
+  const y0 = y * CELL
+  const lo = MIRROR_INSET
+  const hi = CELL - MIRROR_INSET
+  return m === '/' ? [[x0 + lo, y0 + hi], [x0 + hi, y0 + lo]] : [[x0 + lo, y0 + lo], [x0 + hi, y0 + hi]]
 }
 
 function arrowLabel(arrow, i, asleep) {
@@ -315,6 +327,22 @@ export default function ArrowsBoard({
     return () => { clearTimeout(t); group.classList.remove('is-hint') }
   }, [hint])
 
+  // Crates count down with every clear and break at 0.
+  const cleared = countGone(gone)
+  const crateRefs = useRef([])
+
+  useEffect(() => {
+    if (feedback?.crate == null || !level.crates) return
+    const at = level.crates.findIndex((c) => c.y * level.cols + c.x === feedback.crate)
+    const el = crateRefs.current[at]
+    if (!el) return
+    el.classList.remove('is-blocker')
+    void el.getBoundingClientRect()
+    el.classList.add('is-blocker')
+    const t = setTimeout(() => el.classList.remove('is-blocker'), ERROR_MS)
+    return () => clearTimeout(t)
+  }, [feedback, level])
+
   const handlePointerDown = (e) => {
     if (!interactive || !onTap) return
     const svg = svgRef.current
@@ -349,9 +377,11 @@ export default function ArrowsBoard({
     }
   }
 
+  const pieceCells = new Set([...(level.mirrors ?? []), ...(level.crates ?? [])].map((c) => c.y * level.cols + c.x))
   const dots = []
   for (let y = 0; y < level.rows; y += 1) {
     for (let x = 0; x < level.cols; x += 1) {
+      if (pieceCells.has(y * level.cols + x)) continue
       const [px, py] = cellCenter([x, y], CELL)
       dots.push(<circle key={`${x}-${y}`} cx={px} cy={py} r={compact ? 0.9 : 0.75} />)
     }
@@ -375,6 +405,35 @@ export default function ArrowsBoard({
         onPointerDown={handlePointerDown}
       >
         <g aria-hidden="true" style={{ fill: 'rgb(var(--c-structure))', opacity: 0.45 }}>{dots}</g>
+        {level.mirrors?.map((m) => {
+          const [a, b] = mirrorBar(m)
+          const glint = (t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
+          return (
+            <g key={`m${m.x}-${m.y}`} className="ar-mirror" role="img" aria-label={`Mirror at column ${m.x + 1}, row ${m.y + 1}, leaning ${m.m === '/' ? 'right' : 'left'}`}>
+              <rect className="ar-mirror-cell" x={m.x * CELL + 0.8} y={m.y * CELL + 0.8} width={CELL - 1.6} height={CELL - 1.6} rx={1.4} />
+              <line className="ar-mirror-bar" x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} />
+              <line className="ar-mirror-glint" x1={glint(0.55)[0]} y1={glint(0.55)[1]} x2={glint(0.75)[0]} y2={glint(0.75)[1]} />
+            </g>
+          )
+        })}
+        {level.crates?.map((c, i) => {
+          const left = Math.max(0, c.k - cleared)
+          const x0 = c.x * CELL
+          const y0 = c.y * CELL
+          return (
+            <g
+              key={`c${c.x}-${c.y}`}
+              ref={(el) => { crateRefs.current[i] = el }}
+              className={cn('ar-crate', left === 0 && 'is-open')}
+              role="img"
+              aria-label={left > 0 ? `Crate at column ${c.x + 1}, row ${c.y + 1}, breaks after ${left} more clear${left === 1 ? '' : 's'}` : 'Broken crate'}
+            >
+              <rect className="ar-crate-box" x={x0 + 1} y={y0 + 1} width={CELL - 2} height={CELL - 2} rx={1} />
+              <path className="ar-crate-slat" d={`M${x0 + 1.6} ${y0 + 1.6} L${x0 + CELL - 1.6} ${y0 + CELL - 1.6}`} />
+              <text className={cn('ar-crate-num font-pixel', left > 9 && 'is-wide')} x={x0 + CELL / 2} y={y0 + CELL / 2 + 1.9} textAnchor="middle">{left}</text>
+            </g>
+          )
+        })}
         {preview >= 0 && !gone[preview] && !hidden.has(preview) && (
           <path className="ar-route" d={routePreviewD(level, level.arrows[preview])} fill="none" aria-hidden="true" />
         )}
