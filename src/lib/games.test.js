@@ -316,4 +316,14 @@ describe('isQuietRoom', () => {
     expect(isQuietRoom(cfg, { status: 'playing', round: { phase: 'chainEnd' } })).toBe(false)
     expect(isQuietRoom(cfg, { status: 'waiting' })).toBe(false)
   })
+
+  it('hides Just One chat from the clues to the guess (audit X8)', () => {
+    const cfg = getGameConfig('justone')
+    for (const phase of ['clues', 'compare', 'guess', 'judging']) {
+      expect(isQuietRoom(cfg, { status: 'playing', round: { phase } }), phase).toBe(true)
+    }
+    for (const phase of ['dealing', 'result', 'over']) {
+      expect(isQuietRoom(cfg, { status: 'playing', round: { phase } }), phase).toBe(false)
+    }
+  })
 })

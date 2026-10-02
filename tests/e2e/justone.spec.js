@@ -40,6 +40,9 @@ test('three players cancel duplicate clues and guess a Just One card', async ({ 
     word = (await gus.page.getByTestId('jo-word').innerText()).trim()
     await expect(gia.page.getByTestId('jo-word')).toHaveText(word)
     await expect(hana.page.getByTestId('jo-word')).toHaveCount(0)
+    // No typed chat while clues are written: a clue-giver could just type
+    // the word to the guesser (audit X8). Emotes stay.
+    for (const { page } of everyone) await expect(page.getByPlaceholder('Say something…')).toHaveCount(0)
     const room = await readRoom(hana.page.url())
     expect(room.round.phase).toBe('clues')
     expect(Object.keys(room.round.sealed)).toHaveLength(2)

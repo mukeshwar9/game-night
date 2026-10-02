@@ -1810,6 +1810,9 @@ export const GAME_TYPES = [
     addedAt: '2026-09-26',
     durationMin: 15, tags: ['thinky', 'party'], solo: false,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    // `quiet` from the clues to the guess: the clue-givers know the word, so
+    // typed chat would let anyone hand it to the guesser.
+    quiet: (game) => game?.status === 'playing' && JUST_ONE_QUIET_PHASES.has(game?.round?.phase),
     Page: lazyWithRetry(() => import('../pages/JustOneGame')),
     // no startRound — JustOneGame deals its own sealed cards
   },
@@ -2046,6 +2049,7 @@ const FIELD_NULLS = {
 
 const MEMORY_STREAM_TYPES = new Set(['verbalmemory', 'nback'])
 const MEMORY_LEVEL_TYPES = new Set(['cupshuffle', 'whatchanged', 'kimsgame', 'nametags'])
+const JUST_ONE_QUIET_PHASES = new Set(['clues', 'compare', 'guess', 'judging'])
 
 /** Does the room hide typed chat right now? Registry `quiet` is either a
  * flag (HUNCH: always) or a function of the room (CONVERGE: while writing). */
