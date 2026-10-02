@@ -17,10 +17,11 @@ export function normalizeChimpLayout(raw) {
 // Returns an array of `level` unique random cell indices (0–CHIMP_GRID-1), never more
 // than the grid holds (a rejection loop here used to spin forever past level 25).
 // Position i in the array = cell for number (i+1).
-export function generateChimpLayout(level, gridSize = CHIMP_GRID) {
+// `rand` lets the daily memory challenge deal the same layouts to everyone.
+export function generateChimpLayout(level, gridSize = CHIMP_GRID, rand = Math.random) {
   const cells = Array.from({ length: gridSize }, (_, i) => i)
   for (let i = cells.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = Math.floor(rand() * (i + 1))
     ;[cells[i], cells[j]] = [cells[j], cells[i]]
   }
   return cells.slice(0, Math.min(level, gridSize))

@@ -98,6 +98,7 @@ friends/{uid}/{friendUid}:        { since }    // written both directions on acc
 friendRequests/{uid}/{fromUid}:   { name, avatar, code, at }
 invites/{uid}/{inviteId}:         { gameId, gameType, fromUid, fromName, fromAvatar, at }  // hidden after 24 h
 leaderboard/{uid}:  written only by the creditMatchResults function (verified: true, verifiedWins)
+dailyMemory/{date}/{uid}: { game, score, at, name, avatar }  // DAILY MEMORY result, written once (one try a day)
 ```
 
 `ensureProfile()` (run from `AuthContext` on boot) creates `users/{uid}` if missing (a transaction that never overwrites a chosen name), allocates a 6-char friend code, and mirrors `profiles/{uid}` and `presence/{uid}` — so accounts migrate the first time they open a new build. Read other players through `getProfile` / `subscribeProfile` (public profile + presence); only your own uid reads `users/{uid}`. Names go through `sanitizeDisplayName` (`moderationLogic.js`).

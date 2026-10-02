@@ -9,7 +9,7 @@ import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import useCreateGame from '../hooks/useCreateGame'
 import Avatar from '../components/Avatar'
 import Onboarding from '../components/LazyOnboarding'
-import DailyTile from '../components/DailyTile'
+import DailyTile, { DailyMemoryTile } from '../components/DailyTile'
 import ContinuePlaying from '../components/ContinuePlaying'
 import RecentlyPlayed from '../components/RecentlyPlayed'
 import HeadlineGames from '../components/HeadlineGames'
@@ -199,6 +199,7 @@ export default function Home() {
         {/* ALL GAMES lived here too, a copy of the GAMES tab one row down. */}
         <section className="max-w-md mx-auto w-full space-y-2" aria-label="More ways to play">
           <DailyTile />
+          <DailyMemoryTile />
           <ActionRow to="/online" title="FIND AN OPPONENT" detail="Join a public room or open one" action="BROWSE" />
         </section>
 

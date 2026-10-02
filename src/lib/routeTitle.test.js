@@ -16,6 +16,7 @@ describe('titleForPath', () => {
     expect(titleForPath('/solo/numbermemory')).toBe('Number memory — solo run — Game Night')
     expect(titleForPath('/solo/simon')).toBe('Simon — solo run — Game Night')
     expect(titleForPath('/demo')).toBe('Play solo — Game Night')
+    expect(titleForPath('/daily/memory')).toBe('Daily memory — Game Night')
   })
   it('falls back to the brand for rooms, unknown games and junk', () => {
     expect(titleForPath('/game/ABC123')).toBe('Game Night')

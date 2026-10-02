@@ -10,6 +10,7 @@ const STATIC = {
   '/games': `All games — ${BRAND}`,
   '/online': `Find an opponent — ${BRAND}`,
   '/daily': `Daily puzzle — ${BRAND}`,
+  '/daily/memory': `Daily memory — ${BRAND}`,
   '/demo': `Play solo — ${BRAND}`,
   '/friends': `Friends — ${BRAND}`,
   '/profile': `Settings — ${BRAND}`,

@@ -5,9 +5,9 @@
 // same honest-client tier as Pairs' deck (see pairsLogic.js). Hiding it after the
 // reveal stops casual peeking, not a player reading the database.
 
-export function generateNumber(level) {
-  let n = String(Math.floor(Math.random() * 9) + 1)
-  for (let i = 1; i < level; i++) n += String(Math.floor(Math.random() * 10))
+export function generateNumber(level, rand = Math.random) {
+  let n = String(Math.floor(rand() * 9) + 1)
+  for (let i = 1; i < level; i++) n += String(Math.floor(rand() * 10))
   return n
 }
 

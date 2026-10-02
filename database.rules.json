@@ -1011,6 +1011,23 @@
             ".validate": "false"
           }
         },
+        "memoryBests": {
+          "visualmemory": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+          },
+          "chimp": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+          },
+          "simon": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+          },
+          "numbermemory": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+          },
+          "$other": {
+            ".validate": "false"
+          }
+        },
         "attribution": {
           ".validate": "(newData.val() === data.val() || (!data.exists() && newData.hasChild('source') && newData.hasChild('at')))",
           "source": {
@@ -1375,6 +1392,33 @@
           },
           "uid": {
             ".validate": "newData.val() === auth.uid"
+          },
+          "$other": {
+            ".validate": "false"
+          }
+        }
+      }
+    },
+    "dailyMemory": {
+      "$day": {
+        ".read": "auth != null && $day.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['game', 'score', 'at', 'name'])",
+          "game": {
+            ".validate": "newData.isString() && newData.val().matches(/^(visualmemory|chimp|simon|numbermemory)$/)"
+          },
+          "score": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+          },
+          "at": {
+            ".validate": "newData.isNumber() && newData.val() <= now + 60000"
+          },
+          "name": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 20"
+          },
+          "avatar": {
+            ".validate": "newData.isString() && newData.val().length <= 64"
           },
           "$other": {
             ".validate": "false"

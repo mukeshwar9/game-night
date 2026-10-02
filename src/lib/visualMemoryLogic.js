@@ -45,10 +45,11 @@ export function normalizeVmArray(raw) {
 
 // Returns `level` unique random cell indices from a `gridSize`-cell grid (never more
 // than the grid holds, so it always terminates).
-export function generateVmPattern(level, gridSize = vmCellCount(level)) {
+// `rand` lets the daily memory challenge deal the same patterns to everyone.
+export function generateVmPattern(level, gridSize = vmCellCount(level), rand = Math.random) {
   const cells = Array.from({ length: gridSize }, (_, i) => i)
   for (let i = cells.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = Math.floor(rand() * (i + 1))
     ;[cells[i], cells[j]] = [cells[j], cells[i]]
   }
   return cells.slice(0, Math.min(level, gridSize))

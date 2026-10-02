@@ -34,3 +34,35 @@ describe('memory duels', () => {
     await assertFails(as('alice').ref('games/m1').update({ chimpCheatX: 1 }))
   })
 })
+
+describe('DAILY MEMORY and memory bests', () => {
+  const entry = (over = {}) => ({ game: 'chimp', score: 9, at: Date.now(), name: 'Alice', ...over })
+
+  it('lets a player post today\'s result once, as themselves', async () => {
+    await assertSucceeds(as('alice').ref('dailyMemory/2026-10-02/alice').set(entry()))
+    await assertFails(as('alice').ref('dailyMemory/2026-10-02/alice').set(entry({ score: 30 })))
+    await assertFails(as('alice').ref('dailyMemory/2026-10-02/alice/score').set(30))
+    await assertFails(as('alice').ref('dailyMemory/2026-10-02/bob').set(entry({ name: 'Bob' })))
+  })
+
+  it('keeps a result in shape', async () => {
+    await assertFails(as('alice').ref('dailyMemory/2026-10-03/alice').set(entry({ game: 'pong' })))
+    await assertFails(as('alice').ref('dailyMemory/2026-10-03/alice').set(entry({ score: 5000 })))
+    await assertFails(as('alice').ref('dailyMemory/2026-10-03/alice').set({ ...entry(), extra: 1 }))
+    await assertFails(as('alice').ref('dailyMemory/2026-10-03/alice').set({ game: 'chimp', score: 3 }))
+  })
+
+  it('lets signed-in players read a day, not the whole history', async () => {
+    await seed(T.env, 'dailyMemory/2026-10-02/bob', entry({ name: 'Bob' }))
+    await assertSucceeds(as('alice').ref('dailyMemory/2026-10-02/bob').get())
+    await assertSucceeds(as('alice').ref('dailyMemory/2026-10-02').get())
+    await assertFails(as('alice').ref('dailyMemory').get())
+  })
+
+  it('stores memory bests on the owner\'s account only', async () => {
+    await assertSucceeds(as('alice').ref('users/alice/memoryBests').set({ simon: 12, chimp: 9 }))
+    await assertFails(as('alice').ref('users/alice/memoryBests/pong').set(3))
+    await assertFails(as('alice').ref('users/alice/memoryBests/simon').set('lots'))
+    await assertFails(as('bob').ref('users/alice/memoryBests/simon').set(99))
+  })
+})

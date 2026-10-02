@@ -182,3 +182,39 @@ test('Pairs vs CPU offers three levels, and PAIRS 4×4 deals 16 cards', async ({
   await page.locator('button[aria-label$="face down"]').first().click()
   await expect(page.locator('button[aria-label*="first pick"]')).toHaveCount(1)
 })
+
+// Plays whatever today's DAILY MEMORY game is until the run ends, by tapping the
+// first enabled board control (a slip comes soon enough) and answering 0 to numbers.
+async function endTheRun(page) {
+  for (let i = 0; i < 300; i++) {
+    if (await page.getByText(/RUN OVER|OUT OF LIVES|MISSED AT/).count()) return
+    const tryAgain = page.getByRole('button', { name: /^TRY AGAIN/ })
+    if (await tryAgain.count()) { await tryAgain.click(); continue }
+    const gotIt = page.getByRole('button', { name: 'GOT IT' })
+    if (await gotIt.count()) { await gotIt.click(); continue }
+    const answer = page.getByRole('textbox', { name: 'Your answer' })
+    if (await answer.count()) { await answer.fill('0'); await answer.press('Enter'); continue }
+    const control = page.locator('button[aria-label^="row "]:enabled, button[aria-label*=" pad, "]:enabled').first()
+    if (await control.count()) await control.click({ timeout: 2000 }).catch(() => {})
+    else await page.waitForTimeout(150)
+  }
+  throw new Error('the daily run never ended')
+}
+
+test('DAILY MEMORY: one try, saved to today\'s board, and a reload cannot replay it', async ({ page }) => {
+  await onboard(page, 'Daisy')
+  await page.goto('/daily/memory')
+  await expect(page.getByRole('heading', { name: /^DAILY MEMORY #\d+$/ })).toBeVisible()
+  await page.getByRole('button', { name: "PLAY TODAY'S RUN" }).click()
+  await expect(page.getByText(/· ONE TRY$/)).toBeVisible()
+  await endTheRun(page)
+  // One attempt: no PLAY AGAIN inside the daily run.
+  await expect(page.getByRole('button', { name: 'PLAY AGAIN' })).toHaveCount(0)
+  await page.getByRole('button', { name: "SEE TODAY'S BOARD" }).click()
+  await expect(page.getByRole('region', { name: "Today's board" }).getByText(/^1\. YOU$/)).toBeVisible()
+
+  await page.reload()
+  await expect(page.getByText('YOUR SCORE')).toBeVisible()
+  await expect(page.getByRole('button', { name: "PLAY TODAY'S RUN" })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: "Today's board" }).getByText(/^1\. YOU$/)).toBeVisible()
+})
