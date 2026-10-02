@@ -836,6 +836,76 @@ export const GAME_RULES = {
     win: 'Claim 5 of the 8 pairs to win instantly. If the board fills at 4–4, it is a draw.',
   },
 
+  verbalmemory: {
+    objective: 'Remember every word that has come up in this run.',
+    howToPlay: [
+      'Words appear one at a time.',
+      'Tap SEEN if the word already came up in this run, NEW if it did not (or press S / N).',
+      'Online, both players get the same stream of words at the same moment.',
+    ],
+    win: 'A wrong answer costs one of 3 lives. Solo, beat your best score; online, the higher score once both of you are out wins the round.',
+  },
+
+  nback: {
+    objective: 'Keep track of where the light was a few steps ago.',
+    howToPlay: [
+      'Each step lights one cell of a 3×3 grid.',
+      'Tap MATCH (or press Space) when the lit cell is the same as the one n steps back. Start at 1-back.',
+      'A good block of 20 steps raises n; the score counts every right call, worth n points each.',
+    ],
+    win: 'A miss or a false MATCH costs one of 3 lives. Solo, beat your best; online, both play the same stream and the higher score wins.',
+  },
+
+  cupshuffle: {
+    objective: 'Follow the ball through the shuffle.',
+    howToPlay: [
+      'Watch which cup the ball is under before the cups come down.',
+      'Follow that cup while the cups swap places.',
+      'Tap the cup with the ball. Each level adds swaps and speed, and more cups.',
+    ],
+    win: 'A wrong cup costs a life (3 in solo). Online, both play the same shuffle; a slip only loses once the other player clears that level, and if you both slip the faster total clear time wins.',
+  },
+
+  whatchanged: {
+    objective: 'Spot what changed, from memory.',
+    howToPlay: [
+      'Study the scene of objects.',
+      'It blinks out and comes back with one change: something moved, was swapped, or vanished.',
+      'Tap where it changed (either spot of a move counts). Each level adds objects.',
+    ],
+    win: 'A wrong spot costs a life (3 in solo). Online, both get the same scenes; a slip only loses once the other player clears that level.',
+  },
+
+  kimsgame: {
+    objective: 'Find the object that went missing.',
+    howToPlay: [
+      'Study the tray of objects.',
+      'A cloth covers it; the tray comes back shuffled with one object gone.',
+      'Pick the missing one from six. The tray grows every level.',
+    ],
+    win: 'A wrong pick costs a life (3 in solo). Online, both get the same trays; a slip only loses once the other player clears that level.',
+  },
+
+  nametags: {
+    objective: 'Put every name back on its face.',
+    howToPlay: [
+      'Study the faces and their name tags.',
+      'The tags come off and the faces shuffle.',
+      'Pick a name, then tap the face it belongs to. Each level adds a face.',
+    ],
+    win: 'A wrong match costs a life (3 in solo). Online, both get the same faces; a slip only loses once the other player clears that level.',
+  },
+
+  splitsignal: {
+    objective: 'Rebuild one pattern together, from two halves.',
+    howToPlay: [
+      'Each of you sees only your own half of the lit tiles.',
+      'Then both of you tap the tiles you saw on one shared board.',
+      'Tapping a blank tile, or one you did not see, costs a shared life and deals a new pattern.',
+    ],
+    win: 'Co-op: you have 3 lives together. Every level you clear adds a tile and a point for both of you.',
+  },
+
   sim: {
     objective: 'Color connecting lines between six dots — but never complete a triangle of your own color.',
     howToPlay: [

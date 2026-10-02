@@ -1036,3 +1036,95 @@ export function UpdraftIcon() {
     </svg>
   )
 }
+
+// ── Memory shelf additions ──
+
+export function VerbalMemoryIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* A word card with two answer tabs */}
+      <rect x="3" y="4" width="18" height="10" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="6" y="8" width="12" height="2" fill="currentColor" opacity="0.8" />
+      <rect x="3" y="17" width="8" height="4" rx="1" fill="currentColor" opacity="0.5" />
+      <rect x="13" y="17" width="8" height="4" rx="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function NBackIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* 3×3 grid, one lit cell and its echo */}
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => {
+        const x = (i % 3) * 8 + 1, y = Math.floor(i / 3) * 8 + 1
+        return <rect key={i} x={x} y={y} width="6" height="6" rx="1" fill="currentColor" opacity={i === 4 ? '1' : i === 0 ? '0.55' : '0.2'} />
+      })}
+    </svg>
+  )
+}
+
+export function CupShuffleIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" shapeRendering="crispEdges">
+      {/* Three cups, the middle one lifted over the ball */}
+      <rect x="1" y="11" width="6" height="8" fill="currentColor" opacity="0.6" />
+      <rect x="9" y="5" width="6" height="8" fill="currentColor" />
+      <rect x="17" y="11" width="6" height="8" fill="currentColor" opacity="0.6" />
+      <rect x="10.5" y="16" width="3" height="3" fill="currentColor" />
+      <rect x="0" y="20" width="24" height="2" fill="currentColor" opacity="0.35" />
+    </svg>
+  )
+}
+
+export function WhatChangedIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* Two scenes; one tile differs */}
+      <rect x="1" y="3" width="10" height="18" rx="1" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+      <rect x="13" y="3" width="10" height="18" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="3" y="6" width="3" height="3" fill="currentColor" opacity="0.6" />
+      <rect x="6" y="14" width="3" height="3" fill="currentColor" opacity="0.6" />
+      <rect x="15" y="6" width="3" height="3" fill="currentColor" />
+      <rect x="15" y="14" width="3" height="3" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function KimsGameIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* A tray of objects with one empty, dashed slot */}
+      <rect x="2" y="4" width="20" height="16" rx="1.5" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+      <rect x="5" y="7" width="4" height="4" fill="currentColor" />
+      <rect x="10" y="7" width="4" height="4" fill="currentColor" />
+      <rect x="15" y="7" width="4" height="4" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1" />
+      <rect x="5" y="13" width="4" height="4" fill="currentColor" />
+      <rect x="10" y="13" width="4" height="4" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function NameTagsIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* A face with a name tag under it */}
+      <circle cx="12" cy="9" r="5" stroke="currentColor" strokeWidth="2" />
+      <rect x="10" y="8" width="1.5" height="1.5" fill="currentColor" />
+      <rect x="12.5" y="8" width="1.5" height="1.5" fill="currentColor" />
+      <rect x="5" y="16" width="14" height="5" rx="1" fill="currentColor" opacity="0.8" />
+    </svg>
+  )
+}
+
+export function SplitSignalIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* One grid, two halves in two weights */}
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => {
+        const x = (i % 3) * 8 + 1, y = Math.floor(i / 3) * 8 + 1
+        const lit = [0, 4, 8].includes(i) ? '1' : [2, 6].includes(i) ? '0.5' : '0.15'
+        return <rect key={i} x={x} y={y} width="6" height="6" rx="1" fill="currentColor" opacity={lit} />
+      })}
+    </svg>
+  )
+}

@@ -218,3 +218,79 @@ test('DAILY MEMORY: one try, saved to today\'s board, and a reload cannot replay
   await expect(page.getByRole('button', { name: "PLAY TODAY'S RUN" })).toHaveCount(0)
   await expect(page.getByRole('region', { name: "Today's board" }).getByText(/^1\. YOU$/)).toBeVisible()
 })
+
+test('Cup Shuffle duel: the same shuffle on both screens; a wrong cup waits on the other player', async ({ browser }) => {
+  const { alice, bob } = await duel(browser, 'CUP SHUFFLE')
+  const cups = page => page.locator('button[aria-label^="cup "]')
+  let ballA = -1
+  await expect.poll(async () => (ballA = await cups(alice.page).evaluateAll(els => els.findIndex(e => /ball here/.test(e.getAttribute('aria-label'))))), { timeout: 10_000 }).toBeGreaterThan(-1)
+  const ballB = await cups(bob.page).evaluateAll(els => els.findIndex(e => /ball here/.test(e.getAttribute('aria-label'))))
+  expect(ballB).toBe(ballA)
+  await expect(alice.page.getByText('TAP THE CUP WITH THE BALL')).toBeVisible({ timeout: 15_000 })
+  await cups(bob.page).nth((ballA + 1) % 3).click()
+  await expect(bob.page.getByText(/YOU SLIPPED — ALICE MUST CLEAR LEVEL 1 TO WIN/)).toBeVisible()
+  await cups(alice.page).nth(ballA).click()
+  await expect(alice.page.getByText('YOU WIN!')).toBeVisible()
+  await expect(bob.page.getByText('ALICE WINS!')).toBeVisible()
+  expectNoPageErrors(alice, bob)
+})
+
+test('Verbal Memory duel: the same words for both, and the higher score wins once both are out', async ({ browser }) => {
+  const { alice, bob } = await duel(browser, 'VERBAL MEMORY')
+  // Answers by tracking every word this player has been shown.
+  const play = async (page, rightFirst) => {
+    const seen = new Set()
+    let right = rightFirst
+    for (let i = 0; i < 12; i++) {
+      if (await page.getByText(/^LAST WORD/).count()) return
+      if (!(await page.locator('p.text-2xl').count())) return // the round already ended
+      const word = (await page.locator('p.text-2xl').first().innerText()).trim()
+      const repeat = seen.has(word)
+      seen.add(word)
+      const answer = right > 0 ? (repeat ? 'SEEN' : 'NEW') : (repeat ? 'NEW' : 'SEEN')
+      right -= 1
+      await page.getByRole('button', { name: answer, exact: true }).click()
+      await page.waitForTimeout(120)
+    }
+  }
+  await expect(alice.page.getByRole('button', { name: 'SEEN', exact: true })).toBeVisible({ timeout: 10_000 })
+  expect((await alice.page.locator('p.text-2xl').first().innerText()).trim()).toBe((await bob.page.locator('p.text-2xl').first().innerText()).trim())
+  await play(bob.page, 0)
+  await expect(bob.page.getByText(/OUT — WAITING FOR ALICE/)).toBeVisible()
+  await play(alice.page, 2)
+  await expect(alice.page.getByText('YOU WIN!')).toBeVisible()
+  await expect(bob.page.getByText('ALICE WINS!')).toBeVisible()
+  expectNoPageErrors(alice, bob)
+})
+
+test('Split Signal: each player sees only their half; clearing together scores for both', async ({ browser }) => {
+  const { alice, bob } = await duel(browser, 'SPLIT SIGNAL')
+  const lit = page => page.locator('button[aria-label^="row "]').evaluateAll(els => els.map((e, i) => (e.getAttribute('aria-label').endsWith(', lit') ? i : -1)).filter(i => i >= 0))
+  let a = [], b = []
+  await expect.poll(async () => (a = await lit(alice.page)).length, { timeout: 10_000 }).toBeGreaterThan(0)
+  b = await lit(bob.page)
+  expect(a.filter(i => b.includes(i))).toEqual([])
+  expect(a.length + b.length).toBe(4)
+  await expect(alice.page.getByText(/TAP THE TILES YOU SAW/)).toBeVisible({ timeout: 10_000 })
+  for (const i of a) await alice.page.locator('button[aria-label^="row "]').nth(i).click()
+  for (const i of b) await bob.page.locator('button[aria-label^="row "]').nth(i).click()
+  await expect(alice.page.getByText('LEVEL 2', { exact: true })).toBeVisible()
+  await expect(bob.page.getByText('LEVEL 2', { exact: true })).toBeVisible()
+  expectNoPageErrors(alice, bob)
+})
+
+test('Lost & Found solo: a wrong pick shows what was missing and waits on TRY AGAIN', async ({ page }) => {
+  await page.goto('/solo/kimsgame')
+  await page.getByRole('button', { name: 'TAP TO START' }).click()
+  await expect(page.getByText('WHICH ONE IS MISSING?')).toBeVisible({ timeout: 15_000 })
+  // The hint names the missing object only after a slip, so tap choices until one is wrong.
+  const choices = page.locator('.grid.grid-cols-3 button')
+  for (let i = 0; i < 6; i++) {
+    await choices.nth(i).click()
+    if (await page.getByText(/WAS MISSING$/).count()) break
+    if (await page.getByText('FOUND IT!').count()) { await expect(page.getByText(/LEVEL 1 CLEARED/)).toBeVisible(); return }
+  }
+  await expect(page.getByRole('button', { name: 'TRY AGAIN · 2 LIVES LEFT' })).toBeVisible()
+  await page.getByRole('button', { name: 'TRY AGAIN · 2 LIVES LEFT' }).click()
+  await expect(page.getByText(/^REMEMBER ALL \d+$/)).toBeVisible()
+})

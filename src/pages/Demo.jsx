@@ -2,7 +2,7 @@ import { Suspense, useState, useRef, useEffect } from 'react';
 import LoadingLine from '../components/loading/LoadingLine';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, PulpIcon, TypingIcon, MathIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, VerbalMemoryIcon, NBackIcon, CupShuffleIcon, WhatChangedIcon, KimsGameIcon, NameTagsIcon, ReactionIcon, AimIcon, PulpIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, PasswordIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
@@ -64,6 +64,7 @@ const PasswordDemo = lazyWithRetry(() => import('./PasswordDemo'))
 const WordHuntDemo = lazyWithRetry(() => import('./WordHuntDemo'))
 const AnagramsDemo = lazyWithRetry(() => import('./AnagramsDemo'))
 // Memory solo runs share one chunk.
+const MemoryRunSolo = lazyWithRetry(() => import('./MemoryRunSolo'))
 const SimonSolo = lazyWithRetry(() => import('./MemorySoloDemos').then(m => ({ default: m.SimonSolo })))
 const VisualMemorySolo = lazyWithRetry(() => import('./MemorySoloDemos').then(m => ({ default: m.VisualMemorySolo })))
 const ChimpSolo = lazyWithRetry(() => import('./MemorySoloDemos').then(m => ({ default: m.ChimpSolo })))
@@ -137,6 +138,12 @@ const DEMOS = [
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemorySolo, solo: true },
   { type: 'visualmemory', short: 'VIS\nMEMORY',   Icon: VisualMemoryIcon, Component: VisualMemorySolo, solo: true },
   { type: 'chimp',        short: 'CHIMP\nTEST',   Icon: ChimpIcon,        Component: ChimpSolo,        solo: true },
+  { type: 'verbalmemory', short: 'VERBAL\nMEMORY', Icon: VerbalMemoryIcon, Component: () => <MemoryRunSolo type="verbalmemory" />, solo: true },
+  { type: 'nback',        short: 'N-BACK',        Icon: NBackIcon,        Component: () => <MemoryRunSolo type="nback" />,        solo: true },
+  { type: 'cupshuffle',   short: 'CUP\nSHUFFLE',  Icon: CupShuffleIcon,   Component: () => <MemoryRunSolo type="cupshuffle" />,   solo: true },
+  { type: 'whatchanged',  short: 'WHAT\nCHANGED', Icon: WhatChangedIcon,  Component: () => <MemoryRunSolo type="whatchanged" />,  solo: true },
+  { type: 'kimsgame',     short: 'LOST &\nFOUND', Icon: KimsGameIcon,     Component: () => <MemoryRunSolo type="kimsgame" />,     solo: true },
+  { type: 'nametags',     short: 'NAME\nTAGS',    Icon: NameTagsIcon,     Component: () => <MemoryRunSolo type="nametags" />,     solo: true },
   // Solo / hangwoman
   { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
   { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: WordDuelDemo     },

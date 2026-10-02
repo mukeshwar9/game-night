@@ -18,6 +18,10 @@ import {
 import { LanternsIcon, DockingIcon } from '../components/GameIcons'
 import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
 import { HunchIcon, ConvergeIcon } from '../components/GameIcons'
+import {
+  VerbalMemoryIcon, NBackIcon, CupShuffleIcon, WhatChangedIcon, KimsGameIcon, NameTagsIcon, SplitSignalIcon,
+} from '../components/GameIcons'
+import { memLevelStart, memStreamStart, newSeed } from './memoryRaceLogic'
 import { WireCrossedIcon, AnimalStackIcon, MinigolfIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
@@ -1605,6 +1609,79 @@ export const GAME_TYPES = [
     custom: true, simultaneous: true, coop: true, quiet: true, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/HunchGame')),
   },
+  // ── Memory shelf additions (docs/design/MEMORY-GAMES-SHAPE.md) ──
+  // Solo runs on /solo/:type (MemoryRunSolo) and online duels on one engine
+  // (MemoryDuelGame, room node `mem`): same seeded deal for both, shared 3-2-1.
+  {
+    type: 'verbalmemory', label: 'VERBAL MEMORY',
+    desc: 'seen it before, or new?', Icon: VerbalMemoryIcon,
+    badge: 'VB', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'nback', label: 'N-BACK',
+    desc: 'match the cell n steps back', Icon: NBackIcon,
+    badge: 'NB', maxWidth: 'max-w-xs',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'cupshuffle', label: 'CUP SHUFFLE',
+    desc: 'follow the ball under the cups', Icon: CupShuffleIcon,
+    badge: 'CS', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 2, tags: ['quick'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'whatchanged', label: 'WHAT CHANGED?',
+    desc: 'spot the change from memory', Icon: WhatChangedIcon,
+    badge: 'WC', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'kimsgame', label: 'LOST & FOUND',
+    desc: "what's missing from the tray?", Icon: KimsGameIcon,
+    badge: 'LF', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'nametags', label: 'NAME TAGS',
+    desc: 'put the names back on the faces', Icon: NameTagsIcon,
+    badge: 'NT', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'splitsignal', label: 'SPLIT SIGNAL',
+    desc: 'two halves, one pattern — co-op', Icon: SplitSignalIcon,
+    badge: 'SS', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    // Co-op: the team's cleared levels are both players' score.
+    durationMin: 4, tags: ['thinky'], solo: false,
+    custom: true, simultaneous: true, coop: true,
+    Page: lazyWithRetry(() => import('../pages/SplitSignalGame')),
+  },
   {
     type: 'pairs', label: 'PAIRS',
     desc: 'match the hidden pairs', Icon: PairsIcon,
@@ -1853,6 +1930,7 @@ const FIELD_NULLS = {
   vmLevel: null, vmPattern: null, vmClicked: null, vmClears: null, vmMiss: null,
   vmClickedX: null, vmClickedO: null, vmDoneX: null, vmDoneO: null, vmFailX: null, vmFailO: null,
   vmTimeX: null, vmTimeO: null, vmRoundStartedAt: null,
+  mem: null,
   numRound: null,
   reactionTimesX: null, reactionTimesO: null,
   aimTimesX: null, aimTimesO: null, aimMissesX: null, aimMissesO: null,
@@ -1960,6 +2038,9 @@ const FIELD_NULLS = {
   nightMark: null,
   kicked: null,
 }
+
+const MEMORY_STREAM_TYPES = new Set(['verbalmemory', 'nback'])
+const MEMORY_LEVEL_TYPES = new Set(['cupshuffle', 'whatchanged', 'kimsgame', 'nametags'])
 
 export function freshGameState(gameType, previous = null) {
   const cfg = getGameConfig(gameType)
@@ -2252,6 +2333,16 @@ export function freshGameState(gameType, previous = null) {
           usedRacks: previousRound.usedRacks || [],
         }
         : null }
+  }
+  if (MEMORY_STREAM_TYPES.has(gameType) || MEMORY_LEVEL_TYPES.has(gameType)) {
+    // memoryRaceLogic.js: one seeded deal per level (or one stream) for both seats.
+    const seed = newSeed()
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      mem: MEMORY_STREAM_TYPES.has(gameType) ? memStreamStart(seed) : memLevelStart(1, seed) }
+  }
+  if (gameType === 'splitsignal') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      mem: { level: 1, seed: newSeed(), startAt: null, lives: 3, found: null } }
   }
   if (gameType === 'pairs' || gameType === 'pairs4') {
     const cells = gameType === 'pairs4' ? PAIRS_QUICK_CELL_COUNT : PAIRS_CELL_COUNT

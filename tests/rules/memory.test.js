@@ -66,3 +66,18 @@ describe('DAILY MEMORY and memory bests', () => {
     await assertFails(as('bob').ref('users/alice/memoryBests/simon').set(99))
   })
 })
+
+describe('memory engine rooms (mem)', () => {
+  it('lets seated players write their own lane of the shared mem node', async () => {
+    await put(room('cupshuffle', { mem: { level: 1, seed: 5, startAt: null, X: { done: false, progress: 0, time: 0 }, O: { done: false, progress: 0, time: 0 } } }))
+    await assertSucceeds(as('alice').ref('games/m1/mem/startAt').set(Date.now() + 3000))
+    await assertSucceeds(as('bob').ref('games/m1/mem').update({ 'O/fail': 2 }))
+    await assertSucceeds(as('alice').ref('games/m1/mem').update({ 'X/done': true, 'X/time': 4100 }))
+    await assertFails(as('mallory').ref('games/m1/mem/X/done').set(true))
+  })
+
+  it('keeps bests for the new memory runs on the account', async () => {
+    await assertSucceeds(as('alice').ref('users/alice/memoryBests').set({ cupshuffle: 4, nback: 37, verbalmemory: 22 }))
+    await assertFails(as('alice').ref('users/alice/memoryBests/splitsignal').set(3))
+  })
+})
