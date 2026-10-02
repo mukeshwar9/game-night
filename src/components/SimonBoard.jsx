@@ -6,17 +6,12 @@ import { sounds } from '../lib/sounds'
 import { db } from '../lib/firebase'
 import { serverNow } from '../lib/serverClock'
 import useTurnDeadlineEnforcer from '../hooks/useTurnDeadlineEnforcer'
+import { SIMON_PAD_META, simonPadVar, simonPadName } from '../lib/simonPads'
 
-// Static classes per pad — must be complete strings for Tailwind's scanner
-const PAD = [
-  { active: 'bg-retro-p1 shadow-neon-p1 border-retro-p1',   dim: 'bg-retro-tint-p1 border-retro-p1/30' },
-  { active: 'bg-retro-p2 shadow-neon-p2 border-retro-p2',   dim: 'bg-retro-tint-p2 border-retro-p2/30' },
-  { active: 'bg-retro-cta shadow-neon-cta border-retro-cta', dim: 'bg-retro-tint-cta border-retro-cta/30' },
-  { active: 'bg-retro-win shadow-neon-win border-retro-win', dim: 'bg-retro-win/10 border-retro-win/30' },
-]
-
-// Position glyphs so pads carry a non-color signal (aria + visible on the pad itself)
-const PAD_GLYPH = ['▲', '▼', '◀', '▶']
+// Pad colours are the fixed --simon-* palette (src/lib/simonPads.js), not theme
+// tokens; each pad's glyph points at its own corner as the non-colour cue.
+const padStyle = i => ({ '--pad': simonPadVar(i) })
+const PRESS_LIGHT_MS = 180 // how long a pad stays lit after your own press
 
 const FLASH_ON_MS  = 480
 const FLASH_GAP_MS = 240
@@ -48,6 +43,8 @@ export default function SimonBoard({
   const [flashIndex, setFlashIndex]   = useState(-1) // seq position lit during the watch flash
   const [watching, setWatching]       = useState(false)
   const [replayAvailable, setReplayAvailable] = useState(true) // one manual re-flash per recall turn
+  const [pressedPad, setPressedPad] = useState(-1)  // lights your own press, like a real Simon
+  const pressTimerRef = useRef(null)
   const watchedKeyRef = useRef(null)                // sequence signature already flashed this turn
   const flashDoneRef  = useRef(true)                // false while a flash is mid-animation
   const timersRef     = useRef([])
@@ -129,14 +126,17 @@ export default function SimonBoard({
   }, [watching])
 
   // Clear any pending timers on unmount
-  useEffect(() => clearTimers, [])
+  useEffect(() => () => { clearTimers(); clearTimeout(pressTimerRef.current) }, [])
 
   const canClick = isMyTurn && !watching
-  const litPad   = watching && flashIndex >= 0 ? seq[flashIndex] : -1
+  const litPad   = watching ? (flashIndex >= 0 ? seq[flashIndex] : -1) : pressedPad
 
   const handlePad = (i) => {
     if (!canClick) return
     sounds.simPad(i)
+    clearTimeout(pressTimerRef.current)
+    setPressedPad(i)
+    pressTimerRef.current = setTimeout(() => setPressedPad(-1), PRESS_LIGHT_MS)
     onMove(i)
   }
 
@@ -153,8 +153,11 @@ export default function SimonBoard({
   const isSpectator = mySymbol === null
   const missAt = showAnswer && simonMiss != null ? progress : -1
 
+  const missGlyphs = missAt >= 0 && SIMON_PAD_META[simonMiss] && SIMON_PAD_META[seq[missAt]]
+    ? `YOU PRESSED ${SIMON_PAD_META[simonMiss].glyph}, IT WAS ${SIMON_PAD_META[seq[missAt]].glyph}`
+    : null
   const label =
-    showAnswer   ? (missAt >= 0 ? 'WRONG PAD — HERE IS THE SEQUENCE' : 'ROUND OVER') :
+    showAnswer   ? (missAt >= 0 ? `WRONG PAD — ${missGlyphs ?? 'HERE IS THE SEQUENCE'}` : 'ROUND OVER') :
     !isMyTurn    ? (waitingLabel ?? (isSpectator && (currentTurn === 'X' || currentTurn === 'O') ? `${currentTurn} IS RECALLING` : 'OPPONENT’S TURN')) :
     watching     ? 'WATCH CAREFULLY' :
     needsRecall  ? `REPEAT FROM MEMORY · ${progress}/${seq.length}` :
@@ -184,20 +187,23 @@ export default function SimonBoard({
               return (
                 <div
                   key={i}
+                  style={isFlashing || showAnswer ? padStyle(padIdx) : undefined}
                   className={cn(
                     'relative w-5 h-5 rounded-sm border transition-all duration-100',
                     isFlashing
-                      ? cn(PAD[padIdx].active, 'scale-125')
+                      ? 'simon-chip scale-125'
                       : showAnswer
-                        ? cn(PAD[padIdx].active, 'shadow-none', isMissed && 'ring-2 ring-retro-danger ring-offset-1 ring-offset-retro-surface')
+                        // An outline, not a ring: theme rules that restyle box-shadow
+                        // (Matcha's .shadow-neon-cta) used to hide the miss marker.
+                        ? cn('simon-chip', isMissed && 'outline outline-2 outline-offset-2 outline-retro-danger')
                         : recalled
                           ? 'bg-retro-win/60 border-retro-win/60'
                           : 'bg-retro-card border-retro-border',
                   )}
                 >
                   {showAnswer && (
-                    <span className="absolute inset-0 flex items-center justify-center font-pixel text-[8px] leading-none text-retro-bg" aria-hidden="true">
-                      {PAD_GLYPH[padIdx]}
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] leading-none" aria-hidden="true">
+                      {SIMON_PAD_META[padIdx]?.glyph}
                     </span>
                   )}
                 </div>
@@ -216,40 +222,39 @@ export default function SimonBoard({
         <span className={labelClass}>{label}</span>
       </p>
 
-      {/* Replay — recovers a missed flash without unlimited free re-watches */}
-      {isMyTurn && needsRecall && !watching && replayAvailable && (
-        <button
-          onClick={handleReplay}
-          className="w-full py-2 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[8px] rounded hover:border-retro-cta/60 active:scale-95 tracking-widest"
-        >
-          WATCH AGAIN (1)
-        </button>
-      )}
+      {/* Replay — recovers a missed flash without unlimited free re-watches. Its row is
+          always reserved, so the pads never jump when it appears after the flash. */}
+      <div className="h-9">
+        {isMyTurn && needsRecall && !watching && replayAvailable && (
+          <button
+            onClick={handleReplay}
+            className="w-full h-9 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[8px] rounded hover:border-retro-cta/60 active:scale-95 tracking-widest"
+          >
+            WATCH AGAIN (1)
+          </button>
+        )}
+      </div>
 
       {/* 2 × 2 pad grid */}
       <div className="grid grid-cols-2 gap-3">
         {[0, 1, 2, 3].map((i) => {
           const lit = litPad === i
-          const p   = PAD[i]
           return (
             <button
               key={i}
-              aria-label={`simon pad ${PAD_GLYPH[i]}${lit ? ', lit' : ''}`}
+              aria-label={`${simonPadName(i)}${lit ? ', lit' : ''}`}
               disabled={!canClick}
               onClick={() => handlePad(i)}
+              style={padStyle(i)}
               className={cn(
-                'aspect-square rounded-xl border-2 transition-all duration-100 active:scale-95',
+                'simon-pad aspect-square rounded-xl border-2 active:scale-95',
                 'flex items-center justify-center',
-                lit
-                  ? cn(p.active, 'scale-105 ring-2 ring-retro-text/40')
-                  : cn(p.dim, canClick ? 'hover:opacity-90 cursor-pointer' : 'cursor-default opacity-60'),
+                lit && 'is-lit',
+                !lit && (canClick ? 'cursor-pointer hover:brightness-105' : 'cursor-default opacity-70'),
               )}
             >
-              <span
-                className={cn('font-pixel text-lg select-none', lit ? 'text-retro-bg' : 'text-retro-text/35')}
-                aria-hidden="true"
-              >
-                {PAD_GLYPH[i]}
+              <span className={cn('text-2xl leading-none select-none', !lit && 'opacity-70')} aria-hidden="true">
+                {SIMON_PAD_META[i].glyph}
               </span>
             </button>
           )

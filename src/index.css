@@ -2161,6 +2161,37 @@ body::before {
   --pair-ghost:    234 236 246;
 }
 
+/* ── Simon pads ──
+   Like the Pairs faces, a dedicated palette and deliberately NOT themed: the pads
+   used to borrow --c-p1/p2/cta/win, and on Matcha two of them were the same green
+   (CIE76 ΔE 12.8), on 1-BIT MONO three were the same white. Classic Simon colours,
+   one per quadrant, each far from the others and readable under --simon-ink
+   (enforced by src/lib/simonPads.test.js). The glyph on each pad points at its own
+   corner, so colour is never the only cue. */
+:root {
+  --simon-ink:    24 20 34;
+  --simon-green:  64 196 92;
+  --simon-red:    240 84 96;
+  --simon-yellow: 244 200 48;
+  --simon-blue:   96 152 255;
+}
+.simon-pad {
+  background-color: rgb(var(--pad) / 0.16);
+  border-color: rgb(var(--pad) / 0.55);
+  color: rgb(var(--pad));
+  transition: background-color 90ms ease-out, box-shadow 90ms ease-out, transform 90ms ease-out;
+}
+.simon-pad.is-lit {
+  background-color: rgb(var(--pad));
+  border-color: rgb(var(--simon-ink));
+  color: rgb(var(--simon-ink));
+  box-shadow: 0 0 0 4px rgb(var(--pad) / 0.35), 0 0 28px rgb(var(--pad) / 0.7);
+  transform: scale(1.04);
+}
+.simon-chip { background-color: rgb(var(--pad)); border-color: rgb(var(--simon-ink) / 0.6); color: rgb(var(--simon-ink)); }
+[data-motion="reduced"] .simon-pad.is-lit { transform: none; }
+@media (prefers-reduced-motion: reduce) { .simon-pad.is-lit { transform: none; } }
+
 .pairs-card-back {
   background-color: rgb(var(--c-card));
   background-image: repeating-linear-gradient(
