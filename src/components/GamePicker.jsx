@@ -28,6 +28,10 @@ const variantsFor = (baseType) => GAME_TYPES.filter(t => t.variantOf === baseTyp
 const PICKER_STATE_KEY = 'gn-picker-state'
 const VIEW_KEY = 'gn-catalog-view'
 // Jump-chip targets land just under the sticky search + chip header.
+// Quiet time after the last scroll event before a chip jump counts as settled
+// (`scrollend` releases it sooner where supported). Smooth scrolls on a long
+// catalog can stall for a few hundred ms while thumbnails decode.
+const JUMP_SETTLE_MS = 700
 const SECTION_SCROLL_MARGIN = 'calc(var(--app-header-offset, 0px) + 7.5rem)'
 function readPickerState() {
   try {
@@ -86,6 +90,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const stickyRef = useRef(null)
   const listTopRef = useRef(null)
   const sectionRefs = useRef({})
+  const jumpLockRef = useRef(null) // { timer } while a chip tap's smooth scroll runs
   // Computed once — the " ( / )" keyboard hint is desktop-only real estate;
   // no need to re-check on resize for a hint this minor.
   const [showSlashHint] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches)
@@ -161,29 +166,57 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
 
   // Scroll spy for the catalog's jump chips: the active chip is the last
   // section whose top has passed under the sticky header (ALL above the
-  // first one).
+  // first one). A chip tap holds its own chip until that smooth scroll settles: the
+  // section lands at its scroll margin, which (with the app header sliding away
+  // mid-scroll) can sit just below the line, so tapping MEMORY used to light REFLEX.
   const isSearching = isFull && !!query.trim()
   useEffect(() => {
     if (!isFull || isSearching) return
     let frame = 0
     const update = () => {
       frame = 0
-      const line = (stickyRef.current?.getBoundingClientRect().bottom ?? 0) + 8
+      // Chip jumps scroll a section to its scroll margin, which counts the app
+      // header; once the header slides away the line must keep that gap too, or
+      // the section a chip just jumped to rests below the line.
+      const headerGap = document.documentElement.classList.contains('header-hidden')
+        ? (document.querySelector('header')?.offsetHeight ?? 0) : 0
+      const line = (stickyRef.current?.getBoundingClientRect().bottom ?? 0) + 8 + headerGap
       let current = 'all'
       for (const [id, el] of Object.entries(sectionRefs.current)) {
         if (el && el.getBoundingClientRect().top <= line) current = id
       }
       setActiveCat(prev => (prev === current ? prev : current))
     }
-    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update) }
+    const onScroll = () => {
+      const lock = jumpLockRef.current
+      if (lock) {
+        // Still the chip's own smooth scroll: re-arm the settle timer, keep its chip.
+        clearTimeout(lock.timer)
+        lock.timer = setTimeout(() => { jumpLockRef.current = null }, JUMP_SETTLE_MS)
+        return
+      }
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+    // A finger or wheel takes over from a chip jump at once.
+    const release = () => { if (jumpLockRef.current) { clearTimeout(jumpLockRef.current.timer); jumpLockRef.current = null } }
+    const onScrollEnd = () => release()
     window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('scrollend', onScrollEnd)
+    window.addEventListener('touchstart', release, { passive: true })
+    window.addEventListener('wheel', release, { passive: true })
     return () => {
       window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('scrollend', onScrollEnd)
+      window.removeEventListener('touchstart', release)
+      window.removeEventListener('wheel', release)
       if (frame) cancelAnimationFrame(frame)
+      release()
     }
   }, [isFull, isSearching])
 
   const jumpTo = (id) => {
+    if (jumpLockRef.current) clearTimeout(jumpLockRef.current.timer)
+    jumpLockRef.current = { timer: setTimeout(() => { jumpLockRef.current = null }, JUMP_SETTLE_MS) }
     setActiveCat(id)
     const el = id === 'all' ? listTopRef.current : sectionRefs.current[id]
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
