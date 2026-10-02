@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateArrowsLevel, isCurved, isDiagonal, levelStats, solveArrows, ARROWS_TIER_SPECS } from './arrowsLogic'
+import { generateArrowsLevel, isBent, isCurved, isDiagonal, levelStats, solveArrows, ARROWS_TIER_SPECS } from './arrowsLogic'
 import {
   ARROWS_LEVEL_COUNT,
   ARROWS_LEVEL_SEEDS,
@@ -54,17 +54,24 @@ describe('the 20-level campaign', () => {
     expect(stats[19].layers).toBeGreaterThan(stats[0].layers * 4)
   })
 
-  it('introduces diagonals at level 6 and hooks at level 11, never earlier', () => {
+  it('introduces diagonals at level 6, curved diagonals at level 8 and hooks at level 11, never earlier', () => {
     levels.forEach((level, i) => {
       const n = i + 1
       const diag = level.arrows.filter(isDiagonal).length
       const curve = level.arrows.filter(isCurved).length
+      const bent = level.arrows.filter(isBent).length
+      if (n < 8) expect(bent, `level ${n}`).toBe(0)
+      if (n >= 8) expect(bent, `level ${n}`).toBeGreaterThan(0)
       if (n < 6) expect(diag, `level ${n}`).toBe(0)
       if (n < 11) expect(curve, `level ${n}`).toBe(0)
     })
     expect(ARROWS_LEVEL_SPECS[5].intro).toBe('diag')
+    expect(ARROWS_LEVEL_SPECS[7].intro).toBe('bend')
     expect(ARROWS_LEVEL_SPECS[10].intro).toBe('curve')
-    expect(ARROWS_LEVEL_SPECS.filter((s) => s.intro)).toHaveLength(2)
+    expect(ARROWS_LEVEL_SPECS.filter((s) => s.intro)).toHaveLength(3)
+    expect(levels[7].arrows.filter(isBent).length).toBeGreaterThanOrEqual(2)
+    expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[7], levels[7])).toBe(true)
+    expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[7], levels[5])).toBe(false)
     expect(levels[5].arrows.filter(isDiagonal).length).toBeGreaterThanOrEqual(2)
     expect(levels[10].arrows.filter(isCurved).length).toBeGreaterThanOrEqual(2)
     expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[5], levels[5])).toBe(true)
@@ -84,12 +91,14 @@ describe('twist tutorials', () => {
   it('twistsIn / newTwist report the first twist not yet taught', () => {
     expect(twistsIn(levels[0])).toEqual([])
     expect(twistsIn(levels[5])).toEqual(['diag'])
-    expect(twistsIn(levels[10])).toEqual(['diag', 'curve'])
+    expect(twistsIn(levels[7])).toEqual(['diag', 'bend'])
+    expect(twistsIn(levels[10])).toEqual(['diag', 'bend', 'curve'])
     expect(newTwist(levels[10], {})).toBe('diag')
-    expect(newTwist(levels[10], { diag: true })).toBe('curve')
-    expect(newTwist(levels[10], { diag: true, curve: true })).toBeNull()
+    expect(newTwist(levels[10], { diag: true })).toBe('bend')
+    expect(newTwist(levels[10], { diag: true, bend: true })).toBe('curve')
+    expect(newTwist(levels[10], { diag: true, bend: true, curve: true })).toBeNull()
     expect(newTwist(levels[0], null)).toBeNull()
-    for (const t of ['diag', 'curve']) expect(ARROWS_TWIST_TIPS[t]).toMatch(/^NEW · /)
+    for (const t of ['diag', 'bend', 'curve']) expect(ARROWS_TWIST_TIPS[t]).toMatch(/^NEW · /)
   })
 })
 

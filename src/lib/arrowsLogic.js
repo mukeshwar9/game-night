@@ -10,10 +10,14 @@
 // Three kinds of arrow share that one rule; only the route differs:
 //   • straight — a snake of orthogonal steps; the route is the straight ray
 //     from its head to the board edge.
-//   • diagonal — a straight run of diagonal steps (`dir` 4–7); the route is
-//     the diagonal ray from its head. Only cells on that diagonal block it,
-//     plus another diagonal arrow whose body crosses the route at a cell
-//     corner (one arrow can never fly through another's line).
+//   • diagonal — an arrow whose head points along a diagonal (`dir` 4–7); the
+//     route is the diagonal ray from its head. Its body is either a straight
+//     diagonal run or bent: diagonal and orthogonal steps in a smooth arc,
+//     drawn as a curve. The bend only shapes the body behind the neck — the
+//     route is the same straight ray either way. Only cells on that diagonal
+//     block it, plus another diagonal arrow whose body takes a diagonal step
+//     across the route at a cell corner (one arrow can never fly through
+//     another's line).
 //   • curved — a straight snake with a hook (`turn`: 1 = clockwise, -1 =
 //     counter-clockwise). It flies to the board edge along its heading, turns
 //     90° once there, and runs along the edge until it leaves. Its route is
@@ -39,11 +43,13 @@ export const ARROWS_TIERS = ['easy', 'medium', 'hard']
 // columns so a cell stays ~35px (a comfortable thumb target) on a 390px
 // phone. `samples` is how many candidate heads the generator weighs per
 // arrow (more = longer routes = fewer arrows free at the start); `diag` and
-// `curve` are the chances that a new arrow is diagonal or curved.
+// `curve` are the chances that a new arrow is diagonal or hooked, and `bend`
+// is the chance that a diagonal arrow gets a curved body instead of a
+// straight one.
 export const ARROWS_TIER_SPECS = {
   easy: { cols: 7, rows: 9, maxLen: 5, fill: 0.84 },
-  medium: { cols: 8, rows: 11, maxLen: 7, fill: 0.88, diag: 0.12 },
-  hard: { cols: 10, rows: 13, maxLen: 9, fill: 0.9, samples: 10, diag: 0.12, curve: 0.1 },
+  medium: { cols: 8, rows: 11, maxLen: 7, fill: 0.88, diag: 0.12, bend: 0.9 },
+  hard: { cols: 10, rows: 13, maxLen: 9, fill: 0.9, samples: 10, diag: 0.12, curve: 0.1, bend: 0.9 },
 }
 
 // Room setting for the race: one tier for every round, or 'mixed' — the
@@ -52,7 +58,7 @@ export const ARROWS_TIER_SPECS = {
 export const ARROWS_DIFFICULTIES = ['easy', 'medium', 'hard', 'mixed']
 export const ARROWS_DIFFICULTY_INFO = {
   easy: { label: 'EASY', blurb: '7×9 · STRAIGHT ARROWS' },
-  medium: { label: 'MEDIUM', blurb: '8×11 · + DIAGONALS' },
+  medium: { label: 'MEDIUM', blurb: '8×11 · + CURVY DIAGONALS' },
   hard: { label: 'HARD', blurb: '10×13 · + HOOKED TURNS' },
   mixed: { label: 'MIXED', blurb: 'EASY → MEDIUM → HARD' },
 }
@@ -65,6 +71,16 @@ export const ARROWS_DIR_NAMES = ['up', 'right', 'down', 'left', 'up-right', 'dow
 
 export const isDiagonal = (arrow) => arrow.dir >= 4
 export const isCurved = (arrow) => arrow.dir < 4 && (arrow.turn === 1 || arrow.turn === -1)
+// A diagonal arrow whose body is not one straight diagonal run: at least one
+// step of it differs from the heading.
+export const isBent = (arrow) => {
+  if (arrow.dir < 4) return false
+  const [dx, dy] = ARROWS_DIRS[arrow.dir]
+  for (let k = 1; k < arrow.cells.length; k += 1) {
+    if (arrow.cells[k][0] - arrow.cells[k - 1][0] !== dx || arrow.cells[k][1] - arrow.cells[k - 1][1] !== dy) return true
+  }
+  return false
+}
 // The heading a curved arrow takes after its turn at the edge.
 export const turnedDir = (dir, turn) => (dir + (turn === 1 ? 1 : 3)) % 4
 
@@ -126,6 +142,11 @@ function cornerOf(cols, a, b) {
   const bx = b % cols
   const by = Math.floor(b / cols)
   return Math.max(ay, by) * (cols + 1) + Math.max(ax, bx)
+}
+
+// Is the step between adjacent cells a and b diagonal (not orthogonal)?
+function isDiagStep(cols, a, b) {
+  return a % cols !== b % cols && Math.floor(a / cols) !== Math.floor(b / cols)
 }
 
 // The exit route of an arrow whose head is cell `head`: { cells, corners,
@@ -256,14 +277,71 @@ function growDiagonal(spec, occ, corners, head, dir, rng, banned) {
   return path.length >= 2 ? path.reverse() : null
 }
 
+// The eight headings in clockwise order (up, up-right, right, …) so a body
+// can turn by ±45° per step and read as a smooth arc.
+const DIR_RING = [0, 4, 1, 5, 2, 6, 3, 7]
+const RING_POS = DIR_RING.reduce((acc, d, i) => { acc[d] = i; return acc }, /** @type {number[]} */ ([]))
+
+// A curved-body diagonal arrow: the neck sits straight behind the head (so the
+// head still points along its diagonal), then the body walks backwards,
+// turning ±45° per step in one sense so it curls like a hook or a spiral
+// instead of zig-zagging. Orthogonal and diagonal steps mix. The body may not
+// cross itself, an earlier diagonal body, or its own exit route at a cell
+// corner (`routeCorners`). Returns cells tail → head, or null when no bend
+// fits (callers fall back to a straight run).
+function growBentDiagonal(spec, occ, corners, head, dir, rng, banned, routeCorners) {
+  const { cols, rows, maxLen } = spec
+  const cap = Math.min(maxLen, 5)
+  if (cap < 3) return null
+  const target = 3 + Math.floor(rng() * (cap - 2))
+  const sense = rng() < 0.5 ? 1 : -1
+  const path = [head]
+  const used = new Set(path)
+  const own = new Set()
+  const room = (x, y) => x >= 0 && x < cols && y >= 0 && y < rows
+  let x = head % cols
+  let y = Math.floor(head / cols)
+  let back = (RING_POS[dir] + 4) % 8
+  let bent = false
+  for (let step = 0; path.length < target; step += 1) {
+    // The neck must continue the heading; later steps prefer to keep turning.
+    const turns = step === 0 ? [0] : rng() < 0.7 ? [sense, 0] : [0, sense]
+    let placed = false
+    for (const t of turns) {
+      const pos = (back + t + 8) % 8
+      const [sx, sy] = ARROWS_DIRS[DIR_RING[pos]]
+      const nx = x + sx
+      const ny = y + sy
+      if (!room(nx, ny)) continue
+      const c = ny * cols + nx
+      if (occ[c] !== -1 || banned.has(c) || used.has(c)) continue
+      if (sx !== 0 && sy !== 0) {
+        const corner = cornerOf(cols, path[path.length - 1], c)
+        if (corners[corner] !== -1 || own.has(corner) || routeCorners.has(corner)) continue
+        own.add(corner)
+      }
+      path.push(c)
+      used.add(c)
+      if (t !== 0) bent = true
+      back = pos
+      x = nx
+      y = ny
+      placed = true
+      break
+    }
+    if (!placed) break
+  }
+  return bent && path.length >= 3 ? path.reverse() : null
+}
+
 // Normalise a tier name or a custom spec object (the solo levels pass one)
 // into a full generator spec.
 function resolveSpec(tier) {
   if (tier && typeof tier === 'object') {
-    return { samples: 8, diag: 0, curve: 0, ...tier, name: tier.name ?? 'custom' }
+    return { samples: 8, diag: 0, curve: 0, bend: 0, ...tier, name: tier.name ?? 'custom' }
   }
   const name = ARROWS_TIER_SPECS[tier] ? tier : 'easy'
-  return { samples: 8, diag: 0, curve: 0, ...ARROWS_TIER_SPECS[name], name }
+  return { samples: 8, diag: 0, curve: 0, bend: 0, ...ARROWS_TIER_SPECS[name], name }
 }
 
 // Deterministically generate the board for `seed` at `tier` (a tier name or
@@ -275,7 +353,7 @@ function resolveSpec(tier) {
  */
 export function generateArrowsLevel(seed, tier = 'easy') {
   const spec = resolveSpec(tier)
-  const { cols, rows, fill, samples, diag, curve } = spec
+  const { cols, rows, fill, samples, diag, curve, bend } = spec
   const rng = seededRng(seed)
   const occ = new Int16Array(cols * rows).fill(-1)
   const corners = new Int16Array((cols + 1) * (rows + 1)).fill(-1)
@@ -315,11 +393,20 @@ export function generateArrowsLevel(seed, tier = 'easy') {
         // the board solvable (later arrows leave first).
         if (routeBlocked(route, occ, corners)) continue
         const banned = new Set(route.cells)
-        const grown = kind === 'diag'
-          ? growDiagonal(spec, occ, corners, head, d, rng, banned)
-          : kind === 'curve'
+        let grown = null
+        if (kind === 'diag') {
+          if (bend > 0 && rng() < bend) {
+            const routeCorners = new Set(route.corners.filter((c) => c >= 0))
+            for (let tries = 0; tries < 4 && !grown; tries += 1) {
+              grown = growBentDiagonal(spec, occ, corners, head, d, rng, banned, routeCorners)
+            }
+          }
+          grown ??= growDiagonal(spec, occ, corners, head, d, rng, banned)
+        } else {
+          grown = kind === 'curve'
             ? growStraight(spec, occ, head, d, rng, banned)
             : growArrow(spec, occ, head, d, rng, banned)
+        }
         if (grown) { pick = { path: grown, dir: d, turn }; best = route.cells.length }
       }
     }
@@ -327,7 +414,11 @@ export function generateArrowsLevel(seed, tier = 'easy') {
     const index = arrows.length
     const { path } = pick
     for (const c of path) occ[c] = index
-    if (pick.dir >= 4) for (let k = 1; k < path.length; k += 1) corners[cornerOf(cols, path[k - 1], path[k])] = index
+    if (pick.dir >= 4) {
+      for (let k = 1; k < path.length; k += 1) {
+        if (isDiagStep(cols, path[k - 1], path[k])) corners[cornerOf(cols, path[k - 1], path[k])] = index
+      }
+    }
     filled += path.length
     const arrow = { cells: path.map((c) => [c % cols, Math.floor(c / cols)]), dir: pick.dir }
     if (pick.turn) arrow.turn = pick.turn
@@ -348,7 +439,7 @@ export function occupancy(level, gone) {
 }
 
 // Lattice-corner → arrow-index map of the diagonal body steps still on the
-// board (-1 = none).
+// board (-1 = none). Orthogonal steps of a bent body cross no corner.
 export function cornerOccupancy(level, gone) {
   const { cols } = level
   const map = new Int16Array((cols + 1) * (level.rows + 1)).fill(-1)
@@ -357,7 +448,7 @@ export function cornerOccupancy(level, gone) {
     for (let k = 1; k < a.cells.length; k += 1) {
       const [px, py] = a.cells[k - 1]
       const [x, y] = a.cells[k]
-      map[cornerOf(cols, py * cols + px, y * cols + x)] = i
+      if (px !== x && py !== y) map[cornerOf(cols, py * cols + px, y * cols + x)] = i
     }
   })
   return map
@@ -455,11 +546,12 @@ export function levelStats(level) {
   const n = level.arrows.length
   const diagonals = level.arrows.filter(isDiagonal).length
   const curves = level.arrows.filter(isCurved).length
+  const bent = level.arrows.filter(isBent).length
   // Arrow count and depth carry most of the weight; a scarce opening and
   // every twist arrow (two routes to read instead of one) add a little.
   const openness = n > 0 ? initialFree / n : 1
-  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + curves * 3)
-  return { solvable, arrows: n, layers, initialFree, diagonals, curves, difficulty }
+  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + bent + curves * 3)
+  return { solvable, arrows: n, layers, initialFree, diagonals, bent, curves, difficulty }
 }
 
 // Firebase stores each player's cleared arrows as a map { "12": true }; it

@@ -28,6 +28,7 @@ import {
   ARROWS_TIERS,
   ARROWS_TIER_SPECS,
   arrowRoute,
+  isBent,
   cornerOccupancy,
   getArrowsDifficulty,
   isCurved,
@@ -132,7 +133,8 @@ describe('generateArrowsLevel', () => {
               // diagonal arrow.
               const [px, py] = arrow.cells[k - 1]
               const step = [x - px, y - py]
-              if (isDiagonal(arrow)) expect(step).toEqual(ARROWS_DIRS[arrow.dir])
+              if (isDiagonal(arrow) && !isBent(arrow)) expect(step).toEqual(ARROWS_DIRS[arrow.dir])
+              else if (isBent(arrow)) expect(Math.max(Math.abs(step[0]), Math.abs(step[1]))).toBe(1)
               else expect(Math.abs(step[0]) + Math.abs(step[1])).toBe(1)
             }
           })
@@ -185,10 +187,11 @@ describe('generateArrowsLevel', () => {
         const route = arrowRoute(level, arrow)
         for (const c of route.cells) expect(own.has(c)).toBe(false)
         if (isDiagonal(arrow)) {
-          expect(arrow.cells.length).toBeLessThanOrEqual(4)
+          expect(arrow.cells.length).toBeLessThanOrEqual(isBent(arrow) ? 5 : 4)
           for (let k = 1; k < arrow.cells.length; k += 1) {
             const [px, py] = arrow.cells[k - 1]
             const [x, y] = arrow.cells[k]
+            if (px === x || py === y) continue // orthogonal steps cross no corner
             const key = `${Math.max(px, x)},${Math.max(py, y)}`
             expect(corners.has(key)).toBe(false)
             corners.set(key, i)
@@ -555,5 +558,162 @@ describe('room difficulty', () => {
     expect(getArrowsDifficulty('medium')).toBe('medium')
     expect(getArrowsDifficulty(null)).toBe('mixed')
     expect(getArrowsDifficulty('insane')).toBe('mixed')
+  })
+})
+
+describe('curved diagonal arrows', () => {
+  // The neck always continues the heading, so the head still points along a
+  // diagonal even when the body behind it curls.
+  it('the generator makes bent bodies that are well-formed on medium and hard', () => {
+    let bent = 0
+    let diagonals = 0
+    for (const tier of ['medium', 'hard']) {
+      for (let s = 1; s <= 60; s += 1) {
+        const level = generateArrowsLevel(s * 613, tier)
+        const seen = new Set()
+        level.arrows.forEach((arrow) => {
+          if (!isDiagonal(arrow)) {
+            expect(isBent(arrow)).toBe(false)
+            return
+          }
+          diagonals += 1
+          const cells = arrow.cells
+          // Every step is a king move, none repeats a cell.
+          for (let k = 1; k < cells.length; k += 1) {
+            expect(Math.max(Math.abs(cells[k][0] - cells[k - 1][0]), Math.abs(cells[k][1] - cells[k - 1][1]))).toBe(1)
+          }
+          expect(new Set(cells.map((c) => c.join(','))).size).toBe(cells.length)
+          // The last step is the heading, so the arrow points where it flies.
+          const [dx, dy] = ARROWS_DIRS[arrow.dir]
+          const n = cells.length
+          expect([cells[n - 1][0] - cells[n - 2][0], cells[n - 1][1] - cells[n - 2][1]]).toEqual([dx, dy])
+          if (isBent(arrow)) {
+            bent += 1
+            expect(n).toBeGreaterThanOrEqual(3)
+            expect(n).toBeLessThanOrEqual(5)
+          }
+          // No two diagonal steps anywhere on the board share a corner.
+          for (let k = 1; k < n; k += 1) {
+            const [px, py] = cells[k - 1]
+            const [x, y] = cells[k]
+            if (px === x || py === y) continue
+            const key = `${Math.max(px, x)},${Math.max(py, y)}`
+            expect(seen.has(key)).toBe(false)
+            seen.add(key)
+          }
+        })
+      }
+    }
+    // Curved bodies are common, not a rarity.
+    expect(bent / diagonals).toBeGreaterThan(0.4)
+  }, 30000)
+
+  it('easy boards and spec bend: 0 never bend', () => {
+    for (let s = 1; s <= 30; s += 1) {
+      expect(generateArrowsLevel(s, 'easy').arrows.some(isBent)).toBe(false)
+      expect(generateArrowsLevel(s, { cols: 7, rows: 9, maxLen: 5, fill: 0.84, diag: 0.3 }).arrows.some(isBent)).toBe(false)
+    }
+    expect(generateArrowsLevel(5, { cols: 7, rows: 9, maxLen: 5, fill: 0.84, diag: 0.3, bend: 1 }).arrows.some(isBent)).toBe(true)
+  })
+
+  // 4×4. A is a bent diagonal: tail (0,2) → (0,1) orthogonal, then (1,0)
+  // diagonal... built here by hand: cells (0,3) → (0,2) → (1,1) → (2,0)?
+  // Heading up-right, route is the diagonal ray from the head.
+  const bentBoard = () => ({
+    cols: 5,
+    rows: 5,
+    arrows: [
+      // A: tail (0,4) → (0,3) → (1,2) → (2,1): up, then two up-right steps.
+      { cells: [[0, 4], [0, 3], [1, 2], [2, 1]], dir: 4 },
+      // B: sits on A's route cell (3,0).
+      { cells: [[3, 0], [4, 0]], dir: 1 },
+    ],
+  })
+
+  it('isBent tells a curved body from a straight run', () => {
+    const level = bentBoard()
+    expect(isBent(level.arrows[0])).toBe(true)
+    expect(isBent({ cells: [[0, 2], [1, 1], [2, 0]], dir: 4 })).toBe(false)
+    expect(isBent({ cells: [[0, 0], [0, 1]], dir: 2 })).toBe(false)
+  })
+
+  it('the route is the plain diagonal ray, whatever the body does', () => {
+    const level = bentBoard()
+    expect(arrowRoute(level, level.arrows[0]).cells).toEqual([0 * 5 + 3])
+    expect(arrowRoute(level, level.arrows[0]).finalDir).toBe(4)
+    expect(exitCheck(level, [false, false], 0)).toEqual({ free: false, blocker: 1, gap: 0 })
+    expect(exitCheck(level, [false, true], 0).free).toBe(true)
+  })
+
+  it('orthogonal steps of a bent body cross no corner; diagonal steps do', () => {
+    const level = bentBoard()
+    // Two diagonal steps → two corners; the orthogonal step adds none.
+    expect(cornerOccupancy(level, [false, false]).filter((v) => v !== -1)).toHaveLength(2)
+  })
+
+  it('a bent body blocks another diagonal at a diagonal-step corner only', () => {
+    // C flies up-right from (0,2) through the corner shared by (1,1)/(0,2)…
+    // D's body steps (1,0)→(0,1) down-left across the corner between
+    // (0,0),(1,1) lattice point (1,1): C's step (0,2)→(1,1) crosses it too.
+    const level = {
+      cols: 4,
+      rows: 4,
+      arrows: [
+        { cells: [[2, 3], [2, 2], [1, 1]], dir: 7 }, // up-left: tail below, bent up then up-left? (2,3)→(2,2) up, (2,2)→(1,1) up-left
+        { cells: [[0, 1], [1, 0]], dir: 4 }, // diagonal crossing at corner (1,1)
+      ],
+    }
+    expect(isBent(level.arrows[0])).toBe(true)
+    // Arrow 0 heads up-left from (1,1) toward (0,0); arrow 1's step
+    // (0,1)→(1,0) passes the corner between (0,0) and (1,1) — the route's
+    // first corner — so arrow 1's body blocks arrow 0.
+    expect(exitCheck(level, [false, false], 0)).toEqual({ free: false, blocker: 1, gap: 0 })
+    expect(exitCheck(level, [false, true], 0).free).toBe(true)
+  })
+
+  it('leavePose slithers a bent body along its curve and out the diagonal', () => {
+    const level = bentBoard()
+    const rest = leavePose(level.arrows[0], 10, 0, level)
+    expect(rest).toHaveLength(4)
+    const len = polylineLength(rest)
+    const moved = leavePose(level.arrows[0], 10, 12, level)
+    expect(polylineLength(moved)).toBeCloseTo(len)
+    // The head keeps flying up-right while the tail still bends behind it.
+    const v = exitVector(moved)
+    expect(v.dx).toBeCloseTo(Math.SQRT1_2)
+    expect(v.dy).toBeCloseTo(-Math.SQRT1_2)
+  })
+
+  it('solver stays exact: every generated bent board clears greedily', () => {
+    for (const tier of ['medium', 'hard']) {
+      for (let s = 1; s <= 80; s += 1) {
+        const level = generateArrowsLevel(s * 211, tier)
+        const { solvable } = solveArrows(level)
+        expect(solvable, `${tier} ${s * 211}`).toBe(true)
+        // Clearing the arrows in solver order never taps a blocked arrow.
+        let gone = Array(level.arrows.length).fill(false)
+        let lives = 3
+        for (const i of solveArrows(level).order) {
+          const r = applyArrowTap(level, gone, lives, i)
+          expect(r.result).toBe('cleared')
+          gone = r.gone
+        }
+        expect(isBoardCleared(level, gone)).toBe(true)
+      }
+    }
+  }, 30000)
+
+  it('clearing an arrow only frees cells and corners (monotone, so nothing dead-ends)', () => {
+    const level = generateArrowsLevel(4242, 'hard')
+    const n = level.arrows.length
+    let gone = Array(n).fill(false)
+    let free = new Set(freeArrows(level, gone))
+    for (const i of solveArrows(level).order) {
+      gone = [...gone]
+      gone[i] = true
+      const next = new Set(freeArrows(level, gone))
+      for (const f of free) if (f !== i) expect(next.has(f)).toBe(true)
+      free = next
+    }
   })
 })

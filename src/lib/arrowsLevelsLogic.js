@@ -7,13 +7,15 @@
 // level by level. The generator guarantees solvability by construction and
 // arrowsLevelsLogic.test.js re-checks every level with the solver.
 
-import { ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isCurved, isDiagonal, solveArrows } from './arrowsLogic.js'
+import { ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, solveArrows } from './arrowsLogic.js'
 
 // Shape of each level. Levels 1–5 teach the core rule on small boards;
-// diagonal arrows arrive at level 6 and curved (hooked) arrows at level 11;
+// straight diagonal arrows arrive at level 6, their curved-body cousins at
+// level 8 and hooked arrows at level 11;
 // from there boards grow toward the full 10 × 13 hard size and get denser.
 // `samples` is the generator's look-ahead — more means fewer arrows free at
-// the start. `intro` marks the level that introduces a twist.
+// the start. `bend` is the share of diagonals that get a curved body. `intro`
+// marks the level that introduces a twist.
 export const ARROWS_LEVEL_SPECS = [
   { cols: 5, rows: 6, maxLen: 3, fill: 0.62, samples: 2 },
   { cols: 5, rows: 7, maxLen: 3, fill: 0.7, samples: 3 },
@@ -22,25 +24,25 @@ export const ARROWS_LEVEL_SPECS = [
   { cols: 6, rows: 8, maxLen: 5, fill: 0.82, samples: 6 },
   { cols: 6, rows: 8, maxLen: 4, fill: 0.8, samples: 6, diag: 0.3, intro: 'diag' },
   { cols: 7, rows: 8, maxLen: 5, fill: 0.82, samples: 6, diag: 0.16 },
-  { cols: 7, rows: 9, maxLen: 5, fill: 0.84, samples: 7, diag: 0.16 },
-  { cols: 7, rows: 9, maxLen: 5, fill: 0.86, samples: 8, diag: 0.2 },
-  { cols: 7, rows: 10, maxLen: 6, fill: 0.86, samples: 8, diag: 0.2 },
-  { cols: 7, rows: 10, maxLen: 5, fill: 0.84, samples: 8, diag: 0.08, curve: 0.3, intro: 'curve' },
-  { cols: 8, rows: 10, maxLen: 6, fill: 0.86, samples: 8, diag: 0.12, curve: 0.15 },
-  { cols: 8, rows: 11, maxLen: 6, fill: 0.87, samples: 9, diag: 0.12, curve: 0.15 },
-  { cols: 8, rows: 11, maxLen: 7, fill: 0.88, samples: 9, diag: 0.14, curve: 0.15 },
-  { cols: 8, rows: 12, maxLen: 7, fill: 0.88, samples: 10, diag: 0.14, curve: 0.16 },
-  { cols: 9, rows: 12, maxLen: 7, fill: 0.89, samples: 10, diag: 0.15, curve: 0.16 },
-  { cols: 9, rows: 12, maxLen: 8, fill: 0.9, samples: 11, diag: 0.15, curve: 0.18 },
-  { cols: 9, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18 },
-  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18 },
-  { cols: 10, rows: 13, maxLen: 9, fill: 0.92, samples: 14, diag: 0.18, curve: 0.2 },
+  { cols: 7, rows: 9, maxLen: 5, fill: 0.84, samples: 7, diag: 0.28, bend: 1, intro: 'bend' },
+  { cols: 7, rows: 9, maxLen: 5, fill: 0.86, samples: 8, diag: 0.2, bend: 0.8 },
+  { cols: 7, rows: 10, maxLen: 6, fill: 0.86, samples: 8, diag: 0.2, bend: 0.8 },
+  { cols: 7, rows: 10, maxLen: 5, fill: 0.84, samples: 8, diag: 0.08, curve: 0.3, bend: 0.8, intro: 'curve' },
+  { cols: 8, rows: 10, maxLen: 6, fill: 0.86, samples: 8, diag: 0.12, curve: 0.15, bend: 0.9 },
+  { cols: 8, rows: 11, maxLen: 6, fill: 0.87, samples: 9, diag: 0.12, curve: 0.15, bend: 0.9 },
+  { cols: 8, rows: 11, maxLen: 7, fill: 0.88, samples: 9, diag: 0.14, curve: 0.15, bend: 0.9 },
+  { cols: 8, rows: 12, maxLen: 7, fill: 0.88, samples: 10, diag: 0.14, curve: 0.16, bend: 0.9 },
+  { cols: 9, rows: 12, maxLen: 7, fill: 0.89, samples: 10, diag: 0.15, curve: 0.16, bend: 0.9 },
+  { cols: 9, rows: 12, maxLen: 8, fill: 0.9, samples: 11, diag: 0.15, curve: 0.18, bend: 0.9 },
+  { cols: 9, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9 },
+  { cols: 10, rows: 13, maxLen: 9, fill: 0.92, samples: 14, diag: 0.18, curve: 0.2, bend: 0.9 },
 ]
 
 // Picked by scripts/pick-arrows-levels.mjs — rerun it after changing a spec.
 export const ARROWS_LEVEL_SEEDS = [
-  63, 296, 825, 347, 47, 76, 19, 11, 44, 854,
-  52, 214, 482, 1242, 2303, 1511, 1869, 1594, 610, 1157,
+  63, 296, 825, 472, 9, 71, 46, 59, 5, 515,
+  92, 1066, 126, 733, 966, 740, 2141, 360, 316, 2221,
 ]
 
 export const ARROWS_LEVEL_COUNT = ARROWS_LEVEL_SPECS.length
@@ -48,12 +50,16 @@ export const ARROWS_LEVEL_COUNT = ARROWS_LEVEL_SPECS.length
 // One-line tutorials, shown the first time a player meets each twist.
 export const ARROWS_TWIST_TIPS = {
   diag: 'NEW · DIAGONAL ARROWS FLY CORNER TO CORNER — ONLY CELLS ON THEIR DIAGONAL BLOCK THEM.',
+  bend: 'NEW · CURVED DIAGONALS BEND LIKE A SNAKE, BUT THE HEAD STILL FLIES STRAIGHT ALONG ITS DIAGONAL.',
   curve: 'NEW · HOOKED ARROWS FLY TO THE EDGE, TURN ONCE THE WAY THE HOOK POINTS, THEN RUN ALONG IT.',
 }
 
 // An intro level must actually show its twist a few times.
+// Levels past the curved-diagonal intro keep showing at least one.
 export function levelMeetsIntro(spec, level) {
+  if (spec.bend > 0 && spec.diag > 0 && !level.arrows.some(isBent)) return false
   if (spec.intro === 'diag') return level.arrows.filter(isDiagonal).length >= 2
+  if (spec.intro === 'bend') return level.arrows.filter(isBent).length >= 2
   if (spec.intro === 'curve') return level.arrows.filter(isCurved).length >= 2
   return true
 }
@@ -74,6 +80,7 @@ export function getArrowsLevel(n) {
 export function twistsIn(level) {
   const out = []
   if (level.arrows.some(isDiagonal)) out.push('diag')
+  if (level.arrows.some(isBent)) out.push('bend')
   if (level.arrows.some(isCurved)) out.push('curve')
   return out
 }

@@ -4,6 +4,7 @@ import {
   ARROWS_DIR_NAMES,
   cellCenter,
   exitVector,
+  isBent,
   isCurved,
   isDiagonal,
   leavePose,
@@ -21,6 +22,9 @@ const CELL = 10
 const PAD = 2
 const STROKE = 2.1
 const CORNER = 3.2
+// A bent diagonal's body is rounded as wide as its segments allow, so the
+// polyline between cell centres reads as one smooth curve.
+const BEND_CORNER = 7
 const HEAD_LEN = 4.4
 const HEAD_HALF = 2.9
 const TIP_AHEAD = 1.6
@@ -51,8 +55,8 @@ function headD(points) {
 }
 
 // The body stops short of the tip so its round cap hides under the head.
-function bodyD(points) {
-  return roundedPathD(points, CORNER, BODY_INSET)
+function bodyD(points, arrow) {
+  return roundedPathD(points, isBent(arrow) ? BEND_CORNER : CORNER, BODY_INSET)
 }
 
 // A curved arrow's hook: a short curl off the tip of its head that bends the
@@ -82,6 +86,7 @@ function hookTipD(arrow) {
 
 function arrowLabel(arrow, i) {
   const len = `${arrow.cells.length} long`
+  if (isBent(arrow)) return `Arrow ${i + 1}, curved diagonal, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`
   if (isDiagonal(arrow)) return `Arrow ${i + 1}, diagonal, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`
   if (isCurved(arrow)) {
     return `Arrow ${i + 1}, curved, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]} then turning ${ARROWS_DIR_NAMES[turnedDir(arrow.dir, arrow.turn)]} at the edge`
@@ -139,7 +144,7 @@ export default function ArrowsBoard({
 
   const drawPose = (index, travel) => {
     const pose = leavePose(level.arrows[index], CELL, travel, level)
-    bodyRefs.current[index]?.setAttribute('d', bodyD(pose))
+    bodyRefs.current[index]?.setAttribute('d', bodyD(pose, level.arrows[index]))
     headRefs.current[index]?.setAttribute('d', headD(pose))
     // The hook marks the turn still to come; once moving, the arrow itself
     // shows the route, so the hook hides until it is back at rest.
@@ -306,12 +311,12 @@ export default function ArrowsBoard({
               <g
                 key={i}
                 ref={(el) => { groupRefs.current[i] = el }}
-                className={cn('arrows-arrow', isDiagonal(arrow) && 'is-diag', isCurved(arrow) && 'is-curve')}
+                className={cn('arrows-arrow', isDiagonal(arrow) && 'is-diag', isBent(arrow) && 'is-bend', isCurved(arrow) && 'is-curve')}
               >
                 <path
                   ref={(el) => { bodyRefs.current[i] = el }}
                   className="ar-body"
-                  d={bodyD(pose)}
+                  d={bodyD(pose, arrow)}
                   fill="none"
                   strokeWidth={STROKE}
                   style={{ pointerEvents: 'none' }}
