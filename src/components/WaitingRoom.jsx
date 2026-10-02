@@ -5,6 +5,7 @@ import { db } from '../lib/firebase'
 import { getGameConfig, usesFirstMover, firstMoverUpdates, resolveGoesFirst } from '../lib/games'
 import { MODES as PONG_MODES, MULTIPLAYER_MODES as PONG_MODE_IDS, getMode as getPongMode } from '../lib/pongLogic'
 import { UPDRAFT_MODES, UPDRAFT_MODE_IDS, getUpdraftMode } from '../lib/updraftConfig'
+import ArrowsDifficultyPicker from './ArrowsDifficultyPicker'
 import QrCode from './QrCode'
 import InviteFriendModal from './InviteFriendModal'
 import PixelDots from './loading/PixelDots'
@@ -343,6 +344,11 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
             <p className="font-pixel text-[8px] text-retro-dim/70">HOST PICKS THE MODE</p>
           )}
         </div>
+      )}
+
+      {/* Arrows difficulty (creator only) */}
+      {gameType === 'arrows' && (
+        <ArrowsDifficultyPicker gameId={gameId} game={game} isHost={mySymbol === 'X'} />
       )}
 
       {/* Pong match-length selector (creator only) */}

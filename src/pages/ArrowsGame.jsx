@@ -5,12 +5,13 @@ import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import ArrowsBoard from '../components/ArrowsBoard'
 import { RaceRow } from '../components/ArrowsHud'
+import ArrowsDifficultyPicker from '../components/ArrowsDifficultyPicker'
 import {
   generateArrowsLevel,
   applyArrowTap,
   normalizeGone,
   countGone,
-  tierForRound,
+  tierForGame,
   randomArrowsSeed,
   arrowsMatchWinner,
   getArrowsMatchEnd,
@@ -18,6 +19,8 @@ import {
   ARROWS_MATCH_TARGET,
   ARROWS_MAX_ROUNDS,
 } from '../lib/arrowsLogic'
+import { ARROWS_TWIST_TIPS, newTwist } from '../lib/arrowsLevelsLogic'
+import { markTwistSeen, readSeenTwists } from '../lib/arrowsProgress'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -47,7 +50,8 @@ export default function ArrowsGame({
   const op = me === 'X' ? 'O' : 'X'
 
   const round = game.arrowsRound ?? 0
-  const tier = tierForRound(round)
+  // The host's difficulty: one tier every round, or the easy → hard ramp.
+  const tier = tierForGame(game.arrowsDifficulty, round)
   const seed = game.arrowsSeed ?? null
   const startedAt = game.arrowsStartedAt ?? null
   const level = useMemo(() => (seed != null ? generateArrowsLevel(seed, tier) : null), [seed, tier])
@@ -67,6 +71,9 @@ export default function ArrowsGame({
   const [now, setNow] = useState(() => Date.now())
   const [clockOffset, setClockOffset] = useState(0)
   const streak = useRef(0)
+  // Twists this device has been taught, read once per mount so a tip stays
+  // up for the whole round it first appears in.
+  const [seenTwists] = useState(readSeenTwists)
   const prevSeedRef = useRef(seed)
   const writeErrorAt = useRef(0)
   const wentLive = useRef(false)
@@ -176,6 +183,13 @@ export default function ArrowsGame({
     if (countGone(applied.gone) >= total) resolveEnd(me)
   }
 
+  // One-line tutorial the first time a board shows a diagonal or hooked arrow.
+  const twist = !isSpectator && level ? newTwist(level, seenTwists) : null
+  useEffect(() => {
+    if (twist) markTwistSeen(twist)
+  }, [twist])
+  const twistTip = twist ? ARROWS_TWIST_TIPS[twist] : null
+
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
   const matchEnd = arrowsMatchWinner(game.scores) ?? getArrowsMatchEnd(game)
@@ -236,6 +250,7 @@ export default function ArrowsGame({
           <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
             {total} ARROWS · {tierLabel}<br />SAME BOARD FOR BOTH — FIRST TO CLEAR WINS
           </p>
+          {twistTip && <p className="font-pixel text-[8px] text-retro-cta leading-relaxed pt-1">{twistTip}</p>}
         </>,
       )
     }
@@ -269,6 +284,9 @@ export default function ArrowsGame({
         {header}
         {why && <p className="text-center font-pixel text-[9px] text-retro-cta">{why}</p>}
         {raceRows}
+        {matchOver && !isSpectator && (
+          <ArrowsDifficultyPicker gameId={gameId} game={game} isHost={mySymbol === 'X'} />
+        )}
         <GameStatus
           status={game.status}
           winner={game.winner}
@@ -333,7 +351,10 @@ export default function ArrowsGame({
         {preRace}
       </div>
       <p className="sr-only" aria-live="polite">{liveMsg}</p>
-      {isRacing && round === 0 && counts[me] === 0 && (
+      {isRacing && twistTip && (
+        <p className="text-center font-pixel text-[8px] text-retro-cta leading-relaxed">{twistTip}</p>
+      )}
+      {isRacing && round === 0 && counts[me] === 0 && !twistTip && (
         <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed">
           TAP AN ARROW WHOSE PATH IS CLEAR — IT SLIDES OFF.<br />BLOCKED TAPS COST A LIFE.
         </p>

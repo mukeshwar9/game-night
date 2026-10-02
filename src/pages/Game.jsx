@@ -636,6 +636,8 @@ export default function Game() {
     }
     // Pong: a new match keeps the host's lobby picks (mode, match length).
     if (game.gameType === 'pong') Object.assign(fresh, { matchLength: game.matchLength ?? 3, pongMode: game.pongMode ?? 'classic' })
+    // Arrows: a new match keeps the host's difficulty.
+    if (game.gameType === 'arrows') fresh.arrowsDifficulty = game.arrowsDifficulty ?? null
     try {
       await update(ref(db, `games/${gameId}`), {
         ...withFirstMover(fresh, game.gameType, starter),

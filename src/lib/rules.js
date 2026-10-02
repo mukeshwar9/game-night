@@ -502,8 +502,11 @@ export const GAME_RULES = {
       'Tap an arrow to send it sliding off the board along the way its head points.',
       'It only leaves if nothing is in its path — tap a blocked arrow and it bumps, flashes red and costs a life.',
       'Clear the arrows that are in the way first. You have 3 lives per round.',
+      'Diagonal arrows fly corner to corner; only cells on their diagonal block them. Hooked arrows fly to the edge, turn once the way the hook points, and run along it — both legs must be clear.',
+      'The host picks the difficulty: easy (straight arrows), medium (adds diagonals), hard (adds hooks), or mixed (easy, then medium, then hard).',
+      'Solo: a 20-level campaign that gets harder each level (no mistakes earns three stars), plus endless boards.',
     ],
-    win: 'First to clear their whole board wins the round; running out of lives loses it. Boards get bigger each round (easy, medium, hard) — win 2 of the 3 to take the match.',
+    win: 'First to clear their whole board wins the round; running out of lives loses it. Win 2 of the 3 rounds to take the match.',
   },
 
   updraft: {

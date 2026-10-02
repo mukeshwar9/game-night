@@ -148,6 +148,23 @@ describe('supportsLocalPlay', () => {
   })
 })
 
+describe('freshGameState: Arrows difficulty', () => {
+  it('carries the host difficulty into the next round and leaves new rooms unset', () => {
+    expect(freshGameState('arrows').arrowsDifficulty).toBeNull()
+    const next = freshGameState('arrows', { gameType: 'arrows', arrowsRound: 0, arrowsDifficulty: 'hard', scores: { X: 1, O: 0 } })
+    expect(next).toMatchObject({ arrowsRound: 1, arrowsDifficulty: 'hard', arrowsStartedAt: null })
+  })
+
+  it('a switch from another game starts at round 0 with no difficulty', () => {
+    const fresh = freshGameState('arrows', { gameType: 'pong', arrowsRound: 1, arrowsDifficulty: 'hard', scores: {} })
+    expect(fresh).toMatchObject({ arrowsRound: 0, arrowsDifficulty: null })
+  })
+
+  it('switching away clears the difficulty', () => {
+    expect(freshGameState('tictactoe').arrowsDifficulty).toBeNull()
+  })
+})
+
 describe('freshGameState board sizes', () => {
   it('initializes both Archery room modes and party seats', () => {
     const duel = freshGameState('archery')
