@@ -124,7 +124,7 @@ export default function HangmanDemo() {
       if (next.last.hit) sounds.hit(); else sounds.miss()
       setRound(next)
       finishRound(next)
-    }, hangmanThinkMs())
+    }, hangmanThinkMs(Math.random, Object.keys(round.guesses).length))
     return () => clearTimeout(id)
     // finishRound reads `match`, which only changes when a round ends
     // eslint-disable-next-line react-hooks/exhaustive-deps

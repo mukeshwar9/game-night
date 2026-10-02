@@ -445,10 +445,17 @@ export function pickHangmanGuess({
   return ranked[0]
 }
 
-/** Real delay before the CPU guesser's next letter. */
-export function hangmanThinkMs(random = Math.random) {
+// After its opening letters the CPU speeds up: watching it guess was ~15 s of
+// dead time a round. Starting value — slow it back down if late guesses feel
+// like a machine gun.
+export const HANGMAN_FAST_AFTER = 3
+
+/** Real delay before the CPU guesser's next letter; halved once it has
+ * guessed HANGMAN_FAST_AFTER letters (`guessCount`). */
+export function hangmanThinkMs(random = Math.random, guessCount = 0) {
   const [lo, hi] = HANGMAN_THINK_MS
-  return Math.round(lo + random() * (hi - lo))
+  const ms = lo + random() * (hi - lo)
+  return Math.round(guessCount >= HANGMAN_FAST_AFTER ? ms / 2 : ms)
 }
 
 // ── Word-finding bot (Word Hunt / Anagrams) ──────────────────────────────────

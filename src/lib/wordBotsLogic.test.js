@@ -349,6 +349,10 @@ describe('Hangwoman CPU guesser', () => {
   it('think time stays in range', () => {
     expect(hangmanThinkMs(() => 0)).toBe(HANGMAN_THINK_MS[0])
     expect(hangmanThinkMs(() => 0.999999)).toBeLessThanOrEqual(HANGMAN_THINK_MS[1])
+    // Past its opening letters the CPU guesses twice as fast (audit: dead time).
+    expect(hangmanThinkMs(() => 0, 2)).toBe(HANGMAN_THINK_MS[0])
+    expect(hangmanThinkMs(() => 0, 3)).toBe(HANGMAN_THINK_MS[0] / 2)
+    expect(hangmanThinkMs(() => 0.999999, 8)).toBeLessThanOrEqual(HANGMAN_THINK_MS[1] / 2)
   })
 
   it('solves most common words but not all (a beatable opponent)', async () => {

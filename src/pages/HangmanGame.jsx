@@ -46,6 +46,28 @@ function dictionaryForCheck() {
   ])
 }
 
+// The word-keeper's own word while the guesser plays: hidden behind a blur
+// until tapped (someone may be looking over their shoulder), like solo's
+// "Your word: CRORE".
+function KeeperWord({ word }) {
+  const [shown, setShown] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={() => setShown(v => !v)}
+      aria-pressed={shown}
+      aria-label={shown ? `Your word: ${word}. Tap to hide` : 'Show your word'}
+      className="min-h-11 px-3 font-mono text-[10px] text-retro-dim rounded hover:text-retro-text"
+    >
+      Your word:{' '}
+      <span aria-hidden="true" className={cn('text-retro-cta tracking-widest transition-[filter]', !shown && 'blur-sm select-none')}>
+        {shown ? word : word.replace(/[A-Z]/g, 'X')}
+      </span>
+      <span aria-hidden="true" className="ml-2 font-pixel text-[8px]">{shown ? 'HIDE' : 'TAP TO SHOW'}</span>
+    </button>
+  )
+}
+
 const CLAIM_WINDOW_MS = {
   'no-word': SETTING_DEADLINE_MS,
   grading: GRADING_STALL_MS,
@@ -852,6 +874,9 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
                   ? `CHECKING ${waitingLetter}…`
                   : 'WAITING FOR WORD-KEEPER…'}
           </p>
+        )}
+        {isSetter && phase === 'guessing' && !setterMissingWord && storedWord?.word && (
+          <KeeperWord word={storedWord.word} />
         )}
         {isReveal && roundResult === 'hanged' && (
           <div className="space-y-2">
