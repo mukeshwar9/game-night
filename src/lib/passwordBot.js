@@ -12,7 +12,9 @@
 // gets warmer as the round drags on.
 
 import { PASSWORD_DECK } from './decks/password'
-import { normalizeText, validateClue } from './passwordLogic'
+import {
+  applyClueTimeout, applyGuessTimeout, normalizeText, startCluePhase, validateClue,
+} from './passwordLogic'
 
 // Curated clue bank. Every clue is a single word that passes validateClue for
 // its word (no containment either direction, 16 chars max). Four clues per word
@@ -68,4 +70,17 @@ export function pickBotGuess({ word, deck = PASSWORD_DECK, clueNumber = 1, rng =
     .filter(candidate => normalizeText(candidate) !== normalizeText(word))
   if (!pool.length) return word
   return pool[Math.floor(rng() * pool.length)]
+}
+
+// The solo demo's clock, run on every tick: ends the intro (arming the clue
+// clock) and lets an expired clue or guess slot time out exactly as the room
+// game does. Without it a guess sent after the 30 s guess clock was rejected
+// forever (applyGuess refuses late guesses) and the round never ended.
+// Returns the next round, or null when nothing is due.
+export function advanceDemoClock(round, now = Date.now()) {
+  if (!round) return null
+  if (round.phase === 'intro') return round.endsAt && now >= round.endsAt ? startCluePhase(round, now) : null
+  if (round.phase === 'clue') return applyClueTimeout(round, now)
+  if (round.phase === 'guess') return applyGuessTimeout(round, now)
+  return null
 }
