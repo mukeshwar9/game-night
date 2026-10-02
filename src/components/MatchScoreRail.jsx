@@ -49,7 +49,9 @@ export default function MatchScoreRail({
         )
       })}
       <div className="col-start-2 row-start-1 text-center">
-        {title && <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">{title}</p>}
+        {/* No text glow: in pale themes (MATCHA, the default) it read as
+            double-printed, blurry text over the YOU / OPPONENT labels. */}
+        {title && <p data-testid="rail-title" className="font-pixel text-[10px] text-retro-cta tracking-widest">{title}</p>}
         {roundLabel && <p className="font-pixel text-[8px] text-retro-dim mt-1">{roundLabel}</p>}
         {matchTarget > 0 && <p className="font-pixel text-[8px] text-retro-dim mt-1">FIRST TO {matchTarget}</p>}
       </div>

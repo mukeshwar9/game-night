@@ -41,6 +41,8 @@ for (const { label, type } of [
         await page.getByRole('button', { name: 'LOCK IN', exact: true }).click()
       }
       await expect(host.page.getByRole('heading', { name: 'PICK A WORD' })).toBeHidden({ timeout: 15_000 })
+      // The score-rail title is plain text, not the blurry text-glow (audit X6).
+      await expect(host.page.getByTestId('rail-title')).not.toHaveClass(/text-glow/)
     }
     for (const player of [host, guest]) {
       await player.page.evaluate(() => window.scrollTo(0, 0))
