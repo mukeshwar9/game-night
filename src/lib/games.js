@@ -113,7 +113,7 @@ import { applyDiceMove, rollFaceAsync, rollFacePairAsync } from './diceLogic'
 import { runPigSeedProtocol } from '../hooks/room/pigSeedProtocol'
 import { seatOrder as seatOrderWL, pickSpectrumIndex } from './wavelengthLogic'
 import {
-  PAIRS_CELL_COUNT,
+  PAIRS_CELL_COUNT, PAIRS_QUICK_CELL_COUNT,
   generatePairsDeck,
   normalizePairsDeck,
   normalizePairsFlipped,
@@ -1608,7 +1608,46 @@ export const GAME_TYPES = [
     category: 'memory',
     addedAt: '2026-07-11',
     durationMin: 6, tags: ['thinky'], solo: true,
+    classicLabel: '6×6',
+    classicBlurb: '18 pairs. First to 10 clinches.',
     boardSize: PAIRS_CELL_COUNT,
+    getMoveIndex: (board, index) => (board[index] ? -1 : index),
+    BoardComponent: PairsBoard,
+    applyMove: ({ board, game, index, symbol }) => {
+      const deck = normalizePairsDeck(game.pairsDeck)
+      const flipped = normalizePairsFlipped(game.pairsFlipped)
+      const applied = applyPairsMove(board, deck, flipped, index, symbol)
+      if (!applied) return null
+      return {
+        updates: {
+          board: applied.board,
+          pairsFlipped: applied.flipped,
+          currentTurn: applied.turnStays ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          // GO AGAIN! is for a match only — a first flip also keeps the turn, but that
+          // is just the middle of a turn, not a bonus one.
+          extraTurn: applied.matched ? true : null,
+          pairsDeadline: null, // every flip restarts the mover's idle window
+        },
+        result: getPairsWinner(applied.board),
+      }
+    },
+    boardProps: (game) => ({
+      deck: normalizePairsDeck(game.pairsDeck),
+      flipped: normalizePairsFlipped(game.pairsFlipped),
+      finished: game.status === 'finished',
+      pairsDeadline: game.pairsDeadline ?? null,
+    }),
+  },
+  {
+    type: 'pairs4', label: 'PAIRS 4×4',
+    desc: 'a quick 16-card memory duel', Icon: PairsIcon,
+    badge: 'PR4', maxWidth: 'max-w-sm',
+    category: 'memory',
+    addedAt: '2026-10-02',
+    durationMin: 2, tags: ['quick', 'thinky'], solo: true,
+    variantOf: 'pairs', variantLabel: '4×4',
+    variantBlurb: '8 pairs on big cards. First to 5 clinches.',
+    boardSize: PAIRS_QUICK_CELL_COUNT,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: PairsBoard,
     applyMove: ({ board, game, index, symbol }) => {
@@ -2200,10 +2239,11 @@ export function freshGameState(gameType, previous = null) {
         }
         : null }
   }
-  if (gameType === 'pairs') {
+  if (gameType === 'pairs' || gameType === 'pairs4') {
+    const cells = gameType === 'pairs4' ? PAIRS_QUICK_CELL_COUNT : PAIRS_CELL_COUNT
     return { ...FIELD_NULLS, boxes: null, round: null, currentTurn: 'X',
-      board: Array(PAIRS_CELL_COUNT).fill(''),
-      pairsDeck: generatePairsDeck(),
+      board: Array(cells).fill(''),
+      pairsDeck: generatePairsDeck(cells / 2),
       pairsFlipped: null }
   }
   return { ...FIELD_NULLS, board: Array(cfg.boardSize).fill(''), boxes: null, round: null, currentTurn: 'X' }

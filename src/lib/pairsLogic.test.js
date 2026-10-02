@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
   PAIRS_FACES,
   PAIRS_CELL_COUNT,
@@ -7,8 +7,9 @@ import {
   normalizePairsFlipped,
   getPairsWinner,
   applyPairsMove,
-  computePairsBotMove,
+  computePairsBotMove, observePairsFlip, PAIRS_BOT_LEVELS,
 } from './pairsLogic'
+import { mulberry32 } from './detMath'
 import { SHAPES } from './avatars'
 
 describe('PAIRS_FACES', () => {
@@ -224,42 +225,85 @@ describe('computePairsBotMove', () => {
     }
   })
 
-  describe('with Math.random mocked', () => {
-    let randomSpy
+  it('plays a remembered twin on the second flip, and only one it has seen', () => {
+    const board = Array(PAIRS_CELL_COUNT).fill('')
+    const deck = Array(PAIRS_CELL_COUNT).fill('frog')
+    deck[0] = 'robot'
+    deck[10] = 'robot'
+    const seenTwin = { board, pairsDeck: deck, pairsFlipped: [0], pairsBotMemory: { 10: { face: 'robot', at: 1 } }, pairsFlipCount: 2 }
+    expect(computePairsBotMove(seenTwin, 'O', 'hard')).toBe(10)
+    // Never seen: it cannot know where the twin is (the old bot read the deck).
+    const unseen = { ...seenTwin, pairsBotMemory: {} }
+    const picks = new Set(Array.from({ length: 40 }, (_, k) => computePairsBotMove(unseen, 'O', 'hard', () => k / 40)))
+    expect(picks.size).toBeGreaterThan(5)
+  })
 
-    afterEach(() => {
-      randomSpy.mockRestore()
-    })
+  it('cashes in a remembered pair on the first flip', () => {
+    const board = Array(PAIRS_CELL_COUNT).fill('')
+    const deck = randomDeck()
+    const face = deck[4]
+    const twin = deck.findIndex((f, i) => f === face && i !== 4)
+    const memory = { 4: { face, at: 1 }, [twin]: { face, at: 2 } }
+    const move = computePairsBotMove({ board, pairsDeck: deck, pairsFlipped: null, pairsBotMemory: memory, pairsFlipCount: 3 }, 'O', 'hard')
+    expect([4, twin]).toContain(move)
+  })
 
-    it('flipped.length === 1 and forced < RECALL_P returns the true twin', () => {
-      const board = Array(PAIRS_CELL_COUNT).fill('')
-      const deck = Array(PAIRS_CELL_COUNT).fill('')
-      deck[0] = 'robot'
-      deck[10] = 'robot' // known twin of held card 0
-      deck[1] = 'ghost'
-      deck[2] = 'ghost'
+  it('forgets after its level\'s window and remembers with its level\'s recall', () => {
+    const board = Array(PAIRS_CELL_COUNT).fill('')
+    const deck = Array(PAIRS_CELL_COUNT).fill('frog')
+    deck[0] = 'robot'
+    deck[10] = 'robot'
+    const view = at => ({ board, pairsDeck: deck, pairsFlipped: [0], pairsBotMemory: { 10: { face: 'robot', at: 1 } }, pairsFlipCount: at })
+    expect(computePairsBotMove(view(1 + PAIRS_BOT_LEVELS.easy.forgetAfter), 'O', 'easy')).toBe(10)
+    expect(computePairsBotMove(view(2 + PAIRS_BOT_LEVELS.easy.forgetAfter), 'O', 'easy', () => 0)).not.toBe(10)
+    expect(observePairsFlip({}, 3, 'cat', 5, 'easy', () => 0.99)).toEqual({})
+    expect(observePairsFlip({}, 3, 'cat', 5, 'easy', () => 0)).toEqual({ 3: { face: 'cat', at: 5 } })
+  })
 
-      randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0) // forces < RECALL_P branch, and picks first match
-      const gameView = { board, pairsDeck: deck, pairsFlipped: [0] }
-      const move = computePairsBotMove(gameView, 'X')
-      expect(move).toBe(10)
-    })
-
-    it('flipped.length === 1 and forced >= RECALL_P returns a legal cell that is not flipped[0]', () => {
-      const board = Array(PAIRS_CELL_COUNT).fill('')
-      const deck = Array(PAIRS_CELL_COUNT).fill('')
-      deck[0] = 'robot'
-      deck[10] = 'robot'
-      deck[1] = 'ghost'
-      deck[2] = 'ghost'
-
-      randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99) // forces >= RECALL_P, and pickRandom picks last
-      const gameView = { board, pairsDeck: deck, pairsFlipped: [0] }
-      const move = computePairsBotMove(gameView, 'X')
-      expect(move).not.toBeNull()
-      expect(board[move]).toBe('')
-      expect(move).not.toBe(0)
-    })
+  // A smaller run of the tuning simulation behind PAIRS_BOT_LEVELS: a scripted player
+  // with perfect memory against each level.
+  it('levels get harder: perfect memory beats EASY nearly always, HARD about half the time', () => {
+    const winRate = (difficulty) => {
+      let wins = 0
+      const games = 120
+      for (let g = 1; g <= games; g++) {
+        const rand = mulberry32(g * 7919)
+        const deck = PAIRS_FACES.flatMap(f => [f, f])
+        for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]] }
+        let board = Array(PAIRS_CELL_COUNT).fill(''), flipped = [], turn = g % 2 ? 'X' : 'O', memory = {}, count = 0
+        const seen = {}
+        const player = () => {
+          const legal = board.map((c, i) => (c === '' && !flipped.includes(i) ? i : -1)).filter(i => i >= 0)
+          const fresh = legal.filter(i => seen[i] === undefined)
+          if (flipped.length === 1) {
+            const t = legal.find(i => seen[i] === deck[flipped[0]])
+            return t !== undefined ? t : (fresh.length ? fresh : legal)[0]
+          }
+          const by = {}
+          for (const i of legal) { if (seen[i] === undefined) continue; if (by[seen[i]] !== undefined) return by[seen[i]]; by[seen[i]] = i }
+          return (fresh.length ? fresh : legal)[0]
+        }
+        for (;;) {
+          const idx = turn === 'X' ? player()
+            : computePairsBotMove({ board, pairsDeck: deck, pairsFlipped: flipped, pairsBotMemory: memory, pairsFlipCount: count }, 'O', difficulty, rand)
+          const r = applyPairsMove(board, deck, flipped, idx, turn)
+          count++
+          seen[idx] = deck[idx]
+          memory = observePairsFlip(memory, idx, deck[idx], count, difficulty, rand)
+          board = r.board
+          flipped = r.flipped || []
+          const w = getPairsWinner(board)
+          if (w) { if (w.winner === 'X') wins++; break }
+          if (!r.turnStays) turn = turn === 'X' ? 'O' : 'X'
+        }
+      }
+      return wins / games
+    }
+    const easy = winRate('easy'), normal = winRate('normal'), hard = winRate('hard')
+    expect(easy).toBeGreaterThanOrEqual(0.9)
+    expect(normal).toBeLessThan(easy)
+    expect(hard).toBeLessThan(normal)
+    expect(hard).toBeLessThanOrEqual(0.6)
   })
 
   it('flipped.length === 0 returns some legal, unclaimed, non-flipped index', () => {

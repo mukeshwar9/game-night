@@ -497,6 +497,7 @@ const CLIP_ALIAS = {
   connectfour5: 'connectfour',
   connectfourpop: 'connectfour',
   dotsandboxes4: 'dotsandboxes',
+  pairs4: 'pairs',
   gomokuswap: 'gomoku',
   chainreaction6: 'chainreaction',
   chainreaction4: 'chainreaction',

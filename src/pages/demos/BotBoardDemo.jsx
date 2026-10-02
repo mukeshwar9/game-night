@@ -6,7 +6,7 @@ import PlayerCard from '../../components/PlayerCard'
 import { sounds } from '../../lib/sounds'
 import { normalizeBoard } from '../../lib/gameLogic'
 import { getGameConfig, freshGameState } from '../../lib/games'
-import { pickBotMove, botDifficulties, DEFAULT_BOT_DIFFICULTY } from '../../lib/demoBots'
+import { pickBotMove, botDifficulties, observeDemoMove, DEFAULT_BOT_DIFFICULTY } from '../../lib/demoBots'
 import { recordRoundEnd } from '../../lib/analytics'
 
 // ─── Bot difficulty (remembered per game) ─────────────────────────────────────
@@ -98,6 +98,8 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
     // A hook that already set its own lastMove wins.
     if (cfg.boardSize > 0 && updates.lastMove === undefined) updates.lastMove = index
     const next = { ...g, ...updates }
+    // Bots that learn from what is turned up (Pairs) note this move. Local only.
+    if (!isLocal) Object.assign(next, observeDemoMove(type, g, cfg.boardSize ? index : null, difficulty))
     if (result) {
       next.winner = result.winner
       next.status = 'finished'

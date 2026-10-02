@@ -2156,7 +2156,8 @@ body::before {
   --pair-wizard:   186 128 248;
   --pair-invader:  240 104 208;
   --pair-cat:      255 170 200;
-  --pair-ninja:    150 162 186;
+  --pair-sword:    150 162 186;
+  --pair-ninja:    150 162 186; /* legacy face: decks dealt before 'sword' replaced it */
   --pair-skull:    220 188 140;
   --pair-ghost:    234 236 246;
 }
@@ -2207,7 +2208,7 @@ body::before {
   box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.35), inset 0 -3px 0 rgb(var(--pair-ink) / 0.18);
 }
 /* A claimed pair settles back: same identity, quieter, so the live cards stand out. */
-.pairs-card-face.is-claimed { filter: saturate(0.8); opacity: 0.85; }
+.pairs-card-face.is-claimed { filter: saturate(0.6); opacity: 0.7; }
 
 @keyframes pairs-match-pop {
   0%   { transform: scale(1); }

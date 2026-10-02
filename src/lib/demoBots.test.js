@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import {
-  pickBotMove, botDifficulties, legalBotMoves, normalizeDifficulty,
+  pickBotMove, botDifficulties, legalBotMoves, normalizeDifficulty, observeDemoMove,
   BOT_DIFFICULTIES, DEFAULT_BOT_DIFFICULTY,
 } from './demoBots'
 import { normalizeBoard } from './gameLogic'
@@ -614,7 +614,7 @@ describe('difficulty levels', () => {
     expect(botDifficulties('hex')).toEqual(['easy', 'normal', 'hard'])
     expect(botDifficulties('gomokuswap')).toEqual(['easy', 'normal', 'hard'])
     expect(botDifficulties('breakthrough')).toEqual(['easy', 'normal'])
-    expect(botDifficulties('pairs')).toEqual(['normal'])
+    expect(botDifficulties('pairs')).toEqual(['easy', 'normal', 'hard']) // its own memory model
     for (const type of BOT_BOARD_TYPES) expect(botDifficulties(type), type).toContain('easy')
   })
 
@@ -788,5 +788,18 @@ describe('pig difficulty', () => {
   it('easy always rolls an empty turn and banks by 25', () => {
     expect(pickBotMove('dice', pig(0, 0, 0), 'O', 'easy')).toBe('roll')
     expect(pickBotMove('dice', pig(0, 0, 25), 'O', 'easy')).toBe('bank')
+  })
+})
+
+describe('observeDemoMove', () => {
+  it('lets the Pairs bot note every turned-up card and count flips', () => {
+    const deck = Array(36).fill('frog')
+    deck[7] = 'robot'
+    const next = observeDemoMove('pairs', { pairsDeck: deck, pairsFlipCount: 4 }, 7, 'hard')
+    expect(next.pairsFlipCount).toBe(5)
+    expect(next.pairsBotMemory[7]).toEqual({ face: 'robot', at: 5 })
+  })
+  it('is a no-op for other games', () => {
+    expect(observeDemoMove('tictactoe', {}, 3)).toBeNull()
   })
 })

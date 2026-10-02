@@ -825,6 +825,16 @@ export const GAME_RULES = {
     win: 'Claim 10 of the 18 pairs to win instantly. If the board fills first, whoever claimed more pairs wins — 9–9 is a draw.',
   },
 
+  pairs4: {
+    objective: 'Find more matching pairs than your opponent on a 4×4 grid of 8 hidden pairs.',
+    howToPlay: [
+      'Tap any two face-down cards to flip them.',
+      'Match the pair and you claim it — plus you immediately go again.',
+      'Miss, and both cards stay face-up for a moment, then flip back down and the turn passes to your opponent.',
+    ],
+    win: 'Claim 5 of the 8 pairs to win instantly. If the board fills at 4–4, it is a draw.',
+  },
+
   sim: {
     objective: 'Color connecting lines between six dots — but never complete a triangle of your own color.',
     howToPlay: [

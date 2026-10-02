@@ -17,7 +17,7 @@ const ART_TYPES = new Set([
   'wordhunt', 'password', 'anagrams', 'hunch', 'pairs', 'sketch', 'codewords', 'justone',
 ])
 
-const ART_ALIAS = { chainreaction4: 'chainreaction' }
+const ART_ALIAS = { chainreaction4: 'chainreaction', pairs4: 'pairs' }
 
 const resolveArt = (type) => ART_ALIAS[type] || type
 
