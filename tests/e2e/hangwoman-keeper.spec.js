@@ -1,6 +1,7 @@
-// Hangwoman rooms (word games audit, 2026-10-02): while the guesser plays,
-// the word-keeper can see their own word again — hidden behind a tap so a
-// shoulder-surfer can't read it — as the solo game shows "Your word: CRORE".
+// Hangwoman rooms (word games audit, 2026-10-02): SUGGEST fills the setter's
+// blank page, and while the guesser plays the word-keeper can see their own
+// word again — hidden behind a tap so a shoulder-surfer can't read it — as the
+// solo game shows "Your word: CRORE".
 // The keeper's word lives only in their tab, never in the room.
 import { test, expect } from '@playwright/test'
 import { createRoom, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
@@ -16,8 +17,13 @@ test('the word-keeper can reveal their own word while the guesser plays', async 
   const url = await createRoom(keeper.page, 'HANGWOMAN')
   await joinViaInvite(guesser.page, url, 'Ben')
 
-  // The creator keeps the first word.
-  await keeper.page.getByRole('textbox', { name: 'Secret word' }).fill('biryani')
+  // The creator keeps the first word. SUGGEST fills a word and its category
+  // hint, so the setter never faces a blank page.
+  const secret = keeper.page.getByRole('textbox', { name: 'Secret word' })
+  await keeper.page.getByRole('button', { name: 'SUGGEST' }).click()
+  await expect(secret).toHaveValue(/^[A-Z]{4,}$/)
+  await expect(keeper.page.getByRole('textbox', { name: /hint/i })).not.toHaveValue('')
+  await secret.fill('biryani')
   const lock = keeper.page.getByRole('button', { name: 'LOCK IT IN' })
   await expect(lock).toBeEnabled()
   await lock.click()

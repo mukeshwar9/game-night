@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { validateSetterWord, hintRevealsWord, WORD_RULE_ANY, WORD_RULE_DICTIONARY } from '../lib/hangmanLogic'
+import { pickKeeperWord } from '../lib/wordBotsLogic'
 import WordFeedback from './WordFeedback'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +33,17 @@ export default function WordSetter({
       .replace(/^ /, '')
     setRaw(sanitized)
     setError('')
+  }
+
+  // SUGGEST: one of the CPU keeper's everyday words, with its category as
+  // the hint, so the setter never faces a blank page (dictionary words).
+  const suggest = () => {
+    const pick = pickKeeperWord({ used: [raw] })
+    if (!pick) return
+    setRaw(pick.word)
+    setHint(pick.hint)
+    setError('')
+    setHintError('')
   }
 
   const fail = (setter, message) => {
@@ -142,19 +154,29 @@ export default function WordSetter({
           <p className="font-mono text-[10px] text-retro-dim">Or turn on the ANY WORD house rule.</p>
         </div>
       )}
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={disabled}
-        className={cn(
-          'px-8 py-3 font-pixel text-[10px] rounded border-2 transition-all active:scale-95',
-          disabled
-            ? 'border-retro-border text-retro-border cursor-not-allowed'
-            : 'border-retro-p1 text-retro-p1 hover:shadow-neon-p1 hover:bg-retro-tint-p1',
-        )}
-      >
-        {loading ? 'LOCKING…' : listLoading ? 'LOADING WORDS…' : 'LOCK IT IN'}
-      </button>
+      <div className="flex justify-center gap-2">
+        <button
+          type="button"
+          onClick={suggest}
+          disabled={loading}
+          className="px-4 py-3 font-pixel text-[10px] rounded border-2 border-retro-border text-retro-text transition-all hover:border-retro-cta active:scale-95 disabled:opacity-50"
+        >
+          SUGGEST
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={disabled}
+          className={cn(
+            'px-8 py-3 font-pixel text-[10px] rounded border-2 transition-all active:scale-95',
+            disabled
+              ? 'border-retro-border text-retro-border cursor-not-allowed'
+              : 'border-retro-p1 text-retro-p1 hover:shadow-neon-p1 hover:bg-retro-tint-p1',
+          )}
+        >
+          {loading ? 'LOCKING…' : listLoading ? 'LOADING WORDS…' : 'LOCK IT IN'}
+        </button>
+      </div>
     </div>
   )
 }
