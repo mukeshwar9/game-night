@@ -4,7 +4,7 @@
 import { test, expect } from '@playwright/test'
 import { createRoom, expectNoPageErrors, newPlayer } from './helpers.js'
 import { DB_ORIGIN } from './emulator.js'
-import { decodeAvatar } from '../../src/lib/avatarKit/catalog.js'
+import { decodeAvatar, encodeAvatar } from '../../src/lib/avatarKit/catalog.js'
 
 const NS = 'demo-game-night-default-rtdb'
 const headers = { Authorization: 'Bearer owner' }
@@ -164,6 +164,72 @@ test('the pet has its own picker and saving it keeps the rest of the look', asyn
     await expect.poll(async () => decodeAvatar(await readNode(request, `users/${me}/avatar`)).pet).toBe(want.id)
     const after = decodeAvatar(await readNode(request, `users/${me}/avatar`))
     expect({ ...after, pet: before.pet }).toEqual(before)
+  })
+
+  expectNoPageErrors(player)
+  await player.context.close()
+})
+
+test('the studio: one Tab stop per option grid, same-page deep links, and a save from another device keeps edits', async ({ browser, request }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+
+  await page.goto('/')
+  await page.getByRole('textbox', { name: 'Your name' }).fill('Keys')
+  await page.getByRole('button', { name: /^NEXT: PICK A LOOK/ }).click()
+  await page.getByRole('button', { name: "LET'S PLAY", exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeHidden()
+  const me = await page.evaluate(async () => (await import('/src/lib/auth.js')).getUid())
+  await page.goto('/profile')
+  const studio = page.getByRole('dialog', { name: 'EDIT AVATAR' })
+
+  await test.step('a same-page link to #look opens the studio, and again after closing it', async () => {
+    for (let i = 0; i < 2; i++) {
+      await page.evaluate(() => { location.hash = 'look' })
+      await expect(studio).toBeVisible()
+      await expect(page).not.toHaveURL(/#look/)
+      await studio.getByRole('button', { name: 'CANCEL' }).click()
+      await expect(studio).toBeHidden()
+    }
+    await page.evaluate(() => { location.hash = 'pet' })
+    const sheet = page.getByRole('dialog', { name: 'Pick a pet' })
+    await expect(sheet).toBeVisible()
+    await sheet.getByRole('button', { name: 'CLOSE', exact: true }).click()
+    await expect(sheet).toBeHidden()
+  })
+
+  await test.step('an option grid is one Tab stop and arrow keys move and pick', async () => {
+    await page.getByRole('button', { name: 'EDIT AVATAR' }).click()
+    await studio.getByRole('tab', { name: 'HAIR', exact: true }).click()
+    const grid = studio.getByRole('radiogroup', { name: 'HAIR', exact: true })
+    const radios = grid.getByRole('radio')
+    await expect(radios.first()).toBeVisible()
+    const stops = await radios.evaluateAll(els => els.filter(el => el.tabIndex === 0).length)
+    expect(stops).toBe(1)
+    const checked = grid.getByRole('radio', { checked: true })
+    await checked.focus()
+    const from = await checked.getAttribute('aria-label')
+    await page.keyboard.press('ArrowRight')
+    await expect(grid.getByRole('radio', { checked: true })).not.toHaveAttribute('aria-label', from)
+    await expect(grid.getByRole('radio', { checked: true })).toBeFocused()
+    await expect(studio.getByText('UNSAVED CHANGES')).toBeVisible()
+  })
+
+  await test.step('a save from another device does not wipe the draft', async () => {
+    const draftHair = await studio.getByRole('radiogroup', { name: 'HAIR', exact: true }).getByRole('radio', { checked: true }).getAttribute('aria-label')
+    const saved = await readNode(request, `users/${me}/avatar`)
+    const look = decodeAvatar(saved)
+    const other = encodeAvatar({ ...look, bg: look.bg === 'dots' ? 'stripes' : 'dots' })
+    for (const p of ['users', 'profiles']) {
+      const res = await request.put(`${DB_ORIGIN}/${p}/${me}/avatar.json?ns=${NS}`, { headers, data: JSON.stringify(other) })
+      expect(res.ok()).toBe(true)
+    }
+    await expect(studio.getByText(/SAVED ON ANOTHER DEVICE/)).toBeVisible()
+    await expect(studio.getByRole('radiogroup', { name: 'HAIR', exact: true }).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', draftHair)
+    await studio.getByRole('button', { name: 'USE SAVED' }).click()
+    await expect(studio.getByText('NO CHANGES YET')).toBeVisible()
+    await studio.getByRole('button', { name: 'CANCEL' }).click()
+    await expect(studio).toBeHidden()
   })
 
   expectNoPageErrors(player)

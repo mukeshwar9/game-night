@@ -16,6 +16,8 @@ import useAccess from '../hooks/useAccess'
 import { openPaywall } from '../lib/premiumUi'
 import { avatarItem } from '../lib/avatarGate'
 import { monetizationEnabled } from '../lib/monetizationState'
+import { onRadioGroupKeyDown } from '../lib/radioGroupKeys'
+import { tabStopIndex } from '../lib/rovingRadioLogic'
 import { cn } from '@/lib/utils'
 
 const CLASSIC = { id: 'classic', label: 'CLASSIC' }
@@ -263,9 +265,10 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
               </button>
             </div>
             {cat.field && (
-              <div role="radiogroup" aria-label={cat.label} className="grid grid-cols-4 gap-1.5">
-                {categoryOptions(cat).map(opt => {
+              <div role="radiogroup" aria-label={cat.label} onKeyDown={onRadioGroupKeyDown} className="grid grid-cols-4 gap-1.5">
+                {categoryOptions(cat).map((opt, i, opts) => {
                   const selected = isKit && baseLook[cat.field] === opt.id
+                  const tabStop = i === tabStopIndex(opts.map(o => isKit && baseLook[cat.field] === o.id))
                   const trying = tryOn?.field === cat.field && tryOn.id === opt.id
                   const badge = selling || opt.tier === 'earn' ? tierBadge(opt) : null
                   const locked = Boolean(lockedItem(cat.field, opt.id))
@@ -277,6 +280,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                       label={opt.label}
                       ariaLabel={badge ? `${opt.label} (${badge.text}${locked ? ', locked' : ''})` : opt.label}
                       selected={selected}
+                      tabStop={tabStop}
                       trying={trying}
                       tier={badge ? opt.tier : null}
                       locked={locked}
@@ -316,13 +320,14 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
 
 // One option thumbnail. Memoised on its avatar string, so picking another option
 // repaints only the tiles whose look actually changed.
-const OptionTile = memo(function OptionTile({ avatar, view, label, ariaLabel, selected, trying, tier, locked, field, id, onPick }) {
+const OptionTile = memo(function OptionTile({ avatar, view, label, ariaLabel, selected, tabStop, trying, tier, locked, field, id, onPick }) {
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
       aria-label={ariaLabel}
+      tabIndex={tabStop ? 0 : -1}
       onClick={() => onPick(field, id)}
       className={cn(
         'relative flex flex-col items-center gap-1 p-1 rounded border-2 transition-all active:scale-95',
@@ -351,8 +356,8 @@ function ColourRow({ row, selected, trying, onPick, isLocked, selling }) {
   return (
     <div className="space-y-1">
       <p className="font-pixel text-[8px] tracking-widest text-retro-dim">{row.label}</p>
-      <div role="radiogroup" aria-label={row.label} className="flex flex-wrap gap-x-1 gap-y-0.5">
-        {colourOptions(row.key).map(c => {
+      <div role="radiogroup" aria-label={row.label} onKeyDown={onRadioGroupKeyDown} className="flex flex-wrap gap-x-1 gap-y-0.5">
+        {colourOptions(row.key).map((c, i, all) => {
           const on = c.id === selected
           const locked = isLocked(c.id)
           const badge = c.premium && selling ? tierBadge(optionInfo(row.key, c.id)) : null
@@ -363,6 +368,7 @@ function ColourRow({ row, selected, trying, onPick, isLocked, selling }) {
               role="radio"
               aria-checked={on}
               aria-label={badge ? `${c.label.toLowerCase()} (${badge.text.toLowerCase()}${locked ? ', locked' : ''})` : c.label.toLowerCase()}
+              tabIndex={i === tabStopIndex(all.map(o => o.id === selected)) ? 0 : -1}
               onClick={() => onPick(c.id)}
               className="relative min-w-11 min-h-11 flex items-center justify-center"
             >
@@ -393,8 +399,8 @@ function ClassicPanel({ current, onPick }) {
   return (
     <div className="space-y-3">
       <p className="font-pixel text-[8px] leading-relaxed text-retro-dim">THE ORIGINAL CRITTERS. THEY HAVE NO PARTS OR PETS.</p>
-      <div role="radiogroup" aria-label="Critter" className="grid grid-cols-6 gap-1.5">
-        {CREATURES.map(shape => {
+      <div role="radiogroup" aria-label="Critter" onKeyDown={onRadioGroupKeyDown} className="grid grid-cols-6 gap-1.5">
+        {CREATURES.map((shape, i) => {
           const selected = isCritter && parsed.shape === shape
           return (
             <button
@@ -403,6 +409,7 @@ function ClassicPanel({ current, onPick }) {
               role="radio"
               aria-checked={selected}
               aria-label={shape}
+              tabIndex={i === tabStopIndex(CREATURES.map(s => isCritter && parsed.shape === s)) ? 0 : -1}
               onClick={() => { sounds.move('X'); onPick(makeAvatar(shape, tone)) }}
               className={cn(
                 'aspect-square flex items-center justify-center rounded border-2 transition-all active:scale-95',
@@ -414,7 +421,7 @@ function ClassicPanel({ current, onPick }) {
           )
         })}
       </div>
-      <div role="radiogroup" aria-label="Colour" className="grid grid-cols-5 gap-y-1 justify-items-center">
+      <div role="radiogroup" aria-label="Colour" onKeyDown={onRadioGroupKeyDown} className="grid grid-cols-5 gap-y-1 justify-items-center">
         {TONES.map(t => {
           const on = t === tone
           return (
@@ -424,6 +431,7 @@ function ClassicPanel({ current, onPick }) {
               role="radio"
               aria-checked={on}
               aria-label={TONE_LABEL[t].toLowerCase()}
+              tabIndex={on ? 0 : -1}
               onClick={() => {
                 sounds.move('O')
                 setTone(t)

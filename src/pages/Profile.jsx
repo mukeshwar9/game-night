@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
 import PetSprite from '../components/PetSprite'
@@ -29,6 +29,8 @@ import PassStatus from '../components/premium/PassStatus'
 import { monetizationEnabled } from '../lib/monetizationState'
 import { cn } from '@/lib/utils'
 
+const DEEP_LINKS = { '#look': openAvatarStudio, '#pet': openPetPicker }
+
 export default function Profile() {
   const { profile, isAnonymous, upgrade, signOutToGuest, user } = useAuth()
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
@@ -49,15 +51,16 @@ export default function Profile() {
   // /profile#look and /profile#pet deep links open them straight away.
   const savedAvatar = canonicalAvatar(profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId()))
   const pet = petOf(savedAvatar)
+  // The router sees every entry (a link, a typed hash, back/forward), and the
+  // hash is dropped once used, so the same link opens the overlay again later.
+  const location = useLocation()
+  const navigate = useNavigate()
   useEffect(() => {
-    const open = () => {
-      if (window.location.hash === '#look') openAvatarStudio()
-      else if (window.location.hash === '#pet') openPetPicker()
-    }
+    const open = DEEP_LINKS[location.hash]
+    if (!open) return
     open()
-    window.addEventListener('hashchange', open)
-    return () => window.removeEventListener('hashchange', open)
-  }, [])
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: location.state })
+  }, [location, navigate])
   const stats = getStats()
   const matches = getMatches()
 

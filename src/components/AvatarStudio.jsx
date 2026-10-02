@@ -16,12 +16,23 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabi
 // draft until SAVE. CANCEL with unsaved changes asks once ("DISCARD?") before
 // throwing them away. The paywall can open on top (a locked item's UNLOCK): while
 // it is up, Escape and Tab belong to it.
+//
+// A save from elsewhere (another device) while the studio is open: an untouched
+// draft follows it; edits in progress are kept, with a notice offering the
+// newer saved look instead.
 export default function AvatarStudio({ saved, name, onClose }) {
   const [draft, setDraft] = useState(saved)
+  const [base, setBase] = useState(saved)
+  const [outsideSave, setOutsideSave] = useState(false)
   const [saving, runSave] = useBusy()
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const panelRef = useRef(null)
   const dirty = draft !== saved
+  if (saved !== base) {
+    setBase(saved)
+    if (draft === base) setDraft(saved)
+    setOutsideSave(draft !== base && draft !== saved)
+  }
 
   useModalHistory(onClose)
 
@@ -114,6 +125,30 @@ export default function AvatarStudio({ saved, name, onClose }) {
           </button>
         </div>
       </header>
+      {outsideSave && (
+        <div className="shrink-0 border-b border-retro-border bg-retro-surface">
+          <div role="status" className="max-w-3xl mx-auto px-4 py-1.5 flex items-center gap-2">
+            <p className="min-w-0 flex-1 font-pixel text-[8px] leading-relaxed text-retro-text">
+              SAVED ON ANOTHER DEVICE. <span className="text-retro-dim">YOUR EDITS ARE KEPT.</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => { setDraft(saved); setOutsideSave(false) }}
+              className="shrink-0 min-h-9 px-2 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-cta hover:border-retro-cta active:scale-95"
+            >
+              USE SAVED
+            </button>
+            <button
+              type="button"
+              onClick={() => setOutsideSave(false)}
+              aria-label="Dismiss notice"
+              className="shrink-0 min-h-9 min-w-9 px-2 rounded font-pixel text-[8px] text-retro-dim hover:text-retro-text active:scale-95"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
       <div className={cn('flex-1 overflow-y-auto overscroll-contain', saving && 'pointer-events-none opacity-60')}>
         <div className="max-w-3xl mx-auto px-4 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <AvatarPicker value={draft} onChange={setDraft} name={name} previewSize={144} wide />

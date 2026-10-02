@@ -14,6 +14,8 @@ import { monetizationEnabled } from '../lib/monetizationState'
 import { openPaywall } from '../lib/premiumUi'
 import { setProfile } from '../lib/social'
 import { sounds } from '../lib/sounds'
+import { onRadioGroupKeyDown } from '../lib/radioGroupKeys'
+import { tabStopIndex } from '../lib/rovingRadioLogic'
 import { cn } from '@/lib/utils'
 
 const PETS = petOptions()
@@ -29,6 +31,14 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
   const access = useAccess()
   const selling = monetizationEnabled()
   const [pet, setPet] = useState(petOf(saved))
+  // A save from elsewhere while the sheet is open: an untouched choice follows
+  // the new saved pet; a choice in progress stays. SAVE only writes the pet
+  // field over the latest saved look, so a look change made elsewhere survives.
+  const [basePet, setBasePet] = useState(petOf(saved))
+  if (petOf(saved) !== basePet) {
+    setBasePet(petOf(saved))
+    if (pet === basePet) setPet(petOf(saved))
+  }
   const [tryOn, setTryOn] = useState(null)
   const [saving, runSave] = useBusy()
   const kit = isKitAvatar(saved)
@@ -96,8 +106,8 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
             </div>
           </div>
 
-          <div role="radiogroup" aria-label="Pets" className="grid grid-cols-3 gap-2">
-            {PETS.map(p => {
+          <div role="radiogroup" aria-label="Pets" onKeyDown={onRadioGroupKeyDown} className="grid grid-cols-3 gap-2">
+            {PETS.map((p, i) => {
               const selected = p.id === pet
               const trying = p.id === tryOn
               const locked = Boolean(lockedItem(p.id))
@@ -109,6 +119,7 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
                   type="button"
                   role="radio"
                   aria-checked={selected}
+                  tabIndex={i === tabStopIndex(PETS.map(o => o.id === pet)) ? 0 : -1}
                   aria-label={showTier ? `${p.label} (${tierText}${locked ? ', locked' : ''})` : p.label}
                   onClick={() => pick(p.id)}
                   className={cn(

@@ -9,7 +9,9 @@ const AvatarStudio = lazyWithRetry(() => import('./AvatarStudio'))
 const PetPicker = lazyWithRetry(() => import('./PetPicker'))
 
 // Mounted once in App: renders the look editor or the pet sheet when the store
-// asks, seeded from the saved profile (localStorage mirror before it loads).
+// asks, seeded from the saved profile (localStorage mirror before it loads). They
+// are not keyed on the saved look: a save from another device while one is open
+// reaches it as a new `saved` prop, and it decides what to do with the draft.
 export default function AvatarStudioHost() {
   const ui = useSyncExternalStore(subscribeAvatarStudioUi, getAvatarStudioUi, getAvatarStudioUi)
   const { profile } = useAuth()
@@ -19,8 +21,8 @@ export default function AvatarStudioHost() {
   return (
     <Suspense fallback={null}>
       {ui.open === 'look'
-        ? <AvatarStudio key={saved} saved={saved} name={name} onClose={closeAvatarOverlay} />
-        : <PetPicker key={saved} saved={saved} onClose={closeAvatarOverlay} onEditLook={openAvatarStudio} />}
+        ? <AvatarStudio saved={saved} name={name} onClose={closeAvatarOverlay} />
+        : <PetPicker saved={saved} onClose={closeAvatarOverlay} onEditLook={openAvatarStudio} />}
     </Suspense>
   )
 }
