@@ -21,7 +21,7 @@ import {
   DEFAULT_MATCH_TARGET, otherSymbol, validateEntry, lieSecret, secretStorageKey, buildStoredSecret,
   parseStoredSecret, normalizeRound, toFirebaseRound, anchorRound, lockEntry, lockGuess, submitReveal,
   canEndWriting, canEndGuessing, canForfeitOpponentReveal, revealKey, verifyRoundReveals,
-  settleRevealedGame, settleStalledGame, advanceGame, autoAdvanceAt,
+  settleRevealedGame, settleStalledGame, advanceGame, autoAdvanceAt, topicForRound, nextStarter,
 } from '../lib/twoTruthsLogic'
 
 const SETTLE_RETRY_MS = 3000
@@ -42,8 +42,9 @@ function secondsLeft(since, deadlineMs, now) {
 }
 
 // --- Writer: three statements, mark the lie ---
-function StatementWriter({ onLock, busy }) {
+function StatementWriter({ onLock, busy, topic }) {
   const [statements, setStatements] = useState(['', '', ''])
+  const [inspireTaps, setInspireTaps] = useState(0)
   const [lieIndex, setLieIndex] = useState(null)
   const [error, setError] = useState('')
   const [errorId, setErrorId] = useState(0)
@@ -77,6 +78,22 @@ function StatementWriter({ onLock, busy }) {
     }
   }
 
+  // INSPIRE ME: a sentence starter for the round's topic in the first empty
+  // statement, with the caret at its end.
+  const emptyIndex = statements.findIndex(s => !s.trim())
+  const inspire = () => {
+    if (emptyIndex < 0) return
+    const starter = nextStarter(topic, statements, inspireTaps)
+    if (!starter) return
+    setStatement(emptyIndex, starter)
+    setInspireTaps(n => n + 1)
+    const field = fieldRefs.current[emptyIndex]
+    requestAnimationFrame(() => {
+      field?.focus()
+      field?.setSelectionRange(starter.length, starter.length)
+    })
+  }
+
   const handleSubmit = () => {
     const v = validateEntry(statements, lieIndex)
     if (!v.ok) {
@@ -98,6 +115,24 @@ function StatementWriter({ onLock, busy }) {
           2 truths and 1 lie — then mark the lie
         </p>
       </div>
+
+      {topic && (
+        <div className="flex items-center justify-between gap-3 rounded border-2 border-retro-cta/60 bg-retro-tint-cta px-3 py-2">
+          <div className="min-w-0">
+            <p className="font-pixel text-[8px] text-retro-dim tracking-widest">TOPIC</p>
+            <p className="font-pixel text-[11px] text-retro-cta tracking-wider">{topic.label}</p>
+            <p className="font-mono text-[10px] text-retro-dim">or anything about you</p>
+          </div>
+          <button
+            type="button"
+            onClick={inspire}
+            disabled={emptyIndex < 0}
+            className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta text-retro-cta font-pixel text-[9px] hover:bg-retro-card active:scale-95 disabled:opacity-40"
+          >
+            INSPIRE ME
+          </button>
+        </div>
+      )}
 
       <div className="space-y-3">
         {statements.map((s, i) => {
@@ -581,7 +616,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
         <div className="space-y-4">
           {header}
           {timeLine('WRITING TIME')}
-          <StatementWriter key={`write-${roundNum}`} onLock={handleLock} busy={locking} />
+          <StatementWriter key={`write-${roundNum}`} onLock={handleLock} busy={locking} topic={topicForRound(gameId, roundNum)} />
           <p className="font-pixel text-[9px] text-retro-dim text-center">
             {entries[opp] ? `${nameOf(opp)} HAS LOCKED IN ✓` : `${nameOf(opp)} IS WRITING…`}
           </p>
