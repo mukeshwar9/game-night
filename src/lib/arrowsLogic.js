@@ -22,6 +22,12 @@
 //     counter-clockwise). It flies to the board edge along its heading, turns
 //     90° once there, and runs along the edge until it leaves. Its route is
 //     both legs.
+//   • double — one C-shaped body with a head at each end, both pointing
+//     `dir` (orthogonal). It slides out as one piece, so its route is every
+//     cell swept ahead of its body: in front of both heads and inside its curve.
+// Any arrow may also be asleep (`sleep`): drawn hollow, it cannot leave until
+// an arrow touching it (side by side) has left. Waking only ever happens, so
+// the rule below still holds.
 // Every route is fixed by the board geometry, so clearing an arrow only ever
 // frees cells: a board can never become unsolvable, and a greedy solver that
 // keeps clearing any free arrow decides solvability exactly.
@@ -70,7 +76,9 @@ export const ARROWS_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [
 export const ARROWS_DIR_NAMES = ['up', 'right', 'down', 'left', 'up-right', 'down-right', 'down-left', 'up-left']
 
 export const isDiagonal = (arrow) => arrow.dir >= 4
-export const isCurved = (arrow) => arrow.dir < 4 && (arrow.turn === 1 || arrow.turn === -1)
+export const isCurved = (arrow) => arrow.dir < 4 && (arrow.turn === 1 || arrow.turn === -1) && !arrow.double
+export const isDouble = (arrow) => arrow.double === true
+export const isSleeper = (arrow) => arrow.sleep === true
 // A diagonal arrow whose body is not one straight diagonal run: at least one
 // step of it differs from the heading.
 export const isBent = (arrow) => {
@@ -170,6 +178,57 @@ function routeFrom(cols, rows, head, dir, turn) {
   return { cells, corners, finalDir }
 }
 
+// A double arrow's route: every cell swept ahead of its body along `dir`,
+// minus its own cells, in body order. `dist[k]` is the number of empty cells
+// between that cell and the body on its lane (the bump distance).
+function doubleRoute(cols, rows, cellIdx, dir) {
+  const own = new Set(cellIdx)
+  const at = new Map()
+  const cells = []
+  const dist = []
+  for (const c of cellIdx) {
+    let lastOwn = -1
+    rayCells(cols, rows, c % cols, Math.floor(c / cols), dir).forEach((rc, k) => {
+      if (own.has(rc)) { lastOwn = k; return }
+      const gap = k - lastOwn - 1
+      if (at.has(rc)) {
+        dist[at.get(rc)] = Math.min(dist[at.get(rc)], gap)
+        return
+      }
+      at.set(rc, cells.length)
+      cells.push(rc)
+      dist.push(gap)
+    })
+  }
+  return { cells, corners: cells.map(() => -1), finalDir: dir, dist }
+}
+
+// Grow a double arrow from head A at `head` pointing `dir`: a prong of 1–2
+// cells behind each head, joined by a spine 1–2 cells long on one side.
+// Returns cell indexes A → B, or null when it does not fit.
+function growDouble(spec, occ, head, dir, rng) {
+  const { cols, rows } = spec
+  const arm = 1 + Math.floor(rng() * 2)
+  const gap = 1 + Math.floor(rng() * 2)
+  const side = rng() < 0.5 ? 1 : 3
+  const [dx, dy] = ARROWS_DIRS[dir]
+  const [px, py] = ARROWS_DIRS[(dir + side) % 4]
+  let x = head % cols
+  let y = Math.floor(head / cols)
+  const out = [[x, y]]
+  for (let k = 0; k < arm; k += 1) { x -= dx; y -= dy; out.push([x, y]) }
+  for (let k = 0; k < gap; k += 1) { x += px; y += py; out.push([x, y]) }
+  for (let k = 0; k < arm; k += 1) { x += dx; y += dy; out.push([x, y]) }
+  const idx = []
+  for (const [u, v] of out) {
+    if (u < 0 || v < 0 || u >= cols || v >= rows) return null
+    const c = v * cols + u
+    if (occ[c] !== -1) return null
+    idx.push(c)
+  }
+  return idx
+}
+
 // Routes are pure functions of board size + arrow, cached per arrow object.
 const routeCache = new WeakMap()
 
@@ -177,7 +236,9 @@ export function arrowRoute(level, arrow) {
   const hit = routeCache.get(arrow)
   if (hit && hit.cols === level.cols && hit.rows === level.rows) return hit.route
   const [hx, hy] = arrow.cells[arrow.cells.length - 1]
-  const route = routeFrom(level.cols, level.rows, hy * level.cols + hx, arrow.dir, arrow.turn)
+  const route = arrow.double
+    ? doubleRoute(level.cols, level.rows, arrow.cells.map(([x, y]) => y * level.cols + x), arrow.dir)
+    : routeFrom(level.cols, level.rows, hy * level.cols + hx, arrow.dir, arrow.turn)
   routeCache.set(arrow, { cols: level.cols, rows: level.rows, route })
   return route
 }
@@ -338,23 +399,99 @@ function growBentDiagonal(spec, occ, corners, head, dir, rng, banned, routeCorne
 // into a full generator spec.
 function resolveSpec(tier) {
   if (tier && typeof tier === 'object') {
-    return { samples: 8, diag: 0, curve: 0, bend: 0, ...tier, name: tier.name ?? 'custom' }
+    return { samples: 8, diag: 0, curve: 0, bend: 0, deep: 0, sleepers: 0, doubles: 0, ...tier, name: tier.name ?? 'custom' }
   }
   const name = ARROWS_TIER_SPECS[tier] ? tier : 'easy'
-  return { samples: 8, diag: 0, curve: 0, bend: 0, ...ARROWS_TIER_SPECS[name], name }
+  return { samples: 8, diag: 0, curve: 0, bend: 0, deep: 0, sleepers: 0, doubles: 0, ...ARROWS_TIER_SPECS[name], name }
+}
+
+// Arrows touching each arrow side by side at the start (cached per level).
+// A sleeping arrow wakes once any of them has left.
+const neighborCache = new WeakMap()
+export function neighborsOf(level) {
+  const hit = neighborCache.get(level)
+  if (hit) return hit
+  const occ = occupancy(level, Array(level.arrows.length).fill(false))
+  const nb = level.arrows.map((a, i) => {
+    const set = new Set()
+    for (const [x, y] of a.cells) {
+      for (const [dx, dy] of ARROWS_DIRS.slice(0, 4)) {
+        const u = x + dx
+        const v = y + dy
+        if (u < 0 || v < 0 || u >= level.cols || v >= level.rows) continue
+        const o = occ[v * level.cols + u]
+        if (o !== -1 && o !== i) set.add(o)
+      }
+    }
+    return [...set]
+  })
+  neighborCache.set(level, nb)
+  return nb
+}
+
+// Is arrow `index` awake? Arrows that never slept always are.
+export function isAwake(level, gone, index) {
+  if (!level.arrows[index].sleep) return true
+  return neighborsOf(level)[index].some((j) => gone?.[j])
+}
+
+// The greedy wave (1-based) each arrow leaves in; 0 if it never does.
+function wavesOf(level) {
+  const wave = Array(level.arrows.length).fill(0)
+  let gone = Array(level.arrows.length).fill(false)
+  for (let w = 1; ; w += 1) {
+    const free = freeArrows(level, gone)
+    if (!free.length) break
+    gone = gone.slice()
+    for (const i of free) { gone[i] = true; wave[i] = w }
+  }
+  return wave
+}
+
+// Put up to `count` arrows to sleep. Each pick looks free early but every
+// arrow touching it leaves later than it otherwise would, so it really has
+// to wait; it is kept only while the solver still clears the board.
+function placeSleepers(level, count, rng) {
+  const nb = neighborsOf(level)
+  for (let n = 0; n < count; n += 1) {
+    const wave = wavesOf(level)
+    const cands = level.arrows.map((_, i) => i)
+      .filter((i) => !level.arrows[i].sleep && nb[i].length > 0)
+      .map((i) => ({ i, gain: Math.min(...nb[i].map((j) => wave[j])) + 1 - wave[i] }))
+      .filter((c) => c.gain > 0)
+    cands.sort((p, q) => q.gain - p.gain || rng() - 0.5)
+    let done = false
+    for (const { i } of cands.slice(0, 8)) {
+      level.arrows[i].sleep = true
+      if (solveArrows(level).solvable) { done = true; break }
+      delete level.arrows[i].sleep
+    }
+    if (!done) break
+  }
 }
 
 // Deterministically generate the board for `seed` at `tier` (a tier name or
 // a spec object like ARROWS_TIER_SPECS' entries).
-// Returns { seed, tier, cols, rows, arrows: [{ cells: [[x, y], …], dir, turn? }] }.
+// Returns { seed, tier, cols, rows, arrows: [{ cells: [[x, y], …], dir, turn?, sleep?, double? }] }.
+// Spec knobs beyond the race tiers (solo levels 21+): `deep` biases head
+// picks toward long chains of arrows waiting on each other, `doubles` grows
+// that many double arrows, `sleepers` puts that many arrows to sleep.
 /**
  * @param {number} seed
  * @param {string | Record<string, any>} [tier]
  */
 export function generateArrowsLevel(seed, tier = 'easy') {
   const spec = resolveSpec(tier)
-  const { cols, rows, fill, samples, diag, curve, bend } = spec
+  const { cols, rows, fill, samples, diag, curve, bend, deep } = spec
   const rng = seededRng(seed)
+  // Sleepers draw from a second stream so the main one stays untouched.
+  const rng2 = seededRng(seed ^ 0x5bd1e995)
+  // deep: cell -> arrows whose route crosses it, and each arrow's chain depth
+  // (the longest run of earlier arrows that will wait on it).
+  const routeOwners = Array.from({ length: cols * rows }, () => [])
+  const downOf = []
+  const nDoubles = spec.doubles
+  let doublesLeft = nDoubles
   const occ = new Int16Array(cols * rows).fill(-1)
   const corners = new Int16Array((cols + 1) * (rows + 1)).fill(-1)
   const arrows = []
@@ -374,6 +511,38 @@ export function generateArrowsLevel(seed, tier = 'easy') {
       const r = rng()
       kind = r < diag ? 'diag' : r < diag + curve ? 'curve' : 'straight'
     }
+    // Double arrows come at fixed points in the fill, so a level gets exactly
+    // spec.doubles of them when they fit. Like any arrow, a double's whole
+    // route must avoid every earlier arrow.
+    if (doublesLeft > 0 && filled >= (goal * (nDoubles - doublesLeft + 1)) / (nDoubles + 2)) {
+      let dpick = null
+      let dbest = -1
+      for (let k = 0; k < samples * 2; k += 1) {
+        const head = empty[Math.floor(rng() * empty.length)]
+        for (const d of shuffled([0, 1, 2, 3], rng)) {
+          const body = growDouble(spec, occ, head, d, rng)
+          if (!body) continue
+          const route = doubleRoute(cols, rows, body, d)
+          if (routeBlocked(route, occ, corners)) continue
+          let down = 1
+          if (deep) for (const c of body) for (const j of routeOwners[c]) down = Math.max(down, downOf[j] + 1)
+          const score = route.cells.length + deep * 8 * down
+          if (score > dbest) { dpick = { body, d, route, down }; dbest = score }
+        }
+      }
+      if (dpick) {
+        const index = arrows.length
+        for (const c of dpick.body) occ[c] = index
+        filled += dpick.body.length
+        if (deep) {
+          downOf.push(dpick.down)
+          for (const c of dpick.route.cells) routeOwners[c].push(index)
+        }
+        arrows.push({ cells: dpick.body.map((c) => [c % cols, Math.floor(c / cols)]), dir: dpick.d, double: true })
+        doublesLeft -= 1
+        continue
+      }
+    }
     // Sample a few candidate heads and keep the one with the longest exit
     // route: long routes get crossed by later arrows, which is what makes a
     // board a puzzle instead of a free-for-all.
@@ -385,7 +554,7 @@ export function generateArrowsLevel(seed, tier = 'easy') {
       for (const d of shuffled(dirs, rng)) {
         const turn = kind === 'curve' ? (rng() < 0.5 ? 1 : -1) : undefined
         const route = routeFrom(cols, rows, head, d, turn)
-        if (route.cells.length <= best) continue
+        if (!deep && route.cells.length <= best) continue
         // A curve must have somewhere to run after its turn (not a corner),
         // or its hook would mean nothing.
         if (kind === 'curve' && route.cells.length === rayCells(cols, rows, head % cols, Math.floor(head / cols), d).length) continue
@@ -407,7 +576,12 @@ export function generateArrowsLevel(seed, tier = 'easy') {
             ? growStraight(spec, occ, head, d, rng, banned)
             : growArrow(spec, occ, head, d, rng, banned)
         }
-        if (grown) { pick = { path: grown, dir: d, turn }; best = route.cells.length }
+        if (grown && deep) {
+          let down = 1
+          for (const c of grown) for (const j of routeOwners[c]) down = Math.max(down, downOf[j] + 1)
+          const score = route.cells.length + deep * 8 * down
+          if (score > best) { pick = { path: grown, dir: d, turn, down, route }; best = score }
+        } else if (grown) { pick = { path: grown, dir: d, turn, route }; best = route.cells.length }
       }
     }
     if (!pick) { fails += 1; continue }
@@ -420,12 +594,18 @@ export function generateArrowsLevel(seed, tier = 'easy') {
       }
     }
     filled += path.length
+    if (deep) {
+      downOf.push(pick.down)
+      for (const c of pick.route.cells) routeOwners[c].push(index)
+    }
     const arrow = { cells: path.map((c) => [c % cols, Math.floor(c / cols)]), dir: pick.dir }
     if (pick.turn) arrow.turn = pick.turn
     arrows.push(arrow)
   }
 
-  return { seed, tier: spec.name, cols, rows, arrows }
+  const level = { seed, tier: spec.name, cols, rows, arrows }
+  if (spec.sleepers) placeSleepers(level, spec.sleepers, rng2)
+  return level
 }
 
 // Cell → arrow-index map of the arrows still on the board (-1 = empty).
@@ -460,15 +640,19 @@ export function arrowAtCell(level, gone, x, y) {
   return occupancy(level, gone)[y * level.cols + x]
 }
 
-function checkAgainst(level, occ, corners, index) {
-  const route = arrowRoute(level, level.arrows[index])
+function checkAgainst(level, occ, corners, index, gone) {
+  const arrow = level.arrows[index]
+  if (arrow.sleep && !isAwake(level, gone, index)) {
+    return { free: false, blocker: neighborsOf(level)[index][0] ?? -1, gap: 0, asleep: true }
+  }
+  const route = arrowRoute(level, arrow)
   for (let k = 0; k < route.cells.length; k += 1) {
     const corner = route.corners[k]
     if (corner >= 0 && corners[corner] !== -1 && corners[corner] !== index) {
       return { free: false, blocker: corners[corner], gap: k }
     }
     const owner = occ[route.cells[k]]
-    if (owner !== -1) return { free: false, blocker: owner, gap: k }
+    if (owner !== -1) return { free: false, blocker: owner, gap: route.dist ? route.dist[k] : k }
   }
   return { free: true, blocker: -1, gap: route.cells.length }
 }
@@ -477,18 +661,19 @@ function checkAgainst(level, occ, corners, index) {
 // number of empty route cells between its head and the first blocker (or
 // the edge).
 export function exitCheck(level, gone, index) {
-  return checkAgainst(level, occupancy(level, gone), cornerOccupancy(level, gone), index)
+  return checkAgainst(level, occupancy(level, gone), cornerOccupancy(level, gone), index, gone)
 }
 
 // Apply a tap on arrow `index`. Returns null for a no-op (bad index, arrow
 // already gone, or no lives left); otherwise the new { gone, lives } plus the
-// tap result ('cleared' | 'blocked') and, when blocked, the blocker + gap.
+// tap result ('cleared' | 'blocked') and, when blocked, the blocker + gap
+// (`asleep` when it was a sleeping arrow that no neighbour has woken yet).
 export function applyArrowTap(level, gone, lives, index) {
   if (!level || index < 0 || index >= level.arrows.length) return null
   if (gone[index] || lives <= 0) return null
   const check = exitCheck(level, gone, index)
   if (!check.free) {
-    return { gone, lives: lives - 1, result: 'blocked', blocker: check.blocker, gap: check.gap }
+    return { gone, lives: lives - 1, result: 'blocked', blocker: check.blocker, gap: check.gap, asleep: !!check.asleep }
   }
   const next = [...gone]
   next[index] = true
@@ -511,7 +696,7 @@ export function freeArrows(level, gone) {
   const corners = cornerOccupancy(level, gone)
   const out = []
   level.arrows.forEach((_, i) => {
-    if (!gone[i] && checkAgainst(level, occ, corners, i).free) out.push(i)
+    if (!gone[i] && checkAgainst(level, occ, corners, i, gone).free) out.push(i)
   })
   return out
 }
@@ -547,11 +732,13 @@ export function levelStats(level) {
   const diagonals = level.arrows.filter(isDiagonal).length
   const curves = level.arrows.filter(isCurved).length
   const bent = level.arrows.filter(isBent).length
+  const sleepers = level.arrows.filter((a) => a.sleep).length
+  const doubles = level.arrows.filter(isDouble).length
   // Arrow count and depth carry most of the weight; a scarce opening and
   // every twist arrow (two routes to read instead of one) add a little.
   const openness = n > 0 ? initialFree / n : 1
-  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + bent + curves * 3)
-  return { solvable, arrows: n, layers, initialFree, diagonals, bent, curves, difficulty }
+  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + bent + curves * 3 + sleepers * 3 + doubles * 4)
+  return { solvable, arrows: n, layers, initialFree, diagonals, bent, curves, sleepers, doubles, difficulty }
 }
 
 // Firebase stores each player's cleared arrows as a map { "12": true }; it
@@ -683,6 +870,17 @@ export function leavePose(arrow, size, travel, level = null) {
   const reach = travel + size
   pts.push([end[0] + (vx / norm) * reach, end[1] + (vy / norm) * reach])
   return slicePolyline(pts, travel, travel + length)
+}
+
+// The arrow's pose after sliding `travel` units: a double arrow moves as one
+// rigid piece along its heading; every other arrow slithers (leavePose).
+export function arrowPose(arrow, size, travel, level = null) {
+  if (!arrow.double) return leavePose(arrow, size, travel, level)
+  const [dx, dy] = ARROWS_DIRS[arrow.dir]
+  return arrow.cells.map((c) => {
+    const [x, y] = cellCenter(c, size)
+    return [x + dx * travel, y + dy * travel]
+  })
 }
 
 export function polylineLength(points) {

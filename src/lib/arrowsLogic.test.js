@@ -28,6 +28,11 @@ import {
   ARROWS_TIERS,
   ARROWS_TIER_SPECS,
   arrowRoute,
+  arrowPose,
+  isAwake,
+  isDouble,
+  isSleeper,
+  neighborsOf,
   isBent,
   cornerOccupancy,
   getArrowsDifficulty,
@@ -714,6 +719,129 @@ describe('curved diagonal arrows', () => {
       const next = new Set(freeArrows(level, gone))
       for (const f of free) if (f !== i) expect(next.has(f)).toBe(true)
       free = next
+    }
+  })
+})
+
+describe('sleeping arrows', () => {
+  // 4×4: arrow 0 points up with a clear path but is asleep; arrow 1 touches
+  // it and is free; arrow 2 is free and touches nothing of arrow 0.
+  const board = () => ({
+    cols: 4, rows: 4,
+    arrows: [
+      { cells: [[1, 3], [1, 2]], dir: 0, sleep: true },
+      { cells: [[2, 2], [3, 2]], dir: 1 },
+      { cells: [[2, 0], [3, 0]], dir: 1 },
+    ],
+  })
+
+  it('waits until an arrow touching it leaves, even with a clear path', () => {
+    const level = board()
+    expect(neighborsOf(level)[0]).toEqual([1])
+    expect(isAwake(level, [false, false, false], 0)).toBe(false)
+    const tap = applyArrowTap(level, [false, false, false], 3, 0)
+    expect(tap.result).toBe('blocked')
+    expect(tap.asleep).toBe(true)
+    expect(tap.blocker).toBe(1)
+    expect(tap.lives).toBe(2)
+    // Clearing an arrow that does not touch it changes nothing.
+    expect(exitCheck(level, [false, false, true], 0).free).toBe(false)
+    // Its neighbour leaving wakes it.
+    expect(isAwake(level, [false, true, false], 0)).toBe(true)
+    expect(applyArrowTap(level, [false, true, false], 3, 0).result).toBe('cleared')
+  })
+
+  it('still needs a clear route once awake', () => {
+    const level = board()
+    level.arrows.push({ cells: [[1, 0], [0, 0]], dir: 3 }) // sits on arrow 0's route
+    expect(exitCheck(level, [false, true, false, false], 0)).toMatchObject({ free: false, blocker: 3 })
+    expect(exitCheck(level, [false, true, false, true], 0).free).toBe(true)
+  })
+
+  it('the solver sees through it, and a sleeper with nothing to wake it is a dead end', () => {
+    expect(solveArrows(board()).solvable).toBe(true)
+    expect(solveArrows(board()).layers).toBe(2)
+    const lonely = { cols: 3, rows: 3, arrows: [{ cells: [[1, 2], [1, 1]], dir: 0, sleep: true }] }
+    expect(solveArrows(lonely).solvable).toBe(false)
+  })
+
+  it('the generator places exactly the sleepers asked for, keeps boards solvable, and draws none by default', () => {
+    for (let seed = 1; seed <= 25; seed += 1) {
+      const spec = { cols: 9, rows: 12, maxLen: 7, fill: 0.9, samples: 11, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.5, sleepers: 2, name: 'x' }
+      const level = generateArrowsLevel(seed, spec)
+      expect(solveArrows(level).solvable, `seed ${seed}`).toBe(true)
+      expect(level.arrows.filter(isSleeper).length, `seed ${seed}`).toBeLessThanOrEqual(2)
+      const st = levelStats(level)
+      expect(st.sleepers).toBe(level.arrows.filter(isSleeper).length)
+      expect(generateArrowsLevel(seed, 'hard').arrows.some(isSleeper)).toBe(false)
+    }
+  })
+})
+
+describe('double arrows', () => {
+  // 4×5: a C-shaped double arrow with heads at (2,1) and (2,3), both pointing
+  // right; arrow 2 sits ahead of the lower head.
+  const board = () => ({
+    cols: 4, rows: 5,
+    arrows: [
+      { cells: [[2, 1], [1, 1], [1, 2], [1, 3], [2, 3]], dir: 1, double: true },
+      { cells: [[0, 0], [1, 0]], dir: 1 },
+      { cells: [[3, 4], [3, 3]], dir: 0 },
+    ],
+  })
+  const idx = (level, x, y) => y * level.cols + x
+
+  it('its route is every cell swept ahead of its body: both heads and inside the curve', () => {
+    const level = board()
+    const route = arrowRoute(level, level.arrows[0])
+    expect([...route.cells].sort((a, b) => a - b)).toEqual([idx(level, 3, 1), idx(level, 2, 2), idx(level, 3, 2), idx(level, 3, 3)].sort((a, b) => a - b))
+    expect(isDouble(level.arrows[0])).toBe(true)
+    expect(isCurved(level.arrows[0])).toBe(false)
+  })
+
+  it('is blocked by anything in front of either head or inside its curve, and leaves whole', () => {
+    const level = board()
+    const tap = applyArrowTap(level, [false, false, false], 3, 0)
+    expect(tap).toMatchObject({ result: 'blocked', blocker: 2, gap: 0 })
+    // Something inside the curve blocks it too.
+    const inside = board()
+    inside.arrows[2] = { cells: [[3, 2], [2, 2]], dir: 3 }
+    expect(exitCheck(inside, [false, false, false], 0)).toMatchObject({ free: false, blocker: 2 })
+    const cleared = applyArrowTap(level, [false, false, true], 3, 0)
+    expect(cleared.result).toBe('cleared')
+    expect(cleared.gone).toEqual([true, false, true])
+    expect(solveArrows(board()).solvable).toBe(true)
+  })
+
+  it('slides out as one rigid piece', () => {
+    const arrow = board().arrows[0]
+    const rest = arrowPose(arrow, 10, 0)
+    const moved = arrowPose(arrow, 10, 7)
+    expect(moved).toHaveLength(rest.length)
+    moved.forEach(([x, y], k) => {
+      expect(x).toBeCloseTo(rest[k][0] + 7)
+      expect(y).toBeCloseTo(rest[k][1])
+    })
+  })
+
+  it('the generator grows exactly the doubles asked for, C-shaped, and boards stay solvable', () => {
+    for (let seed = 1; seed <= 25; seed += 1) {
+      const spec = { cols: 9, rows: 12, maxLen: 7, fill: 0.9, samples: 11, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.5, doubles: 2, name: 'x' }
+      const level = generateArrowsLevel(seed, spec)
+      expect(solveArrows(level).solvable, `seed ${seed}`).toBe(true)
+      const doubles = level.arrows.filter(isDouble)
+      expect(doubles.length, `seed ${seed}`).toBe(2)
+      for (const d of doubles) {
+        expect(d.dir).toBeLessThan(4)
+        expect(d.cells.length).toBeGreaterThanOrEqual(4)
+        expect(d.cells.length).toBeLessThanOrEqual(7)
+        // Both ends are heads pointing `dir`: each end's neighbour sits straight behind it.
+        const [dx, dy] = ARROWS_DIRS[d.dir]
+        const [a, a1] = d.cells
+        const [b, b1] = [d.cells.at(-1), d.cells.at(-2)]
+        expect([a[0] - a1[0], a[1] - a1[1]]).toEqual([dx, dy])
+        expect([b[0] - b1[0], b[1] - b1[1]]).toEqual([dx, dy])
+      }
     }
   })
 })
