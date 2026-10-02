@@ -26,6 +26,7 @@ conventions** below — read this file first.
 | [dice-big.md](dice-big.md) | Pig Big (2 dice) | dicebluff | 2 | registry + `applyMove` (`variantOf` Pig) | RTDB + Pig seed | S/M | P2 |
 | [tictactoe4.md](tictactoe4.md) | Tic Tac Toe 4×4 | board | 2 | standard registry (`variantOf` TTT) | RTDB | S | P2 |
 | [ludo.md](ludo.md) | Ludo (fair dice, QUICK / CLASSIC) | board | 2–4 + solo | custom nPlayer page + `LocalPage` | RTDB (commit–reveal seed + move replay) | L | Parked |
+| [snakes-and-ladders.md](snakes-and-ladders.md) | Snakes & Ladders (+ TWO DICE variant) | dicebluff | 2–4 | custom party page + `LocalPage` (solo, pass-and-play) | RTDB (append-only roll log, server-timestamp dice) | M | Parked |
 
 ### Co-op wave (two players, one team)
 
