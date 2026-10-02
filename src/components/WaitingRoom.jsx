@@ -18,12 +18,14 @@ import { cn } from '@/lib/utils'
 import { ARCHERY_FORMATS, archeryFormat } from '../lib/archeryLogic'
 import { recordFunnel } from '../lib/analytics'
 import { shareUrl } from '../lib/platform'
+import { waitingForLabel } from '../lib/roomLogic'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
 
 export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch, opponentOnline }) {
   const inviteUrl = shareUrl(`/game/${gameId}`)
   const label = getGameConfig(gameType)?.label
+  const waitingFor = waitingForLabel(!!getGameConfig(gameType)?.coop)
   const [showInvite, setShowInvite] = useState(false)
   const [showQr, setShowQr] = useState(false)
   const [matchLengthBusy, setMatchLengthBusy] = useState(false)
@@ -182,7 +184,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
       {/* Status text */}
       <div className="text-center space-y-1">
         <p className="font-pixel text-xs text-retro-text">
-          {readyToPlay ? 'READY TO PLAY' : 'WAITING FOR OPPONENT'}
+          {readyToPlay ? 'READY TO PLAY' : waitingFor}
         </p>
         {/* The room line above already names the game (lobbies show it in
             their GAME row), and SHARE INVITE LINK says what to do next, so a
@@ -279,7 +281,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
               className="w-full min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
                 hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
             >
-              {startBusy ? 'STARTING…' : bothSeated ? 'START GAME' : 'WAITING FOR OPPONENT'}
+              {startBusy ? 'STARTING…' : bothSeated ? 'START GAME' : waitingFor}
             </button>
           ) : (
             <p className="font-pixel text-[8px] text-retro-dim/70">WAITING FOR A PLAYER TO START</p>

@@ -248,7 +248,7 @@ export default function Game() {
   // tab title — 2P rooms speak for the seat, party rooms for the uid.
   const isPartyRoom = !!(game && getGameConfig(game.gameType).nPlayer)
   const turnMe = isPartyRoom ? getPlayerId() : mySeat
-  const announcement = roomAnnouncement(game, { me: turnMe, party: isPartyRoom })
+  const announcement = roomAnnouncement(game, { me: turnMe, party: isPartyRoom, coop: !!(game && getGameConfig(game.gameType).coop) })
   useTurnTitle(isMyTurn(game, turnMe))
   // Background music follows the room: waiting loop, the game's genre loop
   // while playing, the results loop once a round ends.
