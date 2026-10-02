@@ -1,13 +1,19 @@
 // @ts-check
-// Arrows solo — the 20-level campaign, endless boards and progress. Pure
+// Arrows solo — the 40-level campaign, endless boards and progress. Pure
 // logic: no DOM, no Firebase, no React (storage lives in arrowsProgress.js).
 //
 // Every level is a generator spec (hand-set shape and twists) plus a seed
-// picked by scripts/pick-arrows-levels.mjs so the difficulty score climbs
-// level by level. The generator guarantees solvability by construction and
-// arrowsLevelsLogic.test.js re-checks every level with the solver.
+// picked by scripts/pick-arrows-levels.mjs. Levels 1–20 climb steadily and
+// are generated from their seed on demand. Levels 21–40 come in two chapters
+// that each open on a lighter lesson board and then climb past the previous
+// chapter's last level (a sawtooth); their finished boards are baked into
+// arrowsLevelsBaked.js so a later generator change can never reshape a
+// level players have already starred. The generator guarantees solvability
+// by construction and arrowsLevelsLogic.test.js re-checks every level with
+// the solver.
 
-import { ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, solveArrows } from './arrowsLogic.js'
+import { ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, solveArrows } from './arrowsLogic.js'
+import { ARROWS_BAKED_LEVELS as BAKED } from './arrowsLevelsBaked.js'
 
 // Shape of each level. Levels 1–5 teach the core rule on small boards;
 // straight diagonal arrows arrive at level 6, their curved-body cousins at
@@ -16,6 +22,11 @@ import { ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDi
 // `samples` is the generator's look-ahead — more means fewer arrows free at
 // the start. `bend` is the share of diagonals that get a curved body. `intro`
 // marks the level that introduces a twist.
+// From level 21 the boards stay at most 10 × 13 and get harder through depth
+// instead: `deep` biases the generator toward long chains of arrows waiting
+// on each other, and a few special pieces arrive one chapter at a time —
+// sleeping arrows (21–30), then double arrows (31–40). Special pieces stay
+// sparse on purpose: one on a lesson board, a handful on a chapter's last.
 export const ARROWS_LEVEL_SPECS = [
   { cols: 5, rows: 6, maxLen: 3, fill: 0.62, samples: 2 },
   { cols: 5, rows: 7, maxLen: 3, fill: 0.7, samples: 3 },
@@ -37,13 +48,48 @@ export const ARROWS_LEVEL_SPECS = [
   { cols: 9, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9 },
   { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9 },
   { cols: 10, rows: 13, maxLen: 9, fill: 0.92, samples: 14, diag: 0.18, curve: 0.2, bend: 0.9 },
+  // Chapter 3 · sleeping arrows
+  { cols: 8, rows: 10, maxLen: 6, fill: 0.86, samples: 9, diag: 0.12, curve: 0.12, bend: 0.9, deep: 0.3, sleepers: 1, intro: 'sleep' },
+  { cols: 8, rows: 11, maxLen: 6, fill: 0.87, samples: 9, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.3, sleepers: 1 },
+  { cols: 8, rows: 11, maxLen: 7, fill: 0.88, samples: 10, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.4, sleepers: 1 },
+  { cols: 9, rows: 11, maxLen: 7, fill: 0.88, samples: 10, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.4, sleepers: 2 },
+  { cols: 9, rows: 12, maxLen: 7, fill: 0.9, samples: 11, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.5, sleepers: 2 },
+  { cols: 9, rows: 12, maxLen: 8, fill: 0.9, samples: 11, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.5, sleepers: 2 },
+  { cols: 9, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.6, sleepers: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.6, sleepers: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.91, samples: 13, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.7, sleepers: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.91, samples: 14, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.8, sleepers: 3 },
+  // Chapter 4 · double arrows
+  { cols: 8, rows: 10, maxLen: 6, fill: 0.86, samples: 9, diag: 0.12, curve: 0.1, bend: 0.9, deep: 0.3, doubles: 1, intro: 'double' },
+  { cols: 8, rows: 11, maxLen: 6, fill: 0.87, samples: 10, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.3, doubles: 1 },
+  { cols: 9, rows: 11, maxLen: 7, fill: 0.88, samples: 10, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.4, doubles: 1 },
+  { cols: 9, rows: 12, maxLen: 7, fill: 0.9, samples: 11, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.4, sleepers: 1, doubles: 1 },
+  { cols: 9, rows: 12, maxLen: 8, fill: 0.9, samples: 11, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.5, doubles: 2 },
+  { cols: 9, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.6, sleepers: 1, doubles: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.6, sleepers: 1, doubles: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 13, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.7, sleepers: 1, doubles: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.91, samples: 13, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.8, sleepers: 1, doubles: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.91, samples: 14, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.9, sleepers: 2, doubles: 2 },
+]
+
+// Chapters in the level list (level select headers). `steady` chapters climb
+// level by level; the others open on a lesson board and climb from there.
+export const ARROWS_CHAPTERS = [
+  { name: 'BASICS', from: 1, to: 20 },
+  { name: 'SLEEPING ARROWS', from: 21, to: 30 },
+  { name: 'DOUBLE ARROWS', from: 31, to: 40 },
 ]
 
 // Picked by scripts/pick-arrows-levels.mjs — rerun it after changing a spec.
 export const ARROWS_LEVEL_SEEDS = [
   63, 296, 825, 472, 9, 71, 46, 59, 5, 515,
   92, 1066, 126, 733, 966, 740, 2141, 360, 316, 2221,
+  1, 31, 2, 47, 4, 59, 19, 83, 84, 135,
+  47, 2, 7, 54, 79, 28, 21, 153, 136, 129,
 ]
+
+// Levels generated live from their seed; the rest come from BAKED.
+export const ARROWS_GENERATED_LEVELS = 20
 
 export const ARROWS_LEVEL_COUNT = ARROWS_LEVEL_SPECS.length
 
@@ -52,6 +98,8 @@ export const ARROWS_TWIST_TIPS = {
   diag: 'NEW · DIAGONAL ARROWS FLY CORNER TO CORNER — ONLY CELLS ON THEIR DIAGONAL BLOCK THEM.',
   bend: 'NEW · CURVED DIAGONALS BEND LIKE A SNAKE, BUT THE HEAD STILL FLIES STRAIGHT ALONG ITS DIAGONAL.',
   curve: 'NEW · HOOKED ARROWS FLY TO THE EDGE, TURN ONCE THE WAY THE HOOK POINTS, THEN RUN ALONG IT.',
+  sleep: 'NEW · HOLLOW ARROWS ARE ASLEEP — ONE WAKES WHEN AN ARROW TOUCHING IT LEAVES.',
+  double: 'NEW · DOUBLE ARROWS SLIDE OUT AS ONE PIECE — CLEAR THE WAY FOR BOTH HEADS AND INSIDE THE CURVE.',
 }
 
 // An intro level must actually show its twist a few times.
@@ -61,6 +109,8 @@ export function levelMeetsIntro(spec, level) {
   if (spec.intro === 'diag') return level.arrows.filter(isDiagonal).length >= 2
   if (spec.intro === 'bend') return level.arrows.filter(isBent).length >= 2
   if (spec.intro === 'curve') return level.arrows.filter(isCurved).length >= 2
+  if (spec.sleepers && level.arrows.filter(isSleeper).length < spec.sleepers) return false
+  if (spec.doubles && level.arrows.filter(isDouble).length < spec.doubles) return false
   return true
 }
 
@@ -70,8 +120,11 @@ const levelCache = new Map()
 export function getArrowsLevel(n) {
   if (!Number.isInteger(n) || n < 1 || n > ARROWS_LEVEL_COUNT) return null
   if (!levelCache.has(n)) {
-    const spec = { ...ARROWS_LEVEL_SPECS[n - 1], name: `level-${n}` }
-    levelCache.set(n, generateArrowsLevel(ARROWS_LEVEL_SEEDS[n - 1], spec))
+    const name = `level-${n}`
+    const baked = BAKED[n]
+    levelCache.set(n, n > ARROWS_GENERATED_LEVELS && baked
+      ? { seed: ARROWS_LEVEL_SEEDS[n - 1], tier: name, cols: baked.cols, rows: baked.rows, arrows: baked.arrows }
+      : generateArrowsLevel(ARROWS_LEVEL_SEEDS[n - 1], { ...ARROWS_LEVEL_SPECS[n - 1], name }))
   }
   return levelCache.get(n)
 }
@@ -82,6 +135,8 @@ export function twistsIn(level) {
   if (level.arrows.some(isDiagonal)) out.push('diag')
   if (level.arrows.some(isBent)) out.push('bend')
   if (level.arrows.some(isCurved)) out.push('curve')
+  if (level.arrows.some(isSleeper)) out.push('sleep')
+  if (level.arrows.some(isDouble)) out.push('double')
   return out
 }
 

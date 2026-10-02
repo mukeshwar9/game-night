@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { generateArrowsLevel, isBent, isCurved, isDiagonal, levelStats, solveArrows, ARROWS_TIER_SPECS } from './arrowsLogic'
+import { generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, levelStats, solveArrows, ARROWS_TIER_SPECS } from './arrowsLogic'
+import { ARROWS_BAKED_LEVELS } from './arrowsLevelsBaked'
 import {
+  ARROWS_CHAPTERS,
+  ARROWS_GENERATED_LEVELS,
   ARROWS_LEVEL_COUNT,
   ARROWS_LEVEL_SEEDS,
   ARROWS_LEVEL_SPECS,
@@ -27,23 +30,27 @@ import {
 const levels = Array.from({ length: ARROWS_LEVEL_COUNT }, (_, i) => getArrowsLevel(i + 1))
 const stats = levels.map(levelStats)
 
-describe('the 20-level campaign', () => {
-  it('has 20 levels, one seed each', () => {
-    expect(ARROWS_LEVEL_COUNT).toBe(20)
-    expect(ARROWS_LEVEL_SEEDS).toHaveLength(20)
+describe('the 40-level campaign', () => {
+  it('has 40 levels, one seed each, in chapters that cover them all', () => {
+    expect(ARROWS_LEVEL_COUNT).toBe(40)
+    expect(ARROWS_LEVEL_SEEDS).toHaveLength(40)
     expect(levels.every(Boolean)).toBe(true)
+    expect(ARROWS_CHAPTERS[0].from).toBe(1)
+    expect(ARROWS_CHAPTERS.at(-1).to).toBe(40)
+    ARROWS_CHAPTERS.slice(1).forEach((c, i) => expect(c.from).toBe(ARROWS_CHAPTERS[i].to + 1))
   })
 
   it('every level is solvable (independent greedy solver) and fits a phone', () => {
     levels.forEach((level, i) => {
       expect(solveArrows(level).solvable, `level ${i + 1}`).toBe(true)
       expect(level.cols).toBeLessThanOrEqual(10)
+      expect(level.rows).toBeLessThanOrEqual(13)
       expect(level.arrows.length).toBeGreaterThan(0)
     })
   })
 
-  it('gets steadily harder: difficulty strictly rises, arrows and depth never drop', () => {
-    for (let i = 1; i < stats.length; i += 1) {
+  it('levels 1–20 get steadily harder: difficulty strictly rises, arrows and depth never drop', () => {
+    for (let i = 1; i < ARROWS_GENERATED_LEVELS; i += 1) {
       expect(stats[i].difficulty, `level ${i + 1}`).toBeGreaterThan(stats[i - 1].difficulty)
       expect(stats[i].arrows, `level ${i + 1}`).toBeGreaterThanOrEqual(stats[i - 1].arrows)
       expect(stats[i].layers, `level ${i + 1}`).toBeGreaterThanOrEqual(stats[i - 1].layers)
@@ -68,7 +75,7 @@ describe('the 20-level campaign', () => {
     expect(ARROWS_LEVEL_SPECS[5].intro).toBe('diag')
     expect(ARROWS_LEVEL_SPECS[7].intro).toBe('bend')
     expect(ARROWS_LEVEL_SPECS[10].intro).toBe('curve')
-    expect(ARROWS_LEVEL_SPECS.filter((s) => s.intro)).toHaveLength(3)
+    expect(ARROWS_LEVEL_SPECS.filter((s) => s.intro).map((s) => s.intro)).toEqual(['diag', 'bend', 'curve', 'sleep', 'double'])
     expect(levels[7].arrows.filter(isBent).length).toBeGreaterThanOrEqual(2)
     expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[7], levels[7])).toBe(true)
     expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[7], levels[5])).toBe(false)
@@ -78,11 +85,54 @@ describe('the 20-level campaign', () => {
     expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[5], levels[0])).toBe(false)
   })
 
+  it('levels 21–40 rise as a sawtooth: each chapter opens lighter, then every level beats the last', () => {
+    for (const chapter of ARROWS_CHAPTERS.slice(1)) {
+      for (let n = chapter.from + 1; n <= chapter.to; n += 1) {
+        expect(stats[n - 1].difficulty, `level ${n}`).toBeGreaterThan(stats[n - 2].difficulty)
+        expect(stats[n - 1].layers, `level ${n}`).toBeGreaterThanOrEqual(stats[n - 2].layers)
+      }
+      // The lesson level is a breather; the chapter's last level beats the
+      // previous chapter's last.
+      expect(stats[chapter.from - 1].difficulty).toBeLessThan(stats[chapter.from - 2].difficulty)
+      expect(stats[chapter.to - 1].difficulty).toBeGreaterThan(stats[chapter.from - 2].difficulty)
+    }
+    // Later chapters are deeper than the first twenty ever got.
+    expect(stats[39].layers).toBeGreaterThan(stats[19].layers)
+  })
+
+  it('brings sleeping arrows at 21 and double arrows at 31, never earlier, and keeps them sparse', () => {
+    levels.forEach((level, i) => {
+      const n = i + 1
+      const sleepers = level.arrows.filter(isSleeper).length
+      const doubles = level.arrows.filter(isDouble).length
+      if (n < 21) expect(sleepers, `level ${n}`).toBe(0)
+      if (n < 31) expect(doubles, `level ${n}`).toBe(0)
+      expect(sleepers, `level ${n}`).toBe(ARROWS_LEVEL_SPECS[i].sleepers ?? 0)
+      expect(doubles, `level ${n}`).toBe(ARROWS_LEVEL_SPECS[i].doubles ?? 0)
+      // Subtle on purpose: one special piece on a lesson board, a handful at most.
+      expect(sleepers + doubles, `level ${n}`).toBeLessThanOrEqual(4)
+    })
+    expect(levels[20].arrows.filter(isSleeper)).toHaveLength(1)
+    expect(levels[30].arrows.filter(isDouble)).toHaveLength(1)
+  })
+
+  it('serves baked boards for 21+, exactly what the generator builds from their seeds', () => {
+    for (let n = ARROWS_GENERATED_LEVELS + 1; n <= ARROWS_LEVEL_COUNT; n += 1) {
+      const baked = ARROWS_BAKED_LEVELS[n]
+      expect(getArrowsLevel(n).arrows).toBe(baked.arrows)
+      // If this fails after a generator change, either keep the baked boards
+      // (players keep the levels they starred) and accept the drift, or rerun
+      // scripts/bake-arrows-levels.mjs on purpose.
+      const fresh = generateArrowsLevel(ARROWS_LEVEL_SEEDS[n - 1], { ...ARROWS_LEVEL_SPECS[n - 1], name: `level-${n}` })
+      expect(baked.arrows, `level ${n}`).toEqual(fresh.arrows)
+    }
+  })
+
   it('getArrowsLevel is stable and bounded', () => {
     expect(getArrowsLevel(3)).toBe(getArrowsLevel(3))
     expect(getArrowsLevel(3)).toEqual(generateArrowsLevel(ARROWS_LEVEL_SEEDS[2], { ...ARROWS_LEVEL_SPECS[2], name: 'level-3' }))
     expect(getArrowsLevel(0)).toBeNull()
-    expect(getArrowsLevel(21)).toBeNull()
+    expect(getArrowsLevel(41)).toBeNull()
     expect(getArrowsLevel(1.5)).toBeNull()
   })
 })
@@ -98,7 +148,11 @@ describe('twist tutorials', () => {
     expect(newTwist(levels[10], { diag: true, bend: true })).toBe('curve')
     expect(newTwist(levels[10], { diag: true, bend: true, curve: true })).toBeNull()
     expect(newTwist(levels[0], null)).toBeNull()
-    for (const t of ['diag', 'bend', 'curve']) expect(ARROWS_TWIST_TIPS[t]).toMatch(/^NEW · /)
+    expect(twistsIn(levels[20])).toContain('sleep')
+    expect(twistsIn(levels[30])).toContain('double')
+    expect(newTwist(levels[20], { diag: true, bend: true, curve: true })).toBe('sleep')
+    expect(newTwist(levels[30], { diag: true, bend: true, curve: true, sleep: true })).toBe('double')
+    for (const t of ['diag', 'bend', 'curve', 'sleep', 'double']) expect(ARROWS_TWIST_TIPS[t]).toMatch(/^NEW · /)
   })
 })
 
@@ -145,6 +199,7 @@ describe('progress', () => {
     expect(nextLevel(p)).toBe(2)
     expect(isLevelUnlocked(p, 0)).toBe(false)
     expect(isLevelUnlocked(p, 21)).toBe(false)
+    expect(isLevelUnlocked(recordLevelResult(p, 40, 1), 41)).toBe(false)
   })
 
   it('keeps the best stars and ignores failures and bad levels', () => {
@@ -152,7 +207,8 @@ describe('progress', () => {
     p = recordLevelResult(p, 4, 1)
     expect(levelStars(p, 4)).toBe(3)
     expect(recordLevelResult(p, 5, 0)).toEqual(p)
-    expect(recordLevelResult(p, 21, 3)).toEqual(p)
+    expect(recordLevelResult(p, 41, 3)).toEqual(p)
+    expect(levelStars(recordLevelResult(p, 33, 2), 33)).toBe(2)
     expect(levelStars(recordLevelResult(p, 6, 9), 6)).toBe(3)
   })
 
@@ -167,10 +223,10 @@ describe('progress', () => {
     expect(normalizeProgress(null)).toEqual(blankProgress())
     expect(normalizeProgress('x')).toEqual(blankProgress())
     expect(normalizeProgress({
-      levels: { l1: '3', l2: 7, l3: 0, l21: 3, 4: 2, l5: 2.6 },
+      levels: { l1: '3', l2: 7, l3: 0, l41: 3, 4: 2, l5: 2.6, l40: 1 },
       endless: { easy: -4, medium: '2', hard: 'x', insane: 9 },
       junk: true,
-    })).toEqual({ levels: { l1: 3, l2: 3, l5: 2 }, endless: { easy: 0, medium: 2, hard: 0 } })
+    })).toEqual({ levels: { l1: 3, l2: 3, l5: 2, l40: 1 }, endless: { easy: 0, medium: 2, hard: 0 } })
   })
 
   it('merges device and account copies without losing either side', () => {
@@ -185,10 +241,12 @@ describe('progress', () => {
     expect(totalStars(m)).toBe(6)
   })
 
-  it('nextLevel sticks at 20 once everything is cleared', () => {
+  it('nextLevel sticks at 40 once everything is cleared', () => {
     let p = blankProgress()
     for (let n = 1; n <= 20; n += 1) p = recordLevelResult(p, n, 1)
-    expect(nextLevel(p)).toBe(20)
+    expect(nextLevel(p)).toBe(21)
+    for (let n = 21; n <= 40; n += 1) p = recordLevelResult(p, n, 1)
+    expect(nextLevel(p)).toBe(40)
     expect(levelKey(7)).toBe('l7')
   })
 })
