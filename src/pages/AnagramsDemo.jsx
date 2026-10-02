@@ -10,7 +10,7 @@ import {
   ROUND_MS, COUNTDOWN_MS, MATCH_TARGET, MIN_WORD_LENGTH, RACK_SIZE,
 } from '../lib/anagramsLogic'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from '../lib/decks/anagrams'
-import { planBotFinds, botFindsBy, botFoundMap, ANAGRAMS_FIND_GAP_MS } from '../lib/wordBotsLogic'
+import { planBotFinds, botFindsBy, botFoundMap, commonFindWeight, ANAGRAMS_FIND_GAP_MS } from '../lib/wordBotsLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
@@ -91,7 +91,8 @@ function dealRound(prevRound, at) {
       foundX: {}, foundO: {}, doneX: false, doneO: false, result: null,
       usedRacks: rememberRack(used, rack),
     },
-    plan: planBotFinds(solutions, { durationMs: ROUND_MS, gapMs: ANAGRAMS_FIND_GAP_MS }),
+    // Everyday words only, so the CPU never plays PAC or APT.
+    plan: planBotFinds(solutions, { durationMs: ROUND_MS, gapMs: ANAGRAMS_FIND_GAP_MS, weight: commonFindWeight }),
   }
 }
 

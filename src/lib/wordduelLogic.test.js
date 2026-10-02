@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { markGuess, compareResults, isSolved, isDone, getDoneState, isValidGuess, getKeyboardState, MAX_GUESSES, verifyTranscript } from './wordduelLogic'
 import { commit } from './commit'
 import {
-  normalizeGuessList, guessProblem, secretWordProblem, getGradedDoneState, gradeGuesses,
+  normalizeGuessList, guessProblem, secretWordProblem, secretWordWarning, RARE_SECRET_WARNING, getGradedDoneState, gradeGuesses,
   applyGrading, applyDuelGuess, getFinishGraceEndsAt, applyFinishTimeout,
   verifyGradedBoard, verifyOpponentRound, decideDuelRound, DUEL_FINISH_GRACE_MS,
   applySelfDone, nextDuelRound,
@@ -449,6 +449,14 @@ describe('guess and secret word problems', () => {
   it('rejects banned setter words', () => {
     expect(secretWordProblem('SHITS')).toMatch(/NOT ALLOWED/)
     expect(secretWordProblem('CRANE')).toBeNull()
+  })
+  it('warns about a rare setter word the guesser may not know (audit: LASSI beat the CPU)', () => {
+    expect(secretWordProblem('LASSI')).toBeNull()
+    expect(secretWordWarning('LASSI')).toBe(RARE_SECRET_WARNING)
+    expect(secretWordWarning('lassi')).toBe(RARE_SECRET_WARNING)
+    expect(secretWordWarning('CRANE')).toBeNull()
+    expect(secretWordWarning('XYZZY')).toBeNull()
+    expect(secretWordWarning('CRA')).toBeNull()
   })
 })
 

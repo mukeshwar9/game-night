@@ -6,7 +6,7 @@ import {
   compareResults, getKeyboardState, MAX_GUESSES, WORD_LENGTH, MATCH_WINS,
   verifyOpponentRound, verifyGradedBoard, decideDuelRound,
   applyGrading, applyDuelGuess, applySelfDone, nextDuelRound, normalizeGuessList,
-  guessProblem, secretWordProblem, getFinishGraceEndsAt, applyFinishTimeout,
+  guessProblem, secretWordProblem, secretWordWarning, getFinishGraceEndsAt, applyFinishTimeout,
   DUEL_FINISH_GRACE_MS,
 } from '../lib/wordduelLogic'
 import { sounds } from '../lib/sounds'
@@ -26,6 +26,8 @@ import RoundTimer from '@/components/RoundTimer'
 import WordFeedback from '@/components/WordFeedback'
 import MatchScoreRail from '@/components/MatchScoreRail'
 import { toast } from 'sonner'
+import { getAnswerList } from '@/lib/dictionary'
+import { pickCpuSecret } from '@/lib/wordBotsLogic'
 
 const STORAGE_PREFIX = 'wordduel-word-'
 // A setter who never commits, or an opponent whose tab closed leaving a guess
@@ -169,6 +171,7 @@ export default function WordDuelGame({
 
   const [settingWord, setSettingWord] = useState('')
   const [settingFeedback, setSettingFeedback] = useState(null)
+  const [rareWarned, setRareWarned] = useState('') // the rare secret already warned about
   const [currentGuess, setCurrentGuess] = useState('')
   const [guessFeedback, setGuessFeedback] = useState(null)
   const [cheatDetected, setCheatDetected] = useState(false)
@@ -322,6 +325,12 @@ export default function WordDuelGame({
     if (problem) {
       sounds.miss?.()
       setSettingFeedback(prev => ({ message: problem, id: (prev?.id || 0) + 1 }))
+      return
+    }
+    const warning = secretWordWarning(word)
+    if (warning && rareWarned !== word) {
+      setRareWarned(word)
+      setSettingFeedback(prev => ({ message: warning, tone: 'info', id: (prev?.id || 0) + 1 }))
       return
     }
     setSettingFeedback(null)
@@ -706,18 +715,32 @@ export default function WordDuelGame({
         {!myCommit ? (
           <>
             <WordInput value={settingWord} />
-            <WordFeedback message={settingFeedback?.message} tone="bad" id={settingFeedback?.id} />
-            <button
-              className={cn(
-                'min-h-11 px-6 py-2.5 rounded font-pixel text-[10px] cursor-pointer',
-                'bg-retro-cta text-retro-bg hover:shadow-neon-cta active:scale-95 transition-all',
-                'disabled:opacity-50 disabled:cursor-default',
-              )}
-              onClick={handleSetWord}
-              disabled={locking || settingWord.length !== WORD_LENGTH}
-            >
-              {locking ? 'LOCKING…' : 'LOCK IN'}
-            </button>
+            <WordFeedback message={settingFeedback?.message} tone={settingFeedback?.tone || 'bad'} id={settingFeedback?.id} />
+            <div className="flex gap-2">
+              {/* SUGGEST deals an everyday word from the answer list. */}
+              <button
+                type="button"
+                className="min-h-11 px-4 py-2.5 rounded border-2 border-retro-border font-pixel text-[10px] text-retro-text hover:border-retro-cta active:scale-95 transition-all disabled:opacity-50"
+                onClick={() => {
+                  setSettingWord(pickCpuSecret(getAnswerList(), { used: [settingWord] }).toUpperCase())
+                  setSettingFeedback(null)
+                }}
+                disabled={locking}
+              >
+                SUGGEST
+              </button>
+              <button
+                className={cn(
+                  'min-h-11 px-6 py-2.5 rounded font-pixel text-[10px] cursor-pointer',
+                  'bg-retro-cta text-retro-bg hover:shadow-neon-cta active:scale-95 transition-all',
+                  'disabled:opacity-50 disabled:cursor-default',
+                )}
+                onClick={handleSetWord}
+                disabled={locking || settingWord.length !== WORD_LENGTH}
+              >
+                {locking ? 'LOCKING…' : 'LOCK IN'}
+              </button>
+            </div>
             <div className="w-full">
               <WordKeyboard keyState={{}} onKey={handleSettingKey} disabled={locking} enterLabel="Lock in word" />
             </div>

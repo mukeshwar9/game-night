@@ -5,7 +5,7 @@ import {
   wordleTopK, pickWordleGuess, playWordleBoard, wordleThinkMs, pickCpuSecret,
   botRowTimes, botRowsShown, botDoneState, playerDoneState, tallyWins, matchWinner,
   landBotGuesses, advanceBotRace,
-  findWeight, planBotFinds, botFindsBy, botFoundMap, FIND_GAP_MS, FIND_MS_PER_LETTER, ANAGRAMS_FIND_GAP_MS,
+  findWeight, commonFindWeight, planBotFinds, botFindsBy, botFoundMap, FIND_GAP_MS, FIND_MS_PER_LETTER, ANAGRAMS_FIND_GAP_MS,
   HANGMAN_CPU_WORDS, HANGMAN_LETTER_ORDER, HANGMAN_THINK_MS,
   pickKeeperWord, hangmanPattern, hangmanCandidates, pickHangmanGuess, hangmanThinkMs,
 } from './wordBotsLogic'
@@ -13,6 +13,7 @@ import { markGuess, MAX_GUESSES } from './wordduelLogic'
 import { applyGuessForPlayer, FINISH_GRACE_MS } from './wordraceLogic'
 import { getAnswerList, has, isAnswerWord } from './dictionary'
 import { isFamilySafe } from './wordDenylist'
+import { isCommonWord } from './commonWords'
 import {
   createDictionary, generateGrid, ensurePlayableGrid, solveGrid, scoreWords, ROUND_MS as HUNT_MS,
 } from './wordhuntLogic'
@@ -447,4 +448,23 @@ describe('word-finding bot (Word Hunt / Anagrams)', () => {
     expect(median).toBeGreaterThanOrEqual(12)
     expect(median).toBeLessThanOrEqual(35)
   }, 60_000)
+})
+
+describe('commonFindWeight (Anagrams CPU)', () => {
+  it('never lets the CPU find an obscure word (audit: it played PAC and APT on PANOCTI)', () => {
+    const solutions = getSolutions('panocti', ANAGRAM_VALID_WORDS)
+    expect(solutions).toContain('pac')
+    const obscure = solutions.filter(w => !isCommonWord(w))
+    expect(obscure.length).toBeGreaterThan(0)
+    for (const word of obscure) expect(commonFindWeight(word), word).toBe(0)
+    // Even a CPU that spots everything it may (recall 1) plays only everyday words.
+    const plan = planBotFinds(solutions, { durationMs: 10 * 60_000, recall: 1, weight: w => (commonFindWeight(w) ? 1 : 0), random: () => 0 })
+    expect(plan.length).toBeGreaterThan(0)
+    for (const { word } of plan) expect(isCommonWord(word), word).toBe(true)
+  })
+
+  it('keeps the usual length weights for everyday words', () => {
+    expect(commonFindWeight('coat')).toBe(findWeight('coat'))
+    expect(commonFindWeight('caption')).toBe(findWeight('caption'))
+  })
 })

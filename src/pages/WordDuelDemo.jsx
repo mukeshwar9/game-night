@@ -5,7 +5,7 @@ import WordFeedback from '../components/WordFeedback'
 import MatchScoreRail from '../components/MatchScoreRail'
 import RoundTimer from '../components/RoundTimer'
 import {
-  markGuess, compareResults, getKeyboardState, guessProblem, secretWordProblem,
+  markGuess, compareResults, getKeyboardState, guessProblem, secretWordProblem, secretWordWarning,
   MAX_GUESSES, WORD_LENGTH, MATCH_WINS, DUEL_FINISH_GRACE_MS,
 } from '../lib/wordduelLogic'
 import { getAnswerList, has } from '../lib/dictionary'
@@ -99,6 +99,7 @@ export default function WordDuelDemo() {
   const [round, setRound] = useState(() => newRound([]))
   const [typed, setTyped] = useState('')
   const [feedback, setFeedback] = useState(null)
+  const [rareWarned, setRareWarned] = useState('') // the rare secret already warned about
   const [now, setNow] = useState(() => Date.now())
 
   const playing = round.phase === 'playing'
@@ -140,6 +141,12 @@ export default function WordDuelDemo() {
     const word = typed.toUpperCase()
     const problem = secretWordProblem(word)
     if (problem) { fail(problem); return }
+    const warning = secretWordWarning(word)
+    if (warning && rareWarned !== word) {
+      setRareWarned(word)
+      setFeedback(f => ({ message: warning, tone: 'info', id: (f?.id || 0) + 1 }))
+      return
+    }
     // The CPU plays its whole board now; the page reveals it on the CPU's clock.
     const cpuRows = playWordleBoard({ answer: word, pool: answers, isWord: has })
     const at = Date.now()
@@ -215,15 +222,24 @@ export default function WordDuelDemo() {
             <MarkTile key={i} size="lg" letter={typed[i] || ''} pending={!!typed[i]} />
           ))}
         </div>
-        <WordFeedback message={feedback?.message} tone="bad" id={feedback?.id} />
-        <button
-          type="button"
-          onClick={lockSecret}
-          disabled={typed.length !== WORD_LENGTH}
-          className="px-6 py-2 rounded font-pixel text-[10px] bg-retro-cta text-retro-bg hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
-        >
-          LOCK IN
-        </button>
+        <WordFeedback message={feedback?.message} tone={feedback?.tone || 'bad'} id={feedback?.id} />
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => { setTyped(pickCpuSecret(answers, { used: [typed] }).toUpperCase()); setFeedback(null) }}
+            className="px-4 py-2 rounded border-2 border-retro-border font-pixel text-[10px] text-retro-text hover:border-retro-cta active:scale-95"
+          >
+            SUGGEST
+          </button>
+          <button
+            type="button"
+            onClick={lockSecret}
+            disabled={typed.length !== WORD_LENGTH}
+            className="px-6 py-2 rounded font-pixel text-[10px] bg-retro-cta text-retro-bg hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
+          >
+            LOCK IN
+          </button>
+        </div>
         <WordKeyboard onKey={onKey} enterLabel="Lock in word" />
       </div>
     )

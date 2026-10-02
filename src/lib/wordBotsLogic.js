@@ -477,6 +477,12 @@ export function findWeight(word) {
   return (FIND_LENGTH_WEIGHT[len] ?? 0) * (isCommonWord(w) ? 1 : FIND_UNCOMMON)
 }
 
+/** findWeight for a CPU that only plays everyday words: obscure solutions
+ * (PAC, APT…) are never found, so its words read like a person's. */
+export function commonFindWeight(word) {
+  return isCommonWord(word) ? findWeight(word) : 0
+}
+
 /**
  * The bot's finds for one round: [{ word, at }] with `at` in ms from the
  * round start, ascending, all before `durationMs`. `solutions` are the words
