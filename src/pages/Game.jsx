@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ref, update, set as dbSet, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig, lobbySwitchOverrides, withFirstMover } from '../lib/games'
+import { freshGameState, getGameConfig, isQuietRoom, lobbySwitchOverrides, withFirstMover } from '../lib/games'
 import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
@@ -792,6 +792,7 @@ export default function Game() {
 
   const cfg = getGameConfig(game.gameType)
   const isCustom = !!cfg.custom
+  const quietRoom = isQuietRoom(cfg, game)
 
   // Family-mismatch guard — a cross-family switch (party ⇄ 2P) reshapes the
   // players node (uid keys vs 'X'/'O'), leaving every client seatless. The
@@ -1191,14 +1192,15 @@ export default function Game() {
         )}
 
         {/* Free-text chat log — visible to spectators too; self-hides when empty.
-            Silent games (registry `quiet`, e.g. HUNCH) hide typed chat; emotes stay. */}
-        {!cfg.quiet && <ChatLog chatLog={game.chatLog} myUid={getPlayerId()} />}
+            Silent games (registry `quiet`: HUNCH always, CONVERGE while words
+            are written) hide typed chat; emotes stay. */}
+        {!quietRoom && <ChatLog chatLog={game.chatLog} myUid={getPlayerId()} />}
 
         {/* Emote / reaction bar — hidden while waiting for an opponent (M-XX:
             nobody to react to yet). Shown to a seated player once an
             opponent has joined, or to a spectator watching a live game. */}
         {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
-          <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={cfg.quiet ? undefined : sendChat} textCooldown={chatCooldown} quiet={!!cfg.quiet} /></Suspense></VideoCallReactionDock>
+          <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={quietRoom ? undefined : sendChat} textCooldown={chatCooldown} quiet={quietRoom} /></Suspense></VideoCallReactionDock>
         )}
       </div>
       {showInvite && (

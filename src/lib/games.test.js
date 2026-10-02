@@ -10,12 +10,12 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 let isNewGame, getNewGames, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay
-let lobbySwitchOverrides, buildChallengeRoom
+let lobbySwitchOverrides, buildChallengeRoom, isQuietRoom, getGameConfig
 
 beforeAll(async () => {
   ;({
     isNewGame, getNewGames, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay,
-    lobbySwitchOverrides, buildChallengeRoom,
+    lobbySwitchOverrides, buildChallengeRoom, isQuietRoom, getGameConfig,
   } = await import('./games'))
 })
 
@@ -301,5 +301,19 @@ describe('solo flag honesty', () => {
       .filter(type => !OFF_SHELF.has(type))
       .filter(type => GAME_TYPES.find(t => t.type === type)?.solo !== true)
     expect(onShelfButNotSolo).toEqual([])
+  })
+})
+
+describe('isQuietRoom', () => {
+  it('reads a flag or a function of the room', () => {
+    expect(isQuietRoom(getGameConfig('hunch'), {})).toBe(true)
+    expect(isQuietRoom(getGameConfig('tictactoe'), {})).toBe(false)
+  })
+
+  it('hides Converge chat only while words are written (audit: chat-agreed words farmed stars)', () => {
+    const cfg = getGameConfig('converge')
+    expect(isQuietRoom(cfg, { status: 'playing', round: { phase: 'write' } })).toBe(true)
+    expect(isQuietRoom(cfg, { status: 'playing', round: { phase: 'chainEnd' } })).toBe(false)
+    expect(isQuietRoom(cfg, { status: 'waiting' })).toBe(false)
   })
 })

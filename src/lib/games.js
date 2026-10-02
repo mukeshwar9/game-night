@@ -1550,8 +1550,11 @@ export const GAME_TYPES = [
     addedAt: '2026-09-26',
     // Co-op: both lock a word at once until the two words match. Stars and
     // the chain history live in `round` (ConvergeGame); scores count chains.
+    // `quiet` while words are being written: agreeing a word in chat would
+    // make every chain a free ★★★.
     durationMin: 6, tags: ['quick'], solo: false,
     custom: true, simultaneous: true, coop: true, hidePlayerCards: true,
+    quiet: (game) => game?.status === 'playing' && game?.round?.phase === 'write',
     Page: lazyWithRetry(() => import('../pages/ConvergeGame')),
   },
   {
@@ -2043,6 +2046,12 @@ const FIELD_NULLS = {
 
 const MEMORY_STREAM_TYPES = new Set(['verbalmemory', 'nback'])
 const MEMORY_LEVEL_TYPES = new Set(['cupshuffle', 'whatchanged', 'kimsgame', 'nametags'])
+
+/** Does the room hide typed chat right now? Registry `quiet` is either a
+ * flag (HUNCH: always) or a function of the room (CONVERGE: while writing). */
+export function isQuietRoom(cfg, game) {
+  return typeof cfg?.quiet === 'function' ? !!cfg.quiet(game) : !!cfg?.quiet
+}
 
 export function freshGameState(gameType, previous = null) {
   const cfg = getGameConfig(gameType)

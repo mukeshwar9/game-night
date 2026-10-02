@@ -119,7 +119,8 @@ export default function ConvergeGame({
   }, [needsMatch, gameId])
 
   // A new step or chain clears what I typed for the last one.
-  const stepKey = `${round?.chainNo}-${chain.length}`
+  // (`last.at` tells a same-opening-word restart apart from the step before.)
+  const stepKey = `${round?.chainNo}-${chain.length}-${round?.last?.at ?? ''}`
   const [trackedStep, setTrackedStep] = useState(stepKey)
   if (trackedStep !== stepKey) {
     setTrackedStep(stepKey)
@@ -128,7 +129,7 @@ export default function ConvergeGame({
   }
 
   // Reveal sounds, the same on both phones.
-  const lastKey = round?.last ? `${round.chainNo}-${round.last.kind}-${round.last.steps}` : ''
+  const lastKey = round?.last ? `${round.chainNo}-${round.last.kind}-${round.last.steps}-${round.last.at ?? ''}` : ''
   const prevKey = useRef(lastKey)
   useEffect(() => {
     if (!lastKey || prevKey.current === lastKey) { prevKey.current = lastKey; return }
@@ -136,7 +137,7 @@ export default function ConvergeGame({
     const kind = round?.last?.kind
     if (kind === 'converged') sounds.win()
     else if (kind === 'lost') sounds.lose()
-    else if (kind === 'reveal') sounds.go()
+    else if (kind === 'reveal' || kind === 'sameStart') sounds.go()
   }, [lastKey, round])
 
   const canType = writing && !isSpectator && !myLocked
@@ -182,8 +183,11 @@ export default function ConvergeGame({
   const tone = phase === 'chainEnd' || phase === 'done'
     ? (lastResult?.converged ? 'win' : 'bad')
     : canType ? 'go' : undefined
+  const sameStart = chain.length === 0 && round.last?.kind === 'sameStart' ? round.last.word : null
   const prompt = chain.length === 0
-    ? 'Step 1: type any word at all.'
+    ? (sameStart
+      ? `You both opened with ${sameStart} — step 1 can't score. Pick new opening words.`
+      : 'Step 1: type any word at all.')
     : null
   const stepNo = chain.length + 1
 

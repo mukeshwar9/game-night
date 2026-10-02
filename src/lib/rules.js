@@ -660,10 +660,11 @@ export const GAME_RULES = {
     howToPlay: [
       'On each step you both lock in a word at once; neither of you sees the other word until both are in.',
       'Step 1: type any word you like. After that, type a word that links the two words just revealed — PIZZA and MOON might lead to CHEESE.',
+      'Step 1 can never score: if you both open with the same word, you both pick new opening words.',
       'Keep bridging the latest pair until you both type the same word. Plurals and capitals do not matter, and no word can be used twice in a chain.',
       'You can take back a locked word until your partner locks theirs.',
     ],
-    win: 'Converge in 1–2 steps for ★★★, 3–4 for ★★, 5–8 for ★. After 8 steps the chain is lost. A match is 5 chains, 15 stars at most.',
+    win: 'Converge in 2 steps for ★★★, 3–4 for ★★, 5–8 for ★. After 8 steps the chain is lost. A match is 5 chains, 15 stars at most.',
   },
 
   lanterns: {
