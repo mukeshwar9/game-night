@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   SOLO_LIVES,
   startSimonSolo, applySimonSoloPress,
-  startVmSolo, applyVmSoloTap, vmSoloScore,
-  startChimpSolo, applyChimpSoloTap, chimpSoloScore,
+  startVmSolo, applyVmSoloTap, vmSoloScore, continueVmSolo,
+  startChimpSolo, applyChimpSoloTap, chimpSoloScore, continueChimpSolo,
   startNumberSolo, submitNumberSolo, numberSoloScore,
 } from './memorySoloLogic'
 import { VM_START_LEVEL } from './visualMemoryLogic'
@@ -52,9 +52,19 @@ describe('Visual Memory solo', () => {
     expect(vmSoloScore(s)).toBe(1)
   })
 
-  it('a wrong tile costs a life and replays the same level', () => {
-    const s = applyVmSoloTap(startVmSolo(gen), 15, gen)
-    expect(s).toMatchObject({ level: VM_START_LEVEL, lives: SOLO_LIVES - 1, clicked: [], over: false, lostLife: true })
+  it('a wrong tile costs a life and pauses on the slip with the pattern still there', () => {
+    const start = startVmSolo(gen)
+    const s = applyVmSoloTap(start, 15, gen)
+    expect(s).toMatchObject({ level: VM_START_LEVEL, lives: SOLO_LIVES - 1, over: false, paused: true, miss: 15, lostLife: true })
+    expect(s.pattern).toEqual(start.pattern)
+    // Taps are ignored until the player continues.
+    expect(applyVmSoloTap(s, s.pattern[0], gen)).toBe(s)
+  })
+
+  it('continuing after a slip replays the same level with a fresh pattern', () => {
+    const s = continueVmSolo(applyVmSoloTap(startVmSolo(gen), 15, gen), gen)
+    expect(s).toMatchObject({ level: VM_START_LEVEL, lives: SOLO_LIVES - 1, clicked: [], paused: false, miss: null })
+    expect(continueVmSolo(s, gen)).toBe(s)
   })
 
   it('the last life lost ends the run and keeps the wrong tile', () => {
@@ -79,9 +89,21 @@ describe('Chimp solo', () => {
     expect(chimpSoloScore(s)).toBe(CHIMP_START_LEVEL)
   })
 
-  it('an out-of-order tap costs a life and deals a new layout', () => {
+  it('scores 0 before any level is cleared', () => {
+    expect(chimpSoloScore(startChimpSolo(gen))).toBe(0)
+    const slipped = applyChimpSoloTap(startChimpSolo(gen), 2, gen)
+    expect(chimpSoloScore(slipped)).toBe(0)
+  })
+
+  it('an out-of-order tap costs a life and pauses on the slip', () => {
     const s = applyChimpSoloTap(startChimpSolo(gen), 2, gen)
-    expect(s).toMatchObject({ lives: SOLO_LIVES - 1, progress: 0, over: false, lostLife: true })
+    expect(s).toMatchObject({ lives: SOLO_LIVES - 1, progress: 0, over: false, paused: true, miss: 2, lostLife: true })
+    expect(applyChimpSoloTap(s, 0, gen)).toBe(s)
+  })
+
+  it('continuing after a slip deals a new layout at the same level', () => {
+    const s = continueChimpSolo(applyChimpSoloTap(startChimpSolo(gen), 2, gen), gen)
+    expect(s).toMatchObject({ level: CHIMP_START_LEVEL, progress: 0, paused: false, miss: null })
   })
 
   it('the last life lost ends the run', () => {

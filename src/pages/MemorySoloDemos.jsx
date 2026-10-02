@@ -13,8 +13,8 @@ import { showMsForLevel } from '../lib/numberMemoryLogic'
 import {
   SOLO_LIVES,
   startSimonSolo, applySimonSoloPress,
-  startVmSolo, applyVmSoloTap, vmSoloScore,
-  startChimpSolo, applyChimpSoloTap, chimpSoloScore,
+  startVmSolo, applyVmSoloTap, vmSoloScore, continueVmSolo,
+  startChimpSolo, applyChimpSoloTap, chimpSoloScore, continueChimpSolo,
   startNumberSolo, submitNumberSolo, numberSoloScore,
 } from '../lib/memorySoloLogic'
 
@@ -54,6 +54,29 @@ function RunOver({ result, score, unit, isNewBest, onRestart }) {
         PLAY AGAIN
       </button>
     </div>
+  )
+}
+
+// One line under the header that is always there (empty or not), so a message
+// appearing never pushes the board down mid-reveal.
+function RunNote({ children }) {
+  return (
+    <p className="font-pixel text-[8px] text-center text-retro-danger min-h-[1.5em] leading-relaxed" aria-live="polite">
+      {children}
+    </p>
+  )
+}
+
+// After a slip the board holds on the mistake; the next deal waits for this tap.
+function ContinueButton({ lives, onContinue }) {
+  return (
+    <button
+      type="button"
+      onClick={onContinue}
+      className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+    >
+      TRY AGAIN · {lives} {lives === 1 ? 'LIFE' : 'LIVES'} LEFT
+    </button>
   )
 }
 
@@ -122,27 +145,31 @@ export function VisualMemorySolo() {
     const next = applyVmSoloTap(run, cell)
     if (next === run) return
     if (next.over) finish(vmSoloScore(next))
-    else if (next.lostLife) { sounds.miss(); setFlash(`MISSED — ${next.lives} ${next.lives === 1 ? 'LIFE' : 'LIVES'} LEFT, NEW PATTERN`) }
+    else if (next.lostLife) { sounds.miss(); setFlash('SLIP! ONE LIFE GONE') }
     else if (next.level > run.level) { sounds.go(); setFlash(null) }
     else sounds.step()
     setRun(next)
   }
   const restart = () => { setRun(startVmSolo()); setFlash(null); reset() }
+  const carryOn = () => { setRun(r => continueVmSolo(r)); setFlash(null) }
 
   return (
     <div className="space-y-4">
-      <RunHeader scoreLabel="LEVELS" score={score} best={best} lives={run.lives} />
-      {flash && !run.over && <p className="font-pixel text-[8px] text-center text-retro-danger">{flash}</p>}
+      <RunHeader scoreLabel="CLEARED" score={score} best={best} lives={run.lives} />
+      <RunNote>{!run.over && flash}</RunNote>
       <VisualMemoryBoard
+        // A fresh board per deal, so the reveal always starts clean.
+        key={run.pattern.join(',')}
         onMove={tap}
-        disabled={run.over}
+        disabled={run.over || run.paused}
         vmPattern={run.pattern}
         vmClicked={run.clicked}
         vmLevel={run.level}
         vmMiss={run.miss}
-        finished={run.over}
+        finished={run.over || run.paused}
         mySymbol="X"
       />
+      {run.paused && !run.over && <ContinueButton lives={run.lives} onContinue={carryOn} />}
       {run.over && (
         <RunOver result={`OUT OF LIVES ON LEVEL ${run.level}`} score={score} unit={plural(score, 'LEVEL')} isNewBest={isNewBest} onRestart={restart} />
       )}
@@ -160,30 +187,32 @@ export function ChimpSolo() {
     const next = applyChimpSoloTap(run, cell)
     if (next === run) return
     if (next.over) finish(chimpSoloScore(next))
-    else if (next.lostLife) { sounds.miss(); setFlash(`WRONG ORDER — ${next.lives} ${next.lives === 1 ? 'LIFE' : 'LIVES'} LEFT, NEW LAYOUT`) }
+    else if (next.lostLife) { sounds.miss(); setFlash('SLIP! ONE LIFE GONE') }
     else if (next.level > run.level) { sounds.go(); setFlash(null) }
     else sounds.step()
     setRun(next)
   }
   const restart = () => { setRun(startChimpSolo()); setFlash(null); reset() }
+  const carryOn = () => { setRun(r => continueChimpSolo(r)); setFlash(null) }
 
   return (
     <div className="space-y-4">
       <RunHeader scoreLabel="NUMBERS" score={score} best={best} lives={run.lives} />
-      {flash && !run.over && <p className="font-pixel text-[8px] text-center text-retro-danger">{flash}</p>}
+      <RunNote>{!run.over && flash}</RunNote>
       <ChimpBoard
         // Remount per layout so the memorize timer restarts with each new deal.
         key={run.over ? 'over' : `${run.level}-${run.layout.join(',')}`}
         onMove={tap}
-        disabled={run.over}
+        disabled={run.over || run.paused}
         chimpLayout={run.layout}
         myProgress={run.progress}
         myDone={false}
         chimpLevel={run.level}
-        reveal={run.over}
+        reveal={run.over || run.paused}
         missCell={run.miss}
         solo
       />
+      {run.paused && !run.over && <ContinueButton lives={run.lives} onContinue={carryOn} />}
       {run.over && (
         <RunOver result={`OUT OF LIVES AT ${run.level} NUMBERS`} score={score} unit={plural(score, 'NUMBER')} isNewBest={isNewBest} onRestart={restart} />
       )}

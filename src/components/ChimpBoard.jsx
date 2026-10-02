@@ -144,7 +144,7 @@ export default function ChimpBoard({
       <p className="font-pixel text-[9px] text-center" aria-live="polite">
         {reveal ? (
           <span className="text-retro-text">
-            {missCell != null ? `WRONG TILE — NEXT WAS ${progress + 1} (GLOWING)` : 'ROUND OVER'}
+            {missCell != null ? `WRONG TILE — NEXT WAS ${progress + 1} (OUTLINED)` : 'ROUND OVER'}
           </span>
         ) : myDone ? (
           <span className="text-retro-win text-glow-win">

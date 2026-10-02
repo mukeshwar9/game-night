@@ -10,7 +10,9 @@ import { generateChimpLayout, CHIMP_START_LEVEL, CHIMP_GRID } from './chimpLogic
 import { generateNumber } from './numberMemoryLogic'
 
 // Visual Memory and Chimp Test forgive a slip: a wrong tap costs a life and replays
-// the level with a fresh layout; the run ends when the lives are gone.
+// the level with a fresh layout; the run ends when the lives are gone. A slip first
+// pauses the run (`paused`) with the wrong tap and the real answer still on the board,
+// so the player sees what went wrong; the fresh deal waits for continue*Solo().
 export const SOLO_LIVES = 3
 
 const randomPad = (rand = Math.random) => Math.floor(rand() * SIMON_PADS)
@@ -35,22 +37,28 @@ export function applySimonSoloPress(state, pad, rand = Math.random) {
 export function startVmSolo(gen = generateVmPattern) {
   return {
     level: VM_START_LEVEL, pattern: gen(VM_START_LEVEL), clicked: [],
-    lives: SOLO_LIVES, over: false, miss: null, lostLife: false,
+    lives: SOLO_LIVES, over: false, paused: false, miss: null, lostLife: false,
   }
 }
 
 export function applyVmSoloTap(state, cell, gen = generateVmPattern) {
-  if (state.over || cell < 0 || cell >= vmCellCount(state.level) || state.clicked.includes(cell)) return state
+  if (state.over || state.paused || cell < 0 || cell >= vmCellCount(state.level) || state.clicked.includes(cell)) return state
   if (!state.pattern.includes(cell)) {
     const lives = state.lives - 1
     if (lives <= 0) return { ...state, lives: 0, over: true, miss: cell, lostLife: true }
-    // Same level again, new pattern.
-    return { ...state, lives, pattern: gen(state.level), clicked: [], miss: null, lostLife: true }
+    // Hold the board on the slip; continueVmSolo deals the same level again.
+    return { ...state, lives, paused: true, miss: cell, lostLife: true }
   }
   const clicked = [...state.clicked, cell]
   if (clicked.length < state.pattern.length) return { ...state, clicked, lostLife: false }
   const level = state.level + 1
   return { ...state, level, pattern: gen(level), clicked: [], miss: null, lostLife: false }
+}
+
+// After a slip: same level, new pattern.
+export function continueVmSolo(state, gen = generateVmPattern) {
+  if (!state.paused || state.over) return state
+  return { ...state, paused: false, pattern: gen(state.level), clicked: [], miss: null, lostLife: false }
 }
 
 // Levels fully cleared this run.
@@ -62,27 +70,35 @@ export function vmSoloScore(state) {
 
 export function startChimpSolo(gen = generateChimpLayout) {
   return {
-    level: CHIMP_START_LEVEL, layout: gen(CHIMP_START_LEVEL), progress: 0,
-    lives: SOLO_LIVES, over: false, miss: null, lostLife: false,
+    level: CHIMP_START_LEVEL, layout: gen(CHIMP_START_LEVEL), progress: 0, cleared: 0,
+    lives: SOLO_LIVES, over: false, paused: false, miss: null, lostLife: false,
   }
 }
 
 export function applyChimpSoloTap(state, cell, gen = generateChimpLayout) {
-  if (state.over || cell < 0 || cell >= CHIMP_GRID) return state
+  if (state.over || state.paused || cell < 0 || cell >= CHIMP_GRID) return state
   if (state.layout[state.progress] !== cell) {
     const lives = state.lives - 1
     if (lives <= 0) return { ...state, lives: 0, over: true, miss: cell, lostLife: true }
-    return { ...state, lives, layout: gen(state.level), progress: 0, miss: null, lostLife: true }
+    // Hold the board on the slip (progress kept, so the board can show the next number).
+    return { ...state, lives, paused: true, miss: cell, lostLife: true }
   }
   const progress = state.progress + 1
   if (progress < state.layout.length) return { ...state, progress, lostLife: false }
   const level = Math.min(state.level + 1, CHIMP_GRID)
-  return { ...state, level, layout: gen(level), progress: 0, miss: null, lostLife: false }
+  return { ...state, level, layout: gen(level), progress: 0, cleared: Math.max(state.cleared ?? 0, state.layout.length), miss: null, lostLife: false }
 }
 
-// Highest count of numbers recalled in order (the level last cleared).
+// After a slip: same level, new layout.
+export function continueChimpSolo(state, gen = generateChimpLayout) {
+  if (!state.paused || state.over) return state
+  return { ...state, paused: false, layout: gen(state.level), progress: 0, miss: null, lostLife: false }
+}
+
+// Most numbers recalled in order this run — 0 until a level is actually cleared
+// (it used to read level − 1, so a run that never cleared level 4 still scored 3).
 export function chimpSoloScore(state) {
-  return state.level - 1
+  return state.cleared ?? 0
 }
 
 // ── Number Memory: one more digit per level, one miss ends the run ──
