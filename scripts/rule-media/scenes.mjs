@@ -8,6 +8,7 @@ const input = (text, cap = 0) => ({ action: 'input', text, cap })
 const select = (selector, cap = 0) => ({ action: 'select', selector, cap })
 const scene = (source, steps, setup = [], crop = null) => ({ source, steps, setup, crop })
 
+// Memory solo runs wait on TAP TO START before their first reveal.
 export const SCENES = {
   ultimatettt: scene('demos/BotBoardDemo', [place('button[aria-label^="Board "]', 1), place('button[aria-label^="Board "]', 1)]),
   connectfour5: scene('demos/BotBoardDemo', [place('button[aria-label^="Column "]'), place('button[aria-label^="Column "]', 1)], [], cell('c4-cell-')),
@@ -21,6 +22,7 @@ export const SCENES = {
   chainreaction6: scene('demos/BotBoardDemo', [place(cell('cr-cell-')), place(cell('cr-cell-'))]),
   blockade: scene('demos/BotBoardDemo', [place(cell('blockade-cell-'), 0), place(cell('blockade-cell-'), 0)]),
   pairs: scene('demos/BotBoardDemo', [place('button[aria-label*="face down"]'), place('button[aria-label*="face down"]')]),
+  pairs4: scene('demos/BotBoardDemo', [place('button[aria-label*="face down"]'), place('button[aria-label*="face down"]')]),
   hex: scene('demos/BotBoardDemo', [place(cell('hex-cell-')), place(cell('hex-cell-'))]),
   sim: scene('demos/BotBoardDemo', [place(cell('edge-')), place(cell('edge-'))]),
   chomp: scene('demos/BotBoardDemo', [place(cell('chomp-cell-'), 1), place(cell('chomp-cell-'), 2)]),
@@ -54,10 +56,11 @@ export const SCENES = {
   artillery: scene('ArtilleryDemo', [click('^FIRE$', 1, 1800), click('^FIRE$', 1, 1800)]),
   archery: scene('ArcheryDemo', [click('LOOSE ARROW', 1, 2000), click('LOOSE ARROW', 1, 2000)], [click('ROOKIE', 0)]),
   animalstack: scene('AnimalStackDemo', [click('^DROP', 1, 2000), click('^DROP', 1, 2000)], [click('CLIMB', 0)]),
-  simon: scene('MemorySoloDemos', [{ action: 'remember', cap: 0, wait: 20 }, { action: 'recall', cap: 0 }]),
-  visualmemory: scene('MemorySoloDemos', [place('button[aria-label^="Row "]', 1), place('button[aria-label^="Row "]', 1)]),
-  chimp: scene('MemorySoloDemos', [place('button[aria-label*="tile"]', 1), place('button[aria-label^="row "]', 1)]),
-  numbermemory: scene('MemorySoloDemos', [input('1', 1), { action: 'submit', cap: 1 }]),
+  simon: scene('MemorySoloDemos', [{ action: 'remember', cap: 0, wait: 20 }, { action: 'recall', cap: 0 }], [click('TAP TO START', 0, 400)]),
+  visualmemory: scene('MemorySoloDemos', [place('button[aria-label^="Row "]', 1), place('button[aria-label^="Row "]', 1)], [click('TAP TO START', 0, 400)]),
+  // Tile 1 by name: a wrong first tap now pauses the run on the slip.
+  chimp: scene('MemorySoloDemos', [{ action: 'wait', cap: 0, wait: 200 }, place('button[aria-label$=", tile 1"]', 1)], [click('TAP TO START', 0, 400)]),
+  numbermemory: scene('MemorySoloDemos', [input('1', 1), { action: 'submit', cap: 1 }], [click('TAP TO START', 0, 400)]),
   hangwoman: scene('HangmanDemo', [key('E', 1), key('A', 1)]),
   wordduel: scene('WordDuelDemo', [key('CRANE', 1), key('Enter', 2)], [key('PLANT'), click('LOCK')]),
   wordrace: scene('WordRaceDemo', [key('CRANE', 1), key('Enter', 2)], [click('START RACE')]),
