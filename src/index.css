@@ -1947,15 +1947,30 @@ body::before {
   75%      { transform: translateX(-2px); }
 }
 .arrows-stage.is-error .arrows-svg { animation: arrows-board-shake 0.28s ease; }
+/* Curved arrows carry a CTA-coloured hook showing the turn they take at the
+   edge; a hint pulses one free arrow in the win colour. */
+.arrows-arrow .ar-hook { stroke: rgb(var(--c-cta)); }
+.arrows-arrow .ar-hook-tip { fill: rgb(var(--c-cta)); stroke: none; }
+.arrows-arrow.is-error .ar-hook { stroke: rgb(var(--c-danger)); }
+.arrows-arrow.is-error .ar-hook-tip { fill: rgb(var(--c-danger)); }
+@keyframes arrows-hint {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+.arrows-arrow.is-hint .ar-body { stroke: rgb(var(--c-win)); }
+.arrows-arrow.is-hint .ar-head { fill: rgb(var(--c-win)); }
+.arrows-arrow.is-hint { animation: arrows-hint 0.8s ease 3; }
 .ar-hit { outline: none; }
 .ar-hit:focus-visible { stroke: rgb(var(--c-cta) / 0.3); }
 /* Reduced motion (in-app setting, else the OS query): drop the flash, ring
    and shake; the red / CTA colour cues stay. */
 [data-motion="reduced"] .arrows-arrow.is-blocker,
+[data-motion="reduced"] .arrows-arrow.is-hint,
 [data-motion="reduced"] .arrows-stage.is-error,
 [data-motion="reduced"] .arrows-stage.is-error .arrows-svg { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"]) .arrows-arrow.is-blocker,
+  :root:not([data-motion="full"]) .arrows-arrow.is-hint,
   :root:not([data-motion="full"]) .arrows-stage.is-error,
   :root:not([data-motion="full"]) .arrows-stage.is-error .arrows-svg { animation: none; }
 }

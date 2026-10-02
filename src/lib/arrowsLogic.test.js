@@ -27,6 +27,17 @@ import {
   ARROWS_LIVES,
   ARROWS_TIERS,
   ARROWS_TIER_SPECS,
+  arrowRoute,
+  cornerOccupancy,
+  getArrowsDifficulty,
+  isCurved,
+  isDiagonal,
+  levelStats,
+  polylineLength,
+  routeDistance,
+  solveArrows,
+  tierForGame,
+  turnedDir,
 } from './arrowsLogic'
 
 // A hand-built 4×3 board (index: cells tail → head, heading):
@@ -117,8 +128,12 @@ describe('generateArrowsLevel', () => {
             expect(seen.has(key)).toBe(false)
             seen.add(key)
             if (k > 0) {
+              // Orthogonal steps, or one diagonal step per cell for a
+              // diagonal arrow.
               const [px, py] = arrow.cells[k - 1]
-              expect(Math.abs(px - x) + Math.abs(py - y)).toBe(1)
+              const step = [x - px, y - py]
+              if (isDiagonal(arrow)) expect(step).toEqual(ARROWS_DIRS[arrow.dir])
+              else expect(Math.abs(step[0]) + Math.abs(step[1])).toBe(1)
             }
           })
           // Heading is the last step.
@@ -135,6 +150,74 @@ describe('generateArrowsLevel', () => {
       }
     }, 20000)
   }
+
+  it('only medium and hard carry twists: diagonals from medium, hooks on hard', () => {
+    const count = (tier, pred) => {
+      let n = 0
+      for (let s = 1; s <= 40; s += 1) n += generateArrowsLevel(s * 31, tier).arrows.filter(pred).length
+      return n
+    }
+    expect(count('easy', isDiagonal) + count('easy', isCurved)).toBe(0)
+    expect(count('medium', isDiagonal)).toBeGreaterThan(40)
+    expect(count('medium', isCurved)).toBe(0)
+    expect(count('hard', isDiagonal)).toBeGreaterThan(40)
+    expect(count('hard', isCurved)).toBeGreaterThan(20)
+  })
+
+  it('difficulty scales with the tier: more arrows, deeper solves, higher score', () => {
+    const avg = (tier, key) => {
+      let n = 0
+      for (let s = 1; s <= 40; s += 1) n += levelStats(generateArrowsLevel(s * 101, tier))[key]
+      return n / 40
+    }
+    for (const key of ['arrows', 'layers', 'difficulty']) {
+      expect(avg('medium', key)).toBeGreaterThan(avg('easy', key))
+      expect(avg('hard', key)).toBeGreaterThan(avg('medium', key))
+    }
+  })
+
+  it('twist arrows are well-formed: no crossing diagonals, hooks with a real turn, routes clear of their own body', () => {
+    for (let s = 1; s <= 60; s += 1) {
+      const level = generateArrowsLevel(s * 977, 'hard')
+      const corners = new Map()
+      level.arrows.forEach((arrow, i) => {
+        const own = new Set(arrow.cells.map(([x, y]) => y * level.cols + x))
+        const route = arrowRoute(level, arrow)
+        for (const c of route.cells) expect(own.has(c)).toBe(false)
+        if (isDiagonal(arrow)) {
+          expect(arrow.cells.length).toBeLessThanOrEqual(4)
+          for (let k = 1; k < arrow.cells.length; k += 1) {
+            const [px, py] = arrow.cells[k - 1]
+            const [x, y] = arrow.cells[k]
+            const key = `${Math.max(px, x)},${Math.max(py, y)}`
+            expect(corners.has(key)).toBe(false)
+            corners.set(key, i)
+          }
+        }
+        if (isCurved(arrow)) {
+          // Straight body, and the route actually turns onto a second leg.
+          arrow.cells.slice(1).forEach(([x, y], k) => {
+            const [px, py] = arrow.cells[k]
+            expect([x - px, y - py]).toEqual(ARROWS_DIRS[arrow.dir])
+          })
+          expect(route.finalDir).toBe(turnedDir(arrow.dir, arrow.turn))
+          const [lx, ly] = ARROWS_DIRS[route.finalDir]
+          const last = route.cells[route.cells.length - 1]
+          const [hx, hy] = arrow.cells[arrow.cells.length - 1]
+          const prev = route.cells.length > 1 ? route.cells[route.cells.length - 2] : hy * level.cols + hx
+          expect(last - prev).toBe(ly * level.cols + lx)
+        }
+      })
+    }
+  })
+
+  it('accepts a custom spec object (solo levels)', () => {
+    const spec = { cols: 5, rows: 6, maxLen: 3, fill: 0.7, samples: 3, diag: 0.3, name: 'level-x' }
+    const level = generateArrowsLevel(42, spec)
+    expect(level).toMatchObject({ cols: 5, rows: 6, tier: 'level-x' })
+    expect(level).toEqual(generateArrowsLevel(42, spec))
+    expect(solveArrows(level).solvable).toBe(true)
+  })
 
   it('boards grow with the tier', () => {
     const avg = (tier) => {
@@ -327,5 +410,150 @@ describe('geometry', () => {
     expect(roundedPathD([[0, 0], [10, 0]], 3)).toBe('M0 0 L10 0')
     expect(roundedPathD([[0, 0], [10, 0]], 3, 2)).toBe('M0 0 L8 0')
     expect(roundedPathD([[0, 0], [10, 0], [10, 10]], 3)).toBe('M0 0 L7 0 Q10 0 10 3 L10 10')
+  })
+})
+
+// ── Twists: diagonal and curved arrows ────────────────────────────────────
+
+describe('diagonal arrows', () => {
+  // 4×4. A: (0,3)→(1,2) flying up-right; its route is (2,1), (3,0).
+  // B: (1,1)→(2,2) flying down-right — its body crosses A's route at the
+  // corner between (1,2) and (2,1). C: (3,2)→(3,3) heading down, sitting on
+  // B's route.
+  const board = () => ({
+    cols: 4,
+    rows: 4,
+    arrows: [
+      { cells: [[0, 3], [1, 2]], dir: 4 },
+      { cells: [[1, 1], [2, 2]], dir: 5 },
+      { cells: [[3, 2], [3, 3]], dir: 2 },
+    ],
+  })
+
+  it('routes along the diagonal to the edge', () => {
+    const level = board()
+    expect(arrowRoute(level, level.arrows[0]).cells).toEqual([1 * 4 + 2, 0 * 4 + 3])
+    expect(arrowRoute(level, level.arrows[0]).finalDir).toBe(4)
+  })
+
+  it('is blocked by a diagonal body crossing its route at a corner', () => {
+    const level = board()
+    expect(exitCheck(level, [false, false, false], 0)).toEqual({ free: false, blocker: 1, gap: 0 })
+    expect(cornerOccupancy(level, [false, false, false]).filter((v) => v !== -1)).toHaveLength(2)
+    // B leaves first (its route (3,3) is held by C, so C goes before B).
+    expect(exitCheck(level, [false, false, false], 1)).toEqual({ free: false, blocker: 2, gap: 0 })
+    expect(exitCheck(level, [false, false, true], 1).free).toBe(true)
+    expect(exitCheck(level, [false, true, true], 0)).toEqual({ free: true, blocker: -1, gap: 2 })
+  })
+
+  it('is not blocked by cells beside its diagonal', () => {
+    const level = {
+      cols: 3,
+      rows: 3,
+      arrows: [
+        { cells: [[0, 2], [1, 1]], dir: 4 },
+        { cells: [[1, 0], [0, 0]], dir: 3 },
+        { cells: [[2, 2], [2, 1]], dir: 0 },
+      ],
+    }
+    // (2,1) and (1,0) flank the corner A crosses, but only (2,0) is on its
+    // route, and it is empty.
+    expect(exitCheck(level, [false, false, false], 0).free).toBe(true)
+  })
+
+  it('a bump travels √2 per diagonal step', () => {
+    const level = board()
+    expect(routeDistance(level.arrows[0], 1, 10)).toBeCloseTo(10 * Math.SQRT2)
+    expect(routeDistance(level.arrows[2], 1.5, 10)).toBe(15)
+  })
+})
+
+describe('curved arrows', () => {
+  // 4×3. A: (0,1)→(1,1) heading right with a clockwise hook: it flies to
+  // (3,1), turns down, and runs (3,2) off the board.
+  const curved = (turn, extra = []) => ({
+    cols: 4,
+    rows: 3,
+    arrows: [{ cells: [[0, 1], [1, 1]], dir: 1, turn }, ...extra],
+  })
+
+  it('routes to the edge, then turns once the way the hook points', () => {
+    const cw = curved(1)
+    expect(arrowRoute(cw, cw.arrows[0])).toMatchObject({ cells: [6, 7, 11], finalDir: 2 })
+    const ccw = curved(-1)
+    expect(arrowRoute(ccw, ccw.arrows[0])).toMatchObject({ cells: [6, 7, 3], finalDir: 0 })
+    expect(isCurved(cw.arrows[0])).toBe(true)
+    expect(isCurved({ cells: [[0, 0], [1, 0]], dir: 1 })).toBe(false)
+  })
+
+  it('needs both legs clear', () => {
+    // Blocker on the second leg (the edge cell below the turn).
+    const legTwo = curved(1, [{ cells: [[2, 2], [3, 2]], dir: 1 }])
+    expect(exitCheck(legTwo, [false, false], 0)).toEqual({ free: false, blocker: 1, gap: 2 })
+    // The same blocker does not touch the counter-clockwise route.
+    const other = curved(-1, [{ cells: [[2, 2], [3, 2]], dir: 1 }])
+    expect(exitCheck(other, [false, false], 0).free).toBe(true)
+    // Blocker in the first leg.
+    const legOne = curved(1, [{ cells: [[2, 0], [2, 1]], dir: 2 }])
+    expect(exitCheck(legOne, [false, false], 0)).toEqual({ free: false, blocker: 1, gap: 0 })
+  })
+
+  it('a head already on the edge turns straight away', () => {
+    const level = { cols: 3, rows: 3, arrows: [{ cells: [[0, 1], [1, 1], [2, 1]], dir: 1, turn: 1 }] }
+    expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [8], finalDir: 2 })
+  })
+
+  it('leavePose follows the route round the turn', () => {
+    const level = curved(1)
+    const arrow = level.arrows[0]
+    expect(leavePose(arrow, 10, 0, level)).toEqual([[5, 15], [15, 15]])
+    // Far along, the snake has turned the corner and runs down.
+    const far = leavePose(arrow, 10, 40, level)
+    expect(far[far.length - 1][0]).toBeCloseTo(35)
+    expect(far[far.length - 1][1]).toBeGreaterThan(25)
+    for (const t of [0, 7, 21, 40]) expect(polylineLength(leavePose(arrow, 10, t, level))).toBeCloseTo(10)
+  })
+})
+
+describe('solveArrows / levelStats', () => {
+  it('solves the tiny board in waves', () => {
+    const r = solveArrows(TINY)
+    expect(r).toMatchObject({ solvable: true, layers: 2, initialFree: 2 })
+    expect(r.order).toEqual([1, 2, 0])
+  })
+
+  it('detects a deadlock', () => {
+    const level = {
+      cols: 4,
+      rows: 1,
+      arrows: [
+        { cells: [[0, 0], [1, 0]], dir: 1 },
+        { cells: [[3, 0], [2, 0]], dir: 3 },
+      ],
+    }
+    expect(solveArrows(level)).toMatchObject({ solvable: false, layers: 0, initialFree: 0 })
+  })
+
+  it('levelStats counts twists and scores deeper boards higher', () => {
+    const st = levelStats(TINY)
+    expect(st).toMatchObject({ solvable: true, arrows: 3, layers: 2, diagonals: 0, curves: 0 })
+    const bigger = levelStats(generateArrowsLevel(5, 'hard'))
+    expect(bigger.difficulty).toBeGreaterThan(st.difficulty)
+  })
+})
+
+describe('room difficulty', () => {
+  it('tierForGame: a fixed tier every round, or the easy → hard ramp', () => {
+    expect(tierForGame('hard', 0)).toBe('hard')
+    expect(tierForGame('easy', 2)).toBe('easy')
+    expect(tierForGame('mixed', 1)).toBe('medium')
+    expect(tierForGame(undefined, 2)).toBe('hard')
+    expect(tierForGame('nope', 0)).toBe('easy')
+  })
+
+  it('getArrowsDifficulty defaults to mixed', () => {
+    expect(getArrowsDifficulty('medium')).toBe('medium')
+    expect(getArrowsDifficulty(null)).toBe('mixed')
+    expect(getArrowsDifficulty('insane')).toBe('mixed')
   })
 })

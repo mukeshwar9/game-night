@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  ARROWS_DIRS,
   ARROWS_DIR_NAMES,
   cellCenter,
   exitVector,
+  isCurved,
+  isDiagonal,
   leavePose,
   occupancy,
   roundedPathD,
+  routeDistance,
+  turnedDir,
 } from '../lib/arrowsLogic'
 import { cn } from '@/lib/utils'
 import { isReducedMotion } from '../hooks/useMotionPref'
@@ -30,6 +35,7 @@ const BUMP_MAX_CELLS = 4
 const BUMP_OUT_MS_PER_CELL = 38
 const BUMP_BACK_MS = 220
 const ERROR_MS = 620
+const HINT_MS = 2400
 // Taps landing just outside an arrow's cell still count if they are this close
 // (in cells) to one of its cell centres — thumbs are wider than lines.
 const TAP_SLOP = 0.8
@@ -49,6 +55,40 @@ function bodyD(points) {
   return roundedPathD(points, CORNER, BODY_INSET)
 }
 
+// A curved arrow's hook: a short curl off the tip of its head that bends the
+// way the arrow will turn at the board edge, ending in a small chevron. It
+// stays inside the head cell so it never draws over a neighbour.
+const HOOK_REACH = 3.6
+const HOOK_SIDE = 2.4
+const HOOK_CHEVRON = 1.6
+const HOOK_HALF = 1.2
+function hookD(arrow) {
+  const c = cellCenter(arrow.cells[arrow.cells.length - 1], CELL)
+  const [dx, dy] = ARROWS_DIRS[arrow.dir]
+  const [sx, sy] = ARROWS_DIRS[turnedDir(arrow.dir, arrow.turn)]
+  const f = (n) => Math.round(n * 100) / 100
+  const p = (u, v) => `${f(c[0] + dx * u + sx * v)} ${f(c[1] + dy * u + sy * v)}`
+  return `M${p(TIP_AHEAD, 0)} Q${p(HOOK_REACH, 0)} ${p(HOOK_REACH, HOOK_SIDE)}`
+}
+function hookTipD(arrow) {
+  const c = cellCenter(arrow.cells[arrow.cells.length - 1], CELL)
+  const [dx, dy] = ARROWS_DIRS[arrow.dir]
+  const [sx, sy] = ARROWS_DIRS[turnedDir(arrow.dir, arrow.turn)]
+  const f = (n) => Math.round(n * 100) / 100
+  const p = (u, v) => `${f(c[0] + dx * u + sx * v)} ${f(c[1] + dy * u + sy * v)}`
+  const v = HOOK_SIDE
+  return `M${p(HOOK_REACH, v + HOOK_CHEVRON)} L${p(HOOK_REACH - HOOK_HALF, v)} L${p(HOOK_REACH + HOOK_HALF, v)} Z`
+}
+
+function arrowLabel(arrow, i) {
+  const len = `${arrow.cells.length} long`
+  if (isDiagonal(arrow)) return `Arrow ${i + 1}, diagonal, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`
+  if (isCurved(arrow)) {
+    return `Arrow ${i + 1}, curved, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]} then turning ${ARROWS_DIR_NAMES[turnedDir(arrow.dir, arrow.turn)]} at the edge`
+  }
+  return `Arrow ${i + 1}, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`
+}
+
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
 const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
 
@@ -58,9 +98,10 @@ function leaveTravel(elapsed) {
   return v * (elapsed - ACCEL_MS / 2)
 }
 
-function bumpTravel(elapsed, gap) {
-  const dist = Math.min(gap + BUMP_OVERSHOOT, BUMP_MAX_CELLS) * CELL
-  const outMs = Math.max(90, (dist / CELL) * BUMP_OUT_MS_PER_CELL)
+function bumpTravel(elapsed, gap, arrow) {
+  const cells = Math.min(gap + BUMP_OVERSHOOT, BUMP_MAX_CELLS)
+  const dist = routeDistance(arrow, cells, CELL)
+  const outMs = Math.max(90, cells * BUMP_OUT_MS_PER_CELL)
   if (elapsed < outMs) return { travel: dist * easeOutCubic(elapsed / outMs), done: false }
   const back = elapsed - outMs
   if (back < BUMP_BACK_MS) return { travel: dist * (1 - easeInOutQuad(back / BUMP_BACK_MS)), done: false }
@@ -70,12 +111,14 @@ function bumpTravel(elapsed, gap) {
 // `gone`: bool per arrow. An arrow flipping to gone slides off the board;
 // arrows already gone on mount are simply absent (reloads never replay).
 // `feedback`: { index, blocker, gap, key } for a blocked tap — bump + red.
+// `hint`: { index, key } pulses one free arrow (solo hint button).
 export default function ArrowsBoard({
   level,
   gone,
   onTap,
   interactive = false,
   feedback = null,
+  hint = null,
   compact = false,
   label,
 }) {
@@ -83,6 +126,7 @@ export default function ArrowsBoard({
   const stageRef = useRef(null)
   const bodyRefs = useRef([])
   const headRefs = useRef([])
+  const hookRefs = useRef([])
   const groupRefs = useRef([])
   const anims = useRef(new Map())
   const rafRef = useRef(0)
@@ -94,9 +138,12 @@ export default function ArrowsBoard({
   const bounds = { minX: -CELL, minY: -CELL, maxX: width + CELL, maxY: height + CELL }
 
   const drawPose = (index, travel) => {
-    const pose = leavePose(level.arrows[index], CELL, travel)
+    const pose = leavePose(level.arrows[index], CELL, travel, level)
     bodyRefs.current[index]?.setAttribute('d', bodyD(pose))
     headRefs.current[index]?.setAttribute('d', headD(pose))
+    // The hook marks the turn still to come; once moving, the arrow itself
+    // shows the route, so the hook hides until it is back at rest.
+    hookRefs.current[index]?.setAttribute('visibility', travel > 0.01 ? 'hidden' : 'visible')
     return pose
   }
 
@@ -111,7 +158,7 @@ export default function ArrowsBoard({
           finished.push(index)
         }
       } else {
-        const { travel, done } = bumpTravel(elapsed, anim.gap)
+        const { travel, done } = bumpTravel(elapsed, anim.gap, level.arrows[index])
         drawPose(index, travel)
         if (done) finished.push(index)
       }
@@ -176,6 +223,18 @@ export default function ArrowsBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedback])
 
+  // Hint: pulse one free arrow until the next hint or tap.
+  useEffect(() => {
+    if (!hint) return
+    const group = groupRefs.current[hint.index]
+    if (!group) return
+    group.classList.remove('is-hint')
+    void group.getBoundingClientRect()
+    group.classList.add('is-hint')
+    const t = setTimeout(() => group.classList.remove('is-hint'), HINT_MS)
+    return () => { clearTimeout(t); group.classList.remove('is-hint') }
+  }, [hint])
+
   const handlePointerDown = (e) => {
     if (!interactive || !onTap) return
     const svg = svgRef.current
@@ -239,12 +298,16 @@ export default function ArrowsBoard({
         <g strokeLinecap="round" strokeLinejoin="round">
           {level.arrows.map((arrow, i) => {
             if (hidden.has(i)) return null
-            const pose = leavePose(arrow, CELL, 0)
+            const pose = leavePose(arrow, CELL, 0, level)
             const cells = arrow.cells.map((c) => cellCenter(c, CELL))
             const hitD = `M${cells.map((p) => p.join(' ')).join(' L')}`
             const leaving = !!gone[i]
             return (
-              <g key={i} ref={(el) => { groupRefs.current[i] = el }} className="arrows-arrow">
+              <g
+                key={i}
+                ref={(el) => { groupRefs.current[i] = el }}
+                className={cn('arrows-arrow', isDiagonal(arrow) && 'is-diag', isCurved(arrow) && 'is-curve')}
+              >
                 <path
                   ref={(el) => { bodyRefs.current[i] = el }}
                   className="ar-body"
@@ -259,6 +322,12 @@ export default function ArrowsBoard({
                   d={headD(pose)}
                   style={{ pointerEvents: 'none' }}
                 />
+                {isCurved(arrow) && (
+                  <g ref={(el) => { hookRefs.current[i] = el }} style={{ pointerEvents: 'none' }}>
+                    <path className="ar-hook" d={hookD(arrow)} fill="none" strokeWidth={STROKE * 0.62} />
+                    <path className="ar-hook-tip" d={hookTipD(arrow)} />
+                  </g>
+                )}
                 {interactive && !leaving && (
                   <path
                     className="ar-hit"
@@ -271,7 +340,7 @@ export default function ArrowsBoard({
                     style={{ pointerEvents: 'none' }}
                     tabIndex={0}
                     role="button"
-                    aria-label={`Arrow ${i + 1}, ${arrow.cells.length} long, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`}
+                    aria-label={arrowLabel(arrow, i)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
