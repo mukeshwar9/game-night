@@ -211,7 +211,9 @@ export default function VisualMemoryGame({
           vmClicked={me.clicked}
           vmLevel={level}
           vmMiss={me.fail != null && me.fail >= 0 ? me.fail : null}
-          finished={me.fail != null}
+          // The answer stays hidden until the level resolves, so a slipped player cannot
+          // call it out to the other; the hint says what happened.
+          finished={false}
           reveal={phase === 'reveal'}
           revealMsLeft={phase === 'reveal' ? startAt + revealMs - now : null}
           mySymbol={mySymbol}

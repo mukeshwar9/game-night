@@ -308,8 +308,9 @@ export default function ChimpGame({
         key={`${level}-${layout.join(',')}`}
         onMove={handleCellClick}
         disabled={!mySymbol || myOut}
-        reveal={mySymbol != null && myFail != null}
-        missCell={myFail != null && myFail >= 0 ? myFail : null}
+        // The layout stays hidden from a slipped player until the level resolves, so
+        // they cannot call the numbers out to the other player.
+        reveal={false}
         chimpLayout={layout}
         myProgress={myProgress}
         opProgress={opProgress}
