@@ -1128,3 +1128,17 @@ export function SplitSignalIcon() {
     </svg>
   )
 }
+
+// The party lobby (party-first rooms): three friends, the middle one hosting.
+export function PartyIcon() {
+  return (
+    <LineSvg>
+      <circle cx="12" cy="8" r="2.5" stroke="none" className="fill-retro-cta" />
+      <path d="M8 20V17A4 4 0 0 1 16 17V20" className="stroke-retro-cta" />
+      <circle cx="5" cy="10" r="2" stroke="none" className="fill-retro-p1" />
+      <path d="M2 20V18A3 3 0 0 1 6.5 15.5" className="stroke-retro-p1" />
+      <circle cx="19" cy="10" r="2" stroke="none" className="fill-retro-p2" />
+      <path d="M22 20V18A3 3 0 0 0 17.5 15.5" className="stroke-retro-p2" />
+    </LineSvg>
+  )
+}

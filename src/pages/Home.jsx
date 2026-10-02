@@ -62,7 +62,7 @@ export default function Home() {
   const [iosHintDismissed, setIosHintDismissed] = useState(() => !!localStorage.getItem('gn-ios-install-dismissed'))
   const { profile, invites } = useAuth()
   const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
-  const { createGame, loading } = useCreateGame({
+  const { createGame, createParty, loading } = useCreateGame({
     profile,
     avatar: myAvatar,
     onMissingName: () => setShowOnboarding(true),
@@ -165,12 +165,18 @@ export default function Home() {
           <h1 className="font-pixel text-xl sm:text-2xl text-retro-text text-glow-cta mt-2 tracking-wider">
             READY FOR ANOTHER ROUND?
           </h1>
-          <Link
-            to="/games?intent=friend"
-            className="mt-5 min-h-12 w-full flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-[0.98]"
+          {/* Party first: friends gather, then the host picks a game that fits
+              how many came. A single game for two stays on the GAMES tab. */}
+          <button
+            type="button"
+            onClick={() => createParty()}
+            disabled={!!loading}
+            data-testid="start-party"
+            className="mt-5 min-h-12 w-full flex flex-col items-center justify-center gap-1 py-2 bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta transition-all active:scale-[0.98] disabled:opacity-60"
           >
-            PLAY WITH FRIENDS
-          </Link>
+            <span className="font-pixel text-[10px] tracking-widest">{loading === 'party' ? 'STARTING…' : 'START A PARTY'}</span>
+            <span className="font-mono text-[10px] opacity-80">invite up to 3 friends, then pick a game</span>
+          </button>
           <div className="grid grid-cols-2 gap-2 mt-2">
             <Link
               to="/demo"

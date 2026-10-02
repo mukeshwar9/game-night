@@ -23,7 +23,7 @@ async function readRoom(page) {
 }
 
 async function openGame(page, label) {
-  await page.getByRole('link', { name: 'PLAY WITH FRIENDS' }).click()
+  await page.goto('/games?intent=friend')
   await expect(page.getByRole('heading', { name: 'CHOOSE YOUR GAME' })).toBeVisible()
   await page.getByRole('button', { name: new RegExp(`^${label}\\b`) }).first().click()
   return page.getByRole('dialog', { name: new RegExp(`^${label}\\b`) })

@@ -71,7 +71,7 @@ test('UPDRAFT CO-OP: gates wait on the partner and a fall costs a shared life', 
 
   await test.step('create the co-op mode from MORE MODES and join', async () => {
     await onboard(alice.page, 'Alice')
-    await alice.page.getByRole('link', { name: 'PLAY WITH FRIENDS' }).click()
+    await alice.page.goto('/games?intent=friend')
     await alice.page.getByRole('button', { name: /^UPDRAFT\b/ }).first().click()
     await alice.page.getByRole('button', { name: 'MORE MODES' }).click()
     await alice.page.getByRole('dialog', { name: /pick a mode/i }).getByRole('button', { name: /^CO-OP/ }).click()

@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ref, update, set as dbSet, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover } from '../lib/games'
+import { freshGameState, getGameConfig, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover, PARTY_LOBBY, buildPartyRoom } from '../lib/games'
 import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
@@ -38,6 +38,7 @@ import SeatOffer from '../components/SeatOffer'
 import { isMyTurn, roomAnnouncement, seatedIds, spectatorCount } from '../lib/roomLogic'
 import useRoomSession, { UPDATE_NEEDED_ERROR } from '../hooks/room/useRoomSession'
 import UpdateNeeded from '../components/UpdateNeeded'
+import PartyAccessNotice from '../components/PartyAccessNotice'
 import useProposal from '../hooks/room/useProposal'
 import useAbandonRecovery from '../hooks/room/useAbandonRecovery'
 import useBackGuard from '../hooks/room/useBackGuard'
@@ -720,6 +721,8 @@ export default function Game() {
   // Create a fresh room of the given type (used by dead-end error screens and
   // the spectator "start your own room" CTA) — a trimmed replica of Home.jsx's
   // createGame, since Home.jsx is off-limits to import from here.
+  // PARTY FULL / removed: start a party of your own instead.
+  const startOwnParty = () => createNewRoom(PARTY_LOBBY.type)
   const createNewRoom = async (gameType) => {
     const playerName = localStorage.getItem('playerName')
     if (!playerName) { navigate('/'); return }
@@ -730,7 +733,9 @@ export default function Game() {
       const myId = getPlayerId()
       const cfg = getGameConfig(gameType)
       const now = Date.now()
-      const gameData = cfg.nPlayer
+      const gameData = gameType === PARTY_LOBBY.type
+        ? buildPartyRoom({ name: playerName, avatar: playerAvatar, playerId: myId, now })
+        : cfg.nPlayer
         ? {
           gameType,
           status: 'waiting',
@@ -841,8 +846,10 @@ export default function Game() {
       onStart: handleNStart,
       onSwitchGame: (t) => applySwitchGame(t),
       onNewMatch: applyNNewMatch,
+      onInvite: amSeated ? () => setShowInvite(true) : null,
       proposal: null,
     }
+    const inLobby = game.gameType === PARTY_LOBBY.type
     return (
       <RoomSwitchContext.Provider value={true}>
       <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
@@ -859,8 +866,8 @@ export default function Game() {
             <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-flex items-center min-h-11 p-3 -m-3">← HOME</Link>
             <div className="game-header-actions flex items-center justify-end gap-3">
               <SettingsButton />
-              <RulesButton onClick={() => setShowRules(true)} />
-              {amSeated && game.status !== 'waiting' && (
+              {!inLobby && <RulesButton onClick={() => setShowRules(true)} />}
+              {amSeated && game.status !== 'waiting' && !inLobby && (!game.partyRoom || isHost) && (
                 <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => applySwitchGame(t)} />
               )}
               {amSeated && (
@@ -886,12 +893,14 @@ export default function Game() {
             {cfg.label} <span aria-hidden="true">·</span> ROOM <span className="text-retro-p1">{gameId}</span>
           </p>
 
+          <PartyAccessNotice game={game} cfg={cfg} onStartOwn={startOwnParty} busy={creatingRoom} />
+
           <Suspense fallback={<GameAreaFallback />}>
             <cfg.Page {...nProps} />
           </Suspense>
 
           {/* Game night: kicked notice, lobby timers, tonight's scoreboard, host controls */}
-          <NightPanel game={game} gameId={gameId} nPlayer />
+          <NightPanel game={game} gameId={gameId} nPlayer onBackToParty={game.partyRoom && !inLobby ? () => applySwitchGame(PARTY_LOBBY.type) : null} />
 
           <ChatLog chatLog={game.chatLog} myUid={myUid} />
 
@@ -1042,6 +1051,8 @@ export default function Game() {
         <p className="game-room-meta font-pixel text-[9px] text-retro-dim tracking-widest text-center -mt-2">
           {cfg.label} <span aria-hidden="true">·</span> ROOM <span className="text-retro-p1">{gameId}</span>
         </p>
+
+        {partyMode && isSpectator && <PartyAccessNotice game={game} cfg={cfg} onStartOwn={startOwnParty} busy={creatingRoom} />}
 
         {/* Players — hidden on short/landscape real-time viewports (M-05):
             every real-time arena page already renders its own compact
@@ -1196,7 +1207,7 @@ export default function Game() {
         )}
 
         {/* Game night: winner-stays line, kicked notice, tonight's scoreboard between games, host controls */}
-        <NightPanel game={game} gameId={gameId} nPlayer={false} />
+        <NightPanel game={game} gameId={gameId} nPlayer={false} onBackToParty={partyMode ? () => applySwitchGame(PARTY_LOBBY.type) : null} />
 
         {!isCustom && isSpectator && (game.status === 'playing' || game.status === 'finished') && (
           <div className="flex flex-col items-center gap-2">

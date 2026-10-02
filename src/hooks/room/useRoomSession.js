@@ -396,8 +396,10 @@ export default function useRoomSession(gameId) {
   // reload) lines up for the next seat instead of being left to find JOIN
   // QUEUE. Once per visit, so LEAVE LINE sticks.
   const autoQueued = useRef(false)
-  const inQueue = !!game?.queue?.[myId]
-  const canAutoQueue = !!game && !party && !!game.partyRoom && !mySeat && !inQueue && !needName
+  // Judged from the room itself, not this client's seat state, which lags a
+  // switch by a snapshot (a seated player would otherwise queue themselves).
+  const isMember = !!game && (game.players?.X?.playerId === myId || game.players?.O?.playerId === myId || !!game.queue?.[myId])
+  const canAutoQueue = !!game && !party && !!game.partyRoom && !isMember && !needName && !loading
     && canTakeSeat(game, myId) && !!cfg && !partyFullFor(game, false, effectiveCap(game, cfg), myId)
   useEffect(() => {
     if (!canAutoQueue || autoQueued.current) return

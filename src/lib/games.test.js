@@ -342,3 +342,23 @@ describe('isKnownGameType', () => {
     expect(getGameConfig('nope').type).toBe(GAME_TYPES[0].type)
   })
 })
+
+describe('party lobby', () => {
+  it('resolves through getGameConfig and isKnownGameType, outside the catalogue', async () => {
+    const { getGameConfig, isKnownGameType, PARTY_LOBBY } = await import('./games')
+    expect(getGameConfig('party')).toBe(PARTY_LOBBY)
+    expect(PARTY_LOBBY).toMatchObject({ nPlayer: true, minPlayers: 1, maxPlayers: 4 })
+    expect(isKnownGameType('party')).toBe(true)
+    expect(GAME_TYPES.some(t => t.type === 'party')).toBe(false)
+  })
+
+  it('buildPartyRoom: the creator alone in the lobby, hosting, capped at 4', async () => {
+    const { buildPartyRoom } = await import('./games')
+    const room = buildPartyRoom({ name: 'Ann', avatar: 'K1x', playerId: 'a', now: 5 })
+    expect(room).toMatchObject({
+      gameType: 'party', status: 'waiting', partyRoom: true, partyCap: 4, hostUid: 'a', lobby: true,
+      players: { a: { name: 'Ann', playerId: 'a', joinedAt: 5, online: true, avatar: 'K1x' } },
+    })
+    expect(Object.keys(room.players)).toEqual(['a'])
+  })
+})

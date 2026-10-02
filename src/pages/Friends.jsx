@@ -15,7 +15,7 @@ import {
 import { fetchFriendsLeaderboard, rankEntries } from '../lib/leaderboard'
 import { db } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
-import { buildChallengeRoom } from '../lib/games'
+import { buildPartyRoom } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { recordRoom } from '../lib/profile'
@@ -205,9 +205,9 @@ export default function Friends() {
     await copyCode()
   }
 
-  // One-tap challenge (M-20): create a lobby room (gameType still mutable —
-  // either player picks a game once both are in) and send the friend an
-  // invite into it, jumping straight into the room.
+  // One-tap INVITE: start a party (party-first rooms) and invite the friend
+  // into it, jumping straight into the lobby, where the host picks a game
+  // that fits everyone who came.
   const challengeFriend = (friendUid, friendName) => {
     setChallengingUid(friendUid)
     runChallenge(async () => {
@@ -215,15 +215,14 @@ export default function Friends() {
       const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
       const gameId = generateGameId()
       const myId = getPlayerId()
-      const gameData = buildChallengeRoom({ name: playerName, avatar: myAvatar, playerId: myId })
+      const gameData = buildPartyRoom({ name: playerName, avatar: myAvatar, playerId: myId })
       await set(ref(db, `games/${gameId}`), gameData)
-      recordPlay('tictactoe', 'multi')
-      sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+      recordPlay(gameData.gameType, 'multi')
       recordRoom({ id: gameId, gameType: gameData.gameType })
-      await inviteFriendToGame(friendUid, { gameId, gameType: 'tictactoe' })
-      toast.success(`CHALLENGE SENT TO ${(friendName || 'FRIEND').toUpperCase()}!`)
+      await inviteFriendToGame(friendUid, { gameId, gameType: gameData.gameType, kind: 'party', size: 1, cap: gameData.partyCap })
+      toast.success(`INVITED ${(friendName || 'FRIEND').toUpperCase()} TO YOUR PARTY!`)
       navigate(`/game/${gameId}`)
-    }, () => toast.error("COULDN'T START THE GAME — TRY AGAIN.")).finally(() => setChallengingUid(null))
+    }, () => toast.error("COULDN'T START THE PARTY — TRY AGAIN.")).finally(() => setChallengingUid(null))
   }
 
   return (
@@ -392,7 +391,7 @@ export default function Friends() {
                         className="min-h-11 px-2.5 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded shrink-0
                           hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
                       >
-                        {challengingUid === uid ? '…' : 'PLAY'}
+                        {challengingUid === uid ? '…' : 'INVITE'}
                       </button>
                     )}
                     <button

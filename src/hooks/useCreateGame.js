@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig } from '../lib/games'
+import { freshGameState, getGameConfig, buildPartyRoom, PARTY_LOBBY } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
@@ -28,7 +28,9 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
       const now = Date.now()
       let gameData
 
-      if (cfg.nPlayer) {
+      if (gameType === PARTY_LOBBY.type) {
+        gameData = buildPartyRoom({ name: playerName, avatar, playerId: myId, now })
+      } else if (cfg.nPlayer) {
         gameData = {
           gameType,
           status: 'waiting',
@@ -67,5 +69,8 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
     }
   }
 
-  return { createGame, loading }
+  // START A PARTY: a party-first room in its lobby (src/lib/partyLogic.js).
+  const createParty = () => createGame(PARTY_LOBBY.type)
+
+  return { createGame, createParty, loading }
 }

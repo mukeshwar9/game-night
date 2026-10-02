@@ -1,0 +1,212 @@
+import { useState } from 'react'
+import { toast } from 'sonner'
+import Avatar from '../components/Avatar'
+import { GameArt } from '../components/GameArt'
+import QrCode from '../components/QrCode'
+import useBusy from '../hooks/useBusy'
+import { GAME_TYPES, getPlayerTag } from '../lib/games'
+import { effectiveCap, groupPickerForParty, partyMembers, partyPresentMembers } from '../lib/partyLogic'
+import { hostUidOf } from '../lib/night'
+import { memberPresent } from '../lib/nightLogic'
+import { recordFunnel } from '../lib/analytics'
+import { shareUrl } from '../lib/platform'
+import { cn } from '@/lib/utils'
+
+// The party lobby (party-first rooms): who is here, places to invite into,
+// and the game list filtered by how many are present. The host picks; a pick
+// switches the room through the shell's normal switch path (onSwitchGame),
+// which seats a 2-player game's two and lines up the rest (winner stays).
+export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame, onInvite }) {
+  const members = partyMembers(game, true)
+  const cap = effectiveCap(game, { nPlayer: true, maxPlayers: 4 })
+  const present = partyPresentMembers(game, true)
+  const n = Math.max(1, present.length)
+  const hostUid = hostUidOf(game)
+  const host = members.find(m => m.uid === hostUid)
+  const groups = groupPickerForParty(GAME_TYPES, n)
+  const [picking, setPicking] = useState(null)
+  const [showQr, setShowQr] = useState(false)
+  const [shareBusy, runShare] = useBusy()
+  const [, runPick] = useBusy()
+  const url = shareUrl(`/game/${gameId}`)
+  const amMember = !!game?.players?.[mySeat]
+  const canPick = isHost && amMember && !!onSwitchGame
+
+  const pick = (type) => {
+    if (!canPick) return
+    setPicking(type)
+    runPick(async () => { await onSwitchGame(type) }, () => toast.error("COULDN'T START THAT GAME — TRY AGAIN"))
+      .finally(() => setPicking(null))
+  }
+
+  const share = () => runShare(async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Game Night', text: 'Join my Game Night party!', url }); recordFunnel('shared'); return } catch { /* cancelled */ }
+    }
+    await navigator.clipboard.writeText(url)
+    recordFunnel('shared')
+    toast.success('LINK COPIED!')
+  }, () => toast.error("COULDN'T SHARE — COPY THE LINK FROM THE ADDRESS BAR"))
+
+  const slots = Array.from({ length: cap }, (_, i) => members[i] || null)
+
+  return (
+    <div className="space-y-4" data-testid="party-lobby">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-pixel text-[13px] text-retro-text text-glow-cta tracking-wider truncate">
+          {host ? `${host.name.toUpperCase()}'S PARTY` : 'PARTY'}
+        </h2>
+        <span data-testid="party-count" className="font-pixel text-[8px] tracking-wider border rounded px-1.5 py-1 whitespace-nowrap text-retro-win border-retro-win/60 bg-retro-tint-p1">
+          {members.length} / {cap}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {slots.map((m, i) => m ? (
+          <Member key={m.uid} member={m} here={memberPresent(game, m.uid, true)} isHost={m.uid === hostUid} isMe={m.uid === mySeat} />
+        ) : (
+          <button
+            key={`empty-${i}`}
+            type="button"
+            onClick={onInvite}
+            disabled={!amMember || !onInvite}
+            className="flex flex-col items-center justify-center gap-1.5 rounded border-2 border-dashed border-retro-border min-h-[104px] text-retro-cta hover:border-retro-cta/60 transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <span className="font-pixel text-lg leading-none" aria-hidden="true">+</span>
+            <span className="font-pixel text-[8px] tracking-wider">INVITE</span>
+          </button>
+        ))}
+      </div>
+
+      {amMember && members.length < cap && (
+        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-3">
+          <p className="font-pixel text-[8px] tracking-wider text-retro-dim">BRING FRIENDS</p>
+          {onInvite && (
+            <button type="button" onClick={onInvite} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider rounded hover:shadow-neon-cta transition-all active:scale-[0.98]">
+              INVITE FRIENDS
+            </button>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={share} disabled={shareBusy} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition-all active:scale-[0.98] disabled:opacity-50">
+              {shareBusy ? 'SHARING…' : 'LINK'}
+            </button>
+            <button type="button" onClick={() => setShowQr(v => !v)} aria-expanded={showQr} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition-all active:scale-[0.98]">
+              QR
+            </button>
+            <span className="min-h-11 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-mono text-[12px] tracking-[0.2em] rounded" aria-label={`Room code ${gameId}`}>
+              {gameId}
+            </span>
+          </div>
+          {showQr && <div className="flex justify-center"><QrCode value={url} size={160} /></div>}
+        </div>
+      )}
+
+      {canPick ? (
+        <p className="text-center font-pixel text-[10px] text-retro-text">PICK A GAME FOR {n}</p>
+      ) : (
+        <div className="rounded border border-retro-cta/40 bg-retro-tint-cta p-3 flex items-center gap-3" data-testid="party-picking">
+          {host && <Avatar id={host.avatar} size={24} />}
+          <span className="flex-1 font-mono text-[11px] text-retro-text">
+            <span className="text-retro-cta">{host?.name || 'The host'}</span> is picking a game…
+          </span>
+        </div>
+      )}
+
+      <PickerGroup
+        testId="party-group-all" title={`EVERYONE PLAYS · ${groups.all.length}`} tone="text-retro-win"
+        games={groups.all} chip={() => ({ label: `ALL ${n}`, tone: 'win' })}
+        onPick={canPick ? pick : null} picking={picking}
+      />
+      {groups.rotate.length > 0 && (
+        <PickerGroup
+          testId="party-group-rotate" title={`TAKE TURNS · 2 PLAY, WINNER STAYS · ${groups.rotate.length}`} tone="text-retro-p4"
+          games={groups.rotate} chip={() => ({ label: `2 + ${n - 2}`, tone: 'p4' })}
+          onPick={canPick ? pick : null} picking={picking}
+        />
+      )}
+      {groups.short.length > 0 && (
+        <details className="rounded border border-dashed border-retro-border px-3 py-2" data-testid="party-group-short">
+          <summary className="cursor-pointer font-pixel text-[8px] tracking-wider text-retro-dim min-h-9 flex items-center">
+            NEEDS MORE PLAYERS · {groups.short.length}
+          </summary>
+          <ul className="space-y-1 pt-1">
+            {groups.short.map(({ cfg, short }) => (
+              <li key={cfg.type} className="flex items-center justify-between font-mono text-[11px] text-retro-dim">
+                <span>{cfg.label}</span><span>+{short} {short === 1 ? 'player' : 'players'}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  )
+}
+
+function Member({ member, here, isHost, isMe }) {
+  return (
+    <div data-testid="party-member" className="flex flex-col items-center gap-1.5 rounded border border-retro-border bg-retro-card pt-3 pb-2 px-1 min-w-0 min-h-[104px]">
+      <span className={cn('relative', !here && 'opacity-40 grayscale')}>
+        <Avatar id={member.avatar} size={48} />
+        {isHost && (
+          <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-retro-cta border-2 border-retro-card flex items-center justify-center" title="Host">
+            <svg width="10" height="8" viewBox="0 0 12 10" aria-hidden="true" className="fill-retro-bg"><path d="M0 2h2v2h2V0h4v4h2V2h2v8H0z" /></svg>
+          </span>
+        )}
+        <span className={cn('absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-retro-card', here ? 'bg-retro-win' : 'bg-retro-dim')} />
+      </span>
+      <span className="font-mono text-[11px] text-retro-text truncate max-w-full">{member.name}{isMe ? ' (you)' : ''}</span>
+      <span className={cn('font-pixel text-[7px] tracking-wider', isHost ? 'text-retro-cta' : 'text-retro-dim')}>
+        {isHost ? 'HOST' : here ? 'READY' : 'RECONNECTING…'}
+      </span>
+    </div>
+  )
+}
+
+const CHIP_TONE = {
+  win: 'text-retro-win border-retro-win/60 bg-retro-tint-p1',
+  p4: 'text-retro-p4 border-retro-p4/50 bg-retro-tint-p4',
+}
+
+function PickerGroup({ testId, title, tone, games, chip, onPick, picking }) {
+  return (
+    <section className="space-y-2" data-testid={testId}>
+      <p className={cn('font-pixel text-[8px] tracking-wider', tone)}>{title}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {games.map(g => {
+          const c = chip(g)
+          const Icon = g.Icon
+          return (
+            <button
+              key={g.type}
+              type="button"
+              data-game={g.type}
+              onClick={onPick ? () => onPick(g.type) : undefined}
+              disabled={!onPick || !!picking}
+              aria-label={onPick ? `Play ${g.label}` : g.label}
+              className={cn(
+                'w-full min-h-14 flex items-center gap-2.5 px-2.5 py-2 text-left border rounded transition-all',
+                picking === g.type ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta' : 'border-retro-border bg-retro-card',
+                onPick && 'hover:border-retro-cta/50 active:scale-[0.98]',
+                !onPick && 'cursor-default',
+                picking && picking !== g.type && 'opacity-40',
+              )}
+            >
+              <span aria-hidden="true" className="relative w-8 h-8 shrink-0 rounded-lg overflow-hidden flex items-center justify-center border border-retro-border text-retro-text">
+                {Icon && <Icon />}
+                <GameArt type={g.type} className="absolute inset-0 w-full h-full block" />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-pixel text-[9px] text-retro-text leading-snug">{picking === g.type ? 'STARTING…' : g.label}</span>
+                <span className="block font-mono text-[10px] text-retro-dim mt-0.5 truncate">
+                  <span className={g.nPlayer ? 'text-retro-p2' : undefined}>{getPlayerTag(g)}</span>
+                  {g.durationMin != null && ` · ~${g.durationMin} min`}
+                </span>
+              </span>
+              <span className={cn('font-pixel text-[7px] tracking-wider border rounded px-1.5 py-1 whitespace-nowrap', CHIP_TONE[c.tone])}>{c.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}

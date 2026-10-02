@@ -39,9 +39,10 @@ export async function onboard(page, name) {
   await completeOnboarding(page, name, "LET'S PLAY")
 }
 
-// Home → PLAY WITH FRIENDS → game card → INVITE FRIEND. Returns the room URL.
+// GAMES (friend intent) → game card → INVITE FRIEND: a single-game room, the
+// path Home's PLAY WITH FRIENDS used before START A PARTY. Returns the room URL.
 export async function createRoom(page, gameLabel) {
-  await page.getByRole('link', { name: 'PLAY WITH FRIENDS' }).click()
+  await page.goto('/games?intent=friend')
   await expect(page.getByRole('heading', { name: 'CHOOSE YOUR GAME' })).toBeVisible()
   await page.getByRole('button', { name: new RegExp(`^${gameLabel}\\b`) }).first().click()
   const sheet = page.getByRole('dialog', { name: new RegExp(`^${gameLabel}\\b`) })

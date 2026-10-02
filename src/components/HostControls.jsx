@@ -32,7 +32,9 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
     if (pending.kind === 'kick') {
       return {
         title: `REMOVE ${name}?`,
-        message: pending.member.where === 'queue'
+        message: game?.partyRoom
+          ? 'THEY’RE REMOVED FROM THIS PARTY AND CAN’T REJOIN IT.'
+          : pending.member.where === 'queue'
           ? 'THEY LEAVE THE LINE AND CAN’T REJOIN IT THIS MATCH.'
           : (nPlayer ? 'THEY LOSE THEIR SEAT AND CAN’T REJOIN THIS MATCH.' : 'THEY LOSE THEIR SEAT AND THE MATCH RESTARTS.'),
         confirmLabel: 'REMOVE',
@@ -100,7 +102,7 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
                       aria-label={`Remove ${m.name}`}
                       className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-danger/60 text-retro-danger hover:bg-retro-tint-danger transition-all active:scale-95"
                     >
-                      KICK
+                      {game?.partyRoom ? 'REMOVE' : 'KICK'}
                     </button>
                   </>
                 )}

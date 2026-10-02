@@ -22,7 +22,7 @@ import {
   VerbalMemoryIcon, NBackIcon, CupShuffleIcon, WhatChangedIcon, KimsGameIcon, NameTagsIcon, SplitSignalIcon,
 } from '../components/GameIcons'
 import { memLevelStart, memStreamStart, newSeed } from './memoryRaceLogic'
-import { WireCrossedIcon, AnimalStackIcon, MinigolfIcon } from '../components/GameIcons'
+import { WireCrossedIcon, AnimalStackIcon, MinigolfIcon, PartyIcon } from '../components/GameIcons'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
@@ -1836,14 +1836,24 @@ export const getNewGames = (entries, now = new Date()) =>
     .sort((a, b) => String(b.entry.addedAt).localeCompare(String(a.entry.addedAt)) || a.i - b.i)
     .map(({ entry }) => entry)
 
-export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
+// The party lobby (party-first rooms, src/lib/partyLogic.js): a room starts
+// here and comes back here between games. Not a catalogue game, so it lives
+// outside GAME_TYPES (the picker, search, counts and HOW TO PLAY all walk the
+// registry) but resolves through getGameConfig like any room type.
+export const PARTY_LOBBY = {
+  type: 'party', label: 'PARTY', desc: 'pick a game together', category: 'party',
+  nPlayer: true, minPlayers: 1, maxPlayers: 4, custom: true, hidePlayerCards: true, Icon: PartyIcon,
+  Page: lazyWithRetry(() => import('../pages/PartyLobby')),
+}
+
+export const getGameConfig = (type) => (type === PARTY_LOBBY.type ? PARTY_LOBBY : GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0])
 
 // Whether this build knows `type`. getGameConfig falls back to the first entry
 // (TIC TAC TOE) for an unknown type, so a room opened by an older build after a
 // newer one switched it to a game this build doesn't have would render, and
 // write, as tic-tac-toe. The room shell checks this first and asks for an
 // update instead.
-export const isKnownGameType = (type) => typeof type === 'string' && GAME_TYPES.some(t => t.type === type)
+export const isKnownGameType = (type) => typeof type === 'string' && (type === PARTY_LOBBY.type || GAME_TYPES.some(t => t.type === type))
 
 // 2P turn-based games: one seat must act first, so the waiting room (and
 // rematch) asks who starts. Real-time, party, and simultaneous races skip
@@ -2392,6 +2402,20 @@ export function lobbySwitchOverrides(updates) {
   delete out.chatLog
   delete out.emote
   return out
+}
+
+// Builds a party-first room (Home START A PARTY, Friends INVITE): the creator
+// alone in the PARTY lobby, uid-keyed, hosting, capped at 4 (captain call D4).
+// `partyRoom` marks it so switches reseat everyone (nightLogic) and `removed`
+// / `partyCap` / `hostUid` last for the whole party.
+export function buildPartyRoom({ name, avatar, playerId, now = Date.now(), cap = 4 }) {
+  return {
+    gameType: PARTY_LOBBY.type, status: 'waiting', lobby: true,
+    partyRoom: true, partyCap: cap, hostUid: playerId,
+    scores: {}, createdAt: now, lastActivityAt: now,
+    players: { [playerId]: { name, joinedAt: now, playerId, online: true, avatar: avatar ?? null } },
+    ...freshGameState(PARTY_LOBBY.type),
+  }
 }
 
 // Builds the room doc for a friend challenge (Friends.jsx) — same X-seat/
