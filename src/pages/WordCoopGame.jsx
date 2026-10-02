@@ -58,7 +58,9 @@ function OwnerChip({ guess, player, symbol, active }) {
 // partner's live draft (round/draft{X|O}) on theirs.
 function SharedBoard({ guesses, draft, draftBy, viewer, players, activeRow }) {
   return (
-    <div className="w-full max-w-[19rem] sm:max-w-none mx-auto space-y-1.5" role="grid" aria-label="Shared six row word board">
+    // Short phone screens (Safari bars showing) get a narrower board — ~38 px
+    // tiles — so the keyboard below stays on screen.
+    <div className="w-full max-w-[19rem] [@media(max-height:760px)]:max-w-[16rem] sm:max-w-none mx-auto space-y-1.5" role="grid" aria-label="Shared six row word board">
       {Array.from({ length: MAX_GUESSES }).map((_, row) => {
         const guess = guesses[row]
         const pending = row === activeRow && draft
@@ -320,23 +322,22 @@ export default function WordCoopGame({
   const draftBy = canAct ? mySymbol : partner
 
   return (
-    <div className="flex flex-col items-center gap-4 py-2 max-w-md mx-auto">
-      <div className="w-full flex items-center justify-between gap-2">
-        <SeatBadge symbol="X" player={game.players?.X} online={isSpectator ? undefined : (mySymbol === 'X' ? true : opponentOnline)} />
-        <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-2 sm:gap-4 py-2 max-w-md mx-auto">
+      <div className="w-full space-y-1">
+        <div className="w-full flex items-center justify-between gap-2">
+          <SeatBadge symbol="X" player={game.players?.X} online={isSpectator ? undefined : (mySymbol === 'X' ? true : opponentOnline)} />
           <span className={cn(
-            'px-3 py-1.5 rounded-full border font-pixel text-[9px] tracking-widest text-center',
+            'shrink-0 px-3 py-1.5 rounded-full border font-pixel text-[9px] tracking-widest text-center',
             result?.outcome === 'win' ? 'border-retro-win text-retro-win bg-retro-card' : result?.outcome === 'loss' ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : canAct ? 'border-retro-cta text-retro-cta bg-retro-tint-cta shadow-neon-cta' : 'border-retro-border text-retro-dim',
           )} aria-live="polite">{status}</span>
-          <span className="font-pixel text-[8px] text-retro-dim tracking-widest">WINS {score}</span>
-          <span
-            className="font-pixel text-[8px] text-retro-dim tracking-widest text-center"
-            aria-label={`Current streak ${stats.streak}, best streak ${stats.bestStreak}, losses ${stats.losses}`}
-          >
-            STREAK {stats.streak} · BEST {stats.bestStreak} · LOSSES {stats.losses}
-          </span>
+          <SeatBadge symbol="O" player={game.players?.O} online={isSpectator ? undefined : (mySymbol === 'O' ? true : opponentOnline)} />
         </div>
-        <SeatBadge symbol="O" player={game.players?.O} online={isSpectator ? undefined : (mySymbol === 'O' ? true : opponentOnline)} />
+        {/* Full width under the seats, so both names stay readable; one line
+            while playing so the board and keyboard fit a phone. */}
+        <p className="font-pixel text-[8px] text-retro-dim tracking-wider text-center whitespace-nowrap">
+          <span className="sr-only">Wins {score}, losses {stats.losses}, current streak {stats.streak}, best streak {stats.bestStreak}</span>
+          <span aria-hidden="true">W {score} · L {stats.losses} · STREAK {stats.streak} · BEST {stats.bestStreak}</span>
+        </p>
       </div>
 
       {solo && !result && (
@@ -345,7 +346,7 @@ export default function WordCoopGame({
         </p>
       )}
 
-      <p className="font-mono text-[10px] text-retro-dim text-center max-w-xs">
+      <p className="font-mono text-[10px] text-retro-dim text-center">
         {result ? 'One board. One word. One team.'
           : solo ? 'Take every turn until your partner is back.'
           : canAct ? 'Build on your partner’s clues, then lock the next guess.'
@@ -413,17 +414,13 @@ export default function WordCoopGame({
             spellCheck="false"
             className="sr-only"
           />
-          <div className="w-full flex items-center justify-between gap-2">
-            <span className="font-pixel text-[8px] text-retro-dim tracking-wider">{canAct ? 'YOUR GUESS' : 'WAITING FOR PARTNER'}</span>
-            <button
-              type="button"
-              onClick={submitGuess}
-              disabled={!canAct || submitting || currentGuess.length !== WORD_LENGTH}
-              className="min-h-11 px-4 rounded border-2 border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider hover:bg-retro-tint-cta disabled:opacity-40"
-            >{submitting ? 'LOCKING…' : 'LOCK GUESS'}</button>
-          </div>
-          <WordFeedback message={feedback?.message} tone={feedback?.tone || 'bad'} id={feedback?.id} />
-          <WordKeyboard keyState={keyState} onKey={onKey} disabled={!canAct || submitting} enterLabel="Lock guess" />
+          {/* You type into the board's active row; ↵ locks the guess. */}
+          <WordFeedback
+            message={submitting ? 'LOCKING…' : feedback?.message}
+            tone={submitting ? 'info' : feedback?.tone || 'bad'}
+            id={feedback?.id}
+          />
+          <WordKeyboard keyState={keyState} onKey={onKey} disabled={!canAct || submitting} enterLabel={submitting ? 'Locking guess' : 'Lock guess'} />
           {!canAct && partnerOffline && !solo && (
             <p className="font-pixel text-[9px] text-retro-p2 text-center">
               PARTNER OFFLINE — YOU CAN PLAY SOLO IF THEY&apos;RE NOT BACK IN {Math.round(PARTNER_OFFLINE_SOLO_MS / 1000)}S

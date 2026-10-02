@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import MarkTile from '../components/MarkTile'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import WordKeyboard from '../components/WordKeyboard'
 import WordFeedback from '../components/WordFeedback'
 import MatchScoreRail from '../components/MatchScoreRail'
@@ -61,6 +60,7 @@ export default function WordRaceDemo() {
   const [typed, setTyped] = useState('')
   const [feedback, setFeedback] = useState(null)
   const [now, setNow] = useState(() => Date.now())
+  const rootRef = useRef(null)
 
   const game = race?.game
   const round = game?.round
@@ -100,6 +100,9 @@ export default function WordRaceDemo() {
     setNow(at)
     setTyped('')
     setFeedback(null)
+      // On a phone the race (board + keyboard) only fits once the solo page's
+    // heading is scrolled away.
+    requestAnimationFrame(() => rootRef.current?.scrollIntoView({ block: 'start' }))
   }
 
   const nextRound = () => {
@@ -179,7 +182,7 @@ export default function WordRaceDemo() {
   const graceTotal = (myDone || cpuDone)?.solved ? FINISH_GRACE_MS : DONE_GRACE_MS
 
   return (
-    <div className="space-y-3">
+    <div ref={rootRef} className="space-y-2 scroll-mt-2">
       <MatchScoreRail
         game={{ scores: game.scores, players: names }}
         mySymbol="X"
@@ -187,17 +190,11 @@ export default function WordRaceDemo() {
         roundLabel={`ROUND ${round.roundNum || 1}`}
       />
 
-      {playing && (
-        <div className="flex items-center justify-between gap-2 px-1">
-          <span className="font-pixel text-[9px] text-retro-dim">SAME WORD · {MAX_GUESSES} GUESSES</span>
-          <span className="font-mono text-xs tabular-nums text-retro-cta" aria-hidden="true">{fmtClock(now - round.startedAt)}</span>
-        </div>
-      )}
+      <WordRaceMeter myGuesses={myGuesses} opponentGuesses={cpuGuesses} mySymbol="X" opponentLabel="CPU" timer={playing ? fmtClock(now - round.startedAt) : null} />
 
-      <WordRaceMeter myGuesses={myGuesses} opponentGuesses={cpuGuesses} mySymbol="X" opponentLabel="CPU" />
-
-      <div className="space-y-3">
-        <div className="rounded border p-3 border-retro-p1/30 bg-retro-tint-p1/10">
+      {/* Mid-race the CPU's hidden summary sits beside your board (phone fit). */}
+      <div className={cn('grid gap-2', reveal ? 'grid-cols-1 gap-3' : 'grid-cols-[auto_minmax(0,1fr)]')}>
+        <div className="rounded border p-2 border-retro-p1/30 bg-retro-tint-p1/10">
           <WordRaceBoard
             guesses={myGuesses}
             currentGuess={playing && !myDone ? typed : ''}
@@ -206,7 +203,7 @@ export default function WordRaceDemo() {
             solved={myDone?.solved}
           />
         </div>
-        <div className="rounded border p-3 border-retro-p2/30 bg-retro-tint-p2/10">
+        <div className="rounded border p-2 border-retro-p2/30 bg-retro-tint-p2/10">
           <WordRaceBoard guesses={cpuGuesses} ghost reveal={reveal} compact={!reveal} label="CPU" solved={cpuDone?.solved} />
           {playing && !cpuDone && (
             <p className="font-pixel text-[8px] text-retro-dim mt-1 arcade-blink">CPU IS THINKING…</p>
@@ -215,7 +212,7 @@ export default function WordRaceDemo() {
       </div>
 
       {playing && (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {graceEndsAt && (
             <div className="space-y-1">
               <p className={cn('text-center font-pixel text-[10px]', cpuDone && !myDone ? 'text-retro-p2' : 'text-retro-win')} aria-live="polite">
@@ -238,21 +235,7 @@ export default function WordRaceDemo() {
           )}
           {!myDone && (
             <>
-              <div className="flex items-center justify-center gap-2">
-                <div className="flex gap-1" aria-label={`Current guess: ${typed || 'empty'}`}>
-                  {Array.from({ length: WORD_LENGTH }, (_, i) => (
-                    <MarkTile key={i} size="sm" letter={typed[i] || ''} pending={!!typed[i]} />
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={submitGuess}
-                  disabled={typed.length !== WORD_LENGTH}
-                  className="min-h-11 px-4 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] disabled:opacity-40"
-                >
-                  GUESS
-                </button>
-              </div>
+              {/* You type straight into your board's active row; ↵ sends it. */}
               <WordFeedback message={feedback?.message} tone="bad" id={feedback?.id} />
               <WordKeyboard keyState={getKeyboardState(myGuesses)} onKey={onKey} />
             </>
