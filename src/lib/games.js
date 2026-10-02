@@ -767,7 +767,10 @@ export const GAME_TYPES = [
     badge: 'AR', maxWidth: 'max-w-sm',
     category: 'reflex',
     addedAt: '2026-09-19',
-    durationMin: 4, tags: ['quick', 'skill'],
+    durationMin: 4, tags: ['quick', 'skill'], solo: true,
+    // Solo is a 20-level puzzle campaign plus endless boards (and a bot race),
+    // not just a bot, so the play sheet names it as such.
+    soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: '20 puzzle levels, endless boards, or race a bot.',
     custom: true, realtime: true,
     Page: lazyWithRetry(() => import('../pages/ArrowsGame')),
     matchTarget: 2,
@@ -1819,7 +1822,7 @@ const FIELD_NULLS = {
   bluffRound: null,
   wire: null, // wirecrossed
   pongScoreX: null, pongScoreO: null, pongMode: null, signaling: null, matchLength: null,
-  arrowsRound: null, arrowsSeed: null, arrowsStartedAt: null,
+  arrowsRound: null, arrowsSeed: null, arrowsStartedAt: null, arrowsDifficulty: null,
   arrowsGoneX: null, arrowsGoneO: null, arrowsLivesX: null, arrowsLivesO: null,
   // updraft / updraftduo: the whole round (seed, start, seats, hazards, keys).
   updraft: null,
@@ -2124,10 +2127,12 @@ export function freshGameState(gameType, previous = null) {
   if (gameType === 'arrows') {
     // A decided/final match must never advance into a 4th round: fall back to
     // a fresh round-0 board (scores are zeroed separately by applyNewMatch).
-    const next = previous ? arrowsNextRound(previous) : null
+    // The host's difficulty pick rides along to the next round.
+    const keep = previous?.gameType === 'arrows' ? previous : null
+    const next = keep ? arrowsNextRound(keep) : null
     const arrowFields = next ?? arrowsFreshState()
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      ...arrowFields }
+      ...arrowFields, arrowsDifficulty: keep?.arrowsDifficulty ?? null }
   }
   if (gameType === 'updraft' || gameType === 'updraftduo') {
     // A new seed every round; a versus rematch keeps the host's CHAOS/PURE pick.

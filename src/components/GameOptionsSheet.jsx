@@ -137,10 +137,10 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
                 {showVsAi && (
                   <Row
                     onClick={() => onSolo(game)}
-                    label="PRACTICE VS AI"
-                    badge="AI"
+                    label={game.soloLabel ?? 'PRACTICE VS AI'}
+                    badge={game.soloBadge ?? 'AI'}
                     disabled={isBusy}
-                    blurb="Start now against the computer."
+                    blurb={game.soloBlurb ?? 'Start now against the computer.'}
                   />
                 )}
                 {showLocal && (

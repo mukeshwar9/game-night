@@ -56,7 +56,7 @@ const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
 const MinigolfLocal = lazyWithRetry(() => import('./MinigolfLocal'))
 const TriviaDemo = lazyWithRetry(() => import('./TriviaDemo'))
 const HerdDemo = lazyWithRetry(() => import('./HerdDemo'))
-const ArrowsDemo = lazyWithRetry(() => import('./ArrowsDemo'))
+const ArrowsSolo = lazyWithRetry(() => import('./ArrowsSolo'))
 const HangmanDemo = lazyWithRetry(() => import('./HangmanDemo'))
 const WordDuelDemo = lazyWithRetry(() => import('./WordDuelDemo'))
 const WordRaceDemo = lazyWithRetry(() => import('./WordRaceDemo'))
@@ -129,7 +129,7 @@ const DEMOS = [
   { type: 'paint',        short: 'PAINT\nTURF',   Icon: PaintIcon,        Component: PaintDemo        },
   { type: 'pacmac',       short: 'PAC\nMAC',      Icon: PacmacIcon,       Component: PacmacDemo       },
   { type: 'minesweeper',  short: 'MINE\nRACE',    Icon: MinesIcon,        Component: MineRaceDemo     },
-  { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsDemo        },
+  { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsSolo        },
   { type: 'updraft',      short: 'UPDRAFT',       Icon: UpdraftIcon,      Component: UpdraftDemo       },
   // Memory — single-player runs (grow until you slip, beat your best)
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonSolo,        solo: true },

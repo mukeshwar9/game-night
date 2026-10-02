@@ -72,6 +72,9 @@
         "$other": {
           ".validate": "$other.matches(/^(Stack|aimEndTime|aimFriendlyO|aimFriendlyX|aimHitsO|aimHitsX|aimMissesO|aimMissesX|aimScoreO|aimScoreX|aimTargetO|aimTargetX|aimTimesO|aimTimesX|airhockeyScoreO|airhockeyScoreX|archeryFormat|archeryPhase|archerySeatUids|archerySeed|archeryShootOffShots|archeryShots|archeryTied|archeryTurnStartedAt|arrowsCleared|arrowsGoneO|arrowsGoneX|arrowsLastBlocked|arrowsLevel|arrowsLivesO|arrowsLivesX|arrowsRound|arrowsSeed|arrowsSeen|arrowsStartedAt|arrowsTrapSeen|artillerySeed|artilleryShots|ataxxMoves|blockadeMoves|blockadePawnO|blockadePawnX|blockadeWallsO|blockadeWallsX|bluffRound|board|boxes|chatLog|chimpDoneO|chimpDoneX|chimpLayout|chimpLevel|chimpMiss|chimpProgressO|chimpProgressX|chimpRoundStartedAt|crEliminated|crLastMove|crMoves|crPlaced|crSeatSymbols|createdAt|currentTurn|diceLast|diceRollIndex|diceRolls|diceScoreO|diceScoreX|diceSeed|diceSeedB|diceSeedCommitX|diceSeedCommitter|diceSeedResets|diceSeedRevealX|diceTurnScore|emote|extraTurn|gameType|goesFirst|golfAway|golfClock|golfCourse|golfOrder|golfShots|golfSkip|hangwomanAnyWord|herdCow|hostUid|kamisadoColor|kamisadoTowers|kicked|lastActivityAt|lastFrom|lastMove|lastTo|lobby|locked|mancalaLast|mancalaPits|matchLength|mathConfig|mathCorrectO|mathCorrectX|mathEndTime|mathQIndex|mathQIndexO|mathQIndexX|mathQStartAt|mathScoreO|mathScoreX|mathSeed|mathStartedAt|mathStreakO|mathStreakX|mathWrongO|mathWrongX|minesDeadO|minesDeadX|minesDoneO|minesDoneX|minesRevealedO|minesRevealedX|minesSeed|minesStartedAt|night|nightMark|numRound|onitamaHandO|onitamaHandX|onitamaSpare|pacmacScoreO|pacmacScoreX|paintScoreO|paintScoreX|pairsDeadline|pairsDeck|pairsFlipped|partyRoom|passNote|pieSwap|players|pongMode|pongScoreO|pongScoreX|presence|proposal|quartoPending|quartoUnplaced|queue|raceResult|reactionTimesO|reactionTimesX|round|santoriniWorkers|scores|sealKeys|seen|signaling|simonDeadline|simonMiss|simonProgress|simonReplayUsed|simonSequence|snakeScoreO|snakeScoreX|sosLines|spaceduelHitsO|spaceduelHitsX|spaceduelScoreO|spaceduelScoreX|spectators|spyfairRotation|stack|starter|status|sumoScoreO|sumoScoreX|timerScale|tronScoreO|tronScoreX|typingAccO|typingAccX|typingConfig|typingFinishedAtO|typingFinishedAtX|typingPassage|typingProgressO|typingProgressX|typingStartedAt|typingWpmO|typingWpmX|uActiveBoard|uWon|updraft|visibility|vmClears|vmClicked|vmDeadline|vmLevel|vmMiss|vmPattern|winner|winningLine|wire|wordhuntDoneO|wordhuntDoneX|wordhuntGrid|wordhuntReadyO|wordhuntReadyX|wordhuntScoreO|wordhuntScoreX|wordhuntStartedAt|wordhuntWordsO|wordhuntWordsX)$/)"
         },
+        "arrowsDifficulty": {
+          ".validate": "newData.val() === 'easy' || newData.val() === 'medium' || newData.val() === 'hard' || newData.val() === 'mixed'"
+        },
         "createdAt": {
           ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now + 3600000)"
         },
@@ -980,6 +983,33 @@
         },
         "matches": {
           ".validate": "newData.hasChildren()"
+        },
+        "arrowsSolo": {
+          "levels": {
+            "$level": {
+              ".validate": "$level.matches(/^l([1-9]|1[0-9]|20)$/) && newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+            }
+          },
+          "endless": {
+            "easy": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "medium": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "hard": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now + 3600000)"
+          },
+          "$other": {
+            ".validate": "false"
+          }
         },
         "attribution": {
           ".validate": "(newData.val() === data.val() || (!data.exists() && newData.hasChild('source') && newData.hasChild('at')))",
