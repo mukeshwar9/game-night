@@ -1,8 +1,8 @@
-// Picks the seed for each of the 40 Arrows solo levels.
+// Picks the seed for each of the 60 Arrows solo levels.
 //
 //   node scripts/pick-arrows-levels.mjs
 //
-// Levels 1–20 (below) climb steadily. Levels 21–40 are picked chapter by
+// Levels 1–20 (below) climb steadily. Levels 21–60 are picked chapter by
 // chapter further down: each chapter opens on a lighter lesson level, then
 // every level beats the one before it and the chapter's last level beats the
 // previous chapter's last level. After pasting new seeds for 21+, run

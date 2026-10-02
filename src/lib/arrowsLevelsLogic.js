@@ -1,10 +1,10 @@
 // @ts-check
-// Arrows solo — the 40-level campaign, endless boards and progress. Pure
+// Arrows solo — the 60-level campaign, endless boards and progress. Pure
 // logic: no DOM, no Firebase, no React (storage lives in arrowsProgress.js).
 //
 // Every level is a generator spec (hand-set shape and twists) plus a seed
 // picked by scripts/pick-arrows-levels.mjs. Levels 1–20 climb steadily and
-// are generated from their seed on demand. Levels 21–40 come in two chapters
+// are generated from their seed on demand. Levels 21–60 come in four chapters
 // that each open on a lighter lesson board and then climb past the previous
 // chapter's last level (a sawtooth); their finished boards are baked into
 // arrowsLevelsBaked.js so a later generator change can never reshape a
@@ -25,8 +25,9 @@ import { ARROWS_BAKED_LEVELS as BAKED } from './arrowsLevelsBaked.js'
 // From level 21 the boards stay at most 10 × 13 and get harder through depth
 // instead: `deep` biases the generator toward long chains of arrows waiting
 // on each other, and a few special pieces arrive one chapter at a time —
-// sleeping arrows (21–30), then double arrows (31–40). Special pieces stay
-// sparse on purpose: one on a lesson board, a handful on a chapter's last.
+// sleeping arrows (21–30), double arrows (31–40), mirrors (41–50), then
+// crates with a light mix of everything (51–60). Special pieces stay sparse
+// on purpose: one on a lesson board, a handful on a chapter's last.
 export const ARROWS_LEVEL_SPECS = [
   { cols: 5, rows: 6, maxLen: 3, fill: 0.62, samples: 2 },
   { cols: 5, rows: 7, maxLen: 3, fill: 0.7, samples: 3 },
@@ -70,6 +71,28 @@ export const ARROWS_LEVEL_SPECS = [
   { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 13, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.7, sleepers: 1, doubles: 2 },
   { cols: 10, rows: 13, maxLen: 8, fill: 0.91, samples: 13, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.8, sleepers: 1, doubles: 2 },
   { cols: 10, rows: 13, maxLen: 8, fill: 0.91, samples: 14, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.9, sleepers: 2, doubles: 2 },
+  // Chapter 5 · mirrors
+  { cols: 7, rows: 9, maxLen: 5, fill: 0.84, samples: 8, diag: 0, curve: 0, bend: 0.9, mirrors: 1, intro: 'mirror' },
+  { cols: 8, rows: 10, maxLen: 6, fill: 0.86, samples: 9, diag: 0.08, curve: 0, bend: 0.9, deep: 0.3, mirrors: 1 },
+  { cols: 8, rows: 11, maxLen: 6, fill: 0.87, samples: 10, diag: 0.1, curve: 0.08, bend: 0.9, deep: 0.4, mirrors: 2 },
+  { cols: 9, rows: 11, maxLen: 7, fill: 0.88, samples: 10, diag: 0.1, curve: 0.1, bend: 0.9, deep: 0.4, mirrors: 2 },
+  { cols: 9, rows: 12, maxLen: 7, fill: 0.9, samples: 11, diag: 0.12, curve: 0.12, bend: 0.9, deep: 0.5, sleepers: 1, mirrors: 2 },
+  { cols: 9, rows: 12, maxLen: 8, fill: 0.9, samples: 11, diag: 0.12, curve: 0.12, bend: 0.9, deep: 0.5, doubles: 1, mirrors: 2 },
+  { cols: 10, rows: 12, maxLen: 8, fill: 0.9, samples: 12, diag: 0.12, curve: 0.14, bend: 0.9, deep: 0.6, sleepers: 1, mirrors: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.12, curve: 0.14, bend: 0.9, deep: 0.6, doubles: 1, mirrors: 3 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 13, diag: 0.12, curve: 0.15, bend: 0.9, deep: 0.7, sleepers: 1, mirrors: 3 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.91, samples: 14, diag: 0.12, curve: 0.15, bend: 0.9, deep: 0.8, sleepers: 1, doubles: 1, mirrors: 3 },
+  // Chapter 6 · crates, then a light mix of every piece
+  { cols: 8, rows: 10, maxLen: 6, fill: 0.84, samples: 9, diag: 0.12, curve: 0.1, bend: 0.9, deep: 0.3, crates: 1, intro: 'crate' },
+  { cols: 8, rows: 11, maxLen: 6, fill: 0.86, samples: 10, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.4, crates: 1 },
+  { cols: 9, rows: 11, maxLen: 7, fill: 0.86, samples: 10, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.5, sleepers: 1, crates: 1 },
+  { cols: 9, rows: 12, maxLen: 7, fill: 0.87, samples: 11, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.5, doubles: 1, crates: 1 },
+  { cols: 9, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.6, sleepers: 1, mirrors: 1, crates: 1 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.7, doubles: 1, crates: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 13, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.8, sleepers: 1, mirrors: 1, crates: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 13, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.9, sleepers: 1, doubles: 1, crates: 2 },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.91, samples: 14, diag: 0.16, curve: 0.18, bend: 0.9, deep: 1, doubles: 1, mirrors: 1, crates: 2 },
+  { cols: 10, rows: 13, maxLen: 9, fill: 0.92, samples: 14, diag: 0.16, curve: 0.18, bend: 0.9, deep: 1, sleepers: 1, doubles: 1, mirrors: 1, crates: 2 },
 ]
 
 // Chapters in the level list (level select headers). `steady` chapters climb
@@ -78,6 +101,8 @@ export const ARROWS_CHAPTERS = [
   { name: 'BASICS', from: 1, to: 20 },
   { name: 'SLEEPING ARROWS', from: 21, to: 30 },
   { name: 'DOUBLE ARROWS', from: 31, to: 40 },
+  { name: 'MIRRORS', from: 41, to: 50 },
+  { name: 'CRATES', from: 51, to: 60 },
 ]
 
 // Picked by scripts/pick-arrows-levels.mjs — rerun it after changing a spec.
@@ -86,6 +111,8 @@ export const ARROWS_LEVEL_SEEDS = [
   92, 1066, 126, 733, 966, 740, 2141, 360, 316, 2221,
   1, 31, 2, 47, 4, 59, 19, 83, 84, 135,
   47, 2, 7, 54, 79, 28, 21, 153, 136, 129,
+  5, 65, 78, 41, 9, 9, 266, 66, 296, 74,
+  1, 65, 4, 2, 132, 30, 51, 92, 268, 93,
 ]
 
 // Levels generated live from their seed; the rest come from BAKED.
@@ -100,6 +127,8 @@ export const ARROWS_TWIST_TIPS = {
   curve: 'NEW · HOOKED ARROWS FLY TO THE EDGE, TURN ONCE THE WAY THE HOOK POINTS, THEN RUN ALONG IT.',
   sleep: 'NEW · HOLLOW ARROWS ARE ASLEEP — ONE WAKES WHEN AN ARROW TOUCHING IT LEAVES.',
   double: 'NEW · DOUBLE ARROWS SLIDE OUT AS ONE PIECE — CLEAR THE WAY FOR BOTH HEADS AND INSIDE THE CURVE.',
+  mirror: 'NEW · MIRRORS TURN A STRAIGHT ARROW A QUARTER TURN AS IT PASSES. DIAGONALS CANNOT CROSS THEM.',
+  crate: 'NEW · A CRATE BLOCKS UNTIL ITS NUMBER OF ARROWS HAVE LEFT THE BOARD. EVERY CLEAR COUNTS IT DOWN.',
 }
 
 // An intro level must actually show its twist a few times.
@@ -111,6 +140,8 @@ export function levelMeetsIntro(spec, level) {
   if (spec.intro === 'curve') return level.arrows.filter(isCurved).length >= 2
   if (spec.sleepers && level.arrows.filter(isSleeper).length < spec.sleepers) return false
   if (spec.doubles && level.arrows.filter(isDouble).length < spec.doubles) return false
+  if (spec.mirrors && (level.mirrors?.length ?? 0) < spec.mirrors) return false
+  if (spec.crates && (level.crates?.length ?? 0) < spec.crates) return false
   return true
 }
 
@@ -123,7 +154,7 @@ export function getArrowsLevel(n) {
     const name = `level-${n}`
     const baked = BAKED[n]
     levelCache.set(n, n > ARROWS_GENERATED_LEVELS && baked
-      ? { seed: ARROWS_LEVEL_SEEDS[n - 1], tier: name, cols: baked.cols, rows: baked.rows, arrows: baked.arrows }
+      ? { seed: ARROWS_LEVEL_SEEDS[n - 1], tier: name, ...baked }
       : generateArrowsLevel(ARROWS_LEVEL_SEEDS[n - 1], { ...ARROWS_LEVEL_SPECS[n - 1], name }))
   }
   return levelCache.get(n)
@@ -137,6 +168,8 @@ export function twistsIn(level) {
   if (level.arrows.some(isCurved)) out.push('curve')
   if (level.arrows.some(isSleeper)) out.push('sleep')
   if (level.arrows.some(isDouble)) out.push('double')
+  if (level.mirrors?.length) out.push('mirror')
+  if (level.crates?.length) out.push('crate')
   return out
 }
 

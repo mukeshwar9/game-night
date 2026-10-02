@@ -36,6 +36,18 @@ describe('arrow lessons', () => {
   it('shows the kind it teaches', () => {
     expect(lessonLevel(getLesson('sleep')).arrows.some(isSleeper)).toBe(true)
     expect(lessonLevel(getLesson('double')).arrows.some(isDouble)).toBe(true)
+    expect(lessonLevel(getLesson('mirror')).mirrors).toHaveLength(1)
+    expect(lessonLevel(getLesson('crate')).crates).toHaveLength(1)
+  })
+
+  it('the mirror lesson bounces into an arrow; the crate lesson is held by the crate itself', () => {
+    const mirror = getLesson('mirror')
+    const ml = lessonLevel(mirror)
+    // Arrow 0 turns up at the mirror into arrow 1 above it.
+    expect(lessonTap(mirror, ml, Array(3).fill(false), 0, 0)).toMatchObject({ outcome: 'blocked', blocker: 1 })
+    const crate = getLesson('crate')
+    const cl = lessonLevel(crate)
+    expect(lessonTap(crate, cl, Array(3).fill(false), 0, 0)).toMatchObject({ outcome: 'blocked', blocker: -1, crate: 6 })
   })
 
   it('ignores off-target taps and never costs lives', () => {

@@ -13,7 +13,7 @@
 import { applyArrowTap } from './arrowsLogic.js'
 
 /** @typedef {{ tap: number, say: string, after: string }} LessonStep */
-/** @typedef {{ cols: number, rows: number, arrows: Array<Record<string, any>> }} LessonBoard */
+/** @typedef {{ cols: number, rows: number, arrows: Array<Record<string, any>>, mirrors?: Array<{ x: number, y: number, m: string }>, crates?: Array<{ x: number, y: number, k: number }> }} LessonBoard */
 /** @typedef {{ kind: string, level: number, name: string, rule: string, board: LessonBoard, steps: LessonStep[] }} Lesson */
 
 /** @type {Lesson[]} In the order the campaign introduces them. */
@@ -88,6 +88,34 @@ export const ARROWS_LESSONS = [
       { tap: 0, say: 'SEND IT', after: 'BOTH HEADS LEAD — THE WHOLE PIECE SLIDES OUT.' },
     ],
   },
+  {
+    kind: 'mirror', level: 41, name: 'MIRRORS',
+    rule: 'A MIRROR TURNS ANY STRAIGHT ARROW A QUARTER TURN AS IT PASSES. MIRRORS NEVER MOVE.',
+    board: { cols: 4, rows: 4, mirrors: [{ x: 2, y: 2, m: '/' }], arrows: [
+      { cells: [[0, 2], [1, 2]], dir: 1 },
+      { cells: [[1, 0], [2, 0]], dir: 1 },
+      { cells: [[0, 3], [1, 3]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE ARROW AIMED AT THE MIRROR', after: 'THE MIRROR SENT IT UP — INTO AN ARROW.' },
+      { tap: 1, say: 'CLEAR THE ARROW ABOVE THE MIRROR', after: 'THE BOUNCE PATH IS CLEAR.' },
+      { tap: 0, say: 'SEND IT THROUGH THE MIRROR', after: 'IN, TURN, OUT.' },
+    ],
+  },
+  {
+    kind: 'crate', level: 51, name: 'CRATES',
+    rule: 'A CRATE BLOCKS UNTIL ITS NUMBER OF ARROWS HAVE LEFT. EVERY CLEAR COUNTS IT DOWN.',
+    board: { cols: 4, rows: 4, crates: [{ x: 2, y: 1, k: 1 }], arrows: [
+      { cells: [[0, 1], [1, 1]], dir: 1 },
+      { cells: [[1, 3], [2, 3]], dir: 1 },
+      { cells: [[0, 2], [0, 3]], dir: 2 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE ARROW AIMED AT THE CRATE', after: 'THE CRATE NEEDS 1 MORE CLEAR.' },
+      { tap: 1, say: 'CLEAR ANY OTHER ARROW', after: 'COUNT HIT 0 — THE CRATE BREAKS.' },
+      { tap: 0, say: 'NOW SEND THE FIRST ARROW', after: 'CRATES ONLY EVER OPEN.' },
+    ],
+  },
 ]
 
 /** @param {string | null | undefined} kind */
@@ -103,12 +131,12 @@ export function lessonLevel(lesson) {
 // One tap during a lesson at step `step` (0-based). Off-target taps are
 // ignored ('nudge'); the guided tap runs through the real rule check.
 // Returns { outcome: 'nudge' } or { outcome: 'blocked' | 'cleared', gone,
-// blocker, gap, asleep, next } where `next` is the following step index
+// blocker, gap, asleep, crate, next } where `next` is the following step index
 // (steps.length once the lesson is done).
 export function lessonTap(lesson, level, gone, step, index) {
   const want = lesson.steps[step]
   if (!want || index !== want.tap) return { outcome: 'nudge' }
   const r = applyArrowTap(level, gone, Infinity, index)
   if (!r) return { outcome: 'nudge' }
-  return { outcome: r.result, gone: r.gone, blocker: r.blocker, gap: r.gap, asleep: r.asleep ?? false, next: step + 1 }
+  return { outcome: r.result, gone: r.gone, blocker: r.blocker, gap: r.gap, asleep: r.asleep ?? false, crate: r.crate ?? null, next: step + 1 }
 }
