@@ -12,7 +12,8 @@ import { getUid } from './auth'
 import { readSoloBest, recordSoloBest } from './soloBest'
 import { DAILY_MEMORY_GAMES, mergeBests } from './memoryDailyLogic'
 
-const MEMORY_TYPES = DAILY_MEMORY_GAMES
+// Every memory solo run with a personal best (database.rules.json allows these keys).
+export const MEMORY_TYPES = [...DAILY_MEMORY_GAMES, 'cupshuffle', 'whatchanged', 'kimsgame', 'nametags', 'verbalmemory', 'nback']
 
 // Raise the account copy of one best (fire and forget; never lowers it).
 export function mirrorMemoryBest(type, score) {

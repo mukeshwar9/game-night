@@ -8,8 +8,9 @@ import { serverNow } from '../lib/serverClock'
 import useTurnDeadlineEnforcer from '../hooks/useTurnDeadlineEnforcer'
 // The board's side comes from its length: 6×6 (pairs) or 4×4 (pairs4).
 import {
-  pairsFaceColor, pairsFaceGlyph, pairsFaceName, pairsCellPosition,
+  pairsFaceColor, pairsFaceName, pairsCellPosition,
 } from '../lib/pairsFaces'
+import { FaceSprite } from './FaceSprite'
 
 // How long a mismatched pair stays visibly face-up before this client hides it again.
 // Purely a display timer — the underlying `flipped` state (and its legality: either
@@ -38,25 +39,6 @@ function CardBackEmblem() {
   )
 }
 
-// The face's pixel silhouette in card ink; 'o' cells are left open so the card colour
-// shows through as eyes/windows.
-function FaceSprite({ face }) {
-  const grid = pairsFaceGlyph(face)
-  return (
-    <svg
-      viewBox="0 0 8 8"
-      className="w-[66%] h-[66%]"
-      shapeRendering="crispEdges"
-      aria-hidden="true"
-    >
-      {grid.flatMap((row, y) =>
-        row.split('').map((ch, x) => (ch === '#'
-          ? <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill: 'rgb(var(--pair-ink))' }} />
-          : null)),
-      )}
-    </svg>
-  )
-}
 
 function cellLabel({ index, face, owner, held, mismatched, side }) {
   const where = pairsCellPosition(index, side)
