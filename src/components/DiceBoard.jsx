@@ -69,6 +69,7 @@ export default function DiceBoard({
   diceRolls = [],
   diceSeed = null,
   diceSeedPending = false,
+  rollPending = false,
   isBig = false,
 }) {
   const turnColor = currentTurn === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
@@ -170,7 +171,7 @@ export default function DiceBoard({
         {diceSeed && (
           <button
             type="button"
-            onClick={() => toast('FAIR ROLL: BOTH PLAYERS SEED THE DICE BEFORE ANY ROLL, SO NEITHER CAN RIG THE OUTCOME.')}
+            onClick={() => toast('FAIR ROLL: BOTH PLAYERS SEED THE DICE, AND EACH ROLL ALSO MIXES IN THE SERVER CLOCK AT THE MOMENT YOU TAP ROLL, SO NOBODY CAN RIG OR FORESEE A ROLL.')}
             aria-label="How fair roll verification works"
             className="min-h-11 flex items-center gap-1.5 px-3 -my-2 rounded font-pixel text-[10px] text-retro-win text-glow-win active:scale-95 transition-all"
           >
@@ -187,7 +188,7 @@ export default function DiceBoard({
         {/* ROLL / BANK */}
         <div className="flex items-center justify-center gap-3 w-full">
           <button
-            aria-label={diceSeedPending ? 'Rolling, please wait' : `Roll the dice${justBusted ? ` — last roll was ${bustMessage.toLowerCase()}` : ''}`}
+            aria-label={diceSeedPending || rollPending ? 'Rolling, please wait' : `Roll the dice${justBusted ? ` — last roll was ${bustMessage.toLowerCase()}` : ''}`}
             disabled={disabled}
             onClick={() => !disabled && onMove('roll')}
             className={cn(
@@ -198,7 +199,7 @@ export default function DiceBoard({
                 : 'border-retro-cta text-retro-cta shadow-neon-cta cursor-pointer hover:bg-retro-tint-cta',
             )}
           >
-            {diceSeedPending ? 'SHUFFLING…' : 'ROLL'}
+            {diceSeedPending ? 'SHUFFLING…' : rollPending ? 'ROLLING…' : 'ROLL'}
           </button>
           <button
             aria-label={diceTurnScore === 0 ? 'Bank, disabled — no points at risk yet' : `Bank ${diceTurnScore} points into your score`}

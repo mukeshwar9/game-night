@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ref, update, set as dbSet, runTransaction } from 'firebase/database'
+import { ref, update, set as dbSet, runTransaction, serverTimestamp } from 'firebase/database'
+import { pendingRoll, lastRollMatches } from '../lib/diceLogic'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
 import { chatLockFor, freshGameState, getGameConfig, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover, PARTY_LOBBY, buildPartyRoom } from '../lib/games'
@@ -281,19 +282,16 @@ export default function Game() {
         const isBust = Array.isArray(game.diceLast)
           ? game.diceLast[0] === 1 && game.diceLast[1] === 1
           : game.diceLast === 1
-        if (game.status === 'playing' && opp && (rolled || bankedOrBust)) {
+        // A roll lands when its request is resolved (by either client), so
+        // the roller hears it then too; a bank is heard by the opponent.
+        if (game.status === 'playing' && (rolled || (opp && bankedOrBust))) {
           if (isBust) sounds.bust()
           else sounds.move(prevTurn.current)
         }
-        // Verify a deterministic roll (only meaningful once diceSeed is set).
-        if (rolled && game.diceSeed && game.diceLast != null) {
-          const idx = (game.diceRollIndex ?? 0) - 1
-          // JSON compare covers both a single face and PIG BIG's pair.
-          const verify = cfg.rollFace(game.diceSeed, idx)
-            .then(expected => JSON.stringify(expected) !== JSON.stringify(game.diceLast))
-          verify.then(mismatch => {
-            if (mismatch) toast.error('ROLL MISMATCH — TAMPERING SUSPECTED')
-          }).catch(() => {})
+        // Verify every resolved roll against the seed and its request's
+        // server time (anti-cheat, see diceLogic.js).
+        if (rolled && lastRollMatches(game, { isBig: !!cfg.bigDice }) === false) {
+          toast.error('ROLL MISMATCH — TAMPERING SUSPECTED')
         }
       } else if (cfg.moveCountKey) {
         // Moves that don't always touch `board` (Blockade's pawn moves), so
@@ -412,6 +410,8 @@ export default function Game() {
     // before any roll so no client can fall back to insecure Math.random().
     // Banks are seedless.
     if (cfg.rollFace && colOrIndex === 'roll' && !game.diceSeed) return
+    // A roll already waiting on the server must resolve before anything else.
+    if (cfg.rollFace && pendingRoll(game)) return
     const board = normalizeBoard(game.board, cfg.boardSize)
     const index = cfg.getMoveIndex(board, colOrIndex)
     if (index === -1) return
@@ -428,17 +428,24 @@ export default function Game() {
     }
 
     try {
-      // For Pig, precompute the deterministic die face (async) from the shared
-      // seed so applyDiceMove can stay synchronous (the demo/bot harness calls
-      // it without a face, falling back to Math.random which is fine vs a bot).
-      let movePayload = colOrIndex
-      if (cfg.rollFace) {
-        let face
-        if (colOrIndex === 'roll' && game.diceSeed) {
-          face = await cfg.rollFace(game.diceSeed, game.diceRollIndex ?? 0)
+      // Pig: a roll is a request stamped with the server's time; its faces
+      // don't exist until it is on the server, and either client resolves it
+      // (useRoomEffect → runPigRollResolver). See diceLogic.js.
+      if (cfg.rollFace && colOrIndex === 'roll') {
+        setMovePending(true)
+        try {
+          await update(ref(db, `games/${gameId}`), {
+            diceRoll: { i: game.diceRollIndex ?? 0, by: mySymbol.current, at: serverTimestamp() },
+            lastActivityAt: Date.now(),
+          })
+        } catch {
+          toast.error('ROLL NOT SENT — CHECK CONNECTION')
+        } finally {
+          release()
         }
-        movePayload = { action: colOrIndex, face }
+        return
       }
+      const movePayload = cfg.rollFace ? { action: colOrIndex } : colOrIndex
 
       let updates, result
       if (cfg.applyMove) {
@@ -462,8 +469,6 @@ export default function Game() {
       // A hook that already set its own lastMove wins.
       if (cfg.boardSize > 0 && updates.lastMove === undefined) updates.lastMove = index
 
-      const isBustMove = !!cfg.rollFace && (Array.isArray(updates.diceLast) ? updates.diceLast[0] === 1 && updates.diceLast[1] === 1 : updates.diceLast === 1)
-
       if (result) {
         updates.winner = result.winner
         updates.status = 'finished'
@@ -480,8 +485,7 @@ export default function Game() {
       const slowTimer = setTimeout(() => { if (pendingMoveRef.current === token) setMoveSlow(true) }, 1200)
       try {
         await update(ref(db, `games/${gameId}`), updates)
-        if (isBustMove) sounds.bust()
-        else if (!cfg.quietMoves) sounds.move(mySymbol.current)
+        if (!cfg.quietMoves) sounds.move(mySymbol.current)
       } catch {
         // Firebase rolls the optimistic echo back to the server's state.
         toast.error('MOVE NOT SAVED — CHECK CONNECTION')
@@ -1109,13 +1113,13 @@ export default function Game() {
             <cfg.BoardComponent
               board={board}
               onMove={handleMove}
-              disabled={!canMove || movePending || (!!cfg.rollFace && !game.diceSeed)}
+              disabled={!canMove || movePending || (!!cfg.rollFace && (!game.diceSeed || !!pendingRoll(game)))}
               winningLine={winningLine}
               currentTurn={game.currentTurn}
               lastMove={game.lastMove ?? null}
               mySymbol={mySeat}
               {...(cfg.boardProps ? cfg.boardProps(game) : {})}
-              {...(cfg.rollFace ? { diceSeedPending: !game.diceSeed } : {})}
+              {...(cfg.rollFace ? { diceSeedPending: !game.diceSeed, rollPending: !!pendingRoll(game) } : {})}
             />
             <GameStatus
               status={game.status}

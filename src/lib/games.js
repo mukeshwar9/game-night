@@ -113,8 +113,8 @@ import {
   BK_START_O,
   applyBlockadeMove,
 } from './blockadeLogic'
-import { applyDiceMove, rollFaceAsync, rollFacePairAsync } from './diceLogic'
-import { runPigSeedProtocol } from '../hooks/room/pigSeedProtocol'
+import { applyDiceMove, rollFace, rollFacePair } from './diceLogic'
+import { runPigRoomEffect } from '../hooks/room/pigSeedProtocol'
 import { seatOrder as seatOrderWL, pickSpectrumIndex } from './wavelengthLogic'
 import {
   PAIRS_CELL_COUNT, PAIRS_QUICK_CELL_COUNT,
@@ -1120,9 +1120,10 @@ export const GAME_TYPES = [
     getMoveIndex: () => 0,
     BoardComponent: DiceBoard,
     // Rolls come from the room's shared seed (commit-reveal coin flip in
-    // roomEffect); Game.jsx gates rolls on it and verifies the opponent's.
-    rollFace: rollFaceAsync,
-    roomEffect: runPigSeedProtocol,
+    // roomEffect) and the server time of each roll request (diceLogic.js);
+    // Game.jsx gates rolls on the seed and verifies every resolved roll.
+    rollFace,
+    roomEffect: runPigRoomEffect,
     applyMove: ({ game, move, symbol }) => {
       const action = typeof move === 'string' ? move : move?.action
       const face = typeof move === 'string' ? undefined : move?.face
@@ -1148,9 +1149,11 @@ export const GAME_TYPES = [
     getMoveIndex: () => 0,
     BoardComponent: DiceBoard,
     // Rolls come from the room's shared seed (commit-reveal coin flip in
-    // roomEffect); Game.jsx gates rolls on it and verifies the opponent's.
-    rollFace: rollFacePairAsync,
-    roomEffect: runPigSeedProtocol,
+    // roomEffect) and the server time of each roll request (diceLogic.js);
+    // Game.jsx gates rolls on the seed and verifies every resolved roll.
+    rollFace: rollFacePair,
+    bigDice: true,
+    roomEffect: runPigRoomEffect,
     applyMove: ({ game, move, symbol }) => {
       const action = typeof move === 'string' ? move : move?.action
       const face = typeof move === 'string' ? undefined : move?.face
@@ -1984,7 +1987,7 @@ const FIELD_NULLS = {
   wordhuntDoneX: null, wordhuntDoneO: null,
   wordhuntReadyX: null, wordhuntReadyO: null,
   diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceLast: null,
-  diceRolls: null, diceRollIndex: null,
+  diceRolls: null, diceRollIndex: null, diceRoll: null,
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
   diceSeedCommitter: null, diceSeedResets: null, // Pig seed-loss recovery (pigSeedProtocol.js)
   bluffRound: null,
@@ -2203,7 +2206,7 @@ export function freshGameState(gameType, previous = null) {
     // branch and never got a seed, leaving every roll rejected.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: 'X',
       diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null,
-      diceRolls: [], diceRollIndex: 0,
+      diceRolls: [], diceRollIndex: 0, diceRoll: null,
       diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
       diceSeedCommitter: null, diceSeedResets: null }
   }

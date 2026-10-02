@@ -412,6 +412,77 @@ describe('verified board games: moves on your own turn', () => {
   })
 })
 
+describe('Pig fair rolls', () => {
+  // A roll is a request stamped with the server's time; the faces come from
+  // H(diceSeed : i : at), so they only exist once the request is stored, and
+  // these rules keep the roller from backing out after seeing them.
+  const pig = (extra = {}) => gameNode({
+    x: ALICE, o: BOB, status: 'playing',
+    extra: {
+      gameType: 'dice', board: null, diceSeed: 'ab'.repeat(32), diceScoreX: 10, diceScoreO: 20,
+      diceTurnScore: 6, diceRollIndex: 4, diceRolls: [6], ...extra,
+    },
+  })
+  const ts = { '.sv': 'timestamp' }
+  const pending = { diceRoll: { i: 4, by: 'X', at: 1_700_000_000_000 } }
+
+  it('lets the player on turn request the next roll at the server time', async () => {
+    await put('games/g1', pig())
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ diceRoll: { i: 4, by: 'X', at: ts } }))
+  })
+
+  it('denies a request with a client-chosen time, for another roll, or by the wrong seat', async () => {
+    await put('games/g1', pig())
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRoll: { i: 4, by: 'X', at: 1_700_000_000_000 } }))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRoll: { i: 5, by: 'X', at: ts } }))
+    await assertFails(as(BOB).ref('games/g1').update({ diceRoll: { i: 4, by: 'X', at: ts } }))
+    await assertFails(as(BOB).ref('games/g1').update({ diceRoll: { i: 4, by: 'O', at: ts } }))
+  })
+
+  it('never lets a pending request be replaced or cancelled', async () => {
+    await put('games/g1', pig(pending))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRoll: { i: 4, by: 'X', at: ts } }))
+    await assertFails(as(ALICE).ref('games/g1/diceRoll').remove())
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRoll: null }))
+  })
+
+  it('denies banking while a roll is pending', async () => {
+    await put('games/g1', pig(pending))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceScoreX: 16, diceTurnScore: 0, diceRolls: null, currentTurn: 'O' }))
+  })
+
+  it('lets either player resolve the pending roll, keeping the request', async () => {
+    await put('games/g1', pig(pending))
+    await assertSucceeds(as(BOB).ref('games/g1').update({ diceLast: 3, diceTurnScore: 9, diceRolls: [6, 3], diceRollIndex: 5 }))
+  })
+
+  it('denies a roll without a request, or a resolution that rewrites the request', async () => {
+    await put('games/g1', pig())
+    await assertFails(as(ALICE).ref('games/g1').update({ diceLast: 6, diceTurnScore: 12, diceRollIndex: 5 }))
+    await put('games/g2', pig(pending))
+    await assertFails(as(ALICE).ref('games/g2').update({ diceLast: 6, diceRollIndex: 5, diceRoll: { i: 4, by: 'X', at: ts } }))
+  })
+
+  it('still lets a pending room be reset by a new match or a game switch', async () => {
+    await put('games/g1', pig(pending))
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceRollIndex: 0, diceRoll: null, diceRolls: null }))
+    await put('games/g2', pig(pending))
+    await assertSucceeds(as(BOB).ref('games/g2').update({ gameType: 'tictactoe', board: Array(9).fill(''), diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceRollIndex: null, diceRoll: null, diceRolls: null, diceSeed: null }))
+  })
+
+  it('denies resetting only the roll counter to escape a pending roll', async () => {
+    await put('games/g1', pig(pending))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRollIndex: 0, diceRoll: null }))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRollIndex: null, diceRoll: null }))
+  })
+
+  it('accepts a whole-room transaction that leaves the roll untouched', async () => {
+    await put('games/g1', pig(pending))
+    const room = (await as(ALICE).ref('games/g1').get()).val()
+    await assertSucceeds(as(ALICE).ref('games/g1').set({ ...room, lastActivityAt: 5 }))
+  })
+})
+
 describe('Pig seed recovery and server-only nodes', () => {
   it('counts seed resets up by one', async () => {
     await put('games/g1', gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { gameType: 'dice', diceSeedResets: 1 } }))

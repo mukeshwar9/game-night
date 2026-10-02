@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { commitSeed, deriveSeed, generateSeedHex } from '../../lib/diceLogic'
+import { commitSeed, deriveSeed, generateSeedHex, pendingRoll, resolvePendingRoll } from '../../lib/diceLogic'
 
 // Pig anti-cheat: coin-flipping protocol to establish a shared deterministic
 // roll seed (see src/lib/diceLogic.js). The committer commits seedA, the other
@@ -137,4 +137,28 @@ export function runPigSeedProtocol(args) {
       if (next) runPigSeedProtocol(next)
     }
   })()
+}
+
+// Resolve a pending roll request (diceLogic.js): either seated client runs
+// the transaction, so a roller who goes quiet after seeing the request on the
+// server can't leave the roll hanging. The transaction re-reads the server's
+// copy, so it uses the real server timestamp, and it aborts once the roll is
+// resolved, so the two clients never apply it twice. `transact(fn)` runs
+// runTransaction on games/{gameId}.
+export function runPigRollResolver({ game, mySymbol, memo, transact }) {
+  const req = pendingRoll(game)
+  if (!req || !mySymbol || !transact || game.status !== 'playing') return
+  const key = `${req.i}:${req.at}`
+  if (memo.rollKey === key) return
+  memo.rollKey = key
+  const isBig = game.gameType === 'dice-big'
+  transact(cur => (cur ? resolvePendingRoll(cur, { isBig }) : cur))
+    .catch(() => { if (memo.rollKey === key) memo.rollKey = null })
+}
+
+// The Pig variants' registry `roomEffect`: the seed coin flip plus roll
+// resolution.
+export function runPigRoomEffect(args) {
+  runPigRollResolver(args)
+  runPigSeedProtocol(args)
 }
