@@ -140,7 +140,8 @@ for (const [type, scene] of Object.entries(SCENES)) {
       axi('open', `${base}${scene.route || `/solo/${type}`}`)
       await wait(300)
       evaluate(() => {
-        const root = document.querySelector('.scroll-mt-20') || document.querySelector('.pt-3')?.parentElement
+        // The solo page's game card (Demo.jsx marks it); the class fallbacks cover older builds.
+        const root = document.querySelector('[data-demo-board]') || document.querySelector('.scroll-mt-20') || document.querySelector('.pt-3')?.parentElement
         if (!root) throw new Error('Demo did not load')
         root.setAttribute('data-rule-demo', '')
         // The capture is instructional: remove transient toast prompts.
