@@ -10,6 +10,9 @@ import { hostUidOf } from '../lib/night'
 import { memberPresent } from '../lib/nightLogic'
 import { recordFunnel } from '../lib/analytics'
 import { shareUrl } from '../lib/platform'
+import { HEADLINE_GAMES } from '../lib/adLanding'
+
+const HEADLINE_2P = HEADLINE_GAMES.map(h => h.type)
 import { cn } from '@/lib/utils'
 
 // The party lobby (party-first rooms): who is here, places to invite into,
@@ -24,6 +27,10 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
   const hostUid = hostUidOf(game)
   const host = members.find(m => m.uid === hostUid)
   const groups = groupPickerForParty(GAME_TYPES, n)
+  // Party games first (what a group gathers for); the headline 2P games lead
+  // the take-turns list, so the short preview is the familiar ones.
+  groups.all = [...groups.all.filter(g => g.category === 'party'), ...groups.all.filter(g => g.category !== 'party')]
+  groups.rotate = [...HEADLINE_2P.map(t => groups.rotate.find(g => g.type === t)).filter(Boolean), ...groups.rotate.filter(g => !HEADLINE_2P.includes(g.type))]
   const [picking, setPicking] = useState(null)
   const [showQr, setShowQr] = useState(false)
   const [shareBusy, runShare] = useBusy()
@@ -167,12 +174,18 @@ const CHIP_TONE = {
   p4: 'text-retro-p4 border-retro-p4/50 bg-retro-tint-p4',
 }
 
+// Long groups (55 take-turns games, 67 for two) show their first few with a
+// SHOW ALL toggle, so the lobby stays a lobby rather than a catalogue.
+const GROUP_PREVIEW = 6
+
 function PickerGroup({ testId, title, tone, games, chip, onPick, picking }) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? games : games.slice(0, GROUP_PREVIEW)
   return (
     <section className="space-y-2" data-testid={testId}>
       <p className={cn('font-pixel text-[8px] tracking-wider', tone)}>{title}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {games.map(g => {
+        {shown.map(g => {
           const c = chip(g)
           const Icon = g.Icon
           return (
@@ -207,6 +220,16 @@ function PickerGroup({ testId, title, tone, games, chip, onPick, picking }) {
           )
         })}
       </div>
+      {games.length > GROUP_PREVIEW && (
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          aria-expanded={expanded}
+          className="w-full min-h-11 border border-retro-border rounded font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text hover:border-retro-cta/50 transition-all"
+        >
+          {expanded ? 'SHOW FEWER' : `SHOW ALL ${games.length}`}
+        </button>
+      )}
     </section>
   )
 }
