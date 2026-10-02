@@ -5,13 +5,13 @@ import { isKitAvatar, decodeAvatar, canonicalKit, defaultKitAvatar, encodeAvatar
 import { legacyToLook } from './migrate.js'
 
 export * from './catalog.js'
-export { renderPixels, composeLayer, isAnimated, VIEWS } from './character.js'
+export { renderPixels, composeLayer, isAnimated, VIEWS, renderPet, isPetAnimated, PET_BOX } from './character.js'
 export { migrateLegacyAvatar, legacyToLook, TONE_TO_RAMP } from './migrate.js'
 export { RAMPS, RAMP_LABEL, colourAt, SKIN, CLOTH, NATURAL_HAIR, FANTASY_HAIR, PREMIUM_RAMPS, EYE_RAMPS } from './palette.js'
 export { W, H } from './compose.js'
 
-/** In-app sizes are integer multiples of the 24px tile. */
-export const SIZE_LADDER = [24, 48, 72, 96]
+/** In-app sizes are integer multiples of the 24px tile. 144 is the editor's big preview. */
+export const SIZE_LADDER = [24, 48, 72, 96, 144]
 
 /** Snap a requested pixel size onto the ladder: 16-28 -> 24, 29-47 -> 48, ... @param {number} size */
 export function snapSize(size) {
@@ -19,7 +19,8 @@ export function snapSize(size) {
   if (size <= 28) return 24
   if (size <= 56) return 48
   if (size <= 84) return 72
-  return 96
+  if (size <= 120) return 96
+  return 144
 }
 
 /**

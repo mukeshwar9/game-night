@@ -84,8 +84,8 @@ describe('resolveAvatar - nothing renders blank', () => {
 })
 
 describe('snapSize', () => {
-  it('moves every in-app size onto the 24 / 48 / 72 / 96 ladder', () => {
-    const want = { 16: 24, 20: 24, 22: 24, 26: 24, 28: 24, 30: 48, 32: 48, 36: 48, 40: 48, 44: 48, 56: 48, 72: 72, 88: 96, 96: 96 }
+  it('moves every in-app size onto the 24 / 48 / 72 / 96 / 144 ladder', () => {
+    const want = { 16: 24, 20: 24, 22: 24, 26: 24, 28: 24, 30: 48, 32: 48, 36: 48, 40: 48, 44: 48, 56: 48, 72: 72, 88: 96, 96: 96, 120: 96, 128: 144, 144: 144, 400: 144 }
     for (const [from, to] of Object.entries(want)) expect(snapSize(Number(from))).toBe(to)
     expect(snapSize(0)).toBe(24)
     expect(snapSize(NaN)).toBe(24)

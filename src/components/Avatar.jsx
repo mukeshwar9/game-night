@@ -3,7 +3,7 @@
 // classic critters keep their frozen 8x8 sprites (drawn here as SVG, in the fixed
 // avatar palette so they no longer change colour with the theme).
 //
-// Sizes snap onto the 24 / 48 / 72 / 96 ladder so every art pixel is a whole number of
+// Sizes snap onto the 24 / 48 / 72 / 96 (/ 144 for the editor) ladder so every art pixel is a whole number of
 // screen pixels. `view="bust"` (head-and-shoulders) is for chips, seat cards and
 // lists; `view="hero"` is the full body with a pose, for profile and Playground.
 

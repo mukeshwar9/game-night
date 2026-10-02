@@ -5,7 +5,7 @@
 // for the profile, podium and Playground. Everything composes into a 24x24 tile so
 // the in-app sizes (24 / 48 / 72 / 96) are integer multiples.
 
-import { applyPart, selOut, paintTile, BACKGROUNDS, FRAMES, W, H } from './compose.js'
+import { applyPart, selOut, paintTile, resolve, BACKGROUNDS, FRAMES, W, H } from './compose.js'
 import { PREMIUM_RAMPS } from './palette.js'
 import { HEAD, eyes, brows, nose, mouth, marks, beard, hair, hat, glasses, extra, tops, outfits, OUTFITS, POSES, pets } from './art.js'
 
@@ -105,3 +105,28 @@ export function isAnimated(cfg, view) {
   if (view === 'hero') list.push(pets[cfg.pet])
   return list.some(anyAnim)
 }
+
+/** Side of the square a pet is drawn into on its own (7x7 art plus a 1px outline). */
+export const PET_BOX = 9
+
+/**
+ * One pet on its own, for the pet picker: outlined, cropped to a PET_BOX square,
+ * transparent around it. Null for 'none' or an unknown id.
+ * @param {string} id @param {number} [t] @returns {(import('./palette.js').RGB | null)[] | null}
+ */
+export function renderPet(id, t = 0) {
+  const pt = pets[id]
+  if (!pt || !(pt.rows || pt.frames)) return null
+  const buf = new Array(W * H).fill(null)
+  applyPart(buf, { ...pt, x: 1, y: 1 }, {}, 0, 0, fr(pt, t))
+  const layer = selOut(buf)
+  /** @type {(import('./palette.js').RGB | null)[]} */
+  const out = new Array(PET_BOX * PET_BOX).fill(null)
+  for (let y = 0; y < PET_BOX; y++) {
+    for (let x = 0; x < PET_BOX; x++) out[y * PET_BOX + x] = resolve(layer[y * W + x], x, y, t)
+  }
+  return out
+}
+
+/** Does this pet animate on its own? @param {string} id */
+export const isPetAnimated = (id) => anyAnim(pets[id])
