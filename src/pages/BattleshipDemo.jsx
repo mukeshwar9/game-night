@@ -86,7 +86,9 @@ export default function BattleshipDemo() {
     return { cells, valid }
   }, [phase, selected, previewCell, selectedSize, draft])
 
-  // Bot driver: fires whenever it's the bot's turn.
+  // Bot driver: fires whenever it's the bot's turn. A hit keeps `turn` on
+  // 'bot', which React treats as no change, so the effect also keys on
+  // botShots: every bot shot schedules the next one.
   useEffect(() => {
     if (turn !== 'bot' || phase !== 'battle') return
     botTimerRef.current = setTimeout(() => {
@@ -106,7 +108,7 @@ export default function BattleshipDemo() {
       })
     }, BOT_DELAY_MS)
     return () => clearTimeout(botTimerRef.current)
-  }, [turn, phase, playerFleet]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [turn, phase, playerFleet, botShots])
 
   useEffect(() => () => clearTimeout(botTimerRef.current), [])
 
