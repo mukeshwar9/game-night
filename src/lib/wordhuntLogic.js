@@ -298,6 +298,16 @@ export function wordhuntReadyUpdate(current, { symbol = null, now, dict, random 
 }
 
 // How many words the end screen's "TOP MISSED" list shows.
+// Each side's share (0–100) of the ROUND POINTS bar. At 0–0 both are 0 — an
+// empty neutral track — rather than handing the whole bar to the opponent.
+export function scoreBarShares(myScore, oppScore) {
+  const my = Math.max(0, Number(myScore) || 0)
+  const opp = Math.max(0, Number(oppScore) || 0)
+  const total = my + opp
+  if (!total) return { my: 0, opp: 0 }
+  return { my: (my / total) * 100, opp: (opp / total) * 100 }
+}
+
 export const TOP_MISSED_COUNT = 10
 
 // End-of-round "TOP MISSED": words on the grid that nobody found, family-safe

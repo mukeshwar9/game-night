@@ -1567,7 +1567,8 @@ export const GAME_TYPES = [
   {
     type: 'wordhunt', label: 'WORD HUNT',
     desc: 'race to find the most words', Icon: WordHuntIcon,
-    badge: 'WH', maxWidth: 'max-w-md',
+    // Desktop: grid beside the score and word list (WordHuntGame).
+    badge: 'WH', maxWidth: 'max-w-md lg:max-w-3xl',
     category: 'word',
     addedAt: '2026-07-11',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,

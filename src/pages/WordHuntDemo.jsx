@@ -500,7 +500,7 @@ export default function WordHuntDemo() {
           enterKeyHint="done"
           aria-label="Type a word"
           placeholder="OR TYPE A WORD…"
-          className="min-w-0 flex-1 min-h-11 rounded border border-retro-border bg-retro-card px-3 font-pixel text-xs tracking-widest text-retro-text placeholder:text-retro-dim focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta"
+          className="min-w-0 flex-1 min-h-11 rounded border border-retro-border bg-retro-card px-3 font-pixel text-xs tracking-widest text-retro-text placeholder:text-retro-dim placeholder:font-mono placeholder:tracking-normal focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta"
         />
         <button
           type="submit"

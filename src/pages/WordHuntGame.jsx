@@ -14,7 +14,7 @@ import {
   COUNTDOWN_MS, ROUND_MS, MATCH_WINS, MIN_WORD_LENGTH,
   findPath, scoreWord, scoreWords, canonicalize, neighborsOf,
   normalizeWordList, nextWordIndex, verifyWords, compareHunt, finishHuntRound, roundDeadline,
-  wordhuntReadyUpdate, solveGrid, topMissedWords,
+  wordhuntReadyUpdate, solveGrid, topMissedWords, scoreBarShares,
 } from '../lib/wordhuntLogic'
 import { loadDictionary } from '../lib/wordhuntDictionary'
 import { getGameConfig } from '../lib/games'
@@ -303,7 +303,7 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
         {preview}
       </p>
       <div
-        className="relative grid grid-cols-4 gap-2 max-w-xs mx-auto touch-none select-none"
+        className="relative grid grid-cols-4 gap-2 max-w-xs lg:max-w-sm mx-auto touch-none select-none"
         style={{ touchAction: 'none' }}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
@@ -327,7 +327,7 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
 
       {/* Typed entry — a real input so touch users get their keyboard */}
       <form
-        className="mx-auto max-w-xs flex gap-2"
+        className="mx-auto max-w-xs lg:max-w-sm flex gap-2"
         onSubmit={(e) => { e.preventDefault(); submitTyped() }}
       >
         <input
@@ -344,7 +344,7 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
           enterKeyHint="done"
           aria-label="Type a word"
           placeholder="OR TYPE A WORD…"
-          className="min-w-0 flex-1 min-h-11 rounded border border-retro-border bg-retro-card px-3 font-pixel text-xs tracking-widest text-retro-text placeholder:text-retro-dim focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta disabled:opacity-50"
+          className="min-w-0 flex-1 min-h-11 rounded border border-retro-border bg-retro-card px-3 font-pixel text-xs tracking-widest text-retro-text placeholder:text-retro-dim placeholder:font-mono placeholder:tracking-normal focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta disabled:opacity-50"
         />
         <button
           type="submit"
@@ -359,8 +359,7 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
 }
 
 function ScoreBar({ myScore, oppScore, myLabel, oppLabel, mySymbol }) {
-  const total = Math.max(myScore + oppScore, 1)
-  const pMy = (myScore / total) * 100
+  const shares = scoreBarShares(myScore, oppScore)
   const isX = mySymbol === 'X'
   const myColor = isX ? 'text-retro-p1' : 'text-retro-p2'
   const oppColor = isX ? 'text-retro-p2' : 'text-retro-p1'
@@ -369,13 +368,13 @@ function ScoreBar({ myScore, oppScore, myLabel, oppLabel, mySymbol }) {
   return (
     <div className="bg-retro-card border border-retro-border rounded p-2 space-y-1">
       <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">ROUND POINTS</p>
-      <div className="flex justify-between font-pixel text-[10px]">
-        <span className={myColor}>{(myLabel || mySymbol || 'X').toUpperCase()} · {myScore}</span>
-        <span className={oppColor}>{oppScore} · {(oppLabel || (isX ? 'O' : 'X')).toUpperCase()}</span>
+      <div className="flex justify-between gap-2 font-pixel text-[10px]">
+        <span className={cn('min-w-0 truncate', myColor)}>{(myLabel || mySymbol || 'X').toUpperCase()} · {myScore}</span>
+        <span className={cn('min-w-0 truncate text-right', oppColor)}>{oppScore} · {(oppLabel || (isX ? 'O' : 'X')).toUpperCase()}</span>
       </div>
       <div className="h-2 bg-retro-deep rounded-full overflow-hidden flex">
-        <div className={cn(myBar, 'h-full transition-all duration-500')} style={{ width: `${pMy}%` }} />
-        <div className={cn(oppBar, 'h-full flex-1')} />
+        <div className={cn(myBar, 'h-full transition-all duration-500')} style={{ width: `${shares.my}%` }} />
+        <div className={cn(oppBar, 'h-full transition-all duration-500')} style={{ width: `${shares.opp}%` }} />
       </div>
     </div>
   )
@@ -939,47 +938,55 @@ export default function WordHuntGame({
       <div className="space-y-3">
         {rail}
         <RoundTimer endsAt={deadline} now={serverNow} totalMs={ROUND_MS} />
-        <ScoreBar
-          myScore={myScore} oppScore={oppScore}
-          myLabel={game.players?.[myKey]?.name} oppLabel={game.players?.[opKey]?.name}
-          mySymbol={myKey}
-        />
+        {/* Phones stack score, grid, then your words; desktop puts the grid
+            on the left and the score and word list beside it. */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr] lg:gap-x-6 lg:items-start">
+          <div className="space-y-3 lg:col-start-2 lg:row-start-1">
+            <ScoreBar
+              myScore={myScore} oppScore={oppScore}
+              myLabel={game.players?.[myKey]?.name} oppLabel={game.players?.[opKey]?.name}
+              mySymbol={myKey}
+            />
 
-        <p className="font-pixel text-[8px] text-retro-dim text-center">
-          {oppName} · {oppWordsCount} WORD{oppWordsCount === 1 ? '' : 'S'} FOUND
-        </p>
-
-        <WordGrid grid={grid} disabled={!!myDone || !dict} onSubmit={handleSubmit} lastResult={lastResult} />
-
-        {!dict && (
-          <p className="font-pixel text-[9px] text-retro-cta text-center arcade-blink">
-            {dictError ? "COULDN'T LOAD WORD LIST — " : ''}LOADING DICTIONARY…
-          </p>
-        )}
-        {!dict && dictError && (
-          <div className="flex justify-center">
-            <button
-              onClick={retryDictionary}
-              disabled={retrying}
-              className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-cta hover:text-retro-cta active:scale-95 disabled:opacity-50"
-            >
-              {retrying ? 'RETRYING…' : 'RETRY'}
-            </button>
+            <p className="font-pixel text-[8px] text-retro-dim text-center">
+              {oppName} · {oppWordsCount} WORD{oppWordsCount === 1 ? '' : 'S'} FOUND
+            </p>
           </div>
-        )}
+          <div className="space-y-3 lg:col-start-1 lg:row-start-1 lg:row-span-2">
+            <WordGrid grid={grid} disabled={!!myDone || !dict} onSubmit={handleSubmit} lastResult={lastResult} />
 
-        <WordList words={myWords} emptyHint="TRACE OR TYPE WORDS TO FIND THEM HERE" />
+            {!dict && (
+              <p className="font-pixel text-[9px] text-retro-cta text-center arcade-blink">
+                {dictError ? "COULDN'T LOAD WORD LIST — " : ''}LOADING DICTIONARY…
+              </p>
+            )}
+            {!dict && dictError && (
+              <div className="flex justify-center">
+                <button
+                  onClick={retryDictionary}
+                  disabled={retrying}
+                  className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-cta hover:text-retro-cta active:scale-95 disabled:opacity-50"
+                >
+                  {retrying ? 'RETRYING…' : 'RETRY'}
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="space-y-3 lg:col-start-2 lg:row-start-2">
+            <WordList words={myWords} emptyHint="TRACE OR TYPE WORDS TO FIND THEM HERE" />
 
-        {myDone && (
-          <p className="font-pixel text-[9px] text-retro-cta text-center arcade-blink">
-            YOU&apos;RE DONE — WRAPPING UP…
-          </p>
-        )}
-        {!myDone && oppDone && (
-          <p className="font-pixel text-[9px] text-retro-dim text-center">
-            {oppName} IS FINISHING…
-          </p>
-        )}
+            {myDone && (
+              <p className="font-pixel text-[9px] text-retro-cta text-center arcade-blink">
+                YOU&apos;RE DONE — WRAPPING UP…
+              </p>
+            )}
+            {!myDone && oppDone && (
+              <p className="font-pixel text-[9px] text-retro-dim text-center">
+                {oppName} IS FINISHING…
+              </p>
+            )}
+          </div>
+        </div>
 
         {!opponentOnline && <OfflineNotice label="OPPONENT" />}
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
