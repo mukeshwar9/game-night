@@ -11,7 +11,9 @@ import {
   compareHunt, topMissedWords, neighborsOf, COUNTDOWN_MS, ROUND_MS, MATCH_WINS, MIN_WORD_LENGTH, CELL_COUNT,
 } from '../lib/wordhuntLogic'
 import { loadDictionary } from '../lib/wordhuntDictionary'
-import { planBotFinds, botFindsBy, tallyWins, matchWinner } from '../lib/wordBotsLogic'
+import { planBotFinds, botFindsBy, tallyWins, matchWinner, wordBotLevel, WORD_BOT_LEVEL_IDS } from '../lib/wordBotsLogic'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
@@ -118,6 +120,8 @@ export default function WordHuntDemo() {
 
   const [winners, setWinners] = useState([])
   const [round, setRound] = useState(null) // { grid, solutions, plan, startedAt }
+  const [level, setLevel] = useBotDifficulty('wordhunt', WORD_BOT_LEVEL_IDS)
+  const chips = <CpuDifficultyChips levels={WORD_BOT_LEVEL_IDS} value={level} onChange={setLevel} />
   const [myWords, setMyWords] = useState([])
   const [lastResult, setLastResult] = useState(null)
   const [now, setNow] = useState(() => Date.now())
@@ -163,7 +167,7 @@ export default function WordHuntDemo() {
     if (!dict) return
     const grid = ensurePlayableGrid(generateGrid(randSeed()), dict)
     const solutions = solveGrid(grid, dict)
-    const plan = planBotFinds(solutions, { durationMs: ROUND_MS })
+    const plan = planBotFinds(solutions, { durationMs: ROUND_MS, recall: wordBotLevel(level).findRecall })
     const at = Date.now()
     setRound({ grid, solutions, plan, startedAt: at })
     setNow(at)
@@ -358,6 +362,7 @@ export default function WordHuntDemo() {
         >
           READY
         </button>
+        {chips}
       </div>
     )
   }
@@ -440,6 +445,7 @@ export default function WordHuntDemo() {
             </button>
           </div>
         )}
+        {chips}
       </div>
     )
   }

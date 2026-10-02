@@ -221,6 +221,7 @@ export function pickWordleGuess({
  */
 export function playWordleBoard({
   answer, pool = [], skill = WORDLE_BOT_SKILL, recall = WORDLE_BOT_RECALL, random = Math.random, isWord = null,
+  thinkScale = 1,
 } = {}) {
   const target = lower(answer)
   const rows = []
@@ -228,16 +229,16 @@ export function playWordleBoard({
     const word = pickWordleGuess({ pool, history: rows, skill, recall, random, isWord })
     if (!word) break
     const marks = markGuess(word, target)
-    rows.push({ word, marks, thinkMs: wordleThinkMs(r, random) })
+    rows.push({ word, marks, thinkMs: wordleThinkMs(r, random, thinkScale) })
     if (marks === 'G'.repeat(WORD_LENGTH)) break
   }
   return rows
 }
 
-/** Simulated think time before row `row` (0-based). */
-export function wordleThinkMs(row, random = Math.random) {
+/** Simulated think time before row `row` (0-based), times `scale`. */
+export function wordleThinkMs(row, random = Math.random, scale = 1) {
   const [lo, hi] = row === 0 ? WORDLE_THINK_MS.opener : WORDLE_THINK_MS.row
-  return Math.round(lo + random() * (hi - lo))
+  return Math.round((lo + random() * (hi - lo)) * scale)
 }
 
 /** A random family-safe answer (lowercase) for the CPU to set, avoiding `used`. */
@@ -523,4 +524,26 @@ export function botFoundMap(plan = [], { startedAt = 0, elapsedMs = Infinity, sc
   const out = {}
   for (const f of plan) if (f.at <= elapsedMs) out[f.word] = { at: startedAt + f.at, points: score(f.word) }
   return out
+}
+
+// ── CPU difficulty (word solos) ─────────────────────────────────────────────
+//
+// EASY / NORMAL / HARD for the word-game CPUs, the same three chips the
+// board-game demos offer. NORMAL is the tuning above. Starting values, to
+// playtest: EASY should lose most rounds to a casual player, HARD should beat
+// most; move the knobs toward NORMAL if a level feels unfair.
+//   skill / recall / thinkScale — Wordle CPU (Word Duel, Word Race)
+//   hangmanSlip — chance the Hangwoman guesser skips its best letter
+//   findRecall  — share of spot-able words the Word Hunt / Anagrams CPU finds
+export const WORD_BOT_LEVELS = {
+  easy: { skill: 0.2, recall: 0.08, thinkScale: 1.3, hangmanSlip: 0.6, findRecall: 0.22 },
+  normal: { skill: WORDLE_BOT_SKILL, recall: WORDLE_BOT_RECALL, thinkScale: 1, hangmanSlip: HANGMAN_BOT_SLIP, findRecall: FIND_RECALL },
+  hard: { skill: 0.9, recall: 1, thinkScale: 0.75, hangmanSlip: 0.08, findRecall: 0.65 },
+}
+export const WORD_BOT_LEVEL_IDS = Object.keys(WORD_BOT_LEVELS)
+export const DEFAULT_WORD_BOT_LEVEL = 'normal'
+
+/** The knobs for `level`; anything unknown reads as NORMAL. */
+export function wordBotLevel(level) {
+  return WORD_BOT_LEVELS[level] || WORD_BOT_LEVELS[DEFAULT_WORD_BOT_LEVEL]
 }

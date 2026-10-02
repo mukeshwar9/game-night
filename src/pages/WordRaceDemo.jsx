@@ -9,7 +9,9 @@ import {
   guessProblem, normalizeGuesses, FINISH_GRACE_MS, DONE_GRACE_MS, MATCH_TARGET, MAX_GUESSES, WORD_LENGTH,
 } from '../lib/wordraceLogic'
 import { getAnswerList } from '../lib/dictionary'
-import { playWordleBoard, advanceBotRace } from '../lib/wordBotsLogic'
+import { playWordleBoard, advanceBotRace, wordBotLevel, WORD_BOT_LEVEL_IDS } from '../lib/wordBotsLogic'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
@@ -33,9 +35,11 @@ function fmtClock(ms) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-// A round plus the CPU's precomputed board for it (landed on the round clock).
-function withCpu(round, answers) {
-  return { round, cpuRows: playWordleBoard({ answer: round.answer, pool: answers }) }
+// A round plus the CPU's precomputed board for it (landed on the round clock),
+// played at the chosen CPU level.
+function withCpu(round, answers, level) {
+  const { skill, recall, thinkScale } = wordBotLevel(level)
+  return { round, cpuRows: playWordleBoard({ answer: round.answer, pool: answers, skill, recall, thinkScale }) }
 }
 
 function ResultCopy({ result, doneX, doneO }) {
@@ -61,6 +65,8 @@ export default function WordRaceDemo() {
   const [feedback, setFeedback] = useState(null)
   const [now, setNow] = useState(() => Date.now())
   const rootRef = useRef(null)
+  const [level, setLevel] = useBotDifficulty('wordrace', WORD_BOT_LEVEL_IDS)
+  const chips = <CpuDifficultyChips levels={WORD_BOT_LEVEL_IDS} value={level} onChange={setLevel} note={race ? 'APPLIES FROM THE NEXT ROUND' : null} />
 
   const game = race?.game
   const round = game?.round
@@ -96,7 +102,7 @@ export default function WordRaceDemo() {
     const at = Date.now()
     const used = normalizeGuesses(round?.used).map(Number)
     const first = buildRaceRoundStart({ stub: { used, roundNum: 1 }, seed: randSeed(), answerList: answers, at })
-    setRace({ game: { status: 'playing', scores: { X: 0, O: 0 }, round: first }, ...withCpu(first, answers) })
+    setRace({ game: { status: 'playing', scores: { X: 0, O: 0 }, round: first }, ...withCpu(first, answers, level) })
     setNow(at)
     setTyped('')
     setFeedback(null)
@@ -108,7 +114,7 @@ export default function WordRaceDemo() {
   const nextRound = () => {
     const at = Date.now()
     const next = buildNextRaceRound({ round, seed: randSeed(), answerList: answers, at })
-    setRace({ game: { ...game, round: next }, ...withCpu(next, answers) })
+    setRace({ game: { ...game, round: next }, ...withCpu(next, answers, level) })
     setNow(at)
     setTyped('')
     setFeedback(null)
@@ -166,6 +172,7 @@ export default function WordRaceDemo() {
           <p>✓ SOLVE BEATS FAIL · FEWER GUESSES · THEN FASTER</p>
           <p>⏱ FIRST SOLVE STARTS A 30 S CLOCK · FIRST TO {MATCH_TARGET}</p>
         </div>
+        {chips}
         <button
           type="button"
           onClick={startMatch}
@@ -273,6 +280,7 @@ export default function WordRaceDemo() {
               NEXT ROUND
             </button>
           )}
+          {chips}
         </div>
       )}
     </div>

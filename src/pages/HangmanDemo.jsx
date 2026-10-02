@@ -13,7 +13,10 @@ import {
 } from '../lib/hangmanLogic'
 import {
   pickKeeperWord, hangmanPattern, hangmanCandidates, pickHangmanGuess, hangmanThinkMs,
+  wordBotLevel, WORD_BOT_LEVEL_IDS,
 } from '../lib/wordBotsLogic'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
 import { loadDictionary } from '../lib/wordhuntDictionary'
 import { sounds } from '../lib/sounds'
 import useBusy from '../hooks/useBusy'
@@ -63,6 +66,8 @@ export default function HangmanDemo() {
   // The word list backs your setter word and the CPU's guessing; it loads
   // while you play the first round.
   const [dict, setDict] = useState(null)
+  // How sharply the CPU guesses your words.
+  const [level, setLevel] = useBotDifficulty('hangwoman', WORD_BOT_LEVEL_IDS)
   const [dictError, setDictError] = useState(false)
   const [, runRetry] = useBusy()
   useEffect(() => {
@@ -113,7 +118,7 @@ export default function HangmanDemo() {
     const id = setTimeout(() => {
       const guessed = Object.keys(round.guesses)
       const candidates = hangmanCandidates({ pattern: hangmanPattern(round.word, round.guesses), guessed, dict })
-      const letter = pickHangmanGuess({ guessed, candidates })
+      const letter = pickHangmanGuess({ guessed, candidates, slip: wordBotLevel(level).hangmanSlip })
       if (!letter) return
       const next = applyLetter(round, letter)
       if (next.last.hit) sounds.hit(); else sounds.miss()
@@ -123,7 +128,7 @@ export default function HangmanDemo() {
     return () => clearTimeout(id)
     // finishRound reads `match`, which only changes when a round ends
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cpuGuessing, round, dict])
+  }, [cpuGuessing, round, dict, level])
 
   const handleWordSet = (word, hint) => {
     setRound({ setter: 'X', phase: 'guessing', word, hint: hint || '', guesses: {}, result: null })
@@ -241,6 +246,9 @@ export default function HangmanDemo() {
             <LetterKeyboard guesses={round.guesses} onGuess={handleGuess} disabled={!youGuessing} />
           )}
         </>
+      )}
+      {(round.phase === 'setting' || round.phase === 'reveal') && (
+        <CpuDifficultyChips levels={WORD_BOT_LEVEL_IDS} value={level} onChange={setLevel} note="HOW WELL THE CPU GUESSES YOUR WORDS" />
       )}
     </div>
   )

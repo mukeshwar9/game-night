@@ -10,7 +10,11 @@ import {
   ROUND_MS, COUNTDOWN_MS, MATCH_TARGET, MIN_WORD_LENGTH, RACK_SIZE,
 } from '../lib/anagramsLogic'
 import { ANAGRAM_RACK_WORDS, ANAGRAM_VALID_WORDS } from '../lib/decks/anagrams'
-import { planBotFinds, botFindsBy, botFoundMap, commonFindWeight, ANAGRAMS_FIND_GAP_MS } from '../lib/wordBotsLogic'
+import {
+  planBotFinds, botFindsBy, botFoundMap, commonFindWeight, wordBotLevel, ANAGRAMS_FIND_GAP_MS, WORD_BOT_LEVEL_IDS,
+} from '../lib/wordBotsLogic'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
@@ -78,8 +82,9 @@ function FoundWords({ words, title }) {
   )
 }
 
-// A fresh rack round (starting after the 3-2-1) plus the CPU's plan for it.
-function dealRound(prevRound, at) {
+// A fresh rack round (starting after the 3-2-1) plus the CPU's plan for it
+// at the chosen CPU level.
+function dealRound(prevRound, at, level) {
   const used = prevRound?.usedRacks || []
   const rack = seededRack({ rackWords: ANAGRAM_RACK_WORDS, validWords: ANAGRAM_VALID_WORDS, seed: randSeed(), used })
   const solutions = getSolutions(rack, ANAGRAM_VALID_WORDS)
@@ -92,7 +97,9 @@ function dealRound(prevRound, at) {
       usedRacks: rememberRack(used, rack),
     },
     // Everyday words only, so the CPU never plays PAC or APT.
-    plan: planBotFinds(solutions, { durationMs: ROUND_MS, gapMs: ANAGRAMS_FIND_GAP_MS, weight: commonFindWeight }),
+    plan: planBotFinds(solutions, {
+      durationMs: ROUND_MS, gapMs: ANAGRAMS_FIND_GAP_MS, weight: commonFindWeight, recall: wordBotLevel(level).findRecall,
+    }),
   }
 }
 
@@ -112,6 +119,8 @@ function settle(state, now, { early = false } = {}) {
 export default function AnagramsDemo() {
   const [names] = useState(() => ({ X: { name: playerName() }, O: { name: 'CPU' } }))
   const [state, setState] = useState(null) // { game, plan }
+  const [level, setLevel] = useBotDifficulty('anagrams', WORD_BOT_LEVEL_IDS)
+  const chips = <CpuDifficultyChips levels={WORD_BOT_LEVEL_IDS} value={level} onChange={setLevel} />
   const [rack, setRack] = useState([]) // display order (shuffle)
   const [selectedIndexes, setSelectedIndexes] = useState([])
   const selectedRef = useRef([])
@@ -162,11 +171,11 @@ export default function AnagramsDemo() {
   const startMatch = () => {
     const at = Date.now()
     // A new match restarts the rack count but keeps the no-repeat history.
-    begin({ status: 'playing', scores: { X: 0, O: 0 }, winner: null }, dealRound({ usedRacks: round?.usedRacks, roundNum: 0 }, at))
+    begin({ status: 'playing', scores: { X: 0, O: 0 }, winner: null }, dealRound({ usedRacks: round?.usedRacks, roundNum: 0 }, at, level))
   }
 
   const nextRack = () => {
-    begin(game, dealRound(round, Date.now()))
+    begin(game, dealRound(round, Date.now(), level))
   }
 
   const pickLetter = (index) => {
@@ -258,6 +267,7 @@ export default function AnagramsDemo() {
         >
           START
         </button>
+        {chips}
       </div>
     )
   }
@@ -331,6 +341,7 @@ export default function AnagramsDemo() {
             </button>
           </div>
         )}
+        {chips}
       </div>
     )
   }

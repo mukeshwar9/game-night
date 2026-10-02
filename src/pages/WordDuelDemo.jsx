@@ -11,8 +11,10 @@ import {
 import { getAnswerList, has } from '../lib/dictionary'
 import {
   pickCpuSecret, playWordleBoard, botRowTimes, botRowsShown, botDoneState, playerDoneState,
-  tallyWins, matchWinner,
+  tallyWins, matchWinner, wordBotLevel, WORD_BOT_LEVEL_IDS,
 } from '../lib/wordBotsLogic'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
@@ -100,6 +102,7 @@ export default function WordDuelDemo() {
   const [typed, setTyped] = useState('')
   const [feedback, setFeedback] = useState(null)
   const [rareWarned, setRareWarned] = useState('') // the rare secret already warned about
+  const [level, setLevel] = useBotDifficulty('wordduel', WORD_BOT_LEVEL_IDS)
   const [now, setNow] = useState(() => Date.now())
 
   const playing = round.phase === 'playing'
@@ -148,7 +151,8 @@ export default function WordDuelDemo() {
       return
     }
     // The CPU plays its whole board now; the page reveals it on the CPU's clock.
-    const cpuRows = playWordleBoard({ answer: word, pool: answers, isWord: has })
+    const { skill, recall, thinkScale } = wordBotLevel(level)
+    const cpuRows = playWordleBoard({ answer: word, pool: answers, isWord: has, skill, recall, thinkScale })
     const at = Date.now()
     setRound(r => ({ ...r, phase: 'playing', mySecret: word, startedAt: at, cpuRows }))
     setNow(at)
@@ -241,6 +245,7 @@ export default function WordDuelDemo() {
           </button>
         </div>
         <WordKeyboard onKey={onKey} enterLabel="Lock in word" />
+        <CpuDifficultyChips levels={WORD_BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       </div>
     )
   }
