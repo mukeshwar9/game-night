@@ -12,6 +12,11 @@ describe('titleForPath', () => {
     expect(titleForPath('/local/dotsandboxes')).toBe('Dots & boxes — pass and play — Game Night')
     expect(titleForPath('/play/battleship')).toBe('Battleship vs the CPU — Game Night')
   })
+  it('calls a memory solo run a solo run, not a CPU game', () => {
+    expect(titleForPath('/solo/numbermemory')).toBe('Number memory — solo run — Game Night')
+    expect(titleForPath('/solo/simon')).toBe('Simon — solo run — Game Night')
+    expect(titleForPath('/demo')).toBe('Play solo — Game Night')
+  })
   it('falls back to the brand for rooms, unknown games and junk', () => {
     expect(titleForPath('/game/ABC123')).toBe('Game Night')
     expect(titleForPath('/solo/not-a-game')).toBe('Game Night')

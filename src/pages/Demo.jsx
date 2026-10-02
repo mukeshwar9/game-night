@@ -320,7 +320,7 @@ function DemoHub() {
 
   // Active demo — key forces fresh mount on game switch
   const board = (
-    <div key={selected} ref={boardRef} className="scroll-mt-3 -mx-2 sm:mx-0 border border-retro-border rounded p-2 sm:p-4 bg-retro-card">
+    <div key={selected} ref={boardRef} data-demo-board className="scroll-mt-3 -mx-2 sm:mx-0 border border-retro-border rounded p-2 sm:p-4 bg-retro-card">
       <p className="font-pixel text-xs text-retro-text text-center tracking-wider mb-4">
         {active.short.replace('\n', ' ')}{active.solo ? ' · SOLO RUN' : ''}
       </p>
@@ -335,7 +335,7 @@ function DemoHub() {
       <div className="w-full max-w-md space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-baseline justify-between gap-3">
           <h1 className="font-pixel text-sm text-retro-cta tracking-wider whitespace-nowrap">PLAY SOLO</h1>
-          <span className="min-w-0 text-right font-pixel text-[9px] text-retro-dim tracking-wider">VS CPU<span className="max-sm:hidden"> · NO WAITING</span></span>
+          <span className="min-w-0 text-right font-pixel text-[9px] text-retro-dim tracking-wider">{active?.solo ? 'BEAT YOUR BEST' : 'VS CPU'}<span className="max-sm:hidden"> · NO WAITING</span></span>
         </div>
         {adLanding
           ? (

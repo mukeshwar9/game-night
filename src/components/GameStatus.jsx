@@ -116,7 +116,8 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
   const shareScore = (headline, accentVar) => shareResult({
     gameLabel: getGameConfig(gameType)?.label || 'GAME NIGHT',
     headline,
-    sub: `${scoreX} – ${scoreO}`,
+    // A vs-CPU round has no match score to show (BotBoardDemo passes no `scores`).
+    sub: scores ? `${scoreX} – ${scoreO}` : undefined,
     accentVar,
     url: shareCurrentUrl(),
   })
@@ -230,7 +231,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
               : `${(players?.[winner]?.name || winner).toUpperCase()} WINS!`}
         </p>
         {!isDraw && !iWon && mySymbol && (
-          <p className="font-pixel text-[9px] text-retro-dim tracking-widest -mt-2">YOU LOSE THIS ROUND · {scoreX}–{scoreO}</p>
+          <p className="font-pixel text-[9px] text-retro-dim tracking-widest -mt-2">YOU LOSE THIS ROUND{scores ? ` · ${scoreX}–${scoreO}` : ''}</p>
         )}
         {renderHeadToHead()}
         {renderPlayElse()}

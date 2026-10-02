@@ -665,6 +665,9 @@ export const GAME_TYPES = [
     badge: 'SQ', maxWidth: 'max-w-xs',
     category: 'memory',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    // A solo run (beat your best), not a CPU opponent: the options sheet, the /solo
+    // header and the tab title say so instead of "vs AI".
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
     boardSize: 0,
     getMoveIndex: (_, padIndex) => padIndex,
     BoardComponent: SimonBoard,
@@ -680,6 +683,8 @@ export const GAME_TYPES = [
     // SimonBoard plays each pad's own tone on tap; the generic move blip on top
     // of it made every press sound twice.
     quietMoves: true,
+    // Pass-and-play hides the board until the next player taps ready (BotBoardDemo).
+    handoffGate: true,
   },
   {
     type: 'chimp', label: 'CHIMP TEST',
@@ -687,6 +692,9 @@ export const GAME_TYPES = [
     badge: 'CT', maxWidth: 'max-w-sm',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
+    // A solo run (beat your best), not a CPU opponent: the options sheet, the /solo
+    // header and the tab title say so instead of "vs AI".
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
     custom: true, simultaneous: true,
     Page: lazyWithRetry(() => import('../pages/ChimpGame')),
   },
@@ -696,6 +704,9 @@ export const GAME_TYPES = [
     badge: 'NM', maxWidth: 'max-w-xs',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
+    // A solo run (beat your best), not a CPU opponent: the options sheet, the /solo
+    // header and the tab title say so instead of "vs AI".
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
     custom: true, simultaneous: true,
     Page: lazyWithRetry(() => import('../pages/NumberMemoryGame')),
   },
@@ -881,6 +892,9 @@ export const GAME_TYPES = [
     badge: 'VM', maxWidth: 'max-w-sm',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
+    // A solo run (beat your best), not a CPU opponent: the options sheet, the /solo
+    // header and the tab title say so instead of "vs AI".
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
     boardSize: 0,
     getMoveIndex: (_, cellIndex) => cellIndex,
     BoardComponent: VisualMemoryBoard,
@@ -893,6 +907,7 @@ export const GAME_TYPES = [
       finished: game.status === 'finished',
       vmDeadline: game.vmDeadline ?? null,
     }),
+    handoffGate: true,
   },
   {
     type: 'gomoku', label: 'GOMOKU',

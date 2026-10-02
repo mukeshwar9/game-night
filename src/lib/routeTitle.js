@@ -10,7 +10,7 @@ const STATIC = {
   '/games': `All games — ${BRAND}`,
   '/online': `Find an opponent — ${BRAND}`,
   '/daily': `Daily puzzle — ${BRAND}`,
-  '/demo': `Play solo vs the CPU — ${BRAND}`,
+  '/demo': `Play solo — ${BRAND}`,
   '/friends': `Friends — ${BRAND}`,
   '/profile': `Settings — ${BRAND}`,
   '/shop': `Shop — ${BRAND}`,
@@ -26,7 +26,8 @@ export function titleForPath(pathname) {
     const cfg = getGameConfig(m[2])
     if (cfg && cfg.type === m[2]) {
       const label = cfg.label.charAt(0) + cfg.label.slice(1).toLowerCase()
-      return `${label}${m[1] === 'local' ? ' — pass and play' : ' vs the CPU'} — ${BRAND}`
+      const mode = m[1] === 'local' ? ' — pass and play' : cfg.soloRun ? ' — solo run' : ' vs the CPU'
+      return `${label}${mode} — ${BRAND}`
     }
   }
   return BRAND

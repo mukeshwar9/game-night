@@ -34,6 +34,27 @@ function localName() {
 // header is counted: bring them to the top of the screen on mount.
 const TALL_BOARDS = new Set(['onitama', 'blockade'])
 
+// Pass-and-play for games that reveal something to the player whose turn it is
+// (registry `handoffGate`: Simon's flash, Visual Memory's lit tiles). Without a gate
+// the reveal started the instant the last move landed — while the phone was still in
+// the previous player's hands. The board stays hidden until the new player taps.
+function HandoffGate({ name, onReady }) {
+  return (
+    <div className="min-h-[20rem] flex flex-col items-center justify-center gap-5 rounded border-2 border-dashed border-retro-border bg-retro-surface p-6 text-center" role="status">
+      <p className="font-pixel text-[9px] text-retro-dim tracking-widest">PASS THE DEVICE</p>
+      <p className="font-pixel text-base text-retro-cta text-glow-cta">{name}</p>
+      <p className="font-pixel text-[8px] text-retro-dim leading-relaxed max-w-[16rem]">THE PATTERN SHOWS AS SOON AS YOU TAP, SO MAKE SURE IT IS YOUR TURN.</p>
+      <button
+        type="button"
+        onClick={onReady}
+        className="px-6 py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+      >
+        I'M READY
+      </button>
+    </div>
+  )
+}
+
 export default function BotBoardDemo({ type, mode = 'bot' }) {
   const rootRef = useRef(null)
   useFocusArena(rootRef, TALL_BOARDS.has(type))
@@ -44,6 +65,8 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
     status: 'playing', winner: null, winningLine: [], currentTurn: 'X',
   })
   const [game, setGame] = useState(makeInit)
+  // Which seat has tapped I'M READY for the current turn (pass-and-play gate only).
+  const [readyFor, setReadyFor] = useState(null)
   const timerRef = useRef(null)
   // Only the levels this game's bot actually distinguishes (demoBots.js).
   const levels = isLocal ? [] : botDifficulties(type)
@@ -139,7 +162,9 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, type, difficulty])
 
-  const reset = () => { clearTimeout(timerRef.current); setGame(makeInit()) }
+  const reset = () => { clearTimeout(timerRef.current); setGame(makeInit()); setReadyFor(null) }
+  const gated = isLocal && !!cfg.handoffGate && game.status === 'playing' && readyFor !== game.currentTurn
+  const seatName = game.currentTurn === 'O' ? 'PLAYER 2' : 'PLAYER 1'
 
   const board = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize) : []
   const canMove = game.status === 'playing' && (isLocal || game.currentTurn === 'X')
@@ -179,6 +204,9 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
           </>
         )}
       </div>
+      {gated ? (
+        <HandoffGate name={seatName} onReady={() => setReadyFor(game.currentTurn)} />
+      ) : (
       <cfg.BoardComponent
         board={board}
         onMove={handleHumanMove}
@@ -189,6 +217,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
         {...(isLocal && type === 'mancala' ? { mySymbol: game.currentTurn, accent: game.currentTurn === 'X' ? 'p1' : 'p2', hotseat: true, players: { X: { name: 'PLAYER 1' }, O: { name: 'PLAYER 2' } } } : {})}
         {...(cfg.boardProps ? cfg.boardProps(game) : {})}
       />
+      )}
       <GameStatus
         status={game.status}
         winner={game.winner}
