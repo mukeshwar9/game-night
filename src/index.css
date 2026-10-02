@@ -1960,17 +1960,32 @@ body::before {
 .arrows-arrow.is-hint .ar-body { stroke: rgb(var(--c-win)); }
 .arrows-arrow.is-hint .ar-head { fill: rgb(var(--c-win)); }
 .arrows-arrow.is-hint { animation: arrows-hint 0.8s ease 3; }
+/* Sleeping arrows are hollow (a surface-coloured core inside the body, an
+   outlined head) until an arrow touching them leaves; then the core fades. */
+.arrows-arrow.is-sleep .ar-core { stroke: rgb(var(--c-surface)); transition: opacity 0.35s ease; }
+.arrows-arrow.is-sleep .ar-head { fill: rgb(var(--c-surface)); stroke: rgb(var(--c-text)); stroke-width: 0.7; stroke-linejoin: round; transition: fill 0.35s ease; }
+.arrows-arrow.is-sleep.is-awake .ar-core { opacity: 0; }
+.arrows-arrow.is-sleep.is-awake .ar-head { fill: rgb(var(--c-text)); stroke: none; }
+.arrows-arrow.is-sleep.is-error .ar-head { stroke: rgb(var(--c-danger)); }
+.arrows-arrow.is-sleep.is-awake.is-error .ar-head { fill: rgb(var(--c-danger)); }
+/* Lesson boards: the guided arrow pulses until tapped; its route is dotted. */
+.arrows-arrow.is-target .ar-body { stroke: rgb(var(--c-win)); }
+.arrows-arrow.is-target .ar-head { fill: rgb(var(--c-win)); }
+.arrows-arrow.is-target { animation: arrows-hint 1.1s ease infinite; }
+.ar-route { stroke: rgb(var(--c-win)); stroke-width: 0.9; stroke-dasharray: 1.2 1.6; opacity: 0.9; }
 .ar-hit { outline: none; }
 .ar-hit:focus-visible { stroke: rgb(var(--c-cta) / 0.3); }
 /* Reduced motion (in-app setting, else the OS query): drop the flash, ring
    and shake; the red / CTA colour cues stay. */
 [data-motion="reduced"] .arrows-arrow.is-blocker,
 [data-motion="reduced"] .arrows-arrow.is-hint,
+[data-motion="reduced"] .arrows-arrow.is-target,
 [data-motion="reduced"] .arrows-stage.is-error,
 [data-motion="reduced"] .arrows-stage.is-error .arrows-svg { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"]) .arrows-arrow.is-blocker,
   :root:not([data-motion="full"]) .arrows-arrow.is-hint,
+  :root:not([data-motion="full"]) .arrows-arrow.is-target,
   :root:not([data-motion="full"]) .arrows-stage.is-error,
   :root:not([data-motion="full"]) .arrows-stage.is-error .arrows-svg { animation: none; }
 }

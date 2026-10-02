@@ -2,12 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ARROWS_DIRS,
   ARROWS_DIR_NAMES,
+  arrowPose,
+  arrowRoute,
   cellCenter,
   exitVector,
+  isAwake,
   isBent,
   isCurved,
   isDiagonal,
-  leavePose,
+  isDouble,
+  isSleeper,
+  neighborsOf,
   occupancy,
   roundedPathD,
   routeDistance,
@@ -56,7 +61,62 @@ function headD(points) {
 
 // The body stops short of the tip so its round cap hides under the head.
 function bodyD(points, arrow) {
+  if (isDouble(arrow)) return doubleBodyD(points)
   return roundedPathD(points, isBent(arrow) ? BEND_CORNER : CORNER, BODY_INSET)
+}
+
+// A double arrow: two straight prongs (a head at each end) joined by one
+// round C-shaped bend that bulges out behind its spine. Both ends stop short
+// so each head covers its end.
+function doubleBodyD(points) {
+  const n = points.length
+  const [ax, ay] = points[0]
+  const step = Math.hypot(ax - points[1][0], ay - points[1][1]) || 1
+  const ux = (ax - points[1][0]) / step
+  const uy = (ay - points[1][1]) / step
+  // The prong is every step that runs straight back from head A.
+  let arm = 1
+  while (
+    arm < n - 1 &&
+    Math.abs(points[arm][0] - points[arm + 1][0] - ux * step) < 0.01 &&
+    Math.abs(points[arm][1] - points[arm + 1][1] - uy * step) < 0.01
+  ) arm += 1
+  const p1 = points[arm]
+  const p2 = points[n - 1 - arm]
+  const bulge = 2 + Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) * 0.45
+  const [ex, ey] = points[n - 1]
+  const f = (v) => Math.round(v * 100) / 100
+  return `M${f(ax - ux * BODY_INSET)} ${f(ay - uy * BODY_INSET)} L${f(p1[0])} ${f(p1[1])}` +
+    ` C${f(p1[0] - ux * bulge)} ${f(p1[1] - uy * bulge)} ${f(p2[0] - ux * bulge)} ${f(p2[1] - uy * bulge)} ${f(p2[0])} ${f(p2[1])}` +
+    ` L${f(ex - ux * BODY_INSET)} ${f(ey - uy * BODY_INSET)}`
+}
+
+// Head A of a double arrow sits on its first cell, pointing the same way.
+const tailHeadD = (points) => headD([points[1], points[0]])
+
+// Dotted preview of where an arrow would go (lesson boards).
+function routePreviewD(level, arrow) {
+  if (isDouble(arrow)) {
+    // One lane per row (or column) the piece sweeps.
+    const [dx, dy] = ARROWS_DIRS[arrow.dir]
+    const own = new Set(arrow.cells.map(([x, y]) => `${x},${y}`))
+    return arrow.cells.filter(([x, y]) => !own.has(`${x + dx},${y + dy}`)).map(([x, y]) => {
+      let ex = x
+      let ey = y
+      while (ex + dx >= 0 && ex + dx < level.cols && ey + dy >= 0 && ey + dy < level.rows) { ex += dx; ey += dy }
+      const [ax, ay] = cellCenter([x, y], CELL)
+      const [bx, by] = cellCenter([ex, ey], CELL)
+      return `M${ax + dx * 3} ${ay + dy * 3} L${bx + dx * 8} ${by + dy * 8}`
+    }).join(' ')
+  }
+  const route = arrowRoute(level, arrow)
+  const pts = [cellCenter(arrow.cells[arrow.cells.length - 1], CELL)]
+  for (const c of route.cells) pts.push(cellCenter([c % level.cols, Math.floor(c / level.cols)], CELL))
+  const [vx, vy] = ARROWS_DIRS[route.finalDir]
+  const norm = Math.hypot(vx, vy)
+  const end = pts[pts.length - 1]
+  pts.push([end[0] + (vx / norm) * CELL * 0.8, end[1] + (vy / norm) * CELL * 0.8])
+  return roundedPathD(pts, 2.5)
 }
 
 // A curved arrow's hook: a short curl off the tip of its head that bends the
@@ -84,8 +144,11 @@ function hookTipD(arrow) {
   return `M${p(HOOK_REACH, v + HOOK_CHEVRON)} L${p(HOOK_REACH - HOOK_HALF, v)} L${p(HOOK_REACH + HOOK_HALF, v)} Z`
 }
 
-function arrowLabel(arrow, i) {
+function arrowLabel(arrow, i, asleep) {
   const len = `${arrow.cells.length} long`
+  const sleep = asleep ? ', asleep until an arrow touching it leaves' : ''
+  if (isDouble(arrow)) return `Arrow ${i + 1}, double, two heads pointing ${ARROWS_DIR_NAMES[arrow.dir]}${sleep}`
+  if (sleep) return `Arrow ${i + 1}, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}${sleep}`
   if (isBent(arrow)) return `Arrow ${i + 1}, curved diagonal, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`
   if (isDiagonal(arrow)) return `Arrow ${i + 1}, diagonal, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`
   if (isCurved(arrow)) {
@@ -117,6 +180,8 @@ function bumpTravel(elapsed, gap, arrow) {
 // arrows already gone on mount are simply absent (reloads never replay).
 // `feedback`: { index, blocker, gap, key } for a blocked tap — bump + red.
 // `hint`: { index, key } pulses one free arrow (solo hint button).
+// `target`: an arrow index to keep pulsing, `preview`: an arrow index whose
+// route shows as a dotted line (both for the lesson boards).
 export default function ArrowsBoard({
   level,
   gone,
@@ -124,6 +189,8 @@ export default function ArrowsBoard({
   interactive = false,
   feedback = null,
   hint = null,
+  target = -1,
+  preview = -1,
   compact = false,
   label,
 }) {
@@ -132,6 +199,8 @@ export default function ArrowsBoard({
   const bodyRefs = useRef([])
   const headRefs = useRef([])
   const hookRefs = useRef([])
+  const head2Refs = useRef([])
+  const coreRefs = useRef([])
   const groupRefs = useRef([])
   const anims = useRef(new Map())
   const rafRef = useRef(0)
@@ -143,9 +212,12 @@ export default function ArrowsBoard({
   const bounds = { minX: -CELL, minY: -CELL, maxX: width + CELL, maxY: height + CELL }
 
   const drawPose = (index, travel) => {
-    const pose = leavePose(level.arrows[index], CELL, travel, level)
-    bodyRefs.current[index]?.setAttribute('d', bodyD(pose, level.arrows[index]))
+    const arrow = level.arrows[index]
+    const pose = arrowPose(arrow, CELL, travel, level)
+    bodyRefs.current[index]?.setAttribute('d', bodyD(pose, arrow))
+    coreRefs.current[index]?.setAttribute('d', bodyD(pose, arrow))
     headRefs.current[index]?.setAttribute('d', headD(pose))
+    head2Refs.current[index]?.setAttribute('d', tailHeadD(pose))
     // The hook marks the turn still to come; once moving, the arrow itself
     // shows the route, so the hook hides until it is back at rest.
     hookRefs.current[index]?.setAttribute('visibility', travel > 0.01 ? 'hidden' : 'visible')
@@ -205,9 +277,12 @@ export default function ArrowsBoard({
   // shows exactly where the path is cut.
   useEffect(() => {
     if (!feedback) return
-    const { index, blocker, gap } = feedback
+    const { index, blocker, gap, asleep } = feedback
     const group = groupRefs.current[index]
-    const blockerGroup = groupRefs.current[blocker]
+    // A sleeping arrow waits on every arrow touching it, so all of them flash.
+    const blockerGroups = asleep
+      ? neighborsOf(level)[index].filter((j) => !gone[j]).map((j) => groupRefs.current[j])
+      : [groupRefs.current[blocker]]
     const stage = stageRef.current
     const restart = (el, cls) => {
       if (!el) return
@@ -216,12 +291,12 @@ export default function ArrowsBoard({
       el.classList.add(cls)
     }
     restart(group, 'is-error')
-    restart(blockerGroup, 'is-blocker')
+    for (const g of blockerGroups) restart(g, 'is-blocker')
     restart(stage, 'is-error')
-    if (!isReducedMotion() && !anims.current.has(index)) startAnim(index, { type: 'bump', gap })
+    if (!asleep && !isReducedMotion() && !anims.current.has(index)) startAnim(index, { type: 'bump', gap })
     const t = setTimeout(() => {
       group?.classList.remove('is-error')
-      blockerGroup?.classList.remove('is-blocker')
+      for (const g of blockerGroups) g?.classList.remove('is-blocker')
       stage?.classList.remove('is-error')
     }, ERROR_MS)
     return () => clearTimeout(t)
@@ -300,18 +375,31 @@ export default function ArrowsBoard({
         onPointerDown={handlePointerDown}
       >
         <g aria-hidden="true" style={{ fill: 'rgb(var(--c-structure))', opacity: 0.45 }}>{dots}</g>
+        {preview >= 0 && !gone[preview] && !hidden.has(preview) && (
+          <path className="ar-route" d={routePreviewD(level, level.arrows[preview])} fill="none" aria-hidden="true" />
+        )}
         <g strokeLinecap="round" strokeLinejoin="round">
           {level.arrows.map((arrow, i) => {
             if (hidden.has(i)) return null
-            const pose = leavePose(arrow, CELL, 0, level)
+            const pose = arrowPose(arrow, CELL, 0, level)
             const cells = arrow.cells.map((c) => cellCenter(c, CELL))
             const hitD = `M${cells.map((p) => p.join(' ')).join(' L')}`
             const leaving = !!gone[i]
+            const asleep = isSleeper(arrow) && !isAwake(level, gone, i)
             return (
               <g
                 key={i}
                 ref={(el) => { groupRefs.current[i] = el }}
-                className={cn('arrows-arrow', isDiagonal(arrow) && 'is-diag', isBent(arrow) && 'is-bend', isCurved(arrow) && 'is-curve')}
+                className={cn(
+                  'arrows-arrow',
+                  isDiagonal(arrow) && 'is-diag',
+                  isBent(arrow) && 'is-bend',
+                  isCurved(arrow) && 'is-curve',
+                  isDouble(arrow) && 'is-double',
+                  isSleeper(arrow) && 'is-sleep',
+                  isSleeper(arrow) && !asleep && 'is-awake',
+                  i === target && 'is-target',
+                )}
               >
                 <path
                   ref={(el) => { bodyRefs.current[i] = el }}
@@ -321,12 +409,32 @@ export default function ArrowsBoard({
                   strokeWidth={STROKE}
                   style={{ pointerEvents: 'none' }}
                 />
+                {/* A sleeping arrow is drawn hollow: a dark core runs inside its body
+                    until it wakes. */}
+                {isSleeper(arrow) && (
+                  <path
+                    ref={(el) => { coreRefs.current[i] = el }}
+                    className="ar-core"
+                    d={bodyD(pose, arrow)}
+                    fill="none"
+                    strokeWidth={STROKE * 0.42}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
                 <path
                   ref={(el) => { headRefs.current[i] = el }}
                   className="ar-head"
                   d={headD(pose)}
                   style={{ pointerEvents: 'none' }}
                 />
+                {isDouble(arrow) && (
+                  <path
+                    ref={(el) => { head2Refs.current[i] = el }}
+                    className="ar-head"
+                    d={tailHeadD(pose)}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
                 {isCurved(arrow) && (
                   <g ref={(el) => { hookRefs.current[i] = el }} style={{ pointerEvents: 'none' }}>
                     <path className="ar-hook" d={hookD(arrow)} fill="none" strokeWidth={STROKE * 0.62} />
@@ -345,7 +453,7 @@ export default function ArrowsBoard({
                     style={{ pointerEvents: 'none' }}
                     tabIndex={0}
                     role="button"
-                    aria-label={arrowLabel(arrow, i)}
+                    aria-label={arrowLabel(arrow, i, asleep)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
