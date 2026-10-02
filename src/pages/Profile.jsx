@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
-import AvatarPicker from '../components/AvatarPicker'
+import PetSprite from '../components/PetSprite'
 import AuthErrorBanner from '../components/AuthErrorBanner'
 import EmptyState from '../components/EmptyState'
-import { canonicalAvatarId as canonicalAvatar, defaultAvatarForId } from '../lib/avatarKit'
+import { canonicalAvatarId as canonicalAvatar, defaultAvatarForId, isKitAvatar, optionInfo } from '../lib/avatarKit'
+import { petOf } from '../lib/avatarEditorLogic'
+import { openAvatarStudio, openPetPicker } from '../lib/avatarStudioUi'
 import { validateName } from '../lib/onboardingLogic'
 import { getPlayerId } from '../lib/playerId'
 import { useAuth } from '../lib/AuthContext'
@@ -43,27 +45,21 @@ export default function Profile() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteBusy, runDelete] = useBusy()
   const [nameBusy, runNameSave] = useBusy()
-  const [avatarBusy, runAvatarSave] = useBusy()
-  // Draft avatar edits — customizer edits this only; SAVE commits to the profile.
-  // Seeded from the saved profile avatar; re-seeded when the profile avatar changes
-  // externally, but only while the draft isn't dirty (don't clobber in-progress edits).
-  // Follows React's sanctioned "adjust state during rendering" pattern (comparing
-  // against a tracked previous value in state, not an effect) — see
-  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-state-when-a-prop-changes
+  // The look editor and the pet sheet are overlays (AvatarStudioHost). The
+  // /profile#look and /profile#pet deep links open them straight away.
   const savedAvatar = canonicalAvatar(profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId()))
-  const [avatarDraft, setAvatarDraft] = useState(savedAvatar)
-  const [avatarDraftDirty, setAvatarDraftDirty] = useState(false)
-  // The picker is ~900px tall, so it stays folded behind EDIT AVATAR (a
-  // /profile#look deep link opens it straight away).
-  const [editingAvatar, setEditingAvatar] = useState(() => window.location.hash === '#look')
-  const [prevSavedAvatar, setPrevSavedAvatar] = useState(savedAvatar)
+  const pet = petOf(savedAvatar)
+  useEffect(() => {
+    const open = () => {
+      if (window.location.hash === '#look') openAvatarStudio()
+      else if (window.location.hash === '#pet') openPetPicker()
+    }
+    open()
+    window.addEventListener('hashchange', open)
+    return () => window.removeEventListener('hashchange', open)
+  }, [])
   const stats = getStats()
   const matches = getMatches()
-
-  if (savedAvatar !== prevSavedAvatar) {
-    setPrevSavedAvatar(savedAvatar)
-    if (!avatarDraftDirty) setAvatarDraft(savedAvatar)
-  }
 
   const nameValue = nameEdit ?? profile?.displayName ?? ''
   const nameCheck = validateName(nameValue)
@@ -77,26 +73,6 @@ export default function Profile() {
     setNameEdit(null)
     toast.success('NAME SAVED!')
   }, () => toast.error("COULDN'T SAVE YOUR NAME — TRY AGAIN."))
-
-  const pickAvatar = (next) => {
-    setAvatarDraft(next)
-    setAvatarDraftDirty(next !== savedAvatar)
-  }
-
-  const saveAvatar = () => runAvatarSave(async () => {
-    if (avatarDraft === savedAvatar) { setAvatarDraftDirty(false); return }
-    await setProfile({ avatar: avatarDraft })
-    setAvatarDraftDirty(false)
-    setEditingAvatar(false)
-    toast.success('AVATAR SAVED!')
-  }, () => toast.error("COULDN'T SAVE YOUR AVATAR — TRY AGAIN."))
-
-  // Closing the editor drops unsaved changes — SAVE is the only commit.
-  const closeAvatarEditor = () => {
-    setAvatarDraft(savedAvatar)
-    setAvatarDraftDirty(false)
-    setEditingAvatar(false)
-  }
 
   // provider: 'google' | 'apple'. null/undefined from upgrade() = the sheet or
   // popup was dismissed (or a redirect started): stay put, stay silent.
@@ -164,56 +140,42 @@ export default function Profile() {
 
         <AuthErrorBanner />
 
-        {/* Identity card — also the avatar entry point, so the avatar is
-            drawn once instead of in the card and again in an AVATAR row. */}
-        <div id="look" className="bg-retro-card border border-retro-border rounded p-4 flex items-center gap-4 scroll-mt-20">
-          <Avatar id={savedAvatar} size={72} view="hero" />
-          <div className="min-w-0 flex-1">
-            <p className="font-pixel text-xs text-retro-text truncate">{profile?.displayName || '…'}</p>
-            <p className="font-mono text-[11px] text-retro-dim mt-1 truncate">
-              {accountStatusLine({ isAnonymous, providerData: user?.providerData, email: user?.email })}
-            </p>
+        {/* Identity card — the avatar is drawn once, full body with the pet
+            beside it, and both editors start here: the look and, separately,
+            the pet. */}
+        <div id="look" className="bg-retro-card border border-retro-border rounded p-4 space-y-3 scroll-mt-20">
+          <div className="flex items-center gap-4">
+            <Avatar id={savedAvatar} size={96} view="hero" />
+            <div className="min-w-0 flex-1">
+              <p className="font-pixel text-xs text-retro-text truncate">{profile?.displayName || '…'}</p>
+              <p className="font-mono text-[11px] text-retro-dim mt-1 truncate">
+                {accountStatusLine({ isAnonymous, providerData: user?.providerData, email: user?.email })}
+              </p>
+            </div>
           </div>
-          {!editingAvatar && (
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setEditingAvatar(true)}
-              aria-expanded={false}
-              className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
+              onClick={openAvatarStudio}
+              aria-haspopup="dialog"
+              className="min-h-12 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
             >
               EDIT AVATAR
             </button>
-          )}
+            {isKitAvatar(savedAvatar) && (
+              <button
+                type="button"
+                onClick={openPetPicker}
+                aria-haspopup="dialog"
+                aria-label={pet === 'none' ? 'Pick a pet' : `Pet: ${optionInfo('pet', pet).label}. Change pet`}
+                className="min-h-12 px-3 flex items-center justify-center gap-2 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
+              >
+                {pet !== 'none' && <PetSprite id={pet} scale={3} />}
+                <span className="truncate">{pet === 'none' ? 'PICK A PET' : optionInfo('pet', pet).label}</span>
+              </button>
+            )}
+          </div>
         </div>
-        {editingAvatar && (
-          <div id="profile-avatar-editor" className="space-y-2">
-          <div className={avatarBusy ? 'pointer-events-none opacity-60' : ''}>
-            <AvatarPicker value={avatarDraft} onChange={pickAvatar} name={profile?.displayName || localStorage.getItem('playerName') || ''} />
-          </div>
-          {avatarDraftDirty && (
-            <button
-              onClick={saveAvatar}
-              disabled={avatarBusy}
-              className="w-full max-w-[380px] mx-auto block py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded
-                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-60 animate-pulse"
-              style={{ animationDuration: '1.6s' }}
-            >
-              {avatarBusy ? 'SAVING…' : 'SAVE'}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={closeAvatarEditor}
-            disabled={avatarBusy}
-            aria-expanded={true}
-            aria-controls="profile-avatar-editor"
-            className="w-full max-w-[380px] mx-auto block min-h-11 border border-retro-border text-retro-dim font-pixel text-[10px] tracking-widest rounded
-              hover:text-retro-text transition-all active:scale-95 disabled:opacity-60"
-          >
-            {avatarDraftDirty ? 'CANCEL' : 'DONE'}
-          </button>
-          </div>
-        )}
 
         {/* Display name */}
         <div className="space-y-2">

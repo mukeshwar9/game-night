@@ -10,6 +10,7 @@ import useSWUpdateCheck from './hooks/useSWUpdateCheck';
 import ConnectionBanner from './components/ConnectionBanner';
 import InviteToasts from './components/InviteToasts';
 import PremiumHost from './components/premium/PremiumHost';
+import AvatarStudioHost from './components/AvatarStudioHost';
 import { ViewAsPlayerBadge } from './components/premium/ViewAsPlayer';
 import PaddleCheckoutHost from './components/premium/PaddleCheckoutHost';
 import BottomTabBar from './components/BottomTabBar';
@@ -176,6 +177,7 @@ export default function App() {
             <VideoCallLayoutProvider><AppRoutes /></VideoCallLayoutProvider>
             <Toaster />
             <InviteToasts />
+            <AvatarStudioHost />
             <PremiumHost />
             <ViewAsPlayerBadge />
             <UpdatePrompt />

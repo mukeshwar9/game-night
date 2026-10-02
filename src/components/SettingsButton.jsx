@@ -24,6 +24,7 @@ import LegalLinks from './LegalLinks'
 import LockBadge from './premium/LockBadge'
 import useAccess from '../hooks/useAccess'
 import { openPaywall } from '../lib/premiumUi'
+import { openAvatarStudio, openPetPicker } from '../lib/avatarStudioUi'
 import { canPreviewMonetization, monetizationEnabled } from '../lib/monetizationState'
 import { AdminToolsPanel } from './premium/ViewAsPlayer'
 
@@ -189,7 +190,13 @@ export default function SettingsButton({ className = '' }) {
       <section className="space-y-2" aria-label="Your name and avatar">
         {editingMe ? (
           <Suspense fallback={<div className="py-8 flex justify-center"><PixelDots /></div>}>
-            <IdentityEditor name={myName} avatar={myAvatar} onDone={() => setEditingMe(false)} onLocked={(item) => { setOpen(false); openPaywall(item) }} />
+            <IdentityEditor
+              name={myName}
+              avatar={myAvatar}
+              onDone={() => setEditingMe(false)}
+              onEditLook={() => { setOpen(false); openAvatarStudio() }}
+              onEditPet={() => { setOpen(false); openPetPicker() }}
+            />
           </Suspense>
         ) : (
           <div className="flex items-center gap-3">
