@@ -4,6 +4,7 @@
 import { test, expect } from '@playwright/test'
 import { createRoom, expectNoPageErrors, newPlayer } from './helpers.js'
 import { DB_ORIGIN } from './emulator.js'
+import { decodeAvatar } from '../../src/lib/avatarKit/catalog.js'
 
 const NS = 'demo-game-night-default-rtdb'
 const headers = { Authorization: 'Bearer owner' }
@@ -35,13 +36,14 @@ test('players pick a character, a premium item is selectable, and rooms draw bot
     await page.getByRole('textbox', { name: 'Your name' }).fill('Alice')
     await page.getByRole('button', { name: /^NEXT: PICK A LOOK/ }).click()
     await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeVisible()
+    await page.getByRole('tab', { name: 'STYLE' }).click()
     await page.getByRole('tab', { name: 'HEADWEAR' }).click()
     const halo = page.getByRole('radio', { name: /^HALO/ })
     // Monetization is off by default (docs/MONETIZATION.md): paid items are plain, unbadged and open.
     await expect(halo).not.toHaveAccessibleName(/PASS ITEM|locked/)
     await halo.click()
     await expect(halo).toBeChecked()
-    await page.getByRole('radio', { name: 'FULL BODY' }).click()
+    await page.getByRole('button', { name: 'Show full body' }).click()
     await page.getByRole('button', { name: "LET'S PLAY", exact: true }).click()
     await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeHidden()
     roomUrl = await createRoom(page, 'CONNECT FOUR')
@@ -119,4 +121,51 @@ test('avatars saved before the redesign still render', async ({ browser, request
 
   expectNoPageErrors(alice)
   await alice.context.close()
+})
+
+test('the pet has its own picker and saving it keeps the rest of the look', async ({ browser, request }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+
+  await page.goto('/')
+  await page.getByRole('textbox', { name: 'Your name' }).fill('Petra')
+  await page.getByRole('button', { name: /^NEXT: PICK A LOOK/ }).click()
+  await page.getByRole('button', { name: "LET'S PLAY", exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeHidden()
+  const me = await page.evaluate(async () => (await import('/src/lib/auth.js')).getUid())
+  const before = decodeAvatar(await readNode(request, `users/${me}/avatar`))
+
+  await test.step('the look editor has no pet tab', async () => {
+    await page.goto('/profile')
+    await page.getByRole('button', { name: 'EDIT AVATAR' }).click()
+    const studio = page.getByRole('dialog', { name: 'EDIT AVATAR' })
+    await expect(studio).toBeVisible()
+    for (const group of ['FACE', 'HAIR', 'STYLE', 'SCENE']) {
+      await studio.getByRole('tab', { name: group, exact: true }).click()
+      await expect(studio.getByRole('tab', { name: 'PET' })).toHaveCount(0)
+    }
+    await studio.getByRole('button', { name: 'CANCEL' }).click()
+    await expect(studio).toBeHidden()
+  })
+
+  // A new guest's seeded look sometimes already has a pet.
+  const want = before.pet === 'kitten' ? { id: 'duck', label: 'DUCK' } : { id: 'kitten', label: 'KITTEN' }
+
+  await test.step('the profile pet button opens the pet sheet, and a pet saves', async () => {
+    await page.getByRole('button', { name: /^(Pick a pet|Pet: )/ }).click()
+    const sheet = page.getByRole('dialog', { name: 'Pick a pet' })
+    await sheet.getByRole('radio', { name: new RegExp(`^${want.label}`) }).click()
+    await sheet.getByRole('button', { name: 'SAVE', exact: true }).click()
+    await expect(sheet).toBeHidden()
+    await expect(page.getByRole('button', { name: new RegExp(`^Pet: ${want.label}`) })).toBeVisible()
+  })
+
+  await test.step('only the pet changed in the saved string', async () => {
+    await expect.poll(async () => decodeAvatar(await readNode(request, `users/${me}/avatar`)).pet).toBe(want.id)
+    const after = decodeAvatar(await readNode(request, `users/${me}/avatar`))
+    expect({ ...after, pet: before.pet }).toEqual(before)
+  })
+
+  expectNoPageErrors(player)
+  await player.context.close()
 })

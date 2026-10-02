@@ -113,16 +113,44 @@ test('settings: a premium theme is locked, opens the paywall, and applies once o
   expectNoPageErrors(player)
 })
 
-test('avatar picker refuses a locked item and opens the paywall', async ({ browser }) => {
+test('avatar editor tries a locked item on, never saves it, and UNLOCK opens the paywall', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player
   await player.context.addInitScript(() => localStorage.setItem('gn-monetization', 'on'))
   await onboard(page, 'Shopper Four')
   await page.evaluate(() => localStorage.setItem('gn-premium-bypass', 'off'))
   await page.goto('/profile#look')
-  await page.getByRole('tab', { name: 'BACKDROP' }).click()
-  await page.getByRole('radio', { name: /CONFETTI.*locked/ }).click()
+  const studio = page.getByRole('dialog', { name: 'EDIT AVATAR' })
+  await studio.getByRole('tab', { name: 'SCENE' }).click()
+  await studio.getByRole('tab', { name: 'BACKDROP' }).click()
+  const confetti = studio.getByRole('radio', { name: /CONFETTI.*locked/ })
+  await confetti.click()
+  // Try-on: the preview wears it, the draft does not, SAVE stays off.
+  await expect(studio.getByRole('status')).toContainText('CONFETTI')
+  await expect(confetti).toHaveAttribute('aria-checked', 'false')
+  await expect(studio.getByRole('button', { name: 'SAVE', exact: true })).toBeDisabled()
+  await studio.getByRole('button', { name: 'UNLOCK' }).click()
   await expect(page.getByRole('dialog', { name: 'CONFETTI is a premium item' })).toBeVisible()
+  // Escape closes the paywall first and leaves the editor open underneath.
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'CONFETTI is a premium item' })).toBeHidden()
+  await expect(studio).toBeVisible()
+  expectNoPageErrors(player)
+})
+
+test('the pet picker tries a locked pet on without saving it', async ({ browser }) => {
+  const player = await newPlayer(browser)
+  const { page } = player
+  await player.context.addInitScript(() => localStorage.setItem('gn-monetization', 'on'))
+  await onboard(page, 'Shopper Pets')
+  await page.evaluate(() => localStorage.setItem('gn-premium-bypass', 'off'))
+  await page.goto('/profile#pet')
+  const sheet = page.getByRole('dialog', { name: 'Pick a pet' })
+  await sheet.getByRole('radio', { name: /^UFO.*locked/ }).click()
+  await expect(sheet.getByText('Trying on. Not saved.')).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'SAVE', exact: true })).toBeDisabled()
+  await sheet.getByRole('button', { name: 'UNLOCK' }).click()
+  await expect(page.getByRole('dialog', { name: 'UFO is a premium item' })).toBeVisible()
   expectNoPageErrors(player)
 })
 
@@ -221,6 +249,7 @@ test('monetization off (the default): everything is open and nothing sells', asy
   // A premium avatar item can be picked with no paywall and no pass or pack badge.
   await page.goto('/profile#look')
   await expect(page.getByText('SHOP & PASS')).toHaveCount(0)
+  await page.getByRole('tab', { name: 'SCENE' }).click()
   await page.getByRole('tab', { name: 'BACKDROP' }).click()
   const confetti = page.getByRole('radio', { name: /^CONFETTI/ })
   await expect(confetti).not.toHaveAttribute('aria-label', /locked|PACK/)
