@@ -441,3 +441,7 @@ export const isExpiredErrorDay = (key, cutoffKey) => DAY_KEY.test(key) && key < 
 // Prices, products and packs (src/lib/premiumCatalog.js): billing.js maps a
 // paid product back to what it unlocks with the same table the shop sells from.
 export { PRODUCTS, PACKS, PRICES, PRICES_INR, PASS_TRIAL_DAYS, PREPAID_PASS_DAYS } from '../../src/lib/premiumCatalog'
+
+// Party voice (voice.js): who may use voice, audio-only offers, pulls by uid,
+// and the per-uid call budget. The SAME rules the app checks before it asks.
+export { voiceAccess, isAudioOnlyOffer, allowedPulls, rateAllow, voiceMembers } from '../../src/lib/voiceLogic'

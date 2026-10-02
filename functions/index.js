@@ -31,6 +31,12 @@ exports.createRazorpayOrder = razorpay.createRazorpayOrder
 exports.verifyRazorpayPayment = razorpay.verifyRazorpayPayment
 exports.razorpayWebhook = razorpay.razorpayWebhook
 exports.errorDigest = require('./errorDigest').errorDigest;
+// Party voice chat through the Cloudflare Realtime SFU (off until VOICE_ENABLED=1
+// and the Cloudflare secrets are bound). See voice.js.
+const voice = require('./voice')
+exports.voiceSfu = voice.voiceSfu
+exports.voiceOnBlock = voice.voiceOnBlock
+exports.voiceOnRemove = voice.voiceOnRemove
 const { errorsCutoffKey, isExpiredErrorDay } = require('./lib/core.cjs');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -104,6 +110,9 @@ exports.cleanupStaleGames = onSchedule({ schedule: 'every 1 hours', timeoutSecon
   const deletedGames = new Set([...idle, ...legacy]);
   await deleteKeys(gamesRef, [...deletedGames]);
   await deleteKeys(db.ref('results'), [...deletedGames]);
+  // Party voice: the client directory and the server's session records.
+  await deleteKeys(db.ref('voice'), [...deletedGames]);
+  await deleteKeys(db.ref('voiceSessions'), [...deletedGames]);
 
   // Listings are few (the lobby shows at most 100), so read them all and check
   // each one's room status directly.

@@ -1465,6 +1465,39 @@
     "$other": {
       ".read": false,
       ".write": false
+    },
+    "voice": {
+      "$gameId": {
+        ".read": "auth != null && (root.child('games').child($gameId).child('players').child(auth.uid).child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('queue').child(auth.uid).exists())",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (root.child('games').child($gameId).child('partyRoom').val() === true && root.child('games').child($gameId).child('visibility').val() !== 'public' && (root.child('games').child($gameId).child('players').child(auth.uid).child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('queue').child(auth.uid).exists()) && !root.child('games').child($gameId).child('removed').child(auth.uid).exists()))",
+          ".validate": "newData.hasChildren(['on', 'at'])",
+          "on": {
+            ".validate": "newData.isBoolean()"
+          },
+          "muted": {
+            ".validate": "newData.isBoolean()"
+          },
+          "at": {
+            ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now + 3600000)"
+          },
+          "hostMuted": {
+            ".write": "auth != null && (root.child('games').child($gameId).child('players').child(auth.uid).child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('queue').child(auth.uid).exists())",
+            ".validate": "newData.isBoolean()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "voiceSessions": {
+      ".read": false,
+      ".write": false
+    },
+    "voiceUsers": {
+      ".read": false,
+      ".write": false
     }
   }
 }

@@ -13,7 +13,7 @@ const { PADDLE_API_KEY, bindSecrets, secretValue, cancelSubscription } = require
 function accountPaths(uid, { friendUids = [], code = null } = {}) {
   const paths = [
     `leaderboard/${uid}`, `users/${uid}`, `profiles/${uid}`, `presence/${uid}`,
-    `friends/${uid}`, `friendRequests/${uid}`, `invites/${uid}`, `blocks/${uid}`,
+    `friends/${uid}`, `friendRequests/${uid}`, `invites/${uid}`, `blocks/${uid}`, `voiceUsers/${uid}`,
     `entitlements/${uid}`, `entitlementsPublic/${uid}`, `ageGate/${uid}`,
   ]
   if (code) paths.push(`codes/${code}`)
