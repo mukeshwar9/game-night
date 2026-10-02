@@ -959,7 +959,7 @@ export const GAME_RULES = {
       'Towers glide any number of squares straight or diagonally FORWARD only — never sideways or back.',
       'Land on the color that strands your rival’s matching tower behind a wall of blockers.',
     ],
-    win: 'First tower to reach the opponent’s home row wins the round. Best of three rounds takes the match.',
+    win: 'First tower to reach the opponent’s home row wins the round. First to 3 round wins takes the match.',
   },
 
   onitama: {
