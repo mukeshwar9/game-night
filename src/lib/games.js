@@ -895,6 +895,10 @@ export const GAME_TYPES = [
     // A solo run (beat your best), not a CPU opponent: the options sheet, the /solo
     // header and the tab title say so instead of "vs AI".
     soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    // Online: a simultaneous duel page (same pattern for both, shared reveal).
+    // Pass-and-play keeps the turn-based board below (`localBoard`).
+    custom: true, simultaneous: true, localBoard: true,
+    Page: lazyWithRetry(() => import('../pages/VisualMemoryGame')),
     boardSize: 0,
     getMoveIndex: (_, cellIndex) => cellIndex,
     BoardComponent: VisualMemoryBoard,
@@ -1767,6 +1771,8 @@ export function supportsLocalPlay(gameType) {
   // A custom game can opt in with its own pass-and-play page (`LocalPage`),
   // rendered by Demo.jsx's local route instead of the generic board engine.
   if (cfg.LocalPage) return true
+  // A custom online page that keeps a turn-based board for pass-and-play.
+  if (cfg.localBoard && cfg.BoardComponent) return true
   return !!cfg.BoardComponent && !cfg.custom && !cfg.nPlayer && !cfg.simultaneous && !cfg.realtime
 }
 
@@ -1843,7 +1849,10 @@ const FIELD_NULLS = {
   chimpProgressX: null, chimpProgressO: null,
   chimpDoneX: null, chimpDoneO: null,
   chimpRoundStartedAt: null, chimpMiss: null,
+  chimpFailX: null, chimpFailO: null, chimpTimeX: null, chimpTimeO: null,
   vmLevel: null, vmPattern: null, vmClicked: null, vmClears: null, vmMiss: null,
+  vmClickedX: null, vmClickedO: null, vmDoneX: null, vmDoneO: null, vmFailX: null, vmFailO: null,
+  vmTimeX: null, vmTimeO: null, vmRoundStartedAt: null,
   numRound: null,
   reactionTimesX: null, reactionTimesO: null,
   aimTimesX: null, aimTimesO: null, aimMissesX: null, aimMissesO: null,
@@ -1996,7 +2005,8 @@ export function freshGameState(gameType, previous = null) {
       chimpDoneX: false, chimpDoneO: false,
       // Stamped (server time) by the first client that sees the room playing — a
       // creation-time stamp had already expired round 1 by the time O joined.
-      chimpRoundStartedAt: null, chimpMiss: null }
+      chimpRoundStartedAt: null, chimpMiss: null,
+      chimpFailX: null, chimpFailO: null, chimpTimeX: 0, chimpTimeO: 0 }
   }
   if (gameType === 'pong') {
     // currentTurn omitted (null) — Pong has no turns, so Game.jsx's move-sound
@@ -2044,11 +2054,15 @@ export function freshGameState(gameType, previous = null) {
       numRound: { phase: 'showing', level: 1, number: generateNumber(1) } }
   }
   if (gameType === 'visualmemory') {
+    // Online duel state (VisualMemoryGame). vmRoundStartedAt is stamped by the first
+    // client that sees the room playing; the pass-and-play board starts from
+    // currentTurn/vmClicked like before.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null,
       currentTurn: 'X',
       vmLevel: VM_START_LEVEL,
       vmPattern: generateVmPattern(VM_START_LEVEL),
-      vmClicked: null }
+      vmClicked: null,
+      vmDoneX: false, vmDoneO: false, vmTimeX: 0, vmTimeO: 0 }
   }
   if (gameType === 'reversi') {
     return { ...FIELD_NULLS, boxes: null, round: null,

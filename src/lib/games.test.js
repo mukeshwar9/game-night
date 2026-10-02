@@ -102,14 +102,16 @@ describe('supportsLocalPlay', () => {
     'archery', // custom range with its own same-device LocalPage
     'tictactoe', 'ultimatettt', 'tictactoe4', 'connectfour', 'connectfour5', 'connectfourpop',
     'dotsandboxes', 'dotsandboxes4', 'sos', 'gomoku', 'gomokuswap', 'reversi', 'chainreaction', 'chainreaction6',
-    'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'visualmemory', 'pairs', 'pairs4', 'dice', 'dice-big',
+    'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'pairs', 'pairs4', 'dice', 'dice-big',
     'sim', 'chomp', 'breakthrough', 'ataxx', 'kamisado',
     'onitama', 'quarto', 'santorini', 'loa', 'yavalath',
     // custom, but ships its own offline page (registry LocalPage)
     'minigolf',
+    // custom online duel that keeps its turn-based board for pass-and-play (localBoard)
+    'visualmemory',
   ]
 
-  it('is true for all 37 eligible games (34 registry boards + three custom LocalPages)', () => {
+  it('is true for all 37 eligible games (33 registry boards + three custom LocalPages + one localBoard)', () => {
     expect(LOCAL_TYPES).toHaveLength(37)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)

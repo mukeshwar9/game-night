@@ -30,6 +30,10 @@ export default function VisualMemoryBoard({
   // A live deadline means this turn's reveal already ran (it is armed when the reveal
   // ends), so a remount — e.g. a reload — must not show the pattern again.
   vmDeadline = null,
+  // Controlled reveal for the simultaneous duel (VisualMemoryGame): when a boolean is
+  // passed the parent owns the timing (shared server-clock reveal) and this board
+  // only draws it. `revealMsLeft` drives the drain bar; `hint` replaces the line below.
+  reveal = null, revealMsLeft = null, hint = null,
 }) {
   const { gameId } = useParams() // present under /game/:gameId; undefined in demo/solo — writes below no-op there
   useTurnDeadlineEnforcer(gameId, 'visualmemory', 'vmDeadline')
@@ -58,8 +62,10 @@ export default function VisualMemoryBoard({
   // Reveal the pattern for a fixed window, once, at the start of my turn — then
   // hide it. After that every cell is clickable (a wrong one loses the round),
   // matching Simon's watch-then-recall-from-memory shape.
+  const controlled = reveal !== null
   useEffect(() => {
     clearTimeout(revealTimerRef.current)
+    if (controlled) return
     if (disabled || pattern.length === 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- turn flip must synchronously hide the reveal before the opponent's turn paints (prevents the lit-tile leak, item 6)
       setShowPattern(false)
@@ -97,12 +103,13 @@ export default function VisualMemoryBoard({
     }, Math.max(0, revealEndsRef.current - Date.now()))
     return () => clearTimeout(revealTimerRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the pattern's own content (patternKey), not identity, so a re-render with the same pattern never restarts the reveal
-  }, [disabled, clicked.length, patternKey])
+  }, [disabled, clicked.length, patternKey, controlled])
 
   useEffect(() => () => clearTimeout(revealTimerRef.current), [])
 
   // Once the round is over, everyone sees the answer: the pattern outlined, the tiles
   // found in green, and the tile that lost it in the danger colour.
+  const lit = controlled ? reveal : showPattern
   const showAnswer = finished && pattern.length > 0
   const isSpectator = mySymbol !== 'X' && mySymbol !== 'O'
   const turnName = currentTurn === 'X' || currentTurn === 'O' ? currentTurn : 'OPPONENT'
@@ -117,7 +124,10 @@ export default function VisualMemoryBoard({
 
       {/* Memorize timer: drains while the pattern is lit */}
       <div className="h-1.5 rounded-full bg-retro-card overflow-hidden" aria-hidden="true">
-        {showPattern && (
+        {lit && controlled && revealMsLeft != null && (
+          <div className="h-full bg-retro-cta transition-[width] duration-100 ease-linear" style={{ width: `${Math.min(100, (revealMsLeft / revealMs) * 100)}%` }} />
+        )}
+        {lit && !controlled && (
           <div
             key={patternKey}
             className="h-full bg-retro-cta vm-reveal-drain"
@@ -138,11 +148,11 @@ export default function VisualMemoryBoard({
             const isMiss = showAnswer && vmMiss === i
             // Lit tiles only ever render on the active player's own screen —
             // `showPattern` is only ever true when `disabled` is false.
-            const lit = showPattern && inPattern
+            const isLit = lit && inPattern
             const missed = showAnswer && inPattern && !isClicked
-            const isClickable = !disabled && !showPattern && !isClicked && pattern.length > 0
+            const isClickable = !disabled && !lit && !isClicked && pattern.length > 0
             const where = `row ${Math.floor(i / side) + 1}, column ${(i % side) + 1}`
-            const state = lit ? 'lit' : isMiss ? 'wrong tile' : isClicked ? 'found' : missed ? 'was in the pattern' : null
+            const state = isLit ? 'lit' : isMiss ? 'wrong tile' : isClicked ? 'found' : missed ? 'was in the pattern' : null
 
             return (
               <button
@@ -155,7 +165,7 @@ export default function VisualMemoryBoard({
                 className={cn(
                   'relative aspect-square rounded flex items-center justify-center transition-all duration-150',
                   'border-2',
-                  lit
+                  isLit
                     ? 'bg-retro-cta border-retro-cta shadow-neon-cta scale-[1.03]'
                     : isMiss
                       ? 'bg-retro-tint-danger border-retro-danger pairs-mismatch-shake'
@@ -178,13 +188,15 @@ export default function VisualMemoryBoard({
 
       {/* Hint */}
       <p className="font-pixel text-[9px] text-center min-h-[1.25rem]" aria-live="polite">
-        {showAnswer ? (
+        {hint ? (
+          <span className="text-retro-text">{hint}</span>
+        ) : showAnswer ? (
           <span className="text-retro-dim">
             {vmMiss != null ? 'WRONG TILE — DASHED TILES WERE THE PATTERN' : 'ROUND OVER'}
           </span>
         ) : disabled ? (
           <span className="text-retro-dim">{isSpectator ? `${turnName} IS RECALLING` : 'OPPONENT’S TURN'}</span>
-        ) : showPattern ? (
+        ) : lit ? (
           <span className="text-retro-cta text-glow-cta">MEMORIZE THE LIT TILES</span>
         ) : (
           <span className="text-retro-text">

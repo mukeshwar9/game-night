@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   normalizeVmArray, applyVmMove, generateVmPattern, vmGridSide, vmCellCount,
-  vmRevealMs, vmLevelForClears, VM_GRID, VM_START_LEVEL,
+  vmRevealMs, vmLevelForClears, VM_GRID, VM_START_LEVEL, evaluateVmDuelTap, buildVmDuelLevel, VM_RECALL_MS,
 } from './visualMemoryLogic'
 
 describe('normalizeVmArray', () => {
@@ -137,4 +137,23 @@ describe('pacing', () => {
     expect(vmRevealMs(4)).toBeGreaterThan(vmRevealMs(3))
     expect(vmRevealMs(100)).toBe(4000)
   })
+})
+
+describe('simultaneous duel', () => {
+  const pattern = [1, 5, 9]
+  it('accepts pattern tiles once and reports done on the last one', () => {
+    expect(evaluateVmDuelTap({ pattern, clicked: [], level: 3, cell: 5 })).toEqual({ valid: true, correct: true, clicked: [5], done: false })
+    expect(evaluateVmDuelTap({ pattern, clicked: [5, 1], level: 3, cell: 9 })).toEqual({ valid: true, correct: true, clicked: [5, 1, 9], done: true })
+  })
+  it('flags a wrong tile and ignores repeats and out-of-range taps', () => {
+    expect(evaluateVmDuelTap({ pattern, clicked: [], level: 3, cell: 2 })).toEqual({ valid: true, correct: false })
+    expect(evaluateVmDuelTap({ pattern, clicked: [5], level: 3, cell: 5 })).toEqual({ valid: false })
+    expect(evaluateVmDuelTap({ pattern, clicked: [], level: 3, cell: 16 })).toEqual({ valid: false })
+  })
+  it('deals a level with both boards cleared and a shared start', () => {
+    const patch = buildVmDuelLevel(5, 1234)
+    expect(patch.vmPattern).toHaveLength(5)
+    expect(patch).toMatchObject({ vmLevel: 5, vmClickedX: null, vmClickedO: null, vmDoneX: false, vmDoneO: false, vmFailX: null, vmFailO: null, vmRoundStartedAt: 1234 })
+  })
+  it('gives a recall window', () => expect(VM_RECALL_MS).toBeGreaterThan(5000))
 })

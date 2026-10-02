@@ -161,7 +161,7 @@ export const GAME_RULES = {
       'Tap the cells in ascending numeric order from memory.',
       'Both players race the same layout at once. When you both clear it, the next level adds another number.',
     ],
-    win: 'One wrong tap ends your run — the board then shows where every number was. Outlast your opponent to win.',
+    win: 'A wrong tap ends your level, not the round: your opponent must still clear it to win. If you both slip, more numbers in order wins, then the faster total clear time.',
   },
 
   numbermemory: {
@@ -244,9 +244,10 @@ export const GAME_RULES = {
     howToPlay: [
       'Tiles light up for a moment (watch the bar drain), then go dark.',
       'Tap every tile that was lit, from memory, in any order.',
-      'You and your opponent take turns on the same level; once you both clear it, the next level adds a tile. The grid grows from 4×4 up to 8×8 as the patterns get longer.',
+      'Online, you and your opponent see the same pattern at the same moment (after a 3-2-1) and recall it on your own boards. Pass and play takes turns instead.',
+      'Once you both clear a level, the next adds a tile. The grid grows from 4×4 up to 8×8 as the patterns get longer.',
     ],
-    win: 'Tap a tile that was not lit and you lose the round — the board then shows the real pattern.',
+    win: 'A wrong tile ends your level, not the round: your opponent must still clear it to win. If you both slip, more tiles found wins, then the faster total recall time. You have 30 seconds to recall each pattern.',
   },
 
   gomoku: {

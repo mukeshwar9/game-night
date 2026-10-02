@@ -7,6 +7,7 @@ import OfflineNotice from '../components/loading/OfflineNotice'
 import { sounds } from '../lib/sounds'
 import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
+import { LEVEL_COUNTDOWN_MS } from '../lib/levelRaceLogic'
 import { cn } from '../lib/utils'
 import {
   resolveNumberMemoryRound, buildNextNumberRound, normalizeNumberRound, showMsForLevel,
@@ -32,6 +33,7 @@ export default function NumberMemoryGame({
   const [guessInput, setGuessInput] = useState('')
   const [inputError, setInputError] = useState('')
   const [countdown, setCountdown] = useState(null)
+  const [leadIn, setLeadIn] = useState(0) // seconds of the shared 3-2-1 still to go
   const [localSubmitted, setLocalSubmitted] = useState(false)
   const [submitting, runSubmit] = useBusy()
   const [clockOffset, setClockOffset] = useState(0)
@@ -40,6 +42,14 @@ export default function NumberMemoryGame({
   const prevAnswerX = useRef(round.answerX)
   const prevAnswerO = useRef(round.answerO)
   const [claimBusy, runClaim] = useBusy()
+  const [readyBusy, runReady] = useBusy()
+  const iAmReady = !!round[`ready${myKey}`]
+  const opReady = !!round[`ready${opKey}`]
+  // GOT IT: end my reveal early. Writes only my own flag; the round moves on once
+  // both players are ready (the effect below) or the shared showUntil passes.
+  const markReady = () => runReady(async () => {
+    await update(ref(db, `games/${gameId}/numRound`), { [`ready${myKey}`]: true })
+  }, () => toast.error("COULDN'T SEND — CHECK CONNECTION"))
   const inputRef = useRef(null)
 
   const hasSubmitted = localSubmitted || myAnswer != null
@@ -69,9 +79,16 @@ export default function NumberMemoryGame({
   useEffect(() => {
     if (round.phase !== 'showing' || round.showUntil != null) return
     const showMs = showMsForLevel(round.level)
-    runTransaction(ref(db, `games/${gameId}/numRound/showUntil`), cur => cur ?? (serverNow() + showMs)).catch(() => {})
+    // A shared 3-2-1 first, so both players are looking when the number appears.
+    runTransaction(ref(db, `games/${gameId}/numRound/showUntil`), cur => cur ?? (serverNow() + LEVEL_COUNTDOWN_MS + showMs)).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps -- serverNow reads clockOffset via closure; re-running on every offset tick would fight the CAS unnecessarily
   }, [round.phase, round.level, round.showUntil, gameId])
+
+  // Both players tapped GOT IT: skip the rest of the reveal.
+  useEffect(() => {
+    if (round.phase !== 'showing' || !round.readyX || !round.readyO) return
+    update(ref(db, `games/${gameId}/numRound`), { phase: 'recall' }).catch(() => {})
+  }, [round.phase, round.readyX, round.readyO, gameId])
 
   // Both clients drive showing→recall transition off the shared `showUntil`
   // deadline (idempotent — same value written twice).
@@ -80,13 +97,15 @@ export default function NumberMemoryGame({
       if (timerRef.current) clearInterval(timerRef.current)
       // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds the countdown display for this phase transition; deferring would flash a stale value on this timing-critical memorize countdown
       setCountdown(null)
+      setLeadIn(0)
       return
     }
     const showMs = showMsForLevel(round.level)
-    const showUntil = round.showUntil ?? (serverNow() + showMs) // fallback until the CAS above lands
+    const showUntil = round.showUntil ?? (serverNow() + LEVEL_COUNTDOWN_MS + showMs) // fallback until the CAS above lands
     const tick = () => {
       const remaining = showUntil - serverNow()
-      setCountdown(Math.max(0, Math.ceil(remaining / 1000)))
+      setLeadIn(Math.max(0, Math.ceil((remaining - showMs) / 1000)))
+      setCountdown(Math.max(0, Math.ceil(Math.min(remaining, showMs) / 1000)))
       if (remaining <= 0) {
         clearInterval(interval)
         setCountdown(null)
@@ -283,10 +302,33 @@ export default function NumberMemoryGame({
           {round.tie && (
             <p className="font-pixel text-[8px] text-retro-p2">TIE — SAME CORRECT DIGITS. NEW NUMBER, SAME LENGTH</p>
           )}
-          <p className="font-pixel text-[8px] text-retro-dim">MEMORIZE THIS NUMBER</p>
-          <BigNumber number={round.number} className="text-retro-cta text-glow-cta" />
-          {countdown != null && (
+          {leadIn > 0 ? (
+            <div className="py-3 space-y-2" role="status">
+              <p className="font-pixel text-[9px] text-retro-dim tracking-widest">{round.level} DIGIT{round.level > 1 ? 'S' : ''} · GET READY</p>
+              <p className="font-pixel text-3xl text-retro-cta text-glow-cta">{leadIn}</p>
+            </div>
+          ) : (
+            <>
+              <p className="font-pixel text-[8px] text-retro-dim">MEMORIZE THIS NUMBER</p>
+              <BigNumber number={round.number} className="text-retro-cta text-glow-cta" />
+            </>
+          )}
+          {leadIn === 0 && countdown != null && (
             <p className="font-pixel text-[9px] text-retro-p2 arcade-blink">{countdown}s</p>
+          )}
+          {mySymbol && leadIn === 0 && (
+            iAmReady ? (
+              <p className="font-pixel text-[8px] text-retro-dim">{opReady ? 'BOTH READY' : 'READY — WAITING FOR OPPONENT…'}</p>
+            ) : (
+              <button
+                type="button"
+                onClick={markReady}
+                disabled={readyBusy}
+                className="w-full py-2.5 min-h-11 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[9px] rounded hover:border-retro-cta/60 active:scale-95 disabled:opacity-50"
+              >
+                {readyBusy ? 'SENDING…' : `GOT IT${opReady ? ' · OPPONENT IS READY' : ''}`}
+              </button>
+            )
           )}
         </div>
       )}

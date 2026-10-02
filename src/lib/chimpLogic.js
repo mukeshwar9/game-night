@@ -3,6 +3,8 @@
 // the numbers after the memorize window, which stops casual peeking, not a player
 // reading the database.
 
+import { resolveLevelRace } from './levelRaceLogic'
+
 export const CHIMP_GRID = 25  // 5×5
 export const CHIMP_START_LEVEL = 4
 
@@ -63,5 +65,20 @@ export function buildChimpAdvance(currentLevel) {
     chimpProgressO: 0,
     chimpDoneX: false,
     chimpDoneO: false,
+    chimpFailX: null,
+    chimpFailO: null,
+  }
+}
+
+// ── Duel resolution ── (shared with Visual Memory; see levelRaceLogic.js)
+export const resolveChimpLevel = resolveLevelRace
+
+// The patch that replays the current level with a fresh layout (both slipped, dead even).
+export function buildChimpReplay(level) {
+  return {
+    chimpLayout: generateChimpLayout(level),
+    chimpProgressX: 0, chimpProgressO: 0,
+    chimpDoneX: false, chimpDoneO: false,
+    chimpFailX: null, chimpFailO: null,
   }
 }
