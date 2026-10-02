@@ -1583,7 +1583,8 @@ export const GAME_TYPES = [
     addedAt: '2026-09-18',
     // Co-op since the D1 decision: partners share one team score over 12
     // rounds, so there is no opponent to claim a win from. solo: false —
-    // there is no bot clue-giver, so VS AI would dead-end.
+    // the /solo/password demo's bot guesser ignores the clue, so VS AI is not
+    // offered and the demo stays off the solo shelf (OFF_SHELF, pages/demos/partyBlurbs.js).
     durationMin: 12, tags: ['thinky'], solo: false,
     custom: true, coop: true, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/PasswordGame')),

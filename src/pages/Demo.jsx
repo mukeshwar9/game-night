@@ -22,7 +22,7 @@ import HeadlineGames from '../components/HeadlineGames';
 import { isAdVisit, isHeadlineGame } from '../lib/adLanding';
 import { cn } from '@/lib/utils';
 import { VideoCallShell } from '../components/VideoCallLayout';
-import { PARTY_BLURB } from './demos/partyBlurbs';
+import { OFF_SHELF, PARTY_BLURB } from './demos/partyBlurbs';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
 
 // Demos outside this file load on demand: the hub only needs the picker,
@@ -279,13 +279,14 @@ function DemoHub() {
     if (!(selected in PARTY_BLURB)) { recordPlay(selected, 'solo'); recordRecentPlay(selected, 'solo') }
   }, [selected])
 
+  const shelf = DEMOS.filter(d => !OFF_SHELF.has(d.type))
   const demoCounts = {}
-  for (const d of DEMOS) {
+  for (const d of shelf) {
     const cat = getGameConfig(d.type)?.category
     if (cat) demoCounts[cat] = (demoCounts[cat] || 0) + 1
   }
   const demoCategories = GAME_CATEGORIES.map(c => ({ ...c, count: demoCounts[c.id] || 0 })).filter(c => c.count > 0)
-  const shown = DEMOS.filter(d => getGameConfig(d.type)?.category === activeCat)
+  const shown = shelf.filter(d => getGameConfig(d.type)?.category === activeCat)
   // Board-first: a deep link (/solo/:type — the catalog's PRACTICE VS AI) is
   // an intent to play *that* game, so the board renders at the top and the
   // picker becomes a "more games" section below it. The bare hub keeps the
@@ -318,7 +319,6 @@ function DemoHub() {
           >
             <Icon />
             <span className="font-pixel text-[8px] text-center leading-tight whitespace-pre-line">{short}</span>
-            {type in PARTY_BLURB && <span className="font-pixel text-[8px] text-retro-p2">2+ PLAYERS</span>}
             {solo && <span className="font-pixel text-[8px] text-retro-dim">SOLO</span>}
           </button>
         ))}
@@ -330,7 +330,7 @@ function DemoHub() {
   const board = (
     <div key={selected} ref={boardRef} data-demo-board className="scroll-mt-3 -mx-2 sm:mx-0 border border-retro-border rounded p-2 sm:p-4 bg-retro-card">
       <p className="font-pixel text-xs text-retro-text text-center tracking-wider mb-4">
-        {active.short.replace('\n', ' ')}{active.solo ? ' · SOLO RUN' : ''}
+        {getGameConfig(active.type)?.label || active.short.replace('\n', ' ')}{active.solo ? ' · SOLO RUN' : ''}
       </p>
       <Suspense fallback={<DemoFallback />}>
         <active.Component />

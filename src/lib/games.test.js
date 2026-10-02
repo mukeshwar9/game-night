@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { OFF_SHELF } from '../pages/demos/partyBlurbs'
 
 // games.js pulls in board components that touch `localStorage` at module
 // load time (src/lib/sounds.js) — stub it before the dynamic import since
@@ -287,5 +288,18 @@ describe('solo flag honesty', () => {
     const demoTypes = new Set([...block.slice(0, block.indexOf('\n]')).matchAll(/type: '([^']+)'/g)].map(m => m[1]))
     const missing = GAME_TYPES.filter(t => t.solo === true && !demoTypes.has(t.type)).map(t => t.type)
     expect(missing).toEqual([])
+  })
+
+  // The other direction (word games audit X5): a solo-shelf tile for a game
+  // the registry calls solo: false was either a dead party tile (TWO TRUTHS
+  // 2+ PLAYERS) or a demo the Games sheet would not offer (PASS WORD).
+  it('every solo-shelf tile is a solo:true game', () => {
+    const demo = readFileSync(new URL('../pages/Demo.jsx', import.meta.url), 'utf8')
+    const block = demo.slice(demo.indexOf('const DEMOS = ['))
+    const demoTypes = [...block.slice(0, block.indexOf('\n]')).matchAll(/type: '([^']+)'/g)].map(m => m[1])
+    const onShelfButNotSolo = demoTypes
+      .filter(type => !OFF_SHELF.has(type))
+      .filter(type => GAME_TYPES.find(t => t.type === type)?.solo !== true)
+    expect(onShelfButNotSolo).toEqual([])
   })
 })
