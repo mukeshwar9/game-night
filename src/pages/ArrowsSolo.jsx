@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ArrowsBoard from '../components/ArrowsBoard'
 import { Lives } from '../components/ArrowsHud'
+import ArrowsLesson from '../components/ArrowsLesson'
+import ArrowTypes from '../components/ArrowTypes'
+import BottomSheet from '../components/BottomSheet'
+import { getLesson } from '../lib/arrowsLessonsLogic'
 import ArrowsDemo from './ArrowsDemo'
 import {
   applyArrowTap,
@@ -12,6 +16,7 @@ import {
   ARROWS_TIERS,
 } from '../lib/arrowsLogic'
 import {
+  ARROWS_CHAPTERS,
   ARROWS_LEVEL_COUNT,
   ARROWS_LEVEL_SPECS,
   ARROWS_TWIST_TIPS,
@@ -25,6 +30,7 @@ import {
   recordLevelResult,
   starsFor,
   totalStars,
+  twistsIn,
 } from '../lib/arrowsLevelsLogic'
 import {
   markTwistSeen,
@@ -37,8 +43,9 @@ import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
 // Arrows solo (/solo/arrows). No AI in the first two modes:
-//   LEVELS  — a 20-level campaign that gets steadily harder, with stars,
-//             locks and progress saved on the device and the account;
+//   LEVELS  — a 40-level campaign that gets steadily harder, with stars,
+//             locks and progress saved on the device and the account; the
+//             first board with a new arrow kind opens with a short lesson;
 //   ENDLESS — unlimited generated boards at easy / medium / hard;
 //   VS BOT  — the original practice race against a bot (ArrowsDemo).
 
@@ -88,34 +95,48 @@ function LevelSelect({ progress, onPlay }) {
           {levelStars(progress, cont) ? `REPLAY ${cont}` : cont === 1 ? 'START LEVEL 1' : `CONTINUE · LEVEL ${cont}`}
         </button>
       </div>
-      <div className="grid grid-cols-5 gap-2">
-        {Array.from({ length: ARROWS_LEVEL_COUNT }, (_, i) => {
-          const n = i + 1
-          const open = isLevelUnlocked(progress, n)
-          const got = levelStars(progress, n)
-          const intro = ARROWS_LEVEL_SPECS[i].intro
-          return (
-            <button
-              key={n}
-              onClick={() => open && onPlay(n)}
-              disabled={!open}
-              aria-label={open ? `Level ${n}${got ? `, ${got} stars` : ''}${intro ? ', new arrow type' : ''}` : `Level ${n}, locked`}
-              className={cn(
-                'relative aspect-square flex flex-col items-center justify-center gap-0.5 rounded border-2 transition-all active:scale-95',
-                !open && 'border-retro-border/50 bg-retro-deep text-retro-dim/50 cursor-not-allowed',
-                open && got && 'border-retro-cta/50 bg-retro-tint-cta text-retro-text',
-                open && !got && 'border-retro-cta bg-retro-surface text-retro-cta shadow-neon-cta',
-              )}
-            >
-              <span className="font-pixel text-[12px] tabular-nums">{n}</span>
-              {open ? <Stars n={got} label={false} /> : <LockGlyph />}
-              {open && intro && (
-                <span className="absolute -top-1.5 -right-1.5 font-pixel text-[6px] px-1 py-0.5 rounded bg-retro-cta text-retro-bg">NEW</span>
-              )}
-            </button>
-          )
-        })}
-      </div>
+      {ARROWS_CHAPTERS.map((chapter, c) => {
+        let chapterStars = 0
+        for (let n = chapter.from; n <= chapter.to; n += 1) chapterStars += levelStars(progress, n)
+        return (
+          <section key={chapter.name} aria-label={`Chapter ${c + 1}, ${chapter.name.toLowerCase()}`} className="space-y-2">
+            <div className="flex items-center justify-between gap-2 border-b border-retro-border/50 pb-1">
+              <span className="font-pixel text-[8px] text-retro-text">{c + 1} · {chapter.name}</span>
+              <span className="font-pixel text-[8px] text-retro-dim tabular-nums">
+                <span className="text-retro-cta">★</span> {chapterStars}/{(chapter.to - chapter.from + 1) * 3}
+              </span>
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: chapter.to - chapter.from + 1 }, (_, k) => {
+                const n = chapter.from + k
+                const open = isLevelUnlocked(progress, n)
+                const got = levelStars(progress, n)
+                const intro = ARROWS_LEVEL_SPECS[n - 1].intro
+                return (
+                  <button
+                    key={n}
+                    onClick={() => open && onPlay(n)}
+                    disabled={!open}
+                    aria-label={open ? `Level ${n}${got ? `, ${got} stars` : ''}${intro ? ', new arrow type' : ''}` : `Level ${n}, locked`}
+                    className={cn(
+                      'relative aspect-square flex flex-col items-center justify-center gap-0.5 rounded border-2 transition-all active:scale-95',
+                      !open && 'border-retro-border/50 bg-retro-deep text-retro-dim/50 cursor-not-allowed',
+                      open && got && 'border-retro-cta/50 bg-retro-tint-cta text-retro-text',
+                      open && !got && 'border-retro-cta bg-retro-surface text-retro-cta shadow-neon-cta',
+                    )}
+                  >
+                    <span className="font-pixel text-[12px] tabular-nums">{n}</span>
+                    {open ? <Stars n={got} label={false} /> : <LockGlyph />}
+                    {open && intro && (
+                      <span className="absolute -top-1.5 -right-1.5 font-pixel text-[6px] px-1 py-0.5 rounded bg-retro-cta text-retro-bg">NEW</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
       <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed">
         CLEAR A LEVEL TO OPEN THE NEXT · NO MISTAKES = ★★★
       </p>
@@ -158,12 +179,25 @@ function PuzzlePlay({ level, title, subtitle, intro = null, onCleared, onRestart
   const [hint, setHint] = useState(null)
   const [result, setResult] = useState(null)
   const [seen] = useState(readSeenTwists)
+  // The first board with a kind the player has not been taught opens with
+  // that kind's lesson; "?" reopens the arrow types (each with TRY IT).
+  const [lesson, setLesson] = useState(() => {
+    const t = newTwist(level, seen)
+    return getLesson(t) ? t : null
+  })
+  const [showTypes, setShowTypes] = useState(false)
   const streak = useRef(0)
 
   const twist = newTwist(level, seen) ?? intro
   useEffect(() => {
-    if (twist) markTwistSeen(twist)
+    // Kinds without a lesson count as taught by the tip alone.
+    if (twist && !getLesson(twist)) markTwistSeen(twist)
   }, [twist])
+
+  const closeLesson = () => {
+    markTwistSeen(lesson)
+    setLesson(null)
+  }
 
   const handleTap = (index) => {
     if (result) return
@@ -174,7 +208,7 @@ function PuzzlePlay({ level, title, subtitle, intro = null, onCleared, onRestart
       streak.current = 0
       setLives(applied.lives)
       setMistakes((m) => m + 1)
-      setFeedback({ index, blocker: applied.blocker, gap: applied.gap, key: Date.now() })
+      setFeedback({ index, blocker: applied.blocker, gap: applied.gap, asleep: applied.asleep, key: Date.now() })
       sounds.buzz()
       if (applied.lives <= 0) {
         setResult({ stars: 0 })
@@ -212,7 +246,21 @@ function PuzzlePlay({ level, title, subtitle, intro = null, onCleared, onRestart
           <p className="font-pixel text-[10px] text-retro-text tracking-wider">{title}</p>
           <p className="font-pixel text-[8px] text-retro-dim mt-0.5">{subtitle}</p>
         </div>
-        <Lives n={lives} />
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowTypes(true)}
+            aria-label="Arrow types"
+            title="Arrow types"
+            className="min-h-11 min-w-11 -my-1 flex items-center justify-center text-retro-dim hover:text-retro-text"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
+          <Lives n={lives} />
+        </div>
       </div>
       <div className="flex items-center justify-between gap-2">
         <span className="font-pixel text-[8px] text-retro-dim tabular-nums">{countGone(gone)}/{total} CLEARED</span>
@@ -230,7 +278,7 @@ function PuzzlePlay({ level, title, subtitle, intro = null, onCleared, onRestart
           level={level}
           gone={gone}
           onTap={handleTap}
-          interactive={!result}
+          interactive={!result && !lesson}
           feedback={feedback}
           hint={hint}
           label={`${title} board, ${total - countGone(gone)} arrows left`}
@@ -260,6 +308,19 @@ function PuzzlePlay({ level, title, subtitle, intro = null, onCleared, onRestart
       <p className="sr-only" aria-live="polite">
         {result ? (result.stars > 0 ? `Board clear, ${result.stars} stars.` : 'Out of lives.') : `${countGone(gone)} of ${total} cleared, ${lives} lives.`}
       </p>
+      {lesson && (
+        <BottomSheet onClose={closeLesson} ariaLabel={`${getLesson(lesson).name} lesson`}>
+          <ArrowsLesson kind={lesson} onDone={closeLesson} doneLabel={`PLAY ${title.split(' /')[0]}`} badge="NEW ARROW" />
+        </BottomSheet>
+      )}
+      {showTypes && (
+        <BottomSheet onClose={() => setShowTypes(false)} ariaLabel="Arrow types">
+          <div className="space-y-3">
+            <ArrowTypes highlight={twistsIn(level)} />
+            <button onClick={() => setShowTypes(false)} className={cn(SEC, 'w-full')}>BACK TO THE BOARD</button>
+          </div>
+        </BottomSheet>
+      )}
     </div>
   )
 }

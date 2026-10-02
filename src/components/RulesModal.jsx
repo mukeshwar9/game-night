@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { getGameConfig } from '../lib/games'
 import { getRules } from '../lib/rules'
 import RuleClip, { hasRuleClip } from './RuleClips'
@@ -32,7 +33,8 @@ export function RulesButton({ onClick, className = '' }) {
 // visibility. Runs on the shared BottomSheet primitive (M-73) — bottom sheet
 // on phones, centered dialog from sm: up; backdrop-tap/Escape/stopPropagation
 // come from there. Pulls the title from the registry `label` and the body
-// from src/lib/rules.js.
+// from src/lib/rules.js. A registry entry may add `RulesExtra` (a lazy
+// component) for game-specific content, shown after QUICK START.
 export default function RulesModal({ gameType, onClose }) {
   const cfg = getGameConfig(gameType)
   const rules = getRules(gameType)
@@ -40,6 +42,7 @@ export default function RulesModal({ gameType, onClose }) {
   const quick = rules ? quickStart(rules) : null
   const Icon = cfg?.Icon
   const hasVisual = !!rules && !!(getRuleMedia(gameType) || hasRuleClip(gameType))
+  const Extra = cfg?.RulesExtra
 
   return (
     <BottomSheet onClose={onClose} ariaLabel={`${title} rules`} className="space-y-4">
@@ -87,6 +90,12 @@ export default function RulesModal({ gameType, onClose }) {
                 ))}
               </ul>
             </section>
+          )}
+
+          {Extra && (
+            <Suspense fallback={null}>
+              <Extra />
+            </Suspense>
           )}
 
           {(() => {

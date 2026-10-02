@@ -291,7 +291,7 @@ const RULE_NUMBERS = {
     double: FIBBAGE_FINAL_MULTIPLIER,
   }),
   arrows: () => ({
-    checks: [[3, ARROWS_LIVES], [20, ARROWS_LEVEL_COUNT], [2, ARROWS_MATCH_TARGET], [3, ARROWS_MAX_ROUNDS]],
+    checks: [[3, ARROWS_LIVES], [40, ARROWS_LEVEL_COUNT], [2, ARROWS_MATCH_TARGET], [3, ARROWS_MAX_ROUNDS]],
   }),
   updraft: () => ({
     checks: [

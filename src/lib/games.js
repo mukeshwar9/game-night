@@ -783,11 +783,13 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-09-19',
     durationMin: 4, tags: ['quick', 'skill'], solo: true,
-    // Solo is a 20-level puzzle campaign plus endless boards (and a bot race),
+    // Solo is a 40-level puzzle campaign plus endless boards (and a bot race),
     // not just a bot, so the play sheet names it as such.
-    soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: '20 puzzle levels, endless boards, or race a bot.',
+    soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: '40 puzzle levels, endless boards, or race a bot.',
     custom: true, realtime: true,
     Page: lazyWithRetry(() => import('../pages/ArrowsGame')),
+    // HOW TO PLAY adds the arrow types, each with a replayable lesson.
+    RulesExtra: lazyWithRetry(() => import('../components/ArrowTypes')),
     matchTarget: 2,
     nextRound: arrowsNextRound,
     hidePlayerCards: true,
