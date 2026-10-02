@@ -11,9 +11,20 @@ import { simonFlashTiming } from '../lib/simonLogic'
 import useGameKeys from '../hooks/useGameKeys'
 
 // Pad colours are the fixed --simon-* palette (src/lib/simonPads.js), not theme
-// tokens; each pad's glyph points at its own corner as the non-colour cue.
+// tokens; each pad's drawn corner mark points at its own corner as the non-colour cue.
 const padStyle = i => ({ '--pad': simonPadVar(i) })
 const PRESS_LIGHT_MS = 180 // how long a pad stays lit after your own press
+
+// A drawn corner triangle pointing at the pad's own corner (0 top left, 1 top right,
+// 2 bottom left, 3 bottom right) — the pad's non-colour cue, in its text colour.
+const CORNER_POINTS = ['0,0 10,0 0,10', '0,0 10,0 10,10', '0,0 0,10 10,10', '10,0 10,10 0,10']
+function CornerMark({ pad, className }) {
+  return (
+    <svg viewBox="0 0 10 10" className={className} aria-hidden="true">
+      <polygon points={CORNER_POINTS[pad] ?? CORNER_POINTS[0]} fill="currentColor" />
+    </svg>
+  )
+}
 
 // Keyboard: 1–4 in reading order, or Q W / A S as a 2×2 block; R replays the flash.
 const PAD_KEYS = { 1: 0, 2: 1, 3: 2, 4: 3, q: 0, w: 1, a: 2, s: 3 }
@@ -166,7 +177,7 @@ export default function SimonBoard({
   const missAt = showAnswer && simonMiss != null ? progress : -1
 
   const missGlyphs = missAt >= 0 && SIMON_PAD_META[simonMiss] && SIMON_PAD_META[seq[missAt]]
-    ? `YOU PRESSED ${SIMON_PAD_META[simonMiss].glyph}, IT WAS ${SIMON_PAD_META[seq[missAt]].glyph}`
+    ? `YOU PRESSED ${SIMON_PAD_META[simonMiss].key.toUpperCase()}, IT WAS ${SIMON_PAD_META[seq[missAt]].key.toUpperCase()}`
     : null
   const label =
     showAnswer   ? (missAt >= 0 ? `WRONG PAD — ${missGlyphs ?? 'HERE IS THE SEQUENCE'}` : 'ROUND OVER') :
@@ -215,7 +226,7 @@ export default function SimonBoard({
                 >
                   {showAnswer && (
                     <span className="absolute inset-0 flex items-center justify-center text-[10px] leading-none" aria-hidden="true">
-                      {SIMON_PAD_META[padIdx]?.glyph}
+                      <CornerMark pad={padIdx} className="w-2.5 h-2.5" />
                     </span>
                   )}
                 </div>
@@ -265,9 +276,7 @@ export default function SimonBoard({
                 !lit && (canClick ? 'cursor-pointer hover:brightness-105' : 'cursor-default opacity-70'),
               )}
             >
-              <span className={cn('text-2xl leading-none select-none', !lit && 'opacity-70')} aria-hidden="true">
-                {SIMON_PAD_META[i].glyph}
-              </span>
+              <CornerMark pad={i} className={cn('w-7 h-7', !lit && 'opacity-70')} />
             </button>
           )
         })}
