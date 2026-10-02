@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_GUESSES, PARTNER_OFFLINE_SOLO_MS, applySharedGuess, buildWordCoopRoundStart, canSubmitGuess,
   collectUsedAnswers, createNextRound, getRoundOutcome, isSoloMode, nextTurn, normalizeCoopStats,
-  pickAnswer, sanitizeDraft, updateCoopStats,
+  pickAnswer, sanitizeDraft, updateCoopStats, sanitizeHint, partnerHint,
 } from './wordcoopLogic'
 
 const round = (overrides = {}) => createNextRound({ seed: 'seed', starter: 'X', answerIndex: 0, ...overrides })
@@ -125,5 +125,27 @@ describe('wordcoopLogic', () => {
     expect(next.draftX).toBeNull()
     expect(sanitizeDraft('ab1c<d>ef')).toBe('ABCDE')
     expect(sanitizeDraft(null)).toBe('')
+  })
+})
+
+describe('suggest a letter', () => {
+  it('keeps a hint to one letter A–Z', () => {
+    expect(sanitizeHint('r')).toBe('R')
+    expect(sanitizeHint('RS')).toBe('')
+    expect(sanitizeHint('1')).toBe('')
+    expect(sanitizeHint(null)).toBe('')
+  })
+
+  it("shows the waiting partner's letter only to the player whose turn it is", () => {
+    const r = { ...round(), hintO: 'r' }
+    expect(partnerHint(r, 'X')).toBe('R')
+    expect(partnerHint(r, 'O')).toBe('')
+    expect(partnerHint({ ...r, phase: 'reveal' }, 'X')).toBe('')
+  })
+
+  it('spends the suggestion when a guess locks', () => {
+    const next = applySharedGuess({ ...round(), hintO: 'R' }, { player: 'X', guess: 'hello', answer: 'crane', at: 1 })
+    expect(next.hintO).toBeNull()
+    expect(next.hintX).toBeNull()
   })
 })

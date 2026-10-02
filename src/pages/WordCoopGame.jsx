@@ -5,7 +5,7 @@ import { getAnswerList } from '../lib/dictionary'
 import { getKeyboardState, guessProblem } from '../lib/wordduelLogic'
 import {
   applySharedGuess, buildWordCoopRoundStart, canSubmitGuess, getRoundOutcome,
-  normalizeCoopStats, normalizeGuesses, sanitizeDraft,
+  normalizeCoopStats, normalizeGuesses, sanitizeDraft, sanitizeHint, partnerHint,
   DRAFT_WRITE_MS, MAX_GUESSES, PARTNER_OFFLINE_SOLO_MS, WORD_LENGTH,
 } from '../lib/wordcoopLogic'
 import { sounds } from '../lib/sounds'
@@ -163,6 +163,11 @@ export default function WordCoopGame({
   const partnerTurn = playing && round?.currentTurn === partner && !solo
   const partnerDraft = partnerTurn ? sanitizeDraft(round?.[`draft${partner}`]) : ''
   const partnerName = game?.players?.[partner]?.name || partner
+  // Suggest a letter: on the partner's turn my key taps write round/hint{me};
+  // on my turn their suggestion glows on my keyboard.
+  const canSuggest = partnerTurn && !isSpectator && opponentOnline !== false
+  const mySuggestion = canSuggest ? sanitizeHint(round?.[`hint${mySymbol}`]) : ''
+  const suggestion = canAct && !solo ? partnerHint(round, mySymbol) : ''
 
   // A new shared word clears whatever I had typed for the last one.
   const [trackedRoundId, setTrackedRoundId] = useState(roundId)
@@ -280,6 +285,14 @@ export default function WordCoopGame({
     }, () => toast.error('GUESS FAILED — CHECK CONNECTION'))
   }, [answerList, canAct, currentGuess, gameId, mySymbol, runSubmit, solo, submitting])
 
+  const suggest = useCallback((key) => {
+    if (!canSuggest || !/^[A-Z]$/.test(key)) return
+    const next = key === mySuggestion ? null : key
+    sounds.step()
+    set(ref(db, `games/${gameId}/round/hint${mySymbol}`), next)
+      .catch(() => toast.error('SUGGESTION FAILED — CHECK CONNECTION'))
+  }, [canSuggest, gameId, mySuggestion, mySymbol])
+
   const onKey = useCallback((key) => {
     if (!canAct || submitting) return
     if (key === 'ENTER') return submitGuess()
@@ -349,8 +362,9 @@ export default function WordCoopGame({
       <p className="font-mono text-[10px] text-retro-dim text-center">
         {result ? 'One board. One word. One team.'
           : solo ? 'Take every turn until your partner is back.'
-          : canAct ? 'Build on your partner’s clues, then lock the next guess.'
-          : partnerDraft ? `${partnerName} is typing…`
+          : canAct ? (suggestion ? `${partnerName} suggests ${suggestion}.` : 'Build on your partner’s clues, then lock the next guess.')
+          : partnerDraft ? `${partnerName} is typing… tap a key to suggest a letter.`
+          : canSuggest ? 'Your partner’s turn — tap a key to suggest a letter.'
           : 'Your partner is working the shared board.'}
       </p>
 
@@ -420,7 +434,16 @@ export default function WordCoopGame({
             tone={submitting ? 'info' : feedback?.tone || 'bad'}
             id={feedback?.id}
           />
-          <WordKeyboard keyState={keyState} onKey={onKey} disabled={!canAct || submitting} enterLabel={submitting ? 'Locking guess' : 'Lock guess'} />
+          {/* On the partner's turn the same keys suggest a letter instead. */}
+          <WordKeyboard
+            keyState={keyState}
+            onKey={canAct ? onKey : suggest}
+            disabled={!(canAct || canSuggest) || submitting}
+            enterDisabled={!canAct}
+            enterLabel={submitting ? 'Locking guess' : 'Lock guess'}
+            glow={canAct && suggestion ? { letter: suggestion, label: `suggested by ${partnerName}` }
+              : mySuggestion ? { letter: mySuggestion, label: 'your suggestion' } : null}
+          />
           {!canAct && partnerOffline && !solo && (
             <p className="font-pixel text-[9px] text-retro-p2 text-center">
               PARTNER OFFLINE — YOU CAN PLAY SOLO IF THEY&apos;RE NOT BACK IN {Math.round(PARTNER_OFFLINE_SOLO_MS / 1000)}S

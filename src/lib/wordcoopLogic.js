@@ -82,6 +82,20 @@ export function sanitizeDraft(raw) {
   return String(raw ?? '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, WORD_LENGTH)
 }
 
+// "Suggest a letter": on the partner's turn the waiting player may tap one
+// key; it is stored at round/hint{X|O} and glows on the partner's keyboard
+// until the next guess locks. One letter A–Z, or '' for none.
+export function sanitizeHint(raw) {
+  const letter = String(raw ?? '').trim().toUpperCase()
+  return /^[A-Z]$/.test(letter) ? letter : ''
+}
+
+/** The letter `viewer`'s partner is suggesting right now ('' for none). */
+export function partnerHint(round, viewer) {
+  if (!round || round.phase !== 'playing' || round.currentTurn !== viewer) return ''
+  return sanitizeHint(round[`hint${viewer === 'X' ? 'O' : 'X'}`])
+}
+
 export function applySharedGuess(round, { player, guess, answer, at = Date.now(), solo = false }) {
   if (!canSubmitGuess(round, player, { solo })) return null
   const word = String(guess ?? '').trim().toUpperCase()
@@ -95,8 +109,11 @@ export function applySharedGuess(round, { player, guess, answer, at = Date.now()
   const outcome = solved ? 'win' : exhausted ? 'loss' : null
   return {
     ...round,
-    // The locked row replaces the typed draft; an ended round clears both.
+    // The locked row replaces the typed draft and spends any suggestion; an
+    // ended round clears both.
     [`draft${player}`]: null,
+    hintX: null,
+    hintO: null,
     ...(outcome ? { draftX: null, draftO: null, stats: updateCoopStats(round.stats, outcome) } : {}),
     phase: solved || exhausted ? 'reveal' : 'playing',
     currentTurn: solved || exhausted ? null : nextTurn(player),
