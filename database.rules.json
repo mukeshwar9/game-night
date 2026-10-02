@@ -1056,7 +1056,7 @@
         "arrowsSolo": {
           "levels": {
             "$level": {
-              ".validate": "$level.matches(/^l([1-9]|1[0-9]|20)$/) && newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+              ".validate": "$level.matches(/^l([1-9]|[1-5][0-9]|60)$/) && newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
             }
           },
           "endless": {

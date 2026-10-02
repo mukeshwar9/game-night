@@ -5,6 +5,7 @@
 // see mergeProgress in arrowsLevelsLogic.js.
 
 import { ref, get, set as dbSet } from 'firebase/database'
+import { toast } from 'sonner'
 import { db } from './firebase'
 import { getUid } from './auth'
 import { mergeProgress, normalizeProgress, sameProgress } from './arrowsLevelsLogic'
@@ -16,11 +17,23 @@ export function readArrowsProgress() {
   try { return normalizeProgress(JSON.parse(localStorage.getItem(KEY))) } catch { return normalizeProgress(null) }
 }
 
+// A failed account write must not pass silently: the rules once capped level
+// keys at l20, so every save past level 20 was rejected without a trace.
+// Progress is still safe on the device, so say so once per session and log
+// each failure.
+let warnedSync = false
+function reportSyncError(err) {
+  console.warn('Arrows progress did not reach your account:', err)
+  if (warnedSync) return
+  warnedSync = true
+  toast.error('Arrows progress saved on this device only — account sync failed.')
+}
+
 // Fire-and-forget mirror, same pattern as profile.js's stats mirror.
 function mirror(progress) {
   const uid = getUid()
   if (!db || !uid) return
-  dbSet(ref(db, `users/${uid}/arrowsSolo`), { ...progress, updatedAt: Date.now() }).catch(() => {})
+  dbSet(ref(db, `users/${uid}/arrowsSolo`), { ...progress, updatedAt: Date.now() }).catch(reportSyncError)
 }
 
 export function saveArrowsProgress(progress) {
@@ -44,10 +57,13 @@ export async function syncArrowsProgress() {
       try { localStorage.setItem(KEY, JSON.stringify(merged)) } catch { /* private mode */ }
     }
     if (!remote || !sameProgress(merged, remote)) {
-      await dbSet(ref(db, `users/${uid}/arrowsSolo`), { ...merged, updatedAt: Date.now() })
+      await dbSet(ref(db, `users/${uid}/arrowsSolo`), { ...merged, updatedAt: Date.now() }).catch(reportSyncError)
     }
     return merged
-  } catch {
+  } catch (err) {
+    // Reading the account copy failed (offline, most likely): keep playing
+    // from the device copy.
+    console.warn('Arrows progress could not be read from your account:', err)
     return local
   }
 }

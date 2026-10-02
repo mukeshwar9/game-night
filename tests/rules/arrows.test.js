@@ -45,9 +45,18 @@ describe('Arrows solo progress', () => {
     await assertFails(as('bob').ref('users/alice/arrowsSolo').set(progress))
   })
 
+  it('accepts every campaign level key up to l60 (the mirror writes the whole object)', async () => {
+    const at = as('alice').ref('users/alice/arrowsSolo')
+    const levels = {}
+    for (let n = 1; n <= 60; n += 1) levels[`l${n}`] = (n % 3) + 1
+    await assertSucceeds(at.set({ ...progress, levels }))
+    await assertSucceeds(at.set({ ...progress, levels: { l21: 3, l40: 1 } }))
+  })
+
   it('keeps level keys, stars and endless counts in shape', async () => {
     const at = as('alice').ref('users/alice/arrowsSolo')
-    await assertFails(at.set({ ...progress, levels: { l21: 3 } }))
+    await assertFails(at.set({ ...progress, levels: { l61: 3 } }))
+    await assertFails(at.set({ ...progress, levels: { l100: 3 } }))
     await assertFails(at.set({ ...progress, levels: { l0: 3 } }))
     await assertFails(at.set({ ...progress, levels: { 1: 3 } }))
     await assertFails(at.set({ ...progress, levels: { l1: 4 } }))
