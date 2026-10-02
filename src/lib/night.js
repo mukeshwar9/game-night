@@ -10,6 +10,7 @@ import {
   pendingNightResult, addToNight, freshNight, nightSwitchSeating, roomHostUid, kickPatch, canTakeSeat, nightRecap,
 } from './nightLogic'
 import { normalizeTimerScale } from './timerScale'
+import { effectiveCap, partyFullFor } from './partyLogic'
 import { isMatchOver as isRaceMatchOver } from './raceLogic'
 import { shareRecap } from './shareCard'
 import { shareUrl } from './platform'
@@ -139,6 +140,8 @@ function me() {
 export async function joinQueue(gameId, game) {
   const { uid, name, avatar } = me()
   if (!canTakeSeat(game, uid)) return false
+  // A party never lines up more people than its cap (seats + queue).
+  if (partyFullFor(game, false, effectiveCap(game, getGameConfig(game?.gameType)), uid)) return false
   const now = Date.now()
   const { committed } = await runTransaction(ref(db, `games/${gameId}/queue/${uid}`), cur => {
     if (cur) return undefined

@@ -49,6 +49,7 @@ import { buildSwitchUpdates, nextStarter } from '../hooks/room/roomUpdates'
 import NightPanel from '../components/NightPanel'
 import { RoomSwitchContext } from '../lib/roomSwitchContext'
 import { recordNightMatch, nightSwitchUpdates, hostUidOf } from '../lib/night'
+import { effectiveCap, partyMembers } from '../lib/partyLogic'
 import { rotateWinnerStays } from '../lib/nightLogic'
 import { getArrowsMatchEnd } from '../lib/arrowsLogic'
 // Match-end rule, shared with the results Cloud Function (functions/).
@@ -197,6 +198,12 @@ function LeaveMatchConfirm({ onConfirm, onCancel }) {
       </div>
     </div>
   )
+}
+
+// The invite sheet's party mode: head-count and cap of a party-first room.
+function partyInviteInfo(game, cfg) {
+  if (!game?.partyRoom) return null
+  return { size: partyMembers(game, !!cfg?.nPlayer).length, cap: effectiveCap(game, cfg) }
 }
 
 export default function Game() {
@@ -894,7 +901,7 @@ export default function Game() {
           )}
         </div>
         {showInvite && (
-          <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={seatedIds(nplayers)} onClose={() => setShowInvite(false)} />
+          <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={partyMembers(game, true).map(m => m.uid)} party={partyInviteInfo(game, cfg)} onClose={() => setShowInvite(false)} />
         )}
       </div></VideoCallShell>
       </RoomSwitchContext.Provider>
@@ -931,6 +938,17 @@ export default function Game() {
   // standard (non-custom) games once the round/match is over — reserve
   // matching space at the bottom of the page so it never covers content.
   const reservesStickyBar = !isCustom && game.status === 'finished'
+
+  // Party rooms (party-first, or a party that dropped into this 2P game): the
+  // host decides what is next, with no proposal handshake — SWITCH and NEW
+  // MATCH (winner stays) are theirs, even from the line. The two players can
+  // still run the next round of the match themselves (PLAY AGAIN).
+  const partyMode = !!game.partyRoom
+  const amPartyHost = partyMode && hostUidOf(game) === getPlayerId()
+  const canDecide = partyMode ? amPartyHost : !isSpectator
+  const doSwitch = partyMode ? (t) => applySwitchGame(t) : (t) => propose('switch', t)
+  const doPlayAgain = partyMode ? () => applyPlayAgain() : () => propose('playAgain')
+  const doNewMatch = partyMode ? () => applyNewMatch() : () => propose('newMatch')
 
   return (
     // Game night: a 2P game a party room switched into may switch back to party games.
@@ -991,11 +1009,11 @@ export default function Game() {
                 banner can't cover it — gate the trigger itself instead so a
                 real-time match's physics/score can never keep changing
                 invisibly behind an opened switcher. */}
-            {!isSpectator && !activeProposal && !(isRealtimeCustom && game.status === 'playing') && (
+            {canDecide && !activeProposal && !(isRealtimeCustom && game.status === 'playing') && (
               <GameSwitcher
                 variant="icon"
                 currentType={game.gameType}
-                onSwitch={(t) => (game.status === 'waiting' ? applySwitchGame(t) : propose('switch', t))}
+                onSwitch={(t) => (game.status === 'waiting' ? applySwitchGame(t) : doSwitch(t))}
               />
             )}
             {/* The waiting room has its own FRIENDS invite right under SHARE. */}
@@ -1127,9 +1145,9 @@ export default function Game() {
               game={game}
               mySymbol={mySeat}
               opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              onSwitchGame={activeProposal || (partyMode && !amPartyHost) ? null : doSwitch}
+              onPlayAgain={activeProposal || (partyMode && isSpectator && !amPartyHost) ? null : doPlayAgain}
+              onNewMatch={activeProposal || (partyMode && !amPartyHost) ? null : doNewMatch}
               proposal={activeProposal}
             />
           </Suspense>
@@ -1156,9 +1174,9 @@ export default function Game() {
               gameType={game.gameType}
               extraTurn={!!game.extraTurn}
               passNote={game.passNote ?? null}
-              onPlayAgain={game.status === 'finished' && !isSpectator && !matchWinner && !activeProposal && !movePending ? () => propose('playAgain') : null}
-              onNewMatch={matchWinner && !isSpectator && !activeProposal && !movePending ? () => propose('newMatch') : null}
-              onSwitchGame={!isSpectator && !activeProposal && !movePending ? (t) => propose('switch', t) : null}
+              onPlayAgain={game.status === 'finished' && (!isSpectator || amPartyHost) && !matchWinner && !activeProposal && !movePending ? doPlayAgain : null}
+              onNewMatch={matchWinner && canDecide && !activeProposal && !movePending ? doNewMatch : null}
+              onSwitchGame={canDecide && !activeProposal && !movePending ? doSwitch : null}
             />
             {/* F-48: an unacknowledged move, once it's taking a while. */}
             {movePending && (moveSlow || connected === false) && (
@@ -1209,7 +1227,7 @@ export default function Game() {
         )}
       </div>
       {showInvite && (
-        <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={seatedIds(game.players)} onClose={() => setShowInvite(false)} />
+        <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={partyMode ? partyMembers(game, false).map(m => m.uid) : seatedIds(game.players)} party={partyInviteInfo(game, cfg)} onClose={() => setShowInvite(false)} />
       )}
     </div></VideoCallShell>
     </RoomSwitchContext.Provider>

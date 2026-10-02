@@ -45,11 +45,20 @@ const ANDROID_CHANNEL = 'invites'
 // and a tap hands the data back to the app (src/lib/pushRouteLogic.js reads
 // `gameId` / `url`). `tag` / `thread-id` / `apns-collapse-id` keep one
 // notification per room.
+// Party invites (kind 'party') say so, with the head-count when the client
+// sent one; older game invites keep their copy.
+function inviteBody(invite, from) {
+  if (invite?.kind !== 'party') return `${from} invited you to play!`
+  const size = Number.isInteger(invite.size) && invite.size > 0 && invite.size <= 8 ? invite.size : null
+  const cap = Number.isInteger(invite.cap) && invite.cap >= 2 && invite.cap <= 8 ? invite.cap : 4
+  return size ? `${from} invited you to their party (${size}/${cap})` : `${from} invited you to their party`
+}
+
 function buildInviteMessage(invite, token) {
   const from = core.displayNameFor(invite.fromName, 'A friend')
   const gameId = String(invite.gameId || '').slice(0, 40)
   const title = 'Game Night'
-  const body = `${from} invited you to play!`
+  const body = inviteBody(invite, from)
   const url = gameId ? `/game/${gameId}` : '/'
   if (!NATIVE_PLATFORMS.includes(token.platform)) {
     return { token: token.token, data: { title, body, url, kind: 'invite' } }
@@ -129,4 +138,4 @@ exports.sendInvitePush = onValueWritten({ ref: 'invites/{uid}/{inviteId}', maxIn
 })
 
 // Exported for unit test without emulator.
-exports._test = { sendInvitePush, isBlocked, tokensFor, buildInviteMessage, buildInviteMessages }
+exports._test = { sendInvitePush, isBlocked, tokensFor, buildInviteMessage, buildInviteMessages, inviteBody }

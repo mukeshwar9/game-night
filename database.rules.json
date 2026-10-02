@@ -101,7 +101,7 @@
         },
         "players": {
           "$seat": {
-            ".write": "auth != null && (!data.exists() && newData.child('playerId').val() === auth.uid && data.parent().parent().child('status').val() === 'waiting' && (data.parent().parent().child('locked').val() !== true && !data.parent().parent().child('kicked').child(auth.uid).exists()) && ((($seat === 'X' || $seat === 'O') && !data.parent().parent().child('queue').exists()) || ($seat === auth.uid && !data.parent().child('X').exists() && !data.parent().child('O').exists())))",
+            ".write": "auth != null && (!data.exists() && newData.child('playerId').val() === auth.uid && data.parent().parent().child('status').val() === 'waiting' && (data.parent().parent().child('locked').val() !== true && !data.parent().parent().child('kicked').child(auth.uid).exists() && !data.parent().parent().child('removed').child(auth.uid).exists()) && ((($seat === 'X' || $seat === 'O') && !data.parent().parent().child('queue').exists()) || ($seat === auth.uid && !data.parent().child('X').exists() && !data.parent().child('O').exists())))",
             ".validate": "(newData.hasChildren(['playerId']) && $seat.length <= 128 && ($seat === 'X' || $seat === 'O' || $seat === newData.child('playerId').val()))",
             "playerId": {
               ".validate": "(newData.isString() && newData.val().length >= 1 && newData.val().length <= 128 && ((!data.exists() && newData.val() === auth.uid && (data.parent().parent().child(auth.uid).child('playerId').val() === auth.uid || data.parent().parent().child('X').child('playerId').val() === auth.uid || data.parent().parent().child('O').child('playerId').val() === auth.uid || data.parent().parent().parent().child('queue').child(auth.uid).exists() || (data.parent().parent().parent().child('locked').val() !== true && !data.parent().parent().parent().child('kicked').child(auth.uid).exists()))) || newData.val() === data.val() || data.parent().parent().child(newData.val()).child('playerId').val() === newData.val() || data.parent().parent().child('X').child('playerId').val() === newData.val() || data.parent().parent().child('O').child('playerId').val() === newData.val() || data.parent().parent().parent().child('queue').child(newData.val()).exists()))"
@@ -163,8 +163,8 @@
         },
         "queue": {
           "$uid": {
-            ".write": "auth != null && $uid === auth.uid && (!newData.exists() || (!data.exists() && root.child('games').child($gameId).child('partyRoom').val() === true && (root.child('games').child($gameId).child('locked').val() !== true && !root.child('games').child($gameId).child('kicked').child(auth.uid).exists())))",
-            ".validate": "(newData.child('playerId').val() === $uid && newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('at').isNumber() && (newData.child('at').val() === data.child('at').val() || newData.child('at').val() <= now + 3600000) && (data.exists() || ($uid === auth.uid && (data.parent().parent().child('locked').val() !== true && !data.parent().parent().child('kicked').child(auth.uid).exists())) || data.parent().parent().child('players').child($uid).child('playerId').val() === $uid || data.parent().parent().child('players').child('X').child('playerId').val() === $uid || data.parent().parent().child('players').child('O').child('playerId').val() === $uid))",
+            ".write": "auth != null && $uid === auth.uid && (!newData.exists() || (!data.exists() && root.child('games').child($gameId).child('partyRoom').val() === true && (root.child('games').child($gameId).child('locked').val() !== true && !root.child('games').child($gameId).child('kicked').child(auth.uid).exists() && !root.child('games').child($gameId).child('removed').child(auth.uid).exists())))",
+            ".validate": "(newData.child('playerId').val() === $uid && newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('at').isNumber() && (newData.child('at').val() === data.child('at').val() || newData.child('at').val() <= now + 3600000) && (data.exists() || ($uid === auth.uid && (data.parent().parent().child('locked').val() !== true && !data.parent().parent().child('kicked').child(auth.uid).exists() && !data.parent().parent().child('removed').child(auth.uid).exists())) || data.parent().parent().child('players').child($uid).child('playerId').val() === $uid || data.parent().parent().child('players').child('X').child('playerId').val() === $uid || data.parent().parent().child('players').child('O').child('playerId').val() === $uid))",
             "avatar": {
               ".validate": "newData.isString() && newData.val().length <= 200"
             },
@@ -919,6 +919,15 @@
           "$other": {
             ".validate": "false"
           }
+        },
+        "removed": {
+          "$uid": {
+            ".validate": "newData.isBoolean()"
+          },
+          ".validate": "newData.hasChildren()"
+        },
+        "partyCap": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 8"
         }
       }
     },
@@ -1225,6 +1234,15 @@
           },
           "at": {
             ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now + 3600000)"
+          },
+          "kind": {
+            ".validate": "newData.isString() && newData.val() === 'party'"
+          },
+          "size": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 8"
+          },
+          "cap": {
+            ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 8"
           }
         }
       }

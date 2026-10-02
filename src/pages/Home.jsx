@@ -19,6 +19,7 @@ import GameOptionsSheet from '../components/GameOptionsSheet'
 import RulesModal from '../components/LazyRulesModal'
 import { useAuth } from '../lib/AuthContext'
 import { dismissInvite } from '../lib/social'
+import { partyInviteLine } from '../lib/partyLogic'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { checkShouldOnboard } from '../lib/onboarding'
 
@@ -136,7 +137,7 @@ export default function Home() {
                     <span className="text-retro-cta">{inv.fromName}</span> invited you
                   </p>
                   <p className="font-pixel text-[8px] text-retro-dim mt-0.5">
-                    {getGameConfig(inv.gameType)?.label || 'GAME'}
+                    {partyInviteLine(inv, (t) => getGameConfig(t)?.label)}
                   </p>
                 </div>
                 <button

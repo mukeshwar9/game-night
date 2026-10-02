@@ -359,7 +359,18 @@ export function subscribeBlocks(cb) {
 // ---- Game invites ----
 // Writing invites/{uid}/{id} is the whole client side: the sendInvitePush Cloud
 // Function (functions/push.js) fires on the create and sends the push.
-export async function inviteFriendToGame(friendUid, { gameId, gameType } = {}) {
+// Party invites carry `kind: 'party'` and the head-count (size of cap) for the
+// banner and the push; game invites leave them out.
+function partyFields({ kind, size, cap } = {}) {
+  if (kind !== 'party') return {}
+  return {
+    kind: 'party',
+    ...(Number.isInteger(size) && size >= 1 && size <= 8 ? { size } : {}),
+    ...(Number.isInteger(cap) && cap >= 2 && cap <= 8 ? { cap } : {}),
+  }
+}
+
+export async function inviteFriendToGame(friendUid, { gameId, gameType, kind, size, cap } = {}) {
   const me = getUid()
   if (!db || !me || !friendUid || !gameId) return
   const myProfile = await getProfile(me)
@@ -370,13 +381,14 @@ export async function inviteFriendToGame(friendUid, { gameId, gameType } = {}) {
     fromName: myProfile?.displayName || guestName(me),
     fromAvatar: myProfile?.avatar || defaultAvatarForId(me),
     at: Date.now(),
+    ...partyFields({ kind, size, cap }),
   }
   await push(ref(db, `invites/${friendUid}`), invite)
 }
 
 // "Invite all online friends": one invite per uid, written as a single
 // multi-path update so the whole batch lands (or fails) together.
-export async function inviteFriendsToGame(friendUids, { gameId, gameType } = {}) {
+export async function inviteFriendsToGame(friendUids, { gameId, gameType, kind, size, cap } = {}) {
   const me = getUid()
   const uids = [...new Set((friendUids || []).filter(Boolean))].filter(uid => uid !== me)
   if (!db || !me || !gameId || uids.length === 0) return 0
@@ -388,6 +400,7 @@ export async function inviteFriendsToGame(friendUids, { gameId, gameType } = {})
     fromName: myProfile?.displayName || guestName(me),
     fromAvatar: myProfile?.avatar || defaultAvatarForId(me),
     at: Date.now(),
+    ...partyFields({ kind, size, cap }),
   }
   const updates = {}
   for (const uid of uids) updates[`invites/${uid}/${push(ref(db, `invites/${uid}`)).key}`] = invite

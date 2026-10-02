@@ -200,3 +200,14 @@ describe('blocks (synced block list)', () => {
     await assertSucceeds(as('alice').ref('invites/alice/i1').remove())
   })
 })
+
+describe('party invites', () => {
+  it('accepts kind party with a head-count, rejects other kinds and bad counts', async () => {
+    await put('friends/alice/bob', { since: 1 })
+    const base = { gameId: 'ABC123', gameType: 'party', fromUid: 'bob', fromName: 'Bob', at: 1 }
+    await assertSucceeds(as('bob').ref('invites/alice/i1').set({ ...base, kind: 'party', size: 2, cap: 4 }))
+    await assertFails(as('bob').ref('invites/alice/i2').set({ ...base, kind: 'game' }))
+    await assertFails(as('bob').ref('invites/alice/i3').set({ ...base, kind: 'party', size: 0 }))
+    await assertFails(as('bob').ref('invites/alice/i4').set({ ...base, kind: 'party', cap: 99 }))
+  })
+})

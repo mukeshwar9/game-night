@@ -27,7 +27,8 @@ export default function InviteToasts() {
       seen.current.add(inv.id)
       if (inv.at && Date.now() - inv.at > MAX_TOAST_AGE_MS) continue
       const label = getGameConfig(inv.gameType)?.label || inv.gameType || 'a game'
-      toast(`${displayNameFor(inv.fromName, 'A friend')} invited you to ${label}`, {
+      const what = inv.kind === 'party' ? `their party${inv.size ? ` (${inv.size}/${inv.cap || 4})` : ''}` : label
+      toast(`${displayNameFor(inv.fromName, 'A friend')} invited you to ${what}`, {
         duration: 10000,
         action: {
           label: 'JOIN',

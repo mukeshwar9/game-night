@@ -13,11 +13,15 @@ import { recordFunnel } from '../lib/analytics'
 // with a one-tap INVITE that pushes a game invite to their account, plus
 // INVITE ALL ONLINE for every online friend who isn't already in the room
 // (`excludeUids` — the room's seated players) and hasn't been invited yet.
-export default function InviteFriendModal({ gameId, gameType, onClose, excludeUids = [] }) {
+// `party` ({ size, cap }) marks a party-first room: invites say "party" with
+// the head-count, the sheet shows the places left and stops at the cap.
+export default function InviteFriendModal({ gameId, gameType, onClose, excludeUids = [], party = null }) {
   const [friendUids, setFriendUids] = useState(null)
   const [profiles, setProfiles] = useState({})
   const [inviteState, setInviteState] = useState({}) // uid -> 'sending' | 'sent' (absent = idle)
   const [allBusy, runInviteAll] = useBusy()
+  const partyInvite = party ? { kind: 'party', size: party.size, cap: party.cap } : {}
+  const placesLeft = party ? Math.max(0, (party.cap || 0) - (party.size || 0)) : Infinity
 
   useEffect(() => subscribeFriends(list => setFriendUids(list.map(f => f.uid))), [])
 
@@ -31,7 +35,7 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
   const invite = async (uid, name) => {
     setInviteState(prev => ({ ...prev, [uid]: 'sending' }))
     try {
-      await inviteFriendToGame(uid, { gameId, gameType })
+      await inviteFriendToGame(uid, { gameId, gameType, ...partyInvite })
       recordFunnel('shared')
       setInviteState(prev => ({ ...prev, [uid]: 'sent' }))
       toast.success(`INVITED ${(name || 'FRIEND').toUpperCase()}!`)
@@ -43,13 +47,13 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
 
   const sorted = [...(friendUids || [])].sort((a, b) => (profiles[b]?.online ? 1 : 0) - (profiles[a]?.online ? 1 : 0))
   const inRoom = new Set(excludeUids)
-  const invitable = sorted.filter(uid => profiles[uid]?.online && !inRoom.has(uid) && !inviteState[uid])
+  const invitable = sorted.filter(uid => profiles[uid]?.online && !inRoom.has(uid) && !inviteState[uid]).slice(0, placesLeft)
 
   const inviteAll = () => runInviteAll(async () => {
     const uids = invitable
     setInviteState(prev => ({ ...prev, ...Object.fromEntries(uids.map(uid => [uid, 'sending'])) }))
     try {
-      const n = await inviteFriendsToGame(uids, { gameId, gameType })
+      const n = await inviteFriendsToGame(uids, { gameId, gameType, ...partyInvite })
       recordFunnel('shared')
       setInviteState(prev => ({ ...prev, ...Object.fromEntries(uids.map(uid => [uid, 'sent'])) }))
       toast.success(`INVITED ${n} ${n === 1 ? 'FRIEND' : 'FRIENDS'}!`)
@@ -62,9 +66,16 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
   return (
     <BottomSheet onClose={onClose} ariaLabel="Invite a friend" className="bg-retro-card space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-pixel text-xs text-retro-cta">INVITE A FRIEND</h2>
+        <h2 className="font-pixel text-xs text-retro-cta">{party ? 'INVITE TO PARTY' : 'INVITE A FRIEND'}</h2>
         <button onClick={onClose} aria-label="Close" className="text-retro-dim hover:text-retro-text font-pixel text-xs p-3 -m-2">✕</button>
       </div>
+      {party && (
+        <p className="font-mono text-[11px] text-retro-dim">
+          {placesLeft > 0
+            ? `Party: ${party.size} of ${party.cap} · ${placesLeft} ${placesLeft === 1 ? 'place' : 'places'} left. Not friends yet? Share the link or code.`
+            : `Party is full (${party.size} of ${party.cap}).`}
+        </p>
+      )}
 
       {friendUids === null ? (
         <div className="space-y-2">
@@ -106,11 +117,11 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
                 </div>
                 <span className="flex-1 font-mono text-sm text-retro-text truncate">{p?.displayName ? displayNameFor(p.displayName) : '…'}</span>
                 {inRoom.has(uid) ? (
-                  <span className="min-h-11 px-3 flex items-center font-pixel text-[9px] text-retro-dim">IN ROOM</span>
+                  <span className={`min-h-11 px-3 flex items-center font-pixel text-[9px] ${party ? 'text-retro-win' : 'text-retro-dim'}`}>{party ? 'IN PARTY' : 'IN ROOM'}</span>
                 ) : (
                   <button
                     onClick={() => invite(uid, p?.displayName)}
-                    disabled={state === 'sending' || state === 'sent'}
+                    disabled={state === 'sending' || state === 'sent' || (placesLeft <= 0 && !state)}
                     className="min-h-11 px-3 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded
                       hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-default"
                   >

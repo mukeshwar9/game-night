@@ -3,10 +3,8 @@ import { ref, onValue, update, runTransaction, remove } from 'firebase/database'
 import { toast } from 'sonner'
 import { db, configError } from '../../lib/firebase'
 import { getGameConfig, isKnownGameType } from '../../lib/games'
+import { effectiveCap, overCapMembers, partyFullFor } from '../../lib/partyLogic'
 
-// error value for a room whose game this build doesn't know (Game.jsx shows
-// an update screen for it)
-export const UPDATE_NEEDED_ERROR = 'UPDATE_NEEDED'
 import { getPlayerId } from '../../lib/playerId'
 import { defaultAvatarForId } from '../../lib/avatarKit'
 import { recordRoom } from '../../lib/profile'
@@ -15,10 +13,15 @@ import { isListableRoom, listingHost, removePublicListing, republishPublicRoom }
 import { isGhost, isSeatOnline, seatLeft } from '../../lib/presenceLogic'
 import { ghostsToSweep, inviteSummary, openSeat, partyJoinPlan, pickRoomHost, seatedIds, spectatorCount } from '../../lib/roomLogic'
 import { canTakeSeat, normalizeQueue } from '../../lib/nightLogic'
+import { hostUidOf, joinQueue } from '../../lib/night'
 import useDbConnected from '../useDbConnected'
 import useRoomPresence from './useRoomPresence'
 import { buildSwitchUpdates } from './roomUpdates'
 import { moderateRoomNames } from '../../lib/moderationLogic'
+
+// error value for a room whose game this build doesn't know (Game.jsx shows
+// an update screen for it)
+export const UPDATE_NEEDED_ERROR = 'UPDATE_NEEDED'
 
 const GAME_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -330,7 +333,7 @@ export default function useRoomSession(gameId) {
   const [seatRecheck, setSeatRecheck] = useState(0)
   useEffect(() => {
     if (!partyLobbyOpen || partyJoining.current || !cfg) return
-    const plan = partyJoinPlan({ players: playersNode, myId, status: 'waiting', maxPlayers: cfg.maxPlayers || 8 })
+    const plan = partyJoinPlan({ players: playersNode, myId, status: 'waiting', maxPlayers: effectiveCap(latestGame.current, cfg) })
     if (plan.action !== 'join') {
       // Full for now — waiting here as a spectator is what prompts the host's
       // ghost sweep below; look again in a while regardless.
@@ -360,7 +363,7 @@ export default function useRoomSession(gameId) {
   const [sweepTick, setSweepTick] = useState(0)
   useEffect(() => {
     if (!amSweeper || !cfg || waitingCount === 0) return
-    const ghosts = ghostsToSweep({ players: playersNode, status: 'waiting', maxPlayers: cfg.maxPlayers || 8, waiting: waitingCount })
+    const ghosts = ghostsToSweep({ players: playersNode, status: 'waiting', maxPlayers: effectiveCap(latestGame.current, cfg), waiting: waitingCount })
     // Nobody past the grace window yet — check again once someone may be.
     const t = setTimeout(() => setSweepTick(n => n + 1), 15_000)
     for (const uid of ghosts) {
@@ -371,6 +374,36 @@ export default function useRoomSession(gameId) {
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amSweeper, waitingCount, partySeatCount, gameId, sweepTick])
+
+  // Party cap races: two joiners each write only their own seat, so both can
+  // get in past the cap. Every client sees the same join order; the host's
+  // client moves the latest joiners out (they can still watch, and see PARTY
+  // FULL). Seated 2P players are never moved mid-game.
+  const amPartyHost = !!game?.partyRoom && hostUidOf(game) === myId
+  const overCap = amPartyHost && cfg ? overCapMembers(game, party, effectiveCap(game, cfg)).join(',') : ''
+  useEffect(() => {
+    if (!overCap || !db) return
+    const room = latestGame.current
+    const updates = {}
+    for (const uid of overCap.split(',')) {
+      if (party && room?.players?.[uid]) updates[`players/${uid}`] = null
+      else if (room?.queue?.[uid]) updates[`queue/${uid}`] = null
+    }
+    if (Object.keys(updates).length) update(ref(db, `games/${gameId}`), updates).catch(() => {})
+  }, [overCap, party, gameId])
+
+  // A party member arriving while the party plays a 2P game (an invite, a
+  // reload) lines up for the next seat instead of being left to find JOIN
+  // QUEUE. Once per visit, so LEAVE LINE sticks.
+  const autoQueued = useRef(false)
+  const inQueue = !!game?.queue?.[myId]
+  const canAutoQueue = !!game && !party && !!game.partyRoom && !mySeat && !inQueue && !needName
+    && canTakeSeat(game, myId) && !!cfg && !partyFullFor(game, false, effectiveCap(game, cfg), myId)
+  useEffect(() => {
+    if (!canAutoQueue || autoQueued.current) return
+    autoQueued.current = true
+    joinQueue(gameId, latestGame.current).catch(() => {})
+  }, [canAutoQueue, gameId])
 
   // One-time spectator notice — fires only once, when a full 2-seat room
   // resolves us to a spectator (never for the never-seated-but-empty-room case).
@@ -455,7 +488,7 @@ export default function useRoomSession(gameId) {
 async function joinPartySeat(gameId, room, cfg, { name, avatar }) {
   const myId = getPlayerId()
   if (!room || room.status !== 'waiting' || !canTakeSeat(room, myId)) return false
-  const plan = partyJoinPlan({ players: room.players, myId, status: room.status, maxPlayers: cfg.maxPlayers || 8 })
+  const plan = partyJoinPlan({ players: room.players, myId, status: room.status, maxPlayers: effectiveCap(room, cfg) })
   if (plan.action === 'reclaim') return true
   if (plan.action !== 'join') return false
   const seat = { name, joinedAt: Date.now(), playerId: myId, online: true, avatar }
@@ -464,6 +497,9 @@ async function joinPartySeat(gameId, room, cfg, { name, avatar }) {
       ref(db, `games/${gameId}/players/${myId}`),
       cur => (cur ? undefined : seat),
     )
+    // A lobby with no moves never bumps lastActivityAt, and the hourly cleanup
+    // deletes rooms idle for a day: a join counts as activity.
+    if (committed) update(ref(db, `games/${gameId}`), { lastActivityAt: Date.now() }).catch(() => {})
     return committed || !!snapshot?.val()
   } catch { return false }
 }

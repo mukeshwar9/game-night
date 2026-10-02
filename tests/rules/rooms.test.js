@@ -14,6 +14,7 @@ const T = rulesEnvFor({ beforeAll, afterEach, afterAll })
 const as = (uid) => dbAs(T.env, uid)
 const put = (path, value) => seed(T.env, path, value)
 const seat = (uid, extra = {}) => ({ name: uid, joinedAt: 5, playerId: uid, ...extra })
+const lobbySeat = (uid) => ({ name: uid, joinedAt: 9, playerId: uid, online: true })
 
 describe('creating and deleting rooms', () => {
   it('lets a party room be created with the creator in a uid-keyed seat', async () => {
@@ -309,6 +310,29 @@ describe('the queue (game night)', () => {
     await assertFails(as(CAROL).ref('games/g3/queue/carol').set(entry(CAROL)))
     await put('games/g4', gameNode({ x: ALICE, o: BOB, extra: { partyRoom: true } }))
     await assertFails(as(CAROL).ref('games/g4/queue/mallory').set(entry(MALLORY)))
+  })
+
+  it('denies a member the party removed: no seat, no place in line, even after kicked is cleared', async () => {
+    await put('games/g1', partyNode({ uids: [ALICE, BOB], extra: { partyRoom: true, removed: { [CAROL]: true } } }))
+    await assertFails(as(CAROL).ref('games/g1/players/carol').set(lobbySeat(CAROL)))
+    await put('games/g2', gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { partyRoom: true, removed: { [CAROL]: true } } }))
+    await assertFails(as(CAROL).ref('games/g2/queue/carol').set(entry(CAROL)))
+    await put('games/g3', partyNode({ uids: [ALICE, BOB], extra: { partyRoom: true, removed: { [MALLORY]: true } } }))
+    await assertSucceeds(as(CAROL).ref('games/g3/players/carol').set(lobbySeat(CAROL)))
+  })
+
+  it('lets the host remove a party member for the whole party; validates partyCap', async () => {
+    await put('games/g1', partyNode({ uids: [ALICE, BOB], extra: { partyRoom: true, partyCap: 4 } }))
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ 'kicked/bob': true, 'removed/bob': true, 'players/bob': null }))
+    await assertFails(as(ALICE).ref('games/g1/removed/carol').set('yes'))
+    await assertSucceeds(as(ALICE).ref('games/g1/partyCap').set(3))
+    await assertFails(as(ALICE).ref('games/g1/partyCap').set(1))
+    await assertFails(as(ALICE).ref('games/g1/partyCap').set(9))
+    await assertFails(as(ALICE).ref('games/g1/partyCap').set('4'))
+  })
+
+  it('lets a party lobby be created (game type party, cap 4)', async () => {
+    await assertSucceeds(as(ALICE).ref('games/p1').set(partyNode({ uids: [ALICE], gameType: 'party', extra: { partyRoom: true, partyCap: 4, hostUid: ALICE, lobby: true } })))
   })
 
   it('denies a member queueing an outsider', async () => {

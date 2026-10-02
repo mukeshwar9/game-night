@@ -30,7 +30,8 @@ describe('room keys accepted by the rules', () => {
   it('cover the room-level keys the shell writes', () => {
     const shell = ['status', 'winner', 'winningLine', 'scores', 'players', 'presence', 'spectators', 'queue', 'chatLog', 'emote', 'proposal',
       'lastActivityAt', 'createdAt', 'visibility', 'hostUid', 'locked', 'partyRoom', 'night', 'kicked', 'timerScale', 'seen', 'sealKeys',
-      'starter', 'goesFirst', 'currentTurn', 'board', 'boxes', 'round', 'signaling', 'hangwomanAnyWord', 'matchLength', 'lobby']
+      'starter', 'goesFirst', 'currentTurn', 'board', 'boxes', 'round', 'signaling', 'hangwomanAnyWord', 'matchLength', 'lobby',
+      'removed', 'partyCap']
     expect(shell.filter(key => !allowed(key))).toEqual([])
   })
 

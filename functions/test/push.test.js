@@ -111,3 +111,19 @@ describe('isBlocked', () => {
     assert.equal(await _test.isBlocked('bob', undefined, dbWith([])), false)
   })
 })
+
+describe('party invites', () => {
+  test('say "their party" with the head-count on every platform', () => {
+    const invite = { fromName: 'Alice', gameId: 'ABC123', kind: 'party', size: 2, cap: 4 }
+    assert.equal(build(invite).data.body, 'Alice invited you to their party (2/4)')
+    assert.equal(build(invite, ios).notification.body, 'Alice invited you to their party (2/4)')
+    assert.equal(build(invite, android).notification.body, 'Alice invited you to their party (2/4)')
+  })
+
+  test('drop a missing or junk head-count, default the cap to 4', () => {
+    assert.equal(_test.inviteBody({ kind: 'party' }, 'Alice'), 'Alice invited you to their party')
+    assert.equal(_test.inviteBody({ kind: 'party', size: 3 }, 'Alice'), 'Alice invited you to their party (3/4)')
+    assert.equal(_test.inviteBody({ kind: 'party', size: 99, cap: 4 }, 'Alice'), 'Alice invited you to their party')
+    assert.equal(_test.inviteBody({ kind: 'other' }, 'Alice'), 'Alice invited you to play!')
+  })
+})

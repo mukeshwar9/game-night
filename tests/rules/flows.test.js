@@ -63,7 +63,7 @@ describe('winner stays and kicks', () => {
   it('lets NEW MATCH rotate the loser into the queue', async () => {
     const room = gameNode({
       x: 'alice', o: 'bob', status: 'finished',
-      extra: { winner: 'X', scores: { X: 3, O: 1 }, partyRoom: true, queue: { carol: queued('carol', 5) } },
+      extra: { winner: 'X', scores: { X: 3, O: 1 }, partyRoom: true, queue: { carol: queued('carol', 5) }, spectators: { carol: { c1: { name: 'carol', at: 5 } } } },
     })
     await put('games/g1', room)
     await assertSucceeds(as('bob').ref('games/g1').update({
