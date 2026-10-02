@@ -1,6 +1,6 @@
 // Party-first rooms: friends gather in a party, then the host picks a game
 // that fits how many came. Alice starts a party from Home, Bob and Carol join
-// by link, the picker is filtered for three (19 everyone / 55 take turns /
+// by link, the picker is filtered for three (19 everyone / 62 take turns /
 // 1 needs more), Alice picks Connect Four (two sit, Carol lines up), the match
 // is fast-forwarded through the emulator's admin REST API, Alice takes
 // everyone back to the party and picks Fibbage (all three seated). A fourth
@@ -63,9 +63,9 @@ test('party first: gather, pick by party size, take turns, back to the party', a
     await expect(group(alice.page, 'party-group-all')).toContainText('EVERYONE PLAYS · 19')
     await group(alice.page, 'party-group-all').getByRole('button', { name: 'SHOW ALL 19' }).click()
     await expect(group(alice.page, 'party-group-all').getByRole('button', { name: /^Play / })).toHaveCount(19)
-    await expect(group(alice.page, 'party-group-rotate')).toContainText('TAKE TURNS · 2 PLAY, WINNER STAYS · 55')
-    await group(alice.page, 'party-group-rotate').getByRole('button', { name: 'SHOW ALL 55' }).click()
-    await expect(group(alice.page, 'party-group-rotate').getByRole('button', { name: /^Play / })).toHaveCount(55)
+    await expect(group(alice.page, 'party-group-rotate')).toContainText('TAKE TURNS · 2 PLAY, WINNER STAYS · 62')
+    await group(alice.page, 'party-group-rotate').getByRole('button', { name: 'SHOW ALL 62' }).click()
+    await expect(group(alice.page, 'party-group-rotate').getByRole('button', { name: /^Play / })).toHaveCount(62)
     await expect(group(alice.page, 'party-group-short')).toContainText('NEEDS MORE PLAYERS · 1')
     // Guests see who is picking and can't pick.
     await expect(bob.page.getByTestId('party-picking')).toContainText('Alice')
