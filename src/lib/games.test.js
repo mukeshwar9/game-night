@@ -327,3 +327,18 @@ describe('isQuietRoom', () => {
     }
   })
 })
+
+describe('isKnownGameType', () => {
+  it('knows every registry type and nothing else', async () => {
+    const { isKnownGameType } = await import('./games')
+    for (const t of GAME_TYPES) expect(isKnownGameType(t.type), t.type).toBe(true)
+    expect(isKnownGameType('nope')).toBe(false)
+    expect(isKnownGameType('')).toBe(false)
+    expect(isKnownGameType(undefined)).toBe(false)
+  })
+
+  it('getGameConfig still falls back, which is why the room shell checks first', async () => {
+    const { getGameConfig } = await import('./games')
+    expect(getGameConfig('nope').type).toBe(GAME_TYPES[0].type)
+  })
+})

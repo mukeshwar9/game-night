@@ -1838,6 +1838,13 @@ export const getNewGames = (entries, now = new Date()) =>
 
 export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
 
+// Whether this build knows `type`. getGameConfig falls back to the first entry
+// (TIC TAC TOE) for an unknown type, so a room opened by an older build after a
+// newer one switched it to a game this build doesn't have would render, and
+// write, as tic-tac-toe. The room shell checks this first and asks for an
+// update instead.
+export const isKnownGameType = (type) => typeof type === 'string' && GAME_TYPES.some(t => t.type === type)
+
 // 2P turn-based games: one seat must act first, so the waiting room (and
 // rematch) asks who starts. Real-time, party, and simultaneous races skip
 // this and still auto-start when the second player sits.
@@ -1915,7 +1922,7 @@ export const GAME_CATEGORIES = [
   { id: 'memory',    label: 'MEMORY', full: 'MEMORY' },
   { id: 'word',      label: 'WORD',   full: 'WORD GAMES' },
   { id: 'dicebluff', label: 'DICE',   full: 'DICE & BLUFF' },
-  { id: 'party',     label: 'PARTY',  full: 'PARTY · 3–8 PLAYERS' },
+  { id: 'party',     label: 'PARTY',  full: 'PARTY · 2–8 PLAYERS' },
 ]
 
 export const getPlayerTag = (cfg) =>

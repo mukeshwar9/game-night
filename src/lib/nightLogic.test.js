@@ -4,7 +4,7 @@ import {
   normalizeNight, rankStandings, rankByScore, placementPoints, matchWinner2P, matchResult,
   matchSignature, pendingNightResult, addToNight, applyResultToNight, freshNight, nightRecap,
   normalizeQueue, pickTwoSeats, nightSwitchSeating, rotateWinnerStays,
-  roomMemberIds, roomHostUid, roomMembers, kickPatch, canTakeSeat,
+  roomMemberIds, roomHostUid, roomMembers, kickPatch, canTakeSeat, memberPresent,
 } from './nightLogic'
 
 const twoP = (over = {}) => ({
@@ -285,11 +285,24 @@ describe('queue + seating', () => {
   })
 
   it('2P -> party in a party room restores seats and queue as party seats', () => {
-    const game = twoP({ partyRoom: true, queue: { c: { name: 'Cy', playerId: 'c', joinedAt: 3, at: 9 } } })
+    const game = twoP({ partyRoom: true, queue: { c: { name: 'Cy', playerId: 'c', joinedAt: 3, at: 9 } }, spectators: { c: { k1: { name: 'Cy', at: 1 } } } })
     const out = nightSwitchSeating(game, { status: 'waiting', players: { a: {}, b: {} } }, { fromParty: false, toParty: true, now: 1 })
     expect(Object.keys(out.players).sort()).toEqual(['a', 'b', 'c'])
     expect(out.players.c).toEqual({ name: 'Cy', playerId: 'c', joinedAt: 3, online: true, avatar: null })
     expect(out.queue).toBeNull()
+  })
+
+  it('2P -> party restores members who left during the 2P game as offline', () => {
+    const game = twoP({
+      partyRoom: true,
+      presence: { X: { conns: { k: 1 } }, O: { online: false, leftAt: 5 } },
+      queue: { c: { name: 'Cy', playerId: 'c', joinedAt: 3, at: 9 } },
+    })
+    const out = nightSwitchSeating(game, {}, { fromParty: false, toParty: true, now: 70 })
+    expect(out.players.a).toMatchObject({ online: true })
+    expect(out.players.a.offlineAt).toBeUndefined()
+    expect(out.players.b).toMatchObject({ online: false, offlineAt: 70 })
+    expect(out.players.c).toMatchObject({ online: false, offlineAt: 70 })
   })
 
   it('rotateWinnerStays swaps the loser for the queue head', () => {
@@ -365,5 +378,21 @@ describe('host', () => {
     expect(canTakeSeat({}, 'a')).toBe(true)
     expect(canTakeSeat({ locked: true }, 'a')).toBe(false)
     expect(canTakeSeat({ kicked: { a: true } }, 'a')).toBe(false)
+  })
+})
+
+describe('memberPresent', () => {
+  it('reads party seats, 2P seat presence and queued spectators', () => {
+    const p = party()
+    p.players.b.online = false
+    expect(memberPresent(p, 'a', true)).toBe(true)
+    expect(memberPresent(p, 'b', true)).toBe(false)
+    expect(memberPresent(p, 'zz', true)).toBe(false)
+    const g = twoP({ presence: { O: { online: false } }, queue: { c: { name: 'Cy', at: 1 }, d: { name: 'Di', at: 2 } }, spectators: { c: { k: { name: 'Cy', at: 1 } }, d: {} } })
+    expect(memberPresent(g, 'a', false)).toBe(true)
+    expect(memberPresent(g, 'b', false)).toBe(false)
+    expect(memberPresent(g, 'c', false)).toBe(true)
+    expect(memberPresent(g, 'd', false)).toBe(false)
+    expect(memberPresent(null, 'a', false)).toBe(false)
   })
 })

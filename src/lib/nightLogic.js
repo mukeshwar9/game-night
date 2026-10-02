@@ -22,6 +22,7 @@
 //   locked:    true — no new seats (spectators still allowed)
 
 import { roomCoordinator } from './coordinator'
+import { isSeatOnline } from './presenceLogic'
 
 // Night points per placement: 1st/2nd/3rd, everyone else 0. Last place never
 // scores (a 2P loss is 0, not 2nd-place points), and an all-tied result (a
@@ -293,6 +294,31 @@ export function nightRecap(rawNight) {
   }
 }
 
+// --- Presence of a room member ------------------------------------------------
+
+/**
+ * Whether `uid` is here right now. Party seats carry their own presence
+ * (`players/{uid}`); 2P seats publish under `presence/{X|O}`; everyone in the
+ * winner-stays queue publishes only as a spectator (`spectators/{uid}`, one
+ * child per open connection). Absent seat presence counts as online, the
+ * codebase-wide `online !== false` convention (isSeatOnline).
+ * @param {object} game - the room
+ * @param {string} uid
+ * @param {boolean} nPlayer - the current game's seat family
+ */
+export function memberPresent(game, uid, nPlayer) {
+  if (!uid || !game) return false
+  if (nPlayer) {
+    const p = game.players?.[uid]
+    return !!p && typeof p === 'object' && isSeatOnline(p)
+  }
+  for (const sym of ['X', 'O']) {
+    if (game.players?.[sym]?.playerId === uid) return isSeatOnline(game.presence?.[sym])
+  }
+  const spec = game.spectators?.[uid]
+  return !!spec && typeof spec === 'object' && Object.keys(spec).length > 0
+}
+
 // --- Seating: queue, winner-stays, party <-> 2P -------------------------------
 
 /** The queue as a list in arrival order. */
@@ -410,9 +436,15 @@ export function nightSwitchSeating(game, updates, { fromParty, toParty, now, hos
   for (const q of normalizeQueue(game.queue)) {
     if (!members.some(m => m.uid === q.uid)) members.push(q)
   }
+  // Only members who are here right now come back online. Writing `online:
+  // true` for everyone (with no conns and no onDisconnect) left a member who
+  // had gone during the 2P game reading as online for good: never a ghost,
+  // holding a place, counted as present, even picked as host. Present clients
+  // re-register their own connection under the new seat within a second.
   const players = {}
   for (const m of members.filter(notKicked)) {
-    players[m.uid] = { name: m.name, playerId: m.uid, joinedAt: m.joinedAt, online: true, avatar: m.avatar ?? null }
+    const here = memberPresent(game, m.uid, false)
+    players[m.uid] = { name: m.name, playerId: m.uid, joinedAt: m.joinedAt, online: here, ...(here ? {} : { offlineAt: now }), avatar: m.avatar ?? null }
   }
   return { ...updates, players, queue: null }
 }

@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ref, update, set as dbSet, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig, isQuietRoom, lobbySwitchOverrides, withFirstMover } from '../lib/games'
+import { freshGameState, getGameConfig, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover } from '../lib/games'
 import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
@@ -36,7 +36,8 @@ import Onboarding from '../components/LazyOnboarding'
 import WatchingChip from '../components/WatchingChip'
 import SeatOffer from '../components/SeatOffer'
 import { isMyTurn, roomAnnouncement, seatedIds, spectatorCount } from '../lib/roomLogic'
-import useRoomSession from '../hooks/room/useRoomSession'
+import useRoomSession, { UPDATE_NEEDED_ERROR } from '../hooks/room/useRoomSession'
+import UpdateNeeded from '../components/UpdateNeeded'
 import useProposal from '../hooks/room/useProposal'
 import useAbandonRecovery from '../hooks/room/useAbandonRecovery'
 import useBackGuard from '../hooks/room/useBackGuard'
@@ -769,6 +770,10 @@ export default function Game() {
   }
 
   if (loading) return <LoadingScreen />
+
+  if (error === UPDATE_NEEDED_ERROR || (game && !isKnownGameType(game.gameType))) {
+    return <UpdateNeeded />
+  }
 
   if (error) {
     const errorCfg = errorGameType ? getGameConfig(errorGameType) : null

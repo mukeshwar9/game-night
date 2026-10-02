@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { ref, onValue, update, runTransaction, remove } from 'firebase/database'
 import { toast } from 'sonner'
 import { db, configError } from '../../lib/firebase'
-import { getGameConfig } from '../../lib/games'
+import { getGameConfig, isKnownGameType } from '../../lib/games'
+
+// error value for a room whose game this build doesn't know (Game.jsx shows
+// an update screen for it)
+export const UPDATE_NEEDED_ERROR = 'UPDATE_NEEDED'
 import { getPlayerId } from '../../lib/playerId'
 import { defaultAvatarForId } from '../../lib/avatarKit'
 import { recordRoom } from '../../lib/profile'
@@ -127,6 +131,15 @@ export default function useRoomSession(gameId) {
       }
 
       let data = snap.val()
+      // A game this build doesn't have (the room was switched by a newer
+      // build): never claim a seat or write anything; Game.jsx asks for an
+      // update. getGameConfig would otherwise read it as tic-tac-toe.
+      if (!isKnownGameType(data.gameType)) {
+        dropWarm()
+        setError(UPDATE_NEEDED_ERROR)
+        setLoading(false)
+        return
+      }
       // Start the game's page/board download now, alongside the seat claim,
       // instead of after it when the room first renders.
       const preCfg = getGameConfig(data.gameType)
