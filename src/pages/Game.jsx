@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ref, update, set as dbSet, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover, PARTY_LOBBY, buildPartyRoom } from '../lib/games'
+import { chatLockFor, freshGameState, getGameConfig, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover, PARTY_LOBBY, buildPartyRoom } from '../lib/games'
 import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
@@ -24,8 +24,7 @@ import GameSwitcher from '../components/GameSwitcher'
 import SettingsButton from '../components/SettingsButton'
 import { useMusicScene } from '../lib/music'
 import { roomMusicScene } from '../lib/musicLogic'
-import ChatLog from '../components/ChatLog'
-import { isQuickChat } from '../lib/emotes'
+import ReactionFloats from '../components/ReactionFloats'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -64,7 +63,6 @@ import { haptic } from '../lib/haptics'
 // them only when a room first shows the bar or floats a reaction, not with
 // the room page itself.
 const EmoteBar = lazyWithRetry(() => import('../components/EmoteBar'))
-const AnimatedEmoji = lazyWithRetry(() => import('../components/AnimatedEmoji'))
 
 // Real-time custom arenas (M-05/M-24) — physics-driven games with their own
 // dedicated page component, square/wide viewport-hungry courts, and a live
@@ -107,71 +105,6 @@ function LoadingScreen() {
 // work, so the same PixelDots line as the room's own loading screen).
 function GameAreaFallback() {
   return <LoadingLine className="py-12" />
-}
-
-// Floating emoji reactions — one per sender/glyph/burst, positioned on the
-// sender's side of the screen (X left, O right) so simultaneous reactions
-// from both players never collide.
-function EmoteFloats({ floats }) {
-  return (
-    <div className="fixed inset-x-0 top-1/3 z-[90] pointer-events-none flex justify-center">
-      {floats.map(f => (
-        <div
-          // re-keyed on count so a combo bump restarts the float animation —
-          // otherwise the `forwards` fill leaves the element invisible while
-          // its re-armed removal timer keeps it alive
-          key={`${f.id}-${f.count}`}
-          className={cn(
-            'absolute flex flex-col items-center gap-1',
-            f.kind === 'chat'
-              ? (f.seat === 'X' ? 'left-[16%]' : f.seat === 'O' ? 'right-[16%]' : 'left-1/2 -translate-x-1/2')
-              : f.spectator ? 'left-1/2 -translate-x-1/2'
-                : (f.by === 'X' ? 'left-[16%]' : 'right-[16%]')
-          )}
-          style={{ animation: 'emote-float 2s ease-out forwards' }}
-        >
-          {f.kind === 'chat' ? (
-            <div className="flex flex-col items-center gap-0.5 max-w-[60vw]">
-              <span className="font-pixel text-[8px] text-retro-dim">{f.name}</span>
-              <span className="font-pixel text-sm text-retro-cta text-glow-cta break-words">{f.text}</span>
-            </div>
-          ) : (
-            <>
-              <div
-                className="flex items-center gap-1"
-                style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
-              >
-                {isQuickChat(f.glyph) ? (
-                  <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
-                ) : (
-                  <Suspense fallback={<span className="w-20 h-20" aria-hidden="true" />}>
-                    <AnimatedEmoji glyph={f.glyph} className="w-20 h-20 object-contain" />
-                  </Suspense>
-                )}
-                {f.count > 1 && (
-                  <span
-                    key={f.count}
-                    className="font-pixel text-sm text-retro-cta text-glow-cta"
-                    style={{ animation: 'emote-pop 0.15s ease-out' }}
-                  >
-                    ×{f.count}
-                  </span>
-                )}
-              </div>
-              {f.name && (
-                <span className={cn(
-                  'font-pixel text-[8px]',
-                  f.spectator ? 'text-retro-dim' : f.by === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
-                )}>
-                  {f.name}
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      ))}
-    </div>
-  )
 }
 
 // M-22: lightweight in-app confirm for an intercepted back-gesture / "← HOME"
@@ -242,7 +175,7 @@ export default function Game() {
   const prevLobbyGameType = useRef(null)
   const prevLobbyHasOpponent = useRef(false)
 
-  const { floats, sendEmote, sendChat, emoteCooldown, chatCooldown } = useFloats({ game, gameId, mySymbol })
+  const { floats, sendEmote, sendChat, emoteCooldown, chatCooldown, announcement: chatAnnouncement } = useFloats({ game, gameId, mySymbol })
   // Error reports (telemetry.js) carry the current gameType.
   useEffect(() => {
     setTelemetryContext({ gameType: game?.gameType ?? null })
@@ -846,6 +779,7 @@ export default function Game() {
     const isHost = hostUidOf(game) === myUid
     const amSeated = !!nplayers[myUid]
     const watching = spectatorCount(game.spectators, seatedIds(nplayers))
+    const chatLock = chatLockFor(game, myUid)
     const nProps = {
       gameId, game, mySeat: myUid, players: nplayers, isHost,
       onStart: handleNStart,
@@ -864,8 +798,9 @@ export default function Game() {
         {showRules && (
           <RulesModal gameType={game.gameType} onClose={() => setShowRules(false)} />
         )}
-        {floats.length > 0 && <EmoteFloats floats={floats} />}
+        <ReactionFloats floats={floats} />
         <LiveAnnouncer message={announcement} />
+        <LiveAnnouncer message={chatAnnouncement} />
         <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
           <div className="game-header flex items-start justify-between gap-2">
             <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-flex items-center min-h-11 p-3 -m-3">← HOME</Link>
@@ -909,11 +844,10 @@ export default function Game() {
           {/* Game night: kicked notice, lobby timers, tonight's scoreboard, host controls */}
           <NightPanel game={game} gameId={gameId} nPlayer onBackToParty={game.partyRoom && !inLobby ? () => applySwitchGame(PARTY_LOBBY.type) : null} />
 
-          <ChatLog chatLog={game.chatLog} myUid={myUid} />
-
-          {/* Seated players and spectators alike can react once a round is on. */}
-          {game.status !== 'waiting' && (
-            <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></Suspense></VideoCallReactionDock>
+          {/* Seated players and spectators alike can react and chat once a
+              round is on — and in the lobby as soon as two players are in. */}
+          {(game.status !== 'waiting' || seatedIds(nplayers).length >= 2) && (
+            <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={quietRoom ? undefined : sendChat} textCooldown={chatCooldown} quiet={quietRoom} chatLog={game.chatLog} myUid={myUid} chatLock={chatLock} /></Suspense></VideoCallReactionDock>
           )}
         </div>
         {showInvite && (
@@ -999,8 +933,9 @@ export default function Game() {
         <RulesModal gameType={game.gameType} onClose={() => setShowRules(false)} />
       )}
 
-      {floats.length > 0 && <EmoteFloats floats={floats} />}
+      <ReactionFloats floats={floats} />
       <LiveAnnouncer message={announcement} />
+      <LiveAnnouncer message={chatAnnouncement} />
 
       <div className={cn(
         'w-full',
@@ -1234,16 +1169,11 @@ export default function Game() {
           </div>
         )}
 
-        {/* Free-text chat log — visible to spectators too; self-hides when empty.
-            Silent games (registry `quiet`: HUNCH always, CONVERGE while words
-            are written) hide typed chat; emotes stay. */}
-        {!quietRoom && <ChatLog chatLog={game.chatLog} myUid={getPlayerId()} />}
-
         {/* Emote / reaction bar — hidden while waiting for an opponent (M-XX:
             nobody to react to yet). Shown to a seated player once an
             opponent has joined, or to a spectator watching a live game. */}
         {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
-          <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={quietRoom ? undefined : sendChat} textCooldown={chatCooldown} quiet={quietRoom} /></Suspense></VideoCallReactionDock>
+          <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={quietRoom ? undefined : sendChat} textCooldown={chatCooldown} quiet={quietRoom} chatLog={game.chatLog} myUid={getPlayerId()} chatLock={chatLockFor(game, getPlayerId())} /></Suspense></VideoCallReactionDock>
         )}
       </div>
       {showInvite && (

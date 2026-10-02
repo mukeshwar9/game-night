@@ -7,6 +7,11 @@ function unique(list) {
 
 export const EMOTES_PRIMARY = ['🔥', '😂', '😭', '😎', '👏', '💀', '🤫']
 
+// The room dock's fixed reaction slots. Fixed on purpose: slots that re-sort
+// by use move under the thumb (muscle memory is the point of quick emotes).
+// Recently used picks show in the picker's RECENT row instead.
+export const EMOTES_DOCK = ['🔥', '😂', '😭', '👏', '💀']
+
 const PRIMARY_FACES = ['😂', '😭', '😎', '🤫']
 
 // Full Unicode smiley / face catalog (no skin tones). Order = picker grid order.

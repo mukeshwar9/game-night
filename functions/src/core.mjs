@@ -35,6 +35,14 @@ export { matchTargetFor } from '../../src/lib/matchRules'
 // Names other players wrote are clamped and masked before the server shows or
 // stores them (leaderboard rows, push text) — same helper as the app.
 export { displayNameFor } from '../../src/lib/moderationLogic'
+// Room chat moderation and report triage (chatModeration.js): the Jev request
+// builders and decision policy, plus the same log/reaction pruning helpers
+// the client uses.
+export {
+  buildModerationRequest, moderationDecision, buildTriageRequest, triageSummary, JEV_ENDPOINT,
+} from '../../src/lib/chatModerationLogic'
+export { normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../../src/lib/chat'
+export { normalizeEmotes, emoteKeysToPrune, EMOTES_CAP } from '../../src/lib/chatUiLogic'
 
 // How many recent match keys a leaderboard row keeps for idempotency. A
 // credit is applied within seconds of the finish, so a handful is plenty.

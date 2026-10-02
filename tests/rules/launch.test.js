@@ -132,8 +132,8 @@ describe('A9: chat cannot be dated into the future', () => {
   it('rejects a far-future ts', async () => {
     await put('games/R3', gameNode({ x: 'alice', extra: { createdAt: Date.now() } }))
     await assertSucceeds(as('mallory').ref('games/R3/spectators/mallory/c1').set({ name: 'm', at: Date.now() }))
-    await assertFails(as('mallory').ref('games/R3/chatLog/m1').set({ by: 'mallory', name: 'Mallory', text: 'hi', ts: FAR }))
-    await assertSucceeds(as('mallory').ref('games/R3/chatLog/m2').set({ by: 'mallory', name: 'Mallory', text: 'hi', ts: Date.now() }))
+    await assertFails(as('mallory').ref('games/R3').update({ 'chatLog/m1': { by: 'mallory', name: 'Mallory', text: 'hi', ts: FAR }, 'chatLast/mallory': { '.sv': 'timestamp' } }))
+    await assertSucceeds(as('mallory').ref('games/R3').update({ 'chatLog/m2': { by: 'mallory', name: 'Mallory', text: 'hi', ts: Date.now() }, 'chatLast/mallory': { '.sv': 'timestamp' } }))
   })
   it('rejects a far-future spectator join', async () => {
     await put('games/R3', gameNode({ x: 'alice', extra: { createdAt: Date.now() } }))

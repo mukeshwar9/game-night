@@ -24,7 +24,7 @@ test('two players converge on a word', async ({ browser }) => {
 
   await test.step('typed chat is hidden while words are written', async () => {
     // Agreeing a word in chat would make every chain a free ★★★.
-    await expect(alice.page.getByPlaceholder('Say something…')).toHaveCount(0)
+    await expect(alice.page.getByRole('button', { name: /^Open chat/ })).toHaveCount(0)
   })
 
   await test.step('the same opening word does not score', async () => {
@@ -69,7 +69,7 @@ test('two players converge on a word', async ({ browser }) => {
       await expect(page.getByText('STARS 3/15')).toBeVisible()
     }
     // Between chains the chat is back.
-    await expect(alice.page.getByPlaceholder('Say something…')).toBeVisible()
+    await expect(alice.page.getByRole('button', { name: /^Open chat/ })).toBeVisible()
   })
 
   await test.step('the match ends after five chains and PLAY AGAIN keeps the best', async () => {

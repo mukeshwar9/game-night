@@ -37,6 +37,11 @@ const voice = require('./voice')
 exports.voiceSfu = voice.voiceSfu
 exports.voiceOnBlock = voice.voiceOnBlock
 exports.voiceOnRemove = voice.voiceOnRemove
+// Room chat: keeps each log bounded and, once a TypeSafe key is configured,
+// moderates new lines and triages player reports with Jev (chatModeration.js).
+const chatModeration = require('./chatModeration')
+exports.moderateChatMessage = chatModeration.moderateChatMessage
+exports.triageReport = chatModeration.triageReport
 const { errorsCutoffKey, isExpiredErrorDay } = require('./lib/core.cjs');
 
 const DAY_MS = 24 * 60 * 60 * 1000;

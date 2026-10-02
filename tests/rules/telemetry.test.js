@@ -103,6 +103,13 @@ describe('feedback cooldown and chat reports', () => {
     await put('users/alice/lastFeedbackAt', 1)
     await assertFails(file('alice', 'f2', { ...r, text: 'x'.repeat(201) }))
   })
+
+  it('accepts the chat lines around a reported message, capped at 1000 characters', async () => {
+    const r = item('alice', { type: 'report', message: 'Chat report — BOB: "rude"', gameId: 'ABC123', targetUid: 'bob', targetName: 'Bob', text: 'rude', chatContext: 'Ann: hi\nBob: rude' })
+    await assertSucceeds(file('alice', 'f1', r))
+    await put('users/alice/lastFeedbackAt', 1)
+    await assertFails(file('alice', 'f2', { ...r, chatContext: 'x'.repeat(1001) }))
+  })
 })
 
 describe('leaderboard', () => {

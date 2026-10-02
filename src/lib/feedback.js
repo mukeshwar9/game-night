@@ -56,8 +56,22 @@ export function normalizeFeedbackItem(id, raw) {
     item.targetUid = str(raw.targetUid)
     item.targetName = str(raw.targetName)
     item.text = str(raw.text)
+    item.chatContext = str(raw.chatContext)
+    // Written by the triageReport / moderateChatMessage functions (Jev).
+    const t = raw.triage
+    item.triage = t && typeof t === 'object'
+      ? { category: str(t.category), severity: num(t.severity), supported: num(t.supported), priority: num(t.priority) }
+      : null
   }
   return item
+}
+
+// The REPORTS view: open reports first, highest triage priority first among
+// them (untriaged ones after triaged ones), then newest. Pure; doesn't mutate.
+export function sortReports(items) {
+  const open = (i) => (i.status === 'open' ? 0 : 1)
+  const prio = (i) => (i.triage ? i.triage.priority : -1)
+  return [...items].sort((a, b) => open(a) - open(b) || prio(b) - prio(a) || b.createdAt - a.createdAt)
 }
 
 // Snapshot value → newest-first list of normalized items.
@@ -177,7 +191,7 @@ export const REPORT_CONTEXTS = ['chat', 'profile', 'drawing', 'voice']
 
 // The text and page of a report. A chat report quotes the message; a profile or
 // drawing report names the player (and the drawing's word, when given). Pure.
-export function buildReport({ context = 'chat', gameId, targetName, text } = {}) {
+export function buildReport({ context = 'chat', gameId, targetName, text, chatContext } = {}) {
   const kind = REPORT_CONTEXTS.includes(context) ? context : 'chat'
   const who = String(targetName || 'a player').slice(0, 40)
   const quoted = String(text || '').trim().slice(0, REPORT_TEXT_MAX)
@@ -186,6 +200,8 @@ export function buildReport({ context = 'chat', gameId, targetName, text } = {})
   return {
     quoted,
     who,
+    // The lines around a reported chat message (reportContextFor), for review.
+    chatContext: kind === 'chat' ? String(chatContext || '').slice(0, 1000) : '',
     message: `${label} report — ${who}${detail}`.slice(0, FEEDBACK_MAX_LENGTH),
     page: (gameId ? `/game/${gameId}` : '/friends').slice(0, 300),
   }
@@ -194,14 +210,14 @@ export function buildReport({ context = 'chat', gameId, targetName, text } = {})
 // Report a player to the admins: a chat message, their profile (name or avatar)
 // or a drawing. Same result shape as submitFeedback. Chat and drawing reports
 // come from a room, so they need a gameId; a profile report does not.
-export async function submitReport({ context = 'chat', gameId, targetUid, targetName, text, profile } = {}) {
+export async function submitReport({ context = 'chat', gameId, targetUid, targetName, text, chatContext, profile } = {}) {
   const uid = getUid()
   if (!db || !uid || !targetUid || targetUid === uid) return { ok: false, reason: 'invalid' }
   if (context !== 'profile' && !gameId) return { ok: false, reason: 'invalid' }
   const now = Date.now()
   const wait = getFeedbackCooldownLeft(now)
   if (wait > 0) return { ok: false, reason: 'cooldown', retryInMs: wait }
-  const built = buildReport({ context, gameId, targetName, text })
+  const built = buildReport({ context, gameId, targetName, text, chatContext })
   const id = await writeFeedback(uid, {
     type: 'report',
     message: built.message,
@@ -210,6 +226,7 @@ export async function submitReport({ context = 'chat', gameId, targetUid, target
     targetUid: String(targetUid).slice(0, 128),
     targetName: built.who,
     text: built.quoted,
+    ...(built.chatContext ? { chatContext: built.chatContext } : {}),
     ...authorFields(uid, profile),
     status: 'open',
     createdAt: now,

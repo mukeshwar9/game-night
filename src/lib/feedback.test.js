@@ -3,7 +3,7 @@ import {
   FEEDBACK_COOLDOWN_MS, FEEDBACK_MAX_LENGTH,
   normalizeFeedbackType, normalizeFeedbackStatus, normalizeFeedbackItem, normalizeFeedbackList,
   countFeedback, feedbackCooldownLeft, buildErrorFeedbackMessage,
-  saveFeedbackDraft, readFeedbackDraft, clearFeedbackDraft, buildReport,
+  saveFeedbackDraft, readFeedbackDraft, clearFeedbackDraft, buildReport, sortReports,
 } from './feedback'
 
 describe('normalizeFeedbackType / normalizeFeedbackStatus', () => {
@@ -145,5 +145,32 @@ describe('buildReport', () => {
     expect(r.who).toHaveLength(40)
     expect(r.quoted).toHaveLength(200)
     expect(r.message.length).toBeLessThanOrEqual(FEEDBACK_MAX_LENGTH)
+  })
+
+  it('carries the chat lines around a chat report, capped, and none for other reports', () => {
+    expect(buildReport({ gameId: 'X', targetName: 'Bob', text: 'hi', chatContext: 'Ann: hey\nBob: hi' }).chatContext).toBe('Ann: hey\nBob: hi')
+    expect(buildReport({ gameId: 'X', targetName: 'Bob', text: 'hi', chatContext: 'c'.repeat(2000) }).chatContext).toHaveLength(1000)
+    expect(buildReport({ context: 'profile', targetName: 'Bob', chatContext: 'Ann: hey' }).chatContext).toBe('')
+  })
+})
+
+describe('report triage in the admin inbox', () => {
+  const rep = (id, over = {}) => normalizeFeedbackItem(id, { type: 'report', message: 'Chat report — x', status: 'open', createdAt: 1, ...over })
+
+  it('keeps the chat context and a normalized triage record', () => {
+    const r = rep('a', { chatContext: 'Ann: hi', triage: { category: 'sexual', severity: 2.5, supported: 0.9, priority: 0.8, junk: 1 } })
+    expect(r.chatContext).toBe('Ann: hi')
+    expect(r.triage).toEqual({ category: 'sexual', severity: 2.5, supported: 0.9, priority: 0.8 })
+    expect(rep('b').triage).toBeNull()
+  })
+
+  it('sorts open reports by triage priority, untriaged after, closed last', () => {
+    const items = [
+      rep('low', { triage: { priority: 0.1 }, createdAt: 5 }),
+      rep('none', { createdAt: 9 }),
+      rep('high', { triage: { priority: 0.9 }, createdAt: 2 }),
+      rep('done', { status: 'done', triage: { priority: 1 }, createdAt: 3 }),
+    ]
+    expect(sortReports(items).map(i => i.id)).toEqual(['high', 'low', 'none', 'done'])
   })
 })

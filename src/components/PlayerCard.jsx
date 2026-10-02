@@ -11,7 +11,7 @@ export default function PlayerCard({ name, symbol, isActive, isMe, score, online
 
   if (isOpenSeat) {
     return (
-      <div className="flex items-center gap-2.5 px-3 py-2.5 border-2 border-dashed border-retro-border rounded">
+      <div data-seat-card={symbol} className="flex items-center gap-2.5 px-3 py-2.5 border-2 border-dashed border-retro-border rounded">
         <div className="w-9 h-9 flex items-center justify-center rounded flex-shrink-0 border border-dashed border-retro-border">
           <span className="font-pixel text-base text-retro-dim">?</span>
         </div>
@@ -23,8 +23,10 @@ export default function PlayerCard({ name, symbol, isActive, isMe, score, online
     )
   }
 
+  // data-seat-card: reactions and chat lines float from this card
+  // (ReactionFloats.jsx).
   return (
-    <div className={cn(
+    <div data-seat-card={symbol} className={cn(
       'flex items-center gap-2.5 px-3 py-2.5 border-2 rounded transition-all duration-200',
       isActive
         ? isX

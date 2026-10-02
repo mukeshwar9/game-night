@@ -1,6 +1,6 @@
 # Cloud Functions
 
-Twelve functions, exported from `index.js`. Cloud Functions need the **Blaze (pay-as-you-go) plan**. Every function has a `maxInstances` cap (`setGlobalOptions` in `index.js`, plus one per function), so a burst of room or invite writes cannot run up the bill.
+Fourteen functions, exported from `index.js`. Cloud Functions need the **Blaze (pay-as-you-go) plan**. Every function has a `maxInstances` cap (`setGlobalOptions` in `index.js`, plus one per function), so a burst of room or invite writes cannot run up the bill.
 
 | Function | Trigger | What it does |
 |---|---|---|
@@ -14,8 +14,12 @@ Twelve functions, exported from `index.js`. Cloud Functions need the **Blaze (pa
 | `createRazorpayOrder`, `verifyRazorpayPayment` (`razorpay.js`) | Callable | For buyers paying in rupees: a Razorpay order at the catalog's INR price (same Google account and age checks), then a check of Checkout's signature and the captured payment that grants the item. |
 | `razorpayWebhook` (`razorpay.js`) | HTTPS | Verifies `X-Razorpay-Signature`; `payment.captured` / `order.paid` grant and a full `refund.processed` revokes, once per payment id, through the same `applyPlan` as Paddle. |
 | `syncAdminAccess` (`billing.js`) | Callable | Sets `entitlements/{uid}/admin` and a `premiumAdmin` claim for verified emails in `ADMIN_EMAILS`, so admins see every premium item in production. |
+| `moderateChatMessage` (`chatModeration.js`) | Create of `games/{gameId}/chatLog/{msgId}` | Prunes the room's chat log back to 30 lines (clients prune too; this catches one that doesn't). When a TypeSafe key is configured it also asks Jev for a typed judgment of the new line in context (category, severity, aimed at a player) and applies the policy in `src/lib/chatModerationLogic.js`: a confident serious call sets `hidden` on the line and counts a strike in `moderation/{uid}`, and both hidden and uncertain lines are queued in `feedback/` (by `auto-moderation`) for an admin. |
+| `triageReport` (`chatModeration.js`) | Create of `feedback/{id}` | For a player report, when a TypeSafe key is configured: asks Jev for category, severity and whether the attached chat context supports the report, and stores it as `triage` (with a `priority`) so the admin inbox can sort by it. |
 
 Payments run against Paddle's sandbox unless `PADDLE_ENV=production`. Configuration (`PADDLE_PRICES`, `ADMIN_EMAILS`, `RAZORPAY_KEY_ID`) is in `.env` (see `.env.example`); `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` are secrets, bound only when `PAYMENTS_SECRETS=1` (without it the functions deploy with no Secret Manager and refuse payments as not configured: Paddle with `payments-not-configured`, Razorpay with 503 `razorpay-not-configured`). Razorpay live keys are refused unless `RAZORPAY_ENV=production`. Full notes: `docs/MONETIZATION.md`.
+
+Chat moderation and report triage stay off until a TypeSafe key exists: `TYPESAFE_API_KEY` is a secret bound only when `TYPESAFE_SECRETS=1` (or a plain value in `.env` for the emulator). The thresholds in `src/lib/chatModerationLogic.js` are starting points to tune on real chat.
 
 ## How a result is credited
 

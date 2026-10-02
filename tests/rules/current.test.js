@@ -159,32 +159,34 @@ describe('games — public rooms', () => {
 
 describe('games — chatLog', () => {
   const msg = (by, text = 'gg') => ({ by, name: 'Bob', text, ts: 1 })
+  // A new message goes out with its sender's server-time chatLast stamp (R8).
+  const post = (uid, key, m) => dbAs(testEnv, uid).ref('games/g1').update({ [`chatLog/${key}`]: m, [`chatLast/${uid}`]: { '.sv': 'timestamp' } })
 
   it('accepts a message authored by the writer', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB }))
-    await assertSucceeds(dbAs(testEnv, BOB).ref('games/g1/chatLog/m1').set(msg(BOB)))
+    await assertSucceeds(post(BOB, 'm1', msg(BOB)))
   })
 
   it('rejects a message attributed to someone else', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB }))
-    await assertFails(dbAs(testEnv, BOB).ref('games/g1/chatLog/m1').set(msg(ALICE)))
+    await assertFails(post(BOB, 'm1', msg(ALICE)))
   })
 
   it('rejects empty and over-80-character messages', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB }))
-    await assertFails(dbAs(testEnv, BOB).ref('games/g1/chatLog/m1').set(msg(BOB, '')))
-    await assertFails(dbAs(testEnv, BOB).ref('games/g1/chatLog/m1').set(msg(BOB, 'x'.repeat(81))))
+    await assertFails(post(BOB, 'm1', msg(BOB, '')))
+    await assertFails(post(BOB, 'm1', msg(BOB, 'x'.repeat(81))))
   })
 
   it('closed gap (report 5.6): a stranger outside the room cannot post into a private room or delete others’ messages', async () => {
     await seed(testEnv, 'games/g1', { ...gameNode({ x: ALICE, o: BOB }), chatLog: { m1: msg(BOB) } })
-    await assertFails(dbAs(testEnv, MALLORY).ref('games/g1/chatLog/m2').set(msg(MALLORY, 'spam')))
+    await assertFails(post(MALLORY, 'm2', msg(MALLORY, 'spam')))
     await assertFails(dbAs(testEnv, MALLORY).ref('games/g1/chatLog/m1').remove())
   })
 
   it('denies a stranger posting into a public room', async () => {
     await seed(testEnv, 'games/g1', gameNode({ x: ALICE, o: BOB, visibility: 'public' }))
-    await assertFails(dbAs(testEnv, MALLORY).ref('games/g1/chatLog/m1').set(msg(MALLORY)))
+    await assertFails(post(MALLORY, 'm1', msg(MALLORY)))
   })
 
   it('lets a whole-room write carry other players’ messages unchanged', async () => {

@@ -203,10 +203,11 @@ describe('lobbySwitchOverrides', () => {
     expect(out.status).toBe('waiting')
   })
 
-  it('removes chatLog and emote keys entirely (not nulled)', () => {
-    const out = lobbySwitchOverrides({ gameType: 'connectfour', status: 'playing', chatLog: null, emote: null })
+  it('removes chatLog, emote and emotes keys entirely (not nulled)', () => {
+    const out = lobbySwitchOverrides({ gameType: 'connectfour', status: 'playing', chatLog: null, emote: null, emotes: null })
     expect('chatLog' in out).toBe(false)
     expect('emote' in out).toBe(false)
+    expect('emotes' in out).toBe(false)
   })
 
   it('preserves other keys untouched', () => {

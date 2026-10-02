@@ -132,3 +132,25 @@ export function chatKeysToPrune(entries, cap = CHAT_LOG_CAP) {
   const excess = entries.length - cap
   return entries.slice(0, excess).map(([key]) => key)
 }
+
+// ---------------------------------------------------------------------------
+// reportContextFor — the conversation around a reported line, for the admin
+// who reviews it (and the report-triage function): up to REPORT_CONTEXT_LINES
+// lines ending at the reported one, as "Name: text" lines, masked, clamped to
+// REPORT_CONTEXT_MAX characters (oldest lines dropped first). '' when the key
+// isn't in the log.
+// ---------------------------------------------------------------------------
+export const REPORT_CONTEXT_LINES = 8
+export const REPORT_CONTEXT_MAX = 1000
+
+export function reportContextFor(entries, key) {
+  if (!Array.isArray(entries)) return ''
+  const at = entries.findIndex(([k]) => k === key)
+  if (at < 0) return ''
+  const lines = entries.slice(Math.max(0, at - REPORT_CONTEXT_LINES + 1), at + 1).map(([, m]) => {
+    const name = moderateText(String(m.name || 'PLAYER').slice(0, 20)).text
+    return `${name}: ${moderateText(m.text || (m.img ? '[sticker]' : '')).text}`
+  })
+  while (lines.length > 1 && lines.join('\n').length > REPORT_CONTEXT_MAX) lines.shift()
+  return lines.join('\n').slice(-REPORT_CONTEXT_MAX)
+}

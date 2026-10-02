@@ -11,6 +11,7 @@ import {
   countFeedback,
   readFeedbackDraft,
   submitFeedback,
+  sortReports,
   subscribeFeedback,
   updateFeedbackStatus,
 } from '../lib/feedback'
@@ -211,7 +212,9 @@ function FeedbackAdmin() {
   if (items === null) return <EmptyState>ADMIN ACCESS REQUIRED</EmptyState>
 
   const counts = countFeedback(items)
-  const visible = filter === 'all' ? items : items.filter(i => i.type === filter)
+  const visible = filter === 'all' ? items
+    : filter === 'report' ? sortReports(items.filter(i => i.type === 'report'))
+    : items.filter(i => i.type === filter)
 
   return (
     <div className="space-y-3">
@@ -449,6 +452,15 @@ function FeedbackCard({ item, updatingStatus, onStatus }) {
       </div>
 
       <p className="font-mono text-sm leading-relaxed text-retro-text whitespace-pre-wrap break-words">{item.message}</p>
+
+      {item.type === 'report' && item.triage && (
+        <p className="font-pixel text-[8px] tracking-wider text-retro-cta">
+          JEV TRIAGE: {item.triage.category.replace(/_/g, ' ').toUpperCase()} · SEVERITY {item.triage.severity.toFixed(1)}/3 · SUPPORTED {Math.round(item.triage.supported * 100)}%
+        </p>
+      )}
+      {item.type === 'report' && item.chatContext && (
+        <pre className="font-mono text-[11px] leading-snug text-retro-dim whitespace-pre-wrap break-words border-l-2 border-retro-border pl-2">{item.chatContext}</pre>
+      )}
 
       {item.type === 'report' ? (
         <p className="font-mono text-[10px] text-retro-dim break-all">

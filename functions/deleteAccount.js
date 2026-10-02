@@ -15,6 +15,8 @@ function accountPaths(uid, { friendUids = [], code = null } = {}) {
     `leaderboard/${uid}`, `users/${uid}`, `profiles/${uid}`, `presence/${uid}`,
     `friends/${uid}`, `friendRequests/${uid}`, `invites/${uid}`, `blocks/${uid}`, `voiceUsers/${uid}`,
     `entitlements/${uid}`, `entitlementsPublic/${uid}`, `ageGate/${uid}`,
+    // Chat moderation strikes (chatModeration.js), server-only.
+    `moderation/${uid}`,
   ]
   if (code) paths.push(`codes/${code}`)
   for (const friend of friendUids) paths.push(`friends/${friend}/${uid}`)

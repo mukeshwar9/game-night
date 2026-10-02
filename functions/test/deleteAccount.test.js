@@ -16,6 +16,10 @@ describe('accountPaths', () => {
     assert.ok(paths.includes('entitlementsPublic/u1'))
   })
 
+  test('clears the server-only chat moderation strikes', () => {
+    assert.ok(_test.accountPaths('u1').includes('moderation/u1'))
+  })
+
   test('adds the friend code and the reverse friend rows when known', () => {
     const paths = _test.accountPaths('u1', { friendUids: ['a', 'b'], code: 'ABC234' })
     assert.ok(paths.includes('codes/ABC234'))

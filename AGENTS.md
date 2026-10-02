@@ -25,7 +25,7 @@ Copy `.env.local.example` to `.env.local` and fill in Firebase config values (`V
 
 ## Architecture
 
-This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime Database**; `database.rules.json` is the trust boundary. Cloud Functions in `functions/` (Node 22, Blaze plan) run server-side: hourly room cleanup, `creditMatchResults` (writes the leaderboard after re-checking board-game winners), `sendInvitePush` and `cleanupDeletedAccount` (`functions/README.md`).
+This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime Database**; `database.rules.json` is the trust boundary. Cloud Functions in `functions/` (Node 22, Blaze plan) run server-side: hourly room cleanup, `creditMatchResults` (writes the leaderboard after re-checking board-game winners), `sendInvitePush`, `cleanupDeletedAccount`, and `moderateChatMessage` / `triageReport` (chat log pruning; TypeSafe Jev moderation and report triage, off until a key is configured) (`functions/README.md`).
 
 ### Layout
 
@@ -61,6 +61,8 @@ presence:
   O: { online: boolean }
 proposal: { action: 'playAgain'|'newMatch'|'switch', gameType, by, declined } — rematch/switch consent handshake; absent when none pending; cleared (null) by every apply/reset write
 ```
+
+Room chat and reactions: `chatLog/{pushId}` and `emotes/{pushId}` (append-only, pruned; per-match, in `FIELD_NULLS`). Every send also stamps `chatLast/{uid}` / `emoteLast/{uid}` with server time in the same write — the rules rate-limit on it (`tests/rules/chat.test.js`). The legacy single `emote` slot is still read for old clients. The moderation function may set `hidden` on a line; clients skip hidden lines. The dock, chat sheet and floats are `EmoteBar` / `ChatSheet` / `ReactionFloats` (floats anchor to `PlayerCard`'s `data-seat-card`); a registry `chatLocked(game, uid)` hook (Sketch) replaces the chat input with a reason.
 
 Party games key `players` by uid instead of X/O. Presence is per connection (`presence/{seat}/conns/{pushId}`, `players/{uid}/conns`); a seat is online if any connection exists (`presenceLogic.js`). Spectators write `spectators/{uid}`. Room-level keys that must **survive switches and NEW MATCH** stay out of `FIELD_NULLS`: `night`, `queue`, `partyRoom`, `hostUid`, `locked`, `timerScale`, `seen/{deck}`, `sealKeys/{uid}`. Per-match keys that reset are in `FIELD_NULLS` (e.g. `nightMark`, `kicked`, `raceResult`, `pieSwap`).
 

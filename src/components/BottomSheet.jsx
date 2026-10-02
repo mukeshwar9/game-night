@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import useModalHistory from '../hooks/useModalHistory'
+import useKeyboardInset from '../hooks/useKeyboardInset'
 
 const DRAG_CLOSE_PX = 90
 
@@ -37,6 +38,9 @@ let openSheets = 0
 // markup/props untouched. `className` merges (via tailwind-merge) onto the
 // panel for per-caller background/spacing (e.g. `bg-retro-card space-y-3`).
 //
+// `keyboardSafe` (optional) lifts the panel above the on-screen keyboard
+// (visualViewport), for sheets with a text input pinned at the bottom.
+//
 // `onBack` (optional) overrides `onClose` for the hardware/gesture back path
 // only — falls back to `onClose` when omitted. A completed back gesture is
 // not cancellable the way a backdrop-tap/Escape/drag-close is, so a caller
@@ -44,13 +48,14 @@ let openSheets = 0
 // GameSwitcher while a switch request is pending) must pass an unconditional
 // `onBack` or the guard can eat a back-press and let the *next* one fall
 // through to the underlying route (M-06).
-export default function BottomSheet({ onClose, onBack, children, className = '', ariaLabel, labelledBy, backdropClassName = 'bg-black/70' }) {
+export default function BottomSheet({ onClose, onBack, children, className = '', ariaLabel, labelledBy, backdropClassName = 'bg-black/70', keyboardSafe = false }) {
   const [dragY, setDragY] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [entered, setEntered] = useState(false)
   const dragStartRef = useRef(0)
   const panelRef = useRef(null)
   const openerRef = useRef(null)
+  const keyboardInset = useKeyboardInset(keyboardSafe)
 
   useModalHistory(onBack || onClose)
 
@@ -125,6 +130,7 @@ export default function BottomSheet({ onClose, onBack, children, className = '',
   return createPortal(
     <div
       className={cn('fixed inset-0 z-50 flex items-end sm:items-center justify-center', backdropClassName)}
+      style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
       onClick={onClose}
     >
       <div

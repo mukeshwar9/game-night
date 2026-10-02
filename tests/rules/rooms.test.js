@@ -266,7 +266,7 @@ describe('spectators, chat and emotes', () => {
 
   it('lets a spectator chat as themselves and prune the log', async () => {
     await put('games/g1', { ...gameNode({ x: ALICE, o: BOB }), spectators: watching(CAROL), chatLog: { m1: msg(BOB) } })
-    await assertSucceeds(as(CAROL).ref('games/g1/chatLog').update({ m2: msg(CAROL), m1: null }))
+    await assertSucceeds(as(CAROL).ref('games/g1').update({ 'chatLog/m2': msg(CAROL), 'chatLog/m1': null, 'chatLast/carol': { '.sv': 'timestamp' } }))
     await assertFails(as(CAROL).ref('games/g1/chatLog/m3').set(msg(ALICE)))
   })
 

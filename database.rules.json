@@ -70,7 +70,7 @@
           }
         },
         "$other": {
-          ".validate": "$other.matches(/^(Stack|aimEndTime|aimFriendlyO|aimFriendlyX|aimHitsO|aimHitsX|aimMissesO|aimMissesX|aimScoreO|aimScoreX|aimTargetO|aimTargetX|aimTimesO|aimTimesX|airhockeyScoreO|airhockeyScoreX|archeryFormat|archeryPhase|archerySeatUids|archerySeed|archeryShootOffShots|archeryShots|archeryTied|archeryTurnStartedAt|arrowsCleared|arrowsGoneO|arrowsGoneX|arrowsLastBlocked|arrowsLevel|arrowsLivesO|arrowsLivesX|arrowsRound|arrowsSeed|arrowsSeen|arrowsStartedAt|arrowsTrapSeen|artillerySeed|artilleryShots|ataxxMoves|blockadeMoves|blockadePawnO|blockadePawnX|blockadeWallsO|blockadeWallsX|bluffRound|board|boxes|chatLog|chimpDoneO|chimpDoneX|chimpFailO|chimpFailX|chimpLayout|chimpLevel|chimpMiss|chimpProgressO|chimpProgressX|chimpRoundStartedAt|chimpTimeO|chimpTimeX|crEliminated|crLastMove|crMoves|crPlaced|crSeatSymbols|createdAt|currentTurn|diceLast|diceRollIndex|diceRolls|diceScoreO|diceScoreX|diceSeed|diceSeedB|diceSeedCommitX|diceSeedCommitter|diceSeedResets|diceSeedRevealX|diceTurnScore|emote|extraTurn|gameType|goesFirst|golfAway|golfClock|golfCourse|golfOrder|golfShots|golfSkip|hangwomanAnyWord|herdCow|hostUid|kamisadoColor|kamisadoTowers|kicked|lastActivityAt|lastFrom|lastMove|lastTo|lobby|locked|mancalaLast|mancalaPits|matchLength|mathConfig|mathCorrectO|mathCorrectX|mathEndTime|mathQIndex|mathQIndexO|mathQIndexX|mathQStartAt|mathScoreO|mathScoreX|mathSeed|mathStartedAt|mathStreakO|mathStreakX|mathWrongO|mathWrongX|mem|minesDeadO|minesDeadX|minesDoneO|minesDoneX|minesRevealedO|minesRevealedX|minesSeed|minesStartedAt|night|nightMark|numRound|onitamaHandO|onitamaHandX|onitamaSpare|pacmacScoreO|pacmacScoreX|paintScoreO|paintScoreX|pairsDeadline|pairsDeck|pairsFlipped|partyRoom|passNote|pieSwap|players|pongMode|pongScoreO|pongScoreX|presence|proposal|quartoPending|quartoUnplaced|queue|raceResult|reactionTimesO|reactionTimesX|round|santoriniWorkers|scores|sealKeys|seen|signaling|simonDeadline|simonMiss|simonProgress|simonReplayUsed|simonSequence|snakeScoreO|snakeScoreX|sosLines|spaceduelHitsO|spaceduelHitsX|spaceduelScoreO|spaceduelScoreX|spectators|spyfairRotation|stack|starter|status|sumoScoreO|sumoScoreX|timerScale|tronScoreO|tronScoreX|typingAccO|typingAccX|typingConfig|typingFinishedAtO|typingFinishedAtX|typingPassage|typingProgressO|typingProgressX|typingStartedAt|typingWpmO|typingWpmX|uActiveBoard|uWon|updraft|visibility|vmClears|vmClicked|vmClickedO|vmClickedX|vmDeadline|vmDoneO|vmDoneX|vmFailO|vmFailX|vmLevel|vmMiss|vmPattern|vmRoundStartedAt|vmTimeO|vmTimeX|winner|winningLine|wire|wordhuntDoneO|wordhuntDoneX|wordhuntGrid|wordhuntReadyO|wordhuntReadyX|wordhuntScoreO|wordhuntScoreX|wordhuntStartedAt|wordhuntWordsO|wordhuntWordsX)$/)"
+          ".validate": "$other.matches(/^(Stack|aimEndTime|aimFriendlyO|aimFriendlyX|aimHitsO|aimHitsX|aimMissesO|aimMissesX|aimScoreO|aimScoreX|aimTargetO|aimTargetX|aimTimesO|aimTimesX|airhockeyScoreO|airhockeyScoreX|archeryFormat|archeryPhase|archerySeatUids|archerySeed|archeryShootOffShots|archeryShots|archeryTied|archeryTurnStartedAt|arrowsCleared|arrowsGoneO|arrowsGoneX|arrowsLastBlocked|arrowsLevel|arrowsLivesO|arrowsLivesX|arrowsRound|arrowsSeed|arrowsSeen|arrowsStartedAt|arrowsTrapSeen|artillerySeed|artilleryShots|ataxxMoves|blockadeMoves|blockadePawnO|blockadePawnX|blockadeWallsO|blockadeWallsX|bluffRound|board|boxes|chatLast|chatLog|chimpDoneO|chimpDoneX|chimpFailO|chimpFailX|chimpLayout|chimpLevel|chimpMiss|chimpProgressO|chimpProgressX|chimpRoundStartedAt|chimpTimeO|chimpTimeX|crEliminated|crLastMove|crMoves|crPlaced|crSeatSymbols|createdAt|currentTurn|diceLast|diceRollIndex|diceRolls|diceScoreO|diceScoreX|diceSeed|diceSeedB|diceSeedCommitX|diceSeedCommitter|diceSeedResets|diceSeedRevealX|diceTurnScore|emote|emoteLast|emotes|extraTurn|gameType|goesFirst|golfAway|golfClock|golfCourse|golfOrder|golfShots|golfSkip|hangwomanAnyWord|herdCow|hostUid|kamisadoColor|kamisadoTowers|kicked|lastActivityAt|lastFrom|lastMove|lastTo|lobby|locked|mancalaLast|mancalaPits|matchLength|mathConfig|mathCorrectO|mathCorrectX|mathEndTime|mathQIndex|mathQIndexO|mathQIndexX|mathQStartAt|mathScoreO|mathScoreX|mathSeed|mathStartedAt|mathStreakO|mathStreakX|mathWrongO|mathWrongX|mem|minesDeadO|minesDeadX|minesDoneO|minesDoneX|minesRevealedO|minesRevealedX|minesSeed|minesStartedAt|night|nightMark|numRound|onitamaHandO|onitamaHandX|onitamaSpare|pacmacScoreO|pacmacScoreX|paintScoreO|paintScoreX|pairsDeadline|pairsDeck|pairsFlipped|partyRoom|passNote|pieSwap|players|pongMode|pongScoreO|pongScoreX|presence|proposal|quartoPending|quartoUnplaced|queue|raceResult|reactionTimesO|reactionTimesX|round|santoriniWorkers|scores|sealKeys|seen|signaling|simonDeadline|simonMiss|simonProgress|simonReplayUsed|simonSequence|snakeScoreO|snakeScoreX|sosLines|spaceduelHitsO|spaceduelHitsX|spaceduelScoreO|spaceduelScoreX|spectators|spyfairRotation|stack|starter|status|sumoScoreO|sumoScoreX|timerScale|tronScoreO|tronScoreX|typingAccO|typingAccX|typingConfig|typingFinishedAtO|typingFinishedAtX|typingPassage|typingProgressO|typingProgressX|typingStartedAt|typingWpmO|typingWpmX|uActiveBoard|uWon|updraft|visibility|vmClears|vmClicked|vmClickedO|vmClickedX|vmDeadline|vmDoneO|vmDoneX|vmFailO|vmFailX|vmLevel|vmMiss|vmPattern|vmRoundStartedAt|vmTimeO|vmTimeX|winner|winningLine|wire|wordhuntDoneO|wordhuntDoneX|wordhuntGrid|wordhuntReadyO|wordhuntReadyX|wordhuntScoreO|wordhuntScoreX|wordhuntStartedAt|wordhuntWordsO|wordhuntWordsX)$/)"
         },
         "arrowsDifficulty": {
           ".validate": "newData.val() === 'easy' || newData.val() === 'medium' || newData.val() === 'hard' || newData.val() === 'mixed'"
@@ -177,9 +177,15 @@
         "chatLog": {
           "$msgId": {
             ".write": "auth != null && ((root.child('games').child($gameId).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child(auth.uid).child('playerId').val() === auth.uid || root.child('games').child($gameId).child('queue').child(auth.uid).exists()) || root.child('games').child($gameId).child('spectators').child(auth.uid).exists())",
-            ".validate": "((data.exists() && newData.child('by').val() === data.child('by').val() && newData.child('ts').val() === data.child('ts').val() && newData.child('text').val() === data.child('text').val() && newData.child('name').val() === data.child('name').val()) || (newData.hasChildren(['by','name','text','ts']) && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 80 && newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('by').val() === auth.uid && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 3600000))",
+            ".validate": "((data.exists() && newData.child('by').val() === data.child('by').val() && newData.child('ts').val() === data.child('ts').val() && newData.child('text').val() === data.child('text').val() && newData.child('name').val() === data.child('name').val()) || (newData.hasChildren(['by','name','text','ts']) && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 80 && newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('by').val() === auth.uid && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 3600000 && newData.parent().parent().child('chatLast').child(auth.uid).val() === now))",
             "seat": {
               ".validate": "newData.isString() && newData.val().length <= 2"
+            },
+            "hidden": {
+              ".validate": "newData.isBoolean()"
+            },
+            "modReason": {
+              ".validate": "newData.isString() && newData.val().length <= 40"
             }
           },
           ".validate": "newData.hasChildren()"
@@ -928,6 +934,45 @@
         },
         "partyCap": {
           ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 8"
+        },
+        "chatLast": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && (((root.child('games').child($gameId).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child(auth.uid).child('playerId').val() === auth.uid || root.child('games').child($gameId).child('queue').child(auth.uid).exists()) || root.child('games').child($gameId).child('spectators').child(auth.uid).exists()))",
+            ".validate": "newData.isNumber() && (newData.val() === data.val() || $uid === auth.uid) && (newData.val() === data.val() || (newData.val() === now && (!data.exists() || now >= data.val() + 1500)))"
+          },
+          ".validate": "newData.hasChildren()"
+        },
+        "emoteLast": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && (((root.child('games').child($gameId).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child(auth.uid).child('playerId').val() === auth.uid || root.child('games').child($gameId).child('queue').child(auth.uid).exists()) || root.child('games').child($gameId).child('spectators').child(auth.uid).exists()))",
+            ".validate": "newData.isNumber() && (newData.val() === data.val() || $uid === auth.uid) && (newData.val() === data.val() || (newData.val() === now && (!data.exists() || now >= data.val() + 400)))"
+          },
+          ".validate": "newData.hasChildren()"
+        },
+        "emotes": {
+          "$emoteId": {
+            ".write": "auth != null && ((root.child('games').child($gameId).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child(auth.uid).child('playerId').val() === auth.uid || root.child('games').child($gameId).child('queue').child(auth.uid).exists()) || root.child('games').child($gameId).child('spectators').child(auth.uid).exists())",
+            ".validate": "(data.exists() && newData.child('by').val() === data.child('by').val() && newData.child('ts').val() === data.child('ts').val() && newData.child('glyph').val() === data.child('glyph').val()) || (!data.exists() && newData.hasChildren(['by','glyph','ts']) && newData.child('by').isString() && newData.child('by').val().length <= 128 && newData.child('glyph').isString() && newData.child('glyph').val().length >= 1 && newData.child('glyph').val().length <= 32 && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 3600000 && newData.parent().parent().child('emoteLast').child(auth.uid).val() === now && (newData.child('by').val() === auth.uid || newData.child('by').val() === 'X' && newData.parent().parent().child('players').child('X').child('playerId').val() === auth.uid || newData.child('by').val() === 'O' && newData.parent().parent().child('players').child('O').child('playerId').val() === auth.uid))",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length <= 40"
+            },
+            "spectator": {
+              ".validate": "newData.isBoolean()"
+            },
+            "by": {
+              ".validate": "newData.isString()"
+            },
+            "glyph": {
+              ".validate": "newData.isString()"
+            },
+            "ts": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          },
+          ".validate": "newData.hasChildren()"
         }
       }
     },
@@ -1390,6 +1435,9 @@
         },
         "text": {
           ".validate": "newData.isString() && newData.val().length <= 200"
+        },
+        "chatContext": {
+          ".validate": "newData.isString() && newData.val().length <= 1000"
         }
       }
     },

@@ -7,6 +7,9 @@ import {
   normalizeChatLog,
   chatKeysToPrune,
   linkifyChatText,
+  reportContextFor,
+  REPORT_CONTEXT_LINES,
+  REPORT_CONTEXT_MAX,
 } from './chat'
 
 // ---------------------------------------------------------------------------
@@ -251,5 +254,33 @@ describe('linkifyChatText', () => {
       'https://one.com',
       'https://www.two.com/c',
     ])
+  })
+})
+
+describe('reportContextFor', () => {
+  const entry = (k, name, text) => [k, { by: name, name, text, ts: 1 }]
+  const log = Array.from({ length: 12 }, (_, i) => entry(`k${i}`, i % 2 ? 'Bob' : 'Ann', `line ${i}`))
+
+  it('returns the lines leading up to and including the reported one', () => {
+    const out = reportContextFor(log, 'k10').split('\n')
+    expect(out).toHaveLength(REPORT_CONTEXT_LINES)
+    expect(out[out.length - 1]).toBe('Ann: line 10')
+    expect(out[0]).toBe('Bob: line 3')
+  })
+
+  it('never includes lines after the reported one', () => {
+    expect(reportContextFor(log, 'k1')).toBe('Ann: line 0\nBob: line 1')
+  })
+
+  it('is empty for an unknown key or a bad log', () => {
+    expect(reportContextFor(log, 'nope')).toBe('')
+    expect(reportContextFor(null, 'k1')).toBe('')
+  })
+
+  it('drops the oldest lines to stay under the size cap', () => {
+    const long = Array.from({ length: 8 }, (_, i) => entry(`k${i}`, 'Bob', 'x'.repeat(200)))
+    const out = reportContextFor(long, 'k7')
+    expect(out.length).toBeLessThanOrEqual(REPORT_CONTEXT_MAX)
+    expect(out.endsWith('x'.repeat(200))).toBe(true)
   })
 })

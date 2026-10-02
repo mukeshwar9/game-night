@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from '../components/Avatar'
 import ThemePreview from '../components/ThemePreview'
+import PixelEmote from '../components/PixelEmote'
 import LockBadge, { PassStar } from '../components/premium/LockBadge'
 import PassStatus from '../components/premium/PassStatus'
 import useAccess from '../hooks/useAccess'
@@ -21,7 +22,7 @@ const TABS = [
 function Preview({ item }) {
   if (item.kind === 'theme') return <ThemePreview theme={item.id} caption={item.label} className="w-full h-24" />
   if (item.kind === 'avatar') return <div className="h-24 flex items-center justify-center"><Avatar id={item.preview} size={72} view={item.view} animate /></div>
-  return <div className="h-24 flex items-center justify-center text-5xl" aria-hidden="true">{item.glyph}</div>
+  return <div className="h-24 flex items-center justify-center" aria-hidden="true"><PixelEmote id={item.id} size={72} /></div>
 }
 
 function ItemGrid({ items, access }) {

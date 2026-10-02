@@ -1,0 +1,21 @@
+/* Reaction and chat floats (ReactionFloats.jsx). The rise-and-fade
+   `emote-float` keyframes live in index.css. The duration is per float
+   (--float-ms: chat lines stay up long enough to read). A chat bubble drifts
+   less and holds longer than an emoji. */
+@keyframes emote-float-chat {
+  0%   { transform: translateY(6px); opacity: 0; }
+  8%   { transform: translateY(0); opacity: 1; }
+  88%  { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-6px); opacity: 0; }
+}
+.emote-float { animation: emote-float var(--float-ms, 2s) ease-out forwards; }
+.emote-float-chat { animation-name: emote-float-chat; }
+
+/* Reduced motion: index.css's global freeze cuts every animation to ~0 ms,
+   and a `forwards` fill then holds the last keyframe — opacity 0, so floats
+   were invisible. Show them still instead; useFloats removes them on its
+   timer. */
+[data-motion="reduced"] .emote-float { animation: none !important; opacity: 1 !important; transform: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .emote-float { animation: none !important; opacity: 1 !important; transform: none !important; }
+}

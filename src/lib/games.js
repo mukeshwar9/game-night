@@ -124,7 +124,7 @@ import {
   applyPairsMove,
   getPairsWinner,
 } from './pairsLogic'
-import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
+import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS, sketchChatLock } from './sketchLogic'
 import { scaledMs } from './timerScale'
 import {
   INITIAL_PITS,
@@ -1770,6 +1770,8 @@ export const GAME_TYPES = [
     durationMin: 10, tags: ['thinky'],
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/SketchGame')),
+    // Room chat is off for the artist mid-round (the word could be typed out).
+    chatLocked: (game, uid) => sketchChatLock(game?.round, uid),
     // `game` (the room) is passed by Game.jsx's START: offline seats are left
     // out of the drawing order, and the first choose window follows the
     // room's timer scale (null = timers off, the coordinator advances).
@@ -2038,8 +2040,10 @@ const FIELD_NULLS = {
   raceResult: null,
   herdCow: null,
   chatLog: null,
-  // emote currently leaks across game switches — clear it too.
+  // emote currently leaks across game switches — clear it too. `emotes` is
+  // the reaction list that replaced it (old clients still write `emote`).
   emote: null,
+  emotes: null,
   // Ataxx ply counter for the anti-cycle move cap (getAtaxxWinner).
   ataxxMoves: null,
   // Kamisado forced-color chain: color index 0-7 the current mover must play
@@ -2386,6 +2390,12 @@ export function freshGameState(gameType, previous = null) {
   return { ...FIELD_NULLS, board: Array(cfg.boardSize).fill(''), boxes: null, round: null, currentTurn: 'X' }
 }
 
+// The reason room chat is locked for `uid` right now (registry `chatLocked`,
+// e.g. the Sketch artist mid-round), or null when they may type.
+export function chatLockFor(game, uid) {
+  return getGameConfig(game?.gameType)?.chatLocked?.(game, uid) ?? null
+}
+
 // Lobby (challenge-created room) support ------------------------------------
 //
 // A challenge room is created with a concrete `gameType` (default tictactoe)
@@ -2401,6 +2411,7 @@ export function lobbySwitchOverrides(updates) {
   const out = { ...updates, status: 'waiting' }
   delete out.chatLog
   delete out.emote
+  delete out.emotes
   return out
 }
 
