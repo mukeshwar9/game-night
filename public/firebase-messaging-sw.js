@@ -9,10 +9,14 @@ importScripts(
 )
 
 try {
-  // Hosted init (Firebase Hosting reserved URL). Local dev without Hosting:
-  // background push is skipped, foreground still works via src/lib/push.js.
+  // Hosted init (Firebase Hosting reserved URL). It already calls
+  // firebase.initializeApp(config), and a bare initializeApp() throws
+  // `app/no-options` before it ever checks for that existing app — so only
+  // initialize when nothing exists yet. Local dev without Hosting: the
+  // importScripts above throws, background push is skipped, foreground
+  // still works via src/lib/push.js.
   importScripts('/__/firebase/init.js')
-  firebase.initializeApp()
+  if (!firebase.apps.length) firebase.initializeApp()
   const messaging = firebase.messaging()
 
   // Messages from sendInvitePush are data-only, so this is the only place a

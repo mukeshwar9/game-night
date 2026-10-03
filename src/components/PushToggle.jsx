@@ -3,7 +3,8 @@ import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
 import OpenInBrowserHint from './OpenInBrowserHint'
 import { isInAppBrowser } from '../lib/uaLogic'
-import { pushAvailable, permissionState, checkPushPermission, vapidKey, enablePush, disablePush, PUSH_WHAT } from '../lib/push'
+import { pushAvailable, permissionState, checkPushPermission, vapidKey, enablePush, disablePush, classifyEnableError, PUSH_WHAT } from '../lib/push'
+import { reportError } from '../lib/telemetry'
 import { isNative } from '../lib/platform'
 
 // Opt-in push toggle. Hidden when push can't work: on the web, no SW/Push
@@ -53,14 +54,19 @@ export default function PushToggle() {
     setPerm(await checkPushPermission())
     toast.success('NOTIFICATIONS ON!')
   }, (e) => {
-    const code = e?.message || 'failed'
-    if (code.includes('permission-denied') || code.includes('permission-')) {
+    const kind = classifyEnableError(e)
+    if (kind === 'blocked') {
       toast.error(isNative
         ? 'NOTIFICATIONS BLOCKED — ALLOW THEM IN YOUR PHONE SETTINGS.'
         : 'NOTIFICATIONS BLOCKED — ALLOW THEM IN BROWSER SETTINGS.')
-    } else if (code === 'no-vapid-key') {
+    } else if (kind === 'not-configured') {
       toast.error('PUSH NOT CONFIGURED YET.')
     } else {
+      // Generic toast by design (no per-branch user copy without a proven
+      // cause), but capture the real code: console for a DevTools re-attempt
+      // and telemetry so errors/{day} holds what the toast hides.
+      try { console.error('[push] enable failed:', e?.message || e) } catch { /* ignore */ }
+      reportError(e, { kind: 'error' })
       toast.error('COULD NOT ENABLE NOTIFICATIONS — TRY AGAIN.')
     }
   })

@@ -55,6 +55,17 @@ export function permissionState() {
   } catch { return 'unsupported' }
 }
 
+// Maps an enablePush() rejection to the user-facing branch PushToggle shows.
+// Pure so the mapping stays tested; 'failed' cases are also reported to
+// telemetry so the underlying code (not just the generic toast) is captured.
+// Mirrors the toggle's historical branches exactly.
+export function classifyEnableError(err) {
+  const code = err?.message || 'failed'
+  if (code.includes('permission-denied') || code.includes('permission-')) return 'blocked'
+  if (code === 'no-vapid-key') return 'not-configured'
+  return 'failed'
+}
+
 // FCM tokens are ~150+ chars with [A-Za-z0-9:_-]; hash to hex for RTDB key.
 export async function tokenHash(token) {
   const data = new TextEncoder().encode(String(token || ''))

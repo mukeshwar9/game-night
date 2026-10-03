@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { isPushSupported, permissionState, pushAvailable, tokenHash, tokenRecord } from './push.js'
+import { readFileSync } from 'node:fs'
+import { isPushSupported, permissionState, pushAvailable, tokenHash, tokenRecord, classifyEnableError } from './push.js'
 
 describe('push helpers', () => {
   it('detects support from navigator + window caps', () => {
@@ -47,6 +48,17 @@ describe('push helpers', () => {
     expect(pushAvailable({ native: false, nativeEnabled: true, web: false })).toBe(false)
     expect(pushAvailable({ native: false, nativeEnabled: false, web: true })).toBe(true)
   })
+
+  it('maps enable failures to the toggle branches, hiding nothing new', () => {
+    expect(classifyEnableError(new Error('permission-denied'))).toBe('blocked')
+    expect(classifyEnableError(new Error('permission-default'))).toBe('blocked')
+    expect(classifyEnableError(new Error('no-vapid-key'))).toBe('not-configured')
+    expect(classifyEnableError(new Error('no-db'))).toBe('failed')
+    expect(classifyEnableError(new Error('no-uid'))).toBe('failed')
+    expect(classifyEnableError(new Error('no-token'))).toBe('failed')
+    expect(classifyEnableError(new Error('messaging/token-subscribe-failed'))).toBe('failed')
+    expect(classifyEnableError(undefined)).toBe('failed')
+  })
 })
 
 // The FCM worker must not share the Workbox worker's scope (/): a scope holds
@@ -90,5 +102,18 @@ describe('FCM worker registration', () => {
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
     vi.resetModules()
+  })
+})
+
+// The Hosting init script (/__/firebase/init.js) already calls
+// firebase.initializeApp(config); a bare second call throws `app/no-options`
+// before it ever checks for that existing app, which killed background push.
+// The worker must only initialize when no app exists yet.
+describe('FCM background worker init', () => {
+  it('never double-initializes after the Hosting init script', () => {
+    const src = readFileSync(new URL('../../public/firebase-messaging-sw.js', import.meta.url), 'utf8')
+    expect(src).toContain("importScripts('/__/firebase/init.js')")
+    expect(src).toContain('if (!firebase.apps.length)')
+    expect(src.match(/firebase\.initializeApp\(\)/g) || []).toHaveLength(1)
   })
 })
