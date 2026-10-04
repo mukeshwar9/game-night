@@ -12,7 +12,7 @@
 // by construction and arrowsLevelsLogic.test.js re-checks every level with
 // the solver.
 
-import { ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, solveArrows } from './arrowsLogic.js'
+import { ARROWS_ENDLESS_SPECS, ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, solveArrows } from './arrowsLogic.js'
 import { ARROWS_BAKED_LEVELS as BAKED } from './arrowsLevelsBaked.js'
 
 // Shape of each level. Levels 1–5 teach the core rule on small boards;
@@ -178,14 +178,33 @@ export function newTwist(level, seen) {
   return twistsIn(level).find((t) => !seen?.[t]) ?? null
 }
 
-// Endless boards: any seed at a race tier. The generator is solvable by
+// Endless tiers carry the late mechanics races leave out. Unknown tiers fall
+// back to easy; the spec keeps its tier name for the board's title.
+function endlessSpec(tier) {
+  const name = ARROWS_ENDLESS_SPECS[tier] ? tier : 'easy'
+  return { ...ARROWS_ENDLESS_SPECS[name], name }
+}
+
+// Does a board actually carry the special pieces its spec asked for? The
+// generator places sleepers/doubles/mirrors/crates best-effort, so a bare
+// solvable check could serve a board missing the tier's whole point.
+function endlessMeets(level, spec) {
+  if (spec.sleepers && level.arrows.filter(isSleeper).length < spec.sleepers) return false
+  if (spec.doubles && level.arrows.filter(isDouble).length < spec.doubles) return false
+  if (spec.mirrors && (level.mirrors?.length ?? 0) < spec.mirrors) return false
+  if (spec.crates && (level.crates?.length ?? 0) < spec.crates) return false
+  return true
+}
+
+// Endless boards: any seed at an endless tier. The generator is solvable by
 // construction; the solver re-checks and steps to the next seed if a board
-// ever failed, so endless play can never serve a dead board.
+// ever failed, so endless play can never serve a dead board — or one missing
+// the mechanics its tier promises.
 export function endlessLevel(seed, tier) {
-  const t = ARROWS_TIERS.includes(tier) ? tier : 'easy'
+  const spec = endlessSpec(tier)
   for (let s = seed; ; s += 1) {
-    const level = generateArrowsLevel(s, t)
-    if (solveArrows(level).solvable) return level
+    const level = generateArrowsLevel(s, spec)
+    if (solveArrows(level).solvable && endlessMeets(level, spec)) return level
   }
 }
 

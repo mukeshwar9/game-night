@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, levelStats, occupancy, solveArrows, ARROWS_TIER_SPECS } from './arrowsLogic'
+import { arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, levelStats, occupancy, solveArrows, ARROWS_ENDLESS_SPECS } from './arrowsLogic'
 import { ARROWS_BAKED_LEVELS } from './arrowsLevelsBaked'
 import {
   ARROWS_CHAPTERS,
@@ -209,7 +209,7 @@ describe('endless boards', () => {
       const seen = new Set()
       for (let s = 1; s <= 40; s += 1) {
         const level = endlessLevel(s * 65537, tier)
-        expect(level.cols).toBe(ARROWS_TIER_SPECS[tier].cols)
+        expect(level.cols).toBe(ARROWS_ENDLESS_SPECS[tier].cols)
         expect(solveArrows(level).solvable).toBe(true)
         seen.add(JSON.stringify(level.arrows))
       }
@@ -217,8 +217,30 @@ describe('endless boards', () => {
     }
   })
 
+  it('carries every special piece its tier asks for', () => {
+    for (const tier of ['easy', 'medium', 'hard']) {
+      const spec = ARROWS_ENDLESS_SPECS[tier]
+      for (let s = 1; s <= 12; s += 1) {
+        const level = endlessLevel(s * 65537, tier)
+        expect(level.arrows.filter(isSleeper).length, `${tier} sleepers`).toBeGreaterThanOrEqual(spec.sleepers ?? 0)
+        expect(level.arrows.filter(isDouble).length, `${tier} doubles`).toBeGreaterThanOrEqual(spec.doubles ?? 0)
+        expect(level.mirrors?.length ?? 0, `${tier} mirrors`).toBeGreaterThanOrEqual(spec.mirrors ?? 0)
+        expect(level.crates?.length ?? 0, `${tier} crates`).toBeGreaterThanOrEqual(spec.crates ?? 0)
+      }
+    }
+  })
+
+  it('hard endless mixes in every mechanic', () => {
+    for (let s = 1; s <= 8; s += 1) {
+      const twists = twistsIn(endlessLevel(s * 65537, 'hard'))
+      for (const t of ['diag', 'curve', 'sleep', 'double', 'mirror', 'crate']) {
+        expect(twists, `seed ${s}`).toContain(t)
+      }
+    }
+  })
+
   it('falls back to easy for an unknown tier', () => {
-    expect(endlessLevel(9, 'insane').cols).toBe(ARROWS_TIER_SPECS.easy.cols)
+    expect(endlessLevel(9, 'insane').cols).toBe(ARROWS_ENDLESS_SPECS.easy.cols)
   })
 })
 

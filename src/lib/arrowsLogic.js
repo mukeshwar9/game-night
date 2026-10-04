@@ -60,6 +60,16 @@ export const ARROWS_TIER_SPECS = {
   hard: { cols: 10, rows: 13, maxLen: 9, fill: 0.9, samples: 10, diag: 0.12, curve: 0.1, bend: 0.9 },
 }
 
+// Endless boards mix in the late mechanics the race tiers leave out: sleeping
+// arrows, double arrows, mirrors and crates climb one tier at a time, so hard
+// endless has the whole set. Dims match ARROWS_TIER_SPECS (same easy → hard
+// feel), and races keep the mod-free tier specs above.
+export const ARROWS_ENDLESS_SPECS = {
+  easy: { cols: 7, rows: 9, maxLen: 5, fill: 0.82, deep: 0.3, sleepers: 1, mirrors: 1 },
+  medium: { cols: 8, rows: 11, maxLen: 7, fill: 0.84, samples: 9, diag: 0.1, curve: 0.1, bend: 0.9, deep: 0.5, sleepers: 1, doubles: 1, mirrors: 1, crates: 1 },
+  hard: { cols: 10, rows: 13, maxLen: 9, fill: 0.86, samples: 11, diag: 0.14, curve: 0.14, bend: 0.9, deep: 0.8, sleepers: 2, doubles: 2, mirrors: 2, crates: 1 },
+}
+
 // Room setting for the race: one tier for every round, or 'mixed' — the
 // original easy → medium → hard ramp across the three rounds. The host picks
 // it in the waiting room (or between matches); unset means 'mixed'.
@@ -71,6 +81,13 @@ export const ARROWS_DIFFICULTY_INFO = {
   mixed: { label: 'MIXED', blurb: 'EASY → MEDIUM → HARD' },
 }
 export const getArrowsDifficulty = (id) => (ARROWS_DIFFICULTIES.includes(id) ? id : 'mixed')
+
+// Endless-select labels (endless boards carry the extra mechanics, races do not).
+export const ARROWS_ENDLESS_INFO = {
+  easy: { label: 'EASY', blurb: '7×9 · + SLEEPERS & MIRRORS' },
+  medium: { label: 'MEDIUM', blurb: '8×11 · + DOUBLES & A CRATE' },
+  hard: { label: 'HARD', blurb: '10×13 · EVERY PIECE' },
+}
 
 // (dx, dy) in grid space (y grows downward): up, right, down, left, then the
 // diagonals up-right, down-right, down-left, up-left.
