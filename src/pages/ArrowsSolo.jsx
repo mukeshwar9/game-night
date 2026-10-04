@@ -11,7 +11,7 @@ import {
   countGone,
   freeArrows,
   randomArrowsSeed,
-  ARROWS_DIFFICULTY_INFO,
+  ARROWS_ENDLESS_INFO,
   ARROWS_LIVES,
   ARROWS_TIERS,
 } from '../lib/arrowsLogic'
@@ -156,8 +156,8 @@ function EndlessSelect({ progress, onPlay }) {
           onClick={() => onPlay(tier)}
           className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left active:scale-[0.98] transition-all"
         >
-          <span className="font-pixel text-[10px] text-retro-cta w-16">{ARROWS_DIFFICULTY_INFO[tier].label}</span>
-          <span className="flex-1 font-mono text-[11px] text-retro-dim">{ARROWS_DIFFICULTY_INFO[tier].blurb.toLowerCase()}</span>
+          <span className="font-pixel text-[10px] text-retro-cta w-16">{ARROWS_ENDLESS_INFO[tier].label}</span>
+          <span className="flex-1 font-mono text-[11px] text-retro-dim">{ARROWS_ENDLESS_INFO[tier].blurb.toLowerCase()}</span>
           <span className="font-pixel text-[8px] text-retro-dim tabular-nums">{progress.endless[tier]} CLEARED</span>
         </button>
       ))}
@@ -168,8 +168,9 @@ function EndlessSelect({ progress, onPlay }) {
 // One puzzle board: lives, live star rating, hint and restart. Calls
 // onCleared(stars) once when the board is empty.
 // `intro` (a twist key) keeps that twist's tip up on its teaching level even
-// on a replay.
-function PuzzlePlay({ level, title, subtitle, intro = null, onCleared, onRestart, onBack, backLabel = 'BACK', next }) {
+// on a replay. `tips` off silences the twist lesson/tip (endless boards teach
+// nothing — the "?" sheet is always there for a reminder).
+function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onCleared, onRestart, onBack, backLabel = 'BACK', next }) {
   const total = level.arrows.length
   const [gone, setGone] = useState(() => Array(total).fill(false))
   const [lives, setLives] = useState(ARROWS_LIVES)
@@ -182,13 +183,14 @@ function PuzzlePlay({ level, title, subtitle, intro = null, onCleared, onRestart
   // The first board with a kind the player has not been taught opens with
   // that kind's lesson; "?" reopens the arrow types (each with TRY IT).
   const [lesson, setLesson] = useState(() => {
+    if (!tips) return null
     const t = newTwist(level, seen)
     return getLesson(t) ? t : null
   })
   const [showTypes, setShowTypes] = useState(false)
   const streak = useRef(0)
 
-  const twist = newTwist(level, seen) ?? intro
+  const twist = tips ? (newTwist(level, seen) ?? intro) : null
   useEffect(() => {
     // Kinds without a lesson count as taught by the tip alone.
     if (twist && !getLesson(twist)) markTwistSeen(twist)
@@ -371,8 +373,9 @@ export default function ArrowsSolo() {
       <PuzzlePlay
         key={`endless-${play.seed}-${attempt}`}
         level={level}
-        title={`ENDLESS · ${ARROWS_DIFFICULTY_INFO[tier].label}`}
+        title={`ENDLESS · ${ARROWS_ENDLESS_INFO[tier].label}`}
         subtitle={`${level.arrows.length} ARROWS · ${progress.endless[tier]} CLEARED`}
+        tips={false}
         onCleared={() => setProgress((p) => saveArrowsProgress(recordEndlessClear(p, tier)))}
         onRestart={() => setAttempt((a) => a + 1)}
         onBack={back}
