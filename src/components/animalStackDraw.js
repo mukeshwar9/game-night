@@ -1,10 +1,11 @@
 // Canvas drawing for ANIMAL STACK (rendering only — no rules).
-// Pixel-art look: the scene is drawn at ~1/2.5 resolution on an offscreen
-// canvas and scaled up without smoothing. Every colour comes from the --c-*
+// The backdrop keeps a pixel-art look: it is drawn at ~1/2.5 resolution on an
+// offscreen canvas and scaled up without smoothing. The animals are painted
+// sprites drawn over it at full resolution. Every colour comes from the --c-*
 // theme tokens, read once per theme change.
 import { PIECES, ISLAND } from '../lib/animalStackLogic'
 import { PIXELS, CELL } from '../lib/animalStackPixels'
-import { parseRgb, rolePalette } from './animalStackArt'
+import { lum, paintAnimal, parseRgb, rolePalette, SKINS } from './animalStackArt'
 import { canvasPixelRatio } from '../lib/platform'
 
 const TOKENS = ['bg', 'surface', 'card', 'border', 'text', 'dim', 'p1', 'p2', 'p3', 'p4', 'cta', 'win', 'danger',
@@ -33,11 +34,10 @@ function polyPath(ctx, pts) {
 }
 
 // ─── Sprites ─────────────────────────────────────────────────────────────────
-// Each animal is a hand-authored pixel grid (lib/animalStackPixels.js) whose
-// silhouette is also its physics hull. The grid is painted once per
-// (theme, integer scale) with the tone's palette, then per frame only rotated
-// and blitted without smoothing, so pixels stay chunky at any angle.
-const ROLE = { B: 'base', L: 'light', S: 'shade', P: 'pale', D: 'dark', W: 'eye', K: 'pupil', O: 'beak', R: 'blush', '#': 'dark' }
+// Each animal's silhouette and colour roles come from its grid
+// (lib/animalStackPixels.js), which is also its physics hull. paintAnimal
+// shades it once per (theme, scale) into a sprite plus a soft contact shadow;
+// per frame they are only rotated and blitted.
 const sprites = new Map()
 let spriteTheme = null
 
@@ -46,24 +46,36 @@ function paletteFor(tone) {
   return rolePalette(parseRgb(t[tone]), { bg: parseRgb(t.bg), text: parseRgb(t.text), beak: parseRgb(t.kam7), blush: parseRgb(t.kam4) })
 }
 
-/** Sprite canvas for animal `k`, `n` device px per grid cell. */
+function toCanvas(w, h, rgba) {
+  const c = document.createElement('canvas')
+  c.width = w; c.height = h
+  c.getContext('2d').putImageData(new ImageData(rgba, w, h), 0, 0)
+  return c
+}
+
+/** Sprite for animal `k`, `n` device px per grid cell. */
 function sprite(k, n) {
   tokens()
   if (spriteTheme !== tokTheme || sprites.size > 60) { sprites.clear(); spriteTheme = tokTheme }
   const key = `${k}|${n}`
   let sp = sprites.get(key)
   if (sp) return sp
-  const px = PIXELS[PIECES[k].id]
-  const pal = paletteFor(px.tone)
-  const c = document.createElement('canvas')
-  c.width = px.w * n; c.height = px.h * n
-  const g = c.getContext('2d')
-  px.grid.forEach((row, y) => row.forEach((ch, x) => {
-    if (ch === '.') return
-    g.fillStyle = `rgb(${(pal[ROLE[ch]] || pal.base).join(' ')})`
-    g.fillRect(x * n, y * n, n, n)
-  }))
-  sp = { c, w: px.w, h: px.h, masks: {} }
+  const id = PIECES[k].id
+  const px = PIXELS[id]
+  const art = paintAnimal(px.grid, paletteFor(px.tone), n, SKINS[id], { parts: px.parts, cell: CELL })
+  // contact shadow in the theme's darker end
+  const t = tokens()
+  const [bg, text] = [parseRgb(t.bg), parseRgb(t.text)]
+  const ink = lum(bg) < lum(text) ? bg : text
+  const { shadow } = art
+  const srgba = new Uint8ClampedArray(shadow.w * shadow.h * 4)
+  for (let i = 0; i < shadow.alpha.length; i++) {
+    srgba[i * 4] = ink[0]; srgba[i * 4 + 1] = ink[1]; srgba[i * 4 + 2] = ink[2]; srgba[i * 4 + 3] = shadow.alpha[i]
+  }
+  sp = {
+    c: toCanvas(art.w, art.h, art.rgba), w: px.w, h: px.h, masks: {},
+    shadow: toCanvas(shadow.w, shadow.h, srgba), pad: shadow.pad / n,
+  }
   sprites.set(key, sp)
   return sp
 }
@@ -81,24 +93,61 @@ function spriteMask(sp, token) {
   return m
 }
 
+// Even steps capped at 10 px per cell: smoothing upscales the rest, and few
+// distinct scales means few paints.
+const spriteScale = (cell, dpr) => Math.min(10, Math.max(4, 2 * Math.round(cell * dpr / 2)))
+
+// Paint the animals not drawn yet one per idle slot, so a new animal or a
+// theme change never stalls a frame painting several at once.
+let warming = null
+function warm(n) {
+  const key = `${tokTheme}|${n}`
+  if (warming === key || typeof requestIdleCallback !== 'function') return
+  warming = key
+  let k = 0
+  const step = (deadline) => {
+    if (warming !== key) return
+    while (k < PIECES.length && deadline.timeRemaining() > 8) sprite(k++, n)
+    if (k < PIECES.length) requestIdleCallback(step)
+  }
+  requestIdleCallback(step)
+}
+
+/** Soft contact shadow of animal `k`, cast a little below it. */
+function drawShadow(ctx, k, x, y, a, cell, dpr) {
+  if (!PIECES[k]) return
+  const sp = sprite(k, spriteScale(cell, dpr))
+  const p = sp.pad * cell
+  const dw = sp.w * cell, dh = sp.h * cell
+  ctx.save()
+  ctx.globalAlpha = 0.4
+  ctx.translate(x, y + cell * 0.9)
+  ctx.rotate(-a)
+  ctx.drawImage(sp.shadow, -dw / 2 - p, -dh / 2 - p, dw + 2 * p, dh + 2 * p)
+  ctx.restore()
+}
+
 /**
  * Draw animal `k` centred at CSS px (x, y), angle `a`, `cell` CSS px per grid
- * cell. `dpr` picks the integer sprite scale. opts: alpha, outline (player
- * token for a ring), pulse (0-1 ring strength).
+ * cell. `dpr` picks the sprite scale. opts: alpha, outline (player token for
+ * a ring), pulse (0-1 ring strength).
  */
 function drawAnimal(ctx, k, x, y, a, cell, dpr, opts = {}) {
   if (!PIECES[k]) return
-  const n = Math.max(1, Math.round(cell * dpr))
-  const sp = sprite(k, n)
+  const sp = sprite(k, spriteScale(cell, dpr))
   const dw = sp.w * cell, dh = sp.h * cell
   ctx.save()
-  ctx.imageSmoothingEnabled = false
-  ctx.translate(Math.round(x * dpr) / dpr, Math.round(y * dpr) / dpr)
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.translate(x, y)
   ctx.rotate(-a)
   if (opts.outline) {
     const m = spriteMask(sp, opts.outline)
     ctx.globalAlpha = (opts.alpha ?? 1) * (opts.pulse ?? 1)
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.drawImage(m, -dw / 2 + dx * cell, -dh / 2 + dy * cell, dw, dh)
+    const d = cell * 0.8
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) {
+      ctx.drawImage(m, -dw / 2 + dx * d, -dh / 2 + dy * d, dw, dh)
+    }
   }
   ctx.globalAlpha = opts.alpha ?? 1
   ctx.drawImage(sp.c, -dw / 2, -dh / 2, dw, dh)
@@ -180,9 +229,15 @@ export function drawScene(canvas, scene) {
   ctx.imageSmoothingEnabled = false
   ctx.drawImage(off, 0, 0, aw * PIX * dpr, ah * PIX * dpr)
   ctx.scale(dpr, dpr)
-  // animals go on at full resolution so the pixel grid stays crisp
+  // animals go on at full resolution, lowest first, each casting its contact
+  // shadow onto whatever is already drawn beneath it
   const cell = view.ppm * CELL
-  for (const it of scene.items) drawAnimal(ctx, it.k, X(it.x) * PIX, Y(it.y) * PIX, it.a, cell, dpr, { outline: it.outline })
+  warm(spriteScale(cell, dpr))
+  const items = [...scene.items].sort((p, q) => p.y - q.y)
+  for (const it of items) {
+    drawShadow(ctx, it.k, X(it.x) * PIX, Y(it.y) * PIX, it.a, cell, dpr)
+    drawAnimal(ctx, it.k, X(it.x) * PIX, Y(it.y) * PIX, it.a, cell, dpr, { outline: it.outline })
+  }
   if (h) {
     const pulse = scene.still ? 1 : 0.65 + 0.35 * Math.sin(now / 170)
     drawAnimal(ctx, h.k, X(h.x) * PIX, Y(h.y) * PIX, h.a, cell, dpr, { outline: PLAYER_TOKENS[h.player || 0], pulse, alpha: 0.95 })
@@ -206,14 +261,14 @@ export function drawScene(canvas, scene) {
   ctx.textAlign = 'start'
 }
 
-/** Small pixel portrait of animal `k` (NEXT preview, icons). */
+/** Small portrait of animal `k` (NEXT preview, icons). */
 export function drawThumb(canvas, k) {
   const px = PIXELS[PIECES[k]?.id]
   if (!px) return
   const dpr = canvasPixelRatio() || 1
   const W = canvas.clientWidth || 44, H = canvas.clientHeight || 34
   canvas.width = W * dpr; canvas.height = H * dpr
-  const cell = Math.max(1 / dpr, Math.floor(Math.min(W / px.w, H / px.h) * dpr) / dpr)
+  const cell = Math.min(W / px.w, H / px.h)
   const ctx = canvas.getContext('2d')
   ctx.scale(dpr, dpr)
   drawAnimal(ctx, k, W / 2, H / 2, 0, cell, dpr)

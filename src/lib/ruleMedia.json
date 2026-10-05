@@ -274,7 +274,7 @@
       "dpr": 1
     },
     "animalstack": {
-      "w": 176,
+      "w": 196,
       "h": 340,
       "steps": [
         {
@@ -285,7 +285,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 176,
+          "w": 196,
           "h": 340,
           "dark": {
             "box": {
@@ -294,62 +294,63 @@
               "w": 98,
               "h": 98
             },
-            "w": 176,
+            "w": 196,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 59.50920245398773,
+            "x": 70.32967032967034,
             "y": 82.600677830941,
-            "w": 39.263803680981596,
+            "w": 28.571428571428573,
             "h": 9.569377990430622
           },
-          "w": 176,
+          "w": 196,
           "h": 340,
           "dark": {
             "box": {
-              "x": 59.50920245398773,
+              "x": 70.32967032967034,
               "y": 82.600677830941,
-              "w": 39.263803680981596,
+              "w": 28.571428571428573,
               "h": 9.569377990430622
             },
-            "w": 176,
+            "w": 196,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 59.50920245398773,
+            "x": 70.32967032967034,
             "y": 82.600677830941,
-            "w": 39.263803680981596,
+            "w": 28.571428571428573,
             "h": 9.569377990430622
           },
-          "w": 176,
+          "w": 196,
           "h": 340,
           "dark": {
             "box": {
-              "x": 59.50920245398773,
+              "x": 70.32967032967034,
               "y": 82.600677830941,
-              "w": 39.263803680981596,
+              "w": 28.571428571428573,
               "h": 9.569377990430622
             },
-            "w": 176,
+            "w": 196,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 27052,
-        "dark": 33121
+        "light": 46965,
+        "dark": 39355
       },
       "sources": [
         "src/components/AnimalStackArena.jsx",
         "src/components/AnimalStackRail.jsx",
         "src/components/LiveAnnouncer.jsx",
         "src/components/WinEffect.jsx",
+        "src/components/animalStackArt.js",
         "src/components/animalStackDraw.js",
         "src/hooks/useGameKeys.js",
         "src/hooks/useStackControls.js",
@@ -358,18 +359,21 @@
         "src/lib/animalStackBot.js",
         "src/lib/animalStackCore.js",
         "src/lib/animalStackLogic.js",
+        "src/lib/animalStackPixels.js",
         "src/lib/audioContext.js",
         "src/lib/detMath.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
         "src/lib/keyGuard.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/soloBest.js",
         "src/lib/sounds.js",
         "src/lib/vendor/planck-det.js",
         "src/pages/AnimalStackDemo.jsx"
       ],
-      "sourceHash": "c1ec2e061e64",
-      "assetHash": "4851c318a026",
+      "sourceHash": "eefaf0599351",
+      "assetHash": "e19b6953a471",
       "dpr": 1
     },
     "archery": {
