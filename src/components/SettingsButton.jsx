@@ -26,7 +26,7 @@ import LockBadge from './premium/LockBadge'
 import useAccess from '../hooks/useAccess'
 import { openPaywall } from '../lib/premiumUi'
 import { openAvatarStudio, openPetPicker } from '../lib/avatarStudioUi'
-import { canPreviewMonetization, monetizationEnabled } from '../lib/monetizationState'
+import { canPreviewMonetization } from '../lib/monetizationState'
 import { AdminToolsPanel } from './premium/ViewAsPlayer'
 
 function ThemeSwatches({ id }) {
@@ -353,7 +353,7 @@ export default function SettingsButton({ className = '' }) {
       )}
 
       <Section title="HELP & RESET">
-        {monetizationEnabled() && <Link
+        {access.shop && <Link
           to="/shop"
           onClick={() => setOpen(false)}
           className="flex min-h-11 items-center justify-between rounded border border-retro-cta/50 px-3 font-pixel text-[9px] tracking-widest text-retro-cta hover:border-retro-cta transition-colors"

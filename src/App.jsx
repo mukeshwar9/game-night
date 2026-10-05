@@ -22,10 +22,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { VideoCallLayoutProvider } from './components/VideoCallLayout';
 import { LEADERBOARD_ENABLED } from './lib/features';
 import { titleForPath } from './lib/routeTitle';
-import { monetizationEnabled } from './lib/monetizationState';
-
-// The shop and Pass routes exist only while monetization is switched on (monetization.js).
-const SHOP_ROUTES = monetizationEnabled();
+import useAccess from './hooks/useAccess';
 import { onNavigateRequest, notifyFirstScreen } from './lib/native/navigation';
 import { isNative } from './lib/platform';
 
@@ -75,6 +72,9 @@ function AppRoutes() {
   // would only lead back to it, so the bar waits until it closes.
   const onboarding = useOnboardingOpen();
   const showTabBar = TAB_BAR_ROUTES.includes(pathname) && !onboarding;
+  // The shop and Pass routes exist only while the shop shows for this viewer:
+  // monetization on, or an admin's production preview (monetization.js shopVisible).
+  const shopRoutes = useAccess().shop;
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -92,7 +92,7 @@ function AppRoutes() {
 
   return (
     <>
-      {SHOP_ROUTES && <PaddleCheckoutHost />}
+      {shopRoutes && <PaddleCheckoutHost />}
       <NavBar />
       <div key={pathname} className="route-fade">
         {/* Bottom padding clears the fixed tab bar so page content (including
@@ -113,8 +113,8 @@ function AppRoutes() {
               <Route path="/daily/memory" element={<DailyMemory />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/friends" element={<Friends />} />
-              {SHOP_ROUTES && <Route path="/shop" element={<Shop />} />}
-              {SHOP_ROUTES && <Route path="/pass" element={<Pass />} />}
+              {shopRoutes && <Route path="/shop" element={<Shop />} />}
+              {shopRoutes && <Route path="/pass" element={<Pass />} />}
               <Route path="/notes" element={<Notes />} />
               {EmojiLab && <Route path="/emoji-lab" element={<EmojiLab />} />}
               {ArtDemo && <Route path="/art-demo" element={<ArtDemo />} />}

@@ -32,6 +32,8 @@ test('players pick a character, a premium item is selectable, and rooms draw bot
 
   await test.step('Alice builds a look with a premium headwear item (open while monetization is off)', async () => {
     const { page } = alice
+    // The emulators default monetization on (docs/MONETIZATION.md); switch it off to see the launch state.
+    await alice.context.addInitScript(() => localStorage.setItem('gn-monetization', 'off'))
     await page.goto('/')
     await page.getByRole('textbox', { name: 'Your name' }).fill('Alice')
     await page.getByRole('button', { name: /^NEXT: PICK A LOOK/ }).click()
@@ -39,7 +41,7 @@ test('players pick a character, a premium item is selectable, and rooms draw bot
     await page.getByRole('tab', { name: 'STYLE' }).click()
     await page.getByRole('tab', { name: 'HEADWEAR' }).click()
     const halo = page.getByRole('radio', { name: /^HALO/ })
-    // Monetization is off by default (docs/MONETIZATION.md): paid items are plain, unbadged and open.
+    // With monetization off (docs/MONETIZATION.md), paid items are plain, unbadged and open.
     await expect(halo).not.toHaveAccessibleName(/PASS ITEM|locked/)
     await halo.click()
     await expect(halo).toBeChecked()

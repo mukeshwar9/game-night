@@ -13,6 +13,8 @@
 // Registry items opt in with `premium: true` and an optional `pack` (see
 // premiumCatalog.js); an item key is `${kind}:${id}`.
 
+import { shopVisible } from './monetization'
+
 /** @typedef {{ status?: string, plan?: string, currentPeriodEnd?: number, subscriptionId?: string, provider?: string }} PassRecord */
 /** @typedef {{ pass?: PassRecord | null, packs?: Record<string, boolean> | null, supporter?: boolean, admin?: boolean }} Entitlements */
 /** @typedef {{ kind: string, id: string, premium?: boolean, pack?: string }} PremiumItem */
@@ -174,4 +176,33 @@ export function viewAsPlayerActive({ stored = null, ent = null, dev = false, emu
 export function effectiveAccess(ent, { bypass = false, viewAsPlayer = false, monetization = true, now = Date.now() } = {}) {
   if (!viewAsPlayer) return accessFor(ent, { bypass, now })
   return accessFor(null, { bypass: !monetization, now })
+}
+
+/**
+ * The whole access snapshot the UI reads (entitlements.js adds `loaded`).
+ * `profileAdmin` is users/{uid}/admin, the platform admin flag that
+ * syncAdminAccess also honours; it counts as the admin allowlist here because
+ * the allowlist sync refuses while the server switch is off.
+ *
+ * With monetization on, this is effectiveAccess as before. With it off, a
+ * production admin (never a dev server, the emulators or the native shell) gets
+ * the shop preview: `shop` is true and the gating runs as if monetization were
+ * on, which still opens every item for an admin. "View as regular player" ends
+ * the preview, so the admin sees what every player sees: no shop, all items open.
+ * @param {{ ent?: Entitlements | null, profileAdmin?: boolean, monetization?: boolean, native?: boolean, dev?: boolean, emulator?: boolean, bypassOverride?: string | null, viewAs?: string | null, now?: number }} env
+ */
+export function viewerAccess({ ent = null, profileAdmin = false, monetization = false, native = false, dev = false, emulator = false, bypassOverride = null, viewAs = null, now = Date.now() } = {}) {
+  const real = profileAdmin && ent?.admin !== true ? { ...(ent || {}), admin: true } : ent
+  const admin = real?.admin === true
+  const preview = !monetization && !native && !dev && !emulator && admin
+  const viewAsPlayer = viewAsPlayerActive({ stored: viewAs, ent: real, dev, emulator, monetization: monetization || preview })
+  const shop = shopVisible({ monetization, admin: preview, viewAsPlayer, native })
+  const bypass = bypassActive({ dev, emulator, override: bypassOverride, monetization: shop })
+  return {
+    ...effectiveAccess(real, { bypass, viewAsPlayer, monetization: shop, now }),
+    canViewAsPlayer: (monetization || preview) && canViewAsPlayer({ ent: real, dev, emulator }),
+    viewAsPlayer,
+    shop,
+    ent: viewAsPlayer ? null : real,
+  }
 }

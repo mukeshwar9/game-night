@@ -4,19 +4,25 @@ The plan is in the audit's `how-game-night-makes-money.md`. This page is what th
 
 ## Launch switch
 
-Everything that sells sits behind one switch, **off by default** (`src/lib/monetization.js`, read by `monetizationEnabled()`).
+Everything that sells sits behind one switch, **off by default in production builds** (`src/lib/monetization.js`, read by `monetizationEnabled()`).
 
 | | Off (launch) | On |
 |---|---|---|
-| Client | `VITE_MONETIZATION_ENABLED` unset or not `1` | `VITE_MONETIZATION_ENABLED=1` at build time |
+| Client | production build with `VITE_MONETIZATION_ENABLED` unset or not `1` | `VITE_MONETIZATION_ENABLED=1` at build time, or any dev server / emulator run |
 | Server | `MONETIZATION_ENABLED` unset or not `1` in `functions/.env` | `MONETIZATION_ENABLED=1` |
 | Premium themes, fonts, avatar items, buddies, emotes | open to everyone | gated by the entitlement check |
-| Locks, paywall, pass and pack badges, Pass strings | not shown | shown |
-| `/shop`, `/pass`, Settings and Profile shop entries | not routed, not linked | live |
+| Locks, paywall, pass and pack badges, Pass strings | not shown (admins: shown, see below) | shown |
+| `/shop`, `/pass`, Settings and Profile shop entries | not routed, not linked (admins: live, see below) | live |
 | `createCheckout`, `createPortalSession`, `paddleWebhook`, `syncAdminAccess`, `createRazorpayOrder`, `verifyRazorpayPayment`, `razorpayWebhook` | refuse (`monetization-disabled`, webhooks 503) | work (Razorpay also needs its keys, below) |
 | Admin emails, local dev bypass | not needed | apply |
 
-To go live: finish the captain steps below, set both switches, then deploy functions and hosting together. A dev server or the emulators can flip the client switch for a session with `localStorage['gn-monetization'] = 'on' | 'off'`; a production build ignores that.
+**Local runs.** A dev server (`npm run dev`) and the emulators (`npm run dev:emu`) default the client switch **on**, so the shop, Pass and paywall can be looked at without a flag (the dev bypass still opens every item). `localStorage['gn-monetization'] = 'off'` turns it off for that browser to see the launch state, `'on'` back on; Settings → ADMIN TOOLS → MONETIZATION (DEV PREVIEW) flips it. A production build ignores that override.
+
+**Admin preview in production.** With the client switch off, an admin still sees the shop, Pass, paywall and Settings/Profile shop entries, to check how they look. Admin means `users/{uid}/admin` (the platform admin flag, which `syncAdminAccess` also honours) or an existing `entitlements/{uid}/admin` flag; while the server switch is off `syncAdminAccess` refuses, so an `ADMIN_EMAILS`-only account needs `users/{uid}/admin` set to preview. Every item stays open for an admin, and payments are not turned on: the server switch still refuses checkout (`monetization-disabled`, or `payments-not-configured` without keys), so a checkout attempt fails with the toast "Checkout is not available right now." Settings → ADMIN TOOLS → VIEW AS REGULAR PLAYER ends the preview: the admin then sees what every player sees, no shop and every item open. Regular players see no shop, as before. The pure rule is `shopVisible` (`src/lib/monetization.js`), applied in `viewerAccess` (`src/lib/premium.js`) as `access.shop`, which every shop entry point reads.
+
+The iOS/Android shell never shows the shop, on or off, admin or not (Apple 3.1.1 / Play Billing).
+
+To go live: finish the captain steps below, set both switches, then deploy functions and hosting together.
 
 ## What is sold
 

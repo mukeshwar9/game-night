@@ -6,8 +6,9 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/
 import { getApps, getApp } from 'firebase/app'
 import { db, usingEmulators } from './firebase'
 import { getUid } from './auth'
-import { bypassActive, canViewAsPlayer, effectiveAccess, viewAsPlayerActive } from './premium'
+import { viewerAccess } from './premium'
 import { monetizationEnabled } from './monetizationState'
+import { isNative } from './platform'
 
 const OVERRIDE_KEY = 'gn-premium-bypass'
 const VIEW_AS_KEY = 'gn-view-as-player'
@@ -15,29 +16,28 @@ const VIEW_AS_KEY = 'gn-view-as-player'
 function readKey(key) {
   try { return localStorage.getItem(key) } catch { return null }
 }
-const readOverride = () => readKey(OVERRIDE_KEY)
-const devLike = () => ({ dev: import.meta.env.DEV, emulator: usingEmulators })
-
-/** Every premium item is open when monetization is off, and on a dev server / the emulators (see bypassActive). */
-export function localBypass() {
-  return bypassActive({ dev: import.meta.env.DEV, emulator: usingEmulators, override: readOverride(), monetization: monetizationEnabled() })
-}
 
 let ent = null
+let profileAdmin = false
 let loaded = false
 
-// The access snapshot, with "view as regular player" applied. `canViewAsPlayer`
-// and `viewAsPlayer` describe the real account so the switch stays reachable
-// while it hides the admin/dev privileges.
+// The access snapshot (premium.js viewerAccess): bypass, "view as regular
+// player" and the production admin shop preview applied. `canViewAsPlayer` and
+// `viewAsPlayer` describe the real account so the switch stays reachable while
+// it hides the admin/dev privileges.
 function compute() {
-  const monetization = monetizationEnabled()
-  const viewAsPlayer = viewAsPlayerActive({ stored: readKey(VIEW_AS_KEY), ent, ...devLike(), monetization })
   return {
-    ...effectiveAccess(ent, { bypass: localBypass(), viewAsPlayer, monetization }),
-    canViewAsPlayer: monetization && canViewAsPlayer({ ent, ...devLike() }),
-    viewAsPlayer,
+    ...viewerAccess({
+      ent,
+      profileAdmin,
+      monetization: monetizationEnabled(),
+      native: isNative,
+      dev: import.meta.env.DEV,
+      emulator: usingEmulators,
+      bypassOverride: readKey(OVERRIDE_KEY),
+      viewAs: readKey(VIEW_AS_KEY),
+    }),
     loaded,
-    ent: viewAsPlayer ? null : ent,
   }
 }
 
@@ -65,6 +65,13 @@ export function startEntitlements(uid) {
     loaded = true
     publish()
   }, () => { loaded = true; publish() })
+}
+
+/** Mirrors users/{uid}/admin (AuthContext's profile), the platform admin flag. */
+export function setProfileAdmin(on) {
+  if (profileAdmin === (on === true)) return
+  profileAdmin = on === true
+  publish()
 }
 
 export function stopEntitlements() {

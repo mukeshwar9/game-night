@@ -10,7 +10,6 @@ import useBusy from '../hooks/useBusy'
 import { avatarItem } from '../lib/avatarGate'
 import { isKitAvatar } from '../lib/avatarKit'
 import { PET_FIELD, petOptions, petOf, withPet, petTierText, pickAction } from '../lib/avatarEditorLogic'
-import { monetizationEnabled } from '../lib/monetizationState'
 import { openPaywall } from '../lib/premiumUi'
 import { setProfile } from '../lib/social'
 import { sounds } from '../lib/sounds'
@@ -29,7 +28,7 @@ const HOVER = '[@media(hover:hover)]:hover:border-retro-text'
 // slot, so they get a pointer to the look editor instead.
 export default function PetPicker({ saved, onClose, onEditLook }) {
   const access = useAccess()
-  const selling = monetizationEnabled()
+  const selling = access.shop
   const [pet, setPet] = useState(petOf(saved))
   // A save from elsewhere while the sheet is open: an untouched choice follows
   // the new saved pet; a choice in progress stays. SAVE only writes the pet

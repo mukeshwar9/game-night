@@ -13,9 +13,10 @@ import { applyStoredDisplayPrefs } from './displayPrefs'
 import { recordAttribution } from './analytics'
 import { resyncPush } from './push'
 import { startBlockSync } from './mute'
-import { startEntitlements, stopEntitlements, syncAdminAccess, isUnlockedNow } from './entitlements'
+import { startEntitlements, stopEntitlements, syncAdminAccess, isUnlockedNow, setProfileAdmin } from './entitlements'
 import useAccess from '../hooks/useAccess'
 import { monetizationEnabled } from './monetizationState'
+import { isNative } from './platform'
 
 const AuthContext = createContext(null)
 
@@ -58,8 +59,10 @@ export function AuthProvider({ children }) {
   }, [])
 
   // Purchases follow the account: watch entitlements/{uid} for as long as it is signed in.
+  // With monetization off it is still watched, since an admin flag there turns on the
+  // shop preview (premium.js viewerAccess); the native shell never sells at all.
   useEffect(() => {
-    if (uid && monetizationEnabled()) startEntitlements(uid)
+    if (uid && !isNative) startEntitlements(uid)
     else stopEntitlements()
   }, [uid])
 
@@ -119,6 +122,7 @@ export function AuthProvider({ children }) {
       unsubProfile = subscribeProfile(uid, p => {
         if (cancelled) return
         setProfile(p)
+        setProfileAdmin(p?.admin === true)
         // Theme follows the account across devices: applyTheme only touches
         // DOM + localStorage, so this can't loop back into another setProfile write.
         if (p?.theme && THEMES.some(t => t.id === p.theme && isUnlockedNow({ kind: 'theme', ...t })) && p.theme !== getStoredTheme()) {
@@ -156,6 +160,7 @@ export function AuthProvider({ children }) {
       unsubProfile(); unsubPresence(); unsubInvites(); unsubRequests()
       unsubFriends(); unsubBlocks(); presenceUnsubs.forEach(u => u()); presenceUnsubs = []
       setInvites([]); setRequestCount(0); setOnlineFriendCount(0)
+      setProfileAdmin(false)
     }
   }, [uid])
 

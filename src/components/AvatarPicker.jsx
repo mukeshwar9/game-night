@@ -15,7 +15,6 @@ import LockBadge from './premium/LockBadge'
 import useAccess from '../hooks/useAccess'
 import { openPaywall } from '../lib/premiumUi'
 import { avatarItem } from '../lib/avatarGate'
-import { monetizationEnabled } from '../lib/monetizationState'
 import { onRadioGroupKeyDown } from '../lib/radioGroupKeys'
 import { tabStopIndex } from '../lib/rovingRadioLogic'
 import { cn } from '@/lib/utils'
@@ -38,8 +37,8 @@ const HOVER = '[@media(hover:hover)]:hover:border-retro-text'
 // `wide` (the full-screen studio) puts preview and options side by side from md up.
 export default function AvatarPicker({ value, onChange, name = '', previewSize = 144, onLocked = openPaywall, sticky = true, wide = false }) {
   const access = useAccess()
-  // With monetization off, paid items are plain items: no pass or pack badges either.
-  const selling = monetizationEnabled()
+  // With the shop hidden (monetization off), paid items are plain items: no pass or pack badges either.
+  const selling = access.shop
   const lockedItem = (key, id) => {
     const item = avatarItem(key, id)
     return item && !access.isUnlocked(item) ? item : null

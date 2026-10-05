@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PACKS, PRICES, PRICES_INR, PRODUCTS, amountFor, formatCents, formatPaise, formatPrice, yearlySavingsPercent } from './premiumCatalog'
-import { accessFor, birthYearOptions, bypassActive, canViewAsPlayer, effectiveAccess, viewAsPlayerActive, hasActivePass, isUnlocked, itemKey, missingPacks, purchaseGate, unlockReason } from './premium'
+import { accessFor, birthYearOptions, bypassActive, canViewAsPlayer, effectiveAccess, viewAsPlayerActive, hasActivePass, isUnlocked, itemKey, missingPacks, purchaseGate, unlockReason, viewerAccess } from './premium'
 
 const NOW = 1_800_000_000_000
 const free = { kind: 'theme', id: 'matcha' }
@@ -201,5 +201,66 @@ describe('view as regular player', () => {
   it('never adds anything: with monetization off everything stays open, as for every player', () => {
     expect(effectiveAccess(null, { bypass: true, viewAsPlayer: true, monetization: false }).isUnlocked(theme)).toBe(true)
     expect(effectiveAccess(null, { bypass: false, viewAsPlayer: true }).isUnlocked(theme)).toBe(false)
+  })
+})
+
+describe('viewerAccess', () => {
+  const theme = { kind: 'theme', id: 'gold', premium: true, pack: 'themes-seasonal' }
+
+  it('production with monetization off: a regular player sees no shop and every item open', () => {
+    const a = viewerAccess({ ent: null })
+    expect(a.shop).toBe(false)
+    expect(a.isUnlocked(theme)).toBe(true)
+    expect(a.canViewAsPlayer).toBe(false)
+  })
+
+  it('production with monetization off: an admin previews the shop, everything still open', () => {
+    for (const env of [{ ent: { admin: true } }, { ent: null, profileAdmin: true }]) {
+      const a = viewerAccess(env)
+      expect(a.shop).toBe(true)
+      expect(a.admin).toBe(true)
+      expect(a.bypass).toBe(false)
+      expect(a.isUnlocked(theme)).toBe(true)
+      expect(a.canViewAsPlayer).toBe(true)
+    }
+  })
+
+  it('view as regular player ends the admin preview: no shop, every item open', () => {
+    const a = viewerAccess({ ent: null, profileAdmin: true, viewAs: 'on' })
+    expect(a.viewAsPlayer).toBe(true)
+    expect(a.shop).toBe(false)
+    expect(a.admin).toBe(false)
+    expect(a.isUnlocked(theme)).toBe(true)
+    expect(a.canViewAsPlayer).toBe(true)
+    expect(a.ent).toBe(null)
+  })
+
+  it('a stored view-as switch does nothing for a regular player', () => {
+    const a = viewerAccess({ ent: null, viewAs: 'on' })
+    expect(a.viewAsPlayer).toBe(false)
+    expect(a.shop).toBe(false)
+  })
+
+  it('the native shell never shows the shop, admin or not', () => {
+    expect(viewerAccess({ ent: { admin: true }, native: true }).shop).toBe(false)
+    expect(viewerAccess({ ent: { admin: true }, native: true, monetization: false }).isUnlocked(theme)).toBe(true)
+  })
+
+  it('a dev server switched off by the override stays off, even for an admin', () => {
+    const a = viewerAccess({ ent: { admin: true }, monetization: false, dev: true })
+    expect(a.shop).toBe(false)
+    expect(a.isUnlocked(theme)).toBe(true)
+  })
+
+  it('monetization on: the shop shows for everyone and gating applies as before', () => {
+    const player = viewerAccess({ ent: null, monetization: true })
+    expect(player.shop).toBe(true)
+    expect(player.isUnlocked(theme)).toBe(false)
+    const dev = viewerAccess({ ent: null, monetization: true, dev: true })
+    expect(dev.bypass).toBe(true)
+    expect(dev.isUnlocked(theme)).toBe(true)
+    const devAsPlayer = viewerAccess({ ent: null, monetization: true, dev: true, viewAs: 'on' })
+    expect(devAsPlayer.shop).toBe(true)
+    expect(devAsPlayer.isUnlocked(theme)).toBe(false)
   })
 })

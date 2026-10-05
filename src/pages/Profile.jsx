@@ -26,7 +26,7 @@ import AppleMark from '../components/AppleMark'
 import { isInAppBrowser } from '../lib/uaLogic'
 import LegalLinks from '../components/LegalLinks'
 import PassStatus from '../components/premium/PassStatus'
-import { monetizationEnabled } from '../lib/monetizationState'
+import useAccess from '../hooks/useAccess'
 import { cn } from '@/lib/utils'
 
 const DEEP_LINKS = { '#look': openAvatarStudio, '#pet': openPetPicker }
@@ -35,6 +35,7 @@ export default function Profile() {
   const { profile, isAnonymous, upgrade, signOutToGuest, user } = useAuth()
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
   const muted = mutedList(useMutedMap())
+  const access = useAccess()
   const [busy, setBusy] = useState(false)
   // The store app is never an in-app browser; it signs in through native sheets.
   const inApp = !isNative && isInAppBrowser()
@@ -397,7 +398,7 @@ export default function Profile() {
         )}
 
         {/* Shop & Pass: what the account has, and the way to more looks */}
-        {monetizationEnabled() && <div className="space-y-2 border-t border-retro-border pt-4">
+        {access.shop && <div className="space-y-2 border-t border-retro-border pt-4">
           <label className="font-pixel text-[10px] text-retro-dim tracking-wider">SHOP &amp; PASS</label>
           <PassStatus linkToPass />
           <Link

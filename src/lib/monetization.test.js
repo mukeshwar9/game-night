@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { monetizationActive, monetizationPreviewAvailable } from './monetization'
+import { monetizationActive, monetizationPreviewAvailable, shopVisible } from './monetization'
 import { bypassActive } from './premium'
 
 describe('monetizationActive', () => {
@@ -7,6 +7,11 @@ describe('monetizationActive', () => {
     expect(monetizationActive({})).toBe(false)
     expect(monetizationActive({ flag: false })).toBe(false)
     expect(monetizationActive({ flag: true })).toBe(true)
+  })
+
+  it('is on by default on a dev server or the emulators', () => {
+    expect(monetizationActive({ devLike: true })).toBe(true)
+    expect(monetizationActive({ flag: false, devLike: true, override: null })).toBe(true)
   })
 
   it('lets a dev server or the emulators flip it with the stored override', () => {
@@ -49,5 +54,23 @@ describe('monetizationPreviewAvailable', () => {
   it('production ignores the dev override either way', () => {
     expect(monetizationActive({ flag: false, devLike: false, override: 'on' })).toBe(false)
     expect(monetizationActive({ flag: true, devLike: false, override: 'off' })).toBe(true)
+  })
+})
+
+describe('shopVisible', () => {
+  it('shows for everyone while monetization is on', () => {
+    expect(shopVisible({ monetization: true })).toBe(true)
+    expect(shopVisible({ monetization: true, viewAsPlayer: true })).toBe(true)
+  })
+
+  it('with monetization off, shows only to an admin who is not viewing as a regular player', () => {
+    expect(shopVisible({})).toBe(false)
+    expect(shopVisible({ admin: true })).toBe(true)
+    expect(shopVisible({ admin: true, viewAsPlayer: true })).toBe(false)
+  })
+
+  it('never shows in the native shell', () => {
+    expect(shopVisible({ monetization: true, native: true })).toBe(false)
+    expect(shopVisible({ admin: true, native: true })).toBe(false)
   })
 })

@@ -218,9 +218,11 @@ test('paddle landing: ?_ptxn opens Paddle checkout for that transaction and retu
   expectNoPageErrors(player)
 })
 
-test('monetization off (the default): everything is open and nothing sells', async ({ browser }) => {
+test('monetization off (the production default): everything is open and nothing sells', async ({ browser }) => {
   const player = await newPlayer(browser)
   const { page } = player
+  // The emulators default monetization on; the stored override shows the launch state.
+  await player.context.addInitScript(() => localStorage.setItem('gn-monetization', 'off'))
   await onboard(page, 'Free Player')
 
   // No shop or Pass routes.
