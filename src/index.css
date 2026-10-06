@@ -875,8 +875,8 @@
 }
 
 /* SHORELINE: a midday beach. Dry-sand ground, sea-teal X, raspberry O, coral
-   CTA. The sea, waves and wet sand are drawn by ThemeBackdrop from the four
-   beach-only tokens at the end (sea, shallow, foam, wet). */
+   CTA. The sea, waves and wet sand are drawn by BeachBackdrop from the
+   beach-only tokens at the end (sea, shallow, foam, wet, damp). */
 [data-theme="shoreline"] {
   color-scheme: light;
   --crt-overlay: none;
@@ -925,6 +925,7 @@
   --c-shallow:  98 210 210;
   --c-foam:     255 255 255;
   --c-wet:      212 190 150;
+  --c-damp:     188 162 118;
 }
 
 /* Matcha Strawberry — whisked-matcha ground with a strawberry-red CTA.
@@ -2730,17 +2731,20 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
   background: radial-gradient(ellipse 70% 25% at 20% 100%, rgb(var(--c-p3) / .10), transparent 70%), radial-gradient(ellipse 70% 25% at 85% 100%, rgb(var(--c-p4) / .12), transparent 70%), radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, .6) 100%);
 }
 
-/* SHORELINE: sand underfoot, the header is the sea, and ThemeBackdrop.jsx
-   draws the shoreline washing up the sand and back. The sand is a static
-   noise tile (painted once); pages let it show through. */
+/* SHORELINE: sand underfoot, the sea along the top edge, and BeachBackdrop.jsx
+   draws the shoreline washing up the sand and back, with wet patches, shells
+   and crabs. The sand is a static noise tile (painted once); pages let it
+   show through. */
 [data-theme='shoreline'] body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .22  0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 [data-theme='shoreline'] .min-h-screen.bg-retro-bg { background-color: transparent; }
 /* Its paired Fredoka reads best a step heavier than the pixel faces' 400. */
 [data-theme='shoreline'][data-font='fredoka'] .font-pixel { font-weight: 600; }
-/* The header sits on the water: sea ground, white ink, and no backdrop blur
-   (blurring the moving waves behind it would repaint every frame). */
+/* The header sits on the water: white ink and no backdrop blur (blurring the
+   moving waves behind it would repaint every frame). On the menus it has no
+   ground of its own, so the waves are the top edge; on game screens, which
+   have no waves, it keeps a sea ground. */
 [data-theme='shoreline'] .app-navbar {
   --c-bg: var(--c-sea);
   --c-border: var(--c-sea);
@@ -2751,9 +2755,10 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+[data-theme='shoreline'] body:has(.beach-surf) .app-navbar { background-color: transparent; border-bottom-color: transparent; }
 [data-theme='shoreline'] .app-navbar .text-glow-cta { text-shadow: 0 1px 2px rgb(0 0 0 / .25); }
 /* Menus start below the wash so the water never runs over the first line. */
-[data-theme='shoreline'] .beach-pad { padding-top: 34px; }
+[data-theme='shoreline'] .beach-pad { padding-top: 64px; }
 /* Light-ground material, as on MATCHA: buttons on a ledge, cards on a base. */
 [data-theme='shoreline'] .text-glow-cta, [data-theme='shoreline'] .text-glow-win,
 [data-theme='shoreline'] .text-glow-p1, [data-theme='shoreline'] .text-glow-p2 {
@@ -2762,26 +2767,59 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
 [data-theme='shoreline'] .bg-retro-cta { box-shadow: 0 4px 0 rgb(var(--c-text) / .3); }
 [data-theme='shoreline'] .bg-retro-card, [data-theme='shoreline'] .bg-retro-surface { box-shadow: 0 3px 0 rgb(var(--c-border)); }
 
-.beach-backdrop {
+/* --beach-shore is the header's bottom edge. The sand layer (wet band,
+   patches, shells, crabs) sits behind every page; the surf sits above the
+   page but under the header (z-30), and slides away with the header when it
+   hides on scroll. */
+.beach-backdrop, .beach-surf {
   --beach-shore: calc(max(0.75rem, env(safe-area-inset-top)) + 46px);
   position: fixed;
   inset: 0;
-  z-index: -1;
   overflow: hidden;
   pointer-events: none;
 }
-.beach-backdrop > * { position: absolute; left: 0; right: 0; }
-.beach-sea { top: 0; height: var(--beach-shore); background: rgb(var(--c-sea)); }
+.beach-backdrop { z-index: -1; }
+.beach-surf { bottom: auto; height: calc(var(--beach-shore) + 90px); z-index: 10; transition: transform .2s; }
+html.header-hidden :is(.beach-surf, .beach-shoreline) { transform: translateY(-100%); }
+.beach-backdrop > *, .beach-surf > *, .beach-shoreline > * { position: absolute; }
+.beach-shoreline { inset: 0 0 auto; height: calc(var(--beach-shore) + 200px); transition: transform .2s; }
 .beach-wet {
-  top: var(--beach-shore);
-  height: 64px;
-  background: linear-gradient(rgb(var(--c-wet) / .8), rgb(var(--c-wet) / 0));
+  left: 0;
+  right: 0;
+  top: calc(var(--beach-shore) + 30px);
+  height: 96px;
+  background: linear-gradient(rgb(var(--c-wet) / .85), rgb(var(--c-wet) / 0));
   opacity: .3;
   will-change: opacity;
   animation: beach-wet 7s var(--wash-delay, 0s) infinite;
 }
-/* The wave strip's shoreline sits 48px down the 96px SVG (beachLogic FRONT). */
-.beach-wave { top: calc(var(--beach-shore) - 48px); will-change: transform; animation: beach-wash 7s var(--wash-delay, 0s) infinite; }
+/* Damp sand the last waves left behind: soft darker blots, painted once. */
+.beach-patch {
+  transform: rotate(var(--rot));
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(var(--c-damp) / .7), rgb(var(--c-damp) / .45) 60%, rgb(var(--c-damp) / 0));
+}
+.beach-item { transform: rotate(var(--rot)); }
+.beach-item svg { display: block; }
+/* Now and then a crab scuttles a few steps sideways and back. */
+.beach-crab { will-change: transform; animation: beach-scuttle 11s steps(1, end) infinite; }
+@keyframes beach-scuttle {
+  0%, 30%  { transform: translateX(0) rotate(var(--rot)); }
+  33%      { transform: translateX(4px) rotate(var(--rot)); }
+  36%      { transform: translateX(8px) rotate(var(--rot)); }
+  39%, 70% { transform: translateX(12px) rotate(var(--rot)); }
+  73%      { transform: translateX(8px) rotate(var(--rot)); }
+  76%      { transform: translateX(4px) rotate(var(--rot)); }
+  79%, 100% { transform: translateX(0) rotate(var(--rot)); }
+}
+/* Phones: the cards cover the sand, so only the pieces along the waterline
+   show. Wider screens have open sand beside the column and larger pieces. */
+@media (max-width: 639px) { .beach-backdrop > :not(.beach-shoreline) { display: none; } }
+@media (min-width: 640px) { .beach-item svg { transform: scale(1.4); } }
+/* Each wave SVG holds the sea from above the screen's top edge down to its
+   shoreline (BeachBackdrop FRONT base 160 of 200px); the strip is placed so
+   the front shoreline rests 34px below the header. */
+.beach-wave { left: 0; top: calc(var(--beach-shore) + 34px - 160px); will-change: transform; animation: beach-wash 7s var(--wash-delay, 0s) infinite; }
 .beach-wave.is-front { --reach: 26px; }
 .beach-wave.is-back { --reach: 12px; animation-delay: calc(var(--wash-delay, 0s) - 3.4s); }
 .beach-drift { will-change: transform; animation: beach-drift 26s linear infinite; }
@@ -2797,15 +2835,16 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
 /* One shoreline tile (beachLogic SHORE_TILE), so the strip loops seamlessly. */
 @keyframes beach-drift { to { transform: translateX(-390px); } }
 @keyframes beach-wet { 0% { opacity: .3; } 42% { opacity: .9; } 100% { opacity: .25; } }
-/* Reduced motion: the beach stays, frozen mid-wash. */
-[data-motion='reduced'] .beach-backdrop *,
-[data-motion='reduced'] .beach-backdrop *::before { animation: none !important; }
+/* Reduced motion: the beach stays, frozen mid-wash, and the crabs sit still. */
+[data-motion='reduced'] .beach-backdrop *, [data-motion='reduced'] .beach-surf * { animation: none !important; }
 [data-motion='reduced'] .beach-wave { transform: translateY(calc(var(--reach) / 2)); }
 [data-motion='reduced'] .beach-wet { opacity: .6; }
+[data-motion='reduced'] .beach-crab { transform: rotate(var(--rot)); }
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion='full']) .beach-backdrop * { animation: none !important; }
+  :root:not([data-motion='full']) .beach-backdrop *, :root:not([data-motion='full']) .beach-surf * { animation: none !important; }
   :root:not([data-motion='full']) .beach-wave { transform: translateY(calc(var(--reach) / 2)); }
   :root:not([data-motion='full']) .beach-wet { opacity: .6; }
+  :root:not([data-motion='full']) .beach-crab { transform: rotate(var(--rot)); }
 }
 
 /* HIGH CONTRAST: thick focus ring. */

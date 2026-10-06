@@ -42,12 +42,12 @@ describe('THEMES registry', () => {
     for (const t of THEMES.filter(t => t.backdrop)) expect(css).toContain(`.${t.backdrop}-backdrop {`)
     const block = css.slice(css.indexOf('[data-theme="shoreline"] {'))
     const body = block.slice(0, block.indexOf('}'))
-    for (const token of ['sea', 'shallow', 'foam', 'wet']) expect(body).toMatch(new RegExp(`--c-${token}:\\s*\\d+ \\d+ \\d+;`))
+    for (const token of ['sea', 'shallow', 'foam', 'wet', 'damp']) expect(body).toMatch(new RegExp(`--c-${token}:\\s*\\d+ \\d+ \\d+;`))
   })
 
-  it('the beach waves stop under reduced motion', () => {
-    expect(css).toMatch(/\[data-motion='reduced'\] \.beach-backdrop \*[^{]*\{ animation: none !important; \}/)
-    expect(css).toMatch(/prefers-reduced-motion: reduce\)\s*\{\s*:root:not\(\[data-motion='full'\]\) \.beach-backdrop \* \{ animation: none !important; \}/)
+  it('the beach waves and crabs stop under reduced motion', () => {
+    expect(css).toMatch(/\[data-motion='reduced'\] \.beach-backdrop \*, \[data-motion='reduced'\] \.beach-surf \* \{ animation: none !important; \}/)
+    expect(css).toMatch(/prefers-reduced-motion: reduce\)\s*\{\s*:root:not\(\[data-motion='full'\]\) \.beach-backdrop \*, :root:not\(\[data-motion='full'\]\) \.beach-surf \* \{ animation: none !important; \}/)
   })
 })
 

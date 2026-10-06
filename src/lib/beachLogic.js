@@ -1,5 +1,5 @@
 // @ts-check
-// SHORELINE theme: the pure half of the beach backdrop (ThemeBackdrop.jsx) and
+// SHORELINE theme: the pure half of the beach backdrop (BeachBackdrop.jsx) and
 // of the surf ambience (musicAmbience.js). Shoreline shapes, the shared wave
 // clock, and the surf/gull timing. No DOM, no WebAudio, no React.
 
