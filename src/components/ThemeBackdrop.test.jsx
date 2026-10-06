@@ -15,20 +15,17 @@ describe('ThemeBackdrop', () => {
 
 describe('BeachBackdrop', () => {
   const html = renderToStaticMarkup(<BeachBackdrop />)
+  const scene = html.slice(0, html.indexOf('class="beach-sand"'))
 
   it('is decorative: both layers hidden from assistive tech', () => {
     expect(html).toMatch(/^<div class="beach-backdrop" aria-hidden="true"/)
-    expect(html).toContain('<div class="beach-surf" aria-hidden="true"')
+    expect(html).toContain('<div class="beach-sand" aria-hidden="true"')
   })
 
-  it('has no header band: the waves are the top edge', () => {
-    expect(html).not.toContain('beach-sea')
-  })
-
-  it('draws the wet sand, and a back and front wave on the surf layer', () => {
-    for (const cls of ['beach-wet', 'beach-wave is-back', 'beach-wave is-front']) expect(html).toContain(`class="${cls}"`)
-    const surf = html.slice(html.indexOf('class="beach-surf"'))
-    expect(surf.match(/class="beach-wave /g)).toHaveLength(2)
+  it('draws the sea: deep water, a back and front wave, foam glints and wet sand', () => {
+    for (const cls of ['beach-deep', 'beach-wet', 'beach-wave is-back', 'beach-wave is-front']) expect(scene).toContain(`class="${cls}"`)
+    expect(scene.match(/class="beach-wave /g)).toHaveLength(2)
+    expect(scene.match(/class="beach-glint"/g).length).toBeGreaterThanOrEqual(4)
     expect(html).not.toMatch(/NaN|Infinity/)
   })
 
@@ -36,11 +33,10 @@ describe('BeachBackdrop', () => {
     expect(html.match(/class="beach-patch"/g).length).toBeGreaterThanOrEqual(2)
     expect(html.match(/class="beach-item"/g).length).toBeGreaterThanOrEqual(2)
     expect(html.match(/class="beach-item beach-crab"/g).length).toBeGreaterThanOrEqual(1)
-    // Some pieces line the water on every screen size, inside the group that
-    // slides away with the header.
-    const shoreline = html.slice(html.indexOf('class="beach-shoreline"'), html.indexOf('class="beach-surf"'))
-    expect(shoreline).toContain('beach-crab')
-    expect(shoreline).toContain('beach-patch')
+    // Some pieces lie in the wash on every screen size, under the waves.
+    const wash = scene.slice(0, scene.indexOf('class="beach-wave '))
+    expect(wash).toContain('beach-crab')
+    expect(wash).toContain('beach-patch')
   })
 
   it('starts the waves on the shared wave clock', () => {

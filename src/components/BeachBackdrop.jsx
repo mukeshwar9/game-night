@@ -1,27 +1,29 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { SHORE_TILE, foamBubbles, shorePath, washPhase } from '../lib/beachLogic'
 
-// SHORELINE's scene, loaded on demand by ThemeBackdrop: the sea at the top
-// edge with the header floating on it, waves washing up the sand and back,
-// wet patches, shells and crabs. Decorative only: aria-hidden, no pointer
-// events. The sand layer sits behind all content (index.css .beach-backdrop,
-// z-index -1); the surf sits above the page but under the header
-// (.beach-surf), so the header floats on the water and content scrolls under
-// it.
+// SHORELINE's scene, loaded on demand by ThemeBackdrop: midday, seen from
+// above. The sea fills the top of the page (index.css --beach-sea, about a
+// third of the screen) with the header floating on it, and ends in a white
+// foamy edge that washes up the sand and back; below it, wet sand, soft damp
+// patches, a shell or two and a crab. Decorative only: aria-hidden, no
+// pointer events, and always behind the page (index.css .beach-backdrop,
+// z-index -1), so cards and game boards are opaque and the waves never cross
+// them. The scene scrolls with the page, like the beach under it.
 //
 // Everything that moves is transform or opacity on its own layer, so the
 // compositor animates it without repainting the page. Reduced motion (the
 // Settings switch or the OS) stops the animation in index.css.
 
-// Two wave layers: the darker back wave, half a cycle out of step, and the
-// front swash with its foam line and bubbles. Each SVG holds the whole sea from
-// the top of the screen down to its shoreline; index.css places the strip so
-// the header's bottom edge falls at SEA_DEEP (the water stays deep, and the
-// white header ink readable, down to there).
-const BACK = { base: 170, amp: 7, phase: 1.3 }
-const FRONT = { base: 160, amp: 9, phase: 0 }
-const WAVE_H = 200
-const SEA_DEEP = 126
+// The approved design's art (390x844 board, variant A): a darker back wave,
+// half a cycle out of step, and the front swash with its foam line and spray.
+// Each strip is WAVE_H tall with its shoreline near FRONT.base; index.css
+// places the strip so that line sits at --beach-sea.
+const BACK = { base: 120, amp: 9, phase: 1.3 }
+const FRONT = { base: 102, amp: 11, phase: 0 }
+const WAVE_H = 170
+
+// Glints of foam on the open water: [share of the width, share of the sea's depth].
+const GLINTS = [[0.15, 0.25], [0.38, 0.84], [0.64, 0.39], [0.85, 0.94], [0.26, 0.6], [0.52, 0.12], [0.92, 0.5], [0.06, 0.78]]
 
 function useStripWidth() {
   const read = () => (typeof window === 'undefined' ? 0 : window.innerWidth) + SHORE_TILE
@@ -45,8 +47,8 @@ function Wave({ width, shape, back }) {
       <div className="beach-drift" style={{ width }}>
         <svg width={width} height={WAVE_H} viewBox={`0 0 ${width} ${WAVE_H}`}>
           <defs>
-            <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={shape.base + shape.amp}>
-              <stop offset={back ? SEA_DEEP / (shape.base + shape.amp) : 0.62} style={{ stopColor: back ? 'rgb(var(--c-sea))' : 'rgb(var(--c-sea) / 0)' }} />
+            <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" style={{ stopColor: back ? 'rgb(var(--c-sea))' : 'rgb(var(--c-sea) / 0)' }} />
               <stop offset="1" style={{ stopColor: `rgb(var(--c-shallow) / ${back ? 0.9 : 0.8})` }} />
             </linearGradient>
           </defs>
@@ -65,21 +67,23 @@ export default function BeachBackdrop() {
   // Start the waves where the shared wave clock says we are, so the surf
   // ambience (musicAmbience.js) swells as the water reaches the sand.
   const [delay] = useState(() => -washPhase(typeof performance === 'undefined' ? 0 : performance.now()))
-  const clock = { '--wash-delay': `${delay.toFixed(3)}s` }
   return (
     <>
-      <div className="beach-backdrop" aria-hidden="true" style={clock}>
-        {/* The waterline (wet sand and what lies on it) leaves with the surf
-            when the header hides on scroll; the open sand stays. */}
-        <div className="beach-shoreline">
-          <div className="beach-wet" />
-          <Dressing wide={false} />
-        </div>
-        <Dressing wide />
-      </div>
-      <div className="beach-surf" aria-hidden="true" style={clock}>
+      <div className="beach-backdrop" aria-hidden="true" style={{ '--wash-delay': `${delay.toFixed(3)}s` }}>
+        <div className="beach-wet" />
+        <Dressing wide={false} />
         <Wave width={width} shape={BACK} back />
         <Wave width={width} shape={FRONT} />
+        {/* Deep water under the header ink, fading into the waves. */}
+        <div className="beach-deep" />
+        {GLINTS.map(([x, y], i) => (
+          <span key={i} className="beach-glint" style={{ left: `${x * 100}%`, top: `calc(var(--beach-sea) * ${y})`, animationDelay: `${(-i * 0.9).toFixed(1)}s` }} />
+        ))}
+      </div>
+      {/* Wider screens have open sand beside the content column: more of
+          the same, spread down the screen (hidden on phones in index.css). */}
+      <div className="beach-sand" aria-hidden="true">
+        <Dressing wide />
       </div>
     </>
   )
@@ -105,35 +109,33 @@ function Dressing({ wide }) {
 }
 
 // Where the sand dressing lies. `x` is a share of the screen width (negative
-// `x` measures from the right edge); `y` is px below the header's bottom edge, or a share
-// of the screen height when `vh` is set. `wide` pieces lie on the open sand and
-// only show on screens with sand beside the content column (index.css hides
-// them on phones, where the cards cover the sand); the rest line the water.
+// `x` measures from the right edge); `y` is px below the waterline
+// (--beach-sea), or a share of the screen height when `vh` is set. `wide`
+// pieces lie on the open sand beside the content column; the rest lie in the
+// wash zone between the waterline and the page's first line, where the
+// waves run over them.
 const PATCHES = [
-  { x: -0.08, y: 62, w: 200, h: 50, rot: -4 },
-  { x: -0.62, y: 80, w: 210, h: 54, rot: 3 },
-  { x: 0.03, vh: 0.42, w: 220, h: 64, rot: 8, wide: true },
-  { x: -0.04, vh: 0.6, w: 240, h: 70, rot: -6, wide: true },
-  { x: 0.08, vh: 0.82, w: 180, h: 54, rot: 2, wide: true },
-  { x: -0.12, vh: 0.3, w: 160, h: 48, rot: 5, wide: true },
+  { x: -0.1, y: 30, w: 170, h: 40, rot: -4 },
+  { x: -0.66, y: 36, w: 180, h: 44, rot: 3 },
+  { x: 0.03, vh: 0.5, w: 220, h: 64, rot: 8, wide: true },
+  { x: -0.04, vh: 0.66, w: 240, h: 70, rot: -6, wide: true },
+  { x: 0.08, vh: 0.86, w: 180, h: 54, rot: 2, wide: true },
 ]
 const SHELLS = [
-  { kind: 'scallop', x: -0.03, y: 98, rot: 18 },
-  { kind: 'snail', x: 0.12, vh: 0.5, rot: -20, wide: true },
-  { kind: 'scallop', x: 0.05, vh: 0.72, rot: -12, wide: true },
-  { kind: 'scallop', x: -0.1, vh: 0.44, rot: 30, wide: true },
-  { kind: 'snail', x: -0.06, vh: 0.86, rot: 40, wide: true },
-  { kind: 'snail', x: -0.05, y: 162, rot: 10 },
+  { kind: 'scallop', x: -0.04, y: 30, rot: 18 },
+  { kind: 'snail', x: 0.12, vh: 0.56, rot: -20, wide: true },
+  { kind: 'scallop', x: 0.05, vh: 0.76, rot: -12, wide: true },
+  { kind: 'snail', x: -0.06, vh: 0.88, rot: 40, wide: true },
 ]
 const CRABS = [
-  { x: 0.025, y: 88, rot: -6 },
-  { x: -0.14, vh: 0.66, rot: 8, wide: true, delay: -4.5 },
+  { x: 0.03, y: 26, rot: -6 },
+  { x: -0.14, vh: 0.72, rot: 8, wide: true, delay: -4.5 },
 ]
 
 function place({ x, y, vh, rot = 0, w, h, delay }) {
   const style = {
     [x < 0 ? 'right' : 'left']: `${Math.abs(x) * 100}%`,
-    top: vh == null ? `calc(var(--beach-shore) + ${y}px)` : `${vh * 100}%`,
+    top: vh == null ? `calc(var(--beach-sea) + ${y}px)` : `${vh * 100}%`,
     '--rot': `${rot}deg`,
   }
   if (w) { style.width = w; style.height = h }

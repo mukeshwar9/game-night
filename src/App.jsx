@@ -28,6 +28,7 @@ import useAccess from './hooks/useAccess';
 import { createScrollMemory, scrollTargetFor } from './lib/scrollMemory';
 import { onNavigateRequest, notifyFirstScreen } from './lib/native/navigation';
 import { isNative } from './lib/platform';
+import { cn } from './lib/utils';
 
 // Home (the landing page) and NotFound stay in the entry chunk; every other
 // route downloads on first visit. lazyWithRetry reloads once if a chunk from
@@ -89,6 +90,8 @@ function restoreScroll(y) {
 // .route-fade) restarts. NavBar + BottomTabBar live *outside* this wrapper:
 // the fade used to keep a transform on the ancestor, which trapped
 // position:fixed/sticky descendants so the footer scrolled away.
+const GAME_SCREEN_PREFIXES = ['/game/', '/solo/', '/local/', '/demo', '/play', '/daily/memory', '/playground'];
+
 function AppRoutes() {
   const location = useLocation();
   const { pathname } = location;
@@ -97,6 +100,9 @@ function AppRoutes() {
   // would only lead back to it, so the bar waits until it closes.
   const onboarding = useOnboardingOpen();
   const showTabBar = TAB_BAR_ROUTES.includes(pathname) && !onboarding;
+  // Game screens start right under the header, so a theme scene (SHORELINE's
+  // sea) runs behind the game's opaque cards; every other page starts past it.
+  const gameScreen = GAME_SCREEN_PREFIXES.some((p) => pathname.startsWith(p));
   // The shop and Pass routes exist only while the shop shows for this viewer:
   // monetization on, or an admin's production preview (monetization.js shopVisible).
   const shopRoutes = useAccess().shop;
@@ -137,9 +143,9 @@ function AppRoutes() {
   return (
     <>
       {shopRoutes && <PaddleCheckoutHost />}
-      {/* A theme's animated scene (SHORELINE's waves) sits behind the menus
-          only; game screens keep the plain ground. */}
-      <ThemeBackdrop active={showTabBar} />
+      {/* A theme's animated scene (SHORELINE's sea and waves) sits behind
+          every page except the full-screen playground world. */}
+      <ThemeBackdrop active={!pathname.startsWith('/playground')} />
       <NavBar />
       {/* Suspense sits outside the keyed page, so a lazy route keeps the old
           page up while its code loads (navigations are transitions) and the
@@ -148,8 +154,8 @@ function AppRoutes() {
         <div key={pathname} className="route-fade">
           {/* Bottom padding clears the fixed tab bar so page content (including
               bottom-of-page CTAs like Home's install prompt) never sits under it.
-              beach-pad keeps SHORELINE's wash clear of the first line. */}
-          <div className={showTabBar ? 'pb-[var(--app-tabbar-h)] beach-pad' : undefined}>
+              beach-pad starts SHORELINE's pages on the sand, past the wash. */}
+          <div className={cn(showTabBar && 'pb-[var(--app-tabbar-h)]', !gameScreen && 'beach-pad') || undefined}>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/games" element={<Games />} />

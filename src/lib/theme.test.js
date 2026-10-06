@@ -46,8 +46,8 @@ describe('THEMES registry', () => {
   })
 
   it('the beach waves and crabs stop under reduced motion', () => {
-    expect(css).toMatch(/\[data-motion='reduced'\] \.beach-backdrop \*, \[data-motion='reduced'\] \.beach-surf \* \{ animation: none !important; \}/)
-    expect(css).toMatch(/prefers-reduced-motion: reduce\)\s*\{\s*:root:not\(\[data-motion='full'\]\) \.beach-backdrop \*, :root:not\(\[data-motion='full'\]\) \.beach-surf \* \{ animation: none !important; \}/)
+    expect(css).toContain("[data-motion='reduced'] :is(.beach-backdrop, .beach-sand) * { animation: none !important; }")
+    expect(css).toMatch(/prefers-reduced-motion: reduce\)\s*\{\s*:root:not\(\[data-motion='full'\]\) :is\(\.beach-backdrop, \.beach-sand\) \* \{ animation: none !important; \}/)
   })
 })
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  GULL_GAP, SHORE_TILE, WASH_PEAK, WASH_SECONDS, foamBubbles, gullDelay, nextWaveAt,
-  shoreEdge, shorePath, surfEnvelope, washPhase,
+  GULL_GAP, SHORE_TILE, WASH_PEAK, WASH_SECONDS, WAVE_STRENGTH, foamBubbles, gullDelay, nextWaveAt,
+  seamlessLoop, shoreEdge, shorePath, surfEnvelope, washPhase, waveStrength,
 } from './beachLogic'
 
 const SHAPE = { base: 48, amp: 9, phase: 1.3 }
@@ -59,10 +59,17 @@ describe('foamBubbles', () => {
     })
   })
 
-  it('sits in the water, just above the shoreline', () => {
+  it('sprays just past the foam line, on the sand', () => {
     for (const b of foamBubbles({ width: SHORE_TILE, ...SHAPE })) {
-      expect(b.y).toBeLessThan(shoreEdge(b.x, SHAPE))
+      expect(b.y).toBeGreaterThan(shoreEdge(b.x, SHAPE))
+      expect(b.y - shoreEdge(b.x, SHAPE)).toBeLessThanOrEqual(11)
       expect(b.x).toBeLessThanOrEqual(SHORE_TILE)
+    }
+  })
+
+  it('with inWater, sits just inside the water instead', () => {
+    for (const b of foamBubbles({ width: SHORE_TILE, ...SHAPE, inWater: true })) {
+      expect(b.y).toBeLessThan(shoreEdge(b.x, SHAPE))
     }
   })
 })
@@ -93,15 +100,29 @@ describe('surfEnvelope', () => {
     expect(env.body[env.body.length - 1].at).toBe(WASH_SECONDS)
   })
 
-  it('hisses as the wave turns, after the rumble peaks', () => {
-    const body = env.body.reduce((a, b) => (b.gain > a.gain ? b : a))
-    const fizz = env.fizz.reduce((a, b) => (b.gain > a.gain ? b : a))
-    expect(fizz.at).toBeGreaterThan(body.at)
+  it('rushes up the sand after the rumble, and hisses as the wave turns', () => {
+    const top = (pts) => pts.reduce((a, b) => (b.gain > a.gain ? b : a))
+    expect(top(env.wash).at).toBeGreaterThan(top(env.body).at)
+    expect(top(env.fizz).at).toBeGreaterThan(top(env.body).at)
     expect(env.fizz[env.fizz.length - 1].gain).toBe(0)
   })
 
+  it('ends every layer where it began, so waves join without a step', () => {
+    for (const pts of [env.body, env.wash, env.fizz]) {
+      expect(pts[pts.length - 1].gain).toBe(pts[0].gain)
+    }
+  })
+
+  it('a stronger wave breaks louder and brighter, but rests at the same level', () => {
+    const big = surfEnvelope(WASH_SECONDS, 1.15), small = surfEnvelope(WASH_SECONDS, 0.7)
+    const peak = (e) => Math.max(...e.body.map(p => p.gain))
+    expect(peak(big)).toBeGreaterThan(peak(small))
+    expect(Math.max(...big.body.map(p => p.cutoff))).toBeGreaterThan(Math.max(...small.body.map(p => p.cutoff)))
+    expect(big.body[0]).toEqual(small.body[0])
+  })
+
   it('keeps every point inside the wave, in order', () => {
-    for (const pts of [env.body, env.fizz]) {
+    for (const pts of [env.body, env.wash, env.fizz]) {
       for (let i = 1; i < pts.length; i++) expect(pts[i].at).toBeGreaterThan(pts[i - 1].at)
       expect(pts[pts.length - 1].at).toBeLessThanOrEqual(WASH_SECONDS)
     }
@@ -115,5 +136,34 @@ describe('gullDelay', () => {
     expect(gullDelay(0.5)).toBeCloseTo((GULL_GAP[0] + GULL_GAP[1]) / 2)
     expect(gullDelay(-3)).toBe(GULL_GAP[0])
     expect(gullDelay(7)).toBe(GULL_GAP[1])
+  })
+})
+
+describe('waveStrength', () => {
+  it('stays in range, bunches toward the middle and clamps bad input', () => {
+    const [lo, hi] = WAVE_STRENGTH
+    expect(waveStrength(0)).toBe(lo)
+    expect(waveStrength(1)).toBe(hi)
+    expect(waveStrength(0.5)).toBeCloseTo((lo + hi) / 2)
+    expect(waveStrength(0.25) - lo).toBeLessThan((hi - lo) * 0.25)
+    expect(waveStrength(-1)).toBe(lo)
+    expect(waveStrength(9)).toBe(hi)
+  })
+})
+
+describe('seamlessLoop', () => {
+  it('drops the faded tail and joins the end smoothly to the start', () => {
+    // A ramp has a big jump where it wraps; the loop must not.
+    const ramp = Float32Array.from({ length: 1000 }, (_, i) => i / 1000)
+    const out = seamlessLoop(ramp, 200)
+    expect(out).toHaveLength(800)
+    const wrapJump = Math.abs(out[0] - out[out.length - 1])
+    expect(wrapJump).toBeLessThan(0.01)
+    // Past the crossfade the samples are untouched.
+    expect(out[500]).toBe(ramp[500])
+  })
+
+  it('caps the fade at half the buffer', () => {
+    expect(seamlessLoop(new Float32Array(10), 50)).toHaveLength(5)
   })
 })

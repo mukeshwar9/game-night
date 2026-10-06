@@ -2731,65 +2731,99 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
   background: radial-gradient(ellipse 70% 25% at 20% 100%, rgb(var(--c-p3) / .10), transparent 70%), radial-gradient(ellipse 70% 25% at 85% 100%, rgb(var(--c-p4) / .12), transparent 70%), radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, .6) 100%);
 }
 
-/* SHORELINE: sand underfoot, the sea along the top edge, and BeachBackdrop.jsx
-   draws the shoreline washing up the sand and back, with wet patches, shells
-   and crabs. The sand is a static noise tile (painted once); pages let it
-   show through. */
+/* SHORELINE: midday, seen from above. The sea fills the top of the page (about
+   a third of the screen, --beach-sea) with the header floating on it, and its
+   foamy edge washes onto warm speckled sand that covers everything below.
+   BeachBackdrop.jsx draws the sea, waves, wet sand, damp patches, shells and
+   crabs; the sand itself is a static speckle tile on the body (painted once).
+   Pages let it show through; cards stay cream and opaque on top. */
+[data-theme='shoreline'] {
+  --beach-sea: clamp(190px, 33svh, 380px);
+  /* The header scrolls away with the sea, so sticky chrome sits at the top. */
+  --app-header-offset: 0px;
+}
 [data-theme='shoreline'] body {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .22  0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .22  0 0 0 .12 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3Ccircle cx='0.0' cy='110.5' r='0.76' fill='rgb(120,95,60)' fill-opacity='0.12'/%3E%3Ccircle cx='87.5' cy='63.9' r='0.80' fill='rgb(120,95,60)' fill-opacity='0.23'/%3E%3Ccircle cx='90.6' cy='65.1' r='1.12' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='98.0' cy='29.0' r='0.84' fill='rgb(120,95,60)' fill-opacity='0.22'/%3E%3Ccircle cx='83.8' cy='6.5' r='1.12' fill='rgb(120,95,60)' fill-opacity='0.17'/%3E%3Ccircle cx='110.7' cy='96.9' r='0.61' fill='rgb(120,95,60)' fill-opacity='0.18'/%3E%3Ccircle cx='110.8' cy='82.6' r='1.08' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='109.4' cy='109.0' r='0.84' fill='rgb(120,95,60)' fill-opacity='0.15'/%3E%3Ccircle cx='100.5' cy='39.9' r='0.64' fill='rgb(120,95,60)' fill-opacity='0.14'/%3E%3Ccircle cx='51.4' cy='35.4' r='1.34' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='87.5' cy='105.3' r='0.55' fill='rgb(120,95,60)' fill-opacity='0.14'/%3E%3Ccircle cx='67.3' cy='61.1' r='0.88' fill='rgb(120,95,60)' fill-opacity='0.12'/%3E%3Ccircle cx='109.1' cy='6.6' r='0.83' fill='rgb(120,95,60)' fill-opacity='0.15'/%3E%3Ccircle cx='79.7' cy='110.9' r='0.96' fill='rgb(120,95,60)' fill-opacity='0.11'/%3E%3Ccircle cx='48.7' cy='34.0' r='0.83' fill='rgb(120,95,60)' fill-opacity='0.16'/%3E%3Ccircle cx='39.9' cy='63.8' r='1.05' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='108.8' cy='54.9' r='1.28' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='76.1' cy='61.9' r='0.95' fill='rgb(120,95,60)' fill-opacity='0.22'/%3E%3Ccircle cx='112.7' cy='47.6' r='1.14' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='70.4' cy='42.1' r='0.80' fill='rgb(120,95,60)' fill-opacity='0.16'/%3E%3Ccircle cx='95.4' cy='105.3' r='0.60' fill='rgb(120,95,60)' fill-opacity='0.24'/%3E%3Ccircle cx='9.3' cy='48.8' r='0.64' fill='rgb(120,95,60)' fill-opacity='0.10'/%3E%3Ccircle cx='119.5' cy='26.4' r='1.07' fill='rgb(120,95,60)' fill-opacity='0.11'/%3E%3Ccircle cx='54.9' cy='71.1' r='0.62' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='106.1' cy='106.9' r='1.30' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='91.3' cy='33.1' r='0.51' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='9.1' cy='0.2' r='1.06' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='88.9' cy='58.7' r='1.12' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='105.9' cy='28.2' r='0.84' fill='rgb(120,95,60)' fill-opacity='0.25'/%3E%3Ccircle cx='14.2' cy='58.7' r='0.50' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='76.4' cy='110.7' r='0.52' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='22.6' cy='116.2' r='1.01' fill='rgb(120,95,60)' fill-opacity='0.21'/%3E%3Ccircle cx='32.0' cy='26.7' r='0.69' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='6.3' cy='92.3' r='1.13' fill='rgb(120,95,60)' fill-opacity='0.22'/%3E%3Ccircle cx='59.8' cy='3.9' r='0.60' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='15.7' cy='82.5' r='1.30' fill='rgb(120,95,60)' fill-opacity='0.09'/%3E%3Ccircle cx='106.0' cy='103.4' r='1.39' fill='rgb(120,95,60)' fill-opacity='0.27'/%3E%3Ccircle cx='91.8' cy='50.4' r='0.72' fill='rgb(120,95,60)' fill-opacity='0.22'/%3E%3Ccircle cx='105.9' cy='47.8' r='0.71' fill='rgb(120,95,60)' fill-opacity='0.16'/%3E%3Ccircle cx='106.4' cy='67.1' r='0.82' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='88.2' cy='40.2' r='1.15' fill='rgb(120,95,60)' fill-opacity='0.16'/%3E%3Ccircle cx='23.8' cy='37.4' r='1.39' fill='rgb(120,95,60)' fill-opacity='0.27'/%3E%3Ccircle cx='75.9' cy='104.7' r='1.33' fill='rgb(120,95,60)' fill-opacity='0.12'/%3E%3Ccircle cx='77.4' cy='16.2' r='0.95' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='92.6' cy='113.5' r='0.93' fill='rgb(120,95,60)' fill-opacity='0.12'/%3E%3Ccircle cx='53.6' cy='19.9' r='1.10' fill='rgb(120,95,60)' fill-opacity='0.18'/%3E%3Ccircle cx='67.4' cy='60.8' r='1.18' fill='rgb(120,95,60)' fill-opacity='0.15'/%3E%3Ccircle cx='90.1' cy='3.1' r='0.77' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='24.3' cy='86.8' r='0.76' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='79.1' cy='51.5' r='0.57' fill='rgb(120,95,60)' fill-opacity='0.23'/%3E%3Ccircle cx='98.7' cy='109.9' r='1.32' fill='rgb(120,95,60)' fill-opacity='0.21'/%3E%3Ccircle cx='115.1' cy='3.0' r='1.19' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='86.9' cy='107.8' r='0.53' fill='rgb(120,95,60)' fill-opacity='0.11'/%3E%3Ccircle cx='9.6' cy='13.0' r='0.58' fill='rgb(120,95,60)' fill-opacity='0.08'/%3E%3Ccircle cx='72.6' cy='113.5' r='0.67' fill='rgb(120,95,60)' fill-opacity='0.11'/%3E%3Ccircle cx='24.3' cy='81.0' r='0.72' fill='rgb(120,95,60)' fill-opacity='0.17'/%3E%3Ccircle cx='119.3' cy='50.7' r='1.11' fill='rgb(120,95,60)' fill-opacity='0.23'/%3E%3Ccircle cx='47.6' cy='50.0' r='0.56' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='96.9' cy='116.9' r='0.64' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='61.0' cy='14.7' r='0.69' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='20.5' cy='9.4' r='0.75' fill='rgb(120,95,60)' fill-opacity='0.21'/%3E%3Ccircle cx='66.7' cy='57.7' r='1.39' fill='rgb(120,95,60)' fill-opacity='0.10'/%3E%3Ccircle cx='49.6' cy='37.7' r='0.50' fill='rgb(120,95,60)' fill-opacity='0.08'/%3E%3Ccircle cx='49.6' cy='11.0' r='0.71' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='93.3' cy='91.7' r='0.89' fill='rgb(120,95,60)' fill-opacity='0.25'/%3E%3Ccircle cx='115.5' cy='96.1' r='1.10' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='41.8' cy='48.8' r='0.95' fill='rgb(120,95,60)' fill-opacity='0.18'/%3E%3Ccircle cx='68.1' cy='86.6' r='1.10' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='87.5' cy='106.1' r='1.26' fill='rgb(120,95,60)' fill-opacity='0.27'/%3E%3Ccircle cx='52.6' cy='58.4' r='1.36' fill='rgb(120,95,60)' fill-opacity='0.27'/%3E%3C/svg%3E");
 }
 [data-theme='shoreline'] .min-h-screen.bg-retro-bg { background-color: transparent; }
 /* Its paired Fredoka reads best a step heavier than the pixel faces' 400. */
 [data-theme='shoreline'][data-font='fredoka'] .font-pixel { font-weight: 600; }
-/* The header sits on the water: white ink and no backdrop blur (blurring the
-   moving waves behind it would repaint every frame). On the menus it has no
-   ground of its own, so the waves are the top edge; on game screens, which
-   have no waves, it keeps a sea ground. */
-[data-theme='shoreline'] .app-navbar {
-  --c-bg: var(--c-sea);
-  --c-border: var(--c-sea);
+/* The header sits directly on the water: no ground or border of its own,
+   white ink, no backdrop blur. It belongs to the sea, so it scrolls away with
+   it rather than pinning over the sand. Game rooms' own header row and room
+   line sit on the sea the same way. */
+[data-theme='shoreline'] :is(.app-navbar, .game-header, .game-room-meta) {
   --c-text: 255 255 255;
-  --c-dim: 214 240 242;
+  --c-dim: 222 244 246;
+  --c-p1: 255 255 255;
   --c-cta: 255 255 255;
+  --c-border: var(--c-sea);
   --c-tint-cta: 10 104 128;
+}
+[data-theme='shoreline'] .app-navbar {
+  position: relative;
+  transform: none;
+  background-color: transparent;
+  border-bottom-color: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-[data-theme='shoreline'] body:has(.beach-surf) .app-navbar { background-color: transparent; border-bottom-color: transparent; }
-[data-theme='shoreline'] .app-navbar .text-glow-cta { text-shadow: 0 1px 2px rgb(0 0 0 / .25); }
-/* Menus start below the wash so the water never runs over the first line. */
-[data-theme='shoreline'] .beach-pad { padding-top: 64px; }
-/* Light-ground material, as on MATCHA: buttons on a ledge, cards on a base. */
+[data-theme='shoreline'] :is(.app-navbar, .game-header, .game-room-meta) :is(.text-glow-cta, .text-glow-p1, .font-pixel) { text-shadow: 0 1px 2px rgb(0 0 0 / .25); }
+/* Menus start just past the reach of the waves, on the sand. */
+[data-theme='shoreline'] .beach-pad { padding-top: calc(var(--beach-sea) - var(--app-header-h) + 52px); }
+/* The tab bar is cream, like the cards. */
+[data-theme='shoreline'] .app-tabbar { --c-bg: var(--c-surface); }
+/* Light-ground material: buttons on a ledge, cream cards on a base with a
+   soft shadow on the sand. */
 [data-theme='shoreline'] .text-glow-cta, [data-theme='shoreline'] .text-glow-win,
 [data-theme='shoreline'] .text-glow-p1, [data-theme='shoreline'] .text-glow-p2 {
   text-shadow: 0 2px 0 rgb(var(--c-border));
 }
-[data-theme='shoreline'] .bg-retro-cta { box-shadow: 0 4px 0 rgb(var(--c-text) / .3); }
-[data-theme='shoreline'] .bg-retro-card, [data-theme='shoreline'] .bg-retro-surface { box-shadow: 0 3px 0 rgb(var(--c-border)); }
+/* Seat cards can sit over the sea in a game room: keep their tints opaque. */
+[data-theme='shoreline'] .bg-retro-tint-p1\/60 { background-color: rgb(var(--c-tint-p1)); }
+[data-theme='shoreline'] .bg-retro-tint-p2\/60 { background-color: rgb(var(--c-tint-p2)); }
+[data-theme='shoreline'] .bg-retro-cta { box-shadow: 0 4px 0 rgb(var(--c-text) / .28), 0 8px 16px rgb(var(--c-text) / .1); }
+[data-theme='shoreline'] .bg-retro-card, [data-theme='shoreline'] .bg-retro-surface { box-shadow: 0 3px 0 rgb(var(--c-border)), 0 6px 14px rgb(var(--c-text) / .07); }
 
-/* --beach-shore is the header's bottom edge. The sand layer (wet band,
-   patches, shells, crabs) sits behind every page; the surf sits above the
-   page but under the header (z-30), and slides away with the header when it
-   hides on scroll (200ms, the same slide as NavBar's duration-200). */
-.beach-backdrop, .beach-surf {
-  --beach-shore: calc(max(0.75rem, env(safe-area-inset-top)) + 46px);
-  position: fixed;
-  inset: 0;
+/* The scene lies at the top of the page and scrolls with it, behind
+   everything. The sea is the first --beach-sea px; the waves' foam line sits
+   there and washes WASH reach further down. */
+.beach-backdrop {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(var(--beach-sea) + 160px);
+  z-index: -1;
   overflow: hidden;
   pointer-events: none;
 }
-.beach-backdrop { z-index: -1; }
-.beach-surf { bottom: auto; height: calc(var(--beach-shore) + 90px); z-index: 10; transition: transform 200ms var(--ease-standard); }
-html.header-hidden :is(.beach-surf, .beach-shoreline) { transform: translateY(-100%); }
-.beach-backdrop > *, .beach-surf > *, .beach-shoreline > * { position: absolute; }
-.beach-shoreline { inset: 0 0 auto; height: calc(var(--beach-shore) + 200px); transition: transform 200ms var(--ease-standard); }
+.beach-sand { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.beach-backdrop > *, .beach-sand > * { position: absolute; }
+.beach-deep {
+  left: 0;
+  right: 0;
+  top: 0;
+  /* Solid down past the top of the wave strips at their furthest wash (30px
+     below where they rest), then fading into them. */
+  height: calc(var(--beach-sea) - 2px);
+  background: linear-gradient(rgb(var(--c-sea)) calc(100% - 68px), rgb(var(--c-sea) / 0));
+}
+.beach-glint {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgb(var(--c-foam));
+  opacity: 0;
+  will-change: opacity;
+  animation: beach-glint 3.2s ease-in-out infinite;
+}
+@keyframes beach-glint { 0%, 100% { opacity: 0; } 50% { opacity: .9; } }
 .beach-wet {
   left: 0;
   right: 0;
-  top: calc(var(--beach-shore) + 30px);
-  height: 96px;
-  background: linear-gradient(rgb(var(--c-wet) / .85), rgb(var(--c-wet) / 0));
-  opacity: .3;
+  top: calc(var(--beach-sea) - 2px);
+  height: 70px;
+  background: linear-gradient(rgb(var(--c-wet) / .75), rgb(var(--c-wet) / 0));
+  opacity: .25;
   will-change: opacity;
   animation: beach-wet 7s var(--wash-delay, 0s) infinite;
 }
@@ -2797,7 +2831,7 @@ html.header-hidden :is(.beach-surf, .beach-shoreline) { transform: translateY(-1
 .beach-patch {
   transform: rotate(var(--rot));
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(var(--c-damp) / .7), rgb(var(--c-damp) / .45) 60%, rgb(var(--c-damp) / 0));
+  background: radial-gradient(closest-side, rgb(var(--c-damp) / .38), rgb(var(--c-damp) / .2) 60%, rgb(var(--c-damp) / 0));
 }
 .beach-item { transform: rotate(var(--rot)); }
 .beach-item svg { display: block; }
@@ -2812,17 +2846,16 @@ html.header-hidden :is(.beach-surf, .beach-shoreline) { transform: translateY(-1
   76%      { transform: translateX(4px) rotate(var(--rot)); }
   79%, 100% { transform: translateX(0) rotate(var(--rot)); }
 }
-/* Phones: the cards cover the sand, so only the pieces along the waterline
-   show. Wider screens have open sand beside the column and larger pieces. */
-@media (max-width: 639px) { .beach-backdrop > :not(.beach-shoreline) { display: none; } }
+/* Phones: the cards cover the open sand, so only the pieces in the wash show.
+   Wider screens have open sand beside the column and larger pieces. */
+@media (max-width: 639px) { .beach-sand { display: none; } }
 @media (min-width: 640px) { .beach-item svg { transform: scale(1.4); } }
-/* Each wave SVG holds the sea from above the screen's top edge down to its
-   shoreline (BeachBackdrop FRONT base 160 of 200px); the strip is placed so
-   the front shoreline rests 34px below the header. */
-.beach-wave { left: 0; top: calc(var(--beach-shore) + 34px - 160px); will-change: transform; animation: beach-wash 7s var(--wash-delay, 0s) infinite; }
-.beach-wave.is-front { --reach: 26px; }
-.beach-wave.is-back { --reach: 12px; animation-delay: calc(var(--wash-delay, 0s) - 3.4s); }
-.beach-drift { will-change: transform; animation: beach-drift 26s linear infinite; }
+/* Each wave strip is 170px tall with its foam line at 102px (BeachBackdrop
+   FRONT.base), placed so that line rests on --beach-sea. */
+.beach-wave { left: 0; top: calc(var(--beach-sea) - 102px); will-change: transform; animation: beach-wash 7s var(--wash-delay, 0s) infinite; }
+.beach-wave.is-front { --reach: 30px; }
+.beach-wave.is-back { --reach: 14px; animation-delay: calc(var(--wash-delay, 0s) - 3.4s); }
+.beach-drift { will-change: transform; animation: beach-drift 24s linear infinite; }
 .beach-wave.is-back .beach-drift { animation-duration: 34s; animation-direction: reverse; }
 .beach-drift svg { display: block; }
 /* Forward: a quick run up the sand that slows at its peak (WASH_PEAK = 42%);
@@ -2834,16 +2867,18 @@ html.header-hidden :is(.beach-surf, .beach-shoreline) { transform: translateY(-1
 }
 /* One shoreline tile (beachLogic SHORE_TILE), so the strip loops seamlessly. */
 @keyframes beach-drift { to { transform: translateX(-390px); } }
-@keyframes beach-wet { 0% { opacity: .3; } 42% { opacity: .9; } 100% { opacity: .25; } }
+@keyframes beach-wet { 0% { opacity: .25; } 42% { opacity: .85; } 100% { opacity: .2; } }
 /* Reduced motion: the beach stays, frozen mid-wash, and the crabs sit still. */
-[data-motion='reduced'] .beach-backdrop *, [data-motion='reduced'] .beach-surf * { animation: none !important; }
+[data-motion='reduced'] :is(.beach-backdrop, .beach-sand) * { animation: none !important; }
 [data-motion='reduced'] .beach-wave { transform: translateY(calc(var(--reach) / 2)); }
-[data-motion='reduced'] .beach-wet { opacity: .6; }
+[data-motion='reduced'] .beach-wet { opacity: .5; }
+[data-motion='reduced'] .beach-glint { opacity: .5; }
 [data-motion='reduced'] .beach-crab { transform: rotate(var(--rot)); }
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion='full']) .beach-backdrop *, :root:not([data-motion='full']) .beach-surf * { animation: none !important; }
+  :root:not([data-motion='full']) :is(.beach-backdrop, .beach-sand) * { animation: none !important; }
   :root:not([data-motion='full']) .beach-wave { transform: translateY(calc(var(--reach) / 2)); }
-  :root:not([data-motion='full']) .beach-wet { opacity: .6; }
+  :root:not([data-motion='full']) .beach-wet { opacity: .5; }
+  :root:not([data-motion='full']) .beach-glint { opacity: .5; }
   :root:not([data-motion='full']) .beach-crab { transform: rotate(var(--rot)); }
 }
 
