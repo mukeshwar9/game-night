@@ -18,6 +18,7 @@ import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { getPlayerId } from '../lib/playerId'
 import { sounds } from '../lib/sounds'
+import { blockLabel } from '../lib/musicLogic'
 import { resetMusicDefaults, setMusicOn, setMusicVolume, syncMusic, useMusic } from '../lib/music'
 import { lazyWithRetry } from '../lib/lazyWithRetry'
 import LegalLinks from './LegalLinks'
@@ -66,6 +67,9 @@ export default function SettingsButton({ className = '' }) {
   const [reactionMuted, setReactionMuted] = useState(() => sounds.isReactionMuted())
   const [volume, setVolume] = useState(() => sounds.getVolume())
   const music = useMusic()
+  const musicNote = music.status === 'blocked' ? `PAUSED: ${blockLabel(music.blocked)}`
+    : music.status === 'failed' ? 'COULD NOT LOAD MUSIC. TAP THE NOTE TO RETRY'
+    : null
   const [crt, setCrt] = useState(getStoredCrt)
   const [motion, setMotion] = useState(getStoredMotion)
   const [textSize, setTextSize] = useState(getStoredTextSize)
@@ -323,6 +327,7 @@ export default function SettingsButton({ className = '' }) {
 
       <Section title="AUDIO">
         <SwitchRow label="MUSIC" checked={music.on} onChange={setMusicOn} ariaLabel="Enable background music" />
+        {musicNote && <p role="status" className="font-pixel text-[8px] text-retro-dim tracking-widest">{musicNote}</p>}
         <label className="block font-pixel text-[9px] text-retro-text tracking-widest">
           <span className="mb-2 flex justify-between"><span>MUSIC VOLUME</span><span className="text-retro-dim">{Math.round(music.volume * 100)}%</span></span>
           <input type="range" min="0" max="1" step="0.05" value={music.volume} onChange={e => setMusicVolume(e.target.value)} aria-label="Music volume" className="w-full accent-retro-cta" />

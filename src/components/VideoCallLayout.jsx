@@ -30,7 +30,10 @@ export function VideoCallLayoutProvider({ children }) {
   }, [])
 
   // Players on a call hear each other, not the music.
-  useEffect(() => setMusicBlock('videoCall', layout.enabled), [layout.enabled])
+  useEffect(() => {
+    setMusicBlock('videoCall', layout.enabled)
+    return () => setMusicBlock('videoCall', false)
+  }, [layout.enabled])
 
   const updateLayout = (patch) => setLayout(current => writeVideoCallLayout({ ...current, ...patch }))
   const reserve = useMemo(() => getVideoCallReserve(layout, viewport), [layout, viewport])

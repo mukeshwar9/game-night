@@ -116,16 +116,51 @@ export function roomMusicScene(game) {
 export const DEFAULT_MUSIC_VOLUME = 0.6
 
 /**
- * Music is on by default — unless the player turned it off, or has game
- * sounds off (someone who silenced SFX has already said no to sound).
+ * Music is on by default and only the player's own music choice turns it off.
+ * It is deliberately independent of the game-sounds mute: that switch used to
+ * silence music for anyone who had never touched the music toggle, which looked
+ * like music "sometimes not playing".
  * @param {string | null} stored localStorage 'music': 'on' | 'off' | null
- * @param {boolean} sfxMuted
  */
-export function resolveMusicOn(stored, sfxMuted) {
-  if (stored === 'on') return true
-  if (stored === 'off') return false
-  return !sfxMuted
+export function resolveMusicOn(stored) {
+  return stored !== 'off'
 }
+
+/** Player-facing names for the reasons music can be held back. */
+const BLOCK_LABELS = /** @type {Record<string, string>} */ ({
+  videoCall: 'VIDEO CALL LAYOUT',
+  voice: 'VOICE CHAT',
+})
+
+/** @param {string[]} reasons @returns {string} e.g. 'VOICE CHAT' */
+export function blockLabel(reasons) {
+  return reasons.map(r => BLOCK_LABELS[r] ?? r.toUpperCase()).join(' + ')
+}
+
+/**
+ * What the music toggle should tell the player. Order matters: an off switch
+ * wins, then a blocker, then a failed engine load, then "armed but silent"
+ * (no first tap yet, or a context the browser suspended), else playing.
+ * @param {{ on: boolean, blocked: string[], failed: boolean, running: boolean }} s
+ * @returns {'off' | 'blocked' | 'failed' | 'needs-tap' | 'playing'}
+ */
+export function musicStatus({ on, blocked, failed, running }) {
+  if (!on) return 'off'
+  if (blocked.length) return 'blocked'
+  if (failed) return 'failed'
+  return running ? 'playing' : 'needs-tap'
+}
+
+/** Waits before each engine-chunk retry; null once the retries are used up. */
+export const ENGINE_RETRY_MS = [800, 2500, 7000]
+
+/** @param {number} attempt 0-based count of failed loads so far @returns {number | null} */
+export function engineRetryDelay(attempt) {
+  return attempt < ENGINE_RETRY_MS.length ? ENGINE_RETRY_MS[attempt] : null
+}
+
+/** A tap this soon after one that started the music must not also toggle it off. */
+export const REVIVE_TAP_MS = 500
 
 /** @param {unknown} raw @returns {number} volume in [0, 1] */
 export function normalizeMusicVolume(raw) {

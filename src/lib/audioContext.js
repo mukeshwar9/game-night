@@ -8,6 +8,18 @@
 let ctx = null
 let ducker = null
 let hasUserGesture = false
+const stateListeners = new Set()
+
+// Fires when the browser or OS changes the context's state on its own (iOS
+// 'interrupted' after a call or Siri, a lock-screen suspend) or a resume lands.
+export function onAudioStateChange(fn) {
+  stateListeners.add(fn)
+  return () => stateListeners.delete(fn)
+}
+
+export function isAudioRunning() {
+  return ctx?.state === 'running'
+}
 
 export function getAudioContext() {
   if (!hasUserGesture) return null
@@ -15,6 +27,7 @@ export function getAudioContext() {
     const Ctor = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)
     if (!Ctor) return null
     ctx = new Ctor()
+    ctx.onstatechange = () => stateListeners.forEach(fn => { try { fn(ctx.state) } catch { /* listener failed */ } })
   }
   return ctx
 }

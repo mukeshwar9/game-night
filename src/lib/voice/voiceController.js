@@ -197,7 +197,14 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record' } catch { /* iOS 17+ only */ }
     // Connection changes before the session is ours are remembered, not lost.
     let pcStatus = 'connecting'
-    const onStatus = (status) => { pcStatus = status; if (session) emit({ status }) }
+    // Music stays out of the way only while voice can carry audio: a failed or
+    // reconnecting session would otherwise leave both silent.
+    const onStatus = (status) => {
+      pcStatus = status
+      if (!session) return
+      io.setMusicBlock('voice', status !== 'failed' && status !== 'reconnecting')
+      emit({ status })
+    }
     let s
     let error = null
     try {
@@ -227,7 +234,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     }
     const muted = state.muted || s.listenOnly
     s.setMuted(muted)
-    io.setMusicBlock('voice', true)
+    io.setMusicBlock('voice', pcStatus !== 'failed' && pcStatus !== 'reconnecting')
     try { localStorage.setItem(FIRST_USE_KEY, '1') } catch { /* private mode */ }
     emit({ listenOnly: s.listenOnly, muted, error, seenIntro: true, status: pcStatus })
     if (io.hasDb) io.publish({ on: true, muted, at: Date.now() }).catch(() => {})

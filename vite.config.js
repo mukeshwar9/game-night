@@ -116,12 +116,13 @@ function privateSourcemaps() {
 }
 
 // The service worker precaches the app shell only: the entry, its CSS and
-// every route page in App.jsx (plus first-run onboarding), each with its
-// static-import closure. Per-game pages, boards and decks (~2.4 MB across
+// every route page in App.jsx (plus first-run onboarding) and the lazily
+// imported music engine (so a stale shell never points at a deleted chunk),
+// each with its static-import closure. Per-game pages, boards and decks (~2.4 MB across
 // ~180 chunks) are cached at runtime the first time they load instead of all
 // being downloaded in the background on the first visit and after every
 // deploy. Filled in generateBundle, read by workbox's manifestTransforms.
-const SHELL_CHUNKS = /^(index|Games|OnlineLobby|Game|Demo|DailyGame|Profile|Friends|Notes|EmojiLab|Leaderboard|Playground|Onboarding)$/
+const SHELL_CHUNKS = /^(index|Games|OnlineLobby|Game|Demo|DailyGame|Profile|Friends|Notes|EmojiLab|Leaderboard|Playground|Onboarding|musicEngine)$/
 const shellFiles = new Set()
 
 function collectShell() {

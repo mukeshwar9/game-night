@@ -32,7 +32,8 @@ function fakeIo({ birthYear = 2000, micDenied = false } = {}) {
     unpublish: async () => { io.published = null },
     hostMute: vi.fn(async () => {}),
     getBirthYear: async () => birthYear,
-    openSession: vi.fn(async ({ listenOnly }) => {
+    openSession: vi.fn(async ({ listenOnly, onStatus }) => {
+      io.onStatus = onStatus
       if (micDenied && !listenOnly) throw Object.assign(new Error('mic-denied'), { code: 'mic-denied' })
       const s = { listenOnly, wanted: [], muted: null, closed: false, micStream: null,
         want(u) { s.wanted = u }, setMuted(m) { s.muted = m }, close: async () => { s.closed = true } }
@@ -72,6 +73,23 @@ describe('voice controller', () => {
     expect(f.sessions[0].wanted).toEqual(['b', 'c'])
     ctl.setBlocks({ c: { name: 'Cy' } })
     expect(f.sessions[0].wanted).toEqual(['b'])
+  })
+
+  it('lets music back in while the voice connection is failed or reconnecting, and blocks again once it recovers', async () => {
+    const f = fakeIo()
+    const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+    ctl.setRoom(room())
+    await ctl.join()
+    expect(f.io.music.voice).toBe(true)
+    f.io.onStatus('reconnecting')
+    expect(f.io.music.voice).toBe(false)
+    f.io.onStatus('connected')
+    expect(f.io.music.voice).toBe(true)
+    f.io.onStatus('failed')
+    expect(f.io.music.voice).toBe(false)
+    expect(ctl.getState().status).toBe('failed')
+    await ctl.leave()
+    expect(f.io.music.voice).toBe(false)
   })
 
   it('refuses under-13 and asks for the age check when no year is on file', async () => {
