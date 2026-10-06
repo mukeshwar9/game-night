@@ -186,7 +186,7 @@ export default function ArcheryRange({
         <div className="pointer-events-none absolute left-3 right-3 top-8 flex items-center gap-2" aria-live="polite">
           <span className="font-pixel text-[8px] text-retro-win">SIGHT BAND</span>
           <span className="h-2 flex-1 overflow-hidden rounded border border-retro-border bg-retro-deep">
-            <span className="block h-full bg-retro-win transition-[width]" style={{ width: `${Math.max(0, Math.min(100, (activeDraw.dr - 500) / 5))}%` }} />
+            <span className="block h-full w-full origin-left bg-retro-win transition-transform" style={{ transform: `scaleX(${Math.max(0, Math.min(100, (activeDraw.dr - 500) / 5)) / 100})` }} />
           </span>
           <span className="font-pixel text-[8px] text-retro-cta">{activeDraw.dr} MM</span>
         </div>

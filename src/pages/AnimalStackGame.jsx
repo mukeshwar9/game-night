@@ -325,7 +325,7 @@ function Match({ game, stack, players, mySeat, roomRef, amCoordinator, onStart, 
       />
 
       {stack.phase === 'roundover' && toppler && (
-        <div className="border-2 border-retro-border bg-retro-card rounded p-3 text-center space-y-1" style={{ animation: 'modal-pop 0.28s ease-out' }}>
+        <div className="modal-pop border-2 border-retro-border bg-retro-card rounded p-3 text-center space-y-1">
           <p className="font-pixel text-[9px] text-retro-dim tracking-widest">TOWER {stack.round} TOPPLED BY</p>
           <p className={cn('font-pixel text-sm', TEXT_TOK[PLAYER_TOKENS[stack.order.indexOf(toppler)]])}>
             {PLAYER_GLYPHS[stack.order.indexOf(toppler)]} {toppler === mySeat ? 'YOU' : nameOf(toppler)}{' '}
@@ -336,7 +336,7 @@ function Match({ game, stack, players, mySeat, roomRef, amCoordinator, onStart, 
       )}
 
       {status === 'finished' && (
-        <div className="border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-3" style={{ animation: 'modal-pop 0.28s ease-out' }}>
+        <div className="modal-pop border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-3">
           <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
           <p className={cn('font-pixel text-base', stack.winner === mySeat ? 'text-retro-cta text-glow-cta' : TEXT_TOK[PLAYER_TOKENS[Math.max(0, stack.order.indexOf(stack.winner))]])}>
             {stack.winner === mySeat ? 'YOU WIN!' : stack.winner ? `${nameOf(stack.winner)} WINS!` : 'MATCH OVER'}

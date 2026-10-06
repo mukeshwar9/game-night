@@ -106,7 +106,7 @@ export default function PulpRacer({ game, round, myStats, statsPath, goAt, mySea
             <span className="text-retro-win">{team.pulp}/{team.target} PULP</span>
           </div>
           <div className="h-2.5 rounded bg-retro-deep overflow-hidden" role="progressbar" aria-label="Team basket" aria-valuemin={0} aria-valuemax={team.target} aria-valuenow={Math.min(team.pulp, team.target)}>
-            <div className="h-full bg-retro-win transition-[width]" style={{ width: `${Math.min(100, (team.pulp / team.target) * 100)}%` }} />
+            <div className="h-full w-full origin-left bg-retro-win transition-transform" style={{ transform: `scaleX(${Math.min(1, team.pulp / team.target)})` }} />
           </div>
         </div>
       )}

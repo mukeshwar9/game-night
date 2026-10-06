@@ -174,10 +174,9 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           <p
             key={`out-${scoreX}-${scoreO}`}
             className={cn(
-              'font-pixel text-base',
+              'modal-pop font-pixel text-base',
               isMatchDraw ? 'text-retro-text' : iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim',
             )}
-            style={{ animation: 'modal-pop 0.28s ease-out both' }}
           >
             {isMatchDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : `${winnerName} WINS`}
           </p>
@@ -214,14 +213,13 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
         <p
           key={`out-${scoreX}-${scoreO}`}
           className={cn(
-            'font-pixel text-base',
+            'modal-pop font-pixel text-base',
             isDraw
               ? 'text-retro-text'
               : iWon
                 ? 'text-retro-cta text-glow-cta'
                 : winner === 'X' ? 'text-retro-p1' : 'text-retro-p2',
           )}
-          style={{ animation: 'modal-pop 0.28s ease-out both' }}
         >
           {/* Order & Chaos: both players place both letters, so "X WINS" reads
               as "the X letters won" — name the role instead of the seat.

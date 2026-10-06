@@ -319,7 +319,7 @@ function OfflineMatch({ setup, onExit }) {
       )}
 
       {phase === 'toppled' && match.lastToppler != null && (
-        <div className="border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-2" style={{ animation: 'modal-pop 0.28s ease-out' }}>
+        <div className="modal-pop border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-2">
           <p className="font-pixel text-[9px] text-retro-dim tracking-widest">TOWER {match.round - 1} TOPPLED BY</p>
           <p className={cn('font-pixel text-sm', TEXT_TOK[PLAYER_TOKENS[match.lastToppler]])}>
             {PLAYER_GLYPHS[match.lastToppler]} {players[match.lastToppler].name} {match.hearts[match.lastToppler] > 0 ? '−♥' : 'IS OUT'}
@@ -330,7 +330,7 @@ function OfflineMatch({ setup, onExit }) {
       )}
 
       {phase === 'over' && (
-        <div className="border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-3" style={{ animation: 'modal-pop 0.28s ease-out' }}>
+        <div className="modal-pop border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-3">
           {n === 1 ? (
             <>
               <p className="font-pixel text-[10px] text-retro-dim tracking-widest">RUN OVER</p>

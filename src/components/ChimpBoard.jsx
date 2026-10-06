@@ -83,7 +83,7 @@ export default function ChimpBoard({
       {/* Memorize timer: drains while the numbers are showing */}
       <div className="h-1.5 rounded-full bg-retro-card overflow-hidden" aria-hidden="true">
         {memorizing && (
-          <div className="h-full bg-retro-cta transition-[width] duration-200 ease-linear" style={{ width: `${(msLeft / windowMs) * 100}%` }} />
+          <div className="h-full w-full origin-left bg-retro-cta transition-transform duration-200 ease-linear" style={{ transform: `scaleX(${msLeft / windowMs})` }} />
         )}
       </div>
 

@@ -125,7 +125,7 @@ export default function VisualMemoryBoard({
       {/* Memorize timer: drains while the pattern is lit */}
       <div className="h-1.5 rounded-full bg-retro-card overflow-hidden" aria-hidden="true">
         {lit && controlled && revealMsLeft != null && (
-          <div className="h-full bg-retro-cta transition-[width] duration-100 ease-linear" style={{ width: `${Math.min(100, (revealMsLeft / revealMs) * 100)}%` }} />
+          <div className="h-full w-full origin-left bg-retro-cta transition-transform duration-100 ease-linear" style={{ transform: `scaleX(${Math.min(1, revealMsLeft / revealMs)})` }} />
         )}
         {lit && !controlled && (
           <div

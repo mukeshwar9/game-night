@@ -40,8 +40,8 @@ export default function RoundTimer({ endsAt, now, totalMs, label = 'TIME LEFT', 
       </div>
       <div className="h-1.5 w-full rounded bg-retro-structure/40 overflow-hidden" aria-hidden="true">
         <div
-          className={cn('h-full transition-[width] duration-200 ease-linear', low ? 'bg-retro-danger' : 'bg-retro-cta')}
-          style={{ width: `${pct}%` }}
+          className={cn('h-full w-full origin-left transition-transform duration-200 ease-linear', low ? 'bg-retro-danger' : 'bg-retro-cta')}
+          style={{ transform: `scaleX(${pct / 100})` }}
         />
       </div>
       <span className="sr-only" role="status" aria-live="polite">{announcement}</span>
