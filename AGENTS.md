@@ -34,7 +34,7 @@ This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime D
 - `src/pages/` — whole games (one page per game, wires board + logic + Firebase together), plus each game's `/demo` bot-play page.
 - `src/lib/games.js` — the `GAME_TYPES` registry; the single source of per-game config. Custom pages (`Page`) and boards (`BoardComponent`) are lazy (`lazyWithRetry`). See `.claude/rules/adding-a-game-rules.md`.
 - `src/pages/Game.jsx` + `src/hooks/room/` — the room shell: session/seat claims, per-connection presence, proposals, abandon recovery, floats. `src/lib/matchRules.js` is the match-end rule, shared with `functions/`.
-- Shared primitives: `detMath.js` (engine-independent trig + `mulberry32` for replayed sims; Animal Stack's vendored planck.js uses it — regenerate with `scripts/vendor-planck.mjs`), `commit.js` (commit–reveal), `sealed.js` + `useSealKey` (per-player encryption), `coordinator.js` (online-aware host), `timerScale.js`, `seenHistory.js`, `normalize.js`, `useServerClock`, `RoundEndPanel`, `teams.js`, `raceLogic.js` + `RaceShell`.
+- Shared primitives: `detMath.js` (engine-independent trig + `mulberry32` for replayed sims; Animal Stack's vendored planck.js uses it — regenerate with `scripts/vendor-planck.mjs`), `commit.js` (commit–reveal), `sealed.js` + `useSealKey` (per-player encryption), `coordinator.js` (online-aware host), `timerScale.js`, `seenHistory.js`, `normalize.js`, `useServerClock`, `RoundEndPanel`, `teams.js`, `raceLogic.js` + `RaceShell`, `motion.js` (motion tokens and springs; `.claude/rules/motion-rules.md`).
 - Audio: `sounds.js` (SFX) and `music.js` (procedural background music, on by default, starts on the first tap) share one context (`audioContext.js`). A page declares its music with `useMusicScene('lobby'|'wait'|'game'|'results', gameType)`; in-game tracks follow the registry `category` (or an optional `music:` field, see `musicLogic.js`).
 
 ### Data model
@@ -146,6 +146,7 @@ Enforceable conventions live here — always follow them:
 - `async-busy-rules.md` — the busy-flag convention for async actions
 - `adding-a-game-rules.md` — the registry procedure, `applyMove`/`boardProps` hooks
 - `game-logic-rules.md` — pure logic module placement and test-coverage requirement
+- `motion-rules.md` — motion tokens, springs vs pixel steps, presses, overlays, reduced motion
 
 ## Prior reviews (`docs/reviews/2026-08/`)
 

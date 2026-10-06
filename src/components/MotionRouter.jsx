@@ -10,6 +10,10 @@ import { TAB_BAR_ROUTES } from './NavBar'
 // fallback before animating anyway (the old page stays frozen meanwhile).
 const SETTLE_MS = 350
 
+// The latest transition owns data-route-vt; an older one finishing must not
+// clear it from under a newer one.
+let vtSeq = 0
+
 const ROUTE_TRANSITIONS = typeof document !== 'undefined' && typeof document.startViewTransition === 'function'
 // The CSS route fade (index.css) is the fallback for browsers without them.
 if (ROUTE_TRANSITIONS) document.documentElement.dataset.vtRoutes = ''
@@ -72,12 +76,13 @@ function locationListener(current, backAt, setState) {
       return
     }
     const root = document.documentElement
+    const seq = ++vtSeq
     root.dataset.routeVt = kind
     const vt = document.startViewTransition(async () => {
       flushSync(() => setState({ action, location }))
       await routeSettled()
     })
-    const clear = () => { if (root.dataset.routeVt === kind) delete root.dataset.routeVt }
+    const clear = () => { if (seq === vtSeq) delete root.dataset.routeVt }
     vt.finished.then(clear, clear)
     // A skipped transition (hidden tab, a newer one) rejects ready; nothing to report.
     vt.ready.catch(() => {})

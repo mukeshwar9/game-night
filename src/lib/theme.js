@@ -74,6 +74,9 @@ export function themeReveal(rect, width, height) {
   return { x, y, r }
 }
 
+// The latest theme switch owns data-theme-vt (see MotionRouter's vtSeq).
+let themeSeq = 0
+
 /**
  * applyTheme for a player's pick, as one change instead of a few elements
  * tweening their colours while the rest snap (MO-08). With View Transitions
@@ -103,10 +106,11 @@ export function switchTheme(id, { from = null, alsoApply } = {}) {
     root.style.setProperty('--vt-y', `${y}px`)
     root.style.setProperty('--vt-r', `${r}px`)
   }
+  const seq = ++themeSeq
   root.dataset.themeVt = reveal ? 'reveal' : 'fade'
   const vt = document.startViewTransition(apply)
   vt.ready.catch(() => {})
-  const done = () => { delete root.dataset.themeVt; settle() }
+  const done = () => { if (seq === themeSeq) { delete root.dataset.themeVt; settle() } }
   vt.finished.then(done, done)
 }
 
