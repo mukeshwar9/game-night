@@ -13,6 +13,8 @@ setGlobalOptions({ maxInstances: 10 });
 // Server-authoritative match results -> leaderboard (see results.js, README.md).
 exports.creditMatchResults = require('./results').creditMatchResults;
 exports.sendInvitePush = require('./push').sendInvitePush;
+exports.sendFriendRequestPush = require('./push').sendFriendRequestPush;
+exports.sendJoinedPush = require('./push').sendJoinedPush;
 // Clears a deleted account's rows, including the server-only leaderboard row.
 exports.cleanupDeletedAccount = require('./deleteAccount').cleanupDeletedAccount;
 // Daily summary of yesterday's error reports, with an alert when it looks bad.

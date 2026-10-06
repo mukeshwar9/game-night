@@ -19,6 +19,7 @@ import { ARCHERY_FORMATS, archeryFormat } from '../lib/archeryLogic'
 import { recordFunnel } from '../lib/analytics'
 import { shareUrl } from '../lib/platform'
 import { shareLink } from '../lib/share'
+import PushNudge from './PushNudge'
 import { waitingForLabel } from '../lib/roomLogic'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
@@ -428,6 +429,12 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           </button>
         </div>
       </div>
+
+      {/* The host is about to switch apps to send the link: offer the ping
+          that brings them back when the friend joins (functions/push.js). */}
+      {mySymbol === 'X' && !bothSeated && !isLobby && (
+        <PushNudge spot="room" text="Get a ping when your friend joins, so you can leave the app while you wait." />
+      )}
 
       {showQr && (
         <div className="flex flex-col items-center gap-1.5">

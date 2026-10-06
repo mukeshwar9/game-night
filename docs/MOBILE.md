@@ -187,7 +187,13 @@ app.
    to native tokens (a data-only push is never shown on iOS). Web tokens keep
    the data-only payload their service worker draws.
 5. Build with `VITE_NATIVE_PUSH=1`.
-6. Test on real devices (the iOS Simulator cannot receive remote pushes):
+6. What is sent (`functions/push.js`): game invites, friend requests, and
+   "your friend joined your room" to a host who has left the app. The app asks
+   in context (`PushNudge`: the waiting room and the Friends page, snoozed two
+   weeks by NOT NOW) as well as from Profile; once refused, Profile shows OPEN
+   SETTINGS (`src/lib/native/appSettings.js`; on Android the app-local
+   `AppSettingsPlugin`).
+7. Test on real devices (the iOS Simulator cannot receive remote pushes):
    enable in Profile → notifications, send an invite from another account,
    tap the notification with the app closed and with it in the background;
    both should open the room.

@@ -127,3 +127,38 @@ describe('party invites', () => {
     assert.equal(_test.inviteBody({ kind: 'other' }, 'Alice'), 'Alice invited you to play!')
   })
 })
+
+describe('friend request and joined pushes', () => {
+  test('a friend request opens /friends and collapses per sender', () => {
+    const webMsg = _test.buildFriendRequestMessage({ name: 'Alice' }, 'aliceUid', web)
+    assert.deepEqual(webMsg.data, { title: 'Game Night', body: 'Alice wants to be friends on Game Night', url: '/friends', kind: 'friend' })
+    const iosMsg = _test.buildFriendRequestMessage({ name: 'Alice' }, 'aliceUid', ios)
+    assert.deepEqual(iosMsg.data, { url: '/friends', kind: 'friend' })
+    assert.equal(iosMsg.apns.headers['apns-collapse-id'], 'friend-aliceUid')
+    assert.equal(iosMsg.apns.payload.aps['thread-id'], 'friends')
+    const androidMsg = _test.buildFriendRequestMessage({}, 'aliceUid', android)
+    assert.equal(androidMsg.notification.body, 'Someone wants to be friends on Game Night')
+    assert.equal(androidMsg.android.notification.tag, 'friend-aliceUid')
+  })
+
+  test('a joined push links to the room with a moderated name', () => {
+    const msg = _test.buildJoinedMessage({ name: 'Bob' }, 'ABC123', ios)
+    assert.deepEqual(msg.notification, { title: 'Game Night', body: 'Bob joined your room. Jump back in!' })
+    assert.deepEqual(msg.data, { url: '/game/ABC123', kind: 'joined', gameId: 'ABC123' })
+    assert.match(_test.buildJoinedMessage({ name: 'big fuck' }, 'X', web).data.body, /^big •+ joined your room/)
+  })
+
+  test('the host counts as away only with no live connection', () => {
+    assert.equal(_test.hostAway({ presence: { X: { conns: { c1: 1 } } } }), false)
+    assert.equal(_test.hostAway({ presence: { X: { online: false, awayAt: 5 } } }), true)
+    assert.equal(_test.hostAway({}), true)
+  })
+
+  test('no joined push when the host is in the room, joined their own room, or the room is over', async () => {
+    const db = (game) => ({ ref: () => ({ get: async () => ({ val: () => game, exists: () => false }) }) })
+    const room = { status: 'playing', players: { X: { playerId: 'host' } }, presence: { X: { conns: { c1: 1 } } } }
+    assert.equal((await _test.sendJoinedPush('ABC123', { playerId: 'bob' }, db(room))).reason, 'host-here')
+    assert.equal((await _test.sendJoinedPush('ABC123', { playerId: 'host' }, db({ ...room, presence: {} }))).reason, 'no-host')
+    assert.equal((await _test.sendJoinedPush('ABC123', { playerId: 'bob' }, db({ ...room, presence: {}, status: 'finished' }))).reason, 'host-here')
+  })
+})
