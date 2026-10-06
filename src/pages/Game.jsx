@@ -47,6 +47,7 @@ import useBackGuard from '../hooks/room/useBackGuard'
 import useFloats from '../hooks/room/useFloats'
 import useRoomEffect from '../hooks/room/useRoomEffect'
 import useTurnTitle from '../hooks/room/useTurnTitle'
+import useScreenWakeLock from '../hooks/room/useScreenWakeLock'
 import { buildSwitchUpdates, nextStarter } from '../hooks/room/roomUpdates'
 // Game-night mode: night scoreboard, winner-stays seating, host controls.
 import NightPanel from '../components/NightPanel'
@@ -147,7 +148,7 @@ export default function Game() {
   const { gameId } = useParams()
   const navigate = useNavigate()
   const {
-    game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft,
+    game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft, opponentAway,
     mySeat, mySymbol, connected, seatOffer, takeSeat,
   } = useRoomSession(gameId)
   const [creatingRoom, setCreatingRoom] = useState(false)
@@ -195,6 +196,9 @@ export default function Game() {
   const turnMe = isPartyRoom ? getPlayerId() : mySeat
   const announcement = roomAnnouncement(game, { me: turnMe, party: isPartyRoom, coop: !!(game && getGameConfig(game.gameType).coop) })
   useTurnTitle(isMyTurn(game, turnMe))
+  // A live match keeps the phone awake: auto-lock would background the app
+  // and take the player offline while they wait out an opponent's turn.
+  useScreenWakeLock(game?.status === 'playing')
   // Background music follows the room: waiting loop, the game's genre loop
   // while playing, the results loop once a round ends.
   useMusicScene(roomMusicScene(game), game?.gameType ?? null)
@@ -1015,6 +1019,7 @@ export default function Game() {
               isMe={mySeat === 'X'}
               score={scoreX}
               online={getPresence('X')}
+              away={!isSpectator && mySeat !== 'X' && opponentAway}
             />
             <PlayerCard
               name={game.players?.O?.name}
@@ -1024,13 +1029,14 @@ export default function Game() {
               isMe={mySeat === 'O'}
               score={scoreO}
               online={getPresence('O')}
+              away={!isSpectator && mySeat !== 'O' && opponentAway}
             />
           </div>
         )}
 
         {/* Disconnect warning (non-custom — hangwoman handles this inline) */}
         {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && !showAbandonBanner && (
-          <OfflineNotice />
+          <OfflineNotice away={opponentAway} />
         )}
 
         {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline
