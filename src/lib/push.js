@@ -22,6 +22,10 @@ import { NATIVE_PUSH } from './features'
 
 export const PUSH_PLATFORMS = ['web', 'ios', 'android']
 
+// What the pushes carry (functions/push.js), for every line of copy that
+// promises them.
+export const PUSH_WHAT = 'game invites, friend requests and a ping when a friend joins your room'
+
 export function isPushSupported(nav = globalThis.navigator, win = globalThis) {
   try {
     return Boolean(

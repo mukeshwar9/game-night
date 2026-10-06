@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
 import OpenInBrowserHint from './OpenInBrowserHint'
 import { isInAppBrowser } from '../lib/uaLogic'
-import { pushAvailable, permissionState, checkPushPermission, vapidKey, enablePush, disablePush } from '../lib/push'
+import { pushAvailable, permissionState, checkPushPermission, vapidKey, enablePush, disablePush, PUSH_WHAT } from '../lib/push'
 import { isNative } from '../lib/platform'
 
 // Opt-in push toggle. Hidden when push can't work: on the web, no SW/Push
@@ -19,6 +19,7 @@ export default function PushToggle() {
   })
   const [token, setToken] = useState(null)
   const [busy, run] = useBusy()
+  const [opening, runOpen] = useBusy()
 
   useEffect(() => {
     if (isNative) {
@@ -64,6 +65,11 @@ export default function PushToggle() {
     }
   })
 
+  const openSettings = () => runOpen(async () => {
+    const { openAppNotificationSettings } = await import('../lib/native/appSettings')
+    if (!(await openAppNotificationSettings())) throw new Error('settings')
+  }, () => toast.error("COULDN'T OPEN SETTINGS — OPEN THEM FROM YOUR PHONE'S SETTINGS APP."))
+
   const disable = () => run(async () => {
     await disablePush(token)
     setToken(null)
@@ -75,18 +81,30 @@ export default function PushToggle() {
       <p className="font-pixel text-[10px] text-retro-dim tracking-wider">NOTIFICATIONS</p>
       <p className="font-mono text-[11px] text-retro-dim">
         {perm === 'denied'
-          ? `Blocked in ${isNative ? 'phone' : 'browser'} settings — re-allow to get invites and turn alerts.`
+          ? `Blocked in ${isNative ? 'phone' : 'browser'} settings — re-allow to get ${PUSH_WHAT}.`
           : on
-            ? 'On — invites and turn alerts push even when app closed.'
-            : 'Get invites and turn alerts even when app closed.'}
+            ? `On — ${PUSH_WHAT} reach you even when the app is closed.`
+            : `Get ${PUSH_WHAT} even when the app is closed.`}
       </p>
-      <button
-        onClick={on ? disable : enable}
-        disabled={busy || perm === 'denied'}
-        className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        {busy ? (on ? 'TURNING OFF…' : 'TURNING ON…') : on ? 'TURN OFF' : 'TURN ON'}
-      </button>
+      {perm === 'denied' && isNative ? (
+        // A refused permission can only be changed in the phone's settings;
+        // send the player straight there.
+        <button
+          onClick={openSettings}
+          disabled={opening}
+          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+        >
+          {opening ? 'OPENING…' : 'OPEN SETTINGS'}
+        </button>
+      ) : (
+        <button
+          onClick={on ? disable : enable}
+          disabled={busy || perm === 'denied'}
+          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {busy ? (on ? 'TURNING OFF…' : 'TURNING ON…') : on ? 'TURN OFF' : 'TURN ON'}
+        </button>
+      )}
     </div>
   )
 }

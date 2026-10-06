@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { GHOST_GRACE_MS, hasLiveConn, isGhost, isSeatOnline, presenceHeal, seatLeft } from './presenceLogic'
+import { GHOST_GRACE_MS, hasLiveConn, isGhost, isSeatOnline, presenceHeal, seatAway, seatLeft } from './presenceLogic'
 
 describe('isSeatOnline', () => {
   it('treats missing presence as online (legacy convention)', () => {
@@ -35,6 +35,21 @@ describe('seatLeft', () => {
     expect(seatLeft({ leftAt: 1, conns: { a: 2 } })).toBe(false)
     expect(seatLeft({ online: false })).toBe(false)
     expect(seatLeft(null)).toBe(false)
+  })
+})
+
+describe('seatAway', () => {
+  it('is true for a seat whose app went to the background and has no connection', () => {
+    expect(seatAway({ online: false, awayAt: 100 })).toBe(true)
+  })
+  it('is still offline for every rule while away', () => {
+    expect(isSeatOnline({ online: false, awayAt: 100 })).toBe(false)
+  })
+  it('is false once a connection is back, after LEAVE, or for a plain disconnect', () => {
+    expect(seatAway({ online: true, awayAt: 100, conns: { c1: 1 } })).toBe(false)
+    expect(seatAway({ online: false, awayAt: 100, leftAt: 120 })).toBe(false)
+    expect(seatAway({ online: false })).toBe(false)
+    expect(seatAway(null)).toBe(false)
   })
 })
 

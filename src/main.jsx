@@ -7,6 +7,7 @@ import { captureFirstTouch } from './lib/attribution'
 import { recordFunnel } from './lib/analytics'
 import { isNative, nativePlatform } from './lib/platform'
 import { NATIVE_PUSH } from './lib/features'
+import { parseAppStoreId, smartBannerContent } from './lib/storeLinks'
 
 // Before the first render, so errors thrown while the app boots are reported
 // too. ErrorBoundary covers render-time crashes; these cover event handlers,
@@ -30,6 +31,13 @@ if (isNative) {
   import('./lib/native/deepLinks').then(m => m.initDeepLinks())
   if (NATIVE_PUSH) import('./lib/native/nativePush').then(m => m.initNativePush())
 }
+
+// Safari's Smart App Banner (the meta tag vite.config.js adds once
+// VITE_APPSTORE_ID is set): hand the page itself, usually an invite link, to
+// the app when the player opens it from the banner.
+const appStoreId = parseAppStoreId(import.meta.env.VITE_APPSTORE_ID)
+const bannerMeta = !isNative && appStoreId ? document.querySelector('meta[name="apple-itunes-app"]') : null
+if (bannerMeta) bannerMeta.setAttribute('content', smartBannerContent(appStoreId, window.location.href))
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

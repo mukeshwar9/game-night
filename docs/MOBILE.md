@@ -92,6 +92,10 @@ Behaviour in the shell, in short:
   animation loops stop.
 - Android back closes an open sheet, then goes back, then goes home, then
   minimizes the app.
+- Haptics: sound cues give a light tap in the shell (never on the web), and
+  wins, refused moves and losses use the platform's notification haptics
+  (`hapticNotify` in `src/lib/haptics.js`). Settings › Audio › HAPTICS turns
+  all of it off; it is separate from the sound switch.
 - Without the sign-in flags the shell shows no Google or Apple button (the web
   popup cannot work in a web view). Without `VITE_NATIVE_PUSH` the
   notifications toggle is hidden.
@@ -183,7 +187,13 @@ app.
    to native tokens (a data-only push is never shown on iOS). Web tokens keep
    the data-only payload their service worker draws.
 5. Build with `VITE_NATIVE_PUSH=1`.
-6. Test on real devices (the iOS Simulator cannot receive remote pushes):
+6. What is sent (`functions/push.js`): game invites, friend requests, and
+   "your friend joined your room" to a host who has left the app. The app asks
+   in context (`PushNudge`: the waiting room and the Friends page, snoozed two
+   weeks by NOT NOW) as well as from Profile; once refused, Profile shows OPEN
+   SETTINGS (`src/lib/native/appSettings.js`; on Android the app-local
+   `AppSettingsPlugin`).
+7. Test on real devices (the iOS Simulator cannot receive remote pushes):
    enable in Profile → notifications, send an invite from another account,
    tap the notification with the app closed and with it in the background;
    both should open the room.
@@ -258,9 +268,12 @@ record exists. Deploy the rules before relying on it.
   so it follows the silent switch and mixes with the player's own music. Use
   `.playback` instead if sound should play with the switch on.
 - Whether invite links and share cards move to a custom domain before launch.
-- Sound-cue haptics stay off (`SFX_HAPTICS` in `src/lib/sounds.js`), as on the
-  web; moves blocked by turn order and Mine Race flags already use
-  `haptic()`.
+- Party voice ends when the app goes to the background and rejoins on return
+  (the panel then says VOICE PAUSED WHILE YOU WERE AWAY). Keeping it alive
+  would need the `audio` background mode and a native audio-session hand-off.
+  Not yet checked on a device: whether game sounds return to the speaker and
+  follow the silent switch after leaving voice (WebKit switches the session to
+  play-and-record while the mic is open, over the `.ambient` category above).
 
 ## Profiling and debugging
 
@@ -277,6 +290,11 @@ record exists. Deploy the rules before relying on it.
   `adb logcat | grep -i capacitor`.
 - Measure on real low-end hardware before release: the Simulator runs on the
   Mac's CPU.
+- Field data: every native launch bumps `bootDaily/{day}/{ios|android}/{bucket}`
+  (page start to first screen: `lt1s`, `lt2s`, `lt4s`, `lt6s`, `slow`;
+  admin-read). The entry chunk (about 780 KB, mostly React, React Router and
+  the game registry) is worth splitting if `lt2s` stops being the common
+  bucket on Android.
 
 ## Performance notes
 

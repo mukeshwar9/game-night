@@ -11,6 +11,7 @@ import { hostUidOf } from '../lib/night'
 import { memberPresent } from '../lib/nightLogic'
 import { recordFunnel } from '../lib/analytics'
 import { shareUrl } from '../lib/platform'
+import { shareLink } from '../lib/share'
 import { HEADLINE_GAMES } from '../lib/adLanding'
 
 const HEADLINE_2P = HEADLINE_GAMES.map(h => h.type)
@@ -48,9 +49,9 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
   }
 
   const share = () => runShare(async () => {
-    if (navigator.share) {
-      try { await navigator.share({ title: 'Game Night', text: 'Join my Game Night party!', url }); recordFunnel('shared'); return } catch { /* cancelled */ }
-    }
+    const outcome = await shareLink({ text: 'Join my Game Night party!', url })
+    if (outcome === 'shared') { recordFunnel('shared'); return }
+    if (outcome === 'cancelled') return
     await navigator.clipboard.writeText(url)
     recordFunnel('shared')
     toast.success('LINK COPIED!')

@@ -29,6 +29,17 @@ describe('plays and playsDaily', () => {
   })
 })
 
+describe('bootDaily', () => {
+  it('counts native boot times by one, for the app platforms and known buckets only', async () => {
+    await assertSucceeds(as('alice').ref(`bootDaily/${TODAY}/ios/lt2s`).set(increment))
+    await assertSucceeds(as('alice').ref(`bootDaily/${TODAY}/android/slow`).set(increment))
+    await assertFails(as('alice').ref(`bootDaily/${TODAY}/ios/lt2s`).set(50))
+    await assertFails(as('alice').ref(`bootDaily/${TODAY}/web/lt2s`).set(increment))
+    await assertFails(as('alice').ref(`bootDaily/${TODAY}/ios/lt3s`).set(increment))
+    await assertFails(as('alice').ref('bootDaily').get())
+  })
+})
+
 // The exact writes the app makes: analytics.js bump() is set(ref, increment(1))
 // on plays/{type}/{mode} and playsDailyPath(...); telemetry.js sendToFirebase
 // is set(push(errors/{dayKey(at)}), buildErrorReport({...})).

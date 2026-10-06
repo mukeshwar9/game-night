@@ -14,10 +14,14 @@ export function isValidGameId(id) {
   return typeof id === 'string' && GAME_ID_RE.test(id)
 }
 
+// Screens a push may open besides a room (friend requests open /friends).
+const SCREEN_PATHS = ['/friends']
+
 /**
- * `/game/:gameId` for a notification's data, or null when it carries no valid
- * room (a bare `/` link, a missing payload, anything off-site). Reads
- * `gameId` first, then the `url` sendInvitePush also sends (`/game/ABC123`).
+ * `/game/:gameId` for a notification's data (or one of SCREEN_PATHS), or null
+ * when it carries nothing openable (a bare `/` link, a missing payload,
+ * anything off-site). Reads `gameId` first, then the `url` the senders also
+ * send (`/game/ABC123`, `/friends`).
  * @param {unknown} data
  * @returns {string | null}
  */
@@ -26,6 +30,7 @@ export function pathFromPushData(data) {
   const d = /** @type {Record<string, unknown>} */ (data)
   if (isValidGameId(d.gameId)) return `/game/${d.gameId}`
   if (typeof d.url !== 'string') return null
+  if (SCREEN_PATHS.includes(d.url)) return d.url
   const m = /^\/game\/([^/?#]+)\/?(?:[?#].*)?$/.exec(d.url)
   return m && isValidGameId(m[1]) ? `/game/${m[1]}` : null
 }

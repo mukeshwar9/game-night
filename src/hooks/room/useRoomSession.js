@@ -10,7 +10,7 @@ import { defaultAvatarForId } from '../../lib/avatarKit'
 import { recordRoom } from '../../lib/profile'
 import { guestName, isGuestStyleName, saveDisplayName } from '../../lib/social'
 import { isListableRoom, listingHost, removePublicListing, republishPublicRoom } from '../../lib/matchmaking'
-import { isGhost, isSeatOnline, seatLeft } from '../../lib/presenceLogic'
+import { isGhost, isSeatOnline, seatAway, seatLeft } from '../../lib/presenceLogic'
 import { ghostsToSweep, inviteSummary, openSeat, partyJoinPlan, pickRoomHost, seatedIds, spectatorCount } from '../../lib/roomLogic'
 import { canTakeSeat, normalizeQueue } from '../../lib/nightLogic'
 import { hostUidOf, joinQueue } from '../../lib/night'
@@ -475,9 +475,10 @@ export default function useRoomSession(gameId) {
   const opPresence = mySeat ? game?.presence?.[opSym] : null
   const opponentOnline = mySeat ? isSeatOnline(opPresence) : true
   const opponentLeft = mySeat ? seatLeft(opPresence) : false
+  const opponentAway = mySeat ? seatAway(opPresence) : false
 
   return {
-    game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft,
+    game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft, opponentAway,
     mySeat, mySymbol, connected, seatOffer, takeSeat,
   }
 }

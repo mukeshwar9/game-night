@@ -9,14 +9,17 @@
 // be understood means "no gate": a typo in the console must never lock every
 // player out of the app.
 
+import { PLAY_URL, appStoreUrl, parseAppStoreId } from './storeLinks'
+
 /**
- * Store listings the update screen opens. APPSTORE_ID_PLACEHOLDER is replaced
- * with the numeric App Store id once the app record exists (docs/MOBILE.md);
- * the Play package name is the Capacitor appId.
+ * Store listings the update screen opens. The App Store id comes from
+ * VITE_APPSTORE_ID once the app record exists (docs/MOBILE.md); until then the
+ * URL keeps the APPSTORE_ID_PLACEHOLDER marker. The Play package name is the
+ * Capacitor appId.
  */
 export const STORE_URLS = {
-  ios: 'https://apps.apple.com/app/idAPPSTORE_ID_PLACEHOLDER',
-  android: 'https://play.google.com/store/apps/details?id=app.gamenight',
+  ios: appStoreUrl(parseAppStoreId(import.meta.env?.VITE_APPSTORE_ID)) || 'https://apps.apple.com/app/idAPPSTORE_ID_PLACEHOLDER',
+  android: PLAY_URL,
 }
 
 /** @param {unknown} platform */

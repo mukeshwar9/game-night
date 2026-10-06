@@ -25,7 +25,7 @@ Copy `.env.local.example` to `.env.local` and fill in Firebase config values (`V
 
 ## Architecture
 
-This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime Database**; `database.rules.json` is the trust boundary. Cloud Functions in `functions/` (Node 22, Blaze plan) run server-side: hourly room cleanup, `creditMatchResults` (writes the leaderboard after re-checking board-game winners), `sendInvitePush`, `cleanupDeletedAccount`, and `moderateChatMessage` / `triageReport` (chat log pruning; TypeSafe Jev moderation and report triage, off until a key is configured) (`functions/README.md`).
+This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime Database**; `database.rules.json` is the trust boundary. Cloud Functions in `functions/` (Node 22, Blaze plan) run server-side: hourly room cleanup, `creditMatchResults` (writes the leaderboard after re-checking board-game winners), `sendInvitePush` / `sendFriendRequestPush` / `sendJoinedPush`, `cleanupDeletedAccount`, and `moderateChatMessage` / `triageReport` (chat log pruning; TypeSafe Jev moderation and report triage, off until a key is configured) (`functions/README.md`).
 
 ### Layout
 

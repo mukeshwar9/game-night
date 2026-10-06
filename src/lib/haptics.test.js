@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { planHaptics, createHaptic, MAX_EVENTS, MAX_TOTAL_MS } from './haptics'
+import { planHaptics, createHaptic, MAX_EVENTS, MAX_TOTAL_MS, NOTICE_PATTERNS } from './haptics'
 
 describe('planHaptics: single pulses', () => {
   it('plans nothing for zero, negative, NaN, empty and non-patterns', () => {
@@ -137,5 +137,36 @@ describe('createHaptic', () => {
     expect(loadPlugin).not.toHaveBeenCalled()
     createHaptic({ native: true, loadPlugin }).preload()
     return vi.waitFor(() => expect(loadPlugin).toHaveBeenCalledTimes(1))
+  })
+})
+
+describe('the HAPTICS switch and outcome notices', () => {
+  const flush = () => new Promise(r => setTimeout(r, 0))
+
+  it('does nothing at all while the player has haptics off', async () => {
+    const vibrate = vi.fn()
+    const mod = { Haptics: { impact: vi.fn(), vibrate: vi.fn(), notification: vi.fn() } }
+    const web = createHaptic({ native: false, nav: { vibrate }, enabled: () => false })
+    web.haptic(30); web.notify('SUCCESS')
+    const app = createHaptic({ native: true, loadPlugin: async () => mod, enabled: () => false })
+    app.haptic(30); app.notify('ERROR')
+    await flush()
+    expect(vibrate).not.toHaveBeenCalled()
+    expect(mod.Haptics.impact).not.toHaveBeenCalled()
+    expect(mod.Haptics.notification).not.toHaveBeenCalled()
+  })
+
+  it('sends a win, a refused move or a loss as the native notification haptic', async () => {
+    const mod = { Haptics: { notification: vi.fn().mockResolvedValue(undefined) } }
+    const app = createHaptic({ native: true, loadPlugin: async () => mod })
+    app.notify('SUCCESS')
+    await flush()
+    expect(mod.Haptics.notification).toHaveBeenCalledWith({ type: 'SUCCESS' })
+  })
+
+  it('falls back to a vibrate pattern on the web', () => {
+    const vibrate = vi.fn()
+    createHaptic({ native: false, nav: { vibrate } }).notify('ERROR')
+    expect(vibrate).toHaveBeenCalledWith(NOTICE_PATTERNS.ERROR)
   })
 })

@@ -23,6 +23,9 @@ const INITIAL = Object.freeze({
   available: false,
   status: 'off', // off | joining | connecting | connected | reconnecting | failed | paused
   error: null,
+  // 'resumed' after voice dropped for the app going to the background and
+  // came back by itself, so the player knows the gap was voice, not friends.
+  notice: null,
   muted: false,
   listenOnly: false,
   directory: {},
@@ -253,7 +256,10 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     pausedAt = null
     // The old session was closed on pause, so even a quick return gets a
     // fresh one: never a session revived past the SFU's idle window.
-    if (want && was !== null) join({ listenOnly: want.listenOnly })
+    if (want && was !== null) {
+      emit({ notice: 'resumed' })
+      join({ listenOnly: want.listenOnly })
+    }
   }
   if (typeof window !== 'undefined') {
     window.addEventListener('native-pause', onPause)
@@ -282,6 +288,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     toggleLocalMute(uid) { emit({ localMutes: { ...state.localMutes, [uid]: !state.localMutes[uid] } }); applyGains() },
     hostMute: (uid) => (io.hasDb ? io.hostMute(uid) : Promise.resolve()),
     clearError: () => emit({ error: null }),
+    clearNotice: () => emit({ notice: null }),
     dispose() {
       if (typeof window !== 'undefined') {
         window.removeEventListener('native-pause', onPause)

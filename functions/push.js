@@ -1,6 +1,9 @@
-// Invite → push. Fires on invites/{uid}/{inviteId} create, sends FCM to
-// recipient's users/{uid}/fcmTokens (web, iOS and Android), drops dead tokens (404/410).
-// Clients never send push directly; only this sender reads tokens.
+// Pushes. Each fires on a create and sends FCM to the recipient's
+// users/{uid}/fcmTokens (web, iOS and Android), dropping dead tokens (404/410):
+//   sendInvitePush         invites/{uid}/{inviteId}       "Alice invited you to play!"
+//   sendFriendRequestPush  friendRequests/{uid}/{fromUid}  "Alice wants to be friends"
+//   sendJoinedPush         games/{id}/players/O           "Bob joined your room" (host away)
+// Clients never send push directly; only these senders read tokens.
 const { onValueWritten } = require('firebase-functions/v2/database')
 const logger = require('firebase-functions/logger')
 const { getDatabase } = require('firebase-admin/database')
@@ -57,21 +60,29 @@ function inviteBody(invite, from) {
 function buildInviteMessage(invite, token) {
   const from = core.displayNameFor(invite.fromName, 'A friend')
   const gameId = String(invite.gameId || '').slice(0, 40)
+  return buildPushMessage({ body: inviteBody(invite, from), kind: 'invite', gameId, thread: 'invites' }, token)
+}
+
+// One notification for one token, in that platform's shape (see above).
+// `gameId` links to the room and collapses repeats per room; `url` is used
+// when there is no room (a friend request opens /friends); `collapse` groups
+// notifications that are not about a room.
+function buildPushMessage({ body, kind, gameId = '', url: path = '', thread, collapse = '' }, token) {
   const title = 'Game Night'
-  const body = inviteBody(invite, from)
-  const url = gameId ? `/game/${gameId}` : '/'
+  const url = gameId ? `/game/${gameId}` : path || '/'
+  const key = gameId || collapse
   if (!NATIVE_PLATFORMS.includes(token.platform)) {
-    return { token: token.token, data: { title, body, url, kind: 'invite' } }
+    return { token: token.token, data: { title, body, url, kind } }
   }
-  const data = { url, kind: 'invite', ...(gameId ? { gameId } : {}) }
+  const data = { url, kind, ...(gameId ? { gameId } : {}) }
   if (token.platform === 'ios') {
     return {
       token: token.token,
       notification: { title, body },
       data,
       apns: {
-        ...(gameId ? { headers: { 'apns-collapse-id': gameId } } : {}),
-        payload: { aps: { sound: 'default', 'thread-id': gameId || 'invites' } },
+        ...(key ? { headers: { 'apns-collapse-id': key } } : {}),
+        payload: { aps: { sound: 'default', 'thread-id': gameId || thread } },
       },
     }
   }
@@ -81,9 +92,22 @@ function buildInviteMessage(invite, token) {
     data,
     android: {
       priority: 'high',
-      notification: { channelId: ANDROID_CHANNEL, ...(gameId ? { tag: gameId } : {}) },
+      notification: { channelId: ANDROID_CHANNEL, ...(key ? { tag: key } : {}) },
     },
   }
+}
+
+// Someone sent `uid` a friend request (friendRequests/{uid}/{fromUid}).
+function buildFriendRequestMessage(request, fromUid, token) {
+  const from = core.displayNameFor(request?.name, 'Someone')
+  return buildPushMessage({ body: `${from} wants to be friends on Game Night`, kind: 'friend', url: '/friends', thread: 'friends', collapse: `friend-${String(fromUid).slice(0, 40)}` }, token)
+}
+
+// A second player took the open seat of `uid`'s room while the host was away
+// (shared the link, then switched to another app).
+function buildJoinedMessage(player, gameId, token) {
+  const who = core.displayNameFor(player?.name, 'Your friend')
+  return buildPushMessage({ body: `${who} joined your room. Jump back in!`, kind: 'joined', gameId: String(gameId).slice(0, 40), thread: 'rooms' }, token)
 }
 
 function buildInviteMessages(invite, tokens) {
@@ -101,12 +125,17 @@ async function isBlocked(uid, fromUid, database = getDatabase()) {
 
 async function sendInvitePush(uid, invite) {
   if (await isBlocked(uid, invite.fromUid)) return { sent: 0, reason: 'blocked' }
+  const gameId = String(invite.gameId || '')
+  return sendToUser(uid, (tokens) => buildInviteMessages(invite, tokens), { what: 'invite push', gameId })
+}
+
+// Sends one message per token of `uid` (each carries its own platform
+// payload; responses come back in the same order) and drops the tokens FCM
+// reports dead.
+async function sendToUser(uid, build, logFields) {
   const tokens = await tokensFor(uid)
   if (!tokens.length) return { sent: 0, reason: 'no-tokens' }
-  const gameId = String(invite.gameId || '')
-  // One message per token (each carries its own platform payload); responses
-  // come back in the same order.
-  const res = await messaging().sendEach(buildInviteMessages(invite, tokens))
+  const res = await messaging().sendEach(build(tokens))
   // Drop tokens FCM reports dead so inbox doesn't fill with junk.
   const dead = []
   res.responses.forEach((r, i) => {
@@ -119,8 +148,31 @@ async function sendInvitePush(uid, invite) {
     for (const h of dead) updates[`users/${uid}/fcmTokens/${h}`] = null
     await getDatabase().ref().update(updates)
   }
-  logger.info('invite push', { uid, gameId, sent: res.successCount, failed: res.failureCount })
+  const { what, ...fields } = logFields
+  logger.info(what, { uid, ...fields, sent: res.successCount, failed: res.failureCount })
   return { sent: res.successCount }
+}
+
+async function sendFriendRequestPush(uid, fromUid, request) {
+  if (await isBlocked(uid, fromUid)) return { sent: 0, reason: 'blocked' }
+  return sendToUser(uid, (tokens) => tokens.map(t => buildFriendRequestMessage(request, fromUid, t)), { what: 'friend request push' })
+}
+
+// True when the room's host (seat X) has no live connection: away from the
+// app, so a push is the only way they learn someone joined.
+function hostAway(game) {
+  const conns = game?.presence?.X?.conns
+  return !(conns && typeof conns === 'object' && Object.keys(conns).length > 0)
+}
+
+async function sendJoinedPush(gameId, joiner, database = getDatabase()) {
+  const snap = await database.ref(`games/${gameId}`).get()
+  const game = snap.val()
+  const hostUid = game?.players?.X?.playerId
+  if (!hostUid || !joiner?.playerId || hostUid === joiner.playerId) return { sent: 0, reason: 'no-host' }
+  if (game.status === 'finished' || !hostAway(game)) return { sent: 0, reason: 'host-here' }
+  if (await isBlocked(hostUid, joiner.playerId, database)) return { sent: 0, reason: 'blocked' }
+  return sendToUser(hostUid, (tokens) => tokens.map(t => buildJoinedMessage(joiner, gameId, t)), { what: 'joined push', gameId })
 }
 
 exports.sendInvitePush = onValueWritten({ ref: 'invites/{uid}/{inviteId}', maxInstances: 10 }, async (event) => {
@@ -137,5 +189,32 @@ exports.sendInvitePush = onValueWritten({ ref: 'invites/{uid}/{inviteId}', maxIn
   return null
 })
 
+exports.sendFriendRequestPush = onValueWritten({ ref: 'friendRequests/{uid}/{fromUid}', maxInstances: 10 }, async (event) => {
+  const after = event.data?.after?.val()
+  if (!after || event.data?.before?.exists()) return null
+  try {
+    await sendFriendRequestPush(event.params.uid, event.params.fromUid, after)
+  } catch (e) {
+    logger.warn('friend request push failed', { uid: event.params.uid, error: e?.message || e })
+  }
+  return null
+})
+
+// 2P rooms only: seat O filling is "your friend joined". Party rooms fill a
+// lobby the host is watching.
+exports.sendJoinedPush = onValueWritten({ ref: 'games/{gameId}/players/O', maxInstances: 10 }, async (event) => {
+  const after = event.data?.after?.val()
+  if (!after || event.data?.before?.exists()) return null
+  try {
+    await sendJoinedPush(event.params.gameId, after)
+  } catch (e) {
+    logger.warn('joined push failed', { gameId: event.params.gameId, error: e?.message || e })
+  }
+  return null
+})
+
 // Exported for unit test without emulator.
-exports._test = { sendInvitePush, isBlocked, tokensFor, buildInviteMessage, buildInviteMessages, inviteBody }
+exports._test = {
+  sendInvitePush, sendJoinedPush, isBlocked, tokensFor, hostAway,
+  buildInviteMessage, buildInviteMessages, buildFriendRequestMessage, buildJoinedMessage, inviteBody,
+}
