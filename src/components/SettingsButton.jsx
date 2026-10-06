@@ -9,7 +9,7 @@ import { VideoCallSettingsPanel } from './VideoCallLayout'
 import { FONTS, applyFont, getStoredFont } from '../lib/font'
 import { THEMES, applyTheme, getStoredTheme } from '../lib/theme'
 import {
-  TEXT_SIZES, applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx,
+  applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx, defaultTextSize, textSizeOptions,
   getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
 } from '../lib/displayPrefs'
 import { ART_STYLES, DEFAULT_ART_STYLE, applyGameArtStyle, getGameArtStyle } from '../lib/gameArtStyle'
@@ -158,7 +158,7 @@ export default function SettingsButton({ className = '' }) {
     setVolume(1)
     setCrt(true)
     setMotion(getStoredMotion())
-    setTextSize('m')
+    setTextSize(defaultTextSize())
     setArtStyle(DEFAULT_ART_STYLE)
     applyGameArtStyle(DEFAULT_ART_STYLE)
     setWinFx(true)
@@ -311,13 +311,13 @@ export default function SettingsButton({ className = '' }) {
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="font-pixel text-[9px] text-retro-text tracking-widest">TEXT SIZE</span>
-          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Text size">
-            {TEXT_SIZES.map(option => <button
+          <div className="flex gap-1.5" role="group" aria-label="Text size">
+            {textSizeOptions().map(option => <button
               key={option.id}
               type="button"
               onClick={() => selectTextSize(option.id)}
               aria-pressed={textSize === option.id}
-              className={`min-h-10 min-w-12 rounded border px-2 font-pixel text-[9px] transition-colors ${textSize === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
+              className={`min-h-10 min-w-10 rounded border px-1.5 font-pixel text-[9px] transition-colors ${textSize === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
             >
               {option.label}
             </button>)}

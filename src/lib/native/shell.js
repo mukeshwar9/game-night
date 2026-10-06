@@ -9,6 +9,7 @@ import { isNative, isIOS, isAndroid, nativePlatform } from '../platform'
 import { authReady } from '../auth'
 import { db } from '../firebase'
 import { requestNavigate, firstScreen } from './navigation'
+import { setSystemTextZoom } from '../displayPrefs'
 import { chooseBackAction, settleWithin, systemBarStyleForBackground } from './shellLogic'
 
 // The splash never outlives this, however slow or broken boot is.
@@ -33,6 +34,7 @@ export function initNativeShell() {
   run('back button', startBackButton)
   run('lifecycle', startLifecycle)
   run('keyboard', startKeyboard)
+  run('text zoom', startTextZoom)
 }
 
 function run(name, fn) {
@@ -158,4 +160,20 @@ async function startKeyboard() {
   if (!isIOS) return
   const { Keyboard } = await import('@capacitor/keyboard')
   await Keyboard.setAccessoryBarVisible({ isVisible: false })
+}
+
+// The phone's text-size setting. Left alone, Android's web view scaled every
+// px font by it (layouts clipped at 200 %) while iOS ignored Dynamic Type.
+// Turn the web view's own scaling off and hand the setting to the app's TEXT
+// SIZE (AUTO maps it to S/M/L/XL, layouts the app is tested at). Re-read on
+// every return, since the player may have changed it in Settings meanwhile.
+async function startTextZoom() {
+  const { TextZoom } = await import('@capacitor/text-zoom')
+  const sync = async () => {
+    const { value } = await TextZoom.getPreferred()
+    await TextZoom.set({ value: 1 })
+    setSystemTextZoom(value)
+  }
+  await sync()
+  window.addEventListener('native-resume', () => { sync().catch(warn) })
 }
