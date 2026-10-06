@@ -5214,7 +5214,7 @@
       "dpr": 1
     },
     "sumo": {
-      "w": 232,
+      "w": 238,
       "h": 340,
       "steps": [
         {
@@ -5225,7 +5225,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 232,
+          "w": 238,
           "h": 340,
           "dark": {
             "box": {
@@ -5234,7 +5234,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 232,
+            "w": 238,
             "h": 340
           }
         },
@@ -5246,7 +5246,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 212,
+          "w": 238,
           "h": 340,
           "dark": {
             "box": {
@@ -5255,7 +5255,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 212,
+            "w": 238,
             "h": 340
           }
         },
@@ -5267,7 +5267,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 212,
+          "w": 250,
           "h": 340,
           "dark": {
             "box": {
@@ -5276,29 +5276,31 @@
               "w": 98,
               "h": 98
             },
-            "w": 212,
+            "w": 250,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 30222,
-        "dark": 39134
+        "light": 95845,
+        "dark": 70337
       },
       "sources": [
         "src/components/SumoArena.jsx",
         "src/hooks/useSumoControls.js",
+        "src/hooks/useSumoFx.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/sounds.js",
         "src/lib/sumoLogic.js",
         "src/pages/SumoDemo.jsx"
       ],
-      "sourceHash": "f9688388b80e",
-      "assetHash": "ae34ce695448",
-      "dpr": 1
+      "sourceHash": "af7bab66ac3f",
+      "assetHash": "ae34ce695448"
     },
     "tictactoe": {
       "w": 316,
