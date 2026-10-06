@@ -93,3 +93,14 @@ export function settleWithin(promises, ms, sleep = (t) => new Promise(r => setTi
     sleep(ms).then(() => /** @type {const} */ ('timeout')),
   ])
 }
+
+/**
+ * '#rrggbb' for a theme colour (the --c-bg channels), for the native splash,
+ * which reads plain hex. null when the colour cannot be read.
+ * @param {unknown} value
+ */
+export function hexForColor(value) {
+  const rgb = parseColor(value)
+  if (!rgb) return null
+  return `#${rgb.map(c => Math.round(c).toString(16).padStart(2, '0')).join('')}`
+}

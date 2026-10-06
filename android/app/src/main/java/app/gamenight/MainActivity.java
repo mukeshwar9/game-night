@@ -1,5 +1,7 @@
 package app.gamenight;
 
+import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
@@ -23,6 +25,22 @@ public class MainActivity extends BridgeActivity {
         super.onPause();
         WebView webView = webView();
         if (webView != null) webView.onPause();
+        setSplashTheme();
+    }
+
+    // The system splash cannot change colour once launch has begun, but from
+    // Android 13 the app can pick the theme for its next cold start. The app
+    // saves whether the player's theme is dark on every theme change
+    // (@capacitor/preferences key splashDark, src/lib/native/shell.js).
+    private void setSplashTheme() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
+        SharedPreferences prefs = getSharedPreferences("CapacitorStorage", MODE_PRIVATE);
+        boolean dark = "1".equals(prefs.getString("splashDark", null));
+        try {
+            getSplashScreen().setSplashScreenTheme(dark ? R.style.AppTheme_NoActionBarLaunch_Dark : R.style.AppTheme_NoActionBarLaunch);
+        } catch (Exception ignored) {
+            // Never let a cosmetic setting take the app down.
+        }
     }
 
     @Override

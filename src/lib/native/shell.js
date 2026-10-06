@@ -10,7 +10,7 @@ import { authReady } from '../auth'
 import { db } from '../firebase'
 import { requestNavigate, firstScreen } from './navigation'
 import { setSystemTextZoom } from '../displayPrefs'
-import { chooseBackAction, settleWithin, systemBarStyleForBackground } from './shellLogic'
+import { chooseBackAction, hexForColor, settleWithin, systemBarStyleForBackground } from './shellLogic'
 
 // The splash never outlives this, however slow or broken boot is.
 const SPLASH_MAX_MS = 6000
@@ -74,12 +74,23 @@ async function startSplash() {
 
 // Status bar (and Android's gesture/navigation bar) content follows the theme:
 // light icons on the dark themes, dark icons on the light ones. The active
-// theme is data-theme on <html>, which swaps the --c-bg tokens.
+// theme is data-theme on <html>, which swaps the --c-bg tokens. The ground is
+// also saved for the next launch's splash (iOS GameNightViewController,
+// Android MainActivity), so a dark-theme player is not greeted by the light
+// default.
 async function startSystemBars() {
-  const { SystemBars } = await import('@capacitor/core')
+  const [{ SystemBars }, { Preferences }] = await Promise.all([import('@capacitor/core'), import('@capacitor/preferences')])
   let last = null
+  let lastGround = null
   const apply = () => {
-    const style = systemBarStyleForBackground(getComputedStyle(document.documentElement).getPropertyValue('--c-bg'))
+    const ground = getComputedStyle(document.documentElement).getPropertyValue('--c-bg')
+    const style = systemBarStyleForBackground(ground)
+    const hex = hexForColor(ground)
+    if (hex && hex !== lastGround) {
+      lastGround = hex
+      Preferences.set({ key: 'splashBackground', value: hex }).catch(warn)
+      Preferences.set({ key: 'splashDark', value: style === 'DARK' ? '1' : '0' }).catch(warn)
+    }
     if (style === last) return
     last = style
     SystemBars.setStyle({ style }).catch(warn)

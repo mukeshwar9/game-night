@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { chooseBackAction, parseColor, relativeLuminance, settleWithin, systemBarStyleForBackground } from './shellLogic'
+import { chooseBackAction, hexForColor, parseColor, relativeLuminance, settleWithin, systemBarStyleForBackground } from './shellLogic'
 import { THEMES } from '../theme'
 
 describe('chooseBackAction', () => {
@@ -91,5 +91,14 @@ describe('settleWithin', () => {
 
   it('resolves at once when nobody asked to wait', async () => {
     await expect(settleWithin([], 1500, () => never)).resolves.toBe('settled')
+  })
+})
+
+describe('hexForColor', () => {
+  it('turns theme channels into the hex the native splash reads', () => {
+    expect(hexForColor('238 240 226')).toBe('#eef0e2')
+    expect(hexForColor(' 8 8 16')).toBe('#080810')
+    expect(hexForColor('#fff')).toBe('#ffffff')
+    expect(hexForColor('nope')).toBe(null)
   })
 })

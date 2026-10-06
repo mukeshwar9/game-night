@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="app_background">#EEF0E2</color>
+    <!-- The splash for players on a dark theme (the MIDNIGHT ground), see MainActivity. -->
+    <color name="app_background_dark">#080810</color>
 </resources>
