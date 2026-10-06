@@ -12,9 +12,9 @@
 // by construction and arrowsLevelsLogic.test.js re-checks every level with
 // the solver.
 
-import { ARROWS_ENDLESS_SPECS, ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, portalUses, solveArrows, tunnelUses } from './arrowsLogic.js'
+import { ARROWS_ENDLESS_SPECS, ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, portalUses, seededRng, solveArrows, tunnelUses } from './arrowsLogic.js'
 import { ARROWS_BAKED_LEVELS as BAKED } from './arrowsLevelsBaked.js'
-import { shapeMask } from './arrowsShapes.js'
+import { maskCells, maskConnected, shapeMask } from './arrowsShapes.js'
 
 // Shape of each level. Levels 1–5 teach the core rule on small boards;
 // straight diagonal arrows arrive at level 6, their curved-body cousins at
@@ -277,17 +277,53 @@ export function newTwist(level, seen) {
   return twistsIn(level).find((t) => !seen?.[t]) ?? null
 }
 
+// Shaped endless boards (see arrowsShapes.js). Each tier draws a shaped board
+// with chance `odds` (otherwise the plain ARROWS_ENDLESS_SPECS rectangle),
+// picks the outline from `pool` and grows it until it has `cells` playable
+// cells — so the arrow count climbs with the tier the way the campaign's
+// shaped boards do. Easy stays inside the 10 × 13 no-camera size; medium and
+// hard outgrow it and play with drag and zoom, like levels 61+.
+export const ARROWS_ENDLESS_SHAPES = {
+  easy: { odds: 0.35, pool: ['diamond', 'cross', 'arrow'], cells: 64, maxLen: 5 },
+  medium: { odds: 0.55, pool: ['diamond', 'cross', 'heart', 'arrow', 'donut'], cells: 110, maxLen: 6 },
+  hard: { odds: 0.8, pool: ['diamond', 'cross', 'donut', 'heart', 'lantern', 'arrow'], cells: 220, maxLen: 7 },
+}
+
+const SHAPE_MAX_COLS = 16
+const SHAPE_MAX_ROWS = 22
+
+// The smallest portrait grid (about 3 : 4) whose `shape` outline holds at
+// least `cells` playable cells, capped at the campaign's 16 × 22 finale.
+export function endlessShapeDims(shape, cells) {
+  for (let cols = 6; cols < SHAPE_MAX_COLS; cols += 1) {
+    const rows = Math.min(SHAPE_MAX_ROWS, Math.round(cols * 1.3))
+    if (maskCells(shapeMask(shape, cols, rows)) >= cells) return { cols, rows }
+  }
+  return { cols: SHAPE_MAX_COLS, rows: SHAPE_MAX_ROWS }
+}
+
 // Endless tiers carry the late mechanics races leave out. Unknown tiers fall
-// back to easy; the spec keeps its tier name for the board's title.
-function endlessSpec(tier) {
+// back to easy; the spec keeps its tier name for the board's title. The seed
+// picks rectangle or outline from its own random stream, so the board the
+// generator draws for it is untouched by that choice.
+function endlessSpec(tier, seed) {
   const name = ARROWS_ENDLESS_SPECS[tier] ? tier : 'easy'
-  return { ...ARROWS_ENDLESS_SPECS[name], name }
+  const spec = { ...ARROWS_ENDLESS_SPECS[name], name }
+  const shapes = ARROWS_ENDLESS_SHAPES[name]
+  if (seed === undefined || !shapes) return spec
+  const rng = seededRng(seed ^ 0x2545f491)
+  if (rng() >= shapes.odds) return spec
+  const shape = shapes.pool[Math.floor(rng() * shapes.pool.length)]
+  const { cols, rows } = endlessShapeDims(shape, shapes.cells)
+  return { ...spec, cols, rows, maxLen: shapes.maxLen, mask: shapeMask(shape, cols, rows), shape }
 }
 
 // Does a board actually carry the special pieces its spec asked for? The
 // generator places sleepers/doubles/mirrors/crates/portals best-effort, so a bare
 // solvable check could serve a board missing the tier's whole point.
 function endlessMeets(level, spec) {
+  // A shaped board must be one piece, or part of it could never be reached.
+  if (spec.mask && !maskConnected(spec.mask)) return false
   // A tier that sets a twist chance must show the twist: a portal board has
   // fewer live routes, so a hooked arrow can fail to place.
   if (spec.diag && !level.arrows.some(isDiagonal)) return false
@@ -305,10 +341,13 @@ function endlessMeets(level, spec) {
 // ever failed, so endless play can never serve a dead board — or one missing
 // the mechanics its tier promises.
 export function endlessLevel(seed, tier) {
-  const spec = endlessSpec(tier)
   for (let s = seed; ; s += 1) {
+    const spec = endlessSpec(tier, s)
     const level = generateArrowsLevel(s, spec)
-    if (solveArrows(level).solvable && endlessMeets(level, spec)) return level
+    if (solveArrows(level).solvable && endlessMeets(level, spec)) {
+      if (spec.shape) level.shape = spec.shape
+      return level
+    }
   }
 }
 

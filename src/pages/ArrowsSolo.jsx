@@ -375,7 +375,7 @@ export default function ArrowsSolo() {
         key={`endless-${play.seed}-${attempt}`}
         level={level}
         title={`ENDLESS · ${ARROWS_ENDLESS_INFO[tier].label}`}
-        subtitle={`${level.arrows.length} ARROWS · ${progress.endless[tier]} CLEARED`}
+        subtitle={`${level.shape ? `${level.shape.toUpperCase()} SHAPE · ` : ''}${level.arrows.length} ARROWS · ${progress.endless[tier]} CLEARED`}
         tips={false}
         onCleared={() => setProgress((p) => saveArrowsProgress(recordEndlessClear(p, tier)))}
         onRestart={() => setAttempt((a) => a + 1)}

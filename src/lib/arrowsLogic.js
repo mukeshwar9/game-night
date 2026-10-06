@@ -93,9 +93,9 @@ export const getArrowsDifficulty = (id) => (ARROWS_DIFFICULTIES.includes(id) ? i
 
 // Endless-select labels (endless boards carry the extra mechanics, races do not).
 export const ARROWS_ENDLESS_INFO = {
-  easy: { label: 'EASY', blurb: '7×9 · + SLEEPERS & MIRRORS' },
-  medium: { label: 'MEDIUM', blurb: '8×11 · + DOUBLES & A CRATE' },
-  hard: { label: 'HARD', blurb: '10×13 · EVERY PIECE' },
+  easy: { label: 'EASY', blurb: '7×9 OR A SHAPE · + SLEEPERS, MIRRORS' },
+  medium: { label: 'MEDIUM', blurb: '8×11 OR A SHAPE · + DOUBLES, A CRATE' },
+  hard: { label: 'HARD', blurb: '10×13 OR BIG SHAPES · EVERY PIECE' },
 }
 
 // (dx, dy) in grid space (y grows downward): up, right, down, left, then the

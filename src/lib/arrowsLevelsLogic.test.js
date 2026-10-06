@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { applyArrowTap, arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, levelStats, occupancy, portalRings, portalUses, solveArrows, tunnelUses, voidSet, ARROWS_ENDLESS_SPECS } from './arrowsLogic'
 import { ARROWS_BAKED_LEVELS } from './arrowsLevelsBaked'
+import { needsCamera } from './arrowsCameraLogic'
+import { ARROWS_SHAPES, maskCells, maskConnected, shapeMask } from './arrowsShapes'
 import {
   ARROWS_CHAPTERS,
   ARROWS_GENERATED_LEVELS,
@@ -10,6 +12,7 @@ import {
   ARROWS_TWIST_TIPS,
   blankProgress,
   endlessLevel,
+  endlessShapeDims,
   getArrowsLevel,
   isLevelUnlocked,
   levelKey,
@@ -368,13 +371,13 @@ describe('twist tutorials', () => {
   })
 })
 
-describe('endless boards', () => {
+describe('endless boards', { timeout: 120000 }, () => {
   it('serve unlimited, distinct, solvable boards at each tier', () => {
     for (const tier of ['easy', 'medium', 'hard']) {
       const seen = new Set()
       for (let s = 1; s <= 40; s += 1) {
         const level = endlessLevel(s * 65537, tier)
-        expect(level.cols).toBe(ARROWS_ENDLESS_SPECS[tier].cols)
+        if (!level.mask) expect(level.cols).toBe(ARROWS_ENDLESS_SPECS[tier].cols)
         expect(solveArrows(level).solvable).toBe(true)
         seen.add(JSON.stringify(level.arrows))
       }
@@ -407,7 +410,106 @@ describe('endless boards', () => {
   })
 
   it('falls back to easy for an unknown tier', () => {
-    expect(endlessLevel(9, 'insane').cols).toBe(ARROWS_ENDLESS_SPECS.easy.cols)
+    const level = endlessLevel(9, 'insane')
+    expect(level.tier).toBe('easy')
+    if (!level.mask) expect(level.cols).toBe(ARROWS_ENDLESS_SPECS.easy.cols)
+  })
+})
+
+describe('shaped endless boards', { timeout: 60000 }, () => {
+  const SEEDS = 40
+  const memo = {}
+  const boards = (tier) => (memo[tier] ??= Array.from({ length: SEEDS }, (_, i) => endlessLevel((i + 1) * 40503, tier)))
+
+  it('shape choice is deterministic per seed and mixes rectangles with outlines', () => {
+    for (const tier of ['easy', 'medium', 'hard']) {
+      const a = boards(tier)
+      expect(boards(tier).map((l) => l.shape ?? null)).toEqual(a.map((l) => l.shape ?? null))
+      const shaped = a.filter((l) => l.mask).length
+      expect(shaped, `${tier} shaped`).toBeGreaterThan(0)
+      expect(shaped, `${tier} rectangles`).toBeLessThan(SEEDS)
+    }
+  })
+
+  it('every board across the tiers is solvable and fully cleared by the greedy solver', () => {
+    for (const tier of ['easy', 'medium', 'hard']) {
+      for (const level of boards(tier)) {
+        const st = solveArrows(level)
+        expect(st.solvable, `${tier} seed ${level.seed}`).toBe(true)
+        // Replay the solver's order with real taps: none may be blocked.
+        let gone = Array(level.arrows.length).fill(false)
+        let lives = 3
+        for (const i of st.order) {
+          const r = applyArrowTap(level, gone, lives, i)
+          expect(r.result, `${tier} seed ${level.seed} arrow ${i}`).toBe('cleared')
+          gone = r.gone
+          lives = r.lives
+        }
+        expect(gone.every(Boolean)).toBe(true)
+      }
+    }
+  })
+
+  it('a shaped board is one connected outline with no arrow, ring or fixture on a void', () => {
+    for (const tier of ['easy', 'medium', 'hard']) {
+      for (const level of boards(tier).filter((l) => l.mask)) {
+        expect(maskConnected(level.mask)).toBe(true)
+        expect(level.mask).toHaveLength(level.rows)
+        const voids = voidSet(level)
+        const onVoid = (x, y) => voids.has(y * level.cols + x)
+        for (const a of level.arrows) for (const [x, y] of a.cells) expect(onVoid(x, y)).toBe(false)
+        for (const m of level.mirrors ?? []) expect(onVoid(m.x, m.y)).toBe(false)
+        for (const c of level.crates ?? []) expect(onVoid(c.x, c.y)).toBe(false)
+        for (const p of level.portals ?? []) { expect(onVoid(...p.a)).toBe(false); expect(onVoid(...p.b)).toBe(false) }
+        expect(ARROWS_SHAPES).toContain(level.shape)
+      }
+    }
+  })
+
+  it('shaped boards keep every special piece their tier asks for', () => {
+    for (const tier of ['easy', 'medium', 'hard']) {
+      const spec = ARROWS_ENDLESS_SPECS[tier]
+      for (const level of boards(tier).filter((l) => l.mask)) {
+        expect(level.arrows.filter(isSleeper).length).toBeGreaterThanOrEqual(spec.sleepers ?? 0)
+        expect(level.arrows.filter(isDouble).length).toBeGreaterThanOrEqual(spec.doubles ?? 0)
+        expect(level.mirrors?.length ?? 0).toBeGreaterThanOrEqual(spec.mirrors ?? 0)
+        expect(level.crates?.length ?? 0).toBeGreaterThanOrEqual(spec.crates ?? 0)
+        expect(level.portals?.length ?? 0).toBeGreaterThanOrEqual(spec.portals?.length ?? 0)
+      }
+    }
+  })
+
+  it('bigger boards carry more arrows, and every tier climbs', () => {
+    const avg = (list) => list.reduce((n, l) => n + l.arrows.length, 0) / list.length
+    const shapedAvg = {}
+    for (const tier of ['easy', 'medium', 'hard']) {
+      const all = boards(tier)
+      shapedAvg[tier] = avg(all.filter((l) => l.mask))
+      expect(shapedAvg[tier], `${tier} shaped vs rectangle`).toBeGreaterThan(avg(all.filter((l) => !l.mask)))
+    }
+    expect(shapedAvg.medium).toBeGreaterThan(shapedAvg.easy)
+    expect(shapedAvg.hard).toBeGreaterThan(shapedAvg.medium)
+    // Hard shaped boards hold their own against the shaped campaign boards (levels 61-100).
+    expect(shapedAvg.hard).toBeGreaterThanOrEqual(35)
+  })
+
+  it('shaped boards outgrow the fitted size only on medium and hard (drag and zoom)', () => {
+    expect(boards('easy').filter((l) => l.mask).every((l) => !needsCamera(l))).toBe(true)
+    expect(boards('hard').filter((l) => l.mask).some(needsCamera)).toBe(true)
+    for (const tier of ['easy', 'medium', 'hard']) {
+      for (const level of boards(tier)) expect(level.cols <= 16 && level.rows <= 22).toBe(true)
+    }
+  })
+
+  it('endlessShapeDims finds a grid with enough playable cells for every shape', () => {
+    for (const shape of ARROWS_SHAPES) {
+      for (const cells of [64, 110, 220]) {
+        const { cols, rows } = endlessShapeDims(shape, cells)
+        const mask = shapeMask(shape, cols, rows)
+        expect(maskConnected(mask), `${shape} ${cols}x${rows}`).toBe(true)
+        if (cols < 16) expect(maskCells(mask), `${shape} ${cells}`).toBeGreaterThanOrEqual(cells)
+      }
+    }
   })
 })
 
