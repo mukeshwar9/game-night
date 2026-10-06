@@ -2254,16 +2254,67 @@ body::before {
   0%   { opacity: 0; }
   100% { opacity: 1; }
 }
-.route-fade {
+html:not([data-vt-routes]) .route-fade {
   animation: route-fade-in 180ms ease-out;
 }
 /* Reduced motion is calmer, not nothing: the page still fades (opacity only)
    instead of cutting, so the change of screen is not missed. Wins over the
    app-wide freeze by specificity. */
-[data-motion="reduced"] .route-fade { animation-duration: var(--dur-fast) !important; }
+[data-motion="reduced"]:not([data-vt-routes]) .route-fade { animation-duration: var(--dur-fast) !important; }
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) .route-fade { animation-duration: var(--dur-fast) !important; }
+  :root:not([data-motion="full"]):not([data-vt-routes]) .route-fade { animation-duration: var(--dur-fast) !important; }
 }
+
+/* Page transitions (MotionRouter.jsx + lib/routeTransitionLogic.js): View
+   Transitions on the whole viewport (root), with the app bar and tab bar
+   captured separately so they stay put and only crossfade. data-route-vt names
+   the kind for the duration of one transition; data-native picks the
+   platform's version. Web: fade-through. Android: Material shared axis X.
+   iOS: push with the old page sliding a third under a dim, on the iOS page
+   spring; tab switches are instant there. Reduced motion is "fade". */
+html[data-route-vt] .app-navbar { view-transition-name: app-navbar; }
+html[data-route-vt] .app-tabbar { view-transition-name: app-tabbar; }
+html[data-route-vt]::view-transition-group(*) {
+  animation-duration: var(--dur-page);
+  animation-timing-function: var(--ease-standard);
+}
+html[data-route-vt]::view-transition-old(root),
+html[data-route-vt]::view-transition-new(root) { mix-blend-mode: normal; }
+
+html[data-route-vt="push"]::view-transition-old(root),
+html[data-route-vt="pop"]::view-transition-old(root) { animation: vt-fade-out-early var(--dur-page) linear both; }
+html[data-route-vt="push"]::view-transition-new(root),
+html[data-route-vt="pop"]::view-transition-new(root) { animation: vt-rise-in var(--dur-page) var(--ease-standard) both; }
+html[data-route-vt="tab"]::view-transition-old(root),
+html[data-route-vt="fade"]::view-transition-old(root) { animation: vt-fade-out var(--dur-fast) linear both; }
+html[data-route-vt="tab"]::view-transition-new(root),
+html[data-route-vt="fade"]::view-transition-new(root) { animation: vt-fade-in var(--dur-fast) linear both; }
+
+html[data-native="android"][data-route-vt="push"]::view-transition-old(root) { animation: vt-axis-out-left var(--dur-page) var(--ease-standard) both; }
+html[data-native="android"][data-route-vt="push"]::view-transition-new(root) { animation: vt-axis-in-right var(--dur-page) var(--ease-enter) both; }
+html[data-native="android"][data-route-vt="pop"]::view-transition-old(root) { animation: vt-axis-out-right var(--dur-page) var(--ease-standard) both; }
+html[data-native="android"][data-route-vt="pop"]::view-transition-new(root) { animation: vt-axis-in-left var(--dur-page) var(--ease-enter) both; }
+html[data-native="android"][data-route-vt="tab"]::view-transition-old(root) { animation: vt-fade-out-early var(--dur-page) linear both; }
+html[data-native="android"][data-route-vt="tab"]::view-transition-new(root) { animation: vt-through-in var(--dur-page) var(--ease-enter) both; }
+
+html[data-native="ios"][data-route-vt="push"]::view-transition-old(root) { animation: vt-ios-under-out var(--spring-page-dur) var(--spring-page) both; }
+html[data-native="ios"][data-route-vt="push"]::view-transition-new(root) { animation: vt-ios-push-in var(--spring-page-dur) var(--spring-page) both; box-shadow: -8px 0 24px rgb(0 0 0 / .18); }
+html[data-native="ios"][data-route-vt="pop"]::view-transition-old(root) { animation: vt-ios-pop-out var(--spring-page-dur) var(--spring-page) both; z-index: 1; box-shadow: -8px 0 24px rgb(0 0 0 / .18); }
+html[data-native="ios"][data-route-vt="pop"]::view-transition-new(root) { animation: vt-ios-under-in var(--spring-page-dur) var(--spring-page) both; }
+
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-fade-in { from { opacity: 0; } }
+@keyframes vt-fade-out-early { 0% { opacity: 1; } 30%, 100% { opacity: 0; } }
+@keyframes vt-rise-in { 0%, 30% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: none; } }
+@keyframes vt-through-in { 0%, 30% { opacity: 0; transform: scale(0.92); } 100% { opacity: 1; transform: none; } }
+@keyframes vt-axis-out-left { 0% { opacity: 1; transform: none; } 35% { opacity: 0; } 100% { opacity: 0; transform: translateX(-30px); } }
+@keyframes vt-axis-out-right { 0% { opacity: 1; transform: none; } 35% { opacity: 0; } 100% { opacity: 0; transform: translateX(30px); } }
+@keyframes vt-axis-in-right { 0%, 35% { opacity: 0; transform: translateX(30px); } 100% { opacity: 1; transform: none; } }
+@keyframes vt-axis-in-left { 0%, 35% { opacity: 0; transform: translateX(-30px); } 100% { opacity: 1; transform: none; } }
+@keyframes vt-ios-push-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes vt-ios-under-out { from { transform: none; filter: brightness(1); } to { transform: translateX(-30%); filter: brightness(0.9); } }
+@keyframes vt-ios-pop-out { from { transform: none; } to { transform: translateX(100%); } }
+@keyframes vt-ios-under-in { from { transform: translateX(-30%); filter: brightness(0.9); } to { transform: none; filter: brightness(1); } }
 
 /* PAC MAC: two-frame chomp, pulsing power pellets, blink for shield /
    fading power, a fast flicker for a muncher that is being hunted, and a

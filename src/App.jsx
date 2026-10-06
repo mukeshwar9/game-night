@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import MotionRouter from './components/MotionRouter';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import PixelDots from './components/loading/PixelDots';
@@ -57,7 +58,7 @@ const NativeUpdateGate = isNative ? lazy(() => import('./components/NativeUpdate
 // splash (ConnectingSplash in AuthContext), minus its INSERT COIN line.
 function RouteFallback() {
   return (
-    <div className="min-h-screen bg-retro-bg flex flex-col items-center justify-center">
+    <div data-route-fallback="" className="min-h-screen bg-retro-bg flex flex-col items-center justify-center">
       <PixelDots size="lg" glow />
     </div>
   );
@@ -81,9 +82,10 @@ function restoreScroll(y) {
   step();
 }
 
-// M-61 + M-84: replay a short fade on every route change, and start a new
-// page at the top while back/forward returns to where the player was.
-// `key={pathname}` remounts the wrapper so the CSS animation (index.css
+// M-61 + M-84: start a new page at the top while back/forward returns to
+// where the player was, and animate the change of page: MotionRouter plays
+// the platform's View Transition where the browser has them; elsewhere
+// `key={pathname}` remounts the wrapper so the CSS fade (index.css
 // .route-fade) restarts. NavBar + BottomTabBar live *outside* this wrapper:
 // the fade used to keep a transform on the ancestor, which trapped
 // position:fixed/sticky descendants so the footer scrolled away.
@@ -139,12 +141,15 @@ function AppRoutes() {
           only; game screens keep the plain ground. */}
       <ThemeBackdrop active={showTabBar} />
       <NavBar />
-      <div key={pathname} className="route-fade">
-        {/* Bottom padding clears the fixed tab bar so page content (including
-            bottom-of-page CTAs like Home's install prompt) never sits under it.
-            beach-pad keeps SHORELINE's wash clear of the first line. */}
-        <div className={showTabBar ? 'pb-[var(--app-tabbar-h)] beach-pad' : undefined}>
-          <Suspense fallback={<RouteFallback />}>
+      {/* Suspense sits outside the keyed page, so a lazy route keeps the old
+          page up while its code loads (navigations are transitions) and the
+          fade plays on the real page, not on the loading dots. */}
+      <Suspense fallback={<RouteFallback />}>
+        <div key={pathname} className="route-fade">
+          {/* Bottom padding clears the fixed tab bar so page content (including
+              bottom-of-page CTAs like Home's install prompt) never sits under it.
+              beach-pad keeps SHORELINE's wash clear of the first line. */}
+          <div className={showTabBar ? 'pb-[var(--app-tabbar-h)] beach-pad' : undefined}>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/games" element={<Games />} />
@@ -168,9 +173,9 @@ function AppRoutes() {
               <Route path="/playground" element={<Playground />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </Suspense>
+          </div>
         </div>
-      </div>
+      </Suspense>
       {showTabBar && <BottomTabBar />}
     </>
   );
@@ -220,7 +225,7 @@ export default function App() {
     <ErrorBoundary>
       <SlowBootNotice />
       <AuthProvider>
-        <BrowserRouter>
+        <MotionRouter>
           <HomeInterceptProvider>
             <VideoCallLayoutProvider><AppRoutes /></VideoCallLayoutProvider>
             <Toaster />
@@ -232,7 +237,7 @@ export default function App() {
             {NativeUpdateGate && <Suspense fallback={null}><NativeUpdateGate /></Suspense>}
             <ConnectionBanner />
           </HomeInterceptProvider>
-        </BrowserRouter>
+        </MotionRouter>
       </AuthProvider>
     </ErrorBoundary>
   );

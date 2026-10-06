@@ -75,7 +75,7 @@ export default function BottomTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed bottom-0 inset-x-0 z-30 border-t border-retro-border/60 bg-retro-bg/95 backdrop-blur
+      className="app-tabbar fixed bottom-0 inset-x-0 z-30 border-t border-retro-border/60 bg-retro-bg/95 backdrop-blur
         pb-[max(0.5rem,env(safe-area-inset-bottom))]
         pl-[max(0,env(safe-area-inset-left))] pr-[max(0,env(safe-area-inset-right))]"
     >
