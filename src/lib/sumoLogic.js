@@ -20,6 +20,7 @@ export const SHRINK_RATE = 0.04        // arena radius lost per second after sta
 export const MIN_RADIUS = 0.16         // platform never shrinks below this
 export const START_RADIUS = 0.5        // platform starts as the inscribed circle of the 1×1 square
 
+const ENGAGE_DIST = 0.33          // bot rams once the gap closes inside this (start gap is 0.4)
 const CENTER_X = 0.5
 const CENTER_Y = 0.5
 
@@ -166,8 +167,8 @@ export function getWinner(state) {
 }
 
 /**
- * Reaction-handicapped AI input. Taps the push button at intervals to ram the
- * opponent when close. Pressing ALWAYS pushes toward the opponent (see
+ * Reaction-handicapped AI input. Taps the push button on a fixed rhythm to
+ * ram the opponent once within ENGAGE_DIST. Pressing ALWAYS pushes toward the opponent (see
  * applyInput) — there is no separate "retreat" impulse — so near the edge the
  * AI only taps when doing so also carries it back toward centre (i.e. the
  * opponent is roughly between it and the centre); otherwise tapping would
@@ -184,8 +185,11 @@ export function computeAI(state, side) {
   const distCenter = Math.hypot(me.x - CENTER_X, me.y - CENTER_Y)
   const edgeThresh = state.arenaR - 0.12
   const distOpp = Math.hypot(opp.x - me.x, opp.y - me.y)
-  // Tap rhythm: ~every 200ms (deterministic from sim time) so the AI is beatable.
-  const tapWindow = (Math.floor(state.t * 5) % 2) === 0
+  // Tap rhythm: a press window opens for the first 120 ms of every 200 ms
+  // slot (deterministic from sim time). pollBot re-decides every
+  // AI_REACTION_MS, so the bot lands about one tap per slot — at most five a
+  // second, which a player tapping faster can out-push.
+  const tapWindow = ((state.t * 5) % 1) < 0.6
   if (!tapWindow) return { press: 0 }
   if (distCenter > edgeThresh) {
     const toOppDist = distOpp || 1
@@ -194,6 +198,110 @@ export function computeAI(state, side) {
               + ((opp.y - me.y) / toOppDist) * ((CENTER_Y - me.y) / toCenterDist)
     return { press: dot > 0 ? 1 : 0 }
   }
-  if (distOpp < 0.25) return { press: 1 }
+  // Ram once the gap closes. The start gap is wider, so the bot waits for the
+  // player's first push (or the shrinking ring) instead of charging at GO.
+  if (distOpp < ENGAGE_DIST) return { press: 1 }
   return { press: 0 }
 }
+
+// How often the solo bot re-decides (ms). The demo used to hold the bot's
+// {press: 1} for this whole window and feed it to every 1/120 s substep,
+// which turned one bot "tap" into ~14 impulses while the player's tap stays a
+// single impulse. pollBot hands out one tap per decision instead.
+export const AI_REACTION_MS = 120
+
+/** @returns {{ at: number }} fresh bot timer for pollBot */
+export function createBot() {
+  return { at: -Infinity }
+}
+
+/**
+ * Edge-triggered bot input: re-runs computeAI at most once per
+ * AI_REACTION_MS and turns a "press" decision into exactly one tap, so the bot
+ * pushes with the same one-impulse-per-tap rule as the player.
+ * @param {{ at: number }} bot
+ * @param {object} state
+ * @param {'X'|'O'} side
+ * @param {number} nowMs
+ * @returns {{ bot: { at: number }, press: 0|1 }}
+ */
+export function pollBot(bot, state, side, nowMs) {
+  if (nowMs - bot.at < AI_REACTION_MS) return { bot, press: 0 }
+  return { bot: { at: nowMs }, press: computeAI(state, side).press ? 1 : 0 }
+}
+
+/**
+ * Advance the sim by whole fixed steps for one rendered frame. Taps are
+ * applied to the first substep only (a tap is one impulse however many
+ * substeps the frame needs); `consumed` is false when no substep ran, so the
+ * caller keeps its pending taps for the next frame.
+ * @param {object} state
+ * @param {{X?: {press:number}, O?: {press:number}}} taps
+ * @param {number} acc  seconds of unsimulated time
+ * @param {number} dt
+ * @returns {{ state: object, events: Array<{type:string, by?:string}>, acc: number, consumed: boolean }}
+ */
+export function stepFrame(state, taps, acc, dt) {
+  let s = state
+  let consumed = false
+  const events = []
+  while (acc >= dt) {
+    const r = step(s, consumed ? {} : taps, dt)
+    consumed = true
+    s = r.state
+    if (r.events.length) events.push(...r.events)
+    acc -= dt
+    if (getWinner(s)) break
+  }
+  return { state: s, events, acc, consumed }
+}
+
+/**
+ * How close a blob is to falling off: 0 at the centre, 1 on the death line.
+ * Drives the edge-danger HUD bars and the tension sound; presentation only.
+ * @param {{x:number, y:number, alive?:boolean}} blob
+ * @param {number} arenaR
+ * @returns {number}
+ */
+export function edgeDanger(blob, arenaR) {
+  if (!blob || blob.alive === false) return 0
+  const deathR = arenaR - BLOB_R * 0.5
+  if (deathR <= 0) return 1
+  const d = Math.hypot(blob.x - CENTER_X, blob.y - CENTER_Y)
+  return Math.max(0, Math.min(1, d / deathR))
+}
+
+/**
+ * How hard two blobs hit, 0..1: their closing speed along the line between
+ * them, relative to twice the speed cap. Scales the clash shake, particles and
+ * thud. Reads only positions and velocities, so the guest can compute it from
+ * a snapshot.
+ * @param {{x:number, y:number, vx:number, vy:number}} a
+ * @param {{x:number, y:number, vx:number, vy:number}} b
+ * @returns {number}
+ */
+export function clashIntensity(a, b) {
+  if (!a || !b) return 0
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const dist = Math.hypot(dx, dy) || 1
+  const closing = Math.abs(((a.vx - b.vx) * dx + (a.vy - b.vy) * dy) / dist)
+  return Math.max(0, Math.min(1, closing / (MAX_SPEED * 2) * 2.5))
+}
+
+/**
+ * Unit vector from the platform centre through a blob — the direction a
+ * ringed-out wrestler tumbles. Falls back to straight right at the centre.
+ * @param {{x:number, y:number}} blob
+ * @returns {{ x: number, y: number }}
+ */
+export function outDirection(blob) {
+  const dx = (blob?.x ?? CENTER_X) - CENTER_X
+  const dy = (blob?.y ?? CENTER_Y) - CENTER_Y
+  const d = Math.hypot(dx, dy)
+  return d < 1e-6 ? { x: 1, y: 0 } : { x: dx / d, y: dy / d }
+}
+
+// How long the finished round stays on the dohyo before the result replaces
+// it, so the ring-out tumble, flash and crowd roar can play out.
+export const RINGOUT_HOLD_MS = 1200

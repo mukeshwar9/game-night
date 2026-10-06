@@ -230,12 +230,14 @@ export function useRealtimeHost(opts) {
         // Host renders its own view every frame (same view shape the page would
         // paint on the guest side, drawn straight from the authoritative sim).
         c.setRender(c.buildView(simRef.current))
-        // Snapshot throttle.
-        if (now - lastSnap >= snapshotMs) {
+        const w = c.getWinner(simRef.current)
+        // Snapshot throttle — except the deciding frame, which always goes
+        // out so the guest sees the final positions (e.g. Sumo's ring-out)
+        // rather than whatever the last throttled snapshot held.
+        if (now - lastSnap >= snapshotMs || w) {
           lastSnap = now
           peerSend(c.buildSnapshot(simRef.current))
         }
-        const w = c.getWinner(simRef.current)
         if (w && !finishedRef.current) {
           finishedRef.current = true
           cancelAnimationFrame(raf)

@@ -212,6 +212,56 @@ export const sounds = {
   draw:  ()    => { seq([[392, 0, 0.14], [392, 0.18, 0.14, 'triangle', 0.07]]); vibrate([0, 30, 40, 30]) },
   drop:  ()    => { seq([[70, 0, 0.06, 'square', 0.17], [45, 0.04, 0.32, 'sawtooth', 0.15]]); vibrate(35) },
   bell:  ()    => seq([[98, 0, 1.8, 'sine', 0.16], [196, 0, 1.4, 'sine', 0.08]]),
+  // Sumo Arena: a stomp per push, a body-slam thud scaled by impact, a
+  // taiko heartbeat while someone teeters on the edge, the crowd, the
+  // shrinking-ring warning, the opening gong and the ring-out (whoosh, crash,
+  // roar). Mute, volume and native haptics all flow through seq/noise/vibrate.
+  sumoStomp: () => { seq([[120, 0, 0.05, 'square', 0.08], [72, 0.03, 0.07, 'sawtooth', 0.06]]); vibrate(6) },
+  sumoClash: (power = 0.5) => {
+    const p = Math.max(0, Math.min(1, power))
+    try { noise(ctx().currentTime, 0.1 + p * 0.12, 0.05 + p * 0.09, 420 + p * 260) } catch { /* audio unavailable */ }
+    seq([[150 - p * 50, 0, 0.09 + p * 0.06, 'triangle', 0.1 + p * 0.06], [60, 0.01, 0.12 + p * 0.08, 'sawtooth', 0.05 + p * 0.07]])
+    vibrate(10 + Math.round(p * 30))
+  },
+  sumoTension: (level = 0.5) => {
+    const l = Math.max(0, Math.min(1, level))
+    seq([[92, 0, 0.09, 'sine', 0.09 + l * 0.08], [78, 0.13, 0.11, 'sine', 0.07 + l * 0.07]])
+    vibrate(l > 0.85 ? 12 : 0)
+  },
+  sumoOoh: () => {
+    try {
+      const t = ctx().currentTime
+      noise(t, 0.45, 0.035, 520)
+      noise(t + 0.08, 0.5, 0.03, 760)
+    } catch { /* audio unavailable */ }
+    seq([[311, 0, 0.22, 'sine', 0.04], [277, 0.18, 0.3, 'sine', 0.04]])
+  },
+  sumoCrowd: (big = false) => {
+    try {
+      const t = ctx().currentTime
+      const n = big ? 5 : 3
+      for (let i = 0; i < n; i++) noise(t + i * 0.09, 0.45 + i * 0.08, (big ? 0.05 : 0.035) - i * 0.004, [700, 1100, 560, 900, 1300][i])
+    } catch { /* audio unavailable */ }
+  },
+  sumoShrink: () => { seq([[220, 0, 0.12, 'square', 0.07], [165, 0.15, 0.18, 'square', 0.07]]); vibrate([0, 20, 40, 20]) },
+  sumoGong: () => {
+    try { noise(ctx().currentTime, 0.08, 0.05, 2400) } catch { /* audio unavailable */ }
+    seq([[110, 0, 1.6, 'sine', 0.13], [221, 0, 1.1, 'sine', 0.07], [332, 0, 0.6, 'triangle', 0.035]])
+    vibrate(20)
+  },
+  sumoRingOut: () => {
+    seq([
+      [620, 0, 0.06, 'sawtooth', 0.06], [470, 0.05, 0.06, 'sawtooth', 0.06],
+      [340, 0.1, 0.07, 'sawtooth', 0.06], [230, 0.16, 0.08, 'sawtooth', 0.06],
+      [70, 0.26, 0.08, 'square', 0.16], [45, 0.3, 0.34, 'sawtooth', 0.14],
+    ])
+    try {
+      const t = ctx().currentTime
+      noise(t + 0.26, 0.3, 0.1, 380)
+      for (let i = 0; i < 5; i++) noise(t + 0.34 + i * 0.1, 0.55 + i * 0.1, 0.05 - i * 0.005, [800, 1150, 600, 950, 1350][i])
+    } catch { /* audio unavailable */ }
+    vibrate([0, 30, 60, 90])
+  },
   // Animal Stack: rotate tick, release blip, landing thud scaled by impact,
   // topple sting, and the last-5-seconds timer tick.
   stackRotate: () => { seq([[880, 0, 0.03, 'square', 0.04]]); vibrate(4) },

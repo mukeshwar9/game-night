@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   createState, step, computeAI, getWinner,
+  createBot, pollBot, stepFrame, edgeDanger, clashIntensity, outDirection, AI_REACTION_MS,
   BLOB_R, FRICTION, MAX_SPEED, RESTITUTION, PUSH_IMPULSE,
   SHRINK_START, SHRINK_RATE, MIN_RADIUS, START_RADIUS,
 } from './sumoLogic'
@@ -324,5 +325,160 @@ describe('getWinner', () => {
     s.blobs.X.alive = false
     s.blobs.O.alive = false
     expect(getWinner(s)).toBe('draw')
+  })
+})
+
+describe('pollBot', () => {
+  // Bot ready to ram: O close to X, inside a press window.
+  const ramState = () => {
+    const s = createState()
+    s.blobs.O.x = 0.4
+    s.t = 0
+    return s
+  }
+
+  it('turns one press decision into exactly one tap per reaction window', () => {
+    const s = ramState()
+    let bot = createBot()
+    let taps = 0
+    // Poll every 1/120 s for one reaction window: the old demo applied the
+    // held press on every one of these substeps (~14 impulses).
+    for (let ms = 0; ms < AI_REACTION_MS; ms += 1000 / 120) {
+      const r = pollBot(bot, s, 'O', ms)
+      bot = r.bot
+      taps += r.press
+    }
+    expect(taps).toBe(1)
+  })
+
+  it('re-decides once the reaction window has passed', () => {
+    const s = ramState()
+    const first = pollBot(createBot(), s, 'O', 0)
+    expect(first.press).toBe(1)
+    expect(pollBot(first.bot, s, 'O', AI_REACTION_MS - 1).press).toBe(0)
+    expect(pollBot(first.bot, s, 'O', AI_REACTION_MS).bot.at).toBe(AI_REACTION_MS)
+  })
+
+  it('does not mutate the bot timer it was given', () => {
+    const bot = createBot()
+    pollBot(bot, ramState(), 'O', 500)
+    expect(bot.at).toBe(-Infinity)
+  })
+})
+
+describe('stepFrame', () => {
+  it('applies a tap to the first substep only, so one tap is one impulse', () => {
+    const s = createState()
+    const r = stepFrame(s, { X: { press: 1 } }, 3 / 120, 1 / 120)
+    expect(r.consumed).toBe(true)
+    const one = step(s, { X: { press: 1 } }, DT).state
+    const expected = step(step(one, {}, DT).state, {}, DT).state
+    expect(r.state.blobs.X.vx).toBeCloseTo(expected.blobs.X.vx, 9)
+    expect(r.acc).toBeCloseTo(0, 9)
+  })
+
+  it('reports an unconsumed tap when the frame is shorter than one step', () => {
+    const s = createState()
+    const r = stepFrame(s, { X: { press: 1 } }, DT / 2, DT)
+    expect(r.consumed).toBe(false)
+    expect(r.state).toBe(s)
+    expect(r.acc).toBeCloseTo(DT / 2, 9)
+  })
+
+  it('stops stepping once the round has a winner', () => {
+    const s = createState()
+    s.blobs.O.x = 0.5 + START_RADIUS - BLOB_R * 0.5 - 1e-4
+    s.blobs.O.vx = 1
+    const r = stepFrame(s, {}, 10 * DT, DT)
+    expect(getWinner(r.state)).toBe('X')
+    expect(r.state.t).toBeLessThan(10 * DT)
+  })
+})
+
+// Regression for the solo demo: the bot's press used to be held across every
+// substep of its 120 ms reaction window, so it out-pushed any tap rate.
+describe('solo bot vs a tapping player (60 fps frames, demo wiring)', () => {
+  const play = (tapMs) => {
+    let s = createState()
+    let bot = createBot()
+    let acc = 0
+    let pendX = 0
+    let pendO = 0
+    let nextTap = 0
+    for (let ms = 0; ms < 30000; ms += 1000 / 60) {
+      acc += 1 / 60
+      if (tapMs && ms >= nextTap) { pendX++; nextTap += tapMs }
+      const b = pollBot(bot, s, 'O', ms)
+      bot = b.bot
+      pendO += b.press
+      const r = stepFrame(s, { X: { press: pendX }, O: { press: pendO } }, acc, DT)
+      s = r.state
+      acc = r.acc
+      if (r.consumed) { pendX = 0; pendO = 0 }
+      const w = getWinner(s)
+      if (w) return w
+    }
+    return null
+  }
+
+  it('a player tapping 5+ times a second beats the bot', () => {
+    expect(play(100)).toBe('X')
+    expect(play(200)).toBe('X')
+  })
+
+  it('a player who taps slowly or not at all loses', () => {
+    expect(play(400)).toBe('O')
+    expect(play(0)).toBe('O')
+  })
+})
+
+describe('edgeDanger', () => {
+  it('is 0 at the centre and 1 on the death line', () => {
+    expect(edgeDanger({ x: 0.5, y: 0.5 }, START_RADIUS)).toBe(0)
+    const deathR = START_RADIUS - BLOB_R * 0.5
+    expect(edgeDanger({ x: 0.5 + deathR, y: 0.5 }, START_RADIUS)).toBeCloseTo(1, 9)
+    expect(edgeDanger({ x: 0.5 + deathR / 2, y: 0.5 }, START_RADIUS)).toBeCloseTo(0.5, 9)
+  })
+
+  it('rises as the platform shrinks under a blob that stays put', () => {
+    const b = { x: 0.7, y: 0.5 }
+    expect(edgeDanger(b, MIN_RADIUS + 0.1)).toBeGreaterThan(edgeDanger(b, START_RADIUS))
+  })
+
+  it('is clamped to 1 past the edge and 0 for a dead blob', () => {
+    expect(edgeDanger({ x: 1, y: 1 }, MIN_RADIUS)).toBe(1)
+    expect(edgeDanger({ x: 0.9, y: 0.5, alive: false }, START_RADIUS)).toBe(0)
+  })
+})
+
+describe('clashIntensity', () => {
+  it('is 0 for blobs at rest and grows with closing speed', () => {
+    const a = { x: 0.4, y: 0.5, vx: 0, vy: 0 }
+    const b = { x: 0.5, y: 0.5, vx: 0, vy: 0 }
+    expect(clashIntensity(a, b)).toBe(0)
+    const soft = clashIntensity({ ...a, vx: 0.2 }, b)
+    const hard = clashIntensity({ ...a, vx: 0.8 }, { ...b, vx: -0.4 })
+    expect(soft).toBeGreaterThan(0)
+    expect(hard).toBeGreaterThan(soft)
+  })
+
+  it('ignores sideways motion and caps at 1', () => {
+    const a = { x: 0.4, y: 0.5, vx: 0, vy: 1 }
+    const b = { x: 0.5, y: 0.5, vx: 0, vy: 1 }
+    expect(clashIntensity(a, b)).toBeCloseTo(0, 9)
+    expect(clashIntensity({ ...a, vx: MAX_SPEED, vy: 0 }, { ...b, vx: -MAX_SPEED, vy: 0 })).toBe(1)
+  })
+})
+
+describe('outDirection', () => {
+  it('points from the centre through the blob', () => {
+    expect(outDirection({ x: 0.8, y: 0.5 })).toEqual({ x: 1, y: 0 })
+    const d = outDirection({ x: 0.5, y: 0.1 })
+    expect(d.x).toBeCloseTo(0, 9)
+    expect(d.y).toBeCloseTo(-1, 9)
+  })
+
+  it('falls back to a unit vector at the exact centre', () => {
+    expect(outDirection({ x: 0.5, y: 0.5 })).toEqual({ x: 1, y: 0 })
   })
 })

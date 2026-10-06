@@ -7,15 +7,15 @@ import OfflineNotice from '../components/loading/OfflineNotice'
 import SumoArena from '../components/SumoArena'
 import TouchCoachmark from '../components/TouchCoachmark'
 import { useSumoControls } from '../hooks/useSumoControls'
+import { useSumoFx } from '../hooks/useSumoFx'
 import { useRealtimeHost } from '../lib/realtime/useRealtimeHost'
 import { useRealtimeGuest } from '../lib/realtime/useRealtimeGuest'
 import { RealtimeOverlay } from '../lib/realtime/realtimeStatus'
 import { showRealtimeOverlay } from '../lib/realtime/connectionLogic'
 import {
   createState, step, getWinner,
-  PUSH_IMPULSE, FRICTION, MAX_SPEED, START_RADIUS,
+  PUSH_IMPULSE, FRICTION, MAX_SPEED, START_RADIUS, RINGOUT_HOLD_MS,
 } from '../lib/sumoLogic'
-import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import useBusy from '@/hooks/useBusy'
@@ -88,7 +88,13 @@ export default function SumoGame({
   }, [playing])
 
   const [render, setRender] = useState(INITIAL_VIEW)
-  const { getTap, press } = useSumoControls(playing)
+  // Someone is out: play stops here, while the ring-out plays before the
+  // host writes the result (RINGOUT_HOLD_MS).
+  const roundOver = !render.blobs.X.alive || !render.blobs.O.alive
+  const { getTap, press } = useSumoControls(playing && !roundOver)
+  const { fx, onTap, onEvents, onFrame, start: startFx } = useSumoFx({ mySide: mySymbol })
+  const renderRef = useRef(render)
+  useEffect(() => { renderRef.current = render }, [render])
 
   const predRef = useRef({ x: 0.7, y: 0.5, vx: 0, vy: 0 })
   const lastSnapRef = useRef(null)
@@ -111,22 +117,12 @@ export default function SumoGame({
     runForfeit(() => finishRound(mySymbol === 'X' ? 'O' : 'X'), () => toast.error('FORFEIT FAILED — CHECK CONNECTION'))
   }
 
-  // Brief collision flash — shared by host (local sim events) and guest
-  // (broadcast 'e' messages via sfxMap below), purely a transient UI cue,
-  // not part of the synced sim state.
-  const [clashFlash, setClashFlash] = useState(false)
-  const clashTimerRef = useRef(null)
-  const triggerClashFlash = useCallback(() => {
-    setClashFlash(true)
-    clearTimeout(clashTimerRef.current)
-    clashTimerRef.current = setTimeout(() => setClashFlash(false), 150)
-  }, [])
-  useEffect(() => () => clearTimeout(clashTimerRef.current), [])
-
-  const onEvent = useCallback((event) => {
-    if (event.type === 'out') sounds.miss()
-    else if (event.type === 'clash') { sounds.hit(); triggerClashFlash() }
-  }, [triggerClashFlash])
+  // Clash and ring-out juice — shared by host (local sim events) and guest
+  // (broadcast 'e' messages via sfxMap below), purely presentation, not part
+  // of the synced sim state.
+  const onEvent = useCallback((event, sim) => {
+    onEvents([event], sim.blobs)
+  }, [onEvents])
 
   const buildSnapshot = useCallback((sim) => {
     const X = sim.blobs.X
@@ -155,6 +151,12 @@ export default function SumoGame({
     } catch { /* the other client resolved it */ }
   }, [gameId])
 
+  // The host loop stops the moment someone is out; hold the result back so
+  // both screens see the tumble and hear the crowd before the result card.
+  const finishAfterRingOut = useCallback((winner) => new Promise((resolve) => {
+    setTimeout(() => resolve(finishRound(winner)), RINGOUT_HOLD_MS)
+  }), [finishRound])
+
   const buildView = useCallback((sim) => ({
     blobs: sim.blobs,
     arenaR: sim.arenaR,
@@ -162,7 +164,11 @@ export default function SumoGame({
     countdown: 0,
   }), [])
 
-  const readHostInput = useCallback(() => ({ press: getTap() }), [getTap])
+  const readHostInput = useCallback(() => {
+    const tap = getTap()
+    if (tap) onTap()
+    return { press: tap }
+  }, [getTap, onTap])
 
   const host = useRealtimeHost({
     gameId, mySymbol, isPublic, enabled: isHost && playing,
@@ -177,7 +183,7 @@ export default function SumoGame({
     buildView,
     buildSnapshot,
     getWinner,
-    finishRound,
+    finishRound: finishAfterRingOut,
     setRender,
     initialRender: INITIAL_VIEW,
   })
@@ -190,6 +196,7 @@ export default function SumoGame({
     }
     const oppSide = mySymbol === 'X' ? 'O' : 'X'
     const tap = getTap()
+    if (tap) onTap()
     let { x, y, vx, vy } = predRef.current
     const f = Math.exp(-FRICTION * dt)
     vx *= f
@@ -229,14 +236,17 @@ export default function SumoGame({
       view,
       input: tap ? { t: 'i', d: { press: 1 } } : null,
     }
-  }, [mySymbol, getTap])
+  }, [mySymbol, getTap, onTap])
 
   const guest = useRealtimeGuest({
     gameId, mySymbol, isPublic, enabled: !isHost && playing,
     tick,
     setRender,
     initialRender: INITIAL_VIEW,
-    sfxMap: { out: () => sounds.miss(), clash: () => { sounds.hit(); triggerClashFlash() } },
+    sfxMap: {
+      out: (by) => onEvents([{ type: 'out', by }], renderRef.current.blobs),
+      clash: () => onEvents([{ type: 'clash' }], renderRef.current.blobs),
+    },
     INPUT_MS: 0,
   })
 
@@ -263,6 +273,24 @@ export default function SumoGame({
 
   const conn = isHost ? host.status : isSpectator ? null : guest.status
   const retry = isHost ? host.retry : isSpectator ? null : guest.retry
+  const overlayCountdown = isHost ? render.countdown : guestCountdown
+
+  // Gong + HAKKEYOI! once per round, when the countdown releases play. Sim
+  // time only starts moving once it has (the host's own countdown; on the
+  // guest, the first snapshot), which also covers the guest's local countdown
+  // state lagging the connection by an interval tick.
+  const live = playing && conn === 'connected' && !overlayCountdown && render.t > 0
+  const startedRef = useRef(false)
+  useEffect(() => {
+    if (!playing) { startedRef.current = false; return }
+    if (live && !startedRef.current) { startedRef.current = true; startFx() }
+  }, [playing, live, startFx])
+
+  // Edge tension, the crowd's gasp and the shrinking-ring call follow the
+  // rendered frames on both seats.
+  useEffect(() => {
+    if (live && !roundOver) onFrame(render, performance.now())
+  }, [render, live, roundOver, onFrame])
 
   // Single round decides the match → the round winner is the match winner.
   const matchWinner = (game.scores?.X || 0) >= 1 ? 'X' : (game.scores?.O || 0) >= 1 ? 'O' : null
@@ -294,7 +322,6 @@ export default function SumoGame({
 
   // --- Playing --- (SWITCH GAME is hidden while live — M-76 — replaced by a
   // dedicated FORFEIT ROUND action below, which only concedes this round.)
-  const overlayCountdown = isHost ? render.countdown : guestCountdown
   const overlay = showRealtimeOverlay(conn, overlayCountdown)
     ? <RealtimeOverlay conn={conn} countdown={overlayCountdown} retry={retry} gameId={gameId} mySymbol={mySymbol} opponentOnline={opponentOnline} />
     : null
@@ -305,7 +332,7 @@ export default function SumoGame({
         blobs={render.blobs}
         arenaR={render.arenaR}
         t={render.t}
-        flash={clashFlash}
+        fx={fx}
         mySide={mySymbol}
         namesX={game.players?.X?.name}
         namesO={game.players?.O?.name}
@@ -320,9 +347,10 @@ export default function SumoGame({
       />
       <p className="text-center font-pixel text-[8px] text-retro-dim [@media(max-height:420px)]:hidden">SHRINKING PLATFORM · LAST ONE ON WINS · TAP TO PUSH</p>
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
-      <div className="flex justify-center pt-1">
+      <div className={cn('flex justify-center pt-1', roundOver && 'invisible')}>
         <button
           data-sumo-push
+          disabled={roundOver}
           onPointerDown={(e) => { e.preventDefault(); press() }}
           onKeyDown={(e) => {
             if (e.key !== ' ' && e.key !== 'Enter') return
