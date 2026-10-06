@@ -32,9 +32,12 @@
 // routes until its count of arrows have left the board (it only ever opens),
 // and a portal ring sends a straight route to its partner ring and carries on
 // from there, keeping its heading (`turn`: rotated a quarter clockwise;
-// `oneway`: only ring A sends, ring B is just a cell). A board may also be
-// shaped (`mask`): a void cell is an edge, so a route that reaches one leaves
-// the board.
+// `oneway`: only ring A sends, ring B is just a cell). A tunnel floor tile
+// lets a route cross only the way it points; a route that meets it any other
+// way hits it like a solid wall and can never leave (the generator never
+// builds one, so on a solvable board a tunnel only shapes which routes
+// exist). A board may also be shaped (`mask`): a void cell is an edge, so a
+// route that reaches one leaves the board.
 // Every route is fixed by the board geometry, so clearing an arrow only ever
 // frees cells: a board can never become unsolvable, and a greedy solver that
 // keeps clearing any free arrow decides solvability exactly.
@@ -194,11 +197,14 @@ const MIRROR_TURN = { '/': [1, 0, 3, 2], '\\': [3, 2, 1, 0] }
 // '/' | '\\') and hopping through portals (a Map of ring cell → { to, turn,
 // pair }; the ray lands on the partner ring and carries on from it, rotated a
 // quarter clockwise when `turn`). The edge of the board, or a void cell, ends
-// the ray. A ray that would loop for ever, or a diagonal ray that meets a
-// mirror or a portal, is dead: that arrow can never leave, and the generator
-// never builds one. `jumps[n]` is the index in `cells` of the n-th landing
-// ring (the cell before it is the ring it entered), `ports[n]` its pair.
-function traceRay(cols, rows, start, dir, mirrors, portals = null, voids = null) {
+// the ray. A ray that would loop for ever, a diagonal ray that meets a
+// mirror or a portal, or a ray that meets a tunnel floor (a Map of cell → the
+// heading it allows) from any other heading, is dead: that arrow can never
+// leave, and the generator never builds one. A tunnel wall is not part of the
+// route's `cells`; `wall` names its cell. `jumps[n]` is the index in `cells`
+// of the n-th landing ring (the cell before it is the ring it entered),
+// `ports[n]` its pair.
+function traceRay(cols, rows, start, dir, mirrors, portals = null, voids = null, tunnels = null) {
   const out = []
   const jumps = []
   const ports = []
@@ -213,6 +219,8 @@ function traceRay(cols, rows, start, dir, mirrors, portals = null, voids = null)
     if (x < 0 || x >= cols || y < 0 || y >= rows) return { cells: out, dir: d, dead: false, jumps, ports }
     const c = y * cols + x
     if (voids?.has(c)) return { cells: out, dir: d, dead: false, jumps, ports }
+    const gate = tunnels?.get(c)
+    if (gate !== undefined && gate !== d) return { cells: out, dir: d, dead: true, jumps, ports, wall: c }
     out.push(c)
     const m = mirrors?.get(c)
     const p = m ? null : portals?.get(c)
@@ -242,28 +250,31 @@ function traceRay(cols, rows, start, dir, mirrors, portals = null, voids = null)
 // `finalDir` is the heading it leaves the board on. With mirrors, a straight
 // route turns at each one, with portals it hops from ring to ring (`jumps`
 // marks the landings, see traceRay), and a hooked arrow still turns once at
-// the edge after any bounce or hop; `dead` marks a route that can never leave.
-function routeFrom(cols, rows, head, dir, turn, mirrors = null, portals = null, voids = null) {
-  if (mirrors?.size || portals?.size) {
-    const first = traceRay(cols, rows, head, dir, mirrors, portals, voids)
+// the edge after any bounce or hop; `dead` marks a route that can never leave
+// (`wall`, when a tunnel floor killed it, is that tunnel's cell).
+function routeFrom(cols, rows, head, dir, turn, mirrors = null, portals = null, voids = null, tunnels = null) {
+  if (mirrors?.size || portals?.size || tunnels?.size) {
+    const first = traceRay(cols, rows, head, dir, mirrors, portals, voids, tunnels)
     let cells = first.cells
     let finalDir = first.dir
     let dead = first.dead
+    let wall = first.wall
     let jumps = first.jumps
     let ports = first.ports
     if (!dead && dir < 4 && (turn === 1 || turn === -1)) {
       const pivot = cells.length ? cells[cells.length - 1] : head
-      const second = traceRay(cols, rows, pivot, turnedDir(first.dir, turn), mirrors, portals, voids)
+      const second = traceRay(cols, rows, pivot, turnedDir(first.dir, turn), mirrors, portals, voids, tunnels)
       jumps = [...jumps, ...second.jumps.map((j) => j + cells.length)]
       ports = [...ports, ...second.ports]
       cells = [...cells, ...second.cells]
       finalDir = second.dir
       dead = second.dead
+      wall = second.wall
     }
     const corners = dir >= 4
       ? cells.map((c, k) => cornerOf(cols, k === 0 ? head : cells[k - 1], c))
       : cells.map(() => -1)
-    return { cells, corners, finalDir, dead, jumps, ports }
+    return wall === undefined ? { cells, corners, finalDir, dead, jumps, ports } : { cells, corners, finalDir, dead, jumps, ports, wall }
   }
   const hx = head % cols
   const hy = Math.floor(head / cols)
@@ -284,8 +295,9 @@ function routeFrom(cols, rows, head, dir, turn, mirrors = null, portals = null, 
 // minus its own cells, in body order. `dist[k]` is the number of empty cells
 // between that cell and the body on its lane (the bump distance). A double
 // arrow cannot bounce or hop, so a mirror or a portal ring anywhere in that
-// area makes it dead.
-function doubleRoute(cols, rows, cellIdx, dir, mirrors = null, portals = null, voids = null) {
+// area makes it dead, and so does a tunnel floor that points any other way
+// than the piece slides.
+function doubleRoute(cols, rows, cellIdx, dir, mirrors = null, portals = null, voids = null, tunnels = null) {
   const own = new Set(cellIdx)
   const at = new Map()
   const cells = []
@@ -304,6 +316,8 @@ function doubleRoute(cols, rows, cellIdx, dir, mirrors = null, portals = null, v
       cells.push(rc)
       dist.push(gap)
       if (mirrors?.has(rc) || portals?.has(rc)) dead = true
+      const gate = tunnels?.get(rc)
+      if (gate !== undefined && gate !== dir) dead = true
     })
   }
   return { cells, corners: cells.map(() => -1), finalDir: dir, dead, dist, jumps: NO_JUMPS, ports: NO_JUMPS }
@@ -377,6 +391,20 @@ export function portalMap(level) {
   return map
 }
 
+// Cell → the heading a level's tunnel floors let a piece cross (null without
+// any). A tile is `{ x, y, dir }` with `dir` 0–3.
+const tunnelCache = new WeakMap()
+export function tunnelMap(level) {
+  if (!level.tunnels?.length) return null
+  let map = tunnelCache.get(level.tunnels)
+  if (!map || map.cols !== level.cols) {
+    map = new Map(level.tunnels.map((t) => [t.y * level.cols + t.x, t.dir]))
+    map.cols = level.cols
+    tunnelCache.set(level.tunnels, map)
+  }
+  return map
+}
+
 // Every ring cell of a level's portals, senders and exit-only rings alike.
 export function portalRings(level) {
   const out = new Set()
@@ -412,24 +440,30 @@ export function arrowRoute(level, arrow) {
   const hit = routeCache.get(arrow)
   if (
     hit && hit.cols === level.cols && hit.rows === level.rows &&
-    hit.mirrors === level.mirrors && hit.portals === level.portals && hit.mask === level.mask
+    hit.mirrors === level.mirrors && hit.portals === level.portals && hit.mask === level.mask && hit.tunnels === level.tunnels
   ) return hit.route
   const [hx, hy] = arrow.cells[arrow.cells.length - 1]
   const mirrors = mirrorMap(level)
   const portals = portalMap(level)
   const voids = voidSet(level)
+  const tunnels = tunnelMap(level)
   const route = arrow.double
-    ? doubleRoute(level.cols, level.rows, arrow.cells.map(([x, y]) => y * level.cols + x), arrow.dir, mirrors, portals, voids)
-    : routeFrom(level.cols, level.rows, hy * level.cols + hx, arrow.dir, arrow.turn, mirrors, portals, voids)
-  routeCache.set(arrow, { cols: level.cols, rows: level.rows, mirrors: level.mirrors, portals: level.portals, mask: level.mask, route })
+    ? doubleRoute(level.cols, level.rows, arrow.cells.map(([x, y]) => y * level.cols + x), arrow.dir, mirrors, portals, voids, tunnels)
+    : routeFrom(level.cols, level.rows, hy * level.cols + hx, arrow.dir, arrow.turn, mirrors, portals, voids, tunnels)
+  routeCache.set(arrow, { cols: level.cols, rows: level.rows, mirrors: level.mirrors, portals: level.portals, mask: level.mask, tunnels: level.tunnels, route })
   return route
 }
 
-// Generator occupancy markers: a mirror or portal ring (no arrow may sit on
-// it, but routes pass through it) and a void cell of a shaped board (nothing
+// Generator occupancy markers: a mirror, portal ring or tunnel floor (no arrow
+// may sit on it, but routes pass through it) and a void cell of a shaped board (nothing
 // is ever placed there, and routes stop before it).
 const MIRROR = -2
 const VOID = -3
+
+// Generator weight for a route that crosses a tunnel floor with fewer than
+// TUNNEL_SHARE crossings so far (worth about TUNNEL_BONUS cells of route).
+const TUNNEL_BONUS = 40
+const TUNNEL_SHARE = 3
 
 function routeBlocked(route, occ, corners) {
   if (route.dead) return true
@@ -716,6 +750,23 @@ function placePortals(spec, occ, rng) {
   return out
 }
 
+// Tunnel floors go down after the portals, before any arrow: `spec.tunnels`
+// tiles on interior cells, each pointing a random way along one of the four
+// axes and at least 3 apart. Like mirrors they draw from the second random
+// stream, so a spec without tunnels generates exactly the board it always did.
+function placeTunnels(spec, occ, rng) {
+  const { cols, rows, tunnels: count = 0 } = spec
+  const out = []
+  for (let tries = 0; out.length < count && tries < 400; tries += 1) {
+    const x = 1 + Math.floor(rng() * (cols - 2))
+    const y = 1 + Math.floor(rng() * (rows - 2))
+    if (out.some((t) => Math.abs(t.x - x) + Math.abs(t.y - y) < 3) || occ[y * cols + x] !== -1) continue
+    out.push({ x, y, dir: Math.floor(rng() * 4) })
+    occ[y * cols + x] = MIRROR
+  }
+  return out
+}
+
 // Crates: an empty cell that several routes cross becomes a crate that stays
 // solid until `k` arrows have left the board. Each crate takes the count that
 // deepens the board most while the solver still clears it; the first two
@@ -731,8 +782,9 @@ function placeCrates(level, count, rng) {
     })
     const mirrors = mirrorMap(level)
     const rings = portalRings(level)
+    const tunnels = tunnelMap(level)
     const taken = new Set(level.crates.map((k) => k.y * level.cols + k.x))
-    const cells = [...crossing.entries()].filter(([cell, k]) => k >= 2 && !mirrors?.has(cell) && !rings.has(cell) && !taken.has(cell))
+    const cells = [...crossing.entries()].filter(([cell, k]) => k >= 2 && !mirrors?.has(cell) && !rings.has(cell) && !tunnels?.has(cell) && !taken.has(cell))
     cells.sort((a, b) => b[1] - a[1] || rng() - 0.5)
     let best = null
     const before = solveArrows(level).layers
@@ -756,11 +808,13 @@ function placeCrates(level, count, rng) {
 // Deterministically generate the board for `seed` at `tier` (a tier name or
 // a spec object like ARROWS_TIER_SPECS' entries).
 // Returns { seed, tier, cols, rows, arrows: [{ cells: [[x, y], …], dir, turn?, sleep?, double? }],
-// mirrors?: [{ x, y, m }], crates?: [{ x, y, k }] }.
+// mirrors?: [{ x, y, m }], crates?: [{ x, y, k }], portals?, tunnels?: [{ x, y, dir }], mask? }.
 // Spec knobs beyond the race tiers (solo levels 21+): `deep` biases head
 // picks toward long chains of arrows waiting on each other, `doubles` grows
 // that many double arrows, `sleepers` puts that many arrows to sleep,
-// `mirrors` and `crates` place that many of each (solo levels 41+).
+// `mirrors` and `crates` place that many of each (solo levels 41+), `portals`
+// lists the portal pairs, `tunnels` counts tunnel floors and `mask` shapes
+// the board (solo levels 61+).
 /**
  * @param {number} seed
  * @param {string | Record<string, any>} [tier]
@@ -787,6 +841,14 @@ export function generateArrowsLevel(seed, tier = 'easy') {
   const mirrors = mirrorList.length ? new Map(mirrorList.map((m) => [m.y * cols + m.x, m.m])) : null
   const portalList = spec.portals?.length ? placePortals(spec, occ, rng2) : []
   const portals = portalList.length ? portalMap({ cols, portals: portalList }) : null
+  const tunnelList = spec.tunnels ? placeTunnels(spec, occ, rng2) : []
+  const tunnels = tunnelList.length ? new Map(tunnelList.map((t) => [t.y * cols + t.x, t.dir])) : null
+  // Routes that cross a tunnel floor still short of its fair share of
+  // crossings score higher, so the tiles end up on real routes.
+  const tunnelAt = new Map(tunnelList.map((t, i) => [t.y * cols + t.x, i]))
+  const tunnelHits = tunnelList.map(() => 0)
+  const crossed = (route) => (tunnelAt.size ? new Set(route.cells.filter((c) => tunnelAt.has(c)).map((c) => tunnelAt.get(c))) : null)
+  const gate = (hit) => { let b = 0; for (const t of hit ?? []) if (tunnelHits[t] < TUNNEL_SHARE) b += TUNNEL_BONUS; return b }
   const corners = new Int16Array((cols + 1) * (rows + 1)).fill(-1)
   const arrows = []
   // Boards without twists draw no extra random numbers, so their seeds keep
@@ -794,7 +856,7 @@ export function generateArrowsLevel(seed, tier = 'easy') {
   const twisty = diag + curve > 0
   let filled = 0
   let fails = 0
-  const goal = Math.floor((cols * rows - (voids?.size ?? 0) - mirrorList.length - portalList.length * 2) * fill)
+  const goal = Math.floor((cols * rows - (voids?.size ?? 0) - mirrorList.length - portalList.length * 2 - tunnelList.length) * fill)
 
   while (filled < goal && fails < 600) {
     const empty = []
@@ -816,7 +878,7 @@ export function generateArrowsLevel(seed, tier = 'easy') {
         for (const d of shuffled([0, 1, 2, 3], rng)) {
           const body = growDouble(spec, occ, head, d, rng)
           if (!body) continue
-          const route = doubleRoute(cols, rows, body, d, mirrors, portals, voids)
+          const route = doubleRoute(cols, rows, body, d, mirrors, portals, voids, tunnels)
           if (routeBlocked(route, occ, corners)) continue
           let down = 1
           if (deep) for (const c of body) for (const j of routeOwners[c]) down = Math.max(down, downOf[j] + 1)
@@ -847,12 +909,14 @@ export function generateArrowsLevel(seed, tier = 'easy') {
       const dirs = kind === 'diag' ? [4, 5, 6, 7] : [0, 1, 2, 3]
       for (const d of shuffled(dirs, rng)) {
         const turn = kind === 'curve' ? (rng() < 0.5 ? 1 : -1) : undefined
-        const route = routeFrom(cols, rows, head, d, turn, mirrors, portals, voids)
+        const route = routeFrom(cols, rows, head, d, turn, mirrors, portals, voids, tunnels)
         if (route.dead) continue
         // A route that hops through a portal can come back round over its own
         // head; the body is kept out of the route below, the head must be too.
         if (portals && route.cells.includes(head)) continue
-        if (!deep && route.cells.length <= best) continue
+        const hit = crossed(route)
+        const value = route.cells.length + gate(hit)
+        if (!deep && value <= best) continue
         // A curve must have somewhere to run after its turn (not a corner),
         // or its hook would mean nothing.
         if (kind === 'curve' && !mirrors && !portals && route.cells.length === rayCells(cols, rows, head % cols, Math.floor(head / cols), d, voids).length) continue
@@ -877,14 +941,15 @@ export function generateArrowsLevel(seed, tier = 'easy') {
         if (grown && deep) {
           let down = 1
           for (const c of grown) for (const j of routeOwners[c]) down = Math.max(down, downOf[j] + 1)
-          const score = route.cells.length + deep * 8 * down
-          if (score > best) { pick = { path: grown, dir: d, turn, down, route }; best = score }
-        } else if (grown) { pick = { path: grown, dir: d, turn, route }; best = route.cells.length }
+          const score = value + deep * 8 * down
+          if (score > best) { pick = { path: grown, dir: d, turn, down, route, hit }; best = score }
+        } else if (grown) { pick = { path: grown, dir: d, turn, route, hit }; best = value }
       }
     }
     if (!pick) { fails += 1; continue }
     const index = arrows.length
     const { path } = pick
+    for (const t of pick.hit ?? []) tunnelHits[t] += 1
     for (const c of path) occ[c] = index
     if (pick.dir >= 4) {
       for (let k = 1; k < path.length; k += 1) {
@@ -905,6 +970,7 @@ export function generateArrowsLevel(seed, tier = 'easy') {
   if (spec.mask) level.mask = spec.mask
   if (mirrorList.length) level.mirrors = mirrorList
   if (portalList.length) level.portals = portalList
+  if (tunnelList.length) level.tunnels = tunnelList
   if (spec.sleepers) placeSleepers(level, spec.sleepers, rng2)
   if (spec.crates) placeCrates(level, spec.crates, rng2)
   return level
@@ -955,7 +1021,13 @@ function routeGap(route, k) {
 function checkAgainst(level, occ, corners, index, gone) {
   const arrow = level.arrows[index]
   const route = arrowRoute(level, arrow)
-  if (route.dead) return { free: false, blocker: -1, gap: 0 }
+  if (route.dead) {
+    // A tunnel wall stops the piece where it stands, like any blocker; every
+    // other dead route (a diagonal at a mirror, a loop) never moves at all.
+    return route.wall === undefined
+      ? { free: false, blocker: -1, gap: 0 }
+      : { free: false, blocker: -1, gap: routeGap(route, route.cells.length), wall: route.wall }
+  }
   if (arrow.sleep && !isAwake(level, gone, index)) {
     return { free: false, blocker: neighborsOf(level)[index][0] ?? -1, gap: 0, asleep: true }
   }
@@ -979,7 +1051,8 @@ function checkAgainst(level, occ, corners, index, gone) {
 // Route check for arrow `index`: { free, blocker, gap } where `gap` is the
 // number of empty route cells between its head and the first blocker (or
 // the edge). A crate still standing on the route reports `crate` (its cell)
-// with no blocking arrow.
+// with no blocking arrow. A route that meets a tunnel floor the wrong way
+// reports `wall` (that tile's cell), also with no blocking arrow.
 export function exitCheck(level, gone, index) {
   return checkAgainst(level, occupancy(level, gone), cornerOccupancy(level, gone), index, gone)
 }
@@ -995,6 +1068,7 @@ export function applyArrowTap(level, gone, lives, index) {
   if (!check.free) {
     const out = { gone, lives: lives - 1, result: 'blocked', blocker: check.blocker, gap: check.gap, asleep: !!check.asleep }
     if (check.crate != null) out.crate = check.crate
+    if (check.wall != null) out.wall = check.wall
     return out
   }
   const next = [...gone]
@@ -1047,6 +1121,20 @@ export function solveArrows(level) {
   }
 }
 
+// How many arrows cross each tunnel floor (index = tunnel). A tile only ever
+// lies on live routes: a route that meets one the wrong way is dead.
+export function tunnelUses(level) {
+  const uses = (level.tunnels ?? []).map(() => 0)
+  if (!uses.length) return uses
+  const at = new Map(level.tunnels.map((t, i) => [t.y * level.cols + t.x, i]))
+  for (const arrow of level.arrows) {
+    const route = arrowRoute(level, arrow)
+    if (route.dead) continue
+    for (const cell of new Set(route.cells)) if (at.has(cell)) uses[at.get(cell)] += 1
+  }
+  return uses
+}
+
 // How many arrows route through each portal pair (index = pair), counting an
 // arrow once per pair however many times it hops. Dead routes never count.
 export function portalUses(level) {
@@ -1072,14 +1160,16 @@ export function levelStats(level) {
   const mirrors = level.mirrors?.length ?? 0
   const crates = level.crates?.length ?? 0
   const portals = level.portals?.length ?? 0
+  const tunnels = level.tunnels?.length ?? 0
   // Every arrow that hops through a portal has a route to trace across the
   // board instead of along a line.
   const hops = portals ? portalUses(level).reduce((sum, u) => sum + u, 0) : 0
+  const gated = tunnels ? tunnelUses(level).reduce((sum, u) => sum + u, 0) : 0
   // Arrow count and depth carry most of the weight; a scarce opening and
   // every twist arrow (two routes to read instead of one) add a little.
   const openness = n > 0 ? initialFree / n : 1
-  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + bent + curves * 3 + sleepers * 3 + doubles * 4 + mirrors * 3 + crates * 4 + portals * 4 + hops * 2)
-  return { solvable, arrows: n, layers, initialFree, diagonals, bent, curves, sleepers, doubles, mirrors, crates, portals, hops, difficulty }
+  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + bent + curves * 3 + sleepers * 3 + doubles * 4 + mirrors * 3 + crates * 4 + portals * 4 + hops * 2 + tunnels * 2 + gated)
+  return { solvable, arrows: n, layers, initialFree, diagonals, bent, curves, sleepers, doubles, mirrors, crates, portals, hops, tunnels, gated, difficulty }
 }
 
 // Firebase stores each player's cleared arrows as a map { "12": true }; it
@@ -1226,7 +1316,7 @@ export function leavePose(arrow, size, travel, level = null) {
   }
   strands.push(pts.slice(from))
   const slices = slicePolylines(strands, travel, travel + length)
-  const head = slices.pop() ?? []
+  const head = /** @type {any} */ (slices.pop() ?? [])
   if (slices.length) head.tails = slices
   return head
 }

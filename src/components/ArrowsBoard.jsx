@@ -185,6 +185,24 @@ function mirrorBar({ x, y, m }) {
   return m === '/' ? [[x0 + lo, y0 + hi], [x0 + hi, y0 + lo]] : [[x0 + lo, y0 + lo], [x0 + hi, y0 + hi]]
 }
 
+// Tunnel floors: a dark tile with two rails along its axis and chevrons
+// pointing the way a piece may cross. Shape alone says which way it opens
+// (rails + chevrons), so it reads without colour.
+const TUNNEL_RAIL = 3.3
+const TUNNEL_HALF = 4.1
+function tunnelGeometry({ x, y, dir }) {
+  const [dx, dy] = ARROWS_DIRS[dir]
+  const px = -dy
+  const py = dx
+  const cx = x * CELL + CELL / 2
+  const cy = y * CELL + CELL / 2
+  const f = (n) => Math.round(n * 100) / 100
+  const at = (u, v) => `${f(cx + dx * u + px * v)} ${f(cy + dy * u + py * v)}`
+  const rail = (v) => `M${at(-TUNNEL_HALF, v)} L${at(TUNNEL_HALF, v)}`
+  const chevron = (u) => `M${at(u - 1.6, -2.3)} L${at(u + 0.9, 0)} L${at(u - 1.6, 2.3)}`
+  return { rails: [rail(-TUNNEL_RAIL), rail(TUNNEL_RAIL)], chevrons: [chevron(-1.5), chevron(1.7)] }
+}
+
 // Portals: a ring with its pair's letter in it, in one of four accents. A
 // dashed ring only lets arrows out; a turning pair wears a clockwise hook.
 const PORTAL_LETTERS = 'ABCD'
@@ -402,8 +420,9 @@ export default function ArrowsBoard({
     for (const g of blockerGroups) restart(g, 'is-blocker')
     restart(stage, 'is-error')
     // On a zoomed board the blocker may be off-screen: pan to it.
-    if (feedback.crate != null) {
-      reveal([[feedback.crate % level.cols, Math.floor(feedback.crate / level.cols)]])
+    const fixed = feedback.crate ?? feedback.wall
+    if (fixed != null) {
+      reveal([[fixed % level.cols, Math.floor(fixed / level.cols)]])
     } else {
       const [hx, hy] = level.arrows[index].cells[level.arrows[index].cells.length - 1]
       const ids = asleep ? neighborsOf(level)[index].filter((j) => !gone[j]) : [blocker]
@@ -447,6 +466,21 @@ export default function ArrowsBoard({
     if (feedback?.crate == null || !level.crates) return
     const at = level.crates.findIndex((c) => c.y * level.cols + c.x === feedback.crate)
     const el = crateRefs.current[at]
+    if (!el) return
+    el.classList.remove('is-blocker')
+    void el.getBoundingClientRect()
+    el.classList.add('is-blocker')
+    const t = setTimeout(() => el.classList.remove('is-blocker'), ERROR_MS)
+    return () => clearTimeout(t)
+  }, [feedback, level])
+
+  // A tunnel wall flashes where the piece stopped.
+  const tunnelRefs = useRef([])
+
+  useEffect(() => {
+    if (feedback?.wall == null || !level.tunnels) return
+    const at = level.tunnels.findIndex((t) => t.y * level.cols + t.x === feedback.wall)
+    const el = tunnelRefs.current[at]
     if (!el) return
     el.classList.remove('is-blocker')
     void el.getBoundingClientRect()
@@ -594,7 +628,7 @@ export default function ArrowsBoard({
     if (handled) e.preventDefault()
   }
 
-  const pieceCells = new Set([...(level.mirrors ?? []), ...(level.crates ?? [])].map((c) => c.y * level.cols + c.x))
+  const pieceCells = new Set([...(level.mirrors ?? []), ...(level.crates ?? []), ...(level.tunnels ?? [])].map((c) => c.y * level.cols + c.x))
   for (const p of level.portals ?? []) {
     pieceCells.add(p.a[1] * level.cols + p.a[0])
     pieceCells.add(p.b[1] * level.cols + p.b[0])
@@ -673,6 +707,22 @@ export default function ArrowsBoard({
               <rect className="ar-mirror-cell" x={m.x * CELL + 0.8} y={m.y * CELL + 0.8} width={CELL - 1.6} height={CELL - 1.6} rx={1.4} />
               <line className="ar-mirror-bar" x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} />
               <line className="ar-mirror-glint" x1={glint(0.55)[0]} y1={glint(0.55)[1]} x2={glint(0.75)[0]} y2={glint(0.75)[1]} />
+            </g>
+          )
+        })}
+        {level.tunnels?.map((t, i) => {
+          const { rails, chevrons } = tunnelGeometry(t)
+          return (
+            <g
+              key={`t${t.x}-${t.y}`}
+              ref={(el) => { tunnelRefs.current[i] = el }}
+              className="ar-tunnel"
+              role="img"
+              aria-label={`Tunnel floor at column ${t.x + 1}, row ${t.y + 1}, pieces cross it only heading ${ARROWS_DIR_NAMES[t.dir]}; any other way it is a wall`}
+            >
+              <rect className="ar-tunnel-cell" x={t.x * CELL + 0.8} y={t.y * CELL + 0.8} width={CELL - 1.6} height={CELL - 1.6} rx={1.4} />
+              {rails.map((d) => <path key={d} className="ar-tunnel-rail" d={d} />)}
+              {chevrons.map((d) => <path key={d} className="ar-tunnel-chevron" d={d} fill="none" />)}
             </g>
           )
         })}

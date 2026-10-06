@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyArrowTap, arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, levelStats, occupancy, portalRings, portalUses, solveArrows, voidSet, ARROWS_ENDLESS_SPECS } from './arrowsLogic'
+import { applyArrowTap, arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, levelStats, occupancy, portalRings, portalUses, solveArrows, tunnelUses, voidSet, ARROWS_ENDLESS_SPECS } from './arrowsLogic'
 import { ARROWS_BAKED_LEVELS } from './arrowsLevelsBaked'
 import {
   ARROWS_CHAPTERS,
@@ -39,7 +39,7 @@ describe('the 100-level campaign', () => {
     expect(ARROWS_CHAPTERS.at(-1).to).toBe(100)
     ARROWS_CHAPTERS.slice(1).forEach((c, i) => expect(c.from).toBe(ARROWS_CHAPTERS[i].to + 1))
     expect(ARROWS_CHAPTERS.slice(5).map((c) => [c.name, c.from, c.to])).toEqual([
-      ['PORTALS', 61, 70], ['LETTER PAIRS', 71, 80], ['EXIT-ONLY', 81, 90], ['TURNING', 91, 100],
+      ['PORTALS', 61, 70], ['LETTER PAIRS', 71, 80], ['ONE-WAY', 81, 90], ['TURNING', 91, 100],
     ])
   })
 
@@ -94,7 +94,7 @@ describe('the 100-level campaign', () => {
     expect(ARROWS_LEVEL_SPECS[5].intro).toBe('diag')
     expect(ARROWS_LEVEL_SPECS[7].intro).toBe('bend')
     expect(ARROWS_LEVEL_SPECS[10].intro).toBe('curve')
-    expect(ARROWS_LEVEL_SPECS.filter((s) => s.intro).map((s) => s.intro)).toEqual(['diag', 'bend', 'curve', 'sleep', 'double', 'mirror', 'crate', 'portal', 'letters', 'oneway', 'turning'])
+    expect(ARROWS_LEVEL_SPECS.filter((s) => s.intro).map((s) => s.intro)).toEqual(['diag', 'bend', 'curve', 'sleep', 'double', 'mirror', 'crate', 'portal', 'letters', 'oneway', 'tunnel', 'turning'])
     expect(levels[7].arrows.filter(isBent).length).toBeGreaterThanOrEqual(2)
     expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[7], levels[7])).toBe(true)
     expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[7], levels[5])).toBe(false)
@@ -188,7 +188,7 @@ describe('the 100-level campaign', () => {
     expect(stats.slice(40, 60).map((st) => st.difficulty)).toEqual([80, 104, 123, 130, 149, 150, 163, 164, 176, 212, 119, 139, 155, 160, 174, 191, 199, 208, 212, 222])
   })
 
-  it('levels 61–100 are the portal chapters: PORTALS, LETTER PAIRS, EXIT-ONLY, TURNING', () => {
+  it('levels 61–100 are the portal chapters: PORTALS, LETTER PAIRS, ONE-WAY, TURNING', () => {
     levels.forEach((level, i) => {
       const n = i + 1
       const portals = level.portals ?? []
@@ -206,7 +206,7 @@ describe('the 100-level campaign', () => {
       // Every pair is on some arrow's route; the intro level shows each one a few times.
       portalUses(level).forEach((uses) => expect(uses, `level ${n}`).toBeGreaterThanOrEqual(spec.intro ? 2 : 1))
     })
-    expect(ARROWS_LEVEL_SPECS.slice(60).filter((s) => s.intro).map((s, k) => [s.intro, 61 + 10 * k])).toEqual([['portal', 61], ['letters', 71], ['oneway', 81], ['turning', 91]])
+    expect(ARROWS_LEVEL_SPECS.map((s, i) => [s.intro, i + 1]).filter(([intro, n]) => intro && n > 60)).toEqual([['portal', 61], ['letters', 71], ['oneway', 81], ['tunnel', 86], ['turning', 91]])
     // Chapter 10 carries a turning pair and every other variant by its last level.
     const last = levels[99].portals.map((p) => (p.oneway ? 'oneway' : p.turn ? 'turn' : 'pair'))
     expect(new Set(last)).toEqual(new Set(['pair', 'oneway', 'turn']))
@@ -228,6 +228,39 @@ describe('the 100-level campaign', () => {
         expect((level.crates ?? []).some((c) => c.y * level.cols + c.x === cell), `level ${n}`).toBe(false)
       }
     }
+  })
+
+  it('tunnel floors join at 86, stay sparse and are on every route the board needs', () => {
+    levels.forEach((level, i) => {
+      const n = i + 1
+      const spec = ARROWS_LEVEL_SPECS[i]
+      // Never before the lesson level; the spec's count is what the board carries.
+      expect(level.tunnels?.length ?? 0, `level ${n}`).toBe(n < 86 ? 0 : spec.tunnels ?? 0)
+      if (n < 86) return
+      expect(level.tunnels?.length ?? 0, `level ${n}`).toBeLessThanOrEqual(3)
+      const occ = occupancy(level, level.arrows.map(() => false))
+      const rings = portalRings(level)
+      // A live route over every tile (the intro level shows its tile on two routes), none dead.
+      tunnelUses(level).forEach((uses) => expect(uses, `level ${n}`).toBeGreaterThanOrEqual(spec.intro === 'tunnel' ? 2 : 1))
+      level.arrows.forEach((a) => expect(arrowRoute(level, a).dead, `level ${n}`).toBe(false))
+      for (const t of level.tunnels ?? []) {
+        const cell = t.y * level.cols + t.x
+        expect(t.x > 0 && t.x < level.cols - 1 && t.y > 0 && t.y < level.rows - 1, `level ${n}`).toBe(true)
+        expect(t.dir >= 0 && t.dir < 4, `level ${n}`).toBe(true)
+        expect(occ[cell], `level ${n}`).toBe(-1)
+        expect(voidSet(level)?.has(cell) ?? false, `level ${n}`).toBe(false)
+        expect(rings.has(cell), `level ${n}`).toBe(false)
+        expect((level.mirrors ?? []).some((m) => m.y * level.cols + m.x === cell), `level ${n}`).toBe(false)
+        expect((level.crates ?? []).some((c) => c.y * level.cols + c.x === cell), `level ${n}`).toBe(false)
+      }
+    })
+    // The lesson level opens it with one tile; the finale carries three; lessons and chapter openers stay plain.
+    expect(levels[85].tunnels).toHaveLength(1)
+    expect(levels[99].tunnels).toHaveLength(3)
+    for (const n of [61, 71, 81, 91]) expect(levels[n - 1].tunnels, `level ${n}`).toBeUndefined()
+    // It mixes in with the portals and mirrors, never with sleepers or doubles.
+    expect(twistsIn(levels[85])).toContain('tunnel')
+    expect(twistsIn(levels[84])).not.toContain('tunnel')
   })
 
   it('boards grow in a sawtooth: each chapter opens on a small rectangle and ends bigger, up to 16 × 22', () => {
@@ -279,10 +312,12 @@ describe('the 100-level campaign', () => {
       expect(baked.mirrors, `level ${n}`).toEqual(fresh.mirrors)
       expect(baked.crates, `level ${n}`).toEqual(fresh.crates)
       expect(baked.portals, `level ${n}`).toEqual(fresh.portals)
+      expect(baked.tunnels, `level ${n}`).toEqual(fresh.tunnels)
       expect(baked.mask, `level ${n}`).toEqual(fresh.mask)
       expect(getArrowsLevel(n).mirrors).toBe(baked.mirrors)
       expect(getArrowsLevel(n).crates).toBe(baked.crates)
       expect(getArrowsLevel(n).portals).toBe(baked.portals)
+      expect(getArrowsLevel(n).tunnels).toBe(baked.tunnels)
       expect(getArrowsLevel(n).mask).toBe(baked.mask)
     }
   })

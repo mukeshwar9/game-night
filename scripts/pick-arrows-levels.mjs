@@ -32,7 +32,7 @@ if (FIRST !== 1 && (FIRST <= ARROWS_GENERATED_LEVELS || (FIRST - ARROWS_GENERATE
 }
 
 const TRIES = 2500
-const CHAPTER_TRIES = 300
+const CHAPTER_TRIES = 900
 const DEPTH_FREE_FROM = 60
 const statsFor = (spec) => {
   const out = []

@@ -210,7 +210,7 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
       streak.current = 0
       setLives(applied.lives)
       setMistakes((m) => m + 1)
-      setFeedback({ index, blocker: applied.blocker, gap: applied.gap, asleep: applied.asleep, crate: applied.crate, key: Date.now() })
+      setFeedback({ index, blocker: applied.blocker, gap: applied.gap, asleep: applied.asleep, crate: applied.crate, wall: applied.wall, key: Date.now() })
       sounds.buzz()
       if (applied.lives <= 0) {
         setResult({ stars: 0 })

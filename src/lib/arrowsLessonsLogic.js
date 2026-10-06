@@ -13,7 +13,7 @@
 import { applyArrowTap } from './arrowsLogic.js'
 
 /** @typedef {{ tap: number, say: string, after: string }} LessonStep */
-/** @typedef {{ cols: number, rows: number, arrows: Array<Record<string, any>>, mirrors?: Array<{ x: number, y: number, m: string }>, crates?: Array<{ x: number, y: number, k: number }>, portals?: Array<{ a: [number, number], b: [number, number], c: number, oneway?: boolean, turn?: boolean }> }} LessonBoard */
+/** @typedef {{ cols: number, rows: number, arrows: Array<Record<string, any>>, mirrors?: Array<{ x: number, y: number, m: string }>, crates?: Array<{ x: number, y: number, k: number }>, tunnels?: Array<{ x: number, y: number, dir: number }>, portals?: Array<{ a: [number, number], b: [number, number], c: number, oneway?: boolean, turn?: boolean }> }} LessonBoard */
 /** @typedef {{ kind: string, level: number, name: string, rule: string, board: LessonBoard, steps: LessonStep[] }} Lesson */
 
 /** @type {Lesson[]} In the order the campaign introduces them. */
@@ -159,6 +159,20 @@ export const ARROWS_LESSONS = [
     ],
   },
   {
+    kind: 'tunnel', level: 86, name: 'TUNNEL FLOORS',
+    rule: 'A TUNNEL FLOOR LETS A PIECE CROSS ONLY THE WAY ITS CHEVRONS POINT. FROM ANY OTHER SIDE IT IS A SOLID WALL THAT NEVER MOVES.',
+    board: { cols: 5, rows: 4, tunnels: [{ x: 2, y: 1, dir: 1 }], arrows: [
+      { cells: [[0, 1], [1, 1]], dir: 1 },
+      { cells: [[3, 1], [4, 1]], dir: 1 },
+      { cells: [[2, 3], [2, 2]], dir: 0 },
+    ] },
+    steps: [
+      { tap: 2, say: 'TAP THE ARROW AIMED AT THE TUNNEL FROM THE SIDE', after: 'A WALL — THE TUNNEL ONLY OPENS ALONG ITS CHEVRONS. THIS ARROW CAN NEVER CROSS IT.' },
+      { tap: 1, say: 'CLEAR THE ARROW BEYOND THE TUNNEL', after: 'THE LANE THROUGH THE TUNNEL IS OPEN.' },
+      { tap: 0, say: 'SEND THE ARROW THROUGH THE TUNNEL', after: 'ALONG THE CHEVRONS, IT CROSSES. ROUTES ON A BOARD ALWAYS CROSS THE RIGHT WAY.' },
+    ],
+  },
+  {
     kind: 'turning', level: 91, name: 'TURNING RINGS',
     rule: 'A RING WITH A HOOK TURNS THE ARROW A QUARTER TURN CLOCKWISE AS IT COMES OUT OF THE OTHER RING.',
     board: { cols: 5, rows: 5, portals: [{ a: [2, 0], b: [3, 2], c: 0, turn: true }], arrows: [
@@ -187,12 +201,12 @@ export function lessonLevel(lesson) {
 // One tap during a lesson at step `step` (0-based). Off-target taps are
 // ignored ('nudge'); the guided tap runs through the real rule check.
 // Returns { outcome: 'nudge' } or { outcome: 'blocked' | 'cleared', gone,
-// blocker, gap, asleep, crate, next } where `next` is the following step index
+// blocker, gap, asleep, crate, wall, next } where `next` is the following step index
 // (steps.length once the lesson is done).
 export function lessonTap(lesson, level, gone, step, index) {
   const want = lesson.steps[step]
   if (!want || index !== want.tap) return { outcome: 'nudge' }
   const r = applyArrowTap(level, gone, Infinity, index)
   if (!r) return { outcome: 'nudge' }
-  return { outcome: r.result, gone: r.gone, blocker: r.blocker, gap: r.gap, asleep: r.asleep ?? false, crate: r.crate ?? null, next: step + 1 }
+  return { outcome: r.result, gone: r.gone, blocker: r.blocker, gap: r.gap, asleep: r.asleep ?? false, crate: r.crate ?? null, wall: r.wall ?? null, next: step + 1 }
 }

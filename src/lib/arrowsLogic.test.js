@@ -50,6 +50,8 @@ import {
   portalRings,
   portalUses,
   slicePolylines,
+  tunnelMap,
+  tunnelUses,
   voidSet,
 } from './arrowsLogic'
 import { shapeMask } from './arrowsShapes'
@@ -1271,5 +1273,136 @@ describe('shaped boards', () => {
         expect(solveArrows(level).solvable, `${shape} ${seed}`).toBe(true)
       }
     }
+  })
+})
+
+describe('tunnel floors', () => {
+  // 6×4 with a tunnel at (2,1) pointing right (dir 1). Arrow 0 heads right
+  // along row 1 and crosses it the allowed way.
+  const board = (extra = [], tunnel = {}) => ({
+    cols: 6,
+    rows: 4,
+    tunnels: [{ x: 2, y: 1, dir: 1, ...tunnel }],
+    arrows: [{ cells: [[0, 1], [1, 1]], dir: 1 }, ...extra],
+  })
+
+  it('a piece crosses a tunnel along the way it points', () => {
+    const level = board()
+    expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [8, 9, 10, 11], dead: false })
+    expect(exitCheck(level, [false], 0).free).toBe(true)
+    expect(tunnelMap(level).get(8)).toBe(1)
+    expect(tunnelMap({ cols: 3, rows: 3, arrows: [] })).toBeNull()
+  })
+
+  it('a piece that meets it any other way hits a wall and can never leave', () => {
+    // The tile points left: the same right-heading arrow stops short of it.
+    const level = board([], { dir: 3 })
+    expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [], dead: true, wall: 8 })
+    expect(exitCheck(level, [false], 0)).toEqual({ free: false, blocker: -1, gap: 0, wall: 8 })
+    // Heading the opposite way along its axis is the wrong way too.
+    const back = { cols: 6, rows: 4, tunnels: [{ x: 2, y: 1, dir: 1 }], arrows: [{ cells: [[5, 1], [4, 1]], dir: 3 }] }
+    expect(arrowRoute(back, back.arrows[0])).toMatchObject({ cells: [9], dead: true, wall: 8 })
+    // So does a crossing lane: a vertical arrow runs into the right-pointing tile.
+    const across = { cols: 6, rows: 4, tunnels: [{ x: 2, y: 1, dir: 1 }], arrows: [{ cells: [[2, 3], [2, 2]], dir: 0 }] }
+    expect(arrowRoute(across, across.arrows[0])).toMatchObject({ cells: [], dead: true, wall: 8 })
+    // A blocked tap costs a life and the wall is named so the board can show it.
+    const tap = applyArrowTap(back, [false], 3, 0)
+    expect(tap).toMatchObject({ result: 'blocked', lives: 2, blocker: -1, gap: 1, wall: 8 })
+    expect(solveArrows(back).solvable).toBe(false)
+  })
+
+  it('a wall rings the wall cell: the bump distance counts the empty cells before it', () => {
+    const level = { cols: 6, rows: 4, tunnels: [{ x: 3, y: 1, dir: 3 }], arrows: [{ cells: [[0, 1], [1, 1]], dir: 1 }] }
+    expect(exitCheck(level, [false], 0)).toMatchObject({ free: false, gap: 1, wall: 9 })
+  })
+
+  it('diagonals cannot cross a tunnel; a hook checks both legs', () => {
+    const diag = { cols: 5, rows: 5, tunnels: [{ x: 3, y: 1, dir: 0 }], arrows: [{ cells: [[1, 3], [2, 2]], dir: 4 }] }
+    expect(arrowRoute(diag, diag.arrows[0])).toMatchObject({ dead: true, wall: 8 })
+    // Up the left column to the edge, then clockwise right along the top row: the tile at (2,0) points right.
+    const hook = { cols: 5, rows: 3, tunnels: [{ x: 2, y: 0, dir: 1 }], arrows: [{ cells: [[0, 2], [0, 1]], dir: 0, turn: 1 }] }
+    expect(arrowRoute(hook, hook.arrows[0])).toMatchObject({ cells: [0, 1, 2, 3, 4], dead: false, finalDir: 1 })
+    // Counter-clockwise it runs the other way along the top row — wrong way, and wrong only after the turn.
+    const bad = { ...hook, arrows: [{ cells: [[4, 2], [4, 1]], dir: 0, turn: -1 }] }
+    expect(arrowRoute(bad, bad.arrows[0])).toMatchObject({ dead: true, wall: 2 })
+  })
+
+  it('a tunnel works with mirrors and portals: the heading that counts is the one it arrives with', () => {
+    // A mirror at (3,1) turns a right-heading arrow up; the tile at (3,0) points up.
+    const up = { cols: 6, rows: 3, mirrors: [{ x: 3, y: 1, m: '/' }], tunnels: [{ x: 3, y: 0, dir: 0 }], arrows: [{ cells: [[0, 1], [1, 1]], dir: 1 }] }
+    expect(arrowRoute(up, up.arrows[0])).toMatchObject({ cells: [8, 9, 3], dead: false })
+    const down = { ...up, tunnels: [{ x: 3, y: 0, dir: 2 }] }
+    expect(arrowRoute(down, down.arrows[0])).toMatchObject({ dead: true, wall: 3 })
+    // A turning portal comes out heading down; a right-pointing tile below it is a wall.
+    const ring = { cols: 6, rows: 5, portals: [{ a: [1, 0], b: [4, 1], c: 0, turn: true }], tunnels: [{ x: 4, y: 2, dir: 1 }], arrows: [{ cells: [[0, 0]], dir: 1 }] }
+    expect(arrowRoute(ring, ring.arrows[0])).toMatchObject({ dead: true, wall: 16 })
+    expect(arrowRoute({ ...ring, tunnels: [{ x: 4, y: 2, dir: 2 }] }, ring.arrows[0])).toMatchObject({ dead: false, cells: [1, 10, 16, 22, 28] })
+  })
+
+  it('a double arrow crosses a tunnel only along the way it slides', () => {
+    const double = { cells: [[1, 1], [0, 1], [0, 2], [0, 3], [1, 3]], dir: 1, double: true }
+    const ok = { cols: 5, rows: 5, tunnels: [{ x: 3, y: 1, dir: 1 }], arrows: [double] }
+    expect(arrowRoute(ok, double).dead).toBe(false)
+    const bad = { cols: 5, rows: 5, tunnels: [{ x: 3, y: 1, dir: 0 }], arrows: [double] }
+    expect(arrowRoute(bad, double).dead).toBe(true)
+  })
+
+  it('tunnelUses counts the live routes over each tile; levelStats weighs them', () => {
+    const level = board([{ cells: [[0, 2], [1, 2]], dir: 1 }])
+    expect(tunnelUses(level)).toEqual([1])
+    expect(tunnelUses({ cols: 3, rows: 3, arrows: [] })).toEqual([])
+    const bare = { ...level, tunnels: undefined }
+    expect(levelStats(level)).toMatchObject({ tunnels: 1, gated: 1 })
+    expect(levelStats(level).difficulty).toBe(levelStats(bare).difficulty + 3)
+  })
+
+  it('the generator places tunnels off the edge and apart, never under an arrow; every route is live', () => {
+    for (let seed = 1; seed <= 8; seed += 1) {
+      const spec = { cols: 9, rows: 11, maxLen: 7, fill: 0.88, samples: 9, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, mirrors: 1, crates: 1, portals: ['pair'], tunnels: 3 }
+      const level = generateArrowsLevel(seed, spec)
+      expect(level.tunnels.length, `seed ${seed}`).toBe(3)
+      const occ = occupancy(level, level.arrows.map(() => false))
+      level.tunnels.forEach((t, i) => {
+        expect(t.x > 0 && t.x < level.cols - 1 && t.y > 0 && t.y < level.rows - 1).toBe(true)
+        expect(t.dir >= 0 && t.dir < 4).toBe(true)
+        expect(occ[t.y * level.cols + t.x]).toBe(-1)
+        for (const u of level.tunnels.slice(i + 1)) expect(Math.abs(t.x - u.x) + Math.abs(t.y - u.y)).toBeGreaterThanOrEqual(3)
+        expect(portalRings(level).has(t.y * level.cols + t.x)).toBe(false)
+        expect(level.mirrors?.some((m) => m.x === t.x && m.y === t.y) ?? false).toBe(false)
+        expect(level.crates?.some((c) => c.x === t.x && c.y === t.y) ?? false).toBe(false)
+      })
+      for (const a of level.arrows) expect(arrowRoute(level, a).dead).toBe(false)
+      expect(solveArrows(level).solvable, `seed ${seed}`).toBe(true)
+    }
+  }, 60000)
+
+  it('a spec without tunnels generates exactly the board it always did', () => {
+    for (let seed = 1; seed <= 10; seed += 1) {
+      const spec = { cols: 9, rows: 11, maxLen: 6, fill: 0.88, samples: 10, diag: 0.1, curve: 0.1, bend: 0.9, mirrors: 1, crates: 1, sleepers: 1, portals: ['pair'] }
+      const plain = generateArrowsLevel(seed, spec)
+      expect(generateArrowsLevel(seed, { ...spec, tunnels: 0 })).toEqual(plain)
+      expect(plain.tunnels).toBeUndefined()
+    }
+  })
+
+  it('clearing only ever frees: tunnels keep the greedy solver exact, and par is one tap per arrow', () => {
+    const level = generateArrowsLevel(5, { cols: 11, rows: 15, maxLen: 9, fill: 0.92, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 1, mirrors: 1, portals: ['turn', 'pair'], tunnels: 3 })
+    let gone = Array(level.arrows.length).fill(false)
+    let free = new Set(freeArrows(level, gone))
+    for (const i of solveArrows(level).order) {
+      const r = applyArrowTap(level, gone, 3, i)
+      expect(r.result).toBe('cleared')
+      gone = r.gone
+      const next = new Set(freeArrows(level, gone))
+      for (const f of free) if (f !== i) expect(next.has(f)).toBe(true)
+      free = next
+    }
+    expect(isBoardCleared(level, gone)).toBe(true)
+  })
+
+  it('leavePose slides a piece over a tunnel like any other cell', () => {
+    const level = board()
+    const pose = leavePose(level.arrows[0], 10, 25, level)
+    expect(pose.at(-1)[0]).toBeGreaterThan(pose[0][0])
   })
 })

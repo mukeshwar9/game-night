@@ -509,6 +509,7 @@ export const GAME_RULES = {
       'Later solo levels add sleeping arrows (drawn hollow: one wakes when an arrow touching it leaves) and double arrows (one curved body with two heads; it slides out as one piece, so everything ahead of it must be clear).',
       'Later solo levels add mirrors and crates. A mirror turns a straight arrow a quarter turn as it passes (diagonals cannot cross one); a crate blocks until its number of arrows have left the board, counting down with every clear.',
       'The last solo chapters add portals. An arrow that enters a portal ring comes out of its partner ring (the one with the same letter), still heading the same way, and its whole route must be clear. A dashed ring is exit-only: arrows come out of it but cannot go in, and crossing it does nothing. A hooked pair turns the arrow a quarter turn clockwise as it comes out.',
+      'Tunnel floors (late in the portal chapters) are fixed tiles with chevrons: a piece crosses one only the way the chevrons point, and from any other side it is a solid wall, so those routes always cross the right way.',
       'Some late boards are not rectangles: empty space counts as an edge, so an arrow that reaches it leaves the board. Big boards open fitted — drag to move around and pinch, scroll or double-tap to zoom, or use the zoom buttons or the plus, minus and arrow keys.',
     ],
     win: 'First to clear their whole board wins the round; running out of lives loses it. Win 2 of the 3 rounds to take the match.',

@@ -57,7 +57,7 @@ export default function ArrowsLesson({ kind, onDone, doneLabel = 'PLAY', badge =
     busy.current = true
     setMessage({ text: lesson.steps[step].after })
     if (r.outcome === 'blocked') {
-      setFeedback({ index, blocker: r.blocker, gap: r.gap, asleep: r.asleep, crate: r.crate, key: Date.now() })
+      setFeedback({ index, blocker: r.blocker, gap: r.gap, asleep: r.asleep, crate: r.crate, wall: r.wall, key: Date.now() })
       sounds.buzz()
     } else {
       setGone(r.gone)

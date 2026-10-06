@@ -20,7 +20,10 @@ describe('arrow lessons', () => {
   it('each script plays through the real rule check: blocked, cleared, cleared', () => {
     for (const lesson of ARROWS_LESSONS) {
       const level = lessonLevel(lesson)
-      expect(solveArrows(level).solvable, lesson.kind).toBe(true)
+      // The tunnel lesson keeps one arrow facing the tunnel the wrong way, to
+      // show the wall: every other arrow clears.
+      const stuck = lesson.kind === 'tunnel' ? 1 : 0
+      expect(solveArrows(level).order, lesson.kind).toHaveLength(level.arrows.length - stuck)
       let gone = Array(level.arrows.length).fill(false)
       const outcomes = lesson.steps.map((s, step) => {
         const r = lessonTap(lesson, level, gone, step, s.tap)
@@ -43,6 +46,18 @@ describe('arrow lessons', () => {
     expect(pairs('letters')).toHaveLength(2)
     expect(pairs('oneway')[0].oneway).toBe(true)
     expect(pairs('turning')[0].turn).toBe(true)
+    expect(lessonLevel(getLesson('tunnel')).tunnels).toEqual([{ x: 2, y: 1, dir: 1 }])
+  })
+
+  it('the tunnel lesson shows the wall first, then a crossing held by what is beyond the tunnel', () => {
+    const lesson = getLesson('tunnel')
+    const level = lessonLevel(lesson)
+    const none = Array(3).fill(false)
+    // The side-on arrow hits the tile like a wall: no blocking arrow, the tunnel's cell named.
+    expect(lessonTap(lesson, level, none, 0, 2)).toMatchObject({ outcome: 'blocked', blocker: -1, wall: 7, gap: 0 })
+    // The lane arrow crosses the tunnel the right way and is held by the arrow beyond it.
+    expect(exitCheck(level, none, 0)).toMatchObject({ free: false, blocker: 1 })
+    expect(exitCheck(level, [false, true, false], 0).free).toBe(true)
   })
 
   it('the portal lessons are held by what is beyond the other ring, not what is straight ahead', () => {
