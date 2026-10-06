@@ -268,6 +268,12 @@ record exists. Deploy the rules before relying on it.
   so it follows the silent switch and mixes with the player's own music. Use
   `.playback` instead if sound should play with the switch on.
 - Whether invite links and share cards move to a custom domain before launch.
+- Party voice ends when the app goes to the background and rejoins on return
+  (the panel then says VOICE PAUSED WHILE YOU WERE AWAY). Keeping it alive
+  would need the `audio` background mode and a native audio-session hand-off.
+  Not yet checked on a device: whether game sounds return to the speaker and
+  follow the silent switch after leaving voice (WebKit switches the session to
+  play-and-record while the mic is open, over the `.ambient` category above).
 
 ## Profiling and debugging
 

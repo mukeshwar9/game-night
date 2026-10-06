@@ -132,6 +132,12 @@ export default function VoicePanel({ game, gameId, compact = false }) {
       )}
 
       <VoiceNotice state={state} onAge={() => setSheet('age')} onClear={actions.clearError} />
+      {state.notice === 'resumed' && !state.error && (
+        <div className="rounded border border-retro-border bg-retro-card p-3 flex items-center gap-3" role="status" data-testid="voice-resumed">
+          <span className="flex-1 font-pixel text-[9px] text-retro-text">VOICE PAUSED WHILE YOU WERE AWAY — YOU’RE BACK IN</span>
+          <button type="button" onClick={actions.clearNotice} aria-label="Dismiss" className="min-h-11 min-w-11 text-retro-dim font-pixel text-[9px]">✕</button>
+        </div>
+      )}
 
       {sheet === 'intro' && <IntroSheet onClose={() => setSheet(null)} onJoin={(listenOnly) => { setSheet(null); setJoinChoice({ listenOnly }); actions.join({ listenOnly }) }} />}
       {sheet === 'age' && <AgeSheet onClose={() => setSheet(null)} onSaved={() => { setSheet(null); actions.clearError(); actions.join(joinChoice) }} />}
