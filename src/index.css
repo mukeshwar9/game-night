@@ -2,6 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Motion tokens (lib/motion.js, .claude/rules/motion-rules.md). Durations and
+   Material 3 curves for plain transitions; springs sampled into linear() for
+   CSS (motion.test.js keeps them equal to the presets in motion.js). Press
+   release and page springs follow the platform: iOS and Android inside the
+   Capacitor shell (data-native), the web otherwise. */
+:root {
+  --dur-press: 80ms;
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-page: 300ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --spring-ui: linear(0, 0.075, 0.225, 0.381, 0.535, 0.664, 0.765, 0.837, 0.893, 0.932, 0.958, 0.975, 0.986, 0.993, 0.997, 0.999, 1);
+  --spring-ui-dur: 250ms;
+  --spring-pop: linear(0, 0.169, 0.506, 0.809, 1.012, 1.108, 1.122, 1.092, 1.051, 1.016, 0.994, 0.985, 0.986, 0.99, 0.995, 0.999, 1);
+  --spring-pop-dur: 470ms;
+  --spring-press: linear(0, 0.109, 0.326, 0.555, 0.757, 0.893, 0.979, 1.024, 1.041, 1.042, 1.035, 1.025, 1.015, 1.008, 1.003, 1, 1);
+  --spring-press-dur: 270ms;
+  --spring-page: linear(0, 0.097, 0.275, 0.455, 0.611, 0.726, 0.811, 0.871, 0.913, 0.942, 0.962, 0.975, 0.984, 0.989, 0.993, 0.995, 1);
+  --spring-page-dur: 420ms;
+}
+[data-native="ios"] {
+  --spring-press: linear(0, 0.173, 0.48, 0.775, 0.973, 1.067, 1.092, 1.076, 1.047, 1.021, 1.002, 0.994, 0.992, 0.993, 0.996, 0.998, 1);
+  --spring-press-dur: 400ms;
+  --spring-page: linear(0, 0.086, 0.252, 0.419, 0.569, 0.688, 0.779, 0.844, 0.892, 0.926, 0.95, 0.966, 0.977, 0.985, 0.99, 0.993, 1);
+  --spring-page-dur: 600ms;
+}
+[data-native="android"] {
+  --spring-press: linear(0, 0.085, 0.234, 0.41, 0.556, 0.687, 0.78, 0.855, 0.904, 0.941, 0.964, 0.98, 0.989, 0.995, 0.998, 1, 1);
+  --spring-press-dur: 180ms;
+  --spring-page: linear(0, 0.075, 0.225, 0.381, 0.535, 0.664, 0.765, 0.837, 0.893, 0.932, 0.958, 0.975, 0.986, 0.993, 0.997, 0.999, 1);
+  --spring-page-dur: 250ms;
+}
+
 /* Phone type floor: the 7-9px pixel-font sizes sprinkled through the UI (turn
    pills, timers, score labels, hints) are below the ~11pt reading guidance on
    a handheld. On phones everything read during play is at least 10px; desktop
