@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { THEMES, applyTheme, getStoredTheme, pairedFont } from '../lib/theme'
+import { THEMES, getStoredTheme, pairedFont, switchTheme } from '../lib/theme'
 import { applyFont } from '../lib/font'
 import { setProfile } from '../lib/social'
 import { cn } from '@/lib/utils'
@@ -15,15 +15,14 @@ export default function ThemeSwitcher() {
   const access = useAccess()
   const isLocked = (t) => t.premium === true && !access.isUnlocked({ kind: 'theme', ...t })
 
-  const handleSelect = (id) => {
+  const handleSelect = (id, from) => {
     const option = THEMES.find(t => t.id === id)
     if (option && isLocked(option)) { setOpen(false); openPaywall({ kind: 'theme', ...option }); return }
-    applyTheme(id)
-    setSelected(id)
-    setOpen(false)
     // A theme with a matching font brings it along; the font stays changeable.
     const font = pairedFont(id)
-    if (font) applyFont(font)
+    switchTheme(id, { from, alsoApply: font ? () => applyFont(font) : undefined })
+    setSelected(id)
+    setOpen(false)
     // Fire-and-forget: sync the choice to the account so it follows across
     // devices (see AuthContext's subscribeProfile applyTheme-on-change).
     setProfile(font ? { theme: id, fontFamily: font } : { theme: id }).catch(() => {})
@@ -67,7 +66,7 @@ export default function ThemeSwitcher() {
           {THEMES.map((t) => { const { id, label } = t; return (
             <button
               key={id}
-              onClick={() => handleSelect(id)}
+              onClick={(e) => handleSelect(id, e.currentTarget)}
               className={cn(
                 'w-full flex items-center gap-2 text-left px-3 py-2 font-pixel text-[9px] transition-colors active:bg-retro-tint-cta',
                 selected === id

@@ -7,7 +7,7 @@ import SwitchRow from './SwitchRow'
 import ThemePreview from './ThemePreview'
 import { VideoCallSettingsPanel } from './VideoCallLayout'
 import { FONTS, applyFont, getStoredFont } from '../lib/font'
-import { THEMES, applyTheme, getStoredTheme, pairedFont } from '../lib/theme'
+import { THEMES, applyTheme, getStoredTheme, pairedFont, switchTheme } from '../lib/theme'
 import {
   applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx, defaultTextSize, textSizeOptions,
   getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
@@ -114,15 +114,15 @@ export default function SettingsButton({ className = '' }) {
   const locked = (kind, option) => option.premium === true && !access.isUnlocked({ kind, ...option })
   const askToUnlock = (kind, option) => { setOpen(false); openPaywall({ kind, ...option }) }
 
-  const selectTheme = (id) => {
+  const selectTheme = (id, from) => {
     const option = THEMES.find(t => t.id === id)
     if (option && locked('theme', option)) { askToUnlock('theme', option); return }
-    applyTheme(id)
-    setTheme(id)
-    syncMusic()
     // A theme with a matching font brings it along; the font stays changeable.
     const font = pairedFont(id)
-    if (font) { applyFont(font); setFont(font) }
+    // Music follows the stored theme, so it re-syncs inside the switch.
+    switchTheme(id, { from, alsoApply: () => { if (font) applyFont(font); syncMusic() } })
+    setTheme(id)
+    if (font) setFont(font)
     setProfile(font ? { theme: id, fontFamily: font } : { theme: id }).catch(() => {})
   }
 
@@ -257,7 +257,7 @@ export default function SettingsButton({ className = '' }) {
                   key={option.id}
                   type="button"
                   aria-pressed={theme === option.id}
-                  onClick={() => selectTheme(option.id)}
+                  onClick={(e) => selectTheme(option.id, e.currentTarget)}
                   {...peek(setHoverTheme, option.id)}
                   className={`flex min-h-11 items-center gap-2 rounded border px-2 py-1.5 text-left font-pixel text-[9px] transition-colors ${theme === option.id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:text-retro-text'}`}
                 >

@@ -88,6 +88,9 @@ async function startSystemBars() {
   let last = null
   let lastGround = null
   const apply = () => {
+    // Mid theme transition (theme.js switchTheme): restyle the bars once it
+    // ends, so they do not flip while the old colours are still on screen.
+    if (document.documentElement.dataset.themeVt) return
     const ground = getComputedStyle(document.documentElement).getPropertyValue('--c-bg')
     const style = systemBarStyleForBackground(ground)
     const hex = hexForColor(ground)
@@ -101,7 +104,7 @@ async function startSystemBars() {
     SystemBars.setStyle({ style }).catch(warn)
   }
   apply()
-  new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-theme-vt'] })
 }
 
 // Android only (iOS has no back button). Registering a listener replaces the

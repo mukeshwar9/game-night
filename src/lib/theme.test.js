@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 import { describe, expect, it } from 'vitest'
-import { THEMES, pairedFont, themeBackdrop } from './theme'
+import { THEMES, pairedFont, themeBackdrop, themeReveal } from './theme'
 import { FONTS } from './font'
 import { AMBIENT_TRACKS, THEME_LOBBY_TRACK } from './musicLogic'
 import { AMBIENCES } from './musicAmbience'
@@ -61,5 +61,18 @@ describe('theme lobby tracks', () => {
   it('AMBIENT_TRACKS lists exactly the engine ambiences, none clashing with a loop', () => {
     expect(Object.keys(AMBIENCES).sort()).toEqual([...AMBIENT_TRACKS].sort())
     for (const id of AMBIENT_TRACKS) expect(TRACKS[id]).toBeUndefined()
+  })
+})
+
+describe('themeReveal', () => {
+  it('starts at the tapped control and covers the farthest corner', () => {
+    const { x, y, r } = themeReveal({ left: 340, top: 10, width: 40, height: 30 }, 390, 844)
+    expect([x, y]).toEqual([360, 25])
+    expect(r).toBe(Math.ceil(Math.hypot(360, 819)))
+  })
+
+  it('covers the whole screen from the middle too', () => {
+    const { r } = themeReveal({ left: 195, top: 422, width: 0, height: 0 }, 390, 844)
+    expect(r).toBeGreaterThanOrEqual(Math.hypot(195, 422))
   })
 })

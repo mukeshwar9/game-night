@@ -2302,6 +2302,20 @@ html[data-native="ios"][data-route-vt="push"]::view-transition-new(root) { anima
 html[data-native="ios"][data-route-vt="pop"]::view-transition-old(root) { animation: vt-ios-pop-out var(--spring-page-dur) var(--spring-page) both; z-index: 1; box-shadow: -8px 0 24px rgb(0 0 0 / .18); }
 html[data-native="ios"][data-route-vt="pop"]::view-transition-new(root) { animation: vt-ios-under-in var(--spring-page-dur) var(--spring-page) both; }
 
+/* Theme switch (theme.js switchTheme): one View Transition over the whole
+   screen; iOS crossfades, elsewhere the new theme spreads in a circle from
+   the tapped control (--vt-x/--vt-y/--vt-r). .theme-switching suspends
+   element transitions so nothing tweens on its own inside the change. */
+.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after { transition: none !important; }
+html[data-theme-vt]::view-transition-old(root),
+html[data-theme-vt]::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html[data-theme-vt="fade"]::view-transition-new(root) { animation: vt-fade-in 250ms var(--ease-standard) both; }
+html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-reveal 400ms var(--ease-standard) both; }
+@keyframes vt-theme-reveal {
+  from { clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 0)); }
+  to   { clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 0)); }
+}
+
 @keyframes vt-fade-out { to { opacity: 0; } }
 @keyframes vt-fade-in { from { opacity: 0; } }
 @keyframes vt-fade-out-early { 0% { opacity: 1; } 30%, 100% { opacity: 0; } }
