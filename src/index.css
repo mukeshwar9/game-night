@@ -2770,7 +2770,7 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
 /* --beach-shore is the header's bottom edge. The sand layer (wet band,
    patches, shells, crabs) sits behind every page; the surf sits above the
    page but under the header (z-30), and slides away with the header when it
-   hides on scroll. */
+   hides on scroll (200ms, the same slide as NavBar's duration-200). */
 .beach-backdrop, .beach-surf {
   --beach-shore: calc(max(0.75rem, env(safe-area-inset-top)) + 46px);
   position: fixed;
@@ -2779,10 +2779,10 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
   pointer-events: none;
 }
 .beach-backdrop { z-index: -1; }
-.beach-surf { bottom: auto; height: calc(var(--beach-shore) + 90px); z-index: 10; transition: transform .2s; }
+.beach-surf { bottom: auto; height: calc(var(--beach-shore) + 90px); z-index: 10; transition: transform 200ms var(--ease-standard); }
 html.header-hidden :is(.beach-surf, .beach-shoreline) { transform: translateY(-100%); }
 .beach-backdrop > *, .beach-surf > *, .beach-shoreline > * { position: absolute; }
-.beach-shoreline { inset: 0 0 auto; height: calc(var(--beach-shore) + 200px); transition: transform .2s; }
+.beach-shoreline { inset: 0 0 auto; height: calc(var(--beach-shore) + 200px); transition: transform 200ms var(--ease-standard); }
 .beach-wet {
   left: 0;
   right: 0;
