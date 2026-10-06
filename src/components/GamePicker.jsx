@@ -12,6 +12,7 @@ import EmptyState from './EmptyState'
 import FilterButton, { ViewTabs } from './GameFilters'
 import { FILTER_DEFS, isSortId, readCatalogView, sortGames } from '../lib/gameFilters'
 import { makePickerScope } from '../lib/pickerScope'
+import { scrollBehavior } from '../hooks/useMotionPref'
 
 // Facet definitions live in lib/gameFilters.js (shared with the
 // FILTERS sheet); the toggle state below stays session-persisted here.
@@ -229,7 +230,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
     jumpLockRef.current = { timer: setTimeout(() => { jumpLockRef.current = null }, JUMP_SETTLE_MS) }
     setActiveCat(id)
     const el = id === 'all' ? listTopRef.current : sectionRefs.current[id]
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    el?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
   }
 
   // Home's catalog (layout="full"): tapping a card opens the options sheet

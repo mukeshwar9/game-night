@@ -16,6 +16,7 @@ import useBusy from '@/hooks/useBusy'
 import useServerClock from '@/hooks/useServerClock'
 import { toast } from 'sonner'
 import { getGameConfig } from '../lib/games'
+import { scrollBehavior } from '../hooks/useMotionPref'
 import {
   MAX_STATEMENT_LENGTH as MAX_LEN, WRITING_DEADLINE_MS, GUESSING_DEADLINE_MS, REVEAL_DEADLINE_MS,
   DEFAULT_MATCH_TARGET, otherSymbol, validateEntry, lieSecret, secretStorageKey, buildStoredSecret,
@@ -61,7 +62,7 @@ function StatementWriter({ onLock, busy, topic }) {
   // under the keyboard fold on short viewports.
   const handleFieldFocus = () => {
     setTimeout(() => {
-      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })
     }, 300)
   }
 
@@ -74,7 +75,7 @@ function StatementWriter({ onLock, busy, topic }) {
     if (next) next.focus()
     else {
       e.currentTarget.blur()
-      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })
     }
   }
 

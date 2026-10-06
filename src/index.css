@@ -1894,7 +1894,7 @@ body::before {
 .pong-shield { animation: pong-shield 0.8s ease-in-out infinite; }
 /* Reduced motion: callouts still carry information (power-up names), so show them static. */
 [data-motion="reduced"] .pong-callout { animation: none; }
-@media (prefers-reduced-motion: reduce) { .pong-callout { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .pong-callout { animation: none; } }
 
 /* Animal Stack: turn pill slides in then fades; TOPPLE! stamp pops at a tilt.
    Reduced motion keeps both readable and static (the pill just fades). */
@@ -2235,6 +2235,13 @@ body::before {
 .route-fade {
   animation: route-fade-in 180ms ease-out;
 }
+/* Reduced motion is calmer, not nothing: the page still fades (opacity only)
+   instead of cutting, so the change of screen is not missed. Wins over the
+   app-wide freeze by specificity. */
+[data-motion="reduced"] .route-fade { animation-duration: var(--dur-fast) !important; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .route-fade { animation-duration: var(--dur-fast) !important; }
+}
 
 /* PAC MAC: two-frame chomp, pulsing power pellets, blink for shield /
    fading power, a fast flicker for a muncher that is being hunted, and a
@@ -2259,9 +2266,11 @@ body::before {
 .pacmac-fright-end { animation: pacmac-power 0.3s steps(2) infinite; }
 .pacmac-status-ring { border-color: var(--pacmac-ring); box-shadow: 0 0 14px var(--pacmac-ring); }
 @media (prefers-reduced-motion: reduce) {
-  .pacmac-mouth-open, .pacmac-mouth-shut, .pacmac-power { animation: none; }
-  .pacmac-mouth-shut { opacity: 0; }
+  :root:not([data-motion="full"]) .pacmac-mouth-open, :root:not([data-motion="full"]) .pacmac-mouth-shut, :root:not([data-motion="full"]) .pacmac-power { animation: none; }
+  :root:not([data-motion="full"]) .pacmac-mouth-shut { opacity: 0; }
 }
+[data-motion="reduced"] .pacmac-mouth-open, [data-motion="reduced"] .pacmac-mouth-shut, [data-motion="reduced"] .pacmac-power { animation: none; }
+[data-motion="reduced"] .pacmac-mouth-shut { opacity: 0; }
 
 /* Avatar customizer preview: idle bounce + eyelid blink (animate prop only) */
 @keyframes avatar-idle {
@@ -2351,7 +2360,7 @@ body::before {
 }
 .simon-chip { background-color: rgb(var(--pad)); border-color: rgb(var(--simon-ink) / 0.6); color: rgb(var(--simon-ink)); }
 [data-motion="reduced"] .simon-pad.is-lit { transform: none; }
-@media (prefers-reduced-motion: reduce) { .simon-pad.is-lit { transform: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .simon-pad.is-lit { transform: none; } }
 
 .pairs-card-back {
   background-color: rgb(var(--c-card));
@@ -2468,7 +2477,7 @@ body::before {
 }
 .lanterns-flash { animation: lanterns-flash 0.7s ease-in-out 2; }
 [data-motion="reduced"] .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); }
-@media (prefers-reduced-motion: reduce) { .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); } }
 
 /* WIRE CROSSED SWITCHBOARD: a locked switch rattles when tapped. */
 @keyframes wire-rattle {
@@ -2478,7 +2487,7 @@ body::before {
 }
 .wire-rattle { animation: wire-rattle 0.3s linear 1; }
 [data-motion="reduced"] .wire-rattle { animation: none; }
-@media (prefers-reduced-motion: reduce) { .wire-rattle { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .wire-rattle { animation: none; } }
 /* WIRE CROSSED BLACKOUT: the Tech's panel goes dark. Fills, glows and wire
    colours drop to the outline colour; borders (outlines) and text (colour
    letter tags, labels) stay legible, and every button keeps working. The
@@ -2510,7 +2519,7 @@ body::before {
 }
 .wire-blackout * { color: rgb(var(--c-text)); }
 [data-motion="reduced"] .wire-blackout { animation: none; }
-@media (prefers-reduced-motion: reduce) { .wire-blackout { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .wire-blackout { animation: none; } }
 
 /* How-to-play rule clips (RuleClips.jsx): GIF-like looping demos — silent,
    autoplay, infinite. Phases are encoded as keyframe percentages (no WAAPI,
@@ -2542,7 +2551,7 @@ body::before {
 @keyframes clip-paddle-l { 0%{transform:translateY(0)} 25%{transform:translateY(-7px)} 50%{transform:translateY(3px)} 75%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
 @keyframes clip-paddle-r { 0%{transform:translateY(0)} 30%{transform:translateY(5px)} 60%{transform:translateY(-4px)} 100%{transform:translateY(0)} }
 [data-motion="reduced"] .clip-still { animation: none !important; opacity: 1 !important; transform: none !important; }
-@media (prefers-reduced-motion: reduce) { .clip-still { animation: none !important; opacity: 1 !important; transform: none !important; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .clip-still { animation: none !important; opacity: 1 !important; transform: none !important; } }
 
 /* Per-theme effects: overlay layers, patterns, foil and animation. Frozen by [data-motion="reduced"] above. */
 /* MATCHA: an LCD dot grid replaces the scanlines and the vignette is off, so the default keeps an arcade layer on a light ground. */

@@ -23,6 +23,7 @@ import { isAdVisit, isHeadlineGame } from '../lib/adLanding';
 import { VideoCallShell } from '../components/VideoCallLayout';
 import { OFF_SHELF, PARTY_BLURB } from './demos/partyBlurbs';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
+import { scrollBehavior } from '../hooks/useMotionPref';
 
 // Demos outside this file load on demand: the hub only needs the picker,
 // and a /solo/:type deep link downloads just the one game it opens.
@@ -288,7 +289,7 @@ function DemoHub() {
   const boardRef = useRef(null)
   const pick = (type) => {
     setSelected(type)
-    requestAnimationFrame(() => boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    requestAnimationFrame(() => boardRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }))
   }
 
   // Board-first: the game is the page. Switching lives in the shared
