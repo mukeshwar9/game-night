@@ -2,6 +2,9 @@
 // entries also carry `premium: true` and the `pack` that unlocks them (see
 // premiumCatalog.js); the pickers lock them through isUnlocked(). Everything
 // without the flag is free for good.
+// `font` pairs a theme with a FONTS id that picking the theme also applies
+// (the player can still change the font afterwards). `backdrop` names the
+// animated scene ThemeBackdrop draws behind the menus.
 export const THEMES = [
   { id: 'midnight',  label: 'MIDNIGHT ARCADE' },
   { id: 'phosphor',  label: 'PHOSPHOR' },
@@ -18,6 +21,7 @@ export const THEMES = [
   { id: 'matcha-blueberry',  label: 'MATCHA BLUEBERRY' },
   { id: 'cotton-candy',      label: 'COTTON CANDY' },
   { id: 'arctic-frost',      label: 'ARCTIC FROST' },
+  { id: 'shoreline',  label: 'SHORELINE', font: 'fredoka', backdrop: 'beach' },
   { id: 'cartridge',  label: 'CARTRIDGE' },
   { id: 'notebook',   label: 'NOTEBOOK' },
   { id: 'hicontrast', label: 'HIGH CONTRAST' },
@@ -34,6 +38,16 @@ export const THEMES = [
 ]
 
 const STORAGE_KEY = 'retro-theme'
+
+/** The font picking `id` also applies, or null when the theme has none. */
+export function pairedFont(id) {
+  return THEMES.find(t => t.id === id)?.font ?? null
+}
+
+/** The animated backdrop `id` draws behind the menus, or null. */
+export function themeBackdrop(id) {
+  return THEMES.find(t => t.id === id)?.backdrop ?? null
+}
 
 // Retired ids fall back to the default (index.html does the same before first paint).
 export function getStoredTheme() {

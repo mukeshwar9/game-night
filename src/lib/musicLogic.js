@@ -72,8 +72,12 @@ export const CATEGORY_TRACK = {
   party: 'party',
 }
 
-/** Themes whose menus get their own lobby loop instead of INSERT COIN. */
-export const THEME_LOBBY_TRACK = { synthwave: 'neon', grid: 'neon' }
+/** Themes whose menus get their own lobby loop instead of INSERT COIN.
+ * SHORELINE's is the 'shore' ambience: surf and gulls, no melody. */
+export const THEME_LOBBY_TRACK = { synthwave: 'neon', grid: 'neon', shoreline: 'shore' }
+
+/** Track ids that are ambient textures (musicAmbience.js), not sequenced loops. */
+export const AMBIENT_TRACKS = ['shore']
 
 /** How many times the results loop plays before the lobby loop takes over. */
 export const RESULTS_LOOPS = 2

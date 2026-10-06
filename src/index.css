@@ -839,6 +839,59 @@
   --c-kam7:     220 140 60;
 }
 
+/* SHORELINE: a midday beach. Dry-sand ground, sea-teal X, raspberry O, coral
+   CTA. The sea, waves and wet sand are drawn by ThemeBackdrop from the four
+   beach-only tokens at the end (sea, shallow, foam, wet). */
+[data-theme="shoreline"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --glow:       0;
+  --c-bg:       246 236 214;
+  --c-surface:  251 244 229;
+  --c-card:     255 252 244;
+  --c-border:   218 198 162;
+  --c-text:     33 49 61;
+  --c-dim:      92 86 74;
+  --c-p1:       0 112 134;
+  --c-p2:       184 46 106;
+  --c-p3:       112 76 160;
+  --c-p4:       146 96 18;
+  --c-cta:      190 62 42;
+  --c-win:      20 112 76;
+  --c-danger:   176 28 34;
+  --c-tint-p1:  212 238 236;
+  --c-tint-p2:  250 222 234;
+  --c-tint-p3:  232 224 246;
+  --c-tint-p4:  246 232 204;
+  --c-tint-cta: 252 226 214;
+  --c-tint-danger: 248 214 210;
+  --c-structure:96 160 176;
+  --c-deep:     238 225 198;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      214 110 60;
+  --c-av2:      140 96 186;
+  --c-av3:      30 150 150;
+  --c-av4:      130 90 60;
+  /* Kamisado — sun-bleached beach tones */
+  --c-kam0:     140 96 56;
+  --c-kam1:     60 150 110;
+  --c-kam2:     200 70 56;
+  --c-kam3:     226 176 60;
+  --c-kam4:     214 110 156;
+  --c-kam5:     120 96 190;
+  --c-kam6:     40 140 176;
+  --c-kam7:     236 140 70;
+  --c-sea:      14 128 156;
+  --c-shallow:  98 210 210;
+  --c-foam:     255 255 255;
+  --c-wet:      212 190 150;
+}
+
 /* Matcha Strawberry — whisked-matcha ground with a strawberry-red CTA.
    X is matcha green and O raspberry, so every accent a player sees on the
    board reads as a berry; red and raspberry sit 30+ degrees apart in hue and
@@ -2511,6 +2564,84 @@ body::before {
 /* PUMPKIN NIGHT: low fog. */
 [data-theme='pumpkin'] body::before {
   background: radial-gradient(ellipse 70% 25% at 20% 100%, rgb(var(--c-p3) / .10), transparent 70%), radial-gradient(ellipse 70% 25% at 85% 100%, rgb(var(--c-p4) / .12), transparent 70%), radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, .6) 100%);
+}
+
+/* SHORELINE: sand underfoot, the header is the sea, and ThemeBackdrop.jsx
+   draws the shoreline washing up the sand and back. The sand is a static
+   noise tile (painted once); pages let it show through. */
+[data-theme='shoreline'] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .22  0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+[data-theme='shoreline'] .min-h-screen.bg-retro-bg { background-color: transparent; }
+/* Its paired Fredoka reads best a step heavier than the pixel faces' 400. */
+[data-theme='shoreline'][data-font='fredoka'] .font-pixel { font-weight: 600; }
+/* The header sits on the water: sea ground, white ink, and no backdrop blur
+   (blurring the moving waves behind it would repaint every frame). */
+[data-theme='shoreline'] .app-navbar {
+  --c-bg: var(--c-sea);
+  --c-border: var(--c-sea);
+  --c-text: 255 255 255;
+  --c-dim: 214 240 242;
+  --c-cta: 255 255 255;
+  --c-tint-cta: 10 104 128;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+[data-theme='shoreline'] .app-navbar .text-glow-cta { text-shadow: 0 1px 2px rgb(0 0 0 / .25); }
+/* Menus start below the wash so the water never runs over the first line. */
+[data-theme='shoreline'] .beach-pad { padding-top: 34px; }
+/* Light-ground material, as on MATCHA: buttons on a ledge, cards on a base. */
+[data-theme='shoreline'] .text-glow-cta, [data-theme='shoreline'] .text-glow-win,
+[data-theme='shoreline'] .text-glow-p1, [data-theme='shoreline'] .text-glow-p2 {
+  text-shadow: 0 2px 0 rgb(var(--c-border));
+}
+[data-theme='shoreline'] .bg-retro-cta { box-shadow: 0 4px 0 rgb(var(--c-text) / .3); }
+[data-theme='shoreline'] .bg-retro-card, [data-theme='shoreline'] .bg-retro-surface { box-shadow: 0 3px 0 rgb(var(--c-border)); }
+
+.beach-backdrop {
+  --beach-shore: calc(max(0.75rem, env(safe-area-inset-top)) + 46px);
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.beach-backdrop > * { position: absolute; left: 0; right: 0; }
+.beach-sea { top: 0; height: var(--beach-shore); background: rgb(var(--c-sea)); }
+.beach-wet {
+  top: var(--beach-shore);
+  height: 64px;
+  background: linear-gradient(rgb(var(--c-wet) / .8), rgb(var(--c-wet) / 0));
+  opacity: .3;
+  will-change: opacity;
+  animation: beach-wet 7s var(--wash-delay, 0s) infinite;
+}
+/* The wave strip's shoreline sits 48px down the 96px SVG (beachLogic FRONT). */
+.beach-wave { top: calc(var(--beach-shore) - 48px); will-change: transform; animation: beach-wash 7s var(--wash-delay, 0s) infinite; }
+.beach-wave.is-front { --reach: 26px; }
+.beach-wave.is-back { --reach: 12px; animation-delay: calc(var(--wash-delay, 0s) - 3.4s); }
+.beach-drift { will-change: transform; animation: beach-drift 26s linear infinite; }
+.beach-wave.is-back .beach-drift { animation-duration: 34s; animation-direction: reverse; }
+.beach-drift svg { display: block; }
+/* Forward: a quick run up the sand that slows at its peak (WASH_PEAK = 42%);
+   back: a slower, steady retreat. */
+@keyframes beach-wash {
+  0%   { transform: translateY(0); animation-timing-function: cubic-bezier(.22, .7, .32, 1); }
+  42%  { transform: translateY(var(--reach)); animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+  100% { transform: translateY(0); }
+}
+/* One shoreline tile (beachLogic SHORE_TILE), so the strip loops seamlessly. */
+@keyframes beach-drift { to { transform: translateX(-390px); } }
+@keyframes beach-wet { 0% { opacity: .3; } 42% { opacity: .9; } 100% { opacity: .25; } }
+/* Reduced motion: the beach stays, frozen mid-wash. */
+[data-motion='reduced'] .beach-backdrop *,
+[data-motion='reduced'] .beach-backdrop *::before { animation: none !important; }
+[data-motion='reduced'] .beach-wave { transform: translateY(calc(var(--reach) / 2)); }
+[data-motion='reduced'] .beach-wet { opacity: .6; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .beach-backdrop * { animation: none !important; }
+  :root:not([data-motion='full']) .beach-wave { transform: translateY(calc(var(--reach) / 2)); }
+  :root:not([data-motion='full']) .beach-wet { opacity: .6; }
 }
 
 /* HIGH CONTRAST: thick focus ring. */

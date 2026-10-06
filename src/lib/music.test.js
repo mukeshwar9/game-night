@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Drives the real music.js + audioContext.js against a fake window/document,
 // an AudioContext that can refuse a resume outside a gesture (iOS), and a fake
 // engine, so the lifecycle rules are tested without a browser.
-function setup({ ls = {}, importFails = 0, resumeNeedsGesture = false } = {}) {
+function setup({ ls = {}, importFails = 0, resumeNeedsGesture = false, theme = 'matcha' } = {}) {
   const winHandlers = {}
   const docHandlers = {}
   const store = { ...ls }
@@ -42,7 +42,7 @@ function setup({ ls = {}, importFails = 0, resumeNeedsGesture = false } = {}) {
     }
   })
   vi.doMock('./games', () => ({ getGameConfig: () => ({ category: 'board' }) }))
-  vi.doMock('./theme', () => ({ getStoredTheme: () => 'matcha' }))
+  vi.doMock('./theme', () => ({ getStoredTheme: () => theme }))
   const fire = (types) => {
     for (const t of types) for (const h of winHandlers[t] || []) h({ type: t })
   }
@@ -240,5 +240,41 @@ describe('blockers', () => {
     m.syncMusic()
     m.setMusicBlock('voice', false)
     expect(m.getMusicState()).toBe(before)
+  })
+})
+
+// SHORELINE's surf and gulls are its menus' lobby track, so the music switch,
+// the hidden tab and the blockers silence them like any loop.
+describe('beach ambience gating', () => {
+  it('plays the shore ambience in SHORELINE menus once a tap unlocks audio', async () => {
+    const h = setup({ theme: 'shoreline' })
+    await import('./music')
+    expect(h.engine.plays).toEqual([])
+    await h.tap()
+    expect(h.lastPlay()).toBe('shore')
+  })
+
+  it('stays silent while music is off, and starts when it is switched on', async () => {
+    const h = setup({ theme: 'shoreline', ls: { music: 'off' } })
+    const m = await import('./music')
+    await h.tap()
+    expect(h.engine.plays).toEqual([])
+    m.setMusicOn(true)
+    await vi.advanceTimersByTimeAsync(20)
+    expect(h.lastPlay()).toBe('shore')
+    m.setMusicOn(false)
+    expect(h.lastPlay()).toBeNull()
+  })
+
+  it('stops in a hidden tab and for a blocker, like the music', async () => {
+    const h = setup({ theme: 'shoreline' })
+    const m = await import('./music')
+    await h.tap()
+    await h.setVisibility('hidden', 20)
+    expect(h.lastPlay()).toBeNull()
+    await h.setVisibility('visible')
+    expect(h.lastPlay()).toBe('shore')
+    m.setMusicBlock('videoCall', true)
+    expect(h.lastPlay()).toBeNull()
   })
 })

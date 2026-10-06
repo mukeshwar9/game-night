@@ -49,6 +49,9 @@ describe('trackForScene', () => {
     expect(trackForScene(undefined, { theme: 'matcha' })).toBe('coin')
     expect(trackForScene('lobby', { theme: 'synthwave' })).toBe('neon')
     expect(trackForScene('lobby', { theme: 'grid' })).toBe('neon')
+    expect(trackForScene('lobby', { theme: 'shoreline' })).toBe('shore')
+    // In a game SHORELINE still plays the game's own track.
+    expect(trackForScene('game', { category: 'board', theme: 'shoreline' })).toBe('think')
   })
 
   it('waiting rooms get the lounge loop', () => {

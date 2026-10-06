@@ -7,7 +7,7 @@ import SwitchRow from './SwitchRow'
 import ThemePreview from './ThemePreview'
 import { VideoCallSettingsPanel } from './VideoCallLayout'
 import { FONTS, applyFont, getStoredFont } from '../lib/font'
-import { THEMES, applyTheme, getStoredTheme } from '../lib/theme'
+import { THEMES, applyTheme, getStoredTheme, pairedFont } from '../lib/theme'
 import {
   TEXT_SIZES, applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx,
   getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
@@ -118,7 +118,10 @@ export default function SettingsButton({ className = '' }) {
     applyTheme(id)
     setTheme(id)
     syncMusic()
-    setProfile({ theme: id }).catch(() => {})
+    // A theme with a matching font brings it along; the font stays changeable.
+    const font = pairedFont(id)
+    if (font) { applyFont(font); setFont(font) }
+    setProfile(font ? { theme: id, fontFamily: font } : { theme: id }).catch(() => {})
   }
 
   const selectFont = (id) => {

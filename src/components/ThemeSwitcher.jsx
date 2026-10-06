@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { THEMES, applyTheme, getStoredTheme } from '../lib/theme'
+import { THEMES, applyTheme, getStoredTheme, pairedFont } from '../lib/theme'
+import { applyFont } from '../lib/font'
 import { setProfile } from '../lib/social'
 import { cn } from '@/lib/utils'
 import LockBadge from './premium/LockBadge'
@@ -20,9 +21,12 @@ export default function ThemeSwitcher() {
     applyTheme(id)
     setSelected(id)
     setOpen(false)
+    // A theme with a matching font brings it along; the font stays changeable.
+    const font = pairedFont(id)
+    if (font) applyFont(font)
     // Fire-and-forget: sync the choice to the account so it follows across
     // devices (see AuthContext's subscribeProfile applyTheme-on-change).
-    setProfile({ theme: id }).catch(() => {})
+    setProfile(font ? { theme: id, fontFamily: font } : { theme: id }).catch(() => {})
   }
 
   useEffect(() => {

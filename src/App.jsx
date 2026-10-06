@@ -14,6 +14,7 @@ import AvatarStudioHost from './components/AvatarStudioHost';
 import { ViewAsPlayerBadge } from './components/premium/ViewAsPlayer';
 import PaddleCheckoutHost from './components/premium/PaddleCheckoutHost';
 import BottomTabBar from './components/BottomTabBar';
+import ThemeBackdrop from './components/ThemeBackdrop';
 import NavBar, { HomeInterceptProvider, TAB_BAR_ROUTES } from './components/NavBar';
 import { AuthProvider } from './lib/AuthContext';
 import { authReady } from './lib/auth';
@@ -93,11 +94,15 @@ function AppRoutes() {
   return (
     <>
       {shopRoutes && <PaddleCheckoutHost />}
+      {/* A theme's animated scene (SHORELINE's waves) sits behind the menus
+          only; game screens keep the plain ground. */}
+      <ThemeBackdrop active={showTabBar} />
       <NavBar />
       <div key={pathname} className="route-fade">
         {/* Bottom padding clears the fixed tab bar so page content (including
-            bottom-of-page CTAs like Home's install prompt) never sits under it. */}
-        <div className={showTabBar ? 'pb-[var(--app-tabbar-h)]' : undefined}>
+            bottom-of-page CTAs like Home's install prompt) never sits under it.
+            beach-pad keeps SHORELINE's wash clear of the first line. */}
+        <div className={showTabBar ? 'pb-[var(--app-tabbar-h)] beach-pad' : undefined}>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Home />} />

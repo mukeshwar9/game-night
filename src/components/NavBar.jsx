@@ -67,7 +67,7 @@ export default function NavBar() {
 
   return (
     <header
-      className={`${inGame ? 'relative' : 'sticky top-0'} z-30 w-full border-b border-retro-border/60 bg-retro-bg/95 backdrop-blur
+      className={`app-navbar ${inGame ? 'relative' : 'sticky top-0'} z-30 w-full border-b border-retro-border/60 bg-retro-bg/95 backdrop-blur
         pt-[max(0.75rem,env(safe-area-inset-top))]
         pl-[max(1rem,env(safe-area-inset-left))]
         pr-[max(1rem,env(safe-area-inset-right))]
