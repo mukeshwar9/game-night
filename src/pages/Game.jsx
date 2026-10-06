@@ -51,6 +51,7 @@ import useScreenWakeLock from '../hooks/room/useScreenWakeLock'
 import { buildSwitchUpdates, nextStarter } from '../hooks/room/roomUpdates'
 // Game-night mode: night scoreboard, winner-stays seating, host controls.
 import NightPanel from '../components/NightPanel'
+import BottomSheet from '../components/BottomSheet'
 import { RoomSwitchContext } from '../lib/roomSwitchContext'
 import { recordNightMatch, nightSwitchUpdates, hostUidOf } from '../lib/night'
 import { effectiveCap, partyMembers } from '../lib/partyLogic'
@@ -113,28 +114,35 @@ function GameAreaFallback() {
 // tap during an active match — full-screen so a fast edge-swipe can't miss
 // it, same danger-toned vocabulary as the rest of the app's destructive
 // confirmations. Rendered above everything else, including modal backdrops.
+// A centred BottomSheet without its own history marker: the back gesture that
+// opened it is already being guarded (useBackGuard).
 function LeaveMatchConfirm({ onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-      <div className="w-full max-w-xs bg-retro-card border-2 border-retro-danger/60 rounded p-5 text-center space-y-4">
-        <p className="font-pixel text-[11px] text-retro-danger text-glow-danger tracking-widest">LEAVE MATCH?</p>
-        <p className="font-mono text-[11px] text-retro-dim leading-relaxed">YOU&apos;LL LEAVE THE ROUND MID-PLAY.</p>
-        <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition press"
-          >
-            STAY
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 px-4 py-2.5 bg-retro-danger text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-danger transition press"
-          >
-            LEAVE
-          </button>
-        </div>
+    <BottomSheet
+      centered
+      history={false}
+      onClose={onCancel}
+      ariaLabel="Leave match?"
+      layerClassName="z-[70]"
+      className="border-retro-danger/60 text-center space-y-4"
+    >
+      <p className="font-pixel text-[11px] text-retro-danger text-glow-danger tracking-widest">LEAVE MATCH?</p>
+      <p className="font-mono text-[11px] text-retro-dim leading-relaxed">YOU&apos;LL LEAVE THE ROUND MID-PLAY.</p>
+      <div className="flex gap-2">
+        <button
+          onClick={onCancel}
+          className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition press"
+        >
+          STAY
+        </button>
+        <button
+          onClick={onConfirm}
+          className="flex-1 px-4 py-2.5 bg-retro-danger text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-danger transition press"
+        >
+          LEAVE
+        </button>
       </div>
-    </div>
+    </BottomSheet>
   )
 }
 
