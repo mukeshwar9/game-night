@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils'
 import useModalHistory from '../hooks/useModalHistory'
 import useKeyboardInset from '../hooks/useKeyboardInset'
 import { isReducedMotion } from '../hooks/useMotionPref'
-import { DUR, EASE, animateSpring, releaseVelocity, rubberBand, shouldDismiss, springLinear, springPreset } from '../lib/motion'
+import { DUR, EASE, springPreset } from '../lib/motion'
+import { animateSpring, releaseVelocity, rubberBand, shouldDismiss, springLinear } from '../lib/spring'
 
 // Elements the Tab trap may cycle through; disabled/hidden ones are filtered
 // at trap time, not here.

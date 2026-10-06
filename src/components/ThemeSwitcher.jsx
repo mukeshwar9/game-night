@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { THEMES, getStoredTheme, pairedFont, switchTheme } from '../lib/theme'
+import { THEMES, getStoredTheme, pairedFont, pickTheme } from '../lib/theme'
 import { applyFont } from '../lib/font'
 import { setProfile } from '../lib/social'
 import { cn } from '@/lib/utils'
@@ -20,7 +20,7 @@ export default function ThemeSwitcher() {
     if (option && isLocked(option)) { setOpen(false); openPaywall({ kind: 'theme', ...option }); return }
     // A theme with a matching font brings it along; the font stays changeable.
     const font = pairedFont(id)
-    switchTheme(id, { from, alsoApply: font ? () => applyFont(font) : undefined })
+    pickTheme(id, { from, alsoApply: font ? () => applyFont(font) : undefined })
     setSelected(id)
     setOpen(false)
     // Fire-and-forget: sync the choice to the account so it follows across
@@ -66,7 +66,7 @@ export default function ThemeSwitcher() {
           {THEMES.map((t) => { const { id, label } = t; return (
             <button
               key={id}
-              onClick={(e) => handleSelect(id, e.currentTarget)}
+              onClick={(e) => handleSelect(id, e.currentTarget.getBoundingClientRect())}
               className={cn(
                 'w-full flex items-center gap-2 text-left px-3 py-2 font-pixel text-[9px] transition-colors active:bg-retro-tint-cta',
                 selected === id

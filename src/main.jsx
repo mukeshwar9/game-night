@@ -8,7 +8,6 @@ import { recordFunnel } from './lib/analytics'
 import { isNative, nativePlatform } from './lib/platform'
 import { NATIVE_PUSH } from './lib/features'
 import { parseAppStoreId, smartBannerContent } from './lib/storeLinks'
-import { installPressFeedback } from './lib/pressFeedback'
 
 // Before the first render, so errors thrown while the app boots are reported
 // too. ErrorBoundary covers render-time crashes; these cover event handlers,
@@ -33,8 +32,9 @@ if (isNative) {
   if (NATIVE_PUSH) import('./lib/native/nativePush').then(m => m.initNativePush())
 }
 
-// Press feedback for every .press / .press-card control (one delegated listener).
-installPressFeedback()
+// Press feedback for every .press / .press-card control (one delegated
+// listener). Loaded after the entry: CSS :active covers the first moments.
+import('./lib/pressFeedback').then(m => m.installPressFeedback())
 
 // Safari's Smart App Banner (the meta tag vite.config.js adds once
 // VITE_APPSTORE_ID is set): hand the page itself, usually an invite link, to

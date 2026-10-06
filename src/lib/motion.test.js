@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import {
-  DISC_LAND_MS, DUR, EASE, SPRINGS, moveFeedbackPlan, isSettled, motionPlatform, pressReleaseDelay, releaseVelocity, rubberBand,
-  shouldDismiss, springLinear, springPreset, stepSpring,
-} from './motion'
+import { DISC_LAND_MS, DUR, EASE, SPRINGS, moveFeedbackPlan, motionPlatform, springPreset } from './motion'
+import { isSettled, pressReleaseDelay, releaseVelocity, rubberBand, shouldDismiss, springLinear, stepSpring } from './spring'
 
 const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8')
 

@@ -6,7 +6,7 @@
 // holds it for a minimum dip (pressReleaseDelay); a scroll that starts under
 // the finger cancels it, since that was never a press.
 
-import { pressReleaseDelay } from './motion'
+import { pressReleaseDelay } from './spring'
 
 const SELECTOR = '.press, .press-card'
 

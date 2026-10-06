@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs'
 import { describe, expect, it } from 'vitest'
-import { THEMES, pairedFont, themeBackdrop, themeReveal } from './theme'
+import { THEMES, pairedFont, themeBackdrop } from './theme'
+import { themeReveal } from './themeSwitch'
 import { FONTS } from './font'
 import { AMBIENT_TRACKS, THEME_LOBBY_TRACK } from './musicLogic'
 import { AMBIENCES } from './musicAmbience'
