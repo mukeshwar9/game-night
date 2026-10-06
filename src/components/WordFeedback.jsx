@@ -10,7 +10,7 @@ export default function WordFeedback({ message, tone = 'info', id, className }) 
   return (
     <p role="status" aria-live="polite" className={cn('min-h-[1.25rem] text-center font-pixel text-[9px] tracking-wider', toneClass, className)}>
       {message ? (
-        <span key={id} className="inline-block" style={tone === 'bad' ? { animation: 'arrows-shake 0.38s ease' } : undefined}>
+        <span key={id} className="inline-block" style={tone === 'bad' ? { animation: 'shake 380ms ease-out' } : undefined}>
           {tone === 'bad' ? '✗ ' : tone === 'ok' ? '✓ ' : ''}{message}
         </span>
       ) : null}
