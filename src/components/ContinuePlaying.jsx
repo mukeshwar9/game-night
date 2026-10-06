@@ -41,7 +41,7 @@ function ContinueRow({ room: r, onDismissed }) {
           {Icon && <Icon />}
           <GameArt type={cfg?.variantOf || r.gameType} className="absolute inset-0 w-full h-full block" />
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div className="flex-1 min-w-[40%] flex items-center gap-2">
           {r.opponent ? (
             <Avatar id={r.opponent.avatar} size={22} />
           ) : null}
@@ -54,7 +54,12 @@ function ContinueRow({ room: r, onDismissed }) {
             </p>
           </div>
         </div>
-        <span className={cn('font-pixel text-[8px] text-right shrink-0', TONE_CLASSES[r.chip.tone] || TONE_CLASSES.dim)}>
+        {/* The status gives way before the game name does: a long chip
+            (WAITING FOR OPPONENT) used to squeeze the name down to "TIC …". */}
+        <span
+          title={r.chip.text}
+          className={cn('font-pixel text-[8px] text-right min-w-0 max-w-[45%] truncate', TONE_CLASSES[r.chip.tone] || TONE_CLASSES.dim)}
+        >
           {r.chip.text}
         </span>
       </button>

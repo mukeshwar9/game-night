@@ -13,6 +13,8 @@ import PixelDots from './loading/PixelDots'
 // instead of staying silent. Either way Firebase keeps retrying on its own —
 // the banner only explains, and hides the moment the connection comes up.
 // (Firebase missing/misconfigured is the room's configuration error instead.)
+// It sits just under the header (--app-header-h includes the safe-area inset),
+// so on a notched phone it no longer covers the header and the page heading.
 export default function ConnectionBanner() {
   const [netOffline, setNetOffline] = useState(() => !navigator.onLine)
   const [everConnected, setEverConnected] = useState(false)
@@ -62,7 +64,7 @@ export default function ConnectionBanner() {
   const unreachable = state === 'unreachable'
 
   return (
-    <div className="fixed top-16 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+    <div className="fixed top-[calc(var(--app-header-h)+0.5rem)] inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
       <div
         role="status"
         className="pointer-events-auto flex items-center gap-3 border-2 border-retro-p2 bg-retro-tint-p2

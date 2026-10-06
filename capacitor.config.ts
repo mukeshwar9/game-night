@@ -21,6 +21,11 @@ const config: CapacitorConfig = {
   android: {
     // Chrome's WebView otherwise lets the user long-press to "open in browser".
     allowMixedContent: false,
+    // The bundle is built for Vite's default 'baseline-widely-available'
+    // target (Chrome 111 / Safari 16.4). An older system WebView gets
+    // Capacitor's "update your WebView" page instead of a blank screen; iOS
+    // sets the same floor with IPHONEOS_DEPLOYMENT_TARGET = 16.4.
+    minWebViewVersion: 111,
   },
   experimental: {
     ios: {
