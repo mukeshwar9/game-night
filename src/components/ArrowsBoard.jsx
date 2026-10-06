@@ -646,7 +646,7 @@ export default function ArrowsBoard({
   }
 
   const view = camOn ? cam : fit
-  const zoomBtn = 'min-h-9 min-w-9 px-2 font-pixel text-[9px] rounded border border-retro-border text-retro-dim hover:border-retro-cta/50 hover:text-retro-text active:scale-95 disabled:opacity-40 disabled:pointer-events-none'
+  const zoomBtn = 'min-h-9 min-w-9 px-2 font-pixel text-[9px] rounded border border-retro-border text-retro-dim hover:border-retro-cta/50 hover:text-retro-text transition press disabled:opacity-40 disabled:pointer-events-none'
 
   return (
     <div
