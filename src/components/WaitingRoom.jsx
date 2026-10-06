@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils'
 import { ARCHERY_FORMATS, archeryFormat } from '../lib/archeryLogic'
 import { recordFunnel } from '../lib/analytics'
 import { shareUrl } from '../lib/platform'
+import { shareLink } from '../lib/share'
+import PushNudge from './PushNudge'
 import { waitingForLabel } from '../lib/roomLogic'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
@@ -133,10 +135,9 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
   }
 
   const shareInvite = async () => {
-    const data = { title: 'Game Night', text: 'Join my Game Night room!', url: inviteUrl }
-    if (navigator.share) {
-      try { await navigator.share(data); recordFunnel('shared'); return } catch { /* cancelled — ignore */ }
-    }
+    const outcome = await shareLink({ text: 'Join my Game Night room!', url: inviteUrl })
+    if (outcome === 'shared') { recordFunnel('shared'); return }
+    if (outcome === 'cancelled') return
     copyLink()
   }
 
@@ -385,7 +386,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           own screen. One full-width primary action; under it one quiet row:
           the code big enough to read aloud, then QR and friend invites.
           COPY LINK was a third way to do what SHARE already does (the share
-          sheet has Copy, and without navigator.share SHARE copies). */}
+          sheet has Copy, and with no share sheet SHARE copies). */}
       <div className="w-full space-y-2">
         <button
           onClick={() => runShare(shareInvite)}
@@ -428,6 +429,12 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           </button>
         </div>
       </div>
+
+      {/* The host is about to switch apps to send the link: offer the ping
+          that brings them back when the friend joins (functions/push.js). */}
+      {mySymbol === 'X' && !bothSeated && !isLobby && (
+        <PushNudge spot="room" text="Get a ping when your friend joins, so you can leave the app while you wait." />
+      )}
 
       {showQr && (
         <div className="flex flex-col items-center gap-1.5">

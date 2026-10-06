@@ -202,6 +202,16 @@ describe('2P presence', () => {
     await assertFails(as(BOB).ref('games/g1/presence/O/online').set(false))
   })
 
+  it('lets only the seat’s player stamp it away (app backgrounded), with a server-time stamp', async () => {
+    await put('games/g1', gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { presence: { X: { online: true, conns: { c1: 1 } } } } }))
+    await assertSucceeds(as(ALICE).ref('games/g1/presence/X/awayAt').set({ '.sv': 'timestamp' }))
+    await assertFails(as(BOB).ref('games/g1/presence/X/awayAt').set(5))
+    await assertFails(as(ALICE).ref('games/g1/presence/X/awayAt').set(Date.now() + 3_600_000))
+    await assertFails(as(ALICE).ref('games/g1/presence/X/awayAt').set('soon'))
+    // Reconnecting clears it alongside the new connection.
+    await assertSucceeds(as(ALICE).ref('games/g1/presence/X').update({ online: true, awayAt: null, 'conns/c2': 5 }))
+  })
+
   it('rejects a presence entry for a seat that does not exist', async () => {
     await put('games/g1', gameNode({ x: ALICE, o: BOB }))
     await assertFails(as(ALICE).ref('games/g1/presence/Z/online').set(true))
@@ -211,6 +221,22 @@ describe('2P presence', () => {
     const room = gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { presence: { X: { online: true, conns: { c1: 1 } }, O: { online: false, leftAt: 3 } } } })
     await put('games/g1', room)
     await assertSucceeds(as(ALICE).ref('games/g1').set({ ...room, status: 'finished', winner: 'X', scores: { X: 1, O: 0 } }))
+  })
+})
+
+describe('party presence', () => {
+  it('lets a party player stamp only their own seat away, and never creates a seat from it', async () => {
+    await put('games/g1', partyNode({ uids: [ALICE, BOB], status: 'playing' }))
+    await assertSucceeds(as(ALICE).ref(`games/g1/players/${ALICE}/awayAt`).set({ '.sv': 'timestamp' }))
+    await assertFails(as(BOB).ref(`games/g1/players/${ALICE}/awayAt`).set(5))
+    await assertFails(as(CAROL).ref(`games/g1/players/${CAROL}/awayAt`).set(5))
+  })
+
+  it('accepts a whole-room transaction that carries another player’s away stamp unchanged', async () => {
+    const room = partyNode({ uids: [ALICE, BOB], status: 'playing' })
+    room.players[BOB].awayAt = 7
+    await put('games/g1', room)
+    await assertSucceeds(as(ALICE).ref('games/g1').set({ ...room, lastActivityAt: 9 }))
   })
 })
 

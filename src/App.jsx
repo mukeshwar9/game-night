@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import PixelDots from './components/loading/PixelDots';
@@ -22,6 +22,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { VideoCallLayoutProvider } from './components/VideoCallLayout';
 import { LEADERBOARD_ENABLED } from './lib/features';
 import { titleForPath } from './lib/routeTitle';
+import { createScrollMemory, scrollTargetFor } from './lib/scrollMemory';
 import { monetizationEnabled } from './lib/monetizationState';
 
 // The shop and Pass routes exist only while monetization is switched on (monetization.js).
@@ -64,22 +65,62 @@ function RouteFallback() {
   );
 }
 
-// M-61 + M-84: reset scroll and replay a short fade on every route change.
+// Offsets per history entry (lib/scrollMemory.js). The browser's own
+// restoration is off: it runs before a lazy route has any height.
+const scrollMemory = createScrollMemory();
+if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual';
+}
+
+// Scrolls to y once the page is tall enough (a lazy route renders after a
+// frame or two), giving up after about a second.
+function restoreScroll(y) {
+  let tries = 0;
+  const step = () => {
+    window.scrollTo(0, y);
+    if (Math.abs(window.scrollY - y) > 2 && ++tries < 60) requestAnimationFrame(step);
+  };
+  step();
+}
+
+// M-61 + M-84: replay a short fade on every route change, and start a new
+// page at the top while back/forward returns to where the player was.
 // `key={pathname}` remounts the wrapper so the CSS animation (index.css
 // .route-fade) restarts. NavBar + BottomTabBar live *outside* this wrapper:
 // the fade used to keep a transform on the ancestor, which trapped
 // position:fixed/sticky descendants so the footer scrolled away.
 function AppRoutes() {
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname } = location;
+  const navigationType = useNavigationType();
   // First-run onboarding covers Home until the visitor has a name; every tab
   // would only lead back to it, so the bar waits until it closes.
   const onboarding = useOnboardingOpen();
   const showTabBar = TAB_BAR_ROUTES.includes(pathname) && !onboarding;
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    const y = scrollTargetFor(navigationType, scrollMemory.get(location.key));
+    if (y > 0) restoreScroll(y);
+    else window.scrollTo(0, 0);
     document.title = titleForPath(pathname);
+    // Only a new page moves the scroll, not a search-param change on it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  // Remember this entry's offset as the player scrolls.
+  useEffect(() => {
+    const key = location.key;
+    let frame = 0;
+    const onScroll = () => {
+      // A route change can clamp the old page's offset before this listener
+      // is removed; only the entry the browser is on may save.
+      if (window.history.state?.key && window.history.state.key !== key) return;
+      if (frame) return;
+      frame = requestAnimationFrame(() => { frame = 0; scrollMemory.save(key, window.scrollY); });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(frame); };
+  }, [location.key]);
 
   // AppRoutes only mounts once auth has settled: the first screen is up, so
   // the native splash (no-op on the web) can go.

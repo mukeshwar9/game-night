@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { playsDailyPath, summarizePlays, PLAY_MODES, PLAY_COUNTERS, FUNNEL_STEPS, funnelUpdate, summarizeFunnel } from './analytics'
+import { playsDailyPath, summarizePlays, PLAY_MODES, PLAY_COUNTERS, FUNNEL_STEPS, funnelUpdate, summarizeFunnel, bootBucket, bootDailyPath } from './analytics'
 
 describe('playsDailyPath', () => {
   it('builds the day-first counter path', () => {
@@ -87,5 +87,23 @@ describe('summarizeFunnel', () => {
   it('tolerates empty and malformed input', () => {
     expect(summarizeFunnel(null)).toEqual([])
     expect(summarizeFunnel({ d: null, e: { x: 'bad' } })).toEqual([])
+  })
+})
+
+describe('bootBucket / bootDailyPath', () => {
+  it('buckets a native cold start by how long the splash stayed up', () => {
+    expect(bootBucket(400)).toBe('lt1s')
+    expect(bootBucket(1500)).toBe('lt2s')
+    expect(bootBucket(3999)).toBe('lt4s')
+    expect(bootBucket(5000)).toBe('lt6s')
+    expect(bootBucket(9000)).toBe('slow')
+    expect(bootBucket(NaN)).toBeNull()
+  })
+
+  it('only writes for the two app platforms on a real day', () => {
+    expect(bootDailyPath('2026-10-06', 'ios', 800)).toBe('bootDaily/2026-10-06/ios/lt1s')
+    expect(bootDailyPath('2026-10-06', 'android', 7000)).toBe('bootDaily/2026-10-06/android/slow')
+    expect(bootDailyPath('2026-10-06', 'web', 800)).toBeNull()
+    expect(bootDailyPath('today', 'ios', 800)).toBeNull()
   })
 })

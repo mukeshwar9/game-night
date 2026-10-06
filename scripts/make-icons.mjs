@@ -85,7 +85,8 @@ console.log('wrote public/pwa-maskable-512x512.png and public/favicon.ico')
 // upscaled), sampling the tile colour from the PNG. Splash screens put the tile
 // small and centred on the default theme's ground (MATCHA --c-bg in
 // src/index.css), so the native launch screen is the colour the app paints
-// first and there is no flash.
+// first and there is no flash. The iOS splash is the mark alone, over a colour
+// the app sets per theme.
 // ---------------------------------------------------------------------------
 
 // Re-encode an 8-bit RGBA PNG as RGB. App Store Connect rejects an app icon
@@ -198,8 +199,11 @@ async function makeNative() {
   const res = 'android/app/src/main/res'
   const jobs = [{ path: `${ios}/AppIcon.appiconset/AppIcon-512@2x.png`, kind: 'icon', size: 1024, opaque: true }]
   // iOS picks the 1x/2x/3x file by device scale; all three are the same image.
+  // Transparent around the mark: the ground behind it is the storyboard's
+  // SplashBackground colour (MATCHA, the default theme), and the splash
+  // plugin repaints it with the player's last theme (SceneDelegate.swift).
   for (const name of ['splash-2732x2732.png', 'splash-2732x2732-1.png', 'splash-2732x2732-2.png']) {
-    jobs.push({ path: `${ios}/Splash.imageset/${name}`, kind: 'splash', w: 2732, h: 2732, mark: 480, opaque: true })
+    jobs.push({ path: `${ios}/Splash.imageset/${name}`, kind: 'splash', w: 2732, h: 2732, mark: 480, transparent: true })
   }
   for (const [bucket, d] of Object.entries(DENSITY)) {
     jobs.push({ path: `${res}/mipmap-${bucket}/ic_launcher.png`, kind: 'legacy', size: Math.round(48 * d) })
@@ -281,8 +285,10 @@ async function makeNative() {
         // circle. The grid's farthest points are 42.1 units from its centre.
         grid(ctx, w / 2, h / 2, ((33 / 108) * w) / 42.1, 'white')
       } else if (job.kind === 'splash') {
-        ctx.fillStyle = `rgb(${ground.join(',')})`
-        ctx.fillRect(0, 0, w, h)
+        if (!job.transparent) {
+          ctx.fillStyle = `rgb(${ground.join(',')})`
+          ctx.fillRect(0, 0, w, h)
+        }
         roundedTile(ctx, (w - job.mark) / 2, (h - job.mark) / 2, job.mark)
       } else if (job.kind === 'splashicon') {
         roundedTile(ctx, (w - job.mark) / 2, (h - job.mark) / 2, job.mark)

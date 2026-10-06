@@ -163,7 +163,7 @@
         "src/lib/sounds.js",
         "src/pages/AirHockeyDemo.jsx"
       ],
-      "sourceHash": "ebac41acd3f7",
+      "sourceHash": "a0c0a0ea64dd",
       "assetHash": "f3d15eb4f562",
       "dpr": 1
     },
@@ -269,7 +269,7 @@
         "src/lib/wordraceLogic.js",
         "src/pages/AnagramsDemo.jsx"
       ],
-      "sourceHash": "7ac5127f5298",
+      "sourceHash": "28cf6909d5f7",
       "assetHash": "d9d656ee1e9a",
       "dpr": 1
     },
@@ -368,7 +368,7 @@
         "src/lib/vendor/planck-det.js",
         "src/pages/AnimalStackDemo.jsx"
       ],
-      "sourceHash": "fd61820197eb",
+      "sourceHash": "79811624a9db",
       "assetHash": "4851c318a026",
       "dpr": 1
     },
@@ -459,7 +459,7 @@
         "src/lib/sounds.js",
         "src/pages/ArcheryDemo.jsx"
       ],
-      "sourceHash": "0cb7d3c0dfef",
+      "sourceHash": "cab80a4ae6cd",
       "assetHash": "97abac9dc0cf",
       "dpr": 1
     },
@@ -546,7 +546,7 @@
         "src/lib/sounds.js",
         "src/pages/ArtilleryDemo.jsx"
       ],
-      "sourceHash": "e476c9254145",
+      "sourceHash": "724ecff001b2",
       "assetHash": "7f75debcd5c3",
       "dpr": 1
     },
@@ -683,7 +683,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "5fd961dac90d",
+      "sourceHash": "e93e8ed51e00",
       "assetHash": "14d0f4bf977f",
       "dpr": 1
     },
@@ -772,7 +772,7 @@
         "src/lib/sounds.js",
         "src/pages/BattleshipDemo.jsx"
       ],
-      "sourceHash": "715e7d674d70",
+      "sourceHash": "9168f95b1215",
       "assetHash": "8912d3783e48",
       "dpr": 1
     },
@@ -908,7 +908,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "e5ae885b358a",
+      "sourceHash": "680c885742dd",
       "assetHash": "c09ac5ade8ff",
       "dpr": 1
     },
@@ -1045,7 +1045,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "61cda17afc58",
+      "sourceHash": "266002a99aad",
       "assetHash": "d97a9340ae51",
       "dpr": 1
     },
@@ -1183,7 +1183,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "0621448659e0",
+      "sourceHash": "5b1481cc9ac9",
       "assetHash": "ad60d803b0ad",
       "dpr": 1
     },
@@ -1321,7 +1321,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "0621448659e0",
+      "sourceHash": "5b1481cc9ac9",
       "assetHash": "c697f74d6866",
       "dpr": 1
     },
@@ -1408,7 +1408,7 @@
         "src/lib/sounds.js",
         "src/pages/CheckersDemo.jsx"
       ],
-      "sourceHash": "4703f666cf06",
+      "sourceHash": "57e111ab0abe",
       "assetHash": "2cf14eaff166",
       "dpr": 1
     },
@@ -1508,7 +1508,7 @@
         "src/lib/visualMemoryLogic.js",
         "src/pages/MemorySoloDemos.jsx"
       ],
-      "sourceHash": "75a81abd5f18",
+      "sourceHash": "3faada093ae7",
       "assetHash": "103d26f2013d",
       "dpr": 1
     },
@@ -1644,7 +1644,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "de5cd74c3a19",
+      "sourceHash": "06c51f515840",
       "assetHash": "91c862625413",
       "dpr": 1
     },
@@ -1819,7 +1819,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "9b6da890f135",
+      "sourceHash": "ec1ab6032cb7",
       "assetHash": "711bb2f27081",
       "dpr": 1
     },
@@ -1955,7 +1955,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "9b6da890f135",
+      "sourceHash": "ec1ab6032cb7",
       "assetHash": "1187e7e0a09d",
       "dpr": 1
     },
@@ -2090,7 +2090,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "2a0b46b38694",
+      "sourceHash": "066986e0ab01",
       "assetHash": "6f2911a9b6bd",
       "dpr": 1
     },
@@ -2225,7 +2225,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "2a0b46b38694",
+      "sourceHash": "066986e0ab01",
       "assetHash": "cc9d021603dc",
       "dpr": 1
     },
@@ -2361,7 +2361,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "40b50af30598",
+      "sourceHash": "2dd96b75990d",
       "assetHash": "c103f1f2c664",
       "dpr": 1
     },
@@ -2497,7 +2497,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "40b50af30598",
+      "sourceHash": "2dd96b75990d",
       "assetHash": "bca0a221831b",
       "dpr": 1
     },
@@ -2600,7 +2600,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/FibbageDemo.jsx"
       ],
-      "sourceHash": "cfc8ceca0c3a",
+      "sourceHash": "50589b6c2d89",
       "assetHash": "6405c6e7b6cd",
       "dpr": 1
     },
@@ -2775,7 +2775,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "985eda38e80c",
+      "sourceHash": "19303dbae3e3",
       "assetHash": "5509438ab603",
       "dpr": 1
     },
@@ -2885,7 +2885,7 @@
         "src/lib/wordraceLogic.js",
         "src/pages/HangmanDemo.jsx"
       ],
-      "sourceHash": "371310ef8108",
+      "sourceHash": "d084c678ed27",
       "assetHash": "9b60b313fc5b",
       "dpr": 1
     },
@@ -2978,7 +2978,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/HerdDemo.jsx"
       ],
-      "sourceHash": "ac3dabfcbf79",
+      "sourceHash": "4d3134221dd0",
       "assetHash": "beae2c6ee863",
       "dpr": 1
     },
@@ -3114,7 +3114,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "f2746f0871f0",
+      "sourceHash": "0ce8da7d0a5d",
       "assetHash": "5eb98978c05b",
       "dpr": 1
     },
@@ -3251,7 +3251,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1f7971de1ed2",
+      "sourceHash": "01473af4a724",
       "assetHash": "7ab8b0197c56",
       "dpr": 1
     },
@@ -3388,7 +3388,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "4af4288fac81",
+      "sourceHash": "96021307b700",
       "assetHash": "986a9387f9c3",
       "dpr": 1
     },
@@ -3498,7 +3498,7 @@
         "src/lib/visualMemoryLogic.js",
         "src/pages/MemorySoloDemos.jsx"
       ],
-      "sourceHash": "9bfd7680a987",
+      "sourceHash": "89fecff4ad79",
       "assetHash": "029a93d33546"
     },
     "onitama": {
@@ -3633,7 +3633,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "324e82935431",
+      "sourceHash": "f6f0ba895277",
       "assetHash": "c98179dd4cf9",
       "dpr": 1
     },
@@ -3769,7 +3769,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "ba9c13e03143",
+      "sourceHash": "03f783ef58fd",
       "assetHash": "348ccf7307d6",
       "dpr": 1
     },
@@ -3857,7 +3857,7 @@
         "src/lib/sounds.js",
         "src/pages/PacmacDemo.jsx"
       ],
-      "sourceHash": "3fee7d5a43c5",
+      "sourceHash": "389f6bab4756",
       "assetHash": "43b9478f3020",
       "dpr": 1
     },
@@ -3944,7 +3944,7 @@
         "src/lib/sounds.js",
         "src/pages/PaintDemo.jsx"
       ],
-      "sourceHash": "a10e24165b0f",
+      "sourceHash": "2463fe31d86d",
       "assetHash": "7e0a272a4b09",
       "dpr": 1
     },
@@ -4084,7 +4084,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "ff91bb5c5c20",
+      "sourceHash": "94abca7da39f",
       "assetHash": "f8c153941e69",
       "dpr": 1
     },
@@ -4243,7 +4243,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "36f046935f66",
+      "sourceHash": "c97890ae37af",
       "assetHash": "9870bacff510"
     },
     "quarto": {
@@ -4378,7 +4378,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "e1780b08600f",
+      "sourceHash": "56470b957116",
       "assetHash": "d46d59c1f5ad",
       "dpr": 1
     },
@@ -4634,7 +4634,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "087819206c3e",
+      "sourceHash": "e20b8377c20f",
       "assetHash": "bca4c743fdaf",
       "dpr": 1
     },
@@ -4770,7 +4770,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "d213e41391da",
+      "sourceHash": "5650be2812f6",
       "assetHash": "1636859f66c0",
       "dpr": 1
     },
@@ -4880,7 +4880,7 @@
         "src/lib/visualMemoryLogic.js",
         "src/pages/MemorySoloDemos.jsx"
       ],
-      "sourceHash": "9bfd7680a987",
+      "sourceHash": "89fecff4ad79",
       "assetHash": "2ac1432f3a13"
     },
     "sos": {
@@ -5015,7 +5015,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "65f5405cd155",
+      "sourceHash": "770cdc6d27a5",
       "assetHash": "7a2de1780001",
       "dpr": 1
     },
@@ -5102,7 +5102,7 @@
         "src/lib/spaceduelLogic.js",
         "src/pages/SpaceduelDemo.jsx"
       ],
-      "sourceHash": "3cda70b6e7f3",
+      "sourceHash": "3cb2f785713b",
       "assetHash": "7024aeee5aea",
       "dpr": 1
     },
@@ -5205,7 +5205,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/SpyfairDemo.jsx"
       ],
-      "sourceHash": "185209ae38f1",
+      "sourceHash": "c88e35c31423",
       "assetHash": "f62dd6c8243a",
       "dpr": 1
     },
@@ -5292,7 +5292,7 @@
         "src/lib/sumoLogic.js",
         "src/pages/SumoDemo.jsx"
       ],
-      "sourceHash": "6359f72c6f9c",
+      "sourceHash": "e2e0464371e8",
       "assetHash": "779b1abdcd6c",
       "dpr": 1
     },
@@ -5462,7 +5462,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/TriviaDemo.jsx"
       ],
-      "sourceHash": "182d93e81189",
+      "sourceHash": "b210a57134fa",
       "assetHash": "eb80bc038266",
       "dpr": 1
     },
@@ -5549,7 +5549,7 @@
         "src/lib/tronLogic.js",
         "src/pages/TronDemo.jsx"
       ],
-      "sourceHash": "8fbd1d6f947c",
+      "sourceHash": "b7a36fd9764b",
       "assetHash": "95e8ed2cabc7",
       "dpr": 1
     },
@@ -5770,7 +5770,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "f3a719ad8abc",
+      "sourceHash": "3750f2367001",
       "assetHash": "3365a0dd1dbc",
       "dpr": 1
     },
@@ -5873,7 +5873,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/WavelengthDemo.jsx"
       ],
-      "sourceHash": "ad2031dc2a35",
+      "sourceHash": "91397b1624bd",
       "assetHash": "21f3e7169522",
       "dpr": 1
     },
@@ -5972,7 +5972,7 @@
         "src/lib/wordraceLogic.js",
         "src/pages/WordDuelDemo.jsx"
       ],
-      "sourceHash": "f79507f9ff66",
+      "sourceHash": "585064f2449d",
       "assetHash": "a81c84f2a2e0",
       "dpr": 1
     },
@@ -6072,7 +6072,7 @@
         "src/lib/wordraceLogic.js",
         "src/pages/WordRaceDemo.jsx"
       ],
-      "sourceHash": "d10af0284991",
+      "sourceHash": "f8002d6b94ca",
       "assetHash": "04220e60d7d8",
       "dpr": 1
     },
@@ -6208,7 +6208,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "02569b1287de",
+      "sourceHash": "f86dfdad730b",
       "assetHash": "3038ed15f2a9",
       "dpr": 1
     }

@@ -9,6 +9,36 @@
 
 import { isNative } from './platform'
 
+// The player's HAPTICS switch (Settings › Audio). On unless turned off.
+const HAPTICS_KEY = 'retro-haptics'
+
+export function getHapticsOn() {
+  try { return localStorage.getItem(HAPTICS_KEY) !== 'off' } catch { return true }
+}
+
+/** @param {boolean} on */
+export function setHapticsOn(on) {
+  try { localStorage.setItem(HAPTICS_KEY, on ? 'on' : 'off') } catch { /* storage unavailable */ }
+}
+
+/** Where tactile feedback can happen at all: the shell, or a browser with navigator.vibrate. */
+export function hapticsAvailable() {
+  return isNative || (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function')
+}
+
+/**
+ * Outcome feedback, in the platform's own vocabulary: 'SUCCESS' (a win),
+ * 'WARNING' (a refused move), 'ERROR' (a loss or a bust). On the web the same
+ * outcome becomes a vibrate pattern.
+ * @typedef {'SUCCESS' | 'WARNING' | 'ERROR'} HapticNotice
+ */
+/** @type {Record<HapticNotice, number[]>} */
+export const NOTICE_PATTERNS = {
+  SUCCESS: [0, 40, 30, 70],
+  WARNING: [0, 30],
+  ERROR: [0, 60, 40, 60],
+}
+
 // Longest window a pattern may occupy and the most taps one pattern may fire:
 // a runaway pattern must not turn into a second of buzzing.
 export const MAX_TOTAL_MS = 1000
@@ -68,6 +98,7 @@ export function planHaptics(pattern) {
  *   nav?: { vibrate?: (p: number | number[]) => boolean } | undefined,
  *   loadPlugin?: () => Promise<any>,
  *   schedule?: (fn: () => void, ms: number) => unknown,
+ *   enabled?: () => boolean,
  * }} [env]
  */
 export function createHaptic({
@@ -75,6 +106,7 @@ export function createHaptic({
   nav = typeof navigator === 'undefined' ? undefined : navigator,
   loadPlugin = () => import('@capacitor/haptics'),
   schedule = (fn, delay) => setTimeout(fn, delay),
+  enabled = getHapticsOn,
 } = {}) {
   /** @type {Promise<any> | null} */
   let plugin = null
@@ -82,6 +114,7 @@ export function createHaptic({
 
   /** @param {number | number[]} pattern */
   function haptic(pattern) {
+    if (!enabled()) return
     if (!native) {
       try { nav?.vibrate?.(pattern) } catch { /* unsupported */ }
       return
@@ -102,13 +135,30 @@ export function createHaptic({
     })
   }
 
-  return { haptic, preload: () => { if (native) load() } }
+  /** @param {HapticNotice} type */
+  function notify(type) {
+    if (!enabled()) return
+    if (!native) {
+      try { nav?.vibrate?.(NOTICE_PATTERNS[type] || NOTICE_PATTERNS.WARNING) } catch { /* unsupported */ }
+      return
+    }
+    load().then((mod) => {
+      const h = mod?.Haptics
+      if (!h) return
+      Promise.resolve(h.notification({ type })).catch(() => {})
+    })
+  }
+
+  return { haptic, notify, preload: () => { if (native) load() } }
 }
 
 const instance = createHaptic()
 
 /** Buzz like navigator.vibrate(pattern); a no-op where there is no haptic motor. */
 export const haptic = instance.haptic
+
+/** A win, a refused move or a loss, as the platform's own notification haptic. */
+export const hapticNotify = instance.notify
 
 // Load the plugin ahead of the first tap so a move's feedback is not late.
 instance.preload()

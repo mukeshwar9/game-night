@@ -136,6 +136,10 @@ describe('voice controller', () => {
     await flush()
     expect(f.sessions).toHaveLength(2)
     expect(f.sessions[1].closed).toBe(false)
+    // The player is told why voice went quiet.
+    expect(ctl.getState().notice).toBe('resumed')
+    ctl.clearNotice()
+    expect(ctl.getState().notice).toBeNull()
     // LEAVE VOICE is remembered: no rejoin after a later pause/resume.
     await ctl.leave()
     window.dispatchEvent(new Event('native-pause'))

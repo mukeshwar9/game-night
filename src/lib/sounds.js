@@ -1,4 +1,4 @@
-import { haptic } from './haptics'
+import { haptic, hapticNotify } from './haptics'
 import { isNative } from './platform'
 import { getWinFx } from './displayPrefs'
 import { duckMusic, resumeAudio } from './audioContext'
@@ -28,9 +28,15 @@ function duckUnder(c, start, dur) {
 }
 
 // Haptics go through the native shell only (src/lib/haptics.js); web
-// vibration stays off.
+// vibration stays off. Both follow the player's HAPTICS switch, not the
+// sound switch: muted players can still feel moves.
 function vibrate(pattern) {
   if (isNative) haptic(pattern)
+}
+
+// Outcomes use the platform's notification haptics (success / warning / error).
+function notice(type) {
+  if (isNative) hapticNotify(type)
 }
 
 function note(freq, start, dur, type = 'square', vol = 0.11) {
@@ -135,7 +141,7 @@ export const sounds = {
   go:    ()    => { seq([[880, 0, 0.06, 'sine', 0.15]]); vibrate(22) },
   miss:  ()    => { seq([[180, 0, 0.08, 'sawtooth', 0.12], [130, 0.09, 0.18, 'sawtooth', 0.09], [90, 0.25, 0.22, 'sawtooth', 0.07]]); vibrate(120) },
   // Flat held buzzer for a per-question timeout — distinct from miss()'s descending tone
-  buzz:  ()    => { seq([[140, 0, 0.28, 'sawtooth', 0.13]]); vibrate([0, 60, 40, 60]) },
+  buzz:  ()    => { seq([[140, 0, 0.28, 'sawtooth', 0.13]]); notice('WARNING') },
   move:  (sym) => { seq([[sym === 'X' ? 440 : 330, 0, 0.07]]); vibrate(9) },
   bust:  ()    => { seq([[200, 0, 0.08, 'sawtooth', 0.13], [120, 0.09, 0.16, 'sawtooth', 0.11], [70, 0.22, 0.26, 'sawtooth', 0.09]]); vibrate([0, 40, 60, 50]) },
   // Pig: each safe roll in a turn climbs a pentatonic (new octave every 5).
@@ -201,14 +207,14 @@ export const sounds = {
     vibrate(6 + Math.min(step, 6) * 2)
   },
   join:  ()    => { seq([[440, 0, 0.06], [880, 0.08, 0.12]]); vibrate([0, 15, 30, 25]) },
-  win:   ()    => { if (!getWinFx()) return; winFanfare(); vibrate([0, 40, 30, 70]) },
+  win:   ()    => { if (!getWinFx()) return; winFanfare(); notice('SUCCESS') },
   // Bigger fanfare + longer rumble for clinching the whole match
   matchWin: () => {
     if (!getWinFx()) return
     matchWinFanfare()
     vibrate([0, 60, 40, 60, 40, 140])
   },
-  lose:  ()    => { seq([[330, 0, 0.12], [277, 0.14, 0.12], [220, 0.28, 0.35]]); vibrate(160) },
+  lose:  ()    => { seq([[330, 0, 0.12], [277, 0.14, 0.12], [220, 0.28, 0.35]]); notice('ERROR') },
   draw:  ()    => { seq([[392, 0, 0.14], [392, 0.18, 0.14, 'triangle', 0.07]]); vibrate([0, 30, 40, 30]) },
   drop:  ()    => { seq([[70, 0, 0.06, 'square', 0.17], [45, 0.04, 0.32, 'sawtooth', 0.15]]); vibrate(35) },
   bell:  ()    => seq([[98, 0, 1.8, 'sine', 0.16], [196, 0, 1.4, 'sine', 0.08]]),
@@ -219,8 +225,7 @@ export const sounds = {
   stackLand: (speed = 0.5) => { seq([[140 + speed * 40, 0, 0.08, 'triangle', 0.08 + speed * 0.06], [60, 0, 0.12, 'sawtooth', 0.05 + speed * 0.06]]); vibrate(8 + Math.round(speed * 14)) },
   stackTopple: () => { seq([[440, 0, 0.14], [330, 0.11, 0.14], [247, 0.22, 0.14], [165, 0.33, 0.2]]); vibrate([0, 60, 40, 120]) },
   stackTick: () => { seq([[1200, 0, 0.02, 'square', 0.03]]) },
-  // Archery cues stay behind this switch: vibrate() is intentionally disabled
-  // platform-wide (SFX_HAPTICS) until haptics are approved globally.
+  // Archery: draw, loose and hit taps (shell only, behind the HAPTICS switch).
   archeryDraw: () => { seq([[520, 0, 0.035, 'sine', 0.04]]); vibrate(4) },
   archeryLoose: () => { seq([[760, 0, 0.045, 'triangle', 0.08], [1120, 0.035, 0.06, 'sine', 0.05]]); vibrate(8) },
   archeryHit: (score = 0) => {

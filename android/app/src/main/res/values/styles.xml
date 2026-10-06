@@ -36,4 +36,14 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
     </style>
+
+    <!-- The same launch for a player whose last theme was dark: Android 13+
+         uses it from the next cold start (MainActivity.setSplashTheme). -->
+    <style name="AppTheme.NoActionBarLaunch.Dark">
+        <item name="windowSplashScreenBackground">@color/app_background_dark</item>
+        <item name="android:statusBarColor">@color/app_background_dark</item>
+        <item name="android:navigationBarColor">@color/app_background_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
 </resources>

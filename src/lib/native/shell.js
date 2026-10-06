@@ -9,11 +9,16 @@ import { isNative, isIOS, isAndroid, nativePlatform } from '../platform'
 import { authReady } from '../auth'
 import { db } from '../firebase'
 import { requestNavigate, firstScreen } from './navigation'
-import { chooseBackAction, systemBarStyleForBackground } from './shellLogic'
+import { setSystemTextZoom } from '../displayPrefs'
+import { recordBootTime } from '../analytics'
+import { chooseBackAction, hexForColor, settleWithin, systemBarStyleForBackground } from './shellLogic'
 
 // The splash never outlives this, however slow or broken boot is.
 const SPLASH_MAX_MS = 6000
 const SPLASH_FADE_MS = 250
+// How long a backgrounding app waits for listeners' last writes (the room's
+// away stamp) before dropping the database connection.
+const PAUSE_FLUSH_MS = 1500
 // A dialog the back button should close with Escape (BottomSheet, modals).
 const DIALOG_SELECTOR = '[role="dialog"][aria-modal="true"], dialog[open]'
 
@@ -30,6 +35,7 @@ export function initNativeShell() {
   run('back button', startBackButton)
   run('lifecycle', startLifecycle)
   run('keyboard', startKeyboard)
+  run('text zoom', startTextZoom)
 }
 
 function run(name, fn) {
@@ -64,17 +70,32 @@ async function startSplash() {
     clearTimeout(timer)
     SplashScreen.hide({ fadeOutDuration: SPLASH_FADE_MS }).catch(warn)
   }
-  Promise.all([authReady().catch(() => null), firstScreen]).then(afterPaint).then(() => hide())
+  Promise.all([authReady().catch(() => null), firstScreen]).then(afterPaint).then(() => {
+    // Real-phone boot timing (analytics.js bootDaily): page start to first screen.
+    recordBootTime(nativePlatform, performance.now())
+    hide()
+  })
 }
 
 // Status bar (and Android's gesture/navigation bar) content follows the theme:
 // light icons on the dark themes, dark icons on the light ones. The active
-// theme is data-theme on <html>, which swaps the --c-bg tokens.
+// theme is data-theme on <html>, which swaps the --c-bg tokens. The ground is
+// also saved for the next launch's splash (iOS GameNightViewController,
+// Android MainActivity), so a dark-theme player is not greeted by the light
+// default.
 async function startSystemBars() {
-  const { SystemBars } = await import('@capacitor/core')
+  const [{ SystemBars }, { Preferences }] = await Promise.all([import('@capacitor/core'), import('@capacitor/preferences')])
   let last = null
+  let lastGround = null
   const apply = () => {
-    const style = systemBarStyleForBackground(getComputedStyle(document.documentElement).getPropertyValue('--c-bg'))
+    const ground = getComputedStyle(document.documentElement).getPropertyValue('--c-bg')
+    const style = systemBarStyleForBackground(ground)
+    const hex = hexForColor(ground)
+    if (hex && hex !== lastGround) {
+      lastGround = hex
+      Preferences.set({ key: 'splashBackground', value: hex }).catch(warn)
+      Preferences.set({ key: 'splashDark', value: style === 'DARK' ? '1' : '0' }).catch(warn)
+    }
     if (style === last) return
     last = style
     SystemBars.setStyle({ style }).catch(warn)
@@ -111,21 +132,31 @@ function handleBack(App, canGoBack, allowEscape) {
 // Backgrounded: drop the Realtime Database connection so the server runs the
 // onDisconnect handlers now (presence goes offline cleanly) instead of after a
 // socket timeout, and reconnect on return. 'native-pause' / 'native-resume' are
-// window events for anything else that wants them. iOS reports true
+// window events for anything else that wants them; a 'native-pause' listener
+// may pass a promise to event.detail.waitUntil (a last write, such as the
+// room's away stamp) and the connection drops once it settles, or after
+// PAUSE_FLUSH_MS. iOS reports true
 // backgrounding with pause/resume; on Android pause fires for any overlay
 // (share sheet), so appStateChange, which follows onStop, is the right signal.
 async function startLifecycle() {
   const { App } = await import('@capacitor/app')
   let background = false
+  let pauses = 0
   const toBackground = () => {
     if (background) return
     background = true
-    window.dispatchEvent(new CustomEvent('native-pause'))
-    if (db) goOffline(db)
+    const pause = ++pauses
+    const pending = []
+    window.dispatchEvent(new CustomEvent('native-pause', { detail: { waitUntil: (p) => pending.push(p) } }))
+    settleWithin(pending, PAUSE_FLUSH_MS).then(() => {
+      // Back in the foreground before the writes finished: stay connected.
+      if (background && pause === pauses && db) goOffline(db)
+    })
   }
   const toForeground = () => {
     if (!background) return
     background = false
+    pauses++
     if (db) goOnline(db)
     window.dispatchEvent(new CustomEvent('native-resume'))
   }
@@ -145,4 +176,20 @@ async function startKeyboard() {
   if (!isIOS) return
   const { Keyboard } = await import('@capacitor/keyboard')
   await Keyboard.setAccessoryBarVisible({ isVisible: false })
+}
+
+// The phone's text-size setting. Left alone, Android's web view scaled every
+// px font by it (layouts clipped at 200 %) while iOS ignored Dynamic Type.
+// Turn the web view's own scaling off and hand the setting to the app's TEXT
+// SIZE (AUTO maps it to S/M/L/XL, layouts the app is tested at). Re-read on
+// every return, since the player may have changed it in Settings meanwhile.
+async function startTextZoom() {
+  const { TextZoom } = await import('@capacitor/text-zoom')
+  const sync = async () => {
+    const { value } = await TextZoom.getPreferred()
+    await TextZoom.set({ value: 1 })
+    setSystemTextZoom(value)
+  }
+  await sync()
+  window.addEventListener('native-resume', () => { sync().catch(warn) })
 }

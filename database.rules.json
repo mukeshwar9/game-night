@@ -124,6 +124,9 @@
             "offlineAt": {
               ".validate": "(newData.isNumber() && (newData.val() === data.val() || newData.parent().child('playerId').val() === auth.uid || newData.parent().child('playerId').val() !== data.parent().child('playerId').val()))"
             },
+            "awayAt": {
+              ".validate": "(newData.isNumber() && (newData.val() === data.val() || (newData.parent().child('playerId').val() === auth.uid && newData.val() <= now)))"
+            },
             "conns": {
               "$conn": {
                 ".validate": "(newData.isNumber() && (newData.val() === data.val() || newData.parent().parent().child('playerId').val() === auth.uid || newData.parent().parent().child('playerId').val() !== data.parent().parent().child('playerId').val()))"
@@ -141,6 +144,9 @@
             },
             "leftAt": {
               ".validate": "(newData.isNumber() && (newData.val() === data.val() || root.child('games').child($gameId).child('players').child($seat).child('playerId').val() === auth.uid))"
+            },
+            "awayAt": {
+              ".validate": "(newData.isNumber() && (newData.val() === data.val() || (root.child('games').child($gameId).child('players').child($seat).child('playerId').val() === auth.uid && newData.val() <= now)))"
             },
             "conns": {
               "$conn": {
@@ -1325,6 +1331,17 @@
               ".write": "auth != null && $day.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && $gameType.matches(/^[a-zA-Z0-9]{1,40}$/) && ($mode === 'multi' || $mode === 'solo' || $mode === 'local') && ($counter === 'started' || $counter === 'finished' || $counter === 'abandoned')",
               ".validate": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || (data.isNumber() && newData.val() === data.val() + 1))"
             }
+          }
+        }
+      }
+    },
+    "bootDaily": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('admin').val() === true",
+      "$day": {
+        "$platform": {
+          "$bucket": {
+            ".write": "auth != null && $day.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && ($platform === 'ios' || $platform === 'android') && ($bucket === 'lt1s' || $bucket === 'lt2s' || $bucket === 'lt4s' || $bucket === 'lt6s' || $bucket === 'slow')",
+            ".validate": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || (data.isNumber() && newData.val() === data.val() + 1))"
           }
         }
       }

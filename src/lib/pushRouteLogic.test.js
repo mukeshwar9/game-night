@@ -31,6 +31,12 @@ describe('pathFromPushData', () => {
     expect(pathFromPushData({ gameId: '../x', url: '/game/BBB222' })).toBe('/game/BBB222')
   })
 
+  it('opens /friends for a friend-request push, and no other bare screen', () => {
+    expect(pathFromPushData({ url: '/friends', kind: 'friend' })).toBe('/friends')
+    expect(pathFromPushData({ url: '/profile' })).toBeNull()
+    expect(pathFromPushData({ url: '/friends/../admin' })).toBeNull()
+  })
+
   it('opens nothing for a bare / link or a missing payload', () => {
     expect(pathFromPushData({ url: '/' })).toBe(null)
     expect(pathFromPushData({})).toBe(null)
@@ -40,10 +46,10 @@ describe('pathFromPushData', () => {
     expect(pathFromPushData([])).toBe(null)
   })
 
-  it('never returns an off-site or non-game path', () => {
+  it('never returns an off-site or unlisted path', () => {
     for (const url of [
       'https://evil.example/game/ABC', '//evil.example/game/ABC', 'javascript:alert(1)',
-      '/friends', '/game/', '/game/../admin', '/game/a/b', '/games/ABC', 'game/ABC123',
+      '/friends/x', '/game/', '/game/../admin', '/game/a/b', '/games/ABC', 'game/ABC123',
     ]) {
       expect(pathFromPushData({ url })).toBe(null)
     }
