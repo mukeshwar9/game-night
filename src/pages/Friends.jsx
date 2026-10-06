@@ -23,6 +23,7 @@ import { recordPlay } from '../lib/analytics'
 import useBusy from '../hooks/useBusy'
 import { displayNameFor } from '../lib/moderationLogic'
 import { resolveShareOrigin } from '../lib/platform'
+import { shareLink } from '../lib/share'
 
 const REQUEST_ERRORS = {
   invalid: 'THAT CODE LOOKS WRONG — 6 CHARACTERS.',
@@ -193,15 +194,8 @@ export default function Friends() {
 
   const shareCode = async () => {
     if (!profile?.code) return
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Game Night', text: `Add me on Game Night — my friend code is ${profile.code}!`, url: resolveShareOrigin() })
-        return
-      } catch (err) {
-        if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return
-        // fall through to clipboard copy
-      }
-    }
+    const outcome = await shareLink({ text: `Add me on Game Night — my friend code is ${profile.code}!`, url: resolveShareOrigin() })
+    if (outcome !== 'unavailable') return
     await copyCode()
   }
 

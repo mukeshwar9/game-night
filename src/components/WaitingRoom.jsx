@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { ARCHERY_FORMATS, archeryFormat } from '../lib/archeryLogic'
 import { recordFunnel } from '../lib/analytics'
 import { shareUrl } from '../lib/platform'
+import { shareLink } from '../lib/share'
 import { waitingForLabel } from '../lib/roomLogic'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
@@ -133,10 +134,9 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
   }
 
   const shareInvite = async () => {
-    const data = { title: 'Game Night', text: 'Join my Game Night room!', url: inviteUrl }
-    if (navigator.share) {
-      try { await navigator.share(data); recordFunnel('shared'); return } catch { /* cancelled — ignore */ }
-    }
+    const outcome = await shareLink({ text: 'Join my Game Night room!', url: inviteUrl })
+    if (outcome === 'shared') { recordFunnel('shared'); return }
+    if (outcome === 'cancelled') return
     copyLink()
   }
 
@@ -385,7 +385,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           own screen. One full-width primary action; under it one quiet row:
           the code big enough to read aloud, then QR and friend invites.
           COPY LINK was a third way to do what SHARE already does (the share
-          sheet has Copy, and without navigator.share SHARE copies). */}
+          sheet has Copy, and with no share sheet SHARE copies). */}
       <div className="w-full space-y-2">
         <button
           onClick={() => runShare(shareInvite)}
