@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { chooseBackAction, parseColor, relativeLuminance, systemBarStyleForBackground } from './shellLogic'
+import { chooseBackAction, parseColor, relativeLuminance, settleWithin, systemBarStyleForBackground } from './shellLogic'
 import { THEMES } from '../theme'
 
 describe('chooseBackAction', () => {
@@ -74,5 +74,22 @@ describe('systemBarStyleForBackground', () => {
     const bg = bgOf(id)
     expect(parseColor(bg)).not.toBe(null)
     expect(systemBarStyleForBackground(bg)).toBe(LIGHT.includes(id) ? 'LIGHT' : 'DARK')
+  })
+})
+
+describe('settleWithin', () => {
+  const never = new Promise(() => {})
+  const instant = () => Promise.resolve()
+
+  it('waits for every pending write to settle, failures included', async () => {
+    await expect(settleWithin([Promise.resolve(1), Promise.reject(new Error('denied'))], 1000, () => never)).resolves.toBe('settled')
+  })
+
+  it('gives up after the deadline so a write that never acknowledges cannot keep the socket open', async () => {
+    await expect(settleWithin([never], 1500, instant)).resolves.toBe('timeout')
+  })
+
+  it('resolves at once when nobody asked to wait', async () => {
+    await expect(settleWithin([], 1500, () => never)).resolves.toBe('settled')
   })
 })

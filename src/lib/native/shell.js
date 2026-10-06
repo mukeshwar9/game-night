@@ -9,11 +9,14 @@ import { isNative, isIOS, isAndroid, nativePlatform } from '../platform'
 import { authReady } from '../auth'
 import { db } from '../firebase'
 import { requestNavigate, firstScreen } from './navigation'
-import { chooseBackAction, systemBarStyleForBackground } from './shellLogic'
+import { chooseBackAction, settleWithin, systemBarStyleForBackground } from './shellLogic'
 
 // The splash never outlives this, however slow or broken boot is.
 const SPLASH_MAX_MS = 6000
 const SPLASH_FADE_MS = 250
+// How long a backgrounding app waits for listeners' last writes (the room's
+// away stamp) before dropping the database connection.
+const PAUSE_FLUSH_MS = 1500
 // A dialog the back button should close with Escape (BottomSheet, modals).
 const DIALOG_SELECTOR = '[role="dialog"][aria-modal="true"], dialog[open]'
 
@@ -111,21 +114,31 @@ function handleBack(App, canGoBack, allowEscape) {
 // Backgrounded: drop the Realtime Database connection so the server runs the
 // onDisconnect handlers now (presence goes offline cleanly) instead of after a
 // socket timeout, and reconnect on return. 'native-pause' / 'native-resume' are
-// window events for anything else that wants them. iOS reports true
+// window events for anything else that wants them; a 'native-pause' listener
+// may pass a promise to event.detail.waitUntil (a last write, such as the
+// room's away stamp) and the connection drops once it settles, or after
+// PAUSE_FLUSH_MS. iOS reports true
 // backgrounding with pause/resume; on Android pause fires for any overlay
 // (share sheet), so appStateChange, which follows onStop, is the right signal.
 async function startLifecycle() {
   const { App } = await import('@capacitor/app')
   let background = false
+  let pauses = 0
   const toBackground = () => {
     if (background) return
     background = true
-    window.dispatchEvent(new CustomEvent('native-pause'))
-    if (db) goOffline(db)
+    const pause = ++pauses
+    const pending = []
+    window.dispatchEvent(new CustomEvent('native-pause', { detail: { waitUntil: (p) => pending.push(p) } }))
+    settleWithin(pending, PAUSE_FLUSH_MS).then(() => {
+      // Back in the foreground before the writes finished: stay connected.
+      if (background && pause === pauses && db) goOffline(db)
+    })
   }
   const toForeground = () => {
     if (!background) return
     background = false
+    pauses++
     if (db) goOnline(db)
     window.dispatchEvent(new CustomEvent('native-resume'))
   }

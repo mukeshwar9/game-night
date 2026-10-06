@@ -75,3 +75,21 @@ export function systemBarStyleForBackground(background) {
   if (!rgb) return 'LIGHT'
   return relativeLuminance(rgb) > CROSSOVER ? 'LIGHT' : 'DARK'
 }
+
+/**
+ * Resolves once every promise has settled, or after `ms`, whichever is first.
+ * Never rejects. The shell uses it to let listeners finish a last database
+ * write (the away stamp) before it drops the connection, without letting a
+ * write that never acknowledges keep the socket open in the background.
+ * @param {Promise<unknown>[]} promises
+ * @param {number} ms
+ * @param {(ms: number) => Promise<void>} [sleep]
+ * @returns {Promise<'settled' | 'timeout'>}
+ */
+export function settleWithin(promises, ms, sleep = (t) => new Promise(r => setTimeout(r, t))) {
+  if (!promises.length) return Promise.resolve('settled')
+  return Promise.race([
+    Promise.allSettled(promises).then(() => /** @type {const} */ ('settled')),
+    sleep(ms).then(() => /** @type {const} */ ('timeout')),
+  ])
+}

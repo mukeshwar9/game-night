@@ -124,6 +124,9 @@
             "offlineAt": {
               ".validate": "(newData.isNumber() && (newData.val() === data.val() || newData.parent().child('playerId').val() === auth.uid || newData.parent().child('playerId').val() !== data.parent().child('playerId').val()))"
             },
+            "awayAt": {
+              ".validate": "(newData.isNumber() && (newData.val() === data.val() || (newData.parent().child('playerId').val() === auth.uid && newData.val() <= now)))"
+            },
             "conns": {
               "$conn": {
                 ".validate": "(newData.isNumber() && (newData.val() === data.val() || newData.parent().parent().child('playerId').val() === auth.uid || newData.parent().parent().child('playerId').val() !== data.parent().parent().child('playerId').val()))"
@@ -141,6 +144,9 @@
             },
             "leftAt": {
               ".validate": "(newData.isNumber() && (newData.val() === data.val() || root.child('games').child($gameId).child('players').child($seat).child('playerId').val() === auth.uid))"
+            },
+            "awayAt": {
+              ".validate": "(newData.isNumber() && (newData.val() === data.val() || (root.child('games').child($gameId).child('players').child($seat).child('playerId').val() === auth.uid && newData.val() <= now)))"
             },
             "conns": {
               "$conn": {

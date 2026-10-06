@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import Avatar from './Avatar'
 import PixelDots from './loading/PixelDots'
 
-export default function PlayerCard({ name, symbol, isActive, isMe, score, online, avatar }) {
+export default function PlayerCard({ name, symbol, isActive, isMe, score, online, away = false, avatar }) {
   const isX = symbol === 'X'
   // Empty O seat pre-game (no name, no avatar) — an inviting open slot,
   // not an error state. X is always filled (creator), so this only ever
@@ -57,12 +57,15 @@ export default function PlayerCard({ name, symbol, isActive, isMe, score, online
           </span>
         )}
         {online !== undefined && (
-          <div className={cn(
-            'absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-retro-bg',
-            online
-              ? 'bg-retro-win shadow-glow-dot'
-              : 'bg-retro-dim',
-          )} />
+          <div
+            className={cn(
+              'absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-retro-bg',
+              online
+                ? 'bg-retro-win shadow-glow-dot'
+                : away ? 'bg-retro-cta' : 'bg-retro-dim',
+            )}
+            title={online ? 'Online' : away ? 'Stepped away' : 'Offline'}
+          />
         )}
       </div>
 
