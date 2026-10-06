@@ -38,7 +38,7 @@ function Choice({ active, onClick, children, sub }) {
     <button
       onClick={onClick}
       className={cn(
-        'min-h-11 px-2 py-2 rounded border-2 font-pixel text-[9px] transition-all active:scale-95 text-center',
+        'min-h-11 px-2 py-2 rounded border-2 font-pixel text-[9px] transition active:scale-95 text-center',
         active
           ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
           : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
@@ -93,7 +93,7 @@ function Setup({ setup, setSetup, best, onPlay }) {
       )}
       <button
         onClick={onPlay}
-        className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 transition-all"
+        className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 transition"
       >
         PLAY FULL SCREEN
       </button>

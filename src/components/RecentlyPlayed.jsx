@@ -31,7 +31,7 @@ export default function RecentlyPlayed({ onSelect, loadingType }) {
                 onClick={() => onSelect(type, mode)}
                 disabled={!!loadingType}
                 className={cn(
-                  'shrink-0 snap-start w-[calc((100%-1rem)/3)] min-w-[104px] min-h-[88px] flex flex-col items-start gap-1.5 p-2.5 text-left border rounded transition-all active:scale-95',
+                  'shrink-0 snap-start w-[calc((100%-1rem)/3)] min-w-[104px] min-h-[88px] flex flex-col items-start gap-1.5 p-2.5 text-left border rounded transition active:scale-95',
                   isLoading
                     ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
                     : 'border-retro-border bg-retro-card hover:border-retro-cta/50',

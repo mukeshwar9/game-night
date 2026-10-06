@@ -5,7 +5,7 @@ import { CHAT_MAX_LENGTH } from '../lib/chat'
 import { QUICK_CHAT } from '../lib/emotes'
 import { cn } from '@/lib/utils'
 
-const CHIP_BTN_CLASS = 'shrink-0 px-2.5 min-h-11 flex items-center justify-center font-pixel text-[8px] tracking-widest rounded border border-retro-border bg-retro-bg hover:border-retro-cta/50 active:scale-95 transition-all disabled:opacity-50'
+const CHIP_BTN_CLASS = 'shrink-0 px-2.5 min-h-11 flex items-center justify-center font-pixel text-[8px] tracking-widest rounded border border-retro-border bg-retro-bg hover:border-retro-cta/50 active:scale-95 transition disabled:opacity-50'
 
 // Room chat as a bottom sheet: the history (with block/report on each name),
 // quick phrases, and the input pinned at the bottom. `keyboardSafe` lifts the

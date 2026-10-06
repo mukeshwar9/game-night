@@ -65,7 +65,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
     <div className={cn('w-full mx-auto', cols > 7 ? 'max-w-md sm:max-w-xl' : 'max-w-sm sm:max-w-md')}>
       <div
         className={cn(
-          'bg-retro-surface border-2 border-retro-border rounded p-2 sm:p-2.5 transition-all duration-200',
+          'bg-retro-surface border-2 border-retro-border rounded p-2 sm:p-2.5 transition duration-200',
           disabled && 'board-idle',
         )}
       >
@@ -97,7 +97,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                 onMouseEnter={() => setHoveredCol(col)}
                 onMouseLeave={() => setHoveredCol(null)}
                 className={cn(
-                  'aspect-square rounded-full border-2 transition-all duration-100 overflow-hidden',
+                  'aspect-square rounded-full border-2 transition duration-100 overflow-hidden',
                   'flex items-center justify-center',
                   cell
                     ? 'bg-retro-bg border-retro-border'
@@ -156,7 +156,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                   !colFull && 'drop here',
                 )}
                 className={cn(
-                  'h-2 sm:h-2.5 rounded-full transition-all',
+                  'h-2 sm:h-2.5 rounded-full transition',
                   clickable ? 'bg-retro-border/60 hover:bg-retro-cta/60 cursor-pointer' : 'bg-retro-border/20 cursor-default',
                 )}
               />
@@ -184,7 +184,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                   title="Pop your own disc out of the bottom"
                   aria-label={`Pop column ${col + 1}`}
                   className={cn(
-                    'h-11 rounded-sm border-2 font-pixel text-[9px] sm:text-[10px] leading-none flex flex-col items-center justify-center gap-1 transition-all',
+                    'h-11 rounded-sm border-2 font-pixel text-[9px] sm:text-[10px] leading-none flex flex-col items-center justify-center gap-1 transition',
                     'border-retro-cta text-retro-cta bg-retro-tint-cta/40 hover:bg-retro-tint-cta active:scale-90 cursor-pointer',
                   )}
                 >

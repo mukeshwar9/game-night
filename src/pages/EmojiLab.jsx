@@ -39,7 +39,7 @@ export default function EmojiLab() {
           <button
             type="button"
             onClick={() => testEmoji(selected)}
-            className="px-4 py-2 border border-retro-cta text-retro-cta font-pixel text-[9px] tracking-widest rounded hover:bg-retro-tint-cta active:scale-95 transition-all"
+            className="px-4 py-2 border border-retro-cta text-retro-cta font-pixel text-[9px] tracking-widest rounded hover:bg-retro-tint-cta active:scale-95 transition"
           >
             PLAY SOUND
           </button>
@@ -62,7 +62,7 @@ export default function EmojiLab() {
               onClick={() => testEmoji(glyph)}
               aria-label={`Test ${glyph}`}
               aria-pressed={selected === glyph}
-              className={`aspect-square flex items-center justify-center rounded border text-xl transition-all active:scale-90 ${
+              className={`aspect-square flex items-center justify-center rounded border text-xl transition active:scale-90 ${
                 selected === glyph
                   ? 'border-retro-cta bg-retro-tint-cta'
                   : 'border-retro-border bg-retro-card hover:border-retro-p1/60'

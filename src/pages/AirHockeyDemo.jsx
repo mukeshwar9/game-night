@@ -176,7 +176,7 @@ export default function AirHockeyDemo() {
           </p>
           <button
             onClick={reset}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
           >
             PLAY AGAIN
           </button>
@@ -192,7 +192,7 @@ export default function AirHockeyDemo() {
                 aria-pressed={difficulty === d}
                 aria-label={`${d}, your record ${describeLevelRecord(record[d])}`}
                 className={cn(
-                  'px-3 py-1 font-pixel text-[8px] uppercase rounded border-2 transition-all active:scale-95 flex flex-col items-center gap-0.5',
+                  'px-3 py-1 font-pixel text-[8px] uppercase rounded border-2 transition active:scale-95 flex flex-col items-center gap-0.5',
                   difficulty === d
                     ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border text-retro-dim hover:border-retro-p1/50',

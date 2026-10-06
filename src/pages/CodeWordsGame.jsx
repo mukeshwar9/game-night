@@ -497,7 +497,7 @@ export default function CodeWordsGame({
             <button
               onClick={() => writeLobby(shuffleTeams(order), null)}
               disabled={lobbyBusy || order.length < 2}
-              className="px-4 py-2.5 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 transition-all active:scale-95 disabled:opacity-40"
+              className="px-4 py-2.5 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 transition active:scale-95 disabled:opacity-40"
             >
               {lobbyBusy ? 'SHUFFLING…' : 'SHUFFLE TEAMS'}
             </button>
@@ -505,7 +505,7 @@ export default function CodeWordsGame({
               <button
                 onClick={startBoard}
                 disabled={starting}
-                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40"
               >
                 {starting ? 'DEALING…' : 'START GAME'}
               </button>
@@ -645,7 +645,7 @@ export default function CodeWordsGame({
               disabled={!clickable}
               aria-label={`${word}${rev ? `, ${IDENTITY_NAME[rev.t]}` : known ? `, key: ${IDENTITY_NAME[known]}` : ''}${mine ? ', your pick — tap again to guess' : ''}`}
               className={cn(
-                'relative min-h-12 rounded border-2 px-0.5 py-1.5 flex items-center justify-center text-center transition-all',
+                'relative min-h-12 rounded border-2 px-0.5 py-1.5 flex items-center justify-center text-center transition',
                 'font-mono text-[10px] sm:text-[11px] uppercase leading-tight [overflow-wrap:anywhere]',
                 rev ? FILLED[rev.t]
                   : known ? cn('bg-retro-card border-dashed', OUTLINE[known])
@@ -701,7 +701,7 @@ export default function CodeWordsGame({
                 aria-label={`${n} card${n === 1 ? '' : 's'}`}
                 onClick={() => { setClueNumber(n); setClueErr('') }}
                 className={cn(
-                  'h-11 rounded border-2 font-pixel text-[10px] transition-all active:scale-95',
+                  'h-11 rounded border-2 font-pixel text-[10px] transition active:scale-95',
                   clueNumber === n ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : 'border-retro-border text-retro-dim',
                 )}
               >{n}</button>

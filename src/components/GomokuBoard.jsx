@@ -28,7 +28,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
     <div className="w-full max-w-sm mx-auto">
       <div
         className={cn(
-          'relative bg-retro-surface border-2 border-retro-border rounded transition-all duration-200',
+          'relative bg-retro-surface border-2 border-retro-border rounded transition duration-200',
           disabled && 'board-idle',
         )}
       >
@@ -60,7 +60,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
                   className={cn(
                     'aspect-square flex items-center justify-center',
                     'border border-retro-border/50 rounded-sm',
-                    'transition-all duration-100',
+                    'transition duration-100',
                     isClickable
                       ? currentTurn === 'X'
                         ? 'hover:bg-retro-p1/10 hover:border-retro-p1/40 cursor-pointer'
@@ -107,7 +107,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
             onClick={() => onMove({ action: SWAP_ACTION })}
             aria-label={`Swap: take ${opener}'s opening stone`}
             className={cn(
-              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition-all active:scale-95',
+              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition active:scale-95',
               'border-retro-cta text-retro-cta bg-retro-tint-cta hover:shadow-neon-cta',
             )}
           >

@@ -163,7 +163,7 @@ export default function VisualMemoryBoard({
                 disabled={!isClickable}
                 onClick={() => isClickable && onMove(i)}
                 className={cn(
-                  'relative aspect-square rounded flex items-center justify-center transition-all duration-150',
+                  'relative aspect-square rounded flex items-center justify-center transition duration-150',
                   'border-2',
                   isLit
                     ? 'bg-retro-cta border-retro-cta shadow-neon-cta scale-[1.03]'

@@ -54,7 +54,7 @@ export default function YavalathBoard({
   return (
     <div className="w-full max-w-[400px] sm:max-w-[440px] mx-auto">
       <div className={cn(
-        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         <div className="flex flex-col items-center gap-0.5">
@@ -81,7 +81,7 @@ export default function YavalathBoard({
                     disabled={disabled}
                     onClick={() => !disabled && tap(cell, () => onMove(cell))}
                     className={cn(
-                      'relative w-[10.5%] min-w-[30px] aspect-[1/0.87] select-none transition-all duration-100 outline-none',
+                      'relative w-[10.5%] min-w-[30px] aspect-[1/0.87] select-none transition duration-100 outline-none',
                       'flex items-center justify-center font-pixel text-xs sm:text-sm',
                       'focus-visible:ring-2 focus-visible:ring-retro-cta',
                       !disabled && !v && 'cursor-pointer hover:brightness-125 active:scale-95',

@@ -131,7 +131,7 @@ export default function ChimpBoard({
                 onClick={() => isClickable && onMove(i)}
                 className={cn(
                   'aspect-square flex items-center justify-center rounded',
-                  'border-2 font-pixel text-base leading-none transition-all duration-100',
+                  'border-2 font-pixel text-base leading-none transition duration-100',
                   isMiss
                     ? 'bg-retro-tint-danger border-retro-danger text-retro-danger pairs-mismatch-shake'
                     : isCorrect

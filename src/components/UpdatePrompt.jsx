@@ -48,7 +48,7 @@ function WebUpdatePrompt() {
           onClick={() => run(() => updateServiceWorker(true))}
           disabled={busy}
           className="px-4 py-1.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-            hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
         >
           {busy ? 'RELOADING…' : 'RELOAD'}
         </button>

@@ -226,7 +226,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
                 disabled={!seated || matchLengthBusy || startBusy}
                 onClick={() => setGoesFirst(opt.id)}
                 className={cn(
-                  'min-h-11 px-3 font-pixel text-[9px] rounded border-2 transition-all active:scale-95 max-w-[9rem] truncate',
+                  'min-h-11 px-3 font-pixel text-[9px] rounded border-2 transition active:scale-95 max-w-[9rem] truncate',
                   goesFirst === opt.id
                     ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
@@ -242,7 +242,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
               onClick={startMatch}
               disabled={startBusy}
               className="w-full min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+                hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
             >
               {startBusy ? 'STARTING…' : 'START GAME'}
             </button>
@@ -259,7 +259,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
             {Object.entries(ARCHERY_FORMATS).map(([id, format]) => (
               <button key={id} type="button" disabled={mySymbol !== 'X' || archeryFormatBusy || startBusy}
                 onClick={() => setArcheryFormat(id)}
-                className={cn('min-h-11 rounded border-2 px-1 font-pixel text-[8px] transition-all',
+                className={cn('min-h-11 rounded border-2 px-1 font-pixel text-[8px] transition',
                   archeryFormat(game?.archeryFormat) === id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta' : 'border-retro-border bg-retro-surface text-retro-dim',
                   (mySymbol !== 'X' || archeryFormatBusy) && 'opacity-60')}
               >{format.label}<span className="mt-1 block text-[7px] opacity-80">{format.ends} × 3</span></button>
@@ -280,7 +280,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
               onClick={startMatch}
               disabled={startBusy || !bothSeated}
               className="w-full min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+                hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
             >
               {startBusy ? 'STARTING…' : bothSeated ? 'START GAME' : waitingFor}
             </button>
@@ -301,7 +301,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
                 disabled={!isPongHost || pongModeBusy}
                 onClick={() => setPongMode(id)}
                 className={cn(
-                  'min-h-11 px-2 py-1.5 font-pixel rounded border-2 transition-all active:scale-95',
+                  'min-h-11 px-2 py-1.5 font-pixel rounded border-2 transition active:scale-95',
                   pongMode === id
                     ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
@@ -331,7 +331,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
                 onClick={() => setUpdraftMode(id)}
                 aria-pressed={updraftMode === id}
                 className={cn(
-                  'min-h-11 px-2 py-1.5 font-pixel rounded border-2 transition-all active:scale-95',
+                  'min-h-11 px-2 py-1.5 font-pixel rounded border-2 transition active:scale-95',
                   updraftMode === id
                     ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
@@ -365,7 +365,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
                 disabled={!isPongHost || matchLengthBusy}
                 onClick={() => setMatchLength(n)}
                 className={cn(
-                  'px-4 py-1.5 font-pixel text-[10px] rounded border-2 transition-all active:scale-95',
+                  'px-4 py-1.5 font-pixel text-[10px] rounded border-2 transition active:scale-95',
                   matchLength === n
                     ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
@@ -392,7 +392,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           onClick={() => runShare(shareInvite)}
           disabled={shareBusy}
           className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-[11px] tracking-widest rounded
-            hover:shadow-neon-cta transition-all active:scale-[0.98] disabled:opacity-50"
+            hover:shadow-neon-cta transition active:scale-[0.98] disabled:opacity-50"
         >
           {shareBusy ? 'SHARING…' : 'SHARE INVITE LINK'}
         </button>
@@ -417,7 +417,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
           <button
             onClick={() => setShowInvite(true)}
             className="shrink-0 min-h-11 px-3 flex items-center justify-center gap-2 border border-retro-border text-retro-text
-              font-pixel text-[9px] tracking-wider rounded hover:border-retro-p1 transition-all active:scale-95"
+              font-pixel text-[9px] tracking-wider rounded hover:border-retro-p1 transition active:scale-95"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />

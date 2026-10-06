@@ -77,7 +77,7 @@ export default function RaceResults({ title, final = false, rows = [] }) {
                   <div className="h-1.5 bg-retro-deep rounded-full overflow-hidden">
                     <div
                       className={cn(
-                        'h-full rounded-full transition-all duration-300',
+                        'h-full rounded-full transition duration-300',
                         row.status === 'out' ? 'bg-retro-danger' : row.you ? 'bg-retro-p1' : 'bg-retro-p2',
                       )}
                       style={{ width: `${Math.round(Math.min(1, Math.max(0, row.progress)) * 100)}%` }}

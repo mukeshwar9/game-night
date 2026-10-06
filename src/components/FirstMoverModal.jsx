@@ -28,7 +28,7 @@ export default function FirstMoverModal({ players, defaultValue = 'X', title = '
               disabled={busy}
               onClick={() => setGoesFirst(opt.id)}
               className={cn(
-                'min-h-11 px-3 font-pixel text-[9px] rounded border-2 transition-all active:scale-95 truncate',
+                'min-h-11 px-3 font-pixel text-[9px] rounded border-2 transition active:scale-95 truncate',
                 goesFirst === opt.id
                   ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
                   : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
@@ -42,14 +42,14 @@ export default function FirstMoverModal({ players, defaultValue = 'X', title = '
           <button
             onClick={onCancel}
             disabled={busy}
-            className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-all active:scale-95 disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition active:scale-95 disabled:opacity-50"
           >
             CANCEL
           </button>
           <button
             onClick={() => run(() => onConfirm(goesFirst))}
             disabled={busy}
-            className="flex-1 px-4 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
           >
             {busy ? 'STARTING…' : 'START'}
           </button>

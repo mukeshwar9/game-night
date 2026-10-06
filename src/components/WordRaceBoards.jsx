@@ -113,8 +113,8 @@ export function WordRaceMeter({ myGuesses = [], opponentGuesses = [], mySymbol =
   const label = `Race meter: ${myLabel.toLowerCase()} ${mine}% close, ${opponentLabel.toLowerCase()} ${theirs}% close`
   const bar = (
     <div className="relative h-3 flex-1 rounded-full border border-retro-border bg-retro-deep" aria-hidden="true">
-      <div className={cn('absolute inset-y-0 left-0 rounded-full transition-all duration-500', me.bar)} style={{ width: `${mine}%` }} />
-      <div className={cn('absolute inset-y-0 left-0 rounded-full opacity-50 transition-all duration-500', opp.bar)} style={{ width: `${theirs}%` }} />
+      <div className={cn('absolute inset-y-0 left-0 rounded-full transition duration-500', me.bar)} style={{ width: `${mine}%` }} />
+      <div className={cn('absolute inset-y-0 left-0 rounded-full opacity-50 transition duration-500', opp.bar)} style={{ width: `${theirs}%` }} />
       <span className={cn('absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-2 border-retro-bg transition-[left] duration-500', me.dot)} style={{ left: `calc(${mine}% - 8px)`, background: me.fill }} />
       <span className={cn('absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-2 border-retro-bg transition-[left] duration-500', opp.dot)} style={{ left: `calc(${theirs}% - 8px)`, background: opp.fill }} />
     </div>

@@ -173,7 +173,7 @@ export default function DiceBoard({
             type="button"
             onClick={() => toast('FAIR ROLL: BOTH PLAYERS SEED THE DICE, AND EACH ROLL ALSO MIXES IN THE SERVER CLOCK AT THE MOMENT YOU TAP ROLL, SO NOBODY CAN RIG OR FORESEE A ROLL.')}
             aria-label="How fair roll verification works"
-            className="min-h-11 flex items-center gap-1.5 px-3 -my-2 rounded font-pixel text-[10px] text-retro-win text-glow-win active:scale-95 transition-all"
+            className="min-h-11 flex items-center gap-1.5 px-3 -my-2 rounded font-pixel text-[10px] text-retro-win text-glow-win active:scale-95 transition"
           >
             <span
               aria-hidden="true"
@@ -193,7 +193,7 @@ export default function DiceBoard({
             onClick={() => !disabled && onMove('roll')}
             className={cn(
               'flex-1 h-12 rounded border-2 font-pixel text-[11px]',
-              'transition-all duration-100 active:scale-95',
+              'transition duration-100 active:scale-95',
               disabled
                 ? 'border-retro-border text-retro-dim opacity-50 cursor-default'
                 : 'border-retro-cta text-retro-cta shadow-neon-cta cursor-pointer hover:bg-retro-tint-cta',
@@ -207,7 +207,7 @@ export default function DiceBoard({
             onClick={() => !disabled && diceTurnScore > 0 && onMove('bank')}
             className={cn(
               'flex-1 h-12 rounded border-2 font-pixel text-[11px]',
-              'transition-all duration-100 active:scale-95',
+              'transition duration-100 active:scale-95',
               disabled || diceTurnScore === 0
                 ? 'border-retro-border text-retro-dim opacity-50 cursor-default'
                 : 'border-retro-win text-retro-win shadow-neon-win cursor-pointer',

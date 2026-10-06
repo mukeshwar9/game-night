@@ -26,7 +26,7 @@ export default function PaywallSheet({ item }) {
         <button
           type="button"
           onClick={() => beginPurchase('pass-monthly')}
-          className="w-full min-h-12 px-3 flex items-center justify-between gap-2 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[10px] tracking-wider active:scale-95 transition-all"
+          className="w-full min-h-12 px-3 flex items-center justify-between gap-2 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[10px] tracking-wider active:scale-95 transition"
         >
           <span>GET THE PASS</span>
           <span>{formatPrice(PRODUCTS['pass-monthly'], currency)}{currency === 'INR' ? '' : '/MO'}</span>
@@ -38,7 +38,7 @@ export default function PaywallSheet({ item }) {
           <button
             type="button"
             onClick={() => beginPurchase(`pack-${pack.id}`)}
-            className="w-full min-h-11 px-3 flex items-center justify-between gap-2 rounded border border-retro-border bg-retro-surface text-retro-text font-pixel text-[10px] tracking-wider active:scale-95 transition-all"
+            className="w-full min-h-11 px-3 flex items-center justify-between gap-2 rounded border border-retro-border bg-retro-surface text-retro-text font-pixel text-[10px] tracking-wider active:scale-95 transition"
           >
             <span>BUY {pack.label}</span>
             <span>{formatPrice(pack, currency)}</span>

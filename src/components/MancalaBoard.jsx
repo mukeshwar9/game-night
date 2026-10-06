@@ -41,7 +41,7 @@ function Pit({ index, count, interactive, accentRing, onPit, hop, ownerName }) {
       data-testid={`pit ${index}`}
       aria-label={pitLabel(index, count, ownerName)}
       className={cn(
-        'aspect-[5/6] min-h-9 rounded-lg border-2 flex items-center justify-center transition-all duration-150 relative',
+        'aspect-[5/6] min-h-9 rounded-lg border-2 flex items-center justify-center transition duration-150 relative',
         'bg-retro-deep',
         interactive
           ? cn('cursor-pointer active:scale-95', accentRing)

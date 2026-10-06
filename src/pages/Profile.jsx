@@ -162,7 +162,7 @@ export default function Profile() {
               type="button"
               onClick={openAvatarStudio}
               aria-haspopup="dialog"
-              className="min-h-12 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
+              className="min-h-12 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition active:scale-95"
             >
               EDIT AVATAR
             </button>
@@ -172,7 +172,7 @@ export default function Profile() {
                 onClick={openPetPicker}
                 aria-haspopup="dialog"
                 aria-label={pet === 'none' ? 'Pick a pet' : `Pet: ${optionInfo('pet', pet).label}. Change pet`}
-                className="min-h-12 px-3 flex items-center justify-center gap-2 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
+                className="min-h-12 px-3 flex items-center justify-center gap-2 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition active:scale-95"
               >
                 {pet !== 'none' && <PetSprite id={pet} scale={3} />}
                 <span className="truncate">{pet === 'none' ? 'PICK A PET' : optionInfo('pet', pet).label}</span>
@@ -202,7 +202,7 @@ export default function Profile() {
               onClick={saveName}
               disabled={!dirty || nameBusy}
               className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-                hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {nameBusy ? 'SAVING…' : 'SAVE'}
             </button>
@@ -244,7 +244,7 @@ export default function Profile() {
                     type="button"
                     onClick={() => unmute(m.uid)}
                     className="min-h-11 px-4 border border-retro-border text-retro-dim font-pixel text-[10px] rounded
-                      hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
+                      hover:text-retro-text hover:border-retro-p1 transition active:scale-95"
                   >
                     UNBLOCK
                   </button>
@@ -274,7 +274,7 @@ export default function Profile() {
                   disabled={upgrading}
                   className="w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/40
                     bg-retro-card text-retro-p1 font-pixel text-[10px] rounded
-                    hover:border-retro-p1 hover:shadow-neon-p1 transition-all active:scale-95 disabled:opacity-50"
+                    hover:border-retro-p1 hover:shadow-neon-p1 transition active:scale-95 disabled:opacity-50"
                 >
                   <GoogleMark /> {upgrading && upgradeProvider === 'google' ? 'SIGNING IN…' : 'SIGN IN WITH GOOGLE'}
                 </button>
@@ -285,7 +285,7 @@ export default function Profile() {
                   disabled={upgrading}
                   className="w-full py-2.5 min-h-11 flex items-center justify-center gap-2 border border-retro-text
                     bg-retro-text text-retro-bg font-pixel text-[10px] rounded
-                    transition-all active:scale-95 disabled:opacity-50"
+                    transition active:scale-95 disabled:opacity-50"
                 >
                   <AppleMark /> {upgrading && upgradeProvider === 'apple' ? 'SIGNING IN…' : 'SIGN IN WITH APPLE'}
                 </button>
@@ -295,7 +295,7 @@ export default function Profile() {
             <button
               onClick={handleSignOutClick}
               disabled={busy}
-              className={`w-full py-2.5 border font-pixel text-[10px] rounded transition-all active:scale-95 disabled:opacity-50 ${
+              className={`w-full py-2.5 border font-pixel text-[10px] rounded transition active:scale-95 disabled:opacity-50 ${
                 confirmSignOut
                   ? 'border-retro-p2 bg-retro-p2/10 text-retro-p2'
                   : 'border-retro-border bg-retro-card text-retro-dim hover:text-retro-text hover:border-retro-p2'
@@ -419,7 +419,7 @@ export default function Profile() {
               type="button"
               onClick={() => setConfirmDelete(true)}
               className="w-full min-h-11 border border-retro-border bg-retro-card text-retro-dim font-pixel text-[10px] rounded
-                hover:text-retro-danger hover:border-retro-danger/60 transition-all active:scale-95"
+                hover:text-retro-danger hover:border-retro-danger/60 transition active:scale-95"
             >
               DELETE MY DATA
             </button>
@@ -434,7 +434,7 @@ export default function Profile() {
                   type="button"
                   onClick={handleDelete}
                   disabled={deleteBusy}
-                  className="flex-1 min-h-11 bg-retro-danger text-retro-bg font-pixel text-[10px] rounded transition-all active:scale-95 disabled:opacity-50"
+                  className="flex-1 min-h-11 bg-retro-danger text-retro-bg font-pixel text-[10px] rounded transition active:scale-95 disabled:opacity-50"
                 >
                   {deleteBusy ? 'DELETING…' : 'YES, DELETE'}
                 </button>
@@ -442,7 +442,7 @@ export default function Profile() {
                   type="button"
                   onClick={() => setConfirmDelete(false)}
                   disabled={deleteBusy}
-                  className="flex-1 min-h-11 border border-retro-border text-retro-text font-pixel text-[10px] rounded transition-all active:scale-95 disabled:opacity-50"
+                  className="flex-1 min-h-11 border border-retro-border text-retro-text font-pixel text-[10px] rounded transition active:scale-95 disabled:opacity-50"
                 >
                   CANCEL
                 </button>

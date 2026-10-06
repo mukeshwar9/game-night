@@ -324,7 +324,7 @@ export default function SketchCanvas({ gameId, isArtist }) {
               aria-label="Brush tool"
               aria-pressed={tool === 'brush'}
               className={cn(
-                'min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition-all active:scale-95 flex items-center gap-1',
+                'min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition active:scale-95 flex items-center gap-1',
                 tool === 'brush' ? 'border-retro-cta bg-retro-cta text-retro-bg shadow-neon-cta' : 'border-retro-border text-retro-dim',
               )}
             >
@@ -336,7 +336,7 @@ export default function SketchCanvas({ gameId, isArtist }) {
               aria-label="Fill bucket tool"
               aria-pressed={tool === 'bucket'}
               className={cn(
-                'min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition-all active:scale-95 flex items-center gap-1',
+                'min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition active:scale-95 flex items-center gap-1',
                 tool === 'bucket' ? 'border-retro-cta bg-retro-cta text-retro-bg shadow-neon-cta' : 'border-retro-border text-retro-dim',
               )}
             >
@@ -373,7 +373,7 @@ export default function SketchCanvas({ gameId, isArtist }) {
                   aria-pressed={brushSize === size}
                   disabled={tool === 'bucket'}
                   className={cn(
-                    'w-11 h-11 flex items-center justify-center rounded border-2 transition-all active:scale-90',
+                    'w-11 h-11 flex items-center justify-center rounded border-2 transition active:scale-90',
                     brushSize === size ? 'border-retro-cta shadow-neon-cta' : 'border-retro-border',
                     tool === 'bucket' && 'opacity-40',
                   )}
@@ -389,14 +389,14 @@ export default function SketchCanvas({ gameId, isArtist }) {
               <button
                 type="button"
                 onClick={handleUndo}
-                className="min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95"
+                className="min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition active:scale-95"
               >
                 UNDO
               </button>
               <button
                 type="button"
                 onClick={handleClear}
-                className="min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95"
+                className="min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition active:scale-95"
               >
                 CLEAR
               </button>

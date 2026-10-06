@@ -55,7 +55,7 @@ export default function TypingKeyboard({ onKey, disabled = false, artwork = fals
   // h-11 (44px) is the tap-target floor — never shrink below it, even on
   // short viewports (the M-52 compact mode used to drop to h-9/36px).
   const baseBtn = cn(
-    'h-11 flex items-center justify-center font-pixel text-[10px] rounded border transition-all',
+    'h-11 flex items-center justify-center font-pixel text-[10px] rounded border transition',
     'select-none active:scale-90',
   )
   const normalStyle = disabled

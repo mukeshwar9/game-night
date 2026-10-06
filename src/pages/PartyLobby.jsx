@@ -79,7 +79,7 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
             type="button"
             onClick={onInvite}
             disabled={!amMember || !onInvite}
-            className="flex flex-col items-center justify-center gap-1.5 rounded border-2 border-dashed border-retro-border min-h-[104px] text-retro-cta hover:border-retro-cta/60 transition-all active:scale-[0.98] disabled:opacity-50"
+            className="flex flex-col items-center justify-center gap-1.5 rounded border-2 border-dashed border-retro-border min-h-[104px] text-retro-cta hover:border-retro-cta/60 transition active:scale-[0.98] disabled:opacity-50"
           >
             <span className="font-pixel text-lg leading-none" aria-hidden="true">+</span>
             <span className="font-pixel text-[8px] tracking-wider">INVITE</span>
@@ -93,15 +93,15 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
         <div className="bg-retro-card border border-retro-border rounded p-3 space-y-3">
           <p className="font-pixel text-[8px] tracking-wider text-retro-dim">BRING FRIENDS</p>
           {onInvite && (
-            <button type="button" onClick={onInvite} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider rounded hover:shadow-neon-cta transition-all active:scale-[0.98]">
+            <button type="button" onClick={onInvite} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider rounded hover:shadow-neon-cta transition active:scale-[0.98]">
               INVITE FRIENDS
             </button>
           )}
           <div className="grid grid-cols-3 gap-2">
-            <button type="button" onClick={share} disabled={shareBusy} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition-all active:scale-[0.98] disabled:opacity-50">
+            <button type="button" onClick={share} disabled={shareBusy} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition active:scale-[0.98] disabled:opacity-50">
               {shareBusy ? 'SHARING…' : 'LINK'}
             </button>
-            <button type="button" onClick={() => setShowQr(v => !v)} aria-expanded={showQr} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition-all active:scale-[0.98]">
+            <button type="button" onClick={() => setShowQr(v => !v)} aria-expanded={showQr} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition active:scale-[0.98]">
               QR
             </button>
             <span className="min-h-11 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-mono text-[12px] tracking-[0.2em] rounded" aria-label={`Room code ${gameId}`}>
@@ -201,7 +201,7 @@ function PickerGroup({ testId, title, tone, games, chip, onPick, picking }) {
               disabled={!onPick || !!picking}
               aria-label={onPick ? `Play ${g.label}` : g.label}
               className={cn(
-                'w-full min-h-14 flex items-center gap-2.5 px-2.5 py-2 text-left border rounded transition-all',
+                'w-full min-h-14 flex items-center gap-2.5 px-2.5 py-2 text-left border rounded transition',
                 picking === g.type ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta' : 'border-retro-border bg-retro-card',
                 onPick && 'hover:border-retro-cta/50 active:scale-[0.98]',
                 !onPick && 'cursor-default',
@@ -229,7 +229,7 @@ function PickerGroup({ testId, title, tone, games, chip, onPick, picking }) {
           type="button"
           onClick={() => setExpanded(v => !v)}
           aria-expanded={expanded}
-          className="w-full min-h-11 border border-retro-border rounded font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text hover:border-retro-cta/50 transition-all"
+          className="w-full min-h-11 border border-retro-border rounded font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text hover:border-retro-cta/50 transition"
         >
           {expanded ? 'SHOW FEWER' : `SHOW ALL ${games.length}`}
         </button>

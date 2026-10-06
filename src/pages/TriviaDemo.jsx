@@ -211,7 +211,7 @@ export default function TriviaDemo() {
                         onClick={() => handlePick(idx)}
                         disabled={iAnswered}
                         className={cn(
-                          'min-h-14 px-2 py-2 rounded border-2 transition-all active:scale-[0.98]',
+                          'min-h-14 px-2 py-2 rounded border-2 transition active:scale-[0.98]',
                           'flex flex-col items-center justify-center gap-1',
                           picked
                             ? 'border-retro-cta text-retro-cta shadow-neon-cta'

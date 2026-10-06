@@ -222,7 +222,7 @@ export default function AnimalStackArena({
               type="button"
               disabled={!canAct}
               aria-label={label}
-              className="min-h-[60px] flex flex-col items-center justify-center gap-1 border-2 border-retro-border bg-retro-card text-retro-text rounded font-pixel text-[7px] transition-all active:scale-95 disabled:opacity-35 select-none"
+              className="min-h-[60px] flex flex-col items-center justify-center gap-1 border-2 border-retro-border bg-retro-card text-retro-text rounded font-pixel text-[7px] transition active:scale-95 disabled:opacity-35 select-none"
               style={{ touchAction: 'none' }}
               {...handlers}
             >
@@ -237,7 +237,7 @@ export default function AnimalStackArena({
           type="button"
           onClick={() => onDrop?.()}
           disabled={!canAct}
-          className="min-h-[60px] bg-retro-cta text-retro-bg rounded font-pixel text-sm hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-35"
+          className="min-h-[60px] bg-retro-cta text-retro-bg rounded font-pixel text-sm hover:shadow-neon-cta transition active:scale-95 disabled:opacity-35"
         >
           DROP
         </button>

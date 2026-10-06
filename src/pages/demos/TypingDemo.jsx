@@ -132,7 +132,7 @@ export default function TypingDemo() {
               <div key={label} className="flex items-center gap-2">
                 <span className={cn('font-pixel text-[8px] w-8', color)}>{label}</span>
                 <div className="flex-1 h-2 bg-retro-surface rounded-full overflow-hidden">
-                  <div className={cn('h-full rounded-full transition-all duration-200', color === 'text-retro-p1' ? 'bg-retro-p1' : 'bg-retro-p2')}
+                  <div className={cn('h-full rounded-full transition duration-200', color === 'text-retro-p1' ? 'bg-retro-p1' : 'bg-retro-p2')}
                     style={{ width: `${pct}%` }} />
                 </div>
                 <span className="font-pixel text-[8px] text-retro-dim w-8 text-right tabular-nums">{pct}%</span>

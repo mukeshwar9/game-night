@@ -280,7 +280,7 @@ export default function BattleshipDemo() {
                   onClick={() => !placed && setSelected(ship)}
                   disabled={placed}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition-all active:scale-[0.98]',
+                    'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition active:scale-[0.98]',
                     isSelected && !placed
                       ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                       : placed
@@ -356,7 +356,7 @@ export default function BattleshipDemo() {
           </p>
           <button
             onClick={reset}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
           >
             PLAY AGAIN
           </button>

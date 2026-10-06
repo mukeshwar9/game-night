@@ -218,7 +218,7 @@ export default function MinigolfLocal({ mode = 'local' }) {
         <button
           type="button"
           onClick={start}
-          className="min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 transition-all"
+          className="min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 transition"
         >
           TEE OFF
         </button>
@@ -259,7 +259,7 @@ export default function MinigolfLocal({ mode = 'local' }) {
         <div className="rounded border border-retro-border bg-retro-card p-2">
           <MinigolfScorecard course={course} order={order} meta={meta} scores={state.scores} />
         </div>
-        <button type="button" onClick={start} className="min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 transition-all">
+        <button type="button" onClick={start} className="min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 transition">
           PLAY AGAIN
         </button>
         <button type="button" onClick={() => setPhase('setup')} className="min-h-11 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 active:scale-95">

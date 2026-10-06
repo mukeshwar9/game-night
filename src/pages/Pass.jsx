@@ -22,7 +22,7 @@ function Plan({ id, title, price, note, featured }) {
     <button
       type="button"
       onClick={() => beginPurchase(id)}
-      className={`w-full min-h-16 px-3 py-2 rounded border-2 text-left active:scale-95 transition-all ${featured ? 'border-retro-cta bg-retro-tint-cta' : 'border-retro-border bg-retro-card'}`}
+      className={`w-full min-h-16 px-3 py-2 rounded border-2 text-left active:scale-95 transition ${featured ? 'border-retro-cta bg-retro-tint-cta' : 'border-retro-border bg-retro-card'}`}
     >
       <span className="flex items-center justify-between gap-2">
         <span className="font-pixel text-[10px] tracking-wider text-retro-text">{title}</span>
@@ -66,7 +66,7 @@ export default function Pass() {
         </ul>
 
         {access.pass && !access.admin && !access.bypass && access.provider !== 'razorpay' ? (
-          <button type="button" onClick={openPortal} disabled={portalBusy} className="w-full min-h-12 rounded border-2 border-retro-border bg-retro-card text-retro-text font-pixel text-[10px] tracking-wider active:scale-95 transition-all disabled:opacity-50">
+          <button type="button" onClick={openPortal} disabled={portalBusy} className="w-full min-h-12 rounded border-2 border-retro-border bg-retro-card text-retro-text font-pixel text-[10px] tracking-wider active:scale-95 transition disabled:opacity-50">
             {portalBusy ? 'OPENING…' : 'MANAGE OR CANCEL SUBSCRIPTION'}
           </button>
         ) : (

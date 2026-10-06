@@ -608,7 +608,7 @@ export default function SketchGame({
           <button
             onClick={() => runStart(onStart)}
             disabled={starting}
-            className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
           >
             {starting ? 'STARTING…' : 'START ROUND'}
           </button>
@@ -704,7 +704,7 @@ export default function SketchGame({
                     key={idx}
                     onClick={() => { setPickingIdx(idx); runPick(() => handlePickWord(idx)) }}
                     disabled={picking}
-                    className="w-full px-3 py-2.5 font-mono text-[13px] rounded border-2 border-retro-border text-retro-text hover:border-retro-p1 hover:shadow-neon-p1 transition-all active:scale-[0.98] disabled:opacity-50"
+                    className="w-full px-3 py-2.5 font-mono text-[13px] rounded border-2 border-retro-border text-retro-text hover:border-retro-p1 hover:shadow-neon-p1 transition active:scale-[0.98] disabled:opacity-50"
                   >
                     {picking && pickingIdx === idx ? 'LOCKING IN…' : (
                       <span className="flex items-center justify-between gap-3">
@@ -730,7 +730,7 @@ export default function SketchGame({
             <button
               onClick={() => runSkipChoosing(handleSkipChoosing)}
               disabled={skippingChoosing}
-              className="px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+              className="px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-50"
             >
               {skippingChoosing ? 'SKIPPING…' : 'SKIP ROUND'}
             </button>
@@ -840,7 +840,7 @@ export default function SketchGame({
               <button
                 onClick={() => runEndRound(() => advanceDrawingToReveal())}
                 disabled={endingRound}
-                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95 disabled:opacity-50"
+                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition active:scale-95 disabled:opacity-50"
               >
                 {endingRound ? 'ENDING…' : 'END ROUND'}
               </button>
@@ -853,7 +853,7 @@ export default function SketchGame({
               <button
                 onClick={() => runSkipDrawing(() => advanceDrawingToReveal())}
                 disabled={skippingDrawing}
-                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-50"
               >
                 {skippingDrawing ? 'SKIPPING…' : 'SKIP ROUND'}
               </button>

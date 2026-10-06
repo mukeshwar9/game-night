@@ -21,4 +21,4 @@ export default function DeadEnd({ title, message, primary, secondary }) {
   )
 }
 
-export const deadEndPrimaryClass = 'min-h-12 flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-[0.98] disabled:opacity-50'
+export const deadEndPrimaryClass = 'min-h-12 flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition active:scale-[0.98] disabled:opacity-50'

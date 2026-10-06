@@ -212,7 +212,7 @@ export default function SimonBoard({
                   key={i}
                   style={isFlashing || showAnswer ? padStyle(padIdx) : undefined}
                   className={cn(
-                    'relative w-5 h-5 rounded-sm border transition-all duration-100',
+                    'relative w-5 h-5 rounded-sm border transition duration-100',
                     isFlashing
                       ? 'simon-chip scale-125'
                       : showAnswer

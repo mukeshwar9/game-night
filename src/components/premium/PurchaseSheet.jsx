@@ -12,7 +12,7 @@ import { closePurchase } from '../../lib/premiumUi'
 import { isInAppBrowser } from '../../lib/uaLogic'
 import { TERMS_URL, PRIVACY_URL } from '../../lib/legal'
 
-const BTN = 'w-full min-h-12 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[10px] tracking-wider active:scale-95 transition-all disabled:opacity-50'
+const BTN = 'w-full min-h-12 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[10px] tracking-wider active:scale-95 transition disabled:opacity-50'
 
 // The steps before a payment: guests sign in with Google (so the purchase follows
 // the account), a neutral birth-year question (13+ only), then hand-off to the

@@ -25,10 +25,10 @@ export default function PartyAccessNotice({ game, cfg, onStartOwn, busy = false 
             : 'This party already has as many players as it holds. You can watch, or start your own and invite them later.'}
       </p>
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => setWatching(true)} className="min-h-11 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] rounded transition-all active:scale-[0.98]">
+        <button type="button" onClick={() => setWatching(true)} className="min-h-11 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] rounded transition active:scale-[0.98]">
           WATCH
         </button>
-        <button type="button" onClick={onStartOwn} disabled={busy} className="min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-[0.98] disabled:opacity-50">
+        <button type="button" onClick={onStartOwn} disabled={busy} className="min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition active:scale-[0.98] disabled:opacity-50">
           {busy ? 'STARTING…' : 'START MY OWN PARTY'}
         </button>
       </div>

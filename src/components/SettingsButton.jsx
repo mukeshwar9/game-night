@@ -216,7 +216,7 @@ export default function SettingsButton({ className = '' }) {
             <button
               type="button"
               onClick={() => setEditingMe(true)}
-              className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition-all active:scale-95"
+              className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition active:scale-95"
             >
               EDIT NAME &amp; LOOK
             </button>

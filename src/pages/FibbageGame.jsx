@@ -582,7 +582,7 @@ export default function FibbageGame({
               <button
                 onClick={() => runStart(() => onStart())}
                 disabled={starting}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
               >
                 {starting ? 'STARTING…' : 'START ROUND'}
               </button>
@@ -674,7 +674,7 @@ export default function FibbageGame({
     <button
       onClick={() => runClose(action, () => toast.error('CLOSE FAILED — CHECK CONNECTION'))}
       disabled={closing}
-      className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-50"
+      className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95 disabled:opacity-50"
     >
       {closing ? busyLabel : label}
     </button>
@@ -757,7 +757,7 @@ export default function FibbageGame({
                 onClick={() => handleVote(opt.id)}
                 disabled={iVoted || isMine || !isPlayer}
                 className={cn(
-                  'w-full min-h-11 px-3 py-2.5 font-mono text-[12px] text-left rounded border-2 transition-all active:scale-[0.98]',
+                  'w-full min-h-11 px-3 py-2.5 font-mono text-[12px] text-left rounded border-2 transition active:scale-[0.98]',
                   picked
                     ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border text-retro-text hover:border-retro-p1/50',
@@ -863,7 +863,7 @@ export default function FibbageGame({
                   <button
                     onClick={handleReady}
                     disabled={iReady || readying}
-                    className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-60"
+                    className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition active:scale-95 disabled:opacity-60"
                   >
                     {iReady ? `READY ✓ ${readyCount}/${seats.length}` : readying ? 'SENDING…' : 'READY'}
                   </button>

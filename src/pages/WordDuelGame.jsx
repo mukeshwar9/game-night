@@ -113,7 +113,7 @@ function ShareButton({ onClick, busy }) {
       onClick={onClick}
       disabled={busy}
       className="px-6 py-2.5 min-w-[6.5rem] border-2 border-retro-border text-retro-text font-pixel text-xs
-        rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+        rounded hover:border-retro-p1/50 hover:text-retro-p1 transition active:scale-95 disabled:opacity-50"
     >
       {busy ? 'BUILDING…' : 'SHARE'}
     </button>
@@ -128,7 +128,7 @@ function ClaimBox({ message, onClick, busy, label = 'CLAIM ROUND' }) {
         type="button"
         onClick={onClick}
         disabled={busy}
-        className="min-h-11 px-6 py-2.5 border-2 border-retro-p2 text-retro-p2 font-bold text-xs uppercase rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+        className="min-h-11 px-6 py-2.5 border-2 border-retro-p2 text-retro-p2 font-bold text-xs uppercase rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-50"
       >
         {busy ? 'CLAIMING…' : label}
       </button>
@@ -720,7 +720,7 @@ export default function WordDuelGame({
               {/* SUGGEST deals an everyday word from the answer list. */}
               <button
                 type="button"
-                className="min-h-11 px-4 py-2.5 rounded border-2 border-retro-border font-pixel text-[10px] text-retro-text hover:border-retro-cta active:scale-95 transition-all disabled:opacity-50"
+                className="min-h-11 px-4 py-2.5 rounded border-2 border-retro-border font-pixel text-[10px] text-retro-text hover:border-retro-cta active:scale-95 transition disabled:opacity-50"
                 onClick={() => {
                   setSettingWord(pickCpuSecret(getAnswerList(), { used: [settingWord] }).toUpperCase())
                   setSettingFeedback(null)
@@ -732,7 +732,7 @@ export default function WordDuelGame({
               <button
                 className={cn(
                   'min-h-11 px-6 py-2.5 rounded font-pixel text-[10px] cursor-pointer',
-                  'bg-retro-cta text-retro-bg hover:shadow-neon-cta active:scale-95 transition-all',
+                  'bg-retro-cta text-retro-bg hover:shadow-neon-cta active:scale-95 transition',
                   'disabled:opacity-50 disabled:cursor-default',
                 )}
                 onClick={handleSetWord}
@@ -943,7 +943,7 @@ export default function WordDuelGame({
         {!matchWinner && !proposal && (
           <button
             className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs
-              rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+              rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
             onClick={handleNextRound}
             disabled={actionBusy || !result}
           >
@@ -953,7 +953,7 @@ export default function WordDuelGame({
         {onNewMatch && !proposal && (
           <button
             className={cn(
-              'px-6 py-2.5 font-pixel text-xs rounded transition-all active:scale-95 disabled:opacity-50',
+              'px-6 py-2.5 font-pixel text-xs rounded transition active:scale-95 disabled:opacity-50',
               matchWinner
                 ? 'bg-retro-cta text-retro-bg hover:shadow-neon-cta'
                 : 'border-2 border-retro-border text-retro-text hover:border-retro-p1/50 hover:text-retro-p1',

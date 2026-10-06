@@ -122,7 +122,7 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
                   aria-label={showTier ? `${p.label} (${tierText}${locked ? ', locked' : ''})` : p.label}
                   onClick={() => pick(p.id)}
                   className={cn(
-                    'relative flex flex-col items-center gap-1.5 px-1 pt-3 pb-2 rounded border-2 transition-all active:scale-95',
+                    'relative flex flex-col items-center gap-1.5 px-1 pt-3 pb-2 rounded border-2 transition active:scale-95',
                     selected && 'border-retro-cta bg-retro-tint-cta shadow-neon-cta',
                     trying && 'border-retro-cta border-dashed',
                     !selected && !trying && `border-retro-border ${HOVER}`,
@@ -152,7 +152,7 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
               type="button"
               onClick={save}
               disabled={!dirty || saving}
-              className="flex-1 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta active:scale-95 transition-all disabled:opacity-40"
+              className="flex-1 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta active:scale-95 transition disabled:opacity-40"
             >
               {saving ? 'SAVING…' : 'SAVE'}
             </button>

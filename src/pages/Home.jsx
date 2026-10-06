@@ -153,7 +153,7 @@ export default function Home() {
                 </div>
                 <button
                   onClick={() => { dismissInvite(inv.id); navigate(`/game/${inv.gameId}`) }}
-                  className="min-h-11 px-3 flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-95"
+                  className="min-h-11 px-3 flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition active:scale-95"
                 >
                   JOIN
                 </button>
@@ -183,7 +183,7 @@ export default function Home() {
             onClick={() => createParty()}
             disabled={!!loading}
             data-testid="start-party"
-            className="mt-5 min-h-12 w-full flex flex-col items-center justify-center gap-1 py-2 bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta transition-all active:scale-[0.98] disabled:opacity-60"
+            className="mt-5 min-h-12 w-full flex flex-col items-center justify-center gap-1 py-2 bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta transition active:scale-[0.98] disabled:opacity-60"
           >
             <span className="font-pixel text-[10px] tracking-widest">{loading === 'party' ? 'STARTING…' : 'START A PARTY'}</span>
             <span className="font-mono text-[10px] opacity-80">invite up to 3 friends, then pick a game</span>
@@ -191,13 +191,13 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-2 mt-2">
             <Link
               to="/demo"
-              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition-all active:scale-[0.98]"
+              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition active:scale-[0.98]"
             >
               PLAY SOLO
             </Link>
             <button
               onClick={() => setJoinOpen(true)}
-              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition-all active:scale-[0.98]"
+              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition active:scale-[0.98]"
             >
               JOIN ROOM
             </button>
@@ -226,7 +226,7 @@ export default function Home() {
             href={storeBadge.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1/60 hover:shadow-neon-p1 transition-all active:scale-95"
+            className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1/60 hover:shadow-neon-p1 transition active:scale-95"
           >
             {storeBadge.store === 'ios' ? 'GET THE APP ON THE APP STORE' : 'GET THE APP ON GOOGLE PLAY'}
           </a>
@@ -234,7 +234,7 @@ export default function Home() {
         {!storeBadge && canInstall && (
           <button
             onClick={install}
-            className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1/60 hover:shadow-neon-p1 transition-all active:scale-95"
+            className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1/60 hover:shadow-neon-p1 transition active:scale-95"
           >
             + ADD TO HOME SCREEN
           </button>

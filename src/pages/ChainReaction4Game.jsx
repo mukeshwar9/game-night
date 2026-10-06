@@ -166,7 +166,7 @@ export default function ChainReaction4Game({
           <button
             onClick={start}
             disabled={busy}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
           >
             {busy ? 'STARTING…' : 'START MATCH'}
           </button>
@@ -201,7 +201,7 @@ export default function ChainReaction4Game({
             <div
               key={p.playerId}
               className={cn(
-                'flex items-center gap-1.5 rounded border px-2 py-1.5 transition-all',
+                'flex items-center gap-1.5 rounded border px-2 py-1.5 transition',
                 out ? 'opacity-35 border-retro-border/40' : currentTurn === sym ? col.cell : 'border-retro-border/40',
               )}
             >
@@ -256,7 +256,7 @@ export default function ChainReaction4Game({
               try { await onNewMatch() } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
             })}
               disabled={busy}
-              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
             >
               {busy ? 'RESETTING…' : 'NEW MATCH'}
             </button>

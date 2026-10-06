@@ -21,8 +21,8 @@ import { toast } from 'sonner'
 //   children  extra content rendered between the scoreboard and the CTAs
 
 const ACTION_CLASS = {
-  primary: 'px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50',
-  next: 'w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-50',
+  primary: 'px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50',
+  next: 'w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95 disabled:opacity-50',
 }
 
 function BusyAction({ label, busyLabel, onClick, variant = 'primary', errorMsg, disabled }) {
@@ -50,7 +50,7 @@ function ShareAction({ gameLabel, headline, sub, accentVar = '--c-cta' }) {
         if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
       }, () => toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN"))}
       disabled={sharing}
-      className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
+      className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition active:scale-95 disabled:opacity-50"
     >
       {sharing ? 'BUILDING…' : 'SHARE'}
     </button>

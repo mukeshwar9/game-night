@@ -12,7 +12,7 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
   return (
     <div className="w-full max-w-[340px] sm:max-w-[380px] mx-auto">
       <div className={cn(
-        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         <div
@@ -36,7 +36,7 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
                 disabled={!clickable}
                 onClick={() => clickable && onMove(i)}
                 className={cn(
-                  'aspect-square rounded transition-all duration-150 select-none',
+                  'aspect-square rounded transition duration-150 select-none',
                   'flex items-center justify-center font-pixel text-[10px]',
                   'border-2 outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',

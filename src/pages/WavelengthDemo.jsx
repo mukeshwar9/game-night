@@ -440,7 +440,7 @@ export default function WavelengthDemo() {
         <Scoreboard players={gameState.players} scores={gameState.scores} mySeat="human" clueGiver={null} />
         <button
           onClick={handlePlayAgain}
-          className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+          className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
         >
           PLAY AGAIN
         </button>
@@ -621,7 +621,7 @@ export default function WavelengthDemo() {
           </div>
           <button
             onClick={handleNextRound}
-            className="w-full py-2 mt-2 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+            className="w-full py-2 mt-2 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95"
           >
             NEXT ROUND
           </button>

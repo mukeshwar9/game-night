@@ -153,7 +153,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                 type="button"
                 onClick={() => setView(v => (v === 'bust' ? 'hero' : 'bust'))}
                 aria-label={view === 'bust' ? 'Show full body' : 'Show head and shoulders'}
-                className="min-w-14 min-h-11 px-1 flex flex-col items-center justify-center gap-1 font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text transition-all active:scale-90"
+                className="min-w-14 min-h-11 px-1 flex flex-col items-center justify-center gap-1 font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text transition active:scale-90"
               >
                 <FramingIcon hero={view === 'bust'} />
                 {view === 'bust' ? 'BODY' : 'FACE'}
@@ -203,7 +203,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
               onClick={() => selectGroup(g.id)}
               onKeyDown={onGroupKey}
               className={cn(
-                'min-h-10 rounded font-pixel text-[8px] tracking-normal transition-all',
+                'min-h-10 rounded font-pixel text-[8px] tracking-normal transition',
                 group === g.id ? 'bg-retro-cta text-retro-bg' : 'text-retro-dim hover:text-retro-text',
               )}
             >
@@ -228,7 +228,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                   onClick={() => selectTab(id)}
                   onKeyDown={onTabKey}
                   className={cn(
-                    'min-h-9 px-2 rounded-full border font-pixel text-[8px] tracking-normal transition-all',
+                    'min-h-9 px-2 rounded-full border font-pixel text-[8px] tracking-normal transition',
                     tab === id ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : `border-retro-border text-retro-dim ${HOVER}`,
                   )}
                 >
@@ -329,7 +329,7 @@ const OptionTile = memo(function OptionTile({ avatar, view, label, ariaLabel, se
       tabIndex={tabStop ? 0 : -1}
       onClick={() => onPick(field, id)}
       className={cn(
-        'relative flex flex-col items-center gap-1 p-1 rounded border-2 transition-all active:scale-95',
+        'relative flex flex-col items-center gap-1 p-1 rounded border-2 transition active:scale-95',
         selected && 'border-retro-cta bg-retro-tint-cta shadow-neon-cta',
         trying && 'border-retro-cta border-dashed',
         !selected && !trying && `border-retro-border ${HOVER}`,
@@ -373,7 +373,7 @@ function ColourRow({ row, selected, trying, onPick, isLocked, selling }) {
             >
               <span
                 className={cn(
-                  'w-8 h-8 rounded-full border-2 block transition-all active:scale-90',
+                  'w-8 h-8 rounded-full border-2 block transition active:scale-90',
                   on && 'border-retro-text ring-2 ring-retro-cta ring-offset-2 ring-offset-retro-bg',
                   trying === c.id && 'border-retro-cta border-dashed',
                   !on && trying !== c.id && `border-retro-border ${HOVER}`,
@@ -411,7 +411,7 @@ function ClassicPanel({ current, onPick }) {
               tabIndex={i === tabStopIndex(CREATURES.map(s => isCritter && parsed.shape === s)) ? 0 : -1}
               onClick={() => { sounds.move('X'); onPick(makeAvatar(shape, tone)) }}
               className={cn(
-                'aspect-square flex items-center justify-center rounded border-2 transition-all active:scale-95',
+                'aspect-square flex items-center justify-center rounded border-2 transition active:scale-95',
                 selected ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta' : `border-retro-border ${HOVER}`,
               )}
             >
@@ -440,7 +440,7 @@ function ClassicPanel({ current, onPick }) {
             >
               <span
                 className={cn(
-                  'w-8 h-8 rounded-full border-2 block transition-all active:scale-90',
+                  'w-8 h-8 rounded-full border-2 block transition active:scale-90',
                   on ? 'border-retro-text ring-2 ring-retro-cta ring-offset-2 ring-offset-retro-bg' : `border-retro-border ${HOVER}`,
                 )}
                 style={{ background: swatchBackground(TONE_TO_RAMP[t]) }}
@@ -461,7 +461,7 @@ function IconButton({ label, ariaLabel, onClick, disabled = false, cta = false, 
       disabled={disabled}
       aria-label={ariaLabel}
       className={cn(
-        'min-w-14 min-h-11 px-1 flex flex-col items-center justify-center gap-1 font-pixel text-[8px] tracking-wider transition-all active:scale-90 disabled:opacity-30 disabled:active:scale-100',
+        'min-w-14 min-h-11 px-1 flex flex-col items-center justify-center gap-1 font-pixel text-[8px] tracking-wider transition active:scale-90 disabled:opacity-30 disabled:active:scale-100',
         cta ? 'text-retro-cta hover:text-glow-cta' : 'text-retro-dim hover:text-retro-text',
       )}
     >

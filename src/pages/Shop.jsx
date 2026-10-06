@@ -62,7 +62,7 @@ function PassOnlySection({ items, access }) {
           <p className="font-mono text-[10px] text-retro-dim leading-relaxed">Only with the Game Night Pass.</p>
         </div>
         {owned ? <span className="shrink-0 font-pixel text-[9px] tracking-wider text-retro-win">UNLOCKED</span> : (
-          <button type="button" onClick={() => beginPurchase('pass-monthly')} className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition-all">
+          <button type="button" onClick={() => beginPurchase('pass-monthly')} className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition">
             GET PASS {formatPrice(PRODUCTS['pass-monthly'], currency)}{currency === 'INR' ? '' : '/MO'}
           </button>
         )}
@@ -89,7 +89,7 @@ function PackSection({ pack, items, access }) {
           <button
             type="button"
             onClick={() => beginPurchase(`pack-${pack.id}`)}
-            className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition-all"
+            className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition"
           >
             BUY {formatPrice(pack, currency)}
           </button>
@@ -126,7 +126,7 @@ export default function Shop() {
               role="tab"
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
-              className={cn('min-h-11 rounded font-pixel text-[9px] tracking-widest transition-all', tab === t.id ? 'bg-retro-cta text-retro-bg' : 'text-retro-dim hover:text-retro-text')}
+              className={cn('min-h-11 rounded font-pixel text-[9px] tracking-widest transition', tab === t.id ? 'bg-retro-cta text-retro-bg' : 'text-retro-dim hover:text-retro-text')}
             >
               {t.label}
             </button>
@@ -147,7 +147,7 @@ export default function Shop() {
             {access.supporter
               ? <span className="font-pixel text-[9px] tracking-wider text-retro-win">THANK YOU</span>
               : (
-                <button type="button" onClick={() => beginPurchase('supporter')} className="min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition-all">
+                <button type="button" onClick={() => beginPurchase('supporter')} className="min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition">
                   BACK US {formatPrice(PRODUCTS.supporter, currency)}
                 </button>
               )}

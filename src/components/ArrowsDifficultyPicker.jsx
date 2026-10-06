@@ -34,7 +34,7 @@ export default function ArrowsDifficultyPicker({ gameId, game, isHost }) {
             onClick={() => pick(id)}
             aria-pressed={current === id}
             className={cn(
-              'min-h-11 px-2 py-1.5 font-pixel rounded border-2 transition-all active:scale-95',
+              'min-h-11 px-2 py-1.5 font-pixel rounded border-2 transition active:scale-95',
               current === id
                 ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
                 : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',

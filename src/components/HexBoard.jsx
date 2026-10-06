@@ -88,7 +88,7 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
     <div className="w-[calc(100%+1rem)] -mx-2 sm:w-full sm:mx-auto max-w-md">
       <div
         className={cn(
-          'relative bg-retro-bg border-2 border-retro-border rounded transition-all duration-200',
+          'relative bg-retro-bg border-2 border-retro-border rounded transition duration-200',
           disabled && 'board-idle',
         )}
       >
@@ -202,7 +202,7 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
             onClick={() => onMove({ action: SWAP_ACTION })}
             aria-label={`Swap: take ${opener}'s opening stone, mirrored onto your edges`}
             className={cn(
-              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition-all active:scale-95',
+              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition active:scale-95',
               'border-retro-cta text-retro-cta bg-retro-tint-cta hover:shadow-neon-cta',
             )}
           >

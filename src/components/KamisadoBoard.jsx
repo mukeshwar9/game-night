@@ -47,7 +47,7 @@ export default function KamisadoBoard({
   return (
     <div className="w-full max-w-[360px] sm:max-w-[420px] mx-auto">
       <div className={cn(
-        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         {/* Forced-color strip — the whole point of the game, so it's a
@@ -96,7 +96,7 @@ export default function KamisadoBoard({
                 disabled={disabled}
                 onClick={() => !disabled && tap(i)}
                 className={cn(
-                  'aspect-square rounded-sm transition-all duration-100 select-none relative',
+                  'aspect-square rounded-sm transition duration-100 select-none relative',
                   'flex items-center justify-center font-pixel text-base sm:text-lg outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
                   !disabled && 'cursor-pointer hover:brightness-125 active:scale-95',

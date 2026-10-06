@@ -23,7 +23,7 @@ export default function HeadlineGames({ heading = 'START WITH ONE OF THESE', cur
                 to={`/solo/${type}`}
                 aria-current={isCurrent ? 'page' : undefined}
                 className={cn(
-                  'h-full min-h-[104px] flex flex-col items-start gap-1.5 p-2.5 border rounded transition-all active:scale-95',
+                  'h-full min-h-[104px] flex flex-col items-start gap-1.5 p-2.5 border rounded transition active:scale-95',
                   isCurrent
                     ? 'border-retro-cta bg-retro-tint-cta'
                     : 'border-retro-border bg-retro-card hover:border-retro-cta/50',

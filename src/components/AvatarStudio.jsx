@@ -105,7 +105,7 @@ export default function AvatarStudio({ saved, name, onClose }) {
             onClick={requestClose}
             disabled={saving}
             className={cn(
-              'min-h-11 min-w-20 px-3 rounded border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
+              'min-h-11 min-w-20 px-3 rounded border font-pixel text-[9px] tracking-wider transition active:scale-95',
               confirmDiscard ? 'border-retro-p2 text-retro-p2' : 'border-retro-border text-retro-dim hover:text-retro-text',
             )}
           >
@@ -119,7 +119,7 @@ export default function AvatarStudio({ saved, name, onClose }) {
             type="button"
             onClick={save}
             disabled={saving || !dirty}
-            className="min-h-11 min-w-20 px-3 rounded bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-widest hover:shadow-neon-cta active:scale-95 transition-all disabled:opacity-40"
+            className="min-h-11 min-w-20 px-3 rounded bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-widest hover:shadow-neon-cta active:scale-95 transition disabled:opacity-40"
           >
             {saving ? 'SAVING…' : 'SAVE'}
           </button>

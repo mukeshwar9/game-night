@@ -101,7 +101,7 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
               onClick={inviteAll}
               disabled={allBusy}
               className="w-full min-h-11 px-3 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] rounded
-                hover:bg-retro-tint-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-default"
+                hover:bg-retro-tint-cta transition active:scale-95 disabled:opacity-40 disabled:cursor-default"
             >
               {allBusy ? 'INVITING…' : `INVITE ALL ONLINE (${invitable.length})`}
             </button>
@@ -123,7 +123,7 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
                     onClick={() => invite(uid, p?.displayName)}
                     disabled={state === 'sending' || state === 'sent' || (placesLeft <= 0 && !state)}
                     className="min-h-11 px-3 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded
-                      hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-default"
+                      hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40 disabled:cursor-default"
                   >
                     {state === 'sending' ? 'SENDING…' : state === 'sent' ? 'SENT' : 'INVITE'}
                   </button>

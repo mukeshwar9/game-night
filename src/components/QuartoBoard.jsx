@@ -66,7 +66,7 @@ export default function QuartoBoard({
   return (
     <div className="w-full max-w-[380px] sm:max-w-[420px] mx-auto">
       <div className={cn(
-        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         {/* Stage strip */}
@@ -105,7 +105,7 @@ export default function QuartoBoard({
                 disabled={disabled}
                 onClick={() => tapPlace(i)}
                 className={cn(
-                  'aspect-square rounded-sm transition-all duration-100 select-none',
+                  'aspect-square rounded-sm transition duration-100 select-none',
                   'flex items-center justify-center outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
                   'bg-retro-surface border border-retro-border/40',
@@ -140,7 +140,7 @@ export default function QuartoBoard({
                 disabled={disabled || pendingCell == null}
                 onClick={() => confirm(v)}
                 className={cn(
-                  'w-10 h-11 sm:w-11 rounded border flex items-center justify-center transition-all duration-100',
+                  'w-10 h-11 sm:w-11 rounded border flex items-center justify-center transition duration-100',
                   'outline-none focus-visible:ring-2 focus-visible:ring-retro-cta',
                   pendingCell == null && 'opacity-40 cursor-default',
                   pendingCell != null && 'cursor-pointer hover:brightness-125 active:scale-95',

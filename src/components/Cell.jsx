@@ -15,7 +15,7 @@ export default function Cell({ value, index, onClick, isWinning, disabled, isLas
       aria-label={ariaLabel}
       className={cn(
         'aspect-square flex items-center justify-center font-pixel text-2xl sm:text-3xl',
-        'border-2 rounded transition-all duration-100 select-none outline-none',
+        'border-2 rounded transition duration-100 select-none outline-none',
         'focus-visible:ring-2 focus-visible:ring-retro-p1 focus-visible:ring-offset-2 focus-visible:ring-offset-retro-bg',
         isWinning
           ? 'bg-retro-win/10 border-retro-win scale-105 shadow-neon-win'

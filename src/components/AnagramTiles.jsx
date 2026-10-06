@@ -20,7 +20,7 @@ function LetterTile({ letter, selected, disabled, onClick, label }) {
       aria-pressed={selected}
       className={cn(
         'flex aspect-square min-w-0 items-center justify-center rounded border-2 font-pixel text-xl sm:text-2xl',
-        'select-none shadow-[2px_2px_0_rgb(var(--c-deep)/0.8)] transition-all duration-100',
+        'select-none shadow-[2px_2px_0_rgb(var(--c-deep)/0.8)] transition duration-100',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta',
         selected
           ? 'translate-y-1 border-retro-structure bg-retro-deep text-retro-dim opacity-45 shadow-none'

@@ -22,7 +22,7 @@ export default function NewGamesRail({ games, onTap, loadingType }) {
                 disabled={!!loadingType}
                 title={g.desc}
                 className={cn(
-                  'shrink-0 snap-start w-[118px] min-h-[92px] flex flex-col items-start gap-1.5 p-2.5 text-left border rounded transition-all active:scale-95',
+                  'shrink-0 snap-start w-[118px] min-h-[92px] flex flex-col items-start gap-1.5 p-2.5 text-left border rounded transition active:scale-95',
                   isLoading
                     ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
                     : 'border-retro-win/50 bg-retro-card hover:border-retro-win',

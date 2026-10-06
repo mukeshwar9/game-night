@@ -534,7 +534,7 @@ export default function JustOneGame({
               <button
                 onClick={startMatch}
                 disabled={starting}
-                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40"
               >
                 {starting ? 'STARTING…' : 'START GAME'}
               </button>

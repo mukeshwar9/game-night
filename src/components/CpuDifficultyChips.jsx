@@ -14,7 +14,7 @@ export default function CpuDifficultyChips({ levels, value, onChange, note, clas
             onClick={() => onChange(level)}
             aria-pressed={value === level}
             className={cn(
-              'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition-all active:scale-95',
+              'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition active:scale-95',
               value === level
                 ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-p1/50',

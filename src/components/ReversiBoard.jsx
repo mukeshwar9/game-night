@@ -50,7 +50,7 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
                 className={cn(
                   'aspect-square flex items-center justify-center rounded-sm',
                   'border border-retro-win/20 bg-retro-win/5',
-                  'transition-all duration-100',
+                  'transition duration-100',
                   isClickable
                     ? currentTurn === 'X'
                       ? 'hover:bg-retro-p1/15 hover:border-retro-p1/40 cursor-pointer'
@@ -64,7 +64,7 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
                   <span
                     key={cell}
                     className={cn(
-                      'w-[80%] h-[80%] rounded-full transition-all duration-200',
+                      'w-[80%] h-[80%] rounded-full transition duration-200',
                       'items-center justify-center',
                       cell === 'X'
                         ? 'bg-retro-p1 shadow-neon-p1'
@@ -101,7 +101,7 @@ export default function ReversiBoard({ board, onMove, disabled, currentTurn, las
       {/* Disc count bar — emphasized final tally once the round is over */}
       <div
         className={cn(
-          'mt-2 flex items-center justify-center gap-3 font-pixel transition-all duration-200',
+          'mt-2 flex items-center justify-center gap-3 font-pixel transition duration-200',
           roundOver ? 'text-sm sm:text-base' : 'text-[10px]',
         )}
       >

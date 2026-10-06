@@ -92,7 +92,7 @@ export default function PushToggle() {
         <button
           onClick={openSettings}
           disabled={opening}
-          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40"
         >
           {opening ? 'OPENING…' : 'OPEN SETTINGS'}
         </button>
@@ -100,7 +100,7 @@ export default function PushToggle() {
         <button
           onClick={on ? disable : enable}
           disabled={busy || perm === 'denied'}
-          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {busy ? (on ? 'TURNING OFF…' : 'TURNING ON…') : on ? 'TURN OFF' : 'TURN ON'}
         </button>

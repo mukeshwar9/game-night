@@ -259,7 +259,7 @@ export default function MathDemo() {
             <span className="text-retro-p2">{botScore} · BOT</span>
           </div>
           <div className="h-1.5 bg-retro-deep rounded-full overflow-hidden flex">
-            <div className="bg-retro-p1 h-full transition-all duration-300"
+            <div className="bg-retro-p1 h-full transition duration-300"
               style={{ width: `${youScore + botScore > 0 ? (youScore / (youScore + botScore)) * 100 : 50}%` }} />
             <div className="bg-retro-p2 h-full flex-1" />
           </div>
@@ -271,7 +271,7 @@ export default function MathDemo() {
         q.isPower ? 'border-retro-cta/60' : 'border-retro-border')}>
         {q.isPower && <p className="font-pixel text-[9px] text-retro-cta">⚡ POWER · 2×</p>}
         <div className="h-1 bg-retro-deep rounded-full overflow-hidden">
-          <div className={cn('h-full rounded-full transition-all duration-100', barColor)}
+          <div className={cn('h-full rounded-full transition duration-100', barColor)}
             style={{ width: `${qPct * 100}%` }} />
         </div>
         <p className="font-pixel text-[9px] text-retro-dim">Q{qIndex + 1}</p>

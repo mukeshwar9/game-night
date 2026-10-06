@@ -122,13 +122,13 @@ function LeaveMatchConfirm({ onConfirm, onCancel }) {
         <div className="flex gap-2">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-all active:scale-95"
+            className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition active:scale-95"
           >
             STAY
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 px-4 py-2.5 bg-retro-danger text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-danger transition-all active:scale-95"
+            className="flex-1 px-4 py-2.5 bg-retro-danger text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-danger transition active:scale-95"
           >
             LEAVE
           </button>
@@ -1051,19 +1051,19 @@ export default function Game() {
               <button
                 onClick={claimAbandonedWin}
                 disabled={claimingWin}
-                className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+                className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
               >
                 {claimingWin ? 'CLAIMING…' : 'CLAIM WIN'}
               </button>
               <button
                 onClick={() => setShowInvite(true)}
-                className="border border-retro-border text-retro-text font-pixel text-[10px] px-4 py-2 rounded hover:border-retro-p1/50 transition-all active:scale-95"
+                className="border border-retro-border text-retro-text font-pixel text-[10px] px-4 py-2 rounded hover:border-retro-p1/50 transition active:scale-95"
               >
                 INVITE A FRIEND
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="border border-retro-border text-retro-dim font-pixel text-[10px] px-4 py-2 rounded hover:text-retro-text transition-all active:scale-95"
+                className="border border-retro-border text-retro-dim font-pixel text-[10px] px-4 py-2 rounded hover:text-retro-text transition active:scale-95"
               >
                 SAVE & GO HOME
               </button>
@@ -1172,7 +1172,7 @@ export default function Game() {
             <button
               onClick={() => createNewRoom(game.gameType)}
               disabled={creatingRoom}
-              className="px-4 py-2 border-2 border-retro-border text-retro-text font-pixel text-[9px] rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 border-2 border-retro-border text-retro-text font-pixel text-[9px] rounded hover:border-retro-p1/50 hover:text-retro-p1 transition active:scale-95 disabled:opacity-50"
             >
               {creatingRoom ? 'CREATING…' : `START YOUR OWN ${cfg.label} ROOM`}
             </button>

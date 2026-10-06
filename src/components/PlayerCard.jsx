@@ -27,7 +27,7 @@ export default function PlayerCard({ name, symbol, isActive, isMe, score, online
   // (ReactionFloats.jsx).
   return (
     <div data-seat-card={symbol} className={cn(
-      'flex items-center gap-2.5 px-3 py-2.5 border-2 rounded transition-all duration-200',
+      'flex items-center gap-2.5 px-3 py-2.5 border-2 rounded transition duration-200',
       isActive
         ? isX
           ? 'border-retro-p1 bg-retro-tint-p1/60 shadow-neon-p1'

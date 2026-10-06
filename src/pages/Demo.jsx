@@ -226,13 +226,13 @@ function SoloNotAvailable({ routeType }) {
           <div className="flex flex-col gap-2 pt-1">
             <Link
               to="/"
-              className="min-h-11 flex items-center justify-center px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+              className="min-h-11 flex items-center justify-center px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
             >
               CREATE A ROOM →
             </Link>
             <Link
               to="/demo"
-              className="min-h-11 flex items-center justify-center px-5 py-2.5 border border-retro-border text-retro-dim font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-text transition-all active:scale-95"
+              className="min-h-11 flex items-center justify-center px-5 py-2.5 border border-retro-border text-retro-dim font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-text transition active:scale-95"
             >
               ALL DEMOS
             </Link>
@@ -298,7 +298,7 @@ function DemoHub() {
       type="button"
       onClick={() => setPickerOpen(true)}
       aria-haspopup="dialog"
-      className="shrink-0 min-h-11 px-3 inline-flex items-center gap-2 rounded border border-retro-p1 text-retro-p1 font-pixel text-[9px] tracking-wider hover:shadow-neon-p1 transition-all active:scale-95"
+      className="shrink-0 min-h-11 px-3 inline-flex items-center gap-2 rounded border border-retro-p1 text-retro-p1 font-pixel text-[9px] tracking-wider hover:shadow-neon-p1 transition active:scale-95"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -339,7 +339,7 @@ function DemoHub() {
               {board}
               <Link
                 to="/games?intent=friend"
-                className="min-h-12 w-full flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-[0.98]"
+                className="min-h-12 w-full flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition active:scale-[0.98]"
               >
                 PLAY WITH A FRIEND
               </Link>

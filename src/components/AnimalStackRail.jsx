@@ -24,7 +24,7 @@ export default function AnimalStackRail({ seats, turn, you = null, maxHearts }) 
           <div
             key={s.id ?? i}
             className={cn(
-              'min-w-0 border-2 rounded px-2 py-1.5 transition-all duration-200',
+              'min-w-0 border-2 rounded px-2 py-1.5 transition duration-200',
               i === turn && !out ? ON[tok] : 'border-retro-border bg-retro-card',
               out && 'opacity-40',
             )}

@@ -206,7 +206,7 @@ export default function ChainReactionBoard({
     <div className="w-full max-w-sm mx-auto" style={fitStyle}>
       <div
         className={cn(
-          'border-2 border-retro-border rounded p-1 sm:p-1.5 transition-all duration-200',
+          'border-2 border-retro-border rounded p-1 sm:p-1.5 transition duration-200',
           disabled && 'board-idle',
         )}
         style={{
@@ -242,7 +242,7 @@ export default function ChainReactionBoard({
                 onClick={() => isLegal && onMove(i)}
                 className={cn(
                   'aspect-square relative rounded-sm overflow-hidden',
-                  'border transition-all duration-100',
+                  'border transition duration-100',
                   owner
                     ? crSymbolColor(owner).cell
                     : 'bg-retro-deep border-retro-border/20',

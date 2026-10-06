@@ -69,7 +69,7 @@ function QuestionBar({ qPct, critical }) {
   return (
     <div className="h-2.5 bg-retro-deep rounded-full overflow-hidden">
       <div
-        className={cn('h-full rounded-full transition-all duration-100', color, critical && 'animate-pulse')}
+        className={cn('h-full rounded-full transition duration-100', color, critical && 'animate-pulse')}
         style={{ width: `${pct * 100}%` }}
       />
     </div>

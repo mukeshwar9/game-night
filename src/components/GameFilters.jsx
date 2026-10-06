@@ -69,7 +69,7 @@ export default function FilterButton({ filters, onToggle, onReset, resultCount, 
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         className={cn(
-          'shrink-0 min-h-11 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-lg border font-pixel text-[9px] tracking-wider transition-all active:scale-95',
+          'shrink-0 min-h-11 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-lg border font-pixel text-[9px] tracking-wider transition active:scale-95',
           active > 0
             ? 'border-retro-cta text-retro-cta bg-retro-tint-cta shadow-neon-cta'
             : 'border-retro-border text-retro-dim hover:text-retro-text bg-retro-card',
@@ -108,7 +108,7 @@ export default function FilterButton({ filters, onToggle, onReset, resultCount, 
                     aria-checked={selected}
                     onClick={() => onSort(o.id)}
                     className={cn(
-                      'w-full min-h-11 flex items-center gap-3 px-3 rounded border text-left transition-all active:scale-[0.98]',
+                      'w-full min-h-11 flex items-center gap-3 px-3 rounded border text-left transition active:scale-[0.98]',
                       selected
                         ? 'border-retro-cta bg-retro-tint-cta'
                         : 'border-retro-border hover:border-retro-cta/50',
@@ -148,14 +148,14 @@ export default function FilterButton({ filters, onToggle, onReset, resultCount, 
               onClick={onReset}
               disabled={active === 0}
               className="flex-1 min-h-11 px-2 rounded border border-retro-border text-retro-dim font-pixel text-[9px] tracking-wider
-                hover:text-retro-cta hover:border-retro-cta/50 transition-all active:scale-95 disabled:opacity-40"
+                hover:text-retro-cta hover:border-retro-cta/50 transition active:scale-95 disabled:opacity-40"
             >
               RESET
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="flex-[2] min-h-11 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider hover:shadow-neon-cta transition-all active:scale-95"
+              className="flex-[2] min-h-11 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider hover:shadow-neon-cta transition active:scale-95"
             >
               SHOW {resultCount} GAME{resultCount === 1 ? '' : 'S'}
             </button>

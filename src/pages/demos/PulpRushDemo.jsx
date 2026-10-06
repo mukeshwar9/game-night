@@ -117,7 +117,7 @@ export default function PulpRushDemo() {
               key={key}
               onClick={() => start(key)}
               className={cn(
-                'w-full py-3 px-3 rounded border-2 font-pixel text-[10px] text-left active:scale-95 transition-all',
+                'w-full py-3 px-3 rounded border-2 font-pixel text-[10px] text-left active:scale-95 transition',
                 key === 'solo' ? 'bg-retro-cta text-retro-bg border-retro-cta hover:shadow-neon-cta'
                   : 'border-retro-p1 text-retro-p1 hover:shadow-neon-p1',
               )}

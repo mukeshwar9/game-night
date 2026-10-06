@@ -17,7 +17,7 @@ export default function PayCurrencySwitch({ disabled = false }) {
           aria-checked={currency === id}
           onClick={() => setPayCurrency(id)}
           disabled={disabled}
-          className={`min-h-11 rounded border-2 font-pixel text-[9px] tracking-wider transition-all disabled:opacity-50 ${currency === id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border bg-retro-surface text-retro-dim'}`}
+          className={`min-h-11 rounded border-2 font-pixel text-[9px] tracking-wider transition disabled:opacity-50 ${currency === id ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border bg-retro-surface text-retro-dim'}`}
         >
           {label}
         </button>

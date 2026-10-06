@@ -598,7 +598,7 @@ export default function SpyfairGame({
               <button
                 onClick={() => startRound(false)}
                 disabled={dealing}
-                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40"
               >
                 {dealing ? 'DEALING…' : 'START ROUND'}
               </button>
@@ -705,7 +705,7 @@ export default function SpyfairGame({
               {!secretRevealed ? (
                 <button
                   onClick={() => { setSecretRevealed(true); sounds.hit() }}
-                  className="px-5 py-3 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+                  className="px-5 py-3 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95"
                 >
                   TAP TO SEE YOUR SECRET
                 </button>
@@ -743,7 +743,7 @@ export default function SpyfairGame({
               <button
                 onClick={beginQuestioning}
                 disabled={advancing}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40"
               >
                 {advancing ? 'STARTING…' : 'START QUESTIONING'}
               </button>
@@ -795,7 +795,7 @@ export default function SpyfairGame({
               <button
                 onClick={callVote}
                 disabled={advancing}
-                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
+                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-40"
               >
                 {advancing ? 'CALLING…' : 'CALL THE VOTE NOW'}
               </button>
@@ -829,7 +829,7 @@ export default function SpyfairGame({
                     onClick={() => castVote(p.playerId)}
                     disabled={!!myVote || isMe}
                     className={cn(
-                      'w-full min-h-11 flex items-center justify-between px-4 py-2.5 rounded border-2 font-mono text-[11px] transition-all active:scale-[0.98]',
+                      'w-full min-h-11 flex items-center justify-between px-4 py-2.5 rounded border-2 font-mono text-[11px] transition active:scale-[0.98]',
                       picked
                         ? 'border-retro-p2 text-retro-p2 shadow-neon-p2 bg-retro-tint-p2'
                         : 'border-retro-border text-retro-text hover:border-retro-p2/60',
@@ -855,7 +855,7 @@ export default function SpyfairGame({
               <button
                 onClick={forceResolveVote}
                 disabled={resolving}
-                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
+                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-40"
               >
                 {resolving ? 'RESOLVING…' : 'RESOLVE VOTE NOW'}
               </button>
@@ -892,7 +892,7 @@ export default function SpyfairGame({
                         onClick={() => setGuessPick(i)}
                         aria-pressed={guessPick === i}
                         className={cn(
-                          'w-full min-h-9 px-2 py-1.5 rounded border font-mono text-[9px] transition-all active:scale-95',
+                          'w-full min-h-9 px-2 py-1.5 rounded border font-mono text-[9px] transition active:scale-95',
                           guessPick === i
                             ? 'border-retro-p2 text-retro-p2 bg-retro-tint-p2'
                             : 'border-retro-border text-retro-text hover:border-retro-p2/60',
@@ -912,7 +912,7 @@ export default function SpyfairGame({
                 <button
                   onClick={handleSpyGuess}
                   disabled={guessing}
-                  className="w-full min-h-11 px-4 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
+                  className="w-full min-h-11 px-4 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-40"
                 >
                   {guessing ? 'GUESSING…' : `LOCK GUESS: ${SPYFAIR_LOCATIONS[guessPick]?.name}`}
                 </button>
@@ -942,7 +942,7 @@ export default function SpyfairGame({
               <button
                 onClick={voidRound}
                 disabled={voiding}
-                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
+                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-40"
               >
                 {voiding ? 'ENDING…' : 'END ROUND — NO SCORE'}
               </button>
@@ -1018,7 +1018,7 @@ export default function SpyfairGame({
                   <button
                     onClick={() => startRound(true)}
                     disabled={dealing}
-                    className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-40"
+                    className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95 disabled:opacity-40"
                   >
                     {dealing ? 'DEALING…' : 'NEXT ROUND'}
                   </button>

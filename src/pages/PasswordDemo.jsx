@@ -54,8 +54,8 @@ function ActionButton({ children, onClick, secondary = false }) {
       type={secondary ? 'button' : 'submit'}
       onClick={onClick}
       className={secondary
-        ? 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95'
-        : 'min-h-11 px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95'}
+        ? 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1 hover:text-retro-p1 transition active:scale-95'
+        : 'min-h-11 px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition active:scale-95'}
     >
       {children}
     </button>

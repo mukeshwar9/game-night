@@ -201,7 +201,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
               aria-pressed={difficulty === level}
               aria-label={`${level}, your record ${describeLevelRecord(record[level])}`}
               className={cn(
-                'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition-all active:scale-95 flex flex-col items-center justify-center gap-1',
+                'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition active:scale-95 flex flex-col items-center justify-center gap-1',
                 difficulty === level
                   ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                   : 'border-retro-border text-retro-dim hover:border-retro-p1/50',

@@ -224,7 +224,7 @@ export default function MineRaceDemo() {
               onClick={() => setMode(m => (m === 'reveal' ? 'flag' : 'reveal'))}
               aria-pressed={mode === 'flag'}
               className={cn(
-                'min-h-11 px-4 py-1.5 font-pixel text-[10px] rounded border-2 transition-all active:scale-95',
+                'min-h-11 px-4 py-1.5 font-pixel text-[10px] rounded border-2 transition active:scale-95',
                 mode === 'flag'
                   ? 'border-retro-p2 text-retro-p2 shadow-neon-p2'
                   : 'border-retro-border text-retro-dim hover:border-retro-p2/50',

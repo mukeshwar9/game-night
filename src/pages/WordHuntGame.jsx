@@ -96,7 +96,7 @@ function ScorePop({ amount }) {
     <span
       className={cn(
         'pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2',
-        'font-pixel text-lg text-retro-win transition-all duration-700',
+        'font-pixel text-lg text-retro-win transition duration-700',
         shown ? 'opacity-100 -translate-y-4' : 'opacity-0 translate-y-0',
       )}
     >
@@ -373,8 +373,8 @@ function ScoreBar({ myScore, oppScore, myLabel, oppLabel, mySymbol }) {
         <span className={cn('min-w-0 truncate text-right', oppColor)}>{oppScore} · {(oppLabel || (isX ? 'O' : 'X')).toUpperCase()}</span>
       </div>
       <div className="h-2 bg-retro-deep rounded-full overflow-hidden flex">
-        <div className={cn(myBar, 'h-full transition-all duration-500')} style={{ width: `${shares.my}%` }} />
-        <div className={cn(oppBar, 'h-full transition-all duration-500')} style={{ width: `${shares.opp}%` }} />
+        <div className={cn(myBar, 'h-full transition duration-500')} style={{ width: `${shares.my}%` }} />
+        <div className={cn(oppBar, 'h-full transition duration-500')} style={{ width: `${shares.opp}%` }} />
       </div>
     </div>
   )

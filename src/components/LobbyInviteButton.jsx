@@ -23,7 +23,7 @@ export default function LobbyInviteButton() {
     <button
       onClick={invite}
       disabled={busy}
-      className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-[11px] tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-[0.98] disabled:opacity-50"
+      className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-[11px] tracking-widest rounded hover:shadow-neon-cta transition active:scale-[0.98] disabled:opacity-50"
     >
       {busy ? 'SHARING…' : 'SHARE INVITE LINK'}
     </button>

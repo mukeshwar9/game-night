@@ -28,7 +28,7 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
         className={cn(
           'aspect-square flex items-center justify-center',
           'border border-retro-border/60 rounded-sm',
-          'transition-all duration-100',
+          'transition duration-100',
           isOccupied && 'bg-retro-structure/10',
           isWin && 'bg-retro-win/20 shadow-neon-win',
           // M-47: persistent marker on the most recently placed letter
@@ -59,7 +59,7 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
       <div className="relative">
         <div
           className={cn(
-            'bg-retro-surface border-2 border-retro-border rounded p-3 transition-all duration-200',
+            'bg-retro-surface border-2 border-retro-border rounded p-3 transition duration-200',
             disabled && 'board-idle',
           )}
         >
@@ -103,7 +103,7 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
             className={cn(
               'w-11 h-11 flex items-center justify-center',
               'font-pixel text-[11px] rounded border-2',
-              'transition-all duration-100',
+              'transition duration-100',
               !disabled && 'active:scale-95',
               selectedLetter === l
                 ? l === 'X'

@@ -23,7 +23,7 @@ function EdgeLine({ kind, owner, hovered, turn, isLast }) {
     <span
       aria-hidden="true"
       className={cn(
-        'absolute rounded-full transition-all duration-100 pointer-events-none',
+        'absolute rounded-full transition-[width,height,background-color,box-shadow,opacity] duration-100 pointer-events-none',
         kind === 'h'
           ? cn('left-0 right-0 top-1/2 -translate-y-1/2', owner ? 'h-[6px]' : hovered ? 'h-1' : 'h-[2px]')
           : cn('top-0 bottom-0 left-1/2 -translate-x-1/2', owner ? 'w-[6px]' : hovered ? 'w-1' : 'w-[2px]'),
@@ -171,7 +171,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
     <div className="w-full max-w-sm mx-auto">
       <div
         className={cn(
-          'bg-retro-surface border-2 border-retro-border rounded p-[18px] transition-all duration-200',
+          'bg-retro-surface border-2 border-retro-border rounded p-[18px] transition duration-200',
           disabled && 'board-idle',
         )}
       >

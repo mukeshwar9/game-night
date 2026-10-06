@@ -283,7 +283,7 @@ export default function DailyGame() {
             <button
               onClick={shareDaily}
               disabled={sharing}
-              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
             >
               {sharing ? 'BUILDING…' : 'SHARE RESULT'}
             </button>

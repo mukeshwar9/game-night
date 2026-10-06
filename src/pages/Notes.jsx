@@ -99,7 +99,7 @@ export default function Notes() {
                   onClick={() => setType(option.id)}
                   aria-pressed={type === option.id}
                   className={cn(
-                    'flex-1 min-h-10 rounded border font-pixel text-[9px] transition-all active:scale-95',
+                    'flex-1 min-h-10 rounded border font-pixel text-[9px] transition active:scale-95',
                     type === option.id
                       ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
                       : 'border-retro-border bg-retro-bg text-retro-dim hover:text-retro-text hover:border-retro-p1',
@@ -129,7 +129,7 @@ export default function Notes() {
                 onClick={handleSubmit}
                 disabled={!canSubmit}
                 className="min-h-11 px-5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-                  hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saving ? 'SENDING…' : 'SEND'}
               </button>
@@ -162,7 +162,7 @@ function AdminView() {
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                'min-h-9 px-3 rounded border font-pixel text-[8px] transition-all active:scale-95',
+                'min-h-9 px-3 rounded border font-pixel text-[8px] transition active:scale-95',
                 tab === t.id
                   ? 'border-retro-cta bg-retro-tint-cta text-retro-cta'
                   : 'border-retro-border bg-retro-bg text-retro-dim hover:text-retro-text',
@@ -226,7 +226,7 @@ function FeedbackAdmin() {
             onClick={() => setFilter(f.id)}
             aria-pressed={filter === f.id}
             className={cn(
-              'min-h-9 px-3 rounded border font-pixel text-[8px] transition-all active:scale-95',
+              'min-h-9 px-3 rounded border font-pixel text-[8px] transition active:scale-95',
               filter === f.id
                 ? 'border-retro-cta bg-retro-tint-cta text-retro-cta'
                 : 'border-retro-border bg-retro-bg text-retro-dim hover:text-retro-text',
@@ -282,7 +282,7 @@ function RefreshBar({ label, refreshing, onRefresh }) {
         onClick={onRefresh}
         disabled={refreshing}
         className="min-h-9 px-3 rounded border border-retro-border bg-retro-bg font-pixel text-[8px] text-retro-dim
-          hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+          hover:text-retro-text hover:border-retro-p1 transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {refreshing ? 'REFRESHING…' : 'REFRESH'}
       </button>
@@ -478,7 +478,7 @@ function FeedbackCard({ item, updatingStatus, onStatus }) {
             onClick={() => onStatus(item.id, status)}
             disabled={!!updatingStatus || item.status === status}
             className={cn(
-              'min-h-9 px-3 rounded border font-pixel text-[8px] transition-all active:scale-95 disabled:cursor-not-allowed',
+              'min-h-9 px-3 rounded border font-pixel text-[8px] transition active:scale-95 disabled:cursor-not-allowed',
               item.status === status
                 ? 'border-retro-cta bg-retro-tint-cta text-retro-cta'
                 : 'border-retro-border bg-retro-bg text-retro-dim hover:text-retro-text hover:border-retro-p1 disabled:opacity-40',

@@ -40,7 +40,7 @@ export default function TimerScalePicker({ gameId, game, canEdit }) {
             disabled={!canEdit || busy}
             onClick={() => pick(opt.value)}
             className={cn(
-              'min-h-11 px-2.5 font-pixel text-[8px] rounded border transition-all active:scale-95',
+              'min-h-11 px-2.5 font-pixel text-[8px] rounded border transition active:scale-95',
               current === opt.value
                 ? 'border-retro-cta bg-retro-tint-cta text-retro-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-cta/40',

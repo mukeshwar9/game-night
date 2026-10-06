@@ -22,7 +22,7 @@ export default function AtaxxBoard({
   return (
     <div className="w-full max-w-[360px] sm:max-w-[420px] mx-auto">
       <div className={cn(
-        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         <div
@@ -51,7 +51,7 @@ export default function AtaxxBoard({
                 disabled={disabled}
                 onClick={() => !disabled && tap(i)}
                 className={cn(
-                  'aspect-square rounded-sm transition-all duration-100 select-none',
+                  'aspect-square rounded-sm transition duration-100 select-none',
                   'flex items-center justify-center font-pixel text-lg sm:text-xl outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
                   dark ? 'bg-retro-surface' : 'bg-retro-card',
