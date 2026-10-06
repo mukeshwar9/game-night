@@ -143,6 +143,9 @@ export const sounds = {
   // Flat held buzzer for a per-question timeout — distinct from miss()'s descending tone
   buzz:  ()    => { seq([[140, 0, 0.28, 'sawtooth', 0.13]]); notice('WARNING') },
   move:  (sym) => { seq([[sym === 'X' ? 440 : 330, 0, 0.07]]); vibrate(9) },
+  // The finger's contact with a board whose piece lands later (landMs):
+  // a light tick now, the move's sound and haptic when the piece lands.
+  touch: ()    => { vibrate(6) },
   bust:  ()    => { seq([[200, 0, 0.08, 'sawtooth', 0.13], [120, 0.09, 0.16, 'sawtooth', 0.11], [70, 0.22, 0.26, 'sawtooth', 0.09]]); vibrate([0, 40, 60, 50]) },
   // Pig: each safe roll in a turn climbs a pentatonic (new octave every 5).
   // Distinct from `hit()` / `move()` — dice rattle + fifth ping.

@@ -15,6 +15,24 @@ import { nativePlatform } from './platform'
 /** Durations in ms. */
 export const DUR = Object.freeze({ press: 80, fast: 150, base: 220, page: 300 })
 
+/** When a dropped Connect Four disc lands: 70% into its 300 ms disc-drop (index.css). */
+export const DISC_LAND_MS = 210
+
+/**
+ * When a move's feedback plays (MO-05): the move's sound and haptic on the
+ * frame its piece lands (`landMs` after the touch; 0 = it appears in place),
+ * plus a light tick at the touch itself for the mover when the landing comes
+ * later. Never tied to the network acknowledgement.
+ * @param {number} landMs
+ * @param {{ touch?: boolean }} [opts]
+ * @returns {Array<{ at: number, kind: 'touch' | 'move' }>}
+ */
+export function moveFeedbackPlan(landMs, { touch = false } = {}) {
+  const at = Math.max(0, landMs || 0)
+  if (!at) return [{ at: 0, kind: 'move' }]
+  return touch ? [{ at: 0, kind: 'touch' }, { at, kind: 'move' }] : [{ at, kind: 'move' }]
+}
+
 /** Cubic-bezier easings (Material 3 standard / emphasized). */
 export const EASE = Object.freeze({
   standard: 'cubic-bezier(0.2, 0, 0, 1)',

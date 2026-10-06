@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  DUR, EASE, SPRINGS, isSettled, motionPlatform, pressReleaseDelay, releaseVelocity, rubberBand,
+  DISC_LAND_MS, DUR, EASE, SPRINGS, moveFeedbackPlan, isSettled, motionPlatform, pressReleaseDelay, releaseVelocity, rubberBand,
   shouldDismiss, springLinear, springPreset, stepSpring,
 } from './motion'
 
@@ -142,5 +142,22 @@ describe('gesture helpers', () => {
     expect(pressReleaseDelay(10)).toBe(60)
     expect(pressReleaseDelay(70)).toBe(0)
     expect(pressReleaseDelay(300)).toBe(0)
+  })
+})
+
+describe('moveFeedbackPlan', () => {
+  it('plays at once for pieces that appear in place', () => {
+    expect(moveFeedbackPlan(0, { touch: true })).toEqual([{ at: 0, kind: 'move' }])
+  })
+
+  it('ticks on touch and lands the move on the contact frame for dropped discs', () => {
+    expect(moveFeedbackPlan(DISC_LAND_MS, { touch: true })).toEqual([{ at: 0, kind: 'touch' }, { at: 210, kind: 'move' }])
+    // The opponent's disc: no touch of theirs to answer, only the landing.
+    expect(moveFeedbackPlan(DISC_LAND_MS)).toEqual([{ at: 210, kind: 'move' }])
+  })
+
+  it('lands disc feedback where disc-drop reaches the slot (70% of 300 ms)', () => {
+    expect(css).toMatch(/@keyframes disc-drop \{[^}]*\}[^}]*70%\s*\{ transform: translateY\(6%\)/)
+    expect(DISC_LAND_MS).toBe(Math.round(300 * 0.7))
   })
 })

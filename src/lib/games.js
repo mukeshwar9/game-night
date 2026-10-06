@@ -138,6 +138,7 @@ import { getTicTacToe4Winner } from './tictactoe4Logic'
 import { applyDiceBigMove } from './diceLogic'
 import { getHexWinner, HEX_CELL_COUNT, applyHexMove, getMoveIndex as getHexMoveIndex } from './hexLogic'
 import { generateNumber } from './numberMemoryLogic'
+import { DISC_LAND_MS } from './motion'
 
 // Board and page components load on demand: the registry sits in the entry
 // chunk (Home renders the picker from it), so eager imports here would pull
@@ -555,6 +556,7 @@ export const GAME_TYPES = [
     getMoveIndex: getConnectFourDrop,
     getWinner: getConnectFourWinner,
     BoardComponent: ConnectFourBoard,
+    landMs: DISC_LAND_MS,
   },
   {
     type: 'connectfour5', label: 'C4 FIVE', desc: 'five in a row on 9×7',
@@ -567,6 +569,7 @@ export const GAME_TYPES = [
     getMoveIndex: (board, col) => getConnectFourDrop(board, col, CF5),
     getWinner: (board) => getConnectFourWinner(board, CF5),
     BoardComponent: ConnectFourBoard,
+    landMs: DISC_LAND_MS,
     boardProps: () => ({ cols: 9, rows: 7 }),
   },
   {
@@ -584,6 +587,7 @@ export const GAME_TYPES = [
       return getConnectFourDrop(board, move?.col)
     },
     BoardComponent: ConnectFourBoard,
+    landMs: DISC_LAND_MS,
     applyMove: ({ board, move, symbol }) => {
       const res = applyConnectFourPopMove(board, move, symbol)
       if (!res) return null

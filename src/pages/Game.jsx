@@ -61,6 +61,7 @@ import { getArrowsMatchEnd } from '../lib/arrowsLogic'
 import { matchTargetFor, isMatchFinish, isCoopGame } from '../lib/matchRules'
 import { LEADERBOARD_ENABLED } from '../lib/features'
 import { haptic, hapticNotify } from '../lib/haptics'
+import { moveFeedbackPlan } from '../lib/motion'
 
 // The reaction bar and animated emoji pull in framer-motion (~120 KB). Load
 // them only when a room first shows the bar or floats a reaction, not with
@@ -144,6 +145,17 @@ function LeaveMatchConfirm({ onConfirm, onCancel }) {
       </div>
     </BottomSheet>
   )
+}
+
+// A move's sound and haptic, timed to the piece: at once for pieces that
+// appear in place, when the disc lands for boards that drop it (registry
+// `landMs`). The mover's own finger gets a light tick at the touch.
+function playLanded(cfg, symbol, { touch = false } = {}) {
+  for (const { at, kind } of moveFeedbackPlan(cfg?.landMs ?? 0, { touch })) {
+    const play = kind === 'touch' ? () => sounds.touch() : () => sounds.move(symbol)
+    if (at) setTimeout(play, at)
+    else play()
+  }
 }
 
 // The invite sheet's party mode: head-count and cap of a party-first room.
@@ -314,7 +326,7 @@ export default function Game() {
           prevTurn.current &&
           prevTurn.current !== mySymbol.current
         ) {
-          sounds.move(prevTurn.current)
+          playLanded(cfg, prevTurn.current)
         }
       } else {
         // Other applyMove games: detect opponent moves by filled count increase
@@ -324,7 +336,7 @@ export default function Game() {
           prevTurn.current &&
           prevTurn.current !== mySymbol.current
         ) {
-          sounds.move(prevTurn.current)
+          playLanded(cfg, prevTurn.current)
         }
       }
     } else {
@@ -335,7 +347,7 @@ export default function Game() {
         game.currentTurn !== prevTurn.current &&
         game.currentTurn === mySymbol.current
       ) {
-        sounds.move(prevTurn.current)
+        playLanded(cfg, prevTurn.current)
       }
     }
 
@@ -492,12 +504,15 @@ export default function Game() {
 
       updates.lastActivityAt = Date.now()
       setMovePending(true)
-      // A slow ack gets a visible "SAVING MOVE…" line (the sound alone would
-      // otherwise just be missing).
+      // Feedback is for the touch and the piece landing, not the network: the
+      // optimistic echo draws the piece now, so its sound and haptic play now
+      // (or when it lands, for dropped discs) rather than one round trip
+      // later. A slow ack gets a visible "SAVING MOVE…" line; a failed one a
+      // toast, and Firebase rolls the piece back.
+      if (!cfg.quietMoves) playLanded(cfg, mySymbol.current, { touch: true })
       const slowTimer = setTimeout(() => { if (pendingMoveRef.current === token) setMoveSlow(true) }, 1200)
       try {
         await update(ref(db, `games/${gameId}`), updates)
-        if (!cfg.quietMoves) sounds.move(mySymbol.current)
       } catch {
         // Firebase rolls the optimistic echo back to the server's state.
         toast.error('MOVE NOT SAVED — CHECK CONNECTION')
