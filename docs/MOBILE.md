@@ -92,6 +92,10 @@ Behaviour in the shell, in short:
   animation loops stop.
 - Android back closes an open sheet, then goes back, then goes home, then
   minimizes the app.
+- Haptics: sound cues give a light tap in the shell (never on the web), and
+  wins, refused moves and losses use the platform's notification haptics
+  (`hapticNotify` in `src/lib/haptics.js`). Settings › Audio › HAPTICS turns
+  all of it off; it is separate from the sound switch.
 - Without the sign-in flags the shell shows no Google or Apple button (the web
   popup cannot work in a web view). Without `VITE_NATIVE_PUSH` the
   notifications toggle is hidden.
@@ -258,9 +262,6 @@ record exists. Deploy the rules before relying on it.
   so it follows the silent switch and mixes with the player's own music. Use
   `.playback` instead if sound should play with the switch on.
 - Whether invite links and share cards move to a custom domain before launch.
-- Sound-cue haptics stay off (`SFX_HAPTICS` in `src/lib/sounds.js`), as on the
-  web; moves blocked by turn order and Mine Race flags already use
-  `haptic()`.
 
 ## Profiling and debugging
 

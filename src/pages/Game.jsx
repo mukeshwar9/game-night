@@ -59,7 +59,7 @@ import { getArrowsMatchEnd } from '../lib/arrowsLogic'
 // Match-end rule, shared with the results Cloud Function (functions/).
 import { matchTargetFor, isMatchFinish, isCoopGame } from '../lib/matchRules'
 import { LEADERBOARD_ENABLED } from '../lib/features'
-import { haptic } from '../lib/haptics'
+import { haptic, hapticNotify } from '../lib/haptics'
 
 // The reaction bar and animated emoji pull in framer-motion (~120 KB). Load
 // them only when a room first shows the bar or floats a reaction, not with
@@ -387,7 +387,7 @@ export default function Game() {
     if (now - blockedMoveFeedbackAt.current < 1000) return
     blockedMoveFeedbackAt.current = now
     toast.error('NOT YOUR TURN')
-    haptic(30)
+    hapticNotify('WARNING')
   }
 
   // F-48: a move is PENDING from the tap until Firebase acknowledges the write.

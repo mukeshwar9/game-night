@@ -18,6 +18,7 @@ import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { getPlayerId } from '../lib/playerId'
 import { sounds } from '../lib/sounds'
+import { getHapticsOn, hapticsAvailable, setHapticsOn } from '../lib/haptics'
 import { resetMusicDefaults, setMusicOn, setMusicVolume, syncMusic, useMusic } from '../lib/music'
 import { lazyWithRetry } from '../lib/lazyWithRetry'
 import LegalLinks from './LegalLinks'
@@ -71,6 +72,7 @@ export default function SettingsButton({ className = '' }) {
   const [textSize, setTextSize] = useState(getStoredTextSize)
   const [artStyle, setArtStyle] = useState(getGameArtStyle)
   const [winFx, setWinFx] = useState(getWinFx)
+  const [haptics, setHaptics] = useState(getHapticsOn)
   const [resetArmed, setResetArmed] = useState(false)
   const [editingMe, setEditingMe] = useState(false)
   const { profile } = useAuth()
@@ -134,6 +136,7 @@ export default function SettingsButton({ className = '' }) {
   const selectTextSize = (id) => setTextSize(applyTextSize(id))
   const selectArtStyle = (id) => setArtStyle(applyGameArtStyle(id))
   const selectWinFx = (on) => { applyWinFx(on); setWinFx(on) }
+  const selectHaptics = (on) => { setHapticsOn(on); setHaptics(on) }
   const selectShowPreview = (on) => { applyThemePreview(on); setShowPreview(on) }
 
   const resetAll = () => {
@@ -159,6 +162,7 @@ export default function SettingsButton({ className = '' }) {
     setArtStyle(DEFAULT_ART_STYLE)
     applyGameArtStyle(DEFAULT_ART_STYLE)
     setWinFx(true)
+    selectHaptics(true)
     setShowPreview(false)
     setProfile({ theme: 'matcha', fontFamily: 'press-start' }).catch(() => {})
   }
@@ -329,6 +333,9 @@ export default function SettingsButton({ className = '' }) {
         </label>
         <SwitchRow label="GAME SOUNDS" checked={!muted} onChange={toggleMute} ariaLabel="Enable game sounds" />
         <SwitchRow label="REACTION SOUNDS" checked={!reactionMuted} onChange={toggleReactionMute} ariaLabel="Enable reaction sounds" />
+        {hapticsAvailable() && (
+          <SwitchRow label="HAPTICS" checked={haptics} onChange={selectHaptics} ariaLabel="Enable vibration and haptic feedback" />
+        )}
         <label className="block font-pixel text-[9px] text-retro-text tracking-widest">
           <span className="mb-2 flex justify-between"><span>SFX VOLUME</span><span className="text-retro-dim">{Math.round(volume * 100)}%</span></span>
           <input type="range" min="0" max="1" step="0.05" value={volume} onChange={changeVolume} aria-label="SFX volume" className="w-full accent-retro-cta" />
