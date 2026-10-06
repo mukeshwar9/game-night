@@ -1,15 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import MinigolfCourse from './MinigolfCourse'
 import MinigolfScorecard from './MinigolfScorecard'
 import { HOLES, getCourse } from '../lib/minigolfCourses'
-import { aimRayLength, quantizeShot, simulateShot } from '../lib/minigolfPhysics'
+import { aimRayLength, quantizeShot, shotVelocity, simulateShot } from '../lib/minigolfPhysics'
 import { STROKE_CAP, formatVsPar, scoreName, vsPar } from '../lib/minigolfLogic'
 import { SEAT_GLYPHS, seatColor } from '../lib/minigolfUi'
-import useGolfAim from '../hooks/useGolfAim'
+import useGolfAim, { svgSurface } from '../hooks/useGolfAim'
 import useMotionPref from '../hooks/useMotionPref'
 import useFocusArena from '../hooks/useFocusArena'
 import { sounds } from '../lib/sounds'
+import { cameraMode, pathHeading, reachMetres } from '../lib/minigolf3dLogic'
+import { readGolfView, webglAvailable, writeGolfView } from '../lib/golfView'
+import { lazyWithRetry } from '../lib/lazyWithRetry'
 import { cn } from '@/lib/utils'
+
+// three.js lives only in this lazy chunk; the 2D SVG course draws while it loads
+// and stays as the fallback when WebGL is missing or its context is lost.
+const MinigolfCourse3D = lazyWithRetry(() => import('./MinigolfCourse3D'))
+const NUMERAL = { fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, fontSize: '2em', lineHeight: 1 }
 
 // The Minigolf play surface shared by solo, pass-and-play and online rooms:
 // HUD, course, score chips, the stroke replay animation, sink banners and the
@@ -56,7 +64,8 @@ export default function MinigolfPlay({
   renderDone = null,
 }) {
   const holes = getCourse(course).holes
-  const worldRef = useRef(null)
+  const [world, setWorld] = useState(null)         // the 2D course's world <g>
+  const [surface3d, setSurface3d] = useState(null)  // the 3D canvas + its pointer mapping
   const courseRef = useRef(null)
   useFocusArena(courseRef, true)
   const landscape = useLandscapePhone()
@@ -71,6 +80,11 @@ export default function MinigolfPlay({
   const [burst, setBurst] = useState(null)
   const [shake, setShake] = useState(null)       // { x, y } px offset
   const [announce, setAnnounce] = useState('')
+  const [view, setView] = useState(readGolfView)
+  const [glFailed, setGlFailed] = useState(false)
+  const canToggle = webglAvailable() && !glFailed
+  const view3d = view === '3d' && canToggle
+  const surface2d = useMemo(() => svgSurface(world), [world])
 
   // New strokes in the log → start playing the newest (adjust-state-on-props:
   // done during render so no frame ever shows the post-stroke state first).
@@ -124,7 +138,7 @@ export default function MinigolfPlay({
       if (!rm) setBurst({ key: `${last.h}-${last.by}-${last.index}`, x: hole.cup[0], y: hole.cup[1], seat })
     }
     const holeDone = !s.done && s.pos > last.h
-    setBanner({ text, sub, seat, pos: last.h, tone: holed && last.score <= hole.par ? 'win' : holed ? 'text' : 'p2', holeDone })
+    setBanner({ text, sub, seat, pos: last.h, tone: holed && last.score <= hole.par ? 'win' : holed ? 'text' : 'p2', holeDone, holed, key: `${last.h}-${last.by}-${last.index}` })
     setAnnounce(`${text} ${sub}`)
   }
 
@@ -207,6 +221,7 @@ export default function MinigolfPlay({
   // What to draw right now.
   let hole, balls = [], t = now / 1000, hudUid = state.turn, hudStrokes = state.strokes, hudPos = state.pos
   let trail = null
+  let heading = { vx: 0, vy: 0 }
   if (playback?.entry) {
     const pb = playback
     const i = stepAt(pb, now)
@@ -217,6 +232,11 @@ export default function MinigolfPlay({
     hudUid = pb.entry.by
     hudStrokes = pb.entry.strokes
     hudPos = pb.entry.h
+    heading = pathHeading(pb.path, i)
+    if (Math.hypot(heading.vx, heading.vy) < 0.4) { // still on the tee: look down the shot
+      const v = shotVelocity(pb.entry.shot), s = Math.hypot(v.vx, v.vy) || 1
+      heading = { vx: (v.vx / s) * 10, vy: (v.vy / s) * 10 }
+    }
     if (!reduced) {
       trail = Array.from({ length: 10 }, (_, j) => {
         const k = Math.max(0, i - (10 - j) * 3)
@@ -239,9 +259,8 @@ export default function MinigolfPlay({
 
   const canAim = controllable && !busy && !state.done
   const aim = useGolfAim({
-    worldRef,
+    surface: view3d ? surface3d : surface2d,
     enabled: canAim,
-    attachKey: landscape,
     onShoot: (angle, power) => onShot?.({ ...quantizeShot(angle, power), k: tickAt(performance.now()) }),
   })
   const aimLine = useMemo(() => {
@@ -283,6 +302,18 @@ export default function MinigolfPlay({
             </div>
           </div>
         )}
+        {canToggle && (
+          <button
+            type="button"
+            onClick={() => { const next = view3d ? '2d' : '3d'; setView(next); writeGolfView(next) }}
+            aria-pressed={view3d}
+            aria-label={view3d ? 'Switch to flat 2D view' : 'Switch to 3D view'}
+            title={view3d ? 'Switch to 2D view' : 'Switch to 3D view'}
+            className="shrink-0 w-9 h-9 grid place-items-center rounded border border-retro-border bg-retro-card font-pixel text-[8px] text-retro-dim hover:text-retro-text aria-pressed:text-retro-cta aria-pressed:border-retro-cta"
+          >
+            3D
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setCard(c => (c ? null : { pos: Math.min(hudPos, holes.length - 1), manual: true }))}
@@ -307,27 +338,58 @@ export default function MinigolfPlay({
         onPointerDown={fastForward}
       >
         <div className="absolute inset-0" style={shake ? { transform: `translate(${shake.x}px, ${shake.y}px)` } : undefined}>
-          <MinigolfCourse
-            hole={hole}
-            t={t}
-            balls={balls}
-            aim={aimLine}
-            trail={trail}
-            flashBumper={flashBumper}
-            burst={burst}
-            worldRef={worldRef}
-            landscape={landscape}
-            className="w-full h-full block"
-          />
+          {view3d ? (
+            <Suspense
+              fallback={
+                <MinigolfCourse hole={hole} t={t} balls={balls} landscape={landscape} className="w-full h-full block" />
+              }
+            >
+              <MinigolfCourse3D
+                hole={hole}
+                t={t}
+                balls={balls}
+                aim={aimLine}
+                trail={trail}
+                flashBumper={flashBumper}
+                burst={burst}
+                sink={banner?.holed ? { key: banner.key, seat: banner.seat } : null}
+                cam={{ mode: cameraMode({ playing: !!playback?.entry, sunk: !!banner?.holed }), ...heading }}
+                landscape={landscape}
+                reduced={reduced}
+                onSurface={setSurface3d}
+                onFail={() => { setGlFailed(true); setSurface3d(null) }}
+                className="w-full h-full block"
+              />
+            </Suspense>
+          ) : (
+            <MinigolfCourse
+              hole={hole}
+              t={t}
+              balls={balls}
+              aim={aimLine}
+              trail={trail}
+              flashBumper={flashBumper}
+              burst={burst}
+              worldRef={setWorld}
+              landscape={landscape}
+              className="w-full h-full block"
+            />
+          )}
         </div>
 
         {(statusText || toast || aimLine) && !banner && !card && (
-          <div className="pointer-events-none absolute inset-x-2 bottom-2 flex justify-between items-end gap-2">
-            <span className={cn('font-pixel text-[8px] rounded px-1.5 py-1', (aimLine || toast) && 'bg-retro-bg/75 text-retro-text')}>
-              {aimLine ? `POWER ${Math.round(aimLine.power * 100)}%` : toast ?? ''}
+          <div className="pointer-events-none absolute inset-x-2 bottom-2 flex flex-wrap justify-between items-end gap-x-2 gap-y-1">
+            <span className={cn('font-pixel text-[8px] rounded px-1.5 py-1 shrink-0 whitespace-nowrap', (aimLine || toast) && 'bg-retro-bg/75 text-retro-text')}>
+              {aimLine ? (
+                view3d ? (
+                  <>
+                    <b style={NUMERAL}>{Math.round(aimLine.power * 100)}</b>% POWER · <b style={NUMERAL}>{reachMetres(aimLine.length).toFixed(1)}</b> M REACH
+                  </>
+                ) : `POWER ${Math.round(aimLine.power * 100)}%`
+              ) : toast ?? ''}
             </span>
             {statusText && (
-              <span className="font-pixel text-[8px] leading-relaxed bg-retro-bg/75 text-retro-dim rounded px-1.5 py-1 text-right">{statusText}</span>
+              <span className="ml-auto font-pixel text-[8px] leading-relaxed bg-retro-bg/75 text-retro-dim rounded px-1.5 py-1 text-right">{statusText}</span>
             )}
           </div>
         )}
@@ -336,7 +398,12 @@ export default function MinigolfPlay({
           <button
             type="button"
             onClick={closeBanner}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-bg/80 text-center px-6"
+            className={cn(
+              'absolute inset-0 flex flex-col items-center gap-2 text-center px-6',
+              view3d && banner.holed ? 'justify-end pb-10' : 'justify-center bg-retro-bg/80',
+            )}
+            // 3D sink: keep the cup close-up visible, stamp the result over a soft floor.
+            style={view3d && banner.holed ? { background: 'linear-gradient(to top, rgb(var(--c-bg) / 0.96), rgb(var(--c-bg) / 0.8) 30%, rgb(var(--c-bg) / 0.25) 55%, transparent 80%)' } : undefined}
           >
             <span
               className={cn('font-pixel text-xl leading-snug', !reduced && 'animate-[pong-callout_0.45s_ease-out_both]')}

@@ -10,14 +10,35 @@ import useGameKeys from './useGameKeys'
 // a second finger, or a release under MIN_POWER cancels — never a wasted
 // stroke. Keyboard: ←/→ aim, ↑/↓ power, Space/Enter putt.
 //
-// `worldRef` is the course's world <g>; its getScreenCTM() maps client
-// coordinates to world units (and undoes the landscape rotation).
+// `surface` is `{ el, toCourse(clientX, clientY) }`: the element that takes the
+// pointer events and the map from client coordinates to course units. The 2D
+// course builds it from its world <g> (svgSurface); the 3D view raycasts onto
+// the turf plane. Null until the course has mounted.
 
 const PULL_FULL = 137
 const DEAD_ZONE_PX = 12
 const MIN_POWER = 0.04
 
-export default function useGolfAim({ worldRef, enabled, onShoot, attachKey }) {
+/**
+ * The surface of the 2D course: its world <g>'s getScreenCTM() maps client
+ * coordinates to course units (and undoes the landscape rotation).
+ * @param {SVGGraphicsElement | null | undefined} group
+ */
+export function svgSurface(group) {
+  const el = group?.ownerSVGElement
+  if (!group || !el) return null
+  return {
+    el,
+    toCourse(clientX, clientY) {
+      const m = group.getScreenCTM()
+      if (!m) return null
+      const p = new DOMPoint(clientX, clientY).matrixTransform(m.inverse())
+      return { x: p.x, y: p.y }
+    },
+  }
+}
+
+export default function useGolfAim({ surface, enabled, onShoot }) {
   const [aim, setAim] = useState(null) // { angle, power } | null
   const aimRef = useRef(null)
   const dragRef = useRef(null)
@@ -34,15 +55,9 @@ export default function useGolfAim({ worldRef, enabled, onShoot, attachKey }) {
   }, [enabled])
 
   useEffect(() => {
-    const group = worldRef.current
-    const svg = group?.ownerSVGElement
-    if (!svg) return undefined
-    const toWorld = (e) => {
-      const m = group.getScreenCTM()
-      if (!m) return null
-      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse())
-      return { x: p.x, y: p.y }
-    }
+    if (!surface) return undefined
+    const el = surface.el
+    const toWorld = (e) => surface.toCourse(e.clientX, e.clientY)
     const down = (e) => {
       if (!enabledRef.current) return
       if (dragRef.current) { // second finger: cancel
@@ -52,7 +67,7 @@ export default function useGolfAim({ worldRef, enabled, onShoot, attachKey }) {
       }
       const w = toWorld(e)
       if (!w) return
-      try { svg.setPointerCapture(e.pointerId) } catch { /* synthetic events */ }
+      try { el.setPointerCapture(e.pointerId) } catch { /* synthetic events */ }
       dragRef.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, w }
       e.preventDefault()
     }
@@ -73,17 +88,17 @@ export default function useGolfAim({ worldRef, enabled, onShoot, attachKey }) {
       set(null)
       if (e.type === 'pointerup' && a && a.power > MIN_POWER && enabledRef.current) onShootRef.current?.(a.angle, a.power)
     }
-    svg.addEventListener('pointerdown', down)
-    svg.addEventListener('pointermove', move)
-    svg.addEventListener('pointerup', up)
-    svg.addEventListener('pointercancel', up)
+    el.addEventListener('pointerdown', down)
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
     return () => {
-      svg.removeEventListener('pointerdown', down)
-      svg.removeEventListener('pointermove', move)
-      svg.removeEventListener('pointerup', up)
-      svg.removeEventListener('pointercancel', up)
+      el.removeEventListener('pointerdown', down)
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', up)
+      el.removeEventListener('pointercancel', up)
     }
-  }, [worldRef, attachKey])
+  }, [surface])
 
   useGameKeys((e) => {
     const k = e.key
