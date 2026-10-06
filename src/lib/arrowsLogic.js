@@ -27,9 +27,14 @@
 //     cell swept ahead of its body: in front of both heads and inside its curve.
 // Any arrow may also be asleep (`sleep`): drawn hollow, it cannot leave until
 // an arrow touching it (side by side) has left. Waking only ever happens, so
-// the rule below still holds. Two fixed pieces sit between arrows: a mirror
-// ('/' or '\\') turns a straight route 90° as it passes, and a crate blocks
-// routes until its count of arrows have left the board (it only ever opens).
+// the rule below still holds. Three fixed pieces sit between arrows: a mirror
+// ('/' or '\\') turns a straight route 90° as it passes, a crate blocks
+// routes until its count of arrows have left the board (it only ever opens),
+// and a portal ring sends a straight route to its partner ring and carries on
+// from there, keeping its heading (`turn`: rotated a quarter clockwise;
+// `oneway`: only ring A sends, ring B is just a cell). A board may also be
+// shaped (`mask`): a void cell is an edge, so a route that reaches one leaves
+// the board.
 // Every route is fixed by the board geometry, so clearing an arrow only ever
 // frees cells: a board can never become unsolvable, and a greedy solver that
 // keeps clearing any free arrow decides solvability exactly.
@@ -62,12 +67,13 @@ export const ARROWS_TIER_SPECS = {
 
 // Endless boards mix in the late mechanics the race tiers leave out: sleeping
 // arrows, double arrows, mirrors and crates climb one tier at a time, so hard
-// endless has the whole set. Dims match ARROWS_TIER_SPECS (same easy → hard
+// endless has the whole set — and, on top, a classic portal pair and an
+// exit-only one. Dims match ARROWS_TIER_SPECS (same easy → hard
 // feel), and races keep the mod-free tier specs above.
 export const ARROWS_ENDLESS_SPECS = {
   easy: { cols: 7, rows: 9, maxLen: 5, fill: 0.82, deep: 0.3, sleepers: 1, mirrors: 1 },
   medium: { cols: 8, rows: 11, maxLen: 7, fill: 0.84, samples: 9, diag: 0.1, curve: 0.1, bend: 0.9, deep: 0.5, sleepers: 1, doubles: 1, mirrors: 1, crates: 1 },
-  hard: { cols: 10, rows: 13, maxLen: 9, fill: 0.86, samples: 11, diag: 0.14, curve: 0.14, bend: 0.9, deep: 0.8, sleepers: 2, doubles: 2, mirrors: 2, crates: 1 },
+  hard: { cols: 10, rows: 13, maxLen: 9, fill: 0.86, samples: 11, diag: 0.14, curve: 0.14, bend: 0.9, deep: 0.8, sleepers: 2, doubles: 2, mirrors: 2, crates: 1, portals: ['pair', 'oneway'] },
 }
 
 // Room setting for the race: one tier for every round, or 'mixed' — the
@@ -111,6 +117,8 @@ export const isBent = (arrow) => {
 // The heading a curved arrow takes after its turn at the edge.
 export const turnedDir = (dir, turn) => (dir + (turn === 1 ? 1 : 3)) % 4
 
+const NO_JUMPS = Object.freeze([])
+
 // Small, fast, deterministic PRNG (mulberry32). Same seed → same sequence on
 // every client.
 export function seededRng(seed) {
@@ -146,13 +154,15 @@ function shuffled(list, rng) {
   return arr
 }
 
-// Cells strictly ahead of (x, y) along `dir`, up to the board edge.
-function rayCells(cols, rows, x, y, dir) {
+// Cells strictly ahead of (x, y) along `dir`, up to the board edge (or the
+// first void cell of a shaped board, which is an edge too).
+function rayCells(cols, rows, x, y, dir, voids = null) {
   const [dx, dy] = ARROWS_DIRS[dir]
   const out = []
   let cx = x + dx
   let cy = y + dy
   while (cx >= 0 && cx < cols && cy >= 0 && cy < rows) {
+    if (voids?.has(cy * cols + cx)) break
     out.push(cy * cols + cx)
     cx += dx
     cy += dy
@@ -181,11 +191,17 @@ function isDiagStep(cols, a, b) {
 const MIRROR_TURN = { '/': [1, 0, 3, 2], '\\': [3, 2, 1, 0] }
 
 // A ray from `start` along `dir`, bouncing off mirrors (a Map of cell →
-// '/' | '\\'). A ray that would loop for ever, or a diagonal ray that meets a
-// mirror, is dead: that arrow can never leave, and the generator never builds
-// one.
-function traceRay(cols, rows, start, dir, mirrors) {
+// '/' | '\\') and hopping through portals (a Map of ring cell → { to, turn,
+// pair }; the ray lands on the partner ring and carries on from it, rotated a
+// quarter clockwise when `turn`). The edge of the board, or a void cell, ends
+// the ray. A ray that would loop for ever, or a diagonal ray that meets a
+// mirror or a portal, is dead: that arrow can never leave, and the generator
+// never builds one. `jumps[n]` is the index in `cells` of the n-th landing
+// ring (the cell before it is the ring it entered), `ports[n]` its pair.
+function traceRay(cols, rows, start, dir, mirrors, portals = null, voids = null) {
   const out = []
+  const jumps = []
+  const ports = []
   let x = start % cols
   let y = Math.floor(start / cols)
   let d = dir
@@ -194,36 +210,52 @@ function traceRay(cols, rows, start, dir, mirrors) {
     const [dx, dy] = ARROWS_DIRS[d]
     x += dx
     y += dy
-    if (x < 0 || x >= cols || y < 0 || y >= rows) return { cells: out, dir: d, dead: false }
+    if (x < 0 || x >= cols || y < 0 || y >= rows) return { cells: out, dir: d, dead: false, jumps, ports }
     const c = y * cols + x
+    if (voids?.has(c)) return { cells: out, dir: d, dead: false, jumps, ports }
     out.push(c)
-    const m = mirrors.get(c)
-    if (m) {
-      if (d >= 4) return { cells: out, dir: d, dead: true }
+    const m = mirrors?.get(c)
+    const p = m ? null : portals?.get(c)
+    if (m || p) {
+      if (d >= 4) return { cells: out, dir: d, dead: true, jumps, ports }
       const key = c * 4 + d
-      if (seen.has(key)) return { cells: out, dir: d, dead: true }
+      if (seen.has(key)) return { cells: out, dir: d, dead: true, jumps, ports }
       seen.add(key)
-      d = MIRROR_TURN[m][d]
+      if (m) {
+        d = MIRROR_TURN[m][d]
+      } else {
+        x = p.to % cols
+        y = Math.floor(p.to / cols)
+        jumps.push(out.length)
+        ports.push(p.pair)
+        out.push(p.to)
+        if (p.turn) d = turnedDir(d, 1)
+      }
     }
   }
 }
 
 // The exit route of an arrow whose head is cell `head`: { cells, corners,
-// finalDir, dead }. `cells` lists, in travel order, every cell the head
-// passes on its way off the board; `corners[k]` is the lattice corner crossed
-// just before cells[k] (diagonal routes only, else -1); `finalDir` is the
-// heading it leaves the board on. With mirrors, a straight route turns at
-// each one, and a hooked arrow still turns once at the edge after any
-// bounce; `dead` marks a route that can never leave (see traceRay).
-function routeFrom(cols, rows, head, dir, turn, mirrors = null) {
-  if (mirrors?.size) {
-    const first = traceRay(cols, rows, head, dir, mirrors)
+// finalDir, dead, jumps, ports }. `cells` lists, in travel order, every cell
+// the head passes on its way off the board; `corners[k]` is the lattice
+// corner crossed just before cells[k] (diagonal routes only, else -1);
+// `finalDir` is the heading it leaves the board on. With mirrors, a straight
+// route turns at each one, with portals it hops from ring to ring (`jumps`
+// marks the landings, see traceRay), and a hooked arrow still turns once at
+// the edge after any bounce or hop; `dead` marks a route that can never leave.
+function routeFrom(cols, rows, head, dir, turn, mirrors = null, portals = null, voids = null) {
+  if (mirrors?.size || portals?.size) {
+    const first = traceRay(cols, rows, head, dir, mirrors, portals, voids)
     let cells = first.cells
     let finalDir = first.dir
     let dead = first.dead
+    let jumps = first.jumps
+    let ports = first.ports
     if (!dead && dir < 4 && (turn === 1 || turn === -1)) {
       const pivot = cells.length ? cells[cells.length - 1] : head
-      const second = traceRay(cols, rows, pivot, turnedDir(first.dir, turn), mirrors)
+      const second = traceRay(cols, rows, pivot, turnedDir(first.dir, turn), mirrors, portals, voids)
+      jumps = [...jumps, ...second.jumps.map((j) => j + cells.length)]
+      ports = [...ports, ...second.ports]
       cells = [...cells, ...second.cells]
       finalDir = second.dir
       dead = second.dead
@@ -231,28 +263,29 @@ function routeFrom(cols, rows, head, dir, turn, mirrors = null) {
     const corners = dir >= 4
       ? cells.map((c, k) => cornerOf(cols, k === 0 ? head : cells[k - 1], c))
       : cells.map(() => -1)
-    return { cells, corners, finalDir, dead }
+    return { cells, corners, finalDir, dead, jumps, ports }
   }
   const hx = head % cols
   const hy = Math.floor(head / cols)
-  let cells = rayCells(cols, rows, hx, hy, dir)
+  let cells = rayCells(cols, rows, hx, hy, dir, voids)
   let finalDir = dir
   if (dir < 4 && (turn === 1 || turn === -1)) {
     const pivot = cells.length ? cells[cells.length - 1] : head
     finalDir = turnedDir(dir, turn)
-    cells = [...cells, ...rayCells(cols, rows, pivot % cols, Math.floor(pivot / cols), finalDir)]
+    cells = [...cells, ...rayCells(cols, rows, pivot % cols, Math.floor(pivot / cols), finalDir, voids)]
   }
   const corners = dir >= 4
     ? cells.map((c, k) => cornerOf(cols, k === 0 ? head : cells[k - 1], c))
     : cells.map(() => -1)
-  return { cells, corners, finalDir, dead: false }
+  return { cells, corners, finalDir, dead: false, jumps: NO_JUMPS, ports: NO_JUMPS }
 }
 
 // A double arrow's route: every cell swept ahead of its body along `dir`,
 // minus its own cells, in body order. `dist[k]` is the number of empty cells
 // between that cell and the body on its lane (the bump distance). A double
-// arrow cannot bounce, so a mirror anywhere in that area makes it dead.
-function doubleRoute(cols, rows, cellIdx, dir, mirrors = null) {
+// arrow cannot bounce or hop, so a mirror or a portal ring anywhere in that
+// area makes it dead.
+function doubleRoute(cols, rows, cellIdx, dir, mirrors = null, portals = null, voids = null) {
   const own = new Set(cellIdx)
   const at = new Map()
   const cells = []
@@ -260,7 +293,7 @@ function doubleRoute(cols, rows, cellIdx, dir, mirrors = null) {
   let dead = false
   for (const c of cellIdx) {
     let lastOwn = -1
-    rayCells(cols, rows, c % cols, Math.floor(c / cols), dir).forEach((rc, k) => {
+    rayCells(cols, rows, c % cols, Math.floor(c / cols), dir, voids).forEach((rc, k) => {
       if (own.has(rc)) { lastOwn = k; return }
       const gap = k - lastOwn - 1
       if (at.has(rc)) {
@@ -270,10 +303,10 @@ function doubleRoute(cols, rows, cellIdx, dir, mirrors = null) {
       at.set(rc, cells.length)
       cells.push(rc)
       dist.push(gap)
-      if (mirrors?.has(rc)) dead = true
+      if (mirrors?.has(rc) || portals?.has(rc)) dead = true
     })
   }
-  return { cells, corners: cells.map(() => -1), finalDir: dir, dead, dist }
+  return { cells, corners: cells.map(() => -1), finalDir: dir, dead, dist, jumps: NO_JUMPS, ports: NO_JUMPS }
 }
 
 // Grow a double arrow from head A at `head` pointing `dir`: a prong of 1–2
@@ -322,25 +355,81 @@ export function crateMap(level) {
   return new Map(level.crates.map((c) => [c.y * level.cols + c.x, c.k]))
 }
 
-// Routes are pure functions of board size, mirrors and the arrow, cached per
-// arrow object.
+// Ring cell → { to, turn, pair } for the rings that send (null without any
+// portals). A two-way pair sends from both rings; a `oneway` pair only from
+// ring A, so crossing its ring B does nothing. Cached per portal list.
+const portalCache = new WeakMap()
+export function portalMap(level) {
+  if (!level.portals?.length) return null
+  let map = portalCache.get(level.portals)
+  if (!map || map.cols !== level.cols) {
+    map = new Map()
+    level.portals.forEach((p, pair) => {
+      const a = p.a[1] * level.cols + p.a[0]
+      const b = p.b[1] * level.cols + p.b[0]
+      const turn = p.turn === true
+      map.set(a, { to: b, turn, pair })
+      if (!p.oneway) map.set(b, { to: a, turn, pair })
+    })
+    map.cols = level.cols
+    portalCache.set(level.portals, map)
+  }
+  return map
+}
+
+// Every ring cell of a level's portals, senders and exit-only rings alike.
+export function portalRings(level) {
+  const out = new Set()
+  for (const p of level.portals ?? []) {
+    out.add(p.a[1] * level.cols + p.a[0])
+    out.add(p.b[1] * level.cols + p.b[0])
+  }
+  return out
+}
+
+// Void cells of a shaped board: `mask` is one string per row, '#' for a
+// playable cell and '.' for a void (null for a plain rectangle). A void is an
+// edge: a route that reaches one has left the board. Cached per mask.
+const voidCache = new WeakMap()
+export function voidSet(level) {
+  if (!level.mask) return null
+  let set = voidCache.get(level.mask)
+  if (!set) {
+    set = new Set()
+    level.mask.forEach((row, y) => {
+      for (let x = 0; x < level.cols; x += 1) if (row[x] !== '#') set.add(y * level.cols + x)
+    })
+    voidCache.set(level.mask, set)
+  }
+  return set.size ? set : null
+}
+
+// Routes are pure functions of board size, shape, fixed pieces and the arrow,
+// cached per arrow object.
 const routeCache = new WeakMap()
 
 export function arrowRoute(level, arrow) {
   const hit = routeCache.get(arrow)
-  if (hit && hit.cols === level.cols && hit.rows === level.rows && hit.mirrors === level.mirrors) return hit.route
+  if (
+    hit && hit.cols === level.cols && hit.rows === level.rows &&
+    hit.mirrors === level.mirrors && hit.portals === level.portals && hit.mask === level.mask
+  ) return hit.route
   const [hx, hy] = arrow.cells[arrow.cells.length - 1]
   const mirrors = mirrorMap(level)
+  const portals = portalMap(level)
+  const voids = voidSet(level)
   const route = arrow.double
-    ? doubleRoute(level.cols, level.rows, arrow.cells.map(([x, y]) => y * level.cols + x), arrow.dir, mirrors)
-    : routeFrom(level.cols, level.rows, hy * level.cols + hx, arrow.dir, arrow.turn, mirrors)
-  routeCache.set(arrow, { cols: level.cols, rows: level.rows, mirrors: level.mirrors, route })
+    ? doubleRoute(level.cols, level.rows, arrow.cells.map(([x, y]) => y * level.cols + x), arrow.dir, mirrors, portals, voids)
+    : routeFrom(level.cols, level.rows, hy * level.cols + hx, arrow.dir, arrow.turn, mirrors, portals, voids)
+  routeCache.set(arrow, { cols: level.cols, rows: level.rows, mirrors: level.mirrors, portals: level.portals, mask: level.mask, route })
   return route
 }
 
-// Generator occupancy marker for a mirror cell: no arrow may sit on it, but
-// routes pass through it.
+// Generator occupancy markers: a mirror or portal ring (no arrow may sit on
+// it, but routes pass through it) and a void cell of a shaped board (nothing
+// is ever placed there, and routes stop before it).
 const MIRROR = -2
+const VOID = -3
 
 function routeBlocked(route, occ, corners) {
   if (route.dead) return true
@@ -579,11 +668,51 @@ function placeMirrors(spec, occ, rng) {
   for (let tries = 0; out.length < mirrors && tries < 400; tries += 1) {
     const x = 1 + Math.floor(rng() * (cols - 2))
     const y = 1 + Math.floor(rng() * (rows - 2))
-    if (out.some((m) => Math.abs(m.x - x) + Math.abs(m.y - y) < 3)) continue
+    if (out.some((m) => Math.abs(m.x - x) + Math.abs(m.y - y) < 3) || occ[y * cols + x] !== -1) continue
     const m = rng() < 0.5 ? '/' : '\\'
     out.push({ x, y, m })
     occ[y * cols + x] = MIRROR
   }
+  return out
+}
+
+// Portals go down right after the mirrors, before any arrow, on interior
+// cells: `spec.portals` lists one kind per pair — 'pair' (two-way), 'oneway'
+// (only ring A sends) or 'turn' (the route leaves a quarter turn clockwise).
+// The two rings of a pair sit far apart (so the hop saves real distance) and
+// no two rings touch. Like mirrors they draw from the second random stream,
+// so a spec without portals generates exactly the board it always did.
+function placePortals(spec, occ, rng) {
+  const { cols, rows, portals: kinds = [] } = spec
+  const out = []
+  const rings = []
+  const far = (u, v) => rings.every((r) => Math.abs(r[0] - u) + Math.abs(r[1] - v) >= 2)
+  kinds.forEach((kind, c) => {
+    const pick = () => {
+      for (let tries = 0; tries < 200; tries += 1) {
+        const x = 1 + Math.floor(rng() * (cols - 2))
+        const y = 1 + Math.floor(rng() * (rows - 2))
+        if (occ[y * cols + x] === -1 && far(x, y)) return [x, y]
+      }
+      return null
+    }
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const sep = Math.max(3, Math.floor((cols + rows) / 3) - attempt)
+      const a = pick()
+      if (!a) continue
+      rings.push(a)
+      const b = pick()
+      if (!b || Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) < sep) { rings.pop(); continue }
+      rings.push(b)
+      const portal = { a, b, c }
+      if (kind === 'oneway') portal.oneway = true
+      if (kind === 'turn') portal.turn = true
+      out.push(portal)
+      occ[a[1] * cols + a[0]] = MIRROR
+      occ[b[1] * cols + b[0]] = MIRROR
+      return
+    }
+  })
   return out
 }
 
@@ -601,8 +730,9 @@ function placeCrates(level, count, rng) {
       for (const cell of arrowRoute(level, a).cells) if (occ[cell] === -1) crossing.set(cell, (crossing.get(cell) ?? 0) + 1)
     })
     const mirrors = mirrorMap(level)
+    const rings = portalRings(level)
     const taken = new Set(level.crates.map((k) => k.y * level.cols + k.x))
-    const cells = [...crossing.entries()].filter(([cell, k]) => k >= 2 && !mirrors?.has(cell) && !taken.has(cell))
+    const cells = [...crossing.entries()].filter(([cell, k]) => k >= 2 && !mirrors?.has(cell) && !rings.has(cell) && !taken.has(cell))
     cells.sort((a, b) => b[1] - a[1] || rng() - 0.5)
     let best = null
     const before = solveArrows(level).layers
@@ -648,8 +778,15 @@ export function generateArrowsLevel(seed, tier = 'easy') {
   const nDoubles = spec.doubles
   let doublesLeft = nDoubles
   const occ = new Int16Array(cols * rows).fill(-1)
+  // A shaped board: void cells hold the VOID marker, so nothing is placed on
+  // them and no empty-cell scan ever lists them.
+  const shaped = spec.mask ? { cols, mask: spec.mask } : null
+  const voids = shaped ? voidSet(shaped) : null
+  if (voids) for (const c of voids) occ[c] = VOID
   const mirrorList = spec.mirrors ? placeMirrors(spec, occ, rng2) : []
   const mirrors = mirrorList.length ? new Map(mirrorList.map((m) => [m.y * cols + m.x, m.m])) : null
+  const portalList = spec.portals?.length ? placePortals(spec, occ, rng2) : []
+  const portals = portalList.length ? portalMap({ cols, portals: portalList }) : null
   const corners = new Int16Array((cols + 1) * (rows + 1)).fill(-1)
   const arrows = []
   // Boards without twists draw no extra random numbers, so their seeds keep
@@ -657,7 +794,7 @@ export function generateArrowsLevel(seed, tier = 'easy') {
   const twisty = diag + curve > 0
   let filled = 0
   let fails = 0
-  const goal = Math.floor((cols * rows - mirrorList.length) * fill)
+  const goal = Math.floor((cols * rows - (voids?.size ?? 0) - mirrorList.length - portalList.length * 2) * fill)
 
   while (filled < goal && fails < 600) {
     const empty = []
@@ -679,7 +816,7 @@ export function generateArrowsLevel(seed, tier = 'easy') {
         for (const d of shuffled([0, 1, 2, 3], rng)) {
           const body = growDouble(spec, occ, head, d, rng)
           if (!body) continue
-          const route = doubleRoute(cols, rows, body, d, mirrors)
+          const route = doubleRoute(cols, rows, body, d, mirrors, portals, voids)
           if (routeBlocked(route, occ, corners)) continue
           let down = 1
           if (deep) for (const c of body) for (const j of routeOwners[c]) down = Math.max(down, downOf[j] + 1)
@@ -710,12 +847,15 @@ export function generateArrowsLevel(seed, tier = 'easy') {
       const dirs = kind === 'diag' ? [4, 5, 6, 7] : [0, 1, 2, 3]
       for (const d of shuffled(dirs, rng)) {
         const turn = kind === 'curve' ? (rng() < 0.5 ? 1 : -1) : undefined
-        const route = routeFrom(cols, rows, head, d, turn, mirrors)
+        const route = routeFrom(cols, rows, head, d, turn, mirrors, portals, voids)
         if (route.dead) continue
+        // A route that hops through a portal can come back round over its own
+        // head; the body is kept out of the route below, the head must be too.
+        if (portals && route.cells.includes(head)) continue
         if (!deep && route.cells.length <= best) continue
         // A curve must have somewhere to run after its turn (not a corner),
         // or its hook would mean nothing.
-        if (kind === 'curve' && !mirrors && route.cells.length === rayCells(cols, rows, head % cols, Math.floor(head / cols), d).length) continue
+        if (kind === 'curve' && !mirrors && !portals && route.cells.length === rayCells(cols, rows, head % cols, Math.floor(head / cols), d, voids).length) continue
         // The exit route must avoid every earlier arrow — that is what keeps
         // the board solvable (later arrows leave first).
         if (routeBlocked(route, occ, corners)) continue
@@ -762,7 +902,9 @@ export function generateArrowsLevel(seed, tier = 'easy') {
   }
 
   const level = { seed, tier: spec.name, cols, rows, arrows }
+  if (spec.mask) level.mask = spec.mask
   if (mirrorList.length) level.mirrors = mirrorList
+  if (portalList.length) level.portals = portalList
   if (spec.sleepers) placeSleepers(level, spec.sleepers, rng2)
   if (spec.crates) placeCrates(level, spec.crates, rng2)
   return level
@@ -800,6 +942,16 @@ export function arrowAtCell(level, gone, x, y) {
   return occupancy(level, gone)[y * level.cols + x]
 }
 
+// Empty cells the head walks before route cell `k`: a double arrow's lane
+// distance, else the cell index less the landings before it (a hop from ring
+// to ring covers no distance, so the landing ring costs nothing).
+function routeGap(route, k) {
+  if (route.dist) return route.dist[k]
+  let hops = 0
+  for (const j of route.jumps) if (j <= k) hops += 1
+  return k - hops
+}
+
 function checkAgainst(level, occ, corners, index, gone) {
   const arrow = level.arrows[index]
   const route = arrowRoute(level, arrow)
@@ -812,16 +964,16 @@ function checkAgainst(level, occ, corners, index, gone) {
   for (let k = 0; k < route.cells.length; k += 1) {
     const corner = route.corners[k]
     if (corner >= 0 && corners[corner] !== -1 && corners[corner] !== index) {
-      return { free: false, blocker: corners[corner], gap: k }
+      return { free: false, blocker: corners[corner], gap: routeGap(route, k) }
     }
     const cell = route.cells[k]
     const owner = occ[cell]
-    if (owner !== -1) return { free: false, blocker: owner, gap: route.dist ? route.dist[k] : k }
+    if (owner !== -1) return { free: false, blocker: owner, gap: routeGap(route, k) }
     if (crates?.has(cell) && cleared < crates.get(cell)) {
-      return { free: false, blocker: -1, gap: route.dist ? route.dist[k] : k, crate: cell }
+      return { free: false, blocker: -1, gap: routeGap(route, k), crate: cell }
     }
   }
-  return { free: true, blocker: -1, gap: route.cells.length }
+  return { free: true, blocker: -1, gap: route.dist ? route.cells.length : routeGap(route, route.cells.length) }
 }
 
 // Route check for arrow `index`: { free, blocker, gap } where `gap` is the
@@ -895,6 +1047,19 @@ export function solveArrows(level) {
   }
 }
 
+// How many arrows route through each portal pair (index = pair), counting an
+// arrow once per pair however many times it hops. Dead routes never count.
+export function portalUses(level) {
+  const uses = (level.portals ?? []).map(() => 0)
+  if (!uses.length) return uses
+  for (const arrow of level.arrows) {
+    const route = arrowRoute(level, arrow)
+    if (route.dead) continue
+    for (const pair of new Set(route.ports)) uses[pair] += 1
+  }
+  return uses
+}
+
 // Summary used to rank boards by difficulty (solo levels, tests).
 export function levelStats(level) {
   const { solvable, layers, initialFree } = solveArrows(level)
@@ -906,11 +1071,15 @@ export function levelStats(level) {
   const doubles = level.arrows.filter(isDouble).length
   const mirrors = level.mirrors?.length ?? 0
   const crates = level.crates?.length ?? 0
+  const portals = level.portals?.length ?? 0
+  // Every arrow that hops through a portal has a route to trace across the
+  // board instead of along a line.
+  const hops = portals ? portalUses(level).reduce((sum, u) => sum + u, 0) : 0
   // Arrow count and depth carry most of the weight; a scarce opening and
   // every twist arrow (two routes to read instead of one) add a little.
   const openness = n > 0 ? initialFree / n : 1
-  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + bent + curves * 3 + sleepers * 3 + doubles * 4 + mirrors * 3 + crates * 4)
-  return { solvable, arrows: n, layers, initialFree, diagonals, bent, curves, sleepers, doubles, mirrors, crates, difficulty }
+  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + bent + curves * 3 + sleepers * 3 + doubles * 4 + mirrors * 3 + crates * 4 + portals * 4 + hops * 2)
+  return { solvable, arrows: n, layers, initialFree, diagonals, bent, curves, sleepers, doubles, mirrors, crates, portals, hops, difficulty }
 }
 
 // Firebase stores each player's cleared arrows as a map { "12": true }; it
@@ -1027,13 +1196,20 @@ export function slicePolyline(points, from, to) {
 // runs out along its route (straight, diagonal, or to the edge and round the
 // turn for a curved arrow). travel = 0 is the resting pose. Without `level`
 // the route is taken as the straight ray along the arrow's heading.
+// Through a portal the snake pours into one ring and out of the other, so the
+// pose can be several strands: the array returned is the strand holding the
+// head, and the strands behind it hang off it as `.tails` (each ends at the
+// ring it is entering). A hop covers no distance along the path.
 export function leavePose(arrow, size, travel, level = null) {
   const pts = arrow.cells.map((c) => cellCenter(c, size))
   const length = polylineLength(pts)
   let dir = arrow.dir
+  let landings = []
   if (level) {
     const route = arrowRoute(level, arrow)
+    const base = pts.length
     for (const c of route.cells) pts.push(cellCenter([c % level.cols, Math.floor(c / level.cols)], size))
+    landings = route.jumps.map((k) => base + k)
     dir = route.finalDir
   }
   const [vx, vy] = ARROWS_DIRS[dir]
@@ -1041,7 +1217,33 @@ export function leavePose(arrow, size, travel, level = null) {
   const end = pts[pts.length - 1]
   const reach = travel + size
   pts.push([end[0] + (vx / norm) * reach, end[1] + (vy / norm) * reach])
-  return slicePolyline(pts, travel, travel + length)
+  if (!landings.length) return slicePolyline(pts, travel, travel + length)
+  const strands = []
+  let from = 0
+  for (const at of landings) {
+    strands.push(pts.slice(from, at))
+    from = at
+  }
+  strands.push(pts.slice(from))
+  const slices = slicePolylines(strands, travel, travel + length)
+  const head = slices.pop() ?? []
+  if (slices.length) head.tails = slices
+  return head
+}
+
+// slicePolyline over several strands laid end to end: the arc length is the
+// sum of the strands, with no distance between one strand's end and the next
+// one's start. Returns the non-empty slices, in order.
+export function slicePolylines(strands, from, to) {
+  const out = []
+  let offset = 0
+  for (const strand of strands) {
+    const len = polylineLength(strand)
+    const piece = slicePolyline(strand, from - offset, to - offset)
+    if (piece.length) out.push(piece)
+    offset += len
+  }
+  return out
 }
 
 // The arrow's pose after sliding `travel` units: a double arrow moves as one

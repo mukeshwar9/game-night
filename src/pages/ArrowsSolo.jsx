@@ -43,7 +43,7 @@ import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
 // Arrows solo (/solo/arrows). No AI in the first two modes:
-//   LEVELS  — a 60-level campaign that gets steadily harder, with stars,
+//   LEVELS  — a 100-level campaign that gets steadily harder, with stars,
 //             locks and progress saved on the device and the account; the
 //             first board with a new arrow kind opens with a short lesson;
 //   ENDLESS — unlimited generated boards at easy / medium / hard;
@@ -280,6 +280,7 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
           level={level}
           gone={gone}
           onTap={handleTap}
+          zoomable
           interactive={!result && !lesson}
           feedback={feedback}
           hint={hint}

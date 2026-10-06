@@ -1,19 +1,20 @@
 // @ts-check
-// Arrows solo — the 60-level campaign, endless boards and progress. Pure
+// Arrows solo — the 100-level campaign, endless boards and progress. Pure
 // logic: no DOM, no Firebase, no React (storage lives in arrowsProgress.js).
 //
 // Every level is a generator spec (hand-set shape and twists) plus a seed
 // picked by scripts/pick-arrows-levels.mjs. Levels 1–20 climb steadily and
-// are generated from their seed on demand. Levels 21–60 come in four chapters
-// that each open on a lighter lesson board and then climb past the previous
-// chapter's last level (a sawtooth); their finished boards are baked into
-// arrowsLevelsBaked.js so a later generator change can never reshape a
+// are generated from their seed on demand. Levels 21–100 come in eight
+// chapters that each open on a lighter lesson board and then climb past the
+// previous chapter's last level (a sawtooth); their finished boards are baked
+// into arrowsLevelsBaked.js so a later generator change can never reshape a
 // level players have already starred. The generator guarantees solvability
 // by construction and arrowsLevelsLogic.test.js re-checks every level with
 // the solver.
 
-import { ARROWS_ENDLESS_SPECS, ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, solveArrows } from './arrowsLogic.js'
+import { ARROWS_ENDLESS_SPECS, ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, portalUses, solveArrows } from './arrowsLogic.js'
 import { ARROWS_BAKED_LEVELS as BAKED } from './arrowsLevelsBaked.js'
+import { shapeMask } from './arrowsShapes.js'
 
 // Shape of each level. Levels 1–5 teach the core rule on small boards;
 // straight diagonal arrows arrive at level 6, their curved-body cousins at
@@ -26,8 +27,19 @@ import { ARROWS_BAKED_LEVELS as BAKED } from './arrowsLevelsBaked.js'
 // instead: `deep` biases the generator toward long chains of arrows waiting
 // on each other, and a few special pieces arrive one chapter at a time —
 // sleeping arrows (21–30), double arrows (31–40), mirrors (41–50), then
-// crates with a light mix of everything (51–60). Special pieces stay sparse
-// on purpose: one on a lesson board, a handful on a chapter's last.
+// crates with a light mix of everything (51–60).
+// Levels 61–100 add PORTALS in four chapters of ten, one variant each:
+// a classic pair (61), letter pairs (71), exit-only rings (81) and turning
+// rings (91). `portals` lists one kind per pair — 'pair', 'oneway' or 'turn'.
+// Boards grow again, sawtooth, past the old 10 × 13 (zoom and drag in
+// ArrowsBoard make that playable) up to 16 × 22 at level 100, and from the
+// second half of each chapter some boards are shaped (`mask`, see
+// arrowsShapes.js): empty space is an edge. Lesson boards stay rectangular.
+// Special pieces stay sparse on purpose: one on a lesson board, a handful on a
+// chapter's last.
+// A spec on a shaped board: the mask is drawn from the shape at the board's size.
+const shaped = (shape, cols, rows, spec) => ({ cols, rows, ...spec, mask: shapeMask(shape, cols, rows) })
+
 export const ARROWS_LEVEL_SPECS = [
   { cols: 5, rows: 6, maxLen: 3, fill: 0.62, samples: 2 },
   { cols: 5, rows: 7, maxLen: 3, fill: 0.7, samples: 3 },
@@ -93,6 +105,50 @@ export const ARROWS_LEVEL_SPECS = [
   { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 13, diag: 0.16, curve: 0.18, bend: 0.9, deep: 0.9, sleepers: 1, doubles: 1, crates: 2 },
   { cols: 10, rows: 13, maxLen: 8, fill: 0.91, samples: 14, diag: 0.16, curve: 0.18, bend: 0.9, deep: 1, doubles: 1, mirrors: 1, crates: 2 },
   { cols: 10, rows: 13, maxLen: 9, fill: 0.92, samples: 14, diag: 0.16, curve: 0.18, bend: 0.9, deep: 1, sleepers: 1, doubles: 1, mirrors: 1, crates: 2 },
+  // Chapter 7 · portals (a classic pair), mirrors late, two shapes
+  { cols: 8, rows: 10, maxLen: 6, fill: 0.84, samples: 9, diag: 0.08, curve: 0.1, bend: 0.9, deep: 0.3, portals: ['pair'], intro: 'portal' },
+  { cols: 8, rows: 11, maxLen: 6, fill: 0.86, samples: 10, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.4, portals: ['pair'] },
+  { cols: 9, rows: 11, maxLen: 7, fill: 0.87, samples: 10, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, portals: ['pair'] },
+  { cols: 9, rows: 12, maxLen: 7, fill: 0.88, samples: 11, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, portals: ['pair'] },
+  { cols: 10, rows: 12, maxLen: 8, fill: 0.9, samples: 12, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.6, portals: ['pair'] },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.9, samples: 12, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.7, portals: ['pair'] },
+  shaped('diamond', 13, 17, { maxLen: 8, fill: 0.9, samples: 12, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.7, portals: ['pair'] }),
+  { cols: 10, rows: 14, maxLen: 8, fill: 0.91, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.8, mirrors: 1, portals: ['pair'] },
+  shaped('cross', 13, 16, { maxLen: 8, fill: 0.91, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.9, mirrors: 1, crates: 1, portals: ['pair'] }),
+  { cols: 11, rows: 15, maxLen: 9, fill: 0.93, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 1, mirrors: 1, crates: 2, portals: ['pair'] },
+  // Chapter 8 · letter pairs (two, then three), crates late, donut and heart
+  { cols: 9, rows: 12, maxLen: 7, fill: 0.86, samples: 10, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.3, portals: ['pair', 'pair'], intro: 'letters' },
+  { cols: 9, rows: 13, maxLen: 7, fill: 0.88, samples: 11, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.4, portals: ['pair', 'pair'] },
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.89, samples: 11, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, portals: ['pair', 'pair'] },
+  { cols: 10, rows: 14, maxLen: 8, fill: 0.9, samples: 12, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, portals: ['pair', 'pair'] },
+  { cols: 11, rows: 14, maxLen: 8, fill: 0.9, samples: 12, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.6, portals: ['pair', 'pair', 'pair'] },
+  { cols: 11, rows: 15, maxLen: 8, fill: 0.91, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.7, portals: ['pair', 'pair', 'pair'] },
+  shaped('donut', 13, 17, { maxLen: 8, fill: 0.91, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.7, portals: ['pair', 'pair', 'pair'] }),
+  { cols: 11, rows: 16, maxLen: 8, fill: 0.92, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.8, crates: 1, portals: ['pair', 'pair', 'pair'] },
+  shaped('heart', 13, 17, { maxLen: 8, fill: 0.92, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.9, crates: 1, portals: ['pair', 'pair', 'pair'] }),
+  { cols: 12, rows: 17, maxLen: 9, fill: 0.93, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 1, crates: 2, portals: ['pair', 'pair', 'pair'] },
+  // Chapter 9 · exit-only rings, letter pairs and mirrors late, lantern and arrow
+  { cols: 10, rows: 13, maxLen: 8, fill: 0.88, samples: 10, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.3, portals: ['pair', 'oneway'], intro: 'oneway' },
+  { cols: 10, rows: 14, maxLen: 8, fill: 0.9, samples: 11, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.4, portals: ['pair', 'oneway'] },
+  { cols: 11, rows: 14, maxLen: 8, fill: 0.9, samples: 12, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, portals: ['oneway', 'pair'] },
+  { cols: 11, rows: 15, maxLen: 8, fill: 0.91, samples: 12, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, portals: ['oneway', 'pair', 'pair'] },
+  { cols: 12, rows: 15, maxLen: 8, fill: 0.91, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.6, portals: ['oneway', 'pair', 'pair'] },
+  { cols: 12, rows: 16, maxLen: 8, fill: 0.92, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.7, portals: ['oneway', 'oneway', 'pair'] },
+  shaped('lantern', 14, 18, { maxLen: 8, fill: 0.92, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.7, portals: ['oneway', 'pair', 'pair'] }),
+  { cols: 13, rows: 17, maxLen: 9, fill: 0.92, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.8, mirrors: 1, portals: ['oneway', 'oneway', 'pair'] },
+  shaped('arrow', 15, 20, { maxLen: 9, fill: 0.93, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.9, mirrors: 1, portals: ['oneway', 'pair', 'pair'] }),
+  { cols: 14, rows: 19, maxLen: 9, fill: 0.93, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 1, mirrors: 2, portals: ['oneway', 'oneway', 'pair'] },
+  // Chapter 10 · turning rings, every variant late, up to the 16 × 22 finale
+  { cols: 11, rows: 15, maxLen: 8, fill: 0.88, samples: 10, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.3, portals: ['turn', 'pair'], intro: 'turning' },
+  { cols: 11, rows: 16, maxLen: 8, fill: 0.9, samples: 11, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.4, portals: ['turn', 'pair'] },
+  { cols: 12, rows: 16, maxLen: 8, fill: 0.9, samples: 12, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, portals: ['turn', 'turn', 'pair'] },
+  { cols: 13, rows: 18, maxLen: 8, fill: 0.91, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, portals: ['turn', 'pair', 'pair'] },
+  { cols: 14, rows: 19, maxLen: 8, fill: 0.91, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.6, portals: ['turn', 'pair', 'oneway'] },
+  shaped('heart', 15, 20, { maxLen: 9, fill: 0.92, samples: 13, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.7, portals: ['turn', 'pair', 'oneway'] }),
+  { cols: 14, rows: 19, maxLen: 9, fill: 0.92, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.8, mirrors: 1, portals: ['turn', 'pair', 'oneway', 'pair'] },
+  shaped('diamond', 16, 22, { maxLen: 9, fill: 0.93, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.9, mirrors: 1, crates: 1, portals: ['turn', 'turn', 'pair', 'oneway'] }),
+  { cols: 15, rows: 21, maxLen: 9, fill: 0.93, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 1, mirrors: 2, crates: 1, portals: ['turn', 'pair', 'oneway', 'pair'] },
+  shaped('lantern', 16, 22, { maxLen: 9, fill: 0.94, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 1, mirrors: 2, crates: 2, portals: ['turn', 'turn', 'pair', 'oneway'] }),
 ]
 
 // Chapters in the level list (level select headers). `steady` chapters climb
@@ -103,6 +159,10 @@ export const ARROWS_CHAPTERS = [
   { name: 'DOUBLE ARROWS', from: 31, to: 40 },
   { name: 'MIRRORS', from: 41, to: 50 },
   { name: 'CRATES', from: 51, to: 60 },
+  { name: 'PORTALS', from: 61, to: 70 },
+  { name: 'LETTER PAIRS', from: 71, to: 80 },
+  { name: 'EXIT-ONLY', from: 81, to: 90 },
+  { name: 'TURNING', from: 91, to: 100 },
 ]
 
 // Picked by scripts/pick-arrows-levels.mjs — rerun it after changing a spec.
@@ -113,6 +173,10 @@ export const ARROWS_LEVEL_SEEDS = [
   47, 2, 7, 54, 79, 28, 21, 153, 136, 129,
   5, 65, 78, 41, 9, 9, 266, 66, 296, 74,
   1, 65, 4, 2, 132, 30, 51, 92, 268, 93,
+  58, 1, 77, 52, 30, 117, 11, 47, 149, 217,
+  78, 71, 62, 40, 232, 1, 183, 29, 65, 157,
+  112, 42, 140, 55, 76, 239, 60, 36, 46, 69,
+  6, 24, 93, 47, 155, 86, 45, 101, 13, 38,
 ]
 
 // Levels generated live from their seed; the rest come from BAKED.
@@ -129,6 +193,20 @@ export const ARROWS_TWIST_TIPS = {
   double: 'NEW · DOUBLE ARROWS SLIDE OUT AS ONE PIECE — CLEAR THE WAY FOR BOTH HEADS AND INSIDE THE CURVE.',
   mirror: 'NEW · MIRRORS TURN A STRAIGHT ARROW A QUARTER TURN AS IT PASSES. DIAGONALS CANNOT CROSS THEM.',
   crate: 'NEW · A CRATE BLOCKS UNTIL ITS NUMBER OF ARROWS HAVE LEFT THE BOARD. EVERY CLEAR COUNTS IT DOWN.',
+  portal: 'NEW · AN ARROW THAT ENTERS A PORTAL RING COMES OUT OF ITS PARTNER, KEEPING ITS HEADING. THE WHOLE ROUTE MUST BE CLEAR.',
+  letters: 'NEW · SEVERAL PORTAL PAIRS — EACH RING CARRIES A LETTER, AND A RING ONLY CONNECTS TO ITS OWN LETTER.',
+  oneway: 'NEW · A DASHED RING ONLY LETS ARROWS OUT. ENTER ITS SOLID PARTNER; CROSSING THE DASHED ONE DOES NOTHING.',
+  turning: 'NEW · A HOOKED RING TURNS THE ARROW A QUARTER TURN CLOCKWISE AS IT COMES OUT THE OTHER SIDE.',
+  shape: 'NEW · NOT EVERY BOARD IS A RECTANGLE. EMPTY SPACE IS AN EDGE — AN ARROW THAT REACHES IT LEAVES THE BOARD.',
+}
+
+// Does a board carry the portal pairs its spec asked for, each one actually
+// on some arrow's route? An intro level shows every pair on `introUses`
+// routes, so the player sees what a ring does a few times.
+function portalsMeet(spec, level, uses) {
+  if (!spec.portals?.length) return true
+  if ((level.portals?.length ?? 0) < spec.portals.length) return false
+  return portalUses(level).every((u) => u >= uses)
 }
 
 // An intro level must actually show its twist a few times.
@@ -142,6 +220,7 @@ export function levelMeetsIntro(spec, level) {
   if (spec.doubles && level.arrows.filter(isDouble).length < spec.doubles) return false
   if (spec.mirrors && (level.mirrors?.length ?? 0) < spec.mirrors) return false
   if (spec.crates && (level.crates?.length ?? 0) < spec.crates) return false
+  if (!portalsMeet(spec, level, spec.intro ? 2 : 1)) return false
   return true
 }
 
@@ -170,6 +249,12 @@ export function twistsIn(level) {
   if (level.arrows.some(isDouble)) out.push('double')
   if (level.mirrors?.length) out.push('mirror')
   if (level.crates?.length) out.push('crate')
+  const portals = level.portals ?? []
+  if (portals.length) out.push('portal')
+  if (portals.length >= 2) out.push('letters')
+  if (portals.some((p) => p.oneway)) out.push('oneway')
+  if (portals.some((p) => p.turn)) out.push('turning')
+  if (level.mask) out.push('shape')
   return out
 }
 
@@ -186,13 +271,14 @@ function endlessSpec(tier) {
 }
 
 // Does a board actually carry the special pieces its spec asked for? The
-// generator places sleepers/doubles/mirrors/crates best-effort, so a bare
+// generator places sleepers/doubles/mirrors/crates/portals best-effort, so a bare
 // solvable check could serve a board missing the tier's whole point.
 function endlessMeets(level, spec) {
   if (spec.sleepers && level.arrows.filter(isSleeper).length < spec.sleepers) return false
   if (spec.doubles && level.arrows.filter(isDouble).length < spec.doubles) return false
   if (spec.mirrors && (level.mirrors?.length ?? 0) < spec.mirrors) return false
   if (spec.crates && (level.crates?.length ?? 0) < spec.crates) return false
+  if (!portalsMeet(spec, level, 1)) return false
   return true
 }
 

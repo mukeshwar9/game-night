@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, levelStats, occupancy, solveArrows, ARROWS_ENDLESS_SPECS } from './arrowsLogic'
+import { applyArrowTap, arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, levelStats, occupancy, portalRings, portalUses, solveArrows, voidSet, ARROWS_ENDLESS_SPECS } from './arrowsLogic'
 import { ARROWS_BAKED_LEVELS } from './arrowsLevelsBaked'
 import {
   ARROWS_CHAPTERS,
@@ -30,22 +30,39 @@ import {
 const levels = Array.from({ length: ARROWS_LEVEL_COUNT }, (_, i) => getArrowsLevel(i + 1))
 const stats = levels.map(levelStats)
 
-describe('the 60-level campaign', () => {
-  it('has 60 levels, one seed each, in chapters that cover them all', () => {
-    expect(ARROWS_LEVEL_COUNT).toBe(60)
-    expect(ARROWS_LEVEL_SEEDS).toHaveLength(60)
+describe('the 100-level campaign', () => {
+  it('has 100 levels, one seed each, in chapters that cover them all', () => {
+    expect(ARROWS_LEVEL_COUNT).toBe(100)
+    expect(ARROWS_LEVEL_SEEDS).toHaveLength(100)
     expect(levels.every(Boolean)).toBe(true)
     expect(ARROWS_CHAPTERS[0].from).toBe(1)
-    expect(ARROWS_CHAPTERS.at(-1).to).toBe(60)
+    expect(ARROWS_CHAPTERS.at(-1).to).toBe(100)
     ARROWS_CHAPTERS.slice(1).forEach((c, i) => expect(c.from).toBe(ARROWS_CHAPTERS[i].to + 1))
+    expect(ARROWS_CHAPTERS.slice(5).map((c) => [c.name, c.from, c.to])).toEqual([
+      ['PORTALS', 61, 70], ['LETTER PAIRS', 71, 80], ['EXIT-ONLY', 81, 90], ['TURNING', 91, 100],
+    ])
   })
 
-  it('every level is solvable (independent greedy solver) and fits a phone', () => {
+  it('every level is solvable (independent greedy solver); 1–60 fit a phone without zooming, 61–100 stay within 16 × 22', () => {
     levels.forEach((level, i) => {
       expect(solveArrows(level).solvable, `level ${i + 1}`).toBe(true)
-      expect(level.cols).toBeLessThanOrEqual(10)
-      expect(level.rows).toBeLessThanOrEqual(13)
+      expect(level.cols).toBeLessThanOrEqual(i < 60 ? 10 : 16)
+      expect(level.rows).toBeLessThanOrEqual(i < 60 ? 13 : 22)
       expect(level.arrows.length).toBeGreaterThan(0)
+    })
+  })
+
+  it('par: every level clears with one tap per arrow and no blocked tap, in the solver\'s order', () => {
+    levels.forEach((level, i) => {
+      let gone = Array(level.arrows.length).fill(false)
+      let taps = 0
+      for (const index of solveArrows(level).order) {
+        const r = applyArrowTap(level, gone, 3, index)
+        expect(r.result, `level ${i + 1} arrow ${index}`).toBe('cleared')
+        gone = r.gone
+        taps += 1
+      }
+      expect(taps, `level ${i + 1}`).toBe(level.arrows.length)
     })
   })
 
@@ -77,7 +94,7 @@ describe('the 60-level campaign', () => {
     expect(ARROWS_LEVEL_SPECS[5].intro).toBe('diag')
     expect(ARROWS_LEVEL_SPECS[7].intro).toBe('bend')
     expect(ARROWS_LEVEL_SPECS[10].intro).toBe('curve')
-    expect(ARROWS_LEVEL_SPECS.filter((s) => s.intro).map((s) => s.intro)).toEqual(['diag', 'bend', 'curve', 'sleep', 'double', 'mirror', 'crate'])
+    expect(ARROWS_LEVEL_SPECS.filter((s) => s.intro).map((s) => s.intro)).toEqual(['diag', 'bend', 'curve', 'sleep', 'double', 'mirror', 'crate', 'portal', 'letters', 'oneway', 'turning'])
     expect(levels[7].arrows.filter(isBent).length).toBeGreaterThanOrEqual(2)
     expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[7], levels[7])).toBe(true)
     expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[7], levels[5])).toBe(false)
@@ -87,11 +104,13 @@ describe('the 60-level campaign', () => {
     expect(levelMeetsIntro(ARROWS_LEVEL_SPECS[5], levels[0])).toBe(false)
   })
 
-  it('levels 21–60 rise as a sawtooth: each chapter opens lighter, then every level beats the last', () => {
+  it('levels 21–100 rise as a sawtooth: each chapter opens lighter, then every level beats the last', () => {
     for (const chapter of ARROWS_CHAPTERS.slice(1)) {
       for (let n = chapter.from + 1; n <= chapter.to; n += 1) {
         expect(stats[n - 1].difficulty, `level ${n}`).toBeGreaterThan(stats[n - 2].difficulty)
-        expect(stats[n - 1].layers, `level ${n}`).toBeGreaterThanOrEqual(stats[n - 2].layers)
+        // Past level 60 a shaped board may be shallower than the rectangle
+        // before it; its score (which counts depth) still has to rise.
+        if (n <= 60) expect(stats[n - 1].layers, `level ${n}`).toBeGreaterThanOrEqual(stats[n - 2].layers)
       }
       // The lesson level is a breather; the chapter's last level beats the
       // previous chapter's last.
@@ -101,6 +120,11 @@ describe('the 60-level campaign', () => {
     // Later chapters are deeper than the first twenty ever got.
     expect(stats[39].layers).toBeGreaterThan(stats[19].layers)
     expect(stats[59].layers).toBeGreaterThan(stats[39].layers)
+    expect(stats[99].layers).toBeGreaterThan(stats[59].layers)
+    // Each portal chapter's last level beats the one before it, and the finale tops them all.
+    const bosses = [60, 70, 80, 90, 100].map((n) => stats[n - 1].difficulty)
+    bosses.slice(1).forEach((d, i) => expect(d, `chapter boss ${i}`).toBeGreaterThan(bosses[i]))
+    expect(stats[99].difficulty).toBe(Math.max(...stats.map((st) => st.difficulty)))
   })
 
   it('brings sleeping arrows at 21 and double arrows at 31, never earlier, and keeps them sparse', () => {
@@ -133,6 +157,12 @@ describe('the 60-level campaign', () => {
     const specials = (level) => level.arrows.filter((a) => a.sleep || a.double).length + (level.mirrors?.length ?? 0) + (level.crates?.length ?? 0)
     for (const n of [21, 31, 41, 51]) expect(specials(levels[n - 1]), `level ${n}`).toBe(1)
     expect(specials(levels[59])).toBe(5)
+    // The portal chapters mix in nothing but the mirrors and crates that already shipped.
+    for (let n = 61; n <= 100; n += 1) {
+      expect(levels[n - 1].arrows.some((a) => a.sleep || a.double), `level ${n}`).toBe(false)
+      expect(specials(levels[n - 1]), `level ${n}`).toBeLessThanOrEqual(4)
+    }
+    for (const n of [61, 71, 81, 91]) expect(specials(levels[n - 1]), `level ${n}`).toBe(0)
     expect(twistsIn(levels[40])).toContain('mirror')
     expect(twistsIn(levels[50])).toContain('crate')
   })
@@ -154,8 +184,87 @@ describe('the 60-level campaign', () => {
   })
 
   it('levels 41–60 match the solver-verified plan: depth and score per level', () => {
-    expect(stats.slice(40).map((st) => st.layers)).toEqual([5, 8, 9, 10, 11, 13, 13, 13, 13, 14, 10, 10, 12, 13, 13, 16, 17, 17, 18, 18])
-    expect(stats.slice(40).map((st) => st.difficulty)).toEqual([80, 104, 123, 130, 149, 150, 163, 164, 176, 212, 119, 139, 155, 160, 174, 191, 199, 208, 212, 222])
+    expect(stats.slice(40, 60).map((st) => st.layers)).toEqual([5, 8, 9, 10, 11, 13, 13, 13, 13, 14, 10, 10, 12, 13, 13, 16, 17, 17, 18, 18])
+    expect(stats.slice(40, 60).map((st) => st.difficulty)).toEqual([80, 104, 123, 130, 149, 150, 163, 164, 176, 212, 119, 139, 155, 160, 174, 191, 199, 208, 212, 222])
+  })
+
+  it('levels 61–100 are the portal chapters: PORTALS, LETTER PAIRS, EXIT-ONLY, TURNING', () => {
+    levels.forEach((level, i) => {
+      const n = i + 1
+      const portals = level.portals ?? []
+      const spec = ARROWS_LEVEL_SPECS[i]
+      // Portals arrive at 61, never earlier; pair counts and kinds are what each spec asks for.
+      expect(portals.length, `level ${n}`).toBe(n < 61 ? 0 : spec.portals.length)
+      expect(portals.map((p) => (p.oneway ? 'oneway' : p.turn ? 'turn' : 'pair')), `level ${n}`).toEqual(spec.portals ?? [])
+      // Each variant stays out of the campaign until its chapter.
+      if (n < 71) expect(portals.length, `level ${n}`).toBeLessThanOrEqual(1)
+      if (n < 81) expect(portals.some((p) => p.oneway), `level ${n}`).toBe(false)
+      if (n < 91) expect(portals.some((p) => p.turn), `level ${n}`).toBe(false)
+      if (n >= 61) expect(portals.length, `level ${n}`).toBeGreaterThanOrEqual(1)
+      if (n >= 71) expect(portals.length, `level ${n}`).toBeGreaterThanOrEqual(2)
+      expect(portals.length, `level ${n}`).toBeLessThanOrEqual(n <= 90 ? 3 : 4)
+      // Every pair is on some arrow's route; the intro level shows each one a few times.
+      portalUses(level).forEach((uses) => expect(uses, `level ${n}`).toBeGreaterThanOrEqual(spec.intro ? 2 : 1))
+    })
+    expect(ARROWS_LEVEL_SPECS.slice(60).filter((s) => s.intro).map((s, k) => [s.intro, 61 + 10 * k])).toEqual([['portal', 61], ['letters', 71], ['oneway', 81], ['turning', 91]])
+    // Chapter 10 carries a turning pair and every other variant by its last level.
+    const last = levels[99].portals.map((p) => (p.oneway ? 'oneway' : p.turn ? 'turn' : 'pair'))
+    expect(new Set(last)).toEqual(new Set(['pair', 'oneway', 'turn']))
+  })
+
+  it('portal rings never sit under an arrow, a mirror or a crate, and keep off the edge', () => {
+    for (let n = 61; n <= ARROWS_LEVEL_COUNT; n += 1) {
+      const level = levels[n - 1]
+      const occ = occupancy(level, level.arrows.map(() => false))
+      const rings = portalRings(level)
+      expect(rings.size, `level ${n}`).toBe(level.portals.length * 2)
+      for (const cell of rings) {
+        const x = cell % level.cols
+        const y = Math.floor(cell / level.cols)
+        expect(x > 0 && x < level.cols - 1 && y > 0 && y < level.rows - 1, `level ${n}`).toBe(true)
+        expect(occ[cell], `level ${n}`).toBe(-1)
+        expect(voidSet(level)?.has(cell) ?? false, `level ${n}`).toBe(false)
+        expect((level.mirrors ?? []).some((m) => m.y * level.cols + m.x === cell), `level ${n}`).toBe(false)
+        expect((level.crates ?? []).some((c) => c.y * level.cols + c.x === cell), `level ${n}`).toBe(false)
+      }
+    }
+  })
+
+  it('boards grow in a sawtooth: each chapter opens on a small rectangle and ends bigger, up to 16 × 22', () => {
+    const area = (n) => levels[n - 1].cols * levels[n - 1].rows
+    const size = (n) => `${levels[n - 1].cols}×${levels[n - 1].rows}`
+    expect([61, 71, 81, 91].map(size)).toEqual(['8×10', '9×12', '10×13', '11×15'])
+    expect([70, 80, 90, 100].map(size)).toEqual(['11×15', '12×17', '14×19', '16×22'])
+    for (const [lesson, boss, before] of [[61, 70, 60], [71, 80, 70], [81, 90, 80], [91, 100, 90]]) {
+      expect(area(lesson), `level ${lesson}`).toBeLessThan(area(boss))
+      expect(area(lesson), `level ${lesson}`).toBeLessThanOrEqual(area(before))
+    }
+    for (let n = 61; n <= 100; n += 1) expect(area(n), `level ${n}`).toBeLessThanOrEqual(16 * 22)
+  })
+
+  it('shaped boards come in the second half of a chapter, never on a lesson; the finale is a big shape', () => {
+    const shaped = levels.map((level, i) => (level.mask ? i + 1 : 0)).filter(Boolean)
+    expect(shaped.length).toBeGreaterThanOrEqual(8)
+    for (const n of shaped) {
+      expect(n, `level ${n}`).toBeGreaterThan(60)
+      expect((n - 1) % 10, `level ${n}`).toBeGreaterThanOrEqual(5)
+      const level = levels[n - 1]
+      expect(level.mask).toHaveLength(level.rows)
+      for (const row of level.mask) expect(row).toMatch(new RegExp(`^[#.]{${level.cols}}$`))
+      // A void is an edge: no arrow cell is a void and no route enters one.
+      const voids = voidSet(level)
+      for (const a of level.arrows) {
+        expect(a.cells.some(([x, y]) => voids.has(y * level.cols + x)), `level ${n}`).toBe(false)
+        for (const c of arrowRoute(level, a).cells) expect(voids.has(c), `level ${n}`).toBe(false)
+      }
+    }
+    for (const n of [61, 71, 81, 91]) expect(levels[n - 1].mask, `level ${n}`).toBeUndefined()
+    // The chapters name their shapes: diamond and cross, donut and heart, lantern and arrow.
+    expect(shaped.filter((n) => n <= 70)).toHaveLength(2)
+    expect(shaped.filter((n) => n > 70 && n <= 80)).toHaveLength(2)
+    expect(shaped.filter((n) => n > 80 && n <= 90)).toHaveLength(2)
+    expect(shaped).toContain(100)
+    expect(levels[99].cols * levels[99].rows).toBe(16 * 22)
   })
 
   it('serves baked boards for 21+, exactly what the generator builds from their seeds', () => {
@@ -169,8 +278,12 @@ describe('the 60-level campaign', () => {
       expect(baked.arrows, `level ${n}`).toEqual(fresh.arrows)
       expect(baked.mirrors, `level ${n}`).toEqual(fresh.mirrors)
       expect(baked.crates, `level ${n}`).toEqual(fresh.crates)
+      expect(baked.portals, `level ${n}`).toEqual(fresh.portals)
+      expect(baked.mask, `level ${n}`).toEqual(fresh.mask)
       expect(getArrowsLevel(n).mirrors).toBe(baked.mirrors)
       expect(getArrowsLevel(n).crates).toBe(baked.crates)
+      expect(getArrowsLevel(n).portals).toBe(baked.portals)
+      expect(getArrowsLevel(n).mask).toBe(baked.mask)
     }
   })
 
@@ -178,7 +291,8 @@ describe('the 60-level campaign', () => {
     expect(getArrowsLevel(3)).toBe(getArrowsLevel(3))
     expect(getArrowsLevel(3)).toEqual(generateArrowsLevel(ARROWS_LEVEL_SEEDS[2], { ...ARROWS_LEVEL_SPECS[2], name: 'level-3' }))
     expect(getArrowsLevel(0)).toBeNull()
-    expect(getArrowsLevel(61)).toBeNull()
+    expect(getArrowsLevel(100)).not.toBeNull()
+    expect(getArrowsLevel(101)).toBeNull()
     expect(getArrowsLevel(1.5)).toBeNull()
   })
 })
@@ -199,7 +313,23 @@ describe('twist tutorials', () => {
     expect(newTwist(levels[20], { diag: true, bend: true, curve: true })).toBe('sleep')
     expect(newTwist(levels[30], { diag: true, bend: true, curve: true, sleep: true })).toBe('double')
     expect(newTwist(levels[50], { diag: true, bend: true, curve: true, sleep: true, double: true, mirror: true })).toBe('crate')
-    for (const t of ['diag', 'bend', 'curve', 'sleep', 'double', 'mirror', 'crate']) expect(ARROWS_TWIST_TIPS[t]).toMatch(/^NEW · /)
+    for (const t of ['diag', 'bend', 'curve', 'sleep', 'double', 'mirror', 'crate', 'portal', 'letters', 'oneway', 'turning', 'shape']) expect(ARROWS_TWIST_TIPS[t]).toMatch(/^NEW · /)
+  })
+
+  it('each portal variant is taught on the level that introduces it; shaped boards get a tip', () => {
+    const taught = { diag: true, bend: true, curve: true, sleep: true, double: true, mirror: true, crate: true }
+    expect(twistsIn(levels[60])).toEqual(expect.arrayContaining(['portal']))
+    expect(twistsIn(levels[60])).not.toContain('letters')
+    expect(newTwist(levels[60], taught)).toBe('portal')
+    expect(newTwist(levels[70], { ...taught, portal: true })).toBe('letters')
+    expect(twistsIn(levels[80])).toContain('oneway')
+    expect(newTwist(levels[80], { ...taught, portal: true, letters: true })).toBe('oneway')
+    expect(twistsIn(levels[90])).toContain('turning')
+    expect(newTwist(levels[90], { ...taught, portal: true, letters: true, oneway: true })).toBe('turning')
+    // The first shaped board (diamond, level 67) names its shape once the portal is known.
+    expect(twistsIn(levels[66])).toContain('shape')
+    expect(newTwist(levels[66], { ...taught, portal: true })).toBe('shape')
+    expect(newTwist(levels[66], { ...taught, portal: true, shape: true })).toBeNull()
   })
 })
 
@@ -226,6 +356,8 @@ describe('endless boards', () => {
         expect(level.arrows.filter(isDouble).length, `${tier} doubles`).toBeGreaterThanOrEqual(spec.doubles ?? 0)
         expect(level.mirrors?.length ?? 0, `${tier} mirrors`).toBeGreaterThanOrEqual(spec.mirrors ?? 0)
         expect(level.crates?.length ?? 0, `${tier} crates`).toBeGreaterThanOrEqual(spec.crates ?? 0)
+        expect(level.portals?.length ?? 0, `${tier} portals`).toBeGreaterThanOrEqual(spec.portals?.length ?? 0)
+        portalUses(level).forEach((uses) => expect(uses, `${tier} portal use`).toBeGreaterThanOrEqual(1))
       }
     }
   })
@@ -233,7 +365,7 @@ describe('endless boards', () => {
   it('hard endless mixes in every mechanic', () => {
     for (let s = 1; s <= 8; s += 1) {
       const twists = twistsIn(endlessLevel(s * 65537, 'hard'))
-      for (const t of ['diag', 'curve', 'sleep', 'double', 'mirror', 'crate']) {
+      for (const t of ['diag', 'curve', 'sleep', 'double', 'mirror', 'crate', 'portal']) {
         expect(twists, `seed ${s}`).toContain(t)
       }
     }
@@ -268,7 +400,8 @@ describe('progress', () => {
     expect(nextLevel(p)).toBe(2)
     expect(isLevelUnlocked(p, 0)).toBe(false)
     expect(isLevelUnlocked(p, 21)).toBe(false)
-    expect(isLevelUnlocked(recordLevelResult(p, 60, 1), 61)).toBe(false)
+    expect(isLevelUnlocked(recordLevelResult(p, 60, 1), 61)).toBe(true)
+    expect(isLevelUnlocked(recordLevelResult(p, 100, 1), 101)).toBe(false)
   })
 
   it('keeps the best stars and ignores failures and bad levels', () => {
@@ -276,7 +409,8 @@ describe('progress', () => {
     p = recordLevelResult(p, 4, 1)
     expect(levelStars(p, 4)).toBe(3)
     expect(recordLevelResult(p, 5, 0)).toEqual(p)
-    expect(recordLevelResult(p, 61, 3)).toEqual(p)
+    expect(recordLevelResult(p, 101, 3)).toEqual(p)
+    expect(levelStars(recordLevelResult(p, 100, 3), 100)).toBe(3)
     expect(levelStars(recordLevelResult(p, 33, 2), 33)).toBe(2)
     expect(levelStars(recordLevelResult(p, 6, 9), 6)).toBe(3)
   })
@@ -292,10 +426,10 @@ describe('progress', () => {
     expect(normalizeProgress(null)).toEqual(blankProgress())
     expect(normalizeProgress('x')).toEqual(blankProgress())
     expect(normalizeProgress({
-      levels: { l1: '3', l2: 7, l3: 0, l61: 3, 4: 2, l5: 2.6, l60: 1 },
+      levels: { l1: '3', l2: 7, l3: 0, l101: 3, 4: 2, l5: 2.6, l60: 1, l100: 2 },
       endless: { easy: -4, medium: '2', hard: 'x', insane: 9 },
       junk: true,
-    })).toEqual({ levels: { l1: 3, l2: 3, l5: 2, l60: 1 }, endless: { easy: 0, medium: 2, hard: 0 } })
+    })).toEqual({ levels: { l1: 3, l2: 3, l5: 2, l60: 1, l100: 2 }, endless: { easy: 0, medium: 2, hard: 0 } })
   })
 
   it('merges device and account copies without losing either side', () => {
@@ -310,14 +444,16 @@ describe('progress', () => {
     expect(totalStars(m)).toBe(6)
   })
 
-  it('nextLevel sticks at 60 once everything is cleared', () => {
+  it('nextLevel sticks at 100 once everything is cleared', () => {
     let p = blankProgress()
     for (let n = 1; n <= 20; n += 1) p = recordLevelResult(p, n, 1)
     expect(nextLevel(p)).toBe(21)
     for (let n = 21; n <= 40; n += 1) p = recordLevelResult(p, n, 1)
     expect(nextLevel(p)).toBe(41)
     for (let n = 41; n <= 60; n += 1) p = recordLevelResult(p, n, 1)
-    expect(nextLevel(p)).toBe(60)
+    expect(nextLevel(p)).toBe(61)
+    for (let n = 61; n <= 100; n += 1) p = recordLevelResult(p, n, 1)
+    expect(nextLevel(p)).toBe(100)
     expect(levelKey(7)).toBe('l7')
   })
 })

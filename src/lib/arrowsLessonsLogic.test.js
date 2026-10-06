@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { ARROWS_LESSONS, getLesson, lessonLevel, lessonTap } from './arrowsLessonsLogic'
 import { ARROWS_LEVEL_SPECS, ARROWS_TWIST_TIPS } from './arrowsLevelsLogic'
-import { isDouble, isSleeper, solveArrows } from './arrowsLogic'
+import { exitCheck, isDouble, isSleeper, solveArrows } from './arrowsLogic'
 
 describe('arrow lessons', () => {
   it('covers every kind the campaign introduces, at the level that introduces it', () => {
@@ -38,6 +38,27 @@ describe('arrow lessons', () => {
     expect(lessonLevel(getLesson('double')).arrows.some(isDouble)).toBe(true)
     expect(lessonLevel(getLesson('mirror')).mirrors).toHaveLength(1)
     expect(lessonLevel(getLesson('crate')).crates).toHaveLength(1)
+    const pairs = (kind) => lessonLevel(getLesson(kind)).portals
+    expect(pairs('portal')).toHaveLength(1)
+    expect(pairs('letters')).toHaveLength(2)
+    expect(pairs('oneway')[0].oneway).toBe(true)
+    expect(pairs('turning')[0].turn).toBe(true)
+  })
+
+  it('the portal lessons are held by what is beyond the other ring, not what is straight ahead', () => {
+    const blockedBy = (kind) => {
+      const lesson = getLesson(kind)
+      return lessonTap(lesson, lessonLevel(lesson), Array(lesson.board.arrows.length).fill(false), 0, 0)
+    }
+    expect(blockedBy('portal')).toMatchObject({ outcome: 'blocked', blocker: 1 })
+    expect(blockedBy('letters')).toMatchObject({ outcome: 'blocked', blocker: 1 })
+    expect(blockedBy('turning')).toMatchObject({ outcome: 'blocked', blocker: 1 })
+    // Exit-only: the dashed ring does nothing, so the straight path is what blocks.
+    expect(blockedBy('oneway')).toMatchObject({ outcome: 'blocked', blocker: 1 })
+    // The arrow standing straight ahead of the entrance ring never blocks the hop.
+    const portal = getLesson('portal')
+    expect(exitCheck(lessonLevel(portal), Array(3).fill(false), 0).blocker).toBe(1)
+    expect(exitCheck(lessonLevel(portal), [false, true, false], 0).free).toBe(true)
   })
 
   it('the mirror lesson bounces into an arrow; the crate lesson is held by the crate itself', () => {

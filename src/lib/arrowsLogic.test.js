@@ -46,7 +46,13 @@ import {
   turnedDir,
   crateMap,
   mirrorMap,
+  portalMap,
+  portalRings,
+  portalUses,
+  slicePolylines,
+  voidSet,
 } from './arrowsLogic'
+import { shapeMask } from './arrowsShapes'
 
 // A hand-built 4×3 board (index: cells tail → head, heading):
 //   0: (0,0)→(1,0) right — blocked by arrow 2 one empty cell ahead
@@ -1015,5 +1021,255 @@ describe('crates', () => {
     expect(levelStats(m)).toMatchObject({ mirrors: 1, crates: 0 })
     // Each piece adds to the score: a mirror 3, a crate 4.
     expect(levelStats(m).difficulty - levelStats({ ...m, mirrors: [] }).difficulty).toBe(3)
+  })
+})
+
+describe('portals', () => {
+  // 6×4 with a two-way pair: ring A at (2,0), ring B at (2,3). Arrow 0 heads
+  // right at row 0 and hops A → B (keeping its heading) along row 3 to the
+  // right edge; with `extra` arrows and `portal` tweaks for the variants.
+  const board = (extra = [], portal = {}) => ({
+    cols: 6,
+    rows: 4,
+    portals: [{ a: [2, 0], b: [2, 3], c: 0, ...portal }],
+    arrows: [{ cells: [[0, 0], [1, 0]], dir: 1 }, ...extra],
+  })
+
+  it('a ring sends the route to its partner and keeps the heading', () => {
+    const level = board()
+    expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [2, 20, 21, 22, 23], jumps: [1], ports: [0], finalDir: 1, dead: false })
+    // Two-way: ring B sends to ring A just the same.
+    const back = board([{ cells: [[0, 3], [1, 3]], dir: 1 }])
+    expect(arrowRoute(back, back.arrows[1])).toMatchObject({ cells: [20, 2, 3, 4, 5], jumps: [1], finalDir: 1 })
+    expect(portalMap(level).get(2)).toEqual({ to: 20, turn: false, pair: 0 })
+    expect(portalMap(level).get(20)).toEqual({ to: 2, turn: false, pair: 0 })
+    expect(portalMap({ cols: 3, rows: 3, arrows: [] })).toBeNull()
+    expect([...portalRings(level)].sort((a, b) => a - b)).toEqual([2, 20])
+  })
+
+  it('exit-only: only ring A sends, crossing ring B does nothing', () => {
+    const level = board([{ cells: [[0, 3], [1, 3]], dir: 1 }], { oneway: true })
+    expect(arrowRoute(level, level.arrows[0]).jumps).toEqual([1])
+    // Arrow 1 runs over ring B (2,3) and carries straight on.
+    expect(arrowRoute(level, level.arrows[1])).toMatchObject({ cells: [20, 21, 22, 23], jumps: [], dead: false })
+    expect(portalMap(level).has(20)).toBe(false)
+    // ...but both rings still count as rings (no crate or arrow goes there).
+    expect(portalRings(level).has(20)).toBe(true)
+  })
+
+  it('turning: the route leaves a quarter turn clockwise', () => {
+    const level = { cols: 6, rows: 6, portals: [{ a: [2, 0], b: [3, 2], c: 0, turn: true }], arrows: [{ cells: [[0, 0], [1, 0]], dir: 1 }] }
+    // Right into A, out of B heading down along column 3.
+    expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [2, 15, 21, 27, 33], finalDir: 2, jumps: [1] })
+    // Heading up into B comes out of A heading right.
+    const up = { ...level, arrows: [{ cells: [[3, 5], [3, 4]], dir: 0 }] }
+    expect(arrowRoute(up, up.arrows[0])).toMatchObject({ cells: [21, 15, 2, 3, 4, 5], finalDir: 1 })
+  })
+
+  it('every cell of the route counts: blockers before and after the hop block, the straight path does not', () => {
+    // The bump gap counts walked cells: a hop covers no distance.
+    const after = board([{ cells: [[4, 3], [5, 3]], dir: 1 }])
+    expect(exitCheck(after, [false, false], 0)).toEqual({ free: false, blocker: 1, gap: 2 })
+    const before = board([{ cells: [[1, 1], [1, 0]], dir: 0 }])
+    expect(exitCheck(before, [false, false], 0).free).toBe(true)
+    // An arrow standing straight ahead of ring A, where the route no longer goes.
+    const straight = board([{ cells: [[3, 0], [4, 0]], dir: 1 }])
+    expect(exitCheck(straight, [false, false], 0).free).toBe(true)
+    // The lesson script: blocked, clear the blocker, then the hop is open.
+    let gone = [false, false]
+    expect(applyArrowTap(after, gone, 3, 0)).toMatchObject({ result: 'blocked', blocker: 1, lives: 2 })
+    gone = applyArrowTap(after, gone, 3, 1).gone
+    expect(applyArrowTap(after, gone, 3, 0).result).toBe('cleared')
+  })
+
+  it('a hooked arrow still turns at the edge after a hop', () => {
+    const level = { ...board(), arrows: [{ cells: [[0, 0], [1, 0]], dir: 1, turn: 1 }] }
+    // Hop to ring B, run to the right edge on row 3, turn clockwise: down is off the board.
+    expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [2, 20, 21, 22, 23], finalDir: 2 })
+  })
+
+  it('diagonals and doubles cannot use a portal; a route that loops is dead', () => {
+    const diag = { cols: 5, rows: 5, portals: [{ a: [2, 2], b: [0, 4], c: 0 }], arrows: [{ cells: [[0, 4], [1, 3]], dir: 4 }] }
+    expect(arrowRoute(diag, diag.arrows[0]).dead).toBe(true)
+    const double = { cols: 6, rows: 6, portals: [{ a: [4, 2], b: [4, 5], c: 0 }], arrows: [{ cells: [[1, 1], [0, 1], [0, 2], [0, 3], [1, 3]], dir: 1, double: true }] }
+    expect(arrowRoute(double, double.arrows[0]).dead).toBe(true)
+    // Ring A sits on its own arrow's row, ring B behind it: the route passes
+    // over its own head heading right again and re-enters A — it never leaves.
+    const loop = { cols: 6, rows: 3, portals: [{ a: [4, 1], b: [0, 1], c: 0 }], arrows: [{ cells: [[2, 1], [3, 1]], dir: 1 }] }
+    expect(arrowRoute(loop, loop.arrows[0]).dead).toBe(true)
+    expect(solveArrows(loop).solvable).toBe(false)
+  })
+
+  it('leavePose pours the snake into one ring and out of the other', () => {
+    const level = board()
+    const arrow = level.arrows[0]
+    // At rest and until the head reaches ring A the pose is one strand.
+    expect(leavePose(arrow, 10, 0, level).tails).toBeUndefined()
+    expect(leavePose(arrow, 10, 8, level).tails).toBeUndefined()
+    // 12 units on: the head is 2 past ring B, the tail still on its way into A.
+    const pose = leavePose(arrow, 10, 12, level)
+    expect(pose.tails).toHaveLength(1)
+    expect(pose.at(-1)[0]).toBeCloseTo(27)
+    expect(pose.at(-1)[1]).toBeCloseTo(35)
+    expect(pose.tails[0].at(-1)).toEqual([25, 5])
+    // The hop covers no distance: the body keeps its length throughout.
+    for (const t of [0, 8, 10, 12, 14, 30]) {
+      const p = leavePose(arrow, 10, t, level)
+      expect(polylineLength(p) + (p.tails ?? []).reduce((sum, strand) => sum + polylineLength(strand), 0), `travel ${t}`).toBeCloseTo(10)
+    }
+    // The bump distance of a blocked tap matches: walked cells, not the hop.
+    expect(routeDistance(arrow, 2, 10)).toBe(20)
+  })
+
+  it('slicePolylines slices strands laid end to end with no gap between them', () => {
+    const strands = [[[0, 0], [10, 0]], [[50, 50], [50, 60]]]
+    expect(slicePolylines(strands, 5, 15)).toEqual([[[5, 0], [10, 0]], [[50, 50], [50, 55]]])
+    expect(slicePolylines(strands, 12, 18)).toEqual([[[50, 52], [50, 58]]])
+    expect(slicePolylines(strands, 30, 40)).toEqual([])
+  })
+
+  it('levelStats weighs a pair and every hop; portalUses counts arrows per pair', () => {
+    const level = board()
+    expect(portalUses(level)).toEqual([1])
+    expect(levelStats(level)).toMatchObject({ portals: 1, hops: 1, solvable: true })
+    expect(levelStats(level).difficulty - levelStats({ ...level, portals: undefined }).difficulty).toBe(6)
+    const two = { ...level, portals: [...level.portals, { a: [4, 1], b: [4, 2], c: 1 }] }
+    expect(portalUses(two)).toEqual([1, 0])
+    expect(portalUses({ cols: 3, rows: 3, arrows: [] })).toEqual([])
+  })
+
+  it('the generator places portals off the edge and apart, never under an arrow; every route is live and none passes its own head', () => {
+    const kinds = [['pair'], ['pair', 'pair', 'pair'], ['oneway', 'pair'], ['turn', 'turn', 'pair'], ['turn', 'pair', 'oneway', 'pair']]
+    for (const portals of kinds) {
+      for (let seed = 1; seed <= 5; seed += 1) {
+        const spec = { cols: 9, rows: 11, maxLen: 7, fill: 0.88, samples: 9, diag: 0.1, curve: 0.12, bend: 0.9, deep: 0.5, mirrors: 1, crates: 1, portals }
+        const level = generateArrowsLevel(seed, spec)
+        expect(level.portals.length, `${portals} seed ${seed}`).toBe(portals.length)
+        const occ = occupancy(level, level.arrows.map(() => false))
+        const rings = []
+        level.portals.forEach((p, i) => {
+          expect(p.c).toBe(i)
+          expect(!!p.oneway).toBe(portals[i] === 'oneway')
+          expect(!!p.turn).toBe(portals[i] === 'turn')
+          for (const [x, y] of [p.a, p.b]) {
+            expect(x > 0 && x < level.cols - 1 && y > 0 && y < level.rows - 1).toBe(true)
+            expect(occ[y * level.cols + x]).toBe(-1)
+            rings.push([x, y])
+          }
+          expect(Math.abs(p.a[0] - p.b[0]) + Math.abs(p.a[1] - p.b[1])).toBeGreaterThanOrEqual(3)
+        })
+        for (const [i, r] of rings.entries()) {
+          for (const q of rings.slice(i + 1)) expect(Math.abs(r[0] - q[0]) + Math.abs(r[1] - q[1])).toBeGreaterThanOrEqual(2)
+        }
+        for (const m of level.mirrors ?? []) expect(portalRings(level).has(m.y * level.cols + m.x)).toBe(false)
+        for (const c of level.crates ?? []) expect(portalRings(level).has(c.y * level.cols + c.x)).toBe(false)
+        level.arrows.forEach((a) => {
+          const route = arrowRoute(level, a)
+          expect(route.dead).toBe(false)
+          if (!a.double) expect(route.cells.includes(a.cells.at(-1)[1] * level.cols + a.cells.at(-1)[0])).toBe(false)
+        })
+        expect(solveArrows(level).solvable, `${portals} seed ${seed}`).toBe(true)
+      }
+    }
+  }, 60000)
+
+  it('a spec without portals generates exactly the board it always did', () => {
+    for (let seed = 1; seed <= 10; seed += 1) {
+      const spec = { cols: 9, rows: 11, maxLen: 6, fill: 0.88, samples: 10, diag: 0.1, curve: 0.1, bend: 0.9, mirrors: 1, crates: 1, sleepers: 1 }
+      const plain = generateArrowsLevel(seed, spec)
+      expect(generateArrowsLevel(seed, { ...spec, portals: [] })).toEqual(plain)
+      expect(plain.portals).toBeUndefined()
+      expect(plain.mask).toBeUndefined()
+    }
+  })
+
+  it('clearing only ever frees: portals keep the greedy solver exact', () => {
+    const level = generateArrowsLevel(5, { cols: 11, rows: 15, maxLen: 9, fill: 0.92, samples: 14, diag: 0.1, curve: 0.12, bend: 0.9, deep: 1, mirrors: 1, portals: ['turn', 'pair', 'oneway', 'pair'] })
+    let gone = Array(level.arrows.length).fill(false)
+    let free = new Set(freeArrows(level, gone))
+    for (const i of solveArrows(level).order) {
+      gone = [...gone]
+      gone[i] = true
+      const next = new Set(freeArrows(level, gone))
+      for (const f of free) if (f !== i) expect(next.has(f)).toBe(true)
+      free = next
+    }
+    expect(isBoardCleared(level, gone)).toBe(true)
+  })
+
+  it('par: the solver clears every board with exactly one tap per arrow and no blocked tap', () => {
+    for (const portals of [['pair'], ['oneway', 'pair'], ['turn', 'pair']]) {
+      const level = generateArrowsLevel(3, { cols: 9, rows: 12, maxLen: 7, fill: 0.88, samples: 10, deep: 0.5, portals })
+      let gone = Array(level.arrows.length).fill(false)
+      let taps = 0
+      for (const i of solveArrows(level).order) {
+        const r = applyArrowTap(level, gone, 3, i)
+        expect(r.result).toBe('cleared')
+        gone = r.gone
+        taps += 1
+      }
+      expect(taps).toBe(level.arrows.length)
+      expect(isBoardCleared(level, gone)).toBe(true)
+    }
+  })
+})
+
+describe('shaped boards', () => {
+  // 5×4: a hole at (2,1) and a notch at the top right.
+  const mask = ['####.', '##.##', '#####', '#####']
+
+  it('voidSet lists the void cells, and nothing for a plain rectangle', () => {
+    const level = { cols: 5, rows: 4, mask, arrows: [] }
+    expect([...voidSet(level)].sort((a, b) => a - b)).toEqual([4, 7])
+    expect(voidSet({ cols: 5, rows: 4, arrows: [] })).toBeNull()
+    expect(voidSet({ cols: 2, rows: 1, mask: ['##'], arrows: [] })).toBeNull()
+  })
+
+  it('a void cell is an edge: a route that reaches one has left the board', () => {
+    // Row 1 holds a hole at (2,1): an arrow heading right from (0,1),(1,1) is out at once.
+    const level = { cols: 5, rows: 4, mask, arrows: [{ cells: [[0, 1], [1, 1]], dir: 1 }, { cells: [[4, 1], [3, 1]], dir: 3 }] }
+    expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [], dead: false })
+    expect(exitCheck(level, [false, false], 0).free).toBe(true)
+    // Beyond the hole an arrow does not block the route that already left.
+    expect(arrowRoute(level, level.arrows[1]).cells).toEqual([])
+    // Without the mask both routes run the full row and block each other.
+    const plain = { ...level, mask: undefined }
+    expect(exitCheck(plain, [false, false], 0)).toMatchObject({ free: false, blocker: 1 })
+  })
+
+  it('the outline is an edge for every kind of route', () => {
+    // The notch at (4,0): an arrow at (3,1) heading up passes (3,0) then the board edge; one at (3,0) heading right is out.
+    const level = { cols: 5, rows: 4, mask, arrows: [{ cells: [[3, 0], [3, 1]], dir: 0 }, { cells: [[2, 0], [3, 0]], dir: 1 }] }
+    expect(arrowRoute(level, level.arrows[1]).cells).toEqual([])
+    // A hook turns where the board ends: heading right from (0,1),(1,1) it
+    // is at the hole at once, turns clockwise there and runs down column 1.
+    const hook = { cols: 5, rows: 4, mask, arrows: [{ cells: [[0, 1], [1, 1]], dir: 1, turn: 1 }] }
+    expect(arrowRoute(hook, hook.arrows[0])).toMatchObject({ cells: [11, 16], finalDir: 2 })
+    // A diagonal ray stops at a void like it does at the edge: (3,1), then the notch at (4,0).
+    const diag = { cols: 5, rows: 4, mask, arrows: [{ cells: [[1, 3], [2, 2]], dir: 4 }] }
+    expect(arrowRoute(diag, diag.arrows[0]).cells).toEqual([8])
+    expect(arrowRoute({ ...diag, mask: undefined }, diag.arrows[0]).cells).toEqual([8, 4])
+  })
+
+  it('the generator keeps every arrow, mirror and portal on playable cells', () => {
+    for (const shape of ['diamond', 'cross', 'donut', 'heart', 'lantern', 'arrow']) {
+      for (let seed = 1; seed <= 6; seed += 1) {
+        const spec = { cols: 12, rows: 16, maxLen: 8, fill: 0.9, samples: 10, diag: 0.1, curve: 0.1, bend: 0.9, deep: 0.5, mirrors: 1, crates: 1, portals: ['pair', 'oneway'], mask: shapeMask(shape, 12, 16) }
+        const level = generateArrowsLevel(seed, spec)
+        expect(level.mask).toBe(spec.mask)
+        const voids = voidSet(level)
+        const on = ([x, y]) => !voids.has(y * level.cols + x)
+        for (const a of level.arrows) {
+          expect(a.cells.every(on), `${shape} ${seed}`).toBe(true)
+          expect(arrowRoute(level, a).dead).toBe(false)
+          for (const c of arrowRoute(level, a).cells) expect(voids.has(c)).toBe(false)
+        }
+        expect(level.arrows.length).toBeGreaterThan(5)
+        expect(level.mirrors.every((m) => on([m.x, m.y]))).toBe(true)
+        expect(level.portals.every((p) => on(p.a) && on(p.b))).toBe(true)
+        expect((level.crates ?? []).every((c) => on([c.x, c.y]))).toBe(true)
+        expect(solveArrows(level).solvable, `${shape} ${seed}`).toBe(true)
+      }
+    }
   })
 })

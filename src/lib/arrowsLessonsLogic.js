@@ -13,7 +13,7 @@
 import { applyArrowTap } from './arrowsLogic.js'
 
 /** @typedef {{ tap: number, say: string, after: string }} LessonStep */
-/** @typedef {{ cols: number, rows: number, arrows: Array<Record<string, any>>, mirrors?: Array<{ x: number, y: number, m: string }>, crates?: Array<{ x: number, y: number, k: number }> }} LessonBoard */
+/** @typedef {{ cols: number, rows: number, arrows: Array<Record<string, any>>, mirrors?: Array<{ x: number, y: number, m: string }>, crates?: Array<{ x: number, y: number, k: number }>, portals?: Array<{ a: [number, number], b: [number, number], c: number, oneway?: boolean, turn?: boolean }> }} LessonBoard */
 /** @typedef {{ kind: string, level: number, name: string, rule: string, board: LessonBoard, steps: LessonStep[] }} Lesson */
 
 /** @type {Lesson[]} In the order the campaign introduces them. */
@@ -114,6 +114,62 @@ export const ARROWS_LESSONS = [
       { tap: 0, say: 'TAP THE ARROW AIMED AT THE CRATE', after: 'THE CRATE NEEDS 1 MORE CLEAR.' },
       { tap: 1, say: 'CLEAR ANY OTHER ARROW', after: 'COUNT HIT 0 — THE CRATE BREAKS.' },
       { tap: 0, say: 'NOW SEND THE FIRST ARROW', after: 'CRATES ONLY EVER OPEN.' },
+    ],
+  },
+  {
+    kind: 'portal', level: 61, name: 'PORTALS',
+    rule: 'AN ARROW THAT ENTERS A PORTAL RING COMES OUT OF ITS PARTNER, STILL HEADING THE SAME WAY. EVERY CELL OF THE WHOLE ROUTE MUST BE CLEAR.',
+    board: { cols: 5, rows: 4, portals: [{ a: [2, 1], b: [2, 3], c: 0 }], arrows: [
+      { cells: [[0, 1], [1, 1]], dir: 1 },
+      { cells: [[3, 3], [4, 3]], dir: 1 },
+      { cells: [[3, 1], [4, 1]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE ARROW AIMED AT THE RING', after: 'BLOCKED — IT CAME OUT OF THE OTHER RING, INTO AN ARROW.' },
+      { tap: 1, say: 'CLEAR THE ARROW BEYOND THE OTHER RING', after: 'THE ROUTE THROUGH THE PORTAL IS OPEN.' },
+      { tap: 0, say: 'NOW SEND IT', after: 'IN ONE RING, OUT THE OTHER. THE ARROW IN ITS STRAIGHT PATH NEVER MATTERED.' },
+    ],
+  },
+  {
+    kind: 'letters', level: 71, name: 'LETTER PAIRS',
+    rule: 'A BOARD CAN HOLD SEVERAL PORTAL PAIRS. EACH RING CARRIES A LETTER AND ONLY CONNECTS TO THE OTHER RING WITH THE SAME LETTER.',
+    board: { cols: 5, rows: 5, portals: [{ a: [2, 0], b: [2, 3], c: 0 }, { a: [2, 2], b: [1, 4], c: 1 }], arrows: [
+      { cells: [[0, 0], [1, 0]], dir: 1 },
+      { cells: [[3, 3], [4, 3]], dir: 1 },
+      { cells: [[0, 2], [1, 2]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE ARROW AIMED AT RING A', after: 'BLOCKED — IT CAME OUT OF THE OTHER A, NOT THE B.' },
+      { tap: 1, say: 'CLEAR THE ARROW BESIDE THE OTHER A', after: 'THE A ROUTE IS OPEN.' },
+      { tap: 0, say: 'SEND IT', after: 'A TO A. THE B PAIR NEVER CAME INTO IT.' },
+    ],
+  },
+  {
+    kind: 'oneway', level: 81, name: 'EXIT-ONLY RINGS',
+    rule: 'A DASHED RING IS EXIT-ONLY: ARROWS COME OUT OF IT, BUT AN ARROW CROSSING IT JUST CARRIES ON STRAIGHT. ONLY THE SOLID RING SENDS.',
+    board: { cols: 5, rows: 4, portals: [{ a: [2, 3], b: [2, 1], c: 0, oneway: true }], arrows: [
+      { cells: [[0, 1], [1, 1]], dir: 1 },
+      { cells: [[3, 1], [4, 1]], dir: 1 },
+      { cells: [[0, 3], [1, 3]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE ARROW HEADING FOR THE DASHED RING', after: 'BLOCKED — THE DASHED RING DID NOTHING, SO IT RAN STRAIGHT INTO AN ARROW.' },
+      { tap: 1, say: 'CLEAR THE ARROW IN ITS PATH', after: 'THE STRAIGHT PATH IS OPEN.' },
+      { tap: 0, say: 'SEND IT', after: 'PAST THE DASHED RING, OUT. ONLY THE SOLID RING SENDS.' },
+    ],
+  },
+  {
+    kind: 'turning', level: 91, name: 'TURNING RINGS',
+    rule: 'A RING WITH A HOOK TURNS THE ARROW A QUARTER TURN CLOCKWISE AS IT COMES OUT OF THE OTHER RING.',
+    board: { cols: 5, rows: 5, portals: [{ a: [2, 0], b: [3, 2], c: 0, turn: true }], arrows: [
+      { cells: [[0, 0], [1, 0]], dir: 1 },
+      { cells: [[3, 3], [4, 3]], dir: 1 },
+      { cells: [[3, 0], [4, 0]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE ARROW AIMED AT THE HOOKED RING', after: 'BLOCKED — IT CAME OUT HEADING DOWN, NOT RIGHT.' },
+      { tap: 1, say: 'CLEAR THE ARROW BELOW THE OTHER RING', after: 'THE TURNED ROUTE IS OPEN.' },
+      { tap: 0, say: 'SEND IT', after: 'RIGHT INTO THE RING, DOWN OUT OF THE OTHER.' },
     ],
   },
 ]
