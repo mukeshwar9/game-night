@@ -10,6 +10,7 @@ import { authReady } from '../auth'
 import { db } from '../firebase'
 import { requestNavigate, firstScreen } from './navigation'
 import { setSystemTextZoom } from '../displayPrefs'
+import { recordBootTime } from '../analytics'
 import { chooseBackAction, hexForColor, settleWithin, systemBarStyleForBackground } from './shellLogic'
 
 // The splash never outlives this, however slow or broken boot is.
@@ -69,7 +70,11 @@ async function startSplash() {
     clearTimeout(timer)
     SplashScreen.hide({ fadeOutDuration: SPLASH_FADE_MS }).catch(warn)
   }
-  Promise.all([authReady().catch(() => null), firstScreen]).then(afterPaint).then(() => hide())
+  Promise.all([authReady().catch(() => null), firstScreen]).then(afterPaint).then(() => {
+    // Real-phone boot timing (analytics.js bootDaily): page start to first screen.
+    recordBootTime(nativePlatform, performance.now())
+    hide()
+  })
 }
 
 // Status bar (and Android's gesture/navigation bar) content follows the theme:

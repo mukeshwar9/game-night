@@ -189,3 +189,27 @@ export async function fetchRecentFunnel(days = 3) {
   const snaps = await Promise.all(keys.map(day => get(ref(db, `funnelDaily/${day}`))))
   return Object.fromEntries(keys.map((day, i) => [day, snaps[i].val()]))
 }
+
+// Native cold start, splash to first screen, as counts per time bucket:
+//   bootDaily/{day}/{ios|android}/{lt1s|lt2s|lt4s|lt6s|slow}
+// The only boot timing from real phones (the emulators are not representative),
+// to decide whether the entry chunk needs splitting. One bump per launch.
+export const BOOT_BUCKETS = [[1000, 'lt1s'], [2000, 'lt2s'], [4000, 'lt4s'], [6000, 'lt6s']]
+
+/** @param {number} ms */
+export function bootBucket(ms) {
+  if (!(ms >= 0)) return null
+  for (const [limit, name] of BOOT_BUCKETS) if (ms < limit) return name
+  return 'slow'
+}
+
+export function bootDailyPath(day, platform, ms) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day || '')) return null
+  if (platform !== 'ios' && platform !== 'android') return null
+  const bucket = bootBucket(ms)
+  return bucket ? `bootDaily/${day}/${platform}/${bucket}` : null
+}
+
+export function recordBootTime(platform, ms) {
+  bump(bootDailyPath(dayKey(), platform, ms))
+}

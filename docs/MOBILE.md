@@ -290,6 +290,11 @@ record exists. Deploy the rules before relying on it.
   `adb logcat | grep -i capacitor`.
 - Measure on real low-end hardware before release: the Simulator runs on the
   Mac's CPU.
+- Field data: every native launch bumps `bootDaily/{day}/{ios|android}/{bucket}`
+  (page start to first screen: `lt1s`, `lt2s`, `lt4s`, `lt6s`, `slow`;
+  admin-read). The entry chunk (about 780 KB, mostly React, React Router and
+  the game registry) is worth splitting if `lt2s` stops being the common
+  bucket on Android.
 
 ## Performance notes
 

@@ -1335,6 +1335,17 @@
         }
       }
     },
+    "bootDaily": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('admin').val() === true",
+      "$day": {
+        "$platform": {
+          "$bucket": {
+            ".write": "auth != null && $day.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && ($platform === 'ios' || $platform === 'android') && ($bucket === 'lt1s' || $bucket === 'lt2s' || $bucket === 'lt4s' || $bucket === 'lt6s' || $bucket === 'slow')",
+            ".validate": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || (data.isNumber() && newData.val() === data.val() + 1))"
+          }
+        }
+      }
+    },
     "funnelDaily": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('admin').val() === true",
       "$day": {
