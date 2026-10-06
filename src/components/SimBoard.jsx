@@ -95,7 +95,7 @@ export default function SimBoard({ board, onMove, disabled, winningLine = [], la
                 className={cn(
                   'absolute -translate-x-1/2 -translate-y-1/2 w-[14%] h-[14%] max-w-12 max-h-12 rounded-full',
                   'flex items-center justify-center transition duration-100 touch-manipulation',
-                  clickable && 'cursor-pointer hover:bg-retro-tint-cta/40 active:scale-90',
+                  clickable && 'cursor-pointer hover:bg-retro-tint-cta/40 press',
                   !clickable && 'cursor-default',
                 )}
                 style={{ left: `${mid.x}%`, top: `${mid.y}%` }}

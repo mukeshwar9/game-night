@@ -35,7 +35,7 @@ function ContinueRow({ room: r, onDismissed }) {
       <button
         onClick={() => navigate(`/game/${r.id}`)}
         disabled={busy}
-        className="flex-1 min-w-0 flex items-center gap-2.5 disabled:opacity-50 active:scale-[0.99] transition-transform"
+        className="flex-1 min-w-0 flex items-center gap-2.5 disabled:opacity-50 press-card transition-transform"
       >
         <div className="relative w-8 h-8 shrink-0 rounded-lg overflow-hidden flex items-center justify-center text-retro-dim border border-retro-border">
           {Icon && <Icon />}

@@ -99,7 +99,7 @@ export default function KamisadoBoard({
                   'aspect-square rounded-sm transition duration-100 select-none relative',
                   'flex items-center justify-center font-pixel text-base sm:text-lg outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
-                  !disabled && 'cursor-pointer hover:brightness-125 active:scale-95',
+                  !disabled && 'cursor-pointer hover:brightness-125 press',
                   disabled && 'cursor-default',
                   isTarget && 'ring-2 ring-inset ring-retro-cta/70 z-10',
                   isSelected && 'ring-2 ring-inset ring-retro-p1 shadow-neon-p1 z-10',

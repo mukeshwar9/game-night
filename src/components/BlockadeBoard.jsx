@@ -277,7 +277,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
             disabled={disabled}
             onClick={() => handleSetMode(m)}
             className={cn(
-              'px-4 py-2 font-pixel text-[10px] rounded border-2 uppercase transition duration-100 active:scale-95',
+              'px-4 py-2 font-pixel text-[10px] rounded border-2 uppercase transition duration-100 press',
               mode === m
                 ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-cta/50',

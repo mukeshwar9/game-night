@@ -406,7 +406,7 @@ export default function TriviaGame({
               <button
                 onClick={() => runStart(() => onStart())}
                 disabled={starting}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50"
               >
                 {starting ? 'STARTING…' : 'START MATCH'}
               </button>
@@ -501,7 +501,7 @@ export default function TriviaGame({
                     onClick={() => handlePick(idx)}
                     disabled={iAnswered}
                     className={cn(
-                      'min-h-14 px-2 py-2 rounded border-2 transition active:scale-[0.98]',
+                      'min-h-14 px-2 py-2 rounded border-2 transition press-card',
                       'flex flex-col items-center justify-center gap-1',
                       picked
                         ? 'border-retro-cta text-retro-cta shadow-neon-cta'
@@ -608,7 +608,7 @@ export default function TriviaGame({
                     () => toast.error('NEXT FAILED — CHECK CONNECTION'),
                   )}
                   disabled={nexting}
-                  className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95 disabled:opacity-50"
+                  className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press disabled:opacity-50"
                 >
                   {nexting ? 'LOADING…' : round.qNum + 1 >= MATCH_QUESTIONS ? 'FINISH MATCH' : 'NEXT QUESTION'}
                 </button>

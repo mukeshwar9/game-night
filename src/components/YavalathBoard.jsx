@@ -84,7 +84,7 @@ export default function YavalathBoard({
                       'relative w-[10.5%] min-w-[30px] aspect-[1/0.87] select-none transition duration-100 outline-none',
                       'flex items-center justify-center font-pixel text-xs sm:text-sm',
                       'focus-visible:ring-2 focus-visible:ring-retro-cta',
-                      !disabled && !v && 'cursor-pointer hover:brightness-125 active:scale-95',
+                      !disabled && !v && 'cursor-pointer hover:brightness-125 press',
                     )}
                     style={{ clipPath: HEX_CLIP, margin: '0 1px' }}
                   >

@@ -440,7 +440,7 @@ export default function WavelengthDemo() {
         <Scoreboard players={gameState.players} scores={gameState.scores} mySeat="human" clueGiver={null} />
         <button
           onClick={handlePlayAgain}
-          className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+          className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
         >
           PLAY AGAIN
         </button>
@@ -515,7 +515,7 @@ export default function WavelengthDemo() {
                       key={word}
                       type="button"
                       onClick={() => { setClueInput(word); setClueError('') }}
-                      className="min-h-8 px-2 py-1 font-pixel text-[8px] border border-retro-border text-retro-text rounded hover:border-retro-cta hover:text-retro-cta active:scale-95"
+                      className="min-h-8 px-2 py-1 font-pixel text-[8px] border border-retro-border text-retro-text rounded hover:border-retro-cta hover:text-retro-cta press"
                     >
                       {word}
                     </button>
@@ -538,7 +538,7 @@ export default function WavelengthDemo() {
             {clueError && <p className="font-pixel text-[8px] text-retro-p2 text-center">{clueError}</p>}
             <button
               onClick={handleSubmitClue}
-              className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+              className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
             >
               LOCK CLUE
             </button>
@@ -574,7 +574,7 @@ export default function WavelengthDemo() {
           ) : (
             <button
               onClick={handleSubmitGuess}
-              className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+              className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
             >
               LOCK IN
             </button>
@@ -621,7 +621,7 @@ export default function WavelengthDemo() {
           </div>
           <button
             onClick={handleNextRound}
-            className="w-full py-2 mt-2 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95"
+            className="w-full py-2 mt-2 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press"
           >
             NEXT ROUND
           </button>

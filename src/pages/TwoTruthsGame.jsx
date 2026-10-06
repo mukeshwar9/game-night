@@ -128,7 +128,7 @@ function StatementWriter({ onLock, busy, topic }) {
             type="button"
             onClick={inspire}
             disabled={emptyIndex < 0}
-            className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta text-retro-cta font-pixel text-[9px] hover:bg-retro-card active:scale-95 disabled:opacity-40"
+            className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta text-retro-cta font-pixel text-[9px] hover:bg-retro-card press disabled:opacity-40"
           >
             INSPIRE ME
           </button>
@@ -164,7 +164,7 @@ function StatementWriter({ onLock, busy, topic }) {
                 onClick={() => { setLieIndex(i); setError('') }}
                 aria-pressed={isLie}
                 className={cn(
-                  'w-full min-h-11 py-1.5 font-pixel text-[9px] rounded border transition active:scale-95',
+                  'w-full min-h-11 py-1.5 font-pixel text-[9px] rounded border transition press',
                   isLie
                     ? 'border-retro-p2 text-retro-p2 bg-retro-tint-p2 shadow-neon-p2'
                     : 'border-retro-border text-retro-dim hover:border-retro-p2/50 hover:text-retro-p2',
@@ -185,7 +185,7 @@ function StatementWriter({ onLock, busy, topic }) {
         onClick={handleSubmit}
         disabled={busy}
         className={cn(
-          'w-full py-3 font-pixel text-[10px] rounded border-2 transition active:scale-95',
+          'w-full py-3 font-pixel text-[10px] rounded border-2 transition press',
           busy
             ? 'border-retro-border text-retro-border cursor-not-allowed'
             : 'border-retro-p1 text-retro-p1 hover:shadow-neon-p1 hover:bg-retro-tint-p1',
@@ -216,7 +216,7 @@ function StatementList({ statements, lieIndex = null, picked = null, pickedLabel
             className={cn(
               'w-full min-h-11 text-left rounded border-2 px-3 py-3 transition',
               'font-mono text-xs leading-relaxed flex items-start gap-2',
-              canPick && 'hover:border-retro-p2 hover:bg-retro-tint-p2 active:scale-[0.99] cursor-pointer',
+              canPick && 'hover:border-retro-p2 hover:bg-retro-tint-p2 press-card cursor-pointer',
               isTheLie
                 ? 'border-retro-p2 bg-retro-tint-p2 text-retro-p2'
                 : isTruth
@@ -266,7 +266,7 @@ function GuessPicker({ statements, oppName, onLock, busy }) {
         onClick={() => selected != null && onLock(selected)}
         disabled={selected == null || busy}
         className={cn(
-          'w-full py-3 font-pixel text-[10px] rounded border-2 transition active:scale-95',
+          'w-full py-3 font-pixel text-[10px] rounded border-2 transition press',
           selected == null || busy
             ? 'border-retro-border text-retro-border cursor-not-allowed'
             : 'border-retro-cta text-retro-cta hover:shadow-neon-cta hover:bg-retro-tint-cta',
@@ -284,7 +284,7 @@ function EndRoundButton({ onClick, busy, label }) {
       type="button"
       onClick={onClick}
       disabled={busy}
-      className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-50"
+      className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
     >
       {busy ? 'ENDING…' : label}
     </button>
@@ -575,7 +575,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
               <button
                 type="button"
                 onClick={onNewMatch}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
               >
                 NEW MATCH
               </button>
@@ -593,7 +593,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
                 if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
               }, () => toast.error("COULDN'T SHARE — TRY AGAIN"))}
               disabled={sharing}
-              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition press disabled:opacity-50"
             >
               {sharing ? 'BUILDING…' : 'SHARE'}
             </button>
@@ -750,7 +750,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
                 type="button"
                 onClick={handleConcedeReveal}
                 disabled={conceding}
-                className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-50"
+                className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
               >
                 {conceding ? 'CONCEDING…' : 'CONCEDE REVEAL'}
               </button>
@@ -781,7 +781,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
             type="button"
             onClick={handleNextRound}
             disabled={advancing}
-            className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95 disabled:opacity-50"
+            className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press disabled:opacity-50"
           >
             {advancing ? 'STARTING…' : 'NEXT ROUND'}
           </button>

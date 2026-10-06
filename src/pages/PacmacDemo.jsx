@@ -114,7 +114,7 @@ export default function PacmacDemo() {
         <button
           type="button"
           onClick={() => start()}
-          className="px-5 py-3 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+          className="px-5 py-3 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
         >
           START
         </button>
@@ -136,7 +136,7 @@ export default function PacmacDemo() {
         <button
           type="button"
           onClick={() => start(matchOver)}
-          className="px-5 py-3 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+          className="px-5 py-3 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
         >
           {matchOver ? 'NEW MATCH' : 'NEXT ROUND'}
         </button>

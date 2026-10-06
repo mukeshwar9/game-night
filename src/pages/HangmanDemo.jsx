@@ -225,7 +225,7 @@ export default function HangmanDemo() {
                   <button
                     type="button"
                     onClick={newMatch}
-                    className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta active:scale-95"
+                    className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta press"
                   >
                     NEW MATCH
                   </button>
@@ -234,7 +234,7 @@ export default function HangmanDemo() {
                 <button
                   type="button"
                   onClick={nextRound}
-                  className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
+                  className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press"
                 >
                   {match.round.setter === 'X' ? 'NEXT ROUND — YOU SET A WORD' : 'NEXT ROUND — YOU GUESS'}
                 </button>

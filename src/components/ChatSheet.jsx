@@ -5,7 +5,7 @@ import { CHAT_MAX_LENGTH } from '../lib/chat'
 import { QUICK_CHAT } from '../lib/emotes'
 import { cn } from '@/lib/utils'
 
-const CHIP_BTN_CLASS = 'shrink-0 px-2.5 min-h-11 flex items-center justify-center font-pixel text-[8px] tracking-widest rounded border border-retro-border bg-retro-bg hover:border-retro-cta/50 active:scale-95 transition disabled:opacity-50'
+const CHIP_BTN_CLASS = 'shrink-0 px-2.5 min-h-11 flex items-center justify-center font-pixel text-[8px] tracking-widest rounded border border-retro-border bg-retro-bg hover:border-retro-cta/50 press transition disabled:opacity-50'
 
 // Room chat as a bottom sheet: the history (with block/report on each name),
 // quick phrases, and the input pinned at the bottom. `keyboardSafe` lifts the
@@ -83,7 +83,7 @@ export default function ChatSheet({ chatLog, myUid, onSendText, textCooldown, ch
               disabled={!text.trim() || textCooldown}
               className={cn(
                 'min-h-11 px-4 flex items-center justify-center bg-retro-p1 border-2 border-retro-p1 text-retro-bg',
-                'font-pixel text-[10px] rounded transition-colors active:scale-95',
+                'font-pixel text-[10px] rounded transition-colors press',
                 (!text.trim() || textCooldown) && 'opacity-50'
               )}
             >

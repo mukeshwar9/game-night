@@ -56,7 +56,7 @@ export default function AtaxxBoard({
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
                   dark ? 'bg-retro-surface' : 'bg-retro-card',
                   'border border-retro-border/40',
-                  !disabled && 'cursor-pointer hover:brightness-125 active:scale-95',
+                  !disabled && 'cursor-pointer hover:brightness-125 press',
                   isTarget && targetKind === 'clone' && 'ring-2 ring-inset ring-retro-cta/60 bg-retro-tint-cta/30',
                   isTarget && targetKind === 'jump' && 'ring-2 ring-inset ring-retro-cta/60 bg-retro-tint-cta/10',
                   isSelected && 'ring-2 ring-inset ring-retro-p1 shadow-neon-p1',

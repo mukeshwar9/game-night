@@ -36,7 +36,7 @@ function ItemGrid({ items, access }) {
               type="button"
               onClick={() => (open ? null : openPaywall(item))}
               aria-label={open ? item.label : `${item.label}, locked`}
-              className={cn('w-full rounded border bg-retro-card p-2 text-left space-y-1 transition-colors', open ? 'border-retro-border cursor-default' : 'border-retro-border hover:border-retro-cta/60 active:scale-[0.98]')}
+              className={cn('w-full rounded border bg-retro-card p-2 text-left space-y-1 transition-colors', open ? 'border-retro-border cursor-default' : 'border-retro-border hover:border-retro-cta/60 press-card')}
             >
               <Preview item={item} />
               <span className="flex items-center justify-between gap-1">
@@ -62,7 +62,7 @@ function PassOnlySection({ items, access }) {
           <p className="font-mono text-[10px] text-retro-dim leading-relaxed">Only with the Game Night Pass.</p>
         </div>
         {owned ? <span className="shrink-0 font-pixel text-[9px] tracking-wider text-retro-win">UNLOCKED</span> : (
-          <button type="button" onClick={() => beginPurchase('pass-monthly')} className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition">
+          <button type="button" onClick={() => beginPurchase('pass-monthly')} className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider press transition">
             GET PASS {formatPrice(PRODUCTS['pass-monthly'], currency)}{currency === 'INR' ? '' : '/MO'}
           </button>
         )}
@@ -89,7 +89,7 @@ function PackSection({ pack, items, access }) {
           <button
             type="button"
             onClick={() => beginPurchase(`pack-${pack.id}`)}
-            className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition"
+            className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider press transition"
           >
             BUY {formatPrice(pack, currency)}
           </button>
@@ -147,7 +147,7 @@ export default function Shop() {
             {access.supporter
               ? <span className="font-pixel text-[9px] tracking-wider text-retro-win">THANK YOU</span>
               : (
-                <button type="button" onClick={() => beginPurchase('supporter')} className="min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95 transition">
+                <button type="button" onClick={() => beginPurchase('supporter')} className="min-h-11 px-3 rounded border-2 border-retro-cta bg-retro-tint-cta text-retro-cta font-pixel text-[9px] tracking-wider press transition">
                   BACK US {formatPrice(PRODUCTS.supporter, currency)}
                 </button>
               )}

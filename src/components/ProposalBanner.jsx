@@ -69,7 +69,7 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
             <button
               onClick={() => handle('accept', onAccept)}
               disabled={busy}
-              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50"
             >
               {tapped === 'accept' ? 'ACCEPTING…' : 'ACCEPT'}
             </button>

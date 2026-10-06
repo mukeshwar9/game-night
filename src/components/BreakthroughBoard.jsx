@@ -64,7 +64,7 @@ export default function BreakthroughBoard({
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
                   dark ? 'bg-retro-surface' : 'bg-retro-card',
                   'border border-retro-border/40',
-                  !disabled && 'cursor-pointer hover:brightness-125 active:scale-95',
+                  !disabled && 'cursor-pointer hover:brightness-125 press',
                   isPlayable && !cell && 'ring-2 ring-inset ring-retro-cta/60 bg-retro-tint-cta/30',
                   isCapture && 'ring-2 ring-inset ring-retro-p2/80 bg-retro-tint-p2/40',
                   isSelected && 'ring-2 ring-inset ring-retro-p1 shadow-neon-p1',

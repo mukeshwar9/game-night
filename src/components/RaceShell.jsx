@@ -385,7 +385,7 @@ export default function RaceShell({
             <button
               onClick={() => runEnd(() => finishRound(liveRound.id, true), () => toast.error('END ROUND FAILED — CHECK CONNECTION'))}
               disabled={ending}
-              className="px-4 py-2 border border-retro-border text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta transition active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 border border-retro-border text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta transition press disabled:opacity-50"
             >
               {ending ? 'ENDING…' : 'END ROUND'}
             </button>
@@ -486,7 +486,7 @@ export default function RaceShell({
             disabled={readying}
             aria-pressed={iAmReady}
             className={cn(
-              'px-6 py-2.5 font-pixel text-xs rounded transition active:scale-95 disabled:opacity-50',
+              'px-6 py-2.5 font-pixel text-xs rounded transition press disabled:opacity-50',
               iAmReady
                 ? 'border-2 border-retro-win text-retro-win'
                 : 'bg-retro-cta text-retro-bg hover:shadow-neon-cta',
@@ -498,7 +498,7 @@ export default function RaceShell({
             <button
               onClick={() => runStart(() => startRound(true), () => toast.error('START FAILED — CHECK CONNECTION'))}
               disabled={starting}
-              className="px-6 py-2.5 border-2 border-retro-p1 text-retro-p1 font-pixel text-xs rounded hover:shadow-neon-p1 transition active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 border-2 border-retro-p1 text-retro-p1 font-pixel text-xs rounded hover:shadow-neon-p1 transition press disabled:opacity-50"
             >
               {starting ? 'STARTING…' : 'START NOW'}
             </button>

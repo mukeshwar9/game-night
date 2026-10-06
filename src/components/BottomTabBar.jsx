@@ -88,7 +88,7 @@ export default function BottomTabBar() {
               to={tab.to}
               end={tab.end}
               className={({ isActive }) => cn(
-                'flex-1 min-h-11 flex flex-col items-center justify-center gap-1 py-1.5 transition-colors active:scale-95',
+                'flex-1 min-h-11 flex flex-col items-center justify-center gap-1 py-1.5 transition-colors press',
                 isActive ? 'text-retro-cta' : 'text-retro-dim hover:text-retro-text',
               )}
             >

@@ -21,7 +21,7 @@ export default function DailyTile() {
     <Link
       to="/daily"
       className="group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
-        hover:border-retro-cta/50 transition-colors active:scale-[0.99]"
+        hover:border-retro-cta/50 transition-colors press-card"
     >
       <span className="flex-1 min-w-0">
         <span className="block font-pixel text-[10px] text-retro-text tracking-wider">DAILY PUZZLE</span>
@@ -49,7 +49,7 @@ export function DailyMemoryTile() {
     <Link
       to="/daily/memory"
       className="group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
-        hover:border-retro-cta/50 transition-colors active:scale-[0.99]"
+        hover:border-retro-cta/50 transition-colors press-card"
     >
       <span className="flex-1 min-w-0">
         <span className="block font-pixel text-[10px] text-retro-text tracking-wider">DAILY MEMORY</span>

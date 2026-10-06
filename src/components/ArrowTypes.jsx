@@ -51,7 +51,7 @@ export default function ArrowTypes({ highlight = [] }) {
                 <button
                   onClick={() => setOpen(lesson.kind)}
                   aria-label={`Try the ${lesson.name.toLowerCase()} lesson`}
-                  className="min-h-9 px-2.5 py-1.5 font-pixel text-[8px] rounded border border-retro-border text-retro-dim hover:border-retro-cta/50 hover:text-retro-text active:scale-95"
+                  className="min-h-9 px-2.5 py-1.5 font-pixel text-[8px] rounded border border-retro-border text-retro-dim hover:border-retro-cta/50 hover:text-retro-text press"
                 >
                   TRY IT
                 </button>

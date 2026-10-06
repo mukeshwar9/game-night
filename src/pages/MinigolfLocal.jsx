@@ -73,7 +73,7 @@ function Handoff({ name, seat, holeLabel, detail, onReady }) {
         onPointerLeave={stop}
         onPointerCancel={stop}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReady() } }}
-        className="mt-2 min-h-12 w-full max-w-[260px] rounded font-pixel text-[10px] text-retro-bg active:scale-95 transition-transform"
+        className="mt-2 min-h-12 w-full max-w-[260px] rounded font-pixel text-[10px] text-retro-bg press transition-transform"
         style={{ background: seatColor(seat) }}
       >
         {holding ? 'KEEP HOLDING…' : 'HOLD TO START'}
@@ -218,7 +218,7 @@ export default function MinigolfLocal({ mode = 'local' }) {
         <button
           type="button"
           onClick={start}
-          className="min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 transition"
+          className="min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta press transition"
         >
           TEE OFF
         </button>
@@ -259,10 +259,10 @@ export default function MinigolfLocal({ mode = 'local' }) {
         <div className="rounded border border-retro-border bg-retro-card p-2">
           <MinigolfScorecard course={course} order={order} meta={meta} scores={state.scores} />
         </div>
-        <button type="button" onClick={start} className="min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 transition">
+        <button type="button" onClick={start} className="min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta press transition">
           PLAY AGAIN
         </button>
-        <button type="button" onClick={() => setPhase('setup')} className="min-h-11 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 active:scale-95">
+        <button type="button" onClick={() => setPhase('setup')} className="min-h-11 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 press">
           {solo ? 'CHANGE MODE / COURSE' : 'CHANGE PLAYERS / COURSE'}
         </button>
         <div className="grid grid-cols-2 gap-2">

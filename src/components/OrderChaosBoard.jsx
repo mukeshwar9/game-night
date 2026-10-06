@@ -104,7 +104,7 @@ export default function OrderChaosBoard({ board, onMove, disabled, winningLine =
               'w-11 h-11 flex items-center justify-center',
               'font-pixel text-[11px] rounded border-2',
               'transition duration-100',
-              !disabled && 'active:scale-95',
+              !disabled && 'press',
               selectedLetter === l
                 ? l === 'X'
                   ? 'border-retro-p1 text-retro-p1 shadow-neon-p1'

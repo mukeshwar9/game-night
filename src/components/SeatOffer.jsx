@@ -17,7 +17,7 @@ export default function SeatOffer({ onTakeSeat }) {
       <button
         onClick={take}
         disabled={busy}
-        className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+        className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-50"
       >
         {busy ? 'TAKING…' : 'TAKE THE SEAT'}
       </button>

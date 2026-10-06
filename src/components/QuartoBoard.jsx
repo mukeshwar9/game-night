@@ -109,7 +109,7 @@ export default function QuartoBoard({
                   'flex items-center justify-center outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
                   'bg-retro-surface border border-retro-border/40',
-                  !disabled && 'cursor-pointer hover:brightness-125 active:scale-95',
+                  !disabled && 'cursor-pointer hover:brightness-125 press',
                   isPlacing && 'ring-2 ring-inset ring-retro-cta bg-retro-tint-cta/30',
                   isLast && !isPlacing && 'ring-2 ring-inset ring-retro-cta/60',
                 )}
@@ -143,7 +143,7 @@ export default function QuartoBoard({
                   'w-10 h-11 sm:w-11 rounded border flex items-center justify-center transition duration-100',
                   'outline-none focus-visible:ring-2 focus-visible:ring-retro-cta',
                   pendingCell == null && 'opacity-40 cursor-default',
-                  pendingCell != null && 'cursor-pointer hover:brightness-125 active:scale-95',
+                  pendingCell != null && 'cursor-pointer hover:brightness-125 press',
                   'border-retro-border/60 bg-retro-card hover:border-retro-cta',
                 )}
                 data-testid={`qrt-give-${v}`}

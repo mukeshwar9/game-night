@@ -286,7 +286,7 @@ function MinesRacer({ gameId, round, myStats, statsPath }) {
           disabled={!canAct}
           aria-pressed={mode === 'flag'}
           className={cn(
-            'px-3 py-2 min-h-11 font-pixel text-[9px] rounded border active:scale-95 disabled:opacity-50',
+            'px-3 py-2 min-h-11 font-pixel text-[9px] rounded border press disabled:opacity-50',
             mode === 'flag'
               ? 'bg-retro-tint-p2 border-retro-p2 text-retro-p2'
               : 'bg-retro-card border-retro-border text-retro-text hover:border-retro-cta',

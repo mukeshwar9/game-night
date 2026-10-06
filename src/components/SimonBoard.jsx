@@ -251,7 +251,7 @@ export default function SimonBoard({
         {isMyTurn && needsRecall && !watching && replayAvailable && (
           <button
             onClick={handleReplay}
-            className="w-full h-9 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[8px] rounded hover:border-retro-cta/60 active:scale-95 tracking-widest"
+            className="w-full h-9 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[8px] rounded hover:border-retro-cta/60 press tracking-widest"
           >
             WATCH AGAIN (1)
           </button>
@@ -270,7 +270,7 @@ export default function SimonBoard({
               onClick={() => handlePad(i)}
               style={padStyle(i)}
               className={cn(
-                'simon-pad aspect-square rounded-xl border-2 active:scale-95',
+                'simon-pad aspect-square rounded-xl border-2 press',
                 'flex items-center justify-center',
                 lit && 'is-lit',
                 !lit && (canClick ? 'cursor-pointer hover:brightness-105' : 'cursor-default opacity-70'),

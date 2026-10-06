@@ -163,7 +163,7 @@ export default function SplitSignalGame({
                       : by === 'X' ? 'bg-retro-tint-p1 border-retro-p1'
                         : by === 'O' ? 'bg-retro-tint-p2 border-retro-p2'
                           : 'bg-retro-card border-retro-border/60',
-                    canTap && 'cursor-pointer hover:border-retro-text/40 active:scale-90',
+                    canTap && 'cursor-pointer hover:border-retro-text/40 press',
                     flash?.cell === i && flash.kind === 'wrong' && 'pairs-mismatch-shake border-retro-danger',
                   )}
                 />

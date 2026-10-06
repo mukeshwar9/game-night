@@ -87,7 +87,7 @@ export default function DailyMemory() {
               <button
                 type="button"
                 onClick={() => setPlaying(false)}
-                className="w-full py-2.5 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+                className="w-full py-2.5 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
               >
                 SEE TODAY&apos;S BOARD
               </button>
@@ -109,7 +109,7 @@ export default function DailyMemory() {
                   type="button"
                   onClick={share}
                   disabled={sharing}
-                  className="w-full py-2.5 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
+                  className="w-full py-2.5 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-50"
                 >
                   {sharing ? 'BUILDING…' : 'SHARE RESULT'}
                 </button>
@@ -120,7 +120,7 @@ export default function DailyMemory() {
               <button
                 type="button"
                 onClick={start}
-                className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+                className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
               >
                 PLAY TODAY&apos;S RUN
               </button>

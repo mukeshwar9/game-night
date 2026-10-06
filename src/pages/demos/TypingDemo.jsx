@@ -110,7 +110,7 @@ export default function TypingDemo() {
         </p>
         <p className="font-mono text-[10px] text-retro-dim text-center">WPM counts correct characters only · EFF = WPM × accuracy</p>
         <button onClick={reset}
-          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press">
           PLAY AGAIN
         </button>
       </div>
@@ -152,7 +152,7 @@ export default function TypingDemo() {
           <div className="flex flex-col items-center gap-3 py-2">
             <p className="font-pixel text-[9px] text-retro-dim text-center">BEAT THE BOT · ERRORS HIGHLIGHTED · ⌫ CORRECTS</p>
             <button onClick={start}
-              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press">
               START
             </button>
           </div>

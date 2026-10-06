@@ -322,7 +322,7 @@ export default function FibbageDemo() {
 
         <button
           onClick={handlePlayAgain}
-          className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+          className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
         >
           PLAY AGAIN
         </button>
@@ -387,7 +387,7 @@ export default function FibbageDemo() {
               {inputError && <p className="font-pixel text-[9px] text-retro-p2 text-center">{inputError}</p>}
               <button
                 onClick={handleSubmitLie}
-                className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+                className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
               >
                 SUBMIT LIE
               </button>
@@ -418,7 +418,7 @@ export default function FibbageDemo() {
                 onClick={() => handleVote(opt.id)}
                 disabled={iVoted || isMine}
                 className={cn(
-                  'w-full min-h-11 px-3 py-2.5 font-mono text-[12px] text-left rounded border-2 transition active:scale-[0.98]',
+                  'w-full min-h-11 px-3 py-2.5 font-mono text-[12px] text-left rounded border-2 transition press-card',
                   picked
                     ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border text-retro-text hover:border-retro-p1/50',
@@ -500,7 +500,7 @@ export default function FibbageDemo() {
 
           <button
             onClick={handleNextRound}
-            className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95"
+            className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press"
           >
             {matchWillEnd ? 'SEE FINAL RESULTS' : 'NEXT ROUND'}
           </button>

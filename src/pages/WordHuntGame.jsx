@@ -349,7 +349,7 @@ function WordGrid({ grid, disabled, onSubmit, lastResult }) {
         <button
           type="submit"
           disabled={disabled || !typedWord}
-          className="min-h-11 rounded bg-retro-cta px-3 font-pixel text-[9px] text-retro-bg active:scale-95 disabled:opacity-50"
+          className="min-h-11 rounded bg-retro-cta px-3 font-pixel text-[9px] text-retro-bg press disabled:opacity-50"
         >
           ENTER
         </button>
@@ -772,7 +772,7 @@ export default function WordHuntGame({
             <button
               onClick={retryDictionary}
               disabled={retrying}
-              className="mt-2 px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
+              className="mt-2 px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-50"
             >
               {retrying ? 'RETRYING…' : 'RETRY'}
             </button>
@@ -885,7 +885,7 @@ export default function WordHuntGame({
           <button
             onClick={handleReady}
             disabled={readying || !dict || myReady}
-            className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
+            className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-50"
           >
             {!dict ? 'LOADING WORDS…' : readying ? 'READYING…' : myReady ? 'READY ✓' : 'READY'}
           </button>
@@ -900,7 +900,7 @@ export default function WordHuntGame({
               <button
                 onClick={retryDictionary}
                 disabled={retrying}
-                className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-cta hover:text-retro-cta active:scale-95 disabled:opacity-50"
+                className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-cta hover:text-retro-cta press disabled:opacity-50"
               >
                 {retrying ? 'RETRYING…' : 'RETRY'}
               </button>
@@ -965,7 +965,7 @@ export default function WordHuntGame({
                 <button
                   onClick={retryDictionary}
                   disabled={retrying}
-                  className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-cta hover:text-retro-cta active:scale-95 disabled:opacity-50"
+                  className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-cta hover:text-retro-cta press disabled:opacity-50"
                 >
                   {retrying ? 'RETRYING…' : 'RETRY'}
                 </button>

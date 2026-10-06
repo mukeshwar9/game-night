@@ -101,7 +101,7 @@ export default function ArrowsDemo() {
             key={t}
             onClick={() => reset(t)}
             className={cn(
-              'px-3 py-2 font-pixel text-[9px] rounded border transition active:scale-95',
+              'px-3 py-2 font-pixel text-[9px] rounded border transition press',
               tier === t
                 ? 'border-retro-cta text-retro-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-cta/50',
@@ -137,7 +137,7 @@ export default function ArrowsDemo() {
             </p>
             <button
               onClick={() => reset()}
-              className="px-5 py-2.5 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta active:scale-95"
+              className="px-5 py-2.5 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta press"
             >
               NEW BOARD
             </button>

@@ -136,7 +136,7 @@ export default function RulesModal({ gameType, onClose }) {
 
       <button
         onClick={onClose}
-        className="w-full px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+        className="w-full px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
       >
         GOT IT
       </button>

@@ -201,7 +201,7 @@ export default function Onboarding({ onDone, invite = null }) {
                     type="button"
                     onClick={rollName}
                     aria-label="Suggest a random name"
-                    className="shrink-0 min-w-12 min-h-11 flex items-center justify-center border-2 border-retro-border rounded text-retro-cta hover:border-retro-cta transition active:scale-90"
+                    className="shrink-0 min-w-12 min-h-11 flex items-center justify-center border-2 border-retro-border rounded text-retro-cta hover:border-retro-cta transition press"
                   >
                     <DieIcon size={20} />
                   </button>
@@ -224,7 +224,7 @@ export default function Onboarding({ onDone, invite = null }) {
                       key={c}
                       type="button"
                       onClick={() => { sounds.move('O'); setName(c) }}
-                      className="min-h-9 px-2.5 rounded border border-retro-border bg-retro-surface font-mono text-xs text-retro-text hover:border-retro-cta transition active:scale-95"
+                      className="min-h-9 px-2.5 rounded border border-retro-border bg-retro-surface font-mono text-xs text-retro-text hover:border-retro-cta transition press"
                     >
                       {c}
                     </button>
@@ -237,7 +237,7 @@ export default function Onboarding({ onDone, invite = null }) {
               <button
                 type="button"
                 onClick={next}
-                className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition active:scale-95"
+                className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition press"
               >
                 NEXT: PICK A LOOK →
               </button>
@@ -258,7 +258,7 @@ export default function Onboarding({ onDone, invite = null }) {
                   type="button"
                   onClick={handleApple}
                   disabled={googleBusy || appleBusy}
-                  className="w-full min-h-11 flex items-center justify-center gap-2 border border-retro-text bg-retro-text text-retro-bg rounded font-pixel text-[9px] transition active:scale-95 disabled:opacity-50"
+                  className="w-full min-h-11 flex items-center justify-center gap-2 border border-retro-text bg-retro-text text-retro-bg rounded font-pixel text-[9px] transition press disabled:opacity-50"
                 >
                   <AppleMark size={13} /> {appleBusy ? 'SIGNING IN…' : showGoogle ? 'SIGN IN WITH APPLE' : 'HAVE AN ACCOUNT? SIGN IN WITH APPLE'}
                 </button>
@@ -291,7 +291,7 @@ export default function Onboarding({ onDone, invite = null }) {
                 type="button"
                 onClick={() => setStep('name')}
                 disabled={saving}
-                className="min-h-12 px-4 border-2 border-retro-border text-retro-dim font-pixel text-[10px] rounded hover:text-retro-text transition active:scale-95"
+                className="min-h-12 px-4 border-2 border-retro-border text-retro-dim font-pixel text-[10px] rounded hover:text-retro-text transition press"
               >
                 ← BACK
               </button>
@@ -299,7 +299,7 @@ export default function Onboarding({ onDone, invite = null }) {
                 type="button"
                 onClick={finish}
                 disabled={saving}
-                className="flex-1 min-h-12 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-60"
+                className="flex-1 min-h-12 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition press disabled:opacity-60"
               >
                 {saving ? 'SAVING…' : invite ? 'JOIN GAME' : "LET'S PLAY"}
               </button>

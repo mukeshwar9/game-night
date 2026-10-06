@@ -231,7 +231,7 @@ export default function WordDuelDemo() {
           <button
             type="button"
             onClick={() => { setTyped(pickCpuSecret(answers, { used: [typed] }).toUpperCase()); setFeedback(null) }}
-            className="px-4 py-2 rounded border-2 border-retro-border font-pixel text-[10px] text-retro-text hover:border-retro-cta active:scale-95"
+            className="px-4 py-2 rounded border-2 border-retro-border font-pixel text-[10px] text-retro-text hover:border-retro-cta press"
           >
             SUGGEST
           </button>
@@ -239,7 +239,7 @@ export default function WordDuelDemo() {
             type="button"
             onClick={lockSecret}
             disabled={typed.length !== WORD_LENGTH}
-            className="px-6 py-2 rounded font-pixel text-[10px] bg-retro-cta text-retro-bg hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
+            className="px-6 py-2 rounded font-pixel text-[10px] bg-retro-cta text-retro-bg hover:shadow-neon-cta press disabled:opacity-50"
           >
             LOCK IN
           </button>
@@ -265,7 +265,7 @@ export default function WordDuelDemo() {
           <button
             type="button"
             onClick={() => setRound(r => ({ ...r, skipped: true }))}
-            className="px-4 py-1.5 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:text-retro-text active:scale-95"
+            className="px-4 py-1.5 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:text-retro-text press"
           >
             SKIP AHEAD ▸▸
           </button>
@@ -336,7 +336,7 @@ export default function WordDuelDemo() {
           <button
             type="button"
             onClick={newMatch}
-            className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta active:scale-95"
+            className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta press"
           >
             NEW MATCH
           </button>
@@ -345,7 +345,7 @@ export default function WordDuelDemo() {
         <button
           type="button"
           onClick={nextRound}
-          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
+          className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press"
         >
           NEXT ROUND
         </button>

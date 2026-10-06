@@ -63,12 +63,12 @@ function Setup({ local, format, setFormat, onStart }) {
             ['pro', 'PRO', 'Tighter groups · watch the X ring.'],
             ['robin-hood', 'ROBIN HOOD', 'Elite accuracy · your impact reticle stays hidden.'],
           ].map(([id, title, blurb]) => (
-            <button key={id} onClick={() => onStart({ mode: 'cpu', level: id, format, steady })} className="flex min-h-14 w-full items-center gap-3 rounded border border-retro-border bg-retro-card px-3 py-2 text-left hover:border-retro-cta/60 active:scale-[0.98]">
+            <button key={id} onClick={() => onStart({ mode: 'cpu', level: id, format, steady })} className="flex min-h-14 w-full items-center gap-3 rounded border border-retro-border bg-retro-card px-3 py-2 text-left hover:border-retro-cta/60 press-card">
               <span className="w-24 font-pixel text-[9px] text-retro-cta">{title}</span>
               <span className="font-mono text-[10px] text-retro-dim">{blurb}</span>
             </button>
           ))}
-          <button onClick={() => onStart({ mode: 'score', level: 'rookie', format, steady })} className="flex min-h-14 w-full items-center gap-3 rounded border border-retro-win/50 bg-retro-card px-3 py-2 text-left hover:shadow-neon-win active:scale-[0.98]">
+          <button onClick={() => onStart({ mode: 'score', level: 'rookie', format, steady })} className="flex min-h-14 w-full items-center gap-3 rounded border border-retro-win/50 bg-retro-card px-3 py-2 text-left hover:shadow-neon-win press-card">
             <span className="w-24 font-pixel text-[9px] text-retro-win">SCORE ATTACK</span>
             <span className="font-mono text-[10px] text-retro-dim">Solo run · personal best {readSoloBest(BEST_KEY) || '—'} · rank badge.</span>
           </button>

@@ -131,7 +131,7 @@ export default function UpdraftDemo() {
             type="button"
             onClick={() => restart({ level: l })}
             className={cn(
-              'min-h-11 px-3 font-pixel text-[9px] rounded border transition active:scale-95',
+              'min-h-11 px-3 font-pixel text-[9px] rounded border transition press',
               level === l ? 'border-retro-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:border-retro-cta/50',
             )}
           >{l.toUpperCase()}</button>
@@ -141,7 +141,7 @@ export default function UpdraftDemo() {
           onClick={() => restart({ chaos: !chaos })}
           aria-pressed={chaos}
           className={cn(
-            'min-h-11 px-3 font-pixel text-[9px] rounded border transition active:scale-95',
+            'min-h-11 px-3 font-pixel text-[9px] rounded border transition press',
             chaos ? 'border-retro-p2 text-retro-p2' : 'border-retro-border text-retro-dim',
           )}
         >{chaos ? 'CHAOS' : 'PURE'}</button>
@@ -183,7 +183,7 @@ export default function UpdraftDemo() {
                   <button
                     type="button"
                     onClick={() => restart()}
-                    className="min-h-11 px-5 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta active:scale-95"
+                    className="min-h-11 px-5 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta press"
                   >NEW TOWER</button>
                 </>
               )}

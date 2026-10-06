@@ -166,7 +166,7 @@ export default function ChainReaction4Game({
           <button
             onClick={start}
             disabled={busy}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50"
           >
             {busy ? 'STARTING…' : 'START MATCH'}
           </button>
@@ -256,7 +256,7 @@ export default function ChainReaction4Game({
               try { await onNewMatch() } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
             })}
               disabled={busy}
-              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50"
             >
               {busy ? 'RESETTING…' : 'NEW MATCH'}
             </button>

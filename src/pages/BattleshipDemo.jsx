@@ -280,7 +280,7 @@ export default function BattleshipDemo() {
                   onClick={() => !placed && setSelected(ship)}
                   disabled={placed}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition active:scale-[0.98]',
+                    'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition press-card',
                     isSelected && !placed
                       ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                       : placed
@@ -318,19 +318,19 @@ export default function BattleshipDemo() {
             <button
               onClick={rotateSelected}
               disabled={!selected}
-              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95 disabled:opacity-40"
+              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press disabled:opacity-40"
             >
               ⟳ ROTATE
             </button>
             <button
               onClick={() => { setDraft(randomFleet()); setSelected(null); setPlaceError('') }}
-              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
+              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press"
             >
               ⚄ RANDOM
             </button>
             <button
               onClick={() => { setDraft({}); setSelected('carrier'); setPlaceError('') }}
-              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2/50 active:scale-95"
+              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2/50 press"
             >
               ✕ CLEAR
             </button>
@@ -339,7 +339,7 @@ export default function BattleshipDemo() {
           <button
             onClick={handleReady}
             disabled={!draftValid}
-            className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+            className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
           >
             {draftValid ? 'READY — BATTLE STATIONS' : `PLACE ${5 - Object.keys(draft).length} MORE`}
           </button>
@@ -356,7 +356,7 @@ export default function BattleshipDemo() {
           </p>
           <button
             onClick={reset}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
           >
             PLAY AGAIN
           </button>

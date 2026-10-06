@@ -324,7 +324,7 @@ export default function NumberMemoryGame({
                 type="button"
                 onClick={markReady}
                 disabled={readyBusy}
-                className="w-full py-2.5 min-h-11 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[9px] rounded hover:border-retro-cta/60 active:scale-95 disabled:opacity-50"
+                className="w-full py-2.5 min-h-11 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[9px] rounded hover:border-retro-cta/60 press disabled:opacity-50"
               >
                 {readyBusy ? 'SENDING…' : `GOT IT${opReady ? ' · OPPONENT IS READY' : ''}`}
               </button>
@@ -373,7 +373,7 @@ export default function NumberMemoryGame({
           <button
             onClick={handleSubmit}
             disabled={hasSubmitted || !mySymbol || submitting}
-            className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40 disabled:cursor-default"
+            className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta press disabled:opacity-40 disabled:cursor-default"
           >
             {submitting ? 'SUBMITTING…' : 'SUBMIT'}
           </button>
@@ -390,7 +390,7 @@ export default function NumberMemoryGame({
         <button
           onClick={claimIdleRound}
           disabled={claimBusy}
-          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50 disabled:cursor-default"
+          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta press disabled:opacity-50 disabled:cursor-default"
         >
           {claimBusy ? 'CLAIMING…' : 'CLAIM ROUND — OPPONENT IDLE'}
         </button>

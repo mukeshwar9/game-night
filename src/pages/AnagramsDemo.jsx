@@ -263,7 +263,7 @@ export default function AnagramsDemo() {
         <button
           type="button"
           onClick={startMatch}
-          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
         >
           START
         </button>
@@ -325,7 +325,7 @@ export default function AnagramsDemo() {
             <button
               type="button"
               onClick={startMatch}
-              className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta active:scale-95"
+              className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta press"
             >
               NEW MATCH
             </button>
@@ -335,7 +335,7 @@ export default function AnagramsDemo() {
             <button
               type="button"
               onClick={nextRack}
-              className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
+              className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press"
             >
               NEXT RACK
             </button>
@@ -370,7 +370,7 @@ export default function AnagramsDemo() {
             type="button"
             onClick={() => submitWord()}
             disabled={!playing || !currentWord}
-            className="min-h-11 flex-1 rounded bg-retro-cta px-4 py-3 font-pixel text-[10px] text-retro-bg shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+            className="min-h-11 flex-1 rounded bg-retro-cta px-4 py-3 font-pixel text-[10px] text-retro-bg shadow-neon-cta transition press disabled:opacity-50"
           >
             ENTER WORD
           </button>

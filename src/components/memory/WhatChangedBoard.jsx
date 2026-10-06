@@ -52,7 +52,7 @@ export default function WhatChangedBoard({ deal, level, startAt, clock, disabled
                 className={cn(
                   'aspect-square rounded border-2 flex items-center justify-center p-[6%] transition-colors duration-150',
                   phase === 'blank' ? 'bg-retro-deep border-retro-deep' : 'bg-retro-card border-retro-border/60',
-                  canTap && 'cursor-pointer hover:border-retro-p1/60 active:scale-95',
+                  canTap && 'cursor-pointer hover:border-retro-p1/60 press',
                   isChange && 'outline outline-2 outline-offset-1 outline-retro-win',
                   isWrong && 'border-retro-danger bg-retro-tint-danger pairs-mismatch-shake',
                   tapped === i && right && 'border-retro-win vm-found-pop',

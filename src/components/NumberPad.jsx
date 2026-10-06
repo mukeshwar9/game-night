@@ -20,7 +20,7 @@ export default function NumberPad({ onKey, disabled = false }) {
 
   const baseBtn = cn(
     'h-12 flex items-center justify-center font-pixel text-[12px] rounded border transition',
-    'select-none active:scale-90',
+    'select-none press',
   )
 
   const mkKey = (raw) => {

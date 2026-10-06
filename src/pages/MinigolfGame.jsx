@@ -218,7 +218,7 @@ export default function MinigolfGame({ gameId, game, mySeat, players, onStart, o
             type="button"
             onClick={() => run(async () => { await onStart() })}
             disabled={busy}
-            className="px-6 min-h-11 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+            className="px-6 min-h-11 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50"
           >
             {busy ? 'STARTING…' : `START (${Math.min(seats.length, 4)} GOLFERS)`}
           </button>
@@ -265,7 +265,7 @@ export default function MinigolfGame({ gameId, game, mySeat, players, onStart, o
             type="button"
             onClick={() => run(async () => { await onNewMatch() })}
             disabled={busy}
-            className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+            className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50"
           >
             {busy ? 'RESETTING…' : 'PLAY AGAIN'}
           </button>

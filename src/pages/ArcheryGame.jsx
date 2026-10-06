@@ -246,7 +246,7 @@ export default function ArcheryGame(props) {
             </label>
           </div>
           <button onClick={() => shoot(manualAim())} disabled={!myTurn || busy}
-            className="min-h-12 w-full rounded bg-retro-cta py-3 font-pixel text-xs text-retro-bg hover:shadow-neon-cta active:scale-[0.98] disabled:opacity-40">
+            className="min-h-12 w-full rounded bg-retro-cta py-3 font-pixel text-xs text-retro-bg hover:shadow-neon-cta press-card disabled:opacity-40">
             {busy ? 'RELEASING…' : 'LOOSE ARROW'}
           </button>
           <p className="text-center font-mono text-[9px] text-retro-dim"><span className="kbd-hint">SPACE / ENTER · </span>DRAG FROM GRIP TO DRAW · 30S PER ARROW</p>

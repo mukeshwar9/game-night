@@ -514,7 +514,7 @@ export default function WavelengthGame({
           <button
             onClick={handleStart}
             disabled={!enough || starting}
-            className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40 disabled:cursor-default"
+            className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-40 disabled:cursor-default"
           >
             {starting ? 'STARTING…' : 'START GAME'}
           </button>
@@ -664,7 +664,7 @@ export default function WavelengthGame({
             <button
               onClick={handleSubmitClue}
               disabled={committing}
-              className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+              className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
             >
               {committing ? 'LOCKING…' : 'LOCK CLUE'}
             </button>
@@ -703,7 +703,7 @@ export default function WavelengthGame({
             <button
               onClick={handleSubmitGuess}
               disabled={submittingGuess}
-              className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+              className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
             >
               {submittingGuess ? 'LOCKING…' : 'LOCK GUESS'}
             </button>
@@ -765,7 +765,7 @@ export default function WavelengthGame({
           <button
             onClick={() => runAdvance(handleNextRound)}
             disabled={advancing}
-            className="w-full py-2 mt-2 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95 disabled:opacity-40"
+            className="w-full py-2 mt-2 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press disabled:opacity-40"
           >
             {advancing ? 'ADVANCING…' : 'NEXT ROUND'}
           </button>
@@ -783,7 +783,7 @@ export default function WavelengthGame({
           <button
             onClick={handleRestartLostRound}
             disabled={skipping}
-            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-50"
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
           >
             {skipping ? 'RESTARTING…' : 'RESTART ROUND'}
           </button>
@@ -800,7 +800,7 @@ export default function WavelengthGame({
           <button
             onClick={handleSkipOfflineClueGiver}
             disabled={skipping}
-            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition active:scale-95 disabled:opacity-50"
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
           >
             {skipping ? 'SKIPPING…' : 'SKIP CLUE-GIVER'}
           </button>
@@ -814,7 +814,7 @@ export default function WavelengthGame({
           <button
             onClick={handleSkipClue}
             disabled={skipping}
-            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition active:scale-95 disabled:opacity-50"
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition press disabled:opacity-50"
           >
             {skipping ? 'SKIPPING…' : 'SKIP THIS CLUE'}
           </button>
@@ -826,7 +826,7 @@ export default function WavelengthGame({
           <button
             onClick={handleRevealNow}
             disabled={revealing}
-            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 transition active:scale-95 disabled:opacity-50"
+            className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 transition press disabled:opacity-50"
           >
             {revealing ? 'REVEALING…' : 'REVEAL NOW'}
           </button>

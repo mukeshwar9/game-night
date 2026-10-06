@@ -24,7 +24,7 @@ export default function Cell({ value, index, onClick, isWinning, disabled, isLas
         // returning player can re-orient without re-scanning the whole board.
         !isWinning && isLastMove && 'ring-2 ring-inset ring-retro-cta/70',
         isEmpty && !disabled
-          ? 'hover:bg-retro-surface hover:border-retro-p1/40 cursor-pointer active:scale-95'
+          ? 'hover:bg-retro-surface hover:border-retro-p1/40 cursor-pointer press'
           : 'cursor-default',
         disabled && 'board-idle',
         value === 'X' && 'text-retro-p1 text-glow-p1',

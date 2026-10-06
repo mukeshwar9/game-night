@@ -455,14 +455,14 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
       {display.stationType ? (
         <button
           onClick={() => enterStation(display.stationType)}
-          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-cta text-retro-bg font-pixel text-[8px] rounded shadow-neon-cta active:scale-95"
+          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-cta text-retro-bg font-pixel text-[8px] rounded shadow-neon-cta press"
         >
           ENTER TO PLAY {(getGameConfig(display.stationType).label || '').toUpperCase()}
         </button>
       ) : display.nearNpcKind === 'daily' ? (
         <button
           onClick={goToDaily}
-          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-surface border border-retro-cta/60 text-retro-cta font-pixel text-[8px] rounded active:scale-95"
+          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-surface border border-retro-cta/60 text-retro-cta font-pixel text-[8px] rounded press"
         >
           PRESS ENTER FOR DAILY
         </button>
@@ -474,7 +474,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
             key={g}
             onClick={() => fireEmote(g)}
             aria-label={`Emote ${g}`}
-            className="w-11 h-11 rounded bg-retro-surface border border-retro-border text-base flex items-center justify-center active:scale-95"
+            className="w-11 h-11 rounded bg-retro-surface border border-retro-border text-base flex items-center justify-center press"
           >
             {g}
           </button>

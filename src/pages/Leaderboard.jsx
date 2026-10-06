@@ -84,7 +84,7 @@ export default function Leaderboard() {
               NO SCORES YET. PLAY A MATCH TO CLAIM THE TOP SPOT.
               <Link
                 to="/"
-                className="mt-4 flex w-fit mx-auto items-center justify-center min-h-11 px-6 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+                className="mt-4 flex w-fit mx-auto items-center justify-center min-h-11 px-6 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
               >
                 PLAY A MATCH
               </Link>

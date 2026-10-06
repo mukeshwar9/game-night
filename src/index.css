@@ -1827,6 +1827,28 @@ body::before {
   z-index: 9997;
 }
 
+/* Press feedback (lib/pressFeedback.js, .claude/rules/motion-rules.md):
+   controls take `press` (0.96), cards and rows `press-card` (0.98). The dip is
+   a quick 80 ms press-in; the release springs back on the platform's press
+   spring. [data-pressed] holds the dip briefly so a fast tap still shows it,
+   and works where touch never triggers :active. `no-press` opts an element
+   that inherits a press class out. */
+.press { --press-scale: 0.96; }
+.press-card { --press-scale: 0.98; }
+.no-press { --press-scale: 1; }
+.press, .press-card {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-duration: var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--spring-press-dur), var(--dur-fast), var(--dur-fast);
+  transition-timing-function: var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--spring-press), var(--ease-standard), var(--ease-standard);
+}
+:is(.press, .press-card):is(:active, [data-pressed]):not(:disabled) {
+  --tw-scale-x: var(--press-scale);
+  --tw-scale-y: var(--press-scale);
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  transition-duration: var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-press), var(--dur-fast), var(--dur-fast);
+  transition-timing-function: var(--ease-standard);
+}
+
 /* Look-and-feel prefs (Settings → Look & feel, see lib/displayPrefs.js).
    CRT toggle kills both overlay layers regardless of theme. */
 [data-crt="off"] body::after,

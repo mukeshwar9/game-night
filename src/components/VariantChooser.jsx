@@ -34,7 +34,7 @@ export default function VariantChooser({ base, variants, onPick, onClose }) {
             key={o.type}
             onClick={() => onPick(o.type)}
             className={cn(
-              'w-full text-left p-3 rounded border-2 transition active:scale-[0.98]',
+              'w-full text-left p-3 rounded border-2 transition press-card',
               'bg-retro-card hover:shadow-neon-cta',
               i === 0 ? 'border-retro-border hover:border-retro-cta/60' : 'border-retro-cta/40 hover:border-retro-cta',
             )}

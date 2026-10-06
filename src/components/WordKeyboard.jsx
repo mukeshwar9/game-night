@@ -48,7 +48,7 @@ export default function WordKeyboard({
 
   const special = 'flex-[1.5] min-w-0 h-11 flex items-center justify-center rounded border font-bold text-sm ' +
     'bg-retro-structure border-retro-structure text-retro-text hover:bg-retro-border transition-colors ' +
-    'disabled:opacity-30 disabled:cursor-default active:scale-95'
+    'disabled:opacity-30 disabled:cursor-default press'
 
   return (
     <div className={cn('flex flex-col gap-1.5 w-full max-w-md mx-auto select-none', className)} role="group" aria-label="Keyboard">
@@ -79,7 +79,7 @@ export default function WordKeyboard({
                 className={cn(
                   SLOP,
                   'flex-1 min-w-0 h-11 flex items-center justify-center rounded border font-bold text-xs sm:text-sm uppercase',
-                  'transition-colors active:scale-95 disabled:opacity-30 disabled:cursor-default',
+                  'transition-colors press disabled:opacity-30 disabled:cursor-default',
                   KEY_TONE[state] || 'bg-retro-structure border-retro-structure text-retro-text hover:bg-retro-border',
                   glowing && 'ring-2 ring-retro-p2 shadow-neon-p2 z-10',
                 )}

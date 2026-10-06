@@ -185,7 +185,7 @@ export default function ConnectFourBoard({ board, onMove, disabled, winningLine 
                   aria-label={`Pop column ${col + 1}`}
                   className={cn(
                     'h-11 rounded-sm border-2 font-pixel text-[9px] sm:text-[10px] leading-none flex flex-col items-center justify-center gap-1 transition',
-                    'border-retro-cta text-retro-cta bg-retro-tint-cta/40 hover:bg-retro-tint-cta active:scale-90 cursor-pointer',
+                    'border-retro-cta text-retro-cta bg-retro-tint-cta/40 hover:bg-retro-tint-cta press cursor-pointer',
                   )}
                 >
                   <span>POP</span>

@@ -46,7 +46,7 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
                         // Chocolate squares — poison gets a skull; the rest
                         // read as a bar via the card/surface tokens.
                         'bg-retro-card border-retro-border cursor-pointer',
-                        'hover:border-retro-cta hover:bg-retro-tint-cta active:scale-95',
+                        'hover:border-retro-cta hover:bg-retro-tint-cta press',
                       ],
                   // M-47 parity: ring the most recent bite.
                   !eaten && i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',

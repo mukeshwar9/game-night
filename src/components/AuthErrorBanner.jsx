@@ -43,7 +43,7 @@ export default function AuthErrorBanner() {
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"
         className="shrink-0 min-h-6 px-2 border border-retro-border text-retro-dim font-pixel text-[8px] rounded
-          hover:text-retro-text hover:border-retro-danger transition active:scale-95"
+          hover:text-retro-text hover:border-retro-danger transition press"
       >
         ✕
       </button>

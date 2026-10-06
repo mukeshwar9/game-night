@@ -54,7 +54,7 @@ const TABS = [
   { id: 'endless', label: 'ENDLESS' },
   { id: 'race', label: 'VS BOT' },
 ]
-const BTN = 'min-h-11 px-4 py-2.5 font-pixel text-[10px] rounded transition active:scale-95'
+const BTN = 'min-h-11 px-4 py-2.5 font-pixel text-[10px] rounded transition press'
 const CTA = cn(BTN, 'bg-retro-cta text-retro-bg hover:shadow-neon-cta')
 const SEC = cn(BTN, 'border border-retro-border text-retro-dim hover:border-retro-cta/50 hover:text-retro-text')
 
@@ -119,7 +119,7 @@ function LevelSelect({ progress, onPlay }) {
                     disabled={!open}
                     aria-label={open ? `Level ${n}${got ? `, ${got} stars` : ''}${intro ? ', new arrow type' : ''}` : `Level ${n}, locked`}
                     className={cn(
-                      'relative aspect-square flex flex-col items-center justify-center gap-0.5 rounded border-2 transition active:scale-95',
+                      'relative aspect-square flex flex-col items-center justify-center gap-0.5 rounded border-2 transition press',
                       !open && 'border-retro-border/50 bg-retro-deep text-retro-dim/50 cursor-not-allowed',
                       open && got && 'border-retro-cta/50 bg-retro-tint-cta text-retro-text',
                       open && !got && 'border-retro-cta bg-retro-surface text-retro-cta shadow-neon-cta',
@@ -154,7 +154,7 @@ function EndlessSelect({ progress, onPlay }) {
         <button
           key={tier}
           onClick={() => onPlay(tier)}
-          className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left active:scale-[0.98] transition"
+          className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left press-card transition"
         >
           <span className="font-pixel text-[10px] text-retro-cta w-16">{ARROWS_ENDLESS_INFO[tier].label}</span>
           <span className="flex-1 font-mono text-[11px] text-retro-dim">{ARROWS_ENDLESS_INFO[tier].blurb.toLowerCase()}</span>

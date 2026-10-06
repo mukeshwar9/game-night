@@ -34,7 +34,7 @@ export default function PartyBotSetup({ title, blurb, botCount, onBotCount, rost
           type="button"
           onClick={() => onBotCount(botCount - 1)}
           disabled={botCount <= minBots}
-          className="w-9 h-9 flex items-center justify-center font-pixel text-sm border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+          className="w-9 h-9 flex items-center justify-center font-pixel text-sm border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press disabled:opacity-30 disabled:pointer-events-none"
           aria-label="fewer bots"
         >
           −
@@ -47,7 +47,7 @@ export default function PartyBotSetup({ title, blurb, botCount, onBotCount, rost
           type="button"
           onClick={() => onBotCount(botCount + 1)}
           disabled={botCount >= maxBots}
-          className="w-9 h-9 flex items-center justify-center font-pixel text-sm border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+          className="w-9 h-9 flex items-center justify-center font-pixel text-sm border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press disabled:opacity-30 disabled:pointer-events-none"
           aria-label="more bots"
         >
           +
@@ -70,7 +70,7 @@ export default function PartyBotSetup({ title, blurb, botCount, onBotCount, rost
       <button
         type="button"
         onClick={onStart}
-        className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+        className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
       >
         START
       </button>

@@ -404,7 +404,7 @@ export default function WordRaceGame({
           {!opponentOnline && !isSpectator && <OfflineNotice label="OPPONENT" />}
           {canClaimIdle && (
             <div className="text-center">
-              <button type="button" onClick={handleClaimIdle} disabled={actionBusy} className="min-h-10 px-4 rounded border-2 border-retro-border text-retro-dim font-pixel text-[9px] hover:border-retro-cta hover:text-retro-cta active:scale-95 disabled:opacity-50">
+              <button type="button" onClick={handleClaimIdle} disabled={actionBusy} className="min-h-10 px-4 rounded border-2 border-retro-border text-retro-dim font-pixel text-[9px] hover:border-retro-cta hover:text-retro-cta press disabled:opacity-50">
                 {actionBusy ? 'CLAIMING…' : 'OPPONENT GONE — END ROUND AS DRAW'}
               </button>
             </div>

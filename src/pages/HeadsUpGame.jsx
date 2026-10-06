@@ -370,7 +370,7 @@ export default function HeadsUpGame({ gameId, game, mySeat, players, onSwitchGam
               <button
                 onClick={startMatch}
                 disabled={starting}
-                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40"
+                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-40"
               >
                 {starting ? 'STARTING…' : 'START MATCH'}
               </button>
@@ -476,7 +476,7 @@ export default function HeadsUpGame({ gameId, game, mySeat, players, onSwitchGam
                 <button
                   onClick={beginTurn}
                   disabled={beginning}
-                  className="px-6 py-3 min-w-[10rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40"
+                  className="px-6 py-3 min-w-[10rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-40"
                 >
                   {beginning ? 'STARTING…' : 'START TURN'}
                 </button>
@@ -491,7 +491,7 @@ export default function HeadsUpGame({ gameId, game, mySeat, players, onSwitchGam
               <button
                 onClick={() => advance('ready')}
                 disabled={advancing}
-                className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition active:scale-95 disabled:opacity-40"
+                className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition press disabled:opacity-40"
               >
                 {advancing ? 'SKIPPING…' : `SKIP ${guesserName}'S TURN`}
               </button>
@@ -551,14 +551,14 @@ export default function HeadsUpGame({ gameId, game, mySeat, players, onSwitchGam
               <button
                 onClick={() => tap(HU_PASS)}
                 disabled={tapping}
-                className="min-h-20 rounded border-2 border-retro-p2 text-retro-p2 font-pixel text-sm hover:shadow-neon-p2 hover:bg-retro-tint-p2 transition active:scale-95 disabled:opacity-50"
+                className="min-h-20 rounded border-2 border-retro-p2 text-retro-p2 font-pixel text-sm hover:shadow-neon-p2 hover:bg-retro-tint-p2 transition press disabled:opacity-50"
               >
                 ✗ PASS
               </button>
               <button
                 onClick={() => tap(HU_GOT)}
                 disabled={tapping}
-                className="min-h-20 rounded bg-retro-win text-retro-bg font-pixel text-sm hover:shadow-neon-win transition active:scale-95 disabled:opacity-50"
+                className="min-h-20 rounded bg-retro-win text-retro-bg font-pixel text-sm hover:shadow-neon-win transition press disabled:opacity-50"
               >
                 ✓ GOT IT
               </button>
@@ -574,7 +574,7 @@ export default function HeadsUpGame({ gameId, game, mySeat, players, onSwitchGam
               <button
                 onClick={endTurnNow}
                 disabled={ending}
-                className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition active:scale-95 disabled:opacity-40"
+                className="px-4 py-2 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition press disabled:opacity-40"
               >
                 {ending ? 'ENDING…' : 'END TURN'}
               </button>
@@ -616,7 +616,7 @@ export default function HeadsUpGame({ gameId, game, mySeat, players, onSwitchGam
             <button
               onClick={() => advance('recap')}
               disabled={advancing}
-              className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition active:scale-95 disabled:opacity-40"
+              className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press disabled:opacity-40"
             >
               {advancing ? 'DEALING…' : 'NEXT TURN'}
             </button>

@@ -71,7 +71,7 @@ export default function CupShuffleBoard({ deal, level, startAt, clock, disabled,
                 className={cn(
                   'absolute top-0 flex flex-col items-center justify-end ease-in-out motion-reduce:transition-none',
                   'transition-[left]',
-                  canPick && 'cursor-pointer active:scale-95',
+                  canPick && 'cursor-pointer press',
                   picked === cup && cup !== deal.ball && 'opacity-80',
                 )}
                 style={{ left: `${(slots[cup] * 100) / deal.cups}%`, width: `${100 / deal.cups}%`, height: '100%', transitionDuration: `${Math.round(swapMs * 0.85)}ms`, padding: '0 6%' }}

@@ -24,7 +24,7 @@ export default function BattleshipTabs({ view, onView, targetAlert = false }) {
           aria-selected={view === t.id}
           onClick={() => onView(t.id)}
           className={cn(
-            'min-h-11 rounded border-2 font-pixel text-[10px] tracking-widest transition active:scale-95',
+            'min-h-11 rounded border-2 font-pixel text-[10px] tracking-widest transition press',
             view === t.id
               ? 'border-retro-cta text-retro-cta bg-retro-tint-cta shadow-neon-cta'
               : 'border-retro-border text-retro-dim',

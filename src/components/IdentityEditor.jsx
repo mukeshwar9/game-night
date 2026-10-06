@@ -56,7 +56,7 @@ export default function IdentityEditor({ name: savedName, avatar: savedAvatar, o
           type="button"
           onClick={onEditLook}
           aria-haspopup="dialog"
-          className="flex-1 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition active:scale-95"
+          className="flex-1 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition press"
         >
           EDIT AVATAR
         </button>
@@ -65,7 +65,7 @@ export default function IdentityEditor({ name: savedName, avatar: savedAvatar, o
             type="button"
             onClick={onEditPet}
             aria-haspopup="dialog"
-            className="flex-1 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition active:scale-95"
+            className="flex-1 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition press"
           >
             PET
           </button>
@@ -79,7 +79,7 @@ export default function IdentityEditor({ name: savedName, avatar: savedAvatar, o
           type="button"
           onClick={save}
           disabled={!dirty || saving}
-          className="flex-1 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta active:scale-95 transition disabled:opacity-40"
+          className="flex-1 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta press transition disabled:opacity-40"
         >
           {saving ? 'SAVING…' : 'SAVE'}
         </button>

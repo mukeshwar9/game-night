@@ -206,7 +206,7 @@ export default function MathDemo() {
           {' '}Q{qIndex} ANSWERED
         </p>
         <button onClick={reset}
-          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press">
           PLAY AGAIN
         </button>
       </div>
@@ -224,7 +224,7 @@ export default function MathDemo() {
           <p>⏱ {DEMO_MATH_S}-SECOND PRACTICE · SAME SCORER AS THE RACE</p>
         </div>
         <button onClick={() => setPhase('countdown')}
-          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press">
           START
         </button>
       </div>

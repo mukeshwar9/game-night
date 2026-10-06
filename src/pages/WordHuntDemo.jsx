@@ -336,7 +336,7 @@ export default function WordHuntDemo() {
               type="button"
               onClick={retryDictionary}
               disabled={retrying}
-              className="mt-2 px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
+              className="mt-2 px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-50"
             >
               {retrying ? 'RETRYING…' : 'RETRY'}
             </button>
@@ -358,7 +358,7 @@ export default function WordHuntDemo() {
         <button
           type="button"
           onClick={startRound}
-          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
         >
           READY
         </button>
@@ -429,7 +429,7 @@ export default function WordHuntDemo() {
             <button
               type="button"
               onClick={newMatch}
-              className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta active:scale-95"
+              className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta press"
             >
               NEW MATCH
             </button>
@@ -439,7 +439,7 @@ export default function WordHuntDemo() {
             <button
               type="button"
               onClick={nextRound}
-              className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
+              className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press"
             >
               NEXT ROUND — NEW GRID
             </button>
@@ -505,7 +505,7 @@ export default function WordHuntDemo() {
         <button
           type="submit"
           disabled={!typed}
-          className="min-h-11 rounded bg-retro-cta px-3 font-pixel text-[9px] text-retro-bg active:scale-95 disabled:opacity-50"
+          className="min-h-11 rounded bg-retro-cta px-3 font-pixel text-[9px] text-retro-bg press disabled:opacity-50"
         >
           ENTER
         </button>

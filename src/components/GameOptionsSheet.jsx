@@ -31,8 +31,8 @@ function Row({ onClick, label, blurb, primary, busy, disabled, badge }) {
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'group w-full min-h-14 text-left p-3 rounded border-2 transition active:scale-[0.98]',
-        'flex items-center gap-3 disabled:opacity-60 disabled:active:scale-100',
+        'group w-full min-h-14 text-left p-3 rounded border-2 transition press-card',
+        'flex items-center gap-3 disabled:opacity-60 ',
         primary
           ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta hover:shadow-none'
           : 'border-retro-border bg-retro-card hover:border-retro-cta/60 hover:shadow-neon-cta',
@@ -168,7 +168,7 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
               onClick={() => onModes(game)}
               disabled={isBusy}
               className="flex-1 min-h-11 px-2 rounded border border-retro-border bg-transparent text-retro-dim
-                font-pixel text-[9px] tracking-wider hover:text-retro-cta hover:border-retro-cta/50 transition active:scale-95
+                font-pixel text-[9px] tracking-wider hover:text-retro-cta hover:border-retro-cta/50 transition press
                 disabled:opacity-60"
             >
               MORE MODES
@@ -179,7 +179,7 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
             disabled={isBusy}
             className={cn(
               'min-h-11 px-2 rounded border border-retro-border bg-transparent text-retro-dim font-pixel text-[9px]',
-              'tracking-wider hover:text-retro-cta hover:border-retro-cta/50 transition active:scale-95 disabled:opacity-60',
+              'tracking-wider hover:text-retro-cta hover:border-retro-cta/50 transition press disabled:opacity-60',
               !showModes && 'flex-1',
             )}
           >

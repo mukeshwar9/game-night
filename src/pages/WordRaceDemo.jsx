@@ -176,7 +176,7 @@ export default function WordRaceDemo() {
         <button
           type="button"
           onClick={startMatch}
-          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
         >
           START RACE
         </button>
@@ -216,7 +216,7 @@ export default function WordRaceDemo() {
               <button
                 type="button"
                 onClick={startMatch}
-                className="min-h-11 px-5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] hover:shadow-neon-cta active:scale-95"
+                className="min-h-11 px-5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] hover:shadow-neon-cta press"
               >
                 NEW MATCH
               </button>
@@ -225,7 +225,7 @@ export default function WordRaceDemo() {
             <button
               type="button"
               onClick={nextRound}
-              className="min-h-11 px-5 rounded border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] hover:shadow-neon-p1 active:scale-95"
+              className="min-h-11 px-5 rounded border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] hover:shadow-neon-p1 press"
             >
               NEXT ROUND
             </button>
@@ -269,7 +269,7 @@ export default function WordRaceDemo() {
               <button
                 type="button"
                 onClick={skipAhead}
-                className="px-4 py-1.5 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:text-retro-text active:scale-95"
+                className="px-4 py-1.5 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:text-retro-text press"
               >
                 SKIP AHEAD ▸▸
               </button>

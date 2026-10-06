@@ -156,7 +156,7 @@ export default function PairsBoard({
         aria-label={cellLabel({ index: i, face, owner: claimed ? owner : null, held: isHeldFirstPick, mismatched: mismatchRevealed, side })}
         className={cn(
           'relative aspect-square rounded-md select-none transition-transform duration-150',
-          !isDisabled && 'cursor-pointer active:scale-95',
+          !isDisabled && 'cursor-pointer press',
           isHeldFirstPick && '-translate-y-1',
           popping && 'pairs-match-pop',
           mismatchRevealed && 'pairs-mismatch-shake',

@@ -81,7 +81,7 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
       {!kit ? (
         <div className="space-y-3 text-center">
           <p className="font-mono text-xs text-retro-dim leading-relaxed">Classic critters travel alone. Build a character in the look editor and a pet can come along.</p>
-          <button type="button" onClick={onEditLook} className="min-h-11 px-4 rounded border-2 border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider active:scale-95">
+          <button type="button" onClick={onEditLook} className="min-h-11 px-4 rounded border-2 border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider press">
             EDIT AVATAR
           </button>
         </div>
@@ -98,8 +98,8 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
               </p>
               {tryOn && (
                 <div className="flex gap-2 pt-1">
-                  <button type="button" onClick={unlock} className="min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider active:scale-95">UNLOCK</button>
-                  <button type="button" onClick={() => setTryOn(null)} className="min-h-9 px-2 rounded border border-retro-border text-retro-dim font-pixel text-[8px] tracking-wider active:scale-95">TAKE OFF</button>
+                  <button type="button" onClick={unlock} className="min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider press">UNLOCK</button>
+                  <button type="button" onClick={() => setTryOn(null)} className="min-h-9 px-2 rounded border border-retro-border text-retro-dim font-pixel text-[8px] tracking-wider press">TAKE OFF</button>
                 </div>
               )}
             </div>
@@ -122,7 +122,7 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
                   aria-label={showTier ? `${p.label} (${tierText}${locked ? ', locked' : ''})` : p.label}
                   onClick={() => pick(p.id)}
                   className={cn(
-                    'relative flex flex-col items-center gap-1.5 px-1 pt-3 pb-2 rounded border-2 transition active:scale-95',
+                    'relative flex flex-col items-center gap-1.5 px-1 pt-3 pb-2 rounded border-2 transition press',
                     selected && 'border-retro-cta bg-retro-tint-cta shadow-neon-cta',
                     trying && 'border-retro-cta border-dashed',
                     !selected && !trying && `border-retro-border ${HOVER}`,
@@ -152,7 +152,7 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
               type="button"
               onClick={save}
               disabled={!dirty || saving}
-              className="flex-1 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta active:scale-95 transition disabled:opacity-40"
+              className="flex-1 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta press transition disabled:opacity-40"
             >
               {saving ? 'SAVING…' : 'SAVE'}
             </button>

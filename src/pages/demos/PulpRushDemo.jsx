@@ -117,7 +117,7 @@ export default function PulpRushDemo() {
               key={key}
               onClick={() => start(key)}
               className={cn(
-                'w-full py-3 px-3 rounded border-2 font-pixel text-[10px] text-left active:scale-95 transition',
+                'w-full py-3 px-3 rounded border-2 font-pixel text-[10px] text-left press transition',
                 key === 'solo' ? 'bg-retro-cta text-retro-bg border-retro-cta hover:shadow-neon-cta'
                   : 'border-retro-p1 text-retro-p1 hover:shadow-neon-p1',
               )}
@@ -146,7 +146,7 @@ export default function PulpRushDemo() {
           <PulpField course={course} field={fields.me} t={t} clock={clock} onSwipe={(p, seg) => handleSwipe('me', p, seg)} fx={fx.me} stunned={me.stunUntil > t && t >= 0} className="w-full" />
           {counting && <Countdown n={countLabel} />}
         </div>
-        <button onClick={() => setPhase('menu')} className="w-full min-h-11 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded active:scale-95">QUIT</button>
+        <button onClick={() => setPhase('menu')} className="w-full min-h-11 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded press">QUIT</button>
       </div>
     )
   }
@@ -154,7 +154,7 @@ export default function PulpRushDemo() {
   // ── two players on one phone: full-screen, face to face ────────────
   const fieldWidth = `min(calc(100vw - 1.5rem), calc((100dvh - 7rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 2 / ${ARENA_H}))`
   const exit = (
-    <button onClick={() => setPhase('menu')} className="min-h-10 min-w-11 px-3 border border-retro-border text-retro-dim font-pixel text-[10px] rounded active:scale-95">EXIT</button>
+    <button onClick={() => setPhase('menu')} className="min-h-10 min-w-11 px-3 border border-retro-border text-retro-dim font-pixel text-[10px] rounded press">EXIT</button>
   )
 
   if (mode === 'duel') {

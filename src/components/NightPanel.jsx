@@ -68,7 +68,7 @@ export default function NightPanel({ game, gameId, nPlayer, onBackToParty = null
             <button
               onClick={onLeaveQueue}
               disabled={queueBusy}
-              className="min-h-11 px-4 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:text-retro-text transition active:scale-95 disabled:opacity-50"
+              className="min-h-11 px-4 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:text-retro-text transition press disabled:opacity-50"
             >
               {queueBusy ? 'LEAVING…' : `YOU'RE #${myPlace + 1} · LEAVE LINE`}
             </button>
@@ -77,7 +77,7 @@ export default function NightPanel({ game, gameId, nPlayer, onBackToParty = null
             <button
               onClick={onJoinQueue}
               disabled={queueBusy}
-              className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+              className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition press disabled:opacity-50"
             >
               {queueBusy ? 'JOINING…' : 'JOIN THE LINE'}
             </button>
@@ -92,7 +92,7 @@ export default function NightPanel({ game, gameId, nPlayer, onBackToParty = null
           onClick={onToParty}
           disabled={partyBusy}
           data-testid="back-to-party"
-          className="w-full min-h-11 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider rounded hover:bg-retro-tint-cta transition active:scale-[0.98] disabled:opacity-50"
+          className="w-full min-h-11 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider rounded hover:bg-retro-tint-cta transition press-card disabled:opacity-50"
         >
           {partyBusy ? 'GOING BACK…' : 'BACK TO PARTY'}
         </button>

@@ -153,7 +153,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                 type="button"
                 onClick={() => setView(v => (v === 'bust' ? 'hero' : 'bust'))}
                 aria-label={view === 'bust' ? 'Show full body' : 'Show head and shoulders'}
-                className="min-w-14 min-h-11 px-1 flex flex-col items-center justify-center gap-1 font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text transition active:scale-90"
+                className="min-w-14 min-h-11 px-1 flex flex-col items-center justify-center gap-1 font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text transition press"
               >
                 <FramingIcon hero={view === 'bust'} />
                 {view === 'bust' ? 'BODY' : 'FACE'}
@@ -172,14 +172,14 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
             <button
               type="button"
               onClick={() => onLocked(tryOn.item)}
-              className="shrink-0 min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider active:scale-95"
+              className="shrink-0 min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider press"
             >
               UNLOCK
             </button>
             <button
               type="button"
               onClick={() => setTryOn(null)}
-              className="shrink-0 min-h-9 px-2 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text active:scale-95"
+              className="shrink-0 min-h-9 px-2 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-dim hover:text-retro-text press"
             >
               TAKE OFF
             </button>
@@ -257,7 +257,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                 type="button"
                 onClick={shuffleThisTab}
                 aria-label={`Random ${cat.label.toLowerCase()}`}
-                className="shrink-0 min-h-9 px-2 flex items-center gap-1 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-cta hover:border-retro-cta active:scale-95"
+                className="shrink-0 min-h-9 px-2 flex items-center gap-1 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-cta hover:border-retro-cta press"
               >
                 <DieIcon size={12} />
                 RANDOM
@@ -329,7 +329,7 @@ const OptionTile = memo(function OptionTile({ avatar, view, label, ariaLabel, se
       tabIndex={tabStop ? 0 : -1}
       onClick={() => onPick(field, id)}
       className={cn(
-        'relative flex flex-col items-center gap-1 p-1 rounded border-2 transition active:scale-95',
+        'relative flex flex-col items-center gap-1 p-1 rounded border-2 transition press',
         selected && 'border-retro-cta bg-retro-tint-cta shadow-neon-cta',
         trying && 'border-retro-cta border-dashed',
         !selected && !trying && `border-retro-border ${HOVER}`,
@@ -373,7 +373,7 @@ function ColourRow({ row, selected, trying, onPick, isLocked, selling }) {
             >
               <span
                 className={cn(
-                  'w-8 h-8 rounded-full border-2 block transition active:scale-90',
+                  'w-8 h-8 rounded-full border-2 block transition press',
                   on && 'border-retro-text ring-2 ring-retro-cta ring-offset-2 ring-offset-retro-bg',
                   trying === c.id && 'border-retro-cta border-dashed',
                   !on && trying !== c.id && `border-retro-border ${HOVER}`,
@@ -411,7 +411,7 @@ function ClassicPanel({ current, onPick }) {
               tabIndex={i === tabStopIndex(CREATURES.map(s => isCritter && parsed.shape === s)) ? 0 : -1}
               onClick={() => { sounds.move('X'); onPick(makeAvatar(shape, tone)) }}
               className={cn(
-                'aspect-square flex items-center justify-center rounded border-2 transition active:scale-95',
+                'aspect-square flex items-center justify-center rounded border-2 transition press',
                 selected ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta' : `border-retro-border ${HOVER}`,
               )}
             >
@@ -440,7 +440,7 @@ function ClassicPanel({ current, onPick }) {
             >
               <span
                 className={cn(
-                  'w-8 h-8 rounded-full border-2 block transition active:scale-90',
+                  'w-8 h-8 rounded-full border-2 block transition press',
                   on ? 'border-retro-text ring-2 ring-retro-cta ring-offset-2 ring-offset-retro-bg' : `border-retro-border ${HOVER}`,
                 )}
                 style={{ background: swatchBackground(TONE_TO_RAMP[t]) }}
@@ -461,7 +461,7 @@ function IconButton({ label, ariaLabel, onClick, disabled = false, cta = false, 
       disabled={disabled}
       aria-label={ariaLabel}
       className={cn(
-        'min-w-14 min-h-11 px-1 flex flex-col items-center justify-center gap-1 font-pixel text-[8px] tracking-wider transition active:scale-90 disabled:opacity-30 disabled:active:scale-100',
+        'min-w-14 min-h-11 px-1 flex flex-col items-center justify-center gap-1 font-pixel text-[8px] tracking-wider transition press disabled:opacity-30 ',
         cta ? 'text-retro-cta hover:text-glow-cta' : 'text-retro-dim hover:text-retro-text',
       )}
     >

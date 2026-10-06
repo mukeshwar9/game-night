@@ -66,20 +66,20 @@ export default function Playground() {
       <div className="absolute top-[max(0.5rem,env(safe-area-inset-top))] left-[max(0.5rem,env(safe-area-inset-left))] z-30 flex flex-col items-start gap-1.5">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 min-h-11 px-2.5 font-pixel text-[10px] text-retro-dim bg-retro-surface/80 rounded hover:text-retro-text transition active:scale-95"
+          className="inline-flex items-center gap-1.5 min-h-11 px-2.5 font-pixel text-[10px] text-retro-dim bg-retro-surface/80 rounded hover:text-retro-text transition press"
         >
           ← BACK
         </Link>
         <div className="flex gap-1.5">
           <button
             onClick={() => setOpenPanel('stats')}
-            className="min-h-11 px-2.5 bg-retro-surface/80 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:text-retro-text transition active:scale-95"
+            className="min-h-11 px-2.5 bg-retro-surface/80 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:text-retro-text transition press"
           >
             STATS
           </button>
           <button
             onClick={() => setOpenPanel('friends')}
-            className="min-h-11 px-2.5 bg-retro-surface/80 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:text-retro-text transition active:scale-95"
+            className="min-h-11 px-2.5 bg-retro-surface/80 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:text-retro-text transition press"
           >
             FRIENDS{friendUids?.length > 0 ? ` (${friendUids.length})` : ''}
           </button>

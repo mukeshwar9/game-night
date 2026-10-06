@@ -20,7 +20,7 @@ export default function MusicToggle({ className = '' }) {
       aria-pressed={on}
       title={title}
       aria-label="Background music"
-      className={`relative p-3.5 rounded active:scale-95 transition-colors ${on && !held ? 'text-retro-cta hover:opacity-80' : 'text-retro-dim hover:text-retro-text'} ${className}`}
+      className={`relative p-3.5 rounded press transition-colors ${on && !held ? 'text-retro-cta hover:opacity-80' : 'text-retro-dim hover:text-retro-text'} ${className}`}
     >
       <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true">
         <path fill="currentColor" d="M5 2h9v8.5a2.5 2.5 0 1 1-1.5-2.3V5H6.5v7.5A2.5 2.5 0 1 1 5 10.2V2z" />

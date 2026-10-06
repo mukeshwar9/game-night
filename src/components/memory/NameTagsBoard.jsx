@@ -66,7 +66,7 @@ export default function NameTagsBoard({ deal, level, startAt, clock, disabled, a
                 className={cn(
                   'rounded-lg border-2 bg-retro-card p-1.5 flex flex-col items-center gap-1',
                   matched[id] ? 'border-retro-win' : isWrong ? 'border-retro-danger pairs-mismatch-shake' : 'border-retro-border/60',
-                  live && selected && !matched[id] && 'cursor-pointer hover:border-retro-p1/60 active:scale-95',
+                  live && selected && !matched[id] && 'cursor-pointer hover:border-retro-p1/60 press',
                 )}
               >
                 <Avatar id={p.avatar} size={72} className="w-full h-auto" />

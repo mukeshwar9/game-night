@@ -9,7 +9,7 @@ import { useAuth } from '../lib/AuthContext'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 
-const ACTION_BTN = 'min-h-11 px-3 rounded border border-retro-border font-pixel text-[8px] tracking-wider transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed'
+const ACTION_BTN = 'min-h-11 px-3 rounded border border-retro-border font-pixel text-[8px] tracking-wider transition-colors press disabled:opacity-50 disabled:cursor-not-allowed'
 
 function timeLabel(ts) {
   try {

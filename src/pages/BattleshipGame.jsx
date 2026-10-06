@@ -470,7 +470,7 @@ export default function BattleshipGame({
                     onClick={() => !placed && setSelected(ship)}
                     disabled={placed}
                     className={cn(
-                      'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition active:scale-[0.98]',
+                      'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition press-card',
                       isSelected && !placed
                         ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                         : placed
@@ -508,19 +508,19 @@ export default function BattleshipGame({
               <button
                 onClick={rotateSelected}
                 disabled={!selected}
-                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95 disabled:opacity-40"
+                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press disabled:opacity-40"
               >
                 ⟳ ROTATE
               </button>
               <button
                 onClick={randomize}
-                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
+                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press"
               >
                 ⚄ RANDOM
               </button>
               <button
                 onClick={clearDock}
-                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2/50 active:scale-95"
+                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2/50 press"
               >
                 ✕ CLEAR
               </button>
@@ -529,7 +529,7 @@ export default function BattleshipGame({
             <button
               onClick={handleReady}
               disabled={!draftValid || readying}
-              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
             >
               {readying ? 'COMMITTING…' : draftValid ? 'READY — LOCK IN FLEET' : `PLACE ${5 - Object.keys(draft).length} MORE`}
             </button>
@@ -572,7 +572,7 @@ export default function BattleshipGame({
                 <button
                   onClick={handleClaimStall}
                   disabled={claiming}
-                  className="px-4 py-1.5 bg-retro-danger text-retro-bg font-pixel text-[9px] rounded active:scale-95 disabled:opacity-40"
+                  className="px-4 py-1.5 bg-retro-danger text-retro-bg font-pixel text-[9px] rounded press disabled:opacity-40"
                 >
                   {claiming ? 'CLAIMING…' : 'CLAIM WIN — RIVAL WENT AFK'}
                 </button>
@@ -670,7 +670,7 @@ export default function BattleshipGame({
         <button
           onClick={handleConcede}
           disabled={conceding}
-          className="w-full py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-danger hover:text-retro-danger active:scale-95 disabled:opacity-40"
+          className="w-full py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-danger hover:text-retro-danger press disabled:opacity-40"
         >
           {conceding ? 'CONCEDING…' : 'CONCEDE THE BATTLE'}
         </button>
@@ -687,7 +687,7 @@ export default function BattleshipGame({
           <button
             onClick={handleConcede}
             disabled={conceding}
-            className="px-4 py-2 bg-retro-danger text-retro-bg font-pixel text-[9px] rounded active:scale-95 disabled:opacity-40"
+            className="px-4 py-2 bg-retro-danger text-retro-bg font-pixel text-[9px] rounded press disabled:opacity-40"
           >
             {conceding ? 'CONCEDING…' : 'CONCEDE'}
           </button>
@@ -715,7 +715,7 @@ export default function BattleshipGame({
           {onNewMatch && !proposal && (
             <button
               onClick={onNewMatch}
-              className="mb-2 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+              className="mb-2 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
             >
               NEW MATCH
             </button>

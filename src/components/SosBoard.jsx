@@ -157,7 +157,7 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
               'w-11 h-11 flex items-center justify-center',
               'font-pixel text-[11px] rounded border-2',
               'transition duration-100',
-              !disabled && 'active:scale-95',
+              !disabled && 'press',
               selectedLetter === letter
                 ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-cta/50',

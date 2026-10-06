@@ -330,7 +330,7 @@ export default function ChimpGame({
         <button
           onClick={myFail != null ? endIdleLevel : claimIdleRound}
           disabled={claimBusy}
-          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50 disabled:cursor-default"
+          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta press disabled:opacity-50 disabled:cursor-default"
         >
           {claimBusy ? 'CLAIMING…' : myFail != null ? 'END LEVEL — OPPONENT IDLE' : 'CLAIM ROUND — OPPONENT IDLE'}
         </button>

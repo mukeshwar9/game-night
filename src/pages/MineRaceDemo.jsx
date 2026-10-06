@@ -208,7 +208,7 @@ export default function MineRaceDemo() {
               )}
               <button
                 onClick={reset}
-                className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
+                className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press"
               >
                 NEW BOARD
               </button>
@@ -224,7 +224,7 @@ export default function MineRaceDemo() {
               onClick={() => setMode(m => (m === 'reveal' ? 'flag' : 'reveal'))}
               aria-pressed={mode === 'flag'}
               className={cn(
-                'min-h-11 px-4 py-1.5 font-pixel text-[10px] rounded border-2 transition active:scale-95',
+                'min-h-11 px-4 py-1.5 font-pixel text-[10px] rounded border-2 transition press',
                 mode === 'flag'
                   ? 'border-retro-p2 text-retro-p2 shadow-neon-p2'
                   : 'border-retro-border text-retro-dim hover:border-retro-p2/50',
@@ -234,7 +234,7 @@ export default function MineRaceDemo() {
             </button>
             <button
               onClick={reset}
-              className="min-h-11 px-4 py-1.5 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
+              className="min-h-11 px-4 py-1.5 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press"
             >
               RESTART
             </button>

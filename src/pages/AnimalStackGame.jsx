@@ -37,8 +37,8 @@ import { cn } from '@/lib/utils'
 // drops for them — a second miss while offline knocks them out.
 
 const TEXT_TOK = { p1: 'text-retro-p1', p2: 'text-retro-p2', p3: 'text-retro-p3', p4: 'text-retro-p4' }
-const CTA = 'min-h-11 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50'
-const SEC = 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded transition active:scale-95 hover:border-retro-p1/50 hover:text-retro-p1 disabled:opacity-50'
+const CTA = 'min-h-11 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50'
+const SEC = 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded transition press hover:border-retro-p1/50 hover:text-retro-p1 disabled:opacity-50'
 
 function lobbySeats(players) {
   return Object.values(players || {})

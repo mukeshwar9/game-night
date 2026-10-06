@@ -141,7 +141,7 @@ export default function OnitamaBoard({
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
                   dark ? 'bg-retro-surface' : 'bg-retro-card',
                   'border border-retro-border/40',
-                  !disabled && 'cursor-pointer hover:brightness-125 active:scale-95',
+                  !disabled && 'cursor-pointer hover:brightness-125 press',
                   isTarget && 'ring-2 ring-inset ring-retro-cta/70 bg-retro-tint-cta/20',
                   (i === 2 || i === 22) && 'border-retro-cta/60',
                   i === lastMove && !isTarget && 'ring-2 ring-inset ring-retro-cta/60',

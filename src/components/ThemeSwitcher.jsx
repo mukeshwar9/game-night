@@ -54,7 +54,7 @@ export default function ThemeSwitcher() {
         aria-label="Switch theme"
         title="Switch theme"
         className="relative p-2 rounded border border-retro-border bg-retro-card text-retro-dim hover:text-retro-text
-          active:scale-95 transition-colors flex items-center gap-1
+          press transition-colors flex items-center gap-1
           before:content-[''] before:absolute before:-inset-y-3 before:-inset-x-1"
       >
         <div style={{ width: 5, height: 5, background: 'rgb(var(--c-p1))', borderRadius: 1 }} />

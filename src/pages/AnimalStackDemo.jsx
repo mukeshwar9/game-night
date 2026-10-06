@@ -21,8 +21,8 @@ import { cn } from '@/lib/utils'
 
 const BEST_KEY = 'animalstack-climb' // soloBest key → height ×10 (one decimal)
 const TEXT_TOK = { p1: 'text-retro-p1', p2: 'text-retro-p2', p3: 'text-retro-p3', p4: 'text-retro-p4' }
-const CTA = 'min-h-11 px-6 py-3 bg-retro-cta text-retro-bg font-pixel text-xs rounded transition active:scale-95 disabled:opacity-50 hover:shadow-neon-cta'
-const SEC = 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded transition active:scale-95 hover:border-retro-p1/50 hover:text-retro-p1'
+const CTA = 'min-h-11 px-6 py-3 bg-retro-cta text-retro-bg font-pixel text-xs rounded transition press disabled:opacity-50 hover:shadow-neon-cta'
+const SEC = 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded transition press hover:border-retro-p1/50 hover:text-retro-p1'
 
 function Toggle({ label, on, onChange }) {
   return (
@@ -42,7 +42,7 @@ function SoloPicker({ onStart }) {
         <button
           key={id}
           onClick={() => onStart({ mode: 'bot', level: id })}
-          className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left active:scale-[0.98] transition"
+          className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left press-card transition"
         >
           <span className="font-pixel text-[10px] text-retro-cta w-16">{L.label}</span>
           <span className="font-mono text-[11px] text-retro-dim">{L.blurb}</span>
@@ -51,7 +51,7 @@ function SoloPicker({ onStart }) {
       <p className="font-pixel text-[9px] text-retro-dim tracking-widest text-center pt-2">SOLO HEIGHT CHASE</p>
       <button
         onClick={() => onStart({ mode: 'climb' })}
-        className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left active:scale-[0.98] transition"
+        className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left press-card transition"
       >
         <span className="font-pixel text-[10px] text-retro-cta w-16">CLIMB</span>
         <span className="font-mono text-[11px] text-retro-dim">one tower, no timer{best > 0 ? ` · best ${best.toFixed(1)} m` : ''}</span>

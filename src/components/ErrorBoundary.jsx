@@ -56,13 +56,13 @@ export default class ErrorBoundary extends Component {
         <div className="flex flex-wrap justify-center gap-3">
           <button
             onClick={() => window.location.reload()}
-            className="min-h-11 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+            className="min-h-11 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
           >
             RELOAD
           </button>
           <a
             href="/"
-            className="min-h-11 flex items-center px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition active:scale-95"
+            className="min-h-11 flex items-center px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition press"
           >
             HOME
           </a>

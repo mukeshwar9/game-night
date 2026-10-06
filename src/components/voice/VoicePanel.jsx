@@ -120,7 +120,7 @@ export default function VoicePanel({ game, gameId, compact = false }) {
             onClick={startJoin}
             disabled={state.status === 'joining'}
             data-testid="voice-join"
-            className="min-h-11 px-3 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider rounded transition active:scale-95 disabled:opacity-50"
+            className="min-h-11 px-3 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider rounded transition press disabled:opacity-50"
           >
             {state.status === 'joining' ? 'JOINING…' : 'JOIN VOICE'}
           </button>

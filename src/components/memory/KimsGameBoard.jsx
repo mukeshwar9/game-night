@@ -65,7 +65,7 @@ export default function KimsGameBoard({ deal, level, startAt, clock, disabled, a
                   aria-label={pairsFaceName(face)}
                   className={cn(
                     'aspect-square rounded-lg border-2 border-retro-border bg-retro-card p-1.5 transition-transform',
-                    canChoose && 'cursor-pointer hover:border-retro-p1/60 active:scale-95',
+                    canChoose && 'cursor-pointer hover:border-retro-p1/60 press',
                     reveal && isMissing && 'outline outline-2 outline-offset-2 outline-retro-win',
                     chosen === face && !right && 'border-retro-danger pairs-mismatch-shake',
                     chosen === face && right && 'border-retro-win vm-found-pop',

@@ -244,7 +244,7 @@ export function NumberMemorySolo({ rand = Math.random, single = false, onFinish 
           <button
             type="button"
             onClick={() => setRun(r => (r.phase === 'showing' ? { ...r, phase: 'recall' } : r))}
-            className="w-full py-2.5 min-h-11 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[9px] rounded hover:border-retro-cta/60 active:scale-95"
+            className="w-full py-2.5 min-h-11 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[9px] rounded hover:border-retro-cta/60 press"
           >
             GOT IT
           </button>
@@ -272,7 +272,7 @@ export function NumberMemorySolo({ rand = Math.random, single = false, onFinish 
           <button
             type="submit"
             disabled={!input.trim()}
-            className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+            className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta press disabled:opacity-40"
           >
             SUBMIT
           </button>

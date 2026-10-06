@@ -55,7 +55,7 @@ export default function PushNudge({ spot, text, className = '' }) {
         <button
           onClick={enable}
           disabled={busy}
-          className="px-3 py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+          className="px-3 py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition press disabled:opacity-50"
         >
           {busy ? 'TURNING ON…' : 'TURN ON'}
         </button>

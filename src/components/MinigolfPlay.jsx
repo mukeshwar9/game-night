@@ -360,7 +360,7 @@ export default function MinigolfPlay({
             <button
               type="button"
               onClick={() => setCard(null)}
-              className="self-center min-h-11 px-6 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+              className="self-center min-h-11 px-6 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
             >
               {card.manual ? 'CLOSE' : 'NEXT HOLE →'}
             </button>

@@ -61,7 +61,7 @@ export default function VerbalMemoryBoard({ rand, disabled = false, onChange, on
           type="button"
           onClick={() => say('seen')}
           disabled={disabled || run.over}
-          className="min-h-14 rounded border-2 border-retro-p2 bg-retro-tint-p2 text-retro-text font-pixel text-[11px] active:scale-95 disabled:opacity-50"
+          className="min-h-14 rounded border-2 border-retro-p2 bg-retro-tint-p2 text-retro-text font-pixel text-[11px] press disabled:opacity-50"
         >
           SEEN
         </button>
@@ -69,7 +69,7 @@ export default function VerbalMemoryBoard({ rand, disabled = false, onChange, on
           type="button"
           onClick={() => say('new')}
           disabled={disabled || run.over}
-          className="min-h-14 rounded border-2 border-retro-p1 bg-retro-tint-p1 text-retro-text font-pixel text-[11px] active:scale-95 disabled:opacity-50"
+          className="min-h-14 rounded border-2 border-retro-p1 bg-retro-tint-p1 text-retro-text font-pixel text-[11px] press disabled:opacity-50"
         >
           NEW
         </button>

@@ -206,7 +206,7 @@ function SlowBootNotice() {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="min-h-11 px-6 border-2 border-retro-cta text-retro-cta font-pixel text-[10px] tracking-widest rounded hover:bg-retro-tint-cta active:scale-95 transition"
+        className="min-h-11 px-6 border-2 border-retro-cta text-retro-cta font-pixel text-[10px] tracking-widest rounded hover:bg-retro-tint-cta press transition"
       >
         RETRY
       </button>

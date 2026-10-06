@@ -44,7 +44,7 @@ function Pit({ index, count, interactive, accentRing, onPit, hop, ownerName }) {
         'aspect-[5/6] min-h-9 rounded-lg border-2 flex items-center justify-center transition duration-150 relative',
         'bg-retro-deep',
         interactive
-          ? cn('cursor-pointer active:scale-95', accentRing)
+          ? cn('cursor-pointer press', accentRing)
           : 'border-retro-border/60 cursor-default',
         hop && 'scale-110 border-retro-win shadow-neon-win',
       )}

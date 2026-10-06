@@ -107,7 +107,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
             onClick={() => onMove({ action: SWAP_ACTION })}
             aria-label={`Swap: take ${opener}'s opening stone`}
             className={cn(
-              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition active:scale-95',
+              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition press',
               'border-retro-cta text-retro-cta bg-retro-tint-cta hover:shadow-neon-cta',
             )}
           >

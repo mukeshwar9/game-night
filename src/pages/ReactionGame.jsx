@@ -141,7 +141,7 @@ function ReactionRacer({ round, myStats, statsPath, done }) {
       aria-label={phase === 'ready' ? 'Tap now' : phase === 'waiting' ? 'Wait for green' : 'Tap to start the next round'}
       className={cn(
         'w-full rounded-xl border-2 transition-colors duration-75 select-none',
-        'min-h-[210px] flex flex-col items-center justify-center gap-3 active:scale-[0.99] cursor-pointer',
+        'min-h-[210px] flex flex-col items-center justify-center gap-3 press-card cursor-pointer',
         AREA_COLOR[phase] ?? AREA_COLOR.start,
       )}
     >

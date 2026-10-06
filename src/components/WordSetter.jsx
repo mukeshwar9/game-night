@@ -146,7 +146,7 @@ export default function WordSetter({
             <button
               type="button"
               onClick={onRetryDictionary}
-              className="px-4 py-2 font-pixel text-[9px] rounded border border-retro-border text-retro-text hover:border-retro-p1/50 hover:text-retro-p1 transition active:scale-95"
+              className="px-4 py-2 font-pixel text-[9px] rounded border border-retro-border text-retro-text hover:border-retro-p1/50 hover:text-retro-p1 transition press"
             >
               RETRY
             </button>
@@ -159,7 +159,7 @@ export default function WordSetter({
           type="button"
           onClick={suggest}
           disabled={loading}
-          className="px-4 py-3 font-pixel text-[10px] rounded border-2 border-retro-border text-retro-text transition hover:border-retro-cta active:scale-95 disabled:opacity-50"
+          className="px-4 py-3 font-pixel text-[10px] rounded border-2 border-retro-border text-retro-text transition hover:border-retro-cta press disabled:opacity-50"
         >
           SUGGEST
         </button>
@@ -168,7 +168,7 @@ export default function WordSetter({
           onClick={handleSubmit}
           disabled={disabled}
           className={cn(
-            'px-8 py-3 font-pixel text-[10px] rounded border-2 transition active:scale-95',
+            'px-8 py-3 font-pixel text-[10px] rounded border-2 transition press',
             disabled
               ? 'border-retro-border text-retro-border cursor-not-allowed'
               : 'border-retro-p1 text-retro-p1 hover:shadow-neon-p1 hover:bg-retro-tint-p1',

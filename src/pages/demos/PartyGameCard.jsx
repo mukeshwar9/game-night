@@ -15,7 +15,7 @@ export default function PartyGameCard({ type }) {
       </p>
       <Link
         to="/"
-        className="inline-block px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition active:scale-95"
+        className="inline-block px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
       >
         CREATE A ROOM →
       </Link>

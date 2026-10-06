@@ -125,7 +125,7 @@ export default function SumoDemo() {
               e.preventDefault()
               press()
             }}
-            className="px-10 py-4 bg-retro-cta text-retro-bg font-pixel text-sm rounded-lg hover:shadow-neon-cta active:scale-95 active:bg-retro-cta/80 select-none touch-none"
+            className="px-10 py-4 bg-retro-cta text-retro-bg font-pixel text-sm rounded-lg hover:shadow-neon-cta press active:bg-retro-cta/80 select-none touch-none"
           >
             PUSH
           </button>
@@ -133,7 +133,7 @@ export default function SumoDemo() {
       )}
       {winner && (
         <div className="flex justify-center">
-          <button onClick={reset} className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+          <button onClick={reset} className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press">
             PLAY AGAIN
           </button>
         </div>

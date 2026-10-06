@@ -26,7 +26,7 @@ export default function ReportButton({ context, gameId, targetUid, targetName, t
       onClick={report}
       disabled={reporting}
       className={`min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] tracking-wider text-retro-dim
-        hover:text-retro-p2 hover:border-retro-p2 transition-colors active:scale-95 disabled:opacity-50 ${className}`}
+        hover:text-retro-p2 hover:border-retro-p2 transition-colors press disabled:opacity-50 ${className}`}
     >
       {reporting ? 'REPORTING…' : label}
     </button>

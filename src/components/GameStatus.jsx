@@ -21,7 +21,7 @@ function RetroButton({ onClick, children, busy, busyLabel, locked }) {
       disabled={busy || locked}
       className={cn(
         'min-h-11 px-6 py-3 bg-retro-cta text-retro-bg font-pixel text-xs',
-        'rounded transition active:scale-95 disabled:opacity-50',
+        'rounded transition press disabled:opacity-50',
         !locked && 'hover:shadow-neon-cta',
       )}
     >
@@ -37,7 +37,7 @@ function ShareButton({ onClick, busy, busyLabel = 'BUILDING…', locked }) {
       disabled={busy || locked}
       className={cn(
         'min-h-11 px-6 py-2.5 min-w-[6.5rem] border-2 border-retro-border text-retro-text font-pixel text-xs',
-        'rounded transition active:scale-95 disabled:opacity-50',
+        'rounded transition press disabled:opacity-50',
         !locked && 'hover:border-retro-p1/50 hover:text-retro-p1',
       )}
     >
@@ -145,7 +145,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
                 key={g.type}
                 onClick={() => onSwitchGame(g.type)}
                 className="min-h-11 flex items-center gap-1.5 px-3 py-2 border border-retro-border rounded
-                  text-retro-dim hover:border-retro-cta/50 hover:text-retro-text transition active:scale-95"
+                  text-retro-dim hover:border-retro-cta/50 hover:text-retro-text transition press"
               >
                 <div className="w-4 h-4 flex items-center justify-center shrink-0">
                   {Icon && <Icon />}

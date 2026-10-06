@@ -31,7 +31,7 @@ export default function JoinRoomSheet({ code, onChange, onJoin, onClose, error =
         onClick={onJoin}
         disabled={busy}
         className="w-full min-h-12 flex items-center justify-center bg-retro-cta text-retro-bg disabled:opacity-60
-          font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition active:scale-[0.98]"
+          font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition press-card"
       >
         {busy ? 'CHECKING…' : 'JOIN ROOM'}
       </button>

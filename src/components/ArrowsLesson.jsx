@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 // by the caller (before a level that introduces the kind, or from the arrow
 // types list). `onDone` fires on SKIP and on the final button.
 
-const BTN = 'min-h-11 px-4 py-2.5 font-pixel text-[10px] rounded transition active:scale-95'
+const BTN = 'min-h-11 px-4 py-2.5 font-pixel text-[10px] rounded transition press'
 const CTA = cn(BTN, 'bg-retro-cta text-retro-bg hover:shadow-neon-cta')
 const SEC = cn(BTN, 'border border-retro-border text-retro-dim hover:border-retro-cta/50 hover:text-retro-text')
 // How long the result line stays up before the next step.

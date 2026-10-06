@@ -85,7 +85,7 @@ export default function NavBar() {
               type="button"
               aria-label="Back"
               onClick={() => (backDestination(location) === 'history' ? navigate(-1) : navigate('/'))}
-              className="relative -ml-2 w-9 h-9 shrink-0 flex items-center justify-center text-retro-cta active:scale-95 transition-transform"
+              className="relative -ml-2 w-9 h-9 shrink-0 flex items-center justify-center text-retro-cta press transition-transform"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <path d="M10 2 L4 8 L10 14" className="stroke-retro-cta" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter" />
@@ -99,7 +99,7 @@ export default function NavBar() {
               interceptRef.current?.(e)
               if (!e.defaultPrevented && pathname === '/') window.scrollTo(0, 0)
             }}
-            className="relative flex items-center gap-2 shrink-0 active:scale-95 transition-transform
+            className="relative flex items-center gap-2 shrink-0 press transition-transform
               before:content-[''] before:absolute before:-inset-y-2.5 before:-inset-x-2"
           >
             <div className="relative w-6 h-6 border-2 border-retro-cta bg-retro-tint-cta rounded

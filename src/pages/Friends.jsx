@@ -42,7 +42,7 @@ function PlayerActions({ onBlock, busy, uid, name }) {
         onClick={onBlock}
         disabled={busy}
         className="min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] tracking-wider text-retro-dim
-          hover:text-retro-p2 hover:border-retro-p2 transition-colors active:scale-95 disabled:opacity-50"
+          hover:text-retro-p2 hover:border-retro-p2 transition-colors press disabled:opacity-50"
       >
         {busy ? 'BLOCKING…' : 'BLOCK'}
       </button>
@@ -238,14 +238,14 @@ export default function Friends() {
               <button
                 onClick={copyCode}
                 className="min-h-11 px-3 bg-retro-bg border border-retro-border text-retro-dim font-pixel text-[10px] rounded
-                  hover:text-retro-text hover:border-retro-p1 transition active:scale-95"
+                  hover:text-retro-text hover:border-retro-p1 transition press"
               >
                 COPY
               </button>
               <button
                 onClick={shareCode}
                 className="min-h-11 px-3 bg-retro-bg border border-retro-border text-retro-dim font-pixel text-[10px] rounded
-                  hover:text-retro-text hover:border-retro-p1 transition active:scale-95"
+                  hover:text-retro-text hover:border-retro-p1 transition press"
               >
                 SHARE
               </button>
@@ -275,7 +275,7 @@ export default function Friends() {
             <button
               onClick={sendRequest}
               disabled={sending || !isValidFriendCode(codeInput)}
-              className={`min-h-11 px-4 font-pixel text-[10px] rounded transition active:scale-95 ${
+              className={`min-h-11 px-4 font-pixel text-[10px] rounded transition press ${
                 isValidFriendCode(codeInput)
                   ? 'bg-retro-cta text-retro-bg hover:shadow-neon-cta disabled:opacity-60'
                   : 'bg-transparent border border-retro-border text-retro-dim cursor-default'
@@ -308,7 +308,7 @@ export default function Friends() {
                     onClick={() => onAccept(r.uid)}
                     disabled={pendingUid === r.uid}
                     className="min-h-11 px-3 bg-retro-win/20 border border-retro-win/50 text-retro-win font-pixel text-[9px] rounded
-                      hover:bg-retro-win/30 transition active:scale-95 disabled:opacity-50"
+                      hover:bg-retro-win/30 transition press disabled:opacity-50"
                   >
                     ACCEPT
                   </button>
@@ -386,7 +386,7 @@ export default function Friends() {
                         onClick={() => challengeFriend(uid, p?.displayName)}
                         disabled={challengingUid === uid}
                         className="min-h-11 px-2.5 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded shrink-0
-                          hover:shadow-neon-cta transition active:scale-95 disabled:opacity-40"
+                          hover:shadow-neon-cta transition press disabled:opacity-40"
                       >
                         {challengingUid === uid ? '…' : 'INVITE'}
                       </button>
@@ -456,8 +456,7 @@ export default function Friends() {
                       disabled={busy}
                       aria-label={e.isMe ? 'View your profile' : `Challenge ${displayNameFor(e.displayName, 'friend')} to a game`}
                       className={`w-full flex items-center gap-2.5 bg-retro-card border rounded p-2.5 transition
-                        hover:border-retro-p1/50 active:scale-[0.99] disabled:opacity-60 disabled:active:scale-100
-                        ${e.isMe ? 'border-retro-cta' : 'border-retro-border'}`}
+                        hover:border-retro-p1/50 press-card disabled:opacity-60                         ${e.isMe ? 'border-retro-cta' : 'border-retro-border'}`}
                     >
                       <span className="font-pixel text-[11px] text-retro-dim w-5 text-center shrink-0">{e.rank}</span>
                       <span className="shrink-0"><Avatar id={e.avatar} size={36} /></span>

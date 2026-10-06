@@ -46,7 +46,7 @@ export default function CategoryTabs({ categories, active, onSelect, leading, tr
             onClick={() => onSelect(id)}
             aria-pressed={active === id}
             className={cn(
-              'min-h-11 px-3.5 shrink-0 snap-start whitespace-nowrap inline-flex items-center justify-center rounded border font-pixel text-[9px] tracking-wider transition active:scale-95',
+              'min-h-11 px-3.5 shrink-0 snap-start whitespace-nowrap inline-flex items-center justify-center rounded border font-pixel text-[9px] tracking-wider transition press',
               active === id
                 ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',

@@ -174,7 +174,7 @@ export default function VisualMemoryBoard({
                         : missed
                           ? 'bg-retro-card border-dashed border-retro-cta'
                           : isClickable
-                            ? 'bg-retro-card border-retro-border hover:border-retro-p1/50 active:scale-90 cursor-pointer'
+                            ? 'bg-retro-card border-retro-border hover:border-retro-p1/50 press cursor-pointer'
                             : 'bg-retro-card border-retro-border/40 cursor-default',
                 )}
               >

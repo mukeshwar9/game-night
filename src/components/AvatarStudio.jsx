@@ -105,7 +105,7 @@ export default function AvatarStudio({ saved, name, onClose }) {
             onClick={requestClose}
             disabled={saving}
             className={cn(
-              'min-h-11 min-w-20 px-3 rounded border font-pixel text-[9px] tracking-wider transition active:scale-95',
+              'min-h-11 min-w-20 px-3 rounded border font-pixel text-[9px] tracking-wider transition press',
               confirmDiscard ? 'border-retro-p2 text-retro-p2' : 'border-retro-border text-retro-dim hover:text-retro-text',
             )}
           >
@@ -119,7 +119,7 @@ export default function AvatarStudio({ saved, name, onClose }) {
             type="button"
             onClick={save}
             disabled={saving || !dirty}
-            className="min-h-11 min-w-20 px-3 rounded bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-widest hover:shadow-neon-cta active:scale-95 transition disabled:opacity-40"
+            className="min-h-11 min-w-20 px-3 rounded bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-widest hover:shadow-neon-cta press transition disabled:opacity-40"
           >
             {saving ? 'SAVING…' : 'SAVE'}
           </button>
@@ -134,7 +134,7 @@ export default function AvatarStudio({ saved, name, onClose }) {
             <button
               type="button"
               onClick={() => { setDraft(saved); setOutsideSave(false) }}
-              className="shrink-0 min-h-9 px-2 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-cta hover:border-retro-cta active:scale-95"
+              className="shrink-0 min-h-9 px-2 rounded border border-retro-border font-pixel text-[8px] tracking-wider text-retro-cta hover:border-retro-cta press"
             >
               USE SAVED
             </button>
@@ -142,7 +142,7 @@ export default function AvatarStudio({ saved, name, onClose }) {
               type="button"
               onClick={() => setOutsideSave(false)}
               aria-label="Dismiss notice"
-              className="shrink-0 min-h-9 min-w-9 px-2 rounded font-pixel text-[8px] text-retro-dim hover:text-retro-text active:scale-95"
+              className="shrink-0 min-h-9 min-w-9 px-2 rounded font-pixel text-[8px] text-retro-dim hover:text-retro-text press"
             >
               OK
             </button>

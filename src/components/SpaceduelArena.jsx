@@ -120,7 +120,7 @@ function FireButton({ onFire, className }) {
       onPointerLeave={stop}
       onPointerCancel={stop}
       className={cn(
-        'relative font-pixel rounded border select-none touch-none active:scale-95 min-h-11 min-w-11',
+        'relative font-pixel rounded border select-none touch-none press min-h-11 min-w-11',
         'flex items-center justify-center overflow-hidden',
         className,
       )}
@@ -141,7 +141,7 @@ function TouchButton({ className, onDown, onUp, label, ariaLabel }) {
       onPointerLeave={() => onUp?.(false)}
       onPointerCancel={() => onUp?.(false)}
       className={cn(
-        'font-pixel rounded border select-none touch-none active:scale-95 min-h-11 min-w-11',
+        'font-pixel rounded border select-none touch-none press min-h-11 min-w-11',
         'flex items-center justify-center',
         className,
       )}

@@ -180,7 +180,7 @@ export default function SettingsButton({ className = '' }) {
       onClick={() => { setEditingMe(false); setOpen(true) }}
       title="Settings"
       aria-label="Settings"
-      className={`relative text-retro-dim hover:text-retro-text active:scale-95 transition-colors p-3.5 rounded ${className}`}
+      className={`relative text-retro-dim hover:text-retro-text press transition-colors p-3.5 rounded ${className}`}
     >
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <line x1="4" y1="6" x2="20" y2="6" />
@@ -216,7 +216,7 @@ export default function SettingsButton({ className = '' }) {
             <button
               type="button"
               onClick={() => setEditingMe(true)}
-              className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition active:scale-95"
+              className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition press"
             >
               EDIT NAME &amp; LOOK
             </button>
@@ -390,7 +390,7 @@ export default function SettingsButton({ className = '' }) {
         <button
           type="button"
           onClick={resetAll}
-          className={`min-h-11 w-full rounded border-2 px-3 font-pixel text-[9px] tracking-widest transition-colors active:scale-95 ${resetArmed ? 'border-retro-danger bg-retro-tint-danger text-retro-danger' : 'border-retro-border text-retro-dim hover:text-retro-danger hover:border-retro-danger/60'}`}
+          className={`min-h-11 w-full rounded border-2 px-3 font-pixel text-[9px] tracking-widest transition-colors press ${resetArmed ? 'border-retro-danger bg-retro-tint-danger text-retro-danger' : 'border-retro-border text-retro-dim hover:text-retro-danger hover:border-retro-danger/60'}`}
         >
           {resetArmed ? 'SURE? TAP AGAIN TO RESET' : 'RESET ALL TO DEFAULTS'}
         </button>

@@ -121,7 +121,7 @@ export default function SpaceduelDemo() {
             </div>
             <button
               onClick={reset}
-              className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+              className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
             >
               PLAY AGAIN
             </button>

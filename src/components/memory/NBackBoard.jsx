@@ -78,7 +78,7 @@ export default function NBackBoard({ rand, disabled = false, onChange, onOver })
         disabled={disabled || run.over}
         aria-pressed={pressed}
         className={cn(
-          'w-full min-h-14 rounded border-2 font-pixel text-[11px] active:scale-95 disabled:opacity-50 transition-colors',
+          'w-full min-h-14 rounded border-2 font-pixel text-[11px] press disabled:opacity-50 transition-colors',
           pressed ? 'border-retro-cta bg-retro-cta text-retro-bg' : 'border-retro-cta bg-retro-tint-cta text-retro-text',
         )}
       >

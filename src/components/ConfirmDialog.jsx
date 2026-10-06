@@ -29,7 +29,7 @@ export default function ConfirmDialog({ title, message, confirmLabel, busyLabel,
           <button
             onClick={onClose}
             disabled={busy}
-            className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition active:scale-95 disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition press disabled:opacity-50"
           >
             CANCEL
           </button>
@@ -37,7 +37,7 @@ export default function ConfirmDialog({ title, message, confirmLabel, busyLabel,
             onClick={confirm}
             disabled={busy}
             className={cn(
-              'flex-1 px-4 py-2.5 text-retro-bg font-pixel text-[10px] rounded transition active:scale-95 disabled:opacity-50',
+              'flex-1 px-4 py-2.5 text-retro-bg font-pixel text-[10px] rounded transition press disabled:opacity-50',
               danger ? 'bg-retro-danger hover:shadow-neon-danger' : 'bg-retro-cta hover:shadow-neon-cta',
             )}
           >

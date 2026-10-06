@@ -191,7 +191,7 @@ export default function DailyGame() {
               )}
               <button
                 onClick={start}
-                className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+                className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
               >
                 {playedToday ? 'PLAY AGAIN' : 'START'}
               </button>
@@ -283,7 +283,7 @@ export default function DailyGame() {
             <button
               onClick={shareDaily}
               disabled={sharing}
-              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition active:scale-95 disabled:opacity-50"
+              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-50"
             >
               {sharing ? 'BUILDING…' : 'SHARE RESULT'}
             </button>
@@ -297,7 +297,7 @@ export default function DailyGame() {
 
             <button
               onClick={start}
-              className="w-full py-2.5 border border-retro-border bg-retro-card text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-colors active:scale-95"
+              className="w-full py-2.5 border border-retro-border bg-retro-card text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-colors press"
             >
               REPLAY (JUST FOR FUN)
             </button>

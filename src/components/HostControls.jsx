@@ -69,7 +69,7 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
           <button
             onClick={() => setPending({ kind: 'lock' })}
             className={cn(
-              'w-full min-h-11 font-pixel text-[9px] rounded border-2 transition active:scale-95',
+              'w-full min-h-11 font-pixel text-[9px] rounded border-2 transition press',
               locked
                 ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
                 : 'border-retro-border text-retro-text hover:border-retro-p1/50',
@@ -93,14 +93,14 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
                     <button
                       onClick={() => setPending({ kind: 'host', member: m })}
                       aria-label={`Make ${m.name} host`}
-                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-border text-retro-dim hover:text-retro-text hover:border-retro-p1/50 transition active:scale-95"
+                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-border text-retro-dim hover:text-retro-text hover:border-retro-p1/50 transition press"
                     >
                       MAKE HOST
                     </button>
                     <button
                       onClick={() => setPending({ kind: 'kick', member: m })}
                       aria-label={`Remove ${m.name}`}
-                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-danger/60 text-retro-danger hover:bg-retro-tint-danger transition active:scale-95"
+                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-danger/60 text-retro-danger hover:bg-retro-tint-danger transition press"
                     >
                       {game?.partyRoom ? 'REMOVE' : 'KICK'}
                     </button>

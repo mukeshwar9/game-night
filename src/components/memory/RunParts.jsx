@@ -31,7 +31,7 @@ export function RunOver({ result, score, unit, isNewBest, onRestart, single = fa
         <button
           type="button"
           onClick={onRestart}
-          className="px-6 py-2.5 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+          className="px-6 py-2.5 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
         >
           PLAY AGAIN
         </button>
@@ -56,7 +56,7 @@ export function StartGate({ title, how, onStart }) {
       <button
         type="button"
         onClick={onStart}
-        className="px-8 py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+        className="px-8 py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
       >
         TAP TO START
       </button>
@@ -80,7 +80,7 @@ export function ContinueButton({ lives, onContinue }) {
     <button
       type="button"
       onClick={onContinue}
-      className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+      className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
     >
       TRY AGAIN · {lives} {lives === 1 ? 'LIFE' : 'LIVES'} LEFT
     </button>

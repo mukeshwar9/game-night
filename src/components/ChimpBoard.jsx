@@ -141,12 +141,12 @@ export default function ChimpBoard({
                             'bg-retro-card border-retro-p1/70 text-retro-p1',
                             reveal && !isExpected && 'opacity-70',
                             isExpected && 'border-retro-cta text-retro-cta shadow-neon-cta',
-                            isClickable && 'hover:shadow-neon-p1 active:scale-90 cursor-pointer',
+                            isClickable && 'hover:shadow-neon-p1 press cursor-pointer',
                           )
                         : isNumbered
                           ? cn(
                               'bg-retro-card border-retro-border',
-                              isClickable && 'hover:bg-retro-surface active:scale-90 cursor-pointer',
+                              isClickable && 'hover:bg-retro-surface press cursor-pointer',
                             )
                           : 'bg-transparent border-retro-border/15 cursor-default',
                 )}
