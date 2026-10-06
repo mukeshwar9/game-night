@@ -22,6 +22,8 @@ import { dismissInvite } from '../lib/social'
 import { partyInviteLine } from '../lib/partyLogic'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { checkShouldOnboard } from '../lib/onboarding'
+import { parseAppStoreId, playLiveFrom, storeBadgeFor } from '../lib/storeLinks'
+import { isNative } from '../lib/platform'
 
 const getPlayerName = (profile) => profile?.displayName || localStorage.getItem('playerName') || ''
 
@@ -59,6 +61,15 @@ export default function Home() {
   const [firstVisit] = useState(() => readRecent().length === 0)
   const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
   const { canInstall, install, isIos } = useInstallPrompt()
+  // Once the apps are in the stores, phones get the store instead of the
+  // add-to-home-screen hints (lib/storeLinks.js; dark until the listings exist).
+  const [storeBadge] = useState(() => storeBadgeFor({
+    ua: navigator.userAgent,
+    appStoreId: parseAppStoreId(import.meta.env.VITE_APPSTORE_ID),
+    playLive: playLiveFrom(import.meta.env.VITE_PLAY_LIVE),
+    native: isNative,
+    standalone: navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true,
+  }))
   const [iosHintDismissed, setIosHintDismissed] = useState(() => !!localStorage.getItem('gn-ios-install-dismissed'))
   const { profile, invites } = useAuth()
   const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
@@ -210,7 +221,17 @@ export default function Home() {
           <ActionRow to="/online" title="FIND AN OPPONENT" detail="Join a public room or open one" action="BROWSE" />
         </section>
 
-        {canInstall && (
+        {storeBadge && (
+          <a
+            href={storeBadge.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1/60 hover:shadow-neon-p1 transition-all active:scale-95"
+          >
+            {storeBadge.store === 'ios' ? 'GET THE APP ON THE APP STORE' : 'GET THE APP ON GOOGLE PLAY'}
+          </a>
+        )}
+        {!storeBadge && canInstall && (
           <button
             onClick={install}
             className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1/60 hover:shadow-neon-p1 transition-all active:scale-95"
@@ -218,7 +239,7 @@ export default function Home() {
             + ADD TO HOME SCREEN
           </button>
         )}
-        {!canInstall && isIos && !iosHintDismissed && (
+        {!storeBadge && !canInstall && isIos && !iosHintDismissed && (
           <div className="max-w-md mx-auto w-full flex items-center gap-2.5 border border-retro-p1/30 bg-retro-card text-retro-p1 rounded px-3 py-2.5">
             <p className="flex-1 font-pixel text-[9px] tracking-wide">INSTALL: TAP SHARE → ADD TO HOME SCREEN</p>
             <button onClick={dismissIosHint} aria-label="Dismiss" className="text-retro-dim hover:text-retro-p2 font-pixel text-[9px] transition-colors">✕</button>

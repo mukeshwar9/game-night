@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import { buildIdFromFiles } from './src/lib/sourcemapLogic.js'
 import { renderContactTokens } from './src/lib/contactLogic.js'
 import { readHostingCsp, withEmulatorOrigins } from './scripts/csp.mjs'
+import { parseAppStoreId, smartBannerContent } from './src/lib/storeLinks.js'
 
 // Vite writes the entry <script> and its ~18 <link rel="modulepreload">s
 // before the stylesheet. The stylesheet is the only render-blocking request
@@ -26,6 +27,22 @@ function stylesheetFirst() {
         const at = out.search(/<script type="module"/)
         return out.slice(0, at) + css.map(t => t.trim()).join('\n    ') + '\n    ' + out.slice(at)
       },
+    },
+  }
+}
+
+// Safari's Smart App Banner, once the App Store listing exists
+// (VITE_APPSTORE_ID). main.jsx adds the page URL as app-argument at runtime.
+function smartAppBanner() {
+  let id = null
+  return {
+    name: 'smart-app-banner',
+    configResolved(config) {
+      id = parseAppStoreId(loadEnv(config.mode, config.root, 'VITE_').VITE_APPSTORE_ID)
+    },
+    transformIndexHtml(html) {
+      if (!id) return html
+      return html.replace('</head>', `  <meta name="apple-itunes-app" content="${smartBannerContent(id)}" />\n  </head>`)
     },
   }
 }
@@ -180,6 +197,7 @@ export default defineConfig({
     stylesheetFirst(),
     collectShell(),
     contactEmail(),
+    smartAppBanner(),
     privateSourcemaps(),
     VitePWA({
       registerType: 'prompt',
