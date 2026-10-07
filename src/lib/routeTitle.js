@@ -27,7 +27,7 @@ export function titleForPath(pathname) {
     const cfg = getGameConfig(m[2])
     if (cfg && cfg.type === m[2]) {
       const label = cfg.label.charAt(0) + cfg.label.slice(1).toLowerCase()
-      const mode = m[1] === 'local' ? ' — pass and play' : cfg.soloRun ? ' — solo run' : ' vs the CPU'
+      const mode = m[1] === 'local' ? ' — pass and play' : cfg.soloTitle ?? (cfg.soloRun ? ' — solo run' : ' vs the CPU')
       return `${label}${mode} — ${BRAND}`
     }
   }

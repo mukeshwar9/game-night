@@ -782,14 +782,16 @@ export const GAME_TYPES = [
   },
   {
     type: 'arrows', label: 'ARROWS PUZZLE',
-    desc: 'race to clear the arrows', Icon: ArrowsIcon,
+    desc: 'slide every arrow off the board', Icon: ArrowsIcon,
     badge: 'AR', maxWidth: 'max-w-sm',
-    category: 'reflex',
+    // Mostly a thinking puzzle (the race is the 2-player mode), so it sits with
+    // the board games and gets their calmer in-game track.
+    category: 'board',
     addedAt: '2026-09-19',
     durationMin: 4, tags: ['quick', 'skill'], solo: true,
-    // Solo is a 40-level puzzle campaign plus endless boards (and a bot race),
-    // not just a bot, so the play sheet names it as such.
-    soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: '40 puzzle levels, endless boards, or race a bot.',
+    // Solo opens the ARROWS hub (campaign, endless, tutorial, races), not just
+    // a bot, so the play sheet names it as such.
+    soloTitle: ' — solo or 2 players', soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: '170 puzzle levels, endless boards, or race a bot.',
     custom: true, realtime: true,
     Page: lazyWithRetry(() => import('../pages/ArrowsGame')),
     // HOW TO PLAY adds the arrow types, each with a replayable lesson.

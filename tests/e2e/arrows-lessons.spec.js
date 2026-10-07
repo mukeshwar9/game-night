@@ -1,4 +1,4 @@
-// Arrows solo levels 21–100 and the new-arrow lessons: the first board with a
+// Arrows solo levels 21–170 and the new-arrow lessons: the first board with a
 // kind the player has not been taught opens a three-tap practice lesson
 // (playable, skippable, shown once), and the "?" in the level header reopens
 // any reached kind's lesson from the arrow types list.
@@ -16,7 +16,19 @@ async function seed(page, upTo, seen) {
     localStorage.setItem(SEEN_KEY, JSON.stringify(Object.fromEntries(seen.map((k) => [k, true]))))
   }, { upTo, seen, PROGRESS_KEY, SEEN_KEY })
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'PLAY SOLO' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'ARROWS' })).toBeVisible()
+}
+
+// The hub opens first: SOLO, then the level's chapter card, then its tile.
+async function openLevel(page, n, suffix = ', new arrow type') {
+  const tile = page.getByRole('button', { name: `Level ${n}${suffix}` })
+  if (!(await tile.isVisible())) {
+    const chapter = page.getByRole('region', { name: new RegExp(`^Chapter ${Math.ceil(n / 10)},`) })
+    if (!(await chapter.isVisible())) await page.getByRole('button', { name: /SOLO/ }).click()
+    const head = chapter.getByRole('button').first()
+    if ((await head.getAttribute('aria-expanded')) === 'false') await head.click()
+  }
+  await tile.click()
 }
 
 const tapArrow = (scope, n) => scope.getByRole('button', { name: new RegExp(`^Arrow ${n},`) }).press('Enter')
@@ -25,11 +37,10 @@ test('level 21 opens the sleeping-arrow lesson once; it plays through to the lev
   const errors = []
   page.on('pageerror', (err) => errors.push(err.message))
   await page.goto('/solo/arrows')
-  await expect(page.getByRole('heading', { name: 'PLAY SOLO' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'ARROWS' })).toBeVisible()
   await seed(page, 20, ['diag', 'bend', 'curve'])
 
-  await expect(page.getByText('3 · DOUBLE ARROWS')).toBeVisible()
-  await page.getByRole('button', { name: 'Level 21, new arrow type' }).click()
+  await openLevel(page, 21)
   const lesson = page.getByRole('dialog', { name: 'SLEEPING ARROWS lesson' })
   await expect(lesson).toBeVisible()
   await expect(lesson.getByText(/A HOLLOW ARROW IS ASLEEP/)).toBeVisible()
@@ -53,14 +64,14 @@ test('level 21 opens the sleeping-arrow lesson once; it plays through to the lev
   await lesson.getByRole('button', { name: 'PLAY LEVEL 21' }).click()
 
   await expect(lesson).toHaveCount(0)
-  await expect(page.getByText('LEVEL 21 / 100')).toBeVisible()
+  await expect(page.getByText('LEVEL 21 / 170')).toBeVisible()
   await expect(page.getByRole('button', { name: /asleep until an arrow touching it leaves/ }).first()).toBeAttached()
   expect(await page.evaluate((k) => JSON.parse(localStorage.getItem(k)).sleep, SEEN_KEY)).toBe(true)
 
   // Shown once: reopening the level goes straight to the board.
   await page.reload()
-  await page.getByRole('button', { name: 'Level 21, new arrow type' }).click()
-  await expect(page.getByText('LEVEL 21 / 100')).toBeVisible()
+  await openLevel(page, 21)
+  await expect(page.getByText('LEVEL 21 / 170')).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
   // "?" lists the arrow types; reached kinds replay their lesson, later ones stay hidden.
@@ -80,15 +91,15 @@ test('level 31 opens the double-arrow lesson, and SKIP goes straight to the boar
   const errors = []
   page.on('pageerror', (err) => errors.push(err.message))
   await page.goto('/solo/arrows')
-  await expect(page.getByRole('heading', { name: 'PLAY SOLO' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'ARROWS' })).toBeVisible()
   await seed(page, 30, ['diag', 'bend', 'curve', 'sleep'])
 
-  await page.getByRole('button', { name: 'Level 31, new arrow type' }).click()
+  await openLevel(page, 31)
   const lesson = page.getByRole('dialog', { name: 'DOUBLE ARROWS lesson' })
   await expect(lesson.getByText(/ONE CURVED BODY, TWO HEADS/)).toBeVisible()
   await lesson.getByRole('button', { name: 'SKIP', exact: true }).click()
   await expect(lesson).toHaveCount(0)
-  await expect(page.getByText('LEVEL 31 / 100')).toBeVisible()
+  await expect(page.getByText('LEVEL 31 / 170')).toBeVisible()
   await expect(page.getByRole('button', { name: /double, two heads pointing/ }).first()).toBeAttached()
   expect(await page.evaluate((k) => JSON.parse(localStorage.getItem(k)).double, SEEN_KEY)).toBe(true)
   expect(errors).toEqual([])
@@ -125,11 +136,10 @@ test('level 41 teaches mirrors and level 51 crates; both pieces sit on their boa
   const errors = []
   page.on('pageerror', (err) => errors.push(err.message))
   await page.goto('/solo/arrows')
-  await expect(page.getByRole('heading', { name: 'PLAY SOLO' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'ARROWS' })).toBeVisible()
   await seed(page, 40, ['diag', 'bend', 'curve', 'sleep', 'double'])
 
-  await expect(page.getByText('4 · MIRRORS')).toBeVisible()
-  await page.getByRole('button', { name: 'Level 41, new arrow type' }).click()
+  await openLevel(page, 41)
   const mirror = page.getByRole('dialog', { name: 'MIRRORS lesson' })
   await expect(mirror.getByText(/A MIRROR TURNS ANY STRAIGHT ARROW/)).toBeVisible()
   await mirror.getByRole('button', { name: 'SHOW ME · 3 TAPS' }).click()
@@ -143,14 +153,13 @@ test('level 41 teaches mirrors and level 51 crates; both pieces sit on their boa
   await tapArrow(mirror, 1)
   await expect(mirror.getByText('GOT IT!')).toBeVisible()
   await mirror.getByRole('button', { name: 'PLAY LEVEL 41' }).click()
-  await expect(page.getByText('LEVEL 41 / 100')).toBeVisible()
+  await expect(page.getByText('LEVEL 41 / 170')).toBeVisible()
   await expect(page.getByRole('img', { name: /^Mirror at column/ })).toHaveCount(1)
   expect(await page.evaluate((k) => JSON.parse(localStorage.getItem(k)).mirror, SEEN_KEY)).toBe(true)
 
   await page.getByRole('button', { name: '‹ BACK' }).click()
   await seed(page, 50, ['diag', 'bend', 'curve', 'sleep', 'double', 'mirror'])
-  await expect(page.getByText('5 · CRATES')).toBeVisible()
-  await page.getByRole('button', { name: 'Level 51, new arrow type' }).click()
+  await openLevel(page, 51)
   const crate = page.getByRole('dialog', { name: 'CRATES lesson' })
   await crate.getByRole('button', { name: 'SHOW ME · 3 TAPS' }).click()
   await expect(crate.getByRole('img', { name: /breaks after 1 more clear$/ })).toBeVisible()
@@ -165,19 +174,19 @@ test('level 41 teaches mirrors and level 51 crates; both pieces sit on their boa
   await tapArrow(crate, 1)
   await expect(crate.getByText('GOT IT!')).toBeVisible()
   await crate.getByRole('button', { name: 'PLAY LEVEL 51' }).click()
-  await expect(page.getByText('LEVEL 51 / 100')).toBeVisible()
+  await expect(page.getByText('LEVEL 51 / 170')).toBeVisible()
   await expect(page.getByRole('img', { name: /^Crate at column .*breaks after \d+ more clears$/ })).toHaveCount(1)
   expect(errors).toEqual([])
 })
 
-test('level 86 teaches tunnel floors: the wall first, then a crossing; the tile sits on the board', async ({ page }) => {
+test('level 101 teaches tunnel floors: the wall first, then a crossing; the tile sits on the board', async ({ page }) => {
   const errors = []
   page.on('pageerror', (err) => errors.push(err.message))
   await page.goto('/solo/arrows')
-  await expect(page.getByRole('heading', { name: 'PLAY SOLO' })).toBeVisible()
-  await seed(page, 85, ['diag', 'bend', 'curve', 'sleep', 'double', 'mirror', 'crate', 'portal', 'letters', 'oneway'])
+  await expect(page.getByRole('heading', { name: 'ARROWS' })).toBeVisible()
+  await seed(page, 100, ['diag', 'bend', 'curve', 'sleep', 'double', 'mirror', 'crate', 'portal', 'letters', 'oneway', 'turning'])
 
-  await page.getByRole('button', { name: 'Level 86, new arrow type' }).click()
+  await openLevel(page, 101)
   const lesson = page.getByRole('dialog', { name: 'TUNNEL FLOORS lesson' })
   await expect(lesson.getByText(/^A TUNNEL FLOOR LETS A PIECE CROSS ONLY THE WAY ITS CHEVRONS POINT/)).toBeVisible()
   await expect(lesson.getByRole('img', { name: /^Tunnel floor at column 3, row 2, pieces cross it only heading right/ })).toBeVisible()
@@ -191,8 +200,8 @@ test('level 86 teaches tunnel floors: the wall first, then a crossing; the tile 
   await expect(lesson.getByText('SEND THE ARROW THROUGH THE TUNNEL')).toBeVisible()
   await tapArrow(lesson, 1)
   await expect(lesson.getByText('GOT IT!')).toBeVisible()
-  await lesson.getByRole('button', { name: 'PLAY LEVEL 86' }).click()
-  await expect(page.getByText('LEVEL 86 / 100')).toBeVisible()
+  await lesson.getByRole('button', { name: 'PLAY LEVEL 101' }).click()
+  await expect(page.getByText('LEVEL 101 / 170')).toBeVisible()
   await expect(page.getByRole('img', { name: /^Tunnel floor at column/ })).toHaveCount(1)
   expect(await page.evaluate((k) => JSON.parse(localStorage.getItem(k)).tunnel, SEEN_KEY)).toBe(true)
   expect(errors).toEqual([])

@@ -131,7 +131,7 @@ const DEMOS = [
   { type: 'paint',        short: 'PAINT\nTURF',   Icon: PaintIcon,        Component: PaintDemo        },
   { type: 'pacmac',       short: 'PAC\nMAC',      Icon: PacmacIcon,       Component: PacmacDemo       },
   { type: 'minesweeper',  short: 'MINE\nRACE',    Icon: MinesIcon,        Component: MineRaceDemo     },
-  { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsSolo        },
+  { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsSolo, heading: 'ARROWS', subheading: 'PUZZLE · SOLO OR 2 PLAYERS' },
   { type: 'updraft',      short: 'UPDRAFT',       Icon: UpdraftIcon,      Component: UpdraftDemo       },
   // Memory — single-player runs (grow until you slip, beat your best)
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonSolo,        solo: true },
@@ -329,8 +329,8 @@ function DemoHub() {
       <div className="w-full max-w-md space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 space-y-1.5">
-            <h1 className="font-pixel text-sm text-retro-cta tracking-wider whitespace-nowrap">PLAY SOLO</h1>
-            <p className="font-pixel text-[9px] text-retro-dim tracking-wider">{active?.solo ? 'BEAT YOUR BEST' : 'VS CPU'}<span className="max-sm:hidden"> · NO WAITING</span></p>
+            <h1 className="font-pixel text-sm text-retro-cta tracking-wider whitespace-nowrap">{active?.heading ?? 'PLAY SOLO'}</h1>
+            <p className="font-pixel text-[9px] text-retro-dim tracking-wider">{active?.subheading ?? (active?.solo ? 'BEAT YOUR BEST' : 'VS CPU')}<span className="max-sm:hidden"> · NO WAITING</span></p>
           </div>
           {switchButton}
         </div>

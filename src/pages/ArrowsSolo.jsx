@@ -1,19 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import ArrowsBoard from '../components/ArrowsBoard'
+import ArrowsChapterMap, { Stars } from '../components/ArrowsChapterMap'
+import ArrowsRaceSetup from '../components/ArrowsRaceSetup'
 import { Lives } from '../components/ArrowsHud'
 import ArrowsLesson from '../components/ArrowsLesson'
 import ArrowTypes from '../components/ArrowTypes'
 import BottomSheet from '../components/BottomSheet'
+import RulesModal from '../components/LazyRulesModal'
 import { getLesson } from '../lib/arrowsLessonsLogic'
+import { bestHintArrow } from '../lib/arrowsHintLogic'
 import ArrowsDemo from './ArrowsDemo'
 import {
   applyArrowTap,
   countGone,
-  freeArrows,
   randomArrowsSeed,
   ARROWS_ENDLESS_INFO,
   ARROWS_LIVES,
-  ARROWS_TIERS,
 } from '../lib/arrowsLogic'
 import {
   ARROWS_CHAPTERS,
@@ -22,7 +24,7 @@ import {
   ARROWS_TWIST_TIPS,
   endlessLevel,
   getArrowsLevel,
-  isLevelUnlocked,
+  learnedPieces,
   levelStars,
   newTwist,
   nextLevel,
@@ -42,125 +44,103 @@ import {
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
-// Arrows solo (/solo/arrows). No AI in the first two modes:
-//   LEVELS  — a 100-level campaign that gets steadily harder, with stars,
-//             locks and progress saved on the device and the account; the
-//             first board with a new arrow kind opens with a short lesson;
-//   ENDLESS — unlimited generated boards at easy / medium / hard;
-//   VS BOT  — the original practice race against a bot (ArrowsDemo).
+// The guided 19-lesson track is a separate chunk, opened from the hub.
+const ArrowsTutorial = lazy(() => import('../components/ArrowsTutorial'))
 
-const TABS = [
-  { id: 'levels', label: 'LEVELS' },
-  { id: 'endless', label: 'ENDLESS' },
-  { id: 'race', label: 'VS BOT' },
-]
+// Arrows hub (/solo/arrows): CONTINUE (or START HERE for a first visit), then
+//   SOLO      — the chapter map (a 170-level campaign with stars, locks and
+//               progress saved on the device and the account; the first board
+//               with a new arrow kind opens with a short lesson) and ENDLESS
+//               boards at easy / medium / hard, tiers opening with the campaign;
+//   2 PLAYERS — race settings, then a friend, a quick match or a bot;
+//   TUTORIAL and HOW TO PLAY.
+
 const BTN = 'min-h-11 px-4 py-2.5 font-pixel text-[10px] rounded transition press'
 const CTA = cn(BTN, 'bg-retro-cta text-retro-bg hover:shadow-neon-cta')
 const SEC = cn(BTN, 'border border-retro-border text-retro-dim hover:border-retro-cta/50 hover:text-retro-text')
+const TUTORIAL_KEY = 'arrows-tutorial-started'
 
-function Stars({ n, of = 3, size = 'sm', label = true }) {
+const tutorialStarted = () => { try { return localStorage.getItem(TUTORIAL_KEY) === '1' } catch { return false } }
+const markTutorialStarted = () => { try { localStorage.setItem(TUTORIAL_KEY, '1') } catch { /* private mode */ } }
+
+// Endless boards generated ahead of time (see the idle prefetch in ArrowsSolo),
+// keyed by tier, seed and the pieces the player has learned.
+const endlessCache = new Map()
+const endlessKey = (tier, seed, learned) => `${tier}:${seed}:${learned.join(',')}`
+function endlessBoard(tier, seed, learned) {
+  const key = endlessKey(tier, seed, learned)
+  let level = endlessCache.get(key)
+  if (!level) {
+    level = endlessLevel(seed, tier, learned)
+    endlessCache.set(key, level)
+    if (endlessCache.size > 6) endlessCache.delete(endlessCache.keys().next().value)
+  }
+  return level
+}
+
+// Run `fn` when the browser is idle (a timeout where requestIdleCallback is
+// missing); returns the cancel function.
+function whenIdle(fn) {
+  if (typeof requestIdleCallback === 'function') {
+    const id = requestIdleCallback(fn, { timeout: 4000 })
+    return () => cancelIdleCallback(id)
+  }
+  const id = setTimeout(fn, 250)
+  return () => clearTimeout(id)
+}
+
+function HubCard({ top, main, sub, onClick, cta = false, className }) {
   return (
-    <span
-      className={cn('font-pixel tracking-tight', size === 'lg' ? 'text-xl' : 'text-[9px]')}
-      role={label ? 'img' : undefined}
-      aria-label={label ? `${n} of ${of} stars` : undefined}
-      aria-hidden={label ? undefined : true}
+    <button
+      onClick={onClick}
+      className={cn(
+        'w-full flex flex-col items-start gap-1 px-3 py-3 rounded border text-left transition press-card',
+        cta ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta' : 'border-retro-border bg-retro-card hover:border-retro-cta/50',
+        className,
+      )}
     >
-      {Array.from({ length: of }, (_, i) => (
-        <span key={i} className={i < n ? 'text-retro-cta' : 'text-retro-structure opacity-40'}>★</span>
-      ))}
-    </span>
+      <span className="font-pixel text-[8px] text-retro-dim">{top}</span>
+      <span className={cn('font-pixel text-sm', cta ? 'text-retro-cta' : 'text-retro-text')}>{main}</span>
+      <span className="font-mono text-[11px] text-retro-dim">{sub}</span>
+    </button>
   )
 }
 
-// Pixel padlock for a locked level tile.
-function LockGlyph() {
-  return (
-    <svg viewBox="0 0 8 9" className="w-2.5 h-3 fill-current" aria-hidden="true" shapeRendering="crispEdges">
-      <path d="M2 0h4v1h1v3h1v5H0V4h1V1h1zm0 1v3h4V1z" />
-    </svg>
-  )
-}
-
-function LevelSelect({ progress, onPlay }) {
-  const stars = totalStars(progress)
+function Hub({ progress, onContinue, onView, onRules }) {
+  const first = totalStars(progress) === 0 && !tutorialStarted()
   const cont = nextLevel(progress)
+  const chapter = ARROWS_CHAPTERS.find((c) => cont >= c.from && cont <= c.to)
+  const got = levelStars(progress, cont)
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-pixel text-[9px] text-retro-dim">
-          <span className="text-retro-cta">★</span> {stars}/{ARROWS_LEVEL_COUNT * 3}
-        </span>
-        <button onClick={() => onPlay(cont)} className={CTA}>
-          {levelStars(progress, cont) ? `REPLAY ${cont}` : cont === 1 ? 'START LEVEL 1' : `CONTINUE · LEVEL ${cont}`}
-        </button>
+      {first ? (
+        <HubCard cta top="NEW TO ARROWS?" main="START HERE · TUTORIAL" sub="a short guided tutorial, then level 1" onClick={() => onView('tutorial')} />
+      ) : (
+        <HubCard
+          cta
+          top={`CONTINUE · CHAPTER ${chapter ? ARROWS_CHAPTERS.indexOf(chapter) + 1 : ''} ${chapter ? chapter.name : ''}`}
+          main={got ? `REPLAY LEVEL ${cont}` : `LEVEL ${cont}`}
+          sub={`${totalStars(progress)}/${ARROWS_LEVEL_COUNT * 3} ★ SO FAR${got ? ` · BEST ${'★'.repeat(got)}` : ''}`}
+          onClick={onContinue}
+        />
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <HubCard top="1 PLAYER" main="SOLO" sub={`${ARROWS_LEVEL_COUNT} levels · endless`} onClick={() => onView('solo')} />
+        <HubCard top="VS" main="2 PLAYERS" sub="friend · quick match · bot" onClick={() => onView('two')} />
       </div>
-      {ARROWS_CHAPTERS.map((chapter, c) => {
-        let chapterStars = 0
-        for (let n = chapter.from; n <= chapter.to; n += 1) chapterStars += levelStars(progress, n)
-        return (
-          <section key={chapter.name} aria-label={`Chapter ${c + 1}, ${chapter.name.toLowerCase()}`} className="space-y-2">
-            <div className="flex items-center justify-between gap-2 border-b border-retro-border/50 pb-1">
-              <span className="font-pixel text-[8px] text-retro-text">{c + 1} · {chapter.name}</span>
-              <span className="font-pixel text-[8px] text-retro-dim tabular-nums">
-                <span className="text-retro-cta">★</span> {chapterStars}/{(chapter.to - chapter.from + 1) * 3}
-              </span>
-            </div>
-            <div className="grid grid-cols-5 gap-2">
-              {Array.from({ length: chapter.to - chapter.from + 1 }, (_, k) => {
-                const n = chapter.from + k
-                const open = isLevelUnlocked(progress, n)
-                const got = levelStars(progress, n)
-                const intro = ARROWS_LEVEL_SPECS[n - 1].intro
-                return (
-                  <button
-                    key={n}
-                    onClick={() => open && onPlay(n)}
-                    disabled={!open}
-                    aria-label={open ? `Level ${n}${got ? `, ${got} stars` : ''}${intro ? ', new arrow type' : ''}` : `Level ${n}, locked`}
-                    className={cn(
-                      'relative aspect-square flex flex-col items-center justify-center gap-0.5 rounded border-2 transition press',
-                      !open && 'border-retro-border/50 bg-retro-deep text-retro-dim/50 cursor-not-allowed',
-                      open && got && 'border-retro-cta/50 bg-retro-tint-cta text-retro-text',
-                      open && !got && 'border-retro-cta bg-retro-surface text-retro-cta shadow-neon-cta',
-                    )}
-                  >
-                    <span className="font-pixel text-[12px] tabular-nums">{n}</span>
-                    {open ? <Stars n={got} label={false} /> : <LockGlyph />}
-                    {open && intro && (
-                      <span className="absolute -top-1.5 -right-1.5 font-pixel text-[6px] px-1 py-0.5 rounded bg-retro-cta text-retro-bg">NEW</span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        )
-      })}
-      <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed">
-        CLEAR A LEVEL TO OPEN THE NEXT · NO MISTAKES = ★★★
-      </p>
+      <div className="grid grid-cols-2 gap-3">
+        {!first && <button onClick={() => onView('tutorial')} className={SEC}>TUTORIAL</button>}
+        <button onClick={onRules} className={cn(SEC, first && 'col-span-2')}>HOW TO PLAY</button>
+      </div>
     </div>
   )
 }
 
-function EndlessSelect({ progress, onPlay }) {
+function SubHeader({ title, onBack }) {
   return (
-    <div className="space-y-2">
-      <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed">
-        A FRESH BOARD EVERY TIME — EVERY ONE CHECKED SOLVABLE
-      </p>
-      {ARROWS_TIERS.map((tier) => (
-        <button
-          key={tier}
-          onClick={() => onPlay(tier)}
-          className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left press-card transition"
-        >
-          <span className="font-pixel text-[10px] text-retro-cta w-16">{ARROWS_ENDLESS_INFO[tier].label}</span>
-          <span className="flex-1 font-mono text-[11px] text-retro-dim">{ARROWS_ENDLESS_INFO[tier].blurb.toLowerCase()}</span>
-          <span className="font-pixel text-[8px] text-retro-dim tabular-nums">{progress.endless[tier]} CLEARED</span>
-        </button>
-      ))}
+    <div className="flex items-center gap-2">
+      <button onClick={onBack} className="min-h-11 -ml-2 px-2 font-pixel text-[9px] text-retro-dim hover:text-retro-text">‹ ARROWS</button>
+      <p className="font-pixel text-[10px] text-retro-text tracking-wider">{title}</p>
     </div>
   )
 }
@@ -230,11 +210,10 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
   }
 
   const showHint = () => {
-    const open = freeArrows(level, gone)
-    if (!open.length || result) return
-    // The free arrow nearest the start of the solve order is the most useful
-    // nudge; any free arrow is a correct move.
-    setHint({ index: open[0], key: Date.now() })
+    // The free arrow that opens the most blocked ones (arrowsHintLogic.js).
+    const index = bestHintArrow(level, gone)
+    if (index === null || result) return
+    setHint({ index, key: Date.now() })
     setHints((h) => h + 1)
   }
 
@@ -342,10 +321,12 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
 }
 
 export default function ArrowsSolo() {
-  const [tab, setTab] = useState('levels')
+  const [view, setView] = useState('hub')
+  const [botTier, setBotTier] = useState('easy')
+  const [rulesOpen, setRulesOpen] = useState(false)
   const [progress, setProgress] = useState(readArrowsProgress)
-  // { kind: 'level', n } | { kind: 'endless', tier, seed }; `attempt` remounts
-  // the board on RESTART.
+  // { kind: 'level', n } | { kind: 'endless', tier, seed, nextSeed, learned };
+  // `attempt` remounts the board on RESTART.
   const [play, setPlay] = useState(null)
   const [attempt, setAttempt] = useState(0)
 
@@ -357,11 +338,21 @@ export default function ArrowsSolo() {
 
   const level = useMemo(() => {
     if (!play) return null
-    return play.kind === 'level' ? getArrowsLevel(play.n) : endlessLevel(play.seed, play.tier)
+    return play.kind === 'level' ? getArrowsLevel(play.n) : endlessBoard(play.tier, play.seed, play.learned)
+  }, [play])
+
+  // With an endless board on screen, build the next one while the player is
+  // busy so NEXT BOARD is instant. Cancelled on tier change / leaving.
+  useEffect(() => {
+    if (!play || play.kind !== 'endless') return undefined
+    return whenIdle(() => endlessBoard(play.tier, play.nextSeed, play.learned))
   }, [play])
 
   const start = (next) => { setPlay(next); setAttempt((a) => a + 1) }
+  const startEndless = (tier, seed = randomArrowsSeed()) =>
+    start({ kind: 'endless', tier, seed, nextSeed: randomArrowsSeed(), learned: learnedPieces(progress) })
   const back = () => setPlay(null)
+  const toHub = () => { setPlay(null); setView('hub') }
 
   if (play && level) {
     if (play.kind === 'level') {
@@ -377,7 +368,7 @@ export default function ArrowsSolo() {
           onRestart={() => setAttempt((a) => a + 1)}
           intro={ARROWS_LEVEL_SPECS[n - 1].intro ?? null}
           onBack={back}
-          backLabel="LEVELS"
+          backLabel="CHAPTERS"
           next={hasNext ? { label: `LEVEL ${n + 1} →`, onClick: () => start({ kind: 'level', n: n + 1 }) } : null}
         />
       )
@@ -393,31 +384,45 @@ export default function ArrowsSolo() {
         onCleared={() => setProgress((p) => saveArrowsProgress(recordEndlessClear(p, tier)))}
         onRestart={() => setAttempt((a) => a + 1)}
         onBack={back}
-        next={{ label: 'NEXT BOARD →', onClick: () => start({ kind: 'endless', tier, seed: randomArrowsSeed() }) }}
+        next={{ label: 'NEXT BOARD →', onClick: () => startEndless(tier, play.nextSeed) }}
       />
     )
   }
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 border-2 border-retro-border rounded overflow-hidden" role="tablist" aria-label="Arrows solo mode">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={cn('min-h-11 py-2 font-pixel text-[9px]', tab === t.id ? 'bg-retro-cta text-retro-bg' : 'text-retro-dim hover:text-retro-text')}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      {tab === 'levels' && <LevelSelect progress={progress} onPlay={(n) => start({ kind: 'level', n })} />}
-      {tab === 'endless' && (
-        <EndlessSelect progress={progress} onPlay={(tier) => start({ kind: 'endless', tier, seed: randomArrowsSeed() })} />
+      {view === 'hub' && (
+        <Hub
+          progress={progress}
+          onContinue={() => start({ kind: 'level', n: nextLevel(progress) })}
+          onView={(v) => { if (v === 'tutorial') markTutorialStarted(); setView(v) }}
+          onRules={() => setRulesOpen(true)}
+        />
       )}
-      {tab === 'race' && <ArrowsDemo />}
+      {view === 'solo' && (
+        <>
+          <SubHeader title="SOLO" onBack={toHub} />
+          <ArrowsChapterMap progress={progress} onPlay={(n) => start({ kind: 'level', n })} onPlayEndless={(tier) => startEndless(tier)} />
+        </>
+      )}
+      {view === 'two' && (
+        <>
+          <SubHeader title="2 PLAYERS" onBack={toHub} />
+          <ArrowsRaceSetup onBot={(difficulty) => { setBotTier(difficulty); setView('bot') }} />
+        </>
+      )}
+      {view === 'bot' && (
+        <>
+          <SubHeader title="RACE A BOT" onBack={() => setView('two')} />
+          <ArrowsDemo initialTier={botTier} />
+        </>
+      )}
+      {view === 'tutorial' && (
+        <Suspense fallback={<p className="text-center font-pixel text-[9px] text-retro-dim">LOADING…</p>}>
+          <ArrowsTutorial onExit={toHub} />
+        </Suspense>
+      )}
+      {rulesOpen && <RulesModal gameType="arrows" onClose={() => setRulesOpen(false)} />}
     </div>
   )
 }

@@ -16,7 +16,11 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(null)
 
-  const createGame = async (gameType) => {
+  // `initial`: optional room fields written with the new room (a race's
+  // arrowsDifficulty, say). Only a plain object counts, so a click event passed
+  // by mistake adds nothing.
+  const createGame = async (gameType, initial = null) => {
+    const extra = initial && Object.getPrototypeOf(initial) === Object.prototype ? initial : null
     const playerName = getPlayerName(profile)
     if (!playerName) { onMissingName?.(); return }
 
@@ -40,6 +44,7 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
           players: { [myId]: { name: playerName, joinedAt: now, playerId: myId, online: true, avatar } },
           ...freshGameState(gameType),
           ...(['typing', 'math'].includes(gameType) ? { hostUid: myId } : {}),
+          ...extra,
         }
       } else {
         gameData = {
@@ -50,6 +55,7 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
           lastActivityAt: now,
           players: { X: { name: playerName, joinedAt: now, playerId: myId, avatar } },
           ...freshGameState(gameType),
+          ...extra,
         }
       }
 

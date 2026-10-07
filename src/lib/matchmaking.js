@@ -40,20 +40,26 @@ export function normalizePublicRooms(raw, now = Date.now()) {
 export function publicRoomEntry({ gameId, gameType, hostUid, hostName, hostAvatar, now = Date.now() }) {
   return { gameId, gameType, visibility: 'public', hostUid, hostName: hostName || 'PLAYER', hostAvatar: hostAvatar || null, hostOnline: true, createdAt: now, updatedAt: now, expiresAt: now + PUBLIC_ROOM_TTL_MS }
 }
-export async function createPublicRoom({ gameId, gameType, playerId, playerName, playerAvatar, now: given }) {
+export async function createPublicRoom({ gameId, gameType, playerId, playerName, playerAvatar, now: given, initial = null }) {
   if (!db) throw new Error('Firebase is not configured')
   // Server time: the rules reject dates more than a few minutes ahead of it.
   const now = given ?? await fetchServerNow()
   if (!isPublicGameType(gameType)) throw new Error('Game is not eligible for public matchmaking')
   const party = !!getGameConfig(gameType)?.nPlayer
   const game = party
-    ? { gameType, visibility: 'public', status: 'waiting', scores: {}, createdAt: now, lastActivityAt: now, players: { [playerId]: { name: playerName, joinedAt: now, playerId, online: true, avatar: playerAvatar } }, ...freshGameState(gameType) }
-    : { gameType, visibility: 'public', status: 'waiting', scores: { X: 0, O: 0 }, createdAt: now, lastActivityAt: now, players: { X: { name: playerName, joinedAt: now, playerId, avatar: playerAvatar } }, ...freshGameState(gameType) }
+    ? { gameType, visibility: 'public', status: 'waiting', scores: {}, createdAt: now, lastActivityAt: now, players: { [playerId]: { name: playerName, joinedAt: now, playerId, online: true, avatar: playerAvatar } }, ...freshGameState(gameType), ...initial }
+    : { gameType, visibility: 'public', status: 'waiting', scores: { X: 0, O: 0 }, createdAt: now, lastActivityAt: now, players: { X: { name: playerName, joinedAt: now, playerId, avatar: playerAvatar } }, ...freshGameState(gameType), ...initial }
   const entry = publicRoomEntry({ gameId, gameType, hostUid: playerId, hostName: playerName, hostAvatar: playerAvatar, now })
   await set(ref(db, `games/${gameId}`), game)
   try { await set(ref(db, `matchmaking/${gameId}`), entry) } catch (error) { await remove(ref(db, `games/${gameId}`)); throw error }
   await onDisconnect(ref(db, `matchmaking/${gameId}`)).remove()
   return game
+}
+// One look at the open rooms (QUICK MATCH from a game's own hub).
+export async function listPublicRoomsOnce() {
+  if (!db) return []
+  const snapshot = await get(query(ref(db, 'matchmaking'), orderByChild('createdAt'), limitToLast(100)))
+  return normalizePublicRooms(snapshot.val())
 }
 export function subscribePublicRooms(callback) {
   if (!db) return () => {}

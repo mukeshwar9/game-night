@@ -20,8 +20,10 @@ import { cn } from '@/lib/utils'
 const BOT_MS = { easy: 1700, medium: 1500, hard: 1300 }
 const BOT_FUMBLE = 0.08
 
-export default function ArrowsDemo() {
-  const [tier, setTier] = useState('easy')
+// `initialTier` seeds the board size and bot speed (the hub's race setting;
+// MIXED has no single tier here, so it starts at medium).
+export default function ArrowsDemo({ initialTier = 'easy' }) {
+  const [tier, setTier] = useState(ARROWS_TIERS.includes(initialTier) ? initialTier : 'medium')
   const [seed, setSeed] = useState(() => randomArrowsSeed())
   const level = useMemo(() => generateArrowsLevel(seed, tier), [seed, tier])
   const total = level.arrows.length
