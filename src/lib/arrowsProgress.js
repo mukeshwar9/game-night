@@ -1,7 +1,8 @@
 // Arrows solo progress: level stars and endless clears. localStorage is the
 // synchronous read source (works signed out and offline); signed-in players
 // also get a mirror at users/{uid}/arrowsSolo so progress follows them across
-// devices. Both sides only ever merge upward (best stars, highest counts) —
+// devices. Both sides only ever merge upward (best stars, highest counts, a
+// level once replayed stays replayed) —
 // see mergeProgress in arrowsLevelsLogic.js.
 
 import { ref, get, set as dbSet } from 'firebase/database'

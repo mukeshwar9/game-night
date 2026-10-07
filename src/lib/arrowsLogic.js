@@ -78,14 +78,15 @@ export const ARROWS_TIER_SPECS = {
 // double arrows, mirrors (slanted and flat), crates, portals, tunnels — with
 // the endless-only twists: diagonals that cross mirrors, portals and slanted
 // tunnels (`diagMods`, `diagTunnels`), bank and glide diagonals, elbow and
-// swerve arrows. Each tier is a size step up from the race boards: easy fills
-// the 10 × 13 no-camera board, medium and hard grow past it (up to 20 × 28)
-// and play with drag and zoom, like campaign levels 61+.
+// swerve arrows. Easy is a friendly 8 × 11 with a light sprinkle of pieces;
+// medium and hard grow past the 10 × 13 no-camera size (up to 20 × 28) and
+// play with drag and zoom, like campaign levels 61+. Portals stay at three
+// pairs a board (colour alone tells them apart).
 export const ARROWS_ENDLESS_SPECS = {
   easy: {
-    cols: 10, rows: 13, maxLen: 6, fill: 0.84, samples: 9, diag: 0.1, curve: 0.06, bend: 0.9, deep: 0.3,
-    bank: 0.04, glide: 0.04, elbow: 0.04, swerve: 0.03, diagMods: true, diagTunnels: true, owe: true,
-    sleepers: 1, mirrors: 1, flatMirrors: 1, portals: ['pair'], tunnels: 1,
+    cols: 8, rows: 11, maxLen: 6, fill: 0.82, samples: 7, diag: 0.08, curve: 0.05, bend: 0.9, deep: 0.2,
+    bank: 0.03, glide: 0.03, elbow: 0.03, swerve: 0.02, diagMods: true, diagTunnels: true, owe: true,
+    sleepers: 1, mirrors: 1, portals: ['pair'],
   },
   medium: {
     cols: 14, rows: 19, maxLen: 7, fill: 0.86, samples: 10, diag: 0.12, curve: 0.08, bend: 0.9, deep: 0.5,
@@ -95,7 +96,7 @@ export const ARROWS_ENDLESS_SPECS = {
   hard: {
     cols: 20, rows: 28, maxLen: 9, fill: 0.86, samples: 11, diag: 0.13, curve: 0.08, bend: 0.9, deep: 0.8,
     bank: 0.06, glide: 0.06, elbow: 0.06, swerve: 0.04, diagMods: true, diagTunnels: true, owe: true,
-    sleepers: 4, doubles: 3, mirrors: 4, flatMirrors: 3, crates: 2, portals: ['pair', 'oneway', 'turn', 'pair'], tunnels: 4,
+    sleepers: 4, doubles: 3, mirrors: 4, flatMirrors: 3, crates: 2, portals: ['oneway', 'turn', 'pair'], tunnels: 4,
   },
 }
 
@@ -104,18 +105,18 @@ export const ARROWS_ENDLESS_SPECS = {
 // it in the waiting room (or between matches); unset means 'mixed'.
 export const ARROWS_DIFFICULTIES = ['easy', 'medium', 'hard', 'mixed']
 export const ARROWS_DIFFICULTY_INFO = {
-  easy: { label: 'EASY', blurb: '7×9 · STRAIGHT ARROWS' },
-  medium: { label: 'MEDIUM', blurb: '8×11 · + CURVY DIAGONALS' },
-  hard: { label: 'HARD', blurb: '10×13 · + HOOKED TURNS' },
+  easy: { label: 'EASY', blurb: '8×11 OR A SHAPE · A LIGHT MIX OF WHAT YOU HAVE LEARNED' },
+  medium: { label: 'MEDIUM', blurb: '14×19 OR A SHAPE · MORE OF WHAT YOU HAVE LEARNED' },
+  hard: { label: 'HARD', blurb: 'UP TO 20×28 · EVERY PIECE YOU HAVE LEARNED' },
   mixed: { label: 'MIXED', blurb: 'EASY → MEDIUM → HARD' },
 }
 export const getArrowsDifficulty = (id) => (ARROWS_DIFFICULTIES.includes(id) ? id : 'mixed')
 
 // Endless-select labels (endless boards carry the extra mechanics, races do not).
 export const ARROWS_ENDLESS_INFO = {
-  easy: { label: 'EASY', blurb: '10×13 OR A SHAPE · NEW TWISTS + MIRRORS, PORTALS' },
-  medium: { label: 'MEDIUM', blurb: '14×19 OR A SHAPE · + DOUBLES, CRATES' },
-  hard: { label: 'HARD', blurb: 'UP TO 20×28 · EVERY PIECE' },
+  easy: { label: 'EASY', blurb: '8×11 OR A SHAPE · A LIGHT MIX OF WHAT YOU HAVE LEARNED' },
+  medium: { label: 'MEDIUM', blurb: '14×19 OR A SHAPE · MORE OF WHAT YOU HAVE LEARNED' },
+  hard: { label: 'HARD', blurb: 'UP TO 20×28 · EVERY PIECE YOU HAVE LEARNED' },
 }
 
 // (dx, dy) in grid space (y grows downward): up, right, down, left, then the

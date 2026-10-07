@@ -1062,7 +1062,12 @@
         "arrowsSolo": {
           "levels": {
             "$level": {
-              ".validate": "$level.matches(/^l([1-9]|[1-9][0-9]|100)$/) && newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+              ".validate": "$level.matches(/^l([1-9]|[1-9][0-9]|1[0-6][0-9]|170)$/) && newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+            }
+          },
+          "replayed": {
+            "$level": {
+              ".validate": "$level.matches(/^l([1-9]|[1-9][0-9]|100)$/) && newData.val() === true"
             }
           },
           "endless": {

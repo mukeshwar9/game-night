@@ -1,86 +1,42 @@
-// Picks the seed for each of the 100 Arrows solo levels.
+// Picks the seed for each of the 170 Arrows solo levels.
 //
-//   node scripts/pick-arrows-levels.mjs [first level]
+//   node scripts/pick-arrows-levels.mjs [seeds per level] [--write] [--chapters=9,10]
 //
-// Levels 1–20 (below) climb steadily. Levels 21–100 are picked chapter by
-// chapter further down: each chapter opens on a lighter lesson level, then
-// every level beats the one before it and the chapter's last level beats the
-// previous chapter's last level. With a first level (a chapter start: 21, 31,
-// … 61, 71, …) the earlier seeds are kept from ARROWS_LEVEL_SEEDS, so levels
-// players have already starred are never re-picked. After pasting new seeds
-// for 21+, run scripts/bake-arrows-levels.mjs to bake their boards.
-//
-// Each level's shape (grid, snake length, density, twists) is hand-set in
-// ARROWS_LEVEL_SPECS (src/lib/arrowsLevelsLogic.js). This script searches
-// seeds for every spec and keeps the one whose difficulty score lands closest
-// to a steadily rising target (and whose depth, in solve waves, tracks a
-// rising 2 → 11 target), strictly above the previous level, with at least
-// as many arrows and as many waves as the previous level and never fewer
-// than two waves (level 1 already needs one arrow moved first),
-// and that shows the level's twist when it is the one introducing it. Paste the
-// printed seeds into ARROWS_LEVEL_SEEDS; arrowsLevelsLogic.test.js re-checks
-// every level is solvable and that difficulty keeps climbing.
+// Each level's shape (grid, outline, snake length, density, pieces) is built
+// from the chapter table in src/lib/arrowsLevelsLogic.js. This script walks
+// the chapters one by one and, per level, searches the solvable seeds whose
+// board shows every piece taught so far (the lesson board: just the new one,
+// and any intro the spec asks for), then takes the one whose difficulty is
+// nearest a target rising through the chapter, strictly above the previous
+// level where it can. A coverage floor comes first: boards whose arrows cover
+// at least FLOOR of the playable cells are preferred; when none in the seed
+// budget does, the best coverage among the valid boards is taken and a
+// warning is printed. With --write the seeds replace ARROWS_LEVEL_SEEDS in
+// arrowsLevelsLogic.js; then run scripts/bake-arrows-levels.mjs. With
+// --chapters (0-based) only those chapters are picked again and every other
+// level keeps its seed.
 
+import fs from 'node:fs'
 import { Worker } from 'node:worker_threads'
 import { availableParallelism } from 'node:os'
-import { generateArrowsLevel, levelStats } from '../src/lib/arrowsLogic.js'
-import { ARROWS_GENERATED_LEVELS, ARROWS_LEVEL_SEEDS, ARROWS_LEVEL_SPECS, getArrowsLevel, levelMeetsIntro } from '../src/lib/arrowsLevelsLogic.js'
+import { ARROWS_CHAPTERS, ARROWS_LEVEL_SEEDS, ARROWS_LEVEL_SPECS } from '../src/lib/arrowsLevelsLogic.js'
 
-const FIRST = Number(process.argv[2] ?? 1)
-if (FIRST !== 1 && (FIRST <= ARROWS_GENERATED_LEVELS || (FIRST - ARROWS_GENERATED_LEVELS - 1) % 10 !== 0)) {
-  throw new Error(`first level must be 1 or a chapter start (21, 31, …), got ${process.argv[2]}`)
-}
+const TRIES = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) ?? 300)
+const WRITE = process.argv.includes('--write')
+const FLOOR = 0.75
+const ONLY = process.argv.find((a) => a.startsWith('--chapters='))?.slice(11).split(',').map(Number)
+const started = Date.now()
 
-const TRIES = 2500
-const CHAPTER_TRIES = 900
-const DEPTH_FREE_FROM = 60
-const statsFor = (spec) => {
-  const out = []
-  for (let seed = 1; seed <= TRIES; seed += 1) {
-    const level = generateArrowsLevel(seed, spec)
-    const st = levelStats(level)
-    if (st.solvable && levelMeetsIntro(spec, level)) out.push({ seed, ...st })
-  }
-  return out
-}
-
-const STEADY = ARROWS_LEVEL_SPECS.slice(0, ARROWS_GENERATED_LEVELS)
-const pools = FIRST === 1 ? STEADY.map(statsFor) : []
-const lo = pools.length ? Math.min(...pools[0].map((s) => s.difficulty)) : 0
-const hi = pools.length ? Math.max(...pools[pools.length - 1].map((s) => s.difficulty)) : 0
-// Depth (solve waves) climbs from 2 to 11 alongside the difficulty score;
-// both targets steer the pick, and depth may never drop.
-const layerTarget = (i) => 2 + (9 * i) / (pools.length - 1)
-let prev = { difficulty: -Infinity, arrows: 0, layers: 2 }
-const seeds = []
-pools.forEach((pool, i) => {
-  const target = lo + ((hi - lo) * i) / (pools.length - 1)
-  const ok = pool.filter((s) => s.difficulty > prev.difficulty + 2 && s.arrows >= prev.arrows && s.layers >= prev.layers)
-  if (!ok.length) throw new Error(`level ${i + 1}: no seed beats ${JSON.stringify(prev)}`)
-  const cost = (s) => Math.abs(s.difficulty - target) + 6 * Math.abs(s.layers - layerTarget(i))
-  ok.sort((a, b) => cost(a) - cost(b))
-  const pick = ok[0]
-  prev = pick
-  seeds.push(pick.seed)
-  console.log(`L${i + 1}`, JSON.stringify(pick), `target ${target.toFixed(0)} / ${layerTarget(i).toFixed(1)} waves`)
-})
-
-// ── Levels 21+: chapters of ten, a sawtooth ────────────────────────────────
-// Per chapter, a backward pass keeps only the seeds that can still be
-// followed by a rising chain ending in a level that beats the previous
-// chapter's last; the forward pass then takes the feasible seed nearest each
-// level's target, a percentile of its pool's difficulty (30th for the lesson
-// level, then 50th rising to 95th for the last).
-const workers = Array.from({ length: Math.min(6, availableParallelism()) }, () => new Worker(new URL('./pick-arrows-worker.mjs', import.meta.url)))
-const chapterPools = (specs, firstN) => new Promise((resolve) => {
+const workers = Array.from({ length: Math.min(8, availableParallelism()) }, () => new Worker(new URL('./pick-arrows-worker.mjs', import.meta.url)))
+const poolsFor = (jobs) => new Promise((resolve) => {
   const result = []
   let next = 0
-  let pending = specs.length
+  let pending = jobs.length
   const feed = (worker) => {
-    if (next >= specs.length) return
+    if (next >= jobs.length) return
     const id = next
     next += 1
-    worker.postMessage({ id, spec: specs[id], name: `level-${firstN + id}`, tries: CHAPTER_TRIES })
+    worker.postMessage({ id, ...jobs[id], tries: TRIES })
   }
   for (const worker of workers) {
     worker.on('message', ({ id, out }) => {
@@ -92,43 +48,66 @@ const chapterPools = (specs, firstN) => new Promise((resolve) => {
     feed(worker)
   }
 })
-const pct = (arr, p) => { const s = [...arr].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))] }
-// Resuming at a chapter start keeps every earlier seed, and the level before
-// it is the boss to beat.
-let boss = prev
-if (FIRST > 1) {
-  seeds.push(...ARROWS_LEVEL_SEEDS.slice(0, FIRST - 1))
-  boss = levelStats(getArrowsLevel(FIRST - 1))
-}
-for (let from = Math.max(FIRST - 1, ARROWS_GENERATED_LEVELS); from < ARROWS_LEVEL_SPECS.length; from += 10) {
-  const ch = await chapterPools(ARROWS_LEVEL_SPECS.slice(from, from + 10), from + 1)
-  // From level 61 some boards are shaped and shallower than a full rectangle,
-  // so depth may dip there; difficulty (which counts depth) still has to rise.
-  const deeper = (a, b) => from + 1 > DEPTH_FREE_FROM || a.layers >= b.layers
-  const feas = ch.map(() => new Set())
-  for (let p = ch.length - 1; p >= 0; p -= 1) {
-    for (const st of ch[p]) {
-      const ok = p === ch.length - 1
-        ? st.difficulty > boss.difficulty
-        : ch[p + 1].some((t) => feas[p + 1].has(t) && t.difficulty > st.difficulty && deeper(t, st))
-      if (ok) feas[p].add(st)
-    }
+
+const seeds = []
+const rows = []
+const belowFloor = []
+const notRising = []
+for (const [ci, chapter] of ARROWS_CHAPTERS.entries()) {
+  if (ONLY && !ONLY.includes(ci)) { seeds.push(...ARROWS_LEVEL_SEEDS.slice(chapter.from - 1, chapter.to)); continue }
+  const pieces = ARROWS_CHAPTERS.slice(0, ci + 1).map((c) => c.piece)
+  const jobs = Array.from({ length: 10 }, (_, k) => ({
+    spec: ARROWS_LEVEL_SPECS[chapter.from - 1 + k],
+    name: `level-${chapter.from + k}`,
+    // The first chapter has no new piece on its lesson board (level 1).
+    need: ci === 0 ? [] : k === 0 ? [chapter.piece] : pieces,
+  }))
+  const pools = await poolsFor(jobs)
+  if (pools.some((p) => !p.length)) {
+    pools.forEach((p, k) => { if (!p.length) console.log(`NONE: level ${chapter.from + k} has no valid seed in ${TRIES}`) })
+    throw new Error(`chapter ${chapter.name}: a level has no usable seed`)
   }
-  let last = null
-  ch.forEach((pool, p) => {
-    const target = pct(pool.map((st) => st.difficulty), p === 0 ? 0.3 : 0.45 + 0.055 * p)
-    let ok = pool.filter((st) => feas[p].has(st))
-    if (last) ok = ok.filter((st) => st.difficulty > last.difficulty && deeper(st, last))
-    if (!ok.length) {
-      const top = Math.max(...pool.map((st) => st.difficulty))
-      throw new Error(`level ${from + p + 1}: no seed fits the chapter (${pool.length} usable seeds, top difficulty ${top}, ${feas[p].size} can still reach the chapter boss, boss to beat ${boss.difficulty})`)
-    }
-    ok.sort((a, b) => Math.abs(a.difficulty - target) - Math.abs(b.difficulty - target))
-    last = ok[0]
-    seeds.push(last.seed)
-    console.log(`L${from + p + 1}`, JSON.stringify(last), `target ${target}`)
+  const lo = Math.min(...pools[0].map((s) => s.difficulty))
+  const hi = Math.max(...pools[9].map((s) => s.difficulty))
+  let prev = -Infinity
+  pools.forEach((pool, k) => {
+    const n = chapter.from + k
+    const target = lo + ((hi - lo) * k) / 9
+    const rising = pool.filter((s) => s.difficulty > prev)
+    const dist = (s) => Math.abs(s.difficulty - target)
+    const byTarget = (list) => list.slice().sort((a, b) => dist(a) - dist(b))[0]
+    const byCoverage = (list) => list.slice().sort((a, b) => b.coverage - a.coverage || dist(a) - dist(b))[0]
+    const solid = (list) => list.filter((s) => s.coverage >= FLOOR)
+    // Floor and rising first; then rising at the best coverage; then the floor
+    // alone; then the best coverage there is.
+    let pick
+    if (solid(rising).length) pick = byTarget(solid(rising))
+    else if (rising.length) pick = byCoverage(rising)
+    else if (solid(pool).length) pick = byTarget(solid(pool))
+    else pick = byCoverage(pool)
+    const isRising = pick.difficulty > prev
+    if (pick.coverage < FLOOR) belowFloor.push(n)
+    if (!isRising && k > 0) notRising.push(n)
+    prev = pick.difficulty
+    seeds.push(pick.seed)
+    const spec = ARROWS_LEVEL_SPECS[n - 1]
+    rows.push(`L${String(n).padStart(3)} ${chapter.name.padEnd(15)} ${String(spec.cols).padStart(2)}x${String(spec.rows).padEnd(2)} ${(spec.shape ?? '-').padEnd(9)} seed ${String(pick.seed).padStart(4)} pool ${String(pool.length).padStart(3)} arrows ${String(pick.arrows).padStart(3)} waves ${String(pick.layers).padStart(2)} diff ${String(pick.difficulty).padStart(5)} cover ${Math.round(100 * pick.coverage)}%${pick.coverage < FLOOR ? ' BELOW FLOOR' : ''}${!isRising && k > 0 ? ' NOT RISING' : ''}`)
+    if (pick.coverage < FLOOR) console.log(`warning: level ${n} covers ${Math.round(100 * pick.coverage)}% (floor ${Math.round(100 * FLOOR)}%), best of ${pool.length} valid seeds`)
   })
-  boss = last
+  console.log(rows.slice(-10).join('\n'))
 }
 for (const worker of workers) await worker.terminate()
-console.log(`\nexport const ARROWS_LEVEL_SEEDS = [${seeds.join(', ')}]`)
+
+const text = `[\n${Array.from({ length: 17 }, (_, i) => `  ${seeds.slice(i * 10, i * 10 + 10).join(', ')},`).join('\n')}\n]`
+console.log(`\nexport const ARROWS_LEVEL_SEEDS = ${text}`)
+console.log(`\n${seeds.length} levels, ${TRIES} seeds each, ${((Date.now() - started) / 1000).toFixed(0)} s`)
+console.log(`below the ${Math.round(100 * FLOOR)}% coverage floor: ${belowFloor.length ? belowFloor.join(', ') : 'none'}`)
+console.log(`not rising within the chapter: ${notRising.length ? notRising.join(', ') : 'none'}`)
+if (WRITE) {
+  const file = new URL('../src/lib/arrowsLevelsLogic.js', import.meta.url)
+  const src = fs.readFileSync(file, 'utf8')
+  const next = src.replace(/export const ARROWS_LEVEL_SEEDS = (\[[^\]]*\]|Array\.from\([^\n]*\))/, `export const ARROWS_LEVEL_SEEDS = ${text}`)
+  if (next === src) throw new Error('ARROWS_LEVEL_SEEDS not found')
+  fs.writeFileSync(file, next)
+  console.log('wrote ARROWS_LEVEL_SEEDS')
+}
