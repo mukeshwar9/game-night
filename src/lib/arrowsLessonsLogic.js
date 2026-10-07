@@ -19,6 +19,20 @@ import { applyArrowTap } from './arrowsLogic.js'
 /** @type {Lesson[]} In the order the campaign introduces them. */
 export const ARROWS_LESSONS = [
   {
+    kind: 'basics', level: 1, name: 'HOW ARROWS MOVE',
+    rule: 'TAP AN ARROW AND IT SLIDES OUT THE WAY IT POINTS. ANYTHING IN ITS PATH BLOCKS IT, AND A BLOCKED TAP COSTS A LIFE.',
+    board: { cols: 4, rows: 4, arrows: [
+      { cells: [[0, 1], [1, 1]], dir: 1 },
+      { cells: [[2, 2], [2, 1]], dir: 0 },
+      { cells: [[0, 3], [1, 3]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE TOP-LEFT ARROW', after: 'BLOCKED — AN ARROW SITS IN ITS PATH. IN A REAL LEVEL THAT COSTS A LIFE.' },
+      { tap: 1, say: 'CLEAR THE ARROW IN THE WAY', after: 'IT FLEW OUT UPWARD. THE PATH IS OPEN.' },
+      { tap: 0, say: 'NOW SEND THE FIRST ONE', after: 'CLEAR THE BOARD IN THE RIGHT ORDER. THAT IS THE WHOLE GAME.' },
+    ],
+  },
+  {
     kind: 'diag', level: 6, name: 'DIAGONAL ARROWS',
     rule: 'FLIES CORNER TO CORNER. ONLY CELLS ON ITS DIAGONAL BLOCK IT.',
     board: { cols: 4, rows: 4, arrows: [
@@ -159,7 +173,21 @@ export const ARROWS_LESSONS = [
     ],
   },
   {
-    kind: 'tunnel', level: 86, name: 'TUNNEL FLOORS',
+    kind: 'turning', level: 91, name: 'TURNING RINGS',
+    rule: 'A RING WITH A HOOK TURNS THE ARROW A QUARTER TURN CLOCKWISE AS IT COMES OUT OF THE OTHER RING.',
+    board: { cols: 5, rows: 5, portals: [{ a: [2, 0], b: [3, 2], c: 0, turn: true }], arrows: [
+      { cells: [[0, 0], [1, 0]], dir: 1 },
+      { cells: [[3, 3], [4, 3]], dir: 1 },
+      { cells: [[3, 0], [4, 0]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE ARROW AIMED AT THE HOOKED RING', after: 'BLOCKED — IT CAME OUT HEADING DOWN, NOT RIGHT.' },
+      { tap: 1, say: 'CLEAR THE ARROW BELOW THE OTHER RING', after: 'THE TURNED ROUTE IS OPEN.' },
+      { tap: 0, say: 'SEND IT', after: 'RIGHT INTO THE RING, DOWN OUT OF THE OTHER.' },
+    ],
+  },
+  {
+    kind: 'tunnel', level: 101, name: 'TUNNEL FLOORS',
     rule: 'A TUNNEL FLOOR LETS A PIECE CROSS ONLY THE WAY ITS CHEVRONS POINT. FROM ANY OTHER SIDE IT IS A SOLID WALL THAT NEVER MOVES.',
     board: { cols: 5, rows: 4, tunnels: [{ x: 2, y: 1, dir: 1 }], arrows: [
       { cells: [[0, 1], [1, 1]], dir: 1 },
@@ -173,17 +201,81 @@ export const ARROWS_LESSONS = [
     ],
   },
   {
-    kind: 'turning', level: 91, name: 'TURNING RINGS',
-    rule: 'A RING WITH A HOOK TURNS THE ARROW A QUARTER TURN CLOCKWISE AS IT COMES OUT OF THE OTHER RING.',
-    board: { cols: 5, rows: 5, portals: [{ a: [2, 0], b: [3, 2], c: 0, turn: true }], arrows: [
-      { cells: [[0, 0], [1, 0]], dir: 1 },
+    kind: 'diagmods', level: 111, name: 'DIAGONALS × PIECES',
+    rule: 'DIAGONALS GO THROUGH PORTALS KEEPING THEIR SLANT, SLIDE ALONG A MIRROR BAR THAT RUNS THEIR WAY, AND CROSS A SLANTED TUNNEL ITS WAY ONLY.',
+    board: { cols: 5, rows: 5, portals: [{ a: [2, 2], b: [3, 4], c: 0 }], arrows: [
+      { cells: [[0, 4], [1, 3]], dir: 4 },
       { cells: [[3, 3], [4, 3]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE DIAGONAL AIMED AT THE RING', after: 'BLOCKED — IT CAME OUT OF THE OTHER RING STILL SLANTED, INTO AN ARROW.' },
+      { tap: 1, say: 'CLEAR THE ARROW PAST THE OTHER RING', after: 'THE SLANTED ROUTE IS OPEN.' },
+      { tap: 0, say: 'SEND THE DIAGONAL', after: 'IN, OUT, SAME SLANT.' },
+    ],
+  },
+  {
+    kind: 'flat', level: 121, name: 'FLAT MIRRORS',
+    rule: 'A FLAT MIRROR BOUNCES A DIAGONAL LIKE A BALL OFF A WALL. A STRAIGHT ARROW ONLY RUNS ALONG IT.',
+    board: { cols: 5, rows: 5, mirrors: [{ x: 3, y: 1, m: '-' }], arrows: [
+      { cells: [[0, 4], [1, 3]], dir: 4 },
+      { cells: [[3, 2], [4, 2]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE DIAGONAL AIMED AT THE FLAT MIRROR', after: 'IT BOUNCED DOWN-RIGHT — INTO AN ARROW.' },
+      { tap: 1, say: 'CLEAR THE ARROW ON THE BOUNCE PATH', after: 'THE BOUNCE IS CLEAR.' },
+      { tap: 0, say: 'BOUNCE IT OUT', after: 'IN AT AN ANGLE, OUT AT THE MIRROR ANGLE.' },
+    ],
+  },
+  {
+    kind: 'bank', level: 131, name: 'BANK SHOTS',
+    rule: 'A ZIG-ZAG DIAGONAL BOUNCES OFF THE FIRST WALL IT HITS, THEN FLIES OUT. A CORNER SHOT LEAVES STRAIGHT AWAY.',
+    board: { cols: 5, rows: 5, arrows: [
+      { cells: [[1, 4], [2, 3]], dir: 4, twist: 'bank' },
+      { cells: [[2, 0], [3, 0]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE ZIG-ZAG DIAGONAL', after: 'IT HIT THE WALL, BOUNCED BACK — INTO AN ARROW.' },
+      { tap: 1, say: 'CLEAR THE ARROW ON THE BOUNCE', after: 'THE BANK SHOT IS OPEN.' },
+      { tap: 0, say: 'TAKE THE SHOT', after: 'ONE BOUNCE, THEN OUT.' },
+    ],
+  },
+  {
+    kind: 'glide', level: 141, name: 'GLIDERS',
+    rule: 'A RAILED DIAGONAL FLIES TO A WALL, THEN SLIDES ALONG THAT WALL AND OUT.',
+    board: { cols: 5, rows: 5, arrows: [
+      { cells: [[0, 2], [1, 1]], dir: 4, twist: 'glide' },
       { cells: [[3, 0], [4, 0]], dir: 1 },
     ] },
     steps: [
-      { tap: 0, say: 'TAP THE ARROW AIMED AT THE HOOKED RING', after: 'BLOCKED — IT CAME OUT HEADING DOWN, NOT RIGHT.' },
-      { tap: 1, say: 'CLEAR THE ARROW BELOW THE OTHER RING', after: 'THE TURNED ROUTE IS OPEN.' },
-      { tap: 0, say: 'SEND IT', after: 'RIGHT INTO THE RING, DOWN OUT OF THE OTHER.' },
+      { tap: 0, say: 'TAP THE RAILED DIAGONAL', after: 'IT REACHED THE WALL AND SLID ALONG IT — INTO AN ARROW.' },
+      { tap: 1, say: 'CLEAR THE ARROW ALONG THE WALL', after: 'THE RAIL IS CLEAR.' },
+      { tap: 0, say: 'LET IT GLIDE', after: 'TO THE WALL, ALONG IT, OUT.' },
+    ],
+  },
+  {
+    kind: 'elbow', level: 151, name: 'ELBOWS',
+    rule: 'AN ELBOW FLIES AS MANY CELLS AS ITS DOTS, TURNS THE WAY ITS HOOK CURLS, THEN FLIES OUT.',
+    board: { cols: 5, rows: 5, arrows: [
+      { cells: [[0, 4], [0, 3]], dir: 0, turn: 1, twist: 'elbow', n: 1 },
+      { cells: [[3, 2], [4, 2]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE ELBOW', after: 'ONE CELL UP, THEN IT TURNED — INTO AN ARROW.' },
+      { tap: 1, say: 'CLEAR THE ARROW AFTER THE TURN', after: 'THE TURNED PATH IS OPEN.' },
+      { tap: 0, say: 'SEND THE ELBOW', after: 'COUNT THE DOTS, THEN TURN.' },
+    ],
+  },
+  {
+    kind: 'swerve', level: 161, name: 'SWERVES',
+    rule: 'A SWERVE FLIES AS MANY CELLS AS ITS DOTS, JOGS ONE LANE THE WAY ITS KINK POINTS, THEN CARRIES ON.',
+    board: { cols: 5, rows: 5, arrows: [
+      { cells: [[0, 4], [0, 3]], dir: 0, turn: 1, twist: 'swerve', n: 1 },
+      { cells: [[0, 0], [1, 0]], dir: 1 },
+    ] },
+    steps: [
+      { tap: 0, say: 'TAP THE SWERVE', after: 'IT JOGGED ONE LANE OVER — INTO AN ARROW.' },
+      { tap: 1, say: 'CLEAR THE ARROW IN THE NEW LANE', after: 'THE NEW LANE IS CLEAR.' },
+      { tap: 0, say: 'SEND THE SWERVE', after: 'STRAIGHT, JOG, STRAIGHT.' },
     ],
   },
 ]

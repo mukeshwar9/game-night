@@ -1,16 +1,22 @@
 import { describe, it, expect } from 'vitest'
 import { ARROWS_ENDLESS_EXAMPLES, ARROWS_LESSONS, getLesson, lessonLevel, lessonTap } from './arrowsLessonsLogic'
-import { ARROWS_LEVEL_SPECS, ARROWS_TWIST_TIPS, twistsIn } from './arrowsLevelsLogic'
+import { ARROWS_TWIST_TIPS, twistsIn } from './arrowsLevelsLogic'
 import { arrowRoute, exitCheck, isDouble, isSleeper, solveArrows } from './arrowsLogic'
 
 describe('arrow lessons', () => {
-  it('covers every kind the campaign introduces, at the level that introduces it', () => {
-    const intros = ARROWS_LEVEL_SPECS.map((s, i) => s.intro && [s.intro, i + 1]).filter(Boolean)
-    expect(ARROWS_LESSONS.map((l) => [l.kind, l.level])).toEqual(intros)
+  it('lists every lesson in campaign order at the level that introduces it', () => {
+    expect(ARROWS_LESSONS.map((l) => [l.kind, l.level])).toEqual([
+      ['basics', 1], ['diag', 6], ['bend', 8], ['curve', 11], ['sleep', 21], ['double', 31], ['mirror', 41],
+      ['crate', 51], ['portal', 61], ['letters', 71], ['oneway', 81], ['turning', 91], ['tunnel', 101],
+      ['diagmods', 111], ['flat', 121], ['bank', 131], ['glide', 141], ['elbow', 151], ['swerve', 161],
+    ])
+    const levels = ARROWS_LESSONS.map((l) => l.level)
+    expect(levels).toEqual([...levels].sort((x, y) => x - y))
     for (const l of ARROWS_LESSONS) {
-      expect(ARROWS_TWIST_TIPS[l.kind]).toBeTruthy()
+      if (l.kind !== 'basics') expect(ARROWS_TWIST_TIPS[l.kind], l.kind).toBeTruthy()
       expect(l.steps).toHaveLength(3)
       expect(l.board.cols).toBeLessThanOrEqual(5)
+      expect(getLesson(l.kind)).toBe(l)
     }
     expect(getLesson('sleep').name).toBe('SLEEPING ARROWS')
     expect(getLesson('nope')).toBeNull()
@@ -24,6 +30,7 @@ describe('arrow lessons', () => {
       // show the wall: every other arrow clears.
       const stuck = lesson.kind === 'tunnel' ? 1 : 0
       expect(solveArrows(level).order, lesson.kind).toHaveLength(level.arrows.length - stuck)
+      for (const a of level.arrows) expect(a.cells.length, lesson.kind).toBeGreaterThan(1)
       let gone = Array(level.arrows.length).fill(false)
       const outcomes = lesson.steps.map((s, step) => {
         const r = lessonTap(lesson, level, gone, step, s.tap)
@@ -96,6 +103,16 @@ describe('arrow lessons', () => {
     expect(r).toMatchObject({ outcome: 'blocked', asleep: true, next: 1 })
     // A fresh lesson board never shares state with the lesson data.
     expect(lessonLevel(lesson).arrows).not.toBe(lesson.board.arrows)
+  })
+
+  it('the new twist lessons show their twist and their first tap is blocked by the other arrow', () => {
+    for (const kind of ['diagmods', 'flat', 'bank', 'glide', 'elbow', 'swerve']) {
+      const lesson = getLesson(kind)
+      const level = lessonLevel(lesson)
+      expect(twistsIn(level), kind).toContain(kind)
+      const r = lessonTap(lesson, level, Array(level.arrows.length).fill(false), 0, 0)
+      expect(r, kind).toMatchObject({ outcome: 'blocked', blocker: 1 })
+    }
   })
 
   it('every endless twist has an example whose one arrow really shows its twist, and a tip', () => {

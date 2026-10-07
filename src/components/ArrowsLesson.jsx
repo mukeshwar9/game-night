@@ -16,6 +16,9 @@ const SEC = cn(BTN, 'border border-retro-border text-retro-dim hover:border-retr
 // How long the result line stays up before the next step.
 const BLOCKED_PAUSE_MS = 1500
 const CLEARED_PAUSE_MS = 1300
+// After the last tap, arrows a lesson board keeps on purpose (the tunnel's wall
+// arrow) leave too, so the done card sits over a clear board.
+const SWEEP_DELAY_MS = 700
 
 export default function ArrowsLesson({ kind, onDone, doneLabel = 'PLAY', badge = null }) {
   const lesson = getLesson(kind)
@@ -30,13 +33,15 @@ export default function ArrowsLesson({ kind, onDone, doneLabel = 'PLAY', badge =
   const [attempt, setAttempt] = useState(0)
   const busy = useRef(false)
   const timer = useRef(0)
+  const sweep = useRef(0)
 
-  useEffect(() => () => clearTimeout(timer.current), [])
+  useEffect(() => () => { clearTimeout(timer.current); clearTimeout(sweep.current) }, [])
 
   if (!lesson || !level) return null
 
   const restart = () => {
     clearTimeout(timer.current)
+    clearTimeout(sweep.current)
     busy.current = false
     setLevel(lessonLevel(lesson))
     setGone(Array(lesson.board.arrows.length).fill(false))
@@ -69,6 +74,7 @@ export default function ArrowsLesson({ kind, onDone, doneLabel = 'PLAY', badge =
       if (r.next >= lesson.steps.length) {
         setScreen('done')
         sounds.win()
+        if (r.gone.some((g) => !g)) sweep.current = setTimeout(() => setGone(r.gone.map(() => true)), SWEEP_DELAY_MS)
       } else {
         setStep(r.next)
       }
