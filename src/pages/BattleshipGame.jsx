@@ -608,6 +608,7 @@ export default function BattleshipGame({
             lastCell={lastMyShot?.cell}
             onCell={handleShoot}
             disabled={!myTurn || pendingGrade || myShotPending || shooting || matchOver}
+            zoomable
             accent={me === 'X' ? 'p1' : 'p2'}
           />
           {/* Enemy silhouettes */}

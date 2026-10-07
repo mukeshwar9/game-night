@@ -219,6 +219,7 @@ export default function BattleshipDemo() {
             lastCell={playerShots[playerShots.length - 1]?.cell}
             onCell={handleShoot}
             disabled={!myTurn}
+            zoomable
             accent="p1"
           />
           <div className="flex flex-wrap gap-1.5 pt-1">

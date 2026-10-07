@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { HEX_SIZE, SWAP_ACTION, canHexSwap } from '../lib/hexLogic'
 import { cellLabel, columnLetter } from '../lib/a11yLabels'
 import useTapConfirm from '../hooks/useTapConfirm'
+import ZoomViewport from './ZoomViewport'
 
 const HEX_CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
 const CELL_W = 26
@@ -86,6 +87,7 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
     // The 11-wide rhombus scales with wrapper width, so reclaimed pixels go
     // straight into bigger, easier-to-tap cells.
     <div className="w-[calc(100%+1rem)] -mx-2 sm:w-full sm:mx-auto max-w-md">
+      <ZoomViewport label="Hex board">
       <div
         className={cn(
           'relative bg-retro-bg border-2 border-retro-border rounded transition duration-200',
@@ -196,6 +198,7 @@ export default function HexBoard({ board, onMove, disabled, winningLine = [], cu
           </div>
         </div>
       </div>
+      </ZoomViewport>
       {swapOpen && !disabled && (
         <div className="mt-2 flex flex-col items-center gap-1.5">
           <button

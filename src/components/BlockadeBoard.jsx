@@ -9,6 +9,7 @@ import {
   isWallMoveLegal,
 } from '../lib/blockadeLogic'
 import { cellLabel, coordLabel, joinLabel } from '../lib/a11yLabels'
+import ZoomViewport from './ZoomViewport'
 
 // Screen-reader name for a wall groove. An 'h' slot sits below row r across
 // columns c..c+1; a 'v' slot sits right of column c across rows r..r+1.
@@ -241,6 +242,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
 
   return (
     <div className="w-full max-w-md mx-auto">
+      <ZoomViewport label="Blockade board">
       <div
         className={cn(
           'bg-retro-surface border-2 rounded p-3 transition duration-200',
@@ -266,6 +268,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
           {wallEls}
         </div>
       </div>
+      </ZoomViewport>
 
       {/* Mode toggle */}
       <div className="mt-3 flex items-center justify-center gap-3">

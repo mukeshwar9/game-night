@@ -12,6 +12,7 @@ import { mineCellLabel } from '../lib/a11yLabels'
 import { sounds } from '../lib/sounds'
 import { haptic } from '../lib/haptics'
 import { cn } from '@/lib/utils'
+import ZoomViewport from '../components/ZoomViewport'
 
 // Mine Race — N-player race (2–8) on one identical seeded minefield.
 // Cleared racers rank by clear time, then racers still sweeping by cells
@@ -122,18 +123,22 @@ function MineCell({ i, board, revealed, flags, fatalCell, showMines, canAct, onT
   )
 }
 
-function Grid({ children, interactive }) {
+function Grid({ children, interactive, onGestureStart }) {
   // Fit-to-width: all 12 columns always show (a panning board hid the right
   // columns with no hint). On a phone the board breaks out of the page gutter
-  // so cells are ~28px; the dig/flag toggle below covers the small targets.
+  // so cells are ~28px; the dig/flag toggle below covers the small targets,
+  // and pinch / + zoom in when they are still too small. A drag or a pinch
+  // drops a pending long-press flag (onGestureStart).
   return (
     <div className="relative -mx-4 sm:mx-0">
-      <div
-        className={cn('grid gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border select-none mx-auto', !interactive && 'pointer-events-none')}
-        style={{ touchAction: 'manipulation', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', maxWidth: '32rem' }}
-      >
-        {children}
-      </div>
+      <ZoomViewport enabled={interactive} label="Mine field" onGestureStart={onGestureStart} className="mx-auto max-w-[32rem]">
+        <div
+          className={cn('grid gap-[2px] bg-retro-deep p-[3px] rounded border border-retro-border select-none mx-auto', !interactive && 'pointer-events-none')}
+          style={{ touchAction: 'manipulation', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', maxWidth: '32rem' }}
+        >
+          {children}
+        </div>
+      </ZoomViewport>
     </div>
   )
 }
@@ -253,7 +258,7 @@ function MinesRacer({ gameId, round, myStats, statsPath }) {
   return (
     <div className="space-y-2">
       <div className="relative">
-        <Grid interactive>
+        <Grid interactive onGestureStart={cancelPress}>
           {board && Array.from({ length: CELL_COUNT }, (_, i) => (
             <MineCell
               key={i} i={i} board={board} revealed={revealed} flags={flags}

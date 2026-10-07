@@ -34,10 +34,13 @@ import {
 // own taps). A DOM grid leaves it off so its buttons still get their clicks;
 // `onClickCapture` then swallows the click that ends a drag or a pinch.
 //
+// `onGestureStart` fires once when a press turns into a drag or a pinch, so a
+// board can drop what the press had started (Mine Race's long-press flag).
+//
 // `wheel`: 'always' zooms on every wheel turn over the view (Arrows), 'zoomed'
 // lets a plain wheel scroll the page until the board is zoomed in (a trackpad
 // pinch, which arrives with ctrlKey, always zooms).
-export default function useBoardCamera({ fit, enabled = true, viewRef, onTap, capture = true, wheel = 'always', doubleTap = true }) {
+export default function useBoardCamera({ fit, enabled = true, viewRef, onTap, onGestureStart, capture = true, wheel = 'always', doubleTap = true }) {
   const [cam, setCam] = useState(fit)
   const camRef = useRef(fit)
   const pointers = useRef(new Map())
@@ -77,6 +80,7 @@ export default function useBoardCamera({ fit, enabled = true, viewRef, onTap, ca
       gesture.current = { start: { x: e.clientX, y: e.clientY }, moved: false, multi: false }
       swallowClick.current = false
     } else if (gesture.current) {
+      if (!gesture.current.multi && !gesture.current.moved) onGestureStart?.()
       gesture.current.multi = true
     }
   }
@@ -91,7 +95,10 @@ export default function useBoardCamera({ fit, enabled = true, viewRef, onTap, ca
         applyCam((c) => pinchStep(c, fit, [local(prev.x, prev.y), local(other.x, other.y)], [local(next.x, next.y), local(other.x, other.y)], viewPx()))
       }
     } else if (gesture.current && pointers.current.size === 1) {
-      if (!gesture.current.moved && !isTap(gesture.current.start, next)) gesture.current.moved = true
+      if (!gesture.current.moved && !isTap(gesture.current.start, next)) {
+        gesture.current.moved = true
+        if (!gesture.current.multi) onGestureStart?.()
+      }
       if (gesture.current.moved) {
         applyCam((c) => panByScreen(c, fit, next.x - prev.x, next.y - prev.y, viewPx()))
       }

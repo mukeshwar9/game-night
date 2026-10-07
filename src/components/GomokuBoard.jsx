@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { GOMOKU_SIZE, SWAP_ACTION, canGomokuSwap } from '../lib/gomokuLogic'
 import { cellLabel, columnLetter } from '../lib/a11yLabels'
+import ZoomViewport from './ZoomViewport'
 
 // Fit-to-width: the whole 15×15 board is always visible (five-in-a-row is
 // about reading long lines — a horizontally scrolling board hid half of it).
 // Cells get small on phones (~21px at 360), so placement is two-tap: the
 // first tap drops a ghost stone, a second tap on it confirms. A mouse keeps
-// single-click placement.
+// single-click placement. Pinch, the wheel or + zoom in for bigger cells.
 const isCoarse = () => {
   try { return window.matchMedia('(pointer: coarse)').matches } catch { return false }
 }
@@ -26,6 +27,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
   }
   return (
     <div className="w-full max-w-sm mx-auto">
+      <ZoomViewport label="Gomoku board">
       <div
         className={cn(
           'relative bg-retro-surface border-2 border-retro-border rounded transition duration-200',
@@ -97,6 +99,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
           </div>
         </div>
       </div>
+      </ZoomViewport>
       <p className="mt-1.5 text-center font-pixel text-[8px] text-retro-dim tracking-wider" aria-live="polite">
         {/* the finger hides the ghost stone, so say where it is */}
         {pendingLive != null ? `TAP AGAIN TO PLACE · ${columnLetter(pendingLive % GOMOKU_SIZE)}${Math.floor(pendingLive / GOMOKU_SIZE) + 1}` : '\u00a0'}

@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import { joinLabel } from '../lib/a11yLabels'
+import ZoomViewport from './ZoomViewport'
 
 // One 10×10 grid, reused for both views:
 //  - YOUR WATERS: fleetCells set → ships visible; incoming shots land here.
@@ -65,6 +66,7 @@ export default function BattleshipBoard({
   accent = 'p1',       // hit-marker accent: shooter's color
   preview = null,      // { cells: number[], valid: boolean } | null — hover placement preview
   onHoverCell,         // (cellOrNull) => void — placement-phase hover only
+  zoomable = false,    // drag / pinch / + zoom (the firing grid)
 }) {
   const accentText = accent === 'p1' ? 'text-retro-p1' : 'text-retro-p2'
   const accentBg = accent === 'p1' ? 'bg-retro-tint-p1' : 'bg-retro-tint-p2'
@@ -72,6 +74,7 @@ export default function BattleshipBoard({
   const previewValid = preview?.valid ?? false
 
   return (
+    <ZoomViewport enabled={zoomable} label="Targeting grid">
     <div
       className="w-full"
       onMouseLeave={() => onHoverCell?.(null)}
@@ -146,5 +149,6 @@ export default function BattleshipBoard({
         </div>
       ))}
     </div>
+    </ZoomViewport>
   )
 }

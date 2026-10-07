@@ -7,6 +7,7 @@ import { mineCellLabel } from '../lib/a11yLabels'
 import { sounds } from '../lib/sounds'
 import { haptic } from '../lib/haptics'
 import { cn } from '@/lib/utils'
+import ZoomViewport from '../components/ZoomViewport'
 
 // Solo minesweeper — the MINE RACE board with no opponent. Best time per
 // difficulty lives in localStorage. Same theme-token number palette as the
@@ -150,6 +151,7 @@ export default function MineRaceDemo() {
       )}
 
       <div className="relative mx-auto" style={{ width: 'min(100%, 32rem)' }}>
+        <ZoomViewport label="Mine field" onGestureStart={cancelPress}>
         <div className="grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' }}>
           {Array.from({ length: CELL_COUNT }, (_, cell) => {
             const isRevealed = revealed.has(cell)
@@ -196,6 +198,7 @@ export default function MineRaceDemo() {
             )
           })}
         </div>
+        </ZoomViewport>
 
         {(dead || done) && (
           <div className="absolute inset-0 flex items-center justify-center bg-retro-bg/85 rounded">
