@@ -20,7 +20,7 @@ export default function DailyTile() {
   return (
     <Link
       to="/daily"
-      className="group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
+      className="glass glass-tx group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
         hover:border-retro-cta/50 transition-colors press-card"
     >
       <span className="flex-1 min-w-0">
@@ -48,7 +48,7 @@ export function DailyMemoryTile() {
   return (
     <Link
       to="/daily/memory"
-      className="group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
+      className="glass glass-tx group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
         hover:border-retro-cta/50 transition-colors press-card"
     >
       <span className="flex-1 min-w-0">

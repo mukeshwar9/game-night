@@ -34,7 +34,7 @@ function ActionRow({ to, title, detail, action }) {
   return (
     <Link
       to={to}
-      className="group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
+      className="glass glass-tx group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
         hover:border-retro-cta/50 transition-colors press-card"
     >
       <span className="flex-1 min-w-0">
@@ -191,13 +191,13 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-2 mt-2">
             <Link
               to="/demo"
-              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press-card"
+              className="glass glass-tx min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press-card"
             >
               PLAY SOLO
             </Link>
             <button
               onClick={() => setJoinOpen(true)}
-              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press-card"
+              className="glass glass-tx min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press-card"
             >
               JOIN ROOM
             </button>

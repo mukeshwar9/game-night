@@ -984,6 +984,7 @@
   --g-alpha-sheet:  .50;
   --g-blur:         2px;
   --g-blur-sheet:   12px;
+  --g-blur-bar:     6px;
   --g-sat:          1.8;
   --g-rim-a:        .85;
   --g-spec:         1;
@@ -1046,6 +1047,7 @@
   --g-alpha-sheet:  .58;
   --g-blur:         2px;
   --g-blur-sheet:   12px;
+  --g-blur-bar:     6px;
   --g-sat:          1.8;
   --g-rim-a:        .45;
   --g-spec:         .55;
@@ -3195,6 +3197,16 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
 :root[data-glass-lens="on"] :is(.glass, .glass-tx)[data-lens] {
   -webkit-backdrop-filter: var(--lens, blur(var(--g-blur))) saturate(var(--g-sat));
   backdrop-filter: var(--lens, blur(var(--g-blur))) saturate(var(--g-sat));
+}
+/* The floating bars have page content scrolling under them, so they carry a
+   little more frost than a tile (--g-blur-bar) and bend the art on top of it. */
+[data-theme^="glass"] .glass-bar {
+  -webkit-backdrop-filter: blur(var(--g-blur-bar)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur-bar)) saturate(var(--g-sat));
+}
+:root[data-glass-lens="on"] .glass-bar[data-lens] {
+  -webkit-backdrop-filter: blur(var(--g-blur-bar)) var(--lens, blur(0px)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur-bar)) var(--lens, blur(0px)) saturate(var(--g-sat));
 }
 /* A sheet keeps its heavy frost and bends the art at the rim on top of it. */
 :root[data-glass-lens="on"] .glass-sheet[data-lens] {
