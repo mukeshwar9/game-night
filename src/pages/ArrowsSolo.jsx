@@ -240,6 +240,29 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
 
   const potential = starsFor({ mistakes, hints })
 
+  // The result panel lies over the board, inline or in full screen.
+  const resultPanel = result && (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-retro-bg/85 rounded-lg px-4 text-center">
+      {result.stars > 0 ? (
+        <>
+          <p className="font-pixel text-sm text-retro-win text-glow-win">BOARD CLEAR!</p>
+          <Stars n={result.stars} size="lg" />
+          <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
+            {mistakes === 0 ? 'NO MISTAKES' : `${mistakes} MISTAKE${mistakes > 1 ? 'S' : ''}`}
+            {hints > 0 ? ` · ${hints} HINT${hints > 1 ? 'S' : ''}` : ''}
+          </p>
+        </>
+      ) : (
+        <p className="font-pixel text-sm text-retro-dim">OUT OF LIVES</p>
+      )}
+      <div className="flex flex-wrap justify-center gap-2">
+        {result.stars > 0 && next && <button onClick={next.onClick} className={CTA}>{next.label}</button>}
+        <button onClick={onRestart} className={result.stars > 0 && next ? SEC : CTA}>{result.stars > 0 ? 'REPLAY' : 'RETRY'}</button>
+        <button onClick={onBack} className={SEC}>{backLabel}</button>
+      </div>
+    </div>
+  )
+
   return (
     <div className="space-y-2.5">
       <div className="flex items-center justify-between gap-2">
@@ -285,28 +308,18 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
           feedback={feedback}
           hint={hint}
           label={`${title} board, ${total - countGone(gone)} arrows left`}
-        />
-        {result && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-retro-bg/85 rounded-lg px-4 text-center">
-            {result.stars > 0 ? (
-              <>
-                <p className="font-pixel text-sm text-retro-win text-glow-win">BOARD CLEAR!</p>
-                <Stars n={result.stars} size="lg" />
-                <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
-                  {mistakes === 0 ? 'NO MISTAKES' : `${mistakes} MISTAKE${mistakes > 1 ? 'S' : ''}`}
-                  {hints > 0 ? ` · ${hints} HINT${hints > 1 ? 'S' : ''}` : ''}
-                </p>
-              </>
-            ) : (
-              <p className="font-pixel text-sm text-retro-dim">OUT OF LIVES</p>
-            )}
-            <div className="flex flex-wrap justify-center gap-2">
-              {result.stars > 0 && next && <button onClick={next.onClick} className={CTA}>{next.label}</button>}
-              <button onClick={onRestart} className={result.stars > 0 && next ? SEC : CTA}>{result.stars > 0 ? 'REPLAY' : 'RETRY'}</button>
-              <button onClick={onBack} className={SEC}>{backLabel}</button>
+          focusable
+          focusHud={(
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="min-w-0 truncate font-pixel text-[8px] text-retro-text">{title.split(' /')[0]}</span>
+              <span className="font-pixel text-[8px] text-retro-dim tabular-nums">{countGone(gone)}/{total}</span>
+              <Lives n={lives} size="sm" />
+              <button onClick={showHint} disabled={!!result} className={cn(SEC, 'ml-auto min-h-9 px-2 py-1 text-[8px]')}>HINT</button>
             </div>
-          </div>
-        )}
+          )}
+          focusOverlay={resultPanel || null}
+        />
+        {result && resultPanel}
       </div>
       <p className="sr-only" aria-live="polite">
         {result ? (result.stars > 0 ? `Board clear, ${result.stars} stars.` : 'Out of lives.') : `${countGone(gone)} of ${total} cleared, ${lives} lives.`}

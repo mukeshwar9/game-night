@@ -5,6 +5,8 @@ import {
   clampCamera,
   doubleTapCamera,
   fitCamera,
+  focusFitCamera,
+  ZOOM_STEP,
   inView,
   isDoubleTap,
   isTap,
@@ -159,5 +161,40 @@ describe('arrows camera', () => {
     expect(keyPan(z, 'ArrowLeft')).toEqual([-z.w / 5, 0])
     expect(keyPan(z, 'ArrowDown')).toEqual([0, z.w / 5])
     expect(keyPan(z, 'x')).toBeNull()
+  })
+})
+
+describe('focusFitCamera', () => {
+  it('matches the stage shape and keeps the whole board centred inside', () => {
+    // A 100 × 130 board (pad 2) on a tall phone stage: width fits, height grows.
+    const tall = focusFitCamera(100, 130, 2, 360, 720)
+    expect(tall.w / tall.h).toBeCloseTo(360 / 720)
+    expect(tall).toMatchObject({ x: -2, w: 104 })
+    expect(tall.y).toBeCloseTo(-2 - (208 - 134) / 2)
+    // On a wide stage the height fits and the width grows.
+    const wide = focusFitCamera(100, 130, 2, 1000, 500)
+    expect(wide.w / wide.h).toBeCloseTo(2)
+    expect(wide).toMatchObject({ y: -2, h: 134 })
+    expect(wide.x + wide.w / 2).toBeCloseTo(50)
+    // The board (padding included) always fits inside.
+    for (const cam of [tall, wide]) {
+      expect(cam.x).toBeLessThanOrEqual(-2)
+      expect(cam.y).toBeLessThanOrEqual(-2)
+      expect(cam.x + cam.w).toBeGreaterThanOrEqual(102)
+      expect(cam.y + cam.h).toBeGreaterThanOrEqual(132)
+    }
+  })
+
+  it('falls back to the plain fit before the stage is measured', () => {
+    expect(focusFitCamera(100, 130, 2, 0, 0)).toEqual(fitCamera(100, 130, 2))
+  })
+
+  it('zooming and panning stay inside the full-screen fit', () => {
+    const fit = focusFitCamera(100, 130, 2, 360, 720)
+    const cam = stepZoom(fit, fit, 1)
+    expect(zoomOf(cam, fit)).toBeCloseTo(ZOOM_STEP)
+    const moved = panBy(cam, fit, 1000, 1000)
+    expect(moved.x + moved.w).toBeCloseTo(fit.x + fit.w)
+    expect(moved.y + moved.h).toBeCloseTo(fit.y + fit.h)
   })
 })

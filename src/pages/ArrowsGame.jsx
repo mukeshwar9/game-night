@@ -4,7 +4,7 @@ import { db } from '../lib/firebase'
 import GameSwitcher from '../components/GameSwitcher'
 import GameStatus from '../components/GameStatus'
 import ArrowsBoard from '../components/ArrowsBoard'
-import { RaceRow } from '../components/ArrowsHud'
+import { Lives, RaceRow } from '../components/ArrowsHud'
 import ArrowsDifficultyPicker from '../components/ArrowsDifficultyPicker'
 import {
   generateArrowsLevel,
@@ -347,6 +347,16 @@ export default function ArrowsGame({
           onTap={handleTap}
           interactive={isRacing && myLives > 0}
           feedback={feedback}
+          focusable
+          focusHud={(
+            <div className="flex items-center gap-2 min-w-0 font-pixel text-[8px] text-retro-dim tabular-nums">
+              <span>R{round + 1}/{ARROWS_MAX_ROUNDS}</span>
+              <span className={me === 'X' ? 'text-retro-p1' : 'text-retro-p2'}>YOU {counts[me]}/{total}</span>
+              <Lives n={lives[me]} size="sm" />
+              <span className="min-w-0 truncate">· {playerName(game, me === 'X' ? 'O' : 'X')} {counts[me === 'X' ? 'O' : 'X']}/{total}</span>
+            </div>
+          )}
+          focusOverlay={preRace}
         />
         {preRace}
       </div>

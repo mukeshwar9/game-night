@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ArrowsBoard from '../components/ArrowsBoard'
-import { RaceRow } from '../components/ArrowsHud'
+import { Lives, RaceRow } from '../components/ArrowsHud'
 import {
   generateArrowsLevel,
   applyArrowTap,
@@ -93,6 +93,24 @@ export default function ArrowsDemo() {
     streak.current += 1
   }
 
+  // The end panel lies over the board, inline or in full screen.
+  const winnerPanel = winner && (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-retro-bg/80 rounded-lg">
+      <p className={cn(
+        'font-pixel text-sm',
+        winner === 'X' ? 'text-retro-win text-glow-win' : 'text-retro-dim',
+      )}>
+        {winner === 'X' ? 'BOARD CLEAR!' : lives <= 0 ? 'OUT OF LIVES' : winner === 'draw' ? 'DRAW' : 'BOT CLEARED FIRST'}
+      </p>
+      <button
+        onClick={() => reset()}
+        className="px-5 py-2.5 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta press"
+      >
+        NEW BOARD
+      </button>
+    </div>
+  )
+
   return (
     <div className="space-y-3">
       <div className="flex justify-center gap-2">
@@ -126,23 +144,17 @@ export default function ArrowsDemo() {
           onTap={handleTap}
           interactive={!winner}
           feedback={feedback}
+          focusable
+          focusHud={(
+            <div className="flex items-center gap-2 font-pixel text-[8px] text-retro-dim tabular-nums">
+              <span className="text-retro-p1">YOU {countGone(gone)}/{total}</span>
+              <Lives n={lives} size="sm" />
+              <span className="text-retro-p2">· BOT {countGone(bot.gone)}/{total}</span>
+            </div>
+          )}
+          focusOverlay={winnerPanel}
         />
-        {winner && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-retro-bg/80 rounded-lg">
-            <p className={cn(
-              'font-pixel text-sm',
-              winner === 'X' ? 'text-retro-win text-glow-win' : 'text-retro-dim',
-            )}>
-              {winner === 'X' ? 'BOARD CLEAR!' : lives <= 0 ? 'OUT OF LIVES' : winner === 'draw' ? 'DRAW' : 'BOT CLEARED FIRST'}
-            </p>
-            <button
-              onClick={() => reset()}
-              className="px-5 py-2.5 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta press"
-            >
-              NEW BOARD
-            </button>
-          </div>
-        )}
+        {winnerPanel}
       </div>
     </div>
   )

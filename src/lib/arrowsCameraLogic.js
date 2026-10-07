@@ -37,6 +37,24 @@ export function fitCamera(width, height, pad = 0) {
   return { x: 0 - pad, y: 0 - pad, w: width + pad * 2, h: height + pad * 2 }
 }
 
+/**
+ * Full-screen fit: the whole board (with `pad`) centred in a camera shaped
+ * like the stage (`stageW` × `stageH` px), so the SVG can fill the stage. The
+ * spare length on the long side is empty margin; every other camera function
+ * treats it as the board's fit like any other.
+ */
+export function focusFitCamera(width, height, pad, stageW, stageH) {
+  const base = fitCamera(width, height, pad)
+  if (!(stageW > 0) || !(stageH > 0)) return base
+  const aspect = stageW / stageH
+  if (base.w / base.h < aspect) {
+    const w = base.h * aspect
+    return { x: base.x - (w - base.w) / 2, y: base.y, w, h: base.h }
+  }
+  const h = base.w / aspect
+  return { x: base.x, y: base.y - (h - base.h) / 2, w: base.w, h }
+}
+
 /** Zoom of `cam` relative to `fit` (1 = the whole board). */
 export function zoomOf(cam, fit) {
   return fit.w / cam.w

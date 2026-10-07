@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ARROWS_DIRS,
   ARROWS_DIR_NAMES,
@@ -23,6 +24,7 @@ import {
 import {
   doubleTapCamera,
   fitCamera,
+  focusFitCamera,
   isDoubleTap,
   isTap,
   keyPan,
@@ -340,6 +342,20 @@ function bumpTravel(elapsed, gap, arrow) {
 // arrow when the pointer comes up (not down, so a drag never sends one). A
 // smaller board, zoomable or not, has no camera and works exactly as it
 // always did.
+// `focusable`: a FULL SCREEN button opens the board over the whole viewport
+// (a fixed, safe-area padded stage; the page behind stops scrolling) with
+// drag and zoom on any size and the board as large as the screen allows.
+// `focusHud` is the slim header shown there (title, lives, progress) and
+// `focusOverlay` anything the page lays over the board (the result panel).
+// Esc, the browser/phone back button or EXIT leave it; a board that replaces
+// this one straight away (next level, restart) opens in full screen too. Where the browser has a
+// Fullscreen API (Android, desktop) the entering tap also asks for real
+// full screen; leaving that (e.g. Android back) leaves the stage too. iPhone
+// gets the CSS stage alone, which is the whole layout either way.
+// Full screen carries over to the board that replaces this one (see below).
+let focusCarry = false
+let focusLive = 0
+
 export default function ArrowsBoard({
   level,
   gone,
@@ -351,6 +367,9 @@ export default function ArrowsBoard({
   preview = -1,
   compact = false,
   zoomable = false,
+  focusable = false,
+  focusHud = null,
+  focusOverlay = null,
   label,
 }) {
   const svgRef = useRef(null)
@@ -370,10 +389,18 @@ export default function ArrowsBoard({
   const height = level.rows * CELL
   const bounds = { minX: -CELL, minY: -CELL, maxX: width + CELL, maxY: height + CELL }
 
-  // Camera (big boards only): the viewBox follows `cam`; camRef mirrors it so
-  // gesture handlers always read the latest one.
-  const camOn = zoomable && needsCamera(level)
-  const fit = useMemo(() => fitCamera(width, height, PAD), [width, height])
+  // Full screen: the stage's size (px) shapes the fit so the board fills it.
+  const [focused, setFocused] = useState(() => focusable && focusCarry)
+  const [focusBox, setFocusBox] = useState(null)
+  const boxRef = useRef(null)
+
+  // Camera (big boards, or any board in full screen): the viewBox follows
+  // `cam`; camRef mirrors it so gesture handlers always read the latest one.
+  const camOn = (zoomable && needsCamera(level)) || focused
+  const fit = useMemo(
+    () => (focused && focusBox ? focusFitCamera(width, height, PAD, focusBox.w, focusBox.h) : fitCamera(width, height, PAD)),
+    [width, height, focused, focusBox],
+  )
   const [cam, setCam] = useState(fit)
   const camRef = useRef(fit)
   const pointers = useRef(new Map())
@@ -386,6 +413,90 @@ export default function ArrowsBoard({
   }
   const zoom = zoomOf(cam, fit)
   const voids = useMemo(() => voidSet(level), [level])
+
+  // A new fit (entering or leaving full screen, a rotated phone) starts the
+  // camera over from the whole board.
+  const [camFit, setCamFit] = useState(fit)
+  if (camFit !== fit) {
+    setCamFit(fit)
+    setCam(fit)
+  }
+  useEffect(() => { camRef.current = cam }, [cam])
+
+  // Track the full-screen stage's size (the observer reports it on start).
+  useEffect(() => {
+    if (!focused) return undefined
+    const el = boxRef.current
+    if (!el) return undefined
+    const measure = () => setFocusBox({ w: el.clientWidth, h: el.clientHeight })
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [focused])
+
+  // Entering pushes a history entry so the back button leaves full screen
+  // instead of the page; it also asks for real full screen where the browser
+  // has it (inside the tap, which the Fullscreen API requires).
+  const enterFocus = () => {
+    setFocused(true)
+    focusCarry = true
+    try { window.history.pushState({ ...(window.history.state ?? {}), arrowsFocus: true }, '') } catch { /* sandboxed */ }
+    const root = document.documentElement
+    if (root.requestFullscreen && !document.fullscreenElement) {
+      root.requestFullscreen({ navigationUI: 'hide' }).catch(() => {})
+    }
+  }
+  const leaveFocus = useCallback(() => {
+    focusCarry = false
+    setFocused(false)
+    setFocusBox(null)
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
+    if (window.history.state?.arrowsFocus) window.history.back()
+  }, [])
+
+  useEffect(() => {
+    if (!focused) return undefined
+    // The page behind stops scrolling while the stage owns the viewport.
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => { if (e.key === 'Escape') leaveFocus() }
+    // Back (browser or phone) already popped our entry: just close.
+    const onPop = () => {
+      focusCarry = false
+      setFocused(false)
+      setFocusBox(null)
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
+    }
+    // Leaving real full screen (Android back, Esc in a desktop browser)
+    // leaves the stage too.
+    let wasFull = !!document.fullscreenElement
+    const onFull = () => {
+      if (document.fullscreenElement) { wasFull = true; return }
+      if (wasFull) leaveFocus()
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('popstate', onPop)
+    document.addEventListener('fullscreenchange', onFull)
+    focusLive += 1
+    return () => {
+      focusLive -= 1
+      // Unmounted while still in full screen: if no board takes over in a
+      // moment (the page moved on to a menu), let the real full screen and
+      // our history entry go.
+      if (focusCarry) {
+        setTimeout(() => {
+          if (focusLive > 0 || !focusCarry) return
+          focusCarry = false
+          if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
+          if (window.history.state?.arrowsFocus) window.history.back()
+        }, 400)
+      }
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('popstate', onPop)
+      document.removeEventListener('fullscreenchange', onFull)
+    }
+  }, [focused, leaveFocus])
 
   // Bring a spot (a blocker, a hinted arrow) into view if it is off-screen.
   const reveal = (cells) => {
@@ -705,22 +816,24 @@ export default function ArrowsBoard({
   const view = camOn ? cam : fit
   const zoomBtn = 'min-h-9 min-w-9 px-2 font-pixel text-[9px] rounded border border-retro-border text-retro-dim hover:border-retro-cta/50 hover:text-retro-text transition press disabled:opacity-40 disabled:pointer-events-none'
 
-  return (
+  const board = (
     <div
       ref={stageRef}
       className={cn(
         'arrows-stage w-full bg-retro-surface border-2 border-retro-border rounded-lg overflow-hidden',
         compact && 'border',
         camOn && 'outline-none focus-visible:ring-2 focus-visible:ring-retro-cta',
+        focused && 'h-full flex flex-col',
       )}
       tabIndex={camOn ? 0 : undefined}
       aria-keyshortcuts={camOn ? '+ - 0 ArrowLeft ArrowRight ArrowUp ArrowDown' : undefined}
       onKeyDown={camOn ? handleKeyDown : undefined}
     >
+      <div ref={boxRef} className={cn(focused && 'flex-1 min-h-0')}>
       <svg
         ref={svgRef}
         viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
-        className="arrows-svg block w-full h-auto select-none"
+        className={cn('arrows-svg block w-full select-none', focused ? 'h-full' : 'h-auto')}
         style={{ touchAction: camOn ? 'none' : 'manipulation' }}
         role="group"
         aria-label={label ?? `Arrows board, ${level.arrows.length - hidden.size} arrows left`}
@@ -902,20 +1015,57 @@ export default function ArrowsBoard({
           })}
         </g>
       </svg>
-      {camOn && (
+      </div>
+      {(camOn || (focusable && !focused)) && (
         // Outside the board so the buttons never cover a ring or an arrow.
         <div className="flex items-center justify-between gap-2 px-2 py-1 border-t border-retro-border/60">
-          <span className="font-pixel text-[7px] text-retro-dim leading-relaxed" aria-hidden="true">
-            {zoom <= 1.02 ? 'DRAG TO MOVE · PINCH TO ZOOM' : `${zoom.toFixed(1)}× · DRAG TO MOVE`}
-          </span>
+          {camOn ? (
+            <span className="min-w-0 font-pixel text-[7px] text-retro-dim leading-relaxed" aria-hidden="true">
+              {zoom <= 1.02 ? 'DRAG TO MOVE · PINCH TO ZOOM' : `${zoom.toFixed(1)}× · DRAG TO MOVE`}
+            </span>
+          ) : <span />}
           <div className="flex gap-1.5">
-            <button type="button" className={zoomBtn} aria-label="Zoom out" disabled={zoom <= 1.02} onClick={() => applyCam((c) => stepZoom(c, fit, -1))}>−</button>
-            <button type="button" className={zoomBtn} aria-label="Fit the whole board" disabled={zoom <= 1.02} onClick={() => applyCam(fit)}>FIT</button>
-            <button type="button" className={zoomBtn} aria-label="Zoom in" disabled={zoom >= MAX_ZOOM - 0.02} onClick={() => applyCam((c) => stepZoom(c, fit, 1))}>+</button>
+            {focusable && !focused && (
+              <button type="button" className={cn(zoomBtn, 'flex items-center justify-center')} aria-label="Play full screen" title="Full screen" onClick={enterFocus}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" aria-hidden="true">
+                  <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+                </svg>
+              </button>
+            )}
+            {camOn && (
+              <>
+                <button type="button" className={zoomBtn} aria-label="Zoom out" disabled={zoom <= 1.02} onClick={() => applyCam((c) => stepZoom(c, fit, -1))}>−</button>
+                <button type="button" className={zoomBtn} aria-label="Fit the whole board" disabled={zoom <= 1.02} onClick={() => applyCam(fit)}>FIT</button>
+                <button type="button" className={zoomBtn} aria-label="Zoom in" disabled={zoom >= MAX_ZOOM - 0.02} onClick={() => applyCam((c) => stepZoom(c, fit, 1))}>+</button>
+              </>
+            )}
           </div>
         </div>
       )}
     </div>
+  )
+
+  if (!focused) return board
+  // Full screen: a fixed stage over everything (portalled to <body> so no
+  // transformed ancestor can trap it), safe-area padded, 100dvh tall.
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Arrows, full screen"
+      className="arrows-focus fixed inset-0 z-50 flex flex-col gap-2 bg-retro-bg px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]"
+      style={{ height: '100dvh' }}
+    >
+      <div className="flex items-center gap-2 min-h-9">
+        <div className="flex-1 min-w-0">{focusHud}</div>
+        <button type="button" className={zoomBtn} aria-label="Leave full screen" onClick={leaveFocus}>EXIT</button>
+      </div>
+      <div className="relative flex-1 min-h-0">
+        {board}
+        {focusOverlay}
+      </div>
+    </div>,
+    document.body,
   )
 }
 
