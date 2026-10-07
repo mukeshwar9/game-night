@@ -11,7 +11,7 @@ const ART_TYPES = new Set([
   'simon', 'chimp', 'numbermemory', 'reaction', 'aim', 'typing', 'math', 'arrows', 'updraft',
   'pong', 'snake', 'tron', 'sumo', 'spaceduel', 'paint', 'pacmac', 'visualmemory', 'gomoku',
   'reversi', 'chainreaction', 'blockade', 'orderchaos', 'dice', 'hex', 'minesweeper', 'herd',
-  'trivia', 'battleship', 'mancala', 'checkers', 'airhockey', 'artillery', 'animalstack',
+  'trivia', 'battleship', 'mancala', 'checkers', 'airhockey', 'artillery', 'animalstack', 'birdseye',
   'wirecrossed', 'twotruths', 'bluff', 'lanterns', 'docking', 'wavelength', 'fibbage',
   'spyfair', 'headsup', 'chameleon', 'wordduel', 'wordcoop', 'converge', 'wordrace',
   'wordhunt', 'password', 'anagrams', 'hunch', 'pairs', 'sketch', 'codewords', 'justone',

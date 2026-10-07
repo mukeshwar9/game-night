@@ -363,6 +363,19 @@ export const GAME_RULES = {
     win: 'Lowest total over the course wins. A shared lowest total is a tie.',
   },
 
+  birdseye: {
+    objective: 'Sling the flock at a farmyard fort and pop every scarecrow, riding each shot with the bird.',
+    howToPlay: [
+      'Drag anywhere and pull back. The bird flies the opposite way; a longer pull throws harder, and letting go near where you started cancels.',
+      'Pick your camera any time: CHASE flies behind the bird, BEAK puts you in its eyes, SIDE is the classic view. Hold PEEK while aiming to see the fort side-on.',
+      'Tap once mid-flight for the bird\'s trick: PIP flaps for a second arc, DART dives straight through wood and glass.',
+      'A scarecrow pops when it is hit hard, knocked over or dropped, for 1000 points. Breaking wood, stone or glass scores too.',
+      'Solo: five forts with 3 birds each. Clear one to open the next; every unused bird adds 1500 and stars rate your score.',
+      'Online duel: two players take turns throwing at one fort, 3 birds each.',
+    ],
+    win: 'Solo: pop every scarecrow to clear the fort. Duel: more scarecrows popped wins; points break a tie.',
+  },
+
   artillery: {
     objective: 'Bracket the rival tank with angle and power, then blow it up.',
     howToPlay: [

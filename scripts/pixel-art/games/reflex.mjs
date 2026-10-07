@@ -302,6 +302,51 @@ export default {
     },
   }),
 
+  birdseye: make({
+    bg: P.sky, dk: P.green, lt: P.haze,
+    objectBack(cv) { cv.rect(0, 25, 32, 7, P.green); cv.dither(0, 25, 32, 2, P.sky, 0); cv.dither(0, 28, 32, 4, P.dgreen, 1) },
+    obj(t) {
+      t.rect(19, 15, 3, 11, P.brown); t.rect(27, 15, 3, 11, P.brown); t.rect(19, 24, 3, 2, P.dbrown); t.rect(27, 24, 3, 2, P.dbrown)
+      t.rect(17, 12, 14, 3, P.lbrown); t.rect(17, 14, 14, 1, P.dbrown)
+      t.rect(23, 8, 3, 4, P.orange); t.rect(21, 9, 7, 1, P.dbrown); t.disc(24.5, 6, 2.2, P.sand); t.rect(22, 3, 5, 1, P.dbrown); t.rect(23, 1, 3, 2, P.dbrown)
+      t.poly([[4, 14], [0, 11], [0, 16]], P.dbrown)
+      t.ellipse(8, 14, 5, 3.4, P.lbrown); t.ellipse(8, 15.5, 3.5, 1.6, P.sand); t.disc(12.5, 12, 2.6, P.lbrown)
+      t.poly([[14.5, 11], [18, 12.5], [14.5, 14]], P.orange)
+      t.ellipse(6.5, 12.5, 3, 1.5, P.brown)
+    },
+    objectExtra(cv) {
+      cv.set(13, 11, P.ink); cv.set(24, 5, P.ink)
+      ;[[2, 21], [5, 19], [8, 20]].forEach(([x, y]) => cv.set(x, y, P.white))
+    },
+    cast: { draw() {
+      const cv = castGround(P.sky, P.haze)
+      cv.sticker(L => {
+        L.poly([[5, 17], [1, 13], [1, 19]], P.dbrown)
+        L.disc(16, 16, 10, P.lbrown); L.ellipse(16, 21, 7, 4, P.sand); L.ellipse(10, 14, 3.5, 5, P.brown)
+        L.poly([[24, 14], [30, 17], [24, 20]], P.orange)
+      }, { shadow: P.sea })
+      face(cv, 19, 12, { sp: 2, mood: 'angry' })
+      return cv
+    } },
+    scene() {
+      const cv = bands([[0, P.sky], [30, P.haze]])
+      cv.disc(10, 9, 4, P.lyellow)
+      cv.sticker(L => { L.ellipse(16, 64, 30, 14, P.green); L.ellipse(58, 62, 24, 12, P.lgreen) }, { shadow: P.dgreen })
+      cv.sticker(L => { L.rect(40, 40, 4, 20, P.brown); L.rect(54, 40, 4, 20, P.brown); L.rect(37, 36, 24, 5, P.lbrown); L.rect(37, 39, 24, 2, P.dbrown) }, {})
+      cv.sticker(L => { L.rect(46, 26, 5, 10, P.orange); L.rect(42, 28, 13, 2, P.dbrown); L.disc(48.5, 22, 4, P.sand); L.rect(43, 15, 11, 2, P.dbrown); L.rect(45, 11, 7, 5, P.dbrown) }, {})
+      cv.set(47, 21, P.ink); cv.set(51, 21, P.ink); cv.rect(47, 24, 4, 1, P.ink)
+      cv.sticker(L => { L.rect(5, 44, 3, 16, P.dbrown); L.seg(5, 46, 12, 41, 1.6, P.dbrown); L.seg(8, 46, 12, 41, 1.6, P.dbrown) }, {})
+      for (let k = 0; k <= 7; k++) { const x = 8 + k * 2.6, y = 42 - Math.sin(k / 7 * Math.PI) * 10 + k * 0.2; cv.set(Math.round(x), Math.round(y), P.white) }
+      cv.sticker(L => {
+        L.poly([[22, 28], [17, 24], [17, 32]], P.dbrown)
+        L.ellipse(27, 28, 7, 5, P.lbrown); L.ellipse(27, 30, 5, 2.4, P.sand); L.disc(33, 26, 3.6, P.lbrown); L.ellipse(25, 25, 4, 2, P.brown)
+        L.poly([[36, 25], [41, 27], [36, 29]], P.orange)
+      }, {})
+      cv.set(34, 25, P.ink)
+      return cv
+    },
+  }),
+
   wirecrossed: make({
     bg: P.ink2, dk: P.ink, lt: P.slate,
     obj(t) {

@@ -22,7 +22,8 @@ import {
   VerbalMemoryIcon, NBackIcon, CupShuffleIcon, WhatChangedIcon, KimsGameIcon, NameTagsIcon, SplitSignalIcon,
 } from '../components/GameIcons'
 import { memLevelStart, memStreamStart, newSeed } from './memoryRaceLogic'
-import { WireCrossedIcon, AnimalStackIcon, MinigolfIcon, PartyIcon } from '../components/GameIcons'
+import { WireCrossedIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, PartyIcon } from '../components/GameIcons'
+import { FORTS as BIRDSEYE_FORTS, freshDuel, nextFortIndex } from './birdseyeCore'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
@@ -1442,6 +1443,20 @@ export const GAME_TYPES = [
     startRound: (players) => startStackMatch(players, generateSeed()),
   },
   {
+    type: 'birdseye', label: 'BIRDSEYE',
+    desc: 'sling the flock, ride the shot', Icon: BirdseyeIcon,
+    badge: 'BE', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-06',
+    durationMin: 5, tags: ['skill', 'quick'], solo: true,
+    // Solo is World 1's five forts (/solo/birdseye). Online is a 2P duel on
+    // one fort, Artillery's model: the room stores bsFort + an append-only
+    // bsShots list and every client replays it (birdseyeLogic.replayDuel).
+    soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: `${BIRDSEYE_FORTS.length} farm forts to topple. Ride the shot from the beak.`,
+    custom: true,
+    Page: lazyWithRetry(() => import('../pages/BirdseyeGame')),
+  },
+  {
     type: 'wirecrossed', label: 'WIRE CROSSED',
     desc: 'one sees the bomb, one reads the manual', Icon: WireCrossedIcon,
     badge: 'WX', maxWidth: 'max-w-md',
@@ -2065,6 +2080,8 @@ const FIELD_NULLS = {
   mancalaPits: null, mancalaLast: null,
   airhockeyScoreX: null, airhockeyScoreO: null,
   artillerySeed: null, artilleryShots: null,
+  // BIRDSEYE duel: the fort being played and the append-only shot list.
+  bsFort: null, bsShots: null,
   archeryFormat: null, archerySeed: null, archeryShots: null,
   archeryPhase: null, archeryTied: null, archeryShootOffShots: null,
   archerySeatUids: null, archeryTurnStartedAt: null,
@@ -2332,6 +2349,12 @@ export function freshGameState(gameType, previous = null) {
       archerySeed: generateSeed(), archeryShots: null, archeryPhase: 'main',
       archeryTied: null, archeryShootOffShots: null, archerySeatUids: null,
       archeryTurnStartedAt: null }
+  }
+  if (gameType === 'birdseye') {
+    // PLAY AGAIN walks the five forts; a fresh room starts on 1-1.
+    const prevFort = previous?.gameType === 'birdseye' ? previous.bsFort : undefined
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null,
+      currentTurn: 'X', ...freshDuel(prevFort === undefined ? 0 : nextFortIndex(prevFort)) }
   }
   if (gameType === 'artillery') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null,

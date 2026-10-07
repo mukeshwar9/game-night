@@ -34,6 +34,7 @@ import { STROKE_CAP, PICKUP_SCORE } from './minigolfLogic'
 import { ARCHERY_FORMATS, ARROWS_PER_END } from './archeryLogic'
 import { ROT_STEPS, TURN_MS as STACK_TURN_MS } from './animalStackLogic'
 import { heartsFor } from './animalStackCore'
+import { CROW_POINTS, BIRD_BONUS, DUEL_SHOTS_EACH, FORTS as BIRDSEYE_FORTS } from './birdseyeCore'
 import { HEX_SIZE } from './hexLogic'
 import { ROWS as MINES_ROWS, COLS as MINES_COLS, MINES, SAFE_CELLS } from './minesweeperLogic'
 import { HERD_TARGET, ANSWER_MS as HERD_ANSWER_MS, REVEAL_ADVANCE_MS as HERD_REVEAL_MS } from './herdLogic'
@@ -229,6 +230,11 @@ const RULE_NUMBERS = {
   minigolf: () => ({
     checks: [[6, STROKE_CAP], [7, PICKUP_SCORE], ...players('minigolf', 2, 4), [4, cfg('minigolf').localMaxPlayers ?? cfg('minigolf').maxPlayers]],
     prose: [1], // "+1" water penalty, checked below
+  }),
+  birdseye: () => ({
+    checks: [[1000, CROW_POINTS], [1500, BIRD_BONUS], [3, DUEL_SHOTS_EACH],
+      // "five forts with 3 birds each": every solo fort carries exactly three
+      [3, BIRDSEYE_FORTS.every(f => f.birds.length === 3) ? 3 : -1]],
   }),
   artillery: () => ({ checks: [[5, 5], [90, 90], [10, 10], [100, 100]], prose: [0] /* 0 HP */ }),
   archery: () => ({
