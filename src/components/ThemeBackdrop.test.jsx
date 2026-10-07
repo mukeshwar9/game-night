@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import ThemeBackdrop from './ThemeBackdrop'
 import BeachBackdrop from './BeachBackdrop'
+import GlassBackdrop from './GlassBackdrop'
 
 // No DOM here: the markup is rendered to a string. On the server the theme
 // snapshot is null, so ThemeBackdrop itself draws nothing; BeachBackdrop is
@@ -49,5 +50,27 @@ describe('BeachBackdrop', () => {
     expect(ids).toHaveLength(2)
     expect(new Set(ids).size).toBe(2)
     for (const id of ids) expect(html).toContain(`url(#${id})`)
+  })
+})
+
+describe('GlassBackdrop', () => {
+  const html = renderToStaticMarkup(<GlassBackdrop />)
+
+  it('is decorative: hidden from assistive tech, fields plus a glyph layer', () => {
+    expect(html).toMatch(/^<div class="glass-backdrop" aria-hidden="true"/)
+    expect(html).toContain('class="glass-backdrop__fields"')
+    expect(html).toContain('class="glass-backdrop__glyphs"')
+  })
+
+  it('scatters sharp glyphs, drawn from every shape, coloured from theme tokens', () => {
+    expect(html.match(/<use /g).length).toBeGreaterThan(40)
+    for (const kind of ['x', 'o', 'up', 'down', 'right', 'dot', 'hash', 'diamond']) expect(html).toContain(`id="glass-g-${kind}"`)
+    expect(html).not.toMatch(/#[0-9a-f]{3,6}\b/i)
+    expect(html).toContain('rgb(var(--c-art-1))')
+    expect(html).not.toMatch(/NaN|Infinity/)
+  })
+
+  it('holds still on game screens', () => {
+    expect(renderToStaticMarkup(<GlassBackdrop still />)).toMatch(/^<div class="glass-backdrop glass-backdrop--still"/)
   })
 })

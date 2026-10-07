@@ -918,6 +918,142 @@
   --c-kam7:     220 140 60;
 }
 
+/* GLASS and GLASS NIGHT: the LIQUID material over arcade-glyph art. Same
+   ground, ink and accent triplets as MATCHA / MIDNIGHT (so every contrast floor
+   already holds), with --c-dim pushed to near full ink because secondary text
+   also lands on the art. The rest is the material: --c-glass-* (tint, rim,
+   shade), --c-art-* (the four colour fields behind the glyphs) and --g-*
+   (tint opacity per surface, blur, saturation, rim and shadow strength, art
+   caps). Light art is full strength with glyphs at 70 % at most; dark art is
+   capped at 50 %. src/lib/contrast.test.js recomputes the contrast table
+   from these tokens. The material itself is the `[data-theme^="glass"]` rules
+   near the end of this file; nothing here applies to any other theme. */
+[data-theme="glass"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --glow:       0;
+  --c-bg:       238 240 226;
+  --c-surface:  246 248 236;
+  --c-card:     252 253 246;
+  --c-border:   185 195 165;
+  --c-text:     45 55 35;
+  --c-dim:      50 60 38;
+  --c-p1:       70 121 47;
+  --c-p2:       129 89 180;
+  --c-p3:       175 55 115;
+  --c-p4:       25 100 150;
+  --c-cta:      130 95 14;
+  --c-win:      38 123 66;
+  --c-danger:      190 30 50;
+  --c-tint-p1:  220 238 205;
+  --c-tint-p2:  235 225 245;
+  --c-tint-p3:  245 220 232;
+  --c-tint-p4:  215 232 242;
+  --c-tint-cta: 242 232 200;
+  --c-tint-danger: 242 214 214;
+  --c-structure:160 170 140;
+  --c-deep:     228 232 214;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      210 110 50;
+  --c-av2:      150 90 180;
+  --c-av3:      30 150 140;
+  --c-av4:      130 90 60;
+  /* Kamisado — earthy matcha tones on light ground */
+  --c-kam0:     130 90 55;
+  --c-kam1:     90 150 60;
+  --c-kam2:     190 70 60;
+  --c-kam3:     210 170 50;
+  --c-kam4:     200 120 170;
+  --c-kam5:     130 100 190;
+  --c-kam6:     70 130 190;
+  --c-kam7:     220 140 60;
+  --c-glass-tint:  255 255 255;
+  --c-glass-rim:   255 255 255;
+  --c-glass-shade: 40 50 30;
+  --c-art-1:    150 196 120;
+  --c-art-2:    186 160 232;
+  --c-art-3:    246 186 146;
+  --c-art-4:    140 196 232;
+  --g-alpha:        .16;
+  --g-alpha-text:   .30;
+  --g-alpha-sheet:  .50;
+  --g-blur:         2px;
+  --g-blur-sheet:   12px;
+  --g-sat:          1.8;
+  --g-rim-a:        .85;
+  --g-spec:         1;
+  --g-drop:         .16;
+  --g-art-strength: 1;
+  --g-glyph-opacity: .68;
+}
+
+[data-theme="glass-night"] {
+  color-scheme: dark;
+  --crt-overlay: block;
+  --c-bg:       8 8 16;
+  --c-surface:  15 15 26;
+  --c-card:     19 19 40;
+  --c-border:   56 56 106;
+  --c-text:     236 238 255;
+  --c-dim:      220 222 250;
+  --c-p1:       0 229 255;
+  --c-p2:       255 64 129;
+  --c-p3:       171 102 255;
+  --c-p4:       255 158 44;
+  --c-cta:      255 230 0;
+  --c-win:      77 255 195;
+  --c-danger:      255 45 45;
+  --c-tint-p1:  0 26 46;
+  --c-tint-p2:  46 0 24;
+  --c-tint-p3: 24 10 46;
+  --c-tint-p4: 46 22 4;
+  --c-tint-cta: 26 21 0;
+  --c-tint-danger: 46 8 8;
+  --c-structure:74 74 138;
+  --c-deep:     12 12 32;
+  --c-skin-1:   245 215 190;
+  --c-skin-2:   238 202 176;
+  --c-skin-3:   230 190 160;
+  --c-skin-4:   200 155 125;
+  --c-skin-5:   150 110 85;
+  --c-skin:     230 190 160;
+  --c-av1:      255 140 60;
+  --c-av2:      170 110 255;
+  --c-av3:      45 210 190;
+  --c-av4:      140 95 65;
+  --c-kam0:     157 106 56;
+  --c-kam1:     57 255 120;
+  --c-kam2:     255 77 77;
+  --c-kam3:     255 230 90;
+  --c-kam4:     255 105 180;
+  --c-kam5:     187 134 252;
+  --c-kam6:     80 160 255;
+  --c-kam7:     255 159 28;
+  --c-glass-tint:  16 18 34;
+  --c-glass-rim:   200 210 255;
+  --c-glass-shade: 0 0 0;
+  --c-art-1:    0 200 235;
+  --c-art-2:    235 60 130;
+  --c-art-3:    120 80 255;
+  --c-art-4:    255 200 40;
+  --g-alpha:        .24;
+  --g-alpha-text:   .38;
+  --g-alpha-sheet:  .58;
+  --g-blur:         2px;
+  --g-blur-sheet:   12px;
+  --g-sat:          1.8;
+  --g-rim-a:        .45;
+  --g-spec:         .55;
+  --g-drop:         .40;
+  --g-art-strength: .5;
+  --g-glyph-opacity: .5;
+}
+
 /* SHORELINE: a midday beach. Dry-sand ground, sea-teal X, raspberry O, coral
    CTA. The sea, waves and wet sand are drawn by BeachBackdrop from the
    beach-only tokens at the end (sea, shallow, foam, wet, damp). */
@@ -3017,3 +3153,149 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
 
 /* HIGH CONTRAST: thick focus ring. */
 [data-theme='hicontrast'] :focus-visible { outline: 3px solid rgb(var(--c-cta)); outline-offset: 2px; }
+
+/* ── GLASS material (the LIQUID look: GLASS and GLASS NIGHT only) ──────────
+   Glass goes on chrome: the bars, sheets, room dock, HUD pills and lobby tiles.
+   Never on boards, pieces, rules text or anything over a real-time arena.
+   Components add these classes unconditionally; every rule is scoped to a
+   GLASS theme, so on any other theme they do nothing.
+   .glass icon controls and chips (--g-alpha), .glass-tx panels with text
+   (--g-alpha-text), .glass-sheet an expanded sheet (--g-alpha-sheet). The tint
+   is a see-through wash, with a double rim and a specular sheen steered by the
+   pointer or tilt (--mx/--my, lib/glassRuntime.js). Text on glass carries a
+   soft halo in the ground colour. Elements that also carry data-lens get the
+   liquid lens on Blink (hooks/useGlassLens.js sets --lens; clear glass
+   elsewhere). */
+[data-theme^="glass"] .glass,
+[data-theme^="glass"] .glass-tx,
+[data-theme^="glass"] .glass-sheet {
+  --glass-a: var(--g-alpha);
+  background-color: rgb(var(--c-glass-tint) / var(--glass-a));
+  background-image: radial-gradient(120% 70% at var(--mx, 22%) var(--my, -10%), rgb(var(--c-glass-rim) / calc(var(--g-spec) * .4)), transparent 55%);
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat));
+  border: 1px solid rgb(var(--c-glass-rim) / calc(var(--g-rim-a) * .55));
+  /* rim light, the thick-pane double edge, then the drop shadow */
+  box-shadow:
+    inset 0 1px 0 rgb(var(--c-glass-rim) / var(--g-spec)),
+    inset 2px 2px 1px -1px rgb(var(--c-glass-rim) / calc(var(--g-rim-a) * .85)),
+    inset -2px -2px 1px -1px rgb(var(--c-glass-rim) / calc(var(--g-rim-a) * .4)),
+    0 8px 22px rgb(var(--c-glass-shade) / var(--g-drop));
+  text-shadow: 0 0 6px rgb(var(--c-bg) / .8);
+}
+[data-theme^="glass"] .glass-tx { --glass-a: var(--g-alpha-text); }
+[data-theme^="glass"] .glass-sheet {
+  --glass-a: var(--g-alpha-sheet);
+  /* a sheet sits over page content, not only art: frost it harder than a bar */
+  -webkit-backdrop-filter: blur(var(--g-blur-sheet)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur-sheet)) saturate(var(--g-sat));
+}
+/* The lens: only where the engine draws it (data-glass-lens is set by JS on a
+   Blink engine, never by @supports, which Safari passes and then draws nothing). */
+:root[data-glass-lens="on"] :is(.glass, .glass-tx)[data-lens] {
+  -webkit-backdrop-filter: var(--lens, blur(var(--g-blur))) saturate(var(--g-sat));
+  backdrop-filter: var(--lens, blur(var(--g-blur))) saturate(var(--g-sat));
+}
+/* A sheet keeps its heavy frost and bends the art at the rim on top of it. */
+:root[data-glass-lens="on"] .glass-sheet[data-lens] {
+  -webkit-backdrop-filter: blur(var(--g-blur-sheet)) var(--lens, blur(0px)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur-sheet)) var(--lens, blur(0px)) saturate(var(--g-sat));
+}
+/* Safari below 18 only knows the prefixed property; nothing else to change. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-theme^="glass"] :is(.glass, .glass-tx, .glass-sheet) { --glass-a: .94; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme^="glass"] :is(.glass, .glass-tx, .glass-sheet) {
+    --glass-a: .94;
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    text-shadow: none;
+  }
+}
+/* Scanlines and the vignette read as film over glass; the art draws its own grid. */
+[data-theme^="glass"] body::before,
+[data-theme^="glass"] body::after { display: none; }
+
+/* Bars float as pills over the centred column instead of spanning the screen.
+   The header and tab bar lose their solid strip; the inner row is the glass. */
+[data-theme^="glass"] {
+  --app-header-h: calc(max(0.75rem, env(safe-area-inset-top)) + 0.5rem + 2.25rem + 0.75rem);
+  --app-tabbar-h: calc(4.25rem + env(safe-area-inset-bottom));
+}
+[data-theme^="glass"] .app-navbar {
+  background: transparent;
+  border-bottom-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+[data-theme^="glass"] .app-tabbar {
+  background: transparent;
+  border-top-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  padding-inline: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
+  pointer-events: none;
+}
+[data-theme^="glass"] .glass-bar { border-radius: 22px; padding-inline: 0.75rem; }
+[data-theme^="glass"] .app-tabbar .glass-bar { pointer-events: auto; padding-inline: 0.25rem; margin-bottom: 0.25rem; }
+[data-theme^="glass"] .app-tabbar a { border-radius: 18px; }
+[data-theme^="glass"] .app-tabbar a[aria-current="page"] {
+  background-color: rgb(var(--c-glass-rim) / .28);
+  box-shadow: inset 0 1px 0 rgb(var(--c-glass-rim) / .6);
+}
+[data-theme="glass-night"] .app-tabbar a[aria-current="page"] { background-color: rgb(var(--c-glass-rim) / .12); }
+
+/* A glass sheet is dimmed by a light wash, not the near-black scrim. */
+[data-theme^="glass"] [data-sheet-backdrop]:has(~ .glass-sheet) { background-color: rgb(var(--c-glass-shade) / .25); }
+
+/* ── GLASS art: soft colour fields plus sharp arcade glyphs ────────────────
+   GlassBackdrop.jsx. The glyphs are the point: refraction only shows where an
+   edge is bent, and over soft gradients alone the lens would be invisible.
+   Dark art is capped (--g-art-strength .5, --g-glyph-opacity .5) so text on the
+   glass keeps its contrast. The fields drift slowly and the glyphs float; both
+   freeze on game screens (--still), under reduced motion, and one step into the
+   low-end step-down (data-glass-step 1). */
+.glass-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.glass-backdrop__fields {
+  position: absolute;
+  inset: -20%;
+  opacity: var(--g-art-strength);
+  background:
+    radial-gradient(34% 26% at 16% 14%, rgb(var(--c-art-1)) 0 40%, transparent 72%),
+    radial-gradient(30% 24% at 86% 28%, rgb(var(--c-art-2)) 0 38%, transparent 72%),
+    radial-gradient(36% 26% at 28% 70%, rgb(var(--c-art-3)) 0 36%, transparent 70%),
+    radial-gradient(32% 26% at 84% 86%, rgb(var(--c-art-4)) 0 40%, transparent 72%);
+  animation: glass-drift 28s ease-in-out infinite alternate;
+}
+.glass-backdrop__glyphs {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: var(--g-glyph-opacity);
+  animation: glass-float 40s linear infinite alternate;
+}
+.glass-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(var(--c-text) / .05) 1px, transparent 1px) 0 0 / 4px 4px,
+    linear-gradient(0deg, rgb(var(--c-text) / .05) 1px, transparent 1px) 0 0 / 4px 4px;
+}
+@keyframes glass-drift { to { transform: translate(4%, -3%) rotate(6deg) scale(1.06); } }
+@keyframes glass-float { to { transform: translateY(-46px); } }
+.glass-backdrop--still > *,
+:root:is([data-glass-step="1"], [data-glass-step="2"]) .glass-backdrop > *,
+[data-motion='reduced'] .glass-backdrop > * { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .glass-backdrop > * { animation: none; }
+}

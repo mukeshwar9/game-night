@@ -8,7 +8,7 @@ const themes = parseThemes(cssText)
 const EXPECTED_THEME_IDS = [
   'midnight', 'phosphor', 'amber', 'synthwave', 'grid', 'mono', 'virtualboy',
   'c64', 'blueprint', 'sakura', 'matcha', 'matcha-strawberry', 'matcha-blueberry',
-  'cotton-candy', 'arctic-frost', 'shoreline',
+  'cotton-candy', 'arctic-frost', 'shoreline', 'glass', 'glass-night',
   'cartridge', 'notebook', 'hicontrast', 'fantasy', 'sweetie', 'cga', 'riso', 'gold', 'holo', 'carpet', 'radar',
   'pumpkin', 'campfire',
 ]

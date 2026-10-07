@@ -22,6 +22,8 @@ export const THEMES = [
   { id: 'cotton-candy',      label: 'COTTON CANDY' },
   { id: 'arctic-frost',      label: 'ARCTIC FROST' },
   { id: 'shoreline',  label: 'SHORELINE', font: 'fredoka', backdrop: 'beach' },
+  { id: 'glass',      label: 'GLASS', backdrop: 'glass' },
+  { id: 'glass-night', label: 'GLASS NIGHT', backdrop: 'glass' },
   { id: 'cartridge',  label: 'CARTRIDGE' },
   { id: 'notebook',   label: 'NOTEBOOK' },
   { id: 'hicontrast', label: 'HIGH CONTRAST' },
