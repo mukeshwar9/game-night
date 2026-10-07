@@ -38,6 +38,12 @@
 // builds one, so on a solvable board a tunnel only shapes which routes
 // exist). A board may also be shaped (`mask`): a void cell is an edge, so a
 // route that reaches one leaves the board.
+// Endless boards add twists of their own (see routeFrom): diagonals that
+// cross portals, slanted tunnels and mirrors running their way; flat mirrors
+// ('-', '|') a diagonal bounces off; and four arrows that change course once —
+// bank and glide diagonals (`twist`) at the board frame, elbow and swerve
+// arrows (`twist`, `turn`, `n`) after `n` cells. Each route is still fixed by
+// the board, so the rule below holds for them too.
 // Every route is fixed by the board geometry, so clearing an arrow only ever
 // frees cells: a board can never become unsolvable, and a greedy solver that
 // keeps clearing any free arrow decides solvability exactly.
@@ -68,15 +74,29 @@ export const ARROWS_TIER_SPECS = {
   hard: { cols: 10, rows: 13, maxLen: 9, fill: 0.9, samples: 10, diag: 0.12, curve: 0.1, bend: 0.9 },
 }
 
-// Endless boards mix in the late mechanics the race tiers leave out: sleeping
-// arrows, double arrows, mirrors and crates climb one tier at a time, so hard
-// endless has the whole set — and, on top, a classic portal pair and an
-// exit-only one. Dims match ARROWS_TIER_SPECS (same easy → hard
-// feel), and races keep the mod-free tier specs above.
+// Endless boards mix every mechanic the race tiers leave out — sleeping and
+// double arrows, mirrors (slanted and flat), crates, portals, tunnels — with
+// the endless-only twists: diagonals that cross mirrors, portals and slanted
+// tunnels (`diagMods`, `diagTunnels`), bank and glide diagonals, elbow and
+// swerve arrows. Each tier is a size step up from the race boards: easy fills
+// the 10 × 13 no-camera board, medium and hard grow past it (up to 20 × 28)
+// and play with drag and zoom, like campaign levels 61+.
 export const ARROWS_ENDLESS_SPECS = {
-  easy: { cols: 7, rows: 9, maxLen: 5, fill: 0.82, deep: 0.3, sleepers: 1, mirrors: 1 },
-  medium: { cols: 8, rows: 11, maxLen: 7, fill: 0.84, samples: 9, diag: 0.1, curve: 0.1, bend: 0.9, deep: 0.5, sleepers: 1, doubles: 1, mirrors: 1, crates: 1 },
-  hard: { cols: 10, rows: 13, maxLen: 9, fill: 0.86, samples: 11, diag: 0.14, curve: 0.14, bend: 0.9, deep: 0.8, sleepers: 2, doubles: 2, mirrors: 2, crates: 1, portals: ['pair', 'oneway'] },
+  easy: {
+    cols: 10, rows: 13, maxLen: 6, fill: 0.84, samples: 9, diag: 0.1, curve: 0.06, bend: 0.9, deep: 0.3,
+    bank: 0.04, glide: 0.04, elbow: 0.04, swerve: 0.03, diagMods: true, diagTunnels: true, owe: true,
+    sleepers: 1, mirrors: 1, flatMirrors: 1, portals: ['pair'], tunnels: 1,
+  },
+  medium: {
+    cols: 14, rows: 19, maxLen: 7, fill: 0.86, samples: 10, diag: 0.12, curve: 0.08, bend: 0.9, deep: 0.5,
+    bank: 0.05, glide: 0.05, elbow: 0.05, swerve: 0.04, diagMods: true, diagTunnels: true, owe: true,
+    sleepers: 2, doubles: 2, mirrors: 2, flatMirrors: 2, crates: 1, portals: ['pair', 'turn'], tunnels: 2,
+  },
+  hard: {
+    cols: 20, rows: 28, maxLen: 9, fill: 0.86, samples: 11, diag: 0.13, curve: 0.08, bend: 0.9, deep: 0.8,
+    bank: 0.06, glide: 0.06, elbow: 0.06, swerve: 0.04, diagMods: true, diagTunnels: true, owe: true,
+    sleepers: 4, doubles: 3, mirrors: 4, flatMirrors: 3, crates: 2, portals: ['pair', 'oneway', 'turn', 'pair'], tunnels: 4,
+  },
 }
 
 // Room setting for the race: one tier for every round, or 'mixed' — the
@@ -93,9 +113,9 @@ export const getArrowsDifficulty = (id) => (ARROWS_DIFFICULTIES.includes(id) ? i
 
 // Endless-select labels (endless boards carry the extra mechanics, races do not).
 export const ARROWS_ENDLESS_INFO = {
-  easy: { label: 'EASY', blurb: '7×9 OR A SHAPE · + SLEEPERS, MIRRORS' },
-  medium: { label: 'MEDIUM', blurb: '8×11 OR A SHAPE · + DOUBLES, A CRATE' },
-  hard: { label: 'HARD', blurb: '10×13 OR BIG SHAPES · EVERY PIECE' },
+  easy: { label: 'EASY', blurb: '10×13 OR A SHAPE · NEW TWISTS + MIRRORS, PORTALS' },
+  medium: { label: 'MEDIUM', blurb: '14×19 OR A SHAPE · + DOUBLES, CRATES' },
+  hard: { label: 'HARD', blurb: 'UP TO 20×28 · EVERY PIECE' },
 }
 
 // (dx, dy) in grid space (y grows downward): up, right, down, left, then the
@@ -104,7 +124,10 @@ export const ARROWS_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [
 export const ARROWS_DIR_NAMES = ['up', 'right', 'down', 'left', 'up-right', 'down-right', 'down-left', 'up-left']
 
 export const isDiagonal = (arrow) => arrow.dir >= 4
-export const isCurved = (arrow) => arrow.dir < 4 && (arrow.turn === 1 || arrow.turn === -1) && !arrow.double
+export const isCurved = (arrow) => arrow.dir < 4 && (arrow.turn === 1 || arrow.turn === -1) && !arrow.double && !arrow.twist
+// Endless-only twists (see routeFrom): bank and glide diagonals, elbow and
+// swerve arrows.
+export const ARROWS_TWISTS = ['bank', 'glide', 'elbow', 'swerve']
 export const isDouble = (arrow) => arrow.double === true
 export const isSleeper = (arrow) => arrow.sleep === true
 // A diagonal arrow whose body is not one straight diagonal run: at least one
@@ -189,106 +212,157 @@ function isDiagStep(cols, a, b) {
   return a % cols !== b % cols && Math.floor(a / cols) !== Math.floor(b / cols)
 }
 
-// Mirrors: a fixed '/' or '\\' tile turns a straight route 90° as it passes.
-// '/' swaps up↔right and down↔left; '\\' swaps right↔down and up↔left.
+// Mirrors. A slanted tile ('/' or '\\') turns a straight route 90° as it
+// passes: '/' swaps up↔right and down↔left; '\\' swaps right↔down and
+// up↔left. A diagonal running along its bar slides past it; one that hits the
+// bar face-on would bounce straight back over itself, so that route is dead.
+// A flat tile ('-' or '|', endless boards only) is a wall a diagonal bounces
+// off like a ball: '-' flips its up/down half, '|' its left/right half. A
+// straight route runs along a flat bar, or hits it face-on and is dead.
 const MIRROR_TURN = { '/': [1, 0, 3, 2], '\\': [3, 2, 1, 0] }
+const MIRROR_ALONG = { '/': [4, 6], '\\': [5, 7] }
 
-// A ray from `start` along `dir`, bouncing off mirrors (a Map of cell →
-// '/' | '\\') and hopping through portals (a Map of ring cell → { to, turn,
-// pair }; the ray lands on the partner ring and carries on from it, rotated a
-// quarter clockwise when `turn`). The edge of the board, or a void cell, ends
-// the ray. A ray that would loop for ever, a diagonal ray that meets a
-// mirror or a portal, or a ray that meets a tunnel floor (a Map of cell → the
-// heading it allows) from any other heading, is dead: that arrow can never
-// leave, and the generator never builds one. A tunnel wall is not part of the
-// route's `cells`; `wall` names its cell. `jumps[n]` is the index in `cells`
-// of the n-th landing ring (the cell before it is the ring it entered),
-// `ports[n]` its pair.
-function traceRay(cols, rows, start, dir, mirrors, portals = null, voids = null, tunnels = null) {
-  const out = []
-  const jumps = []
-  const ports = []
-  let x = start % cols
-  let y = Math.floor(start / cols)
-  let d = dir
-  const seen = new Set()
-  for (;;) {
-    const [dx, dy] = ARROWS_DIRS[d]
-    x += dx
-    y += dy
-    if (x < 0 || x >= cols || y < 0 || y >= rows) return { cells: out, dir: d, dead: false, jumps, ports }
-    const c = y * cols + x
-    if (voids?.has(c)) return { cells: out, dir: d, dead: false, jumps, ports }
-    const gate = tunnels?.get(c)
-    if (gate !== undefined && gate !== d) return { cells: out, dir: d, dead: true, jumps, ports, wall: c }
-    out.push(c)
-    const m = mirrors?.get(c)
-    const p = m ? null : portals?.get(c)
-    if (m || p) {
-      if (d >= 4) return { cells: out, dir: d, dead: true, jumps, ports }
-      const key = c * 4 + d
-      if (seen.has(key)) return { cells: out, dir: d, dead: true, jumps, ports }
-      seen.add(key)
-      if (m) {
-        d = MIRROR_TURN[m][d]
-      } else {
-        x = p.to % cols
-        y = Math.floor(p.to / cols)
-        jumps.push(out.length)
-        ports.push(p.pair)
-        out.push(p.to)
-        if (p.turn) d = turnedDir(d, 1)
-      }
-    }
+// Heading index for a unit step (dx, dy).
+const dirIndex = (dx, dy) => ARROWS_DIRS.findIndex(([u, v]) => u === dx && v === dy)
+
+// A quarter turn of any heading, clockwise (turn = 1) or counter-clockwise.
+export const quarterDir = (dir, turn) => (dir < 4 ? turnedDir(dir, turn) : 4 + ((dir - 4 + (turn === 1 ? 1 : 3)) % 4))
+
+// The heading a route leaves mirror `m` on when it arrives heading `d`, or -1
+// when the mirror sends it straight back (dead).
+function mirrorTurn(m, d) {
+  if (m === '/' || m === '\\') {
+    if (d < 4) return MIRROR_TURN[m][d]
+    return MIRROR_ALONG[m].includes(d) ? d : -1
   }
+  const [dx, dy] = ARROWS_DIRS[d]
+  if (m === '-') return d >= 4 ? dirIndex(dx, -dy) : d === 1 || d === 3 ? d : -1
+  return d >= 4 ? dirIndex(-dx, dy) : d === 0 || d === 2 ? d : -1
 }
 
 // The exit route of an arrow whose head is cell `head`: { cells, corners,
 // finalDir, dead, jumps, ports }. `cells` lists, in travel order, every cell
 // the head passes on its way off the board; `corners[k]` is the lattice
-// corner crossed just before cells[k] (diagonal routes only, else -1);
-// `finalDir` is the heading it leaves the board on. With mirrors, a straight
-// route turns at each one, with portals it hops from ring to ring (`jumps`
-// marks the landings, see traceRay), and a hooked arrow still turns once at
-// the edge after any bounce or hop; `dead` marks a route that can never leave
-// (`wall`, when a tunnel floor killed it, is that tunnel's cell).
-function routeFrom(cols, rows, head, dir, turn, mirrors = null, portals = null, voids = null, tunnels = null) {
-  if (mirrors?.size || portals?.size || tunnels?.size) {
-    const first = traceRay(cols, rows, head, dir, mirrors, portals, voids, tunnels)
-    let cells = first.cells
-    let finalDir = first.dir
-    let dead = first.dead
-    let wall = first.wall
-    let jumps = first.jumps
-    let ports = first.ports
-    if (!dead && dir < 4 && (turn === 1 || turn === -1)) {
-      const pivot = cells.length ? cells[cells.length - 1] : head
-      const second = traceRay(cols, rows, pivot, turnedDir(first.dir, turn), mirrors, portals, voids, tunnels)
-      jumps = [...jumps, ...second.jumps.map((j) => j + cells.length)]
-      ports = [...ports, ...second.ports]
-      cells = [...cells, ...second.cells]
-      finalDir = second.dir
-      dead = second.dead
-      wall = second.wall
+// corner crossed just before cells[k] (a diagonal step, else -1); `finalDir`
+// is the heading it leaves the board on. The edge of the board, or a void
+// cell, ends the route. On the way a mirror turns it (see mirrorTurn), a
+// portal ring (a Map of ring cell → { to, turn, pair }) sends it to the
+// partner ring, where it carries on with the same heading (a quarter
+// clockwise when `turn`) — `jumps[n]` is the index in `cells` of the n-th
+// landing ring and `ports[n]` its pair — and a tunnel floor (a Map of cell →
+// the heading it allows) met from any other heading is a wall: the route is
+// dead and `wall` names that tile. A route that would loop for ever is dead.
+// A dead route can never leave, and the generator never builds one.
+//
+// The arrow's own twist shapes the route once:
+//   • hook (`turn`, no twist) — at the edge it turns a quarter and runs on;
+//   • 'elbow' — after `n` cells it turns a quarter the way `turn` says;
+//   • 'swerve' — after `n` cells it steps one lane to the `turn` side
+//     (a diagonal step through a cell corner) and keeps its heading;
+//   • 'bank' (diagonal) — at the board frame it bounces like a ball once;
+//   • 'glide' (diagonal) — at the board frame it slides along that side.
+// A bank or glide that meets a void, or hits a corner square-on, just leaves.
+// `wide` lets diagonals cross mirrors and portals (the rules above); without
+// it a diagonal that meets either is dead, as the campaign generator always
+// built its boards. Play always uses the wide rules: no campaign diagonal
+// ever meets a mirror, ring or tunnel, so the two agree on every level.
+function routeFrom(cols, rows, head, dir, turn, mirrors = null, portals = null, voids = null, tunnels = null, twist = null, n = 0, wide = true) {
+  const cells = []
+  const corners = []
+  const jumps = []
+  const ports = []
+  let x = head % cols
+  let y = Math.floor(head / cols)
+  let d = dir
+  let fired = false
+  let twistAt = -1
+  let traveled = 0
+  let seen = new Set()
+  const hook = !twist && dir < 4 && (turn === 1 || turn === -1)
+  const inBounds = (u, v) => u >= 0 && v >= 0 && u < cols && v < rows
+  const done = (dead, wall) => {
+    const route = { cells, corners, finalDir: d, dead, jumps, ports }
+    if (wall !== undefined) route.wall = wall
+    if (twist) route.twistAt = twistAt
+    return route
+  }
+  for (;;) {
+    if (!fired && (twist === 'elbow' || twist === 'swerve') && traveled === n) {
+      fired = true
+      twistAt = cells.length
+      if (twist === 'elbow') {
+        d = turnedDir(d, turn)
+        seen = new Set()
+      } else {
+        const [fx, fy] = ARROWS_DIRS[d]
+        const [sx, sy] = ARROWS_DIRS[turnedDir(d, turn)]
+        const u = x + fx + sx
+        const v = y + fy + sy
+        if (!inBounds(u, v) || voids?.has(v * cols + u)) return done(false)
+        const c = v * cols + u
+        // The jog lands on a plain cell or not at all: a fixed piece there
+        // would need a rule of its own.
+        if (mirrors?.has(c) || portals?.has(c) || tunnels?.has(c)) return done(true)
+        cells.push(c)
+        corners.push(cornerOf(cols, y * cols + x, c))
+        x = u
+        y = v
+        traveled += 1
+        continue
+      }
     }
-    const corners = dir >= 4
-      ? cells.map((c, k) => cornerOf(cols, k === 0 ? head : cells[k - 1], c))
-      : cells.map(() => -1)
-    return wall === undefined ? { cells, corners, finalDir, dead, jumps, ports } : { cells, corners, finalDir, dead, jumps, ports, wall }
+    let [dx, dy] = ARROWS_DIRS[d]
+    let u = x + dx
+    let v = y + dy
+    if (!inBounds(u, v) || voids?.has(v * cols + u)) {
+      if (!fired && hook) {
+        fired = true
+        seen = new Set()
+        d = turnedDir(d, turn)
+      } else if (!fired && (twist === 'bank' || twist === 'glide') && !inBounds(u, v)) {
+        const outX = u < 0 || u >= cols
+        const outY = v < 0 || v >= rows
+        if (outX && outY) return done(false)
+        fired = true
+        twistAt = cells.length
+        seen = new Set()
+        if (twist === 'bank') d = dirIndex(outX ? -dx : dx, outY ? -dy : dy)
+        else d = outX ? dirIndex(0, dy) : dirIndex(dx, 0)
+      } else return done(false)
+      ;[dx, dy] = ARROWS_DIRS[d]
+      u = x + dx
+      v = y + dy
+      if (!inBounds(u, v) || voids?.has(v * cols + u)) return done(false)
+    }
+    const c = v * cols + u
+    const gate = tunnels?.get(c)
+    if (gate !== undefined && gate !== d) return done(true, c)
+    cells.push(c)
+    corners.push(dx !== 0 && dy !== 0 ? cornerOf(cols, y * cols + x, c) : -1)
+    x = u
+    y = v
+    traveled += 1
+    const m = mirrors?.get(c)
+    const p = m ? null : portals?.get(c)
+    if (m || p) {
+      if (d >= 4 && !wide) return done(true)
+      const key = c * 8 + d
+      if (seen.has(key)) return done(true)
+      seen.add(key)
+      if (m) {
+        d = mirrorTurn(m, d)
+        if (d < 0) { d = dirIndex(dx, dy); return done(true) }
+      } else {
+        x = p.to % cols
+        y = Math.floor(p.to / cols)
+        jumps.push(cells.length)
+        ports.push(p.pair)
+        cells.push(p.to)
+        corners.push(-1)
+        if (p.turn) d = quarterDir(d, 1)
+      }
+    }
   }
-  const hx = head % cols
-  const hy = Math.floor(head / cols)
-  let cells = rayCells(cols, rows, hx, hy, dir, voids)
-  let finalDir = dir
-  if (dir < 4 && (turn === 1 || turn === -1)) {
-    const pivot = cells.length ? cells[cells.length - 1] : head
-    finalDir = turnedDir(dir, turn)
-    cells = [...cells, ...rayCells(cols, rows, pivot % cols, Math.floor(pivot / cols), finalDir, voids)]
-  }
-  const corners = dir >= 4
-    ? cells.map((c, k) => cornerOf(cols, k === 0 ? head : cells[k - 1], c))
-    : cells.map(() => -1)
-  return { cells, corners, finalDir, dead: false, jumps: NO_JUMPS, ports: NO_JUMPS }
 }
 
 // A double arrow's route: every cell swept ahead of its body along `dir`,
@@ -449,7 +523,7 @@ export function arrowRoute(level, arrow) {
   const tunnels = tunnelMap(level)
   const route = arrow.double
     ? doubleRoute(level.cols, level.rows, arrow.cells.map(([x, y]) => y * level.cols + x), arrow.dir, mirrors, portals, voids, tunnels)
-    : routeFrom(level.cols, level.rows, hy * level.cols + hx, arrow.dir, arrow.turn, mirrors, portals, voids, tunnels)
+    : routeFrom(level.cols, level.rows, hy * level.cols + hx, arrow.dir, arrow.turn, mirrors, portals, voids, tunnels, arrow.twist ?? null, arrow.n ?? 0)
   routeCache.set(arrow, { cols: level.cols, rows: level.rows, mirrors: level.mirrors, portals: level.portals, mask: level.mask, tunnels: level.tunnels, route })
   return route
 }
@@ -710,6 +784,22 @@ function placeMirrors(spec, occ, rng) {
   return out
 }
 
+// Flat mirrors (endless): `spec.flatMirrors` '-' or '|' tiles on interior
+// cells, away from every other mirror. They draw from the second stream right
+// after the slanted ones, so a spec without them is untouched.
+function placeFlatMirrors(spec, occ, rng, placed) {
+  const { cols, rows, flatMirrors: count = 0 } = spec
+  const out = []
+  for (let tries = 0; out.length < count && tries < 400; tries += 1) {
+    const x = 1 + Math.floor(rng() * (cols - 2))
+    const y = 1 + Math.floor(rng() * (rows - 2))
+    if ([...placed, ...out].some((m) => Math.abs(m.x - x) + Math.abs(m.y - y) < 3) || occ[y * cols + x] !== -1) continue
+    out.push({ x, y, m: rng() < 0.5 ? '-' : '|' })
+    occ[y * cols + x] = MIRROR
+  }
+  return out
+}
+
 // Portals go down right after the mirrors, before any arrow, on interior
 // cells: `spec.portals` lists one kind per pair — 'pair' (two-way), 'oneway'
 // (only ring A sends) or 'turn' (the route leaves a quarter turn clockwise).
@@ -761,7 +851,19 @@ function placeTunnels(spec, occ, rng) {
     const x = 1 + Math.floor(rng() * (cols - 2))
     const y = 1 + Math.floor(rng() * (rows - 2))
     if (out.some((t) => Math.abs(t.x - x) + Math.abs(t.y - y) < 3) || occ[y * cols + x] !== -1) continue
-    out.push({ x, y, dir: Math.floor(rng() * 4) })
+    const dir = Math.floor(rng() * (spec.diagTunnels ? 8 : 4))
+    // Endless boards keep a tile reachable: two open cells lead into it the
+    // way it points, and one leads out.
+    if (spec.owe) {
+      const [dx, dy] = ARROWS_DIRS[dir]
+      const open = (k) => {
+        const u = x + dx * k
+        const v = y + dy * k
+        return u >= 0 && v >= 0 && u < cols && v < rows && occ[v * cols + u] === -1
+      }
+      if (!open(-1) || !open(-2) || !open(1)) continue
+    }
+    out.push({ x, y, dir })
     occ[y * cols + x] = MIRROR
   }
   return out
@@ -770,8 +872,9 @@ function placeTunnels(spec, occ, rng) {
 // Crates: an empty cell that several routes cross becomes a crate that stays
 // solid until `k` arrows have left the board. Each crate takes the count that
 // deepens the board most while the solver still clears it; the first two
-// must add depth, a third may only hold it.
-function placeCrates(level, count, rng) {
+// must add depth, a third may only hold it. With `hold` (endless boards,
+// whose size alone gives depth) every crate need only hold it.
+function placeCrates(level, count, rng, hold = false) {
   const n = level.arrows.length
   level.crates = []
   for (let c = 0; c < count; c += 1) {
@@ -794,7 +897,7 @@ function placeCrates(level, count, rng) {
         level.crates.push(crate)
         const st = solveArrows(level)
         level.crates.pop()
-        const need = level.crates.length >= 2 ? before : before + 1
+        const need = hold || level.crates.length >= 2 ? before : before + 1
         if (st.solvable && st.layers >= need && (!best || st.layers > best.layers)) best = { crate, layers: st.layers }
         if (st.solvable && st.layers > before) break
       }
@@ -807,14 +910,17 @@ function placeCrates(level, count, rng) {
 
 // Deterministically generate the board for `seed` at `tier` (a tier name or
 // a spec object like ARROWS_TIER_SPECS' entries).
-// Returns { seed, tier, cols, rows, arrows: [{ cells: [[x, y], …], dir, turn?, sleep?, double? }],
+// Returns { seed, tier, cols, rows, arrows: [{ cells: [[x, y], …], dir, turn?, twist?, n?, sleep?, double? }],
 // mirrors?: [{ x, y, m }], crates?: [{ x, y, k }], portals?, tunnels?: [{ x, y, dir }], mask? }.
 // Spec knobs beyond the race tiers (solo levels 21+): `deep` biases head
 // picks toward long chains of arrows waiting on each other, `doubles` grows
 // that many double arrows, `sleepers` puts that many arrows to sleep,
 // `mirrors` and `crates` place that many of each (solo levels 41+), `portals`
 // lists the portal pairs, `tunnels` counts tunnel floors and `mask` shapes
-// the board (solo levels 61+).
+// the board (solo levels 61+). Endless-only knobs: `bank`, `glide`, `elbow`,
+// `swerve` (chances, like `diag`), `diagMods` (diagonals may cross mirrors and
+// portals), `diagTunnels` (tunnel floors may point diagonally), `flatMirrors`
+// (count) and `owe` (place one of each piece first, see below).
 /**
  * @param {number} seed
  * @param {string | Record<string, any>} [tier]
@@ -822,6 +928,12 @@ function placeCrates(level, count, rng) {
 export function generateArrowsLevel(seed, tier = 'easy') {
   const spec = resolveSpec(tier)
   const { cols, rows, fill, samples, diag, curve, bend, deep } = spec
+  // Endless-only twists: bank / glide diagonals, elbow / swerve arrows.
+  const bank = spec.bank ?? 0
+  const glide = spec.glide ?? 0
+  const elbow = spec.elbow ?? 0
+  const swerve = spec.swerve ?? 0
+  const wide = spec.diagMods === true
   const rng = seededRng(seed)
   // Sleepers draw from a second stream so the main one stays untouched.
   const rng2 = seededRng(seed ^ 0x5bd1e995)
@@ -838,6 +950,7 @@ export function generateArrowsLevel(seed, tier = 'easy') {
   const voids = shaped ? voidSet(shaped) : null
   if (voids) for (const c of voids) occ[c] = VOID
   const mirrorList = spec.mirrors ? placeMirrors(spec, occ, rng2) : []
+  if (spec.flatMirrors) mirrorList.push(...placeFlatMirrors(spec, occ, rng2, mirrorList))
   const mirrors = mirrorList.length ? new Map(mirrorList.map((m) => [m.y * cols + m.x, m.m])) : null
   const portalList = spec.portals?.length ? placePortals(spec, occ, rng2) : []
   const portals = portalList.length ? portalMap({ cols, portals: portalList }) : null
@@ -853,10 +966,32 @@ export function generateArrowsLevel(seed, tier = 'easy') {
   const arrows = []
   // Boards without twists draw no extra random numbers, so their seeds keep
   // producing the same boards they always did.
-  const twisty = diag + curve > 0
+  const twisty = diag + curve + bank + glide + elbow + swerve > 0
   let filled = 0
   let fails = 0
   const goal = Math.floor((cols * rows - (voids?.size ?? 0) - mirrorList.length - portalList.length * 2 - tunnelList.length) * fill)
+
+  // Endless boards (`spec.owe`) owe the player one of each twist with a
+  // chance, a diagonal that meets a mirror, ring or tunnel, a route through
+  // every portal pair and across every tunnel. Owed arrows go down first,
+  // while the board is still open; one that will not fit after a few tries is
+  // dropped (endlessLevel's checks then move on to the next seed).
+  /** @type {Array<{ kind: string, need?: (route: any) => boolean, tries: number }>} */
+  const owed = []
+  if (spec.owe) {
+    const fixedCells = new Set([...(mirrors?.keys() ?? []), ...(portals?.keys() ?? []), ...(tunnels?.keys() ?? [])])
+    // The most constrained first: a route across each tunnel, through each
+    // portal pair, a diagonal meeting a mod; then one arrow of each kind.
+    tunnelList.forEach((t) => {
+      const cell = t.y * cols + t.x
+      owed.push({ kind: t.dir >= 4 ? 'diag' : 'straight', need: (route) => route.cells.includes(cell), tries: 0 })
+    })
+    portalList.forEach((_, pair) => owed.push({ kind: 'straight', need: (route) => route.ports.includes(pair), tries: 0 }))
+    if (wide && fixedCells.size) owed.push({ kind: 'diag', need: (route) => route.cells.some((c) => fixedCells.has(c)), tries: 0 })
+    if (diag > 0) owed.push({ kind: 'diag', tries: 0 })
+    if (curve > 0) owed.push({ kind: 'curve', tries: 0 })
+    for (const [name, chance] of [['bank', bank], ['glide', glide], ['elbow', elbow], ['swerve', swerve]]) if (chance > 0) owed.push({ kind: name, tries: 0 })
+  }
 
   while (filled < goal && fails < 600) {
     const empty = []
@@ -866,14 +1001,23 @@ export function generateArrowsLevel(seed, tier = 'easy') {
     if (twisty) {
       const r = rng()
       kind = r < diag ? 'diag' : r < diag + curve ? 'curve' : 'straight'
+      // Each extra twist takes the next slice of the same draw, so a spec
+      // without them picks exactly the kinds it always did.
+      let edge = diag + curve
+      for (const [name, chance] of [['bank', bank], ['glide', glide], ['elbow', elbow], ['swerve', swerve]]) {
+        if (kind === 'straight' && r >= edge && r < edge + chance) kind = name
+        edge += chance
+      }
     }
+    const due = owed[0] ?? null
+    if (due) kind = due.kind
     // Double arrows come at fixed points in the fill, so a level gets exactly
     // spec.doubles of them when they fit. Like any arrow, a double's whole
     // route must avoid every earlier arrow.
     if (doublesLeft > 0 && filled >= (goal * (nDoubles - doublesLeft + 1)) / (nDoubles + 2)) {
       let dpick = null
       let dbest = -1
-      for (let k = 0; k < samples * 2; k += 1) {
+      for (let k = 0; k < samples * (spec.owe ? 4 : 2); k += 1) {
         const head = empty[Math.floor(rng() * empty.length)]
         for (const d of shuffled([0, 1, 2, 3], rng)) {
           const body = growDouble(spec, occ, head, d, rng)
@@ -904,16 +1048,26 @@ export function generateArrowsLevel(seed, tier = 'easy') {
     // board a puzzle instead of a free-for-all.
     let pick = null
     let best = -1
-    for (let k = 0; k < samples; k += 1) {
+    // An owed arrow with a route to hit looks much harder for a head.
+    const heads = due?.need ? samples * 8 : due ? samples * 3 : samples
+    for (let k = 0; k < heads; k += 1) {
       const head = empty[Math.floor(rng() * empty.length)]
-      const dirs = kind === 'diag' ? [4, 5, 6, 7] : [0, 1, 2, 3]
+      const slanted = kind === 'diag' || kind === 'bank' || kind === 'glide'
+      const twist = kind === 'bank' || kind === 'glide' || kind === 'elbow' || kind === 'swerve' ? kind : null
+      const dirs = slanted ? [4, 5, 6, 7] : [0, 1, 2, 3]
       for (const d of shuffled(dirs, rng)) {
-        const turn = kind === 'curve' ? (rng() < 0.5 ? 1 : -1) : undefined
-        const route = routeFrom(cols, rows, head, d, turn, mirrors, portals, voids, tunnels)
+        const turn = kind === 'curve' || kind === 'elbow' || kind === 'swerve' ? (rng() < 0.5 ? 1 : -1) : undefined
+        const steps = kind === 'elbow' || kind === 'swerve' ? 1 + Math.floor(rng() * 2) : 0
+        const route = routeFrom(cols, rows, head, d, turn, mirrors, portals, voids, tunnels, twist, steps, wide)
         if (route.dead) continue
-        // A route that hops through a portal can come back round over its own
-        // head; the body is kept out of the route below, the head must be too.
-        if (portals && route.cells.includes(head)) continue
+        if (due?.need && !due.need(route)) continue
+        // A twist must change the route and leave somewhere to run after it,
+        // or its marker would mean nothing.
+        if (twist && (route.twistAt < 0 || route.twistAt >= route.cells.length)) continue
+        // A route that hops through a portal (or bounces between mirrors) can
+        // come back round over its own head; the body is kept out of the
+        // route below, the head must be too.
+        if ((portals || wide) && route.cells.includes(head)) continue
         const hit = crossed(route)
         const value = route.cells.length + gate(hit)
         if (!deep && value <= best) continue
@@ -925,7 +1079,10 @@ export function generateArrowsLevel(seed, tier = 'easy') {
         if (routeBlocked(route, occ, corners)) continue
         const banned = new Set(route.cells)
         let grown = null
-        if (kind === 'diag') {
+        if (kind === 'bank' || kind === 'glide') {
+          // A twisted diagonal keeps a straight body so its marker reads.
+          grown = growDiagonal(spec, occ, corners, head, d, rng, banned)
+        } else if (kind === 'diag') {
           if (bend > 0 && rng() < bend) {
             const routeCorners = new Set(route.corners.filter((c) => c >= 0))
             for (let tries = 0; tries < 4 && !grown; tries += 1) {
@@ -934,7 +1091,7 @@ export function generateArrowsLevel(seed, tier = 'easy') {
           }
           grown ??= growDiagonal(spec, occ, corners, head, d, rng, banned)
         } else {
-          grown = kind === 'curve'
+          grown = kind === 'curve' || kind === 'elbow' || kind === 'swerve'
             ? growStraight(spec, occ, head, d, rng, banned)
             : growArrow(spec, occ, head, d, rng, banned)
         }
@@ -942,9 +1099,13 @@ export function generateArrowsLevel(seed, tier = 'easy') {
           let down = 1
           for (const c of grown) for (const j of routeOwners[c]) down = Math.max(down, downOf[j] + 1)
           const score = value + deep * 8 * down
-          if (score > best) { pick = { path: grown, dir: d, turn, down, route, hit }; best = score }
-        } else if (grown) { pick = { path: grown, dir: d, turn, route, hit }; best = value }
+          if (score > best) { pick = { path: grown, dir: d, turn, twist, steps, down, route, hit }; best = score }
+        } else if (grown) { pick = { path: grown, dir: d, turn, twist, steps, route, hit }; best = value }
       }
+    }
+    if (due) {
+      if (pick || (due.tries += 1) >= 3) owed.shift()
+      else owed.push(owed.shift())
     }
     if (!pick) { fails += 1; continue }
     const index = arrows.length
@@ -963,6 +1124,8 @@ export function generateArrowsLevel(seed, tier = 'easy') {
     }
     const arrow = { cells: path.map((c) => [c % cols, Math.floor(c / cols)]), dir: pick.dir }
     if (pick.turn) arrow.turn = pick.turn
+    if (pick.twist) arrow.twist = pick.twist
+    if (pick.steps) arrow.n = pick.steps
     arrows.push(arrow)
   }
 
@@ -972,7 +1135,7 @@ export function generateArrowsLevel(seed, tier = 'easy') {
   if (portalList.length) level.portals = portalList
   if (tunnelList.length) level.tunnels = tunnelList
   if (spec.sleepers) placeSleepers(level, spec.sleepers, rng2)
-  if (spec.crates) placeCrates(level, spec.crates, rng2)
+  if (spec.crates) placeCrates(level, spec.crates, rng2, spec.owe === true)
   return level
 }
 
@@ -1161,6 +1324,9 @@ export function levelStats(level) {
   const crates = level.crates?.length ?? 0
   const portals = level.portals?.length ?? 0
   const tunnels = level.tunnels?.length ?? 0
+  // Endless twists: each has a second leg (or a jog) to read.
+  const twists = level.arrows.filter((a) => a.twist).length
+  const flats = (level.mirrors ?? []).filter((m) => m.m === '-' || m.m === '|').length
   // Every arrow that hops through a portal has a route to trace across the
   // board instead of along a line.
   const hops = portals ? portalUses(level).reduce((sum, u) => sum + u, 0) : 0
@@ -1168,8 +1334,8 @@ export function levelStats(level) {
   // Arrow count and depth carry most of the weight; a scarce opening and
   // every twist arrow (two routes to read instead of one) add a little.
   const openness = n > 0 ? initialFree / n : 1
-  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + bent + curves * 3 + sleepers * 3 + doubles * 4 + mirrors * 3 + crates * 4 + portals * 4 + hops * 2 + tunnels * 2 + gated)
-  return { solvable, arrows: n, layers, initialFree, diagonals, bent, curves, sleepers, doubles, mirrors, crates, portals, hops, tunnels, gated, difficulty }
+  const difficulty = Math.round(n * 2 + layers * 6 + (1 - openness) * 20 + diagonals * 2 + bent + curves * 3 + sleepers * 3 + doubles * 4 + mirrors * 3 + crates * 4 + portals * 4 + hops * 2 + tunnels * 2 + gated + twists * 3)
+  return { solvable, arrows: n, layers, initialFree, diagonals, bent, curves, sleepers, doubles, mirrors, crates, portals, hops, tunnels, gated, twists, flats, difficulty }
 }
 
 // Firebase stores each player's cleared arrows as a map { "12": true }; it

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { ARROWS_LESSONS, getLesson, lessonLevel, lessonTap } from './arrowsLessonsLogic'
-import { ARROWS_LEVEL_SPECS, ARROWS_TWIST_TIPS } from './arrowsLevelsLogic'
-import { exitCheck, isDouble, isSleeper, solveArrows } from './arrowsLogic'
+import { ARROWS_ENDLESS_EXAMPLES, ARROWS_LESSONS, getLesson, lessonLevel, lessonTap } from './arrowsLessonsLogic'
+import { ARROWS_LEVEL_SPECS, ARROWS_TWIST_TIPS, twistsIn } from './arrowsLevelsLogic'
+import { arrowRoute, exitCheck, isDouble, isSleeper, solveArrows } from './arrowsLogic'
 
 describe('arrow lessons', () => {
   it('covers every kind the campaign introduces, at the level that introduces it', () => {
@@ -96,5 +96,18 @@ describe('arrow lessons', () => {
     expect(r).toMatchObject({ outcome: 'blocked', asleep: true, next: 1 })
     // A fresh lesson board never shares state with the lesson data.
     expect(lessonLevel(lesson).arrows).not.toBe(lesson.board.arrows)
+  })
+
+  it('every endless twist has an example whose one arrow really shows its twist, and a tip', () => {
+    const kinds = ARROWS_ENDLESS_EXAMPLES.map((e) => e.kind)
+    expect(kinds).toEqual(['diagmods', 'flat', 'bank', 'glide', 'elbow', 'swerve'])
+    for (const ex of ARROWS_ENDLESS_EXAMPLES) {
+      const level = lessonLevel(ex)
+      expect(ARROWS_TWIST_TIPS[ex.kind], ex.kind).toBeTruthy()
+      expect(twistsIn(level), ex.kind).toContain(ex.kind)
+      const route = arrowRoute(level, level.arrows[0])
+      expect(route.dead, ex.kind).toBe(false)
+      expect(exitCheck(level, [false], 0).free, ex.kind).toBe(true)
+    }
   })
 })

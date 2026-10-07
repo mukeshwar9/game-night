@@ -53,6 +53,9 @@ import {
   tunnelMap,
   tunnelUses,
   voidSet,
+  ARROWS_ENDLESS_SPECS,
+  ARROWS_TWISTS,
+  quarterDir,
 } from './arrowsLogic'
 import { shapeMask } from './arrowsShapes'
 
@@ -900,8 +903,13 @@ describe('mirrors', () => {
     expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [10, 6, 2, 3], finalDir: 1 })
   })
 
-  it('a diagonal route that meets a mirror, or a route that loops, is dead', () => {
-    const diag = { cols: 4, rows: 4, mirrors: [{ x: 2, y: 1, m: '/' }], arrows: [{ cells: [[0, 3], [1, 2]], dir: 4 }] }
+  it('a diagonal slides along a slanted mirror but dies hitting it face-on; a route that loops is dead', () => {
+    // Up-right runs along '/': it passes the tile and carries on.
+    const along = { cols: 4, rows: 4, mirrors: [{ x: 2, y: 1, m: '/' }], arrows: [{ cells: [[0, 3], [1, 2]], dir: 4 }] }
+    expect(arrowRoute(along, along.arrows[0])).toMatchObject({ cells: [6, 3], finalDir: 4, dead: false })
+    expect(exitCheck(along, [false], 0).free).toBe(true)
+    // Down-right meets '/' face-on: it would bounce back over itself.
+    const diag = { cols: 4, rows: 4, mirrors: [{ x: 2, y: 2, m: '/' }], arrows: [{ cells: [[0, 0], [1, 1]], dir: 5 }] }
     expect(arrowRoute(diag, diag.arrows[0]).dead).toBe(true)
     expect(exitCheck(diag, [false], 0).free).toBe(false)
     // Four mirrors in a ring trap a head that starts inside it: right, down,
@@ -1090,9 +1098,16 @@ describe('portals', () => {
     expect(arrowRoute(level, level.arrows[0])).toMatchObject({ cells: [2, 20, 21, 22, 23], finalDir: 2 })
   })
 
-  it('diagonals and doubles cannot use a portal; a route that loops is dead', () => {
-    const diag = { cols: 5, rows: 5, portals: [{ a: [2, 2], b: [0, 4], c: 0 }], arrows: [{ cells: [[0, 4], [1, 3]], dir: 4 }] }
-    expect(arrowRoute(diag, diag.arrows[0]).dead).toBe(true)
+  it('a diagonal hops a portal keeping its slant; doubles cannot use one; a route that loops is dead', () => {
+    // Up-right into ring A at (2,2), out of ring B at (3,4), on up-right: (4,3).
+    const diag = { cols: 5, rows: 5, portals: [{ a: [2, 2], b: [3, 4], c: 0 }], arrows: [{ cells: [[0, 4], [1, 3]], dir: 4 }] }
+    expect(arrowRoute(diag, diag.arrows[0])).toMatchObject({ cells: [12, 23, 19], corners: [20, -1, 28], jumps: [1], finalDir: 4, dead: false })
+    // A turning pair turns it a quarter clockwise: up-right becomes down-right.
+    // Back into A heading down-right, out of B a quarter on again: down-left.
+    const turning = { ...diag, portals: [{ a: [2, 2], b: [1, 1], c: 0, turn: true }] }
+    expect(arrowRoute(turning, turning.arrows[0])).toMatchObject({ cells: [12, 6, 12, 6, 10], jumps: [1, 3], finalDir: 6, dead: false })
+    const turned = { ...diag, portals: [{ a: [2, 2], b: [1, 0], c: 0, turn: true }] }
+    expect(arrowRoute(turned, turned.arrows[0])).toMatchObject({ cells: [12, 1, 7, 13, 19], finalDir: 5, dead: false })
     const double = { cols: 6, rows: 6, portals: [{ a: [4, 2], b: [4, 5], c: 0 }], arrows: [{ cells: [[1, 1], [0, 1], [0, 2], [0, 3], [1, 3]], dir: 1, double: true }] }
     expect(arrowRoute(double, double.arrows[0]).dead).toBe(true)
     // Ring A sits on its own arrow's row, ring B behind it: the route passes
@@ -1404,5 +1419,103 @@ describe('tunnel floors', () => {
     const level = board()
     const pose = leavePose(level.arrows[0], 10, 25, level)
     expect(pose.at(-1)[0]).toBeGreaterThan(pose[0][0])
+  })
+})
+
+// ── Endless twists: diagonals with mods, flat mirrors, bank / glide / elbow / swerve ──
+
+describe('endless twists', () => {
+  const at = (level, i) => arrowRoute(level, level.arrows[i])
+
+  it('quarterDir turns any heading a quarter', () => {
+    expect([0, 1, 2, 3].map((d) => quarterDir(d, 1))).toEqual([1, 2, 3, 0])
+    expect([4, 5, 6, 7].map((d) => quarterDir(d, 1))).toEqual([5, 6, 7, 4])
+    expect([4, 5, 6, 7].map((d) => quarterDir(d, -1))).toEqual([7, 4, 5, 6])
+  })
+
+  it('a flat mirror bounces a diagonal like a ball; a straight arrow runs along it or dies face-on', () => {
+    const level = (m) => ({
+      cols: 5,
+      rows: 5,
+      mirrors: [{ x: 3, y: 1, m }],
+      arrows: [
+        { cells: [[0, 4], [1, 3]], dir: 4 },
+        { cells: [[0, 1], [1, 1]], dir: 1 },
+        { cells: [[3, 3], [3, 2]], dir: 0 },
+      ],
+    })
+    // '-' flips the up/down half: up-right leaves down-right.
+    expect(at(level('-'), 0)).toMatchObject({ cells: [12, 8, 14], corners: [20, 15, 16], finalDir: 5, dead: false })
+    // '|' flips the left/right half: up-right leaves up-left.
+    expect(at(level('|'), 0)).toMatchObject({ cells: [12, 8, 2], finalDir: 7, dead: false })
+    expect(at(level('-'), 1)).toMatchObject({ cells: [7, 8, 9], finalDir: 1, dead: false })
+    expect(at(level('-'), 2).dead).toBe(true)
+    expect(at(level('|'), 2)).toMatchObject({ cells: [8, 3], finalDir: 0, dead: false })
+  })
+
+  it('a slanted tunnel lets a diagonal cross only its way', () => {
+    const level = (dir) => ({ cols: 5, rows: 5, tunnels: [{ x: 2, y: 2, dir }], arrows: [{ cells: [[0, 4], [1, 3]], dir: 4 }] })
+    expect(at(level(4), 0)).toMatchObject({ cells: [12, 8, 4], dead: false })
+    expect(at(level(5), 0)).toMatchObject({ dead: true, wall: 12 })
+    expect(tunnelUses(level(4))).toEqual([1])
+  })
+
+  it('a bank bounces once off the frame; a corner shot or a void just leaves', () => {
+    const level = { cols: 5, rows: 5, arrows: [{ cells: [[1, 4], [2, 3]], dir: 4, twist: 'bank' }, { cells: [[2, 2], [3, 1]], dir: 4, twist: 'bank' }] }
+    expect(at(level, 0)).toMatchObject({ cells: [13, 9, 3], corners: [21, 16, 10], finalDir: 7, twistAt: 2, dead: false })
+    expect(at(level, 1)).toMatchObject({ cells: [4], twistAt: -1, dead: false })
+    const shaped = { ...level, mask: ['####.', '#####', '#####', '#####', '#####'], arrows: [level.arrows[1]] }
+    expect(at(shaped, 0)).toMatchObject({ cells: [], twistAt: -1, dead: false })
+  })
+
+  it('a glide slides along the wall it meets', () => {
+    const level = { cols: 5, rows: 5, arrows: [{ cells: [[1, 4], [2, 3]], dir: 4, twist: 'glide' }, { cells: [[0, 2], [1, 1]], dir: 4, twist: 'glide' }] }
+    // Right wall: slides up. Top wall: slides right.
+    expect(at(level, 0)).toMatchObject({ cells: [13, 9, 4], finalDir: 0, twistAt: 2 })
+    expect(at(level, 1)).toMatchObject({ cells: [2, 3, 4], finalDir: 1, twistAt: 1 })
+  })
+
+  it('an elbow turns after its cells; a hook only at the edge', () => {
+    const arrow = (extra) => ({ cells: [[0, 4], [0, 3]], dir: 0, turn: 1, ...extra })
+    const level = { cols: 5, rows: 5, arrows: [arrow({ twist: 'elbow', n: 1 }), arrow({ twist: 'elbow', n: 2 }), arrow({})] }
+    expect(at(level, 0)).toMatchObject({ cells: [10, 11, 12, 13, 14], finalDir: 1, twistAt: 1 })
+    expect(at(level, 1)).toMatchObject({ cells: [10, 5, 6, 7, 8, 9], finalDir: 1, twistAt: 2 })
+    expect(at(level, 2)).toMatchObject({ cells: [10, 5, 0, 1, 2, 3, 4], finalDir: 1 })
+    expect(isCurved(level.arrows[0])).toBe(false)
+    expect(isCurved(level.arrows[2])).toBe(true)
+  })
+
+  it('a swerve jogs one lane through a cell corner, and a diagonal body on that corner blocks it', () => {
+    const swerve = { cells: [[0, 4], [0, 3]], dir: 0, turn: 1, twist: 'swerve', n: 1 }
+    const open = { cols: 5, rows: 5, arrows: [swerve] }
+    expect(at(open, 0)).toMatchObject({ cells: [10, 6, 1], corners: [-1, 13, -1], finalDir: 0, twistAt: 1 })
+    const crossed = { cols: 5, rows: 5, arrows: [swerve, { cells: [[0, 1], [1, 2]], dir: 5 }] }
+    expect(exitCheck(crossed, [false, false], 0)).toMatchObject({ free: false, blocker: 1, gap: 1 })
+    expect(solveArrows(crossed)).toMatchObject({ solvable: true, layers: 2 })
+  })
+
+  it('the generator builds every twist only when asked, each one really twisting', () => {
+    const spec = { ...ARROWS_ENDLESS_SPECS.medium, name: 'test' }
+    const seen = Object.fromEntries(ARROWS_TWISTS.map((t) => [t, 0]))
+    for (let s = 1; s <= 12; s += 1) {
+      const level = generateArrowsLevel(s * 977, spec)
+      expect(solveArrows(level).solvable).toBe(true)
+      for (const a of level.arrows) {
+        if (!a.twist) continue
+        seen[a.twist] += 1
+        const route = arrowRoute(level, a)
+        expect(route.dead).toBe(false)
+        expect(route.twistAt).toBeGreaterThanOrEqual(0)
+        expect(route.twistAt).toBeLessThan(route.cells.length)
+        expect(isDiagonal(a)).toBe(a.twist === 'bank' || a.twist === 'glide')
+        if (a.twist === 'elbow' || a.twist === 'swerve') expect([1, 2]).toContain(a.n)
+      }
+      expect(levelStats(level).twists).toBe(level.arrows.filter((a) => a.twist).length)
+    }
+    for (const t of ARROWS_TWISTS) expect(seen[t], t).toBeGreaterThan(0)
+    // The race tiers never draw an endless twist or a flat mirror.
+    for (const tier of ARROWS_TIERS) {
+      for (let s = 1; s <= 6; s += 1) expect(generateArrowsLevel(s, tier).arrows.some((a) => a.twist)).toBe(false)
+    }
   })
 })

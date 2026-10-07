@@ -174,15 +174,59 @@ function hookTipD(arrow) {
   return `M${p(HOOK_REACH, v + HOOK_CHEVRON)} L${p(HOOK_REACH - HOOK_HALF, v)} L${p(HOOK_REACH + HOOK_HALF, v)} Z`
 }
 
-// Mirrors: a dark tile with a slanted bar; a leaving arrow turns at its
-// centre. The bar runs corner to corner the way the mirror leans.
+// Endless twist markers: a small accent glyph off the head, like the hook.
+// Elbow and swerve wear dots behind the head, one per cell they fly before
+// the twist. Each part is { d, fill } (stroke otherwise).
+const PIP_R = 0.85
+const f2 = (n) => Math.round(n * 100) / 100
+const pipD = (cx, cy) => `M${f2(cx - PIP_R)} ${f2(cy)} a${PIP_R} ${PIP_R} 0 1 0 ${PIP_R * 2} 0 a${PIP_R} ${PIP_R} 0 1 0 ${-PIP_R * 2} 0`
+function twistMarker(arrow) {
+  const c = cellCenter(arrow.cells[arrow.cells.length - 1], CELL)
+  const [hx, hy] = ARROWS_DIRS[arrow.dir]
+  const norm = Math.hypot(hx, hy)
+  const dx = hx / norm
+  const dy = hy / norm
+  const at = (u, v, sx, sy) => `${f2(c[0] + dx * u + sx * v)} ${f2(c[1] + dy * u + sy * v)}`
+  if (arrow.twist === 'elbow' || arrow.twist === 'swerve') {
+    const [sx, sy] = ARROWS_DIRS[turnedDir(arrow.dir, arrow.turn)]
+    const parts = arrow.twist === 'elbow'
+      ? [{ d: hookD(arrow) }, { d: hookTipD(arrow), fill: true }]
+      : [{ d: `M${at(TIP_AHEAD, 0, sx, sy)} L${at(2.6, 0, sx, sy)} L${at(3.8, 2.2, sx, sy)} L${at(4.8, 2.2, sx, sy)}` }]
+    for (let i = 0; i < (arrow.n ?? 0); i += 1) {
+      parts.push({ d: pipD(c[0] - sx * 3.4 - dx * (i * 2.2 - 0.6), c[1] - sy * 3.4 - dy * (i * 2.2 - 0.6)), fill: true })
+    }
+    return parts
+  }
+  // Diagonal twists, across the heading: a bank zig-zags (it bounces), a
+  // glide wears a double rail (it rides the wall).
+  const px = -dy
+  const py = dx
+  if (arrow.twist === 'bank') {
+    return [{ d: `M${at(TIP_AHEAD, 0, px, py)} L${at(3.1, 1.3, px, py)} L${at(4.2, -1.3, px, py)} L${at(5.2, 0.6, px, py)}` }]
+  }
+  return [{ d: `M${at(TIP_AHEAD + 0.8, -2.2, px, py)} L${at(TIP_AHEAD + 0.8, 2.2, px, py)} M${at(TIP_AHEAD + 2.3, -1.5, px, py)} L${at(TIP_AHEAD + 2.3, 1.5, px, py)}` }]
+}
+
+// Mirrors: a dark tile with a bar; a leaving arrow turns at its centre. A
+// slanted bar runs corner to corner the way the mirror leans; a flat one
+// (endless) lies across the middle, level or upright.
 const MIRROR_INSET = 2.2
 function mirrorBar({ x, y, m }) {
   const x0 = x * CELL
   const y0 = y * CELL
   const lo = MIRROR_INSET
   const hi = CELL - MIRROR_INSET
+  const mid = CELL / 2
+  if (m === '-') return [[x0 + lo - 0.6, y0 + mid], [x0 + hi + 0.6, y0 + mid]]
+  if (m === '|') return [[x0 + mid, y0 + lo - 0.6], [x0 + mid, y0 + hi + 0.6]]
   return m === '/' ? [[x0 + lo, y0 + hi], [x0 + hi, y0 + lo]] : [[x0 + lo, y0 + lo], [x0 + hi, y0 + hi]]
+}
+const isFlatMirror = (m) => m.m === '-' || m.m === '|'
+function mirrorLabel(m) {
+  const where = `column ${m.x + 1}, row ${m.y + 1}`
+  if (m.m === '-') return `Flat mirror at ${where}, lying level: diagonals bounce off it, arrows heading left or right run along it`
+  if (m.m === '|') return `Flat mirror at ${where}, standing upright: diagonals bounce off it, arrows heading up or down run along it`
+  return `Mirror at ${where}, leaning ${m.m === '/' ? 'right' : 'left'}`
 }
 
 // Tunnel floors: a dark tile with two rails along its axis and chevrons
@@ -191,7 +235,12 @@ function mirrorBar({ x, y, m }) {
 const TUNNEL_RAIL = 3.3
 const TUNNEL_HALF = 4.1
 function tunnelGeometry({ x, y, dir }) {
-  const [dx, dy] = ARROWS_DIRS[dir]
+  // A slanted tile (endless) is the same glyph turned 45°, a touch narrower
+  // so its rails stay inside the cell.
+  const [ux, uy] = ARROWS_DIRS[dir]
+  const slant = dir >= 4 ? Math.SQRT1_2 * 0.82 : 1
+  const dx = ux * slant
+  const dy = uy * slant
   const px = -dy
   const py = dx
   const cx = x * CELL + CELL / 2
@@ -245,6 +294,14 @@ function arrowLabel(arrow, i, asleep) {
   const sleep = asleep ? ', asleep until an arrow touching it leaves' : ''
   if (isDouble(arrow)) return `Arrow ${i + 1}, double, two heads pointing ${ARROWS_DIR_NAMES[arrow.dir]}${sleep}`
   if (sleep) return `Arrow ${i + 1}, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}${sleep}`
+  if (arrow.twist === 'bank') return `Arrow ${i + 1}, bank shot diagonal, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}, bounces once off the first wall it hits`
+  if (arrow.twist === 'glide') return `Arrow ${i + 1}, glide diagonal, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}, slides along the first wall it hits`
+  if (arrow.twist === 'elbow') {
+    return `Arrow ${i + 1}, elbow, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]} for ${arrow.n} cell${arrow.n === 1 ? '' : 's'}, then turning ${ARROWS_DIR_NAMES[turnedDir(arrow.dir, arrow.turn)]}`
+  }
+  if (arrow.twist === 'swerve') {
+    return `Arrow ${i + 1}, swerve, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]} for ${arrow.n} cell${arrow.n === 1 ? '' : 's'}, then stepping one lane ${ARROWS_DIR_NAMES[turnedDir(arrow.dir, arrow.turn)]}`
+  }
   if (isBent(arrow)) return `Arrow ${i + 1}, curved diagonal, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`
   if (isDiagonal(arrow)) return `Arrow ${i + 1}, diagonal, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`
   if (isCurved(arrow)) {
@@ -703,7 +760,7 @@ export default function ArrowsBoard({
           const [a, b] = mirrorBar(m)
           const glint = (t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
           return (
-            <g key={`m${m.x}-${m.y}`} className="ar-mirror" role="img" aria-label={`Mirror at column ${m.x + 1}, row ${m.y + 1}, leaning ${m.m === '/' ? 'right' : 'left'}`}>
+            <g key={`m${m.x}-${m.y}`} className={cn('ar-mirror', isFlatMirror(m) && 'is-flat')} role="img" aria-label={mirrorLabel(m)}>
               <rect className="ar-mirror-cell" x={m.x * CELL + 0.8} y={m.y * CELL + 0.8} width={CELL - 1.6} height={CELL - 1.6} rx={1.4} />
               <line className="ar-mirror-bar" x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} />
               <line className="ar-mirror-glint" x1={glint(0.55)[0]} y1={glint(0.55)[1]} x2={glint(0.75)[0]} y2={glint(0.75)[1]} />
@@ -808,6 +865,15 @@ export default function ArrowsBoard({
                   <g ref={(el) => { hookRefs.current[i] = el }} style={{ pointerEvents: 'none' }}>
                     <path className="ar-hook" d={hookD(arrow)} fill="none" strokeWidth={STROKE * 0.62} />
                     <path className="ar-hook-tip" d={hookTipD(arrow)} />
+                  </g>
+                )}
+                {arrow.twist && (
+                  <g ref={(el) => { hookRefs.current[i] = el }} style={{ pointerEvents: 'none' }}>
+                    {twistMarker(arrow).map((part, k) => (
+                      part.fill
+                        ? <path key={k} className="ar-hook-tip" d={part.d} />
+                        : <path key={k} className="ar-hook" d={part.d} fill="none" strokeWidth={STROKE * 0.55} />
+                    ))}
                   </g>
                 )}
                 {interactive && !leaving && (

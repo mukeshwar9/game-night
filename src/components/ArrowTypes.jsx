@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import ArrowsBoard from './ArrowsBoard'
 import ArrowsLesson from './ArrowsLesson'
-import { ARROWS_LESSONS, lessonLevel } from '../lib/arrowsLessonsLogic'
-import { isLevelUnlocked } from '../lib/arrowsLevelsLogic'
+import { ARROWS_ENDLESS_EXAMPLES, ARROWS_LESSONS, lessonLevel } from '../lib/arrowsLessonsLogic'
+import { ARROWS_TWIST_TIPS, isLevelUnlocked } from '../lib/arrowsLevelsLogic'
 import { readArrowsProgress } from '../lib/arrowsProgress'
 import { cn } from '@/lib/utils'
 
@@ -59,6 +59,22 @@ export default function ArrowTypes({ highlight = [] }) {
             </li>
           )
         })}
+      </ul>
+      {/* Endless-only twists: no lesson, just a dotted route and the rule. */}
+      <p className="pt-2 font-pixel text-[9px] text-retro-cta tracking-widest">ENDLESS TWISTS</p>
+      <ul>
+        {ARROWS_ENDLESS_EXAMPLES.map((ex) => (
+          <li key={ex.kind} className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3 py-1.5 border-b border-retro-border/50">
+            <ArrowsBoard level={lessonLevel(ex)} gone={[false]} preview={0} compact label={`${ex.name} example`} />
+            <span className="min-w-0">
+              <span className="block font-pixel text-[8px] leading-relaxed text-retro-text">
+                {ex.name}
+                {highlight.includes(ex.kind) && <span className="ml-1.5 text-retro-cta">· ON THIS BOARD</span>}
+              </span>
+              <span className="block font-pixel text-[7px] text-retro-dim leading-relaxed">{ARROWS_TWIST_TIPS[ex.kind]}</span>
+            </span>
+          </li>
+        ))}
       </ul>
     </section>
   )

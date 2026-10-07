@@ -12,7 +12,7 @@
 // by construction and arrowsLevelsLogic.test.js re-checks every level with
 // the solver.
 
-import { ARROWS_ENDLESS_SPECS, ARROWS_LIVES, ARROWS_TIERS, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, portalUses, seededRng, solveArrows, tunnelUses } from './arrowsLogic.js'
+import { ARROWS_ENDLESS_SPECS, ARROWS_LIVES, ARROWS_TIERS, ARROWS_TWISTS, arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, portalUses, seededRng, solveArrows, tunnelUses } from './arrowsLogic.js'
 import { ARROWS_BAKED_LEVELS as BAKED } from './arrowsLevelsBaked.js'
 import { maskCells, maskConnected, shapeMask } from './arrowsShapes.js'
 
@@ -202,6 +202,24 @@ export const ARROWS_TWIST_TIPS = {
   turning: 'NEW · A HOOKED RING TURNS THE ARROW A QUARTER TURN CLOCKWISE AS IT COMES OUT THE OTHER SIDE.',
   tunnel: 'NEW · A TUNNEL FLOOR LETS A PIECE CROSS ONLY THE WAY ITS CHEVRONS POINT. ANY OTHER WAY IT IS A SOLID WALL.',
   shape: 'NEW · NOT EVERY BOARD IS A RECTANGLE. EMPTY SPACE IS AN EDGE — AN ARROW THAT REACHES IT LEAVES THE BOARD.',
+  // Endless-only pieces (endless boards show no tips; these read in ARROW TYPES).
+  diagmods: 'DIAGONALS GO THROUGH PORTALS KEEPING THEIR SLANT, SLIDE ALONG A MIRROR BAR THAT RUNS THEIR WAY, AND CROSS A SLANTED TUNNEL ITS WAY ONLY.',
+  flat: 'A FLAT MIRROR BOUNCES A DIAGONAL LIKE A BALL OFF A WALL. A STRAIGHT ARROW ONLY RUNS ALONG IT.',
+  bank: 'A ZIG-ZAG DIAGONAL BOUNCES OFF THE FIRST WALL IT HITS, THEN FLIES OUT. A CORNER SHOT LEAVES STRAIGHT AWAY.',
+  glide: 'A RAILED DIAGONAL FLIES TO A WALL, THEN SLIDES ALONG THAT WALL AND OUT.',
+  elbow: 'AN ELBOW FLIES AS MANY CELLS AS ITS DOTS, TURNS THE WAY ITS HOOK CURLS, THEN FLIES OUT.',
+  swerve: 'A SWERVE FLIES AS MANY CELLS AS ITS DOTS, JOGS ONE LANE THE WAY ITS KINK POINTS, THEN CARRIES ON.',
+}
+
+// Does some diagonal's route actually use a mirror, a portal or a tunnel?
+export function diagonalUsesMods(level) {
+  if (!level.mirrors?.length && !level.portals?.length && !level.tunnels?.length) return false
+  const fixed = new Set([
+    ...(level.mirrors ?? []).map((m) => m.y * level.cols + m.x),
+    ...(level.tunnels ?? []).map((t) => t.y * level.cols + t.x),
+    ...(level.portals ?? []).flatMap((p) => [p.a[1] * level.cols + p.a[0], p.b[1] * level.cols + p.b[0]]),
+  ])
+  return level.arrows.some((a) => isDiagonal(a) && arrowRoute(level, a).cells.some((c) => fixed.has(c)))
 }
 
 // Does a board carry the tunnel floors its spec asked for, each one actually
@@ -269,6 +287,10 @@ export function twistsIn(level) {
   if (portals.some((p) => p.turn)) out.push('turning')
   if (level.tunnels?.length) out.push('tunnel')
   if (level.mask) out.push('shape')
+  // Endless-only pieces, after every campaign kind.
+  if (diagonalUsesMods(level)) out.push('diagmods')
+  if (level.mirrors?.some((m) => m.m === '-' || m.m === '|')) out.push('flat')
+  for (const t of ARROWS_TWISTS) if (level.arrows.some((a) => a.twist === t)) out.push(t)
   return out
 }
 
@@ -281,25 +303,26 @@ export function newTwist(level, seen) {
 // with chance `odds` (otherwise the plain ARROWS_ENDLESS_SPECS rectangle),
 // picks the outline from `pool` and grows it until it has `cells` playable
 // cells — so the arrow count climbs with the tier the way the campaign's
-// shaped boards do. Easy stays inside the 10 × 13 no-camera size; medium and
-// hard outgrow it and play with drag and zoom, like levels 61+.
+// shaped boards do. Shaped boards outgrow the 10 × 13 no-camera size on every
+// tier (hard up to the 20 × 28 endless maximum) and play with drag and zoom,
+// like levels 61+.
 export const ARROWS_ENDLESS_SHAPES = {
-  easy: { odds: 0.35, pool: ['diamond', 'cross', 'arrow'], cells: 64, maxLen: 5 },
-  medium: { odds: 0.55, pool: ['diamond', 'cross', 'heart', 'arrow', 'donut'], cells: 110, maxLen: 6 },
-  hard: { odds: 0.8, pool: ['diamond', 'cross', 'donut', 'heart', 'lantern', 'arrow'], cells: 220, maxLen: 7 },
+  easy: { odds: 0.35, pool: ['diamond', 'cross', 'arrow'], cells: 120, maxLen: 6 },
+  medium: { odds: 0.55, pool: ['diamond', 'cross', 'heart', 'arrow', 'donut'], cells: 240, maxLen: 7 },
+  hard: { odds: 0.7, pool: ['diamond', 'cross', 'donut', 'heart', 'lantern', 'arrow'], cells: 400, maxLen: 8 },
 }
 
-const SHAPE_MAX_COLS = 16
-const SHAPE_MAX_ROWS = 22
+export const ARROWS_ENDLESS_MAX_COLS = 20
+export const ARROWS_ENDLESS_MAX_ROWS = 28
 
-// The smallest portrait grid (about 3 : 4) whose `shape` outline holds at
-// least `cells` playable cells, capped at the campaign's 16 × 22 finale.
+// The smallest portrait grid (about 5 : 7) whose `shape` outline holds at
+// least `cells` playable cells, capped at the 20 × 28 endless maximum.
 export function endlessShapeDims(shape, cells) {
-  for (let cols = 6; cols < SHAPE_MAX_COLS; cols += 1) {
-    const rows = Math.min(SHAPE_MAX_ROWS, Math.round(cols * 1.3))
+  for (let cols = 6; cols < ARROWS_ENDLESS_MAX_COLS; cols += 1) {
+    const rows = Math.min(ARROWS_ENDLESS_MAX_ROWS, Math.round(cols * 1.4))
     if (maskCells(shapeMask(shape, cols, rows)) >= cells) return { cols, rows }
   }
-  return { cols: SHAPE_MAX_COLS, rows: SHAPE_MAX_ROWS }
+  return { cols: ARROWS_ENDLESS_MAX_COLS, rows: ARROWS_ENDLESS_MAX_ROWS }
 }
 
 // Endless tiers carry the late mechanics races leave out. Unknown tiers fall
@@ -333,6 +356,15 @@ function endlessMeets(level, spec) {
   if (spec.mirrors && (level.mirrors?.length ?? 0) < spec.mirrors) return false
   if (spec.crates && (level.crates?.length ?? 0) < spec.crates) return false
   if (!portalsMeet(spec, level, 1)) return false
+  // Endless pieces: the tunnels and flat mirrors asked for, at least one arrow
+  // of every twist with a chance, and a diagonal that really meets a mod.
+  // Every tunnel is placed; at least one is on a live route (a tile can land
+  // where no route can reach it the way it points, and then just sits there).
+  if (spec.tunnels && ((level.tunnels?.length ?? 0) < spec.tunnels || !tunnelUses(level).some((u) => u >= 1))) return false
+  const flats = (level.mirrors ?? []).filter((m) => m.m === '-' || m.m === '|').length
+  if (spec.flatMirrors && flats < spec.flatMirrors) return false
+  for (const t of ARROWS_TWISTS) if (spec[t] && !level.arrows.some((a) => a.twist === t)) return false
+  if (spec.diagMods && !diagonalUsesMods(level)) return false
   return true
 }
 

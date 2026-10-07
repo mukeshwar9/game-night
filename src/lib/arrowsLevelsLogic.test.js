@@ -13,6 +13,8 @@ import {
   blankProgress,
   endlessLevel,
   endlessShapeDims,
+  ARROWS_ENDLESS_MAX_COLS,
+  ARROWS_ENDLESS_MAX_ROWS,
   getArrowsLevel,
   isLevelUnlocked,
   levelKey,
@@ -28,6 +30,7 @@ import {
   starsFor,
   totalStars,
   twistsIn,
+  diagonalUsesMods,
 } from './arrowsLevelsLogic'
 
 const levels = Array.from({ length: ARROWS_LEVEL_COUNT }, (_, i) => getArrowsLevel(i + 1))
@@ -396,14 +399,43 @@ describe('endless boards', { timeout: 120000 }, () => {
         expect(level.crates?.length ?? 0, `${tier} crates`).toBeGreaterThanOrEqual(spec.crates ?? 0)
         expect(level.portals?.length ?? 0, `${tier} portals`).toBeGreaterThanOrEqual(spec.portals?.length ?? 0)
         portalUses(level).forEach((uses) => expect(uses, `${tier} portal use`).toBeGreaterThanOrEqual(1))
+        expect(level.tunnels?.length ?? 0, `${tier} tunnels`).toBeGreaterThanOrEqual(spec.tunnels ?? 0)
+        expect(tunnelUses(level).some((u) => u >= 1), `${tier} tunnel use`).toBe(true)
+        expect((level.mirrors ?? []).filter((m) => m.m === '-' || m.m === '|').length, `${tier} flat mirrors`).toBeGreaterThanOrEqual(spec.flatMirrors ?? 0)
+        for (const t of ['bank', 'glide', 'elbow', 'swerve']) expect(level.arrows.some((a) => a.twist === t), `${tier} ${t}`).toBe(true)
+        expect(diagonalUsesMods(level), `${tier} diagonal meets a mod`).toBe(true)
       }
     }
+  })
+
+  it('a solver sweep: 50 seeds per tier, up to 20 × 28, all solvable, every tap in the solver order clears, fast to build', () => {
+    const budget = { easy: 120, medium: 200, hard: 500 }
+    for (const tier of ['easy', 'medium', 'hard']) {
+      let ms = 0
+      for (let s = 1; s <= 50; s += 1) {
+        const t0 = performance.now()
+        const level = endlessLevel(s * 7919, tier)
+        ms += performance.now() - t0
+        const st = solveArrows(level)
+        expect(st.solvable, `${tier} seed ${level.seed}`).toBe(true)
+        let gone = Array(level.arrows.length).fill(false)
+        for (const i of st.order) {
+          const r = applyArrowTap(level, gone, 3, i)
+          expect(r.result, `${tier} seed ${level.seed} arrow ${i}`).toBe('cleared')
+          gone = r.gone
+        }
+        expect(level.cols <= ARROWS_ENDLESS_MAX_COLS && level.rows <= ARROWS_ENDLESS_MAX_ROWS).toBe(true)
+      }
+      // Average build time per board (generous: CI machines are slow).
+      expect(ms / 50, `${tier} ms per board`).toBeLessThan(budget[tier])
+    }
+    expect(ARROWS_ENDLESS_SPECS.hard).toMatchObject({ cols: 20, rows: 28 })
   })
 
   it('hard endless mixes in every mechanic', () => {
     for (let s = 1; s <= 8; s += 1) {
       const twists = twistsIn(endlessLevel(s * 65537, 'hard'))
-      for (const t of ['diag', 'curve', 'sleep', 'double', 'mirror', 'crate', 'portal']) {
+      for (const t of ['diag', 'curve', 'sleep', 'double', 'mirror', 'crate', 'portal', 'tunnel', 'diagmods', 'flat', 'bank', 'glide', 'elbow', 'swerve']) {
         expect(twists, `seed ${s}`).toContain(t)
       }
     }
@@ -481,33 +513,29 @@ describe('shaped endless boards', { timeout: 60000 }, () => {
 
   it('bigger boards carry more arrows, and every tier climbs', () => {
     const avg = (list) => list.reduce((n, l) => n + l.arrows.length, 0) / list.length
-    const shapedAvg = {}
-    for (const tier of ['easy', 'medium', 'hard']) {
-      const all = boards(tier)
-      shapedAvg[tier] = avg(all.filter((l) => l.mask))
-      expect(shapedAvg[tier], `${tier} shaped vs rectangle`).toBeGreaterThan(avg(all.filter((l) => !l.mask)))
-    }
-    expect(shapedAvg.medium).toBeGreaterThan(shapedAvg.easy)
-    expect(shapedAvg.hard).toBeGreaterThan(shapedAvg.medium)
-    // Hard shaped boards hold their own against the shaped campaign boards (levels 61-100).
-    expect(shapedAvg.hard).toBeGreaterThanOrEqual(35)
+    expect(avg(boards('medium'))).toBeGreaterThan(avg(boards('easy')))
+    expect(avg(boards('hard'))).toBeGreaterThan(avg(boards('medium')))
+    // Hard boards (up to 20 × 28) carry far more than the 10 × 13 campaign boards.
+    expect(avg(boards('hard'))).toBeGreaterThanOrEqual(55)
   })
 
-  it('shaped boards outgrow the fitted size only on medium and hard (drag and zoom)', () => {
-    expect(boards('easy').filter((l) => l.mask).every((l) => !needsCamera(l))).toBe(true)
-    expect(boards('hard').filter((l) => l.mask).some(needsCamera)).toBe(true)
+  it('only easy rectangles fit without a camera; everything else drags and zooms, up to 20 × 28', () => {
+    expect(boards('easy').filter((l) => !l.mask).every((l) => !needsCamera(l))).toBe(true)
+    expect(boards('easy').filter((l) => l.mask).every(needsCamera)).toBe(true)
+    for (const tier of ['medium', 'hard']) expect(boards(tier).every(needsCamera)).toBe(true)
     for (const tier of ['easy', 'medium', 'hard']) {
-      for (const level of boards(tier)) expect(level.cols <= 16 && level.rows <= 22).toBe(true)
+      for (const level of boards(tier)) expect(level.cols <= ARROWS_ENDLESS_MAX_COLS && level.rows <= ARROWS_ENDLESS_MAX_ROWS).toBe(true)
     }
+    expect(boards('hard').some((l) => l.cols === 20 && l.rows === 28)).toBe(true)
   })
 
   it('endlessShapeDims finds a grid with enough playable cells for every shape', () => {
     for (const shape of ARROWS_SHAPES) {
-      for (const cells of [64, 110, 220]) {
+      for (const cells of [120, 240, 400]) {
         const { cols, rows } = endlessShapeDims(shape, cells)
         const mask = shapeMask(shape, cols, rows)
         expect(maskConnected(mask), `${shape} ${cols}x${rows}`).toBe(true)
-        if (cols < 16) expect(maskCells(mask), `${shape} ${cells}`).toBeGreaterThanOrEqual(cells)
+        if (cols < ARROWS_ENDLESS_MAX_COLS) expect(maskCells(mask), `${shape} ${cells}`).toBeGreaterThanOrEqual(cells)
       }
     }
   })

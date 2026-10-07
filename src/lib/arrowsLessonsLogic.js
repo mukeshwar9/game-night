@@ -194,6 +194,18 @@ export function getLesson(kind) {
 }
 
 /** A fresh lesson board (the lesson data itself is never mutated). */
+// Endless-only twists have no lesson (endless boards teach nothing); ARROW
+// TYPES shows each on a one-arrow example with its route dotted in.
+/** @type {Array<{ kind: string, name: string, board: LessonBoard }>} */
+export const ARROWS_ENDLESS_EXAMPLES = [
+  { kind: 'diagmods', name: 'DIAGONALS × PORTALS', board: { cols: 5, rows: 5, portals: [{ a: [2, 2], b: [3, 4], c: 0 }], arrows: [{ cells: [[0, 4], [1, 3]], dir: 4 }] } },
+  { kind: 'flat', name: 'FLAT MIRRORS', board: { cols: 5, rows: 5, mirrors: [{ x: 3, y: 1, m: '-' }], arrows: [{ cells: [[0, 4], [1, 3]], dir: 4 }] } },
+  { kind: 'bank', name: 'BANK SHOTS', board: { cols: 5, rows: 5, arrows: [{ cells: [[1, 4], [2, 3]], dir: 4, twist: 'bank' }] } },
+  { kind: 'glide', name: 'GLIDERS', board: { cols: 5, rows: 5, arrows: [{ cells: [[0, 2], [1, 1]], dir: 4, twist: 'glide' }] } },
+  { kind: 'elbow', name: 'ELBOWS', board: { cols: 5, rows: 5, arrows: [{ cells: [[0, 4], [0, 3]], dir: 0, turn: 1, twist: 'elbow', n: 1 }] } },
+  { kind: 'swerve', name: 'SWERVES', board: { cols: 5, rows: 5, arrows: [{ cells: [[0, 4], [0, 3]], dir: 0, turn: 1, twist: 'swerve', n: 1 }] } },
+]
+
 export function lessonLevel(lesson) {
   return { seed: 0, tier: `lesson-${lesson.kind}`, ...structuredClone(lesson.board) }
 }
