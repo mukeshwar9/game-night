@@ -205,6 +205,7 @@ export const GAME_TYPES = [
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     getWinner,
     BoardComponent: Board,
+    focus: true,
   },
   {
     type: 'sim', label: 'SIM',
@@ -217,6 +218,7 @@ export const GAME_TYPES = [
     getMoveIndex: simMoveIndex,
     getWinner: getSimWinner,
     BoardComponent: SimBoard,
+    focus: true,
   },
   {
     type: 'chomp', label: 'CHOMP',
@@ -228,6 +230,7 @@ export const GAME_TYPES = [
     boardSize: CHOMP_CELL_COUNT,
     getMoveIndex: (board, i) => (board[i] ? -1 : i),
     BoardComponent: ChompBoard,
+    focus: true,
     applyMove: ({ board, index, symbol }) => {
       const moved = applyChompMove(board, index)
       if (!moved) return null
@@ -255,6 +258,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: BreakthroughBoard,
+    focus: true,
     applyMove: ({ board, move, symbol }) => {
       const moved = applyBreakthroughMove(board, move, symbol)
       if (!moved) return null
@@ -284,6 +288,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: AtaxxBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const moved = applyAtaxxMove(board, move, symbol)
       if (!moved) return null
@@ -315,6 +320,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: KamisadoBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const forced = game.kamisadoColor ?? null
       const res = applyKamisadoMove(board, move, symbol, forced, { towers: game.kamisadoTowers })
@@ -353,6 +359,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: OnitamaBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const hands = { handX: game.onitamaHandX, handO: game.onitamaHandO, spare: game.onitamaSpare }
       const res = applyOnitamaMove(board, move, symbol, hands)
@@ -389,6 +396,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.place) ? move.place : -1,
     BoardComponent: QuartoBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const res = applyQuartoMove(board, move, symbol, {
         unplaced: game.quartoUnplaced,
@@ -423,6 +431,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.worker) && Number.isInteger(move.to) ? move.worker : -1,
     BoardComponent: SantoriniBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const res = applyStMove(
         { board, workers: game.santoriniWorkers },
@@ -456,6 +465,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: LoaBoard,
+    focus: true,
     applyMove: ({ board, move, symbol }) => {
       const res = applyLoaMove(board, move, symbol)
       if (!res) return null
@@ -483,6 +493,7 @@ export const GAME_TYPES = [
     // Standard placement: payload = cell index.
     getMoveIndex: (board, i) => (!board[i] && Number.isInteger(i) ? i : -1),
     BoardComponent: YavalathBoard,
+    focus: true,
     applyMove: ({ board, index, symbol }) => {
       const res = applyYavalathMove(board, index, symbol)
       if (!res) return null
@@ -511,6 +522,7 @@ export const GAME_TYPES = [
     boardSize: UT_CELL_COUNT,
     getMoveIndex: (board, move) => (board[move] ? -1 : move),
     BoardComponent: UltimateTttBoard,
+    focus: true,
     applyMove: ({ board, game, index, symbol }) => {
       const uWon = normalizeUWon(game.uWon)
       const active = game.uActiveBoard ?? -1
@@ -542,6 +554,7 @@ export const GAME_TYPES = [
     getMoveIndex: (board, i) => (board[i] ? -1 : i),
     getWinner: getTicTacToe4Winner,
     BoardComponent: Board,
+    focus: true,
     boardProps: () => ({ cols: 4 }),
   },
   {
@@ -556,6 +569,7 @@ export const GAME_TYPES = [
     getMoveIndex: getConnectFourDrop,
     getWinner: getConnectFourWinner,
     BoardComponent: ConnectFourBoard,
+    focus: true,
     landMs: DISC_LAND_MS,
   },
   {
@@ -569,6 +583,7 @@ export const GAME_TYPES = [
     getMoveIndex: (board, col) => getConnectFourDrop(board, col, CF5),
     getWinner: (board) => getConnectFourWinner(board, CF5),
     BoardComponent: ConnectFourBoard,
+    focus: true,
     landMs: DISC_LAND_MS,
     boardProps: () => ({ cols: 9, rows: 7 }),
   },
@@ -587,6 +602,7 @@ export const GAME_TYPES = [
       return getConnectFourDrop(board, move?.col)
     },
     BoardComponent: ConnectFourBoard,
+    focus: true,
     landMs: DISC_LAND_MS,
     applyMove: ({ board, move, symbol }) => {
       const res = applyConnectFourPopMove(board, move, symbol)
@@ -618,6 +634,7 @@ export const GAME_TYPES = [
     boardSize: DB_EDGE_COUNT,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: DotsAndBoxesBoard,
+    focus: true,
     applyMove: dotsAndBoxesMove(DB_SIZE),
     boardProps: (game) => ({ boxes: normalizeBoard(game.boxes, DB_BOX_COUNT), size: DB_SIZE }),
   },
@@ -632,6 +649,7 @@ export const GAME_TYPES = [
     boardSize: DB_EDGE_COUNT_CLASSIC,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: DotsAndBoxesBoard,
+    focus: true,
     applyMove: dotsAndBoxesMove(DB_SIZE_CLASSIC),
     boardProps: (game) => ({ boxes: normalizeBoard(game.boxes, DB_BOX_COUNT_CLASSIC), size: DB_SIZE_CLASSIC }),
   },
@@ -647,6 +665,7 @@ export const GAME_TYPES = [
       return board[move.index] ? -1 : move.index
     },
     BoardComponent: SosBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const lines = normalizeSosLines(game.sosLines)
       const applied = applySosMove(board, lines, move.index, move.letter, symbol)
@@ -679,6 +698,7 @@ export const GAME_TYPES = [
     boardSize: 0,
     getMoveIndex: (_, padIndex) => padIndex,
     BoardComponent: SimonBoard,
+    focus: true,
     applyMove: ({ game, move, symbol }) => applySimonMove(game, move, symbol),
     boardProps: (game) => ({
       simonSequence: normalizeSimonSequence(game.simonSequence),
@@ -937,6 +957,7 @@ export const GAME_TYPES = [
     getMoveIndex: (board, i) => (board[i] ? -1 : i),
     getWinner: getGomokuWinner,
     BoardComponent: GomokuBoard,
+    focus: true,
   },
   {
     type: 'gomokuswap', label: 'GOMOKU SWAP',
@@ -953,6 +974,7 @@ export const GAME_TYPES = [
     getMoveIndex: getGomokuMoveIndex,
     getWinner: getGomokuWinner,
     BoardComponent: GomokuBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const moved = applyGomokuMove(board, move, symbol, !!game.pieSwap)
       if (!moved) return null
@@ -977,6 +999,7 @@ export const GAME_TYPES = [
     boardSize: REVERSI_SIZE,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: ReversiBoard,
+    focus: true,
     applyMove: ({ board, index, symbol }) => {
       const moved = applyReversiMove(board, index, symbol)
       if (!moved) return null
@@ -1009,6 +1032,7 @@ export const GAME_TYPES = [
       return index
     },
     BoardComponent: ChainReactionBoard,
+    focus: true,
     // M-46: the tallest non-realtime board — Game.jsx tightens the vertical
     // rhythm so board+status still fit a 667px viewport (iPhone SE).
     compactLayout: true,
@@ -1031,6 +1055,7 @@ export const GAME_TYPES = [
       return index
     },
     BoardComponent: ChainReactionBoard,
+    focus: true,
     applyMove: ({ board, game, index, symbol }) =>
       applyChainReactionMove({ board, game, index, symbol, cols: CR_COLS_CLASSIC, rows: CR_ROWS_CLASSIC }),
     boardProps: (game) => ({ crLastMove: game.crLastMove ?? null, cols: CR_COLS_CLASSIC, rows: CR_ROWS_CLASSIC }),
@@ -1084,6 +1109,7 @@ export const GAME_TYPES = [
       return -1
     },
     BoardComponent: BlockadeBoard,
+    focus: true,
     // Pawn moves never touch `board` (only wall placements do), so opponent
     // moves are detected by this counter instead of the filled-cell count.
     moveCountKey: 'blockadeMoves',
@@ -1107,6 +1133,7 @@ export const GAME_TYPES = [
       return board[move.index] ? -1 : move.index
     },
     BoardComponent: OrderChaosBoard,
+    focus: true,
     applyMove: ({ board, move, symbol }) => {
       const applied = applyOrderChaosMove(board, move.index, move.letter)
       if (!applied) return null
@@ -1191,6 +1218,7 @@ export const GAME_TYPES = [
     getMoveIndex: getHexMoveIndex,
     getWinner: getHexWinner,
     BoardComponent: HexBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const moved = applyHexMove(board, move, symbol, !!game.pieSwap)
       if (!moved) return null
@@ -1279,6 +1307,7 @@ export const GAME_TYPES = [
     boardSize: 0,
     getMoveIndex: (_, pit) => pit,
     BoardComponent: MancalaBoard,
+    focus: true,
     applyMove: ({ game, index, symbol }) => {
       const pits = normalizePits(game.mancalaPits)
       const moved = applyMancalaMove(pits, index, symbol)
@@ -1710,6 +1739,7 @@ export const GAME_TYPES = [
     boardSize: PAIRS_CELL_COUNT,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: PairsBoard,
+    focus: true,
     applyMove: ({ board, game, index, symbol }) => {
       const deck = normalizePairsDeck(game.pairsDeck)
       const flipped = normalizePairsFlipped(game.pairsFlipped)
@@ -1747,6 +1777,7 @@ export const GAME_TYPES = [
     boardSize: PAIRS_QUICK_CELL_COUNT,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: PairsBoard,
+    focus: true,
     applyMove: ({ board, game, index, symbol }) => {
       const deck = normalizePairsDeck(game.pairsDeck)
       const flipped = normalizePairsFlipped(game.pairsFlipped)

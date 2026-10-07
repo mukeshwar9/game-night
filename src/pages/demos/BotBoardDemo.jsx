@@ -9,6 +9,9 @@ import { getGameConfig, freshGameState } from '../../lib/games'
 import { pickBotMove, botDifficulties, observeDemoMove, DEFAULT_BOT_DIFFICULTY } from '../../lib/demoBots'
 import { recordRoundEnd } from '../../lib/analytics'
 import { readBotRecord, recordBotResult, easierLevel, formatLevelRecord, describeLevelRecord } from '../../lib/botRecordLogic'
+import { canFocus } from '../../lib/focusLogic'
+import useFocusMode from '../../hooks/useFocusMode'
+import FocusStage, { FocusButton, FocusSeat } from '../../components/FocusStage'
 
 // ─── Bot difficulty (remembered per game) ─────────────────────────────────────
 
@@ -68,6 +71,8 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
   const [game, setGame] = useState(makeInit)
   // Which seat has tapped I'M READY for the current turn (pass-and-play gate only).
   const [readyFor, setReadyFor] = useState(null)
+  // Focus mode (registry `focus`): the board alone, full screen.
+  const focusMode = useFocusMode()
   const timerRef = useRef(null)
   // Only the levels this game's bot actually distinguishes (demoBots.js).
   const levels = isLocal ? [] : botDifficulties(type)
@@ -188,6 +193,39 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
 
   const board = cfg.boardSize ? normalizeBoard(game.board, cfg.boardSize) : []
   const canMove = game.status === 'playing' && (isLocal || game.currentTurn === 'X')
+  const focusable = canFocus(cfg)
+  const focusOn = focusMode.on && focusable
+  const seats = isLocal
+    ? { X: { name: 'PLAYER 1' }, O: { name: 'PLAYER 2' } }
+    : { X: { name: localName() }, O: { name: 'CPU' } }
+
+  // The board and its status line: in the card, or split between the focus
+  // stage (board) and its footer (status, PLAY AGAIN).
+  const boardEl = gated ? (
+    <HandoffGate name={seatName} onReady={() => setReadyFor(game.currentTurn)} />
+  ) : (
+    <cfg.BoardComponent
+      board={board}
+      onMove={handleHumanMove}
+      disabled={!canMove}
+      winningLine={game.winningLine || []}
+      currentTurn={game.currentTurn}
+      lastMove={game.lastMove ?? null}
+      {...(isLocal && type === 'mancala' ? { mySymbol: game.currentTurn, accent: game.currentTurn === 'X' ? 'p1' : 'p2', hotseat: true, players: seats } : {})}
+      {...(cfg.boardProps ? cfg.boardProps(game) : {})}
+    />
+  )
+  const statusEl = (
+    <GameStatus
+      status={game.status}
+      winner={game.winner}
+      currentTurn={game.currentTurn}
+      mySymbol={isLocal ? null : 'X'}
+      players={seats}
+      extraTurn={!!game.extraTurn}
+      onPlayAgain={game.status === 'finished' ? reset : null}
+    />
+  )
 
   return (
     <div ref={rootRef} className="scroll-mt-3 space-y-4">
@@ -220,42 +258,40 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
           YOU VS CPU · {formatLevelRecord(record[levels[0]])}
         </p>
       )}
-      <div className="grid grid-cols-2 gap-2">
-        {isLocal ? (
-          <>
-            <PlayerCard name="PLAYER 1" symbol="X" isActive={game.status === 'playing' && game.currentTurn === 'X'} isMe={false} />
-            <PlayerCard name="PLAYER 2" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
-          </>
-        ) : (
-          <>
-            <PlayerCard name={localName()} symbol="X" isActive={canMove} isMe />
-            <PlayerCard name="CPU" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
-          </>
-        )}
-      </div>
-      {gated ? (
-        <HandoffGate name={seatName} onReady={() => setReadyFor(game.currentTurn)} />
+      {focusOn ? (
+        <FocusStage
+          label={cfg.label}
+          onExit={focusMode.exit}
+          hud={(
+            <div className="flex items-center gap-1.5">
+              <FocusSeat symbol="X" name={seats.X.name} active={game.status === 'playing' && game.currentTurn === 'X'} isMe={!isLocal} />
+              <FocusSeat symbol="O" name={seats.O.name} active={game.status === 'playing' && game.currentTurn === 'O'} />
+            </div>
+          )}
+          footer={statusEl}
+        >
+          {boardEl}
+        </FocusStage>
       ) : (
-      <cfg.BoardComponent
-        board={board}
-        onMove={handleHumanMove}
-        disabled={!canMove}
-        winningLine={game.winningLine || []}
-        currentTurn={game.currentTurn}
-        lastMove={game.lastMove ?? null}
-        {...(isLocal && type === 'mancala' ? { mySymbol: game.currentTurn, accent: game.currentTurn === 'X' ? 'p1' : 'p2', hotseat: true, players: { X: { name: 'PLAYER 1' }, O: { name: 'PLAYER 2' } } } : {})}
-        {...(cfg.boardProps ? cfg.boardProps(game) : {})}
-      />
+        <>
+          <div className={cn('grid gap-2 items-center', focusable ? 'grid-cols-[1fr_1fr_auto]' : 'grid-cols-2')}>
+            {isLocal ? (
+              <>
+                <PlayerCard name="PLAYER 1" symbol="X" isActive={game.status === 'playing' && game.currentTurn === 'X'} isMe={false} />
+                <PlayerCard name="PLAYER 2" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
+              </>
+            ) : (
+              <>
+                <PlayerCard name={localName()} symbol="X" isActive={canMove} isMe />
+                <PlayerCard name="CPU" symbol="O" isActive={game.status === 'playing' && game.currentTurn === 'O'} isMe={false} />
+              </>
+            )}
+            {focusable && <FocusButton onClick={focusMode.enter} className="m-0 min-h-11 min-w-11 inline-flex items-center justify-center p-0" />}
+          </div>
+          {boardEl}
+          {statusEl}
+        </>
       )}
-      <GameStatus
-        status={game.status}
-        winner={game.winner}
-        currentTurn={game.currentTurn}
-        mySymbol={isLocal ? null : 'X'}
-        players={isLocal ? { X: { name: 'PLAYER 1' }, O: { name: 'PLAYER 2' } } : { X: { name: localName() }, O: { name: 'CPU' } }}
-        extraTurn={!!game.extraTurn}
-        onPlayAgain={game.status === 'finished' ? reset : null}
-      />
     </div>
   )
 }

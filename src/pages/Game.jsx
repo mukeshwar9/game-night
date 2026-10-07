@@ -62,6 +62,9 @@ import { matchTargetFor, isMatchFinish, isCoopGame } from '../lib/matchRules'
 import { LEADERBOARD_ENABLED } from '../lib/features'
 import { haptic, hapticNotify } from '../lib/haptics'
 import { moveFeedbackPlan } from '../lib/motion'
+import { canFocus } from '../lib/focusLogic'
+import useFocusMode from '../hooks/useFocusMode'
+import FocusStage, { FocusButton, FocusSeat } from '../components/FocusStage'
 
 // The reaction bar and animated emoji pull in framer-motion (~120 KB). Load
 // them only when a room first shows the bar or floats a reaction, not with
@@ -177,6 +180,9 @@ export default function Game() {
   const [winEffectIntensity, setWinEffectIntensity] = useState('round')
   const [showRules, setShowRules] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
+  // Focus mode (registry `focus`): the board alone, full screen.
+  const focusMode = useFocusMode()
+  const [focusChat, setFocusChat] = useState(false)
   const prevStatus = useRef(null)
   const prevTurn = useRef(null)
   const prevFilledCount = useRef(0)
@@ -931,6 +937,109 @@ export default function Game() {
   const doPlayAgain = partyMode ? () => applyPlayAgain() : () => propose('playAgain')
   const doNewMatch = partyMode ? () => applyNewMatch() : () => propose('newMatch')
 
+  const focusable = canFocus(cfg, { custom: isCustom, status: game.status })
+  const focusOn = focusMode.on && focusable
+
+  // The opponent's offline / abandoned notices: in the page, or under the
+  // board in focus mode.
+  const opponentNotices = (
+    <>
+      {/* Disconnect warning (non-custom — hangwoman handles this inline) */}
+      {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && !showAbandonBanner && (
+        <OfflineNotice away={opponentAway} />
+      )}
+
+      {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline
+          (60s for custom real-time games, where a vanished peer hard-freezes
+          the round and forfeit would be the only other exit) */}
+      {!isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
+        <div className="border-2 border-retro-p2/50 bg-retro-card rounded p-3 text-center space-y-2">
+          <p className="font-pixel text-[10px] text-retro-p2 leading-relaxed">
+            {opponentLeft ? 'OPPONENT LEFT THE MATCH' : 'OPPONENT\'S BEEN GONE A WHILE'}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              onClick={claimAbandonedWin}
+              disabled={claimingWin}
+              className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-50"
+            >
+              {claimingWin ? 'CLAIMING…' : 'CLAIM WIN'}
+            </button>
+            <button
+              onClick={() => setShowInvite(true)}
+              className="border border-retro-border text-retro-text font-pixel text-[10px] px-4 py-2 rounded hover:border-retro-p1/50 transition press"
+            >
+              INVITE A FRIEND
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="border border-retro-border text-retro-dim font-pixel text-[10px] px-4 py-2 rounded hover:text-retro-text transition press"
+            >
+              SAVE & GO HOME
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  // The standard board and its status line: in the page, or split between the
+  // focus stage (board) and its footer (status, round-end actions).
+  const boardEl = !isCustom && (
+    <cfg.BoardComponent
+      board={board}
+      onMove={handleMove}
+      disabled={!canMove || movePending || (!!cfg.rollFace && (!game.diceSeed || !!pendingRoll(game)))}
+      winningLine={winningLine}
+      currentTurn={game.currentTurn}
+      lastMove={game.lastMove ?? null}
+      mySymbol={mySeat}
+      {...(cfg.boardProps ? cfg.boardProps(game) : {})}
+      {...(cfg.rollFace ? { diceSeedPending: !game.diceSeed, rollPending: !!pendingRoll(game) } : {})}
+    />
+  )
+  const statusEl = !isCustom && (
+    <>
+      <GameStatus
+        status={game.status}
+        winner={game.winner}
+        currentTurn={game.currentTurn}
+        mySymbol={mySeat}
+        scores={game.scores}
+        players={game.players}
+        gameType={game.gameType}
+        extraTurn={!!game.extraTurn}
+        passNote={game.passNote ?? null}
+        onPlayAgain={game.status === 'finished' && (!isSpectator || amPartyHost) && !matchWinner && !activeProposal && !movePending ? doPlayAgain : null}
+        onNewMatch={matchWinner && canDecide && !activeProposal && !movePending ? doNewMatch : null}
+        onSwitchGame={canDecide && !activeProposal && !movePending ? doSwitch : null}
+      />
+      {/* F-48: an unacknowledged move, once it's taking a while. */}
+      {movePending && (moveSlow || connected === false) && (
+        <p role="status" className="text-center font-pixel text-[9px] text-retro-dim tracking-wider">
+          {connected === false ? 'MOVE PENDING — WAITING FOR CONNECTION' : 'SAVING MOVE…'}
+        </p>
+      )}
+      {LEADERBOARD_ENABLED && game.status === 'finished' && (
+        <Link
+          to="/leaderboard"
+          className="mx-auto flex min-h-11 w-fit items-center justify-center px-3 font-pixel text-[9px] tracking-widest text-retro-p1 hover:text-retro-text transition-colors"
+        >
+          SEE WHERE YOU RANK →
+        </Link>
+      )}
+    </>
+  )
+  const showDock = (!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))
+  const dock = <Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={quietRoom ? undefined : sendChat} textCooldown={chatCooldown} quiet={quietRoom} chatLog={game.chatLog} myUid={getPlayerId()} chatLock={chatLockFor(game, getPlayerId())} /></Suspense>
+
+  const boardArea = !isCustom && (
+    <Suspense fallback={<GameAreaFallback />}>
+      {boardEl}
+      {statusEl}
+    </Suspense>
+  )
+
   return withVoice(
     // Game night: a 2P game a party room switched into may switch back to party games.
     <RoomSwitchContext.Provider value={!!game.partyRoom}>
@@ -968,6 +1077,49 @@ export default function Game() {
       <LiveAnnouncer message={announcement} />
       <LiveAnnouncer message={chatAnnouncement} />
 
+      {focusOn && (
+        <FocusStage
+          label={cfg.label}
+          onExit={focusMode.exit}
+          hud={(
+            <div className="flex items-center gap-1.5">
+              {['X', 'O'].map(sym => (
+                <FocusSeat
+                  key={sym}
+                  symbol={sym}
+                  name={game.players?.[sym]?.name}
+                  score={sym === 'X' ? scoreX : scoreO}
+                  active={game.status === 'playing' && game.currentTurn === sym}
+                  isMe={mySeat === sym}
+                />
+              ))}
+              {showDock && (
+                <button
+                  type="button"
+                  onClick={() => setFocusChat(v => !v)}
+                  aria-pressed={focusChat}
+                  aria-label={focusChat ? 'Hide chat and reactions' : 'Show chat and reactions'}
+                  className={cn('shrink-0 min-h-11 min-w-11 inline-flex items-center justify-center rounded transition-colors press', focusChat ? 'text-retro-cta' : 'text-retro-dim hover:text-retro-text')}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+          footer={(
+            <>
+              {opponentNotices}
+              <Suspense fallback={null}>{statusEl}</Suspense>
+              {showDock && focusChat && dock}
+            </>
+          )}
+        >
+          <Suspense fallback={<GameAreaFallback />}>{boardEl}</Suspense>
+        </FocusStage>
+      )}
+
       <div className={cn(
         'w-full',
         // M-46: Chain Reaction's 8-row board is the tallest non-realtime
@@ -983,6 +1135,7 @@ export default function Game() {
             ← HOME
           </Link>
           <div className={cn('game-header-actions flex items-center justify-end gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>
+            {focusable && <FocusButton onClick={focusMode.enter} />}
             {/* Music lives in SETTINGS; the room header keeps only room actions. */}
             <SettingsButton />
             <RulesButton onClick={() => setShowRules(true)} />
@@ -1032,7 +1185,7 @@ export default function Game() {
             name/score readout above the court. Also hidden for custom games
             that render their own name/score UI (M-26, e.g. MathGame's
             ScoreBar) so the two readouts don't duplicate. */}
-        {!cfg.hidePlayerCards && (
+        {!cfg.hidePlayerCards && !focusOn && (
           <div className={cn('grid grid-cols-2 gap-2', isRealtimeCustom && '[@media(max-height:420px)]:hidden')}>
             <PlayerCard
               name={game.players?.X?.name}
@@ -1057,42 +1210,7 @@ export default function Game() {
           </div>
         )}
 
-        {/* Disconnect warning (non-custom — hangwoman handles this inline) */}
-        {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && !showAbandonBanner && (
-          <OfflineNotice away={opponentAway} />
-        )}
-
-        {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline
-            (60s for custom real-time games, where a vanished peer hard-freezes
-            the round and forfeit would be the only other exit) */}
-        {!isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
-          <div className="border-2 border-retro-p2/50 bg-retro-card rounded p-3 text-center space-y-2">
-            <p className="font-pixel text-[10px] text-retro-p2 leading-relaxed">
-              {opponentLeft ? 'OPPONENT LEFT THE MATCH' : 'OPPONENT\'S BEEN GONE A WHILE'}
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={claimAbandonedWin}
-                disabled={claimingWin}
-                className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-50"
-              >
-                {claimingWin ? 'CLAIMING…' : 'CLAIM WIN'}
-              </button>
-              <button
-                onClick={() => setShowInvite(true)}
-                className="border border-retro-border text-retro-text font-pixel text-[10px] px-4 py-2 rounded hover:border-retro-p1/50 transition press"
-              >
-                INVITE A FRIEND
-              </button>
-              <button
-                onClick={() => navigate('/')}
-                className="border border-retro-border text-retro-dim font-pixel text-[10px] px-4 py-2 rounded hover:text-retro-text transition press"
-              >
-                SAVE & GO HOME
-              </button>
-            </div>
-          </div>
-        )}
+        {!focusOn && opponentNotices}
 
         {/* Proposal banner — shown for both standard and custom branches.
             M-45: rendered as a fixed overlay (mirroring WinEffect's pattern
@@ -1138,47 +1256,7 @@ export default function Game() {
             />
           </Suspense>
         ) : (
-          <Suspense fallback={<GameAreaFallback />}>
-            <cfg.BoardComponent
-              board={board}
-              onMove={handleMove}
-              disabled={!canMove || movePending || (!!cfg.rollFace && (!game.diceSeed || !!pendingRoll(game)))}
-              winningLine={winningLine}
-              currentTurn={game.currentTurn}
-              lastMove={game.lastMove ?? null}
-              mySymbol={mySeat}
-              {...(cfg.boardProps ? cfg.boardProps(game) : {})}
-              {...(cfg.rollFace ? { diceSeedPending: !game.diceSeed, rollPending: !!pendingRoll(game) } : {})}
-            />
-            <GameStatus
-              status={game.status}
-              winner={game.winner}
-              currentTurn={game.currentTurn}
-              mySymbol={mySeat}
-              scores={game.scores}
-              players={game.players}
-              gameType={game.gameType}
-              extraTurn={!!game.extraTurn}
-              passNote={game.passNote ?? null}
-              onPlayAgain={game.status === 'finished' && (!isSpectator || amPartyHost) && !matchWinner && !activeProposal && !movePending ? doPlayAgain : null}
-              onNewMatch={matchWinner && canDecide && !activeProposal && !movePending ? doNewMatch : null}
-              onSwitchGame={canDecide && !activeProposal && !movePending ? doSwitch : null}
-            />
-            {/* F-48: an unacknowledged move, once it's taking a while. */}
-            {movePending && (moveSlow || connected === false) && (
-              <p role="status" className="text-center font-pixel text-[9px] text-retro-dim tracking-wider">
-                {connected === false ? 'MOVE PENDING — WAITING FOR CONNECTION' : 'SAVING MOVE…'}
-              </p>
-            )}
-            {LEADERBOARD_ENABLED && game.status === 'finished' && (
-              <Link
-                to="/leaderboard"
-                className="mx-auto flex min-h-11 w-fit items-center justify-center px-3 font-pixel text-[9px] tracking-widest text-retro-p1 hover:text-retro-text transition-colors"
-              >
-                SEE WHERE YOU RANK →
-              </Link>
-            )}
-          </Suspense>
+          !focusOn && boardArea
         )}
 
         {partyMode && (!isSpectator || !!game.queue?.[getPlayerId()]) && <VoicePanel game={game} gameId={gameId} compact />}
@@ -1205,9 +1283,7 @@ export default function Game() {
         {/* Emote / reaction bar — hidden while waiting for an opponent (M-XX:
             nobody to react to yet). Shown to a seated player once an
             opponent has joined, or to a spectator watching a live game. */}
-        {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
-          <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={quietRoom ? undefined : sendChat} textCooldown={chatCooldown} quiet={quietRoom} chatLog={game.chatLog} myUid={getPlayerId()} chatLock={chatLockFor(game, getPlayerId())} /></Suspense></VideoCallReactionDock>
-        )}
+        {showDock && !focusOn && <VideoCallReactionDock>{dock}</VideoCallReactionDock>}
       </div>
       {showInvite && (
         <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={partyMode ? partyMembers(game, false).map(m => m.uid) : seatedIds(game.players)} party={partyInviteInfo(game, cfg)} onClose={() => setShowInvite(false)} />

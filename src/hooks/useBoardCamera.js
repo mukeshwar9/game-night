@@ -74,7 +74,8 @@ export default function useBoardCamera({ fit, enabled = true, viewRef, onTap, on
 
   const onPointerDown = (e) => {
     if (!enabled) return
-    if (capture) viewRef.current?.setPointerCapture?.(e.pointerId)
+    // Capture can throw for a pointer the browser no longer tracks; the gesture still works without it.
+    if (capture) { try { viewRef.current?.setPointerCapture?.(e.pointerId) } catch { /* not capturable */ } }
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     if (pointers.current.size === 1) {
       gesture.current = { start: { x: e.clientX, y: e.clientY }, moved: false, multi: false }
