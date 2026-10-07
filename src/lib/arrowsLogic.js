@@ -267,6 +267,21 @@ function mirrorTurn(m, d) {
 // built its boards. Play always uses the wide rules: no campaign diagonal
 // ever meets a mirror, ring or tunnel, so the two agree on every level.
 function routeFrom(cols, rows, head, dir, turn, mirrors = null, portals = null, voids = null, tunnels = null, twist = null, n = 0, wide = true) {
+  // Fast path for the common case — no fixed pieces, no twist: one ray (two
+  // for a hook), exactly what the trace below would walk.
+  if (!twist && !mirrors?.size && !portals?.size && !tunnels?.size) {
+    let cells = rayCells(cols, rows, head % cols, Math.floor(head / cols), dir, voids)
+    let finalDir = dir
+    if (dir < 4 && (turn === 1 || turn === -1)) {
+      const pivot = cells.length ? cells[cells.length - 1] : head
+      finalDir = turnedDir(dir, turn)
+      cells = [...cells, ...rayCells(cols, rows, pivot % cols, Math.floor(pivot / cols), finalDir, voids)]
+    }
+    const corners = dir >= 4
+      ? cells.map((c, k) => cornerOf(cols, k === 0 ? head : cells[k - 1], c))
+      : cells.map(() => -1)
+    return { cells, corners, finalDir, dead: false, jumps: NO_JUMPS, ports: NO_JUMPS }
+  }
   const cells = []
   const corners = []
   const jumps = []
