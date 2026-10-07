@@ -360,16 +360,6 @@ export function endlessShapeDims(shape, cells) {
   return { cols: ARROWS_ENDLESS_MAX_COLS, rows: ARROWS_ENDLESS_MAX_ROWS }
 }
 
-// Level that must be cleared (at least one star) before an endless tier opens;
-// 0 = always open.
-export const ARROWS_ENDLESS_UNLOCK = { easy: 0, medium: 20, hard: 50 }
-
-export function endlessTierUnlocked(progress, tier) {
-  const need = ARROWS_ENDLESS_UNLOCK[tier]
-  if (need === undefined) return false
-  return need === 0 || levelStars(progress, need) >= 1
-}
-
 // The pieces a player has met: every piece whose introducing level has a star.
 export function learnedPieces(progress) {
   return Object.keys(ARROWS_PIECE_LEVEL).filter((key) => levelStars(progress, ARROWS_PIECE_LEVEL[key]) >= 1)

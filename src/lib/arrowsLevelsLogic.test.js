@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { applyArrowTap, arrowRoute, generateArrowsLevel, isDouble, isSleeper, levelStats, occupancy, portalRings, portalUses, solveArrows, tunnelUses, voidSet, ARROWS_ENDLESS_SPECS } from './arrowsLogic'
+import { applyArrowTap, arrowRoute, generateArrowsLevel, isDouble, isSleeper, levelStats, occupancy, portalRings, portalUses, solveArrows, tunnelUses, voidSet, ARROWS_ENDLESS_SPECS, ARROWS_TIERS } from './arrowsLogic'
 import { ARROWS_BAKED_LEVELS } from './arrowsLevelsBaked'
 import { needsCamera } from './arrowsCameraLogic'
 import { ARROWS_SHAPES, ARROWS_SHAPE_ORDER, maskCells, maskConnected, shapeMask } from './arrowsShapes'
 import {
   ARROWS_CHAPTERS,
   ARROWS_ENDLESS_COVERAGE,
-  ARROWS_ENDLESS_UNLOCK,
   ARROWS_PIECE_LEVEL,
   ARROWS_GENERATED_LEVELS,
   ARROWS_LEVEL_COUNT,
@@ -19,7 +18,6 @@ import {
   ARROWS_ENDLESS_MAX_COLS,
   ARROWS_ENDLESS_MAX_ROWS,
   getArrowsLevel,
-  endlessTierUnlocked,
   isLevelUnlocked,
   isNewBoard,
   learnedPieces,
@@ -386,20 +384,18 @@ describe('endless boards', { timeout: 120000 }, () => {
   })
 })
 
-describe('endless gating', { timeout: 120000 }, () => {
+describe('endless tiers', { timeout: 120000 }, () => {
   const all = Object.keys(ARROWS_PIECE_LEVEL)
   const starred = (...ns) => ns.reduce((p, n) => recordLevelResult(p, n, 1), blankProgress())
 
-  it('opens easy always, medium after level 20 and hard after level 50', () => {
-    expect(ARROWS_ENDLESS_UNLOCK).toEqual({ easy: 0, medium: 20, hard: 50 })
-    expect(endlessTierUnlocked(blankProgress(), 'easy')).toBe(true)
-    expect(endlessTierUnlocked(blankProgress(), 'medium')).toBe(false)
-    expect(endlessTierUnlocked(starred(19), 'medium')).toBe(false)
-    expect(endlessTierUnlocked(starred(20), 'medium')).toBe(true)
-    expect(endlessTierUnlocked(starred(20), 'hard')).toBe(false)
-    expect(endlessTierUnlocked(starred(50), 'hard')).toBe(true)
-    expect(endlessTierUnlocked(starred(50), 'insane')).toBe(false)
-    expect(endlessTierUnlocked(null, 'easy')).toBe(true)
+  it('all three tiers are open for a fresh player', () => {
+    const fresh = learnedPieces(blankProgress())
+    expect(ARROWS_TIERS).toEqual(['easy', 'medium', 'hard'])
+    for (const tier of ARROWS_TIERS) {
+      const level = endlessLevel(7, tier, fresh)
+      expect(level.tier).toBe(tier)
+      expect(solveArrows(level).solvable).toBe(true)
+    }
   })
 
   it('learnedPieces lists the pieces whose lesson level has a star', () => {

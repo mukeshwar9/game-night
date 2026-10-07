@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import {
   ARROWS_CHAPTERS,
-  ARROWS_ENDLESS_UNLOCK,
   ARROWS_LEVEL_COUNT,
   ARROWS_LEVEL_SPECS,
-  endlessTierUnlocked,
   isLevelUnlocked,
   isNewBoard,
   levelStars,
@@ -138,31 +136,17 @@ function EndlessTiers({ progress, onPlayEndless }) {
         <span className="font-pixel text-[9px] text-retro-text">ENDLESS</span>
         <span className="font-pixel text-[7px] text-retro-dim">EVERY BOARD CHECKED SOLVABLE</span>
       </div>
-      {ARROWS_TIERS.map((tier) => {
-        const open = endlessTierUnlocked(progress, tier)
-        const need = ARROWS_ENDLESS_UNLOCK[tier]
-        return (
-          <button
-            key={tier}
-            onClick={() => open && onPlayEndless(tier)}
-            disabled={!open}
-            className={cn(
-              'w-full min-h-14 flex items-center gap-3 px-3 py-2 border rounded text-left press-card transition',
-              open ? 'border-retro-border bg-retro-card hover:border-retro-cta/50' : 'border-retro-border/50 bg-retro-deep cursor-not-allowed',
-            )}
-          >
-            <span className={cn('font-pixel text-[10px] w-16', open ? 'text-retro-cta' : 'text-retro-dim/60')}>{ARROWS_ENDLESS_INFO[tier].label}</span>
-            <span className="flex-1 font-mono text-[11px] text-retro-dim">
-              {open ? ARROWS_ENDLESS_INFO[tier].blurb.toLowerCase() : `clear level ${need} to open`}
-            </span>
-            {open ? (
-              <span className="font-pixel text-[8px] text-retro-dim tabular-nums">{progress.endless[tier]} CLEARED</span>
-            ) : (
-              <span className="flex items-center gap-1 font-pixel text-[7px] text-retro-dim/80"><LockGlyph />CLEAR LEVEL {need}</span>
-            )}
-          </button>
-        )
-      })}
+      {ARROWS_TIERS.map((tier) => (
+        <button
+          key={tier}
+          onClick={() => onPlayEndless(tier)}
+          className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border rounded text-left press-card transition border-retro-border bg-retro-card hover:border-retro-cta/50"
+        >
+          <span className="font-pixel text-[10px] w-16 text-retro-cta">{ARROWS_ENDLESS_INFO[tier].label}</span>
+          <span className="flex-1 font-mono text-[11px] text-retro-dim">{ARROWS_ENDLESS_INFO[tier].blurb.toLowerCase()}</span>
+          <span className="font-pixel text-[8px] text-retro-dim tabular-nums">{progress.endless[tier]} CLEARED</span>
+        </button>
+      ))}
     </div>
   )
 }

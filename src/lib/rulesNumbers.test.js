@@ -49,7 +49,7 @@ import {
   MATCH_PROMPTS, FINAL_MULTIPLIER as FIBBAGE_FINAL_MULTIPLIER,
 } from './fibbageLogic'
 import { ARROWS_LIVES, ARROWS_MATCH_TARGET, ARROWS_MAX_ROUNDS } from './arrowsLogic'
-import { ARROWS_ENDLESS_UNLOCK, ARROWS_LEVEL_COUNT } from './arrowsLevelsLogic'
+import { ARROWS_LEVEL_COUNT } from './arrowsLevelsLogic'
 import {
   SUMMIT_M, ROUND_LIMIT_MS as UPDRAFT_ROUND_MS, COOP_GOAL_M, GATE_EVERY, UNITS_PER_M, COOP_LIMIT_MS,
 } from './updraftLogic'
@@ -291,7 +291,7 @@ const RULE_NUMBERS = {
     double: FIBBAGE_FINAL_MULTIPLIER,
   }),
   arrows: () => ({
-    checks: [[3, ARROWS_LIVES], [170, ARROWS_LEVEL_COUNT], [20, ARROWS_ENDLESS_UNLOCK.medium], [50, ARROWS_ENDLESS_UNLOCK.hard], [2, ARROWS_MATCH_TARGET], [3, ARROWS_MAX_ROUNDS]],
+    checks: [[3, ARROWS_LIVES], [170, ARROWS_LEVEL_COUNT], [2, ARROWS_MATCH_TARGET], [3, ARROWS_MAX_ROUNDS]],
   }),
   updraft: () => ({
     checks: [
