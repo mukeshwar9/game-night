@@ -278,6 +278,13 @@ export const sounds = {
   stackLand: (speed = 0.5) => { seq([[140 + speed * 40, 0, 0.08, 'triangle', 0.08 + speed * 0.06], [60, 0, 0.12, 'sawtooth', 0.05 + speed * 0.06]]); vibrate(8 + Math.round(speed * 14)) },
   stackTopple: () => { seq([[440, 0, 0.14], [330, 0.11, 0.14], [247, 0.22, 0.14], [165, 0.33, 0.2]]); vibrate([0, 60, 40, 120]) },
   stackTick: () => { seq([[1200, 0, 0.02, 'square', 0.03]]) },
+  // BIRDSEYE: sling release, the bird's tap ability, impact thud scaled by
+  // impulse, a block breaking (glass rings higher) and a scarecrow popping.
+  birdLaunch: (power = 0.5) => { seq([[300 + power * 500, 0, 0.06, 'triangle', 0.1], [500 + power * 700, 0.05, 0.08, 'sine', 0.06]]); vibrate(10) },
+  birdAbility: () => { seq([[660, 0, 0.04, 'square', 0.07], [990, 0.04, 0.06, 'square', 0.06]]); vibrate(6) },
+  birdThud: (impulse = 10) => { const k = Math.min(1, impulse / 40); seq([[110 - k * 40, 0, 0.1, 'sawtooth', 0.06 + k * 0.08]]); vibrate(6 + Math.round(k * 20)) },
+  blockBreak: (glass = false) => { try { noise(ctx().currentTime, glass ? 0.12 : 0.18, glass ? 0.06 : 0.08, glass ? 3200 : 700) } catch { /* audio unavailable */ } vibrate(8) },
+  crowPop: () => { seq([[520, 0, 0.05, 'square', 0.09], [780, 0.05, 0.08, 'triangle', 0.08]]); vibrate([0, 20, 30, 20]) },
   // Archery: draw, loose and hit taps (shell only, behind the HAPTICS switch).
   archeryDraw: () => { seq([[520, 0, 0.035, 'sine', 0.04]]); vibrate(4) },
   archeryLoose: () => { seq([[760, 0, 0.045, 'triangle', 0.08], [1120, 0.035, 0.06, 'sine', 0.05]]); vibrate(8) },

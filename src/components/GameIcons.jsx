@@ -760,6 +760,21 @@ export function MinigolfIcon() {
   )
 }
 
+export function BirdseyeIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* a sling fork, a bird mid-arc and the toppling fort */}
+      <path d="M3 21V15M3 15L1.5 11.5M3 15L4.5 11.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M5 11Q10 3 15 7" stroke="currentColor" strokeWidth="1.3" strokeDasharray="1.5 2" strokeLinecap="round" />
+      <path d="M13.2 5.2l2.4-1.3 1.6 1.8-2.6 1.2z" fill="currentColor" />
+      <circle cx="16.4" cy="4.9" r="0.6" className="fill-retro-bg" />
+      <rect x="17" y="12" width="2" height="9" fill="currentColor" />
+      <rect x="21" y="12" width="2" height="9" fill="currentColor" />
+      <rect x="16.5" y="10" width="7" height="2" className="fill-retro-p2" />
+    </svg>
+  )
+}
+
 export function SketchIcon() {
   return (
     <LineSvg>
