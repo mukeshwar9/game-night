@@ -79,7 +79,8 @@ export default function BottomTabBar() {
         pb-[max(0.5rem,env(safe-area-inset-bottom))]
         pl-[max(0,env(safe-area-inset-left))] pr-[max(0,env(safe-area-inset-right))]"
     >
-      <div className="max-w-sm mx-auto flex items-stretch">
+      {/* glass classes: a floating pill on the GLASS themes, nothing elsewhere */}
+      <div data-lens className="glass glass-tx glass-bar max-w-sm mx-auto flex items-stretch">
         {TABS.map(tab => {
           const badgeCount = tab.badge ? counts[tab.badge] : 0
           return (

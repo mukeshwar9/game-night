@@ -59,6 +59,11 @@ function supportsLinearEasing() {
 // `keyboardSafe` lifts the panel above the on-screen keyboard (visualViewport),
 // for sheets with a text input pinned at the bottom.
 //
+// `glass` opts the panel into the GLASS themes' sheet material (index.css
+// .glass-sheet: see-through tint, heavy frost, rim, and the lens on Blink). It
+// does nothing on any other theme. Only short, action-like overlays opt in; rules
+// text, settings lists and long forms stay solid.
+//
 // `onBack` (optional) overrides `onClose` for the hardware/gesture back path
 // only — falls back to `onClose` when omitted. A completed back gesture is
 // not cancellable the way a backdrop-tap/Escape/drag-close is, so a caller
@@ -69,7 +74,7 @@ function supportsLinearEasing() {
 export default function BottomSheetPanel({
   onClose, onBack, children, className = '', ariaLabel, labelledBy,
   backdropClassName = 'bg-black/70', layerClassName = '', keyboardSafe = false,
-  centered = false, history = true,
+  centered = false, history = true, glass = false,
 }) {
   const layerRef = useRef(null)
   const backdropRef = useRef(null)
@@ -302,6 +307,7 @@ export default function BottomSheetPanel({
       <div
         ref={panelRef}
         data-sheet-panel=""
+        data-lens={glass ? '' : undefined}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
@@ -315,6 +321,7 @@ export default function BottomSheetPanel({
                 'w-full sm:max-w-sm bg-retro-bg border-2 border-retro-border rounded-t-2xl sm:rounded',
                 'p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4',
               ),
+          glass && 'glass-sheet',
           className,
         )}
       >

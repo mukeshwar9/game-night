@@ -18,7 +18,7 @@ export default function ConfirmDialog({ title, message, confirmLabel, busyLabel,
   }, () => toast.error(errorMsg || `${confirmLabel} FAILED — CHECK CONNECTION`))
 
   return (
-    <BottomSheet
+    <BottomSheet glass
       centered
       onClose={() => { if (!busy) onClose() }}
       history={false}

@@ -27,7 +27,7 @@ export function RaceRow({ name, sym, cleared, total, lives, isMe, status }) {
   return (
     <div
       className={cn(
-        'bg-retro-card border rounded px-2.5 py-2 space-y-1.5',
+        'glass glass-tx bg-retro-card border rounded px-2.5 py-2 space-y-1.5',
         isMe ? (isX ? 'border-retro-p1/60' : 'border-retro-p2/60') : 'border-retro-border',
         lives <= 0 && 'opacity-60',
       )}

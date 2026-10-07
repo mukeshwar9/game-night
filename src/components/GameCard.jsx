@@ -40,7 +40,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           disabled={isBusy}
           title={desc}
           className={cn(
-            'w-full text-left border rounded-2xl overflow-hidden bg-retro-card transition press-card p-2',
+            'glass glass-tx w-full text-left border rounded-2xl overflow-hidden bg-retro-card transition press-card p-2',
             isLoading
               ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
               : 'border-retro-border hover:border-retro-cta/50',
@@ -98,7 +98,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           disabled={isBusy}
           title={desc}
           className={cn(
-            'w-full min-h-10 flex items-center gap-2 pl-3 py-1.5 text-left border rounded-lg transition press-card',
+            'glass glass-tx w-full min-h-10 flex items-center gap-2 pl-3 py-1.5 text-left border rounded-lg transition press-card',
             onToggleFav ? 'pr-9' : 'pr-3',
             isLoading
               ? 'border-retro-cta bg-retro-tint-cta'
@@ -144,7 +144,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
         disabled={isBusy}
         title={desc}
         className={cn(
-          'w-full h-full min-h-14 flex items-center gap-2.5 pl-2.5 py-2 text-left border rounded',
+          'glass glass-tx w-full h-full min-h-14 flex items-center gap-2.5 pl-2.5 py-2 text-left border rounded',
           'transition press-card',
           onToggleFav ? 'pr-9' : showModes ? 'pr-14' : 'pr-2.5',
           isLoading

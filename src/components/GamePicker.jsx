@@ -369,7 +369,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           top offset collapses to 0 while NavBar is hidden (useHideOnScroll)
           so this rides up flush instead of leaving a gap. */}
       {isFull ? (
-        <div ref={stickyRef} className="sticky top-[var(--app-header-offset)] z-20 bg-retro-bg pt-1 pb-2 space-y-2 transition-[top] duration-200">
+        <div ref={stickyRef} className="glass-sheet glass-sticky sticky top-[var(--app-header-offset)] z-20 bg-retro-bg pt-1 pb-2 space-y-2 transition-[top] duration-200">
           {searchBlock}
           {chipRow}
         </div>

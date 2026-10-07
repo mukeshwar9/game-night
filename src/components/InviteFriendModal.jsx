@@ -64,7 +64,7 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
   }, () => toast.error("COULDN'T SEND INVITES — TRY AGAIN"))
 
   return (
-    <BottomSheet onClose={onClose} ariaLabel="Invite a friend" className="bg-retro-card space-y-3">
+    <BottomSheet glass onClose={onClose} ariaLabel="Invite a friend" className="bg-retro-card space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="font-pixel text-xs text-retro-cta">{party ? 'INVITE TO PARTY' : 'INVITE A FRIEND'}</h2>
         <button onClick={onClose} aria-label="Close" className="text-retro-dim hover:text-retro-text font-pixel text-xs p-3 -m-2">✕</button>

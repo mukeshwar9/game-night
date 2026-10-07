@@ -2,7 +2,7 @@ import BottomSheet from './BottomSheet'
 
 export default function JoinRoomSheet({ code, onChange, onJoin, onClose, error = null, busy = false }) {
   return (
-    <BottomSheet onClose={onClose} ariaLabel="Join a game room" className="space-y-4">
+    <BottomSheet glass onClose={onClose} ariaLabel="Join a game room" className="space-y-4">
       <div>
         <p className="font-pixel text-[11px] text-retro-cta tracking-widest">JOIN A ROOM</p>
         <p className="font-mono text-xs text-retro-dim mt-1">Enter the six-character code your friend shared.</p>

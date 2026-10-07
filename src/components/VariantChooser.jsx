@@ -13,7 +13,7 @@ export default function VariantChooser({ base, variants, onPick, onClose }) {
   ]
 
   return (
-    <BottomSheet onClose={onClose} ariaLabel={`${base.label} — pick a mode`} className="space-y-3">
+    <BottomSheet glass onClose={onClose} ariaLabel={`${base.label} — pick a mode`} className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="w-6 h-6 text-retro-cta flex items-center justify-center">{Icon && <Icon />}</span>

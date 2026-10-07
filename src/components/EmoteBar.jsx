@@ -17,7 +17,7 @@ import { useMutedMap } from '../lib/mute'
 import useMotionPref from '../hooks/useMotionPref'
 import MotionPrefProvider from './MotionPrefProvider'
 
-const EMOTE_BTN_CLASS = 'shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 transition-colors'
+const EMOTE_BTN_CLASS = 'glass-emote shrink-0 w-11 h-11 flex items-center justify-center text-base rounded border border-retro-border bg-retro-card hover:border-retro-p1/50 transition-colors'
 const EMOTE_TAP_PROPS = {
   whileTap: { scale: 0.82, rotate: -8 },
   whileHover: { scale: 1.06 },
@@ -96,6 +96,7 @@ function EmotePicker({ onPick, onClose, recent }) {
   const results = trimmed ? searchEmotes(query) : []
   return (
     <BottomSheet
+      glass
       onClose={onClose}
       ariaLabel="Choose a reaction"
       backdropClassName="bg-black/40"
@@ -186,7 +187,8 @@ export default function EmoteBar({ onSend, cooldown, onSendText, textCooldown, q
   return (
     <MotionPrefProvider>
       <div className="w-full max-w-sm mx-auto pt-1" data-testid="reaction-dock">
-        <div className="flex items-center justify-center gap-1.5 px-1">
+        {/* the room dock: a glass pill on the GLASS themes */}
+        <div data-lens className="glass glass-tx glass-dock flex items-center justify-center gap-1.5 px-1">
           {EMOTES_DOCK.map(g => (
             <AnimatedEmoteButton
               key={g}

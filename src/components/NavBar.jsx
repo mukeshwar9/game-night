@@ -76,7 +76,8 @@ export default function NavBar() {
         pr-[max(1rem,env(safe-area-inset-right))]
         pb-2 transition-transform duration-200 ${hidden ? '-translate-y-full' : ''}`}
     >
-      <div className="max-w-sm mx-auto flex items-center justify-between gap-2 min-h-9">
+      {/* glass classes: a floating pill on the GLASS themes, nothing elsewhere */}
+      <div data-lens className="glass glass-tx glass-bar max-w-sm mx-auto flex items-center justify-between gap-2 min-h-9">
         <div className="flex items-center gap-1 min-w-0">
           {/* Off the tab bar: a BACK control, since the iOS app has no browser
               back button (the logo stays the way home). */}

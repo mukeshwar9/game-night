@@ -61,7 +61,7 @@ function StickyActionBar({ children }) {
     <>
       <div ref={spacerRef} aria-hidden="true" className="h-[calc(4.5rem+env(safe-area-inset-bottom))]" />
       <div
-        className="fixed bottom-0 inset-x-0 z-40 flex justify-center gap-2 flex-wrap
+        className="glass glass-tx fixed bottom-0 inset-x-0 z-40 flex justify-center gap-2 flex-wrap
           bg-retro-bg/95 border-t border-retro-border backdrop-blur-sm
           px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
@@ -285,8 +285,8 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     const mine = mySymbol != null && currentTurn === mySymbol
     return (
       <p className="text-center">
-        <span className={cn(
-          'turn-pill inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-pixel text-[10px] tracking-wider',
+        <span data-lens className={cn(
+          'glass glass-tx turn-pill inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-pixel text-[10px] tracking-wider',
           mine ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border bg-retro-card text-retro-text',
         )}>
           <span aria-hidden="true" className={cn('turn-pill-dot h-2 w-2 rounded-full', currentTurn === 'X' ? 'bg-retro-p1' : 'bg-retro-p2')} />

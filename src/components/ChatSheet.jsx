@@ -20,7 +20,7 @@ export default function ChatSheet({ chatLog, myUid, onSendText, textCooldown, ch
     if (ok) setText('')
   }
   return (
-    <BottomSheet
+    <BottomSheet glass
       onClose={onClose}
       ariaLabel="Chat"
       keyboardSafe

@@ -13,7 +13,7 @@ export default function FirstMoverModal({ players, defaultValue = 'X', title = '
   const nameO = (players?.O?.name || 'PLAYER 2').toUpperCase()
 
   return (
-    <BottomSheet
+    <BottomSheet glass
       centered
       onClose={() => { if (!busy) onCancel() }}
       onBack={onCancel}

@@ -3247,6 +3247,21 @@ html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-re
 }
 [data-theme="glass-night"] .app-tabbar a[aria-current="page"] { background-color: rgb(var(--c-glass-rim) / .12); }
 
+/* The art has to show: a page root that paints the solid ground goes see-through. */
+[data-theme^="glass"] :is(main, div):is(.min-h-screen, .min-h-dvh, .min-h-svh, .h-dvh).bg-retro-bg { background-color: transparent; }
+/* The room dock is a pill; its reaction buttons sit in it as soft bubbles. */
+[data-theme^="glass"] .glass-dock { border-radius: 9999px; padding-block: 0.25rem; }
+[data-theme^="glass"] .glass-emote {
+  background-color: rgb(var(--c-glass-rim) / .18);
+  border-color: transparent;
+  border-radius: 9999px;
+  box-shadow: inset 0 1px 0 rgb(var(--c-glass-rim) / .5);
+}
+[data-theme="glass-night"] .glass-emote { background-color: rgb(var(--c-glass-rim) / .08); }
+[data-theme^="glass"] .glass-emote.bg-retro-tint-p2 { background-color: rgb(var(--c-p2) / .25); border-color: rgb(var(--c-p2)); }
+/* A sticky filter block over a scrolling list is frosted like a sheet. */
+[data-theme^="glass"] .glass-sticky { border-radius: 18px; padding-inline: 0.5rem; }
+
 /* A glass sheet is dimmed by a light wash, not the near-black scrim. */
 [data-theme^="glass"] [data-sheet-backdrop]:has(~ .glass-sheet) { background-color: rgb(var(--c-glass-shade) / .25); }
 

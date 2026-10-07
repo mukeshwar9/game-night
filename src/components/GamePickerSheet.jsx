@@ -30,7 +30,7 @@ export default function GamePickerSheet({ onSwitch, onClose, title = 'PLAY ANOTH
   const close = () => { if (!switching) onClose() }
 
   return (
-    <BottomSheet
+    <BottomSheet glass
       onClose={close}
       // Hardware/gesture back is not cancellable like a backdrop-tap — always
       // close on it, even mid-switch, so a second back press never falls

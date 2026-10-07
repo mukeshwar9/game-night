@@ -122,7 +122,7 @@ function GameAreaFallback() {
 // opened it is already being guarded (useBackGuard).
 function LeaveMatchConfirm({ onConfirm, onCancel }) {
   return (
-    <BottomSheet
+    <BottomSheet glass
       centered
       history={false}
       onClose={onCancel}
