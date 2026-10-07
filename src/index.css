@@ -374,6 +374,10 @@
     --crt-overlay: block;
     --glow: 1;
     --c-bg:       8 8 16;       /* #080810 */
+    --c-portal-1: 57 135 229;
+    --c-portal-2: 217 89 38;
+    --c-portal-3: 192 79 176;
+    --c-portal-4: 25 158 112;
     --c-surface:  15 15 26;     /* #0f0f1a */
     --c-card:     19 19 40;     /* #131328 */
     --c-border:   56 56 106;
@@ -435,6 +439,10 @@
 
 [data-theme="phosphor"] {
   --c-bg:       3 15 3;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  6 24 6;
   --c-card:     8 32 8;
   --c-border:   16 58 16;
@@ -478,6 +486,10 @@
 
 [data-theme="amber"] {
   --c-bg:       13 7 0;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  22 13 2;
   --c-card:     36 23 6;
   --c-border:   70 50 18;
@@ -521,6 +533,10 @@
 
 [data-theme="synthwave"] {
   --c-bg:       13 2 33;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  21 5 49;
   --c-card:     26 6 64;
   --c-border:   45 27 94;
@@ -564,6 +580,10 @@
 
 [data-theme="grid"] {
   --c-bg:       2 8 15;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  4 17 29;
   --c-card:     6 24 39;
   --c-border:   15 58 82;
@@ -607,6 +627,10 @@
 
 [data-theme="mono"] {
   --c-bg:       0 0 0;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  10 10 10;
   --c-card:     16 16 16;
   --c-border:   96 96 96;
@@ -653,6 +677,10 @@
 
 [data-theme="virtualboy"] {
   --c-bg:       10 0 0;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  20 2 2;
   --c-card:     30 4 4;
   --c-border:   70 10 10;
@@ -699,6 +727,10 @@
 
 [data-theme="c64"] {
   --c-bg:       64 49 141;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  58 44 133;
   --c-card:     53 40 121;
   --c-border:   120 110 200;
@@ -744,6 +776,10 @@
 
 [data-theme="blueprint"] {
   --c-bg:       22 62 110;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  28 72 125;
   --c-card:     32 80 138;
   --c-border:   90 140 190;
@@ -787,6 +823,10 @@
 
 [data-theme="sakura"] {
   --c-bg:       30 18 28;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  40 24 38;
   --c-card:     50 30 46;
   --c-border:   100 60 90;
@@ -833,6 +873,10 @@
   --crt-overlay: block;
   --glow:       0;
   --c-bg:       238 240 226;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  246 248 236;
   --c-card:     252 253 246;
   --c-border:   185 195 165;
@@ -882,6 +926,10 @@
   --crt-overlay: none;
   --glow:       0;
   --c-bg:       246 236 214;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  251 244 229;
   --c-card:     255 252 244;
   --c-border:   218 198 162;
@@ -937,6 +985,10 @@
   --crt-overlay: none;
   --glow:       0.3;
   --c-bg:       226 236 212;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  234 242 222;
   --c-card:     245 249 238;
   --c-border:   176 196 152;
@@ -986,6 +1038,10 @@
   --crt-overlay: none;
   --glow:       0.3;
   --c-bg:       222 234 214;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  231 240 224;
   --c-card:     243 248 238;
   --c-border:   170 194 156;
@@ -1035,6 +1091,10 @@
   --crt-overlay: none;
   --glow:       0.3;
   --c-bg:       251 233 242;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  253 241 247;
   --c-card:     255 250 253;
   --c-border:   226 189 210;
@@ -1083,6 +1143,10 @@
   --crt-overlay: none;
   --glow:       0.3;
   --c-bg:       229 237 244;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  237 243 248;
   --c-card:     248 251 253;
   --c-border:   179 197 214;
@@ -1130,6 +1194,10 @@
   --crt-overlay: none;
   --glow:       0.3;
   --c-bg: 239 230 210; /* #efe6d2 */
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface: 246 239 224; /* #f6efe0 */
   --c-card: 255 250 240; /* #fffaf0 */
   --c-border: 205 191 160; /* #cdbfa0 */
@@ -1176,6 +1244,10 @@
   --crt-overlay: none;
   --glow:       0;
   --c-bg: 247 248 243; /* #f7f8f3 */
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface: 251 252 248; /* #fbfcf8 */
   --c-card: 255 255 255; /* #ffffff */
   --c-border: 201 211 224; /* #c9d3e0 */
@@ -1221,6 +1293,10 @@
   --glow:       0;
   --crt-overlay: none;
   --c-bg: 0 0 0; /* #000000 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 10 10 10; /* #0a0a0a */
   --c-card: 18 18 18; /* #121212 */
   --c-border: 160 160 160; /* #a0a0a0 */
@@ -1264,6 +1340,10 @@
 /* FANTASY CONSOLE: fantasy-console navy with the PICO-8 sixteen; blue X, orange O, yellow CTA */
 [data-theme="fantasy"] {
   --c-bg: 15 22 48; /* #0f1630 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 22 32 74; /* #16204a */
   --c-card: 29 43 83; /* #1d2b53 */
   --c-border: 51 66 122; /* #33427a */
@@ -1307,6 +1387,10 @@
 /* SWEETIE 16: soft indie-pixel night; sky X, orange O, cyan CTA */
 [data-theme="sweetie"] {
   --c-bg: 26 28 44; /* #1a1c2c */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 32 35 58; /* #20233a */
   --c-card: 38 43 68; /* #262b44 */
   --c-border: 51 60 87; /* #333c57 */
@@ -1350,6 +1434,10 @@
 /* CGA: DOS-era black with cyan X, magenta O and a yellow CTA */
 [data-theme="cga"] {
   --c-bg: 0 0 0; /* #000000 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 8 8 15; /* #08080f */
   --c-card: 14 14 28; /* #0e0e1c */
   --c-border: 0 0 170; /* #0000aa */
@@ -1396,6 +1484,10 @@
   --crt-overlay: block;
   --glow:       0;
   --c-bg: 245 240 230; /* #f5f0e6 */
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface: 250 246 238; /* #faf6ee */
   --c-card: 255 253 248; /* #fffdf8 */
   --c-border: 216 207 191; /* #d8cfbf */
@@ -1439,6 +1531,10 @@
 /* PUMPKIN NIGHT: haunted violet night; pumpkin X, ghost-blue O, candy-pink CTA */
 [data-theme="pumpkin"] {
   --c-bg: 21 14 29; /* #150e1d */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 29 20 39; /* #1d1427 */
   --c-card: 38 26 51; /* #261a33 */
   --c-border: 63 44 82; /* #3f2c52 */
@@ -1482,6 +1578,10 @@
 /* CAMPFIRE: charcoal and ember; night-sky X, flame O, coal-pink CTA */
 [data-theme="campfire"] {
   --c-bg: 23 17 15; /* #17110f */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 32 23 19; /* #201713 */
   --c-card: 42 30 24; /* #2a1e18 */
   --c-border: 74 52 40; /* #4a3428 */
@@ -1525,6 +1625,10 @@
 /* 24K: black lacquer and gold leaf; sapphire X, ruby O, gold CTA */
 [data-theme="gold"] {
   --c-bg: 11 9 7; /* #0b0907 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 19 16 11; /* #13100b */
   --c-card: 27 22 15; /* #1b160f */
   --c-border: 58 46 26; /* #3a2e1a */
@@ -1568,6 +1672,10 @@
 /* HOLOFOIL: ink-violet with prismatic accents; cyan X, peach O, holo-pink CTA */
 [data-theme="holo"] {
   --c-bg: 12 10 24; /* #0c0a18 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 19 17 42; /* #13112a */
   --c-card: 26 23 54; /* #1a1736 */
   --c-border: 46 42 90; /* #2e2a5a */
@@ -1611,6 +1719,10 @@
 /* COSMIC CARPET: black-light carpet; cyan X, orange O, hot-pink CTA */
 [data-theme="carpet"] {
   --c-bg: 20 11 38; /* #140b26 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 27 16 49; /* #1b1031 */
   --c-card: 35 21 63; /* #23153f */
   --c-border: 61 42 102; /* #3d2a66 */
@@ -1654,6 +1766,10 @@
 /* P7 RADAR: scope green-black; afterglow X, lock-on magenta O, flash-blue CTA */
 [data-theme="radar"] {
   --c-bg: 2 10 7; /* #020a07 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface: 4 18 12; /* #04120c */
   --c-card: 6 26 17; /* #061a11 */
   --c-border: 15 58 36; /* #0f3a24 */
@@ -2111,26 +2227,39 @@ body::before {
 .ar-mirror-glint { stroke: rgb(var(--c-text)); stroke-width: 0.6; stroke-linecap: round; opacity: 0.8; }
 /* Flat mirrors (endless) wear the O accent so they read apart from slanted ones; the bar's angle is the main cue. */
 .ar-mirror.is-flat .ar-mirror-bar { stroke: rgb(var(--c-p2)); }
-/* Portals: a ring and its pair's letter in one of four accents; a dashed
-   ring is exit-only; a turning pair wears a clockwise hook. A shaped board
-   tints its playable cells so the outline reads against the stage. */
-.ar-portal-0 { --portal: var(--c-p1); }
-.ar-portal-1 { --portal: var(--c-p2); }
-.ar-portal-2 { --portal: var(--c-cta); }
-.ar-portal-3 { --portal: var(--c-win); }
+/* Portals: plain ovals told apart by colour (--c-portal-1..4, CVD-checked per
+   theme; never the player accents). No letter unless SHOW PORTAL LETTERS is on
+   (html[data-portalletters]); a 4th pair always shows it. A small arrowhead
+   marks only the special rings: entrance in, exit-only (filled) out, a turning
+   ring clockwise. The oval fills briefly as an arrow passes (is-pass). A
+   shaped board tints its playable cells so the outline reads against the stage.
+   Tunnels: a light floor, dark walls on the two blocked sides and one chevron
+   the allowed way; the pass-through sides have no border. */
+.ar-portal-0 { --portal: var(--c-portal-1); }
+.ar-portal-1 { --portal: var(--c-portal-2); }
+.ar-portal-2 { --portal: var(--c-portal-3); }
+.ar-portal-3 { --portal: var(--c-portal-4); }
 .ar-portal-cell { fill: rgb(var(--c-deep)); stroke: rgb(var(--c-structure)); stroke-width: 0.5; }
-.ar-portal-ring { fill: rgb(var(--portal) / 0.14); stroke: rgb(var(--portal)); stroke-width: 1; }
-.ar-portal-ring.is-exit { stroke-dasharray: 1.3 1.1; fill: none; }
-.ar-portal-hook { stroke: rgb(var(--portal)); stroke-width: 0.8; stroke-linecap: round; }
-.ar-portal-hook-tip { fill: rgb(var(--portal)); stroke: none; }
-.ar-portal-letter { font-size: 3.6px; fill: rgb(var(--portal)); }
+.ar-portal-oval { fill: rgb(var(--portal) / 0.14); stroke: rgb(var(--portal)); stroke-width: 0.95; }
+.ar-portal.is-exit .ar-portal-oval { fill: rgb(var(--portal)); }
+.ar-portal-head { fill: rgb(var(--portal)); stroke: rgb(var(--c-card)); stroke-width: 0.3; stroke-linejoin: round; }
+.ar-portal.is-exit .ar-portal-head { stroke-width: 0.45; }
+.ar-portal.is-pass .ar-portal-oval { fill: rgb(var(--portal) / 0.55); stroke-width: 1.4; }
+.ar-portal.is-exit.is-pass .ar-portal-oval { stroke: rgb(var(--c-card)); }
+.ar-portal-letter { display: none; font-size: 3.2px; fill: rgb(var(--portal)); }
+html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter { display: block; }
+.ar-portal.is-exit .ar-portal-letter { fill: rgb(var(--c-card)); }
 .ar-shape { fill: rgb(var(--c-tint-p1)); opacity: 0.7; }
-.ar-tunnel-cell { fill: rgb(var(--c-deep)); stroke: rgb(var(--c-structure)); stroke-width: 0.5; }
-.ar-tunnel-rail { stroke: rgb(var(--c-text)); stroke-width: 0.9; stroke-linecap: square; opacity: 0.7; }
-.ar-tunnel-chevron { stroke: rgb(var(--c-win)); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.ar-tunnel-cell { stroke: none; fill: none; }
+.ar-tunnel-floor { fill: rgb(var(--c-win) / 0.14); }
+.ar-tunnel-wall { stroke: rgb(var(--c-text)); stroke-width: 1; stroke-linecap: square; opacity: 0.85; fill: none; }
+.ar-tunnel-chevron { fill: none; stroke: rgb(var(--c-win)); stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; animation: ar-tunnel-nudge 2.4s ease-in-out infinite; }
+.ar-tunnel.is-pass .ar-tunnel-floor { fill: rgb(var(--c-win) / 0.45); }
 .ar-tunnel.is-blocker { animation: arrows-blocker 0.62s ease; }
-.ar-tunnel.is-blocker .ar-tunnel-cell { stroke: rgb(var(--c-danger)); stroke-width: 0.9; }
-.ar-tunnel.is-blocker .ar-tunnel-rail { stroke: rgb(var(--c-danger)); opacity: 1; }
+.ar-tunnel.is-blocker .ar-tunnel-wall { stroke: rgb(var(--c-danger)); opacity: 1; }
+.ar-tunnel.is-blocker .ar-tunnel-chevron { stroke: rgb(var(--c-danger)); }
+.ar-tunnel.is-blocker .ar-tunnel-floor { fill: rgb(var(--c-danger) / 0.15); }
+@keyframes ar-tunnel-nudge { 0%, 60%, 100% { transform: translateX(0); } 75% { transform: translateX(0.9px); } }
 .ar-crate-box { fill: rgb(var(--c-tint-cta)); stroke: rgb(var(--c-cta)); stroke-width: 0.8; }
 .ar-crate-slat { stroke: rgb(var(--c-cta) / 0.35); stroke-width: 0.6; }
 .ar-crate-num { font-size: 4px; fill: rgb(var(--c-cta)); }
@@ -2142,6 +2271,7 @@ body::before {
 /* Reduced motion (in-app setting, else the OS query): drop the flash, ring
    and shake; the red / CTA colour cues stay. */
 [data-motion="reduced"] .ar-crate { transition: none; }
+[data-motion="reduced"] .ar-tunnel-chevron,
 [data-motion="reduced"] .ar-crate.is-blocker,
 [data-motion="reduced"] .ar-tunnel.is-blocker,
 [data-motion="reduced"] .arrows-arrow.is-blocker,
@@ -2151,6 +2281,7 @@ body::before {
 [data-motion="reduced"] .arrows-stage.is-error .arrows-svg { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"]) .ar-crate { transition: none; }
+  :root:not([data-motion="full"]) .ar-tunnel-chevron,
   :root:not([data-motion="full"]) .ar-crate.is-blocker,
   :root:not([data-motion="full"]) .ar-tunnel.is-blocker,
   :root:not([data-motion="full"]) .arrows-arrow.is-blocker,

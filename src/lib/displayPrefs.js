@@ -43,6 +43,7 @@ const MOTION_KEY = 'retro-motion'
 const TEXT_SIZE_KEY = 'retro-textsize'
 const WIN_FX_KEY = 'retro-winfx'
 const THEME_PREVIEW_KEY = 'retro-themepreview'
+const PORTAL_LETTERS_KEY = 'retro-portalletters'
 
 function read(key) {
   try { return localStorage.getItem(key) } catch { return null }
@@ -133,7 +134,19 @@ export function applyThemePreview(on) {
   write(THEME_PREVIEW_KEY, on ? 'on' : 'off')
 }
 
+// Settings → Look & feel "SHOW PORTAL LETTERS": Arrows portals are told apart
+// by colour; this adds each pair's letter. Off by default; CSS reads the attr.
+export function getPortalLetters() {
+  return read(PORTAL_LETTERS_KEY) === 'on'
+}
+
+export function applyPortalLetters(on) {
+  document.documentElement.dataset.portalletters = on ? 'on' : 'off'
+  write(PORTAL_LETTERS_KEY, on ? 'on' : 'off')
+}
+
 export function applyStoredDisplayPrefs() {
+  applyPortalLetters(getPortalLetters())
   applyCrt(getStoredCrt())
   applyMotion(getStoredMotion())
   applyTextSize(getStoredTextSize())
@@ -145,4 +158,5 @@ export function resetDisplayPrefs() {
   applyTextSize(defaultTextSize())
   applyWinFx(true)
   applyThemePreview(false)
+  applyPortalLetters(false)
 }

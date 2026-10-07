@@ -9,8 +9,8 @@ import { VideoCallSettingsPanel } from './VideoCallLayout'
 import { FONTS, applyFont, getStoredFont } from '../lib/font'
 import { THEMES, applyTheme, getStoredTheme, pairedFont, pickTheme } from '../lib/theme'
 import {
-  applyCrt, applyMotion, applyTextSize, applyThemePreview, applyWinFx, defaultTextSize, textSizeOptions,
-  getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
+  applyCrt, applyMotion, applyPortalLetters, applyTextSize, applyThemePreview, applyWinFx, defaultTextSize, textSizeOptions,
+  getPortalLetters, getStoredCrt, getStoredMotion, getStoredTextSize, getThemePreview, getWinFx, resetDisplayPrefs,
 } from '../lib/displayPrefs'
 import { ART_STYLES, DEFAULT_ART_STYLE, applyGameArtStyle, getGameArtStyle } from '../lib/gameArtStyle'
 import { setProfile } from '../lib/social'
@@ -76,6 +76,7 @@ export default function SettingsButton({ className = '' }) {
   const [textSize, setTextSize] = useState(getStoredTextSize)
   const [artStyle, setArtStyle] = useState(getGameArtStyle)
   const [winFx, setWinFx] = useState(getWinFx)
+  const [portalLetters, setPortalLetters] = useState(getPortalLetters)
   const [haptics, setHaptics] = useState(getHapticsOn)
   const [resetArmed, setResetArmed] = useState(false)
   const [editingMe, setEditingMe] = useState(false)
@@ -143,6 +144,7 @@ export default function SettingsButton({ className = '' }) {
   const selectTextSize = (id) => setTextSize(applyTextSize(id))
   const selectArtStyle = (id) => setArtStyle(applyGameArtStyle(id))
   const selectWinFx = (on) => { applyWinFx(on); setWinFx(on) }
+  const selectPortalLetters = (on) => { applyPortalLetters(on); setPortalLetters(on) }
   const selectHaptics = (on) => { setHapticsOn(on); setHaptics(on) }
   const selectShowPreview = (on) => { applyThemePreview(on); setShowPreview(on) }
 
@@ -169,6 +171,7 @@ export default function SettingsButton({ className = '' }) {
     setArtStyle(DEFAULT_ART_STYLE)
     applyGameArtStyle(DEFAULT_ART_STYLE)
     setWinFx(true)
+    setPortalLetters(false)
     selectHaptics(true)
     setShowPreview(false)
     setProfile({ theme: 'matcha', fontFamily: 'press-start' }).catch(() => {})
@@ -302,6 +305,7 @@ export default function SettingsButton({ className = '' }) {
         <SwitchRow label="CRT EFFECTS" checked={crt} onChange={selectCrt} ariaLabel="Toggle CRT scanlines and vignette" />
         <SwitchRow label="REDUCE MOTION" checked={motion === 'reduced'} onChange={on => selectMotion(on ? 'reduced' : 'full')} ariaLabel="Toggle reduced motion" />
         <SwitchRow label="WIN CELEBRATIONS" checked={winFx} onChange={selectWinFx} ariaLabel="Toggle win confetti and fanfare" />
+        <SwitchRow label="SHOW PORTAL LETTERS" checked={portalLetters} onChange={selectPortalLetters} ariaLabel="Show a letter on each Arrows portal pair, besides its colour" />
         <div className="flex items-center justify-between gap-3">
           <span className="font-pixel text-[9px] text-retro-text tracking-widest">GAME ART</span>
           <div className="grid grid-cols-2 gap-2" role="group" aria-label="Game art style">

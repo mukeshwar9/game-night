@@ -42,6 +42,7 @@ import {
 } from '../lib/arrowsCameraLogic'
 import { cn } from '@/lib/utils'
 import { isReducedMotion } from '../hooks/useMotionPref'
+import { portalColourLabel, vBendD } from '../lib/arrowsLook'
 
 // Board units: one grid cell = CELL units. Stroke and head sizes are fractions
 // of a cell so every tier reads the same at any pixel size.
@@ -93,7 +94,7 @@ function bodyD(points, arrow) {
 }
 
 // A double arrow: two straight prongs (a head at each end) joined by one
-// round C-shaped bend that bulges out behind its spine. Both ends stop short
+// curved V-shaped bend that points out behind its spine. Both ends stop short
 // so each head covers its end.
 function doubleBodyD(points) {
   const n = points.length
@@ -114,7 +115,7 @@ function doubleBodyD(points) {
   const [ex, ey] = points[n - 1]
   const f = (v) => Math.round(v * 100) / 100
   return `M${f(ax - ux * BODY_INSET)} ${f(ay - uy * BODY_INSET)} L${f(p1[0])} ${f(p1[1])}` +
-    ` C${f(p1[0] - ux * bulge)} ${f(p1[1] - uy * bulge)} ${f(p2[0] - ux * bulge)} ${f(p2[1] - uy * bulge)} ${f(p2[0])} ${f(p2[1])}` +
+    vBendD(p1, p2, ux, uy, bulge) +
     ` L${f(ex - ux * BODY_INSET)} ${f(ey - uy * BODY_INSET)}`
 }
 
@@ -231,64 +232,18 @@ function mirrorLabel(m) {
   return `Mirror at ${where}, leaning ${m.m === '/' ? 'right' : 'left'}`
 }
 
-// Tunnel floors: a dark tile with two rails along its axis and chevrons
-// pointing the way a piece may cross. Shape alone says which way it opens
-// (rails + chevrons), so it reads without colour.
-const TUNNEL_RAIL = 3.3
-const TUNNEL_HALF = 4.1
-function tunnelGeometry({ x, y, dir }) {
-  // A slanted tile (endless) is the same glyph turned 45°, a touch narrower
-  // so its rails stay inside the cell.
-  const [ux, uy] = ARROWS_DIRS[dir]
-  const slant = dir >= 4 ? Math.SQRT1_2 * 0.82 : 1
-  const dx = ux * slant
-  const dy = uy * slant
-  const px = -dy
-  const py = dx
-  const cx = x * CELL + CELL / 2
-  const cy = y * CELL + CELL / 2
-  const f = (n) => Math.round(n * 100) / 100
-  const at = (u, v) => `${f(cx + dx * u + px * v)} ${f(cy + dy * u + py * v)}`
-  const rail = (v) => `M${at(-TUNNEL_HALF, v)} L${at(TUNNEL_HALF, v)}`
-  const chevron = (u) => `M${at(u - 1.6, -2.3)} L${at(u + 0.9, 0)} L${at(u - 1.6, 2.3)}`
-  return { rails: [rail(-TUNNEL_RAIL), rail(TUNNEL_RAIL)], chevrons: [chevron(-1.5), chevron(1.7)] }
-}
-
-// Portals: a ring with its pair's letter in it, in one of four accents. A
-// dashed ring only lets arrows out; a turning pair wears a clockwise hook.
+// Portals are plain ovals told apart by colour (--c-portal-*); letters are an
+// opt-in setting. Rings that do something special wear a small arrowhead.
 const PORTAL_LETTERS = 'ABCD'
-const PORTAL_R = 3.4
-const HOOK_R = 4.4
-function portalHook(cx, cy) {
-  const a0 = (-80 * Math.PI) / 180
-  const a1 = (10 * Math.PI) / 180
+const PORTAL_RX = 2.7
+const PORTAL_RY = 3.8
+function portalHeadD(tx, ty, dx, dy) {
+  const L = 1.5
+  const W = 0.95
   const f = (n) => Math.round(n * 100) / 100
-  const sx = cx + HOOK_R * Math.cos(a0)
-  const sy = cy + HOOK_R * Math.sin(a0)
-  const ex = cx + HOOK_R * Math.cos(a1)
-  const ey = cy + HOOK_R * Math.sin(a1)
-  // Tangent at the end (clockwise on screen) and its normal for the head.
-  const tx = -Math.sin(a1)
-  const ty = Math.cos(a1)
-  const tip = [ex + tx * 1.5, ey + ty * 1.5]
-  const l = [ex - ty * 0.95, ey + tx * 0.95]
-  const r = [ex + ty * 0.95, ey - tx * 0.95]
-  return {
-    arc: `M${f(sx)} ${f(sy)} A${HOOK_R} ${HOOK_R} 0 0 1 ${f(ex)} ${f(ey)}`,
-    head: `M${f(tip[0])} ${f(tip[1])} L${f(l[0])} ${f(l[1])} L${f(r[0])} ${f(r[1])} Z`,
-  }
-}
-function portalRingLabel(portal, end) {
-  const letter = PORTAL_LETTERS[portal.c % PORTAL_LETTERS.length]
-  const [x, y] = portal[end]
-  const where = `column ${x + 1}, row ${y + 1}`
-  const turn = portal.turn ? ', turns the arrow a quarter clockwise' : ''
-  if (portal.oneway) {
-    return end === 'a'
-      ? `Portal ${letter}, entrance, ${where}, leads to its exit ring${turn}`
-      : `Portal ${letter}, exit only, ${where}, arrows come out here but cannot enter`
-  }
-  return `Portal ${letter}, ${where}, leads to the other ${letter} ring${turn}`
+  const bx = tx - dx * L
+  const by = ty - dy * L
+  return `M${f(tx)} ${f(ty)} L${f(bx - dy * W)} ${f(by + dx * W)} L${f(bx + dy * W)} ${f(by - dx * W)} Z`
 }
 
 function arrowLabel(arrow, i, asleep) {
@@ -657,6 +612,34 @@ export default function ArrowsBoard({
     return () => clearTimeout(t)
   }, [feedback, level])
 
+  // Every portal ring and tunnel an arrow passes through lights up as its head
+  // gets there (timed from the route).
+  const pieceRefs = useRef(new Map())
+  const passGone = useRef(gone)
+  useEffect(() => {
+    const before = passGone.current
+    passGone.current = gone
+    if (!level.portals?.length && !level.tunnels?.length) return
+    const timers = []
+    const lit = new Set()
+    gone.forEach((g, i) => {
+      if (!g || before[i]) return
+      arrowRoute(level, level.arrows[i]).cells.forEach((c, step) => {
+        const el = pieceRefs.current.get(c)
+        if (!el) return
+        timers.push(setTimeout(() => {
+          lit.add(el)
+          el.classList.remove('is-pass'); void el.getBBox(); el.classList.add('is-pass')
+          timers.push(setTimeout(() => el.classList.remove('is-pass'), 700))
+        }, (step + 1) * MS_PER_CELL + ACCEL_MS / 2))
+      })
+    })
+    return () => {
+      timers.forEach(clearTimeout)
+      lit.forEach((el) => el.classList.remove('is-pass'))
+    }
+  }, [gone, level])
+
   // The arrow under a screen position (its cell, or a near miss — thumbs are
   // wider than lines), or -1.
   const arrowAtClient = (clientX, clientY) => {
@@ -847,25 +830,25 @@ export default function ArrowsBoard({
         {level.portals?.map((p) => ['a', 'b'].map((end) => {
           const [x, y] = p[end]
           const exit = p.oneway && end === 'b'
+          const entrance = p.oneway && end === 'a'
           const cx = x * CELL + CELL / 2
           const cy = y * CELL + CELL / 2
-          const hook = p.turn ? portalHook(cx, cy) : null
+          let mark = null
+          if (p.turn) mark = <path className="ar-portal-head" d={portalHeadD(cx + PORTAL_RX + 0.15, cy + 1.2, 0, 1)} />
+          else if (exit) mark = <path className="ar-portal-head" d={portalHeadD(cx, cy - PORTAL_RY - 1.25, 0, -1)} />
+          else if (entrance) mark = <path className="ar-portal-head" d={portalHeadD(cx, cy - PORTAL_RY + 1.25, 0, 1)} />
           return (
             <g
               key={`p${p.c}${end}`}
-              className={cn('ar-portal', `ar-portal-${p.c % 4}`)}
+              ref={(el) => { const k = y * level.cols + x; if (el) pieceRefs.current.set(k, el); else pieceRefs.current.delete(k) }}
+              className={cn('ar-portal', `ar-portal-${p.c % 4}`, exit && 'is-exit', p.turn && 'is-turn')}
               role="img"
-              aria-label={portalRingLabel(p, end)}
+              aria-label={portalColourLabel(p, end)}
             >
-              <rect className="ar-portal-cell" x={x * CELL + 0.8} y={y * CELL + 0.8} width={CELL - 1.6} height={CELL - 1.6} rx={1.4} />
-              <circle className={cn('ar-portal-ring', exit && 'is-exit')} cx={cx} cy={cy} r={PORTAL_R} />
-              {hook && (
-                <>
-                  <path className="ar-portal-hook" d={hook.arc} fill="none" />
-                  <path className="ar-portal-hook-tip" d={hook.head} />
-                </>
-              )}
-              <text className="ar-portal-letter font-pixel" x={cx} y={cy + 1.3} textAnchor="middle">{PORTAL_LETTERS[p.c % 4]}</text>
+              <rect className="ar-portal-cell" x={x * CELL + 0.6} y={y * CELL + 0.6} width={CELL - 1.2} height={CELL - 1.2} rx={1.6} />
+              <ellipse className="ar-portal-oval" cx={cx} cy={cy} rx={PORTAL_RX} ry={PORTAL_RY} />
+              {mark}
+              <text className="ar-portal-letter font-pixel" x={cx} y={cy + 1} textAnchor="middle" aria-hidden="true">{PORTAL_LETTERS[p.c % 4]}</text>
             </g>
           )
         }))}
@@ -881,18 +864,25 @@ export default function ArrowsBoard({
           )
         })}
         {level.tunnels?.map((t, i) => {
-          const { rails, chevrons } = tunnelGeometry(t)
+          const [ux, uy] = ARROWS_DIRS[t.dir]
+          const deg = (Math.atan2(uy, ux) * 180) / Math.PI
+          const cx = t.x * CELL + CELL / 2
+          const cy = t.y * CELL + CELL / 2
+          const sc = t.dir >= 4 ? 0.62 : 1
           return (
             <g
               key={`t${t.x}-${t.y}`}
-              ref={(el) => { tunnelRefs.current[i] = el }}
+              ref={(el) => { tunnelRefs.current[i] = el; const k = t.y * level.cols + t.x; if (el) pieceRefs.current.set(k, el); else pieceRefs.current.delete(k) }}
               className="ar-tunnel"
               role="img"
               aria-label={`Tunnel floor at column ${t.x + 1}, row ${t.y + 1}, pieces cross it only heading ${ARROWS_DIR_NAMES[t.dir]}; any other way it is a wall`}
             >
-              <rect className="ar-tunnel-cell" x={t.x * CELL + 0.8} y={t.y * CELL + 0.8} width={CELL - 1.6} height={CELL - 1.6} rx={1.4} />
-              {rails.map((d) => <path key={d} className="ar-tunnel-rail" d={d} />)}
-              {chevrons.map((d) => <path key={d} className="ar-tunnel-chevron" d={d} fill="none" />)}
+              <rect className="ar-tunnel-cell" x={t.x * CELL + 0.6} y={t.y * CELL + 0.6} width={CELL - 1.2} height={CELL - 1.2} rx={1.6} />
+              <g transform={`translate(${cx} ${cy}) rotate(${deg}) scale(${sc})`}>
+                <rect className="ar-tunnel-floor" x={-4.4} y={-3.1} width={8.8} height={6.2} rx={0.8} />
+                <path className="ar-tunnel-chevron" d="M-0.9 -1.8 L0.9 0 L-0.9 1.8" />
+                <path className="ar-tunnel-wall" d="M-4.5 -3.9 L4.5 -3.9 M-4.5 3.9 L4.5 3.9" />
+              </g>
             </g>
           )
         })}
