@@ -17,7 +17,7 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
       )}>
         <div
           className="grid gap-1 sm:gap-1.5"
-          style={{ gridTemplateColumns: `repeat(${CHOMP_COLS}, 1fr)` }}
+          style={{ gridTemplateColumns: `repeat(${CHOMP_COLS}, minmax(0, 1fr))` }}
         >
           {board.map((cell, i) => {
             const eaten = cell === 'eaten'
@@ -36,7 +36,7 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
                 disabled={!clickable}
                 onClick={() => clickable && onMove(i)}
                 className={cn(
-                  'aspect-square rounded transition duration-150 select-none',
+                  'aspect-square min-w-0 overflow-hidden rounded transition duration-150 select-none',
                   'flex items-center justify-center font-pixel text-[10px]',
                   'border-2 outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
