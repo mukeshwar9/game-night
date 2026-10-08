@@ -27,6 +27,8 @@ import {
   ARROWS_LIVES,
   ARROWS_TIERS,
   ARROWS_TIER_SPECS,
+  ARROWS_DIFFICULTY_INFO,
+  ARROWS_ENDLESS_INFO,
   arrowRoute,
   arrowPose,
   isAwake,
@@ -115,6 +117,21 @@ describe('tierForRound', () => {
     expect(tierForRound(9)).toBe('hard')
     expect(tierForRound(undefined)).toBe('easy')
   })
+})
+
+describe('race difficulty blurbs', () => {
+  for (const tier of ARROWS_TIERS) {
+    it(`${tier}: blurb leads with the real board size and differs from endless`, () => {
+      const { cols, rows } = ARROWS_TIER_SPECS[tier]
+      expect(ARROWS_DIFFICULTY_INFO[tier].blurb.startsWith(`${cols}×${rows}`)).toBe(true)
+      expect(ARROWS_DIFFICULTY_INFO[tier].blurb).not.toBe(ARROWS_ENDLESS_INFO[tier].blurb)
+      for (const seed of [3, 41, 977]) {
+        const level = generateArrowsLevel(seed, tier)
+        expect([level.cols, level.rows]).toEqual([cols, rows])
+        if (tier === 'easy') expect(level.arrows.some(isDiagonal)).toBe(false)
+      }
+    })
+  }
 })
 
 describe('generateArrowsLevel', () => {

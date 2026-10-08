@@ -104,10 +104,13 @@ export const ARROWS_ENDLESS_SPECS = {
 // original easy → medium → hard ramp across the three rounds. The host picks
 // it in the waiting room (or between matches); unset means 'mixed'.
 export const ARROWS_DIFFICULTIES = ['easy', 'medium', 'hard', 'mixed']
+// Race blurbs describe the real race boards, so they are built from
+// ARROWS_TIER_SPECS (size) and cannot drift from what generateArrowsLevel makes.
+const raceBlurb = (tier, pieces) => `${ARROWS_TIER_SPECS[tier].cols}×${ARROWS_TIER_SPECS[tier].rows} · ${pieces}`
 export const ARROWS_DIFFICULTY_INFO = {
-  easy: { label: 'EASY', blurb: '8×11 OR A SHAPE · A LIGHT MIX OF WHAT YOU HAVE LEARNED' },
-  medium: { label: 'MEDIUM', blurb: '14×19 OR A SHAPE · MORE OF WHAT YOU HAVE LEARNED' },
-  hard: { label: 'HARD', blurb: 'UP TO 20×28 · EVERY PIECE YOU HAVE LEARNED' },
+  easy: { label: 'EASY', blurb: raceBlurb('easy', 'STRAIGHT ARROWS') },
+  medium: { label: 'MEDIUM', blurb: raceBlurb('medium', '+ DIAGONALS') },
+  hard: { label: 'HARD', blurb: raceBlurb('hard', '+ DIAGONALS AND HOOKS') },
   mixed: { label: 'MIXED', blurb: 'EASY → MEDIUM → HARD' },
 }
 export const getArrowsDifficulty = (id) => (ARROWS_DIFFICULTIES.includes(id) ? id : 'mixed')
