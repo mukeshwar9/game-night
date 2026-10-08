@@ -63,9 +63,9 @@ test('party first: gather, pick by party size, take turns, back to the party', a
     await expect(group(alice.page, 'party-group-all')).toContainText('EVERYONE PLAYS · 19')
     await group(alice.page, 'party-group-all').getByRole('button', { name: 'SHOW ALL 19' }).click()
     await expect(group(alice.page, 'party-group-all').getByRole('button', { name: /^Play / })).toHaveCount(19)
-    await expect(group(alice.page, 'party-group-rotate')).toContainText('TAKE TURNS · 2 PLAY, WINNER STAYS · 62')
-    await group(alice.page, 'party-group-rotate').getByRole('button', { name: 'SHOW ALL 62' }).click()
-    await expect(group(alice.page, 'party-group-rotate').getByRole('button', { name: /^Play / })).toHaveCount(62)
+    await expect(group(alice.page, 'party-group-rotate')).toContainText('TAKE TURNS · 2 PLAY, WINNER STAYS · 63')
+    await group(alice.page, 'party-group-rotate').getByRole('button', { name: 'SHOW ALL 63' }).click()
+    await expect(group(alice.page, 'party-group-rotate').getByRole('button', { name: /^Play / })).toHaveCount(63)
     await expect(group(alice.page, 'party-group-short')).toContainText('NEEDS MORE PLAYERS · 1')
     // Guests see who is picking and can't pick.
     await expect(bob.page.getByTestId('party-picking')).toContainText('Alice')

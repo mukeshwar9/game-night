@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ref, onValue, update, runTransaction, remove } from 'firebase/database'
+import { ref, onValue, update, runTransaction, remove, serverTimestamp } from 'firebase/database'
 import { toast } from 'sonner'
 import { db, configError } from '../../lib/firebase'
 import { getGameConfig, isKnownGameType } from '../../lib/games'
@@ -16,6 +16,8 @@ import { canTakeSeat, normalizeQueue } from '../../lib/nightLogic'
 import { hostUidOf, joinQueue } from '../../lib/night'
 import useDbConnected from '../useDbConnected'
 import useRoomPresence from './useRoomPresence'
+import useArrivingSignal from './useArrivingSignal'
+import { countdownEligible } from '../../lib/arrivalLogic'
 import { buildSwitchUpdates } from './roomUpdates'
 import { moderateRoomNames } from '../../lib/moderationLogic'
 import { trackRoomJoined } from '../../lib/track'
@@ -44,6 +46,10 @@ function readStoredSeat(gameId) {
 function secondSeatUpdates(data) {
   if (data.lobby || getGameConfig(data.gameType)?.waitForStart) return { lastActivityAt: Date.now() }
   const updates = { status: 'playing', lastActivityAt: Date.now() }
+  // The arrival beat (arrivalLogic.js): one server timestamp both players read
+  // for the "IS HERE!" banner and the 3·2·1 before a duel's first move. A
+  // rematch never passes through here, and clears the key.
+  if (countdownEligible(getGameConfig(data.gameType), data)) updates.startsAt = serverTimestamp()
   if (data.gameType === 'hangwoman') {
     updates['round/setter'] = 'X'
     updates['round/phase'] = 'setting'
@@ -312,6 +318,10 @@ export default function useRoomSession(gameId) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [party, seatX, seatO, reseatable, gameId])
   // --- end game night
+
+  // "Someone opened your link" — the invite screen announces this visitor to
+  // the room, anonymously, until they join or leave (useArrivingSignal).
+  useArrivingSignal(gameId, needName)
 
   // Presence — one entry per connection (useRoomPresence). Party seats live
   // on players/{uid}; 2P seats on presence/{X|O}; everyone else is counted as

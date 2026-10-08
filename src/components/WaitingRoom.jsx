@@ -21,7 +21,10 @@ import { track } from '../lib/track'
 import { shareUrl } from '../lib/platform'
 import { shareLink } from '../lib/share'
 import PushNudge from './PushNudge'
-import { waitingForLabel } from '../lib/roomLogic'
+import { seatedIds, waitingForLabel } from '../lib/roomLogic'
+import { arrivingCount, hostWaitingLine, inviteShareText } from '../lib/arrivalLogic'
+import useServerClock from '../hooks/useServerClock'
+import { getPlayerId } from '../lib/playerId'
 
 const PONG_MATCH_OPTIONS = [3, 5, 7]
 
@@ -51,6 +54,15 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
   const xOnline = mySymbol === 'X' ? true : mySymbol === 'O' ? opponentOnline !== false : game?.presence?.X?.online !== false
   const oOnline = mySymbol === 'O' ? true : mySymbol === 'X' ? opponentOnline !== false : game?.presence?.O?.online !== false
   const readyToPlay = pickFirst || (isLobby && bothSeated)
+  // Anonymous "someone opened your link" stamps from the join screen
+  // (useArrivingSignal); only the waiting host reads them.
+  const { now: clockNow } = useServerClock({ tickMs: 30_000 })
+  const arrivingN = mySymbol === 'X' && !bothSeated
+    ? arrivingCount(game?.arriving, { now: clockNow, selfUid: getPlayerId(), seatedUids: seatedIds(game?.players) })
+    : 0
+  const hostName = game?.players?.X?.name
+  // The guest's side of the same moment: the host is already here.
+  const hostLine = mySymbol === 'O' ? hostWaitingLine({ hostName, gameLabel: label }) : null
 
   const isPongHost = gameType === 'pong' && mySymbol === 'X'
   const matchLength = game?.matchLength ?? 3
@@ -137,7 +149,7 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
   }
 
   const shareInvite = async () => {
-    const outcome = await shareLink({ text: 'Join my Game Night room!', url: inviteUrl })
+    const outcome = await shareLink({ text: inviteShareText({ hostName, gameLabel: label }), url: inviteUrl })
     if (outcome === 'shared') { recordFunnel('shared'); track('invite_shared', { surface: 'waiting_room', method: 'native_share' }); return }
     if (outcome === 'cancelled') return
     copyLink()
@@ -172,10 +184,12 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
               </>
             ) : (
               <>
-                <div className="w-11 h-11 rounded-full border-2 border-dashed border-retro-border flex items-center justify-center animate-pulse">
+                <div className="seat-breathe w-11 h-11 rounded-full border-2 border-dashed border-retro-border flex items-center justify-center">
                   <span className="font-pixel text-sm text-retro-dim">?</span>
                 </div>
-                <p className="font-pixel text-[8px] text-retro-dim tracking-wider">WAITING…</p>
+                <p className="font-pixel text-[8px] text-retro-dim tracking-wider leading-relaxed text-center">
+                  {arrivingN > 0 ? 'ON THE WAY…' : 'SAVING THIS SEAT FOR A FRIEND'}
+                </p>
               </>
             )}
           </div>
@@ -186,9 +200,15 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
 
       {/* Status text */}
       <div className="text-center space-y-1">
-        <p className="font-pixel text-xs text-retro-text">
-          {readyToPlay ? 'READY TO PLAY' : waitingFor}
+        <p className="font-pixel text-xs text-retro-text" data-testid="waiting-status">
+          {readyToPlay ? 'READY TO PLAY' : arrivingN > 0 ? 'SOMEONE OPENED YOUR LINK…' : waitingFor}
         </p>
+        {arrivingN > 0 && !readyToPlay && (
+          <p className="font-mono text-xs text-retro-dim">they&apos;re picking a name — hang tight</p>
+        )}
+        {hostLine && (
+          <p className="font-pixel text-[9px] text-retro-cta tracking-wider" data-testid="host-waiting">{hostLine}</p>
+        )}
         {/* The room line above already names the game (lobbies show it in
             their GAME row), and SHARE INVITE LINK says what to do next, so a
             plain waiting room needs no hint line. */}

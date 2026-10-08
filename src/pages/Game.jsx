@@ -4,7 +4,7 @@ import { ref, update, set as dbSet, runTransaction, serverTimestamp } from 'fire
 import { pendingRoll, lastRollMatches } from '../lib/diceLogic'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { chatLockFor, freshGameState, getGameConfig, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover, PARTY_LOBBY, buildPartyRoom } from '../lib/games'
+import { chatLockFor, freshGameState, getGameConfig, resultMarginFor, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover, PARTY_LOBBY, buildPartyRoom } from '../lib/games'
 import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
@@ -13,6 +13,7 @@ import { recordPlay, recordRoundEnd } from '../lib/analytics'
 import { trackGameFinished } from '../lib/track'
 import { setTelemetryContext } from '../lib/telemetry'
 import { isSeatOnline } from '../lib/presenceLogic'
+import { resultRole, showsWinBurst } from '../lib/resultMoodLogic'
 import LoadingLine from '@/components/loading/LoadingLine'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
@@ -47,6 +48,10 @@ import useAbandonRecovery from '../hooks/room/useAbandonRecovery'
 import useBackGuard from '../hooks/room/useBackGuard'
 import useFloats from '../hooks/room/useFloats'
 import useRoomEffect from '../hooks/room/useRoomEffect'
+import useArrival from '../hooks/room/useArrival'
+import ArrivalMoment from '../components/ArrivalMoment'
+import { arrivingCount, countdownEligible, movesBlocked } from '../lib/arrivalLogic'
+import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import useTurnTitle from '../hooks/room/useTurnTitle'
 import useScreenWakeLock from '../hooks/room/useScreenWakeLock'
 import { buildSwitchUpdates, nextStarter } from '../hooks/room/roomUpdates'
@@ -168,6 +173,9 @@ function partyInviteInfo(game, cfg) {
   return { size: partyMembers(game, !!cfg?.nPlayer).length, cap: effectiveCap(game, cfg) }
 }
 
+// The result screen's one-tap GG goes out as an ordinary room reaction.
+const GG_GLYPH = '🤝'
+
 export default function Game() {
   const { gameId } = useParams()
   const navigate = useNavigate()
@@ -216,6 +224,10 @@ export default function Game() {
     useBackGuard({ game, gameId, mySeat })
   // Per-game background protocols (registry `roomEffect`, e.g. Pig's seed).
   useRoomEffect({ game, gameId, mySymbol })
+  // The friend-arrival beat: "NAME IS HERE!" and a 3·2·1 from the room's
+  // server timestamp before a duel's first move (arrivalLogic.js).
+  const arrival = useArrival(game)
+  const { now: clockNow } = useServerClock({ tickMs: 30_000 })
 
   // Turn/result line for screen readers (<LiveAnnouncer>) and the background
   // tab title — 2P rooms speak for the seat, party rooms for the uid.
@@ -258,6 +270,11 @@ export default function Game() {
 
     if (prevStatus.current === 'waiting' && game.status === 'playing') {
       sounds.join()
+      // Games without the countdown (real-time, custom pages) still greet the
+      // waiting host; the countdown games do it with the arrival banner.
+      if (mySymbol.current === 'X' && game.players?.O && !countdownEligible(cfg, game)) {
+        toast(`${(game.players.O.name || 'YOUR FRIEND').toUpperCase()} IS HERE!`)
+      }
     }
 
     if (prevStatus.current === 'playing' && game.status === 'finished') {
@@ -289,7 +306,8 @@ export default function Game() {
       else if (mySymbol.current) sounds.lose()
       setWinEffectWinner(w)
       setWinEffectIntensity(isMatch ? 'match' : 'round')
-      setShowWinEffect(!coopFinish)
+      // The burst is the winner's: a loser or a spectator gets the calm screen.
+      setShowWinEffect(!coopFinish && showsWinBurst(resultRole({ winner: w, mySymbol: mySymbol.current })))
       // Game night: count the decided match into tonight's standings
       // (idempotent across every client that sees the finish — see night.js).
       if (isMatch && !coopFinish) recordNightMatch(gameId, game.gameType)
@@ -410,6 +428,7 @@ export default function Game() {
     const hasOpponent = !!(game.players?.X && game.players?.O)
     if (hasOpponent && !prevLobbyHasOpponent.current) {
       sounds.join()
+      if (mySymbol.current === 'X') toast(`${(game.players.O.name || 'YOUR FRIEND').toUpperCase()} IS HERE!`)
     }
     prevLobbyHasOpponent.current = hasOpponent
   }, [game, mySymbol])
@@ -437,6 +456,9 @@ export default function Game() {
     if (!game || !mySymbol.current) return
     if (pendingMoveRef.current) return // a write is pending — ignore rapid re-taps
     if (game.status !== 'playing') { blockedMoveFeedback(); return }
+    // The 3·2·1 after a friend arrives: the banner says why, so no toast.
+    // Client-side only; turn and win rules are untouched.
+    if (countdownEligible(getGameConfig(game.gameType), game) && movesBlocked({ startsAt: game.startsAt, now: getServerNow() })) return
     if (game.currentTurn !== mySymbol.current) { blockedMoveFeedback(); return }
 
     const cfg = getGameConfig(game.gameType)
@@ -916,6 +938,11 @@ export default function Game() {
   const isRealtimeCustom = REALTIME_CUSTOM_GAMES.has(game.gameType)
   const matchStillRunning = isRealtimeCustom && game.status === 'playing' && (showRules || showInvite)
 
+  // Someone has the invite open on the join screen (the host's open seat says so).
+  const arrivingN = mySeat === 'X' && !game.players?.O
+    ? arrivingCount(game.arriving, { now: clockNow, selfUid: getPlayerId(), seatedUids: seatedIds(game.players) })
+    : 0
+
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
   const matchTarget = matchTargetFor(game)
@@ -999,7 +1026,7 @@ export default function Game() {
     <cfg.BoardComponent
       board={board}
       onMove={handleMove}
-      disabled={!canMove || movePending || (!!cfg.rollFace && (!game.diceSeed || !!pendingRoll(game)))}
+      disabled={!canMove || movePending || !!arrival || (!!cfg.rollFace && (!game.diceSeed || !!pendingRoll(game)))}
       winningLine={winningLine}
       currentTurn={game.currentTurn}
       lastMove={game.lastMove ?? null}
@@ -1023,6 +1050,9 @@ export default function Game() {
         onPlayAgain={game.status === 'finished' && (!isSpectator || amPartyHost) && !matchWinner && !activeProposal && !movePending ? doPlayAgain : null}
         onNewMatch={matchWinner && canDecide && !activeProposal && !movePending ? doNewMatch : null}
         onSwitchGame={canDecide && !activeProposal && !movePending ? doSwitch : null}
+        onGG={!isSpectator ? () => sendEmote(GG_GLYPH) : null}
+        gameId={gameId}
+        margin={game.status === 'finished' && !isSpectator ? resultMarginFor(game, mySeat) : null}
       />
       {/* F-48: an unacknowledged move, once it's taking a while. */}
       {movePending && (moveSlow || connected === false) && (
@@ -1074,6 +1104,8 @@ export default function Game() {
           </div>
         </div>
       )}
+
+      {!isSpectator && <ArrivalMoment state={arrival} mySeat={mySeat} players={game.players} currentTurn={game.currentTurn} />}
 
       {showWinEffect && (
         <WinEffect winner={winEffectWinner} intensity={winEffectIntensity} onDone={() => setShowWinEffect(false)} />
@@ -1211,6 +1243,8 @@ export default function Game() {
               name={game.players?.O?.name}
               symbol="O"
               avatar={game.players?.O?.avatar}
+              popIn={!!arrival}
+              arriving={arrivingN > 0}
               isActive={game.status === 'playing' && game.currentTurn === 'O'}
               isMe={mySeat === 'O'}
               score={scoreO}
@@ -1238,6 +1272,7 @@ export default function Game() {
                 proposal={activeProposal}
                 mySymbol={mySeat}
                 players={game.players}
+                opponentOnline={opponentOnline}
                 onAccept={acceptProposal}
                 onDecline={declineProposal}
                 onCancel={cancelProposal}

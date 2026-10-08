@@ -6,6 +6,7 @@ import {
   findNewSosLines,
   applySosMove,
   getSosWinner,
+  sosMargin,
 } from './sosLogic'
 
 // ---------------------------------------------------------------------------
@@ -378,5 +379,20 @@ describe('full-game simulation with extra-turn rule', () => {
       expect(winner).toBe('draw')
       expect(xCount).toBe(oCount)
     }
+  })
+})
+
+describe('sosMargin', () => {
+  const lines = [
+    { cells: [0, 1, 2], by: 'X' },
+    { cells: [7, 8, 9], by: 'O' },
+    { cells: [14, 15, 16], by: 'O' },
+  ]
+  it('counts sequences per side from the viewer\'s point of view', () => {
+    expect(sosMargin(lines, 'X')).toEqual({ mine: 1, theirs: 2 })
+    expect(sosMargin(lines, 'O')).toEqual({ mine: 2, theirs: 1 })
+  })
+  it('returns null for a spectator', () => {
+    expect(sosMargin(lines, null)).toBeNull()
   })
 })

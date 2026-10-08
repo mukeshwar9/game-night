@@ -10,12 +10,12 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 let isNewGame, getNewGames, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay
-let lobbySwitchOverrides, buildChallengeRoom, isQuietRoom, getGameConfig
+let lobbySwitchOverrides, buildChallengeRoom, isQuietRoom, getGameConfig, resultMarginFor
 
 beforeAll(async () => {
   ;({
     isNewGame, getNewGames, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay,
-    lobbySwitchOverrides, buildChallengeRoom, isQuietRoom, getGameConfig,
+    lobbySwitchOverrides, buildChallengeRoom, isQuietRoom, getGameConfig, resultMarginFor,
   } = await import('./games'))
 })
 
@@ -86,6 +86,14 @@ describe('first mover', () => {
     expect(Object.keys(bluff).some(k => k.includes('/'))).toBe(false)
     expect(withFirstMover(freshGameState('tictactoe'), 'tictactoe', 'O').currentTurn).toBe('O')
     expect(withFirstMover({ round: null }, 'hangwoman', 'X').round).toEqual({ setter: 'X' })
+  })
+
+  it('a rematch or a switch drops the arrival countdown stamp and the "someone opened your link" signals', () => {
+    for (const type of ['tictactoe', 'connectfour', 'hangwoman']) {
+      const fresh = freshGameState(type)
+      expect(fresh).toHaveProperty('startsAt', null)
+      expect(fresh).toHaveProperty('arriving', null)
+    }
   })
 
   it('writes the right Firebase patch for each family', () => {
@@ -361,5 +369,28 @@ describe('party lobby', () => {
       players: { a: { name: 'Ann', playerId: 'a', joinedAt: 5, online: true, avatar: 'K1x' } },
     })
     expect(Object.keys(room.players)).toEqual(['a'])
+  })
+})
+
+describe('resultMarginFor (registry resultMargin hook)', () => {
+  it('reads Dots & Boxes boxes from the viewer\'s seat, on both board sizes', () => {
+    const boxes = Array(36).fill('')
+    for (let i = 0; i < 19; i++) boxes[i] = 'X'
+    for (let i = 19; i < 36; i++) boxes[i] = 'O'
+    expect(resultMarginFor({ gameType: 'dotsandboxes', boxes }, 'O')).toEqual({ mine: 17, theirs: 19, total: 36, unit: ['box', 'boxes'] })
+    const small = Array(16).fill('')
+    for (let i = 0; i < 9; i++) small[i] = 'X'
+    expect(resultMarginFor({ gameType: 'dotsandboxes4', boxes: small }, 'O')).toEqual({ mine: 0, theirs: 9, total: 16, unit: ['box', 'boxes'] })
+  })
+
+  it('reads SOS sequences', () => {
+    const sosLines = [{ cells: [0, 1, 2], by: 'X' }, { cells: [7, 8, 9], by: 'X' }, { cells: [14, 15, 16], by: 'O' }]
+    expect(resultMarginFor({ gameType: 'sos', sosLines }, 'O')).toMatchObject({ mine: 1, theirs: 2 })
+  })
+
+  it('is null when the game has no hook, the viewer is a spectator, or there is no game', () => {
+    expect(resultMarginFor({ gameType: 'tictactoe' }, 'X')).toBeNull()
+    expect(resultMarginFor({ gameType: 'sos', sosLines: [] }, null)).toBeNull()
+    expect(resultMarginFor(null, 'X')).toBeNull()
   })
 })

@@ -77,12 +77,14 @@ import {
   dbConfig,
   applyEdgeMove,
   getDotsAndBoxesWinner,
+  boxMargin,
 } from './dotsAndBoxesLogic'
 import {
   SOS_CELL_COUNT,
   normalizeSosLines,
   applySosMove,
   getSosWinner,
+  sosMargin,
 } from './sosLogic'
 import { normalizeSimonSequence, applySimonMove } from './simonLogic'
 import {
@@ -638,6 +640,7 @@ export const GAME_TYPES = [
     focus: true,
     applyMove: dotsAndBoxesMove(DB_SIZE),
     boardProps: (game) => ({ boxes: normalizeBoard(game.boxes, DB_BOX_COUNT), size: DB_SIZE }),
+    resultMargin: (game, sym) => withUnit(boxMargin(normalizeBoard(game.boxes, DB_BOX_COUNT), sym, DB_SIZE), BOX_UNIT),
   },
   {
     type: 'dotsandboxes4', label: 'DOTS & BOXES 4×4',
@@ -653,6 +656,7 @@ export const GAME_TYPES = [
     focus: true,
     applyMove: dotsAndBoxesMove(DB_SIZE_CLASSIC),
     boardProps: (game) => ({ boxes: normalizeBoard(game.boxes, DB_BOX_COUNT_CLASSIC), size: DB_SIZE_CLASSIC }),
+    resultMargin: (game, sym) => withUnit(boxMargin(normalizeBoard(game.boxes, DB_BOX_COUNT_CLASSIC), sym, DB_SIZE_CLASSIC), BOX_UNIT),
   },
   {
     type: 'sos', label: 'SOS',
@@ -686,6 +690,7 @@ export const GAME_TYPES = [
       }
     },
     boardProps: (game) => ({ sosLines: normalizeSosLines(game.sosLines) }),
+    resultMargin: (game, sym) => withUnit(sosMargin(normalizeSosLines(game.sosLines), sym), ['S-O-S', 'S-O-S']),
   },
   {
     type: 'simon', label: 'SIMON',
@@ -2129,6 +2134,11 @@ const FIELD_NULLS = {
   // deliberately NOT here: they survive switches and NEW MATCH.
   nightMark: null,
   kicked: null,
+  // Arrival (arrivalLogic.js): the 3·2·1 stamp of this match's first move, and
+  // the anonymous "someone opened your link" signals. Both belong to one
+  // match's start, so a rematch or a switch drops them.
+  startsAt: null,
+  arriving: null,
 }
 
 const MEMORY_STREAM_TYPES = new Set(['verbalmemory', 'nback'])
@@ -2458,6 +2468,16 @@ export function freshGameState(gameType, previous = null) {
   }
   return { ...FIELD_NULLS, board: Array(cfg.boardSize).fill(''), boxes: null, round: null, currentTurn: 'X' }
 }
+
+// Result-screen margin for a finished round (registry `resultMargin(game,
+// viewerSymbol)`): `{ mine, theirs, total?, unit: [one, many] }`, or null when
+// the game can't say — the result screen then keeps its plain copy
+// (resultMoodLogic.js).
+export function resultMarginFor(game, viewerSymbol) {
+  return getGameConfig(game?.gameType)?.resultMargin?.(game, viewerSymbol) ?? null
+}
+const BOX_UNIT = ['box', 'boxes']
+const withUnit = (m, unit) => (m ? { ...m, unit } : null)
 
 // The reason room chat is locked for `uid` right now (registry `chatLocked`,
 // e.g. the Sketch artist mid-round), or null when they may type.

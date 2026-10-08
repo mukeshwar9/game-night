@@ -447,8 +447,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       }).catch(() => toast.error('WORD CHECK NOT SAVED — CHECK CONNECTION'))
 
       if (ok && claimedResult === 'guessed') {
-        setWinEffectFor(guesser)
-        setShowWinEffect(true)
+        // The burst is the guesser's; the setter who lost the word gets calm.
+        if (guesser === mySymbol) {
+          setWinEffectFor(guesser)
+          setShowWinEffect(true)
+        }
         if (guesser === mySymbol) sounds.win()
         else if (mySymbol) sounds.lose()
       }

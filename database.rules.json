@@ -167,6 +167,16 @@
           },
           ".validate": "newData.hasChildren()"
         },
+        "arriving": {
+          "$uid": {
+            ".write": "auth != null && ((auth.uid === $uid && root.child('games').child($gameId).child('gameType').exists()) || (!newData.exists() && (root.child('games').child($gameId).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child(auth.uid).child('playerId').val() === auth.uid)))",
+            ".validate": "newData.isNumber() && $uid.length <= 128 && (newData.val() === data.val() || newData.val() === now)"
+          },
+          ".validate": "newData.hasChildren()"
+        },
+        "startsAt": {
+          ".validate": "newData.isNumber() && (newData.val() === data.val() || (newData.val() === now && data.parent().child('status').val() === 'waiting'))"
+        },
         "queue": {
           "$uid": {
             ".write": "auth != null && $uid === auth.uid && (!newData.exists() || (!data.exists() && root.child('games').child($gameId).child('partyRoom').val() === true && (root.child('games').child($gameId).child('locked').val() !== true && !root.child('games').child($gameId).child('kicked').child(auth.uid).exists() && !root.child('games').child($gameId).child('removed').child(auth.uid).exists())))",
@@ -1292,7 +1302,7 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$fromUid": {
-          ".write": "auth != null && $uid !== $fromUid && ((auth.uid === $fromUid && (!newData.exists() || (!root.child('blocks').child($uid).child($fromUid).exists() && !root.child('blocks').child($fromUid).child($uid).exists()))) || (auth.uid === $uid && !newData.exists()))",
+          ".write": "auth != null && $uid !== $fromUid && ((auth.uid === $fromUid && (!newData.exists() || (!root.child('blocks').child($uid).child($fromUid).exists() && !root.child('blocks').child($fromUid).child($uid).exists() && (!newData.child('viaGame').exists() || ((root.child('games').child(newData.child('viaGame').val()).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child(newData.child('viaGame').val()).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child(newData.child('viaGame').val()).child('players').child(auth.uid).child('playerId').val() === auth.uid) && (root.child('games').child(newData.child('viaGame').val()).child('players').child('X').child('playerId').val() === $uid || root.child('games').child(newData.child('viaGame').val()).child('players').child('O').child('playerId').val() === $uid || root.child('games').child(newData.child('viaGame').val()).child('players').child($uid).child('playerId').val() === $uid)))))) || (auth.uid === $uid && !newData.exists()))",
           ".validate": "newData.hasChildren(['name','at'])",
           "$other": {
             ".validate": "false"
@@ -1305,6 +1315,9 @@
           },
           "code": {
             ".validate": "newData.isString() && newData.val().length <= 12"
+          },
+          "viaGame": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
           },
           "at": {
             ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now + 3600000)"

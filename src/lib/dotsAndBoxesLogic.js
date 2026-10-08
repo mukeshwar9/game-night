@@ -113,6 +113,21 @@ export function getDotsAndBoxesWinner(boxes, size = DB_SIZE) {
   return null
 }
 
+// Boxes each side holds, from `symbol`'s point of view, for the result screen
+// ("SO CLOSE."). `total` is the whole board: a round ends the moment someone
+// clinches, so the claimed boxes alone understate how far apart the sides were.
+export function boxMargin(boxes, symbol, size = DB_SIZE) {
+  if (symbol !== 'X' && symbol !== 'O') return null
+  const other = symbol === 'X' ? 'O' : 'X'
+  let mine = 0
+  let theirs = 0
+  for (const b of boxes) {
+    if (b === symbol) mine++
+    else if (b === other) theirs++
+  }
+  return { mine, theirs, total: dbConfig(size).boxCount }
+}
+
 export function dbSizeFromGame(game) {
   const n = game?.boxes?.length
   if (n === DB_BOX_COUNT_CLASSIC) return DB_SIZE_CLASSIC

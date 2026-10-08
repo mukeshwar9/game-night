@@ -2460,6 +2460,25 @@ html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter 
 }
 .modal-pop { animation: modal-pop var(--dur-base) steps(3) both; }
 
+/* A friend arrives (arrivalLogic.js): the joining seat pops in on the pop
+   spring, each countdown number lands the same way, and an empty seat
+   breathes while it waits. Reduced motion freezes them (the global rule). */
+@keyframes seat-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.seat-pop { animation: seat-pop var(--spring-pop-dur) var(--spring-pop) both; }
+@keyframes arrival-count {
+  0%   { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.arrival-count { animation: arrival-count var(--spring-pop-dur) var(--spring-pop) both; }
+@keyframes seat-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}
+.seat-breathe { animation: seat-breathe 1.8s ease-in-out infinite; }
+
 /* A freshly-placed mark pops in (gated on mount so only the new piece animates) */
 @keyframes place-pop {
   0%   { transform: scale(0.4); opacity: 0.3; }
