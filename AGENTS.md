@@ -102,9 +102,11 @@ friendRequests/{uid}/{fromUid}:   { name, avatar, code, at }
 invites/{uid}/{inviteId}:         { gameId, gameType, fromUid, fromName, fromAvatar, at }  // hidden after 24 h
 leaderboard/{uid}:  written only by the creditMatchResults function (verified: true, verifiedWins)
 dailyMemory/{date}/{uid}: { game, score, at, name, avatar }  // DAILY MEMORY result, written once (one try a day)
+unlocks/{uid}:      { savedBadge: { at } }   // server-written cosmetic rewards (claimSavedBadge); owner-read
+accountMerges/{guestUid}: { into, at }       // server-only audit of guest -> existing-account merges (mergeGuestAccount)
 ```
 
-`ensureProfile()` (run from `AuthContext` on boot) creates `users/{uid}` if missing (a transaction that never overwrites a chosen name), allocates a 6-char friend code, and mirrors `profiles/{uid}` and `presence/{uid}` — so accounts migrate the first time they open a new build. Read other players through `getProfile` / `subscribeProfile` (public profile + presence); only your own uid reads `users/{uid}`. Names go through `sanitizeDisplayName` (`moderationLogic.js`).
+`ensureProfile()` (run from `AuthContext` on boot) creates `users/{uid}` if missing (a transaction that never overwrites a chosen name), allocates a 6-char friend code, and mirrors `profiles/{uid}` and `presence/{uid}` — so accounts migrate the first time they open a new build. Synced per-player localStorage caches (stats, matches, Arrows stars, memory bests) belong to the uid in `gn-cache-owner` (`playerCache.js`): a different uid clears them before any sync, and every upload checks the owner. Read other players through `getProfile` / `subscribeProfile` (public profile + presence); only your own uid reads `users/{uid}`. Names go through `sanitizeDisplayName` (`moderationLogic.js`).
 
 **Setup prerequisites:** enable **Anonymous** + **Google** sign-in providers in the Firebase console, and deploy rules, functions and hosting together — the rules deny the old client's leaderboard writes and `profiles/` is filled by the new client.
 
