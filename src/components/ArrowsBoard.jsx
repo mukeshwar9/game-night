@@ -15,7 +15,6 @@ import {
   isDouble,
   isSleeper,
   neighborsOf,
-  occupancy,
   roundedPathD,
   routeDistance,
   turnedDir,
@@ -42,6 +41,7 @@ import {
 } from '../lib/arrowsCameraLogic'
 import { cn } from '@/lib/utils'
 import { isReducedMotion } from '../hooks/useMotionPref'
+import { resolveTap } from '../lib/arrowsTapLogic'
 import { portalColourLabel, vBendD } from '../lib/arrowsLook'
 
 // Board units: one grid cell = CELL units. Stroke and head sizes are fractions
@@ -641,7 +641,9 @@ export default function ArrowsBoard({
   }, [gone, level])
 
   // The arrow under a screen position (its cell, or a near miss — thumbs are
-  // wider than lines), or -1.
+  // wider than lines), or -1. A blocked hit with a free arrow in near-miss
+  // reach snaps to the free one (arrowsTapLogic.js), so a fat thumb beside the
+  // aimed arrow does not cost a life.
   const arrowAtClient = (clientX, clientY) => {
     const svg = svgRef.current
     const ctm = svg?.getScreenCTM()
@@ -650,26 +652,7 @@ export default function ArrowsBoard({
     pt.x = clientX
     pt.y = clientY
     const { x, y } = pt.matrixTransform(ctm.inverse())
-    const occ = occupancy(level, gone)
-    const cx = Math.floor(x / CELL)
-    const cy = Math.floor(y / CELL)
-    let best = -1
-    let bestDist = TAP_SLOP * CELL
-    for (let yy = cy - 1; yy <= cy + 1; yy += 1) {
-      for (let xx = cx - 1; xx <= cx + 1; xx += 1) {
-        if (xx < 0 || xx >= level.cols || yy < 0 || yy >= level.rows) continue
-        const owner = occ[yy * level.cols + xx]
-        if (owner === -1) continue
-        const [mx, my] = cellCenter([xx, yy], CELL)
-        const dist = Math.hypot(mx - x, my - y)
-        const inside = xx === cx && yy === cy
-        if (inside || dist < bestDist) {
-          best = owner
-          bestDist = inside ? -1 : dist
-        }
-      }
-    }
-    return best
+    return resolveTap(level, gone, x, y, CELL, TAP_SLOP)
   }
 
   const viewPx = () => svgRef.current?.getBoundingClientRect().width || 1
