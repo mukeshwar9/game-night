@@ -8,6 +8,8 @@ import { suggestGames } from '@/lib/gameSuggestions'
 import useBusy from '@/hooks/useBusy'
 import { getHeadToHead } from '@/lib/profile'
 import { resultMood, seriesFor } from '@/lib/resultMoodLogic'
+import { coPlayerUid } from '@/lib/addFriendLogic'
+import AddFriendButton from './AddFriendButton'
 import { toast } from 'sonner'
 
 const MATCH_WINS = 3
@@ -92,7 +94,7 @@ function GGButton({ onClick, busy, sent, locked }) {
   )
 }
 
-export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame, onGG = null, margin = null, matchTarget = MATCH_WINS, matchOver = false, matchWinnerOverride = null }) {
+export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame, onGG = null, gameId = null, margin = null, matchTarget = MATCH_WINS, matchOver = false, matchWinnerOverride = null }) {
   const scoreX = scores?.X || 0
   const scoreO = scores?.O || 0
   const targetWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
@@ -112,6 +114,12 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
         {line}
       </p>
     )
+  }
+
+  // "+ ADD AS FRIEND" for the other seat of a room, on a decided round or match.
+  const renderAddFriend = () => {
+    const other = gameId ? coPlayerUid(players, mySymbol) : null
+    return other ? <AddFriendButton otherUid={other} gameId={gameId} /> : null
   }
 
   const [startBusy, runStart] = useBusy()
@@ -217,6 +225,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           </p>
           <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
           {renderSeries(true)}
+          {renderAddFriend()}
         </div>
         {renderPlayElse()}
         <StickyActionBar>
@@ -281,6 +290,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           <p data-testid="result-positive" className="font-mono text-xs text-retro-dim">{mood.positive}</p>
         )}
         {renderSeries(false)}
+        {renderAddFriend()}
         {renderPlayElse()}
         <StickyActionBar>
           {onPlayAgain && (

@@ -1029,6 +1029,7 @@ export default function Game() {
         onNewMatch={matchWinner && canDecide && !activeProposal && !movePending ? doNewMatch : null}
         onSwitchGame={canDecide && !activeProposal && !movePending ? doSwitch : null}
         onGG={!isSpectator ? () => sendEmote(GG_GLYPH) : null}
+        gameId={gameId}
         margin={game.status === 'finished' && !isSpectator ? resultMarginFor(game, mySeat) : null}
       />
       {/* F-48: an unacknowledged move, once it's taking a while. */}

@@ -2,7 +2,7 @@
 // and the friend graph: friendships need a pending request, and a recipient
 // can only clear requests, never forge one.
 import { afterAll, afterEach, beforeAll, describe, it } from 'vitest'
-import { assertFails, assertSucceeds, dbAs, seed, rulesEnvFor } from './helpers.js'
+import { assertFails, assertSucceeds, dbAs, seed, rulesEnvFor, gameNode, partyNode } from './helpers.js'
 import { DEFAULTS, encodeAvatar, defaultKitAvatar } from '../../src/lib/avatarKit/catalog.js'
 
 const T = rulesEnvFor({ beforeAll, afterEach, afterAll })
@@ -145,6 +145,70 @@ describe('friend requests and friendships', () => {
     await put('friends/alice/bob', { since: 1 })
     await assertFails(as('bob').ref('invites/alice/i1').set({ gameId: 'x'.repeat(41), fromUid: 'bob', fromName: 'Bob', at: 1 }))
     await assertSucceeds(as('bob').ref('invites/alice/i1').set({ gameId: 'ABC123', gameType: 'hex', fromUid: 'bob', fromName: 'Bob', fromAvatar: 'kid.p2', at: 1 }))
+  })
+})
+
+// "+ ADD AS FRIEND" on the result screen: a request by uid, carrying the room it
+// came from. The rules only take it between two players seated in that room.
+describe('friend requests by uid (via a shared room)', () => {
+  const req = (viaGame = 'g1') => ({ name: 'Bob', at: Date.now(), viaGame })
+
+  it('lets a seated player send one to the other seat of a 2P room', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set(req()))
+    await assertSucceeds(as('alice').ref('friendRequests/bob/alice').set({ name: 'Alice', at: Date.now(), viaGame: 'g1' }))
+  })
+
+  it('lets party players (seated by uid) send one to each other', async () => {
+    await put('games/p1', partyNode({ uids: ['alice', 'bob'], status: 'playing' }))
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set(req('p1')))
+  })
+
+  it('denies a stranger who is not seated in the room', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertFails(as('mallory').ref('friendRequests/alice/mallory').set({ name: 'Mal', at: Date.now(), viaGame: 'g1' }))
+  })
+
+  it('denies a spectator of the room', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished', extra: { spectators: { carol: { c1: { name: 'Carol', at: 1 } } } } }))
+    await assertFails(as('carol').ref('friendRequests/alice/carol').set({ name: 'Carol', at: Date.now(), viaGame: 'g1' }))
+    // ...and a seated player cannot reach the spectator either.
+    await assertFails(as('alice').ref('friendRequests/carol/alice').set({ name: 'Alice', at: Date.now(), viaGame: 'g1' }))
+  })
+
+  it('denies a target who was never in that room, and a room that does not exist', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertFails(as('bob').ref('friendRequests/dave/bob').set(req()))
+    await assertFails(as('bob').ref('friendRequests/alice/bob').set(req('nope')))
+  })
+
+  it('denies using a room the sender is in to reach someone from a different room', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await put('games/g2', gameNode({ x: 'dave', o: 'erin', status: 'finished' }))
+    await assertFails(as('bob').ref('friendRequests/dave/bob').set(req('g1')))
+    await assertFails(as('bob').ref('friendRequests/dave/bob').set(req('g2')))
+  })
+
+  it('denies a request to yourself, and one across a block', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertFails(as('alice').ref('friendRequests/alice/alice').set({ name: 'Alice', at: Date.now(), viaGame: 'g1' }))
+    await put('blocks/alice/bob', { name: 'Bob', at: 1 })
+    await assertFails(as('bob').ref('friendRequests/alice/bob').set(req()))
+  })
+
+  it('refuses a malformed viaGame', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertFails(as('bob').ref('friendRequests/alice/bob').set({ name: 'Bob', at: Date.now(), viaGame: 7 }))
+    await assertFails(as('bob').ref('friendRequests/alice/bob').set({ name: 'Bob', at: Date.now(), viaGame: 'x'.repeat(41) }))
+  })
+
+  it('leaves the code-based request (no viaGame) and accepting a uid request unchanged', async () => {
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set({ name: 'Bob', code: 'ABC234', at: Date.now() }))
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set(req()))
+    await assertSucceeds(as('alice').ref().update({
+      'friends/alice/bob': { since: 2 }, 'friends/bob/alice': { since: 2 }, 'friendRequests/alice/bob': null,
+    }))
   })
 })
 

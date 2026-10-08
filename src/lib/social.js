@@ -269,6 +269,37 @@ export async function sendFriendRequestByCode(code) {
   return { ok: true, to: found.profile?.displayName || 'player' }
 }
 
+// Friend request by uid for someone you just played with. `gameId` is the room
+// you shared: the rules only take the request when both uids are seated in it
+// (database.rules.json, friendRequests). Same result shape as the code path:
+// { ok, to } or { ok:false, error } with error in 'invalid' | 'self' | 'already'.
+export async function sendFriendRequestToCoPlayer(otherUid, gameId) {
+  const me = getUid()
+  if (!db || !me || !otherUid || !gameId) return { ok: false, error: 'invalid' }
+  if (otherUid === me) return { ok: false, error: 'self' }
+  const already = await get(ref(db, `friends/${me}/${otherUid}`))
+  if (already.exists()) return { ok: false, error: 'already' }
+  const myProfile = await getProfile(me)
+  try {
+    await set(ref(db, `friendRequests/${otherUid}/${me}`), {
+      name: myProfile?.displayName || guestName(me),
+      avatar: myProfile?.avatar || defaultAvatarForId(me),
+      code: myProfile?.code || null,
+      viaGame: String(gameId).slice(0, 40),
+      at: Date.now(),
+    })
+  } catch (e) {
+    // A block in either direction is refused by the rules and stays invisible
+    // to the sender, like the code path. Any other refusal (the room is gone)
+    // is a real failure the button reports.
+    const denied = e?.code === 'PERMISSION_DENIED' || /permission_denied/i.test(e?.message || '')
+    if (!denied) throw e
+    const blocked = await get(ref(db, `blocks/${me}/${otherUid}`)).then(s => s.exists(), () => false)
+    if (!blocked) throw e
+  }
+  return { ok: true }
+}
+
 export async function acceptRequest(fromUid) {
   const me = getUid()
   if (!db || !me || !fromUid) return
