@@ -24,6 +24,7 @@ import {
 import { auth } from './firebase'
 import { isNative, nativePlatform } from './platform'
 import { track } from './track'
+import { PENDING_MERGE_KEY, parsePendingMerge } from './playerCacheLogic'
 import { NATIVE_GOOGLE_SIGNIN, NATIVE_APPLE_SIGNIN } from './features'
 import {
   APPLE_PROVIDER_ID,
@@ -86,13 +87,48 @@ function shouldUseRedirect() {
   return window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true
 }
 
+// Guest -> existing account hand-off. When a link falls back to signing into an
+// account that already exists, the guest session is about to be replaced. Its ID
+// token proves ownership of the guest uid, so stash it (memory + sessionStorage,
+// since the redirect path finishes on a fresh page load) for AuthContext to pass
+// to the mergeGuestAccount callable once the new uid is current.
+let pendingGuestMerge = null
+
+async function stashGuestForMerge() {
+  try {
+    const current = auth?.currentUser
+    if (!current?.isAnonymous) return
+    const guestIdToken = await current.getIdToken()
+    pendingGuestMerge = { guestUid: current.uid, guestIdToken }
+    try { sessionStorage.setItem(PENDING_MERGE_KEY, JSON.stringify(pendingGuestMerge)) } catch { /* storage unavailable */ }
+  } catch (err) {
+    console.warn('Could not capture guest token for merge:', err?.message)
+  }
+}
+
+// Returns and clears the pending guest merge ({ guestUid, guestIdToken }) or null.
+export function consumePendingGuestMerge() {
+  let pending = pendingGuestMerge
+  pendingGuestMerge = null
+  let raw = null
+  try {
+    raw = sessionStorage.getItem(PENDING_MERGE_KEY)
+    sessionStorage.removeItem(PENDING_MERGE_KEY)
+  } catch { /* storage unavailable */ }
+  return pending || parsePendingMerge(raw)
+}
+
 // Shared fallback for both the popup and redirect upgrade paths: if the
 // Google account is already a Firebase user (e.g. upgraded on another
-// device), sign into it instead of failing outright.
+// device), sign into it instead of failing outright. The guest's progress is
+// merged into that account server-side (see stashGuestForMerge).
 async function resolveUpgradeError(e) {
   if (e.code === 'auth/credential-already-in-use' || e.code === 'auth/email-already-in-use') {
     const cred = GoogleAuthProvider.credentialFromError(e)
     if (cred) {
+      // After a redirect return the persisted guest may not be restored yet.
+      try { await auth.authStateReady?.() } catch { /* ignore */ }
+      await stashGuestForMerge()
       const res = await signInWithCredential(auth, cred)
       return res.user
     }
@@ -286,7 +322,7 @@ const loadNativeAuth = () => import('./native/nativeAuth')
 // resolves the Firebase credential, or null when the sheet was dismissed.
 // Like the web fallback, a provider account that already belongs to another
 // Firebase user signs into that user instead; the guest's data is then
-// orphaned (merging is out of scope for v1).
+// merged into it server-side (see stashGuestForMerge).
 async function upgradeNative(route, ProviderClass, getCred) {
   const credential = await getCred(await loadNativeAuth())
   if (!credential) return null
@@ -301,6 +337,7 @@ async function upgradeNative(route, ProviderClass, getCred) {
     // The error usually carries a ready-to-use credential for the existing
     // account; otherwise the one just obtained works on its own.
     const existing = ProviderClass.credentialFromError(e) || credential
+    await stashGuestForMerge()
     return (await signInWithCredential(auth, existing)).user
   }
 }
@@ -311,8 +348,8 @@ async function upgradeNative(route, ProviderClass, getCred) {
 // the result is picked up by consumeRedirectResult() on the next authReady()
 // boot, since there's no live caller left to hand it to).
 // If that Google account is ALREADY a Firebase user (e.g. upgraded on another
-// device), we fall back to signing into it — the current guest's data is then
-// orphaned (merging is out of scope for v1).
+// device), we fall back to signing into it — the current guest's progress is
+// then merged into it server-side (stashGuestForMerge + AuthContext).
 // In the native shell there is no popup: the platform Google sheet supplies a
 // credential (upgradeNative). While NATIVE_GOOGLE_SIGNIN is off it throws
 // auth/native-provider-disabled instead of hanging — screens gate on

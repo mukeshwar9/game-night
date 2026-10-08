@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
 import Skeleton from '../components/loading/Skeleton'
 import { useAuth } from '../lib/AuthContext'
+import SaveCard from '../components/SaveCard'
 import { blockPlayer } from '../lib/mute'
 import ReportButton from '../components/ReportButton'
 import {
@@ -255,6 +256,10 @@ export default function Friends() {
           </div>
           <p className="font-mono text-[11px] text-retro-dim">Share this so friends can add you.</p>
         </div>
+
+        {friendUids?.length > 0 && (
+          <SaveCard surface="friends" compact friendCount={friendUids.length} />
+        )}
 
         <PushNudge spot="friends" text="Want to know when a friend invites you or adds you? Turn on notifications." />
 

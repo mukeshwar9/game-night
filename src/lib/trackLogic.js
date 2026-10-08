@@ -27,6 +27,7 @@ export const EVENTS = {
   room_joined: { game: 'str', mode: 'str', via: 'str' },
   sign_in_started: { provider: 'str' },
   sign_in_completed: { provider: 'str' },
+  account_saved: { source: 'str', provider: 'str' },
   arrows_level_cleared: { level: 'int', stars: 'int', kind: 'str' },
   theme_changed: { theme: 'str' },
   error_shown: { surface: 'str', code: 'str' },

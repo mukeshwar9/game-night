@@ -20,6 +20,7 @@ import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
 import InviteFriendModal from '../components/InviteFriendModal'
 import WinEffect from '../components/WinEffect'
+import SaveCard from '../components/SaveCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import ProposalBanner from '../components/ProposalBanner'
 import DeadEnd, { deadEndPrimaryClass } from '../components/DeadEnd'
@@ -1060,6 +1061,7 @@ export default function Game() {
           {connected === false ? 'MOVE PENDING — WAITING FOR CONNECTION' : 'SAVING MOVE…'}
         </p>
       )}
+      {game.status === 'finished' && matchWinner && !isSpectator && <div className="mx-auto w-full max-w-sm empty:hidden"><SaveCard surface="match-end" compact /></div>}
       {LEADERBOARD_ENABLED && game.status === 'finished' && (
         <Link
           to="/leaderboard"

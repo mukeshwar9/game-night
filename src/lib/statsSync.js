@@ -1,5 +1,5 @@
 // @ts-check
-// One-time per-session reconciliation between localStorage stats (gn-stats,
+// Per-uid reconciliation between localStorage stats (gn-stats,
 // see profile.js) and the Firebase mirror at users/{uid}/stats. Ongoing sync
 // after boot happens for free: recordMatch() mirrors every subsequent match.
 // Lossy-safe by design — never decreases either side, prefers whichever side
@@ -8,6 +8,7 @@
 import { ref, get, set as dbSet } from 'firebase/database'
 import { db } from './firebase'
 import { getUid } from './auth'
+import { cacheBelongsTo } from './playerCache'
 import { getStats, setStats, getMatches, setMatches } from './profile'
 
 const MAX_MATCHES = 50
@@ -62,14 +63,17 @@ export function mergeStats(local, remote) {
   return { stats: local, action: 'none' }
 }
 
-let synced = false
+let lastSyncedUid = null
 
-// Call once per signed-in session (e.g. from AuthContext's per-uid effect).
-export async function syncStatsOnBoot() {
-  if (synced) return
-  synced = true
+// Call once per signed-in uid (AuthContext's per-uid effect, after
+// ensureCacheOwner). Runs again for a new uid; `force` re-runs for the same uid
+// (e.g. after a guest merge changed the server copy). Never uploads while the
+// local cache belongs to another account.
+export async function syncStatsOnBoot({ force = false } = {}) {
   const uid = getUid()
-  if (!db || !uid) return
+  if (!force && uid && uid === lastSyncedUid) return
+  lastSyncedUid = uid
+  if (!db || !uid || !cacheBelongsTo(uid)) return
   try {
     const snap = await get(ref(db, `users/${uid}/stats`))
     const remote = snap.exists() ? snap.val() : null

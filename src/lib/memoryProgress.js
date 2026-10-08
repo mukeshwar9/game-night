@@ -9,6 +9,7 @@
 import { ref, get, set as dbSet, runTransaction, serverTimestamp } from 'firebase/database'
 import { db } from './firebase'
 import { getUid } from './auth'
+import { cacheBelongsTo } from './playerCache'
 import { readSoloBest, recordSoloBest } from './soloBest'
 import { DAILY_MEMORY_GAMES, mergeBests } from './memoryDailyLogic'
 
@@ -18,7 +19,7 @@ export const MEMORY_TYPES = [...DAILY_MEMORY_GAMES, 'cupshuffle', 'whatchanged',
 // Raise the account copy of one best (fire and forget; never lowers it).
 export function mirrorMemoryBest(type, score) {
   const uid = getUid()
-  if (!db || !uid || !MEMORY_TYPES.includes(type)) return
+  if (!db || !uid || !cacheBelongsTo(uid) || !MEMORY_TYPES.includes(type)) return
   runTransaction(ref(db, `users/${uid}/memoryBests/${type}`), cur => (typeof cur === 'number' && cur >= score ? undefined : score)).catch(() => {})
 }
 
@@ -33,7 +34,7 @@ export async function syncMemoryBests() {
     const merged = mergeBests(local, remote)
     for (const t of MEMORY_TYPES) if ((merged[t] ?? 0) > local[t]) recordSoloBest(t, merged[t])
     const behind = MEMORY_TYPES.some(t => (merged[t] ?? 0) > (remote?.[t] ?? 0))
-    if (behind) await dbSet(ref(db, `users/${uid}/memoryBests`), Object.fromEntries(MEMORY_TYPES.filter(t => merged[t] > 0).map(t => [t, merged[t]])))
+    if (behind && cacheBelongsTo(uid)) await dbSet(ref(db, `users/${uid}/memoryBests`), Object.fromEntries(MEMORY_TYPES.filter(t => merged[t] > 0).map(t => [t, merged[t]])))
     return merged
   } catch {
     return local
