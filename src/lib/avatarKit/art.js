@@ -328,3 +328,66 @@ export const OUTFITS = {
   },
   dino: { label: 'DINO ONESIE', tier: 'pack', pack: 'dragon', body: 'dino', bust: 'hoodie', bustMap: { W: { ramp: 'yellow', s: 3 } } },
 }
+
+// ── Arrows campaign rewards ─────────────────────────────────────────────────
+// Earned by campaign stars in Arrows (src/lib/arrowsRewardsLogic.js is the ladder
+// and must agree with the `earn` stars below; its test checks). All APPENDED to the
+// catalogs above. The backdrops and frames live in compose.js.
+const arrowsEarn = (stars, more = '') => ({ tier: 'earn', note: `${stars}★ in Arrows${more}`, earn: { game: 'arrows', stars } })
+
+hat.arrowband = {
+  label: 'ARROW BAND', ...arrowsEarn(200), map: { W: { ramp: 'white', s: 4 } },
+  rows: ['', '', '', '', '.##############.', '.#W##W##W##W##W#', '.##############.'],
+}
+hat.arrowcrown = {
+  label: 'ARROW CROWN', ...arrowsEarn(400), anim: 1, cast: true, map: { '#': { ramp: 'goldfx', s: 'auto' }, G: { ramp: 'lime', s: 3 } },
+  rows: ['...#....#....#..', '..###..###..###.', '.#####.###.#####', '...#....#....#..', '..############..', '..#G##G##G##G#..', '..############..'],
+}
+glasses.portal = {
+  label: 'PORTAL GOGGLES', ...arrowsEarn(300), map: { 0: { ramp: 'black', s: 1 }, B: { ramp: 'sky', s: 3 }, O: { ramp: 'orange', s: 3 }, b: { ramp: 'sky', s: 4 }, o: { ramp: 'orange', s: 4 } },
+  y: 4, rows: ['..0000..0000..', '..0bB0000oO0..', '..0BB0..0OO0..', '..0000..0000..'],
+}
+
+// An up-arrow on the chest, in both framings.
+tops.arrowtee = {
+  label: 'ARROW TEE', tier: 'earn', y: 15, map: { W: { ramp: 'white', s: 4 } },
+  rows: [...neck, '......####@jj@####......', '....######@@@@######....', '...########WW########...', '..########WWWW########..', '..#######WWWWWW#######..', '.##########WW##########.', '.##########WW##########.'],
+}
+outfits.arrowtee = {
+  label: 'ARROW TEE', tier: 'earn', y: 14, map: { ...C, W: { ramp: 'white', s: 4 } },
+  rows: ['.........#kkkk#.........', '.......#####W####.......', '......#1###WWW##1#......', '......k#####W####k......', '........@@@@@@@@........', '........@@@..@@@........', '........@@@..@@@........', '.......%%%%..%%%%.......'],
+}
+OUTFITS.arrowtee = { label: 'ARROW TEE', ...arrowsEarn(100), body: 'arrowtee', bust: 'arrowtee' }
+
+// Pets: 7x7, bottom-right of the hero, like the ones above.
+const AP = (extra) => ({ x: 17, y: 17, ...extra })
+const snakeFrames = [
+  ['...G...', '...GG..', '..#GxG.', '.#.GG..', '#..G...', '#......', '.#.....'],
+  ['...G...', '...GG..', '..#GxG.', '..#GG..', '.#.G...', '#......', '#......'],
+]
+pets.snakeegg = AP({
+  label: 'SNAKE EGG', ...arrowsEarn(150, ' · hatches at 250★'), anim: 3, map: { '#': { ramp: 'white', s: 'auto' }, G: { ramp: 'lime', s: 3 } },
+  frames: [
+    ['.......', '..###..', '.#####.', '.#G#G#.', '#G#G#G#', '#######', '.#####.'],
+    ['.......', '...###.', '..#####', '..#G#G#', '.#G#G#G', '.######', '..#####'],
+    ['.......', '..###..', '.#####.', '.#G#G#.', '#G#G#G#', '#######', '.#####.'],
+    ['.......', '.###...', '#####..', '#G#G#..', 'G#G#G#.', '######.', '#####..'],
+  ],
+})
+pets.arrowsnake = AP({ label: 'ARROW SNAKE', ...arrowsEarn(250), anim: 3, map: { '#': { ramp: 'lime', s: 'auto' }, G: { ramp: 'green', s: 'auto' } }, frames: snakeFrames })
+pets.portalpy = AP({
+  label: 'PORTAL PYTHON', ...arrowsEarn(325), anim: 3, map: { O: { ramp: 'sky', s: 3 }, B: { ramp: 'sky', s: 1 }, '#': { ramp: 'orange', s: 'auto' }, G: { ramp: 'orange', s: 1 } },
+  frames: [
+    ['.O.....', 'OBO....', 'OBO.G..', 'OB##GG.', 'OBO.G..', 'OBO....', '.O.....'],
+    ['.O.....', 'OBO....', 'OBO..G.', 'OB###GG', 'OBO..G.', 'OBO....', '.O.....'],
+    ['.O.....', 'OBO....', 'OBOG...', 'OB#GG..', 'OBOG...', 'OBO....', '.O.....'],
+  ],
+})
+pets.hooky = AP({
+  label: 'HOOKY', ...arrowsEarn(350), anim: 2, map: { '#': { ramp: 'teal', s: 'auto' }, A: { ramp: 'teal', s: 1 } },
+  frames: [
+    ['...A...', '..AxA..', '...#...', '...#...', '#..#...', '#..#...', '.##....'],
+    ['...A...', '..AxA..', '...#...', '...#...', '...#...', '#..#...', '.##....'],
+  ],
+})
+pets.goldsnake = AP({ label: 'GOLDEN ARROW', ...arrowsEarn(400), anim: 3, map: { '#': { ramp: 'goldfx', s: 'auto' }, G: { ramp: 'goldfx', s: 3 } }, frames: snakeFrames })

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import ArrowsBoard from '../components/ArrowsBoard'
 import ArrowsChapterMap, { Stars } from '../components/ArrowsChapterMap'
 import ArrowsRaceSetup from '../components/ArrowsRaceSetup'
+import ArrowsRewardMeter from '../components/ArrowsRewardMeter'
 import { Lives } from '../components/ArrowsHud'
 import ArrowsLesson from '../components/ArrowsLesson'
 import ArrowTypes from '../components/ArrowTypes'
@@ -41,6 +42,7 @@ import {
   saveArrowsProgress,
   syncArrowsProgress,
 } from '../lib/arrowsProgress'
+import { REWARD_SEEN_KEY, parseRewardSeen, resultRewardLine, stepsToAnnounce } from '../lib/arrowsRewardsLogic'
 import { sounds } from '../lib/sounds'
 import { melodicNote } from '../lib/arrowsSoundLogic'
 import { track } from '../lib/track'
@@ -48,6 +50,8 @@ import { cn } from '@/lib/utils'
 
 // The guided 19-lesson track is a separate chunk, opened from the hub.
 const ArrowsTutorial = lazy(() => import('../components/ArrowsTutorial'))
+// The reward reveal only ever opens after a step is reached.
+const ArrowsRewardSheet = lazy(() => import('../components/ArrowsRewardSheet'))
 
 // Arrows hub (/solo/arrows): CONTINUE (or START HERE for a first visit), then
 //   SOLO      — the chapter map (a 170-level campaign with stars, locks and
@@ -63,6 +67,12 @@ const SEC = cn(BTN, 'border border-retro-border text-retro-dim hover:border-retr
 const TUTORIAL_KEY = 'arrows-tutorial-started'
 
 const tutorialStarted = () => { try { return localStorage.getItem(TUTORIAL_KEY) === '1' } catch { return false } }
+// Highest reward step (in stars) already announced on this device. Not one of the
+// synced per-account caches (playerCache.js), so a different account on the same
+// device simply sees nothing new until it passes that step.
+const readRewardSeen = () => { try { return parseRewardSeen(localStorage.getItem(REWARD_SEEN_KEY)) } catch { return 0 } }
+const writeRewardSeen = (stars) => { try { localStorage.setItem(REWARD_SEEN_KEY, String(stars)) } catch { /* private mode */ } }
+
 const markTutorialStarted = () => { try { localStorage.setItem(TUTORIAL_KEY, '1') } catch { /* private mode */ } }
 
 // Endless boards generated ahead of time (see the idle prefetch in ArrowsSolo),
@@ -91,7 +101,7 @@ function whenIdle(fn) {
   return () => clearTimeout(id)
 }
 
-function HubCard({ top, main, sub, onClick, cta = false, className }) {
+function HubCard({ top, main, sub, extra = null, onClick, cta = false, className }) {
   return (
     <button
       onClick={onClick}
@@ -104,6 +114,7 @@ function HubCard({ top, main, sub, onClick, cta = false, className }) {
       <span className="font-pixel text-[8px] text-retro-dim">{top}</span>
       <span className={cn('font-pixel text-sm', cta ? 'text-retro-cta' : 'text-retro-text')}>{main}</span>
       <span className="font-mono text-[11px] text-retro-dim">{sub}</span>
+      {extra}
     </button>
   )
 }
@@ -123,6 +134,7 @@ function Hub({ progress, onContinue, onView, onRules }) {
           top={`CONTINUE · CHAPTER ${chapter ? ARROWS_CHAPTERS.indexOf(chapter) + 1 : ''} ${chapter ? chapter.name : ''}`}
           main={got ? `REPLAY LEVEL ${cont}` : `LEVEL ${cont}`}
           sub={`${totalStars(progress)}/${ARROWS_LEVEL_COUNT * 3} ★ SO FAR${got ? ` · BEST ${'★'.repeat(got)}` : ''}`}
+          extra={<ArrowsRewardMeter stars={totalStars(progress)} />}
           onClick={onContinue}
         />
       )}
@@ -161,6 +173,8 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
   const [feedback, setFeedback] = useState(null)
   const [hint, setHint] = useState(null)
   const [result, setResult] = useState(null)
+  // { before, after } total stars around this clear (campaign only).
+  const [reward, setReward] = useState(null)
   const [seen] = useState(readSeenTwists)
   // The first board with a kind the player has not been taught opens with
   // that kind's lesson; "?" reopens the arrow types (each with TRY IT).
@@ -207,7 +221,8 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
       const stars = starsFor({ mistakes, hints })
       setResult({ stars })
       sounds.win()
-      onCleared(stars)
+      const r = onCleared(stars)
+      if (r) setReward(r)
     }
   }
 
@@ -232,6 +247,7 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
             {mistakes === 0 ? 'NO MISTAKES' : `${mistakes} MISTAKE${mistakes > 1 ? 'S' : ''}`}
             {hints > 0 ? ` · ${hints} HINT${hints > 1 ? 'S' : ''}` : ''}
           </p>
+          {reward && <p className="font-pixel text-[8px] text-retro-cta leading-relaxed">{resultRewardLine(reward.before, reward.after)}</p>}
         </>
       ) : (
         <p className="font-pixel text-sm text-retro-dim">OUT OF LIVES</p>
@@ -331,6 +347,34 @@ export default function ArrowsSolo() {
   // `attempt` remounts the board on RESTART.
   const [play, setPlay] = useState(null)
   const [attempt, setAttempt] = useState(0)
+  // Reward steps to reveal (an array of ladder steps) in the sheet, or null.
+  const [reveal, setReveal] = useState(null)
+  const revealTimer = useRef(null)
+  useEffect(() => () => clearTimeout(revealTimer.current), [])
+
+  // Steps the stars have reached that were never announced on this device: the
+  // hub shows one combined sheet (an existing 300-star player sees one, not six).
+  useEffect(() => {
+    if (play || view !== 'hub') return
+    const steps = stepsToAnnounce(readRewardSeen(), totalStars(progress))
+    if (!steps.length) return
+    // Marked seen only once the sheet actually opens, so an unmount in between loses nothing.
+    const t = setTimeout(() => { writeRewardSeen(steps[steps.length - 1].stars); setReveal(steps) }, 400)
+    return () => clearTimeout(t)
+  }, [progress, play, view])
+
+  // After a campaign clear: reveal any newly reached steps once the result panel has landed.
+  const announceAfterClear = (stars) => {
+    const steps = stepsToAnnounce(readRewardSeen(), stars)
+    if (!steps.length) return
+    clearTimeout(revealTimer.current)
+    revealTimer.current = setTimeout(() => { writeRewardSeen(steps[steps.length - 1].stars); setReveal(steps) }, 900)
+  }
+  const rewardSheet = reveal && (
+    <Suspense fallback={null}>
+      <ArrowsRewardSheet steps={reveal} onClose={() => setReveal(null)} />
+    </Suspense>
+  )
 
   useEffect(() => {
     let live = true
@@ -361,6 +405,7 @@ export default function ArrowsSolo() {
       const n = play.n
       const hasNext = n < ARROWS_LEVEL_COUNT
       return (
+        <>
         <PuzzlePlay
           key={`level-${n}-${attempt}`}
           level={level}
@@ -368,7 +413,12 @@ export default function ArrowsSolo() {
           subtitle={`${level.cols}×${level.rows} · ${level.arrows.length} ARROWS`}
           onCleared={(stars) => {
             if (stars > 0) track('arrows_level_cleared', { level: n, stars, kind: 'campaign' })
-            setProgress((p) => saveArrowsProgress(recordLevelResult(p, n, stars)))
+            const before = totalStars(progress)
+            const next = saveArrowsProgress(recordLevelResult(progress, n, stars))
+            const after = totalStars(next)
+            setProgress(next)
+            if (stars > 0) announceAfterClear(after)
+            return { before, after }
           }}
           onRestart={() => setAttempt((a) => a + 1)}
           intro={ARROWS_LEVEL_SPECS[n - 1].intro ?? null}
@@ -376,6 +426,8 @@ export default function ArrowsSolo() {
           backLabel="CHAPTERS"
           next={hasNext ? { label: `LEVEL ${n + 1} →`, onClick: () => start({ kind: 'level', n: n + 1 }) } : null}
         />
+        {rewardSheet}
+        </>
       )
     }
     const { tier } = play
@@ -431,6 +483,7 @@ export default function ArrowsSolo() {
         </Suspense>
       )}
       {rulesOpen && <RulesModal gameType="arrows" onClose={() => setRulesOpen(false)} />}
+      {rewardSheet}
     </div>
   )
 }

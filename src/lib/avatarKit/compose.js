@@ -174,6 +174,8 @@ export const BACKGROUNDS = {
   arcade: { label: 'ARCADE GRID', tier: 'pass', anim: true },
   confetti: { label: 'CONFETTI', tier: 'pack', pack: 'party', anim: true },
   aurora: { label: 'AURORA', tier: 'pass', anim: true },
+  arrowfield: { label: 'ARROW FIELD', tier: 'earn', note: '25★ in Arrows', earn: { game: 'arrows', stars: 25 }, anim: true },
+  portalsky: { label: 'PORTAL SKY', tier: 'earn', note: '325★ in Arrows', earn: { game: 'arrows', stars: 325 }, anim: true },
 }
 
 export const FRAMES = {
@@ -186,10 +188,16 @@ export const FRAMES = {
   gold: { label: '24K', tier: 'pack', pack: 'royal', anim: true },
   neon: { label: 'NEON', tier: 'pass', anim: true },
   candy: { label: 'CANDY', tier: 'pack', pack: 'party', anim: true },
+  portalrim: { label: 'PORTAL RIM', tier: 'earn', note: '300★ in Arrows', earn: { game: 'arrows', stars: 300 }, anim: true },
+  arrowchase: { label: 'ARROW CHASE', tier: 'earn', note: '350★ in Arrows', earn: { game: 'arrows', stars: 350 }, anim: true },
+  goldarrow: { label: 'GOLD ARROWS', tier: 'earn', note: '400★ in Arrows', earn: { game: 'arrows', stars: 400 }, anim: true },
 }
 
 const DUSK = /** @type {RGB[]} */ ([[42, 24, 80], [74, 32, 112], [138, 42, 128], [208, 64, 122], [255, 122, 90], [255, 180, 90]])
 const CONFETTI = /** @type {RGB[]} */ ([[255, 90, 122], [255, 210, 58], [58, 208, 255], [122, 255, 106], [192, 122, 255]])
+const FIELD = /** @type {RGB[]} */ ([[22, 46, 32], [30, 60, 42], [70, 110, 80]])
+// Arrow field lanes: [row, speed, length, ramp]
+const FIELD_LANES = /** @type {[number, number, number, string][]} */ ([[4, 5, 4, 'lime'], [12, 3, 5, 'white'], [19, 4, 3, 'yellow']])
 const PURPLE_LINE = /** @type {RGB} */ ([138, 42, 168])
 
 /** @param {(RGB | null)[]} px @param {string} id @param {string} ramp @param {number} t */
@@ -237,10 +245,42 @@ function paintBackground(px, id, ramp, t) {
         else if (Math.abs(y - w) < 2.8) c = [20, 106, 106]
         if (Math.abs(y - w2) < 1.2) c = (x + y) % 2 ? [160, 122, 255] : [122, 90, 224]
         if (y < 5 && hash(x, y) % 19 === 0) c = [207, 232, 255]
+      } else if (id === 'arrowfield') {
+        c = FIELD[0]
+        if (x % 3 === 1 && y % 3 === 1) c = FIELD[2]
+        // three little arrows sliding right on their own lanes
+        for (const [lane, speed, len, lr] of FIELD_LANES) {
+          const head = Math.floor((t * speed * 2 + lane * 3) % (W + len + 2)) - 1
+          if (y === lane && x <= head && x > head - len) c = RAMPS[lr][3]
+          if (x === head + 1 && y === lane) c = RAMPS[lr][4]
+          if (x === head && (y === lane - 1 || y === lane + 1)) c = RAMPS[lr][3]
+        }
+      } else if (id === 'portalsky') {
+        // two pulsing portal rings, blue left and orange right
+        c = y < 12 ? [16, 22, 52] : [24, 18, 44]
+        const ov = (/** @type {number} */ cx, /** @type {number} */ cy) => ((x - cx) / 2.6) ** 2 + ((y - cy) / 4.4) ** 2
+        const a = ov(4.5, 10)
+        const b = ov(19.5, 10)
+        const pulse = Math.floor(t * 6) % 4
+        if (a < 1.05 && a > 0.45) c = colourAt('sky', a > 0.8 ? 3 : 4, x, y, t)
+        else if (a <= 0.45) c = pulse === (y % 4) ? [120, 200, 255] : [31, 95, 158]
+        if (b < 1.05 && b > 0.45) c = colourAt('orange', b > 0.8 ? 2 : 3, x, y, t)
+        else if (b <= 0.45) c = pulse === (y % 4) ? [255, 169, 74] : [154, 63, 21]
       }
       px[y * W + x] = c
     }
   }
+}
+
+/** Clockwise index of a border pixel of the ring `d` pixels in, for chasing lights. @param {number} x @param {number} y @param {number} d */
+function perim(x, y, d) {
+  const w = W - 1 - 2 * d
+  const xx = x - d
+  const yy = y - d
+  if (yy === 0) return xx
+  if (xx === w) return w + yy
+  if (yy === w) return 3 * w - xx
+  return 4 * w - yy
 }
 
 /** @param {(RGB | null)[]} px @param {string} id @param {number} t */
@@ -279,6 +319,26 @@ function paintFrame(px, id, t) {
       if (id === 'candy') {
         if (d === 0) c = [140, 33, 103]
         if (d === 1) c = ((x + y + Math.floor(t * 6)) % 4) < 2 ? [255, 255, 255] : [255, 90, 154]
+      }
+      if (id === 'arrowchase') {
+        if (d === 0) c = RAMPS.green[0]
+        if (d === 1) {
+          const k = (perim(x, y, 1) - Math.floor(t * 10) + 400) % 5
+          c = k === 0 ? RAMPS.white[4] : k < 3 ? RAMPS.lime[3] : RAMPS.green[1]
+        }
+      }
+      if (id === 'portalrim') {
+        const blue = x + y < W
+        if (d === 0) c = blue ? RAMPS.sky[1] : RAMPS.orange[1]
+        if (d === 1) c = colourAt(blue ? 'sky' : 'orange', (perim(x, y, 1) + Math.floor(t * 8)) % 3 === 0 ? 4 : 3, x, y, t)
+      }
+      if (id === 'goldarrow') {
+        if (d === 0) c = [90, 58, 8]
+        if (d === 1) {
+          const k = (perim(x, y, 1) - Math.floor(t * 8) + 400) % 4
+          c = k === 0 ? [255, 246, 192] : colourAt('goldfx', 3, x, y, t)
+        }
+        if (d === 2 && (x === 2 || y === 2 || x === W - 3 || y === H - 3) && (perim(x, y, 2) + Math.floor(t * 8)) % 6 === 0) c = RAMPS.lime[3]
       }
       if (c) px[y * W + x] = c
     }

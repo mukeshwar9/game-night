@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
+import { useNavigate } from 'react-router-dom'
 import AvatarPicker from './AvatarPicker'
+import useArrowsStars from '../hooks/useArrowsStars'
+import { decodeAvatar, isKitAvatar } from '../lib/avatarKit'
+import { newUnearnedArrows } from '../lib/arrowsRewardsLogic'
 import useBusy from '../hooks/useBusy'
 import useModalHistory from '../hooks/useModalHistory'
 import { setProfile } from '../lib/social'
@@ -25,6 +29,8 @@ export default function AvatarStudio({ saved, name, onClose }) {
   const [base, setBase] = useState(saved)
   const [outsideSave, setOutsideSave] = useState(false)
   const [saving, runSave] = useBusy()
+  const navigate = useNavigate()
+  const arrowsStars = useArrowsStars()
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const panelRef = useRef(null)
   const dirty = draft !== saved
@@ -83,6 +89,11 @@ export default function AvatarStudio({ saved, name, onClose }) {
 
   const save = () => runSave(async () => {
     if (!dirty) { onClose(); return }
+    // Never save an Arrows reward the campaign stars have not earned (a try-on never reaches the draft; this is the backstop).
+    if (isKitAvatar(draft) && newUnearnedArrows(isKitAvatar(saved) ? decodeAvatar(saved) : {}, decodeAvatar(draft), arrowsStars).length) {
+      toast.error('SOME ITEMS ARE STILL LOCKED — EARN THEM IN ARROWS.')
+      return
+    }
     await setProfile({ avatar: draft })
     toast.success('AVATAR SAVED!')
     onClose()
@@ -151,7 +162,7 @@ export default function AvatarStudio({ saved, name, onClose }) {
       )}
       <div className={cn('flex-1 overflow-y-auto overscroll-contain', saving && 'pointer-events-none opacity-60')}>
         <div className="max-w-3xl mx-auto px-4 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          <AvatarPicker value={draft} onChange={setDraft} name={name} previewSize={144} wide />
+          <AvatarPicker value={draft} onChange={setDraft} name={name} previewSize={144} wide onPlayArrows={() => { onClose(); navigate('/solo/arrows') }} />
         </div>
       </div>
     </div>,

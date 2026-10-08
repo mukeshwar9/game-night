@@ -4,6 +4,7 @@
 //   tier 'earn'  unlocked by play, never sold: not an entitlement, left open here
 //   tier 'pass'  premium, Pass only
 //   tier 'pack'  premium, sold as the kit pack `avatars-${pack}` (premiumCatalog.js)
+// Arrows rewards are the exception, gated by campaign stars (arrowsLock below).
 // A gated part or colour ramp becomes the registry-style item
 // { kind: 'avatar', id: '<field>:<option>', label, premium: true, pack? }.
 import {
@@ -11,6 +12,7 @@ import {
 } from './avatarKit/catalog.js'
 import { RAMP_LABEL } from './avatarKit/palette.js'
 import { CATEGORIES } from './avatarKit/categories.js'
+import { arrowsRewardFor, isArrowsRewardEarned } from './arrowsRewardsLogic.js'
 
 /** @typedef {{ kind: 'avatar', id: string, field: string, option: string, label: string, premium: true, pack?: string, view: 'bust' | 'hero', preview: string }} AvatarItem */
 
@@ -65,4 +67,21 @@ export function lockedInLook(look, unlocked) {
     const item = avatarItem(f.key, look[f.key])
     return item && !unlocked(item) ? [item] : []
   })
+}
+
+// ── Arrows campaign rewards ────────────────────────────────────────────────
+// Earned items stay open to everyone EXCEPT the Arrows rewards, which unlock by
+// campaign stars (arrowsRewardsLogic.js). A locked one is a different kind of lock
+// from the paywall: it is earned in play, never bought.
+
+/** @typedef {{ kind: 'arrows', field: string, option: string, label: string, stars: number }} ArrowsLock */
+
+/**
+ * The Arrows lock for one option, or null when it is not an Arrows reward or the
+ * stars already cover it. @param {string} field @param {string} option @param {number} stars @returns {ArrowsLock | null}
+ */
+export function arrowsLock(field, option, stars) {
+  const step = arrowsRewardFor(field, option)
+  if (!step || isArrowsRewardEarned(field, option, stars)) return null
+  return { kind: 'arrows', field, option, label: String(optionInfo(field, option).label).toUpperCase(), stars: step.stars }
 }

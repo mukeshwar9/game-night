@@ -28,6 +28,8 @@ import { isInAppBrowser } from '../lib/uaLogic'
 import LegalLinks from '../components/LegalLinks'
 import PassStatus from '../components/premium/PassStatus'
 import useAccess from '../hooks/useAccess'
+import useArrowsStars from '../hooks/useArrowsStars'
+import { ARROWS_REWARD_GOAL, ARROWS_REWARD_LADDER } from '../lib/arrowsRewardsLogic'
 import { cn } from '@/lib/utils'
 
 const DEEP_LINKS = { '#look': openAvatarStudio, '#pet': openPetPicker }
@@ -37,6 +39,7 @@ export default function Profile() {
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
   const muted = mutedList(useMutedMap())
   const access = useAccess()
+  const arrowsStars = useArrowsStars()
   const [busy, setBusy] = useState(false)
   // The store app is never an in-app browser; it signs in through native sheets.
   const inApp = !isNative && isInAppBrowser()
@@ -142,6 +145,11 @@ export default function Profile() {
               <p className="font-pixel text-xs text-retro-text truncate">{profile?.displayName || '…'}</p>
               {savedBadge && !isAnonymous && (
                 <span className="inline-block mt-1 px-1.5 py-1 rounded-sm bg-retro-tint-p1 border border-retro-win font-pixel text-[7px] tracking-widest text-retro-win">SAVED</span>
+              )}
+              {arrowsStars >= ARROWS_REWARD_GOAL && (
+                <span className="inline-block mt-1 ml-1 first:ml-0 px-1.5 py-1 rounded-sm bg-retro-tint-cta border border-retro-cta font-pixel text-[7px] tracking-widest text-retro-cta">
+                  {ARROWS_REWARD_LADDER.find((st) => st.badge)?.badge}
+                </span>
               )}
               <p className="font-mono text-[11px] text-retro-dim mt-1 truncate">
                 {accountStatusLine({ isAnonymous, providerData: user?.providerData, email: user?.email })}

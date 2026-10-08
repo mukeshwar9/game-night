@@ -124,15 +124,18 @@ export const canonicalKit = (/** @type {string} */ s) => encodeAvatar(decodeAvat
 
 export const TIER_LABEL = { free: 'FREE', earn: 'EARNED', pass: 'PASS', pack: 'PACK' }
 
-/** Tier info of one option: { tier, pack?, note?, label }. @param {string} key @param {string} id */
+/** Tier info of one option: { tier, pack?, note?, label, earn? }. @param {string} key @param {string} id */
 export function optionInfo(key, id) {
   if (COLOUR_LISTS[key]) {
     const premium = PREMIUM_RAMPS.includes(id)
     return { tier: premium ? 'pass' : 'free', label: id }
   }
   const p = PART_CATALOGS[key]?.[id]
-  return { tier: p?.tier || 'free', pack: p?.pack, note: p?.note, label: p?.label || id }
+  return { tier: p?.tier || 'free', pack: p?.pack, note: p?.note, label: p?.label || id, earn: p?.earn }
 }
+
+/** Is this option a game-progress reward (needs a real player's progress, so never rolled at random)? @param {string} key @param {string} id */
+export const isProgressReward = (key, id) => Boolean(optionInfo(key, id).earn)
 
 export const isPremiumTier = (/** @type {string} */ tier) => tier === 'pass' || tier === 'pack'
 
@@ -146,11 +149,12 @@ export function premiumItems(look) {
 
 // ── Randomising ────────────────────────────────────────────────────────────
 
-/** Items a SHUFFLE may roll: free and earned always, paid only when asked. @param {string} key @param {boolean} premium */
+/** Items a SHUFFLE may roll: free and earned always, paid only when asked. Progress rewards (Arrows stars) never roll: a random look has no progress to check. @param {string} key @param {boolean} premium */
 function rollable(key, premium) {
   return optionsFor(key).filter((id) => {
-    const t = optionInfo(key, id).tier
-    return premium || !isPremiumTier(t)
+    const info = optionInfo(key, id)
+    if (info.earn) return false
+    return premium || !isPremiumTier(info.tier)
   })
 }
 

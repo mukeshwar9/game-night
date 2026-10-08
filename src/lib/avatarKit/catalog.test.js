@@ -25,6 +25,13 @@ describe('catalog stability (append-only wire format)', () => {
     expect(optionsFor('hatColor').slice(0, 3)).toEqual(['red', 'orange', 'yellow'])
     expect(optionsFor('hatColor').slice(14)).toEqual(['holo', 'galaxy', 'goldfx', 'lava', 'neon', 'ice'])
     expect(optionsFor('bgColor')).toHaveLength(14)
+    // Arrows rewards were appended after the original entries, never inserted.
+    expect(optionsFor('hat').slice(-2)).toEqual(['arrowband', 'arrowcrown'])
+    expect(optionsFor('bg').slice(-2)).toEqual(['arrowfield', 'portalsky'])
+    expect(optionsFor('frame').slice(-3)).toEqual(['portalrim', 'arrowchase', 'goldarrow'])
+    expect(optionsFor('pet').slice(-5)).toEqual(['snakeegg', 'arrowsnake', 'portalpy', 'hooky', 'goldsnake'])
+    expect(optionsFor('outfit').slice(-1)).toEqual(['arrowtee'])
+    expect(optionsFor('glasses').slice(-1)).toEqual(['portal'])
   })
 
   it('keeps every list within one base-36 character', () => {

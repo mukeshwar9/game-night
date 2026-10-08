@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ARROWS_CHAPTERS,
   ARROWS_LEVEL_COUNT,
   ARROWS_LEVEL_SPECS,
   chapterGoal,
+  getArrowsLevel,
   isLevelUnlocked,
   isNewBoard,
   levelStars,
@@ -11,6 +12,7 @@ import {
   totalStars,
 } from '../lib/arrowsLevelsLogic'
 import { ARROWS_PIECE_NAMES } from '../lib/arrowsLevelsLogic'
+import { starHuntLevels } from '../lib/arrowsRewardsLogic'
 import { ARROWS_ENDLESS_INFO, ARROWS_TIERS } from '../lib/arrowsLogic'
 import { cn } from '@/lib/utils'
 
@@ -141,6 +143,31 @@ function ChapterCard({ chapter, index, progress, expanded, onToggle, onPlay }) {
   )
 }
 
+// STAR HUNT: cleared levels still short of three stars, smallest board first.
+// Only those levels are measured; hidden when there are none.
+function StarHunt({ progress, onPlay }) {
+  const hunt = useMemo(() => starHuntLevels(progress, (n) => getArrowsLevel(n)?.arrows.length ?? 0, 5), [progress])
+  if (!hunt.length) return null
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2 border-b border-retro-border/50 pb-1">
+        <span className="font-pixel text-[9px] text-retro-text"><span className="text-retro-cta">★</span> STAR HUNT</span>
+        <span className="font-pixel text-[7px] text-retro-dim">SMALLEST BOARDS TO PERFECT</span>
+      </div>
+      {hunt.map(({ n, stars, size }) => (
+        <div key={n} className="min-h-12 flex items-center gap-3 px-3 py-1.5 border rounded border-retro-border bg-retro-card">
+          <span className="font-pixel text-[10px] w-12 text-retro-cta tabular-nums">LV {n}</span>
+          <span className="flex-1 min-w-0 flex items-center gap-2">
+            <Stars n={stars} />
+            <span className="font-mono text-[11px] text-retro-dim truncate">{size} arrows</span>
+          </span>
+          <button onClick={() => onPlay(n)} aria-label={`Play level ${n}, ${stars} of 3 stars`} className="min-h-11 px-3 font-pixel text-[9px] rounded border border-retro-cta text-retro-cta hover:shadow-neon-cta transition press">PLAY</button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function EndlessTiers({ progress, onPlayEndless }) {
   return (
     <div className="space-y-2">
@@ -188,6 +215,7 @@ export default function ArrowsChapterMap({ progress, onPlay, onPlayEndless }) {
       <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed">
         CLEAR A LEVEL TO OPEN THE NEXT · NO MISTAKES = ★★★
       </p>
+      <StarHunt progress={progress} onPlay={onPlay} />
       <EndlessTiers progress={progress} onPlayEndless={onPlayEndless} />
     </div>
   )

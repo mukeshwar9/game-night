@@ -13,8 +13,10 @@ import { TONE_TO_RAMP } from '../lib/avatarKit'
 import { sounds } from '../lib/sounds'
 import LockBadge from './premium/LockBadge'
 import useAccess from '../hooks/useAccess'
+import useArrowsStars from '../hooks/useArrowsStars'
 import { openPaywall } from '../lib/premiumUi'
-import { avatarItem } from '../lib/avatarGate'
+import { avatarItem, arrowsLock } from '../lib/avatarGate'
+import { arrowsLockText } from '../lib/arrowsRewardsLogic'
 import { onRadioGroupKeyDown } from '../lib/radioGroupKeys'
 import { tabStopIndex } from '../lib/rovingRadioLogic'
 import { cn } from '@/lib/utils'
@@ -33,15 +35,20 @@ const HOVER = '[@media(hover:hover)]:hover:border-retro-text'
 // Pass and pack items are gated through isUnlocked (premium.js). Tapping a locked
 // one TRIES IT ON: the preview wears it, the draft never does, and the bar under
 // the preview offers UNLOCK (calls `onLocked(item)`, the paywall by default) or
-// TAKE OFF. `sticky` pins the preview to the top of the scrolling ancestor;
+// TAKE OFF. An Arrows reward (earned by campaign stars, never sold) is locked the
+// same way but its bar says what to earn and offers PLAY ARROWS (`onPlayArrows`;
+// without it the bar only says what to earn) instead of the paywall.
+// `sticky` pins the preview to the top of the scrolling ancestor;
 // `wide` (the full-screen studio) puts preview and options side by side from md up.
-export default function AvatarPicker({ value, onChange, name = '', previewSize = 144, onLocked = openPaywall, sticky = true, wide = false }) {
+export default function AvatarPicker({ value, onChange, name = '', previewSize = 144, onLocked = openPaywall, onPlayArrows, sticky = true, wide = false }) {
   const access = useAccess()
+  const arrowsStars = useArrowsStars()
   // With the shop hidden (monetization off), paid items are plain items: no pass or pack badges either.
   const selling = access.shop
   const lockedItem = (key, id) => {
     const item = avatarItem(key, id)
-    return item && !access.isUnlocked(item) ? item : null
+    if (item) return access.isUnlocked(item) ? null : item
+    return arrowsLock(key, id, arrowsStars)
   }
   const isOpen = (key, id) => !lockedItem(key, id)
   const current = canonicalAvatarId(value)
@@ -167,15 +174,27 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
             <LockBadge size={11} />
             <p className="min-w-0 flex-1 font-pixel text-[8px] leading-relaxed text-retro-text">
               <span className="block truncate">TRYING <span className="text-retro-cta">{String(tryOnInfo.label).toUpperCase()}</span></span>
-              <span className="block truncate text-retro-dim">{tryOnBadge ? `${tryOnBadge.text.replace(' ITEM', '')} · ` : ''}NOT SAVED</span>
+              {tryOn.item.kind === 'arrows'
+                ? <span className="block text-retro-dim">{arrowsLockText(tryOn.item.stars, arrowsStars)} · NOT SAVED</span>
+                : <span className="block truncate text-retro-dim">{tryOnBadge ? `${tryOnBadge.text.replace(' ITEM', '')} · ` : ''}NOT SAVED</span>}
             </p>
-            <button
-              type="button"
-              onClick={() => onLocked(tryOn.item)}
-              className="shrink-0 min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider press"
-            >
-              UNLOCK
-            </button>
+            {tryOn.item.kind === 'arrows' ? onPlayArrows && (
+              <button
+                type="button"
+                onClick={onPlayArrows}
+                className="shrink-0 min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider press"
+              >
+                PLAY ARROWS
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onLocked(tryOn.item)}
+                className="shrink-0 min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider press"
+              >
+                UNLOCK
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setTryOn(null)}
@@ -270,7 +289,8 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                   const tabStop = i === tabStopIndex(opts.map(o => isKit && baseLook[cat.field] === o.id))
                   const trying = tryOn?.field === cat.field && tryOn.id === opt.id
                   const badge = selling || opt.tier === 'earn' ? tierBadge(opt) : null
-                  const locked = Boolean(lockedItem(cat.field, opt.id))
+                  const lock = lockedItem(cat.field, opt.id)
+                  const locked = Boolean(lock)
                   return (
                     <OptionTile
                       key={opt.id}
@@ -283,6 +303,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
                       trying={trying}
                       tier={badge ? opt.tier : null}
                       locked={locked}
+                      starsNeeded={lock?.kind === 'arrows' ? lock.stars : 0}
                       field={cat.field}
                       id={opt.id}
                       onPick={onTile}
@@ -319,7 +340,7 @@ export default function AvatarPicker({ value, onChange, name = '', previewSize =
 
 // One option thumbnail. Memoised on its avatar string, so picking another option
 // repaints only the tiles whose look actually changed.
-const OptionTile = memo(function OptionTile({ avatar, view, label, ariaLabel, selected, tabStop, trying, tier, locked, field, id, onPick }) {
+const OptionTile = memo(function OptionTile({ avatar, view, label, ariaLabel, selected, tabStop, trying, tier, locked, starsNeeded, field, id, onPick }) {
   return (
     <button
       type="button"
@@ -337,6 +358,7 @@ const OptionTile = memo(function OptionTile({ avatar, view, label, ariaLabel, se
     >
       <Avatar id={avatar} size={48} view={view} />
       <span className={cn('w-full truncate text-center font-pixel text-[8px] leading-tight', selected ? 'text-retro-cta' : 'text-retro-dim')}>{label}</span>
+      {locked && starsNeeded > 0 && <span className="w-full truncate text-center font-pixel text-[7px] leading-tight text-retro-cta">{starsNeeded}★</span>}
       {selected && (
         <span aria-hidden="true" className="absolute top-0.5 left-0.5 w-4 h-4 rounded-sm bg-retro-cta text-retro-bg flex items-center justify-center">
           <TierIcon tier="earn" />

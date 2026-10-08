@@ -5,10 +5,13 @@ import Avatar from './Avatar'
 import PetSprite from './PetSprite'
 import { TierIcon } from './AvatarPicker'
 import LockBadge from './premium/LockBadge'
+import { useNavigate } from 'react-router-dom'
 import useAccess from '../hooks/useAccess'
+import useArrowsStars from '../hooks/useArrowsStars'
 import useBusy from '../hooks/useBusy'
-import { avatarItem } from '../lib/avatarGate'
-import { isKitAvatar } from '../lib/avatarKit'
+import { avatarItem, arrowsLock } from '../lib/avatarGate'
+import { arrowsLockText, newUnearnedArrows } from '../lib/arrowsRewardsLogic'
+import { isKitAvatar, decodeAvatar } from '../lib/avatarKit'
 import { PET_FIELD, petOptions, petOf, withPet, petTierText, pickAction } from '../lib/avatarEditorLogic'
 import { openPaywall } from '../lib/premiumUi'
 import { setProfile } from '../lib/social'
@@ -28,6 +31,8 @@ const HOVER = '[@media(hover:hover)]:hover:border-retro-text'
 // slot, so they get a pointer to the look editor instead.
 export default function PetPicker({ saved, onClose, onEditLook }) {
   const access = useAccess()
+  const navigate = useNavigate()
+  const arrowsStars = useArrowsStars()
   const selling = access.shop
   const [pet, setPet] = useState(petOf(saved))
   // A save from elsewhere while the sheet is open: an untouched choice follows
@@ -43,7 +48,8 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
   const kit = isKitAvatar(saved)
   const lockedItem = (id) => {
     const item = avatarItem(PET_FIELD, id)
-    return item && !access.isUnlocked(item) ? item : null
+    if (item) return access.isUnlocked(item) ? null : item
+    return arrowsLock(PET_FIELD, id, arrowsStars)
   }
   const shownPet = tryOn ?? pet
   const dirty = pet !== petOf(saved)
@@ -63,9 +69,20 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
     onClose()
     if (item) openPaywall(item)
   }
+  // An Arrows pet is earned, not bought: close the sheet and go play.
+  const playArrows = () => {
+    onClose()
+    navigate('/solo/arrows')
+  }
+  const tryOnLock = tryOn ? lockedItem(tryOn) : null
 
   const save = () => runSave(async () => {
     if (!dirty) { onClose(); return }
+    // Never save a pet the campaign stars have not earned (a try-on never reaches `pet`, this is the backstop).
+    if (isKitAvatar(saved) && newUnearnedArrows(decodeAvatar(saved), { ...decodeAvatar(saved), [PET_FIELD]: pet }, arrowsStars).length) {
+      toast.error('THAT PET IS STILL LOCKED — EARN IT IN ARROWS.')
+      return
+    }
     await setProfile({ avatar: withPet(saved, pet) })
     toast.success(pet === 'none' ? 'PET PUT AWAY' : `${shown.label} IS WITH YOU!`)
     onClose()
@@ -94,11 +111,13 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
             <div className="min-w-0 flex-1 space-y-1">
               <p className="font-pixel text-[10px] tracking-wider text-retro-text">{shownPet === 'none' ? 'NO PET' : shown.label}</p>
               <p className="font-mono text-[11px] leading-relaxed text-retro-dim">
-                {tryOn ? 'Trying on. Not saved.' : 'Walks beside you on your profile and full-body views.'}
+                {tryOnLock?.kind === 'arrows' ? `${arrowsLockText(tryOnLock.stars, arrowsStars)} · Not saved.` : tryOn ? 'Trying on. Not saved.' : 'Walks beside you on your profile and full-body views.'}
               </p>
               {tryOn && (
                 <div className="flex gap-2 pt-1">
-                  <button type="button" onClick={unlock} className="min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider press">UNLOCK</button>
+                  {tryOnLock?.kind === 'arrows'
+                    ? <button type="button" onClick={playArrows} className="min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider press">PLAY ARROWS</button>
+                    : <button type="button" onClick={unlock} className="min-h-9 px-2 rounded bg-retro-cta text-retro-bg font-pixel text-[8px] tracking-wider press">UNLOCK</button>}
                   <button type="button" onClick={() => setTryOn(null)} className="min-h-9 px-2 rounded border border-retro-border text-retro-dim font-pixel text-[8px] tracking-wider press">TAKE OFF</button>
                 </div>
               )}
