@@ -59,6 +59,7 @@ import { ROUND_CAP_S, HITS_WIN_MARGIN, SHIP_MAX_HP } from './spaceduelLogic'
 import { GRID_W as PAINT_W, GRID_H as PAINT_H, MATCH_SECONDS as PAINT_SECONDS, ENEMY_SLOW_MULT, MATCH_TARGET as PAINT_MATCH_TARGET } from './paintLogic'
 import { CR_COLS, CR_ROWS, CR_COLS_CLASSIC, CR_ROWS_CLASSIC, criticalMass } from './chainReactionLogic'
 import { BK_WALLS_PER_PLAYER } from './blockadeLogic'
+import { SET_WORDS, SPRINT_MS } from './wordSoloLogic'
 import { MAX_GUESSES as DUEL_GUESSES, WORD_LENGTH as DUEL_WORD_LENGTH, MATCH_WINS as DUEL_MATCH_WINS, DUEL_FINISH_GRACE_MS } from './wordduelLogic'
 import { MAX_GUESSES as COOP_GUESSES, WORD_LENGTH as COOP_WORD_LENGTH, PARTNER_OFFLINE_SOLO_MS } from './wordcoopLogic'
 import { HUNCH_MAX_CARD, HUNCH_TARGET_LEVEL, HUNCH_START_LIVES, dealLevel } from './hunchLogic'
@@ -326,7 +327,8 @@ const RULE_NUMBERS = {
   }),
   blockade: () => ({ checks: [[10, BK_WALLS_PER_PLAYER]] }),
   wordduel: () => ({
-    checks: [[5, DUEL_WORD_LENGTH], [6, DUEL_GUESSES], [90, secs(DUEL_FINISH_GRACE_MS)], [3, DUEL_MATCH_WINS], [3, first('wordduel')]],
+    checks: [[5, DUEL_WORD_LENGTH], [6, DUEL_GUESSES], [90, secs(DUEL_FINISH_GRACE_MS)], [3, DUEL_MATCH_WINS], [3, first('wordduel')],
+      [5, SET_WORDS], [1, 1], [30, SET_WORDS * DUEL_GUESSES]],
   }),
   wordcoop: () => ({ checks: [[5, COOP_WORD_LENGTH], [20, secs(PARTNER_OFFLINE_SOLO_MS)], [6, COOP_GUESSES]] }),
   hunch: () => ({
@@ -383,7 +385,7 @@ const RULE_NUMBERS = {
     prose: [1], // "back to stage 1" of the RELAY module
   }),
   wordrace: () => ({
-    checks: [[5, 5], [6, WORDLE_GUESSES], [30, secs(FINISH_GRACE_MS)], [60, secs(DONE_GRACE_MS)], [3, WORDRACE_MATCH]],
+    checks: [[5, 5], [6, WORDLE_GUESSES], [30, secs(FINISH_GRACE_MS)], [60, secs(DONE_GRACE_MS)], [3, WORDRACE_MATCH], [3, SPRINT_MS / 60_000]],
   }),
   wordhunt: () => ({
     checks: [

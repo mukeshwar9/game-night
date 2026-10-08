@@ -5,7 +5,7 @@ import {
   SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, VerbalMemoryIcon, NBackIcon, CupShuffleIcon, WhatChangedIcon, KimsGameIcon, NameTagsIcon, ReactionIcon, AimIcon, PulpIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
-  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, PasswordIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, WordCoopIcon, PasswordIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
   WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
@@ -20,6 +20,7 @@ import GamePickerSheet from '../components/GamePickerSheet';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import HeadlineGames from '../components/HeadlineGames';
 import { isAdVisit, isHeadlineGame } from '../lib/adLanding';
+import { parseBeat } from '../lib/soloChallengeLogic'
 import { VideoCallShell } from '../components/VideoCallLayout';
 import { OFF_SHELF, PARTY_BLURB } from './demos/partyBlurbs';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
@@ -59,11 +60,10 @@ const TriviaDemo = lazyWithRetry(() => import('./TriviaDemo'))
 const HerdDemo = lazyWithRetry(() => import('./HerdDemo'))
 const ArrowsSolo = lazyWithRetry(() => import('./ArrowsSolo'))
 const HangmanDemo = lazyWithRetry(() => import('./HangmanDemo'))
-const WordDuelDemo = lazyWithRetry(() => import('./WordDuelDemo'))
-const WordRaceDemo = lazyWithRetry(() => import('./WordRaceDemo'))
+const WordSoloRun = lazyWithRetry(() => import('./WordSoloRun'))
 const PasswordDemo = lazyWithRetry(() => import('./PasswordDemo'))
 const WordHuntDemo = lazyWithRetry(() => import('./WordHuntDemo'))
-const AnagramsDemo = lazyWithRetry(() => import('./AnagramsDemo'))
+const AnagramsSolo = lazyWithRetry(() => import('./AnagramsSolo'))
 // Memory solo runs share one chunk.
 const MemoryRunSolo = lazyWithRetry(() => import('./MemoryRunSolo'))
 const SimonSolo = lazyWithRetry(() => import('./MemorySoloDemos').then(m => ({ default: m.SimonSolo })))
@@ -148,11 +148,12 @@ const DEMOS = [
   { type: 'nametags',     short: 'NAME\nTAGS',    Icon: NameTagsIcon,     Component: () => <MemoryRunSolo type="nametags" />,     solo: true },
   // Solo / hangwoman
   { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
-  { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: WordDuelDemo     },
-  { type: 'wordrace',     short: 'WORD\nRACE',    Icon: WordRaceIcon,     Component: WordRaceDemo     },
+  { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: () => <WordSoloRun mode="wordduel" />, solo: true },
+  { type: 'wordrace',     short: 'WORD\nRACE',    Icon: WordRaceIcon,     Component: () => <WordSoloRun mode="wordrace" />, solo: true },
+  { type: 'wordcoop',     short: 'WORD\nCO-OP',   Icon: WordCoopIcon,     Component: () => <WordSoloRun mode="wordcoop" />, solo: true },
   { type: 'password',     short: 'PASS\nWORD',    Icon: PasswordIcon,     Component: PasswordDemo     },
   { type: 'wordhunt',     short: 'WORD\nHUNT',    Icon: WordHuntIcon,     Component: WordHuntDemo     },
-  { type: 'anagrams',     short: 'ANA-\nGRAMS',   Icon: AnagramsIcon,     Component: AnagramsDemo     },
+  { type: 'anagrams',     short: 'ANA-\nGRAMS',   Icon: AnagramsIcon,     Component: AnagramsSolo, solo: true },
   // Party cards (2+ players only)
   { type: 'twotruths',    short: 'TWO\nTRUTHS',   Icon: TwoTruthsIcon,    Component: () => <PartyGameCard type="twotruths" />   },
   { type: 'bluff',        short: 'BLUFF',         Icon: BluffIcon,        Component: () => <PartyGameCard type="bluff" />       },
@@ -287,6 +288,7 @@ function DemoHub() {
 
   // Campaign traffic on a headline game (/solo/:type from an ad) sees the
   // curated strip below the board; everyone else switches through the popup.
+  const beat = hasRouteType ? parseBeat(search) : null
   const adLanding = hasRouteType && isHeadlineGame(routeType) && isAdVisit(search, state)
   const boardRef = useRef(null)
   const pick = (type) => {
@@ -336,6 +338,11 @@ function DemoHub() {
           </div>
           {switchButton}
         </div>
+        {beat && (
+          <p className="rounded border border-retro-win/60 bg-retro-tint-p1/20 px-3 py-2 text-center font-pixel text-[9px] tracking-wider text-retro-win" role="status">
+            A FRIEND SET {beat} — CAN YOU BEAT IT?
+          </p>
+        )}
         {adLanding
           ? (
             <>

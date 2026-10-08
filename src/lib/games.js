@@ -1582,6 +1582,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-04',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Five words. Fewer guesses, more points.',
     custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/WordDuelGame')),
   },
@@ -1591,7 +1592,8 @@ export const GAME_TYPES = [
     badge: 'WC', maxWidth: 'max-w-md',
     category: 'word',
     addedAt: '2026-09-18',
-    durationMin: 4, tags: ['quick', 'thinky'], solo: false,
+    durationMin: 4, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Solve word after word. One miss ends the streak.',
     // coop: partners never "claim a win" from each other (Game.jsx skips the
     // abandoned-opponent banner); the page lets the online partner play on.
     custom: true, hidePlayerCards: true, coop: true,
@@ -1619,6 +1621,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Three minutes. Solve as many words as you can.',
     custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/WordRaceGame')),
   },
@@ -1654,6 +1657,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'One rack, 90 seconds. Find every word you can.',
     custom: true, simultaneous: true, hidePlayerCards: true, matchTarget: 2,
     Page: lazyWithRetry(() => import('../pages/AnagramsGame')),
   },

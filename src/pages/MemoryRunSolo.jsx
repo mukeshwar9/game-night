@@ -14,7 +14,7 @@ function BoardFallback() {
 
 // Levels with 3 lives: a slip pauses on the mistake until TRY AGAIN deals the same
 // level afresh; the score is the levels cleared.
-function LevelRun({ kit, seed, best, started, onStart, finish, isNewBest, onRestart, single }) {
+function LevelRun({ type, kit, seed, best, started, onStart, finish, isNewBest, onRestart, single }) {
   const [run, setRun] = useState(() => startLevelRun(seed))
   const [startAt, setStartAt] = useState(() => Date.now() + LEAD_MS)
   const [note, setNote] = useState(null)
@@ -57,7 +57,7 @@ function LevelRun({ kit, seed, best, started, onStart, finish, isNewBest, onRest
       )}
       {run.paused && !run.over && <ContinueButton lives={run.lives} onContinue={carryOn} />}
       {run.over && (
-        <RunOver result={`OUT OF LIVES ON LEVEL ${run.level}`} score={run.cleared} unit={run.cleared === 1 ? 'LEVEL' : 'LEVELS'} isNewBest={isNewBest} onRestart={onRestart} single={single} />
+        <RunOver type={type} result={`OUT OF LIVES ON LEVEL ${run.level}`} score={run.cleared} unit={run.cleared === 1 ? 'LEVEL' : 'LEVELS'} isNewBest={isNewBest} onRestart={onRestart} single={single} />
       )}
     </>
   )
@@ -65,7 +65,7 @@ function LevelRun({ kit, seed, best, started, onStart, finish, isNewBest, onRest
 
 // One seeded stream until the lives are gone (Verbal Memory, N-Back); the board
 // owns the run and reports the final score.
-function StreamRun({ kit, seed, best, started, onStart, finish, isNewBest, onRestart, single }) {
+function StreamRun({ type, kit, seed, best, started, onStart, finish, isNewBest, onRestart, single }) {
   const [rand] = useState(() => mulberry32(seed))
   const [score, setScore] = useState(null)
   const Board = kit.Board
@@ -80,7 +80,7 @@ function StreamRun({ kit, seed, best, started, onStart, finish, isNewBest, onRes
         </Suspense>
       )}
       {score != null && (
-        <RunOver result={`OUT OF LIVES — ${MEM_LIVES} SLIPS`} score={score} unit={kit.unit} isNewBest={isNewBest} onRestart={onRestart} single={single} />
+        <RunOver type={type} result={`OUT OF LIVES — ${MEM_LIVES} SLIPS`} score={score} unit={kit.unit} isNewBest={isNewBest} onRestart={onRestart} single={single} />
       )}
     </>
   )
@@ -100,6 +100,7 @@ export default function MemoryRunSolo({ type, seed: seedProp, single = false, on
     <div className="space-y-4">
       <Run
         key={seed}
+        type={type}
         kit={kit}
         seed={seed}
         best={best}

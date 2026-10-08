@@ -43,3 +43,35 @@ export function cupSlotsAfter(deal, k) {
   }
   return slots
 }
+
+/** Smoothstep: eases a swap in and out so the cups have weight. */
+export function easeSwap(/** @type {number} */ p) {
+  const x = Math.min(1, Math.max(0, p))
+  return x * x * (3 - 2 * x)
+}
+
+/**
+ * Where one cup is `elapsedMs` into the shuffle, for the 3D board. `slot` is
+ * fractional while the cup is mid-swap. `depth` runs -1 (back) to 1 (front):
+ * in a swap the cup moving right swings out toward the player and the one
+ * moving left swings behind, so the two never pass through each other and the
+ * eye can follow either. `hop` (0…1) is how far the cup is off the table.
+ * Cups not in the current swap stay put with depth 0 and hop 0.
+ * @param {{ cups: number, swaps: Array<[number, number]> }} deal
+ * @param {number} cup cup id
+ * @param {number} elapsedMs time since the first swap began
+ * @param {number} swapMs duration of one swap
+ * @returns {{ slot: number, depth: number, hop: number }}
+ */
+export function cupPose(deal, cup, elapsedMs, swapMs) {
+  const total = deal.swaps.length
+  const t = Math.max(0, elapsedMs) / swapMs
+  const k = Math.min(total, Math.floor(t))
+  const from = cupSlotsAfter(deal, k)[cup]
+  if (k >= total) return { slot: from, depth: 0, hop: 0 }
+  const to = cupSlotsAfter(deal, k + 1)[cup]
+  if (to === from) return { slot: from, depth: 0, hop: 0 }
+  const e = easeSwap(t - k)
+  const arc = Math.sin(Math.PI * e)
+  return { slot: from + (to - from) * e, depth: (to > from ? arc : -arc) + 0, hop: arc } // + 0 turns -0 into 0
+}

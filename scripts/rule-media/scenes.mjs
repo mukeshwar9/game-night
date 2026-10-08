@@ -62,10 +62,7 @@ export const SCENES = {
   chimp: scene('MemorySoloDemos', [{ action: 'wait', cap: 0, wait: 200 }, place('button[aria-label$=", tile 1"]', 1)], [click('TAP TO START', 0, 400)]),
   numbermemory: scene('MemorySoloDemos', [input('1', 1), { action: 'submit', cap: 1 }], [click('TAP TO START', 0, 400)]),
   hangwoman: scene('HangmanDemo', [key('E', 1), key('A', 1)]),
-  wordduel: scene('WordDuelDemo', [key('CRANE', 1), key('Enter', 2)], [key('PLANT'), click('LOCK')]),
-  wordrace: scene('WordRaceDemo', [key('CRANE', 1), key('Enter', 2)], [click('START RACE')]),
   wordhunt: scene('WordHuntDemo', [{ action: 'hunt', cap: 1 }, key('Enter', 2)], [click('START', 0, 3300)]),
-  anagrams: scene('AnagramsDemo', [{ action: 'anagram', cap: 1 }, key('Enter', 2)], [click('^START$', 0, 3300)]),
   wavelength: scene('WavelengthDemo', [input('sun', 1), click('LOCK CLUE', 1, 1200)], [click('^START$')]),
   fibbage: scene('FibbageDemo', [input('Moon cheese', 1), click('SUBMIT LIE', 1, 1800)], [click('^START$')]),
   spyfair: scene('SpyfairDemo', [click('TAP TO SEE YOUR SECRET', 0), click('START QUESTIONING', 1)], [click('^START$')]),
@@ -82,10 +79,7 @@ for (const entry of Object.values(SCENES)) {
   }
 }
 
-SCENES.wordrace.crop = 'section[aria-label^="YOU"], [aria-label^="Current guess"]'
-SCENES.wordduel.crop = '[aria-label="Your board"]'
 SCENES.wordhunt.crop = '[data-wh-cell]'
-SCENES.anagrams.crop = '[aria-label="Anagram letter rack"]'
 SCENES.archery4 = { ...scene('ArcheryDemo', [click('LOOSE ARROW', 1), click("I.M READY", 0)], [click('^4P$'), click('START RANGE')]), route: '/local/archery4' }
 
 export const ORIGINAL_TYPES = ['tictactoe', 'tictactoe4', 'connectfour', 'gomoku', 'reversi']

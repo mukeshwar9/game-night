@@ -1,5 +1,7 @@
 import useGameKeys from '../../hooks/useGameKeys'
 import { SOLO_LIVES } from '../../lib/memorySoloLogic'
+import { canChallenge } from '../../lib/soloChallengeLogic'
+import ChallengeButton from '../ChallengeButton'
 
 // Shared chrome for every memory solo run: the score strip, the start gate, the
 // slip note and TRY AGAIN, and the run-over card.
@@ -21,12 +23,17 @@ export function RunHeader({ scoreLabel, score, best, lives = null }) {
   )
 }
 
-export function RunOver({ result, score, unit, isNewBest, onRestart, single = false }) {
+// `type` turns on the CHALLENGE A FRIEND button for a new personal best (never on
+// DAILY MEMORY's single try).
+export function RunOver({ type, result, score, unit, isNewBest, onRestart, single = false }) {
   return (
     <div className="space-y-3 text-center" role="status">
       <p className="font-pixel text-[10px] text-retro-text">{result}</p>
       <p className="font-pixel text-base text-retro-cta text-glow-cta">{score} {unit}</p>
       {isNewBest && <p className="font-pixel text-[9px] text-retro-win text-glow-win">NEW PERSONAL BEST!</p>}
+      {type && !single && canChallenge({ isNewBest, score }) && (
+        <ChallengeButton type={type} score={score} unit={unit} />
+      )}
       {!single && (
         <button
           type="button"

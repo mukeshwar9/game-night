@@ -649,7 +649,7 @@ export const GAME_RULES = {
       'You get up to 6 guesses. Once one player finishes, the other has 90 seconds to finish too.',
       'At the end both words are revealed and every mark is checked against them.',
     ],
-    win: 'Solve in fewer guesses than your opponent to win the round; on equal guesses the faster solve wins. Both fail: draw. First to 3 round wins takes the match.',
+    win: 'Solve in fewer guesses than your opponent to win the round; on equal guesses the faster solve wins. Both fail: draw. First to 3 round wins takes the match. Solo, play a set of 5 words: 6 points for solving on the first guess down to 1 on the sixth, so 30 is a perfect set.',
   },
 
   wordcoop: {
@@ -660,7 +660,7 @@ export const GAME_RULES = {
       'Your partner sees every clue, so talk through each row and plan the next guess together.',
       'If your partner is offline for 20 seconds you can keep playing solo. Your streak, best streak and losses carry over between words.',
     ],
-    win: 'Guess the word before all six rows are used. You both win or lose together.',
+    win: 'Guess the word before all six rows are used. You both win or lose together. Solo, keep solving words one after another; your streak ends at the first word you miss.',
   },
 
   hunch: {
@@ -741,7 +741,7 @@ export const GAME_RULES = {
       'You get up to 6 guesses. During play you only see how many rows your opponent has used, the greens in their best row, and whether they solved.',
       'After the first solve the other player has 30 seconds to finish (60 seconds after a fail). The next round starts by itself a few seconds after the reveal.',
     ],
-    win: 'Solve when your opponent fails, use fewer guesses, or solve faster on an equal guess count. Both misses draw. First to 3 round wins takes the match.',
+    win: 'Solve when your opponent fails, use fewer guesses, or solve faster on an equal guess count. Both misses draw. First to 3 round wins takes the match. Solo, race the 3-minute clock: solve as many words as you can, and a miss just moves you on to the next word.',
   },
 
   wordhunt: {
@@ -764,7 +764,7 @@ export const GAME_RULES = {
       'Scoring: 3 letters = 1, 4 = 2, 5 = 4, 6 = 7, 7 = 11 points; all 7 letters earns +5 bingo.',
       'Press FINISH EARLY when you cannot find more words — the round ends when both players finish.',
     ],
-    win: 'Play for 90 seconds. Higher score wins; equal scores use total words as the tie-breaker. First to 2 round wins takes the match.',
+    win: 'Play for 90 seconds. Higher score wins; equal scores use total words as the tie-breaker. First to 2 round wins takes the match. Solo, play one 90-second rack and beat your best score.',
   },
 
   spyfair: {
