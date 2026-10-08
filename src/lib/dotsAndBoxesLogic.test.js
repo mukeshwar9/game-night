@@ -6,6 +6,7 @@ import {
   boxesOfEdge,
   applyEdgeMove,
   getDotsAndBoxesWinner,
+  boxMargin,
   DB_EDGE_COUNT,
   DB_BOX_COUNT,
   DB_SIZE,
@@ -282,5 +283,20 @@ describe('classic 4×4 size', () => {
 
   it('applyEdgeMove rejects out of range on 4×4', () => {
     expect(applyEdgeMove(Array(40).fill(''), Array(16).fill(''), 40, 'X', size)).toBeNull()
+  })
+})
+
+describe('boxMargin', () => {
+  it('counts boxes per side against the whole board', () => {
+    const boxes = Array(36).fill('')
+    for (let i = 0; i < 19; i++) boxes[i] = 'X'
+    for (let i = 19; i < 30; i++) boxes[i] = 'O'
+    expect(boxMargin(boxes, 'O')).toEqual({ mine: 11, theirs: 19, total: 36 })
+    expect(boxMargin(boxes, 'X')).toEqual({ mine: 19, theirs: 11, total: 36 })
+  })
+
+  it('uses the 4×4 board size and returns null for a spectator', () => {
+    expect(boxMargin(Array(16).fill('X'), 'X', 4)).toEqual({ mine: 16, theirs: 0, total: 16 })
+    expect(boxMargin(Array(36).fill('X'), null)).toBeNull()
   })
 })

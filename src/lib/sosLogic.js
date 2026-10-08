@@ -110,3 +110,17 @@ export function getSosWinner(board, sosLines) {
 
   return { winner, line }
 }
+
+// S-O-S sequences each side completed, from `symbol`'s point of view, for the
+// result screen. No fixed total: a round ends when the board is full, and the
+// number of sequences varies, so the margin is read against what was scored.
+export function sosMargin(sosLines, symbol) {
+  if (symbol !== 'X' && symbol !== 'O') return null
+  let mine = 0
+  let theirs = 0
+  for (const line of sosLines) {
+    if (line.by === symbol) mine++
+    else if (line.by === 'X' || line.by === 'O') theirs++
+  }
+  return { mine, theirs }
+}

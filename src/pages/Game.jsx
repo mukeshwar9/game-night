@@ -4,7 +4,7 @@ import { ref, update, set as dbSet, runTransaction, serverTimestamp } from 'fire
 import { pendingRoll, lastRollMatches } from '../lib/diceLogic'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { chatLockFor, freshGameState, getGameConfig, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover, PARTY_LOBBY, buildPartyRoom } from '../lib/games'
+import { chatLockFor, freshGameState, getGameConfig, resultMarginFor, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover, PARTY_LOBBY, buildPartyRoom } from '../lib/games'
 import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
@@ -13,6 +13,7 @@ import { recordPlay, recordRoundEnd } from '../lib/analytics'
 import { trackGameFinished } from '../lib/track'
 import { setTelemetryContext } from '../lib/telemetry'
 import { isSeatOnline } from '../lib/presenceLogic'
+import { resultRole, showsWinBurst } from '../lib/resultMoodLogic'
 import LoadingLine from '@/components/loading/LoadingLine'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
@@ -168,6 +169,9 @@ function partyInviteInfo(game, cfg) {
   return { size: partyMembers(game, !!cfg?.nPlayer).length, cap: effectiveCap(game, cfg) }
 }
 
+// The result screen's one-tap GG goes out as an ordinary room reaction.
+const GG_GLYPH = '🤝'
+
 export default function Game() {
   const { gameId } = useParams()
   const navigate = useNavigate()
@@ -289,7 +293,8 @@ export default function Game() {
       else if (mySymbol.current) sounds.lose()
       setWinEffectWinner(w)
       setWinEffectIntensity(isMatch ? 'match' : 'round')
-      setShowWinEffect(!coopFinish)
+      // The burst is the winner's: a loser or a spectator gets the calm screen.
+      setShowWinEffect(!coopFinish && showsWinBurst(resultRole({ winner: w, mySymbol: mySymbol.current })))
       // Game night: count the decided match into tonight's standings
       // (idempotent across every client that sees the finish — see night.js).
       if (isMatch && !coopFinish) recordNightMatch(gameId, game.gameType)
@@ -1023,6 +1028,8 @@ export default function Game() {
         onPlayAgain={game.status === 'finished' && (!isSpectator || amPartyHost) && !matchWinner && !activeProposal && !movePending ? doPlayAgain : null}
         onNewMatch={matchWinner && canDecide && !activeProposal && !movePending ? doNewMatch : null}
         onSwitchGame={canDecide && !activeProposal && !movePending ? doSwitch : null}
+        onGG={!isSpectator ? () => sendEmote(GG_GLYPH) : null}
+        margin={game.status === 'finished' && !isSpectator ? resultMarginFor(game, mySeat) : null}
       />
       {/* F-48: an unacknowledged move, once it's taking a while. */}
       {movePending && (moveSlow || connected === false) && (
@@ -1238,6 +1245,7 @@ export default function Game() {
                 proposal={activeProposal}
                 mySymbol={mySeat}
                 players={game.players}
+                opponentOnline={opponentOnline}
                 onAccept={acceptProposal}
                 onDecline={declineProposal}
                 onCancel={cancelProposal}
