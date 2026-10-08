@@ -9,6 +9,8 @@
 // Every camera keeps fit's aspect ratio and stays inside it, so the SVG never
 // changes size while the player moves around.
 
+import { cellCenter, freeArrows } from './arrowsLogic.js'
+
 /** @typedef {{ x: number, y: number, w: number, h: number }} Camera */
 /** @typedef {[number, number]} Point */
 
@@ -26,6 +28,8 @@ export const DOUBLE_TAP_PX = 28
 // no camera at all. Bigger ones get drag and zoom.
 export const FIT_COLS = 10
 export const FIT_ROWS = 13
+// Camera boards open zoomed so one cell is about this many px on screen.
+export const START_CELL_PX = 30
 
 /** Does a board of this size need drag and zoom? */
 export function needsCamera(level) {
@@ -178,4 +182,64 @@ export function keyPan(cam, key) {
   if (key === 'ArrowUp') return [0, -d]
   if (key === 'ArrowDown') return [0, d]
   return null
+}
+
+/**
+ * Zoom at which one cell (`cell` board units) is about START_CELL_PX on a view
+ * `viewPx` wide, shown through `fit`. Never below fit (1) or past MAX_ZOOM; a
+ * board whose cells are already that big at fit stays at 1.
+ */
+export function startZoomFor(fit, viewPx, cell) {
+  if (!(viewPx > 0) || !(fit.w > 0) || !(cell > 0)) return 1
+  const fitCellPx = (viewPx * cell) / fit.w
+  return Math.min(MAX_ZOOM, Math.max(1, START_CELL_PX / fitCellPx))
+}
+
+/**
+ * Board point (a cell centre) with the most cells of free arrows inside the
+ * square window `radiusCells` cells either side of it: where a player would
+ * start. Ties go to the first such cell (row-major by arrow, so stable). A
+ * board with nothing free gives its centre.
+ * @returns {Point}
+ */
+export function densestFreePoint(level, gone, cell, radiusCells) {
+  const cells = freeArrows(level, gone).flatMap((i) => level.arrows[i].cells)
+  if (!cells.length) return [(level.cols * cell) / 2, (level.rows * cell) / 2]
+  let best = cells[0]
+  let bestN = -1
+  for (const [cx, cy] of cells) {
+    let n = 0
+    for (const [ox, oy] of cells) if (Math.abs(ox - cx) <= radiusCells && Math.abs(oy - cy) <= radiusCells) n++
+    if (n > bestN) { bestN = n; best = [cx, cy] }
+  }
+  return /** @type {Point} */ (cellCenter(best, cell))
+}
+
+/** The camera a big board opens with: start zoom, centred on the densest free cluster (fit when no zoom is needed). */
+export function startCamera(level, gone, fit, viewPx, cell) {
+  const z = startZoomFor(fit, viewPx, cell)
+  if (z <= 1.02) return fit
+  const w = fit.w / z
+  const [px, py] = densestFreePoint(level, gone, cell, w / cell / 2)
+  return clampCamera({ x: px - w / 2, y: py - (fit.h / z) / 2, w, h: fit.h / z }, fit)
+}
+
+/** Move the camera so the board point is at the middle of the view. */
+export function centerOn(cam, fit, fx, fy) {
+  return clampCamera({ ...cam, x: fx - cam.w / 2, y: fy - cam.h / 2 }, fit)
+}
+
+/**
+ * Overview strip -> board: the strip draws `fit` scaled to sit inside a
+ * `boxW` × `boxH` px box, centred; this maps a position in that box to the
+ * board point under it (clamped to fit, so a tap in the margin still lands).
+ * @returns {Point}
+ */
+export function stripToBoard(fit, boxW, boxH, px, py) {
+  const k = Math.min(boxW / fit.w, boxH / fit.h)
+  const ox = (boxW - fit.w * k) / 2
+  const oy = (boxH - fit.h * k) / 2
+  const x = Math.min(fit.x + fit.w, Math.max(fit.x, fit.x + (px - ox) / k))
+  const y = Math.min(fit.y + fit.h, Math.max(fit.y, fit.y + (py - oy) / k))
+  return [x, y]
 }

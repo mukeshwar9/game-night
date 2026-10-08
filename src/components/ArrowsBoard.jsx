@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ARROWS_DIRS,
@@ -21,6 +21,7 @@ import {
   voidSet,
 } from '../lib/arrowsLogic'
 import {
+  centerOn,
   doubleTapCamera,
   fitCamera,
   focusFitCamera,
@@ -34,11 +35,13 @@ import {
   pinchStep,
   revealPoint,
   screenToBoard,
+  startCamera,
   stepZoom,
   wheelFactor,
   zoomAt,
   zoomOf,
 } from '../lib/arrowsCameraLogic'
+import ArrowsOverview from './ArrowsOverview'
 import { cn } from '@/lib/utils'
 import { isReducedMotion } from '../hooks/useMotionPref'
 import { resolveTap } from '../lib/arrowsTapLogic'
@@ -374,6 +377,30 @@ export default function ArrowsBoard({
     setCam(fit)
   }
   useEffect(() => { camRef.current = cam }, [cam])
+
+  // Big boards open zoomed to a comfortable cell (~30 px), centred on the
+  // densest cluster of free arrows, once the view has a real width. Lesson
+  // boards (target / preview) and small boards opened in full screen keep
+  // the fitted whole-board view. Set directly: no zoom-in animation exists,
+  // so reduced motion needs nothing extra.
+  const goneRef = useRef(gone)
+  useLayoutEffect(() => { goneRef.current = gone })
+  const startZoomed = camOn && needsCamera(level) && target < 0 && preview < 0
+  useLayoutEffect(() => {
+    const svg = svgRef.current
+    if (!startZoomed || !svg) return undefined
+    const open = () => {
+      const px = svg.getBoundingClientRect().width
+      if (!px || pointers.current.size) return false
+      applyCam(startCamera(level, goneRef.current, fit, px, CELL))
+      return true
+    }
+    if (open()) return undefined
+    const ro = new ResizeObserver(() => { if (open()) ro.disconnect() })
+    ro.observe(svg)
+    return () => ro.disconnect()
+    // Once per board and fit; applyCam only touches refs and state.
+  }, [startZoomed, level, fit])
 
   // Track the full-screen stage's size (the observer reports it on start).
   useEffect(() => {
@@ -993,6 +1020,19 @@ export default function ArrowsBoard({
         </g>
       </svg>
       </div>
+      {startZoomed && (
+        <div className="px-2 pt-1.5 pb-0.5 border-t border-retro-border/60">
+          <ArrowsOverview
+            level={level}
+            gone={gone}
+            cam={cam}
+            fit={fit}
+            cell={CELL}
+            height={focused ? 64 : 92}
+            onJump={(x, y) => applyCam((c) => centerOn(c, fit, x, y))}
+          />
+        </div>
+      )}
       {(camOn || (focusable && !focused)) && (
         // Outside the board so the buttons never cover a ring or an arrow.
         <div className="flex items-center justify-between gap-2 px-2 py-1 border-t border-retro-border/60">

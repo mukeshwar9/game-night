@@ -1,8 +1,16 @@
 import { describe, it, expect } from 'vitest'
+import { getArrowsLevel } from './arrowsLevelsLogic'
+import { freeArrows } from './arrowsLogic'
 import {
   DOUBLE_TAP_MS,
   MAX_ZOOM,
   clampCamera,
+  START_CELL_PX,
+  centerOn,
+  densestFreePoint,
+  startCamera,
+  startZoomFor,
+  stripToBoard,
   doubleTapCamera,
   fitCamera,
   focusFitCamera,
@@ -196,5 +204,82 @@ describe('focusFitCamera', () => {
     const moved = panBy(cam, fit, 1000, 1000)
     expect(moved.x + moved.w).toBeCloseTo(fit.x + fit.w)
     expect(moved.y + moved.h).toBeCloseTo(fit.y + fit.h)
+  })
+})
+
+describe('start camera', () => {
+  const CELL = 10
+  const fitFor = (l) => fitCamera(l.cols * CELL, l.rows * CELL, 2)
+  const none = (l) => l.arrows.map(() => false)
+
+  it('opens a 20-col board at about 30 px a cell on a 352 px view', () => {
+    const l = getArrowsLevel(160)
+    const fit = fitFor(l)
+    const z = startZoomFor(fit, 352, CELL)
+    const cellPx = (352 * CELL) / (fit.w / z)
+    expect(l.cols).toBeGreaterThan(10)
+    expect(Math.abs(cellPx - START_CELL_PX)).toBeLessThan(0.5)
+  })
+
+  it('stays at fit when cells are already big, and never passes MAX_ZOOM', () => {
+    expect(startZoomFor(fitCamera(100, 100, 0), 400, 10)).toBe(1)
+    expect(startZoomFor(fitCamera(1000, 1000, 0), 300, 10)).toBe(MAX_ZOOM)
+    expect(startZoomFor(fitCamera(100, 100, 0), 0, 10)).toBe(1)
+  })
+
+  it.each([100, 160, 170])('level %i: camera is in bounds, fit-aspect and deterministic', (n) => {
+    const l = getArrowsLevel(n)
+    const fit = fitFor(l)
+    const a = startCamera(l, none(l), fit, 352, CELL)
+    const b = startCamera(l, none(l), fit, 352, CELL)
+    expect(a).toEqual(b)
+    expect(a.x).toBeGreaterThanOrEqual(fit.x - 1e-9)
+    expect(a.y).toBeGreaterThanOrEqual(fit.y - 1e-9)
+    expect(a.x + a.w).toBeLessThanOrEqual(fit.x + fit.w + 1e-9)
+    expect(a.y + a.h).toBeLessThanOrEqual(fit.y + fit.h + 1e-9)
+    expect(a.w / a.h).toBeCloseTo(fit.w / fit.h, 6)
+    expect(zoomOf(a, fit)).toBeGreaterThan(1)
+  })
+
+  it('a board that needs no zoom opens at fit', () => {
+    const l = getArrowsLevel(1)
+    const fit = fitFor(l)
+    expect(startCamera(l, none(l), fit, 352, CELL)).toBe(fit)
+  })
+
+  it('densest point is the centre of a cell of a free arrow', () => {
+    const l = getArrowsLevel(160)
+    const g = none(l)
+    const [px, py] = densestFreePoint(l, g, CELL, 5)
+    const free = new Set(freeArrows(l, g).flatMap((i) => l.arrows[i].cells.map(([x, y]) => `${x},${y}`)))
+    expect(free.has(`${Math.floor(px / CELL)},${Math.floor(py / CELL)}`)).toBe(true)
+    expect(densestFreePoint(l, g, CELL, 5)).toEqual([px, py])
+  })
+
+  it('with nothing free the point is the board centre', () => {
+    const l = getArrowsLevel(160)
+    const all = l.arrows.map(() => true)
+    expect(densestFreePoint(l, all, CELL, 5)).toEqual([(l.cols * CELL) / 2, (l.rows * CELL) / 2])
+  })
+})
+
+describe('overview strip mapping', () => {
+  const fit = fitCamera(200, 280, 0)
+  it('maps the middle of the box to the middle of the board', () => {
+    const [x, y] = stripToBoard(fit, 300, 92, 150, 46)
+    expect(x).toBeCloseTo(100, 6)
+    expect(y).toBeCloseTo(140, 6)
+  })
+  it('clamps taps in the letterbox margin to the board edge', () => {
+    const [x] = stripToBoard(fit, 300, 92, 0, 46)
+    expect(x).toBe(0)
+    const [x2] = stripToBoard(fit, 300, 92, 300, 46)
+    expect(x2).toBe(200)
+  })
+  it('centerOn keeps the view inside fit', () => {
+    const cam = fitCamera(100, 140, 0)
+    const c = centerOn(cam, fitCamera(200, 280, 0), 0, 0)
+    expect(c.x).toBe(0)
+    expect(c.y).toBe(0)
   })
 })
