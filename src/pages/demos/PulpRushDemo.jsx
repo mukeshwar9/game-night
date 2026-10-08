@@ -6,6 +6,8 @@ import useCourseTime from '../../hooks/useCourseTime'
 import { sounds } from '../../lib/sounds'
 import { newRaceSeed } from '../../lib/raceLogic'
 import { readSoloBest, recordSoloBest } from '../../lib/soloBest'
+import { canChallenge } from '../../lib/soloChallengeLogic'
+import ChallengeButton from '../../components/ChallengeButton'
 import {
   ARENA_H, DUEL_MS, HARVEST_MS, HARVEST_TARGET_PER_PLAYER, SOLO_MS, TEAM_HEARTS,
   applySwipe, buildCourse, createField, fieldHearts, fieldScore,
@@ -248,6 +250,7 @@ function Results({ mode, fields, course, duration, best, newBest }) {
         <p className="font-pixel text-3xl text-retro-win text-glow-win">{me.score}</p>
         <p className="font-pixel text-[8px] text-retro-dim">{me.sliced} SLICED · {me.best}× BEST COMBO · {me.rot} ROTTEN</p>
         <p className={cn('font-pixel text-[9px]', newBest ? 'text-retro-cta arcade-blink' : 'text-retro-dim')}>{newBest ? 'NEW BEST!' : `BEST ${best}`}</p>
+        {canChallenge({ isNewBest: newBest, score: me.score }) && <ChallengeButton type="pulprush" score={me.score} unit="POINTS" />}
       </div>
     )
   }

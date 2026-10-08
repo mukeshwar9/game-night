@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { GameArt } from './GameArt'
 
 // Home's JUMP BACK IN rail: the last games this browser played, each tagged
-// with how (vs CPU / same device / online) and when. `onSelect(type, mode)`
+// with how (vs CPU or solo / same device / online) and when. `onSelect(type, mode)`
 // lets Home resume a solo or pass-and-play game directly. Renders nothing
 // until something has been played.
 export default function RecentlyPlayed({ onSelect, loadingType }) {
@@ -44,7 +44,7 @@ export default function RecentlyPlayed({ onSelect, loadingType }) {
                 </span>
                 <span className="font-pixel text-[9px] text-retro-text leading-snug line-clamp-2">{cfg?.label}</span>
                 <span className="font-mono text-[10px] leading-tight text-retro-dim max-w-full mt-auto">
-                  <span className="block truncate">{modeLabel(mode)}</span>
+                  <span className="block truncate">{modeLabel(mode, !!cfg?.soloRun)}</span>
                   {ago && <span className="block truncate">{ago}</span>}
                 </span>
               </button>

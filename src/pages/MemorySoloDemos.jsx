@@ -71,7 +71,7 @@ export function SimonSolo({ rand = Math.random, single = false, onFinish } = {})
       />
       )}
       {run.over && (
-        <RunOver result="WRONG PAD — RUN OVER" score={run.score} unit={plural(run.score, 'PAD')} isNewBest={isNewBest} onRestart={restart} single={single} />
+        <RunOver type="simon" result="WRONG PAD — RUN OVER" score={run.score} unit={plural(run.score, 'PAD')} isNewBest={isNewBest} onRestart={restart} single={single} />
       )}
     </div>
   )
@@ -119,7 +119,7 @@ export function VisualMemorySolo({ rand = Math.random, single = false, onFinish 
       )}
       {run.paused && !run.over && <ContinueButton lives={run.lives} onContinue={carryOn} />}
       {run.over && (
-        <RunOver result={`OUT OF LIVES ON LEVEL ${run.level}`} score={score} unit={plural(score, 'LEVEL')} isNewBest={isNewBest} onRestart={restart} single={single} />
+        <RunOver type="visualmemory" result={`OUT OF LIVES ON LEVEL ${run.level}`} score={score} unit={plural(score, 'LEVEL')} isNewBest={isNewBest} onRestart={restart} single={single} />
       )}
     </div>
   )
@@ -168,7 +168,7 @@ export function ChimpSolo({ rand = Math.random, single = false, onFinish } = {})
       )}
       {run.paused && !run.over && <ContinueButton lives={run.lives} onContinue={carryOn} />}
       {run.over && (
-        <RunOver result={`OUT OF LIVES AT ${run.level} NUMBERS`} score={score} unit={plural(score, 'NUMBER')} isNewBest={isNewBest} onRestart={restart} single={single} />
+        <RunOver type="chimp" result={`OUT OF LIVES AT ${run.level} NUMBERS`} score={score} unit={plural(score, 'NUMBER')} isNewBest={isNewBest} onRestart={restart} single={single} />
       )}
     </div>
   )
@@ -289,7 +289,7 @@ export function NumberMemorySolo({ rand = Math.random, single = false, onFinish 
               <MarkedAnswer answer={run.answer} number={run.number} />
             </p>
           </div>
-          <RunOver result={`MISSED AT ${run.level} ${plural(run.level, 'DIGIT')}`} score={score} unit={plural(score, 'DIGIT')} isNewBest={isNewBest} onRestart={restart} single={single} />
+          <RunOver type="numbermemory" result={`MISSED AT ${run.level} ${plural(run.level, 'DIGIT')}`} score={score} unit={plural(score, 'DIGIT')} isNewBest={isNewBest} onRestart={restart} single={single} />
         </>
       )}
     </div>

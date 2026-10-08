@@ -72,6 +72,7 @@ describe('formatAgo', () => {
 describe('modeLabel', () => {
   it('names each mode', () => {
     expect(modeLabel('solo')).toBe('vs CPU')
+    expect(modeLabel('solo', true)).toBe('solo')
     expect(modeLabel('local')).toBe('same device')
     expect(modeLabel('multi')).toBe('online')
   })
