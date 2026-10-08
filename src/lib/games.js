@@ -2130,6 +2130,11 @@ const FIELD_NULLS = {
   // deliberately NOT here: they survive switches and NEW MATCH.
   nightMark: null,
   kicked: null,
+  // Arrival (arrivalLogic.js): the 3·2·1 stamp of this match's first move, and
+  // the anonymous "someone opened your link" signals. Both belong to one
+  // match's start, so a rematch or a switch drops them.
+  startsAt: null,
+  arriving: null,
 }
 
 const MEMORY_STREAM_TYPES = new Set(['verbalmemory', 'nback'])

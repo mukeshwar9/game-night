@@ -20,6 +20,7 @@ import { markOnboarded } from '../lib/onboarding'
 import { NAME_MAX, initialName, suggestName, suggestNames, validateName } from '../lib/onboardingLogic'
 import { sounds } from '../lib/sounds'
 import { inviteSeatsLine } from '../lib/roomLogic'
+import { hostWaitingLine } from '../lib/arrivalLogic'
 import { cn } from '@/lib/utils'
 import { displayNameFor } from '../lib/moderationLogic'
 import { recordFunnel } from '../lib/analytics'
@@ -328,6 +329,8 @@ function StepDots({ step }) {
 function InviteCard({ invite, cfg }) {
   const Icon = cfg?.Icon
   const seats = inviteSeatsLine(invite)
+  // The host is already there: say so before the guest has committed.
+  const waiting = invite.party || !invite.hostName ? null : hostWaitingLine({ hostName: displayNameFor(invite.hostName), gameLabel: cfg?.label })
   return (
     <div className="bg-retro-card border-2 border-retro-cta/60 rounded p-4 space-y-3 text-center">
       <h2 className="font-pixel text-sm text-retro-cta text-glow-cta tracking-wider">YOU&apos;RE INVITED!</h2>
@@ -343,6 +346,7 @@ function InviteCard({ invite, cfg }) {
           <span className="font-mono text-xs text-retro-text truncate"><span className="text-retro-dim">HOSTED BY </span>{displayNameFor(invite.hostName)}</span>
         </div>
       )}
+      {waiting && <p data-testid="invite-host-waiting" className="font-pixel text-[9px] text-retro-text tracking-wider leading-relaxed">{waiting}</p>}
       {seats && <p className="font-pixel text-[9px] text-retro-dim tracking-wider leading-relaxed">{seats}</p>}
       <p className="font-mono text-[11px] text-retro-dim">
         ROOM <span className="text-retro-p1 tracking-widest">{invite.gameId}</span>

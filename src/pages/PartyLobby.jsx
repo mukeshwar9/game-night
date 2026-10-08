@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
 import { GameArt } from '../components/GameArt'
@@ -14,6 +14,17 @@ import { track } from '../lib/track'
 import { shareUrl } from '../lib/platform'
 import { shareLink } from '../lib/share'
 import { HEADLINE_GAMES } from '../lib/adLanding'
+import { arrivalProgress, arrivingCount, inviteShareText, newcomerName } from '../lib/arrivalLogic'
+import { sounds } from '../lib/sounds'
+import useServerClock from '../hooks/useServerClock'
+import { lazyWithRetry } from '../lib/lazyWithRetry'
+import BottomSheet from '../components/BottomSheet'
+import { seatedIds } from '../lib/roomLogic'
+
+// The solo warm-up: a short reaction run against a bot, opened in a sheet so
+// the host never leaves the room (leaving would read as offline to anyone who
+// arrives meanwhile).
+const WarmUp = lazyWithRetry(() => import('./demos/ReactionDemo'))
 
 const HEADLINE_2P = HEADLINE_GAMES.map(h => h.type)
 import { cn } from '@/lib/utils'
@@ -36,11 +47,35 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
   groups.rotate = [...HEADLINE_2P.map(t => groups.rotate.find(g => g.type === t)).filter(Boolean), ...groups.rotate.filter(g => !HEADLINE_2P.includes(g.type))]
   const [picking, setPicking] = useState(null)
   const [showQr, setShowQr] = useState(false)
+  const [warmUp, setWarmUp] = useState(false)
+  const [arrived, setArrived] = useState(null)
+  const { now: clockNow } = useServerClock({ tickMs: 30_000 })
+  const prevMembers = useRef(members)
   const [shareBusy, runShare] = useBusy()
   const [, runPick] = useBusy()
   const url = shareUrl(`/game/${gameId}`)
   const amMember = !!game?.players?.[mySeat]
   const canPick = isHost && amMember && !!onSwitchGame
+  // Host alone: the lobby is a waiting room, not a game list.
+  const alone = canPick && present.length <= 1
+  const progress = arrivalProgress({ present: present.length, cap })
+  const arrivingN = alone ? arrivingCount(game?.arriving, { now: clockNow, selfUid: mySeat, seatedUids: seatedIds(game?.players) }) : 0
+
+  // Someone joined while the host waited (or warmed up): the return cue.
+  const memberKey = members.map(m => m.uid).join(',')
+  useEffect(() => {
+    const name = newcomerName(prevMembers.current, members, mySeat)
+    prevMembers.current = members
+    if (!name) return undefined
+    sounds.join()
+    // Reacting to a Firebase snapshot (an external system) — one update per arrival.
+    setWarmUp(false)
+    setArrived(name)
+    const t = setTimeout(() => setArrived(null), 5000)
+    return () => clearTimeout(t)
+    // Keyed on who is here, not every snapshot (chat, presence).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberKey])
 
   const pick = (type) => {
     if (!canPick) return
@@ -50,7 +85,7 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
   }
 
   const share = () => runShare(async () => {
-    const outcome = await shareLink({ text: 'Join my Game Night party!', url })
+    const outcome = await shareLink({ text: inviteShareText({ hostName: host?.name, party: true }), url })
     if (outcome === 'shared') { recordFunnel('shared'); track('invite_shared', { surface: 'party_lobby', method: 'native_share' }); return }
     if (outcome === 'cancelled') return
     await navigator.clipboard.writeText(url)
@@ -61,70 +96,8 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
 
   const slots = Array.from({ length: cap }, (_, i) => members[i] || null)
 
-  return (
-    <div className="space-y-4" data-testid="party-lobby">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-pixel text-[13px] text-retro-text text-glow-cta tracking-wider truncate">
-          {host ? `${host.name.toUpperCase()}'S PARTY` : 'PARTY'}
-        </h2>
-        <span data-testid="party-count" className="font-pixel text-[8px] tracking-wider border rounded px-1.5 py-1 whitespace-nowrap text-retro-win border-retro-win/60 bg-retro-tint-p1">
-          {members.length} / {cap}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {slots.map((m, i) => m ? (
-          <Member key={m.uid} member={m} here={memberPresent(game, m.uid, true)} isHost={m.uid === hostUid} isMe={m.uid === mySeat} />
-        ) : (
-          <button
-            key={`empty-${i}`}
-            type="button"
-            onClick={onInvite}
-            disabled={!amMember || !onInvite}
-            className="flex flex-col items-center justify-center gap-1.5 rounded border-2 border-dashed border-retro-border min-h-[104px] text-retro-cta hover:border-retro-cta/60 transition press-card disabled:opacity-50"
-          >
-            <span className="font-pixel text-lg leading-none" aria-hidden="true">+</span>
-            <span className="font-pixel text-[8px] tracking-wider">INVITE</span>
-          </button>
-        ))}
-      </div>
-
-      {amMember && <VoicePanel game={game} gameId={gameId} />}
-
-      {amMember && members.length < cap && (
-        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-3">
-          <p className="font-pixel text-[8px] tracking-wider text-retro-dim">BRING FRIENDS</p>
-          {onInvite && (
-            <button type="button" onClick={onInvite} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider rounded hover:shadow-neon-cta transition press-card">
-              INVITE FRIENDS
-            </button>
-          )}
-          <div className="grid grid-cols-3 gap-2">
-            <button type="button" onClick={share} disabled={shareBusy} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition press-card disabled:opacity-50">
-              {shareBusy ? 'SHARING…' : 'LINK'}
-            </button>
-            <button type="button" onClick={() => setShowQr(v => !v)} aria-expanded={showQr} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition press-card">
-              QR
-            </button>
-            <span className="min-h-11 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-mono text-[12px] tracking-[0.2em] rounded" aria-label={`Room code ${gameId}`}>
-              {gameId}
-            </span>
-          </div>
-          {showQr && <div className="flex justify-center"><QrCode value={url} size={160} /></div>}
-        </div>
-      )}
-
-      {canPick ? (
-        <p className="text-center font-pixel text-[10px] text-retro-text">PICK A GAME FOR {n}</p>
-      ) : (
-        <div className="rounded border border-retro-cta/40 bg-retro-tint-cta p-3 flex items-center gap-3" data-testid="party-picking">
-          {host && <Avatar id={host.avatar} size={24} />}
-          <span className="flex-1 font-mono text-[11px] text-retro-text">
-            <span className="text-retro-cta">{host?.name || 'The host'}</span> is picking a game…
-          </span>
-        </div>
-      )}
-
+  const pickerGroups = (
+    <>
       <PickerGroup
         testId="party-group-all" title={`EVERYONE PLAYS · ${groups.all.length}`} tone="text-retro-win"
         games={groups.all} chip={() => ({ label: `ALL ${n}`, tone: 'win' })}
@@ -151,13 +124,122 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
           </ul>
         </details>
       )}
+    </>
+  )
+
+  return (
+    <div className="space-y-4" data-testid="party-lobby">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-pixel text-[13px] text-retro-text text-glow-cta tracking-wider truncate">
+          {host ? `${host.name.toUpperCase()}'S PARTY` : 'PARTY'}
+        </h2>
+        <span data-testid="party-count" className="font-pixel text-[8px] tracking-wider border rounded px-1.5 py-1 whitespace-nowrap text-retro-win border-retro-win/60 bg-retro-tint-p1">
+          {members.length} / {cap}
+        </span>
+      </div>
+
+      {arrived && (
+        <div data-testid="party-arrived" role="status" className="seat-pop rounded border-2 border-retro-cta bg-retro-tint-cta px-3 py-2 text-center shadow-neon-cta">
+          <p className="font-pixel text-[11px] text-retro-cta text-glow-cta tracking-wider break-words">{arrived} IS HERE!</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        {slots.map((m, i) => m ? (
+          <Member key={m.uid} member={m} here={memberPresent(game, m.uid, true)} isHost={m.uid === hostUid} isMe={m.uid === mySeat} popIn={!!arrived && m.name?.toUpperCase() === arrived} />
+        ) : (
+          <button
+            key={`empty-${i}`}
+            type="button"
+            onClick={onInvite}
+            disabled={!amMember || !onInvite}
+            className="flex flex-col items-center justify-center gap-1.5 rounded border-2 border-dashed border-retro-border min-h-[104px] text-retro-cta hover:border-retro-cta/60 transition press-card disabled:opacity-50"
+          >
+            <span className="seat-breathe font-pixel text-lg leading-none" aria-hidden="true">+</span>
+            <span className="font-pixel text-[8px] tracking-wider">{alone && i === 1 ? 'SAVING A SEAT' : 'INVITE'}</span>
+          </button>
+        ))}
+      </div>
+
+      {amMember && <VoicePanel game={game} gameId={gameId} />}
+
+      {amMember && members.length < cap && (
+        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-3" data-testid={alone ? 'party-alone' : undefined}>
+          <p className={cn('font-pixel text-[8px] tracking-wider', alone ? 'text-retro-cta' : 'text-retro-dim')}>{alone ? 'WHILE YOUR FRIENDS ARRIVE' : 'BRING FRIENDS'}</p>
+          {alone && (
+            <div className="space-y-1.5">
+              <div className="flex gap-1.5" aria-hidden="true">
+                {Array.from({ length: progress.need }, (_, i) => (
+                  <span key={i} className={cn('h-1.5 flex-1 rounded-sm', i < progress.present ? 'bg-retro-win' : 'bg-retro-border')} />
+                ))}
+              </div>
+              <p data-testid="party-progress" className="font-pixel text-[8px] tracking-wider text-retro-text">
+                {arrivingN > 0 ? 'SOMEONE OPENED YOUR LINK…' : progress.text}
+              </p>
+            </div>
+          )}
+          {onInvite && (
+            <button type="button" onClick={onInvite} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider rounded hover:shadow-neon-cta transition press-card">
+              INVITE FRIENDS
+            </button>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={share} disabled={shareBusy} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition press-card disabled:opacity-50">
+              {shareBusy ? 'SHARING…' : 'LINK'}
+            </button>
+            <button type="button" onClick={() => setShowQr(v => !v)} aria-expanded={showQr} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition press-card">
+              QR
+            </button>
+            <span className="min-h-11 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-mono text-[12px] tracking-[0.2em] rounded" aria-label={`Room code ${gameId}`}>
+              {gameId}
+            </span>
+          </div>
+          {showQr && <div className="flex justify-center"><QrCode value={url} size={160} /></div>}
+          {alone && (
+            <button type="button" onClick={() => setWarmUp(true)} className="w-full min-h-11 border border-retro-border bg-retro-surface text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press-card">
+              WARM UP SOLO · 30 SEC
+            </button>
+          )}
+        </div>
+      )}
+
+      {warmUp && (
+        <BottomSheet onClose={() => setWarmUp(false)} ariaLabel="Solo warm-up" className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-pixel text-[10px] text-retro-text tracking-wider">WARM-UP · REACTION RUN</p>
+            <button type="button" onClick={() => setWarmUp(false)} className="min-h-11 px-3 font-pixel text-[9px] tracking-wider text-retro-dim hover:text-retro-text transition-colors">BACK TO PARTY</button>
+          </div>
+          <p className="font-mono text-[11px] text-retro-dim">This closes by itself when a friend arrives.</p>
+          <Suspense fallback={null}><WarmUp /></Suspense>
+        </BottomSheet>
+      )}
+
+      {alone ? null : canPick ? (
+        <p className="text-center font-pixel text-[10px] text-retro-text">PICK A GAME FOR {n}</p>
+      ) : (
+        <div className="rounded border border-retro-cta/40 bg-retro-tint-cta p-3 flex items-center gap-3" data-testid="party-picking">
+          {host && <Avatar id={host.avatar} size={24} />}
+          <span className="flex-1 font-mono text-[11px] text-retro-text">
+            <span className="text-retro-cta">{host?.name || 'The host'}</span> is picking a game…
+          </span>
+        </div>
+      )}
+
+      {alone ? (
+        <details className="rounded border border-dashed border-retro-border px-3 py-2" data-testid="party-browse">
+          <summary className="cursor-pointer font-pixel text-[8px] tracking-wider text-retro-dim min-h-9 flex items-center">
+            BROWSE GAMES ANYWAY
+          </summary>
+          <div className="space-y-4 pt-2">{pickerGroups}</div>
+        </details>
+      ) : pickerGroups}
     </div>
   )
 }
 
-function Member({ member, here, isHost, isMe }) {
+function Member({ member, here, isHost, isMe, popIn = false }) {
   return (
-    <div data-testid="party-member" className="flex flex-col items-center gap-1.5 rounded border border-retro-border bg-retro-card pt-3 pb-2 px-1 min-w-0 min-h-[104px]">
+    <div data-testid="party-member" className={cn(popIn && 'seat-pop', 'flex flex-col items-center gap-1.5 rounded border border-retro-border bg-retro-card pt-3 pb-2 px-1 min-w-0 min-h-[104px]')}>
       <span className={cn('relative', !here && 'opacity-40 grayscale')}>
         <Avatar id={member.avatar} size={48} />
         {isHost && (

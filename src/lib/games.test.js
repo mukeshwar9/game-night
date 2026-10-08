@@ -88,6 +88,14 @@ describe('first mover', () => {
     expect(withFirstMover({ round: null }, 'hangwoman', 'X').round).toEqual({ setter: 'X' })
   })
 
+  it('a rematch or a switch drops the arrival countdown stamp and the "someone opened your link" signals', () => {
+    for (const type of ['tictactoe', 'connectfour', 'hangwoman']) {
+      const fresh = freshGameState(type)
+      expect(fresh).toHaveProperty('startsAt', null)
+      expect(fresh).toHaveProperty('arriving', null)
+    }
+  })
+
   it('writes the right Firebase patch for each family', () => {
     expect(firstMoverUpdates('tictactoe', 'O')).toEqual({ currentTurn: 'O' })
     expect(firstMoverUpdates('hangwoman', 'O')).toEqual({ 'round/setter': 'O' })

@@ -167,6 +167,16 @@
           },
           ".validate": "newData.hasChildren()"
         },
+        "arriving": {
+          "$uid": {
+            ".write": "auth != null && ((auth.uid === $uid && root.child('games').child($gameId).child('gameType').exists()) || (!newData.exists() && (root.child('games').child($gameId).child('players').child('X').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child('O').child('playerId').val() === auth.uid || root.child('games').child($gameId).child('players').child(auth.uid).child('playerId').val() === auth.uid)))",
+            ".validate": "newData.isNumber() && $uid.length <= 128 && (newData.val() === data.val() || newData.val() === now)"
+          },
+          ".validate": "newData.hasChildren()"
+        },
+        "startsAt": {
+          ".validate": "newData.isNumber() && (newData.val() === data.val() || (newData.val() === now && data.parent().child('status').val() === 'waiting'))"
+        },
         "queue": {
           "$uid": {
             ".write": "auth != null && $uid === auth.uid && (!newData.exists() || (!data.exists() && root.child('games').child($gameId).child('partyRoom').val() === true && (root.child('games').child($gameId).child('locked').val() !== true && !root.child('games').child($gameId).child('kicked').child(auth.uid).exists() && !root.child('games').child($gameId).child('removed').child(auth.uid).exists())))",

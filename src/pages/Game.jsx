@@ -48,6 +48,10 @@ import useAbandonRecovery from '../hooks/room/useAbandonRecovery'
 import useBackGuard from '../hooks/room/useBackGuard'
 import useFloats from '../hooks/room/useFloats'
 import useRoomEffect from '../hooks/room/useRoomEffect'
+import useArrival from '../hooks/room/useArrival'
+import ArrivalMoment from '../components/ArrivalMoment'
+import { arrivingCount, countdownEligible, movesBlocked } from '../lib/arrivalLogic'
+import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import useTurnTitle from '../hooks/room/useTurnTitle'
 import useScreenWakeLock from '../hooks/room/useScreenWakeLock'
 import { buildSwitchUpdates, nextStarter } from '../hooks/room/roomUpdates'
@@ -220,6 +224,10 @@ export default function Game() {
     useBackGuard({ game, gameId, mySeat })
   // Per-game background protocols (registry `roomEffect`, e.g. Pig's seed).
   useRoomEffect({ game, gameId, mySymbol })
+  // The friend-arrival beat: "NAME IS HERE!" and a 3·2·1 from the room's
+  // server timestamp before a duel's first move (arrivalLogic.js).
+  const arrival = useArrival(game)
+  const { now: clockNow } = useServerClock({ tickMs: 30_000 })
 
   // Turn/result line for screen readers (<LiveAnnouncer>) and the background
   // tab title — 2P rooms speak for the seat, party rooms for the uid.
@@ -262,6 +270,11 @@ export default function Game() {
 
     if (prevStatus.current === 'waiting' && game.status === 'playing') {
       sounds.join()
+      // Games without the countdown (real-time, custom pages) still greet the
+      // waiting host; the countdown games do it with the arrival banner.
+      if (mySymbol.current === 'X' && game.players?.O && !countdownEligible(cfg, game)) {
+        toast(`${(game.players.O.name || 'YOUR FRIEND').toUpperCase()} IS HERE!`)
+      }
     }
 
     if (prevStatus.current === 'playing' && game.status === 'finished') {
@@ -415,6 +428,7 @@ export default function Game() {
     const hasOpponent = !!(game.players?.X && game.players?.O)
     if (hasOpponent && !prevLobbyHasOpponent.current) {
       sounds.join()
+      if (mySymbol.current === 'X') toast(`${(game.players.O.name || 'YOUR FRIEND').toUpperCase()} IS HERE!`)
     }
     prevLobbyHasOpponent.current = hasOpponent
   }, [game, mySymbol])
@@ -442,6 +456,9 @@ export default function Game() {
     if (!game || !mySymbol.current) return
     if (pendingMoveRef.current) return // a write is pending — ignore rapid re-taps
     if (game.status !== 'playing') { blockedMoveFeedback(); return }
+    // The 3·2·1 after a friend arrives: the banner says why, so no toast.
+    // Client-side only; turn and win rules are untouched.
+    if (countdownEligible(getGameConfig(game.gameType), game) && movesBlocked({ startsAt: game.startsAt, now: getServerNow() })) return
     if (game.currentTurn !== mySymbol.current) { blockedMoveFeedback(); return }
 
     const cfg = getGameConfig(game.gameType)
@@ -921,6 +938,11 @@ export default function Game() {
   const isRealtimeCustom = REALTIME_CUSTOM_GAMES.has(game.gameType)
   const matchStillRunning = isRealtimeCustom && game.status === 'playing' && (showRules || showInvite)
 
+  // Someone has the invite open on the join screen (the host's open seat says so).
+  const arrivingN = mySeat === 'X' && !game.players?.O
+    ? arrivingCount(game.arriving, { now: clockNow, selfUid: getPlayerId(), seatedUids: seatedIds(game.players) })
+    : 0
+
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
   const matchTarget = matchTargetFor(game)
@@ -1004,7 +1026,7 @@ export default function Game() {
     <cfg.BoardComponent
       board={board}
       onMove={handleMove}
-      disabled={!canMove || movePending || (!!cfg.rollFace && (!game.diceSeed || !!pendingRoll(game)))}
+      disabled={!canMove || movePending || !!arrival || (!!cfg.rollFace && (!game.diceSeed || !!pendingRoll(game)))}
       winningLine={winningLine}
       currentTurn={game.currentTurn}
       lastMove={game.lastMove ?? null}
@@ -1082,6 +1104,8 @@ export default function Game() {
           </div>
         </div>
       )}
+
+      {!isSpectator && <ArrivalMoment state={arrival} mySeat={mySeat} players={game.players} currentTurn={game.currentTurn} />}
 
       {showWinEffect && (
         <WinEffect winner={winEffectWinner} intensity={winEffectIntensity} onDone={() => setShowWinEffect(false)} />
@@ -1219,6 +1243,8 @@ export default function Game() {
               name={game.players?.O?.name}
               symbol="O"
               avatar={game.players?.O?.avatar}
+              popIn={!!arrival}
+              arriving={arrivingN > 0}
               isActive={game.status === 'playing' && game.currentTurn === 'O'}
               isMe={mySeat === 'O'}
               score={scoreO}
