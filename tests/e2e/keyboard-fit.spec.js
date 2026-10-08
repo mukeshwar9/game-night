@@ -54,13 +54,12 @@ for (const { label, type } of [
   })
 }
 
-test('WORD RACE solo: the keyboard fits a 390×664 phone once the race starts', async ({ browser }) => {
+test('WORD RACE solo: the keyboard fits a 390×664 phone once the sprint starts', async ({ browser }) => {
   const player = await newPlayer(browser, PHONE)
   await player.page.goto('/solo/wordrace')
-  await player.page.getByRole('button', { name: 'START RACE' }).click()
+  await player.page.getByRole('button', { name: 'START', exact: true }).click()
   const z = player.page.getByRole('group', { name: 'Keyboard' }).getByRole('button', { name: /^Z\b/ })
   await expect(z).toBeVisible()
-  // The solo page brings the race card to the top of the screen on start.
   await expect.poll(() => z.evaluate(el => el.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true)
   expectNoPageErrors(player)
   await player.context.close()

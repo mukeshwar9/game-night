@@ -57,6 +57,7 @@ export default function WordSoloRun({ mode }) {
   const [note, setNote] = useState('')
   const [now, setNow] = useState(() => Date.now())
   const noteTimer = useRef(null)
+  const rootRef = useRef(null)
   useEffect(() => () => clearTimeout(noteTimer.current), [])
 
   const playing = !!run && !run.over && !run.between
@@ -98,6 +99,8 @@ export default function WordSoloRun({ mode }) {
     setFeedback(null)
     setNote('')
     setRun({ results: [], used: [], word: freshWord(answers, run?.used ?? []), guesses: [], startedAt: at, between: null, over: false })
+    // On a phone the board and keyboard only fit once the page heading is scrolled away.
+    requestAnimationFrame(() => rootRef.current?.scrollIntoView({ block: 'start' }))
   }
 
   const nextWord = () => {
@@ -176,7 +179,7 @@ export default function WordSoloRun({ mode }) {
       : `STREAK ENDED — THE WORD WAS ${run.word.toUpperCase()}`
 
   return (
-    <div className="space-y-3">
+    <div ref={rootRef} className="scroll-mt-2 space-y-3">
       <RunHeader scoreLabel={cfg.unit} score={score} best={best} />
       {mode === 'wordrace' && !run.over && (
         <RoundTimer endsAt={run.startedAt + SPRINT_MS} now={now} totalMs={SPRINT_MS} label={cfg.name} />
