@@ -1,3 +1,5 @@
+import { track } from './track'
+
 // `tier` marks cosmetics sold as 'premium' or time-limited ('seasonal'). Those
 // entries also carry `premium: true` and the `pack` that unlocks them (see
 // premiumCatalog.js); the pickers lock them through isUnlocked(). Everything
@@ -66,6 +68,7 @@ export function getStoredTheme() {
  * @param {{ from?: { left: number, top: number, width: number, height: number } | null, alsoApply?: () => void }} [opts]
  */
 export function pickTheme(id, opts = {}) {
+  track('theme_changed', { theme: id })
   import('./themeSwitch')
     .then(m => m.switchTheme(id, opts))
     .catch(() => { applyTheme(id); opts.alsoApply?.() })

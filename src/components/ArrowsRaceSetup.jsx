@@ -12,6 +12,7 @@ import { claimPublicRoom, createPublicRoom, listPublicRoomsOnce } from '../lib/m
 import { getPlayerId } from '../lib/playerId'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
+import { trackRoomCreated, trackRoomJoined } from '../lib/track'
 import { cn } from '@/lib/utils'
 
 // The 2 PLAYERS screen of the Arrows hub: pick the race settings first, then
@@ -60,12 +61,14 @@ export default function ArrowsRaceSetup({ onBot }) {
       sessionStorage.setItem(`game-${room.gameId}`, JSON.stringify({ symbol: 'O', name }))
       recordRoom({ id: room.gameId, gameType: 'arrows' })
       recordPlay('arrows', 'multi')
+      trackRoomJoined('arrows', 'public')
       navigate(`/game/${room.gameId}`)
       return
     }
     const gameId = generateGameId()
     await createPublicRoom({ gameId, gameType: 'arrows', playerId: me, playerName: name, playerAvatar: avatar, initial })
     recordPlay('arrows', 'multi')
+    trackRoomCreated('arrows', 'public')
     sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name }))
     recordRoom({ id: gameId, gameType: 'arrows' })
     navigate(`/game/${gameId}`)

@@ -13,6 +13,7 @@ import FilterButton, { ViewTabs } from './GameFilters'
 import { FILTER_DEFS, isSortId, readCatalogView, sortGames } from '../lib/gameFilters'
 import { makePickerScope } from '../lib/pickerScope'
 import { scrollBehavior } from '../hooks/useMotionPref'
+import { track } from '../lib/track'
 
 // Facet definitions live in lib/gameFilters.js (shared with the
 // FILTERS sheet); the toggle state below stays session-persisted here.
@@ -239,7 +240,11 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   // funnel fix. GameSwitcher's compact in-room picker keeps the old
   // tap-to-select behavior since there `onSelect` proposes a game-type
   // switch, not a new room, and the sheet there has no PLAY ONLINE row.
-  const handleTap = (g) => (isFull ? setOptionsGame(g) : onSelect(g.type))
+  const handleTap = (g) => {
+    track('game_selected', { game: g.type, surface: isFull ? 'catalog' : 'switcher' })
+    if (isFull) setOptionsGame(g)
+    else onSelect(g.type)
+  }
 
   // GameSwitcher's in-room rows: a game with variants gets a MODES button
   // that opens the variant pick directly (the old ⋯ sheet's only extra there).
@@ -446,6 +451,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
               : variantsFor(variantBase.type)
           }
           onPick={(type) => {
+            track('game_selected', { game: type, surface: 'variant' })
             setVariantBase(null)
             if (variantMode === 'solo') onSolo(type)
             else if (variantMode === 'local') onLocal(type)

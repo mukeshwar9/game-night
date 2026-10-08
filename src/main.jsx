@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { installGlobalErrorHandlers } from './lib/telemetry'
+import { initMonitoring } from './lib/monitoring'
+import { initTracking, track } from './lib/track'
 import { captureFirstTouch } from './lib/attribution'
 import { recordFunnel } from './lib/analytics'
 import { isNative, nativePlatform } from './lib/platform'
@@ -13,6 +15,9 @@ import { parseAppStoreId, smartBannerContent } from './lib/storeLinks'
 // too. ErrorBoundary covers render-time crashes; these cover event handlers,
 // timers and async code (telemetry.js).
 installGlobalErrorHandlers()
+// Sentry (VITE_SENTRY_DSN) starts here, ahead of the first render. Both it and
+// PostHog are no-ops without their key and load as lazy chunks (docs/ANALYTICS.md).
+initMonitoring()
 
 // Remember where this visitor came from (UTM / click id / referrer) before the
 // first render, then count the landing. In-house only: see attribution.js.
@@ -48,3 +53,12 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// PostHog starts once the first screen is up; app_opened waits in its queue.
+initTracking()
+let firstOpen = false
+try {
+  firstOpen = !localStorage.getItem('gn-opened')
+  if (firstOpen) localStorage.setItem('gn-opened', '1')
+} catch { /* storage unavailable: counts as not first */ }
+track('app_opened', { platform: nativePlatform ?? 'web', first_open: firstOpen })

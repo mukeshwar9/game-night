@@ -18,7 +18,8 @@
     "test:rules": "node scripts/with-emulators.mjs database npx vitest run --config vitest.rules.config.js",
     "test:e2e": "node scripts/with-emulators.mjs auth,database npx playwright test",
     "deploy": "node scripts/deploy.mjs",
-    "symbolicate": "node scripts/symbolicate.mjs"
+    "symbolicate": "node scripts/symbolicate.mjs",
+    "sourcemaps:sentry": "node scripts/upload-sourcemaps.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.5.2",
@@ -34,10 +35,13 @@
     "@capacitor/share": "^8.0.3",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/text-zoom": "^8.0.1",
+    "@sentry/capacitor": "4.4.0",
+    "@sentry/react": "10.69.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.14.0",
     "framer-motion": "^13.2.0",
+    "posthog-js": "^1.438.2",
     "qrcode": "^1.5.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -52,6 +56,7 @@
     "@firebase/rules-unit-testing": "^5.0.2",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@playwright/test": "^1.63.0",
+    "@sentry/cli": "^3.8.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

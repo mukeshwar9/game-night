@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import fs from 'node:fs'
+import { execSync } from 'node:child_process'
 import { buildIdFromFiles } from './src/lib/sourcemapLogic.js'
 import { renderContactTokens } from './src/lib/contactLogic.js'
 import { readHostingCsp, withEmulatorOrigins } from './scripts/csp.mjs'
@@ -169,7 +170,16 @@ const previewHeaders = process.env.E2E_CSP === '1'
   ? { 'Content-Security-Policy': withEmulatorOrigins(readHostingCsp().value) }
   : undefined
 
+// Sentry release = the commit being built (VITE_SENTRY_RELEASE overrides it, e.g.
+// when CI builds from a tarball). scripts/upload-sourcemaps.mjs uses the same
+// value, so uploaded maps and reported errors line up. Empty without git.
+function gitRelease() {
+  if (process.env.VITE_SENTRY_RELEASE) return process.env.VITE_SENTRY_RELEASE
+  try { return execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() } catch { return '' }
+}
+
 export default defineConfig({
+  define: { 'import.meta.env.VITE_SENTRY_RELEASE': JSON.stringify(gitRelease()) },
   preview: { headers: previewHeaders },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },

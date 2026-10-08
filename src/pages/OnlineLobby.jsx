@@ -13,6 +13,7 @@ import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
+import { trackRoomCreated, trackRoomJoined } from '../lib/track'
 import { generateGameId } from '../lib/gameLogic'
 import { claimPublicRoom, createPublicRoom, getPublicGameTypes, subscribePublicRooms } from '../lib/matchmaking'
 import { cn } from '@/lib/utils'
@@ -43,6 +44,7 @@ export default function OnlineLobby() {
       // Race rooms seat by uid (no X/O symbol to remember).
       if (!result.party) sessionStorage.setItem(`game-${room.gameId}`, JSON.stringify({ symbol: 'O', name }))
       recordRoom({ id: room.gameId, gameType: result.gameType })
+      trackRoomJoined(result.gameType, 'public')
       navigate(`/game/${room.gameId}`)
     } catch { toast.error("COULDN'T JOIN ROOM — TRY AGAIN") } finally { setJoinBusy(null) }
   }
@@ -51,6 +53,7 @@ export default function OnlineLobby() {
     const gameId = generateGameId()
     await createPublicRoom({ gameId, gameType: createType, playerId: getPlayerId(), playerName: name, playerAvatar: avatar })
     recordPlay(createType, 'multi')
+    trackRoomCreated(createType, 'public')
     if (!getGameConfig(createType)?.nPlayer) sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name }))
     recordRoom({ id: gameId, gameType: createType })
     navigate(`/game/${gameId}`)

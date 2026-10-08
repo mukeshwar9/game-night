@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import PixelDots from '@/components/loading/PixelDots'
+import { identifyUser } from './track'
+import { setMonitoringUser } from './monitoring'
 import { authReady, onUser, upgradeWithGoogle, upgradeWithApple, signOutToGuest as signOutToGuestFn } from './auth'
 import {
   ensureProfile, subscribeProfile, setupPresence, subscribeInvites, subscribeRequests,
@@ -57,6 +59,13 @@ export function AuthProvider({ children }) {
     authReady().finally(() => setBooted(true))
     return unsub
   }, [])
+
+  // Monitoring identity: the uid and whether it is a guest, never a name or e-mail.
+  const isGuest = user?.isAnonymous ?? true
+  useEffect(() => {
+    identifyUser(uid ? { uid, isAnonymous: isGuest } : null)
+    setMonitoringUser(uid)
+  }, [uid, isGuest])
 
   // Purchases follow the account: watch entitlements/{uid} for as long as it is signed in.
   // With monetization off it is still watched, since an admin flag there turns on the

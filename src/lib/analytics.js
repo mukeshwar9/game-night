@@ -25,6 +25,7 @@ import { db } from './firebase'
 import { authReady, getUid } from './auth'
 import { attributionRecord, firstTouch } from './attribution'
 import { dayKey, lastDayKeys } from './telemetry'
+import { trackGameStarted } from './track'
 
 const SAFE_GAME_TYPE = /^[a-zA-Z0-9]+$/
 export const PLAY_MODES = ['multi', 'solo', 'local']
@@ -51,6 +52,7 @@ export function recordPlay(gameType, mode) {
   bump(`plays/${gameType}/${mode}`)
   bump(playsDailyPath(dayKey(), gameType, mode, 'started'))
   recordFunnel('started')
+  trackGameStarted(gameType, mode)
 }
 
 // In-memory dedupe for recordRoundEnd's `onceKey` (see below).

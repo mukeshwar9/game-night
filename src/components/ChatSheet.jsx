@@ -38,7 +38,7 @@ export default function ChatSheet({ chatLog, myUid, onSendText, textCooldown, ch
           ✕
         </button>
       </div>
-      <ChatLog chatLog={chatLog} myUid={myUid} className="min-h-0 flex-1" />
+      <ChatLog chatLog={chatLog} myUid={myUid} className="min-h-0 flex-1 ph-no-capture" />
       {chatLock ? (
         <p className="shrink-0 mt-2 p-3 rounded border border-dashed border-retro-cta bg-retro-tint-cta font-pixel text-[8px] leading-relaxed tracking-wider text-retro-cta">
           {chatLock}

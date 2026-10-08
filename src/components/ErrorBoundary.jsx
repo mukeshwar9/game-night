@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import { reportError, routeKey } from '../lib/telemetry'
 import { buildErrorFeedbackMessage, saveFeedbackDraft } from '../lib/feedback'
+import { track } from '../lib/track'
 
 // The app has no other error boundary, so before this existed ANY uncaught error
 // during render or inside a useEffect would unmount the whole React tree and leave
@@ -27,6 +28,7 @@ export default class ErrorBoundary extends Component {
     console.error('[ErrorBoundary] caught:', error, info?.componentStack)
     this.setState({ info })
     reportError(error, { kind: 'boundary', componentStack: info?.componentStack })
+    track('error_shown', { surface: 'boundary' })
     // Expose for automated tests / quick inspection.
     if (typeof window !== 'undefined') {
       window.__lastError = { message: String(error?.message || error), stack: error?.stack, componentStack: info?.componentStack }

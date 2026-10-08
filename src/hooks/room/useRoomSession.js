@@ -18,6 +18,7 @@ import useDbConnected from '../useDbConnected'
 import useRoomPresence from './useRoomPresence'
 import { buildSwitchUpdates } from './roomUpdates'
 import { moderateRoomNames } from '../../lib/moderationLogic'
+import { trackRoomJoined } from '../../lib/track'
 
 // error value for a room whose game this build doesn't know (Game.jsx shows
 // an update screen for it)
@@ -203,6 +204,7 @@ export default function useRoomSession(gameId) {
           try { await update(ref(db, `games/${gameId}/players/${myId}`), { name: playerName, avatar: playerAvatar }) } catch { /* ignore */ }
         } else if (data.status === 'waiting' && canTakeSeat(data, myId)) {
           amPlayer = await joinPartySeat(gameId, data, cfgData, { name: playerName, avatar: playerAvatar })
+          if (amPlayer) trackRoomJoined(data.gameType, 'link')
         }
         if (cancelled) return
         setLoading(false)
@@ -240,6 +242,7 @@ export default function useRoomSession(gameId) {
               assignSeat('O')
               sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'O', name: playerName }))
               await update(gameRef, secondSeatUpdates(data))
+              trackRoomJoined(data.gameType, data.visibility === 'public' ? 'public' : 'link')
               if (data.visibility === 'public') remove(publicListingRef).catch(() => {})
             } else {
               assignSeat(null)

@@ -23,6 +23,7 @@ import {
 } from 'firebase/auth'
 import { auth } from './firebase'
 import { isNative, nativePlatform } from './platform'
+import { track } from './track'
 import { NATIVE_GOOGLE_SIGNIN, NATIVE_APPLE_SIGNIN } from './features'
 import {
   APPLE_PROVIDER_ID,
@@ -156,6 +157,7 @@ async function consumeRedirectResult() {
     const result = await getRedirectResult(auth)
     if (result?.user) {
       pendingAuthToast = { type: 'success', message: SIGNED_IN_MESSAGE }
+      track('sign_in_completed', { provider: 'google' })
       return
     }
     // No result and no error. If a redirect WAS in flight, either it silently
@@ -316,6 +318,14 @@ async function upgradeNative(route, ProviderClass, getCred) {
 // auth/native-provider-disabled instead of hanging — screens gate on
 // canSignInWithGoogle() so they never offer the button in that state.
 export async function upgradeWithGoogle() {
+  track('sign_in_started', { provider: 'google' })
+  const user = await upgradeWithGoogleInner()
+  // A redirect leaves the page (undefined); its outcome is tracked on return.
+  if (user) track('sign_in_completed', { provider: 'google' })
+  return user
+}
+
+async function upgradeWithGoogleInner() {
   if (!auth) throw new Error('Auth unavailable')
   const route = upgradeRoute('google', { ...providerEnv(), isAnonymous: auth.currentUser?.isAnonymous === true })
   if (route.mode === 'disabled') throw coded(route.code, 'Google sign-in is not enabled in this build')
@@ -354,6 +364,13 @@ export async function upgradeWithGoogle() {
 // auth/native-provider-disabled when NATIVE_APPLE_SIGNIN is off or the
 // platform is not iOS (gate the button on canSignInWithApple()).
 export async function upgradeWithApple() {
+  track('sign_in_started', { provider: 'apple' })
+  const user = await upgradeWithAppleInner()
+  if (user) track('sign_in_completed', { provider: 'apple' })
+  return user
+}
+
+async function upgradeWithAppleInner() {
   if (!auth) throw new Error('Auth unavailable')
   const route = upgradeRoute('apple', { ...providerEnv(), isAnonymous: auth.currentUser?.isAnonymous === true })
   if (route.mode !== 'native') {

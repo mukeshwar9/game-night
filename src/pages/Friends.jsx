@@ -20,6 +20,7 @@ import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
+import { trackRoomCreated } from '../lib/track'
 import useBusy from '../hooks/useBusy'
 import { displayNameFor } from '../lib/moderationLogic'
 import { resolveShareOrigin } from '../lib/platform'
@@ -213,6 +214,7 @@ export default function Friends() {
       const gameData = buildPartyRoom({ name: playerName, avatar: myAvatar, playerId: myId })
       await set(ref(db, `games/${gameId}`), gameData)
       recordPlay(gameData.gameType, 'multi')
+      trackRoomCreated(gameData.gameType, 'private')
       recordRoom({ id: gameId, gameType: gameData.gameType })
       await inviteFriendToGame(friendUid, { gameId, gameType: gameData.gameType, kind: 'party', size: 1, cap: gameData.partyCap })
       toast.success(`INVITED ${(friendName || 'FRIEND').toUpperCase()} TO YOUR PARTY!`)

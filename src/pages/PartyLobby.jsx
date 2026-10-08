@@ -10,6 +10,7 @@ import { effectiveCap, groupPickerForParty, partyMembers, partyPresentMembers } 
 import { hostUidOf } from '../lib/night'
 import { memberPresent } from '../lib/nightLogic'
 import { recordFunnel } from '../lib/analytics'
+import { track } from '../lib/track'
 import { shareUrl } from '../lib/platform'
 import { shareLink } from '../lib/share'
 import { HEADLINE_GAMES } from '../lib/adLanding'
@@ -50,10 +51,11 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
 
   const share = () => runShare(async () => {
     const outcome = await shareLink({ text: 'Join my Game Night party!', url })
-    if (outcome === 'shared') { recordFunnel('shared'); return }
+    if (outcome === 'shared') { recordFunnel('shared'); track('invite_shared', { surface: 'party_lobby', method: 'native_share' }); return }
     if (outcome === 'cancelled') return
     await navigator.clipboard.writeText(url)
     recordFunnel('shared')
+    track('invite_shared', { surface: 'party_lobby', method: 'copy' })
     toast.success('LINK COPIED!')
   }, () => toast.error("COULDN'T SHARE — COPY THE LINK FROM THE ADDRESS BAR"))
 

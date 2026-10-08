@@ -4,6 +4,7 @@ import Avatar from './Avatar'
 import BottomSheet from './BottomSheet'
 import PixelDots from './loading/PixelDots'
 import SwitchRow from './SwitchRow'
+import { setTrackingOptOut, trackingConfigured, trackingOptedOut } from '../lib/track'
 import ThemePreview from './ThemePreview'
 import { VideoCallSettingsPanel } from './VideoCallLayout'
 import { FONTS, applyFont, getStoredFont } from '../lib/font'
@@ -78,6 +79,7 @@ export default function SettingsButton({ className = '' }) {
   const [winFx, setWinFx] = useState(getWinFx)
   const [portalLetters, setPortalLetters] = useState(getPortalLetters)
   const [haptics, setHaptics] = useState(getHapticsOn)
+  const [shareUsage, setShareUsage] = useState(() => !trackingOptedOut())
   const [resetArmed, setResetArmed] = useState(false)
   const [editingMe, setEditingMe] = useState(false)
   const { profile } = useAuth()
@@ -146,6 +148,7 @@ export default function SettingsButton({ className = '' }) {
   const selectWinFx = (on) => { applyWinFx(on); setWinFx(on) }
   const selectPortalLetters = (on) => { applyPortalLetters(on); setPortalLetters(on) }
   const selectHaptics = (on) => { setHapticsOn(on); setHaptics(on) }
+  const selectShareUsage = (on) => { setTrackingOptOut(!on); setShareUsage(on) }
   const selectShowPreview = (on) => { applyThemePreview(on); setShowPreview(on) }
 
   const resetAll = () => {
@@ -363,6 +366,13 @@ export default function SettingsButton({ className = '' }) {
       {adminTools && (
         <Section title="ADMIN TOOLS">
           <AdminToolsPanel />
+        </Section>
+      )}
+
+      {trackingConfigured && (
+        <Section title="PRIVACY">
+          <SwitchRow label="SHARE USAGE DATA" checked={shareUsage} onChange={selectShareUsage} ariaLabel="Share anonymous usage data and crash reports" />
+          <p className="font-pixel text-[8px] leading-relaxed text-retro-dim tracking-widest">Which games you play and crash reports, tied to a random id. Never your name, chat or e-mail.</p>
         </Section>
       )}
 

@@ -7,6 +7,7 @@ import { freshGameState, getGameConfig, buildPartyRoom, PARTY_LOBBY } from '../l
 import { getPlayerId } from '../lib/playerId'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
+import { trackRoomCreated } from '../lib/track'
 import { toast } from 'sonner'
 import { waitForModalHistory } from './useModalHistory'
 
@@ -61,6 +62,7 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
 
       await set(ref(db, `games/${gameId}`), gameData)
       recordPlay(gameType, 'multi')
+      trackRoomCreated(gameType, 'private')
       if (!cfg.nPlayer) {
         sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
       }

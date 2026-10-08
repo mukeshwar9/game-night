@@ -34,3 +34,13 @@ export function parseStackFrames(stack) {
     return { raw, file: m[2], line: Number(m[3]), col: Number(m[4]) }
   })
 }
+
+// Whether to upload the maps to Sentry, from the environment. Opt-in: all three
+// of SENTRY_AUTH_TOKEN, SENTRY_ORG and SENTRY_PROJECT must be set, otherwise the
+// step reports what is missing and does nothing (a normal build never needs it).
+// SENTRY_URL is only for a self-hosted or regional (EU) Sentry.
+export function sentryUploadPlan(env = {}) {
+  const missing = ['SENTRY_AUTH_TOKEN', 'SENTRY_ORG', 'SENTRY_PROJECT'].filter(k => !env[k])
+  if (missing.length) return { run: false, missing }
+  return { run: true, missing: [], org: env.SENTRY_ORG, project: env.SENTRY_PROJECT, url: env.SENTRY_URL || null }
+}

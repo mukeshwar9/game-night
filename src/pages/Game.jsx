@@ -10,6 +10,7 @@ import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { recordRoom, recordMatch } from '../lib/profile'
 import { recordPlay, recordRoundEnd } from '../lib/analytics'
+import { trackGameFinished } from '../lib/track'
 import { setTelemetryContext } from '../lib/telemetry'
 import { isSeatOnline } from '../lib/presenceLogic'
 import LoadingLine from '@/components/loading/LoadingLine'
@@ -248,6 +249,9 @@ export default function Game() {
       if (prevStatus.current === 'playing' && game.status === 'finished' && hostUidOf(game) === getPlayerId()) {
         recordRoundEnd(game.gameType, 'multi', 'finished')
       }
+      if (prevStatus.current === 'playing' && game.status === 'finished' && game.players?.[getPlayerId()]) {
+        trackGameFinished(game.gameType, 'multi', 'finished')
+      }
       prevStatus.current = game.status
       return
     }
@@ -265,6 +269,12 @@ export default function Game() {
         const loser = w === 'X' ? 'O' : w === 'O' ? 'X' : null
         const outcome = loser && !isSeatOnline(game.presence?.[loser]) ? 'abandoned' : 'finished'
         recordRoundEnd(game.gameType, 'multi', outcome)
+      }
+      // Product analytics (track.js): every seated client reports its own result.
+      if (mySymbol.current) {
+        const abandoned = w !== 'draw' && w === mySymbol.current && !isSeatOnline(game.presence?.[w === 'X' ? 'O' : 'X'])
+        trackGameFinished(game.gameType, 'multi', isCoopGame(game.gameType) ? 'finished'
+          : abandoned ? 'abandoned' : w === 'draw' ? 'draw' : w === mySymbol.current ? 'win' : 'loss')
       }
       // Round wins reached the target (or Password / Arrows' final round) —
       // the same rule the results function credits the leaderboard on.

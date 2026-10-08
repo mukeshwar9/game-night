@@ -242,6 +242,7 @@ npm run test:rules # security rules tests on the Database emulator
 npm run test:e2e   # Playwright end-to-end tests on the emulators (npm run test:e2e -- tests/e2e/<spec>.js)
 npm --prefix functions test   # Cloud Functions tests
 npm run deploy     # guarded manual deploy (see Deploy)
+npm run sourcemaps:sentry  # after a build: upload source maps to Sentry (opt-in, see docs/ANALYTICS.md)
 ```
 
 ## Deploy
@@ -257,6 +258,10 @@ Preview-channel domains must be added to Firebase Auth's authorized domains for 
 npm run deploy -- --only hosting,database   # guarded manual deploy: refuses a dirty tree or a build without the Firebase config
 firebase deploy --only functions            # room cleanup + verified results (Blaze plan; builds the bundle first)
 ```
+
+### Monitoring (optional)
+
+`VITE_SENTRY_DSN` turns on Sentry (JS errors, native iOS/Android crashes, performance); `VITE_POSTHOG_KEY` (+ `VITE_POSTHOG_HOST`) turns on PostHog (event funnels, retention, masked session replay). Both are no-ops and load no code while empty, and both honour Do Not Track and the in-app SHARE USAGE DATA switch. Setup, the event list, privacy defaults and source-map upload (`npm run build && npm run sourcemaps:sentry`): [`docs/ANALYTICS.md`](docs/ANALYTICS.md).
 
 Hosting sends immutable caching for hashed assets, `no-cache` for `index.html`/`sw.js`, security headers and a report-only CSP (`firebase.json`); missing files return 404.
 

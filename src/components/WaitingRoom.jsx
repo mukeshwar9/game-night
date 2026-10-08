@@ -17,6 +17,7 @@ import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
 import { ARCHERY_FORMATS, archeryFormat } from '../lib/archeryLogic'
 import { recordFunnel } from '../lib/analytics'
+import { track } from '../lib/track'
 import { shareUrl } from '../lib/platform'
 import { shareLink } from '../lib/share'
 import PushNudge from './PushNudge'
@@ -131,12 +132,13 @@ export default function WaitingRoom({ gameId, gameType, game, mySymbol, onSwitch
       document.body.removeChild(el)
     }
     recordFunnel('shared')
+    track('invite_shared', { surface: 'waiting_room', method: 'copy' })
     toast.success('LINK COPIED!')
   }
 
   const shareInvite = async () => {
     const outcome = await shareLink({ text: 'Join my Game Night room!', url: inviteUrl })
-    if (outcome === 'shared') { recordFunnel('shared'); return }
+    if (outcome === 'shared') { recordFunnel('shared'); track('invite_shared', { surface: 'waiting_room', method: 'native_share' }); return }
     if (outcome === 'cancelled') return
     copyLink()
   }

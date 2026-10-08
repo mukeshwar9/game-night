@@ -42,6 +42,7 @@ import {
   syncArrowsProgress,
 } from '../lib/arrowsProgress'
 import { sounds } from '../lib/sounds'
+import { track } from '../lib/track'
 import { cn } from '@/lib/utils'
 
 // The guided 19-lesson track is a separate chunk, opened from the hub.
@@ -364,7 +365,10 @@ export default function ArrowsSolo() {
           level={level}
           title={`LEVEL ${n} / ${ARROWS_LEVEL_COUNT}`}
           subtitle={`${level.cols}×${level.rows} · ${level.arrows.length} ARROWS`}
-          onCleared={(stars) => setProgress((p) => saveArrowsProgress(recordLevelResult(p, n, stars)))}
+          onCleared={(stars) => {
+            if (stars > 0) track('arrows_level_cleared', { level: n, stars, kind: 'campaign' })
+            setProgress((p) => saveArrowsProgress(recordLevelResult(p, n, stars)))
+          }}
           onRestart={() => setAttempt((a) => a + 1)}
           intro={ARROWS_LEVEL_SPECS[n - 1].intro ?? null}
           onBack={back}
@@ -381,7 +385,10 @@ export default function ArrowsSolo() {
         title={`ENDLESS · ${ARROWS_ENDLESS_INFO[tier].label}`}
         subtitle={`${level.shape ? `${level.shape.toUpperCase()} SHAPE · ` : ''}${level.arrows.length} ARROWS · ${progress.endless[tier]} CLEARED`}
         tips={false}
-        onCleared={() => setProgress((p) => saveArrowsProgress(recordEndlessClear(p, tier)))}
+        onCleared={() => {
+          track('arrows_level_cleared', { level: progress.endless[tier] + 1, kind: `endless_${tier}` })
+          setProgress((p) => saveArrowsProgress(recordEndlessClear(p, tier)))
+        }}
         onRestart={() => setAttempt((a) => a + 1)}
         onBack={back}
         next={{ label: 'NEXT BOARD →', onClick: () => startEndless(tier, play.nextSeed) }}

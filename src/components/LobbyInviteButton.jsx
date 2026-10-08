@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
 import { recordFunnel } from '../lib/analytics'
+import { track } from '../lib/track'
 import { shareUrl } from '../lib/platform'
 import { shareLink } from '../lib/share'
 
@@ -13,10 +14,11 @@ export default function LobbyInviteButton() {
   const url = shareUrl(`/game/${gameId}`)
   const invite = () => run(async () => {
     const outcome = await shareLink({ text: 'Join my Game Night room!', url })
-    if (outcome === 'shared') { recordFunnel('shared'); return }
+    if (outcome === 'shared') { recordFunnel('shared'); track('invite_shared', { surface: 'lobby', method: 'native_share' }); return }
     if (outcome === 'cancelled') return
     await navigator.clipboard.writeText(url)
     recordFunnel('shared')
+    track('invite_shared', { surface: 'lobby', method: 'copy' })
     toast.success('LINK COPIED!')
   }, () => toast.error("COULDN'T SHARE — COPY THE LINK FROM THE ADDRESS BAR"))
   return (

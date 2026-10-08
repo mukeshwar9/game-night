@@ -21,7 +21,8 @@ let package = Package(
         .package(name: "CapacitorPreferences", path: "../../../node_modules/@capacitor/preferences"),
         .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
         .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
-        .package(name: "CapacitorTextZoom", path: "../../../node_modules/@capacitor/text-zoom")
+        .package(name: "CapacitorTextZoom", path: "../../../node_modules/@capacitor/text-zoom"),
+        .package(name: "SentryCapacitor", path: "../../../node_modules/@sentry/capacitor")
     ],
     targets: [
         .target(
@@ -38,7 +39,8 @@ let package = Package(
                 .product(name: "CapacitorPreferences", package: "CapacitorPreferences"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
                 .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
-                .product(name: "CapacitorTextZoom", package: "CapacitorTextZoom")
+                .product(name: "CapacitorTextZoom", package: "CapacitorTextZoom"),
+                .product(name: "SentryCapacitor", package: "SentryCapacitor")
             ]
         )
     ]

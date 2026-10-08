@@ -8,6 +8,7 @@ import { normalizeBoard } from '../../lib/gameLogic'
 import { getGameConfig, freshGameState } from '../../lib/games'
 import { pickBotMove, botDifficulties, observeDemoMove, DEFAULT_BOT_DIFFICULTY } from '../../lib/demoBots'
 import { recordRoundEnd } from '../../lib/analytics'
+import { trackGameFinished } from '../../lib/track'
 import { readBotRecord, recordBotResult, easierLevel, formatLevelRecord, describeLevelRecord } from '../../lib/botRecordLogic'
 import { canFocus } from '../../lib/focusLogic'
 import useFocusMode from '../../hooks/useFocusMode'
@@ -157,6 +158,7 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
       else sounds.lose()
       // Once per finished game: this only fires on the playing → finished edge.
       recordRoundEnd(type, isLocal ? 'local' : 'solo', 'finished')
+      trackGameFinished(type, isLocal ? 'local' : 'solo', isLocal ? 'finished' : game.winner === 'draw' ? 'draw' : game.winner === 'X' ? 'win' : 'loss')
       if (!isLocal) {
         const outcome = game.winner === 'draw' ? 'draw' : game.winner === 'X' ? 'win' : 'loss'
         setRecord(recordBotResult(type, countedLevelRef.current, outcome))

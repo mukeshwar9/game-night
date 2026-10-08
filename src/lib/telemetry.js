@@ -16,6 +16,7 @@
 import { ref, set, get } from 'firebase/database'
 import { db, usingEmulators } from './firebase'
 import { authReady, getUid } from './auth'
+import { captureError } from './monitoring'
 
 export const MAX_REPORTS_PER_SESSION = 5
 export const MSG_MAX = 300
@@ -266,6 +267,7 @@ function getReporter() {
 // Report one error. `extra` may carry { kind: 'error'|'rejection'|'boundary',
 // componentStack, gameType }. Safe to call from anywhere; never throws.
 export function reportError(err, extra = {}) {
+  try { captureError(err, { ...extra, gameType: extra.gameType ?? context.gameType }) } catch { /* never throws */ }
   try { return getReporter().report(err, extra) } catch { return false }
 }
 
