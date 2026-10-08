@@ -11,6 +11,7 @@
 import { ref, set as dbSet } from 'firebase/database'
 import { db } from './firebase'
 import { getUid } from './auth'
+import { cacheBelongsTo } from './playerCache'
 
 const STATS_KEY = 'gn-stats'
 const ROOMS_KEY = 'gn-rooms'
@@ -42,7 +43,7 @@ export function setStats(s) {
 // it, and the database rules reject client writes there.
 function mirrorStats(stats) {
   const uid = getUid()
-  if (!db || !uid) return
+  if (!db || !uid || !cacheBelongsTo(uid)) return // cache may belong to another account
   dbSet(ref(db, `users/${uid}/stats`), stats).catch(() => {})
 }
 
@@ -63,7 +64,7 @@ export function setMatches(list) {
 // users/$uid (no new rules needed for this path).
 function mirrorMatches(list) {
   const uid = getUid()
-  if (!db || !uid) return
+  if (!db || !uid || !cacheBelongsTo(uid)) return
   dbSet(ref(db, `users/${uid}/matches`), list).catch(() => {})
 }
 

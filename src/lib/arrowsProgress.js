@@ -9,6 +9,7 @@ import { ref, get, set as dbSet } from 'firebase/database'
 import { toast } from 'sonner'
 import { db } from './firebase'
 import { getUid } from './auth'
+import { cacheBelongsTo } from './playerCache'
 import { mergeProgress, normalizeProgress, sameProgress } from './arrowsLevelsLogic'
 
 const KEY = 'arrows-solo-v1'
@@ -33,7 +34,7 @@ function reportSyncError(err) {
 // Fire-and-forget mirror, same pattern as profile.js's stats mirror.
 function mirror(progress) {
   const uid = getUid()
-  if (!db || !uid) return
+  if (!db || !uid || !cacheBelongsTo(uid)) return // cache may belong to another account
   dbSet(ref(db, `users/${uid}/arrowsSolo`), { ...progress, updatedAt: Date.now() }).catch(reportSyncError)
 }
 
@@ -57,7 +58,7 @@ export async function syncArrowsProgress() {
     if (!sameProgress(merged, local)) {
       try { localStorage.setItem(KEY, JSON.stringify(merged)) } catch { /* private mode */ }
     }
-    if (!remote || !sameProgress(merged, remote)) {
+    if (cacheBelongsTo(uid) && (!remote || !sameProgress(merged, remote))) {
       await dbSet(ref(db, `users/${uid}/arrowsSolo`), { ...merged, updatedAt: Date.now() }).catch(reportSyncError)
     }
     return merged

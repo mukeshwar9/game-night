@@ -3,12 +3,15 @@ import { toast } from 'sonner'
 import PixelDots from '@/components/loading/PixelDots'
 import { identifyUser } from './track'
 import { setMonitoringUser } from './monitoring'
-import { authReady, onUser, upgradeWithGoogle, upgradeWithApple, signOutToGuest as signOutToGuestFn } from './auth'
+import { authReady, onUser, upgradeWithGoogle, upgradeWithApple, signOutToGuest as signOutToGuestFn, consumePendingGuestMerge } from './auth'
 import {
   ensureProfile, subscribeProfile, setupPresence, subscribeInvites, subscribeRequests,
   subscribeFriends, subscribePresence,
 } from './social'
 import { syncStatsOnBoot } from './statsSync'
+import { ensureCacheOwner } from './playerCache'
+import { shouldMergeGuest } from './playerCacheLogic'
+import { mergeGuestAccount, claimSavedBadge } from './accountMerge'
 import { THEMES, applyTheme, getStoredTheme } from './theme'
 import { FONTS, applyFont, getStoredFont } from './font'
 import { applyStoredDisplayPrefs } from './displayPrefs'
@@ -21,6 +24,9 @@ import { monetizationEnabled } from './monetizationState'
 import { isNative } from './platform'
 
 const AuthContext = createContext(null)
+
+// Permanent accounts claim the SAVED badge once per uid per session (idempotent server-side).
+const badgeClaimed = new Set()
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
@@ -49,6 +55,8 @@ export function AuthProvider({ children }) {
   const [onlineFriendCount, setOnlineFriendCount] = useState(0)
   const uid = user?.uid ?? null
   const authFailToastShown = useRef(false)
+  const userRef = useRef(null)
+  useEffect(() => { userRef.current = user }, [user])
 
   // Boot: kick anonymous sign-in (if needed) and track auth state.
   useEffect(() => {
@@ -108,6 +116,9 @@ export function AuthProvider({ children }) {
   // so we never need to clear it synchronously here.)
   useEffect(() => {
     if (!uid) return
+    // Before anything syncs or mirrors: make sure the per-player localStorage
+    // caches belong to this uid (a different account's are cleared).
+    ensureCacheOwner(uid)
     let cancelled = false
     let unsubProfile = () => {}
     let unsubPresence = () => {}
@@ -126,7 +137,26 @@ export function AuthProvider({ children }) {
       // works as a guest (getPlayerId falls back to a local id).
       try { await ensureProfile(); recordAttribution() } catch (e) { console.warn('Profile init skipped:', e?.message) }
       if (cancelled) return
-      syncStatsOnBoot()
+      await syncStatsOnBoot()
+      const permanentNow = !!userRef.current && !userRef.current.isAnonymous
+      // Guest -> existing account: fold the guest's server-side progress into it.
+      const pending = consumePendingGuestMerge()
+      if (shouldMergeGuest(pending, uid, permanentNow)) {
+        try {
+          const res = await mergeGuestAccount(pending.guestIdToken)
+          if (res.merged) {
+            await syncStatsOnBoot({ force: true })
+            const [arrows, memory] = await Promise.all([import('./arrowsProgress'), import('./memoryProgress')])
+            await Promise.allSettled([arrows.syncArrowsProgress(), memory.syncMemoryBests()])
+            toast.success("SWITCHED TO YOUR SAVED ACCOUNT — THIS DEVICE'S PROGRESS WAS MERGED IN.")
+          }
+        } catch (e) { console.warn('Guest merge skipped:', e?.message) }
+      }
+      if (permanentNow && !badgeClaimed.has(uid)) {
+        badgeClaimed.add(uid)
+        claimSavedBadge().catch(() => { /* best effort */ })
+      }
+      if (cancelled) return
       resyncPush()
       unsubProfile = subscribeProfile(uid, p => {
         if (cancelled) return
