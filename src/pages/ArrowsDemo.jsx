@@ -12,6 +12,7 @@ import {
   ARROWS_TIERS,
 } from '../lib/arrowsLogic'
 import { sounds } from '../lib/sounds'
+import { melodicNote } from '../lib/arrowsSoundLogic'
 import { cn } from '@/lib/utils'
 
 // Practice race: you and a bot clear identical copies of the same board.
@@ -91,7 +92,7 @@ export default function ArrowsDemo({ initialTier = 'easy' }) {
       return
     }
     setGone(applied.gone)
-    sounds.hit(Math.min(streak.current, 8))
+    sounds.hitNote(melodicNote(streak.current), streak.current)
     streak.current += 1
   }
 

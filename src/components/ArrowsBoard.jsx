@@ -42,6 +42,7 @@ import {
 import { cn } from '@/lib/utils'
 import { isReducedMotion } from '../hooks/useMotionPref'
 import { resolveTap } from '../lib/arrowsTapLogic'
+import { bumpPlan, bumpProgress } from '../lib/arrowsMotionLogic'
 import { portalColourLabel, vBendD } from '../lib/arrowsLook'
 
 // Board units: one grid cell = CELL units. Stroke and head sizes are fractions
@@ -61,11 +62,8 @@ const BODY_INSET = 2
 // the board at a constant speed, after a very short ease-in.
 const MS_PER_CELL = 34
 const ACCEL_MS = 70
-// Blocked tap: slide toward the blocker (capped) and spring back.
-const BUMP_OVERSHOOT = 0.3
-const BUMP_MAX_CELLS = 4
-const BUMP_OUT_MS_PER_CELL = 38
-const BUMP_BACK_MS = 220
+// Blocked tap: glide the whole way to the blocker and ease back (timing in
+// arrowsMotionLogic.js).
 const ERROR_MS = 620
 const HINT_MS = 2400
 // Taps landing just outside an arrow's cell still count if they are this close
@@ -267,23 +265,22 @@ function arrowLabel(arrow, i, asleep) {
   return `Arrow ${i + 1}, ${len}, pointing ${ARROWS_DIR_NAMES[arrow.dir]}`
 }
 
-const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
-const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
-
 function leaveTravel(elapsed) {
   const v = CELL / MS_PER_CELL
   if (elapsed < ACCEL_MS) return (v * elapsed * elapsed) / (2 * ACCEL_MS)
   return v * (elapsed - ACCEL_MS / 2)
 }
 
-function bumpTravel(elapsed, gap, arrow) {
-  const cells = Math.min(gap + BUMP_OVERSHOOT, BUMP_MAX_CELLS)
-  const dist = routeDistance(arrow, cells, CELL)
-  const outMs = Math.max(90, cells * BUMP_OUT_MS_PER_CELL)
-  if (elapsed < outMs) return { travel: dist * easeOutCubic(elapsed / outMs), done: false }
-  const back = elapsed - outMs
-  if (back < BUMP_BACK_MS) return { travel: dist * (1 - easeInOutQuad(back / BUMP_BACK_MS)), done: false }
-  return { travel: 0, done: true }
+// When the blocker should flash: as the bumping head arrives (the plan's out
+// phase), or at once when nothing bumps (sleeping arrow, reduced motion).
+function contactDelay(fb) {
+  return fb.asleep || isReducedMotion() ? 0 : bumpPlan(fb.gap).outMs
+}
+
+// Bump pose distance: the planned route length times the eased fraction.
+function bumpTravel(elapsed, anim, arrow) {
+  const { fraction, done } = bumpProgress(elapsed, anim.plan)
+  return { travel: done ? 0 : routeDistance(arrow, anim.plan.cells, CELL) * fraction, done }
 }
 
 // `gone`: bool per arrow. An arrow flipping to gone slides off the board;
@@ -484,7 +481,7 @@ export default function ArrowsBoard({
           finished.push(index)
         }
       } else {
-        const { travel, done } = bumpTravel(elapsed, anim.gap, level.arrows[index])
+        const { travel, done } = bumpTravel(elapsed, anim, level.arrows[index])
         drawPose(index, travel)
         if (done) finished.push(index)
       }
@@ -539,9 +536,12 @@ export default function ArrowsBoard({
       void el.getBoundingClientRect()
       el.classList.add(cls)
     }
+    // The tapped arrow and the board go red at once; the blocker lights up when
+    // the bumping head reaches it, so the hit reads as contact.
+    const delay = contactDelay(feedback)
     restart(group, 'is-error')
-    for (const g of blockerGroups) restart(g, 'is-blocker')
     restart(stage, 'is-error')
+    const flash = setTimeout(() => { for (const g of blockerGroups) restart(g, 'is-blocker') }, delay)
     // On a zoomed board the blocker may be off-screen: pan to it.
     const fixed = feedback.crate ?? feedback.wall
     if (fixed != null) {
@@ -555,13 +555,13 @@ export default function ArrowsBoard({
         .sort((a, b) => Math.hypot(a[0] - hx, a[1] - hy) - Math.hypot(b[0] - hx, b[1] - hy))
       reveal(near)
     }
-    if (!asleep && !isReducedMotion() && !anims.current.has(index)) startAnim(index, { type: 'bump', gap })
+    if (!asleep && !isReducedMotion() && !anims.current.has(index)) startAnim(index, { type: 'bump', plan: bumpPlan(gap) })
     const t = setTimeout(() => {
       group?.classList.remove('is-error')
       for (const g of blockerGroups) g?.classList.remove('is-blocker')
       stage?.classList.remove('is-error')
-    }, ERROR_MS)
-    return () => clearTimeout(t)
+    }, delay + ERROR_MS)
+    return () => { clearTimeout(flash); clearTimeout(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedback])
 
@@ -590,11 +590,13 @@ export default function ArrowsBoard({
     const at = level.crates.findIndex((c) => c.y * level.cols + c.x === feedback.crate)
     const el = crateRefs.current[at]
     if (!el) return
-    el.classList.remove('is-blocker')
-    void el.getBoundingClientRect()
-    el.classList.add('is-blocker')
-    const t = setTimeout(() => el.classList.remove('is-blocker'), ERROR_MS)
-    return () => clearTimeout(t)
+    const flash = setTimeout(() => {
+      el.classList.remove('is-blocker')
+      void el.getBoundingClientRect()
+      el.classList.add('is-blocker')
+    }, contactDelay(feedback))
+    const t = setTimeout(() => el.classList.remove('is-blocker'), contactDelay(feedback) + ERROR_MS)
+    return () => { clearTimeout(flash); clearTimeout(t) }
   }, [feedback, level])
 
   // A tunnel wall flashes where the piece stopped.
@@ -605,11 +607,13 @@ export default function ArrowsBoard({
     const at = level.tunnels.findIndex((t) => t.y * level.cols + t.x === feedback.wall)
     const el = tunnelRefs.current[at]
     if (!el) return
-    el.classList.remove('is-blocker')
-    void el.getBoundingClientRect()
-    el.classList.add('is-blocker')
-    const t = setTimeout(() => el.classList.remove('is-blocker'), ERROR_MS)
-    return () => clearTimeout(t)
+    const flash = setTimeout(() => {
+      el.classList.remove('is-blocker')
+      void el.getBoundingClientRect()
+      el.classList.add('is-blocker')
+    }, contactDelay(feedback))
+    const t = setTimeout(() => el.classList.remove('is-blocker'), contactDelay(feedback) + ERROR_MS)
+    return () => { clearTimeout(flash); clearTimeout(t) }
   }, [feedback, level])
 
   // Every portal ring and tunnel an arrow passes through lights up as its head

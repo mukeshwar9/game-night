@@ -22,6 +22,7 @@ import {
 import { ARROWS_TWIST_TIPS, newTwist } from '../lib/arrowsLevelsLogic'
 import { markTwistSeen, readSeenTwists } from '../lib/arrowsProgress'
 import { sounds } from '../lib/sounds'
+import { melodicNote } from '../lib/arrowsSoundLogic'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -177,7 +178,7 @@ export default function ArrowsGame({
       return
     }
     setMyGone(applied.gone)
-    sounds.hit(Math.min(streak.current, 8))
+    sounds.hitNote(melodicNote(streak.current), streak.current)
     streak.current += 1
     writeProgress({ [`arrowsGone${me}/${index}`]: true, lastActivityAt: Date.now() })
     if (countGone(applied.gone) >= total) resolveEnd(me)

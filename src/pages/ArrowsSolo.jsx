@@ -42,6 +42,7 @@ import {
   syncArrowsProgress,
 } from '../lib/arrowsProgress'
 import { sounds } from '../lib/sounds'
+import { melodicNote } from '../lib/arrowsSoundLogic'
 import { track } from '../lib/track'
 import { cn } from '@/lib/utils'
 
@@ -200,7 +201,7 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
       return
     }
     setGone(applied.gone)
-    sounds.hit(Math.min(streak.current, 8))
+    sounds.hitNote(melodicNote(streak.current), streak.current)
     streak.current += 1
     if (countGone(applied.gone) >= total) {
       const stars = starsFor({ mistakes, hints })

@@ -209,6 +209,11 @@ export const sounds = {
     seq([[600 + step * 60, 0, 0.08, 'square', 0.12]])
     vibrate(6 + Math.min(step, 6) * 2)
   },
+  // One explicit note of a melodic streak (Arrows); haptic matches hit()
+  hitNote: (freq, streak = 0) => {
+    seq([[freq, 0, 0.08, 'square', 0.1]])
+    vibrate(6 + Math.min(streak, 6) * 2)
+  },
   join:  ()    => { seq([[440, 0, 0.06], [880, 0.08, 0.12]]); vibrate([0, 15, 30, 25]) },
   win:   ()    => { if (!getWinFx()) return; winFanfare(); notice('SUCCESS') },
   // Bigger fanfare + longer rumble for clinching the whole match
