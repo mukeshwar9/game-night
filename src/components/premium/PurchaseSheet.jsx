@@ -63,7 +63,7 @@ export default function PurchaseSheet({ product }) {
     if (code.includes('cancelled')) return
     if (code.includes('age-required')) setBirthYear(null)
     else if (code.includes('under-age')) setBirthYear(new Date().getUTCFullYear())
-    else if (code.includes('sign-in-required')) toast.error('Sign in with Google first.')
+    else if (code.includes('sign-in-required')) toast.error('Save your account first.')
     else if (code.includes('has-subscription')) toast.error('You already have a Pass subscription. Manage it from the Pass page.')
     else if (code.includes('has-prepaid-pass')) toast.error('Your Pass is paid in ₹. Add more time in ₹ instead.')
     else if (inr && code.includes('razorpay-not-configured')) toast.error('Paying in ₹ is not available yet. Switch to $ to pay by card.')
@@ -84,9 +84,9 @@ export default function PurchaseSheet({ product }) {
       {gate === 'sign-in' && (
         <div className="space-y-3">
           <p className="font-mono text-[11px] text-retro-text leading-relaxed text-center">
-            Sign in with Google first, so your purchase follows you to every device and survives a cleared browser.
+            Save your account first, so your purchase follows you to every device and survives a cleared browser.
           </p>
-          {isInAppBrowser() && <p className="font-mono text-[10px] text-retro-p2 text-center">Google sign-in needs your normal browser. Open Game Night there.</p>}
+          {isInAppBrowser() && <p className="font-mono text-[10px] text-retro-p2 text-center">Sign-in needs your normal browser. Open Game Night there.</p>}
           <button type="button" onClick={signIn} disabled={signInBusy} className={BTN}>{signInBusy ? 'SIGNING IN…' : 'SIGN IN WITH GOOGLE'}</button>
         </div>
       )}

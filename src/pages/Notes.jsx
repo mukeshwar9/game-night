@@ -382,7 +382,7 @@ function PlaysAdmin() {
   )
 }
 
-const FUNNEL_LABELS = { landed: 'LANDED', named: 'NAMED', started: 'STARTED', finished: 'FINISHED', shared: 'SHARED' }
+const FUNNEL_LABELS = { landed: 'LANDED', named: 'NAMED', started: 'STARTED', finished: 'FINISHED', shared: 'SHARED', saved: 'SAVED' }
 const percent = (n, of) => (of > 0 ? `${Math.round((n / of) * 100)}%` : '–')
 
 // Ad funnel by first-touch source and campaign (analytics.js funnelDaily). Each

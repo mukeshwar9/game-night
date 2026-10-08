@@ -118,7 +118,7 @@ export async function fetchRecentPlays(days = 3) {
 // the ad platform's click counts.
 // ---------------------------------------------------------------------------
 
-export const FUNNEL_STEPS = ['landed', 'named', 'started', 'finished', 'shared']
+export const FUNNEL_STEPS = ['landed', 'named', 'started', 'finished', 'shared', 'saved']
 
 export function funnelUpdate({ day, touch, uid, step }) {
   if (!touch || !uid || !FUNNEL_STEPS.includes(step)) return null
@@ -173,7 +173,7 @@ export function summarizeFunnel(byDay) {
       if (!campaigns || typeof campaigns !== 'object') continue
       for (const [campaign, steps] of Object.entries(campaigns)) {
         const key = `${source}/${campaign}`
-        const row = rows.get(key) || { source, campaign: campaign === '-' ? '' : campaign, landed: 0, named: 0, started: 0, finished: 0, shared: 0 }
+        const row = rows.get(key) || { source, campaign: campaign === '-' ? '' : campaign, landed: 0, named: 0, started: 0, finished: 0, shared: 0, saved: 0 }
         for (const step of FUNNEL_STEPS) {
           const n = steps?.[step]
           if (typeof n === 'number' && Number.isFinite(n)) row[step] += n

@@ -69,7 +69,7 @@ describe('funnelUpdate', () => {
     expect(funnelUpdate({ day: '2026-09-30', touch: null, uid: 'u1', step: 'landed' })).toBeNull()
   })
   it('covers the five launch funnel steps', () => {
-    expect(FUNNEL_STEPS).toEqual(['landed', 'named', 'started', 'finished', 'shared'])
+    expect(FUNNEL_STEPS).toEqual(['landed', 'named', 'started', 'finished', 'shared', 'saved'])
   })
 })
 
@@ -80,8 +80,8 @@ describe('summarizeFunnel', () => {
       '2026-09-30': { instagram: { launch1: { landed: 5, named: 3, finished: 1, shared: 1 } } },
     })
     expect(rows).toEqual([
-      { source: 'instagram', campaign: 'launch1', landed: 15, named: 9, started: 4, finished: 1, shared: 1 },
-      { source: 'direct', campaign: '', landed: 2, named: 0, started: 0, finished: 0, shared: 0 },
+      { source: 'instagram', campaign: 'launch1', landed: 15, named: 9, started: 4, finished: 1, shared: 1, saved: 0 },
+      { source: 'direct', campaign: '', landed: 2, named: 0, started: 0, finished: 0, shared: 0, saved: 0 },
     ])
   })
   it('tolerates empty and malformed input', () => {

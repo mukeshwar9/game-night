@@ -248,7 +248,7 @@ export default function Onboarding({ onDone, invite = null }) {
                   type="button"
                   onClick={handleGoogle}
                   disabled={googleBusy || appleBusy}
-                  className="w-full min-h-11 flex items-center justify-center gap-2 font-pixel text-[9px] text-retro-p1 hover:text-glow-p1 transition disabled:opacity-50"
+                  className="w-full min-h-11 flex items-center justify-center gap-2 border border-retro-p1 bg-retro-card text-retro-p1 rounded font-pixel text-[9px] transition press disabled:opacity-50"
                 >
                   <GoogleMark /> {googleBusy ? 'SIGNING IN…' : 'HAVE AN ACCOUNT? SIGN IN WITH GOOGLE'}
                 </button>

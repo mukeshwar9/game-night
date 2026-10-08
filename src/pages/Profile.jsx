@@ -20,9 +20,10 @@ import { isNative } from '../lib/platform'
 import { mutedList } from '../lib/moderationLogic'
 import { unmute, useMutedMap } from '../lib/mute'
 import useBusy from '../hooks/useBusy'
+import SaveCard from '../components/SaveCard'
+import { subscribeUnlocks } from '../lib/unlocks'
 import PushToggle from '../components/PushToggle'
 import OpenInBrowserHint from '../components/OpenInBrowserHint'
-import AppleMark from '../components/AppleMark'
 import { isInAppBrowser } from '../lib/uaLogic'
 import LegalLinks from '../components/LegalLinks'
 import PassStatus from '../components/premium/PassStatus'
@@ -32,7 +33,7 @@ import { cn } from '@/lib/utils'
 const DEEP_LINKS = { '#look': openAvatarStudio, '#pet': openPetPicker }
 
 export default function Profile() {
-  const { profile, isAnonymous, upgrade, signOutToGuest, user } = useAuth()
+  const { profile, isAnonymous, signOutToGuest, user } = useAuth()
   const [nameEdit, setNameEdit] = useState(null) // null = mirror profile name
   const muted = mutedList(useMutedMap())
   const access = useAccess()
@@ -42,9 +43,9 @@ export default function Profile() {
   const showGoogle = canSignInWithGoogle()
   const showApple = canSignInWithApple()
   useEffect(() => (isAnonymous && !inApp && showGoogle ? preloadGoogleSignIn() : undefined), [isAnonymous, inApp, showGoogle])
-  const [upgrading, runUpgrade] = useBusy()
-  const [upgradeProvider, setUpgradeProvider] = useState('google')
   const [confirmSignOut, setConfirmSignOut] = useState(false)
+  const [savedBadge, setSavedBadge] = useState(false)
+  useEffect(() => (isAnonymous ? undefined : subscribeUnlocks(user?.uid, u => setSavedBadge(!!u?.savedBadge))), [isAnonymous, user?.uid])
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteBusy, runDelete] = useBusy()
   const [nameBusy, runNameSave] = useBusy()
@@ -77,19 +78,6 @@ export default function Profile() {
     setNameEdit(null)
     toast.success('NAME SAVED!')
   }, () => toast.error("COULDN'T SAVE YOUR NAME — TRY AGAIN."))
-
-  // provider: 'google' | 'apple'. null/undefined from upgrade() = the sheet or
-  // popup was dismissed (or a redirect started): stay put, stay silent.
-  const handleUpgrade = (provider) => {
-    setUpgradeProvider(provider)
-    return runUpgrade(async () => {
-      const u = await upgrade(provider)
-      if (u) toast.success('SIGNED IN — YOUR PROFILE IS NOW SAVED ACROSS DEVICES!')
-    }, (e) => {
-      console.error(`${provider} sign-in failed:`, e)
-      toast.error(upgradeMessage(e, provider))
-    })
-  }
 
   const handleSignOut = async () => {
     setBusy(true)
@@ -152,6 +140,9 @@ export default function Profile() {
             <Avatar id={savedAvatar} size={96} view="hero" />
             <div className="min-w-0 flex-1">
               <p className="font-pixel text-xs text-retro-text truncate">{profile?.displayName || '…'}</p>
+              {savedBadge && !isAnonymous && (
+                <span className="inline-block mt-1 px-1.5 py-1 rounded-sm bg-retro-tint-p1 border border-retro-win font-pixel text-[7px] tracking-widest text-retro-win">SAVED</span>
+              )}
               <p className="font-mono text-[11px] text-retro-dim mt-1 truncate">
                 {accountStatusLine({ isAnonymous, providerData: user?.providerData, email: user?.email })}
               </p>
@@ -180,6 +171,33 @@ export default function Profile() {
             )}
           </div>
         </div>
+
+        {/* Account, right under the identity card. A guest with no sign-in
+            method on offer (native shell while the launch flags are off)
+            has nothing to show here. */}
+        {(!isAnonymous || inApp || showGoogle || showApple) && (
+        <div className="space-y-2">
+          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">ACCOUNT</label>
+          {isAnonymous && inApp ? (
+            <OpenInBrowserHint />
+          ) : (
+            <SaveCard surface="profile" />
+          )}
+          {!isAnonymous && (
+            <button
+              onClick={handleSignOutClick}
+              disabled={busy}
+              className={`w-full py-2.5 border font-pixel text-[10px] rounded transition press disabled:opacity-50 ${
+                confirmSignOut
+                  ? 'border-retro-p2 bg-retro-p2/10 text-retro-p2'
+                  : 'border-retro-border bg-retro-card text-retro-dim hover:text-retro-text hover:border-retro-p2'
+              }`}
+            >
+              {busy ? 'SIGNING OUT…' : confirmSignOut ? 'TAP AGAIN TO CONFIRM' : 'SIGN OUT'}
+            </button>
+          )}
+        </div>
+        )}
 
         {/* Display name */}
         <div className="space-y-2">
@@ -258,59 +276,6 @@ export default function Profile() {
             </p>
           )}
         </div>
-
-        {/* Account. A guest with no sign-in method on offer (native shell while
-            the launch flags are off) has nothing to show here. */}
-        {(!isAnonymous || inApp || showGoogle || showApple) && (
-        <div className="space-y-2">
-          <label className="font-pixel text-[10px] text-retro-dim tracking-wider">ACCOUNT</label>
-          {isAnonymous && inApp ? (
-            <OpenInBrowserHint />
-          ) : isAnonymous ? (
-            <div className="space-y-2">
-              {showGoogle && (
-                <button
-                  onClick={() => handleUpgrade('google')}
-                  disabled={upgrading}
-                  className="w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/40
-                    bg-retro-card text-retro-p1 font-pixel text-[10px] rounded
-                    hover:border-retro-p1 hover:shadow-neon-p1 transition press disabled:opacity-50"
-                >
-                  <GoogleMark /> {upgrading && upgradeProvider === 'google' ? 'SIGNING IN…' : 'SIGN IN WITH GOOGLE'}
-                </button>
-              )}
-              {showApple && (
-                <button
-                  onClick={() => handleUpgrade('apple')}
-                  disabled={upgrading}
-                  className="w-full py-2.5 min-h-11 flex items-center justify-center gap-2 border border-retro-text
-                    bg-retro-text text-retro-bg font-pixel text-[10px] rounded
-                    transition press disabled:opacity-50"
-                >
-                  <AppleMark /> {upgrading && upgradeProvider === 'apple' ? 'SIGNING IN…' : 'SIGN IN WITH APPLE'}
-                </button>
-              )}
-            </div>
-          ) : (
-            <button
-              onClick={handleSignOutClick}
-              disabled={busy}
-              className={`w-full py-2.5 border font-pixel text-[10px] rounded transition press disabled:opacity-50 ${
-                confirmSignOut
-                  ? 'border-retro-p2 bg-retro-p2/10 text-retro-p2'
-                  : 'border-retro-border bg-retro-card text-retro-dim hover:text-retro-text hover:border-retro-p2'
-              }`}
-            >
-              {busy ? 'SIGNING OUT…' : confirmSignOut ? 'TAP AGAIN TO CONFIRM' : 'SIGN OUT'}
-            </button>
-          )}
-          <p className="font-mono text-[10px] text-retro-dim leading-relaxed">
-            {isAnonymous
-              ? 'Sign in to keep your profile, avatar, friends & stats across devices. You can keep playing as a guest.'
-              : 'Your profile, avatar, friends & stats sync across every device you sign in on.'}
-          </p>
-        </div>
-        )}
 
         {/* Stats */}
         <div className="space-y-2">
@@ -469,15 +434,4 @@ function formatRelativeTime(ts) {
   if (diffMs < day) return `${Math.floor(diffMs / hour)}H AGO`
   if (diffMs < 7 * day) return `${Math.floor(diffMs / day)}D AGO`
   return new Date(ts).toLocaleDateString()
-}
-
-function GoogleMark() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 48 48" aria-hidden="true">
-      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
-      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-      <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35 26.7 36 24 36c-5.3 0-9.7-3.1-11.3-7.8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l6.3 5.3C41.9 35.5 44 30.2 44 24c0-1.3-.1-2.3-.4-3.5z"/>
-    </svg>
-  )
 }

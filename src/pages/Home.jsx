@@ -18,6 +18,7 @@ import JoinRoomSheet from '../components/JoinRoomSheet'
 import GameOptionsSheet from '../components/GameOptionsSheet'
 import RulesModal from '../components/LazyRulesModal'
 import { useAuth } from '../lib/AuthContext'
+import SaveCard from '../components/SaveCard'
 import { dismissInvite } from '../lib/social'
 import { partyInviteLine } from '../lib/partyLogic'
 import { defaultAvatarForId } from '../lib/avatarKit'
@@ -168,6 +169,8 @@ export default function Home() {
             ))}
           </section>
         )}
+
+        <div className="max-w-md mx-auto w-full empty:hidden"><SaveCard surface="home" compact /></div>
 
         <section className="max-w-md mx-auto w-full text-center pt-2">
           <p className="font-pixel text-[10px] text-retro-cta tracking-[0.2em] truncate">
