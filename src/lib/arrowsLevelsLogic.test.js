@@ -5,6 +5,10 @@ import { needsCamera } from './arrowsCameraLogic'
 import { ARROWS_SHAPES, ARROWS_SHAPE_ORDER, maskCells, maskConnected, shapeMask } from './arrowsShapes'
 import {
   ARROWS_CHAPTERS,
+  ARROWS_CHAPTER_GOLD,
+  chapterGold,
+  chapterGoal,
+  chapterStars,
   ARROWS_ENDLESS_COVERAGE,
   ARROWS_PIECE_LEVEL,
   ARROWS_GENERATED_LEVELS,
@@ -560,6 +564,56 @@ describe('stars', () => {
     expect(starsFor({ mistakes: 0, hints: 1 })).toBe(2)
     expect(starsFor({ mistakes: 2, hints: 4 })).toBe(1)
     expect(starsFor()).toBe(3)
+  })
+})
+
+describe('chapter gold target', () => {
+  const ch = ARROWS_CHAPTERS[0]
+  // Spread `total` stars over the chapter's levels, 3 at a time.
+  const withStars = (total) => {
+    let p = blankProgress()
+    let left = total
+    for (let l = ch.from; l <= ch.to && left > 0; l += 1) {
+      const s = Math.min(3, left)
+      p = recordLevelResult(p, l, s)
+      left -= s
+    }
+    return p
+  }
+
+  it('empty progress is 0/30 and not gold', () => {
+    expect(chapterGoal(blankProgress(), ch)).toEqual({ got: 0, max: 30, gold: 24, isGold: false, toGold: 24 })
+    expect(chapterStars(blankProgress(), ch)).toBe(0)
+    expect(ARROWS_CHAPTER_GOLD).toBe(24)
+  })
+
+  it('23 is not gold, 24 and 30 are', () => {
+    expect(chapterGold(withStars(23), ch)).toBe(false)
+    expect(chapterGold(withStars(24), ch)).toBe(true)
+    expect(chapterGold(withStars(30), ch)).toBe(true)
+  })
+
+  it('toGold counts down and stops at 0', () => {
+    expect(chapterGoal(withStars(20), ch).toGold).toBe(4)
+    expect(chapterGoal(withStars(23), ch).toGold).toBe(1)
+    expect(chapterGoal(withStars(30), ch).toGold).toBe(0)
+  })
+
+  it('scales to a chapter with a different level count', () => {
+    expect(chapterGoal(blankProgress(), { from: 1, to: 5 })).toMatchObject({ max: 15, gold: 12 })
+  })
+
+  it('never affects unlocking', () => {
+    // Gold (24 stars) with the last level uncleared: the next chapter stays shut.
+    const goldButOpenEnded = withStars(24)
+    expect(chapterGold(goldButOpenEnded, ch)).toBe(true)
+    expect(isLevelUnlocked(goldButOpenEnded, ch.to + 1)).toBe(false)
+    // Below gold (23) with every level cleared: the next chapter opens.
+    let p = blankProgress()
+    for (let l = ch.from; l <= ch.to; l += 1) p = recordLevelResult(p, l, l - ch.from < 3 ? 3 : 2)
+    expect(chapterGoal(p, ch).got).toBe(23)
+    expect(chapterGold(p, ch)).toBe(false)
+    expect(isLevelUnlocked(p, ch.to + 1)).toBe(true)
   })
 })
 

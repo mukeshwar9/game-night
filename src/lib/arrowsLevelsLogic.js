@@ -571,6 +571,29 @@ export function totalStars(progress) {
   return n
 }
 
+// Stars one chapter can hold (3 per level).
+export function chapterStars(progress, chapter) {
+  let n = 0
+  for (let l = chapter.from; l <= chapter.to; l += 1) n += levelStars(progress, l)
+  return n
+}
+
+// A chapter turns gold at 24 of its 30 stars. A target only: it never locks
+// or unlocks anything (isLevelUnlocked ignores it).
+export const ARROWS_CHAPTER_GOLD = 24
+const goldTarget = (max) => (max === 30 ? ARROWS_CHAPTER_GOLD : Math.round(0.8 * max))
+
+export function chapterGoal(progress, chapter) {
+  const got = chapterStars(progress, chapter)
+  const max = (chapter.to - chapter.from + 1) * 3
+  const gold = goldTarget(max)
+  return { got, max, gold, isGold: got >= gold, toGold: Math.max(0, gold - got) }
+}
+
+export function chapterGold(progress, chapter) {
+  return chapterGoal(progress, chapter).isGold
+}
+
 // Where CONTINUE goes: the first unlocked level not yet cleared, else the
 // last level.
 export function nextLevel(progress) {

@@ -3,6 +3,7 @@ import {
   ARROWS_CHAPTERS,
   ARROWS_LEVEL_COUNT,
   ARROWS_LEVEL_SPECS,
+  chapterGoal,
   isLevelUnlocked,
   isNewBoard,
   levelStars,
@@ -39,12 +40,6 @@ function LockGlyph({ className = 'w-2.5 h-3' }) {
       <path d="M2 0h4v1h1v3h1v5H0V4h1V1h1zm0 1v3h4V1z" />
     </svg>
   )
-}
-
-const chapterStars = (progress, chapter) => {
-  let n = 0
-  for (let l = chapter.from; l <= chapter.to; l += 1) n += levelStars(progress, l)
-  return n
 }
 
 function LevelGrid({ chapter, progress, onPlay }) {
@@ -88,12 +83,11 @@ function LevelGrid({ chapter, progress, onPlay }) {
 
 function ChapterCard({ chapter, index, progress, expanded, onToggle, onPlay }) {
   const open = isLevelUnlocked(progress, chapter.from)
-  const got = chapterStars(progress, chapter)
-  const max = (chapter.to - chapter.from + 1) * 3
+  const { got, max, gold, isGold, toGold } = chapterGoal(progress, chapter)
   const done = got >= max
   const panel = `arrows-chapter-${index}`
   return (
-    <section aria-label={`Chapter ${index + 1}, ${chapter.name.toLowerCase()}`} className="rounded border border-retro-border bg-retro-card">
+    <section aria-label={`Chapter ${index + 1}, ${chapter.name.toLowerCase()}${open ? `, ${got} of ${max} stars, gold at ${gold} stars ${isGold ? 'reached' : 'not reached'}` : ''}`} className="rounded border border-retro-border bg-retro-card">
       <button
         onClick={() => open && onToggle()}
         disabled={!open}
@@ -112,9 +106,27 @@ function ChapterCard({ chapter, index, progress, expanded, onToggle, onPlay }) {
           </span>
         </span>
         {open ? (
-          <span className="flex flex-col items-end gap-0.5">
-            <span className="font-pixel text-[8px] text-retro-dim tabular-nums"><span className="text-retro-cta">★</span> {got}/{max}</span>
-            {done && <span className="font-pixel text-[6px] px-1 py-0.5 rounded bg-retro-win text-retro-bg">{max}/{max}</span>}
+          <span className="flex flex-col items-end gap-0.5 w-16">
+            <span className="font-pixel text-[8px] text-retro-dim tabular-nums">
+              <span className={isGold ? 'text-retro-win' : 'text-retro-cta'}>★</span>{' '}
+              <span className={isGold ? 'text-retro-win' : undefined}>{got}/{max}</span>
+            </span>
+            <span aria-hidden="true" className="relative block h-1 w-full rounded-sm bg-retro-deep overflow-hidden">
+              <span
+                className={cn('absolute inset-0 origin-left transition-transform', isGold ? 'bg-retro-win' : 'bg-retro-cta')}
+                style={{ transform: `scaleX(${max ? Math.min(1, got / max) : 0})` }}
+              />
+              <span className="absolute top-0 bottom-0 w-px bg-retro-text" style={{ left: `${(gold / max) * 100}%` }} />
+            </span>
+            <span className="h-[11px] flex items-center">
+              {done ? (
+                <span className="font-pixel text-[6px] px-1 py-0.5 rounded bg-retro-win text-retro-bg">{max}/{max}</span>
+              ) : isGold ? (
+                <span className="font-pixel text-[6px] px-1 py-0.5 rounded bg-retro-win text-retro-bg">GOLD</span>
+              ) : got > 0 ? (
+                <span className="font-pixel text-[6px] text-retro-dim tabular-nums">{toGold} TO GOLD</span>
+              ) : null}
+            </span>
           </span>
         ) : (
           <LockGlyph className="w-3 h-3.5" />
