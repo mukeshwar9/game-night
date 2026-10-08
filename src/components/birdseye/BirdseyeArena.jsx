@@ -36,6 +36,8 @@ export default function BirdseyeArena({
   const hintRef = useRef(null)
   const slowRef = useRef(null)
   const speedRef = useRef(null)
+  const pipRef = useRef(null)
+  const pipBoxRef = useRef(null)
   const { reduced } = useMotionPref()
   const [cam, setCam] = useState(() => readCam(reduced))
   const [phase, setPhase] = useState('idle')
@@ -57,8 +59,9 @@ export default function BirdseyeArena({
         else if (e.t === 'settled') handlers.current.onSettled?.(e)
       },
     })
+    view.pip = pipRef.current
     viewRef.current = view
-    let raf = 0, last = performance.now(), shown = { phase: '', ability: null }
+    let raf = 0, last = performance.now(), shown = { phase: '', ability: null, pip: false }
     const loop = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now
       if (!document.hidden) {
@@ -71,6 +74,7 @@ export default function BirdseyeArena({
             ? (view.aim.active ? `POWER ${Math.round(view.aim.pow * 100)}% · ${Math.round(view.aim.ang * 180 / Math.PI)}°` : `${BIRDS[view.bird]?.name ?? ''}: PULL BACK ANYWHERE`)
             : ''
         }
+        if (view.pipOn !== shown.pip && pipBoxRef.current) { shown.pip = view.pipOn; pipBoxRef.current.style.display = view.pipOn ? 'block' : 'none' }
         if (slowRef.current) slowRef.current.style.opacity = view.slow && view.slow.t < 1.5 && view.phase !== 'done' ? '1' : '0'
         if (speedRef.current) speedRef.current.textContent = (view.phase === 'fly' || view.phase === 'impact') && view.cam.speed ? `${Math.round(view.cam.speed)} M/S` : (view.replay ? 'REPLAY' : '')
       }
@@ -192,6 +196,16 @@ export default function BirdseyeArena({
           <span ref={speedRef} className="font-pixel text-[7px] text-retro-text bg-retro-card/85 rounded px-1.5 py-1 empty:hidden" />
         </div>
       </div>
+      <div
+        ref={pipBoxRef}
+        aria-hidden="true"
+        data-testid="birdseye-pip"
+        style={{ display: 'none' }}
+        className="pointer-events-none absolute right-2 top-[76px] w-[36%] min-w-[104px] max-w-[190px] aspect-[17/10] overflow-hidden rounded border-2 border-retro-border bg-retro-deep shadow-lg"
+      >
+        <canvas ref={pipRef} className="h-full w-full [image-rendering:pixelated]" />
+        <span className="absolute left-1 top-1 font-pixel text-[6px] tracking-wider text-retro-text bg-retro-card/80 rounded px-1 py-0.5">SIDE</span>
+      </div>
       <div ref={slowRef} aria-hidden="true" className="pointer-events-none absolute left-1/2 top-[42%] -translate-x-1/2 font-pixel text-[10px] text-retro-cta text-glow-cta opacity-0 transition-opacity">
         IMPACT ×¼
       </div>
@@ -220,7 +234,7 @@ export default function BirdseyeArena({
         ) : <span />}
       </div>
       {tip && phase === 'aim' && (
-        <p className="pointer-events-none absolute inset-x-6 top-[22%] text-center font-pixel text-[8px] text-retro-text bg-retro-card/80 rounded px-2 py-1.5">{tip}</p>
+        <p className="pointer-events-none absolute left-6 right-[calc(min(36%,190px)+1rem)] top-[22%] text-center font-pixel text-[8px] text-retro-text bg-retro-card/80 rounded px-2 py-1.5">{tip}</p>
       )}
       {beakHint && phase === 'aim' && cam !== 'beak' && (
         <div className="pointer-events-none absolute inset-x-6 top-[34%]">

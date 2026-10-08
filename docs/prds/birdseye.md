@@ -23,12 +23,20 @@ that, like Artillery, replays an append-only shot list from RTDB.
   comfort view: it is the default whenever `prefers-reduced-motion` (or the in-app reduced
   motion setting) is on, and it keeps the classic 2D read. Impacts get a **slow-mo CRASH cam**
   (cut from CHASE; the comfort settings can switch the cut off).
-- **D2 — Aiming.** A 3/4 over-the-shoulder aim view. Drag anywhere with **drag-opposite**
+- **D1a — Side picture-in-picture.** While CHASE or BEAK is the main camera, a small fixed side-on
+  window (top right, under the camera switch) shows the whole sling-to-fort lane, the aim arc while
+  pulling and the flown trail, to judge the trajectory. It is hidden on SIDE, while PEEK is held and
+  once the shot settles. Framing lives in `src/lib/birdseyeCamera.js` (`pipCamGoal`, `pipVisible`).
+- **D2 — Aiming.** A 3/4 over-the-shoulder aim view that sits nearly in the flight lane, so the sling and
+  the pulled-back bird stay near the middle of the canvas (`AIM_CAM`, tested on portrait and landscape shapes). Drag anywhere with **drag-opposite**
   mapping (pull back, the bird flies the other way; a longer pull is a harder throw; releasing
   near the start is a cancel, `MIN_POWER` 0.12). Hold **PEEK** while aiming to see the fort side-on.
 - **D3 — Renderer.** Canvas 2D faux-3D (projected, depth-sorted, half-resolution canvas, no
   WebGL; colours from the `--c-*` tokens, birds as pixel art). three.js is only a fallback if
   this cannot hold frame rate on target phones.
+  Lighting is warm sun / cool shade per face, cast shadows are one projected layer, far geometry fades into a
+  horizon haze, boards get per-material detail (planks, mortar, glare, straw, cracks), and a frame-time
+  governor switches texture, tufts and the vignette off on slow devices.
 - **D4 — Simulation and net model.** One 2D deterministic planck sim
   (`src/lib/vendor/planck-det.js`, deterministic trig from `detMath.js`, 1/60 s fixed step,
   fixed solver iterations) in the x/y plane, viewed through the 3D cameras. Shots are integers.
@@ -63,6 +71,8 @@ implemented in the sim and shot format but no World 1 fort uses it yet.
 - **Duel:** both seats throw at the same fort, alternating, **3 birds each** (`DUEL_SHOTS_EACH`);
   X throws first. More scarecrows popped wins; points break a tie; otherwise draw. PLAY AGAIN
   walks to the next fort (`nextFortIndex`).
+- **Solo result panels:** a cleared fort shows only the score card, REPLAY LEVEL and NEXT FORT (FORTS after
+  the last one); a failed fort keeps replay-the-shot, FORTS and RETRY.
 
 ### World 1 — FENWICK FARM
 

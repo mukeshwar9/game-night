@@ -178,13 +178,24 @@ export default function BirdseyeSolo() {
                   {panel.cleared && <div className="flex justify-between"><span>BIRDS LEFT × 1500</span><span>{panel.birdsLeft * 1500}</span></div>}
                   <div className="flex justify-between font-bold"><span>SCORE{panel.newBest ? ' · NEW BEST' : ''}</span><span className="text-retro-cta">{panel.score}</span></div>
                 </div>
-                {!panel.cleared && <p className="font-mono text-[11px] text-retro-dim">{panel.crowsLeft} scarecrow{panel.crowsLeft > 1 ? 's' : ''} still standing.</p>}
-                {replayRow}
-                <div className="flex gap-1.5 justify-center flex-wrap">
-                  <button type="button" className={btn} onClick={() => setFortIdx(null)}>FORTS</button>
-                  <button type="button" className={btn} onClick={() => start(fortIdx)}>RETRY</button>
-                  {panel.cleared && nextIdx != null && <button type="button" className={cta} onClick={() => start(nextIdx)} data-testid="birdseye-next-fort">NEXT FORT</button>}
-                </div>
+                {panel.cleared ? (
+                  // a cleared fort keeps it minimal: replay it, or move on
+                  <div className="flex gap-1.5 justify-center">
+                    <button type="button" className={btn} onClick={() => start(fortIdx)} data-testid="birdseye-replay-level">REPLAY LEVEL</button>
+                    {nextIdx != null
+                      ? <button type="button" className={cta} onClick={() => start(nextIdx)} data-testid="birdseye-next-fort">NEXT FORT</button>
+                      : <button type="button" className={cta} onClick={() => setFortIdx(null)}>FORTS</button>}
+                  </div>
+                ) : (
+                  <>
+                    <p className="font-mono text-[11px] text-retro-dim">{panel.crowsLeft} scarecrow{panel.crowsLeft > 1 ? 's' : ''} still standing.</p>
+                    {replayRow}
+                    <div className="flex gap-1.5 justify-center flex-wrap">
+                      <button type="button" className={btn} onClick={() => setFortIdx(null)}>FORTS</button>
+                      <button type="button" className={btn} onClick={() => start(fortIdx)}>RETRY</button>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
