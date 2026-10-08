@@ -17,6 +17,9 @@ function accountPaths(uid, { friendUids = [], code = null } = {}) {
     `entitlements/${uid}`, `entitlementsPublic/${uid}`, `ageGate/${uid}`,
     // Chat moderation strikes (chatModeration.js), server-only.
     `moderation/${uid}`,
+    // Cosmetic sign-up rewards (accountMerge.js). accountMerges/{guestUid} is an
+    // audit row keyed by a guest uid that no longer exists; it holds no profile data.
+    `unlocks/${uid}`,
   ]
   if (code) paths.push(`codes/${code}`)
   for (const friend of friendUids) paths.push(`friends/${friend}/${uid}`)

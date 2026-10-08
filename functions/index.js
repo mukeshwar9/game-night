@@ -32,6 +32,10 @@ const razorpay = require('./razorpay')
 exports.createRazorpayOrder = razorpay.createRazorpayOrder
 exports.verifyRazorpayPayment = razorpay.verifyRazorpayPayment
 exports.razorpayWebhook = razorpay.razorpayWebhook
+// Guest -> Google account merge and the cosmetic sign-up badge (accountMerge.js).
+const accountMerge = require('./accountMerge')
+exports.mergeGuestAccount = accountMerge.mergeGuestAccount
+exports.claimSavedBadge = accountMerge.claimSavedBadge
 exports.errorDigest = require('./errorDigest').errorDigest;
 // Party voice chat through the Cloudflare Realtime SFU (off until VOICE_ENABLED=1
 // and the Cloudflare secrets are bound). See voice.js.

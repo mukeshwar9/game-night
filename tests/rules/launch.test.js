@@ -175,6 +175,10 @@ describe('funnelDaily: anonymous source counters', () => {
     await assertFails(bump('alice', 'landed', 'x'.repeat(41)))
     await assertFails(as('alice').ref().update({ [`funnelDaily/today/instagram/-/landed`]: increment, 'funnelSeen/alice/landed': true }))
   })
+  it('counts the saved step (a guest saving their account) once per account', async () => {
+    await assertSucceeds(bump('alice', 'saved', 'direct', '-'))
+    await assertFails(bump('alice', 'saved', 'direct', '-'))
+  })
   it('accepts the no-campaign placeholder', async () => {
     await assertSucceeds(bump('alice', 'landed', 'direct', '-'))
   })
