@@ -22,6 +22,7 @@ import { dismissInvite } from '../lib/social'
 import { partyInviteLine } from '../lib/partyLogic'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { checkShouldOnboard } from '../lib/onboarding'
+import { homeGreeting } from '../lib/onboardingLogic'
 import { parseAppStoreId, playLiveFrom, storeBadgeFor } from '../lib/storeLinks'
 import { isNative } from '../lib/platform'
 
@@ -171,7 +172,7 @@ export default function Home() {
 
         <section className="max-w-md mx-auto w-full text-center pt-2">
           <p className="font-pixel text-[10px] text-retro-cta tracking-[0.2em] truncate">
-            {playerName ? `WELCOME BACK, ${playerName.toUpperCase()}` : 'GAME NIGHT'}
+            {homeGreeting({ name: playerName, firstVisit })}
           </p>
           <h1 className="font-pixel text-xl sm:text-2xl text-retro-text text-glow-cta mt-2 tracking-wider">
             READY FOR ANOTHER ROUND?

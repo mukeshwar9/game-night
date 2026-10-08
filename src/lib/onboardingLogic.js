@@ -80,3 +80,11 @@ export function initialName({ profileName, accountName, suggestion }) {
   }
   return suggestion
 }
+
+// Home's greeting line. Someone who has not played anything yet is being met,
+// not welcomed back; once they have, WELCOME BACK is true.
+export function homeGreeting({ name, firstVisit }) {
+  const n = String(name ?? '').trim().toUpperCase()
+  if (!n) return 'GAME NIGHT'
+  return firstVisit ? `HI, ${n}!` : `WELCOME BACK, ${n}`
+}
