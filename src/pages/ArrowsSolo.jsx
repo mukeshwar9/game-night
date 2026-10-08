@@ -301,6 +301,7 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
           gone={gone}
           onTap={handleTap}
           zoomable
+          peek
           interactive={!result && !lesson}
           feedback={feedback}
           hint={hint}

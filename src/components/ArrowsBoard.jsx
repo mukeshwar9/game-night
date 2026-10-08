@@ -44,7 +44,8 @@ import {
 import ArrowsOverview from './ArrowsOverview'
 import { cn } from '@/lib/utils'
 import { isReducedMotion } from '../hooks/useMotionPref'
-import { resolveTap } from '../lib/arrowsTapLogic'
+import { pickArrowAt, resolveTap } from '../lib/arrowsTapLogic'
+import { HOVER_DWELL_MS, PEEK_HOLD_MS, PEEK_LINGER_MS, canHold, peekOutcome } from '../lib/arrowsPeekLogic'
 import { bumpPlan, bumpProgress } from '../lib/arrowsMotionLogic'
 import { portalColourLabel, vBendD } from '../lib/arrowsLook'
 
@@ -292,6 +293,11 @@ function bumpTravel(elapsed, anim, arrow) {
 // `hint`: { index, key } pulses one free arrow (solo hint button).
 // `target`: an arrow index to keep pulsing, `preview`: an arrow index whose
 // route shows as a dotted line (both for the lesson boards).
+// `peek` (solo only; off in races): hold an arrow (touch / pen, ~380 ms) or
+// hover it (mouse) to see its route as the dotted line. A hold sends nothing
+// on release. With `peek` on, a board without a camera sends its tap on
+// pointer-UP (like camera boards) so a hold can be told from a tap; with it
+// off the tap fires on pointer-down as it always did.
 // `zoomable`: boards past 10 × 13 (levels 61+) open fitted with drag and zoom —
 // drag pans, pinch / wheel / double-tap / the buttons zoom, and a tap sends an
 // arrow when the pointer comes up (not down, so a drag never sends one). A
@@ -320,6 +326,7 @@ export default function ArrowsBoard({
   hint = null,
   target = -1,
   preview = -1,
+  peek = false,
   compact = false,
   zoomable = false,
   focusable = false,
@@ -675,15 +682,62 @@ export default function ArrowsBoard({
   // wider than lines), or -1. A blocked hit with a free arrow in near-miss
   // reach snaps to the free one (arrowsTapLogic.js), so a fat thumb beside the
   // aimed arrow does not cost a life.
-  const arrowAtClient = (clientX, clientY) => {
+  const boardPoint = (clientX, clientY) => {
     const svg = svgRef.current
     const ctm = svg?.getScreenCTM()
-    if (!ctm) return -1
+    if (!ctm) return null
     const pt = svg.createSVGPoint()
     pt.x = clientX
     pt.y = clientY
-    const { x, y } = pt.matrixTransform(ctm.inverse())
-    return resolveTap(level, gone, x, y, CELL, TAP_SLOP)
+    return pt.matrixTransform(ctm.inverse())
+  }
+  const arrowAtClient = (clientX, clientY) => {
+    const p = boardPoint(clientX, clientY)
+    return p ? resolveTap(level, gone, p.x, p.y, CELL, TAP_SLOP) : -1
+  }
+  // The arrow actually under the finger or cursor (no snap to a free one): the
+  // route peek shows what you are pointing at.
+  const rawArrowAt = (clientX, clientY) => {
+    const p = boardPoint(clientX, clientY)
+    return p ? pickArrowAt(level, gone, p.x, p.y, CELL, TAP_SLOP) : -1
+  }
+
+  // Route peek: { idx, kind: 'hold' | 'hover' } or null. Timers live in refs.
+  const [peeked, setPeeked] = useState(null)
+  const holdTimer = useRef(0)
+  const lingerTimer = useRef(0)
+  const hoverTimer = useRef(0)
+  const hoverIdx = useRef(-1)
+  const clearTimers = () => {
+    clearTimeout(holdTimer.current)
+    clearTimeout(lingerTimer.current)
+    clearTimeout(hoverTimer.current)
+  }
+  useEffect(() => clearTimers, [])
+  const showPeek = (idx, kind) => {
+    clearTimeout(lingerTimer.current)
+    setPeeked({ idx, kind })
+  }
+  const lingerPeek = () => {
+    clearTimeout(lingerTimer.current)
+    lingerTimer.current = setTimeout(() => setPeeked(null), PEEK_LINGER_MS)
+  }
+  const hidePeek = () => {
+    clearTimeout(lingerTimer.current)
+    setPeeked(null)
+  }
+  const hoverAt = (e) => {
+    const hit = rawArrowAt(e.clientX, e.clientY)
+    if (hit === hoverIdx.current) return
+    hoverIdx.current = hit
+    clearTimeout(hoverTimer.current)
+    setPeeked((p) => (p?.kind === 'hover' ? null : p))
+    if (hit >= 0) hoverTimer.current = setTimeout(() => showPeek(hit, 'hover'), HOVER_DWELL_MS)
+  }
+  const endHover = () => {
+    hoverIdx.current = -1
+    clearTimeout(hoverTimer.current)
+    setPeeked((p) => (p?.kind === 'hover' ? null : p))
   }
 
   const viewPx = () => svgRef.current?.getBoundingClientRect().width || 1
@@ -694,7 +748,7 @@ export default function ArrowsBoard({
   }
 
   const handlePointerDown = (e) => {
-    if (!camOn) {
+    if (!camOn && !peek) {
       if (!interactive || !onTap) return
       const best = arrowAtClient(e.clientX, e.clientY)
       if (best >= 0) {
@@ -706,24 +760,55 @@ export default function ArrowsBoard({
     svgRef.current?.setPointerCapture?.(e.pointerId)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     if (pointers.current.size === 1) {
-      gesture.current = { start: { x: e.clientX, y: e.clientY }, moved: false, multi: false }
+      const g = { start: { x: e.clientX, y: e.clientY }, moved: false, multi: false, t0: performance.now(), type: e.pointerType, holdArrow: -1, peeked: false }
+      gesture.current = g
+      if (peek) {
+        endHover()
+        hidePeek()
+        // Touch / pen: holding still on an arrow shows its route.
+        if (canHold(e.pointerType)) {
+          g.holdArrow = rawArrowAt(e.clientX, e.clientY)
+          if (g.holdArrow >= 0) {
+            holdTimer.current = setTimeout(() => {
+              if (gesture.current !== g || g.moved || g.multi) return
+              g.peeked = true
+              showPeek(g.holdArrow, 'hold')
+            }, PEEK_HOLD_MS)
+          }
+        }
+      }
     } else if (gesture.current) {
       gesture.current.multi = true
+      if (peek) {
+        clearTimeout(holdTimer.current)
+        if (gesture.current.peeked) hidePeek()
+      }
     }
   }
 
   const handlePointerMove = (e) => {
+    if (peek && e.pointerType === 'mouse' && e.buttons === 0) {
+      hoverAt(e)
+      return
+    }
     const prev = pointers.current.get(e.pointerId)
-    if (!camOn || !prev) return
+    if ((!camOn && !peek) || !prev) return
     const next = { x: e.clientX, y: e.clientY }
-    if (pointers.current.size === 2) {
-      const other = [...pointers.current.entries()].find(([id]) => id !== e.pointerId)?.[1]
+    const g = gesture.current
+    if (g?.peeked) {
+      // Held for the route: the finger staying down is not a pan.
+    } else if (pointers.current.size === 2) {
+      // (A second finger on a camera-less board only cancels the hold, done on down.)
+      const other = camOn ? [...pointers.current.entries()].find(([id]) => id !== e.pointerId)?.[1] : null
       if (other) {
         applyCam((c) => pinchStep(c, fit, [local(prev.x, prev.y), local(other.x, other.y)], [local(next.x, next.y), local(other.x, other.y)], viewPx()))
       }
     } else if (gesture.current && pointers.current.size === 1) {
-      if (!gesture.current.moved && !isTap(gesture.current.start, next)) gesture.current.moved = true
-      if (gesture.current.moved) {
+      if (!gesture.current.moved && !isTap(gesture.current.start, next)) {
+        gesture.current.moved = true
+        clearTimeout(holdTimer.current)
+      }
+      if (gesture.current.moved && camOn) {
         applyCam((c) => panByScreen(c, fit, next.x - prev.x, next.y - prev.y, viewPx()))
       }
     }
@@ -731,11 +816,22 @@ export default function ArrowsBoard({
   }
 
   const handlePointerUp = (e) => {
-    if (!camOn || !pointers.current.has(e.pointerId)) return
+    if ((!camOn && !peek) || !pointers.current.has(e.pointerId)) return
     const g = gesture.current
     const alone = pointers.current.size === 1
     pointers.current.delete(e.pointerId)
     if (!pointers.current.size) gesture.current = null
+    if (peek && g) {
+      clearTimeout(holdTimer.current)
+      const movedPx = g.moved ? Infinity : Math.hypot(e.clientX - g.start.x, e.clientY - g.start.y)
+      const outcome = peekOutcome({ heldMs: performance.now() - g.t0, movedPx, multi: g.multi, pointerType: g.type })
+      // A hold ends in a route, never a tap (also when the timer ran late).
+      if (alone && !g.multi && (g.peeked || (outcome === 'peek' && g.holdArrow >= 0))) {
+        showPeek(g.holdArrow, 'hold')
+        lingerPeek()
+        return
+      }
+    }
     if (!alone || !g || g.moved || g.multi || !isTap(g.start, { x: e.clientX, y: e.clientY })) return
     const hit = arrowAtClient(e.clientX, e.clientY)
     if (hit >= 0) {
@@ -743,6 +839,7 @@ export default function ArrowsBoard({
       if (interactive && onTap) onTap(hit)
       return
     }
+    if (!camOn) return
     // Empty space: two quick taps zoom in there, or back out to the whole board.
     const tap = { x: e.clientX, y: e.clientY, t: performance.now() }
     if (isDoubleTap(lastTap.current, tap)) {
@@ -757,6 +854,10 @@ export default function ArrowsBoard({
 
   const handlePointerCancel = (e) => {
     pointers.current.delete(e.pointerId)
+    if (peek) {
+      clearTimeout(holdTimer.current)
+      if (gesture.current?.peeked) lingerPeek()
+    }
     if (!pointers.current.size) gesture.current = null
   }
 
@@ -831,13 +932,18 @@ export default function ArrowsBoard({
         ref={svgRef}
         viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
         className={cn('arrows-svg block w-full select-none', focused ? 'h-full' : 'h-auto')}
-        style={{ touchAction: camOn ? 'none' : 'manipulation' }}
+        style={{
+          touchAction: camOn ? 'none' : 'manipulation',
+          ...(peek && { WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }),
+        }}
         role="group"
         aria-label={label ?? `Arrows board, ${level.arrows.length - hidden.size} arrows left`}
         onPointerDown={handlePointerDown}
-        onPointerMove={camOn ? handlePointerMove : undefined}
-        onPointerUp={camOn ? handlePointerUp : undefined}
-        onPointerCancel={camOn ? handlePointerCancel : undefined}
+        onPointerMove={camOn || peek ? handlePointerMove : undefined}
+        onPointerUp={camOn || peek ? handlePointerUp : undefined}
+        onPointerCancel={camOn || peek ? handlePointerCancel : undefined}
+        onPointerLeave={peek ? endHover : undefined}
+        onContextMenu={peek ? (e) => e.preventDefault() : undefined}
       >
         {voids && <path className="ar-shape" d={shapeD} aria-hidden="true" />}
         <g aria-hidden="true" style={{ fill: 'rgb(var(--c-structure))', opacity: 0.45 }}>{dots}</g>
@@ -920,6 +1026,14 @@ export default function ArrowsBoard({
         })}
         {preview >= 0 && !gone[preview] && !hidden.has(preview) && (
           <path className="ar-route" d={routePreviewD(level, level.arrows[preview])} fill="none" aria-hidden="true" />
+        )}
+        {peek && preview < 0 && peeked && !gone[peeked.idx] && !hidden.has(peeked.idx) && level.arrows[peeked.idx] && (
+          <path
+            className={cn('ar-route is-peek', peeked.kind === 'hover' && 'is-hover')}
+            d={routePreviewD(level, level.arrows[peeked.idx])}
+            fill="none"
+            aria-hidden="true"
+          />
         )}
         <g strokeLinecap="round" strokeLinejoin="round">
           {level.arrows.map((arrow, i) => {

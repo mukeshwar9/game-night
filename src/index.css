@@ -2366,6 +2366,11 @@ body::before {
 .arrows-arrow.is-target .ar-head { fill: rgb(var(--c-win)); }
 .arrows-arrow.is-target { animation: arrows-hint 1.1s ease infinite; }
 .ar-route { stroke: rgb(var(--c-win)); stroke-width: 0.9; stroke-dasharray: 1.2 1.6; opacity: 0.9; }
+/* Route peek (solo): fades in; a mouse hover is fainter. Reduced motion zeroes
+   the animation duration app-wide, so it simply appears. */
+.ar-route.is-peek { animation: ar-route-in var(--dur-fast) var(--ease-enter) backwards; pointer-events: none; }
+.ar-route.is-hover { opacity: 0.5; }
+@keyframes ar-route-in { from { opacity: 0; } }
 .ar-hit { outline: none; }
 .ar-hit:focus-visible { stroke: rgb(var(--c-cta) / 0.3); }
 /* Mirrors (a fixed tile with a slanted bar) and crates (a numbered box that
