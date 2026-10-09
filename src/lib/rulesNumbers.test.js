@@ -31,6 +31,10 @@ import { FLEET_SPEC, SHIP_CELLS } from './battleshipLogic'
 import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
+import {
+  BOXES as YACHT_BOXES, ROLLS_PER_TURN as YACHT_ROLLS, UPPER_BONUS, UPPER_BONUS_AT,
+  FULL_HOUSE_PTS, SHORT_RUN_PTS, LONG_RUN_PTS, YACHT_PTS,
+} from './yachtLogic'
 import { STROKE_CAP, PICKUP_SCORE } from './minigolfLogic'
 import { ARCHERY_FORMATS, ARROWS_PER_END } from './archeryLogic'
 import { ROT_STEPS, TURN_MS as STACK_TURN_MS } from './animalStackLogic'
@@ -230,6 +234,13 @@ const RULE_NUMBERS = {
   mancala: () => ({ checks: [[24, INITIAL_PITS().reduce((a, b) => a + b, 0) / 2], [6, INITIAL_PITS().slice(0, 6).length]] }),
   checkers: () => ({ checks: [] }),
   airhockey: () => ({ checks: [[7, AIRHOCKEY_WIN]] }),
+  yacht: () => ({
+    checks: [
+      [13, YACHT_BOXES.length], [3, YACHT_ROLLS], [25, FULL_HOUSE_PTS], [30, SHORT_RUN_PTS], [40, LONG_RUN_PTS],
+      [50, YACHT_PTS], [63, UPPER_BONUS_AT], [35, UPPER_BONUS], ...players('yacht', 2, 4),
+    ],
+    prose: [0], // a box that does not fit scores 0
+  }),
   puckrush: () => ({ checks: [[5, PUCKS_EACH], [3, first('puckrush')]] }),
   minigolf: () => ({
     checks: [[6, STROKE_CAP], [7, PICKUP_SCORE], ...players('minigolf', 2, 4), [4, cfg('minigolf').localMaxPlayers ?? cfg('minigolf').maxPlayers]],

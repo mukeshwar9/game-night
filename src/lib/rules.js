@@ -487,6 +487,17 @@ export const GAME_RULES = {
     win: 'First to 3 points with the lead wins. Tied at 3 or more? Keep playing rounds until someone leads.',
   },
 
+  yacht: {
+    objective: 'Roll five dice and fill all 13 boxes on your sheet for the highest total.',
+    howToPlay: [
+      'On your turn you get up to 3 rolls. After a roll, tap dice to hold them, then roll the rest again.',
+      'Then bank the dice in one open box. Every open box shows what it would score right now; a box that does not fit scores 0.',
+      'Number boxes add up that face. 3 and 4 of a kind add all five dice. Full house is 25, a short run of four is 30, a long run of five is 40, five of a kind (a Yacht) is 50, and Chance adds all five dice.',
+      'Reach 63 in the six number boxes to earn a 35 point bonus.',
+    ],
+    win: 'When every sheet is full, the highest total wins. 2 to 4 players.',
+  },
+
   bluff: {
     objective: 'Liar’s dice — bluff about the hidden dice and call your opponent’s bluffs.',
     howToPlay: [

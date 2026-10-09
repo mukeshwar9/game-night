@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -116,7 +116,8 @@ import {
   BK_START_O,
   applyBlockadeMove,
 } from './blockadeLogic'
-import { applyDiceMove, rollFace, rollFacePair } from './diceLogic'
+import { applyDiceMove, generateSeedHex, rollFace, rollFacePair } from './diceLogic'
+import { createRound as createYachtRound, MIN_PLAYERS as YACHT_MIN_PLAYERS, MAX_PLAYERS as YACHT_MAX_PLAYERS } from './yachtLogic'
 import { runPigRoomEffect } from '../hooks/room/pigSeedProtocol'
 import { seatOrder as seatOrderWL, pickSpectrumIndex } from './wavelengthLogic'
 import {
@@ -1494,6 +1495,28 @@ export const GAME_TYPES = [
     // first mover to pick; the page renders MatchScoreRail itself.
     custom: true, simultaneous: true, hidePlayerCards: true, matchTarget: 3,
     Page: lazyWithRetry(() => import('../pages/TwoTruthsGame')),
+  },
+  {
+    type: 'yacht', label: 'YACHT',
+    desc: 'five dice, three rolls, thirteen boxes', Icon: YachtIcon,
+    badge: 'YT', maxWidth: 'max-w-sm',
+    category: 'dicebluff',
+    addedAt: '2026-10-10',
+    durationMin: 8, tags: ['luck', 'thinky'], solo: true,
+    // Rides the uid-keyed room model (lobby → host START), like Chain
+    // Reaction 4P. The whole match is one object under `round` (yachtLogic.js).
+    custom: true, nPlayer: true, minPlayers: YACHT_MIN_PLAYERS, maxPlayers: YACHT_MAX_PLAYERS,
+    Page: lazyWithRetry(() => import('../pages/YachtGame')),
+    startRound: (players) => {
+      // Turn order is the lobby's seat order: joinedAt, then uid.
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, YACHT_MAX_PLAYERS)
+        .map(p => p.playerId)
+      if (seats.length < YACHT_MIN_PLAYERS) return null
+      return { board: null, currentTurn: null, scores: {}, round: createYachtRound(seats, generateSeedHex()) }
+    },
   },
   {
     type: 'bluff', label: 'BLUFF BATTLE',

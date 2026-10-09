@@ -738,6 +738,18 @@ export function AirHockeyIcon() {
   )
 }
 
+export function YachtIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2" y="9" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="2" />
+      <circle cx="6" cy="13" r="1.3" fill="currentColor" />
+      <circle cx="10" cy="17" r="1.3" fill="currentColor" />
+      <rect x="12" y="3" width="10" height="10" rx="2.2" fill="currentColor" opacity="0.85" />
+      <path d="M5 4.5h4M7 2.5v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" />
+    </svg>
+  )
+}
+
 export function PuckRushIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
