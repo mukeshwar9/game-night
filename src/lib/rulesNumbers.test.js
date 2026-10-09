@@ -31,6 +31,7 @@ import { FLEET_SPEC, SHIP_CELLS } from './battleshipLogic'
 import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
+import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
   BOXES as YACHT_BOXES, ROLLS_PER_TURN as YACHT_ROLLS, UPPER_BONUS, UPPER_BONUS_AT,
   FULL_HOUSE_PTS, SHORT_RUN_PTS, LONG_RUN_PTS, YACHT_PTS,
@@ -234,6 +235,7 @@ const RULE_NUMBERS = {
   mancala: () => ({ checks: [[24, INITIAL_PITS().reduce((a, b) => a + b, 0) / 2], [6, INITIAL_PITS().slice(0, 6).length]] }),
   checkers: () => ({ checks: [] }),
   airhockey: () => ({ checks: [[7, AIRHOCKEY_WIN]] }),
+  faceoff: () => ({ checks: [[24, FACE_COUNT], [6, FACEOFF_QUESTIONS.length], [3, first('faceoff')]] }),
   yacht: () => ({
     checks: [
       [13, YACHT_BOXES.length], [3, YACHT_ROLLS], [25, FULL_HOUSE_PTS], [30, SHORT_RUN_PTS], [40, LONG_RUN_PTS],

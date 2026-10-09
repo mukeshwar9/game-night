@@ -487,6 +487,17 @@ export const GAME_RULES = {
     win: 'First to 3 points with the lead wins. Tied at 3 or more? Keep playing rounds until someone leads.',
   },
 
+  faceoff: {
+    objective: 'Find your rival\'s hidden face before they find yours.',
+    howToPlay: [
+      'Both players see the same 24 faces. Each secretly picks one to hide.',
+      'On your turn, ask one of 6 yes/no questions about your rival\'s face, such as HAT? or GLASSES?. Tap a question first to see how many faces a YES or a NO would leave.',
+      'The game answers from the face\'s real features, and every face the answer rules out flips down on your board.',
+      'Instead of asking, you can name the face. You get one guess: a right name wins the round, a wrong name loses it.',
+    ],
+    win: 'Name your rival\'s face to win the round. First to 3 rounds wins the match.',
+  },
+
   yacht: {
     objective: 'Roll five dice and fill all 13 boxes on your sheet for the highest total.',
     howToPlay: [

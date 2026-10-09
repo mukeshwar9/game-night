@@ -39,11 +39,11 @@ describe('playableAt', () => {
 
 describe('groupPickerForParty over the real registry', () => {
   // The size matrix from the party/voice audit (75 catalogue cards), plus the
-  // seven 2P memory games, BIRDSEYE and PUCK RUSH (2-seat, not nPlayer) and YACHT (2–4) added since (85 cards).
+  // seven 2P memory games, BIRDSEYE, PUCK RUSH and FACE OFF (2-seat, not nPlayer) and YACHT (2–4) added since (86 cards).
   it.each([
-    [2, 77, 0, 8],
-    [3, 20, 64, 1],
-    [4, 21, 64, 0],
+    [2, 78, 0, 8],
+    [3, 20, 65, 1],
+    [4, 21, 65, 0],
   ])('a party of %i: %i everyone-plays, %i take-turns, %i need more', (n, all, rotate, short) => {
     const g = groupPickerForParty(GAME_TYPES, n)
     expect([g.all.length, g.rotate.length, g.short.length]).toEqual([all, rotate, short])

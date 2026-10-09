@@ -6,9 +6,9 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 
 ## Games
 
-**66 games** (74 counting modes) across six categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo` with EASY / NORMAL / HARD bots for the board games. This list is generated from the `GAME_TYPES` registry (`src/lib/games.js`), which is the source of truth.
+**67 games** (75 counting modes) across six categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo` with EASY / NORMAL / HARD bots for the board games. This list is generated from the `GAME_TYPES` registry (`src/lib/games.js`), which is the source of truth.
 
-### Board games (24)
+### Board games (25)
 - **Tic Tac Toe** — three in a row wins — modes: Ultimate TTT, TTT 4×4
 - **Sim** — color an edge, don't close a triangle
 - **Chomp** — eat the bar, dodge the poison
@@ -33,6 +33,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Battleship** — sink the hidden fleet
 - **Mancala** — sow & capture
 - **Checkers** — jumps forced, kings crown
+- **Face Off** — ask, flip, name the hidden face
 
 ### Reflex & skill (17)
 - **Reaction Time** — fastest reflexes win *(2–8 players)*

@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -1305,6 +1305,18 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/BattleshipGame')),
   },
   {
+    type: 'faceoff', label: 'FACE OFF',
+    desc: 'ask, flip, name the hidden face', Icon: FaceOffIcon,
+    badge: 'FO', maxWidth: 'max-w-sm',
+    category: 'board',
+    addedAt: '2026-10-10',
+    durationMin: 4, tags: ['thinky', 'quick'], solo: true,
+    // The page draws its own seats (secret face + faces left), so the shell's
+    // player cards are hidden. Everything lives in `round` (faceoffLogic.js).
+    custom: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/FaceOffGame')),
+  },
+  {
     type: 'mancala', label: 'MANCALA',
     desc: 'sow & capture', Icon: MancalaIcon,
     badge: 'MC', maxWidth: 'max-w-md',
@@ -1993,6 +2005,9 @@ export function firstMoverUpdates(gameType, symbol) {
   if (gameType === 'bluff') {
     return { 'bluffRound/turn': symbol }
   }
+  if (gameType === 'faceoff') {
+    return { 'round/fTurn': symbol }
+  }
   if (gameType === 'password') {
     // Password's first clue-giver is `starter` (PasswordGame reads it when it
     // deals the first round); writing currentTurn here was silently ignored.
@@ -2318,6 +2333,12 @@ export function freshGameState(gameType, previous = null) {
     // precedent). Everything else lives in round; no new top-level keys.
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
       round: { phase: 'placing' } }
+  }
+  if (gameType === 'faceoff') {
+    // currentTurn null: turns live in round.fTurn (Battleship precedent). The
+    // first seated client deals the faces by writing round.fSeed.
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
+      round: { fTurn: 'X' } }
   }
   if (gameType === 'mancala') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null,

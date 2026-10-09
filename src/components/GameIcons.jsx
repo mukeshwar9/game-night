@@ -738,6 +738,20 @@ export function AirHockeyIcon() {
   )
 }
 
+export function FaceOffIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2" y="3" width="9" height="11" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="13" y="3" width="9" height="11" rx="1.5" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+      <circle cx="5.2" cy="7.5" r="1" fill="currentColor" />
+      <circle cx="7.8" cy="7.5" r="1" fill="currentColor" />
+      <path d="M5 10.5h3" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M15.5 6.5l4 4M19.5 6.5l-4 4" stroke="currentColor" strokeWidth="1.6" opacity="0.5" />
+      <path d="M9 21c0-2.2 1.3-3.5 3-3.5s3 1.3 3 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+    </svg>
+  )
+}
+
 export function YachtIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
