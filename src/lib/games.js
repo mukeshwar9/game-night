@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -1362,6 +1362,16 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/AirHockeyGame')),
   },
   {
+    type: 'puckrush', label: 'PUCK RUSH',
+    desc: 'sling every puck through the gap', Icon: PuckRushIcon,
+    badge: 'PR', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 4, tags: ['skill', 'quick'], solo: true,
+    custom: true, realtime: true, p2p: true,
+    Page: lazyWithRetry(() => import('../pages/PuckRushGame')),
+  },
+  {
     type: 'artillery', label: 'ARTILLERY',
     desc: 'angle, power, bracket', Icon: ArtilleryIcon,
     badge: 'AR', maxWidth: 'max-w-md',
@@ -2350,6 +2360,11 @@ export function freshGameState(gameType, previous = null) {
     return { ...FIELD_NULLS, boxes: null, round: null,
       board: Array(YV_CELL_COUNT).fill(''),
       currentTurn: 'X' }
+  }
+  if (gameType === 'puckrush') {
+    // Realtime (pong family): the round lives in the host's sim, the room only
+    // holds the standard winner/scores.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
   }
   if (gameType === 'airhockey') {
     // Realtime (pong family): currentTurn null, page drives its own audio.

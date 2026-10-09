@@ -30,6 +30,7 @@ import { PIG_TARGET } from './diceLogic'
 import { FLEET_SPEC, SHIP_CELLS } from './battleshipLogic'
 import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
+import { PUCKS_EACH } from './puckrushLogic'
 import { STROKE_CAP, PICKUP_SCORE } from './minigolfLogic'
 import { ARCHERY_FORMATS, ARROWS_PER_END } from './archeryLogic'
 import { ROT_STEPS, TURN_MS as STACK_TURN_MS } from './animalStackLogic'
@@ -229,6 +230,7 @@ const RULE_NUMBERS = {
   mancala: () => ({ checks: [[24, INITIAL_PITS().reduce((a, b) => a + b, 0) / 2], [6, INITIAL_PITS().slice(0, 6).length]] }),
   checkers: () => ({ checks: [] }),
   airhockey: () => ({ checks: [[7, AIRHOCKEY_WIN]] }),
+  puckrush: () => ({ checks: [[5, PUCKS_EACH], [3, first('puckrush')]] }),
   minigolf: () => ({
     checks: [[6, STROKE_CAP], [7, PICKUP_SCORE], ...players('minigolf', 2, 4), [4, cfg('minigolf').localMaxPlayers ?? cfg('minigolf').maxPlayers]],
     prose: [1], // "+1" water penalty, checked below

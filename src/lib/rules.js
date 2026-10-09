@@ -341,6 +341,16 @@ export const GAME_RULES = {
     win: 'Opponent loses when they have no pieces left or no legal move.',
   },
 
+  puckrush: {
+    objective: 'Sling every puck off your half of the table before your rival clears theirs.',
+    howToPlay: [
+      'Each player starts with 5 pucks. Press one on your half, pull it back and let go to sling it.',
+      'A wall splits the table. Only the gap in the middle lets a puck through; everything else bounces back.',
+      'Both players sling at the same time. A puck takes the colour of the half it is on, so pucks sent your way become yours to clear.',
+    ],
+    win: 'The first player with no pucks on their half wins the round. First to 3 rounds wins the match.',
+  },
+
   airhockey: {
     objective: 'Flick the puck past your rival seven times.',
     howToPlay: [
