@@ -31,6 +31,7 @@ import { FLEET_SPEC, SHIP_CELLS } from './battleshipLogic'
 import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
+import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
   BOXES as YACHT_BOXES, ROLLS_PER_TURN as YACHT_ROLLS, UPPER_BONUS, UPPER_BONUS_AT,
@@ -195,6 +196,9 @@ const RULE_NUMBERS = {
   numbermemory: () => ({ checks: [] }),
   reaction: () => ({ checks: [...players('reaction', 2, 8), [3, RACE_MATCH_WINS], [4, REACTION_ROUNDS]] }),
   aim: () => ({ checks: [[30, secs(AIM_GAME_MS)], ...players('aim', 2, 8), [3, RACE_MATCH_WINS]] }),
+  chopchop: () => ({
+    checks: [[30, secs(CHOP_GAME_MS)], [1, secs(CHOP_STUN_MS)], [10, CHOP_WARN_CRATES], [3, RACE_MATCH_WINS], ...players('chopchop', 2, 8)],
+  }),
   pulprush: () => ({
     checks: [[45, secs(DUEL_MS)], ...players('pulprush', 2, 8), [5, ROT_PENALTY], [3, RACE_MATCH_WINS], [1, secs(STUN_MS)]],
   }),

@@ -2445,6 +2445,19 @@ html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter 
   :root:not([data-motion="full"]) .arrows-stage.is-error .arrows-svg { animation: none; }
 }
 
+/* Chop Chop: the stack lands after a crate is knocked out, and that crate flies off */
+@keyframes chop-drop {
+  0%   { transform: translateY(-38px); }
+  80%  { transform: translateY(2px); }
+  100% { transform: translateY(0); }
+}
+@keyframes chop-fly-l {
+  to { transform: translate(-150px, -70px) rotate(-140deg); opacity: 0; }
+}
+@keyframes chop-fly-r {
+  to { transform: translate(150px, -70px) rotate(140deg); opacity: 0; }
+}
+
 /* Pig: a bust (rolling a 1) shakes the die briefly */
 @keyframes dice-bust {
   0%   { transform: translateX(0); }

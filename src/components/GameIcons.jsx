@@ -738,6 +738,18 @@ export function AirHockeyIcon() {
   )
 }
 
+export function ChopChopIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="8" y="3" width="8" height="5" stroke="currentColor" strokeWidth="2" />
+      <rect x="8" y="10" width="8" height="5" stroke="currentColor" strokeWidth="2" />
+      <rect x="8" y="17" width="8" height="5" fill="currentColor" />
+      <path d="M16 12.5h6" stroke="currentColor" strokeWidth="2.5" strokeDasharray="2 1.5" />
+      <path d="M2 14l4 4M5 13l-2 2" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+    </svg>
+  )
+}
+
 export function FaceOffIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

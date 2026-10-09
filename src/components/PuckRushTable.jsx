@@ -91,7 +91,7 @@ export default function PuckRushTable({
         'relative mx-auto rounded-2xl border-4 border-retro-text bg-retro-deep overflow-hidden select-none touch-none shadow-[0_4px_0_rgb(var(--c-structure))]',
         dim && 'opacity-60',
       )}
-      style={{ aspectRatio: `${COURT_W} / ${COURT_H}`, width: `min(100%, calc((100dvh - 330px) / ${COURT_H}))` }}
+      style={{ aspectRatio: `${COURT_W} / ${COURT_H}`, width: `min(100%, calc((100dvh - 400px) / ${COURT_H}))` }}
     >
       {/* Halves, tinted in their owner's colour */}
       <div className={cn('absolute inset-x-0 top-0 h-1/2', tint[top])} />

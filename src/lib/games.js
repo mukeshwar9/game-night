@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -765,6 +765,17 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/AimTrainerGame')),
   },
   {
+    type: 'chopchop', label: 'CHOP CHOP',
+    desc: 'knock out crates, dodge the beams', Icon: ChopChopIcon,
+    badge: 'CC', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 1, tags: ['quick', 'frantic', 'skill'], solo: true,
+    // N-player race on one shared seeded stack (chopLogic.js / RaceShell).
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/ChopChopGame')),
+  },
+  {
     type: 'pulprush', label: 'PULP RUSH',
     desc: 'slice the produce, dodge the rot', Icon: PulpIcon,
     badge: 'PR', maxWidth: 'max-w-sm',
@@ -1377,7 +1388,7 @@ export const GAME_TYPES = [
   {
     type: 'puckrush', label: 'PUCK RUSH',
     desc: 'sling every puck through the gap', Icon: PuckRushIcon,
-    badge: 'PR', maxWidth: 'max-w-md',
+    badge: 'PK', maxWidth: 'max-w-md',
     category: 'reflex',
     addedAt: '2026-10-10',
     durationMin: 4, tags: ['skill', 'quick'], solo: true,

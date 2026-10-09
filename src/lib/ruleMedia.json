@@ -77,7 +77,7 @@
         "src/lib/rules.js",
         "src/pages/demos/AimTrainerDemo.jsx"
       ],
-      "sourceHash": "910df4047236",
+      "sourceHash": "11c9f0e77053",
       "assetHash": "779dc087ad1c",
       "dpr": 1
     },
@@ -163,7 +163,7 @@
         "src/lib/sounds.js",
         "src/pages/AirHockeyDemo.jsx"
       ],
-      "sourceHash": "4a6fe2ee4d8e",
+      "sourceHash": "5b742eb2f809",
       "assetHash": "f3d15eb4f562",
       "dpr": 1
     },
@@ -266,7 +266,7 @@
         "src/lib/vendor/planck-det.js",
         "src/pages/AnimalStackDemo.jsx"
       ],
-      "sourceHash": "9af009f00881",
+      "sourceHash": "565d13bcef5e",
       "assetHash": "e19b6953a471",
       "dpr": 1
     },
@@ -357,7 +357,7 @@
         "src/lib/sounds.js",
         "src/pages/ArcheryDemo.jsx"
       ],
-      "sourceHash": "adbfece2e525",
+      "sourceHash": "36c2133b735a",
       "assetHash": "97abac9dc0cf",
       "dpr": 1
     },
@@ -444,7 +444,7 @@
         "src/lib/sounds.js",
         "src/pages/ArtilleryDemo.jsx"
       ],
-      "sourceHash": "c347c4f13aff",
+      "sourceHash": "97583b45acb0",
       "assetHash": "7f75debcd5c3",
       "dpr": 1
     },
@@ -581,7 +581,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1bbd3dce4109",
+      "sourceHash": "6e66aac74771",
       "assetHash": "14d0f4bf977f",
       "dpr": 1
     },
@@ -670,7 +670,7 @@
         "src/lib/sounds.js",
         "src/pages/BattleshipDemo.jsx"
       ],
-      "sourceHash": "b2d566aa5cd1",
+      "sourceHash": "3b63b8fbcc1f",
       "assetHash": "8912d3783e48",
       "dpr": 1
     },
@@ -806,7 +806,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "33e1200f51d2",
+      "sourceHash": "a2cf4d5b52e4",
       "assetHash": "c09ac5ade8ff",
       "dpr": 1
     },
@@ -943,7 +943,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "cd543dc145b9",
+      "sourceHash": "aef74e823968",
       "assetHash": "d97a9340ae51",
       "dpr": 1
     },
@@ -1081,7 +1081,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "709e0fb57cb0",
+      "sourceHash": "f4f0daca585a",
       "assetHash": "ad60d803b0ad",
       "dpr": 1
     },
@@ -1219,7 +1219,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "709e0fb57cb0",
+      "sourceHash": "f4f0daca585a",
       "assetHash": "c697f74d6866",
       "dpr": 1
     },
@@ -1306,7 +1306,7 @@
         "src/lib/sounds.js",
         "src/pages/CheckersDemo.jsx"
       ],
-      "sourceHash": "a113041b92f0",
+      "sourceHash": "0e1d11f87ab1",
       "assetHash": "2cf14eaff166",
       "dpr": 1
     },
@@ -1406,7 +1406,7 @@
         "src/lib/visualMemoryLogic.js",
         "src/pages/MemorySoloDemos.jsx"
       ],
-      "sourceHash": "2a741c31c3d4",
+      "sourceHash": "ac9d606d65e1",
       "assetHash": "103d26f2013d",
       "dpr": 1
     },
@@ -1542,7 +1542,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "56e59048163a",
+      "sourceHash": "3479f0146376",
       "assetHash": "91c862625413",
       "dpr": 1
     },
@@ -1717,7 +1717,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "84a14001a106",
+      "sourceHash": "a5a49dabbf7e",
       "assetHash": "711bb2f27081",
       "dpr": 1
     },
@@ -1853,7 +1853,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "84a14001a106",
+      "sourceHash": "a5a49dabbf7e",
       "assetHash": "1187e7e0a09d",
       "dpr": 1
     },
@@ -1988,7 +1988,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "0bc86dc36a45",
+      "sourceHash": "72f05fcc325f",
       "assetHash": "6f2911a9b6bd",
       "dpr": 1
     },
@@ -2123,7 +2123,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "0bc86dc36a45",
+      "sourceHash": "72f05fcc325f",
       "assetHash": "cc9d021603dc",
       "dpr": 1
     },
@@ -2259,7 +2259,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1cc169e80506",
+      "sourceHash": "af7b9181da9a",
       "assetHash": "c103f1f2c664",
       "dpr": 1
     },
@@ -2395,7 +2395,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1cc169e80506",
+      "sourceHash": "af7b9181da9a",
       "assetHash": "bca0a221831b",
       "dpr": 1
     },
@@ -2498,7 +2498,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/FibbageDemo.jsx"
       ],
-      "sourceHash": "444839fed517",
+      "sourceHash": "d69869376159",
       "assetHash": "6405c6e7b6cd",
       "dpr": 1
     },
@@ -2673,7 +2673,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "0495664e7da9",
+      "sourceHash": "b99084b2df94",
       "assetHash": "5509438ab603",
       "dpr": 1
     },
@@ -2783,7 +2783,7 @@
         "src/lib/wordraceLogic.js",
         "src/pages/HangmanDemo.jsx"
       ],
-      "sourceHash": "51c985d0695f",
+      "sourceHash": "9090962161be",
       "assetHash": "9b60b313fc5b",
       "dpr": 1
     },
@@ -2876,7 +2876,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/HerdDemo.jsx"
       ],
-      "sourceHash": "f4b2982367e2",
+      "sourceHash": "5a0a28afee55",
       "assetHash": "beae2c6ee863",
       "dpr": 1
     },
@@ -3012,7 +3012,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "02f3aabdf4ee",
+      "sourceHash": "a9b11a5373f7",
       "assetHash": "5eb98978c05b",
       "dpr": 1
     },
@@ -3149,7 +3149,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "55b8a05eaa09",
+      "sourceHash": "04a0c4cf8e8f",
       "assetHash": "7ab8b0197c56",
       "dpr": 1
     },
@@ -3286,7 +3286,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "c7898f02c88f",
+      "sourceHash": "c10ecbff2590",
       "assetHash": "986a9387f9c3",
       "dpr": 1
     },
@@ -3396,7 +3396,7 @@
         "src/lib/visualMemoryLogic.js",
         "src/pages/MemorySoloDemos.jsx"
       ],
-      "sourceHash": "f48d5aae22fb",
+      "sourceHash": "84e019174fa9",
       "assetHash": "029a93d33546"
     },
     "onitama": {
@@ -3531,7 +3531,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1067d45cb965",
+      "sourceHash": "bb00b7f10ae6",
       "assetHash": "c98179dd4cf9",
       "dpr": 1
     },
@@ -3667,7 +3667,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1cc8bb99f17f",
+      "sourceHash": "859d5062817b",
       "assetHash": "348ccf7307d6",
       "dpr": 1
     },
@@ -3755,7 +3755,7 @@
         "src/lib/sounds.js",
         "src/pages/PacmacDemo.jsx"
       ],
-      "sourceHash": "df32e61e952e",
+      "sourceHash": "edc6971ab081",
       "assetHash": "43b9478f3020",
       "dpr": 1
     },
@@ -3842,7 +3842,7 @@
         "src/lib/sounds.js",
         "src/pages/PaintDemo.jsx"
       ],
-      "sourceHash": "13fc9d15e6c6",
+      "sourceHash": "b768ec5c6017",
       "assetHash": "7e0a272a4b09",
       "dpr": 1
     },
@@ -3982,7 +3982,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "923a05e7ddb8",
+      "sourceHash": "7cf7e8cc062b",
       "assetHash": "f8c153941e69",
       "dpr": 1
     },
@@ -4141,7 +4141,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "cc52b5d9a409",
+      "sourceHash": "b6d822eb8cc6",
       "assetHash": "9870bacff510"
     },
     "quarto": {
@@ -4276,7 +4276,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "eb6af64851c0",
+      "sourceHash": "98b169fd213f",
       "assetHash": "d46d59c1f5ad",
       "dpr": 1
     },
@@ -4357,7 +4357,7 @@
         "src/lib/rules.js",
         "src/pages/demos/ReactionDemo.jsx"
       ],
-      "sourceHash": "6ddc73b8957c",
+      "sourceHash": "f8ed1c39fde5",
       "assetHash": "c731b0fb3346",
       "dpr": 1
     },
@@ -4532,7 +4532,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "088a99803ede",
+      "sourceHash": "c4b2299224f9",
       "assetHash": "bca4c743fdaf",
       "dpr": 1
     },
@@ -4668,7 +4668,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "3d860a714642",
+      "sourceHash": "c756723a6bc1",
       "assetHash": "1636859f66c0",
       "dpr": 1
     },
@@ -4778,7 +4778,7 @@
         "src/lib/visualMemoryLogic.js",
         "src/pages/MemorySoloDemos.jsx"
       ],
-      "sourceHash": "f48d5aae22fb",
+      "sourceHash": "84e019174fa9",
       "assetHash": "2ac1432f3a13"
     },
     "sos": {
@@ -4913,7 +4913,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "200c13e1e819",
+      "sourceHash": "25144f7e2e10",
       "assetHash": "7a2de1780001",
       "dpr": 1
     },
@@ -5000,7 +5000,7 @@
         "src/lib/spaceduelLogic.js",
         "src/pages/SpaceduelDemo.jsx"
       ],
-      "sourceHash": "3913c36eb749",
+      "sourceHash": "9276f4393c18",
       "assetHash": "7024aeee5aea",
       "dpr": 1
     },
@@ -5103,7 +5103,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/SpyfairDemo.jsx"
       ],
-      "sourceHash": "3c4fc50abcc6",
+      "sourceHash": "56b09b660593",
       "assetHash": "f62dd6c8243a",
       "dpr": 1
     },
@@ -5193,7 +5193,7 @@
         "src/lib/sumoLogic.js",
         "src/pages/SumoDemo.jsx"
       ],
-      "sourceHash": "ec032ba3cba4",
+      "sourceHash": "4a21c11b1eaa",
       "assetHash": "ae34ce695448"
     },
     "tictactoe": {
@@ -5362,7 +5362,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/TriviaDemo.jsx"
       ],
-      "sourceHash": "eb8fb65ccbcd",
+      "sourceHash": "8fe9d8129c02",
       "assetHash": "eb80bc038266",
       "dpr": 1
     },
@@ -5449,7 +5449,7 @@
         "src/lib/tronLogic.js",
         "src/pages/TronDemo.jsx"
       ],
-      "sourceHash": "041947941d5a",
+      "sourceHash": "77a8a50c30fe",
       "assetHash": "95e8ed2cabc7",
       "dpr": 1
     },
@@ -5534,7 +5534,7 @@
         "src/lib/typingLogic.js",
         "src/pages/demos/TypingDemo.jsx"
       ],
-      "sourceHash": "eceefbe300a9",
+      "sourceHash": "0935be6bdc83",
       "assetHash": "462aa17f5107",
       "dpr": 1
     },
@@ -5670,7 +5670,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "d454d28e90f4",
+      "sourceHash": "dff536715d83",
       "assetHash": "3365a0dd1dbc",
       "dpr": 1
     },
@@ -5773,7 +5773,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/WavelengthDemo.jsx"
       ],
-      "sourceHash": "97a05b4cd98b",
+      "sourceHash": "db9b7ae7cba3",
       "assetHash": "21f3e7169522",
       "dpr": 1
     },
@@ -5909,7 +5909,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "b5089f7d6d66",
+      "sourceHash": "54534f20dcab",
       "assetHash": "3038ed15f2a9",
       "dpr": 1
     }
@@ -5944,6 +5944,7 @@
     "minigolf": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
     "updraftduo": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
     "pulprush": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
+    "chopchop": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
     "faceoff": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
     "yacht": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
     "puckrush": "Not captured yet (game landed after the stills); falls back to the looping rule clip",

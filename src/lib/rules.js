@@ -194,6 +194,17 @@ export const GAME_RULES = {
     win: 'Highest score when the 30 seconds run out wins the round. First to 3 round wins takes the match.',
   },
 
+  chopchop: {
+    objective: 'Knock out more crates than anyone else in 30 seconds.',
+    howToPlay: [
+      'Tap LEFT or RIGHT to stand on that side and knock the bottom crate out of the stack. The stack drops by one.',
+      'Some crates carry a striped beam on one side. If a beam comes down on the side you are standing on, it lands on your head.',
+      'A beam stuns you for 1 second and ends your streak. You are never knocked out, so a bad start can still win.',
+      'For your first 10 crates the button on a beam side turns red. After that you read the stack yourself.',
+    ],
+    win: 'Everyone gets the same stack. The most crates when the clock stops wins the round; first to 3 round wins takes the match. 2 to 8 players.',
+  },
+
   pulprush: {
     objective: 'Slice more produce than everyone else in 45 seconds (2–8 players).',
     howToPlay: [
