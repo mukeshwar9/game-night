@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two-player ideas for Game Night</title>
+<style>
+  :root {
+    --bg: #f4f1e8; --ink: #1f2a22; --dim: #5d6a60; --card: #fffdf6; --line: #d9d3c0;
+    --go: #2f7d4f; --go-tint: #dcefdf; --warn: #b4571b; --warn-tint: #f7e3d2;
+    --p1: #d1495b; --p2: #2e6fb7; --gold: #c99a1c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 28px 16px 80px; }
+  h1 { font-size: clamp(26px, 5vw, 40px); line-height: 1.1; margin: 0 0 10px; letter-spacing: -0.02em; }
+  h2 { font-size: 22px; margin: 44px 0 6px; letter-spacing: -0.01em; }
+  h3 { margin: 0; font-size: 20px; letter-spacing: 0.02em; }
+  p { margin: 0 0 10px; }
+  .lede { font-size: 18px; max-width: 760px; color: var(--dim); }
+  .sub { color: var(--dim); max-width: 760px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 22px 0 0; }
+  .fact { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .fact b { display: block; font-size: 24px; line-height: 1.15; }
+  .fact span { color: var(--dim); font-size: 14px; }
+  .cards { display: grid; gap: 14px; margin-top: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; }
+  .card.top { border-color: var(--go); box-shadow: 0 0 0 2px var(--go-tint); }
+  .art { width: 112px; height: 112px; border-radius: 12px; background: #e9efe2; display: block; }
+  .body { min-width: 0; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+  .rank { font: 700 14px/1 ui-monospace, monospace; background: var(--ink); color: var(--card); border-radius: 6px; padding: 5px 7px; }
+  .from { color: var(--dim); font-size: 14px; }
+  .pitch { margin: 8px 0 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+  .chip { font-size: 13px; border-radius: 999px; padding: 3px 10px; background: #ece7d6; white-space: nowrap; }
+  .chip.s { background: var(--go-tint); color: #1d5a37; } .chip.m { background: #f3e9c4; color: #6b5206; } .chip.l { background: var(--warn-tint); color: #7a3a10; }
+  dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 18px; margin: 0; font-size: 14.5px; }
+  dt { font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  dd { margin: 0; }
+  .bars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; font-size: 12px; color: var(--dim); }
+  .bar { height: 6px; border-radius: 3px; background: #e6e0cd; overflow: hidden; margin-top: 3px; }
+  .bar i { display: block; height: 100%; background: var(--go); }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 14.5px; }
+  th, td { text-align: left; padding: 8px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+  thead th { border-top: 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  .scroll { overflow-x: auto; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 14px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+  .panel h4 { margin: 0 0 8px; font-size: 15px; }
+  .panel ul { margin: 0; padding-left: 18px; } .panel li { margin-bottom: 6px; }
+  q { color: var(--dim); font-style: italic; }
+  form.pick { background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 16px; margin-top: 14px; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 6px 14px; margin: 10px 0 14px; }
+  .opts label { display: flex; gap: 8px; align-items: flex-start; padding: 6px 4px; }
+  input[type=checkbox] { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--go); flex: none; }
+  textarea { width: 100%; min-height: 64px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: inherit; background: #fff; }
+  button { font: 700 15px/1 inherit; background: var(--go); color: #fff; border: 0; border-radius: 10px; padding: 12px 18px; cursor: pointer; margin-top: 10px; }
+  #queued { margin-left: 10px; color: var(--go); font-size: 14px; }
+  .note { font-size: 13.5px; color: var(--dim); margin-top: 8px; }
+  @media (max-width: 620px) {
+    .card { grid-template-columns: minmax(0, 1fr); } .art { width: 84px; height: 84px; }
+    dl { grid-template-columns: minmax(0, 1fr); } .bars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  /* Pixel font for the in-app designs; their styles are in designs.css */
+  @font-face { font-family: 'Press Start 2P'; src: url(data:font/woff2;base64,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) format('woff2'); font-display: swap; }
+</style>
+<link rel="stylesheet" href="designs.css?v=8">
+</head>
+<body>
+<main>
+  <h1>What Game Night can build from "2 Player Games"</h1>
+  <p class="lede">JindoBlu's one-phone mini-game collection has about 120 games. Game Night already has or plans most of the famous ones. You picked six of my ten contenders. This round improves the look and feel of all six playable designs. Each game below shows a before and after, and one line on what changed.</p>
+
+  <div class="facts">
+    <div class="fact"><b>100M+</b><span>Play Store downloads, 4.5★ from 734K reviews</span></div>
+    <div class="fact"><b>~60 named</b><span>games identified from the listing, screenshots, release notes and reviews</span></div>
+    <div class="fact"><b>#1 request</b><span>"let me play these with a friend who is far away" — the thing Game Night already does</span></div>
+    <div class="fact"><b>#1 complaint</b><span>ads after every match, then bots that feel rigged</span></div>
+  </div>
+
+  <div class="build"><b>Built: PUCK RUSH, YACHT, FACE OFF and CHOP CHOP are now real Game Night games.</b> Each has an online room, a solo page against a bot, unit tests and a two-phone test. They are finished and waiting to be merged into the app; nothing is deployed yet. SPOT KICK and GULP stay as designs here. The phones below are still the design sketches the games were built from.</div>
+
+  <h2>Your six picks, as they would look in Game Night</h2>
+  <p class="sub">Each phone on the left is a working sketch: tap it to try the game against a random bot. The small frames beside it show other moments of the same game. Everything is drawn with the app's own colours (matcha theme), pixel font, seat cards, buttons and status pill, and the characters are real output of our avatar kit. These are design sketches, not the finished games: no sound, no networking, and the bots are random.</p>
+  <p class="sub"><b>New in this round, across all six:</b> every play object now has the same dark outline, a highlight and a hard shadow, so the six read as one family. Every tap answers with a press, a pop or a number flying to the score it changes. Whose turn it is and what to do next is shown where you are already looking, not only in the pill at the bottom.</p>
+
+  <div class="designs">
+
+    <section class="design" id="d-yacht">
+      <div class="stage"><div class="gn" data-game="yacht"></div><div class="try"><b>Try it:</b> tap dice to hold them, ROLL, tap a box, SCORE. Then watch Maya take her turn.</div></div>
+      <div class="why">
+        <h3><span class="tag">C-01</span>YACHT<span class="st go">Built</span></h3>
+        <p class="one">Five dice, three rolls, thirteen boxes. The whole game fits one screen with no scrolling.</p>
+        <div class="specs"><span class="spec g">2–4 players</span><span class="spec">turn-based</span><span class="spec">about 8 minutes</span><span class="spec">online: easy</span><span class="spec">effort S/M</span></div>
+        <ol>
+          <li><span><b>Held dice lift and turn green.</b> You can read your kept set without counting pips. Three small squares show how many rolls you have used.</span></li>
+          <li><span><b>Every open box shows what this roll is worth.</b> Brown "+12" means points on offer, grey "0" means a wasted box. The best one gets a dashed outline, so a new player is never lost.</span></li>
+          <li><span><b>The SCORE button says what you are about to bank.</b> "SCORE +12 · FOURS" removes the classic mis-tap.</span></li>
+          <li><span><b>The bonus is a progress bar.</b> 63 points in the top six boxes earns 35 more; the bar shows how close you are.</span></li>
+          <li><span><b>Same frame as Pig.</b> Seat cards, one play panel, two buttons and the status pill are the parts the app already has.</span></li>
+        </ol>
+        <div class="moments">
+          <div class="moment"><div class="gn mini" data-game="yacht" data-state="yacht"></div><span class="cap">Five of a kind: the big moment</span></div>
+          <div class="moment"><div class="gn mini" data-game="yacht" data-state="end"></div><span class="cap">Round end, the app's usual panel</span></div>
+        </div>
+        <div class="r6"><h4>Round 6: what improved</h4><p>The dice are now the centre of the screen: they sit in a felt tray with weight and shadow, held dice lift out of their sockets, each open box shows its score as a solid chip, and Maya's turn is played out with her own purple dice. Before, the dice were small flat squares and her turn was only a number changing.</p><div class="pair"><figure><img src="before/yacht.png" alt="YACHT before this round" loading="lazy"><figcaption>Before</figcaption></figure><figure class="now"><img src="after/yacht.png" alt="YACHT after this round" loading="lazy"><figcaption>After (playable on the left)</figcaption></figure></div></div>
+      </div>
+    </section>
+
+    <section class="design" id="d-faceoff">
+      <div class="stage"><div class="gn" data-game="faceoff"></div><div class="try"><b>Try it:</b> tap a question to see how it splits the board, then ASK. Faces that cannot be the answer flip down.</div></div>
+      <div class="why">
+        <h3><span class="tag">C-02</span>FACE OFF<span class="st go">Built</span></h3>
+        <p class="one">Each player hides one of 24 faces. Ask yes/no questions, flip down the ones it cannot be, name the face first.</p>
+        <div class="specs"><span class="spec g">2 players</span><span class="spec">turn-based</span><span class="spec">about 4 minutes</span><span class="spec">online: easy</span><span class="spec">effort M</span></div>
+        <ol>
+          <li><span><b>The faces are our own avatar kit.</b> These 24 are real kit output, each with a short name. A new set is dealt every match, which fixes the "same faces every time" complaint about the app.</span></li>
+          <li><span><b>Questions are buttons, and the game answers.</b> It reads the answer off the secret face's real traits, so nobody can lie or misjudge, and there is no typing.</span></li>
+          <li><span><b>Faces flip by themselves.</b> After each answer the grid clears itself, and the big number on your seat card is how many are left.</span></li>
+          <li><span><b>You always see your own secret face</b> on your seat card, and how close your rival is to finding it.</span></li>
+          <li><span><b>NAME THE FACE is the gamble.</b> Right wins the round, wrong loses it, so guessing early with three left is a real decision.</span></li>
+        </ol>
+        <div class="moments">
+          <div class="moment"><div class="gn mini" data-game="faceoff" data-state="name"></div><span class="cap">Three left: name it or ask again?</span></div>
+          <div class="moment"><div class="gn mini" data-game="faceoff" data-state="end"></div><span class="cap">Both secret faces are revealed</span></div>
+        </div>
+        <div class="r6"><h4>Round 6: what improved</h4><p>Tapping a question now previews how it splits the board before you spend your turn: faces that would answer yes get a gold corner, the rest fade, and a line says "YES keeps 7 · NO keeps 9". Questions have icons, the answer lands as a stamp, and the cards flip down in a wave. Before, you had to count faces in your head.</p><div class="pair"><figure><img src="before/faceoff.png" alt="FACEOFF before this round" loading="lazy"><figcaption>Before</figcaption></figure><figure class="now"><img src="after/faceoff.png" alt="FACEOFF after this round" loading="lazy"><figcaption>After (playable on the left)</figcaption></figure></div></div>
+      </div>
+    </section>
+
+    <section class="design" id="d-spotkick">
+      <div class="stage"><div class="gn" data-game="spotkick"></div><div class="try"><b>Try it:</b> tap a corner, then SHOOT! while the bar is in the green. Then you keep goal.</div></div>
+      <div class="why">
+        <h3><span class="tag">C-03</span>SPOT KICK<span class="st park">Parked</span></h3>
+        <p class="one">Best-of-five penalties. Shooter and keeper both lock in secretly, then the kick plays out the same on both phones.</p>
+        <div class="specs"><span class="spec g">2 players</span><span class="spec">lock, then reveal</span><span class="spec">about 2 minutes</span><span class="spec">online: easy</span><span class="spec">effort S/M</span></div>
+        <ol>
+          <li><span><b>Six corners to aim at.</b> The dotted line is your shot; only you can see it until both players lock.</span></li>
+          <li><span><b>The power bar adds skill.</b> Stop it in the green and the shot is on target. Too soft is easy to save, too hard flies over the bar. The zone you are in lights up.</span></li>
+          <li><span><b>"Last dives" makes it a mind game.</b> The three small goals show where your rival went before, so you can read a habit or bait one.</span></li>
+          <li><span><b>You take turns in goal.</b> As keeper you pick a corner to dive to; the keeper wears the colour of whoever is in goal.</span></li>
+          <li><span><b>The score is five squares each</b>, filled for a goal and crossed for a miss, the way a shootout is shown on television.</span></li>
+        </ol>
+        <div class="moments">
+          <div class="moment"><div class="gn mini" data-game="spotkick" data-state="goal"></div><span class="cap">The reveal: keeper went the wrong way</span></div>
+          <div class="moment"><div class="gn mini" data-game="spotkick" data-state="keep"></div><span class="cap">Your turn in goal</span></div>
+          <div class="moment"><div class="gn mini" data-game="spotkick" data-state="end"></div><span class="cap">Round end</span></div>
+        </div>
+        <div class="r6"><h4>Round 6: what improved</h4><p>The goal now has depth (a back net, shadows, a bigger keeper who shuffles on the line), the aim is a target ring, and the power bar names its three zones and lights the one you are in. A badge says who is shooting. Before, the goal was flat and the bar's labels were cut off by the marker.</p><div class="pair"><figure><img src="before/spotkick.png" alt="SPOTKICK before this round" loading="lazy"><figcaption>Before</figcaption></figure><figure class="now"><img src="after/spotkick.png" alt="SPOTKICK after this round" loading="lazy"><figcaption>After (playable on the left)</figcaption></figure></div></div>
+      </div>
+    </section>
+
+    <section class="design" id="d-puckrush">
+      <div class="stage"><div class="gn" data-game="puckrush"></div><div class="try"><b>Try it:</b> drag a green puck backwards and let go. Get them all through the gap.</div></div>
+      <div class="why">
+        <h3><span class="tag">C-04</span>PUCK RUSH<span class="st go">Built</span></h3>
+        <p class="one">Sling every puck through the gap to the other side. Both players fire at once; first to empty their side wins.</p>
+        <div class="specs"><span class="spec g">2 players</span><span class="spec">real-time</span><span class="spec">about 1 minute a round</span><span class="spec">online: needs two-device testing</span><span class="spec">effort M</span></div>
+        <ol>
+          <li><span><b>It is the Air Hockey table with a wall.</b> Same rink, same pucks, your end nearest your thumb. The app already has the physics and the peer-to-peer link.</span></li>
+          <li><span><b>Pull back, let go.</b> The elastic band stretches around the puck and a dotted line shows where it will fly.</span></li>
+          <li><span><b>A puck takes the colour of the side it is on.</b> Green ones are yours to get rid of. "4 LEFT" is the whole score.</span></li>
+          <li><span><b>Only the gap lets pucks through.</b> Everything else bounces back, and pucks coming the other way knock yours off line.</span></li>
+          <li><span><b>On one phone</b> the rink fills the screen and each player owns one end, which is how the original toy is played.</span></li>
+        </ol>
+        <div class="moments">
+          <div class="moment"><div class="gn mini" data-game="puckrush" data-state="start"></div><span class="cap">Kick-off: five pucks each</span></div>
+          <div class="moment"><div class="gn mini" data-game="puckrush" data-state="end"></div><span class="cap">Your side is clear: round won</span></div>
+        </div>
+        <div class="r6"><h4>Round 6: what improved</h4><p>Each half is tinted in its owner's colour, so "green pucks are yours" needs no explaining. Pucks, wall and bands have bevels and shadows, arrows mark the gap as the only way through, and the score is a row of pucks that empties. Pucks spark when they cross or hit the wall. Before, it was flat discs on a grey field and the hint was cut off.</p><div class="pair"><figure><img src="before/puckrush.png" alt="PUCKRUSH before this round" loading="lazy"><figcaption>Before</figcaption></figure><figure class="now"><img src="after/puckrush.png" alt="PUCKRUSH after this round" loading="lazy"><figcaption>After (playable on the left)</figcaption></figure></div></div>
+      </div>
+    </section>
+
+    <section class="design" id="d-chop">
+      <div class="stage"><div class="gn" data-game="chop"></div><div class="try"><b>Try it:</b> tap LEFT or RIGHT (or the arrow keys). The red button is the side with a beam.</div></div>
+      <div class="why">
+        <h3><span class="tag">C-06</span>CHOP CHOP<span class="st go">Built</span></h3>
+        <p class="one">A 30-second race. Knock crates out of the stack as fast as you can without a beam landing on your head.</p>
+        <div class="specs"><span class="spec g">2–8 players</span><span class="spec">simultaneous race</span><span class="spec">30 seconds</span><span class="spec">online: easy</span><span class="spec">effort S</span></div>
+        <ol>
+          <li><span><b>It is you with the mallet.</b> The character is the full-body avatar from your profile, so the game needs no hero art of its own.</span></li>
+          <li><span><b>Two buttons.</b> Tap a side to hop there and smash the bottom crate. The stack drops by one.</span></li>
+          <li><span><b>Striped beams are the danger.</b> If one comes down on your side you are stunned for a second and lose your streak. You are never knocked out, so a bad start can still win.</span></li>
+          <li><span><b>Everyone gets the same stack.</b> It is a fair race: same crates, same beams, most crates in 30 seconds.</span></li>
+          <li><span><b>You can see the race.</b> A chip in the corner shows your rival's face and how far ahead or behind you are, and it changes colour when the lead changes.</span></li>
+        </ol>
+        <div class="moments">
+          <div class="moment"><div class="gn mini" data-game="chop" data-state="bonk"></div><span class="cap">Hit by a beam: one second stunned</span></div>
+          <div class="moment"><div class="gn mini" data-game="chop" data-state="end"></div><span class="cap">Time up</span></div>
+        </div>
+        <div class="r6"><h4>Round 6: what improved</h4><p>The crates and mallet are redrawn so they read at a glance, the clock sits on the timer bar, your lead over Maya is one chip, and the button on the side with a beam turns red. That last one teaches the rule through the controls; in the real game it should fade after the first rounds, or the race is too easy. Before, the lead was two small faces on an unlabelled rail.</p><div class="pair"><figure><img src="before/chop.png" alt="CHOP before this round" loading="lazy"><figcaption>Before</figcaption></figure><figure class="now"><img src="after/chop.png" alt="CHOP after this round" loading="lazy"><figcaption>After (playable on the left)</figcaption></figure></div></div>
+      </div>
+    </section>
+
+    <section class="design" id="d-gulp">
+      <div class="stage"><div class="gn" data-game="gulp"></div><div class="try"><b>Try it:</b> press GULP! when the button says NOW!. Hold off when it warns of a wasp.</div></div>
+      <div class="why">
+        <h3><span class="tag">C-10</span>GULP<span class="st park">Parked</span></h3>
+        <p class="one">Four frogs round a pond, one button each. Catch fireflies with your tongue; the most points in 30 seconds wins.</p>
+        <div class="specs"><span class="spec g">2–4 players</span><span class="spec">real-time</span><span class="spec">30 seconds</span><span class="spec">online: 4-player real-time is new</span><span class="spec">effort M</span></div>
+        <ol>
+          <li><span><b>Each player is a frog in their seat colour</b> on a lily pad. Yours is always at the bottom of your own screen.</span></li>
+          <li><span><b>One button.</b> GULP! fires your tongue straight down your lit lane and grabs the first thing inside it.</span></li>
+          <li><span><b>Three kinds of bug.</b> A firefly is +1, a gold one is +3, a red wasp is −2. Wasps drift in front of the good ones, so timing beats mashing.</span></li>
+          <li><span><b>The button recharges.</b> The bar inside it refills in about half a second after each gulp.</span></li>
+          <li><span><b>Frogs, not hippos.</b> The marble-grabbing toy this comes from is a trademark, so the theme, the creatures and the scoring are our own.</span></li>
+        </ol>
+        <div class="moments">
+          <div class="moment"><div class="gn mini" data-game="gulp" data-state="phone"></div><span class="cap">One phone: a button in each corner</span></div>
+          <div class="moment"><div class="gn mini" data-game="gulp" data-state="end"></div><span class="cap">Time up</span></div>
+        </div>
+        <div class="r6"><h4>Round 6: what improved</h4><p>The frogs are redrawn to read as frogs, and your lane is now a lit strip that is the exact catch zone. The button tells you what a press would grab right now: "NOW!", "GOLD! NOW!" or "WASP FIRST · HOLD!". The pond's rim drains as the timer and fireflies glow. Before, you had to guess whether a bug was close enough to the dotted line.</p><div class="pair"><figure><img src="before/gulp.png" alt="GULP before this round" loading="lazy"><figcaption>Before</figcaption></figure><figure class="now"><img src="after/gulp.png" alt="GULP after this round" loading="lazy"><figcaption>After (playable on the left)</figcaption></figure></div></div>
+      </div>
+    </section>
+  </div>
+
+  <h2>Top contenders, ranked</h2>
+  <p class="sub">Ranked on four things: works on one phone and online, fun, build effort, and how freely we can make it our own. Names are working titles of ours, not the app's. Effort: S ≈ one session, M ≈ 2–3 sessions, L ≈ a week.</p>
+
+  <div class="cards">
+
+    <section class="card top">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><g fill="#fffdf6" stroke="#1f2a22" stroke-width="4"><rect x="14" y="20" width="36" height="36" rx="7"/><rect x="60" y="34" width="36" height="36" rx="7"/><rect x="30" y="64" width="36" height="36" rx="7"/></g><g fill="#d1495b"><circle cx="32" cy="38" r="4"/><circle cx="70" cy="44" r="4"/><circle cx="86" cy="60" r="4"/><circle cx="40" cy="74" r="4"/><circle cx="48" cy="82" r="4"/><circle cx="56" cy="90" r="4"/></g></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-01</span><h3>YACHT</h3><span class="from">from the app's "Yazy Classic"</span></div>
+        <p class="pitch">Roll five dice up to three times, then lock the result into one of thirteen scoring boxes. Every turn is a small gamble: take the safe points now or chase the five-of-a-kind.</p>
+        <div class="chips"><span class="chip s">Effort S/M</span><span class="chip">2–4 players</span><span class="chip">turn-based</span><span class="chip">solo vs bot</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>Game Night has no scoring dice game, only Pig and bluffing dice. Turn-based, so online play is trivial and it survives a slow connection.</dd></div>
+          <div><dt>Reuse</dt><dd>Fair-dice seed from Pig, standard registry page, pass-and-play.</dd></div>
+          <div><dt>Make it ours</dt><dd>Yacht is the public-domain game; our own name, sheet layout and category names.</dd></div>
+          <div><dt>Risk</dt><dd>Scorecard must stay readable on a 360 px phone.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:100%"></i></div></div><div>Fun<div class="bar"><i style="width:80%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:80%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:100%"></i></div></div></div>
+      </div>
+    </section>
+
+    <section class="card top">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><g stroke="#1f2a22" stroke-width="3"><rect x="10" y="14" width="26" height="26" rx="5" fill="#f3c9a5"/><rect x="43" y="14" width="26" height="26" rx="5" fill="#9aa39c"/><rect x="76" y="14" width="26" height="26" rx="5" fill="#c58b5e"/><rect x="10" y="46" width="26" height="26" rx="5" fill="#9aa39c"/><rect x="43" y="46" width="26" height="26" rx="5" fill="#f1dc8a"/><rect x="76" y="46" width="26" height="26" rx="5" fill="#9aa39c"/></g><text x="56" y="100" text-anchor="middle" font-size="20" font-weight="700" fill="#1f2a22" font-family="ui-sans-serif,system-ui">hat?</text></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-02</span><h3>FACE OFF</h3><span class="from">from "Guess the Person"</span></div>
+        <p class="pitch">Each player secretly picks one face from a grid of 24. Take turns asking yes/no questions — "glasses?", "hat?" — and flip down everyone who doesn't match. First to name the other's face wins.</p>
+        <div class="chips"><span class="chip m">Effort M</span><span class="chip">2 players</span><span class="chip">turn-based</span><span class="chip">hidden info</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>Named a favourite in reviews, and the one complaint is "tired of the same faces". Our avatar kit can deal a fresh set of faces every match.</dd></div>
+          <div><dt>Reuse</dt><dd>Avatar kit faces (as Name Tags does), commit–reveal for the secret pick.</dd></div>
+          <div><dt>Make it ours</dt><dd>Our own faces and question chips; the deduction mechanic is not protected, the trade name "Guess Who?" is.</dd></div>
+          <div><dt>Risk</dt><dd>Questions must be answered by the game from the face's traits, or players can lie.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:80%"></i></div></div><div>Fun<div class="bar"><i style="width:90%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:60%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:100%"></i></div></div></div>
+      </div>
+    </section>
+
+    <section class="card top">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><rect x="8" y="14" width="96" height="46" fill="none" stroke="#1f2a22" stroke-width="4"/><path d="M8 37h96M40 14v46M72 14v46" stroke="#1f2a22" stroke-width="1.5" stroke-dasharray="3 4"/><circle cx="88" cy="26" r="9" fill="#fffdf6" stroke="#1f2a22" stroke-width="3"/><rect x="18" y="38" width="20" height="20" rx="6" fill="#2e6fb7" stroke="#1f2a22" stroke-width="3"/><path d="M56 100 L84 34" stroke="#d1495b" stroke-width="3" stroke-dasharray="5 5"/><circle cx="56" cy="98" r="7" fill="#1f2a22"/></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-03</span><h3>SPOT KICK</h3><span class="from">from "Penalty Kicks"</span></div>
+        <p class="pitch">Best-of-five shootout. The kicker picks a corner and stops a power meter; the keeper picks a dive at the same moment. Then both watch the kick play out. Swap roles every shot.</p>
+        <div class="chips"><span class="chip s">Effort S/M</span><span class="chip">2 players</span><span class="chip">simultaneous picks</span><span class="chip">60-second match</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>It is one of the app's headline games and Game Night has no sports duel. Both picks are locked before the reveal, so network delay cannot matter.</dd></div>
+          <div><dt>Reuse</dt><dd>Commit–reveal for the two secret picks, server clock for the pick timer, round-end panel.</dd></div>
+          <div><dt>Make it ours</dt><dd>Mind-game layer: the kicker can see the keeper's last three dives.</dd></div>
+          <div><dt>Risk</dt><dd>Pure guessing gets stale; the power meter and the "tells" are what keep it a game.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:100%"></i></div></div><div>Fun<div class="bar"><i style="width:80%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:80%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:90%"></i></div></div></div>
+      </div>
+    </section>
+
+    <section class="card top">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><rect x="12" y="10" width="88" height="92" rx="8" fill="#e3c48d" stroke="#1f2a22" stroke-width="4"/><path d="M12 56h34M66 56h34" stroke="#1f2a22" stroke-width="5"/><path d="M14 92 Q56 84 98 92" stroke="#1f2a22" stroke-width="2" fill="none"/><g stroke="#1f2a22" stroke-width="2.5"><circle cx="34" cy="28" r="8" fill="#d1495b"/><circle cx="70" cy="34" r="8" fill="#d1495b"/><circle cx="56" cy="56" r="8" fill="#2e6fb7"/><circle cx="32" cy="76" r="8" fill="#2e6fb7"/><circle cx="78" cy="80" r="8" fill="#2e6fb7"/></g></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-04</span><h3>PUCK RUSH</h3><span class="from">from "Sling Puck"</span></div>
+        <p class="pitch">Five pucks each, one small gap in the middle wall. Pull a puck back against your elastic and fire it through the gap. Both play at once; first to empty their side wins.</p>
+        <div class="chips"><span class="chip m">Effort M</span><span class="chip">2 players</span><span class="chip">real-time</span><span class="chip">frantic</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>The best face-to-face game in the app: two thumbs on one phone, total chaos, 30 seconds a round. Nothing like it in Game Night.</dd></div>
+          <div><dt>Reuse</dt><dd>Air Hockey's puck physics and the peer-to-peer stack.</dd></div>
+          <div><dt>Make it ours</dt><dd>A traditional wooden tabletop game, no owner. Add a moving or shrinking gap as a mode.</dd></div>
+          <div><dt>Risk</dt><dd>Ten pucks colliding must stay in sync online; needs real two-device testing.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:80%"></i></div></div><div>Fun<div class="bar"><i style="width:100%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:60%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:100%"></i></div></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><g stroke="#1f2a22" stroke-width="2"><rect x="16" y="16" width="80" height="80" fill="#fffdf6"/><g fill="#7c9a74"><rect x="36" y="16" width="20" height="20"/><rect x="76" y="16" width="20" height="20"/><rect x="16" y="36" width="20" height="20"/><rect x="56" y="36" width="20" height="20"/><rect x="36" y="56" width="20" height="20"/><rect x="76" y="56" width="20" height="20"/><rect x="16" y="76" width="20" height="20"/><rect x="56" y="76" width="20" height="20"/></g></g><path d="M40 70h12l-2-8c4-4 2-12-4-12s-8 8-4 12z" fill="#1f2a22"/><path d="M60 50h12l-2-8c4-4 2-12-4-12s-8 8-4 12z" fill="#fffdf6" stroke="#1f2a22" stroke-width="2"/></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-05</span><h3>CHESS</h3><span class="from">from "Chess"</span></div>
+        <p class="pitch">The real game, with proper checkmate. It is the most-mentioned game in the app's reviews, and players complain the app gets the rules wrong (you have to capture the king).</p>
+        <div class="chips"><span class="chip l">Effort L</span><span class="chip">2 players</span><span class="chip">turn-based</span><span class="chip">solo vs bot</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>The biggest hole in the board shelf: Checkers, Reversi, Hex and Onitama are there, chess is not. Online play with a friend is the natural way to play it.</dd></div>
+          <div><dt>Reuse</dt><dd>Checkers-style registry page with a move hook, zoom viewport, focus stage.</dd></div>
+          <div><dt>Make it ours</dt><dd>Public domain. Our own pixel piece set; a 5-minute "blitz" clock on the server clock.</dd></div>
+          <div><dt>Risk</dt><dd>Full rules (castling, en passant, promotion, stalemate, repetition) plus a decent bot. Ranked fifth only because of size.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:100%"></i></div></div><div>Fun<div class="bar"><i style="width:90%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:25%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:100%"></i></div></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><rect x="46" y="8" width="20" height="96" fill="#a8744a" stroke="#1f2a22" stroke-width="3"/><path d="M66 30h26v8H66zM20 58h26v8H20zM66 84h26v8H66z" fill="#2f7d4f" stroke="#1f2a22" stroke-width="3"/><circle cx="30" cy="92" r="9" fill="#d1495b" stroke="#1f2a22" stroke-width="3"/></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-06</span><h3>CHOP CHOP</h3><span class="from">from "Lumberjack"</span></div>
+        <p class="pitch">Tap left or right to chop a falling tower; a branch on your side knocks you out. Both players chop the same tower from the same seed against a draining timer. Most chops wins.</p>
+        <div class="chips"><span class="chip s">Effort S</span><span class="chip">2–8 players</span><span class="chip">seeded race</span><span class="chip">solo high score</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>Cheapest strong addition. Each player runs their own copy of the same tower, so there is no lag to worry about.</dd></div>
+          <div><dt>Reuse</dt><dd>The race shell and seeded-race logic already used by Mine Race and Updraft.</dd></div>
+          <div><dt>Make it ours</dt><dd>Not a tree. A pixel totem or a stack of crates, with our own hazards.</dd></div>
+          <div><dt>Risk</dt><dd>Close to a well-known mobile game in feel, so the theme and hazards must be clearly different.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:90%"></i></div></div><div>Fun<div class="bar"><i style="width:70%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:100%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:60%"></i></div></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><rect x="8" y="24" width="96" height="70" rx="6" fill="#8a5a3c" stroke="#1f2a22" stroke-width="4"/><g stroke="#1f2a22" stroke-width="2" font-family="ui-monospace,monospace" font-size="11" font-weight="700"><rect x="14" y="30" width="12" height="26" fill="#fffdf6"/><rect x="28" y="40" width="12" height="16" fill="#c9bfa5"/><rect x="42" y="30" width="12" height="26" fill="#fffdf6"/><rect x="56" y="30" width="12" height="26" fill="#fffdf6"/><rect x="70" y="40" width="12" height="16" fill="#c9bfa5"/><rect x="84" y="30" width="12" height="26" fill="#fffdf6"/></g><rect x="34" y="64" width="18" height="18" rx="4" fill="#fffdf6" stroke="#1f2a22" stroke-width="2.5"/><rect x="60" y="66" width="18" height="18" rx="4" fill="#fffdf6" stroke="#1f2a22" stroke-width="2.5"/><circle cx="43" cy="73" r="2.5"/><circle cx="65" cy="71" r="2.5"/><circle cx="73" cy="79" r="2.5"/></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-07</span><h3>SHUT THE BOX</h3><span class="from">from "Shut the Box"</span></div>
+        <p class="pitch">Nine numbered tiles, two dice. Roll, then flip down any tiles that add up to your roll. Keep going until you can't; lowest leftover wins. Two minutes, one more go.</p>
+        <div class="chips"><span class="chip s">Effort S</span><span class="chip">2–4 players</span><span class="chip">turn-based</span><span class="chip">solo</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>A pub classic that explains itself in one turn. Pairs well with Yacht as a second dice game from the same dice work.</dd></div>
+          <div><dt>Reuse</dt><dd>Pig's dice and seed, standard registry page.</dd></div>
+          <div><dt>Make it ours</dt><dd>Traditional game, no owner. Add a 12-tile variant.</dd></div>
+          <div><dt>Risk</dt><dd>Mostly luck; it is a filler, not a main event.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:100%"></i></div></div><div>Fun<div class="bar"><i style="width:60%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:100%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:100%"></i></div></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><g fill="#d1495b" stroke="#1f2a22" stroke-width="3"><circle cx="40" cy="26" r="10"/><circle cx="64" cy="26" r="10"/><circle cx="52" cy="46" r="10"/></g><path d="M30 100 Q46 50 54 50" stroke="#1f2a22" stroke-width="3" stroke-dasharray="5 5" fill="none"/><circle cx="30" cy="100" r="6" fill="#fffdf6" stroke="#1f2a22" stroke-width="3"/></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-08</span><h3>CUP SHOT</h3><span class="from">from "Cup Pong"</span></div>
+        <p class="pitch">Six cups in a triangle each. Flick a ball across the table; sink a cup and it disappears. Two throws a turn, re-rack once, first to clear the other side wins.</p>
+        <div class="chips"><span class="chip m">Effort M</span><span class="chip">2 players</span><span class="chip">turn-based shots</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>A flick-and-watch game is easy to read online: your friend sees the exact same throw replayed.</dd></div>
+          <div><dt>Reuse</dt><dd>The shot-replay approach from Archery and Artillery.</dd></div>
+          <div><dt>Make it ours</dt><dd>Party game with no owner; keep it family-safe (cups and a ball, no drinks).</dd></div>
+          <div><dt>Risk</dt><dd>Overlaps Archery and Minigolf in feel: aim, release, watch.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:90%"></i></div></div><div>Fun<div class="bar"><i style="width:70%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:60%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:90%"></i></div></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><path d="M10 56h92" stroke="#a8744a" stroke-width="7"/><path d="M56 40v32" stroke="#1f2a22" stroke-width="3" stroke-dasharray="4 4"/><circle cx="24" cy="56" r="13" fill="#2e6fb7" stroke="#1f2a22" stroke-width="3"/><circle cx="88" cy="56" r="13" fill="#d1495b" stroke="#1f2a22" stroke-width="3"/><path d="M50 50l8 6-8 6z" fill="#c99a1c" stroke="#1f2a22" stroke-width="2"/></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-09</span><h3>HEAVE</h3><span class="from">from "Tug of War" and "Red Hands"</span></div>
+        <p class="pitch">Tug of war, but tapping on the beat pulls harder than mashing. A second mode is the hand-slap game: one player feints and strikes, the other pulls away, and flinching early costs a point.</p>
+        <div class="chips"><span class="chip s">Effort S (tug)</span><span class="chip m">M (slap)</span><span class="chip">2 players</span><span class="chip">real-time</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>These are the app's poster games, and the best "two fingers on one screen" moments.</dd></div>
+          <div><dt>Reuse</dt><dd>Peer-to-peer stack and Sumo's push physics for the rope.</dd></div>
+          <div><dt>Make it ours</dt><dd>The rhythm rule is our twist; plain mashing wears thumbs out and favours whoever taps faster.</dd></div>
+          <div><dt>Risk</dt><dd>The slap game is a pure reaction duel, so online lag decides it. Good on one phone, doubtful online.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:55%"></i></div></div><div>Fun<div class="bar"><i style="width:75%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:80%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:80%"></i></div></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <svg class="art" viewBox="0 0 112 112" aria-hidden="true"><circle cx="56" cy="56" r="44" fill="#cfe4f2" stroke="#1f2a22" stroke-width="4"/><g stroke="#1f2a22" stroke-width="2"><circle cx="44" cy="48" r="5" fill="#c99a1c"/><circle cx="62" cy="42" r="5" fill="#fffdf6"/><circle cx="68" cy="62" r="5" fill="#fffdf6"/><circle cx="48" cy="68" r="5" fill="#fffdf6"/><circle cx="56" cy="56" r="5" fill="#fffdf6"/></g><g stroke="#1f2a22" stroke-width="3"><rect x="46" y="2" width="20" height="24" rx="8" fill="#d1495b"/><rect x="46" y="86" width="20" height="24" rx="8" fill="#2e6fb7"/></g></svg>
+      <div class="body">
+        <div class="head"><span class="rank">C-10</span><h3>GULP</h3><span class="from">from "Happy Hippos"</span></div>
+        <p class="pitch">Marbles bounce around a pond. Tap to lunge and swallow whatever is in reach. Gold marbles are worth three, a rotten one costs you. Most points when the pond is empty.</p>
+        <div class="chips"><span class="chip m">Effort M</span><span class="chip">2–4 players</span><span class="chip">real-time</span><span class="chip">party</span></div>
+        <dl>
+          <div><dt>Why it fits</dt><dd>One button, instantly understood by a six-year-old, and it scales to four players around one phone.</dd></div>
+          <div><dt>Reuse</dt><dd>Peer-to-peer stack; marble physics from Air Hockey.</dd></div>
+          <div><dt>Make it ours</dt><dd>Our own creatures (frogs and fireflies, say). The toy this comes from is a trademark, so no hippos and no similar name.</dd></div>
+          <div><dt>Risk</dt><dd>Four-player real-time is new ground for the network layer.</dd></div>
+        </dl>
+        <div class="bars"><div>One phone + online<div class="bar"><i style="width:65%"></i></div></div><div>Fun<div class="bar"><i style="width:70%"></i></div></div><div>Cheap to build<div class="bar"><i style="width:55%"></i></div></div><div>Free to make ours<div class="bar"><i style="width:60%"></i></div></div></div>
+      </div>
+    </section>
+  </div>
+
+  <h2>Change the picks?</h2>
+  <form class="pick" data-lavish-question="twoplayer-picks" onsubmit="event.preventDefault(); const f = event.currentTarget; const items = [...f.querySelectorAll('input[name=items]:checked')].map(i => ({ id: i.value, label: i.dataset.label, disposition: 'add-to-backlog' })); const note = f.querySelector('textarea').value.trim(); if (!items.length && !note) return; window.lavish.queuePrompt('Captain picked these contenders for the backlog. Account for every submitted ID.' + (note ? ' Note: ' + note : ''), { tag: 'tracked-batch', text: 'Backlog picks: ' + (items.map(i => i.id + ' ' + i.label).join(', ') || 'none') + (note ? ' — ' + note : ''), element: f, queueKey: 'twoplayer-picks', data: { items, note } }); document.getElementById('queued').textContent = 'Queued ' + items.length + ' pick(s). Press Send to Agent to deliver.';">
+    <p><b>Your six picks are ticked.</b> Change them here if the designs changed your mind, or leave a note on what to redraw.</p>
+    <div class="opts">
+      <label><input type="checkbox" name="items" value="C-01" data-label="YACHT" checked> C-01 YACHT · dice · S/M</label>
+      <label><input type="checkbox" name="items" value="C-02" data-label="FACE OFF" checked> C-02 FACE OFF · guess the face · M</label>
+      <label><input type="checkbox" name="items" value="C-03" data-label="SPOT KICK" checked> C-03 SPOT KICK · penalties · S/M</label>
+      <label><input type="checkbox" name="items" value="C-04" data-label="PUCK RUSH" checked> C-04 PUCK RUSH · sling pucks · M</label>
+      <label><input type="checkbox" name="items" value="C-05" data-label="CHESS"> C-05 CHESS · L</label>
+      <label><input type="checkbox" name="items" value="C-06" data-label="CHOP CHOP" checked> C-06 CHOP CHOP · tap race · S</label>
+      <label><input type="checkbox" name="items" value="C-07" data-label="SHUT THE BOX"> C-07 SHUT THE BOX · dice · S</label>
+      <label><input type="checkbox" name="items" value="C-08" data-label="CUP SHOT"> C-08 CUP SHOT · flick · M</label>
+      <label><input type="checkbox" name="items" value="C-09" data-label="HEAVE"> C-09 HEAVE · tug + slap · S–M</label>
+      <label><input type="checkbox" name="items" value="C-10" data-label="GULP" checked> C-10 GULP · marble grab · M</label>
+    </div>
+    <textarea name="note" placeholder="Anything else: a game from the bench, a rename, a different order…"></textarea>
+    <button type="submit">Queue my picks</button><span id="queued"></span>
+    <p class="note">You can also click any card or line on this page and comment on it directly.</p>
+  </form>
+
+  <h2>On the bench</h2>
+  <p class="sub">Reasonable, but weaker than the ten above.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Game</th><th>What it is</th><th>Why it waits</th></tr></thead>
+    <tbody>
+      <tr><td>Backgammon</td><td>The classic race-and-hit dice board</td><td>Large build and hard to teach; better after Ludo proves the fair-dice work</td></tr>
+      <tr><td>Bowling / Darts / Basketball</td><td>Take turns at a timing-based throw</td><td>Same "aim, release, watch" feel as Archery and Minigolf, which already exist</td></tr>
+      <tr><td>Volley / Tennis / Mini Soccer</td><td>Real-time ball sports</td><td>Reviewers say the ball's height is hard to read from above; costly to sync online</td></tr>
+      <tr><td>Sword Duels</td><td>Real-time one-button fighting</td><td>Lag-sensitive and a week of tuning to feel fair</td></tr>
+      <tr><td>Snowball Throw</td><td>Lob snowballs across a wall</td><td>Very close to Artillery</td></tr>
+      <tr><td>Rock Paper Scissors</td><td>Simultaneous secret pick</td><td>Too thin as a game; useful as a "who goes first" moment instead</td></tr>
+      <tr><td>Solo puzzles (Nuts and Bolts, Maze Paint, Triple, Matching Numbers, Sudoku)</td><td>One-player sorting and matching puzzles</td><td>Not two-player; could become seeded races later</td></tr>
+      <tr><td>Fruit Merge, Brainrot Stack</td><td>Trend clones</td><td>Copies of other people's games and memes; skip</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Skipped: already in Game Night or planned</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>In the app</th><th>Game Night</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Ping Pong · Air Hockey · Snakes · Sumo · Spinner War</td><td>Pong · Air Hockey · Snake Battle · Sumo Arena</td><td>Live</td></tr>
+      <tr><td>Tic Tac Toe · Ultimate Tic Tac Toe · Reversi · Checkers · Four in a row · Memory / Find Match</td><td>Same games, plus variants</td><td>Live</td></tr>
+      <tr><td>Minigolf / Golf · Archery · Animal Stack · Target Practice · Reaction / Reflex Race</td><td>Minigolf · Archery · Animal Stack · Aim Trainer · Reaction Time</td><td>Live</td></tr>
+      <tr><td>Paint Fighters · Tank duel · Maths duel</td><td>Paint Turf · Artillery · Mental Math</td><td>Live</td></tr>
+      <tr><td>Pool · Ludo · Snakes and Ladders · Hammer Hit</td><td>Pool · Ludo · Snakes &amp; Ladders · whack-a-mole</td><td>Planned</td></tr>
+      <tr><td>Racing Cars · Slot Cars · Taxi Race · Road Dodge · Crash It</td><td>Head-On · Turbo Laps</td><td>Planned</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>What players say about the app</h2>
+  <div class="cols">
+    <div class="panel"><h4>They love</h4><ul>
+      <li>Works with no internet, on one phone, in a car or a queue.</li>
+      <li>A bot with three levels, so you can play alone.</li>
+      <li>Simple flat art and a new game every few weeks.</li>
+      <li>A "cup" that strings seven random games into one contest.</li>
+    </ul></div>
+    <div class="panel"><h4>They complain about</h4><ul>
+      <li>Ads after nearly every match, some unsuitable for children; games moved behind a paywall.</li>
+      <li>Bots that seem to cheat: Ludo dice, Backgammon, Memory on hard.</li>
+      <li>Rules that are wrong or unexplained: Chess, Pool, Basketball's first-shooter advantage.</li>
+      <li>Only a handful of games can be played online.</li>
+    </ul></div>
+    <div class="panel"><h4>They ask for</h4><ul>
+      <li><q>an option of inviting friends … who are far away from us</q> — the most repeated request.</li>
+      <li>Three and four players.</li>
+      <li>Pick-your-own tournament: <q>select which 7 games to play</q>.</li>
+      <li>Fresh faces in Guess the Person.</li>
+    </ul></div>
+  </div>
+  <p class="note" style="margin-top:14px">Sources: Google Play listing and 120 reviews, App Store listing, release notes for the last 25 versions and 40 most-helpful reviews, read 8 Oct 2026. Game Night's catalogue read from the game registry (95 entries). I could not install the app, so the game list is about 60 named games out of the roughly 120 the store claims.</p>
+</main>
+<script src="kit.js?v=8"></script>
+<script src="designs.js?v=8"></script>
+</body>
+</html>
