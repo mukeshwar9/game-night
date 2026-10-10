@@ -43,8 +43,8 @@ describe('groupPickerForParty over the real registry', () => {
   // STEADY HAND and LAZY SUSAN (2–4) and CHOP CHOP, BAMBOOZLE and FIRST CUT (2–8 races) added since (94 cards).
   it.each([
     [2, 87, 0, 8],
-    [3, 24, 69, 1],
-    [4, 25, 69, 0],
+    [3, 25, 69, 1],
+    [4, 26, 69, 0],
   ])('a party of %i: %i everyone-plays, %i take-turns, %i need more', (n, all, rotate, short) => {
     const g = groupPickerForParty(GAME_TYPES, n)
     expect([g.all.length, g.rotate.length, g.short.length]).toEqual([all, rotate, short])
