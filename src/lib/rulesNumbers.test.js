@@ -33,6 +33,7 @@ import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
 import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS as STICKY_ROUND_S } from './stickyLogic'
 import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
+import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
@@ -271,6 +272,12 @@ const RULE_NUMBERS = {
     checks: [
       [3, FENDER_HEARTS], [4, FENDER_HORN], [28, FENDER_SQUEEZE], [2, FENDER_GHOST],
       [3, first('fenderbender')], [3, FENDER_TARGETS[2]], [5, FENDER_TARGETS[3]], [7, FENDER_TARGETS[4]],
+    ],
+  }),
+  lazysusan: () => ({
+    checks: [
+      [1, SUSAN.dumplingValue], [3, SUSAN.bunValue], [1, SUSAN.missPenalty], [2, SUSAN.hotPenalty],
+      [15, SUSAN_TARGETS[2]], [12, SUSAN_TARGETS[3]], [10, SUSAN_TARGETS[4]],
     ],
   }),
   minigolf: () => ({

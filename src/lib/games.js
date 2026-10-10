@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -122,6 +122,7 @@ import {
 } from './blockadeLogic'
 import { applyDiceMove, generateSeedHex, rollFace, rollFacePair } from './diceLogic'
 import { createRound as createYachtRound, MIN_PLAYERS as YACHT_MIN_PLAYERS, MAX_PLAYERS as YACHT_MAX_PLAYERS } from './yachtLogic'
+import { createRound as createSusanRound, MIN_PLAYERS as SUSAN_MIN_PLAYERS, MAX_PLAYERS as SUSAN_MAX_PLAYERS } from './lazySusanRound'
 import { runPigRoomEffect } from '../hooks/room/pigSeedProtocol'
 import { seatOrder as seatOrderWL, pickSpectrumIndex } from './wavelengthLogic'
 import {
@@ -1600,6 +1601,32 @@ export const GAME_TYPES = [
     },
   },
   {
+    type: 'lazysusan', label: 'LAZY SUSAN',
+    desc: 'tap when the food reaches your gate', Icon: LazySusanIcon,
+    badge: 'LS', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 2, tags: ['skill', 'quick', 'party'], solo: true,
+    // One shared turning plate, 2-4 seats on the uid-keyed room model (lobby →
+    // host START). The match is one object under `round` (lazySusanLogic.js);
+    // a taken piece is a write-once claim, so the first writer owns it.
+    // LocalPage: /local/lazysusan is 2-4 on one phone, /solo/lazysusan a bot.
+    custom: true, nPlayer: true, minPlayers: SUSAN_MIN_PLAYERS, maxPlayers: SUSAN_MAX_PLAYERS, localMaxPlayers: SUSAN_MAX_PLAYERS,
+    Page: lazyWithRetry(() => import('../pages/LazySusanGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/LazySusanDemo').then(m => ({ default: m.LazySusanLocal }))),
+    startRound: (players, _room, ctx) => {
+      // Seat order is the lobby's: joinedAt, then uid. startAt is the server
+      // time the transaction was built at, so the countdown is shared.
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, SUSAN_MAX_PLAYERS)
+        .map(p => p.playerId)
+      if (seats.length < SUSAN_MIN_PLAYERS) return null
+      return { board: null, currentTurn: null, scores: {}, round: createSusanRound(seats, generateSeed(), ctx?.now ?? Date.now()) }
+    },
+  },
+  {
     type: 'bluff', label: 'BLUFF BATTLE',
     desc: 'outroll the liar', Icon: BluffIcon,
     badge: 'BB', maxWidth: 'max-w-sm',
@@ -2482,6 +2509,10 @@ export function freshGameState(gameType, previous = null) {
   if (gameType === 'stickyfingers' || gameType === 'fenderbender') {
     // Realtime (pong family): the round lives in the host's sim, the room only
     // holds the standard winner/scores.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
+  }
+  if (gameType === 'lazysusan') {
+    // The match is one `round` object written at START; nothing else to reset.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
   }
   if (gameType === 'puckrush') {
