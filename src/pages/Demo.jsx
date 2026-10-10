@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, LazySusanIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -55,6 +55,7 @@ const PuckRushDemo = lazyWithRetry(() => import('./PuckRushDemo'))
 const YachtDemo = lazyWithRetry(() => import('./YachtDemo'))
 const FaceOffDemo = lazyWithRetry(() => import('./FaceOffDemo'))
 const ChopChopDemo = lazyWithRetry(() => import('./ChopChopDemo'))
+const LazySusanDemo = lazyWithRetry(() => import('./LazySusanDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
 const ArcheryDemo = lazyWithRetry(() => import('./ArcheryDemo'))
 const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
@@ -130,6 +131,7 @@ const DEMOS = [
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
   { type: 'chopchop',     short: 'CHOP\nCHOP',    Icon: ChopChopIcon,     Component: ChopChopDemo     },
+  { type: 'lazysusan',    short: 'LAZY\nSUSAN',    Icon: LazySusanIcon,    Component: LazySusanDemo },
   { type: 'pulprush',     short: 'PULP\nRUSH',    Icon: PulpIcon,         Component: PulpRushDemo     },
   { type: 'typing',       short: 'TYPING\nRACE',  Icon: TypingIcon,       Component: TypingDemo       },
   { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },

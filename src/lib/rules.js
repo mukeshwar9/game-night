@@ -520,6 +520,17 @@ export const GAME_RULES = {
     win: 'When every sheet is full, the highest total wins. 2 to 4 players.',
   },
 
+  lazysusan: {
+    objective: 'Take pieces off the turning plate before anyone else can.',
+    howToPlay: [
+      'Everyone has a gate on the edge of the plate. Tap when a piece is inside your gate to take it.',
+      'A dumpling is worth 1 point and the steamed bun is worth 3. A tap on nothing costs 1 point and a short wait.',
+      'A chili costs 2 points and freezes your chopsticks, so leave it.',
+      'Every new plate turns the other way. The last piece on a plate is gold: worth double, and the plate speeds up.',
+    ],
+    win: 'First to 15 points with two players, 12 with three, 10 with four.',
+  },
+
   bluff: {
     objective: 'Liar’s dice — bluff about the hidden dice and call your opponent’s bluffs.',
     howToPlay: [

@@ -700,14 +700,15 @@ export default function Game() {
   // only starts a room that isn't already playing, so two clients who both
   // believe they're the host during a handover can't double-start (the round
   // is built from the server's copy of the room). startRound gets the room
-  // too, for its timer scale and presence.
+  // too, for its timer scale and presence, and the server clock for rounds
+  // that start together on a shared countdown.
   const handleNStart = async () => {
     const cfg = getGameConfig(game.gameType)
     if (!cfg.startRound) return // spyfair & co. drive their own start
     try {
       await runTransaction(ref(db, `games/${gameId}`), cur => {
         if (!cur || cur.status === 'playing' || cur.gameType !== game.gameType) return
-        const sr = cfg.startRound(cur.players || {}, cur)
+        const sr = cfg.startRound(cur.players || {}, cur, { now: getServerNow() })
         if (!sr) return
         return { ...cur, status: 'playing', winner: null, ...sr, proposal: null, lastActivityAt: Date.now() }
       })

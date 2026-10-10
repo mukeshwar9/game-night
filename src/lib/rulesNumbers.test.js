@@ -31,6 +31,7 @@ import { FLEET_SPEC, SHIP_CELLS } from './battleshipLogic'
 import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
+import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
@@ -248,6 +249,12 @@ const RULE_NUMBERS = {
     prose: [0], // a box that does not fit scores 0
   }),
   puckrush: () => ({ checks: [[5, PUCKS_EACH], [3, first('puckrush')]] }),
+  lazysusan: () => ({
+    checks: [
+      [1, SUSAN.dumplingValue], [3, SUSAN.bunValue], [1, SUSAN.missPenalty], [2, SUSAN.hotPenalty],
+      [15, SUSAN_TARGETS[2]], [12, SUSAN_TARGETS[3]], [10, SUSAN_TARGETS[4]],
+    ],
+  }),
   minigolf: () => ({
     checks: [[6, STROKE_CAP], [7, PICKUP_SCORE], ...players('minigolf', 2, 4), [4, cfg('minigolf').localMaxPlayers ?? cfg('minigolf').maxPlayers]],
     prose: [1], // "+1" water penalty, checked below

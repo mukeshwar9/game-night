@@ -284,6 +284,15 @@ export const sounds = {
   stackLand: (speed = 0.5) => { seq([[140 + speed * 40, 0, 0.08, 'triangle', 0.08 + speed * 0.06], [60, 0, 0.12, 'sawtooth', 0.05 + speed * 0.06]]); vibrate(8 + Math.round(speed * 14)) },
   stackTopple: () => { seq([[440, 0, 0.14], [330, 0.11, 0.14], [247, 0.22, 0.14], [165, 0.33, 0.2]]); vibrate([0, 60, 40, 120]) },
   stackTick: () => { seq([[1200, 0, 0.02, 'square', 0.03]]) },
+  // Lazy Susan: a piece taken (higher for the bun), a tap on nothing, a chili,
+  // the plate reversing, the gold last bite, and the countdown tick.
+  susanGrab: (value = 1) => { seq([[520 + value * 90, 0, 0.05, 'triangle', 0.1], [900 + value * 120, 0.04, 0.07, 'triangle', 0.08]]); vibrate(8) },
+  susanBun: () => { seq([[660, 0, 0.08, 'triangle', 0.1], [990, 0.07, 0.14, 'triangle', 0.1]]); vibrate(14) },
+  susanMiss: () => { seq([[170, 0, 0.1, 'square', 0.06], [100, 0.08, 0.1, 'square', 0.05]]); vibrate(25) },
+  susanHot: () => { seq([[320, 0, 0.2, 'sawtooth', 0.06], [170, 0.15, 0.25, 'sawtooth', 0.06], [80, 0.35, 0.15, 'sawtooth', 0.05]]); vibrate([0, 40, 50, 60]) },
+  susanTurn: () => { seq([[1320, 0, 0.5, 'sine', 0.07], [1980, 0.05, 0.6, 'sine', 0.03]]); vibrate(15) },
+  susanLast: () => { seq([[880, 0, 0.1, 'triangle', 0.08], [1175, 0.09, 0.1, 'triangle', 0.08], [1568, 0.18, 0.25, 'triangle', 0.08]]); vibrate(10) },
+  susanTick: () => { seq([[440, 0, 0.07, 'square', 0.05]]) },
   // BIRDSEYE: sling release, the bird's tap ability, impact thud scaled by
   // impulse, a block breaking (glass rings higher) and a scarecrow popping.
   birdLaunch: (power = 0.5) => { seq([[300 + power * 500, 0, 0.06, 'triangle', 0.1], [500 + power * 700, 0.05, 0.08, 'sine', 0.06]]); vibrate(10) },
