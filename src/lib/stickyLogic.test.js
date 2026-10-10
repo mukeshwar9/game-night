@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { mulberry32 } from './detMath'
 import {
-  TABLE_W, TABLE_H, ROUND_SECONDS, LAST_CALL_SECONDS, COUNT_IN_SECONDS, TEAR_DISTANCE, SLIP_SECONDS, MAX_LOOT,
+  TABLE_W, TABLE_H, ROUND_SECONDS, LAST_CALL_SECONDS, COUNT_IN_SECONDS, CONTEST_WINDOW, CONTEST_CAP, SNAP_STUN, MAX_LOOT,
   DYE_HANDS_OUT_SECONDS, VALUES, RADII, BOT_LEVELS,
   seatsFor, handsFor, createState, step, getWinner, winnerSymbol, ranking, multiplier, lastCallActive,
-  clampToReach, gripOf, cleanInput, createBrain, botInput, encodeSnapshot, decodeSnapshot, deadReckon,
+  clampToReach, cleanInput, createBrain, botInput, botHoldFor, encodeSnapshot, decodeSnapshot, deadReckon,
 } from './stickyLogic'
 
 const DT = 1 / 120
@@ -27,7 +27,7 @@ function table(opts = {}, loot = []) {
   const s = createState({ players: 2, countIn: 0, seed: 11, ...opts })
   loot.forEach((l, i) => {
     s.loot.push({
-      id: 100 + i, kind: 'coin', x: 180, y: 280, vx: 0, vy: 0, z: 0, ttl: 7.5, holders: [], contest: 0, strain: 0, side: 0, dead: false, ...l,
+      id: 100 + i, kind: 'coin', x: 180, y: 280, vx: 0, vy: 0, z: 0, ttl: 7.5, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false, ...l,
     })
   })
   return s
@@ -137,14 +137,6 @@ describe('reach and grip', () => {
     expect(e.y).toBeLessThanOrEqual(TABLE_H - 10)
   })
 
-  it('weakens the grip as the arm stretches from its safe', () => {
-    const p = createState({ players: 2 }).players[0]
-    const near = gripOf(p, { x: p.safe.x, y: p.safe.y - 20 })
-    const far = gripOf(p, { x: p.safe.x, y: p.safe.y - p.reach })
-    expect(near).toBeGreaterThan(far)
-    expect(far).toBeCloseTo(0.3, 5)
-  })
-
   it('cleans wire input: bad numbers become a lifted hand, the rest is kept on the table', () => {
     expect(cleanInput({ hands: [{ x: 'a', y: 3 }, { x: -20, y: 9999 }] }, 2)).toEqual([null, { x: 0, y: TABLE_H }])
     expect(cleanInput(null, 2)).toEqual([null, null])
@@ -211,63 +203,135 @@ describe('grab, carry and stash', () => {
   })
 })
 
-describe('paper rips', () => {
-  function bothHandsOnBill() {
-    const s = table({}, [{ kind: 'bill', x: 180, y: 280 }])
-    return run(s, [at(180, 280), at(180, 280)], 0.4).s
-  }
+describe('contests: last one holding keeps it', () => {
+  const both = (x, y) => [at(x, y), at(x, y)]
+  const contested = (kind = 'coin', x = 180, y = 280) => run(table({}, [{ kind, x, y }]), both(x, y), 0.3).s
 
-  it('holds a bill between two players until they pull far enough apart', () => {
-    let s = bothHandsOnBill()
-    const bill = s.loot.find((l) => l.id === 100)
-    expect(bill.holders).toHaveLength(2)
-    s = run(s, [at(180 - 20, 280), at(180 + 20, 280)], 0.2).s
-    const stretched = s.loot.find((l) => l.id === 100)
-    expect(stretched).toBeTruthy()
-    expect(stretched.strain).toBeGreaterThan(0)
-    expect(stretched.strain).toBeLessThan(1)
-  })
-
-  it('tears at the tear distance and leaves each hand a half worth 1', () => {
-    let s = bothHandsOnBill()
-    const r = run(s, [at(180 - TEAR_DISTANCE, 280), at(180 + TEAR_DISTANCE, 280)], 0.4)
-    expect(r.events.some((e) => e.type === 'rip')).toBe(true)
-    const halves = r.s.loot.filter((l) => l.kind === 'half')
-    expect(halves).toHaveLength(2)
-    expect(halves.every((h) => h.holders.length === 1)).toBe(true)
-    expect(r.s.loot.some((l) => l.kind === 'bill')).toBe(false)
-    s = r.s
-    // Each carries their half home: one point each, not three to anybody.
-    s = run(s, [at(SAFE0.x, SAFE0.y - 15), at(SAFE1.x, SAFE1.y + 15)], 3).s
-    expect(s.players.map((p) => p.score)).toEqual([VALUES.half, VALUES.half])
-  })
-})
-
-describe('metal slips', () => {
-  it('the hand stretched further from its safe loses a contested coin', () => {
-    // A coin near player 1's safe: player 0 reaches across the table for it.
-    let s = table({}, [{ x: 180, y: 130 }])
-    s = run(s, [at(180, 130), at(180, 130)], 0.25).s
-    const l = s.loot.find((o) => o.id === 100)
-    expect(l.holders).toHaveLength(2)
-    let slip = null
-    for (let i = 0; i < 120 * (SLIP_SECONDS + 0.3) && !slip; i++) {
-      const r = step(s, [at(180, 130), at(180, 130)], DT)
-      s = r.state
-      slip = r.events.find((e) => e.type === 'slip') ?? null
+  it('is a contest when two players land on the same item inside the window', () => {
+    for (const kind of ['coin', 'bill', 'gem']) {
+      const s = contested(kind)
+      const l = s.loot.find((o) => o.id === 100)
+      expect(l.holders).toHaveLength(2)
+      expect(l.duel).toBe(true)
     }
-    expect(slip).toEqual({ type: 'slip', by: 0 })
-    const coin = s.loot.find((o) => o.id === 100)
-    expect(coin.holders).toEqual([2])         // player 1, hand 0
-    expect(s.players[0].hands[0].loot).toBeNull()
-    expect(s.players[0].hands[0].stun).toBeGreaterThan(0)
   })
 
-  it('shows the contest building before anyone slips', () => {
-    let s = table({}, [{ x: 180, y: 130 }])
-    s = run(s, [at(180, 130), at(180, 130)], 0.3).s
-    expect(s.loot[0].strain).toBeGreaterThan(0)
-    expect(s.loot[0].strain).toBeLessThan(1)
+  it('announces the tug once and shows the strain building toward the cap', () => {
+    const r = run(table({}, [{ x: 180, y: 280 }]), both(180, 280), 1.5)
+    expect(r.events.filter((e) => e.type === 'tug')).toHaveLength(1)
+    const l = r.s.loot.find((o) => o.id === 100)
+    expect(l.strain).toBeGreaterThan(0.3)
+    expect(l.strain).toBeLessThan(0.7)
+  })
+
+  it('the player who lets go first loses it; the last one holding keeps it', () => {
+    for (const kind of ['coin', 'bill', 'gem']) {
+      const s = contested(kind)
+      const r = run(s, [at(180, 280), null], 0.1)       // player 1 (hand 0) lifts, player 0 holds on
+      const l = r.s.loot.find((o) => o.id === 100)
+      expect(l.holders).toEqual([0])
+      expect(r.s.players[1].hands[0].loot).toBeNull()
+      expect(r.events).toContainEqual({ type: 'won', by: 0 })
+    }
+  })
+
+  it('the winner of a bill tug carries all of it home (no splitting)', () => {
+    const s = contested('bill', 180, 330)
+    const r = run(s, [at(SAFE0.x, SAFE0.y - 15), null], 3)
+    expect(r.s.players[0].score).toBe(VALUES.bill)
+    expect(r.s.players[1].score).toBe(0)
+  })
+
+  it('whoever holds longest wins whichever side lets go', () => {
+    const s = contested()
+    const r = run(s, [null, at(180, 280)], 0.1)
+    expect(r.s.loot.find((o) => o.id === 100).holders).toEqual([2])
+    expect(r.events).toContainEqual({ type: 'won', by: 1 })
+  })
+
+  it('a hand that lost the tug cannot jump back onto the item', () => {
+    let s = contested()
+    s = run(s, [at(180, 280), null], 0.1).s
+    const r = run(s, [at(180, 280), at(180, 280)], 0.3)
+    expect(r.s.loot.find((o) => o.id === 100).holders).toEqual([0])
+    expect(r.s.players[1].hands[0].loot).toBeNull()
+  })
+
+  it('a hand arriving after the window finds the first grip locked', () => {
+    let s = table({}, [{ x: 180, y: 280 }])
+    s = run(s, [at(180, 280), null], CONTEST_WINDOW + 0.2).s
+    expect(s.loot[0].holders).toEqual([0])
+    const r = run(s, [at(180, 280), at(180, 280)], 0.3)
+    expect(r.s.loot[0].holders).toEqual([0])
+    expect(r.s.loot[0].duel).toBe(false)
+    expect(r.s.players[1].hands[0].loot).toBeNull()
+  })
+
+  it('a hand arriving inside the window still makes it a contest', () => {
+    let s = table({}, [{ x: 180, y: 280 }])
+    s = run(s, [at(180, 280), null], CONTEST_WINDOW - 0.2).s
+    expect(s.loot[0].holders).toEqual([0])
+    const r = run(s, [at(180, 280), at(180, 280)], 0.1)
+    expect(r.s.loot[0].holders).toHaveLength(2)
+  })
+
+  it('snaps at the cap when nobody lets go: nobody scores, both hands are dazed', () => {
+    const s = contested('gem')
+    const r = run(s, both(180, 280), CONTEST_CAP)
+    expect(r.events.filter((e) => e.type === 'snap')).toHaveLength(1)
+    expect(r.s.loot.some((o) => o.id === 100)).toBe(false)
+    expect(r.s.players.map((p) => p.score)).toEqual([0, 0])
+    expect(r.s.players[0].hands[0].loot).toBeNull()
+    expect(r.s.players[1].hands[0].loot).toBeNull()
+    expect(r.s.players[0].hands[0].stun).toBeGreaterThan(0)
+    expect(r.s.players[0].hands[0].stun).toBeLessThanOrEqual(SNAP_STUN)
+  })
+
+  it('does not snap while somebody has already let go', () => {
+    const s = contested()
+    const r = run(s, [at(180, 280), null], CONTEST_CAP + 1)
+    expect(r.events.some((e) => e.type === 'snap')).toBe(false)
+    expect(r.s.loot.find((o) => o.id === 100).holders).toEqual([0])
+  })
+
+  it('a contested item sits between the hands and cannot be pulled into a safe', () => {
+    const s = contested('coin', 180, 330)
+    const r = run(s, [at(SAFE0.x, SAFE0.y - 15), at(SAFE1.x, SAFE1.y + 15)], 1)
+    expect(r.s.players.map((p) => p.score)).toEqual([0, 0])
+  })
+
+  it('three players can contest and the last holder wins it (two at a time)', () => {
+    let s = table({ players: 3 }, [{ x: 180, y: 280 }])
+    s = run(s, [at(180, 280), at(180, 280), at(180, 280)], 0.3).s
+    expect(s.loot[0].holders).toHaveLength(2)
+    const [a, b] = s.loot[0].holders.map((k) => k >> 1)
+    const inputs = [null, null, null]
+    inputs[a] = at(180, 280)
+    const r = run(s, inputs, 0.1)
+    expect(r.s.loot[0].holders).toEqual([a * 2])
+    expect(r.s.players[b].hands[0].loot).toBeNull()
+  })
+
+  it('both lifting at once just drops the item, with no winner', () => {
+    const s = contested()
+    const r = run(s, NOBODY, 0.1)
+    expect(r.events.some((e) => e.type === 'won')).toBe(false)
+    expect(r.s.loot.find((o) => o.id === 100).holders).toHaveLength(0)
+  })
+
+  it('a dye pack tug ends the same way: the last holder is stuck with it', () => {
+    const s = contested('dye', 180, 330)
+    const r = run(s, [at(SAFE0.x, SAFE0.y - 15), null], 3)
+    expect(r.s.players[0].score).toBe(0)
+    expect(r.events).toContainEqual({ type: 'dye', by: 0 })
+  })
+
+  it('replays the same contest exactly, and does not mutate its input', () => {
+    const s = contested()
+    const frozen = JSON.stringify(s)
+    const a = run(s, both(180, 280), 1)
+    expect(JSON.stringify(s)).toBe(frozen)
+    expect(JSON.stringify(run(s, both(180, 280), 1).s)).toBe(JSON.stringify(a.s))
   })
 })
 
@@ -288,7 +352,7 @@ describe('dye packs', () => {
   it('cannot grab until the dye wears off', () => {
     let s = table({}, [{ kind: 'dye', x: SAFE0.x, y: SAFE0.y - 10 }])
     s = run(s, NOBODY, 0.05).s
-    s.loot.push({ id: 200, kind: 'coin', x: 180, y: 380, vx: 0, vy: 0, z: 0, ttl: 7.5, holders: [], contest: 0, strain: 0, side: 0, dead: false })
+    s.loot.push({ id: 200, kind: 'coin', x: 180, y: 380, vx: 0, vy: 0, z: 0, ttl: 7.5, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false })
     const during = run(s, [at(180, 380), null], 0.5).s
     expect(during.players[0].hands[0].loot).toBeNull()
     const after = run(during, [at(180, 380), null], DYE_HANDS_OUT_SECONDS).s
@@ -376,7 +440,7 @@ describe('the buzzer', () => {
     expect(r.s.sudden).toBe(true)
     expect(getWinner(r.s)).toBeNull()
     // A coin lands in player 1's safe.
-    r.s.loot = [{ id: 300, kind: 'coin', x: SAFE1.x, y: SAFE1.y + 10, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], contest: 0, strain: 0, side: 0, dead: false }]
+    r.s.loot = [{ id: 300, kind: 'coin', x: SAFE1.x, y: SAFE1.y + 10, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false }]
     r = run(r.s, NOBODY, 0.1)
     expect(r.s.phase).toBe('over')
     expect(getWinner(r.s)).toBe(1)
@@ -418,8 +482,8 @@ describe('bots', () => {
   it('waits its reaction time, then goes for the nearest valuable item in reach', () => {
     const s = live()
     s.loot.push(
-      { id: 1, kind: 'coin', x: 180, y: 100, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], contest: 0, strain: 0, side: 0, dead: false },
-      { id: 2, kind: 'gem', x: 140, y: 150, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], contest: 0, strain: 0, side: 0, dead: false },
+      { id: 1, kind: 'coin', x: 180, y: 100, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false },
+      { id: 2, kind: 'gem', x: 140, y: 150, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false },
     )
     const brain = createBrain(2)
     const rng = mulberry32(3)
@@ -434,8 +498,8 @@ describe('bots', () => {
   it('takes its second hand out only once told a person is using two', () => {
     const s = live()
     s.loot.push(
-      { id: 1, kind: 'coin', x: 100, y: 100, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], contest: 0, strain: 0, side: 0, dead: false },
-      { id: 2, kind: 'coin', x: 260, y: 100, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], contest: 0, strain: 0, side: 0, dead: false },
+      { id: 1, kind: 'coin', x: 100, y: 100, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false },
+      { id: 2, kind: 'coin', x: 260, y: 100, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false },
     )
     const brain = createBrain(2)
     brain.secondHand = true
@@ -455,14 +519,14 @@ describe('bots', () => {
 
   it('a hard bot is never fooled by a dye pack; an easy one often is', () => {
     const dye = { kind: 'dye', x: 180, y: 120 }
-    const hard = live(); hard.loot.push({ id: 7, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], contest: 0, strain: 0, side: 0, dead: false, x: 180, y: 120, kind: 'dye' })
+    const hard = live(); hard.loot.push({ id: 7, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false, x: 180, y: 120, kind: 'dye' })
     const b = createBrain(2)
     botInput(hard, 1, 'hard', b, DT, mulberry32(1))
     expect(b.hands[0].target).toBeNull()
     let fooled = 0
     for (let id = 1; id <= 40; id++) {
       const s = live()
-      s.loot.push({ ...dye, id, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], contest: 0, strain: 0, side: 0, dead: false })
+      s.loot.push({ ...dye, id, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false })
       const bb = createBrain(2)
       botInput(s, 1, 'easy', bb, DT, mulberry32(id))
       if (bb.hands[0].target != null) fooled += 1
@@ -471,15 +535,56 @@ describe('bots', () => {
     expect(fooled).toBeLessThan(35)
   })
 
-  it('does not chase loot beyond its reach, torn halves, or a stunned hand\'s turn', () => {
+  it('does not chase loot beyond its reach, a locked item, or a stunned hand\'s turn', () => {
     const s = live()
-    s.loot.push({ id: 1, kind: 'half', x: 150, y: 120, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], contest: 0, strain: 0, side: 0, dead: false })
+    s.loot.push({ id: 1, kind: 'coin', x: 150, y: 120, vx: 0, vy: 0, z: 0, ttl: 7, holders: [0], held: CONTEST_WINDOW + 0.1, duel: false, contest: 0, strain: 0, dead: false })
     const brain = createBrain(2)
     botInput(s, 1, 'hard', brain, DT, mulberry32(1))
     expect(brain.hands[0].target).toBeNull()
-    s.loot.push({ id: 2, kind: 'coin', x: 150, y: 120, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], contest: 0, strain: 0, side: 0, dead: false })
+    s.loot.push({ id: 2, kind: 'coin', x: 150, y: 120, vx: 0, vy: 0, z: 0, ttl: 7, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false })
     s.players[1].hands[0].stun = 0.5
     expect(botInput(s, 1, 'hard', brain, DT, mulberry32(1)).hands[0]).toBeNull()
+  })
+
+  it('a bot hangs on in a tug, then lets go at a time that varies per contest', () => {
+    const limits = new Set()
+    for (let seed = 1; seed <= 12; seed++) {
+      const s = live()
+      s.loot.push({ id: 5, kind: 'coin', x: 180, y: 280, vx: 0, vy: 0, z: 0, ttl: 7, holders: [0, 2], held: 0.2, duel: true, contest: 0.1, strain: 0, dead: false })
+      s.players[0].hands[0].loot = 5
+      s.players[1].hands[0].loot = 5
+      const brain = createBrain(2)
+      const rng = mulberry32(seed)
+      let t = 0
+      let out = botInput(s, 1, 'normal', brain, DT, rng)
+      expect(out.hands[0]).toEqual(s.players[1].mouth)          // still pulling
+      while (out.hands[0] && t < 5) { t += DT; out = botInput(s, 1, 'normal', brain, DT, rng) }
+      expect(out.hands[0]).toBeNull()                            // let go
+      expect(t).toBeLessThan(CONTEST_CAP)
+      limits.add(Math.round(t * 10))
+    }
+    expect(limits.size).toBeGreaterThan(3)
+  })
+
+  it('bot hold times grow with level and item value, and a dye pack is dropped at once', () => {
+    const rng = () => 0.5
+    expect(botHoldFor('hard', 'coin', rng)).toBeGreaterThan(botHoldFor('easy', 'coin', rng))
+    expect(botHoldFor('normal', 'gem', rng)).toBeGreaterThan(botHoldFor('normal', 'coin', rng))
+    expect(botHoldFor('hard', 'dye', rng)).toBeLessThan(0.2)
+    for (const level of Object.keys(BOT_LEVELS)) {
+      for (const kind of ['coin', 'bill', 'gem']) {
+        expect(botHoldFor(level, kind, () => 0.999)).toBeLessThan(CONTEST_CAP)
+        expect(botHoldFor(level, kind, () => 0)).toBeGreaterThan(0.1)
+      }
+    }
+  })
+
+  it('a bot does not pile onto an item whose window has closed', () => {
+    const s = live()
+    s.loot.push({ id: 9, kind: 'gem', x: 180, y: 120, vx: 0, vy: 0, z: 0, ttl: 7, holders: [0], held: CONTEST_WINDOW + 0.2, duel: false, contest: 0, strain: 0, dead: false })
+    const brain = createBrain(2)
+    botInput(s, 1, 'hard', brain, DT, mulberry32(1))
+    expect(brain.hands[0].target).toBeNull()
   })
 
   it('two bots play a whole round to a winner, replayably', () => {
@@ -542,8 +647,8 @@ describe('wire format', () => {
     const scene = {
       ...base,
       loot: [
-        { id: 1, kind: 'coin', x: 100, y: 300, vx: 100, vy: 0, z: 0, holders: [], ttl: 5, strain: 0, side: 0 },
-        { id: 2, kind: 'coin', x: 200, y: 200, vx: 0, vy: 0, z: 0, holders: [0], ttl: 5, strain: 0, side: 0 },
+        { id: 1, kind: 'coin', x: 100, y: 300, vx: 100, vy: 0, z: 0, holders: [], ttl: 5, strain: 0, contest: 0 },
+        { id: 2, kind: 'coin', x: 200, y: 200, vx: 0, vy: 0, z: 0, holders: [0], ttl: 5, strain: 0, contest: 0 },
       ],
     }
     scene.players = scene.players.map((p) => ({ ...p, hands: p.hands.map((h) => ({ ...h })) }))
@@ -558,7 +663,7 @@ describe('wire format', () => {
     const base = createState({ players: 2, countIn: 0 })
     const scene = {
       ...base,
-      loot: [{ id: 2, kind: 'coin', x: 200, y: 200, vx: 0, vy: 0, z: 0, holders: [0], ttl: 5, strain: 0, side: 0 }],
+      loot: [{ id: 2, kind: 'coin', x: 200, y: 200, vx: 0, vy: 0, z: 0, holders: [0], ttl: 5, strain: 0, contest: 0 }],
     }
     const out = deadReckon(scene, 0, { 0: { x: 170, y: 420 } })
     expect(out.players[0].hands[0]).toMatchObject({ x: 170, y: 420, active: true })

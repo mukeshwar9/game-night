@@ -13,10 +13,11 @@
 // sim clamps them to the arm's reach, so a client can say whatever it likes.
 //
 // Rules (numbers are starting values to tune by playtest, see the report):
-//   • paper rips: two hands on a bill stretch it; far enough apart and it tears,
-//     leaving each hand a half worth 1
-//   • metal slips: two hands on a coin or gem contest it; the hand stretched
-//     further from its own safe has the weaker grip and slips after SLIP_SECONDS
+//   • a tug: a rival hand that lands on an item within CONTEST_WINDOW of its first
+//     grab makes it a contest. Both keep holding; whoever lets go first loses it
+//     and the last one still holding keeps the money. If nobody lets go for
+//     CONTEST_CAP the item snaps and nobody gets it. Same for bills, coins, gems
+//     and dye packs; a hand that arrives after the window finds the item locked
 //   • coin 1, bill 3, gem 5; a dye pack is −3 and puts your hands out for a moment
 //   • LAST CALL: the final 10 seconds spray loot and everything is worth double
 //   • a tie at the buzzer is settled by the next loot to land in a safe
@@ -29,20 +30,21 @@ export const TABLE_H = 560
 export const ROUND_SECONDS = 60
 export const LAST_CALL_SECONDS = 10
 export const COUNT_IN_SECONDS = 3.4        // shows 3 · 2 · 1 then GRAB! for the last 0.4 s
-export const TEAR_DISTANCE = 62            // two hands this far apart rip a bill
 export const GRAB_PAD = 13                 // a glove closes on loot this close to its edge
 export const SAFE_RADIUS = 30
 export const MAX_LOOT = 4                  // on the table at once (+2 during LAST CALL)
-export const SLIP_SECONDS = 0.35
+export const CONTEST_WINDOW = 0.5          // a rival hand may join an item this soon after the first grab
+export const CONTEST_CAP = 3               // a contest nobody gives up on snaps the item after this long
+export const SNAP_STUN = 0.4               // both hands are dazed when the item snaps
 export const DYE_HANDS_OUT_SECONDS = 1.6
 export const LOOT_LIFETIME = 7.5           // an unclaimed item blinks out after this
 export const DROP_SECONDS = 0.42           // loot lands before it can be touched
 export const REACH_FRACTION = 0.86         // arm reach, as a share of the farthest rival safe
 export const DYE_PENALTY = 3
 
-export const VALUES = { coin: 1, bill: 3, half: 1, gem: 5, dye: -DYE_PENALTY }
-export const RADII = { coin: 12, bill: 15, half: 10, gem: 13, dye: 15 }
-export const LOOT_KINDS = ['coin', 'bill', 'half', 'gem', 'dye']
+export const VALUES = { coin: 1, bill: 3, gem: 5, dye: -DYE_PENALTY }
+export const RADII = { coin: 12, bill: 15, gem: 13, dye: 15 }
+export const LOOT_KINDS = ['coin', 'bill', 'gem', 'dye']
 
 const HAND_SPEED = 2600                    // table units / s while a finger is down
 const HOME_SPEED = 1500                    // a lifted hand glides back this fast
@@ -168,11 +170,6 @@ export function clampToReach(player, x, y) {
   return { x: clamp(tx, HAND_EDGE, TABLE_W - HAND_EDGE), y: clamp(ty, HAND_EDGE, TABLE_H - HAND_EDGE) }
 }
 
-/** 0..1: how firm a hand's grip is. Falls off as the arm stretches from its safe. */
-export function gripOf(player, hand) {
-  return 1 - 0.7 * clamp(dist(hand.x, hand.y, player.safe.x, player.safe.y) / player.reach, 0, 1)
-}
-
 // ── input ───────────────────────────────────────────────────────────────────
 
 /** Whatever arrived off the wire, as `per` hand slots of { x, y } | null. */
@@ -200,7 +197,7 @@ function pickKind(s) {
 }
 
 function addLoot(s, kind, x, y, z = 1) {
-  const l = { id: s.nextId++, kind, x, y, vx: 0, vy: 0, z, ttl: LOOT_LIFETIME, holders: [], contest: 0, strain: 0, side: 0, dead: false }
+  const l = { id: s.nextId++, kind, x, y, vx: 0, vy: 0, z, ttl: LOOT_LIFETIME, holders: [], held: 0, duel: false, contest: 0, strain: 0, dead: false }
   s.loot.push(l)
   return l
 }
@@ -225,7 +222,8 @@ function release(s, key, stun = 0) {
     const l = lootById(s, h.loot)
     if (l) {
       l.holders = l.holders.filter((k) => k !== key)
-      if (!l.holders.length) { l.vx = clamp(h.vx, -FLICK_CAP, FLICK_CAP); l.vy = clamp(h.vy, -FLICK_CAP, FLICK_CAP) }
+      if (!l.holders.length) { l.vx = clamp(h.vx, -FLICK_CAP, FLICK_CAP); l.vy = clamp(h.vy, -FLICK_CAP, FLICK_CAP); l.held = 0 }
+      if (l.holders.length === 1 && l.duel) l.held = Math.max(l.held, CONTEST_WINDOW + 1)   // whoever let go lost it for good
       l.contest = 0
       l.strain = 0
     }
@@ -250,18 +248,17 @@ function deposit(s, l, p, events) {
   }
 }
 
-function tear(s, l, events) {
+/** The item snaps under the strain: nobody gets it, both hands are dazed. */
+function snap(s, l, events) {
   const keys = l.holders.slice()
   l.dead = true
   l.holders = []
-  keys.forEach((key, side) => {
+  for (const key of keys) {
     const h = handOf(s, key)
-    const half = addLoot(s, 'half', h.x, h.y, 0)
-    half.side = side
-    half.holders = [key]
-    h.loot = half.id
-  })
-  events.push({ type: 'rip' })
+    h.loot = null
+    h.stun = SNAP_STUN
+  }
+  events.push({ type: 'snap' })
 }
 
 // ── hands ───────────────────────────────────────────────────────────────────
@@ -300,8 +297,10 @@ function stepHand(s, p, k, dt, events, canGrab) {
   if (!canGrab || !h.active || h.loot != null || h.stun > 0 || p.dyed > 0) return
   for (const l of s.loot) {
     if (l.dead || l.z > 0.05 || l.holders.length >= 2) continue
+    if (l.holders.length === 1 && l.held > CONTEST_WINDOW) continue   // too late: the first grip is locked
     if (l.holders.some((hk) => (hk >> 1) === p.i)) continue   // never two of your own hands on one item
     if (dist(h.x, h.y, l.x, l.y) < RADII[l.kind] + GRAB_PAD) {
+      if (!l.holders.length) l.held = 0
       l.holders.push(key)
       h.loot = l.id
       l.contest = 0
@@ -325,7 +324,7 @@ function finish(s, events) {
 
 /**
  * Advance one tick. `inputs` is indexed by player. Returns { state, events }.
- * Events: grab, land, cash, bigcash, dye, rip, slip, expire, tick (count-in and
+ * Events: grab, land, cash, bigcash, dye, tug, won, snap, expire, tick (count-in and
  * the clock's last seconds), go, lastcall, end; each may carry `by` (a player index).
  */
 export function step(state, inputs, dt) {
@@ -385,6 +384,7 @@ export function step(state, inputs, dt) {
       }
       l.holders = l.holders.filter((key) => handOf(s, key).loot === l.id)
       const hs = l.holders
+      if (hs.length) l.held += dt
       if (hs.length === 1) {
         const h = handOf(s, hs[0])
         const kf = Math.min(1, dt * (l.kind === 'gem' ? GEM_LAG : LOOT_FOLLOW))
@@ -394,27 +394,21 @@ export function step(state, inputs, dt) {
         l.vy = h.vy
         l.contest = 0
         l.strain = 0
+        if (l.duel) {                           // the other hand let go: the one still holding wins the tug
+          l.duel = false
+          events.push({ type: 'won', by: hs[0] >> 1 })
+        }
       } else if (hs.length === 2) {
         const a = handOf(s, hs[0])
         const b = handOf(s, hs[1])
-        const d = dist(a.x, a.y, b.x, b.y)
         l.x = (a.x + b.x) / 2
         l.y = (a.y + b.y) / 2
-        if (l.kind === 'bill') {
-          l.strain = clamp(d / TEAR_DISTANCE, 0, 1)
-          if (d > TEAR_DISTANCE) tear(s, l, events)
-        } else {
-          l.contest += dt
-          l.strain = clamp(l.contest / SLIP_SECONDS, 0, 1)
-          if (l.contest > SLIP_SECONDS) {
-            const pa = s.players[hs[0] >> 1]
-            const pb = s.players[hs[1] >> 1]
-            const loseKey = gripOf(pa, a) >= gripOf(pb, b) ? hs[1] : hs[0]
-            release(s, loseKey, 0.3)
-            events.push({ type: 'slip', by: loseKey >> 1 })
-          }
-        }
+        if (!l.duel) { l.duel = true; events.push({ type: 'tug' }) }
+        l.contest += dt
+        l.strain = clamp(l.contest / CONTEST_CAP, 0, 1)
+        if (l.contest >= CONTEST_CAP) snap(s, l, events)
       } else {
+        l.duel = false
         l.x += l.vx * dt
         l.y += l.vy * dt
         const f = Math.pow(SLIDE_FRICTION, dt)
@@ -469,15 +463,25 @@ export function winnerSymbol(state) {
 // the table as it is now. Harder bots look sooner, move faster and are never
 // fooled by a dye pack. None of them gets a hidden advantage.
 
+// `hold` is how long a bot keeps tugging at a contested item, on average: each
+// contest draws 0.4×–1.6× of it (scaled by what the item is worth), so a bot
+// lets go at a different moment every time and a patient person can outlast it.
 export const BOT_LEVELS = {
-  easy: { react: 0.75, speed: 250, fool: 0.6 },
-  normal: { react: 0.45, speed: 370, fool: 0.2 },
-  hard: { react: 0.22, speed: 520, fool: 0 },
+  easy: { react: 0.75, speed: 250, fool: 0.6, hold: 0.6 },
+  normal: { react: 0.45, speed: 370, fool: 0.2, hold: 1 },
+  hard: { react: 0.22, speed: 520, fool: 0, hold: 1.4 },
+}
+
+/** How long a bot hangs on in a tug over this item before it lets go. */
+export function botHoldFor(level, kind, rng = Math.random) {
+  const cfg = BOT_LEVELS[level] ?? BOT_LEVELS.normal
+  if (kind === 'dye') return 0.12                       // nobody wins a dye pack by holding it
+  return cfg.hold * (0.4 + rng() * 1.2) * (0.7 + 0.1 * VALUES[kind])
 }
 
 /** A bot's memory between ticks: what each hand is going for and how long it waits. */
 export function createBrain(per = 2) {
-  return { hands: Array.from({ length: per }, () => ({ target: null, wait: 0 })), secondHand: false }
+  return { hands: Array.from({ length: per }, () => ({ target: null, wait: 0, tug: 0, limit: 0 })), secondHand: false }
 }
 
 /**
@@ -491,28 +495,35 @@ export function botInput(state, i, level, brain, dt, rng = Math.random) {
   const p = state.players[i]
   const out = []
   p.hands.forEach((h, k) => {
-    const mem = brain.hands[k] ?? (brain.hands[k] = { target: null, wait: 0 })
+    const mem = brain.hands[k] ?? (brain.hands[k] = { target: null, wait: 0, tug: 0, limit: 0 })
     if (h.stun > 0 || p.dyed > 0) { mem.target = null; out.push(null); return }
     if (k > 0 && !brain.secondHand) { mem.target = null; out.push(null); return }
-    if (h.loot != null) { out.push({ x: p.mouth.x, y: p.mouth.y }); return }
+    if (h.loot != null) {
+      const held = lootById(state, h.loot)
+      if (held && held.holders.length > 1) {          // a tug: hang on, then let go at a time of its own choosing
+        if (!mem.limit) { mem.tug = 0; mem.limit = botHoldFor(level, held.kind, rng) }
+        mem.tug += dt
+        if (mem.tug >= mem.limit) { out.push(null); return }
+      } else { mem.tug = 0; mem.limit = 0 }
+      out.push({ x: p.mouth.x, y: p.mouth.y })
+      return
+    }
+    mem.tug = 0
+    mem.limit = 0
     if (mem.wait > 0) { mem.wait -= dt; out.push(null); return }
     let t = mem.target != null ? state.loot.find((l) => l.id === mem.target) : null
-    if (t && (t.dead || t.holders.some((hk) => (hk >> 1) === i) || t.holders.length >= 2)) { t = null; mem.target = null }
+    if (t && (t.dead || t.holders.some((hk) => (hk >> 1) === i) || t.holders.length >= 2 || (t.holders.length && t.held > CONTEST_WINDOW))) { t = null; mem.target = null }
     if (!t) {
       let best = null
       let bs = 0
       for (const l of state.loot) {
-        if (l.dead || l.z > 0.4 || l.holders.length >= 2 || l.kind === 'half') continue
+        if (l.dead || l.z > 0.4 || l.holders.length >= 2 || (l.holders.length && l.held > CONTEST_WINDOW - 0.1)) continue
         if (p.hands.some((o, ok) => ok !== k && (brain.hands[ok]?.target === l.id || o.loot === l.id))) continue
         if (l.kind === 'dye' && hash01(l.id * 31 + i * 17) >= cfg.fool) continue   // saw the light, left it
         const d = dist(l.x, l.y, p.safe.x, p.safe.y)
         if (d > p.reach) continue
         let v = Math.abs(VALUES[l.kind]) / (d + 70)
-        if (l.holders.length) {
-          const other = state.players[l.holders[0] >> 1]
-          const oh = handOf(state, l.holders[0])
-          v *= l.kind === 'bill' ? 0.5 : (1 - (0.7 * d) / p.reach > gripOf(other, oh) ? 0.7 : 0.05)
-        }
+        if (l.holders.length) v *= 0.5                  // piling on a held item means a tug
         if (v > bs) { bs = v; best = l }
       }
       if (best) { mem.target = best.id; mem.wait = cfg.react * (0.7 + rng() * 0.6) }
@@ -536,7 +547,7 @@ export function encodeSnapshot(s) {
   const loot = []
   for (const l of s.loot) {
     loot.push(
-      l.id, KIND_CODE[l.kind], r1(l.x), r1(l.y), r1(l.vx), r1(l.vy), r2(l.z), r1(l.ttl), r2(l.strain), l.side,
+      l.id, KIND_CODE[l.kind], r1(l.x), r1(l.y), r1(l.vx), r1(l.vy), r2(l.z), r1(l.ttl), r2(l.strain), r2(l.contest),
       l.holders.length > 0 ? l.holders[0] + 1 : 0, l.holders.length > 1 ? l.holders[1] + 1 : 0,
     )
   }
@@ -574,7 +585,7 @@ export function decodeSnapshot(snap, base) {
     if (a[o + 11]) holders.push(a[o + 11] - 1)
     loot.push({
       id: a[o], kind: LOOT_KINDS[a[o + 1]] ?? 'coin', x: a[o + 2], y: a[o + 3], vx: a[o + 4], vy: a[o + 5],
-      z: a[o + 6], ttl: a[o + 7], strain: a[o + 8], side: a[o + 9], holders, contest: 0, dead: false,
+      z: a[o + 6], ttl: a[o + 7], strain: a[o + 8], contest: a[o + 9], holders, held: 0, duel: holders.length > 1, dead: false,
     })
   }
   return {

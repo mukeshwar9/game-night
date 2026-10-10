@@ -328,15 +328,16 @@ export const sounds = {
   blockBreak: (glass = false) => { try { noise(ctx().currentTime, glass ? 0.12 : 0.18, glass ? 0.06 : 0.08, glass ? 3200 : 700) } catch { /* audio unavailable */ } vibrate(8) },
   crowPop: () => { seq([[520, 0, 0.05, 'square', 0.09], [780, 0.05, 0.08, 'triangle', 0.08]]); vibrate([0, 20, 30, 20]) },
   // Sticky Fingers: a glove closing, loot into a safe (bigger for bills and
-  // gems), a bill ripping, a coin slipping free, the dye pack going off, the
+  // gems), a tug starting, winning one, an item snapping, the dye pack going off, the
   // clock's last-seconds tick and the LAST CALL sting.
   stickyGrab: () => { seq([[520, 0, 0.04, 'square', 0.04]]); vibrate(6) },
   stickyCash: (big = false) => {
     seq(big ? [[880, 0, 0.07, 'square', 0.09], [1318, 0.06, 0.14, 'square', 0.09]] : [[880, 0, 0.06, 'square', 0.07], [1175, 0.05, 0.08, 'square', 0.06]])
     vibrate(big ? 14 : 8)
   },
-  stickyRip: () => { try { noise(ctx().currentTime, 0.16, 0.08, 2400) } catch { /* audio unavailable */ } seq([[900, 0, 0.12, 'sawtooth', 0.05]]); vibrate(18) },
-  stickySlip: () => { seq([[330, 0, 0.08, 'triangle', 0.07], [220, 0.05, 0.08, 'triangle', 0.05]]); vibrate(10) },
+  stickySnap: () => { try { noise(ctx().currentTime, 0.16, 0.08, 2400) } catch { /* audio unavailable */ } seq([[900, 0, 0.12, 'sawtooth', 0.05]]); vibrate(18) },
+  stickyTug: () => { seq([[200, 0, 0.1, 'sawtooth', 0.06], [240, 0.08, 0.1, 'sawtooth', 0.06]]); vibrate([0, 12, 30, 12]) },
+  stickyWon: () => { seq([[523, 0, 0.06, 'square', 0.07], [784, 0.05, 0.1, 'square', 0.07]]); vibrate(12) },
   stickyDye: () => { seq([[160, 0, 0.28, 'sawtooth', 0.11], [110, 0.1, 0.25, 'sawtooth', 0.08]]); vibrate([0, 40, 50, 40]) },
   stickyTick: () => { seq([[660, 0, 0.05, 'square', 0.05]]) },
   stickyLast: () => { seq([[660, 0, 0.07, 'square', 0.08], [990, 0.08, 0.14, 'square', 0.08]]); vibrate([0, 20, 40, 20]) },

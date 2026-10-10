@@ -1434,7 +1434,7 @@ export const GAME_TYPES = [
   },
   {
     type: 'stickyfingers', label: 'STICKY FINGERS',
-    desc: 'grab the loot, rip the bills, stash it first', Icon: StickyFingersIcon,
+    desc: 'grab the loot, outlast rival grips, stash it first', Icon: StickyFingersIcon,
     badge: 'ST', maxWidth: 'max-w-md',
     category: 'reflex',
     addedAt: '2026-10-10',
