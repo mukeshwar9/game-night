@@ -53,6 +53,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Air Hockey** — flick the puck, score 7
 - **Puck Rush** — sling every puck through the gap
 - **Sticky Fingers** — grab the loot, rip the bills, stash it first *(online duel; 2–4 on one phone)*
+- **Fender Bender** — shove rivals off the road *(2–4 on one phone, 2 online)*
 - **Chop Chop** — knock out crates, dodge the beams *(2–8 players)*
 - **Steady Hand** — hold, aim, let go: race to zero or own the board *(2–4 players, solo vs a bot)*
 - **Artillery** — angle, power, bracket
@@ -161,7 +162,7 @@ Firebase Realtime Database holds every room at `games/{gameId}`; security rules 
 - **Code-split** — every route except Home, every game page and board, the Wordle dictionary, framer-motion and qrcode load on demand; `lazyWithRetry` reloads once when an old tab asks for a chunk a newer deploy removed. CI enforces an entry-bundle budget.
 - **Hidden information** never sits in the room in plaintext. Two primitives: salted SHA-256 commit–reveal (`src/lib/commit.js`: Hangwoman, Two Truths, Bluff Battle, Wavelength, Herd Mind, Code Words) and per-player sealing (`src/lib/sealed.js`, Web Crypto ECDH + AES-GCM: Spyfair, Chameleon, Heads Up, Code Words, Just One), where each player publishes a public key and the dealer encrypts one entry per recipient.
 - **Party games** use an N-player room model: `players` keyed by uid, an online-aware coordinator (`src/lib/coordinator.js`) that hands host duties to the next online player, per-player scores, and phase machines whose steps are transactions. The five races (`race: true`) share `raceLogic.js` and `RaceShell`.
-- **Real-time games** (Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Puck Rush, Sticky Fingers, Paint, Pac Mac) run peer-to-peer: Firebase is only the WebRTC signaling channel. Each connection attempt has an id, so RETRY works from either side and after reloads; a heartbeat pauses play while a peer is away and offers WAIT / CLAIM WIN when they're gone; the host can equalize its own input delay to half the RTT. Public STUN by default; set `VITE_TURN_URLS` / `VITE_TURN_USERNAME` / `VITE_TURN_CREDENTIAL` to add TURN, and public rooms then relay so strangers never see each other's IP.
+- **Real-time games** (Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Puck Rush, Sticky Fingers, Fender Bender, Paint, Pac Mac) run peer-to-peer: Firebase is only the WebRTC signaling channel. Each connection attempt has an id, so RETRY works from either side and after reloads; a heartbeat pauses play while a peer is away and offers WAIT / CLAIM WIN when they're gone; the host can equalize its own input delay to half the RTT. Public STUN by default; set `VITE_TURN_URLS` / `VITE_TURN_USERNAME` / `VITE_TURN_CREDENTIAL` to add TURN, and public rooms then relay so strangers never see each other's IP.
 - **Telemetry (in-house)** — errors go to `errors/{day}` (deduped, capped), started/finished/abandoned counts to `playsDaily/{day}`; admins see both at `/notes`.
 
 ## Features

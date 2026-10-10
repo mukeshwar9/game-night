@@ -114,7 +114,7 @@ accountMerges/{guestUid}: { into, at }       // server-only audit of guest -> ex
 
 ### Real-time games
 
-Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Puck Rush, Sticky Fingers, Paint and Pac Mac change state ~60×/s, so gameplay does **not** go through RTDB. Firebase keeps the room (lobby, presence, score, game-over) and is the **WebRTC signaling channel**; frames travel peer-to-peer over an unreliable/unordered `RTCDataChannel`.
+Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Puck Rush, Sticky Fingers, Fender Bender, Paint and Pac Mac change state ~60×/s, so gameplay does **not** go through RTDB. Firebase keeps the room (lobby, presence, score, game-over) and is the **WebRTC signaling channel**; frames travel peer-to-peer over an unreliable/unordered `RTCDataChannel`.
 
 - **Pure sims:** `src/lib/*Logic.js` (`createState`, fixed-timestep `step(state, inputs, dt)`, `computeAI`, `getWinner`), unit-tested, no DOM/network.
 - **Transport:** `src/lib/realtime/rtc.js`. Each connection attempt has an id (`signaling/attempt`, with offer/answer/ICE under `signaling/runs/{id}`); whoever starts an attempt (mount, reload, RETRY from either side) replaces the node and peers rebuild their `RTCPeerConnection` without remounting. A 500 ms ping doubles as a heartbeat: play pauses (`reconnecting`) when the peer is silent for 1.5 s, and WAIT / CLAIM WIN appears when their presence is offline. Pure state in `connectionLogic.js`, RTT/delay in `netLogic.js`, ICE config in `iceConfig.js` (public STUN; TURN from `VITE_TURN_*`; public rooms relay-only when TURN is set).

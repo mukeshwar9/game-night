@@ -277,6 +277,33 @@ export const sounds = {
     } catch { /* audio unavailable */ }
     vibrate([0, 30, 60, 90])
   },
+  // FENDER BENDER: a shove (soft or hard), a traffic hit, a wreck, a splash off
+  // the road and the horn. Mute, volume and native haptics flow through seq/noise.
+  fenderBump: (hard = false) => {
+    try { noise(ctx().currentTime, hard ? 0.16 : 0.09, hard ? 0.1 : 0.05, hard ? 900 : 1500) } catch { /* audio unavailable */ }
+    seq([[hard ? 120 : 150, 0, hard ? 0.14 : 0.08, 'sine', hard ? 0.16 : 0.09]])
+    vibrate(hard ? 26 : 8)
+  },
+  fenderCrash: () => {
+    try { noise(ctx().currentTime, 0.28, 0.14, 700) } catch { /* audio unavailable */ }
+    seq([[100, 0, 0.2, 'sine', 0.15], [70, 0.02, 0.16, 'sawtooth', 0.06]])
+    vibrate([0, 30, 20, 30])
+  },
+  fenderWreck: () => {
+    try {
+      const t = ctx().currentTime
+      noise(t, 0.7, 0.18, 380)
+      noise(t + 0.05, 0.45, 0.08, 1100)
+    } catch { /* audio unavailable */ }
+    seq([[90, 0, 0.5, 'sine', 0.17], [50, 0.02, 0.45, 'sawtooth', 0.08]])
+    vibrate([0, 60, 40, 90])
+  },
+  fenderSplash: () => {
+    try { noise(ctx().currentTime, 0.5, 0.1, 1800) } catch { /* audio unavailable */ }
+    seq([[300, 0, 0.12, 'sine', 0.05], [180, 0.08, 0.2, 'sine', 0.05]])
+    vibrate(60)
+  },
+  fenderHorn: () => { seq([[392, 0, 0.26, 'square', 0.07], [494, 0, 0.26, 'square', 0.07]]); vibrate(15) },
   // Animal Stack: rotate tick, release blip, landing thud scaled by impact,
   // topple sting, and the last-5-seconds timer tick.
   stackRotate: () => { seq([[880, 0, 0.03, 'square', 0.04]]); vibrate(4) },

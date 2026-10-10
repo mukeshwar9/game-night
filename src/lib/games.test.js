@@ -117,6 +117,8 @@ describe('supportsLocalPlay', () => {
     'onitama', 'quarto', 'santorini', 'loa', 'yavalath',
     // custom, but ships its own offline page (registry LocalPage)
     'minigolf', 'darts',
+    // realtime online duel whose LocalPage seats 2-4 people on one phone
+    'fenderbender',
     // custom online duel that keeps its turn-based board for pass-and-play (localBoard)
     'visualmemory',
   ]

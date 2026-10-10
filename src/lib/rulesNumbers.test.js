@@ -32,6 +32,7 @@ import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
 import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS as STICKY_ROUND_S } from './stickyLogic'
+import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
@@ -264,6 +265,12 @@ const RULE_NUMBERS = {
     checks: [
       [1, STICKY_VALUES.coin], [1, STICKY_VALUES.half], [3, STICKY_VALUES.bill], [5, STICKY_VALUES.gem], [3, DYE_PENALTY],
       [10, LAST_CALL_SECONDS], [60, STICKY_ROUND_S], [3, first('stickyfingers')],
+    ],
+  }),
+  fenderbender: () => ({
+    checks: [
+      [3, FENDER_HEARTS], [4, FENDER_HORN], [28, FENDER_SQUEEZE], [2, FENDER_GHOST],
+      [3, first('fenderbender')], [3, FENDER_TARGETS[2]], [5, FENDER_TARGETS[3]], [7, FENDER_TARGETS[4]],
     ],
   }),
   minigolf: () => ({

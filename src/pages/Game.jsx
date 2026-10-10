@@ -81,7 +81,7 @@ const EmoteBar = lazyWithRetry(() => import('../components/EmoteBar'))
 // Real-time custom arenas (M-05/M-24) — physics-driven games with their own
 // dedicated page component, square/wide viewport-hungry courts, and a live
 // score that keeps changing even while a modal hides the board.
-const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'pacmac', 'airhockey', 'paint', 'puckrush', 'stickyfingers'])
+const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'pacmac', 'airhockey', 'paint', 'puckrush', 'stickyfingers', 'fenderbender'])
 
 function toArray(val) {
   if (!val) return []

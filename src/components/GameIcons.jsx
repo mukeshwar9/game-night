@@ -812,6 +812,17 @@ export function StickyFingersIcon() {
   )
 }
 
+export function FenderBenderIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 2v20M21 2v20" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+      <rect x="6" y="11" width="6" height="10" rx="2.2" stroke="currentColor" strokeWidth="2" />
+      <rect x="13" y="3" width="6" height="10" rx="2.2" fill="currentColor" opacity="0.85" transform="rotate(14 16 8)" />
+      <path d="M12.5 13.5l1.5-1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function ArtilleryIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
