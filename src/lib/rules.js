@@ -384,6 +384,17 @@ export const GAME_RULES = {
     win: 'First to 5 points wins the match.',
   },
 
+  fenderbender: {
+    objective: 'Be the last car rolling: shove rivals off the road or let the traffic wreck them.',
+    howToPlay: [
+      'Everyone drives at once on one four-lane road. Drag your pad to steer; the car follows your thumb.',
+      'Traffic comes down the road. Each hit costs a heart and you start with 3. Cross the edge of the road and you are out at once.',
+      'Ram a rival and the car driving in harder wins: the other is knocked away and skids. Tap your pad to honk and blast nearby cars outward; the horn needs 4 seconds to recharge.',
+      'After 28 seconds the road closes in from both sides. A car that is out comes back as a truck after 2 seconds and keeps coming down the road.',
+    ],
+    win: 'The last car rolling takes the round. Two cars: first to 3 rounds wins. With three or four cars you score a point for every rival you outlast; first to 5 with three cars, 7 with four.',
+  },
+
   airhockey: {
     objective: 'Flick the puck past your rival seven times.',
     howToPlay: [
@@ -531,6 +542,18 @@ export const GAME_RULES = {
     win: 'Name your rival\'s face to win the round. First to 3 rounds wins the match.',
   },
 
+  darts: {
+    objective: 'Throw three darts a visit. Count down to exactly zero, or claim wedges in Turf.',
+    howToPlay: [
+      'Hold on the board and drag to aim, then let go. The ring shows how much your hand shakes: let go when it is small. In ONE BUTTON mode, tap to lock across, tap again to lock up and down.',
+      'Countdown: a single scores its number, the outer ring doubles it, the inner ring trebles it, the outer bull is 25 and the bull is 50. Go past zero and the visit busts: your score goes back to where the visit began.',
+      'Finish on exactly zero; the segments that finish glow. Everyone throws the same number of visits, so a later player who finishes in fewer darts still wins. Level on darts means a shoot-off: one dart each, nearest the bull.',
+      'Turf: a single claims a wedge, a double claims and locks it, and a treble takes the wedge and both neighbours. The bull is 2 bonus points and the outer bull 1.',
+      'Nerves: the leader\u2019s hand shakes more, and whoever is furthest behind shakes less.',
+    ],
+    win: 'First to zero wins the leg; pick BEST OF 3 to play 3 legs. In Turf, the most points after five rounds wins. 2 to 4 players.',
+  },
+
   yacht: {
     objective: 'Roll five dice and fill all 13 boxes on your sheet for the highest total.',
     howToPlay: [
@@ -540,6 +563,17 @@ export const GAME_RULES = {
       'Reach 63 in the six number boxes to earn a 35 point bonus.',
     ],
     win: 'When every sheet is full, the highest total wins. 2 to 4 players.',
+  },
+
+  lazysusan: {
+    objective: 'Take pieces off the turning plate before anyone else can.',
+    howToPlay: [
+      'Everyone has a gate on the edge of the plate. Tap when a piece is inside your gate to take it.',
+      'A dumpling is worth 1 point and the steamed bun is worth 3. A tap on nothing costs 1 point and a short wait.',
+      'A chili costs 2 points and freezes your chopsticks, so leave it.',
+      'Every new plate turns the other way. The last piece on a plate is gold: worth double, and the plate speeds up.',
+    ],
+    win: 'First to 15 points with two players, 12 with three, 10 with four.',
   },
 
   bluff: {

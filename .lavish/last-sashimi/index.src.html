@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lazy Susan: design board</title>
+<style>
+@font-face { font-family: "Press Start 2P"; src: url(data:font/woff2;base64,__FONT__) format("woff2"); font-display: swap; }
+:root {
+  --bg: 238 240 226; --surface: 246 248 236; --card: 252 253 246; --border: 185 195 165;
+  --text: 45 55 35; --dim: 72 84 58; --p1: 70 121 47; --p2: 129 89 180; --p3: 175 55 115; --p4: 25 100 150;
+  --cta: 130 95 14; --win: 38 123 66; --danger: 190 30 50; --tint-p1: 220 238 205; --tint-cta: 242 232 200; --tint-danger: 242 214 214;
+  --deep: 228 232 214; --glass-rim: 255 255 255;
+  --art-1: 150 196 120; --art-2: 186 160 232; --art-3: 246 186 146; --art-4: 140 196 232;
+  --px: "Press Start 2P", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; color: rgb(var(--text)); font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(60% 40% at 8% 0%, rgb(var(--art-1) / .55), transparent 70%),
+    radial-gradient(50% 36% at 96% 6%, rgb(var(--art-3) / .5), transparent 70%),
+    radial-gradient(50% 30% at 90% 60%, rgb(var(--art-2) / .28), transparent 70%),
+    radial-gradient(60% 30% at 0% 80%, rgb(var(--art-4) / .3), transparent 70%),
+    rgb(var(--bg)); background-attachment: fixed; }
+main { max-width: 1120px; margin: 0 auto; padding: 28px 16px 96px; }
+h1, h2, h3, h4, .px { font-family: var(--px); font-weight: 400; letter-spacing: 0; }
+h1 { font-size: clamp(22px, 5.4vw, 40px); line-height: 1.25; margin: 10px 0 14px; }
+h2 { font-size: clamp(14px, 2.6vw, 18px); line-height: 1.5; margin: 56px 0 6px; }
+h3 { font-size: 12px; line-height: 1.6; margin: 0 0 8px; }
+h4 { font-size: 9px; line-height: 1.6; margin: 0 0 6px; color: rgb(var(--dim)); }
+p { margin: 0 0 10px; } .lede { font-size: 18px; max-width: 760px; } .sub { max-width: 780px; color: rgb(var(--dim)); margin-bottom: 16px; }
+a { color: rgb(var(--p4)); }
+.eyebrow { font: 9px/1.6 var(--px); color: rgb(var(--cta)); }
+.glass { background: rgb(var(--card) / .5); border: 1px solid rgb(var(--glass-rim) / .8); border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / .9), 0 8px 22px rgb(0 0 0 / .14); backdrop-filter: blur(10px) saturate(1.6); -webkit-backdrop-filter: blur(10px) saturate(1.6); }
+.card { padding: 16px 18px; min-width: 0; }
+.grid { display: grid; gap: 14px; } .g2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); } .g3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); } .g4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+.fact b { display: block; font: 15px/1.5 var(--px); } .fact span { font-size: 14px; color: rgb(var(--dim)); }
+.chip { display: inline-block; font: 8px/1 var(--px); padding: 6px 8px; border-radius: 999px; background: rgb(var(--text) / .08); margin: 0 4px 4px 0; white-space: nowrap; }
+.chip.go { background: rgb(var(--tint-p1)); } .chip.warn { background: rgb(var(--tint-cta)); } .chip.bad { background: rgb(var(--tint-danger)); } .chip { color: rgb(var(--text)); }
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; } th, td { text-align: left; padding: 8px 10px; border-top: 1px solid rgb(var(--border) / .7); vertical-align: top; }
+thead th { border-top: 0; font: 8px/1.6 var(--px); color: rgb(var(--dim)); } .scroll { overflow-x: auto; }
+ul { margin: 0; padding-left: 18px; } li { margin-bottom: 5px; }
+svg { display: block; max-width: 100%; height: auto; }
+.svgt { font: 9px var(--px); fill: rgb(var(--text)); } .svgs { font: 12px ui-sans-serif, system-ui, sans-serif; fill: rgb(var(--dim)); }
+
+/* prototype */
+.proto { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 16px; }
+@media (max-width: 820px) { .proto { grid-template-columns: minmax(0, 1fr); } }
+.phone { width: 100%; max-width: 380px; margin: 0 auto; padding: 10px; border-radius: 40px; background: linear-gradient(160deg, rgb(58 66 48), rgb(24 30 18)); box-shadow: 0 24px 48px rgb(40 50 30 / .35), inset 0 0 0 2px rgb(255 255 255 / .12); }
+.phone canvas { display: block; width: 100%; aspect-ratio: 360 / 640; border-radius: 30px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; outline: none; background: rgb(var(--deep)); }
+.phone canvas:focus-visible { box-shadow: 0 0 0 3px rgb(var(--cta)); }
+.ctl { display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row > .lab { font: 8px/1.6 var(--px); color: rgb(var(--dim)); width: 100%; }
+button, .btn { font: 9px/1 var(--px); color: rgb(var(--text)); background: rgb(var(--card) / .7); border: 1px solid rgb(var(--border)); border-radius: 10px; padding: 11px 12px; cursor: pointer; min-height: 40px;
+  transition: transform 80ms cubic-bezier(.2, 0, 0, 1), background-color 150ms, color 150ms; }
+button:active { transform: scale(.96); }
+button[aria-pressed="true"] { background: rgb(var(--text)); color: rgb(var(--card)); border-color: rgb(var(--text)); }
+button.cta { background: rgb(var(--cta)); color: rgb(var(--card)); border-color: rgb(var(--cta)); }
+button.try { background: rgb(var(--tint-p1)); border-color: rgb(var(--p1) / .5); margin-top: 8px; }
+.legend { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px 12px; align-items: center; font-size: 14.5px; }
+.legend canvas { width: 44px; height: 44px; }
+kbd { font: 8px var(--px); background: rgb(var(--text) / .1); border-radius: 5px; padding: 4px 5px; }
+.live { font: 9px/1.7 var(--px); min-height: 32px; }
+
+.twist { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; position: relative; }
+.twist .n { font: 22px/1 var(--px); color: rgb(var(--cta)); }
+.twist dl { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 4px 10px; margin: 8px 0 0; font-size: 14.5px; }
+.twist dt { font: 7px/2 var(--px); color: rgb(var(--dim)); } .twist dd { margin: 0; }
+.first { outline: 2px solid rgb(var(--win)); outline-offset: -2px; }
+.badge { position: absolute; top: 12px; right: 12px; }
+
+form.pick { padding: 18px; border: 2px solid rgb(var(--text)); }
+fieldset { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; } legend { font: 10px/1.7 var(--px); padding: 0; margin-bottom: 6px; }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 4px 14px; }
+.opts label { display: flex; gap: 9px; align-items: flex-start; padding: 7px 4px; font-size: 15px; cursor: pointer; }
+input[type=checkbox], input[type=radio] { width: 19px; height: 19px; margin: 2px 0 0; accent-color: rgb(var(--p1)); flex: none; }
+textarea { width: 100%; min-height: 64px; border: 1px solid rgb(var(--border)); border-radius: 10px; padding: 10px; font: inherit; background: rgb(var(--card) / .8); color: inherit; }
+.rec { font: 7px/1 var(--px); color: rgb(var(--win)); margin-left: 4px; white-space: nowrap; }
+select { font: 9px/1 var(--px); color: rgb(var(--text)); background: rgb(var(--card) / .8); border: 1px solid rgb(var(--border)); border-radius: 10px; padding: 11px 10px; min-height: 40px; max-width: 100%; }
+.new { border: 2px solid rgb(var(--win)); margin: 18px 0 0; }
+#queued { font: 9px/1.7 var(--px); color: rgb(var(--win)); margin-left: 10px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } button { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+
+<!-- 1. SUMMARY -->
+<span class="eyebrow">GAME NIGHT · DESIGN BOARD · ONE OF EIGHT MINIGAME STUDIES</span>
+<h1>LAZY SUSAN</h1>
+<p class="lede">A plate of dumplings turns in the middle of the table. Everyone holds one pair of chopsticks and one button. Tap when food passes your side, and you eat it. Tap at the wrong moment and you lose a point. Two to four players on one phone, or against a bot.</p>
+<p class="sub">This is Game Night's own take on the shared-plate reflex minigame from JindoBlu's party app ("The Last Sashimi"). The mechanic was studied from gameplay video; the name, art, food, sounds and code here are new. Design source for this page: Game Night's own theme tokens and pixel font, because the board previews a Game Night screen.</p>
+
+<div class="glass card new"><h4>CHANGED IN ROUND 2</h4><p style="margin:0">You asked for the design to match our theme and follow the theme the player has selected. It now does. Every colour in the game (table, plate, food, chopsticks, gates, scoreboard) is worked out from the app's own theme colours, and this whole page follows too. Pick any of the 31 themes in the <a href="#play">THEME</a> menu beside the game. Decision 4 (LOOK) is rewritten to match.</p></div>
+
+<div class="grid g4" style="margin-top:18px">
+  <div class="glass card fact"><b>2 to 4</b><span>players on one phone, plus solo against a bot at three levels</span></div>
+  <div class="glass card fact"><b>45 to 75 s</b><span>per match: first to 15 points (12 with three players, 10 with four)</span></div>
+  <div class="glass card fact"><b>1 button</b><span>per player. Timing is the whole skill, so a child and an adult can share a table</span></div>
+  <div class="glass card fact"><b>Medium</b><span>build. One-phone play first; an online shared plate fits the room model with new room keys</span></div>
+</div>
+
+<!-- 2. PROTOTYPE -->
+<h2 id="play">PLAY IT</h2>
+<p class="sub">This is a working sketch of the core loop. It opens with two bots playing; tap the plate to start your own match. On a phone, each player taps their own side of the screen.</p>
+
+<div class="proto">
+  <div class="phone"><canvas id="game" tabindex="0" data-lavish-action="true" aria-label="Lazy Susan prototype. Tap when food is inside your gate."></canvas></div>
+  <div class="ctl">
+    <div class="glass card">
+      <div class="row"><span class="lab">WHO PLAYS</span>
+        <button data-mode="bot" aria-pressed="true">1P VS BOT</button>
+        <button data-mode="2" aria-pressed="false">2 PLAYERS</button>
+        <button data-mode="3" aria-pressed="false">3 PLAYERS</button>
+        <button data-mode="4" aria-pressed="false">4 PLAYERS</button>
+      </div>
+      <div class="row" style="margin-top:12px"><label class="lab" for="theme">THEME (THE PLAYER'S OWN PICK IN THE APP)</label>
+        <select id="theme"></select>
+        <button id="prevTheme" aria-label="Previous theme">&lt;</button><button id="nextTheme" aria-label="Next theme">&gt;</button>
+      </div>
+      <div class="row" id="botrow" style="margin-top:12px"><span class="lab">BOT</span>
+        <button data-level="0" aria-pressed="false">EASY</button>
+        <button data-level="1" aria-pressed="true">NORMAL</button>
+        <button data-level="2" aria-pressed="false">HARD</button>
+      </div>
+      <div class="row" style="margin-top:12px"><span class="lab">TWISTS (ALL THREE ON BY DEFAULT)</span>
+        <button data-twist="turn" aria-pressed="true">THE TURN</button>
+        <button data-twist="chili" aria-pressed="true">HOT CHILI</button>
+        <button data-twist="last" aria-pressed="true">LAST BITE</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="cta" id="restart">RESTART</button>
+        <button id="sound" aria-pressed="true">SOUND ON</button>
+      </div>
+      <p class="live" id="live" role="status" aria-live="polite" style="margin:12px 0 0"></p>
+    </div>
+    <div class="glass card">
+      <h4>WHAT IS ON THE PLATE</h4>
+      <div class="legend">
+        <canvas id="lg-dump" width="88" height="88"></canvas><div><b>Dumpling: 1 point.</b> Most of the plate.</div>
+        <canvas id="lg-bun" width="88" height="88"></canvas><div><b>Steamed bun: 3 points.</b> One per plate, so everyone watches it.</div>
+        <canvas id="lg-chili" width="88" height="88"></canvas><div><b>Chili: lose 2 points</b> and your chopsticks are frozen for 0.9 seconds. Let it go by.</div>
+        <canvas id="lg-gold" width="88" height="88"></canvas><div><b>Last bite: double.</b> The final piece on a plate turns gold and the plate speeds up.</div>
+      </div>
+    </div>
+    <div class="glass card">
+      <h4>CONTROLS</h4>
+      <p style="margin:0">Touch: tap your side of the screen. The coloured gate on the plate is your reach, and it lights up when something is inside it.</p>
+      <p style="margin:8px 0 0">Keyboard (click the plate first): two players <kbd>SPACE</kbd> and <kbd>ENTER</kbd>. Three players <kbd>SPACE</kbd> <kbd>P</kbd> <kbd>Q</kbd>. Four players <kbd>Z</kbd> <kbd>M</kbd> <kbd>P</kbd> <kbd>Q</kbd>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 3. THE SOURCE -->
+<h2>HOW THE ORIGINAL PLAYS</h2>
+<p class="sub">Facts below come from frames of two gameplay videos and from the Play Store listing. Nothing was installed or decompiled. Where a fact could not be confirmed it is marked as an assumption.</p>
+<div class="grid g2">
+  <div class="glass card">
+    <svg viewBox="0 0 360 330" role="img" aria-label="Diagram of the original: a ring-shaped plate turning between two pairs of chopsticks">
+      <rect x="110" y="8" width="140" height="314" rx="16" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/>
+      <circle cx="180" cy="165" r="56" fill="none" stroke="rgb(var(--p3) / .7)" stroke-width="30"/>
+      <rect x="196" y="120" width="20" height="12" rx="5" fill="rgb(var(--cta))" transform="rotate(35 206 126)"/>
+      <rect x="140" y="196" width="20" height="12" rx="5" fill="rgb(var(--cta))" transform="rotate(35 150 202)"/>
+      <circle cx="140" cy="132" r="9" fill="rgb(var(--card))" stroke="rgb(var(--text))" stroke-width="2"/>
+      <path d="M150 105 A 62 62 0 0 1 222 110" fill="none" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/>
+      <g stroke="rgb(var(--text))" stroke-width="5" stroke-linecap="round"><path d="M168 60 L160 22"/><path d="M192 60 L200 22"/><path d="M168 270 L160 308"/><path d="M192 270 L200 308"/></g>
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="rgb(var(--text))"/></marker></defs>
+      <text class="svgt" x="6" y="40">PLAYER 2</text><text class="svgs" x="6" y="56">taps the top half</text>
+      <text class="svgt" x="6" y="290">PLAYER 1</text><text class="svgs" x="6" y="306">taps the bottom</text>
+      <text class="svgt" x="262" y="120">1 POINT</text><text class="svgs" x="262" y="136">fish slice</text>
+      <text class="svgt" x="262" y="170">3 POINTS</text><text class="svgs" x="262" y="186">rice ball</text>
+      <text class="svgt" x="262" y="222">MISS: -1</text><text class="svgs" x="262" y="238">jab at nothing</text>
+      <text class="svgs" x="6" y="170">score sits on</text><text class="svgs" x="6" y="186">the side edge</text>
+    </svg>
+    <p style="margin:10px 0 0;font-size:14.5px">A ring-shaped plate turns in the centre. Each player has a pair of chopsticks pointing at it. One tap jabs the chopsticks straight in; if a piece is under them, you eat it.</p>
+  </div>
+  <div class="glass card scroll">
+    <table>
+      <thead><tr><th>WHAT</th><th>FINDING</th><th>HOW SURE</th></tr></thead>
+      <tbody>
+        <tr><td>Goal</td><td>First to 15 points. Fish slice 1, rice ball 3, every mistake costs 1.</td><td><span class="chip go">CONFIRMED</span> in-game rules card, video A at 0:14</td></tr>
+        <tr><td>Modes</td><td>Tutorial, player against player, player against a robot with a difficulty slider.</td><td><span class="chip go">CONFIRMED</span> video A at 0:14 and 0:28</td></tr>
+        <tr><td>Screen</td><td>Portrait phone flat on the table, players at the two short ends, 3-2-1 countdown, score on one long edge, EXIT on the other.</td><td><span class="chip go">CONFIRMED</span> videos A and B</td></tr>
+        <tr><td>Plate</td><td>Holds one to five pieces at a time and fills up again after it is cleared.</td><td><span class="chip warn">OBSERVED</span> in frames; the exact refill trigger is assumed</td></tr>
+        <tr><td>Miss feedback</td><td>The player's half of the screen washes red.</td><td><span class="chip warn">OBSERVED</span> one frame, video B</td></tr>
+        <tr><td>Three and four players</td><td>No footage found. Both videos are from the two-player sibling app. A four-seat layout around the same plate is assumed.</td><td><span class="chip bad">ASSUMPTION</span></td></tr>
+        <tr><td>Speed or direction changes</td><td>Not seen in the frames captured.</td><td><span class="chip bad">NOT CONFIRMED</span></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13.5px;color:rgb(var(--dim));margin:10px 0 0">Video A: youtube.com/watch?v=uZfp2839FN4. Video B: youtube.com/watch?v=2kcAllZukkA. Store listing: play.google.com/store/apps/details?id=com.JindoBlu.FourPlayers (100M+ downloads, rated 4.3, updated 9 Oct 2026; it does not describe this minigame).</p>
+  </div>
+</div>
+<div class="grid g2" style="margin-top:14px">
+  <div class="glass card"><h3>WHY IT IS FUN</h3><ul>
+    <li><b>One shared plate.</b> Every piece you take is one your friend does not get, so each grab is felt by everyone.</li>
+    <li><b>The rules explain themselves.</b> Food turns, chopsticks jab. Nobody needs a tutorial.</li>
+    <li><b>The 3-point piece.</b> Everybody tracks the same piece at once, which creates the shouting.</li>
+    <li><b>The miss penalty.</b> It stops button mashing and gives a nervous player a real way to lose.</li>
+  </ul></div>
+  <div class="glass card"><h3>WHERE IT FALLS SHORT</h3><ul>
+    <li><b>Only one decision.</b> Every piece is good, so the only question is when. It gets flat after a few rounds. (My judgement.)</li>
+    <li><b>Seat luck.</b> With the plate turning one way, the player upstream gets first pick of each new piece. (Follows from the layout; assumed for the original.)</li>
+    <li><b>No comeback.</b> A player who is 8 behind has nothing to hope for.</li>
+    <li><b>Unfair robots.</b> Store reviews of the app say hard bots win by getting advantages rather than by playing well, and that touch targets are too small (reviews dated 20 Dec 2024 and 30 Aug 2026).</li>
+  </ul></div>
+</div>
+
+<!-- 4. RULES -->
+<h2>THE GAME NIGHT VERSION</h2>
+<p class="sub">Same core, with the four weak points above answered. Every number is a starting value to be tuned in playtests.</p>
+<div class="grid g3">
+  <div class="glass card"><h3>A ROUND</h3><ul>
+    <li>3-2-1, then the plate turns with 5 to 7 pieces on it.</li>
+    <li>Your gate is the coloured arc on your side. Tap while a piece is inside it to eat it.</li>
+    <li>Tap on nothing: lose 1 point and wait 0.45 seconds.</li>
+    <li>When the food is gone a new plate arrives, a little faster.</li>
+    <li>First to the target wins the match.</li>
+  </ul></div>
+  <div class="glass card"><h3>FAIR BY DESIGN</h3><ul>
+    <li>Each new plate turns the opposite way, so no seat is always upstream.</li>
+    <li>New pieces cannot be grabbed for their first 0.3 seconds, so nobody scores from a lucky spawn.</li>
+    <li>Scores never go below zero.</li>
+    <li>The bot presses the same button with human-like timing error. It never gets a head start.</li>
+    <li>Shapes differ, not only colours: crescent, round, long pepper.</li>
+  </ul></div>
+  <div class="glass card"><h3>FEEL</h3><ul>
+    <li>The tap resolves on contact; the animation follows. Nothing waits for a network reply.</li>
+    <li>A tap in the last 0.12 seconds of a wait is remembered and fires when the wait ends.</li>
+    <li>The plate has weight: it slows, stops and swings back when it reverses.</li>
+    <li>Each event has two signals: a sound and a visible change.</li>
+    <li>Reduced motion: no screen shake.</li>
+  </ul></div>
+</div>
+
+<h3 style="margin-top:26px">WHERE EVERYONE SITS</h3>
+<div class="grid g4">
+  <div class="glass card"><svg viewBox="0 0 120 150" role="img" aria-label="Two players at the short ends"><rect x="26" y="4" width="68" height="142" rx="10" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><circle cx="60" cy="75" r="22" fill="none" stroke="rgb(var(--border))" stroke-width="10"/><path d="M60 110v26" stroke="rgb(var(--p1))" stroke-width="6" stroke-linecap="round"/><path d="M60 40V14" stroke="rgb(var(--p2))" stroke-width="6" stroke-linecap="round"/></svg><h4 style="margin-top:8px">2 PLAYERS</h4><p style="font-size:14px;margin:0">Short ends. Each player owns half the screen.</p></div>
+  <div class="glass card"><svg viewBox="0 0 120 150" role="img" aria-label="Three players, evenly spaced"><rect x="26" y="4" width="68" height="142" rx="10" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><circle cx="60" cy="75" r="22" fill="none" stroke="rgb(var(--border))" stroke-width="10"/><path d="M60 110v26" stroke="rgb(var(--p1))" stroke-width="6" stroke-linecap="round"/><path d="M90 58l-4 2" stroke="rgb(var(--p2))" stroke-width="6" stroke-linecap="round"/><path d="M30 58l4 2" stroke="rgb(var(--p3))" stroke-width="6" stroke-linecap="round"/></svg><h4 style="margin-top:8px">3 PLAYERS</h4><p style="font-size:14px;margin:0">Gates 120 degrees apart: one at the bottom, two sharing the top half.</p></div>
+  <div class="glass card"><svg viewBox="0 0 120 150" role="img" aria-label="Four players at the corners"><rect x="26" y="4" width="68" height="142" rx="10" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><circle cx="60" cy="75" r="22" fill="none" stroke="rgb(var(--border))" stroke-width="10"/><g stroke-width="6" stroke-linecap="round"><path d="M36 99l-8 8" stroke="rgb(var(--p1))"/><path d="M84 99l8 8" stroke="rgb(var(--p2))"/><path d="M84 51l8-8" stroke="rgb(var(--p3))"/><path d="M36 51l-8-8" stroke="rgb(var(--p4))"/></g></svg><h4 style="margin-top:8px">4 PLAYERS</h4><p style="font-size:14px;margin:0">Corners. Each player owns a quarter of the screen, so thumbs do not collide.</p></div>
+  <div class="glass card"><svg viewBox="0 0 120 150" role="img" aria-label="Online: each phone shows the same plate with your seat at the bottom"><rect x="6" y="24" width="48" height="100" rx="8" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><rect x="66" y="24" width="48" height="100" rx="8" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><circle cx="30" cy="68" r="13" fill="none" stroke="rgb(var(--border))" stroke-width="7"/><circle cx="90" cy="68" r="13" fill="none" stroke="rgb(var(--border))" stroke-width="7"/><path d="M30 92v20" stroke="rgb(var(--p1))" stroke-width="5" stroke-linecap="round"/><path d="M90 92v20" stroke="rgb(var(--p2))" stroke-width="5" stroke-linecap="round"/><path d="M54 68h12" stroke="rgb(var(--text))" stroke-width="2" stroke-dasharray="3 3"/></svg><h4 style="margin-top:8px">ONLINE</h4><p style="font-size:14px;margin:0">Same plate on every phone, turned so your own gate is nearest you.</p></div>
+</div>
+
+<!-- 5. TWISTS -->
+<h2>FIVE TWISTS</h2>
+<p class="sub">The first three are in the prototype above and are the ones I recommend shipping in the first version. They are cheap and each one fixes a named weakness of the original.</p>
+<div class="grid g3">
+  <div class="glass card twist first"><span class="chip go badge">SHIP FIRST</span><span class="n">1</span><h3>THE TURN</h3>
+    <p>Every new plate turns the other way, and you see it slow down and swing back.</p>
+    <dl><dt>WHY</dt><dd>Removes seat luck. Also resets everyone's rhythm, so a leader cannot coast on muscle memory.</dd><dt>RISK</dt><dd>Low. The reversal must be telegraphed (bell, visible slowdown, arrows on the hub) or it reads as a cheat.</dd><dt>COST</dt><dd>Small.</dd></dl>
+    <button class="try" data-try="turn">TRY IT ALONE</button></div>
+  <div class="glass card twist first"><span class="chip go badge">SHIP FIRST</span><span class="n">2</span><h3>HOT CHILI</h3>
+    <p>One piece on the plate is a chili. Grab it and you lose 2 points and freeze for 0.9 seconds.</p>
+    <dl><dt>WHY</dt><dd>Adds a second decision: what to leave. It punishes tapping on rhythm and makes a chili sitting next to the bun a real trap.</dd><dt>RISK</dt><dd>Low to medium. Too many chilies and the game becomes waiting. Start at one, two from the fourth plate.</dd><dt>COST</dt><dd>Small.</dd></dl>
+    <button class="try" data-try="chili">TRY IT ALONE</button></div>
+  <div class="glass card twist first"><span class="chip go badge">SHIP FIRST</span><span class="n">3</span><h3>LAST BITE</h3>
+    <p>The final piece on every plate turns gold, is worth double, and the plate speeds up by 45 percent.</p>
+    <dl><dt>WHY</dt><dd>Gives every plate a climax and gives the trailing player a swing: a golden bun is 6 points. This is the game's signature moment.</dd><dt>RISK</dt><dd>Medium. At high speed the gate may be too hard to hit. Watch the miss rate on the gold piece.</dd><dt>COST</dt><dd>Small.</dd></dl>
+    <button class="try" data-try="last">TRY IT ALONE</button></div>
+  <div class="glass card twist"><span class="chip warn badge">LATER</span><span class="n">4</span><h3>TWO RINGS</h3>
+    <svg viewBox="0 0 240 110" role="img" aria-label="Two rings turning in opposite directions"><circle cx="70" cy="55" r="44" fill="none" stroke="rgb(var(--border))" stroke-width="14"/><circle cx="70" cy="55" r="22" fill="none" stroke="rgb(var(--art-3))" stroke-width="14"/><path d="M38 18 A 50 50 0 0 1 104 20" fill="none" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/><path d="M84 40 A 20 20 0 0 0 56 40" fill="none" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/><text class="svgt" x="130" y="40">TAP: OUTER</text><text class="svgt" x="130" y="62">HOLD: INNER</text><text class="svgs" x="130" y="82">buns live inside</text></svg>
+    <p>An inner ring turns the other way and carries the high-value pieces. A tap reaches the outer ring; press and hold to reach further in.</p>
+    <dl><dt>WHY</dt><dd>A risk choice on every pass: the safe dumpling now, or commit longer for the bun.</dd><dt>RISK</dt><dd>Medium. Breaks the one-tap simplicity; a hold on a shared phone is harder to read.</dd><dt>COST</dt><dd>Medium.</dd></dl></div>
+  <div class="glass card twist"><span class="chip warn badge">LATER</span><span class="n">5</span><h3>BANQUET (CO-OP)</h3>
+    <svg viewBox="0 0 240 110" role="img" aria-label="An order ticket listing pieces to eat in sequence"><rect x="8" y="10" width="120" height="90" rx="8" fill="rgb(var(--card) / .7)" stroke="rgb(var(--border))"/><text class="svgt" x="18" y="32">ORDER 7</text><circle cx="30" cy="56" r="9" fill="rgb(var(--p1))"/><circle cx="56" cy="56" r="9" fill="rgb(var(--p2))"/><circle cx="82" cy="56" r="9" fill="rgb(var(--p1))"/><circle cx="108" cy="56" r="9" fill="rgb(var(--p2) / .3)"/><text class="svgs" x="18" y="88">you, me, you, me</text><text class="svgt" x="140" y="40">ONE TEAM</text><text class="svgt" x="140" y="62">SHARED</text><text class="svgt" x="140" y="84">HEARTS</text></svg>
+    <p>Everyone is on one team. A ticket shows whose turn it is to eat what; the kitchen sends plates faster until three mistakes end the run.</p>
+    <dl><dt>WHY</dt><dd>Turns the stealing game into a calling-out game. Fits Game Night's co-op flag and gives couples a non-competitive mode.</dd><dt>RISK</dt><dd>Medium. Needs its own tuning and a best-run score.</dd><dt>COST</dt><dd>Medium.</dd></dl></div>
+  <div class="glass card twist"><span class="chip badge">GAME NIGHT HOOK</span><span class="n">+</span><h3>WINNER FEEDS THE NIGHT</h3>
+    <p>Not a rule change: the match reports placements to the night scoreboard like every other game, and seats show each player's avatar on their chopstick band.</p>
+    <dl><dt>WHY</dt><dd>It is a 60-second palate cleanser between longer games, which is exactly what a game night needs.</dd><dt>RISK</dt><dd>None beyond the build.</dd><dt>COST</dt><dd>Comes with the room shell.</dd></dl></div>
+</div>
+
+<!-- 6. FIT + BUILD -->
+<h2>FIT AND BUILD</h2>
+<div class="grid g2">
+  <div class="glass card"><h3>NEAREST GAMES ALREADY IN THE APP</h3>
+    <div class="scroll"><table><thead><tr><th>GAME</th><th>SHARED</th><th>DIFFERENT</th></tr></thead><tbody>
+      <tr><td>Reaction Time</td><td>One-tap timing</td><td>Everyone reacts to their own signal; nothing is contested</td></tr>
+      <tr><td>Chop Chop</td><td>Fast taps, a penalty for the wrong tap</td><td>Each player has a separate lane; a race, not a fight over one object</td></tr>
+      <tr><td>Pulp Rush (branch)</td><td>Food theme, bad items to avoid</td><td>Swipes, separate throws per player</td></tr>
+      <tr><td>Puck Rush</td><td>Two on one phone</td><td>Physics and aiming</td></tr>
+    </tbody></table></div>
+    <p style="margin:10px 0 0">No current game has one shared, moving resource that players take from each other in real time. That is the gap this fills.</p></div>
+  <div class="glass card"><h3>WHAT THE BUILD NEEDS</h3>
+    <div class="scroll"><table><thead><tr><th>PIECE</th><th>SIZE</th></tr></thead><tbody>
+      <tr><td>Pure logic module with tests: plates from a seed, gate hit test, scoring, bot</td><td><span class="chip go">SMALL</span></td></tr>
+      <tr><td>Arena renderer with the food and chopstick art, sounds, reduced motion</td><td><span class="chip warn">MEDIUM</span></td></tr>
+      <tr><td>One-phone page for 2 to 4 and solo against the bot, registry entry, icon, rules text</td><td><span class="chip go">SMALL</span></td></tr>
+      <tr><td>Online shared plate: new room keys, database rules and rule tests, two-client test</td><td><span class="chip warn">MEDIUM</span></td></tr>
+    </tbody></table></div>
+    <p style="margin:10px 0 0"><b>Overall: medium.</b> One-phone play and the bot can ship first without touching the database.</p></div>
+</div>
+<div class="glass card" style="margin-top:14px">
+  <h3>HOW ONLINE CAN WORK WITHOUT A REFEREE</h3>
+  <div class="grid g2" style="align-items:center">
+    <svg viewBox="0 0 420 170" role="img" aria-label="The plate angle is computed from the shared clock; a grab is a first-writer-wins claim on one piece">
+      <rect x="6" y="18" width="120" height="56" rx="10" fill="rgb(var(--tint-p1))" stroke="rgb(var(--p1))"/><text class="svgt" x="18" y="42">PLATE RECORD</text><text class="svgs" x="18" y="60">seed, start, direction</text>
+      <rect x="6" y="100" width="120" height="56" rx="10" fill="rgb(var(--card) / .7)" stroke="rgb(var(--border))"/><text class="svgt" x="18" y="124">SERVER CLOCK</text><text class="svgs" x="18" y="142">same on every phone</text>
+      <path d="M126 46h44M126 128h44" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/>
+      <rect x="174" y="58" width="104" height="56" rx="10" fill="rgb(var(--card) / .7)" stroke="rgb(var(--border))"/><text class="svgt" x="186" y="82">SAME ANGLE</text><text class="svgs" x="186" y="100">on every phone</text>
+      <path d="M278 86h34" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/>
+      <rect x="316" y="58" width="98" height="56" rx="10" fill="rgb(var(--tint-cta))" stroke="rgb(var(--cta))"/><text class="svgt" x="326" y="82">CLAIM</text><text class="svgs" x="326" y="100">first write wins</text>
+    </svg>
+    <p style="margin:0">The plate's angle is a formula of a shared start time, so phones never send positions to each other. Eating a piece is a single claim that only the first writer can make. Two gates are never over the same piece at once, and the gap between gates is at least 0.3 seconds of travel at top speed, which is longer than normal network delay. If you tap a piece someone upstream took a moment ago, you see TAKEN and lose nothing.</p>
+  </div>
+</div>
+
+<!-- 7. DECISIONS -->
+<h2 id="decide">DECISIONS NEEDED</h2>
+<p class="sub">Four choices. My recommendation is preselected in each. Change what you like, then queue the answer and send it.</p>
+<form class="glass pick" id="pick" data-lavish-question="__HOLD__">
+  <fieldset><legend>1. WHICH TWISTS GO IN THE FIRST VERSION?</legend><div class="opts">
+    <label><input type="checkbox" name="twist" value="turn" checked> The Turn <span class="rec">RECOMMENDED</span></label>
+    <label><input type="checkbox" name="twist" value="chili" checked> Hot Chili <span class="rec">RECOMMENDED</span></label>
+    <label><input type="checkbox" name="twist" value="lastbite" checked> Last Bite <span class="rec">RECOMMENDED</span></label>
+    <label><input type="checkbox" name="twist" value="tworings"> Two Rings</label>
+    <label><input type="checkbox" name="twist" value="banquet"> Banquet co-op</label>
+  </div></fieldset>
+  <fieldset><legend>2. WHO CAN PLAY IN THE FIRST VERSION?</legend><div class="opts">
+    <label><input type="radio" name="scope" value="phone-then-online" checked> One phone for 2 to 4 plus solo against the bot now; online shared plate as the next step <span class="rec">RECOMMENDED</span></label>
+    <label><input type="radio" name="scope" value="phone-only"> One phone and solo only. No online version planned</label>
+    <label><input type="radio" name="scope" value="all-at-once"> One phone, solo and online for 2 to 4, all in the first version</label>
+    <label><input type="radio" name="scope" value="two-player-only"> Two players only (one phone and online), like most duels in the app</label>
+  </div></fieldset>
+  <fieldset><legend>3. NAME</legend><div class="opts">
+    <label><input type="radio" name="name" value="LAZY-SUSAN" checked> LAZY SUSAN: the real name of a turning serving plate <span class="rec">RECOMMENDED</span></label>
+    <label><input type="radio" name="name" value="DIBS"> DIBS: short, says what the fight is about</label>
+    <label><input type="radio" name="name" value="SNAP-UP"> SNAP UP: the action in two words</label>
+  </div></fieldset>
+  <fieldset><legend>4. LOOK</legend><div class="opts">
+    <label><input type="radio" name="look" value="themed-painted" checked> As shown now: the shaded table, plate, food and chopsticks, with every colour taken from the player's theme <span class="rec">RECOMMENDED</span></label>
+    <label><input type="radio" name="look" value="themed-natural-food"> Themed table and plate, but food keeps natural colours in every theme (a dumpling is always cream, a chili always red)</label>
+    <label><input type="radio" name="look" value="theme-flat"> Flat shapes in theme colours, like the other arena games (no shading)</label>
+  </div></fieldset>
+  <fieldset><legend>ANYTHING ELSE?</legend><textarea name="note" maxlength="300" placeholder="Optional note: speed, scoring, food, anything that felt off in the prototype"></textarea></fieldset>
+  <button type="submit" class="cta">QUEUE THIS ANSWER</button><span id="queued" role="status" aria-live="polite"></span>
+</form>
+
+</main>
+<script>
+/* Lavish serves boards on an opaque origin: storage throws. Nothing here uses it. */
+__GAME__
+</script>
+<script>
+(function () {
+  var G = window.LazySusan, live = document.getElementById('live');
+  function press(sel, attr, val) { document.querySelectorAll(sel).forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute(attr) === String(val))); }); }
+  function say() {
+    var c = G.cfg, tw = [c.turn && 'THE TURN', c.chili && 'HOT CHILI', c.last && 'LAST BITE'].filter(Boolean);
+    live.textContent = (c.bot ? 'YOU VS BOT' : c.n + ' PLAYERS') + ' · FIRST TO ' + G.T.target[c.n] + ' · ' + (tw.length ? tw.join(' + ') : 'NO TWISTS (THE ORIGINAL RULES)');
+  }
+  var THEMES = __THEMES__, sel = document.getElementById('theme'), root = document.documentElement;
+  function mixc(a, b, t) { return a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }); }
+  function setTheme(id) {
+    var t = THEMES.filter(function (x) { return x.id === id; })[0] || THEMES[0];
+    var dark = (t.bg[0] * 0.3 + t.bg[1] * 0.59 + t.bg[2] * 0.11) < 110, v = function (k, c) { root.style.setProperty('--' + k, c.join(' ')); };
+    ['bg', 'surface', 'card', 'border', 'text', 'p1', 'p2', 'p3', 'p4', 'cta', 'win', 'danger', 'deep'].forEach(function (k) { v(k, t[k]); });
+    v('dim', mixc(t.text, t.bg, 0.2)); v('tint-p1', mixc(t.bg, t.p1, 0.22)); v('tint-cta', mixc(t.bg, t.cta, 0.22)); v('tint-danger', mixc(t.bg, t.danger, 0.22));
+    v('glass-rim', dark ? mixc(t.card, t.text, 0.4) : [255, 255, 255]);
+    v('art-1', mixc(t.bg, t.p1, 0.45)); v('art-2', mixc(t.bg, t.p2, 0.45)); v('art-3', mixc(t.bg, t.p3, 0.4)); v('art-4', mixc(t.bg, t.p4, 0.45));
+    root.style.colorScheme = dark ? 'dark' : 'light'; sel.value = t.id;
+    if (G.state()) G.theme(t);
+    return t;
+  }
+  THEMES.forEach(function (t) { var o = document.createElement('option'); o.value = t.id; o.textContent = t.label; sel.appendChild(o); });
+  G.mount(document.getElementById('game'), { theme: setTheme('glass') });
+  sel.addEventListener('change', function () { setTheme(sel.value); });
+  function step(d) { var i = THEMES.map(function (t) { return t.id; }).indexOf(sel.value); setTheme(THEMES[(i + d + THEMES.length) % THEMES.length].id); }
+  document.getElementById('prevTheme').addEventListener('click', function () { step(-1); });
+  document.getElementById('nextTheme').addEventListener('click', function () { step(1); });
+  say();
+  document.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () {
+    var m = b.getAttribute('data-mode'); press('[data-mode]', 'data-mode', m);
+    document.getElementById('botrow').style.display = m === 'bot' ? '' : 'none';
+    G.set(m === 'bot' ? { n: 2, bot: true } : { n: +m, bot: false }); say();
+  }); });
+  document.querySelectorAll('[data-level]').forEach(function (b) { b.addEventListener('click', function () {
+    press('[data-level]', 'data-level', b.getAttribute('data-level')); G.set({ level: +b.getAttribute('data-level') }); say();
+  }); });
+  function syncTwists() { document.querySelectorAll('[data-twist]').forEach(function (b) { b.setAttribute('aria-pressed', String(!!G.cfg[b.getAttribute('data-twist')])); }); }
+  document.querySelectorAll('[data-twist]').forEach(function (b) { b.addEventListener('click', function () {
+    var k = b.getAttribute('data-twist'), p = {}; p[k] = !G.cfg[k]; G.set(p); syncTwists(); say();
+  }); });
+  document.querySelectorAll('[data-try]').forEach(function (b) { b.addEventListener('click', function () {
+    var k = b.getAttribute('data-try'); G.set({ turn: k === 'turn', chili: k === 'chili', last: k === 'last' }); syncTwists(); say();
+    document.getElementById('play').scrollIntoView({ block: 'start' });
+  }); });
+  document.getElementById('restart').addEventListener('click', function () { G.restart(); });
+  document.getElementById('sound').addEventListener('click', function () {
+    G.cfg.sound = !G.cfg.sound; this.setAttribute('aria-pressed', String(G.cfg.sound)); this.textContent = G.cfg.sound ? 'SOUND ON' : 'SOUND OFF';
+  });
+  G.legend();
+
+  document.getElementById('pick').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = new FormData(e.currentTarget), tw = f.getAll('twist'), scope = f.get('scope'), name = f.get('name'), look = f.get('look'), extra = (f.get('note') || '').trim();
+    var isRec = tw.join(',') === 'turn,chili,lastbite' && scope === 'phone-then-online' && name === 'LAZY-SUSAN' && look === 'themed-painted';
+    var note = 'twists=' + (tw.join('+') || 'none') + '; scope=' + scope + '; name=' + name + '; look=' + look + (extra ? '; note: ' + extra : '');
+    var out = document.getElementById('queued');
+    if (window.lavish && window.lavish.queuePrompt) {
+      window.lavish.queuePrompt('Lazy Susan decisions: ' + note, { tag: 'choice', text: 'Lazy Susan: ' + (isRec ? 'as recommended' : 'custom picks'), element: e.currentTarget, queueKey: '__HOLD__',
+        data: { schema: 'fm-bearings-answer.v1', question: '__HOLD__', selection: isRec ? 'as-recommended' : 'custom', note: note.slice(0, 500) } });
+      out.textContent = 'QUEUED. PRESS SEND TO AGENT.';
+    } else { out.textContent = 'COPY THIS: ' + note; }
+  });
+})();
+</script>
+</body>
+</html>

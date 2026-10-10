@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, StickyFingersIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -54,9 +54,12 @@ const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
 const PuckRushDemo = lazyWithRetry(() => import('./PuckRushDemo'))
 const StickyFingersDemo = lazyWithRetry(() => import('./StickyFingersDemo'))
 const BonkBuggiesDemo = lazyWithRetry(() => import('./BonkBuggiesDemo'))
+const FenderBenderDemo = lazyWithRetry(() => import('./FenderBenderDemo'))
 const YachtDemo = lazyWithRetry(() => import('./YachtDemo'))
+const DartsLocal = lazyWithRetry(() => import('./DartsDemo'))
 const FaceOffDemo = lazyWithRetry(() => import('./FaceOffDemo'))
 const ChopChopDemo = lazyWithRetry(() => import('./ChopChopDemo'))
+const LazySusanDemo = lazyWithRetry(() => import('./LazySusanDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
 const ArcheryDemo = lazyWithRetry(() => import('./ArcheryDemo'))
 const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
@@ -100,6 +103,7 @@ const DEMOS = [
   { type: 'dotsandboxes',  short: 'DOTS &\nBOXES',  Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes" />  },
   { type: 'dotsandboxes4', short: 'DOTS\n4×4',      Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes4" /> },
   { type: 'yacht',         short: 'YACHT',          Icon: YachtIcon,          Component: YachtDemo },
+  { type: 'darts',         short: 'STEADY\nHAND',   Icon: DartsIcon,          Component: () => <DartsLocal mode="solo" /> },
   { type: 'dice',          short: 'PIG',            Icon: DiceIcon,           Component: () => <BotBoardDemo type="dice" />          },
   { type: 'chainreaction', short: 'CHAIN\nREACTION',Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction" /> },
   { type: 'chainreaction6',short: 'CHAIN\n6×8',     Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction6" /> },
@@ -125,6 +129,7 @@ const DEMOS = [
   { type: 'puckrush',      short: 'PUCK\nRUSH',     Icon: PuckRushIcon,       Component: PuckRushDemo },
   { type: 'stickyfingers', short: 'STICKY\nFINGERS', Icon: StickyFingersIcon,  Component: StickyFingersDemo },
   { type: 'bonkbuggies',   short: 'BONK\nBUGGIES',  Icon: BonkBuggiesIcon,    Component: BonkBuggiesDemo },
+  { type: 'fenderbender',  short: 'FENDER\nBENDER',  Icon: FenderBenderIcon,   Component: FenderBenderDemo },
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   { type: 'archery',       short: 'ARCHERY',         Icon: ArcheryIcon,        Component: ArcheryDemo },
   { type: 'animalstack',   short: 'ANIMAL\nSTACK',  Icon: AnimalStackIcon,    Component: AnimalStackDemo },
@@ -134,6 +139,7 @@ const DEMOS = [
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
   { type: 'chopchop',     short: 'CHOP\nCHOP',    Icon: ChopChopIcon,     Component: ChopChopDemo     },
+  { type: 'lazysusan',    short: 'LAZY\nSUSAN',    Icon: LazySusanIcon,    Component: LazySusanDemo },
   { type: 'pulprush',     short: 'PULP\nRUSH',    Icon: PulpIcon,         Component: PulpRushDemo     },
   { type: 'typing',       short: 'TYPING\nRACE',  Icon: TypingIcon,       Component: TypingDemo       },
   { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },
@@ -205,7 +211,7 @@ function LocalPlayPage({ routeType }) {
             {cfg.label}
           </h1>
           <p className="font-pixel text-[9px] text-retro-dim text-center">
-            PASS & PLAY · ONE SCREEN, TAKE TURNS{cfg.localMaxPlayers ? ` · 2-${cfg.localMaxPlayers} PLAYERS` : ''}
+            {cfg.localBlurb || 'PASS & PLAY · ONE SCREEN, TAKE TURNS'}{cfg.localMaxPlayers ? ` · 2-${cfg.localMaxPlayers} PLAYERS` : ''}
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>

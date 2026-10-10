@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, StickyFingersIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -96,6 +96,10 @@ import { startStackMatch } from './animalStackCore'
 import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
 import { MATCH_TARGET as UPDRAFT_MATCH_TARGET, updraftFreshState } from './updraftConfig'
 import { ARCHERY_SEATS, archeryFormat } from './archeryLogic'
+import {
+  createRound as createDartsRound, normalizeCfg as normalizeDartsCfg,
+  MIN_PLAYERS as DARTS_MIN_PLAYERS, MAX_PLAYERS as DARTS_MAX_PLAYERS,
+} from './dartsLogic'
 import { generateGrid } from './wordhuntGrid'
 import { nextWireBomb } from './wireMatchLogic'
 import {
@@ -118,6 +122,7 @@ import {
 } from './blockadeLogic'
 import { applyDiceMove, generateSeedHex, rollFace, rollFacePair } from './diceLogic'
 import { createRound as createYachtRound, MIN_PLAYERS as YACHT_MIN_PLAYERS, MAX_PLAYERS as YACHT_MAX_PLAYERS } from './yachtLogic'
+import { createRound as createSusanRound, MIN_PLAYERS as SUSAN_MIN_PLAYERS, MAX_PLAYERS as SUSAN_MAX_PLAYERS } from './lazySusanRound'
 import { runPigRoomEffect } from '../hooks/room/pigSeedProtocol'
 import { seatOrder as seatOrderWL, pickSpectrumIndex } from './wavelengthLogic'
 import {
@@ -1421,6 +1426,21 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/BonkBuggiesGame')),
   },
   {
+    type: 'fenderbender', label: 'FENDER BENDER',
+    desc: 'shove rivals off the road · up to 4 on one phone', Icon: FenderBenderIcon,
+    badge: 'FD', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 5, tags: ['skill', 'party', 'quick'], solo: true,
+    // Online it is a two-car duel on the pong stack (host sim, WebRTC
+    // snapshots). The LocalPage seats 2-4 people on one phone, or one person
+    // against bots, on the same sim with no network.
+    custom: true, realtime: true, p2p: true, localMaxPlayers: 4,
+    localBlurb: 'ONE PHONE · EVERYONE DRIVES AT ONCE',
+    Page: lazyWithRetry(() => import('../pages/FenderBenderGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/FenderBenderDemo')),
+  },
+  {
     type: 'artillery', label: 'ARTILLERY',
     desc: 'angle, power, bracket', Icon: ArtilleryIcon,
     badge: 'AR', maxWidth: 'max-w-md',
@@ -1461,6 +1481,31 @@ export const GAME_TYPES = [
         archeryShots: null, archeryShootOffShots: null, archeryTied: null,
         archeryTurnStartedAt: null,
       }
+    },
+  },
+  {
+    type: 'darts', label: 'STEADY HAND',
+    desc: 'hold, aim, let go · race to zero or own the board', Icon: DartsIcon,
+    badge: 'DT', maxWidth: 'max-w-md',
+    category: 'reflex', addedAt: '2026-10-10',
+    durationMin: 8, tags: ['skill', 'party'], solo: true,
+    // Rides the uid-keyed room model (lobby → host START), like Yacht. The
+    // lobby picks and the match are one object under `round` (dartsLogic.js):
+    // an append-only list of landing points that every client replays.
+    // Solo (vs a bot) and pass-and-play 2–4 run the same replay offline via
+    // LocalPage — see supportsLocalPlay.
+    custom: true, nPlayer: true, minPlayers: DARTS_MIN_PLAYERS, maxPlayers: DARTS_MAX_PLAYERS,
+    Page: lazyWithRetry(() => import('../pages/DartsGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/DartsDemo')),
+    startRound: (players, game = {}) => {
+      // Turn order is the lobby's seat order: joinedAt, then uid.
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, DARTS_MAX_PLAYERS)
+        .map(p => p.playerId)
+      if (seats.length < DARTS_MIN_PLAYERS) return null
+      return { board: null, currentTurn: null, scores: {}, round: createDartsRound(seats, normalizeDartsCfg(game.round?.dCfg)) }
     },
   },
   {
@@ -1564,6 +1609,32 @@ export const GAME_TYPES = [
         .map(p => p.playerId)
       if (seats.length < YACHT_MIN_PLAYERS) return null
       return { board: null, currentTurn: null, scores: {}, round: createYachtRound(seats, generateSeedHex()) }
+    },
+  },
+  {
+    type: 'lazysusan', label: 'LAZY SUSAN',
+    desc: 'tap when the food reaches your gate', Icon: LazySusanIcon,
+    badge: 'LS', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 2, tags: ['skill', 'quick', 'party'], solo: true,
+    // One shared turning plate, 2-4 seats on the uid-keyed room model (lobby →
+    // host START). The match is one object under `round` (lazySusanLogic.js);
+    // a taken piece is a write-once claim, so the first writer owns it.
+    // LocalPage: /local/lazysusan is 2-4 on one phone, /solo/lazysusan a bot.
+    custom: true, nPlayer: true, minPlayers: SUSAN_MIN_PLAYERS, maxPlayers: SUSAN_MAX_PLAYERS, localMaxPlayers: SUSAN_MAX_PLAYERS,
+    Page: lazyWithRetry(() => import('../pages/LazySusanGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/LazySusanDemo').then(m => ({ default: m.LazySusanLocal }))),
+    startRound: (players, _room, ctx) => {
+      // Seat order is the lobby's: joinedAt, then uid. startAt is the server
+      // time the transaction was built at, so the countdown is shared.
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, SUSAN_MAX_PLAYERS)
+        .map(p => p.playerId)
+      if (seats.length < SUSAN_MIN_PLAYERS) return null
+      return { board: null, currentTurn: null, scores: {}, round: createSusanRound(seats, generateSeed(), ctx?.now ?? Date.now()) }
     },
   },
   {
@@ -2243,6 +2314,11 @@ export function freshGameState(gameType, previous = null) {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null,
       archeryFormat: archeryFormat(keep?.archeryFormat) }
   }
+  if (gameType === 'darts') {
+    // The lobby picks (game, start score, throw, legs, Nerves) ride a rematch.
+    const keep = previous?.gameType === 'darts' && previous.round?.dCfg ? normalizeDartsCfg(previous.round.dCfg) : null
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: keep ? { dCfg: keep } : null }
+  }
   if (cfg.nPlayer) {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
   }
@@ -2442,9 +2518,13 @@ export function freshGameState(gameType, previous = null) {
       board: Array(YV_CELL_COUNT).fill(''),
       currentTurn: 'X' }
   }
-  if (gameType === 'stickyfingers') {
+  if (gameType === 'stickyfingers' || gameType === 'fenderbender') {
     // Realtime (pong family): the round lives in the host's sim, the room only
     // holds the standard winner/scores.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
+  }
+  if (gameType === 'lazysusan') {
+    // The match is one `round` object written at START; nothing else to reset.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
   }
   if (gameType === 'puckrush') {

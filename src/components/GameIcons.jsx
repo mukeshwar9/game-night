@@ -776,6 +776,31 @@ export function YachtIcon() {
   )
 }
 
+export function DartsIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="10" cy="14" r="8" stroke="currentColor" strokeWidth="2" />
+      <circle cx="10" cy="14" r="4" stroke="currentColor" strokeWidth="2" />
+      <circle cx="10" cy="14" r="1.3" fill="currentColor" />
+      <path d="M11 13l9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+      <path d="M16.5 3.5H20.5V7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+    </svg>
+  )
+}
+
+export function LazySusanIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+      <circle cx="12" cy="12" r="2.4" fill="currentColor" opacity="0.7" />
+      <circle cx="12" cy="5.8" r="1.7" fill="currentColor" />
+      <circle cx="17.4" cy="14.9" r="1.7" fill="currentColor" opacity="0.6" />
+      <circle cx="6.6" cy="14.9" r="1.7" fill="currentColor" />
+      <path d="M10.4 22.5l1-5.4M13.6 22.5l-1-5.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function PuckRushIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -809,6 +834,17 @@ export function BonkBuggiesIcon() {
       <circle cx="16.5" cy="16.5" r="2.2" stroke="currentColor" strokeWidth="2" />
       <circle cx="9.5" cy="9" r="2.4" fill="currentColor" />
       <path d="M17 3.5l.6 1.7 1.8.1-1.4 1.1.5 1.7-1.5-1-1.5 1 .5-1.7-1.4-1.1 1.8-.1z" fill="currentColor" opacity="0.8" />
+    </svg>
+  )
+}
+
+export function FenderBenderIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 2v20M21 2v20" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+      <rect x="6" y="11" width="6" height="10" rx="2.2" stroke="currentColor" strokeWidth="2" />
+      <rect x="13" y="3" width="6" height="10" rx="2.2" fill="currentColor" opacity="0.85" transform="rotate(14 16 8)" />
+      <path d="M12.5 13.5l1.5-1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   )
 }

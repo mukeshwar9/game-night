@@ -33,6 +33,8 @@ import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
 import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS as STICKY_ROUND_S } from './stickyLogic'
 import { TARGET as BONK_TARGET, LID_GAP as BONK_LID_GAP, T as BONK_T } from './bonkLogic'
+import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
+import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
@@ -40,6 +42,10 @@ import {
   FULL_HOUSE_PTS, SHORT_RUN_PTS, LONG_RUN_PTS, YACHT_PTS,
 } from './yachtLogic'
 import { STROKE_CAP, PICKUP_SCORE } from './minigolfLogic'
+import {
+  RADII as DARTS_RADII, DARTS_PER_VISIT, LEG_OPTIONS as DARTS_LEGS, TURF_BULL_BONUS, TURF_OUTER_BONUS, TURF_ROUNDS,
+  segmentAt as dartSegment,
+} from './dartsLogic'
 import { ARCHERY_FORMATS, ARROWS_PER_END } from './archeryLogic'
 import { ROT_STEPS, TURN_MS as STACK_TURN_MS } from './animalStackLogic'
 import { heartsFor } from './animalStackCore'
@@ -250,6 +256,13 @@ const RULE_NUMBERS = {
     prose: [0], // a box that does not fit scores 0
   }),
   puckrush: () => ({ checks: [[5, PUCKS_EACH], [3, first('puckrush')]] }),
+  darts: () => ({
+    // The sheet says: three darts a visit, outer bull 25, bull 50, bonus 2 and 1, best of 3 legs, five rounds.
+    checks: [
+      [3, DARTS_PER_VISIT], [25, dartSegment(0, -(DARTS_RADII.bull + 1)).v], [50, dartSegment(0, 0).v],
+      [2, TURF_BULL_BONUS], [1, TURF_OUTER_BONUS], [3, DARTS_LEGS[1]], [5, TURF_ROUNDS], ...players('darts', 2, 4),
+    ],
+  }),
   stickyfingers: () => ({
     checks: [
       [1, STICKY_VALUES.coin], [1, STICKY_VALUES.half], [3, STICKY_VALUES.bill], [5, STICKY_VALUES.gem], [3, DYE_PENALTY],
@@ -257,6 +270,18 @@ const RULE_NUMBERS = {
     ],
   }),
   bonkbuggies: () => ({ checks: [[10, BONK_T.tideStart], [BONK_LID_GAP, BONK_LID_GAP], [5, BONK_TARGET]] }),
+  fenderbender: () => ({
+    checks: [
+      [3, FENDER_HEARTS], [4, FENDER_HORN], [28, FENDER_SQUEEZE], [2, FENDER_GHOST],
+      [3, first('fenderbender')], [3, FENDER_TARGETS[2]], [5, FENDER_TARGETS[3]], [7, FENDER_TARGETS[4]],
+    ],
+  }),
+  lazysusan: () => ({
+    checks: [
+      [1, SUSAN.dumplingValue], [3, SUSAN.bunValue], [1, SUSAN.missPenalty], [2, SUSAN.hotPenalty],
+      [15, SUSAN_TARGETS[2]], [12, SUSAN_TARGETS[3]], [10, SUSAN_TARGETS[4]],
+    ],
+  }),
   minigolf: () => ({
     checks: [[6, STROKE_CAP], [7, PICKUP_SCORE], ...players('minigolf', 2, 4), [4, cfg('minigolf').localMaxPlayers ?? cfg('minigolf').maxPlayers]],
     prose: [1], // "+1" water penalty, checked below
