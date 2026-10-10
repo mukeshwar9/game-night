@@ -717,7 +717,7 @@ export default function Game() {
   const applyNNewMatch = async () => {
     try {
       await update(ref(db, `games/${gameId}`), {
-        ...freshGameState(game.gameType),
+        ...freshGameState(game.gameType, game),
         status: 'waiting', winner: null, scores: {}, proposal: null, lastActivityAt: Date.now(),
       })
     } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }

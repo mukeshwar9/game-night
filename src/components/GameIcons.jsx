@@ -776,6 +776,18 @@ export function YachtIcon() {
   )
 }
 
+export function DartsIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="10" cy="14" r="8" stroke="currentColor" strokeWidth="2" />
+      <circle cx="10" cy="14" r="4" stroke="currentColor" strokeWidth="2" />
+      <circle cx="10" cy="14" r="1.3" fill="currentColor" />
+      <path d="M11 13l9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+      <path d="M16.5 3.5H20.5V7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+    </svg>
+  )
+}
+
 export function PuckRushIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

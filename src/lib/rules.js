@@ -509,6 +509,18 @@ export const GAME_RULES = {
     win: 'Name your rival\'s face to win the round. First to 3 rounds wins the match.',
   },
 
+  darts: {
+    objective: 'Throw three darts a visit. Count down to exactly zero, or claim wedges in Turf.',
+    howToPlay: [
+      'Hold on the board and drag to aim, then let go. The ring shows how much your hand shakes: let go when it is small. In ONE BUTTON mode, tap to lock across, tap again to lock up and down.',
+      'Countdown: a single scores its number, the outer ring doubles it, the inner ring trebles it, the outer bull is 25 and the bull is 50. Go past zero and the visit busts: your score goes back to where the visit began.',
+      'Finish on exactly zero; the segments that finish glow. Everyone throws the same number of visits, so a later player who finishes in fewer darts still wins. Level on darts means a shoot-off: one dart each, nearest the bull.',
+      'Turf: a single claims a wedge, a double claims and locks it, and a treble takes the wedge and both neighbours. The bull is 2 bonus points and the outer bull 1.',
+      'Nerves: the leader\u2019s hand shakes more, and whoever is furthest behind shakes less.',
+    ],
+    win: 'First to zero wins the leg; pick BEST OF 3 to play 3 legs. In Turf, the most points after five rounds wins. 2 to 4 players.',
+  },
+
   yacht: {
     objective: 'Roll five dice and fill all 13 boxes on your sheet for the highest total.',
     howToPlay: [

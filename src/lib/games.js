@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -96,6 +96,10 @@ import { startStackMatch } from './animalStackCore'
 import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
 import { MATCH_TARGET as UPDRAFT_MATCH_TARGET, updraftFreshState } from './updraftConfig'
 import { ARCHERY_SEATS, archeryFormat } from './archeryLogic'
+import {
+  createRound as createDartsRound, normalizeCfg as normalizeDartsCfg,
+  MIN_PLAYERS as DARTS_MIN_PLAYERS, MAX_PLAYERS as DARTS_MAX_PLAYERS,
+} from './dartsLogic'
 import { generateGrid } from './wordhuntGrid'
 import { nextWireBomb } from './wireMatchLogic'
 import {
@@ -1439,6 +1443,31 @@ export const GAME_TYPES = [
     },
   },
   {
+    type: 'darts', label: 'STEADY HAND',
+    desc: 'hold, aim, let go · race to zero or own the board', Icon: DartsIcon,
+    badge: 'DT', maxWidth: 'max-w-md',
+    category: 'reflex', addedAt: '2026-10-10',
+    durationMin: 8, tags: ['skill', 'party'], solo: true,
+    // Rides the uid-keyed room model (lobby → host START), like Yacht. The
+    // lobby picks and the match are one object under `round` (dartsLogic.js):
+    // an append-only list of landing points that every client replays.
+    // Solo (vs a bot) and pass-and-play 2–4 run the same replay offline via
+    // LocalPage — see supportsLocalPlay.
+    custom: true, nPlayer: true, minPlayers: DARTS_MIN_PLAYERS, maxPlayers: DARTS_MAX_PLAYERS,
+    Page: lazyWithRetry(() => import('../pages/DartsGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/DartsDemo')),
+    startRound: (players, game = {}) => {
+      // Turn order is the lobby's seat order: joinedAt, then uid.
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, DARTS_MAX_PLAYERS)
+        .map(p => p.playerId)
+      if (seats.length < DARTS_MIN_PLAYERS) return null
+      return { board: null, currentTurn: null, scores: {}, round: createDartsRound(seats, normalizeDartsCfg(game.round?.dCfg)) }
+    },
+  },
+  {
     type: 'minigolf', label: 'MINIGOLF',
     desc: 'pull, putt, sink it', Icon: MinigolfIcon,
     badge: 'MG', maxWidth: 'max-w-sm',
@@ -2216,6 +2245,11 @@ export function freshGameState(gameType, previous = null) {
     const keep = previous?.gameType === 'archery4' ? previous : null
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null,
       archeryFormat: archeryFormat(keep?.archeryFormat) }
+  }
+  if (gameType === 'darts') {
+    // The lobby picks (game, start score, throw, legs, Nerves) ride a rematch.
+    const keep = previous?.gameType === 'darts' && previous.round?.dCfg ? normalizeDartsCfg(previous.round.dCfg) : null
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: keep ? { dCfg: keep } : null }
   }
   if (cfg.nPlayer) {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }

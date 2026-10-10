@@ -3,7 +3,7 @@ import {
   SECTORS, RADII, UNIT, COORD_LIMIT, MAX_THROWS, TURF_ROUNDS, DART_CLOCK_MS, AIM_START_MM, AIM_LIMIT_MM, SHAKE_MM, SHAKE_TIGHT,
   segmentAt, finishSegments, segmentLabel, segmentCentre, normalizeCfg, cleanThrow, normalizeThrows, normalizeRound,
   createRound, replay, throwDart, missVisit, nervesFactor, nervesLabel, threeDartAverage, standings,
-  shakeRadius, shakeOffset, aimStart, clampAim, sweepAt, gauss, toThrow, botTarget, botThrow, botRng, BOT_LEVELS,
+  shakeRadius, shakeOffset, aimStart, clampAim, sweepAt, gauss, toThrow, botTarget, botThrow, botRng, BOT_LEVELS, describeThrow,
 } from './dartsLogic'
 
 const SEATS = ['a', 'b']
@@ -611,5 +611,31 @@ describe('bot', () => {
     const s = replay(r)
     expect(s.over).toBe(true)
     expect(SEATS).toContain(s.winner)
+  })
+})
+
+describe('describeThrow', () => {
+  const last = (r, mode = 'x01') => describeThrow(replay(r).log.at(-1), mode)
+
+  it('captions a score, with the ring named for big darts', () => {
+    expect(last(play(fresh(), [['S', 7]]))).toMatchObject({ text: '7', sub: null, tone: 'score', big: false })
+    expect(last(play(fresh(), [['T', 20]]))).toMatchObject({ text: '60', sub: 'TREBLE 20', tone: 'good', big: true })
+    expect(last(play(fresh(), [['B']]))).toMatchObject({ text: '50', sub: 'BULLSEYE' })
+    expect(last(play(fresh(), [MISS]))).toMatchObject({ text: 'TIMED OUT', tone: 'miss' })
+    expect(last(play(fresh(), [dart('S', 20), toThrow(0, -215)]))).toMatchObject({ text: 'MISS', tone: 'miss' })
+  })
+
+  it('captions a bust and a checkout', () => {
+    expect(last(play(fresh(), [['T', 20], ['T', 20]]))).toMatchObject({ text: 'BUST', sub: 'BACK TO 101', tone: 'bad' })
+    expect(last(play(fresh(), [['T', 20], ['D', 20], ['S', 1]]))).toMatchObject({ text: 'CHECKOUT!', tone: 'good' })
+  })
+
+  it('captions Turf claims, locks, spreads, blocks and bonuses', () => {
+    const turf = fresh({ mode: 'turf' })
+    expect(last(play(turf, [['S', 20]]), 'turf')).toMatchObject({ text: 'CLAIMED 20' })
+    expect(last(play(turf, [['D', 20]]), 'turf')).toMatchObject({ text: 'LOCKED IN' })
+    expect(last(play(turf, [['T', 20]]), 'turf')).toMatchObject({ text: 'SPREAD ×3' })
+    expect(last(play(turf, [['B']]), 'turf')).toMatchObject({ text: '+2 BONUS' })
+    expect(last(play(turf, [['D', 20], MISS, MISS, ['S', 20]]), 'turf')).toMatchObject({ text: 'LOCKED!', tone: 'bad' })
   })
 })

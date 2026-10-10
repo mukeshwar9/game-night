@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -53,6 +53,7 @@ const CheckersDemo = lazyWithRetry(() => import('./CheckersDemo'))
 const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
 const PuckRushDemo = lazyWithRetry(() => import('./PuckRushDemo'))
 const YachtDemo = lazyWithRetry(() => import('./YachtDemo'))
+const DartsLocal = lazyWithRetry(() => import('./DartsDemo'))
 const FaceOffDemo = lazyWithRetry(() => import('./FaceOffDemo'))
 const ChopChopDemo = lazyWithRetry(() => import('./ChopChopDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
@@ -98,6 +99,7 @@ const DEMOS = [
   { type: 'dotsandboxes',  short: 'DOTS &\nBOXES',  Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes" />  },
   { type: 'dotsandboxes4', short: 'DOTS\n4×4',      Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes4" /> },
   { type: 'yacht',         short: 'YACHT',          Icon: YachtIcon,          Component: YachtDemo },
+  { type: 'darts',         short: 'STEADY\nHAND',   Icon: DartsIcon,          Component: () => <DartsLocal mode="solo" /> },
   { type: 'dice',          short: 'PIG',            Icon: DiceIcon,           Component: () => <BotBoardDemo type="dice" />          },
   { type: 'chainreaction', short: 'CHAIN\nREACTION',Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction" /> },
   { type: 'chainreaction6',short: 'CHAIN\n6×8',     Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction6" /> },

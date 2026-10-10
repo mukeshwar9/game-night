@@ -38,6 +38,10 @@ import {
   FULL_HOUSE_PTS, SHORT_RUN_PTS, LONG_RUN_PTS, YACHT_PTS,
 } from './yachtLogic'
 import { STROKE_CAP, PICKUP_SCORE } from './minigolfLogic'
+import {
+  RADII as DARTS_RADII, DARTS_PER_VISIT, LEG_OPTIONS as DARTS_LEGS, TURF_BULL_BONUS, TURF_OUTER_BONUS, TURF_ROUNDS,
+  segmentAt as dartSegment,
+} from './dartsLogic'
 import { ARCHERY_FORMATS, ARROWS_PER_END } from './archeryLogic'
 import { ROT_STEPS, TURN_MS as STACK_TURN_MS } from './animalStackLogic'
 import { heartsFor } from './animalStackCore'
@@ -248,6 +252,13 @@ const RULE_NUMBERS = {
     prose: [0], // a box that does not fit scores 0
   }),
   puckrush: () => ({ checks: [[5, PUCKS_EACH], [3, first('puckrush')]] }),
+  darts: () => ({
+    // The sheet says: three darts a visit, outer bull 25, bull 50, bonus 2 and 1, best of 3 legs, five rounds.
+    checks: [
+      [3, DARTS_PER_VISIT], [25, dartSegment(0, -(DARTS_RADII.bull + 1)).v], [50, dartSegment(0, 0).v],
+      [2, TURF_BULL_BONUS], [1, TURF_OUTER_BONUS], [3, DARTS_LEGS[1]], [5, TURF_ROUNDS], ...players('darts', 2, 4),
+    ],
+  }),
   minigolf: () => ({
     checks: [[6, STROKE_CAP], [7, PICKUP_SCORE], ...players('minigolf', 2, 4), [4, cfg('minigolf').localMaxPlayers ?? cfg('minigolf').maxPlayers]],
     prose: [1], // "+1" water penalty, checked below

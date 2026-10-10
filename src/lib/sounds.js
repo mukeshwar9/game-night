@@ -299,6 +299,18 @@ export const sounds = {
     else seq([[180, 0, 0.08, 'sawtooth', 0.08]])
     vibrate(score > 8 ? 10 : 5)
   },
+  // Darts: the throw's whoosh, the thud into the sisal, a miss off the board.
+  dartThrow: () => { try { noise(ctx().currentTime, 0.16, 0.05, 2600) } catch { /* audio unavailable */ } vibrate(4) },
+  dartThud: (big = false) => {
+    try { noise(ctx().currentTime, 0.09, big ? 0.14 : 0.1, big ? 900 : 1500) } catch { /* audio unavailable */ }
+    seq([[big ? 110 : 150, 0, 0.12, 'sine', 0.2]])
+    vibrate(big ? 18 : 10)
+  },
+  dartMiss: () => {
+    try { noise(ctx().currentTime, 0.12, 0.08, 500) } catch { /* audio unavailable */ }
+    seq([[90, 0, 0.18, 'triangle', 0.12]])
+    vibrate(30)
+  },
   // Soft two-note pop — default emoji reaction audio (haptics via reaction())
   emote: () => emoteAudio(),
   // Breathy descending hiss — shh reaction audio (haptics via reaction())

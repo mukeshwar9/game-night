@@ -400,6 +400,32 @@ export function missVisit(rawRound, uid, atCount = null) {
   return { round: next, state: replay(next) }
 }
 
+/**
+ * The caption for one replayed dart: what the stage pops up where it lands.
+ * `tone` is 'score', 'good', 'bad' or 'miss'; `big` marks a bigger pop.
+ */
+export function describeThrow(entry, mode = 'x01') {
+  const seg = entry.seg
+  if (entry.skip) return { text: 'TIMED OUT', sub: null, tone: 'miss', big: false }
+  if (entry.shoot) {
+    const mm = Math.round(Math.hypot(entry.x, entry.y) / UNIT)
+    return { text: seg.ring === 'B' ? 'BULL' : `${mm} MM OUT`, sub: 'NEAREST THE BULL WINS', tone: 'score', big: seg.ring === 'B' }
+  }
+  const named = seg.ring === 'T' ? `TREBLE ${seg.n}` : seg.ring === 'D' ? `DOUBLE ${seg.n}` : seg.ring === 'B' ? 'BULLSEYE' : seg.ring === 'O' ? 'OUTER BULL' : null
+  if (mode === 'turf') {
+    if (seg.ring === 'M') return { text: 'MISS', sub: null, tone: 'miss', big: false }
+    if (entry.bonus) return { text: `+${entry.bonus} BONUS`, sub: seg.ring === 'B' ? 'BULLSEYE' : 'OUTER BULL', tone: 'good', big: true }
+    if (entry.blocked) return { text: 'LOCKED!', sub: 'THAT WEDGE IS TAKEN', tone: 'bad', big: false }
+    if (entry.locked) return { text: 'LOCKED IN', sub: `NOBODY CAN STEAL ${seg.n}`, tone: 'good', big: true }
+    if (seg.ring === 'T') return { text: `SPREAD ×${entry.claimed}`, sub: 'TREBLE TAKES NEIGHBOURS', tone: 'good', big: true }
+    return { text: `CLAIMED ${seg.n}`, sub: null, tone: 'score', big: false }
+  }
+  if (entry.bust) return { text: 'BUST', sub: `BACK TO ${entry.left}`, tone: 'bad', big: true }
+  if (entry.out) return { text: 'CHECKOUT!', sub: named ?? segmentLabel(seg), tone: 'good', big: true }
+  if (!seg.v) return { text: 'MISS', sub: null, tone: 'miss', big: false }
+  return { text: `${seg.v}`, sub: named, tone: seg.v >= 40 ? 'good' : 'score', big: seg.v >= 40 }
+}
+
 // ---------------------------------------------------------------------------
 // Nerves, labels and stats
 // ---------------------------------------------------------------------------
