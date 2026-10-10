@@ -20,6 +20,7 @@ and the `fm/*` branches; the live site is <https://game-night-91464.web.app>.
 | UPDRAFT | `8aba4fc`, `5d70217` | Ghost-race climber with CHAOS sabotage and a Twin Towers co-op mode (`8aba4fc` is its climber sim). |
 | Archery PRD | `2b3ae38` | `docs/prds/archery.md` with three UI directions and screenshots. The game is not built; the UI direction and decisions D1–D10 are pending (NEON RANGE is recommended). |
 | Puck Rush, Yacht, Face Off, Chop Chop | this branch, `fm/games-twoplayer-ideas-s1` | Four games from the two-player ideas review, one commit each, with solo pages and two-client e2e specs. No database rule changes. Designs: `.lavish/twoplayer-ideas/`. Lands on `main` when this branch is merged. |
+| Sticky Fingers | this branch, `fm/games-jb-moneygrabber-s1` | Money Grabber study built as a game: a 60-second grab-and-stash table with a dye-pack and a LAST CALL twist. One phone for 2–4 (`/local/stickyfingers`), solo against 1–3 bots (`/solo/stickyfingers`) and an online 2-player duel on the peer-to-peer stack. No database rule changes; online 3–4 needs a host-to-many transport and is not built. Design and prototype: `.lavish/sticky-fingers/`. Lands on `main` when this branch is merged. |
 | Wire Crossed levels PRD | this branch, `fm/games-wirecrossed-levels-s1` | `docs/prds/wire-crossed-levels.md`: a 15-level ladder plan, new modules, and the 0:00 timer freeze bug with its fix. Lands on `main` when this branch is merged. |
 
 ## In progress on branches, paused

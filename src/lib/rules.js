@@ -362,6 +362,17 @@ export const GAME_RULES = {
     win: 'The first player with no pucks on their half wins the round. First to 3 rounds wins the match.',
   },
 
+  stickyfingers: {
+    objective: 'Drag loot from the middle of the table into your safe. Most loot when the clock runs out wins.',
+    howToPlay: [
+      'Press the table and your arm reaches out from your safe to your finger. Drag a coin, bill or gem to your safe; the arm stretches as you go.',
+      'Two hands on a bill rip it: each hand keeps a half worth 1. Two hands on a coin or gem is a tug: the arm stretched further from its own safe slips.',
+      'A coin is worth 1, a bill 3, a gem 5. A pack with a blinking light is dyed: it costs 3 and puts your hands out for a moment, so flick it into a rival safe.',
+      'The last 10 seconds pay double. A tie at the buzzer goes to the next loot into a safe.',
+    ],
+    win: 'Most loot after 60 seconds wins the round. First to 3 rounds wins the match.',
+  },
+
   airhockey: {
     objective: 'Flick the puck past your rival seven times.',
     howToPlay: [
