@@ -123,8 +123,8 @@ describe('supportsLocalPlay', () => {
     'visualmemory',
   ]
 
-  it('is true for all 38 eligible games (33 registry boards + four custom LocalPages + one localBoard)', () => {
-    expect(LOCAL_TYPES).toHaveLength(38)
+  it('is true for all 41 eligible games (33 registry boards + seven custom LocalPages + one localBoard)', () => {
+    expect(LOCAL_TYPES).toHaveLength(41)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }
