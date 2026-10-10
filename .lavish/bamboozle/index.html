@@ -1,0 +1,1669 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bamboozle: a Spike Attack study for Game Night</title>
+<style>
+  @font-face { font-family: 'Press Start 2P'; src: url(data:font/woff2;base64,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) format('woff2'); font-display: swap; }
+  :root {
+    --bg: 238 240 226; --surface: 246 248 236; --card: 252 253 246; --border: 185 195 165; --text: 45 55 35; --dim: 95 107 81;
+    --p1: 210 110 50; --p2: 129 89 180; --p3: 30 150 140; --p4: 175 55 115; --cta: 130 95 14; --win: 38 123 66; --danger: 190 30 50;
+    --tint-win: 220 238 205; --tint-cta: 242 232 200; --tint-danger: 242 214 214; --structure: 160 170 140;
+    --pixel: 'Press Start 2P', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; color: rgb(var(--text)); font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    background-color: rgb(var(--bg)); background-image: linear-gradient(rgb(var(--border) / .2) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--border) / .2) 1px, transparent 1px); background-size: 4px 4px; }
+  main { max-width: 1120px; margin: 0 auto; padding: 28px 16px 90px; }
+  h1 { font: 400 clamp(22px, 5.2vw, 40px)/1.25 var(--pixel); letter-spacing: .02em; margin: 6px 0 14px; color: rgb(var(--win)); text-shadow: 3px 3px 0 rgb(var(--win) / .2); }
+  h2 { font: 400 15px/1.5 var(--pixel); letter-spacing: .04em; text-transform: uppercase; margin: 56px 0 6px; color: rgb(var(--cta)); }
+  h2 small { display: block; font: 400 15px/1.5 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: rgb(var(--dim)); margin-top: 6px; max-width: 760px; }
+  h3 { margin: 0 0 4px; font-size: 18px; }
+  p { margin: 0 0 10px; }
+  .eyebrow { font: 400 9px/1.6 var(--pixel); letter-spacing: .08em; text-transform: uppercase; color: rgb(var(--dim)); }
+  .lede { font-size: 19px; max-width: 780px; }
+  .dim { color: rgb(var(--dim)); }
+  .panel { background: rgb(var(--card)); border: 1px solid rgb(var(--border)); border-radius: 6px; box-shadow: 0 4px 0 rgb(var(--structure)); padding: 16px; min-width: 0; }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+  .fact b { display: block; font: 400 15px/1.5 var(--pixel); color: rgb(var(--text)); margin-bottom: 4px; overflow-wrap: anywhere; }
+  .fact span { color: rgb(var(--dim)); font-size: 14px; }
+  .rec a { color: inherit; }
+  .rec { border: 2px solid rgb(var(--win)); background: rgb(var(--tint-win)); border-radius: 6px; padding: 14px 16px; margin-top: 16px; box-shadow: 0 4px 0 rgb(var(--win) / .35); max-width: 900px; }
+  .rec b { color: rgb(var(--win)); }
+  .tag { display: inline-block; font: 400 8px/1 var(--pixel); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px 4px; border-radius: 3px; background: rgb(var(--text)); color: rgb(var(--card)); vertical-align: 2px; margin-right: 6px; white-space: nowrap; }
+  .tag.go { background: rgb(var(--win)); color: rgb(var(--on-win, var(--card))); } .tag.warn { background: rgb(var(--cta)); } .tag.hot { background: rgb(var(--danger)); } .tag.soft { background: rgb(var(--border)); color: rgb(var(--text)); }
+  .src { font-size: 13px; color: rgb(var(--dim)); }
+  .src a { color: inherit; }
+  figure { margin: 0; min-width: 0; }
+  figure svg { display: block; width: 100%; height: auto; border-radius: 6px; }
+  figcaption { font-size: 14px; color: rgb(var(--dim)); margin-top: 8px; }
+  figcaption b { color: rgb(var(--text)); }
+  ol.steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: s; }
+  ol.steps li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; counter-increment: s; }
+  ol.steps li::before { content: counter(s); width: 26px; height: 26px; border-radius: 4px; background: rgb(var(--text)); color: rgb(var(--card)); font: 400 10px/26px var(--pixel); text-align: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-top: 1px solid rgb(var(--border)); vertical-align: top; }
+  thead th { border-top: 0; font: 400 8px/1.6 var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: rgb(var(--dim)); }
+  .scroll { overflow-x: auto; }
+  /* prototype */
+  .play { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 26px; align-items: start; margin-top: 16px; }
+  .phone { border: 7px solid rgb(var(--ink, 32 38 29)); border-radius: 30px; overflow: hidden; background: rgb(var(--bg)); box-shadow: 0 10px 0 rgb(var(--structure)), 0 18px 30px rgb(0 0 0 / .22); max-width: 380px; width: 100%; margin: 0 auto; }
+  .phone canvas { display: block; width: 100%; aspect-ratio: 360 / 640; touch-action: none; outline: none; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .bz-ui { display: grid; gap: 14px; min-width: 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .row > .eyebrow { flex: 0 0 100%; }
+  button.px { font: 400 9px/1 var(--pixel); letter-spacing: .05em; text-transform: uppercase; color: rgb(var(--text)); background: rgb(var(--card)); border: 1px solid rgb(var(--border)); border-radius: 4px; box-shadow: 0 3px 0 rgb(var(--structure)); padding: 11px 12px 9px; cursor: pointer; transition: transform 80ms; }
+  button.px:active { transform: translateY(2px) scale(.96); box-shadow: 0 1px 0 rgb(var(--structure)); }
+  button.px[aria-pressed="true"] { background: rgb(var(--tint-cta)); border: 2px solid rgb(var(--cta)); color: rgb(var(--cta)); box-shadow: 0 3px 0 rgb(var(--cta) / .45); padding: 10px 11px 8px; }
+  button.px.go { background: rgb(var(--win)); color: rgb(var(--on-win, var(--card))); border-color: rgb(var(--win)); box-shadow: 0 3px 0 rgb(var(--win) / .5); }
+  label.tog { display: flex; gap: 9px; align-items: flex-start; padding: 8px 10px; border: 1px solid rgb(var(--border)); border-radius: 4px; background: rgb(var(--card)); min-width: 0; cursor: pointer; }
+  label.tog b { font: 400 9px/1.5 var(--pixel); letter-spacing: .04em; display: block; }
+  label.tog span { font-size: 13.5px; color: rgb(var(--dim)); }
+  input[type=checkbox], input[type=radio] { width: 18px; height: 18px; margin: 2px 0 0; accent-color: rgb(var(--win)); flex: none; }
+  kbd { font: 12px/1 ui-monospace, monospace; background: rgb(var(--surface)); border: 1px solid rgb(var(--border)); border-bottom-width: 3px; border-radius: 4px; padding: 3px 6px; white-space: nowrap; }
+  .twist { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-content: start; }
+  .twist h3 { font: 400 12px/1.5 var(--pixel); letter-spacing: .04em; margin-top: 6px; }
+  .twist dl { margin: 0; display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 5px 10px; font-size: 14.5px; }
+  .twist dt { font: 400 7px/2.2 var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: rgb(var(--dim)); }
+  .twist dd { margin: 0; }
+  .twist.first { border: 2px solid rgb(var(--win)); box-shadow: 0 4px 0 rgb(var(--win) / .35); }
+  form.pick { border: 2px solid rgb(var(--text)); }
+  fieldset { border: 0; border-top: 1px solid rgb(var(--border)); margin: 0; padding: 14px 0 8px; min-width: 0; }
+  fieldset:first-of-type { border-top: 0; padding-top: 4px; }
+  legend { font: 400 10px/1.6 var(--pixel); letter-spacing: .04em; text-transform: uppercase; padding: 0; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 8px; margin-top: 8px; }
+  .opts label { display: flex; gap: 9px; align-items: flex-start; padding: 8px 10px; border: 1px solid rgb(var(--border)); border-radius: 4px; background: rgb(var(--surface)); min-width: 0; cursor: pointer; font-size: 14.5px; }
+  .opts label:has(input:checked) { border-color: rgb(var(--win)); background: rgb(var(--tint-win)); }
+  textarea, input[type=text] { width: 100%; border: 1px solid rgb(var(--border)); border-radius: 4px; padding: 10px; font: inherit; background: rgb(var(--surface)); color: inherit; }
+  textarea { min-height: 70px; margin-top: 8px; }
+  #queued { font-size: 14px; color: rgb(var(--win)); margin-left: 10px; }
+  .themebar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 16px; background: rgb(var(--card) / .96); border-bottom: 1px solid rgb(var(--border)); box-shadow: 0 3px 0 rgb(var(--structure) / .6); }
+  .themebar label, .themerow label { font: 400 9px/1 var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: rgb(var(--cta)); }
+  .themebar span { font-size: 13px; color: rgb(var(--dim)); }
+  select[data-bz-theme] { font: 400 9px/1 var(--pixel); letter-spacing: .04em; text-transform: uppercase; color: rgb(var(--text)); background: rgb(var(--surface)); border: 1px solid rgb(var(--border)); border-radius: 4px; box-shadow: 0 3px 0 rgb(var(--structure)); padding: 9px 8px 7px; max-width: 100%; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+  nav.toc a { font: 400 8px/1 var(--pixel); letter-spacing: .05em; text-transform: uppercase; text-decoration: none; color: rgb(var(--text)); background: rgb(var(--card)); border: 1px solid rgb(var(--border)); border-radius: 4px; padding: 9px 10px 7px; box-shadow: 0 3px 0 rgb(var(--structure)); }
+  @media (max-width: 820px) { .play { grid-template-columns: minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<script>
+/* Theme layer: Game Night's own theme tokens (read from src/index.css at build time). The page, the drawings
+   and the game canvas all take their colours from here. Yard materials are derived from each theme's tokens. */
+window.BZT = (function () {
+  const THEMES = [{"id":"matcha","label":"MATCHA","t":{"bg":[238,240,226],"surface":[246,248,236],"card":[252,253,246],"border":[185,195,165],"text":[45,55,35],"dim":[95,107,81],"p1":[70,121,47],"p2":[129,89,180],"p3":[175,55,115],"p4":[25,100,150],"cta":[130,95,14],"win":[38,123,66],"danger":[190,30,50],"structure":[160,170,140]}},{"id":"midnight","label":"MIDNIGHT ARCADE","t":{"bg":[8,8,16],"surface":[15,15,26],"card":[19,19,40],"border":[56,56,106],"text":[224,224,255],"dim":[122,122,186],"p1":[0,229,255],"p2":[255,64,129],"p3":[171,102,255],"p4":[255,158,44],"cta":[255,230,0],"win":[77,255,195],"danger":[255,45,45],"structure":[74,74,138]}},{"id":"phosphor","label":"PHOSPHOR","t":{"bg":[3,15,3],"surface":[6,24,6],"card":[8,32,8],"border":[16,58,16],"text":[184,255,184],"dim":[82,148,82],"p1":[57,255,20],"p2":[255,211,122],"p3":[102,255,218],"p4":[200,255,102],"cta":[204,255,51],"win":[118,255,118],"danger":[255,60,40],"structure":[20,82,20]}},{"id":"amber","label":"AMBER CRT","t":{"bg":[13,7,0],"surface":[22,13,2],"card":[36,23,6],"border":[70,50,18],"text":[255,217,160],"dim":[160,123,67],"p1":[255,176,0],"p2":[255,244,214],"p3":[255,122,0],"p4":[255,214,122],"cta":[255,208,0],"win":[255,242,176],"danger":[247,45,67],"structure":[74,52,21]}},{"id":"synthwave","label":"SYNTHWAVE","t":{"bg":[13,2,33],"surface":[21,5,49],"card":[26,6,64],"border":[45,27,94],"text":[240,230,255],"dim":[135,118,186],"p1":[0,240,255],"p2":[255,41,117],"p3":[181,102,255],"p4":[255,214,61],"cta":[255,159,28],"win":[182,255,0],"danger":[255,20,20],"structure":[61,43,110]}},{"id":"grid","label":"THE GRID","t":{"bg":[2,8,15],"surface":[4,17,29],"card":[6,24,39],"border":[15,58,82],"text":[207,238,255],"dim":[82,135,167],"p1":[0,216,255],"p2":[255,127,17],"p3":[122,255,122],"p4":[255,102,204],"cta":[244,244,244],"win":[159,255,224],"danger":[255,64,72],"structure":[21,74,102]}},{"id":"mono","label":"1-BIT MONO","t":{"bg":[0,0,0],"surface":[10,10,10],"card":[16,16,16],"border":[96,96,96],"text":[255,255,255],"dim":[150,150,150],"p1":[255,255,255],"p2":[168,168,168],"p3":[116,116,116],"p4":[220,220,220],"cta":[255,255,255],"win":[255,255,255],"danger":[235,80,80],"structure":[120,120,120]}},{"id":"virtualboy","label":"VIRTUAL BOY","t":{"bg":[10,0,0],"surface":[20,2,2],"card":[30,4,4],"border":[70,10,10],"text":[255,120,110],"dim":[200,88,80],"p1":[255,45,45],"p2":[255,190,170],"p3":[255,110,180],"p4":[255,175,60],"cta":[255,110,60],"win":[255,230,200],"danger":[255,255,255],"structure":[90,16,16]}},{"id":"c64","label":"COMMODORE 64","t":{"bg":[64,49,141],"surface":[58,44,133],"card":[53,40,121],"border":[120,110,200],"text":[205,218,255],"dim":[176,171,238],"p1":[137,255,255],"p2":[255,137,137],"p3":[240,170,255],"p4":[255,185,120],"cta":[255,255,119],"win":[155,255,130],"danger":[255,255,255],"structure":[100,90,190]}},{"id":"blueprint","label":"BLUEPRINT","t":{"bg":[22,62,110],"surface":[28,72,125],"card":[32,80,138],"border":[90,140,190],"text":[225,240,255],"dim":[172,196,220],"p1":[255,255,255],"p2":[255,200,90],"p3":[255,158,224],"p4":[205,175,255],"cta":[127,240,255],"win":[200,255,122],"danger":[255,172,164],"structure":[110,155,205]}},{"id":"sakura","label":"SAKURA","t":{"bg":[30,18,28],"surface":[40,24,38],"card":[50,30,46],"border":[100,60,90],"text":[255,230,240],"dim":[175,135,160],"p1":[255,150,190],"p2":[140,202,255],"p3":[195,165,255],"p4":[255,210,122],"cta":[255,200,120],"win":[150,255,180],"danger":[255,68,68],"structure":[110,65,100]}},{"id":"matcha-strawberry","label":"MATCHA STRAWBERRY","t":{"bg":[226,236,212],"surface":[234,242,222],"card":[245,249,238],"border":[176,196,152],"text":[34,48,26],"dim":[78,96,64],"p1":[52,110,40],"p2":[172,36,118],"p3":[31,106,98],"p4":[48,95,166],"cta":[196,32,52],"win":[17,108,82],"danger":[180,36,20],"structure":[150,174,124]}},{"id":"matcha-blueberry","label":"MATCHA BLUEBERRY","t":{"bg":[222,234,214],"surface":[231,240,224],"card":[243,248,238],"border":[170,194,156],"text":[28,44,34],"dim":[72,92,78],"p1":[48,106,40],"p2":[118,58,190],"p3":[10,103,126],"p4":[140,37,208],"cta":[44,84,190],"win":[17,108,82],"danger":[180,36,20],"structure":[144,172,128]}},{"id":"cotton-candy","label":"COTTON CANDY","t":{"bg":[251,233,242],"surface":[253,241,247],"card":[255,250,253],"border":[226,189,210],"text":[58,33,64],"dim":[115,84,121],"p1":[29,104,163],"p2":[153,81,9],"p3":[106,63,176],"p4":[15,112,112],"cta":[186,34,118],"win":[26,114,69],"danger":[179,38,30],"structure":[207,162,189]}},{"id":"arctic-frost","label":"ARCTIC FROST","t":{"bg":[229,237,244],"surface":[237,243,248],"card":[248,251,253],"border":[179,197,214],"text":[27,42,58],"dim":[79,99,120],"p1":[21,96,184],"p2":[163,76,9],"p3":[184,24,90],"p4":[15,112,104],"cta":[106,42,208],"win":[20,116,57],"danger":[180,28,28],"structure":[151,173,193]}},{"id":"shoreline","label":"SHORELINE","t":{"bg":[246,236,214],"surface":[251,244,229],"card":[255,252,244],"border":[218,198,162],"text":[33,49,61],"dim":[92,86,74],"p1":[0,112,134],"p2":[184,46,106],"p3":[112,76,160],"p4":[146,96,18],"cta":[190,62,42],"win":[20,112,76],"danger":[176,28,34],"structure":[96,160,176]}},{"id":"glass","label":"GLASS","t":{"bg":[238,240,226],"surface":[246,248,236],"card":[252,253,246],"border":[185,195,165],"text":[45,55,35],"dim":[50,60,38],"p1":[70,121,47],"p2":[129,89,180],"p3":[175,55,115],"p4":[25,100,150],"cta":[130,95,14],"win":[38,123,66],"danger":[190,30,50],"structure":[160,170,140]}},{"id":"glass-night","label":"GLASS NIGHT","t":{"bg":[8,8,16],"surface":[15,15,26],"card":[19,19,40],"border":[56,56,106],"text":[236,238,255],"dim":[220,222,250],"p1":[0,229,255],"p2":[255,64,129],"p3":[171,102,255],"p4":[255,158,44],"cta":[255,230,0],"win":[77,255,195],"danger":[255,45,45],"structure":[74,74,138]}},{"id":"cartridge","label":"CARTRIDGE","t":{"bg":[239,230,210],"surface":[246,239,224],"card":[255,250,240],"border":[205,191,160],"text":[42,29,23],"dim":[107,88,72],"p1":[179,32,44],"p2":[31,78,156],"p3":[15,112,102],"p4":[160,82,14],"cta":[92,67,0],"win":[29,111,60],"danger":[184,63,15],"structure":[179,163,126]}},{"id":"notebook","label":"NOTEBOOK","t":{"bg":[247,248,243],"surface":[251,252,248],"card":[255,255,255],"border":[201,211,224],"text":[31,38,51],"dim":[90,99,114],"p1":[31,79,191],"p2":[192,38,45],"p3":[176,90,0],"p4":[0,120,140],"cta":[11,110,79],"win":[150,104,14],"danger":[143,29,107],"structure":[159,180,207]}},{"id":"hicontrast","label":"HIGH CONTRAST","t":{"bg":[0,0,0],"surface":[10,10,10],"card":[18,18,18],"border":[160,160,160],"text":[255,255,255],"dim":[226,226,226],"p1":[86,180,233],"p2":[230,159,0],"p3":[204,121,167],"p4":[25,201,143],"cta":[240,228,66],"win":[255,255,255],"danger":[255,92,138],"structure":[255,255,255]}},{"id":"fantasy","label":"FANTASY CONSOLE","t":{"bg":[15,22,48],"surface":[22,32,74],"card":[29,43,83],"border":[51,66,122],"text":[255,241,232],"dim":[194,195,199],"p1":[41,173,255],"p2":[255,163,0],"p3":[155,142,181],"p4":[255,119,168],"cta":[255,236,39],"win":[0,228,54],"danger":[253,91,109],"structure":[131,118,156]}},{"id":"sweetie","label":"SWEETIE 16","t":{"bg":[26,28,44],"surface":[32,35,58],"card":[38,43,68],"border":[51,60,87],"text":[244,244,244],"dim":[148,176,194],"p1":[65,166,246],"p2":[239,125,87],"p3":[167,240,112],"p4":[230,122,200],"cta":[115,239,247],"win":[56,183,100],"danger":[247,95,119],"structure":[86,108,134]}},{"id":"cga","label":"CGA","t":{"bg":[0,0,0],"surface":[8,8,15],"card":[14,14,28],"border":[0,0,170],"text":[255,255,255],"dim":[170,170,170],"p1":[85,255,255],"p2":[255,85,255],"p3":[255,170,0],"p4":[85,255,85],"cta":[255,255,85],"win":[85,255,85],"danger":[255,85,85],"structure":[85,85,255]}},{"id":"riso","label":"RISO PRINT","t":{"bg":[245,240,230],"surface":[250,246,238],"card":[255,253,248],"border":[216,207,191],"text":[35,32,46],"dim":[98,91,110],"p1":[0,103,168],"p2":[209,21,122],"p3":[194,67,2],"p4":[0,122,128],"cta":[46,33,71],"win":[3,126,69],"danger":[176,35,42],"structure":[192,180,159]}},{"id":"gold","label":"24K","t":{"bg":[11,9,7],"surface":[19,16,11],"card":[27,22,15],"border":[58,46,26],"text":[255,245,220],"dim":[188,169,131],"p1":[111,168,255],"p2":[255,111,160],"p3":[126,224,224],"p4":[255,184,77],"cta":[240,192,80],"win":[95,211,154],"danger":[255,80,64],"structure":[92,74,42]}},{"id":"holo","label":"HOLOFOIL","t":{"bg":[12,10,24],"surface":[19,17,42],"card":[26,23,54],"border":[46,42,90],"text":[246,244,255],"dim":[169,163,214],"p1":[92,225,255],"p2":[255,166,107],"p3":[196,155,255],"p4":[140,255,158],"cta":[255,122,209],"win":[180,255,106],"danger":[255,77,94],"structure":[74,69,144]}},{"id":"carpet","label":"COSMIC CARPET","t":{"bg":[20,11,38],"surface":[27,16,49],"card":[35,21,63],"border":[61,42,102],"text":[251,243,255],"dim":[183,163,217],"p1":[56,214,255],"p2":[255,154,46],"p3":[255,243,92],"p4":[233,228,255],"cta":[255,79,176],"win":[109,255,158],"danger":[255,59,59],"structure":[90,63,146]}},{"id":"radar","label":"P7 RADAR","t":{"bg":[2,10,7],"surface":[4,18,12],"card":[6,26,17],"border":[15,58,36],"text":[214,255,233],"dim":[111,191,147],"p1":[157,255,90],"p2":[255,107,213],"p3":[255,179,107],"p4":[201,184,255],"cta":[143,227,255],"win":[232,255,240],"danger":[255,80,80],"structure":[26,92,58]}},{"id":"pumpkin","label":"PUMPKIN NIGHT","t":{"bg":[21,14,29],"surface":[29,20,39],"card":[38,26,51],"border":[63,44,82],"text":[255,241,224],"dim":[184,160,200],"p1":[255,145,36],"p2":[111,208,255],"p3":[182,242,74],"p4":[197,139,255],"cta":[255,95,162],"win":[182,242,74],"danger":[255,64,64],"structure":[90,63,117]}},{"id":"campfire","label":"CAMPFIRE","t":{"bg":[23,17,15],"surface":[32,23,19],"card":[42,30,24],"border":[74,52,40],"text":[255,238,221],"dim":[199,159,130],"p1":[116,183,255],"p2":[255,159,67],"p3":[184,233,134],"p4":[255,226,122],"cta":[255,111,145],"win":[158,227,125],"danger":[255,75,62],"structure":[107,74,54]}}]
+  const BASE = { bg: [238, 240, 226], surface: [246, 248, 236], card: [252, 253, 246], border: [185, 195, 165], text: [45, 55, 35], dim: [95, 107, 81],
+    p1: [210, 110, 50], p2: [129, 89, 180], p3: [30, 150, 140], p4: [175, 55, 115], cta: [130, 95, 14], win: [38, 123, 66], danger: [190, 30, 50], structure: [160, 170, 140],
+    sand: [230, 220, 190], frame: [100, 78, 52], pole: [150, 176, 76], moss: [96, 140, 60], tip: [236, 226, 182], rock: [142, 150, 134], shadow: [40, 50, 30], ink: [30, 34, 24], coin: [230, 190, 50], white: [255, 255, 255] }
+  const CLS = {}
+  const put = (cls, list) => list.split(' ').forEach(k => { CLS[k] = cls })
+  put('shadow', '40,50,30'); put('ink', '30,34,24 32,38,29 34,34,34'); put('card', '252,253,246'); put('white', '255,255,255')
+  put('frame', '60,44,20 86,66,44 112,88,58 78,60,40 72,54,36 46,34,22 40,28,16 30,20,10 126,100,66 255,240,210 86,62,34 100,78,52 84,64,42')
+  put('pole', '52,72,24 84,108,40 72,96,36 40,52,20 226,236,170 214,226,150 190,208,116 150,176,76 128,156,62 255,255,230 208,222,140')
+  put('moss', '86,132,54 126,170,80 96,146,60'); put('tip', '240,230,186 176,160,104 150,134,84 236,226,182')
+  put('sand', '234,226,198 232,222,192 226,216,186 120,104,70 150,130,90 226,214,180'); put('rock', '92,100,90 196,200,184 142,150,134 40,50,40 40,46,40 30,36,30 120,128,110 96,104,92')
+  put('coin', '244,204,70 176,128,20 226,180,40 255,250,210 240,200,60 200,150,20')
+  put('bg', '238,240,226'); put('surface', '246,248,236'); put('border', '185,195,165'); put('structure', '160,170,140'); put('dim', '95,107,81'); put('cta', '130,95,14'); put('win', '38,123,66')
+  put('danger', '190,30,50'); put('text', '45,55,35'); put('p1', '210,110,50'); put('p2', '129,89,180'); put('p3', '30,150,140'); put('p4', '175,55,115')
+  const mix = (a, b, t) => [0, 1, 2].map(i => a[i] + (b[i] - a[i]) * t)
+  const lum = c => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255
+  const level = (c, target) => { const m = Math.max(c[0], c[1], c[2], 1); return c.map(v => v * target / m) }
+  let cur = 'matcha', pal = null, cache = new Map()
+  const subs = []
+  function derive(theme) {
+    const t = { ...theme.t }
+    for (const k in BASE) if (!t[k] && !['sand', 'frame', 'pole', 'moss', 'tip', 'rock', 'shadow', 'ink', 'coin', 'white'].includes(k)) t[k] = BASE[k]
+    const dark = lum(t.bg) < 0.45
+    t.dark = dark
+    if (theme.id === 'matcha') return Object.assign(t, { sand: BASE.sand, frame: BASE.frame, pole: BASE.pole, moss: BASE.moss, tip: BASE.tip, rock: BASE.rock, shadow: BASE.shadow, ink: BASE.ink, coin: BASE.coin, white: BASE.white })
+    t.sand = dark ? mix(mix(t.surface, t.text, 0.2), t.cta, 0.12) : mix(t.surface, t.cta, 0.14)
+    t.frame = dark ? mix(t.structure, t.bg, 0.45) : mix(t.text, t.cta, 0.45)
+    t.pole = level(mix(t.win, t.cta, 0.15), dark ? 215 : 185)
+    t.moss = mix(t.win, t.sand, 0.15)
+    t.tip = dark ? mix(t.text, t.cta, 0.3) : mix(t.card, t.cta, 0.22)
+    t.rock = dark ? mix(t.structure, t.text, 0.3) : mix(t.structure, t.dim, 0.3)
+    t.shadow = dark ? [0, 0, 0] : mix(t.text, [0, 0, 0], 0.3)
+    t.ink = dark ? [0, 0, 0] : mix(t.text, [0, 0, 0], 0.35)
+    t.coin = BASE.coin; t.white = BASE.white
+    return t
+  }
+  function classOf(r, g, b) {
+    const k = r + ',' + g + ',' + b
+    if (CLS[k]) return CLS[k]
+    let best = 'ink', bd = 1e9
+    for (const c in BASE) { const q = BASE[c], dd = (q[0] - r) ** 2 + (q[1] - g) ** 2 + (q[2] - b) ** 2; if (dd < bd) { bd = dd; best = c } }
+    return (CLS[k] = best)
+  }
+  function KA(r, g, b) {
+    const key = r * 65536 + g * 256 + b
+    let v = cache.get(key)
+    if (!v) { const c = classOf(r, g, b), base = BASE[c], to = pal[c]; v = [r, g, b].map((x, i) => Math.max(0, Math.min(255, Math.round(to[i] + (x - base[i]))))); cache.set(key, v) }
+    return v
+  }
+  const K = (r, g, b, a) => { const v = KA(+r, +g, +b); return 'rgba(' + v[0] + ',' + v[1] + ',' + v[2] + ',' + (a == null ? 1 : a) + ')' }
+  /** Retint every rgb()/rgba() in a markup string (the hand-drawn SVG explainers). */
+  const paint = s => s.replace(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([.\d]+))?\)/g, (m, r, g, b, a) => K(r, g, b, a))
+  function apply(id) {
+    const theme = THEMES.find(x => x.id === id) || THEMES.find(x => x.id === 'matcha') || { id: 'matcha', t: {} }
+    cur = theme.id; pal = derive(theme); cache = new Map()
+    const st = document.documentElement.style, set = (k, c) => st.setProperty('--' + k, c.map(Math.round).join(' '))
+    for (const k of ['bg', 'surface', 'card', 'border', 'text', 'dim', 'p1', 'p2', 'p3', 'p4', 'cta', 'win', 'danger', 'structure']) set(k, pal[k])
+    set('tint-win', mix(pal.win, pal.card, 0.82)); set('tint-cta', mix(pal.cta, pal.card, 0.82)); set('tint-danger', mix(pal.danger, pal.card, 0.82)); set('ink', pal.ink)
+    set('on-win', lum(pal.win) > 0.6 ? pal.ink : pal.card)
+    document.documentElement.style.colorScheme = pal.dark ? 'dark' : 'light'
+    document.querySelectorAll('[data-bz-theme]').forEach(s => { s.value = cur })
+    subs.forEach(f => f(pal))
+  }
+  function mount() {
+    document.querySelectorAll('[data-bz-theme]').forEach(sel => {
+      sel.innerHTML = THEMES.map(t => '<option value="' + t.id + '">' + t.label + '</option>').join('')
+      sel.value = cur
+      sel.addEventListener('change', () => apply(sel.value))
+    })
+  }
+  apply('matcha')
+  return { THEMES, K, KA, paint, apply, mount, pal: () => pal, cur: () => cur, onChange: f => subs.push(f) }
+})()
+</script>
+<div class="themebar"><label for="theme-top">Theme</label><select id="theme-top" data-bz-theme aria-label="Game Night theme"></select><span>Every colour on this page and in the game follows it.</span></div>
+<main>
+  <div class="eyebrow">Game Night · study of one minigame · task games-jb-spikeattack-s1 · 10 Oct 2026</div>
+  <h1>BAMBOOZLE</h1>
+  <p class="lede">Bamboo poles fire across a walled garden from one side at a time. A pole stops when it hits a boulder, so the only safe ground is <b>behind a rock</b>, and there is never enough of it for everyone. Three hearts each; last one standing wins.</p>
+  <p class="dim" style="max-width:780px">This is Game Night's own take on the "Spike Attacks" minigame in JindoBlu's <i>1 2 3 4 Player Games</i>. The mechanic is studied; the name, art, sound and code here are new.</p>
+
+  <div class="grid g4" style="margin-top:20px">
+    <div class="panel fact"><b>2–4 · 1 phone</b><span>A thumb pad each in the corners of one screen. Also solo against bots.</span></div>
+    <div class="panel fact"><b>25–50 s</b><span>One round. Bot-only test rounds averaged 22–44 s and none passed 52 s: the warning shrinks and a second wall joins in.</span></div>
+    <div class="panel fact"><b>Online 2–8</b><span>Fits the existing race rooms: everyone gets the same seeded volleys, no new server code.</span></div>
+    <div class="panel fact"><b>Medium build</b><span>One logic module, one page, a solo page. No new database rules for the recommended version.</span></div>
+  </div>
+
+  <div class="rec"><b>Recommendation.</b> Build it. First version: one phone for 2–4, solo against bots, and online as a seeded survival race for 2–8. Ship two twists with it: <b>CRUMBLE</b> (rocks break and move, already in the prototype's default) and <b>BAIT</b> (coins in the open buy a heart back). Hold SHOVE and HAUNT for a second pass. Dodgers are the players' own profile avatars. Five calls are waiting for you at the <a href="#calls">bottom</a>.</div>
+
+  <nav class="toc" aria-label="Sections">
+    <a href="#source">1 The source game</a><a href="#rules">2 Our version</a><a href="#play">3 Play it</a><a href="#avatars">3b Avatars</a><a href="#twists">4 Twists</a><a href="#seats">5 Players</a><a href="#build">6 Build</a><a href="#calls">7 Your calls</a>
+  </nav>
+
+  <h2 id="source">1 · How the source game plays<small>Read from the app's own how-to screen and from gameplay videos. I did not install or open the app.</small></h2>
+  <div class="grid g2">
+    <figure class="panel">
+      <div id="fig-source"></div>
+      <figcaption><b>My redrawing of one volley, not their art.</b> The left wall is about to fire. Every lane gets a spike. A spike stops at the first stone in its lane, so only the green cells are safe. The bottom lane is wholly safe because its stone sits against the firing wall.</figcaption>
+    </figure>
+    <div class="panel">
+      <ol class="steps">
+        <li><div><b>A square yard of 4×4 tiles with three stones.</b> Four spikes wait on each of the four walls, one per lane. <span class="src">[V1][V2][V3]</span></div></li>
+        <li><div><b>One wall flashes red, then all its spikes shoot across</b> and pull back. The in-app tip reads: "Hide behind the stones so you don't get hit by the spikes." <span class="src">[V1][V2]</span></div></li>
+        <li><div><b>Each player steers a small character with a joystick</b> in their own corner of the screen. The counter beside it starts at 3 and drops on each hit. <span class="src">[V3]</span></div></li>
+        <li><div><b>Out at zero; the last one left wins.</b> A medal screen ranks the players ("RED WINS!"). <span class="src">[V2][V3]</span></div></li>
+        <li><div><b>Solo play is against bots</b> with an EASY / MEDIUM / HARD slider. <span class="src">[V1][V2]</span></div></li>
+      </ol>
+      <p class="src" style="margin-top:14px"><b>Not confirmed, treated as assumptions:</b> whether the stones ever move inside a round (they stayed put in the footage I saw); whether the pace speeds up; whether more than one wall can fire at once; how four players are placed (I saw two corners used, and assume the other two corners for players three and four).</p>
+      <p class="src"><b>What players say:</b> one store review lists "spike attacks" among the games it recommends for groups <span class="src">[R1]</span>. The clips show the same two feelings again and again: a scramble for the same safe tile, and a hit that comes from misreading which side a stone protects.</p>
+    </div>
+  </div>
+  <p class="src" style="margin-top:12px">
+    [V1] <a href="https://www.youtube.com/watch?v=d6IYWB07c3Q">YouTube, "Spike Attack | 1234 player games", MGP, 11 Sep 2025</a> (menu tile, tip text, MEDIUM and HARD rounds) ·
+    [V2] <a href="https://www.youtube.com/watch?v=lhpA4qscHSw">YouTube, "playing spike attack … with easy difficulty", 3 Jun 2026</a> (EASY, medal screens) ·
+    [V3] <a href="https://www.youtube.com/watch?v=jdHdadjDYXg">YouTube, "4player game red wins spike attack", 24 Oct 2025</a> (two humans, counters 3→2→1) ·
+    [S1] <a href="https://play.google.com/store/apps/details?id=com.JindoBlu.FourPlayers&hl=en_IN">Play Store listing</a> (app description; a release note names "New game: Spike Attack") ·
+    [R1] <a href="https://game-solver.com/1-2-3-4-player-games/">game-solver.com app page</a> (quoted user review)
+  </p>
+
+  <h2 id="rules">2 · Game Night's version<small>The same read-the-cover idea, with a telegraph you can learn, a round that is guaranteed to end, and cover that does not stay put.</small></h2>
+  <div class="grid g3">
+    <figure class="panel"><div id="fig-warn"></div><figcaption><b>1 · Warning.</b> A wall glows and its poles draw back and rattle. The warning starts at 1.15 s and shrinks to 0.5 s. For the first three volleys the yard also tints the safe tiles, then you read it yourself.</figcaption></figure>
+    <figure class="panel"><div id="fig-strike"></div><figcaption><b>2 · Strike.</b> Every pole on that wall fires. A pole stops at the first boulder. Touch a pole and you lose a heart, then blink for a moment so one volley cannot hit twice.</figcaption></figure>
+    <figure class="panel"><div id="fig-crumble"></div><figcaption><b>3 · Cover moves.</b> A boulder cracks each time it stops a pole and breaks on the third. A dashed ring shows where the next one will land a second before it does.</figcaption></figure>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="panel">
+      <h3>Rules</h3>
+      <div class="scroll"><table>
+        <tbody>
+          <tr><th>Goal</th><td>Be the last dodger with a heart left.</td></tr>
+          <tr><th>Yard</th><td>4×4 tiles and 3 boulders for two players; 5×5 and 5 boulders for three or four.</td></tr>
+          <tr><th>Hearts</th><td>Three each. A hit costs one and gives 1.3 s of blinking safety.</td></tr>
+          <tr><th>Escalation</th><td>From volley 7 a second wall can fire with the first; from volley 15 two walls always fire.</td></tr>
+          <tr><th>Fairness</th><td>A wall may fire only if the walk to cover from the worst tile in the yard fits inside the warning. When no wall fits, the kindest one fires. This depends on the boulders alone, so it is the same for every player online.</td></tr>
+          <tr><th>Round end</th><td>One dodger left wins the round. If the last two fall to the same volley it is a draw and nobody scores.</td></tr>
+          <tr><th>Match</th><td>One phone and solo: first to two rounds. Online race rooms: the room's usual first to three.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="src" style="margin-top:10px">Every number on this board is a starting value for playtests, not a measured one. The report lists each with the test that would move it.</p>
+    </div>
+    <div class="panel">
+      <h3>Touch controls</h3>
+      <ol class="steps">
+        <li><div><b>Thumb pad.</b> Put a thumb down anywhere in your own strip and drag; the pad appears under it and follows a thumb that drifts.</div></li>
+        <li><div><b>Nothing else in the base game.</b> One input means a phone can be handed to anyone.</div></li>
+        <li><div><b>With SHOVE on:</b> a quick tap in your strip is a short dash that knocks rivals aside.</div></li>
+        <li><div><b>When you are out, with HAUNT on:</b> push the pad toward a wall to choose where the next volley comes from.</div></li>
+      </ol>
+      <h3 style="margin-top:16px">Why it should feel good</h3>
+      <p class="dim" style="margin:0">Each volley answers with four things at once: the poles overshoot and shudder, the yard shakes, dust and rock chips fly, and a low thud plays. A hit squashes the dodger, throws stars and plays a falling tone. Sound and shake land on contact, never after a network reply.</p>
+    </div>
+  </div>
+
+  <h2 id="play">3 · Play it<small>The real loop, running in this page. Press a green button to play against the bot. Two people can also share a phone or a keyboard.</small></h2>
+  <div class="play" id="playgrid">
+    <div class="phone" data-lavish-action><canvas id="bz" tabindex="0" aria-label="Bamboozle playable prototype" data-lavish-action></canvas></div>
+    <div class="bz-ui">
+      <div class="panel" style="border:2px solid rgb(var(--win)); box-shadow:0 4px 0 rgb(var(--win) / .35)">
+        <div class="row"><span class="eyebrow">Play against the bot, right here</span>
+          <button class="px go" type="button" data-bz-go="2">▶ You vs 1 bot</button>
+          <button class="px go" type="button" data-bz-go="3">▶ You vs 2 bots</button>
+          <button class="px go" type="button" data-bz-go="4">▶ You vs 3 bots</button>
+        </div>
+        <p class="dim" style="margin:10px 0 0; font-size:14.5px">You are the one with the bouncing <b>YOU</b> tag. <b>Mouse or finger:</b> press anywhere on the game and drag the way you want to run. <b>Keyboard:</b> arrow keys or <kbd>W A S D</kbd>. <b>With GRAB on:</b> stand next to a rival and hold <kbd>Space</kbd>, the right mouse button, a second finger or the GRAB button; walk; let go to throw. If a press leaves a note instead of moving you, switch <b>Annotate</b> off at the top right.</p>
+      </div>
+      <div class="panel themerow">
+        <div class="row"><label for="theme-play" style="flex:0 0 100%">Theme · the yard, poles, rocks and pads all follow it</label>
+          <select id="theme-play" data-bz-theme aria-label="Game Night theme"></select>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="row"><span class="eyebrow">Who plays</span>
+          <button class="px" type="button" data-bz-mode="solo">You vs bots</button>
+          <button class="px" type="button" data-bz-mode="share">Share one phone</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="eyebrow">Players</span>
+          <button class="px" type="button" data-bz-players="2">2</button>
+          <button class="px" type="button" data-bz-players="3">3</button>
+          <button class="px" type="button" data-bz-players="4">4</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="eyebrow">Bots</span>
+          <button class="px" type="button" data-bz-skill="easy">Easy</button>
+          <button class="px" type="button" data-bz-skill="normal">Normal</button>
+          <button class="px" type="button" data-bz-skill="hard">Hard</button>
+        </div>
+        <p class="dim" style="margin:12px 0 0; font-size:14.5px"><b>Share one phone:</b> P1 uses the bottom strip, P2 the top strip (it faces the other way). Touch a strip to take that seat from its bot. On a keyboard: P1 <kbd>← ↑ ↓ →</kbd> shove <kbd>Space</kbd> · P2 <kbd>W A S D</kbd> shove <kbd>Q</kbd> · P3 <kbd>I J K L</kbd> · P4 <kbd>T F G H</kbd>.</p>
+      </div>
+      <div class="panel">
+        <div class="eyebrow" style="margin-bottom:8px">Twists · switching one restarts the match</div>
+        <div class="grid g2" style="gap:8px">
+          <label class="tog"><input type="checkbox" data-bz-opt="crumble" checked><span><b>CRUMBLE</b>Boulders crack, break and land somewhere new.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="coins"><span><b>BAIT</b>A coin sits in the open. Three coins buy a heart.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="shove"><span><b>SHOVE</b>Tap to dash and knock a rival out of cover.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="haunt"><span><b>HAUNT</b>Knocked-out players aim the next volley.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="grab"><span><b>GRAB</b>Hold a rival, walk them out of cover, let go to throw.</span></label>
+        </div>
+        <div class="grid g2" style="gap:8px; margin-top:8px">
+          <label class="tog"><input type="checkbox" data-bz-opt="hints" checked><span><b>FIRST-VOLLEY HINTS</b>Tint safe tiles for the first three volleys.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="sound" checked><span><b>SOUND</b>Thuds, cracks and a win jingle.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="avatars" checked><span><b>PROFILE AVATARS</b>Dodgers are real avatar-kit characters. Off: plain blobs.</span></label>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>What to look for</h3>
+        <ol class="steps">
+          <li><div>Can you tell which tiles are safe <b>before</b> the hint tint is gone (volley 4 onward)?</div></li>
+          <li><div>Does the scramble for one tile feel funny or unfair when a bot beats you to it?</div></li>
+          <li><div>Is the round length right, or does it drag before two walls start firing?</div></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <h2 id="avatars">3b · You are the dodger<small>Asked in review: can players use their own avatar, and can it be 3D? Yes to the first, now in the prototype. The second has three levels.</small></h2>
+  <div class="panel"><canvas id="bz-av" aria-label="Avatar kit characters: flat art, stood up with depth, and animated" style="display:block; width:100%; aspect-ratio: 720 / 200; border-radius:6px"></canvas></div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="panel twist first">
+      <div><span class="tag go">In the prototype</span><span class="tag soft">Small</span></div>
+      <h3>A · STANDEE</h3>
+      <p style="margin:0">Your profile avatar's full-body picture, stood up in the yard. The game adds a darker side for thickness, a shadow cast on the sand, a hop when it runs, a lean, a squash when hit and the kit's own cheer when it wins. These four are real output of Game Night's avatar kit, so every look works, paid cosmetics included, with no new art.</p>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag warn">Separate spike</span><span class="tag soft">Medium–large</span></div>
+      <h3>B · BLOCK FIGURE</h3>
+      <p style="margin:0">A true 3D figure built by turning each avatar pixel into a small cube. The catch: the kit only draws the front. A back and sides would be made up by rule (hair and outfit colours carried round), with a depth table for each part type. Most looks would come out well; some hats and hair would need hand fixes. It would let the figure turn to face where it runs.</p>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag soft">Not advised</span><span class="tag soft">Large</span></div>
+      <h3>C · MODELLED 3D</h3>
+      <p style="margin:0">Hand-made 3D parts for every hair, hat and outfit in the kit. It would look best and cost the most: every cosmetic would need a second, 3D version, for ever. Not worth it for one minigame.</p>
+    </div>
+  </div>
+  <p class="dim" style="margin-top:12px; max-width:820px"><b>My advice:</b> ship A with the game. If you want B, cost it once as its own piece of work, because all eight new games could use the same figures.</p>
+
+  <h2 id="twists">4 · Twists<small>Six ways to make it more than a clone. Five are playable above; press a button to load one.</small></h2>
+  <div class="grid g3">
+    <div class="panel twist first">
+      <div><span class="tag go">Ship first</span><span class="tag soft">Small</span></div>
+      <h3>CRUMBLE</h3>
+      <dl>
+        <dt>Change</dt><dd>Cover has hit points. A boulder breaks on its third block and a new one lands on a marked tile.</dd>
+        <dt>Why</dt><dd>The source's fixed stones let you learn four answers and stop thinking. Moving cover makes every volley a fresh read.</dd>
+        <dt>Risk</dt><dd>A boulder landing on a dodger. Handled: the landing ring shows for a second and dodgers are nudged out, never hurt.</dd>
+        <dt>Cost</dt><dd>Small. It follows from the volley list, so every online client agrees without extra data.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble">Play with Crumble</button>
+    </div>
+    <div class="panel twist first">
+      <div><span class="tag go">Ship first</span><span class="tag soft">Small</span></div>
+      <h3>BAIT</h3>
+      <dl>
+        <dt>Change</dt><dd>One coin lies on an open tile between volleys. Three coins buy back a heart, up to four.</dd>
+        <dt>Why</dt><dd>It gives the player who is behind a way back, and gives the leader a reason to leave cover. Camping stops being the best plan.</dd>
+        <dt>Risk</dt><dd>Fast players snowball. Starting rule: a coin can never push you above four hearts, and only one coin is ever out.</dd>
+        <dt>Cost</dt><dd>Small on one phone. Online the coin spot comes from the seed; whoever writes the pickup first keeps it.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble,coins">Play with Bait</button>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag warn">Second pass</span><span class="tag soft">Medium</span></div>
+      <h3>SHOVE</h3>
+      <dl>
+        <dt>Change</dt><dd>A tap is a short dash on a 2.2 s recharge. Dash into a rival and they slide out of the tile they were hiding on.</dd>
+        <dt>Why</dt><dd>It turns dodging beside each other into playing against each other. This is the loudest laugh in the prototype.</dd>
+        <dt>Risk</dt><dd>Needs players who can touch. That works on one phone and in a two-player online duel, not in a seeded race of ghosts.</dd>
+        <dt>Cost</dt><dd>Medium. One phone is cheap; online means a host-run two-player duel on the existing peer link.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble,shove">Play with Shove</button>
+    </div>
+    <div class="panel twist" style="border:2px solid rgb(var(--cta)); box-shadow:0 4px 0 rgb(var(--cta) / .4)">
+      <div><span class="tag warn">New · asked in review</span><span class="tag soft">Medium</span></div>
+      <h3>GRAB</h3>
+      <dl>
+        <dt>Change</dt><dd>Stand beside a rival and hold GRAB. They are stuck to your hands: walk and they go where you push. Let go and they are thrown about a tile. You can hold for 1.4 s, then wait 3 s.</dd>
+        <dt>Why</dt><dd>You can drag someone out from behind a rock and throw them into the poles. Louder than SHOVE, and it asks for timing: let go too early and they walk back.</dd>
+        <dt>Counter</dt><dd>The held player wriggles free by pushing their own pad for half a second, and the grabber walks slower and is out of cover too. A hit on the grabber breaks the hold.</dd>
+        <dt>Risk</dt><dd>It needs a second control: a GRAB button beside each pad. Four players on one phone then have eight touch targets, which is tight. Needs contact, so one phone and the two-player duel only.</dd>
+        <dt>Cost</dt><dd>Medium. It is SHOVE's bigger sibling: I would ship one of the two, not both.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble,grab">Play with Grab</button>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag warn">Second pass</span><span class="tag soft">Small–medium</span></div>
+      <h3>HAUNT</h3>
+      <dl>
+        <dt>Change</dt><dd>When you are out you become a ghost on the wall. Push your pad toward a side and the next volley comes from there.</dd>
+        <dt>Why</dt><dd>In the source, a knocked-out player just watches. Here the first one out gets the most say over who wins.</dd>
+        <dt>Risk</dt><dd>Two ghosts ganging up on the leader. Starting rule: only the latest push counts, and a wall with no safe tile cannot be picked.</dd>
+        <dt>Cost</dt><dd>Small on one phone. Medium online: one new room key and its rule and rules test.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble,haunt" data-bz-players-set="3">Play 3 with Haunt</button>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag soft">Later</span><span class="tag soft">Medium</span></div>
+      <h3>HOLD THE LINE</h3>
+      <dl>
+        <dt>Change</dt><dd>Co-op. One shared pool of hearts, a set number of volleys to outlast, and a downed friend gets up if you stand beside them for a volley.</dd>
+        <dt>Why</dt><dd>Game Night already has a co-op flag and co-op players. Sharing two safe tiles between four people is a different, kinder game.</dd>
+        <dt>Risk</dt><dd>Too easy with good players. Starting rule: boulders start already cracked and the wave count rises each win.</dd>
+        <dt>Cost</dt><dd>Medium. Not in the prototype.</dd>
+      </dl>
+    </div>
+  </div>
+  <p class="dim" style="margin-top:12px; max-width:820px">Also considered and left out: one player firing the walls by hand while the rest dodge. It is the same idea as HAUNT with a worse wait for the others, so HAUNT covers it.</p>
+
+  <h2 id="seats">5 · Who sits where<small>One phone, then online. The yard is the same in every case; only the pads move.</small></h2>
+  <div class="grid g4">
+    <figure class="panel"><div id="fig-s2"></div><figcaption><b>Two.</b> Bottom strip and top strip, facing each other across the phone.</figcaption></figure>
+    <figure class="panel"><div id="fig-s3"></div><figcaption><b>Three.</b> Three corners. The yard grows to 5×5.</figcaption></figure>
+    <figure class="panel"><div id="fig-s4"></div><figcaption><b>Four.</b> A corner each. A tablet is kinder to thumbs; a phone works.</figcaption></figure>
+    <figure class="panel"><div id="fig-online"></div><figcaption><b>Online, 2–8.</b> Everyone gets the same volleys from one seed. Your phone moves only you; the others appear as ghosts.</figcaption></figure>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="panel">
+      <h3>Online, the cheap way <span class="tag go">Recommended</span></h3>
+      <p>Game Night's race rooms already give every player the same seeded content on the server clock and rank them at the end (Chop Chop, Mine Race). Bamboozle fits that shape: the seed decides the boulders and every volley; each phone runs only its own dodger; hearts and "out at" times are the stats the room ranks.</p>
+      <p class="dim" style="margin:0">You see the others as ghosts, updated a few times a second. You cannot bump them. No new database rules, 2–8 players, and it works on weak connections because nothing fast crosses the network.</p>
+    </div>
+    <div class="panel">
+      <h3>Online, with contact <span class="tag warn">Only if SHOVE ships</span></h3>
+      <p>The peer link the arena games use (Sumo, Tron) is one host and one guest. A two-player duel with shoving fits it as it is. Three or four players with shoving would need a new mesh or relay, which is a large piece of work on its own.</p>
+      <p class="dim" style="margin:0">Closest existing games: <b>Chop Chop</b> shares "dodge the beam" but is a tap race with no movement; <b>Sumo Arena</b> shares the shoving but has no cover; <b>Tron</b> and <b>Snake</b> share last-one-standing. None has cover you read under time pressure, so this does not duplicate them.</p>
+    </div>
+  </div>
+
+  <h2 id="build">6 · What the build needs<small>Sized against how the last four games were added.</small></h2>
+  <div class="panel scroll">
+    <table>
+      <thead><tr><th>Piece</th><th>What</th><th>Size</th></tr></thead>
+      <tbody>
+        <tr><td><b>Logic module</b></td><td><code>bamboozleLogic.js</code> with tests: lanes, cover, the seeded volley list, crumble, hits, bot pathing. The prototype's rules already sit apart from its drawing.</td><td>Medium</td></tr>
+        <tr><td><b>Yard and dodgers</b></td><td>DOM and CSS, themed with the app's colour tokens like the other arenas. Poles, boulders and dodgers are drawn, not downloaded: no image assets.</td><td>Medium</td></tr>
+        <tr><td><b>One phone 2–4 and solo</b></td><td>A <code>/solo</code> page with bots and a <code>/local</code> page with corner pads, like Animal Stack's local page. A new multi-touch pad hook.</td><td>Medium</td></tr>
+        <tr><td><b>Online race room</b></td><td>A page on the race shell, a registry entry, an icon, how-to-play text and a two-client test.</td><td>Small</td></tr>
+        <tr><td><b>Sound</b></td><td>Five short effects in the existing sound module.</td><td>Small</td></tr>
+        <tr><td><b>SHOVE online, HAUNT online</b></td><td>A host-run duel on the peer link; one new room key with its rule and rules test.</td><td>Medium, later</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="dim" style="margin-top:10px; max-width:820px"><b>Overall: medium.</b> Roughly the size of Chop Chop plus Puck Rush's one-phone page. The one thing that has to be right is the pad for four thumbs on one small screen; I would test that on a real phone before anything else.</p>
+
+  <h2 id="calls">7 · Your calls<small>Five choices. Pick, add a note if you like, then queue and send. Nothing is built until you say so.</small></h2>
+  <form class="panel pick" id="calls-form" data-lavish-question="games-jb-spikeattack-s1-calls">
+    <fieldset>
+      <legend>A · Build it?</legend>
+      <div class="opts">
+        <label><input type="radio" name="build" value="build" checked><span><b>Build the first version</b> as recommended.</span></label>
+        <label><input type="radio" name="build" value="park"><span><b>Park it.</b> Keep the design, build later.</span></label>
+        <label><input type="radio" name="build" value="drop"><span><b>Drop it.</b></span></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>B · Name</legend>
+      <div class="opts">
+        <label><input type="radio" name="name" value="BAMBOOZLE" checked><span><b>BAMBOOZLE</b> — bamboo, and being fooled by a rock. Recommended.</span></label>
+        <label><input type="radio" name="name" value="TAKE COVER"><span><b>TAKE COVER</b> — says the rule in two words.</span></label>
+        <label><input type="radio" name="name" value="STAKEOUT"><span><b>STAKEOUT</b> — stakes come out; you hide.</span></label>
+      </div>
+      <input type="text" name="nameOther" placeholder="Or type another name" aria-label="Another name" style="margin-top:8px">
+    </fieldset>
+    <fieldset>
+      <legend>C · What goes in the first version</legend>
+      <div class="opts">
+        <label><input type="checkbox" name="modes" value="one-phone-2-4" checked><span><b>One phone, 2–4 players</b></span></label>
+        <label><input type="checkbox" name="modes" value="solo-bots" checked><span><b>Solo against bots</b></span></label>
+        <label><input type="checkbox" name="modes" value="online-race-2-8" checked><span><b>Online race room, 2–8</b> (ghosts, no contact)</span></label>
+        <label><input type="checkbox" name="modes" value="online-duel-2p"><span><b>Online two-player duel</b> with contact (needed for SHOVE online)</span></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>D · Twists in the first version</legend>
+      <div class="opts">
+        <label><input type="checkbox" name="twists" value="crumble" checked><span><b>CRUMBLE</b> — cover breaks and moves</span></label>
+        <label><input type="checkbox" name="twists" value="bait" checked><span><b>BAIT</b> — coins buy a heart</span></label>
+        <label><input type="checkbox" name="twists" value="shove"><span><b>SHOVE</b> — dash and knock aside</span></label>
+        <label><input type="checkbox" name="twists" value="grab"><span><b>GRAB</b> — hold, drag and throw a rival</span></label>
+        <label><input type="checkbox" name="twists" value="haunt"><span><b>HAUNT</b> — the knocked-out aim volleys</span></label>
+        <label><input type="checkbox" name="twists" value="hold-the-line"><span><b>HOLD THE LINE</b> — co-op</span></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>E · Dodgers</legend>
+      <div class="opts">
+        <label><input type="radio" name="dodgers" value="avatar-standee" checked><span><b>Profile avatars as standees</b> (A). Recommended.</span></label>
+        <label><input type="radio" name="dodgers" value="avatar-standee+voxel-spike"><span><b>Standees now, and cost the block figures</b> (B) as separate work.</span></label>
+        <label><input type="radio" name="dodgers" value="blobs"><span><b>Plain blobs</b>, no avatars.</span></label>
+      </div>
+      <textarea name="note" maxlength="300" placeholder="Anything to change about the look, the pace or the rules?" aria-label="Notes"></textarea>
+    </fieldset>
+    <button class="px go" type="submit">Queue these answers</button><span id="queued" role="status" aria-live="polite"></span>
+    <p class="dim" style="font-size:13.5px; margin:10px 0 0">Queuing adds one message to the conversation panel. Press Send there to deliver it. You can change the picks and queue again before sending; the new answer replaces the old one.</p>
+  </form>
+</main>
+
+<script>
+/* Explainer drawings: small top-down yards built from the same rules as the game. */
+(function () {
+  function yard(el, o) {
+    const n = o.n || 4, c = 60, pad = 34, S = n * c, W = S + pad * 2
+    const stones = o.stones || [], at = (q, r) => stones.some(s => s[0] === q && s[1] === r)
+    const cellAt = (side, i, k) => side === 0 ? [i, k] : side === 2 ? [i, n - 1 - k] : side === 3 ? [k, i] : [n - 1 - k, i]
+    const len = (side, i) => { for (let k = 0; k < n; k++) { const [q, r] = cellAt(side, i, k); if (at(q, r)) return k } return n }
+    const xf = (side, i) => { const m = pad + (i + .5) * c; return side === 0 ? `translate(${m} ${pad})` : side === 1 ? `translate(${pad + S} ${m}) rotate(90)` : side === 2 ? `translate(${m} ${pad + S}) rotate(180)` : `translate(${pad} ${m}) rotate(-90)` }
+    let h = `<svg viewBox="0 0 ${W} ${W}" role="img" aria-label="${o.label}"><defs>
+      <linearGradient id="bam${o.id}" x1="0" x2="1"><stop offset="0" stop-color="rgb(84,108,40)"/><stop offset=".5" stop-color="rgb(208,222,140)"/><stop offset="1" stop-color="rgb(72,96,36)"/></linearGradient>
+      <radialGradient id="rock${o.id}" cx=".35" cy=".3"><stop offset="0" stop-color="rgb(196,200,184)"/><stop offset="1" stop-color="rgb(96,104,92)"/></radialGradient></defs>
+      <rect x="4" y="4" width="${W - 8}" height="${W - 8}" rx="12" fill="rgb(100,78,52)" stroke="rgb(46,34,22)" stroke-width="2"/>`
+    if (o.side != null) h += `<g transform="${xf(o.side, (n - 1) / 2)}"><rect x="${-S / 2}" y="-27" width="${S}" height="22" rx="6" fill="rgb(190,30,50)"${o.pulse ? '><animate attributeName="opacity" values="1;.35;1" dur=".5s" repeatCount="indefinite"/></rect>' : '/>'}</g>`
+    for (let r = 0; r < n; r++) for (let q = 0; q < n; q++) h += `<rect x="${pad + q * c}" y="${pad + r * c}" width="${c}" height="${c}" fill="${(q + r) % 2 ? 'rgb(226,216,186)' : 'rgb(234,226,198)'}" stroke="rgba(120,104,70,.35)"/>`
+    if (o.side != null && o.shade) for (let r = 0; r < n; r++) for (let q = 0; q < n; q++) {
+      if (at(q, r)) continue
+      const [i, k] = o.side === 0 ? [q, r] : o.side === 2 ? [q, n - 1 - r] : o.side === 3 ? [r, q] : [r, n - 1 - q]
+      const safe = k > len(o.side, i)
+      h += `<rect x="${pad + q * c + (safe ? 6 : 0)}" y="${pad + r * c + (safe ? 6 : 0)}" width="${c - (safe ? 12 : 0)}" height="${c - (safe ? 12 : 0)}" rx="${safe ? 8 : 0}" fill="${safe ? 'rgba(38,123,66,.34)' : 'rgba(190,30,50,.13)'}"/>`
+    }
+    for (const d of o.rings || []) h += `<circle cx="${pad + (d[0] + .5) * c}" cy="${pad + (d[1] + .5) * c}" r="23" fill="rgba(40,50,30,.18)" stroke="rgb(45,55,35)" stroke-width="2.5" stroke-dasharray="6 6"><animateTransform attributeName="transform" type="rotate" from="0 ${pad + (d[0] + .5) * c} ${pad + (d[1] + .5) * c}" to="360 ${pad + (d[0] + .5) * c} ${pad + (d[1] + .5) * c}" dur="4s" repeatCount="indefinite"/></circle>`
+    for (const d of o.dodgers || []) h += `<g transform="translate(${pad + d[0] * c} ${pad + d[1] * c})"><ellipse cx="2" cy="10" rx="13" ry="6" fill="rgba(40,50,30,.28)"/><circle r="12" fill="rgb(${d[2]})" stroke="rgba(0,0,0,.55)" stroke-width="1.6"/><circle cx="-4" cy="-3" r="3.4" fill="#fff"/><circle cx="4" cy="-3" r="3.4" fill="#fff"/><circle cx="-4" cy="-3.6" r="1.6" fill="#222"/><circle cx="4" cy="-3.6" r="1.6" fill="#222"/>${d[3] ? '<text y="-18" text-anchor="middle" font-size="15">' + d[3] + '</text>' : ''}</g>`
+    for (const s of stones) {
+      const x = pad + (s[0] + .5) * c, y = pad + (s[1] + .5) * c
+      h += `<ellipse cx="${x + 5}" cy="${y + 7}" rx="25" ry="22" fill="rgba(40,50,30,.28)"/><path d="M${x - 24} ${y + 2}Q${x - 26} ${y - 20} ${x - 4} ${y - 24}Q${x + 22} ${y - 26} ${x + 25} ${y - 2}Q${x + 27} ${y + 20} ${x + 4} ${y + 23}Q${x - 20} ${y + 25} ${x - 24} ${y + 2}Z" fill="url(#rock${o.id})" stroke="rgba(40,46,40,.8)" stroke-width="1.6"/><ellipse cx="${x - 8}" cy="${y - 14}" rx="13" ry="6" transform="rotate(-25 ${x - 8} ${y - 14})" fill="rgba(96,146,60,.9)"/>`
+      if (s[2]) h += `<path d="M${x - 1} ${y - 22}l4 12l-6 10l5 12M${x + 22} ${y - 3}l-12 3l-5 8" fill="none" stroke="rgba(30,36,30,.85)" stroke-width="1.8"/>`
+    }
+    for (let side = 0; side < 4; side++) for (let i = 0; i < n; i++) {
+      const hot = o.side === side, L = hot && o.fire ? len(side, i) * c - 2 : hot ? -14 : -6
+      h += `<g transform="${xf(side, i)}"><g>${hot && !o.fire && o.pulse ? '<animateTransform attributeName="transform" type="translate" values="0 0;1.5 -2;-1.5 0;0 -2;0 0" dur=".18s" repeatCount="indefinite"/>' : ''}`
+      if (L > 6) h += `<rect x="-16" y="0" width="42" height="${L - 8}" fill="rgba(40,50,30,.22)"/>`
+      h += `<rect x="-21" y="-30" width="42" height="${Math.max(0, L - 26 + 30)}" fill="url(#bam${o.id})" stroke="rgba(40,52,20,.7)"/><path d="M-21 ${L - 26}H21L3 ${L}H-3Z" fill="rgb(236,226,182)" stroke="rgba(40,52,20,.7)"/><path d="M-8 ${L - 9}H8L3 ${L}H-3Z" fill="rgb(86,62,34)"/>`
+      for (let y = L - 44; y > -30; y -= 50) h += `<rect x="-22" y="${y}" width="44" height="3" fill="rgba(52,72,24,.85)"/>`
+      h += `</g></g>`
+    }
+    h += `<rect x="4" y="4" width="${W - 8}" height="${W - 8}" rx="12" fill="none" stroke="rgb(84,64,42)" stroke-width="9"/><rect x="4" y="4" width="${W - 8}" height="${W - 8}" rx="12" fill="none" stroke="rgb(46,34,22)" stroke-width="1.5"/></svg>`
+    el.innerHTML = window.BZT.paint(h)
+  }
+  const P = ['210,110,50', '129,89,180', '30,150,140', '175,55,115']
+  const $ = id => document.getElementById(id)
+  function figs() {
+  yard($('fig-source'), { id: 'a', label: 'A volley from the left wall with safe tiles shaded green', stones: [[3, 0], [1, 1], [0, 3]], side: 3, fire: true, shade: true, dodgers: [[2.5, 1.5, P[0]], [1.5, 3.5, P[1]], [1.5, 0.5, P[2], '!']] })
+  yard($('fig-warn'), { id: 'b', label: 'The top wall glows and its poles rattle', stones: [[1, 1], [2, 2], [3, 0]], side: 0, pulse: true, shade: true, dodgers: [[0.5, 2.5, P[0]], [2.5, 0.6, P[1]]] })
+  yard($('fig-strike'), { id: 'c', label: 'Poles fire from the top wall and stop at boulders', stones: [[1, 1], [2, 2], [3, 0]], side: 0, fire: true, dodgers: [[1.5, 2.5, P[0]], [2.5, 0.6, P[1], '!']] })
+  yard($('fig-crumble'), { id: 'd', label: 'A cracked boulder and a ring where the next one lands', stones: [[1, 1, 1], [3, 0]], rings: [[2, 3]], dodgers: [[0.5, 2.5, P[0]], [2.5, 1.5, P[1]]] })
+
+  function phone(el, seats, online) {
+    let h = `<svg viewBox="0 0 180 300" role="img" aria-label="Phone layout"><rect x="8" y="4" width="164" height="292" rx="18" fill="rgb(238,240,226)" stroke="rgb(32,38,29)" stroke-width="5"/>`
+    h += `<rect x="24" y="84" width="132" height="132" rx="8" fill="rgb(100,78,52)"/><rect x="36" y="96" width="108" height="108" fill="rgb(232,222,192)"/>`
+    for (const [x, y] of [[63, 123], [117, 150], [90, 177]]) h += `<circle cx="${x}" cy="${y}" r="11" fill="rgb(142,150,134)" stroke="rgba(40,46,40,.8)"/>`
+    const spot = { br: [128, 252], bl: [52, 252], tl: [52, 44], tr: [128, 44], b: [90, 252], t: [90, 44] }
+    seats.forEach((s, i) => {
+      const [x, y] = spot[s], wide = s === 'b' || s === 't'
+      h += `<rect x="${wide ? 20 : x - 34}" y="${y - 28}" width="${wide ? 140 : 68}" height="56" rx="7" fill="rgba(${P[i]},.16)" stroke="rgb(${P[i]})" stroke-width="2"/><circle cx="${x}" cy="${y}" r="15" fill="rgba(${P[i]},.25)" stroke="rgb(${P[i]})" stroke-dasharray="3 3"/><circle cx="${x + (y > 150 ? 4 : -4)}" cy="${y + (y > 150 ? -3 : 3)}" r="8" fill="rgb(${P[i]})"/>`
+      h += `<circle cx="${[75, 105, 105, 75][i]}" cy="${[165, 135, 165, 135][i] - (online && i ? 0 : 0)}" r="6.5" fill="rgb(${P[i]})" stroke="rgba(0,0,0,.5)"${online && i ? ' opacity=".45" stroke-dasharray="2 2"' : ''}/>`
+    })
+    if (online) {
+      for (let i = 1; i < 4; i++) h += `<circle cx="${[0, 105, 105, 75][i]}" cy="${[0, 135, 165, 135][i]}" r="6.5" fill="rgb(${P[i]})" stroke="rgba(0,0,0,.5)" opacity=".45" stroke-dasharray="2 2"/>`
+      h += `<rect x="30" y="20" width="120" height="44" rx="7" fill="rgb(252,253,246)" stroke="rgb(185,195,165)"/><text x="90" y="39" text-anchor="middle" font-size="10" fill="rgb(45,55,35)" font-family="ui-monospace,monospace">seed 48213</text><text x="90" y="54" text-anchor="middle" font-size="9" fill="rgb(95,107,81)" font-family="ui-monospace,monospace">same volleys for all</text><path d="M90 64v16m-5-6l5 6l5-6" fill="none" stroke="rgb(95,107,81)" stroke-width="2"/>`
+    }
+    el.innerHTML = window.BZT.paint(h + '</svg>')
+  }
+  phone($('fig-s2'), ['b', 't'])
+  phone($('fig-s3'), ['br', 'tl', 'tr'])
+  phone($('fig-s4'), ['br', 'tl', 'tr', 'bl'])
+  phone($('fig-online'), ['b'], true)
+
+  }
+  figs(); window.BZT.onChange(figs); window.BZT.mount()
+
+  $('calls-form').addEventListener('submit', e => {
+    e.preventDefault()
+    const f = new FormData(e.currentTarget)
+    const build = f.get('build'), name = (f.get('nameOther') || '').trim() || f.get('name')
+    const modes = f.getAll('modes'), twists = f.getAll('twists'), dodgers = f.get('dodgers'), extra = (f.get('note') || '').trim()
+    const note = ('name=' + name + '; modes=' + (modes.join(',') || 'none') + '; twists=' + (twists.join(',') || 'none') + '; dodgers=' + dodgers + (extra ? '; note=' + extra : '')).slice(0, 500)
+    const text = 'Bamboozle calls: ' + build + '; ' + note
+    const status = $('queued')
+    if (window.lavish && window.lavish.queuePrompt) {
+      window.lavish.queuePrompt(text, { tag: 'choice', text: 'Bamboozle: ' + build + ' as ' + name, element: e.currentTarget, queueKey: 'games-jb-spikeattack-s1-calls',
+        data: { schema: 'fm-bearings-answer.v1', question: 'games-jb-spikeattack-s1-calls', selection: build, note } })
+      status.textContent = 'Queued. Press Send in the panel to deliver.'
+    } else status.textContent = 'Open this board in Lavish to send. Your picks: ' + text
+  })
+})()
+</script>
+<script>
+/* BAMBOOZLE prototype — core loop of the Game Night take on the "hide behind
+   cover while stakes fire across the yard" mechanic. One canvas, no assets,
+   no storage. The pure rules (lanes, cover, strike schedule) are kept apart
+   from drawing so they can move to src/lib/bamboozleLogic.js as they are. */
+(function () {
+  'use strict'
+
+  // ---------- tuning (every number here is a STARTING VALUE, see report §6) ----------
+  const T = {
+    hearts: 3, maxHearts: 4,
+    speed: 2.7,            // cells per second
+    reach: 0.7,            // share of the warning a fair walk to cover may use
+    radius: 0.2,           // dodger radius in cells
+    stakeW: 0.7,           // stake width as a share of its lane
+    warnStart: 1.15, warnFloor: 0.5, warnStep: 0.045,
+    gapStart: 0.9, gapFloor: 0.35, gapStep: 0.04,
+    out: 0.14, hold: 0.45, back: 0.45,
+    doubleFrom: 6, doubleAlways: 14,
+    invuln: 1.3,
+    stoneHp: 3,
+    rise: 1.0,             // seconds a new boulder is announced before it lands
+    dashTime: 0.16, dashMul: 3.1, dashCd: 2.2,
+    grabReach: 0.14, grabMax: 1.4, grabBreak: 0.5, grabCd: 3, grabSlow: 0.7, fling: 6,
+    coinsPerHeart: 3,
+    roundsToWin: 2,
+  }
+  const SEATS = [
+    { name: 'P1', rgb: [210, 110, 50], pad: 'br', keys: ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'], dash: ['Space', 'ShiftRight', 'Enter'] },
+    { name: 'P2', rgb: [129, 89, 180], pad: 'tl', keys: ['KeyW', 'KeyD', 'KeyS', 'KeyA'], dash: ['KeyQ', 'ShiftLeft'] },
+    { name: 'P3', rgb: [30, 150, 140], pad: 'tr', keys: ['KeyI', 'KeyL', 'KeyK', 'KeyJ'], dash: ['KeyU'] },
+    { name: 'P4', rgb: [175, 55, 115], pad: 'bl', keys: ['KeyT', 'KeyH', 'KeyG', 'KeyF'], dash: ['KeyR'] },
+  ]
+  const BOT = {
+    easy: { react: [0.45, 0.7], freeze: 0.18, speed: 0.82 },
+    normal: { react: [0.24, 0.4], freeze: 0.06, speed: 0.92 },
+    hard: { react: [0.1, 0.2], freeze: 0, speed: 1 },
+  }
+
+  // ---------- pure rules ----------
+  /** Cell k steps into lane i from a side (0 top, 1 right, 2 bottom, 3 left). */
+  function cellAt(n, side, i, k) {
+    if (side === 0) return [i, k]
+    if (side === 2) return [i, n - 1 - k]
+    if (side === 3) return [k, i]
+    return [n - 1 - k, i]
+  }
+  /** How far a cell is into its lane, and which lane, seen from a side. */
+  function laneOf(n, side, c, r) {
+    if (side === 0) return [c, r]
+    if (side === 2) return [c, n - 1 - r]
+    if (side === 3) return [r, c]
+    return [r, n - 1 - c]
+  }
+  /** Cells a stake travels before the first boulder stops it (n = nothing in the way). */
+  function laneLen(n, blocked, side, i) {
+    for (let k = 0; k < n; k++) {
+      const [c, r] = cellAt(n, side, i, k)
+      if (blocked(c, r)) return k
+    }
+    return n
+  }
+  /** Free cells that no stake from any of `sides` can reach. */
+  function safeCells(n, blocked, sides) {
+    const out = []
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+      if (blocked(c, r)) continue
+      const ok = sides.every(s => { const [i, k] = laneOf(n, s, c, r); return k > laneLen(n, blocked, s, i) })
+      if (ok) out.push([c, r])
+    }
+    return out
+  }
+  /** The longest walk, in tiles, from any free tile to its nearest safe tile (Infinity if some tile has none). */
+  function worstWalk(n, blocked, sides) {
+    const dist = new Map(), q = []
+    for (const [c, r] of safeCells(n, blocked, sides)) { dist.set(r * n + c, 0); q.push([c, r]) }
+    while (q.length) {
+      const [c, r] = q.shift(), d = dist.get(r * n + c)
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const c2 = c + dc, r2 = r + dr
+        if (c2 < 0 || r2 < 0 || c2 >= n || r2 >= n || blocked(c2, r2) || dist.has(r2 * n + c2)) continue
+        dist.set(r2 * n + c2, d + 1); q.push([c2, r2])
+      }
+    }
+    let worst = 0
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (!blocked(c, r)) worst = Math.max(worst, dist.has(r * n + c) ? dist.get(r * n + c) : Infinity)
+    return worst
+  }
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0
+      let t = Math.imul(a ^ a >>> 15, 1 | a)
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t
+      return ((t ^ t >>> 14) >>> 0) / 4294967296
+    }
+  }
+
+  // ---------- state ----------
+  const cv = document.getElementById('bz')
+  if (!cv) return
+  const ctx = cv.getContext('2d')
+  const W = 360, H = 640
+  const ARENA = { x: 42, y: 182, s: 276 }, RAIL = 38
+  const opts = { players: 2, mode: 'solo', avatars: true, skill: 'normal', crumble: true, coins: false, shove: false, grab: false, haunt: false, sound: true, hints: true }
+  let G = null, rng = Math.random, active = false, started = false, last = 0
+  const sticks = new Map() // pointerId -> { seat, ox, oy, x, y, t0, moved }
+  const keys = new Set()
+
+  // Real avatar-kit output (full-body "hero" view), rendered at build time by gen_sprites.mjs.
+  const SPR = [{"code":"K15a474115006880025a00270","pal":["46,18,6","58,15,46","232,132,58","122,54,16","255,133,192","192,90,28","255,217,94","176,124,255","53,163,90","138,94,51","178,130,79","255,255,255","27,20,38","51,32,15","10,42,46","20,107,107","238,240,246","94,216,200","34,168,160","192,138,90","92,51,32","36,18,12","143,90,54","58,13,30","138,28,46","201,160,107"],"frames":{"idle":"................................................................0000000000000000............................010102020202020202030100......................0104040506060507070504040300..................01040408060608070708040408050300................00020808050808090808030808050300................000205050303090a0a09030305050300................000205030b0b0a0a0a0a0b0b03050300................000203090b0c0a0a0a0a0c0b09020300................0003030a0b0b0a0a0a0a0b0b0a030300..................00090a0a0a0a090a0a0a0a0a0900......................0d090a0a0a0d0d0a0a0a090d..........................0d090a0d0a0a0d0a090d..............................0d0909090909090d..............................0e0e0f100909100f0e0e..........................0e111112110f101112110f0e......................0e0f0f1212120f101112120f0f0e....................0d090f0f0f0f0f100f0f0f0f090d......................0d0e13131314141313140e0d..........................15131614151513161415............................17141414151514141417..........................171818181817171818181817..........................17171717....17171717..............................................................","hop1":"................0000000000000000............................010102020202020202030100......................0104040506060507070504040300..................01040408060608070708040408050300................00020808050808090808030808050300................000205050303090a0a09030305050300................000205030b0b0a0a0a0a0b0b03050300................000203090b0c0a0a0a0a0c0b09020300................0003030a0b0b0a0a0a0a0b0b0a030300..................00090a0a0a0a090a0a0a0a0a0900......................0d090a0a0a0d0d0a0a0a090d..........................0d090a0d0a0a0d0a090d..............................0d0909090909090d..............................0e0e0f100909100f0e0e..........................0e111112110f101112110f0e......................0e0f0f1212120f101112120f0f0e....................0d090f0f0f0f0f100f0f0f0f090d......................0d0e13131314141313140e0d..........................15131614151513161415............................17141414151514141417..........................171818181817171818181817..........................17171717....17171717..............................................................................................................","hop2":"............010102020202020202030100......................0104040506060507070504040300..................01040408060608070708040408050300................00020808050808090808030808050300................000205050303090a0a09030305050300................000205030b0b0a0a0a0a0b0b03050300................000203090b0c0a0a0a0a0c0b09020300................0003030a0b0b0a0a0a0a0b0b0a030300..................00090a0a0a0a090a0a0a0a0a0900......................0d090a0a0a0d0d0a0a0a090d..........................0d090a0d0a0a0d0a090d..............................0d0909090909090d..............................0e0e0f100909100f0e0e..........................0e111112110f101112110f0e......................0e0f0f1212120f101112120f0f0e....................0d090f0f0f0f0f100f0f0f0f090d......................0d0e13131314141313140e0d..........................15131614151513161415............................17141414151514141417..........................171818181817171818181817..........................17171717....17171717..............................................................................................................................................................","cheer0":"................................................................0000000000000000............................010102020202020202030100......................0104040506060507070504040300..................01040408060608070708040408050300................00020808050808090808030808050300..............0d0d0205050303090a0a0903030505030d0d..........0d09090205030b0b0a0a0a0a0b0b03050309090d........0e110f0203090b0c0a0a0a0a0c0b090203110f0e........0e0f0f03030a0b0b0a0a0a0a0b0b0a0303110f0e..........0e110f090a0a0a0a090a0a0a0a0a09120f0e............0e0f0f0e090a0a0a0d0d0a0a0a090e110f0e..............0e110f0d090a0d0a0a0d0a090d110f0e................0e0f0f0e0d0909090909090d0e110f0e..................0e110f0e0f100909100f0e110f0e....................0e0f0f1112110f10111211110f0e......................0e0f1212120f101112120f0e........................0e0f0f0f0f0f100f0f0f0f0e..........................0e13131314141313140e............................15131614151513161415............................17141414151514141417..........................171818181817171818181817..........................17171717....17171717..............................................................","cheer1":"................0000000000000000............................010102020202020202030100......................0104040506060507070504040300..................01040408060608070708040408050300..............0d0d02080805080809080803080805030d0d..........0d09090205050303090a0a09030305050309090d........0e110f0205030b0b0a0a0a0a0b0b030503110f0e........0e0f0f0203090b0c0a0a0a0a0c0b090203110f0e..........0e1103030a0b0b0a0a0a0a0b0b0a03030f0e............0e0f0f090a0a0a0a090a0a0a0a0a09120f0e..............0e110f090a0a0a0d0d0a0a0a09110f0e................0e0f0f0e090a0d0a0a0d0a090e110f0e..................0e110f0d0909090909090d110f0e....................0e110f0e0f100909100f0e110f0e....................0e0f0f1112110f10111211110f0e......................0e0f1212120f101112120f0e........................0e0f0f0f0f0f100f0f0f0f0e..........................0e13131314141313140e............................15131614151513161415............................17141414151514141417..........................171818181817171818181817..........................17171717....17171717..............................................................................................................","bust":"................................................................................................................0000000000000000............................010102020202020202030100......................0104040506060507070504040300..................01040408060608070708040408050300................00020808050808090808030808050300................000205050303090a0a09030305050300................000205030b0b0a0a0a0a0b0b03050300................000203090b0c0a0a0a0a0c0b09020300................0003030a0b0b0a0a0a0a0b0b0a030300..................00090a0a0a0a090a0a0a0a0a0900......................0d090a0a0a0d0d0a0a0a090d..........................0d090a0d0a0a0d0a090d..............................0d0909090909090d..................................0d191919090d..............................0e0e0e0e090a0a090e0e0e0e....................0e0e1111110f100909101111110f0e0e..............0e1111121212120f13141112121212110f0e..........0e111212121212120f1314111212121212120f0e......0e11121212121212120f131411121212121212120f0e....0e11121212121212120f131411121212121212120f0e..0e1112121212121212120f13141112121212121212120f0e0e0f0f0f0f0f0f0f0f0f0f14140f0f0f0f0f0f0f0f0f0f0e"}},{"code":"K12210200000079300c4a0210","pal":["20,11,8","107,67,40","46,26,16","74,44,26","196,132,102","70,38,25","21,18,30","245,201,168","255,255,255","229,173,137","20,20,32","58,59,78","145,148,170","98,100,122","111,208,122","29,107,63","14,42,31","53,163,90","36,18,12","92,51,32"],"frames":{"idle":"..................................................................000000000000................................00000101010101020000..........................000101030303030303010200......................0001030303020303030303030200....................0001020202020202020202020200....................0002040404040404040404040200....................0502060606060606060606060205..................05070406080606090906080606040405................05040909060609090909060609090405..................0504090909090909090909090405......................050409090509090509090405..........................05040909050509090405..............................0504040404040405..............................0a0a0b040404040b0a0a..........................0a0c0c0d0c0c0c0c0d0c0b0a......................0a0b0b0d0d0d0d0d0d0d0d0b0b0a....................05040b0b0b0b0b0b0b0b0b0b0405......................050a0e0e0e0f0f0e0e0f0a05..........................100e110f10100e110f10............................120f0f0f10100f0f0f12..........................121313131312121313131312..........................12121212....12121212..............................................................","hop1":"..................000000000000................................00000101010101020000..........................000101030303030303010200......................0001030303020303030303030200....................0001020202020202020202020200....................0002040404040404040404040200....................0502060606060606060606060205..................05070406080606090906080606040405................05040909060609090909060609090405..................0504090909090909090909090405......................050409090509090509090405..........................05040909050509090405..............................0504040404040405..............................0a0a0b040404040b0a0a..........................0a0c0c0d0c0c0c0c0d0c0b0a......................0a0b0b0d0d0d0d0d0d0d0d0b0b0a....................05040b0b0b0b0b0b0b0b0b0b0405......................050a0e0e0e0f0f0e0e0f0a05..........................100e110f10100e110f10............................120f0f0f10100f0f0f12..........................121313131312121313131312..........................12121212....12121212..............................................................................................................","hop2":"..............00000101010101020000..........................000101030303030303010200......................0001030303020303030303030200....................0001020202020202020202020200....................0002040404040404040404040200....................0502060606060606060606060205..................05070406080606090906080606040405................05040909060609090909060609090405..................0504090909090909090909090405......................050409090509090509090405..........................05040909050509090405..............................0504040404040405..............................0a0a0b040404040b0a0a..........................0a0c0c0d0c0c0c0c0d0c0b0a......................0a0b0b0d0d0d0d0d0d0d0d0b0b0a....................05040b0b0b0b0b0b0b0b0b0b0405......................050a0e0e0e0f0f0e0e0f0a05..........................100e110f10100e110f10............................120f0f0f10100f0f0f12..........................121313131312121313131312..........................12121212....12121212..............................................................................................................................................................","cheer0":"..................................................................000000000000................................00000101010101020000..........................000101030303030303010200......................0001030303020303030303030200....................0001020202020202020202020200................050500020404040404040404040402000505..........0504040502060606060606060606060205040405........0a0c0b07040608060609090608060604040c0b0a........0a0b0b04090906060909090906060909040c0b0a..........0a0c0b0409090909090909090909040c0b0a............0a0b0b0a040909050909050909040a0c0b0a..............0a0c0b050409090505090904050c0b0a................0a0b0b0a05040404040404050a0c0b0a..................0a0c0b0a0b040404040b0a0c0b0a....................0a0b0b0c0d0c0c0c0c0d0c0c0b0a......................0a0b0d0d0d0d0d0d0d0d0b0a........................0a0b0b0b0b0b0b0b0b0b0b0a..........................0a0e0e0e0f0f0e0e0f0a............................100e110f10100e110f10............................120f0f0f10100f0f0f12..........................121313131312121313131312..........................12121212....12121212..............................................................","cheer1":"..................000000000000................................00000101010101020000..........................000101030303030303010200......................0001030303020303030303030200................050500010202020202020202020202000505..........0504040502040404040404040404040200040405........0a0c0b05020606060606060606060602050c0b0a........0a0b0b07040608060609090608060604040c0b0a..........0a0c04090906060909090906060909040b0a............0a0b0b0409090909090909090909040c0b0a..............0a0c0b040909050909050909040c0b0a................0a0b0b0a04090905050909040a0c0b0a..................0a0c0b05040404040404050c0b0a....................0a0c0b0a0b040404040b0a0c0b0a....................0a0b0b0c0d0c0c0c0c0d0c0c0b0a......................0a0b0d0d0d0d0d0d0d0d0b0a........................0a0b0b0b0b0b0b0b0b0b0b0a..........................0a0e0e0e0f0f0e0e0f0a............................100e110f10100e110f10............................120f0f0f10100f0f0f12..........................121313131312121313131312..........................12121212....12121212..............................................................................................................","bust":"..................................................................................................................000000000000................................00000101010101020000..........................000101030303030303010200......................0001030303020303030303030200....................0001020202020202020202020200....................0002040404040404040404040200....................0502060606060606060606060205..................05070406080606090906080606040405................05040909060609090909060609090405..................0504090909090909090909090405......................050409090509090509090405..........................05040909050509090405..............................0504040404040405..................................050707070405..............................0a0a0a0a040909040a0a0a0a....................0a0a0c0c0c0b0f04040f0c0c0c0b0a0a..............0a0c0c0d0d0d0b0f0f0f0f0c0d0d0d0c0b0a..........0a0c0d0d0d0d0d0d0c0c0c0c0d0d0d0d0d0d0b0a......0a0c0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0b0a....0a0c0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0b0a..0a0c0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0b0a0a0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0a"}},{"code":"K1614253100002700784b04a0","pal":["46,24,14","154,89,46","122,61,26","142,75,35","122,69,38","122,54,16","166,101,58","194,132,83","27,20,38","34,168,160","58,13,30","31,15,58","77,37,144","244,122,90","138,28,46","176,124,255","124,69,208","111,208,122","29,107,63","14,42,31","53,163,90","42,40,56","138,138,160"],"frames":{"idle":"................................................................................................................0000000000000000..............................00010101010101010200..........................000103030303030303030200......................0001030404040404040404030200....................0001050606060606060606050200....................0006060505060606060505060400..................00070606000006060606000006060400................00040606080906060606080906060400..................0004060606060406060606060400......................000406060006060006060400..........................00040606000006060400..............................0004040404040400..........................0a0a0b0b0c040404040c0b0b0a0a..................0a0d0e0f0f100f0f0f0f100f0c0e0e0a..............0a0d0e0c0c10101010101010100c0c0d0e0a............0a0d0e040c0c0c0c0c0c0c0c0c0c040d0e0a............0a0d0e000b11111112121111120b000e0e0a............0a0e0a..13111412131311141213..0a0e0a..............0a....15121212131312121215....0a....................151616161615151616161615..........................15151515....15151515..............................................................","hop1":"................................................................0000000000000000..............................00010101010101010200..........................000103030303030303030200......................0001030404040404040404030200....................0001050606060606060606050200....................0006060505060606060505060400..................00070606000006060606000006060400................00040606080906060606080906060400..................0004060606060406060606060400......................000406060006060006060400..........................00040606000006060400..............................0004040404040400..........................0a0a0b0b0c040404040c0b0b0a0a..................0a0d0e0f0f100f0f0f0f100f0c0e0e0a..............0a0d0e0c0c10101010101010100c0c0d0e0a............0a0d0e040c0c0c0c0c0c0c0c0c0c040d0e0a............0a0d0e000b11111112121111120b000e0e0a............0a0e0a..13111412131311141213..0a0e0a..............0a....15121212131312121215....0a....................151616161615151616161615..........................15151515....15151515..............................................................................................................","hop2":"................0000000000000000..............................00010101010101010200..........................000103030303030303030200......................0001030404040404040404030200....................0001050606060606060606050200....................0006060505060606060505060400..................00070606000006060606000006060400................00040606080906060606080906060400..................0004060606060406060606060400......................000406060006060006060400..........................00040606000006060400..............................0004040404040400..........................0a0a0b0b0c040404040c0b0b0a0a..................0a0d0e0f0f100f0f0f0f100f0c0e0e0a..............0a0d0e0c0c10101010101010100c0c0d0e0a............0a0d0e040c0c0c0c0c0c0c0c0c0c040d0e0a............0a0d0e000b11111112121111120b000e0e0a............0a0e0a..13111412131311141213..0a0e0a..............0a....15121212131312121215....0a....................151616161615151616161615..........................15151515....15151515..............................................................................................................................................................","cheer0":"................................................................................................................0000000000000000..............................00010101010101010200..........................000103030303030303030200......................0001030404040404040404030200................000000010506060606060606060502000000..........0004040006060505060606060505060400040400........0b0f0c07060600000606060600000606040f0c0b........0b0c0c04060608090606060608090606040f0c0b..........0b0f0c0406060606040606060606040f0c0b............0b0c0c0b040606000606000606040b0f0c0b..............0b0f0c000406060000060604000f0c0b................0b0c0c0b00040404040404000b0f0c0b..................0a0f0c0b0c040404040c0b0f0c0a..................0a0d0c0c0f100f0f0f0f100f0f0c0e0a..............0a0d0e0b0c10101010101010100c0b0d0e0a............0a0d0e0a0c0c0c0c0c0c0c0c0c0c0b0d0e0a............0a0d0e0a0b11111112121111120b0a0e0e0a............0a0e0a..13111412131311141213..0a0e0a..............0a....15121212131312121215....0a....................151616161615151616161615..........................15151515....15151515..............................................................","cheer1":"................................................................0000000000000000..............................00010101010101010200..........................000103030303030303030200..................000000010304040404040404040302000000..........0004040001050606060606060606050200040400........0b0f0c00060605050606060605050604000f0c0b........0b0c0c07060600000606060600000606040f0c0b..........0b0f04060608090606060608090606040c0b............0b0c0c0406060606040606060606040f0c0b..............0b0f0c040606000606000606040f0c0b................0b0c0c0b04060600000606040b0f0c0b..................0b0f0c00040404040404000f0c0b....................0a0f0c0b0c040404040c0b0f0c0a..................0a0d0c0c0f100f0f0f0f100f0f0c0e0a..............0a0d0e0b0c10101010101010100c0b0d0e0a............0a0d0e0a0c0c0c0c0c0c0c0c0c0c0b0d0e0a............0a0d0e0a0b11111112121111120b0a0e0e0a............0a0e0a..13111412131311141213..0a0e0a..............0a....15121212131312121215....0a....................151616161615151616161615..........................15151515....15151515..............................................................................................................","bust":"................................................................................................................................................................0000000000000000..............................00010101010101010200..........................000103030303030303030200......................0001030404040404040404030200....................0001050606060606060606050200....................0006060505060606060505060400..................00070606000006060606000006060400................00040606080906060606080906060400..................0004060606060406060606060400......................000406060006060006060400..........................00040606000006060400..............................0004040404040400..................................000707070400..........................0a0a0b0b0b0b040606040b0b0b0b0a0a..............0a0d0e0f0f0f0c0e04040e0f0f0f0c0e0e0a..........0a0d0e0f101010100c0e0e0f101010100c0e0e0a......0a0d0e0f1010101010100f0f1010101010100c0e0e0a..0a0d0e0f101010101010101010101010101010100c0d0e0a0a0d0e0f101010101010101010101010101010100c0e0e0a0d0e0f1010101010101010101010101010101010100c0d0e0e0e0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0e0e"}},{"code":"K1744421103200a0045d00170","pal":["46,18,6","232,132,58","122,54,16","192,90,28","94,51,25","138,81,48","38,19,11","27,20,38","162,69,71","187,87,84","10,42,46","21,21,31","94,216,200","20,107,107","61,61,86","10,10,18","38,38,58","58,13,30","138,28,46","34,168,160"],"frames":{"idle":"................................................................00000000000000..............................0000010101010101020000........................00010103030303030303010200....................000103030303030303030302030200..................00010303030303030202020402030200................00010303020202020404020204010200................00010302040404040505050505020200................00020204050505050505050505040406................06040405070705050505070705050406..................0608040902020202020209040806......................060402050605050605020406..........................06040505060605050406..............................0604040404040406..............................0a0a0b040404040b0a0a..........................0a0c0c0c0c0c0c0c0c0c0d0a......................0a0d0d0d0d0d0d0d0d0d0d0d0d0a....................06040b0e0e0e0e0e0e0e0e0b0406......................060f0e10100b0b10100b0f06..........................0f0e100b0f0f0e100b0f............................110b0b0b0f0f0b0b0b11..........................111212121211111212121211..........................11111111....11111111..............................................................","hop1":"................00000000000000..............................0000010101010101020000........................00010103030303030303010200....................000103030303030303030302030200..................00010303030303030202020402030200................00010303020202020404020204010200................00010302040404040505050505020200................00020204050505050505050505040406................06040405070705050505070705050406..................0608040902020202020209040806......................060402050605050605020406..........................06040505060605050406..............................0604040404040406..............................0a0a0b040404040b0a0a..........................0a0c0c0c0c0c0c0c0c0c0d0a......................0a0d0d0d0d0d0d0d0d0d0d0d0d0a....................06040b0e0e0e0e0e0e0e0e0b0406......................060f0e10100b0b10100b0f06..........................0f0e100b0f0f0e100b0f............................110b0b0b0f0f0b0b0b11..........................111212121211111212121211..........................11111111....11111111..............................................................................................................","hop2":"............0000010101010101020000........................00010103030303030303010200....................000103030303030303030302030200..................00010303030303030202020402030200................00010303020202020404020204010200................00010302040404040505050505020200................00020204050505050505050505040406................06040405070705050505070705050406..................0608040902020202020209040806......................060402050605050605020406..........................06040505060605050406..............................0604040404040406..............................0a0a0b040404040b0a0a..........................0a0c0c0c0c0c0c0c0c0c0d0a......................0a0d0d0d0d0d0d0d0d0d0d0d0d0a....................06040b0e0e0e0e0e0e0e0e0b0406......................060f0e10100b0b10100b0f06..........................0f0e100b0f0f0e100b0f............................110b0b0b0f0f0b0b0b11..........................111212121211111212121211..........................11111111....11111111..............................................................................................................................................................","cheer0":"................................................................00000000000000..............................0000010101010101020000........................00010103030303030303010200....................000103030303030303030302030200..................00010303030303030202020402030200..............060601030302020202040402020401020606..........0604040103020404040405050505050202040406........0a0c0d02020405050505050505050504040c0d0a........0a0d0d04040507070505050507070505040c0d0a..........0a0c0d0804090202020202020904080c0d0a............0a0d0d0a040205060505060502040a0c0d0a..............0a0c0d060405050606050504060c0d0a................0a0d0d0a06040404040404060a0c0d0a..................0a0c0d0a0b040404040b0a0c0d0a....................0a0d0d0c0c0c0c0c0c0c0c0c0d0a......................0a0d0d0d0d0d0d0d0d0d0d0a........................0f0b0e0e0e0e0e0e0e0e0b0f..........................0f0e10100b0b10100b0f............................0f0e100b0f0f0e100b0f............................110b0b0b0f0f0b0b0b11..........................111212121211111212121211..........................11111111....11111111..............................................................","cheer1":"................00000000000000..............................0000010101010101020000........................00010103030303030303010200....................000103030303030303030302030200................060601030303030303020202040203020606..........0604040103030202020204040202040102040406........0a0c0d01030204040404050505050502020c0d0a........0a0d0d02020405050505050505050504040c0d0a..........0a0c04040507070505050507070505040d0a............0a0d0d0804090202020202020904080c0d0a..............0a0c0d040205060505060502040c0d0a................0a0d0d0a04050506060505040a0c0d0a..................0a0c0d06040404040404060c0d0a....................0a0c0d0a0b040404040b0a0c0d0a....................0a0d0d0c0c0c0c0c0c0c0c0c0d0a......................0a0d0d0d0d0d0d0d0d0d0d0a........................0f0b0e0e0e0e0e0e0e0e0b0f..........................0f0e10100b0b10100b0f............................0f0e100b0f0f0e100b0f............................110b0b0b0f0f0b0b0b11..........................111212121211111212121211..........................11111111....11111111..............................................................................................................","bust":"................................................................................................................00000000000000..............................0000010101010101020000........................00010103030303030303010200....................000103030303030303030302030200..................00010303030303030202020402030200................00010303020202020404020204010200................00010302040404040505050505020200................00020204050505050505050505040406................06040405070705050505070705050406..................0608040902020202020209040806......................060402050605050605020406..........................06040505060605050406..............................0604040404040406..................................060c0c0c0d06..............................0a0a0a0a0c13130d0a0a0a0a....................0a0a0c0c0c0c131313130c0c0c0d0a0a..............0a0c0c1313131313131313131313130c0d0a..........0f0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0f......0f0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0f....0f0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0f..0f0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0f0a0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0a"}}]
+  const SPRITES = SPR.map(a => {
+    const frames = {}
+    for (const name in a.frames) {
+      const mk = (shade) => {
+        const c = document.createElement('canvas'); c.width = 24; c.height = 24
+        const x = c.getContext('2d'), img = x.createImageData(24, 24), f = a.frames[name]
+        for (let i = 0; i < 576; i++) {
+          const h = f.substr(i * 2, 2); if (h === '..') continue
+          const col = a.pal[parseInt(h, 16)].split(',')
+          img.data[i * 4] = col[0] * shade; img.data[i * 4 + 1] = col[1] * shade; img.data[i * 4 + 2] = col[2] * shade; img.data[i * 4 + 3] = 255
+        }
+        x.putImageData(img, 0, 0); return c
+      }
+      frames[name] = { lit: mk(1), side: mk(0.55), dark: mk(0) }
+    }
+    return frames
+  })
+
+  function newMatch() {
+    G = { wins: SEATS.map(() => 0), round: 0, over: false, claimed: G ? G.claimed : [false, false, false, false] }
+    newRound()
+  }
+  function newRound() {
+    const n = opts.players > 2 ? 5 : 4
+    rng = mulberry32((Math.random() * 2 ** 31) | 0)
+    const R = {
+      n, cell: ARENA.s / n, stones: [], pending: [], coin: null, parts: [],
+      phase: 'count', t: 3.2, strike: 0, sides: [], lanes: [], ext: 0, shake: 0,
+      haunt: null, banner: '', bannerT: 0, players: [], done: false, time: 0, crumbled: new Set(),
+    }
+    G.R = R; G.round++
+    const want = n === 4 ? 3 : 5
+    let guard = 0
+    while (R.stones.length < want && guard++ < 200) {
+      const c = (rng() * n) | 0, r = (rng() * n) | 0
+      if (stoneAt(c, r)) continue
+      if (R.stones.length === 0 && (c === 0 || r === 0 || c === n - 1 || r === n - 1)) continue // one inner boulder: every side leaves cover
+      R.stones.push(mkStone(c, r, opts.crumble ? 2 + (R.stones.length % 3) : 99, 1))
+    }
+    for (let i = 0; i < opts.players; i++) {
+      let c, r, g2 = 0
+      do { c = (rng() * n) | 0; r = (rng() * n) | 0 } while ((stoneAt(c, r) || R.players.some(p => p.sc === c && p.sr === r)) && g2++ < 99)
+      R.players.push({
+        i, seat: SEATS[i], sc: c, sr: r, x: c + 0.5, y: r + 0.5, vx: 0, vy: 0, kx: 0, ky: 0, fx: 0, fy: 1,
+        hp: T.hearts, inv: 0, out: false, outT: 0, coins: 0, squash: 0, walk: 0, dashT: 0, dashCd: 0,
+        bot: { react: 0, target: null, path: [], frozen: false, idleT: 0, grab: false, mean: false }, sx: 0, sy: 0,
+        grab: null, heldBy: null, grabT: 0, grabCd: 0, struggle: 0,
+      })
+    }
+  }
+  function mkStone(c, r, hp, rise) { return { c, r, hp, max: hp, rise, seed: (rng() * 1e6) | 0, gone: false, hitT: 0 } }
+  function stoneAt(c, r) { return G.R.stones.find(s => !s.gone && s.c === c && s.r === r) }
+  const blockedNow = (c, r) => !!stoneAt(c, r)
+  const blockedSoon = (c, r) => !!stoneAt(c, r) || G.R.pending.some(p => p.c === c && p.r === r)
+  const alive = () => G.R.players.filter(p => !p.out)
+
+  // ---------- strike machine ----------
+  /** Walls for the next volley. Only walls whose worst walk to cover fits the warning are fair game; when none fits, the kindest one fires. */
+  function chooseSides() {
+    const R = G.R, n = R.n, k = R.strike
+    const warn = Math.max(T.warnFloor, T.warnStart - T.warnStep * k)
+    const budget = Math.max(1, Math.floor(T.speed * warn * T.reach))
+    const pick = (options) => {
+      const scored = options.map(o => ({ o, w: worstWalk(n, blockedSoon, o) })).filter(x => x.w < Infinity)
+      if (!scored.length) return null
+      const best = Math.min(...scored.map(x => x.w)), ok = scored.filter(x => x.w <= Math.max(budget, best))
+      return ok[(rng() * ok.length) | 0].o
+    }
+    let sides = pick([[0], [1], [2], [3]]) || [(rng() * 4) | 0]
+    if (opts.haunt && R.haunt && worstWalk(n, blockedSoon, [R.haunt.side]) < Infinity) sides = [R.haunt.side]
+    const wantTwo = k >= T.doubleAlways || (k >= T.doubleFrom && rng() < 0.25 + 0.06 * (k - T.doubleFrom))
+    if (wantTwo) { const two = pick([0, 1, 2, 3].filter(s => s !== sides[0]).map(s => [sides[0], s])); if (two) sides = two }
+    return sides
+  }
+  function startWarn() {
+    const R = G.R
+    R.sides = chooseSides(); R.hauntUsed = R.haunt; R.haunt = null
+    R.phase = 'warn'; R.t = Math.max(T.warnFloor, T.warnStart - T.warnStep * R.strike)
+    R.warnLen = R.t; R.ext = 0
+    sfx('warn')
+    for (const p of R.players) if (!p.out && !G.claimed[p.i]) {
+      const b = BOT[opts.skill]
+      p.bot.react = b.react[0] + rng() * (b.react[1] - b.react[0])
+      p.bot.frozen = rng() < b.freeze
+      p.bot.target = null; p.bot.mean = rng() < (opts.skill === 'easy' ? 0.2 : opts.skill === 'hard' ? 0.75 : 0.5)
+    }
+  }
+  function fire() {
+    const R = G.R
+    R.lanes = []
+    for (const s of R.sides) for (let i = 0; i < R.n; i++) R.lanes.push({ side: s, i, len: laneLen(R.n, blockedNow, s, i) })
+    R.phase = 'out'; R.t = T.out
+  }
+  function impact() {
+    const R = G.R
+    R.shake = 1; sfx('thunk')
+    R.crumbled = new Set()
+    for (const L of R.lanes) {
+      const [tx, ty] = tipPoint(L, 1)
+      puff(tx, ty, 7, KA(226, 214, 180))
+      if (L.len < R.n) {
+        const [c, r] = cellAt(R.n, L.side, L.i, L.len)
+        const st = stoneAt(c, r)
+        if (st && !R.crumbled.has(st)) {
+          R.crumbled.add(st); st.hitT = 0.3
+          if (opts.crumble) st.hp--
+          puff(tx, ty, 5, KA(120, 128, 110))
+        }
+      }
+    }
+  }
+  function retract() {
+    const R = G.R
+    R.phase = 'back'; R.t = T.back
+    for (const st of R.stones) if (!st.gone && st.hp <= 0) {
+      st.gone = true; sfx('crack')
+      puff(st.c + 0.5, st.r + 0.5, 16, KA(120, 128, 110))
+      const free = []
+      for (let r = 0; r < R.n; r++) for (let c = 0; c < R.n; c++) if (!blockedSoon(c, r) && !(c === st.c && r === st.r)) free.push([c, r])
+      const inner = free.filter(([c, r]) => c > 0 && r > 0 && c < R.n - 1 && r < R.n - 1)
+      const needInner = !R.stones.some(s => !s.gone && s.c > 0 && s.r > 0 && s.c < R.n - 1 && s.r < R.n - 1) && !R.pending.some(p => p.c > 0 && p.r > 0 && p.c < R.n - 1 && p.r < R.n - 1)
+      const from = needInner && inner.length ? inner : free
+      if (from.length) { const [c, r] = from[(rng() * from.length) | 0]; R.pending.push({ c, r, t: T.rise }) }
+    }
+    R.stones = R.stones.filter(s => !s.gone)
+  }
+  function tipPoint(L, ext) {
+    const R = G.R, e = L.len * ext, m = L.i + 0.5
+    if (L.side === 0) return [m, e]
+    if (L.side === 2) return [m, R.n - e]
+    if (L.side === 3) return [e, m]
+    return [R.n - e, m]
+  }
+  function stakeRect(L, ext) {
+    const R = G.R, e = Math.max(0, L.len * ext - 0.04), a = L.i + 0.5 - T.stakeW / 2, b = L.i + 0.5 + T.stakeW / 2
+    if (L.side === 0) return [a, 0, b, e]
+    if (L.side === 2) return [a, R.n - e, b, R.n]
+    if (L.side === 3) return [0, a, e, b]
+    return [R.n - e, a, R.n, b]
+  }
+
+  // ---------- update ----------
+  function update(dt) {
+    const R = G.R
+    R.time += dt
+    R.shake = Math.max(0, R.shake - dt * 4)
+    if (R.bannerT > 0) R.bannerT -= dt
+    for (const st of R.stones) { st.rise = Math.min(1, st.rise + dt * 3.5); st.hitT = Math.max(0, st.hitT - dt) }
+    for (const pd of R.pending) {
+      pd.t -= dt
+      if (pd.t <= 0) { R.stones.push(mkStone(pd.c, pd.r, opts.crumble ? T.stoneHp : 99, 0)); sfx('land'); puff(pd.c + 0.5, pd.r + 0.5, 8, KA(226, 214, 180)) }
+    }
+    R.pending = R.pending.filter(p => p.t > 0)
+    for (const q of R.parts) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.92; q.vy *= 0.92 }
+    R.parts = R.parts.filter(q => q.life > 0)
+
+    if (R.done) {
+      R.t -= dt
+      if (R.t <= 0 && !G.over) newRound()
+      movePlayers(dt)
+      return
+    }
+    R.t -= dt
+    if (R.phase === 'count') {
+      if (R.t <= 0) { R.phase = 'idle'; R.t = T.gapStart; sfx('go') }
+    } else if (R.phase === 'idle') {
+      if (opts.coins && !R.coin && R.t < 0.5 * T.gapStart) spawnCoin()
+      if (R.t <= 0) startWarn()
+    } else if (R.phase === 'warn') {
+      if (R.t <= 0) fire()
+    } else if (R.phase === 'out') {
+      R.ext = 1 - Math.pow(Math.max(0, R.t / T.out), 2)
+      if (R.t <= 0) { R.ext = 1; impact(); R.phase = 'hold'; R.t = T.hold }
+    } else if (R.phase === 'hold') {
+      if (R.t <= 0) retract()
+    } else if (R.phase === 'back') {
+      const u = Math.max(0, R.t / T.back)
+      R.ext = u * u * (3 - 2 * u)
+      if (R.t <= 0) { R.ext = 0; R.lanes = []; R.strike++; R.phase = 'idle'; R.t = Math.max(T.gapFloor, T.gapStart - T.gapStep * R.strike); botHaunt() }
+    }
+    if (R.phase !== 'count') movePlayers(dt)
+    if (R.phase === 'out' || R.phase === 'hold') hitTest()
+    const left = alive()
+    if (left.length <= 1 && R.phase !== 'count') endRound(left[0] || null)
+  }
+  function spawnCoin() {
+    const R = G.R, free = []
+    for (let r = 0; r < R.n; r++) for (let c = 0; c < R.n; c++) {
+      if (blockedSoon(c, r)) continue
+      if (R.players.some(p => !p.out && Math.floor(p.x) === c && Math.floor(p.y) === r)) continue
+      free.push([c, r])
+    }
+    if (!free.length) return
+    const [c, r] = free[(rng() * free.length) | 0]
+    R.coin = { x: c + 0.5, y: r + 0.5, t: 0 }
+  }
+  function botHaunt() {
+    const R = G.R
+    if (!opts.haunt) return
+    const ghosts = R.players.filter(p => p.out && !G.claimed[p.i])
+    if (ghosts.length && !R.haunt && rng() < 0.6) R.haunt = { side: (rng() * 4) | 0, by: ghosts[(rng() * ghosts.length) | 0].i }
+  }
+  function endRound(winner) {
+    const R = G.R
+    R.done = true; R.t = 2.6
+    if (winner) {
+      G.wins[winner.i]++
+      R.banner = winner.seat.name + ' SURVIVES'; R.bannerRgb = winner.seat.rgb
+      if (G.wins[winner.i] >= T.roundsToWin) { G.over = true; R.banner = winner.seat.name + ' WINS THE MATCH' }
+      sfx('win')
+    } else { R.banner = 'DRAW · NOBODY SCORES'; R.bannerRgb = KA(95, 107, 81) }
+    R.bannerT = 99
+  }
+  function stickOf(p) {
+    let x = 0, y = 0
+    for (const s of sticks.values()) if (s.seat === p.i && !s.grab) { x = (s.x - s.ox) / 40; y = (s.y - s.oy) / 40 }
+    for (const k of (opts.mode === 'solo' ? SEATS.map(q => q.keys) : [p.seat.keys])) {
+      if (keys.has(k[0])) y -= 1
+      if (keys.has(k[2])) y += 1
+      if (keys.has(k[3])) x -= 1
+      if (keys.has(k[1])) x += 1
+    }
+    const m = Math.hypot(x, y)
+    if (m > 1) { x /= m; y /= m }
+    return m < 0.12 ? [0, 0] : [x, y]
+  }
+  function grabInput(p) {
+    if (!opts.grab) return false
+    if (!G.claimed[p.i]) return p.bot.grab
+    for (const s of sticks.values()) if (s.seat === p.i && s.grab) return true
+    const sets = opts.mode === 'solo' ? SEATS.map(q => q.dash) : [p.seat.dash]
+    return sets.some(d => d.some(k => keys.has(k)))
+  }
+  function letGo(p, thrown) {
+    const R = G.R, q = R.players[p.grab]
+    p.grab = null; p.grabCd = T.grabCd
+    if (!q) return
+    q.heldBy = null
+    if (thrown && !q.out) { q.kx += p.fx * T.fling; q.ky += p.fy * T.fling; sfx('dash'); puff(q.x, q.y, 5, KA(226, 214, 180)) }
+    else if (!q.out) { p.kx -= p.fx * 3; p.ky -= p.fy * 3; sfx('bump'); puff(p.x, p.y, 4, [255, 255, 255]) }
+  }
+  function updateGrabs(dt) {
+    const R = G.R
+    for (const p of R.players) {
+      p.grabCd = Math.max(0, p.grabCd - dt)
+      const want = !p.out && !R.done && R.phase !== 'count' && grabInput(p)
+      if (p.grab == null) {
+        if (!want || p.grabCd > 0 || p.heldBy != null) continue
+        let best = null, bd = T.radius * 2 + T.grabReach
+        for (const q of R.players) {
+          if (q === p || q.out || q.heldBy != null || q.grab != null) continue
+          const d = Math.hypot(q.x - p.x, q.y - p.y)
+          if (d < bd) { bd = d; best = q }
+        }
+        if (best) {
+          p.grab = best.i; best.heldBy = p.i; p.grabT = 0; best.struggle = 0
+          const d = Math.hypot(best.x - p.x, best.y - p.y) || 1; p.fx = (best.x - p.x) / d; p.fy = (best.y - p.y) / d
+          sfx('grab')
+        } else if (G.claimed[p.i]) p.grabCd = 0.25 // a miss costs a beat, not the full recharge
+      } else {
+        const q = R.players[p.grab]
+        p.grabT += dt; q.struggle += Math.hypot(q.sx, q.sy) * dt
+        if (q.out || p.out) letGo(p, false)
+        else if (q.struggle >= T.grabBreak) letGo(p, false)
+        else if (!want || p.grabT >= T.grabMax) letGo(p, true)
+      }
+    }
+  }
+  function movePlayers(dt) {
+    const R = G.R, n = R.n
+    updateGrabs(dt)
+    for (const p of R.players) {
+      p.inv = Math.max(0, p.inv - dt); p.squash = Math.max(0, p.squash - dt * 3)
+      p.dashCd = Math.max(0, p.dashCd - dt); p.dashT = Math.max(0, p.dashT - dt)
+      let [sx, sy] = G.claimed[p.i] ? stickOf(p) : botStick(p, dt)
+      p.sx = sx; p.sy = sy
+      if (p.out) {
+        p.outT += dt
+        if (opts.haunt && G.claimed[p.i] && Math.hypot(sx, sy) > 0.6 && !R.done) {
+          const side = Math.abs(sx) > Math.abs(sy) ? (sx > 0 ? 1 : 3) : (sy > 0 ? 2 : 0)
+          R.haunt = { side, by: p.i }
+        }
+        continue
+      }
+      if (R.done && R.players.length > 1 && alive().length === 1) { sx *= 0.5; sy *= 0.5 }
+      const sp = T.speed * (p.dashT > 0 ? T.dashMul : 1) * (G.claimed[p.i] ? 1 : BOT[opts.skill].speed) * (p.grab != null ? T.grabSlow : 1)
+      if (p.heldBy != null) { sx = 0; sy = 0 }
+      if (p.dashT > 0) { sx = p.fx; sy = p.fy }
+      const a = Math.min(1, dt * 16)
+      p.vx += (sx * sp - p.vx) * a; p.vy += (sy * sp - p.vy) * a
+      p.kx *= Math.pow(0.0006, dt); p.ky *= Math.pow(0.0006, dt)
+      p.x += (p.vx + p.kx) * dt; p.y += (p.vy + p.ky) * dt
+      const v = Math.hypot(p.vx, p.vy)
+      if (v > 0.3) { p.fx = p.vx / v; p.fy = p.vy / v; p.walk += dt * v * 3.2 }
+    }
+    const live = alive()
+    for (const p of live) if (p.grab != null) {
+      const q = R.players[p.grab], tx = p.x + p.fx * (T.radius * 2 + 0.02), ty = p.y + p.fy * (T.radius * 2 + 0.02), a = Math.min(1, dt * 22)
+      q.x += (tx - q.x) * a; q.y += (ty - q.y) * a; q.vx = p.vx; q.vy = p.vy; q.fx = -p.fx; q.fy = -p.fy
+    }
+    for (let a = 0; a < live.length; a++) for (let b = a + 1; b < live.length; b++) {
+      const p = live[a], q = live[b]
+      if (p.grab === q.i || q.grab === p.i) continue
+      const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 0.001, min = T.radius * 2
+      if (d >= min) continue
+      const ux = dx / d, uy = dy / d, ov = min - d
+      const pw = p.dashT > 0 ? 1 : 0, qw = q.dashT > 0 ? 1 : 0
+      const share = pw === qw ? 0.5 : pw ? 0.05 : 0.95
+      p.x -= ux * ov * share; p.y -= uy * ov * share; q.x += ux * ov * (1 - share); q.y += uy * ov * (1 - share)
+      if (pw && !qw) { q.kx += ux * 5; q.ky += uy * 5; if (!q.bumpT || R.time - q.bumpT > 0.3) { sfx('bump'); q.bumpT = R.time; puff(q.x, q.y, 4, [255, 255, 255]) } }
+      if (qw && !pw) { p.kx -= ux * 5; p.ky -= uy * 5; if (!p.bumpT || R.time - p.bumpT > 0.3) { sfx('bump'); p.bumpT = R.time; puff(p.x, p.y, 4, [255, 255, 255]) } }
+    }
+    for (const p of live) {
+      for (const st of R.stones) if (!st.gone) pushOutOfBox(p, st.c + 0.06, st.r + 0.06, st.c + 0.94, st.r + 0.94)
+      p.x = Math.min(n - T.radius, Math.max(T.radius, p.x)); p.y = Math.min(n - T.radius, Math.max(T.radius, p.y))
+      if (R.coin && Math.hypot(R.coin.x - p.x, R.coin.y - p.y) < T.radius + 0.18) {
+        R.coin = null; p.coins++; sfx('coin'); puff(p.x, p.y, 6, KA(240, 200, 60))
+        if (p.coins >= T.coinsPerHeart && p.hp < T.maxHearts) { p.coins -= T.coinsPerHeart; p.hp++; sfx('heal') }
+      }
+    }
+    if (R.coin) R.coin.t += dt
+  }
+  function pushOutOfBox(p, x0, y0, x1, y1) {
+    const r = T.radius
+    const cx = Math.min(x1, Math.max(x0, p.x)), cy = Math.min(y1, Math.max(y0, p.y))
+    let dx = p.x - cx, dy = p.y - cy
+    const d = Math.hypot(dx, dy)
+    if (d >= r) return
+    if (d > 0.0001) { p.x = cx + dx / d * r; p.y = cy + dy / d * r; return }
+    const l = p.x - x0, rr = x1 - p.x, t = p.y - y0, b = y1 - p.y, m = Math.min(l, rr, t, b)
+    if (m === l) p.x = x0 - r; else if (m === rr) p.x = x1 + r; else if (m === t) p.y = y0 - r; else p.y = y1 + r
+  }
+  function hitTest() {
+    const R = G.R
+    for (const p of alive()) {
+      if (p.inv > 0) continue
+      for (const L of R.lanes) {
+        const [x0, y0, x1, y1] = stakeRect(L, R.ext)
+        if (x1 - x0 < 0.02 || y1 - y0 < 0.02) continue
+        const cx = Math.min(x1, Math.max(x0, p.x)), cy = Math.min(y1, Math.max(y0, p.y))
+        if (Math.hypot(p.x - cx, p.y - cy) < T.radius * 0.92) { hurt(p); break }
+      }
+    }
+  }
+  function hurt(p) {
+    const R = G.R
+    if (p.grab != null) letGo(p, false)
+    p.hp--; p.inv = T.invuln + T.hold; p.squash = 1; sfx('ouch'); R.shake = Math.max(R.shake, 0.7)
+    if (active && G.claimed[p.i]) { try { navigator.vibrate && navigator.vibrate(p.hp <= 0 ? 120 : 40) } catch (e) { /* optional */ } }
+    for (let i = 0; i < 8; i++) { const a = rng() * 6.283; R.parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, life: 0.5, max: 0.5, rgb: [255, 236, 130], star: true, s: 0.09 }) }
+    if (p.hp <= 0) { p.out = true; p.outT = 0; sfx('out') }
+  }
+  function tryDash(i) {
+    const p = G.R.players[i]
+    if (!opts.shove || !p || p.out || p.dashCd > 0 || G.R.phase === 'count') return
+    p.dashT = T.dashTime; p.dashCd = T.dashCd; sfx('dash'); puff(p.x - p.fx * 0.2, p.y - p.fy * 0.2, 5, KA(226, 214, 180))
+  }
+  function puff(x, y, k, rgb) {
+    const R = G.R
+    for (let i = 0; i < k; i++) { const a = rng() * 6.283, v = 0.6 + rng() * 2.2; R.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.35 + rng() * 0.3, max: 0.65, rgb, s: 0.05 + rng() * 0.08 }) }
+  }
+
+  // ---------- bots ----------
+  function pathTo(n, from, goals) {
+    const key = (c, r) => r * n + c, goalSet = new Set(goals.map(([c, r]) => key(c, r)))
+    const prev = new Map([[key(from[0], from[1]), -1]]), q = [from]
+    while (q.length) {
+      const [c, r] = q.shift()
+      if (goalSet.has(key(c, r))) {
+        const path = []
+        let k = key(c, r)
+        while (k !== -1) { path.unshift([k % n, (k / n) | 0]); k = prev.get(k) }
+        return path
+      }
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const c2 = c + dc, r2 = r + dr
+        if (c2 < 0 || r2 < 0 || c2 >= n || r2 >= n || blockedNow(c2, r2) || prev.has(key(c2, r2))) continue
+        prev.set(key(c2, r2), key(c, r)); q.push([c2, r2])
+      }
+    }
+    return null
+  }
+  function botStick(p, dt) {
+    const R = G.R, n = R.n, b = p.bot
+    if (p.out || R.done) { b.grab = false; return [0, 0] }
+    if (R.phase !== 'warn') b.grab = false
+    const here = [Math.min(n - 1, Math.floor(p.x)), Math.min(n - 1, Math.floor(p.y))]
+    let goal = null
+    if (R.phase === 'warn' || R.phase === 'out' || R.phase === 'hold') {
+      if (b.frozen) return [0, 0]
+      b.react -= dt
+      if (b.react > 0) return [0, 0]
+      const safe = safeCells(n, blockedSoon, R.sides)
+      if (safe.some(([c, r]) => c === here[0] && r === here[1])) goal = [here]
+      else goal = pathTo(n, here, safe)
+      if (opts.shove && goal && goal.length > 1 && p.dashCd <= 0 && R.t < 0.35 && R.phase === 'warn') tryDash(p.i)
+      if (opts.grab && R.phase === 'warn' && b.mean && p.heldBy == null) {
+        // drag a neighbour out of cover: aim at the nearest exposed tile, let go just before the poles fire
+        if (p.grab != null) {
+          const q = R.players[p.grab]; b.grab = R.t > 0.1
+          let best = null, bd = 99
+          for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (!blockedNow(c, r) && !safe.some(([sc, sr]) => sc === c && sr === r)) { const d = Math.hypot(c + 0.5 - q.x, r + 0.5 - q.y); if (d < bd) { bd = d; best = [c, r] } }
+          if (best) { const dx = best[0] + 0.5 - p.x, dy = best[1] + 0.5 - p.y, d = Math.hypot(dx, dy) || 1; return [dx / d, dy / d] }
+        } else if (p.grabCd <= 0 && R.t < 0.8 && R.t > 0.25) {
+          b.grab = R.players.some(q => q !== p && !q.out && q.heldBy == null && Math.hypot(q.x - p.x, q.y - p.y) < T.radius * 2 + T.grabReach && safe.some(([sc, sr]) => sc === Math.floor(q.x) && sr === Math.floor(q.y)))
+        } else b.grab = false
+      } else b.grab = false
+    } else {
+      b.idleT -= dt
+      if (R.coin) goal = pathTo(n, here, [[Math.floor(R.coin.x), Math.floor(R.coin.y)]])
+      else if (b.idleT <= 0 || !b.roam) {
+        b.idleT = 0.8 + rng() * 1.2
+        const near = []
+        for (const st of R.stones) for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const c = st.c + dc, r = st.r + dr
+          if (c >= 0 && r >= 0 && c < n && r < n && !blockedNow(c, r)) near.push([c, r])
+        }
+        b.roam = near.length ? near[(rng() * near.length) | 0] : here
+      }
+      if (!goal && b.roam) goal = pathTo(n, here, [b.roam])
+    }
+    if (!goal || !goal.length) return [0, 0]
+    const next = goal.length > 1 ? goal[1] : goal[0]
+    const tx = next[0] + 0.5, ty = next[1] + 0.5, dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy)
+    if (d < 0.06) return [0, 0]
+    return [dx / d, dy / d]
+  }
+
+  // ---------- sound ----------
+  let ac = null
+  function sfx(kind) {
+    if (!opts.sound || !active) return
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)()
+      if (ac.state === 'suspended') ac.resume()
+      const t = ac.currentTime
+      const tone = (type, f0, f1, dur, vol, at = 0) => {
+        const o = ac.createOscillator(), g = ac.createGain()
+        o.type = type; o.frequency.setValueAtTime(f0, t + at); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + at + dur)
+        g.gain.setValueAtTime(vol, t + at); g.gain.exponentialRampToValueAtTime(0.001, t + at + dur)
+        o.connect(g).connect(ac.destination); o.start(t + at); o.stop(t + at + dur + 0.02)
+      }
+      const noise = (dur, vol, freq) => {
+        const buf = ac.createBuffer(1, Math.ceil(ac.sampleRate * dur), ac.sampleRate), d = buf.getChannelData(0)
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length)
+        const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain()
+        s.buffer = buf; f.type = 'lowpass'; f.frequency.value = freq; g.gain.value = vol
+        s.connect(f).connect(g).connect(ac.destination); s.start(t)
+      }
+      if (kind === 'warn') { tone('triangle', 520, 500, 0.07, 0.12); tone('triangle', 520, 500, 0.07, 0.12, 0.14); noise(0.25, 0.08, 500) }
+      else if (kind === 'thunk') { tone('sine', 130, 40, 0.22, 0.5); noise(0.16, 0.35, 900) }
+      else if (kind === 'ouch') { tone('square', 420, 110, 0.22, 0.14) }
+      else if (kind === 'out') { tone('square', 300, 60, 0.5, 0.14, 0.1) }
+      else if (kind === 'coin') { tone('square', 880, 880, 0.06, 0.1); tone('square', 1320, 1320, 0.1, 0.1, 0.06) }
+      else if (kind === 'heal') { tone('triangle', 520, 1040, 0.25, 0.16, 0.1) }
+      else if (kind === 'crack') { noise(0.3, 0.3, 1600) }
+      else if (kind === 'land') { tone('sine', 90, 50, 0.15, 0.4) }
+      else if (kind === 'dash') { noise(0.12, 0.15, 2400) }
+      else if (kind === 'bump') { tone('sine', 220, 120, 0.1, 0.3) }
+      else if (kind === 'grab') { tone('square', 180, 360, 0.08, 0.14) }
+      else if (kind === 'go') { tone('square', 660, 660, 0.18, 0.12) }
+      else if (kind === 'win') { [523, 659, 784, 1046].forEach((f, i) => tone('square', f, f, 0.14, 0.11, i * 0.12)) }
+    } catch (e) { /* sound is optional */ }
+  }
+
+  // ---------- drawing ----------
+  const rgb = (c, a = 1) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'
+  const mix = (c, d, t) => [0, 1, 2].map(i => Math.round(c[i] + (d[i] - c[i]) * t))
+  // Every colour goes through the board's theme (window.BZT): K() retints a matcha-baseline colour, KA() the same as a triplet.
+  const K = (r, g, b, a) => window.BZT.K(r, g, b, a), KA = (r, g, b) => window.BZT.KA(r, g, b)
+  let INK, CARD, DANGER, BORDER
+  function themeChanged() {
+    const t = window.BZT.pal()
+    INK = t.text; CARD = t.card; DANGER = t.danger; BORDER = t.border
+    SEATS.forEach((s, i) => { s.rgb = t['p' + (i + 1)] })
+  }
+  themeChanged(); window.BZT.onChange(themeChanged)
+  function px(u) { return u * G.R.cell }
+  function ax(x) { return ARENA.x + x * G.R.cell }
+  function ay(y) { return ARENA.y + y * G.R.cell }
+
+  function draw() {
+    const R = G.R, t = R.time
+    ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0)
+    ctx.fillStyle = K(238,240,226); ctx.fillRect(0, 0, W, H)
+    ctx.fillStyle = rgb(BORDER, 0.2)
+    for (let y = 0; y < H; y += 6) ctx.fillRect(0, y, W, 1)
+    drawPads()
+    ctx.save()
+    if (R.shake > 0) ctx.translate((Math.random() - 0.5) * 9 * R.shake * R.shake, (Math.random() - 0.5) * 9 * R.shake * R.shake)
+    drawYard(t)
+    drawStakes(t)
+    drawFrameLip()
+    ctx.restore()
+    drawBanner()
+  }
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r) }
+
+  function drawYard(t) {
+    const R = G.R, n = R.n, c = R.cell, o = ARENA
+    // frame
+    const fx = o.x - RAIL, fs = o.s + RAIL * 2
+    ctx.fillStyle = K(40,50,30,.22); rr(fx + 3, o.y - RAIL + 6, fs, fs, 12); ctx.fill()
+    let g = ctx.createLinearGradient(fx, 0, fx + fs, 0)
+    g.addColorStop(0, K(86,66,44)); g.addColorStop(0.5, K(112,88,58)); g.addColorStop(1, K(78,60,40))
+    ctx.fillStyle = g; rr(fx, o.y - RAIL, fs, fs, 12); ctx.fill()
+    ctx.strokeStyle = K(40,28,16,.35); ctx.lineWidth = 1
+    for (let i = 0; i < 9; i++) { ctx.beginPath(); ctx.moveTo(fx + 8, o.y - RAIL + 6 + i * (fs / 9)); ctx.bezierCurveTo(fx + fs * 0.3, o.y - RAIL + i * (fs / 9), fx + fs * 0.7, o.y - RAIL + 10 + i * (fs / 9), fx + fs - 8, o.y - RAIL + 4 + i * (fs / 9)); ctx.stroke() }
+    // slots the poles rest in
+    for (let s = 0; s < 4; s++) for (let i = 0; i < n; i++) {
+      ctx.save(); sideXf(s, i)
+      ctx.fillStyle = K(30,20,10,.55); rr(-c * 0.4, -RAIL + 3, c * 0.8, RAIL - 3, 5); ctx.fill()
+      ctx.restore()
+    }
+    // warning rail
+    if (R.phase === 'warn') {
+      const u = 1 - R.t / R.warnLen, pulse = 0.5 + 0.5 * Math.sin(t * (16 + 22 * u))
+      for (const s of R.sides) {
+        ctx.save(); sideXf(s, (n - 1) / 2)
+        ctx.fillStyle = rgb(DANGER, 0.3 + 0.5 * pulse); rr(-o.s / 2, -RAIL + 2, o.s, RAIL - 4, 6); ctx.fill()
+        ctx.fillStyle = rgb(CARD, 0.9)
+        for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(k * 38 - 7, -RAIL + 8); ctx.lineTo(k * 38 + 7, -RAIL + 8); ctx.lineTo(k * 38, -RAIL + 19); ctx.fill() }
+        ctx.restore()
+      }
+    }
+    // sand floor
+    ctx.save(); rr(o.x, o.y, o.s, o.s, 4); ctx.clip()
+    for (let r = 0; r < n; r++) for (let q = 0; q < n; q++) {
+      const x = o.x + q * c, y = o.y + r * c, odd = (q + r) % 2
+      ctx.fillStyle = odd ? K(226,216,186) : K(234,226,198); ctx.fillRect(x, y, c, c)
+      ctx.strokeStyle = K(150,130,90,.16); ctx.lineWidth = 1
+      for (let k = 1; k < 6; k++) { ctx.beginPath(); if (odd) { ctx.moveTo(x + 4, y + k * c / 6); ctx.lineTo(x + c - 4, y + k * c / 6) } else { ctx.moveTo(x + k * c / 6, y + 4); ctx.lineTo(x + k * c / 6, y + c - 4) } ctx.stroke() }
+      ctx.strokeStyle = K(120,104,70,.28); ctx.strokeRect(x + 0.5, y + 0.5, c - 1, c - 1)
+    }
+    // lane threat wash + cover shade (the read the game is about)
+    if (R.phase === 'warn' && opts.hints && R.strike < 3) {
+      const u = 1 - R.t / R.warnLen
+      const safe = safeCells(n, blockedSoon, R.sides)
+      ctx.fillStyle = rgb(DANGER, 0.1 + 0.1 * u)
+      for (let r = 0; r < n; r++) for (let q = 0; q < n; q++) if (!blockedSoon(q, r) && !safe.some(([a, b]) => a === q && b === r)) ctx.fillRect(o.x + q * c, o.y + r * c, c, c)
+      ctx.fillStyle = K(38,123,66,.26)
+      for (const [q, r] of safe) { rr(o.x + q * c + 5, o.y + r * c + 5, c - 10, c - 10, 8); ctx.fill() }
+    }
+    g = ctx.createLinearGradient(0, o.y, 0, o.y + 16); g.addColorStop(0, K(60,44,20,.35)); g.addColorStop(1, K(60,44,20,0))
+    ctx.fillStyle = g; ctx.fillRect(o.x, o.y, o.s, 16)
+    g = ctx.createLinearGradient(o.x, 0, o.x + 14, 0); g.addColorStop(0, K(60,44,20,.28)); g.addColorStop(1, K(60,44,20,0))
+    ctx.fillStyle = g; ctx.fillRect(o.x, o.y, 14, o.s)
+    // landing marks for new boulders
+    for (const pd of R.pending) {
+      const u = 1 - pd.t / T.rise, cx = ax(pd.c + 0.5), cy = ay(pd.r + 0.5)
+      ctx.fillStyle = K(40,50,30,(0.12 + 0.3 * u)); ctx.beginPath(); ctx.ellipse(cx, cy, c * 0.42 * (0.4 + 0.6 * u), c * 0.36 * (0.4 + 0.6 * u), 0, 0, 6.283); ctx.fill()
+      ctx.strokeStyle = rgb(INK, 0.55); ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.lineDashOffset = -t * 30
+      ctx.beginPath(); ctx.arc(cx, cy, c * 0.4, 0, 6.283); ctx.stroke(); ctx.setLineDash([])
+    }
+    if (R.coin) {
+      const cx = ax(R.coin.x), cy = ay(R.coin.y), w = Math.abs(Math.cos(R.coin.t * 5)), bob = Math.sin(R.coin.t * 4) * 2
+      ctx.fillStyle = K(40,50,30,.25); ctx.beginPath(); ctx.ellipse(cx, cy + 9, 8, 3.5, 0, 0, 6.283); ctx.fill()
+      ctx.fillStyle = K(176,128,20); ctx.beginPath(); ctx.ellipse(cx, cy + bob, 9 * w + 1.5, 9, 0, 0, 6.283); ctx.fill()
+      ctx.fillStyle = K(244,204,70); ctx.beginPath(); ctx.ellipse(cx, cy + bob - 1, 7.5 * w + 1, 7.5, 0, 0, 6.283); ctx.fill()
+      ctx.fillStyle = K(255,250,210,.9); ctx.fillRect(cx - 1.5 * w, cy + bob - 5, 2 * w + 0.5, 7)
+    }
+    const ents = []
+    for (const st of R.stones) ents.push([st.r + 0.5, 0, st])
+    for (const p of R.players) if (!p.out || p.outT < 0.7) ents.push([p.y, 1, p])
+    ents.sort((a, b) => a[0] - b[0])
+    for (const [, kind, e] of ents) kind ? (opts.avatars && SPRITES[e.i] ? drawAvatar(e, t) : (e.out || drawDodger(e, t))) : drawBoulder(e, t)
+    for (const p of R.players) if (p.grab != null && !p.out) {
+      const q = R.players[p.grab], x0 = ax(p.x), y0 = ay(p.y) - px(0.16), x1 = ax(q.x), y1 = ay(q.y) - px(0.16), nx = -(y1 - y0), ny = x1 - x0, m = Math.hypot(nx, ny) || 1
+      ctx.lineCap = 'round'
+      for (const sgn of [-1, 1]) {
+        ctx.strokeStyle = K(30,34,24,.85); ctx.lineWidth = 5.5; ctx.beginPath(); ctx.moveTo(x0 + nx / m * 4 * sgn, y0 + ny / m * 4 * sgn); ctx.lineTo(x1 + nx / m * 5 * sgn, y1 + ny / m * 5 * sgn); ctx.stroke()
+        ctx.strokeStyle = rgb(p.seat.rgb); ctx.lineWidth = 3; ctx.stroke()
+      }
+      const need = 1 - Math.min(1, q.struggle / T.grabBreak), left = 1 - p.grabT / T.grabMax, mx = ax(q.x), my = ay(q.y) - px(0.75)
+      ctx.fillStyle = K(252,253,246,.95); rr(mx - 17, my - 5, 34, 9, 3); ctx.fill(); ctx.strokeStyle = rgb(INK, 0.6); ctx.lineWidth = 1; ctx.stroke()
+      ctx.fillStyle = rgb(DANGER); ctx.fillRect(mx - 15, my - 3, 30 * need, 2.5)
+      ctx.fillStyle = rgb(p.seat.rgb); ctx.fillRect(mx - 15, my + 0.5, 30 * Math.max(0, left), 1.8)
+    }
+    for (const q of R.parts) {
+      const a = Math.max(0, q.life / q.max), x = ax(q.x), y = ay(q.y), s = px(q.s)
+      ctx.fillStyle = rgb(q.rgb, a)
+      if (q.star) { ctx.save(); ctx.translate(x, y); ctx.rotate(q.life * 9); ctx.fillRect(-s, -s * 0.3, s * 2, s * 0.6); ctx.fillRect(-s * 0.3, -s, s * 0.6, s * 2); ctx.restore() }
+      else { ctx.beginPath(); ctx.arc(x, y, s * (1.6 - a * 0.6), 0, 6.283); ctx.fill() }
+    }
+    ctx.restore()
+  }
+  /** Local frame for a lane: origin on the yard edge at the lane centre, +y pointing into the yard. */
+  function sideXf(side, i) {
+    const o = ARENA, c = G.R.cell, m = (i + 0.5) * c
+    if (side === 0) ctx.translate(o.x + m, o.y)
+    else if (side === 1) { ctx.translate(o.x + o.s, o.y + m); ctx.rotate(Math.PI / 2) }
+    else if (side === 2) { ctx.translate(o.x + m, o.y + o.s); ctx.rotate(Math.PI) }
+    else { ctx.translate(o.x, o.y + m); ctx.rotate(-Math.PI / 2) }
+  }
+  function drawStakes(t) {
+    const R = G.R, n = R.n, c = R.cell, o = ARENA
+    ctx.save(); rr(o.x - RAIL + 3, o.y - RAIL + 3, o.s + RAIL * 2 - 6, o.s + RAIL * 2 - 6, 10); ctx.clip()
+    const warnU = R.phase === 'warn' ? 1 - R.t / R.warnLen : 0
+    for (let pass = 0; pass < 2; pass++) for (let s = 0; s < 4; s++) for (let i = 0; i < n; i++) {
+      const L = R.lanes.find(l => l.side === s && l.i === i)
+      const hot = R.phase === 'warn' && R.sides.includes(s)
+      let tip = -3
+      if (L) tip = -3 + (L.len * c - (L.len < n ? 1 : 3) + 3) * R.ext
+      if (L && R.phase === 'hold') tip += Math.sin(R.t * 70) * 1.6 * (R.t / T.hold)
+      if (hot) tip = -3 - 9 * Math.min(1, warnU * 1.6) + Math.sin(t * 60 + i * 2) * 1.5 * warnU
+      ctx.save(); sideXf(s, i)
+      if (pass === 0) { if (tip > 4) { ctx.fillStyle = K(40,50,30,.26); ctx.fillRect(-c * T.stakeW / 2 + 5, 0, c * T.stakeW, tip - 6) } }
+      else pole(c * T.stakeW, tip)
+      ctx.restore()
+    }
+    ctx.restore()
+  }
+  function pole(w, tip) {
+    const h = w * 0.44, base = -RAIL - 8, body = tip - h
+    const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0)
+    g.addColorStop(0, K(84,108,40)); g.addColorStop(0.18, K(128,156,62)); g.addColorStop(0.42, K(190,208,116))
+    g.addColorStop(0.52, K(214,226,150)); g.addColorStop(0.7, K(150,176,76)); g.addColorStop(1, K(72,96,36))
+    ctx.fillStyle = g; ctx.fillRect(-w / 2, base, w, body - base)
+    ctx.fillStyle = K(255,255,230,.35); ctx.fillRect(-w * 0.06, base, w * 0.07, body - base)
+    for (let y = body - 14; y > base; y -= 52) {
+      ctx.fillStyle = K(52,72,24,.85); ctx.fillRect(-w / 2 - 1, y, w + 2, 2.4)
+      ctx.fillStyle = K(226,236,170,.7); ctx.fillRect(-w / 2 - 1, y + 2.4, w + 2, 1.4)
+      ctx.fillStyle = K(52,72,24,.3); ctx.fillRect(-w / 2, y - 3, w, 3)
+    }
+    // cut point: a slanted, fire-hardened tip
+    const tg = ctx.createLinearGradient(-w / 2, 0, w / 2, 0)
+    tg.addColorStop(0, K(176,160,104)); tg.addColorStop(0.5, K(240,230,186)); tg.addColorStop(1, K(150,134,84))
+    ctx.fillStyle = tg; ctx.beginPath(); ctx.moveTo(-w / 2, body); ctx.lineTo(w / 2, body); ctx.lineTo(w * 0.06, tip); ctx.lineTo(-w * 0.06, tip); ctx.closePath(); ctx.fill()
+    ctx.fillStyle = K(86,62,34); ctx.beginPath(); ctx.moveTo(-w * 0.2, tip - h * 0.34); ctx.lineTo(w * 0.2, tip - h * 0.34); ctx.lineTo(w * 0.06, tip); ctx.lineTo(-w * 0.06, tip); ctx.closePath(); ctx.fill()
+    ctx.strokeStyle = K(40,52,20,.7); ctx.lineWidth = 1.2
+    ctx.beginPath(); ctx.moveTo(-w / 2, base); ctx.lineTo(-w / 2, body); ctx.lineTo(-w * 0.06, tip); ctx.lineTo(w * 0.06, tip); ctx.lineTo(w / 2, body); ctx.lineTo(w / 2, base); ctx.stroke()
+  }
+  function drawFrameLip() {
+    const o = ARENA, fx = o.x - RAIL, fy = o.y - RAIL, fs = o.s + RAIL * 2
+    ctx.save()
+    ctx.beginPath(); ctx.roundRect(fx, fy, fs, fs, 12); ctx.roundRect(fx + 7, fy + 7, fs - 14, fs - 14, 7); ctx.clip('evenodd')
+    const g = ctx.createLinearGradient(0, fy, 0, fy + fs)
+    g.addColorStop(0, K(126,100,66)); g.addColorStop(1, K(72,54,36))
+    ctx.fillStyle = g; ctx.fillRect(fx, fy, fs, fs)
+    ctx.fillStyle = K(255,240,210,.22); ctx.fillRect(fx, fy, fs, 2.5)
+    ctx.restore()
+    ctx.strokeStyle = K(46,34,22); ctx.lineWidth = 1.5; rr(fx, fy, fs, fs, 12); ctx.stroke()
+  }
+  function drawBoulder(st, t) {
+    const R = G.R, c = R.cell, cx = ax(st.c + 0.5), cy = ay(st.r + 0.5)
+    const e = st.rise < 1 ? 1 + 0.25 * Math.sin(st.rise * Math.PI) * (1 - st.rise) : 1
+    const sc = (0.2 + 0.8 * Math.min(1, st.rise * 1.3)) * e
+    const jx = st.hitT > 0 ? Math.sin(t * 90) * 2 * (st.hitT / 0.3) : 0
+    const rnd = mulberry32(st.seed), pts = []
+    for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283, r = c * (0.38 + rnd() * 0.07); pts.push([Math.cos(a) * r, Math.sin(a) * r * 0.94]) }
+    const shape = () => { ctx.beginPath(); for (let i = 0; i <= 9; i++) { const p = pts[i % 9], q = pts[(i + 1) % 9], mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2; if (i === 0) ctx.moveTo(mx, my); else ctx.quadraticCurveTo(p[0], p[1], mx, my) } ctx.closePath() }
+    ctx.save(); ctx.translate(cx + jx, cy)
+    ctx.save(); ctx.translate(5, 7); ctx.scale(sc, sc); ctx.fillStyle = K(40,50,30,.3); shape(); ctx.fill(); ctx.restore()
+    ctx.scale(sc, sc)
+    const g = ctx.createRadialGradient(-c * 0.14, -c * 0.16, c * 0.04, 0, 0, c * 0.5)
+    g.addColorStop(0, K(196,200,184)); g.addColorStop(0.55, K(142,150,134)); g.addColorStop(1, K(92,100,90))
+    ctx.fillStyle = g; shape(); ctx.fill()
+    ctx.save(); shape(); ctx.clip()
+    ctx.fillStyle = K(86,132,54,.9); ctx.beginPath(); ctx.ellipse(-c * 0.16, -c * 0.26, c * 0.3, c * 0.17, -0.5, 0, 6.283); ctx.fill()
+    ctx.fillStyle = K(126,170,80,.8); ctx.beginPath(); ctx.ellipse(-c * 0.2, -c * 0.29, c * 0.16, c * 0.08, -0.5, 0, 6.283); ctx.fill()
+    ctx.fillStyle = K(40,50,40,.22); ctx.beginPath(); ctx.ellipse(c * 0.12, c * 0.3, c * 0.4, c * 0.14, 0.2, 0, 6.283); ctx.fill()
+    const lost = st.max > 9 ? 0 : Math.max(0, Math.min(3, T.stoneHp - st.hp))
+    ctx.strokeStyle = K(30,36,30,.85); ctx.lineWidth = 1.6; ctx.lineJoin = 'round'
+    const cracks = [[[-0.02, -0.4], [0.05, -0.16], [-0.06, 0.02], [0.04, 0.2]], [[0.4, -0.05], [0.18, 0], [0.1, 0.14], [-0.12, 0.18]], [[-0.4, 0.12], [-0.2, 0.06], [-0.1, -0.12]]]
+    for (let k = 0; k < lost; k++) { ctx.beginPath(); cracks[k].forEach(([x, y], i) => i ? ctx.lineTo(x * c, y * c) : ctx.moveTo(x * c, y * c)); ctx.stroke() }
+    ctx.restore()
+    ctx.strokeStyle = K(40,46,40,.8); ctx.lineWidth = 1.6; shape(); ctx.stroke()
+    ctx.restore()
+  }
+  function drawDodger(p, t) {
+    const R = G.R, x = ax(p.x), y = ay(p.y), r = px(T.radius), col = p.seat.rgb
+    if (p.inv > 0 && Math.floor(t * 14) % 2 === 0 && p.squash <= 0) ctx.globalAlpha = 0.4
+    const sq = p.squash, sx = 1 + 0.35 * sq, sy = 1 - 0.3 * sq
+    const moving = Math.hypot(p.vx, p.vy) > 0.3, step = Math.sin(p.walk * 2.4)
+    ctx.fillStyle = K(40,50,30,.28); ctx.beginPath(); ctx.ellipse(x + 3, y + r * 0.75, r * 1.02, r * 0.5, 0, 0, 6.283); ctx.fill()
+    ctx.save(); ctx.translate(x, y + (moving ? Math.abs(step) * -1.5 : Math.sin(t * 3 + p.i) * 0.6)); ctx.scale(sx, sy)
+    // feet
+    const ang = Math.atan2(p.fy, p.fx)
+    ctx.save(); ctx.rotate(ang)
+    ctx.fillStyle = rgb(mix(col, [20, 20, 20], 0.55))
+    ctx.beginPath(); ctx.ellipse((moving ? step : 0) * r * 0.45, -r * 0.62, r * 0.34, r * 0.24, 0, 0, 6.283); ctx.fill()
+    ctx.beginPath(); ctx.ellipse((moving ? -step : 0) * r * 0.45, r * 0.62, r * 0.34, r * 0.24, 0, 0, 6.283); ctx.fill()
+    ctx.restore()
+    const g = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r * 1.05)
+    g.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.5))); g.addColorStop(0.5, rgb(col)); g.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.35)))
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.283); ctx.fill()
+    ctx.strokeStyle = rgb(mix(col, [0, 0, 0], 0.6)); ctx.lineWidth = 1.6; ctx.stroke()
+    if (p.dashT > 0 || (opts.shove && p.dashCd <= 0)) { ctx.strokeStyle = rgb(CARD, p.dashT > 0 ? 0.95 : 0.55); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(0, 0, r + 2.5, 0, 6.283); ctx.stroke() }
+    // eyes look where the dodger is heading
+    const ex = p.fx * r * 0.36, ey = p.fy * r * 0.36, nx = -p.fy, ny = p.fx
+    for (const sgn of [-1, 1]) {
+      const cx2 = ex + nx * sgn * r * 0.36, cy2 = ey + ny * sgn * r * 0.36
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx2, cy2, r * 0.26, 0, 6.283); ctx.fill()
+      ctx.fillStyle = K(30,34,24); ctx.beginPath()
+      if (sq > 0.2) { ctx.fillRect(cx2 - r * 0.2, cy2 - 0.8, r * 0.4, 1.6) } else { ctx.arc(cx2 + p.fx * r * 0.09, cy2 + p.fy * r * 0.09, r * 0.13, 0, 6.283); ctx.fill() }
+    }
+    ctx.restore()
+    ctx.globalAlpha = 1
+  }
+  /** The player's own profile avatar as a standing figure: lit front, a darker side for thickness, a cast shadow. */
+  function drawAvatar(p, t) {
+    const R = G.R, S = SPRITES[p.i], k = R.cell * 0.62 / 22, r = px(T.radius), col = p.seat.rgb
+    const x = ax(p.x), y = ay(p.y) + r * 0.55
+    const moving = !p.out && Math.hypot(p.vx, p.vy) > 0.3
+    if (p.fx < -0.25) p.flip = -1; else if (p.fx > 0.25) p.flip = 1
+    const flip = p.flip || 1
+    const won = R.done && !p.out && alive().length === 1
+    const f = won ? S[Math.floor(t * 6) % 2 ? 'cheer1' : 'cheer0'] : moving ? S[['idle', 'hop1', 'hop2', 'hop1'][Math.floor(p.walk * 1.7) % 4]] : S.idle
+    let alpha = 1
+    if (p.out) alpha = Math.max(0, 1 - p.outT / 0.7)
+    else if (p.inv > 0 && Math.floor(t * 14) % 2 === 0 && p.squash <= 0) alpha = 0.45
+    ctx.save(); ctx.translate(x, y); ctx.imageSmoothingEnabled = false
+    // seat ring and contact shadow on the sand
+    ctx.fillStyle = K(40,50,30,0.3 * alpha); ctx.beginPath(); ctx.ellipse(1, 0, r * 1.05, r * 0.5, 0, 0, 6.283); ctx.fill()
+    ctx.strokeStyle = rgb(col, alpha); ctx.lineWidth = 2.2; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.2, r * 0.6, 0, 0, 6.283); ctx.stroke()
+    if (p.dashT > 0 || (opts.shove && p.dashCd <= 0 && !p.out)) { ctx.strokeStyle = rgb(CARD, p.dashT > 0 ? 0.95 : 0.6); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.45, r * 0.75, 0, 0, 6.283); ctx.stroke() }
+    // cast shadow: the silhouette laid over on the ground
+    ctx.save(); ctx.globalAlpha = 0.2 * alpha; ctx.transform(1, 0, -0.75, 0.42, 0, 0); ctx.scale(flip, 1); ctx.drawImage(f.dark, -12 * k, -23 * k, 24 * k, 24 * k); ctx.restore()
+    ctx.globalAlpha = alpha
+    const sq = p.squash, breathe = moving ? 0 : Math.sin(t * 3 + p.i * 2) * 0.02
+    if (p.out) ctx.rotate(Math.min(1, p.outT / 0.25) * 1.45 * flip)
+    else if (sq > 0) ctx.rotate(Math.sin(t * 40) * 0.25 * sq)
+    else if (moving) ctx.rotate(p.fx * 0.1)
+    ctx.scale(flip * (1 + 0.3 * sq - breathe), 1 - 0.35 * sq + breathe)
+    for (const d of [1.5, 1, 0.5]) ctx.drawImage(f.side, -12 * k + d * k * flip, -23 * k + d * k * 0.35, 24 * k, 24 * k)
+    ctx.drawImage(f.lit, -12 * k, -23 * k, 24 * k, 24 * k)
+    ctx.restore(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 1
+  }
+  function drawPads() {
+    const R = G.R
+    const spots = PAD_SPOTS
+    for (const p of R.players) {
+      const two = R.players.length === 2
+      const [cx0, cy] = spots[p.seat.pad], cx = two ? W / 2 : cx0, top = cy < 300, col = p.seat.rgb
+      ctx.save(); ctx.translate(cx, cy); if (top) ctx.rotate(Math.PI)
+      const w = two ? 336 : 168
+      ctx.fillStyle = rgb(mix(col, CARD, 0.84)); rr(-w / 2, -58, w, 116, 10); ctx.fill()
+      ctx.strokeStyle = rgb(col, 0.9); ctx.lineWidth = 2; ctx.stroke()
+      ctx.fillStyle = rgb(col, 0.35); ctx.fillRect(-w / 2 + 6, 58, w - 12, 3)
+      // stick
+      const px0 = two ? 96 : 34, st = [...sticks.values()].find(s => s.seat === p.i && !s.grab)
+      let kx = p.sx * 20, ky = p.sy * 20
+      if (top) { kx = -kx; ky = -ky }
+      ctx.fillStyle = rgb(col, 0.16); ctx.beginPath(); ctx.arc(px0, 4, 38, 0, 6.283); ctx.fill()
+      ctx.strokeStyle = rgb(col, 0.7); ctx.lineWidth = 2; ctx.setLineDash(st ? [] : [4, 4]); ctx.stroke(); ctx.setLineDash([])
+      ctx.fillStyle = K(40,50,30,.25); ctx.beginPath(); ctx.arc(px0 + kx + 2, 4 + ky + 3, 17, 0, 6.283); ctx.fill()
+      const g = ctx.createRadialGradient(px0 + kx - 5, ky - 2, 2, px0 + kx, 4 + ky, 18)
+      g.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.45))); g.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.15)))
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px0 + kx, 4 + ky, 17, 0, 6.283); ctx.fill()
+      // labels
+      const lx = two ? -150 : -72
+      ctx.fillStyle = rgb(INK); ctx.font = "9px 'Press Start 2P', ui-monospace, monospace"; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'
+      ctx.fillText(G.claimed[p.i] ? (opts.mode === 'solo' ? 'YOU' : p.seat.name) : p.seat.name + ' BOT', lx, -40)
+      if (opts.avatars && SPRITES[p.i]) { ctx.imageSmoothingEnabled = false; ctx.drawImage(SPRITES[p.i].bust.lit, two ? 120 : 48, -52, 30, 30); ctx.imageSmoothingEnabled = true }
+      ctx.fillStyle = rgb(col); ctx.fillText('★'.repeat(G.wins[p.i]) || '', lx + (two ? 90 : 0), two ? -40 : -22)
+      for (let h = 0; h < Math.max(T.hearts, p.hp); h++) heart(lx + 7 + h * 17, two ? -14 : -2, 6.5, h < p.hp ? (h >= T.hearts ? KA(200, 150, 20) : DANGER) : null)
+      if (opts.coins) for (let k = 0; k < T.coinsPerHeart; k++) { ctx.fillStyle = k < p.coins ? K(226,180,40) : rgb(BORDER, 0.7); ctx.beginPath(); ctx.arc(lx + 6 + k * 13, two ? 8 : 18, 4.5, 0, 6.283); ctx.fill() }
+      if (opts.grab && !p.out) {
+        const bx = two ? -8 : -50, by = two ? 6 : 34, on = p.grab != null, ready = p.grabCd <= 0
+        ctx.fillStyle = on ? rgb(col) : rgb(mix(col, CARD, ready ? 0.55 : 0.85)); ctx.beginPath(); ctx.arc(bx, by + (on ? 2 : 0), two ? 24 : 19, 0, 6.283); ctx.fill()
+        ctx.strokeStyle = rgb(col); ctx.lineWidth = 2; ctx.stroke()
+        if (!ready && !on) { ctx.strokeStyle = rgb(col, 0.9); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(bx, by, (two ? 24 : 19) - 4, -1.57, -1.57 + 6.283 * (1 - p.grabCd / T.grabCd)); ctx.stroke() }
+        ctx.fillStyle = on ? rgb(CARD) : rgb(INK, ready ? 1 : 0.45); ctx.font = "6px 'Press Start 2P', ui-monospace, monospace"; ctx.textAlign = 'center'; ctx.fillText(on ? 'THROW' : 'GRAB', bx + 0.5, by + (on ? 2 : 0)); ctx.textAlign = 'left'
+      }
+      ctx.font = "6px 'Press Start 2P', ui-monospace, monospace"; ctx.fillStyle = rgb(KA(95, 107, 81))
+      if (opts.grab && !two && !p.out) { /* the button sits where the hint line would be */ }
+      else if (p.heldBy != null) { ctx.fillStyle = rgb(DANGER); ctx.fillText('HELD! WRIGGLE!', lx, two ? 30 : 36) }
+      else if (p.out) ctx.fillText(opts.haunt ? 'PUSH A WAY: HAUNT' : 'OUT', lx, two ? 30 : 36)
+      else if (opts.shove) ctx.fillText(p.dashCd > 0 ? 'SHOVE ' + '▪'.repeat(Math.ceil(p.dashCd * 2)) : 'TAP: SHOVE', lx, two ? 30 : 36)
+      else if (!G.claimed[p.i]) ctx.fillText(opts.mode === 'solo' && started ? opts.skill.toUpperCase() + ' BOT' : 'TOUCH TO TAKE OVER', lx, two ? 30 : 36)
+      else if (opts.mode === 'solo') ctx.fillText('DRAG ANYWHERE', lx, two ? 30 : 36)
+      ctx.restore()
+    }
+    // ghost marks on the rails
+    if (opts.haunt && R.haunt) {
+      const o = ARENA, m = o.s / 2, spot = [[o.x + m, o.y - RAIL / 2], [o.x + o.s + RAIL / 2, o.y + m], [o.x + m, o.y + o.s + RAIL / 2], [o.x - RAIL / 2, o.y + m]][R.haunt.side]
+      R.ghostAt = spot; R.ghostBy = R.haunt.by
+    } else R.ghostAt = null
+  }
+  function heart(x, y, s, col) {
+    ctx.save(); ctx.translate(x, y)
+    ctx.beginPath(); ctx.moveTo(0, s * 0.9); ctx.bezierCurveTo(-s * 1.5, -s * 0.2, -s * 0.7, -s * 1.2, 0, -s * 0.35); ctx.bezierCurveTo(s * 0.7, -s * 1.2, s * 1.5, -s * 0.2, 0, s * 0.9)
+    if (col) { ctx.fillStyle = rgb(col); ctx.fill(); ctx.fillStyle = K(255,255,255,.5); ctx.fillRect(-s * 0.55, -s * 0.5, s * 0.3, s * 0.3) }
+    else { ctx.strokeStyle = rgb(BORDER); ctx.lineWidth = 1.5; ctx.stroke() }
+    ctx.restore()
+  }
+  function drawBanner() {
+    const R = G.R, o = ARENA, cx = o.x + o.s / 2, cy = o.y + o.s / 2
+    if (R.ghostAt) {
+      const [gx, gy] = R.ghostAt, col = SEATS[R.ghostBy].rgb, b = Math.sin(R.time * 6) * 2
+      ctx.fillStyle = rgb(mix(col, [255, 255, 255], 0.55), 0.95); ctx.beginPath(); ctx.arc(gx, gy + b - 2, 9, Math.PI, 0); ctx.lineTo(gx + 9, gy + b + 8); ctx.lineTo(gx + 4.5, gy + b + 5); ctx.lineTo(gx, gy + b + 8); ctx.lineTo(gx - 4.5, gy + b + 5); ctx.lineTo(gx - 9, gy + b + 8); ctx.closePath(); ctx.fill()
+      ctx.strokeStyle = rgb(mix(col, [0, 0, 0], 0.4)); ctx.lineWidth = 1.4; ctx.stroke()
+      ctx.fillStyle = rgb(INK); ctx.fillRect(gx - 4, gy + b - 3, 2.5, 3); ctx.fillRect(gx + 1.5, gy + b - 3, 2.5, 3)
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    const plate = (text, sub, col) => {
+      ctx.fillStyle = K(252,253,246,.94); rr(cx - 132, cy - 34, 264, sub ? 78 : 60, 8); ctx.fill()
+      ctx.strokeStyle = rgb(col); ctx.lineWidth = 3; ctx.stroke()
+      ctx.fillStyle = K(160,170,140,1); ctx.fillRect(cx - 126, cy + (sub ? 44 : 26), 252, 3)
+      ctx.fillStyle = rgb(col); ctx.font = "11px 'Press Start 2P', ui-monospace, monospace"; ctx.fillText(text, cx, cy - 6)
+      if (sub) { ctx.fillStyle = rgb(KA(95, 107, 81)); ctx.font = "7px 'Press Start 2P', ui-monospace, monospace"; ctx.fillText(sub, cx, cy + 22) }
+    }
+    if (!started) { ctx.save(); ctx.translate(0, 112); plate(opts.mode === 'solo' ? 'TAP TO PLAY THE BOT' : 'TAP TO PLAY', opts.mode === 'solo' ? 'DRAG ANYWHERE · OR ARROW KEYS' : 'A STRIP EACH · ARROWS + WASD', KA(130, 95, 14)); ctx.restore() }
+    else if (!active) plate('PAUSED · TAP', 'ARROWS + WASD ON A KEYBOARD', KA(130, 95, 14))
+    else if (R.phase === 'count') {
+      const k = Math.ceil(R.t - 0.2), s = 1 + (R.t % 1) * 0.5
+      ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s)
+      ctx.font = "46px 'Press Start 2P', ui-monospace, monospace"; ctx.fillStyle = K(252,253,246,.9); ctx.fillText(k > 3 ? '' : String(Math.max(1, k)), 3, 3)
+      ctx.fillStyle = rgb(INK); ctx.fillText(k > 3 ? '' : String(Math.max(1, k)), 0, 0); ctx.restore()
+      ctx.font = "8px 'Press Start 2P', ui-monospace, monospace"; ctx.fillStyle = rgb(INK)
+      ctx.fillStyle = K(252,253,246,.9); rr(cx - 110, o.y + 12, 220, 22, 5); ctx.fill()
+      ctx.fillStyle = rgb(INK); ctx.fillText('ROUND ' + G.round + ' · GET BEHIND A ROCK', cx, o.y + 24)
+      if (opts.mode === 'solo') { const me = R.players[0], mx = ax(me.x), my = ay(me.y) - px(0.62) - 14 + Math.sin(R.time * 8) * 3; ctx.fillStyle = K(252,253,246,.95); rr(mx - 20, my - 9, 40, 16, 4); ctx.fill(); ctx.fillStyle = rgb(me.seat.rgb); ctx.font = "8px 'Press Start 2P', ui-monospace, monospace"; ctx.fillText('YOU', mx + 1, my); ctx.beginPath(); ctx.moveTo(mx - 5, my + 7); ctx.lineTo(mx + 5, my + 7); ctx.lineTo(mx, my + 13); ctx.fill() }
+    } else if (R.done) plate(R.banner, G.over ? 'TAP FOR A REMATCH' : 'NEXT ROUND…', R.bannerRgb)
+  }
+
+  // ---------- input ----------
+  function logical(e) { const b = cv.getBoundingClientRect(); return [(e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H] }
+  const PAD_SPOTS = { br: [270, 572], bl: [90, 572], tl: [90, 68], tr: [270, 68] }
+  /** Centre of a seat's GRAB button in canvas space. */
+  function grabSpot(i) {
+    const two = G.R.players.length === 2, seat = SEATS[i], [cx0, cy] = PAD_SPOTS[seat.pad], cx = two ? W / 2 : cx0, top = cy < 300
+    const lx = two ? -8 : -50, ly = two ? 6 : 34
+    return top ? [cx - lx, cy - ly] : [cx + lx, cy + ly]
+  }
+  function seatAt(x, y) {
+    const n = G.R.players.length, top = y < 140, bottom = y > 500
+    if (!top && !bottom) return -1
+    if (n === 2) return bottom ? 0 : 1
+    const leftHalf = x < W / 2
+    const i = bottom ? (leftHalf ? 3 : 0) : (leftHalf ? 1 : 2)
+    return i < n ? i : -1
+  }
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault()
+    const [x, y] = logical(e)
+    if (!started) { started = true; active = true; cv.focus({ preventScroll: true }); G = { claimed: [true, false, false, false] }; newMatch(); return }
+    if (!active) { active = true; cv.focus({ preventScroll: true }); return }
+    if (G.over && G.R.t <= 0.8) { newMatch(); return }
+    const seat = opts.mode === 'solo' ? 0 : seatAt(x, y)
+    if (seat < 0) return
+    G.claimed[seat] = true
+    if (opts.grab) {
+      const [gx, gy] = grabSpot(seat)
+      const second = opts.mode === 'solo' && [...sticks.values()].some(q => q.seat === 0 && !q.grab)
+      if (Math.hypot(x - gx, y - gy) < 30 || e.button === 2 || second) {
+        try { cv.setPointerCapture(e.pointerId) } catch (err) { /* fine */ }
+        sticks.set(e.pointerId, { seat, grab: true, ox: x, oy: y, x, y, t0: performance.now(), moved: true }); return
+      }
+    }
+    try { cv.setPointerCapture(e.pointerId) } catch (err) { /* fine */ }
+    sticks.set(e.pointerId, { seat, ox: x, oy: y, x, y, t0: performance.now(), moved: false })
+  })
+  cv.addEventListener('pointermove', e => {
+    const s = sticks.get(e.pointerId); if (!s || s.grab) return
+    const [x, y] = logical(e); s.x = x; s.y = y
+    if (Math.hypot(x - s.ox, y - s.oy) > 9) s.moved = true
+    const d = Math.hypot(x - s.ox, y - s.oy)
+    if (d > 44) { s.ox = x - (x - s.ox) / d * 44; s.oy = y - (y - s.oy) / d * 44 } // the pad follows a thumb that drifts
+  })
+  const up = e => {
+    const s = sticks.get(e.pointerId); if (!s) return
+    sticks.delete(e.pointerId)
+    if (!s.moved && performance.now() - s.t0 < 220) tryDash(s.seat)
+  }
+  cv.addEventListener('contextmenu', e => e.preventDefault())
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up)
+  window.addEventListener('pointerdown', e => { if (e.target !== cv && active && !e.target.closest('.bz-ui')) { active = false; keys.clear() } })
+  window.addEventListener('keydown', e => {
+    if (!active || (e.target.matches && e.target.matches('input, textarea, select'))) return
+    for (let i = 0; i < SEATS.length; i++) {
+      const seat = opts.mode === 'solo' ? 0 : i
+      if (SEATS[i].keys.includes(e.code)) { keys.add(e.code); if (G.R.players[seat]) G.claimed[seat] = true; e.preventDefault() }
+      if (SEATS[i].dash.includes(e.code)) { keys.add(e.code); if (!e.repeat) tryDash(seat); e.preventDefault() }
+    }
+    if (G.over && e.code === 'Enter') newMatch()
+  })
+  window.addEventListener('keyup', e => keys.delete(e.code))
+  window.addEventListener('blur', () => { keys.clear(); sticks.clear() })
+
+  // ---------- controls outside the canvas ----------
+  function bind() {
+    document.querySelectorAll('[data-bz-players]').forEach(b => b.addEventListener('click', () => { opts.players = +b.dataset.bzPlayers; sync(); restart() }))
+    document.querySelectorAll('[data-bz-skill]').forEach(b => b.addEventListener('click', () => { opts.skill = b.dataset.bzSkill; sync() }))
+    document.querySelectorAll('[data-bz-mode]').forEach(b => b.addEventListener('click', () => { opts.mode = b.dataset.bzMode; sync(); restart() }))
+    document.querySelectorAll('[data-bz-go]').forEach(b => b.addEventListener('click', () => {
+      opts.mode = 'solo'; opts.players = +b.dataset.bzGo; started = true; active = true; sync(); restart()
+      cv.focus({ preventScroll: true }); cv.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }))
+    document.querySelectorAll('[data-bz-opt]').forEach(c => c.addEventListener('change', () => {
+      opts[c.dataset.bzOpt] = c.checked
+      document.querySelectorAll('[data-bz-opt="' + c.dataset.bzOpt + '"]').forEach(o => { o.checked = c.checked })
+      if (!['sound', 'hints', 'avatars'].includes(c.dataset.bzOpt)) restart()
+    }))
+    document.querySelectorAll('[data-bz-try]').forEach(b => b.addEventListener('click', () => {
+      const on = b.dataset.bzTry.split(',')
+      for (const k of ['crumble', 'coins', 'shove', 'grab', 'haunt']) { opts[k] = on.includes(k); document.querySelectorAll('[data-bz-opt="' + k + '"]').forEach(o => { o.checked = opts[k] }) }
+      if (b.dataset.bzPlayersSet) opts.players = +b.dataset.bzPlayersSet
+      started = true; active = true; sync(); restart()
+      document.getElementById('play').scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }))
+    sync()
+  }
+  function sync() {
+    document.querySelectorAll('[data-bz-players]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.bzPlayers === opts.players)))
+    document.querySelectorAll('[data-bz-skill]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.bzSkill === opts.skill)))
+    document.querySelectorAll('[data-bz-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.bzMode === opts.mode)))
+  }
+  function restart() { const c = G.claimed; G = { claimed: started ? [true, opts.mode !== 'solo' && c[1], false, false] : [false, false, false, false] }; newMatch() }
+
+  function size() {
+    const dpr = Math.min(3, window.devicePixelRatio || 1), b = cv.getBoundingClientRect()
+    const w = Math.round(b.width * dpr), h = Math.round(b.width * dpr * H / W)
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h }
+  }
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000 || 0); last = now
+    size()
+    if (active || !started) { const steps = 2; for (let i = 0; i < steps; i++) update(dt / steps); if (!started && G.over && G.R.t <= 0) newMatch() } else { G.R.time += dt }
+    draw(); drawFigure(now / 1000)
+    requestAnimationFrame(frame)
+  }
+  newMatch(); bind()
+  // Section 3b figure: the same kit sprites, flat, stood up, and moving.
+  const av = document.getElementById('bz-av')
+  function drawFigure(t) {
+    if (!av || !SPRITES.length) return
+    const dpr = Math.min(3, window.devicePixelRatio || 1), b = av.getBoundingClientRect(), w = Math.round(b.width * dpr)
+    if (!w) return
+    if (av.width !== w) { av.width = w; av.height = Math.round(w * 200 / 720) }
+    const c = av.getContext('2d'); c.setTransform(av.width / 720, 0, 0, av.width / 720, 0, 0); c.imageSmoothingEnabled = false
+    c.fillStyle = K(246,248,236); c.fillRect(0, 0, 720, 200)
+    const label = (x, text) => { c.fillStyle = K(95,107,81); c.font = "8px 'Press Start 2P', ui-monospace, monospace"; c.textAlign = 'center'; c.fillText(text, x, 188) }
+    const sand = (x) => { c.fillStyle = K(232,222,192); c.beginPath(); c.roundRect(x - 104, 96, 208, 64, 8); c.fill(); c.strokeStyle = K(120,104,70,.3); c.strokeRect(x - 104.5, 96.5, 208, 64) }
+    // 1 flat kit art on a pixel grid
+    for (let i = 0; i < 4; i++) {
+      const x = 22 + i * 50
+      c.fillStyle = K(252,253,246); c.fillRect(x, 64, 48, 48); c.strokeStyle = K(185,195,165); c.strokeRect(x + .5, 64.5, 47, 47)
+      c.drawImage(SPRITES[i].idle.lit, x, 64, 48, 48)
+    }
+    label(120, '1 · PROFILE AVATAR, FLAT')
+    c.fillStyle = K(130,95,14); c.font = "16px 'Press Start 2P', ui-monospace, monospace"; c.textAlign = 'center'; c.fillText('>', 240, 96); c.fillText('>', 480, 96)
+    // 2 stood up: side + cast shadow
+    sand(360)
+    for (let i = 0; i < 4; i++) {
+      const x = 285 + i * 50, y = 140, k = 2, f = SPRITES[i].idle
+      c.fillStyle = K(40,50,30,.3); c.beginPath(); c.ellipse(x + 1, y, 15, 7, 0, 0, 6.283); c.fill()
+      c.save(); c.translate(x, y); c.globalAlpha = .2; c.transform(1, 0, -0.75, 0.42, 0, 0); c.drawImage(f.dark, -24, -46, 48, 48); c.restore()
+      for (const d of [1.5, 1, 0.5]) c.drawImage(f.side, x - 24 + d * k, y - 46 + d * k * 0.35, 48, 48)
+      c.drawImage(f.lit, x - 24, y - 46, 48, 48)
+    }
+    label(360, '2 · STOOD UP, WITH DEPTH')
+    // 3 alive: hop, flip, squash, cheer
+    sand(600)
+    const acts = ['run', 'cheer', 'hit', 'run']
+    for (let i = 0; i < 4; i++) {
+      const y = 140, k = 2, S = SPRITES[i], act = acts[i]
+      let x = 525 + i * 50, f = S.idle, flip = 1, sq = 0
+      if (act === 'run') { const ph = (t * 0.6 + i * 0.4) % 2; x += (ph < 1 ? ph : 2 - ph) * 30 - 15; flip = ph < 1 ? 1 : -1; f = S[['idle', 'hop1', 'hop2', 'hop1'][Math.floor(t * 8) % 4]] }
+      if (act === 'cheer') f = S[Math.floor(t * 6) % 2 ? 'cheer1' : 'cheer0']
+      if (act === 'hit') sq = Math.max(0, 1 - ((t * 0.7) % 1) * 2.2)
+      c.fillStyle = K(40,50,30,.3); c.beginPath(); c.ellipse(x + 1, y, 15, 7, 0, 0, 6.283); c.fill()
+      c.save(); c.translate(x, y); c.globalAlpha = .2; c.transform(1, 0, -0.75, 0.42, 0, 0); c.scale(flip, 1); c.drawImage(f.dark, -24, -46, 48, 48); c.restore()
+      c.save(); c.translate(x, y); if (sq > 0) c.rotate(Math.sin(t * 40) * 0.25 * sq); else if (act === 'run') c.rotate(flip * 0.1)
+      c.scale(flip * (1 + 0.3 * sq), 1 - 0.35 * sq)
+      for (const d of [1.5, 1, 0.5]) c.drawImage(f.side, -24 + d * k * flip, -46 + d * k * 0.35, 48, 48)
+      c.drawImage(f.lit, -24, -46, 48, 48); c.restore()
+    }
+    label(600, '3 · RUN, CHEER, GET HIT')
+  }
+  window.__bz = { freeze(v) { started = true; active = !v }, get G() { return G }, opts, start() { started = true; active = true; newMatch() }, step(dt) { update(dt) }, rules: { cellAt, laneLen, safeCells } }
+  requestAnimationFrame(frame)
+})()
+
+</script>
+</body>
+</html>
