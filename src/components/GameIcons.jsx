@@ -800,6 +800,18 @@ export function PuckRushIcon() {
   )
 }
 
+export function StickyFingersIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2.5" y="15" width="8" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <path d="M6.5 15C6.5 11 9 9 12 8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="16.5" cy="7" r="3.2" stroke="currentColor" strokeWidth="2" />
+      <path d="M16.5 5.6v2.8M15.4 7h2.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M13 12.5l3 2 3-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+    </svg>
+  )
+}
+
 export function ArtilleryIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

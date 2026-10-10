@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sticky Fingers: a grab-and-stash game for Game Night</title>
+<style>
+  @font-face { font-family: 'Press Start 2P'; src: url(data:font/woff2;base64,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) format('woff2'); font-display: swap; }
+  /* Page chrome uses Game Night's GLASS tokens (src/index.css [data-theme="glass"]). */
+  :root {
+    --bg: 238 240 226; --card: 252 253 246; --line: 185 195 165; --ink: 45 55 35; --dim: 84 96 70;
+    --p1: 70 121 47; --p2: 129 89 180; --p3: 175 55 115; --p4: 25 100 150; --cta: 130 95 14; --win: 38 123 66; --danger: 190 30 50;
+    --art1: 150 196 120; --art2: 186 160 232; --art3: 246 186 146; --art4: 140 196 232;
+    --pix: 'Press Start 2P', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; color: rgb(var(--ink)); font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: rgb(var(--bg));
+    background-image: radial-gradient(60% 40% at 8% 0%, rgb(var(--art1) / .55), transparent 70%), radial-gradient(50% 36% at 100% 8%, rgb(var(--art2) / .45), transparent 70%), radial-gradient(60% 40% at 90% 100%, rgb(var(--art4) / .45), transparent 70%), radial-gradient(50% 40% at 0% 90%, rgb(var(--art3) / .45), transparent 70%);
+    background-attachment: fixed; }
+  main { max-width: 1120px; margin: 0 auto; padding: 28px 16px 90px; }
+  h1 { font: 400 clamp(22px, 5.2vw, 40px)/1.25 var(--pix); margin: 10px 0 14px; letter-spacing: .02em; }
+  h2 { font: 400 15px/1.5 var(--pix); margin: 56px 0 6px; letter-spacing: .04em; text-transform: uppercase; }
+  h3 { font: 700 18px/1.3 inherit; margin: 0 0 6px; }
+  h4 { margin: 0 0 6px; font-size: 15px; }
+  p { margin: 0 0 10px; }
+  a { color: rgb(var(--p4)); }
+  .kicker { font: 400 9px/1.6 var(--pix); letter-spacing: .08em; color: rgb(var(--cta)); text-transform: uppercase; }
+  .lede { font-size: 19px; max-width: 780px; }
+  .sub { color: rgb(var(--dim)); max-width: 820px; margin-bottom: 14px; }
+  .glass { background: rgb(255 255 255 / .42); border: 1px solid rgb(255 255 255 / .8); border-radius: 18px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255), 0 8px 22px rgb(40 50 30 / .12); -webkit-backdrop-filter: blur(10px) saturate(1.5); backdrop-filter: blur(10px) saturate(1.5); }
+  .grid { display: grid; gap: 14px; }
+  .facts { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-top: 18px; }
+  .fact { padding: 12px 14px; min-width: 0; }
+  .fact b { display: block; font: 400 13px/1.5 var(--pix); margin-bottom: 4px; }
+  .fact span { color: rgb(var(--dim)); font-size: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .chip { font-size: 12.5px; border-radius: 999px; padding: 3px 10px; background: rgb(var(--ink) / .08); white-space: nowrap; }
+  .chip.ok { background: rgb(var(--win) / .16); color: rgb(24 86 44); } .chip.as { background: rgb(var(--cta) / .18); color: rgb(92 66 6); }
+  .chip.s { background: rgb(var(--win) / .16); color: rgb(24 86 44); } .chip.m { background: rgb(var(--cta) / .2); color: rgb(92 66 6); } .chip.l { background: rgb(var(--danger) / .14); color: rgb(130 20 36); }
+  .rec { border: 2px solid rgb(var(--win)); }
+  .tag { font: 400 8px/1 var(--pix); background: rgb(var(--win)); color: rgb(var(--card)); border-radius: 5px; padding: 5px 6px 4px; margin-left: 8px; vertical-align: 3px; white-space: nowrap; }
+
+  /* prototype */
+  .play { grid-template-columns: minmax(0, 396px) minmax(0, 1fr); gap: 26px; align-items: start; margin-top: 16px; }
+  .gn { --c-bg: 238 240 226; --c-surface: 246 248 236; --c-card: 252 253 246; --c-border: 185 195 165; --c-text: 45 55 35; --c-dim: 50 60 38;
+    --c-p1: 70 121 47; --c-p2: 129 89 180; --c-p3: 175 55 115; --c-p4: 25 100 150; --c-cta: 190 140 20; --c-win: 60 150 86; --c-danger: 190 30 50;
+    --c-felt1: 132 178 128; --c-felt2: 86 136 96; --c-rim: 246 248 236; --c-metal: 120 132 110; --c-ink: 30 38 24;
+    --c-art-1: 150 196 120; --c-art-2: 186 160 232; --c-art-3: 246 186 146; --c-art-4: 140 196 232; --g-a: .34; --rim: 255 255 255;
+    width: 100%; max-width: 396px; border: 7px solid rgb(28 34 24); border-radius: 38px; overflow: hidden; position: relative; color: rgb(var(--c-text));
+    background: rgb(var(--c-bg)); background-image: radial-gradient(70% 30% at 0% 0%, rgb(var(--c-art-1) / .8), transparent 70%), radial-gradient(70% 30% at 100% 0%, rgb(var(--c-art-2) / .7), transparent 70%), radial-gradient(70% 30% at 100% 100%, rgb(var(--c-art-4) / .7), transparent 70%), radial-gradient(70% 30% at 0% 100%, rgb(var(--c-art-3) / .7), transparent 70%);
+    font: 8px/1.5 var(--pix); letter-spacing: .04em; text-transform: uppercase; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .gn[data-theme="glass-night"] { --c-bg: 8 8 16; --c-surface: 15 15 26; --c-card: 236 238 255; --c-border: 56 56 106; --c-text: 16 18 34; --c-dim: 220 222 250;
+    --c-p1: 0 229 255; --c-p2: 255 64 129; --c-p3: 171 102 255; --c-p4: 255 158 44; --c-cta: 255 230 0; --c-win: 77 255 195; --c-danger: 255 45 45;
+    --c-felt1: 30 34 78; --c-felt2: 10 10 28; --c-rim: 74 74 138; --c-metal: 50 54 110; --c-ink: 4 4 12;
+    --c-art-1: 0 200 235; --c-art-2: 235 60 130; --c-art-3: 120 80 255; --c-art-4: 255 200 40; --g-a: .3; --rim: 200 210 255; }
+  .gn[data-theme="glass-night"] .bar, .gn[data-theme="glass-night"] .sheet { color: rgb(236 238 255); background: rgb(16 18 34 / .5); }
+  .gn[data-theme="matcha"] { --c-felt1: 176 206 150; --c-felt2: 132 172 116; --c-rim: 185 195 165; --c-cta: 170 124 18; background-image: linear-gradient(rgb(var(--c-border) / .22) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--c-border) / .22) 1px, transparent 1px); background-size: 3px 3px; }
+  .gn[data-theme="matcha"] .bar, .gn[data-theme="matcha"] .sheet { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--c-card)); border: 1px solid rgb(var(--c-border)); box-shadow: 0 3px 0 rgb(160 170 140); border-radius: 4px; }
+  .gn .bar { display: flex; align-items: center; gap: 8px; margin: 10px 10px 8px; padding: 9px 12px; border-radius: 14px; background: rgb(255 255 255 / var(--g-a)); border: 1px solid rgb(var(--rim) / .5);
+    box-shadow: inset 0 1px 0 rgb(var(--rim) / .9), 0 6px 16px rgb(0 0 0 / .14); -webkit-backdrop-filter: blur(6px) saturate(1.8); backdrop-filter: blur(6px) saturate(1.8); }
+  .gn .bar b { font-weight: 400; font-size: 9px; } .gn .bar span { margin-left: auto; font-size: 6px; opacity: .8; }
+  .gn .stage { position: relative; margin: 0 10px 12px; }
+  .gn canvas { display: block; width: 100%; aspect-ratio: 360 / 560; touch-action: none; border-radius: 22px; cursor: grab; box-shadow: 0 10px 24px rgb(0 0 0 / .28); }
+  .gn canvas:active { cursor: grabbing; }
+  .gn .sheet { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(84%, 270px); padding: 16px 14px; border-radius: 18px; text-align: center;
+    background: rgb(255 255 255 / .62); border: 1px solid rgb(var(--rim) / .7); box-shadow: inset 0 1px 0 rgb(var(--rim)), 0 14px 34px rgb(0 0 0 / .3); -webkit-backdrop-filter: blur(12px) saturate(1.8); backdrop-filter: blur(12px) saturate(1.8);
+    animation: pop .32s cubic-bezier(.2, 1.4, .4, 1); }
+  .gn .sheet[hidden] { display: none; }
+  .gn .sheet h4 { font: 400 12px/1.5 var(--pix); margin: 0 0 8px; }
+  .gn .sheet p { font-size: 7px; line-height: 1.9; margin: 0 0 12px; }
+  .gn .sheet ol { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 5px; }
+  .gn .sheet li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left; padding: 6px 8px; border-radius: 8px; background: rgb(var(--sc) / .16); border-left: 4px solid rgb(var(--sc)); font-size: 8px; }
+  .gn .sheet li i { font-style: normal; } .gn .sheet li b { font-weight: 400; } .gn .sheet li span { font-size: 11px; }
+  .gn .sheet button { font: 400 10px/1 var(--pix); letter-spacing: .04em; color: rgb(20 24 14); background: rgb(var(--c-cta)); border: 0; border-radius: 10px; padding: 12px 16px 10px; cursor: pointer; box-shadow: 0 4px 0 rgb(0 0 0 / .3); transition: transform .08s; }
+  .gn .sheet button:active { transform: scale(.96) translateY(2px); }
+  @keyframes pop { from { transform: translate(-50%, -50%) scale(.85); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .gn .sheet { animation: none; } html { scroll-behavior: auto; } }
+
+  .panel { padding: 16px 18px; min-width: 0; }
+  .ctl { display: grid; gap: 12px; margin: 12px 0 0; }
+  .row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: center; }
+  .row > span { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: rgb(var(--dim)); }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button, .try { font: 600 13px/1 inherit; color: rgb(var(--ink)); background: rgb(255 255 255 / .6); border: 1px solid rgb(var(--line)); border-radius: 10px; padding: 9px 11px; cursor: pointer; transition: transform .08s, background-color .15s; }
+  .seg button:active, .try:active { transform: scale(.96); }
+  .seg button[aria-pressed="true"] { background: rgb(var(--ink)); color: rgb(var(--card)); border-color: rgb(var(--ink)); }
+  .try { background: rgb(var(--win)); color: #fff; border-color: transparent; margin-top: 8px; }
+  .how { counter-reset: c; list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; }
+  .how li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; counter-increment: c; font-size: 15px; }
+  .how li::before { content: counter(c); width: 24px; height: 24px; border-radius: 50%; background: rgb(var(--ink)); color: rgb(var(--card)); font: 700 12px/24px ui-monospace, monospace; text-align: center; }
+  .note { font-size: 13.5px; color: rgb(var(--dim)); margin-top: 10px; }
+
+  .cards { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); margin-top: 14px; }
+  .rule svg, .seat svg, .fig svg { display: block; width: 100%; height: auto; border-radius: 12px; margin-bottom: 10px; }
+  .rule p, .tw p, .seat p { font-size: 14.5px; margin: 0; }
+  .tw dl { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 5px 10px; margin: 8px 0 0; font-size: 14px; }
+  .tw dt { font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: rgb(var(--dim)); padding-top: 3px; } .tw dd { margin: 0; }
+  .two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-top: 1px solid rgb(var(--line) / .7); vertical-align: top; }
+  thead th { border-top: 0; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: rgb(var(--dim)); }
+  .scroll { overflow-x: auto; }
+  ul.tight { margin: 0; padding-left: 18px; } ul.tight li { margin-bottom: 5px; font-size: 14.5px; }
+  form.pick { padding: 18px; margin-top: 14px; border: 2px solid rgb(var(--ink)); }
+  fieldset { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
+  legend { font-weight: 700; padding: 0; margin-bottom: 6px; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 14px; }
+  .opts label { display: flex; gap: 8px; align-items: flex-start; padding: 6px 4px; font-size: 15px; }
+  input[type=checkbox], input[type=radio] { width: 18px; height: 18px; margin-top: 2px; accent-color: rgb(var(--win)); flex: none; }
+  input[type=text], textarea { width: 100%; border: 1px solid rgb(var(--line)); border-radius: 10px; padding: 9px 10px; font: inherit; background: #fff; }
+  textarea { min-height: 70px; }
+  .send { font: 700 15px/1 inherit; background: rgb(var(--win)); color: #fff; border: 0; border-radius: 10px; padding: 13px 18px; cursor: pointer; }
+  #queued { margin-left: 10px; color: rgb(var(--win)); font-size: 14px; font-weight: 700; }
+  /* svg palette */
+  .f1 { fill: rgb(132 178 128); } .f2 { fill: rgb(86 136 96); } .ink { fill: rgb(30 38 24); } .sk { stroke: rgb(30 38 24); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .a1 { stroke: rgb(var(--p1)); } .a2 { stroke: rgb(var(--p2)); } .a3 { stroke: rgb(var(--p3)); } .a4 { stroke: rgb(var(--p4)); }
+  .c1 { fill: rgb(var(--p1)); } .c2 { fill: rgb(var(--p2)); } .c3 { fill: rgb(var(--p3)); } .c4 { fill: rgb(var(--p4)); }
+  .gold { fill: rgb(214 164 30); } .bill { fill: rgb(60 150 86); } .wh { fill: rgb(var(--card)); } .red { fill: rgb(var(--danger)); }
+  .lab { font: 700 11px ui-sans-serif, system-ui, sans-serif; fill: rgb(252 253 246); } .labd { font: 700 11px ui-sans-serif, system-ui, sans-serif; fill: rgb(30 38 24); }
+  @media (max-width: 860px) { .play { grid-template-columns: minmax(0, 1fr); justify-items: center; } .row { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+</style>
+</head>
+<body>
+<main>
+
+<span class="kicker">Game Night design study · one of eight · source mechanic: “Money Grabber”</span>
+<h1>STICKY FINGERS</h1>
+<p class="lede">Loot drops on the table. Everyone reaches out of their own safe with a stretchy arm, drags it home and stashes it. Two hands on one bill rips it in half; two hands on one coin and the longer arm loses its grip.</p>
+<p class="sub">This is Game Night's own take on the drag-money-to-your-safe mini-game: the same finger-wrestling on one screen, plus a grip rule that makes it fair and a reason to look before you grab. Play it below against bots or with a friend on a touch screen.</p>
+
+<div class="grid facts">
+  <div class="fact glass"><b>2 – 4 PLAYERS</b><span>One phone for 2 to 4, solo against 1 to 3 bots, online duel. Online for 3 to 4 is a second step.</span></div>
+  <div class="fact glass"><b>60 SECONDS</b><span>One timed heist. Most loot wins. A tie goes to the next coin.</span></div>
+  <div class="fact glass"><b>NEW FOR GAME NIGHT</b><span>The first game where 3 or 4 people play at the same moment on one phone.</span></div>
+  <div class="fact glass rec"><b>MY PICK FOR V1</b><span>Core game with <b style="display:inline;font:inherit;font-weight:700">Dye Packs</b> and <b style="display:inline;font:inherit;font-weight:700">Last Call</b>. Build size: medium for one phone and solo, large with the online duel.</span></div>
+</div>
+
+<h2 id="play">Play it</h2>
+<p class="sub">The table is live: the bots are playing each other until you press PLAY. With a mouse you have one hand. On a touch screen each finger is a hand.</p>
+
+<div class="grid play">
+  <div class="gn" id="gn" data-theme="glass">
+    <div class="bar"><b>STICKY FINGERS</b><span>HEIST · 60 S</span></div>
+    <div class="stage">
+      <canvas id="table" width="720" height="1120" data-lavish-action aria-label="Playable Sticky Fingers table"></canvas>
+      <div class="sheet" id="start">
+        <h4>STICKY FINGERS</h4>
+        <p>Drag loot into your safe.<br>Coin 1 · Bill 3 · Gem 5<br>A blinking pack costs 3.</p>
+        <button type="button">PLAY</button>
+      </div>
+      <div class="sheet" id="end" hidden>
+        <h4>YOU WIN</h4>
+        <ol></ol>
+        <button type="button">PLAY AGAIN</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel glass">
+    <h3>How to play</h3>
+    <ol class="how">
+      <li><span><b>Press on the table</b> and your arm shoots out of your safe to your finger. Touch loot to grab it.</span></li>
+      <li><span><b>Drag it into your safe</b>, or let go mid-swing to <b>flick</b> it home. A flick can be intercepted.</span></li>
+      <li><span><b>Fight for it.</b> Two hands on a bill: pull apart and it rips, 1 point each instead of 3. Two hands on a coin or gem: the more stretched arm slips after a moment.</span></li>
+      <li><span><b>Read before you grab.</b> A pack with a blinking light is a dye pack: minus 3 and your hands are useless for a moment. Flick it into a rival's safe instead.</span></li>
+    </ol>
+    <div class="ctl">
+      <div class="row"><span>Players</span><div class="seg"><button type="button" data-set="n:2">2</button><button type="button" data-set="n:3">3</button><button type="button" data-set="n:4">4</button></div></div>
+      <div class="row"><span>Who</span><div class="seg"><button type="button" data-set="humans:one">ME VS BOTS</button><button type="button" data-set="humans:all">ALL HUMANS, ONE SCREEN</button></div></div>
+      <div class="row"><span>Bots</span><div class="seg"><button type="button" data-set="level:easy">EASY</button><button type="button" data-set="level:normal">NORMAL</button><button type="button" data-set="level:hard">HARD</button></div></div>
+      <div class="row"><span>Twists</span><div class="seg"><button type="button" data-toggle="dye">DYE PACKS</button><button type="button" data-toggle="lastcall">LAST CALL</button><button type="button" data-toggle="spot">SPOTLIGHT</button><button type="button" data-toggle="slap">ARM SLAP</button></div></div>
+      <div class="row"><span>Look</span><div class="seg"><button type="button" data-theme-set="glass">GLASS</button><button type="button" data-theme-set="glass-night">GLASS NIGHT</button><button type="button" data-theme-set="matcha">MATCHA</button><button type="button" data-toggle="sound">SOUND</button></div></div>
+    </div>
+    <p class="note" id="touchnote"></p>
+    <p class="note">Changing a setting restarts the round. Every colour on the table comes from the theme's tokens, which is why the three looks work without redrawing anything.</p>
+  </div>
+</div>
+
+<h2>How the source game plays</h2>
+<p class="sub">Studied from gameplay videos of the publisher's two apps and the store listing. Nothing was installed or decompiled, and no art, sound, name or code is reused: the figure below is my own drawing of the mechanic.</p>
+<div class="grid two">
+  <div class="panel glass fig">
+    <svg viewBox="0 0 420 250" role="img" aria-label="Diagram: two safes at opposite edges, arms reaching to a bill and a coin in the middle">
+      <rect width="420" height="250" rx="14" class="f2"/><rect x="6" y="6" width="408" height="238" rx="10" class="f1"/>
+      <rect x="14" y="98" width="52" height="54" rx="8" class="c1"/><circle cx="40" cy="125" r="10" class="wh"/>
+      <rect x="354" y="98" width="52" height="54" rx="8" class="c2"/><circle cx="380" cy="125" r="10" class="wh"/>
+      <path d="M66 120 Q120 96 176 104" class="sk a1" style="stroke-width:9"/><path d="M354 120 Q300 92 236 104" class="sk a2" style="stroke-width:9"/>
+      <rect x="176" y="92" width="62" height="26" rx="4" class="bill"/><path d="M206 92 l4 7 -6 6 5 6 -3 7" class="sk"/>
+      <circle cx="176" cy="105" r="9" class="wh"/><circle cx="238" cy="105" r="9" class="wh"/>
+      <path d="M354 132 Q300 170 262 176" class="sk a2" style="stroke-width:9"/><circle cx="250" cy="178" r="12" class="gold"/><circle cx="262" cy="176" r="9" class="wh"/>
+      <circle cx="130" cy="196" r="12" class="gold"/><path d="M118 180 l3 4M142 180 l-3 4M130 174 v5" class="sk" style="stroke:rgb(214 164 30)"/>
+      <text x="207" y="80" text-anchor="middle" class="lab">both pull: the bill tears</text>
+      <text x="286" y="206" text-anchor="middle" class="lab">dragged home: it scores</text>
+      <text x="130" y="228" text-anchor="middle" class="lab">loot pops in with a sparkle</text>
+      <text x="40" y="88" text-anchor="middle" class="lab">safe</text><text x="380" y="88" text-anchor="middle" class="lab">safe</text>
+    </svg>
+    <p class="note">One screen, a safe per player at the edge. A finger on the table grows an arm from your safe; every finger is another arm.</p>
+  </div>
+  <div class="panel glass">
+    <div class="scroll"><table>
+      <thead><tr><th>What</th><th>Finding</th><th>How sure</th></tr></thead>
+      <tbody>
+        <tr><td>Goal</td><td>“Drag the money to your safe box using all the fingers of your hand!” (the game's own instruction card)</td><td><span class="chip ok">seen in video</span></td></tr>
+        <tr><td>Controls</td><td>Touch and drag. Each finger gets its own arm from your safe.</td><td><span class="chip ok">seen in video</span></td></tr>
+        <tr><td>Loot</td><td>Gold coins and green bills, 1 to 3 on the table, popping in at random spots.</td><td><span class="chip ok">seen in video</span></td></tr>
+        <tr><td>Contest</td><td>Two players on one bill tear it and the halves fade. Two on a coin lock together until one gets it.</td><td><span class="chip ok">seen</span> <span class="chip as">who wins a coin: unclear</span></td></tr>
+        <tr><td>Scoring</td><td>A counter beside each safe. A bill moved a score from 7 to 10 and from 13 to 16, a coin adds 1.</td><td><span class="chip as">bill = 3 inferred</span></td></tr>
+        <tr><td>Ending</td><td>The round ended at 16 with medals for 1st and 2nd; the two-player app shows a full-screen winner.</td><td><span class="chip as">target near 15 inferred</span></td></tr>
+        <tr><td>Solo</td><td>“VS AI” with a difficulty slider.</td><td><span class="chip ok">seen in video</span></td></tr>
+        <tr><td>3 and 4 players</td><td>No footage found of this mini-game with more than two.</td><td><span class="chip as">not confirmed</span></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</div>
+<div class="grid two">
+  <div class="panel glass"><h4>What makes it fun</h4><ul class="tight">
+    <li>It is physical: fingers collide on the glass, and you can block a path with your hand.</li>
+    <li>Tearing a bill out of spite is funnier than winning it.</li>
+    <li>Zero rules to learn. The instruction is one sentence.</li></ul></div>
+  <div class="panel glass"><h4>What is weak</h4><ul class="tight">
+    <li>No reason to look: every item is good, so the best play is to mash.</li>
+    <li>Unlimited fingers favours big hands, and fingers hide the loot.</li>
+    <li>Reviews of the app say hard bots get “an unfair advantage” rather than playing better, and that games come with no explanation.</li>
+    <li>One device only. There is no way to play it with someone who is not in the room.</li></ul></div>
+</div>
+
+<h2>Game Night's version: the rules</h2>
+<p class="sub">Six rules, each one visible on the table. The first two are the source's idea; the rest are what make it Game Night's.</p>
+<div class="grid cards">
+  <div class="panel glass rule">
+    <svg viewBox="0 0 240 120"><rect width="240" height="120" rx="12" class="f1"/><rect x="10" y="38" width="44" height="44" rx="7" class="c1"/><circle cx="32" cy="60" r="8" class="wh"/><path d="M54 60 Q110 40 164 58" class="sk a1" style="stroke-width:9"/><circle cx="178" cy="60" r="13" class="gold"/><circle cx="166" cy="60" r="9" class="wh"/><path d="M196 46 l5 -6M200 60 h8M196 74 l5 6" class="sk" style="stroke:rgb(252 253 246)"/></svg>
+    <h4>1 · Reach and grab</h4><p>Press the table: your arm shoots to your finger and follows it exactly. An empty hand grabs the first loot it touches.</p>
+  </div>
+  <div class="panel glass rule">
+    <svg viewBox="0 0 240 120"><rect width="240" height="120" rx="12" class="f1"/><rect x="10" y="38" width="44" height="44" rx="7" class="c1"/><circle cx="32" cy="60" r="8" class="wh"/><rect x="40" y="76" width="28" height="12" rx="5" class="ink"/><path d="M150 60 H74" class="sk" style="stroke:rgb(252 253 246);stroke-dasharray:5 6"/><path d="M82 52 l-9 8 9 8" class="sk" style="stroke:rgb(252 253 246)"/><rect x="150" y="48" width="40" height="24" rx="4" class="bill"/><circle cx="170" cy="60" r="6" class="wh"/></svg>
+    <h4>2 · Stash or flick</h4><p>Loot scores the moment it enters a safe. Let go mid-swing and it keeps sliding: a flick home is faster, but anyone can catch it.</p>
+  </div>
+  <div class="panel glass rule">
+    <svg viewBox="0 0 240 120"><rect width="240" height="120" rx="12" class="f1"/><path d="M0 46 Q50 40 92 56" class="sk a1" style="stroke-width:9"/><path d="M240 46 Q190 40 148 56" class="sk a2" style="stroke-width:9"/><path d="M92 46 h22 l5 6 -5 6 5 6 -4 6 h-23z" class="bill"/><path d="M148 46 h-20 l5 6 -5 6 5 6 -4 6 h19z" class="bill"/><circle cx="92" cy="60" r="9" class="wh"/><circle cx="148" cy="60" r="9" class="wh"/><text x="120" y="100" text-anchor="middle" class="lab">3 becomes 1 + 1</text></svg>
+    <h4>3 · Paper rips</h4><p>Two hands on a bill stretch it. Pull apart and it tears: each side carries home a half worth 1. Ripping is how you deny the leader.</p>
+  </div>
+  <div class="panel glass rule">
+    <svg viewBox="0 0 240 120"><rect width="240" height="120" rx="12" class="f1"/><rect x="6" y="40" width="36" height="40" rx="6" class="c1"/><rect x="198" y="40" width="36" height="40" rx="6" class="c2"/><path d="M42 60 H74" class="sk a1" style="stroke-width:11"/><path d="M198 60 H98" class="sk a2" style="stroke-width:4"/><circle cx="86" cy="60" r="13" class="gold"/><circle cx="74" cy="60" r="9" class="wh"/><circle cx="100" cy="60" r="8" class="wh"/><text x="60" y="100" text-anchor="middle" class="lab">short = strong</text><text x="160" y="100" text-anchor="middle" class="lab">long = weak</text></svg>
+    <h4>4 · Metal slips</h4><p>Coins and gems cannot tear. The arm stretched further from its own safe has the weaker grip, and it thins as it stretches so you can see it. After a third of a second the weaker hand slips.</p>
+  </div>
+  <div class="panel glass rule">
+    <svg viewBox="0 0 240 120"><rect width="240" height="120" rx="12" class="f1"/><circle cx="46" cy="60" r="14" class="gold"/><text x="46" y="98" text-anchor="middle" class="lab">coin 1</text><rect x="86" y="46" width="44" height="28" rx="4" class="bill"/><circle cx="108" cy="60" r="7" class="wh"/><text x="108" y="98" text-anchor="middle" class="lab">bill 3</text><path d="M176 76 l-16 -20 8 -10 h16 l8 10z" class="c3"/><text x="176" y="98" text-anchor="middle" class="lab">gem 5, heavy</text></svg>
+    <h4>5 · Three kinds of loot</h4><p>Coin 1, bill 3, gem 5. A gem is heavy: it drags behind your finger, so it stays stealable for longer.</p>
+  </div>
+  <div class="panel glass rule">
+    <svg viewBox="0 0 240 120"><rect width="240" height="120" rx="12" class="f1"/><circle cx="120" cy="56" r="34" fill="none" stroke="rgb(252 253 246 / .5)" stroke-width="3"/><path d="M120 22 A34 34 0 0 1 154 56" class="sk" style="stroke:rgb(214 164 30);stroke-width:6"/><text x="120" y="62" text-anchor="middle" class="lab" style="font-size:18px">10</text><text x="120" y="108" text-anchor="middle" class="lab">60 s · most loot wins · tie: next coin</text></svg>
+    <h4>6 · One timed heist</h4><p>Sixty seconds on a clock in the middle of the table that every seat can read. Loot arrives faster as it runs down. A tie is settled by the next coin.</p>
+  </div>
+</div>
+<p class="note">Why a clock instead of the source's race to a target: everyone finishes together, the length is known (one minute), and a late swing is still possible. All the numbers here are starting values to tune in playtests, not settled facts.</p>
+
+<h2>Seats, hands and where it runs</h2>
+<div class="grid cards">
+  <div class="panel glass seat">
+    <svg viewBox="0 0 240 150"><rect x="78" y="6" width="84" height="138" rx="12" class="f1"/><rect x="104" y="12" width="32" height="20" rx="5" class="c2"/><rect x="104" y="118" width="32" height="20" rx="5" class="c1"/><path d="M112 118 Q104 90 110 76M128 118 Q138 96 132 84" class="sk a1" style="stroke-width:5"/><path d="M112 32 Q102 50 112 62M128 32 Q140 48 130 60" class="sk a2" style="stroke-width:5"/><text x="120" y="78" text-anchor="middle" class="lab">2 hands each</text></svg>
+    <h4>Two players</h4><p>Safes at the two short ends, two hands each. This is the duel, and the only seating that also runs online in v1.</p>
+  </div>
+  <div class="panel glass seat">
+    <svg viewBox="0 0 240 150"><rect x="78" y="6" width="84" height="138" rx="12" class="f1"/><rect x="82" y="10" width="28" height="18" rx="5" class="c2"/><rect x="130" y="10" width="28" height="18" rx="5" class="c3"/><rect x="106" y="122" width="28" height="18" rx="5" class="c1"/><path d="M120 122 Q116 96 120 80" class="sk a1" style="stroke-width:5"/><path d="M96 28 Q100 50 112 62" class="sk a2" style="stroke-width:5"/><path d="M144 28 Q140 50 128 62" class="sk a3" style="stroke-width:5"/></svg>
+    <h4>Three players</h4><p>One safe at the bottom, two in the top corners. One hand each.</p>
+  </div>
+  <div class="panel glass seat">
+    <svg viewBox="0 0 240 150"><rect x="78" y="6" width="84" height="138" rx="12" class="f1"/><rect x="82" y="10" width="28" height="18" rx="5" class="c3"/><rect x="130" y="10" width="28" height="18" rx="5" class="c2"/><rect x="82" y="122" width="28" height="18" rx="5" class="c1"/><rect x="130" y="122" width="28" height="18" rx="5" class="c4"/><path d="M96 122 Q100 100 112 88" class="sk a1" style="stroke-width:5"/><path d="M144 122 Q140 100 128 88" class="sk a4" style="stroke-width:5"/><path d="M96 28 Q100 50 112 62" class="sk a3" style="stroke-width:5"/><path d="M144 28 Q140 50 128 62" class="sk a2" style="stroke-width:5"/></svg>
+    <h4>Four players</h4><p>A safe in each corner, one hand each, so fingers come in diagonally and hide less of the middle. <button type="button" class="try" data-try="four">Try 4 players</button></p>
+  </div>
+</div>
+<div class="grid two">
+  <div class="panel glass">
+    <h4>Why “two hands, or one”, not “all your fingers”</h4>
+    <p style="font-size:14.5px">The source lets you use every finger. Capping it keeps the table readable and stops the biggest hand winning. It also fits the hardware: iPhones are widely reported to track five touches at once and to cancel all of them on a sixth, so four players can only have one each. That limit should be confirmed on a real iPhone before the build.</p>
+  </div>
+  <div class="panel glass">
+    <div class="scroll"><table>
+      <thead><tr><th>Where</th><th>Players</th><th>How</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td>One phone</td><td>2 – 4</td><td>One local sim, a touch belongs to the nearest safe. No network.</td><td><span class="chip s">small</span></td></tr>
+        <tr><td>Solo</td><td>1 + 1 to 3 bots</td><td>Same sim. Bots have the same reach and speed limits as a player; harder bots react sooner and never grab a dye pack.</td><td><span class="chip s">small</span></td></tr>
+        <tr><td>Online duel</td><td>2</td><td>The existing peer-to-peer transport that Puck Rush and Air Hockey use: the host runs the table, the guest's own hand moves at once.</td><td><span class="chip m">medium</span></td></tr>
+        <tr><td>Online 3 – 4</td><td>3 – 4</td><td>Today's transport links exactly two players. Needs a host-to-many version first.</td><td><span class="chip l">large</span></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+<h2>Twists</h2>
+<p class="sub">Five ways to make it more than a clone. Four are playable in the table above: each button switches that twist on by itself and starts a round.</p>
+<div class="grid cards">
+  <div class="panel glass tw rec">
+    <h3>Dye Packs <span class="tag">SHIP FIRST</span></h3>
+    <p>One drop in ten is a banded pack with a blinking light. Stash it and you lose 3 and your hands are useless for a moment and a half. Flick it into a rival's safe and it is theirs.</p>
+    <dl><dt>Why</dt><dd>Gives a reason to look before grabbing, and turns flicking into an attack.</dd><dt>Risk</dt><dd>In a four-player game everyone may dump on the leader. The 3-point cost is small on purpose.</dd><dt>Cost</dt><dd><span class="chip s">small</span></dd></dl>
+    <button type="button" class="try" data-try="dye">Try Dye Packs</button>
+  </div>
+  <div class="panel glass tw rec">
+    <h3>Last Call <span class="tag">SHIP FIRST</span></h3>
+    <p>For the final 10 seconds the table sprays loot and everything is worth double. The clock turns gold.</p>
+    <dl><dt>Why</dt><dd>A comeback is always possible, and the round ends on its loudest moment.</dd><dt>Risk</dt><dd>The first 50 seconds can feel like they matter less. If playtests say so, shorten it or drop the multiplier to 1.5.</dd><dt>Cost</dt><dd><span class="chip s">small</span></dd></dl>
+    <button type="button" class="try" data-try="lastcall">Try Last Call (starts at 14 s)</button>
+  </div>
+  <div class="panel glass tw">
+    <h3>Arm Slap</h3>
+    <p>Tap a rival's stretched arm while it is carrying and it drops the loot and is stunned briefly. One slap per second.</p>
+    <dl><dt>Why</dt><dd>Long reaches become a real risk, which rewards playing your own half.</dd><dt>Risk</dt><dd>More chaos, and accidental slaps when fingers cross on one phone. Needs a clear miss-tap rule.</dd><dt>Cost</dt><dd><span class="chip s">small</span></dd></dl>
+    <button type="button" class="try" data-try="slap">Try Arm Slap</button>
+  </div>
+  <div class="panel glass tw">
+    <h3>Spotlight</h3>
+    <p>A guard's light patrols the table. Carry loot through it for a third of a second and you are caught: you drop it and freeze. Empty hands are safe.</p>
+    <dl><dt>Why</dt><dd>Adds timing and routes to a game that is otherwise pure speed.</dd><dt>Risk</dt><dd>One more thing on a small screen with four players. Better as an optional mode than the default.</dd><dt>Cost</dt><dd><span class="chip m">small to medium</span></dd></dl>
+    <button type="button" class="try" data-try="spot">Try Spotlight</button>
+  </div>
+  <div class="panel glass tw">
+    <h3>Clean Sweep (co-op)</h3>
+    <p>Everyone against the clock. Loot is colour-tagged and only scores in the matching safe, so you pass it across the table by flicking. Three wrong stashes trip the alarm.</p>
+    <dl><dt>Why</dt><dd>The same table becomes a team game, which Game Night already does with Updraft Co-op and Pulp Harvest.</dd><dt>Risk</dt><dd>A second ruleset to teach and balance. Not in the prototype.</dd><dt>Cost</dt><dd><span class="chip m">medium</span></dd></dl>
+  </div>
+</div>
+
+<h2>Where it sits in Game Night</h2>
+<div class="grid two">
+  <div class="panel glass">
+    <div class="scroll"><table>
+      <thead><tr><th>Closest game</th><th>Shared</th><th>Different</th></tr></thead>
+      <tbody>
+        <tr><td>Puck Rush</td><td>Drag to play, two on one phone, online duel.</td><td>Each player has their own pucks. Nothing is contested.</td></tr>
+        <tr><td>Air Hockey</td><td>Real-time, host runs the table.</td><td>One object, no grabbing, two players only.</td></tr>
+        <tr><td>Chop Chop, Pulp Rush</td><td>One-minute reflex round for 2 to 8.</td><td>Everyone plays their own copy of the course and compares scores.</td></tr>
+        <tr><td>Paint Turf</td><td>Fighting over shared ground.</td><td>Steering, not grabbing; two players.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">No current game has several players pulling on the same object, and none seats three or four around one phone at the same moment.</p>
+  </div>
+  <div class="panel glass">
+    <h4>What the build needs</h4>
+    <ul class="tight">
+      <li>A pure sim module with tests: loot, hands, grip, tear, slip, flick, scoring, and the bot.</li>
+      <li>A table renderer on canvas, drawn from theme tokens. It needs four new art tokens (two felt shades, rim, metal) per theme, or a mix of existing ones.</li>
+      <li>A one-phone page for 2 to 4 and a solo page with bot levels, following the Puck Rush pattern.</li>
+      <li>An online duel page on the existing host and guest hooks, with a small snapshot format for hands and loot.</li>
+      <li>Registry entry, icon, HOW TO PLAY text, sounds and a two-client test. No database rule changes for the duel.</li>
+    </ul>
+    <div class="chips"><span class="chip s">one phone + solo: medium</span><span class="chip m">+ online duel: large in total</span><span class="chip l">online 3 – 4: separate project</span></div>
+  </div>
+</div>
+
+<h2 id="decide">Decisions I need</h2>
+<form class="pick glass" data-lavish-question="sticky-fingers-decisions" onsubmit="event.preventDefault(); var f = event.currentTarget, d = new FormData(f); var name = d.get('name') === 'other' ? (d.get('othername') || 'other (not given)') : d.get('name'); var tw = d.getAll('twists'); var a = { name: name, scope: d.get('scope'), twists: tw, hands: d.get('hands'), round: d.get('round'), notes: (d.get('notes') || '').trim() }; var text = 'Sticky Fingers decisions. Name: ' + a.name + '. V1 scope: ' + a.scope + '. Twists in v1: ' + (tw.length ? tw.join(', ') : 'none') + '. Hands: ' + a.hands + '. Round: ' + a.round + '.' + (a.notes ? ' Notes: ' + a.notes : ''); if (window.lavish && window.lavish.queuePrompt) { window.lavish.queuePrompt(text, { tag: 'choice', text: 'Sticky Fingers: name, scope, twists', element: f, queueKey: 'sticky-fingers-decisions', data: { question: 'sticky-fingers-decisions', answer: a } }); document.getElementById('queued').textContent = 'Queued. Press Send to Agent when you are done.'; } else { document.getElementById('queued').textContent = 'Not inside Lavish: ' + text; }">
+  <fieldset><legend>1 · Name</legend>
+    <div class="opts">
+      <label><input type="radio" name="name" value="STICKY FINGERS" checked> <span><b>STICKY FINGERS</b> (my pick): says what you do and sounds like mischief.</span></label>
+      <label><input type="radio" name="name" value="STASH DASH"> <span><b>STASH DASH</b>: friendlier, no crime joke.</span></label>
+      <label><input type="radio" name="name" value="SNATCH"> <span><b>SNATCH</b>: shortest on a tile.</span></label>
+      <label><input type="radio" name="name" value="other"> <span>Something else: <input type="text" name="othername" placeholder="your name for it" aria-label="Other name"></span></label>
+    </div>
+  </fieldset>
+  <fieldset><legend>2 · What ships in v1</legend>
+    <div class="opts">
+      <label><input type="radio" name="scope" value="one phone 2-4, solo bots, online duel" checked> <span><b>One phone 2 – 4, solo bots, online duel</b> (my pick). Large in total.</span></label>
+      <label><input type="radio" name="scope" value="one phone 2-4 and solo bots only"> <span><b>One phone and solo only.</b> Medium. Online comes later.</span></label>
+      <label><input type="radio" name="scope" value="everything including online 3-4"> <span><b>Everything, including online for 3 – 4.</b> Needs the new host-to-many transport first.</span></label>
+    </div>
+  </fieldset>
+  <fieldset><legend>3 · Twists in v1</legend>
+    <div class="opts">
+      <label><input type="checkbox" name="twists" value="Dye Packs" checked> <span><b>Dye Packs</b> (recommended)</span></label>
+      <label><input type="checkbox" name="twists" value="Last Call" checked> <span><b>Last Call</b> (recommended)</span></label>
+      <label><input type="checkbox" name="twists" value="Arm Slap"> <span><b>Arm Slap</b></span></label>
+      <label><input type="checkbox" name="twists" value="Spotlight"> <span><b>Spotlight</b>, as an optional mode</span></label>
+      <label><input type="checkbox" name="twists" value="Clean Sweep co-op"> <span><b>Clean Sweep</b> co-op variant</span></label>
+    </div>
+  </fieldset>
+  <fieldset><legend>4 · Hands per player</legend>
+    <div class="opts">
+      <label><input type="radio" name="hands" value="two in a duel, one with 3-4" checked> <span><b>Two in a duel, one with 3 – 4</b> (my pick)</span></label>
+      <label><input type="radio" name="hands" value="one hand always"> <span><b>One hand always</b>: simplest to explain.</span></label>
+    </div>
+  </fieldset>
+  <fieldset><legend>5 · How a round ends</legend>
+    <div class="opts">
+      <label><input type="radio" name="round" value="60 second clock" checked> <span><b>60-second clock</b>, most loot wins (my pick)</span></label>
+      <label><input type="radio" name="round" value="first to 15"> <span><b>First to 15</b>, like the source.</span></label>
+    </div>
+  </fieldset>
+  <fieldset><legend>Anything else</legend><textarea name="notes" placeholder="What felt wrong in the prototype, what to change, what to drop"></textarea></fieldset>
+  <button type="submit" class="send">Queue these answers</button><span id="queued" role="status"></span>
+</form>
+
+<h2>Sources and what was left out</h2>
+<div class="panel glass">
+  <ul class="tight">
+    <li><a href="https://play.google.com/store/apps/details?id=com.JindoBlu.FourPlayers&hl=en_IN">Play Store listing</a>: description, 4.3 stars, last update, and the user reviews quoted above. The listing does not describe this mini-game.</li>
+    <li>Gameplay videos: <a href="https://www.youtube.com/watch?v=GZgXYwXsMVI">two-player round</a>, <a href="https://www.youtube.com/watch?v=85QCS_kiVeY">instruction card and a full match</a>, <a href="https://www.youtube.com/watch?v=8uMAVvDxcik">the four-player app, two players</a>, <a href="https://www.youtube.com/watch?v=iky1CCNUmtw">a round ending at 16 with medals</a>, <a href="https://www.youtube.com/watch?v=aDvSFWIZXUU">difficulty slider</a>.</li>
+    <li>Not covered here: the real build, the co-op variant's rules in detail, and how the source handles three or four players, for which I found no footage. The written report has every fact with its source and the file references in this repo.</li>
+    <li>Design source for this page: Game Night's own GLASS theme tokens and pixel font, because the page shows a Game Night game.</li>
+  </ul>
+</div>
+
+</main>
+<script src="game.js"></script>
+</body>
+</html>

@@ -31,6 +31,7 @@ import { FLEET_SPEC, SHIP_CELLS } from './battleshipLogic'
 import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
+import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS as STICKY_ROUND_S } from './stickyLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
@@ -257,6 +258,12 @@ const RULE_NUMBERS = {
     checks: [
       [3, DARTS_PER_VISIT], [25, dartSegment(0, -(DARTS_RADII.bull + 1)).v], [50, dartSegment(0, 0).v],
       [2, TURF_BULL_BONUS], [1, TURF_OUTER_BONUS], [3, DARTS_LEGS[1]], [5, TURF_ROUNDS], ...players('darts', 2, 4),
+    ],
+  }),
+  stickyfingers: () => ({
+    checks: [
+      [1, STICKY_VALUES.coin], [1, STICKY_VALUES.half], [3, STICKY_VALUES.bill], [5, STICKY_VALUES.gem], [3, DYE_PENALTY],
+      [10, LAST_CALL_SECONDS], [60, STICKY_ROUND_S], [3, first('stickyfingers')],
     ],
   }),
   minigolf: () => ({

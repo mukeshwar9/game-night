@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -1400,6 +1400,20 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/PuckRushGame')),
   },
   {
+    type: 'stickyfingers', label: 'STICKY FINGERS',
+    desc: 'grab the loot, rip the bills, stash it first', Icon: StickyFingersIcon,
+    badge: 'ST', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 4, tags: ['skill', 'quick'], solo: true,
+    // Online is a 2-player duel on the pong family's peer-to-peer transport
+    // (X hosts the sim). Solo against 1–3 bots and 2–4 people on one phone run
+    // the same sim offline: /solo/stickyfingers and /local/stickyfingers.
+    custom: true, realtime: true, p2p: true, localMaxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/StickyFingersGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/StickyFingersDemo').then(m => ({ default: m.StickyFingersLocal }))),
+  },
+  {
     type: 'artillery', label: 'ARTILLERY',
     desc: 'angle, power, bracket', Icon: ArtilleryIcon,
     badge: 'AR', maxWidth: 'max-w-md',
@@ -2449,6 +2463,11 @@ export function freshGameState(gameType, previous = null) {
     return { ...FIELD_NULLS, boxes: null, round: null,
       board: Array(YV_CELL_COUNT).fill(''),
       currentTurn: 'X' }
+  }
+  if (gameType === 'stickyfingers') {
+    // Realtime (pong family): the round lives in the host's sim, the room only
+    // holds the standard winner/scores.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
   }
   if (gameType === 'puckrush') {
     // Realtime (pong family): the round lives in the host's sim, the room only
