@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lazy Susan: design board</title>
+<style>
+@font-face { font-family: "Press Start 2P"; src: url(data:font/woff2;base64,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) format("woff2"); font-display: swap; }
+:root {
+  --bg: 238 240 226; --surface: 246 248 236; --card: 252 253 246; --border: 185 195 165;
+  --text: 45 55 35; --dim: 72 84 58; --p1: 70 121 47; --p2: 129 89 180; --p3: 175 55 115; --p4: 25 100 150;
+  --cta: 130 95 14; --win: 38 123 66; --danger: 190 30 50; --tint-p1: 220 238 205; --tint-cta: 242 232 200; --tint-danger: 242 214 214;
+  --deep: 228 232 214; --glass-rim: 255 255 255;
+  --art-1: 150 196 120; --art-2: 186 160 232; --art-3: 246 186 146; --art-4: 140 196 232;
+  --px: "Press Start 2P", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; color: rgb(var(--text)); font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(60% 40% at 8% 0%, rgb(var(--art-1) / .55), transparent 70%),
+    radial-gradient(50% 36% at 96% 6%, rgb(var(--art-3) / .5), transparent 70%),
+    radial-gradient(50% 30% at 90% 60%, rgb(var(--art-2) / .28), transparent 70%),
+    radial-gradient(60% 30% at 0% 80%, rgb(var(--art-4) / .3), transparent 70%),
+    rgb(var(--bg)); background-attachment: fixed; }
+main { max-width: 1120px; margin: 0 auto; padding: 28px 16px 96px; }
+h1, h2, h3, h4, .px { font-family: var(--px); font-weight: 400; letter-spacing: 0; }
+h1 { font-size: clamp(22px, 5.4vw, 40px); line-height: 1.25; margin: 10px 0 14px; }
+h2 { font-size: clamp(14px, 2.6vw, 18px); line-height: 1.5; margin: 56px 0 6px; }
+h3 { font-size: 12px; line-height: 1.6; margin: 0 0 8px; }
+h4 { font-size: 9px; line-height: 1.6; margin: 0 0 6px; color: rgb(var(--dim)); }
+p { margin: 0 0 10px; } .lede { font-size: 18px; max-width: 760px; } .sub { max-width: 780px; color: rgb(var(--dim)); margin-bottom: 16px; }
+a { color: rgb(var(--p4)); }
+.eyebrow { font: 9px/1.6 var(--px); color: rgb(var(--cta)); }
+.glass { background: rgb(var(--card) / .5); border: 1px solid rgb(var(--glass-rim) / .8); border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / .9), 0 8px 22px rgb(0 0 0 / .14); backdrop-filter: blur(10px) saturate(1.6); -webkit-backdrop-filter: blur(10px) saturate(1.6); }
+.card { padding: 16px 18px; min-width: 0; }
+.grid { display: grid; gap: 14px; } .g2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); } .g3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); } .g4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+.fact b { display: block; font: 15px/1.5 var(--px); } .fact span { font-size: 14px; color: rgb(var(--dim)); }
+.chip { display: inline-block; font: 8px/1 var(--px); padding: 6px 8px; border-radius: 999px; background: rgb(var(--text) / .08); margin: 0 4px 4px 0; white-space: nowrap; }
+.chip.go { background: rgb(var(--tint-p1)); } .chip.warn { background: rgb(var(--tint-cta)); } .chip.bad { background: rgb(var(--tint-danger)); } .chip { color: rgb(var(--text)); }
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; } th, td { text-align: left; padding: 8px 10px; border-top: 1px solid rgb(var(--border) / .7); vertical-align: top; }
+thead th { border-top: 0; font: 8px/1.6 var(--px); color: rgb(var(--dim)); } .scroll { overflow-x: auto; }
+ul { margin: 0; padding-left: 18px; } li { margin-bottom: 5px; }
+svg { display: block; max-width: 100%; height: auto; }
+.svgt { font: 9px var(--px); fill: rgb(var(--text)); } .svgs { font: 12px ui-sans-serif, system-ui, sans-serif; fill: rgb(var(--dim)); }
+
+/* prototype */
+.proto { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 16px; }
+@media (max-width: 820px) { .proto { grid-template-columns: minmax(0, 1fr); } }
+.phone { width: 100%; max-width: 380px; margin: 0 auto; padding: 10px; border-radius: 40px; background: linear-gradient(160deg, rgb(58 66 48), rgb(24 30 18)); box-shadow: 0 24px 48px rgb(40 50 30 / .35), inset 0 0 0 2px rgb(255 255 255 / .12); }
+.phone canvas { display: block; width: 100%; aspect-ratio: 360 / 640; border-radius: 30px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; outline: none; background: rgb(var(--deep)); }
+.phone canvas:focus-visible { box-shadow: 0 0 0 3px rgb(var(--cta)); }
+.ctl { display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row > .lab { font: 8px/1.6 var(--px); color: rgb(var(--dim)); width: 100%; }
+button, .btn { font: 9px/1 var(--px); color: rgb(var(--text)); background: rgb(var(--card) / .7); border: 1px solid rgb(var(--border)); border-radius: 10px; padding: 11px 12px; cursor: pointer; min-height: 40px;
+  transition: transform 80ms cubic-bezier(.2, 0, 0, 1), background-color 150ms, color 150ms; }
+button:active { transform: scale(.96); }
+button[aria-pressed="true"] { background: rgb(var(--text)); color: rgb(var(--card)); border-color: rgb(var(--text)); }
+button.cta { background: rgb(var(--cta)); color: rgb(var(--card)); border-color: rgb(var(--cta)); }
+button.try { background: rgb(var(--tint-p1)); border-color: rgb(var(--p1) / .5); margin-top: 8px; }
+.legend { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px 12px; align-items: center; font-size: 14.5px; }
+.legend canvas { width: 44px; height: 44px; }
+kbd { font: 8px var(--px); background: rgb(var(--text) / .1); border-radius: 5px; padding: 4px 5px; }
+.live { font: 9px/1.7 var(--px); min-height: 32px; }
+
+.twist { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; position: relative; }
+.twist .n { font: 22px/1 var(--px); color: rgb(var(--cta)); }
+.twist dl { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 4px 10px; margin: 8px 0 0; font-size: 14.5px; }
+.twist dt { font: 7px/2 var(--px); color: rgb(var(--dim)); } .twist dd { margin: 0; }
+.first { outline: 2px solid rgb(var(--win)); outline-offset: -2px; }
+.badge { position: absolute; top: 12px; right: 12px; }
+
+form.pick { padding: 18px; border: 2px solid rgb(var(--text)); }
+fieldset { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; } legend { font: 10px/1.7 var(--px); padding: 0; margin-bottom: 6px; }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 4px 14px; }
+.opts label { display: flex; gap: 9px; align-items: flex-start; padding: 7px 4px; font-size: 15px; cursor: pointer; }
+input[type=checkbox], input[type=radio] { width: 19px; height: 19px; margin: 2px 0 0; accent-color: rgb(var(--p1)); flex: none; }
+textarea { width: 100%; min-height: 64px; border: 1px solid rgb(var(--border)); border-radius: 10px; padding: 10px; font: inherit; background: rgb(var(--card) / .8); color: inherit; }
+.rec { font: 7px/1 var(--px); color: rgb(var(--win)); margin-left: 4px; white-space: nowrap; }
+select { font: 9px/1 var(--px); color: rgb(var(--text)); background: rgb(var(--card) / .8); border: 1px solid rgb(var(--border)); border-radius: 10px; padding: 11px 10px; min-height: 40px; max-width: 100%; }
+.new { border: 2px solid rgb(var(--win)); margin: 18px 0 0; }
+#queued { font: 9px/1.7 var(--px); color: rgb(var(--win)); margin-left: 10px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } button { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+
+<!-- 1. SUMMARY -->
+<span class="eyebrow">GAME NIGHT · DESIGN BOARD · ONE OF EIGHT MINIGAME STUDIES</span>
+<h1>LAZY SUSAN</h1>
+<p class="lede">A plate of dumplings turns in the middle of the table. Everyone holds one pair of chopsticks and one button. Tap when food passes your side, and you eat it. Tap at the wrong moment and you lose a point. Two to four players on one phone, or against a bot.</p>
+<p class="sub">This is Game Night's own take on the shared-plate reflex minigame from JindoBlu's party app ("The Last Sashimi"). The mechanic was studied from gameplay video; the name, art, food, sounds and code here are new. Design source for this page: Game Night's own theme tokens and pixel font, because the board previews a Game Night screen.</p>
+
+<div class="glass card new"><h4>CHANGED IN ROUND 2</h4><p style="margin:0">You asked for the design to match our theme and follow the theme the player has selected. It now does. Every colour in the game (table, plate, food, chopsticks, gates, scoreboard) is worked out from the app's own theme colours, and this whole page follows too. Pick any of the 31 themes in the <a href="#play">THEME</a> menu beside the game. Decision 4 (LOOK) is rewritten to match.</p></div>
+
+<div class="grid g4" style="margin-top:18px">
+  <div class="glass card fact"><b>2 to 4</b><span>players on one phone, plus solo against a bot at three levels</span></div>
+  <div class="glass card fact"><b>45 to 75 s</b><span>per match: first to 15 points (12 with three players, 10 with four)</span></div>
+  <div class="glass card fact"><b>1 button</b><span>per player. Timing is the whole skill, so a child and an adult can share a table</span></div>
+  <div class="glass card fact"><b>Medium</b><span>build. One-phone play first; an online shared plate fits the room model with new room keys</span></div>
+</div>
+
+<!-- 2. PROTOTYPE -->
+<h2 id="play">PLAY IT</h2>
+<p class="sub">This is a working sketch of the core loop. It opens with two bots playing; tap the plate to start your own match. On a phone, each player taps their own side of the screen.</p>
+
+<div class="proto">
+  <div class="phone"><canvas id="game" tabindex="0" data-lavish-action="true" aria-label="Lazy Susan prototype. Tap when food is inside your gate."></canvas></div>
+  <div class="ctl">
+    <div class="glass card">
+      <div class="row"><span class="lab">WHO PLAYS</span>
+        <button data-mode="bot" aria-pressed="true">1P VS BOT</button>
+        <button data-mode="2" aria-pressed="false">2 PLAYERS</button>
+        <button data-mode="3" aria-pressed="false">3 PLAYERS</button>
+        <button data-mode="4" aria-pressed="false">4 PLAYERS</button>
+      </div>
+      <div class="row" style="margin-top:12px"><label class="lab" for="theme">THEME (THE PLAYER'S OWN PICK IN THE APP)</label>
+        <select id="theme"></select>
+        <button id="prevTheme" aria-label="Previous theme">&lt;</button><button id="nextTheme" aria-label="Next theme">&gt;</button>
+      </div>
+      <div class="row" id="botrow" style="margin-top:12px"><span class="lab">BOT</span>
+        <button data-level="0" aria-pressed="false">EASY</button>
+        <button data-level="1" aria-pressed="true">NORMAL</button>
+        <button data-level="2" aria-pressed="false">HARD</button>
+      </div>
+      <div class="row" style="margin-top:12px"><span class="lab">TWISTS (ALL THREE ON BY DEFAULT)</span>
+        <button data-twist="turn" aria-pressed="true">THE TURN</button>
+        <button data-twist="chili" aria-pressed="true">HOT CHILI</button>
+        <button data-twist="last" aria-pressed="true">LAST BITE</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="cta" id="restart">RESTART</button>
+        <button id="sound" aria-pressed="true">SOUND ON</button>
+      </div>
+      <p class="live" id="live" role="status" aria-live="polite" style="margin:12px 0 0"></p>
+    </div>
+    <div class="glass card">
+      <h4>WHAT IS ON THE PLATE</h4>
+      <div class="legend">
+        <canvas id="lg-dump" width="88" height="88"></canvas><div><b>Dumpling: 1 point.</b> Most of the plate.</div>
+        <canvas id="lg-bun" width="88" height="88"></canvas><div><b>Steamed bun: 3 points.</b> One per plate, so everyone watches it.</div>
+        <canvas id="lg-chili" width="88" height="88"></canvas><div><b>Chili: lose 2 points</b> and your chopsticks are frozen for 0.9 seconds. Let it go by.</div>
+        <canvas id="lg-gold" width="88" height="88"></canvas><div><b>Last bite: double.</b> The final piece on a plate turns gold and the plate speeds up.</div>
+      </div>
+    </div>
+    <div class="glass card">
+      <h4>CONTROLS</h4>
+      <p style="margin:0">Touch: tap your side of the screen. The coloured gate on the plate is your reach, and it lights up when something is inside it.</p>
+      <p style="margin:8px 0 0">Keyboard (click the plate first): two players <kbd>SPACE</kbd> and <kbd>ENTER</kbd>. Three players <kbd>SPACE</kbd> <kbd>P</kbd> <kbd>Q</kbd>. Four players <kbd>Z</kbd> <kbd>M</kbd> <kbd>P</kbd> <kbd>Q</kbd>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 3. THE SOURCE -->
+<h2>HOW THE ORIGINAL PLAYS</h2>
+<p class="sub">Facts below come from frames of two gameplay videos and from the Play Store listing. Nothing was installed or decompiled. Where a fact could not be confirmed it is marked as an assumption.</p>
+<div class="grid g2">
+  <div class="glass card">
+    <svg viewBox="0 0 360 330" role="img" aria-label="Diagram of the original: a ring-shaped plate turning between two pairs of chopsticks">
+      <rect x="110" y="8" width="140" height="314" rx="16" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/>
+      <circle cx="180" cy="165" r="56" fill="none" stroke="rgb(var(--p3) / .7)" stroke-width="30"/>
+      <rect x="196" y="120" width="20" height="12" rx="5" fill="rgb(var(--cta))" transform="rotate(35 206 126)"/>
+      <rect x="140" y="196" width="20" height="12" rx="5" fill="rgb(var(--cta))" transform="rotate(35 150 202)"/>
+      <circle cx="140" cy="132" r="9" fill="rgb(var(--card))" stroke="rgb(var(--text))" stroke-width="2"/>
+      <path d="M150 105 A 62 62 0 0 1 222 110" fill="none" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/>
+      <g stroke="rgb(var(--text))" stroke-width="5" stroke-linecap="round"><path d="M168 60 L160 22"/><path d="M192 60 L200 22"/><path d="M168 270 L160 308"/><path d="M192 270 L200 308"/></g>
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="rgb(var(--text))"/></marker></defs>
+      <text class="svgt" x="6" y="40">PLAYER 2</text><text class="svgs" x="6" y="56">taps the top half</text>
+      <text class="svgt" x="6" y="290">PLAYER 1</text><text class="svgs" x="6" y="306">taps the bottom</text>
+      <text class="svgt" x="262" y="120">1 POINT</text><text class="svgs" x="262" y="136">fish slice</text>
+      <text class="svgt" x="262" y="170">3 POINTS</text><text class="svgs" x="262" y="186">rice ball</text>
+      <text class="svgt" x="262" y="222">MISS: -1</text><text class="svgs" x="262" y="238">jab at nothing</text>
+      <text class="svgs" x="6" y="170">score sits on</text><text class="svgs" x="6" y="186">the side edge</text>
+    </svg>
+    <p style="margin:10px 0 0;font-size:14.5px">A ring-shaped plate turns in the centre. Each player has a pair of chopsticks pointing at it. One tap jabs the chopsticks straight in; if a piece is under them, you eat it.</p>
+  </div>
+  <div class="glass card scroll">
+    <table>
+      <thead><tr><th>WHAT</th><th>FINDING</th><th>HOW SURE</th></tr></thead>
+      <tbody>
+        <tr><td>Goal</td><td>First to 15 points. Fish slice 1, rice ball 3, every mistake costs 1.</td><td><span class="chip go">CONFIRMED</span> in-game rules card, video A at 0:14</td></tr>
+        <tr><td>Modes</td><td>Tutorial, player against player, player against a robot with a difficulty slider.</td><td><span class="chip go">CONFIRMED</span> video A at 0:14 and 0:28</td></tr>
+        <tr><td>Screen</td><td>Portrait phone flat on the table, players at the two short ends, 3-2-1 countdown, score on one long edge, EXIT on the other.</td><td><span class="chip go">CONFIRMED</span> videos A and B</td></tr>
+        <tr><td>Plate</td><td>Holds one to five pieces at a time and fills up again after it is cleared.</td><td><span class="chip warn">OBSERVED</span> in frames; the exact refill trigger is assumed</td></tr>
+        <tr><td>Miss feedback</td><td>The player's half of the screen washes red.</td><td><span class="chip warn">OBSERVED</span> one frame, video B</td></tr>
+        <tr><td>Three and four players</td><td>No footage found. Both videos are from the two-player sibling app. A four-seat layout around the same plate is assumed.</td><td><span class="chip bad">ASSUMPTION</span></td></tr>
+        <tr><td>Speed or direction changes</td><td>Not seen in the frames captured.</td><td><span class="chip bad">NOT CONFIRMED</span></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13.5px;color:rgb(var(--dim));margin:10px 0 0">Video A: youtube.com/watch?v=uZfp2839FN4. Video B: youtube.com/watch?v=2kcAllZukkA. Store listing: play.google.com/store/apps/details?id=com.JindoBlu.FourPlayers (100M+ downloads, rated 4.3, updated 9 Oct 2026; it does not describe this minigame).</p>
+  </div>
+</div>
+<div class="grid g2" style="margin-top:14px">
+  <div class="glass card"><h3>WHY IT IS FUN</h3><ul>
+    <li><b>One shared plate.</b> Every piece you take is one your friend does not get, so each grab is felt by everyone.</li>
+    <li><b>The rules explain themselves.</b> Food turns, chopsticks jab. Nobody needs a tutorial.</li>
+    <li><b>The 3-point piece.</b> Everybody tracks the same piece at once, which creates the shouting.</li>
+    <li><b>The miss penalty.</b> It stops button mashing and gives a nervous player a real way to lose.</li>
+  </ul></div>
+  <div class="glass card"><h3>WHERE IT FALLS SHORT</h3><ul>
+    <li><b>Only one decision.</b> Every piece is good, so the only question is when. It gets flat after a few rounds. (My judgement.)</li>
+    <li><b>Seat luck.</b> With the plate turning one way, the player upstream gets first pick of each new piece. (Follows from the layout; assumed for the original.)</li>
+    <li><b>No comeback.</b> A player who is 8 behind has nothing to hope for.</li>
+    <li><b>Unfair robots.</b> Store reviews of the app say hard bots win by getting advantages rather than by playing well, and that touch targets are too small (reviews dated 20 Dec 2024 and 30 Aug 2026).</li>
+  </ul></div>
+</div>
+
+<!-- 4. RULES -->
+<h2>THE GAME NIGHT VERSION</h2>
+<p class="sub">Same core, with the four weak points above answered. Every number is a starting value to be tuned in playtests.</p>
+<div class="grid g3">
+  <div class="glass card"><h3>A ROUND</h3><ul>
+    <li>3-2-1, then the plate turns with 5 to 7 pieces on it.</li>
+    <li>Your gate is the coloured arc on your side. Tap while a piece is inside it to eat it.</li>
+    <li>Tap on nothing: lose 1 point and wait 0.45 seconds.</li>
+    <li>When the food is gone a new plate arrives, a little faster.</li>
+    <li>First to the target wins the match.</li>
+  </ul></div>
+  <div class="glass card"><h3>FAIR BY DESIGN</h3><ul>
+    <li>Each new plate turns the opposite way, so no seat is always upstream.</li>
+    <li>New pieces cannot be grabbed for their first 0.3 seconds, so nobody scores from a lucky spawn.</li>
+    <li>Scores never go below zero.</li>
+    <li>The bot presses the same button with human-like timing error. It never gets a head start.</li>
+    <li>Shapes differ, not only colours: crescent, round, long pepper.</li>
+  </ul></div>
+  <div class="glass card"><h3>FEEL</h3><ul>
+    <li>The tap resolves on contact; the animation follows. Nothing waits for a network reply.</li>
+    <li>A tap in the last 0.12 seconds of a wait is remembered and fires when the wait ends.</li>
+    <li>The plate has weight: it slows, stops and swings back when it reverses.</li>
+    <li>Each event has two signals: a sound and a visible change.</li>
+    <li>Reduced motion: no screen shake.</li>
+  </ul></div>
+</div>
+
+<h3 style="margin-top:26px">WHERE EVERYONE SITS</h3>
+<div class="grid g4">
+  <div class="glass card"><svg viewBox="0 0 120 150" role="img" aria-label="Two players at the short ends"><rect x="26" y="4" width="68" height="142" rx="10" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><circle cx="60" cy="75" r="22" fill="none" stroke="rgb(var(--border))" stroke-width="10"/><path d="M60 110v26" stroke="rgb(var(--p1))" stroke-width="6" stroke-linecap="round"/><path d="M60 40V14" stroke="rgb(var(--p2))" stroke-width="6" stroke-linecap="round"/></svg><h4 style="margin-top:8px">2 PLAYERS</h4><p style="font-size:14px;margin:0">Short ends. Each player owns half the screen.</p></div>
+  <div class="glass card"><svg viewBox="0 0 120 150" role="img" aria-label="Three players, evenly spaced"><rect x="26" y="4" width="68" height="142" rx="10" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><circle cx="60" cy="75" r="22" fill="none" stroke="rgb(var(--border))" stroke-width="10"/><path d="M60 110v26" stroke="rgb(var(--p1))" stroke-width="6" stroke-linecap="round"/><path d="M90 58l-4 2" stroke="rgb(var(--p2))" stroke-width="6" stroke-linecap="round"/><path d="M30 58l4 2" stroke="rgb(var(--p3))" stroke-width="6" stroke-linecap="round"/></svg><h4 style="margin-top:8px">3 PLAYERS</h4><p style="font-size:14px;margin:0">Gates 120 degrees apart: one at the bottom, two sharing the top half.</p></div>
+  <div class="glass card"><svg viewBox="0 0 120 150" role="img" aria-label="Four players at the corners"><rect x="26" y="4" width="68" height="142" rx="10" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><circle cx="60" cy="75" r="22" fill="none" stroke="rgb(var(--border))" stroke-width="10"/><g stroke-width="6" stroke-linecap="round"><path d="M36 99l-8 8" stroke="rgb(var(--p1))"/><path d="M84 99l8 8" stroke="rgb(var(--p2))"/><path d="M84 51l8-8" stroke="rgb(var(--p3))"/><path d="M36 51l-8-8" stroke="rgb(var(--p4))"/></g></svg><h4 style="margin-top:8px">4 PLAYERS</h4><p style="font-size:14px;margin:0">Corners. Each player owns a quarter of the screen, so thumbs do not collide.</p></div>
+  <div class="glass card"><svg viewBox="0 0 120 150" role="img" aria-label="Online: each phone shows the same plate with your seat at the bottom"><rect x="6" y="24" width="48" height="100" rx="8" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><rect x="66" y="24" width="48" height="100" rx="8" fill="rgb(var(--card) / .6)" stroke="rgb(var(--border))"/><circle cx="30" cy="68" r="13" fill="none" stroke="rgb(var(--border))" stroke-width="7"/><circle cx="90" cy="68" r="13" fill="none" stroke="rgb(var(--border))" stroke-width="7"/><path d="M30 92v20" stroke="rgb(var(--p1))" stroke-width="5" stroke-linecap="round"/><path d="M90 92v20" stroke="rgb(var(--p2))" stroke-width="5" stroke-linecap="round"/><path d="M54 68h12" stroke="rgb(var(--text))" stroke-width="2" stroke-dasharray="3 3"/></svg><h4 style="margin-top:8px">ONLINE</h4><p style="font-size:14px;margin:0">Same plate on every phone, turned so your own gate is nearest you.</p></div>
+</div>
+
+<!-- 5. TWISTS -->
+<h2>FIVE TWISTS</h2>
+<p class="sub">The first three are in the prototype above and are the ones I recommend shipping in the first version. They are cheap and each one fixes a named weakness of the original.</p>
+<div class="grid g3">
+  <div class="glass card twist first"><span class="chip go badge">SHIP FIRST</span><span class="n">1</span><h3>THE TURN</h3>
+    <p>Every new plate turns the other way, and you see it slow down and swing back.</p>
+    <dl><dt>WHY</dt><dd>Removes seat luck. Also resets everyone's rhythm, so a leader cannot coast on muscle memory.</dd><dt>RISK</dt><dd>Low. The reversal must be telegraphed (bell, visible slowdown, arrows on the hub) or it reads as a cheat.</dd><dt>COST</dt><dd>Small.</dd></dl>
+    <button class="try" data-try="turn">TRY IT ALONE</button></div>
+  <div class="glass card twist first"><span class="chip go badge">SHIP FIRST</span><span class="n">2</span><h3>HOT CHILI</h3>
+    <p>One piece on the plate is a chili. Grab it and you lose 2 points and freeze for 0.9 seconds.</p>
+    <dl><dt>WHY</dt><dd>Adds a second decision: what to leave. It punishes tapping on rhythm and makes a chili sitting next to the bun a real trap.</dd><dt>RISK</dt><dd>Low to medium. Too many chilies and the game becomes waiting. Start at one, two from the fourth plate.</dd><dt>COST</dt><dd>Small.</dd></dl>
+    <button class="try" data-try="chili">TRY IT ALONE</button></div>
+  <div class="glass card twist first"><span class="chip go badge">SHIP FIRST</span><span class="n">3</span><h3>LAST BITE</h3>
+    <p>The final piece on every plate turns gold, is worth double, and the plate speeds up by 45 percent.</p>
+    <dl><dt>WHY</dt><dd>Gives every plate a climax and gives the trailing player a swing: a golden bun is 6 points. This is the game's signature moment.</dd><dt>RISK</dt><dd>Medium. At high speed the gate may be too hard to hit. Watch the miss rate on the gold piece.</dd><dt>COST</dt><dd>Small.</dd></dl>
+    <button class="try" data-try="last">TRY IT ALONE</button></div>
+  <div class="glass card twist"><span class="chip warn badge">LATER</span><span class="n">4</span><h3>TWO RINGS</h3>
+    <svg viewBox="0 0 240 110" role="img" aria-label="Two rings turning in opposite directions"><circle cx="70" cy="55" r="44" fill="none" stroke="rgb(var(--border))" stroke-width="14"/><circle cx="70" cy="55" r="22" fill="none" stroke="rgb(var(--art-3))" stroke-width="14"/><path d="M38 18 A 50 50 0 0 1 104 20" fill="none" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/><path d="M84 40 A 20 20 0 0 0 56 40" fill="none" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/><text class="svgt" x="130" y="40">TAP: OUTER</text><text class="svgt" x="130" y="62">HOLD: INNER</text><text class="svgs" x="130" y="82">buns live inside</text></svg>
+    <p>An inner ring turns the other way and carries the high-value pieces. A tap reaches the outer ring; press and hold to reach further in.</p>
+    <dl><dt>WHY</dt><dd>A risk choice on every pass: the safe dumpling now, or commit longer for the bun.</dd><dt>RISK</dt><dd>Medium. Breaks the one-tap simplicity; a hold on a shared phone is harder to read.</dd><dt>COST</dt><dd>Medium.</dd></dl></div>
+  <div class="glass card twist"><span class="chip warn badge">LATER</span><span class="n">5</span><h3>BANQUET (CO-OP)</h3>
+    <svg viewBox="0 0 240 110" role="img" aria-label="An order ticket listing pieces to eat in sequence"><rect x="8" y="10" width="120" height="90" rx="8" fill="rgb(var(--card) / .7)" stroke="rgb(var(--border))"/><text class="svgt" x="18" y="32">ORDER 7</text><circle cx="30" cy="56" r="9" fill="rgb(var(--p1))"/><circle cx="56" cy="56" r="9" fill="rgb(var(--p2))"/><circle cx="82" cy="56" r="9" fill="rgb(var(--p1))"/><circle cx="108" cy="56" r="9" fill="rgb(var(--p2) / .3)"/><text class="svgs" x="18" y="88">you, me, you, me</text><text class="svgt" x="140" y="40">ONE TEAM</text><text class="svgt" x="140" y="62">SHARED</text><text class="svgt" x="140" y="84">HEARTS</text></svg>
+    <p>Everyone is on one team. A ticket shows whose turn it is to eat what; the kitchen sends plates faster until three mistakes end the run.</p>
+    <dl><dt>WHY</dt><dd>Turns the stealing game into a calling-out game. Fits Game Night's co-op flag and gives couples a non-competitive mode.</dd><dt>RISK</dt><dd>Medium. Needs its own tuning and a best-run score.</dd><dt>COST</dt><dd>Medium.</dd></dl></div>
+  <div class="glass card twist"><span class="chip badge">GAME NIGHT HOOK</span><span class="n">+</span><h3>WINNER FEEDS THE NIGHT</h3>
+    <p>Not a rule change: the match reports placements to the night scoreboard like every other game, and seats show each player's avatar on their chopstick band.</p>
+    <dl><dt>WHY</dt><dd>It is a 60-second palate cleanser between longer games, which is exactly what a game night needs.</dd><dt>RISK</dt><dd>None beyond the build.</dd><dt>COST</dt><dd>Comes with the room shell.</dd></dl></div>
+</div>
+
+<!-- 6. FIT + BUILD -->
+<h2>FIT AND BUILD</h2>
+<div class="grid g2">
+  <div class="glass card"><h3>NEAREST GAMES ALREADY IN THE APP</h3>
+    <div class="scroll"><table><thead><tr><th>GAME</th><th>SHARED</th><th>DIFFERENT</th></tr></thead><tbody>
+      <tr><td>Reaction Time</td><td>One-tap timing</td><td>Everyone reacts to their own signal; nothing is contested</td></tr>
+      <tr><td>Chop Chop</td><td>Fast taps, a penalty for the wrong tap</td><td>Each player has a separate lane; a race, not a fight over one object</td></tr>
+      <tr><td>Pulp Rush (branch)</td><td>Food theme, bad items to avoid</td><td>Swipes, separate throws per player</td></tr>
+      <tr><td>Puck Rush</td><td>Two on one phone</td><td>Physics and aiming</td></tr>
+    </tbody></table></div>
+    <p style="margin:10px 0 0">No current game has one shared, moving resource that players take from each other in real time. That is the gap this fills.</p></div>
+  <div class="glass card"><h3>WHAT THE BUILD NEEDS</h3>
+    <div class="scroll"><table><thead><tr><th>PIECE</th><th>SIZE</th></tr></thead><tbody>
+      <tr><td>Pure logic module with tests: plates from a seed, gate hit test, scoring, bot</td><td><span class="chip go">SMALL</span></td></tr>
+      <tr><td>Arena renderer with the food and chopstick art, sounds, reduced motion</td><td><span class="chip warn">MEDIUM</span></td></tr>
+      <tr><td>One-phone page for 2 to 4 and solo against the bot, registry entry, icon, rules text</td><td><span class="chip go">SMALL</span></td></tr>
+      <tr><td>Online shared plate: new room keys, database rules and rule tests, two-client test</td><td><span class="chip warn">MEDIUM</span></td></tr>
+    </tbody></table></div>
+    <p style="margin:10px 0 0"><b>Overall: medium.</b> One-phone play and the bot can ship first without touching the database.</p></div>
+</div>
+<div class="glass card" style="margin-top:14px">
+  <h3>HOW ONLINE CAN WORK WITHOUT A REFEREE</h3>
+  <div class="grid g2" style="align-items:center">
+    <svg viewBox="0 0 420 170" role="img" aria-label="The plate angle is computed from the shared clock; a grab is a first-writer-wins claim on one piece">
+      <rect x="6" y="18" width="120" height="56" rx="10" fill="rgb(var(--tint-p1))" stroke="rgb(var(--p1))"/><text class="svgt" x="18" y="42">PLATE RECORD</text><text class="svgs" x="18" y="60">seed, start, direction</text>
+      <rect x="6" y="100" width="120" height="56" rx="10" fill="rgb(var(--card) / .7)" stroke="rgb(var(--border))"/><text class="svgt" x="18" y="124">SERVER CLOCK</text><text class="svgs" x="18" y="142">same on every phone</text>
+      <path d="M126 46h44M126 128h44" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/>
+      <rect x="174" y="58" width="104" height="56" rx="10" fill="rgb(var(--card) / .7)" stroke="rgb(var(--border))"/><text class="svgt" x="186" y="82">SAME ANGLE</text><text class="svgs" x="186" y="100">on every phone</text>
+      <path d="M278 86h34" stroke="rgb(var(--text))" stroke-width="2" marker-end="url(#ar)"/>
+      <rect x="316" y="58" width="98" height="56" rx="10" fill="rgb(var(--tint-cta))" stroke="rgb(var(--cta))"/><text class="svgt" x="326" y="82">CLAIM</text><text class="svgs" x="326" y="100">first write wins</text>
+    </svg>
+    <p style="margin:0">The plate's angle is a formula of a shared start time, so phones never send positions to each other. Eating a piece is a single claim that only the first writer can make. Two gates are never over the same piece at once, and the gap between gates is at least 0.3 seconds of travel at top speed, which is longer than normal network delay. If you tap a piece someone upstream took a moment ago, you see TAKEN and lose nothing.</p>
+  </div>
+</div>
+
+<!-- 7. DECISIONS -->
+<h2 id="decide">DECISIONS NEEDED</h2>
+<p class="sub">Four choices. My recommendation is preselected in each. Change what you like, then queue the answer and send it.</p>
+<form class="glass pick" id="pick" data-lavish-question="games-jb-lastsashimi-s1-calls">
+  <fieldset><legend>1. WHICH TWISTS GO IN THE FIRST VERSION?</legend><div class="opts">
+    <label><input type="checkbox" name="twist" value="turn" checked> The Turn <span class="rec">RECOMMENDED</span></label>
+    <label><input type="checkbox" name="twist" value="chili" checked> Hot Chili <span class="rec">RECOMMENDED</span></label>
+    <label><input type="checkbox" name="twist" value="lastbite" checked> Last Bite <span class="rec">RECOMMENDED</span></label>
+    <label><input type="checkbox" name="twist" value="tworings"> Two Rings</label>
+    <label><input type="checkbox" name="twist" value="banquet"> Banquet co-op</label>
+  </div></fieldset>
+  <fieldset><legend>2. WHO CAN PLAY IN THE FIRST VERSION?</legend><div class="opts">
+    <label><input type="radio" name="scope" value="phone-then-online" checked> One phone for 2 to 4 plus solo against the bot now; online shared plate as the next step <span class="rec">RECOMMENDED</span></label>
+    <label><input type="radio" name="scope" value="phone-only"> One phone and solo only. No online version planned</label>
+    <label><input type="radio" name="scope" value="all-at-once"> One phone, solo and online for 2 to 4, all in the first version</label>
+    <label><input type="radio" name="scope" value="two-player-only"> Two players only (one phone and online), like most duels in the app</label>
+  </div></fieldset>
+  <fieldset><legend>3. NAME</legend><div class="opts">
+    <label><input type="radio" name="name" value="LAZY-SUSAN" checked> LAZY SUSAN: the real name of a turning serving plate <span class="rec">RECOMMENDED</span></label>
+    <label><input type="radio" name="name" value="DIBS"> DIBS: short, says what the fight is about</label>
+    <label><input type="radio" name="name" value="SNAP-UP"> SNAP UP: the action in two words</label>
+  </div></fieldset>
+  <fieldset><legend>4. LOOK</legend><div class="opts">
+    <label><input type="radio" name="look" value="themed-painted" checked> As shown now: the shaded table, plate, food and chopsticks, with every colour taken from the player's theme <span class="rec">RECOMMENDED</span></label>
+    <label><input type="radio" name="look" value="themed-natural-food"> Themed table and plate, but food keeps natural colours in every theme (a dumpling is always cream, a chili always red)</label>
+    <label><input type="radio" name="look" value="theme-flat"> Flat shapes in theme colours, like the other arena games (no shading)</label>
+  </div></fieldset>
+  <fieldset><legend>ANYTHING ELSE?</legend><textarea name="note" maxlength="300" placeholder="Optional note: speed, scoring, food, anything that felt off in the prototype"></textarea></fieldset>
+  <button type="submit" class="cta">QUEUE THIS ANSWER</button><span id="queued" role="status" aria-live="polite"></span>
+</form>
+
+</main>
+<script>
+/* Lavish serves boards on an opaque origin: storage throws. Nothing here uses it. */
+/* LAZY SUSAN prototype: a design sketch of the core loop, not app code.
+   One canvas, one rAF loop, no storage, no network. Tuning numbers live in T
+   and are all starting values (see the report's numbers table). */
+(function () {
+  'use strict';
+  var W = 360, H = 640, CX = 180, CY = 320, RT = 92, RP = 132, RH = 34;
+  var TAU = Math.PI * 2;
+  var INK, DANGER, GOLD, COLORS, P = {};
+  var BLACK = [0, 0, 0], WHITE = [255, 255, 255];
+  function mix(a, b, t) { return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)]; }
+  function col(name, a) { return rgb(P[name], a); }
+  /* Every colour on the table is derived from the player's theme tokens
+     (the same --c-* triplets the app uses); nothing is fixed. */
+  function applyTheme(t) {
+    var dark = (t.bg[0] * 0.3 + t.bg[1] * 0.59 + t.bg[2] * 0.11) < 110, d = function (l, dk) { return dark ? dk : l; };
+    INK = t.text; DANGER = t.danger; COLORS = [t.p1, t.p2, t.p3, t.p4];
+    var fA = d(mix(t.card, WHITE, 0.5), mix(t.text, t.card, 0.1)), bunA = d(WHITE, mix(t.text, WHITE, 0.4));
+    P = {
+      ink: t.text, danger: t.danger, win: t.win,
+      tableA: d(mix(t.bg, t.cta, 0.14), mix(mix(t.bg, t.structure, 0.55), t.cta, 0.07)), tableB: d(mix(t.bg, t.cta, 0.26), mix(mix(t.bg, t.structure, 0.4), t.cta, 0.06)), tableC: d(mix(t.bg, t.cta, 0.4), mix(mix(t.bg, t.structure, 0.22), t.cta, 0.05)),
+      grain: d(mix(t.cta, BLACK, 0.3), mix(t.structure, t.text, 0.45)), lampHi: d([255, 250, 232], mix(t.structure, t.text, 0.35)), shadow: d(mix(t.text, BLACK, 0.5), BLACK),
+      baseA: d(mix(t.cta, t.text, 0.3), mix(t.structure, t.cta, 0.4)), baseB: d(mix(t.cta, BLACK, 0.55), mix(t.bg, t.structure, 0.5)),
+      pl0: d(mix(t.card, WHITE, 0.6), mix(t.card, t.text, 0.24)), pl1: d(t.card, mix(t.card, t.text, 0.16)), pl2: d(t.deep, mix(t.card, t.text, 0.1)), pl3: d(mix(t.deep, t.structure, 0.5), mix(t.card, t.structure, 0.5)),
+      paintA: t.p1, paintB: t.p3, well: t.structure,
+      soyA: mix(t.cta, BLACK, 0.45), soyB: mix(t.cta, BLACK, 0.8), soyC: [10, 6, 3],
+      hi: d(WHITE, mix(t.text, WHITE, 0.5)),
+      fA: fA, fB: mix(fA, t.cta, 0.18), fC: mix(fA, t.cta, 0.45), fLine: d(mix(t.text, t.cta, 0.5), mix(t.bg, t.cta, 0.4)), sear: d(t.cta, mix(t.cta, BLACK, 0.3)),
+      steam: mix(t.cta, t.structure, 0.35), bunA: bunA, bunB: mix(bunA, t.structure, 0.12), bunC: mix(bunA, t.structure, 0.4),
+      chA: mix(t.danger, WHITE, 0.35), chC: mix(t.danger, BLACK, 0.45), stemB: mix(t.win, BLACK, 0.4),
+      gold: mix(t.cta, [255, 214, 80], 0.55), goldHi: mix(t.cta, [255, 235, 150], 0.6),
+      stA: d(mix(t.text, t.cta, 0.4), mix(t.text, t.cta, 0.3)), stB: d(mix(t.text, BLACK, 0.4), mix(t.text, t.bg, 0.25)), stC: d(mix(t.text, BLACK, 0.65), mix(t.text, t.bg, 0.45)),
+      glass: t.card, glassHi: d(WHITE, mix(t.card, t.text, 0.5)), outline: d(t.card, t.bg)
+    };
+    GOLD = d(mix(t.cta, [214, 160, 28], 0.5), P.gold);
+    if (canvas) { makeBackground(); if (S) S.seats.forEach(function (s, i) { s.color = COLORS[i]; }); }
+  }
+  var FONT = '"Press Start 2P", ui-monospace, monospace';
+  var T = {
+    target: { 2: 15, 3: 12, 4: 10 },
+    window: 0.2,          // rad either side of the gate centre
+    speed0: 1.45,         // rad/s on wave 1
+    speedStep: 0.14,      // added per wave
+    speedMax: 2.5,
+    rush: 1.45,           // LAST BITE speed multiplier
+    missLock: 0.45, hitLock: 0.22, stun: 0.9, buffer: 0.12,
+    bornLock: 0.3,
+    bot: [{ sigma: 0.085, skip: 0.45 }, { sigma: 0.055, skip: 0.2 }, { sigma: 0.03, skip: 0.05 }]
+  };
+  var LAYOUT = {
+    2: [{ a: 90, hud: [74, 612, 0] }, { a: -90, hud: [286, 28, 180] }],
+    3: [{ a: 90, hud: [74, 612, 0] }, { a: -30, hud: [296, 28, 180] }, { a: 210, hud: [64, 28, 180] }],
+    4: [{ a: 135, hud: [64, 612, 0] }, { a: 45, hud: [296, 612, 0] }, { a: -45, hud: [296, 28, 180] }, { a: -135, hud: [64, 28, 180] }]
+  };
+  var DEFAULT_THEME = { bg: [238, 240, 226], card: [252, 253, 246], deep: [228, 232, 214], structure: [160, 170, 140], text: [45, 55, 35], p1: [70, 121, 47], p2: [129, 89, 180], p3: [175, 55, 115], p4: [25, 100, 150], cta: [130, 95, 14], win: [38, 123, 66], danger: [190, 30, 50] };
+  var cfg = { n: 2, bot: true, level: 1, turn: true, chili: true, last: true, sound: true };
+  var canvas, ctx, bg, S, lastT = 0, audio = null, reduced = false, onState = null;
+
+  function rgb(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a == null ? 1 : a) + ')'; }
+  function wrap(a) { a = (a + Math.PI) % TAU; if (a < 0) a += TAU; return a - Math.PI; }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function gauss() { return (Math.random() + Math.random() + Math.random() - 1.5) * 1.15; }
+  function easeOut(t) { return 1 - (1 - t) * (1 - t); }
+  function backOut(t) { var c = 1.9; t = t - 1; return 1 + (c + 1) * t * t * t + c * t * t; }
+
+  /* ---------- sound: tiny synth, starts on the first tap ---------- */
+  function beep(freq, dur, type, vol, slide) {
+    if (!cfg.sound || !audio) return;
+    try {
+      var o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
+      o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+      g.gain.setValueAtTime(vol || 0.08, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+      o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + dur + 0.02);
+    } catch (e) { /* no audio */ }
+  }
+  function wake() {
+    if (audio) { if (audio.state === 'suspended') audio.resume(); return; }
+    try { var AC = window.AudioContext || window.webkitAudioContext; if (AC) audio = new AC(); } catch (e) { audio = null; }
+  }
+  var SFX = {
+    grab: function (v) { beep(520 + v * 90, 0.09, 'triangle', 0.1, 900 + v * 120); },
+    bun: function () { beep(660, 0.08, 'triangle', 0.1); setTimeout(function () { beep(990, 0.14, 'triangle', 0.1); }, 70); },
+    miss: function () { beep(170, 0.16, 'square', 0.06, 90); },
+    hot: function () { beep(320, 0.4, 'sawtooth', 0.06, 70); },
+    turn: function () { beep(1320, 0.5, 'sine', 0.07); beep(1980, 0.7, 'sine', 0.03); },
+    last: function () { beep(880, 0.1, 'triangle', 0.08); setTimeout(function () { beep(1175, 0.1, 'triangle', 0.08); }, 90); setTimeout(function () { beep(1568, 0.25, 'triangle', 0.08); }, 180); },
+    tick: function () { beep(440, 0.07, 'square', 0.05); },
+    go: function () { beep(880, 0.25, 'square', 0.06); },
+    win: function () { [523, 659, 784, 1047].forEach(function (f, i) { setTimeout(function () { beep(f, 0.22, 'triangle', 0.09); }, i * 110); }); }
+  };
+
+  /* ---------- state ---------- */
+  function reset(attract) {
+    var n = cfg.n, lay = LAYOUT[n];
+    S = {
+      n: n, attract: !!attract, target: T.target[n], time: 0,
+      phase: 'count', count: attract ? 0.6 : 3.2, lastTick: 4,
+      th: Math.random() * TAU, dir: 1, speed: T.speed0, cur: 0, wave: 0, rush: false,
+      pieces: [], fly: [], parts: [], pops: [], banner: null, shake: 0, refill: 0,
+      winner: -1, overT: 0, id: 0,
+      seats: lay.map(function (l, i) {
+        return {
+          ang: l.a * Math.PI / 180, hud: l.hud, color: COLORS[i], score: 0, shown: 0,
+          jab: -1, hit: false, lock: 0, stun: 0, flash: 0, pop: 0, buf: false, plan: null,
+          bot: attract ? true : (cfg.bot && i > 0), name: attract ? 'BOT' : (cfg.bot && i > 0 ? 'BOT' : 'P' + (i + 1))
+        };
+      })
+    };
+    spawnWave();
+    if (onState) onState(S);
+  }
+
+  function spawnWave() {
+    S.wave++;
+    if (cfg.turn && S.wave > 1) {
+      S.dir *= -1; S.banner = { text: 'THE TURN', t: 0, color: INK }; SFX.turn();
+      S.seats.forEach(function (s) { s.plan = null; });
+    }
+    S.speed = Math.min(T.speedMax, T.speed0 + T.speedStep * (S.wave - 1));
+    S.rush = false;
+    var kinds = ['bun', 'dump', 'dump', 'dump'];
+    if (S.wave % 2 === 0) kinds.push('dump');
+    if (cfg.chili) { kinds.push('chili'); if (S.wave >= 4) kinds.push('chili'); }
+    var slots = [0, 1, 2, 3, 4, 5, 6, 7];
+    for (var i = slots.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = slots[i]; slots[i] = slots[j]; slots[j] = t; }
+    var off = Math.random() * TAU;
+    kinds.forEach(function (k, idx) {
+      S.pieces.push({ id: ++S.id, type: k, a: off + slots[idx] * TAU / 8 + (Math.random() - 0.5) * 0.2, born: -idx * 0.07, gone: false, gold: false, fade: 1, seen: {} });
+    });
+  }
+
+  function edibleLeft() { return S.pieces.filter(function (p) { return !p.gone && p.type !== 'chili'; }); }
+  function stationXY(s, r) { return [CX + Math.cos(s.ang) * r, CY + Math.sin(s.ang) * r]; }
+
+  function burst(x, y, n, color, kind, speed) {
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * TAU, v = (0.4 + Math.random()) * (speed || 70);
+      S.parts.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, max: 0.35 + Math.random() * 0.4, size: 1.5 + Math.random() * 2.5, color: color, kind: kind });
+    }
+  }
+
+  function tap(i) {
+    var s = S.seats[i];
+    if (!s) return;
+    if (S.phase === 'over') { if (S.overT > 1.1) reset(false); return; }
+    if (S.phase === 'count') return;
+    if (s.stun > 0) return;
+    if (s.lock > 0) { if (s.lock <= T.buffer) s.buf = true; return; }
+    var best = null, bd = T.window;
+    S.pieces.forEach(function (p) {
+      if (p.gone || p.born < T.bornLock) return;
+      var d = Math.abs(wrap(p.a + S.th - s.ang));
+      if (d < bd) { bd = d; best = p; }
+    });
+    s.jab = 0; s.hit = !!best;
+    var st = stationXY(s, RT), pt = stationXY(s, RT + 46);
+    if (!best) {
+      s.score = Math.max(0, s.score - 1); s.lock = T.missLock; s.flash = 1; S.shake = Math.max(S.shake, 0.5);
+      S.pops.push({ x: pt[0], y: pt[1], text: '-1', color: DANGER, t: 0, rot: s.hud[2] });
+      burst(st[0], st[1], 6, P.grain, 'spark', 60); SFX.miss();
+      return;
+    }
+    best.gone = true;
+    if (best.type === 'chili') {
+      s.score = Math.max(0, s.score - 2); s.stun = T.stun; s.lock = T.stun; s.flash = 1; S.shake = Math.max(S.shake, 0.8);
+      S.pops.push({ x: pt[0], y: pt[1], text: 'HOT! -2', color: DANGER, t: 0, rot: s.hud[2] });
+      burst(st[0], st[1], 14, P.chA, 'fire', 90); SFX.hot();
+      S.fly.push({ type: 'chili', gold: false, seat: i, t: 0 });
+      return;
+    }
+    var v = (best.type === 'bun' ? 3 : 1) * (best.gold ? 2 : 1);
+    s.score += v; s.lock = T.hitLock; s.pop = 1;
+    S.pops.push({ x: pt[0], y: pt[1], text: '+' + v, color: best.gold ? GOLD : s.color, t: 0, rot: s.hud[2], big: v > 1 });
+    burst(st[0], st[1], best.gold ? 18 : 8, best.gold ? P.goldHi : P.fB, best.gold ? 'star' : 'crumb', 80);
+    S.fly.push({ type: best.type, gold: best.gold, seat: i, t: 0 });
+    if (v >= 3) SFX.bun(); else SFX.grab(v);
+    if (s.score >= S.target) {
+      S.phase = 'over'; S.winner = i; S.overT = 0; SFX.win();
+      for (var k = 0; k < 60; k++) S.parts.push({ x: CX + (Math.random() - 0.5) * 200, y: CY - 40 + (Math.random() - 0.5) * 60, vx: (Math.random() - 0.5) * 240, vy: -80 - Math.random() * 220, life: 0, max: 1.4 + Math.random(), size: 3 + Math.random() * 3, color: Math.random() < 0.6 ? s.color : P.goldHi, kind: 'conf' });
+      if (onState) onState(S);
+      return;
+    }
+    var left = edibleLeft();
+    if (left.length === 0) { S.phase = 'refill'; S.refill = 0.75; }
+    else if (left.length === 1 && cfg.last && !left[0].gold) {
+      left[0].gold = true; S.rush = true; S.banner = { text: 'LAST BITE x2', t: 0, color: GOLD }; SFX.last();
+    }
+  }
+
+  /* ---------- bots ---------- */
+  function botThink(s, i, dt) {
+    var B = T.bot[S.attract ? 1 : cfg.level];
+    if (s.plan) {
+      s.plan.t -= dt;
+      if (s.plan.t <= 0) { s.plan = null; if (s.lock <= 0 && s.stun <= 0) tap(i); }
+      return;
+    }
+    if (s.lock > 0 || s.stun > 0 || Math.abs(S.cur) < 0.4) return;
+    var pick = null, pt = 9;
+    S.pieces.forEach(function (p) {
+      if (p.gone || p.type === 'chili' || p.born < T.bornLock) return;
+      if ((p.seen[i] || 0) > S.time) return;
+      var tt = wrap(s.ang - (p.a + S.th)) / S.cur;
+      if (tt > 0.14 && tt < 0.5 && tt < pt) { pick = p; pt = tt; }
+    });
+    if (!pick) return;
+    pick.seen[i] = S.time + 1.2;
+    if (Math.random() < B.skip) return;
+    s.plan = { t: Math.max(0.02, pt + gauss() * B.sigma) };
+  }
+
+  /* ---------- update ---------- */
+  function update(dt) {
+    S.time += dt;
+    var target = S.dir * S.speed * (S.rush ? T.rush : 1);
+    S.cur += (target - S.cur) * Math.min(1, dt * 3.2);   // the plate has weight: it eases into a reversal
+    S.th += S.cur * dt;
+    if (S.phase === 'count') {
+      S.count -= dt;
+      var c = Math.ceil(S.count - 0.2);
+      if (!S.attract && c < S.lastTick && c >= 1 && c <= 3) { S.lastTick = c; SFX.tick(); }
+      if (S.count <= 0) { S.phase = 'play'; if (!S.attract) SFX.go(); }
+    } else if (S.phase === 'refill') {
+      S.refill -= dt;
+      S.pieces.forEach(function (p) { if (!p.gone) p.fade = Math.max(0, p.fade - dt * 2.4); });
+      if (S.refill <= 0) { S.pieces = []; spawnWave(); S.phase = 'play'; }
+    } else if (S.phase === 'over') {
+      S.overT += dt;
+      if (S.attract && S.overT > 2.5) reset(true);
+    }
+    S.pieces.forEach(function (p) { p.born += dt; });
+    S.seats.forEach(function (s, i) {
+      if (s.jab >= 0) { s.jab += dt; if (s.jab > 0.32) s.jab = -1; }
+      if (s.lock > 0) { s.lock -= dt; if (s.lock <= 0 && s.buf) { s.buf = false; tap(i); } }
+      if (s.stun > 0) {
+        s.stun -= dt;
+        if (Math.random() < dt * 22) { var p = stationXY(s, RT + 70); S.parts.push({ x: p[0] + (Math.random() - 0.5) * 20, y: p[1], vx: (Math.random() - 0.5) * 14, vy: -26, life: 0, max: 0.8, size: 5, color: P.hi, kind: 'steam' }); }
+      }
+      s.flash = Math.max(0, s.flash - dt * 2.6);
+      s.pop = Math.max(0, s.pop - dt * 4);
+      s.shown += (s.score - s.shown) * Math.min(1, dt * 12);
+      if (s.bot && S.phase === 'play') botThink(s, i, dt);
+    });
+    S.fly = S.fly.filter(function (f) { f.t += dt; return f.t < 0.3; });
+    S.parts = S.parts.filter(function (p) {
+      p.life += dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.kind === 'conf') p.vy += 420 * dt; else if (p.kind !== 'steam') { p.vx *= 0.94; p.vy *= 0.94; }
+      return p.life < p.max;
+    });
+    S.pops = S.pops.filter(function (p) { p.t += dt; return p.t < 0.9; });
+    if (S.banner) { S.banner.t += dt; if (S.banner.t > 1.5) S.banner = null; }
+    S.shake = Math.max(0, S.shake - dt * 3);
+  }
+
+  /* ---------- drawing ---------- */
+  function makeBackground() {
+    bg = document.createElement('canvas'); bg.width = W * 2; bg.height = H * 2;
+    var b = bg.getContext('2d'); b.scale(2, 2);
+    var g = b.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, col('tableA')); g.addColorStop(0.55, col('tableB')); g.addColorStop(1, col('tableC'));
+    b.fillStyle = g; b.fillRect(0, 0, W, H);
+    var seed = 7; function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+    for (var px = 0; px < W; px += 72) {             // planks
+      b.fillStyle = 'rgba(' + P.grain.join(',') + ',' + (0.03 + rnd() * 0.07) + ')'; b.fillRect(px, 0, 72, H);
+      b.fillStyle = col('grain', 0.28); b.fillRect(px, 0, 1, H);
+      b.fillStyle = col('lampHi', 0.3); b.fillRect(px + 1, 0, 1, H);
+    }
+    for (var i = 0; i < 150; i++) {                  // grain
+      var x = rnd() * W, y = rnd() * H, len = 40 + rnd() * 160, wob = (rnd() - 0.5) * 7;
+      b.strokeStyle = 'rgba(' + P.grain.join(',') + ',' + (0.04 + rnd() * 0.1) + ')'; b.lineWidth = 0.5 + rnd() * 0.9;
+      b.beginPath(); b.moveTo(x, y); b.bezierCurveTo(x + wob, y + len * 0.33, x - wob, y + len * 0.66, x + wob * 0.4, y + len); b.stroke();
+    }
+    for (var k = 0; k < 5; k++) {                    // knots
+      var kx = rnd() * W, ky = rnd() * H;
+      for (var r = 9; r > 1; r -= 2) { b.strokeStyle = 'rgba(' + P.grain.join(',') + ',' + (0.06 + (9 - r) * 0.02) + ')'; b.lineWidth = 0.8; b.beginPath(); b.ellipse(kx, ky, r * 0.7, r * 1.5, 0, 0, TAU); b.stroke(); }
+    }
+    var v = b.createRadialGradient(CX - 50, CY - 120, 80, CX, CY, 430);  // warm lamp, top left
+    v.addColorStop(0, col('lampHi', 0.3)); v.addColorStop(0.5, col('lampHi', 0)); v.addColorStop(1, col('shadow', 0.34));
+    b.fillStyle = v; b.fillRect(0, 0, W, H);
+  }
+
+  function drawPlate() {
+    ctx.save(); ctx.translate(CX + 7, CY + 12);                      // contact shadow
+    var sh = ctx.createRadialGradient(0, 0, RP - 12, 0, 0, RP + 30);
+    sh.addColorStop(0, col('shadow', 0.5)); sh.addColorStop(1, col('shadow', 0));
+    ctx.fillStyle = sh; ctx.beginPath(); ctx.arc(0, 0, RP + 30, 0, TAU); ctx.fill(); ctx.restore();
+
+    ctx.save(); ctx.translate(CX, CY);
+    var wd = ctx.createRadialGradient(-40, -50, 20, 0, 0, RP + 12);   // walnut turntable base
+    wd.addColorStop(0, col('baseA')); wd.addColorStop(1, col('baseB'));
+    ctx.fillStyle = wd; ctx.beginPath(); ctx.arc(0, 0, RP + 11, 0, TAU); ctx.fill();
+    ctx.save(); ctx.rotate(S.th);
+    for (var i = 0; i < 9; i++) { ctx.strokeStyle = col('shadow', 0.3); ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(0, 0, RP + 2 + i, i * 0.7, i * 0.7 + 1.2 + (i % 3) * 0.5); ctx.stroke(); }
+    ctx.restore();
+    ctx.strokeStyle = col('lampHi', 0.4); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(0, 0, RP + 10, Math.PI * 1.05, Math.PI * 1.55); ctx.stroke();
+
+    var pc = ctx.createRadialGradient(-26, -34, 10, 0, 0, RP);         // porcelain
+    pc.addColorStop(0, col('pl0')); pc.addColorStop(0.62, col('pl1')); pc.addColorStop(0.9, col('pl2')); pc.addColorStop(1, col('pl3'));
+    ctx.fillStyle = pc; ctx.beginPath(); ctx.arc(0, 0, RP, 0, TAU); ctx.fill();
+    ctx.save(); ctx.rotate(S.th);                                      // painted rim turns with the plate
+    ctx.strokeStyle = col('paintA', 0.6); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(0, 0, RP - 6, 0, TAU); ctx.stroke();
+    for (var k = 0; k < 16; k++) {
+      ctx.save(); ctx.rotate(k * TAU / 16); ctx.translate(0, -(RP - 14));
+      ctx.fillStyle = k % 4 === 0 ? col('paintB', 0.55) : col('paintA', 0.5);
+      ctx.beginPath(); ctx.ellipse(0, 0, 5.5, 2, 0.5, 0, TAU); ctx.fill(); ctx.restore();
+    }
+    ctx.strokeStyle = col('paintA', 0.22); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, RT + 26, 0, TAU); ctx.stroke();
+    ctx.restore();
+    var well = ctx.createRadialGradient(0, 0, RH + 4, 0, 0, RT + 24);   // the shallow well the food rides in
+    well.addColorStop(0, col('well', 0.16)); well.addColorStop(0.25, col('well', 0)); well.addColorStop(0.85, col('well', 0)); well.addColorStop(1, col('well', 0.2));
+    ctx.fillStyle = well; ctx.beginPath(); ctx.arc(0, 0, RT + 24, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawGates() {
+    S.seats.forEach(function (s) {
+      var hot = false;
+      S.pieces.forEach(function (p) { if (!p.gone && p.born >= T.bornLock && Math.abs(wrap(p.a + S.th - s.ang)) < T.window) hot = true; });
+      ctx.save(); ctx.translate(CX, CY);
+      ctx.strokeStyle = rgb(s.color, hot ? 0.42 : 0.17); ctx.lineWidth = 46; ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.arc(0, 0, RT, s.ang - T.window, s.ang + T.window); ctx.stroke();
+      ctx.strokeStyle = rgb(s.color, 0.9); ctx.lineWidth = 2.5;
+      [-1, 1].forEach(function (e) {
+        var a = s.ang + e * T.window;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a) * (RT - 23), Math.sin(a) * (RT - 23)); ctx.lineTo(Math.cos(a) * (RT + 23), Math.sin(a) * (RT + 23)); ctx.stroke();
+      });
+      ctx.restore();
+    });
+  }
+
+  function drawHub() {
+    ctx.save(); ctx.translate(CX, CY);
+    ctx.fillStyle = col('shadow', 0.25); ctx.beginPath(); ctx.arc(3, 5, RH + 2, 0, TAU); ctx.fill();
+    var rim = ctx.createRadialGradient(-10, -12, 4, 0, 0, RH);
+    rim.addColorStop(0, col('pl0')); rim.addColorStop(1, col('pl3'));
+    ctx.fillStyle = rim; ctx.beginPath(); ctx.arc(0, 0, RH, 0, TAU); ctx.fill();
+    var soy = ctx.createRadialGradient(-8, -10, 2, 0, 0, RH - 6);
+    soy.addColorStop(0, col('soyA')); soy.addColorStop(0.5, col('soyB')); soy.addColorStop(1, col('soyC'));
+    ctx.fillStyle = soy; ctx.beginPath(); ctx.arc(0, 0, RH - 6, 0, TAU); ctx.fill();
+    ctx.strokeStyle = col('hi', 0.55); ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, 0, RH - 11, Math.PI * 1.1, Math.PI * 1.45); ctx.stroke();
+    ctx.fillStyle = col('hi', 0.5); ctx.beginPath(); ctx.arc(-13, -3, 1.6, 0, TAU); ctx.fill();
+    // three chevrons on the hub rim show which way the plate is turning
+    var d = S.cur >= 0 ? 1 : -1, strength = clamp(Math.abs(S.cur) / 1.2, 0, 1);
+    ctx.rotate(S.th);
+    ctx.strokeStyle = rgb(INK, 0.25 + 0.5 * strength); ctx.lineWidth = 2.4; ctx.lineJoin = 'round';
+    for (var i = 0; i < 3; i++) {
+      ctx.save(); ctx.rotate(i * TAU / 3); ctx.translate(0, -(RH + 9)); ctx.scale(d, 1);
+      ctx.beginPath(); ctx.moveTo(-4, -4.5); ctx.lineTo(3, 0); ctx.lineTo(-4, 4.5); ctx.stroke(); ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function shapeDumpling() {
+    var g = ctx.createLinearGradient(0, -12, 0, 12);
+    g.addColorStop(0, col('fA')); g.addColorStop(0.55, col('fB')); g.addColorStop(1, col('fC'));
+    ctx.fillStyle = g; ctx.strokeStyle = col('fLine', 0.55); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-18, 5); ctx.bezierCurveTo(-18, -12, 18, -12, 18, 5); ctx.bezierCurveTo(10, 11, -10, 11, -18, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+    var sear = ctx.createLinearGradient(0, 3, 0, 11);                  // pan-fried underside
+    sear.addColorStop(0, col('sear', 0)); sear.addColorStop(1, col('sear', 0.75));
+    ctx.fillStyle = sear; ctx.beginPath(); ctx.moveTo(-18, 5); ctx.bezierCurveTo(-10, 11, 10, 11, 18, 5); ctx.bezierCurveTo(10, 7, -10, 7, -18, 5); ctx.fill();
+    ctx.strokeStyle = col('fLine', 0.6); ctx.lineWidth = 0.9;      // pleats
+    for (var i = -3; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(i * 4.2, -7.6 + Math.abs(i) * 0.9); ctx.quadraticCurveTo(i * 4.2 + 2.4, -4, i * 4.4 + 1, -1.5); ctx.stroke(); }
+    ctx.strokeStyle = col('hi', 0.85); ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-11, -1); ctx.quadraticCurveTo(-4, -6, 4, -5); ctx.stroke();
+  }
+  function shapeBun() {
+    ctx.fillStyle = col('steam'); ctx.beginPath(); ctx.arc(0, 0, 20, 0, TAU); ctx.fill();          // bamboo steamer ring
+    ctx.strokeStyle = col('fLine', 0.8); ctx.lineWidth = 1; ctx.stroke();
+    ctx.strokeStyle = col('hi', 0.5); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, 18, Math.PI, Math.PI * 1.6); ctx.stroke();
+    ctx.fillStyle = col('fB'); ctx.beginPath(); ctx.arc(0, 0, 16.5, 0, TAU); ctx.fill();
+    var g = ctx.createRadialGradient(-5, -6, 2, 0, 0, 15);
+    g.addColorStop(0, col('bunA')); g.addColorStop(0.7, col('bunB')); g.addColorStop(1, col('bunC'));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 14.5, 0, TAU); ctx.fill();
+    ctx.strokeStyle = col('fLine', 0.5); ctx.lineWidth = 0.9;                              // twisted top
+    for (var i = 0; i < 7; i++) { ctx.save(); ctx.rotate(i * TAU / 7); ctx.beginPath(); ctx.moveTo(0, -1.5); ctx.quadraticCurveTo(5, -5, 3.5, -10.5); ctx.stroke(); ctx.restore(); }
+    ctx.fillStyle = col('danger'); ctx.beginPath(); ctx.arc(0, 0, 2.2, 0, TAU); ctx.fill();
+    ctx.fillStyle = col('hi', 0.8); ctx.beginPath(); ctx.ellipse(-6, -7, 3.4, 1.8, -0.7, 0, TAU); ctx.fill();
+  }
+  function shapeChili() {
+    var g = ctx.createLinearGradient(-6, -8, 8, 8);
+    g.addColorStop(0, col('chA')); g.addColorStop(0.5, col('danger')); g.addColorStop(1, col('chC'));
+    ctx.fillStyle = g; ctx.strokeStyle = col('chC', 0.8); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-15, -4); ctx.bezierCurveTo(-8, -13, 9, -9, 19, 6); ctx.bezierCurveTo(8, 3, -4, 6, -14, 5); ctx.bezierCurveTo(-18, 3, -18, -1, -15, -4); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = col('hi', 0.8); ctx.lineWidth = 1.7; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-9, -4.5); ctx.quadraticCurveTo(0, -7.5, 8, -2.5); ctx.stroke();
+    ctx.fillStyle = col('win'); ctx.strokeStyle = col('stemB'); ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(-13, -5); ctx.quadraticCurveTo(-17, -3, -15, 3); ctx.lineTo(-18, 2); ctx.quadraticCurveTo(-22, -4, -24, -9); ctx.lineTo(-21, -10); ctx.quadraticCurveTo(-18, -7, -13, -5); ctx.fill(); ctx.stroke();
+  }
+  function drawFood(type, gold) {
+    if (gold) {
+      var halo = ctx.createRadialGradient(0, 0, 6, 0, 0, 30);
+      halo.addColorStop(0, col('gold', 0.85)); halo.addColorStop(1, col('gold', 0));
+      ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, 0, 30 + Math.sin(S.time * 10) * 2, 0, TAU); ctx.fill();
+    }
+    if (type === 'bun') shapeBun(); else if (type === 'chili') shapeChili(); else shapeDumpling();
+    if (gold) {
+      for (var i = 0; i < 4; i++) {
+        var a = S.time * 2.4 + i * TAU / 4, r = 24 + Math.sin(S.time * 6 + i) * 3;
+        ctx.save(); ctx.translate(Math.cos(a) * r, Math.sin(a) * r); ctx.rotate(S.time * 3);
+        ctx.fillStyle = col('goldHi', 0.95);
+        ctx.beginPath(); ctx.moveTo(0, -4.5); ctx.lineTo(1.2, -1.2); ctx.lineTo(4.5, 0); ctx.lineTo(1.2, 1.2); ctx.lineTo(0, 4.5); ctx.lineTo(-1.2, 1.2); ctx.lineTo(-4.5, 0); ctx.lineTo(-1.2, -1.2); ctx.closePath(); ctx.fill(); ctx.restore();
+      }
+    }
+  }
+
+  function drawPieces() {
+    S.pieces.forEach(function (p) {
+      if (p.gone || p.born <= 0) return;
+      var a = p.a + S.th, x = CX + Math.cos(a) * RT, y = CY + Math.sin(a) * RT;
+      var sc = p.born < 0.3 ? backOut(clamp(p.born / 0.3, 0, 1)) : 1;
+      ctx.save(); ctx.globalAlpha = p.fade;
+      ctx.fillStyle = col('shadow', 0.3); ctx.beginPath(); ctx.ellipse(x + 3, y + 5, 17 * sc, 12 * sc, a + Math.PI / 2, 0, TAU); ctx.fill();
+      ctx.translate(x, y); ctx.rotate(a + Math.PI / 2); ctx.scale(sc, sc);
+      if (p.type === 'chili') {                                         // heat shimmer keeps the hazard readable without colour
+        ctx.strokeStyle = 'rgba(' + P.danger.join(',') + ',' + (0.3 + 0.2 * Math.sin(S.time * 9)) + ')'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 4]);
+        ctx.beginPath(); ctx.arc(0, 0, 23, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      }
+      drawFood(p.type, p.gold);
+      ctx.restore();
+    });
+  }
+
+  function stickPath(tx, ty, bx, by, wt, wb) {
+    var dx = bx - tx, dy = by - ty, l = Math.sqrt(dx * dx + dy * dy), nx = -dy / l, ny = dx / l;
+    ctx.beginPath(); ctx.moveTo(tx + nx * wt, ty + ny * wt); ctx.lineTo(bx + nx * wb, by + ny * wb); ctx.lineTo(bx - nx * wb, by - ny * wb); ctx.lineTo(tx - nx * wt, ty - ny * wt); ctx.closePath();
+  }
+  function drawSticks(s, i) {
+    var j = 0;
+    if (s.jab >= 0) j = s.jab < 0.08 ? easeOut(s.jab / 0.08) : 1 - easeOut(clamp((s.jab - 0.08) / 0.24, 0, 1));
+    var rest = RT + 60, reach = s.hit ? 50 : 40;
+    var tipY = rest - j * reach + Math.sin(S.time * 2.2 + i * 1.7) * 1.2;
+    var spread = 10 - j * 6.5, jit = s.stun > 0 ? Math.sin(S.time * 70) * 2 : 0;
+    var rot = s.ang - Math.PI / 2, c = Math.cos(-rot), sn = Math.sin(-rot), ox = 4 * c - 7 * sn, oy = 4 * sn + 7 * c;
+    ctx.save(); ctx.translate(CX, CY); ctx.rotate(rot);
+    [-1, 1].forEach(function (e) {                                       // shadows first
+      ctx.fillStyle = col('shadow', 0.28); stickPath(e * spread + jit + ox, tipY + oy, e * 23 + jit + ox, tipY + 150 + oy, 2.2, 5); ctx.fill();
+    });
+    [-1, 1].forEach(function (e) {
+      var tx = e * spread + jit, bx = e * 23 + jit, by = tipY + 150;
+      var g = ctx.createLinearGradient(tx, tipY, bx, by);
+      g.addColorStop(0, col('stA')); g.addColorStop(0.16, col('stB')); g.addColorStop(1, col('stC'));
+      ctx.fillStyle = g; stickPath(tx, tipY, bx, by, 2.2, 5.2); ctx.fill();
+      var f0 = 0.56, f1 = 0.68;                                          // lacquer band in the seat colour
+      ctx.fillStyle = rgb(s.color); stickPath(tx + (bx - tx) * f0, tipY + (by - tipY) * f0, tx + (bx - tx) * f1, tipY + (by - tipY) * f1, 2.2 + 3 * f0, 2.2 + 3 * f1); ctx.fill();
+      ctx.fillStyle = col('goldHi', 0.95);
+      [f0 - 0.012, f1].forEach(function (f) { stickPath(tx + (bx - tx) * f, tipY + (by - tipY) * f, tx + (bx - tx) * (f + 0.012), tipY + (by - tipY) * (f + 0.012), 2.2 + 3 * f, 2.2 + 3 * f); ctx.fill(); });
+      ctx.strokeStyle = col('hi', 0.4); ctx.lineWidth = 0.9;      // lacquer highlight
+      ctx.beginPath(); ctx.moveTo(tx - 0.6, tipY + 4); ctx.lineTo(bx - 1.6, by - 4); ctx.stroke();
+      if (s.stun > 0) { ctx.fillStyle = col('danger', 0.35); stickPath(tx, tipY, bx, by, 2.2, 5.2); ctx.fill(); }
+    });
+    ctx.restore();
+  }
+
+  function drawFly() {
+    S.fly.forEach(function (f) {
+      var s = S.seats[f.seat], k = clamp((f.t - 0.06) / 0.24, 0, 1), e = easeOut(k);
+      ctx.save(); ctx.translate(CX, CY); ctx.rotate(s.ang - Math.PI / 2); ctx.translate(0, RT + 8 + e * 44);
+      ctx.globalAlpha = 1 - k * k; ctx.scale(1 - e * 0.35, 1 - e * 0.35); ctx.rotate(Math.PI);
+      drawFood(f.type, f.gold); ctx.restore();
+    });
+  }
+
+  function drawFlash() {
+    S.seats.forEach(function (s) {
+      if (s.flash <= 0) return;
+      ctx.save(); ctx.translate(CX, CY); ctx.rotate(s.ang - Math.PI / 2);
+      var g = ctx.createLinearGradient(0, RT - 10, 0, RT + 260);
+      g.addColorStop(0, rgb(DANGER, 0)); g.addColorStop(1, rgb(DANGER, 0.5 * s.flash));
+      ctx.fillStyle = g; ctx.fillRect(-420, RT - 10, 840, 520); ctx.restore();
+    });
+  }
+
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function glass(x, y, w, h, r, a) {
+    ctx.save(); ctx.shadowColor = col('shadow', 0.22); ctx.shadowBlur = 14; ctx.shadowOffsetY = 6;
+    ctx.fillStyle = 'rgba(' + P.glass.join(',') + ',' + (a || 0.42) + ')'; rr(x, y, w, h, r); ctx.fill(); ctx.restore();
+    var g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, col('glassHi', 0.55)); g.addColorStop(0.5, col('glassHi', 0));
+    ctx.fillStyle = g; rr(x, y, w, h, r); ctx.fill();
+    ctx.strokeStyle = col('glassHi', 0.85); ctx.lineWidth = 1; rr(x + 0.5, y + 0.5, w - 1, h - 1, r); ctx.stroke();
+  }
+
+  function drawHud() {
+    S.seats.forEach(function (s) {
+      var sc = 1 + s.pop * 0.12;
+      ctx.save(); ctx.translate(s.hud[0], s.hud[1]); ctx.rotate(s.hud[2] * Math.PI / 180); ctx.scale(sc, sc);
+      glass(-56, -20, 112, 40, 12, 0.5);
+      ctx.fillStyle = rgb(s.color); ctx.beginPath(); ctx.arc(-40, -3, 8, 0, TAU); ctx.fill();
+      ctx.strokeStyle = col('glassHi', 0.9); ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = rgb(INK); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      ctx.font = '7px ' + FONT; ctx.fillText(s.name, -27, -3);
+      ctx.textAlign = 'right'; ctx.font = '15px ' + FONT; ctx.fillText(String(s.score), 34, -2);
+      ctx.font = '6px ' + FONT; ctx.fillStyle = rgb(INK, 0.75); ctx.textAlign = 'left'; ctx.fillText('/' + S.target, 36, 1);
+      ctx.fillStyle = rgb(INK, 0.14); rr(-48, 10, 96, 4, 2); ctx.fill();
+      ctx.fillStyle = rgb(s.color); rr(-48, 10, Math.max(4, 96 * clamp(s.shown / S.target, 0, 1)), 4, 2); ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function label(text, x, y, size, color, rot, alpha) {
+    ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot * Math.PI / 180);
+    ctx.globalAlpha = alpha == null ? 1 : alpha; ctx.font = size + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.strokeStyle = col('outline', 0.95); ctx.lineWidth = Math.max(3, size * 0.32); ctx.strokeText(text, 0, 0);
+    ctx.fillStyle = rgb(color); ctx.fillText(text, 0, 0); ctx.restore();
+  }
+
+  function drawOverlays() {
+    S.parts.forEach(function (p) {
+      var k = 1 - p.life / p.max;
+      ctx.save(); ctx.globalAlpha = p.kind === 'steam' ? k * 0.4 : k;
+      ctx.fillStyle = rgb(p.color);
+      if (p.kind === 'conf') { ctx.translate(p.x, p.y); ctx.rotate(p.life * 9); ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2); }
+      else { ctx.beginPath(); ctx.arc(p.x, p.y, p.kind === 'steam' ? p.size * (1.6 - k) : p.size * k, 0, TAU); ctx.fill(); }
+      ctx.restore();
+    });
+    S.pops.forEach(function (p) {
+      var k = p.t / 0.9, rise = easeOut(clamp(k * 1.6, 0, 1)) * 16, s = stationDir(p);
+      label(p.text, p.x + s[0] * rise, p.y + s[1] * rise, p.big ? 14 : 11, p.color, p.rot, k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3);
+    });
+    if (S.banner) {
+      var b = S.banner, a = b.t < 1.1 ? 1 : 1 - (b.t - 1.1) / 0.4;
+      label(b.text, CX, CY - 60, 11, b.color, 0, a);
+      if (S.n >= 2 && !S.seats[1].bot) label(b.text, CX, CY + 60, 11, b.color, 180, a);
+    }
+    if (S.phase === 'count' && !S.attract) {
+      var c = Math.ceil(S.count - 0.2), txt = c >= 1 ? String(Math.min(3, c)) : 'GO!';
+      label(txt, CX, CY, c >= 1 ? 34 : 22, INK, 0, 1);
+      S.seats.forEach(function (s) { if (!s.bot) { var p = stationXY(s, 215); label('TAP', p[0], p[1], 9, s.color, s.hud[2], 0.9); } });
+    }
+    if (S.phase === 'over' && !S.attract) {
+      var w = S.seats[S.winner];
+      glass(CX - 128, CY - 56, 256, 112, 18, 0.72);
+      label(w.name + ' WINS', CX, CY - 22, 16, w.color, 0, 1);
+      label(S.seats.map(function (s) { return s.score; }).join(' - '), CX, CY + 6, 11, INK, 0, 1);
+      if (S.overT > 1.1) label('TAP TO PLAY AGAIN', CX, CY + 32, 7, INK, 0, 0.6 + 0.4 * Math.sin(S.time * 5));
+    }
+    if (S.attract) {
+      glass(CX - 104, H - 86, 208, 44, 14, 0.74);
+      label('TAP TO PLAY', CX, H - 64, 11, INK, 0, 0.75 + 0.25 * Math.sin(S.time * 4));
+    }
+  }
+  function stationDir(p) { var r = p.rot === 180 ? -1 : 1; return [0, -r]; }
+
+  function draw() {
+    ctx.save();
+    if (S.shake > 0 && !reduced) ctx.translate((Math.random() - 0.5) * S.shake * 7, (Math.random() - 0.5) * S.shake * 7);
+    ctx.drawImage(bg, 0, 0, W, H);
+    drawPlate(); drawGates(); drawHub(); drawPieces();
+    S.seats.forEach(drawSticks); drawFly(); drawFlash();
+    ctx.restore();
+    drawHud(); drawOverlays();
+  }
+
+  function frame(t) {
+    var dt = Math.min(0.033, (t - lastT) / 1000 || 0); lastT = t;
+    if (!document.hidden) { update(dt); draw(); }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- input ---------- */
+  function seatAt(x, y) {
+    if (S.seats.length > 1 && S.seats[1].bot) return 0;
+    if (S.n === 2) return y > CY ? 0 : 1;
+    if (S.n === 3) return y > CY ? 0 : (x > CX ? 1 : 2);
+    return y > CY ? (x < CX ? 0 : 1) : (x > CX ? 2 : 3);
+  }
+  function onPointer(e) {
+    e.preventDefault(); wake();
+    if (S.attract) { reset(false); return; }
+    var r = canvas.getBoundingClientRect();
+    tap(seatAt((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H));
+  }
+  var KEYS = { 2: { ' ': 0, ArrowDown: 0, Enter: 1, ArrowUp: 1 }, 3: { ' ': 0, ArrowDown: 0, p: 1, q: 2 }, 4: { z: 0, m: 1, p: 2, q: 3 } };
+  function onKey(e) {
+    var k = e.key.length === 1 ? e.key.toLowerCase() : e.key, map = KEYS[S.n], i = map[k];
+    if (i == null || e.repeat) return;
+    e.preventDefault(); wake();
+    if (S.attract) { reset(false); return; }
+    if (S.seats.length > 1 && S.seats[1].bot) i = 0;
+    if (!S.seats[i].bot) tap(i);
+  }
+
+  function mount(el, opts) {
+    canvas = el; ctx = canvas.getContext('2d'); onState = opts && opts.onState;
+    var dpr = Math.min(3, window.devicePixelRatio || 1);
+    canvas.width = W * dpr; canvas.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { reduced = false; }
+    applyTheme((opts && opts.theme) || DEFAULT_THEME); reset(true);
+    canvas.addEventListener('pointerdown', onPointer);
+    canvas.addEventListener('keydown', onKey);
+    canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    requestAnimationFrame(frame);
+  }
+
+  function legend() {
+    var saved = ctx;
+    [['lg-dump', 'dump', 0], ['lg-bun', 'bun', 0], ['lg-chili', 'chili', 0], ['lg-gold', 'bun', 1]].forEach(function (d) {
+      var el = document.getElementById(d[0]); if (!el) return;
+      ctx = el.getContext('2d'); ctx.save(); ctx.clearRect(0, 0, 88, 88); ctx.translate(44, 44); ctx.scale(1.5, 1.5); drawFood(d[1], !!d[2]); ctx.restore();
+    });
+    ctx = saved;
+  }
+
+  window.LazySusan = {
+    mount: mount, legend: legend, theme: function (t) { applyTheme(t); legend(); }, cfg: cfg, T: T,
+    set: function (patch, keepAttract) { for (var k in patch) cfg[k] = patch[k]; reset(keepAttract ? S.attract : false); },
+    restart: function () { reset(false); },
+    state: function () { return S; },
+    tap: function (i) { if (S.attract) reset(false); else tap(i); }
+  };
+})();
+
+</script>
+<script>
+(function () {
+  var G = window.LazySusan, live = document.getElementById('live');
+  function press(sel, attr, val) { document.querySelectorAll(sel).forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute(attr) === String(val))); }); }
+  function say() {
+    var c = G.cfg, tw = [c.turn && 'THE TURN', c.chili && 'HOT CHILI', c.last && 'LAST BITE'].filter(Boolean);
+    live.textContent = (c.bot ? 'YOU VS BOT' : c.n + ' PLAYERS') + ' · FIRST TO ' + G.T.target[c.n] + ' · ' + (tw.length ? tw.join(' + ') : 'NO TWISTS (THE ORIGINAL RULES)');
+  }
+  var THEMES = [{"id":"midnight","label":"MIDNIGHT ARCADE","bg":[8,8,16],"surface":[15,15,26],"card":[19,19,40],"border":[56,56,106],"text":[224,224,255],"p1":[0,229,255],"p2":[255,64,129],"p3":[171,102,255],"p4":[255,158,44],"cta":[255,230,0],"win":[77,255,195],"danger":[255,45,45],"structure":[74,74,138],"deep":[12,12,32]},{"id":"phosphor","label":"PHOSPHOR","bg":[3,15,3],"surface":[6,24,6],"card":[8,32,8],"border":[16,58,16],"text":[184,255,184],"dim":[82,148,82],"p1":[57,255,20],"p2":[255,211,122],"p3":[102,255,218],"p4":[200,255,102],"cta":[204,255,51],"win":[118,255,118],"danger":[255,60,40],"structure":[20,82,20],"deep":[4,22,4]},{"id":"amber","label":"AMBER CRT","bg":[13,7,0],"surface":[22,13,2],"card":[36,23,6],"border":[70,50,18],"text":[255,217,160],"dim":[160,123,67],"p1":[255,176,0],"p2":[255,244,214],"p3":[255,122,0],"p4":[255,214,122],"cta":[255,208,0],"win":[255,242,176],"danger":[247,45,67],"structure":[74,52,21],"deep":[18,10,2]},{"id":"synthwave","label":"SYNTHWAVE","bg":[13,2,33],"surface":[21,5,49],"card":[26,6,64],"border":[45,27,94],"text":[240,230,255],"dim":[135,118,186],"p1":[0,240,255],"p2":[255,41,117],"p3":[181,102,255],"p4":[255,214,61],"cta":[255,159,28],"win":[182,255,0],"danger":[255,20,20],"structure":[61,43,110],"deep":[16,4,44]},{"id":"grid","label":"THE GRID","bg":[2,8,15],"surface":[4,17,29],"card":[6,24,39],"border":[15,58,82],"text":[207,238,255],"dim":[82,135,167],"p1":[0,216,255],"p2":[255,127,17],"p3":[122,255,122],"p4":[255,102,204],"cta":[244,244,244],"win":[159,255,224],"danger":[255,64,72],"structure":[21,74,102],"deep":[3,14,24]},{"id":"mono","label":"1-BIT MONO","bg":[0,0,0],"surface":[10,10,10],"card":[16,16,16],"border":[96,96,96],"text":[255,255,255],"dim":[150,150,150],"p1":[255,255,255],"p2":[168,168,168],"p3":[116,116,116],"p4":[220,220,220],"cta":[255,255,255],"win":[255,255,255],"danger":[235,80,80],"structure":[120,120,120],"deep":[6,6,6]},{"id":"virtualboy","label":"VIRTUAL BOY","bg":[10,0,0],"surface":[20,2,2],"card":[30,4,4],"border":[70,10,10],"text":[255,120,110],"dim":[200,88,80],"p1":[255,45,45],"p2":[255,190,170],"p3":[255,110,180],"p4":[255,175,60],"cta":[255,110,60],"win":[255,230,200],"danger":[255,255,255],"structure":[90,16,16],"deep":[16,0,0]},{"id":"c64","label":"COMMODORE 64","bg":[64,49,141],"surface":[58,44,133],"card":[53,40,121],"border":[120,110,200],"text":[205,218,255],"dim":[176,171,238],"p1":[137,255,255],"p2":[255,137,137],"p3":[240,170,255],"p4":[255,185,120],"cta":[255,255,119],"win":[155,255,130],"danger":[255,255,255],"structure":[100,90,190],"deep":[43,32,104]},{"id":"blueprint","label":"BLUEPRINT","bg":[22,62,110],"surface":[28,72,125],"card":[32,80,138],"border":[90,140,190],"text":[225,240,255],"dim":[172,196,220],"p1":[255,255,255],"p2":[255,200,90],"p3":[255,158,224],"p4":[205,175,255],"cta":[127,240,255],"win":[200,255,122],"danger":[255,172,164],"structure":[110,155,205],"deep":[16,50,92]},{"id":"sakura","label":"SAKURA","bg":[30,18,28],"surface":[40,24,38],"card":[50,30,46],"border":[100,60,90],"text":[255,230,240],"dim":[175,135,160],"p1":[255,150,190],"p2":[140,202,255],"p3":[195,165,255],"p4":[255,210,122],"cta":[255,200,120],"win":[150,255,180],"danger":[255,68,68],"structure":[110,65,100],"deep":[24,14,22]},{"id":"matcha","label":"MATCHA","bg":[238,240,226],"surface":[246,248,236],"card":[252,253,246],"border":[185,195,165],"text":[45,55,35],"dim":[95,107,81],"p1":[70,121,47],"p2":[129,89,180],"p3":[175,55,115],"p4":[25,100,150],"cta":[130,95,14],"win":[38,123,66],"danger":[190,30,50],"structure":[160,170,140],"deep":[228,232,214]},{"id":"matcha-strawberry","label":"MATCHA STRAWBERRY","bg":[226,236,212],"surface":[234,242,222],"card":[245,249,238],"border":[176,196,152],"text":[34,48,26],"dim":[78,96,64],"p1":[52,110,40],"p2":[172,36,118],"p3":[31,106,98],"p4":[48,95,166],"cta":[196,32,52],"win":[17,108,82],"danger":[180,36,20],"structure":[150,174,124],"deep":[212,226,194]},{"id":"matcha-blueberry","label":"MATCHA BLUEBERRY","bg":[222,234,214],"surface":[231,240,224],"card":[243,248,238],"border":[170,194,156],"text":[28,44,34],"dim":[72,92,78],"p1":[48,106,40],"p2":[118,58,190],"p3":[10,103,126],"p4":[140,37,208],"cta":[44,84,190],"win":[17,108,82],"danger":[180,36,20],"structure":[144,172,128],"deep":[208,224,198]},{"id":"cotton-candy","label":"COTTON CANDY","bg":[251,233,242],"surface":[253,241,247],"card":[255,250,253],"border":[226,189,210],"text":[58,33,64],"dim":[115,84,121],"p1":[29,104,163],"p2":[153,81,9],"p3":[106,63,176],"p4":[15,112,112],"cta":[186,34,118],"win":[26,114,69],"danger":[179,38,30],"structure":[207,162,189],"deep":[243,219,232]},{"id":"arctic-frost","label":"ARCTIC FROST","bg":[229,237,244],"surface":[237,243,248],"card":[248,251,253],"border":[179,197,214],"text":[27,42,58],"dim":[79,99,120],"p1":[21,96,184],"p2":[163,76,9],"p3":[184,24,90],"p4":[15,112,104],"cta":[106,42,208],"win":[20,116,57],"danger":[180,28,28],"structure":[151,173,193],"deep":[217,228,238]},{"id":"shoreline","label":"SHORELINE","bg":[246,236,214],"surface":[251,244,229],"card":[255,252,244],"border":[218,198,162],"text":[33,49,61],"dim":[92,86,74],"p1":[0,112,134],"p2":[184,46,106],"p3":[112,76,160],"p4":[146,96,18],"cta":[190,62,42],"win":[20,112,76],"danger":[176,28,34],"structure":[96,160,176],"deep":[238,225,198]},{"id":"glass","label":"GLASS","bg":[238,240,226],"surface":[246,248,236],"card":[252,253,246],"border":[185,195,165],"text":[45,55,35],"dim":[50,60,38],"p1":[70,121,47],"p2":[129,89,180],"p3":[175,55,115],"p4":[25,100,150],"cta":[130,95,14],"win":[38,123,66],"danger":[190,30,50],"structure":[160,170,140],"deep":[228,232,214]},{"id":"glass-night","label":"GLASS NIGHT","bg":[8,8,16],"surface":[15,15,26],"card":[19,19,40],"border":[56,56,106],"text":[236,238,255],"dim":[220,222,250],"p1":[0,229,255],"p2":[255,64,129],"p3":[171,102,255],"p4":[255,158,44],"cta":[255,230,0],"win":[77,255,195],"danger":[255,45,45],"structure":[74,74,138],"deep":[12,12,32]},{"id":"cartridge","label":"CARTRIDGE","bg":[239,230,210],"surface":[246,239,224],"card":[255,250,240],"border":[205,191,160],"text":[42,29,23],"dim":[107,88,72],"p1":[179,32,44],"p2":[31,78,156],"p3":[15,112,102],"p4":[160,82,14],"cta":[92,67,0],"win":[29,111,60],"danger":[184,63,15],"structure":[179,163,126],"deep":[229,218,194]},{"id":"notebook","label":"NOTEBOOK","bg":[247,248,243],"surface":[251,252,248],"card":[255,255,255],"border":[201,211,224],"text":[31,38,51],"dim":[90,99,114],"p1":[31,79,191],"p2":[192,38,45],"p3":[176,90,0],"p4":[0,120,140],"cta":[11,110,79],"win":[150,104,14],"danger":[143,29,107],"structure":[159,180,207],"deep":[238,240,232]},{"id":"hicontrast","label":"HIGH CONTRAST","bg":[0,0,0],"surface":[10,10,10],"card":[18,18,18],"border":[160,160,160],"text":[255,255,255],"dim":[226,226,226],"p1":[86,180,233],"p2":[230,159,0],"p3":[204,121,167],"p4":[25,201,143],"cta":[240,228,66],"win":[255,255,255],"danger":[255,92,138],"structure":[255,255,255],"deep":[0,0,0]},{"id":"fantasy","label":"FANTASY CONSOLE","bg":[15,22,48],"surface":[22,32,74],"card":[29,43,83],"border":[51,66,122],"text":[255,241,232],"dim":[194,195,199],"p1":[41,173,255],"p2":[255,163,0],"p3":[155,142,181],"p4":[255,119,168],"cta":[255,236,39],"win":[0,228,54],"danger":[253,91,109],"structure":[131,118,156],"deep":[10,16,36]},{"id":"sweetie","label":"SWEETIE 16","bg":[26,28,44],"surface":[32,35,58],"card":[38,43,68],"border":[51,60,87],"text":[244,244,244],"dim":[148,176,194],"p1":[65,166,246],"p2":[239,125,87],"p3":[167,240,112],"p4":[230,122,200],"cta":[115,239,247],"win":[56,183,100],"danger":[247,95,119],"structure":[86,108,134],"deep":[20,21,34]},{"id":"cga","label":"CGA","bg":[0,0,0],"surface":[8,8,15],"card":[14,14,28],"border":[0,0,170],"text":[255,255,255],"dim":[170,170,170],"p1":[85,255,255],"p2":[255,85,255],"p3":[255,170,0],"p4":[85,255,85],"cta":[255,255,85],"win":[85,255,85],"danger":[255,85,85],"structure":[85,85,255],"deep":[0,0,0]},{"id":"riso","label":"RISO PRINT","bg":[245,240,230],"surface":[250,246,238],"card":[255,253,248],"border":[216,207,191],"text":[35,32,46],"dim":[98,91,110],"p1":[0,103,168],"p2":[209,21,122],"p3":[194,67,2],"p4":[0,122,128],"cta":[46,33,71],"win":[3,126,69],"danger":[176,35,42],"structure":[192,180,159],"deep":[235,228,214]},{"id":"gold","label":"24K","bg":[11,9,7],"surface":[19,16,11],"card":[27,22,15],"border":[58,46,26],"text":[255,245,220],"dim":[188,169,131],"p1":[111,168,255],"p2":[255,111,160],"p3":[126,224,224],"p4":[255,184,77],"cta":[240,192,80],"win":[95,211,154],"danger":[255,80,64],"structure":[92,74,42],"deep":[7,6,4]},{"id":"holo","label":"HOLOFOIL","bg":[12,10,24],"surface":[19,17,42],"card":[26,23,54],"border":[46,42,90],"text":[246,244,255],"dim":[169,163,214],"p1":[92,225,255],"p2":[255,166,107],"p3":[196,155,255],"p4":[140,255,158],"cta":[255,122,209],"win":[180,255,106],"danger":[255,77,94],"structure":[74,69,144],"deep":[8,6,26]},{"id":"carpet","label":"COSMIC CARPET","bg":[20,11,38],"surface":[27,16,49],"card":[35,21,63],"border":[61,42,102],"text":[251,243,255],"dim":[183,163,217],"p1":[56,214,255],"p2":[255,154,46],"p3":[255,243,92],"p4":[233,228,255],"cta":[255,79,176],"win":[109,255,158],"danger":[255,59,59],"structure":[90,63,146],"deep":[14,7,28]},{"id":"radar","label":"P7 RADAR","bg":[2,10,7],"surface":[4,18,12],"card":[6,26,17],"border":[15,58,36],"text":[214,255,233],"dim":[111,191,147],"p1":[157,255,90],"p2":[255,107,213],"p3":[255,179,107],"p4":[201,184,255],"cta":[143,227,255],"win":[232,255,240],"danger":[255,80,80],"structure":[26,92,58],"deep":[1,6,4]},{"id":"pumpkin","label":"PUMPKIN NIGHT","bg":[21,14,29],"surface":[29,20,39],"card":[38,26,51],"border":[63,44,82],"text":[255,241,224],"dim":[184,160,200],"p1":[255,145,36],"p2":[111,208,255],"p3":[182,242,74],"p4":[197,139,255],"cta":[255,95,162],"win":[182,242,74],"danger":[255,64,64],"structure":[90,63,117],"deep":[16,10,23]},{"id":"campfire","label":"CAMPFIRE","bg":[23,17,15],"surface":[32,23,19],"card":[42,30,24],"border":[74,52,40],"text":[255,238,221],"dim":[199,159,130],"p1":[116,183,255],"p2":[255,159,67],"p3":[184,233,134],"p4":[255,226,122],"cta":[255,111,145],"win":[158,227,125],"danger":[255,75,62],"structure":[107,74,54],"deep":[18,13,11]}], sel = document.getElementById('theme'), root = document.documentElement;
+  function mixc(a, b, t) { return a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }); }
+  function setTheme(id) {
+    var t = THEMES.filter(function (x) { return x.id === id; })[0] || THEMES[0];
+    var dark = (t.bg[0] * 0.3 + t.bg[1] * 0.59 + t.bg[2] * 0.11) < 110, v = function (k, c) { root.style.setProperty('--' + k, c.join(' ')); };
+    ['bg', 'surface', 'card', 'border', 'text', 'p1', 'p2', 'p3', 'p4', 'cta', 'win', 'danger', 'deep'].forEach(function (k) { v(k, t[k]); });
+    v('dim', mixc(t.text, t.bg, 0.2)); v('tint-p1', mixc(t.bg, t.p1, 0.22)); v('tint-cta', mixc(t.bg, t.cta, 0.22)); v('tint-danger', mixc(t.bg, t.danger, 0.22));
+    v('glass-rim', dark ? mixc(t.card, t.text, 0.4) : [255, 255, 255]);
+    v('art-1', mixc(t.bg, t.p1, 0.45)); v('art-2', mixc(t.bg, t.p2, 0.45)); v('art-3', mixc(t.bg, t.p3, 0.4)); v('art-4', mixc(t.bg, t.p4, 0.45));
+    root.style.colorScheme = dark ? 'dark' : 'light'; sel.value = t.id;
+    if (G.state()) G.theme(t);
+    return t;
+  }
+  THEMES.forEach(function (t) { var o = document.createElement('option'); o.value = t.id; o.textContent = t.label; sel.appendChild(o); });
+  G.mount(document.getElementById('game'), { theme: setTheme('glass') });
+  sel.addEventListener('change', function () { setTheme(sel.value); });
+  function step(d) { var i = THEMES.map(function (t) { return t.id; }).indexOf(sel.value); setTheme(THEMES[(i + d + THEMES.length) % THEMES.length].id); }
+  document.getElementById('prevTheme').addEventListener('click', function () { step(-1); });
+  document.getElementById('nextTheme').addEventListener('click', function () { step(1); });
+  say();
+  document.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () {
+    var m = b.getAttribute('data-mode'); press('[data-mode]', 'data-mode', m);
+    document.getElementById('botrow').style.display = m === 'bot' ? '' : 'none';
+    G.set(m === 'bot' ? { n: 2, bot: true } : { n: +m, bot: false }); say();
+  }); });
+  document.querySelectorAll('[data-level]').forEach(function (b) { b.addEventListener('click', function () {
+    press('[data-level]', 'data-level', b.getAttribute('data-level')); G.set({ level: +b.getAttribute('data-level') }); say();
+  }); });
+  function syncTwists() { document.querySelectorAll('[data-twist]').forEach(function (b) { b.setAttribute('aria-pressed', String(!!G.cfg[b.getAttribute('data-twist')])); }); }
+  document.querySelectorAll('[data-twist]').forEach(function (b) { b.addEventListener('click', function () {
+    var k = b.getAttribute('data-twist'), p = {}; p[k] = !G.cfg[k]; G.set(p); syncTwists(); say();
+  }); });
+  document.querySelectorAll('[data-try]').forEach(function (b) { b.addEventListener('click', function () {
+    var k = b.getAttribute('data-try'); G.set({ turn: k === 'turn', chili: k === 'chili', last: k === 'last' }); syncTwists(); say();
+    document.getElementById('play').scrollIntoView({ block: 'start' });
+  }); });
+  document.getElementById('restart').addEventListener('click', function () { G.restart(); });
+  document.getElementById('sound').addEventListener('click', function () {
+    G.cfg.sound = !G.cfg.sound; this.setAttribute('aria-pressed', String(G.cfg.sound)); this.textContent = G.cfg.sound ? 'SOUND ON' : 'SOUND OFF';
+  });
+  G.legend();
+
+  document.getElementById('pick').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = new FormData(e.currentTarget), tw = f.getAll('twist'), scope = f.get('scope'), name = f.get('name'), look = f.get('look'), extra = (f.get('note') || '').trim();
+    var isRec = tw.join(',') === 'turn,chili,lastbite' && scope === 'phone-then-online' && name === 'LAZY-SUSAN' && look === 'themed-painted';
+    var note = 'twists=' + (tw.join('+') || 'none') + '; scope=' + scope + '; name=' + name + '; look=' + look + (extra ? '; note: ' + extra : '');
+    var out = document.getElementById('queued');
+    if (window.lavish && window.lavish.queuePrompt) {
+      window.lavish.queuePrompt('Lazy Susan decisions: ' + note, { tag: 'choice', text: 'Lazy Susan: ' + (isRec ? 'as recommended' : 'custom picks'), element: e.currentTarget, queueKey: 'games-jb-lastsashimi-s1-calls',
+        data: { schema: 'fm-bearings-answer.v1', question: 'games-jb-lastsashimi-s1-calls', selection: isRec ? 'as-recommended' : 'custom', note: note.slice(0, 500) } });
+      out.textContent = 'QUEUED. PRESS SEND TO AGENT.';
+    } else { out.textContent = 'COPY THIS: ' + note; }
+  });
+})();
+</script>
+</body>
+</html>
