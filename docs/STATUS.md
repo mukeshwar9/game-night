@@ -20,6 +20,7 @@ and the `fm/*` branches; the live site is <https://game-night-91464.web.app>.
 | UPDRAFT | `8aba4fc`, `5d70217` | Ghost-race climber with CHAOS sabotage and a Twin Towers co-op mode (`8aba4fc` is its climber sim). |
 | Archery PRD | `2b3ae38` | `docs/prds/archery.md` with three UI directions and screenshots. The game is not built; the UI direction and decisions D1–D10 are pending (NEON RANGE is recommended). |
 | Puck Rush, Yacht, Face Off, Chop Chop | this branch, `fm/games-twoplayer-ideas-s1` | Four games from the two-player ideas review, one commit each, with solo pages and two-client e2e specs. No database rule changes. Designs: `.lavish/twoplayer-ideas/`. Lands on `main` when this branch is merged. |
+| Steady Hand (darts) | this branch, `fm/games-jb-darts-s1` | Darts for 2–4 players: Countdown and Turf, Nerves, hold-and-aim or one-button throw, a board painted from the active theme, solo vs a bot and pass-and-play. Every dart is an integer landing point under the room's `round` node that every client replays, so no database rule changes. Design, prototype and review rounds: `.lavish/darts/`. Lands on `main` when this branch is merged. |
 | Wire Crossed levels PRD | this branch, `fm/games-wirecrossed-levels-s1` | `docs/prds/wire-crossed-levels.md`: a 15-level ladder plan, new modules, and the 0:00 timer freeze bug with its fix. Lands on `main` when this branch is merged. |
 
 ## In progress on branches, paused

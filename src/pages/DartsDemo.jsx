@@ -78,7 +78,7 @@ export default function DartsLocal({ mode = 'local' }) {
 
   // A short lockout after every change of thrower in pass-and-play, so the tap
   // that hands the phone over cannot start the next player's aim.
-  const handoffKey = state ? `${state.turnUid}:${state.visitNo}:${state.leg}:${state.count === 0 ? 'new' : 'go'}` : null
+  const handoffKey = state ? `${state.turnUid}:${state.visitNo}:${state.leg}` : null
   useEffect(() => {
     if (!handoffKey || solo) return undefined
     const id = setTimeout(() => setUnlocked(handoffKey), HANDOFF_MS)
