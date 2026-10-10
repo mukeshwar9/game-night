@@ -20,6 +20,8 @@ import { SOS_SIZE } from './sosLogic'
 import { CHIMP_GRID } from './chimpLogic'
 import { ROUNDS as REACTION_ROUNDS } from './reactionLogic'
 import { AIM_GAME_MS } from './aimLogic'
+import { REEF_RACE_MS, MAX_HP as REEF_HP, SCORE as REEF_SCORE, PEARLS_PER_HEART } from './reefLogic'
+import { LEVEL_COUNT as REEF_LEVELS } from './reefLevels'
 import { DUEL_MS, ROT_PENALTY, STUN_MS, HARVEST_MS, HARVEST_TARGET_PER_PLAYER, TEAM_HEARTS, comboGain } from './pulpLogic'
 import { STREAK_FOR_DOUBLE } from './mathLogic'
 import { VM_START_LEVEL, VM_MAX_SIDE, VM_RECALL_MS, vmGridSide } from './visualMemoryLogic'
@@ -212,6 +214,14 @@ const RULE_NUMBERS = {
   numbermemory: () => ({ checks: [] }),
   reaction: () => ({ checks: [...players('reaction', 2, 8), [3, RACE_MATCH_WINS], [4, REACTION_ROUNDS]] }),
   aim: () => ({ checks: [[30, secs(AIM_GAME_MS)], ...players('aim', 2, 8), [3, RACE_MATCH_WINS]] }),
+  reef: () => ({
+    checks: [
+      ...players('reef', 2, 8), [3, RACE_MATCH_WINS], [3, REEF_HP], [10, REEF_SCORE.pearl], [PEARLS_PER_HEART, PEARLS_PER_HEART],
+      [50, REEF_SCORE.shell], [100, REEF_SCORE.star], [6, REEF_LEVELS], [2, pageConst('demos/ReefDemo.jsx', 'CONTINUES')],
+      [3, secs(REEF_RACE_MS) / 60],
+    ],
+    prose: [0], // "at 0 hearts you are out"
+  }),
   sidekick: () => ({
     checks: [
       [3, SK_PIPS], [3, SK_POINTS[0]], [2, SK_POINTS[1]], [1, SK_POINTS[2]], [0, SK_POINTS[3]], [3, SK_RACES],

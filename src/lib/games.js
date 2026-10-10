@@ -2,7 +2,7 @@ import { lazyWithRetry } from './lazyWithRetry'
 // ChimpBoard is used only from ChimpGame (custom component), not directly via registry
 import {
   TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, PulpIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, ReefIcon, PulpIcon,
   TypingIcon, MathIcon,
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
@@ -850,6 +850,16 @@ export const GAME_TYPES = [
     durationMin: 2, tags: ['quick', 'frantic'],
     custom: true, focusPage: true, simultaneous: true, race: true, coop: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/PulpHarvestGame')),
+  },
+  {
+    type: 'reef', label: 'REEF RUN',
+    desc: 'swim, dodge, collect — highest score wins', Icon: ReefIcon,
+    badge: 'RR', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 3, tags: ['skill'], solo: true,
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/ReefGame')),
   },
   {
     type: 'typing', label: 'TYPING RACE',

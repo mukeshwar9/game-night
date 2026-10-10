@@ -221,6 +221,18 @@ export function AimIcon() {
   )
 }
 
+export function ReefIcon() {
+  return (
+    <LineSvg>
+      <path d="M3 11C6 6 12 6 15 9C16 10 16 12 15 13C12 16 6 16 3 11Z" />
+      <path d="M15 11L21 7V15Z" className="stroke-retro-cta" />
+      <path d="M9 7.5V14.5" className="stroke-retro-dim" />
+      <circle cx="6.5" cy="10.5" r="1" stroke="none" className="fill-retro-danger" />
+      <path d="M3 20Q6 18 9 20T15 20T21 20" className="stroke-retro-p1" />
+    </LineSvg>
+  )
+}
+
 export function ArcheryIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

@@ -253,6 +253,18 @@ export const GAME_RULES = {
     win: 'Fill the basket before time or hearts run out and the whole team wins the round.',
   },
 
+  reef: {
+    objective: 'Swim a side-scrolling reef, dodge the hazards and rack up the highest score. Solo is a six-level run; race it with 2–8 players.',
+    howToPlay: [
+      'Swim with the arrow keys or WASD, or the on-screen joystick. Press X, Space or DASH for a quick burst of speed.',
+      'Jellyfish, sharks, eels, urchins and mines each cost one of your 3 hearts. After a hit you are briefly invulnerable.',
+      'Collect pearls (10 points; every 50 pearls collected restores a heart), shells (50) and gold stars (100), then reach the exit.',
+      'Anemones are checkpoints. Solo has 6 levels, 2 continues from your last checkpoint and a saved best score.',
+      'Race: everyone plays the same level for 3 minutes. At 0 hearts you are out, but your score still counts.',
+    ],
+    win: 'Highest score when the 3 minutes are up wins the round. First to 3 round wins takes the match.',
+  },
+
   typing: {
     objective: 'Type the same quote faster and more accurately than everyone else (2–8 players).',
     howToPlay: [
