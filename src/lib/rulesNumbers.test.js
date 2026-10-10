@@ -31,6 +31,7 @@ import { FLEET_SPEC, SHIP_CELLS } from './battleshipLogic'
 import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
+import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
@@ -248,6 +249,12 @@ const RULE_NUMBERS = {
     prose: [0], // a box that does not fit scores 0
   }),
   puckrush: () => ({ checks: [[5, PUCKS_EACH], [3, first('puckrush')]] }),
+  fenderbender: () => ({
+    checks: [
+      [3, FENDER_HEARTS], [4, FENDER_HORN], [28, FENDER_SQUEEZE], [2, FENDER_GHOST],
+      [3, first('fenderbender')], [3, FENDER_TARGETS[2]], [5, FENDER_TARGETS[3]], [7, FENDER_TARGETS[4]],
+    ],
+  }),
   minigolf: () => ({
     checks: [[6, STROKE_CAP], [7, PICKUP_SCORE], ...players('minigolf', 2, 4), [4, cfg('minigolf').localMaxPlayers ?? cfg('minigolf').maxPlayers]],
     prose: [1], // "+1" water penalty, checked below

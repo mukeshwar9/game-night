@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, YachtIcon, FaceOffIcon, ChopChopIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -1396,6 +1396,21 @@ export const GAME_TYPES = [
     Page: lazyWithRetry(() => import('../pages/PuckRushGame')),
   },
   {
+    type: 'fenderbender', label: 'FENDER BENDER',
+    desc: 'shove rivals off the road · up to 4 on one phone', Icon: FenderBenderIcon,
+    badge: 'FD', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 5, tags: ['skill', 'party', 'quick'], solo: true,
+    // Online it is a two-car duel on the pong stack (host sim, WebRTC
+    // snapshots). The LocalPage seats 2-4 people on one phone, or one person
+    // against bots, on the same sim with no network.
+    custom: true, realtime: true, p2p: true, localMaxPlayers: 4,
+    localBlurb: 'ONE PHONE · EVERYONE DRIVES AT ONCE',
+    Page: lazyWithRetry(() => import('../pages/FenderBenderGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/FenderBenderDemo')),
+  },
+  {
     type: 'artillery', label: 'ARTILLERY',
     desc: 'angle, power, bracket', Icon: ArtilleryIcon,
     badge: 'AR', maxWidth: 'max-w-md',
@@ -2415,6 +2430,11 @@ export function freshGameState(gameType, previous = null) {
     return { ...FIELD_NULLS, boxes: null, round: null,
       board: Array(YV_CELL_COUNT).fill(''),
       currentTurn: 'X' }
+  }
+  if (gameType === 'fenderbender') {
+    // Realtime (pong family): the round lives in the host's sim, the room only
+    // holds the standard winner/scores.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
   }
   if (gameType === 'puckrush') {
     // Realtime (pong family): the round lives in the host's sim, the room only

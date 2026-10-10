@@ -116,12 +116,14 @@ describe('supportsLocalPlay', () => {
     'onitama', 'quarto', 'santorini', 'loa', 'yavalath',
     // custom, but ships its own offline page (registry LocalPage)
     'minigolf',
+    // realtime online duel whose LocalPage seats 2-4 people on one phone
+    'fenderbender',
     // custom online duel that keeps its turn-based board for pass-and-play (localBoard)
     'visualmemory',
   ]
 
-  it('is true for all 37 eligible games (33 registry boards + three custom LocalPages + one localBoard)', () => {
-    expect(LOCAL_TYPES).toHaveLength(37)
+  it('is true for all 38 eligible games (33 registry boards + four custom LocalPages + one localBoard)', () => {
+    expect(LOCAL_TYPES).toHaveLength(38)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }

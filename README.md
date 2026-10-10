@@ -6,7 +6,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 
 ## Games
 
-**68 games** (76 counting modes) across six categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo` with EASY / NORMAL / HARD bots for the board games. This list is generated from the `GAME_TYPES` registry (`src/lib/games.js`), which is the source of truth.
+**69 games** (77 counting modes) across six categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo` with EASY / NORMAL / HARD bots for the board games. This list is generated from the `GAME_TYPES` registry (`src/lib/games.js`), which is the source of truth.
 
 ### Board games (25)
 - **Tic Tac Toe** — three in a row wins — modes: Ultimate TTT, TTT 4×4
@@ -35,7 +35,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Checkers** — jumps forced, kings crown
 - **Face Off** — ask, flip, name the hidden face
 
-### Reflex & skill (18)
+### Reflex & skill (19)
 - **Reaction Time** — fastest reflexes win *(2–8 players)*
 - **Aim Trainer** — click targets fast *(2–8 players)*
 - **Typing Race** — outtype the whole room *(2–8 players)*
@@ -52,6 +52,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Mine Race** — clear the same minefield faster *(2–8 players)*
 - **Air Hockey** — flick the puck, score 7
 - **Puck Rush** — sling every puck through the gap
+- **Fender Bender** — shove rivals off the road *(2–4 on one phone, 2 online)*
 - **Chop Chop** — knock out crates, dodge the beams *(2–8 players)*
 - **Artillery** — angle, power, bracket
 
@@ -159,7 +160,7 @@ Firebase Realtime Database holds every room at `games/{gameId}`; security rules 
 - **Code-split** — every route except Home, every game page and board, the Wordle dictionary, framer-motion and qrcode load on demand; `lazyWithRetry` reloads once when an old tab asks for a chunk a newer deploy removed. CI enforces an entry-bundle budget.
 - **Hidden information** never sits in the room in plaintext. Two primitives: salted SHA-256 commit–reveal (`src/lib/commit.js`: Hangwoman, Two Truths, Bluff Battle, Wavelength, Herd Mind, Code Words) and per-player sealing (`src/lib/sealed.js`, Web Crypto ECDH + AES-GCM: Spyfair, Chameleon, Heads Up, Code Words, Just One), where each player publishes a public key and the dealer encrypts one entry per recipient.
 - **Party games** use an N-player room model: `players` keyed by uid, an online-aware coordinator (`src/lib/coordinator.js`) that hands host duties to the next online player, per-player scores, and phase machines whose steps are transactions. The five races (`race: true`) share `raceLogic.js` and `RaceShell`.
-- **Real-time games** (Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Puck Rush, Paint, Pac Mac) run peer-to-peer: Firebase is only the WebRTC signaling channel. Each connection attempt has an id, so RETRY works from either side and after reloads; a heartbeat pauses play while a peer is away and offers WAIT / CLAIM WIN when they're gone; the host can equalize its own input delay to half the RTT. Public STUN by default; set `VITE_TURN_URLS` / `VITE_TURN_USERNAME` / `VITE_TURN_CREDENTIAL` to add TURN, and public rooms then relay so strangers never see each other's IP.
+- **Real-time games** (Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Puck Rush, Fender Bender, Paint, Pac Mac) run peer-to-peer: Firebase is only the WebRTC signaling channel. Each connection attempt has an id, so RETRY works from either side and after reloads; a heartbeat pauses play while a peer is away and offers WAIT / CLAIM WIN when they're gone; the host can equalize its own input delay to half the RTT. Public STUN by default; set `VITE_TURN_URLS` / `VITE_TURN_USERNAME` / `VITE_TURN_CREDENTIAL` to add TURN, and public rooms then relay so strangers never see each other's IP.
 - **Telemetry (in-house)** — errors go to `errors/{day}` (deduped, capped), started/finished/abandoned counts to `playsDaily/{day}`; admins see both at `/notes`.
 
 ## Features

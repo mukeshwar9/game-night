@@ -362,6 +362,17 @@ export const GAME_RULES = {
     win: 'The first player with no pucks on their half wins the round. First to 3 rounds wins the match.',
   },
 
+  fenderbender: {
+    objective: 'Be the last car rolling: shove rivals off the road or let the traffic wreck them.',
+    howToPlay: [
+      'Everyone drives at once on one four-lane road. Drag your pad to steer; the car follows your thumb.',
+      'Traffic comes down the road. Each hit costs a heart and you start with 3. Cross the edge of the road and you are out at once.',
+      'Ram a rival and the car driving in harder wins: the other is knocked away and skids. Tap your pad to honk and blast nearby cars outward; the horn needs 4 seconds to recharge.',
+      'After 28 seconds the road closes in from both sides. A car that is out comes back as a truck after 2 seconds and keeps coming down the road.',
+    ],
+    win: 'The last car rolling takes the round. Two cars: first to 3 rounds wins. With three or four cars you score a point for every rival you outlast; first to 5 with three cars, 7 with four.',
+  },
+
   airhockey: {
     objective: 'Flick the puck past your rival seven times.',
     howToPlay: [

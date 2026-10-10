@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, YachtIcon, FaceOffIcon, ChopChopIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -52,6 +52,7 @@ const MancalaDemo = lazyWithRetry(() => import('./MancalaDemo'))
 const CheckersDemo = lazyWithRetry(() => import('./CheckersDemo'))
 const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
 const PuckRushDemo = lazyWithRetry(() => import('./PuckRushDemo'))
+const FenderBenderDemo = lazyWithRetry(() => import('./FenderBenderDemo'))
 const YachtDemo = lazyWithRetry(() => import('./YachtDemo'))
 const FaceOffDemo = lazyWithRetry(() => import('./FaceOffDemo'))
 const ChopChopDemo = lazyWithRetry(() => import('./ChopChopDemo'))
@@ -121,6 +122,7 @@ const DEMOS = [
   { type: 'airhockey',     short: 'AIR\nHOCKEY',    Icon: AirHockeyIcon,      Component: AirHockeyDemo },
   { type: 'faceoff',       short: 'FACE\nOFF',      Icon: FaceOffIcon,        Component: FaceOffDemo },
   { type: 'puckrush',      short: 'PUCK\nRUSH',     Icon: PuckRushIcon,       Component: PuckRushDemo },
+  { type: 'fenderbender',  short: 'FENDER\nBENDER',  Icon: FenderBenderIcon,   Component: FenderBenderDemo },
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   { type: 'archery',       short: 'ARCHERY',         Icon: ArcheryIcon,        Component: ArcheryDemo },
   { type: 'animalstack',   short: 'ANIMAL\nSTACK',  Icon: AnimalStackIcon,    Component: AnimalStackDemo },
@@ -201,7 +203,7 @@ function LocalPlayPage({ routeType }) {
             {cfg.label}
           </h1>
           <p className="font-pixel text-[9px] text-retro-dim text-center">
-            PASS & PLAY · ONE SCREEN, TAKE TURNS{cfg.localMaxPlayers ? ` · 2-${cfg.localMaxPlayers} PLAYERS` : ''}
+            {cfg.localBlurb || 'PASS & PLAY · ONE SCREEN, TAKE TURNS'}{cfg.localMaxPlayers ? ` · 2-${cfg.localMaxPlayers} PLAYERS` : ''}
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>
