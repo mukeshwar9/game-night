@@ -21,7 +21,7 @@ export default function BonkPad({ id, tone = 'p1', label, hop, buttonProps, isDo
       data-testid={`bonk-pad-${id}-${side}`}
       {...buttonProps(id, side)}
       className={cn(
-        'flex-1 select-none touch-none rounded-lg border-2 font-pixel transition-colors duration-press',
+        'flex-1 select-none touch-none [-webkit-touch-callout:none] rounded-lg border-2 font-pixel transition-colors duration-press',
         compact ? 'min-h-[72px] text-xl' : 'min-h-[88px] text-2xl',
         'disabled:opacity-40',
         isDown(id, side) ? t.on : `${t.ring} bg-retro-card`,

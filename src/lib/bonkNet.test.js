@@ -121,6 +121,12 @@ describe('events', () => {
     expect(decodeEvent(encodeEvent(e))).toMatchObject(e)
   })
 
+  it('names the scoring seat on a point so the guest can cheer or groan', () => {
+    const back = decodeEvent(encodeEvent({ type: 'point', x: 0, y: 0, winner: 1, double: false, reason: 'self' }))
+    expect(back.by).toBe('O')
+    expect(decodeEvent(encodeEvent({ type: 'point', x: 0, y: 0, winner: -1, double: true, reason: 'sunk' })).by).toBe(undefined)
+  })
+
   it('drops an unknown event and survives garbage', () => {
     expect(encodeEvent({ type: 'nope' })).toBe(null)
     expect(decodeEvent([99, 0, 0, 0, 0, 0])).toBe(null)

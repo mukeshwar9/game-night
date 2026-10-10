@@ -48,6 +48,7 @@ export const T = {
 const VEL_ITERS = 8
 const POS_ITERS = 3
 const V = (x, y) => new Vec2(x, y)
+const NO_INPUT = { d: 0, hop: false }
 
 // ─── a buggy ─────────────────────────────────────────────────────────────────
 export const HULL = [[-0.86, -0.1], [0.84, -0.1], [0.93, 0.08], [0.42, 0.22], [-0.82, 0.24]]
@@ -172,8 +173,9 @@ export function stepRound(r, inputs, dt) {
   const playing = r.phase === 'play'
   for (let i = 0; i < r.cars.length; i++) {
     const c = r.cars[i]
-    const inp = (playing && c.alive && inputs && inputs[i]) || { d: 0, hop: false }
-    const d = inp.d || 0
+    const inp = (playing && c.alive && inputs && inputs[i]) || NO_INPUT
+    // Whatever a client sends, a button is -1, 0 or +1 and a hop is a yes/no.
+    const d = Math.sign(Number(inp.d) || 0)
     c.d = d
     for (let k = 0; k < 2; k++) {
       c.joints[k].setMotorSpeed(-d * T.wheelSpeed)
@@ -183,7 +185,7 @@ export function stepRound(r, inputs, dt) {
     c.hopCd = Math.max(0, c.hopCd - dt)
     c.hopFx = Math.max(0, c.hopFx - dt)
     c.grace = Math.max(0, c.grace - dt)
-    if (r.hop && inp.hop && c.hopCd <= 0) {
+    if (r.hop && inp.hop === true && c.hopCd <= 0) {
       const up = c.chassis.getWorldVector(V(0, 1))
       for (const b of [c.chassis, c.wheels[0], c.wheels[1]]) {
         b.applyLinearImpulse(V(up.x * T.hopSpeed * b.getMass(), up.y * T.hopSpeed * b.getMass()), b.getWorldCenter(), true)

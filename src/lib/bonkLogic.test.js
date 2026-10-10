@@ -83,6 +83,23 @@ describe('a round', () => {
     expect(r.cars[1].chassis.getPosition().x).toBeGreaterThan(x[1] + 0.5)
   })
 
+  it('treats any input as at most full throttle, so a client cannot send a bigger push', () => {
+    const run1 = (d) => {
+      const r = createRound({ arena: 'humps' })
+      r.phase = 'play'
+      for (let k = 0; k < 120; k++) stepRound(r, [{ d, hop: false }, NONE], DT)
+      return r.cars[0].chassis.getPosition().x
+    }
+    expect(run1(1000)).toBeCloseTo(run1(1), 6)
+    expect(run1(-9)).toBeCloseTo(run1(-1), 6)
+    expect(run1('x')).toBeCloseTo(run1(0), 6)
+    expect(run1(NaN)).toBeCloseTo(run1(0), 6)
+    const r = createRound({ arena: 'humps', hop: true })
+    r.phase = 'play'
+    stepRound(r, [{ d: 0, hop: 'yes' }, NONE], DT)
+    expect(r.events.filter((e) => e.type === 'hop')).toHaveLength(0)
+  })
+
   it('hop fires only with the twist on, once per cooldown', () => {
     const on = createRound({ arena: 'humps', hop: true })
     on.phase = 'play'

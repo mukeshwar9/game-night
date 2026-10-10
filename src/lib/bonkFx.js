@@ -10,7 +10,7 @@ import { T, SEATS } from './bonkLogic'
 const MAX_PARTS = 260
 
 export function createFx(rng = Math.random) {
-  return { parts: [], shake: 0, flash: 0, focus: null, rng }
+  return { parts: [], shake: 0, flash: 0, rng }
 }
 
 /** Emit `n` particles of one kind from (x, y). Kinds: dust smoke spark drop ring star lid. */
@@ -80,9 +80,6 @@ export function applyEvent(fx, e, { reduced = false } = {}) {
       break
     case 'count': cues.push({ cue: 'tick', digit: e.digit }); break
     case 'go': cues.push({ cue: 'go' }); break
-    case 'point':
-      fx.focus = e.x != null && e.winner !== -1 ? { x: e.x, y: e.y } : null
-      break
     case 'chose': cues.push({ cue: 'chose' }); break
     default: break
   }

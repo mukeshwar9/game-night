@@ -70,7 +70,7 @@ export default function BonkArena({ getView, fx, label, testId = 'bonk-arena', d
       ref={wrapRef}
       data-testid={testId}
       className={cn(
-        'relative w-full aspect-[14/9] overflow-hidden rounded-lg border-2 border-retro-border bg-retro-deep select-none touch-none',
+        'relative w-full aspect-[14/9] overflow-hidden rounded-lg border-2 border-retro-border bg-retro-deep select-none',
         dim && 'opacity-80',
         className,
       )}

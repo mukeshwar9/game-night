@@ -99,7 +99,7 @@ export function decodeEvent(tuple) {
     case 'hop': return { type, x, y, ux: a, uy: b, car: c }
     case 'shield': return { type, x, y, car: c }
     case 'bonk': case 'self': case 'sunk': return { type, x, y, by: SEATS[a], car: c }
-    case 'point': return { type, x, y, winner: a, double: !!b, reason: REASONS[c] }
+    case 'point': return { type, x, y, winner: a, by: a >= 0 ? SEATS[a] : undefined, double: !!b, reason: REASONS[c] }
     case 'count': return { type, digit: a }
     case 'pick': return { type, by: SEATS[a] }
     case 'chose': return { type, arena: ARENA_IDS[a] }
