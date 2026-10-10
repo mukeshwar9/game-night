@@ -14,6 +14,7 @@
 // docs/SIDE-KICK.md for what to move first.
 
 import { mulberry32, detCos } from './detMath'
+import { rankRace, RACE_COUNTDOWN_MS } from './raceLogic'
 
 // ── Road ─────────────────────────────────────────────────────────────────
 export const SEG = 200
@@ -678,3 +679,77 @@ export function formatRaceTime(t) {
   if (!Number.isFinite(t) || t < 0) return '-:--.--'
   return `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')}`
 }
+
+// ── The room's riders and the cup ────────────────────────────────────────
+export const isBotId = (id) => /^bot[0-9]$/.test(String(id))
+
+/**
+ * Everyone on the road, in seat order: the racers (sorted, as RaceShell
+ * normalises them) and bots (`bot1`, `bot2`, …) in the empty seats up to four.
+ * Every phone derives the same list, so seat colours and numbers agree.
+ */
+export function rosterOf(racerIds) {
+  const humans = [...(racerIds || [])].sort().slice(0, RIDERS)
+  const bots = Array.from({ length: RIDERS - humans.length }, (_, k) => `bot${k + 1}`)
+  return [...humans, ...bots]
+}
+
+/** The shell's `decided` hook: the race ends 20 s after the first rider (bots too) crosses the line. */
+export function raceDecided(statsById, racers, { now, round }) {
+  const goAt = (round?.startedAt ?? 0) + RACE_COUNTDOWN_MS
+  let first = Infinity
+  for (const raw of Object.values(statsById || {})) {
+    const d = decodeRider(raw)
+    if (d && d.fin > 0) first = Math.min(first, goAt + d.fin)
+  }
+  return first < Infinity && now - first > RACE_END_AFTER_FIRST * 1000
+}
+
+/**
+ * The shell's `decorate` hook: place everyone (bots included) from the round's
+ * reports, give each person the cup points for their place, and keep the order
+ * so the next race starts with last place in front.
+ * @returns {{ points: Record<string, number>, grid: string[] }}
+ */
+export function decorateRound(round) {
+  const ids = rosterOf(round.racers)
+  // A rider with no report at all is last, and an absent person is below an absent bot.
+  const entries = ids.map((id) => {
+    const e = raceEntry(round.stats[id])
+    return { id, ...e, sortKey: e.sortKey ?? [2, isBotId(id) ? 0 : 1] }
+  })
+  const { order } = rankRace(entries)
+  const paybacks = Object.fromEntries(ids.map((id) => [id, decodeRider(round.stats[id])?.pb ?? 0]))
+  const award = cupAward(order, paybacks)
+  const points = {}
+  for (const id of round.racers) points[id] = award[id] ?? 0
+  return { points, grid: order }
+}
+
+/** The grid for a race from the last race's order (best first): world indices, back of the grid first. */
+export function gridFor(roster, lastOrder) {
+  if (!Array.isArray(lastOrder)) return null
+  const idx = lastOrder.map((id) => roster.indexOf(id)).filter((i) => i >= 0)
+  for (let i = 0; i < roster.length; i++) if (!idx.includes(i)) idx.push(i)
+  return idx
+}
+
+const lengthCache = new Map()
+/** Metres to the flag on a named road (built once, then remembered): the denominator of a progress bar. */
+export function trackLength(trackId) {
+  const id = TRACKS[trackId] ? trackId : 'meadow'
+  if (!lengthCache.has(id)) lengthCache.set(id, buildTrack(TRACK_SEED, id).finish)
+  return lengthCache.get(id)
+}
+
+/** The grid order a round carries (Firebase may hand back an array or an index-keyed object). */
+export function normalizeGrid(raw) {
+  if (Array.isArray(raw)) return raw.filter((v) => typeof v === 'string')
+  if (raw && typeof raw === 'object') {
+    return Object.keys(raw).filter((k) => /^\d+$/.test(k)).sort((a, b) => a - b).map((k) => raw[k]).filter((v) => typeof v === 'string')
+  }
+  return null
+}
+
+/** The road a round is on: a known id from the round, else the first named road. */
+export const roundTrack = (raw) => (TRACKS[raw] && raw !== 'random' ? raw : TRACK_ORDER[0])

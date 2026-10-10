@@ -56,6 +56,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Bonk Buggies** — bonk their helmet, save your own
 - **Quiver** — a limited quiver, one spinning wheel, everyone shoots at once *(online duel; 2–4 on one phone; team up against the wheel)*
 - **Fender Bender** — shove rivals off the road *(2–4 on one phone, 2 online)*
+- **Side Kick** — race bikes and kick rivals off the road *(2–4 players, bots fill the grid)*
 - **Chop Chop** — knock out crates, dodge the beams *(2–8 players)*
 - **Steady Hand** — hold, aim, let go: race to zero or own the board *(2–4 players, solo vs a bot)*
 - **Lazy Susan** — tap when the food reaches your gate *(2–4 players)*

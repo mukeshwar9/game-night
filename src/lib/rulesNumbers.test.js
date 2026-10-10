@@ -36,6 +36,7 @@ import { TARGET as BONK_TARGET, LID_GAP as BONK_LID_GAP, T as BONK_T } from './b
 import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
 import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
 import { QUIVER, GOLD_VALUE, WHEELS as QUIVER_WHEELS, WHEEL_SECONDS as QUIVER_WHEEL_S, HEARTS as QUIVER_HEARTS } from './quiverLogic'
+import { PIPS as SK_PIPS, CUP_POINTS as SK_POINTS, CUP_RACES as SK_RACES, RACE_END_AFTER_FIRST as SK_END } from './sideKickLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import {
   COINS_PER_HEART as BZ_COINS, HEARTS as BZ_HEARTS, MAX_HEARTS as BZ_MAX_HEARTS, ROUNDS_TO_WIN as BZ_ROUNDS, STONE_HP as BZ_STONE_HP,
@@ -211,6 +212,12 @@ const RULE_NUMBERS = {
   numbermemory: () => ({ checks: [] }),
   reaction: () => ({ checks: [...players('reaction', 2, 8), [3, RACE_MATCH_WINS], [4, REACTION_ROUNDS]] }),
   aim: () => ({ checks: [[30, secs(AIM_GAME_MS)], ...players('aim', 2, 8), [3, RACE_MATCH_WINS]] }),
+  sidekick: () => ({
+    checks: [
+      [3, SK_PIPS], [3, SK_POINTS[0]], [2, SK_POINTS[1]], [1, SK_POINTS[2]], [0, SK_POINTS[3]], [3, SK_RACES],
+      [4, cfg('sidekick').maxPlayers], [20, SK_END],
+    ],
+  }),
   chopchop: () => ({
     checks: [[30, secs(CHOP_GAME_MS)], [1, secs(CHOP_STUN_MS)], [10, CHOP_WARN_CRATES], [3, RACE_MATCH_WINS], ...players('chopchop', 2, 8)],
   }),

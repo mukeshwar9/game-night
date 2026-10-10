@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, QuiverIcon, LazySusanIcon, BamboozleIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, SideKickIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, QuiverIcon, LazySusanIcon, BamboozleIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, supportsLocalPlay } from '../lib/games'
 import { canFocusPage } from '../lib/focusLogic'
@@ -58,6 +58,7 @@ const StickyFingersDemo = lazyWithRetry(() => import('./StickyFingersDemo'))
 const BonkBuggiesDemo = lazyWithRetry(() => import('./BonkBuggiesDemo'))
 const QuiverDemo = lazyWithRetry(() => import('./QuiverDemo'))
 const FenderBenderDemo = lazyWithRetry(() => import('./FenderBenderDemo'))
+const SideKickDemo = lazyWithRetry(() => import('./SideKickDemo'))
 const YachtDemo = lazyWithRetry(() => import('./YachtDemo'))
 const DartsLocal = lazyWithRetry(() => import('./DartsDemo'))
 const FaceOffDemo = lazyWithRetry(() => import('./FaceOffDemo'))
@@ -136,6 +137,7 @@ const DEMOS = [
   { type: 'bonkbuggies',   short: 'BONK\nBUGGIES',  Icon: BonkBuggiesIcon,    Component: BonkBuggiesDemo },
   { type: 'quiver',        short: 'QUIVER',          Icon: QuiverIcon,         Component: QuiverDemo },
   { type: 'fenderbender',  short: 'FENDER\nBENDER',  Icon: FenderBenderIcon,   Component: FenderBenderDemo },
+  { type: 'sidekick',      short: 'SIDE\nKICK',      Icon: SideKickIcon,       Component: SideKickDemo },
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   { type: 'archery',       short: 'ARCHERY',         Icon: ArcheryIcon,        Component: ArcheryDemo },
   { type: 'animalstack',   short: 'ANIMAL\nSTACK',  Icon: AnimalStackIcon,    Component: AnimalStackDemo },

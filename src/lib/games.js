@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, QuiverIcon, LazySusanIcon, BamboozleIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, SideKickIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, QuiverIcon, LazySusanIcon, BamboozleIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -811,6 +811,20 @@ export const GAME_TYPES = [
     soloLabel: 'PLAY VS BOTS', soloBadge: '1P', soloBlurb: 'You against one to three bots in the garden.',
     Page: lazyWithRetry(() => import('../pages/BamboozleGame')),
     LocalPage: lazyWithRetry(() => import('../pages/BamboozleDemo').then(m => ({ default: m.BamboozleLocal }))),
+  },
+  {
+    type: 'sidekick', label: 'SIDE KICK',
+    desc: 'race bikes · kick rivals off the road', Icon: SideKickIcon,
+    badge: 'SK', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 6, tags: ['skill', 'frantic', 'party'], solo: true,
+    // N-player race (sideKickLogic.js / RaceShell): 2-4 riders, bots in empty seats,
+    // a three-race cup on 3/2/1/0 points. Each phone sims its own bike; rivals are
+    // ghosts from ~10 Hz reports under `round/stats`. /solo/sidekick is one rider
+    // against three bots. One phone is not offered: the chase view needs the whole screen.
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/SideKickGame')),
   },
   {
     type: 'pulprush', label: 'PULP RUSH',
@@ -2309,6 +2323,8 @@ const FIELD_NULLS = {
   // N-player races (raceLogic.js): the last round's ranking. The live round
   // itself sits in `round`.
   raceResult: null,
+  // Cup races (raceLogic CUP_RACES_BY_GAME): how many races of the cup have been run.
+  cupRaces: null,
   herdCow: null,
   chatLog: null,
   // emote currently leaks across game switches — clear it too. `emotes` is

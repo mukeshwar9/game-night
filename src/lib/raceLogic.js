@@ -20,6 +20,12 @@ export const RACE_MAX_PLAYERS = 8
 // Round wins that take the match (the 2P races were best-of-5 before).
 export const RACE_MATCH_WINS = 3
 export const RACE_COUNTDOWN_MS = 3000
+// Cup races: a match of N rounds ranked on points rather than first to
+// RACE_MATCH_WINS round wins. The game's `decorate` hook supplies each round's
+// points (SIDE KICK: 3 / 2 / 1 / 0 by place among all four riders, bots too).
+export const CUP_RACES_BY_GAME = { sidekick: 3 }
+/** Rounds in a cup match for this game, or 0 for a first-to-N match. */
+export const cupRacesFor = (gameType) => CUP_RACES_BY_GAME[gameType] ?? 0
 // A racer who is still racing but has been offline this long no longer holds
 // the round open once everyone online has finished.
 export const OFFLINE_GRACE_MS = 10_000
@@ -188,6 +194,19 @@ export function buildRaceResult({ roundId, gameType, entries, now }) {
 export function applyRaceFinish(current, result) {
   const winners = raceWinners(result.ranks, result.dnf)
   const scores = { ...(isObj(current.scores) ? current.scores : {}) }
+  if (cupRacesFor(current.gameType)) {
+    // A cup adds the round's points for every racer and counts the race.
+    for (const [id, p] of Object.entries(result.points || {})) scores[id] = (Number(scores[id]) || 0) + (Number(p) || 0)
+    return {
+      ...current,
+      status: 'finished',
+      raceResult: result,
+      winner: winners.length === 1 ? winners[0] : 'draw',
+      scores,
+      cupRaces: (Number(current.cupRaces) || 0) + 1,
+      lastActivityAt: result.at,
+    }
+  }
   for (const id of winners) scores[id] = (Number(scores[id]) || 0) + 1
   return {
     ...current,
@@ -206,6 +225,22 @@ export function matchChampions(scores, target = RACE_MATCH_WINS) {
     .filter(([, n]) => (Number(n) || 0) >= target)
     .map(([id]) => id)
     .sort()
+}
+
+/**
+ * Who has won the match: the round-win leaders for first-to-N races, or, in a
+ * cup, the top scorers once every cup race has been run (ties share).
+ * @param {{ gameType?: string, scores?: object, cupRaces?: number }} room
+ */
+export function raceChampions(room) {
+  const cup = cupRacesFor(room?.gameType)
+  if (!cup) return matchChampions(room?.scores)
+  if (!(Number(room?.cupRaces) >= cup)) return []
+  const scores = isObj(room?.scores) ? room.scores : {}
+  const vals = Object.values(scores).map((n) => Number(n) || 0)
+  if (!vals.length) return []
+  const best = Math.max(...vals)
+  return Object.entries(scores).filter(([, n]) => (Number(n) || 0) === best).map(([id]) => id).sort()
 }
 
 /**
@@ -300,9 +335,9 @@ export function normalizeRaceResult(raw) {
 // ── Room transitions (pure; run inside runTransaction on games/{id}) ──────
 // Each returns the next room object, or undefined to abort the transaction.
 
-/** Is the match decided (someone reached RACE_MATCH_WINS)? */
+/** Is the match decided (someone reached RACE_MATCH_WINS, or the cup is run)? */
 export function isMatchOver(room) {
-  return matchChampions(room?.scores).length > 0
+  return raceChampions(room).length > 0
 }
 
 /**
@@ -314,12 +349,12 @@ export function isMatchOver(room) {
  * room's seen history (see seenHistory.js).
  */
 export function startRaceRound(cur, {
-  gameType, starterId = null, force = false, now, id, seed, durationMs, extras = {}, seen = null,
+  gameType, starterId = null, force = false, now, id, seed, durationMs, extras = {}, seen = null, maxRacers = Infinity,
 }) {
   if (!isObj(cur) || cur.gameType !== gameType || cur.status === 'playing') return undefined
   if (cur.status === 'finished' && isMatchOver(cur)) return undefined
   if (!force && !allReady(cur.players, flaggedIds(cur.round?.ready))) return undefined
-  const racers = rosterForStart(cur.players, starterId)
+  const racers = rosterForStart(cur.players, starterId).slice(0, maxRacers)
   if (racers.length < RACE_MIN_PLAYERS) return undefined
   const round = buildRaceRound({ id, gameType, racers, now, seed, durationMs, extras })
   // nightMark: the night recorder's "already counted" signature (nightLogic.js)
@@ -360,7 +395,7 @@ export function toggleRaceReady(cur, me, gameType) {
  */
 export function finishRaceRound(cur, {
   gameType, roundId, now, entryOf, isDone = () => false, decidedBy = null,
-  offlineSince = () => null, force = false,
+  offlineSince = () => null, force = false, decorate = null,
 }) {
   if (!isObj(cur) || cur.status !== 'playing' || cur.gameType !== gameType) return undefined
   const r = normalizeRaceRound(cur.round)
@@ -375,7 +410,10 @@ export function finishRaceRound(cur, {
   })
   if (!ok) return undefined
   const entries = r.racers.map(id => ({ id, ...entryOf(r.stats[id], r, id) }))
-  return applyRaceFinish(cur, buildRaceResult({ roundId: r.id, gameType, entries, now }))
+  const result = buildRaceResult({ roundId: r.id, gameType, entries, now })
+  // A game may add to the result (a cup's points, the next grid) from the whole round.
+  if (decorate) Object.assign(result, decorate(r, result))
+  return applyRaceFinish(cur, result)
 }
 
 /** Ids sharing their rank with someone else (for "=2ND" labels). */

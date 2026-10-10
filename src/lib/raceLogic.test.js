@@ -5,7 +5,7 @@ import {
   racePhase, raceGoAt, rankRace, placementPoints, raceWinners, buildRaceResult,
   applyRaceFinish, matchChampions, canEndRace, allReady, rosterForStart, ordinal,
   normalizeRaceResult, seededFraction, newRaceSeed, isMatchOver,
-  startRaceRound, toggleRaceReady, finishRaceRound, tiedIds,
+  startRaceRound, toggleRaceReady, finishRaceRound, tiedIds, raceChampions, cupRacesFor, CUP_RACES_BY_GAME,
 } from './raceLogic'
 
 const seat = (id, joinedAt, online = true) => ({ name: id.toUpperCase(), playerId: id, joinedAt, online })
@@ -352,6 +352,68 @@ describe('room transitions', () => {
     const live = startRaceRound(room(), { ...params, force: true })
     expect(finishRaceRound(live, { gameType: 'reaction', roundId: 'other', now: 1e12, entryOf, isDone })).toBeUndefined()
     expect(finishRaceRound({ ...live, status: 'finished' }, { gameType: 'reaction', roundId: 'r1', now: 1e12, entryOf, isDone })).toBeUndefined()
+  })
+})
+
+describe('cup races (SIDE KICK)', () => {
+  const cupRoom = (o = {}) => room({ gameType: 'sidekick', ...o })
+  const params = { gameType: 'sidekick', starterId: 'a', now: 1000, id: 'r1', seed: 9, durationMs: 60_000, force: true }
+  // Points per racer come from the game's decorate hook, from the whole round.
+  const decorate = (r) => ({ points: { a: 3, b: 2, c: 1 }, grid: ['a', 'b', 'c', 'bot1'], seen: Object.keys(r.stats).length })
+
+  it('knows which games run a cup', () => {
+    expect(CUP_RACES_BY_GAME).toEqual({ sidekick: 3 })
+    expect(cupRacesFor('sidekick')).toBe(3)
+    expect(cupRacesFor('chopchop')).toBe(0)
+  })
+
+  it('is over only after the last cup race, and the champions are the top scorers (ties share)', () => {
+    expect(raceChampions(cupRoom({ cupRaces: 2, scores: { a: 8, b: 3 } }))).toEqual([])
+    expect(isMatchOver(cupRoom({ cupRaces: 2, scores: { a: 8, b: 3 } }))).toBe(false)
+    expect(raceChampions(cupRoom({ cupRaces: 3, scores: { a: 5, b: 7, c: 7 } }))).toEqual(['b', 'c'])
+    expect(isMatchOver(cupRoom({ cupRaces: 3, scores: { a: 5, b: 7 } }))).toBe(true)
+    expect(raceChampions(cupRoom({ cupRaces: 3, scores: {} }))).toEqual([])
+  })
+
+  it('a first-to-N game ignores the cup counter', () => {
+    expect(raceChampions(room({ cupRaces: 3, scores: { a: 1 } }))).toEqual([])
+    expect(raceChampions(room({ scores: { a: RACE_MATCH_WINS } }))).toEqual(['a'])
+  })
+
+  it('startRaceRound caps the roster at maxRacers', () => {
+    const r = cupRoom({ players: { a: seat('a', 1), b: seat('b', 2), c: seat('c', 3), d: seat('d', 4), e: seat('e', 5) } })
+    expect(Object.keys(startRaceRound(r, { ...params, maxRacers: 4 }).round.racers)).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('finishing a cup race adds the decorated points, counts the race and keeps extra result fields', () => {
+    const live = startRaceRound(cupRoom({ scores: { a: 1 } }), params)
+    live.round.stats = { r1: { a: { v: 9, done: true }, b: { v: 5, done: true }, c: { v: 1, done: true } } }
+    const fin = finishRaceRound(live, { gameType: 'sidekick', roundId: 'r1', now: 2000, entryOf, isDone, decorate })
+    expect(fin.scores).toEqual({ a: 4, b: 2, c: 1 })
+    expect(fin.cupRaces).toBe(1)
+    expect(fin.raceResult.points).toEqual({ a: 3, b: 2, c: 1 })
+    expect(fin.raceResult.grid).toEqual(['a', 'b', 'c', 'bot1'])
+    expect(fin.winner).toBe('a')
+    expect(fin.status).toBe('finished')
+    expect(isMatchOver(fin)).toBe(false)
+  })
+
+  it('a cup race with the decided hook receives the clock and the round', () => {
+    const live = startRaceRound(cupRoom(), params)
+    live.round.stats = { r1: { a: { v: 9, done: true } } }
+    let seen = null
+    const decidedBy = (stats, racers, { now, round }) => { seen = { now, racers, id: round.id }; return true }
+    const fin = finishRaceRound(live, { gameType: 'sidekick', roundId: 'r1', now: 2500, entryOf, isDone, decidedBy })
+    expect(fin.status).toBe('finished')
+    expect(seen).toEqual({ now: 2500, racers: ['a', 'b', 'c'], id: 'r1' })
+  })
+
+  it('the third race ends the match and refuses another start', () => {
+    const over = cupRoom({ status: 'finished', cupRaces: 3, scores: { a: 6, b: 4, c: 2 } })
+    expect(startRaceRound(over, params)).toBeUndefined()
+    expect(toggleRaceReady(over, 'a', 'sidekick')).toBeUndefined()
+    const between = cupRoom({ status: 'finished', cupRaces: 1, scores: { a: 3, b: 2, c: 1 } })
+    expect(startRaceRound(between, params).status).toBe('playing')
   })
 })
 

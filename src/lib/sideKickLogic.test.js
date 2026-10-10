@@ -5,7 +5,7 @@ import {
   TRACKS, TRACK_IDS, TRACK_ORDER, buildTrack, trackForRace, createWorld, step, tryKick, kickTarget, inReach,
   applyHit, receiveKick, knockOff, raceShouldEnd, standings, placeOf, cupAward, encodeRider, decodeRider,
   applyGhost, promoteBot, demoteBot, kickKey, parseKick, raceEntry, raceIsDone, normalizeStats, formatRaceTime,
-  getDifficulty, DIFFICULTY_IDS,
+  getDifficulty, DIFFICULTY_IDS, isBotId, rosterOf, raceDecided, decorateRound, gridFor, trackLength, normalizeGrid, roundTrack,
 } from './sideKickLogic'
 
 const four = (over = {}) => [
@@ -632,5 +632,76 @@ describe('race entries for the room', () => {
     expect(formatRaceTime(61.5)).toBe('1:01.50')
     expect(formatRaceTime(9.05)).toBe('0:09.05')
     expect(formatRaceTime(NaN)).toBe('-:--.--')
+  })
+})
+
+describe('the room\'s riders', () => {
+  it('lists the racers in sorted order and fills the empty seats with bots up to four', () => {
+    expect(rosterOf(['uid_b', 'uid_a'])).toEqual(['uid_a', 'uid_b', 'bot1', 'bot2'])
+    expect(rosterOf(['a', 'b', 'c'])).toEqual(['a', 'b', 'c', 'bot1'])
+    expect(rosterOf(['a', 'b', 'c', 'd'])).toEqual(['a', 'b', 'c', 'd'])
+    expect(rosterOf(['a', 'b', 'c', 'd', 'e'])).toHaveLength(4)
+    expect(rosterOf(null)).toEqual(['bot1', 'bot2', 'bot3', 'bot4'])
+  })
+  it('knows a bot id from a person', () => {
+    expect(isBotId('bot2')).toBe(true)
+    expect(isBotId('bot12')).toBe(false)
+    expect(isBotId('abc123')).toBe(false)
+    expect(isBotId(undefined)).toBe(false)
+  })
+  it('ends the race 20 s after the first rider finishes, bots included', () => {
+    const round = { startedAt: 1000 }
+    const goAt = 1000 + 3000
+    const stats = { a: { z: 5, fin: 50000 }, bot1: { z: 9 } }
+    expect(raceDecided(stats, ['a'], { now: goAt + 50000 + RACE_END_AFTER_FIRST * 1000 - 1, round })).toBe(false)
+    expect(raceDecided(stats, ['a'], { now: goAt + 50000 + RACE_END_AFTER_FIRST * 1000 + 1, round })).toBe(true)
+    expect(raceDecided({ bot1: { z: 9, fin: 40000 } }, ['a'], { now: goAt + 40000 + 21000, round })).toBe(true)
+    expect(raceDecided({ a: { z: 5 } }, ['a'], { now: 1e12, round })).toBe(false)
+    expect(raceDecided(null, [], { now: 1e12, round })).toBe(false)
+  })
+  it('places everyone, bots too, and gives each person the points for their place', () => {
+    const round = {
+      racers: ['a', 'b'],
+      stats: {
+        a: { z: 10, fin: 52000, pb: 0 },
+        b: { z: 10, fin: 50000, pb: 1 },
+        bot1: { z: 10, fin: 49000 },
+        bot2: { z: 5000 },
+      },
+    }
+    const { points, grid } = decorateRound(round, {})
+    expect(grid).toEqual(['bot1', 'b', 'a', 'bot2'])
+    expect(points).toEqual({ a: 1, b: 2 + 1 }) // b is 2nd (2) plus a payback (1); a is 3rd (1)
+  })
+  it('a rider with no report is last', () => {
+    const { grid, points } = decorateRound({ racers: ['a', 'b'], stats: { a: { z: 10, fin: 60000 } } }, {})
+    expect(grid[0]).toBe('a')
+    expect(points.a).toBe(3)
+    expect(points.b).toBe(0)
+  })
+  it('turns the last order into a back-to-front grid, tolerating strangers and gaps', () => {
+    const roster = ['a', 'b', 'bot1', 'bot2']
+    expect(gridFor(roster, ['bot1', 'a', 'b', 'bot2'])).toEqual([2, 0, 1, 3])
+    expect(gridFor(roster, ['zz', 'b'])).toEqual([1, 0, 2, 3])
+    expect(gridFor(roster, null)).toBe(null)
+  })
+})
+
+describe('round helpers', () => {
+  it('measures a named road once', () => {
+    for (const id of TRACK_ORDER) expect(trackLength(id)).toBe(buildTrack(20261010, id).finish)
+    expect(trackLength('nope')).toBe(trackLength('meadow'))
+  })
+  it('reads a grid whichever way Firebase returned it', () => {
+    expect(normalizeGrid(['a', 'b'])).toEqual(['a', 'b'])
+    expect(normalizeGrid({ 1: 'b', 0: 'a' })).toEqual(['a', 'b'])
+    expect(normalizeGrid(null)).toBe(null)
+    expect(normalizeGrid('x')).toBe(null)
+  })
+  it('only trusts a named road id from a round', () => {
+    expect(roundTrack('pass')).toBe('pass')
+    expect(roundTrack('random')).toBe('meadow')
+    expect(roundTrack(undefined)).toBe('meadow')
+    expect(roundTrack('<script>')).toBe('meadow')
   })
 })

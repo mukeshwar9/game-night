@@ -409,6 +409,17 @@ export const GAME_RULES = {
     win: 'First to 5 points wins the match.',
   },
 
+  sidekick: {
+    objective: 'Race to the flag on a motorbike and kick the riders beside you off their bikes.',
+    howToPlay: [
+      'Hold STEER to turn; the throttle is automatic. Tap KICK L or KICK R to hit the rider beside you, and hold BOOST for a burst that refills when you let go.',
+      'It takes 3 hits to unseat a rider. Every kick costs you balance, a miss more than a hit, and too many in a row throw you off your own bike.',
+      'A fall costs a moment, then you remount with a short shield. Fall with a rider ahead and you come back faster with a catch-up boost. Traffic knocks you off, oil makes you wobble, and sitting in a rider\'s wake gives you a slipstream.',
+      'Bots fill empty seats up to 4 riders. The race ends 20 seconds after the first rider crosses the line.',
+    ],
+    win: 'Places score 3, 2, 1 and 0 points, plus a bonus point for knocking off the rider who last knocked you off. Most points after 3 races wins the cup.',
+  },
+
   fenderbender: {
     objective: 'Be the last car rolling: shove rivals off the road or let the traffic wreck them.',
     howToPlay: [
