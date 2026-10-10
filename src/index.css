@@ -232,6 +232,61 @@
   }
 }
 
+/* REEF RUN underwater scene palette (reefDraw.js). Fixed hues, like a game
+   board's own colours: the ocean stays an ocean in every theme, so these live
+   on <html> outside the per-theme token set that themeContrast.test.js
+   requires every theme to redefine. */
+@layer base {
+  html {
+    --c-reef-w0: 143 220 255;
+    --c-reef-w1: 79 179 232;
+    --c-reef-w2: 47 120 200;
+    --c-reef-w3: 27 74 146;
+    --c-reef-w4: 12 36 86;
+    --c-reef-far: 42 100 180;
+    --c-reef-farD: 23 62 128;
+    --c-reef-dark: 6 10 28;
+    --c-reef-bubble: 226 248 255;
+    --c-reef-ink: 20 12 28;
+    --c-reef-orange: 255 140 26;
+    --c-reef-orangeD: 201 79 12;
+    --c-reef-orangeL: 255 177 92;
+    --c-reef-white: 255 246 230;
+    --c-reef-hi: 255 255 255;
+    --c-reef-pinkL: 255 208 240;
+    --c-reef-pink: 255 122 200;
+    --c-reef-pinkD: 168 49 127;
+    --c-reef-greyL: 214 226 236;
+    --c-reef-grey: 125 147 168;
+    --c-reef-greyD: 63 82 102;
+    --c-reef-rockL: 176 138 106;
+    --c-reef-rock: 107 74 54;
+    --c-reef-rockD: 58 38 25;
+    --c-reef-sand: 240 212 140;
+    --c-reef-sandD: 196 154 80;
+    --c-reef-weedL: 139 232 138;
+    --c-reef-weed: 47 154 70;
+    --c-reef-weedD: 23 90 44;
+    --c-reef-coral: 255 94 108;
+    --c-reef-coralD: 181 42 69;
+    --c-reef-pearl: 251 245 255;
+    --c-reef-pearlD: 169 150 214;
+    --c-reef-gold: 255 210 63;
+    --c-reef-goldD: 201 138 18;
+    --c-reef-goldL: 255 243 168;
+    --c-reef-purple: 138 79 208;
+    --c-reef-purpleD: 62 26 110;
+    --c-reef-red: 255 48 72;
+    --c-reef-redD: 156 16 40;
+    --c-reef-eel: 168 214 62;
+    --c-reef-eelD: 74 110 20;
+    --c-reef-lamp: 255 245 154;
+    --c-reef-lampL: 255 250 190;
+    --c-reef-abyss: 4 10 34;
+    --c-reef-hudBg: 6 14 40;
+  }
+}
+
 /* ── Theme overrides ── */
 
 /* Ground-scheme defaults for every themed element, not just <html>. Theme

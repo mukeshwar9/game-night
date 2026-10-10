@@ -359,9 +359,9 @@
             "$roundId": {
               "$uid": {
                 "$f": {
-                  ".validate": "((newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'minesweeper') || ((newData.val() === data.val() || $uid === auth.uid || newData.hasChildren())))",
+                  ".validate": "((newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'minesweeper' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'reef') || ((newData.val() === data.val() || $uid === auth.uid || newData.hasChildren())))",
                   "$i": {
-                    ".validate": "((newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'minesweeper') || ((newData.val() === data.val() || $uid === auth.uid)))"
+                    ".validate": "((newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'minesweeper' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'reef') || ((newData.val() === data.val() || $uid === auth.uid)))"
                   }
                 }
               }
@@ -369,16 +369,16 @@
           },
           "ready": {
             "$uid": {
-              ".validate": "((newData.parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().child('gameType').val() !== 'minesweeper') || ((newData.val() === true && (newData.val() === data.val() || $uid === auth.uid))))"
+              ".validate": "((newData.parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().child('gameType').val() !== 'minesweeper' && newData.parent().parent().parent().child('gameType').val() !== 'reef') || ((newData.val() === true && (newData.val() === data.val() || $uid === auth.uid))))"
             }
           },
           "racers": {
             "$uid": {
-              ".validate": "((newData.parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().child('gameType').val() !== 'minesweeper') || (newData.val() === true))"
+              ".validate": "((newData.parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().child('gameType').val() !== 'minesweeper' && newData.parent().parent().parent().child('gameType').val() !== 'reef') || (newData.val() === true))"
             }
           },
           "id": {
-            ".validate": "((newData.parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().child('gameType').val() !== 'minesweeper') || (newData.isString() && newData.val().length <= 64))"
+            ".validate": "((newData.parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().child('gameType').val() !== 'minesweeper' && newData.parent().parent().child('gameType').val() !== 'reef') || (newData.isString() && newData.val().length <= 64))"
           },
           "startedAt": {
             ".validate": "newData.isNumber()"

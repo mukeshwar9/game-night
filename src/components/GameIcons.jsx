@@ -197,6 +197,18 @@ export function AimIcon() {
   )
 }
 
+export function ReefIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 11 Q8 4 14 8 Q17 10 17 12 Q17 14 14 16 Q8 20 3 13 Q5 12 3 11 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M17 12 L21 8 L21 16 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <line x1="10" y1="7" x2="10" y2="17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="6.5" cy="11" r="1" fill="currentColor" />
+      <path d="M2 21 Q5 19 8 21 T14 21 T20 21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function ArcheryIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
