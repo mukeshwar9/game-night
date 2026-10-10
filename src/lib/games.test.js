@@ -109,6 +109,7 @@ describe('supportsLocalPlay', () => {
   const LOCAL_TYPES = [
     'animalstack', // custom, but ships its own 2-4P LocalPage
     'stickyfingers', // real-time duel online; its LocalPage seats 2-4 on one phone
+    'bamboozle', // 2-8P race, but ships its own 2-4P one-phone LocalPage
     'archery', // custom range with its own same-device LocalPage
     'firstcut', // a 2-8P race that ships its own 2-4P one-phone LocalPage
     'tictactoe', 'ultimatettt', 'tictactoe4', 'connectfour', 'connectfour5', 'connectfourpop',

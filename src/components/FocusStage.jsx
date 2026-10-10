@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import useModalHistory from '../hooks/useModalHistory'
+import useFocusMode from '../hooks/useFocusMode'
 import { fitScale, unionBox } from '../lib/focusLogic'
 
 // Focus mode: the game alone on the screen. A full-screen stage (above the
@@ -163,6 +164,114 @@ export function FocusSeat({ symbol, name, score, active, isMe }) {
         {name || symbol}{isMe && <span className="text-retro-dim"> · YOU</span>}
       </span>
       {score != null && <span className="font-pixel text-[10px] text-retro-text tabular-nums">{score}</span>}
+    </div>
+  )
+}
+
+// Mounted only while a FocusFrame is on: the ✕ bar, plus the back gesture and
+// Esc that leave focus mode, same as FocusStage.
+function FocusFrameHead({ label, onExit }) {
+  useModalHistory(onExit)
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('[role="dialog"]:not([data-focus-stage])')) onExit()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [onExit])
+
+  return (
+    <div className="shrink-0 flex items-center gap-2 px-2 min-h-12 border-b border-retro-border/60">
+      <button
+        type="button"
+        onClick={onExit}
+        aria-label="Leave focus mode"
+        title="Leave focus mode"
+        className="shrink-0 min-h-11 min-w-11 inline-flex items-center justify-center text-retro-dim hover:text-retro-text transition-colors press rounded"
+      >
+        <FocusIcon exit />
+      </button>
+      <span className="font-pixel text-[9px] tracking-widest text-retro-dim truncate">{label}</span>
+    </div>
+  )
+}
+
+// Focus mode for a custom page (a real-time arena, a dice table, a garden…).
+// The standard boards go through FocusStage, which re-parents the board into a
+// portal; a page holds live state (a sim, a peer connection, a canvas), so this
+// frame never moves it. The same element turns into the full-screen stage in
+// place: the room chrome around it is covered, the page keeps its layout at
+// the room column's width and only shrinks if it would not fit the screen.
+// `mode` is the useFocusMode() of whoever owns the enter button, so the button
+// sits in the same header slot as for standard boards.
+export function FocusFrame({ label, mode, children }) {
+  const on = !!mode?.on
+  const stageRef = useRef(null)
+  const contentRef = useRef(null)
+  const [fit, setFit] = useState({ scale: 1, width: null })
+
+  useLayoutEffect(() => {
+    if (!on) return undefined
+    const stage = stageRef.current
+    const content = contentRef.current
+    if (!stage || !content) return undefined
+    const measure = () => {
+      const cs = getComputedStyle(stage)
+      const w = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+      const h = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+      const width = Math.min(w, MAX_LAYOUT_W)
+      if (content.style.width !== `${width}px`) content.style.width = `${width}px`
+      const scale = fitScale({ w, h }, { w: content.offsetWidth, h: content.offsetHeight }, 1)
+      setFit(f => (f.scale === scale && f.width === width ? f : { scale, width }))
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver(measure)
+    ro.observe(stage)
+    ro.observe(content)
+    return () => ro.disconnect()
+  }, [on])
+
+  return (
+    <div
+      {...(on ? { role: 'dialog', 'aria-modal': 'true', 'aria-label': `${label} — focus mode`, 'data-focus-stage': '' } : {})}
+      className={on ? cn(
+        'fixed inset-0 z-40 flex flex-col bg-retro-bg',
+        'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]',
+      ) : undefined}
+    >
+      {on && <FocusFrameHead label={label} onExit={mode.exit} />}
+      <div
+        ref={stageRef}
+        className={on ? 'flex-1 min-h-0 relative overflow-hidden flex items-center justify-center p-2' : undefined}
+      >
+        <div
+          ref={contentRef}
+          data-focus-content={on ? '' : undefined}
+          style={on ? { width: fit.width ?? undefined, transform: `scale(${fit.scale})`, transformOrigin: 'center' } : undefined}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Focus mode for a play surface with no room header (the /solo and /local
+// pages): owns the mode and puts the same enter button in the corner of the
+// card, above the game.
+export function FocusPlay({ label, children }) {
+  const mode = useFocusMode()
+  return (
+    <div className="relative">
+      {!mode.on && <FocusButton onClick={mode.enter} className="absolute -top-9 right-0 z-10" />}
+      <FocusFrame label={label} mode={mode}>{children}</FocusFrame>
     </div>
   )
 }

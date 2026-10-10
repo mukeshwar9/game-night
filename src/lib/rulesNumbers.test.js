@@ -32,9 +32,13 @@ import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
 import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS as STICKY_ROUND_S } from './stickyLogic'
+import { TARGET as BONK_TARGET, LID_GAP as BONK_LID_GAP, T as BONK_T } from './bonkLogic'
 import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
 import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
+import {
+  COINS_PER_HEART as BZ_COINS, HEARTS as BZ_HEARTS, MAX_HEARTS as BZ_MAX_HEARTS, ROUNDS_TO_WIN as BZ_ROUNDS, STONE_HP as BZ_STONE_HP,
+} from './bamboozleLogic'
 import {
   FC_FLIP_EVERY, FC_GOLD_MS, FC_GOLD_POINTS, FC_ONLINE_TARGET, FC_PACES, FC_ROTTEN_PENALTY, FC_TARGET, FC_UNDERDOG_GAP,
 } from './firstCutLogic'
@@ -216,6 +220,12 @@ const RULE_NUMBERS = {
       ...players('firstcut', 2, 8), [4, cfg('firstcut').localMaxPlayers],
     ],
   }),
+  bamboozle: () => ({
+    checks: [
+      [3, BZ_HEARTS], [3, BZ_STONE_HP], [3, BZ_COINS], [3, RACE_MATCH_WINS], [4, BZ_MAX_HEARTS], [2, BZ_ROUNDS],
+      ...players('bamboozle', 2, 8),
+    ],
+  }),
   pulprush: () => ({
     checks: [[45, secs(DUEL_MS)], ...players('pulprush', 2, 8), [5, ROT_PENALTY], [3, RACE_MATCH_WINS], [1, secs(STUN_MS)]],
   }),
@@ -278,6 +288,7 @@ const RULE_NUMBERS = {
       [10, LAST_CALL_SECONDS], [60, STICKY_ROUND_S], [3, first('stickyfingers')],
     ],
   }),
+  bonkbuggies: () => ({ checks: [[10, BONK_T.tideStart], [BONK_LID_GAP, BONK_LID_GAP], [5, BONK_TARGET]] }),
   fenderbender: () => ({
     checks: [
       [3, FENDER_HEARTS], [4, FENDER_HORN], [28, FENDER_SQUEEZE], [2, FENDER_GHOST],

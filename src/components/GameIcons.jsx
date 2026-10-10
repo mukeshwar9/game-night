@@ -760,6 +760,17 @@ export function FirstCutIcon() {
   )
 }
 
+export function BamboozleIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="4" y="2" width="5" height="11" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 7.5h5" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 13l2.5 3L9 13" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M12 22v-4c0-3 2.2-5 5-5s5 2 5 5v4z" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function FaceOffIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -831,6 +842,19 @@ export function StickyFingersIcon() {
       <circle cx="16.5" cy="7" r="3.2" stroke="currentColor" strokeWidth="2" />
       <path d="M16.5 5.6v2.8M15.4 7h2.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
       <path d="M13 12.5l3 2 3-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+    </svg>
+  )
+}
+
+export function BonkBuggiesIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M2 21c3-2 6-2 9-1s7 1 11-1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+      <path d="M3 15h8l1.5-2h4L19 15h2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="6.5" cy="16.5" r="2.2" stroke="currentColor" strokeWidth="2" />
+      <circle cx="16.5" cy="16.5" r="2.2" stroke="currentColor" strokeWidth="2" />
+      <circle cx="9.5" cy="9" r="2.4" fill="currentColor" />
+      <path d="M17 3.5l.6 1.7 1.8.1-1.4 1.1.5 1.7-1.5-1-1.5 1 .5-1.7-1.4-1.1 1.8-.1z" fill="currentColor" opacity="0.8" />
     </svg>
   )
 }

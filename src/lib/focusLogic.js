@@ -5,7 +5,8 @@
 // A game opts in with `focus: true` in its GAME_TYPES entry once its board
 // has been checked inside the stage. Focus wraps the standard BoardComponent
 // path (rooms and the VS CPU / pass-and-play bot board); custom pages and the
-// real-time arenas bring their own layouts and stay out for now.
+// real-time arenas bring their own layouts: those go through FocusFrame
+// (canFocusPage) and keep their page mounted instead.
 
 /** The largest scale a small board may grow to; past this pixel art turns to mush. */
 export const MAX_FIT_SCALE = 2.5
@@ -17,6 +18,16 @@ export const MAX_FIT_SCALE = 2.5
  */
 export function canFocus(cfg, { custom = false, status = 'playing' } = {}) {
   return !!cfg?.focus && !custom && status !== 'waiting'
+}
+
+/**
+ * Does this custom page offer focus mode? Real-time arenas and the visual
+ * tables (`focusPage: true` in the registry) do; text and party-prompt games
+ * have no stage worth a full screen.
+ * @param {{ custom?: boolean, realtime?: boolean, focusPage?: boolean } | null | undefined} cfg
+ */
+export function canFocusPage(cfg) {
+  return !!cfg?.custom && (!!cfg.realtime || !!cfg.focusPage)
 }
 
 /**

@@ -39,12 +39,12 @@ describe('playableAt', () => {
 
 describe('groupPickerForParty over the real registry', () => {
   // The size matrix from the party/voice audit (75 catalogue cards), plus the
-  // seven 2P memory games, BIRDSEYE, PUCK RUSH, STICKY FINGERS, FENDER BENDER and FACE OFF (2-seat, not nPlayer), YACHT,
-  // STEADY HAND and LAZY SUSAN (2–4), CHOP CHOP and FIRST CUT (2–8 races) added since (92 cards).
+  // seven 2P memory games, BIRDSEYE, PUCK RUSH, STICKY FINGERS, FENDER BENDER, FACE OFF and BONK BUGGIES (2-seat, not nPlayer), YACHT,
+  // STEADY HAND and LAZY SUSAN (2–4) and CHOP CHOP, BAMBOOZLE and FIRST CUT (2–8 races) added since (94 cards).
   it.each([
-    [2, 84, 0, 8],
-    [3, 24, 67, 1],
-    [4, 25, 67, 0],
+    [2, 86, 0, 8],
+    [3, 24, 69, 1],
+    [4, 25, 69, 0],
   ])('a party of %i: %i everyone-plays, %i take-turns, %i need more', (n, all, rotate, short) => {
     const g = groupPickerForParty(GAME_TYPES, n)
     expect([g.all.length, g.rotate.length, g.short.length]).toEqual([all, rotate, short])

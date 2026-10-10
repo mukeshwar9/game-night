@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bamboozle: a Spike Attack study for Game Night</title>
+<style>
+  @font-face { font-family: 'Press Start 2P'; src: url(data:font/woff2;base64,/*FONT*/) format('woff2'); font-display: swap; }
+  :root {
+    --bg: 238 240 226; --surface: 246 248 236; --card: 252 253 246; --border: 185 195 165; --text: 45 55 35; --dim: 95 107 81;
+    --p1: 210 110 50; --p2: 129 89 180; --p3: 30 150 140; --p4: 175 55 115; --cta: 130 95 14; --win: 38 123 66; --danger: 190 30 50;
+    --tint-win: 220 238 205; --tint-cta: 242 232 200; --tint-danger: 242 214 214; --structure: 160 170 140;
+    --pixel: 'Press Start 2P', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; color: rgb(var(--text)); font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    background-color: rgb(var(--bg)); background-image: linear-gradient(rgb(var(--border) / .2) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--border) / .2) 1px, transparent 1px); background-size: 4px 4px; }
+  main { max-width: 1120px; margin: 0 auto; padding: 28px 16px 90px; }
+  h1 { font: 400 clamp(22px, 5.2vw, 40px)/1.25 var(--pixel); letter-spacing: .02em; margin: 6px 0 14px; color: rgb(var(--win)); text-shadow: 3px 3px 0 rgb(var(--win) / .2); }
+  h2 { font: 400 15px/1.5 var(--pixel); letter-spacing: .04em; text-transform: uppercase; margin: 56px 0 6px; color: rgb(var(--cta)); }
+  h2 small { display: block; font: 400 15px/1.5 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: rgb(var(--dim)); margin-top: 6px; max-width: 760px; }
+  h3 { margin: 0 0 4px; font-size: 18px; }
+  p { margin: 0 0 10px; }
+  .eyebrow { font: 400 9px/1.6 var(--pixel); letter-spacing: .08em; text-transform: uppercase; color: rgb(var(--dim)); }
+  .lede { font-size: 19px; max-width: 780px; }
+  .dim { color: rgb(var(--dim)); }
+  .panel { background: rgb(var(--card)); border: 1px solid rgb(var(--border)); border-radius: 6px; box-shadow: 0 4px 0 rgb(var(--structure)); padding: 16px; min-width: 0; }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+  .fact b { display: block; font: 400 15px/1.5 var(--pixel); color: rgb(var(--text)); margin-bottom: 4px; overflow-wrap: anywhere; }
+  .fact span { color: rgb(var(--dim)); font-size: 14px; }
+  .rec a { color: inherit; }
+  .rec { border: 2px solid rgb(var(--win)); background: rgb(var(--tint-win)); border-radius: 6px; padding: 14px 16px; margin-top: 16px; box-shadow: 0 4px 0 rgb(var(--win) / .35); max-width: 900px; }
+  .rec b { color: rgb(var(--win)); }
+  .tag { display: inline-block; font: 400 8px/1 var(--pixel); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px 4px; border-radius: 3px; background: rgb(var(--text)); color: rgb(var(--card)); vertical-align: 2px; margin-right: 6px; white-space: nowrap; }
+  .tag.go { background: rgb(var(--win)); color: rgb(var(--on-win, var(--card))); } .tag.warn { background: rgb(var(--cta)); } .tag.hot { background: rgb(var(--danger)); } .tag.soft { background: rgb(var(--border)); color: rgb(var(--text)); }
+  .src { font-size: 13px; color: rgb(var(--dim)); }
+  .src a { color: inherit; }
+  figure { margin: 0; min-width: 0; }
+  figure svg { display: block; width: 100%; height: auto; border-radius: 6px; }
+  figcaption { font-size: 14px; color: rgb(var(--dim)); margin-top: 8px; }
+  figcaption b { color: rgb(var(--text)); }
+  ol.steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: s; }
+  ol.steps li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; counter-increment: s; }
+  ol.steps li::before { content: counter(s); width: 26px; height: 26px; border-radius: 4px; background: rgb(var(--text)); color: rgb(var(--card)); font: 400 10px/26px var(--pixel); text-align: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-top: 1px solid rgb(var(--border)); vertical-align: top; }
+  thead th { border-top: 0; font: 400 8px/1.6 var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: rgb(var(--dim)); }
+  .scroll { overflow-x: auto; }
+  /* prototype */
+  .play { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 26px; align-items: start; margin-top: 16px; }
+  .phone { border: 7px solid rgb(var(--ink, 32 38 29)); border-radius: 30px; overflow: hidden; background: rgb(var(--bg)); box-shadow: 0 10px 0 rgb(var(--structure)), 0 18px 30px rgb(0 0 0 / .22); max-width: 380px; width: 100%; margin: 0 auto; }
+  .phone canvas { display: block; width: 100%; aspect-ratio: 360 / 640; touch-action: none; outline: none; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .bz-ui { display: grid; gap: 14px; min-width: 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .row > .eyebrow { flex: 0 0 100%; }
+  button.px { font: 400 9px/1 var(--pixel); letter-spacing: .05em; text-transform: uppercase; color: rgb(var(--text)); background: rgb(var(--card)); border: 1px solid rgb(var(--border)); border-radius: 4px; box-shadow: 0 3px 0 rgb(var(--structure)); padding: 11px 12px 9px; cursor: pointer; transition: transform 80ms; }
+  button.px:active { transform: translateY(2px) scale(.96); box-shadow: 0 1px 0 rgb(var(--structure)); }
+  button.px[aria-pressed="true"] { background: rgb(var(--tint-cta)); border: 2px solid rgb(var(--cta)); color: rgb(var(--cta)); box-shadow: 0 3px 0 rgb(var(--cta) / .45); padding: 10px 11px 8px; }
+  button.px.go { background: rgb(var(--win)); color: rgb(var(--on-win, var(--card))); border-color: rgb(var(--win)); box-shadow: 0 3px 0 rgb(var(--win) / .5); }
+  label.tog { display: flex; gap: 9px; align-items: flex-start; padding: 8px 10px; border: 1px solid rgb(var(--border)); border-radius: 4px; background: rgb(var(--card)); min-width: 0; cursor: pointer; }
+  label.tog b { font: 400 9px/1.5 var(--pixel); letter-spacing: .04em; display: block; }
+  label.tog span { font-size: 13.5px; color: rgb(var(--dim)); }
+  input[type=checkbox], input[type=radio] { width: 18px; height: 18px; margin: 2px 0 0; accent-color: rgb(var(--win)); flex: none; }
+  kbd { font: 12px/1 ui-monospace, monospace; background: rgb(var(--surface)); border: 1px solid rgb(var(--border)); border-bottom-width: 3px; border-radius: 4px; padding: 3px 6px; white-space: nowrap; }
+  .twist { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-content: start; }
+  .twist h3 { font: 400 12px/1.5 var(--pixel); letter-spacing: .04em; margin-top: 6px; }
+  .twist dl { margin: 0; display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 5px 10px; font-size: 14.5px; }
+  .twist dt { font: 400 7px/2.2 var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: rgb(var(--dim)); }
+  .twist dd { margin: 0; }
+  .twist.first { border: 2px solid rgb(var(--win)); box-shadow: 0 4px 0 rgb(var(--win) / .35); }
+  form.pick { border: 2px solid rgb(var(--text)); }
+  fieldset { border: 0; border-top: 1px solid rgb(var(--border)); margin: 0; padding: 14px 0 8px; min-width: 0; }
+  fieldset:first-of-type { border-top: 0; padding-top: 4px; }
+  legend { font: 400 10px/1.6 var(--pixel); letter-spacing: .04em; text-transform: uppercase; padding: 0; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 8px; margin-top: 8px; }
+  .opts label { display: flex; gap: 9px; align-items: flex-start; padding: 8px 10px; border: 1px solid rgb(var(--border)); border-radius: 4px; background: rgb(var(--surface)); min-width: 0; cursor: pointer; font-size: 14.5px; }
+  .opts label:has(input:checked) { border-color: rgb(var(--win)); background: rgb(var(--tint-win)); }
+  textarea, input[type=text] { width: 100%; border: 1px solid rgb(var(--border)); border-radius: 4px; padding: 10px; font: inherit; background: rgb(var(--surface)); color: inherit; }
+  textarea { min-height: 70px; margin-top: 8px; }
+  #queued { font-size: 14px; color: rgb(var(--win)); margin-left: 10px; }
+  .themebar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 16px; background: rgb(var(--card) / .96); border-bottom: 1px solid rgb(var(--border)); box-shadow: 0 3px 0 rgb(var(--structure) / .6); }
+  .themebar label, .themerow label { font: 400 9px/1 var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: rgb(var(--cta)); }
+  .themebar span { font-size: 13px; color: rgb(var(--dim)); }
+  select[data-bz-theme] { font: 400 9px/1 var(--pixel); letter-spacing: .04em; text-transform: uppercase; color: rgb(var(--text)); background: rgb(var(--surface)); border: 1px solid rgb(var(--border)); border-radius: 4px; box-shadow: 0 3px 0 rgb(var(--structure)); padding: 9px 8px 7px; max-width: 100%; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+  nav.toc a { font: 400 8px/1 var(--pixel); letter-spacing: .05em; text-transform: uppercase; text-decoration: none; color: rgb(var(--text)); background: rgb(var(--card)); border: 1px solid rgb(var(--border)); border-radius: 4px; padding: 9px 10px 7px; box-shadow: 0 3px 0 rgb(var(--structure)); }
+  @media (max-width: 820px) { .play { grid-template-columns: minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<script>
+/* Theme layer: Game Night's own theme tokens (read from src/index.css at build time). The page, the drawings
+   and the game canvas all take their colours from here. Yard materials are derived from each theme's tokens. */
+window.BZT = (function () {
+  const THEMES = /*THEMES*/[]
+  const BASE = { bg: [238, 240, 226], surface: [246, 248, 236], card: [252, 253, 246], border: [185, 195, 165], text: [45, 55, 35], dim: [95, 107, 81],
+    p1: [210, 110, 50], p2: [129, 89, 180], p3: [30, 150, 140], p4: [175, 55, 115], cta: [130, 95, 14], win: [38, 123, 66], danger: [190, 30, 50], structure: [160, 170, 140],
+    sand: [230, 220, 190], frame: [100, 78, 52], pole: [150, 176, 76], moss: [96, 140, 60], tip: [236, 226, 182], rock: [142, 150, 134], shadow: [40, 50, 30], ink: [30, 34, 24], coin: [230, 190, 50], white: [255, 255, 255] }
+  const CLS = {}
+  const put = (cls, list) => list.split(' ').forEach(k => { CLS[k] = cls })
+  put('shadow', '40,50,30'); put('ink', '30,34,24 32,38,29 34,34,34'); put('card', '252,253,246'); put('white', '255,255,255')
+  put('frame', '60,44,20 86,66,44 112,88,58 78,60,40 72,54,36 46,34,22 40,28,16 30,20,10 126,100,66 255,240,210 86,62,34 100,78,52 84,64,42')
+  put('pole', '52,72,24 84,108,40 72,96,36 40,52,20 226,236,170 214,226,150 190,208,116 150,176,76 128,156,62 255,255,230 208,222,140')
+  put('moss', '86,132,54 126,170,80 96,146,60'); put('tip', '240,230,186 176,160,104 150,134,84 236,226,182')
+  put('sand', '234,226,198 232,222,192 226,216,186 120,104,70 150,130,90 226,214,180'); put('rock', '92,100,90 196,200,184 142,150,134 40,50,40 40,46,40 30,36,30 120,128,110 96,104,92')
+  put('coin', '244,204,70 176,128,20 226,180,40 255,250,210 240,200,60 200,150,20')
+  put('bg', '238,240,226'); put('surface', '246,248,236'); put('border', '185,195,165'); put('structure', '160,170,140'); put('dim', '95,107,81'); put('cta', '130,95,14'); put('win', '38,123,66')
+  put('danger', '190,30,50'); put('text', '45,55,35'); put('p1', '210,110,50'); put('p2', '129,89,180'); put('p3', '30,150,140'); put('p4', '175,55,115')
+  const mix = (a, b, t) => [0, 1, 2].map(i => a[i] + (b[i] - a[i]) * t)
+  const lum = c => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255
+  const level = (c, target) => { const m = Math.max(c[0], c[1], c[2], 1); return c.map(v => v * target / m) }
+  let cur = 'matcha', pal = null, cache = new Map()
+  const subs = []
+  function derive(theme) {
+    const t = { ...theme.t }
+    for (const k in BASE) if (!t[k] && !['sand', 'frame', 'pole', 'moss', 'tip', 'rock', 'shadow', 'ink', 'coin', 'white'].includes(k)) t[k] = BASE[k]
+    const dark = lum(t.bg) < 0.45
+    t.dark = dark
+    if (theme.id === 'matcha') return Object.assign(t, { sand: BASE.sand, frame: BASE.frame, pole: BASE.pole, moss: BASE.moss, tip: BASE.tip, rock: BASE.rock, shadow: BASE.shadow, ink: BASE.ink, coin: BASE.coin, white: BASE.white })
+    t.sand = dark ? mix(mix(t.surface, t.text, 0.2), t.cta, 0.12) : mix(t.surface, t.cta, 0.14)
+    t.frame = dark ? mix(t.structure, t.bg, 0.45) : mix(t.text, t.cta, 0.45)
+    t.pole = level(mix(t.win, t.cta, 0.15), dark ? 215 : 185)
+    t.moss = mix(t.win, t.sand, 0.15)
+    t.tip = dark ? mix(t.text, t.cta, 0.3) : mix(t.card, t.cta, 0.22)
+    t.rock = dark ? mix(t.structure, t.text, 0.3) : mix(t.structure, t.dim, 0.3)
+    t.shadow = dark ? [0, 0, 0] : mix(t.text, [0, 0, 0], 0.3)
+    t.ink = dark ? [0, 0, 0] : mix(t.text, [0, 0, 0], 0.35)
+    t.coin = BASE.coin; t.white = BASE.white
+    return t
+  }
+  function classOf(r, g, b) {
+    const k = r + ',' + g + ',' + b
+    if (CLS[k]) return CLS[k]
+    let best = 'ink', bd = 1e9
+    for (const c in BASE) { const q = BASE[c], dd = (q[0] - r) ** 2 + (q[1] - g) ** 2 + (q[2] - b) ** 2; if (dd < bd) { bd = dd; best = c } }
+    return (CLS[k] = best)
+  }
+  function KA(r, g, b) {
+    const key = r * 65536 + g * 256 + b
+    let v = cache.get(key)
+    if (!v) { const c = classOf(r, g, b), base = BASE[c], to = pal[c]; v = [r, g, b].map((x, i) => Math.max(0, Math.min(255, Math.round(to[i] + (x - base[i]))))); cache.set(key, v) }
+    return v
+  }
+  const K = (r, g, b, a) => { const v = KA(+r, +g, +b); return 'rgba(' + v[0] + ',' + v[1] + ',' + v[2] + ',' + (a == null ? 1 : a) + ')' }
+  /** Retint every rgb()/rgba() in a markup string (the hand-drawn SVG explainers). */
+  const paint = s => s.replace(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([.\d]+))?\)/g, (m, r, g, b, a) => K(r, g, b, a))
+  function apply(id) {
+    const theme = THEMES.find(x => x.id === id) || THEMES.find(x => x.id === 'matcha') || { id: 'matcha', t: {} }
+    cur = theme.id; pal = derive(theme); cache = new Map()
+    const st = document.documentElement.style, set = (k, c) => st.setProperty('--' + k, c.map(Math.round).join(' '))
+    for (const k of ['bg', 'surface', 'card', 'border', 'text', 'dim', 'p1', 'p2', 'p3', 'p4', 'cta', 'win', 'danger', 'structure']) set(k, pal[k])
+    set('tint-win', mix(pal.win, pal.card, 0.82)); set('tint-cta', mix(pal.cta, pal.card, 0.82)); set('tint-danger', mix(pal.danger, pal.card, 0.82)); set('ink', pal.ink)
+    set('on-win', lum(pal.win) > 0.6 ? pal.ink : pal.card)
+    document.documentElement.style.colorScheme = pal.dark ? 'dark' : 'light'
+    document.querySelectorAll('[data-bz-theme]').forEach(s => { s.value = cur })
+    subs.forEach(f => f(pal))
+  }
+  function mount() {
+    document.querySelectorAll('[data-bz-theme]').forEach(sel => {
+      sel.innerHTML = THEMES.map(t => '<option value="' + t.id + '">' + t.label + '</option>').join('')
+      sel.value = cur
+      sel.addEventListener('change', () => apply(sel.value))
+    })
+  }
+  apply('matcha')
+  return { THEMES, K, KA, paint, apply, mount, pal: () => pal, cur: () => cur, onChange: f => subs.push(f) }
+})()
+</script>
+<div class="themebar"><label for="theme-top">Theme</label><select id="theme-top" data-bz-theme aria-label="Game Night theme"></select><span>Every colour on this page and in the game follows it.</span></div>
+<main>
+  <div class="eyebrow">Game Night · study of one minigame · task games-jb-spikeattack-s1 · 10 Oct 2026</div>
+  <h1>BAMBOOZLE</h1>
+  <p class="lede">Bamboo poles fire across a walled garden from one side at a time. A pole stops when it hits a boulder, so the only safe ground is <b>behind a rock</b>, and there is never enough of it for everyone. Three hearts each; last one standing wins.</p>
+  <p class="dim" style="max-width:780px">This is Game Night's own take on the "Spike Attacks" minigame in JindoBlu's <i>1 2 3 4 Player Games</i>. The mechanic is studied; the name, art, sound and code here are new.</p>
+
+  <div class="grid g4" style="margin-top:20px">
+    <div class="panel fact"><b>2–4 · 1 phone</b><span>A thumb pad each in the corners of one screen. Also solo against bots.</span></div>
+    <div class="panel fact"><b>25–50 s</b><span>One round. Bot-only test rounds averaged 22–44 s and none passed 52 s: the warning shrinks and a second wall joins in.</span></div>
+    <div class="panel fact"><b>Online 2–8</b><span>Fits the existing race rooms: everyone gets the same seeded volleys, no new server code.</span></div>
+    <div class="panel fact"><b>Medium build</b><span>One logic module, one page, a solo page. No new database rules for the recommended version.</span></div>
+  </div>
+
+  <div class="rec"><b>Recommendation.</b> Build it. First version: one phone for 2–4, solo against bots, and online as a seeded survival race for 2–8. Ship two twists with it: <b>CRUMBLE</b> (rocks break and move, already in the prototype's default) and <b>BAIT</b> (coins in the open buy a heart back). Hold SHOVE and HAUNT for a second pass. Dodgers are the players' own profile avatars. Five calls are waiting for you at the <a href="#calls">bottom</a>.</div>
+
+  <nav class="toc" aria-label="Sections">
+    <a href="#source">1 The source game</a><a href="#rules">2 Our version</a><a href="#play">3 Play it</a><a href="#avatars">3b Avatars</a><a href="#twists">4 Twists</a><a href="#seats">5 Players</a><a href="#build">6 Build</a><a href="#calls">7 Your calls</a>
+  </nav>
+
+  <h2 id="source">1 · How the source game plays<small>Read from the app's own how-to screen and from gameplay videos. I did not install or open the app.</small></h2>
+  <div class="grid g2">
+    <figure class="panel">
+      <div id="fig-source"></div>
+      <figcaption><b>My redrawing of one volley, not their art.</b> The left wall is about to fire. Every lane gets a spike. A spike stops at the first stone in its lane, so only the green cells are safe. The bottom lane is wholly safe because its stone sits against the firing wall.</figcaption>
+    </figure>
+    <div class="panel">
+      <ol class="steps">
+        <li><div><b>A square yard of 4×4 tiles with three stones.</b> Four spikes wait on each of the four walls, one per lane. <span class="src">[V1][V2][V3]</span></div></li>
+        <li><div><b>One wall flashes red, then all its spikes shoot across</b> and pull back. The in-app tip reads: "Hide behind the stones so you don't get hit by the spikes." <span class="src">[V1][V2]</span></div></li>
+        <li><div><b>Each player steers a small character with a joystick</b> in their own corner of the screen. The counter beside it starts at 3 and drops on each hit. <span class="src">[V3]</span></div></li>
+        <li><div><b>Out at zero; the last one left wins.</b> A medal screen ranks the players ("RED WINS!"). <span class="src">[V2][V3]</span></div></li>
+        <li><div><b>Solo play is against bots</b> with an EASY / MEDIUM / HARD slider. <span class="src">[V1][V2]</span></div></li>
+      </ol>
+      <p class="src" style="margin-top:14px"><b>Not confirmed, treated as assumptions:</b> whether the stones ever move inside a round (they stayed put in the footage I saw); whether the pace speeds up; whether more than one wall can fire at once; how four players are placed (I saw two corners used, and assume the other two corners for players three and four).</p>
+      <p class="src"><b>What players say:</b> one store review lists "spike attacks" among the games it recommends for groups <span class="src">[R1]</span>. The clips show the same two feelings again and again: a scramble for the same safe tile, and a hit that comes from misreading which side a stone protects.</p>
+    </div>
+  </div>
+  <p class="src" style="margin-top:12px">
+    [V1] <a href="https://www.youtube.com/watch?v=d6IYWB07c3Q">YouTube, "Spike Attack | 1234 player games", MGP, 11 Sep 2025</a> (menu tile, tip text, MEDIUM and HARD rounds) ·
+    [V2] <a href="https://www.youtube.com/watch?v=lhpA4qscHSw">YouTube, "playing spike attack … with easy difficulty", 3 Jun 2026</a> (EASY, medal screens) ·
+    [V3] <a href="https://www.youtube.com/watch?v=jdHdadjDYXg">YouTube, "4player game red wins spike attack", 24 Oct 2025</a> (two humans, counters 3→2→1) ·
+    [S1] <a href="https://play.google.com/store/apps/details?id=com.JindoBlu.FourPlayers&hl=en_IN">Play Store listing</a> (app description; a release note names "New game: Spike Attack") ·
+    [R1] <a href="https://game-solver.com/1-2-3-4-player-games/">game-solver.com app page</a> (quoted user review)
+  </p>
+
+  <h2 id="rules">2 · Game Night's version<small>The same read-the-cover idea, with a telegraph you can learn, a round that is guaranteed to end, and cover that does not stay put.</small></h2>
+  <div class="grid g3">
+    <figure class="panel"><div id="fig-warn"></div><figcaption><b>1 · Warning.</b> A wall glows and its poles draw back and rattle. The warning starts at 1.15 s and shrinks to 0.5 s. For the first three volleys the yard also tints the safe tiles, then you read it yourself.</figcaption></figure>
+    <figure class="panel"><div id="fig-strike"></div><figcaption><b>2 · Strike.</b> Every pole on that wall fires. A pole stops at the first boulder. Touch a pole and you lose a heart, then blink for a moment so one volley cannot hit twice.</figcaption></figure>
+    <figure class="panel"><div id="fig-crumble"></div><figcaption><b>3 · Cover moves.</b> A boulder cracks each time it stops a pole and breaks on the third. A dashed ring shows where the next one will land a second before it does.</figcaption></figure>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="panel">
+      <h3>Rules</h3>
+      <div class="scroll"><table>
+        <tbody>
+          <tr><th>Goal</th><td>Be the last dodger with a heart left.</td></tr>
+          <tr><th>Yard</th><td>4×4 tiles and 3 boulders for two players; 5×5 and 5 boulders for three or four.</td></tr>
+          <tr><th>Hearts</th><td>Three each. A hit costs one and gives 1.3 s of blinking safety.</td></tr>
+          <tr><th>Escalation</th><td>From volley 7 a second wall can fire with the first; from volley 15 two walls always fire.</td></tr>
+          <tr><th>Fairness</th><td>A wall may fire only if the walk to cover from the worst tile in the yard fits inside the warning. When no wall fits, the kindest one fires. This depends on the boulders alone, so it is the same for every player online.</td></tr>
+          <tr><th>Round end</th><td>One dodger left wins the round. If the last two fall to the same volley it is a draw and nobody scores.</td></tr>
+          <tr><th>Match</th><td>One phone and solo: first to two rounds. Online race rooms: the room's usual first to three.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="src" style="margin-top:10px">Every number on this board is a starting value for playtests, not a measured one. The report lists each with the test that would move it.</p>
+    </div>
+    <div class="panel">
+      <h3>Touch controls</h3>
+      <ol class="steps">
+        <li><div><b>Thumb pad.</b> Put a thumb down anywhere in your own strip and drag; the pad appears under it and follows a thumb that drifts.</div></li>
+        <li><div><b>Nothing else in the base game.</b> One input means a phone can be handed to anyone.</div></li>
+        <li><div><b>With SHOVE on:</b> a quick tap in your strip is a short dash that knocks rivals aside.</div></li>
+        <li><div><b>When you are out, with HAUNT on:</b> push the pad toward a wall to choose where the next volley comes from.</div></li>
+      </ol>
+      <h3 style="margin-top:16px">Why it should feel good</h3>
+      <p class="dim" style="margin:0">Each volley answers with four things at once: the poles overshoot and shudder, the yard shakes, dust and rock chips fly, and a low thud plays. A hit squashes the dodger, throws stars and plays a falling tone. Sound and shake land on contact, never after a network reply.</p>
+    </div>
+  </div>
+
+  <h2 id="play">3 · Play it<small>The real loop, running in this page. Press a green button to play against the bot. Two people can also share a phone or a keyboard.</small></h2>
+  <div class="play" id="playgrid">
+    <div class="phone" data-lavish-action><canvas id="bz" tabindex="0" aria-label="Bamboozle playable prototype" data-lavish-action></canvas></div>
+    <div class="bz-ui">
+      <div class="panel" style="border:2px solid rgb(var(--win)); box-shadow:0 4px 0 rgb(var(--win) / .35)">
+        <div class="row"><span class="eyebrow">Play against the bot, right here</span>
+          <button class="px go" type="button" data-bz-go="2">▶ You vs 1 bot</button>
+          <button class="px go" type="button" data-bz-go="3">▶ You vs 2 bots</button>
+          <button class="px go" type="button" data-bz-go="4">▶ You vs 3 bots</button>
+        </div>
+        <p class="dim" style="margin:10px 0 0; font-size:14.5px">You are the one with the bouncing <b>YOU</b> tag. <b>Mouse or finger:</b> press anywhere on the game and drag the way you want to run. <b>Keyboard:</b> arrow keys or <kbd>W A S D</kbd>. <b>With GRAB on:</b> stand next to a rival and hold <kbd>Space</kbd>, the right mouse button, a second finger or the GRAB button; walk; let go to throw. If a press leaves a note instead of moving you, switch <b>Annotate</b> off at the top right.</p>
+      </div>
+      <div class="panel themerow">
+        <div class="row"><label for="theme-play" style="flex:0 0 100%">Theme · the yard, poles, rocks and pads all follow it</label>
+          <select id="theme-play" data-bz-theme aria-label="Game Night theme"></select>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="row"><span class="eyebrow">Who plays</span>
+          <button class="px" type="button" data-bz-mode="solo">You vs bots</button>
+          <button class="px" type="button" data-bz-mode="share">Share one phone</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="eyebrow">Players</span>
+          <button class="px" type="button" data-bz-players="2">2</button>
+          <button class="px" type="button" data-bz-players="3">3</button>
+          <button class="px" type="button" data-bz-players="4">4</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="eyebrow">Bots</span>
+          <button class="px" type="button" data-bz-skill="easy">Easy</button>
+          <button class="px" type="button" data-bz-skill="normal">Normal</button>
+          <button class="px" type="button" data-bz-skill="hard">Hard</button>
+        </div>
+        <p class="dim" style="margin:12px 0 0; font-size:14.5px"><b>Share one phone:</b> P1 uses the bottom strip, P2 the top strip (it faces the other way). Touch a strip to take that seat from its bot. On a keyboard: P1 <kbd>← ↑ ↓ →</kbd> shove <kbd>Space</kbd> · P2 <kbd>W A S D</kbd> shove <kbd>Q</kbd> · P3 <kbd>I J K L</kbd> · P4 <kbd>T F G H</kbd>.</p>
+      </div>
+      <div class="panel">
+        <div class="eyebrow" style="margin-bottom:8px">Twists · switching one restarts the match</div>
+        <div class="grid g2" style="gap:8px">
+          <label class="tog"><input type="checkbox" data-bz-opt="crumble" checked><span><b>CRUMBLE</b>Boulders crack, break and land somewhere new.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="coins"><span><b>BAIT</b>A coin sits in the open. Three coins buy a heart.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="shove"><span><b>SHOVE</b>Tap to dash and knock a rival out of cover.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="haunt"><span><b>HAUNT</b>Knocked-out players aim the next volley.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="grab"><span><b>GRAB</b>Hold a rival, walk them out of cover, let go to throw.</span></label>
+        </div>
+        <div class="grid g2" style="gap:8px; margin-top:8px">
+          <label class="tog"><input type="checkbox" data-bz-opt="hints" checked><span><b>FIRST-VOLLEY HINTS</b>Tint safe tiles for the first three volleys.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="sound" checked><span><b>SOUND</b>Thuds, cracks and a win jingle.</span></label>
+          <label class="tog"><input type="checkbox" data-bz-opt="avatars" checked><span><b>PROFILE AVATARS</b>Dodgers are real avatar-kit characters. Off: plain blobs.</span></label>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>What to look for</h3>
+        <ol class="steps">
+          <li><div>Can you tell which tiles are safe <b>before</b> the hint tint is gone (volley 4 onward)?</div></li>
+          <li><div>Does the scramble for one tile feel funny or unfair when a bot beats you to it?</div></li>
+          <li><div>Is the round length right, or does it drag before two walls start firing?</div></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <h2 id="avatars">3b · You are the dodger<small>Asked in review: can players use their own avatar, and can it be 3D? Yes to the first, now in the prototype. The second has three levels.</small></h2>
+  <div class="panel"><canvas id="bz-av" aria-label="Avatar kit characters: flat art, stood up with depth, and animated" style="display:block; width:100%; aspect-ratio: 720 / 200; border-radius:6px"></canvas></div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="panel twist first">
+      <div><span class="tag go">In the prototype</span><span class="tag soft">Small</span></div>
+      <h3>A · STANDEE</h3>
+      <p style="margin:0">Your profile avatar's full-body picture, stood up in the yard. The game adds a darker side for thickness, a shadow cast on the sand, a hop when it runs, a lean, a squash when hit and the kit's own cheer when it wins. These four are real output of Game Night's avatar kit, so every look works, paid cosmetics included, with no new art.</p>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag warn">Separate spike</span><span class="tag soft">Medium–large</span></div>
+      <h3>B · BLOCK FIGURE</h3>
+      <p style="margin:0">A true 3D figure built by turning each avatar pixel into a small cube. The catch: the kit only draws the front. A back and sides would be made up by rule (hair and outfit colours carried round), with a depth table for each part type. Most looks would come out well; some hats and hair would need hand fixes. It would let the figure turn to face where it runs.</p>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag soft">Not advised</span><span class="tag soft">Large</span></div>
+      <h3>C · MODELLED 3D</h3>
+      <p style="margin:0">Hand-made 3D parts for every hair, hat and outfit in the kit. It would look best and cost the most: every cosmetic would need a second, 3D version, for ever. Not worth it for one minigame.</p>
+    </div>
+  </div>
+  <p class="dim" style="margin-top:12px; max-width:820px"><b>My advice:</b> ship A with the game. If you want B, cost it once as its own piece of work, because all eight new games could use the same figures.</p>
+
+  <h2 id="twists">4 · Twists<small>Six ways to make it more than a clone. Five are playable above; press a button to load one.</small></h2>
+  <div class="grid g3">
+    <div class="panel twist first">
+      <div><span class="tag go">Ship first</span><span class="tag soft">Small</span></div>
+      <h3>CRUMBLE</h3>
+      <dl>
+        <dt>Change</dt><dd>Cover has hit points. A boulder breaks on its third block and a new one lands on a marked tile.</dd>
+        <dt>Why</dt><dd>The source's fixed stones let you learn four answers and stop thinking. Moving cover makes every volley a fresh read.</dd>
+        <dt>Risk</dt><dd>A boulder landing on a dodger. Handled: the landing ring shows for a second and dodgers are nudged out, never hurt.</dd>
+        <dt>Cost</dt><dd>Small. It follows from the volley list, so every online client agrees without extra data.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble">Play with Crumble</button>
+    </div>
+    <div class="panel twist first">
+      <div><span class="tag go">Ship first</span><span class="tag soft">Small</span></div>
+      <h3>BAIT</h3>
+      <dl>
+        <dt>Change</dt><dd>One coin lies on an open tile between volleys. Three coins buy back a heart, up to four.</dd>
+        <dt>Why</dt><dd>It gives the player who is behind a way back, and gives the leader a reason to leave cover. Camping stops being the best plan.</dd>
+        <dt>Risk</dt><dd>Fast players snowball. Starting rule: a coin can never push you above four hearts, and only one coin is ever out.</dd>
+        <dt>Cost</dt><dd>Small on one phone. Online the coin spot comes from the seed; whoever writes the pickup first keeps it.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble,coins">Play with Bait</button>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag warn">Second pass</span><span class="tag soft">Medium</span></div>
+      <h3>SHOVE</h3>
+      <dl>
+        <dt>Change</dt><dd>A tap is a short dash on a 2.2 s recharge. Dash into a rival and they slide out of the tile they were hiding on.</dd>
+        <dt>Why</dt><dd>It turns dodging beside each other into playing against each other. This is the loudest laugh in the prototype.</dd>
+        <dt>Risk</dt><dd>Needs players who can touch. That works on one phone and in a two-player online duel, not in a seeded race of ghosts.</dd>
+        <dt>Cost</dt><dd>Medium. One phone is cheap; online means a host-run two-player duel on the existing peer link.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble,shove">Play with Shove</button>
+    </div>
+    <div class="panel twist" style="border:2px solid rgb(var(--cta)); box-shadow:0 4px 0 rgb(var(--cta) / .4)">
+      <div><span class="tag warn">New · asked in review</span><span class="tag soft">Medium</span></div>
+      <h3>GRAB</h3>
+      <dl>
+        <dt>Change</dt><dd>Stand beside a rival and hold GRAB. They are stuck to your hands: walk and they go where you push. Let go and they are thrown about a tile. You can hold for 1.4 s, then wait 3 s.</dd>
+        <dt>Why</dt><dd>You can drag someone out from behind a rock and throw them into the poles. Louder than SHOVE, and it asks for timing: let go too early and they walk back.</dd>
+        <dt>Counter</dt><dd>The held player wriggles free by pushing their own pad for half a second, and the grabber walks slower and is out of cover too. A hit on the grabber breaks the hold.</dd>
+        <dt>Risk</dt><dd>It needs a second control: a GRAB button beside each pad. Four players on one phone then have eight touch targets, which is tight. Needs contact, so one phone and the two-player duel only.</dd>
+        <dt>Cost</dt><dd>Medium. It is SHOVE's bigger sibling: I would ship one of the two, not both.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble,grab">Play with Grab</button>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag warn">Second pass</span><span class="tag soft">Small–medium</span></div>
+      <h3>HAUNT</h3>
+      <dl>
+        <dt>Change</dt><dd>When you are out you become a ghost on the wall. Push your pad toward a side and the next volley comes from there.</dd>
+        <dt>Why</dt><dd>In the source, a knocked-out player just watches. Here the first one out gets the most say over who wins.</dd>
+        <dt>Risk</dt><dd>Two ghosts ganging up on the leader. Starting rule: only the latest push counts, and a wall with no safe tile cannot be picked.</dd>
+        <dt>Cost</dt><dd>Small on one phone. Medium online: one new room key and its rule and rules test.</dd>
+      </dl>
+      <button class="px" type="button" data-bz-try="crumble,haunt" data-bz-players-set="3">Play 3 with Haunt</button>
+    </div>
+    <div class="panel twist">
+      <div><span class="tag soft">Later</span><span class="tag soft">Medium</span></div>
+      <h3>HOLD THE LINE</h3>
+      <dl>
+        <dt>Change</dt><dd>Co-op. One shared pool of hearts, a set number of volleys to outlast, and a downed friend gets up if you stand beside them for a volley.</dd>
+        <dt>Why</dt><dd>Game Night already has a co-op flag and co-op players. Sharing two safe tiles between four people is a different, kinder game.</dd>
+        <dt>Risk</dt><dd>Too easy with good players. Starting rule: boulders start already cracked and the wave count rises each win.</dd>
+        <dt>Cost</dt><dd>Medium. Not in the prototype.</dd>
+      </dl>
+    </div>
+  </div>
+  <p class="dim" style="margin-top:12px; max-width:820px">Also considered and left out: one player firing the walls by hand while the rest dodge. It is the same idea as HAUNT with a worse wait for the others, so HAUNT covers it.</p>
+
+  <h2 id="seats">5 · Who sits where<small>One phone, then online. The yard is the same in every case; only the pads move.</small></h2>
+  <div class="grid g4">
+    <figure class="panel"><div id="fig-s2"></div><figcaption><b>Two.</b> Bottom strip and top strip, facing each other across the phone.</figcaption></figure>
+    <figure class="panel"><div id="fig-s3"></div><figcaption><b>Three.</b> Three corners. The yard grows to 5×5.</figcaption></figure>
+    <figure class="panel"><div id="fig-s4"></div><figcaption><b>Four.</b> A corner each. A tablet is kinder to thumbs; a phone works.</figcaption></figure>
+    <figure class="panel"><div id="fig-online"></div><figcaption><b>Online, 2–8.</b> Everyone gets the same volleys from one seed. Your phone moves only you; the others appear as ghosts.</figcaption></figure>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="panel">
+      <h3>Online, the cheap way <span class="tag go">Recommended</span></h3>
+      <p>Game Night's race rooms already give every player the same seeded content on the server clock and rank them at the end (Chop Chop, Mine Race). Bamboozle fits that shape: the seed decides the boulders and every volley; each phone runs only its own dodger; hearts and "out at" times are the stats the room ranks.</p>
+      <p class="dim" style="margin:0">You see the others as ghosts, updated a few times a second. You cannot bump them. No new database rules, 2–8 players, and it works on weak connections because nothing fast crosses the network.</p>
+    </div>
+    <div class="panel">
+      <h3>Online, with contact <span class="tag warn">Only if SHOVE ships</span></h3>
+      <p>The peer link the arena games use (Sumo, Tron) is one host and one guest. A two-player duel with shoving fits it as it is. Three or four players with shoving would need a new mesh or relay, which is a large piece of work on its own.</p>
+      <p class="dim" style="margin:0">Closest existing games: <b>Chop Chop</b> shares "dodge the beam" but is a tap race with no movement; <b>Sumo Arena</b> shares the shoving but has no cover; <b>Tron</b> and <b>Snake</b> share last-one-standing. None has cover you read under time pressure, so this does not duplicate them.</p>
+    </div>
+  </div>
+
+  <h2 id="build">6 · What the build needs<small>Sized against how the last four games were added.</small></h2>
+  <div class="panel scroll">
+    <table>
+      <thead><tr><th>Piece</th><th>What</th><th>Size</th></tr></thead>
+      <tbody>
+        <tr><td><b>Logic module</b></td><td><code>bamboozleLogic.js</code> with tests: lanes, cover, the seeded volley list, crumble, hits, bot pathing. The prototype's rules already sit apart from its drawing.</td><td>Medium</td></tr>
+        <tr><td><b>Yard and dodgers</b></td><td>DOM and CSS, themed with the app's colour tokens like the other arenas. Poles, boulders and dodgers are drawn, not downloaded: no image assets.</td><td>Medium</td></tr>
+        <tr><td><b>One phone 2–4 and solo</b></td><td>A <code>/solo</code> page with bots and a <code>/local</code> page with corner pads, like Animal Stack's local page. A new multi-touch pad hook.</td><td>Medium</td></tr>
+        <tr><td><b>Online race room</b></td><td>A page on the race shell, a registry entry, an icon, how-to-play text and a two-client test.</td><td>Small</td></tr>
+        <tr><td><b>Sound</b></td><td>Five short effects in the existing sound module.</td><td>Small</td></tr>
+        <tr><td><b>SHOVE online, HAUNT online</b></td><td>A host-run duel on the peer link; one new room key with its rule and rules test.</td><td>Medium, later</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="dim" style="margin-top:10px; max-width:820px"><b>Overall: medium.</b> Roughly the size of Chop Chop plus Puck Rush's one-phone page. The one thing that has to be right is the pad for four thumbs on one small screen; I would test that on a real phone before anything else.</p>
+
+  <h2 id="calls">7 · Your calls<small>Five choices. Pick, add a note if you like, then queue and send. Nothing is built until you say so.</small></h2>
+  <form class="panel pick" id="calls-form" data-lavish-question="games-jb-spikeattack-s1-calls">
+    <fieldset>
+      <legend>A · Build it?</legend>
+      <div class="opts">
+        <label><input type="radio" name="build" value="build" checked><span><b>Build the first version</b> as recommended.</span></label>
+        <label><input type="radio" name="build" value="park"><span><b>Park it.</b> Keep the design, build later.</span></label>
+        <label><input type="radio" name="build" value="drop"><span><b>Drop it.</b></span></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>B · Name</legend>
+      <div class="opts">
+        <label><input type="radio" name="name" value="BAMBOOZLE" checked><span><b>BAMBOOZLE</b> — bamboo, and being fooled by a rock. Recommended.</span></label>
+        <label><input type="radio" name="name" value="TAKE COVER"><span><b>TAKE COVER</b> — says the rule in two words.</span></label>
+        <label><input type="radio" name="name" value="STAKEOUT"><span><b>STAKEOUT</b> — stakes come out; you hide.</span></label>
+      </div>
+      <input type="text" name="nameOther" placeholder="Or type another name" aria-label="Another name" style="margin-top:8px">
+    </fieldset>
+    <fieldset>
+      <legend>C · What goes in the first version</legend>
+      <div class="opts">
+        <label><input type="checkbox" name="modes" value="one-phone-2-4" checked><span><b>One phone, 2–4 players</b></span></label>
+        <label><input type="checkbox" name="modes" value="solo-bots" checked><span><b>Solo against bots</b></span></label>
+        <label><input type="checkbox" name="modes" value="online-race-2-8" checked><span><b>Online race room, 2–8</b> (ghosts, no contact)</span></label>
+        <label><input type="checkbox" name="modes" value="online-duel-2p"><span><b>Online two-player duel</b> with contact (needed for SHOVE online)</span></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>D · Twists in the first version</legend>
+      <div class="opts">
+        <label><input type="checkbox" name="twists" value="crumble" checked><span><b>CRUMBLE</b> — cover breaks and moves</span></label>
+        <label><input type="checkbox" name="twists" value="bait" checked><span><b>BAIT</b> — coins buy a heart</span></label>
+        <label><input type="checkbox" name="twists" value="shove"><span><b>SHOVE</b> — dash and knock aside</span></label>
+        <label><input type="checkbox" name="twists" value="grab"><span><b>GRAB</b> — hold, drag and throw a rival</span></label>
+        <label><input type="checkbox" name="twists" value="haunt"><span><b>HAUNT</b> — the knocked-out aim volleys</span></label>
+        <label><input type="checkbox" name="twists" value="hold-the-line"><span><b>HOLD THE LINE</b> — co-op</span></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>E · Dodgers</legend>
+      <div class="opts">
+        <label><input type="radio" name="dodgers" value="avatar-standee" checked><span><b>Profile avatars as standees</b> (A). Recommended.</span></label>
+        <label><input type="radio" name="dodgers" value="avatar-standee+voxel-spike"><span><b>Standees now, and cost the block figures</b> (B) as separate work.</span></label>
+        <label><input type="radio" name="dodgers" value="blobs"><span><b>Plain blobs</b>, no avatars.</span></label>
+      </div>
+      <textarea name="note" maxlength="300" placeholder="Anything to change about the look, the pace or the rules?" aria-label="Notes"></textarea>
+    </fieldset>
+    <button class="px go" type="submit">Queue these answers</button><span id="queued" role="status" aria-live="polite"></span>
+    <p class="dim" style="font-size:13.5px; margin:10px 0 0">Queuing adds one message to the conversation panel. Press Send there to deliver it. You can change the picks and queue again before sending; the new answer replaces the old one.</p>
+  </form>
+</main>
+
+<script>
+/* Explainer drawings: small top-down yards built from the same rules as the game. */
+(function () {
+  function yard(el, o) {
+    const n = o.n || 4, c = 60, pad = 34, S = n * c, W = S + pad * 2
+    const stones = o.stones || [], at = (q, r) => stones.some(s => s[0] === q && s[1] === r)
+    const cellAt = (side, i, k) => side === 0 ? [i, k] : side === 2 ? [i, n - 1 - k] : side === 3 ? [k, i] : [n - 1 - k, i]
+    const len = (side, i) => { for (let k = 0; k < n; k++) { const [q, r] = cellAt(side, i, k); if (at(q, r)) return k } return n }
+    const xf = (side, i) => { const m = pad + (i + .5) * c; return side === 0 ? `translate(${m} ${pad})` : side === 1 ? `translate(${pad + S} ${m}) rotate(90)` : side === 2 ? `translate(${m} ${pad + S}) rotate(180)` : `translate(${pad} ${m}) rotate(-90)` }
+    let h = `<svg viewBox="0 0 ${W} ${W}" role="img" aria-label="${o.label}"><defs>
+      <linearGradient id="bam${o.id}" x1="0" x2="1"><stop offset="0" stop-color="rgb(84,108,40)"/><stop offset=".5" stop-color="rgb(208,222,140)"/><stop offset="1" stop-color="rgb(72,96,36)"/></linearGradient>
+      <radialGradient id="rock${o.id}" cx=".35" cy=".3"><stop offset="0" stop-color="rgb(196,200,184)"/><stop offset="1" stop-color="rgb(96,104,92)"/></radialGradient></defs>
+      <rect x="4" y="4" width="${W - 8}" height="${W - 8}" rx="12" fill="rgb(100,78,52)" stroke="rgb(46,34,22)" stroke-width="2"/>`
+    if (o.side != null) h += `<g transform="${xf(o.side, (n - 1) / 2)}"><rect x="${-S / 2}" y="-27" width="${S}" height="22" rx="6" fill="rgb(190,30,50)"${o.pulse ? '><animate attributeName="opacity" values="1;.35;1" dur=".5s" repeatCount="indefinite"/></rect>' : '/>'}</g>`
+    for (let r = 0; r < n; r++) for (let q = 0; q < n; q++) h += `<rect x="${pad + q * c}" y="${pad + r * c}" width="${c}" height="${c}" fill="${(q + r) % 2 ? 'rgb(226,216,186)' : 'rgb(234,226,198)'}" stroke="rgba(120,104,70,.35)"/>`
+    if (o.side != null && o.shade) for (let r = 0; r < n; r++) for (let q = 0; q < n; q++) {
+      if (at(q, r)) continue
+      const [i, k] = o.side === 0 ? [q, r] : o.side === 2 ? [q, n - 1 - r] : o.side === 3 ? [r, q] : [r, n - 1 - q]
+      const safe = k > len(o.side, i)
+      h += `<rect x="${pad + q * c + (safe ? 6 : 0)}" y="${pad + r * c + (safe ? 6 : 0)}" width="${c - (safe ? 12 : 0)}" height="${c - (safe ? 12 : 0)}" rx="${safe ? 8 : 0}" fill="${safe ? 'rgba(38,123,66,.34)' : 'rgba(190,30,50,.13)'}"/>`
+    }
+    for (const d of o.rings || []) h += `<circle cx="${pad + (d[0] + .5) * c}" cy="${pad + (d[1] + .5) * c}" r="23" fill="rgba(40,50,30,.18)" stroke="rgb(45,55,35)" stroke-width="2.5" stroke-dasharray="6 6"><animateTransform attributeName="transform" type="rotate" from="0 ${pad + (d[0] + .5) * c} ${pad + (d[1] + .5) * c}" to="360 ${pad + (d[0] + .5) * c} ${pad + (d[1] + .5) * c}" dur="4s" repeatCount="indefinite"/></circle>`
+    for (const d of o.dodgers || []) h += `<g transform="translate(${pad + d[0] * c} ${pad + d[1] * c})"><ellipse cx="2" cy="10" rx="13" ry="6" fill="rgba(40,50,30,.28)"/><circle r="12" fill="rgb(${d[2]})" stroke="rgba(0,0,0,.55)" stroke-width="1.6"/><circle cx="-4" cy="-3" r="3.4" fill="#fff"/><circle cx="4" cy="-3" r="3.4" fill="#fff"/><circle cx="-4" cy="-3.6" r="1.6" fill="#222"/><circle cx="4" cy="-3.6" r="1.6" fill="#222"/>${d[3] ? '<text y="-18" text-anchor="middle" font-size="15">' + d[3] + '</text>' : ''}</g>`
+    for (const s of stones) {
+      const x = pad + (s[0] + .5) * c, y = pad + (s[1] + .5) * c
+      h += `<ellipse cx="${x + 5}" cy="${y + 7}" rx="25" ry="22" fill="rgba(40,50,30,.28)"/><path d="M${x - 24} ${y + 2}Q${x - 26} ${y - 20} ${x - 4} ${y - 24}Q${x + 22} ${y - 26} ${x + 25} ${y - 2}Q${x + 27} ${y + 20} ${x + 4} ${y + 23}Q${x - 20} ${y + 25} ${x - 24} ${y + 2}Z" fill="url(#rock${o.id})" stroke="rgba(40,46,40,.8)" stroke-width="1.6"/><ellipse cx="${x - 8}" cy="${y - 14}" rx="13" ry="6" transform="rotate(-25 ${x - 8} ${y - 14})" fill="rgba(96,146,60,.9)"/>`
+      if (s[2]) h += `<path d="M${x - 1} ${y - 22}l4 12l-6 10l5 12M${x + 22} ${y - 3}l-12 3l-5 8" fill="none" stroke="rgba(30,36,30,.85)" stroke-width="1.8"/>`
+    }
+    for (let side = 0; side < 4; side++) for (let i = 0; i < n; i++) {
+      const hot = o.side === side, L = hot && o.fire ? len(side, i) * c - 2 : hot ? -14 : -6
+      h += `<g transform="${xf(side, i)}"><g>${hot && !o.fire && o.pulse ? '<animateTransform attributeName="transform" type="translate" values="0 0;1.5 -2;-1.5 0;0 -2;0 0" dur=".18s" repeatCount="indefinite"/>' : ''}`
+      if (L > 6) h += `<rect x="-16" y="0" width="42" height="${L - 8}" fill="rgba(40,50,30,.22)"/>`
+      h += `<rect x="-21" y="-30" width="42" height="${Math.max(0, L - 26 + 30)}" fill="url(#bam${o.id})" stroke="rgba(40,52,20,.7)"/><path d="M-21 ${L - 26}H21L3 ${L}H-3Z" fill="rgb(236,226,182)" stroke="rgba(40,52,20,.7)"/><path d="M-8 ${L - 9}H8L3 ${L}H-3Z" fill="rgb(86,62,34)"/>`
+      for (let y = L - 44; y > -30; y -= 50) h += `<rect x="-22" y="${y}" width="44" height="3" fill="rgba(52,72,24,.85)"/>`
+      h += `</g></g>`
+    }
+    h += `<rect x="4" y="4" width="${W - 8}" height="${W - 8}" rx="12" fill="none" stroke="rgb(84,64,42)" stroke-width="9"/><rect x="4" y="4" width="${W - 8}" height="${W - 8}" rx="12" fill="none" stroke="rgb(46,34,22)" stroke-width="1.5"/></svg>`
+    el.innerHTML = window.BZT.paint(h)
+  }
+  const P = ['210,110,50', '129,89,180', '30,150,140', '175,55,115']
+  const $ = id => document.getElementById(id)
+  function figs() {
+  yard($('fig-source'), { id: 'a', label: 'A volley from the left wall with safe tiles shaded green', stones: [[3, 0], [1, 1], [0, 3]], side: 3, fire: true, shade: true, dodgers: [[2.5, 1.5, P[0]], [1.5, 3.5, P[1]], [1.5, 0.5, P[2], '!']] })
+  yard($('fig-warn'), { id: 'b', label: 'The top wall glows and its poles rattle', stones: [[1, 1], [2, 2], [3, 0]], side: 0, pulse: true, shade: true, dodgers: [[0.5, 2.5, P[0]], [2.5, 0.6, P[1]]] })
+  yard($('fig-strike'), { id: 'c', label: 'Poles fire from the top wall and stop at boulders', stones: [[1, 1], [2, 2], [3, 0]], side: 0, fire: true, dodgers: [[1.5, 2.5, P[0]], [2.5, 0.6, P[1], '!']] })
+  yard($('fig-crumble'), { id: 'd', label: 'A cracked boulder and a ring where the next one lands', stones: [[1, 1, 1], [3, 0]], rings: [[2, 3]], dodgers: [[0.5, 2.5, P[0]], [2.5, 1.5, P[1]]] })
+
+  function phone(el, seats, online) {
+    let h = `<svg viewBox="0 0 180 300" role="img" aria-label="Phone layout"><rect x="8" y="4" width="164" height="292" rx="18" fill="rgb(238,240,226)" stroke="rgb(32,38,29)" stroke-width="5"/>`
+    h += `<rect x="24" y="84" width="132" height="132" rx="8" fill="rgb(100,78,52)"/><rect x="36" y="96" width="108" height="108" fill="rgb(232,222,192)"/>`
+    for (const [x, y] of [[63, 123], [117, 150], [90, 177]]) h += `<circle cx="${x}" cy="${y}" r="11" fill="rgb(142,150,134)" stroke="rgba(40,46,40,.8)"/>`
+    const spot = { br: [128, 252], bl: [52, 252], tl: [52, 44], tr: [128, 44], b: [90, 252], t: [90, 44] }
+    seats.forEach((s, i) => {
+      const [x, y] = spot[s], wide = s === 'b' || s === 't'
+      h += `<rect x="${wide ? 20 : x - 34}" y="${y - 28}" width="${wide ? 140 : 68}" height="56" rx="7" fill="rgba(${P[i]},.16)" stroke="rgb(${P[i]})" stroke-width="2"/><circle cx="${x}" cy="${y}" r="15" fill="rgba(${P[i]},.25)" stroke="rgb(${P[i]})" stroke-dasharray="3 3"/><circle cx="${x + (y > 150 ? 4 : -4)}" cy="${y + (y > 150 ? -3 : 3)}" r="8" fill="rgb(${P[i]})"/>`
+      h += `<circle cx="${[75, 105, 105, 75][i]}" cy="${[165, 135, 165, 135][i] - (online && i ? 0 : 0)}" r="6.5" fill="rgb(${P[i]})" stroke="rgba(0,0,0,.5)"${online && i ? ' opacity=".45" stroke-dasharray="2 2"' : ''}/>`
+    })
+    if (online) {
+      for (let i = 1; i < 4; i++) h += `<circle cx="${[0, 105, 105, 75][i]}" cy="${[0, 135, 165, 135][i]}" r="6.5" fill="rgb(${P[i]})" stroke="rgba(0,0,0,.5)" opacity=".45" stroke-dasharray="2 2"/>`
+      h += `<rect x="30" y="20" width="120" height="44" rx="7" fill="rgb(252,253,246)" stroke="rgb(185,195,165)"/><text x="90" y="39" text-anchor="middle" font-size="10" fill="rgb(45,55,35)" font-family="ui-monospace,monospace">seed 48213</text><text x="90" y="54" text-anchor="middle" font-size="9" fill="rgb(95,107,81)" font-family="ui-monospace,monospace">same volleys for all</text><path d="M90 64v16m-5-6l5 6l5-6" fill="none" stroke="rgb(95,107,81)" stroke-width="2"/>`
+    }
+    el.innerHTML = window.BZT.paint(h + '</svg>')
+  }
+  phone($('fig-s2'), ['b', 't'])
+  phone($('fig-s3'), ['br', 'tl', 'tr'])
+  phone($('fig-s4'), ['br', 'tl', 'tr', 'bl'])
+  phone($('fig-online'), ['b'], true)
+
+  }
+  figs(); window.BZT.onChange(figs); window.BZT.mount()
+
+  $('calls-form').addEventListener('submit', e => {
+    e.preventDefault()
+    const f = new FormData(e.currentTarget)
+    const build = f.get('build'), name = (f.get('nameOther') || '').trim() || f.get('name')
+    const modes = f.getAll('modes'), twists = f.getAll('twists'), dodgers = f.get('dodgers'), extra = (f.get('note') || '').trim()
+    const note = ('name=' + name + '; modes=' + (modes.join(',') || 'none') + '; twists=' + (twists.join(',') || 'none') + '; dodgers=' + dodgers + (extra ? '; note=' + extra : '')).slice(0, 500)
+    const text = 'Bamboozle calls: ' + build + '; ' + note
+    const status = $('queued')
+    if (window.lavish && window.lavish.queuePrompt) {
+      window.lavish.queuePrompt(text, { tag: 'choice', text: 'Bamboozle: ' + build + ' as ' + name, element: e.currentTarget, queueKey: 'games-jb-spikeattack-s1-calls',
+        data: { schema: 'fm-bearings-answer.v1', question: 'games-jb-spikeattack-s1-calls', selection: build, note } })
+      status.textContent = 'Queued. Press Send in the panel to deliver.'
+    } else status.textContent = 'Open this board in Lavish to send. Your picks: ' + text
+  })
+})()
+</script>
+<script>
+/*GAMEJS*/
+</script>
+</body>
+</html>

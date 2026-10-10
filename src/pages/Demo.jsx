@@ -10,9 +10,11 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, BamboozleIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, supportsLocalPlay } from '../lib/games'
+import { canFocusPage } from '../lib/focusLogic'
+import { FocusPlay } from '../components/FocusStage'
 import { useMusicScene } from '../lib/music'
 import { recordPlay } from '../lib/analytics'
 import { recordRecentPlay } from '../lib/recentPlays'
@@ -53,6 +55,7 @@ const CheckersDemo = lazyWithRetry(() => import('./CheckersDemo'))
 const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
 const PuckRushDemo = lazyWithRetry(() => import('./PuckRushDemo'))
 const StickyFingersDemo = lazyWithRetry(() => import('./StickyFingersDemo'))
+const BonkBuggiesDemo = lazyWithRetry(() => import('./BonkBuggiesDemo'))
 const FenderBenderDemo = lazyWithRetry(() => import('./FenderBenderDemo'))
 const YachtDemo = lazyWithRetry(() => import('./YachtDemo'))
 const DartsLocal = lazyWithRetry(() => import('./DartsDemo'))
@@ -60,6 +63,7 @@ const FaceOffDemo = lazyWithRetry(() => import('./FaceOffDemo'))
 const ChopChopDemo = lazyWithRetry(() => import('./ChopChopDemo'))
 const LazySusanDemo = lazyWithRetry(() => import('./LazySusanDemo'))
 const FirstCutDemo = lazyWithRetry(() => import('./FirstCutDemo'))
+const BamboozleDemo = lazyWithRetry(() => import('./BamboozleDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
 const ArcheryDemo = lazyWithRetry(() => import('./ArcheryDemo'))
 const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
@@ -128,6 +132,7 @@ const DEMOS = [
   { type: 'faceoff',       short: 'FACE\nOFF',      Icon: FaceOffIcon,        Component: FaceOffDemo },
   { type: 'puckrush',      short: 'PUCK\nRUSH',     Icon: PuckRushIcon,       Component: PuckRushDemo },
   { type: 'stickyfingers', short: 'STICKY\nFINGERS', Icon: StickyFingersIcon,  Component: StickyFingersDemo },
+  { type: 'bonkbuggies',   short: 'BONK\nBUGGIES',  Icon: BonkBuggiesIcon,    Component: BonkBuggiesDemo },
   { type: 'fenderbender',  short: 'FENDER\nBENDER',  Icon: FenderBenderIcon,   Component: FenderBenderDemo },
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   { type: 'archery',       short: 'ARCHERY',         Icon: ArcheryIcon,        Component: ArcheryDemo },
@@ -140,6 +145,7 @@ const DEMOS = [
   { type: 'chopchop',     short: 'CHOP\nCHOP',    Icon: ChopChopIcon,     Component: ChopChopDemo     },
   { type: 'lazysusan',    short: 'LAZY\nSUSAN',    Icon: LazySusanIcon,    Component: LazySusanDemo },
   { type: 'firstcut',     short: 'FIRST\nCUT',    Icon: FirstCutIcon,     Component: FirstCutDemo     },
+  { type: 'bamboozle',    short: 'BAMBOO-\nZLE',  Icon: BamboozleIcon,    Component: BamboozleDemo    },
   { type: 'pulprush',     short: 'PULP\nRUSH',    Icon: PulpIcon,         Component: PulpRushDemo     },
   { type: 'typing',       short: 'TYPING\nRACE',  Icon: TypingIcon,       Component: TypingDemo       },
   { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },
@@ -215,7 +221,11 @@ function LocalPlayPage({ routeType }) {
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>
-              {cfg.LocalPage ? <cfg.LocalPage mode="local" /> : <BotBoardDemo type={routeType} mode="local" />}
+              {cfg.LocalPage ? (
+                canFocusPage(cfg)
+                  ? <FocusPlay label={cfg.label}><cfg.LocalPage mode="local" /></FocusPlay>
+                  : <cfg.LocalPage mode="local" />
+              ) : <BotBoardDemo type={routeType} mode="local" />}
             </Suspense>
           </div>
         </div>
@@ -341,7 +351,9 @@ function DemoHub() {
         {getGameConfig(active.type)?.label || active.short.replace('\n', ' ')}{active.solo ? ' · SOLO RUN' : ''}
       </p>
       <Suspense fallback={<DemoFallback />}>
-        <active.Component />
+        {canFocusPage(getGameConfig(active.type))
+          ? <FocusPlay label={getGameConfig(active.type).label}><active.Component /></FocusPlay>
+          : <active.Component />}
       </Suspense>
     </div>
   )
