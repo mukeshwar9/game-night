@@ -67,6 +67,17 @@ test('First Cut: one plate for both racers, a block, and the first to five takes
     await cutUntil(alice.page, 'Space', FC_ONLINE_TARGET)
   })
 
+  await test.step('Bob goes full screen (focus mode) and the table stays playable, Esc leaves', async () => {
+    await bob.page.getByTestId('focus-enter').click()
+    const stage = bob.page.locator('[data-focus-stage]')
+    await expect(stage).toBeVisible()
+    await expect(stage.locator('.fc-arena')).toBeVisible()
+    await expect(stage.locator('.fc-pad')).toBeVisible()
+    await bob.page.keyboard.press('Escape')
+    await expect(stage).toHaveCount(0)
+    await expect(bob.page.locator('.fc-arena')).toBeVisible()
+  })
+
   await test.step('both screens show the round result the room recorded', async () => {
     await expect.poll(async () => (await readRoom(alice.page.url())).status, { timeout: 30_000 }).toBe('finished')
     const final = await readRoom(alice.page.url())
@@ -94,12 +105,20 @@ test('First Cut on one phone: two players, one blocked, first to ten wins', asyn
   await page.getByRole('button', { name: 'START', exact: true }).click()
   await expect(page.locator('.fc-item').first()).toBeVisible({ timeout: 15_000 })
 
+  // Focus mode: the table moves into the full-screen stage and still plays.
+  await page.getByTestId('focus-enter').click()
+  const stage = page.locator('[data-focus-stage]')
+  await expect(stage.locator('.fc-arena')).toBeVisible()
+  await expect(stage.locator('.fc-item').first()).toBeVisible()
+
   // P2 swings at a lookalike: blocked, P1 plays on.
   await expect(page.locator('.fc-item[data-kind="twin"]').first()).toBeVisible({ timeout: 20_000 })
   await page.keyboard.press('l')
   await expect(page.locator('button[data-seat="1"]')).toHaveAttribute('data-phase', /stopped|drawing/)
 
   await cutUntil(page, 'a', FC_TARGET, { deadlineMs: 120_000 })
+  await page.getByRole('button', { name: 'Leave focus mode' }).click()
+  await expect(stage).toHaveCount(0)
   await expect(page.getByText('P1 WINS')).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('button', { name: 'REMATCH' })).toBeVisible()
   expect(errors).toEqual([])

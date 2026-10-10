@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FirstCutTable from '../components/FirstCutTable'
 import { SEAT_KEYS, anglesFor } from '../lib/firstCutLayout'
 import FirstCutSettings from '../components/FirstCutSettings'
+import FirstCutFocus, { FirstCutScoreChips } from '../components/FirstCutFocus'
 import useFirstCutPlay from '../hooks/useFirstCutPlay'
 import useGameKeys from '../hooks/useGameKeys'
 import { useAuth } from '../lib/AuthContext'
@@ -170,6 +171,11 @@ function FirstCutPlay({ local }) {
 
   return (
     <div className="w-full max-w-sm mx-auto space-y-3">
+      <FirstCutFocus
+        label="First Cut"
+        hud={<FirstCutScoreChips seats={play.tableProps.seats} />}
+        footer={<p className="font-pixel text-[8px] text-retro-dim text-center leading-relaxed">{local ? 'ONE THUMB EACH · FIRST TO ' + FC_TARGET : 'TAP YOUR PAD WHEN A FRUIT SHOWS · FIRST TO ' + FC_TARGET}</p>}
+      >
       <FirstCutTable
         ref={tableRef}
         layout={count}
@@ -245,6 +251,7 @@ function FirstCutPlay({ local }) {
           </div>
         )}
       </FirstCutTable>
+      </FirstCutFocus>
 
       <p className="font-pixel text-[8px] text-retro-dim text-center leading-relaxed">
         {local

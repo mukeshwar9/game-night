@@ -6,6 +6,7 @@ import { getServerNow } from '../hooks/useServerClock'
 import RaceShell from '../components/RaceShell'
 import FirstCutTable from '../components/FirstCutTable'
 import FirstCutSettings from '../components/FirstCutSettings'
+import FirstCutFocus, { FirstCutScoreChips } from '../components/FirstCutFocus'
 import Avatar from '../components/Avatar'
 import useFirstCutPlay from '../hooks/useFirstCutPlay'
 import useGameKeys from '../hooks/useGameKeys'
@@ -116,15 +117,21 @@ function FirstCutRacer({ game, round, mySeat, myStats, statsPath, goAt, now }) {
           })}
         </ul>
       )}
-      <FirstCutTable
-        ref={tableRef}
-        layout={1}
-        short
-        keys={false}
-        label="First Cut table"
-        {...play.tableProps}
-        onTap={onTap}
-      />
+      <FirstCutFocus
+        label="First Cut"
+        hud={<FirstCutScoreChips seats={[...play.tableProps.seats, ...rivals.map(id => ({ id, slot: slotOf(id), name: nameOf(id), score: play.res.scores[id] ?? 0 }))]} />}
+        footer={<p className="font-pixel text-[8px] text-retro-dim text-center leading-relaxed">{!live ? 'TIME!' : winnerName ? `${winnerName} TAKES THE ROUND…` : `FIRST TO ${FC_ONLINE_TARGET}`}</p>}
+      >
+        <FirstCutTable
+          ref={tableRef}
+          layout={1}
+          short
+          keys={false}
+          label="First Cut table"
+          {...play.tableProps}
+          onTap={onTap}
+        />
+      </FirstCutFocus>
       <p className="font-pixel text-[8px] text-retro-dim text-center leading-relaxed">
         {!live ? 'TIME!' : winnerName ? `${winnerName} TAKES THE ROUND…` : `FIRST TO ${FC_ONLINE_TARGET} · TAP YOUR PAD · SPACE WORKS TOO`}
       </p>
