@@ -54,6 +54,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Puck Rush** — sling every puck through the gap
 - **Sticky Fingers** — grab the loot, rip the bills, stash it first *(online duel; 2–4 on one phone)*
 - **Chop Chop** — knock out crates, dodge the beams *(2–8 players)*
+- **Bamboozle** — hide behind the boulders, dodge the poles *(2–8 players)*
 - **Artillery** — angle, power, bracket
 
 ### Memory (5)

@@ -205,6 +205,19 @@ export const GAME_RULES = {
     win: 'Everyone gets the same stack. The most crates when the clock stops wins the round; first to 3 round wins takes the match. 2 to 8 players.',
   },
 
+  bamboozle: {
+    objective: 'Be the last dodger standing in a garden where bamboo poles fire across it from one wall at a time.',
+    howToPlay: [
+      'Drag anywhere on your side of the screen to steer your dodger. Everyone starts with 3 hearts.',
+      'A wall lights up and its poles draw back, then every pole on that wall fires. A pole stops at the first boulder in its lane, so the ground behind a boulder is safe.',
+      'A pole that touches you costs a heart. You blink for a moment and cannot be hit again by the same volley. Each volley comes sooner, and later a second wall fires with the first.',
+      'A boulder cracks each time it stops a pole and breaks on the 3rd block. A ring shows where the next one lands.',
+      'A coin shows in the open before a wall fires. Every 3 coins buy a heart back, up to 4 hearts.',
+      'GRAB (one phone and solo): stand next to a rival and hold GRAB to walk them out of cover, then let go to throw them.',
+    ],
+    win: 'The last dodger with a heart wins the round. On one phone and against bots, first to 2 rounds wins. Online, 2 to 8 players race the same garden and first to 3 round wins takes the match.',
+  },
+
   pulprush: {
     objective: 'Slice more produce than everyone else in 45 seconds (2–8 players).',
     howToPlay: [

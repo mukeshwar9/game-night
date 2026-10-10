@@ -750,6 +750,17 @@ export function ChopChopIcon() {
   )
 }
 
+export function BamboozleIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="4" y="2" width="5" height="11" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 7.5h5" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 13l2.5 3L9 13" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M12 22v-4c0-3 2.2-5 5-5s5 2 5 5v4z" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function FaceOffIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

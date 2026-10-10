@@ -2458,6 +2458,19 @@ html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter 
   to { transform: translate(150px, -70px) rotate(140deg); opacity: 0; }
 }
 
+/* Bamboozle: the count-in number lands, the YOU tag bobs above your dodger */
+@keyframes bz-pop {
+  0%   { transform: scale(1.6); opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes bz-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.bz-count { animation: bz-pop var(--dur-page) var(--ease-enter) both; }
+.bz-bob   { animation: bz-bob 0.8s ease-in-out infinite; }
+
 /* Pig: a bust (rolling a 1) shakes the die briefly */
 @keyframes dice-bust {
   0%   { transform: translateX(0); }

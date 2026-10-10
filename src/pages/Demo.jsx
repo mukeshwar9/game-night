@@ -10,7 +10,7 @@ import {
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, StickyFingersIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, StickyFingersIcon, BamboozleIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, supportsLocalPlay } from '../lib/games'
 import { useMusicScene } from '../lib/music'
@@ -56,6 +56,7 @@ const StickyFingersDemo = lazyWithRetry(() => import('./StickyFingersDemo'))
 const YachtDemo = lazyWithRetry(() => import('./YachtDemo'))
 const FaceOffDemo = lazyWithRetry(() => import('./FaceOffDemo'))
 const ChopChopDemo = lazyWithRetry(() => import('./ChopChopDemo'))
+const BamboozleDemo = lazyWithRetry(() => import('./BamboozleDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
 const ArcheryDemo = lazyWithRetry(() => import('./ArcheryDemo'))
 const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
@@ -132,6 +133,7 @@ const DEMOS = [
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
   { type: 'chopchop',     short: 'CHOP\nCHOP',    Icon: ChopChopIcon,     Component: ChopChopDemo     },
+  { type: 'bamboozle',    short: 'BAMBOO-\nZLE',  Icon: BamboozleIcon,    Component: BamboozleDemo    },
   { type: 'pulprush',     short: 'PULP\nRUSH',    Icon: PulpIcon,         Component: PulpRushDemo     },
   { type: 'typing',       short: 'TYPING\nRACE',  Icon: TypingIcon,       Component: TypingDemo       },
   { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },
