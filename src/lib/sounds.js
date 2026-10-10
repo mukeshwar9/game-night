@@ -360,6 +360,18 @@ export const sounds = {
     seq([[90, 0, 0.18, 'triangle', 0.12]])
     vibrate(30)
   },
+  // Bamboozle: a wall rattles, the poles land, a dodger is hit or knocked out, cover cracks and lands.
+  bzTick:  () => { seq([[760, 0, 0.04, 'triangle', 0.07]]) },
+  bzWarn:  () => { seq([[520, 0, 0.07, 'triangle', 0.12], [500, 0.14, 0.07, 'triangle', 0.12]]); try { noise(ctx().currentTime, 0.25, 0.06, 500) } catch { /* audio unavailable */ } vibrate(6) },
+  bzThunk: () => { seq([[130, 0, 0.22, 'sine', 0.3], [48, 0, 0.2, 'sine', 0.18]]); try { noise(ctx().currentTime, 0.16, 0.12, 900) } catch { /* audio unavailable */ } vibrate(12) },
+  bzOuch:  () => { seq([[420, 0, 0.2, 'square', 0.12], [110, 0.08, 0.14, 'square', 0.08]]); vibrate([0, 40, 30, 40]) },
+  bzOut:   () => { seq([[300, 0.1, 0.45, 'square', 0.12], [60, 0.2, 0.3, 'sawtooth', 0.08]]); vibrate([0, 60, 40, 120]) },
+  bzCoin:  () => { seq([[880, 0, 0.06, 'square', 0.1], [1320, 0.06, 0.1, 'square', 0.1]]); vibrate(5) },
+  bzHeal:  () => { seq([[520, 0.1, 0.12, 'triangle', 0.14], [780, 0.2, 0.12, 'triangle', 0.14], [1040, 0.3, 0.16, 'triangle', 0.14]]); vibrate([0, 15, 20, 25]) },
+  bzCrack: () => { try { noise(ctx().currentTime, 0.3, 0.1, 1600) } catch { /* audio unavailable */ } seq([[210, 0, 0.1, 'sawtooth', 0.06]]); vibrate(14) },
+  bzLand:  () => { seq([[90, 0, 0.15, 'sine', 0.3]]); vibrate(6) },
+  bzGrab:  () => { seq([[180, 0, 0.08, 'square', 0.12], [360, 0.05, 0.08, 'square', 0.1]]); vibrate(10) },
+  bzThrow: () => { try { noise(ctx().currentTime, 0.14, 0.1, 2400) } catch { /* audio unavailable */ } seq([[240, 0, 0.1, 'sawtooth', 0.08]]); vibrate(12) },
   // Soft two-note pop — default emoji reaction audio (haptics via reaction())
   emote: () => emoteAudio(),
   // Breathy descending hiss — shh reaction audio (haptics via reaction())

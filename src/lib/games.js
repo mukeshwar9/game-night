@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, BamboozleIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -779,6 +779,22 @@ export const GAME_TYPES = [
     // N-player race on one shared seeded stack (chopLogic.js / RaceShell).
     custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/ChopChopGame')),
+  },
+  {
+    type: 'bamboozle', label: 'BAMBOOZLE',
+    desc: 'hide behind the boulders, dodge the poles', Icon: BamboozleIcon,
+    badge: 'BZ', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 3, tags: ['quick', 'frantic', 'party'], solo: true,
+    // N-player survival race on one shared seeded garden (bamboozleLogic.js /
+    // RaceShell): every phone runs only its own dodger, the others show as
+    // ghosts. /solo/bamboozle is you against 1-3 bots; /local/bamboozle is 2-4
+    // people on one phone (LocalPage), with the GRAB twist that needs contact.
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8, localMaxPlayers: 4,
+    soloLabel: 'PLAY VS BOTS', soloBadge: '1P', soloBlurb: 'You against one to three bots in the garden.',
+    Page: lazyWithRetry(() => import('../pages/BamboozleGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/BamboozleDemo').then(m => ({ default: m.BamboozleLocal }))),
   },
   {
     type: 'pulprush', label: 'PULP RUSH',

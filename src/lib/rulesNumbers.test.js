@@ -36,6 +36,9 @@ import { TARGET as BONK_TARGET, LID_GAP as BONK_LID_GAP, T as BONK_T } from './b
 import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
 import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
+import {
+  COINS_PER_HEART as BZ_COINS, HEARTS as BZ_HEARTS, MAX_HEARTS as BZ_MAX_HEARTS, ROUNDS_TO_WIN as BZ_ROUNDS, STONE_HP as BZ_STONE_HP,
+} from './bamboozleLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
   BOXES as YACHT_BOXES, ROLLS_PER_TURN as YACHT_ROLLS, UPPER_BONUS, UPPER_BONUS_AT,
@@ -206,6 +209,12 @@ const RULE_NUMBERS = {
   aim: () => ({ checks: [[30, secs(AIM_GAME_MS)], ...players('aim', 2, 8), [3, RACE_MATCH_WINS]] }),
   chopchop: () => ({
     checks: [[30, secs(CHOP_GAME_MS)], [1, secs(CHOP_STUN_MS)], [10, CHOP_WARN_CRATES], [3, RACE_MATCH_WINS], ...players('chopchop', 2, 8)],
+  }),
+  bamboozle: () => ({
+    checks: [
+      [3, BZ_HEARTS], [3, BZ_STONE_HP], [3, BZ_COINS], [3, RACE_MATCH_WINS], [4, BZ_MAX_HEARTS], [2, BZ_ROUNDS],
+      ...players('bamboozle', 2, 8),
+    ],
   }),
   pulprush: () => ({
     checks: [[45, secs(DUEL_MS)], ...players('pulprush', 2, 8), [5, ROT_PENALTY], [3, RACE_MATCH_WINS], [1, secs(STUN_MS)]],
