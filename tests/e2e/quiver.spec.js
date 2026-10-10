@@ -18,6 +18,21 @@ async function shootOnce(page, seat, full = 8) {
   }).toPass({ timeout: 30_000 })
 }
 
+const stage = (page) => page.locator('[data-focus-stage]')
+
+// Full screen: the shared focus stage opens from a tap, keeps the table live
+// and its buttons working, and Esc leaves it.
+async function focusRoundTrip(page, seat, full = 8) {
+  await page.getByTestId('focus-enter').click()
+  await expect(stage(page)).toBeVisible()
+  await expect(stage(page).getByTestId('quiver-table')).toBeVisible()
+  await shootOnce(page, seat, full)
+  await expect(stage(page).getByTestId('quiver-status')).toContainText('WHEEL')
+  await page.keyboard.press('Escape')
+  await expect(stage(page)).toHaveCount(0)
+  await expect(page.getByTestId('quiver-table')).toBeVisible()
+}
+
 test('Quiver: a shot by either player spends an arrow on both screens', async ({ browser }) => {
   test.setTimeout(150_000)
   const alice = await newPlayer(browser)
@@ -55,6 +70,11 @@ test('Quiver: a shot by either player spends an arrow on both screens', async ({
     for (const p of [alice, bob]) await expect(pad(p.page, 1)).not.toContainText('x8', { timeout: 15_000 })
   })
 
+  await test.step('either player can take the table full screen and back', async () => {
+    await focusRoundTrip(alice.page, 0, 7)
+    await focusRoundTrip(bob.page, 1, 7)
+  })
+
   expectNoPageErrors(alice, bob)
   await alice.context.close()
   await bob.context.close()
@@ -72,6 +92,7 @@ test('Quiver: solo against a bot, as a team, and one phone for 2-4', async ({ br
   await expect(me.page.getByRole('button', { name: /^YOU shoot/ })).toBeVisible()
   await expect(me.page.getByRole('button', { name: /^BOT shoot/ })).toHaveCount(0)
   await shootOnce(me.page, 0)
+  await focusRoundTrip(me.page, 0, 7)
 
   await me.page.getByRole('button', { name: '3 BOTS' }).click()
   await expect(me.page.getByTestId('quiver-score-3')).toBeVisible()
@@ -88,6 +109,7 @@ test('Quiver: solo against a bot, as a team, and one phone for 2-4', async ({ br
   // Everyone has a live button on one phone.
   await expect(pad(me.page, 2)).toBeVisible()
   await shootOnce(me.page, 2, 6)
+  await focusRoundTrip(me.page, 2, 5)
 
   await me.page.goto('/local/quiver')
   await expect(table(me.page)).toBeVisible()

@@ -4,6 +4,7 @@ import { canvasPixelRatio } from '../lib/platform'
 import { isReducedMotion } from '../hooks/useMotionPref'
 import useThemeId from '../hooks/useThemeId'
 import { TABLE_W, TABLE_H, WHEELS, HEARTS } from '../lib/quiverLogic'
+import FocusStage, { FocusButton } from './FocusStage'
 import { createStage, drawScene, pressed, readPalette, updateStage } from '../lib/quiverDraw'
 
 // QUIVER table: one canvas painted from `getScene()` every animation frame (the
@@ -11,6 +12,13 @@ import { createStage, drawScene, pressed, readPalette, updateStage } from '../li
 // thin DOM strip so the numbers are readable by assistive tech and tests. React
 // re-renders only when a score, a quiver, the wheel clock's whole second or the
 // phase changes.
+//
+// Focus mode: pass `focus` (the page's useFocusMode()) and the table gets the
+// shared full-screen stage, entered from a FocusButton in the status strip. The
+// stage shows the scores in its HUD, the table scaled to fit, and the page's
+// `focusFooter` (offline notice, forfeit) underneath. Scores, status and the
+// table are one component, so the canvas and its pads move into the stage as
+// one piece; the paint loop restarts on the new canvas (`focusOn` in its deps).
 
 const INK = { 0: 'text-retro-p1', 1: 'text-retro-p2', 2: 'text-retro-p3', 3: 'text-retro-p4' }
 const EDGE = { 0: 'border-retro-p1/60', 1: 'border-retro-p2/60', 2: 'border-retro-p3/60', 3: 'border-retro-p4/60' }
@@ -73,6 +81,8 @@ export default function QuiverTable({
   enabled = true,
   predict = false,           // guest: show the arrow at once, before the host's snapshot
   coop = false,
+  focus = null,              // useFocusMode(): { on, enter, exit } — omit to hide the full-screen button
+  focusFooter = null,        // shown under the table inside the focus stage
   onScores,                  // (scores[]) => void when a score or the phase changes
   dim = false,
   overlay,
@@ -86,6 +96,7 @@ export default function QuiverTable({
   useEffect(() => { onScoresRef.current = onScores })
   const stageRef = useRef(null)
   const themeId = useThemeId()
+  const focusOn = !!focus?.on
   const [hud, setHud] = useState(null)
   const hudRef = useRef(null)
   const sigRef = useRef('')
@@ -139,7 +150,7 @@ export default function QuiverTable({
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [tableRef, roundKey, themeId])
+  }, [tableRef, roundKey, themeId, focusOn])
   useEffect(() => () => { Object.values(popTimers.current).forEach(clearTimeout) }, [])
 
   const fire = useCallback((seat) => {
@@ -160,79 +171,107 @@ export default function QuiverTable({
         : `WHEEL ${Math.min(WHEELS, hud.wheel + 1)}/${WHEELS}${hud.phase === 'play' ? ` · ${hud.secs}S` : ''}`
   const teamStars = scores.reduce((a, b) => a + b, 0)
 
+  const tableBlock = (
+    <div
+      className="relative mx-auto select-none touch-none"
+      style={{ width: focusOn ? '100%' : 'min(100%, max(220px, calc((100dvh - 350px) * 0.667)))' }}
+    >
+      <canvas
+        ref={tableRef}
+        data-testid="quiver-table"
+        aria-label="Quiver table"
+        className={cn('block w-full font-pixel rounded-2xl touch-none shadow-[0_4px_0_rgb(var(--c-structure))] transition-opacity', dim && 'opacity-60')}
+        style={{ aspectRatio: `${TABLE_W} / ${TABLE_H}` }}
+      />
+      {seats.map((seat, i) => {
+        const mine = !mySeats || mySeats.includes(i)
+        const x = rotated ? TABLE_W - seat.x : seat.x
+        const y = rotated ? TABLE_H - seat.y : seat.y
+        const live = hud.phase === 'play' && hud.ammo[i] > 0 && !hud.locked[i] && !hud.out[i]
+        const flip = !!flipSeat?.(i)
+        const small = hud.out[i] ? 'OUT' : hud.locked[i] ? 'LOCK' : `x${hud.ammo[i]}`
+        const face = (
+          <span className={cn('flex flex-col items-center justify-center leading-none', flip && 'rotate-180')}>
+            <span className="quiver-pad-score block text-[15px]">{scores[i]}</span>
+            <span className="mt-1 block text-[7px]">{small}</span>
+          </span>
+        )
+        const cls = cn(
+          'quiver-pad absolute z-10 grid w-[22%] min-w-14 aspect-square place-items-center rounded-full font-pixel text-retro-bg',
+          mine ? 'press' : 'pointer-events-none',
+        )
+        const style = {
+          left: `${(x / TABLE_W) * 100}%`, top: `${(y / TABLE_H) * 100}%`, translate: '-50% -50%',
+          '--pad': `var(${PAD_TOKEN[i]})`,
+        }
+        return mine ? (
+          <button
+            key={i}
+            type="button"
+            data-testid={`quiver-pad-${i}`}
+            data-live={live && enabled}
+            data-stun={hud.locked[i]}
+            data-pop={!!pops[i]}
+            aria-label={`${labels[i]} shoot, ${hud.ammo[i]} arrows left`}
+            className={cls}
+            style={style}
+            onPointerDown={(e) => { e.preventDefault(); fire(i) }}
+            onKeyDown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); fire(i) } }}
+            onClick={(e) => e.preventDefault()}
+          >
+            {face}
+          </button>
+        ) : (
+          <div key={i} data-testid={`quiver-pad-${i}`} data-live={false} data-stun={hud.locked[i]} data-pop={!!pops[i]} aria-hidden className={cn(cls, 'opacity-80')} style={style}>
+            {face}
+          </div>
+        )
+      })}
+      {overlay && (
+        <div data-testid="quiver-overlay" className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl bg-retro-bg/70 backdrop-blur-[1px]">
+          {overlay}
+        </div>
+      )}
+    </div>
+  )
+  const statusStrip = (
+    <div className="flex items-center justify-between gap-2 font-pixel text-[8px] text-retro-dim" data-testid="quiver-status">
+      <span>{status}</span>
+      {coop && hud ? (
+        <span className="flex items-center gap-2 text-retro-text">
+          <span>STARS {teamStars}</span>
+          <Hearts left={hud.hearts} />
+        </span>
+      ) : <span>EVERYONE SHOOTS</span>}
+    </div>
+  )
+
+  if (focusOn) {
+    return (
+      <FocusStage
+        label="QUIVER"
+        onExit={focus.exit}
+        hud={(
+          <div className="space-y-1">
+            <QuiverScores scores={scores} names={labels} mine={mySeats && mySeats.length === 1 ? mySeats[0] : -1} className="gap-1" />
+            {statusStrip}
+          </div>
+        )}
+        footer={focusFooter}
+      >
+        {tableBlock}
+      </FocusStage>
+    )
+  }
+
   return (
     <div className={cn('space-y-2', className)}>
       <QuiverScores scores={scores} names={labels} mine={mySeats && mySeats.length === 1 ? mySeats[0] : -1} />
-      <div className="flex items-center justify-between gap-2 font-pixel text-[8px] text-retro-dim" data-testid="quiver-status">
-        <span>{status}</span>
-        {coop && hud ? (
-          <span className="flex items-center gap-2 text-retro-text">
-            <span>STARS {teamStars}</span>
-            <Hearts left={hud.hearts} />
-          </span>
-        ) : <span>EVERYONE SHOOTS</span>}
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">{statusStrip}</div>
+        {focus && <FocusButton onClick={focus.enter} className="m-0 min-h-11 min-w-11 inline-flex shrink-0 items-center justify-center p-0" />}
       </div>
-      <div
-        className="relative mx-auto select-none touch-none"
-        style={{ width: 'min(100%, max(220px, calc((100dvh - 350px) * 0.667)))' }}
-      >
-        <canvas
-          ref={tableRef}
-          data-testid="quiver-table"
-          aria-label="Quiver table"
-          className={cn('block w-full font-pixel rounded-2xl touch-none shadow-[0_4px_0_rgb(var(--c-structure))] transition-opacity', dim && 'opacity-60')}
-          style={{ aspectRatio: `${TABLE_W} / ${TABLE_H}` }}
-        />
-        {seats.map((seat, i) => {
-          const mine = !mySeats || mySeats.includes(i)
-          const x = rotated ? TABLE_W - seat.x : seat.x
-          const y = rotated ? TABLE_H - seat.y : seat.y
-          const live = hud.phase === 'play' && hud.ammo[i] > 0 && !hud.locked[i] && !hud.out[i]
-          const flip = !!flipSeat?.(i)
-          const small = hud.out[i] ? 'OUT' : hud.locked[i] ? 'LOCK' : `x${hud.ammo[i]}`
-          const face = (
-            <span className={cn('flex flex-col items-center justify-center leading-none', flip && 'rotate-180')}>
-              <span className="quiver-pad-score block text-[15px]">{scores[i]}</span>
-              <span className="mt-1 block text-[7px]">{small}</span>
-            </span>
-          )
-          const cls = cn(
-            'quiver-pad absolute z-10 grid w-[22%] min-w-14 aspect-square place-items-center rounded-full font-pixel text-retro-bg',
-            mine ? 'press' : 'pointer-events-none',
-          )
-          const style = {
-            left: `${(x / TABLE_W) * 100}%`, top: `${(y / TABLE_H) * 100}%`, translate: '-50% -50%',
-            '--pad': `var(${PAD_TOKEN[i]})`,
-          }
-          return mine ? (
-            <button
-              key={i}
-              type="button"
-              data-testid={`quiver-pad-${i}`}
-              data-live={live && enabled}
-              data-stun={hud.locked[i]}
-              data-pop={!!pops[i]}
-              aria-label={`${labels[i]} shoot, ${hud.ammo[i]} arrows left`}
-              className={cls}
-              style={style}
-              onPointerDown={(e) => { e.preventDefault(); fire(i) }}
-              onKeyDown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); fire(i) } }}
-              onClick={(e) => e.preventDefault()}
-            >
-              {face}
-            </button>
-          ) : (
-            <div key={i} data-testid={`quiver-pad-${i}`} data-live={false} data-stun={hud.locked[i]} data-pop={!!pops[i]} aria-hidden className={cn(cls, 'opacity-80')} style={style}>
-              {face}
-            </div>
-          )
-        })}
-        {overlay && (
-          <div data-testid="quiver-overlay" className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl bg-retro-bg/70 backdrop-blur-[1px]">
-            {overlay}
-          </div>
-        )}
-      </div>
+      {tableBlock}
     </div>
   )
 }

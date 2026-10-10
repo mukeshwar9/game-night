@@ -6,6 +6,7 @@ import SpectatorCard from '../components/SpectatorCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import QuiverTable, { QuiverScores } from '../components/QuiverTable'
 import { useQuiverControls } from '../hooks/useQuiverControls'
+import useFocusMode from '../hooks/useFocusMode'
 import { useRealtimeHost } from '../lib/realtime/useRealtimeHost'
 import { useRealtimeGuest } from '../lib/realtime/useRealtimeGuest'
 import { RealtimeOverlay } from '../lib/realtime/realtimeStatus'
@@ -58,6 +59,8 @@ export default function QuiverGame({
   const getScene = useCallback(() => sceneRef.current, [])
   const mySeats = useMemo(() => [mySeat], [mySeat])
   const controls = useQuiverControls()
+  const focus = useFocusMode()
+  const focusExit = focus.exit
   const connectedRef = useRef(false)
 
   const [forfeitArmed, setForfeitArmed] = useState(false)
@@ -143,6 +146,11 @@ export default function QuiverGame({
   }, [connected, controls])
   const onPress = useCallback((seat) => { if (connectedRef.current) controls.press(seat) }, [controls])
 
+  // The result screens are the page's own, so focus mode hands the screen back
+  // when the round ends (a rematch can enter it again from a tap).
+  const roundOver = game.status === 'finished'
+  useEffect(() => { if (roundOver || isSpectator) focusExit() }, [roundOver, isSpectator, focusExit])
+
   const [guestCountdown, setGuestCountdown] = useState(0)
   const guestStartAtRef = useRef(0)
   useEffect(() => {
@@ -203,25 +211,8 @@ export default function QuiverGame({
     ? <RealtimeOverlay conn={conn.status} countdown={overlayCountdown} retry={conn.retry} gameId={gameId} mySymbol={mySymbol} opponentOnline={opponentOnline} />
     : null
 
-  return (
-    <div className="space-y-3 [@media(max-height:420px)]:space-y-1.5">
-      <QuiverTable
-        tableRef={tableRef}
-        getScene={getScene}
-        roundKey={`${gameId}:${game.scores?.X ?? 0}-${game.scores?.O ?? 0}`}
-        rotated={!isHost}
-        names={names}
-        mySeats={mySeats}
-        onPress={onPress}
-        enabled={playing}
-        predict={!isHost}
-        onScores={setScores}
-        dim={!connected}
-        overlay={overlay}
-      />
-      <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed [@media(max-height:420px)]:hidden">
-        TAP TO SHOOT · LEAD THE WHEEL · A CLINK COSTS 1 · {WHEELS} WHEELS OF {WHEEL_SECONDS}S · FIRST TO {matchTarget} ROUNDS
-      </p>
+  const footer = (
+    <>
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
       {!proposal && (
         <div className="text-center">
@@ -237,6 +228,31 @@ export default function QuiverGame({
           </button>
         </div>
       )}
+    </>
+  )
+
+  return (
+    <div className="space-y-3 [@media(max-height:420px)]:space-y-1.5">
+      <QuiverTable
+        tableRef={tableRef}
+        getScene={getScene}
+        roundKey={`${gameId}:${game.scores?.X ?? 0}-${game.scores?.O ?? 0}`}
+        rotated={!isHost}
+        names={names}
+        mySeats={mySeats}
+        onPress={onPress}
+        enabled={playing}
+        predict={!isHost}
+        focus={focus}
+        focusFooter={footer}
+        onScores={setScores}
+        dim={!connected}
+        overlay={overlay}
+      />
+      <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed [@media(max-height:420px)]:hidden">
+        TAP TO SHOOT · LEAD THE WHEEL · A CLINK COSTS 1 · {WHEELS} WHEELS OF {WHEEL_SECONDS}S · FIRST TO {matchTarget} ROUNDS
+      </p>
+      {!focus.on && footer}
     </div>
   )
 }

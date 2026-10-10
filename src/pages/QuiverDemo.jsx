@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QuiverTable from '../components/QuiverTable'
 import { useQuiverControls } from '../hooks/useQuiverControls'
+import useFocusMode from '../hooks/useFocusMode'
 import {
   BOT_LEVELS, WHEELS, WHEEL_SECONDS, createState, step, botInput, createBrain, getWinner, ranking, seatsFor, teamScore,
 } from '../lib/quiverLogic'
@@ -75,6 +76,7 @@ export function QuiverPlay({ only = null }) {
   const stateRef = useRef(null)
   const getScene = useCallback(() => stateRef.current, [])
   const controls = useQuiverControls()
+  const focus = useFocusMode()
   const controlsRef = useRef(controls)
   useEffect(() => { controlsRef.current = controls })
   const mySeats = useMemo(() => (phone ? Array.from({ length: n }, (_, i) => i) : [0]), [phone, n])
@@ -149,6 +151,7 @@ export function QuiverPlay({ only = null }) {
         onPress={onPress}
         enabled={!result}
         coop={coop}
+        focus={focus}
         overlay={result
           ? (
             <Result
