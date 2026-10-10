@@ -69,9 +69,9 @@ import { matchTargetFor, isMatchFinish, isCoopGame } from '../lib/matchRules'
 import { LEADERBOARD_ENABLED } from '../lib/features'
 import { haptic, hapticNotify } from '../lib/haptics'
 import { moveFeedbackPlan } from '../lib/motion'
-import { canFocus } from '../lib/focusLogic'
+import { canFocus, canFocusPage } from '../lib/focusLogic'
 import useFocusMode from '../hooks/useFocusMode'
-import FocusStage, { FocusButton, FocusSeat } from '../components/FocusStage'
+import FocusStage, { FocusButton, FocusFrame, FocusSeat } from '../components/FocusStage'
 
 // The reaction bar and animated emoji pull in framer-motion (~120 KB). Load
 // them only when a room first shows the bar or floats a reaction, not with
@@ -860,6 +860,7 @@ export default function Game() {
       proposal: null,
     }
     const inLobby = game.gameType === PARTY_LOBBY.type
+    const pageFocusable = !inLobby && canFocusPage(cfg)
     return withVoice(
       <RoomSwitchContext.Provider value={true}>
       <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
@@ -876,6 +877,7 @@ export default function Game() {
           <div className="game-header flex items-start justify-between gap-2">
             <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-flex items-center min-h-11 p-3 -m-3">← HOME</Link>
             <div className="game-header-actions flex items-center justify-end gap-3">
+              {pageFocusable && <FocusButton onClick={focusMode.enter} />}
               <SettingsButton />
               {!inLobby && <RulesButton onClick={() => setShowRules(true)} />}
               {amSeated && game.status !== 'waiting' && !inLobby && (!game.partyRoom || isHost) && (
@@ -906,9 +908,11 @@ export default function Game() {
 
           <PartyAccessNotice game={game} cfg={cfg} onStartOwn={startOwnParty} busy={creatingRoom} />
 
-          <Suspense fallback={<GameAreaFallback />}>
-            <cfg.Page {...nProps} />
-          </Suspense>
+          <FocusFrame label={cfg.label} mode={pageFocusable ? focusMode : null}>
+            <Suspense fallback={<GameAreaFallback />}>
+              <cfg.Page {...nProps} />
+            </Suspense>
+          </FocusFrame>
 
           {game.partyRoom && !inLobby && amSeated && <VoicePanel game={game} gameId={gameId} compact />}
 
@@ -978,6 +982,8 @@ export default function Game() {
 
   const focusable = canFocus(cfg, { custom: isCustom, status: game.status })
   const focusOn = focusMode.on && focusable
+  // A custom page (arena, table) goes full screen in place, via FocusFrame.
+  const pageFocusable = isCustom && canFocusPage(cfg) && game.status !== 'waiting'
 
   // The opponent's offline / abandoned notices: in the page, or under the
   // board in focus mode.
@@ -1180,7 +1186,7 @@ export default function Game() {
             ← HOME
           </Link>
           <div className={cn('game-header-actions flex items-center justify-end gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>
-            {focusable && <FocusButton onClick={focusMode.enter} />}
+            {(focusable || pageFocusable) && <FocusButton onClick={focusMode.enter} />}
             {/* Music lives in SETTINGS; the room header keeps only room actions. */}
             <SettingsButton />
             <RulesButton onClick={() => setShowRules(true)} />
@@ -1291,6 +1297,7 @@ export default function Game() {
         {game.status === 'waiting' ? (
           <WaitingRoom gameId={gameId} gameType={game.gameType} game={game} mySymbol={mySeat} onSwitch={applySwitchGame} opponentOnline={opponentOnline} />
         ) : isCustom ? (
+          <FocusFrame label={cfg.label} mode={pageFocusable ? focusMode : null}>
           <Suspense fallback={<GameAreaFallback />}>
             <cfg.Page
               gameId={gameId}
@@ -1303,6 +1310,7 @@ export default function Game() {
               proposal={activeProposal}
             />
           </Suspense>
+          </FocusFrame>
         ) : (
           !focusOn && boardArea
         )}

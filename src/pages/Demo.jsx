@@ -13,6 +13,8 @@ import {
   MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, BamboozleIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
 } from '../components/GameIcons';
 import { getGameConfig, supportsLocalPlay } from '../lib/games'
+import { canFocusPage } from '../lib/focusLogic'
+import { FocusPlay } from '../components/FocusStage'
 import { useMusicScene } from '../lib/music'
 import { recordPlay } from '../lib/analytics'
 import { recordRecentPlay } from '../lib/recentPlays'
@@ -217,7 +219,11 @@ function LocalPlayPage({ routeType }) {
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>
-              {cfg.LocalPage ? <cfg.LocalPage mode="local" /> : <BotBoardDemo type={routeType} mode="local" />}
+              {cfg.LocalPage ? (
+                canFocusPage(cfg)
+                  ? <FocusPlay label={cfg.label}><cfg.LocalPage mode="local" /></FocusPlay>
+                  : <cfg.LocalPage mode="local" />
+              ) : <BotBoardDemo type={routeType} mode="local" />}
             </Suspense>
           </div>
         </div>
@@ -343,7 +349,9 @@ function DemoHub() {
         {getGameConfig(active.type)?.label || active.short.replace('\n', ' ')}{active.solo ? ' · SOLO RUN' : ''}
       </p>
       <Suspense fallback={<DemoFallback />}>
-        <active.Component />
+        {canFocusPage(getGameConfig(active.type))
+          ? <FocusPlay label={getGameConfig(active.type).label}><active.Component /></FocusPlay>
+          : <active.Component />}
       </Suspense>
     </div>
   )

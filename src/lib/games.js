@@ -777,7 +777,7 @@ export const GAME_TYPES = [
     addedAt: '2026-10-10',
     durationMin: 1, tags: ['quick', 'frantic', 'skill'], solo: true,
     // N-player race on one shared seeded stack (chopLogic.js / RaceShell).
-    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/ChopChopGame')),
   },
   {
@@ -791,7 +791,7 @@ export const GAME_TYPES = [
     // RaceShell): every phone runs only its own dodger, the others show as
     // ghosts. /solo/bamboozle is you against 1-3 bots; /local/bamboozle is 2-4
     // people on one phone (LocalPage), with the GRAB twist that needs contact.
-    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8, localMaxPlayers: 4,
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8, localMaxPlayers: 4,
     soloLabel: 'PLAY VS BOTS', soloBadge: '1P', soloBlurb: 'You against one to three bots in the garden.',
     Page: lazyWithRetry(() => import('../pages/BamboozleGame')),
     LocalPage: lazyWithRetry(() => import('../pages/BamboozleDemo').then(m => ({ default: m.BamboozleLocal }))),
@@ -806,7 +806,7 @@ export const GAME_TYPES = [
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
     // N-player race on one shared seeded course (pulpLogic.js / RaceShell);
     // same-device split screen + TWO-TONE co-op live on its /solo page.
-    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/PulpRushGame')),
   },
   {
@@ -818,7 +818,7 @@ export const GAME_TYPES = [
     variantOf: 'pulprush', variantLabel: 'CO-OP',
     variantBlurb: 'Same throws, one team basket, shared hearts.',
     durationMin: 2, tags: ['quick', 'frantic'],
-    custom: true, simultaneous: true, race: true, coop: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    custom: true, focusPage: true, simultaneous: true, race: true, coop: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/PulpHarvestGame')),
   },
   {
@@ -1108,7 +1108,7 @@ export const GAME_TYPES = [
     durationMin: 8, tags: ['thinky', 'party'],
     // N-player variant: rides the uid-keyed room model (lobby → host start),
     // NOT the X/O seat flow. Colors deal by join order: X O A B → p1..p4.
-    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/ChainReaction4Game')),
     startRound: (players) => {
       // Same seat order the lobby displays (playersToSeatList): joinedAt, then
@@ -1345,7 +1345,7 @@ export const GAME_TYPES = [
     durationMin: 4, tags: ['thinky', 'quick'], solo: true,
     // The page draws its own seats (secret face + faces left), so the shell's
     // player cards are hidden. Everything lives in `round` (faceoffLogic.js).
-    custom: true, hidePlayerCards: true,
+    custom: true, focusPage: true, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/FaceOffGame')),
   },
   {
@@ -1463,7 +1463,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-08-22',
     durationMin: 8, tags: ['skill', 'thinky'], solo: true,
-    custom: true,
+    custom: true, focusPage: true,
     Page: lazyWithRetry(() => import('../pages/ArtilleryGame')),
   },
   {
@@ -1472,7 +1472,7 @@ export const GAME_TYPES = [
     badge: 'AR', maxWidth: 'max-w-md',
     category: 'reflex', addedAt: '2026-09-27',
     durationMin: 8, tags: ['skill', 'quick'], solo: true,
-    custom: true, waitForStart: true,
+    custom: true, focusPage: true, waitForStart: true,
     localMaxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/ArcheryGame')),
     LocalPage: lazyWithRetry(() => import('../pages/ArcheryDemo').then(m => ({ default: m.ArcheryLocal }))),
@@ -1483,7 +1483,7 @@ export const GAME_TYPES = [
     badge: 'AR4', maxWidth: 'max-w-md',
     category: 'reflex', addedAt: '2026-09-27',
     durationMin: 10, tags: ['skill', 'party'],
-    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/ArcheryGame')),
     startRound: (players, game = {}) => {
       const ordered = Object.values(players || {}).filter(p => p?.playerId)
@@ -1510,7 +1510,7 @@ export const GAME_TYPES = [
     // an append-only list of landing points that every client replays.
     // Solo (vs a bot) and pass-and-play 2–4 run the same replay offline via
     // LocalPage — see supportsLocalPlay.
-    custom: true, nPlayer: true, minPlayers: DARTS_MIN_PLAYERS, maxPlayers: DARTS_MAX_PLAYERS,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: DARTS_MIN_PLAYERS, maxPlayers: DARTS_MAX_PLAYERS,
     Page: lazyWithRetry(() => import('../pages/DartsGame')),
     LocalPage: lazyWithRetry(() => import('../pages/DartsDemo')),
     startRound: (players, game = {}) => {
@@ -1537,7 +1537,7 @@ export const GAME_TYPES = [
     // (minigolfLogic.replayCourse), so there is no turn pointer to keep in sync.
     // Solo (PAR RUN / VS BOT) and pass-and-play 2–4 run the same replay
     // offline via LocalPage — see supportsLocalPlay.
-    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/MinigolfGame')),
     LocalPage: lazyWithRetry(() => import('../pages/MinigolfLocal')),
     startRound: (players) => {
@@ -1562,7 +1562,7 @@ export const GAME_TYPES = [
     // 2-4 seat uid-keyed room (lobby → START), turn-based physics replayed
     // deterministically on every client over RTDB — see animalStackRoom.js.
     // LocalPage: /local/animalstack is its own 2-4 player pass-and-play page.
-    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4, localMaxPlayers: 4,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: 2, maxPlayers: 4, localMaxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/AnimalStackGame')),
     LocalPage: lazyWithRetry(() => import('../pages/AnimalStackDemo').then(m => ({ default: m.AnimalStackLocal }))),
     startRound: (players) => startStackMatch(players, generateSeed()),
@@ -1578,7 +1578,7 @@ export const GAME_TYPES = [
     // one fort, Artillery's model: the room stores bsFort + an append-only
     // bsShots list and every client replays it (birdseyeLogic.replayDuel).
     soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: `${BIRDSEYE_FORTS.length} farm forts to topple. Ride the shot from the beak.`,
-    custom: true,
+    custom: true, focusPage: true,
     Page: lazyWithRetry(() => import('../pages/BirdseyeGame')),
   },
   {
@@ -1614,7 +1614,7 @@ export const GAME_TYPES = [
     durationMin: 8, tags: ['luck', 'thinky'], solo: true,
     // Rides the uid-keyed room model (lobby → host START), like Chain
     // Reaction 4P. The whole match is one object under `round` (yachtLogic.js).
-    custom: true, nPlayer: true, minPlayers: YACHT_MIN_PLAYERS, maxPlayers: YACHT_MAX_PLAYERS,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: YACHT_MIN_PLAYERS, maxPlayers: YACHT_MAX_PLAYERS,
     Page: lazyWithRetry(() => import('../pages/YachtGame')),
     startRound: (players) => {
       // Turn order is the lobby's seat order: joinedAt, then uid.
@@ -1638,7 +1638,7 @@ export const GAME_TYPES = [
     // host START). The match is one object under `round` (lazySusanLogic.js);
     // a taken piece is a write-once claim, so the first writer owns it.
     // LocalPage: /local/lazysusan is 2-4 on one phone, /solo/lazysusan a bot.
-    custom: true, nPlayer: true, minPlayers: SUSAN_MIN_PLAYERS, maxPlayers: SUSAN_MAX_PLAYERS, localMaxPlayers: SUSAN_MAX_PLAYERS,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: SUSAN_MIN_PLAYERS, maxPlayers: SUSAN_MAX_PLAYERS, localMaxPlayers: SUSAN_MAX_PLAYERS,
     Page: lazyWithRetry(() => import('../pages/LazySusanGame')),
     LocalPage: lazyWithRetry(() => import('../pages/LazySusanDemo').then(m => ({ default: m.LazySusanLocal }))),
     startRound: (players, _room, ctx) => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { canFocus, fitScale, unionBox, MAX_FIT_SCALE } from './focusLogic'
+import { canFocus, canFocusPage, fitScale, unionBox, MAX_FIT_SCALE } from './focusLogic'
 import { GAME_TYPES } from './games'
 
 describe('canFocus', () => {
@@ -57,5 +57,20 @@ describe('unionBox', () => {
     expect(unionBox([{ left: 500, top: 500, width: 0, height: 0 }, { left: 10, top: 10, width: 5, height: 5 }]))
       .toEqual({ left: 10, top: 10, width: 5, height: 5 })
     expect(unionBox([])).toEqual({ left: 0, top: 0, width: 0, height: 0 })
+  })
+})
+
+describe('canFocusPage', () => {
+  it('covers real-time arenas and opted-in tables, never boards or text games', () => {
+    expect(canFocusPage({ custom: true, realtime: true })).toBe(true)
+    expect(canFocusPage({ custom: true, focusPage: true })).toBe(true)
+    expect(canFocusPage({ custom: true })).toBe(false)
+    expect(canFocusPage({ focusPage: true })).toBe(false)
+    expect(canFocusPage(undefined)).toBe(false)
+  })
+  it('puts every new real-time and table game from this round in focus mode', () => {
+    for (const t of ['bonkbuggies', 'fenderbender', 'puckrush', 'stickyfingers', 'airhockey', 'yacht', 'faceoff', 'chopchop', 'lazysusan', 'darts', 'bamboozle']) {
+      expect(canFocusPage(GAME_TYPES.find(g => g.type === t)), t).toBe(true)
+    }
   })
 })
