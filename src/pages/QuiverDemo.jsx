@@ -132,8 +132,9 @@ export function QuiverPlay({ only = null }) {
   }, [phone, n, level, shave, items, sight, coop, round])
 
   const restart = (fn) => { fn(); setResult(null); setRound((r) => r + 1) }
-  // A person across the table reads their button upside down.
-  const flipSeat = useCallback((i) => phone && seatsFor(n)[i].flip, [phone, n])
+  // A person across the table reads their button upside down. The table can
+  // still hold the previous round's seats for a frame after a count change.
+  const flipSeat = useCallback((i) => phone && !!seatsFor(n)[i]?.flip, [phone, n])
   const onPress = useCallback((seat) => controlsRef.current.press(seat), [])
 
   return (
