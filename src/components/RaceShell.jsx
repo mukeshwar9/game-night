@@ -42,7 +42,8 @@ import { cn } from '@/lib/utils'
 //   normalizeConfig?, durationMs?(room), Config?, start?(room, seed, config),
 //   coop?: { won, lost } — round headlines for a co-op race,
 //   maxRacers?, hideClock?, hideLive?, liveCountdown?, decorate?(round, result),
-//   decided?(statsById, racers, { now, round }) }
+//   decided?(statsById, racers, { now, round }),
+//   Prefs?: a component with the rider's own device settings, shown in the lobby }
 //
 // A cup game (raceLogic CUP_RACES_BY_GAME) runs a fixed number of rounds ranked
 // on points; its `decorate` hook returns each round's `points` (and any extra
@@ -479,6 +480,7 @@ export default function RaceShell({
       </div>
 
       {settingsPanel}
+      {race.Prefs && <race.Prefs />}
 
       <div className="space-y-1.5">
         <p className="font-pixel text-[9px] text-retro-dim tracking-widest">PLAYERS ({seats.length})</p>

@@ -54,8 +54,33 @@ function Rail({ rail }) {
   )
 }
 
-/** Glass chips over the road: place, clock, speed, balance, bonus chip, one toast, the countdown. */
-export function SideKickHud({ hud, toast, ordinalOf }) {
+/** The boost meter: fills only from near misses and slipstream; one tap spends all of it. */
+function BoostMeter({ hud }) {
+  const fill = hud.boosting ? hud.boostLeft : hud.boost
+  const label = hud.boosting ? 'BOOSTING' : hud.wake ? 'IN WAKE +' : hud.boostReady ? 'TAP BOOST' : 'BOOST'
+  return (
+    <div
+      className={cn(chip, 'bottom-11 left-2.5 flex w-[118px] items-center gap-1.5 px-2 pb-1.5 pt-2 text-[7px]', hud.boostReady || hud.boosting ? 'border-retro-cta text-retro-cta' : hud.wake ? 'border-retro-win text-retro-win' : 'text-retro-dim')}
+      data-testid="sidekick-boost"
+      role="meter"
+      aria-label="Boost meter"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(fill * 100)}
+    >
+      <span className="whitespace-nowrap">{label}</span>
+      <span className="relative h-[9px] min-w-0 flex-1 overflow-hidden rounded-full bg-retro-border">
+        <i
+          className={cn('absolute inset-0 block origin-left transition-transform duration-fast', hud.boosting ? 'bg-retro-win' : hud.wake ? 'bg-retro-win' : 'bg-retro-cta')}
+          style={{ transform: `scaleX(${fill})` }}
+        />
+      </span>
+    </div>
+  )
+}
+
+/** Glass chips over the road: place, clock, speed, balance, boost, bonus chip, one toast, the countdown. */
+export function SideKickHud({ hud, toast, ordinalOf, camera = 'chase', onCamera = null }) {
   if (!hud) return null
   return (
     <div className="absolute inset-0 pointer-events-none" data-testid="sidekick-hud">
@@ -67,6 +92,19 @@ export function SideKickHud({ hud, toast, ordinalOf }) {
       <div className={cn(chip, 'right-2.5 top-2.5 px-2.5 pb-1 pt-2 text-right text-base text-retro-text tabular-nums')}>
         {String(hud.speed).padStart(3, '0')}<small className="mt-0.5 block text-[7px] text-retro-dim">KM/H</small>
       </div>
+      {onCamera && (
+        <button
+          type="button"
+          onClick={(e) => { onCamera(); e.currentTarget.blur() /* Space stays BOOST, not a second press of this button */ }}
+          data-testid="sidekick-cam"
+          aria-pressed={camera === 'first'}
+          aria-label={camera === 'first' ? 'Camera: first person. Switch to chase camera' : 'Camera: chase. Switch to first person'}
+          className={cn(chip, 'press pointer-events-auto left-2.5 top-[52px] px-2 pb-1 pt-1.5 text-[7px] text-retro-text')}
+        >
+          {camera === 'first' ? '1ST PERSON' : 'CHASE CAM'}
+        </button>
+      )}
+      {hud.phase === 'race' && !hud.down && <BoostMeter hud={hud} />}
       <div className={cn(chip, 'bottom-2.5 left-2.5 flex items-center gap-1.5 px-2 pb-1.5 pt-2 text-[7px] text-retro-dim')} data-testid="sidekick-pips" aria-label={`Balance ${hud.pips} of ${PIPS}`}>
         {Array.from({ length: PIPS }, (_, i) => (
           <i key={i} className={cn('block h-[11px] w-[15px] rounded transition-colors', i < hud.pips ? (hud.hurt ? 'bg-retro-cta' : 'bg-retro-p1') : 'bg-retro-border')} />
@@ -133,8 +171,30 @@ function PadButton({ label, icon, fill = false, className, children, ...handlers
   )
 }
 
-/** The thumb pad: STEER ← →, BOOST, KICK L / R. Kick buttons carry the strain bar. */
-export function SideKickPad({ bind, hud, enabled = true, className }) {
+/** The tilt gauge that stands in for the two STEER buttons: a needle shows the steer; a tap re-centres. */
+function TiltGauge({ lean, onCenter }) {
+  return (
+    <button
+      type="button"
+      aria-label="Tilt steering. Tap to centre"
+      data-testid="sidekick-tilt"
+      onClick={onCenter}
+      className="press relative col-span-2 flex min-h-[68px] touch-none select-none flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-retro-border bg-retro-card/80 font-pixel text-[7px] leading-none text-retro-p1"
+    >
+      <span className="relative block h-2 w-[80%] rounded-full bg-retro-border" aria-hidden="true">
+        <i className="absolute left-1/2 top-[-3px] block h-[14px] w-[2px] -translate-x-1/2 bg-retro-dim" />
+        <i
+          className="absolute top-[-4px] block h-4 w-4 -translate-x-1/2 rounded-full border-2 border-retro-card bg-retro-p1"
+          style={{ left: `${50 + Math.max(-1, Math.min(1, lean ?? 0)) * 45}%` }}
+        />
+      </span>
+      <span>TILT TO STEER · TAP TO CENTRE</span>
+    </button>
+  )
+}
+
+/** The thumb pad: STEER ← → (or the tilt gauge), BOOST, KICK L / R. Kick buttons carry the strain bar. */
+export function SideKickPad({ bind, hud, enabled = true, className, tilt = null }) {
   const risk = !!hud && hud.strain > 0.6
   const kickClass = (extra) => cn(extra, hud?.cool && 'opacity-60', risk && 'border-retro-danger text-retro-danger', !enabled && 'opacity-50')
   const strainBar = (
@@ -145,14 +205,20 @@ export function SideKickPad({ bind, hud, enabled = true, className }) {
     />
   )
   return (
-    <div className={cn('grid grid-cols-[1fr_1fr_0.8fr_1fr_1fr] gap-1.5', className)} data-testid="sidekick-pad" role="group" aria-label="Controls">
-      <PadButton label="STEER L" icon={ico.left} className="text-retro-p1" {...bind.steer(-1)} />
-      <PadButton label="STEER R" icon={ico.right} className="text-retro-p1" {...bind.steer(1)} />
-      <PadButton label="BOOST" icon={ico.boost} fill className={cn('text-retro-cta', hud?.boostReady && 'border-retro-cta', hud?.boosting && 'bg-retro-tint-cta')} {...bind.boost}>
+    <div className={cn('grid grid-cols-[1fr_1fr_0.9fr_1fr_1fr] gap-1.5', className)} data-testid="sidekick-pad" role="group" aria-label="Controls">
+      {tilt?.on ? (
+        <TiltGauge lean={hud?.lean} onCenter={tilt.recenter} />
+      ) : (
+        <>
+          <PadButton label="STEER L" icon={ico.left} className="text-retro-p1" {...bind.steer(-1)} />
+          <PadButton label="STEER R" icon={ico.right} className="text-retro-p1" {...bind.steer(1)} />
+        </>
+      )}
+      <PadButton label="BOOST" icon={ico.boost} fill className={cn('text-retro-cta', hud?.boostReady && 'border-retro-cta', hud?.boosting && 'bg-retro-tint-cta', !enabled && 'opacity-50')} data-testid="sidekick-boost-btn" {...bind.boost}>
         <i
           aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 block bg-retro-cta/30"
-          style={{ height: `${Math.round((hud?.boost ?? 0.5) * 100)}%` }}
+          className="absolute inset-x-0 bottom-0 block origin-bottom bg-retro-cta/30 transition-transform duration-fast"
+          style={{ height: '100%', transform: `scaleY(${hud?.boosting ? hud.boostLeft : (hud?.boost ?? 0)})` }}
         />
       </PadButton>
       <PadButton label="KICK L" icon={ico.kickL} className={kickClass('text-retro-p2')} data-testid="sidekick-kick-l" {...bind.kick(-1)}>{strainBar}</PadButton>

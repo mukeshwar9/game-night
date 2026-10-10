@@ -41,6 +41,16 @@ describe('SIDE KICK reports', () => {
     await assertFails(as('mallory').ref(stats('alice')).update(report()))
   })
 
+  it('takes the oil flag and the boost meter as numbers, on a rider\'s own node only', async () => {
+    await put(room())
+    await assertSucceeds(as('alice').ref(`${stats('alice')}/ol`).set(1))
+    await assertSucceeds(as('alice').ref(`${stats('alice')}/bm`).set(63))
+    await assertFails(as('alice').ref(`${stats('alice')}/bm`).set('full'))
+    await assertFails(as('alice').ref(`${stats('alice')}/ol`).set(true))
+    await assertFails(as('alice').ref(`${stats('bob')}/bm`).set(10))
+    await assertSucceeds(as('carol').ref(`${stats('bot2')}/bm`).set(40))
+  })
+
   it('refuses unknown fields, non-numbers and absurd numbers', async () => {
     await put(room())
     await assertFails(as('alice').ref(`${stats('alice')}/cheat`).set(1))

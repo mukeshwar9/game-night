@@ -4,9 +4,11 @@ import { toast } from 'sonner'
 import { db } from '../lib/firebase'
 import RaceShell from '../components/RaceShell'
 import SideKickPlay from '../components/SideKickPlay'
+import SideKickPrefs from '../components/SideKickPrefs'
 import Avatar from '../components/Avatar'
 import useSideKickRun, { ordinal } from '../hooks/useSideKickRun'
 import { useSideKickControls } from '../hooks/useSideKickControls'
+import { useSideKickPrefs } from '../hooks/useSideKickPrefs'
 import { getServerNow } from '../hooks/useServerClock'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { defaultAvatarForId } from '../lib/avatarKit'
@@ -32,15 +34,16 @@ const RACE = {
   sameWhat: 'ROAD',
   maxRacers: 4,
   rules: [
-    'HOLD STEER · TAP KICK L / R TO HIT A RIDER BESIDE YOU',
+    'TILT OR HOLD STEER · TAP KICK L / R TO HIT A RIDER BESIDE YOU',
     'THREE HITS UNSEAT A RIDER · TOO MANY KICKS TIRE YOU OUT',
-    'BOTS FILL EMPTY SEATS · HOLD BOOST · SIT IN A WAKE',
+    'BOTS FILL EMPTY SEATS · NEAR MISSES AND SLIPSTREAM FILL BOOST · ONE TAP SPENDS IT',
     `${CUP_RACES} RACES · 3 / 2 / 1 / 0 POINTS A RACE · BEST CUP WINS`,
   ],
   baseMs: (RACE_MAX + 10) * 1000,
   scaled: false,
   hideClock: true,
   hideLive: true,
+  Prefs: SideKickPrefs,
   liveCountdown: true,
   entry: (stats) => raceEntry(stats),
   isDone: raceIsDone,
@@ -99,7 +102,7 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
     const me = world.riders[view]
     if (mine && me && mine.z > 0) {
       me.z = mine.z; me.x = mine.x; me.speed = mine.v * MAXSPD
-      me.kickCount = mine.kn; me.hits = mine.hk; me.offs = mine.dn; me.paybacks = mine.pb; me.pips = mine.pp
+      me.kickCount = mine.kn; me.hits = mine.hk; me.offs = mine.dn; me.paybacks = mine.pb; me.pips = mine.pp; me.boost = mine.bm
       if (mine.fin > 0) { me.done = true; me.time = mine.fin / 1000 }
     }
     seen.current = new Set()
@@ -112,6 +115,7 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a new world per round / roster; the rest is read from `live`
   }, [round.id, rosterKey])
 
+  const [prefs] = useSideKickPrefs()
   const controls = useSideKickControls({ enabled: racing })
 
   const write = (id, patch) => {
@@ -185,7 +189,7 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
     getInput: racing ? controls.getInput : null,
     getClockT: () => (getServerNow() - live.current.goAt) / 1000,
     beforeFrame, afterFrame,
-    ui: { pixel: false, avatars: true },
+    ui: { pixel: false, avatars: true, camera: prefs.cam },
   })
 
   const cupRace = (Number(game.cupRaces) || 0) + 1

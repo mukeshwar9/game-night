@@ -20,6 +20,8 @@ export function playSideKickEvent(ev, me) {
     case 'boost': if (ev.by === me) sounds.sideKickBoost(); break
     case 'up': if (ev.to === me) sounds.sideKickUp(!!ev.catchUp); break
     case 'oil': if (ev.to === me) sounds.sideKickOil(); break
+    case 'nearmiss': if (ev.to === me) sounds.sideKickNearMiss(); break
+    case 'boostdry': if (ev.to === me) sounds.sideKickBoostDry(); break
     case 'finish': if (ev.to === me) sounds.sideKickFinish(); break
     case 'payback': if (ev.by === me) sounds.sideKickPop(); break
     default: break

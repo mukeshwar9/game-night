@@ -412,9 +412,10 @@ export const GAME_RULES = {
   sidekick: {
     objective: 'Race to the flag on a motorbike and kick the riders beside you off their bikes.',
     howToPlay: [
-      'Hold STEER to turn; the throttle is automatic. Tap KICK L or KICK R to hit the rider beside you, and hold BOOST for a burst that refills when you let go.',
+      'Tilt your phone to steer (or hold STEER if you prefer the buttons); the throttle is automatic. Tap KICK L or KICK R to hit the rider beside you. Switch between the chase camera and a first-person view with the camera button.',
       'It takes 3 hits to unseat a rider. Every kick costs you balance, a miss more than a hit, and too many in a row throw you off your own bike.',
-      'A fall costs a moment, then you remount with a short shield. Fall with a rider ahead and you come back faster with a catch-up boost. Traffic knocks you off, oil makes you wobble, and sitting in a rider\'s wake gives you a slipstream.',
+      'A fall costs a moment, then you remount with a short shield. Fall with a rider ahead and you come back faster with a catch-up boost. Traffic knocks you off, and oil slows you down and makes the bike wobble.',
+      'The boost meter starts empty and fills from two things only: a near miss, passing a car very close without touching it, and a slipstream, riding close behind a rider ahead. Tap BOOST once and the whole meter goes on one burst of speed; the fuller it was, the longer the burst lasts.',
       'Bots fill empty seats up to 4 riders. The race ends 20 seconds after the first rider crosses the line.',
     ],
     win: 'Places score 3, 2, 1 and 0 points, plus a bonus point for knocking off the rider who last knocked you off. Most points after 3 races wins the cup.',

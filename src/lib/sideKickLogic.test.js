@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   SEG, MAXSPD, LANEX, DT, PIPS, KICK_T, KICK_CD, KICK_BUFFER, STRAIN_HIT, STRAIN_MISS, SHIELD, DOWN_T, DOWN_T_BEHIND,
-  REMOUNT_SPD, REMOUNT_SPD_BEHIND, CATCHUP_MAX, SAME_ATTACKER_GUARD, RACE_END_AFTER_FIRST, RACE_MAX, CUP_POINTS,
+  REMOUNT_SPD, REMOUNT_SPD_BEHIND, CATCHUP_MAX, SAME_ATTACKER_GUARD, OIL_T, OIL_TOP, BOOST_TOP, BOOST_SECS, BOOST_MIN, BOOST_START,
+  CAR_HIT_X, NEAR_MISS_X, NEAR_MISS_FILL, SLIP_Z_MIN, SLIP_Z_MAX, SLIP_FILL, SLIPSTREAM_AFTER, inWake, tryBoost, RACE_END_AFTER_FIRST, RACE_MAX, CUP_POINTS,
   TRACKS, TRACK_IDS, TRACK_ORDER, buildTrack, trackForRace, createWorld, step, tryKick, kickTarget, inReach,
   applyHit, receiveKick, knockOff, raceShouldEnd, standings, placeOf, cupAward, encodeRider, decodeRider,
   applyGhost, promoteBot, demoteBot, kickKey, parseKick, raceEntry, raceIsDone, normalizeStats, formatRaceTime,
@@ -134,16 +135,46 @@ describe('riding', () => {
     run(w, 4)
     expect(w.riders[0].speed).toBeLessThanOrEqual(MAXSPD * 0.42 + 1)
   })
-  it('wobbles on oil without losing a pip', () => {
+  it('slows a rider on oil for a short time without losing a pip', () => {
+    const w = lab()
+    isolate(w, [0])
+    w.track.segs.forEach((q) => { q.curve = 0 })
+    const r = w.riders[0]
+    r.base = 0.9; r.speed = MAXSPD * 0.9
+    r.x = 0.25; r.z = 150 * SEG - 40
+    w.track.segs[150].spr.push({ k: 'oil', x: 0.25 })
+    const ev = run(w, 0.1)
+    expect(ev.some((e) => e.t === 'oil')).toBe(true)
+    expect(r.pips).toBe(PIPS)
+    expect(r.state).toBe('ride')
+    expect(r.oil).toBeGreaterThan(0)
+    run(w, 1)
+    expect(r.speed).toBeLessThan(MAXSPD * 0.9 * (OIL_TOP + 0.1))
+    run(w, OIL_T + 0.1)
+    expect(r.oil).toBe(0)
+    run(w, 6)
+    expect(r.speed).toBeGreaterThan(MAXSPD * 0.85)
+  })
+  it('makes the bike wander on oil, and bots get the same slick', () => {
+    const w = lab()
+    isolate(w, [0, 1])
+    w.track.segs.forEach((q) => { q.curve = 0 })
+    for (const i of [0, 1]) { w.riders[i].x = i ? -0.25 : 0.25; w.riders[i].z = 150 * SEG - 40 }
+    w.riders[1].bot = true; w.riders[1].tx = -0.25
+    w.track.segs[150].spr.push({ k: 'oil', x: 0.25 }, { k: 'oil', x: -0.25 })
+    let lo = 1; let hi = -1
+    for (let i = 0; i < 60; i++) { step(w, {}, DT); lo = Math.min(lo, w.riders[0].lean); hi = Math.max(hi, w.riders[0].lean) }
+    expect(hi - lo).toBeGreaterThan(0.2)
+    expect(w.riders[1].oil).toBeGreaterThan(0)
+  })
+  it('a shielded rider rolls over oil untouched', () => {
     const w = lab()
     isolate(w, [0])
     const r = w.riders[0]
-    r.x = 0.25; r.z = 150 * SEG - 40
+    r.x = 0.25; r.z = 150 * SEG - 40; r.shield = 1
     w.track.segs[150].spr.push({ k: 'oil', x: 0.25 })
-    const ev = run(w, 0.5)
-    expect(ev.some((e) => e.t === 'oil')).toBe(true)
-    expect(r.pips).toBe(PIPS)
-    expect(r.stag).toBeGreaterThan(0)
+    run(w, 0.3)
+    expect(r.oil).toBe(0)
   })
   it('knocks a rider off on any car, then remounts shielded with full pips', () => {
     const w = lab()
@@ -390,37 +421,226 @@ describe('falling and the catch-up remount', () => {
 })
 
 describe('boost', () => {
-  it('burns for about two seconds and refills after a pause', () => {
+  it('starts empty and does not fill by itself', () => {
+    const w = lab()
+    isolate(w, [0])
+    const r = w.riders[0]
+    expect(BOOST_START).toBe(0)
+    expect(r.boost).toBe(0)
+    run(w, 20)
+    expect(r.boost).toBe(0)
+  })
+  it('one tap spends the whole meter at once and the burst lasts as long as the meter was full', () => {
     const w = lab()
     isolate(w, [0])
     const r = w.riders[0]
     r.boost = 1
-    run(w, 2.2, { 0: { boost: true } })
+    const ev = run(w, DT, { 0: { boost: true } })
+    expect(ev.some((e) => e.t === 'boost' && e.by === 0)).toBe(true)
     expect(r.boost).toBe(0)
+    expect(r.boosting).toBe(true)
+    // No input held: the burst runs on its own and ends on time, and the meter stays empty.
+    run(w, BOOST_SECS - 0.1)
+    expect(r.boosting).toBe(true)
+    run(w, 0.3)
     expect(r.boosting).toBe(false)
-    run(w, 0.5 + 8.3)
-    expect(r.boost).toBeGreaterThan(0.95)
+    expect(r.boost).toBe(0)
   })
-  it('needs 15 percent in the tank to light', () => {
+  it('a half meter gives half the burst', () => {
     const w = lab()
     isolate(w, [0])
     const r = w.riders[0]
-    r.boost = 0.1
-    run(w, 0.2, { 0: { boost: true } })
+    r.boost = 0.5
+    run(w, DT, { 0: { boost: true } })
+    expect(r.boostLen).toBeCloseTo(BOOST_SECS / 2, 5)
+    run(w, BOOST_SECS / 2 + 0.1)
     expect(r.boosting).toBe(false)
+  })
+  it('lifts top speed while it lasts', () => {
+    const w = lab()
+    isolate(w, [0])
+    w.track.segs.forEach((q) => { q.curve = 0 })
+    const r = w.riders[0]
+    run(w, 6)
+    const cruise = r.speed
+    r.boost = 1
+    run(w, 2, { 0: { boost: true } })
+    expect(r.speed).toBeGreaterThan(cruise * (1 + (BOOST_TOP - 1) * 0.8))
+  })
+  it('a held key does not re-fire it, and a tap with an empty meter does nothing', () => {
+    const w = lab()
+    isolate(w, [0])
+    const r = w.riders[0]
+    r.boost = 0.5
+    const input = { 0: { boost: true } }
+    run(w, DT, input)
+    expect(input[0].boost).toBe(false)
+    expect(r.boosting).toBe(true)
+    const ev = run(w, BOOST_SECS, { 0: { boost: true } })
+    expect(ev.filter((e) => e.t === 'boost')).toHaveLength(0)
+    const dry = run(w, 0.3, { 0: { boost: true } })
+    expect(r.boosting).toBe(false)
+    expect(dry.some((e) => e.t === 'boostdry' && e.to === 0)).toBe(true)
+  })
+  it('needs a little in the tank to light', () => {
+    const w = lab()
+    isolate(w, [0])
+    const r = w.riders[0]
+    r.boost = BOOST_MIN - 0.02
+    run(w, 0.3, { 0: { boost: true } })
+    expect(r.boosting).toBe(false)
+    expect(r.boost).toBeCloseTo(BOOST_MIN - 0.02, 5)
+    expect(tryBoost(w, r)).toBe(false)
+  })
+  it('a fall ends the burst, and a tap held through a stagger is not lost', () => {
+    const w = lab()
+    isolate(w, [0])
+    const r = w.riders[0]
+    r.boost = 1
+    run(w, DT, { 0: { boost: true } })
+    knockOff(w, r, 'car')
+    expect(r.boosting).toBe(false)
+    expect(r.boost).toBe(0)
+    const v = lab()
+    isolate(v, [0])
+    const q = v.riders[0]
+    q.boost = 1; q.stag = 0.1
+    run(v, 0.2, { 0: { boost: true } })
+    expect(q.boosting).toBe(true)
+  })
+  it('a bot taps it once its meter is half full on a straight with someone to chase', () => {
+    const w = lab()
+    isolate(w, [0, 1])
+    w.track.segs.forEach((q) => { q.curve = 0 })
+    const bot = w.riders[1]; const lead = w.riders[0]
+    bot.bot = true; bot.z = 20000; bot.x = 0.25; lead.z = 23000; lead.x = -0.75
+    bot.boost = 0.6
+    const ev = run(w, 0.3)
+    expect(ev.some((e) => e.t === 'boost' && e.by === 1)).toBe(true)
+    expect(bot.boost).toBe(0)
+  })
+})
+
+describe('near miss', () => {
+  const carLab = (carX, riderX, riderSpd = MAXSPD * 0.8) => {
+    const w = lab()
+    isolate(w, [0])
+    w.track.segs.forEach((q) => { q.curve = 0 })
+    const r = w.riders[0]
+    r.z = 30000; r.x = riderX; r.speed = riderSpd; r.base = 0.8
+    w.cars = [{ z0: 31500, z: 31500, x: carX, spd: 0, col: 0, van: false }]
+    return { w, r }
+  }
+  it('fills the meter and says CLOSE when a rider passes a car just outside touching distance', () => {
+    const { w, r } = carLab(0.25, 0.25 + CAR_HIT_X + 0.06)
+    const ev = run(w, 0.6)
+    expect(r.state).toBe('ride')
+    const nm = ev.filter((e) => e.t === 'nearmiss')
+    expect(nm).toHaveLength(1)
+    expect(nm[0]).toMatchObject({ to: 0, fill: NEAR_MISS_FILL })
+    expect(r.boost).toBeCloseTo(NEAR_MISS_FILL, 5)
+  })
+  it('counts the closest approach, not the last frame, and only once per car', () => {
+    const { w, r } = carLab(0.25, 0.25 + CAR_HIT_X + 0.04)
+    // Drift away while passing: the approach was still close.
+    const ev = []
+    for (let i = 0; i < 40; i++) {
+      step(w, {}, DT)
+      if (i > 5) r.x = Math.min(1.1, r.x + 0.02)
+      ev.push(...w.events.splice(0))
+    }
+    expect(ev.filter((e) => e.t === 'nearmiss')).toHaveLength(1)
+    run(w, 0.5)
+    expect(r.boost).toBeCloseTo(NEAR_MISS_FILL, 5)
+  })
+  it('gives nothing for a wide pass, a hit, or a shielded or finished rider', () => {
+    const wide = carLab(0.25, 0.25 + NEAR_MISS_X + 0.08)
+    run(wide.w, 0.8)
+    expect(wide.r.boost).toBe(0)
+    const hit = carLab(0.25, 0.25 + CAR_HIT_X - 0.05)
+    const ev = run(hit.w, 0.8)
+    expect(ev.some((e) => e.t === 'down' && e.why === 'car')).toBe(true)
+    expect(hit.r.boost).toBe(0)
+    const shield = carLab(0.25, 0.25 + CAR_HIT_X + 0.05)
+    shield.r.shield = 3
+    run(shield.w, 0.8)
+    expect(shield.r.boost).toBe(0)
+    const done = carLab(0.25, 0.25 + CAR_HIT_X + 0.05)
+    done.r.done = true
+    run(done.w, 0.8)
+    expect(done.r.boost).toBe(0)
+  })
+  it('a car that overtakes a slow rider is not a near miss, and two cars are two near misses', () => {
+    const slow = carLab(0.25, 0.25 + CAR_HIT_X + 0.05, 0)
+    slow.r.base = 0
+    slow.w.cars[0].z0 = 28500; slow.w.cars[0].spd = MAXSPD * 0.4
+    run(slow.w, 3)
+    expect(slow.r.boost).toBe(0)
+    const { w, r } = carLab(0.25, 0.25 + CAR_HIT_X + 0.05)
+    w.cars.push({ z0: 33500, z: 33500, x: 0.25, spd: 0, col: 1, van: true })
+    const ev = run(w, 1.4)
+    expect(ev.filter((e) => e.t === 'nearmiss')).toHaveLength(2)
+    expect(r.boost).toBeCloseTo(NEAR_MISS_FILL * 2, 5)
+  })
+  it('the meter never goes above full', () => {
+    const { w, r } = carLab(0.25, 0.25 + CAR_HIT_X + 0.05)
+    r.boost = 0.95
+    run(w, 0.8)
+    expect(r.boost).toBe(1)
   })
 })
 
 describe('slipstream', () => {
-  it('charges in a rider\'s wake and lifts top speed after half a second', () => {
+  const pair = (dz, dx = 0) => {
     const w = lab()
     isolate(w, [0, 1])
+    w.track.segs.forEach((q) => { q.curve = 0 })
     const a = w.riders[0]; const b = w.riders[1]
     a.base = 0.8; b.bot = false
-    a.z = 30000; a.x = 0.25; b.z = 30800; b.x = 0.25; b.speed = MAXSPD * 0.8; b.base = 0.8
+    a.z = 30000; a.x = 0.25; b.z = 30000 + dz; b.x = 0.25 + dx; b.speed = MAXSPD * 0.8; b.base = 0.8
+    return { w, a, b }
+  }
+  it('lifts top speed after half a second in the wake', () => {
+    const { w, a } = pair(800)
     run(w, 1.5)
-    expect(a.draft).toBeGreaterThan(0.5)
+    expect(a.draft).toBeGreaterThan(SLIPSTREAM_AFTER)
     expect(a.speed).toBeGreaterThan(MAXSPD * 0.8)
+  })
+  it('fills the meter only while it sits in the wake, and only after the delay', () => {
+    const { w, a } = pair(800)
+    run(w, SLIPSTREAM_AFTER - 0.05)
+    expect(a.boost).toBe(0)
+    run(w, 1 + 0.05)
+    expect(a.boost).toBeGreaterThan(SLIP_FILL * 0.8)
+    expect(a.boost).toBeLessThan(SLIP_FILL * 1.1)
+    // Leave the wake: it stops filling at once.
+    const had = a.boost
+    a.x = -0.75
+    run(w, 1)
+    expect(a.boost).toBe(had)
+  })
+  it('defines the cone: close behind, narrow at the tail, wider further back, riding opponents only', () => {
+    const { w, a, b } = pair(SLIP_Z_MIN + 10)
+    expect(inWake(a, b)).toBe(true)
+    b.z = a.z + SLIP_Z_MIN - 10; expect(inWake(a, b)).toBe(false)
+    b.z = a.z + SLIP_Z_MAX + 10; expect(inWake(a, b)).toBe(false)
+    b.z = a.z - 500; expect(inWake(a, b)).toBe(false)
+    b.z = a.z + SLIP_Z_MIN + 10; b.x = a.x + 0.15; expect(inWake(a, b)).toBe(false)
+    b.z = a.z + SLIP_Z_MAX - 10; expect(inWake(a, b)).toBe(true)
+    b.state = 'down'; expect(inWake(a, b)).toBe(false)
+    b.state = 'ride'; b.done = true; expect(inWake(a, b)).toBe(false)
+    expect(inWake(a, a)).toBe(false)
+    expect(w.riders).toHaveLength(4)
+  })
+  it('does not fill while boosting, and fills in about five seconds from empty', () => {
+    const { w, a, b } = pair(800)
+    for (let i = 0; i < Math.round((1 / SLIP_FILL + SLIPSTREAM_AFTER + 0.3) * 60); i++) { b.z = a.z + 800; step(w, {}, DT) } // the leader keeps pace, so the wake lasts
+    expect(a.boost).toBeGreaterThan(0.95)
+    a.boost = 0.5
+    run(w, DT, { 0: { boost: true } })
+    expect(a.boosting).toBe(true)
+    run(w, 1)
+    expect(a.boost).toBe(0)
   })
 })
 
@@ -515,7 +735,17 @@ describe('the wire format', () => {
     expect(d.z).toBe(12346)
     expect(d.x).toBeCloseTo(-0.432, 3)
     expect(d.v).toBeCloseTo(0.7, 3)
-    expect(d).toMatchObject({ pp: 2, kn: 4, ks: 0, dn: 3, dw: 3, hk: 5, pb: 1, bo: 1, sg: 1, s: 0, fin: 0, at: 1234567 })
+    expect(d).toMatchObject({ pp: 2, kn: 4, ks: 0, dn: 3, dw: 3, hk: 5, pb: 1, bo: 1, sg: 1, s: 0, fin: 0, at: 1234567, ol: 0, bm: 0 })
+  })
+  it('carries the oil flag and the boost meter', () => {
+    const w = lab()
+    const r = w.riders[0]
+    r.oil = 0.5; r.boost = 0.63
+    const raw = encodeRider(r, 5)
+    expect(raw).toMatchObject({ ol: 1, bm: 63 })
+    expect(decodeRider(raw)).toMatchObject({ ol: 1, bm: 0.63 })
+    expect(decodeRider({ z: 1, bm: 900 }).bm).toBe(1)
+    expect(decodeRider({ z: 1, bm: -4 }).bm).toBe(0)
   })
   it('marks a finished rider with its time', () => {
     const w = lab()
@@ -550,6 +780,16 @@ describe('ghosts', () => {
     w.riders[1].bot = false
     return w
   }
+  it('shows another phone\'s oil wobble and boost from its report', () => {
+    const w = ghostWorld()
+    const g = w.riders[1]
+    applyGhost(w, g, decodeRider({ z: 50000, x: 300, v: 800, at: 1000, ol: 1, bo: 1 }), 1000)
+    expect(g.oil).toBeGreaterThan(0)
+    expect(g.boosting).toBe(true)
+    applyGhost(w, g, decodeRider({ z: 50100, x: 300, v: 800, at: 1100, ol: 0, bo: 0 }), 1100)
+    expect(g.oil).toBe(0)
+    expect(g.boosting).toBe(false)
+  })
   it('places a ghost from its report, carries it forward by the report\'s age and eases it in', () => {
     const w = ghostWorld()
     const g = w.riders[1]

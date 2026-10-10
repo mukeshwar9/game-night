@@ -324,11 +324,20 @@ export const sounds = {
     vibrate([0, 80, 40, 120])
   },
   sideKickPop: () => { seq([[523, 0, 0.1, 'square', 0.07], [784, 0.09, 0.16, 'square', 0.07]]) },
+  // Boost: a thump, a rising sweep and a long rush of air, so the tap has weight.
   sideKickBoost: () => {
-    try { noise(ctx().currentTime, 0.35, 0.09, 700) } catch { /* audio unavailable */ }
-    seq([[180, 0, 0.14, 'sawtooth', 0.06], [340, 0.12, 0.14, 'sawtooth', 0.06], [520, 0.24, 0.16, 'sawtooth', 0.05]])
-    vibrate(30)
+    try { noise(ctx().currentTime, 0.7, 0.13, 1100); noise(ctx().currentTime + 0.05, 0.25, 0.1, 400) } catch { /* audio unavailable */ }
+    seq([[70, 0, 0.18, 'sine', 0.12], [160, 0.04, 0.16, 'sawtooth', 0.07], [320, 0.14, 0.16, 'sawtooth', 0.07], [520, 0.26, 0.18, 'sawtooth', 0.06], [780, 0.4, 0.22, 'sawtooth', 0.05]])
+    vibrate([0, 40, 20, 60])
   },
+  // A near miss: a bright double blip and a whoosh as the car goes by.
+  sideKickNearMiss: () => {
+    try { noise(ctx().currentTime, 0.22, 0.09, 1500) } catch { /* audio unavailable */ }
+    seq([[880, 0, 0.07, 'square', 0.06], [1320, 0.06, 0.12, 'square', 0.06]])
+    vibrate(15)
+  },
+  // A tap on an empty meter.
+  sideKickBoostDry: () => { seq([[200, 0, 0.07, 'square', 0.05], [150, 0.07, 0.09, 'square', 0.04]]) },
   sideKickUp: (catchUp = false) => {
     seq(catchUp
       ? [[330, 0, 0.12, 'triangle', 0.07], [660, 0.11, 0.14, 'square', 0.06], [990, 0.22, 0.14, 'square', 0.05]]

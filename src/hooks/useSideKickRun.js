@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { DT, MAXSPD, PIPS, BOOST_MIN, BOOST_TOP, CATCHUP_TOP, SLIPSTREAM_TOP, standings, step, formatRaceTime } from '../lib/sideKickLogic'
+import { DT, MAXSPD, PIPS, BOOST_MIN, BOOST_TOP, CATCHUP_TOP, SLIPSTREAM_TOP, SLIPSTREAM_AFTER, NEAR_MISS_FILL, standings, step, formatRaceTime } from '../lib/sideKickLogic'
 import { playSideKickEvent, createEngineHum } from '../lib/sideKickSound'
 import { isReducedMotion } from './useMotionPref'
 
@@ -10,12 +10,12 @@ import { isReducedMotion } from './useMotionPref'
 //
 //   worldRef      → { current: world | null }; nothing runs until it is set
 //   view          → the rider index this phone follows
-//   getInput      → () => { steer, kick, boost } (useSideKickControls)
+//   getInput      → (world) => { steer, kick, boost } (useSideKickControls)
 //   getClockT     → optional () => seconds since the shared go signal (online)
 //   beforeFrame   → (world, dt) once per frame, before the steps
 //   afterFrame    → (world, events) once per frame with the events of its steps
 //   onEvent       → (ev) for each event, after the built-in sound / toast
-//   ui            → { pixel, avatars } read each frame
+//   ui            → { pixel, avatars, camera } read each frame (camera: 'chase' | 'first')
 //   paused        → stop stepping (the frame is still drawn)
 const HUD_MS = 80
 const MAX_STEPS = 5
@@ -44,7 +44,11 @@ export function hudOf(world, view) {
     boost: Math.round(me.boost * 100) / 100,
     boosting: me.boosting,
     boostReady: me.boost >= BOOST_MIN && !me.boosting,
-    chip: me.boosting ? `BOOST +${Math.round((BOOST_TOP - 1) * 100)}%` : cu ? `CATCH-UP +${Math.round((CATCHUP_TOP - 1) * 100)}%` : me.draft > 0.5 ? `SLIPSTREAM +${Math.round((SLIPSTREAM_TOP - 1) * 100)}%` : null,
+    boostLeft: me.boosting && me.boostLen > 0 ? Math.round(Math.max(0, me.boostT) / me.boostLen * 100) / 100 : 0,
+    wake: me.draft > SLIPSTREAM_AFTER && !down && !me.boosting,
+    oil: me.oil > 0 && !down,
+    lean: Math.round(Math.max(-1, Math.min(1, me.lean)) * 20) / 20,
+    chip: me.boosting ? `BOOST +${Math.round((BOOST_TOP - 1) * 100)}%` : me.oil > 0 && !down ? 'OIL · SLOWED' : cu ? `CATCH-UP +${Math.round((CATCHUP_TOP - 1) * 100)}%` : me.draft > SLIPSTREAM_AFTER ? `SLIPSTREAM +${Math.round((SLIPSTREAM_TOP - 1) * 100)}%` : null,
     marked: me.mark >= 0 && world.riders[me.mark] ? world.riders[me.mark].name : null,
     count: world.phase === 'count' ? Math.max(1, Math.ceil(world.countT - 0.2)) : null,
     rail: world.riders.map((r) => ({ i: r.i, at: Math.round(Math.max(0, Math.min(1, r.z / world.track.finish)) * 1000) / 1000, down: r.state === 'down' })),
@@ -66,7 +70,9 @@ function toastFor(ev, world, me) {
       return null
     case 'ghostdown': return ev.by === me ? [`${name(ev.to)} IS OFF THE BIKE`, 'good'] : null
     case 'payback': return ev.by === me ? [`PAYBACK! +1 CUP POINT`, 'good'] : null
-    case 'oil': return ev.to === me ? ['OIL', 'dim'] : null
+    case 'oil': return ev.to === me ? ['OIL · SLOWED', 'bad'] : null
+    case 'nearmiss': return ev.to === me ? [`CLOSE! +${Math.round(NEAR_MISS_FILL * 100)}% BOOST`, 'good'] : null
+    case 'boostdry': return ev.to === me ? ['BOOST EMPTY', 'dim'] : null
     case 'clang': return ev.by === me ? ['CLANG · THEY ARE SHIELDED', 'dim'] : null
     case 'up': return ev.to === me && ev.catchUp ? ['BACK ON · CATCH-UP', 'good'] : null
     default: return null
@@ -109,7 +115,7 @@ export default function useSideKickRun({
         if (!renderer.tickHitStop(dt)) acc += dt
         let n = 0
         while (acc >= DT && n++ < MAX_STEPS) {
-          const input = c.getInput?.()
+          const input = c.getInput?.(world)
           const clockT = c.getClockT?.()
           step(world, input ? { [c.view]: input } : {}, DT, clockT ?? null)
           if (world.events.length) events.push(...world.events.splice(0))
@@ -126,9 +132,9 @@ export default function useSideKickRun({
         c.onEvent?.(ev, world)
       }
       c.afterFrame?.(world, events)
-      renderer.draw(world, c.view, dt, { pixel: !!c.ui?.pixel, avatars: c.ui?.avatars !== false, reduced: isReducedMotion(), paused: !!c.paused })
+      renderer.draw(world, c.view, dt, { pixel: !!c.ui?.pixel, avatars: c.ui?.avatars !== false, camera: c.ui?.camera === 'first' ? 'first' : 'chase', reduced: isReducedMotion(), paused: !!c.paused })
       engine.update({
-        speed: me.speed / MAXSPD, boosting: me.boosting, wobble: me.stag > 0,
+        speed: me.speed / MAXSPD, boosting: me.boosting, wobble: me.stag > 0 || me.oil > 0,
         live: world.phase === 'race' || world.phase === 'finishing' || world.phase === 'count', time: ts / 1000,
       })
       if (ts - hudAt >= HUD_MS) {

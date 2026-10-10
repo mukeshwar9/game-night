@@ -57,6 +57,58 @@ test('Side Kick solo: a cup starts, the countdown runs, the bike answers and foc
   expect(errors).toEqual([])
 })
 
+test('Side Kick camera: the HUD switch and the settings flip between chase and first person, and the choice is remembered', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (err) => errors.push(err.message))
+  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('sidekick-prefs') || 'null'))
+  await page.goto('/solo/sidekick')
+  await expect(page.getByTestId('sidekick-start')).toBeVisible()
+  const chase = page.getByTestId('sidekick-pref-cam-chase')
+  const first = page.getByTestId('sidekick-pref-cam-first')
+
+  await test.step('settings start on the chase camera and switch to first person', async () => {
+    await expect(chase).toHaveAttribute('aria-pressed', 'true')
+    await expect(first).toHaveAttribute('aria-pressed', 'false')
+    await first.click()
+    await expect(first).toHaveAttribute('aria-pressed', 'true')
+    expect((await stored()).cam).toBe('first')
+  })
+
+  await test.step('the meter starts empty at GO and a tap on it says so (only near misses and wakes fill it)', async () => {
+    await page.getByTestId('sidekick-go').click()
+    await expect(page.getByTestId('sidekick-time')).not.toHaveText('0:00.00', { timeout: 15_000 })
+    const meter = page.getByTestId('sidekick-boost')
+    await expect(meter).toHaveAttribute('aria-valuenow', '0')
+    await page.keyboard.press('Space')
+    await expect(page.getByRole('status')).toContainText('BOOST EMPTY')
+  })
+
+  await test.step('the race opened in first person and the HUD switch flips it back', async () => {
+    const cam = page.getByTestId('sidekick-cam')
+    await expect(cam).toHaveAttribute('aria-pressed', 'true')
+    await expect(cam).toHaveText('1ST PERSON')
+    const arena = page.getByTestId('sidekick-arena')
+    const firstShot = await arena.screenshot()
+    await cam.click()
+    await expect(cam).toHaveAttribute('aria-pressed', 'false')
+    await expect(cam).toHaveText('CHASE CAM')
+    expect((await stored()).cam).toBe('chase')
+    await page.waitForTimeout(300)
+    // A different camera paints a different picture.
+    expect((await arena.screenshot()).equals(firstShot)).toBe(false)
+    // The C key switches too.
+    await page.keyboard.press('c')
+    await expect(cam).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  await test.step('the choice survives a reload', async () => {
+    await page.reload()
+    await expect(page.getByTestId('sidekick-pref-cam-first')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  expect(errors).toEqual([])
+})
+
 test('Side Kick online: both phones race, a kick lands, and a finished race scores the cup', async ({ browser }) => {
   const alice = await newPlayer(browser)
   const bob = await newPlayer(browser)

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import SideKickPlay from '../components/SideKickPlay'
+import SideKickPrefs from '../components/SideKickPrefs'
 import Avatar from '../components/Avatar'
 import useSideKickRun, { ordinal } from '../hooks/useSideKickRun'
 import { useSideKickControls } from '../hooks/useSideKickControls'
+import { useSideKickPrefs } from '../hooks/useSideKickPrefs'
 import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import {
@@ -80,6 +82,7 @@ export default function SideKickDemo() {
   const avatarsRef = useRef(avatars)
   useEffect(() => { avatarsRef.current = avatars })
 
+  const [prefs] = useSideKickPrefs()
   const controls = useSideKickControls({ enabled: phase === 'racing' })
   const setPhaseBoth = useCallback((p) => { phaseRef.current = p; setPhase(p) }, [])
 
@@ -156,7 +159,7 @@ export default function SideKickDemo() {
     view: 0,
     enabled: true,
     getInput: phase === 'racing' ? controls.getInput : null,
-    ui: { pixel: cfg.pixel, avatars: true },
+    ui: { pixel: cfg.pixel, avatars: true, camera: prefs.cam },
     onEvent: (ev, world) => { if (ev.t === 'results') finishRace(world) },
     afterFrame: (world) => {
       if (phaseRef.current === 'idle' && world.phase === 'done') attract()
@@ -191,6 +194,7 @@ export default function SideKickDemo() {
               <button key={label} type="button" aria-pressed={cfg.pixel === px} onClick={() => { const n = { ...cfgRef.current, pixel: px }; cfgRef.current = n; setCfg(n); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(n)) } catch { /* storage unavailable */ } }} className={chip(cfg.pixel === px)}>{label}</button>
             ))}
           </div>
+          <SideKickPrefs />
           {rec && <p className="font-pixel text-[8px] text-retro-dim" aria-label={`Your record on ${level}: ${describeLevelRecord(rec)}`}>{level} RECORD {formatLevelRecord(rec)}</p>}
         </div>
         <button type="button" onClick={startCup} data-testid="sidekick-go" className="press mt-3 min-h-11 rounded bg-retro-cta px-5 py-2.5 font-pixel text-xs text-retro-bg hover:shadow-neon-cta">START CUP</button>
@@ -232,7 +236,7 @@ export default function SideKickDemo() {
     <div className="mx-auto w-full max-w-sm">
       <SideKickPlay run={run} controls={controls} avatars={avatars} enabled={phase === 'racing'} cover={cover} status={status} hideHud={phase === 'idle'} />
       <p className="mt-2 text-center font-pixel text-[7px] leading-relaxed text-retro-dim">
-        HOLD STEER · TAP KICK L / R · HOLD BOOST · KEYS ← → A D SPACE
+        TILT OR HOLD STEER · TAP KICK L / R · TAP BOOST (NEAR MISSES AND SLIPSTREAM FILL IT) · KEYS ← → A D SPACE C
       </p>
     </div>
   )

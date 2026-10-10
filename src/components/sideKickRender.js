@@ -11,7 +11,7 @@
 
 import { mulberry32 as mulberry } from '../lib/detMath'
 import { buildPalette, readSideKickTokens, css, mx, BLACK, WHITE } from '../lib/sideKickPalette'
-import { SEG, MAXSPD, LANEX, DT, KICK_T, DOWN_T, segAt as trackSegAt, roadY as trackRoadY } from '../lib/sideKickLogic'
+import { SEG, MAXSPD, LANEX, DT, KICK_T, DOWN_T, BOOST_MIN, segAt as trackSegAt, roadY as trackRoadY, kickTarget, inWake } from '../lib/sideKickLogic'
 import { renderPixels, resolveAvatar } from '../lib/avatarKit'
 import { canvasPixelRatio } from '../lib/platform'
 
@@ -24,6 +24,11 @@ const CAMH = 1000
 const DRAW = 150
 const CAMD = 1 / Math.tan((100 / 2) * Math.PI / 180)
 const PLAYERZ = CAMH * CAMD
+// First person: the camera sits at the rider's eyes, low and a little behind the bike's z so a rider
+// alongside is still in view; a slightly wider lens keeps the next lane on screen.
+const CAMD_FIRST = 0.72
+const FP_H = 560
+const FP_BACK = 140
 const WHITE_CSS = css(WHITE)
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 const lerp = (a, b, t) => a + (b - a) * t
@@ -70,6 +75,10 @@ export function createSideKickRenderer(canvas) {
   let frameDt = DT
   let clock = 0
   let avatarsOn = true
+  let camMode = 'chase'
+  let camd = CAMD
+  let fovK = 0
+  let fovPulse = 0
   const segAt = (z) => trackSegAt(track, z)
   const roadY = (z) => trackRoadY(track, z)
 
@@ -159,7 +168,7 @@ export function createSideKickRenderer(canvas) {
       if (P.dark) { c.globalCompositeOperation = 'lighter'; poly(c, [-13, -34, 13, -34, 58, -270, -58, -270], lg(c, 0, -34, 0, -270, 0, css(C, 0.22), 1, css(C, 0))); c.globalCompositeOperation = 'source-over' }
       const kp = kickPose(r), k = kp.ext, ks = r.kickSide
       const vib = Math.sin(time * 61 + r.i) * 0.35 * (0.3 + sp), bob = Math.sin(time * 5.3 + r.i * 2) * 0.7
-      c.rotate(r.lean * 0.3 + r.rec * 0.5 + Math.sin(time * 15 + r.i) * 0.07 * Math.min(1, r.strain))
+      c.rotate(r.lean * 0.3 + r.rec * 0.5 + Math.sin(time * 15 + r.i) * 0.07 * Math.min(1, r.strain) + (r.oil > 0 ? Math.sin(time * 19 + r.i) * 0.16 * Math.min(1, r.oil / 0.4) : 0))
       c.scale(1 + r.sq * 0.1, 1 - r.sq * 0.08)
       // Tyre: a rubber cylinder with rolling tread.
       rr(c, -9.5, -38, 19, 38, 7.5, lg(c, -9.5, 0, 9.5, 0, 0, css(mx(R.tire, BLACK, 0.5)), 0.35, css(R.tire), 0.72, css(mx(R.tire, R.metal, 0.35)), 1, css(R.tire)))
@@ -368,7 +377,7 @@ export function createSideKickRenderer(canvas) {
     const wps = [], skids = []
     function puff(kind, z, x, h, o) { if (wps.length > 170) wps.shift(); wps.push(Object.assign({ kind, z, x, h, vz: 0, vx: 0, vh: 0, life: 0.6, max: 0.6, size: 60, grow: 2 }, o)) }
     function stepEffects(dt) {
-      for (let i = wps.length - 1; i >= 0; i--) { const p = wps[i]; p.life -= dt; if (p.life <= 0) { wps.splice(i, 1); continue } p.z += p.vz * dt; p.x += p.vx * dt; p.h += p.vh * dt; if (p.kind === 'spark' || p.kind === 'chip') { p.vh -= 2600 * dt; if (p.h < 0) { p.h = 0; p.vh *= -0.4 } } else p.vz *= Math.exp(-2.5 * dt) }
+      for (let i = wps.length - 1; i >= 0; i--) { const p = wps[i]; p.life -= dt; if (p.life <= 0) { wps.splice(i, 1); continue } p.z += p.vz * dt; p.x += p.vx * dt; p.h += p.vh * dt; if (p.kind === 'spark' || p.kind === 'chip' || p.kind === 'slick') { p.vh -= 2600 * dt; if (p.h < 0) { p.h = 0; p.vh *= -0.4 } } else p.vz *= Math.exp(-2.5 * dt) }
       if (phase === 'count' || phase === 'done') return
       for (const r of riders) {
         const sp = r.speed / MAXSPD
@@ -379,14 +388,21 @@ export function createSideKickRenderer(canvas) {
         if (!r.brk && sp < 0.97 && Math.random() < 0.3 + (1 - sp) * 0.5) for (const s of [-1, 1]) puff('smoke', r.z - 30, r.x + s * 0.05, 100, { vz: r.speed * 0.72, vx: s * 0.05, vh: 110, size: 34, grow: 3.2, life: 0.5, max: 0.5 })
         if (Math.abs(r.x) > 1.02 && Math.random() < 0.7) { puff('dust', r.z - 20, r.x + (Math.random() - 0.5) * 0.06, 40, { vz: r.speed * 0.6, vh: 220, size: 90, grow: 3, life: 0.7, max: 0.7 }); if (Math.random() < 0.4) puff('chip', r.z, r.x, 30, { vz: r.speed * 0.8, vx: (Math.random() - 0.5) * 0.4, vh: 500 + Math.random() * 500, size: 12, life: 0.5, max: 0.5 }) }
         if (r.cu > 0 || r.boosting) for (const s of [-1, 1]) puff('spark', r.z - 20, r.x + s * 0.05, 95, { vz: r.speed * 0.8, vx: s * 0.1, vh: 40 + Math.random() * 120, life: 0.22, max: 0.22, size: 16 })
+        if (r.oil > 0) {
+          // Slick: dark droplets flick off the tyres and the bike leaves a dark smear.
+          if (Math.random() < 0.75) puff('slick', r.z - 10, r.x + (Math.random() - 0.5) * 0.1, 10, { vz: r.speed * 0.45, vx: (Math.random() - 0.5) * 0.9, vh: 260 + Math.random() * 420, life: 0.5, max: 0.5, size: 12 + Math.random() * 8 })
+          skids.push({ z: r.z, x: r.x, i: r.i, w: 0.6 })
+        }
         if (r.stag > 0) { if (Math.random() < 0.6) puff('smoke', r.z - 20, r.x, 20, { vz: r.speed * 0.7, vh: 150, size: 70, grow: 2.6, life: 0.6, max: 0.6 }); skids.push({ z: r.z, x: r.x, i: r.i, w: 0.5 }) }
-        else if (skids.length && skids[skids.length - 1].i === r.i && !skids[skids.length - 1].end) skids[skids.length - 1].end = true
+        else if (r.oil <= 0 && skids.length && skids[skids.length - 1].i === r.i && !skids[skids.length - 1].end) skids[skids.length - 1].end = true
+        // Wind lines trail a rider that has someone sitting in their wake.
+        if (riders.some((o) => inWake(o, r)) && Math.random() < 0.5) puff('wind', r.z - 40, r.x + (Math.random() - 0.5) * 0.14, 40 + Math.random() * 60, { vz: r.speed * 0.8, life: 0.35, max: 0.35, size: 26 + Math.random() * 18 })
       }
       if (skids.length > 260) skids.splice(0, skids.length - 260)
     }
 
     // ── Render one rider's seat ──────────────────────────────────────────────
-    let frame = 0, skyOff = 0, camSm = 0
+    let frame = 0, skyOff = 0, camSm = 0, reducedNow = false
     const parts = [], tags = []
     const peaks = (() => { const r = mulberry(7), a = []; for (let i = 0; i < 24; i++) a.push(16 + r() * 50); return a })()
     const stars = (() => { const r = mulberry(11), a = []; for (let i = 0; i < 46; i++) a.push([r() * W, r() * (HORIZ - 30), 0.6 + r() * 1.1, r() * 6]); return a })()
@@ -438,7 +454,8 @@ export function createSideKickRenderer(canvas) {
     }
     function render(c, view, time, main) {
       frame++; tags.length = 0
-      const cam = riders[view], camZ = cam.z - PLAYERZ, camX = (main ? camSm : cam.x) * ROAD, camY = CAMH + roadY(cam.z) + (main ? cam.susp * 5 : 0), sp = cam.speed / MAXSPD, R = P.raw
+      const first = main && camMode === 'first'
+      const cam = riders[view], camZ = first ? cam.z - FP_BACK : cam.z - PLAYERZ, camX = (main ? camSm : cam.x) * ROAD, camY = (first ? FP_H : CAMH) + roadY(cam.z) + (main ? cam.susp * (first ? 9 : 5) : 0), sp = cam.speed / MAXSPD, R = P.raw
       backdrop(c, time)
       const bi = Math.max(0, Math.floor(camZ / SEG)), bp = camZ > 0 ? (camZ - bi * SEG) / SEG : 0, F = P.fogTab
       let x = 0, dx = -(segs[bi].curve * bp), maxy = H, vanX = W / 2
@@ -447,7 +464,7 @@ export function createSideKickRenderer(canvas) {
         const cz1 = s.z - camZ, cz2 = cz1 + SEG, X1 = x, X2 = x + dx
         x += dx; dx += s.curve
         if (cz1 <= 30) { s._f = 0; continue }
-        const sc1 = CAMD / cz1, sc2 = CAMD / cz2
+        const sc1 = camd / cz1, sc2 = camd / cz2
         let x1 = W / 2 + sc1 * (X1 - camX) * W / 2, y1 = HORIZ + sc1 * (camY - s.y1) * YS, w1 = sc1 * ROAD * W / 2
         const x2 = W / 2 + sc2 * (X2 - camX) * W / 2, y2 = HORIZ + sc2 * (camY - s.y2) * YS, w2 = sc2 * ROAD * W / 2
         s._f = frame; s._sc1 = sc1; s._sc2 = sc2; s._x1 = x1; s._y1 = y1; s._x2 = x2; s._y2 = y2; s._clip = maxy
@@ -473,7 +490,7 @@ export function createSideKickRenderer(canvas) {
       const pt = (z, xn) => {
         const s = segAt(z); if (s._f !== frame) return null
         const cz = z - camZ; if (cz < 120) return null
-        const sc = CAMD / cz, t = (sc - s._sc1) / (s._sc2 - s._sc1), cx = lerp(s._x1, s._x2, t)
+        const sc = camd / cz, t = (sc - s._sc1) / (s._sc2 - s._sc1), cx = lerp(s._x1, s._x2, t)
         return { cx, x: cx + sc * xn * ROAD * W / 2, y: lerp(s._y1, s._y2, t), u: sc * W / 2, sc, clip: s._clip, cz }
       }
       // Skid marks lie on the road.
@@ -487,7 +504,7 @@ export function createSideKickRenderer(canvas) {
       const list = []
       for (let n = Math.min(DRAW, segs.length - bi) - 1; n >= 0; n--) { const s = segs[bi + n]; for (const q of s.spr) list.push({ z: s.z + SEG / 2, x: q.x, q }) }
       for (const car of cars) if (car.z > camZ && car.z < camZ + DRAW * SEG) list.push({ z: car.z, x: car.x, car })
-      for (const r of riders) list.push({ z: r.z, x: r.x, r })
+      for (const r of riders) if (!(first && r === cam)) list.push({ z: r.z, x: r.x, r })
       for (const w of wps) list.push({ z: w.z, x: w.x, w })
       list.sort((a, b) => b.z - a.z)
       for (const o of list) {
@@ -500,6 +517,8 @@ export function createSideKickRenderer(canvas) {
         if (o.w) {
           const w = o.w, a = w.life / w.max, size = unit * w.size * (1 + w.grow * (1 - a)), y = sy - unit * w.h
           if (w.kind === 'spark') { c.globalCompositeOperation = 'lighter'; limb(c, [px, y, px + (Math.random() - 0.5) * size * 2, y + size * 1.2], Math.max(1, size * 0.3), css(mx(P.sunC, P.t.cta, 0.4), a)) }
+          else if (w.kind === 'slick') { c.globalAlpha = a; circ(c, px, y, size * 0.5, css(P.dark ? BLACK : mx(P.t.text, BLACK, 0.4), 0.92)); circ(c, px - size * 0.15, y - size * 0.18, size * 0.18, css(P.t.p1, 0.75)) }
+          else if (w.kind === 'wind') { c.globalAlpha = a * 0.55; limb(c, [px, y, px, y + size * 1.6], Math.max(1, size * 0.07), P.paper) }
           else if (w.kind === 'chip') { c.globalAlpha = a; rr(c, px - size / 2, y - size / 2, size, size, size * 0.2, F.dirt[0]) }
           else { c.globalAlpha = a * (w.kind === 'smoke' ? 0.34 : 0.5); const d = dot(w.kind === 'smoke' ? mx(R.metal, R.paper, 0.5) : mx(R.dirt, R.paper, 0.35)); c.drawImage(d.cv, px - size, y - size, size * 2, size * 2) }
         } else if (o.q && (o.q.k === 'oil' || o.q.k === 'patch')) {
@@ -599,6 +618,83 @@ export function createSideKickRenderer(canvas) {
         if (close && me.z - close.z < 1100 && (close.x - me.x) * side > -0.12) { c.beginPath(); c.roundRect(x0 - 1.5, y0 - 1.5, w + 3, h + 3, 11); c.lineWidth = 3; c.strokeStyle = css(P.rs[close.i], 0.72 + 0.28 * Math.sin(time * 14)); c.stroke() }
       }
     }
+    // ── First person: the bars, the hands and the boot, drawn in screen space ──
+    // The rider's own bike is not in the scene from here; what you see is the cockpit. The
+    // handlebars lean with your steer, rock when you are hit and wander on oil; the boot swings
+    // out on the side you kick. The five lamps on the pod are the boost meter.
+    function drawCockpit(c, me, time) {
+      const R = P.raw, C = P.rs[me.i], av = hasAv(me.i), J = av ? AVC[me.i].top : C
+      const sp = me.speed / MAXSPD, kp = kickPose(me), ks = me.kickSide
+      const wob = me.oil > 0 ? Math.sin(time * 19) * 0.07 * Math.min(1, me.oil / 0.4) : 0
+      const rot = me.lean * 0.12 + me.rec * 0.35 + wob + Math.sin(time * 61) * 0.004 * sp
+      const bob = -me.susp * 1.6 + Math.sin(time * 5.3) * 0.8 + me.sq * 5 + (me.boosting ? 5 : 0)
+      const glove = mx(R.tire, C, 0.25)
+      c.save()
+      c.translate(W / 2 + me.lean * 10 + me.rec * 30, H + bob)
+      c.rotate(rot)
+      // Forearms in the jacket colour, cuffs, then the bar itself.
+      for (const s of [-1, 1]) {
+        limb(c, [s * 134, -52, s * 168, 60], 42, s > 0 ? li(J, 0.12) : da(J, 0.32))
+        limb(c, [s * 134, -52, s * 168, 60], 18, css(J, 0.35))
+        rr(c, s * 134 - 21, -56, 42, 17, 7, da(J, 0.5))
+      }
+      c.lineCap = 'round'
+      c.beginPath(); c.moveTo(-134, -66); c.bezierCurveTo(-98, -55, -52, -42, 0, -40); c.bezierCurveTo(52, -42, 98, -55, 134, -66)
+      c.lineWidth = 11; c.strokeStyle = css(da(R.metal, 0.5)); c.stroke()
+      c.lineWidth = 6; c.strokeStyle = css(R.metal); c.stroke()
+      c.lineWidth = 2; c.strokeStyle = 'rgba(255,255,255,.55)'; c.beginPath(); c.moveTo(-120, -71); c.bezierCurveTo(-90, -61, -48, -49, 0, -47); c.bezierCurveTo(48, -49, 90, -61, 120, -71); c.stroke()
+      // Gauge pod on the stem: five lamps, lit left to right as the meter fills.
+      rr(c, -17, -42, 34, 40, 6, lg(c, -17, 0, 17, 0, 0, da(R.metal, 0.5), 0.5, css(R.metal), 1, da(R.metal, 0.4)))
+      rr(c, -40, -92, 80, 44, 12, lg(c, 0, -92, 0, -48, 0, css(mx(R.tire, R.metal, 0.35)), 1, css(mx(R.tire, BLACK, 0.5))))
+      rr(c, -34, -86, 68, 22, 7, css(BLACK, 0.7))
+      const lit = Math.floor(me.boost * 5 + 0.001), ready = me.boost >= BOOST_MIN
+      for (let i = 0; i < 5; i++) {
+        const on = me.boosting ? ((time * 12 + i) % 2 < 1) : i < lit || (i === lit && ready && Math.floor(time * 4) % 2 === 0)
+        rr(c, -30 + i * 13.2, -81, 10, 12, 3, on ? css(i < 3 ? P.t.cta : P.t.win) : css(P.t.border, 0.55))
+        if (on && P.dark) { c.globalCompositeOperation = 'lighter'; circ(c, -25 + i * 13.2, -75, 12, rg(c, -25 + i * 13.2, -75, 1, 12, 0, css(P.t.cta, 0.5), 1, css(P.t.cta, 0))); c.globalCompositeOperation = 'source-over' }
+      }
+      circ(c, 0, -57, 3.4, me.stag > 0 || me.oil > 0 ? css(P.t.danger) : css(P.t.border, 0.7))
+      // Grips and gloves.
+      for (const s of [-1, 1]) {
+        const gx = s * 124, gy = -66
+        rr(c, gx - 28, gy - 11, 56, 22, 10, lg(c, 0, gy - 11, 0, gy + 11, 0, css(mx(R.tire, R.metal, 0.3)), 1, css(mx(R.tire, BLACK, 0.55))))
+        rr(c, gx - 26, gy - 34, 52, 40, 14, sideLit(c, gx - 26, gx + 26, glove, 0.35))
+        for (let i = 0; i < 4; i++) circ(c, gx - 17 + i * 11.5, gy - 31, 6, rg(c, gx - 15 + i * 11.5, gy - 33, 1, 6.5, 0, li(glove, 0.3), 1, da(glove, 0.2)))
+        for (let i = 0; i < 4; i++) rr(c, gx - 22 + i * 11.5, gy + 1, 10.5, 22, 5.5, i % 2 ? li(glove, 0.06) : da(glove, 0.12))
+        rr(c, gx + (s > 0 ? -32 : 14), gy - 20, 18, 26, 8, sideLit(c, gx - 32, gx + 32, glove, 0.3))
+        rr(c, gx - 22, gy - 10, 44, 3, 1.5, css(P.dkC, 0.25))
+      }
+      // The boot swings out on the kicking side, in front of the glove.
+      if (kp.ext + kp.tuck > 0) {
+        const k = kp.ext, fx = ks * (64 + 66 * k - 10 * kp.tuck), fy = -30 - 34 * k - 16 * kp.tuck, kx = ks * (50 + 34 * k), ky = 44 - 24 * k, bootC = mx(R.tire, C, 0.4)
+        limb(c, [ks * 30, 80, kx, ky, fx, fy], 46, css(R.ink, 0.5)); limb(c, [ks * 30, 80, kx, ky, fx, fy], 40, ks > 0 ? li(R.pants, 0.15) : da(R.pants, 0.2))
+        c.save(); c.translate(fx, fy); c.rotate(ks * (0.3 - 0.7 * k)); rr(c, -22, -17, 44, 34, 10, sideLit(c, -22, 22, bootC, 0.35)); rr(c, -22, 10, 44, 7, 3, css(R.sole)); c.restore()
+        if (k > 0.2) {
+          c.globalAlpha = Math.min(1, k) * 0.85; c.lineCap = 'round'
+          c.beginPath(); c.arc(ks * 20, 0, 120 * k + 16, ks > 0 ? -0.6 : Math.PI - 0.5, ks > 0 ? 0.5 : Math.PI + 0.6); c.lineWidth = 5 - 3 * k; c.strokeStyle = css(P.sunC, 1); c.stroke()
+          c.globalAlpha = 1
+        }
+      }
+      c.restore()
+    }
+    // A side cue for a kick: the edge of the screen glows in the target's colour and a chevron points
+    // out to their side while somebody is in reach; it dims while the kick is cooling down.
+    function drawKickCues(c, time) {
+      const me = riders[viewIdx]
+      if (!me || me.state !== 'ride' || phase === 'count') return
+      for (const side of [-1, 1]) {
+        const tgt = kickTarget({ riders }, me, side)
+        if (!tgt) continue
+        const calm = me.cd > 0 || me.stag > 0 ? 0.5 : 1
+        const pulse = (0.65 + 0.35 * Math.sin(time * 12)) * calm
+        const x0 = side < 0 ? 0 : W, col = P.rs[tgt.i]
+        c.fillStyle = lg(c, x0, 0, x0 - side * 84, 0, 0, css(col, 0.6 * pulse), 1, css(col, 0)); c.fillRect(side < 0 ? 0 : W - 84, HORIZ + 30, 84, H - HORIZ - 110)
+        const ax = x0 - side * 30, ay = HORIZ + 150
+        for (const o of [0, 11]) poly(c, [ax - side * (o - 7), ay - 13, ax - side * (o + 3), ay, ax - side * (o - 7), ay + 13, ax - side * (o - 12), ay + 13, ax - side * (o - 2), ay, ax - side * (o - 12), ay - 13], P.seat[tgt.i].main)
+        c.font = '7px ' + fontFamily; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = P.paper
+        c.globalAlpha = calm; c.fillText('KICK', ax - side * 4, ay + 25); c.globalAlpha = 1
+      }
+    }
     // Drawn at full resolution on top, so labels stay crisp in the pixel style.
     function overlay(c, view) {
       for (const g of tags) {
@@ -609,14 +705,20 @@ export function createSideKickRenderer(canvas) {
         c.fillStyle = P.tagText[g.r.i % 4]; c.fillText(g.r.name, g.x + (av ? 7.5 : 0), g.y + 1)
       }
       if (view < 0) return
-      drawMirrors(c, clock)
       const cam = riders[view], sp = cam.speed / MAXSPD
-      const fast = sp > 0.86 ? (sp - 0.86) * 6 : 0, wind = cam.draft > 0.5 ? 1 : 0
-      if (Math.random() < fast + wind * 0.8) { const a = Math.random() * 6.28, d = 150 + Math.random() * 60; parts.push({ k: 'line', x: W / 2 + Math.cos(a) * d, y: HORIZ + 60 + Math.sin(a) * d * 0.9, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 0.22, max: 0.22, warm: wind }) }
+      if (camMode === 'first') { drawKickCues(c, clock); drawCockpit(c, cam, clock) }
+      drawMirrors(c, clock)
+      const fast = sp > 0.86 ? (sp - 0.86) * 6 : 0, wind = cam.draft > 0.5 && phase !== 'count' ? 1 : 0
+      if (Math.random() < fast + wind * 1.4) { const a = Math.random() * 6.28, d = 150 + Math.random() * 60; parts.push({ k: 'line', x: W / 2 + Math.cos(a) * d, y: HORIZ + 60 + Math.sin(a) * d * 0.9, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 0.22, max: 0.22, warm: wind, long: wind ? 2 : 1 }) }
+      // Boost: streaks pour out of the middle of the screen for as long as it lasts.
+      if (cam.boosting && !reducedNow) for (let n = 0; n < 3; n++) { const a = Math.random() * 6.28, d = 60 + Math.random() * 100; parts.push({ k: 'line', x: W / 2 + Math.cos(a) * d, y: HORIZ + 60 + Math.sin(a) * d * 0.9, vx: Math.cos(a) * 980, vy: Math.sin(a) * 980, life: 0.28, max: 0.28, warm: 1, long: 2.4 }) }
+      // Oil on the lens of a first-person rider: slick droplets fly up off the front wheel.
+      if (cam.oil > 0 && camMode === 'first' && !reducedNow && Math.random() < 0.5) parts.push({ k: 'drop', x: W * (0.22 + Math.random() * 0.56), y: H * 0.8, vx: (Math.random() - 0.5) * 260, vy: -140 - Math.random() * 220, life: 0.5, max: 0.5, r: 3 + Math.random() * 4 })
       for (let i = parts.length - 1; i >= 0; i--) {
         const p = parts[i]; p.life -= frameDt; if (p.life <= 0) { parts.splice(i, 1); continue }
         p.x += p.vx * frameDt; p.y += p.vy * frameDt; const a = p.life / p.max
-        if (p.k === 'line') { c.globalAlpha = a * 0.45; limb(c, [p.x, p.y, p.x - p.vx * 0.06, p.y - p.vy * 0.06], 1.6, p.warm ? P.pow : P.paper) }
+        if (p.k === 'line') { c.globalAlpha = a * (p.long > 1.5 ? 0.6 : 0.45); limb(c, [p.x, p.y, p.x - p.vx * 0.06 * (p.long || 1), p.y - p.vy * 0.06 * (p.long || 1)], p.long > 1.5 ? 2 : 1.6, p.warm ? P.pow : P.paper) }
+        else if (p.k === 'drop') { p.vy += 900 * frameDt; c.globalAlpha = a; c.beginPath(); c.ellipse(p.x, p.y, p.r, p.r * 1.3, 0, 0, 7); c.fillStyle = css(P.dark ? BLACK : mx(P.t.text, BLACK, 0.4), 0.9); c.fill(); circ(c, p.x - p.r * 0.3, p.y - p.r * 0.4, p.r * 0.35, css(P.t.p1, 0.8)) }
         else if (p.k === 'star') { p.vy += 620 * frameDt; c.globalAlpha = a; c.save(); c.translate(p.x, p.y); c.rotate(p.life * 9); rr(c, -3, -3, 6, 6, 1, p.alt ? P.paper : P.pow); c.restore() }
         else if (p.k === 'pow') {
           const s = ease.outBack(Math.min(1, (1 - a) * 4)) * (1 + (1 - a) * 0.25); c.globalAlpha = Math.min(1, a * 2.5); c.save(); c.translate(p.x, p.y - (1 - a) * 18); c.rotate(p.rot); c.scale(s, s)
@@ -658,6 +760,15 @@ export function createSideKickRenderer(canvas) {
       else if (ev.to === view) { shake = 9; punch = -0.03 }
     }
     if (ev.t === 'down' && ev.to === view) shake = 14
+    if (ev.t === 'boost' && ev.by === view) { fovPulse = 1; shake = Math.max(shake, 6) }
+    if (ev.t === 'oil' && ev.to === view) shake = Math.max(shake, 5)
+    if (ev.t === 'nearmiss' && ev.to === view) {
+      // CLOSE! on the side the car went by, and a rush of lines out to that edge.
+      const x = W / 2 + (ev.side || 1) * 84, y = H * 0.56
+      parts.push({ k: 'pow', x, y, vx: 0, vy: 0, life: 0.55, max: 0.55, txt: 'CLOSE!', rot: (Math.random() - 0.5) * 0.4 })
+      for (let i = 0; i < 9; i++) parts.push({ k: 'star', x, y, vx: (Math.random() - 0.5) * 300, vy: -80 - Math.random() * 200, life: 0.5, max: 0.5, alt: i % 2 })
+      for (let i = 0; i < 7; i++) parts.push({ k: 'line', x: W / 2 + (ev.side || 1) * (30 + Math.random() * 40), y: HORIZ + 40 + Math.random() * 160, vx: (ev.side || 1) * (900 + Math.random() * 300), vy: (Math.random() - 0.5) * 80, life: 0.3, max: 0.3, warm: 0, long: 2.4 })
+    }
   }
 
   /** True while the sim should hold for the freeze-frame on a landed kick. */
@@ -668,7 +779,7 @@ export function createSideKickRenderer(canvas) {
 
   function reset() {
     parts.length = 0; wps.length = 0; skids.length = 0
-    shake = 0; hitStop = 0; punch = 0; camSm = 0
+    shake = 0; hitStop = 0; punch = 0; camSm = 0; fovK = 0; fovPulse = 0
   }
 
   /**
@@ -680,6 +791,8 @@ export function createSideKickRenderer(canvas) {
   function draw(world, view, dt, ui = {}) {
     if (!P || themeId !== (document.documentElement.getAttribute('data-theme') || '')) rebuild()
     avatarsOn = ui.avatars !== false
+    camMode = ui.camera === 'first' ? 'first' : 'chase'
+    reducedNow = !!ui.reduced
     track = world.track; riders = world.riders; cars = world.cars; segs = track.segs
     phase = world.phase; viewIdx = view; frameDt = dt || DT
     clock += frameDt
@@ -692,8 +805,14 @@ export function createSideKickRenderer(canvas) {
     }
     camSm = lerp(camSm, me.x, 1 - Math.exp(-9 * frameDt)); if (Math.abs(camSm - me.x) > 0.5) camSm = me.x
     punch *= Math.exp(-7 * frameDt)
-    zoom = lerp(zoom, 1.045 + (me.boosting ? 0.06 : me.draft > 0.5 || me.cu > 0 ? 0.035 : 0) + sp * 0.015, 1 - Math.exp(-4 * frameDt))
-    const roll = -(me.lean * 0.028 + me.rec * 0.05) * (reduced ? 0 : 1)
+    const first = camMode === 'first'
+    // Boost kicks the field of view wider: quickly on, slowly off, plus a pulse at the moment of the tap.
+    fovK = lerp(fovK, me.boosting ? 1 : 0, 1 - Math.exp(-(me.boosting ? 9 : 3.5) * frameDt))
+    fovPulse *= Math.exp(-6 * frameDt)
+    camd = (first ? CAMD_FIRST : CAMD) * (1 - (reduced ? 0.07 : 0.2) * fovK - (reduced ? 0 : 0.08) * fovPulse)
+    zoom = lerp(zoom, (first ? 1.0 : 1.045) + (me.draft > 0.5 || me.cu > 0 ? 0.03 : 0) + sp * 0.015, 1 - Math.exp(-4 * frameDt))
+    const oilSway = me.oil > 0 ? Math.sin(clock * 17) * 0.035 * Math.min(1, me.oil / 0.4) : 0
+    const roll = -(me.lean * (first ? 0.05 : 0.028) + me.rec * 0.05) * (reduced ? 0 : 1) + (reduced ? 0 : oilSway)
     const zz = zoom + (reduced ? 0 : punch)
     const jit = reduced ? 0 : Math.sin(clock * 47) * 0.5 * sp
     const ctx = home

@@ -35,7 +35,11 @@ export const REACH_Z = 250
 export const PIPS = 3
 export const PIP_REGEN = 4
 export const STAGGER = 0.5
-export const OIL_STAGGER = 0.7
+// Oil: a slick slows the bike and makes it wander for a moment. Never a pip, never a fall.
+export const OIL_T = 1.5
+export const OIL_TOP = 0.6
+export const OIL_GRAB = 0.85
+export const OIL_WOBBLE = 0.6
 export const DOWN_T = 1.9
 export const SHIELD = 1.5
 export const SAME_ATTACKER_GUARD = 1
@@ -44,13 +48,19 @@ export const STRAIN_HIT = 0.3
 export const STRAIN_MISS = 0.4
 export const STRAIN_HOLD = 0.4
 export const STRAIN_DECAY = 0.25
-// Boost: hold to burn, let go to refill.
-export const BOOST_TOP = 1.18
-export const BOOST_BURN = 1 / 2
-export const BOOST_FILL = 1 / 8
-export const BOOST_MIN = 0.15
-export const BOOST_DELAY = 0.5
-export const BOOST_START = 0.5
+// Boost: one tap spends the whole meter at once for a burst that is longer the fuller the meter was.
+// The meter starts empty and fills from exactly two things: a near miss with traffic and a slipstream.
+export const BOOST_TOP = 1.25
+export const BOOST_SECS = 2.6
+export const BOOST_MIN = 0.12
+export const BOOST_START = 0
+export const BOOST_BUFFER = 0.15
+// Near miss: pass a traffic vehicle without touching it. A car is hit inside CAR_HIT_X of its centre
+// and CAR_HIT_Z along the road; a near miss is the closest approach in the band just outside that.
+export const CAR_HIT_X = 0.235
+export const CAR_HIT_Z = 300
+export const NEAR_MISS_X = 0.36
+export const NEAR_MISS_FILL = 0.2
 // Catch-up remount: only for a rider who falls with someone ahead of them.
 export const DOWN_T_BEHIND = 1.2
 export const CATCHUP_MAX = 6
@@ -60,6 +70,13 @@ export const REMOUNT_SPD = 0.28
 export const REMOUNT_SPD_BEHIND = 0.55
 export const SLIPSTREAM_TOP = 1.1
 export const SLIPSTREAM_AFTER = 0.5
+// Slipstream: the wake is a cone behind a riding opponent, narrow at their tail and wider further back.
+// Stay in it for SLIPSTREAM_AFTER seconds and the meter fills at SLIP_FILL a second while you remain.
+export const SLIP_Z_MIN = 150
+export const SLIP_Z_MAX = 1000
+export const SLIP_X_NEAR = 0.1
+export const SLIP_X_FAR = 0.2
+export const SLIP_FILL = 0.2
 // Race flow.
 export const COUNTDOWN = 3.2
 export const RACE_END_AFTER_FIRST = 20
@@ -208,7 +225,7 @@ function newRider(i, desc, slot, tune) {
     kickCount: 0, buf: null,
     base: tune.base, aggr: tune.aggr, tx: GRID_X[slot % 4], think: 0, hunt: 0, flash: 0,
     mark: -1, lastDownBy: -1, lastHitBy: -1, hitGuard: 0, paybacks: 0, finishedAt: 0,
-    strain: 0, strainT: 0, boost: BOOST_START, boosting: false, boostT: 0, burn: false,
+    strain: 0, strainT: 0, boost: BOOST_START, boosting: false, boostT: 0, boostLen: 0, bbuf: 0, wantBoost: false, oil: 0, oilPh: 0, nm: {},
     cu: 0, cuTarget: -1, cuGap: 0, rec: 0, recV: 0, sq: 0, susp: 0, suspV: 0, slope: 0, brk: false, look: 0,
     // Ghost bookkeeping (only used while `local` is false).
     seenKick: 0, seenDown: 0, netAt: 0, netState: 0, netLean: 0, netCu: 0,
@@ -255,6 +272,34 @@ export function kickTarget(world, r, side) {
   return world.riders.filter((q) => inReach(r, q, side)).sort((a, b) => Math.abs(a.z - r.z) - Math.abs(b.z - r.z))[0] ?? null
 }
 
+/** True when `r` sits in the wake of `o`: behind a riding opponent, close, inside the cone. */
+export function inWake(r, o) {
+  if (o === r || o.state !== 'ride' || o.done) return false
+  const dz = o.z - r.z
+  if (dz < SLIP_Z_MIN || dz > SLIP_Z_MAX) return false
+  const half = SLIP_X_NEAR + (SLIP_X_FAR - SLIP_X_NEAR) * ((dz - SLIP_Z_MIN) / (SLIP_Z_MAX - SLIP_Z_MIN))
+  return Math.abs(o.x - r.x) <= half
+}
+
+/** The only ways the boost meter grows: a near miss and a slipstream. */
+function fillBoost(r, amount) {
+  r.boost = Math.min(1, r.boost + amount)
+}
+
+/**
+ * One tap: spend the whole meter on a burst. Its length is the meter times BOOST_SECS, so a
+ * fuller meter lasts longer and the meter reads empty at once. Not while down, finished,
+ * already bursting or under BOOST_MIN.
+ */
+export function tryBoost(world, r) {
+  if (r.state !== 'ride' || r.done || r.boosting || r.boost < BOOST_MIN) return false
+  r.boostLen = r.boostT = r.boost * BOOST_SECS
+  r.boost = 0
+  r.boosting = true
+  world.events.push({ t: 'boost', by: r.i, secs: r.boostLen })
+  return true
+}
+
 export function tryKick(world, r, side) {
   if (r.cd > 0 || r.state !== 'ride' || r.stag > 0 || r.done) return false
   r.kickT = KICK_T; r.kickSide = side; r.kicked = false; r.cd = KICK_CD
@@ -268,7 +313,7 @@ export function knockOff(world, r, why, by = -1) {
   r.cuTarget = lead ? lead.i : -1
   r.cuGap = lead ? lead.z - r.z : 0
   r.cu = 0
-  r.boosting = false; r.strain = 0
+  r.boosting = false; r.boostT = 0; r.oil = 0; r.nm = {}; r.strain = 0
   r.state = 'down'
   r.t = r.tMax = lead ? DOWN_T_BEHIND : DOWN_T
   r.offs++
@@ -339,8 +384,8 @@ function botDrive(world, r) {
     const o = riders.find((q) => inReach(r, q, side))
     if (o && r.strain < 0.55 && world.rng() < (o.bot ? 0.9 : 0.85) * r.aggr * DT) tryKick(world, r, side)
   }
-  if (!r.burn && r.boost > 0.9 && Math.abs(segAt(world.track, r.z).curve) < 1.2 && riders.some((o) => o.z > r.z && o.z - r.z < 6000)) r.burn = true
-  if (r.burn && r.boost < 0.15) r.burn = false
+  // A bot taps boost once the meter is half full, on a straight, with someone to chase.
+  if (!r.boosting && r.boost >= 0.5 && Math.abs(segAt(world.track, r.z).curve) < 1.2 && riders.some((o) => o.z > r.z && o.z - r.z < 6000)) r.wantBoost = true
   return clamp((r.tx - r.x) * 7, -1, 1)
 }
 
@@ -380,16 +425,27 @@ function stepRider(world, r, input) {
       if (tryKick(world, r, r.buf.side)) r.buf = null
       else { r.buf.t -= DT; if (r.buf.t <= 0) r.buf = null }
     }
+    if (input?.boost) r.bbuf = BOOST_BUFFER
+  }
+  if (r.oil > 0) {
+    // The wander: a sway that fades with the slick.
+    r.oilPh += DT * 17
+    steer = clamp(steer * 0.75 + Math.sin(r.oilPh) * OIL_WOBBLE * Math.min(1, r.oil / 0.4), -1, 1)
+    r.oil = Math.max(0, r.oil - DT)
   }
   if (r.stag > 0) { r.stag -= DT; steer *= 0.35 }
   if (r.strainT > 0) r.strainT -= DT; else r.strain = Math.max(0, r.strain - STRAIN_DECAY * DT)
   steer *= 1 - 0.4 * Math.min(1, r.strain)
-  const want = !r.done && (r.bot ? r.burn : !!input?.boost)
-  const was = r.boosting
-  r.boosting = want && r.stag <= 0 && (was ? r.boost > 0 : r.boost >= BOOST_MIN)
-  if (r.boosting) { r.boost = Math.max(0, r.boost - BOOST_BURN * DT); r.boostT = BOOST_DELAY; if (!was) world.events.push({ t: 'boost', by: r.i }) }
-  else if (r.boostT > 0) r.boostT -= DT
-  else r.boost = Math.min(1, r.boost + BOOST_FILL * DT)
+  // Boost: one tap spends the whole meter. A tap during the stagger is held for a moment, like a kick.
+  if (r.bot) { if (r.wantBoost) { tryBoost(world, r); r.wantBoost = false } }
+  else if (r.bbuf > 0) {
+    if (r.stag <= 0 && tryBoost(world, r)) r.bbuf = 0
+    else {
+      r.bbuf -= DT
+      if (r.bbuf <= 0 && r.boost < BOOST_MIN && !r.boosting && !r.done) world.events.push({ t: 'boostdry', to: r.i })
+    }
+  }
+  if (r.boosting) { r.boostT -= DT; if (r.boostT <= 0) { r.boosting = false; r.boostT = 0 } }
   // Body springs: a hit rocks the rider and settles; crests and dips load the suspension.
   r.recV += (-r.rec * 170 - r.recV * 8) * DT; r.rec += r.recV * DT; r.sq *= Math.exp(-9 * DT)
   const slope = (s.y2 - s.y1) / SEG
@@ -397,9 +453,10 @@ function stepRider(world, r, input) {
   r.suspV += (-r.susp * 130 - r.suspV * 11) * DT; r.susp = clamp(r.susp + r.suspV * DT, -7, 7)
   r.look = lerp(r.look, r.kickT > 0 ? r.kickSide : steer * 0.5, 1 - Math.exp(-12 * DT))
   r.lean = lerp(r.lean, steer, 1 - Math.exp(-10 * DT))
-  // Slipstream: sit in another rider's wake to charge a boost.
-  const lead = world.riders.find((o) => o !== r && o.state === 'ride' && o.z - r.z > 150 && o.z - r.z < 1500 && Math.abs(o.x - r.x) < 0.15)
+  // Slipstream: sit in another rider's wake for a moment and it charges the meter while you stay.
+  const lead = world.riders.find((o) => inWake(r, o))
   r.draft = clamp(r.draft + (lead ? DT : -2 * DT), 0, 1.2)
+  if (lead && r.draft > SLIPSTREAM_AFTER && !r.boosting && !r.done) fillBoost(r, SLIP_FILL * DT)
   let top = r.base
   if (r.bot && !r.done) {
     const focus = humanFocus(world)
@@ -413,6 +470,7 @@ function stepRider(world, r, input) {
     if (!L || L.z - r.z <= r.cuGap || r.done) r.cu = 0
     else top *= CATCHUP_TOP
   }
+  if (r.oil > 0) top *= lerp(1, OIL_TOP, Math.min(1, r.oil / 0.3))
   if (Math.abs(r.x) > 1) top = Math.min(top, 0.42)
   if (r.done) top = 0.3
   const target = top * MAXSPD
@@ -424,12 +482,12 @@ function stepRider(world, r, input) {
   r.x = clamp(r.x, -MAX_X, MAX_X)
   const zi = Math.floor(r.z / SEG)
   r.z += r.speed * DT
-  // Oil: a wobble, never a pip.
+  // Oil: slows you and makes the bike wander for a moment, never a pip.
   if (Math.floor(r.z / SEG) !== zi && r.shield <= 0) {
     for (const q of segAt(track, r.z).spr) {
       if (q.k === 'oil' && Math.abs(q.x - r.x) < 0.15) {
-        r.stag = OIL_STAGGER; r.vx += (world.rng() < 0.5 ? -1 : 1) * 0.9; r.recV += (world.rng() - 0.5) * 12
-        world.events.push({ t: 'oil', to: r.i })
+        if (r.oil <= 0.3) { r.speed *= OIL_GRAB; world.events.push({ t: 'oil', to: r.i }) }
+        r.oil = OIL_T; r.vx += (world.rng() < 0.5 ? -1 : 1) * 0.6; r.recV += (world.rng() - 0.5) * 12
       }
     }
   }
@@ -458,10 +516,24 @@ function stepRider(world, r, input) {
   }
   r.sinceHit += DT
   if (r.pips < PIPS && r.sinceHit > PIP_REGEN) { r.pips++; r.sinceHit = 0 }
-  // Traffic.
-  if (r.shield <= 0 && r.state === 'ride') {
-    for (const c of world.cars) {
-      if (Math.abs(c.z - r.z) < 300 && Math.abs(c.x - r.x) < 0.235) { r.vx = (Math.sign(r.x - c.x) || 1) * 0.7; knockOff(world, r, 'car'); break }
+  // Traffic: a hit knocks you off; passing one without touching it, close, earns boost.
+  if (r.state === 'ride') {
+    const cars = world.cars
+    for (let ci = 0; ci < cars.length; ci++) {
+      const c = cars[ci]
+      const dx = Math.abs(c.x - r.x)
+      if (Math.abs(c.z - r.z) < CAR_HIT_Z) {
+        if (r.shield > 0 || r.done) continue
+        if (dx < CAR_HIT_X) { r.vx = (Math.sign(r.x - c.x) || 1) * 0.7; knockOff(world, r, 'car'); break }
+        r.nm[ci] = Math.min(r.nm[ci] ?? Infinity, dx)
+      } else if (r.nm[ci] !== undefined) {
+        const gap = r.nm[ci]
+        delete r.nm[ci]
+        if (gap <= NEAR_MISS_X && r.speed > c.spd) {
+          fillBoost(r, NEAR_MISS_FILL)
+          world.events.push({ t: 'nearmiss', to: r.i, side: Math.sign(c.x - r.x) || 1, fill: NEAR_MISS_FILL })
+        }
+      }
     }
   }
   if (!r.done && r.z >= track.finish) {
@@ -485,6 +557,8 @@ function stepGhost(world, r) {
   if (r.kickT > 0) r.kickT -= DT
   if (r.state === 'down' && r.t > 0) r.t -= DT
   r.shield = Math.max(0, r.shield - DT)
+  r.oil = Math.max(0, r.oil - DT)
+  r.oilPh += DT * 17
   r.brk = false
 }
 
@@ -521,7 +595,7 @@ export function step(world, inputs = [], dt = DT, clockT = null) {
       }
     }
   }
-  for (const k of Object.keys(inputs)) if (inputs[k]) inputs[k].kick = 0
+  for (const k of Object.keys(inputs)) if (inputs[k]) { inputs[k].kick = 0; inputs[k].boost = false }
   if (world.phase === 'race' && raceShouldEnd(world)) { world.phase = 'finishing'; world.countT = FINISH_GRACE }
   if (world.phase === 'finishing') {
     world.countT -= DT
@@ -568,7 +642,7 @@ export function encodeRider(r, serverMs) {
   return {
     z: Math.round(r.z), x: Math.round(r.x * 1000), v: Math.round((r.speed / MAXSPD) * 1000),
     s: r.state === 'down' ? 1 : 0, ln: Math.round(clamp(r.lean, -1, 1) * 100),
-    pp: r.pips, bo: r.boosting ? 1 : 0, sh: r.shield > 0 ? 1 : 0, sg: r.stag > 0 ? 1 : 0, cu: r.cu > 0 ? 1 : 0,
+    pp: r.pips, bo: r.boosting ? 1 : 0, sh: r.shield > 0 ? 1 : 0, sg: r.stag > 0 ? 1 : 0, cu: r.cu > 0 ? 1 : 0, ol: r.oil > 0 ? 1 : 0, bm: Math.round(clamp(r.boost, 0, 1) * 100),
     kn: r.kickCount, ks: r.kickSide > 0 ? 1 : 0, dn: r.offs, dw: r.lastDownBy + 1,
     hk: r.hits, pb: r.paybacks, fin: r.done ? Math.max(1, Math.round(r.time * 1000)) : 0,
     at: Math.round(serverMs),
@@ -584,7 +658,7 @@ export function decodeRider(raw) {
   return {
     z: num(raw.z, 0, 1e7), x: num(raw.x, -2000, 2000) / 1000, v: num(raw.v, 0, 1400) / 1000,
     s: raw.s === 1 || raw.s === '1' ? 1 : 0, ln: num(raw.ln, -100, 100) / 100,
-    pp: Math.round(num(raw.pp, 0, PIPS, PIPS)), bo: raw.bo ? 1 : 0, sh: raw.sh ? 1 : 0, sg: raw.sg ? 1 : 0, cu: raw.cu ? 1 : 0,
+    pp: Math.round(num(raw.pp, 0, PIPS, PIPS)), bo: raw.bo ? 1 : 0, sh: raw.sh ? 1 : 0, sg: raw.sg ? 1 : 0, cu: raw.cu ? 1 : 0, ol: raw.ol ? 1 : 0, bm: Math.round(num(raw.bm, 0, 100)) / 100,
     kn: Math.round(num(raw.kn, 0, 9999)), ks: raw.ks ? 1 : 0, dn: Math.round(num(raw.dn, 0, 9999)), dw: Math.round(num(raw.dw, 0, RIDERS)),
     hk: Math.round(num(raw.hk, 0, 9999)), pb: Math.round(num(raw.pb, 0, 99)), fin: Math.round(num(raw.fin, 0, 1e7)),
     at: num(raw.at, 0, 1e15),
@@ -612,6 +686,7 @@ export function applyGhost(world, r, snap, nowMs, meIdx = -1) {
   r.stag = snap.sg ? 0.3 : 0
   r.shield = snap.sh ? Math.max(r.shield, 0.2) : 0
   r.boosting = !!snap.bo
+  r.oil = snap.ol ? Math.max(r.oil, 0.3) : 0
   r.cu = snap.cu ? 1 : 0
   r.pips = snap.pp
   r.hits = snap.hk; r.paybacks = snap.pb

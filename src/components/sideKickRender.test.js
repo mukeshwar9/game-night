@@ -82,7 +82,9 @@ async function rendererFor(themeId) {
 function staged(world) {
   const [a, b, c, d] = world.riders
   tryKick(world, a, 1)
-  b.stag = 0.4; b.boosting = true; b.boost = 0.4
+  b.stag = 0.4; b.boosting = true; b.boost = 0.4; b.boostLen = 2; b.boostT = 1
+  b.oil = 0.9
+  b.x = a.x + 0.25; b.z = a.z // level with the player, one lane over: in kick reach for the first-person cue
   c.shield = 1
   knockOff(world, d, 'car')
   d.t = d.tMax * 0.5
@@ -98,10 +100,33 @@ describe('the road scene', () => {
     for (let i = 0; i < 240; i++) {
       step(world, { 0: { steer: i % 120 < 60 ? 1 : -1, kick: i % 50 === 0 ? 1 : 0, boost: i % 90 < 30 } }, DT)
       for (const ev of world.events.splice(0)) r.event(ev, world, 0)
-      if (!r.tickHitStop(DT)) r.draw(world, 0, DT, { pixel: i % 2 === 0, avatars: i < 200, reduced: i % 3 === 0 })
+      if (!r.tickHitStop(DT)) r.draw(world, 0, DT, { pixel: i % 2 === 0, avatars: i < 200, reduced: i % 3 === 0, camera: i % 4 < 2 ? 'first' : 'chase' })
     }
     expect(calls).toBeGreaterThan(5000)
     expect(r.ready).toBe(true)
+    r.dispose()
+  })
+
+  it.each(['glass', 'glass-night', 'synthwave', 'mono', 'phosphor', 'shoreline'])('%s: the first-person view draws the cockpit, the kick cue, boost and oil', async (id) => {
+    const r = await rendererFor(id)
+    const world = createWorld({ riders: riders(), phase: 'race', trackId: TRACK_ORDER[1] })
+    staged(world)
+    const me = world.riders[0]
+    me.boost = 0.7; me.oil = 0.8
+    r.event({ t: 'boost', by: 0 }, world, 0)
+    r.event({ t: 'nearmiss', to: 0, side: -1, fill: 0.2 }, world, 0)
+    r.event({ t: 'oil', to: 0 }, world, 0)
+    calls = 0
+    for (let i = 0; i < 180; i++) {
+      step(world, { 0: { steer: i % 60 < 30 ? 1 : -1, kick: i % 45 === 0 ? (i % 90 ? 1 : -1) : 0 } }, DT)
+      for (const ev of world.events.splice(0)) r.event(ev, world, 0)
+      if (i === 90) { me.boosting = true; me.boostLen = 2; me.boostT = 1.5 }
+      if (!r.tickHitStop(DT)) r.draw(world, 0, DT, { camera: 'first', avatars: i % 2 === 0, pixel: i % 5 === 0, reduced: i === 100 })
+    }
+    expect(calls).toBeGreaterThan(5000)
+    // Back to the chase view mid-race without a hiccup.
+    r.draw(world, 0, DT, { camera: 'chase' })
+    r.draw(world, 0, DT, { camera: 'first' })
     r.dispose()
   })
 

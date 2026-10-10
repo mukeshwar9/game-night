@@ -1,6 +1,8 @@
 import { cn } from '@/lib/utils'
 import { SideKickArena, SideKickHud, SideKickPad } from './SideKickBoard'
 import { ordinal } from '../hooks/useSideKickRun'
+import { useSideKickPrefs } from '../hooks/useSideKickPrefs'
+import { EnableTiltButton } from './SideKickPrefs'
 
 /**
  * The whole play surface: road, HUD chips and thumb pad. Used by the solo page
@@ -14,15 +16,18 @@ import { ordinal } from '../hooks/useSideKickRun'
  * the road (race x of 3, track name); `hideHud` clears the chips behind a setup sheet.
  */
 export default function SideKickPlay({ run, controls, avatars, enabled = true, cover = null, status = null, hideHud = false, className }) {
+  const [prefs, setPrefs] = useSideKickPrefs()
+  const toggleCamera = () => setPrefs({ cam: prefs.cam === 'first' ? 'chase' : 'first' })
   return (
     <div className={cn('space-y-2', className)}>
       <p className="min-w-0 truncate pr-9 font-pixel text-[9px] text-retro-dim tracking-wider">{status}</p>
       <div className="space-y-2">
         <SideKickArena rendererRef={run.rendererRef} avatars={avatars}>
-          {!hideHud && <SideKickHud hud={run.hud} toast={run.toast} ordinalOf={ordinal} />}
+          {!hideHud && <SideKickHud hud={run.hud} toast={run.toast} ordinalOf={ordinal} camera={prefs.cam} onCamera={toggleCamera} />}
           {cover}
         </SideKickArena>
-        <SideKickPad bind={controls.bind} hud={run.hud} enabled={enabled} />
+        <EnableTiltButton className="w-full" />
+        <SideKickPad bind={controls.bind} hud={run.hud} enabled={enabled} tilt={controls.tilt} />
       </div>
     </div>
   )
