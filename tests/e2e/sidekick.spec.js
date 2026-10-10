@@ -90,14 +90,14 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
 
   await test.step('a kick Alice sends to Bob is applied on Bob\'s phone', async () => {
     // A kick only counts from a rider who is level with the victim (as a real one is), so send it
-    // while both are riding within a bike length or two of each other: the first seconds after GO.
+    // while both are riding within a bike length or two of each other, and a lane or two across (the victim's phone refuses a kick from nowhere near): the first seconds after GO.
     const stats = async () => (await readRoom(alice.page.url())).round.stats[rid]
     let landed = false
     for (let n = 901; n < 960 && !landed; n++) {
       const all = await stats()
       const a = all[aliceUid]
       const b = all[bobUid]
-      if (!a || !b || a.s || b.s || b.sh || Math.abs(a.z - b.z) > 650) { await alice.page.waitForTimeout(100); continue }
+      if (!a || !b || a.s || b.s || b.sh || Math.abs(a.z - b.z) > 650 || Math.abs(a.x - b.x) > 700) { await alice.page.waitForTimeout(100); continue }
       await patch(alice.page.url(), `/round/stats/${rid}/${aliceUid}/k`, { [n]: `${bobUid}|1` })
       for (let t = 0; t < 8 && !landed; t++) {
         await alice.page.waitForTimeout(150)
