@@ -111,7 +111,7 @@ export default function BonkBuggiesDemo() {
       </div>
       <BonkArena getView={getView} fx={fx} label="Two dune buggies on a rocky island: bonk the other helmet">
         <BonkBanner banner={hud.banner} />
-        <BonkPickSheet pick={hud.pick} name={hud.pick ? names[SEATS[hud.pick.by]] : ''} mine={picker} onPick={onPick} />
+        <BonkPickSheet pick={hud.pick} name={hud.pick ? names[SEATS[hud.pick.by]] : ''} mine={picker} you={!two && picker} onPick={onPick} />
       </BonkArena>
 
       <div className="flex gap-3">

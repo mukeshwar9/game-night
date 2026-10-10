@@ -203,6 +203,7 @@ export function createPainter(canvas) {
         let on = false
         for (const p of s.pts) {
           if (p[1] < 2.2) { if (!on) { ctx.moveTo(p[0], p[1] - 0.03); on = true } else ctx.lineTo(p[0], p[1] - 0.03) }
+          else on = false   // a new stretch starts a new line: no moss across the open drum
         }
         ctx.strokeStyle = rgb(pal.moss); ctx.lineWidth = 0.13; ctx.lineCap = 'round'; ctx.stroke()
         return

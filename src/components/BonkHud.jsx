@@ -65,7 +65,10 @@ export function BonkBanner({ banner }) {
   if (!banner) return null
   const tone = banner.kind === 'ko' ? 'text-retro-cta text-glow-cta' : banner.kind === 'go' ? 'text-retro-win text-glow-win' : 'text-retro-text'
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-live="polite">
+    <div
+      className={cn('absolute inset-0 flex justify-center pointer-events-none', banner.kind === 'ko' ? 'items-start pt-3' : 'items-center')}
+      aria-live="polite"
+    >
       <div key={`${banner.kind}-${banner.big}`} className="bonk-stamp text-center">
         <p className={cn('font-pixel text-3xl leading-none drop-shadow', tone)}>{banner.big}</p>
         {banner.small && <p className="mt-2 font-pixel text-[9px] text-retro-text bg-retro-bg/70 rounded px-2 py-0.5 inline-block">{banner.small}</p>}
@@ -82,13 +85,16 @@ function ArenaThumb({ id }) {
   return <canvas ref={ref} width={160} height={72} className="w-full h-auto rounded border border-retro-border block" aria-hidden="true" />
 }
 
-/** The loser's two cards. `mine` = this screen's player is choosing. */
-export function BonkPickSheet({ pick, name, mine, onPick }) {
+/**
+ * The loser's two cards. `mine`: the cards can be tapped on this screen.
+ * `you`: the loser is the player holding this screen (not true on a shared phone).
+ */
+export function BonkPickSheet({ pick, name, mine, you = mine, onPick }) {
   if (!pick) return null
   return (
     <div className="absolute inset-0 bg-retro-bg/75 flex flex-col items-center justify-center gap-2 p-3" data-testid="bonk-pick">
       <p className="font-pixel text-[9px] text-retro-text text-center">
-        {mine ? 'YOU LOST THAT ONE: PICK THE NEXT ARENA' : `${name} PICKS THE NEXT ARENA`}
+        {you ? 'YOU LOST THAT ONE: PICK THE NEXT ARENA' : mine ? `${name} LOST: PICK THE NEXT ARENA` : `${name} PICKS THE NEXT ARENA`}
       </p>
       <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
         {pick.options.map((id) => {
