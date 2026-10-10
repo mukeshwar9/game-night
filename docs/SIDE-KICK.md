@@ -16,7 +16,7 @@ Night's own game with its own name, art, tracks and rules, and nothing is copied
 | Scene colours derived from the `--c-*` theme tokens (every theme is tested) | `src/lib/sideKickPalette.js` (+ `.test.js`) |
 | The road scene on a canvas: lit, shaded, animated; riders are the players' avatars from behind | `src/components/sideKickRender.js` |
 | Canvas + glass HUD + thumb pad | `src/components/SideKickBoard.jsx`, `sideKickSeats.js` |
-| The play surface with the shared full-screen mode (`FocusStage`) | `src/components/SideKickPlay.jsx` |
+| The play surface; full screen is the shared `FocusFrame` (registry `focusPage: true`: room header button and the `/solo` corner button) | `src/components/SideKickPlay.jsx` |
 | Frame loop: fixed 60 Hz step, renderer, sounds, HUD snapshot | `src/hooks/useSideKickRun.js` |
 | Touch and keyboard controls | `src/hooks/useSideKickControls.js` |
 | Sounds | `src/lib/sideKickSound.js`, `sideKick*` in `src/lib/sounds.js` |

@@ -3,7 +3,6 @@ import SideKickPlay from '../components/SideKickPlay'
 import Avatar from '../components/Avatar'
 import useSideKickRun, { ordinal } from '../hooks/useSideKickRun'
 import { useSideKickControls } from '../hooks/useSideKickControls'
-import useFocusMode from '../hooks/useFocusMode'
 import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import {
@@ -82,7 +81,6 @@ export default function SideKickDemo() {
   useEffect(() => { avatarsRef.current = avatars })
 
   const controls = useSideKickControls({ enabled: phase === 'racing' })
-  const focus = useFocusMode()
   const setPhaseBoth = useCallback((p) => { phaseRef.current = p; setPhase(p) }, [])
 
   const attract = useCallback(() => {
@@ -232,7 +230,7 @@ export default function SideKickDemo() {
 
   return (
     <div className="mx-auto w-full max-w-sm">
-      <SideKickPlay run={run} controls={controls} focus={focus} avatars={avatars} enabled={phase === 'racing'} cover={cover} status={status} hideHud={phase === 'idle'} />
+      <SideKickPlay run={run} controls={controls} avatars={avatars} enabled={phase === 'racing'} cover={cover} status={status} hideHud={phase === 'idle'} />
       <p className="mt-2 text-center font-pixel text-[7px] leading-relaxed text-retro-dim">
         HOLD STEER · TAP KICK L / R · HOLD BOOST · KEYS ← → A D SPACE
       </p>

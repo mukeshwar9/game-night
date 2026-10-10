@@ -7,7 +7,6 @@ import SideKickPlay from '../components/SideKickPlay'
 import Avatar from '../components/Avatar'
 import useSideKickRun, { ordinal } from '../hooks/useSideKickRun'
 import { useSideKickControls } from '../hooks/useSideKickControls'
-import useFocusMode from '../hooks/useFocusMode'
 import { getServerNow } from '../hooks/useServerClock'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { defaultAvatarForId } from '../lib/avatarKit'
@@ -114,7 +113,6 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
   }, [round.id, rosterKey])
 
   const controls = useSideKickControls({ enabled: racing })
-  const focus = useFocusMode()
 
   const write = (id, patch) => {
     const L = live.current
@@ -198,7 +196,7 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
   if (view < 0) return null
   return (
     <div className="mx-auto w-full max-w-sm">
-      <SideKickPlay run={run} controls={controls} focus={focus} avatars={avatars} enabled={racing && !finished} cover={cover} status={status} />
+      <SideKickPlay run={run} controls={controls} avatars={avatars} enabled={racing && !finished} cover={cover} status={status} />
     </div>
   )
 }
