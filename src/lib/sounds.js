@@ -360,6 +360,28 @@ export const sounds = {
     seq([[90, 0, 0.18, 'triangle', 0.12]])
     vibrate(30)
   },
+  // First Cut: the katana's swish, the chop through a fruit, the blade stopping
+  // dead on a twin, an item landing on the plate, a gold fruit, a new rule card
+  // and the countdown tick. Mute, volume and native haptics flow through seq/noise.
+  cutSwish: () => { try { noise(ctx().currentTime, 0.15, 0.09, 2400) } catch { /* audio unavailable */ } vibrate(5) },
+  cutChop: () => {
+    try {
+      const t = ctx().currentTime
+      noise(t, 0.08, 0.13, 900)
+      noise(t + 0.03, 0.1, 0.05, 3200)
+    } catch { /* audio unavailable */ }
+    seq([[170, 0, 0.09, 'triangle', 0.14], [70, 0.02, 0.12, 'sawtooth', 0.08]])
+    vibrate(16)
+  },
+  cutClang: () => {
+    try { noise(ctx().currentTime, 0.03, 0.08, 3200) } catch { /* audio unavailable */ }
+    seq([[1870, 0, 0.32, 'triangle', 0.05], [2890, 0, 0.24, 'triangle', 0.04], [4120, 0, 0.16, 'triangle', 0.03]])
+    vibrate([0, 24, 40, 24])
+  },
+  cutLand: () => { seq([[220, 0, 0.05, 'triangle', 0.06], [150, 0.02, 0.07, 'triangle', 0.05]]) },
+  cutGold: () => { seq([[784, 0, 0.07, 'triangle', 0.1], [1047, 0.06, 0.07, 'triangle', 0.1], [1568, 0.12, 0.16, 'triangle', 0.09]]); vibrate([0, 10, 20, 18]) },
+  cutRule: () => { seq([[660, 0, 0.05, 'square', 0.07], [880, 0.07, 0.05, 'square', 0.07], [1175, 0.14, 0.09, 'square', 0.07]]) },
+  cutTick: (hi = false) => { seq([[hi ? 880 : 520, 0, 0.07, 'square', 0.07]]); vibrate(hi ? 18 : 6) },
   // Soft two-note pop — default emoji reaction audio (haptics via reaction())
   emote: () => emoteAudio(),
   // Breathy descending hiss — shh reaction audio (haptics via reaction())

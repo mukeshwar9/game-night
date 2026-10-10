@@ -205,6 +205,19 @@ export const GAME_RULES = {
     win: 'Everyone gets the same stack. The most crates when the clock stops wins the round; first to 3 round wins takes the match. 2 to 8 players.',
   },
 
+  firstcut: {
+    objective: 'Cut the fruit before anyone else, and leave the lookalikes alone. First to 10 cuts wins.',
+    howToPlay: [
+      'One item sits on the plate at a time: a fruit, or a round lookalike in the same colours (melon and beach ball, orange and hoop ball, apple and bauble, lemon and tennis ball).',
+      'Tap your pad while a fruit shows and your katana swings through it. The fastest tap takes the fruit and scores 1.',
+      'Tap a lookalike and the blade stops dead at its edge. It does not cut, and it lifts back slowly, so you also miss the next item. A blocked katana ignores taps.',
+      'On the slow pace each item stays between 1.2 and 1.9 seconds.',
+      'RULE FLIP (optional): a card by the plate says what counts (any fruit, citrus only, no citrus, red or green fruit) and changes every 6 items.',
+      'GOLD & ROTTEN (optional): gold fruit is worth 3 and leaves in under a second. A rotten fruit costs you 1 point and blocks your katana. 3 or more points behind: you are freed sooner.',
+    ],
+    win: 'On one phone (2 to 4 players) or against bots, first to 10 cuts wins the game. Online (2 to 8 players), first to 5 cuts takes the round and first to 3 round wins takes the match.',
+  },
+
   pulprush: {
     objective: 'Slice more produce than everyone else in 45 seconds (2–8 players).',
     howToPlay: [

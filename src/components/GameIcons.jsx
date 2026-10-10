@@ -750,6 +750,16 @@ export function ChopChopIcon() {
   )
 }
 
+export function FirstCutIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="13" r="7" stroke="currentColor" strokeWidth="2" />
+      <path d="M9 6c0-2 1-3 3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+      <path d="M3 21L21 3" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" />
+    </svg>
+  )
+}
+
 export function FaceOffIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

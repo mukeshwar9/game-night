@@ -35,6 +35,9 @@ import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS 
 import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
 import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
+import {
+  FC_FLIP_EVERY, FC_GOLD_MS, FC_GOLD_POINTS, FC_ONLINE_TARGET, FC_PACES, FC_ROTTEN_PENALTY, FC_TARGET, FC_UNDERDOG_GAP,
+} from './firstCutLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
   BOXES as YACHT_BOXES, ROLLS_PER_TURN as YACHT_ROLLS, UPPER_BONUS, UPPER_BONUS_AT,
@@ -205,6 +208,13 @@ const RULE_NUMBERS = {
   aim: () => ({ checks: [[30, secs(AIM_GAME_MS)], ...players('aim', 2, 8), [3, RACE_MATCH_WINS]] }),
   chopchop: () => ({
     checks: [[30, secs(CHOP_GAME_MS)], [1, secs(CHOP_STUN_MS)], [10, CHOP_WARN_CRATES], [3, RACE_MATCH_WINS], ...players('chopchop', 2, 8)],
+  }),
+  firstcut: () => ({
+    checks: [
+      [10, FC_TARGET], [1, FC_ROTTEN_PENALTY], [1.2, secs(FC_PACES.slow.min)], [1.9, secs(FC_PACES.slow.max)],
+      [6, FC_FLIP_EVERY], [3, FC_GOLD_POINTS], [3, FC_UNDERDOG_GAP], [5, FC_ONLINE_TARGET], [3, RACE_MATCH_WINS],
+      ...players('firstcut', 2, 8), [4, cfg('firstcut').localMaxPlayers],
+    ],
   }),
   pulprush: () => ({
     checks: [[45, secs(DUEL_MS)], ...players('pulprush', 2, 8), [5, ROT_PENALTY], [3, RACE_MATCH_WINS], [1, secs(STUN_MS)]],
@@ -552,6 +562,10 @@ describe('HOW TO PLAY rules match the code', () => {
   it('math offers the 60/120/180-second clocks', () => {
     const src = readFileSync(new URL('./mathLogic.js', import.meta.url), 'utf8')
     expect(src).toMatch(/const DURATIONS = \[60, 120, 180\]/)
+  })
+
+  it('first cut: a gold fruit leaves in under a second', () => {
+    expect(FC_GOLD_MS).toBeLessThan(1000)
   })
 
   it('minigolf water costs one extra stroke', () => {

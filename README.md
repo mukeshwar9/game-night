@@ -57,6 +57,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Chop Chop** — knock out crates, dodge the beams *(2–8 players)*
 - **Steady Hand** — hold, aim, let go: race to zero or own the board *(2–4 players, solo vs a bot)*
 - **Lazy Susan** — tap when the food reaches your gate *(2–4 players)*
+- **First Cut** — cut the fruit, leave the lookalikes *(2–8 players, 2–4 on one phone)*
 - **Artillery** — angle, power, bracket
 
 ### Memory (5)

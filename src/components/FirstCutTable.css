@@ -1,0 +1,223 @@
+/* First Cut table. Every surface reads the theme's own --c-* tokens, so the
+   table takes the look of whichever theme the player already picked. Only the
+   fruit and the blade steel are fixed (see FirstCutSprites.jsx).
+
+   Two motion grammars, per .claude/rules/motion-rules.md: what the finger
+   moves (the pads) uses the press spring and 80 ms press-in; what the game
+   announces (the drop, the cut halves, the stopped blade, the card flash) may
+   use stepped or keyed keyframes. Only transform and opacity animate. */
+
+.fc-arena {
+  position: relative; width: 100%; max-width: 380px; aspect-ratio: 9 / 15.5; margin: 0 auto; border-radius: 28px; overflow: hidden;
+  touch-action: none; user-select: none; -webkit-user-select: none; container-type: inline-size;
+  background: rgb(var(--c-surface));
+  border: 1px solid rgb(var(--c-border));
+  box-shadow: 0 18px 40px rgb(0 0 0 / .3), 0 0 calc(var(--glow, 0) * 26px) rgb(var(--c-p1) / .35);
+  font-family: var(--font-pixel);
+}
+.fc-arena.fc-short { aspect-ratio: 9 / 13; }
+[data-theme^="glass"] .fc-arena {
+  background:
+    radial-gradient(60% 40% at 20% 12%, rgb(var(--c-art-1) / .8), transparent 70%),
+    radial-gradient(60% 40% at 82% 88%, rgb(var(--c-art-2) / .8), transparent 70%),
+    radial-gradient(50% 36% at 84% 16%, rgb(var(--c-art-4) / .65), transparent 70%),
+    radial-gradient(50% 36% at 16% 84%, rgb(var(--c-art-3) / .65), transparent 70%),
+    rgb(var(--c-surface));
+}
+[data-theme^="glass"] .fc-wood { opacity: .25; }
+.fc-crt { position: absolute; inset: 0; z-index: 6; pointer-events: none; display: var(--crt-overlay, none); background: repeating-linear-gradient(0deg, rgb(0 0 0 / .2) 0 1px, transparent 1px 3px); }
+.fc-arena.fc-shake-a { animation: fc-shake-a 190ms linear; }
+.fc-arena.fc-shake-b { animation: fc-shake-b 190ms linear; }
+.fc-arena.fc-shake-sa { animation: fc-shake-sa 150ms linear; }
+.fc-arena.fc-shake-sb { animation: fc-shake-sb 150ms linear; }
+@keyframes fc-shake-a { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, -1px); } 80% { transform: translate(1px, 1px); } }
+@keyframes fc-shake-b { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, -1px); } 80% { transform: translate(1px, 1px); } }
+@keyframes fc-shake-sa { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(2px, -1px); } 65% { transform: translate(-1px, 1px); } }
+@keyframes fc-shake-sb { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(2px, -1px); } 65% { transform: translate(-1px, 1px); } }
+.fc-wood { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.fc-light {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(70% 46% at 24% 16%, rgb(var(--c-card) / .5), transparent 70%),
+    radial-gradient(120% 80% at 50% 50%, transparent 50%, rgb(0 0 0 / .32) 100%);
+}
+.fc-light::after {
+  content: ''; position: absolute; inset: -30%; background: linear-gradient(115deg, transparent 44%, rgb(var(--c-text) / .07) 50%, transparent 56%);
+  animation: fc-sweep 7.5s ease-in-out infinite;
+}
+@keyframes fc-sweep { 0%, 55% { transform: translateX(-60%); } 100% { transform: translateX(60%); } }
+.fc-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
+
+/* The pads: big slabs on the table edges, one per player. */
+.fc-pads { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.fc-pad {
+  position: absolute; border: 0; margin: 0; font: inherit; color: rgb(var(--pc)); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; padding: 0 0 12px;
+  background-color: rgb(var(--pt) / .88);
+  box-shadow: inset 0 0 0 2px rgb(var(--pc) / .7), inset 0 2px 0 rgb(var(--c-card) / .6), inset 0 -10px 16px rgb(var(--pc) / .14), 0 8px 16px rgb(0 0 0 / .3), 0 0 calc(var(--glow, 0) * 18px) rgb(var(--pc) / .7);
+  border-radius: 20px; transition: transform var(--dur-press) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard);
+  touch-action: none; overflow: hidden; pointer-events: auto; -webkit-tap-highlight-color: transparent;
+}
+.fc-pad:focus-visible { outline: 3px solid rgb(var(--c-cta)); outline-offset: 2px; }
+.fc-pad.fc-top { transform: rotate(180deg); }
+.fc-pad.fc-down { transform: scale(.96); }
+.fc-pad.fc-top.fc-down { transform: rotate(180deg) scale(.96); }
+.fc-pad.fc-nope-a { animation: fc-nope-a 300ms linear; }
+.fc-pad.fc-nope-b { animation: fc-nope-b 300ms linear; }
+.fc-pad.fc-top.fc-nope-a { animation: fc-nope-ta 300ms linear; }
+.fc-pad.fc-top.fc-nope-b { animation: fc-nope-tb 300ms linear; }
+@keyframes fc-nope-a { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 45% { transform: translateX(5px); } 70% { transform: translateX(-3px); } }
+@keyframes fc-nope-b { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 45% { transform: translateX(5px); } 70% { transform: translateX(-3px); } }
+@keyframes fc-nope-ta { 0%, 100% { transform: rotate(180deg) translateX(0); } 20% { transform: rotate(180deg) translateX(-5px); } 45% { transform: rotate(180deg) translateX(5px); } 70% { transform: rotate(180deg) translateX(-3px); } }
+@keyframes fc-nope-tb { 0%, 100% { transform: rotate(180deg) translateX(0); } 20% { transform: rotate(180deg) translateX(-5px); } 45% { transform: rotate(180deg) translateX(5px); } 70% { transform: rotate(180deg) translateX(-3px); } }
+.fc-sc { font-size: 24px; line-height: 1; }
+.fc-sc.fc-bump { animation: fc-bump 420ms var(--spring-pop); }
+@keyframes fc-bump { 0% { transform: scale(1); } 30% { transform: scale(1.7); } 100% { transform: scale(1); } }
+.fc-nm { font-size: 10px; line-height: 1.4; opacity: .9; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-key { font-size: 7px; opacity: .65; }
+.fc-jam {
+  position: absolute; inset: 0; background: rgb(var(--c-danger) / .22); display: none; align-items: flex-start; justify-content: center;
+  padding-top: 8px; font-size: 9px; color: rgb(var(--c-danger));
+}
+.fc-pad.fc-jammed .fc-jam { display: flex; }
+.fc-pad.fc-jammed { opacity: .74; }
+
+/* The plate and what sits on it. */
+.fc-plate {
+  position: absolute; left: 50%; top: 50%; width: 50%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; z-index: 1;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgb(var(--c-structure) / 0) 0 5px, rgb(var(--c-structure) / .16) 5px 6px),
+    radial-gradient(circle at 34% 28%, rgb(var(--c-card)), rgb(var(--c-surface)) 62%, rgb(var(--c-deep)) 100%);
+  box-shadow:
+    inset 0 3px 2px rgb(var(--c-card) / .8), inset 0 -8px 12px rgb(0 0 0 / .22), inset 0 0 0 6px rgb(var(--c-border) / .9),
+    0 3px 0 rgb(var(--c-structure)), 0 5px 0 rgb(var(--c-border)), 10px 18px 26px rgb(0 0 0 / .4), 0 0 calc(var(--glow, 0) * 34px) rgb(var(--c-cta) / .75);
+  display: grid; place-items: center;
+}
+.fc-plate::before { content: ''; position: absolute; inset: 9%; border-radius: 50%; box-shadow: inset 0 2px 4px rgb(0 0 0 / .28), 0 1px 0 rgb(var(--c-card) / .6); }
+.fc-splat {
+  position: absolute; inset: 6%; border-radius: 50%; opacity: 0; pointer-events: none; animation: fc-splat 2600ms ease-out;
+  background:
+    radial-gradient(22% 18% at 30% 36%, rgb(var(--sc) / .7), transparent 100%), radial-gradient(16% 20% at 66% 30%, rgb(var(--sc) / .6), transparent 100%),
+    radial-gradient(24% 18% at 62% 68%, rgb(var(--sc) / .7), transparent 100%), radial-gradient(14% 16% at 34% 70%, rgb(var(--sc) / .55), transparent 100%),
+    radial-gradient(30% 30% at 50% 50%, rgb(var(--sc) / .5), transparent 100%);
+}
+@keyframes fc-splat { 0% { opacity: 0; transform: scale(.5) rotate(var(--sr, 0deg)); } 8% { opacity: 1; transform: scale(1) rotate(var(--sr, 0deg)); } 60% { opacity: .7; } 100% { opacity: 0; transform: scale(1.04) rotate(var(--sr, 0deg)); } }
+.fc-item { position: relative; width: 70%; aspect-ratio: 1; animation: fc-drop 420ms var(--ease-standard); }
+@keyframes fc-drop { 0% { transform: scale(1.5); opacity: 0; } 22% { opacity: 1; } 55% { transform: scale(.93); } 78% { transform: scale(1.035); } 100% { transform: scale(1); } }
+.fc-ishadow {
+  position: absolute; left: 12%; top: 16%; width: 88%; height: 88%; border-radius: 50%;
+  background: radial-gradient(circle, rgb(0 0 0 / .5) 30%, rgb(0 0 0 / .22) 55%, transparent 72%); animation: fc-shadow-in 420ms var(--ease-standard);
+}
+@keyframes fc-shadow-in { 0% { transform: translate(14%, 18%) scale(1.3); opacity: 0; } 55% { transform: translate(0, 0) scale(.94); opacity: 1; } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
+.fc-ibody { position: absolute; inset: 0; animation: fc-idle 2600ms ease-in-out infinite alternate; }
+@keyframes fc-idle { from { transform: rotate(-2.2deg) scale(1); } to { transform: rotate(2.2deg) scale(1.022); } }
+.fc-ibody svg, .fc-half svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.fc-half { position: absolute; inset: 0; opacity: 0; }
+.fc-half svg { filter: drop-shadow(3px 5px 3px rgb(40 20 4 / .45)); }
+.fc-half.fc-l { animation: fc-half-l 640ms cubic-bezier(.15, .7, .3, 1) forwards; }
+.fc-half.fc-r { animation: fc-half-r 640ms cubic-bezier(.15, .7, .3, 1) forwards; }
+@keyframes fc-half-l {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); }
+  60% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(var(--nx) * 46%), calc(var(--ny) * 46%)) rotate(-34deg) scale(.96); }
+}
+@keyframes fc-half-r {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); }
+  60% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(var(--nx) * -46%), calc(var(--ny) * -46%)) rotate(30deg) scale(.96); }
+}
+.fc-flash {
+  position: absolute; inset: -6%; border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle, rgb(255 255 255 / .95), rgb(255 255 255 / 0) 68%); animation: fc-iflash 200ms linear;
+}
+@keyframes fc-iflash { 0% { opacity: 1; transform: scale(.7); } 100% { opacity: 0; transform: scale(1.5); } }
+.fc-item.fc-gold .fc-ibody { filter: drop-shadow(0 0 7px rgb(255 214 80)) drop-shadow(0 0 2px rgb(255 240 170)); }
+.fc-item.fc-gold .fc-ibody > svg:first-child { animation: fc-goldpulse 520ms ease-in-out infinite alternate; }
+@keyframes fc-goldpulse { from { opacity: .92; } to { opacity: 1; } }
+.fc-thud-a { animation: fc-thud-a 300ms var(--ease-standard) 140ms; }
+.fc-thud-b { animation: fc-thud-b 300ms var(--ease-standard) 140ms; }
+@keyframes fc-thud-a { 0%, 100% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(-5%, 2%) rotate(-5deg); } 55% { transform: translate(3%, -1%) rotate(3deg); } 80% { transform: translate(-1%, 0) rotate(-1deg); } }
+@keyframes fc-thud-b { 0%, 100% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(-5%, 2%) rotate(-5deg); } 55% { transform: translate(3%, -1%) rotate(3deg); } 80% { transform: translate(-1%, 0) rotate(-1deg); } }
+.fc-float {
+  position: absolute; left: 50%; top: 50%; z-index: 6; pointer-events: none; font-size: 20px; color: rgb(255 255 255);
+  text-shadow: 0 2px 0 rgb(0 0 0 / .6), 0 0 10px rgb(var(--pc)); animation: fc-floatup 800ms cubic-bezier(.2, .8, .3, 1) forwards;
+}
+@keyframes fc-floatup {
+  0% { transform: translate(-50%, -50%) rotate(var(--fr)) translateY(0) scale(.5); opacity: 0; }
+  20% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--fr)) translateY(8cqw) scale(1.25); }
+  100% { transform: translate(-50%, -50%) rotate(var(--fr)) translateY(26cqw) scale(1); opacity: 0; }
+}
+
+/* The katana. Its grip sits to one side of the plate and the blade rests
+   raised, pointing away; a tap rotates it about the grip through the item. */
+.fc-kwrap { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: rotate(var(--a)); pointer-events: none; z-index: 3; }
+.fc-khold { position: absolute; left: 0; top: 0; width: 0; height: 0; animation: fc-kbob 3200ms ease-in-out infinite alternate; animation-delay: var(--kd, 0ms); }
+@keyframes fc-kbob { from { transform: translate(0, 0) rotate(-1.2deg); } to { transform: translate(.5cqw, .9cqw) rotate(1.4deg); } }
+.fc-khold.fc-tremble { animation: fc-ktremble 70ms linear 150ms 4; }
+@keyframes fc-ktremble { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(.25cqw, -.2cqw); } }
+.fc-glint { animation: fc-glint 5600ms ease-in-out infinite; animation-delay: var(--kd, 0ms); }
+@keyframes fc-glint { 0%, 72% { transform: translateX(-60px); } 92%, 100% { transform: translateX(230px); } }
+.fc-katana {
+  position: absolute; left: -8.28cqw; top: 8.56cqw; width: 44cqw; display: block; overflow: visible; color: rgb(var(--pc));
+  transform-origin: 87% 43%; transform: rotate(-50deg);
+  filter: drop-shadow(4px 7px 3px rgb(0 0 0 / .4)) drop-shadow(0 0 calc(var(--glow, 0) * 7px) rgb(var(--pc)));
+}
+.fc-katana.fc-cut { animation: fc-kcut 440ms var(--ease-standard); }
+@keyframes fc-kcut { 0% { transform: rotate(-50deg); } 16% { transform: rotate(-64deg); } 52% { transform: rotate(72deg); } 68% { transform: rotate(72deg); } 100% { transform: rotate(-50deg); } }
+/* A wrong item: the blade meets the rim of the item (-2deg), recoils a little and stays there. */
+.fc-katana.fc-stuck { transform: rotate(-2deg); animation: fc-kstop 260ms var(--ease-standard); }
+@keyframes fc-kstop { 0% { transform: rotate(-50deg); } 16% { transform: rotate(-64deg); } 58% { transform: rotate(-2deg); } 76% { transform: rotate(-9deg); } 100% { transform: rotate(-2deg); } }
+/* ...then it lifts back slowly, taking the whole of the next item. */
+.fc-katana.fc-stuck.fc-draw { transform: rotate(-50deg); animation: fc-kdraw var(--draw, 1500ms) linear forwards; }
+@keyframes fc-kdraw { from { transform: rotate(-2deg); } to { transform: rotate(-50deg); } }
+.fc-trail {
+  position: absolute; left: -9cqw; top: -27cqw; width: 78cqw; height: 78cqw; border-radius: 50%; opacity: 0;
+  background: conic-gradient(from 214deg, transparent 0deg, rgb(255 255 255 / 0) 30deg, rgb(255 255 255 / .5) 122deg, rgb(var(--pc) / .7) 128deg, transparent 129deg);
+  filter: blur(1.5px);
+  -webkit-mask: radial-gradient(circle, transparent 40%, black 58%, black 66%, transparent 71%);
+  mask: radial-gradient(circle, transparent 40%, black 58%, black 66%, transparent 71%);
+}
+.fc-trail.fc-go { animation: fc-trail 440ms linear; }
+@keyframes fc-trail { 0%, 22% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+.fc-spark { position: absolute; left: -2.6cqw; top: 10cqw; width: 6cqw; height: 6cqw; opacity: 0; }
+.fc-spark.fc-go { animation: fc-spark 420ms steps(4); }
+@keyframes fc-spark { 0%, 30% { opacity: 0; transform: scale(.4); } 45% { opacity: 1; transform: scale(1.3); } 100% { opacity: 0; transform: scale(1.6) rotate(40deg); } }
+
+/* The rule card (RULE FLIP) and the pause that announces a new one. */
+.fc-rule {
+  z-index: 5; position: absolute; left: 50%; font-size: 8px; line-height: 1.5; padding: 6px 9px; border-radius: 10px; white-space: nowrap;
+  background: rgb(var(--c-card) / .92); color: rgb(var(--c-text)); border: 1px solid rgb(var(--c-border));
+}
+.fc-rule.fc-a { top: calc(50% + 17%); transform: translateX(-50%); }
+.fc-rule.fc-b { top: calc(50% - 17%); transform: translate(-50%, -100%) rotate(180deg); }
+.fc-rule.fc-flash-a, .fc-rule.fc-flash-b { animation: fc-ruleflash-a 700ms steps(4); }
+.fc-rule.fc-flash-b { animation-name: fc-ruleflash-b; }
+@keyframes fc-ruleflash-a { 0%, 50% { background: rgb(var(--c-cta)); color: rgb(var(--c-card)); } 25%, 75% { background: rgb(var(--c-card) / .92); color: rgb(var(--c-text)); } }
+@keyframes fc-ruleflash-b { 0%, 50% { background: rgb(var(--c-cta)); color: rgb(var(--c-card)); } 25%, 75% { background: rgb(var(--c-card) / .92); color: rgb(var(--c-text)); } }
+.fc-beat {
+  position: absolute; inset: 0; display: grid; place-items: center; text-align: center; z-index: 2; font-size: 9px; line-height: 1.7; color: rgb(var(--c-text));
+  animation: fc-drop 420ms var(--ease-standard);
+}
+
+/* Overlays: start, countdown, results. Plain tint, no blur, over a live table. */
+.fc-overlay {
+  position: absolute; inset: 0; z-index: 9; display: grid; place-items: center; text-align: center; padding: 22px;
+  background: rgb(var(--c-surface) / .86); color: rgb(var(--c-text));
+}
+.fc-big { font-size: 20px; line-height: 1.5; margin-bottom: 10px; }
+.fc-count { display: inline-block; font-size: 64px; animation: fc-countpop 560ms var(--spring-pop); }
+@keyframes fc-countpop { 0% { transform: scale(2.2); opacity: 0; } 35% { opacity: 1; } 100% { transform: scale(1); } }
+
+/* Reduced motion: calmer, not nothing. The table still tells you what happened.
+   The blade's slow lift back stays: it is how a blocked player sees when they are free. */
+[data-motion="reduced"] :is(.fc-arena, .fc-pad, .fc-sc, .fc-item, .fc-ishadow, .fc-ibody, .fc-khold, .fc-glint, .fc-katana, .fc-trail, .fc-spark, .fc-rule, .fc-splat, .fc-count, .fc-flash, .fc-float, .fc-beat, .fc-thud-a, .fc-thud-b) { animation: none; }
+[data-motion="reduced"] .fc-light::after { animation: none; }
+[data-motion="reduced"] :is(.fc-half.fc-l, .fc-half.fc-r) { animation: fc-fade 150ms linear forwards; transform: translate(calc(var(--nx) * 26%), calc(var(--ny) * 26%)); opacity: 1; }
+[data-motion="reduced"] .fc-katana.fc-cut { transform: rotate(72deg); }
+@keyframes fc-fade { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) :is(.fc-arena, .fc-pad, .fc-sc, .fc-item, .fc-ishadow, .fc-ibody, .fc-khold, .fc-glint, .fc-katana, .fc-trail, .fc-spark, .fc-rule, .fc-splat, .fc-count, .fc-flash, .fc-float, .fc-beat, .fc-thud-a, .fc-thud-b) { animation: none; }
+  :root:not([data-motion="full"]) .fc-light::after { animation: none; }
+  :root:not([data-motion="full"]) :is(.fc-half.fc-l, .fc-half.fc-r) { animation: fc-fade 150ms linear forwards; transform: translate(calc(var(--nx) * 26%), calc(var(--ny) * 26%)); opacity: 1; }
+  :root:not([data-motion="full"]) .fc-katana.fc-cut { transform: rotate(72deg); }
+}

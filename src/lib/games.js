@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -779,6 +779,22 @@ export const GAME_TYPES = [
     // N-player race on one shared seeded stack (chopLogic.js / RaceShell).
     custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/ChopChopGame')),
+  },
+  {
+    type: 'firstcut', label: 'FIRST CUT',
+    desc: 'cut the fruit, leave the lookalikes', Icon: FirstCutIcon,
+    badge: 'FC', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 3, tags: ['quick', 'frantic', 'skill', 'party'], solo: true,
+    // Everyone watches one plate and swings a katana at the fruit, not the
+    // lookalikes (firstCutLogic.js). Online it is an N-player race on RaceShell:
+    // every client plays the same seeded timetable and reports its own cut times.
+    // LocalPage: /local/firstcut puts 2-4 players round one phone.
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8, localMaxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/FirstCutGame')),
+    localBlurb: 'ONE PHONE · EVERYONE CUTS AT ONCE',
+    LocalPage: lazyWithRetry(() => import('../pages/FirstCutDemo').then(m => ({ default: m.FirstCutLocal }))),
   },
   {
     type: 'pulprush', label: 'PULP RUSH',
@@ -2175,7 +2191,7 @@ const FIELD_NULLS = {
   aimScoreX: null, aimScoreO: null,
   aimHitsX: null, aimHitsO: null,
   aimFriendlyX: null, aimFriendlyO: null,
-  typingConfig: null, mathConfig: null,
+  typingConfig: null, mathConfig: null, firstcutConfig: null,
   typingPassage: null, typingStartedAt: null,
   typingFinishedAtX: null, typingFinishedAtO: null,
   typingProgressX: null, typingProgressO: null,

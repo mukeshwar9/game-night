@@ -110,6 +110,7 @@ describe('supportsLocalPlay', () => {
     'animalstack', // custom, but ships its own 2-4P LocalPage
     'stickyfingers', // real-time duel online; its LocalPage seats 2-4 on one phone
     'archery', // custom range with its own same-device LocalPage
+    'firstcut', // a 2-8P race that ships its own 2-4P one-phone LocalPage
     'tictactoe', 'ultimatettt', 'tictactoe4', 'connectfour', 'connectfour5', 'connectfourpop',
     'dotsandboxes', 'dotsandboxes4', 'sos', 'gomoku', 'gomokuswap', 'reversi', 'chainreaction', 'chainreaction6',
     'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'pairs', 'pairs4', 'dice', 'dice-big',
@@ -123,8 +124,8 @@ describe('supportsLocalPlay', () => {
     'visualmemory',
   ]
 
-  it('is true for all 41 eligible games (33 registry boards + seven custom LocalPages + one localBoard)', () => {
-    expect(LOCAL_TYPES).toHaveLength(41)
+  it('is true for all 42 eligible games (33 registry boards + eight custom LocalPages + one localBoard)', () => {
+    expect(LOCAL_TYPES).toHaveLength(42)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }

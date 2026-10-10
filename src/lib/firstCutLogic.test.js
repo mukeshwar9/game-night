@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   BOTS, DEFAULT_FC_CONFIG, FC_BEAT_MS, FC_FLIP_EVERY, FC_GOLD_MS, FC_GOLD_POINTS, FC_MAX_DRY, FC_ONLINE_TARGET,
   FC_PACES, FC_REPORT_SLACK_MS, FC_SETTLE_MS, FC_TARGET, ITEMS, RULES,
-  averageMs, botTapAt, classifyTap, describeFcConfig, entryAt, fcDecided, fcRaceEntry, fcRow, freeIndexAfter,
-  indexAt, isValidFcConfig, itemDef, katanaPhase, normalizeFcConfig, normalizeReports, receipt, resolveFromRound,
+  addReport, averageMs, botTapAt, classifyTap, describeFcConfig, entryAt, fcDecided, fcRaceEntry, fcRow, freeIndexAfter,
+  indexAt, isValidFcConfig, itemDef, katanaPhase, normalizeFcConfig, normalizeReports, planTap, receipt, resolveFromRound,
   resolveRound, ruleDef,
 } from './firstCutLogic'
 import { mulberry32 } from './detMath'
@@ -367,7 +367,7 @@ describe('online race hooks', () => {
   const k = fruitAt(seed, PLAIN)
   const round = (stats, extra = {}) => ({
     id: 'r1', seed, startedAt: 10_000, endsAt: 100_000, racers: ['a', 'b'], stats,
-    raw: { fcConfig: PLAIN }, ...extra,
+    raw: { firstcutConfig: PLAIN }, ...extra,
   })
 
   it('ranks by points, then by fewest blocks; no stats is DNF', () => {
@@ -473,5 +473,60 @@ describe('receipt', () => {
       { id: 'a', score: 1, cuts: 1, avgMs: 420, blocks: 0 },
       { id: 'b', score: 0, cuts: 0, avgMs: null, blocks: 1 },
     ])
+  })
+})
+
+describe('planning a tap', () => {
+  const seed = 31
+  const cfg = FLIP
+  const res = (blocked = null) => ({ blocked: { a: blocked } })
+  const mid = (k) => entryAt(seed, cfg, k).start + 300
+
+  it('ignores taps before the start', () => {
+    expect(planTap({ seed, config: cfg, res: res(), id: 'a', t: -5 })).toEqual({ kind: 'ignored', reason: 'early' })
+  })
+
+  it('a tap on a fruit is a cut attempt with its time', () => {
+    const k = fruitAt(seed, cfg)
+    expect(planTap({ seed, config: cfg, res: res(), id: 'a', t: mid(k) })).toEqual({ kind: 'cut', k, ms: 300 })
+  })
+
+  it('a tap on a twin is a block', () => {
+    const k = twinAt(seed, cfg)
+    expect(planTap({ seed, config: cfg, res: res(), id: 'a', t: mid(k) })).toEqual({ kind: 'block', k })
+  })
+
+  it('a tap during a rule pause does nothing', () => {
+    const k = find(seed, cfg, e => e.kind === 'beat')
+    expect(planTap({ seed, config: cfg, res: res(), id: 'a', t: mid(k) }).kind).toBe('none')
+  })
+
+  it('a blocked player is ignored until the block runs out', () => {
+    const k = fruitAt(seed, cfg)
+    expect(planTap({ seed, config: cfg, res: res({ at: k - 1, until: k + 1 }), id: 'a', t: mid(k) })).toEqual({ kind: 'ignored', reason: 'blocked', k })
+    expect(planTap({ seed, config: cfg, res: res({ at: k - 2, until: k }), id: 'a', t: mid(k) }).kind).toBe('cut')
+  })
+})
+
+describe('adding reports', () => {
+  it('records a cut and a block without touching the input', () => {
+    const base = {}
+    const cut = addReport(base, 'a', { kind: 'cut', k: 3, ms: 410 })
+    expect(cut).toEqual({ a: { t: { 3: 410 }, j: {} } })
+    expect(base).toEqual({})
+    expect(addReport(cut, 'a', { kind: 'block', k: 5 })).toEqual({ a: { t: { 3: 410 }, j: { 5: true } } })
+  })
+
+  it('keeps the faster time when the same item is tapped again', () => {
+    const first = addReport({}, 'a', { kind: 'cut', k: 3, ms: 410 })
+    expect(addReport(first, 'a', { kind: 'cut', k: 3, ms: 600 })).toBe(first)
+    expect(addReport(first, 'a', { kind: 'cut', k: 3, ms: 380 }).a.t[3]).toBe(380)
+  })
+
+  it('returns the same object for taps that change nothing', () => {
+    const r = { a: { t: {}, j: { 5: true } } }
+    expect(addReport(r, 'a', { kind: 'block', k: 5 })).toBe(r)
+    expect(addReport(r, 'a', { kind: 'ignored' })).toBe(r)
+    expect(addReport(r, 'a', { kind: 'none', k: 2 })).toBe(r)
   })
 })

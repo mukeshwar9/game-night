@@ -360,6 +360,40 @@ export function resolveRound({ seed, config, stats, racers, target = FC_TARGET, 
   return { scores, jams, cuts, rts, blocked, owners, points, ties, blockedOn, decidedAt, winner, cfg }
 }
 
+/**
+ * What a tap by `id` at `t` ms into play does, given the current scoring.
+ * Blocked players are ignored; a tap during a rule pause does nothing; a tap
+ * on a fruit is a cut attempt (with its time); anything else is a block.
+ * @returns {{ kind: 'ignored' | 'none' | 'cut' | 'block', k?: number, ms?: number, reason?: string }}
+ */
+export function planTap({ seed, config, res, id, t }) {
+  if (!(t >= 0)) return { kind: 'ignored', reason: 'early' }
+  const k = indexAt(seed, config, t)
+  const e = entryAt(seed, config, k)
+  if (katanaPhase(res.blocked[id], k) !== 'ready') return { kind: 'ignored', reason: 'blocked', k }
+  const kind = classifyTap(seed, config, k)
+  if (kind === 'none') return { kind: 'none', k }
+  if (kind === 'cut') return { kind: 'cut', k, ms: Math.max(0, Math.round(t - e.start)) }
+  return { kind: 'block', k }
+}
+
+/**
+ * `reports` with one planned tap added. A second report on the same item keeps
+ * the earlier time, so mashing never makes you slower. Returns the same object
+ * when nothing changes.
+ */
+export function addReport(reports, id, plan) {
+  if (plan.kind !== 'cut' && plan.kind !== 'block') return reports
+  const mine = normalizeReports(reports?.[id])
+  if (plan.kind === 'cut') {
+    const prev = mine.t[plan.k]
+    if (prev != null && prev <= plan.ms) return reports
+    return { ...reports, [id]: { ...mine, t: { ...mine.t, [plan.k]: plan.ms } } }
+  }
+  if (mine.j[plan.k]) return reports
+  return { ...reports, [id]: { ...mine, j: { ...mine.j, [plan.k]: true } } }
+}
+
 /** The one thing a client needs about its own katana right now. */
 export function katanaPhase(blocked, index) {
   if (!blocked || index >= blocked.until) return 'ready'
@@ -387,7 +421,7 @@ export function fcRaceEntry(stats, round, id) {
 
 /** The round's configuration as written when it started. */
 export function roundConfig(round) {
-  return normalizeFcConfig(round?.raw?.fcConfig)
+  return normalizeFcConfig(round?.raw?.firstcutConfig)
 }
 
 /** Resolve a normalized race round (final: everything reported counts). */
