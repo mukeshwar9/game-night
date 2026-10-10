@@ -171,7 +171,7 @@ export function StickyFingersPlay({ only = null }) {
       </div>
       <p className="font-mono text-[10px] text-retro-dim text-center leading-relaxed">
         PRESS THE TABLE · YOUR ARM REACHES OUT FROM YOUR SAFE · DRAG LOOT HOME<br />
-        TWO HANDS ON A BILL RIP IT · THE STRETCHED ARM LOSES A COIN · {ROUND_SECONDS}S, MOST LOOT WINS<br />
+        BOTH HANDS ON ONE ITEM: LAST ONE HOLDING KEEPS IT · {ROUND_SECONDS}S, MOST LOOT WINS<br />
         {phone ? 'EACH PLAYER TOUCHES THEIR OWN END OF THE TABLE · ' : ''}LAST {LAST_CALL_SECONDS}S PAYS DOUBLE
       </p>
     </div>

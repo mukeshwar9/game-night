@@ -122,18 +122,25 @@ export function updateStage(st, scene, dt, reduced = false) {
     v.dial *= Math.pow(0.02, dt)
   })
 
-  // Loot arrivals, landings, rips, slips, and quiet disappearances.
+  // Loot arrivals, landings, tugs (a second hand piling on), who wins them, snaps, and quiet disappearances.
   const seen = new Set()
-  let ripped = false
   for (const l of scene.loot) {
     seen.add(l.id)
     const was = st.loot.get(l.id)
     let landedAt = was?.landedAt
-    if (!was) {
-      if (l.kind === 'half' && l.z <= 0) ripped = true
-    } else if (was.z > 0 && l.z <= 0) {
+    if (was && was.z > 0 && l.z <= 0) {
       burst(st, reduced, l.x, l.y, 'star', l.kind === 'gem' ? 'p3' : 'cta', 5, 90)
       landedAt = st.t
+    }
+    if (was && was.holders < 2 && l.holders.length === 2) {
+      burst(st, reduced, l.x, l.y, 'dot', 'light', 8, 120)
+      floatText(st, l.x, l.y - 18, 'TUG!', 'cta')
+      shake(3)
+    } else if (was && was.holders === 2 && l.holders.length === 1) {
+      const key = playerKey(l.holders[0] >> 1)
+      burst(st, reduced, l.x, l.y, 'star', key, 12, 170)
+      floatText(st, l.x, l.y - 18, 'MINE!', key)
+      shake(4)
     }
     st.loot.set(l.id, { x: l.x, y: l.y, kind: l.kind, z: l.z, holders: l.holders.length, landedAt })
   }
@@ -141,15 +148,12 @@ export function updateStage(st, scene, dt, reduced = false) {
     if (seen.has(id)) continue
     st.loot.delete(id)
     const nearSafe = scene.players.some((p) => Math.hypot(was.x - p.safe.x, was.y - p.safe.y) < SAFE_RADIUS + 26)
-    if (!nearSafe && !(was.kind === 'bill' && was.holders === 2)) burst(st, reduced, was.x, was.y, 'dot', 'dim', 8, 90)
-  }
-  if (ripped) {
-    const half = scene.loot.find((l) => l.kind === 'half' && l.z <= 0)
-    if (half) {
-      burst(st, reduced, half.x, half.y, 'paper', 'win', 14, 190)
-      floatText(st, half.x, half.y - 6, 'RIP!', 'text')
-      shake(5)
-    }
+    if (nearSafe) continue
+    if (was.holders === 2) {                       // nobody let go: the item snapped
+      burst(st, reduced, was.x, was.y, 'paper', 'danger', 14, 200)
+      floatText(st, was.x, was.y - 10, 'SNAP!', 'danger')
+      shake(6)
+    } else burst(st, reduced, was.x, was.y, 'dot', 'dim', 8, 90)
   }
   scene.players.forEach((p) => p.hands.forEach((h, k) => {
     const key = `${p.i}:${k}`
@@ -286,21 +290,15 @@ export function drawScene(ctx, st, scene, pal, opts = {}) {
   // ── loot lying on the felt ──
   const holders = (l) => l.holders.map((k) => scene.players[k >> 1]?.hands[k & 1]).filter(Boolean)
 
-  function billShape(w, h, key, half, side) {
+  function billShape(w, h, key) {
     ctx.beginPath()
-    if (half) {
-      const s = side ? -1 : 1
-      ctx.moveTo((-w / 2) * s, -h / 2); ctx.lineTo((w / 2) * s - 3 * s, -h / 2); ctx.lineTo((w / 2) * s + 2 * s, -h / 4); ctx.lineTo((w / 2) * s - 3 * s, 0)
-      ctx.lineTo((w / 2) * s + 2 * s, h / 4); ctx.lineTo((w / 2) * s - 3 * s, h / 2); ctx.lineTo((-w / 2) * s, h / 2); ctx.closePath()
-    } else rr(-w / 2, -h / 2, w, h, 3)
+    rr(-w / 2, -h / 2, w, h, 3)
     ctx.fillStyle = col(key); ctx.fill()
     ctx.fillStyle = 'rgb(255 255 255 / .16)'; ctx.fillRect(-w / 2 + 2, -h / 2 + 1.5, w - 4, h * 0.36)
     ctx.lineWidth = 1.6; ctx.strokeStyle = col('ink', 0.75); ctx.stroke()
-    if (!half) {
-      ctx.lineWidth = 1; ctx.strokeStyle = col('light', 0.6); rr(-w / 2 + 3.5, -h / 2 + 3.5, w - 7, h - 7, 1.5); ctx.stroke()
-      ctx.beginPath(); ctx.arc(0, 0, h * 0.27, 0, TAU); ctx.fillStyle = col('light', 0.85); ctx.fill()
-      star(0, 0, h * 0.2, 0); ctx.fillStyle = col(key); ctx.fill()
-    }
+    ctx.lineWidth = 1; ctx.strokeStyle = col('light', 0.6); rr(-w / 2 + 3.5, -h / 2 + 3.5, w - 7, h - 7, 1.5); ctx.stroke()
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.27, 0, TAU); ctx.fillStyle = col('light', 0.85); ctx.fill()
+    star(0, 0, h * 0.2, 0); ctx.fillStyle = col(key); ctx.fill()
   }
   function coin(l, s, spin) {
     const r = l.r * s
@@ -334,10 +332,23 @@ export function drawScene(ctx, st, scene, pal, opts = {}) {
     }
     ctx.restore()
   }
-  const RAD = { coin: 12, bill: 15, half: 10, gem: 13, dye: 15 }
+  const RAD = { coin: 12, bill: 15, gem: 13, dye: 15 }
+  // A tug: a ring in the two contenders' colours with the clock to the snap running round it.
+  function contestRing(l, r) {
+    const pa = playerKey(l.holders[0] >> 1)
+    const pb = playerKey(l.holders[1] >> 1)
+    const spin = reduced ? 0 : st.t * 3
+    ctx.save()
+    ctx.lineWidth = 3; ctx.lineCap = 'butt'
+    ctx.beginPath(); ctx.arc(l.x, l.y, r + 7, spin, spin + Math.PI); ctx.strokeStyle = col(pa, 0.9); ctx.stroke()
+    ctx.beginPath(); ctx.arc(l.x, l.y, r + 7, spin + Math.PI, spin + TAU); ctx.strokeStyle = col(pb, 0.9); ctx.stroke()
+    ctx.beginPath(); ctx.arc(l.x, l.y, r + 11.5, -Math.PI / 2, -Math.PI / 2 + TAU * l.strain)
+    ctx.lineWidth = 2.5; ctx.strokeStyle = col(l.strain > 0.66 ? 'danger' : 'light', 0.95); ctx.stroke()
+    ctx.restore()
+  }
   function drawLoot(l) {
     const hs = holders(l)
-    if (hs.length === 2 && l.kind === 'bill') { stretched(l, hs); return }
+    if (hs.length === 2 && l.kind === 'bill') { stretched(l, hs); contestRing(l, 20); return }
     const r = RAD[l.kind] ?? 12
     const spin = st.t * 2.4 + l.id * 1.7
     const rot = (hash01(l.id) - 0.5) * 0.6
@@ -348,7 +359,8 @@ export function drawScene(ctx, st, scene, pal, opts = {}) {
     const blink = l.ttl < 1.6 && !hs.length && l.z <= 0 ? (Math.sin(l.ttl * 26) > 0 ? 0.35 : 1) : 1
     ctx.save(); ctx.globalAlpha = blink * (1 - drop * 0.25)
     shadow(l.x, l.y + drop * 10, r * (1 - drop * 0.5), r * 0.55 * (1 - drop * 0.5), 0.3 * (1 - drop * 0.6))
-    ctx.translate(l.x, l.y - drop * 46)
+    const strained = hs.length === 2 && l.strain > 0.4 && !reduced ? (l.strain - 0.4) * 5 : 0
+    ctx.translate(l.x + (strained ? (Math.random() - 0.5) * 2 * strained : 0), l.y - drop * 46 + (strained ? (Math.random() - 0.5) * 2 * strained : 0))
     if (l.kind === 'coin') coin({ r }, s, spin)
     else if (l.kind === 'gem') {
       const q = r * s
@@ -363,8 +375,7 @@ export function drawScene(ctx, st, scene, pal, opts = {}) {
       star(q * 0.7, -q * 0.9, 2 + tw * 4, spin); ctx.fillStyle = col('light', 0.5 + tw * 0.5); ctx.fill()
     } else {
       ctx.rotate(rot + Math.sin(spin * 1.3) * 0.07); ctx.scale(s, s)
-      if (l.kind === 'half') billShape(17, 20, 'win', true, l.side)
-      else if (l.kind === 'bill') billShape(34, 20, 'win')
+      if (l.kind === 'bill') billShape(34, 20, 'win')
       else {
         // dye pack: a banded stack with a blinking light — the tell to read before you grab
         billShape(34, 20, 'win'); ctx.fillStyle = col('light'); ctx.fillRect(-5, -10, 10, 20)
@@ -376,10 +387,7 @@ export function drawScene(ctx, st, scene, pal, opts = {}) {
       }
     }
     ctx.restore()
-    if (l.strain > 0 && hs.length === 2) {
-      ctx.beginPath(); ctx.arc(l.x, l.y, r + 7, -Math.PI / 2, -Math.PI / 2 + TAU * l.strain)
-      ctx.lineWidth = 3; ctx.strokeStyle = col('light', 0.9); ctx.stroke()
-    }
+    if (hs.length === 2) contestRing(l, r)
   }
   scene.loot.forEach((l) => { if (!l.holders.length) drawLoot(l) })
 

@@ -99,3 +99,65 @@ test('Sticky Fingers: solo table against a bot, and one phone for 2-4', async ({
   expectNoPageErrors(me)
   await me.context.close()
 })
+
+// Two fingers on one item at the same moment is a tug: whoever lets go first
+// loses it, the last hand still holding keeps it, and if nobody lets go the
+// item snaps (CONTEST_WINDOW 0.5 s, CONTEST_CAP 3 s in src/lib/stickyLogic.js).
+test('Sticky Fingers: two hands on one item is a tug, the last one holding keeps it, and it snaps at the cap', async ({ browser }) => {
+  test.setTimeout(90_000)
+  const me = await newPlayer(browser)
+  await me.page.goto('/local/stickyfingers')
+  await expect(table(me.page)).toBeVisible()
+
+  // A synthetic finger: its own pointer id, in table units.
+  const finger = (type, id, x, y) => me.page.evaluate(([t, pid, tx, ty]) => {
+    const cv = document.querySelector('[data-testid="sticky-table"]')
+    const r = cv.getBoundingClientRect()
+    cv.dispatchEvent(new PointerEvent(t, {
+      bubbles: true, cancelable: true, pointerId: pid, pointerType: 'touch', isPrimary: pid === 1,
+      clientX: r.left + (tx / 360) * r.width, clientY: r.top + (ty / 560) * r.height,
+    }))
+  }, [type, id, x, y])
+  const holdersOf = async (id) => (await lootOf(me.page)).find(([lid]) => lid === id)?.[4] ?? null
+
+  // Wait for a landed coin / bill / gem, then put one finger from each end of the table on it.
+  let target
+  await expect.poll(async () => {
+    target = (await lootOf(me.page)).find(([, kind, , , held]) => (kind === 'coin' || kind === 'bill' || kind === 'gem') && !held)
+    return Boolean(target)
+  }, { timeout: 30_000 }).toBe(true)
+  const [id, , x, y] = target
+  await finger('pointerdown', 1, x, 470)    // nearest the bottom safe: player 1's hand
+  await finger('pointerdown', 2, x, 90)     // nearest the top safe: player 2's hand
+  await finger('pointermove', 1, x, y)
+  await finger('pointermove', 2, x, y)
+  await expect.poll(() => holdersOf(id), { timeout: 5_000 }).toBe(2)
+
+  await test.step('the hand that lets go first loses it; the other keeps holding', async () => {
+    await finger('pointerup', 2, x, y)
+    await expect.poll(() => holdersOf(id), { timeout: 5_000 }).toBe(1)
+    await finger('pointerup', 1, x, y)
+  })
+
+  await test.step('nobody lets go: the item snaps and nobody scores', async () => {
+    let next
+    await expect.poll(async () => {
+      next = (await lootOf(me.page)).find(([lid, kind, , , held]) => lid !== id && (kind === 'coin' || kind === 'bill' || kind === 'gem') && !held)
+      return Boolean(next)
+    }, { timeout: 20_000 }).toBe(true)
+    const [nid, , nx, ny] = next
+    await finger('pointerdown', 3, nx, 470)
+    await finger('pointerdown', 4, nx, 90)
+    await finger('pointermove', 3, nx, ny)
+    await finger('pointermove', 4, nx, ny)
+    await expect.poll(() => holdersOf(nid), { timeout: 5_000 }).toBe(2)
+    await expect.poll(() => holdersOf(nid), { timeout: 6_000 }).toBeNull()      // gone: snapped, not stashed
+    expect(await score(me.page, 0)).toBe(0)
+    expect(await score(me.page, 1)).toBe(0)
+    await finger('pointerup', 3, nx, ny)
+    await finger('pointerup', 4, nx, ny)
+  })
+
+  expectNoPageErrors(me)
+  await me.context.close()
+})

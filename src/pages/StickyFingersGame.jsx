@@ -32,7 +32,7 @@ const initialRender = { ...BASE, countdown: 0 }
 // The guest's peer connection reaches 'connected' slightly before the host's
 // own countdown gate (see AirHockeyGame). Keep in sync with useRealtimeHost.
 const GUEST_COUNTDOWN_MS = 2000
-const EVENT_TYPES = ['grab', 'cash', 'bigcash', 'rip', 'slip', 'dye', 'tick', 'lastcall']
+const EVENT_TYPES = ['grab', 'cash', 'bigcash', 'tug', 'won', 'snap', 'dye', 'tick', 'lastcall']
 
 export default function StickyFingersGame({
   gameId, game, mySymbol, opponentOnline,
@@ -200,7 +200,7 @@ export default function StickyFingersGame({
         overlay={overlay}
       />
       <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed [@media(max-height:420px)]:hidden">
-        DRAG LOOT TO YOUR SAFE · TWO HANDS ON A BILL RIP IT · {ROUND_SECONDS}S · FIRST TO {matchTarget} ROUNDS
+        DRAG LOOT TO YOUR SAFE · SAME ITEM, SAME MOMENT: LAST HAND HOLDING KEEPS IT · {ROUND_SECONDS}S · FIRST TO {matchTarget} ROUNDS
       </p>
       {!opponentOnline && <OfflineNotice label="OPPONENT" />}
       {!proposal && (

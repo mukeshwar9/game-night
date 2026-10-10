@@ -366,7 +366,7 @@ export const GAME_RULES = {
     objective: 'Drag loot from the middle of the table into your safe. Most loot when the clock runs out wins.',
     howToPlay: [
       'Press the table and your arm reaches out from your safe to your finger. Drag a coin, bill or gem to your safe; the arm stretches as you go.',
-      'Two hands on a bill rip it: each hand keeps a half worth 1. Two hands on a coin or gem is a tug: the arm stretched further from its own safe slips.',
+      'Two hands on the same item within half a second of each other is a tug: nobody lets go, and whoever is still holding when the others have let go keeps all of it. If nobody lets go for 3 seconds the item snaps and no one gets it. Reach an item after that half second and the first grip is locked.',
       'A coin is worth 1, a bill 3, a gem 5. A pack with a blinking light is dyed: it costs 3 and puts your hands out for a moment, so flick it into a rival safe.',
       'The last 10 seconds pay double. A tie at the buzzer goes to the next loot into a safe.',
     ],

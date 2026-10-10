@@ -31,7 +31,7 @@ import { FLEET_SPEC, SHIP_CELLS } from './battleshipLogic'
 import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
-import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS as STICKY_ROUND_S } from './stickyLogic'
+import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS as STICKY_ROUND_S, CONTEST_CAP } from './stickyLogic'
 import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
 import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
@@ -264,8 +264,8 @@ const RULE_NUMBERS = {
   }),
   stickyfingers: () => ({
     checks: [
-      [1, STICKY_VALUES.coin], [1, STICKY_VALUES.half], [3, STICKY_VALUES.bill], [5, STICKY_VALUES.gem], [3, DYE_PENALTY],
-      [10, LAST_CALL_SECONDS], [60, STICKY_ROUND_S], [3, first('stickyfingers')],
+      [1, STICKY_VALUES.coin], [3, STICKY_VALUES.bill], [5, STICKY_VALUES.gem], [3, DYE_PENALTY],
+      [10, LAST_CALL_SECONDS], [60, STICKY_ROUND_S], [3, first('stickyfingers')], [3, CONTEST_CAP],
     ],
   }),
   fenderbender: () => ({
