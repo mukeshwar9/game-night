@@ -331,6 +331,17 @@ describe('kicks over the network', () => {
     expect(receiveKick(w, 9, 0, 1)).toBe(false)
     expect(w.riders[0].pips).toBe(PIPS)
   })
+  it('ignores a kick that arrives before the flag or after the race is over', () => {
+    const w = lab()
+    isolate(w, [0, 1])
+    w.riders[0].z = 40000; w.riders[1].z = 40000; w.riders[1].x = -0.3; w.riders[1].local = false
+    w.phase = 'count'
+    expect(receiveKick(w, 0, 1, -1)).toBe(false)
+    w.phase = 'done'
+    expect(receiveKick(w, 0, 1, -1)).toBe(false)
+    w.phase = 'race'
+    expect(receiveKick(w, 0, 1, -1)).toBe(true)
+  })
   it('round-trips the wire format of a kick', () => {
     expect(parseKick(kickKey('uid_123', 1))).toEqual({ to: 'uid_123', side: 1 })
     expect(parseKick(kickKey('bot2', -1))).toEqual({ to: 'bot2', side: -1 })

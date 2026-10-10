@@ -311,7 +311,7 @@ export function applyHit(world, o, from, side) {
 export function receiveKick(world, to, byIdx, side) {
   const o = world.riders[to]
   const k = world.riders[byIdx]
-  if (!o || !k || !o.local || o === k || (side !== 1 && side !== -1)) return false
+  if (!o || !k || !o.local || o === k || (side !== 1 && side !== -1) || world.phase === 'count' || world.phase === 'done') return false
   if (Math.abs(k.z - o.z) > REACH_Z * 3 || Math.abs(k.x - o.x) > REACH_X * 2.5) return false
   if (o.state !== 'ride' || o.shield > 0 || o.done) { world.events.push({ t: 'clang', by: byIdx, to }); return false }
   applyHit(world, o, k, side)

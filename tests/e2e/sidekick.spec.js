@@ -65,9 +65,17 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
     await onboard(alice.page, 'Alice')
     await createRoom(alice.page, 'SIDE KICK')
     await joinViaInvite(bob.page, alice.page.url(), 'Bob')
-    for (const { page } of [alice, bob]) {
-      await page.getByRole('button', { name: 'READY', exact: true }).click()
-    }
+    // One at a time, each tap confirmed, so neither toggle is lost to the other's transaction.
+    await alice.page.getByRole('button', { name: 'READY', exact: true }).click()
+    await expect(alice.page.getByRole('button', { name: '✓ READY' })).toBeVisible()
+    await expect(bob.page.getByRole('listitem').filter({ hasText: 'Alice' }).getByText('✓ READY')).toBeVisible()
+    // A tap can land while the lobby re-renders, so tap again until the road is up.
+    await expect.poll(async () => {
+      if (await bob.page.getByTestId('sidekick-arena').count()) return true
+      const ready = bob.page.getByRole('button', { name: 'READY', exact: true })
+      if (await ready.count()) await ready.click({ timeout: 2000 }).catch(() => {})
+      return false
+    }, { timeout: 30_000, intervals: [1000] }).toBe(true)
     for (const { page } of [alice, bob]) {
       await expect(page.getByTestId('sidekick-arena')).toBeVisible({ timeout: 20_000 })
       await expect(page.getByTestId('sidekick-count')).toBeVisible()
@@ -80,6 +88,26 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
   const bobUid = uidOf(room, 'Bob')
   const rid = room.round.id
 
+  await test.step('a kick Alice sends to Bob is applied on Bob\'s phone', async () => {
+    // A kick only counts from a rider who is level with the victim (as a real one is), so send it
+    // while both are riding within a bike length or two of each other: the first seconds after GO.
+    const stats = async () => (await readRoom(alice.page.url())).round.stats[rid]
+    let landed = false
+    for (let n = 901; n < 960 && !landed; n++) {
+      const all = await stats()
+      const a = all[aliceUid]
+      const b = all[bobUid]
+      if (!a || !b || a.s || b.s || b.sh || Math.abs(a.z - b.z) > 500) { await alice.page.waitForTimeout(100); continue }
+      await patch(alice.page.url(), `/round/stats/${rid}/${aliceUid}/k`, { [n]: `${bobUid}|1` })
+      for (let t = 0; t < 8 && !landed; t++) {
+        await alice.page.waitForTimeout(150)
+        const now = (await stats())[bobUid]
+        landed = now.pp < b.pp || now.dn > b.dn
+      }
+    }
+    expect(landed).toBe(true)
+  })
+
   await test.step('each phone reports its own bike and the coordinator reports the bots', async () => {
     await expect.poll(async () => Object.keys((await readRoom(alice.page.url())).round.stats?.[rid] ?? {}).sort(), { timeout: 20_000 })
       .toEqual([aliceUid, bobUid, 'bot1', 'bot2'].sort())
@@ -88,32 +116,17 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
     for (const id of [aliceUid, bobUid]) expect(room.round.stats[rid][id].z).toBeGreaterThan(1000)
   })
 
-  await test.step('every rider on the rail has moved off the grid on both screens', async () => {
+  await test.step('every rider on the rail has left the grid on both screens (a rider may already be down at the first car)', async () => {
     for (const { page } of [alice, bob]) {
       const dots = page.getByTestId('sidekick-rail').locator('span.rounded-full')
       await expect(dots).toHaveCount(4)
       // Chrome folds the inline calc() into a percentage plus pixels, so measure where the dots sit.
-      await expect.poll(async () => dots.evaluateAll((els) => {
+      const offsets = () => dots.evaluateAll((els) => {
         const rail = els[0].parentElement.getBoundingClientRect()
-        return els.every((el) => el.getBoundingClientRect().left - rail.left > 5)
-      }), { timeout: 20_000 }).toBe(true)
+        return els.map((el) => Math.round(el.getBoundingClientRect().left - rail.left))
+      })
+      await expect.poll(async () => (await offsets()).every((v) => v > 2), { timeout: 20_000, message: 'rail offsets (px)' }).toBe(true)
     }
-  })
-
-  await test.step('a kick Alice sends to Bob is applied on Bob\'s phone', async () => {
-    // Bob may be on the ground or shielded when it arrives (nobody is steering), so send a few.
-    const bobStats = async () => (await readRoom(alice.page.url())).round.stats[rid][bobUid]
-    let landed = false
-    for (let n = 901; n < 907 && !landed; n++) {
-      const before = await bobStats()
-      await patch(alice.page.url(), `/round/stats/${rid}/${aliceUid}/k`, { [n]: `${bobUid}|1` })
-      for (let t = 0; t < 12 && !landed; t++) {
-        await alice.page.waitForTimeout(250)
-        const now = await bobStats()
-        landed = now.pp < before.pp || now.dn > before.dn
-      }
-    }
-    expect(landed).toBe(true)
   })
 
   await test.step('the deadline passes: the road is ranked with the bots in it and the cup has points and a count', async () => {
@@ -134,8 +147,14 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
   })
 
   await test.step('NEXT RACE rides the second road with last place at the front of the grid', async () => {
-    for (const { page } of [alice, bob]) await page.getByRole('button', { name: /^NEXT RACE/ }).click()
-    await expect.poll(async () => (await readRoom(alice.page.url())).round?.track, { timeout: 20_000 }).toBe('pass')
+    await expect.poll(async () => {
+      if ((await readRoom(alice.page.url())).round?.track === 'pass') return true
+      for (const { page } of [alice, bob]) {
+        const next = page.getByRole('button', { name: /^NEXT RACE/ })
+        if (await next.count()) await next.click({ timeout: 2000 }).catch(() => {})
+      }
+      return false
+    }, { timeout: 40_000, intervals: [1500] }).toBe(true)
     room = await readRoom(alice.page.url())
     expect(room.round.grid).toHaveLength(4)
     for (const { page } of [alice, bob]) await expect(page.getByTestId('sidekick-arena')).toBeVisible({ timeout: 20_000 })

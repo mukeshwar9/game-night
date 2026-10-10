@@ -75,9 +75,9 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
   const racing = phase === 'racing'
 
   const worldRef = useRef(null)
-  const live = useRef({ stats: null, coord: amCoord, goAt, statsPath, players, myStats, grid: round.raw?.grid })
+  const live = useRef({ stats: null, coord: amCoord, goAt, statsPath, players, myStats, grid: round.raw?.grid, round })
   useEffect(() => {
-    live.current = { stats: game.round?.stats?.[round.id] ?? null, coord: amCoord, goAt, statsPath, players, myStats, grid: round.raw?.grid }
+    live.current = { stats: game.round?.stats?.[round.id] ?? null, coord: amCoord, goAt, statsPath, players, myStats, grid: round.raw?.grid, round }
   })
   const seen = useRef(new Set())
   const net = useRef({ last: {}, errorAt: 0, finalSent: false })
@@ -162,6 +162,12 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
       }
     }
     if (world.phase === 'done' && n.finalSent) return
+    // Once the round can end (deadline, or 20 s after the first finisher) every phone stops
+    // streaming: the shell ends the round with a transaction on the whole room, and four
+    // writers at 10 Hz would keep it from ever committing.
+    const L = live.current
+    const ending = (L.round.endsAt != null && now >= L.round.endsAt) || raceDecided(L.stats, L.round.racers, now, L.round)
+    if (ending) return
     for (const r of world.riders) {
       if (!r.local) continue
       const urgent = events.some((e) => (e.t === 'down' && e.to === r.i) || (e.t === 'up' && e.to === r.i) || (e.t === 'finish' && e.to === r.i) || (e.t === 'swing' && e.by === r.i))
