@@ -37,10 +37,10 @@ import { cn } from '@/lib/utils'
 //              the coordinator can START NOW; first to RACE_MATCH_WINS takes
 //              the match → NEW MATCH
 //
-// race config: { type, title, rules[], baseMs, scaled, entry(stats, round),
-//   isDone(stats), row(stats, round), liveKey?(stats, round), configKey?,
+// race config: { type, title, rules[], baseMs, scaled, entry(stats, round, id),
+//   isDone(stats), row(stats, round, id), liveKey?(stats, round, id), configKey?,
 //   normalizeConfig?, durationMs?(room), Config?, start?(room, seed, config),
-//   decided?(statsById, racers), clockLabel,
+//   decided?(statsById, racers, { now, round }), clockLabel,
 //   coop?: { won, lost } — round headlines for a co-op race }
 
 const TICK_MS = 250
@@ -210,7 +210,7 @@ export default function RaceShell({
       offlineSince: (id) => offlineRef.current.get(id) ?? null,
       endsAt: liveRound.endsAt,
       now,
-      decided: !!race.decided?.(liveRound.stats, liveRound.racers),
+      decided: !!race.decided?.(liveRound.stats, liveRound.racers, { now, round: liveRound }),
     })
     if (!ok) return
     finishTriedRef.current = liveRound.id
@@ -278,15 +278,15 @@ export default function RaceShell({
       you: id === mySeat,
       online: !!p && isSeatOnline(players, id),
       wins: Number(scores?.[id]) || 0,
-      ...race.row(rnd?.stats?.[id] ?? null, rnd),
+      ...race.row(rnd?.stats?.[id] ?? null, rnd, id),
       ...extra,
     }
   }
 
   const liveRows = useMemo(() => {
     if (!liveRound) return []
-    const keyOf = race.liveKey ?? ((s, r) => race.entry(s, r).sortKey)
-    const { order, ranks } = rankRace(liveRound.racers.map(id => ({ id, sortKey: keyOf(liveRound.stats[id] ?? null, liveRound) })))
+    const keyOf = race.liveKey ?? ((s, r, id) => race.entry(s, r, id).sortKey)
+    const { order, ranks } = rankRace(liveRound.racers.map(id => ({ id, sortKey: keyOf(liveRound.stats[id] ?? null, liveRound, id) })))
     return order.map(id => rowFor(id, liveRound, { place: ranks[id] }))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when the round/players/scores change
   }, [game.round, players, game.scores, mySeat])
@@ -296,7 +296,7 @@ export default function RaceShell({
     const tied = tiedIds(result.ranks)
     return result.order.map(id => rowFor(id, round, {
       place: result.ranks[id], tied: tied.has(id), dnf: !!result.dnf[id],
-      status: result.dnf[id] ? 'idle' : race.row(round?.stats?.[id] ?? null, round).status,
+      status: result.dnf[id] ? 'idle' : race.row(round?.stats?.[id] ?? null, round, id).status,
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when the result/round/players change
   }, [game.raceResult, game.round, players, game.scores, mySeat])

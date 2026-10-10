@@ -354,8 +354,9 @@ export function toggleRaceReady(cur, me, gameType) {
 /**
  * End the live round `roundId` and rank it — only when canEndRace agrees (or
  * `force`: the coordinator's END ROUND with timers off). `entryOf(stats,
- * round)` / `isDone(stats)` / `decidedBy(statsById, racers)` come from the
- * game's logic module.
+ * round, id)` / `isDone(stats)` / `decidedBy(statsById, racers, { now, round })`
+ * come from the game's logic module; a game whose result needs the other
+ * racers' stats (First Cut) reads them from `round.stats`.
  */
 export function finishRaceRound(cur, {
   gameType, roundId, now, entryOf, isDone = () => false, decidedBy = null,
@@ -370,10 +371,10 @@ export function finishRaceRound(cur, {
     offlineSince,
     endsAt: r.endsAt,
     now,
-    decided: !!decidedBy?.(r.stats, r.racers),
+    decided: !!decidedBy?.(r.stats, r.racers, { now, round: r }),
   })
   if (!ok) return undefined
-  const entries = r.racers.map(id => ({ id, ...entryOf(r.stats[id], r) }))
+  const entries = r.racers.map(id => ({ id, ...entryOf(r.stats[id], r, id) }))
   return applyRaceFinish(cur, buildRaceResult({ roundId: r.id, gameType, entries, now }))
 }
 

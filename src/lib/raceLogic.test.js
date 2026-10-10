@@ -332,6 +332,22 @@ describe('room transitions', () => {
     expect(off.status).toBe('finished')
   })
 
+  it('finishRaceRound hands the racer id and the round to entryOf, and the time to decidedBy', () => {
+    const live = startRaceRound(room(), { ...params, force: true })
+    live.round.stats = { r1: { a: { v: 3 }, b: { v: 7 } } }
+    const seenEntry = []
+    const seenDecided = []
+    const res = finishRaceRound(live, {
+      gameType: 'reaction', roundId: 'r1', now: 2000,
+      entryOf: (stats, round, id) => { seenEntry.push([id, round.id, stats?.v ?? null]); return { sortKey: [-(stats?.v ?? 0)], score: stats?.v ?? null } },
+      isDone,
+      decidedBy: (stats, racers, ctx) => { seenDecided.push([racers.length, ctx.now, ctx.round.id]); return true },
+    })
+    expect(res.status).toBe('finished')
+    expect(seenDecided).toEqual([[3, 2000, 'r1']])
+    expect(seenEntry).toEqual([['a', 'r1', 3], ['b', 'r1', 7], ['c', 'r1', null]])
+  })
+
   it('finishRaceRound ignores a stale round id or a finished room', () => {
     const live = startRaceRound(room(), { ...params, force: true })
     expect(finishRaceRound(live, { gameType: 'reaction', roundId: 'other', now: 1e12, entryOf, isDone })).toBeUndefined()
