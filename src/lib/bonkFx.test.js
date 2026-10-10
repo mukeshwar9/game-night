@@ -119,3 +119,24 @@ describe('words', () => {
     expect(tideChip({ ...staticView(), phase: 'play', tideLeft: -1 })).toEqual({ text: 'TIDE RISING', hot: true, warn: false })
   })
 })
+
+describe('hud', () => {
+  it('is stable across frames with the same facts and changes with the score', async () => {
+    const { hudOf, sameHud } = await import('./bonkFx')
+    const v = { ...staticView('humps'), phase: 'play', timer: 2, tideLeft: 7.2 }
+    const a = hudOf(v, { X: 'YOU', O: 'BOB' })
+    expect(sameHud(a, hudOf({ ...v, timer: 2.05 }, { X: 'YOU', O: 'BOB' }))).toBe(true)
+    expect(sameHud(a, hudOf({ ...v, score: [1, 0] }, { X: 'YOU', O: 'BOB' }))).toBe(false)
+    expect(a.tide.text).toBe('TIDE IN 8')
+    expect(a.hop).toEqual([1, 1])
+    expect(sameHud(null, null)).toBe(true)
+    expect(sameHud(a, null)).toBe(false)
+  })
+
+  it('charges the hop meter in steps while recharging', async () => {
+    const { hudOf } = await import('./bonkFx')
+    const v = staticView()
+    v.cars[0].hopCd = T.hopCooldown / 2
+    expect(hudOf(v, {}).hop[0]).toBeCloseTo(0.5, 1)
+  })
+})

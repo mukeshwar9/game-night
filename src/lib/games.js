@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, YachtIcon, FaceOffIcon, ChopChopIcon, StickyFingersIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, BonkBuggiesIcon, YachtIcon, FaceOffIcon, ChopChopIcon, StickyFingersIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -1410,6 +1410,17 @@ export const GAME_TYPES = [
     LocalPage: lazyWithRetry(() => import('../pages/StickyFingersDemo').then(m => ({ default: m.StickyFingersLocal }))),
   },
   {
+    type: 'bonkbuggies', label: 'BONK BUGGIES',
+    desc: 'bonk their helmet, save your own', Icon: BonkBuggiesIcon,
+    badge: 'BG', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 3, tags: ['skill', 'quick', 'frantic'], solo: true,
+    // Real-time physics duel (bonkLogic.js): X hosts the sim, first to 5 points.
+    custom: true, realtime: true, p2p: true,
+    Page: lazyWithRetry(() => import('../pages/BonkBuggiesGame')),
+  },
+  {
     type: 'artillery', label: 'ARTILLERY',
     desc: 'angle, power, bracket', Icon: ArtilleryIcon,
     badge: 'AR', maxWidth: 'max-w-md',
@@ -2161,6 +2172,7 @@ const FIELD_NULLS = {
   pairsDeck: null, pairsFlipped: null, pairsDeadline: null,
   mancalaPits: null, mancalaLast: null,
   airhockeyScoreX: null, airhockeyScoreO: null,
+  bonkScoreX: null, bonkScoreO: null,
   artillerySeed: null, artilleryShots: null,
   // BIRDSEYE duel: the fort being played and the append-only shot list.
   bsFort: null, bsShots: null,
@@ -2439,6 +2451,12 @@ export function freshGameState(gameType, previous = null) {
     // Realtime (pong family): the round lives in the host's sim, the room only
     // holds the standard winner/scores.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
+  }
+  if (gameType === 'bonkbuggies') {
+    // Realtime (pong family): the match lives in the host's sim; the room holds
+    // the points for spectators and the finished screen.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      bonkScoreX: 0, bonkScoreO: 0 }
   }
   if (gameType === 'airhockey') {
     // Realtime (pong family): currentTurn null, page drives its own audio.

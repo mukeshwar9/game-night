@@ -523,3 +523,29 @@ describe('Pig seed recovery and server-only nodes', () => {
     await assertFails(as(ALICE).ref('results/g1').set({ epoch: 2 }))
   })
 })
+
+describe('Bonk Buggies room keys', () => {
+  const live = (extra = {}) => gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { gameType: 'bonkbuggies', bonkScoreX: 0, bonkScoreO: 0, ...extra } })
+
+  it('lets the host publish points as they are scored and carry them into the finish', async () => {
+    await put('games/g1', live())
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ bonkScoreX: 3, bonkScoreO: 2 }))
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ status: 'finished', winner: 'X', 'scores/X': 1, bonkScoreX: 5, bonkScoreO: 2 }))
+  })
+
+  it('lets the guest write them too (either client may finish the round)', async () => {
+    await put('games/g1', live())
+    await assertSucceeds(as(BOB).ref('games/g1').update({ status: 'finished', winner: 'O', 'scores/O': 1, bonkScoreX: 1, bonkScoreO: 5 }))
+  })
+
+  it('clears them when the room switches to another game', async () => {
+    await put('games/g1', live({ bonkScoreX: 4, bonkScoreO: 1 }))
+    await assertSucceeds(as(BOB).ref('games/g1').update({ gameType: 'tictactoe', board: Array(9).fill(''), bonkScoreX: null, bonkScoreO: null }))
+  })
+
+  it('keeps outsiders and unknown keys out', async () => {
+    await put('games/g1', live())
+    await assertFails(as(MALLORY).ref('games/g1').update({ bonkScoreX: 5 }))
+    await assertFails(as(ALICE).ref('games/g1').update({ bonkScoreZ: 1 }))
+  })
+})

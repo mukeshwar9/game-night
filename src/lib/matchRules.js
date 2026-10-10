@@ -18,7 +18,7 @@ import { MATCH_TARGET as UPDRAFT_MATCH_TARGET } from './updraftConfig'
 // Real-time games where one round decides the match (page-level `matchWinner`
 // already uses scores ≥ 1; the parent's matchTarget must agree so the
 // "New Match" button supersedes "Play Again" once the round resolves).
-export const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
+export const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel', 'bonkbuggies'])
 
 // 2P co-op games: both seats share the result, so there is no winner/loser —
 // no DRAW overlay or win effect, no W/L stats, no night standings, no

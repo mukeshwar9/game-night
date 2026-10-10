@@ -800,6 +800,19 @@ export function StickyFingersIcon() {
   )
 }
 
+export function BonkBuggiesIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M2 21c3-2 6-2 9-1s7 1 11-1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+      <path d="M3 15h8l1.5-2h4L19 15h2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="6.5" cy="16.5" r="2.2" stroke="currentColor" strokeWidth="2" />
+      <circle cx="16.5" cy="16.5" r="2.2" stroke="currentColor" strokeWidth="2" />
+      <circle cx="9.5" cy="9" r="2.4" fill="currentColor" />
+      <path d="M17 3.5l.6 1.7 1.8.1-1.4 1.1.5 1.7-1.5-1-1.5 1 .5-1.7-1.4-1.1 1.8-.1z" fill="currentColor" opacity="0.8" />
+    </svg>
+  )
+}
+
 export function ArtilleryIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

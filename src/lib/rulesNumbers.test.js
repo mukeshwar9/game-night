@@ -32,6 +32,7 @@ import { INITIAL_PITS } from './mancalaLogic'
 import { WIN_SCORE as AIRHOCKEY_WIN } from './airhockeyLogic'
 import { PUCKS_EACH } from './puckrushLogic'
 import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS as STICKY_ROUND_S } from './stickyLogic'
+import { TARGET as BONK_TARGET, LID_GAP as BONK_LID_GAP, T as BONK_T } from './bonkLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
@@ -255,6 +256,7 @@ const RULE_NUMBERS = {
       [10, LAST_CALL_SECONDS], [60, STICKY_ROUND_S], [3, first('stickyfingers')],
     ],
   }),
+  bonkbuggies: () => ({ checks: [[10, BONK_T.tideStart], [BONK_LID_GAP, BONK_LID_GAP], [5, BONK_TARGET]] }),
   minigolf: () => ({
     checks: [[6, STROKE_CAP], [7, PICKUP_SCORE], ...players('minigolf', 2, 4), [4, cfg('minigolf').localMaxPlayers ?? cfg('minigolf').maxPlayers]],
     prose: [1], // "+1" water penalty, checked below

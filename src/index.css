@@ -2458,6 +2458,20 @@ html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter 
   to { transform: translate(150px, -70px) rotate(140deg); opacity: 0; }
 }
 
+/* Bonk Buggies: the banner stamps in over the arena, and a new point pip pops */
+@keyframes bonk-stamp {
+  0%   { transform: scale(1.7); opacity: 0; }
+  55%  { transform: scale(0.94); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes bonk-pip {
+  0%   { transform: scale(0.2); }
+  60%  { transform: scale(1.55); }
+  100% { transform: scale(1); }
+}
+.bonk-stamp { animation: bonk-stamp var(--dur-base) var(--ease-enter) both; }
+.bonk-pip { animation: bonk-pip var(--dur-page) var(--ease-enter) both; }
+
 /* Pig: a bust (rolling a 1) shakes the die briefly */
 @keyframes dice-bust {
   0%   { transform: translateX(0); }

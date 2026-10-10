@@ -304,7 +304,7 @@ export function makeBot(level = 'normal', rng = Math.random) {
     const dx = fp.x - p.x
     const dy = fp.y - p.y
     const lean = a + 0.22 * w
-    let d = 0
+    let d
     let hop = false
     if (!me.ground) d = Math.abs(lean) > 0.12 ? (lean > 0 ? -1 : 1) : 0
     else if (Math.abs(lean) > 0.85 * L.guard + (1 - L.guard)) d = lean > 0 ? -1 : 1

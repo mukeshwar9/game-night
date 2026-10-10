@@ -190,3 +190,32 @@ export function bannerFor(view, names) {
   }
   return null
 }
+
+// ─── what React needs ────────────────────────────────────────────────────────
+const HOP_STEPS = 24
+
+/**
+ * The slow-changing facts the HUD renders: phase, score, the banner, the tide
+ * chip, who holds a spare lid, and each pad's hop charge in 1/24ths. The page
+ * keeps the last one and only sets state when sameHud() says it changed, so a
+ * 60 Hz view does not become a 60 Hz React render.
+ */
+export function hudOf(view, names) {
+  return {
+    phase: view.phase,
+    round: view.round,
+    score: view.score,
+    arena: view.arena,
+    banner: bannerFor(view, names),
+    tide: tideChip(view),
+    lids: view.cars.map((c) => c.shield),
+    hop: view.cars.map((c) => Math.round((1 - Math.min(1, Math.max(0, c.hopCd / T.hopCooldown))) * HOP_STEPS) / HOP_STEPS),
+    pick: view.pick ? { by: view.pick.by, options: view.pick.options, secs: Math.ceil(view.pick.left) } : null,
+    winner: view.winner,
+  }
+}
+
+export function sameHud(a, b) {
+  if (!a || !b) return a === b
+  return JSON.stringify(a) === JSON.stringify(b)
+}

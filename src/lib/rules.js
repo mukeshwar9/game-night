@@ -373,6 +373,17 @@ export const GAME_RULES = {
     win: 'Most loot after 60 seconds wins the round. First to 3 rounds wins the match.',
   },
 
+  bonkbuggies: {
+    objective: 'Touch the other driver\'s helmet with your buggy, and keep your own helmet off the ground.',
+    howToPlay: [
+      'Hold LEFT or RIGHT to drive. In the air the same buttons tilt your buggy, so use them to land on your wheels.',
+      'Any part of your buggy touching their helmet wins the round. Your own helmet touching the ground, a plank or a wall gives them the point.',
+      'Holding both buttons fires a hop jet that recharges in a couple of seconds. After 10 seconds the tide rises: stay on high ground.',
+      'Trailing by 2 points earns a spare lid that soaks one hit. The player who just lost chooses the next arena.',
+    ],
+    win: 'First to 5 points wins the match.',
+  },
+
   airhockey: {
     objective: 'Flick the puck past your rival seven times.',
     howToPlay: [
