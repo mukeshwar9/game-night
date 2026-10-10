@@ -92,7 +92,11 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
     for (const { page } of [alice, bob]) {
       const dots = page.getByTestId('sidekick-rail').locator('span.rounded-full')
       await expect(dots).toHaveCount(4)
-      await expect.poll(async () => (await dots.evaluateAll((els) => els.map((el) => parseFloat(el.style.left.match(/\* ([\d.]+)/)?.[1] ?? '0')))).every((v) => v > 0.02), { timeout: 20_000 }).toBe(true)
+      // Chrome folds the inline calc() into a percentage plus pixels, so measure where the dots sit.
+      await expect.poll(async () => dots.evaluateAll((els) => {
+        const rail = els[0].parentElement.getBoundingClientRect()
+        return els.every((el) => el.getBoundingClientRect().left - rail.left > 5)
+      }), { timeout: 20_000 }).toBe(true)
     }
   })
 
