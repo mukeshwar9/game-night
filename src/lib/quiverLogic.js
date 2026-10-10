@@ -131,8 +131,8 @@ function rand(s) {
 
 /**
  * @param {{ players?: number, bots?: Array<string|null>, seed?: number,
- *   countIn?: number, shave?: boolean, items?: boolean, sight?: boolean,
- *   coop?: boolean }} [opts]
+ *   countIn?: number, banner?: boolean, shave?: boolean, items?: boolean,
+ *   sight?: boolean, coop?: boolean }} [opts]
  */
 export function createState(opts = {}) {
   const n = clamp(Math.round(opts.players ?? 2), MIN_PLAYERS, MAX_PLAYERS)
@@ -164,7 +164,8 @@ export function createState(opts = {}) {
     cleared: true,       // co-op: every star on this wheel was taken
   }
   dealWheel(s)
-  s.pause = 0          // the count-in is the first wheel's banner
+  // The count-in is the first wheel's banner; with none, `banner` keeps it.
+  if (!opts.banner) s.pause = 0
   return s
 }
 
@@ -221,7 +222,8 @@ export function canFire(s, i) {
 }
 
 const starsLeft = (s) => s.items.reduce((n, it) => n + (it.kind === 'star' || it.kind === 'gold' ? 1 : 0), 0)
-const teamScore = (s) => s.players.reduce((n, p) => n + p.score, 0)
+/** Co-op: the stars the whole team has taken. */
+export const teamScore = (s) => s.players.reduce((n, p) => n + p.score, 0)
 
 // ── landing ─────────────────────────────────────────────────────────────────
 

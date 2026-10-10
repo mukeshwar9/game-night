@@ -34,6 +34,7 @@ import { PUCKS_EACH } from './puckrushLogic'
 import { VALUES as STICKY_VALUES, DYE_PENALTY, LAST_CALL_SECONDS, ROUND_SECONDS as STICKY_ROUND_S } from './stickyLogic'
 import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FENDER_SQUEEZE, GHOST_DELAY as FENDER_GHOST, MATCH_TARGETS as FENDER_TARGETS } from './fenderLogic'
 import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
+import { QUIVER, GOLD_VALUE, WHEELS as QUIVER_WHEELS, WHEEL_SECONDS as QUIVER_WHEEL_S, HEARTS as QUIVER_HEARTS } from './quiverLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import { FACE_COUNT, QUESTIONS as FACEOFF_QUESTIONS } from './faceoffLogic'
 import {
@@ -279,6 +280,13 @@ const RULE_NUMBERS = {
       [1, SUSAN.dumplingValue], [3, SUSAN.bunValue], [1, SUSAN.missPenalty], [2, SUSAN.hotPenalty],
       [15, SUSAN_TARGETS[2]], [12, SUSAN_TARGETS[3]], [10, SUSAN_TARGETS[4]],
     ],
+  }),
+  quiver: () => ({
+    checks: [
+      [8, QUIVER[2]], [6, QUIVER[3]], [5, QUIVER[4]], [2, 2], [3, 3], [4, 4], [3, GOLD_VALUE],
+      [15, QUIVER_WHEEL_S], [3, QUIVER_WHEELS], [3, QUIVER_HEARTS], [3, first('quiver')],
+    ],
+    prose: [1], // a star, a clink and a close shave are each worth one point (quiverLogic.test.js)
   }),
   minigolf: () => ({
     checks: [[6, STROKE_CAP], [7, PICKUP_SCORE], ...players('minigolf', 2, 4), [4, cfg('minigolf').localMaxPlayers ?? cfg('minigolf').maxPlayers]],

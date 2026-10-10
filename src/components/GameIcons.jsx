@@ -836,6 +836,18 @@ export function FenderBenderIcon() {
   )
 }
 
+export function QuiverIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="15" cy="9" r="6.5" stroke="currentColor" strokeWidth="2" />
+      <circle cx="15" cy="9" r="2.6" stroke="currentColor" strokeWidth="2" opacity="0.6" />
+      <path d="M2.5 21.5L11.2 12.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M2.5 21.5l.2-3.6M2.5 21.5l3.6-.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M11.2 12.8l-.5-2.4M11.2 12.8l2.4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function ArtilleryIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

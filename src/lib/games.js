@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, LazySusanIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, QuiverIcon, LazySusanIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -1415,6 +1415,21 @@ export const GAME_TYPES = [
     LocalPage: lazyWithRetry(() => import('../pages/StickyFingersDemo').then(m => ({ default: m.StickyFingersLocal }))),
   },
   {
+    type: 'quiver', label: 'QUIVER',
+    desc: 'a limited quiver, one spinning wheel, everyone shoots at once', Icon: QuiverIcon,
+    badge: 'QV', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 4, tags: ['skill', 'quick'], solo: true,
+    // Online is a 2-player duel on the pong family's peer-to-peer transport
+    // (X hosts the sim). Solo against 1–3 bots (or as a team against the
+    // wheel) and 2–4 people on one phone run the same sim offline:
+    // /solo/quiver and /local/quiver.
+    custom: true, realtime: true, p2p: true, localMaxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/QuiverGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/QuiverDemo').then(m => ({ default: m.QuiverLocal }))),
+  },
+  {
     type: 'fenderbender', label: 'FENDER BENDER',
     desc: 'shove rivals off the road · up to 4 on one phone', Icon: FenderBenderIcon,
     badge: 'FD', maxWidth: 'max-w-md',
@@ -2506,7 +2521,7 @@ export function freshGameState(gameType, previous = null) {
       board: Array(YV_CELL_COUNT).fill(''),
       currentTurn: 'X' }
   }
-  if (gameType === 'stickyfingers' || gameType === 'fenderbender') {
+  if (gameType === 'stickyfingers' || gameType === 'fenderbender' || gameType === 'quiver') {
     // Realtime (pong family): the round lives in the host's sim, the room only
     // holds the standard winner/scores.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }

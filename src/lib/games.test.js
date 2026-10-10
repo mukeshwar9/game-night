@@ -119,12 +119,14 @@ describe('supportsLocalPlay', () => {
     'minigolf', 'darts', 'lazysusan',
     // realtime online duel whose LocalPage seats 2-4 people on one phone
     'fenderbender',
+    // realtime online duel whose LocalPage seats 2-4 people on one phone
+    'quiver',
     // custom online duel that keeps its turn-based board for pass-and-play (localBoard)
     'visualmemory',
   ]
 
-  it('is true for all 41 eligible games (33 registry boards + seven custom LocalPages + one localBoard)', () => {
-    expect(LOCAL_TYPES).toHaveLength(41)
+  it('is true for all 42 eligible games (33 registry boards + eight custom LocalPages + one localBoard)', () => {
+    expect(LOCAL_TYPES).toHaveLength(42)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }

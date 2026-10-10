@@ -2458,6 +2458,25 @@ html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter 
   to { transform: translate(150px, -70px) rotate(140deg); opacity: 0; }
 }
 
+/* Quiver: the domed arcade button at each seat. The colour is the seat's own
+   theme token (--pad), lit from the top left; the wheel itself is on a canvas. */
+.quiver-pad {
+  background:
+    radial-gradient(circle at 34% 26%, rgb(255 255 255 / .55), rgb(255 255 255 / 0) 46%),
+    radial-gradient(circle at 62% 80%, rgb(0 0 0 / .38), rgb(0 0 0 / 0) 62%),
+    rgb(var(--pad));
+  border: 4px solid rgb(var(--c-structure));
+  box-shadow:
+    inset 0 -3px 8px rgb(0 0 0 / .45),
+    inset 0 2px 3px rgb(255 255 255 / .3),
+    0 4px 0 rgb(var(--c-deep)),
+    0 7px 10px rgb(0 0 0 / .4);
+}
+.quiver-pad[data-live='false'] { filter: saturate(.45) brightness(.7); }
+.quiver-pad[data-stun='true'] { filter: grayscale(1) brightness(.6); }
+.quiver-pad[data-pop='true'] .quiver-pad-score { transform: scale(1.3); }
+.quiver-pad-score { transition: transform var(--dur-fast) var(--ease-standard); }
+
 /* Pig: a bust (rolling a 1) shakes the die briefly */
 @keyframes dice-bust {
   0%   { transform: translateX(0); }
