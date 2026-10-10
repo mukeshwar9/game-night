@@ -362,11 +362,11 @@ function stepRider(world, r, input) {
       r.speed = MAXSPD * (r.cu ? REMOUNT_SPD_BEHIND : REMOUNT_SPD)
       r.shield = SHIELD; r.pips = PIPS; r.strain = 0
       r.x = clamp(r.x, -0.85, 0.85); r.vx = 0
-      world.events.push({ t: 'up', to: r.i })
+      world.events.push({ t: 'up', to: r.i, catchUp: r.cu > 0 })
     }
     return
   }
-  let steer = 0
+  let steer
   if (r.done) steer = clamp((r.tx - r.x) * 4, -1, 1)
   else if (r.bot) steer = botDrive(world, r)
   else {

@@ -882,6 +882,19 @@ export function QuiverIcon() {
   )
 }
 
+export function SideKickIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 22L8 3M21 22L16 3" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+      <rect x="9.5" y="14" width="5" height="8" rx="2.2" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 14V9.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="12" cy="6.4" r="2.6" fill="currentColor" opacity="0.85" />
+      <path d="M12.4 11.6l4.2 1.6 3.6-1.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20.6 9.4l1.2 3.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function ArtilleryIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

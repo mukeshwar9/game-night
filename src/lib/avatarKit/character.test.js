@@ -57,7 +57,7 @@ describe('part art', () => {
 
 describe('rendering', () => {
   it('draws a tile with transparent rounded corners in both views', () => {
-    for (const view of ['bust', 'hero']) {
+    for (const view of ['bust', 'hero', 'back']) {
       const px = renderPixels(DEFAULTS, view)
       expect(px).toHaveLength(W * H)
       expect(px[0]).toBeNull()
@@ -77,7 +77,7 @@ describe('rendering', () => {
   it('every option of every field renders without throwing, in both views', () => {
     for (const f of FIELDS) {
       for (const id of optionsFor(f.key)) {
-        for (const view of ['bust', 'hero']) {
+        for (const view of ['bust', 'hero', 'back']) {
           const px = renderPixels({ ...DEFAULTS, [f.key]: id }, view, { t: 0.4 })
           expect(count(px), `${f.key}=${id} ${view}`).toBeGreaterThan(200)
         }
@@ -131,6 +131,51 @@ describe('rendering', () => {
     expect(Object.keys(BACKGROUNDS).length).toBeGreaterThan(5)
     expect(Object.keys(FRAMES).length).toBeGreaterThan(5)
     expect(hat.halo.anim && hair.bald && pets.duck).toBeTruthy()
+  })
+})
+
+describe('the back view', () => {
+  const FACE = ['eyes', 'brows', 'nose', 'mouth', 'marks', 'beard', 'glasses', 'extra']
+
+  it('is the same character from behind: outlined, tile-less, and not the front', () => {
+    const back = renderPixels(DEFAULTS, 'back', { tile: false })
+    const front = renderPixels(DEFAULTS, 'bust', { tile: false })
+    expect(count(back)).toBeGreaterThan(150)
+    expect(back).not.toEqual(front)
+    expect(back[0]).toBeNull()
+  })
+
+  it('shows no face: no face part changes a single pixel', () => {
+    const base = renderPixels(DEFAULTS, 'back', { tile: false, t: 0.35 })
+    for (const key of FACE) {
+      for (const id of optionsFor(key)) {
+        // Hats and hair hide parts of the head, never the other way round.
+        expect(renderPixels({ ...DEFAULTS, [key]: id }, 'back', { tile: false, t: 0.35 }), `${key}=${id}`).toEqual(base)
+      }
+    }
+  })
+
+  it('fills the back of the head in the hair colour, and a hat covers it', () => {
+    const bald = renderPixels({ ...DEFAULTS, hair: 'bald', hat: 'none' }, 'back', { tile: false })
+    const haired = renderPixels({ ...DEFAULTS, hair: 'crop', hat: 'none' }, 'back', { tile: false })
+    expect(haired).not.toEqual(bald)
+  })
+
+  it('renders every hair with every hat, with the character kept on the tile', () => {
+    for (const hr of optionsFor('hair')) {
+      for (const h of optionsFor('hat')) {
+        const px = renderPixels({ ...DEFAULTS, hair: hr, hat: h }, 'back', { tile: false, t: 0.2 })
+        expect(count(px), `hair=${hr} hat=${h}`).toBeGreaterThan(150)
+        expect(count(px), `hair=${hr} hat=${h}`).toBeLessThan(W * H * 0.8)
+      }
+    }
+  })
+
+  it('is deterministic, is not animated by default looks, and takes the outfit colours', () => {
+    expect(renderPixels(DEFAULTS, 'back', { t: 0.3 })).toEqual(renderPixels(DEFAULTS, 'back', { t: 0.3 }))
+    const a = renderPixels({ ...DEFAULTS, topColor: 'red' }, 'back', { tile: false })
+    const b = renderPixels({ ...DEFAULTS, topColor: 'blue' }, 'back', { tile: false })
+    expect(a).not.toEqual(b)
   })
 })
 

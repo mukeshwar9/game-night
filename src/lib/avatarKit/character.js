@@ -9,8 +9,8 @@ import { applyPart, selOut, paintTile, resolve, BACKGROUNDS, FRAMES, W, H } from
 import { PREMIUM_RAMPS } from './palette.js'
 import { HEAD, eyes, brows, nose, mouth, marks, beard, hair, hat, glasses, extra, tops, outfits, OUTFITS, POSES, pets } from './art.js'
 
-export const VIEWS = /** @type {const} */ (['bust', 'hero'])
-/** @typedef {'bust' | 'hero'} View */
+export const VIEWS = /** @type {const} */ (['bust', 'hero', 'back'])
+/** @typedef {'bust' | 'hero' | 'back'} View */
 
 /** Part catalogs by config key. Their key order is wire format (catalog.js). */
 export const PART_CATALOGS = /** @type {Record<string, Record<string, any>>} */ ({
@@ -56,6 +56,39 @@ function drawFace(/** @type {any} */ cfg, /** @type {ReturnType<typeof drawHead>
 }
 
 /**
+ * The bust seen from behind, for scenes where the camera follows the character
+ * (SIDE KICK's riders). The kit only draws fronts, so this one is made by rule
+ * from the same parts: same top, same head shape, no face; the back of the head
+ * is filled in the hair colour (unless bald or fully hidden by a hat), the
+ * fringe keeps its outline, long hair falls over the shoulders, a hat stays.
+ * Outfit detail on the back is the front detail mirrored. Mirrored left-right so
+ * the character's own left stays on the viewer's left.
+ * @param {any} cfg @param {number} t
+ */
+function composeBack(cfg, t) {
+  const buf = new Array(W * H).fill(null)
+  const o = OUTFITS[cfg.outfit] || OUTFITS.casual
+  const body = { p: cfg.topColor, s: cfg.bottomColor, shoes: cfg.shoeColor, skin: cfg.skin }
+  const c = drawHead(cfg, buf, t, 5, 4)
+  const { slots, Hr, hw, hide, HX, HY } = c
+  const tp = tops[o.bust] || tops.tee
+  applyPart(buf, { ...tp, map: { ...tp.map, ...o.bustMap } }, body, 0, 0, fr(tp, t))
+  applyPart(buf, { ...HEAD, x: HX, y: HY }, slots)
+  if (Hr.front && hide !== 'all') {
+    // The crown and nape: the upper head again in the hair colour.
+    applyPart(buf, { ...HEAD, rows: HEAD.rows.map((/** @type {string} */ r, /** @type {number} */ i) => (i < 9 ? r : '')), x: HX, y: HY }, { ...slots, skin: cfg.hairColor })
+    const rows = hide === 'top' ? Hr.front.rows.map((/** @type {string} */ r, /** @type {number} */ i) => (i < 5 ? '' : r)) : Hr.front.rows
+    applyPart(buf, { ...Hr.front, rows, x: HX - 1, y: HY - 3 }, slots)
+  }
+  drawHairBack(c)
+  if (hw && (hw.rows || hw.frames)) applyPart(buf, { ...hw, x: HX - 1, y: HY - 3 }, slots, 0, 0, fr(hw, t))
+  const layer = selOut(buf)
+  const out = new Array(W * H).fill(null)
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) out[y * W + x] = layer[y * W + (W - 1 - x)]
+  return out
+}
+
+/**
  * Compose the outlined character layer.
  * @param {any} cfg @param {View} view @param {number} [t] @param {string} [pose]
  */
@@ -63,6 +96,7 @@ export function composeLayer(cfg, view, t = 0, pose) {
   const buf = new Array(W * H).fill(null)
   const o = OUTFITS[cfg.outfit] || OUTFITS.casual
   const slots = { p: cfg.topColor, s: cfg.bottomColor, shoes: cfg.shoeColor, skin: cfg.skin }
+  if (view === 'back') return composeBack(cfg, t)
   if (view === 'bust') {
     const c = drawHead(cfg, buf, t, 5, 4)
     drawHairBack(c)

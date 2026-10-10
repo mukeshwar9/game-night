@@ -304,6 +304,44 @@ export const sounds = {
     vibrate(60)
   },
   fenderHorn: () => { seq([[392, 0, 0.26, 'square', 0.07], [494, 0, 0.26, 'square', 0.07]]); vibrate(15) },
+  // SIDE KICK: the swing, a kick you land, a kick you take, a fall, the pop of
+  // unseating someone, the boost, the remount, the oil, the countdown and the flag.
+  sideKickCount: () => { seq([[440, 0, 0.14, 'square', 0.07]]) },
+  sideKickGo: () => { seq([[880, 0, 0.35, 'square', 0.08]]); vibrate(40) },
+  sideKickSwing: () => { try { noise(ctx().currentTime, 0.12, 0.08, 1800) } catch { /* audio unavailable */ } },
+  sideKickHit: () => {
+    try { noise(ctx().currentTime, 0.09, 0.1, 500) } catch { /* audio unavailable */ }
+    seq([[150, 0, 0.08, 'square', 0.1], [90, 0.06, 0.08, 'square', 0.08]])
+    vibrate(25)
+  },
+  sideKickHurt: () => {
+    seq([[110, 0, 0.1, 'sawtooth', 0.1], [70, 0.08, 0.14, 'sawtooth', 0.08]])
+    vibrate([0, 40, 30, 40])
+  },
+  sideKickFall: () => {
+    try { noise(ctx().currentTime, 0.5, 0.14, 240) } catch { /* audio unavailable */ }
+    seq([[220, 0, 0.2, 'sawtooth', 0.08], [110, 0.12, 0.2, 'sawtooth', 0.07], [45, 0.26, 0.26, 'sawtooth', 0.07]])
+    vibrate([0, 80, 40, 120])
+  },
+  sideKickPop: () => { seq([[523, 0, 0.1, 'square', 0.07], [784, 0.09, 0.16, 'square', 0.07]]) },
+  sideKickBoost: () => {
+    try { noise(ctx().currentTime, 0.35, 0.09, 700) } catch { /* audio unavailable */ }
+    seq([[180, 0, 0.14, 'sawtooth', 0.06], [340, 0.12, 0.14, 'sawtooth', 0.06], [520, 0.24, 0.16, 'sawtooth', 0.05]])
+    vibrate(30)
+  },
+  sideKickUp: (catchUp = false) => {
+    seq(catchUp
+      ? [[330, 0, 0.12, 'triangle', 0.07], [660, 0.11, 0.14, 'square', 0.06], [990, 0.22, 0.14, 'square', 0.05]]
+      : [[330, 0, 0.12, 'triangle', 0.07], [495, 0.1, 0.12, 'triangle', 0.06]])
+  },
+  sideKickOil: () => {
+    try { noise(ctx().currentTime, 0.3, 0.07, 900) } catch { /* audio unavailable */ }
+    vibrate(20)
+  },
+  sideKickFinish: () => {
+    seq([[523, 0, 0.18, 'square', 0.07], [659, 0.11, 0.18, 'square', 0.07], [784, 0.22, 0.18, 'square', 0.07], [1047, 0.33, 0.3, 'square', 0.08]])
+    vibrate([0, 30, 40, 30, 40, 90])
+  },
   // Animal Stack: rotate tick, release blip, landing thud scaled by impact,
   // topple sting, and the last-5-seconds timer tick.
   stackRotate: () => { seq([[880, 0, 0.03, 'square', 0.04]]); vibrate(4) },
