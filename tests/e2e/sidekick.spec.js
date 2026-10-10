@@ -97,7 +97,7 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
       const all = await stats()
       const a = all[aliceUid]
       const b = all[bobUid]
-      if (!a || !b || a.s || b.s || b.sh || Math.abs(a.z - b.z) > 500) { await alice.page.waitForTimeout(100); continue }
+      if (!a || !b || a.s || b.s || b.sh || Math.abs(a.z - b.z) > 650) { await alice.page.waitForTimeout(100); continue }
       await patch(alice.page.url(), `/round/stats/${rid}/${aliceUid}/k`, { [n]: `${bobUid}|1` })
       for (let t = 0; t < 8 && !landed; t++) {
         await alice.page.waitForTimeout(150)
