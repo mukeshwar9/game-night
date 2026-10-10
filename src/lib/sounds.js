@@ -340,6 +340,20 @@ export const sounds = {
   stickyDye: () => { seq([[160, 0, 0.28, 'sawtooth', 0.11], [110, 0.1, 0.25, 'sawtooth', 0.08]]); vibrate([0, 40, 50, 40]) },
   stickyTick: () => { seq([[660, 0, 0.05, 'square', 0.05]]) },
   stickyLast: () => { seq([[660, 0, 0.07, 'square', 0.08], [990, 0.08, 0.14, 'square', 0.08]]); vibrate([0, 20, 40, 20]) },
+  // Quiver: the throw's whoosh, an arrow biting into the wheel, a clink off a
+  // stuck arrow, stars (gold and bomb are bigger), the wheel reversing, the
+  // wheel clock's last-seconds tick and the sting for a fresh wheel.
+  quiverThrow: () => { seq([[620, 0, 0.1, 'sawtooth', 0.03]]); vibrate(5) },
+  quiverStick: () => { seq([[190, 0, 0.09, 'triangle', 0.1], [900, 0, 0.03, 'square', 0.02]]); vibrate(8) },
+  quiverClink: () => { seq([[1800, 0, 0.05, 'square', 0.05], [140, 0.02, 0.2, 'sawtooth', 0.06]]); vibrate([0, 25, 30, 25]) },
+  quiverStar: (big = false) => {
+    seq(big ? [[784, 0, 0.1, 'square', 0.06], [1175, 0.08, 0.12, 'square', 0.06], [1568, 0.18, 0.3, 'square', 0.06]] : [[880, 0, 0.09, 'square', 0.05], [1320, 0.07, 0.14, 'square', 0.04]])
+    vibrate(big ? 16 : 8)
+  },
+  quiverBomb: () => { seq([[110, 0, 0.45, 'sawtooth', 0.12], [60, 0.05, 0.5, 'square', 0.1]]); try { noise(ctx().currentTime, 0.3, 0.1, 500) } catch { /* audio unavailable */ } vibrate([0, 50, 40, 70]) },
+  quiverFlip: () => { seq([[330, 0, 0.2, 'triangle', 0.08], [660, 0.1, 0.18, 'triangle', 0.06]]); vibrate(10) },
+  quiverTick: () => { seq([[660, 0, 0.05, 'square', 0.05]]) },
+  quiverWheel: () => { seq([[240, 0, 0.25, 'triangle', 0.07], [520, 0.12, 0.2, 'triangle', 0.06]]) },
   // Archery: draw, loose and hit taps (shell only, behind the HAPTICS switch).
   archeryDraw: () => { seq([[520, 0, 0.035, 'sine', 0.04]]); vibrate(4) },
   archeryLoose: () => { seq([[760, 0, 0.045, 'triangle', 0.08], [1120, 0.035, 0.06, 'sine', 0.05]]); vibrate(8) },

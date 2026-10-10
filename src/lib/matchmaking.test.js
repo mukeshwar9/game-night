@@ -25,7 +25,7 @@ describe('matchmaking helpers', () => {
     expect(normalizePublicRooms({ A: valid, F: future, L: longLived, S: soon }, now).map(r => r.gameId)).toEqual(['A', 'S'])
   })
   it('keeps peer-to-peer real-time games out of the public lobby', () => {
-    for (const type of ['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'paint', 'pacmac', 'airhockey', 'puckrush', 'stickyfingers', 'fenderbender', 'bonkbuggies']) {
+    for (const type of ['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'paint', 'pacmac', 'airhockey', 'puckrush', 'stickyfingers', 'fenderbender', 'bonkbuggies', 'quiver']) {
       expect(isPublicGameType(type)).toBe(false)
       expect(getPublicGameTypes().some(g => g.type === type)).toBe(false)
     }

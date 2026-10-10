@@ -121,6 +121,8 @@ describe('supportsLocalPlay', () => {
     'minigolf', 'darts', 'lazysusan',
     // realtime online duel whose LocalPage seats 2-4 people on one phone
     'fenderbender',
+    // realtime online duel whose LocalPage seats 2-4 people on one phone
+    'quiver',
     // custom online duel that keeps its turn-based board for pass-and-play (localBoard)
     'visualmemory',
   ]

@@ -420,6 +420,18 @@ export const GAME_RULES = {
     win: 'The last car rolling takes the round. Two cars: first to 3 rounds wins. With three or four cars you score a point for every rival you outlast; first to 5 with three cars, 7 with four.',
   },
 
+  quiver: {
+    objective: 'Shoot arrows into a spinning wheel and take the stars on its rim without hitting an arrow that is already stuck there.',
+    howToPlay: [
+      'Everyone shoots at once. Tap your button and an arrow flies down your lane to the hub. It lands on whatever part of the rim faces your lane when it arrives, so aim ahead of the spin.',
+      'Your quiver holds 8 arrows with 2 players, 6 with 3 and 5 with 4. After each shot your button reloads for a moment.',
+      'A star is worth 1 and the gold star 3. Landing on a stuck arrow is a clink: it costs 1 and locks your button for a moment. Landing just beside a stuck arrow without touching it is a close shave worth 1.',
+      'A bomb blows every stuck arrow off the rim and a reverse token turns the wheel the other way. Whoever is furthest behind sees where an arrow shot now would land.',
+      'A wheel ends when its stars are gone, the quivers are empty or 15 seconds have passed. Team up and you share one set of 3 hearts: a clink or a wheel with a star left on it costs one.',
+    ],
+    win: 'Most stars after 3 wheels wins the round, and a tie plays sudden death for one star. First to 3 rounds wins the match.',
+  },
+
   airhockey: {
     objective: 'Flick the puck past your rival seven times.',
     howToPlay: [
