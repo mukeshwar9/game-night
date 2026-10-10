@@ -63,10 +63,6 @@ test('First Cut: one plate for both racers, a block, and the first to five takes
     }).toBeGreaterThan(0)
   })
 
-  await test.step('Alice cuts fruit until she has five', async () => {
-    await cutUntil(alice.page, 'Space', FC_ONLINE_TARGET)
-  })
-
   await test.step('Bob goes full screen (focus mode) and the table stays playable, Esc leaves', async () => {
     await bob.page.getByTestId('focus-enter').click()
     const stage = bob.page.locator('[data-focus-stage]')
@@ -76,6 +72,10 @@ test('First Cut: one plate for both racers, a block, and the first to five takes
     await bob.page.keyboard.press('Escape')
     await expect(stage).toHaveCount(0)
     await expect(bob.page.locator('.fc-arena')).toBeVisible()
+  })
+
+  await test.step('Alice cuts fruit until she has five', async () => {
+    await cutUntil(alice.page, 'Space', FC_ONLINE_TARGET)
   })
 
   await test.step('both screens show the round result the room recorded', async () => {
