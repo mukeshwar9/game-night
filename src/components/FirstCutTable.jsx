@@ -110,11 +110,11 @@ const FirstCutTable = forwardRef(function FirstCutTable({
 
       <div className="fc-plate">
         {splash && (
-          <div key={splash.n} className="fc-splat" style={{ '--sc': splash.color.join(' '), '--sr': `${splash.rot}deg` }} />
+          <div key={`splat${splash.n}`} className="fc-splat" style={{ '--sc': splash.color.join(' '), '--sr': `${splash.rot}deg` }} />
         )}
         {item && (
           <div
-            key={item.i}
+            key={`item${item.i}`}
             className={cn('fc-item', item.gold && 'fc-gold', thudNow ? (thudNow % 2 ? 'fc-thud-a' : 'fc-thud-b') : '')}
             data-item={item.id}
             data-index={item.i}
@@ -138,7 +138,7 @@ const FirstCutTable = forwardRef(function FirstCutTable({
           </div>
         )}
         {entry?.kind === 'beat' && (
-          <div key={entry.i} className="fc-beat">NEW CARD<br />{rule?.label}</div>
+          <div key={`beat${entry.i}`} className="fc-beat">NEW CARD<br />{rule?.label}</div>
         )}
       </div>
 
